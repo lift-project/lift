@@ -5,7 +5,7 @@ import java.security.MessageDigest
 
 import lift.arithmetic._
 import ir.ast._
-import ir.{ArrayType, Type, TypeException}
+import ir.{ArrayType, ArrayTypeWS, Type, TypeException}
 import opencl.ir.ast.OpenCLBuiltInFun
 
 import scala.sys.process._
@@ -122,13 +122,21 @@ object Utils {
   }
 
   def getLengthOfSecondDim(t: Type) = t match {
-    case ArrayType(ArrayType(_, m), _) => m
-    case _ => throw new TypeException(t, "ArrayType(ArrayType(_, _), _)")
+    case ArrayType(ArrayTypeWS(_, m)) => m
+    case _ => throw new TypeException(t, "ArrayType(ArrayType(), _)")
   }
 
   def validSplitVariable(t: Type): ArithExpr = {
     t match {
-      case ArrayType(_, len) => Var(RangeMul(Cst(1), len, Cst(2)))
+      case ArrayTypeWS(_, len) => Var(RangeMul(Cst(1), len, Cst(2)))
+      case _ => throw new TypeException(t, "ArrayType")
+    }
+  }
+
+  def validSlideStep(t: Type, overlap: ArithExpr): ArithExpr = {
+    t match {
+      case ArrayTypeWS(_, s) =>
+        Var(RangeMul(Cst(1), s - overlap, Cst(2)))
       case _ => throw new TypeException(t, "ArrayType")
     }
   }

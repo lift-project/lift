@@ -6,8 +6,8 @@ import lift.arithmetic._
 import ir.Type
 import ir.ast._
 import ir.view._
+import opencl.generator.NDRange
 import opencl.generator.OpenCLAST.VarRef
-import opencl.generator.OpenCLGenerator.NDRange
 import opencl.ir.pattern.{MapGlb, MapLcl}
 
 import scala.collection.immutable
@@ -16,8 +16,8 @@ import scala.collection.immutable
 object AccessPatterns {
 
   def apply(lambda: Lambda,
-    localSize: NDRange = Array(?,?,?),
-    globalSize: NDRange = Array(?,?,?),
+    localSize: NDRange = NDRange(?,?,?),
+    globalSize: NDRange = NDRange(?,?,?),
     valueMap: SubstitutionMap = collection.immutable.Map()
   ) = new AccessPatterns(lambda, localSize, globalSize, valueMap)
 

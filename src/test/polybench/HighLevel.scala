@@ -1,9 +1,9 @@
 package polybench
 
-import lift.arithmetic.SizeVar
 import benchmarks.GESUMMV
-import ir.ArrayType
+import ir.ArrayTypeWSWC
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
@@ -31,8 +31,8 @@ class HighLevel {
   val K = SizeVar("K")
 
   val mm = fun(
-    ArrayType(ArrayType(Float, K), N),
-    ArrayType(ArrayType(Float, M), K),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K),
     (A, B) => {
       MapGlb(fun( aRow =>
         MapSeq(fun( bCol =>
@@ -45,8 +45,8 @@ class HighLevel {
     })
 
   val mv = fun(
-    ArrayType(ArrayType(Float, K), N),
-    ArrayType(Float, K),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+    ArrayTypeWSWC(Float, K),
     (matrix, vector) =>
       MapGlb(fun(row => toGlobal(MapSeq(id)) o
         ReduceSeq(fun((acc, y) =>
@@ -56,8 +56,8 @@ class HighLevel {
   )
 
   val mvAlpha = fun(
-    ArrayType(ArrayType(Float, K), N),
-    ArrayType(Float, K),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+    ArrayTypeWSWC(Float, K),
     Float,
     (matrix, vector, alpha) =>
       MapGlb(fun(row => toGlobal(MapSeq(id)) o
@@ -69,9 +69,9 @@ class HighLevel {
   )
 
   val gemvKernel = fun(
-    ArrayType(ArrayType(Float, M), N),
-    ArrayType(Float, M),
-    ArrayType(Float,N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+    ArrayTypeWSWC(Float, M),
+    ArrayTypeWSWC(Float,N),
     Float,
     Float,
     (matrix, vectorX, vectorY, alpha, beta) => {
@@ -86,9 +86,9 @@ class HighLevel {
     })
 
   val gemvTransposed = fun(
-    ArrayType(ArrayType(Float, N), M),
-    ArrayType(Float, M),
-    ArrayType(Float,N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+    ArrayTypeWSWC(Float, M),
+    ArrayTypeWSWC(Float,N),
     Float,
     Float,
     (matrix, vectorX, vectorY, alpha, beta) => {
@@ -103,14 +103,14 @@ class HighLevel {
     })
 
   val vecAdd = fun(
-    ArrayType(Float, N),
-    ArrayType(Float, N),
+    ArrayTypeWSWC(Float, N),
+    ArrayTypeWSWC(Float, N),
     (a,b) => MapGlb(add) $ Zip(a, b)
   )
   
   val matrixAdd = fun(
-    ArrayType(ArrayType(Float, M), N),
-    ArrayType(ArrayType(Float, M), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
     (A, B) =>
       MapGlb(fun(x => MapSeq(add) $ Zip(Get(x, 0), Get(x, 1)))) $ Zip(A, B)
   )
@@ -287,8 +287,8 @@ class HighLevel {
     val wGold = Utils.matrixVector(aGold, xGold, alpha)
 
     val outerProduct = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
       (a, b) => MapGlb(fun(x => MapSeq(fun(y => mult(x, y))) $ b)) $ a
     )
 
@@ -346,9 +346,9 @@ class HighLevel {
     val K = SizeVar("K")
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), N),
-      ArrayType(ArrayType(Float, M), K),
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       Float,
       Float,
       (A, B, C, alpha, beta) => {
@@ -381,8 +381,8 @@ class HighLevel {
     val gold = Utils.matrixVector(A.transpose, axGold)
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), K),
-      ArrayType(Float, K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
+      ArrayTypeWSWC(Float, K),
       (matrix, vector) =>
         MapGlb(fun(row => toGlobal(MapSeq(id)) o
           ReduceSeq(fun((acc, y) =>

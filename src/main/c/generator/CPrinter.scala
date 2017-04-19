@@ -29,7 +29,7 @@ class CPrinter {
 
   def toString(t: Type, seenArray: Boolean = false) : String = {
     t match {
-      case ArrayType(elemT, _) =>
+      case ArrayType(elemT) =>
         val s = toString(elemT, seenArray=true)
         if (!seenArray) s + "*" else s
       case VectorType(elemT, len) => toString(elemT, seenArray) + toString(len)
@@ -166,7 +166,7 @@ class CPrinter {
 
   private def print(c: CondExpression): Unit = {
       print(c.lhs)
-      print(c.cond.toString)
+      print(s" ${c.cond.toString} ")
       print(c.rhs)
   }
 
@@ -289,7 +289,7 @@ class CPrinter {
 
   private def print(es: ExpressionStatement): Unit = {
     print(es.e)
-    print(";")
+    print("; ")
   }
 
 
@@ -300,7 +300,7 @@ class CPrinter {
   }
 
   private def print(p: ParamDecl): Unit = p.t match {
-    case ArrayType(_,_) =>
+    case ArrayType(_) =>
       // Const restricted pointers to read-only global memory. See issue #2.
       val (const, restrict) = if (p.const) ("const ", "restrict ") else ("","")
       //Cut out the address space, which is not used in plain C
@@ -332,7 +332,7 @@ class CPrinter {
             print(s" = ")
             print(vd.init)
           }
-          print(";")
+          print("; ")
       }
 
     case x =>
@@ -350,7 +350,7 @@ class CPrinter {
         print(s" = ")
         print(vd.init)
       }
-      print(";")
+      print("; ")
   }
 
   /**
@@ -375,7 +375,7 @@ class CPrinter {
     print(fl.init)
     print(fl.cond)
     print(fl.increment)
-    print(")")
+    print(") ")
     print(fl.body)
   }
 
@@ -397,15 +397,15 @@ class CPrinter {
     * @param s a [[IfThenElse]] node
     */
   private def print(s: CAst.IfThenElse): Unit = {
-    print("if(")
+    print("if (")
     print(s.cond)
-    println(")")
+    print(") ")
 
     print(s.trueBody)
 
     if(s.falseBody != Block())
     {
-      println("else")
+      print(" else ")
       print(s.falseBody)
     }
   }

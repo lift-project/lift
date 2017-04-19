@@ -72,8 +72,8 @@ object RodiniaHotspotNoPad {
     val M = SizeVar("M")
     val N = SizeVar("N")
     fun(
-    ArrayType(ArrayType(Float, M), N),
-    ArrayType(ArrayType(Float, M+2), N+2),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M+2), N+2),
     (power, heat) => {
       Map(Join()) o Join() o Map(TransposeW()) o
         MapWrg(1)(MapWrg(0)(\(tile => {
@@ -100,8 +100,8 @@ object RodiniaHotspotNoPad {
     val M = SizeVar("M")
     val N = SizeVar("N")
     fun(
-    ArrayType(ArrayType(Float, M), N),
-    ArrayType(ArrayType(Float, M+2), N+2),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M+2), N+2),
     (power, heat) => {
       Map(Join()) o Join() o Map(TransposeW()) o
         MapWrg(1)(MapWrg(0)(\(tile => {
@@ -114,8 +114,8 @@ object RodiniaHotspotNoPad {
     val M = SizeVar("M")
     val N = SizeVar("N")
     fun(
-    ArrayType(ArrayType(Float, M), N),
-    ArrayType(ArrayType(Float, M+2), N+2),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M+2), N+2),
     (power, heat) => {
       Map(Join()) o Join() o Map(TransposeW()) o
         MapWrg(1)(MapWrg(0)(\(tile => {
@@ -133,10 +133,10 @@ object RodiniaHotspotNoPad {
     val M = SizeVar("M")
     val N = SizeVar("N")
     fun(
-      ArrayType(ArrayType(Float, M), N),
-      ArrayType(ArrayType(Float, M+Cst(2)), N+Cst(2)),
-      //ArrayType(ArrayType(Float, 8194), 8194),
-      //ArrayType(ArrayType(Float, 8192), 8192),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M+Cst(2)), N+Cst(2)),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 8194), 8194),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 8192), 8192),
       (power, heat) => {
         MapGlb(1)(MapGlb(0)(rodiniaStencil)) $ Zip2D(
           Slide2D(3, 1) $ heat,
@@ -149,8 +149,8 @@ object RodiniaHotspotNoPad {
     val M = Var("M", StartFromRange(2))
     val N = Var("N", StartFromRange(2))
     fun(
-      ArrayType(ArrayType(Float, M+2), N+2),
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M+2), N+2),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (heat, power) => {
         MapGlb(1)(MapGlb(0)(rodiniaStencilConstants)) $ Zip2D(
           Slide2D(3, 1) $ heat,

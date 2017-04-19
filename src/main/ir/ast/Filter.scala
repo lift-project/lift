@@ -21,8 +21,8 @@ case class Filter() extends Pattern(arity = 2) with isGenerable {
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case TupleType(ArrayType(t, n), ArrayType(Int, m)) =>
-        ArrayType(t, m)
+      case TupleType(ArrayTypeWS(t, n), ArrayTypeWS(Int, m)) =>
+        ArrayTypeWSWC(t, m)
 
       case _ =>
         throw new TypeException(argType,

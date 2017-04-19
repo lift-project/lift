@@ -44,9 +44,9 @@ object SHOCStencil2D{
   /////////////////// LAMBDAS
   def shoc(tileCenterX: Int, tileCenterY: Int): Lambda = {
     fun(
-      //ArrayType(ArrayType(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
-      ArrayType(ArrayType(Float, 8194), 8194),
-      ArrayType(Float, 9),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 8194), 8194),
+      ArrayTypeWSWC(Float, 9),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -73,8 +73,8 @@ object SHOCStencil2D{
 
   def shocGeneric(tileCenterX: Int, tileCenterY: Int): Lambda = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
-      ArrayType(Float, 9),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
+      ArrayTypeWSWC(Float, 9),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -101,8 +101,8 @@ object SHOCStencil2D{
 
   def shocNoTiling(): Lambda = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
-      ArrayType(Float, 9),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
+      ArrayTypeWSWC(Float, 9),
       (matrix, weights) => {
 
         MapGlb(1)(MapGlb(0)(

@@ -38,6 +38,19 @@ class RodiniaHotspot(override val f: Seq[(String, Array[Lambda])]) extends Bench
 }
 
 object RodiniaHotspot{
+
+  // input rodinia 1024:
+  //val inputSize = 1036
+  //val nbhs = 74
+
+  // input rodinia 4096:
+  //val inputSize = 4102
+  //val nbhs = 293
+
+  // input rodinia 8192:
+  val inputSize = 8204
+  val nbhs = 586
+
   /////////////////// LAMBDAS
   def rodiniaUserFun = UserFun("rodiniaUserFun",
       Array("power", "top", "bottom", "left", "right", "center"), "{ float step_div_cap = 1.365333e+00; return center + step_div_cap*(power + 0.1f*(bottom + top - 2*center) + 0.1*(left + right - 2*center) + 4.882813e-05*(80.0f - center)); }",
@@ -60,8 +73,8 @@ object RodiniaHotspot{
     val M = Var("M", StartFromRange(4096))
     val N = Var("N", StartFromRange(4096))
     fun(
-    ArrayType(ArrayType(Float, M), N),
-    ArrayType(ArrayType(Float, M), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
     (power, heat) => {
       Map(Join()) o Join() o Map(TransposeW()) o
         MapWrg(1)(MapWrg(0)(\(tile => {
@@ -78,8 +91,8 @@ object RodiniaHotspot{
     val M = Var("M", StartFromRange(4096))
     val N = Var("N", StartFromRange(4096))
     fun(
-      ArrayType(ArrayType(Float, M), N),
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (power, heat) => {
         MapGlb(1)(MapGlb(0)(rodiniaStencil)) $ Zip2D(
           Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ heat,

@@ -98,8 +98,8 @@ object Stencil2D{
                          boundary: BoundaryFun,
                              weightSize: Int): Lambda2 = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(Float, weightSize),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayTypeWSWC(Float, weightSize),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -120,8 +120,8 @@ object Stencil2D{
                          left: Int, right: Int,
                          boundary: BoundaryFun): Lambda2 = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(Float, 9),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayTypeWSWC(Float, 9),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -144,8 +144,8 @@ object Stencil2D{
                               tileSize1: Int, tileStep1: Int,
                               tileSize2: Int, tileStep2: Int) = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(Float, size1 * size2),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayTypeWSWC(Float, size1 * size2),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -166,8 +166,8 @@ object Stencil2D{
   }
 
   def TiledCopy(boundary: Pad.BoundaryFun): Lambda = fun(
-      ArrayType(ArrayType(Float, Var("M")), Var("N")),
-      ArrayType(Float, 9),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("M")), Var("N")),
+      ArrayTypeWSWC(Float, 9),
       (matrix, weights) => {
         MapWrg(1)(MapWrg(0)(fun( tile =>
 

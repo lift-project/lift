@@ -3,8 +3,7 @@ package opencl.executor
 import ir.TypeChecker
 import ir.ast.Lambda
 import lift.arithmetic.{?, ArithExpr}
-import opencl.generator.{OpenCLGenerator, Verbose}
-import opencl.generator.OpenCLGenerator.NDRange
+import opencl.generator.{OpenCLGenerator, Verbose, NDRange}
 
 import scala.collection.immutable
 
@@ -51,8 +50,8 @@ object Compile {
 
     // 2. generate OpenCL kernel
     val kernel = OpenCLGenerator.generate(f,
-      Array(localSize0, localSize1, localSize2),
-      Array(globalSize1, globalSize2, globalSize3), valueMap)
+      NDRange(localSize0, localSize1, localSize2),
+      NDRange(globalSize1, globalSize2, globalSize3), valueMap)
 
     // 3. print and return kernel code
     if (Verbose()) {
