@@ -1,14 +1,14 @@
 package opencl.generator.matrixVector
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
 import org.junit.Assume.assumeFalse
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object CGO_2017 {
   @BeforeClass def before(): Unit =
@@ -39,9 +39,9 @@ class CGO_2017 {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), M),
-      ArrayType(Float, N),
-      ArrayType(Float,M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float,M),
       Float,
       Float,
       (matrix, vectorX, vectorY, alpha, beta) =>
@@ -64,7 +64,7 @@ class CGO_2017 {
                   , Get(x, 0)) $ Zip(Get(x, 1), localX))) $ Zip(acc, Get(next, 0))
               )  o toLocal(MapLcl(id)) $ Get(next, 1)),
 
-              MapLcl(id) $ Value(0.0f, ArrayType(Float, 64)))
+              MapLcl(id) $ Value(0.0f, ArrayTypeWSWC(Float, 64)))
             $ Zip(Transpose() o Map(Split(64) o Get(0)) $ matChunk, Split(64) $ vectorX)
         )) o Split(64) $ Zip(matrix, vectorY)
     )
@@ -80,9 +80,9 @@ class CGO_2017 {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
-      ArrayType(Float, N),
-      ArrayType(Float,M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float,M),
       Float,
       Float,
       (matrix, vectorX, vectorY, alpha, beta) =>
@@ -105,7 +105,7 @@ class CGO_2017 {
                   , Get(x, 0)) $ Zip(Get(x, 1), localX))) $ Zip(acc, Get(next, 0))
               )  o toLocal(MapLcl(id)) $ Get(next, 1)),
 
-              MapLcl(id) $ Value(0.0f, ArrayType(Float, 64)))
+              MapLcl(id) $ Value(0.0f, ArrayTypeWSWC(Float, 64)))
             $ Zip(Transpose() o Map(Split(64) o Get(0)) $ matChunk, Split(64) $ vectorX)
         )) o Split(64) $ Zip(Transpose() $ matrix, vectorY)
     )

@@ -2,10 +2,8 @@ package rewriting
 
 import ir._
 import ir.ast._
-import lift.arithmetic.ArithExpr
+import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
-import opencl.executor.{Compile, Execute, Executor, KernelArg}
-import opencl.executor.Execute._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 import rewriting.utils.NumberExpression
@@ -29,7 +27,7 @@ class TestRewriteStencil {
   def stencil1DTiling(): Unit = {
     val n = 128
     val f = fun(
-      ArrayType(Float, n),
+      ArrayTypeWSWC(Float, n),
       (input) =>
         Map(Reduce(add, 0.0f)) o Slide(3,1) o Pad(1,1,Pad.Boundary.Clamp) $ input
       )
@@ -58,7 +56,7 @@ class TestRewriteStencil {
   def stencil1DTilingLocalMemory(): Unit = {
     val n = 128
     val f = fun(
-      ArrayType(Float, n),
+      ArrayTypeWSWC(Float, n),
       (input) =>
         Map(Reduce(add, 0.0f)) o Slide(3,1) o Pad(1,1,Pad.Boundary.Clamp) $ input
       )
@@ -92,7 +90,7 @@ class TestRewriteStencil {
   def stencil1DMacroRule(): Unit = {
     val n = 128
     val f = fun(
-      ArrayType(Float, n),
+      ArrayTypeWSWC(Float, n),
       (input) =>
         Join() o Map(Reduce(add, 0.0f)) o Slide(3,1) o Pad(1,1,Pad.Boundary.Clamp) $ input
       )

@@ -32,7 +32,7 @@ class ShouldUnroll(val lambda: Lambda) {
     val currentType = call.args.head.t
 
     val loopingOverVectorComponents = (originalType, currentType) match {
-      case (_: VectorType, ArrayType(_: ScalarType, _)) => true
+      case (_: VectorType, ArrayType(_: ScalarType)) => true
       case _ => false
     }
 

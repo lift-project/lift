@@ -198,7 +198,7 @@ object InputView {
 
   private def buildViewJoin(call: FunCall, argView: View): View = {
     val chunkSize = call.argsType match {
-      case ArrayType(ArrayType(_, n), _) => n
+      case ArrayType(ArrayTypeWSWC(_, s,c)) if s==c => s
       case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + call.argsType)
     }
 
@@ -223,7 +223,7 @@ object InputView {
 
   private def buildViewTranspose(t: Transpose, call: FunCall, argView: View): View = {
     call.t match {
-      case ArrayType(ArrayType(typ, m), n) =>
+      case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
         argView.
           join(n).
           reorder((i: ArithExpr) => { transpose(i, call.t) }).split(m)
@@ -234,11 +234,11 @@ object InputView {
 
   private def buildViewTransposeW(tw: TransposeW, call: FunCall, argView: View): View = {
     call.t match {
-      case ArrayType(ArrayType(typ, m), n) =>
+      case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
         argView.
           join(n).
           split(m)
-      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_, _) =>
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
         throw new TypeException(call.t, "Array")
     }
   }

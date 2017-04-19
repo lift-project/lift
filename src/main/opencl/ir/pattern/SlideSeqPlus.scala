@@ -13,14 +13,14 @@ case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loo
 
   def checkType(argType: Type, setType: Boolean): Type =  {
     argType match {
-      case ArrayType(t, n) =>
+      case ArrayTypeWSWC(t, _, n) =>
         // todo check that the sliding window always ends at the last element of the input
         //if (((n - (size - step)) % step) != Cst(0)) throw new TypeException(argType, "slide args not as")
         val innerLength = size
         val outerLength = (n - (size - step)) / step
-        f.params(0).t = ArrayType(t,innerLength)
-        ArrayType(TypeChecker.check(f.body,setType), outerLength)
-      case _ => throw new TypeException(argType, "ArrayType")
+        f.params(0).t = ArrayTypeWSWC(t,innerLength)
+        ArrayTypeWSWC(TypeChecker.check(f.body,setType), outerLength)
+      case _ => throw new TypeException(argType, "ArrayTypeWSWC")
     }
   }
 

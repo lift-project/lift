@@ -178,7 +178,7 @@ object OpenCLMemoryAllocator {
     am.f.params(0).mem = inMem
 
     am.asInstanceOf[MapAtomWrg].globalTaskIndex =
-      OpenCLMemory.allocGlobalMemory(Type.getMaxSize(Int))
+      OpenCLMemory.allocGlobalMemory(Type.getMaxAllocatedSize(Int))
 
     val len = Type.getMaxLength(outT)
     alloc(am.f.body, numGlb * len, numLcl, numPvt)
@@ -241,7 +241,7 @@ object OpenCLMemoryAllocator {
                                 numPvt: ArithExpr,
                                 inMem: OpenCLMemory): OpenCLMemory = {
 
-    sp.f.params(0).mem = OpenCLMemory(sp.windowVar, Type.getSize(sp.f.params(0).t) * sp.size , PrivateMemory)
+    sp.f.params(0).mem = OpenCLMemory(sp.windowVar, Type.getAllocatedSize(sp.f.params(0).t) * sp.size , PrivateMemory)
     val len = Type.getMaxLength(outT)
 
     val privateMultiplier: ArithExpr =

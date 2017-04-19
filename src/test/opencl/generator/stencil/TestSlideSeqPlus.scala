@@ -1,6 +1,6 @@
 package opencl.generator.stencil
 
-import ir.ArrayType
+import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import ir.ast.{Get, Pad, Slide, Zip, fun}
 import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import opencl.executor._
@@ -9,7 +9,6 @@ import org.junit.Assert._
 import org.junit._
 import opencl.ir.pattern._
 import ir.ast._
-import ir.{ArrayType, TupleType}
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
 
@@ -31,7 +30,7 @@ object SlideSeqPlusHelpers
 {
 
   def stencil(a: Int ,b :Int) = fun(
-    ArrayType(Float, SizeVar("N")),
+    ArrayTypeWSWC(Float, SizeVar("N")),
     (input) =>
        toGlobal(SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
   )
@@ -128,8 +127,8 @@ class TestSlideSeqPlus
     val gold = Array( 4.0f,6.0f,8.0f,10.0f,12.0f,14.0f ) //values.sliding(3,1).toArray.map(x => x.reduceLeft(0.5f*_ + 0.5f*_))
 
     val orgStencil = fun(
-      ArrayType(Float, SizeVar("N")),
-      ArrayType(Float, 3),
+      ArrayTypeWSWC(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, 3),
       (input,wgts) => {
         SlideSeqPlus(
           fun(neighbourhood => {
@@ -163,7 +162,7 @@ class TestSlideSeqPlus
 
 
     val orgStencil = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       (mat) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -174,7 +173,7 @@ class TestSlideSeqPlus
       })
 
     val stencil2D = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       (mat) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -205,8 +204,8 @@ class TestSlideSeqPlus
 
 
     val stencil = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
-      ArrayType(ArrayType(Float, weights.length), weights.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, weights.length), weights.length),
       (input,wgts) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -235,7 +234,7 @@ class TestSlideSeqPlus
 
 
     val stencil = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (input) => {
         MapGlb(
           toGlobal(MapSeqUnroll(id)) o

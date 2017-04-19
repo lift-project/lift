@@ -1,8 +1,8 @@
 package rodinia
 
-import lift.arithmetic.SizeVar
+import ir.{ArrayTypeWSWC, TupleType}
 import ir.ast._
-import ir.{ArrayType, TupleType}
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
@@ -24,8 +24,8 @@ object Kmeans {
   val C = SizeVar("C") // number of clusters
   val F = SizeVar("F") // number of features
 
-  val featuresType    = ArrayType(ArrayType(Float, P), F)
-  val clustersType    = ArrayType(ArrayType(Float, F), C)
+  val featuresType    = ArrayTypeWSWC(ArrayTypeWSWC(Float, P), F)
+  val clustersType    = ArrayTypeWSWC(ArrayTypeWSWC(Float, F), C)
 
   val update = UserFun("update", Array("dist", "pair"),
     "{ return dist + (pair._0 - pair._1) * (pair._0 - pair._1); }",
@@ -98,11 +98,11 @@ class Kmeans {
     val K = SizeVar("K")
 
     val function = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      ArrayType(Float, K),
-      ArrayType(Float, K),
-      ArrayType(Int, K),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, K),
+      ArrayTypeWSWC(Float, K),
+      ArrayTypeWSWC(Int, K),
       (x, y, a, b, i) => {
         MapGlb(fun(xy => {
           toGlobal(MapSeq(idI)) o
@@ -142,7 +142,7 @@ class Kmeans {
             val dist = Zip(feature, cluster) :>> ReduceSeq(update, 0.0f )
             Zip(dist, tuple) :>> MapSeq(test)
 
-          }), Value("{3.40282347e+38, 0, 0}", ArrayType(TupleType(Float, Int, Int), 1)) ) :>>
+          }), Value("{3.40282347e+38, 0, 0}", ArrayTypeWSWC(TupleType(Float, Int, Int), 1)) ) :>>
           toGlobal(MapSeq(MapSeq(select)))
         }) )
       })
@@ -176,7 +176,7 @@ class Kmeans {
               val dist = Zip(feature, cluster) :>> ReduceSeq(\((acc, b) => update2(acc, Get(b, 0), Get(b,1))), 0.0f )
               Zip(dist, tuple) :>> MapSeq(test)
 
-            }), Value("{3.40282347e+38, 0, 0}", ArrayType(TupleType(Float, Int, Int), 1)) ) :>>
+            }), Value("{3.40282347e+38, 0, 0}", ArrayTypeWSWC(TupleType(Float, Int, Int), 1)) ) :>>
               toGlobal(MapSeq(MapSeq(select)))
           })) $ featuresChunk
           )

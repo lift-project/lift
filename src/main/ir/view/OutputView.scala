@@ -61,6 +61,8 @@ object OutputView {
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
+      case _: ArrayAccess =>
+        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
       case _ => writeView
     }
 
@@ -232,7 +234,7 @@ object OutputView {
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {
     call.argsType match {
-      case ArrayType(ArrayType(_, chunkSize), _) => writeView.split(chunkSize)
+      case ArrayType(ArrayTypeWS(_, chunkSize)) => writeView.split(chunkSize)
       case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + call.argsType)
     }
   }
@@ -247,30 +249,30 @@ object OutputView {
 
   private def buildViewAsScalar(call: FunCall, writeView: View): View = {
     call.args.head.t match {
-      case ArrayType(VectorType(_, n), _) => writeView.asVector(n)
+      case ArrayType(VectorType(_, n)) => writeView.asVector(n)
       case _ => throw new IllegalArgumentException("PANIC, expected array of vectors, found " + call.argsType)
     }
   }
 
   private def buildViewTransposeW(tw: TransposeW, call: FunCall, writeView: View): View = {
     call.t match {
-      case ArrayType(ArrayType(typ, m), n) =>
+      case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
         writeView.
           join(m).
-          reorder((i:ArithExpr) => { transpose(i, ArrayType(ArrayType(typ, n), m)) }).
+          reorder((i:ArithExpr) => { transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(typ, n), m)) }).
           split(n)
-      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_, _) =>
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
         throw new TypeException(call.t, "Array")
     }
   }
 
   private def buildViewTranspose(t: Transpose, call: FunCall, writeView: View): View = {
     call.t match {
-      case ArrayType(ArrayType(_, m), n) =>
+      case ArrayTypeWS(ArrayTypeWS(_, m), n) =>
         writeView.
           join(m).
           split(n)
-      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_, _) =>
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
         throw new TypeException(call.t, "Array")
     }
   }

@@ -1,8 +1,8 @@
 package opencl.generator
 
-import lift.arithmetic.{Predicate, ArithExpr, Var}
-import ir.{Type, TupleType, VectorType}
-import opencl.ir.{UndefAddressSpace, OpenCLAddressSpace, OpenCLMemory}
+import lift.arithmetic.{ArithExpr, Predicate, Var}
+import ir.{TupleType, Type, VectorType}
+import opencl.ir.{OpenCLAddressSpace, OpenCLMemory, UndefAddressSpace}
 
 import scala.language.implicitConversions
 
@@ -26,12 +26,15 @@ object OpenCLAST {
     })
   }
 
+  sealed abstract class Attribute extends OclAstNode
 
   sealed abstract class Declaration extends OclAstNode with BlockMember
 
   sealed abstract class Statement extends OclAstNode with BlockMember
 
   sealed abstract class Expression extends OclAstNode
+
+  case class RequiredWorkGroupSize(localSize: NDRange) extends Attribute
 
   /** A function declaration
     *
@@ -44,7 +47,8 @@ object OpenCLAST {
   case class Function(name: String,
                       ret: Type, params: List[ParamDecl],
                       body: Block,
-                      kernel: Boolean = false) extends Declaration
+                      kernel: Boolean = false,
+                      attribute: Option[Attribute] = None) extends Declaration
 
   case class VarDecl(v: Var,
                      t: Type,
@@ -203,6 +207,8 @@ object OpenCLAST {
     */
   case class Cast(v: VarRef, t: Type) extends Expression
 
+  case class PointerCast(v: VarRef, t: Type, addressSpace: OpenCLAddressSpace) extends Expression
+
   case class VectorLiteral(t: VectorType, vs: VarRef*) extends Expression
 
   case class StructConstructor(t: TupleType, args: Vector[OclAstNode]) extends Expression
@@ -236,16 +242,16 @@ object OpenCLAST {
         case e: Expression => visitExpression(e)
         case s: Statement => visitStatement(s)
         case d: Declaration => visitDeclaration(d)
-        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) =>
+        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
       }
     }
 
     def callFunOnExpression(node: OclAstNode): Unit = {
       node match {
         case e: Expression => fun(e)
-        case s: Statement =>
-        case d: Declaration =>
-        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) =>
+        case _: Statement =>
+        case _: Declaration =>
+        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
       }
     }
 
@@ -257,6 +263,8 @@ object OpenCLAST {
         visitExpressionsInNode(a.to)
       case c: Cast =>
         visitExpressionsInNode(c.v)
+      case pc : PointerCast =>
+        visitExpressionsInNode(pc.v)
       case c: CondExpression =>
         visitExpressionsInNode(c.lhs)
         visitExpressionsInNode(c.rhs)
@@ -304,7 +312,7 @@ object OpenCLAST {
 
   def visitBlocks(node: OclAstNode, fun: Block => Unit): Unit = {
     node match {
-      case e: Expression => // there are no blocks inside any expressions
+      case _: Expression => // there are no blocks inside any expressions
 
       case s: Statement => s match {
         case b: Block =>
@@ -323,7 +331,7 @@ object OpenCLAST {
         case Label(_) | VarDecl(_, _, _, _, _) | ParamDecl(_, _, _, _) =>
       }
 
-      case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) =>
+      case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
     }
   }
 }

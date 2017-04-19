@@ -1,12 +1,13 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import ir._
-import ir.ast.fun
+import ir.ast.{\, fun}
+import lift.arithmetic.SizeVar
 import opencl.executor.Compile
 import opencl.ir._
-import org.junit.Test
+import opencl.ir.pattern.{MapGlb, MapLcl, MapSeq, MapWrg}
 import org.junit.Assert._
+import org.junit._
 
 class TestOpenCLGenerator {
 
@@ -20,9 +21,9 @@ class TestOpenCLGenerator {
   @Test
   def one(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, b), a),
-      ArrayType(ArrayType(Float, d), c),
-      (a, b) => a
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, b), a),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, d), c),
+      (a, _) => a
     )
 
     val code = Compile(f)
@@ -32,9 +33,9 @@ class TestOpenCLGenerator {
   @Test
   def two(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, a), b),
-      ArrayType(ArrayType(Float, c), d),
-      (a, b) => a
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, a), b),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, c), d),
+      (a, _) => a
     )
 
     val code = Compile(f)
@@ -44,9 +45,9 @@ class TestOpenCLGenerator {
   @Test
   def three(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, c), d),
-      ArrayType(ArrayType(Float, b), a),
-      (a, b) => a
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, c), d),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, b), a),
+      (a, _) => a
     )
 
     val code = Compile(f)
@@ -56,9 +57,9 @@ class TestOpenCLGenerator {
   @Test
   def four(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, b), d),
-      ArrayType(ArrayType(Float, a), c),
-      (a, b) => a
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, b), d),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, a), c),
+      (a, _) => a
     )
 
     val code = Compile(f)
@@ -68,13 +69,43 @@ class TestOpenCLGenerator {
   @Test
   def five(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, a), b), d),
-      ArrayType(Float, c),
-      (a, b) => a
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, a), b), d),
+      ArrayTypeWSWC(Float, c),
+      (a, _) => a
     )
 
     val code = Compile(f)
     assertTrue(gold.findFirstIn(code).isDefined)
+  }
+
+  @Test
+  def incorrectLocalSize(): Unit = {
+
+    val localSize = 32
+
+    val f = \(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, localSize), a),
+      MapWrg(MapLcl(plusOne)) $ _
+    )
+
+    val code = Compile(f, localSize, 1, 1)
+
+    assertTrue(code.contains("attribute"))
+  }
+
+  @Test
+  def noAttributeForNoGroups(): Unit = {
+
+    val localSize = 32
+
+    val f = \(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, localSize), a),
+      MapGlb(MapSeq(plusOne)) $ _
+    )
+
+    val code = Compile(f, localSize, 1, 1)
+
+    assertFalse(code.contains("attribute"))
   }
 
 }

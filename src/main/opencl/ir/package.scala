@@ -6,6 +6,20 @@ import _root_.ir.ast.{UserFun, Value}
 import scala.language.implicitConversions
 
 package object ir {
+  // Generic user functions
+  
+  def id(ty: Type, name: String = "id"): UserFun =
+    UserFun(name, "x", "return x;", ty, ty)
+  
+  def equality(ty: Type, name: String = "equality"): UserFun =
+    UserFun(name, Array("x", "y"), "return x == y;", Seq(ty, ty), Int)
+  
+  def first(leftTy: Type, rightTy: Type, name: String="fst"): UserFun =
+    UserFun(name, Array("x", "y"), "return x;", Seq(leftTy, rightTy), leftTy)
+  
+  def max(ty: Type, name: String="maximum"): UserFun =
+    UserFun(name, Array("x", "y"), "return x > y ? x : y;", Seq(ty, ty), ty)
+  
   // commonly used user functions
 
   val id = UserFun("id", "x", "{ return x; }", Float, Float).
@@ -29,6 +43,9 @@ package object ir {
   val idFI = UserFun("id", "x", "{ return x; }", TupleType(Float, Int), TupleType(Float, Int))
 
   val idFF = UserFun("idFF", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
+  
+  // A polymorphic version of the identity function
+  def id(ty: Type): UserFun = UserFun("id", "x", "return x;", ty, ty)
 
   val absAndSumUp = UserFun("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }",
                             Seq(Float, Float), Float)
@@ -58,6 +75,8 @@ package object ir {
 
   val mult = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Float, Float), Float)
 
+  val subtract = UserFun("subtract", Array("l", "r"), "{ return l - r; }", Seq(Float, Float), Float)
+
   val multI = UserFun("mult", Array("l", "r"), "{ return l * r; }", Seq(Int, Int), Int)
 
   val multdouble = UserFun("multdouble", Array("l", "r"), "{ return l * r; }", Seq(Double, Double), Double)
@@ -66,8 +85,10 @@ package object ir {
                              "{ return acc + (l * r); }",
                              Seq(Float, Float, Float), Float)
 
+
   val multTuple = UserFun("multTuple", "x", "{return x._0 * x._1;}", TupleType(Float, Float), Float)
   val addTuple = UserFun("addTuple", "x", "{return x._0 + x._1;}", TupleType(Float, Float), Float)
+  val subtractTuple = UserFun("subtractTuple", "x", "{return x._0 - x._1;}", TupleType(Float, Float), Float)
 
   val addPair = UserFun(
                          "pair",
@@ -77,6 +98,14 @@ package object ir {
                          "return x; }",
                          Seq(TupleType(Float, Float), TupleType(Float, Float)),
                          TupleType(Float, Float))
+  
+  // Logical
+  
+  val or: UserFun =
+    UserFun("or", Array("x", "y"), "return x | y;", Seq(Int, Int), Int)
+  
+  val not: UserFun =
+    UserFun("not", "x", "return !x;", Int, Int)
 
   implicit def IntToValue(i: Int): Value = Value(i.toString, opencl.ir.Int)
 

@@ -1,9 +1,9 @@
 package rewriting
 
-import lift.arithmetic.SizeVar
 import exploration.HighLevelRewrite
-import ir.ArrayType
+import ir.ArrayTypeWSWC
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
@@ -29,9 +29,9 @@ class TestRewriteMatrixVector {
   def gemvAMD(): Unit = {
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
-      ArrayType(Float, M),
-      ArrayType(Float,N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      ArrayTypeWSWC(Float, M),
+      ArrayTypeWSWC(Float,N),
       Float,
       Float,
       (matrix, vectorX, vectorY, alpha, beta) => {
@@ -93,9 +93,9 @@ class TestRewriteMatrixVector {
   def gemvAMDMacro(): Unit = {
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
-      ArrayType(Float, M),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      ArrayTypeWSWC(Float, M),
+      ArrayTypeWSWC(Float, N),
       Float,
       Float,
       (matrix, vectorX, vectorY, alpha, beta) => {
@@ -122,9 +122,9 @@ class TestRewriteMatrixVector {
   def gemvVectorised(): Unit = {
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
-      ArrayType(Float, M),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      ArrayTypeWSWC(Float, M),
+      ArrayTypeWSWC(Float, N),
       Float,
       Float,
       (matrix, vectorX, vectorY, alpha, beta) => {
