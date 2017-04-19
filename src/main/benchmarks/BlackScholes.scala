@@ -147,12 +147,12 @@ object BlackScholes {
       , Float, TupleType(Float, Float))
 
   val blackScholes = fun(
-    ArrayType(Float, SizeVar("N")),
+    ArrayTypeWSWC(Float, SizeVar("N")),
     inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(8192) $ inRand
   )
 
   val blackScholesAMD = fun(
-    ArrayType(Float, SizeVar("N")),
+    ArrayTypeWSWC(Float, SizeVar("N")),
     inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(256) $ inRand
   )
 

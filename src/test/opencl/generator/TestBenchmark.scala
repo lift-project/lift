@@ -1,9 +1,9 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import benchmarks.{BlackScholes, DotProduct, MolecularDynamics}
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -61,7 +61,7 @@ class TestBenchmark {
     val gold = BlackScholes.runScala(input)
 
     val kernel = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       inRand => MapGlb(BlackScholes.blackScholesComp) $ inRand
     )
 
@@ -127,7 +127,7 @@ class TestBenchmark {
          |""".stripMargin, Seq(Int, Int, Int, Int), Int)
 
     val f = fun(
-      ArrayType(Int, SizeVar("N")),
+      ArrayTypeWSWC(Int, SizeVar("N")),
       Int,
       Int,
       (in, niters, size) => MapGlb(fun(i => MapSeq(fun(j => md(i, j, niters, size))) $ in)) $ in
@@ -165,8 +165,8 @@ class TestBenchmark {
     val M = SizeVar("M")
 
     val f = fun(
-      ArrayType(Float4, N),
-      ArrayType(ArrayType(Int, M), N),
+      ArrayTypeWSWC(Float4, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Int, M), N),
       Float,
       Float,
       Float,
@@ -258,8 +258,8 @@ class TestBenchmark {
     // Expression
     val f = fun(
       Float,
-      ArrayType(Float, N),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
       (a, xs, ys) => MapGlb(
         fun(xy => fct(
           a, Get(xy, 0), Get(xy, 1)
@@ -304,23 +304,23 @@ class TestBenchmark {
     val k = SizeVar("K")
 
     val computePhiMag = fun(
-      ArrayType(Float, k),
-      ArrayType(Float, k),
+      ArrayTypeWSWC(Float, k),
+      ArrayTypeWSWC(Float, k),
       (phiR, phiI) => MapGlb(phiMag) $ Zip(phiR, phiI)
     )
 
     val x = SizeVar("X")
 
     val computeQ = fun(
-      ArrayType(Float, x),
-      ArrayType(Float, x),
-      ArrayType(Float, x),
-      ArrayType(Float, x),
-      ArrayType(Float, x),
-      ArrayType(Float, k),
-      ArrayType(Float, k),
-      ArrayType(Float, k),
-      ArrayType(Float, k),
+      ArrayTypeWSWC(Float, x),
+      ArrayTypeWSWC(Float, x),
+      ArrayTypeWSWC(Float, x),
+      ArrayTypeWSWC(Float, x),
+      ArrayTypeWSWC(Float, x),
+      ArrayTypeWSWC(Float, k),
+      ArrayTypeWSWC(Float, k),
+      ArrayTypeWSWC(Float, k),
+      ArrayTypeWSWC(Float, k),
       (x, y, z, Qr, Qi, kx, ky, kz, phiMag) =>
         MapGlb(fun(t =>
           toGlobal(MapSeq(idFF)) o
@@ -363,20 +363,20 @@ class TestBenchmark {
     val k = SizeVar("K")
 
     val computePhiMag = fun(
-      ArrayType(Float, k),
-      ArrayType(Float, k),
+      ArrayTypeWSWC(Float, k),
+      ArrayTypeWSWC(Float, k),
       (phiR, phiI) => MapGlb(phiMag) $ Zip(phiR, phiI)
     )
 
     val x = SizeVar("X")
 
     val computeQ = fun(
-      ArrayType(Float, x),
-      ArrayType(Float, x),
-      ArrayType(Float, x),
-      ArrayType(Float, x),
-      ArrayType(Float, x),
-      ArrayType(TupleType(Float, Float, Float, Float), k),
+      ArrayTypeWSWC(Float, x),
+      ArrayTypeWSWC(Float, x),
+      ArrayTypeWSWC(Float, x),
+      ArrayTypeWSWC(Float, x),
+      ArrayTypeWSWC(Float, x),
+      ArrayTypeWSWC(TupleType(Float, Float, Float, Float), k),
       (x, y, z, Qr, Qi, kvalues) =>
         Zip(x, y, z, Qr, Qi) :>>
           MapGlb(\(t =>

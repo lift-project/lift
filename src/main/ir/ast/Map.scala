@@ -1,6 +1,6 @@
 package ir.ast
 
-import lift.arithmetic.{PosVar, Var}
+import lift.arithmetic.{ArithExpr, PosVar, Var}
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 
@@ -18,17 +18,23 @@ abstract class AbstractMap(val f: Lambda,
                                                      with FPattern {
   assert(f.params.length == 1)
 
-  def iterationCount = loopVar.range.numVals
+  def iterationCount: ArithExpr = loopVar.range.numVals
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case UnknownLengthArrayType(t, v) =>
-        f.params(0).t = t
-        UnknownLengthArrayType(TypeChecker.check(f.body, setType), v)
-      case ArrayType(t, n) =>
-        f.params(0).t = t
-        ArrayType(TypeChecker.check(f.body, setType), n)
+      case ArrayTypeWSWC(et,s,c) =>
+        f.params(0).t = et
+        ArrayTypeWSWC(TypeChecker.check(f.body, setType), s, c)
+      case ArrayTypeWS(et,s) =>
+        f.params(0).t = et
+        ArrayTypeWS(TypeChecker.check(f.body, setType), s)
+      case ArrayTypeWC(et,c) =>
+        f.params(0).t = et
+        ArrayTypeWC(TypeChecker.check(f.body, setType), c)
+      case ArrayType(et) =>
+        f.params(0).t = et
+        ArrayType(TypeChecker.check(f.body, setType))
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }

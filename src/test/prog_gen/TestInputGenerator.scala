@@ -1,10 +1,10 @@
 package prog_gen
 
-import ir.ArrayType
+import ir.ArrayTypeWSWC
 import lift.arithmetic._
 import opencl.ir._
-import org.junit._
 import org.junit.Assert._
+import org.junit._
 
 class TestInputGenerator {
 
@@ -18,7 +18,7 @@ class TestInputGenerator {
 
   @Test
   def fixedSizeArray(): Unit = {
-    val t = ArrayType(Float, 32)
+    val t = ArrayTypeWSWC(Float, 32)
 
     val arg = InputGenerator()(t)
 
@@ -29,7 +29,7 @@ class TestInputGenerator {
   @Test
   def nonFixedSizeArray(): Unit = {
     val N = SizeVar("N")
-    val t = ArrayType(Float, N)
+    val t = ArrayTypeWSWC(Float, N)
     val map = Map[ArithExpr, Cst]((N, Cst(64)))
 
     val arg = InputGenerator(map)(t)
@@ -42,7 +42,7 @@ class TestInputGenerator {
   def nonFixedSize2DArray(): Unit = {
     val N = SizeVar("N")
     val M = SizeVar("M")
-    val t = ArrayType(ArrayType(Float, M), N)
+    val t = ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N)
     val map = Map[ArithExpr, Cst]((N, Cst(64)), (M, Cst(128)))
 
     val arg = InputGenerator(map)(t)

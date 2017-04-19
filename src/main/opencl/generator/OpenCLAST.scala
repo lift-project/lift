@@ -207,6 +207,8 @@ object OpenCLAST {
     */
   case class Cast(v: VarRef, t: Type) extends Expression
 
+  case class PointerCast(v: VarRef, t: Type, addressSpace: OpenCLAddressSpace) extends Expression
+
   case class VectorLiteral(t: VectorType, vs: VarRef*) extends Expression
 
   case class StructConstructor(t: TupleType, args: Vector[OclAstNode]) extends Expression
@@ -261,6 +263,8 @@ object OpenCLAST {
         visitExpressionsInNode(a.to)
       case c: Cast =>
         visitExpressionsInNode(c.v)
+      case pc : PointerCast =>
+        visitExpressionsInNode(pc.v)
       case c: CondExpression =>
         visitExpressionsInNode(c.lhs)
         visitExpressionsInNode(c.rhs)
