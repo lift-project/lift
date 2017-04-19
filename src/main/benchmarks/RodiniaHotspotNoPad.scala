@@ -135,8 +135,6 @@ object RodiniaHotspotNoPad {
     fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       ArrayTypeWSWC(ArrayTypeWSWC(Float, M+Cst(2)), N+Cst(2)),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 8194), 8194),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 8192), 8192),
       (power, heat) => {
         MapGlb(1)(MapGlb(0)(rodiniaStencil)) $ Zip2D(
           Slide2D(3, 1) $ heat,
