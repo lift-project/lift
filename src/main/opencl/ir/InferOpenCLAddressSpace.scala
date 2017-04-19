@@ -1,13 +1,7 @@
 package opencl.ir
 
 import ir.ScalarType
-import ir.ast.{
-  Lambda, Expr, Value, Param, FunCall, VectorParam, ArrayConstructors, Unzip,
-  Zip, Transpose, TransposeW, asVector, asScalar, Split, Join, Scatter, Gather,
-  Pad, Tuple, Slide, Head, Tail, PrintType, UnsafeArrayAccess, ArrayAccess,
-  AbstractPartRed, Get, AbstractSearch, UserFun, FPattern, VectorizeUserFun,
-  Filter
-}
+import ir.ast._
 import opencl.generator.IllegalKernel
 import opencl.ir.pattern.{toPrivate, toLocal, toGlobal, ReduceWhileSeq, FilterSeq}
 
