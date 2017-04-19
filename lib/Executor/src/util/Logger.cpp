@@ -19,7 +19,7 @@ Logger::Logger()
 #ifdef NDEBUG
    _severity(Severity::Info)  // set default level to Info in release
 #else
-   _severity(Severity::Debug) // ... and Debug in debug builds
+   _severity(Severity::DebugInfo) // ... and DebugInfo in debug builds
 #endif
   , _output(&std::clog)
 {
