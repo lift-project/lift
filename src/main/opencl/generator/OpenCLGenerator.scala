@@ -1108,7 +1108,7 @@ class OpenCLGenerator extends Generator {
       case VarRef(_, _, arrayIndex) => arrayIndex
       case _ => throw new NotImplementedError() // should never get there
     }
-    val headerLength: ArithExpr = 1
+    val headerLength: ArithExpr = 2 // TODO: this is in words! what happens if we have arrays of byte or double?
 
     val addressSpace = OpenCLMemory.asOpenCLMemory(array.mem).addressSpace
     val sizeExpr = PointerCast(
