@@ -28,7 +28,6 @@ double getRuntimeInMilliseconds(cl::Event event)
 void initExecutor(int platformId, int deviceId)
 {
   executor::init(executor::platform(platformId), executor::device(deviceId));
-  executor::defaultLogger.setLoggingLevel(executor::Logger::Severity::Warning);
 }
 
 void initExecutor(std::string deviceTypeString)
@@ -36,7 +35,6 @@ void initExecutor(std::string deviceTypeString)
   executor::device_type deviceType;
   std::istringstream(deviceTypeString) >> deviceType;
   executor::init(executor::nDevices(1).deviceType(deviceType));
-  executor::defaultLogger.setLoggingLevel(executor::Logger::Severity::Warning);
 }
 
 void shutdownExecutor()

@@ -60,6 +60,8 @@ object OutputView {
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
+      case _: ArrayAccess =>
+        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
       case _ => writeView
     }
 
