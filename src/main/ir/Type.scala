@@ -124,6 +124,7 @@ sealed trait Capacity {
  * (e.g., [int],,1024,, , [ [float],,4,, ],,N,,)
  *
  * @param elemT The element type of the array
+ * @param len The length of the array
  */
 case class ArrayType(elemT: Type) extends Type {
 

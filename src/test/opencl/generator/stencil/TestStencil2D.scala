@@ -518,6 +518,115 @@ class TestStencil2D {
     }
   }
 
+  @Test def shocStencil2DNoTiling(): Unit = {
+    val stencil = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
+      ArrayTypeWSWC(Float, 9),
+      (matrix, weights) => {
+
+        MapGlb(1)(MapGlb(0)(
+          // stencil computation
+          fun(elem => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun( (acc, pair) => {
+                val pixel = pair._0
+                val weight = pair._1
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ elem, weights)
+          })
+          // create neighbourhoods in tiles
+        )) o Slide2D(3, 1, 3, 1) $ matrix
+      }
+    )
+    val weights = Array(0.05, 0.15, 0.05,
+      0.15, 0.25, 0.15,
+      0.05, 0.15, 0.05).map(_.toFloat)
+
+    val inputSize = 8194
+    val haloSize = 1
+    val outputSize = inputSize - 2 * haloSize
+
+    // create already padded input array with inner elements (i,j) = i * j
+    var input = Array.tabulate(inputSize, inputSize) { (i, j) => (i - haloSize) * (j - haloSize) * 1.0f }
+    input(0) = input(0).map((_ * 0.0f))
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+    input(0) = input(0).map(_ * 0.0f)
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+
+    try {
+      val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
+    } catch {
+      case e: DeviceCapabilityException =>
+        Assume.assumeNoException("Device not supported.", e)
+    }
+  }
+
+  @Ignore //todo does not compute correct result yet
+  @Test def shocStencil2DNoTilingFloat3(): Unit = {
+    val dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
+      "{ return acc + dot(l, r); }",
+      Seq(Float, Float3, Float3), Float)
+
+    val stencil = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("M", StartFromRange(6))), Var("N", StartFromRange(6))),
+      ArrayTypeWSWC(Float, 9),
+      (matrix, weights) => {
+        //weights.addressSpace = ConstantMemory
+
+        MapGlb(1)(MapGlb(0)(
+          // stencil computation
+          fun(elem => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun( (acc, pair) => {
+                val pixel = pair._0
+                val weight = pair._1
+                dotAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $
+              Zip(asVector(3) o Join() $ elem, asVector(3) $ weights)
+          })
+          // create neighbourhoods in tiles
+        )) o Slide2D(3, 1) $ matrix
+      }
+    )
+    val weights = Array(
+      0.05, 0.15, 0.05,
+      0.15, 0.25, 0.15,
+      0.05, 0.15, 0.05 ).map(_.toFloat)
+
+    // testing - change tilesize!
+    //val inputSize = 10
+    //val haloSize = 1
+    //val outputSize = inputSize - 2 * haloSize
+    // testing - change tilesize!
+    val inputSize = 8194
+    val haloSize = 1
+    val outputSize = inputSize - 2 * haloSize
+    // 4k
+    //val inputSize = 4096
+    //val haloSize = 1
+    //val outputSize = inputSize - 2 * haloSize
+
+    // create already padded input array with inner elements (i,j) = i * j
+    var input = Array.tabulate(inputSize, inputSize) { (i, j) => (i - haloSize) * (j - haloSize) * 1.0f }
+    input(0) = input(0).map((_ * 0.0f))
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+    input(0) = input(0).map(_ * 0.0f)
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+
+    try {
+      val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
+      println("Runtime: " + runtime)
+      println(output.take(10).mkString(", "))
+    } catch {
+      case e: DeviceCapabilityException =>
+        Assume.assumeNoException("Device not supported.", e)
+    }
+  }
+
   /* **********************************************************
        THREE LEVEL TILING
    ***********************************************************/
