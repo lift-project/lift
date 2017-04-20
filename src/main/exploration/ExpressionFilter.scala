@@ -26,114 +26,140 @@ object ExpressionFilter {
 
   import exploration.ExpressionFilter.Status._
 
-  def apply(local: ArithExpr, global: ArithExpr): Status = {
-    filterNDRanges((NDRange(local, 1, 1), NDRange(global, 1, 1)))
-  }
+  def apply(
+    local: ArithExpr,
+    global: ArithExpr,
+    searchParameters: SearchParameters
+  ): Status =
+    filterNDRanges(
+      (NDRange(local, 1, 1), NDRange(global, 1, 1)),
+      searchParameters
+    )
 
-  def apply(local1: ArithExpr, local2: ArithExpr,
-            global1: ArithExpr, global2: ArithExpr): Status = {
-    filterNDRanges((NDRange(local1, local2, 1), NDRange(global1, global2, 1)))
-  }
+  def apply(
+    local1: ArithExpr, local2: ArithExpr,
+    global1: ArithExpr, global2: ArithExpr,
+    searchParameters: SearchParameters
+  ): Status =
+    filterNDRanges(
+      (NDRange(local1, local2, 1), NDRange(global1, global2, 1)),
+      searchParameters
+    )
 
-  def apply(local1: ArithExpr, local2: ArithExpr, local3: ArithExpr,
-            global1: ArithExpr, global2: ArithExpr, global3: ArithExpr): Status = {
-    filterNDRanges((NDRange(local1, local2, local3), NDRange(global1, global2, global3)))
-  }
-  def filterNDRanges(ranges: (NDRange, NDRange)): Status = {
-    ranges match {
-      case (local, global) =>
-        try {
-          // Rule out obviously poor choices based on the grid size
-          // - minimum size of the entire compute grid
-          if (global.numberOfWorkItems < SearchParameters.min_grid_size) {
-            logger.debug("not enough work-items")
-            return NotEnoughWorkItems
-          }
+  def apply(
+    local1: ArithExpr, local2: ArithExpr, local3: ArithExpr,
+    global1: ArithExpr, global2: ArithExpr, global3: ArithExpr,
+    searchParameters: SearchParameters
+  ): Status =
+    filterNDRanges(
+      (NDRange(local1, local2, local3), NDRange(global1, global2, global3)),
+      searchParameters
+    )
 
-          if (local.forall(_.isEvaluable)) {
+  def filterNDRanges(
+    ranges: (NDRange, NDRange),
+    searchParameters: SearchParameters
+  ): Status = {
+    val local = ranges._1
+    val global = ranges._2
 
-            // - minimum of work-items in a workgroup
-            if (local.numberOfWorkItems < SearchParameters.min_work_items) {
-              logger.debug("not enough work-items (2)")
-              return NotEnoughWorkItems
-            }
+    try {
+      // Rule out obviously poor choices based on the grid size
+      // - minimum size of the entire compute grid
+      if (global.numberOfWorkItems < searchParameters.minGridSize) {
+        logger.debug("Not enough work-items in the grid")
+        return NotEnoughWorkItems
+      }
 
-            // - maximum of work-items in a workgroup
-            if (local.numberOfWorkItems > 1024) {
-              logger.debug("too many work-items")
-              return TooManyWorkItems
-            }
+      if (local.forall(_.isEvaluable)) {
 
-            val numWorkgroups = NDRange.numberOfWorkgroups(global, local)
-
-            // - minimum number of workgroups
-            if (numWorkgroups < SearchParameters.min_num_workgroups) {
-              logger.debug("not enough work-groups")
-              return NotEnoughWorkGroups
-            }
-
-            // - maximum number of workgroups
-            if (numWorkgroups > SearchParameters.max_num_workgroups) {
-              logger.debug("too many work-groups")
-              return TooManyWorkGroups
-            }
-          }
-          // All good...
-          Success
-        } catch {
-          case t: Throwable =>
-            logger.warn("Failed filtering", t)
-            InternalException
-          // TODO: Internal exceptions sound suspicious. Log to file...
+        // - minimum of work-items in a workgroup
+        if (local.numberOfWorkItems < searchParameters.minWorkItems) {
+          logger.debug("Not enough work-items in a group")
+          return NotEnoughWorkItems
         }
+
+        // - maximum of work-items in a workgroup
+        if (local.numberOfWorkItems > searchParameters.maxWorkItems) {
+          logger.debug("Too many work-items in a group")
+          return TooManyWorkItems
+        }
+
+            val numWorkgroups =
+              NDRange.numberOfWorkgroups(global, local)
+
+        // - minimum number of workgroups
+        if (numWorkgroups < searchParameters.minWorkgroups) {
+          logger.debug("Not enough work-groups")
+          return NotEnoughWorkGroups
+        }
+
+        // - maximum number of workgroups
+        if (numWorkgroups > searchParameters.maxWorkgroups){
+          logger.debug("Too many work-groups")
+          return TooManyWorkGroups
+        }
+
+      }
+      // All good...
+      Success
+
+    } catch {
+      case t: Throwable =>
+        logger.warn("Failed filtering", t)
+        InternalException
     }
   }
 
-  def apply(lambda: Lambda, ranges: (NDRange, NDRange)): Status = {
-    ranges match {
-      case (local, global) =>
-        try {
+  def apply(
+    lambda: Lambda, ranges: (NDRange, NDRange),
+    searchParameters: SearchParameters = SearchParameters.createDefault
+  ): Status = {
+    val local = ranges._1
+    val global = ranges._2
 
-          val memoryAmounts = MemoryAmounts(lambda, local, global)
+    try {
 
-          val privateMemories = memoryAmounts.getPrivateMemories
-          val localMemories = memoryAmounts.getLocalMemories
-          val globalMemories = memoryAmounts.getGlobalMemories
+      val memoryAmounts = MemoryAmounts(lambda, local, global)
 
-          // Check private memory usage and overflow
-          val privateAllocSize = privateMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
-          if (privateAllocSize > SearchParameters.max_amount_private_memory ||
-            privateMemories.exists(_.mem.size.eval <= 0)) {
-            logger.debug("too much private memory")
-            return TooMuchPrivateMemory
-          }
+      val privateMemories = memoryAmounts.getPrivateMemories
+      val localMemories = memoryAmounts.getLocalMemories
+      val globalMemories = memoryAmounts.getGlobalMemories
 
-          // Check local memory usage and overflow
-          val localAllocSize = localMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
+      // Check private memory usage and overflow
+      val privateAllocSize = privateMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
 
-          if (localAllocSize > 50000 || localMemories.exists(_.mem.size.eval <= 0)) {
-            logger.debug("too much local memory")
-            return TooMuchLocalMemory
-          }
+      if (privateAllocSize > searchParameters.maxPrivateMemory ||
+        privateMemories.exists(_.mem.size.eval <= 0)) {
+        logger.debug("Too much private memory")
+        return TooMuchPrivateMemory
+      }
 
-          // Check global memory overflow
-          if (globalMemories.exists(_.mem.size.eval <= 0)) {
-            logger.debug("too much global memory")
-            return TooMuchGlobalMemory
-          }
+      // Check local memory usage and overflow
+      val localAllocSize = localMemories.map(_.mem.size).fold(Cst(0))(_ + _).eval
 
-          // in case of global-local size exploration, we already checked these before
-          if (!ParameterRewrite.exploreNDRange.value.isDefined)
-            filterNDRanges(ranges)
-          else
-            Success
+      if (localAllocSize > searchParameters.maxLocalMemory ||
+        localMemories.exists(_.mem.size.eval <= 0)) {
+        logger.debug("Too much local memory")
+        return TooMuchLocalMemory
+      }
 
-        } catch {
-          case t: Throwable =>
-            logger.warn("Failed filtering", t)
-            InternalException
-          // TODO: Internal exceptions sound suspicious. Log to file...
-        }
+      // Check global memory overflow
+      if (globalMemories.exists(_.mem.size.eval <= 0)) {
+        logger.debug("Too much global memory")
+        return TooMuchGlobalMemory
+      }
+
+      // in case of global-local size exploration, we already checked these before
+      if (ParameterRewrite.exploreNDRange.value.isEmpty)
+        filterNDRanges(ranges, searchParameters)
+      else
+        Success
+
+    } catch {
+      case t: Throwable =>
+        logger.warn("Failed filtering", t)
+        InternalException
     }
   }
 }
