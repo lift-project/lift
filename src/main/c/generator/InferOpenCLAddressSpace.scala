@@ -4,7 +4,7 @@ import ir.ScalarType
 import ir.ast._
 import opencl.ir._
 import opencl.generator.IllegalKernel
-import opencl.ir.pattern.{SlideSeqPlus, toGlobal, toLocal, toPrivate}
+import opencl.ir.pattern.{toGlobal, toLocal, toPrivate}
 
 object InferOpenCLAddressSpace {
 
@@ -73,8 +73,6 @@ object InferOpenCLAddressSpace {
 
       case r: AbstractPartRed => setAddressSpaceReduce(r.f, call, addressSpaces)
       case s: AbstractSearch => setAddressSpaceSearch(s, writeTo, addressSpaces)
-
-      case sp: SlideSeqPlus => setAddressSpaceReduce(sp.f, call, addressSpaces)
 
       case l: Lambda => setAddressSpaceLambda(l, writeTo, addressSpaces)
       case fp: FPattern => setAddressSpaceLambda(fp.f, writeTo, addressSpaces)

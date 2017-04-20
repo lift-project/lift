@@ -80,8 +80,6 @@ class TestReduceWhile {
       }
     )
 
-    println(Compile(kernel))
-
     val (output: Array[Int], runtime) = Execute(1,1)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())

@@ -5,7 +5,6 @@ import java.util.Scanner
 
 import ir.ArrayTypeWSWC
 import ir.ast._
-import opencl.executor._
 import lift.arithmetic.{ArithExpr, Cst, Lookup, SizeVar}
 import opencl.executor.{Execute, Executor, LongTestsEnabled, Utils}
 import opencl.ir._
@@ -175,8 +174,6 @@ class TestSlide {
   @Test def slideWidth4Step2(): Unit = {
     val gold = Array(0,1,2,3, 2,3,4,5).map(_.toFloat)
     val data = Array(0,1,2,3,4,5).map(_.toFloat)
-
-    println(Compile(createSimple1DGroupLambda(5,3)))
 
     val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(4,2), data)
     println(output.mkString(","))
