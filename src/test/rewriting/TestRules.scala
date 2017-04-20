@@ -6,9 +6,10 @@ import lift.arithmetic.{RangeMul, SizeVar, Var}
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.ast._
-import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import rewriting.utils.NumberExpression
 
 object TestRules {
   @BeforeClass def before(): Unit = {
@@ -453,6 +454,41 @@ class TestRules {
   }
 
   @Test
+  def addIdMapWrg(): Unit = {
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      input => MapWrg(MapLcl(id)) o Slide(3,1) $ input
+    )
+    TypeChecker(f)
+
+    val g = fun(
+      ArrayTypeWSWC(Float, N),
+      input => MapWrg(MapLcl(Reduce(add, 0.0f)) o Slide(3,1)) o Slide(4,2) $ input
+    )
+    TypeChecker(g)
+
+    val h = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      input => Join() o MapWrg(1)(TransposeW() o MapWrg(0)(
+        MapLcl(1)(MapLcl(0)(Reduce(add, 0.0f) o Join())) o Slide2D(3,1)
+      )) o Slide2D(4,2) $ input
+    )
+    TypeChecker(h)
+
+    // checks that the rule is only applicable once,
+    // otherwise this will fail with a StackOverflowError
+    val rewrittenG = Rewrite.applyRulesUntilCannot(g, Seq(Rules.addIdMapWrg))
+    val rewrittenH = Rewrite.applyRulesUntilCannot(h, Seq(Rules.addIdMapWrg))
+
+    assertTrue(Rules.addIdMapWrg.rewrite.isDefinedAt(f.body))
+    assertTrue(Rules.addIdMapWrg.rewrite.isDefinedAt(g.body))
+    assertTrue(rewrittenH.body.contains({case FunCall(Id(), a) =>}))
+  }
+
+  @Test
   def transposeTransposeId(): Unit = {
     val N = SizeVar("N")
     val M = SizeVar("M")
@@ -464,6 +500,168 @@ class TestRules {
 
     assertTrue(Rules.transposeTransposeId.rewrite.isDefinedAt(f.body))
     assertSame(f.params.head, Rules.transposeTransposeId.rewrite(f.body))
+  }
+
+  @Test
+  def mapTransposePromotion(): Unit = {
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+    val K = SizeVar("K")
+    val O = SizeVar("O")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), K), O),
+      input => Map(Transpose()) o Join() $ input
+    )
+
+    assertTrue(MacroRules.movingJoin.rewrite.isDefinedAt(f.body))
+    val result = MacroRules.movingJoin.rewrite(f.body)
+    TypeChecker.check(result)
+  }
+
+  @Test
+  def slidePromotion(): Unit = {
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+    val K = SizeVar("K")
+
+    val u = SizeVar("u")
+    val v = SizeVar("v")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), K),
+      input => Slide(u,v) o Map(Join()) $ input
+    )
+
+    assertTrue(Rules.slidePromotion.rewrite.isDefinedAt(f.body))
+    val result = Rules.slidePromotion.rewrite(f.body)
+    TypeChecker.check(result)
+  }
+
+  @Test
+  def slideSwap(): Unit = {
+    val K = SizeVar("K")
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    val n = SizeVar("n")
+    val s = SizeVar("s")
+    val u = SizeVar("u")
+    val v = SizeVar("v")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), K),
+      input => Slide(u, v) o Map(Map(Slide(n,s))) $ input
+    )
+
+    assertTrue(Rules.slideSwap.rewrite.isDefinedAt(f.body))
+    val result = Rules.slideSwap.rewrite(f.body)
+    TypeChecker.check(result)
+  }
+
+  @Test
+  def joinSwap(): Unit = {
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+    val K = SizeVar("K")
+    val O = SizeVar("O")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), K), O),
+      input => Join() o Map(Map(Join())) $ input
+    )
+
+    assertTrue(Rules.joinSwap.rewrite.isDefinedAt(f.body))
+    val result = Rules.joinSwap.rewrite(f.body)
+    TypeChecker.check(result)
+  }
+
+  @Test
+  def transposeSwap(): Unit = {
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+    val K = SizeVar("K")
+    val O = SizeVar("O")
+    val P = SizeVar("P")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), K), O), P),
+      input => Map(Map(Map(Transpose()))) o Map(Transpose()) $ input
+    )
+
+    assertTrue(Rules.transposeSwap.rewrite.isDefinedAt(f.body))
+    val result = Rules.transposeSwap.rewrite(f.body)
+    TypeChecker.check(result)
+  }
+
+  @Test
+  def slideTransposeSwap(): Unit = {
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+    val K = SizeVar("K")
+    val O = SizeVar("O")
+
+    val u = SizeVar("u")
+    val v = SizeVar("v")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), K), O),
+      input => Map(Map(Map(Slide(u,v)))) o Map(Transpose()) $ input
+    )
+
+    assertTrue(Rules.slideTransposeSwap.rewrite.isDefinedAt(f.body))
+    val result = Rules.slideTransposeSwap.rewrite(f.body)
+    TypeChecker.check(result)
+  }
+
+  @Test
+  def slideTransposeReordering(): Unit = {
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+    val K = SizeVar("K")
+
+    val u = SizeVar("u")
+    val v = SizeVar("v")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), K),
+      input => Map(Slide(u,v)) o Map(Transpose()) $ input
+    )
+
+    assertTrue(Rules.slideTransposeReordering.rewrite.isDefinedAt(f.body))
+    val result = Rules.slideTransposeReordering.rewrite(f.body)
+    TypeChecker.check(result)
+  }
+
+  @Test
+  def idTransposeTranspose(): Unit = {
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      input => Id() $ input
+    )
+
+    assertTrue(Rules.idTransposeTranspose.rewrite.isDefinedAt(f.body))
+    val result = Rules.idTransposeTranspose.rewrite(f.body)
+    TypeChecker.check(result)
+  }
+
+  @Test
+  def transposeMapJoinReordering(): Unit = {
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+    val K = SizeVar("K")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), K),
+      input => Transpose() o Map(Join()) $ input
+    )
+
+    assertTrue(Rules.transposeMapJoinReordering.rewrite.isDefinedAt(f.body))
+    val result = Rules.transposeMapJoinReordering.rewrite(f.body)
+    TypeChecker.check(result)
   }
 
   @Test

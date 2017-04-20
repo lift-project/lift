@@ -26,7 +26,7 @@ class TestMemoryMappingRewrite {
   private val v__6 = SizeVar("")
   private val v__7 = SizeVar("")
 
-  val enabledMappings = EnabledMappings(global0 = true, global01 = true, global10 = false, group0 = true, group01 = false, group10 = true)
+  val enabledMappings = EnabledMappings(global0 = true, global01 = true, global10 = false, global012 = false, global210 = false, group0 = true, group01 = false, group10 = true)
 
   val mmTATiled2DBlocked = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K), ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),(p_0, p_1) => FunCall(Join(), FunCall(Map(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_3) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(Map(fun((p_5) => FunCall(Scatter(ReorderWithStride(v__3 / v__4)), p_5))), FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_6) => FunCall(TransposeW(), FunCall(Map(fun((p_7) => FunCall(TransposeW(), p_7))), FunCall(TransposeW(), p_6))))), FunCall(TransposeW(), p_4))))))), FunCall(TransposeW(), FunCall(ReduceSeq(fun((p_9, p_10) => FunCall(Map(fun((p_11) => FunCall(Join(), FunCall(Map(fun((p_12) => FunCall(ReduceSeq(fun((p_14, p_15) => FunCall(Map(fun((p_16) => FunCall(Map(fun((p_17) => FunCall(add, FunCall(Get(0), p_17), FunCall(mult, FunCall(Get(1), p_16), FunCall(Get(1), p_17))))), FunCall(Zip(2), FunCall(Get(0), p_16), FunCall(Get(1), p_15))))), FunCall(Zip(2), p_14, FunCall(Get(0), p_15))))), FunCall(Get(0), p_12), FunCall(Zip(2), FunCall(Transpose(), FunCall(Get(1), p_11)), FunCall(Transpose(), FunCall(Get(1), p_12)))))), FunCall(Zip(2), FunCall(Get(0), p_11), FunCall(Split(v__4), FunCall(Gather(ReorderWithStride(v__3 / v__4)), FunCall(Transpose(), FunCall(Get(1), p_10))))))))), FunCall(Zip(2), p_9, FunCall(Split(v__5), FunCall(Transpose(), FunCall(Get(0), p_10))))))), Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, v__4), v__5), v__3*1/^v__4), v__6*1/^v__5)), FunCall(Zip(2), p_2, p_3)))))))), FunCall(Transpose(), FunCall(Map(fun((p_22) => FunCall(Transpose(), p_22))), FunCall(Split(v__7), FunCall(Map(fun((p_23) => FunCall(Split(v__3), p_23))), p_1))))))))), FunCall(Transpose(), FunCall(Map(fun((p_24) => FunCall(Transpose(), p_24))), FunCall(Split(v__7), FunCall(Map(fun((p_25) => FunCall(Split(v__6), p_25))), p_0)))))))
 
@@ -85,6 +85,17 @@ class TestMemoryMappingRewrite {
 
     val mapped = MemoryMappingRewrite.lowerLambda(gemvAmd, enabledMappings)
     assertTrue(mapped.exists(getHash(_) == gemvAmdHash))
+  }
+
+  @Test
+  def unrolledReduce(): Unit = {
+    val highLevel = fun(ArrayTypeWSWC(Float, N),(p_0) => FunCall(Join(), FunCall(Map(fun((p_1) => FunCall(Reduce(fun((p_2, p_3) => FunCall(add, p_2, p_3))), Value("0.0f", Float), p_1))), FunCall(Slide(3,1), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_0)))))
+    val gold = fun(ArrayTypeWSWC(Float, N),(p_0) => FunCall(Join(), FunCall(MapGlb(0)(fun((p_1) => FunCall(toGlobal(fun((p_2) => FunCall(MapSeq(fun((p_3) => FunCall(idfloat, p_3))), p_2))), FunCall(MapSeq(fun((p_4) => p_4)), FunCall(ReduceSeqUnroll(fun((p_5, p_6) => FunCall(fun((p_7) => FunCall(fun((p_8) => FunCall(add, p_5, p_8)), p_7)), p_6))), FunCall(idfloat, Value("0.0f", Float)), p_1))))), FunCall(Slide(3,1), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_0)))))
+    val goldHash = getHash(gold)
+
+    val mapped = MemoryMappingRewrite.lowerLambda(highLevel, enabledMappings, true)
+    println(mapped)
+    assertTrue(mapped.exists(getHash(_) == goldHash))
   }
 
   @Test
