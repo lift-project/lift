@@ -100,7 +100,7 @@ class TestRewriteStencil {
       x.sum).toArray
 
     val f1 = Rewrite.applyRuleAtId(f, 1, Rules.slideTiling(4))
-    val f2 = Rewrite.applyRuleAtId(f1, 0, Rules.mapJoin)
+    val f2 = Rewrite.applyRuleAtId(f1, 0, MacroRules.movingJoin)
     val f3 = Rewrite.applyRuleAtId(f2, 1, Rules.mapFusion)
     // introduce low-level primitives
     val f4 = Rewrite.applyRuleAtId(f3, 8, Rules.reduceSeq)
@@ -130,7 +130,7 @@ class TestRewriteStencil {
 
     // tiling
     val f1 = Rewrite.applyRuleAtId(f, 1, Rules.slideTiling(4))
-    val f2 = Rewrite.applyRuleAtId(f1, 0, Rules.mapJoin)
+    val f2 = Rewrite.applyRuleAtId(f1, 0, MacroRules.movingJoin)
     val f3 = Rewrite.applyRuleAtId(f2, 1, Rules.mapFusion)
     // local memory
     val f4 = Rewrite.applyRuleAtId(f3, 6, Rules.addId)
