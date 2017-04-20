@@ -4,6 +4,7 @@ import lift.arithmetic._
 import arithmetic.TypeVar
 import ir._
 import ir.interpreter.Interpreter._
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 import scala.collection._
 
@@ -50,7 +51,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case at: ArrayType =>
+      case at: ArrayType with Size with Capacity =>
         // perform simple cases where we don't need to do the closed form iterate to work out
         // the output type
         f.params(0).t = argType
@@ -59,8 +60,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
              n == Cst(1) |
              // perform a simple (and hopefully quick!) check to see if the
              // input/output types of the nested function match
-             TypeChecker.check(f.body, setType=false) == argType
-           ) {
+                 TypeChecker.check(f.body, setType=false) == argType) {
           // return the type of the body.
           return TypeChecker.check(f.body)
         } else {
@@ -71,10 +71,11 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
         // substitute all the expression in the input type with type variables
         val initialTvValMap = scala.collection.mutable.HashMap[TypeVar, ArithExpr]()
         var inputTypeWithTypeVar = Type.visitAndRebuild(at, t => t, {
-          case at: ArrayType =>
+          case at: ArrayType with Size with Capacity =>
             val inLenTV = TypeVar(StartFromRange(1))
-            initialTvValMap += inLenTV -> at.len
-            ArrayType(at.elemT, inLenTV)
+            initialTvValMap += inLenTV -> at.size
+            ArrayTypeWSWC(at.elemT, inLenTV)
+          case _:ArrayType => throw new NotImplementedException
           case t: Type => t
         })
 
@@ -83,12 +84,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
         val outputTypeWithTypeVar = TypeChecker.check(f.body, setType = false)
 
         // find all the type variable in the output type
-        val outputTvSet = scala.collection.mutable.HashSet[TypeVar]()
-        Type.visit(outputTypeWithTypeVar, _ => {}, {
-          case at: ArrayType => outputTvSet ++= TypeVar.getTypeVars(at.len)
-          case vt: VectorType => outputTvSet ++= TypeVar.getTypeVars(vt.len)
-          case _ =>
-        })
+        val outputTvSet = TypeVar.getTypeVars(outputTypeWithTypeVar)
 
         // put back the expression when the type variable is not present
         val fixedTvMap = initialTvValMap -- outputTvSet
@@ -126,9 +122,9 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
                                 n: ArithExpr,
                                 initialTvValMap: mutable.HashMap[TypeVar, ArithExpr]): (Type,Type) = {
     (inT,ouT) match {
-      case (inAT : ArrayType, outAT : ArrayType) =>
-          val inLen = inAT.len
-          val outLen = outAT.len
+      case (ArrayTypeWSWC(_,inS,inC), ArrayTypeWSWC(_,outS,outC)) if inS == inC && outS == outC =>
+          val inLen = inS
+          val outLen = outS
 
           inLen match {
             case inLenTV: TypeVar =>
@@ -157,7 +153,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
                 val len = computeLength(inLenTVWithRange)
 
                 val (inElemsT, outElemsT) = closedFormIterate(substInT.elemT, substOuT.elemT, n, initialTvValMap)
-                (ArrayType(inElemsT, inLenTVWithRange), ArrayType(outElemsT, len))
+                (ArrayTypeWSWC(inElemsT, inLenTVWithRange), ArrayTypeWSWC(outElemsT, len))
               }
 
               val a = outLen /^ inLenTV
@@ -178,6 +174,8 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
               throw TypeException("Cannot infer closed form for " +
               "iterate return type. inT = " + inT + " ouT = " + ouT)
           }
+
+      case (_ : ArrayType, _ : ArrayType) => throw new NotImplementedError()
 
       case (inTT:TupleType, outTT:TupleType) =>
 

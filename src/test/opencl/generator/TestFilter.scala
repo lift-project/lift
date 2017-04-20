@@ -1,8 +1,8 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -37,8 +37,8 @@ class TestFilter {
     val M = SizeVar("M")
 
     val compFun = fun(
-      ArrayType(Float, N),
-      ArrayType(Int, M),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Int, M),
       (input, ids) =>
         MapGlb(id) $ Filter(input, ids)
     )
@@ -61,8 +61,8 @@ class TestFilter {
     val M = SizeVar("M")
 
     val compFun = fun(
-      ArrayType(Float, N),
-      ArrayType(Int, M),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Int, M),
       (input, ids) =>
         Join() o MapWrg( MapLcl(id)) o Split(4) $ Filter(input, ids)
     )
@@ -85,8 +85,8 @@ class TestFilter {
     val M = SizeVar("M")
 
     val compFun = fun(
-      ArrayType(Float, N),
-      ArrayType(Int, M),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Int, M),
       (input, ids) =>
         Join() o MapWrg(fun( x =>  MapLcl(id) $ Filter(x, ids))) o Split(4) $ input
     )
@@ -109,8 +109,8 @@ class TestFilter {
     val M = SizeVar("M")
 
     val compFun = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(Int, M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(Int, M),
       (input, ids) =>
         MapWrg( MapLcl(id)) $ Filter(input, ids)
     )
@@ -133,8 +133,8 @@ class TestFilter {
     val M = SizeVar("M")
 
     val compFun = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(Int, M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(Int, M),
       (input, ids) =>
         MapWrg(fun(x =>  MapLcl(id) $ Filter(x, ids))) $ input
     )

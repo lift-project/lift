@@ -7,10 +7,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.Logger
 import exploration.ParameterSearch.SubstitutionMap
 import ir.ast.{Expr, FunCall, Lambda}
-import ir.{ArrayType, Type, TypeChecker}
+import ir.{Type, TypeChecker}
 import lift.arithmetic.{ArithExpr, Cst}
 import opencl.executor.Eval
-import opencl.generator.OpenCLGenerator._
+import opencl.generator.NDRange
 import opencl.ir.pattern._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
@@ -202,10 +202,10 @@ object ParameterRewrite {
                       } else
                         filtered
 
-                      val sampleStrings: Seq[String] = sampled.map(x => low_level_hash + "_" + x._2.mkString("_") +
-                        "_" + x._3._1.mkString("_") + "_" + x._3._2.mkString("_"))
-                      logger.debug("\nSampled NDRanges:\n\t" + sampleStrings.mkString(" \n "))
-                      Some(sampled)
+                        val sampleStrings: Seq[String] = sampled.map(x => low_level_hash + "_" + x._2.mkString("_") +
+                          "_" + x._3._1.toString.replace(",", "_") + "_" + x._3._2.toString.replace(",", "_"))
+                        logger.debug("\nSampled NDRanges:\n\t" + sampleStrings.mkString(" \n "))
+                        Some(sampled)
 
                     } catch {
                       case _: ir.TypeException => None
@@ -330,20 +330,20 @@ object ParameterRewrite {
       case 1 => for {
         x <- localGlobalCombinations
         if ExpressionFilter(x._1, x._2) == success
-      } yield (Array(x._1, 1, 1): NDRange, Array(x._2, 1, 1): NDRange)
+      } yield (NDRange(x._1, 1, 1), NDRange(x._2, 1, 1))
 
       case 2 => for {
         x: (ArithExpr, ArithExpr) <- localGlobalCombinations
         y: (ArithExpr, ArithExpr) <- localGlobalCombinations
         if ExpressionFilter(x._1, y._1, x._2, y._2) == success
-      } yield (Array(x._1, y._1, 1): NDRange, Array(x._2, y._2, 1): NDRange)
+      } yield (NDRange(x._1, y._1, 1), NDRange(x._2, y._2, 1))
 
       case 3 => for {
         x <- localGlobalCombinations
         y <- localGlobalCombinations
         z <- localGlobalCombinations
         if ExpressionFilter(x._1, y._1, z._1, x._2, y._2, z._2) == success
-      } yield (Array(x._1, y._1, z._1): NDRange, Array(x._2, y._2, z._2): NDRange)
+      } yield (NDRange(x._1, y._1, z._1), NDRange(x._2, y._2, z._2))
 
       case _ => throw new RuntimeException("Could not pre-compute NDRanges for exploration")
     }

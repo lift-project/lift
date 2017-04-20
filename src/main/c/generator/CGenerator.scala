@@ -13,14 +13,13 @@ import opencl.generator._
 import scala.collection.immutable
 
 object CGenerator extends Generator {
-  type NDRange = Array[ArithExpr]
 
   def generate(f: Lambda): String = {
-    generate(f, Array(?, ?, ?))
+    generate(f, NDRange(?, ?, ?))
   }
 
   def generate(f: Lambda, localSizes: NDRange): String = {
-    generate(f, localSizes, Array(?, ?, ?), immutable.Map())
+    generate(f, localSizes, NDRange(?, ?, ?), immutable.Map())
   }
 
   // Compile a type-checked function into an OpenCL kernel
@@ -121,7 +120,6 @@ object CGenerator extends Generator {
 
 class CGenerator extends Generator {
 
-  type NDRange = Array[ArithExpr]
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
   type SymbolTable = immutable.Map[Var, Type]
 
@@ -145,11 +143,11 @@ class CGenerator extends Generator {
   }
 
   def generate(f: Lambda): String  = {
-    generate(f, Array(?, ?, ?))
+    generate(f, NDRange(?, ?, ?))
   }
 
   def generate(f: Lambda, localSizes: NDRange): String = {
-    generate(f, localSizes, Array(?, ?, ?), immutable.Map())
+    generate(f, localSizes, NDRange(?, ?, ?), immutable.Map())
   }
 
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
@@ -396,7 +394,7 @@ class CGenerator extends Generator {
       liftKernel.body +=
         CAst.VarDecl(x.mem.variable, x.t,
           addressSpace = x.mem.addressSpace,
-          length = (x.mem.size /^ Type.getMaxSize(Type.getBaseType(x.t))).eval))
+          length = (x.mem.size /^ Type.getMaxAllocatedSize(Type.getBaseType(x.t))).eval))
 
     liftKernel.body += CAst.Comment("Typed Value memory")
     typedValueMems.foreach(x =>
@@ -407,7 +405,7 @@ class CGenerator extends Generator {
 
     liftKernel.body += CAst.Comment("Private Memory")
     privateMems.foreach(x => {
-      val length = x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))
+      val length = x.mem.size /^ Type.getMaxAllocatedSize(Type.getValueType(x.t))
 
       if (!length.isEvaluable)
         throw new IllegalKernel("Private memory length has to be" +
@@ -486,13 +484,13 @@ class CGenerator extends Generator {
     e match {
       case e: Expr =>
         e.t match {
-          case a: UnknownLengthArrayType =>
+          case a: RuntimeSizedArrayType =>
             // TODO: Emitting a view of type ArrayType is illegal!
             Left(ViewPrinter.emit(e.mem.variable, e.view) match {
               case OpenCLAST.VarRef(v, s, i) => VarRef(v, s, ArithExpression(i.content))
               case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
             })
-          case a: ArrayType => Right(a.len)
+          case a: ArrayType with Size => Right(a.size)
           case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) =>
             throw new TypeException(e.t, "Array")
         }
@@ -1083,7 +1081,7 @@ class CGenerator extends Generator {
           case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
         index / length
-      case ArrayType(_, _) | NoType | UndefType =>
+      case ArrayType(_) | NoType | UndefType =>
         throw new TypeException(valueType, "A valid non array type")
     }
 
@@ -1121,7 +1119,7 @@ class CGenerator extends Generator {
           case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
         index % length
-      case ArrayType(_, _) | NoType | ScalarType(_, _) | TupleType(_) | UndefType =>
+      case ArrayType(_) | NoType | ScalarType(_, _) | TupleType(_) | UndefType =>
         throw new TypeException(valueType, "VectorType")
     }
 

@@ -139,9 +139,9 @@ class TestProgramGenerator {
   def seekCompilerBugs(): Unit = {
     val f = fun(
       Float,
-      ArrayType(ArrayType(Float,32),32),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float,32),32),
       Float,
-      ArrayType(Float,32),
+      ArrayTypeWSWC(Float,32),
       (p99,p102,p226,p239) =>{
         Map(fun((p24) =>
           Split(4) o Join() o Map(fun((p157) =>

@@ -3,7 +3,7 @@ package opencl.executor
 import lift.arithmetic._
 import ir._
 import ir.ast._
-import opencl.generator.OpenCLGenerator.NDRange
+import opencl.generator.NDRange
 import opencl.generator.{OpenCLGenerator, Verbose}
 import opencl.ir._
 import rewriting.InferNDRange
@@ -90,13 +90,13 @@ object Execute {
     val sizeExprs = f.params.flatMap((p) => Type.getLengths(p.t).init)
 
     val tupleSizes = f.params.map(_.t match {
-      case ArrayType(ArrayType(ArrayType(tt: TupleType, _), _), _) => tt.elemsT.length
-      case ArrayType(ArrayType(tt: TupleType, _), _) => tt.elemsT.length
-      case ArrayType(tt: TupleType, _) => tt.elemsT.length
+      case ArrayType(ArrayType(ArrayType(tt: TupleType))) => tt.elemsT.length
+      case ArrayType(ArrayType(tt: TupleType)) => tt.elemsT.length
+      case ArrayType(tt: TupleType) => tt.elemsT.length
       case tt: TupleType => tt.elemsT.length
-      case ArrayType(ArrayType(ArrayType(vt: VectorType, _), _), _) => vt.len.eval
-      case ArrayType(ArrayType(vt: VectorType, _), _) => vt.len.eval
-      case ArrayType(vt: VectorType, _) => vt.len.eval
+      case ArrayType(ArrayType(ArrayType(vt: VectorType))) => vt.len.eval
+      case ArrayType(ArrayType(vt: VectorType)) => vt.len.eval
+      case ArrayType(vt: VectorType) => vt.len.eval
       case vt: VectorType => vt.len.eval
       case _ => 1
     })
@@ -238,12 +238,10 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       globalSize1 == ? && globalSize2 == ? && globalSize3 == ?
 
   private def inferSizes(f: Lambda) = {
-    val (localSizes, globalSizes) = InferNDRange(f)
-
-    val existingDims = globalSizes.count(_ != Cst(1))
+    var (localSizes, globalSizes) = InferNDRange(f)
 
     val defaultSize =
-      existingDims match {
+      globalSizes.numberOfDimensionsNotOne match {
         case 3 => 8
         case 2 => 16
         case 1 => 128
@@ -251,13 +249,13 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       }
 
     if (localSizes(0) == ?)
-      localSizes(0) = if (globalSizes(0) != Cst(1)) defaultSize else 1
+      localSizes = localSizes.copy(x = if (globalSizes(0) != Cst(1)) defaultSize else 1)
 
     if (localSizes(1) == ?)
-      localSizes(1) = if (globalSizes(1) != Cst(1)) defaultSize else 1
+      localSizes = localSizes.copy(y = if (globalSizes(1) != Cst(1)) defaultSize else 1)
 
     if (localSizes(2) == ?)
-      localSizes(2) = if (globalSizes(2) != Cst(1)) defaultSize else 1
+      localSizes = localSizes.copy(z = if (globalSizes(2) != Cst(1)) defaultSize else 1)
 
     (localSizes, globalSizes)
   }
@@ -350,18 +348,18 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
         if (realLocal.exists(!_.isEvaluable))
           throw new InvalidIndexSpaceException(
-            s"Failed to infer evaluable local thread counts, ${realLocal.mkString(", ")}")
+            s"Failed to infer evaluable local thread counts, ${realLocal.toString}")
 
         if (realGlobal.exists(!_.isEvaluable))
           throw new InvalidIndexSpaceException(
-            s"Failed to infer evaluable global thread counts, ${realGlobal.mkString(", ")}")
+            s"Failed to infer evaluable global thread counts, ${realGlobal.toString}")
 
         (realLocal, realGlobal)
 
       } else {
         (
-          Array[ArithExpr](localSize1, localSize2, localSize3),
-          Array[ArithExpr](globalSize1, globalSize2, globalSize3)
+          NDRange(localSize1, localSize2, localSize3),
+          NDRange(globalSize1, globalSize2, globalSize3)
         )
       }
 
@@ -372,8 +370,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     ValidateGroupSize(localSize(0).eval * localSize(1).eval * localSize(2).eval)
 
     if (Verbose()) {
-      println(s"Local sizes: ${localSize.mkString(", ")}")
-      println(s"Global sizes: ${globalSize.mkString(", ")}")
+      println(s"Local sizes: ${localSize.toString}")
+      println(s"Global sizes: ${globalSize.toString}")
     }
 
     (localSize, globalSize)
@@ -394,7 +392,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     validateMemorySizes(f, valueMap)
 
     // 4. create output OpenCL kernel argument
-    val outputSize = ArithExpr.substitute(Type.getMaxSize(f.body.t), valueMap).eval
+    val outputSize = ArithExpr.substitute(Type.getMaxAllocatedSize(f.body.t), valueMap).eval
     val outputData = global(outputSize)
 
     // 5. create all OpenCL data kernel arguments

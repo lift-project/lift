@@ -1,14 +1,13 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
-import benchmarks.SumAbsoluteValues
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
-import opencl.ir.pattern._
 
 object TestReduceWhile {
   @BeforeClass def before(): Unit = {
@@ -38,7 +37,7 @@ class TestReduceWhile {
     val N = SizeVar("N")
 
     val kernel = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       (array) => {
         toGlobal(MapSeq(idI)) o ReduceWhileSeq(
         	int_add,
@@ -72,7 +71,7 @@ class TestReduceWhile {
     val N = SizeVar("N")
 
     val kernel = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       (array) => {
         Join() o MapSeq(
           toGlobal(MapSeq(idI)) o 
@@ -107,7 +106,7 @@ class TestReduceWhile {
     val N = SizeVar("N")
 
     val kernel = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       (array) => {
         Join() o MapGlb(
           toGlobal(MapSeq(idI)) o
@@ -142,7 +141,7 @@ class TestReduceWhile {
     val N = SizeVar("N")
 
     val kernel = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       (array) => {
         Join() o Join() o MapWrg(
           MapLcl(

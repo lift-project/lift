@@ -22,7 +22,7 @@ abstract class AbstractPartRed(val f: Lambda,
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case TupleType(initT, ArrayType(elemT, _)) =>
+      case TupleType(initT, ArrayType(elemT)) =>
         f.params(0).t = initT // initial elem type
         f.params(1).t = elemT // array element type
 
@@ -35,7 +35,7 @@ abstract class AbstractPartRed(val f: Lambda,
           throw TypeException(s"Reduce operator returns $bodyType instead of the expected $initT")
 
         // TODO: Output length of a partial reduce might not be 1
-        ArrayType(initT, 1)
+        ArrayTypeWSWC(initT, 1)
 
       case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))")
     }
