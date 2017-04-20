@@ -107,7 +107,7 @@ class GettingStarted {
     */
 
   def lowLevel3pointJacobi =
-    λ(ArrayType(Float, SizeVar("N")),
+    λ(ArrayTypeWSWC(Float, SizeVar("N")),
       A =>
         /**
           * The high-level Map primitive has been replaced with the low-level
@@ -195,7 +195,7 @@ class GettingStarted {
     * a common optimization for stencil computations using only the
     * previously defined rules:
     */
-  def simpleStencil = λ(ArrayType(Float, SizeVar("N")), A =>
+  def simpleStencil = λ(ArrayTypeWSWC(Float, SizeVar("N")), A =>
     Map(Reduce(add, 0.0f)) o
       Slide(3,1) o                          // <- apply slideTiling here
         Pad(1,1,clamp)
@@ -249,7 +249,7 @@ class GettingStarted {
     */
 
   def tiled3pointJacobi = λ(
-    ArrayType(Float, SizeVar("N")),
+    ArrayTypeWSWC(Float, SizeVar("N")),
     A =>
     Join() o MapGlb(1)(MapGlb(0)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o
       Map(Slide(3, 1)) o Slide(4, 2) o
@@ -284,7 +284,7 @@ class GettingStarted {
   @Test def autotuningStencils(): Unit = {
     val tuningParam = Var("param1") // tileStep
     def almostTunableStencil = λ(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       A =>
         Join() o MapWrg(MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))) o
           Map(Slide(3, 1)) o Slide(tuningParam + 2, tuningParam) o
