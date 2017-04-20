@@ -222,37 +222,37 @@ class SaveOpenCL(
     val controlFlow = ControlFlow(lambda, localSizes, globalSizes, inputVarMapping)
     val functionCounts = FunctionCounts(lambda, localSizes, globalSizes, inputVarMapping)
 
-    val globalMemory = memoryAmounts.getGlobalMemoryUsed(exact).evalDbl
-    val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDbl
-    val privateMemory = memoryAmounts.getPrivateMemoryUsed(exact).evalDbl
+    val globalMemory = memoryAmounts.getGlobalMemoryUsed(exact).evalDouble
+    val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDouble
+    val privateMemory = memoryAmounts.getPrivateMemoryUsed(exact).evalDouble
 
-    val globalStores = accessCounts.getStores(GlobalMemory, exact).evalDbl
-    val globalLoads = accessCounts.getLoads(GlobalMemory, exact).evalDbl
-    val localStores = accessCounts.getStores(LocalMemory, exact).evalDbl
-    val localLoads = accessCounts.getLoads(LocalMemory, exact).evalDbl
-    val privateStores = accessCounts.getStores(PrivateMemory, exact).evalDbl
-    val privateLoads = accessCounts.getLoads(PrivateMemory, exact).evalDbl
+    val globalStores = accessCounts.getStores(GlobalMemory, exact).evalDouble
+    val globalLoads = accessCounts.getLoads(GlobalMemory, exact).evalDouble
+    val localStores = accessCounts.getStores(LocalMemory, exact).evalDouble
+    val localLoads = accessCounts.getLoads(LocalMemory, exact).evalDouble
+    val privateStores = accessCounts.getStores(PrivateMemory, exact).evalDouble
+    val privateLoads = accessCounts.getLoads(PrivateMemory, exact).evalDouble
 
-    val barriers = barrierCounts.getTotalCount(exact).evalDbl
+    val barriers = barrierCounts.getTotalCount(exact).evalDouble
 
     val coalescedGlobalStores =
-      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact).evalDbl
+      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact).evalDouble
     val coalescedGlobalLoads =
-      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact).evalDbl
+      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact).evalDouble
 
     val vectorGlobalStores =
-      accessCounts.vectorStores(GlobalMemory, UnknownPattern, exact).evalDbl
+      accessCounts.vectorStores(GlobalMemory, UnknownPattern, exact).evalDouble
     val vectorGlobalLoads =
-      accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact).evalDbl
+      accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact).evalDouble
 
-    val ifStatements = controlFlow.getIfStatements(exact).evalDbl
-    val forStatements = controlFlow.getForStatements(exact).evalDbl
+    val ifStatements = controlFlow.getIfStatements(exact).evalDouble
+    val forStatements = controlFlow.getForStatements(exact).evalDouble
 
-    val addCount = functionCounts.getFunctionCount(add, exact).evalDbl
-    val multCount = functionCounts.getFunctionCount(mult, exact).evalDbl
-    val addMult = functionCounts.getAddMultCount(exact).evalDbl
-    val vecAddMult = functionCounts.getVectorisedAddMultCount(exact).evalDbl
-    val dotCount = functionCounts.getFunctionCount(dot, exact).evalDbl
+    val addCount = functionCounts.getFunctionCount(add, exact).evalDouble
+    val multCount = functionCounts.getFunctionCount(mult, exact).evalDouble
+    val addMult = functionCounts.getAddMultCount(exact).evalDouble
+    val vecAddMult = functionCounts.getVectorisedAddMultCount(exact).evalDouble
+    val dotCount = functionCounts.getFunctionCount(dot, exact).evalDouble
 
     val string =
       s"$hash,${globalSizes.toString},${localSizes.toString}," +

@@ -184,7 +184,7 @@ object ArrayType {
       println(s"Warning: $s must be provably positive! (len=$ae)")
 
     if (ae.isEvaluable) {
-      val length = ae.evalDbl
+      val length = ae.evalDouble
 
       if (!length.isValidInt || length < 1)
         throw TypeException(length + " is not a valid "+s+" for an array!")

@@ -42,18 +42,18 @@ JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createInput___3Z
 /*
  * Class:     opencl_executor_GlobalArg
  * Method:    createOutput
- * Signature: (I)Lopencl/executor/GlobalArg;
+ * Signature: (J)Lopencl/executor/GlobalArg;
  */
 JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createOutput
-  (JNIEnv *, jclass, jint);
+  (JNIEnv *, jclass, jlong);
 
 /*
  * Class:     opencl_executor_GlobalArg
  * Method:    at
- * Signature: (I)F
+ * Signature: (J)F
  */
 JNIEXPORT jfloat JNICALL Java_opencl_executor_GlobalArg_at
-  (JNIEnv *, jobject, jint);
+  (JNIEnv *, jobject, jlong);
 
 /*
  * Class:     opencl_executor_GlobalArg

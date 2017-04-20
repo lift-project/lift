@@ -114,7 +114,7 @@ object OpenCLGenerator extends Generator {
       mem.mem.size.eval
       mem.mem.addressSpace == LocalMemory
     } catch {
-      case NotEvaluableException => false
+      case NotEvaluableException() => false
     }
   }
 }
@@ -984,7 +984,7 @@ class OpenCLGenerator extends Generator {
     }
   }
 
-  private def getRangeAdd(indexVar: Var) = {
+      private def getRangeAdd(indexVar: Var) = {
     indexVar.range match {
       case r: RangeAdd => r
       case _ =>
@@ -1003,9 +1003,12 @@ class OpenCLGenerator extends Generator {
     try {
       indexVar.range.numVals.enforceSimplification.eval
     } catch {
-      case NotEvaluableException =>
+      case NotEvaluableException() =>
         throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count could " +
           "not be determined statically.")
+      case NotEvaluableToIntException() =>
+        throw new OpenCLGeneratorException("Trying to unroll loop, " +
+          "but iteration count is larger than scala.Int.MaxValue.")
     }
   }
 
@@ -1327,8 +1330,8 @@ class OpenCLGenerator extends Generator {
               // TODO: this seems like a very specific local solution ... find a more generic proper one
 
               // iterate over the range, assuming that it is contiguous
-              val arraySuffixStartIndex: Int = arrayAccessPrivateMemIndex(mem.variable, view)
-              val arraySuffixStopIndex: Int = arraySuffixStartIndex + vt.len.eval
+              val arraySuffixStartIndex = arrayAccessPrivateMemIndex(mem.variable, view)
+              val arraySuffixStopIndex = arraySuffixStartIndex + vt.len.eval
 
               val seq = (arraySuffixStartIndex until arraySuffixStopIndex).map(i => {
                 OpenCLAST.VarRef(mem.variable, suffix = "_" + i)
@@ -1513,12 +1516,15 @@ class OpenCLGenerator extends Generator {
         throw new TypeException(valueType, "A valid non array type")
     }
 
-    val real: Int = try {
+    val real = try {
       ArithExpr.substitute(i, replacements).eval
     } catch {
-      case NotEvaluableException =>
+      case NotEvaluableException() =>
         throw new OpenCLGeneratorException(s"Could not access private array, as index $i could " +
           s"not be evaluated statically (given these replacements: $replacements)")
+      case NotEvaluableToIntException() =>
+        throw new OpenCLGeneratorException(s"Could not access private array, as index $i is " +
+          s"larger than scala.Int.MaxValue (given these replacements: $replacements)")
     }
 
     if (real >= declaration.length) {
