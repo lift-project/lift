@@ -193,7 +193,7 @@ object ArrayType {
   def apply(elemT: Type, sizeAndCapacity: ArithExpr) : ArrayType with Size with Capacity = {
     ArrayTypeWSWC(elemT, sizeAndCapacity)
   }
-  
+
 }
 
 
