@@ -27,6 +27,7 @@ object ScalaPrinter {
       case mapWrg: MapAtomWrg => s"MapAtomWrg(${mapWrg.dim})(${apply(mapWrg.f)})"
       case mapLcl: MapAtomLcl => s"MapAtomLcl(${mapLcl.dim})(${apply(mapLcl.f)})"
       case mapGlb: MapGlb => s"MapGlb(${mapGlb.dim})(${apply(mapGlb.f)})"
+      case reduceSeqUnroll: ReduceSeqUnroll => s"ReduceSeqUnroll(${apply(reduceSeqUnroll.f)})"
       case reduceSeq: ReduceSeq => s"ReduceSeq(${apply(reduceSeq.f)})"
       case reduce: Reduce => s"Reduce(${apply(reduce.f)})"
       case reduce: PartRed => s"PartRed(${apply(reduce.f)})"
@@ -48,10 +49,10 @@ object ScalaPrinter {
       case opencl.ir.Bool => "Bool"
       case TupleType(tt@_*) => s"TupleType(${tt.map(apply).mkString(", ")})"
       case VectorType(elemT, len) => s"VectorType(${apply(elemT)}, $len)"
-      case ArrayType(elemT, len) => s"ArrayType(${apply(elemT)}, $len)"
+      case ArrayTypeWSWC(elemT, s, c) => s"ArrayTypeWSWC(${apply(elemT)}, $s, $c)"
       case NoType => throw new NotPrintableExpression(s"Can not print NoType")
       case UndefType => throw new NotPrintableExpression(s"Can not print UndefType")
-      case s: ScalarType => throw new NotPrintableExpression(s"Can not print ScalaType: $s")
+      case unknown => throw new NotPrintableExpression(s"Can not print: $unknown")
     }
   }
 

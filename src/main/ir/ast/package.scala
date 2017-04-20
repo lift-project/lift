@@ -19,8 +19,8 @@ package object ast {
 
   val transpose = (i: ArithExpr, t: Type) => {
     t match {
-      case ArrayType(ArrayType(_, n), m) =>
-        transposeFunction(m, n)(i, t)
+      case ArrayTypeWSWC(ArrayTypeWSWC(_, ns,nc), ms,mc) if ns==nc & ms==mc =>
+        transposeFunction(ms, ns)(i, t)
       case _ => throw new IllegalArgumentException
     }
   }
@@ -30,6 +30,12 @@ package object ast {
 
     n - 1 - i
   }
+  
+  val shiftRight: (ArithExpr, Type) => ArithExpr =
+    (i, t) => {
+      val n = Type.getLength(t)
+      (i + 1) - n*(i / (n-1))
+}
 
   val reorderStride = (s:ArithExpr) => (i: ArithExpr, t:Type) => {
     val n = Type.getLength(t) /^ s

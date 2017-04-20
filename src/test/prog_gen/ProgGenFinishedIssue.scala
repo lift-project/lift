@@ -27,9 +27,9 @@ class ProgGenFinishedIssue {
   def hlGenTest1(): Unit = {
 
     val f = fun(
-      ArrayType(Float,32),
+      ArrayTypeWSWC(Float,32),
       Float,
-      ArrayType(ArrayType(Float,32),32),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float,32),32),
       (p241,p152,p10) =>{
         Map(fun((p2)=>
           Reduce(fun((p165,p139) =>
@@ -42,8 +42,7 @@ class ProgGenFinishedIssue {
     )
     TypeChecker(f)
     val fs = Lower.mapCombinations(f,
-      EnabledMappings(global0 = true, global01 = false, global10 = false,
-        group0 = false, group01 = false, group10 = false))
+      EnabledMappings(global0 = true, global01 = false, global10 = false, false, false, group0 = false, group01 = false, group10 = false))
 
     val Args = InputGenerator()(fs.head)
 
@@ -58,8 +57,8 @@ class ProgGenFinishedIssue {
   def hlGenLower1(): Unit = {
 
     val f = fun(
-      ArrayType(Float,32),
-      ArrayType(ArrayType(Float,32),32),
+      ArrayTypeWSWC(Float,32),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float,32),32),
       (p10,p40) =>{
         Reduce(fun((p230,p54) =>
           Join() o Map(fun((p67) =>
@@ -71,8 +70,7 @@ class ProgGenFinishedIssue {
       })
     TypeChecker(f)
     val fs = Lower.mapCombinations(f,
-      EnabledMappings(global0 = true, global01 = false, global10 = false,
-        group0 = false, group01 = false, group10 = false))
+      EnabledMappings(global0 = true, global01 = false, global10 = false, false, false, group0 = false, group01 = false, group10 = false))
 
     val Args = InputGenerator()(fs.head)
 
@@ -87,8 +85,8 @@ class ProgGenFinishedIssue {
 
     val f = fun(
       Float,
-      ArrayType(Float,32),
-      ArrayType(Float,32),
+      ArrayTypeWSWC(Float,32),
+      ArrayTypeWSWC(Float,32),
       (p104,p243,p10) =>{
         Map(fun((p199)=>
           Reduce(fun((p51,p177)=>
@@ -101,8 +99,7 @@ class ProgGenFinishedIssue {
     )
     TypeChecker(f)
     val fs = Lower.mapCombinations(f,
-      EnabledMappings(global0 = true, global01 = false, global10 = false,
-        group0 = false, group01 = false, group10 = false))
+      EnabledMappings(global0 = true, global01 = false, global10 = false, false, false, group0 = false, group01 = false, group10 = false))
 
     val Args = InputGenerator()(fs.head)
 
@@ -116,9 +113,9 @@ class ProgGenFinishedIssue {
   def hlGenCompiler2():Unit={
     val f = fun(
       Float,
-      ArrayType(ArrayType(Float,32),32),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float,32),32),
       Float,
-      ArrayType(Float,32),
+      ArrayTypeWSWC(Float,32),
       (p99,p102,p226,p239) =>{
         Map(fun((p24) =>
           Join() o Map(fun((p157) =>
@@ -132,8 +129,7 @@ class ProgGenFinishedIssue {
       }
     )
     val fs = Lower.mapCombinations(f,
-      EnabledMappings(global0 = true, global01 = false, global10 = false,
-        group0 = false, group01 = false, group10 = false))
+      EnabledMappings(global0 = true, global01 = false, global10 = false, false, false, group0 = false, group01 = false, group10 = false))
     TypeChecker(fs.head)
     val lowLevel = fs.head
 

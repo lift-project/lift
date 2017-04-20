@@ -4,7 +4,7 @@ import lift.arithmetic.{?, ArithExpr, Cst}
 import ir._
 import ir.ast.{Expr, FunCall, Lambda}
 import opencl.executor.Execute
-import opencl.generator.OpenCLGenerator.NDRange
+import opencl.generator.NDRange
 import opencl.ir.pattern._
 
 object InferNDRange {
@@ -47,7 +47,7 @@ object InferNDRange {
   }
 
   def substituteInNDRange(nDRange: NDRange, valueMap: Map[ArithExpr, ArithExpr]): NDRange =
-    Array(
+    NDRange(
       ArithExpr.substitute(nDRange(0), valueMap),
       ArithExpr.substitute(nDRange(1), valueMap),
       ArithExpr.substitute(nDRange(2), valueMap)
@@ -95,7 +95,7 @@ class InferNDRange {
     val sizes1 = getSizesForDimension(1)
     val sizes2 = getSizesForDimension(2)
 
-    (Array(sizes0._1, sizes1._1 , sizes2._1), Array(sizes0._2, sizes1._2 , sizes2._2))
+    (NDRange(sizes0._1, sizes1._1 , sizes2._1), NDRange(sizes0._2, sizes1._2 , sizes2._2))
   }
 
   private def getSizesForDimension(dim: Int): (ArithExpr, ArithExpr) = {

@@ -1,14 +1,14 @@
 package analysis
 
-import lift.arithmetic._
 import ir._
 import ir.ast._
+import lift.arithmetic._
 import opencl.generator._
 import opencl.ir._
 import opencl.ir.pattern._
-import rewriting.InferNDRange
 import org.junit.Assert._
 import org.junit.Test
+import rewriting.InferNDRange
 
 class TestAccessCounts {
 
@@ -23,7 +23,7 @@ class TestAccessCounts {
   def simple(): Unit = {
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       x => MapGlb(MapSeq(id)) $ x
     )
 
@@ -36,7 +36,7 @@ class TestAccessCounts {
   def simple2(): Unit = {
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       x => MapGlb(1)(MapGlb(0)(id)) $ x
     )
 
@@ -50,7 +50,7 @@ class TestAccessCounts {
   def moreReads(): Unit = {
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       x => MapSeq(add) $ Zip(x,x)
     )
 
@@ -66,7 +66,7 @@ class TestAccessCounts {
   @Test
   def simpleLocal(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, 16), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 16), N),
       x => MapWrg(toGlobal(MapLcl(id)) o toLocal(MapLcl(id))) $ x
     )
 
@@ -82,7 +82,7 @@ class TestAccessCounts {
   def withPattern(): Unit = {
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       x => MapGlb(1)(MapGlb(0)(id)) o Transpose() $ x
     )
 
@@ -103,7 +103,7 @@ class TestAccessCounts {
   def vector(): Unit = {
 
     val f = fun(
-      ArrayType(Float4, N),
+      ArrayTypeWSWC(Float4, N),
       x => MapGlb(0)(idF4) $ x
     )
 
@@ -119,7 +119,7 @@ class TestAccessCounts {
   def vector2(): Unit = {
 
     val f = fun(
-      ArrayType(Float, 4*N),
+      ArrayTypeWSWC(Float, 4*N),
       x => asScalar() o MapGlb(0)(idF4) o asVector(4) $ x
     )
 
@@ -163,7 +163,7 @@ class TestAccessCounts {
          |}
          |    """.stripMargin, Seq(VectorType(Float, 4), VectorType(Float, 4), Float, VectorType(Float, 4)), TupleType(VectorType(Float, 4), VectorType(Float, 4)))
 
-    val f = fun(ArrayType(VectorType(Float, 4), v_N_0), ArrayType(VectorType(Float, 4), v_N_0), Float, Float,(p_0, p_1, p_2, p_3) => FunCall(MapWrg(0)(fun((p_4) => FunCall(toGlobal(fun((p_5) => FunCall(MapLcl(0)(fun((p_6) => FunCall(update, FunCall(Get(0), p_4), FunCall(Get(1), p_4), p_3, p_6))), p_5))), FunCall(MapSeq(fun((p_7) => FunCall(toLocal(fun((p_8) => FunCall(idfloat4, p_8))), p_7))), FunCall(ReduceSeq(fun((p_9, p_10) => FunCall(fun((p_11) => FunCall(fun((p_12) => FunCall(VectorizeUserFun(4,add), p_9, p_12)), p_11)), p_10))), FunCall(idfloat4, Value("0.0f", VectorType(Float, 4))), FunCall(Join(), FunCall(MapLcl(0)(fun((p_13) => FunCall(MapSeq(fun((p_14) => FunCall(toLocal(fun((p_15) => FunCall(idfloat4, p_15))), p_14))), FunCall(ReduceSeq(fun((p_16, p_17) => FunCall(fun((p_18) => FunCall(fun((p_19) => FunCall(VectorizeUserFun(4,add), p_16, FunCall(calcAcc, FunCall(Get(0), p_4), p_19, p_3, p_2))), p_18)), p_17))), FunCall(idfloat4, Value("0.0f", VectorType(Float, 4))), p_13)))), FunCall(Split(v_N_0 * 1 /^ 512), FunCall(Gather(ReorderWithStride(512)), p_0))))))))), FunCall(Zip(2), p_0, p_1)))
+    val f = fun(ArrayTypeWSWC(VectorType(Float, 4), v_N_0), ArrayTypeWSWC(VectorType(Float, 4), v_N_0), Float, Float,(p_0, p_1, p_2, p_3) => FunCall(MapWrg(0)(fun((p_4) => FunCall(toGlobal(fun((p_5) => FunCall(MapLcl(0)(fun((p_6) => FunCall(update, FunCall(Get(0), p_4), FunCall(Get(1), p_4), p_3, p_6))), p_5))), FunCall(MapSeq(fun((p_7) => FunCall(toLocal(fun((p_8) => FunCall(idfloat4, p_8))), p_7))), FunCall(ReduceSeq(fun((p_9, p_10) => FunCall(fun((p_11) => FunCall(fun((p_12) => FunCall(VectorizeUserFun(4,add), p_9, p_12)), p_11)), p_10))), FunCall(idfloat4, Value("0.0f", VectorType(Float, 4))), FunCall(Join(), FunCall(MapLcl(0)(fun((p_13) => FunCall(MapSeq(fun((p_14) => FunCall(toLocal(fun((p_15) => FunCall(idfloat4, p_15))), p_14))), FunCall(ReduceSeq(fun((p_16, p_17) => FunCall(fun((p_18) => FunCall(fun((p_19) => FunCall(VectorizeUserFun(4,add), p_16, FunCall(calcAcc, FunCall(Get(0), p_4), p_19, p_3, p_2))), p_18)), p_17))), FunCall(idfloat4, Value("0.0f", VectorType(Float, 4))), p_13)))), FunCall(Split(v_N_0 * 1 /^ 512), FunCall(Gather(ReorderWithStride(512)), p_0))))))))), FunCall(Zip(2), p_0, p_1)))
 
     TypeChecker(f)
 
@@ -176,7 +176,7 @@ class TestAccessCounts {
 
     val count = accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact = true)
 
-    count.evalDbl
+    count.evalDouble
   }
 
 }

@@ -23,7 +23,7 @@ class OpenCLMemory(var variable: Var,
     if (size.eval == 0)
       throw new IllegalArgumentException("Cannot have a memory of 0 bytes!")
   } catch {
-    case NotEvaluableException => // nothing to do
+    case NotEvaluableException() => // nothing to do
     case e: Exception => throw e
   }
 
@@ -175,7 +175,8 @@ object OpenCLMemory {
   def getSizeInBytes(t: Type): ArithExpr = t match {
     case st: ScalarType => st.size
     case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)
-    case at: ArrayType => at.len * getSizeInBytes(at.elemT)
+    case at: ArrayType with Capacity => at.capacity * getSizeInBytes(at.elemT)
+    //case at: ArrayType =>
     case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
     case _ => throw new TypeException(t, "??")
   }
@@ -276,17 +277,17 @@ object TypedOpenCLMemory {
                 var privateMultiplier = m.iterationCount
                 privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
 
-                TypedOpenCLMemory(tm.mem, ArrayType(tm.t,privateMultiplier))
+                TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t,privateMultiplier))
             }
           case LocalMemory =>
             m match {
               case _: MapGlb | _: MapWrg  | _: Map =>
                 tm
               case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
-                TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
+                TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
             }
           case GlobalMemory =>
-            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
+            TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
 
           case coll: AddressSpaceCollection =>
             changeType(coll.findCommonAddressSpace(), tm)
@@ -299,7 +300,7 @@ object TypedOpenCLMemory {
       // TODO: Think about other ways of refactoring this out 
       m match {
         case aw : MapAtomWrg => 
-          cts :+ TypedOpenCLMemory(aw.globalTaskIndex, ArrayType(Int, Cst(1)))
+          cts :+ TypedOpenCLMemory(aw.globalTaskIndex, ArrayTypeWSWC(Int, Cst(1)))
         case _ => cts
       }
       
@@ -340,7 +341,7 @@ object TypedOpenCLMemory {
       i.swapBuffer match {
         case UnallocatedMemory => collect(i.f.body)
         case _ =>
-          TypedOpenCLMemory(i.swapBuffer, ArrayType(call.args.head.t, ?)) +: collect(i.f.body)
+          TypedOpenCLMemory(i.swapBuffer, ArrayTypeWSWC(call.args.head.t, ?)) +: collect(i.f.body)
       }
     }
 

@@ -4,8 +4,7 @@ import lift.arithmetic.{?, ArithExpr}
 import c.generator.CGenerator
 import ir.TypeChecker
 import ir.ast.Lambda
-import opencl.generator.Verbose
-import openmp.generator.OMPGenerator
+import opencl.generator.{NDRange, Verbose}
 
 import scala.collection.immutable
 
@@ -47,8 +46,8 @@ object Compile {
     
     // 2. generate OpenCL kernel
     val kernel = CGenerator.generate(f,
-      Array(localSize0, localSize1, localSize2),
-      Array(globalSize1, globalSize2, globalSize3), valueMap)
+      NDRange(localSize0, localSize1, localSize2),
+      NDRange(globalSize1, globalSize2, globalSize3), valueMap)
 
     // 3. print and return kernel code
     if (Verbose()) {
