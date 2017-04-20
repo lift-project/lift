@@ -1,6 +1,7 @@
 package opencl.generator
 
 import lift.arithmetic._
+import lift.arithmetic.NotEvaluableToIntException._
 import ir._
 import ir.view.AccessVar
 import opencl.generator.OpenCLAST._
@@ -345,7 +346,8 @@ class OpenCLPrinter {
     case _: ArrayType =>
       vd.addressSpace match {
         case PrivateMemory =>
-          for (i <- 0 until vd.length)
+          if(vd.length > scala.Int.MaxValue) throw NotEvaluableToInt
+          for (i <- 0 until vd.length.toInt)
             println(OpenCLPrinter.toString(Type.getValueType(vd.t)) + " " +
               OpenCLPrinter.toString(vd.v) + "_" +
               OpenCLPrinter.toString(i) + ";")

@@ -54,7 +54,7 @@ object OpenCLAST {
                      t: Type,
                      init: OclAstNode = null,
                      addressSpace: OpenCLAddressSpace = UndefAddressSpace,
-                     length: Int = 0) extends Declaration
+                     length: Long = 0) extends Declaration
 
   /** Parameter declaration. These have to be separated from variable
     * declaration since the vectorization has to be handled differently
