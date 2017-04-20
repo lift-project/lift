@@ -50,9 +50,6 @@ class TestSlideSeqPlus
 
     val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
-    StencilUtilities.print1DArray(gold)
-    StencilUtilities.print1DArray(output)
-
     assertArrayEquals(gold, output, 0.1f)
 
   }
@@ -68,11 +65,13 @@ class TestSlideSeqPlus
 
     val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
+/*
     StencilUtilities.print1DArray(values)
     StencilUtilities.print2DArray(values.sliding(slidesize,slidestep).toArray)
 
     StencilUtilities.print1DArray(gold)
     StencilUtilities.print1DArray(output)
+*/
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -88,12 +87,6 @@ class TestSlideSeqPlus
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
     val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
-
-    StencilUtilities.print1DArray(values)
-    StencilUtilities.print2DArray(values.sliding(slidesize,slidestep).toArray)
-
-    StencilUtilities.print1DArray(gold)
-    StencilUtilities.print1DArray(output)
 
     assertArrayEquals(gold, output, 0.1f)
 
