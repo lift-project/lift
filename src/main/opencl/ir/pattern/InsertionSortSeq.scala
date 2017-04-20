@@ -13,11 +13,8 @@ import lift.arithmetic.{PosVar, Var}
   *          iff it's first argument is less than the second one.
   * @param loopRead the index used to read the data from the input array
   * @param loopWrite the index used to write data to the output array.
-  * @param loopShift the index used during the inserting to shift data to the
-  *                  right of the array.
   */
-case class InsertionSortSeq(f: Lambda2, var loopRead: Var,
-                            var loopWrite: Var, var loopShift: Var)
+case class InsertionSortSeq(f: Lambda2, var loopRead: Var, var loopWrite: Var)
            extends Pattern(arity=1) with FPattern with isGenerable {
  
   // These two functions are used to
@@ -68,13 +65,13 @@ case class InsertionSortSeq(f: Lambda2, var loopRead: Var,
   }
   
   def copy(f: Lambda): InsertionSortSeq =
-    InsertionSortSeq(f, PosVar("s"), PosVar("t"), PosVar("k"))
+    InsertionSortSeq(f, PosVar("s"), PosVar("t"))
 }
 
 object InsertionSortSeq {
   def apply(compare: Lambda2): Lambda1 = {
     fun(l =>
-      InsertionSortSeq(compare, PosVar("s"), PosVar("t"), PosVar("k")) $ l
+      InsertionSortSeq(compare, PosVar("s"), PosVar("t")) $ l
     )
   }
 }

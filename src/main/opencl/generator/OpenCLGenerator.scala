@@ -654,66 +654,40 @@ class OpenCLGenerator extends Generator {
   private def generateInsertion(call: FunCall,
                                 block: Block): Unit = {
     val iss = call.f.asInstanceOf[InsertionSortSeq]
+    val i = iss.loopRead
+    val j = iss.loopWrite
     
     (block: Block) += OpenCLAST.VarDecl(
-      iss.loopWrite,Int, ArithExpression(Cst(0))
+      j, Int,
+      ArithExpression(i - i.range.asInstanceOf[RangeAdd].step)
     )
     
     def shift(block: Block): Unit = {
-      (block: Block) += OpenCLAST.Comment("shift")
-      generateForLoop(
-        block,
-        iss.loopShift,
-        generate(iss.shiftFun.body, _)
+      generate(iss.shiftFun.body, block)
+      (block: Block) += AssignmentExpression(
+        ArithExpression(j),
+        ArithExpression(j - j.range.asInstanceOf[RangeAdd].step)
       )
-      (block: Block) += OpenCLAST.Comment("end shift")
-      generate(iss.copyFun.body, block)
-      (block: Block) += OpenCLAST.Break()
     }
     
-    def mkTrueBlock(block: Block): Unit = {
-      generate(iss.copyFun.body, block)
-      (block: Block) += OpenCLAST.Break()
-    }
-    
-    def mkFalseBlock(block: Block): Unit = {
-      val compare = iss.f.body
-      val j = iss.loopWrite
-      generate(compare, block)
-      generateConditional(
-        block,
-        generateLoadNode(
-          OpenCLMemory.asOpenCLMemory(iss.f.body.mem),
-          compare.t,
-          compare.view
-        ),
-        shift,
-        (_: Block) += AssignmentExpression(
-          ArithExpression(j),
-          ArithExpression(j + j.range.asInstanceOf[RangeAdd].step)
-        )
+    def generateBody(block: Block): Unit = {
+      // Compare out[j-1] and in[i]
+      generate(iss.f.body, block)
+      // Shift of insert
+      val comp = generateLoadNode(
+        OpenCLMemory.asOpenCLMemory(iss.f.body.mem),
+        iss.f.body.t,
+        iss.f.body.view
       )
+      generateConditional(block, comp, (_: Block) += OpenCLAST.Break(), shift)
     }
   
-    // FIXME I'M UGLY
-    val truePredicate: Predicate = Predicate(
-      Cst(0), Cst(0), Predicate.Operator.==
-    )
-    
     generateWhileLoop(
       block,
-      truePredicate,
-      generateConditional(
-        _,
-        OpenCLAST.CondExpression(
-          ArithExpression(iss.loopWrite),
-          ArithExpression(iss.loopRead),
-          OpenCLAST.CondExpression.Operator.==
-        ),
-        mkTrueBlock,
-        mkFalseBlock
-      )
+      Predicate(j, Cst(0), Predicate.Operator.>=),
+      generateBody
     )
+    generate(iss.copyFun.body, block)
   }
 
   // === Reduce ===

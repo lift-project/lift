@@ -230,36 +230,38 @@ object OutputView {
   private def buildViewSort(iss: InsertionSortSeq,
                             call: FunCall,
                             writeView: View): View = {
+    val j = iss.loopWrite
+    
     // Note: at this point, we can set the input view for the second argument
     //       of the comparison function as an access to the output array of
     //       the pattern.
     //       cf. `InputView.buildViewSort`
-    iss.f.params(1).view = writeView.access(iss.loopWrite)
+    iss.f.params(0).view = writeView.access(j)
+    // REMOVE ME BEFORE MERGING: is there a better way of doing this?
+    InputView(iss.f.body)
     val compareOutputView = View.initialiseNewView(
       iss.f.body.t, // Int
       getAccessDepth(iss.f.body.accessInf, iss.f.body.mem)
     )
-    // REMOVE ME BEFORE MERGING: is there a better way of doing this?
-    InputView(iss.f.body)
     visitAndBuildViews(iss.f.body, compareOutputView)
     
     // Note2: similarly, the views for the shifting function can only be
     //        specified here.
-    val k = iss.loopShift
-    iss.shiftFun.params.head.view = writeView.access(
-      k + k.range.asInstanceOf[RangeAdd].step
-    )
+    iss.shiftFun.params.head.view = writeView.access(j)
     // REMOVE ME BEFORE MERGING: is there a better way of doing this?
     InputView(iss.shiftFun.body)
     visitAndBuildViews(
       iss.shiftFun.body,
-      writeView.access(k)
+      writeView.access(j + j.range.asInstanceOf[RangeAdd].step)
     )
     
     // The copy function is just like a map
-    visitAndBuildViews(iss.copyFun.body, writeView.access(iss.loopWrite))
+    visitAndBuildViews(
+      iss.copyFun.body,
+      writeView.access(j + j.range.asInstanceOf[RangeAdd].step)
+    )
     
-    ViewMap(iss.copyFun.body.outputView, iss.loopWrite, call.args.head.t)
+    ViewMap(iss.copyFun.body.outputView, j, call.args.head.t)
   }
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {
