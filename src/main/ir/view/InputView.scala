@@ -143,13 +143,7 @@ object InputView {
 
   private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
                                     call: FunCall, argView: View): View = {
-    // pass down input view
-    //val slideView = argView.t match {
-    //  case ArrayType(_, _) =>
-    //    ViewSlide(argView, sp.step, Slide(sp.size,sp.step).checkType(argView.t, setType=false))
-    //  case other => throw new IllegalArgumentException("Can't group " + other)
-    //}
-    //sp.f.params(0).view = slideView.access(sp.loopVar)
+
     sp.f.params(0).view = ViewMem(sp.windowVar.name, sp.f.params(0).t)
 
     // traverse into call.f

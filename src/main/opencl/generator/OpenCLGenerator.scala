@@ -993,7 +993,7 @@ class OpenCLGenerator extends Generator {
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
     }
     val reuse = size - step
-    val cond = CondExpression(ArithExpression(indexVar), ArithExpression(/*stop - reuse*/(stop-reuse)/step), CondExpression.Operator.<)
+    val cond = CondExpression(ArithExpression(indexVar), ArithExpression((stop-reuse)/step), CondExpression.Operator.<)
 
     val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem) // values from the input that you want to
                                                                     // cut down to window size

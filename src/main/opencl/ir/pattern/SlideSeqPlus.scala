@@ -9,6 +9,12 @@ import ir.interpreter.Interpreter.ValueMap
 case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loopVar: Var, var windowVar: Var) extends Pattern(arity = 1) with isGenerable with FPattern
 {
 
+  override def toString: String = "SlideSeqPlus(" + f + " " + size + "," + step + ")"
+
+  SlideSeqPlus.cnt += 1
+  val id = SlideSeqPlus.cnt
+  override def hashCode = id.hashCode()
+
   val iterationCount = loopVar.range.numVals
 
   def checkType(argType: Type, setType: Boolean): Type =  {
@@ -38,6 +44,7 @@ case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loo
 }
 
 object SlideSeqPlus {
+  var cnt: Int = -1
   def apply(f: Lambda1, size: ArithExpr, step: ArithExpr): Lambda1 = fun((x) => SlideSeqPlus(f,size,step,PosVar("i"),PosVar("window"))(x))
 }
 
