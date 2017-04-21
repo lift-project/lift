@@ -47,7 +47,3 @@ object SlideSeqPlus {
   var cnt: Int = -1
   def apply(f: Lambda1, size: ArithExpr, step: ArithExpr): Lambda1 = fun((x) => SlideSeqPlus(f,size,step,PosVar("i"),PosVar("window"))(x))
 }
-
-object SlideSeqPlus2D {
-  def apply(f: Lambda1, size: ArithExpr, step: ArithExpr): Lambda1 = fun((x) => SlideSeqPlus(f,size,step,PosVar("i"),PosVar("window"))(x))
-}
