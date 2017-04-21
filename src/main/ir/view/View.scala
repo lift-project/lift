@@ -58,7 +58,7 @@ abstract sealed class View(val t: Type = UndefType) {
       case filter: ViewFilter => ViewFilter(filter.iv.replaced(subst), filter.ids.replaced(subst), t)
       case tuple: ViewTuple => ViewTuple(tuple.ivs.map(_.replaced(subst)), t)
       case component: ViewTupleComponent => ViewTupleComponent(component.i, component.iv.replaced(subst), t)
-      case slide: ViewSlide => ViewSlide(slide.iv.replaced(subst), slide.step, slide.t)
+      case slide: ViewSlide => ViewSlide(slide.iv.replaced(subst), slide.slide, slide.t)
       case pad: ViewPad => ViewPad(pad.iv.replaced(subst), pad.left, pad.right, pad.fct, t)
       case _: ViewMem | _: ViewHead | NoView | _: View2DGeneratorUserFun |
            _: View3DGeneratorUserFun | _: ViewConstant | _: ViewGenerator |
@@ -210,7 +210,7 @@ abstract sealed class View(val t: Type = UndefType) {
   def slide(s: Slide): View = {
     this.t match {
       case ArrayType(_) =>
-        ViewSlide(this, s.step, s.checkType(this.t, setType=false))
+        ViewSlide(this, s, s.checkType(this.t, setType=false))
       case other => throw new IllegalArgumentException("Can't group " + other)
     }
   }
@@ -363,10 +363,10 @@ private[view] case class ViewTuple(ivs: Seq[View], override val t: Type) extends
  *  A view for sliding.
  *
  * @param iv View to Slide.
- * @param step The slide function to use.
+ * @param slide The slide function to use.
  * @param t Type of the view.
  */
-private[view] case class ViewSlide(iv: View, step: ArithExpr, override val t: Type) extends View(t)
+private[view] case class ViewSlide(iv: View, slide: Slide, override val t: Type) extends View(t)
 
 /**
  * Get the head of a view.
@@ -563,7 +563,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
 
         ag.t match {
           case ArrayType(_) =>
-            val newIdx = outerId._1 * ag.step + innerId._1
+            val newIdx = outerId._1 * ag.slide.step + innerId._1
             val newAAS = (newIdx, innerId._2) :: stack2
             emitView(v, ag.iv, newAAS, tupleAccessStack)
           case _ => throw new IllegalArgumentException()
