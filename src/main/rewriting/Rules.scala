@@ -18,6 +18,64 @@ case class Rule(desc: String,
 
 object Rules {
 
+  /* Rules required for 2D stencil rewrite *///TODO find appropriate names
+
+  /* Slide-promotion *///TODO not really because of map(join)... find better name
+  val slidePromotion = Rule("Slide(u,v) o Map(Join()) => Map(Map(Join())) o Slide(u,v)",{
+    case FunCall(Slide(u,v), FunCall(Map(Lambda(Array(_), FunCall(Join(), joinArg))), arg)) =>
+      Map(Map(Join())) o Slide(u,v) $ arg
+  })
+
+  val slideSwap = Rule("Slide(u,v) o Map(Map(Slide(n,s))) => Map(Map(Map(Slide(n,s)))) o Slide(u,v)",{
+    case FunCall(Slide(u,v), FunCall(Map(Lambda(
+      Array(_), FunCall(Map(Lambda(
+        Array(_), FunCall(Slide(n,s), slideArg))), mapArg))), arg)) =>
+     Map(Map(Map(Slide(n,s)))) o Slide(u,v) $ arg
+  })
+
+  val joinSwap = Rule("Join() o Map(Map(f)) => Map(f) o Join()", {
+    case FunCall(Join(), FunCall(Map(Lambda(Array(_), FunCall(map@Map(_), _))), arg)) =>
+      map o Join() $ arg
+  })
+
+  // todo reduce on layer of maps and use map fission before applying this rule
+  val transposeSwap = Rule("Map(Map(Map(Transpose()))) o Map(Transpose()) => Map(Transpose()) o Map(Map(Map(Transpose())))", {
+    case FunCall(Map(Lambda(Array(_), FunCall(Map(Lambda(Array(_), FunCall(Map(Lambda(Array(_), FunCall(Transpose(),
+      transposeArg))), mapArg1))), mapArg2))), FunCall(Map(Lambda(
+    Array(_), FunCall(
+    Transpose(), transposeArg2))), arg)) =>
+      Map(Transpose()) o Map(Map(Map(Transpose()))) $ arg
+  })
+
+  // todo reduce on layer of maps and use map fission before applying this rule
+  val slideTransposeSwap = Rule("Map(Map(Map(Slide(u,v)))) o Map(Transpose()) => Map(Transpose) o Map(Map(Map(Slide(u,v))))", {
+    case FunCall(Map(Lambda(
+      Array(_), FunCall(Map(Lambda(
+        Array(_), FunCall(Map(Lambda(
+          Array(_), FunCall(Slide(u,v), slideArg))), mapArg1))), mapArg2))), FunCall(Map(Lambda(
+    Array(_), FunCall(
+    Transpose(), transposeArg))), arg)) =>
+      Map(Transpose()) o Map(Map(Map(Slide(u,v)))) $ arg
+  })
+
+  val slideTransposeReordering = Rule("Map(Slide(u,v)) o Map(Transpose()) => " +
+    "Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Slide(u,v)))", {
+    case FunCall(Map(Lambda(
+      Array(_), FunCall(Slide(u,v), slideArg))), FunCall(Map(Lambda(
+        Array(_), FunCall(Transpose(), transposeArg))), arg)) =>
+      Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Slide(u,v))) $ arg
+  })
+
+  val transposeMapJoinReordering = Rule("Transpose() o Map(Join()) => Join() o Map(Transpose()) o Transpose()", {
+    case FunCall(Transpose(), FunCall(Map(Lambda(Array(_), FunCall(Join(), joinArg))), arg)) =>
+      Join() o Map(Transpose()) o Transpose() $ arg
+  })
+
+  val idTransposeTranspose = Rule("id => Transpose() o Transpose()", {
+    case FunCall(Id(), arg) =>
+      Transpose() o Transpose() $ arg
+  })
+
   /* Iterate decomposition rule */
 
   // TODO
@@ -48,16 +106,7 @@ object Rules {
       Join() o Map(Slide(n, s)) o Slide(step + overlap, step) $ arg
   })
 
-  // todo possibly duplicate: see rewriting/MacroRules.scala:277
-  /* Map-join rule */
-
-  val mapJoin = Rule("Map(f) o Join() => Join() o Map(Map(f))", {
-    case FunCall(Map(f), FunCall(Join(), arg)) =>
-      Join() o Map(Map(f)) $ arg
-  })
-
   /* Split-join rule */
-
   val splitJoin: Rule = splitJoin(?)
 
   def splitJoin(split: ArithExpr) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
@@ -148,7 +197,7 @@ object Rules {
   val asVectorAsScalarId = Rule("splitVec(_) o joinVec() => id", {
     case FunCall(asVector(n), FunCall(asScalar(), arg))
       if (arg.t match {
-        case ArrayType(VectorType(_, m), _) => n == m
+        case ArrayType(VectorType(_, m)) => n == m
         case _ => false
       }) => arg
   })
@@ -158,6 +207,12 @@ object Rules {
       if isTranspose(t1) && isTranspose(t2)
     =>
       arg
+  })
+
+  val transposeTransposeId2 = Rule("Transpose() o Transpose() => Id()", {
+    case FunCall(t1, FunCall(t2, arg))
+      if isTranspose(t1) && isTranspose(t2)
+    => Id() $ arg
   })
 
   val joinSplitId = Rule("Join() o Split(_) => id", {
@@ -361,6 +416,10 @@ object Rules {
       ReduceSeq(f, init) $ arg
   })
 
+  val reduceSeqUnroll = Rule("ReduceSeq(f) => ReduceSeqUnroll(f)", {
+    case FunCall(ReduceSeq(f), init, arg) =>
+      ReduceSeqUnroll(f, init) $ arg
+  })
   /* Stride accesses or normal accesses */
 
   // TODO
@@ -642,7 +701,7 @@ object Rules {
          )), mapArg)
       if lambdaParams.head eq arg
     =>
-      val newInit = Value(init.value, ArrayType(init.t, Type.getLength(mapArg.t)))
+      val newInit = Value(init.value, ArrayTypeWSWC(init.t, Type.getLength(mapArg.t)))
 
       val newMapParam = Param()
       val newExpr = innerParams.zipWithIndex.foldLeft(expr)((e, pair) =>
@@ -687,7 +746,7 @@ object Rules {
       )), arg)
         if (p1.head eq a1) && (p2.head eq a2) && init1 == init2
       =>
-        val newInit = Value(init2.value, ArrayType(init2.t, Type.getLength(arg.t)))
+        val newInit = Value(init2.value, ArrayTypeWSWC(init2.t, Type.getLength(arg.t)))
 
         TransposeW() o ReduceSeq(fun((acc, a) =>
           Join() o Map(fun(x =>
@@ -1022,7 +1081,7 @@ object Rules {
         val argSequence = tt.zipWithIndex.map(p => generateCopy(p._1) $ Get(newParam, p._2))
         Lambda(Array(newParam), Tuple(argSequence:_*))
 
-      case ArrayType(elemT, _) =>
+      case ArrayType(elemT) =>
         Map(generateCopy(elemT))
       case _ => generateId(t)
     }
@@ -1034,7 +1093,7 @@ object Rules {
         val newParam = Param()
         val argSequence = tt.zipWithIndex.map(p => Id() $ Get(newParam, p._2))
         Lambda(Array(newParam), Tuple(argSequence:_*))
-      case ArrayType(_, _) =>
+      case ArrayType(_) =>
         Map(Id())
       case ScalarType(_, _) | VectorType(_, _) =>
         UserFun("id" + t, "x", "{ return x; }", t, t)
@@ -1043,8 +1102,10 @@ object Rules {
   }
 
   val dropId = Rule("Id() => Epsilon()", {
-    case FunCall(Id(), arg) =>
-      arg
+    case FunCall(Id(), arg) => arg
+    case FunCall(Map(Lambda(Array(_), FunCall(Id(), innerArg))), arg) => arg
+    case FunCall(Map(Lambda(Array(_), FunCall(
+    Map(Lambda(Array(_), FunCall(Id(), innerArg))), innerArg2))), arg) => arg
   })
 
   val implementOneLevelOfId = Rule("Id() => ", {
@@ -1082,6 +1143,18 @@ object Rules {
       case FunCall(Id(), _) => true
       case _ => false
     }
+
+  val addIdBeforeSlide = Rule("Slide(n,s) => Slide(n,s) o Id()", {
+    case call@FunCall(Slide(n,s) , arg)
+      => Slide(n,s) o Id() $ arg
+  })
+
+  val addIdMapWrg = Rule("MapWrg(f) => MapWrg(f o Id())", {
+    case call@FunCall(MapWrg(dim, f:Lambda1) , arg)
+      if !f.body.contains( {case FunCall(MapWrg(_,_), a) =>})
+      && !f.body.contains( {case FunCall(Id(), b) =>  })
+      => MapWrg(dim, f o Id()) $ arg
+  })
 
   val addIdMapLcl = Rule("MapLcl(f) => MapLcl(f) o Id()", {
     case call@FunCall(map:MapLcl, arg)
@@ -1188,12 +1261,12 @@ object Rules {
       if args.forall({
         case FunCall(Map(_), _) => true
         case _ => false
-      }) && args.map(_.t.asInstanceOf[ArrayType].len).distinct.length == 1
+      }) && args.map(_.t.asInstanceOf[ArrayType with Size].size).distinct.length == 1
     =>
       val zipArgs = args.map({
         case FunCall(_, mapArgs) => mapArgs
       })
-      
+
       val lambdaParam = Param()
 
       val maps = args.zipWithIndex.map({
@@ -1208,7 +1281,7 @@ object Rules {
       if args.forall({
         case FunCall(Map(_), _) => true
         case _ => false
-      }) && args.map(_.t.asInstanceOf[ArrayType].len).distinct.length == 1
+      }) && args.map(_.t.asInstanceOf[ArrayType with Size].size).distinct.length == 1
     =>
 
       val zipArgs = args.map({

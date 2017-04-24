@@ -88,8 +88,8 @@ object MatrixMultiplication {
   val K = SizeVar("K")
 
   val naive = fun(
-    ArrayType(ArrayType(Float, K), M),
-    ArrayType(ArrayType(Float, N), K),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
     (A, B) => {
       MapGlb(1)(fun( Arow =>
         MapGlb(0)(fun( Bcol =>
@@ -99,8 +99,8 @@ object MatrixMultiplication {
     })
 
   def tiled(tileSize: ArithExpr = 4) = fun(
-    ArrayType(ArrayType(Float, K), M),
-    ArrayType(ArrayType(Float, N), K),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
     (A, B) => {
       // Undo the tiling
       Untile2D() o
@@ -130,7 +130,7 @@ object MatrixMultiplication {
                        toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                     )) $ pairOfTiles
               )
-                , MapLcl(1)(MapLcl(0)(id)) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
+                , MapLcl(1)(MapLcl(0)(id)) $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize))
               ) $ Zip(aRows, bCols)
 
           )) o Transpose() o Tile(tileSize) $ B
@@ -139,8 +139,8 @@ object MatrixMultiplication {
     })
 
   def moreWorkPerThread(tileSize: ArithExpr = 8, workPerThread: ArithExpr = 4) = fun(
-    ArrayType(ArrayType(Float, K), M),
-    ArrayType(ArrayType(Float, N), K),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
     (A, B) => {
       // Undo the tiling
       Untile2D() o
@@ -171,7 +171,7 @@ object MatrixMultiplication {
                               acc
                             )
                           ) $ rowElemPair
-                        ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, workPerThread))
+                        ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayTypeWSWC(Float, workPerThread))
                         ) $ Zip(Transpose() $ rowsA, colB)
                       )) o Transpose() $ Get(pairOfTiles, 1)
                     )) o Split(workPerThread) $ Get(pairOfTiles, 0)
@@ -186,7 +186,7 @@ object MatrixMultiplication {
                     )) $ pairOfTiles
               )
                 , MapLcl(1)(MapLcl(0)(MapSeq(id))) $ Value(0.0f,
-                  ArrayType(ArrayType(ArrayType(Float, workPerThread), tileSize), tileSize/workPerThread))
+                  ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, workPerThread), tileSize), tileSize/workPerThread))
               ) $ Zip(aRows, bCols)
 
           )) o Transpose() o Tile(tileSize) $ B
@@ -197,8 +197,8 @@ object MatrixMultiplication {
   // Currently the best for NVIDIA
   def tiledAndBlockedBInnermost(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
                                   workPerThreadN: ArithExpr, workPerThreadM: ArithExpr): Lambda = fun(
-    ArrayType(ArrayType(Float, M), K), // Transposed
-    ArrayType(ArrayType(Float, N), K),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K), // Transposed
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
     (A, B) => {
       // Undo the tiling
       Untile2D() o
@@ -251,7 +251,7 @@ object MatrixMultiplication {
                 ))) $ Zip(Get(pairOfTiles, 0), Get(pairOfTiles, 1))
               )
                 , MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id)))) $ Value(0.0f,
-                  ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN))
+                  ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN))
               ) $ Zip(aRows, bCols)
 
             // Tile the matrices
@@ -261,8 +261,8 @@ object MatrixMultiplication {
 
   def tiledAndBlockedBInnermost_(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
                                 workPerThreadN: ArithExpr, workPerThreadM: ArithExpr): Lambda =
-    \(ArrayType(ArrayType(Float, M), K), // Transposed
-      ArrayType(ArrayType(Float, N), K),
+    \(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K), // Transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) => {
         A :>> Tile(tileSizeK, tileSizeM) :>> Transpose() :>>
         MapWrg(1)(\( aRows =>
@@ -318,7 +318,7 @@ object MatrixMultiplication {
                  )
               )
               ,
-              Value(0.0f, ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN)) :>>
+              Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN)) :>>
               MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id))))
             ) :>>
             Join() :>>
@@ -335,8 +335,8 @@ object MatrixMultiplication {
   def vectorLoads(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
                                 workPerThreadN: ArithExpr, workPerThreadM: ArithExpr,
                    vectorWidth: ArithExpr): Lambda = fun(
-    ArrayType(ArrayType(Float, M), K), // Transposed
-    ArrayType(ArrayType(Float, N), K),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K), // Transposed
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
     (A, B) => {
       // Undo the tiling
       Untile2D() o
@@ -391,7 +391,7 @@ object MatrixMultiplication {
                 ))) $ Zip(Get(pairOfTiles, 0), Get(pairOfTiles, 1))
               )
                 , MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id)))) $ Value(0.0f,
-                  ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN))
+                  ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN))
               ) $ Zip(aRows, bCols)
 
             // Tile the matrices

@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.ReduceWhileSeq
+import opencl.ir.pattern.{ReduceWhileSeq, SlideSeqPlus}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
@@ -41,6 +41,7 @@ object OutputView {
     val result = call.f match {
       case m: AbstractMap => buildViewMap(m, call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
+      case sp: SlideSeqPlus => buildViewSlideSeqPlus(sp, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
@@ -59,6 +60,8 @@ object OutputView {
       case l: Lambda => buildViewLambda(l, call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
+        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
+      case _: ArrayAccess =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
       case _ => writeView
     }
@@ -208,6 +211,13 @@ object OutputView {
     ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }
 
+  private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
+                                    call: FunCall, writeView: View): View = {
+    visitAndBuildViews(sp.f.body, writeView.access(sp.loopVar))
+    ViewMap(sp.f.params.head.outputView, sp.loopVar, call.args.head.t)
+  }
+
+
   private def buildViewSearch(s: AbstractSearch,
                               call:FunCall, writeView:View) :View = {
     visitAndBuildViews(call.args.head,
@@ -224,7 +234,7 @@ object OutputView {
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {
     call.argsType match {
-      case ArrayType(ArrayType(_, chunkSize), _) => writeView.split(chunkSize)
+      case ArrayType(ArrayTypeWS(_, chunkSize)) => writeView.split(chunkSize)
       case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + call.argsType)
     }
   }
@@ -239,30 +249,30 @@ object OutputView {
 
   private def buildViewAsScalar(call: FunCall, writeView: View): View = {
     call.args.head.t match {
-      case ArrayType(VectorType(_, n), _) => writeView.asVector(n)
+      case ArrayType(VectorType(_, n)) => writeView.asVector(n)
       case _ => throw new IllegalArgumentException("PANIC, expected array of vectors, found " + call.argsType)
     }
   }
 
   private def buildViewTransposeW(tw: TransposeW, call: FunCall, writeView: View): View = {
     call.t match {
-      case ArrayType(ArrayType(typ, m), n) =>
+      case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
         writeView.
           join(m).
-          reorder((i:ArithExpr) => { transpose(i, ArrayType(ArrayType(typ, n), m)) }).
+          reorder((i:ArithExpr) => { transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(typ, n), m)) }).
           split(n)
-      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_, _) =>
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
         throw new TypeException(call.t, "Array")
     }
   }
 
   private def buildViewTranspose(t: Transpose, call: FunCall, writeView: View): View = {
     call.t match {
-      case ArrayType(ArrayType(_, m), n) =>
+      case ArrayTypeWS(ArrayTypeWS(_, m), n) =>
         writeView.
           join(m).
           split(n)
-      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_, _) =>
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
         throw new TypeException(call.t, "Array")
     }
   }

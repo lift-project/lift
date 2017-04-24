@@ -1,7 +1,7 @@
 val N = SizeVar("N")
 
 fun(
-  ArrayType(Float, N),
+  ArrayTypeWSWC(Float, N),
   Float,
   (vector, alpha) =>
     Map(fun(x => mult(x, alpha))) $ vector

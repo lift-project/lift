@@ -1,22 +1,18 @@
 package opencl.generator.stencil.acoustic
+import java.io._
 
-import java.io.FileOutputStream
-import java.io.DataOutputStream
-
+import ir.ArrayTypeWSWC
 import ir.ast._
-import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Compile, Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import org.junit.Assume.assumeFalse
-import rewriting.SimplifyAndFuse
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
-import scala.util.Random
 
 object StencilUtilities
 {
@@ -264,8 +260,8 @@ class TestAcousticStencils {
     )
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
-      ArrayType(Float, StencilUtilities.weightsArr.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(Float, StencilUtilities.weightsArr.length),
       (mat, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -307,8 +303,8 @@ class TestAcousticStencils {
     val constant = 2.0f
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
-      ArrayType(Float, StencilUtilities.weightsArr.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(Float, StencilUtilities.weightsArr.length),
       (mat, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -354,8 +350,8 @@ class TestAcousticStencils {
     val timesConstantPlusSelf = UserFun("timesConstantPlusSelf", Array("x", "y"), "{ return x + x; }", Seq(Float, Float), Float)
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
-      ArrayType(Float, StencilUtilities.weightsArr.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(Float, StencilUtilities.weightsArr.length),
       (mat, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -394,9 +390,9 @@ class TestAcousticStencils {
     /* u[cp] = S*l2 + u[cp] */
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
-      ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat, weights, weightsMiddle) => {
         MapGlb(1)(
           MapGlb(0)(fun(n => {
@@ -435,7 +431,7 @@ class TestAcousticStencils {
     ))
 
     val lambdaTwoStencil = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       (inp) => {
         MapGlb(1)(
           MapGlb(0)(
@@ -464,9 +460,9 @@ class TestAcousticStencils {
     })
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
-      ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat, weights, weightsMiddle) => {
         MapGlb(1)(
           MapGlb(0)(fun(n =>
@@ -493,10 +489,10 @@ class TestAcousticStencils {
     val constant = 3.0f
 
     val f = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr.length), stencilarr.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr.length), stencilarr.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (matrix1, matrix2, wghts1, wghts2) => MapGlb(fun((m) =>
         MapSeq(fun(n => MapSeq(id) $ n))
           $ Get(m, 0)
@@ -507,10 +503,10 @@ class TestAcousticStencils {
   val m = SizeVar("M")
 
   val lambdaNeigh = fun(
-    ArrayType(ArrayType(Float, n), m),
-    ArrayType(ArrayType(Float, n), m),
-      ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, n), m),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, n), m),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat1, mat2, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
           toGlobal(MapSeq(addTuple)) $ Zip(
@@ -546,10 +542,10 @@ class TestAcousticStencils {
     val constant2 = 3.0f
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr.length), stencilarr.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr.length), stencilarr.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat1, mat2, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
           toGlobal(MapSeq(addTuple)) $ Zip(
@@ -586,10 +582,10 @@ class TestAcousticStencils {
     val Xvalue = 1.37f
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr(0).length),
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr(0).length),
-      ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr.length), stencilarr(0).length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr.length), stencilarr(0).length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat1, mat2, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
           toGlobal(MapSeq(fun(x => mult(x,Xvalue))) o MapSeq(addTuple)) $ Zip(
@@ -626,8 +622,8 @@ class TestAcousticStencils {
     )
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
-      ArrayType(Float, StencilUtilities.weightsArr.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(Float, StencilUtilities.weightsArr.length),
       (mat, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -676,10 +672,10 @@ class TestAcousticStencils {
     val constant = 3.0f
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(Float, stencilarr.length), stencilarr.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr.length), stencilarr.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr.length), stencilarr.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat1, mat2, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
           toGlobal(MapSeq(addTuple)) $ Zip(
@@ -740,8 +736,8 @@ class TestAcousticStencils {
     )
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
-      ArrayType(Float, StencilUtilities.weightsArr.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(Float, StencilUtilities.weightsArr.length),
       (mat, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -798,10 +794,10 @@ class TestAcousticStencils {
     val Xvalue = 0.25f
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(Float, stencilarr(0).length), stencilarr.length),
-      ArrayType(ArrayType(Float, stencilarr(0).length), stencilarr.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
-      ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr(0).length), stencilarr.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr(0).length), stencilarr.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat1, mat2, weights, weightsMiddle) => {
         MapGlb((fun((m) => {
           toGlobal(MapSeq(fun(x => mult(x,Xvalue))) o MapSeq(addTuple)) $ Zip(
@@ -855,8 +851,8 @@ class TestAcousticStencils {
     )
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
-      ArrayType(Float, StencilUtilities.slidesize*StencilUtilities.slidesize*StencilUtilities.slidesize),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, dim), dim), dim),
+      ArrayTypeWSWC(Float, StencilUtilities.slidesize*StencilUtilities.slidesize*StencilUtilities.slidesize),
       (mat, weights) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(neighbours => {
             toGlobal(MapSeq(id)) o
@@ -906,9 +902,9 @@ class TestAcousticStencils {
    )
 
     val lambdaNeigh2 = fun(
-      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
-      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, dim), dim), dim),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, dim), dim), dim),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       (mat1, mat2, weightsMiddle) => {
         MapGlb((fun(m => {
             toGlobal(MapSeq(addTuple)) $ Zip(
@@ -972,10 +968,10 @@ class TestAcousticStencils {
 
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
-      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, dim), dim), dim),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, dim), dim), dim),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       (mat1, mat2, weights, weightsMiddle) => {
         MapGlb((fun(m => {
             toGlobal(MapSeq(fun(x => mult(x,Xvalue))) o MapSeq(addTuple)) $ Zip(

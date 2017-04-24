@@ -1,8 +1,8 @@
 package ir
 
 
-import lift.arithmetic.SizeVar
 import ir.ast.{Value, Zip, fun}
+import lift.arithmetic.SizeVar
 import opencl.generator.IllegalKernel
 import opencl.ir._
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal, toPrivate}
@@ -14,7 +14,7 @@ class TestMemory {
   @Test
   def mapSeqId(): Unit = {
     val msid = MapSeq(id)
-    val lambda = fun(ArrayType(Float, 16), (A) => msid $ A)
+    val lambda = fun(ArrayTypeWSWC(Float, 16), (A) => msid $ A)
     TypeChecker(lambda)
     InferOpenCLAddressSpace(lambda)
 
@@ -24,7 +24,7 @@ class TestMemory {
   @Test(expected = classOf[IllegalKernel])
   def mapSeqReturnPrivate(): Unit = {
     val msidGlbToPrv = MapSeq(id)
-    val lambda = fun(ArrayType(Float, 16), (A) => toPrivate(msidGlbToPrv) $ A)
+    val lambda = fun(ArrayTypeWSWC(Float, 16), (A) => toPrivate(msidGlbToPrv) $ A)
     TypeChecker(lambda)
     InferOpenCLAddressSpace(lambda)
   }
@@ -33,7 +33,7 @@ class TestMemory {
   def mapSeqPrivateGlobal(): Unit = {
     val msidPrvToGlb = MapSeq(id)
     val msidGlbToPrv = MapSeq(id)
-    val lambda = fun(ArrayType(Float, 16), (A) =>
+    val lambda = fun(ArrayTypeWSWC(Float, 16), (A) =>
       toGlobal(msidPrvToGlb) o toPrivate(msidGlbToPrv) $ A)
 
     TypeChecker(lambda)
@@ -50,10 +50,10 @@ class TestMemory {
   def test(): Unit = {
     val uf = MapSeq(plusOne)
     val f = fun(
-      ArrayType(ArrayType(Float, 4), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 4), SizeVar("N")),
       input => toGlobal(MapSeq(MapSeq(id))) o
         ReduceSeq(fun((acc, elem) => MapSeq(add) o fun(elem => Zip(acc, uf $ elem)) $ elem),
-          Value(0.0f, ArrayType(Float, 4))) $ input
+          Value(0.0f, ArrayTypeWSWC(Float, 4))) $ input
     )
     TypeChecker(f)
     InferOpenCLAddressSpace(f)
@@ -68,10 +68,10 @@ class TestMemory {
     val uf = MapSeq(plusOne)
 
     val f = fun(
-      ArrayType(ArrayType(Float, 4), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 4), SizeVar("N")),
       input => toGlobal(MapSeq(MapSeq(id))) o
         ReduceSeq(fun((acc, elem) => MapSeq(add) o fun(elem => Zip(acc, uf $ elem)) $ elem),
-          Value(0.0f, ArrayType(Float, 4))) $ input
+          Value(0.0f, ArrayTypeWSWC(Float, 4))) $ input
     )
     TypeChecker(f)
     InferOpenCLAddressSpace(f)

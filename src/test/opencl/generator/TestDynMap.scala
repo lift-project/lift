@@ -1,8 +1,8 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
@@ -42,7 +42,7 @@ class TestDynMap {
 
     val N = SizeVar("N")
     val kernel = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       (array) => {
         Join() o MapWrg(
           MapLcl(idIterate)
@@ -75,7 +75,7 @@ class TestDynMap {
 
     val N = SizeVar("N")
     val kernel = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       (array) => {
         Join() o MapWrg(
           MapAtomLcl(idIterate)
@@ -111,7 +111,7 @@ class TestDynMap {
 
     val N = SizeVar("N")
     val kernel = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       (array) => {
         MapAtomWrg(
           MapLcl(idIterate)
@@ -144,7 +144,7 @@ class TestDynMap {
 
     val N = SizeVar("N")
     val kernel = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       (array) => {
         Join() o MapAtomWrg(
           MapAtomLcl(idIterate)

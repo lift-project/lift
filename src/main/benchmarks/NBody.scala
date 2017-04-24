@@ -143,8 +143,8 @@ object NBody {
   val N = SizeVar("N")
 
   val amd = fun(
-    ArrayType(Float4, N),
-    ArrayType(Float4, N),
+    ArrayTypeWSWC(Float4, N),
+    ArrayTypeWSWC(Float4, N),
     Float,
     Float,
     (pos, vel, espSqr, deltaT) =>
@@ -164,13 +164,13 @@ object NBody {
   val tileY = 1
 
   val nvidia = fun(
-    ArrayType(Float4, N),
-    ArrayType(Float4, N),
+    ArrayTypeWSWC(Float4, N),
+    ArrayTypeWSWC(Float4, N),
     Float,
     Float,
     (pos, vel, espSqr, deltaT) =>
       Join() o
-        MapWrg(1)(Join() o MapWrg(0)(fun(p1Chunk => // ArrayType(Flat4, tileX)
+        MapWrg(1)(Join() o MapWrg(0)(fun(p1Chunk => // ArrayTypeWSWC(Flat4, tileX)
           \(newP1Chunk =>
             MapLcl(1)(\(bla =>
               toGlobal(MapLcl(0)( fun( p1 =>
@@ -189,14 +189,14 @@ object NBody {
                       )) $ Zip(newP1Chunk, accDim2._1)
                   )) $ Zip(p2Local, acc)
                 ) o toLocal(MapLcl(1)(MapLcl(0)(idF4))) $ p2
-              ), MapLcl(1)(MapLcl(0)(idF4)) $ Value("0.0f", ArrayType(ArrayType(Float4, tileX), tileY))) o Split(tileY) o Split(tileX) $ pos
+              ), MapLcl(1)(MapLcl(0)(idF4)) $ Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(Float4, tileX), tileY))) o Split(tileY) o Split(tileX) $ pos
           ) $ Zip(toPrivate(MapLcl(idF4)) $ Get(Unzip() $ p1Chunk, 0), Get(Unzip() $ p1Chunk, 1))
         )) o Split(tileX)) o Split(N) $ Zip(pos, vel)
   )
 
   val lessLoadsToGlobal = fun(
-    ArrayType(Float4, N),
-    ArrayType(Float4, N),
+    ArrayTypeWSWC(Float4, N),
+    ArrayTypeWSWC(Float4, N),
     Float,
     Float,
     (pos, vel, espSqr, deltaT) =>

@@ -1,6 +1,6 @@
 package opencl.generator.stencil.acoustic
 
-import ir.ArrayType
+import ir.ArrayTypeWSWC
 import ir.ast._
 import lift.arithmetic.SizeVar
 import opencl.executor.{Compile, DeviceCapabilityException, Execute, Executor}
@@ -9,10 +9,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 import rewriting.SimplifyAndFuse
-import utils.OutputKernelJSON
 
-import scala.collection.immutable
-import scala.collection.parallel.immutable
 import scala.language.implicitConversions
 
 object TestAcousticActualRoom {
@@ -77,11 +74,11 @@ class TestAcousticActualRoom {
     val o = SizeVar("O")
 
    val lambdaNeigh = fun(
-     ArrayType(ArrayType(ArrayType(ArrayType(Float,1),m-2), n-2), o-2),
-     ArrayType(ArrayType(ArrayType(Float, m ), n ), o ),
-     ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), m-2), n-2), o-2),
-     ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-     ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,1),m-2), n-2), o-2),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m ), n ), o ),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, 1), m-2), n-2), o-2),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
      (mat1, mat2, mask1, weights, weightsMiddle) => {
        MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
          toGlobal(MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
@@ -147,9 +144,9 @@ class TestAcousticActualRoom {
     val o = SizeVar("O")
 
     val lambdaNeighAt = fun(
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, m+2), n+2), o+2),
-      ArrayType(ArrayType(ArrayType(Int, m), n), o),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2), n+2), o+2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, m), n), o),
       (mat1, mat2,mask) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
 
@@ -225,8 +222,8 @@ class TestAcousticActualRoom {
     val o = SizeVar("O")
 
     val stencilOrg = fun(
-      ArrayType(ArrayType(ArrayType(Float, localDimX+2), localDimY+2), localDimZ+2),
-      ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length*StencilUtilities.weightsMiddle3D(0).length*StencilUtilities.weightsMiddle3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, localDimX+2), localDimY+2), localDimZ+2),
+      ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length*StencilUtilities.weightsMiddle3D(0).length*StencilUtilities.weightsMiddle3D.length),
       (matrix, weights) => {
         Untile3D() o MapWrg(2)(MapWrg(1)(MapWrg(0)(fun(tile =>
           MapLcl(2)(MapLcl(1)(MapLcl(0)(
@@ -272,11 +269,11 @@ class TestAcousticActualRoom {
     val o = SizeVar("O")
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float,1),m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, m+2 ), n+2 ), o+2 ),
-      ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,1),m), n), o),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2 ), n+2 ), o+2 ),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, 1), m), n), o),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)((fun((m) => {
 
@@ -356,11 +353,11 @@ class TestAcousticActualRoom {
     val n = SizeVar("N")
     val o = SizeVar("O")
 
-    val arraySig = ArrayType(ArrayType(ArrayType(Int, m), n), o)
+    val arraySig = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, m), n), o)
 
     val lambdaNeighAt = fun(
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, m+2), n+2), o+2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2), n+2), o+2),
       (mat1, mat2) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
 
