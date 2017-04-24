@@ -1,15 +1,15 @@
 package opencl.generator.matrixMultiplication
 
-import lift.arithmetic.SizeVar
 import benchmarks.{GEMM, MatrixMultiplication}
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
 import org.junit.Assume.assumeFalse
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object Reuse {
   @BeforeClass def before(): Unit = {
@@ -46,8 +46,8 @@ class Reuse {
     val workPerThread = 2
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), K), // Transposed
-      ArrayType(ArrayType(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K), // Transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) => {
         // Undo the tiling
         Untile2D() o
@@ -78,7 +78,7 @@ class Reuse {
                                 acc
                               )
                             ) $ rowElemPair
-                          ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, workPerThread))
+                          ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayTypeWSWC(Float, workPerThread))
                           ) $ Zip(Transpose() $ rowsA, colB)
                         )) o Transpose()$ Get(pairOfTiles, 1)
                       )) o Split(workPerThread) o Transpose() $ Get(pairOfTiles, 0)
@@ -95,7 +95,7 @@ class Reuse {
                       )) $ pairOfTiles
                 )
                   , MapLcl(1)(MapLcl(0)(MapSeq(id))) $ Value(0.0f,
-                    ArrayType(ArrayType(ArrayType(Float, workPerThread), tileSizeM), tileSizeN/workPerThread))
+                    ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, workPerThread), tileSizeM), tileSizeN/workPerThread))
                 ) $ Zip(aRows, bCols)
 
             )) o Transpose() o Tile(tileSizeK, tileSizeN) $ B
@@ -122,15 +122,15 @@ class Reuse {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) =>
         Map(Scatter(reorderStride(workPerThreadM))) o Join() o Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( rowsA =>
             MapSeq(fun( colsB =>
               toGlobal(MapSeq(MapSeq(id))) o Join() o ReduceSeq(fun((acc, rowElemPair) =>
                 MapSeq(fun(pair => MapSeq(add) $ Zip(Get(pair, 0), Get(pair, 1)))) o fun(rowElemPair => Zip(toPrivate(MapSeq(fun(a => MapSeq(fun(b => mult.apply(a, b))) $ Get(rowElemPair, 1)))) $ Get(rowElemPair, 0), acc)) $ rowElemPair
-              ), toPrivate(MapSeq(MapSeq(id))) $ Value("0.0f", ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN))) $ Zip(Transpose() $ rowsA, Transpose() $ colsB)
+              ), toPrivate(MapSeq(MapSeq(id))) $ Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(Float, workPerThreadM), workPerThreadN))) $ Zip(Transpose() $ rowsA, Transpose() $ colsB)
             )) o Split(workPerThreadM) o ReorderStride(workPerThreadM) o Transpose() $ B
           )) o Split(workPerThreadN) $ A
     )
@@ -245,8 +245,8 @@ class Reuse {
     val workPerThreadM = 2
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), K), // Transposed
-      ArrayType(ArrayType(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K), // Transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) => {
         // Undo the tiling
         Untile2D() o
@@ -301,7 +301,7 @@ class Reuse {
                       )) $ pairOfTiles
                 )
                   , MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id)))) $ Value(0.0f,
-                    ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN))
+                    ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN))
                 ) $ Zip(aRows, bCols)
 
               // Tile the matrices
@@ -327,15 +327,15 @@ class Reuse {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) =>
         Join() o Map(TransposeW()) o
           MapGlb(fun( rowsA =>
             MapSeq(fun( colB =>
               toGlobal(MapSeq(id)) o Join() o ReduceSeq(fun((acc, rowElemPair) =>
                 MapSeq(add) o fun(rowElemPair => Zip(toPrivate(MapSeq(fun(a => mult.apply(a, Get(rowElemPair, 1))))) $ Get(rowElemPair, 0), acc)) $ rowElemPair
-              ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, tileSize))) $ Zip(Transpose() $ rowsA, colB)
+              ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayTypeWSWC(Float, tileSize))) $ Zip(Transpose() $ rowsA, colB)
             )) o Transpose() $ B
           )) o Split(tileSize) $ A
     )
@@ -356,8 +356,8 @@ class Reuse {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) =>
         Map(Join()) o
           MapGlb(fun(rowA => MapSeq( fun(colsB =>
@@ -365,7 +365,7 @@ class Reuse {
               MapSeq(add) o fun(elemRowPair =>
                 Zip(toPrivate(MapSeq(fun(a => mult.apply(a, Get(elemRowPair, 0))))) $ Get(elemRowPair, 1), acc)
               ) $ elemRowPair
-            ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, tileSize))) $ Zip(rowA, colsB)
+            ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayTypeWSWC(Float, tileSize))) $ Zip(rowA, colsB)
           )) o Map(Transpose()) o Split(tileSize) o Transpose() $ B
         )) $ A
     )
@@ -412,8 +412,8 @@ class Reuse {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) => {
         // Undo the tiling
         Untile2D() o
@@ -445,7 +445,7 @@ class Reuse {
                                 toPrivate(MapSeq(fun(a => mult.apply(a, Get(elemRowPair, 0))))) $ Get(elemRowPair, 1),
                                 acc
                               )) $ elemRowPair
-                            ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, blockSize))
+                            ), toPrivate(MapSeq(id)) $ Value("0.0f", ArrayTypeWSWC(Float, blockSize))
                           ) $ Zip(rowA, colsB)
 
                           )) o Map(Transpose()) o Split(blockSize) o Transpose() $ Get(pairOfTiles, 1)
@@ -459,7 +459,7 @@ class Reuse {
                          toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                       )) $ pairOfTiles
                 )
-                  , MapLcl(1)(MapLcl(0)(id)) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
+                  , MapLcl(1)(MapLcl(0)(id)) $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize))
                 ) $ Zip(aRows, bCols)
 
             )) o Transpose() o Tile(tileSize) $ B

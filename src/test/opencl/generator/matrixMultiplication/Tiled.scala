@@ -1,15 +1,15 @@
 package opencl.generator.matrixMultiplication
 
-import lift.arithmetic.SizeVar
 import benchmarks.MatrixMultiplication
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
 import org.junit.Assume.assumeFalse
+import org.junit.{AfterClass, BeforeClass, Test}
 
 import scala.reflect.ClassTag
 
@@ -165,8 +165,8 @@ class Tiled {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
       (A, B) => {
         // Undo the tiling
         Untile2D() o
@@ -207,8 +207,8 @@ class Tiled {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
       (A, B) => {
         // Undo the tiling
         Untile2D() o
@@ -231,7 +231,7 @@ class Tiled {
                       )) $ Get(pairOfTiles, 0)
                   ) $ pairOfTiles
                 )
-                  , toGlobal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
+                  , toGlobal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize))
                 ) $ Zip(aRows, bCols)
 
               // Tile the matrices
@@ -257,8 +257,8 @@ class Tiled {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
       (A, B) => {
         // Undo the tiling
         Untile2D() o
@@ -311,8 +311,8 @@ class Tiled {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
       (A, B) => {
         // Undo the tiling
         Untile2D() o
@@ -342,7 +342,7 @@ class Tiled {
                          toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                       )) $ pairOfTiles
                 )
-                  , toLocal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
+                  , toLocal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize))
                 ) $ Zip(aRows, bCols)
 
               // Tile the matrices
@@ -368,8 +368,8 @@ class Tiled {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) => {
         // Undo the tiling
         Untile2D() o
@@ -399,7 +399,7 @@ class Tiled {
                          toLocal(MapLcl(1)(MapLcl(0)(id))) $ Get(pairOfTiles, 1)
                       )) $ pairOfTiles
                 )
-                  , toLocal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
+                  , toLocal(MapLcl(1)(MapLcl(0)(id))) $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize))
                 ) $ Zip(aRows, bCols)
 
             )) o Transpose() o Tile(tileSize) $ B

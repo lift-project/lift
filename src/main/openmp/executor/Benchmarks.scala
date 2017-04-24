@@ -2,7 +2,7 @@ package openmp.executor
 
 import lift.arithmetic.SizeVar
 import benchmarks.NBody
-import ir.{ArrayType, TupleType, Type, TypeChecker}
+import ir._
 import ir.ast.{Get, Join, Lambda2, Pad, Split, Transpose, Tuple, Unzip, UserFun, Value, Zip, fun}
 import opencl.generator.OpenCLGenerator
 import opencl.ir._
@@ -22,15 +22,15 @@ object Benchmarks {
   def genID(t:Type) = UserFun(s"${t.toString}ID", "x", "return x;", t,t)
 
   def ultraTrivial(N:Int) = fun(
-    ArrayType(Float,N),
-    ArrayType(Float,N),
+    ArrayTypeWSWC(Float,N),
+    ArrayTypeWSWC(Float,N),
     (inA,inB) => {
       MapSeq(add) $ Zip(inA,inB)
     }
   )
 
   def nestedTrivial(N:Int,M:Int) = fun(
-    ArrayType(ArrayType(Float,N),M),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float,N),M),
     (inA) => {
       toGlobal(MapSeq(MapSeq(increment))) $ inA
     }
@@ -38,8 +38,8 @@ object Benchmarks {
 
 
   def matrixMultSeqAcc(N:Int) = fun(
-    ArrayType(ArrayType(Float, N), N),
-    ArrayType(ArrayType(Float, N), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
     (A, B) => {
       toGlobal(MapSeq(MapSeq(MapSeq(id)))) o MapSeq(fun( Arow =>
         MapSeq(fun( Bcol =>
@@ -49,8 +49,8 @@ object Benchmarks {
     })
 
   def matrixMultSeq(N:Int) = fun(
-    ArrayType(ArrayType(Float, N), N),
-    ArrayType(ArrayType(Float, N), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
     (A, B) => {
       toGlobal(MapSeq(MapSeq(MapSeq(id)))) o MapSeq(fun( Arow =>
         MapSeq(fun( Bcol =>
@@ -61,8 +61,8 @@ object Benchmarks {
 
 
   def matrixMultPar(N:Int) = fun(
-    ArrayType(ArrayType(Float, N), N),
-    ArrayType(ArrayType(Float, N), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
     (A, B) => {
       toGlobal(MapSeq(MapSeq(MapSeq(id)))) o  MapOMP(fun(Arow =>
         MapOMP(fun(Bcol =>
@@ -74,8 +74,8 @@ object Benchmarks {
   val sN = SizeVar("N")
 
   def matrixMultCL(N:Int) =  fun(
-    ArrayType(ArrayType(Float, N), N),
-    ArrayType(ArrayType(Float, N), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
     (A, B) => {
       MapGlb(1)(fun( Arow =>
         MapGlb(0)(fun( Bcol =>
@@ -158,8 +158,8 @@ object Benchmarks {
   val float4zero = Value("(Tuple_float_float_float_float) { 0.0f, 0.0f, 0.0f, 0.0f }",float4)
 
   def nbodySeq(N:Int) = fun(
-        ArrayType(float4, N),
-        ArrayType(float4, N),
+        ArrayTypeWSWC(float4, N),
+        ArrayTypeWSWC(float4, N),
         Float,
         Float,
         (pos, vel, espSqr, deltaT) =>
@@ -176,8 +176,8 @@ object Benchmarks {
   )
 
   def nbodyPar(N:Int) = fun(
-    ArrayType(float4, N),
-    ArrayType(float4, N),
+    ArrayTypeWSWC(float4, N),
+    ArrayTypeWSWC(float4, N),
     Float,
     Float,
     (pos, vel, espSqr, deltaT) =>
@@ -233,8 +233,8 @@ object Benchmarks {
       Seq(Float4, Float4, Float, Float4), TupleType(Float4, Float4))
 
   def nbodyCL(N:Int) = fun(
-    ArrayType(Float4, N),
-    ArrayType(Float4, N),
+    ArrayTypeWSWC(Float4, N),
+    ArrayTypeWSWC(Float4, N),
     Float,
     Float,
     (pos, vel, espSqr, deltaT) =>
@@ -326,28 +326,28 @@ object Benchmarks {
 
 
   def blackScholesSeq(N:Int) = fun(
-    ArrayType(Float, N),
+    ArrayTypeWSWC(Float, N),
     inRand => MapSeq(blackScholesComp)  $ inRand
   )
 
   def blackScholesPar(N:Int) = fun(
-    ArrayType(Float,N),
+    ArrayTypeWSWC(Float,N),
     inRand => MapOMP(blackScholesComp) $ inRand
   )
 
   def blackScholesCL(N:Int)  = fun(
-    ArrayType(Float, N),
+    ArrayTypeWSWC(Float, N),
     inRand => Join() o MapWrg(MapLcl(blackScholesComp)) o Split(1280) $ inRand
   )
 
   val squareAdd = UserFun("squareAdd", Array("x","y"),"return x + sqrt(((y * y)/52));",Seq(Float,Float),Float)
   val square = UserFun("square", "x", "return sqrt(((x * x)/52));;",Float,Float)
   def squareAccSeq(N:Int) = fun(
-    ArrayType(Float,N),
+    ArrayTypeWSWC(Float,N),
     in =>  toGlobal(MapSeq(id)) o ReduceSeq(add,0.0f) o MapOMP(square) $ in
   )
   def squareAccPar(N:Int) = fun(
-    ArrayType(Float,N),
+    ArrayTypeWSWC(Float,N),
     in =>  toGlobal(MapSeq(id)) o ReduceOMP(:+(Float),squareAdd,0.0f) $ in
   )
 

@@ -7,7 +7,7 @@ import lift.arithmetic._
 import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import opencl.executor.Compile
-import opencl.generator.OpenCLGenerator.NDRange
+import opencl.generator.NDRange
 import opencl.generator.{IllegalKernel, OpenCLGenerator}
 import opencl.ir._
 import opencl.ir.ast._
@@ -31,8 +31,8 @@ class SaveOpenCL(
 
   private val logger = Logger(this.getClass)
 
-  var local: NDRange = Array(?, ?, ?)
-  var global: NDRange = Array(?, ?, ?)
+  var local: NDRange = NDRange(?, ?, ?)
+  var global: NDRange = NDRange(?, ?, ?)
   private var sizeArgs: Seq[Var] = Seq()
   private var numSizes = 0
 
@@ -99,8 +99,8 @@ class SaveOpenCL(
     val kernel =
       s"""
          |// Substitutions: $substitutionMap
-         |// Local sizes: ${local.map(x => { try { x.eval } catch { case _: Throwable => x } }).mkString(", ")}
-         |// Global sizes: ${global.mkString(", ")}
+         |// Local sizes: ${local.evaluated.toString}
+         |// Global sizes: ${global.toString}
          |// High-level hash: $highLevelHash
          |// Low-level hash: $lowLevelHash
          |
@@ -114,7 +114,8 @@ class SaveOpenCL(
 
     val lambda = tuple._1
     val rangeStrings = tuple._3 match {
-      case (localSize, globalSize) => (localSize.mkString("_"), globalSize.mkString("_"))
+      case (localSize, globalSize) =>
+        (localSize.toString.replace(",","_"), globalSize.toString.replace(",", "_"))
     }
     val hash = lowLevelHash + "_" + tuple._2.mkString("_") + "_" + rangeStrings._1 + "_" + rangeStrings._2
     val filename = hash + ".cl"
@@ -163,8 +164,8 @@ class SaveOpenCL(
         val fileWriter = new FileWriter(s"$path/exec_$sizeId.csv", true)
 
         fileWriter.write(size + "," +
-          global.map(ArithExpr.substitute(_, inputVarMapping)).mkString(",") + "," +
-          local.map(ArithExpr.substitute(_, inputVarMapping)).mkString(",") +
+          global.map(ArithExpr.substitute(_, inputVarMapping)).toString + "," +
+          local.map(ArithExpr.substitute(_, inputVarMapping)).toString +
           s",$hash," + globalTempAlloc.length + "," +
           globalTempAlloc.mkString(",") +
           (if (globalTempAlloc.length == 0) "" else ",") +
@@ -221,40 +222,40 @@ class SaveOpenCL(
     val controlFlow = ControlFlow(lambda, localSizes, globalSizes, inputVarMapping)
     val functionCounts = FunctionCounts(lambda, localSizes, globalSizes, inputVarMapping)
 
-    val globalMemory = memoryAmounts.getGlobalMemoryUsed(exact).evalDbl
-    val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDbl
-    val privateMemory = memoryAmounts.getPrivateMemoryUsed(exact).evalDbl
+    val globalMemory = memoryAmounts.getGlobalMemoryUsed(exact).evalDouble
+    val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDouble
+    val privateMemory = memoryAmounts.getPrivateMemoryUsed(exact).evalDouble
 
-    val globalStores = accessCounts.getStores(GlobalMemory, exact).evalDbl
-    val globalLoads = accessCounts.getLoads(GlobalMemory, exact).evalDbl
-    val localStores = accessCounts.getStores(LocalMemory, exact).evalDbl
-    val localLoads = accessCounts.getLoads(LocalMemory, exact).evalDbl
-    val privateStores = accessCounts.getStores(PrivateMemory, exact).evalDbl
-    val privateLoads = accessCounts.getLoads(PrivateMemory, exact).evalDbl
+    val globalStores = accessCounts.getStores(GlobalMemory, exact).evalDouble
+    val globalLoads = accessCounts.getLoads(GlobalMemory, exact).evalDouble
+    val localStores = accessCounts.getStores(LocalMemory, exact).evalDouble
+    val localLoads = accessCounts.getLoads(LocalMemory, exact).evalDouble
+    val privateStores = accessCounts.getStores(PrivateMemory, exact).evalDouble
+    val privateLoads = accessCounts.getLoads(PrivateMemory, exact).evalDouble
 
-    val barriers = barrierCounts.getTotalCount(exact).evalDbl
+    val barriers = barrierCounts.getTotalCount(exact).evalDouble
 
     val coalescedGlobalStores =
-      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact).evalDbl
+      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact).evalDouble
     val coalescedGlobalLoads =
-      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact).evalDbl
+      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact).evalDouble
 
     val vectorGlobalStores =
-      accessCounts.vectorStores(GlobalMemory, UnknownPattern, exact).evalDbl
+      accessCounts.vectorStores(GlobalMemory, UnknownPattern, exact).evalDouble
     val vectorGlobalLoads =
-      accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact).evalDbl
+      accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact).evalDouble
 
-    val ifStatements = controlFlow.getIfStatements(exact).evalDbl
-    val forStatements = controlFlow.getForStatements(exact).evalDbl
+    val ifStatements = controlFlow.getIfStatements(exact).evalDouble
+    val forStatements = controlFlow.getForStatements(exact).evalDouble
 
-    val addCount = functionCounts.getFunctionCount(add, exact).evalDbl
-    val multCount = functionCounts.getFunctionCount(mult, exact).evalDbl
-    val addMult = functionCounts.getAddMultCount(exact).evalDbl
-    val vecAddMult = functionCounts.getVectorisedAddMultCount(exact).evalDbl
-    val dotCount = functionCounts.getFunctionCount(dot, exact).evalDbl
+    val addCount = functionCounts.getFunctionCount(add, exact).evalDouble
+    val multCount = functionCounts.getFunctionCount(mult, exact).evalDouble
+    val addMult = functionCounts.getAddMultCount(exact).evalDouble
+    val vecAddMult = functionCounts.getVectorisedAddMultCount(exact).evalDouble
+    val dotCount = functionCounts.getFunctionCount(dot, exact).evalDouble
 
     val string =
-      s"$hash,${globalSizes.mkString(",")},${localSizes.mkString(",")}," +
+      s"$hash,${globalSizes.toString},${localSizes.toString}," +
         s"$globalMemory,$localMemory,$privateMemory,$globalStores,$globalLoads," +
         s"$localStores,$localLoads,$privateStores,$privateLoads,$barriers," +
         s"$coalescedGlobalStores,$coalescedGlobalLoads,$vectorGlobalStores," +

@@ -28,7 +28,7 @@ class TestExecute {
     val size = 1024
     val input = Array.fill(size)(util.Random.nextFloat() * 10)
 
-    val f = \(ArrayType(Float, N),
+    val f = \(ArrayTypeWSWC(Float, N),
       MapSeq(plusOne) $ _
     )
 
@@ -54,7 +54,7 @@ class TestExecute {
     val size = 1024
     val input = Array.fill(size)(util.Random.nextFloat() * 10)
 
-    val f = \(ArrayType(Float, N),
+    val f = \(ArrayTypeWSWC(Float, N),
       MapGlb(plusOne) $ _
     )
 
@@ -81,7 +81,7 @@ class TestExecute {
     val size2 = 512
     val input = Array.fill(size1, size2)(util.Random.nextFloat() * 10)
 
-    val f = \(ArrayType(ArrayType(Float, M), N),
+    val f = \(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       MapGlb(1)(MapGlb(0)(plusOne)) $ _
     )
 
@@ -107,7 +107,7 @@ class TestExecute {
     val split = 32
     val input = Array.fill(size)(util.Random.nextFloat() * 10)
 
-    val f = \(ArrayType(Float, N),
+    val f = \(ArrayTypeWSWC(Float, N),
       MapWrg(MapLcl(plusOne)) o Split(split) $ _
     )
 
@@ -138,7 +138,7 @@ class TestExecute {
     val split2 = 8
     val input = Array.fill(size1, size2)(util.Random.nextFloat() * 10)
 
-    val f = \(ArrayType(ArrayType(Float, M), N),
+    val f = \(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       Untile2D() o
         MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)(plusOne)))) o
         Tile(split1, split2) $ _
@@ -174,7 +174,7 @@ class TestExecute {
       Array.fill(sizeB)(util.Random.nextFloat() * 10)
     )
 
-    val f = λ(ArrayType(ArrayType(Float, B*Cst(cst1)), A),
+    val f = λ(ArrayTypeWSWC(ArrayTypeWSWC(Float, B*Cst(cst1)), A),
       MapWrg(
         MapLcl(MapSeq(id)) o Split(cst1)
       ) $ _
@@ -201,7 +201,7 @@ class TestExecute {
 
     val gold = Array(inputA.sum + inputB.sum)
 
-    val f = λ(ArrayType(Float, cst1), ArrayType(Float, A),
+    val f = λ(ArrayTypeWSWC(Float, cst1), ArrayTypeWSWC(Float, A),
       (cstArr, varArr) =>
       MapSeq(toGlobal(id)) o Join() o MapSeq(λ(Float, (r_res) =>
         ReduceSeq(add, r_res) $ cstArr

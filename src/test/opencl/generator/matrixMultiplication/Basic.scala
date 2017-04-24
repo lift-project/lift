@@ -1,13 +1,13 @@
 package opencl.generator.matrixMultiplication
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
-import org.junit.{AfterClass, BeforeClass, Test}
 import org.junit.Assert._
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object Basic {
   @BeforeClass def before(): Unit = {
@@ -35,8 +35,8 @@ class Basic {
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
       (A, B) => {
         MapWrg(fun( Arow =>
           Join() o  MapLcl(fun( Bcol =>
@@ -61,8 +61,8 @@ class Basic {
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
       (A, B) => {
         MapGlb(fun( Arow =>
           MapSeq(fun( Bcol =>
@@ -87,8 +87,8 @@ class Basic {
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
     val f1 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // this is already transposed
       (A, B) => {
         MapGlb(0)(fun( Arow =>
           MapGlb(1)(fun( Bcol =>
@@ -98,8 +98,8 @@ class Basic {
       })
 
     val f2 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // this is already transposed
       (A, B) => {
         MapGlb(0)(MapGlb(1)(toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f))) o
           Map(fun( Arow =>
@@ -132,7 +132,7 @@ class Basic {
     assertArrayEquals(gold, test, 0.001f)
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("K")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("K")), SizeVar("N")),
       input => {
         MapGlb(0)(MapGlb(1)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Transpose()) o
           Transpose() $ input
@@ -152,8 +152,8 @@ class Basic {
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) => {
         MapGlb(0)(fun( Arow =>
           MapGlb(1)(fun( Bcol =>
@@ -182,8 +182,8 @@ class Basic {
     val c = 4 // number of columns a single workgroup computes
 
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // this is already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // this is already transposed
       (A, B) => {
         Join() o MapWrg(0)(fun( aRows =>
           TransposeW() o Join() o MapWrg(1)(fun( bCols =>

@@ -1,13 +1,11 @@
 package opencl.generator
 
-import ir.ast.{Gather, Join, Split,Tuple, UserFun, Zip, fun, shiftRight}
-import ir.{ArrayType, TupleType}
+import ir.ast.{Gather, Join, Split, Tuple, UserFun, Zip, fun, shiftRight}
+import ir.{ArrayTypeWSWC, TupleType}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import opencl.ir.pattern.{
-  MapGlb, MapWrg, MapLcl, MapSeq, toGlobal, toLocal, ReduceSeq
-}
+import opencl.ir.pattern._
 import org.junit.Assert.{assertArrayEquals, assertEquals}
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -56,7 +54,7 @@ class TestDbQueries {
     val tupleId = id(TupleType(Int, Int))
     
     val combine = fun(
-      ArrayType(Int, N), ArrayType(Int, M),
+      ArrayTypeWSWC(Int, N), ArrayTypeWSWC(Int, M),
       (left, right) => {
         Join() o MapGlb(
           toGlobal(MapSeq(tupleId)) o fun(lRow => {
@@ -109,8 +107,8 @@ class TestDbQueries {
     )
     
     val query = fun(
-      ArrayType(TupleType(Int, Int), N),
-      ArrayType(TupleType(Int, Int), M),
+      ArrayTypeWSWC(TupleType(Int, Int), N),
+      ArrayTypeWSWC(TupleType(Int, Int), M),
       (left, right) => {
         Join() o MapGlb(fun(lRows =>
           MapSeq(toGlobal(toTuple)) $ Zip(
@@ -155,7 +153,7 @@ class TestDbQueries {
     val int_max = max(Int)
     
     val aggregateMax = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       table => {
         toGlobal(MapSeq(idI)) o ReduceSeq(int_max, 0) $ table
       }
@@ -192,7 +190,7 @@ class TestDbQueries {
   
     // We assume that the input table is already sorted
     val groupBy = fun(
-      ArrayType(TupleType(Int, Int), N),
+      ArrayTypeWSWC(TupleType(Int, Int), N),
       table => {
         Join() o MapGlb(
           fun(bx =>
@@ -265,8 +263,8 @@ class TestDbQueries {
     )
     
     val query = fun(
-      ArrayType(TupleType(Int, Int, Int), N),
-      ArrayType(TupleType(Int, Int), M),
+      ArrayTypeWSWC(TupleType(Int, Int, Int), N),
+      ArrayTypeWSWC(TupleType(Int, Int), M),
       (leftTable, rightTable) => {
         MapSeq(toGlobal(idI)) o ReduceSeq(addI, 0) o Join() o
         MapWrg(
