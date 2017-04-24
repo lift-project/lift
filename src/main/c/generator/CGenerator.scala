@@ -527,7 +527,6 @@ class CGenerator extends Generator {
     (block: Block) += CAst.Comment("end reduce_seq")
   }
 
-
   private def generateValue(v: Value, block: Block): Unit = {
     val temp = Var("tmp")
 
