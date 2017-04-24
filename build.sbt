@@ -78,7 +78,6 @@ scalacOptions in (Compile,doc) := Seq("-implicits", "-diagrams")
 
 // Build ArithExpr
 unmanagedSourceDirectories in Compile += baseDirectory.value / "lib/ArithExpr/src/main/"
-unmanagedSourceDirectories in Test += baseDirectory.value / "lib/ArithExpr/src/main/"
 
 ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*;.*arithmetic.*;.*testing.*"
 
