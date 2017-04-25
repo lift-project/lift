@@ -1,8 +1,8 @@
 package opencl.ir
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.generator.IllegalKernel
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -14,10 +14,10 @@ class TestMemory {
   def zipInsideToLocalAllocation(): Unit = {
     val N = SizeVar("N")
 
-    val arrayType = ArrayType(Float, N)
+    val arrayType = ArrayTypeWSWC(Float, N)
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (A, B) =>
         MapWrg(fun( tuple =>
           toLocal(MapLcl(fun( tuple =>
@@ -50,7 +50,7 @@ class TestMemory {
   def zipInsideToGlobalAllocation(): Unit = {
     val N = SizeVar("N")
 
-    val arrayType = ArrayType(ArrayType(Float, N), N)
+    val arrayType = ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N)
     val f = fun(
       arrayType,
       arrayType,
@@ -86,7 +86,7 @@ class TestMemory {
   def zipAllocation(): Unit = {
     val N = SizeVar("N")
 
-    val arrayType = ArrayType(ArrayType(Float, N), N)
+    val arrayType = ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N)
     val f = fun(
       arrayType,
       arrayType,

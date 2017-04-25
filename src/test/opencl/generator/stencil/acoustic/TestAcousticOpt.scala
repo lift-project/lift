@@ -1,17 +1,15 @@
 package opencl.generator.stencil.acoustic
 
+import ir.ArrayTypeWSWC
 import ir.ast._
-import ir.{ArrayType, TupleType}
-import lift.arithmetic.{SizeVar, StartFromRange, Var}
-import opencl.executor.{Compile, DeviceCapabilityException, Execute, Executor}
-import opencl.executor._
+import lift.arithmetic.SizeVar
+import opencl.executor.{Compile, DeviceCapabilityException, Execute, Executor, _}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit._
 import org.junit.Assume.assumeFalse
+import org.junit._
 import rewriting.SimplifyAndFuse
-import utils.OutputKernelJSON
 
 import scala.language.implicitConversions
 
@@ -53,10 +51,10 @@ class TestAcousticOpt {
     val const1 = constantOriginal(2)
 
     val lambdaZip3D = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float,1), m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, m + 2), n + 2), o + 2),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,1), m), n), o),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m + 2), n + 2), o + 2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       Float,
       (mat1, mat2, weights, weightsMiddle,c1) => {
         MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
@@ -121,11 +119,11 @@ class TestAcousticOpt {
     val o = SizeVar("O")
 
    val lambdaNeigh = fun(
-     ArrayType(ArrayType(ArrayType(ArrayType(Float,1),m-2), n-2), o-2),
-     ArrayType(ArrayType(ArrayType(Float, m ), n ), o ),
-     ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), m-2), n-2), o-2),
-     ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-     ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,1),m-2), n-2), o-2),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m ), n ), o ),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, 1), m-2), n-2), o-2),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
      (mat1, mat2, mask1, weights, weightsMiddle) => {
        MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
          toGlobal(MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
@@ -186,8 +184,8 @@ class TestAcousticOpt {
     val O = SizeVar("O")
 
     val stencil = fun(
-      ArrayType(ArrayType(ArrayType(Float, M), N),O),
-      ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length*StencilUtilities.weightsMiddle3D(0).length*StencilUtilities.weightsMiddle3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),O),
+      ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length*StencilUtilities.weightsMiddle3D(0).length*StencilUtilities.weightsMiddle3D.length),
       (matrix, weights) => {
         Untile3D() o MapWrg(2)(MapWrg(1)(MapWrg(0)(fun(tile =>
           MapLcl(2)(MapLcl(1)(MapLcl(0)(
@@ -244,8 +242,8 @@ class TestAcousticOpt {
     val input3D = StencilUtilities.createFakePaddingFloat3D(input, 0.0f, localDim, localDim)
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
-      ArrayType(Float, StencilUtilities.slidesize*StencilUtilities.slidesize*StencilUtilities.slidesize),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, dim), dim), dim),
+      ArrayTypeWSWC(Float, StencilUtilities.slidesize*StencilUtilities.slidesize*StencilUtilities.slidesize),
       (mat, weights) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(neighbours => {
 
@@ -289,9 +287,9 @@ class TestAcousticOpt {
     val o = SizeVar("O")
 
     val lambdaNeighAt = fun(
-      ArrayType(ArrayType(ArrayType(Float, m-2), n-2), o-2),
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      ArrayType(Float, StencilUtilities.slidesize*StencilUtilities.slidesize*StencilUtilities.slidesize),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m-2), n-2), o-2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
+      ArrayTypeWSWC(Float, StencilUtilities.slidesize*StencilUtilities.slidesize*StencilUtilities.slidesize),
       (mat1, mat2, weights) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
 
@@ -353,11 +351,11 @@ class TestAcousticOpt {
     val o = SizeVar("O")
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float,1),m-2), n-2), o-2),
-      ArrayType(ArrayType(ArrayType(Float, m ), n ), o ),
-      ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), m-2), n-2), o-2),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,1),m-2), n-2), o-2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m ), n ), o ),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, 1), m-2), n-2), o-2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
           toGlobal(MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
@@ -383,9 +381,9 @@ class TestAcousticOpt {
     def addP = toPrivate(add)
 
     val lambdaNeighAt = fun(
-      ArrayType(ArrayType(ArrayType(Float, m-2), n-2), o-2),
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      ArrayType(ArrayType(ArrayType(Int, m-2), n-2), o-2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m-2), n-2), o-2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, m-2), n-2), o-2),
       (mat1, mat2,mask) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
 
@@ -442,7 +440,7 @@ class TestAcousticOpt {
     val data = Array.tabulate(dimX,dimY){(i,j) => (i+j+1).toFloat}
 
     val stencil = fun(
-      ArrayType(ArrayType(Float, dim), dim),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, dim), dim),
       (matrix) => {
         MapWrg(2)(MapWrg(1)(MapWrg(0)(
           toGlobal(MapSeq(id))
@@ -472,7 +470,7 @@ class TestAcousticOpt {
     val idxF = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ " +
        "int count = 6; if(i == (m-1) || i == 0){ count--; } if(j == (n-1) || j == 0){ count--; } if(k == (o-1) || k == 0){ count--; }return count; }", Seq(Int,Int,Int,Int,Int,Int), Int)
 
-    val inp3d = ArrayType(ArrayType(ArrayType(Int, SizeVar("O")), SizeVar("N")), SizeVar("M"))
+    val inp3d = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, SizeVar("O")), SizeVar("N")), SizeVar("M"))
 
     val numberOfNeighbours = fun(inp3d,
       input => toGlobal(MapGlb(MapSeq(MapSeq(idI)))) $ Array3DFromUserFunGenerator(idxF, inp3d)

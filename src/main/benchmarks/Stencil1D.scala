@@ -62,8 +62,8 @@ object Stencil1D{
                             left: Int, right: Int,
                             size: Int, step: Int): Lambda2 = {
     fun(
-      ArrayType(Float, Var("N")),
-      ArrayType(Float, weights.length),
+      ArrayTypeWSWC(Float, Var("N")),
+      ArrayTypeWSWC(Float, weights.length),
       (input, weights) => {
         MapGlb(
           fun(neighbourhood => {
@@ -84,8 +84,8 @@ object Stencil1D{
                                  size: Int, step: Int,
                                  tileSize: Int, tileStep: Int): Lambda2 = {
     fun(
-      ArrayType(Float, Var("N")),
-      ArrayType(Float, weights.length),
+      ArrayTypeWSWC(Float, Var("N")),
+      ArrayTypeWSWC(Float, weights.length),
       (input, weights) => {
         MapWrg(fun(tile =>
           MapLcl(
@@ -105,8 +105,8 @@ object Stencil1D{
 
   def createNaiveLocalMemory1DStencilLambda(boundary: BoundaryFun): Lambda2 = {
     fun(
-      ArrayType(Float, Var("N")),
-      ArrayType(Float, weights.length),
+      ArrayTypeWSWC(Float, Var("N")),
+      ArrayTypeWSWC(Float, weights.length),
       (input, weights) => {
         MapWrg(MapLcl(
           fun(neighbourhood => {

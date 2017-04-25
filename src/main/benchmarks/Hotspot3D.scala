@@ -36,12 +36,12 @@ class Hotspot3D(override val f: Seq[(String, Array[Lambda])]) extends Benchmark(
 
 object Hotspot3D{
 
-  //ArrayType(ArrayType(Float, N), N),
+  //ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
   def hotspotGenericSize(): Lambda = {
     val N = Var("N", StartFromRange(2))
     val M = Var("N", StartFromRange(2))
     fun(
-      ArrayType(ArrayType(ArrayType(Float, M), M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), M), N),
       (input) => {
         MapSeq(MapGlb(1)(MapGlb(0)( \(nbh =>
           toGlobal(MapSeq(id)) o
@@ -53,7 +53,7 @@ object Hotspot3D{
 
   def hotspotInjectSize(): Lambda = {
     fun(
-      ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 512), 512), 8),
       (input) => {
         MapSeq(MapGlb(1)(MapGlb(0)( \(nbh =>
           toGlobal(MapSeq(id)) o
@@ -65,7 +65,7 @@ object Hotspot3D{
 
   def hotspotSM(): Lambda = {
     fun(
-      ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 512), 512), 8),
       (input) => {
         MapSeq(MapWrg(1)(MapWrg(0)( \(tiles =>
           MapSeq(MapLcl(1)(MapLcl(0)( \(nbh =>

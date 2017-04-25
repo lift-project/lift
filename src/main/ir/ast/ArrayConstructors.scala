@@ -1,7 +1,7 @@
 package ir.ast
 
-import ir.ArrayType
+import ir.{ArrayType, Capacity, Size}
 
-abstract class ArrayConstructors(val at: ArrayType) extends Expr {
+abstract class ArrayConstructors(val at: ArrayType with Size with Capacity) extends Expr {
   this.t = at // set type
 }

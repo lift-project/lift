@@ -1,5 +1,7 @@
 #include "GlobalArg.h"
 
+#include "util/Logger.h"
+
 namespace executor {
 
 GlobalArg::GlobalArg(executor::Vector<char>&& vectorP, bool isOutputP)
@@ -36,6 +38,7 @@ void GlobalArg::clear()
 
 void GlobalArg::setAsKernelArg(cl::Kernel kernel, int i)
 {
+  LOG_DEBUG_INFO("Setting GlobalArg with size ", vector.size(), ", at position ", i);
   auto& devPtr = executor::globalDeviceList.front();
   kernel.setArg(i, vector.deviceBuffer(*devPtr).clBuffer());
 }

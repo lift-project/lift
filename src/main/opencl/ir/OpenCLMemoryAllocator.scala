@@ -91,6 +91,8 @@ object OpenCLMemoryAllocator {
 
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
 
+      case sp: SlideSeqPlus => allocSlideSeqPlus(sp,call.t, numGlb, numLcl, numPvt, inMem)
+
       case s: AbstractSearch => allocSearch(s, call, numGlb, numLcl, numPvt, inMem)
 
       case it: Iterate => allocIterate(it, call, numGlb, numLcl, numPvt, inMem)
@@ -176,7 +178,7 @@ object OpenCLMemoryAllocator {
     am.f.params(0).mem = inMem
 
     am.asInstanceOf[MapAtomWrg].globalTaskIndex =
-      OpenCLMemory.allocGlobalMemory(Type.getMaxSize(Int))
+      OpenCLMemory.allocGlobalMemory(Type.getMaxAllocatedSize(Int))
 
     val len = Type.getMaxLength(outT)
     alloc(am.f.body, numGlb * len, numLcl, numPvt)
@@ -231,6 +233,26 @@ object OpenCLMemoryAllocator {
       case _ => throw new IllegalArgumentException(inMem.toString)
     }
   }
+
+  private def allocSlideSeqPlus(sp: SlideSeqPlus,
+                                outT: Type,
+                                numGlb: ArithExpr,
+                                numLcl: ArithExpr,
+                                numPvt: ArithExpr,
+                                inMem: OpenCLMemory): OpenCLMemory = {
+
+    sp.f.params(0).mem = OpenCLMemory(sp.windowVar, Type.getAllocatedSize(sp.f.params(0).t) * sp.size , PrivateMemory)
+    val len = Type.getMaxLength(outT)
+
+    val privateMultiplier: ArithExpr =
+      if (sp.f.body.addressSpace.containsAddressSpace(PrivateMemory) ||
+        inMem.addressSpace.containsAddressSpace(PrivateMemory))
+        sp.iterationCount
+      else
+        1
+    alloc(sp.f.body, numGlb * len, numLcl * len, numPvt * privateMultiplier)
+  }
+
 
   private def allocSearch(s: AbstractSearch, call: FunCall,
     numGlb: ArithExpr,

@@ -2,7 +2,6 @@ package opencl.generator
 
 import lift.arithmetic.{ArithExpr, Predicate, Var}
 import ir.{TupleType, Type, VectorType}
-import opencl.generator.OpenCLGenerator.NDRange
 import opencl.ir.{OpenCLAddressSpace, OpenCLMemory, UndefAddressSpace}
 
 import scala.language.implicitConversions
@@ -55,7 +54,7 @@ object OpenCLAST {
                      t: Type,
                      init: OclAstNode = null,
                      addressSpace: OpenCLAddressSpace = UndefAddressSpace,
-                     length: Int = 0) extends Declaration
+                     length: Long = 0) extends Declaration
 
   /** Parameter declaration. These have to be separated from variable
     * declaration since the vectorization has to be handled differently
@@ -208,6 +207,8 @@ object OpenCLAST {
     */
   case class Cast(v: VarRef, t: Type) extends Expression
 
+  case class PointerCast(v: VarRef, t: Type, addressSpace: OpenCLAddressSpace) extends Expression
+
   case class VectorLiteral(t: VectorType, vs: VarRef*) extends Expression
 
   case class StructConstructor(t: TupleType, args: Vector[OclAstNode]) extends Expression
@@ -262,6 +263,8 @@ object OpenCLAST {
         visitExpressionsInNode(a.to)
       case c: Cast =>
         visitExpressionsInNode(c.v)
+      case pc : PointerCast =>
+        visitExpressionsInNode(pc.v)
       case c: CondExpression =>
         visitExpressionsInNode(c.lhs)
         visitExpressionsInNode(c.rhs)

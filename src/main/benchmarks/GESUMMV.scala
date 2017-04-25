@@ -55,9 +55,9 @@ object GESUMMV {
 
 
   val fused = fun(
-    ArrayType(ArrayType(Float, K), N),
-    ArrayType(ArrayType(Float, K), N),
-    ArrayType(Float, K),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+    ArrayTypeWSWC(Float, K),
     Float, Float,
     (A, B, x, alpha, beta) =>
       Zip(A, B) :>> MapGlb(\( p => {
@@ -75,9 +75,9 @@ object GESUMMV {
   )
 
   val simpleUserFun = fun(
-    ArrayType(ArrayType(Float, K), N),
-    ArrayType(ArrayType(Float, K), N),
-    ArrayType(Float, K),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+    ArrayTypeWSWC(Float, K),
     Float, Float,
     (A, B, x, alpha, beta) =>
       Zip(A, B) :>> MapGlb(\( p => {
@@ -104,9 +104,9 @@ object GESUMMV {
   val stride = 128
 
   val fusedOptimised = fun(
-    ArrayType(ArrayType(Float, K), N),
-    ArrayType(ArrayType(Float, K), N),
-    ArrayType(Float, K),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+    ArrayTypeWSWC(Float, K),
     Float, Float,
     (A, B, x, alpha, beta) =>
       MapWrg(fun(matrices =>
