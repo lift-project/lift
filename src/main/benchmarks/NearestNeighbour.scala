@@ -40,7 +40,7 @@ object NearestNeighbour {
   val N = SizeVar("N")
 
   val rodinia = fun(
-    ArrayType(TupleType(Float, Float), N), Float, Float,
+    ArrayTypeWSWC(TupleType(Float, Float), N), Float, Float,
     (locations, lat, lng) => {
       locations :>> MapGlb( \(loc => distance(loc, lat, lng)) )
     })

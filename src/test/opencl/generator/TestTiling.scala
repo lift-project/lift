@@ -1,9 +1,9 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import benchmarks.MatrixTransposition
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -42,7 +42,7 @@ class TestTiling {
     Utils.myPrint(matrix)
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)( MapLcl(0)(MapLcl(1)(id)))) o
           Tile(4) $ matrix
@@ -70,7 +70,7 @@ class TestTiling {
     Utils.myPrint(matrix)
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)(
            toGlobal(MapLcl(0)(MapLcl(1)(id))) o
@@ -103,7 +103,7 @@ class TestTiling {
     Utils.myPrint(matrix)
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (matrix) => {
         // Merge the tiles
         MapWrg(0)(MapWrg(1)(id)) o
@@ -133,7 +133,7 @@ class TestTiling {
     Utils.myPrint(matrix)
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (matrix) => {
         // Merge the tiles
         Untile2D() o
@@ -165,7 +165,7 @@ class TestTiling {
     Utils.myPrint(matrix)
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)( MapLcl(0)(MapLcl(1)(id)) o Transpose())) o Tile(4) $ matrix
       })
@@ -196,7 +196,7 @@ class TestTiling {
     Utils.myPrint(matrix)
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)(
            toGlobal(MapLcl(0)(MapLcl(1)(id))) o
@@ -229,7 +229,7 @@ class TestTiling {
     Utils.myPrint(matrix)
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (matrix) => {
         MapWrg(0)(MapWrg(1)( MapLcl(0)(MapLcl(1)(id)))) o Transpose() o
           Tile(4) $ matrix
@@ -261,7 +261,7 @@ class TestTiling {
     val M = SizeVar("M")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (matrix) => {
         // Merge the tiles
         Untile2D() o
@@ -303,7 +303,7 @@ class TestTiling {
   @Test def tiledMatrixTransposePrivateMemory(): Unit = {
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (matrix) => {
         // Merge the tiles
         Untile2D() o

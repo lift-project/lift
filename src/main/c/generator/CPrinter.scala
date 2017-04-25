@@ -1,6 +1,7 @@
 package c.generator
 
 import lift.arithmetic._
+import lift.arithmetic.NotEvaluableToIntException._
 import ir._
 import ir.view.AccessVar
 import opencl.generator._
@@ -29,7 +30,7 @@ class CPrinter {
 
   def toString(t: Type, seenArray: Boolean = false) : String = {
     t match {
-      case ArrayType(elemT, _) =>
+      case ArrayType(elemT) =>
         val s = toString(elemT, seenArray=true)
         if (!seenArray) s + "*" else s
       case VectorType(elemT, len) => toString(elemT, seenArray) + toString(len)
@@ -300,7 +301,7 @@ class CPrinter {
   }
 
   private def print(p: ParamDecl): Unit = p.t match {
-    case ArrayType(_,_) =>
+    case ArrayType(_) =>
       // Const restricted pointers to read-only global memory. See issue #2.
       val (const, restrict) = if (p.const) ("const ", "restrict ") else ("","")
       //Cut out the address space, which is not used in plain C
@@ -316,7 +317,8 @@ class CPrinter {
     case a: ArrayType =>
       vd.addressSpace match {
         case PrivateMemory =>
-          for (i <- 0 until vd.length)
+          if(vd.length > scala.Int.MaxValue) throw NotEvaluableToInt
+          for (i <- 0 until vd.length.toInt)
             println(toString(Type.getValueType(vd.t)) + " " + toString(vd.v) + "_" +
                     toString(i) + ";")
 

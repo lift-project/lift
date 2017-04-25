@@ -1,6 +1,6 @@
 package benchmarks
 
-import ir.{ArrayType, TupleType}
+import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import ir.ast.{Join, Lambda, Split, Tuple, UserFun, Zip, fun}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -68,7 +68,7 @@ object DbSelect {
   )
   
   val naive: Lambda = fun(
-    ArrayType(Int, N), ArrayType(Int, N), ArrayType(Int, N),
+    ArrayTypeWSWC(Int, N), ArrayTypeWSWC(Int, N), ArrayTypeWSWC(Int, N),
     (colA, colB, colC) => {
       MapGlb(toGlobal(tuple_id)) $ Zip(
         MapSeq(is_one) $ colC,  // The WHERE clause
@@ -78,7 +78,7 @@ object DbSelect {
   )
   
   val divideNConquer: Lambda = fun(
-    ArrayType(Int, N), ArrayType(Int, N), ArrayType(Int, N),
+    ArrayTypeWSWC(Int, N), ArrayTypeWSWC(Int, N), ArrayTypeWSWC(Int, N),
     (colA, colB, colC) => {
       Join() o MapWrg(
         Join() o MapLcl(MapSeq(

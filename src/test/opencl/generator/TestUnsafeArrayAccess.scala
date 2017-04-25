@@ -1,16 +1,13 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
-import ir.ast.UserFun._
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
-import opencl.ir.ast._
-import org.junit.Assert._
-import org.junit.{Ignore, AfterClass, BeforeClass, Test}
-
 import opencl.ir.pattern._
+import org.junit.Assert._
+import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestUnsafeArrayAccess {
   @BeforeClass def TestUnsafeArrayAccess() {
@@ -35,8 +32,8 @@ class TestUnsafeArrayAccess {
     val gold = inputArr(index)
     val N = SizeVar("N")
     val accessKernel = fun(
-      ArrayType(Float, N),
-      ArrayType(Int, 1),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Int, 1),
       (arr, ix) => {
         MapSeq(
           fun((index) => 
@@ -59,8 +56,8 @@ class TestUnsafeArrayAccess {
     val gold = inputArr.map((row) => row(index))
     val N = SizeVar("N")
     val accessKernel = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(Int, 1),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(Int, 1),
       (arr, ix) => {
         MapSeq(
           fun((row) => 
@@ -87,8 +84,8 @@ class TestUnsafeArrayAccess {
     val gold = inputArr.zip(indexArr).map{ case (row, index) => row(index) }
     val N = SizeVar("N")
     val accessKernel = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(Int, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(Int, N),
       (arr, ix) => {
         MapSeq(fun((indexRowPair) =>
           UnsafeArrayAccess(indexRowPair._0) $ indexRowPair._1
@@ -110,8 +107,8 @@ class TestUnsafeArrayAccess {
     val passArr = inputArr.map{case (i,j) => Array(i, j)}.flatten
     val N = SizeVar("N")
     val accessKernel = fun(
-      ArrayType(TupleType(Int, Int), N),
-      ArrayType(Int, 1),
+      ArrayTypeWSWC(TupleType(Int, Int), N),
+      ArrayTypeWSWC(Int, 1),
       (arr, ix) => {
         MapSeq(
           fun((index) => 

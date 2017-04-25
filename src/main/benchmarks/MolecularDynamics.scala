@@ -90,8 +90,8 @@ object MolecularDynamics {
   val M = SizeVar("M") // number of neighbors
 
   val shoc = fun(
-    ArrayType(Float4, N),
-    ArrayType(ArrayType(Int, N), M),
+    ArrayTypeWSWC(Float4, N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Int, N), M),
     Float,
     Float,
     Float,

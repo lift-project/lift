@@ -4,7 +4,7 @@ import lift.arithmetic._
 import ir._
 import ir.ast.Expr
 
-import scala.collection.immutable
+import scala.collection.{immutable, mutable}
 import scala.language.implicitConversions
 
 /** a special variable that should only be used for defining function type*/
@@ -18,10 +18,9 @@ class TypeVar private(range : Range, fixedId: Option[Long] = None) extends Exten
 }
 
 object TypeVar {
-  //var cnt: Int = -1
+
   def apply(range : Range = RangeUnknown) = {
-    //cnt = cnt+1
-    new TypeVar(/*cnt, */range)
+    new TypeVar(range)
   }
 
   def getTypeVars(expr: Expr) : Set[TypeVar] = {
@@ -29,12 +28,9 @@ object TypeVar {
   }
 
   def getTypeVars(t: Type) : Set[TypeVar] = {
-    t match {
-      case at: ArrayType => getTypeVars(at.elemT) ++ getTypeVars(at.len)
-      case vt: VectorType => getTypeVars(vt.len)
-      case tt: TupleType => tt.elemsT.foldLeft(new immutable.HashSet[TypeVar]())((set,inT) => set ++ getTypeVars(inT))
-      case _ => immutable.HashSet()
-    }
+    val result = new mutable.HashSet[TypeVar]()
+    Type.visit(t, (ae:ArithExpr) => result ++= getTypeVars(ae) : Unit )
+    result.toSet
   }
 
   def getTypeVars(expr: ArithExpr) : Set[TypeVar] = {

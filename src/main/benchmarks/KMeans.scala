@@ -48,8 +48,8 @@ object KMeans {
   val C = SizeVar("C") // number of clusters
   val F = SizeVar("F") // number of features
 
-  val featuresType    = ArrayType(ArrayType(Float, P), F)
-  val clustersType    = ArrayType(ArrayType(Float, F), C)
+  val featuresType    = ArrayTypeWSWC(ArrayTypeWSWC(Float, P), F)
+  val clustersType    = ArrayTypeWSWC(ArrayTypeWSWC(Float, F), C)
 
   val update = UserFun("update", Array("dist", "pair"),
     "{ return dist + (pair._0 - pair._1) * (pair._0 - pair._1); }",
@@ -87,7 +87,7 @@ object KMeans {
             val dist = Zip(feature, cluster) :>> ReduceSeq(update, 0.0f )
             Zip(dist, tuple) :>> MapSeq(test)
 
-          }), Value("{3.40282347e+38, 0, 0}", ArrayType(TupleType(Float, Int, Int), 1)) ) :>>
+          }), Value("{3.40282347e+38, 0, 0}", ArrayTypeWSWC(TupleType(Float, Int, Int), 1)) ) :>>
           toGlobal(MapSeq(MapSeq(select)))
         }) )
       })

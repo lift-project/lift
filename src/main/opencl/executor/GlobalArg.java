@@ -6,13 +6,13 @@ public class GlobalArg extends KernelArg {
     public static native GlobalArg createInput(double[] array);
     public static native GlobalArg createInput(boolean[] array);
 
-    public static native GlobalArg createOutput(int size);
+    public static native GlobalArg createOutput(long size);
 
     GlobalArg(long handle) {
         super(handle);
     }
 
-    public native float at(int index);
+    public native float at(long index);
 
     public native float[] asFloatArray();
     public native int[] asIntArray();

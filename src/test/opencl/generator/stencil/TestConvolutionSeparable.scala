@@ -1,14 +1,14 @@
 package opencl.generator.stencil
 
-import lift.arithmetic.{Cst, StartFromRange, Var}
 import ir._
 import ir.ast._
+import lift.arithmetic.{Cst, StartFromRange, Var}
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import org.junit.Assume.assumeFalse
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestConvolutionSeparable {
    @BeforeClass def before(): Unit = {
@@ -27,9 +27,9 @@ class TestConvolutionSeparable {
 
   @Test def convolutionSimple(): Unit = {
     val stencil = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayType(ArrayType(Float, 4096), 4096),
-      ArrayType(Float, 17 * 17),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
+      ArrayTypeWSWC(Float, 17 * 17),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -62,9 +62,9 @@ class TestConvolutionSeparable {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayType(ArrayType(Float, 4096), 4096),
-      ArrayType(Float, 17 * 17),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
+      ArrayTypeWSWC(Float, 17 * 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -109,9 +109,9 @@ class TestConvolutionSeparable {
   @Ignore //todo segfaults?
   @Test def blurY(): Unit = {
     val stencil = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayType(ArrayType(Float, 4096), 4096),
-      ArrayType(Float, 17),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
+      ArrayTypeWSWC(Float, 17),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -144,9 +144,9 @@ class TestConvolutionSeparable {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayType(ArrayType(Float, 4096), 4096),
-      ArrayType(Float, 17),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
+      ArrayTypeWSWC(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -189,9 +189,9 @@ class TestConvolutionSeparable {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayType(ArrayType(Float, 4096), 4096),
-      ArrayType(Float, 17),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
+      ArrayTypeWSWC(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -238,10 +238,10 @@ class TestConvolutionSeparable {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(ArrayType(Float, Cst(1024)), Cst(1024)),
-      //ArrayType(ArrayType(Float, 4096), 4096),
-      ArrayType(Float, 17),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Cst(1024)), Cst(1024)),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
+      ArrayTypeWSWC(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -289,9 +289,9 @@ class TestConvolutionSeparable {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayType(ArrayType(Float, 4096), 4096),
-      ArrayType(Float, 17),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
+      ArrayTypeWSWC(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -337,9 +337,9 @@ class TestConvolutionSeparable {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayType(ArrayType(Float, 4096), 4096),
-      ArrayType(Float, 17),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
+      ArrayTypeWSWC(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -388,8 +388,8 @@ class TestConvolutionSeparable {
   @Ignore // pad is not the right primitive here, just to try things out
   @Test def blurYTiled2DTransposedPadded(): Unit = {
     val stencil = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(Float, 17),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayTypeWSWC(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -436,9 +436,9 @@ class TestConvolutionSeparable {
 
   @Test def blurX(): Unit = {
     val stencil = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayType(ArrayType(Float, 4096), 4096),
-      ArrayType(Float, 17),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
+      ArrayTypeWSWC(Float, 17),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -470,9 +470,9 @@ class TestConvolutionSeparable {
   @Ignore //fix
   @Test def blurXTiled(): Unit = {
     val stencil = fun(
-      //ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayType(ArrayType(Float, 4096), 4096),
-      ArrayType(Float, 17),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
+      ArrayTypeWSWC(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -514,9 +514,9 @@ class TestConvolutionSeparable {
   @Ignore //fix
   @Test def blurXTiled2D(): Unit = {
     val stencil = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayType(ArrayType(Float, 4096), 4096),
-      ArrayType(Float, 17),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
+      ArrayTypeWSWC(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 

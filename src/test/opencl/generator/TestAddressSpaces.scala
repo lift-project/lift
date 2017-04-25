@@ -1,8 +1,8 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -26,7 +26,7 @@ class TestAddressSpaces {
   def simple(): Unit = {
     val N = SizeVar("N")
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       in =>
          MapGlb(id) $ in
     )
@@ -42,7 +42,7 @@ class TestAddressSpaces {
   def globalPrivate(): Unit = {
     val N = SizeVar("N")
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       in =>
         MapGlb(toGlobal(id) o toPrivate(id)) $ in
     )
@@ -58,7 +58,7 @@ class TestAddressSpaces {
   def globalPrivateFixedSizeArray(): Unit = {
     val N = SizeVar("N")
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       in =>
         Join() o MapGlb(toGlobal(MapSeq(id)) o toPrivate(MapSeq(id))) o Split(16) $ in
     )
@@ -73,7 +73,7 @@ class TestAddressSpaces {
   def globalPrivateFixedSizeWithReorder(): Unit = {
         val N = SizeVar("N")
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       in =>
         Join() o MapGlb(Scatter(reverse) o toGlobal(MapSeq(id)) o toPrivate(MapSeq(id))) o Split(16) $ in
     )
@@ -88,7 +88,7 @@ class TestAddressSpaces {
   def globalPrivateFixedSizeWithReorder2(): Unit = {
     val N = SizeVar("N")
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       in =>
         Join() o MapGlb(toGlobal(Scatter(reverse) o MapSeq(id)) o toPrivate(MapSeq(id))) o Split(16) $ in
     )
@@ -106,7 +106,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join() o MapWrg( toGlobal(MapLcl(plusOne)) o
          toLocal(MapLcl(id)))
         o Split(4) $ in
@@ -127,7 +127,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join() o MapWrg( toGlobal(MapLcl(plusOne)) o
          toLocal(MapLcl(id)))
         o Split(4) $ in
@@ -155,7 +155,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join() o MapWrg( toGlobal(MapLcl(plusOne)) o
          toLocal(MapLcl(id)))
         o Split(4) $ in
@@ -179,7 +179,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join() o MapWrg(Join() o  MapLcl(toGlobal(MapSeq(id))
         o toPrivate(MapSeq(plusOne))) o Split(1))
         o Split(4) $ in
@@ -197,7 +197,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join() o MapWrg( Join() o MapLcl(toGlobal(MapSeq(id)) o toPrivate(MapSeq(plusOne))) o Split(4))
         o Split(128) $ in
     )
@@ -214,7 +214,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join() o MapWrg( toGlobal(MapLcl(id)) o Join() o 
         MapLcl(toLocal(MapSeq(id)) o toPrivate(MapSeq(plusOne))) o Split(4) o
          toLocal(MapLcl(id))
@@ -233,7 +233,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join() o MapWrg( Join() o
         MapLcl(toGlobal(MapSeq(id)) o toPrivate(MapSeq(plusOne))) o Split(4) o
          toLocal(MapLcl(id))
@@ -249,7 +249,7 @@ class TestAddressSpaces {
     val inputSize = 512
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, SizeVar("N")), (in) => {
+    val l = fun (ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
       Join() o MapGlb(
         toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o toPrivate(MapSeq(id))
       ) o Split(4) $ in
@@ -264,9 +264,9 @@ class TestAddressSpaces {
     val inputSize = 512
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, SizeVar("N")), (in) => {
+    val l = fun (ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
       Join() o MapGlb( fun(x =>
-        toGlobal(MapSeq(id)) o toPrivate(MapSeq(id)) $ Value("0.0f", ArrayType(Float, 4)))
+        toGlobal(MapSeq(id)) o toPrivate(MapSeq(id)) $ Value("0.0f", ArrayTypeWSWC(Float, 4)))
       ) o Split(4) $ in
     })
 
@@ -282,7 +282,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join() o MapWrg(Join() o  MapLcl(toGlobal(MapSeq(id)))
         o MapLcl(toPrivate(MapSeq(plusOne))) o Split(1))
         o Split(4) $ in
@@ -300,7 +300,7 @@ class TestAddressSpaces {
     val gold = input.map(_+1)
 
     val  f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join() o MapWrg(Join() o  MapLcl(toGlobal(MapSeq(id)))
         o MapLcl(toPrivate(MapSeq(plusOne))) o Split(1))
         o Split(4) $ in
@@ -317,7 +317,7 @@ class TestAddressSpaces {
     val input = Array.tabulate(inputSize)(_.toFloat)
 
     val  f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join() o MapWrg(Join() o  MapLcl(toGlobal(MapSeq(id)))
         o MapLcl(toPrivate(MapSeq(plusOne))) o Split(1))
         o Split(4) $ in
@@ -330,9 +330,9 @@ class TestAddressSpaces {
     val inputSize = 512
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, SizeVar("N")), (in) => {
+    val l = fun (ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
       Join() o MapWrg( fun(x =>
-        toGlobal(MapLcl(id)) o toPrivate(MapLcl(id)) $ Value("1.0f", ArrayType(Float, 4)))
+        toGlobal(MapLcl(id)) o toPrivate(MapLcl(id)) $ Value("1.0f", ArrayTypeWSWC(Float, 4)))
       ) o Split(4) $ in
     })
 
