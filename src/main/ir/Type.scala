@@ -101,7 +101,11 @@ case class TupleType(elemsT: Type*) extends Type {
     = "Tuple(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
 
   override def hasFixedAllocatedSize: Boolean = elemsT.forall(_.hasFixedAllocatedSize)
-
+  
+  def proj(i: Int): Type = {
+    assert(i < elemsT.length)
+    elemsT(i)
+  }
 }
 
 
@@ -124,7 +128,6 @@ sealed trait Capacity {
  * (e.g., [int],,1024,, , [ [float],,4,, ],,N,,)
  *
  * @param elemT The element type of the array
- * @param len The length of the array
  */
 case class ArrayType(elemT: Type) extends Type {
 
@@ -141,6 +144,9 @@ case class ArrayType(elemT: Type) extends Type {
       case _ => None
     }
   }
+  
+  def getHeaderSize: Int =
+    2 - this.getSize.size - this.getCapacity.size
 
   override def toString : String = {
     "Arr(" +elemT+
@@ -480,10 +486,8 @@ object Type {
    */
   def getTypeAtIndex(t: Type, index: Int): Type = {
     t match {
-      case tt: TupleType =>
-        assert(index < tt.elemsT.length)
-        tt.elemsT(index)
-
+      case tt: TupleType => tt.proj(index)
+      
       case ArrayTypeWSWC(et,s,c) => ArrayTypeWSWC(getTypeAtIndex(et, index), s,c)
       case ArrayTypeWC(et,c) => ArrayTypeWC(getTypeAtIndex(et, index), c)
       case ArrayTypeWS(et,s) => ArrayTypeWS(getTypeAtIndex(et, index), s)
