@@ -9,12 +9,7 @@ import org.junit.{Ignore, Test}
 import org.junit.Assert._
 
 
-/**
-  * @author cdubach
-  */
 class TestArray {
-
-
   @Ignore
   @Test
   def simple(): Unit = {
