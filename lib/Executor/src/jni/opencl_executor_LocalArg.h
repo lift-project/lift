@@ -10,10 +10,10 @@ extern "C" {
 /*
  * Class:     opencl_executor_LocalArg
  * Method:    create
- * Signature: (I)Lopencl/executor/LocalArg;
+ * Signature: (J)Lopencl/executor/LocalArg;
  */
 JNIEXPORT jobject JNICALL Java_opencl_executor_LocalArg_create
-  (JNIEnv *, jclass, jint);
+  (JNIEnv *, jclass, jlong);
 
 #ifdef __cplusplus
 }

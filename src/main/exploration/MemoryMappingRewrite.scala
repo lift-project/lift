@@ -39,14 +39,17 @@ object MemoryMappingRewrite {
 
   private val defaultVectorWidth = 4
 
-  private val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
+  private val vectorWidth = parser.option[Int](List("vectorWidth", "vw"), "vector width",
     s"The vector width to use for vectorising rewrites. Default: $defaultVectorWidth")
 
   private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
     "Don't execute in parallel.")
 
-  private val loadBalancing = parser.flag[Boolean](List("l", "lb", "load-balancing"),
+  private val loadBalancing = parser.flag[Boolean](List("l", "lb", "loadBalancing"),
     "Enable load balancing using MapAtomLocal and MapAtomWrg")
+
+  private val unrollReduce = parser.flag[Boolean](List("u", "ur", "unrollReduce"),
+   "Additionally generate expressions also using ReduceSeqUnroll")
 
   private val global0 = parser.flag[Boolean](List("gl0", "global0"),
     "Mapping: MapGlb(0)( MapSeq(...) )")
@@ -56,6 +59,12 @@ object MemoryMappingRewrite {
 
   private val global10 = parser.flag[Boolean](List("gl10", "global10"),
     "Mapping: MapGlb(1)(MapGlb(0)( MapSeq(...) ))")
+
+  private val global012 = parser.flag[Boolean](List("gl012", "global012"),
+    "Mapping: MapGlb(0)(MapGlb(1)(MapGlb(2)( MapSeq(...) )))")
+
+  private val global210 = parser.flag[Boolean](List("gl210", "global210"),
+    "Mapping: MapGlb(2)(MapGlb(1)(MapGlb(0)( MapSeq(...) )))")
 
   private val group0 = parser.flag[Boolean](List("gr0", "group0"),
     "Mapping: MapWrg(0)(MapLcl(0)( MapSeq(...) ))")
@@ -72,14 +81,17 @@ object MemoryMappingRewrite {
     try {
 
       parser.parse(args)
-      val enabledMappings = new EnabledMappings(
-        global0.value.isDefined,
-        global01.value.isDefined,
-        global10.value.isDefined,
-        group0.value.isDefined,
-        group01.value.isDefined,
-        group10.value.isDefined
-      )
+      val enabledMappings =
+        EnabledMappings(
+          global0.value.isDefined,
+          global01.value.isDefined,
+          global10.value.isDefined,
+          global012.value.isDefined,
+          global210.value.isDefined,
+          group0.value.isDefined,
+          group01.value.isDefined,
+          group10.value.isDefined
+        )
 
       if(!enabledMappings.isOneEnabled) scala.sys.error("No mappings enabled")
 
@@ -107,7 +119,7 @@ object MemoryMappingRewrite {
         try {
 
           val lambda = ParameterRewrite.readLambdaFromFile(filename)
-          val lowered = lowerLambda(lambda, enabledMappings, topFolder)
+          val lowered = lowerLambda(lambda, enabledMappings, unrollReduce.value.isDefined, topFolder)
 
           lowered.foreach(dumpToFile(topFolder, hash, _))
 
@@ -124,13 +136,13 @@ object MemoryMappingRewrite {
     }
   }
 
-  def lowerLambda(lambda: Lambda, enabledMappings: EnabledMappings, hash: String = "") = {
+  def lowerLambda(lambda: Lambda, enabledMappings: EnabledMappings, unroll: Boolean = false, hash: String = "") = {
 
     try {
 
       val loweredExpressions = Lower.mapCombinations(lambda, enabledMappings)
 
-      loweredExpressions.flatMap(
+      val loadBalancedExpressions = loweredExpressions.flatMap(
         mapAddressSpaces(_, hash).flatMap(addressMapped => {
 
           val loadBalanced = mapLoadBalancing(addressMapped, hash)
@@ -138,6 +150,20 @@ object MemoryMappingRewrite {
 
         })
       )
+
+      if(unroll) {
+        val unrolledReduces = loadBalancedExpressions.filter(
+          lambda => lambda.body.contains(
+            { case FunCall(ReduceSeq(_), _*) => })).map(lambdaWithReduceSeq => {
+
+          val rewrites = Rewrite.listAllPossibleRewrites(lambdaWithReduceSeq, Rules.reduceSeqUnroll)
+          rewrites.foldLeft(lambdaWithReduceSeq)((expr, pair) =>
+            Rewrite.applyRuleAt(expr, pair._2, pair._1))
+        })
+
+        unrolledReduces ++ loadBalancedExpressions
+      } else
+        loadBalancedExpressions
 
     } catch {
       case t: Throwable =>
@@ -213,7 +239,7 @@ object MemoryMappingRewrite {
 
       allPrivateMappings
     } catch {
-      case t: Throwable =>
+      case _: Throwable =>
         logger.warn(s"Address space mapping for $hash failed.")
        Seq()
     }
@@ -348,7 +374,7 @@ object MemoryMappingRewrite {
       val expressions = pair._2
 
       val (nonLowered, lowered) = expressions.partition({
-        case FunCall(map: Map, _) => true
+        case FunCall(_: Map, _) => true
         case _ => false
       })
 
@@ -437,7 +463,7 @@ object MemoryMappingRewrite {
 
         val tryToVectorize = Expr.visitLeftToRight(List[Expr]())(tuple.body, (expr, list) => {
           expr match {
-            case FunCall(toLocal(Lambda(_, body)), _) => expr :: list
+            case FunCall(toLocal(Lambda(_, _)), _) => expr :: list
             case _ => list
           }
         })
@@ -470,7 +496,7 @@ object MemoryMappingRewrite {
 
   private def addIdsForLocal(lambda: Lambda): Lambda = {
     val temp = Rewrite.applyRulesUntilCannot(lambda,
-      Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl))
+      Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl, Rules.addIdMapWrg))
 
     val reduceSeqs = Expr.visitLeftToRight(List[Expr]())(temp.body, (e, s) =>
       e match {

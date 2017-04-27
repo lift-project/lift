@@ -1,6 +1,7 @@
 package rewriting
 
 
+import com.typesafe.scalalogging.Logger
 import ir.ast._
 import ir.{Context, TypeChecker}
 import opencl.ir.pattern._
@@ -10,18 +11,24 @@ case class EnabledMappings(
   global0: Boolean,
   global01: Boolean,
   global10: Boolean,
+  global012: Boolean,
+  global210: Boolean,
   group0: Boolean,
   group01: Boolean,
   group10: Boolean
 ) {
   override def toString =
     s"Global 0 - $global0, Global 0,1 - $global01, Global 1,0 - $global10, " +
+      s"Global 0,1,2 - $global012, Global 2,1,0 - $global210, " +
       s"Group 0 - $group0, Group 0,1 - $group01, Group 1,0 - $group10"
 
-  val isOneEnabled = global0 | global01 | global10 | group0 | group01 | group10;
+  val isOneEnabled = global0 | global01 | global10 | global012 | global210 |
+    group0 | group01 | group10
 }
 
 object Lower {
+
+  private val logger = Logger(this.getClass)
   private def patchLambda(lambda: Lambda) = {
     val partialReducesLowered = lowerPartialReduces(lambda)
 
@@ -39,6 +46,7 @@ object Lower {
   def mapCombinations(lambda: Lambda,
     enabledMappings: EnabledMappings = EnabledMappings(
       global0 = true, global01 = true, global10 = false,
+      global012 = false, global210 = false,
       group0 = true, group01 = false, group10 = true
     )
   ) = {
@@ -81,16 +89,16 @@ object Lower {
 
     mapsOnLevelTwo == 1
   }
-  //  private def hasOneMapOnThirdLevel(lambda: Lambda): Boolean = {
-  //    val body = lambda.body
-  //    val levelTwoBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(body, 0))
-  //    val levelThreeBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(levelTwoBody, 0))
-  //
-  //    val mapsOnLevelThree = Utils.countMapsAtCurrentLevel(levelThreeBody)
-  //
-  //    mapsOnLevelThree == 1
-  //  }
 
+  private def hasOneMapOnThirdLevel(lambda: Lambda): Boolean = {
+    val body = lambda.body
+    val levelTwoBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(body, 0))
+    val levelThreeBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(levelTwoBody, 0))
+
+    val mapsOnLevelThree = Utils.countMapsAtCurrentLevel(levelThreeBody)
+
+    mapsOnLevelThree == 1
+  }
 
   def findAllMapsLowering(lambda:Lambda,enabledMappings:EnabledMappings):List[Lambda] = {
     val depthMap = NumberExpression.byDepth(lambda)
@@ -102,7 +110,10 @@ object Lower {
     val maxDepth = depthsOfUnLowered.max + 1
 
     var lambdas = List[Lambda]()
-    val oneMapOnLevelTwo = if (maxDepth > 1) hasOneMapOnSecondLevel(lambda) else false
+    val oneMapOnLevelTwo =
+      if (maxDepth > 1) hasOneMapOnSecondLevel(lambda) else false
+    val oneMapOnLevelThree=
+      if (oneMapOnLevelTwo && maxDepth > 2) hasOneMapOnThirdLevel(lambda) else false
 
     /* Global only */
     if (enabledMappings.global0) {
@@ -131,6 +142,30 @@ object Lower {
       val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
       val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(1))
       var lambdaN = lambda2
+
+      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+      lambdas = lambdaN :: lambdas
+    }
+
+    if (enabledMappings.global012 && maxDepth > 2 && oneMapOnLevelThree) {
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(1))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(2))
+      var lambdaN = lambda3
+
+      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+
+      lambdas = lambdaN :: lambdas
+    }
+
+    if (enabledMappings.global210 && maxDepth > 2 && oneMapOnLevelThree) {
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(2))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(1))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(0))
+      var lambdaN = lambda3
 
       while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
         lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
@@ -206,9 +241,14 @@ object Lower {
   private def lastMapToGlobal(lambda: Lambda): Lambda = {
     val lastWrite = getLastWrite(lambda).get
     val lastMap = findExpressionForPattern(lambda,
-      { case FunCall(ir.ast.Map(Lambda(_, body)), _) if body eq lastWrite => }: PartialFunction[Expr, Unit] ).get
+      { case FunCall(ir.ast.Map(Lambda(_, body)), _) if body eq lastWrite => }: PartialFunction[Expr, Unit] )
 
-    Rewrite.applyRuleAt(lambda, lastMap, Rules.globalMemory)
+    lastMap match {
+      case None => logger.warn("No last map found. Possibly using at-notation? Assume last write uses toGlobal"); lambda
+      case _ => Rewrite.applyRuleAt(lambda, lastMap.get, Rules.globalMemory)
+    }
+
+    //Rewrite.applyRuleAt(lambda, lastMap, Rules.globalMemory)
   }
 
   private def lastReduceToGlobal(lambda: Lambda): Lambda = {

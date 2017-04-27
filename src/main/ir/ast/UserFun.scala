@@ -173,7 +173,7 @@ case class VectorizeUserFun(n: ArithExpr, userFun: UserFun)
    * Indicating if it is possible to generate code for this function declaration.
    * Might be overwritten by a subclass or by mixing in the `isGenerable` trait.
    */
-  override def isGenerable: Boolean = n.isEvaluable && n.evalDbl.isValidInt
+  override def isGenerable: Boolean = n.isEvaluable && n.evalDouble.isValidInt
 }
 
 object UserFun {

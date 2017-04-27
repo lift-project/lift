@@ -1,11 +1,11 @@
 package opencl.generator
 
-import lift.arithmetic._
 import arithmetic.TypeVar
 import generator.Generator
 import ir._
 import ir.ast._
 import ir.view._
+import lift.arithmetic._
 import opencl.generator.OpenCLAST._
 import opencl.ir._
 import opencl.ir.ast.OpenCLBuiltInFun
@@ -114,7 +114,7 @@ object OpenCLGenerator extends Generator {
       mem.mem.size.eval
       mem.mem.addressSpace == LocalMemory
     } catch {
-      case NotEvaluableException => false
+      case NotEvaluableException() => false
     }
   }
 }
@@ -428,6 +428,8 @@ class OpenCLGenerator extends Generator {
         case r: ReduceSeq => generateReduceSeqCall(r, call, block)
         case r: ReduceWhileSeq => generateReduceWhileCall(r, call, block)
 
+        case sp: SlideSeqPlus => generateSlideSeqPlusCall(sp, call, block)
+
         case bs: BSearch => generateBSearchCall(bs, call, block)
         case ls: LSearch => generateLSearchCall(ls, call, block)
         case _: Search =>
@@ -628,6 +630,15 @@ class OpenCLGenerator extends Generator {
     generateForLoop(block, call.args(1), r.loopVar, generate(r.f.body, _), r.shouldUnroll)
 
     (block: Block) += OpenCLAST.Comment("end reduce_seq")
+  }
+
+
+  private def generateSlideSeqPlusCall(sp: SlideSeqPlus,
+                                       call: FunCall,
+                                       block: Block): Unit = {
+    (block: Block) += OpenCLAST.Comment("slideSeq_plus")
+    generateLoopMinMemoryAccess(block, sp, call, generate(sp.f.body, _), sp.shouldUnroll)
+    (block: Block) += OpenCLAST.Comment("end slideSeq_plus")
   }
 
   // === ReduceWhile ===
@@ -965,6 +976,108 @@ class OpenCLGenerator extends Generator {
     } /*, i.iterationCount*/)
   }
 
+  private def generateLoopMinMemoryAccess(block: Block,
+                              sSP: SlideSeqPlus,
+                              call: FunCall,
+                              generateBody: (Block) => Unit,
+                              needUnroll: Boolean = false): Unit = {
+
+    val indexVar = sSP.loopVar
+    val step = sSP.step
+    val size = sSP.size
+    val range = indexVar.range.asInstanceOf[RangeAdd]
+    val rangeStep = range.step
+    val init = ArithExpression(range.start)
+    val stop = range match {
+      case ra: RangeAdd => ra.stop
+      case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
+    }
+    val reuse = size - step
+    val cond = CondExpression(ArithExpression(indexVar), ArithExpression((stop-reuse)/step), CondExpression.Operator.<)
+
+    val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem) // values from the input that you want to
+                                                                    // cut down to window size
+
+    val v = Value(0.0f, ArrayTypeWSWC(Float, size.eval))
+    varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
+    privateMems = privateMems :+ TypedOpenCLMemory(OpenCLMemory(sSP.windowVar, size.eval, PrivateMemory), v.t)
+    val varD = OpenCLAST.VarDecl(sSP.windowVar, v.t,
+      init = null,PrivateMemory,size.eval)
+    privateDecls  += (sSP.windowVar -> varD)
+    (block: Block) += varD
+
+    for (i <- 0 until size.eval) {
+      replacements = replacements.updated(sSP.windowVar, i)
+      val j: ArithExpr =
+        if (range.min.isInstanceOf[OclFunction]) {
+          range.min + step * i
+        } else {
+          i
+        }
+      replacementsWithFuns = replacementsWithFuns.updated(sSP.windowVar, j)
+
+    }
+    // cleanup
+    replacements = replacements - sSP.windowVar
+    replacementsWithFuns = replacementsWithFuns - sSP.windowVar
+
+    for(i <- 0 to reuse.eval-1) {
+      (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_$i"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i)))
+    }
+
+    // TODO: Should this stay?
+    // TODO: Information needed elsewhere. See analysis.ControlFlow
+    // try to see if we really need a loop
+    if (PerformLoopOptimisation())
+    indexVar.range.numVals match {
+      case Cst(0) =>
+        // zero iterations
+        (block: Block) += OpenCLAST.Comment("iteration count is 0, no loop emitted")
+        return
+
+      case Cst(1) =>
+        generateStatement(block, indexVar, generateBody, init)
+        return
+
+      case _ if range.start.min.min == Cst(0) &&
+        ArithExpr.substituteDiv(range.stop) == ArithExpr.substituteDiv(range.step) =>
+
+        generateStatement(block, indexVar, generateBody, init)
+        return
+
+      case _ if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
+        generateIfStatement(block, indexVar, generateBody, init, stop)
+        return
+      case _ =>
+        (indexVar.range.numVals.min, indexVar.range.numVals.max) match {
+          case (Cst(0), Cst(1)) =>
+            // one or less iteration
+            generateIfStatement(block, indexVar, generateBody, init, stop)
+            return
+
+          case _ =>
+        }
+    }
+
+
+    val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar+1/* + step.eval*/))
+    val innerBlock = OpenCLAST.Block(Vector.empty)
+    (block: Block) += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
+
+
+    for(i <- reuse.eval to size.eval-1) {
+      innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_$i"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(indexVar*step.eval + i)))
+    }
+
+    generateBody(innerBlock)
+   // generateBody(innerBlock)
+
+    for(i <- 1 to reuse.eval) {
+        innerBlock += AssignmentExpression(VarRef(sSP.windowVar,suffix = s"_${i-1}"),VarRef(sSP.windowVar,suffix = s"_${size.eval-reuse-1+i}"))
+    }
+
+  }
+
   private def generateForLoop(block: Block,
                               array: Expr,
                               indexVar: Var,
@@ -984,7 +1097,7 @@ class OpenCLGenerator extends Generator {
     }
   }
 
-  private def getRangeAdd(indexVar: Var) = {
+      private def getRangeAdd(indexVar: Var) = {
     indexVar.range match {
       case r: RangeAdd => r
       case _ =>
@@ -1003,9 +1116,12 @@ class OpenCLGenerator extends Generator {
     try {
       indexVar.range.numVals.enforceSimplification.eval
     } catch {
-      case NotEvaluableException =>
+      case NotEvaluableException() =>
         throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count could " +
           "not be determined statically.")
+      case NotEvaluableToIntException() =>
+        throw new OpenCLGeneratorException("Trying to unroll loop, " +
+          "but iteration count is larger than scala.Int.MaxValue.")
     }
   }
 
@@ -1327,8 +1443,8 @@ class OpenCLGenerator extends Generator {
               // TODO: this seems like a very specific local solution ... find a more generic proper one
 
               // iterate over the range, assuming that it is contiguous
-              val arraySuffixStartIndex: Int = arrayAccessPrivateMemIndex(mem.variable, view)
-              val arraySuffixStopIndex: Int = arraySuffixStartIndex + vt.len.eval
+              val arraySuffixStartIndex = arrayAccessPrivateMemIndex(mem.variable, view)
+              val arraySuffixStopIndex = arraySuffixStartIndex + vt.len.eval
 
               val seq = (arraySuffixStartIndex until arraySuffixStopIndex).map(i => {
                 OpenCLAST.VarRef(mem.variable, suffix = "_" + i)
@@ -1513,12 +1629,15 @@ class OpenCLGenerator extends Generator {
         throw new TypeException(valueType, "A valid non array type")
     }
 
-    val real: Int = try {
+    val real = try {
       ArithExpr.substitute(i, replacements).eval
     } catch {
-      case NotEvaluableException =>
+      case NotEvaluableException() =>
         throw new OpenCLGeneratorException(s"Could not access private array, as index $i could " +
           s"not be evaluated statically (given these replacements: $replacements)")
+      case NotEvaluableToIntException() =>
+        throw new OpenCLGeneratorException(s"Could not access private array, as index $i is " +
+          s"larger than scala.Int.MaxValue (given these replacements: $replacements)")
     }
 
     if (real >= declaration.length) {

@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.ArithExpr
 import ir._
 import ir.ast._
-import opencl.ir.pattern.ReduceWhileSeq
+import opencl.ir.pattern.{ReduceWhileSeq, SlideSeqPlus}
 
 /**
  * A helper object for constructing views.
@@ -55,6 +55,7 @@ object InputView {
     call.f match {
       case m: AbstractMap => buildViewMap(m, call, argView)
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
+      case sp: SlideSeqPlus => buildViewSlideSeqPlus(sp, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
       case z: Zip => buildViewZip(call, argView)
@@ -138,6 +139,23 @@ object InputView {
     }
     // create fresh input view for following function
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+  }
+
+  private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
+                                    call: FunCall, argView: View): View = {
+
+    sp.f.params(0).view = ViewMem(sp.windowVar.name, sp.f.params(0).t)
+
+    // traverse into call.f
+    val innerView = visitAndBuildViews(sp.f.body)
+
+    sp.f.body match {
+      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
+        // create fresh input view for following function
+        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+      case _ => // call.isAbstract and return input map view
+        new ViewMap(innerView, sp.loopVar, call.t)
+    }
   }
 
   private def buildViewSearch(s:AbstractSearch, call:FunCall, argView:View) : View = {

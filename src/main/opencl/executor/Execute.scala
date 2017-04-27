@@ -624,7 +624,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    * Create global argument allocated with the given size in bytes
    */
   object global {
-    def apply(sizeInBytes: Int) = GlobalArg.createOutput(sizeInBytes)
+    def apply(sizeInBytes: Long) = GlobalArg.createOutput(sizeInBytes)
 
     /**
      * Create global input arguments from an array
@@ -658,7 +658,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    * Create local argument allocated with the given size in bytes
    */
   object local {
-    def apply(sizeInBytes: Int) = LocalArg.create(sizeInBytes)
+    def apply(sizeInBytes: Long) = LocalArg.create(sizeInBytes)
   }
 
   /**
