@@ -592,6 +592,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
       case ViewSize(iv) =>
         val index = emitView(v, iv, arrayAccessStack, tupleAccessStack) match {
           case VarRef(_, _, ArithExpression(i)) => i
+          case _ => throw new MatchError("VarRef expected")
         }
         val sizeIdx = iv.t.asInstanceOf[ArrayType].getSizeIndex
         VarRef(v, arrayIndex = ArithExpression(index + sizeIdx))
