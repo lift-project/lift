@@ -7,7 +7,6 @@ import opencl.generator.OpenCLAST.{ArithExpression, Expression, VarRef}
 
 import scala.collection.immutable
 import opencl.generator.{OpenCLAST, OpenCLPrinter}
-import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 
 private class IllegalAccess(ty: Type)
