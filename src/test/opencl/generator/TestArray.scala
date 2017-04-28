@@ -2,8 +2,7 @@ package opencl.generator
 
 import ir.{ArrayType, ArrayTypeWC, ArrayTypeWSWC, TypeChecker}
 import ir.ast.fun
-import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute}
+import opencl.executor.Compile
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import org.junit.Test
