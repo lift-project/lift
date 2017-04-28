@@ -686,7 +686,15 @@ object ViewPrinter {
     vp.emitView(v, view.replaced(replacements), List(), List())
   }
   
-  // TODO: docs
+  /**
+    * Traverse a view, following the eventual tuple accesses, and returns
+    * the MemView (there must be one) at the bottom of it.
+    *
+    * @param sv ths view
+    * @param tupleAccessStack indices used tu project the tuple views all along
+    *                         the way
+    * @return a `ViewMem`
+    */
   @scala.annotation.tailrec
   private def getViewMem(sv: View, tupleAccessStack: List[Int] = List()): ViewMem = {
     sv match {
