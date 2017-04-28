@@ -530,7 +530,13 @@ object Type {
       case st: ScalarType => st.size
       case vt: VectorType => vt.scalarT.size * vt.len
       case tt: TupleType  => tt.elemsT.map(getAllocatedSize).reduce(_+_)
-      case at: ArrayType with Capacity => at.capacity * getAllocatedSize(at.elemT)
+      case at: ArrayType => at match {
+        case c: Capacity =>
+          if (at.elemT.hasFixedAllocatedSize)
+            (at.getHeaderSize * 4) + c.capacity * getAllocatedSize(at.elemT)
+          else ? // TODO?
+        case _ => ? // Dynamic allocation required
+      }
       case _ => throw new IllegalArgumentException
     }
   }

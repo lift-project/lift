@@ -7,9 +7,11 @@ import ir._
 import ir.ast._
 import ir.view._
 import c.generator.CAst._
+import com.sun.tools.corba.se.idl.InvalidArgument
 import opencl.ir._
 import opencl.ir.pattern._
 import opencl.generator._
+
 import scala.collection.immutable
 
 object CGenerator extends Generator {
@@ -990,6 +992,9 @@ class CGenerator extends Generator {
                     else // Workaround for values
                       ""
                   CAst.VarRef(mem.variable, suffix = arraySuffix + suffix)
+                  
+                case UndefAddressSpace | AddressSpaceCollection(_) =>
+                  throw new InvalidArgument(s"Cannot load data from ${mem.addressSpace}")
               }
           }
         }
@@ -1026,6 +1031,9 @@ class CGenerator extends Generator {
           }
           case _ => valueAccessNode(v)
         }
+        
+      case UndefAddressSpace | AddressSpaceCollection(_) =>
+        throw new InvalidArgument(s"Cannot load data from $addressSpace")
     }
   }
 
@@ -1049,6 +1057,9 @@ class CGenerator extends Generator {
 
       case PrivateMemory =>
         CAst.VarRef(v, suffix = arrayAccessPrivateMem(v, view))
+        
+      case UndefAddressSpace | AddressSpaceCollection(_) =>
+        throw new InvalidArgument(s"Cannot load data from $addressSpace")
     }
   }
 

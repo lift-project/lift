@@ -1,6 +1,7 @@
 package opencl.generator
 
 import arithmetic.TypeVar
+import com.sun.tools.corba.se.idl.InvalidArgument
 import generator.Generator
 import ir._
 import ir.ast._
@@ -1539,6 +1540,9 @@ class OpenCLGenerator extends Generator {
                     else // Workaround for values
                       ""
                   OpenCLAST.VarRef(mem.variable, suffix = arraySuffix + suffix)
+
+                case UndefAddressSpace | AddressSpaceCollection(_) =>
+                  throw new InvalidArgument(s"Cannot load data from ${mem.addressSpace}")
               }
           }
         }
@@ -1575,6 +1579,8 @@ class OpenCLGenerator extends Generator {
           }
           case _ => valueAccessNode(v)
         }
+      case UndefAddressSpace | AddressSpaceCollection(_) =>
+        throw new InvalidArgument(s"Cannot store data to $addressSpace")
     }
   }
 
@@ -1599,6 +1605,9 @@ class OpenCLGenerator extends Generator {
             OpenCLAST.VarRef(v, suffix = arrayAccessPrivateMem(v, view))
           case e: Expression => e
         }
+      
+      case UndefAddressSpace | AddressSpaceCollection(_) =>
+        throw new InvalidArgument(s"Cannot load data from $addressSpace")
     }
   }
 

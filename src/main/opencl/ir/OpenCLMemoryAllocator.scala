@@ -1,14 +1,20 @@
 package opencl.ir
 
-import lift.arithmetic.{ArithExpr, Cst}
+import lift.arithmetic.{?, ArithExpr, Cst}
 import ir._
 import ir.ast._
 import opencl.ir.OpenCLMemory._
 import opencl.ir.pattern._
 
 object OpenCLMemoryAllocator {
-
-  def apply(f: Lambda) = {
+  /**
+    * Allocate memory for both the body and the parameters of a lambda
+    * expression
+    *
+    * @param f the lambda expression
+    * @return the OpenCLMemory used as output by f
+    */
+  def apply(f: Lambda): OpenCLMemory = {
     f.params.foreach((p) =>
       p.mem = OpenCLMemory.allocMemory(OpenCLMemory.getSizeInBytes(p.t), p.addressSpace)
     )
@@ -16,12 +22,12 @@ object OpenCLMemoryAllocator {
     alloc(f.body)
   }
 
-  /** Allocate OpenCLMemory objects for a given Fun f
+  /** Allocate OpenCLMemory objects for a given expression
     *
     * @param expr   The expression for which memory should be allocated
-    * @param numGlb Number of ...
-    * @param numLcl Number of ..
-    * @return The OpenCLMemory used as output by f
+    * @param numGlb Number of ... // FIXME
+    * @param numLcl Number of ... // FIXME
+    * @return The OpenCLMemory used by expr
     */
   def alloc(expr: Expr,
     numGlb: ArithExpr = 1,
@@ -165,8 +171,8 @@ object OpenCLMemoryAllocator {
     inMem: OpenCLMemory): OpenCLMemory = {
     am.f.params(0).mem = inMem
 
-    val len = Type.getMaxLength(outT)
-    alloc(am.f.body, numGlb * len, numLcl, numPvt)
+    val at = outT.asInstanceOf[ArrayType]
+    alloc(am.f.body, sizeOfArray(numGlb, at), numLcl, numPvt)
   }
 
   private def allocMapAtomWrg(am: AbstractMap,
@@ -180,8 +186,8 @@ object OpenCLMemoryAllocator {
     am.asInstanceOf[MapAtomWrg].globalTaskIndex =
       OpenCLMemory.allocGlobalMemory(Type.getMaxAllocatedSize(Int))
 
-    val len = Type.getMaxLength(outT)
-    alloc(am.f.body, numGlb * len, numLcl, numPvt)
+    val at = outT.asInstanceOf[ArrayType]
+    alloc(am.f.body, sizeOfArray(numGlb, at), numLcl, numPvt)
   }
 
   private def allocMapSeqLcl(am: AbstractMap,
@@ -192,16 +198,18 @@ object OpenCLMemoryAllocator {
     inMem: OpenCLMemory): OpenCLMemory = {
     am.f.params(0).mem = inMem
 
-    val len = Type.getMaxLength(outT)
-
     val privateMultiplier: ArithExpr =
       if (am.f.body.addressSpace.containsAddressSpace(PrivateMemory) ||
           inMem.addressSpace.containsAddressSpace(PrivateMemory))
         am.iterationCount
       else
         1
-
-    alloc(am.f.body, numGlb * len, numLcl * len, numPvt * privateMultiplier)
+  
+    val at = outT.asInstanceOf[ArrayType]
+    alloc(am.f.body,
+          sizeOfArray(numGlb, at),
+          sizeOfArray(numLcl, at),
+          numPvt * privateMultiplier)
   }
 
   private def allocReduce(r: AbstractPartRed,
@@ -242,7 +250,6 @@ object OpenCLMemoryAllocator {
                                 inMem: OpenCLMemory): OpenCLMemory = {
 
     sp.f.params(0).mem = OpenCLMemory(sp.windowVar, Type.getAllocatedSize(sp.f.params(0).t) * sp.size , PrivateMemory)
-    val len = Type.getMaxLength(outT)
 
     val privateMultiplier: ArithExpr =
       if (sp.f.body.addressSpace.containsAddressSpace(PrivateMemory) ||
@@ -250,7 +257,12 @@ object OpenCLMemoryAllocator {
         sp.iterationCount
       else
         1
-    alloc(sp.f.body, numGlb * len, numLcl * len, numPvt * privateMultiplier)
+    
+    val at = outT.asInstanceOf[ArrayType]
+    alloc(sp.f.body,
+          sizeOfArray(numGlb, at),
+          sizeOfArray(numLcl, at),
+          numPvt * privateMultiplier)
   }
 
 
@@ -372,5 +384,17 @@ object OpenCLMemoryAllocator {
         (params zip coll.subMemories).foreach({case (p, m) => p.mem = m})
     }
   }
-
+  
+  /**
+   * Helper function for computing the size to allocate for an array given its
+   * type and the size of its elements
+   *
+   * @param innerSize the size of the elements of the array
+   * @param ty the type of the array
+   * @return the size to allocate, might be `?`
+   */
+  private def sizeOfArray(innerSize: ArithExpr, ty: ArrayType): ArithExpr = {
+    val hSize = ty.getHeaderSize
+    hSize + innerSize * ty.getCapacity.getOrElse(?)
+  }
 }
