@@ -197,7 +197,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
 
     ParamList.foreach(param => {
       param.t match{
-        case ArrayType(ArrayType(_,_),_) =>
+        case ArrayTypeWSWC(ArrayTypeWSWC(_,_, _),_, _) =>
 
           // Get the argument of FunCall
           val arg = getArg(param,PassParamUpPossibility)

@@ -260,19 +260,19 @@ class SaveOpenCL(
       accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact).evalDouble
 
     val scalarCoalescedLocalStores =
-      accessCounts.scalarStores(LocalMemory, CoalescedPattern, exact).evalDbl
+      accessCounts.scalarStores(LocalMemory, CoalescedPattern, exact).evalDouble
     val scalarCoalescedLocalLoads =
-      accessCounts.scalarLoads(LocalMemory, CoalescedPattern, exact).evalDbl
+      accessCounts.scalarLoads(LocalMemory, CoalescedPattern, exact).evalDouble
 
     val vectorCoalescedGlobalStores =
-      accessCounts.vectorStores(GlobalMemory, CoalescedPattern, exact).evalDbl
+      accessCounts.vectorStores(GlobalMemory, CoalescedPattern, exact).evalDouble
     val vectorCoalescedGlobalLoads =
-      accessCounts.vectorLoads(GlobalMemory, CoalescedPattern, exact).evalDbl
+      accessCounts.vectorLoads(GlobalMemory, CoalescedPattern, exact).evalDouble
 
     val vectorCoalescedLocalStores =
-      accessCounts.vectorStores(LocalMemory, CoalescedPattern, exact).evalDbl
+      accessCounts.vectorStores(LocalMemory, CoalescedPattern, exact).evalDouble
     val vectorCoalescedLocalLoads =
-      accessCounts.vectorLoads(LocalMemory, CoalescedPattern, exact).evalDbl
+      accessCounts.vectorLoads(LocalMemory, CoalescedPattern, exact).evalDouble
 
     val vectorGlobalStores =
       accessCounts.vectorStores(GlobalMemory, UnknownPattern, exact).evalDouble
@@ -280,14 +280,14 @@ class SaveOpenCL(
       accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact).evalDouble
 
     val vectorLocalStores =
-      accessCounts.vectorStores(LocalMemory, UnknownPattern, exact).evalDbl
+      accessCounts.vectorStores(LocalMemory, UnknownPattern, exact).evalDouble
     val vectorLocalLoads =
-      accessCounts.vectorLoads(LocalMemory, UnknownPattern, exact).evalDbl
+      accessCounts.vectorLoads(LocalMemory, UnknownPattern, exact).evalDouble
 
     val vectorPrivateStores =
-      accessCounts.vectorStores(PrivateMemory, UnknownPattern, exact).evalDbl
+      accessCounts.vectorStores(PrivateMemory, UnknownPattern, exact).evalDouble
     val vectorPrivateLoads =
-      accessCounts.vectorLoads(PrivateMemory, UnknownPattern, exact).evalDbl
+      accessCounts.vectorLoads(PrivateMemory, UnknownPattern, exact).evalDouble
 
     val globalStores =
       vectorGlobalStores + scalarGlobalStores +
@@ -306,19 +306,19 @@ class SaveOpenCL(
     val privateStores = vectorPrivateStores + privateScalarStores
     val privateLoads = vectorPrivateLoads + privateScalarLoads
 
-    val ifStatements = controlFlow.getIfStatements(exact).evalDbl
-    val forStatements = controlFlow.getForStatements(exact).evalDbl
-    val forBranches = controlFlow.getForBranches(exact).evalDbl
+    val ifStatements = controlFlow.getIfStatements(exact).evalDouble
+    val forStatements = controlFlow.getForStatements(exact).evalDouble
+    val forBranches = controlFlow.getForBranches(exact).evalDouble
 
-    val addScalarCount = functionCounts.getFunctionCount(add, exact).evalDbl
-    val multScalarCount = functionCounts.getFunctionCount(mult, exact).evalDbl
+    val addScalarCount = functionCounts.getFunctionCount(add, exact).evalDouble
+    val multScalarCount = functionCounts.getFunctionCount(mult, exact).evalDouble
 
-    val addVecCount = functionCounts.getVectorisedCount(add, exact).evalDbl
-    val multVecCount = functionCounts.getVectorisedCount(mult, exact).evalDbl
+    val addVecCount = functionCounts.getVectorisedCount(add, exact).evalDouble
+    val multVecCount = functionCounts.getVectorisedCount(mult, exact).evalDouble
 
-    val addMult = functionCounts.getAddMultCount(exact).evalDbl
-    val vecAddMult = functionCounts.getVectorisedAddMultCount(exact).evalDbl
-    val dotCount = functionCounts.getFunctionCount(dot, exact).evalDbl
+    val addMult = functionCounts.getAddMultCount(exact).evalDouble
+    val vecAddMult = functionCounts.getVectorisedAddMultCount(exact).evalDouble
+    val dotCount = functionCounts.getFunctionCount(dot, exact).evalDouble
 
     val opCount =
       addScalarCount + multScalarCount + addVecCount + multVecCount + dotCount
