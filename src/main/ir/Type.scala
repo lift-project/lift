@@ -145,6 +145,9 @@ case class ArrayType(elemT: Type) extends Type {
     }
   }
   
+  def getSizeIndex: Int =
+    1 - this.getCapacity.size
+  
   def getHeaderSize: Int =
     2 - this.getSize.size - this.getCapacity.size
 

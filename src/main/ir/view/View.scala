@@ -13,6 +13,9 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
 private class IllegalAccess(ty: Type)
       extends IllegalArgumentException(s"Cannot compute access for type $ty")
 
+private class IllegalView(v: View)
+      extends IllegalArgumentException(s"View $v is ill-formed")
+
 /**
  * An arithmetic expression that performs an access to `array[idx]`
  *
@@ -66,7 +69,7 @@ abstract sealed class View(val t: Type = UndefType) {
       case pad: ViewPad => ViewPad(pad.iv.replaced(subst), pad.left, pad.right, pad.fct, t)
       case _: ViewMem | _: ViewHead | NoView | _: View2DGeneratorUserFun |
            _: View3DGeneratorUserFun | _: ViewConstant | _: ViewGenerator |
-           _: ViewGeneratorUserFun | _: ViewTail => this
+           _: ViewGeneratorUserFun | _: ViewTail | _: ViewSize => this
     }
   }
 
@@ -226,18 +229,30 @@ abstract sealed class View(val t: Type = UndefType) {
       case other => throw new IllegalArgumentException("Can't pad " + other)
     }
   }
-
+  
+  /**
+   * Construct a view for getting the size of an array. Depending on the fact
+   * that it is statically known or not, it will be a constant or an array
+   * access
+   */
   def size(): View = {
     this match {
       case z: ViewZip => z.iv match {
         case t: ViewTuple => t.ivs.head.size()
-        case _ => throw new NotImplementedException() // should this be reachable at all?
+        case _ => throw new IllegalView(z)
       }
-      case _ if this.t.isInstanceOf[ArrayType] => this.access(0)
-      case _ => throw new NotImplementedException() // should this be reachable at all?
+      case _ if this.t.isInstanceOf[ArrayType] =>
+        this.t match {
+          case ArrayTypeWS(_, size) =>
+            // The size is statically known
+            ViewConstant(Value(size.toString, opencl.ir.Int), opencl.ir.Int)
+          case _ =>
+            // The size is fetched from the header of the array
+            ViewSize(this)
+        }
+      case _ => throw new IllegalAccess(this.t)
     }
   }
-
 }
 
 private[view] case class ViewGeneratorUserFun(f: UserFun, override val t: ArrayType) extends View(t)
@@ -400,6 +415,14 @@ private[view] case class ViewTail(iv: View, override val t: Type) extends View(t
 private[view] case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
                    override val t: Type) extends View(t)
 
+/**
+ * A view for fetching the size of an array assuming that it can't be known
+ * statically
+ *
+ * @param iv the view of the array
+ */
+private[view] case class ViewSize(iv: View) extends View(opencl.ir.Int)
+
 
 /**
  * Placeholder for a view that is not yet created.
@@ -470,7 +493,8 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
     *        section 5.3
     * @return an expression accessing the array
     */
-  @scala.annotation.tailrec
+  // @scala.annotation.tailrec
+  // TODO: this can be hacked and become tailrec again, do we want this?
   private def emitView(v: Var,
                        sv: View,
                        arrayAccessStack: List[ArithExpr],
@@ -566,6 +590,13 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
       case ViewConstant(value, _) =>
         OpenCLAST.OpenCLExpression(value.value)
 
+      case ViewSize(iv) =>
+        val index = emitView(v, iv, arrayAccessStack, tupleAccessStack) match {
+          case VarRef(_, _, ArithExpression(i)) => i
+        }
+        val sizeIdx = iv.t.asInstanceOf[ArrayType].getSizeIndex
+        VarRef(v, arrayIndex = ArithExpression(index + sizeIdx))
+
       case ViewGenerator(f, ArrayTypeWS(_,s)) =>
         val index = aggregateAccesses(0, v, sv.t, arrayAccessStack, tupleAccessStack)
         val i = ArithExpr.substitute(index, replacements)
@@ -603,8 +634,6 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
             .map(ArithExpr.substitute(_, replacements))
             .map(ArithExpression)
         )
-
-      case op => throw new NotImplementedError(op.getClass.toString)
     }
   }
   
