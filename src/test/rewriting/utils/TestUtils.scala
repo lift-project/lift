@@ -5,8 +5,8 @@ import ir.ast._
 import opencl.ir._
 import lift.arithmetic.{Cst, SizeVar, Var}
 import opencl.executor.Eval
-import org.junit.Test
 import org.junit.Assert._
+import org.junit.Test
 
 class TestUtils {
 

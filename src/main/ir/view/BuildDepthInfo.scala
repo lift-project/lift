@@ -73,10 +73,10 @@ private class BuildDepthInfo() {
   private def visitAndBuildDepthInfo(expr: Expr): AccessInfo = {
     val result = expr match {
       case call: FunCall => buildDepthInfoFunCall(call)
-      case p: Param =>
-        p.inputDepth = getAccessInf(p.addressSpace.containsAddressSpace(PrivateMemory),
-          p.addressSpace.containsAddressSpace(LocalMemory))
-        p.accessInf
+      case e: Expr =>
+        e.inputDepth = getAccessInf(e.addressSpace.containsAddressSpace(PrivateMemory),
+          e.addressSpace.containsAddressSpace(LocalMemory))
+        e.accessInf
     }
 
     expr.accessInf = result
@@ -90,6 +90,7 @@ private class BuildDepthInfo() {
     val result = call.f match {
       case m: AbstractMap => buildDepthInfoMapCall(m, call, argInf)
       case r: AbstractPartRed => buildDepthInfoReduceCall(r, call, argInf)
+      case sp: SlideSeqPlus => buildDepthInfoSlideSeqPlusCall(sp, call, argInf)
       case _ =>
 
         val (readsLocal, readsPrivate) = readsLocalPrivate(call)
@@ -155,6 +156,21 @@ private class BuildDepthInfo() {
     buildDepthInfoReducePatternCall(r.f.body, call, Cst(0), r.loopVar, readsLocal, readsPrivate, l)
 
     AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
+  }
+
+  private def buildDepthInfoSlideSeqPlusCall(sp: SlideSeqPlus, call: FunCall,
+                                             l: AccessInfo): AccessInfo = {
+
+    val (readsLocal, readsPrivate) = readsLocalPrivate(call)
+
+    sp.f.params.head.accessInf =
+      l((Type.getLength(call.args.head.t), sp.loopVar), readsPrivate, readsLocal || seenMapLcl)
+    buildDepthInfoPatternCall(sp.f.body, call, sp.loopVar, readsLocal, readsPrivate)
+
+    if (sp.f.body.isConcrete) // create fresh input view for following function
+      AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
+    else // call.isAbstract, return input
+      l
   }
 
   private def buildDepthInfoReducePatternCall(expr: Expr, call: FunCall, index: ArithExpr,

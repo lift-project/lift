@@ -1,12 +1,10 @@
 package utils
 
-import ir.ast._
-
-import ir.ArrayType
-import ir.ast.{Get, Join, Slide3D, Zip, \, fun}
+import ir.ArrayTypeWSWC
+import ir.ast.{Get, Join, Slide3D, Zip, \, fun, _}
 import lift.arithmetic.SizeVar
-import opencl.ir._
 import opencl.generator.stencil.acoustic.StencilUtilities
+import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import org.junit.Assert._
 import org.junit._
@@ -50,10 +48,10 @@ class TestOutputKernelJSON {
     val constantOriginal = Array(1.0f, 2.0f, 1.5f, 0.25f)
 
     val lambda = fun(
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       Float,
       (mat1, mat2, weights, weightsMiddle, c4) => {
         MapGlb((fun((m) =>

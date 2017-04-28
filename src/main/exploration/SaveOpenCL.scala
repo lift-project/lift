@@ -7,7 +7,7 @@ import lift.arithmetic._
 import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import opencl.executor.Compile
-import opencl.generator.OpenCLGenerator.NDRange
+import opencl.generator.NDRange
 import opencl.generator.{IllegalKernel, OpenCLGenerator}
 import opencl.ir._
 import opencl.ir.ast._
@@ -19,7 +19,7 @@ import scala.sys.process._
 object SaveOpenCL {
   def apply(topFolder: String, lowLevelHash: String,
             highLevelHash: String, settings: Settings,
-            expressions: List[(Lambda, Seq[ArithExpr])]) =
+            expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))]) =
     (new SaveOpenCL(topFolder, lowLevelHash, highLevelHash, settings))(expressions)
 }
 
@@ -31,15 +31,15 @@ class SaveOpenCL(
 
   private val logger = Logger(this.getClass)
 
-  var local: NDRange = Array(?, ?, ?)
-  var global: NDRange = Array(?, ?, ?)
+  var local: NDRange = NDRange(?, ?, ?)
+  var global: NDRange = NDRange(?, ?, ?)
   private var sizeArgs: Seq[Var] = Seq()
   private var numSizes = 0
 
   val inputSizes = Seq(512, 1024, 2048)
   private var inputCombinations: Seq[Seq[ArithExpr]] = Seq()
 
-  def apply(expressions: List[(Lambda, Seq[ArithExpr])]): Seq[Option[String]] = {
+  def apply(expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))]): Seq[Option[String]] = {
 
     prepare(expressions)
 
@@ -53,7 +53,7 @@ class SaveOpenCL(
     expressions.map(processLambda)
   }
 
-  def prepare(expressions: List[(Lambda, Seq[ArithExpr])]): Unit = {
+  def prepare(expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))]): Unit = {
     if (expressions.nonEmpty) {
       val lambda = expressions.head._1
       sizeArgs = lambda.getVarsInParams()
@@ -68,32 +68,39 @@ class SaveOpenCL(
     }
   }
 
-  private def processLambda(pair: (Lambda, Seq[ArithExpr])) = {
+  private def processLambda(tuple: (Lambda, Seq[ArithExpr], (NDRange, NDRange))) = {
     try {
-      val kernel = generateKernel(pair)
-      dumpOpenCLToFiles(pair, kernel)
+      val kernel = generateKernel(tuple)
+      dumpOpenCLToFiles(tuple, kernel)
     } catch {
       case _: IllegalKernel =>
         None
       case t: Throwable =>
-        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${pair._2.mkString(",")})", t)
+        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${tuple._2.mkString(",")})", t)
         None
     }
   }
 
-  private def generateKernel(pair: (Lambda, Seq[ArithExpr])) = {
-    val lambda = pair._1
-    val substitutionMap = pair._2
+  private def generateKernel(tuple: (Lambda, Seq[ArithExpr], (NDRange, NDRange))) = {
+    val lambda = tuple._1
+    val substitutionMap = tuple._2
+    val ranges = tuple._3
 
-    InferNDRange(lambda) match { case (l, g) => local = l; global = g }
+    if(ParameterRewrite.exploreNDRange.value.isDefined)
+      ranges match { case (l, g) => local = l; global = g }
+    else
+      InferNDRange(lambda) match { case (l, g) => local = l; global = g }
 
-    val code = Compile(lambda, local, global)
+    val code = if(ParameterRewrite.disableNDRangeInjection.value.isDefined)
+      Compile(lambda)
+    else
+      Compile(lambda, local, global)
 
     val kernel =
       s"""
          |// Substitutions: $substitutionMap
-         |// Local sizes: ${local.map(x => { try { x.eval } catch { case _: Throwable => x } }).mkString(", ")}
-         |// Global sizes: ${global.mkString(", ")}
+         |// Local sizes: ${local.evaluated.toString}
+         |// Global sizes: ${global.toString}
          |// High-level hash: $highLevelHash
          |// Low-level hash: $lowLevelHash
          |
@@ -103,10 +110,14 @@ class SaveOpenCL(
     Utils.findAndReplaceVariableNames(kernel)
   }
 
-  private def dumpOpenCLToFiles(pair: (Lambda, Seq[ArithExpr]), kernel: String): Option[String] = {
+  private def dumpOpenCLToFiles(tuple: (Lambda, Seq[ArithExpr], (NDRange, NDRange)), kernel: String): Option[String] = {
 
-    val lambda = pair._1
-    val hash = lowLevelHash + "_" + pair._2.mkString("_")
+    val lambda = tuple._1
+    val rangeStrings = tuple._3 match {
+      case (localSize, globalSize) =>
+        (localSize.toString.replace(",","_"), globalSize.toString.replace(",", "_"))
+    }
+    val hash = lowLevelHash + "_" + tuple._2.mkString("_") + "_" + rangeStrings._1 + "_" + rangeStrings._2
     val filename = hash + ".cl"
 
     val path = s"${topFolder}Cl/$lowLevelHash"
@@ -122,7 +133,7 @@ class SaveOpenCL(
         dumpStats(lambda, hash, path)
       } catch {
         case t: Throwable =>
-          logger.warn(s"Failed to get stats: $highLevelHash/$lowLevelHash (${pair._2.mkString(",")})", t)
+          logger.warn(s"Failed to get stats: $highLevelHash/$lowLevelHash (${tuple._2.mkString(",")})", t)
       }
     }
 
@@ -153,8 +164,8 @@ class SaveOpenCL(
         val fileWriter = new FileWriter(s"$path/exec_$sizeId.csv", true)
 
         fileWriter.write(size + "," +
-          global.map(ArithExpr.substitute(_, inputVarMapping)).mkString(",") + "," +
-          local.map(ArithExpr.substitute(_, inputVarMapping)).mkString(",") +
+          global.map(ArithExpr.substitute(_, inputVarMapping)).toString + "," +
+          local.map(ArithExpr.substitute(_, inputVarMapping)).toString +
           s",$hash," + globalTempAlloc.length + "," +
           globalTempAlloc.mkString(",") +
           (if (globalTempAlloc.length == 0) "" else ",") +
@@ -223,30 +234,30 @@ class SaveOpenCL(
     val controlFlow = ControlFlow(lambda, localSizes, globalSizes, inputVarMapping)
     val functionCounts = FunctionCounts(lambda, localSizes, globalSizes, inputVarMapping)
 
-    val globalMemory = memoryAmounts.getGlobalMemoryUsed(exact).evalDbl
-    val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDbl
-    val privateMemory = memoryAmounts.getPrivateMemoryUsed(exact).evalDbl
+    val globalMemory = memoryAmounts.getGlobalMemoryUsed(exact).evalDouble
+    val localMemory = memoryAmounts.getLocalMemoryUsed(exact).evalDouble
+    val privateMemory = memoryAmounts.getPrivateMemoryUsed(exact).evalDouble
 
     val scalarGlobalStores =
-      accessCounts.scalarStores(GlobalMemory, UnknownPattern, exact).evalDbl
+      accessCounts.scalarStores(GlobalMemory, UnknownPattern, exact).evalDouble
     val scalarGlobalLoads =
-      accessCounts.scalarLoads(GlobalMemory, UnknownPattern, exact).evalDbl
+      accessCounts.scalarLoads(GlobalMemory, UnknownPattern, exact).evalDouble
     val scalarLocalStores =
-      accessCounts.scalarStores(LocalMemory, UnknownPattern, exact).evalDbl
+      accessCounts.scalarStores(LocalMemory, UnknownPattern, exact).evalDouble
     val scalarLocalLoads =
-      accessCounts.scalarLoads(LocalMemory, UnknownPattern, exact).evalDbl
+      accessCounts.scalarLoads(LocalMemory, UnknownPattern, exact).evalDouble
 
     val privateScalarStores =
-      accessCounts.scalarStores(PrivateMemory, UnknownPattern, exact).evalDbl
+      accessCounts.scalarStores(PrivateMemory, UnknownPattern, exact).evalDouble
     val privateScalarLoads =
-      accessCounts.scalarLoads(PrivateMemory, UnknownPattern, exact).evalDbl
+      accessCounts.scalarLoads(PrivateMemory, UnknownPattern, exact).evalDouble
 
-    val barriers = barrierCounts.getTotalCount(exact).evalDbl
+    val barriers = barrierCounts.getTotalCount(exact).evalDouble
 
     val scalarCoalescedGlobalStores =
-      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact).evalDbl
+      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact).evalDouble
     val scalarCoalescedGlobalLoads =
-      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact).evalDbl
+      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact).evalDouble
 
     val scalarCoalescedLocalStores =
       accessCounts.scalarStores(LocalMemory, CoalescedPattern, exact).evalDbl
@@ -264,9 +275,9 @@ class SaveOpenCL(
       accessCounts.vectorLoads(LocalMemory, CoalescedPattern, exact).evalDbl
 
     val vectorGlobalStores =
-      accessCounts.vectorStores(GlobalMemory, UnknownPattern, exact).evalDbl
+      accessCounts.vectorStores(GlobalMemory, UnknownPattern, exact).evalDouble
     val vectorGlobalLoads =
-      accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact).evalDbl
+      accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact).evalDouble
 
     val vectorLocalStores =
       accessCounts.vectorStores(LocalMemory, UnknownPattern, exact).evalDbl
@@ -313,7 +324,7 @@ class SaveOpenCL(
       addScalarCount + multScalarCount + addVecCount + multVecCount + dotCount
 
     val string =
-      s"$hash,${globalSizes.mkString(",")},${localSizes.mkString(",")}," +
+      s"$hash,${globalSizes.toString},${localSizes.toString}," +
         s"$globalMemory,$localMemory,$privateMemory," +
         s"$globalStores,$globalLoads," +
         s"$localStores,$localLoads," +

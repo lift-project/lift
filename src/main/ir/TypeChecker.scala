@@ -1,7 +1,7 @@
 package ir
 
 import ir.ast._
-import lift.arithmetic.Var
+import lift.arithmetic.{ArithExpr, Var}
 import opencl.generator.TreatWarningsAsErrors
 
 object TypeChecker {
@@ -16,10 +16,6 @@ object TypeChecker {
   def check(expr: Expr, setType: Boolean = true): Type = {
 
     val inferredOuT = expr match {
-      case param: Param =>
-        // assert(param.t != UndefType)
-        param.t
-
       case call: FunCall =>
         // 1. get type of arguments
         val argType = if (call.args.isEmpty) {
@@ -33,6 +29,8 @@ object TypeChecker {
 
         // 2. check type of function with the given arguments type
         call.f.checkType(argType, setType)
+
+      case e: Expr=> e.t
     }
 
     if (setType)
@@ -56,7 +54,18 @@ object TypeChecker {
   }
 
   def checkForSuspiciousTypeVariableDeclarations(lambda: Lambda): Unit = {
+
+    // collect all the variables
     val vars = lambda.params.flatMap(p => Type.getLengths(p.t)).collect { case v: Var => v }
+
+
+    /*val vars = new collection.mutable.MutableList[Var]()
+    IRNode.visitArithExpr(lambda, (ae: ArithExpr) => ArithExpr.visit(ae, {
+      case v: Var => vars += v
+      case _ =>
+    }))*/
+
+    //val vars2 = lambda.params.flatMap(p => Type.getLengths(p.t)).collect { case v: Var => v }
 
     // check that no 2 variables with the same name, but different id's exist
     vars.groupBy(_.name).foreach { case (name, vs) =>

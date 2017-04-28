@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.ArithExpr
 import ir._
 import ir.ast._
-import opencl.ir.pattern.ReduceWhileSeq
+import opencl.ir.pattern.{ReduceWhileSeq, SlideSeqPlus}
 
 /**
  * A helper object for constructing views.
@@ -25,6 +25,13 @@ object InputView {
       case v: Value => if (v.view == NoView) View(v.t, v.value) else v.view
       case vp: VectorParam => vp.p.view
       case p: Param => p.view
+
+      case ArrayFromValue(value, at) => ViewConstant(value, at)
+      case ArrayFromGenerator(f, at) => ViewGenerator(f, at)
+      case ArrayFromUserFunGenerator(f, at) => ViewGeneratorUserFun(f, at)
+      case Array2DFromUserFunGenerator(f, at) => View2DGeneratorUserFun(f, at)
+      case Array3DFromUserFunGenerator(f, at) => View3DGeneratorUserFun(f, at)
+
       case call: FunCall => buildViewFunCall(call)
     }
     expr.view = result
@@ -48,6 +55,7 @@ object InputView {
     call.f match {
       case m: AbstractMap => buildViewMap(m, call, argView)
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
+      case sp: SlideSeqPlus => buildViewSlideSeqPlus(sp, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
       case z: Zip => buildViewZip(call, argView)
@@ -133,6 +141,23 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
+  private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
+                                    call: FunCall, argView: View): View = {
+
+    sp.f.params(0).view = ViewMem(sp.windowVar.name, sp.f.params(0).t)
+
+    // traverse into call.f
+    val innerView = visitAndBuildViews(sp.f.body)
+
+    sp.f.body match {
+      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
+        // create fresh input view for following function
+        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+      case _ => // call.isAbstract and return input map view
+        new ViewMap(innerView, sp.loopVar, call.t)
+    }
+  }
+
   private def buildViewSearch(s:AbstractSearch, call:FunCall, argView:View) : View = {
     // pass down input view
     s.f.params(0).view = argView.get(1).access(s.indexVar)
@@ -167,7 +192,7 @@ object InputView {
 
   private def buildViewJoin(call: FunCall, argView: View): View = {
     val chunkSize = call.argsType match {
-      case ArrayType(ArrayType(_, n), _) => n
+      case ArrayType(ArrayTypeWSWC(_, s,c)) if s==c => s
       case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + call.argsType)
     }
 
@@ -192,7 +217,7 @@ object InputView {
 
   private def buildViewTranspose(t: Transpose, call: FunCall, argView: View): View = {
     call.t match {
-      case ArrayType(ArrayType(typ, m), n) =>
+      case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
         argView.
           join(n).
           reorder((i: ArithExpr) => { transpose(i, call.t) }).split(m)
@@ -203,11 +228,11 @@ object InputView {
 
   private def buildViewTransposeW(tw: TransposeW, call: FunCall, argView: View): View = {
     call.t match {
-      case ArrayType(ArrayType(typ, m), n) =>
+      case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
         argView.
           join(n).
           split(m)
-      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_, _) =>
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
         throw new TypeException(call.t, "Array")
     }
   }

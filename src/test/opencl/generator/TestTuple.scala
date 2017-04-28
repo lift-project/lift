@@ -1,8 +1,8 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -37,8 +37,8 @@ class TestTuple {
 
     val N = SizeVar("N")
     val f = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
       (a,b) => {
         toGlobal(MapGlb(makeTupleFromZip)) $ Zip(a, b)
       }
@@ -58,8 +58,8 @@ class TestTuple {
 
     val N = SizeVar("N")
     val f = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
       (a,b) => {
         toGlobal(MapGlb(makeTupleFromZip)) o Zip(2) $ Tuple(a, b)
       }
@@ -79,8 +79,8 @@ class TestTuple {
 
     val N = SizeVar("N")
     val f = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
       (a,b) => {
         toGlobal(MapGlb(makeTupleFromZip)) o Zip(2) o Unzip() $ Zip(a, b)
       }
@@ -100,8 +100,8 @@ class TestTuple {
 
     val N = SizeVar("N")
     val f = fun(
-                 ArrayType(Float, N),
-                 ArrayType(Float, N),
+                 ArrayTypeWSWC(Float, N),
+                 ArrayTypeWSWC(Float, N),
                  (a,b) => {
                    toGlobal(MapGlb(id)) $ Zip(a, b)
                  }
@@ -123,7 +123,7 @@ class TestTuple {
     val negPair = UserFun("pair", "x", "{ x._0 = -x._0; x._1 = -x._1; return x; }",
       TupleType(Float, Float), TupleType(Float, Float))
 
-    val f = fun(ArrayType(TupleType(Float, Float), SizeVar("N")), (input) =>
+    val f = fun(ArrayTypeWSWC(TupleType(Float, Float), SizeVar("N")), (input) =>
       Join() o MapWrg(
         Join() o  MapLcl(MapSeq(fun(x => negPair(x)))) o Split(4)
       ) o Split(1024) $ input
@@ -147,8 +147,8 @@ class TestTuple {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(TupleType(Float, Float), N),
-      ArrayType(TupleType(Float, Float), N),
+      ArrayTypeWSWC(TupleType(Float, Float), N),
+      ArrayTypeWSWC(TupleType(Float, Float), N),
       (left, right) =>
         Join() o MapWrg(
           Join() o  MapLcl(MapSeq(addPair)) o Split(4)
@@ -172,7 +172,7 @@ class TestTuple {
     val pair = UserFun("pair", "x", "{ Tuple t = {x, x}; return t; }",
                           Float, TupleType(Float, Float))
 
-    val pairFun = fun(ArrayType(Float, SizeVar("N")), (input) =>
+    val pairFun = fun(ArrayTypeWSWC(Float, SizeVar("N")), (input) =>
       Join() o MapWrg(
         Join() o  MapLcl(MapSeq(pair)) o Split(4)
       ) o Split(1024) $ input
@@ -203,7 +203,7 @@ class TestTuple {
     val input = input2.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
 
     val function = fun(
-      ArrayType(TupleType(Float, Float), N),
+      ArrayTypeWSWC(TupleType(Float, Float), N),
       input => toGlobal(MapSeq(idFF)) o ReduceSeq(maxFirstArg, (0.0f, 0.0f)) $ input
     )
 
@@ -229,7 +229,7 @@ class TestTuple {
     val input = input2.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
 
     val function = fun(
-      ArrayType(TupleType(Float, Float), N),
+      ArrayTypeWSWC(TupleType(Float, Float), N),
       input => toGlobal(MapSeq(idFF)) o ReduceSeq(addPair, (0.0f, 0.0f)) $ input
     )
 
@@ -253,8 +253,8 @@ class TestTuple {
     val M = SizeVar("M")
 
     val function = fun(
-      ArrayType(ArrayType(Float, M), N),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      ArrayTypeWSWC(Float, N),
       (A, B) => {
         MapGlb(fun(t => {
           MapSeq(fun(x => add.apply(x, Get(t, 1)))) $ Get(t, 0)
@@ -280,7 +280,7 @@ class TestTuple {
 
     val gold = inputArray.zipWithIndex.filter(_._2 % 2 == 0).map(_._1)
 
-    val f = fun(ArrayType(TupleType(Float, Float), SizeVar("N")), (input) =>
+    val f = fun(ArrayTypeWSWC(TupleType(Float, Float), SizeVar("N")), (input) =>
       Join() o MapWrg(
         Join() o  MapLcl(MapSeq(fun(x => id $ Get(x, 0)))) o Split(4)
       ) o Split(1024) $ input
@@ -298,7 +298,7 @@ class TestTuple {
     val idII = UserFun("idII", "x", "{ return x; }", TupleType(Int, Int), TupleType(Int, Int))
 
     val N = SizeVar("N")
-    val f = fun(ArrayType(TupleType(Int, Int), N), A => {
+    val f = fun(ArrayTypeWSWC(TupleType(Int, Int), N), A => {
       MapSeq( fun((a) => idI(a._0)) ) o MapSeq(idII) $ A
     })
 

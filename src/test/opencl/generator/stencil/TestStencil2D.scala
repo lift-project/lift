@@ -1,15 +1,16 @@
 package opencl.generator.stencil
 
-import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import ir._
 import ir.ast.Pad.BoundaryFun
 import ir.ast._
+import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
-import org.junit._
 import org.junit.Assume.assumeFalse
+import org.junit._
+
 import scala.util.Random
 
 object TestStencil2D {
@@ -53,7 +54,7 @@ class TestStencil2D {
     val goldFlat = gold.flatten.flatten.flatten
 
     val lambda = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       (domain) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours =>
@@ -115,8 +116,8 @@ class TestStencil2D {
                             boundary: BoundaryFun,
                             fromRange: Int): Lambda2 = {
     fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(fromRange))), Var("M", StartFromRange(fromRange))),
-      ArrayType(Float, weights.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(fromRange))), Var("M", StartFromRange(fromRange))),
+      ArrayTypeWSWC(Float, weights.length),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -212,8 +213,8 @@ class TestStencil2D {
                            left: Int, right: Int,
                            weights: Array[Float],
                            boundary: Pad.BoundaryFun): Lambda = fun(
-    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-    ArrayType(Float, weights.length),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    ArrayTypeWSWC(Float, weights.length),
     (matrix, weights) => {
       Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -235,8 +236,8 @@ class TestStencil2D {
   def createCopyTilesLambda(size: Int, step: Int,
                             left: Int, right: Int,
                             boundary: Pad.BoundaryFun): Lambda = fun(
-    ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
-    ArrayType(Float, 9),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+    ArrayTypeWSWC(Float, 9),
     (matrix, weights) => {
       MapWrg(1)(MapWrg(0)(fun(tile =>
         toGlobal(MapLcl(1)(MapLcl(0)(id))) $ tile
@@ -281,8 +282,8 @@ class TestStencil2D {
                                            left: Int, right: Int,
                                            weights: Array[Float],
                                            boundary: Pad.BoundaryFun): Lambda = fun(
-    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-    ArrayType(Float, weights.length),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    ArrayTypeWSWC(Float, weights.length),
     (matrix, weights) => {
       Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -354,13 +355,13 @@ class TestStencil2D {
 
 
     val lambda = fun(
-      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")),
       (input) => {
         MapGlb(1)(MapGlb(0)(f)) o nbh(3) o boundary(1, clamp) $ input
       })
 
     val lambda2 = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (input) => {
         MapGlb(1)(id) o compN(Pad(1,1,clamp), 3) $ input
       })
@@ -382,7 +383,7 @@ class TestStencil2D {
 
     val data2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j }
     val lambda = fun(
-      ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
       (domain) => {
         MapSeq(
           MapSeq(
@@ -457,9 +458,9 @@ class TestStencil2D {
    */
   @Test def shocStencil2D(): Unit = {
     val stencil = fun(
-      //ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
-      ArrayType(ArrayType(Float, 8194), 8194),
-      ArrayType(Float, 9),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 8194), 8194),
+      ArrayTypeWSWC(Float, 9),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -517,14 +518,123 @@ class TestStencil2D {
     }
   }
 
+  @Test def shocStencil2DNoTiling(): Unit = {
+    val stencil = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
+      ArrayTypeWSWC(Float, 9),
+      (matrix, weights) => {
+
+        MapGlb(1)(MapGlb(0)(
+          // stencil computation
+          fun(elem => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun( (acc, pair) => {
+                val pixel = pair._0
+                val weight = pair._1
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ elem, weights)
+          })
+          // create neighbourhoods in tiles
+        )) o Slide2D(3, 1, 3, 1) $ matrix
+      }
+    )
+    val weights = Array(0.05, 0.15, 0.05,
+      0.15, 0.25, 0.15,
+      0.05, 0.15, 0.05).map(_.toFloat)
+
+    val inputSize = 8194
+    val haloSize = 1
+    val outputSize = inputSize - 2 * haloSize
+
+    // create already padded input array with inner elements (i,j) = i * j
+    var input = Array.tabulate(inputSize, inputSize) { (i, j) => (i - haloSize) * (j - haloSize) * 1.0f }
+    input(0) = input(0).map((_ * 0.0f))
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+    input(0) = input(0).map(_ * 0.0f)
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+
+    try {
+      val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
+    } catch {
+      case e: DeviceCapabilityException =>
+        Assume.assumeNoException("Device not supported.", e)
+    }
+  }
+
+  @Ignore //todo does not compute correct result yet
+  @Test def shocStencil2DNoTilingFloat3(): Unit = {
+    val dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
+      "{ return acc + dot(l, r); }",
+      Seq(Float, Float3, Float3), Float)
+
+    val stencil = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("M", StartFromRange(6))), Var("N", StartFromRange(6))),
+      ArrayTypeWSWC(Float, 9),
+      (matrix, weights) => {
+        //weights.addressSpace = ConstantMemory
+
+        MapGlb(1)(MapGlb(0)(
+          // stencil computation
+          fun(elem => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun( (acc, pair) => {
+                val pixel = pair._0
+                val weight = pair._1
+                dotAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $
+              Zip(asVector(3) o Join() $ elem, asVector(3) $ weights)
+          })
+          // create neighbourhoods in tiles
+        )) o Slide2D(3, 1) $ matrix
+      }
+    )
+    val weights = Array(
+      0.05, 0.15, 0.05,
+      0.15, 0.25, 0.15,
+      0.05, 0.15, 0.05 ).map(_.toFloat)
+
+    // testing - change tilesize!
+    //val inputSize = 10
+    //val haloSize = 1
+    //val outputSize = inputSize - 2 * haloSize
+    // testing - change tilesize!
+    val inputSize = 8194
+    val haloSize = 1
+    val outputSize = inputSize - 2 * haloSize
+    // 4k
+    //val inputSize = 4096
+    //val haloSize = 1
+    //val outputSize = inputSize - 2 * haloSize
+
+    // create already padded input array with inner elements (i,j) = i * j
+    var input = Array.tabulate(inputSize, inputSize) { (i, j) => (i - haloSize) * (j - haloSize) * 1.0f }
+    input(0) = input(0).map((_ * 0.0f))
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+    input(0) = input(0).map(_ * 0.0f)
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+
+    try {
+      val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
+      println("Runtime: " + runtime)
+      println(output.take(10).mkString(", "))
+    } catch {
+      case e: DeviceCapabilityException =>
+        Assume.assumeNoException("Device not supported.", e)
+    }
+  }
+
   /* **********************************************************
        THREE LEVEL TILING
    ***********************************************************/
   @Test def threeLevelTilingTest(): Unit = {
     val stencil = fun(
-      //ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
-      ArrayType(ArrayType(Float, 8192), 8192),
-      ArrayType(Float, 15),
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 8192), 8192),
+      ArrayTypeWSWC(Float, 15),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(
           fun(wgBlock =>
@@ -669,7 +779,7 @@ class TestStencil2D {
       Slide(u,v) o Map(Slide(u,v))
 
     def lambda(f: Lambda): Lambda1 = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input =>
         MapGlb(1)(MapGlb(0)(MapSeq(MapSeq(id)))) o f $ input
     )
@@ -733,7 +843,7 @@ class TestStencil2D {
 
     def lambda(f: Lambda) = {
       fun(
-        ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float,SizeVar("M")), SizeVar("N")),
         input => f $ input
       )
     }

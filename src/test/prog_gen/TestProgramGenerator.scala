@@ -146,9 +146,9 @@ class TestProgramGenerator {
   def seekCompilerBugs(): Unit = {
     val f = fun(
       Float,
-      ArrayType(ArrayType(Float,32),32),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float,32),32),
       Float,
-      ArrayType(Float,32),
+      ArrayTypeWSWC(Float,32),
       (p99,p102,p226,p239) =>{
         Map(fun((p24) =>
           Split(4) o Join() o Map(fun((p157) =>
@@ -162,8 +162,7 @@ class TestProgramGenerator {
       }
     )
     val fs = Lower.mapCombinations(f,
-      EnabledMappings(global0 = true, global01 = false, global10 = false,
-        group0 = false, group01 = false, group10 = false))
+      EnabledMappings(global0 = true, global01 = false, global10 = false, false, false, group0 = false, group01 = false, group10 = false))
     TypeChecker(fs.head)
     val code = Compile(fs.head)
     val Args = InputGenerator()(fs.head)

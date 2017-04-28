@@ -1,8 +1,8 @@
 package rewriting
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
@@ -38,7 +38,7 @@ class TestDerivingTiling {
 
     // Starting expression
     def f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => MapGlb(MapSeq(plusOne)) $ input
     )
 
@@ -47,7 +47,7 @@ class TestDerivingTiling {
 
     // split-join
     def f1 = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Join() o MapGlb(MapSeq(MapSeq(plusOne))) o Split(tileSizeN) $ input
     )
 
@@ -56,7 +56,7 @@ class TestDerivingTiling {
 
     // Transpose both sides
     def f2 = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Join() o MapGlb(TransposeW() o MapSeq(MapSeq(plusOne)) o Transpose()) o Split(tileSizeN) $ input
     )
 
@@ -65,7 +65,7 @@ class TestDerivingTiling {
 
     // split-join
     def f3 = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Join() o MapGlb(TransposeW() o Join() o MapSeq(MapSeq(MapSeq(plusOne))) o Split(tileSizeM) o Transpose()) o Split(tileSizeN) $ input
     )
 
@@ -74,7 +74,7 @@ class TestDerivingTiling {
 
     // Transpose both sides
     def f4 = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Join() o MapGlb(TransposeW() o Join() o MapSeq(TransposeW() o MapSeq(MapSeq(plusOne)) o Transpose()) o Split(tileSizeM) o Transpose()) o Split(tileSizeN) $ input
     )
 
@@ -83,7 +83,7 @@ class TestDerivingTiling {
 
     // Map fission, pull out splits, joins and transposes
     def f5 = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Join() o Map(TransposeW() o Join() o Map(TransposeW())) o
         MapGlb(MapSeq(MapSeq(MapSeq(plusOne))))
         o Map(Map(Transpose()) o Split(tileSizeM) o Transpose()) o Split(tileSizeN) $ input
@@ -95,7 +95,7 @@ class TestDerivingTiling {
 
     // Replace with predefined tile and untile
     def f6 = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Untile2D() o
         MapGlb(MapSeq(MapSeq(MapSeq(plusOne))))
         o Tile(tileSizeN, tileSizeM) $ input
@@ -126,8 +126,8 @@ class TestDerivingTiling {
 
     // Starting expression
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         MapGlb(fun( aRow =>
           MapSeq(fun( bCol =>
@@ -141,8 +141,8 @@ class TestDerivingTiling {
 
     // split-join
     val f1 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Join() o MapGlb(fun( aRows =>
           MapSeq(fun(aRow =>
@@ -158,8 +158,8 @@ class TestDerivingTiling {
 
     // Map-Map interchange
     val f2 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Join() o MapGlb(fun( aRows =>
           TransposeW() o MapSeq(fun(bCol =>
@@ -175,8 +175,8 @@ class TestDerivingTiling {
 
     // split-join
     val f3 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Join() o MapGlb(fun( aRows =>
           TransposeW() o Join() o MapSeq(fun(bCols =>
@@ -194,8 +194,8 @@ class TestDerivingTiling {
 
     // Map-Map interchange
     val f4 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Join() o MapGlb(fun( aRows =>
           TransposeW() o Join() o MapSeq(fun(bCols =>
@@ -213,8 +213,8 @@ class TestDerivingTiling {
 
     // Map fission, pull out joins and transposes
     val f5 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Join() o Map(TransposeW() o Join() o Map(TransposeW())) o
           MapGlb(fun( aRows =>
@@ -233,8 +233,8 @@ class TestDerivingTiling {
 
     // Replace with predefined untile
     val f6 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -253,8 +253,8 @@ class TestDerivingTiling {
 
     // Partial Reduce
     val f7 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -276,8 +276,8 @@ class TestDerivingTiling {
 
     // Map fission
     val f8 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -299,15 +299,15 @@ class TestDerivingTiling {
 
     // Map-Reduce interchange
     val f9 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(fun( aRow =>
                 toGlobal(MapSeq(MapSeq(id)) o ReduceSeq(fun((acc, p) => MapSeq(add) $ Zip(acc, p)),
-                  MapSeq(id) $ Value(0.0f, ArrayType(Float, tileSize)))) o
+                  MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, tileSize)))) o
                   Transpose() o
                   MapSeq(fun( bCol =>
                     Join() o MapSeq(toGlobal(MapSeq(id)) o // partReduce
@@ -324,14 +324,14 @@ class TestDerivingTiling {
 
     // Map fission
     val f10 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               MapSeq(toGlobal(MapSeq(MapSeq(id)) o ReduceSeq(fun((acc, p) => MapSeq(add) $ Zip(acc, p)),
-                MapSeq(id) $ Value(0.0f, ArrayType(Float, tileSize))))) o
+                MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, tileSize))))) o
                 MapSeq(fun( aRow =>
                   Transpose() o
                     MapSeq(fun( bCol =>
@@ -349,14 +349,14 @@ class TestDerivingTiling {
 
     // Map fission
     val f11 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
             MapSeq(fun(bCols =>
               toGlobal(MapSeq(MapSeq(MapSeq(id)))) o MapSeq(ReduceSeq(fun((acc, p) => MapSeq(add) $ Zip(acc, p)),
-                MapSeq(id) $ Value(0.0f, ArrayType(Float, tileSize)))) o
+                MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, tileSize)))) o
                 MapSeq(fun( aRow =>
                   Transpose() o
                     MapSeq(fun( bCol =>
@@ -374,8 +374,8 @@ class TestDerivingTiling {
 
     // Map-Reduce interchange
     val f12 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -387,7 +387,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
 
                 Transpose() o
@@ -409,8 +409,8 @@ class TestDerivingTiling {
 
     // Map fission
     val f13 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -422,7 +422,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
 
                 Transpose() o
@@ -445,8 +445,8 @@ class TestDerivingTiling {
 
         // Map-Map interchange, pulling the zip out
         val f14 = fun(
-          ArrayType(ArrayType(Float, K), M),
-          ArrayType(ArrayType(Float, K), N), // Already transposed
+          ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+          ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
           (A, B) => {
             Untile2D() o
               MapGlb(fun( aRows =>
@@ -458,7 +458,7 @@ class TestDerivingTiling {
                         MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                       )) $ Zip(acc, p)),
                       toGlobal(MapSeq(MapSeq(id)))
-                        $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                        $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                     o
                     Transpose() o
                     MapSeq(fun( aRow =>
@@ -479,8 +479,8 @@ class TestDerivingTiling {
 
         // Map fission
         val f15 = fun(
-          ArrayType(ArrayType(Float, K), M),
-          ArrayType(ArrayType(Float, K), N), // Already transposed
+          ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+          ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
           (A, B) => {
             Untile2D() o
               MapGlb(fun( aRows =>
@@ -492,7 +492,7 @@ class TestDerivingTiling {
                         MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                       )) $ Zip(acc, p)),
                       toGlobal(MapSeq(MapSeq(id)))
-                        $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                        $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                     o
                     Transpose() o
                     MapSeq(
@@ -515,8 +515,8 @@ class TestDerivingTiling {
 
         // Map-Map interchange, pulling the zip out
         val f16 = fun(
-          ArrayType(ArrayType(Float, K), M),
-          ArrayType(ArrayType(Float, K), N), // Already transposed
+          ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+          ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
           (A, B) => {
             Untile2D() o
               MapGlb(fun( aRows =>
@@ -528,7 +528,7 @@ class TestDerivingTiling {
                         MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                       )) $ Zip(acc, p)),
                       toGlobal(MapSeq(MapSeq(id)))
-                        $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                        $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                     o
                     Transpose() o
                     MapSeq(
@@ -551,8 +551,8 @@ class TestDerivingTiling {
 
     // Pull transposes out of the zip + map fission
     val f17 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -564,7 +564,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 Transpose() o
                 MapSeq(
@@ -587,8 +587,8 @@ class TestDerivingTiling {
 
     // split-join
     val f18 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -600,7 +600,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 Transpose() o
                 MapSeq(
@@ -624,8 +624,8 @@ class TestDerivingTiling {
 
     // split-join
     val f19 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -637,7 +637,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 Transpose() o
                 MapSeq(
@@ -662,8 +662,8 @@ class TestDerivingTiling {
 
     // move splits out from zip + fission + fusion
     val f20 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -675,7 +675,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 Transpose() o
                 MapSeq(
@@ -704,8 +704,8 @@ class TestDerivingTiling {
 
     // Map-Map transpose pushing zip inside
     val f21 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -717,7 +717,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 Transpose() o
                 MapSeq(
@@ -741,8 +741,8 @@ class TestDerivingTiling {
 
     // Map-Map transpose pushing zip inside
     val f22 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -754,7 +754,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 Transpose() o
                 MapSeq(
@@ -778,8 +778,8 @@ class TestDerivingTiling {
 
     // pull transposes to zip, fission
     val f23 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -791,7 +791,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 Transpose() o
                 MapSeq(
@@ -815,8 +815,8 @@ class TestDerivingTiling {
 
     // pull transposes outside zip + fusion
     val f24 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -828,7 +828,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 Transpose() o
                 MapSeq(
@@ -852,8 +852,8 @@ class TestDerivingTiling {
 
     // replace with predefined tile
     val f25 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -865,7 +865,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 Transpose() o
           //  ^
@@ -913,8 +913,8 @@ class TestDerivingTiling {
 
     // map(split) o transpose => transpose o map(transpose) o split
     val f26 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -926,7 +926,7 @@ class TestDerivingTiling {
                   MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                 )) $ Zip(acc, p)),
                 toGlobal(MapSeq(MapSeq(id)))
-                  $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                  $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 Transpose() o
                 MapSeq(
@@ -951,8 +951,8 @@ class TestDerivingTiling {
 
     // transpose both sides + transpose o transpose => id
     val f27 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -964,7 +964,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 Transpose() o
                 MapSeq(
@@ -988,8 +988,8 @@ class TestDerivingTiling {
 
     // map(split) o transpose => transpose o map(transpose) o split
     val f28 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -1001,7 +1001,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 Transpose() o
                 MapSeq(
@@ -1025,8 +1025,8 @@ class TestDerivingTiling {
 
     // split o join => id
     val f29 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -1038,7 +1038,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 Transpose() o
                 MapSeq(
@@ -1062,8 +1062,8 @@ class TestDerivingTiling {
 
     // transpose both sides + transpose o transpose => id
     val f30 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -1075,7 +1075,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 MapSeq(
                   MapSeq(  Join() o MapSeq(toGlobal(MapSeq(id)) o // partReduce
@@ -1098,8 +1098,8 @@ class TestDerivingTiling {
 
     // Map fusion + transpose o transpose => id
     val f31 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -1111,7 +1111,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 MapSeq(
                   MapSeq(  Join() o MapSeq(toGlobal(MapSeq(id)) o // partReduce
@@ -1133,8 +1133,8 @@ class TestDerivingTiling {
 
     // Map fission + Map fusion + transpose o transpose => id
     val f32 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -1146,7 +1146,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 MapSeq(
                   MapSeq(  Join() o MapSeq(toGlobal(MapSeq(id)) o // partReduce
@@ -1167,8 +1167,8 @@ class TestDerivingTiling {
 
     // Map fusion
     val f33 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -1180,7 +1180,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 MapSeq(fun( pairOfTiles =>
                   MapSeq(  Join() o MapSeq(toGlobal(MapSeq(id)) o // partReduce
@@ -1201,8 +1201,8 @@ class TestDerivingTiling {
 
     // Map fusion
     val f34 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -1214,7 +1214,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 MapSeq(fun( pairOfTiles =>
                   MapSeq(  Join() o fun( aRow => MapSeq(toGlobal(MapSeq(id)) o
@@ -1234,8 +1234,8 @@ class TestDerivingTiling {
 
     // Map fusion
     val f35 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -1247,7 +1247,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 MapSeq(fun( pairOfTiles =>
                   MapSeq(  Join() o fun( aRow => MapSeq(
@@ -1267,8 +1267,8 @@ class TestDerivingTiling {
 
     // ReduceSeq o MapSeq fusion
     val f36 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -1280,7 +1280,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 MapSeq(fun( pairOfTiles =>
                   MapSeq(Join() o fun( aRow => MapSeq(
@@ -1299,8 +1299,8 @@ class TestDerivingTiling {
 
     // Map fission, separate join
     val f37 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -1312,7 +1312,7 @@ class TestDerivingTiling {
                     MapSeq(add) $ Zip(Get(part, 0), Get(part, 1))
                   )) $ Zip(acc, p)),
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize)))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize)))
                 o
                 MapSeq(fun( pairOfTiles =>
                   Map(Join()) o MapSeq(fun( aRow => MapSeq(
@@ -1331,8 +1331,8 @@ class TestDerivingTiling {
 
     // ReduceSeq o MapSeq fusion
     val f38 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Untile2D() o
           MapGlb(fun( aRows =>
@@ -1354,7 +1354,7 @@ class TestDerivingTiling {
                 )) $ Get(pairOfTiles, 0)) $ p)
                   ,
                   toGlobal(MapSeq(MapSeq(id)))
-                    $ Value(0.0f, ArrayType(ArrayType(Float, tileSize), tileSize))
+                    $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, tileSize), tileSize))
                 ) $ Zip(aRows, bCols)
 
             )) o Tile(tileSize) $ B

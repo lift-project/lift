@@ -3,7 +3,7 @@ skelcl.conf
 project/project/
 project/target/
 target/
-scripts/compiled_scripts
+scripts/compiled_scripts/
 lib/Executor/build
 .idea/
 .tags

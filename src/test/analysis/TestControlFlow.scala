@@ -1,9 +1,9 @@
 package analysis
 
-import lift.arithmetic._
 import ir._
 import ir.ast._
-import opencl.generator.get_global_size
+import lift.arithmetic.{ArithExpr, Cst, SizeVar}
+import opencl.generator.{NDRange, get_global_size}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, toGlobal, toPrivate}
 import org.junit.Assert._
@@ -15,15 +15,15 @@ class TestControlFlow {
   val globalSize0 = get_global_size(0)
   val globalSize1 = get_global_size(1)
 
-  val globalsLessThanOne = Array[ArithExpr](2048,1,1)
-  val globalsOne = Array[ArithExpr](1024,1,1)
-  val locals = Array[ArithExpr](32,1,1)
+  val globalsLessThanOne = NDRange(2048,1,1)
+  val globalsOne = NDRange(1024,1,1)
+  val locals = NDRange(32,1,1)
   val valueMap = collection.immutable.Map[ArithExpr, ArithExpr](N -> 1024)
 
   @Test
   def simple(): Unit = {
     val f = fun(
-     ArrayType(Float, N),
+     ArrayTypeWSWC(Float, N),
       x => MapGlb(id) $ x
     )
 
@@ -38,7 +38,7 @@ class TestControlFlow {
   @Test
   def simpleExactlyOne(): Unit = {
      val f = fun(
-     ArrayType(Float, N),
+     ArrayTypeWSWC(Float, N),
       x => MapGlb(id) $ x
     )
 
@@ -54,7 +54,7 @@ class TestControlFlow {
   @Test
   def simpleLessThanOne(): Unit = {
      val f = fun(
-     ArrayType(Float, N),
+     ArrayTypeWSWC(Float, N),
       x => MapGlb(id) $ x
     )
 
@@ -69,7 +69,7 @@ class TestControlFlow {
   @Test
   def nestedTwo(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, 16), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 16), N),
       x => MapGlb(MapSeq(id) o MapSeq(id)) $ x
     )
 
@@ -84,7 +84,7 @@ class TestControlFlow {
   @Test
   def nestedFused(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, 16), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 16), N),
       x => MapGlb(MapSeq(id o id)) $ x
     )
 
@@ -100,7 +100,7 @@ class TestControlFlow {
   @Test
   def nestedOne(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, 16), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 16), N),
       x => MapGlb(MapSeq(id)) $ x
     )
 
@@ -115,7 +115,7 @@ class TestControlFlow {
   @Test
   def unrolling(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, 16), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 16), N),
       x => MapGlb(toGlobal(MapSeq(id)) o toPrivate(MapSeq(id))) $ x
     )
 

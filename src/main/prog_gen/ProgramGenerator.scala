@@ -131,10 +131,10 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
   def generatePrograms(): Array[Lambda] = {
     // Initial input TODO: enable all lengths
     val length = arrayLengths.head
-    ParamList += Param(ArrayType(ArrayType(Float, length), length))
-    ParamList += Param(ArrayType(ArrayType(Float, length), length))
-    ParamList += Param(ArrayType(Float, length))
-    ParamList += Param(ArrayType(Float, length))
+    ParamList += Param(ArrayTypeWSWC(ArrayTypeWSWC(Float, length), length))
+    ParamList += Param(ArrayTypeWSWC(ArrayTypeWSWC(Float, length), length))
+    ParamList += Param(ArrayTypeWSWC(Float, length))
+    ParamList += Param(ArrayTypeWSWC(Float, length))
     ParamList += Param(Float)
     ParamList += Param(Float)
 
@@ -268,7 +268,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
     for(i <- Join_P until ParamList.length) {
       val param = ParamList(i)
       param.t match{
-        case ArrayType(ArrayType(t,m),n) =>
+        case ArrayTypeWSWC(ArrayTypeWSWC(t,ms,mc),ns,nc) if ms==mc && ns==nc =>
           //pass the type check
 
           var joinSplit: Boolean = false
@@ -288,7 +288,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
             val F = FunCall(Join(), fArg)
 
             // Set output type
-            F.t = ArrayType(t, m * n)
+            F.t = ArrayTypeWSWC(t, ms * ns, mc * nc)
 
             // Build the param corresponds to the FunCall
             val P = Param(F.t)
@@ -319,7 +319,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
     for (i <- Split_P until ParamList.length) {
       val param = ParamList(i)
       param.t match {
-        case t: ArrayType =>
+        case t@ArrayTypeWSWC(_,ms,mc) if ms==mc =>
 
           val chunkSize = rewriting.utils.Utils.validSplitVariable(t)
 
@@ -448,7 +448,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
       val typeToFind = function.outT
 
       val candidates = ParamList.filter(_.t match {
-        case ArrayType(e, _) => e == typeToFind
+        case ArrayType(e) => e == typeToFind
         case _ => false
       })
 
@@ -494,7 +494,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
       val argInit: Expr = ParamToFunCall.getOrElse(param, param)
 
       val F = FunCall(ReduceSeq(L2), argInit, argEle)
-      F.t = ArrayType(TofInit, 1)
+      F.t = ArrayTypeWSWC(TofInit, 1)
       val P = Param(F.t)
       val Args = collectUnboundParams(F)
       val L3 = Lambda(Args.toArray[Param], F)
@@ -540,10 +540,10 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
                       argEle.t match {
                         //Don't do reductions on array with length 1
                         //The opencl generator causes bugs here
-                        case ArrayType(_, eleLength) if eleLength != Cst(1) && ReduceStrictMatchUnpack =>
+                        case ArrayTypeWS(_, eleLength) if eleLength != Cst(1) && ReduceStrictMatchUnpack =>
                           finishGenerateReduce(oriLambda, initParamIndexOfLambda, TofInit,
                             eleParamIndexOfLambda, argInitIndex, argEle)
-                        case ArrayType(TofEle, eleLength) if eleLength != Cst(1) =>
+                        case ArrayTypeWS(TofEle, eleLength) if eleLength != Cst(1) =>
 
                           val argEleFromGet =
                             getArg(argEle.asInstanceOf[Param], PassParamUpPossibility)
@@ -558,6 +558,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
                             Reduce_L_PI_PE += ((oriLambdaIndex, argInitIndex, argEleIndex))
                           }
 
+                        case _ : ArrayType => throw new NotImplementedError()
                         case _ =>
                       }
                     })
@@ -608,7 +609,10 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
 
             //build the funcall
             val F = FunCall(Map(L2), argEle)
-            F.t = ArrayType(oriLambda.body.t, argEle.t.asInstanceOf[ArrayType].len)
+            F.t = ArrayTypeWSWC(oriLambda.body.t,
+              argEle.t.asInstanceOf[ArrayType with Size with Capacity].size,
+              argEle.t.asInstanceOf[ArrayType with Size with Capacity].capacity
+            )
 
             //build the param corresponds to the funcall
             val P = Param(F.t)
@@ -651,7 +655,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
           for (argIndex <- ParamList.indices) {
             val param = ParamList(argIndex)
             param.t match {
-              case ArrayType(TofParam, eleLength) =>
+              case ArrayTypeWSWC(TofParam, eleLength, eleCap) if eleLength == eleCap =>
 
                 //Pass the Type check!
                 if (!Map_L_E((i, argIndex))) {
@@ -669,7 +673,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
 
                   //build the funcall
                   val F = FunCall(Map(L2), argEle)
-                  F.t = ArrayType(oriLambda.body.t, eleLength)
+                  F.t = ArrayTypeWSWC(oriLambda.body.t, eleLength)
 
                   //build the param corresponds to the funcall
                   val P = Param(F.t)
@@ -687,6 +691,8 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
                   Map_L_E += ((i, argIndex))
                 }
 
+              case _: ArrayType =>
+                throw new NotImplementedError()
               case _ =>
             }
           }
@@ -705,7 +711,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
     for (i <- Zip_P until ParamList.length) {
       ParamList(i).t match {
         //1. A0 should have an arrayType
-        case ArrayType(_,a0Len) =>
+        case ArrayTypeWS(_,a0Len) =>
 
           //2. AId : id of params that have the same type with A0
           val AId = mutable.Buffer[Int](i)
@@ -714,7 +720,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
           for(j <- ParamList.indices){
             ParamList(j).t match {
               // Zipping the same thing twice is useless
-              case ArrayType(_,`a0Len`) if i != j => AId += j
+              case ArrayTypeWS(_,`a0Len`) if i != j => AId += j
               case _ =>
             }
           }
@@ -805,7 +811,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
     for (i <- UnPack_P until ParamList.length) {
       val param = ParamList(i)
       param.t match {
-        case ArrayType(t, _) =>
+        case ArrayType(t) =>
           val tempParam = Param(t)
           tempParamList += tempParam
 

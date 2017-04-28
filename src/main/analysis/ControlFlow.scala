@@ -4,15 +4,14 @@ import analysis.AccessCounts.SubstitutionMap
 import lift.arithmetic._
 import ir._
 import ir.ast._
-import opencl.generator.OpenCLGenerator.NDRange
 import opencl.generator._
 import opencl.ir.pattern._
 
 object ControlFlow {
  def apply(
     lambda: Lambda,
-    localSize: NDRange = Array(?,?,?),
-    globalSize: NDRange = Array(?,?,?),
+    localSize: NDRange = NDRange(?,?,?),
+    globalSize: NDRange = NDRange(?,?,?),
     valueMap: SubstitutionMap = collection.immutable.Map()
   ) = new ControlFlow(lambda, localSize, globalSize, valueMap)
 }
@@ -106,7 +105,6 @@ class ControlFlow(
 
           case reduceSeq: ReduceSeq =>
             val n = Type.getLength(args(1).t)
-
             count(reduceSeq.f, reduceSeq.loopVar, n, reduceSeq.shouldUnroll)
 
           case iterate@Iterate(n, nestedLambda) =>

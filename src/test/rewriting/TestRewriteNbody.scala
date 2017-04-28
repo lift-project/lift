@@ -1,16 +1,16 @@
 package rewriting
 
-import lift.arithmetic.ArithExpr
 import benchmarks.NBody
 import exploration.{ExpressionFilter, ParameterRewrite}
 import ir._
 import ir.ast._
+import lift.arithmetic.ArithExpr
 import opencl.executor.{Execute, Executor, Utils}
 import opencl.generator.TestNBody._
 import opencl.ir._
 import org.junit.Assert._
-import org.junit._
 import org.junit.Assume.assumeFalse
+import org.junit._
 
 object TestRewriteNbody {
    @BeforeClass
@@ -32,8 +32,8 @@ class TestRewriteNbody {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val f = fun(
-      ArrayType(Float4, N),
-      ArrayType(Float4, N),
+      ArrayTypeWSWC(Float4, N),
+      ArrayTypeWSWC(Float4, N),
       Float,
       Float,
       (pos, vel, espSqr, deltaT) =>
@@ -85,7 +85,7 @@ class TestRewriteNbody {
     assertArrayEquals(gold, output, 0.001f)
 
     val x = ParameterRewrite.replaceInputTypes(f27, replacementFilter)
-    assertEquals(ExpressionFilter.Status.Success, ExpressionFilter(x))
+    assertEquals(ExpressionFilter.Status.Success, ExpressionFilter(x, InferNDRange(x)))
  }
 
 }

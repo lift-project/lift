@@ -1,16 +1,15 @@
 package opencl.generator.stencil.acoustic
 
+import ir.ArrayTypeWSWC
 import ir.ast._
-import ir.{ArrayType, TupleType}
-import lift.arithmetic.{SizeVar, StartFromRange, Var}
-import opencl.executor._
+import lift.arithmetic.SizeVar
+import opencl.executor.{Compile, DeviceCapabilityException, Execute, Executor, _}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit._
 import org.junit.Assume.assumeFalse
+import org.junit._
 import rewriting.SimplifyAndFuse
-import utils.OutputKernelJSON
 
 import scala.language.implicitConversions
 
@@ -33,58 +32,7 @@ class TestAcousticOpt {
   def testTwoGridsThreeCalculationsAsym3DGeneralNoMaskWithOnlyOneWeights(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
-    val compareData = Array(
-
-    4.375f, 7.75f, 11.125f, 14.5f, 17.875f, 21.25f, 24.625f, 23.5f,
-    7.75f, 12.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 30.375f,
-    11.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 35.375f, 33.75f,
-    12.0f, 16.875f, 20.25f, 23.625f, 27.0f, 30.375f, 33.75f, 31.125f,
-    7.75f, 12.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 30.375f,
-    12.125f, 17.5f, 21.875f, 26.25f, 30.625f, 35.0f, 39.375f, 38.25f,
-    16.0f, 21.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 42.125f,
-    16.875f, 22.75f, 26.625f, 30.5f, 34.375f, 38.25f, 42.125f, 39.5f,
-    11.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 35.375f, 33.75f,
-    16.0f, 21.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 42.125f,
-    19.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 46.0f,
-    20.25f, 26.625f, 30.5f, 34.375f, 38.25f, 42.125f, 46.0f, 42.875f,
-    14.5f, 19.875f, 23.75f, 27.625f, 31.5f, 35.375f, 39.25f, 37.125f,
-    19.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 46.0f,
-    23.75f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 49.875f,
-    23.625f, 30.5f, 34.375f, 38.25f, 42.125f, 46.0f, 49.875f, 46.25f,
-    17.875f, 23.75f, 27.625f, 31.5f, 35.375f, 39.25f, 43.125f, 40.5f,
-    23.75f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 49.875f,
-    27.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 53.75f,
-    27.0f, 34.375f, 38.25f, 42.125f, 46.0f, 49.875f, 53.75f, 49.625f,
-    21.25f, 27.625f, 31.5f, 35.375f, 39.25f, 43.125f, 47.0f, 43.875f,
-    27.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 53.75f,
-    31.5f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 57.625f,
-    30.375f, 38.25f, 42.125f, 46.0f, 49.875f, 53.75f, 57.625f, 53.0f,
-    24.625f, 31.5f, 35.375f, 39.25f, 43.125f, 47.0f, 50.875f, 47.25f,
-    31.5f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 57.625f,
-    35.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 61.5f,
-    33.75f, 42.125f, 46.0f, 49.875f, 53.75f, 57.625f, 61.5f, 56.375f,
-    28.0f, 35.375f, 39.25f, 43.125f, 47.0f, 50.875f, 54.75f, 50.625f,
-    35.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 61.5f,
-    39.25f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 65.375f,
-    37.125f, 46.0f, 49.875f, 53.75f, 57.625f, 61.5f, 65.375f, 59.75f,
-    31.375f, 39.25f, 43.125f, 47.0f, 50.875f, 54.75f, 58.625f, 54.0f,
-    39.25f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 65.375f,
-    43.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 69.25f,
-    40.5f, 49.875f, 53.75f, 57.625f, 61.5f, 65.375f, 69.25f, 63.125f,
-    34.75f, 43.125f, 47.0f, 50.875f, 54.75f, 58.625f, 62.5f, 57.375f,
-    43.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 69.25f,
-    47.0f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 78.75f, 73.125f,
-    43.875f, 53.75f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 66.5f,
-    38.125f, 47.0f, 50.875f, 54.75f, 58.625f, 62.5f, 66.375f, 60.75f,
-    47.0f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 78.75f, 73.125f,
-    50.875f, 61.25f, 65.625f, 70.0f, 74.375f, 78.75f, 83.125f, 77.0f,
-    47.25f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 77.0f, 69.875f,
-    35.0f, 43.875f, 47.25f, 50.625f, 54.0f, 57.375f, 60.75f, 54.125f,
-    43.875f, 53.75f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 66.5f,
-    47.25f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 77.0f, 69.875f,
-    42.625f, 53.0f, 56.375f, 59.75f, 63.125f, 66.5f, 69.875f, 61.75f
-
-    )
+    val compareData = AcousticComparisonArrays.testTwoGridsThreeCalculationsAsym3DGeneralNoMaskComparisonData8x4x12
 
     val localDimX = 8
     val localDimY = 4
@@ -103,10 +51,10 @@ class TestAcousticOpt {
     val const1 = constantOriginal(2)
 
     val lambdaZip3D = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float,1), m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, m + 2), n + 2), o + 2),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,1), m), n), o),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m + 2), n + 2), o + 2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       Float,
       (mat1, mat2, weights, weightsMiddle,c1) => {
         MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
@@ -148,68 +96,8 @@ class TestAcousticOpt {
   def testTwoGridsThreeCalculationsWithMaskAsym3DGeneralOneWeights(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
-   val compareData = Array(
-     16.25f, 28.5f, 40.75f, 43.0f,
-     28.5f, 44.75f, 59.0f, 61.25f,
-     40.75f, 59.0f, 73.25f, 73.5f,
-     53.0f, 73.25f, 87.5f, 85.75f,
-     65.25f, 87.5f, 101.75f, 98.0f,
-     63.5f, 85.75f, 98.0f, 90.25f,
-     28.5f, 44.75f, 59.0f, 61.25f,
-     44.75f, 17.5f, 21.875f, 83.5f,
-     59.0f, 21.875f, 26.25f, 97.75f,
-     73.25f, 26.25f, 30.625f, 112.0f,
-     87.5f, 30.625f, 35.0f, 126.25f,
-     85.75f, 112.0f, 126.25f, 118.5f,
-     40.75f, 59.0f, 73.25f, 73.5f,
-     59.0f, 21.875f, 26.25f, 97.75f,
-     73.25f, 26.25f, 30.625f, 112.0f,
-     87.5f, 30.625f, 35.0f, 126.25f,
-     101.75f, 35.0f, 39.375f, 140.5f,
-     98.0f, 126.25f, 140.5f, 130.75f,
-     53.0f, 73.25f, 87.5f, 85.75f,
-     73.25f, 26.25f, 30.625f, 112.0f,
-     87.5f, 30.625f, 35.0f, 126.25f,
-     101.75f, 35.0f, 39.375f, 140.5f,
-     116.0f, 39.375f, 43.75f, 154.75f,
-     110.25f, 140.5f, 154.75f, 143.0f,
-     65.25f, 87.5f, 101.75f, 98.0f,
-     87.5f, 30.625f, 35.0f, 126.25f,
-     101.75f, 35.0f, 39.375f, 140.5f,
-     116.0f, 39.375f, 43.75f, 154.75f,
-     130.25f, 43.75f, 48.125f, 169.0f,
-     122.5f, 154.75f, 169.0f, 155.25f,
-     77.5f, 101.75f, 116.0f, 110.25f,
-     101.75f, 35.0f, 39.375f, 140.5f,
-     116.0f, 39.375f, 43.75f, 154.75f,
-     130.25f, 43.75f, 48.125f, 169.0f,
-     144.5f, 48.125f, 52.5f, 183.25f,
-     134.75f, 169.0f, 183.25f, 167.5f,
-     89.75f, 116.0f, 130.25f, 122.5f,
-     116.0f, 39.375f, 43.75f, 154.75f,
-     130.25f, 43.75f, 48.125f, 169.0f,
-     144.5f, 48.125f, 52.5f, 183.25f,
-     158.75f, 52.5f, 56.875f, 197.5f,
-     147.0f, 183.25f, 197.5f, 179.75f,
-     102.0f, 130.25f, 144.5f, 134.75f,
-     130.25f, 43.75f, 48.125f, 169.0f,
-     144.5f, 48.125f, 52.5f, 183.25f,
-     158.75f, 52.5f, 56.875f, 197.5f,
-     173.0f, 56.875f, 61.25f, 211.75f,
-     159.25f, 197.5f, 211.75f, 192.0f,
-     114.25f, 144.5f, 158.75f, 147.0f,
-     144.5f, 48.125f, 52.5f, 183.25f,
-     158.75f, 52.5f, 56.875f, 197.5f,
-     173.0f, 56.875f, 61.25f, 211.75f,
-     187.25f, 61.25f, 65.625f, 226.0f,
-     171.5f, 211.75f, 226.0f, 204.25f,
-     104.5f, 134.75f, 147.0f, 131.25f,
-     134.75f, 169.0f, 183.25f, 167.5f,
-     147.0f, 183.25f, 197.5f, 179.75f,
-     159.25f, 197.5f, 211.75f, 192.0f,
-     171.5f, 211.75f, 226.0f, 204.25f,
-     151.75f, 192.0f, 204.25f, 178.5f
-   )
+   val compareData = AcousticComparisonArrays.testTwoGridsThreeCalculationsWithMaskAsym3DGeneralComparisonData4x6x10
+
     val localDimX = 4
     val localDimY = 6
     val localDimZ = 10
@@ -231,11 +119,11 @@ class TestAcousticOpt {
     val o = SizeVar("O")
 
    val lambdaNeigh = fun(
-     ArrayType(ArrayType(ArrayType(ArrayType(Float,1),m-2), n-2), o-2),
-     ArrayType(ArrayType(ArrayType(Float, m ), n ), o ),
-     ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), m-2), n-2), o-2),
-     ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-     ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,1),m-2), n-2), o-2),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m ), n ), o ),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, 1), m-2), n-2), o-2),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
      (mat1, mat2, mask1, weights, weightsMiddle) => {
        MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
          toGlobal(MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
@@ -281,20 +169,23 @@ class TestAcousticOpt {
 
   }
 
-  @Ignore // correct output sizes, incorrect values!
   @Test
   def test3DConvolutionTile(): Unit = {
 
-    val localDim = 16
-    val dim = localDim + 2
-    val compareData = StencilUtilities.createDataFloat3D(localDim,localDim,localDim)
-    val input3D = StencilUtilities.createDataFloat3DWithPadding(localDim, localDim, localDim)
+
+    val localDimx = 12
+    val localDimy = 12
+    val localDimz = 16
+    val compareData = StencilUtilities.createDataFloat3D(localDimx,localDimy,localDimz)
+    val input3D = StencilUtilities.createDataFloat3DWithPadding(localDimx, localDimy, localDimz)
 
     val M = SizeVar("M")
+    val N = SizeVar("N")
+    val O = SizeVar("O")
 
     val stencil = fun(
-      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
-      ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length*StencilUtilities.weightsMiddle3D(0).length*StencilUtilities.weightsMiddle3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),O),
+      ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length*StencilUtilities.weightsMiddle3D(0).length*StencilUtilities.weightsMiddle3D.length),
       (matrix, weights) => {
         Untile3D() o MapWrg(2)(MapWrg(1)(MapWrg(0)(fun(tile =>
           MapLcl(2)(MapLcl(1)(MapLcl(0)(
@@ -309,15 +200,17 @@ class TestAcousticOpt {
           ))) o Slide3D(3,1) o
             toLocal(MapLcl(2)(MapLcl(1)(MapLcl(0)(id)))) $ tile
         )))) o
-          Slide3D(10,8)  $ matrix
+          Slide3D(8,6,8,6,10,8)  $ matrix
       }
     )
 
-    val (output: Array[Float], runtime) = Execute(8,8,8,64,64,64, (true, true))(stencil, input3D, StencilUtilities.weightsMiddle3D.flatten.flatten)
+    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true, true))(stencil, input3D, StencilUtilities.weightsMiddle3D.flatten.flatten)
 
-      //if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(input3D, output)
-      assertArrayEquals(compareData.flatten.flatten, output, StencilUtilities.stencilDelta)
+    if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(input3D, output)
+    assertArrayEquals(compareData.flatten.flatten, output, StencilUtilities.stencilDelta)
+
   }
+
 
   @Test
   def testSimple3DStencilWithAt(): Unit = {
@@ -349,8 +242,8 @@ class TestAcousticOpt {
     val input3D = StencilUtilities.createFakePaddingFloat3D(input, 0.0f, localDim, localDim)
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(ArrayType(Float, dim), dim), dim),
-      ArrayType(Float, StencilUtilities.slidesize*StencilUtilities.slidesize*StencilUtilities.slidesize),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, dim), dim), dim),
+      ArrayTypeWSWC(Float, StencilUtilities.slidesize*StencilUtilities.slidesize*StencilUtilities.slidesize),
       (mat, weights) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(neighbours => {
 
@@ -375,58 +268,7 @@ class TestAcousticOpt {
   def test3DAsymNoMaskStencilWithAt(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
-    val compareData = Array(
-
-      4.375f, 7.75f, 11.125f, 14.5f, 17.875f, 21.25f, 24.625f, 23.5f,
-      7.75f, 12.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 30.375f,
-      11.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 35.375f, 33.75f,
-      12.0f, 16.875f, 20.25f, 23.625f, 27.0f, 30.375f, 33.75f, 31.125f,
-      7.75f, 12.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 30.375f,
-      12.125f, 17.5f, 21.875f, 26.25f, 30.625f, 35.0f, 39.375f, 38.25f,
-      16.0f, 21.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 42.125f,
-      16.875f, 22.75f, 26.625f, 30.5f, 34.375f, 38.25f, 42.125f, 39.5f,
-      11.125f, 16.0f, 19.875f, 23.75f, 27.625f, 31.5f, 35.375f, 33.75f,
-      16.0f, 21.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 42.125f,
-      19.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 46.0f,
-      20.25f, 26.625f, 30.5f, 34.375f, 38.25f, 42.125f, 46.0f, 42.875f,
-      14.5f, 19.875f, 23.75f, 27.625f, 31.5f, 35.375f, 39.25f, 37.125f,
-      19.875f, 26.25f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 46.0f,
-      23.75f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 49.875f,
-      23.625f, 30.5f, 34.375f, 38.25f, 42.125f, 46.0f, 49.875f, 46.25f,
-      17.875f, 23.75f, 27.625f, 31.5f, 35.375f, 39.25f, 43.125f, 40.5f,
-      23.75f, 30.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 49.875f,
-      27.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 53.75f,
-      27.0f, 34.375f, 38.25f, 42.125f, 46.0f, 49.875f, 53.75f, 49.625f,
-      21.25f, 27.625f, 31.5f, 35.375f, 39.25f, 43.125f, 47.0f, 43.875f,
-      27.625f, 35.0f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 53.75f,
-      31.5f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 57.625f,
-      30.375f, 38.25f, 42.125f, 46.0f, 49.875f, 53.75f, 57.625f, 53.0f,
-      24.625f, 31.5f, 35.375f, 39.25f, 43.125f, 47.0f, 50.875f, 47.25f,
-      31.5f, 39.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 57.625f,
-      35.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 61.5f,
-      33.75f, 42.125f, 46.0f, 49.875f, 53.75f, 57.625f, 61.5f, 56.375f,
-      28.0f, 35.375f, 39.25f, 43.125f, 47.0f, 50.875f, 54.75f, 50.625f,
-      35.375f, 43.75f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 61.5f,
-      39.25f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 65.375f,
-      37.125f, 46.0f, 49.875f, 53.75f, 57.625f, 61.5f, 65.375f, 59.75f,
-      31.375f, 39.25f, 43.125f, 47.0f, 50.875f, 54.75f, 58.625f, 54.0f,
-      39.25f, 48.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 65.375f,
-      43.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 69.25f,
-      40.5f, 49.875f, 53.75f, 57.625f, 61.5f, 65.375f, 69.25f, 63.125f,
-      34.75f, 43.125f, 47.0f, 50.875f, 54.75f, 58.625f, 62.5f, 57.375f,
-      43.125f, 52.5f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 69.25f,
-      47.0f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 78.75f, 73.125f,
-      43.875f, 53.75f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 66.5f,
-      38.125f, 47.0f, 50.875f, 54.75f, 58.625f, 62.5f, 66.375f, 60.75f,
-      47.0f, 56.875f, 61.25f, 65.625f, 70.0f, 74.375f, 78.75f, 73.125f,
-      50.875f, 61.25f, 65.625f, 70.0f, 74.375f, 78.75f, 83.125f, 77.0f,
-      47.25f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 77.0f, 69.875f,
-      35.0f, 43.875f, 47.25f, 50.625f, 54.0f, 57.375f, 60.75f, 54.125f,
-      43.875f, 53.75f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 66.5f,
-      47.25f, 57.625f, 61.5f, 65.375f, 69.25f, 73.125f, 77.0f, 69.875f,
-      42.625f, 53.0f, 56.375f, 59.75f, 63.125f, 66.5f, 69.875f, 61.75f
-
-    )
+    val compareData = AcousticComparisonArrays.testTwoGridsThreeCalculationsAsym3DGeneralNoMaskComparisonData8x4x12
 
     val localDimX = 8
     val localDimY = 4
@@ -445,9 +287,9 @@ class TestAcousticOpt {
     val o = SizeVar("O")
 
     val lambdaNeighAt = fun(
-      ArrayType(ArrayType(ArrayType(Float, m-2), n-2), o-2),
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      ArrayType(Float, StencilUtilities.slidesize*StencilUtilities.slidesize*StencilUtilities.slidesize),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m-2), n-2), o-2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
+      ArrayTypeWSWC(Float, StencilUtilities.slidesize*StencilUtilities.slidesize*StencilUtilities.slidesize),
       (mat1, mat2, weights) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
 
@@ -490,68 +332,7 @@ class TestAcousticOpt {
   def test3DAsymMaskStencilWithAt(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
-    val compareData = Array(
-      16.25f, 28.5f, 40.75f, 43.0f,
-      28.5f, 44.75f, 59.0f, 61.25f,
-      40.75f, 59.0f, 73.25f, 73.5f,
-      53.0f, 73.25f, 87.5f, 85.75f,
-      65.25f, 87.5f, 101.75f, 98.0f,
-      63.5f, 85.75f, 98.0f, 90.25f,
-      28.5f, 44.75f, 59.0f, 61.25f,
-      44.75f, 17.5f, 21.875f, 83.5f,
-      59.0f, 21.875f, 26.25f, 97.75f,
-      73.25f, 26.25f, 30.625f, 112.0f,
-      87.5f, 30.625f, 35.0f, 126.25f,
-      85.75f, 112.0f, 126.25f, 118.5f,
-      40.75f, 59.0f, 73.25f, 73.5f,
-      59.0f, 21.875f, 26.25f, 97.75f,
-      73.25f, 26.25f, 30.625f, 112.0f,
-      87.5f, 30.625f, 35.0f, 126.25f,
-      101.75f, 35.0f, 39.375f, 140.5f,
-      98.0f, 126.25f, 140.5f, 130.75f,
-      53.0f, 73.25f, 87.5f, 85.75f,
-      73.25f, 26.25f, 30.625f, 112.0f,
-      87.5f, 30.625f, 35.0f, 126.25f,
-      101.75f, 35.0f, 39.375f, 140.5f,
-      116.0f, 39.375f, 43.75f, 154.75f,
-      110.25f, 140.5f, 154.75f, 143.0f,
-      65.25f, 87.5f, 101.75f, 98.0f,
-      87.5f, 30.625f, 35.0f, 126.25f,
-      101.75f, 35.0f, 39.375f, 140.5f,
-      116.0f, 39.375f, 43.75f, 154.75f,
-      130.25f, 43.75f, 48.125f, 169.0f,
-      122.5f, 154.75f, 169.0f, 155.25f,
-      77.5f, 101.75f, 116.0f, 110.25f,
-      101.75f, 35.0f, 39.375f, 140.5f,
-      116.0f, 39.375f, 43.75f, 154.75f,
-      130.25f, 43.75f, 48.125f, 169.0f,
-      144.5f, 48.125f, 52.5f, 183.25f,
-      134.75f, 169.0f, 183.25f, 167.5f,
-      89.75f, 116.0f, 130.25f, 122.5f,
-      116.0f, 39.375f, 43.75f, 154.75f,
-      130.25f, 43.75f, 48.125f, 169.0f,
-      144.5f, 48.125f, 52.5f, 183.25f,
-      158.75f, 52.5f, 56.875f, 197.5f,
-      147.0f, 183.25f, 197.5f, 179.75f,
-      102.0f, 130.25f, 144.5f, 134.75f,
-      130.25f, 43.75f, 48.125f, 169.0f,
-      144.5f, 48.125f, 52.5f, 183.25f,
-      158.75f, 52.5f, 56.875f, 197.5f,
-      173.0f, 56.875f, 61.25f, 211.75f,
-      159.25f, 197.5f, 211.75f, 192.0f,
-      114.25f, 144.5f, 158.75f, 147.0f,
-      144.5f, 48.125f, 52.5f, 183.25f,
-      158.75f, 52.5f, 56.875f, 197.5f,
-      173.0f, 56.875f, 61.25f, 211.75f,
-      187.25f, 61.25f, 65.625f, 226.0f,
-      171.5f, 211.75f, 226.0f, 204.25f,
-      104.5f, 134.75f, 147.0f, 131.25f,
-      134.75f, 169.0f, 183.25f, 167.5f,
-      147.0f, 183.25f, 197.5f, 179.75f,
-      159.25f, 197.5f, 211.75f, 192.0f,
-      171.5f, 211.75f, 226.0f, 204.25f,
-      151.75f, 192.0f, 204.25f, 178.5f
-    )
+    val compareData = AcousticComparisonArrays.testTwoGridsThreeCalculationsWithMaskAsym3DGeneralComparisonData4x6x10
     val localDimX = 4
     val localDimY = 6
     val localDimZ = 10
@@ -570,11 +351,11 @@ class TestAcousticOpt {
     val o = SizeVar("O")
 
     val lambdaNeigh = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float,1),m-2), n-2), o-2),
-      ArrayType(ArrayType(ArrayType(Float, m ), n ), o ),
-      ArrayType(ArrayType(ArrayType(ArrayType(Int, 1), m-2), n-2), o-2),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
-      ArrayType(ArrayType(ArrayType(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,1),m-2), n-2), o-2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m ), n ), o ),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, 1), m-2), n-2), o-2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       (mat1, mat2, mask1, weights, weightsMiddle) => {
         MapGlb(0)(MapGlb(1)(MapGlb(2)((fun((m) =>
           toGlobal(MapSeq(multTuple)) $ Zip(MapSeq(addTuple) $ Zip(MapSeq(addTuple) $ Zip((MapSeq(multTuple)) $ Zip(
@@ -600,9 +381,9 @@ class TestAcousticOpt {
     def addP = toPrivate(add)
 
     val lambdaNeighAt = fun(
-      ArrayType(ArrayType(ArrayType(Float, m-2), n-2), o-2),
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      ArrayType(ArrayType(ArrayType(Int, m-2), n-2), o-2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m-2), n-2), o-2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, m-2), n-2), o-2),
       (mat1, mat2,mask) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
 
@@ -648,6 +429,65 @@ class TestAcousticOpt {
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
   }
+
+  @Ignore
+  @Test
+  def simpleMapTransposeTest(): Unit =
+  {
+    val dim = 4
+    val dimX = dim
+    val dimY = dim
+    val data = Array.tabulate(dimX,dimY){(i,j) => (i+j+1).toFloat}
+
+    val stencil = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, dim), dim),
+      (matrix) => {
+        MapWrg(2)(MapWrg(1)(MapWrg(0)(
+          toGlobal(MapSeq(id))
+        ))) o Map(Transpose()) o Slide(3,1) o Map(Slide(3,1)) $ matrix
+      }
+    )
+
+    val (output: Array[Float], runtime) = Execute(4,4,4,4,4,4, (true, true))(stencil, data)
+    StencilUtilities.print2DArray(data)
+    StencilUtilities.print1DArray(output)
+    StencilUtilities.print1DArrayAs3DArray(output,3,3,4)
+
+  }
+
+
+  @Test
+  def testNumNeighboursUserFun(): Unit = {
+
+    val localDimX = 6
+    val localDimY = 8
+    val localDimZ = 4
+
+    val input3D =  Array.fill(localDimZ,localDimY,localDimX)(1)
+
+    val mask3DBP = BoundaryUtilities.createMaskDataWithNumBoundaryPts(localDimX+2, localDimY+2, localDimZ+2)
+
+    val idxF = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ " +
+       "int count = 6; if(i == (m-1) || i == 0){ count--; } if(j == (n-1) || j == 0){ count--; } if(k == (o-1) || k == 0){ count--; }return count; }", Seq(Int,Int,Int,Int,Int,Int), Int)
+
+    val inp3d = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, SizeVar("O")), SizeVar("N")), SizeVar("M"))
+
+    val numberOfNeighbours = fun(inp3d,
+      input => toGlobal(MapGlb(MapSeq(MapSeq(idI)))) $ Array3DFromUserFunGenerator(idxF, inp3d)
+    )
+
+    val (output: Array[Int], _) = Execute(2,2,2,2,2,2,(true,true))(numberOfNeighbours, input3D)
+
+    if(StencilUtilities.printOutput)
+    {
+      StencilUtilities.print3DArray(mask3DBP)
+      StencilUtilities.print3DArray(input3D)
+      StencilUtilities.print1DArrayAs3DArray(output, localDimX, localDimY, localDimZ)
+    }
+    assertArrayEquals(mask3DBP.flatten.flatten, output)
+
+  }
+
 }
 
 

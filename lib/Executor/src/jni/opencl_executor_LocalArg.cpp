@@ -6,7 +6,7 @@
 #include "Executor.h"
 #include "LocalArg.h"
 
-jobject Java_opencl_executor_LocalArg_create(JNIEnv* env, jclass cls, jint size)
+jobject Java_opencl_executor_LocalArg_create(JNIEnv* env, jclass cls, jlong size)
 {
   auto ptr = executor::LocalArg::create(size);
   auto methodID = env->GetMethodID(cls, "<init>", "(J)V"); 

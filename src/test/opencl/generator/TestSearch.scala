@@ -1,13 +1,13 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
-import opencl.ir.pattern._
 
 object TestSearch {
   @BeforeClass def TestSearch(): Unit = {
@@ -33,7 +33,7 @@ class TestSearch {
      val plusOne = UserFun("plus_one", "elem", "return (elem+1);", Int, Int)
      val N = SizeVar("N")
      val searchKernel = fun(
-       ArrayType(Int, N),
+       ArrayTypeWSWC(Int, N),
        (array) => {
         Join() o MapSeq(MapSeq(toGlobal(idI)) o MapSeq(toLocal(plusOne))) o Split(8) $ array
        }
@@ -53,8 +53,8 @@ class TestSearch {
      val compare = UserFun("comp", Array("elem", "index"), "return (index-elem);", Array(Int, Int), Int)
      val N = SizeVar("N")
      val searchKernel = fun(
-       ArrayType(Int, N),
-       ArrayType(Int, 1),
+       ArrayTypeWSWC(Int, N),
+       ArrayTypeWSWC(Int, 1),
        (array, ixarr) => {
          MapSeq(toGlobal(i_id)) o Join() o MapSeq(
            toGlobal(fun((ix) =>
@@ -81,8 +81,8 @@ class TestSearch {
      val compare = UserFun("comp", Array("elem", "index"), "return (index-elem);", Array(Int, Int), Int)
      val N = SizeVar("N")
      val searchKernel = fun(
-       ArrayType(Int, N),
-       ArrayType(Int, 1),
+       ArrayTypeWSWC(Int, N),
+       ArrayTypeWSWC(Int, 1),
        (array, ixarr) => {
          MapSeq(toGlobal(i_id)) o Join() o MapSeq(
            toGlobal(fun((ix) =>
@@ -111,8 +111,8 @@ class TestSearch {
 //    val addI = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int)
     val N = SizeVar("N")
     val searchKernel = fun(
-      ArrayType(Int, N),
-      ArrayType(Int, 1),
+      ArrayTypeWSWC(Int, N),
+      ArrayTypeWSWC(Int, 1),
       (array, ixarr) => {
         MapSeq(fun((ix) => 
           toGlobal(MapSeq(idI)) o BSearch(fun((elem) => compare.apply(elem, ix)), 0) o Join() o MapSeq(
@@ -146,8 +146,8 @@ class TestSearch {
     val compare = UserFun("comp", Array("s", "i"), "return (i-s);", Array(Int, Int), Int)
     val N = SizeVar("N")
     val searchKernel = fun(
-      ArrayType(Int, N), //indicies
-      ArrayType(ArrayType(Int, N), N), //search arrays
+      ArrayTypeWSWC(Int, N), //indicies
+      ArrayTypeWSWC(ArrayTypeWSWC(Int, N), N), //search arrays
       (ixs, arrs) => {
         MapSeq(
           fun((arr_i_p_group) =>
@@ -178,8 +178,8 @@ class TestSearch {
     val compare = UserFun("comp", Array("s", "i"), "return (i-s);", Array(Int, Int), Int)
     val N = SizeVar("N")
     val searchKernel = fun(
-      ArrayType(Int, N), //indicies
-      ArrayType(ArrayType(Int, N), N), //search arrays
+      ArrayTypeWSWC(Int, N), //indicies
+      ArrayTypeWSWC(ArrayTypeWSWC(Int, N), N), //search arrays
       (ixs, arrs) => {
           MapGlb(fun((i_arr_p) =>
             MapSeq(toGlobal(i_id)) o LSearch(fun((elem) => compare.apply(elem, Get(i_arr_p, 0))), 0) $ Get(i_arr_p, 1)
@@ -233,8 +233,8 @@ class TestSearch {
 
     val N = SizeVar("N")
     val searchKernel = fun(
-      ArrayType(TupleType(Int, Int), N),
-      ArrayType(TupleType(Int, Int), 1),
+      ArrayTypeWSWC(TupleType(Int, Int), N),
+      ArrayTypeWSWC(TupleType(Int, Int), 1),
       (array, ixarr) => {
         MapSeq(toGlobal(t_id)) o Join() o MapSeq(
            fun((ix) =>
@@ -289,8 +289,8 @@ class TestSearch {
 
     val N = SizeVar("N")
     val searchKernel = fun(
-      ArrayType(TupleType(Int, Int), N),
-      ArrayType(TupleType(Int, Int), 1),
+      ArrayTypeWSWC(TupleType(Int, Int), N),
+      ArrayTypeWSWC(TupleType(Int, Int), 1),
       (array, ixarr) => {
         MapSeq(toGlobal(t_id)) o Join() o MapSeq(
            fun((ix) =>

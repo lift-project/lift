@@ -2,9 +2,9 @@ val N = SizeVar("N")
 val M = SizeVar("M")
 
 fun(
-  ArrayType(ArrayType(Float, M), N),
-  ArrayType(Float, M),
-  ArrayType(Float, N),
+  ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+  ArrayTypeWSWC(Float, M),
+  ArrayTypeWSWC(Float, N),
   Float,
   Float,
   (matrix, vectorX, vectorY, alpha, beta) => {
