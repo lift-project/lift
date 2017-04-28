@@ -230,9 +230,8 @@ abstract sealed class View(val t: Type = UndefType) {
   }
   
   /**
-   * Construct a view for getting the size of an array. Depending on the fact
-   * that it is statically known or not, it will be a constant or an array
-   * access
+   * Construct a view for getting the size of an array assuming that it is not
+   * statically known
    */
   def size(): View = {
     this match {
@@ -240,16 +239,15 @@ abstract sealed class View(val t: Type = UndefType) {
         case t: ViewTuple => t.ivs.head.size()
         case _ => throw new IllegalView(z)
       }
-      case _ if this.t.isInstanceOf[ArrayType] =>
-        this.t match {
-          case ArrayTypeWS(_, size) =>
-            // The size is statically known
-            ViewConstant(Value(size.toString, opencl.ir.Int), opencl.ir.Int)
-          case _ =>
-            // The size is fetched from the header of the array
-            ViewSize(this)
-        }
-      case _ => throw new IllegalAccess(this.t)
+      case _ => this.t match {
+        case at: ArrayType =>
+          // Sanity check: if the size is statically known, we must not reach
+          // this point
+          assert(at.getSize.isEmpty)
+          ViewSize(this)
+        case ty =>
+          throw new IllegalAccess(ty)
+      }
     }
   }
 }
