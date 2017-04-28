@@ -116,6 +116,7 @@ object Execute {
     }).flatten[ArithExpr]
 
     (sizeExprs zip sizes).flatMap{
+      case (?, _) => Seq() // TODO: think bout this
       case (Cst(_), _) => Seq() // ignore
       case pair => Seq((pair._1.varList.head, SolveForVariable(pair._1, pair._2)))
     }.toMap[ArithExpr, ArithExpr]
@@ -512,16 +513,18 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     OpenCLGenerator.getMemories(f)._2.map(mem => {
       // get the OpenCL memory object ...
       val m = mem.mem
+      val size = ArithExpr.substitute(m.size, valueMap).eval
       // ... look for it in the parameter list ...
       val i = f.params.indexWhere(m == _.mem)
       // ... if found create an OpenCL kernel argument from the matching runtime value ...
-      if (i != -1) arg(values(i))
+      if (i != -1) arg(values(i), mem.t, size)
       // ... if not found but it is the output set this ...
       else if (m == f.body.mem) outputData
       // ... else create a fresh local or global object argument
       else m.addressSpace match {
-        case LocalMemory => local(ArithExpr.substitute(m.size, valueMap).eval)
-        case GlobalMemory => global(ArithExpr.substitute(m.size, valueMap).eval)
+        case LocalMemory => local(size)
+        case GlobalMemory => global(size)
+        case s => throw new IllegalArgumentException(s"Invalid address space $s")
       }
     })
   }
@@ -572,7 +575,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         //noinspection SideEffectsInMonadicTransformation
         if (Verbose())
           println(s)
-        Option(arg(s))
+        Option(arg(s, Int, 4))
       }
       // ... else return nothing
       else Option.empty
@@ -582,41 +585,107 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   /**
    * Factory functions for creating OpenCL kernel arguments
    */
-
   object arg {
-    def apply(any: Any) = {
-      any match {
-        case f: Float => value(f)
-        case af: Array[Float] => global.input(af)
-        case aaf: Array[Array[Float]] => global.input(aaf.flatten)
-        case aaaf: Array[Array[Array[Float]]] => global.input(aaaf.flatten.flatten)
-        case aaaaf: Array[Array[Array[Array[Float]]]] => global.input(aaaaf.flatten.flatten.flatten)
-        case aaaaaf: Array[Array[Array[Array[Array[Float]]]]] => global.input(aaaaaf.flatten.flatten.flatten.flatten)
-
-        case i: Int => value(i)
-        case ai: Array[Int] => global.input(ai)
-        case aai: Array[Array[Int]] => global.input(aai.flatten)
-        case aaai: Array[Array[Array[Int]]] => global.input(aaai.flatten.flatten)
-        case aaaai: Array[Array[Array[Array[Int]]]] => global.input(aaaai.flatten.flatten.flatten)
-        case aaaaai: Array[Array[Array[Array[Array[Int]]]]] => global.input(aaaaai.flatten.flatten.flatten.flatten)
-
-        case d: Double => value(d)
-        case ad: Array[Double] => global.input(ad)
-        case aad: Array[Array[Double]] => global.input(aad.flatten)
-        case aaad: Array[Array[Array[Double]]] => global.input(aaad.flatten.flatten)
-        case aaaad: Array[Array[Array[Array[Double]]]] => global.input(aaaad.flatten.flatten.flatten)
-        case aaaaad: Array[Array[Array[Array[Array[Double]]]]] => global.input(aaaaad.flatten.flatten.flatten.flatten)
-
-        case d: Boolean => value(d)
-        case ad: Array[Boolean] => global.input(ad)
-        case aad: Array[Array[Boolean]] => global.input(aad.flatten)
-        case aaad: Array[Array[Array[Boolean]]] => global.input(aaad.flatten.flatten)
-        case aaaad: Array[Array[Array[Array[Boolean]]]] => global.input(aaaad.flatten.flatten.flatten)
-        case aaaaad: Array[Array[Array[Array[Array[Boolean]]]]] => global.input(aaaaad.flatten.flatten.flatten.flatten)
-
-        case _ => throw new IllegalArgumentException(
-          s"Kernel argument is of unsupported type: ${any.getClass}")
+    /** Raise this exception if something cannot be encoded */
+    private class EncodeError(ty: Type)
+      extends IllegalArgumentException(s"Cannot encode type $ty")
+  
+    /**
+     * Factory for marshalling a scala value
+     *
+     * @param cast function used to convert the eventual headers and offsets
+     *             of an array into the type of the elements of the array.
+     *             TODO: think about this limitation, the headers should remain integers
+     * @tparam T the underlying scalar type of the array we are encoding
+     *           (e.g. for a 3D array of floats, this is `Float`)
+     */
+    private class Encoder[T: ClassTag](cast: Int => T) {
+      /** Se issue #107 */
+      private def putHeader(buffer: Array[T], pos: Int,
+                            array: Array[_], at: ArrayType): Int = {
+        val hSize = at.getHeaderSize
+        val len = cast(array.length)
+        for (i <- pos until pos + hSize) buffer(i) = len
+        pos + hSize
       }
+  
+      /**
+       * Turn a scala array of arbitrary dimension into a flat representation
+       * with all the necessary headers and offsets and write it to `buffer`
+       *
+       * @param buffer where to write the encoded array
+       * @param pos at what position in `buffer` to write the encoded array
+       * @param array the array to encode
+       * @param at the Lift type of the array
+       */
+      private def encode(buffer: Array[T], pos: Int,
+                         array: Array[_], at: ArrayType): Int = {
+        val newPos = putHeader(buffer, pos, array, at)
+        at.elemT match {
+          case _: VectorType | _: ScalarType | _: TupleType =>
+            array.asInstanceOf[Array[T]].copyToArray(buffer, newPos)
+            newPos + array.length
+          case elemT: ArrayType =>
+            val v = array.asInstanceOf[Array[Array[_]]]
+            if (elemT.hasFixedAllocatedSize)
+              v.foldLeft(newPos)(encode(buffer, _, _, elemT))
+            else {
+              var ofsIdx = newPos
+              v.foldLeft(newPos + array.length)((p, arr) => {
+                val pAfter = encode(buffer, p, arr, elemT)
+                buffer(ofsIdx) = cast(pAfter - newPos) // store the offset
+                ofsIdx = ofsIdx + 1
+                pAfter
+              })
+            }
+          case ty => throw new EncodeError(ty)
+        }
+      }
+      
+      /** Public wrapper for the encode method above */
+      def encode(array: Array[_], at: ArrayType, size: Int): Array[T] = {
+        val buffer = Array.fill(size)(cast(0))
+        encode(buffer, 0, array, at)
+        buffer
+      }
+    }
+    
+    @scala.annotation.tailrec
+    private def flatTupleBaseType(ty: Type): ScalarType = {
+      Type.getBaseType(ty) match {
+        case tt: TupleType if tt.elemsT.distinct.length == 1 =>
+          flatTupleBaseType(tt.elemsT.head)
+        case st: ScalarType => st
+        case _ => throw new EncodeError(ty)
+      }
+    }
+    
+    def apply(any: Any, ty: Type, size: Int): KernelArg = ty match {
+      case Int    => value(any.asInstanceOf[Int])
+      case Float  => value(any.asInstanceOf[Float])
+      case Double => value(any.asInstanceOf[Double])
+      case Bool   => value(any.asInstanceOf[Boolean])
+      case at: ArrayType =>
+        val array = any.asInstanceOf[Array[_]]
+        flatTupleBaseType(at) match {
+          case Int =>
+            val encoder = new Encoder[Int](n => n)
+            val raw = encoder.encode(array, at, size/4)
+            global.input(raw)
+          case Float =>
+            val encoder = new Encoder[Float](_.toFloat)
+            val raw = encoder.encode(array, at, size/4)
+            global.input(raw)
+          case Double =>
+            val encoder = new Encoder[Double](_.toDouble)
+            val raw = encoder.encode(array, at, size/4)
+            global.input(raw)
+          case Bool =>
+            val encoder = new Encoder[Boolean](_ != 0) // This is very bad
+            val raw = encoder.encode(array, at, size)
+            global.input(raw)
+        }
+      case _ => throw new EncodeError(ty)
     }
   }
 
@@ -624,26 +693,23 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    * Create global argument allocated with the given size in bytes
    */
   object global {
-    def apply(sizeInBytes: Long) = GlobalArg.createOutput(sizeInBytes)
+    def apply(sizeInBytes: Long): GlobalArg = GlobalArg.createOutput(sizeInBytes)
 
     /**
      * Create global input arguments from an array
      */
     object input {
-      def apply(array: Array[Float]) = GlobalArg.createInput(array)
-
-      def apply(array: Array[Int]) = GlobalArg.createInput(array)
-
-      def apply(array: Array[Double]) = GlobalArg.createInput(array)
-
-      def apply(array: Array[Boolean]) = GlobalArg.createInput(array)
+      def apply(array: Array[Float]): GlobalArg   = GlobalArg.createInput(array)
+      def apply(array: Array[Int]): GlobalArg     = GlobalArg.createInput(array)
+      def apply(array: Array[Double]): GlobalArg  = GlobalArg.createInput(array)
+      def apply(array: Array[Boolean]): GlobalArg = GlobalArg.createInput(array)
     }
 
     /**
      * Create output argument given a Type and the number of elements
      */
     object output {
-      def apply[T: ClassTag](length: Int) = {
+      def apply[T: ClassTag](length: Int): GlobalArg = {
         implicitly[ClassTag[T]] match {
           case ClassTag.Float => GlobalArg.createOutput(length * 4) // in bytes
           case ClassTag.Int => GlobalArg.createOutput(length * 4) // in bytes
@@ -658,20 +724,16 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    * Create local argument allocated with the given size in bytes
    */
   object local {
-    def apply(sizeInBytes: Long) = LocalArg.create(sizeInBytes)
+    def apply(sizeInBytes: Long): LocalArg = LocalArg.create(sizeInBytes)
   }
 
   /**
    * Create a kernel argument passed by value
    */
   object value {
-    def apply(value: Float) = ValueArg.create(value)
-
-    def apply(value: Int) = ValueArg.create(value)
-
-    def apply(value: Double) = ValueArg.create(value)
-
-    def apply(value: Boolean) = ValueArg.create(value)
+    def apply(value: Float): ValueArg   = ValueArg.create(value)
+    def apply(value: Int): ValueArg     = ValueArg.create(value)
+    def apply(value: Double): ValueArg  = ValueArg.create(value)
+    def apply(value: Boolean): ValueArg = ValueArg.create(value)
   }
-
 }
