@@ -462,15 +462,23 @@ object View {
     OutputView(expr)
   }
 
-  private[view] def getFullType(outputType: Type, outputAccessInf: List[(ArithExpr, ArithExpr)]): Type = {
-    outputAccessInf.foldLeft(outputType)((t, len) => ArrayTypeWSWC(t, len._1))
+  private[view] def getFullType(outputType: Type, outputAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)]): Type = {
+    // FIXME
+    outputAccessInf.foldLeft(outputType)((t, len) => {
+      val (capacity, size, _) = len
+      if (capacity == ?) {
+        if (size == ?) ArrayType(t) else ArrayTypeWS(t, size)
+      } else {
+        if (size == ?) ArrayTypeWC(t, capacity) else ArrayTypeWSWC(t, size, capacity)
+      }
+    })
   }
 
-  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(ArithExpr, ArithExpr)], name: String = ""): View = {
+  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)], name: String = ""): View = {
     // Use the lengths and iteration vars to mimic inputs
     val outArray = getFullType(t, outputAccessInf)
     val outView = View(outArray, name)
-    outputAccessInf.foldRight(outView)((idx, view) => view.access(idx._2))
+    outputAccessInf.foldRight(outView)((idx, view) => view.access(idx._3))
   }
 
 }
