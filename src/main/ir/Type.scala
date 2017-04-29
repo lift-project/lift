@@ -178,7 +178,23 @@ case class ArrayType(elemT: Type) extends Type {
       (this match {case s:Size => s.size.hashCode case _ => 0 }) +
       (this match {case c:Capacity => c.capacity.hashCode case _ => 0 })
   }
-
+  
+  /**
+    * Build a new ArrayType with the same characteristics (size & capacity) but
+    * a new inner type.
+    *
+    * @param ty the new inner type of the resulting array
+    */
+  def sameKind(ty: Type): ArrayType = this match {
+    case c: Capacity => this match {
+      case s: Size => ArrayTypeWSWC(ty, s.size, c.capacity)
+      case _ => ArrayTypeWC(ty, c.capacity)
+    }
+    case _ => this match {
+      case s: Size => ArrayTypeWS(ty, s.size)
+      case _ => ArrayType(ty)
+    }
+  }
 }
 
 

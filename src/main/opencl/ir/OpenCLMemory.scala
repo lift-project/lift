@@ -292,20 +292,24 @@ object TypedOpenCLMemory {
                 tm
               case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
 
-                var privateMultiplier = m.iterationCount
-                privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
-
-                TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t,privateMultiplier))
+                val privateMultiplier = if (m.iterationCount == ?) Cst(1)
+                                        else m.iterationCount
+                
+                // TODO: I'm not sure this is what we want?
+                // TODO: @Toomas: why m.iterationCount?
+                TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, privateMultiplier))
             }
           case LocalMemory =>
             m match {
               case _: MapGlb | _: MapWrg  | _: Map =>
                 tm
               case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
-                TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
+                val newType = t.asInstanceOf[ArrayType].sameKind(tm.t)
+                TypedOpenCLMemory(tm.mem, newType)
             }
           case GlobalMemory =>
-            TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
+            val newType = t.asInstanceOf[ArrayType].sameKind(tm.t)
+            TypedOpenCLMemory(tm.mem, newType)
 
           case coll: AddressSpaceCollection =>
             changeType(coll.findCommonAddressSpace(), tm)
