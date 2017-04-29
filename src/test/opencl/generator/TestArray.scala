@@ -2,12 +2,25 @@ package opencl.generator
 
 import ir.{ArrayType, ArrayTypeWC, ArrayTypeWSWC, TypeChecker}
 import ir.ast.fun
-import opencl.executor.Compile
+import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
-import org.junit.Test
-import org.junit.Assert.assertEquals
+import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Assert.{assertArrayEquals, assertEquals}
 
+
+object TestArray {
+  @BeforeClass def before(): Unit = {
+    Executor.loadLibrary()
+    println("Initialize the executor")
+    Executor.init()
+  }
+  
+  @AfterClass def after(): Unit = {
+    println("Shutdown the executor")
+    Executor.shutdown()
+  }
+}
 
 class TestArray {
   /**
@@ -16,8 +29,11 @@ class TestArray {
     * Layout: [size, elt_0, elt_1, …, elt_{κ-1}]
     */
   @Test def unknownSizeReduce(): Unit = {
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextInt(16))
+    
     val f = fun(
-      ArrayTypeWC(Int, 1024),
+      ArrayTypeWC(Int, size),
       in =>
         MapGlb(toGlobal(id(Int))) o ReduceSeq(addI, 0) $ in
     )
@@ -25,7 +41,8 @@ class TestArray {
     val t = TypeChecker(f)
     assertEquals(t, ArrayTypeWSWC(Int, 1, 1))
 
-    Compile(f)
+    val (output: Array[Int], _) = Execute(128)(f, input)
+    assertEquals(input.sum, output.head)
   }
   
   /**
@@ -77,10 +94,23 @@ class TestArray {
   }
   
   /**
-    * Nested arrays.
-    * TODO: shape
+    * Nested arrays with no size
     */
-  @Test def nestedArrays(): Unit = {
+  @Test def nestedArraysNoSize(): Unit = {
+    val size = 128
+    val f = fun(
+      ArrayTypeWC(ArrayTypeWC(Float, size), size),
+      MapGlb(MapSeq(id)) $ _
+    )
+    
+    assertEquals(TypeChecker(f), ArrayTypeWC(ArrayTypeWC(Float, size), size))
+    Compile(f)
+  }
+  
+  /**
+    * Nested arrays.
+    */
+  @Test def nestedArraysZeroKnowledge(): Unit = {
     val f = fun(
       ArrayType(ArrayType(Int)),
       in =>
