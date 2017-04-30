@@ -787,8 +787,11 @@ object ViewPrinter {
           tt.proj(tupleAccessStack.head),
           tupleAccessStack.tail
         )
-      case ArrayTypeWC(elemT, n) =>
-        getLengthForArrayAccess(acc * n, elemT, tupleAccessStack)
+      case at @ ArrayTypeWC(elemT, n) =>
+        getLengthForArrayAccess(
+          acc * (n + at.getHeaderSize), // Do not forget the header!
+          elemT, tupleAccessStack
+        )
       case ArrayType(elemT) =>
         // We must know all the allocated sizes in this function
         assert(elemT.hasFixedAllocatedSize)
