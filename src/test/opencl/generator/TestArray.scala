@@ -50,6 +50,9 @@ class TestArray {
     * and not a constant.
     */
   @Test def unknownSizeMap(): Unit = {
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextInt())
+    
     val f = fun(
       ArrayTypeWC(Int, 1024),
       in =>
@@ -58,7 +61,10 @@ class TestArray {
     
     assertEquals(TypeChecker(f), ArrayTypeWC(Int, 1024))
     
-    Compile(f)
+    val (outputRaw: Array[Int], _) = Execute(128)(f, input)
+    val output = outputRaw.slice(1, size + 1) // Remove header
+    
+    assertArrayEquals(input, output)
   }
   
   /**
@@ -98,13 +104,21 @@ class TestArray {
     */
   @Test def nestedArraysNoSize(): Unit = {
     val size = 128
+    val input = Array.fill(size, size)(util.Random.nextInt())
     val f = fun(
-      ArrayTypeWC(ArrayTypeWC(Float, size), size),
-      MapGlb(MapSeq(id)) $ _
+      ArrayTypeWC(ArrayTypeWC(Int, size), size),
+      MapGlb(MapSeq(idI)) $ _
     )
     
-    assertEquals(TypeChecker(f), ArrayTypeWC(ArrayTypeWC(Float, size), size))
-    Compile(f)
+    assertEquals(TypeChecker(f), ArrayTypeWC(ArrayTypeWC(Int, size), size))
+    
+    val (outputRaw: Array[Int], _) = Execute(size)(f, input)
+    val output = outputRaw
+      .slice(1, outputRaw.length)         // Remove main header
+      .grouped(129).map(_.slice(1, 129))  // Remove sub-arrays' headers
+      .toArray
+    
+    assertArrayEquals(input.flatten, output.flatten)
   }
   
   /**
