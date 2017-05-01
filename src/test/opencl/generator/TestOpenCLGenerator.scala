@@ -4,6 +4,7 @@ import ir._
 import ir.ast.{\, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor.Compile
+import opencl.generator.OpenCLAST.{ArithExpression, StructConstructor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapLcl, MapSeq, MapWrg}
 import org.junit.Assert._
@@ -107,5 +108,19 @@ class TestOpenCLGenerator {
 
     assertFalse(code.contains("attribute"))
   }
-
+  
+  /**
+   * The printer used to omit the comma in some situations.
+   * see commit: 649c3b88a
+   */
+  @Test
+  def structConstructor(): Unit = {
+    val n = ArithExpression(42)
+    val ty = TupleType(Int, Int)
+    val node = StructConstructor(ty, Vector(n, n))
+    val code = OpenCLPrinter().apply(node)
+    
+    // Before 649c3b88a1f26133: "(Tuple2_int_int){4242}"
+    assertEquals(s"(${Type.name(ty)}){42, 42}", code)
+  }
 }
