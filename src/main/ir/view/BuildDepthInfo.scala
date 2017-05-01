@@ -91,6 +91,7 @@ private class BuildDepthInfo() {
       case m: AbstractMap => buildDepthInfoMapCall(m, call, argInf)
       case f: FilterSeq => buildDepthInfoFilterCall(f, call, argInf)
       case r: AbstractPartRed => buildDepthInfoReduceCall(r, call, argInf)
+      case sp: SlideSeqPlus => buildDepthInfoSlideSeqPlusCall(sp, call, argInf)
       case _ =>
 
         val (readsLocal, readsPrivate) = readsLocalPrivate(call)
@@ -174,6 +175,21 @@ private class BuildDepthInfo() {
     buildDepthInfoReducePatternCall(r.f.body, call, Cst(0), r.loopVar, readsLocal, readsPrivate, l)
 
     AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
+  }
+
+  private def buildDepthInfoSlideSeqPlusCall(sp: SlideSeqPlus, call: FunCall,
+                                             l: AccessInfo): AccessInfo = {
+
+    val (readsLocal, readsPrivate) = readsLocalPrivate(call)
+
+    sp.f.params.head.accessInf =
+      l((Type.getLength(call.args.head.t), sp.loopVar), readsPrivate, readsLocal || seenMapLcl)
+    buildDepthInfoPatternCall(sp.f.body, call, sp.loopVar, readsLocal, readsPrivate)
+
+    if (sp.f.body.isConcrete) // create fresh input view for following function
+      AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
+    else // call.isAbstract, return input
+      l
   }
 
   private def buildDepthInfoReducePatternCall(expr: Expr, call: FunCall, index: ArithExpr,

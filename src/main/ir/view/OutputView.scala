@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{FilterSeq, ReduceWhileSeq}
+import opencl.ir.pattern.{ReduceWhileSeq, SlideSeqPlus, FilterSeq}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
@@ -42,6 +42,7 @@ object OutputView {
       case m: AbstractMap => buildViewMap(m, call, writeView)
       case f: FilterSeq => buildViewFilter(f,  call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
+      case sp: SlideSeqPlus => buildViewSlideSeqPlus(sp, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
@@ -225,6 +226,13 @@ object OutputView {
 
     ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }
+
+  private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
+                                    call: FunCall, writeView: View): View = {
+    visitAndBuildViews(sp.f.body, writeView.access(sp.loopVar))
+    ViewMap(sp.f.params.head.outputView, sp.loopVar, call.args.head.t)
+  }
+
 
   private def buildViewSearch(s: AbstractSearch,
                               call:FunCall, writeView:View) :View = {

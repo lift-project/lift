@@ -124,6 +124,7 @@ sealed trait Capacity {
  * (e.g., [int],,1024,, , [ [float],,4,, ],,N,,)
  *
  * @param elemT The element type of the array
+ * @param len The length of the array
  */
 case class ArrayType(elemT: Type) extends Type {
 
@@ -183,11 +184,15 @@ object ArrayType {
       println(s"Warning: $s must be provably positive! (len=$ae)")
 
     if (ae.isEvaluable) {
-      val length = ae.evalDbl
+      val length = ae.evalDouble
 
       if (!length.isValidInt || length < 1)
         throw TypeException(length + " is not a valid "+s+" for an array!")
     }
+  }
+
+  def apply(elemT: Type, sizeAndCapacity: ArithExpr) : ArrayType with Size with Capacity = {
+    ArrayTypeWSWC(elemT, sizeAndCapacity)
   }
 
 }

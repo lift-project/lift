@@ -99,7 +99,6 @@ class ControlFlow(
 
           case reduceSeq: ReduceSeq =>
             val n = Type.getLength(args(1).t)
-
             count(reduceSeq.f, reduceSeq.loopVar, n, reduceSeq.shouldUnroll)
 
           case iterate@Iterate(n, nestedLambda) =>

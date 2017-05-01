@@ -1,6 +1,5 @@
 package opencl.generator.stencil.acoustic
-
-import java.io.{DataOutputStream, FileOutputStream}
+import java.io._
 
 import ir.ArrayTypeWSWC
 import ir.ast._

@@ -59,7 +59,7 @@ jobject Java_opencl_executor_GlobalArg_createInput___3Z(JNIEnv* env, jclass cls,
 }
 
 jobject Java_opencl_executor_GlobalArg_createOutput(JNIEnv* env, jclass cls,
-                                                    jint size)
+                                                    jlong size)
 {
   auto ptr = executor::GlobalArg::create(size, true);
   auto methodID = env->GetMethodID(cls, "<init>", "(J)V"); 

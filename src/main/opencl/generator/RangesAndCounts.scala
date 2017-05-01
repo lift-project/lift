@@ -57,6 +57,8 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
               case r : ReduceWhileSeq => setRangeReduceSeq(r, call) 
             }
             apply(r.f.body)
+          case sp: SlideSeqPlus => setRangeSlideSeqPlus(sp, call)
+            apply(sp.f.body)
 
           case i: Iterate =>
             setRangeIterate(i)
@@ -181,6 +183,11 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
     val inT = call.args(1).t
     r.loopVar = Var(r.loopVar.name, RangeAdd(Cst(0), Type.getLength(inT), Cst(1)))
   }
+
+  private def setRangeSlideSeqPlus(sp: SlideSeqPlus, call: FunCall): Unit = {
+    sp.loopVar = Var(sp.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
+  }
+
 
   private def setRangeIterate(i: Iterate): Unit = {
     i.indexVar = Var(i.indexVar.name,range = ContinuousRange(Cst(0), i.n))

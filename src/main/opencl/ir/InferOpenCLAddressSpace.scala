@@ -3,7 +3,7 @@ package opencl.ir
 import ir.ScalarType
 import ir.ast._
 import opencl.generator.IllegalKernel
-import opencl.ir.pattern.{toPrivate, toLocal, toGlobal, ReduceWhileSeq, FilterSeq}
+import opencl.ir.pattern._
 
 object InferOpenCLAddressSpace {
 

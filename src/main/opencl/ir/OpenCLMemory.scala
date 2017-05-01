@@ -23,7 +23,7 @@ class OpenCLMemory(var variable: Var,
     if (size.eval == 0)
       throw new IllegalArgumentException("Cannot have a memory of 0 bytes!")
   } catch {
-    case NotEvaluableException => // nothing to do
+    case NotEvaluableException() => // nothing to do
     case e: Exception => throw e
   }
 
@@ -176,7 +176,7 @@ object OpenCLMemory {
     case st: ScalarType => st.size
     case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)
     case at: ArrayType with Capacity => at.capacity * getSizeInBytes(at.elemT)
-    //case at: ArrayType =>
+    case at: ArrayType => ?
     case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
     case _ => throw new TypeException(t, "??")
   }
@@ -239,6 +239,7 @@ object TypedOpenCLMemory {
         case m: AbstractMap => collectMap(call.t, m)
         case f: FilterSeq   => collectFilter(call.t, f)
         case r: AbstractPartRed => collectReduce(r, argMems)
+        case sp: SlideSeqPlus => collectSlideSeqPlus(sp, argMems)
         case s: AbstractSearch => collectSearch(s, call, argMems)
         case ua: UnsafeArrayAccess => collectUnsafeArrayAccess(ua, call, argMems)
         case i: Iterate     => collectIterate(call, i)
@@ -339,6 +340,18 @@ object TypedOpenCLMemory {
         case rws: ReduceWhileSeq => collect(rws.p.body)
         case _ => Seq[TypedOpenCLMemory]()
       })
+
+      mems.filter(m => {
+        val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
+        val isAlreadyInParams =  params.exists(_.mem.variable == m.mem.variable)
+
+        !isAlreadyInArgs && !isAlreadyInParams
+      })
+    }
+
+    def collectSlideSeqPlus(sp: SlideSeqPlus,
+                            argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
+      val mems: Seq[TypedOpenCLMemory] = collect(sp.f.body) ++ (Seq[TypedOpenCLMemory]())
 
       mems.filter(m => {
         val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
