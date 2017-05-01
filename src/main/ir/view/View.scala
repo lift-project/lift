@@ -21,11 +21,25 @@ private class IllegalView(v: View)
  * @param array Array name
  * @param idx Index to access in the array
  */
-case class AccessVar(array: String, idx: ArithExpression, r : Range = RangeUnknown, fixedId: Option[Long] = None) extends ExtensibleVar("",r,fixedId) {
+sealed case class AccessVar(array: String, idx: ArithExpression,
+                     r: Range = RangeUnknown,
+                     fixedId: Option[Long] = None) extends ExtensibleVar("", r, fixedId) {
   override def copy(r: Range) = AccessVar(array, idx, r, Some(id))
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(AccessVar(array, ArithExpression(idx.content.visitAndRebuild(f)), range.visitAndRebuild(f), Some(id)))
+}
+
+/**
+ * Hack: an special variable to fetch the size of an array. Should not appear
+ * in the generated code.
+ *
+ * array[SizeIndex()]  ==  array.size
+ */
+case class SizeIndex() extends ExtensibleVar("SIZE", RangeUnknown, None) {
+  override def copy(r: Range) = SizeIndex()
+  
+  override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = this
 }
 
 /**
@@ -498,8 +512,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
     *        section 5.3
     * @return an expression accessing the array
     */
-  // @scala.annotation.tailrec
-  // TODO: this can be hacked and become tailrec again, do we want this?
+  @scala.annotation.tailrec
   private def emitView(v: Var,
                        sv: View,
                        arrayAccessStack: List[ArithExpr],
@@ -596,12 +609,8 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         OpenCLAST.OpenCLExpression(value.value)
 
       case ViewSize(iv) =>
-        val index = emitView(v, iv, arrayAccessStack, tupleAccessStack) match {
-          case VarRef(_, _, ArithExpression(i)) => i
-          case _ => throw new MatchError("VarRef expected")
-        }
-        val sizeIdx = iv.t.asInstanceOf[ArrayType].getSizeIndex
-        VarRef(v, arrayIndex = ArithExpression(index + sizeIdx))
+        val newAAS = SizeIndex() :: arrayAccessStack
+        emitView(v, iv, newAAS, tupleAccessStack)
 
       case ViewGenerator(f, ArrayTypeWS(_,s)) =>
         val index = aggregateAccesses(0, v, sv.t, arrayAccessStack, tupleAccessStack)
@@ -666,28 +675,28 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         case at: ArrayType =>
           val idx :: indices = arrayAccessStack
           val offset = at.getHeaderSize
-          val newAcc = if (at.elemT.hasFixedAllocatedSize) {
+          
+          if (idx.isInstanceOf[SizeIndex])
+            // We are fetching the size of this array.
+            return acc + at.getSizeIndex
+          
+          val position = if (at.elemT.hasFixedAllocatedSize) {
             // Regular array
-            val length = ViewPrinter.getLengthForArrayAccess(
-              1, at.elemT, tupleAccessStack
-            )
-            acc + offset + idx * length
+            val length = ViewPrinter.getLengthForArrayAccess(1, at.elemT, tupleAccessStack)
+            idx * length
           } else {
             // The elements of this array may have different sizes. We need an
             // indirection: we fetch the actual position of the i-th element
             // from the array's metadata (see issue #107)
             // NB. We make a choice here, see issue #110
-            val pos = AccessVar(v.toString, ArithExpression(acc + offset + idx))
-            acc + offset + pos
+            AccessVar(v.toString, ArithExpression(acc + offset + idx))
           }
-          aggregateAccesses(newAcc, v, at.elemT, indices, tupleAccessStack)
+          
+          aggregateAccesses(acc + offset + position,
+                            v, at.elemT, indices, tupleAccessStack)
         case tt: TupleType =>
-          aggregateAccesses(
-            acc, v,
-            tt.proj(tupleAccessStack.head),
-            arrayAccessStack,
-            tupleAccessStack.tail
-          )
+          val i :: tas = tupleAccessStack
+          aggregateAccesses(acc, v, tt.proj(i), arrayAccessStack, tas)
         case _ =>
           throw new IllegalAccess(ty)
       }
