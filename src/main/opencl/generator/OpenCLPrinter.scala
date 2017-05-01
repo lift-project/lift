@@ -473,7 +473,7 @@ class OpenCLPrinter {
    * `printList([a, b, c], ",")  ==  "a,b,c"`
    */
   private def printList(args: Seq[OclAstNode], sep: String): Unit = {
-    args.slice(0, args.length - 1).foreach(a => {
+    args.init.foreach(a => {
       print(a)
       print(sep)
     })
