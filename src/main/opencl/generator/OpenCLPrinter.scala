@@ -195,12 +195,7 @@ class OpenCLPrinter {
 
   private def print(l: VectorLiteral): Unit = {
     print(s"(${l.t})(")
-    var c = 0
-    l.vs.foreach( v => {
-      print(v)
-      c = c+1
-      if (c != l.vs.length) { print(", ") }
-    })
+    printList(l.vs, ", ")
     print(")")
   }
 
@@ -266,10 +261,7 @@ class OpenCLPrinter {
 
   private def print(f: FunctionCall): Unit = {
     print(f.name + "(")
-    f.args.foreach(x => {
-      print(x)
-      if(!x.eq(f.args.last)) print(", ")
-    })
+    printList(f.args, ", ")
     print(")")
   }
 
@@ -298,12 +290,9 @@ class OpenCLPrinter {
 
     if (f.kernel) sb ++= "void"
     else sb ++= OpenCLPrinter.toString(f.ret)
-    sb ++= s" ${f.name}("
-    f.params.foreach(x => {
-      print(x)
-      if(!x.eq(f.params.last)) sb ++= ", "
-    })
-    sb ++= ")"
+    print(s" ${f.name}(")
+    printList(f.params, ", ")
+    print(")")
 
     if(f.kernel)
       sb ++= "{ \n" +
@@ -475,10 +464,19 @@ class OpenCLPrinter {
 
   private def print(s: StructConstructor): Unit = {
     print(s"(${OpenCLPrinter.toString(s.t)}){")
-    s.args.foreach(x => {
-      print(x)
-      if(!x.eq(s.args.last)) print(", ")
-    })
+    printList(s.args, ", ")
     print("}")
+  }
+  
+  /**
+   * Helper function for printing separated lists
+   * `printList([a, b, c], ",")  ==  "a,b,c"`
+   */
+  private def printList(args: Seq[OclAstNode], sep: String): Unit = {
+    args.slice(0, args.length - 1).foreach(a => {
+      print(a)
+      print(sep)
+    })
+    print(args.last)
   }
 }
