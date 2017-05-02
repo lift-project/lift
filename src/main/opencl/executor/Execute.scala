@@ -638,7 +638,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       // ... look for it in the parameter list ...
       val i = f.params.indexWhere(m == _.mem)
       // ... if found create an OpenCL kernel argument from the matching runtime value ...
-      if (i != -1) arg(values(i), mem.t, size)
+      if (i != -1) arg(values(i), Type.substitute(mem.t, valueMap), size)
       // ... if not found but it is the output set this ...
       else if (m == f.body.mem) outputData
       // ... else create a fresh local or global object argument
@@ -721,6 +721,15 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
      *           (e.g. for a 3D array of floats, this is `Float`)
      */
     private class Encoder[T: ClassTag](cast: Int => T) {
+      /**
+       * The size a type will take once encoded in a Scala array.
+       */
+      private def sizeOf(ty: Type): ArithExpr = {
+        val allocated = Type.getAllocatedSize(ty)
+        val nbBytes = Type.getAllocatedSize(Type.fromAny(cast(0)))
+        allocated / nbBytes
+      }
+      
       /** Se issue #107 */
       private def putHeader(buffer: Array[T], pos: Int,
                             array: Array[_], at: ArrayType): Int = {
@@ -742,22 +751,33 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       private def encode(buffer: Array[T], pos: Int,
                          array: Array[_], at: ArrayType): Int = {
         val newPos = putHeader(buffer, pos, array, at)
+        val capacity = at.getCapacity.get.eval // Must be known
         at.elemT match {
           case _: VectorType | _: ScalarType | _: TupleType =>
+            // Copy
             array.asInstanceOf[Array[T]].copyToArray(buffer, newPos)
-            newPos + array.length
+            // Compute the next position
+            val nextPos = (newPos + capacity * sizeOf(at.elemT)).eval
+            assert (newPos + array.length <= nextPos) // Sanity check
+            nextPos
           case elemT: ArrayType =>
             val v = array.asInstanceOf[Array[Array[_]]]
-            if (elemT.hasFixedAllocatedSize)
-              v.foldLeft(newPos)(encode(buffer, _, _, elemT))
-            else {
+            if (elemT.hasFixedAllocatedSize) {
+              // Copy
+              val endPos = v.foldLeft(newPos)(encode(buffer, _, _, elemT))
+              // Compute the next position
+              val nextPos = (newPos + sizeOf(elemT) * capacity).eval
+              assert (endPos <= nextPos) // Sanity check
+              nextPos
+            } else {
+              // Copy
               var ofsIdx = newPos
-              v.foldLeft(newPos + array.length)((p, arr) => {
+              v.foldLeft(newPos + capacity)((p, arr) => {
                 val pAfter = encode(buffer, p, arr, elemT)
                 buffer(ofsIdx) = cast(pAfter - newPos) // store the offset
                 ofsIdx = ofsIdx + 1
                 pAfter
-              })
+              }) // May the force be with you…
             }
           case ty => throw new EncodeError(ty)
         }
