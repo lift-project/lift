@@ -18,6 +18,9 @@ class InvalidGlobalSizeException(msg: String) extends Exception(msg)
 /** Thrown on negative or 0 local size */
 class InvalidLocalSizeException(msg: String) extends Exception(msg)
 
+/** Thrown when the executor receive ill-formed/ill-typed arguments */
+class IllegalKernelArgument(msg: String) extends IllegalArgumentException(msg)
+
 /** Thrown when the device cannot execute the kernel */
 class DeviceCapabilityException(msg: String) extends RuntimeException(msg)
 
@@ -82,44 +85,162 @@ object Execute {
   def apply(): Execute =
     new Execute (?, ?, ?, ?, ?, ?, true, true)
 
+  
   /**
-   * Private helper functions.
    * Create a map which maps variables (e.g., N) to values (e.g, "1024")
    */
-  def createValueMap(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
-    val sizeExprs = f.params.flatMap((p) => Type.getLengths(p.t).init)
-
-    val tupleSizes = f.params.map(_.t match {
-      case ArrayType(ArrayType(ArrayType(tt: TupleType))) => tt.elemsT.length
-      case ArrayType(ArrayType(tt: TupleType)) => tt.elemsT.length
-      case ArrayType(tt: TupleType) => tt.elemsT.length
+  object createValueMap {
+    /**
+     * Creates the map given a lambda and its arguments
+     */
+    def apply(f: Lambda, values: Any*): immutable.Map[ArithExpr, ArithExpr] = {
+      // sanity check
+      assert(f.params.length == values.length)
+      
+      // Traverse the the arguments and their types simultaneously to fetch
+      // Any length information
+      val (caps, sizes) = {
+        val types = f.params.map(_.t)
+        val (caps2D, sizes2D) = (types zip values)
+          .map(p => fetchConstraints(p._1, p._2))
+          .unzip
+        (caps2D.flatten, sizes2D.flatten)
+      }
+    
+      // Check that the sizes are consistent (see issue #98, snippet 2)
+      // and build a map so that we only keep necessary information
+      val cleanedSizes = sizes
+        .groupBy(_._1)
+        .mapValues(vals => {
+          if (vals.map(_._2).distinct.length != 1)
+            throw new IllegalKernelArgument("Sizes are not consistent")
+          vals.head._2
+        })
+    
+      // Considering capacity, take the maximum value for each variable.
+      // e.g. if [1, 3] and [0, 0, 0] have both capacity N, then N == 3
+      val cleanedCaps = caps
+        .groupBy(_._1)
+        .map(p => {
+          val (v, pairs) = p
+          val m = pairs.map(_._2).max
+          // If the variable is also a size variable, check that this size
+          // is at least the maximum capacity inferred. In this case the
+          // occurrence of this variable in this Map will be ignored.
+          if (cleanedSizes.isDefinedAt(v)) assert(cleanedSizes(v) >= m)
+          (v, m)
+        })
+    
+      (cleanedSizes ++ cleanedCaps)
+        .map(p => (p._1.varList.head, SolveForVariable(p._1, p._2)))
+    }
+    
+    // -------------------------------
+    // Below: private helper functions
+    // -------------------------------
+    
+    /** A shorthand, for clarity */
+    type Constraint = (ArithExpr, Int)
+  
+    /**
+     * Traverses a value and its Lift type and produces:
+     * - a list of size constraints:       var == array length
+     * - a list of capacity constraints:   var >= array length
+     *
+     * @param ty the type
+     * @param value the value
+     */
+    def fetchConstraints(ty: Type, value: Any): (Seq[Constraint], Seq[Constraint]) = {
+      ty match {
+        case at: ArrayType =>
+          val array = asArray(value)
+          val len = array.length / tupleSize(at.elemT)
+        
+          // Recursive call if array of arrays
+          val (caps, sizes) = at.elemT match {
+            case _: ArrayType =>
+              val (cs, ss) = array.map(fetchConstraints(at.elemT, _)).toSeq.unzip
+              (simplify(cs.flatten), simplify(ss.flatten))
+            case _ => (Seq.empty, Seq.empty)
+          }
+        
+          // fetch information for the current array
+          (fetchCap(at, len, caps), fetchSize(at, len, sizes))
+        case VectorType(_, len) =>
+          // Vectors are passed to the executor as arrays
+          (Seq.empty, Seq((len, asArray(value).length)))
+        case _: TupleType | ScalarType(_, _) =>
+          // We assume tuples do not contain arrays
+          // TODO: we have the ability to change this here. Do we want to?
+          (Seq.empty, Seq.empty)
+        case NoType | UndefType =>
+          throw new IllegalArgumentException("Executor: Untyped parameterin lambda")
+      }
+    }
+    
+    /**
+     * Tries to interpret a value as an array and throws a proper exception if
+     * it cannot.
+     */
+    def asArray(any: Any): Array[_] = any match {
+      case array: Array[_] => array
+      case _ => throw new IllegalKernelArgument(s"Array expected, got: ${any.getClass}")
+    }
+  
+    /**
+     * Tuples and vectors are given to the executor in a flattened format, we
+     * have to take this into consideration while inferring the sizes.
+     */
+    def tupleSize(ty: Type): Int = ty match {
       case tt: TupleType => tt.elemsT.length
-      case ArrayType(ArrayType(ArrayType(vt: VectorType))) => vt.len.eval
-      case ArrayType(ArrayType(vt: VectorType)) => vt.len.eval
-      case ArrayType(vt: VectorType) => vt.len.eval
-      case vt: VectorType => vt.len.eval
+      case VectorType(_, len) => len.eval
       case _ => 1
+    }
+  
+    /**
+     * Infers a capacity constraint and appends it to the current sequence of
+     * constraints.
+     */
+    def fetchCap(ty: ArrayType,
+                 len: Int,
+                 caps: Seq[Constraint]): Seq[Constraint] = {
+      ty.getCapacity match {
+        case Some(Cst(n)) =>
+          // Capacity must be at least the actual size
+          if (n.toInt < len)
+            throw new IllegalKernelArgument(s"Ill-sized argument: $n < $len")
+          caps
+        case Some(x) => (x, len) +: caps
+        case None => caps
+      }
+    }
+  
+    /**
+     * Infers a size constraint and appends it to the current sequence of
+     * constraints.
+     */
+    def fetchSize(ty: ArrayType, len: Int,
+                  sizes: Seq[Constraint]): Seq[Constraint] = {
+      ty.getSize match {
+        case Some(Cst(n)) =>
+          // Look for ill-sized inputs. See issue #98, snippet 3
+          if (n.toInt != len)
+            throw new IllegalKernelArgument(s"Ill-sized argument: $n ≠ $len")
+          sizes
+        case Some(x) => (x, len) +: sizes
+        case None => sizes
+      }
+    }
+  
+    /**
+     * Simplify a list of constraints
+     */
+    def simplify(c: Seq[Constraint]): Seq[Constraint] = c.map({
+      case (v, len) =>
+        val newLen = SolveForVariable(v, len).eval
+        (v.varList.head, newLen)
     })
-
-    val sizes = (values, tupleSizes).zipped.map((value, tupleSize) => value match {
-      case aaaa: Array[Array[Array[Array[_]]]]
-        => Seq(Cst(aaaa.length), Cst(aaaa(0).length),
-               Cst(aaaa(0)(0).length), Cst(aaaa(0)(0)(0).length / tupleSize))
-      case aaa: Array[Array[Array[_]]]
-        => Seq(Cst(aaa.length), Cst(aaa(0).length), Cst(aaa(0)(0).length / tupleSize))
-      case aa: Array[Array[_]]
-        => Seq(Cst(aa.length), Cst(aa(0).length / tupleSize))
-      case a: Array[_]
-        => Seq(Cst(a.length / tupleSize))
-      case _
-        => Seq(Cst(1))
-    }).flatten[ArithExpr]
-
-    (sizeExprs zip sizes).flatMap{
-      case (?, _) => Seq() // TODO: think bout this
-      case (Cst(_), _) => Seq() // ignore
-      case pair => Seq((pair._1.varList.head, SolveForVariable(pair._1, pair._2)))
-    }.toMap[ArithExpr, ArithExpr]
+    
   }
 
   /**
