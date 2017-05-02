@@ -14,9 +14,36 @@ import scala.util.parsing.json.JSON
 package object nn {
   /* Types and data structures */
 
-  case class Shape(var in: Int = 0, var out: Int = 0,
-                   var w: Int = 0, var h: Int = 0,
-                   var l0: Int = 0, var l1: Int = 0)
+  case class Shape(in: Int = 0, out: Int = 0,
+                   w: Int = 0, h: Int = 0,
+                   l0: Int = 0, l1: Int = 0,
+                   ch: Int = 0,
+                   var wPadded: Int = 0,
+                   var hPadded: Int = 0) {
+    def wNonPadded: Int = w
+    def hNonPadded: Int = h
+
+    @throws(classOf[java.lang.UnsupportedOperationException])
+    def s: Int = if (w == h) w else {
+      throw new java.lang.UnsupportedOperationException
+      0
+    }
+
+    def sPadded: Int = if (wPadded == hPadded) wPadded else {
+      throw new java.lang.UnsupportedOperationException
+      0
+    }
+
+//    def setSPadded(sNew: Int): Unit = if (wPadded == hPadded) {
+//      wPadded = sNew
+//      hPadded = sNew
+//    } else throw new java.lang.UnsupportedOperationException
+  }
+
+  case class PaddedArray[T](var nonPadded: T) {
+    var padded: T = _
+  }
+
   type Array2D[T] = Array[Array[T]]
   type Array3D[T] = Array[Array[Array[T]]]
   type Array4D[T] = Array[Array[Array[Array[T]]]]

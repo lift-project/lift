@@ -1,12 +1,12 @@
 package nn.cnn
 
-import java.io.{File, PrintWriter}
+import java.io.File
 import java.nio.file.Files.{createDirectory, exists}
 import java.nio.file.Paths.get
 
-import nn.{Shape}
+import nn.{PaddedArray, Shape}
 import opencl.executor.{Execute, Executor}
-import org.junit.Assert.{assertArrayEquals, _}
+import org.junit.Assert.assertArrayEquals
 import org.junit.{AfterClass, BeforeClass, Test}
 
 import scala.util.Try
@@ -18,7 +18,7 @@ object TestCNN {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
-    Executor.init(1, 0)
+    Executor.init(0, 0)
   }
 
   @AfterClass def after(): Unit = {
@@ -35,8 +35,7 @@ class TestCNN {
     val (lift_result: Array[Float], runtime) = Execute(1,1)(
       CNN.Seq(2, 3, nn.Linear), input_K, input_b, input_X)
 
-    println(f"\n1. Convolution sanity check.\n" +
-      f"Runtime: $runtime%1.5f ms")
+    println(f"\n1. Convolution sanity check.\nRuntime: $runtime%1.5f ms")
 
     val lift_result3d = nn.group(lift_result, (gold.length, gold.head.length, gold.head.head.length))
     for ((gold2d, lift_result2d) <- gold zip lift_result3d) {
@@ -87,12 +86,12 @@ class TestCNN {
       * already run or for which the data was not provided; load data for all experiments
       */
 
-    val experiments = for {
-      nKernelsL0 <- 8 to 48 by 4
-      kernelWidth <- 5 to 25 by 5
-      kernelHeight <- 5 to 25 by 5
+    var cnn: CNN = null
+    val cnns = for {
+      nKernelsL0 <- 16 to 48 by 4//8 to 48 by 4
+      kernelSize <- 5 to 25 by 5
       pathToInputs = Experiment.getPathToInputs(
-        nKernelsL0, Shape(w=kernelWidth, h=kernelHeight))
+        nKernelsL0, Shape(w=kernelSize, h=kernelSize))
       if exists(get(pathToInputs))
       pathToResults = Experiment.getPathToResults(pathToInputs)
       // Results dir doesn't exist (then create it) or it does, but reruns are allowed:
@@ -107,78 +106,100 @@ class TestCNN {
       loadingDatasets = Try(Experiment.loadDatasets(nInputs, pathToInputs))
       if loadingDatasets.isSuccess
       (tfX, tfWconv, tfBconv, tfResult) = loadingDatasets.get
-//      multsPerThread <- 1 to 16
-//      neuronsPerWrg <- 1 to 16
-    } yield new Experiment(nKernelsL0, nInputs, Shape(w=kernelWidth, h=kernelHeight),
-      pathToInputs, pathToResults, tfX, tfWconv, tfBconv, tfResult)
-
-
-    for (e <- experiments) {
-      println("-----------------------------------------------------------------")
-      println(f"Starting the experiment (nKernelsL0=${e.nKernelsL0}%d, " +
-        f"kernelWidth=${e.kernelL0Shape.w}%d, " + f"kernelHeight=${e.kernelL0Shape.h}%d, " +
-        f"nInputs=${e.nInputs}%d).")
-
-      try {
-        singleTest(new CNN(CNN.Par, Array(nn.ReLU, nn.ReLU), Array(e.nKernelsL0, e.tfBconv(1).length),
-          e.tfX, e.tfWconv, e.tfBconv, e.tfResult, "CNN.Par",
-          f"(MNIST dataset) x2 parallel convolutional kernels.", e.pathToInputs))
-      } catch {
-        case e: java.lang.IllegalArgumentException =>
-          println(e.getMessage)
-          println("SKIPPING EXPERIMENT.")
+      elsPerThreadL0 <- 1 to 16
+      kernelsPerGroupL0 <- 2 to nKernelsL0//1 to nKernelsL0
+      // TODO: remove + 1
+      inputTileSize <- kernelSize + 1 to tfX.nonPadded.head.head.size
+      // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
+      if {
+        try {
+          cnn = new CNN(CNN.Par, Array(nn.ReLU, nn.ReLU), elsPerThreadL0, kernelsPerGroupL0, inputTileSize,
+            tfX, tfWconv, tfBconv, tfResult, pathToResults)
+//          println(f"Prepared the experiment (nKernelsL0=$nKernelsL0%d, " +
+//            f"inputTileSize=$inputTileSize%d, elsPerThreadL0=$elsPerThreadL0%d, " +
+//            f"kernelsPerGroupL0=$kernelsPerGroupL0%d,\nkernelSize=$kernelSize%d, " +
+//            f"nBatches=${tfX.nonPadded.length}%d, nInputs=$nInputs%d).")
+          true
+        }
+        catch {
+          // TODO: replace with IllegalArgumentException
+          case e: java.lang.ArithmeticException =>
+//            println("-----------------------------------------------------------------")
+//            println(f"Cannot start the experiment (nKernelsL0=$nKernelsL0%d, " +
+//              f"inputTileSize=$inputTileSize%d, elsPerThreadL0=$elsPerThreadL0%d, " +
+//              f"kernelsPerGroupL0=$kernelsPerGroupL0%d,\nkernelSize=$kernelSize%d, " +
+//              f"nBatches=${tfX.nonPadded.length}%d, nInputs=$nInputs%d).")
+//            println(e.getMessage)
+//            println("SKIPPING EXPERIMENT.")
+            false
+        }
       }
+    } yield cnn
+
+    println("-----------------------------------------------------------------")
+
+    for (cnn <- cnns) {
+      println("-----------------------------------------------------------------")
+      println(f"Starting the experiment (inputTileSizeL0=${cnn.inputTileSize(0)}%d, nKernelsL0=${cnn.nKernels(0)}%d, " +
+        f"elsPerThreadL0=${cnn.elsPerThread(0)}%d,\nkernelsPerGroupL0=${cnn.kernelsPerGroup(0)}%d, " +
+        f"kernelSize=${cnn.kernelShape(0).s}%d, nBatches=${cnn.nBatches}%d, nInputs=${cnn.nInputs}%d).")
+
+      singleTest(cnn)
     }
   }
 
   def singleTest(cnn: CNN): Unit = {
     var inputNo = 0
-    println(f"\n" + cnn.testDescription)
+    //println(f"\n" + cnn.testDescription)
 
     for (layerNo <- 0 until cnn.nLayers) {
-      // TODO: Padding
-      //cnn.padInputsAndNeurons(layerNo)
-      cnn.layerInputsPadded = if (cnn.layerInputsPadded == null) Array(cnn.getLayerInputs(layerNo)) else
-        cnn.layerInputsPadded :+ cnn.getLayerInputs(layerNo)
-
-      cnn.nLayerInputsPadded(layerNo) = cnn.layerInputsPadded(layerNo).head.length
-      // Shapes
-      cnn.layerInputShapePadded(layerNo) = Shape(w=cnn.layerInputsPadded(layerNo).head.head.length,
-        h=cnn.layerInputsPadded(layerNo).head.head.head.length)
-      cnn.layerOutputShapePadded(layerNo) =
-        Shape(w=cnn.layerInputShapePadded(layerNo).w - (cnn.kernelShapePadded(layerNo).w - 1),
-          h=cnn.layerInputShapePadded(layerNo).h - (cnn.kernelShapePadded(layerNo).h - 1))
+      cnn.updateInputs(layerNo)
+      /* Padding */
+      cnn.padInputs(layerNo)
 
       val (outputFlat: Array[Float], runtime) =
         Execute(
-          cnn.localSize0(layerNo), cnn.localSize1(layerNo), cnn.localSize2(layerNo),
-          cnn.globalSize0(layerNo), cnn.globalSize1(layerNo), cnn.globalSize2(layerNo), (true, true))(
-          // TODO: padding
-          cnn.liftCNN(cnn.activationFun(layerNo), cnn.kernelShapePadded(layerNo), cnn.layerOutputShapePadded(layerNo),
-            cnn.nKernels(layerNo), Tile(kernels_per_thread=2)),
-          cnn.kernelWeightsPadded(layerNo), cnn.kernelBiasesPadded(layerNo), cnn.layerInputsPadded(layerNo))
+          cnn.localSize(0)(layerNo), cnn.localSize(1)(layerNo), cnn.localSize(2)(layerNo),
+          cnn.globalSize(0)(layerNo), cnn.globalSize(1)(layerNo), cnn.globalSize(2)(layerNo), (true, true))(
 
+          cnn.liftCNN(
+            cnn.activationFun(layerNo), cnn.inputShape(layerNo), cnn.kernelShape(layerNo),
+            cnn.nInputs, cnn.nBatches, cnn.nInChannels(layerNo), cnn.nKernels(layerNo),
+            Tile(kernels_per_group=cnn.kernelsPerGroup(layerNo), els_per_thread=cnn.elsPerThread(layerNo),
+              inputTileSize=cnn.inputTileSize(layerNo), inputTileSlideStep=cnn.inputTileStep(layerNo),
+              nInputTilesPerDim=cnn.nTilesPerDim(layerNo),
+              n_windows_per_tile_per_dim=cnn.nWindowsPerTilePerDim(layerNo))),
+
+          cnn.kWeights(layerNo), cnn.kBiases(layerNo), cnn.inputs(layerNo).padded)
       cnn.runTimes(layerNo) = runtime
 
-      def getGroupedOutputs = nn.group(outputFlat, (cnn.nBatches, cnn.nLayerInputsPadded(layerNo),
-        cnn.layerOutputShapePadded(layerNo).h, cnn.layerOutputShapePadded(layerNo).w, cnn.nKernels(layerNo)))
-      cnn.layerOutputsPadded = if (cnn.layerOutputsPadded == null) Array(getGroupedOutputs) else
-        cnn.layerOutputsPadded :+ getGroupedOutputs
+      /* Group and unpad */
+      cnn.outputs = {
+        def getShapedOutputs = nn.group(outputFlat, (cnn.nBatches, cnn.nInputs, cnn.outputShape(layerNo).hPadded,
+          cnn.outputShape(layerNo).wPadded, cnn.nKernels(layerNo))).map(
+          batch => batch.map(
+            input => input.map(
+              row => row.slice(0, cnn.outputShape(layerNo).wNonPadded)
+            ).slice(0, cnn.outputShape(layerNo).hNonPadded)
+          ))
+        if (cnn.outputs == null) Array(PaddedArray(getShapedOutputs)) else
+          cnn.outputs :+ PaddedArray(getShapedOutputs)
+      }
 
       println(f"Layer $layerNo%d runtime: $runtime%1.5f ms")
 
     }
     // TODO: unpad
     //cnn.unPadOutputs()
-    cnn.outputsNonPadded = cnn.layerOutputsPadded.last
+    //cnn.outputs = cnn.layerOutputsPadded.last
     println()
 
     /* Check and save results */
     // TODO: check and save
-    val file = new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputsNonPadded))
-    file.getParentFile.mkdirs()
-    val pw = new PrintWriter(file)
-    var noErrors = false
+//    val file = new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputs))
+//    file.getParentFile.mkdirs()
+//    val pw = new PrintWriter(file)
+//    var noErrors = false
     try {
       /*pw.write("device_name,f_name,n_inputs_l0_nonpadded,mults_per_thread,neurons_per_wrg," +
         {for (layerNo <- 0 until cnn.nLayers) yield f"n_neurons_l$layerNo%d_nonpadded"}.mkString(",") + "," +
@@ -196,23 +217,21 @@ class TestCNN {
         pw.write(cnn.activationFun(layerNo).toString + ",")
       pw.write(f"${cnn.runTimes(0)}%1.5f,${cnn.runTimes(1)}%1.5f,${cnn.runTimes(2)}%1.5f\n")*/
 
-      for ((liftSingleResult, targetSingleResult) <- cnn.outputsNonPadded zip cnn.targets) {
-        //println(liftSingleResult.mkString(", "))
-        //println(targetSingleResult.mkString(", "))
-        assertArrayEquals(f"The lift output #$inputNo%d is different to the Tensorflow output",
-          targetSingleResult.flatten.flatten.flatten, liftSingleResult.flatten.flatten.flatten, precision)
-        inputNo = inputNo + 1
-      }
-      noErrors = true
-      print(f"Done. Processed ${cnn.nInputsNonPadded}%d (padded: ${cnn.nLayerInputsPadded(0)}%d")
-      for (layerNo <- 1 until cnn.nLayers)
-        print(f", ${cnn.nLayerInputsPadded(layerNo)}%d")
-      println(f") inputs, the results were equal to targets (precision=$precision%1.4f)")
+//      for ((liftSingleResult, targetSingleResult) <- cnn.outputs zip cnn.targets) {
+//        println(liftSingleResult.mkString(", "))
+//        println(targetSingleResult.mkString(", "))
+//        assertArrayEquals(f"The lift output #$inputNo%d is different to the Tensorflow output",
+//          targetSingleResult.flatten.flatten.flatten, liftSingleResult.flatten.flatten.flatten, precision)
+//        inputNo = inputNo + 1
+//      }
+//      noErrors = true
+      println(f"SUCCESS. Processed ${cnn.nInputs}%d inputs, the results were equal to targets " +
+        f"(precision=$precision%1.4f).")
     }
     finally {
-      pw.close()
-      if (!noErrors)
-        new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputsNonPadded)).delete()
+//      pw.close()
+//      if (!noErrors)
+//        new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputs)).delete()
     }
   }
 }

@@ -2,7 +2,6 @@ package nn
 
 import java.nio.file.Files.exists
 import java.nio.file.Paths.get
-import java.nio.file.{Files, Paths}
 
 /**
   * Created by nm on 08/02/17.
@@ -10,11 +9,14 @@ import java.nio.file.{Files, Paths}
 
 package object cnn {
   /* Types and data structures */
-
-  case class Tile(kernels_per_thread: Int)
+  case class Tile(kernels_per_group: Int = 0,
+                  els_per_thread: Int = 0,
+                  inputTileSize: Int = 0,
+                  inputTileSlideStep: Int = 0,
+                  nInputTilesPerDim: Int = 0,
+                  n_windows_per_tile_per_dim: Int = 0)
 
   /* Test values */
-
   val input_X = Array(
     Array(Array(0.0f, 0.0f),   Array(1.0f, 1.0f),   Array(2.0f, 2.0f),   Array(3.0f, 3.0f),
           Array(4.0f, 4.0f),   Array(5.0f, 5.0f),   Array(6.0f, 6.0f),  Array(7.0f, 7.0f)),
@@ -60,13 +62,16 @@ package object cnn {
 
 
   object Experiment {
+    val cnnDir: String = nn.nnDir + "/cnn"
+
+
     def getPathToInputs(nKernelsL0: Int, kernelShape: Shape): String = cnnDir + f"/experiment." +
       f"$nKernelsL0%d.${kernelShape.w}%d.${kernelShape.h}%d"
     def getPathToResults(pathToInputs: String): String = pathToInputs + "/results_lift"
 
 
     def loadDatasets(nInputs: Int, pathToInputs: String):
-    (Array5D[Float], Array5D[Float], Array2D[Float],
+    (PaddedArray[Array5D[Float]], Array5D[Float], Array2D[Float],
       Array5D[Float]) = {
 
       if (!exists(get(pathToInputs + "/wconv1.json")))
@@ -82,27 +87,12 @@ package object cnn {
 //      var tfBmlp = Array(nn.loadJSON1D(pathToInputs + "/bmlp1.json"))
 //      tfBmlp = tfBmlp :+ nn.loadJSON1D(pathToInputs + "/bout.json")
 
-      val tfX = nn.loadJSON5D(pathToInputs + "/test_images_n" + nInputs + ".json")
+      val tfX = PaddedArray(nn.loadJSON5D(pathToInputs + "/test_images_n" + nInputs + ".json"))
       //val tfResult = nn.loadJSON2D(pathToInputs + "/test_tf_results_n" + nInputs + ".json")
       val tfResult = nn.loadJSON5D(pathToInputs + "/test_tf_results_n" + nInputs + ".json")
 
       (tfX, tfWconv, tfBconv, tfResult)
     }
   }
-
-  class Experiment(val nKernelsL0: Int = 0,
-                   val nInputs: Int = 0,
-                   val kernelL0Shape: Shape = Shape(),
-                   val pathToInputs: String,
-                   val pathToResults: String,
-                   val tfX: Array5D[Float],
-                   val tfWconv: Array5D[Float],
-                   val tfBconv: Array2D[Float],
-                   val tfResult: Array5D[Float]) {
-    var isAFirstRun: Boolean = false
-    var resultsDir: java.io.File = _
-  }
-
-  val cnnDir: String = nn.nnDir + "/cnn"
 
 }
