@@ -29,11 +29,12 @@ class TestArray {
     * Layout: [size, elt_0, elt_1, …, elt_{κ-1}]
     */
   @Test def unknownSizeReduce(): Unit = {
-    val size = 1024
+    val capacity = 1024
+    val size = 700
     val input = Array.fill(size)(util.Random.nextInt(16))
     
     val f = fun(
-      ArrayTypeWC(Int, size),
+      ArrayTypeWC(Int, capacity),
       in =>
         MapGlb(toGlobal(id(Int))) o ReduceSeq(addI, 0) $ in
     )
@@ -50,19 +51,21 @@ class TestArray {
     * and not a constant.
     */
   @Test def unknownSizeMap(): Unit = {
-    val size = 1024
+    val capacity = 1024
+    val size = 842
     val input = Array.fill(size)(util.Random.nextInt())
     
     val f = fun(
-      ArrayTypeWC(Int, 1024),
+      ArrayTypeWC(Int, capacity),
       in =>
         MapGlb(toGlobal(idI)) $ in
     )
     
-    assertEquals(TypeChecker(f), ArrayTypeWC(Int, 1024))
+    assertEquals(TypeChecker(f), ArrayTypeWC(Int, capacity))
     
     val (outputRaw: Array[Int], _) = Execute(128)(f, input)
-    val output = outputRaw.slice(1, size + 1) // Remove header
+    // Decode: remove header and cut at `size`
+    val output = outputRaw.slice(1, size + 1) // Decode
     
     assertArrayEquals(input, output)
   }
@@ -103,19 +106,21 @@ class TestArray {
     * Nested arrays with no size
     */
   @Test def nestedArraysNoSize(): Unit = {
-    val size = 128
-    val input = Array.fill(size, size)(util.Random.nextInt())
+    val capacity = 128
+    val size1 = 90
+    val size2 = 42
+    val input = Array.fill(size1, size2)(util.Random.nextInt())
     val f = fun(
-      ArrayTypeWC(ArrayTypeWC(Int, size), size),
+      ArrayTypeWC(ArrayTypeWC(Int, capacity), capacity),
       MapGlb(MapSeq(idI)) $ _
     )
     
-    assertEquals(TypeChecker(f), ArrayTypeWC(ArrayTypeWC(Int, size), size))
+    assertEquals(TypeChecker(f), ArrayTypeWC(ArrayTypeWC(Int, capacity), capacity))
     
-    val (outputRaw: Array[Int], _) = Execute(size)(f, input)
+    val (outputRaw: Array[Int], _) = Execute(capacity)(f, input)
     val output = outputRaw
-      .slice(1, outputRaw.length)         // Remove main header
-      .grouped(129).map(_.slice(1, 129))  // Remove sub-arrays' headers
+      .slice(1, 1 + size1 * 129)                // Remove main header and cau at `size`
+      .grouped(129).map(_.slice(1, 1 + size2))  // Remove sub-arrays' headers
       .toArray
     
     assertArrayEquals(input.flatten, output.flatten)
