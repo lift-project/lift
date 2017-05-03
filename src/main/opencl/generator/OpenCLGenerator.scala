@@ -1261,7 +1261,7 @@ class OpenCLGenerator extends Generator {
     val innerBlock  = OpenCLAST.Block(Vector.empty)
   
     val start = ArithExpression(range.start)
-    // TODO: rewrite this differently
+    // TODO: should it be in RangesAndCount instead?
     val stop = ty.getSize match {
       case None =>
         ViewPrinter.emit(array.mem.variable, array.view.size())

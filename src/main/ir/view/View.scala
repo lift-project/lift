@@ -477,7 +477,6 @@ object View {
   }
 
   private[view] def getFullType(outputType: Type, outputAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)]): Type = {
-    // FIXME
     outputAccessInf.foldLeft(outputType)((t, len) => {
       val (capacity, size, _) = len
       if (capacity == ?) {
