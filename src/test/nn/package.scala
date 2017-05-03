@@ -200,9 +200,9 @@ package object nn {
     }
   }
 
-  def resultsFilename(exp_dir_name: String, n_inputs: Int): String = {
+  def resultsFilename(results_dir_name: String, n_inputs: Int): String = {
     val now = Calendar.getInstance()
-    new String(exp_dir_name + "/results_lift/" +
+    new String(results_dir_name +
       "%02d.%02d.%04d-%02d.%02d.%02d.%03d_n%d.csv".format(
         now.get(Calendar.DATE), now.get(Calendar.MONTH), now.get(Calendar.YEAR),
         now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), now.get(Calendar.SECOND),

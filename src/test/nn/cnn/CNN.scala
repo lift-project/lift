@@ -4,7 +4,7 @@ package nn.cnn
   * Created by nm on 09/01/17.
   */
 
-import ir.ast.{FunDecl, Get, Join, PrintType, Slide2D, Split, TiledSlidedND, Transpose, UserFun, Zip, λ}
+import ir.ast.{FunDecl, Get, Join, PrintType, Slide2D, Split, TiledSlidedND, Transpose, TransposeW, UserFun, Zip, λ}
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
 import nn._
@@ -75,8 +75,8 @@ object CNN {
                       (weighted_row_per_out_ch) => {
                         // Reduce weighted pass window rows separately for each output
                         MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) $ weighted_row_per_out_ch
-                      })) o PrintType() o Transpose() o PrintType() o
-                    /*out_chs->els*/Split(n_output_channels) o PrintType() o Join(/*tiles*/) o PrintType() o
+                      })) o  Transpose() o
+                    /*out_chs->els*/Split(n_output_channels) o  Join(/*tiles*/) o
                     MapLcl(0)(λ(/*tiles*/ArrayType(/*out_chs*/ArrayType(
                       TupleType(/*x_el_in_ch*/Float, /*k_el_in_ch*/Float),
                       input_channels), tile.els_per_thread),
@@ -120,40 +120,49 @@ object CNN {
       AT(AT(AT(AT(AT(Float, n_in_channels), input_shape.wPadded), input_shape.hPadded), n_inputs), n_batches),
       (K, B, X) => {
         MapWrg(1)(λ((inputs_batch) => {
-          /*  (nKernels, nInputTiles, n_k_passes, n_k_windows) ->
-          *   (nKernels, n_tile_passes, n_tile_windows) */
-          PrintType() o
-          MapSeq(MapSeq(Join() o MapSeq(MapSeq(Join()) o Transpose())) o PrintType() o Split(tile.nInputTilesPerDim) o
-          Split(tile.nInputTilesPerDim)) o PrintType() o
-          /*  (nInputTiles, nKernels, n_k_passes, n_k_windows) ->
-           *  (nKernels, nInputTiles, n_k_passes, n_k_windows) */
+          /*  (nInputTiles, n_k_passes, n_k_windows, nKernels) ->
+          *   (n_tile_passes, n_tile_windows, nKernels) */
+          MapSeq(/*input*/Join() o MapSeq(/*tile_row*/MapSeq(Join()) o TransposeW())) o Split(tile.nInputTilesPerDim) o
+          Split(tile.nInputTilesPerDim) o
+          /*  (nInputTiles(nImages * nInputTilesPerDim * nInputTilesPerDim), nKernels, n_k_passes, n_k_windows) ->
+           *  (nInputTiles(nImages * nInputTilesPerDim * nInputTilesPerDim), n_k_passes, n_k_windows, nKernels) */
           λ(AT(AT(AT(AT(Float, tile.n_windows_per_tile_per_dim), tile.n_windows_per_tile_per_dim),
             n_out_channels), n_inputs * tile.nInputTilesPerDim * tile.nInputTilesPerDim),
-            (tiled_outputs) => Transpose() $ tiled_outputs) o
+            (tiled_outputs) => MapSeq(MapSeq(TransposeW()) o TransposeW()) $ tiled_outputs) o
           MapWrg(0)(λ((input_tile) => {
             /* (nKernels / tile.kernels_per_group, tile.kernels_per_group, n_k_passes, n_k_windows) ->
             *  (nKernels, n_k_passes, n_k_windows) */
             Join() o MapWrg(2)(λ(TupleType(
-              AT(AT(AT(AT(AT(Float, n_out_channels),
+              AT(AT(AT(AT(AT(Float, tile.kernels_per_group),
                 n_in_channels), kernel_shape.w), kernel_shape.h), tile.kernels_per_group),
               AT(Float, tile.kernels_per_group)),
               (kernels_tile) => {
                 /* (tile.kernels_per_group, n_passes*n_windows) -> (tile.kernels_per_group, n_k_passes, n_k_windows) */
                 MapSeq(Split(tile.n_windows_per_tile_per_dim)) o
                 /* (n_passes*n_windows, tile.kernels_per_group) -> (tile.kernels_per_group, n_k_passes*n_k_windows) */
-                Transpose() o
+                TransposeW() o
                 MapLcl(1)(λ((pass_window) => {
-                  λ(AT(AT(Float, kernel_shape.h), tile.kernels_per_group), (partially_reduced_windows) =>
-                    ReduceWindowAndAddBias()(partially_reduced_windows, /* biases */Get(kernels_tile, 1))) o
-                  /* (n_rows, tile.kernels_per_group) -> (tile.kernels_per_group, n_k_rows) */
-                  Transpose() o
-                  MapLcl(2)(λ((window_row, kernel_row) => {
+                  λ(AT(AT(Float, kernel_shape.h), tile.kernels_per_group), (partially_reduced_window) =>
+                    ReduceWindowAndAddBias()(partially_reduced_window, /* biases */Get(kernels_tile, 1))) o
+                  /* (kernel_shape.h, tile.kernels_per_group) -> (tile.kernels_per_group, kernel_shape.h) */
+                  TransposeW() o
+                  MapLcl(2)(λ((window_row, kernels_row) => {
                     Join() o MapSeq(ReduceRow()) o
-                    // (n_el_tiles_in_row, tile.els_per_thread, tile.kernels_per_group) ->
                     // (tile.kernels_per_group, kernel_shape.w)
-                    Transpose() o Join(/*tiles of elements*/) o
+                      MapSeq(Join(/*tiles of elements*/) o
+                        MapSeq(/* Dissolve one-element output of Reduce */Join())) o
+                      Split(kernel_shape.w / tile.els_per_thread) o
                       MapLcl(0)(WeightedSumOfInputChannels()) o
-                    Split(tile.els_per_thread) $ Zip(window_row, kernel_row)
+    /* (tile.kernels_per_group, kernel_shape.w / tile.els_per_thread, tile.els_per_thread, tuple of n_in_channels) ->
+     * (tile.kernels_per_group * kernel_shape.w / tile.els_per_thread, tile.els_per_thread, tuple of n_in_channels)*/
+                      Join() o
+      /* (tile.kernels_per_group, kernel_shape.w, n_in_channels) ->
+       * (tile.kernels_per_group, kernel_shape.w / tile.els_per_thread, tile.els_per_thread, tuple of n_in_channels) */
+                      MapSeq(/* for each kernel */
+                        λ((kernel_row) => Split(tile.els_per_thread) $ Zip(window_row, kernel_row))) o
+                      /* (kernel_shape.w, n_in_channels, tile.kernels_per_group) ->
+                       * (tile.kernels_per_group, kernel_shape.w, n_in_channels) */
+                      Transpose() o MapSeq(Transpose()) $ kernels_row
                   })) $ Zip(pass_window, RestoreKernelShape() $ /* weights */ Get(kernels_tile, 0))
                 })) o /* (n_passes, n_windows, n_rows) -> (n_passes*n_windows, n_rows) */
                   Join() $ input_tile
@@ -195,28 +204,25 @@ object CNN {
         (kernels_tile) =>
         MapSeq(MapSeq(Transpose()) o Transpose()) o Transpose() $ kernels_tile)
 
-    /* Computes a weighted sum of all input channels of one element for each output channel.
+    /* Computes a weighted sum of all input channels of one element for one output channel.
      * Returns:
-     * AT(AT(Float, tile.kernels_per_group), tile.els_per_thread) */
+     * TODO */
     def WeightedSumOfInputChannels(): FunDecl =
       λ(AT(TupleType(
             AT(Float, n_in_channels),
-            AT(AT(Float, tile.kernels_per_group), n_in_channels)),
+            AT(Float, n_in_channels)),
           tile.els_per_thread),
         (tile_of_els) => {
         MapSeq(λ(TupleType(AT(Float, n_in_channels), /*x_el_in_chs*/
           AT(AT(Float, tile.kernels_per_group), n_in_channels) /*k_el_in_chs*/),
           (single_element) =>
-            Join() o
-              MapSeq(λ((k_el_out_ch) => {
-                MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) o
-                  MapSeq(λ(TupleType(Float /*x_el_in_ch*/ , Float /*k_el_in_ch*/),
-                    (el_in_ch) =>
-                      mult(/*x_el_in_chs*/ Get(el_in_ch, 0), /*k_el_in_ch*/ Get(el_in_ch, 1)))) $
-                  Zip(/* x_el_in_chs */ Get(single_element, 0), k_el_out_ch)
-              })) o /* (n_in_chs, n_out_chs) -> (n_out_chs, n_in_chs) */
-              Transpose() $ /*k_el_in_chs*/ Get(single_element, 1))
-        ) $ tile_of_els
+            /*Join() o*/
+            MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) o
+              MapSeq(λ(TupleType(Float /*x_el_in_ch*/ , Float /*k_el_in_ch*/),
+                (el_in_ch) =>
+                  mult(/*x_el_in_chs*/ Get(el_in_ch, 0), /*k_el_in_ch*/ Get(el_in_ch, 1)))) $
+              Zip(Get(single_element, 0), Get(single_element, 1))
+        )) $ tile_of_els
       })
 
     /* Reduces weighted pass window rows for one channel.
@@ -250,9 +256,9 @@ class CNN(/* CNN architectural parameters */
           val liftCNN: (UserFun, Shape, Shape, Int, Int, Int, Int, Tile) => FunDecl,
           val activationFun/*per layer*/: Array[UserFun],
           /* CNN parallelisation parameters */
-          val elsPerThreadL0: Int,
-          val kernelsPerGroupL0: Int,
-          val inputTileSizeL0: Int,
+          val elsPerThreadL1: Int,
+          val kernelsPerGroupL1: Int,
+          val inputTileSizeL1: Int,
           /* CNN application parameters */
           val inputsL0: PaddedArray[Array5D[Float]], val kWeights: Array5D[Float],
           val kBiases: Array2D[Float], val targets: Array5D[Float],
@@ -292,7 +298,8 @@ class CNN(/* CNN architectural parameters */
 
   /* Tiles */
   var inputTileSize: Array[Int] = {for (layerNo <- 0 until nLayers) yield
-    if (layerNo == 0) inputTileSizeL0 else kernelShape(layerNo).s}.toArray
+    //if (layerNo == 0) inputTileSizeL0 else kernelShape(layerNo).s}.toArray
+    if (layerNo == 0 && nLayers > 1) kernelShape(layerNo).s else inputTileSizeL1 }.toArray
   var inputTileStep: Array[Int] = {for (layerNo <- 0 until nLayers) yield
     inputTileSize(layerNo) - (kernelShape(layerNo).s - kernelStep(layerNo))}.toArray
   var nTilesPerDim: Array[Int] = Array.fill[Int](nLayers)(0)
@@ -333,8 +340,8 @@ class CNN(/* CNN architectural parameters */
     inputShape(layerNo).wPadded = inputTileSize(layerNo) + inputTileStep(layerNo) * (nTilesPerDim(layerNo) - 1)
     inputShape(layerNo).hPadded = inputShape(layerNo).wPadded
     nWindowsPerTilePerDim(layerNo) = {
-      val n: Float = 1 + (inputTileSize(layerNo) - kernelShape(layerNo).s).toFloat / kernelStep(layerNo)
-      if (n % 1 != 0) throw new java.lang.ArithmeticException("Input tiles are not divisible by the chosen " +
+      val n: Float = (inputTileSize(layerNo) - (kernelShape(layerNo).s - kernelStep(layerNo))).toFloat / kernelStep(layerNo)
+      if (n % 1 != 0) throw new java.lang.IllegalArgumentException("Input tiles are not divisible by the chosen " +
         "kernelShape and kernelStep")
       n.toInt
     }
@@ -343,15 +350,13 @@ class CNN(/* CNN architectural parameters */
     outputShape(layerNo) = Shape(
       w={val w: Float = (inputShape(layerNo).w - (kernelShape(layerNo).w - kernelStep(layerNo))).toFloat /
         kernelStep(layerNo)
-        // TODO: replace with IllegalArgumentException
-        if (w % 1 != 0) throw new java.lang.ArithmeticException("Inputs are not divisible by the chosen " +
+        if (w % 1 != 0) throw new java.lang.IllegalArgumentException("Inputs are not divisible by the chosen " +
           "kernelShape and kernelStep")
         w.toInt
       },
       h={val h: Float = (inputShape(layerNo).h - (kernelShape(layerNo).h - kernelStep(layerNo))).toFloat /
         kernelStep(layerNo)
-        // TODO: replace with IllegalArgumentException
-        if (h % 1 != 0) throw new java.lang.ArithmeticException("Inputs are not divisible by the chosen " +
+        if (h % 1 != 0) throw new java.lang.IllegalArgumentException("Inputs are not divisible by the chosen " +
           "kernelShape and kernelStep")
         h.toInt
       },
@@ -367,10 +372,10 @@ class CNN(/* CNN architectural parameters */
 
 
   /* Parallelization parameters */
-  val elsPerThread: Array[Int] = Array.fill[Int](nLayers)(1)
-  elsPerThread(0) = elsPerThreadL0
+  val elsPerThread: Array[Int] = Array.fill[Int](nLayers)(2)
+  elsPerThread(nLayers - 1) = elsPerThreadL1
   val kernelsPerGroup: Array[Int] = Array.fill[Int](nLayers)(4)
-  kernelsPerGroup(0) = kernelsPerGroupL0
+  kernelsPerGroup(nLayers - 1) = kernelsPerGroupL1
   val localSize: Array[Array[Int]] = Array.fill[Array[Int]](3)(Array.fill[Int](nLayers)(0))
   val globalSize: Array[Array[Int]] = Array.fill[Array[Int]](3)(Array.fill[Int](nLayers)(0))
 
@@ -398,13 +403,11 @@ class CNN(/* CNN architectural parameters */
 
     /* Check parameters */
     if (nKernels(layerNo) % kernelsPerGroup(layerNo) != 0)
-    // TODO: replace with IllegalArgumentException
-      throw new java.lang.ArithmeticException(
+      throw new java.lang.IllegalArgumentException(
         f"The number of kernels in layer $layerNo%d (=${nKernels(layerNo)}%d) must be divisible by kernelsPerGroup " +
           f"(=${kernelsPerGroup(layerNo)}%d)")
     if (kernelShape(layerNo).s % elsPerThread(layerNo) != 0)
-    // TODO: replace with IllegalArgumentException
-      throw new java.lang.ArithmeticException(
+      throw new java.lang.IllegalArgumentException(
         f"Kernel size in all dimensions (=${kernelShape(layerNo).s}%d) must be divisible by elsPerThread " +
           f"(=${elsPerThread(layerNo)}%d)")
 
@@ -415,7 +418,8 @@ class CNN(/* CNN architectural parameters */
       Math.ceil(kernelShape(layerNo).s.toFloat / elsPerThread(layerNo))).toInt
 
     // Local size 1 =
-    localSize(1)(layerNo) = scala.math.pow(inputTileSize(layerNo) - (kernelShape(layerNo).s - 1), 2).toInt
+    localSize(1)(layerNo) = scala.math.pow((inputTileSize(layerNo) - (kernelShape(layerNo).s - 1)) /
+      kernelStep(layerNo), 2).toInt
 
     // Local size 2 = height of the convolutional window
     localSize(2)(layerNo) = kernelShape(layerNo).h
@@ -424,7 +428,7 @@ class CNN(/* CNN architectural parameters */
       val groupSize: Int = localSize(0)(layerNo) * localSize(1)(layerNo) * localSize(2)(layerNo)
         if (groupSize > nn.maxWorkGroupSize)
         // TODO: replace with IllegalArgumentException
-        throw new java.lang.ArithmeticException(
+        throw new java.lang.IllegalArgumentException(
           f"Layer $layerNo%d group size (==$groupSize%d) must be less or equal to maxWorkGroupSize " +
             f"(${nn.maxWorkGroupSize}%d).\nDecrease nKernels or inputTileSize or increase elsPerThread " +
             f"(${elsPerThread(layerNo)}%d).")

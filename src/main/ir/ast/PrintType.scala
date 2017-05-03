@@ -8,9 +8,11 @@ import ir.interpreter.Interpreter._
   * Identity function that prints the Lift type of its input.
   * Generates no OpenCL code.
   */
-case class PrintType() extends Pattern(arity = 1) with isGenerable {
+case class PrintType(msg: String = "") extends Pattern(arity = 1) with isGenerable {
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
+    if (msg != "")
+      print(msg + ": ")
     println(argType.toString)
     argType
   }
