@@ -1,5 +1,6 @@
 package opencl.ir
 
+import arithmetic.TypeVar
 import lift.arithmetic.{?, ArithExpr, Cst}
 import ir._
 import ir.ast._
@@ -395,6 +396,8 @@ object OpenCLMemoryAllocator {
    */
   private def sizeOfArray(innerSize: ArithExpr, ty: ArrayType): ArithExpr = {
     val hSize = ty.getHeaderSize
-    hSize + innerSize * ty.getCapacity.getOrElse(?)
+    val capacity = ty.getCapacity.getOrElse(?)
+    val map = TypeVar.getTypeVars(capacity).map(tv => (tv, tv.range.max)).toMap
+    hSize + innerSize * ArithExpr.substitute(capacity, map.toMap)
   }
 }
