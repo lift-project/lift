@@ -29,10 +29,7 @@ abstract class AbstractPartRed(val f: Lambda,
         if (initT != elemT)
           throw TypeException(s"Illegal customising function in\n$this.\n$initT != $elemT")
 
-        val bodyType = TypeChecker.check(f.body, setType) // check the body
-
-        if (bodyType != initT)
-          throw TypeException(s"Reduce operator returns $bodyType instead of the expected $initT")
+        TypeChecker.assertTypeIs(f.body, initT, setType) // check the body
 
         // TODO: Output length of a partial reduce might not be 1
         ArrayTypeWSWC(initT, 1)
