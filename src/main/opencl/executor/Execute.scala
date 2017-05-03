@@ -174,7 +174,7 @@ object Execute {
           // TODO: we have the ability to change this here. Do we want to?
           (Seq.empty, Seq.empty)
         case NoType | UndefType =>
-          throw new IllegalArgumentException("Executor: Untyped parameterin lambda")
+          throw new IllegalArgumentException("Executor: Untyped parameter in lambda")
       }
     }
     
@@ -224,7 +224,12 @@ object Execute {
       ty.getSize match {
         case Some(Cst(n)) =>
           // Look for ill-sized inputs. See issue #98, snippet 3
-          if (n.toInt != len)
+          val foo = ty.elemT match {
+            case vt: VectorType => vt.len.eval
+            case tt: TupleType => tt.elemsT.length
+            case _ => 1
+          }
+          if (n.toInt * foo != len)
             throw new IllegalKernelArgument(s"Ill-sized argument: $n ≠ $len")
           sizes
         case Some(x) => (x, len) +: sizes
@@ -240,7 +245,6 @@ object Execute {
         val newLen = SolveForVariable(v, len).eval
         (v.varList.head, newLen)
     })
-    
   }
 
   /**
