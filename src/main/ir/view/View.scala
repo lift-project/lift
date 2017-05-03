@@ -31,7 +31,7 @@ case class AccessVar(array: String, idx: ArithExpression,
 }
 
 /**
- * Hack: an special variable to fetch the size of an array. Should not appear
+ * Hack: a special variable to fetch the size of an array. Should not appear
  * in the generated code.
  *
  * array[SizeIndex()]  ==  array.size
