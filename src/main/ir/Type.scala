@@ -317,6 +317,8 @@ object Type {
     a match {
       case _: Float => ScalarType("float", 4)
       case _: Int => ScalarType("int", 4)
+      case _: Double => ScalarType("double", 8)
+      case _: Boolean => ScalarType("unsigned_char", 1)
       case a: Seq[_] if a.nonEmpty => ArrayTypeWSWC(fromAny(a.head), a.length)
       case t: (_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2)):_*)
       case t: (_,_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2), fromAny(t._3)):_*)
