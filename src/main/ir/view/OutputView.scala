@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{ReduceWhileSeq, SlideSeqPlus}
+import opencl.ir.pattern.{ReduceWhileSeq, SlideSeqPlus, FilterSeq}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
@@ -40,6 +40,7 @@ object OutputView {
     // first handle body
     val result = call.f match {
       case m: AbstractMap => buildViewMap(m, call, writeView)
+      case f: FilterSeq => buildViewFilter(f,  call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
       case sp: SlideSeqPlus => buildViewSlideSeqPlus(sp, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
@@ -61,9 +62,12 @@ object OutputView {
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
-      case _: ArrayAccess =>
+      case _: ArrayAccess | _: UnsafeArrayAccess =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
-      case _ => writeView
+      case PrintType() | Get(_) | _: Tuple | Gather(_) | Filter() |
+           Pad(_, _, _) =>
+        writeView
+      case dunno => throw new NotImplementedError(s"OutputView.scala: $dunno")
     }
 
     // then handle arguments
@@ -195,7 +199,19 @@ object OutputView {
     visitAndBuildViews(m.f.body, writeView.access(m.loopVar))
     ViewMap(m.f.params.head.outputView, m.loopVar, call.args.head.t)
   }
-
+  
+  private def buildViewFilter(f: FilterSeq, call: FunCall,
+                              writeView: View): View = {
+    // Output of the predicate is never stored in a variable
+    visitAndBuildViews(f.f.body, writeView.access(Cst(0)))
+    val outDepth = getAccessDepth(f.f.body.accessInf, f.f.body.mem)
+    f.f.body.outputView = View.initialiseNewView(f.f.body.t, outDepth)
+    
+    // Write at the "top" of the output array
+    visitAndBuildViews(f.copyFun.body, writeView.access(f.loopWrite))
+    ViewMap(f.copyFun.body.outputView, f.loopWrite, call.args.head.t)
+  }
+  
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, writeView: View): View = {
     // traverse into call.f

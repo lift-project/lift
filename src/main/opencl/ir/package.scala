@@ -1,6 +1,6 @@
 package opencl
 
-import _root_.ir.{Type, TupleType}
+import _root_.ir.{Type, TupleType, ScalarType}
 import _root_.ir.ast.{UserFun, Value}
 
 import scala.language.implicitConversions
@@ -17,8 +17,11 @@ package object ir {
   def first(leftTy: Type, rightTy: Type, name: String="fst"): UserFun =
     UserFun(name, Array("x", "y"), "return x;", Seq(leftTy, rightTy), leftTy)
   
-  def max(ty: Type, name: String="maximum"): UserFun =
+  def max(ty: ScalarType, name: String="maximum"): UserFun =
     UserFun(name, Array("x", "y"), "return x > y ? x : y;", Seq(ty, ty), ty)
+
+  def add(ty: ScalarType, name: String = "add"): UserFun =
+    UserFun(name, Array("x", "y"), "return x + y;", Seq(ty, ty), ty)
   
   // commonly used user functions
 
@@ -44,9 +47,6 @@ package object ir {
 
   val idFF = UserFun("idFF", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
   
-  // A polymorphic version of the identity function
-  def id(ty: Type): UserFun = UserFun("id", "x", "return x;", ty, ty)
-
   val absAndSumUp = UserFun("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }",
                             Seq(Float, Float), Float)
 
