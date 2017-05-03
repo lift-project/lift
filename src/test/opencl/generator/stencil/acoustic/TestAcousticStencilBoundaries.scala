@@ -41,7 +41,7 @@ object BoundaryUtilities
   def createMask(input: Array[Array[Float]], msizeX: Int, msizeY: Int, maskValue: Int): Array[Array[Int]] = {
 
     val mask =input.flatten.zipWithIndex.map(i => !( (i._2%msizeX != 0) && i._2%msizeX!=(msizeX-1)  && i._2>msizeX && i._2<(msizeX*msizeY)-msizeX) )
-    mask.map(i => i*1).sliding(msizeX,msizeX).toArray
+    mask.map(i => i*1).sliding(msizeY,msizeY).toArray
 
   }
 
@@ -53,7 +53,6 @@ object BoundaryUtilities
   def createMaskDataAsym2D(sizeX: Int, sizeY: Int) =
   {
     val initMat = Array.tabulate(sizeX,sizeY){ (i,j) => (i+j+1).toFloat }
-    val maskArray = createMask(initMat,sizeX,sizeY,0).map(i => i.map(j => j.toString.toArray))
     val mask = createMask(initMat,sizeX,sizeY,0).map(i => i.map(j => j.toString.toArray))
     mask.map(i => i.map(j => j.map(k => k.toInt-parseIntAsCharAsInt(0))))
   }
@@ -213,7 +212,7 @@ class TestAcousticStencilBoundaries {
 
     val constantOriginal = 2.0f
     val constantBorder = 5.0f
-
+    
     val lambdaNeigh = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr(0).length), stencilarr.length),
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, 1), localDimY), localDimX),
