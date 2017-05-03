@@ -35,7 +35,7 @@ case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
     // Check that the argument is an array and fetch it's type information
     val (elemT, size) = argType match {
       case ArrayTypeWSWC(ty, size, _) => (ty, size)
-      case _ => throw new TypeException(argType, "Array")
+      case _ => throw new TypeException(argType, "Array", this)
     }
     
     // Check that the predicate has type `elemT -> Boolean`
@@ -43,7 +43,7 @@ case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
     f.params.head.t = elemT
     val predicate_ty = TypeChecker.check(f.body, setType)
     if (predicate_ty != opencl.ir.Int)
-      throw new TypeException(predicate_ty, "Int")
+      throw new TypeException(predicate_ty, "Int", this.f)
     
     // At this point, we are able to generate the copy function
     this._copyFun = this.generateCopyFun(elemT)

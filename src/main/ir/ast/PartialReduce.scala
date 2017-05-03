@@ -37,7 +37,7 @@ abstract class AbstractPartRed(val f: Lambda,
         // TODO: Output length of a partial reduce might not be 1
         ArrayTypeWSWC(initT, 1)
 
-      case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))")
+      case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))", this)
     }
   }
 
