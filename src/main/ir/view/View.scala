@@ -21,7 +21,7 @@ private class IllegalView(v: View)
  * @param array Array name
  * @param idx Index to access in the array
  */
-sealed case class AccessVar(array: String, idx: ArithExpression,
+case class AccessVar(array: String, idx: ArithExpression,
                      r: Range = RangeUnknown,
                      fixedId: Option[Long] = None) extends ExtensibleVar("", r, fixedId) {
   override def copy(r: Range) = AccessVar(array, idx, r, Some(id))
