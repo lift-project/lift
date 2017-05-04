@@ -166,10 +166,7 @@ object Execute {
         
           // fetch information for the current array
           (fetchCap(at, len, caps), fetchSize(at, len, sizes))
-        case VectorType(_, len) =>
-          // Vectors are passed to the executor as arrays
-          (Seq.empty, Seq((len, asArray(value).length)))
-        case _: TupleType | ScalarType(_, _) =>
+        case _: TupleType | ScalarType(_, _) | VectorType(_, _) =>
           // We assume tuples do not contain arrays
           // TODO: we have the ability to change this here. Do we want to?
           (Seq.empty, Seq.empty)
