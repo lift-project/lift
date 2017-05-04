@@ -166,9 +166,23 @@ object Execute {
         
           // fetch information for the current array
           (fetchCap(at, len, caps), fetchSize(at, len, sizes))
-        case _: TupleType | ScalarType(_, _) | VectorType(_, _) =>
+        case _: TupleType | ScalarType(_, _) =>
           // We assume tuples do not contain arrays
-          // TODO: we have the ability to change this here. Do we want to?
+          (Seq.empty, Seq.empty)
+        case VectorType(st, len) =>
+          // Vectors must be passed as arrays
+          if (!value.isInstanceOf[Array[_]])
+            throw TypeException(s"Expected an Array (representing a vector) but got a ${value.getClass}")
+          // Validate the underlying type and the length
+          val array = value.asInstanceOf[Array[_]]
+          val headType = try { Type.fromAny(array.head)}
+                       catch { case _: NotImplementedError => NoType }
+          if (headType != st || array.length != len.eval)
+            throw TypeException(
+              s"Expected Array[$st] of size $len (representing a vector). " +
+              s"Got Array[$headType] of length ${array.length} instead."
+            )
+          // Finally… say nothing
           (Seq.empty, Seq.empty)
         case NoType | UndefType =>
           throw new IllegalArgumentException("Executor: Untyped parameter in lambda")
@@ -190,7 +204,6 @@ object Execute {
      */
     def tupleSize(ty: Type): Int = ty match {
       case tt: TupleType => tt.elemsT.length
-      case VectorType(_, len) => len.eval
       case _ => 1
     }
   
@@ -221,12 +234,7 @@ object Execute {
       ty.getSize match {
         case Some(Cst(n)) =>
           // Look for ill-sized inputs. See issue #98, snippet 3
-          val foo = ty.elemT match {
-            case vt: VectorType => vt.len.eval
-            case tt: TupleType => tt.elemsT.length
-            case _ => 1
-          }
-          if (n.toInt * foo != len)
+          if (n.toInt != len)
             throw new IllegalKernelArgument(s"Ill-sized argument: $n ≠ $len")
           sizes
         case Some(x) => (x, len) +: sizes
@@ -754,12 +762,19 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         val newPos = putHeader(buffer, pos, array, at)
         val capacity = at.getCapacity.get.eval // Must be known
         at.elemT match {
-          case _: VectorType | _: ScalarType | _: TupleType =>
+          case _: ScalarType | _: TupleType =>
             // Copy
             array.asInstanceOf[Array[T]].copyToArray(buffer, newPos)
             // Compute the next position
             val nextPos = (newPos + capacity * sizeOf(at.elemT)).eval
             assert (newPos + array.length <= nextPos) // Sanity check
+            nextPos
+          case _: VectorType =>
+            val flat = array.asInstanceOf[Array[Array[T]]].flatten
+            flat.copyToArray(buffer ,newPos)
+            // Compute the next position
+            val nextPos = (newPos + capacity * sizeOf(at.elemT)).eval
+            assert (newPos + flat.length <= nextPos) // Sanity check
             nextPos
           case elemT: ArrayType =>
             val v = array.asInstanceOf[Array[Array[_]]]

@@ -201,8 +201,8 @@ class TestRules {
   @Test
   def testDot0(): Unit = {
 
-    val input = Array.fill(4)(util.Random.nextFloat())
-    val gold = (input, input).zipped.map(_*_).sum
+    val input = Array.fill(1, 4)(util.Random.nextFloat())
+    val gold = (input.head, input.head).zipped.map(_*_).sum
 
     val f = fun(
       ArrayTypeWSWC(Float4, 1),
@@ -232,8 +232,8 @@ class TestRules {
   @Test
   def testDot1(): Unit = {
 
-    val input = Array.fill(16)(util.Random.nextFloat())
-    val gold = (input, input).zipped.map(_*_).sum
+    val input = Array.fill(4, 4)(util.Random.nextFloat())
+    val gold = (input.flatten, input.flatten).zipped.map(_*_).sum
 
     val N = SizeVar("N")
 
@@ -266,8 +266,8 @@ class TestRules {
   @Test
   def testDotRule(): Unit = {
 
-    val input = Array.fill(16)(util.Random.nextFloat())
-    val gold = (input, input).zipped.map(_*_).sum
+    val input = Array.fill(4, 4)(util.Random.nextFloat())
+    val gold = (input.flatten, input.flatten).zipped.map(_*_).sum
 
     val N = SizeVar("N")
 
@@ -970,7 +970,7 @@ class TestRules {
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.zipWithIndex.foreach(l => {
-      val (result: Array[Float], _) = Execute(128)(l._1, A.flatten)
+      val (result: Array[Float], _) = Execute(128)(l._1, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }

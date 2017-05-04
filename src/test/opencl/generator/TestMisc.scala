@@ -600,7 +600,7 @@ class TestMisc {
 
   @Test def vectorType(): Unit = {
     val inputSize = 1024
-    val inputData = Array.tabulate(inputSize*4)(_.toFloat)
+    val inputData = Array.tabulate(inputSize, 4)((i, j) => (i * 4 + j).toFloat)
 
     val N = SizeVar("N")
 
@@ -611,12 +611,12 @@ class TestMisc {
     )
 
     val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
-    assertArrayEquals(inputData, output, 0.0f)
+    assertArrayEquals(inputData.flatten, output, 0.0f)
   }
 
   @Test def vectorizePattern(): Unit = {
     val inputSize = 1024
-    val inputData = Array.tabulate(inputSize*4)(_.toFloat)
+    val inputData = Array.tabulate(inputSize, 4)((i, j) => (i * 4 + j).toFloat)
 
     val N = SizeVar("N")
 
@@ -627,7 +627,7 @@ class TestMisc {
     )
 
     val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
-    assertArrayEquals(inputData, output, 0.0f)
+    assertArrayEquals(inputData.flatten, output, 0.0f)
   }
 
   @Test def mapValueArg(): Unit = {
