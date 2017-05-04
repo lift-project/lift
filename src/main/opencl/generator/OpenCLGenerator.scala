@@ -425,6 +425,8 @@ class OpenCLGenerator extends Generator {
         case m: MapSeq => generateMapSeqCall(m, call, block)
         case _: Map =>
 
+        case f: FilterSeq => generateFilterSeqCall(f, call, block)
+
         case r: ReduceSeq => generateReduceSeqCall(r, call, block)
         case r: ReduceWhileSeq => generateReduceWhileCall(r, call, block)
 
@@ -617,6 +619,52 @@ class OpenCLGenerator extends Generator {
     (block: Block) += OpenCLAST.Comment("map_seq")
     generateForLoop(block, call.args.head, m.loopVar, generate(m.f.body, _), m.shouldUnroll)
     (block: Block) += OpenCLAST.Comment("end map_seq")
+  }
+
+  // === Filter ===
+  private def generateFilterSeqCall(f: FilterSeq,
+                                    call: FunCall,
+                                    block: Block): Unit = {
+    
+    (block: Block) += OpenCLAST.Comment("filter_seq")
+    
+    // Declare the index for the output array as a local variable
+    (block: Block) += OpenCLAST.VarDecl(
+      f.loopWrite,
+      opencl.ir.Int,
+      ArithExpression(Cst(0))
+    )
+  
+    // If the predicate returns true:
+    def copyAndIncrementIndex(block: Block): Unit = {
+      // 1. Store the input value at "the top" of the output array
+      generate(f.copyFun.body, block)
+      // 2. Increment the index of "the top" of the output array
+      (block: Block) += AssignmentExpression(
+        ArithExpression(f.loopWrite),
+        ArithExpression(
+          f.loopWrite
+          + f.loopWrite.range.asInstanceOf[RangeAdd].step)
+      )
+    }
+  
+    def generateBody(block: Block): Unit = {
+      generate(f.f.body, block)  // Evaluates the predicate
+      generateConditional(
+        block,
+        generateLoadNode(
+          OpenCLMemory.asOpenCLMemory(f.f.body.mem),
+          f.f.body.t,
+          f.f.body.view
+        ),
+        copyAndIncrementIndex,
+        _ => ()
+      )
+    }
+    
+    generateForLoop(block, call.args.head, f.loopRead, generateBody)
+    
+    (block: Block) += OpenCLAST.Comment("end filter_seq")
   }
 
   // === Reduce ===
@@ -1224,7 +1272,7 @@ class OpenCLGenerator extends Generator {
       case VarRef(_, _, arrayIndex) => arrayIndex
       case _ => throw new NotImplementedError() // should never get there
     }
-    val headerLength: ArithExpr = 1
+    val headerLength: ArithExpr = 2 // TODO: this is in words! what happens if we have arrays of byte or double?
 
     val addressSpace = OpenCLMemory.asOpenCLMemory(array.mem).addressSpace
     val sizeExpr = PointerCast(
@@ -1322,7 +1370,7 @@ class OpenCLGenerator extends Generator {
 
   @scala.annotation.tailrec
   private def generateFunCall(expr: Expr,
-                              args: List[OclAstNode]): OclAstNode = {
+                              args: List[OclAstNode]): FunctionCall = {
     expr match {
       case call: FunCall => call.f match {
         case uf: UserFun =>

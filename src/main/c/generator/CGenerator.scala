@@ -490,7 +490,13 @@ class CGenerator extends Generator {
               case OpenCLAST.VarRef(v, s, i) => VarRef(v, s, ArithExpression(i.content))
               case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
             })
-          case a: ArrayType with Size => Right(a.size)
+          case ArrayTypeWS(_,s) => Right(s)
+          case ArrayType(_) =>
+            // layout in memory: | capacity | size | ... |
+            Left(ViewPrinter.emit(e.mem.variable, e.view) match {
+              case OpenCLAST.VarRef(v, s, i) => VarRef(v, s, ArithExpression(i.content+1))
+              case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+            })
           case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) =>
             throw new TypeException(e.t, "Array")
         }
