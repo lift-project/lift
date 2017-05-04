@@ -12,7 +12,7 @@ package object ir {
     UserFun(name, "x", "return x;", ty, ty)
   
   def equality(ty: Type, name: String = "equality"): UserFun =
-    UserFun(name, Array("x", "y"), "return x == y;", Seq(ty, ty), Int)
+    UserFun(name, Array("x", "y"), "return x == y;", Seq(ty, ty), Bool)
   
   def first(leftTy: Type, rightTy: Type, name: String="fst"): UserFun =
     UserFun(name, Array("x", "y"), "return x;", Seq(leftTy, rightTy), leftTy)
