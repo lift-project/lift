@@ -51,6 +51,8 @@ class TestAnalyser {
       p4 -> 8
     )
 
+    // FIXME: I'm pretty sure the apply method we are calling here is
+    // FIXME: not what we are expecting.
     val (localSizes, globalSizes) = InferNDRange(lambda, valueMap)
 
     val localSizes2 = localSizes.map(substitute(_, valueMap))

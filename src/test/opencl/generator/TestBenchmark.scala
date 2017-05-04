@@ -146,14 +146,9 @@ class TestBenchmark {
 
     val inputSize = 1024
     val maxNeighbours = 128
-
-    val particlesTuple = Array.fill(inputSize)((
-      util.Random.nextFloat() * 20.0f,
-      util.Random.nextFloat() * 20.0f,
-      util.Random.nextFloat() * 20.0f,
-      util.Random.nextFloat() * 20.0f
-      ))
-    val particles = particlesTuple.map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
+  
+    val particles = Array.fill(inputSize, 4)(util.Random.nextFloat() * 20.0f)
+    val particlesTuple = particles.map { case Array(a, b, c, d) => (a, b, c, d) }
     val neighbours = MolecularDynamics.buildNeighbourList(particlesTuple, maxNeighbours)
     val cutsq = 16.0f
     val lj1 = 1.5f
@@ -204,13 +199,8 @@ class TestBenchmark {
     val inputSize = 1024
     val maxNeighbours = 128
 
-    val particlesTuple = Array.fill(inputSize)((
-      util.Random.nextFloat() * 20.0f,
-      util.Random.nextFloat() * 20.0f,
-      util.Random.nextFloat() * 20.0f,
-      util.Random.nextFloat() * 20.0f
-      ))
-    val particles = particlesTuple.map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
+    val particles = Array.fill(inputSize, 4)(util.Random.nextFloat() * 20.0f)
+    val particlesTuple = particles.map { case Array(a, b, c, d) => (a, b, c, d) }
     val neighbours = MolecularDynamics.buildNeighbourList(particlesTuple, maxNeighbours).transpose
     val cutsq = 16.0f
     val lj1 = 1.5f
