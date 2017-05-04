@@ -172,7 +172,7 @@ object Execute {
         case VectorType(st, len) =>
           // Vectors must be passed as arrays
           if (!value.isInstanceOf[Array[_]])
-            throw TypeException(s"Expected an Array (representing a vector) but got a ${value.getClass}")
+            throw TypeException(s"Expected an Array (representing a $ty) but got a ${value.getClass}")
           // Validate the underlying type and the length
           val array = value.asInstanceOf[Array[_]]
           val headType = try { Type.fromAny(array.head)}
@@ -199,7 +199,7 @@ object Execute {
     }
   
     /**
-     * Tuples and vectors are given to the executor in a flattened format, we
+     * Tuples are given to the executor in a flattened format, we
      * have to take this into consideration while inferring the sizes.
      */
     def tupleSize(ty: Type): Int = ty match {
@@ -842,6 +842,11 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
             val raw = encoder.encode(array, at, size)
             global.input(raw)
         }
+      case VectorType(_, len) =>
+        // Hack: wrap it into an array of size 1. It does not change the way it
+        //       is encoded (at the moment) and it allow us to reuse the code
+        //       above.
+        apply(Array(any), ArrayType(ty, 1), size)
       case _ => throw new EncodeError(ty)
     }
   }
