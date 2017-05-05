@@ -45,6 +45,12 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
               case _ => apply(m.f.body)
             }
 
+          case f: FilterSeq => {
+            apply(f.copyFun.body)
+            apply(f.f.body)
+            setRangeFilterSeq(f, call)
+          }
+
           case r: AbstractPartRed =>
             r match {
               case r : ReduceSeq => setRangeReduceSeq(r, call)
@@ -167,7 +173,12 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
   private def setRangeMapSeq(m: MapSeq, call: FunCall): Unit = {
     m.loopVar = Var(m.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
   }
-
+  
+  private def setRangeFilterSeq(f: FilterSeq, call: FunCall): Unit = {
+    f.loopRead = Var(f.loopRead.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
+    f.loopWrite = Var(f.loopWrite.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
+  }
+  
   private def setRangeReduceSeq(r: AbstractReduce, call: FunCall): Unit = {
     val inT = call.args(1).t
     r.loopVar = Var(r.loopVar.name, RangeAdd(Cst(0), Type.getLength(inT), Cst(1)))
