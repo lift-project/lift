@@ -102,10 +102,10 @@ package object ir {
   // Logical
   
   val or: UserFun =
-    UserFun("or", Array("x", "y"), "return x | y;", Seq(Int, Int), Int)
+    UserFun("or", Array("x", "y"), "return x | y;", Seq(Bool, Bool), Bool)
   
   val not: UserFun =
-    UserFun("not", "x", "return !x;", Int, Int)
+    UserFun("not", "x", "return !x;", Bool, Bool)
 
   implicit def IntToValue(i: Int): Value = Value(i.toString, opencl.ir.Int)
 
