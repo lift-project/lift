@@ -96,40 +96,36 @@ Should your pattern contain a "loop variable", you should add a case in the
 Memory Allocation
 """""""""""""""""
 
-You have to allocate memory for your pattern:
-
-**TODO** Only user functions allocate memory. You have to tell the nested user functions
+Only user functions allocate memory. You have to tell the nested user functions
 how much memory they will need if they are nested in your pattern.
-
-1. The nested functions it contains
-2. It's output
 
 It is done in ``OpenCLMemoryAllocator.alloc``. More specifically, you
 have to add a case in ``allocFunCall``.
 
-**TODO**: I don't understand, what's happening with the input? What is
-``inMem``?
-
-**TODO** ``inMem`` is the memory, OpenCL buffer(s), that the first user function in the
-pattern will read from.
+All these functions take an argument ``inMem`` which is the memory, OpenCL
+buffer(s), that the first user function in the pattern will read from.
 
 Also, some other classes are called during this process. You may need to
-edit ``OpenCLMemory.scala`` as well.
+edit ``OpenCLMemory`` as well.
 
 
-Optimisations
-"""""""""""""
+Unrolling loops
+"""""""""""""""
 
-``ShouldUnroll`` and ``BarrierElimination`` are optimisations you might
-be able to perform at some point. Don't look at that in the first place.
+``ShouldUnroll`` isn't really an optimisation at this point. We have to unroll
+loops when we use private memory as we flatten all private memory arrays into
+variables and can't therefore index into them using variables. We represent the
+private arrays as variables to try and force the compiler to store the arrays in
+registers instead of spilling into global memory.  That means instead of a
+definition ``int a[2];`` we have ``int a_0; int a_1; int a_2;`` and for reading/writing
+``a[i]`` when ``i`` is ``1`` we need to emit ``a_1`` instead.
 
-**TODO** ``ShouldUnroll`` isn't really an optimisation at this point.
-We have to unroll loops when we use private memory as we flatten all private memory
-arrays into variables and can't therefore index into them using variables.
-We represent the private arrays as variables to try and force the compiler to store the
-arrays in registers instead of spilling into global memory.
-That means instead of a definition ``int a[2];`` we have ``int a_0; int a_2;`` and for
-reading/writing ``a[i]`` when ``i`` is ``1`` we need to emit ``a_1`` instead.
+Barrier elimination
+"""""""""""""""""""
+
+``BarrierElimination`` is an optimisation consisting in removing unnecessary
+barriers in the OpenCL generated code. Don't look at that in the first place.
+
 
 Debugging
 """""""""
