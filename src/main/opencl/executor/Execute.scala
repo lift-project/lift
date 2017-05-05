@@ -111,10 +111,14 @@ object Execute {
       // and build a map so that we only keep necessary information
       val cleanedSizes = sizes
         .groupBy(_._1)
-        .mapValues(vals => {
-          if (vals.map(_._2).distinct.length != 1)
-            throw new IllegalKernelArgument("Sizes are not consistent")
-          vals.head._2
+        .mapValues(pairs => {
+          val values = pairs.map(_._2).distinct
+          if (values.length != 1)
+            throw new IllegalKernelArgument(
+              s"Incompatible values inferred for variable: ${pairs.head._1}\n" +
+              values.map(v => s" - `$v`").mkString("\n")
+            )
+          values.head
         })
     
       // Considering capacity, take the maximum value for each variable.
