@@ -619,7 +619,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   private def checkParamsWithValues(params: Seq[Param], values : Seq[Any]): Unit = {
     if (params.length != values.length)
       throw new IllegalArgumentException(
-        s"Expected ${params.length} parameters, but ${values.length} given")
+        s"Expected ${params.length} parameters, but ${values.length} was given")
 
     (params, values).zipped.foreach( (p, v) => checkParamWithValue(p.t, v) )
   }
