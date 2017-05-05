@@ -142,6 +142,15 @@ object Execute {
     /** A shorthand, for clarity */
     type Constraint = (ArithExpr, Int)
   
+    /** Wrapper for method `_fetchConstraints` below */
+    def fetchConstraints(ty: Type, value: Any): (Seq[Constraint], Seq[Constraint]) = {
+      // Hack: TODO
+      ty match {
+        case VectorType(_, _) => (Seq.empty, Seq.empty)
+        case _ => _fetchConstraints(ty, value)
+      }
+    }
+    
     /**
      * Traverses a value and its Lift type and produces:
      * - a list of size constraints:       var == array length
@@ -150,7 +159,7 @@ object Execute {
      * @param ty the type
      * @param value the value
      */
-    def fetchConstraints(ty: Type, value: Any): (Seq[Constraint], Seq[Constraint]) = {
+    def _fetchConstraints(ty: Type, value: Any): (Seq[Constraint], Seq[Constraint]) = {
       ty match {
         case at: ArrayType =>
           val array = asArray(value)
@@ -172,7 +181,10 @@ object Execute {
         case VectorType(st, len) =>
           // Vectors must be passed as arrays
           if (!value.isInstanceOf[Array[_]])
-            throw TypeException(s"Expected an Array (representing a $ty) but got a ${value.getClass}")
+            throw TypeException(
+              s"Expected Array[$st] of size $len (representing a vector). " +
+              s"Got ${value.getClass} instead."
+            )
           // Validate the underlying type and the length
           val array = value.asInstanceOf[Array[_]]
           val headType = try { Type.fromAny(array.head)}
@@ -818,10 +830,12 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     }
     
     def apply(any: Any, ty: Type, size: Int): KernelArg = ty match {
-      case Int    => value(any.asInstanceOf[Int])
-      case Float  => value(any.asInstanceOf[Float])
-      case Double => value(any.asInstanceOf[Double])
-      case Bool   => value(any.asInstanceOf[Boolean])
+      // Scalars and vectors that are not nested in an array
+      case Bool  => value(any.asInstanceOf[Boolean])
+      case Int | VectorType(Int, _)       => value(any.asInstanceOf[Int])
+      case Float | VectorType(Float, _)   => value(any.asInstanceOf[Float])
+      case Double | VectorType(Double, _) => value(any.asInstanceOf[Double])
+      // Arrays
       case at: ArrayType =>
         val array = any.asInstanceOf[Array[_]]
         flatTupleBaseType(at) match {
@@ -842,11 +856,6 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
             val raw = encoder.encode(array, at, size)
             global.input(raw)
         }
-      case VectorType(_, len) =>
-        // Hack: wrap it into an array of size 1. It does not change the way it
-        //       is encoded (at the moment) and it allow us to reuse the code
-        //       above.
-        apply(Array(any), ArrayType(ty, 1), size)
       case _ => throw new EncodeError(ty)
     }
   }
