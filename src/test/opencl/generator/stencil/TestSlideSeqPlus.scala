@@ -255,14 +255,17 @@ class TestSlideSeqPlus
   def reduceSlide2DTestWithWeights(): Unit = {
 
     val size = 8
+    val slidesize = 3
+    val slidestep = 1
     val values = Array.tabulate(size,size) { (i,j) => (i + j + 1).toFloat }
-    val weights = Array( Array(0.0f, 0.5f, 0.0f ), Array(0.5f, 1.0f, 0.5f ),Array(0.0f, 0.5f, 0.0f ) )
+    val weights = Array( 0.0f, 0.5f, 0.0f, 0.5f, 1.0f, 0.5f, 0.0f, 0.5f, 0.0f )
     val gold = Array( 9.0f,12.0f,15.0f,18.0f,21.0f,24.0f,12.0f,15.0f,18.0f,21.0f,24.0f,27.0f,15.0f,18.0f,21.0f,24.0f,27.0f,30.0f,18.0f,21.0f,24.0f,27.0f,30.0f,33.0f,21.0f,24.0f,27.0f,30.0f,33.0f,36.0f,24.0f,27.0f,30.0f,33.0f,36.0f,39.0f )
 
+    val N = 2 + SizeVar("N")
 
-    val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, weights.length), weights.length),
+    val orgStencil = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(Float, weights.length),
       (input,wgts) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -271,14 +274,37 @@ class TestSlideSeqPlus
                 val pixel = Get(pair, 0)
                 val weight = Get(pair, 1)
                 multAndSumUp.apply(acc, pixel, weight)
-              }), 0.0f) $ Zip(Join() $ neighbours, Join() $ wgts)
+              }), 0.0f) $ Zip(Join() $ neighbours,  wgts)
           }))
         ) o Slide2D(3,1) $ input
       })
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil, values, weights)
 
-    assertArrayEquals(gold, output, 0.1f)
+
+    def stencil2DRW(a: Int ,b :Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(Float, 3),
+      (input,wgts) =>
+        MapGlb(0)(toGlobal(
+          /*SlideSeqPlus(
+          fun(neighbourhood => {
+            toGlobal(MapSeqUnroll(id)) o
+            ReduceSeqUnroll(add, 0.0f) o
+            MapSeqUnroll(mult) $
+            Zip(wgts, neighbourhood)
+          }), slidesize, slidestep)*/
+          SlideSeqPlus(fun(neighbourhood => {
+            toGlobal(MapSeqUnroll(id)) o
+            ReduceSeqUnroll(add, 0.0f) o
+            MapSeqUnroll(mult) $
+            Zip(wgts, Join() o Slide2D(a,b) $ neighbourhood)}), a,b)  /* o Slide2D(a,b)*/)) o Slide(a,b)
+          $ input
+    )
+
+    val (output: Array[Float], _) = Execute(2,2)(stencil2DRW(slidesize,slidestep), values, weights)
+    val (compare: Array[Float], _) = Execute(2,2)(orgStencil, values, weights)
+
+    assertArrayEquals(compare, output, 0.1f)
 
   }
 
