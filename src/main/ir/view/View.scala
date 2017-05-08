@@ -608,7 +608,10 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         OpenCLAST.OpenCLExpression(value.value)
 
       case ViewSize(iv) =>
-        val newAAS = SizeIndex() :: arrayAccessStack
+        // Sanity check: the size of an array is an integer, to does not make
+        //               sense to access it at a certain index…
+        assert(arrayAccessStack.isEmpty)
+        val newAAS = SizeIndex() :: Nil
         emitView(v, iv, newAAS, tupleAccessStack)
 
       case ViewGenerator(f, ArrayTypeWS(_,s)) =>
@@ -652,10 +655,12 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
   }
   
   /**
-    * Turn the list of indices used to access an multi-dimentional array into
+    * Turn the list of indices used to access an multi-dimensional array into
     * an arithmetic expression depending on the type of the array.
     *
-    * @param acc the partial result of this aggregation
+    * @param acc the partial result of this aggregation. It corresponds to the
+    *            position in memory of the very beginning of the next nested
+    *            array we are going the access.
     * @param ty the type of the array
     * @param v a variable representing the array (used for indirections)
     * @param arrayAccessStack the indices used to access the array
@@ -673,25 +678,33 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
       ty match {
         case at: ArrayType =>
           val idx :: indices = arrayAccessStack
-          val offset = at.getHeaderSize
           
-          if (idx.isInstanceOf[SizeIndex])
-            // We are fetching the size of this array.
-            return acc + at.getSizeIndex
-          
-          val position = if (at.elemT.hasFixedAllocatedSize) {
-            // Regular array
-            val length = ViewPrinter.getLengthForArrayAccess(1, at.elemT, tupleAccessStack)
-            idx * length
-          } else {
-            // The elements of this array may have different sizes. We need an
-            // indirection: we fetch the actual position of the i-th element
-            // from the array's metadata (see issue #107)
-            // NB. We make a choice here, see issue #110
-            AccessVar(v.toString, ArithExpression(acc + offset + idx))
+          val position = idx match {
+            case SizeIndex() =>
+              // Special index:
+              // We are fetching the size of an array. `getSizeIndex` gives the
+              // index in the header where it is stored.
+              Cst(at.getSizeIndex)
+            case _ =>
+              // We are actually accessing the array at position idx.
+              val headerOffset = at.getHeaderSize // Skip the header.
+              if (at.elemT.hasFixedAllocatedSize) {
+                // Regular array
+                val length = ViewPrinter.getLengthForArrayAccess(1, at.elemT, tupleAccessStack)
+                headerOffset + idx * length
+              } else {
+                // The elements of this array may have different sizes. We need an
+                // indirection: we fetch the actual position of the i-th element
+                // from the array's metadata (see issue #107)
+                // NB. We make a choice here, see issue #110
+                val elementOffset = AccessVar(
+                  v.toString, ArithExpression(acc + headerOffset + idx)
+                )
+                headerOffset + elementOffset
+              }
           }
           
-          aggregateAccesses(acc + offset + position,
+          aggregateAccesses(acc + position,
                             v, at.elemT, indices, tupleAccessStack)
         case tt: TupleType =>
           val i :: tas = tupleAccessStack
