@@ -34,6 +34,14 @@ object SlideSeqPlusHelpers
     (input) =>
        toGlobal(SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
   )
+
+  val N = SizeVar("N")
+
+  def stencil2D(a: Int ,b :Int) = fun(
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+    (input) =>
+      MapGlb(0)(toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) o Join() , a,b) /*o  Join() o Slide2D(a,b)*/)) /*o Slide(a,b)*/ o Slide(a,b) $ input
+  )
 }
 
 class TestSlideSeqPlus
@@ -47,6 +55,9 @@ class TestSlideSeqPlus
     val size = 30
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
+
+    val lambda = Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep))
+    println(lambda)
 
     val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
@@ -108,7 +119,6 @@ class TestSlideSeqPlus
 
   }
 
-  @Ignore
   @Test
   def reduceSlide1DTestWithWeights(): Unit = {
 
@@ -146,9 +156,11 @@ class TestSlideSeqPlus
   def reduceSlide2DTest(): Unit = {
 
     val size = 8
+    val slidesize = 3
+    val slidestep = 1
     val values = Array.tabulate(size,size) { (i,j) => (i + j + 1).toFloat }
 
-    val firstSlide = values.sliding(3,1).toArray
+    val firstSlide = values.sliding(slidesize,slidestep).toArray
     val secondSlide = firstSlide.map(x => x.transpose.sliding(3,1).toArray)
     val neighbours = secondSlide.map(x => x.map(y => y.transpose))
     val gold = neighbours.map(x => x.map(y => y.flatten.reduceLeft(_ + _))).flatten
@@ -176,7 +188,14 @@ class TestSlideSeqPlus
         ) o Slide2D(3,1) $ mat
       })
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil2D, values)
+    val N = 2 + SizeVar("N")
+
+    def stencil2DR(a: Int ,b :Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      (input) =>
+        MapGlb(0)(toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b)  o Join() /* o Slide2D(a,b)*/)) o Slide(a,b) $ input
+    )
+    val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
 
     StencilUtilities.print2DArray(values)
     StencilUtilities.print1DArrayAs2DArray(output,size-2)

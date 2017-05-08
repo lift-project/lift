@@ -1118,7 +1118,6 @@ class OpenCLGenerator extends Generator {
     }
 
     generateBody(innerBlock)
-   // generateBody(innerBlock)
 
     for(i <- 1 to reuse.eval) {
         innerBlock += AssignmentExpression(VarRef(sSP.windowVar,suffix = s"_${i-1}"),VarRef(sSP.windowVar,suffix = s"_${size.eval-reuse-1+i}"))
