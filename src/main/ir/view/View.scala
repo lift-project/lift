@@ -744,7 +744,7 @@ object ViewPrinter {
   
   /**
     * Traverse a view, following the eventual tuple accesses, and returns
-    * the MemView (there must be one) at the bottom of it.
+    * the ViewMem (there must be one) at the bottom of it.
     *
     * @param sv ths view
     * @param tupleAccessStack indices used tu project the tuple views all along
