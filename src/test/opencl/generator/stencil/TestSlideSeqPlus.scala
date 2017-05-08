@@ -222,6 +222,13 @@ class TestSlideSeqPlus
         ) o Slide2D(3,1) $ mat
       })
 
+
+    def stencil2D2D(a: Int ,b :Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+      (input) =>
+        MapGlb(1)(MapGlb(0)(fun(n => { toGlobal( SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b))   o Join() $ n} ))) o Slide2D(a,b) $ input
+    )
+
     val stencil2D = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       (mat) => {
