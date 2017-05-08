@@ -147,11 +147,18 @@ object Execute {
     type Constraint = (ArithExpr, Int)
   
     /** Wrapper for method `_fetchConstraints` below */
-    def fetchConstraints(ty: Type, value: Any): (Seq[Constraint], Seq[Constraint]) = {
-      // Hack: TODO
+    private def fetchConstraints(ty: Type, value: Any): (Seq[Constraint], Seq[Constraint]) = {
+      // Hack: if vectors are passed to a kernel *not* wrapped in an array,
+      //       they are passed as scalar types and they will be casted into
+      //       vector later by OpenCL.
+      //       For example:
+      //       - a float4 should be passed as a Float
+      //       - but an array of float4 must be passed as a 2D array of Floats
       ty match {
         case VectorType(_, _) => (Seq.empty, Seq.empty)
-        case _ => _fetchConstraints(ty, value)
+        case _ =>
+          val (caps, sizes) = _fetchConstraints(ty, value)
+          (simplify(caps), simplify(sizes))
       }
     }
     
@@ -163,7 +170,7 @@ object Execute {
      * @param ty the type
      * @param value the value
      */
-    def _fetchConstraints(ty: Type, value: Any): (Seq[Constraint], Seq[Constraint]) = {
+    private def _fetchConstraints(ty: Type, value: Any): (Seq[Constraint], Seq[Constraint]) = {
       ty match {
         case at: ArrayType =>
           val array = asArray(value)
@@ -172,8 +179,8 @@ object Execute {
           // Recursive call if array of arrays
           val (caps, sizes) = at.elemT match {
             case _: ArrayType =>
-              val (cs, ss) = array.map(fetchConstraints(at.elemT, _)).toSeq.unzip
-              (simplify(cs.flatten), simplify(ss.flatten))
+              val (cs, ss) = array.map(_fetchConstraints(at.elemT, _)).toSeq.unzip
+              (cs.flatten, ss.flatten)
             case _ => (Seq.empty, Seq.empty)
           }
         
@@ -209,7 +216,7 @@ object Execute {
      * Tries to interpret a value as an array and throws a proper exception if
      * it cannot.
      */
-    def asArray(any: Any): Array[_] = any match {
+    private def asArray(any: Any): Array[_] = any match {
       case array: Array[_] => array
       case _ => throw new IllegalKernelArgument(s"Array expected, got: ${any.getClass}")
     }
@@ -218,7 +225,7 @@ object Execute {
      * Tuples are given to the executor in a flattened format, we
      * have to take this into consideration while inferring the sizes.
      */
-    def tupleSize(ty: Type): Int = ty match {
+    private def tupleSize(ty: Type): Int = ty match {
       case tt: TupleType => tt.elemsT.length
       case _ => 1
     }
@@ -227,9 +234,9 @@ object Execute {
      * Infers a capacity constraint and appends it to the current sequence of
      * constraints.
      */
-    def fetchCap(ty: ArrayType,
-                 len: Int,
-                 caps: Seq[Constraint]): Seq[Constraint] = {
+    private def fetchCap(ty: ArrayType,
+                         len: Int,
+                         caps: Seq[Constraint]): Seq[Constraint] = {
       ty.getCapacity match {
         case Some(Cst(n)) =>
           // Capacity must be at least the actual size
@@ -245,8 +252,8 @@ object Execute {
      * Infers a size constraint and appends it to the current sequence of
      * constraints.
      */
-    def fetchSize(ty: ArrayType, len: Int,
-                  sizes: Seq[Constraint]): Seq[Constraint] = {
+    private def fetchSize(ty: ArrayType, len: Int,
+                          sizes: Seq[Constraint]): Seq[Constraint] = {
       ty.getSize match {
         case Some(Cst(n)) =>
           // Look for ill-sized inputs. See issue #98, snippet 3
@@ -261,7 +268,7 @@ object Execute {
     /**
      * Simplify a list of constraints
      */
-    def simplify(c: Seq[Constraint]): Seq[Constraint] = c.map({
+    private def simplify(c: Seq[Constraint]): Seq[Constraint] = c.map({
       case (v, len) =>
         val newLen = SolveForVariable(v, len).eval
         (v.varList.head, newLen)
