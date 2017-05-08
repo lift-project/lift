@@ -1262,10 +1262,10 @@ class OpenCLGenerator extends Generator {
   
     val start = ArithExpression(range.start)
     // TODO: should it be in RangesAndCount instead?
-    val stop = ty.getSize match {
-      case None =>
+    val stop = ty match {
+      case _: Size => ArithExpression(range.stop)
+      case _ =>
         ViewPrinter.emit(array.mem.variable, array.view.size())
-      case Some(_) => ArithExpression(range.stop)
     }
     val init = VarDecl(indexVar, Int, start, PrivateMemory)
     

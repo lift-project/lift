@@ -6,6 +6,7 @@ import ir.ast._
 import opencl.ir.{LocalMemory, OpenCLMemory, PrivateMemory}
 import opencl.ir.pattern._
 
+// FIXME: rewrite me
 /**
  * Helper object for building views.
  *
@@ -30,12 +31,11 @@ object BuildDepthInfo {
   def apply(expr: Expr): Unit = (new BuildDepthInfo).visitAndBuildDepthInfo(expr)
 }
 
-class AccessInfo(var privateAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)],
-                 var localAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)],
-                 var globalAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)],
+class AccessInfo(var privateAccessInf: List[SingleAccess],
+                 var localAccessInf:   List[SingleAccess],
+                 var globalAccessInf:  List[SingleAccess],
                  var l: Seq[AccessInfo]) {
-
-  def apply(thisLevel: (ArithExpr, ArithExpr, ArithExpr),
+  def apply(thisLevel: SingleAccess,
             usePrivate: Boolean, useLocal: Boolean): AccessInfo = {
 
     if (l.isEmpty) {
@@ -54,9 +54,9 @@ class AccessInfo(var privateAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)],
 object AccessInfo {
   def apply() = new AccessInfo(List(), List(), List(), List())
 
-  def apply(privateInf: List[(ArithExpr, ArithExpr, ArithExpr)],
-            localInf: List[(ArithExpr, ArithExpr, ArithExpr)],
-            globalInf: List[(ArithExpr, ArithExpr, ArithExpr)]) =
+  def apply(privateInf: List[SingleAccess],
+            localInf:   List[SingleAccess],
+            globalInf:  List[SingleAccess]) =
     new AccessInfo(privateInf, localInf, globalInf, List())
 
   def apply(l: Seq[AccessInfo]) =
@@ -64,9 +64,9 @@ object AccessInfo {
 }
 
 private class BuildDepthInfo() {
-  var privateAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)] = List()
-  var localAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)] = List()
-  var globalAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)] = List()
+  var privateAccessInf: List[SingleAccess] = List()
+  var localAccessInf:   List[SingleAccess] = List()
+  var globalAccessInf:  List[SingleAccess] = List()
 
   var seenMapLcl = false
 
@@ -121,8 +121,7 @@ private class BuildDepthInfo() {
     if (m.isInstanceOf[MapLcl])
     seenMapLcl = true
 
-    val at = call.args.head.t.asInstanceOf[ArrayType]
-    val inf = getArrayAccessInf(at, m.loopVar)
+    val inf = getArrayAccessInf(call.args.head.t, m.loopVar)
     m.f.params.head.accessInf = l(inf, readsPrivate, readsLocal || seenMapLcl)
     buildDepthInfoPatternCall(m.f.body, call, m.loopVar, readsLocal, readsPrivate)
 
@@ -150,8 +149,7 @@ private class BuildDepthInfo() {
 
     val (readsLocal, readsPrivate) = containsLocalPrivate(call.args(1).mem)
     
-    val at = call.args(1).t.asInstanceOf[ArrayType]
-    val inf = getArrayAccessInf(at, r.loopVar)
+    val inf = getArrayAccessInf(call.args(1).t, r.loopVar)
     r.f.params(0).accessInf = l.l.head
     r.f.params(1).accessInf = l.l(1)(inf, readsPrivate, readsLocal || seenMapLcl)
 
@@ -165,8 +163,7 @@ private class BuildDepthInfo() {
 
     val (readsLocal, readsPrivate) = readsLocalPrivate(call)
 
-    val at  = call.args.head.t.asInstanceOf[ArrayType]
-    val inf = getArrayAccessInf(at, sp.loopVar)
+    val inf = getArrayAccessInf(call.args.head.t, sp.loopVar)
     sp.f.params.head.accessInf = l(inf, readsPrivate, readsLocal || seenMapLcl)
     buildDepthInfoPatternCall(sp.f.body, call, sp.loopVar, readsLocal, readsPrivate)
 
@@ -181,8 +178,7 @@ private class BuildDepthInfo() {
                                               readsLocal: Boolean, readsPrivate: Boolean,
                                               l: AccessInfo
                                              ): Unit = {
-    val at = call.t.asInstanceOf[ArrayType]
-    val inf = getArrayAccessInf(at, index)
+    val inf = getArrayAccessInf(call.t, index)
     val (writesLocal, writesPrivate) = writesLocalPrivate(call)
 
     updateAccessInf(readsLocal, readsPrivate, inf, writesLocal, writesPrivate)
@@ -196,7 +192,7 @@ private class BuildDepthInfo() {
   }
 
   private def updateAccessInf(readsLocal: Boolean, readsPrivate: Boolean,
-                              tuple: (ArithExpr, ArithExpr, ArithExpr),
+                              tuple: SingleAccess,
                               writesLocal: Boolean, writesPrivate: Boolean): Unit = {
     globalAccessInf = tuple :: globalAccessInf
     if (seenMapLcl || readsLocal || writesLocal)
@@ -207,8 +203,7 @@ private class BuildDepthInfo() {
 
   private def buildDepthInfoPatternCall(expr: Expr, call: FunCall, index: ArithExpr,
                                         readsLocal: Boolean, readsPrivate: Boolean): Unit = {
-    val at = call.t.asInstanceOf[ArrayType]
-    val inf = getArrayAccessInf(at, index)
+    val inf = getArrayAccessInf(call.t, index)
     val (writesLocal, writesPrivate) = writesLocalPrivate(call)
 
     updateAccessInf(readsLocal, readsPrivate, inf, writesLocal, writesPrivate)
@@ -263,7 +258,7 @@ private class BuildDepthInfo() {
     param.accessInf = list
   }
 
-  private def getAccessInf(readsPrivate: Boolean, readsLocal: Boolean): List[(ArithExpr, ArithExpr, ArithExpr)] = {
+  private def getAccessInf(readsPrivate: Boolean, readsLocal: Boolean): List[SingleAccess] = {
     if (readsPrivate)
       privateAccessInf
     else if (readsLocal)
@@ -276,10 +271,16 @@ private class BuildDepthInfo() {
    * Utility function for building a bit of access information about an
    * ArrayType instance
    *
-   * @param at the array type
+   * @param ty the array type passed as a generic type. We check that it is
+   *           indeed an array type below.
    * @param v the variable used to perform the access
    */
-  private def getArrayAccessInf(at: ArrayType, v: ArithExpr): (ArithExpr, ArithExpr, ArithExpr) = {
-    (at.getCapacity.getOrElse(?), at.getSize.getOrElse(?), v)
+  private def getArrayAccessInf(ty: Type, v: ArithExpr): SingleAccess = {
+    ty match {
+      case at: ArrayType => (at.replacedElemT, v)
+      case _ => throw new IllegalArgumentException(
+        s"Cannot compute access information for $ty. ArrayType required."
+      )
+    }
   }
 }

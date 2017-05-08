@@ -254,13 +254,17 @@ abstract sealed class View(val t: Type = UndefType) {
         case _ => throw new IllegalView(z)
       }
       case _ => this.t match {
-        case at: ArrayType =>
+        case at: ArrayType => at match {
           // Sanity check: if the size is statically known, we must not reach
           // this point
-          assert(at.getSize.isEmpty)
-          ViewSize(this)
-        case ty =>
-          throw new IllegalAccess(ty)
+          case _: Size =>
+            throw new IllegalArgumentException(
+              "Trying to generate an access to the size of an array which " +
+              "size is known statically."
+            )
+          case _ => ViewSize(this)
+        }
+        case ty => throw new IllegalAccess(ty)
       }
     }
   }
@@ -476,22 +480,18 @@ object View {
     OutputView(expr)
   }
 
-  private[view] def getFullType(outputType: Type, outputAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)]): Type = {
-    outputAccessInf.foldLeft(outputType)((t, len) => {
-      val (capacity, size, _) = len
-      if (capacity == ?) {
-        if (size == ?) ArrayType(t) else ArrayTypeWS(t, size)
-      } else {
-        if (size == ?) ArrayTypeWC(t, capacity) else ArrayTypeWSWC(t, size, capacity)
-      }
+  private[view] def getFullType(outputType: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)]): Type = {
+    outputAccessInf.foldLeft(outputType)((t, inf) => {
+      val (arrayTypeConstructor, _) = inf
+      arrayTypeConstructor(t)
     })
   }
 
-  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)], name: String = ""): View = {
+  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], name: String = ""): View = {
     // Use the lengths and iteration vars to mimic inputs
     val outArray = getFullType(t, outputAccessInf)
     val outView = View(outArray, name)
-    outputAccessInf.foldRight(outView)((idx, view) => view.access(idx._3))
+    outputAccessInf.foldRight(outView)((inf, view) => view.access(inf._2))
   }
 
 }
