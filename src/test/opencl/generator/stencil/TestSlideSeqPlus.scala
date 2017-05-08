@@ -153,6 +153,51 @@ class TestSlideSeqPlus
   // TODO - 2D, etc
 
   @Test
+  def at2D3AcrossStencil(): Unit = {
+
+    val size = 8
+    val slidesize = 3
+    val slidestep = 1
+    val values = Array.tabulate(size,size) { (i,j) => (i + j + 1).toFloat }
+
+    val N = 2 + SizeVar("N")
+
+    val atNeigh = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      (mat) => {
+        MapGlb(1)(MapGlb(0)(fun(neighbours => {
+
+          val `tile[1][1]` = neighbours.at(1).at(1)
+          val `tile[1][0]` = neighbours.at(1).at(0)
+          val `tile[1][2]` = neighbours.at(1).at(2)
+
+          val stencil =  fun(x => add(x,`tile[1][2]`)) o
+            fun(x => add(x,`tile[1][0]`)) $ `tile[1][1]`
+
+          toGlobal(id) $ stencil
+
+        }))
+        ) o Slide2D(slidesize, slidestep) $ mat
+      })
+
+    def stencil2DR(a: Int ,b :Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      (input) =>
+        MapGlb(0)(toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b)  o Join() /* o Slide2D(a,b)*/)) o Slide(1,b) $ input
+    )
+    val (compare: Array[Float], _) = Execute(2,2)(atNeigh, values)
+    val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
+
+    StencilUtilities.print2DArray(values)
+    println("******")
+    StencilUtilities.print1DArrayAs2DArray(compare, size-2)
+    println("******")
+    StencilUtilities.print1DArrayAs2DArray(output.dropRight(size-2).drop(size-2),size-2)
+
+    assertArrayEquals(compare, output.dropRight(size-2).drop(size-2), 0.1f)
+
+  }
+  @Test
   def reduceSlide2DTest(): Unit = {
 
     val size = 8
