@@ -520,28 +520,6 @@ object Type {
   }
 
   /**
-   * Return the type at a given index for a tuple type, or a tuple type nested
-   * in an array type.
-   * Returns the given type otherwise.
-   *
-   * @param t A type
-   * @param index A index. Must be in range for the given type.
-   * @return The type at the given index.
-   */
-  def getTypeAtIndex(t: Type, index: Int): Type = {
-    t match {
-      case tt: TupleType => tt.proj(index)
-      
-      case ArrayTypeWSWC(et,s,c) => ArrayTypeWSWC(getTypeAtIndex(et, index), s,c)
-      case ArrayTypeWC(et,c) => ArrayTypeWC(getTypeAtIndex(et, index), c)
-      case ArrayTypeWS(et,s) => ArrayTypeWS(getTypeAtIndex(et, index), s)
-      case ArrayType(et) => ArrayType(getTypeAtIndex(et, index))
-
-      case _ => t
-    }
-  }
-
-  /**
    * For a given array type turn every nested vector type into a corresponding
    * array type.
    *
