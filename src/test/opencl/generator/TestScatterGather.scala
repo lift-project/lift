@@ -437,4 +437,36 @@ class TestScatterGather {
     val (output: Array[Float], _) = Execute(nSize)(f, vector)
     assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse.reverse), output, 0.0f)
   }
+  
+  /**
+   * Gather must expect an array
+   */
+  @Test(expected = classOf[TypeException])
+  def illegalGather(): Unit = {
+    val size = 128
+    val input = Array.fill(size)(util.Random.nextInt)
+    
+    val f = fun(
+      ArrayType(Int, size),
+      MapGlb(toGlobal(idI) o Gather(reverse)) $ _
+    )
+    
+    Execute(size)(f, input)
+  }
+  
+  /**
+   * Scatter must expect an array
+   */
+  @Test(expected = classOf[TypeException])
+  def illegalScatter(): Unit = {
+    val size = 128
+    val input = Array.fill(size)(util.Random.nextInt)
+    
+    val f = fun(
+      ArrayType(Int, size),
+      MapGlb(Scatter(reverse) o toGlobal(idI)) $ _
+    )
+    
+    Execute(size)(f, input)
+  }
 }
