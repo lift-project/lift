@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.ArithExpr
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{ReduceWhileSeq, SlideSeqPlus}
+import opencl.ir.pattern.{ReduceWhileSeq, SlideSeqPlus, FilterSeq}
 
 /**
  * A helper object for constructing views.
@@ -54,6 +54,7 @@ object InputView {
 
     call.f match {
       case m: AbstractMap => buildViewMap(m, call, argView)
+      case f: FilterSeq => buildViewFilter(f, call, argView)
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
       case sp: SlideSeqPlus => buildViewSlideSeqPlus(sp, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
@@ -80,7 +81,8 @@ object InputView {
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case ArrayAccess(i) => argView.access(i)
-      case _ => argView
+      case PrintType() | Scatter(_) | _: Tuple | Pad(_, _, _) => argView
+      case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
     }
   }
 
@@ -120,7 +122,23 @@ object InputView {
         new ViewMap(innerView, m.loopVar, call.t)
     }
   }
-
+  
+  private def buildViewFilter(f: FilterSeq, call: FunCall, argView: View): View = {
+    // The inputs are the same for both the predicate and the copy function
+    f.f.params.head.view = argView.access(f.loopRead)
+    f.copyFun.params.head.view = argView.access(f.loopRead)
+    
+    visitAndBuildViews(f.f.body)
+    val innerView = visitAndBuildViews(f.copyFun.body)
+    f.copyFun.body match {
+      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
+        // create fresh input view for following function
+        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+      case _ => // call.isAbstract and return input map view
+        ViewMap(innerView, f.loopRead, call.t)
+    }
+  }
+  
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, argView: View): View = {
     // pass down input view

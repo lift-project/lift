@@ -258,7 +258,7 @@ class TestDbQueries {
     
     val where_clause = UserFun(
       "where_clause", "t",
-      "Tuple1 row = {(t._0 && ((t._1 + t._3) > 10)), t._2};\n return row;",
+      "Tuple1 t2 = {(t._0 && ((t._1 + t._3) > 10)), t._2}; return t2;",
       TupleType(Int, Int, Int, Int), TupleType(Int, Int)
     )
     
