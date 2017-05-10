@@ -444,6 +444,7 @@ class OpenCLGenerator extends Generator {
         case fp: FPattern => generate(fp.f.body, block)
         case l: Lambda => generate(l.body, block)
         case ua: UnsafeArrayAccess => generateUnsafeArrayAccess(ua, call, block)
+        case ca: CheckedArrayAccess => generateCheckedArrayAccess(ca, call, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) |
@@ -904,6 +905,12 @@ class OpenCLGenerator extends Generator {
                                           call.view.access(0), loadFromArray)
 
     (block: Block) += storeToOutput
+  }
+
+  private def generateCheckedArrayAccess(ca: ChekcedArrayAccess,
+                                        call: FunCall,
+                                        block: Block) : Unit = {
+    
   }
 
   private def generateValue(v: Value, block: Block): Unit = {
