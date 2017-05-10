@@ -132,6 +132,38 @@ class TestAccessCounts {
   }
 
   @Test
+  def vectorizeUserFun(): Unit = {
+
+    val f = fun(
+      ArrayTypeWSWC(Float4, N),
+      x => MapGlb(0)(VectorizeUserFun(4, id)) $ x
+    )
+
+    val accessCounts = AccessCounts(f)
+
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorLoads(GlobalMemory, CoalescedPattern))
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
+  }
+
+  @Test
+  def vectorizeUserFun2(): Unit = {
+
+    val f = fun(
+      ArrayTypeWSWC(Float, 4*N),
+      x => asScalar() o MapGlb(0)(VectorizeUserFun(4, id)) o asVector(4) $ x
+    )
+
+    val accessCounts = AccessCounts(f)
+
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorLoads(GlobalMemory, CoalescedPattern))
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
+  }
+
+  @Test
   def vectorNotEvaluable(): Unit = {
     val v_N_0 = SizeVar("N")
 
