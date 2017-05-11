@@ -6,7 +6,6 @@ import ir.ast._
 import lift.arithmetic.{?, ArithExpr, Cst, SizeVar}
 import opencl.executor._
 import opencl.generator.OpenCLAST.ArithExpression
-import opencl.generator.OpenCLGenerator._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._

@@ -112,12 +112,15 @@ object Execute {
       val cleanedSizes = sizes
         .groupBy(_._1)
         .mapValues(pairs => {
+          // If we have more than one value for one key (N = 16 and N = 32),
+          // throw an error
           val values = pairs.map(_._2).distinct
           if (values.length != 1)
             throw new IllegalKernelArgument(
               s"Incompatible values inferred for variable: ${pairs.head._1}\n" +
               values.map(v => s" - `$v`").mkString("\n")
             )
+          // otherwise we keep that value
           values.head
         })
     
@@ -125,18 +128,24 @@ object Execute {
       // e.g. if [1, 3] and [0, 0, 0] have both capacity N, then N == 3
       val cleanedCaps = caps
         .groupBy(_._1)
-        .map(p => {
-          val (v, pairs) = p
+        .mapValues(pairs => {
           val m = pairs.map(_._2).max
+          val v = pairs.head._1
           // If the variable is also a size variable, check that this size
           // is at least the maximum capacity inferred. In this case the
-          // occurrence of this variable in this Map will be ignored.
-          if (cleanedSizes.isDefinedAt(v)) assert(cleanedSizes(v) >= m)
-          (v, m)
+          // occurrence of this variable in this Map will be ignored and we
+          // keep the value found in the "sizes" Map.
+          if (cleanedSizes.isDefinedAt(v) && cleanedSizes(v) < m)
+            throw new IllegalKernelArgument(
+              s"Overflow: ${cleanedSizes(v)} has been inferred for size " +
+              s"variable $v but $v is also the capacity of an array with " +
+              s"$m elements."
+            )
+          m
         })
     
-      (cleanedSizes ++ cleanedCaps)
-        .map(p => (p._1.varList.head, SolveForVariable(p._1, p._2)))
+      // TODO: do we really have to wrap the sizes into a Cst?
+      (cleanedSizes ++ cleanedCaps).mapValues(Cst(_))
     }
     
     // -------------------------------
