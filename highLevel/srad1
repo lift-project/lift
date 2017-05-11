@@ -12,7 +12,7 @@ val calculateScoeff = UserFun("calculateScoeff", Array("dN", "dS", "dE", "dW", "
 	" if(coeff > 1) { return 1.0f; } else if(coeff < 0 ) { return 0.0f; } else { return coeff;}  }", Seq(Float, Float,Float, Float,Float,Float), Float)
 
 fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      ArrayType(ArrayType(Float, M), N),
       Float,
       (image, q0sqr) => {
 		Map(Map(fun((m) => {

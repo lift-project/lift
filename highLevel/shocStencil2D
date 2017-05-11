@@ -3,8 +3,8 @@ val N = SizeVar("N")
 
 /* old expression
 fun(
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
-    ArrayTypeWSWC(Float, Cst(9)),
+    ArrayType(ArrayType(Float, M), N),
+    ArrayType(Float, Cst(9)),
     (input, weights) => {
         Map(Map( \(neighbourhood =>
 			Reduce(add, 0.0f) o Map( \(tuple =>
@@ -16,8 +16,8 @@ fun(
   */
 
 fun(
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
-    ArrayTypeWSWC(Float, Cst(9)),
+    ArrayType(ArrayType(Float, M), N),
+    ArrayType(Float, Cst(9)),
     (input, weights) => {
         Map(Map(fun(elem => {
                             toGlobal(MapSeqUnroll(id)) o

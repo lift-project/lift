@@ -1359,18 +1359,29 @@ class OpenCLGenerator extends Generator {
                                                  indexVar: Var,
                                                  generateBody: (Block) => Unit): Unit = {
     val range = getRangeAdd(indexVar)
-
-    val init =
-      VarDecl(indexVar, opencl.ir.Int, ArithExpression(range.start), PrivateMemory)
-    val cond =
-      CondExpression(ArithExpression(indexVar), ArithExpression(range.stop),
-        CondExpression.Operator.<)
-    val increment =
-      AssignmentExpression(
-        ArithExpression(indexVar), ArithExpression(indexVar + range.step))
-
+    val ty = array.t.asInstanceOf[ArrayType]
+  
     val innerBlock  = OpenCLAST.Block(Vector.empty)
-    (block: Block) += OpenCLAST.ForLoop(init, ExpressionStatement(cond), increment, innerBlock)
+  
+    val start = ArithExpression(range.start)
+    // TODO: should it be in RangesAndCount instead?
+    val stop = ty match {
+      case _: Size => ArithExpression(range.stop)
+      case _ =>
+        ViewPrinter.emit(array.mem.variable, array.view.size())
+    }
+    val init = VarDecl(indexVar, Int, start, PrivateMemory)
+    
+    val increment = AssignmentExpression(
+      ArithExpression(indexVar), ArithExpression(indexVar + range.step)
+    )
+    
+    val cond = CondExpression(
+      ArithExpression(indexVar), stop, CondExpression.Operator.<
+    )
+    
+    (block: Block) += OpenCLAST.ForLoop(init, cond, increment, innerBlock)
+    
     generateBody(innerBlock)
   }
 
