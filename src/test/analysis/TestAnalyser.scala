@@ -302,9 +302,9 @@ class TestAnalyser {
     assertEquals(256.0, barriers, 0.0)
 
     val scalarCoalescedGlobalStores =
-      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact).evalDouble
+      accessCounts.scalarStores(GlobalMemory, CoalescedPattern, exact).evalDouble
     val scalarCoalescedGlobalLoads =
-      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact).evalDouble
+      accessCounts.scalarLoads(GlobalMemory, CoalescedPattern, exact).evalDouble
 
     assertEquals(32.0, scalarCoalescedGlobalStores, 0.0)
     assertEquals(0.0, scalarCoalescedGlobalLoads, 0.0)
