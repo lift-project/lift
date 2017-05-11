@@ -139,12 +139,11 @@ private class BuildDepthInfo() {
                                        l: AccessInfo): AccessInfo = {
     val (readsLocal, readsPrivate) = readsLocalPrivate(call)
     
-    f.f.params.head.accessInf =
-      l((Type.getLength(call.args.head.t), f.loopRead), readsPrivate, readsLocal)
+    val inf = getArrayAccessInf(call.args.head.t, f.loopRead)
+    f.f.params.head.accessInf = l(inf, readsPrivate, readsLocal)
     buildDepthInfoPatternCall(f.f.body, call, f.loopRead, readsLocal, readsPrivate)
   
-    f.copyFun.params.head.accessInf =
-      l((Type.getLength(call.args.head.t), f.loopRead), readsPrivate, readsLocal)
+    f.copyFun.params.head.accessInf = l(inf, readsPrivate, readsLocal)
     buildDepthInfoPatternCall(f.copyFun.body, call, f.loopRead, readsLocal, readsPrivate)
   
     if (f.f.body.isConcrete) // create fresh input view for following function
