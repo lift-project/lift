@@ -230,7 +230,7 @@ class AccessCounts(
 
           case l: Lambda => count(l.body)
           case fp: FPattern => count(fp.f.body)
-          case _: UserFun =>
+          case _: UserFun | _: VectorizeUserFun =>
 
             args.foreach(updateEntry(_, accessPatterns.getReadPatterns, loads))
 
