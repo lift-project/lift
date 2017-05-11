@@ -143,9 +143,9 @@ class AccessCounts(
     accessPattern: AccessPattern, exact: Boolean = false) = {
 
     val loads = loadsToAddressSpacesWithPatternAndWidth.
-      foldLeft(Cst(0): ArithExpr)((acc, bla) =>
-        if (bla._1._3 == Cst(1) && bla._1._2 == accessPattern && bla._1._1 == addressSpace)
-          acc + bla._2
+      foldLeft(Cst(0): ArithExpr)((acc, load) =>
+        if (load._1._3 == Cst(1) && load._1._2 == accessPattern && load._1._1 == addressSpace)
+          acc + load._2
         else
           acc
       )
@@ -157,9 +157,9 @@ class AccessCounts(
     accessPattern: AccessPattern, exact: Boolean = false) = {
 
     val stores = storesToAddressSpacesWithPatternAndWidth.
-      foldLeft(Cst(0): ArithExpr)((acc, bla) =>
-        if (bla._1._3 == Cst(1) && bla._1._2 == accessPattern && bla._1._1 == addressSpace)
-          acc + bla._2
+      foldLeft(Cst(0): ArithExpr)((acc, store) =>
+        if (store._1._3 == Cst(1) && store._1._2 == accessPattern && store._1._1 == addressSpace)
+          acc + store._2
         else
           acc
       )
@@ -171,9 +171,9 @@ class AccessCounts(
     accessPattern: AccessPattern, exact: Boolean = false) = {
 
     val loads = loadsToAddressSpacesWithPatternAndWidth.
-      foldLeft(Cst(0): ArithExpr)((acc, bla) =>
-        if (bla._1._3 != Cst(1) && bla._1._2 == accessPattern && bla._1._1 == addressSpace)
-          acc + bla._2
+      foldLeft(Cst(0): ArithExpr)((acc, load) =>
+        if (load._1._3 != Cst(1) && load._1._2 == accessPattern && load._1._1 == addressSpace)
+          acc + load._2
         else
           acc
       )
@@ -185,9 +185,9 @@ class AccessCounts(
     accessPattern: AccessPattern, exact: Boolean = false) = {
 
     val stores = storesToAddressSpacesWithPatternAndWidth.
-      foldLeft(Cst(0): ArithExpr)((acc, bla) =>
-        if (bla._1._3 != Cst(1) && bla._1._2 == accessPattern && bla._1._1 == addressSpace)
-          acc + bla._2
+      foldLeft(Cst(0): ArithExpr)((acc, store) =>
+        if (store._1._3 != Cst(1) && store._1._2 == accessPattern && store._1._1 == addressSpace)
+          acc + store._2
         else
           acc
       )
