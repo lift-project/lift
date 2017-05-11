@@ -223,7 +223,7 @@ class TestAnalyser {
                                 FunCall(MapLcl(0)(fun((p_34) =>
                                   FunCall(MapSeq(fun((p_35) =>
                                     FunCall(MapSeq(fun((p_36) =>
-                                      FunCall(idfloat, p_36))), p_35))), p_34))), p_33))), Value("0.0f", ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), (v__3*1/^(v__4))), (v__6*1/^(v__5))))),
+                                      FunCall(idfloat, p_36))), p_35))), p_34))), p_33))), Value("0.0f", ArrayType(ArrayType(ArrayType(ArrayType(Float, v__4), v__5), v__3*1/^v__4), v__6*1/^v__5))),
                               FunCall(Zip(2), p_2, p_3))))))))),
                   FunCall(Transpose(),
                     FunCall(Map(fun((p_37) =>
@@ -361,7 +361,7 @@ class TestAnalyser {
     val forBranches = controlFlow.getForBranches(exact).evalDouble
 
     assertEquals(0.0, ifStatements, 0.0)
-    assertEquals(1152.0, forBranches, 0.0)
+    assertEquals(1216.0, forBranches, 0.0)
 
     val dotCount = functionCounts.getFunctionCount(dot, exact).evalDouble
 
