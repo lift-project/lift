@@ -10,19 +10,25 @@ import ir.interpreter.Interpreter.ValueMap
   * Code for this pattern can be generated
   */
 
-case class CheckedArrayAccess(index: Expr, default: Expr) extends Pattern(arity = 2)
+case class CheckedArrayAccess(index: Expr) extends Pattern(arity = 2)
   with isGenerable {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
-    TypeChecker.check(index)
-    TypeChecker.check(default)
+    val ixT = TypeChecker.check(index)
+    if (ixT != opencl.ir.Int)
+      throw TypeException(s"Index type must be integral, got type ${ixT} instead!")
+//    TypeChecker.check(default)
     argType match {
-      case ArrayTypeWS(t, Cst(1)) =>
-        ArrayTypeWSWC(t, Cst(1)) // match the definition of searches/reductions
-
-      case ArrayType(t) => ArrayTypeWSWC(t, Cst(1))
-
+      case TupleType(defaultT, ArrayType(elemT)) =>
+        if(defaultT != elemT)
+          throw TypeException(s"Default access result type ($defaultT) must match array element type ($elemT)")
+        ArrayTypeWSWC(elemT, Cst(1))
+      case TupleType(defaultT, ArrayTypeWS(elemT, Cst(1))) =>
+        if(defaultT != elemT)
+          throw TypeException(s"Default access result type ($defaultT) must match array element type ($elemT)")
+        ArrayTypeWSWC(elemT, Cst(1))
+        // TODO: Should we handle ArrayTypeWSWC?
       case _ => throw new TypeException(argType, "ArrayType")
     }
   }
@@ -32,4 +38,8 @@ case class CheckedArrayAccess(index: Expr, default: Expr) extends Pattern(arity 
       case a: Array[_] => a(index.eval(valueMap).asInstanceOf[Int])
     }
   }
+}
+
+object CheckedArrayAccess {
+  def apply(index: Expr, default: Expr): Lambda1 = fun((x) => CheckedArrayAccess(index)(default, x))
 }

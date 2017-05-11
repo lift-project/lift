@@ -277,6 +277,7 @@ object InputView {
   private def buildViewCheckedArrayAccess(a: CheckedArrayAccess, call: FunCall, argView: View) : View = {
     // visit the index
     visitAndBuildViews(a.index)
+//    visitAndBuildViews(a.default)
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
