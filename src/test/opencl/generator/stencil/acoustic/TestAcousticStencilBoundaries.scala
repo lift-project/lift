@@ -41,7 +41,7 @@ object BoundaryUtilities
   def createMask(input: Array[Array[Float]], msizeX: Int, msizeY: Int, maskValue: Int): Array[Array[Int]] = {
 
     val mask =input.flatten.zipWithIndex.map(i => !( (i._2%msizeX != 0) && i._2%msizeX!=(msizeX-1)  && i._2>msizeX && i._2<(msizeX*msizeY)-msizeX) )
-    mask.map(i => i*1).sliding(msizeY,msizeY).toArray
+    mask.map(i => i*1).sliding(msizeX,msizeX).toArray
 
   }
 
@@ -57,14 +57,13 @@ object BoundaryUtilities
     mask.map(i => i.map(j => j.map(k => k.toInt-parseIntAsCharAsInt(0))))
   }
 
-  def createMaskDataAsym3D(sizeX: Int, sizeY: Int, sizeZ: Int) = {
+  def createMaskDataAsym3D(sizeX: Int, sizeY: Int, sizeZ: Int): Array[Array[Array[Array[Int]]]] = {
 
     val pad2D = createMaskDataAsym2D(sizeX, sizeY)
-    val one2D = Array(Array.fill(sizeY,sizeX)(Array(1)))
-    var addArr = Array(pad2D)
+    val one2D = Array.fill(sizeY, sizeX)(Array(1))
+    val addArr = Array.fill(sizeZ-2)(pad2D)
 
-    for(i <- 1 to sizeZ-3) addArr = addArr ++ Array(pad2D)
-    one2D ++ addArr ++ one2D
+    one2D +: addArr :+ one2D
   }
 
   def createMaskDataAsym3DNoArray(sizeX: Int, sizeY: Int, sizeZ: Int) = {
