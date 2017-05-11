@@ -32,8 +32,8 @@ UserFun("update", Array("pos", "vel", "deltaT", "acceleration"),
 val N = SizeVar("N")
 
 fun(
-    ArrayTypeWSWC(Float4, N),
-    ArrayTypeWSWC(Float4, N),
+    ArrayType(Float4, N),
+    ArrayType(Float4, N),
     Float,
     Float,
     (pos, vel, espSqr, deltaT) =>

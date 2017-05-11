@@ -6,8 +6,8 @@ val M = Var("M", StartFromRange(1024))
 val N = Var("N", StartFromRange(1024))
 
 fun(
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+    ArrayType(ArrayType(Float, M), N),
+    ArrayType(ArrayType(Float, M), N),
     (heat, power) => {
         Map(Map(\(tuple => {
         val nbh = tuple._0
