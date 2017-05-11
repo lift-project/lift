@@ -33,9 +33,10 @@ class OpenCLMemory(var variable: Var,
     throw new IllegalArgumentException
 
   // no unknown allowed in the size
-  val hasUnknown = ArithExpr.visitUntil(size, _ == ?)
-  if (hasUnknown)
-    throw new IllegalArgumentException
+  // val hasUnknown = ArithExpr.visitUntil(size, _ == ?)
+  // TODO: think about this
+  // if (hasUnknown)
+  //   throw new IllegalArgumentException
 
 
 

@@ -21,7 +21,7 @@ val md = UserFun("md", Array("i", "j", "niters", "size"),
      |""".stripMargin, Seq(Int, Int, Int, Int), Int)
 
 fun(
-  ArrayTypeWSWC(Int, SizeVar("N")),
+  ArrayType(Int, SizeVar("N")),
   Int,
   Int,
   (in, niters, size) => Map(fun(i => Map(fun(j => md(i, j, niters, size))) $ in)) $ in

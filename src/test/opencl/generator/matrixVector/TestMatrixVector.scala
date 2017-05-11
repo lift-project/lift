@@ -268,7 +268,7 @@ class TestMatrixVector {
     val inputSize = 4096
     val matrix = Array.tabulate(inputSize, inputSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
     val vectorX = Array.tabulate(inputSize)(i => ((i % 10) + 1) * 2.0f)
-    val vectorY = Array.tabulate(inputSize)(i => Array(((i*3 % 10) + 1) + 1.5f))
+    val vectorY = Array.tabulate(inputSize)(i => ((i*3 % 10) + 1) + 1.5f)
     val alpha = 2.5f
     val beta = 1.5f
 
@@ -281,7 +281,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY.flatten, alpha, beta), output,0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta), output,0.0f)
   }
 
   @Test def FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD(): Unit = {
@@ -289,7 +289,7 @@ class TestMatrixVector {
     val inputSize = 4096
     val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
     val vectorX = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-    val vectorY = Array.fill(inputSize)(Array(util.Random.nextInt(5).toFloat))
+    val vectorY = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val alpha = 2.5f
     val beta = 1.5f
 
@@ -302,7 +302,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY.flatten, alpha, beta), output,0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta), output,0.0f)
   }
 
   @Test def FULL_MATRIX_VECTOR_FUSED(): Unit = {
