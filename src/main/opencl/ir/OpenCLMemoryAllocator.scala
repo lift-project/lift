@@ -96,6 +96,10 @@ object OpenCLMemoryAllocator {
         allocMapSeqLcl(call.f.asInstanceOf[AbstractMap],
           call.t, numGlb, numLcl, numPvt, inMem)
 
+      case FilterSeq(_, _, _) =>
+        allocFilterSeq(call.f.asInstanceOf[FilterSeq],
+          call.t, numGlb, numLcl, numPvt, inMem)
+
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
 
       case sp: SlideSeqPlus => allocSlideSeqPlus(sp,call.t, numGlb, numLcl, numPvt, inMem)
@@ -172,8 +176,7 @@ object OpenCLMemoryAllocator {
     inMem: OpenCLMemory): OpenCLMemory = {
     am.f.params(0).mem = inMem
 
-    val at = outT.asInstanceOf[ArrayType]
-    alloc(am.f.body, sizeOfArray(numGlb, at), numLcl, numPvt)
+    alloc(am.f.body, sizeOfArray(numGlb, outT), numLcl, numPvt)
   }
 
   private def allocMapAtomWrg(am: AbstractMap,
@@ -187,8 +190,7 @@ object OpenCLMemoryAllocator {
     am.asInstanceOf[MapAtomWrg].globalTaskIndex =
       OpenCLMemory.allocGlobalMemory(Type.getMaxAllocatedSize(Int))
 
-    val at = outT.asInstanceOf[ArrayType]
-    alloc(am.f.body, sizeOfArray(numGlb, at), numLcl, numPvt)
+    alloc(am.f.body, sizeOfArray(numGlb, outT), numLcl, numPvt)
   }
 
   private def allocMapSeqLcl(am: AbstractMap,
@@ -206,11 +208,22 @@ object OpenCLMemoryAllocator {
       else
         1
   
-    val at = outT.asInstanceOf[ArrayType]
     alloc(am.f.body,
-          sizeOfArray(numGlb, at),
-          sizeOfArray(numLcl, at),
+          sizeOfArray(numGlb, outT),
+          sizeOfArray(numLcl, outT),
           numPvt * privateMultiplier)
+  }
+  
+  private def allocFilterSeq(fs: FilterSeq, outT: Type,
+                             numGlb: ArithExpr,
+                             numLcl: ArithExpr,
+                             numPvt: ArithExpr,
+                             inMem: OpenCLMemory): OpenCLMemory = {
+    val len = Type.getMaxLength(outT)
+    fs.f.params.head.mem = inMem
+    fs.copyFun.params.head.mem = inMem
+    alloc(fs.f.body, numGlb, numLcl, numPvt)
+    alloc(fs.copyFun.body, numGlb * len, numLcl * len, numPvt)
   }
 
   private def allocReduce(r: AbstractPartRed,
@@ -259,10 +272,9 @@ object OpenCLMemoryAllocator {
       else
         1
     
-    val at = outT.asInstanceOf[ArrayType]
     alloc(sp.f.body,
-          sizeOfArray(numGlb, at),
-          sizeOfArray(numLcl, at),
+          sizeOfArray(numGlb, outT),
+          sizeOfArray(numLcl, outT),
           numPvt * privateMultiplier)
   }
 
@@ -392,12 +404,21 @@ object OpenCLMemoryAllocator {
    *
    * @param innerSize the size of the elements of the array
    * @param ty the type of the array
-   * @return the size to allocate, might be `?`
+   * @return the size to allocate. Might be `?`
    */
-  private def sizeOfArray(innerSize: ArithExpr, ty: ArrayType): ArithExpr = {
-    val hSize = ty.getHeaderSize
-    val capacity = ty.getCapacity.getOrElse(?)
-    val map = TypeVar.getTypeVars(capacity).map(tv => (tv, tv.range.max)).toMap
-    hSize + innerSize * ArithExpr.substitute(capacity, map.toMap)
+  private def sizeOfArray(innerSize: ArithExpr, ty: Type): ArithExpr = {
+    ty match {
+      case at: ArrayType =>
+        val hSize = at.getHeaderSize
+        at match {
+          case c: Capacity =>
+            val map = TypeVar.getTypeVars(c.capacity).map(tv => (tv, tv.range.max)).toMap
+            hSize + innerSize * ArithExpr.substitute(c.capacity, map.toMap)
+          case _ =>
+            // Unknown capacity. We can't know how much memory to allocate…
+            ?
+        }
+      case _ => throw new IllegalArgumentException("sizeOfArray expects an array type")
+    }
   }
 }

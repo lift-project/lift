@@ -237,14 +237,16 @@ object Execute {
     private def fetchCap(ty: ArrayType,
                          len: Int,
                          caps: Seq[Constraint]): Seq[Constraint] = {
-      ty.getCapacity match {
-        case Some(Cst(n)) =>
-          // Capacity must be at least the actual size
-          if (n.toInt < len)
-            throw new IllegalKernelArgument(s"Ill-sized argument: $n < $len")
-          caps
-        case Some(x) => (x, len) +: caps
-        case None => caps
+      ty match {
+        case c: Capacity => c.capacity match {
+          case Cst(n) =>
+            // Capacity must be at least the actual size
+            if (n.toInt < len)
+              throw new IllegalKernelArgument(s"Ill-sized argument: $n < $len")
+            caps
+          case expr => (expr, len) +: caps
+        }
+        case _ => caps
       }
     }
   
@@ -254,14 +256,16 @@ object Execute {
      */
     private def fetchSize(ty: ArrayType, len: Int,
                           sizes: Seq[Constraint]): Seq[Constraint] = {
-      ty.getSize match {
-        case Some(Cst(n)) =>
-          // Look for ill-sized inputs. See issue #98, snippet 3
-          if (n.toInt != len)
-            throw new IllegalKernelArgument(s"Ill-sized argument: $n ≠ $len")
-          sizes
-        case Some(x) => (x, len) +: sizes
-        case None => sizes
+      ty match {
+        case s: Size => s.size match {
+          case Cst(n) =>
+            // Look for ill-sized inputs. See issue #98, snippet 3
+            if (n.toInt != len)
+              throw new IllegalKernelArgument(s"Ill-sized argument: $n ≠ $len")
+            sizes
+          case expr => (expr, len) +: sizes
+        }
+        case _ => sizes
       }
     }
   
@@ -859,7 +863,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
           case c: Capacity =>
             // TODO: catch potential errors
             val nextPos = (before + c.capacity * sizeOf(at.elemT)).eval
-            assert(nextPos <= fallback)
+            assert(fallback <= nextPos)
             nextPos
           case _ => fallback
         }

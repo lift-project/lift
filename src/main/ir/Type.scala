@@ -130,26 +130,47 @@ sealed trait Capacity {
  * @param elemT The element type of the array
  */
 case class ArrayType(elemT: Type) extends Type {
-
-  def getSize : Option[ArithExpr] = {
+  /**
+   * Private helper function
+   *
+   * @return the size of the array if it is known.
+   */
+  private def getSize : Option[ArithExpr] = {
     this match {
       case s:Size => Some(s.size)
       case _ => None
     }
   }
-
-  def getCapacity : Option[ArithExpr] = {
+  
+  /**
+   * Private helper function
+   *
+   * @return the capacity of the array if it is known.
+   */
+  private def getCapacity : Option[ArithExpr] = {
     this match {
       case c:Capacity => Some(c.capacity)
       case _ => None
     }
   }
   
-  def getSizeIndex: Int =
-    1 - this.getCapacity.size
+  /**
+   * @return the index at which the size of the array is stored in its header.
+   */
+  def getSizeIndex: Int = this match {
+    case _: Capacity => 0 // capacity is not in the header
+    case _ => 1 // skip the capacity
+  }
   
-  def getHeaderSize: Int =
+  /**
+   * @return the number of values stored in the header of this array.
+   *         (currently it can be 0, 1 or 2)
+   */
+  def getHeaderSize: Int = {
+    // At most 2
+    // Minus 1 for each bit of information which is statically known
     2 - this.getSize.size - this.getCapacity.size
+  }
 
   override def toString : String = {
     "Arr(" +elemT+
@@ -163,11 +184,17 @@ case class ArrayType(elemT: Type) extends Type {
       case _:Capacity => elemT.hasFixedAllocatedSize
       case _ => false
     }
-
-  // we need to override equals to use Type.isEqual since this will take care of the Size and Capacity traits
-  override def equals(o: Any) : Boolean = {
-    o match {
-      case at: ArrayType => Type.isEqual(this, at)
+  
+  /** Structural equality */
+  override def equals(other: Any): Boolean = {
+    other match {
+      case o: ArrayType =>
+        // Same underlying type
+        Type.isEqual(this.elemT, o.elemT) &&
+        // Same size and capacity if known. If unknown, must be unknown for
+        // both arrays!
+        this.getSize == o.getSize &&
+        this.getCapacity == o.getCapacity
       case _ => false
     }
   }
@@ -180,19 +207,18 @@ case class ArrayType(elemT: Type) extends Type {
   }
   
   /**
-    * Build a new ArrayType with the same characteristics (size & capacity) but
-    * a new inner type.
-    *
-    * @param ty the new inner type of the resulting array
-    */
-  def sameKind(ty: Type): ArrayType = this match {
-    case c: Capacity => this match {
-      case s: Size => ArrayTypeWSWC(ty, s.size, c.capacity)
-      case _ => ArrayTypeWC(ty, c.capacity)
-    }
-    case _ => this match {
-      case s: Size => ArrayTypeWS(ty, s.size)
-      case _ => ArrayType(ty)
+   * A shorthand for constructing a new ArrayType with the same shape
+   * (i.e. same size and capacity if known) but a different element type.
+   *
+   * @param newElemT the element type of the resulting ArrayType
+   * @return an `ArrayType(newElemT)` with same the size and capacity as `this`
+   */
+  def replacedElemT(newElemT: Type): ArrayType = {
+    this match {
+      case sc: Size with Capacity => ArrayTypeWSWC(newElemT, sc.size, sc.capacity)
+      case s: Size => ArrayTypeWS(newElemT, s.size)
+      case c: Capacity => ArrayTypeWC(newElemT, c.capacity)
+      case _ => ArrayType(newElemT)
     }
   }
 }
@@ -219,7 +245,6 @@ object ArrayType {
   def apply(elemT: Type, sizeAndCapacity: ArithExpr) : ArrayType with Size with Capacity = {
     ArrayTypeWSWC(elemT, sizeAndCapacity)
   }
-
 }
 
 
@@ -497,28 +522,6 @@ object Type {
   }
 
   /**
-   * Return the type at a given index for a tuple type, or a tuple type nested
-   * in an array type.
-   * Returns the given type otherwise.
-   *
-   * @param t A type
-   * @param index A index. Must be in range for the given type.
-   * @return The type at the given index.
-   */
-  def getTypeAtIndex(t: Type, index: Int): Type = {
-    t match {
-      case tt: TupleType => tt.proj(index)
-      
-      case ArrayTypeWSWC(et,s,c) => ArrayTypeWSWC(getTypeAtIndex(et, index), s,c)
-      case ArrayTypeWC(et,c) => ArrayTypeWC(getTypeAtIndex(et, index), c)
-      case ArrayTypeWS(et,s) => ArrayTypeWS(getTypeAtIndex(et, index), s)
-      case ArrayType(et) => ArrayType(getTypeAtIndex(et, index))
-
-      case _ => t
-    }
-  }
-
-  /**
    * For a given array type turn every nested vector type into a corresponding
    * array type.
    *
@@ -705,10 +708,7 @@ object Type {
     (lt.elemsT zip rt.elemsT).forall({ case (l,r) => isEqual(l, r) })
   }
 
-  private def isEqual(l: ArrayType, r: ArrayType): Boolean = {
-    isEqual(l.elemT, r.elemT) && l.getSize == r.getSize && l.getCapacity == r.getCapacity
-  }
-
+  private def isEqual(l: ArrayType, r: ArrayType): Boolean = l.equals(r)
 
   private def isEqual(l: VectorType, r: VectorType): Boolean = {
     l.len == r.len && isEqual(l.scalarT, r.scalarT)

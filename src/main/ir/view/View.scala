@@ -31,7 +31,7 @@ case class AccessVar(array: String, idx: ArithExpression,
 }
 
 /**
- * Hack: an special variable to fetch the size of an array. Should not appear
+ * Hack: a special variable to fetch the size of an array. Should not appear
  * in the generated code.
  *
  * array[SizeIndex()]  ==  array.size
@@ -254,13 +254,17 @@ abstract sealed class View(val t: Type = UndefType) {
         case _ => throw new IllegalView(z)
       }
       case _ => this.t match {
-        case at: ArrayType =>
+        case at: ArrayType => at match {
           // Sanity check: if the size is statically known, we must not reach
           // this point
-          assert(at.getSize.isEmpty)
-          ViewSize(this)
-        case ty =>
-          throw new IllegalAccess(ty)
+          case _: Size =>
+            throw new IllegalArgumentException(
+              "Trying to generate an access to the size of an array which " +
+              "size is known statically."
+            )
+          case _ => ViewSize(this)
+        }
+        case ty => throw new IllegalAccess(ty)
       }
     }
   }
@@ -476,22 +480,18 @@ object View {
     OutputView(expr)
   }
 
-  private[view] def getFullType(outputType: Type, outputAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)]): Type = {
-    outputAccessInf.foldLeft(outputType)((t, len) => {
-      val (capacity, size, _) = len
-      if (capacity == ?) {
-        if (size == ?) ArrayType(t) else ArrayTypeWS(t, size)
-      } else {
-        if (size == ?) ArrayTypeWC(t, capacity) else ArrayTypeWSWC(t, size, capacity)
-      }
+  private[view] def getFullType(outputType: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)]): Type = {
+    outputAccessInf.foldLeft(outputType)((t, inf) => {
+      val (arrayTypeConstructor, _) = inf
+      arrayTypeConstructor(t)
     })
   }
 
-  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(ArithExpr, ArithExpr, ArithExpr)], name: String = ""): View = {
+  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], name: String = ""): View = {
     // Use the lengths and iteration vars to mimic inputs
     val outArray = getFullType(t, outputAccessInf)
     val outView = View(outArray, name)
-    outputAccessInf.foldRight(outView)((idx, view) => view.access(idx._3))
+    outputAccessInf.foldRight(outView)((inf, view) => view.access(inf._2))
   }
 
 }
@@ -608,7 +608,10 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         OpenCLAST.OpenCLExpression(value.value)
 
       case ViewSize(iv) =>
-        val newAAS = SizeIndex() :: arrayAccessStack
+        // Sanity check: the size of an array is an integer, to does not make
+        //               sense to access it at a certain index…
+        assert(arrayAccessStack.isEmpty)
+        val newAAS = SizeIndex() :: Nil
         emitView(v, iv, newAAS, tupleAccessStack)
 
       case ViewGenerator(f, ArrayTypeWS(_,s)) =>
@@ -652,10 +655,12 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
   }
   
   /**
-    * Turn the list of indices used to access an multi-dimentional array into
+    * Turn the list of indices used to access an multi-dimensional array into
     * an arithmetic expression depending on the type of the array.
     *
-    * @param acc the partial result of this aggregation
+    * @param acc the partial result of this aggregation. It corresponds to the
+    *            position in memory of the very beginning of the next nested
+    *            array we are going the access.
     * @param ty the type of the array
     * @param v a variable representing the array (used for indirections)
     * @param arrayAccessStack the indices used to access the array
@@ -673,25 +678,33 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
       ty match {
         case at: ArrayType =>
           val idx :: indices = arrayAccessStack
-          val offset = at.getHeaderSize
           
-          if (idx.isInstanceOf[SizeIndex])
-            // We are fetching the size of this array.
-            return acc + at.getSizeIndex
-          
-          val position = if (at.elemT.hasFixedAllocatedSize) {
-            // Regular array
-            val length = ViewPrinter.getLengthForArrayAccess(1, at.elemT, tupleAccessStack)
-            idx * length
-          } else {
-            // The elements of this array may have different sizes. We need an
-            // indirection: we fetch the actual position of the i-th element
-            // from the array's metadata (see issue #107)
-            // NB. We make a choice here, see issue #110
-            AccessVar(v.toString, ArithExpression(acc + offset + idx))
+          val position = idx match {
+            case SizeIndex() =>
+              // Special index:
+              // We are fetching the size of an array. `getSizeIndex` gives the
+              // index in the header where it is stored.
+              Cst(at.getSizeIndex)
+            case _ =>
+              // We are actually accessing the array at position idx.
+              val headerOffset = at.getHeaderSize // Skip the header.
+              if (at.elemT.hasFixedAllocatedSize) {
+                // Regular array
+                val length = ViewPrinter.getLengthForArrayAccess(1, at.elemT, tupleAccessStack)
+                headerOffset + idx * length
+              } else {
+                // The elements of this array may have different sizes. We need an
+                // indirection: we fetch the actual position of the i-th element
+                // from the array's metadata (see issue #107)
+                // NB. We make a choice here, see issue #110
+                val elementOffset = AccessVar(
+                  v.toString, ArithExpression(acc + headerOffset + idx)
+                )
+                headerOffset + elementOffset
+              }
           }
           
-          aggregateAccesses(acc + offset + position,
+          aggregateAccesses(acc + position,
                             v, at.elemT, indices, tupleAccessStack)
         case tt: TupleType =>
           val i :: tas = tupleAccessStack
@@ -731,7 +744,7 @@ object ViewPrinter {
   
   /**
     * Traverse a view, following the eventual tuple accesses, and returns
-    * the MemView (there must be one) at the bottom of it.
+    * the ViewMem (there must be one) at the bottom of it.
     *
     * @param sv ths view
     * @param tupleAccessStack indices used tu project the tuple views all along

@@ -1,7 +1,7 @@
 val N = SizeVar("N")
 
 fun(
-  ArrayTypeWSWC(Float, N),
+  ArrayType(Float, N),
   input =>
     Reduce(add, 0.0f) o Map(abs) $ input
 )

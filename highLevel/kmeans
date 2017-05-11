@@ -2,8 +2,8 @@ val P = SizeVar("P") // number of points
 val C = SizeVar("C") // number of clusters
 val F = SizeVar("F") // number of features
 
-val featuresType    = ArrayTypeWSWC(ArrayTypeWSWC(Float, P), F)
-val clustersType    = ArrayTypeWSWC(ArrayTypeWSWC(Float, F), C)
+val featuresType    = ArrayType(ArrayType(Float, P), F)
+val clustersType    = ArrayType(ArrayType(Float, F), C)
 
 val test = UserFun("test", Array("dist", "tuple"),
   "{" +
@@ -37,7 +37,7 @@ fun(
         Map(\((x) => test(x._0,x._1)))
       $ Zip(Reduce(add, 0.0f) o
         Map(fun(x => currentDistance(x._0, x._1))) $ Zip(feature, cluster), tuple)
-      ), Value("{3.40282347e+38, 0, 0}", ArrayTypeWSWC(TupleType(Float, Int, Int),1))
+      ), Value("{3.40282347e+38, 0, 0}", ArrayType(TupleType(Float, Int, Int),1))
    ) $ clusters
 )) o Transpose() $ features
 )
