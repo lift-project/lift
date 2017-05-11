@@ -1,7 +1,8 @@
 package opencl.generator
 
 import ir.{ArrayType, ArrayTypeWC, ArrayTypeWSWC, TypeChecker}
-import ir.ast.fun
+import ir.ast.{Join, fun}
+import lift.arithmetic.SizeVar
 import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
@@ -76,15 +77,18 @@ class TestArray {
     * Layout: [κ, size, elt_0, elt_1, elt_2, …]
     */
   @Test def inputZeroKnowledge(): Unit = {
+    val size = 128
+    val input = Array.fill(size)(util.Random.nextInt(16))
+    
     val f = fun(
       ArrayType(Int),
-      in =>
-        MapGlb(toGlobal(idI)) o ReduceSeq(addI, 0) $ in
+      MapGlb(toGlobal(idI)) o ReduceSeq(addI, 0) $ _
     )
     
     assertEquals(TypeChecker(f), ArrayTypeWSWC(Int, 1, 1))
     
-    Compile(f)
+    val (output: Array[Int], _) = Execute(size)(f, input)
+    assertEquals(input.sum, output.head)
   }
   
   /**
@@ -124,6 +128,30 @@ class TestArray {
       .toArray
     
     assertArrayEquals(input.flatten, output.flatten)
+  }
+  
+  /**
+   * If some capacity is not known at compile time in the type of an input
+   * we can still allocate it at the last minute.
+   */
+  @Test
+  def unknownInnerCapacity(): Unit = {
+    val size = 128
+    val N = SizeVar("N")
+    
+    val f = fun(
+      ArrayTypeWSWC(ArrayType(Int), N),
+      
+      Join() o
+      MapGlb(MapSeq(toGlobal(idI)) o ReduceSeq(addI, 0)) $ _
+    )
+    
+    val input = Array.fill(size)(
+      Array.fill(4 + util.Random.nextInt(8))(util.Random.nextInt(16))
+    )
+    println(input.map(_.mkString(", ")).mkString("\n"))
+    val (output: Array[Int], _) = Execute(size)(f, input)
+    assertArrayEquals(input.map(_.sum), output)
   }
   
   /**

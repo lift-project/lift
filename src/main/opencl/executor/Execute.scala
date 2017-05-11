@@ -530,10 +530,43 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
     (localSize, globalSize)
   }
+  
+  private def lastMinuteAlloc(ty: Type, value: Any): ArithExpr = {
+    (ty, value) match {
+      case (ScalarType(_, _), _) => 1
+      case (VectorType(_, len), _) => len.eval
+      case (TupleType(elemsT @ _*), _) => elemsT.length
+      case (at: ArrayType, array: Array[_]) =>
+        val c = at match {
+          case c: Capacity => c.capacity
+          case _ => Cst(array.length)
+        }
+        if (at.elemT.hasFixedAllocatedSize)
+          at.getHeaderSize + c * lastMinuteAlloc(at.elemT, array.head)
+        else
+          at.getHeaderSize + c + array.map(lastMinuteAlloc(at.elemT, _)).reduce(_ + _)
+      case _ => throw new IllegalArgumentException()
+    }
+  }
 
   private def execute[T](executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => T,
                          f: Lambda, values: Any*): (Array[_], T) = {
-
+    // TODO: I'm a bit ugly
+    // 0. If some inputs have not been allocated yet, this is our last chance
+    //    to do it.
+    for ((p, value) <- f.params zip values) {
+      if (p.mem.size == ?) {
+        val baseType = Type.getBaseType(p.t) match {
+          case tt: TupleType => tt.elemsT.head
+          case ty => ty
+        }
+        val size = Type.getAllocatedSize(baseType) * lastMinuteAlloc(p.t, value)
+        p.mem = OpenCLMemory(p.mem.variable, size, GlobalMemory)
+      }
+    }
+    
+    // TODO: this is partially done in createValueMap as well, maybe theses two
+    // TODO: functions should be fused.
     // 1. check that the given values match with the given lambda expression
     checkParamsWithValues(f.params, values)
 
@@ -779,41 +812,39 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
        * @param pos at what position in `buffer` to write the encoded array
        * @param array the array to encode
        * @param at the Lift type of the array
+       * @return the next position in buffer we should write to
        */
       private def encode(buffer: Array[T], pos: Int,
                          array: Array[_], at: ArrayType): Int = {
         val newPos = putHeader(buffer, pos, array, at)
-        val capacity = at.getCapacity.get.eval // Must be known
         at.elemT match {
           case _: ScalarType | _: TupleType =>
             // Copy
             array.asInstanceOf[Array[T]].copyToArray(buffer, newPos)
-            // Compute the next position
-            val nextPos = (newPos + capacity * sizeOf(at.elemT)).eval
-            assert (newPos + array.length <= nextPos) // Sanity check
-            nextPos
+            // Return the next position
+            getNextPos(at, newPos, newPos + array.length)
           case _: VectorType =>
             val flat = array.asInstanceOf[Array[Array[T]]].flatten
             flat.copyToArray(buffer ,newPos)
             // Compute the next position
-            val nextPos = (newPos + capacity * sizeOf(at.elemT)).eval
-            assert (newPos + flat.length <= nextPos) // Sanity check
-            nextPos
+            getNextPos(at, newPos, newPos + flat.length)
           case elemT: ArrayType =>
             val v = array.asInstanceOf[Array[Array[_]]]
             if (elemT.hasFixedAllocatedSize) {
               // Copy
               val endPos = v.foldLeft(newPos)(encode(buffer, _, _, elemT))
               // Compute the next position
-              val nextPos = (newPos + sizeOf(elemT) * capacity).eval
-              assert (endPos <= nextPos) // Sanity check
-              nextPos
+              getNextPos(at, newPos, endPos)
             } else {
               // Copy
               var ofsIdx = newPos
+              val capacity = at match {
+                case c: Capacity => c.capacity.eval
+                case _ => array.length
+              }
               v.foldLeft(newPos + capacity)((p, arr) => {
                 val pAfter = encode(buffer, p, arr, elemT)
-                buffer(ofsIdx) = cast(pAfter - newPos) // store the offset
+                buffer(ofsIdx) = cast(p - newPos) // store the offset
                 ofsIdx = ofsIdx + 1
                 pAfter
               }) // May the force be with you…
@@ -822,10 +853,23 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         }
       }
       
+      // TODO: I'm not very sweet
+      private def getNextPos(at: ArrayType, before: Int, fallback: Int): Int = {
+        at match {
+          case c: Capacity =>
+            // TODO: catch potential errors
+            val nextPos = (before + c.capacity * sizeOf(at.elemT)).eval
+            assert(nextPos <= fallback)
+            nextPos
+          case _ => fallback
+        }
+      }
+      
       /** Public wrapper for the encode method above */
       def encode(array: Array[_], at: ArrayType, size: Int): Array[T] = {
         val buffer = Array.fill(size)(cast(0))
-        encode(buffer, 0, array, at)
+        val nextPos = encode(buffer, 0, array, at)
+        assert(nextPos <= size) // Sanity check
         buffer
       }
     }
