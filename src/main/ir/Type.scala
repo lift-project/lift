@@ -102,6 +102,9 @@ case class TupleType(elemsT: Type*) extends Type {
 
   override def hasFixedAllocatedSize: Boolean = elemsT.forall(_.hasFixedAllocatedSize)
   
+  /**
+   * `proj(i)` is the i-th projection of the tuple type, i.e. its i-th component.
+   */
   def proj(i: Int): Type = {
     assert(i < elemsT.length)
     elemsT(i)
@@ -225,8 +228,6 @@ case class ArrayType(elemT: Type) extends Type {
 
 
 object ArrayType {
-
-
   def checkSizeOrCapacity(s: String, ae: ArithExpr) : Unit = {
     // TODO: remove the need to check for unknown (but this is used currently in a few places)
     if (ae != ? & ae.sign != Sign.Positive)
@@ -249,16 +250,12 @@ object ArrayType {
 
 
 object ArrayTypeWSWC {
-
+  /** Shorthand: constructs an ArrayType with same size and capacity */
   def apply(elemT: Type, sizeAndCapacity: ArithExpr) : ArrayType with Size with Capacity = {
     apply(elemT, sizeAndCapacity, sizeAndCapacity)
   }
 
   def apply(elemT: Type, _size: ArithExpr, _capacity: ArithExpr) : ArrayType with Size with Capacity = {
-
-    // TODO: remove this assertation once the framework is ready to handle array with a different size and capacity
-    assert (_size == _capacity)
-
     ArrayType.checkSizeOrCapacity("size", _size)
     ArrayType.checkSizeOrCapacity("capacity", _capacity)
     new ArrayType(elemT) with Size with Capacity {
