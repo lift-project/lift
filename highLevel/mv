@@ -2,8 +2,8 @@ val N = SizeVar("N")
 val K = SizeVar("K")
 
 fun(
-  ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
-  ArrayTypeWSWC(Float, K),
+  ArrayType(ArrayType(Float, K), N),
+  ArrayType(Float, K),
   (matrix, vector) =>
     Map(fun(row =>
         Reduce(add, 0.0f) o Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(row, vector)

@@ -30,6 +30,7 @@ class TestControlFlow {
     val counts = ControlFlow(f)
 
    // for-loop
+    assertEquals(N /^ globalSize0, counts.getForBranches())
     assertEquals(Cst(1), counts.getForStatements())
     assertEquals(Cst(0), counts.getIfStatements())
   }
@@ -45,6 +46,7 @@ class TestControlFlow {
 
     // One iter per thread
     // just a single statement
+    assertEquals(Cst(0), counts.getForBranches())
     assertEquals(Cst(0), counts.getForStatements())
     assertEquals(Cst(0), counts.getIfStatements())
   }
@@ -59,6 +61,7 @@ class TestControlFlow {
     val counts = ControlFlow(f, locals, globalsLessThanOne, valueMap)
 
     // if statement
+    assertEquals(Cst(0), counts.getForBranches())
     assertEquals(Cst(0), counts.getForStatements())
     assertEquals(Cst(1), counts.getIfStatements())
   }
@@ -73,6 +76,7 @@ class TestControlFlow {
     val counts = ControlFlow(f)
 
     // for-loops
+    assertEquals(N/^globalSize0 + 32*N/^globalSize0, counts.getForBranches())
     assertEquals(Cst(1) + 2*N/^globalSize0, counts.getForStatements())
     assertEquals(Cst(0), counts.getIfStatements())
   }
@@ -87,6 +91,8 @@ class TestControlFlow {
     val counts = ControlFlow(f)
 
     // for-loops
+
+    assertEquals(N/^globalSize0 + 16*N/^globalSize0, counts.getForBranches())
     assertEquals(Cst(1) + N/^globalSize0, counts.getForStatements())
     assertEquals(Cst(0), counts.getIfStatements())
   }
@@ -101,6 +107,7 @@ class TestControlFlow {
     val counts = ControlFlow(f)
 
     // for-loops
+    assertEquals(N/^globalSize0 + 16*N/^globalSize0, counts.getForBranches())
     assertEquals(Cst(1) + N/^globalSize0, counts.getForStatements())
     assertEquals(Cst(0), counts.getIfStatements())
   }
@@ -115,6 +122,7 @@ class TestControlFlow {
     val counts = ControlFlow(f)
 
     // for-loops
+    assertEquals(N/^globalSize0, counts.getForBranches())
     assertEquals(Cst(1), counts.getForStatements())
     assertEquals(Cst(0), counts.getIfStatements())
   }

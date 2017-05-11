@@ -71,7 +71,6 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
   private val PassParamUpPossibility = 0.0
 
   // Controllers for generate programs
-  private val ConsequentUserFun = true
   private val AllowJoinASplit = false
   private val MustContainMap = true
 
@@ -139,6 +138,8 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
     ParamList += Param(Float)
     ParamList += Param(Float)
 
+    generateTranspose()
+
     for (_ <- 0 until loopNum)
       generateLambda()
 
@@ -189,13 +190,48 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
     RefinedResult = grouped.map(_._2.head).toBuffer
   }
 
+  private def generateTranspose(): Unit = {
+    val tempLambdaList = mutable.Buffer[Lambda]()
+    val tempParamList = mutable.Buffer[Param]()
+    val tempParamToFunCall = collection.mutable.Map[Param,FunCall]()
+
+    ParamList.foreach(param => {
+      param.t match{
+        case ArrayTypeWSWC(ArrayTypeWSWC(_,_, _),_, _) =>
+
+          // Get the argument of FunCall
+          val arg = getArg(param,PassParamUpPossibility)
+
+          // Build the FunCall
+          val F = FunCall(Transpose(), arg)
+
+          // Set output type
+          TypeChecker(F)
+
+          // Build the param corresponds to the FunCall
+          val P = Param(F.t)
+
+          // Count the parameters of lambda
+          val lParams = collectUnboundParams(F)
+
+          // Build the lambda
+          val L = Lambda(lParams.toArray[Param], F)
+
+          tempParamList += P
+          tempLambdaList += L
+          tempParamToFunCall += ((P, F))
+        case _=>
+      }
+    })
+
+    limitResults(tempLambdaList, tempParamList, tempParamToFunCall)
+  }
+
   private def generateLambda(): Unit = {
     val totChoiceNum = 7
 
-    val randChoice = util.Random.nextInt(totChoiceNum)
-
     unpackParams()
-    //randChoice match{
+
     AssignedChoiceNum match {
       case 0 if GenJoin =>
         generateJoin()
@@ -348,19 +384,32 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
       val inputTypes = userFunToUse.inTs
       val numArgs = inputTypes.length
 
-      val candidateCombinations = ParamList
-        .combinations(numArgs)
-        .filterNot(UserFun_Check.contains)
-        .filterNot(p =>
-          ParamToFunCall.exists(kv =>
-            ConsequentUserFun && kv._1 == p && kv._2.f.isInstanceOf[UserFun]))
+      val checked = mutable.Set[Seq[Int]]()
 
-      // TODO: Pick random ones here? Creates a huge number of combinations
+      var parameterCombinations = Seq[Seq[Param]]()
+
       // TODO: Filter out equivalent ones?
-      val correctTypes = candidateCombinations.filter(params =>
-        (params, inputTypes).zipped.forall((p, t) => p.t == t))
+      while (parameterCombinations.length < limitNum && checked.size < ParamList.length) {
 
-      correctTypes.foreach(params => {
+        val indices = Seq.fill(numArgs)(util.Random.nextInt(ParamList.length))
+
+        if (!checked.contains(indices)) {
+
+          checked += indices
+
+          val combination = indices.map(ParamList.apply)
+
+          val typesMatch =
+            !UserFun_Check.contains(combination) &&
+              (combination, inputTypes).zipped.forall((p, t) => p.t == t)
+
+          if (typesMatch)
+            parameterCombinations = parameterCombinations :+ combination
+        }
+
+      }
+
+      parameterCombinations.foreach(params => {
 
         val args = params.map(getArg(_, PassParamUpPossibility))
 

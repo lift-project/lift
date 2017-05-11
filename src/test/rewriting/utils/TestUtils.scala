@@ -1,5 +1,10 @@
 package rewriting.utils
 
+import ir._
+import ir.ast._
+import opencl.ir._
+import lift.arithmetic.{Cst, SizeVar, Var}
+import opencl.executor.Eval
 import org.junit.Assert._
 import org.junit.Test
 
@@ -51,5 +56,17 @@ class TestUtils {
 
     val replaced = Utils.findAndReplaceVariableNames(testString)
     assertEquals(11, Utils.findVariables(replaced).length)
+  }
+
+  @Test
+  def constantDivisionDumpToString(): Unit = {
+
+    val f = \(
+      ArrayType(Float, SizeVar("N")),
+      Map(Map(plusOne)) o Split(Cst(16) /^ Var()) $ _
+    )
+
+    val string = Utils.dumpLambdaToString(f)
+    Eval(string)
   }
 }
