@@ -253,8 +253,6 @@ class TestAnalyser {
 
     val (localSizes, globalSizes) = InferNDRange(lambda)
 
-    println(localSizes)
-
     val actualLocalSizes = localSizes.map(substitute(_, valueMap))
     val actualGlobalSizes = globalSizes.map(substitute(_, valueMap))
 
