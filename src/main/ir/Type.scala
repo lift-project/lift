@@ -101,7 +101,7 @@ case class TupleType(elemsT: Type*) extends Type {
     = "Tuple(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
 
   override def hasFixedAllocatedSize: Boolean = elemsT.forall(_.hasFixedAllocatedSize)
-  
+
   /**
    * `proj(i)` is the i-th projection of the tuple type, i.e. its i-th component.
    */
@@ -144,7 +144,7 @@ case class ArrayType(elemT: Type) extends Type {
       case _ => None
     }
   }
-  
+
   /**
    * Private helper function
    *
@@ -156,7 +156,7 @@ case class ArrayType(elemT: Type) extends Type {
       case _ => None
     }
   }
-  
+
   /**
    * @return the index at which the size of the array is stored in its header.
    */
@@ -164,7 +164,7 @@ case class ArrayType(elemT: Type) extends Type {
     case _: Capacity => 0 // capacity is not in the header
     case _ => 1 // skip the capacity
   }
-  
+
   /**
    * @return the number of values stored in the header of this array.
    *         (currently it can be 0, 1 or 2)
@@ -187,7 +187,7 @@ case class ArrayType(elemT: Type) extends Type {
       case _:Capacity => elemT.hasFixedAllocatedSize
       case _ => false
     }
-  
+
   /** Structural equality */
   override def equals(other: Any): Boolean = {
     other match {
@@ -208,7 +208,7 @@ case class ArrayType(elemT: Type) extends Type {
       (this match {case s:Size => s.size.hashCode case _ => 0 }) +
       (this match {case c:Capacity => c.capacity.hashCode case _ => 0 })
   }
-  
+
   /**
    * A shorthand for constructing a new ArrayType with the same shape
    * (i.e. same size and capacity if known) but a different element type.
