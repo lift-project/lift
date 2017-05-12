@@ -237,7 +237,9 @@ object Execute {
             case _: ArrayType =>
               val (cs, ss) = array.map(fetchConstraints(at.elemT, _)).toSeq.unzip
               (cs.flatten, ss.flatten)
-            case _ => (Seq.empty, Seq.empty)
+            case _ =>
+              checkParamWithValue(at.elemT, array.head)
+              (Seq.empty, Seq.empty)
           }
         
           // fetch information for the current array
