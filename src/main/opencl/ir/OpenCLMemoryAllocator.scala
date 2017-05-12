@@ -309,7 +309,7 @@ object OpenCLMemoryAllocator {
     // manually allocate that much memory, storing it in the correct address space
     if (call.addressSpace != UndefAddressSpace) {
      // use given address space
-      OpenCLMemory.allocMemory(outputSize, outputSize, outputSize,
+      OpenCLMemory.allocMemory(outputSize * numGlb, outputSize * numLcl, outputSize * numPvt,
                            call.addressSpace)
     } else {
       // address space is not predetermined
@@ -337,7 +337,7 @@ object OpenCLMemoryAllocator {
     // manually allocate that much memory, storing it in the correct address space
     if (call.addressSpace != UndefAddressSpace) {
       // use given address space
-      OpenCLMemory.allocMemory(outputSize, outputSize, outputSize,
+      OpenCLMemory.allocMemory(outputSize * numGlb, outputSize * numLcl, outputSize * numPvt,
         call.addressSpace)
     } else {
       // address space is not predetermined
