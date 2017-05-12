@@ -32,11 +32,18 @@ case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
   }
   
   override def checkType(argType: Type, setType: Boolean): Type = {
-    // Check that the argument is an array and compute the output type
     val retTy = argType match {
-      case ArrayTypeWS(ty, size) => ArrayTypeWC(ty, size)
-      case ArrayTypeWC(ty, capacity) => ArrayTypeWC(ty, capacity)
-      case ArrayType(ty) => ArrayType(ty)
+      // Filter expects an array
+      case at @ ArrayType(ty) => at match {
+        // The size of the output of a filter can never be known statically.
+        // But if we know the size (or at least the capacity) of the input, we
+        // have an upper bound on the number of elements of the output, in
+        // other words, its capacity.
+        case s: Size => ArrayTypeWC(ty, s.size)
+        case c: Capacity => ArrayTypeWC(ty, c.capacity)
+        // Without further information we just return an array type
+        case _ => ArrayType(ty)
+      }
       case _ => throw new TypeException(argType, "Array", this)
     }
     
