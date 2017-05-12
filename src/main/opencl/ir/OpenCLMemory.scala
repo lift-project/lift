@@ -178,25 +178,6 @@ object OpenCLMemory {
 
   def allocPrivateMemory(size: ArithExpr): OpenCLMemory =
     allocMemory(size, PrivateMemory)
-  
-  /**
-    * Computes the number of bytes you need to allocate for a given type.
-    * If this size is `?`, dynamic allocation is required.
-    */
-  def getSizeInBytes(t: Type): ArithExpr = t match {
-    case st: ScalarType => st.size
-    case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)
-    case at: ArrayType => at match {
-      case c: Capacity =>
-        if (at.elemT.hasFixedAllocatedSize)
-          (at.getHeaderSize * 4) + c.capacity * getSizeInBytes(at.elemT)
-        else ? // TODO?
-      case _ => ? // Dynamic allocation required
-    }
-    case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
-    case NoType | UndefType =>
-      throw new MemoryAllocationException(s"Cannot allocate memory for type: $t")
-  }
 }
 
 /** Represents an OpenCLMemory object combined with a type.

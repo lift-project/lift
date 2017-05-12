@@ -589,18 +589,31 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     (localSize, globalSize)
   }
   
+  /**
+   * Here we are allocating an array which could not have been allocated
+   * earlier because we could not know how much space to allocate statically
+   * just by looking at the type.
+   * The difference here is that we have the value for which we are allocating
+   * memory since this is an argument of the kernel which gives us all the
+   * information we need.
+   *
+   * @param ty the type of the value
+   * @param value the value for which we are allocating memory
+   * @return the size in bytes of this value once encoded
+   */
   private def lastMinuteAlloc(ty: Type, value: Any): ArithExpr = {
     (ty, value) match {
-      case (ScalarType(_, _), _) => 1
-      case (VectorType(_, len), _) => len.eval
-      case (TupleType(elemsT @ _*), _) => elemsT.length
+      case (ScalarType(_, size), _) => size
+      case (VectorType(st, len), _) => len.eval * st.size
+      case (TupleType(elemsT @ _*), _) if elemsT.distinct.length == 1 =>
+        elemsT.length * lastMinuteAlloc(elemsT.head, value)
       case (at: ArrayType, array: Array[_]) =>
         val c = at match {
           case c: Capacity => c.capacity
           case _ => Cst(array.length)
         }
         if (at.elemT.hasFixedAllocatedSize)
-          at.getHeaderSize + c * lastMinuteAlloc(at.elemT, array.head)
+          at.getHeaderSize * 4 + c * 4 * lastMinuteAlloc(at.elemT, array.head)
         else
           at.getHeaderSize + c + array.map(lastMinuteAlloc(at.elemT, _)).reduce(_ + _)
       case _ => throw new IllegalArgumentException()
@@ -609,16 +622,12 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
   private def execute[T](executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => T,
                          f: Lambda, values: Any*): (Array[_], T) = {
-    // TODO: I'm a bit ugly
-    // 0. If some inputs have not been allocated yet, this is our last chance
-    //    to do it.
+    // 0. If some inputs could not been allocated so far because of some
+    //    unknown capacity in their type, we have a last chance to do it now
+    //    because we have their values.
     for ((p, value) <- f.params zip values) {
       if (p.mem.size == ?) {
-        val baseType = Type.getBaseType(p.t) match {
-          case tt: TupleType => tt.elemsT.head
-          case ty => ty
-        }
-        val size = Type.getAllocatedSize(baseType) * lastMinuteAlloc(p.t, value)
+        val size = lastMinuteAlloc(p.t, value)
         p.mem = OpenCLMemory(p.mem.variable, size, GlobalMemory)
       }
     }

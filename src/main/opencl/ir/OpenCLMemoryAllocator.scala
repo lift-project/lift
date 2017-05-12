@@ -17,7 +17,7 @@ object OpenCLMemoryAllocator {
     */
   def apply(f: Lambda): OpenCLMemory = {
     f.params.foreach((p) =>
-      p.mem = OpenCLMemory.allocMemory(OpenCLMemory.getSizeInBytes(p.t), p.addressSpace)
+      p.mem = OpenCLMemory.allocMemory(Type.getAllocatedSize(p.t), p.addressSpace)
     )
 
     alloc(f.body)
@@ -57,7 +57,7 @@ object OpenCLMemoryAllocator {
       assert(oclMem.addressSpace == PrivateMemory)
       oclMem
     } else {
-      OpenCLMemory.allocPrivateMemory(getSizeInBytes(v.t))
+      OpenCLMemory.allocPrivateMemory(Type.getAllocatedSize(v.t))
     }
   }
 
@@ -148,7 +148,7 @@ object OpenCLMemoryAllocator {
     if (call.addressSpace == UndefAddressSpace)
       throw new RuntimeException("No address space at " + call)
 
-    val maxSizeInBytes = getSizeInBytes(outT)
+    val maxSizeInBytes = Type.getAllocatedSize(outT)
     // size in bytes necessary to hold the result of f in the different
     // memory spaces
     val maxGlbOutSize = maxSizeInBytes * numGlb
@@ -293,7 +293,7 @@ object OpenCLMemoryAllocator {
         // Allocate memory for the comparison function
         alloc(s.f.body, numGlb, numLcl, numPvt)
 
-        val size = getSizeInBytes(call.t)
+        val size = Type.getAllocatedSize(call.t)
         // TODO: Do this the way the reduce does it - it makes a lot more sense!?
         // HOW IT'S ACTUALLY DONE: manually allocate that memory,
         // storing it in the correct address space
@@ -313,7 +313,7 @@ object OpenCLMemoryAllocator {
     alloc(ua.index, numGlb, numLcl, numPvt)
 
     // allocate memory itself
-    val outputSize = getSizeInBytes(call.t)
+    val outputSize = Type.getAllocatedSize(call.t)
     // manually allocate that much memory, storing it in the correct address space
     if (call.addressSpace != UndefAddressSpace) {
      // use given address space
@@ -342,8 +342,8 @@ object OpenCLMemoryAllocator {
       case _ =>
         // Get sizes in bytes necessary to hold the input and output of the
         // function inside the iterate
-        val inSize = getSizeInBytes(call.argsType)
-        val outSize = getSizeInBytes(call.t)
+        val inSize = Type.getAllocatedSize(call.argsType)
+        val outSize = Type.getAllocatedSize(call.t)
 
         // Get the max from those two
         val largestSize = ArithExpr.max(inSize, outSize)

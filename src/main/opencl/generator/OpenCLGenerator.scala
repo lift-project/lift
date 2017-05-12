@@ -165,7 +165,7 @@ class OpenCLGenerator extends Generator {
 
     // Allocate the params and set the corresponding type
     f.params.foreach((p) => {
-      p.mem = OpenCLMemory.allocMemory(OpenCLMemory.getSizeInBytes(p.t), p.addressSpace)
+      p.mem = OpenCLMemory.allocMemory(Type.getAllocatedSize(p.t), p.addressSpace)
     })
 
     RangesAndCounts(f, localSize, globalSize, valueMap)
@@ -753,7 +753,7 @@ class OpenCLGenerator extends Generator {
     val compFuncResVar = Var("cmp_res_var")
     varDecls = varDecls.updated(compFuncResVar, Type.devectorize(s.f.body.t))
     // create a memory object for it
-    val compFuncResMem = OpenCLMemory(compFuncResVar, OpenCLMemory.getSizeInBytes(s.f.body.t), PrivateMemory)
+    val compFuncResMem = OpenCLMemory(compFuncResVar, Type.getAllocatedSize(s.f.body.t), PrivateMemory)
     // set the memory of the call to the mem
     s.f.body.mem = compFuncResMem
     // declare it, with the same type as the comparison result
@@ -827,7 +827,7 @@ class OpenCLGenerator extends Generator {
     val compFuncResVar = Var("cmp_res_var")
     varDecls = varDecls.updated(compFuncResVar, Type.devectorize(s.f.body.t))
     // create a memory object for it
-    val compFuncResMem = OpenCLMemory(compFuncResVar, OpenCLMemory.getSizeInBytes(s.f.body.t), PrivateMemory)
+    val compFuncResMem = OpenCLMemory(compFuncResVar, Type.getAllocatedSize(s.f.body.t), PrivateMemory)
     // set the memory of the call to the mem
     s.f.body.mem = compFuncResMem
     // declare it, with the same type as the comparison result

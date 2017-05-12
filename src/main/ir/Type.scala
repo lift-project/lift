@@ -552,15 +552,16 @@ object Type {
         case c: Capacity =>
           if (at.elemT.hasFixedAllocatedSize)
             (at.getHeaderSize * 4) + c.capacity * getAllocatedSize(at.elemT)
-          else ? // TODO?
+          else ? // Dynamic allocation required
         case _ => ? // Dynamic allocation required
       }
-      case _ => throw new IllegalArgumentException
+      case NoType | UndefType =>
+        throw new IllegalArgumentException(s"Cannot allocate memory for type: $t")
     }
   }
 
   def getMaxAllocatedSize(t: Type) : ArithExpr = {
-    // quick hack (set all the type var to theur max value)
+    // quick hack (set all the type var to their max value)
     // TODO: need to be fixed
     val size = getAllocatedSize(t)
     val map = TypeVar.getTypeVars(size).map(tv => (tv, tv.range.max)).toMap

@@ -160,7 +160,7 @@ class CGenerator extends Generator {
     InferOpenCLAddressSpace(f)
     // Allocate the params and set the corresponding type
     f.params.foreach((p) => {
-      p.mem = OpenCLMemory.allocMemory(OpenCLMemory.getSizeInBytes(p.t), p.addressSpace)
+      p.mem = OpenCLMemory.allocMemory(Type.getAllocatedSize(p.t), p.addressSpace)
     })
 
     RangesAndCounts(f, localSize, globalSize, valueMap)
