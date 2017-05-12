@@ -152,7 +152,9 @@ object Execute {
         .map(p => {
           val (ty, value) = p
           ty match {
-            case VectorType(_, _) => (Seq.empty, Seq.empty)
+            case VectorType(st, _) =>
+              checkParamWithValue(st, value)
+              (Seq.empty, Seq.empty)
             case _ =>
               val (caps, sizes) = fetchConstraints(ty, value)
               (simplify(caps), simplify(sizes))
@@ -240,32 +242,69 @@ object Execute {
         
           // fetch information for the current array
           (fetchCapacity(at, len, caps), fetchSize(at, len, sizes))
-        case _: TupleType | ScalarType(_, _) =>
+        case TupleType(_) | ScalarType(_, _) =>
           // We assume tuples do not contain arrays
+          checkParamWithValue(ty, value)
           (Seq.empty, Seq.empty)
-        case VectorType(st, len) =>
-          // Vectors must be passed as arrays
-          if (!value.isInstanceOf[Array[_]])
-            throw TypeException(
-              s"Expected Array[$st] of size $len (representing a vector). " +
-              s"Got ${value.getClass} instead."
-            )
-          // Validate the underlying type and the length
-          val array = value.asInstanceOf[Array[_]]
-          val headType = try { Type.fromAny(array.head)}
-                       catch { case _: NotImplementedError => NoType }
-          if (headType != st || array.length != len.eval)
-            throw TypeException(
-              s"Expected Array[$st] of size $len (representing a vector). " +
-              s"Got Array[$headType] of length ${array.length} instead."
-            )
-          // Finally… say nothing
+        case VectorType(_, _) =>
+          checkParamWithValue(ty, value)
           (Seq.empty, Seq.empty)
         case NoType | UndefType =>
           throw new IllegalArgumentException("Executor: Untyped parameter in lambda")
       }
     }
-    
+  
+    /**
+     * Type-checks a bit of kernel argument.
+     * Arrays are handled in fetchConstraints using `asArray` and a recursive
+     * call to itself since more work is required for them.
+     */
+    private def checkParamWithValue(t: Type, v: Any): Unit = {
+      (t, v) match {
+        case (Float,   _: Float) => // fine
+        case (Int,   _: Int) => // fine
+        case (Double,   _: Double) => // fine
+        case (Bool, _: Boolean) => // fine
+      
+        case (VectorType(st, len), _) =>
+          // Vectors must be passed as arrays
+          if (!v.isInstanceOf[Array[_]])
+            throw TypeException(
+              s"Expected Array[$st] of size $len (representing a vector). " +
+                s"Got ${v.getClass} instead."
+            )
+          val array = v.asInstanceOf[Array[_]]
+          // Validate the underlying type and the length
+          st match {
+            case Float | Int | Double =>
+            case _ => throw TypeException(s"$t is not a valid vector type")
+          }
+          val headType = Type.fromAny(array.head)
+          if (headType != st || array.length != len.eval)
+            throw TypeException(
+              s"Expected Array[$st] of size $len (representing a vector). " +
+                s"Got Array[$headType] of length ${array.length} instead."
+            )
+      
+        // handle tuples if all their components are of the same type
+        case (tt: TupleType, _: Float)
+          if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Float) => // fine
+        case (tt: TupleType, _: Int)
+          if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Int) => // fine
+        case (tt: TupleType, _: Double)
+          if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Double) => // fine
+        case (tt: TupleType, _: Boolean)
+          if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Bool) => // fine
+      
+        // Arrays are already handled by `fetchConstraints`
+        case (_: ArrayType, _) =>
+          throw new NotImplementedError("Sould not reach this point")
+      
+        case _ => throw new IllegalArgumentException(
+          s"Expected value of type $t, but value of type ${v.getClass} given")
+      }
+    }
+
     /**
      * Tries to interpret a value as an array and throws a useful exception
      * if it cannot (not just a `ClassCastException`)
@@ -622,7 +661,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
   private def execute[T](executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => T,
                          f: Lambda, values: Any*): (Array[_], T) = {
-    // 0. If some inputs could not been allocated so far because of some
+    // 1. If some inputs could not been allocated so far because of some
     //    unknown capacity in their type, we have a last chance to do it now
     //    because we have their values.
     for ((p, value) <- f.params zip values) {
@@ -632,12 +671,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       }
     }
     
-    // TODO: this is partially done in createValueMap as well, maybe theses two
-    // TODO: functions should be fused.
-    // 1. check that the given values match with the given lambda expression
-    checkParamsWithValues(f.params, values)
-
     // 2. create map associating Variables, e.g., SizeVar("N"), with values, e.g., "1024".
+    //    Also type-checks the inputs.
     val valueMap = Execute.createValueMap(f, values: _*)
 
     val (localSize, globalSize) = getAndValidateSizesForExecution(f, valueMap)
@@ -720,41 +755,6 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         outputData.asDoubleArray()
       case _ => throw new IllegalArgumentException(
         s"Return type of the given lambda expression not supported: $t")
-    }
-  }
-
-  private def checkParamsWithValues(params: Seq[Param], values : Seq[Any]): Unit = {
-    if (params.length != values.length)
-      throw new IllegalArgumentException(
-        s"Expected ${params.length} parameters, but ${values.length} was given")
-
-    (params, values).zipped.foreach( (p, v) => checkParamWithValue(p.t, v) )
-  }
-
-  @scala.annotation.tailrec
-  private def checkParamWithValue(t: Type, v: Any): Unit = {
-    (t, v) match {
-      case (at: ArrayType, av: Array[_]) => checkParamWithValue(at.elemT, av(0))
-      case (Float,   _: Float) => // fine
-      case (Int,   _: Int) => // fine
-      case (Double,   _: Double) => // fine
-      case (Bool, _: Boolean) => // fine
-
-      case (VectorType(Float, _), _) => //fine
-      case (VectorType(Int, _), _) => //fine
-      case (VectorType(Double, _), _) => //fine
-
-      // handle tuples if all their components are of the same type
-      case (tt: TupleType, _: Float)
-        if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Float) => // fine
-      case (tt: TupleType, _: Int)
-        if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Int) => // fine
-      case (tt: TupleType, _: Double)
-        if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Double) => // fine
-      case (tt: TupleType, _: Boolean)
-        if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Bool) => // fine
-      case _ => throw new IllegalArgumentException(
-        s"Expected value of type $t, but value of type ${v.getClass} given")
     }
   }
 
