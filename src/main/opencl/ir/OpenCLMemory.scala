@@ -48,7 +48,11 @@ sealed class OpenCLMemory(var variable: Var,
       case GlobalMemory => OpenCLMemory.allocGlobalMemory(size)
       case LocalMemory => OpenCLMemory.allocLocalMemory(size)
       case PrivateMemory => OpenCLMemory.allocPrivateMemory(size)
-      case AddressSpaceCollection(_) => this // TODO: is this what we want?
+      case AddressSpaceCollection(_) => this match {
+        case coll: OpenCLMemoryCollection =>
+          OpenCLMemoryCollection(coll.subMemories.map(_.copy()))
+        case _ => throw new IllegalArgumentException()
+      }
       case UndefAddressSpace => this
     }
   }
@@ -187,7 +191,7 @@ object OpenCLMemory {
   * @param t The type associated with the memory object
   */
 case class TypedOpenCLMemory(mem: OpenCLMemory, t: Type) {
-  override def toString: String = s"(${mem.toString}: ${t.toString})"
+  override def toString: String = s"($mem: $t)"
 }
 
 object TypedOpenCLMemory {

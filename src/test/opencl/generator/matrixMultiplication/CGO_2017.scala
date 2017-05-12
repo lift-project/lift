@@ -201,7 +201,7 @@ class CGO_2017 {
     val (output: Array[Float], _) =
       Execute(128/param, 8, 1, 1024/param, 1024/8, 1, (true, true))(
         code, f, matrixA.transpose, matrixB, matrixC,
-        alpha, beta //TODO: encode this correctly
+        alpha, beta
       )
 
     assertArrayEquals(gemmGold, output, 0.001f)
@@ -279,7 +279,7 @@ class CGO_2017 {
     val (output: Array[Float], _) =
       Execute(32, 8, nSize/v__3, mSize/v__4, (true, true))(
         code, f, matrixA.transpose, matrixB, matrixC,
-        alpha, beta // TODO: encode this correctly
+        alpha, beta
       )
 
     assertArrayEquals(gemmGold, output, 0.0001f)
