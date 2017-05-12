@@ -30,7 +30,7 @@ object TypeChecker {
   }
   
   /**
-   * Infers the type of an expression.
+   * Infers and checks the type of an expression.
    *
    * @param expr the expression to type-check
    * @param setType if true, attach the type to the expression
