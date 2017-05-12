@@ -281,8 +281,6 @@ object TypedOpenCLMemory {
                 val privateMultiplier = if (m.iterationCount == ?) Cst(1)
                                         else m.iterationCount
                 
-                // TODO: I'm not sure this is what we want?
-                // TODO: @Toomas: why m.iterationCount?
                 TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, privateMultiplier))
             }
           case LocalMemory =>
@@ -330,9 +328,11 @@ object TypedOpenCLMemory {
           
             TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t,privateMultiplier))
           case LocalMemory =>
-            TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
+            val newType = t.asInstanceOf[ArrayType].replacedElemT(tm.t)
+            TypedOpenCLMemory(tm.mem, newType)
           case GlobalMemory =>
-            TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
+            val newType = t.asInstanceOf[ArrayType].replacedElemT(tm.t)
+            TypedOpenCLMemory(tm.mem, newType)
           case coll: AddressSpaceCollection =>
             changeType(coll.findCommonAddressSpace(), tm)
 
