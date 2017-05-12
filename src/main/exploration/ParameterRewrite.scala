@@ -14,8 +14,6 @@ import opencl.generator.NDRange
 import opencl.ir.pattern._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
-import play.api.libs.json.Reads._
-import play.api.libs.json._
 import rewriting.InferNDRange
 import rewriting.utils.Utils
 import ExpressionFilter.Status.Success
@@ -243,7 +241,7 @@ object ParameterRewrite {
                     logger.warn(t.toString)
                 }
               })
-              println(s"\nGenerating ${kernelCounter} kernels")
+              println(s"\nGenerated ${kernelCounter} kernels")
             }
           } catch {
             case t: Throwable =>
@@ -335,7 +333,6 @@ object ParameterRewrite {
       if local <= global
     } yield (local, global)).map{ case (l,g) => (Cst(l), Cst(g))}
 
-    val success = ExpressionFilter.Status.Success
     nDRangeDim match {
       case 1 => for {
         x <- localGlobalCombinations
