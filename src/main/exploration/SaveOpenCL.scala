@@ -255,9 +255,9 @@ class SaveOpenCL(
     val barriers = barrierCounts.getTotalCount(exact).evalDouble
 
     val scalarCoalescedGlobalStores =
-      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact).evalDouble
+      accessCounts.scalarStores(GlobalMemory, CoalescedPattern, exact).evalDouble
     val scalarCoalescedGlobalLoads =
-      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact).evalDouble
+      accessCounts.scalarLoads(GlobalMemory, CoalescedPattern, exact).evalDouble
 
     val scalarCoalescedLocalStores =
       accessCounts.scalarStores(LocalMemory, CoalescedPattern, exact).evalDouble
