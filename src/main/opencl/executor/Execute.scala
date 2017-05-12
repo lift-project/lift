@@ -267,8 +267,8 @@ object Execute {
     }
     
     /**
-     * Tries to interpret a value as an array and throws a proper exception if
-     * it cannot.
+     * Tries to interpret a value as an array and throws a useful exception
+     * if it cannot (not just a `ClassCastException`)
      */
     private def asArray(any: Any): Array[_] = any match {
       case array: Array[_] => array
@@ -839,9 +839,50 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    * Factory functions for creating OpenCL kernel arguments
    */
   object arg {
+    /** Entry point for creating an OpenCL kernel argument */
+    def apply(any: Any, ty: Type, size: Int): KernelArg = ty match {
+      // Scalars and vectors that are not nested in an array
+      case Bool  => value(any.asInstanceOf[Boolean])
+      case Int | VectorType(Int, _)       => value(any.asInstanceOf[Int])
+      case Float | VectorType(Float, _)   => value(any.asInstanceOf[Float])
+      case Double | VectorType(Double, _) => value(any.asInstanceOf[Double])
+      // Arrays
+      case at: ArrayType =>
+        val array = any.asInstanceOf[Array[_]]
+        flatTupleBaseType(at) match {
+          case Int =>
+            val encoder = new Encoder[Int](n => n)
+            val raw = encoder.encode(array, at, size/4)
+            global.input(raw)
+          case Float =>
+            val encoder = new Encoder[Float](_.toFloat)
+            val raw = encoder.encode(array, at, size/4)
+            global.input(raw)
+          case Double =>
+            val encoder = new Encoder[Double](_.toDouble)
+            val raw = encoder.encode(array, at, size/4)
+            global.input(raw)
+          case Bool =>
+            val encoder = new Encoder[Boolean](_ != 0) // This is very bad
+          val raw = encoder.encode(array, at, size)
+            global.input(raw)
+        }
+      case _ => throw new EncodeError(ty)
+    }
+    
     /** Raise this exception if something cannot be encoded */
     private class EncodeError(ty: Type)
       extends IllegalArgumentException(s"Cannot encode type $ty")
+  
+    @scala.annotation.tailrec
+    private def flatTupleBaseType(ty: Type): ScalarType = {
+      Type.getBaseType(ty) match {
+        case tt: TupleType if tt.elemsT.distinct.length == 1 =>
+          flatTupleBaseType(tt.elemsT.head)
+        case st: ScalarType => st
+        case _ => throw new EncodeError(ty)
+      }
+    }
   
     /**
      * Factory for marshalling a scala value
@@ -853,22 +894,12 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
      *           (e.g. for a 3D array of floats, this is `Float`)
      */
     private class Encoder[T: ClassTag](cast: Int => T) {
-      /**
-       * The size a type will take once encoded in a Scala array.
-       */
-      private def sizeOf(ty: Type): ArithExpr = {
-        val allocated = Type.getAllocatedSize(ty)
-        val nbBytes = Type.getAllocatedSize(Type.fromAny(cast(0)))
-        allocated / nbBytes
-      }
-      
-      /** Se issue #107 */
-      private def putHeader(buffer: Array[T], pos: Int,
-                            array: Array[_], at: ArrayType): Int = {
-        val hSize = at.getHeaderSize
-        val len = cast(array.length)
-        for (i <- pos until pos + hSize) buffer(i) = len
-        pos + hSize
+      /** Public wrapper for the encode method below */
+      def encode(array: Array[_], at: ArrayType, size: Int): Array[T] = {
+        val buffer = Array.fill(size)(cast(0))
+        val nextPos = encode(buffer, 0, array, at)
+        assert(nextPos <= size) // Sanity check
+        buffer
       }
   
       /**
@@ -883,7 +914,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
        */
       private def encode(buffer: Array[T], pos: Int,
                          array: Array[_], at: ArrayType): Int = {
-        val newPos = putHeader(buffer, pos, array, at)
+        val newPos = writeHeader(buffer, pos, array, at)
         at.elemT match {
           case _: ScalarType | _: TupleType =>
             // Copy
@@ -920,65 +951,49 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         }
       }
       
+      // -------------------------------
+      // Below: private helper functions
+      // -------------------------------
+  
+      /**
+       * The size a type will take once encoded in a Scala array.
+       */
+      private def sizeOf(ty: Type): ArithExpr = {
+        val allocated = Type.getAllocatedSize(ty)
+        val nbBytes = Type.getAllocatedSize(Type.fromAny(cast(0)))
+        allocated / nbBytes
+      }
+  
+      /**
+       * Writes the header of this array into `buffer` at position `pos`. The
+       * shape of the header is specified in issue #107 and depends on the type
+       * `at` of the array while the content of the header depends on the
+       * actual length of `array`.
+       * TODO: move this specification to `docs/` (and update it)
+       *
+       * @return the next position where we should write in the buffer
+       *         (namely `pos` + header size)
+       */
+      private def writeHeader(buffer: Array[T], pos: Int,
+                            array: Array[_], at: ArrayType): Int = {
+        val hSize = at.getHeaderSize
+        val len = cast(array.length)
+        for (i <- pos until pos + hSize) buffer(i) = len
+        pos + hSize
+      }
+  
       // TODO: I'm not very sweet
       private def getNextPos(at: ArrayType, before: Int, fallback: Int): Int = {
         at match {
           case c: Capacity =>
-            // TODO: catch potential errors
+            // No evaluation exception should occur here, if something is not
+            // evaluable, it should have been handled before.
             val nextPos = (before + c.capacity * sizeOf(at.elemT)).eval
-            assert(fallback <= nextPos)
+            assert(fallback <= nextPos) // sanity check
             nextPos
           case _ => fallback
         }
       }
-      
-      /** Public wrapper for the encode method above */
-      def encode(array: Array[_], at: ArrayType, size: Int): Array[T] = {
-        val buffer = Array.fill(size)(cast(0))
-        val nextPos = encode(buffer, 0, array, at)
-        assert(nextPos <= size) // Sanity check
-        buffer
-      }
-    }
-    
-    @scala.annotation.tailrec
-    private def flatTupleBaseType(ty: Type): ScalarType = {
-      Type.getBaseType(ty) match {
-        case tt: TupleType if tt.elemsT.distinct.length == 1 =>
-          flatTupleBaseType(tt.elemsT.head)
-        case st: ScalarType => st
-        case _ => throw new EncodeError(ty)
-      }
-    }
-    
-    def apply(any: Any, ty: Type, size: Int): KernelArg = ty match {
-      // Scalars and vectors that are not nested in an array
-      case Bool  => value(any.asInstanceOf[Boolean])
-      case Int | VectorType(Int, _)       => value(any.asInstanceOf[Int])
-      case Float | VectorType(Float, _)   => value(any.asInstanceOf[Float])
-      case Double | VectorType(Double, _) => value(any.asInstanceOf[Double])
-      // Arrays
-      case at: ArrayType =>
-        val array = any.asInstanceOf[Array[_]]
-        flatTupleBaseType(at) match {
-          case Int =>
-            val encoder = new Encoder[Int](n => n)
-            val raw = encoder.encode(array, at, size/4)
-            global.input(raw)
-          case Float =>
-            val encoder = new Encoder[Float](_.toFloat)
-            val raw = encoder.encode(array, at, size/4)
-            global.input(raw)
-          case Double =>
-            val encoder = new Encoder[Double](_.toDouble)
-            val raw = encoder.encode(array, at, size/4)
-            global.input(raw)
-          case Bool =>
-            val encoder = new Encoder[Boolean](_ != 0) // This is very bad
-            val raw = encoder.encode(array, at, size)
-            global.input(raw)
-        }
-      case _ => throw new EncodeError(ty)
     }
   }
 
