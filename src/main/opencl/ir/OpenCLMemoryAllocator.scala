@@ -4,7 +4,6 @@ import arithmetic.TypeVar
 import lift.arithmetic.{?, ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.OpenCLMemory._
 import opencl.ir.pattern._
 
 object OpenCLMemoryAllocator {
