@@ -507,22 +507,6 @@ object Type {
   }
 
   /**
-   * Return the element type of a vector or array type.
-   *
-   * @param t A type. Must be a vector or array type.
-   * @return The element type of `t`
-   */
-  // TODO: this method is never used and is kinda weird for me
-  //       do we really need it?
-  def getElemT(t: Type): Type = {
-    t match {
-      case vt: VectorType => vt.scalarT
-      case at: ArrayType  => at.elemT
-      case _ => throw new TypeException(t, "ArrayType or VectorType", null)
-    }
-  }
-
-  /**
    * For a given array type turn every nested vector type into a corresponding
    * array type.
    *
