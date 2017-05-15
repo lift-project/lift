@@ -21,11 +21,11 @@ val m = SizeVar("M")
 val n = SizeVar("N")
 val o = SizeVar("O")
 
-val arraySig = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, m), n), o)
+val arraySig = ArrayType(ArrayType(ArrayType(Int, m), n), o)
 
 fun(
-  ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
-  ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2), n+2), o+2),
+  ArrayType(ArrayType(ArrayType(Float, m), n), o),
+  ArrayType(ArrayType(ArrayType(Float, m+2), n+2), o+2),
   (mat1, mat2) => {
     Map(Map(Map(fun(m => {
 

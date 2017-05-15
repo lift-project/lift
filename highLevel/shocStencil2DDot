@@ -6,8 +6,8 @@ val M = SizeVar("M") //need to be power_of_two +2 because of missing pad
 val N = SizeVar("N")
 
 fun(
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
-    ArrayTypeWSWC(Float, Cst(9)),
+    ArrayType(ArrayType(Float, M), N),
+    ArrayType(Float, Cst(9)),
     (input, weights) => {
         Map(Map(fun(elem => {
                             toGlobal(MapSeqUnroll(id)) o

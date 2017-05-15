@@ -2,8 +2,8 @@ val N = SizeVar("N")
 val K = SizeVar("K")
 
 fun(
-  ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
-  ArrayTypeWSWC(ArrayTypeWSWC(Float, 1), K), // Column vector
+  ArrayType(ArrayType(Float, K), N),
+  ArrayType(ArrayType(Float, 1), K), // Column vector
   (matrix, vector) =>
     Map(fun(row =>
       Map( fun( col =>

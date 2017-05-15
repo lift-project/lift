@@ -89,14 +89,14 @@ class TestAccessCounts {
     val accessCounts = AccessCounts(f)
 
     assertEquals((N /^ globalSize1) * (N /^ globalSize0),
-      accessCounts.getLoads(GlobalMemory, UnknownPattern, exact = false))
+      accessCounts.scalarLoads(GlobalMemory, UnknownPattern))
     assertEquals((N /^ globalSize1) * (N /^ globalSize0),
-      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact = false))
+      accessCounts.scalarStores(GlobalMemory, CoalescedPattern))
 
     assertEquals(Cst(0),
-      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact = false))
+      accessCounts.scalarLoads(GlobalMemory, CoalescedPattern))
     assertEquals(Cst(0),
-      accessCounts.getStores(GlobalMemory, UnknownPattern, exact = false))
+      accessCounts.scalarStores(GlobalMemory, UnknownPattern))
   }
 
   @Test
@@ -113,6 +113,19 @@ class TestAccessCounts {
       accessCounts.vectorLoads(GlobalMemory, CoalescedPattern))
     assertEquals(N /^ globalSize0,
       accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
+
+     assertEquals(Cst(0),
+       accessCounts.scalarLoads(GlobalMemory, CoalescedPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarStores(GlobalMemory, CoalescedPattern))
+    assertEquals(Cst(0),
+       accessCounts.vectorLoads(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.vectorStores(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarLoads(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarStores(GlobalMemory, UnknownPattern))
   }
 
   @Test
@@ -121,6 +134,67 @@ class TestAccessCounts {
     val f = fun(
       ArrayTypeWSWC(Float, 4*N),
       x => asScalar() o MapGlb(0)(idF4) o asVector(4) $ x
+    )
+
+    val accessCounts = AccessCounts(f)
+
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorLoads(GlobalMemory, CoalescedPattern))
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
+
+    assertEquals(Cst(0),
+       accessCounts.scalarLoads(GlobalMemory, CoalescedPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarStores(GlobalMemory, CoalescedPattern))
+    assertEquals(Cst(0),
+       accessCounts.vectorLoads(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.vectorStores(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarLoads(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarStores(GlobalMemory, UnknownPattern))
+  }
+
+  @Test
+  def vector3(): Unit = {
+
+    val f = fun(
+      ArrayType(Float, 4*N),
+      x => asScalar() o MapGlb(0)(idF4) o Gather(reverse) o asVector(4) $ x
+    )
+
+    val accessCounts = AccessCounts(f)
+
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorLoads(GlobalMemory, UnknownPattern))
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
+  }
+
+  @Test
+  def vectorizeUserFun(): Unit = {
+
+    val f = fun(
+      ArrayTypeWSWC(Float4, N),
+      x => MapGlb(0)(VectorizeUserFun(4, id)) $ x
+    )
+
+    val accessCounts = AccessCounts(f)
+
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorLoads(GlobalMemory, CoalescedPattern))
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
+  }
+
+  @Test
+  def vectorizeUserFun2(): Unit = {
+
+    val f = fun(
+      ArrayTypeWSWC(Float, 4*N),
+      x => asScalar() o MapGlb(0)(VectorizeUserFun(4, id)) o asVector(4) $ x
     )
 
     val accessCounts = AccessCounts(f)
