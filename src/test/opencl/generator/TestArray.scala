@@ -149,7 +149,6 @@ class TestArray {
     val input = Array.fill(size)(
       Array.fill(4 + util.Random.nextInt(8))(util.Random.nextInt(16))
     )
-    println(input.map(_.mkString(", ")).mkString("\n"))
     val (output: Array[Int], _) = Execute(size)(f, input)
     assertArrayEquals(input.map(_.sum), output)
   }
