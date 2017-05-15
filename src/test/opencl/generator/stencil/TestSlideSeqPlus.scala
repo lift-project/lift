@@ -11,6 +11,7 @@ import opencl.ir.pattern._
 import ir.ast._
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
+import utils.OutputKernelJSON
 
 object TestSlideSeqPlus
 {
@@ -29,13 +30,15 @@ object TestSlideSeqPlus
 object SlideSeqPlusHelpers
 {
 
+  val compareSize = 1000000
+  val iterations = 10
+  val N = 2+ SizeVar("N")
+
   def stencil(a: Int ,b :Int) = fun(
     ArrayTypeWSWC(Float, SizeVar("N")),
     (input) =>
        toGlobal(SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
   )
-
-  val N = SizeVar("N")
 
   def stencil2D(a: Int ,b :Int) = fun(
     ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
@@ -52,16 +55,59 @@ class TestSlideSeqPlus
 
     val slidesize = 3
     val slidestep = 1
-    val size = 30
-    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+    val values = Array.tabulate(SlideSeqPlusHelpers.compareSize) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
     val lambda = Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep))
-    println(lambda)
+//    println(lambda)
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
+    //OutputKernelJSON(SlideSeqPlusHelpers.stencil(slidesize,slidestep),"/home/reese/workspace/phd/sandbox/perftests/","stencil1Dssp.json","stencil1Dssp.cl")
+    var outputX = Array[Float]()
+    var runtime = 0.0
+    var runTimeTotal = 0.0
 
-    assertArrayEquals(gold, output, 0.1f)
+    for(x <- 1 to SlideSeqPlusHelpers.iterations) {
+      val (outputX, runtime) = Execute(2, 2)(SlideSeqPlusHelpers.stencil(slidesize, slidestep), values)
+      runTimeTotal += runtime
+    }
+   // assertArrayEquals(gold, outputX, 0.1f)
+
+    println("Runtime: "+runTimeTotal/SlideSeqPlusHelpers.iterations)
+
+  }
+
+  @Test
+  def reduceSlide1DTestSize3Step1Original(): Unit = {
+
+    val slidesize = 3
+    val slidestep = 1
+    val values = Array.tabulate(SlideSeqPlusHelpers.compareSize) { (i) => (i + 1).toFloat }
+    val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
+
+    val N = 2+SizeVar("N")
+
+    val stencil2DOrg = fun(
+      ArrayTypeWSWC(Float, N),
+      (input) =>
+        MapGlb(0)(
+          fun(neighbours => {
+            toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbours
+          } )) o Slide(slidesize,slidestep) $ input
+    )
+
+    var outputX = Array[Float]()
+    var runtime = 0.0
+    var runTimeTotal = 0.0
+
+    for(x <- 1 to SlideSeqPlusHelpers.iterations) {
+      //  OutputKernelJSON(stencil2DOrg,"/home/reese/workspace/phd/sandbox/perftests/","stencil1Dorg.json","stencil1Dorg.cl")
+      val (outputX, runtime) = Execute(2, 2)(stencil2DOrg, values)
+      runTimeTotal += runtime
+    }
+
+//    assertArrayEquals(gold, outputX, 0.1f)
+
+    println("Runtime: "+runTimeTotal/SlideSeqPlusHelpers.iterations)
 
   }
 
