@@ -113,8 +113,8 @@ class TestUnsafeArrayAccess {
         MapSeq(
           fun((index) => 
             // MapSeq(idII) o Head() $ arr
-            MapSeq(t_id) o UnsafeArrayAccess(index) $ arr
-            // UnsafeArrayAccess(index) $ arr
+//            MapSeq(t_id) o UnsafeArrayAccess(index) $ arr
+             UnsafeArrayAccess(index) $ arr
           )
         ) $ ix
       }

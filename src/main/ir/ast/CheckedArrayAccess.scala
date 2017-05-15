@@ -23,11 +23,11 @@ case class CheckedArrayAccess(index: Expr) extends Pattern(arity = 2)
       case TupleType(defaultT, ArrayType(elemT)) =>
         if(defaultT != elemT)
           throw TypeException(s"Default access result type ($defaultT) must match array element type ($elemT)")
-        ArrayTypeWSWC(elemT, Cst(1))
+          elemT
       case TupleType(defaultT, ArrayTypeWS(elemT, Cst(1))) =>
         if(defaultT != elemT)
           throw TypeException(s"Default access result type ($defaultT) must match array element type ($elemT)")
-        ArrayTypeWSWC(elemT, Cst(1))
+        elemT
         // TODO: Should we handle ArrayTypeWSWC?
       case _ => throw new TypeException(argType, "ArrayType")
     }

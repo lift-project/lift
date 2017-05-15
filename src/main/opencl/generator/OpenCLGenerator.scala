@@ -902,7 +902,7 @@ class OpenCLGenerator extends Generator {
     val loadFromArray = generateLoadNode(clInArrMem, inArr.t, inArr.view.access(indexVar))
 
     val storeToOutput = generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t,
-                                          call.view.access(0), loadFromArray)
+                                          call.view, loadFromArray)
 
     (block: Block) += storeToOutput
   }
@@ -926,7 +926,7 @@ class OpenCLGenerator extends Generator {
 
     // pre-generate the load from default/store to output
     val storeDefaultToOutput = generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t,
-      call.view.access(0), loadDefault)
+      call.view, loadDefault)
 
     // get the in array so we can use it later
     val inArr = call.args(1)
@@ -952,7 +952,7 @@ class OpenCLGenerator extends Generator {
             val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
             val loadFromArray = generateLoadNode(clInArrMem, inArr.t, inArr.view.access(indexVar))
             val storeToOutput = generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t,
-              call.view.access(0), loadFromArray)
+              call.view, loadFromArray)
             (cccb :Block) += storeToOutput
           }
         )

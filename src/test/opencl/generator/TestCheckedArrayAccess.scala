@@ -37,7 +37,7 @@ class TestCheckedArrayAccess {
       (arr, ix) => {
         MapSeq(
           fun((index) => 
-            MapSeq(id) o CheckedArrayAccess(index, -142.0f) $ arr
+            toGlobal(id) o CheckedArrayAccess(index, -142.0f) $ arr
           )
         ) $ ix
       }
@@ -66,7 +66,7 @@ class TestCheckedArrayAccess {
           fun((row) => 
             MapSeq(
               fun((index) =>
-                MapSeq(id) o CheckedArrayAccess(index, -142.0f) $ row
+                toGlobal(id) o CheckedArrayAccess(index, -142.0f) $ row
               )
             ) $ ix
           )
@@ -94,7 +94,7 @@ class TestCheckedArrayAccess {
       ArrayTypeWSWC(Int, N),
       (arr, ix) => {
         MapSeq(fun((indexRowPair) =>
-          MapSeq(id) o CheckedArrayAccess(indexRowPair._0, -142.0f) $ indexRowPair._1
+          toGlobal(id) o CheckedArrayAccess(indexRowPair._0, -142.0f) $ indexRowPair._1
         )) $ Zip(ix, arr)
       }
     )
@@ -122,8 +122,8 @@ class TestCheckedArrayAccess {
         MapSeq(
           fun((index) => 
             // MapSeq(idII) o Head() $ arr
-            MapSeq(t_id) o CheckedArrayAccess(index, Tuple(2)(-142, -142)) $ arr
-            // UnsafeArrayAccess(index) $ arr
+//            MapSeq(t_id) o CheckedArrayAccess(index, Tuple(2)(-142, -142)) $ arr
+            toGlobal(t_id) o CheckedArrayAccess(index, Tuple(2)(-142, -142)) $ arr
           )
         ) $ ix
       }
@@ -150,7 +150,7 @@ class TestCheckedArrayAccess {
       (arr, ix) => {
         MapSeq(
           fun((index) =>
-            MapSeq(id) o CheckedArrayAccess(index, -142.0f) $ arr
+            toGlobal(id) o CheckedArrayAccess(index, -142.0f) $ arr
           )
         ) $ ix
       }
@@ -177,7 +177,7 @@ class TestCheckedArrayAccess {
       (arr, ix) => {
         MapSeq(
           fun((index) =>
-            MapSeq(id) o CheckedArrayAccess(index, -142.0f) $ arr
+            toGlobal(id) o CheckedArrayAccess(index, -142.0f) $ arr
           )
         ) $ ix
       }
