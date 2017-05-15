@@ -444,5 +444,6 @@ class TestAccessPatterns {
 
     val patterns = AccessPatterns(f)
 
+    // TODO: check patterns
   }
 }

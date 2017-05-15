@@ -215,20 +215,19 @@ class AccessCounts(
     patternMap: collection.Map[Expr, AccessPattern],
     map: collection.mutable.Map[AccessKey, ArithExpr]): Unit = {
 
-    ViewPrinter.emit(Var(), expr.view) match {
-      case VarRef(_, _, _) =>
-        val memory = expr.mem
+    if (patternMap.isDefinedAt(expr)) {
+      val memory = expr.mem
 
-        val vectorWidth = Type.getValueType(expr.t) match {
-          case VectorType(_, n) => n
-          case _ => Cst(1)
-        }
+      val vectorWidth = Type.getValueType(expr.t) match {
+        case VectorType(_, n) => n
+        case _ => Cst(1)
+      }
 
-        val pattern = patternMap(expr)
-        val key = (memory, pattern, vectorWidth)
-        val loadsSoFar = map(key)
-        map(key) = loadsSoFar + currentNesting
-      case _ =>
+      // TODO: collection
+      val pattern = patternMap(expr)
+      val key = (memory, pattern, vectorWidth)
+      val loadsSoFar = map(key)
+      map(key) = loadsSoFar + currentNesting
     }
   }
 

@@ -107,19 +107,23 @@ class AccessPatterns(
 
             args.foreach(arg => {
 
-              if (arg.mem.isInstanceOf[OpenCLMemoryCollection] && arg.t.isInstanceOf[TupleType]) {
+              val isMemoryCollection = arg.mem.isInstanceOf[OpenCLMemoryCollection]
+              val isTupleType = arg.t.isInstanceOf[TupleType]
+              val isScalarType = arg.t.isInstanceOf[ScalarType]
+
+              val declaredType = varDecls.getOrElse(arg.mem.variable, UndefType)
+              val declaredAsTupleType =
+                Type.getValueType(declaredType).isInstanceOf[TupleType]
+
+              if (isMemoryCollection && isTupleType) {
 
                 val tt = arg.t.asInstanceOf[TupleType]
-                val patterns = tt.elemsT.indices.map(i => {
-                  getAccessPattern(arg.view.get(i))
-                })
+                val patterns = tt.elemsT.indices.map(i =>
+                  getAccessPattern(arg.view.get(i)))
 
-                val accessPattern = AccessPatternCollection(patterns)
+                readPatterns += arg -> AccessPatternCollection(patterns)
 
-                readPatterns += arg -> accessPattern
-
-              } else if (arg.t.isInstanceOf[ScalarType] &&
-                Type.getValueType(varDecls.getOrElse(arg.mem.variable, UndefType)).isInstanceOf[TupleType]) {
+              } else if (isScalarType && declaredAsTupleType) {
 
                 readPatterns += arg -> UnknownPattern
 
