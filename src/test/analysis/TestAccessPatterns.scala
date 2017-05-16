@@ -442,8 +442,13 @@ class TestAccessPatterns {
 
     val f = factory(Seq(M, N))
 
+    val gold = AccessPatternCollection(Seq(Some(UnknownPattern), Some(UnknownPattern)))
     val patterns = AccessPatterns(f)
 
-    // TODO: check patterns
+    val tupleConstructorPattern =
+      patterns.getReadPatterns.filter(_._1.mem.isInstanceOf[OpenCLMemoryCollection])
+
+    assertEquals(1, tupleConstructorPattern.size)
+    assertEquals(gold, tupleConstructorPattern.values.head)
   }
 }

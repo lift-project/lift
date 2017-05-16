@@ -270,9 +270,20 @@ class TestAccessCounts {
     val N = SizeVar("N")
 
     val f = factory(Seq(M, N))
+    val (localSize, globalSize) = InferNDRange(f)
 
-    val counts = AccessCounts(f)
+    val counts = AccessCounts(f, localSize, globalSize)
 
-    // TODO: check counts
+    assertEquals(Cst(1), counts.getStores(GlobalMemory, CoalescedPattern, exact = false))
+    assertEquals(Cst(0), counts.getStores(GlobalMemory, UnknownPattern, exact = false))
+
+    assertEquals(Cst(0), counts.getLoads(GlobalMemory, CoalescedPattern, exact = false))
+    assertEquals(Cst(18), counts.getLoads(GlobalMemory, UnknownPattern, exact = false))
+
+    assertEquals(Cst(1), counts.getStores(LocalMemory, CoalescedPattern, exact = false))
+    assertEquals(Cst(0), counts.getStores(LocalMemory, UnknownPattern, exact = false))
+
+    assertEquals(Cst(1), counts.getLoads(LocalMemory, CoalescedPattern, exact = false))
+    assertEquals(Cst(0), counts.getLoads(LocalMemory, UnknownPattern, exact = false))
   }
 }
