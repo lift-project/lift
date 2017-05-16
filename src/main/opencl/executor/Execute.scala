@@ -243,7 +243,7 @@ object Execute {
           }
         
           // fetch information for the current array
-          (fetchCapacity(at, len, caps), fetchSize(at, len, sizes))
+          (collectCapacityConstraints(at, len, caps), collectSizeConstraints(at, len, sizes))
         case TupleType(_) | ScalarType(_, _) =>
           // We assume tuples do not contain arrays
           checkParamWithValue(ty, value)
@@ -329,7 +329,7 @@ object Execute {
      * Infers a capacity constraint and appends it to the current sequence of
      * constraints.
      */
-    private def fetchCapacity(ty: ArrayType,
+    private def collectCapacityConstraints(ty: ArrayType,
                          len: Int,
                          caps: Seq[Constraint]): Seq[Constraint] = {
       ty match {
@@ -349,7 +349,7 @@ object Execute {
      * Infers a size constraint and appends it to the current sequence of
      * constraints.
      */
-    private def fetchSize(ty: ArrayType, len: Int,
+    private def collectSizeConstraints(ty: ArrayType, len: Int,
                           sizes: Seq[Constraint]): Seq[Constraint] = {
       ty match {
         case s: Size => s.size match {
