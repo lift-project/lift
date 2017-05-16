@@ -5,6 +5,7 @@ import arithmetic.TypeVar
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 /** Represents memory in OpenCL as a raw collection of bytes allocated in an
   * OpenCL address space.
@@ -179,7 +180,7 @@ object OpenCLMemory {
     case at: ArrayType with Capacity => at.capacity * getSizeInBytes(at.elemT)
     case at: ArrayType => ?
     case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
-    case _ => throw new TypeException(t, "??")
+    case NoType | UndefType => throw new IllegalArgumentException(s"sizeof($t) = ??")
   }
 }
 

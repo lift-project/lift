@@ -123,13 +123,13 @@ object Utils {
 
   def getLengthOfSecondDim(t: Type) = t match {
     case ArrayType(ArrayTypeWS(_, m)) => m
-    case _ => throw new TypeException(t, "ArrayType(ArrayType(), _)")
+    case _ => throw new TypeException(t, "ArrayType(ArrayType(), _)", null)
   }
 
   def validSplitVariable(t: Type): ArithExpr = {
     t match {
       case ArrayTypeWS(_, len) => Var(RangeMul(Cst(1), len, Cst(2)))
-      case _ => throw new TypeException(t, "ArrayType")
+      case _ => throw new TypeException(t, "ArrayType", null)
     }
   }
 
@@ -137,7 +137,7 @@ object Utils {
     t match {
       case ArrayTypeWS(_, s) =>
         Var(RangeMul(Cst(1), s - overlap, Cst(2)))
-      case _ => throw new TypeException(t, "ArrayType")
+      case _ => throw new TypeException(t, "ArrayType", null)
     }
   }
 

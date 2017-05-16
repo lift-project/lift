@@ -25,7 +25,7 @@ abstract case class Lambda private[ast] (params: Array[Param],
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
-    TypeChecker.checkAndSetTypeForParams(params, argType)
+    TypeChecker.checkAndSetTypeForParams(params, argType, this)
     TypeChecker.check(body, setType)
   }
 

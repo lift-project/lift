@@ -1,6 +1,6 @@
 package ir.ast
 
-import ir.{Type, UndefType}
+import ir.{ArrayType, Type, TypeException, UndefType}
 import ir.interpreter.Interpreter.ValueMap
 
 /**
@@ -18,7 +18,13 @@ import ir.interpreter.Interpreter.ValueMap
 case class Scatter(idx: IndexFunction) extends Pattern(arity = 1)
                                        with isGenerable {
 
-  override def checkType(argType: Type, setType: Boolean): Type = argType
+  override def checkType(argType: Type, setType: Boolean): Type = {
+    // Scatter expects an array
+    argType match {
+      case ArrayType(_) => argType
+      case _ => throw new TypeException(argType, "ArrayType(_)", this)
+    }
+  }
 
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)

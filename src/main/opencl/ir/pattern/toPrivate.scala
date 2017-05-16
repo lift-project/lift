@@ -10,12 +10,9 @@ case class toPrivate(f: Lambda) extends Pattern(arity = f.arity)
 
   override def copy(f: Lambda): Pattern = toPrivate(f)
 
-  override def checkType(argType: Type,
-                         setType: Boolean): Type = {
-    TypeChecker.checkAndSetTypeForParams(f.params, argType)
-    TypeChecker.check(f.body, setType)
+  override def checkType(argType: Type, setType: Boolean): Type = {
+    f.checkType(argType, setType)
   }
-
 
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)

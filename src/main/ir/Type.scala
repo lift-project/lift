@@ -2,6 +2,7 @@ package ir
 
 import lift.arithmetic._
 import arithmetic.TypeVar
+import ir.ast.IRNode
 
 import scala.collection.immutable.HashMap
 import scala.collection.{immutable, mutable}
@@ -47,14 +48,16 @@ sealed abstract class Type {
     case tT: TupleType => TupleType( tT.elemsT.map( _.vectorize(n) ):_* )
     case aT: ArrayType with Size with Capacity => asVector(aT, n)
     case v: VectorType => v
-    case _ => throw new TypeException(this, "anything else")
+    case _: ArrayType => throw new NotImplementedError()
+    case NoType | UndefType =>
+      throw new IllegalArgumentException(s"Cannot vectorize type: $this")
   }
 
   private def asVector(at0: ArrayType with Size with Capacity, len: ArithExpr): Type = {
     at0.elemT match {
       case pt:ScalarType => ArrayTypeWSWC(VectorType(pt,len), at0.size/^len, at0.capacity/^len)
       case at1:ArrayType with Size with Capacity => ArrayTypeWSWC(asVector(at1,len), at0.size, at0.capacity)
-      case _ => throw new TypeException(at0.elemT, "ArrayType or PrimitiveType")
+      case _ => throw new TypeException(at0.elemT, "ArrayType or PrimitiveType", null)
     }
   }
 
@@ -225,8 +228,6 @@ case class ArrayType(elemT: Type) extends Type {
 
 
 object ArrayType {
-
-
   def checkSizeOrCapacity(s: String, ae: ArithExpr) : Unit = {
     // TODO: remove the need to check for unknown (but this is used currently in a few places)
     if (ae != ? & ae.sign != Sign.Positive)
@@ -238,7 +239,7 @@ object ArrayType {
       val length = ae.evalDouble
 
       if (!length.isValidInt || length < 1)
-        throw TypeException(length + " is not a valid "+s+" for an array!")
+        throw TypeException(s"$length is not a valid $s for an array!")
     }
   }
 
@@ -506,20 +507,6 @@ object Type {
   }
 
   /**
-   * Return the element type of a vector or array type.
-   *
-   * @param t A type. Must be a vector or array type.
-   * @return The element type of `t`
-   */
-  def getElemT(t: Type): Type = {
-    t match {
-      case vt: VectorType => vt.scalarT
-      case at: ArrayType  => at.elemT
-      case _ => throw new TypeException(t, "ArrayType or VectorType")
-    }
-  }
-
-  /**
    * For a given array type turn every nested vector type into a corresponding
    * array type.
    *
@@ -532,9 +519,12 @@ object Type {
     // TODO: if the array has no size or capacity in the type, we need to somehow store the information that the new length is the same the old one but divided by the vector length
 
     at.elemT match {
-      case vt: VectorType => ArrayTypeWSWC(vt.scalarT, at.size*vt.len, at.capacity*vt.len)
-      case at: ArrayType with Size with Capacity =>  ArrayTypeWSWC(asScalarType(at),at.size, at.capacity)
-      case _ => throw new TypeException(at.elemT , "ArrayType or VectorType")
+      case vt: VectorType =>
+        ArrayTypeWSWC(vt.scalarT, at.size * vt.len, at.capacity * vt.len)
+      case at: ArrayType with Size with Capacity =>
+        ArrayTypeWSWC(asScalarType(at), at.size, at.capacity)
+      case _ =>
+        throw new TypeException(at.elemT , "ArrayType or VectorType", null)
     }
   }
 
@@ -624,7 +614,7 @@ object Type {
       case (vt1: VectorType, vt2: VectorType) =>
         result ++= reifyExpr(vt1.len, vt2.len)
 
-      case _ => if (t1 != t2) throw new TypeException(t1, t2)
+      case _ => if (t1 != t2) throw new TypeException(t1, t2, null)
     }
     result.toMap
   }
@@ -741,13 +731,25 @@ object Type {
  * @param msg A string message presented to the user
  */
 case class TypeException(msg: String) extends Exception(msg) {
-
-  def this(found: Type, expected: String) =
-    this(found + " found but " + expected + " expected")
-
-  def this(found: Type, expected: Type) =
-    this(found + " found but " + expected + " expected")
-
+  /**
+   * @param found a type which is not correct
+   * @param expected the type we expected instead of `found` (as a string)
+   * @param where the IR node where the exception is raised.
+   *              NB. If null, the error message will still be nice but we
+   *              should avoid throwing type errors without a location as much
+   *              as possible.
+   */
+  def this(found: Type, expected: String, where: IRNode) = {
+    this({
+      val location = if (where == null) "" else s" in ``$where``"
+      s"Type mismatch$location:\n$found found but $expected expected"
+    })
+  }
+  
+  /** Same as before but `expected` must be a Type. */
+  def this(found: Type, expected: Type, where: IRNode) = {
+    this(found, expected.toString, where)
+  }
 }
 
 class ZipTypeException(val tt: TupleType)

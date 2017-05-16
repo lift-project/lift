@@ -28,7 +28,7 @@ case class asVector(n: ArithExpr) extends Pattern(arity = 1) with isGenerable {
                          setType: Boolean): Type = {
     argType match {
       case at@ArrayTypeWSWC(ScalarType(_, _), _,_) => at.vectorize(n)
-      case _ => throw new TypeException(argType, "ArrayType(ScalarType, _)")
+      case _ => throw new TypeException(argType, "ArrayType(ScalarType, _)", this)
     }
   }
 
