@@ -1,5 +1,5 @@
-Switching branch
-================
+… switch branch
+---------------
 
 To switch/create/delete branches, you can either use IntelliJ or the command
 line using the following command:
