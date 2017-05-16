@@ -1614,7 +1614,8 @@ class OpenCLGenerator extends Generator {
         originalType match {
           case _: ArrayType => arrayAccessNode(v, addressSpace, view)
           case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
-          case NoType | UndefType => throw new TypeException(originalType, "A valid type")
+          case NoType | UndefType =>
+            throw new TypeException(originalType, "A valid type", null)
         }
 
       case PrivateMemory =>
@@ -1622,7 +1623,8 @@ class OpenCLGenerator extends Generator {
           case Some(typedMemory) => typedMemory.t match {
             case _: ArrayType => arrayAccessNode(v, addressSpace, view)
             case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
-            case NoType | UndefType => throw new TypeException(typedMemory.t, "A valid type")
+            case NoType | UndefType =>
+              throw new TypeException(typedMemory.t, "A valid type", null)
           }
           case _ => valueAccessNode(v)
         }
@@ -1693,7 +1695,7 @@ class OpenCLGenerator extends Generator {
         }
         index / length
       case ArrayType(_) | NoType | UndefType =>
-        throw new TypeException(valueType, "A valid non array type")
+        throw new TypeException(valueType, "A valid non array type", null)
     }
 
     val real = try {
@@ -1740,7 +1742,7 @@ class OpenCLGenerator extends Generator {
         }
         index % length
       case ArrayType(_) | NoType | ScalarType(_, _) | TupleType(_) | UndefType =>
-        throw new TypeException(valueType, "VectorType")
+        throw new TypeException(valueType, "VectorType", null)
     }
 
     ArithExpr.substitute(i, replacements).eval

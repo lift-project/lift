@@ -116,9 +116,12 @@ object Rules {
   })
 
   val joinSplit = Rule("Map(Map(f)) => Split(I) o Map(f) o Join()", {
-    case FunCall(Map(Lambda(Array(p), FunCall(Map(f), mapArg))), arg)
+    case call @ FunCall(Map(Lambda(Array(p), FunCall(Map(f), mapArg))), arg)
       if p == mapArg =>
-      val length = Type.getLength(Type.getElemT(arg.t))
+      val length = arg.t match {
+        case at: ArrayType => Type.getLength(at.elemT)
+        case ty => throw new TypeException(ty, "Array(_)", call)
+      }
       Split(length) o Map(f) o Join() $ arg
   })
 

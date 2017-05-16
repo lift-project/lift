@@ -43,7 +43,7 @@ abstract class AbstractSearch(val f: Lambda,
       case TupleType(defaultT, ArrayType(elemT)) =>
         // check the default and element type match
         // TODO: Can this be done in the pattern match statement?
-        if(defaultT != elemT) throw new TypeException(defaultT, elemT.toString)
+        if(defaultT != elemT) throw new TypeException(defaultT, elemT, this)
         // check the direction function takes a single argument
         if(f.params.length != 1) throw new NumberOfArgumentsException
         // set the argument type to the array element type
@@ -51,11 +51,11 @@ abstract class AbstractSearch(val f: Lambda,
         // recursively check the body
         TypeChecker.check(f.body, setType)
         // ensure that the body function returns an integer
-        if(f.body.t != opencl.ir.Int) throw new TypeException(f.body.t, "Int")
+        if(f.body.t != opencl.ir.Int) throw new TypeException(f.body.t, "Int", f.body)
         // finally, return a single element array type
         ArrayTypeWSWC(elemT, 1)
 
-      case _ => throw new TypeException(argType, "TupleType(a, ArrayType(a, _)")
+      case _ => throw new TypeException(argType, "TupleType(a, ArrayType(a, _)", this)
     }
   }
 

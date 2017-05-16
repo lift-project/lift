@@ -5,6 +5,7 @@ import arithmetic.TypeVar
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 
 private class MemoryAllocationException(msg: String)

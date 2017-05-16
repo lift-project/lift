@@ -23,7 +23,7 @@ case class Transpose() extends Pattern(arity = 1) with isGenerable {
                          setType: Boolean): Type = {
     argType match {
       case ArrayTypeWSWC(ArrayTypeWSWC(t, ns,nc), ms,mc) => ArrayTypeWSWC(ArrayTypeWSWC(t, ms,mc), ns,nc)
-      case _ => throw new TypeException(argType, "ArrayType(ArrayType(_,_),_)")
+      case _ => throw new TypeException(argType, "ArrayType(ArrayType(_,_),_)", this)
     }
   }
 

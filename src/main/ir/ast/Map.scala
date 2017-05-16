@@ -35,7 +35,7 @@ abstract class AbstractMap(val f: Lambda,
       case ArrayType(et) =>
         f.params(0).t = et
         ArrayType(TypeChecker.check(f.body, setType))
-      case _ => throw new TypeException(argType, "ArrayType")
+      case _ => throw new TypeException(argType, "ArrayType", this)
     }
   }
 

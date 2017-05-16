@@ -22,7 +22,7 @@ case class ReduceSeq(override val f: Lambda)
 
         ArrayTypeWSWC(initT, 1)
 
-      case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))")
+      case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))", this)
     }
   }
 
