@@ -87,7 +87,7 @@ object ParameterRewrite {
 
       parser.parse(args)
 
-      if(exploreNDRange.value.isEmpty && sampleNDRange.value.isDefined)
+      if (exploreNDRange.value.isEmpty && sampleNDRange.value.isDefined)
         throw new RuntimeException("'sample' is defined without enabling 'explore'")
 
       logger.info(s"Arguments: ${args.mkString(" ")}")
@@ -241,7 +241,7 @@ object ParameterRewrite {
                     logger.warn(t.toString)
                 }
               })
-              println(s"\nGenerated ${kernelCounter} kernels")
+              println(s"\nGenerated $kernelCounter kernels")
             }
           } catch {
             case t: Throwable =>
