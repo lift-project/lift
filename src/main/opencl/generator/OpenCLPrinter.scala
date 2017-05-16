@@ -394,6 +394,17 @@ class OpenCLPrinter {
   private def print(b: Barrier): Unit = println (b.mem.addressSpace match {
     case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
     case LocalMemory => "barrier(CLK_LOCAL_MEM_FENCE);"
+
+    case collection: AddressSpaceCollection
+      if collection.containsAddressSpace(GlobalMemory) &&
+        !collection.containsAddressSpace(LocalMemory) =>
+      "barrier(CLK_GLOBAL_MEM_FENCE);"
+
+    case collection: AddressSpaceCollection
+      if collection.containsAddressSpace(LocalMemory) &&
+        !collection.containsAddressSpace(GlobalMemory) =>
+      "barrier(CLK_LOCAL_MEM_FENCE);"
+
     case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
   })
 
