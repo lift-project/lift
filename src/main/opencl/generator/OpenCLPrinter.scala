@@ -1,6 +1,7 @@
 package opencl.generator
 
 import lift.arithmetic._
+import lift.arithmetic.NotEvaluableToIntException._
 import ir._
 import ir.view.AccessVar
 import opencl.generator.OpenCLAST._
@@ -8,36 +9,6 @@ import opencl.ir._
 
 object OpenCLPrinter {
   def apply() = new OpenCLPrinter
-}
-
-/** The printer walks the AST emitted by the [[OpenCLGenerator]] and generates
-  * standalone OpenCL-C code.
-  */
-class OpenCLPrinter {
-  /**
-   * Entry point for printing an AST.
-   *
-   * @param node The root of the AST (the global scope block).
-   * @return A string representation of the AST as OpenCL-C code.
-   */
-  def apply(node: OclAstNode): String = {
-    indent = 0
-    print(node)
-    sb.toString()
-  }
-
-  def toString(t: Type, seenArray: Boolean = false) : String = {
-    t match {
-      case ArrayType(elemT, _) =>
-        val s = toString(elemT, seenArray=true)
-        if (!seenArray) s + "*" else s
-      case VectorType(elemT, len) => toString(elemT, seenArray) + toString(len)
-      case ScalarType(name, _) => name
-      case tt: TupleType => Type.name(tt)
-      case NoType => "void"
-      case _ => throw new NotPrintableExpression(t.toString)
-    }
-  }
 
   def toString(e: ArithExpr) : String = {
     e match {
@@ -60,13 +31,43 @@ class OpenCLPrinter {
       case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"
       case i: lift.arithmetic.IfThenElse =>
         s"( (${toString(i.test.lhs)} ${i.test.op} ${toString(i.test.rhs)}) ? " +
-        s"${toString(i.t)} : ${toString(i.e)} )"
+          s"${toString(i.t)} : ${toString(i.e)} )"
       case _ => throw new NotPrintableExpression(e.toString)
+    }
+  }
+
+  def toString(t: Type, seenArray: Boolean = false) : String = {
+    t match {
+      case ArrayType(elemT) =>
+        val s = toString(elemT, seenArray=true)
+        if (!seenArray) s + "*" else s
+      case VectorType(elemT, len) => toString(elemT, seenArray) + toString(len)
+      case ScalarType(name, _) => name
+      case tt: TupleType => Type.name(tt)
+      case NoType => "void"
+      case _ => throw new NotPrintableExpression(t.toString)
     }
   }
 
   def toString(p: Predicate) : String = {
     s"(${toString(p.lhs)} ${p.op} ${toString(p.rhs)})"
+  }
+}
+
+/** The printer walks the AST emitted by the [[OpenCLGenerator]] and generates
+  * standalone OpenCL-C code.
+  */
+class OpenCLPrinter {
+  /**
+   * Entry point for printing an AST.
+   *
+   * @param node The root of the AST (the global scope block).
+   * @return A string representation of the AST as OpenCL-C code.
+   */
+  def apply(node: OclAstNode): String = {
+    indent = 0
+    print(node)
+    sb.toString()
   }
 
 
@@ -145,7 +146,7 @@ class OpenCLPrinter {
     case l: ForLoop       => print(l)
     case w: WhileLoop     => print(w)
     case es: ExpressionStatement => print(es)
-    case ae: ArithExpression  => print(toString(ae.content))
+    case ae: ArithExpression  => print(OpenCLPrinter.toString(ae.content))
     case c: CondExpression   => print(c)
     case a: AssignmentExpression    => print(a)
     case f: FunctionCall  => print(f)
@@ -154,6 +155,7 @@ class OpenCLPrinter {
     case t: TypeDef       => print(t)
     case a: TupleAlias    => print(a)
     case c: Cast          => print(c)
+    case c: PointerCast   => print(c)
     case l: VectorLiteral => print(l)
     case e: OpenCLExtension     => print(e)
     case i: OpenCLAST.IfThenElse    => print(i)
@@ -176,14 +178,24 @@ class OpenCLPrinter {
     print(c.v)
   }
 
+  private def print(c: PointerCast): Unit = {
+    print("(")
+    print(s"(${c.addressSpace} ${c.t}*)")
+    print(OpenCLPrinter.toString(c.v.v))
+    print(")")
+    if(c.v.arrayIndex != null) {
+      print("[")
+      print(c.v.arrayIndex)
+      print("]")
+    }
+    if(c.v.suffix != null) {
+      print(c.v.suffix)
+    }
+  }
+
   private def print(l: VectorLiteral): Unit = {
     print(s"(${l.t})(")
-    var c = 0
-    l.vs.foreach( v => {
-      print(v)
-      c = c+1
-      if (c != l.vs.length) { print(", ") }
-    })
+    printList(l.vs, ", ")
     print(")")
   }
 
@@ -249,15 +261,12 @@ class OpenCLPrinter {
 
   private def print(f: FunctionCall): Unit = {
     print(f.name + "(")
-    f.args.foreach(x => {
-      print(x)
-      if(!x.eq(f.args.last)) print(", ")
-    })
+    printList(f.args, ", ")
     print(")")
   }
 
   private def print(v: VarRef): Unit = {
-    print(toString(v.v))
+    print(OpenCLPrinter.toString(v.v))
     if(v.arrayIndex != null) {
       print("[")
       print(v.arrayIndex)
@@ -271,24 +280,19 @@ class OpenCLPrinter {
   private def print(a: RequiredWorkGroupSize): Unit = {
     val localSize = a.localSize
     sb ++=
-      s"__attribute((reqd_work_group_size(${localSize.map(_.eval).mkString(", ")})))\n"
+      s"__attribute((reqd_work_group_size($localSize)))\n"
   }
 
   private def print(f: Function): Unit = {
-
     if(f.kernel) sb ++= "kernel "
 
     if (f.attribute.isDefined) print(f.attribute.get)
 
     if (f.kernel) sb ++= "void"
-    else sb ++= toString(f.ret)
-
-    sb ++= s" ${f.name}("
-    f.params.foreach(x => {
-      print(x)
-      if(!x.eq(f.params.last)) sb ++= ", "
-    })
-    sb ++= ")"
+    else sb ++= OpenCLPrinter.toString(f.ret)
+    print(s" ${f.name}(")
+    printList(f.params, ", ")
+    print(")")
 
     if(f.kernel)
       sb ++= "{ \n" +
@@ -316,14 +320,14 @@ class OpenCLPrinter {
   }
 
   private def print(p: ParamDecl): Unit = p.t match {
-    case ArrayType(_,_) =>
+    case ArrayType(_) =>
       // Const restricted pointers to read-only global memory. See issue #2.
       val (const, restrict) = if (p.const) ("const ", "restrict ") else ("","")
-      print(const + p.addressSpace + " " + toString(Type.devectorize(p.t)) +
+      print(const + p.addressSpace + " " + OpenCLPrinter.toString(Type.devectorize(p.t)) +
             " " + restrict + p.name)
 
     case _ =>
-      print(toString(p.t) + " " + p.name)
+      print(OpenCLPrinter.toString(p.t) + " " + p.name)
   }
 
 
@@ -331,14 +335,17 @@ class OpenCLPrinter {
     case _: ArrayType =>
       vd.addressSpace match {
         case PrivateMemory =>
-          for (i <- 0 until vd.length)
-            println(toString(Type.getValueType(vd.t)) + " " + toString(vd.v) + "_" +
-                    toString(i) + ";")
+          if(vd.length > scala.Int.MaxValue) throw NotEvaluableToInt
+          for (i <- 0 until vd.length.toInt)
+            println(OpenCLPrinter.toString(Type.getValueType(vd.t)) + " " +
+              OpenCLPrinter.toString(vd.v) + "_" +
+              OpenCLPrinter.toString(i) + ";")
 
         case LocalMemory if vd.length != 0 =>
           val baseType = Type.getBaseType(vd.t)
           val declaration =
-            s"${vd.addressSpace} ${toString(baseType)} ${toString(vd.v)}[${vd.length}]"
+            s"${vd.addressSpace} ${OpenCLPrinter.toString(baseType)} " +
+              s"${OpenCLPrinter.toString(vd.v)}[${vd.length}]"
 
           // Make sure the memory is correctly aligned when using pointer casts
           // for forcing vector loads on NVIDIA.
@@ -351,7 +358,8 @@ class OpenCLPrinter {
 
         case _ =>
           val baseType = Type.getBaseType(vd.t)
-          print(s"${vd.addressSpace} ${toString(baseType)} *${toString(vd.v)}")
+          print(s"${vd.addressSpace} ${OpenCLPrinter.toString(baseType)} " +
+            s"*${OpenCLPrinter.toString(vd.v)}")
           if(vd.init != null) {
             print(s" = ")
             print(vd.init)
@@ -369,7 +377,7 @@ class OpenCLPrinter {
       }
       if(vd.addressSpace == LocalMemory)
         print(vd.addressSpace + " ")
-      print(s"${toString(vd.t)} ${toString(vd.v)}")
+      print(s"${OpenCLPrinter.toString(vd.t)} ${OpenCLPrinter.toString(vd.v)}")
       if(vd.init != null) {
         print(s" = ")
         print(vd.init)
@@ -386,6 +394,17 @@ class OpenCLPrinter {
   private def print(b: Barrier): Unit = println (b.mem.addressSpace match {
     case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
     case LocalMemory => "barrier(CLK_LOCAL_MEM_FENCE);"
+
+    case collection: AddressSpaceCollection
+      if collection.containsAddressSpace(GlobalMemory) &&
+        !collection.containsAddressSpace(LocalMemory) =>
+      "barrier(CLK_GLOBAL_MEM_FENCE);"
+
+    case collection: AddressSpaceCollection
+      if collection.containsAddressSpace(LocalMemory) &&
+        !collection.containsAddressSpace(GlobalMemory) =>
+      "barrier(CLK_LOCAL_MEM_FENCE);"
+
     case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
   })
 
@@ -411,7 +430,7 @@ class OpenCLPrinter {
     * @param wl a [[WhileLoop]] node.
     */
   private def print(wl: WhileLoop): Unit = {
-    print("while("+ toString(wl.loopPredicate) + ")")
+    print("while("+ OpenCLPrinter.toString(wl.loopPredicate) + ")")
     print(wl.body)
   }
 
@@ -455,11 +474,20 @@ class OpenCLPrinter {
   }
 
   private def print(s: StructConstructor): Unit = {
-    print(s"(${toString(s.t)}){")
-    s.args.foreach(x => {
-      print(x)
-      if(!x.eq(s.args.last)) print(", ")
-    })
+    print(s"(${OpenCLPrinter.toString(s.t)}){")
+    printList(s.args, ", ")
     print("}")
+  }
+  
+  /**
+   * Helper function for printing separated lists
+   * `printList([a, b, c], ",")  ==  "a,b,c"`
+   */
+  private def printList(args: Seq[OclAstNode], sep: String): Unit = {
+    args.init.foreach(a => {
+      print(a)
+      print(sep)
+    })
+    print(args.last)
   }
 }

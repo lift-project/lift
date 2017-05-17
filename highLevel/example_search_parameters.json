@@ -1,0 +1,12 @@
+{
+  "search_parameters" : {
+    "default_size" : 1024,
+    "min_work_items" : 128,
+    "max_work_items" : 1024,
+    "min_grid_size" : 4,
+    "max_private_memory" : 1024,
+    "max_local_memory" : 50000,
+    "min_workgroups" : 8,
+    "max_workgroups" : 10000
+  }
+}

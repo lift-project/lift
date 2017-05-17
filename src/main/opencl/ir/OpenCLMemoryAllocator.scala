@@ -8,7 +8,7 @@ import opencl.ir.pattern._
 
 object OpenCLMemoryAllocator {
 
-  def apply(f: Lambda) = {
+  def apply(f: Lambda): OpenCLMemory = {
     f.params.foreach((p) =>
       p.mem = OpenCLMemory.allocMemory(OpenCLMemory.getSizeInBytes(p.t), p.addressSpace)
     )
@@ -89,9 +89,13 @@ object OpenCLMemoryAllocator {
         allocMapSeqLcl(call.f.asInstanceOf[AbstractMap],
           call.t, numGlb, numLcl, numPvt, inMem)
 
+      case fs: FilterSeq => allocFilterSeq(fs, call.t, numGlb, numLcl, numPvt, inMem)
+
       case iss: InsertionSortSeq => allocInsertionSort(iss, numGlb, numLcl, numPvt, inMem)
 
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
+
+      case sp: SlideSeqPlus => allocSlideSeqPlus(sp,call.t, numGlb, numLcl, numPvt, inMem)
 
       case s: AbstractSearch => allocSearch(s, call, numGlb, numLcl, numPvt, inMem)
 
@@ -178,7 +182,7 @@ object OpenCLMemoryAllocator {
     am.f.params(0).mem = inMem
 
     am.asInstanceOf[MapAtomWrg].globalTaskIndex =
-      OpenCLMemory.allocGlobalMemory(Type.getMaxSize(Int))
+      OpenCLMemory.allocGlobalMemory(Type.getMaxAllocatedSize(Int))
 
     val len = Type.getMaxLength(outT)
     alloc(am.f.body, numGlb * len, numLcl, numPvt)
@@ -210,22 +214,34 @@ object OpenCLMemoryAllocator {
                                  numPvt: ArithExpr,
                                  inMem: OpenCLMemory): OpenCLMemory = {
     val len = Type.getLength(iss.f.params.head.t)
-    
+  
     // Copy function
     iss.copyFun.params.head.mem = inMem
     val outMem = alloc(iss.copyFun.body, numGlb * len, numLcl * len, numPvt)
-    
+  
     // Comparison function
     iss.f.params(0).mem = outMem
     iss.f.params(1).mem = inMem
     alloc(iss.f.body, numGlb, numLcl, numPvt)
-    
+  
     // Shifting function
     iss.shiftFun.params.head.mem = outMem
     val wrongM = alloc(iss.shiftFun.body, numGlb, numLcl, numPvt)
     Expr.visit(iss.shiftFun.body, e => if (e.mem == wrongM) e.mem = outMem, _ => {})
-    
+  
     outMem
+  }
+
+  private def allocFilterSeq(fs: FilterSeq, outT: Type,
+                             numGlb: ArithExpr,
+                             numLcl: ArithExpr,
+                             numPvt: ArithExpr,
+                             inMem: OpenCLMemory): OpenCLMemory = {
+    val len = Type.getMaxLength(outT)
+    fs.f.params.head.mem = inMem
+    fs.copyFun.params.head.mem = inMem
+    alloc(fs.f.body, numGlb, numLcl, numPvt)
+    alloc(fs.copyFun.body, numGlb * len, numLcl * len, numPvt)
   }
 
   private def allocReduce(r: AbstractPartRed,
@@ -257,6 +273,26 @@ object OpenCLMemoryAllocator {
       case _ => throw new IllegalArgumentException(inMem.toString)
     }
   }
+
+  private def allocSlideSeqPlus(sp: SlideSeqPlus,
+                                outT: Type,
+                                numGlb: ArithExpr,
+                                numLcl: ArithExpr,
+                                numPvt: ArithExpr,
+                                inMem: OpenCLMemory): OpenCLMemory = {
+
+    sp.f.params(0).mem = OpenCLMemory(sp.windowVar, Type.getAllocatedSize(sp.f.params(0).t) * sp.size , PrivateMemory)
+    val len = Type.getMaxLength(outT)
+
+    val privateMultiplier: ArithExpr =
+      if (sp.f.body.addressSpace.containsAddressSpace(PrivateMemory) ||
+        inMem.addressSpace.containsAddressSpace(PrivateMemory))
+        sp.iterationCount
+      else
+        1
+    alloc(sp.f.body, numGlb * len, numLcl * len, numPvt * privateMultiplier)
+  }
+
 
   private def allocSearch(s: AbstractSearch, call: FunCall,
     numGlb: ArithExpr,

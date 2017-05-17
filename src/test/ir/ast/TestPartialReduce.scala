@@ -1,10 +1,10 @@
 package ir.ast
 
+import ir.ArrayTypeWSWC
 import lift.arithmetic.SizeVar
-import ir.ArrayType
 import opencl.ir._
-import org.junit.Test
 import org.junit.Assert._
+import org.junit.Test
 
 class TestPartialReduce {
 
@@ -14,7 +14,7 @@ class TestPartialReduce {
     val lambda = fun((x,y) => add(x, y))
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input => Reduce(lambda, 0.0f) $ input
     )
 
@@ -31,7 +31,7 @@ class TestPartialReduce {
     val lambda = fun((x,y) => add(x, y))
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input => PartRed(lambda, 0.0f) $ input
     )
 

@@ -1,14 +1,14 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Compile, Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import org.junit.Assume.assumeFalse
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 object TestBarrier {
   @BeforeClass def before(): Unit = {
@@ -30,7 +30,7 @@ class TestBarrier {
 
     // Barrier should be removed
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input => Join() o MapWrg(MapLcl(id)) o Split(128) $ input
     )
 
@@ -48,7 +48,7 @@ class TestBarrier {
 
     // Last barrier should be removed
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input =>
         Join() o MapWrg(
           MapLcl(id) o Gather(reverse) o MapLcl(id)
@@ -69,7 +69,7 @@ class TestBarrier {
 
     // All barriers should be removed
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input =>
         Join() o MapWrg(
           MapLcl(id) o MapLcl(id) o Gather(reverse)
@@ -90,7 +90,7 @@ class TestBarrier {
 
     // First barrier should be eliminated
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input =>
         Join() o MapWrg(
           toGlobal(MapLcl(id)) o toLocal(MapLcl(id)) o Gather(reverse)
@@ -111,7 +111,7 @@ class TestBarrier {
 
     // No barriers should be eliminated
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input =>
         Join() o MapWrg(
           toGlobal(MapLcl(id)) o Gather(reverse) o toLocal(MapLcl(id))
@@ -132,7 +132,7 @@ class TestBarrier {
 
     // First barrier should be eliminated
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input =>
         Join() o MapWrg(
           toGlobal(Scatter(reverse) o MapLcl(id)) o toLocal(MapLcl(id))
@@ -154,7 +154,7 @@ class TestBarrier {
 
     // First barrier should be eliminated
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input =>
         Join() o MapWrg(
           toGlobal(MapLcl(id)) o toLocal(MapLcl(id))
@@ -175,7 +175,7 @@ class TestBarrier {
 
     // All barriers should be eliminated
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input =>
         Join()(MapWrg(
           fun(x => toGlobal(MapLcl(id))(toLocal(MapLcl(id))(x)))
@@ -196,7 +196,7 @@ class TestBarrier {
 
     // All barriers should be eliminated
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input =>
         Join() o MapWrg(
           toGlobal(MapLcl(id)) o toLocal(MapLcl(id)) o Gather(reverse)
@@ -219,7 +219,7 @@ class TestBarrier {
 
     // Last barrier should be eliminated
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input =>
         Join() o MapWrg(
           toGlobal(MapLcl(id)) o Gather(reverse) o toLocal(MapLcl(id))
@@ -242,7 +242,7 @@ class TestBarrier {
 
     // Last and middle barriers should be eliminated
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input =>
         Join() o MapWrg(
           toGlobal(MapLcl(id)) o MapLcl(id) o Gather(reverse) o
@@ -266,7 +266,7 @@ class TestBarrier {
 
     // Last barrier should be eliminated
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input =>
         Join() o MapWrg(
           toGlobal(MapLcl(id)) o Gather(reverse) o
@@ -288,7 +288,7 @@ class TestBarrier {
 
     // Middle barrier should be eliminated
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       input =>
         Join() o MapWrg(
           toGlobal(MapLcl(id)) o MapLcl(id) o Gather(reverse) o
@@ -311,8 +311,8 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (a, b) => {
         MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays => {
           Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0),
@@ -337,8 +337,8 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (a, b) => {
         MapWrg(toGlobal(MapLcl(add)) o Gather(reverse) o fun(pairArrays => {
           Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0),
@@ -363,8 +363,8 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (a, b) => {
         MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays => {
           Zip(Gather(reverse) o toLocal(MapLcl(id)) $ Get(pairArrays, 0),
@@ -389,8 +389,8 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (a, b) => {
         MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays => {
           Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0),
@@ -416,8 +416,8 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (a, b) => {
         MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays => {
           Zip(Gather(reverse) o toLocal(MapLcl(id)) $ Get(pairArrays, 0),
@@ -442,8 +442,8 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (a, b) => MapWrg(toGlobal(MapLcl(add)) o fun(pairArrays =>
         Zip(toLocal(MapLcl(id)) $ Get(pairArrays, 0), Get(pairArrays, 1))
       )) $ Zip(a, b)
@@ -466,7 +466,7 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N), N),
       input => MapWrg(0)(MapWrg(1)(
         toGlobal(MapLcl(0)(MapLcl(1)(id))) o
         toLocal(MapLcl(0)(MapLcl(1)(id)))
@@ -487,7 +487,7 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N), N), N), N),
       input => MapWrg(0)(MapWrg(1)(MapWrg(2)(
         toGlobal(MapLcl(0)(MapLcl(1)(MapLcl(2)(id)))) o
           toLocal(MapLcl(0)(MapLcl(1)(MapLcl(2)(id))))
@@ -505,7 +505,7 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N), N), N), N),
       input => MapWrg(0)(MapWrg(1)(MapWrg(2)(
         toGlobal(MapLcl(0)(MapLcl(1)(MapLcl(2)(id)))) o
           toLocal(MapLcl(0)(MapLcl(1)(Scatter(reverse) o MapLcl(2)(id))))
@@ -529,7 +529,7 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N), N),
       input => MapWrg(0)(MapWrg(1)(
         toGlobal(MapLcl(0)(MapLcl(1)(id))) o
           Map(Gather(reverse)) o
@@ -555,7 +555,7 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N), N),
       input => MapWrg(0)(MapWrg(1)(
         toGlobal(MapLcl(0)(MapLcl(1)(id))) o
           toLocal(MapLcl(0)(Gather(reverse) o MapLcl(1)(id)))
@@ -587,7 +587,7 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N), N),
       input => MapWrg(0)(MapWrg(1)(
         toGlobal(MapLcl(0)(MapLcl(1)(id) o Gather(reverse))) o
           toLocal(MapLcl(0)(MapLcl(1)(id)))
@@ -612,7 +612,7 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Join() o MapWrg(
           MapLcl(id) o Tail() o MapLcl(id)
@@ -636,7 +636,7 @@ class TestBarrier {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Join() o MapWrg(
           toGlobal(MapLcl(id)) o Tail() o toLocal(MapLcl(id))
@@ -660,7 +660,7 @@ class TestBarrier {
 
     // Should have a barrier, but not all threads take it
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float, 16), 16), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 16), 16), N), N),
       input => MapWrg(0)(MapWrg(1)(
         MapLcl(0)(MapLcl(1)(id) o Gather(reverse) o MapLcl(1)(id))
       )) $ input
@@ -680,7 +680,7 @@ class TestBarrier {
 
     // Should have a barrier
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N), N),
       input => MapWrg(0)(MapWrg(1)(
         MapLcl(0)(MapLcl(1)(id)) o
           MapLcl(0)(Gather(reverse) o MapLcl(1)(id))
@@ -707,7 +707,7 @@ class TestBarrier {
 
     // Should have a barrier
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N), N),
       input => MapWrg(0)(MapWrg(1)(
         MapLcl(0)(MapLcl(1)(id)) o
           Scatter(reverse) o MapLcl(0)(MapLcl(1)(id))
@@ -733,7 +733,7 @@ class TestBarrier {
 
     // Should have a barrier
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float, N), N), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N), N),
       input => MapWrg(0)(MapWrg(1)(
         MapLcl(0)(MapLcl(1)(id) o Gather(reverse)) o
           MapLcl(0)(MapLcl(1)(id))
@@ -757,7 +757,7 @@ class TestBarrier {
 
      // First barrier should be eliminated
      val f = fun(
-       ArrayType(Float, SizeVar("N")),
+       ArrayTypeWSWC(Float, SizeVar("N")),
        input =>
          Join() o MapWrg(
            Join() o toGlobal(MapLcl(MapSeq(id))) o Map(Gather(reverse))
@@ -780,7 +780,7 @@ class TestBarrier {
 
     // Should have 1 barrier
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float, innerSize), innerSize), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, innerSize), innerSize), N), N),
       input => MapWrg(0)(MapWrg(1)(
         fun(x => toGlobal(MapLcl(0)(MapLcl(1)(id))) $ Get(x, 0)) o
         fun(x =>
@@ -808,7 +808,7 @@ class TestBarrier {
 
     // Should have 1 barrier
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float, innerSize), innerSize), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, innerSize), innerSize), N), N),
       input => MapWrg(0)(MapWrg(1)(
         fun(x => toGlobal(MapLcl(1)(MapLcl(0)(id))) $ Get(x, 0)) o
         fun(x =>
@@ -829,7 +829,7 @@ class TestBarrier {
 
     // Should have 1 barrier
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float, innerSize), innerSize), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, innerSize), innerSize), N), N),
       input => MapWrg(0)(MapWrg(1)(
         toGlobal(MapLcl(1)(MapLcl(0)(id))) o Get(0) o
         fun(x =>
@@ -850,7 +850,7 @@ class TestBarrier {
 
     // Should have 2 barriers
     val f = fun(
-      ArrayType(ArrayType(ArrayType(ArrayType(Float, innerSize), innerSize), N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, innerSize), innerSize), N), N),
       input => MapWrg(0)(MapWrg(1)(fun(x =>
         toGlobal(MapLcl(1)(asScalar() o MapLcl(0)(id.vectorize(4)) o asVector(4))) $ Get(x, 0)) o
         fun(x =>
@@ -865,4 +865,65 @@ class TestBarrier {
     val kernel = Compile(f, innerSize, innerSize, 1)
     assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
   }
+
+  @Test
+  def tupleBarrierJustLocal(): Unit = {
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      input => MapWrg(\(x =>
+        toGlobal(MapLcl(add)) o
+          Gather(reverse) o
+          MapLcl(\(y => Tuple(toLocal(id) $ y._0, toLocal(id) $ y._1))) $
+          Zip(x, x)
+      )) o Split(32) $ input
+    )
+
+    val kernel = Compile(f, NDRange(32), NDRange(N))
+    println(kernel)
+    assertEquals(0, "CLK_GLOBAL_MEM_FENCE".r.findAllMatchIn(kernel).length)
+    assertEquals(1, "CLK_LOCAL_MEM_FENCE".r.findAllMatchIn(kernel).length)
+  }
+
+  @Test
+  def tupleBarrierJustGlobal(): Unit = {
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      input => MapWrg(\(x =>
+        toGlobal(MapLcl(add)) o
+          Gather(reverse) o
+          MapLcl(\(y => Tuple(id $ y._0, id $ y._1))) $
+          Zip(x, x)
+      )) o Split(32) $ input
+    )
+
+    val kernel = Compile(f, NDRange(32), NDRange(N))
+    println(kernel)
+    assertEquals(1, "CLK_GLOBAL_MEM_FENCE".r.findAllMatchIn(kernel).length)
+    assertEquals(0, "CLK_LOCAL_MEM_FENCE".r.findAllMatchIn(kernel).length)
+  }
+
+    @Test
+  def tupleBarrierBoth(): Unit = {
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      input => MapWrg(\(x =>
+        toGlobal(MapLcl(add)) o
+          Gather(reverse) o
+          MapLcl(\(y => Tuple(toLocal(id) $ y._0, id $ y._1))) $
+          Zip(x, x)
+      )) o Split(32) $ input
+    )
+
+    val kernel = Compile(f, NDRange(32), NDRange(N))
+      println(kernel)
+    assertEquals(1, "CLK_GLOBAL_MEM_FENCE".r.findAllMatchIn(kernel).length)
+    assertEquals(1, "CLK_LOCAL_MEM_FENCE".r.findAllMatchIn(kernel).length)
+  }
+
 }

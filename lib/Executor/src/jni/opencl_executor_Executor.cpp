@@ -61,7 +61,9 @@ jdouble
   } catch(cl::Error err) {
     jclass jClass = env->FindClass("opencl/executor/Executor$ExecutorFailureException");
     if(!jClass) LOG_ERROR("[JNI ERROR] Cannot find the exception class");
-    env->ThrowNew(jClass, (std::string("Executor failure: ") + err.what()).c_str());
+    env->ThrowNew(jClass, 
+        (std::string("Executor failure: ") + err.what() + std::string(". Error code: ") + 
+         executor::logger_impl::getErrorString(err.err())).c_str());
   } catch(...) {
     jclass jClass = env->FindClass("opencl/executor/Executor$ExecutorFailureException");
     if(!jClass) LOG_ERROR("[JNI ERROR] Cannot find the exception class");

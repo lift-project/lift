@@ -8,8 +8,8 @@ case class ArrayAccess(index: ArithExpr) extends Pattern(arity = 1) with isGener
 
   override def checkType(argType: Type, setType: Boolean): Type = {
     argType match {
-      case ArrayType(t, n) => t
-      case _ => throw new TypeException(argType, "ArrayType")
+      case ArrayType(t) => t
+      case _ => throw new TypeException(argType, "ArrayType", this)
     }
   }
 

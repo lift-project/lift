@@ -7,17 +7,16 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.Logger
 import exploration.ParameterSearch.SubstitutionMap
 import ir.ast.{Expr, FunCall, Lambda}
-import ir.{ArrayType, Type, TypeChecker}
+import ir.{Type, TypeChecker}
 import lift.arithmetic.{ArithExpr, Cst}
 import opencl.executor.Eval
-import opencl.generator.OpenCLGenerator._
+import opencl.generator.NDRange
 import opencl.ir.pattern._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
-import play.api.libs.json.Reads._
-import play.api.libs.json._
 import rewriting.InferNDRange
 import rewriting.utils.Utils
+import ExpressionFilter.Status.Success
 
 import scala.collection.immutable.Map
 import scala.io.Source
@@ -78,6 +77,8 @@ object ParameterRewrite {
       s
   }
 
+  private var settings = Settings()
+
   private var lambdaFilename = ""
 
   def main(args: Array[String]): Unit = {
@@ -85,7 +86,8 @@ object ParameterRewrite {
     try {
 
       parser.parse(args)
-      if(!exploreNDRange.value.isDefined && sampleNDRange.value.isDefined)
+
+      if (exploreNDRange.value.isEmpty && sampleNDRange.value.isDefined)
         throw new RuntimeException("'sample' is defined without enabling 'explore'")
 
       logger.info(s"Arguments: ${args.mkString(" ")}")
@@ -104,7 +106,10 @@ object ParameterRewrite {
         }
       }
 
-      val settings = ParseSettings(settingsFile.value)
+      settings = ParseSettings(settingsFile.value)
+
+      logger.info(s"Arguments: ${args.mkString(" ")}")
+      logger.info(s"Settings:\n$settings")
 
       // list all the high level expression
       val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
@@ -151,15 +156,16 @@ object ParameterRewrite {
             if (Files.exists(Paths.get(loweredIndex))
               && substitutionCount < 800000) {
 
-              val low_level_expr_list = Source.fromFile(loweredIndex).getLines().toList
+              val lowLevelExprList = Source.fromFile(loweredIndex).getLines().toList
 
-              val low_level_counter = new AtomicInteger()
-              val lowLevelCount = low_level_expr_list.size
-              val propagation_counter = new AtomicInteger()
+              val lowLevelCounter = new AtomicInteger()
+              val lowLevelCount = lowLevelExprList.size
+              val propagationCounter = new AtomicInteger()
+              val kernelCounter = new AtomicInteger()
               val propagationCount = lowLevelCount * substitutionCount
               println(s"Found $lowLevelCount low level expressions")
 
-              val parList = if (sequential.value.isDefined) low_level_expr_list else low_level_expr_list.par
+              val parList = if (sequential.value.isDefined) lowLevelExprList else lowLevelExprList.par
 
               parList.foreach(low_level_filename => {
 
@@ -170,12 +176,11 @@ object ParameterRewrite {
                   val low_level_str = readFromFile(fullLowLevelFilename)
                   val low_level_factory = Eval.getMethod(low_level_str)
 
-                  println(s"Low-level expression ${low_level_counter.incrementAndGet()} / $lowLevelCount")
-                  println("Propagating parameters...")
+                  lowLevelCounter.incrementAndGet()
                   val potential_expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] =
                     all_substitution_tables.flatMap(st => {
 
-                      println(s"\rPropagation ${propagation_counter.incrementAndGet()} / $propagationCount")
+                      print(s"\rLow-Level expression: ${lowLevelCounter.get()}/$lowLevelCount | Propagation ${propagationCounter.incrementAndGet()}/$propagationCount")
                       val params = st.toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
                       try {
                         val expr = low_level_factory(sizesForFilter ++ params)
@@ -188,12 +193,13 @@ object ParameterRewrite {
 
                       logger.debug(rangeList.length + " generated NDRanges")
 
-                      val filtered: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] = rangeList.flatMap {ranges =>
-                        if (ExpressionFilter(expr, ranges) == ExpressionFilter.Status.Success)
-                          Some((low_level_factory(vars ++ params), params, ranges))
-                        else
-                          None
-                      }
+                        val filtered: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] =
+                          rangeList.flatMap {ranges =>
+                            if (ExpressionFilter(expr, ranges, settings.searchParameters) == Success)
+                              Some((low_level_factory(vars ++ params), params, ranges))
+                            else
+                              None
+                          }
 
                       logger.debug(filtered.length + " NDRanges after filtering")
                       val sampled = if (sampleNDRange.value.isDefined && filtered.nonEmpty) {
@@ -202,10 +208,10 @@ object ParameterRewrite {
                       } else
                         filtered
 
-                      val sampleStrings: Seq[String] = sampled.map(x => low_level_hash + "_" + x._2.mkString("_") +
-                        "_" + x._3._1.mkString("_") + "_" + x._3._2.mkString("_"))
-                      logger.debug("\nSampled NDRanges:\n\t" + sampleStrings.mkString(" \n "))
-                      Some(sampled)
+                        val sampleStrings: Seq[String] = sampled.map(x => low_level_hash + "_" + x._2.mkString("_") +
+                          "_" + x._3._1.toString.replace(",", "_") + "_" + x._3._2.toString.replace(",", "_"))
+                        logger.debug("\nSampled NDRanges:\n\t" + sampleStrings.mkString(" \n "))
+                        Some(sampled)
 
                     } catch {
                       case _: ir.TypeException => None
@@ -216,12 +222,12 @@ object ParameterRewrite {
                         logger.warn(low_level_hash)
                         logger.warn(params.mkString("; "))
                         logger.warn(low_level_str)
-                        logger.warn(SearchParameters.matrix_size.toString)
+                        logger.warn(settings.searchParameters.defaultSize.toString)
                         None
                     }
                   }).flatten
 
-                  println(s"Generating ${potential_expressions.size} kernels")
+                  kernelCounter.addAndGet(potential_expressions.size)
 
                   val hashes = SaveOpenCL(topFolder, low_level_hash,
                     high_level_hash, settings, potential_expressions)
@@ -235,6 +241,7 @@ object ParameterRewrite {
                     logger.warn(t.toString)
                 }
               })
+              println(s"\nGenerated $kernelCounter kernels")
             }
           } catch {
             case t: Throwable =>
@@ -281,7 +288,8 @@ object ParameterRewrite {
     val vars = lambda.getVarsInParams()
 
     val actualSizes: Seq[ArithExpr] =
-      if (sizes.isEmpty) Seq.fill(vars.length)(SearchParameters.matrix_size) else sizes
+      if (sizes.isEmpty) Seq.fill(vars.length)(settings.searchParameters.defaultSize)
+      else sizes
 
     (vars, actualSizes).zipped.toMap
   }
@@ -325,76 +333,26 @@ object ParameterRewrite {
       if local <= global
     } yield (local, global)).map{ case (l,g) => (Cst(l), Cst(g))}
 
-    val success = ExpressionFilter.Status.Success
     nDRangeDim match {
       case 1 => for {
         x <- localGlobalCombinations
-        if ExpressionFilter(x._1, x._2) == success
-      } yield (Array(x._1, 1, 1): NDRange, Array(x._2, 1, 1): NDRange)
+        if ExpressionFilter(x._1, x._2, settings.searchParameters) == Success
+      } yield (NDRange(x._1, 1, 1), NDRange(x._2, 1, 1))
 
       case 2 => for {
         x: (ArithExpr, ArithExpr) <- localGlobalCombinations
         y: (ArithExpr, ArithExpr) <- localGlobalCombinations
-        if ExpressionFilter(x._1, y._1, x._2, y._2) == success
-      } yield (Array(x._1, y._1, 1): NDRange, Array(x._2, y._2, 1): NDRange)
+        if ExpressionFilter(x._1, y._1, x._2, y._2, settings.searchParameters) == Success
+      } yield (NDRange(x._1, y._1, 1), NDRange(x._2, y._2, 1))
 
       case 3 => for {
         x <- localGlobalCombinations
         y <- localGlobalCombinations
         z <- localGlobalCombinations
-        if ExpressionFilter(x._1, y._1, z._1, x._2, y._2, z._2) == success
-      } yield (Array(x._1, y._1, z._1): NDRange, Array(x._2, y._2, z._2): NDRange)
+        if ExpressionFilter(x._1, y._1, z._1, x._2, y._2, z._2, settings.searchParameters) == Success
+      } yield (NDRange(x._1, y._1, z._1), NDRange(x._2, y._2, z._2))
 
       case _ => throw new RuntimeException("Could not pre-compute NDRanges for exploration")
     }
   }
-}
-
-case class Settings(inputCombinations: Option[Seq[Seq[ArithExpr]]])
-
-object ParseSettings {
-
-  private val logger = Logger(this.getClass)
-
-  private implicit val arithExprReads: Reads[ArithExpr] =
-    JsPath.read[Long].map(Cst)
-
-  private implicit val settingsReads: Reads[Settings] =
-    (JsPath \ "input_combinations").readNullable[Seq[Seq[ArithExpr]]].map(Settings)
-
-  def apply(optionFilename: Option[String]): Settings =
-    optionFilename match {
-      case Some(filename) =>
-
-        val settingsString = ParameterRewrite.readFromFile(filename)
-        val json = Json.parse(settingsString)
-        val validated = json.validate[Settings]
-
-        validated match {
-          case JsSuccess(settings, _) =>
-            checkSettings(settings)
-            settings
-          case e: JsError =>
-            logger.error("Failed parsing settings " +
-              e.recoverTotal(e => JsError.toFlatJson(e)))
-            sys.exit(1)
-        }
-
-      case None =>
-        Settings(None)
-    }
-
-  private def checkSettings(settings: Settings): Unit = {
-
-    // Check all combinations are the same size
-    if (settings.inputCombinations.isDefined) {
-      val sizes = settings.inputCombinations.get
-
-      if (sizes.map(_.length).distinct.length != 1) {
-        logger.error("Sizes read from settings contain different numbers of parameters")
-        sys.exit(1)
-      }
-    }
-  }
-
 }

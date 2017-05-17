@@ -4,6 +4,18 @@ version := "1.0"
 
 scalaVersion := "2.11.8"
 
+// Check Java version
+initialize := {
+  val _ = initialize.value // run the previous initialization
+  val minVersion = 8
+  val current  = sys.props("java.specification.version")
+  val regex = raw"1\.(\d+)".r
+  assert(current match {
+    case regex(v) if v.toInt >= minVersion => true
+    case _ => false
+  }, s"Unsupported JDK: java.specification.version $current. Require at least JDK version 1.$minVersion.")
+}
+
 compile <<= (compile in Compile) dependsOn (updateSubmodules, compileExecutor)
 
 lazy val updateSubmodules = taskKey[Unit]("Update the submodules")
@@ -66,7 +78,6 @@ scalacOptions in (Compile,doc) := Seq("-implicits", "-diagrams")
 
 // Build ArithExpr
 unmanagedSourceDirectories in Compile += baseDirectory.value / "lib/ArithExpr/src/main/"
-unmanagedSourceDirectories in Test += baseDirectory.value / "lib/ArithExpr/src/main/"
 
 ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*;.*arithmetic.*;.*testing.*"
 

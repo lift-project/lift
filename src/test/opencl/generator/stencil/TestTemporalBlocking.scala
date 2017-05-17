@@ -1,8 +1,8 @@
 package opencl.generator.stencil
 
-import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import ir._
 import ir.ast._
+import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
@@ -30,7 +30,7 @@ class TestTemporalBlocking {
                                          tileSize: Int, tileStep: Int,
                                          l: Int, r: Int, b: Pad.BoundaryFun) = {
     fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (input) => {
         Join() o MapWrg(
           //temporal blocking
@@ -67,8 +67,8 @@ class TestTemporalBlocking {
 
   def create1DStencilLambda(weights: Array[Float], size: Int, step: Int, left: Int, right: Int): Lambda2 = {
     fun(
-      ArrayType(Float, Var("N", StartFromRange(3))),
-      ArrayType(Float, weights.length),
+      ArrayTypeWSWC(Float, Var("N", StartFromRange(3))),
+      ArrayTypeWSWC(Float, weights.length),
       (input, weights) => {
         MapGlb(
           fun(neighbourhood => {
@@ -108,8 +108,8 @@ class TestTemporalBlocking {
                                                       tileSize: Int, tileStep: Int,
                                                       left: Int, right: Int): Lambda2 = {
     fun(
-      ArrayType(Float, SizeVar("N")),
-      ArrayType(Float, weights.length),
+      ArrayTypeWSWC(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, weights.length),
       (input, weights) => {
         MapWrg(fun(tile =>
           toGlobal(MapSeqUnroll(id)) o Iterate(2)(fun(localTile =>
@@ -133,7 +133,7 @@ class TestTemporalBlocking {
                                                n: Int, s: Int,
                                                l: Int, r: Int) = {
     fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (input) => {
 
         //f:      toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)

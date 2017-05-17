@@ -27,7 +27,7 @@ case class Tuple(n: Int) extends Pattern(arity = n) with isGenerable {
 
         tt // the arguments are already grouped in a tuple
 
-      case _ => throw new TypeException(argType, "TupleType")
+      case _ => throw new TypeException(argType, "TupleType", this)
     }
   }
 

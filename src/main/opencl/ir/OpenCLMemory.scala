@@ -1,9 +1,9 @@
 package opencl.ir
 
-import lift.arithmetic._
 import arithmetic.TypeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.{ArithExpr, NotEvaluableException, Var}
 import opencl.ir.pattern._
 
 /** Represents memory in OpenCL as a raw collection of bytes allocated in an
@@ -23,7 +23,7 @@ class OpenCLMemory(var variable: Var,
     if (size.eval == 0)
       throw new IllegalArgumentException("Cannot have a memory of 0 bytes!")
   } catch {
-    case NotEvaluableException => // nothing to do
+    case NotEvaluableException() => // nothing to do
     case e: Exception => throw e
   }
 
@@ -32,9 +32,10 @@ class OpenCLMemory(var variable: Var,
     throw new IllegalArgumentException
 
   // no unknown allowed in the size
-  val hasUnknown = ArithExpr.visitUntil(size, _ == ?)
-  if (hasUnknown)
-    throw new IllegalArgumentException
+  // val hasUnknown = ArithExpr.visitUntil(size, _ == ?)
+  // TODO: think about this
+  // if (hasUnknown)
+  //   throw new IllegalArgumentException
 
 
 
@@ -74,14 +75,14 @@ class OpenCLMemory(var variable: Var,
   }
 }
 
-class OpenCLMemoryCollection(val subMemories: Array[OpenCLMemory],
+case class OpenCLMemoryCollection(subMemories: Array[OpenCLMemory],
                              override val addressSpace: AddressSpaceCollection)
   extends OpenCLMemory(Var("Tuple"), subMemories.map(_.size).reduce(_+_),
                        addressSpace)
 
 object OpenCLMemoryCollection {
   def apply(mems: Seq[OpenCLMemory]) = {
-    val addressSpace = new AddressSpaceCollection(mems.map(_.addressSpace))
+    val addressSpace = AddressSpaceCollection(mems.map(_.addressSpace))
     new OpenCLMemoryCollection(mems.toArray, addressSpace)
   }
 }
@@ -175,9 +176,10 @@ object OpenCLMemory {
   def getSizeInBytes(t: Type): ArithExpr = t match {
     case st: ScalarType => st.size
     case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)
-    case at: ArrayType => at.len * getSizeInBytes(at.elemT)
+    case at: ArrayType with Capacity => at.capacity * getSizeInBytes(at.elemT)
+    case at: ArrayType => ?
     case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
-    case _ => throw new TypeException(t, "??")
+    case NoType | UndefType => throw new IllegalArgumentException(s"sizeof($t) = ??")
   }
 }
 
@@ -236,8 +238,10 @@ object TypedOpenCLMemory {
                             => collectUserFun(call)
         case l: Lambda      => collect(l.body)
         case m: AbstractMap => collectMap(call.t, m)
+        case f: FilterSeq   => collectFilter(call.t, f)
         case iss: InsertionSortSeq => collectSort(call.t, iss)
         case r: AbstractPartRed => collectReduce(r, argMems)
+        case sp: SlideSeqPlus => collectSlideSeqPlus(sp, argMems)
         case s: AbstractSearch => collectSearch(s, call, argMems)
         case ua: UnsafeArrayAccess => collectUnsafeArrayAccess(ua, call, argMems)
         case i: Iterate     => collectIterate(call, i)
@@ -277,17 +281,17 @@ object TypedOpenCLMemory {
                 var privateMultiplier = m.iterationCount
                 privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
 
-                TypedOpenCLMemory(tm.mem, ArrayType(tm.t,privateMultiplier))
+                TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t,privateMultiplier))
             }
           case LocalMemory =>
             m match {
               case _: MapGlb | _: MapWrg  | _: Map =>
                 tm
               case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
-                TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
+                TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
             }
           case GlobalMemory =>
-            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
+            TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
 
           case coll: AddressSpaceCollection =>
             changeType(coll.findCommonAddressSpace(), tm)
@@ -300,45 +304,60 @@ object TypedOpenCLMemory {
       // TODO: Think about other ways of refactoring this out 
       m match {
         case aw : MapAtomWrg => 
-          cts :+ TypedOpenCLMemory(aw.globalTaskIndex, ArrayType(Int, Cst(1)))
+          cts :+ TypedOpenCLMemory(aw.globalTaskIndex, ArrayTypeWSWC(Int, Cst(1)))
         case _ => cts
       }
       
     }
   
-    def collectSort(t: Type,
-                    iss: InsertionSortSeq): Seq[TypedOpenCLMemory] = {
-      @scala.annotation.tailrec
-      def changeType(addressSpace: OpenCLAddressSpace,
-                     tm: TypedOpenCLMemory): TypedOpenCLMemory = {
-        // TODO: This might return one of two types in case of reduce (T or Array(T, 1))
-        addressSpace match {
-          case PrivateMemory =>
-            var privateMultiplier = iss.loopRead.range.numVals
-            privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
-          
-            TypedOpenCLMemory(tm.mem, ArrayType(tm.t,privateMultiplier))
-          case LocalMemory =>
-            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
-          case GlobalMemory =>
-            TypedOpenCLMemory(tm.mem, ArrayType(tm.t, Type.getMaxLength(t)))
-          case coll: AddressSpaceCollection =>
-            changeType(coll.findCommonAddressSpace(), tm)
-        }
+    @scala.annotation.tailrec
+    def changeType(tm: TypedOpenCLMemory, loopVar: Var, t: Type): TypedOpenCLMemory = {
+      // TODO: This might return one of two types in case of reduce (T or Array(T, 1))
+      tm.mem.addressSpace match {
+        case PrivateMemory =>
+          var privateMultiplier = loopVar.range.numVals
+          privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
+        
+          TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t,privateMultiplier))
+        case LocalMemory =>
+          TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
+        case GlobalMemory =>
+          TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
+        case coll: AddressSpaceCollection =>
+          changeType(coll.findCommonAddressSpace(), tm, loopVar, t)
       }
-    
-      // change types for all of them
-      val mems = collect(iss.f.body) ++ collect(iss.copyFun.body) ++ collect(iss.shiftFun.body)
-      mems.map( (tm: TypedOpenCLMemory) => changeType(tm.mem.addressSpace, tm) )
     }
   
+    def collectFilter(t: Type,
+                      f: FilterSeq): Seq[TypedOpenCLMemory] = {
+      val mems = collect(f.f.body) ++ collect(f.copyFun.body)
+      mems.map(changeType(_, f.loopRead, t))
+    }
   
+    def collectSort(t: Type,
+                    iss: InsertionSortSeq): Seq[TypedOpenCLMemory] = {
+      val mems = collect(iss.f.body) ++ collect(iss.copyFun.body) ++ collect(iss.shiftFun.body)
+      mems.map(changeType(_, iss.loopRead, t))
+    }
+    
     def collectReduce(r: AbstractPartRed,
                       argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
       val mems: Seq[TypedOpenCLMemory] = collect(r.f.body) ++ (r match {
         case rws: ReduceWhileSeq => collect(rws.p.body)
         case _ => Seq[TypedOpenCLMemory]()
       })
+
+      mems.filter(m => {
+        val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
+        val isAlreadyInParams =  params.exists(_.mem.variable == m.mem.variable)
+
+        !isAlreadyInArgs && !isAlreadyInParams
+      })
+    }
+
+    def collectSlideSeqPlus(sp: SlideSeqPlus,
+                            argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
+      val mems: Seq[TypedOpenCLMemory] = collect(sp.f.body) ++ Seq[TypedOpenCLMemory]()
 
       mems.filter(m => {
         val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
@@ -368,7 +387,7 @@ object TypedOpenCLMemory {
       i.swapBuffer match {
         case UnallocatedMemory => collect(i.f.body)
         case _ =>
-          TypedOpenCLMemory(i.swapBuffer, ArrayType(call.args.head.t, ?)) +: collect(i.f.body)
+          TypedOpenCLMemory(i.swapBuffer, ArrayTypeWSWC(call.args.head.t, ?)) +: collect(i.f.body)
       }
     }
 

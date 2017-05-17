@@ -30,29 +30,29 @@ case class InsertionSortSeq(f: Lambda2, var loopRead: Var, var loopWrite: Var)
   // Generate the identity function for the type `ty`
   private def generateCopyFun(ty: Type): Lambda1 = ty match {
     case ScalarType(_, _) | TupleType(_) => id(ty, name="_insertion_sort_id")
-    case ArrayType(elemTy, _) => MapSeq(generateCopyFun(elemTy))
+    case ArrayType(elemTy) => MapSeq(generateCopyFun(elemTy))
     case _ =>
       throw new NotImplementedError(s"InsertionSortSeq.generateCopyFun: $ty")
   }
   
   override def checkType(argType: Type, setType: Boolean): Type = {
     argType match {
-      case ArrayType(ty, len) =>
+      case at @ ArrayType(ty) =>
         // Type-check the comparison function
         f.params.foreach(p => p.t = ty)
-        TypeChecker.assertType(f.body, setType, opencl.ir.Int)
+        TypeChecker.assertTypeIs(f.body, opencl.ir.Int, setType)
         
         // Generate and type-check the copy/shift functions
         this._copyFun = generateCopyFun(ty)
         this._shiftFun = generateCopyFun(ty)
         copyFun.params.head.t = ty
         shiftFun.params.head.t = ty
-        TypeChecker.assertType(copyFun.body, setType, ty)
-        TypeChecker.assertType(shiftFun.body, setType, ty)
+        TypeChecker.assertTypeIs(copyFun.body, ty, setType)
+        TypeChecker.assertTypeIs(shiftFun.body, ty, setType)
         
-        // Return the output type
-        ArrayType(ty, len)
-      case _ => throw new TypeException(argType, "ArrayType")
+        // The return type is always the input type
+        at
+      case _ => throw new TypeException(argType, "ArrayType", this)
     }
   }
   

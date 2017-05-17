@@ -2,18 +2,17 @@ package opencl.generator
 
 import java.io._
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
-import scala.sys.process._
-
 import scala.language.postfixOps
+import scala.sys.process._
 
 object TestGraphTheory {
   @BeforeClass def TestMatrixBasic(): Unit = {
@@ -47,8 +46,8 @@ class TestGraphTheory {
 
     val N = SizeVar("N")
     val denseBFSIteration = fun(
-      ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph
-      ArrayType(Float, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), //must be a square matrix for a graph
+      ArrayTypeWSWC(Float, N),
       (graph, bfsFringe) => {
         fun((fr) =>
         Join() o MapWrg(
@@ -76,8 +75,8 @@ class TestGraphTheory {
     val ranks = Array.fill(inputSize)(1.0f/inputSize.toFloat)
     val N = SizeVar("N")
     val densePageRankIteration = fun(
-      ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph
-      ArrayType(Float, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), //must be a square matrix for a graph
+      ArrayTypeWSWC(Float, N),
       (graph, ranks) => {
         fun((fr) =>
           Join() o MapWrg(
@@ -106,8 +105,8 @@ class TestGraphTheory {
     fringe(util.Random.nextInt(inputSize)) = 1.0f
 
     val denseBFSIteration = fun(
-      ArrayType(ArrayType(Float, 1024), 1024), //must be a square matrix for a graph
-      ArrayType(Float, 1024),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1024), 1024), //must be a square matrix for a graph
+      ArrayTypeWSWC(Float, 1024),
       (graph, bfsFringe) => {
         Join() o MapWrg(
           MapLcl( fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(bfsFringe,r)))
@@ -135,8 +134,8 @@ class TestGraphTheory {
     val N = SizeVar("N")
 
     val pageRankMultiIteration = fun(
-      ArrayType(ArrayType(Float, N), N), //must be a square matrix for a graph
-      ArrayType(Float, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), //must be a square matrix for a graph
+      ArrayTypeWSWC(Float, N),
       (graph, pageRanks) => {
         Iterate(1)( fun((fr) =>
           Join() o MapWrg(
@@ -166,8 +165,8 @@ class TestGraphTheory {
     fringeArr(util.Random.nextInt(inputSize)) = 1.0f
 
     val BFSMultiIteration  = fun(
-      ArrayType(ArrayType(Float, 64), 64), //must be a square matrix for a graph
-      ArrayType(Float, 64),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 64), 64), //must be a square matrix for a graph
+      ArrayTypeWSWC(Float, 64),
       (graph, bfsFringe) => {
         Iterate(5)( fun((fr) =>
           Join() o MapSeq( fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(or, 0.0f) o MapSeq(and) $ Zip(fr,r))) $ graph

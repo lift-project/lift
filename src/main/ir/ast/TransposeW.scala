@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import ir.{ArrayType, Type, TypeException, UndefType}
+import ir._
 
 /**
  * TransposeW pattern. Performs the transpose on the previous write.
@@ -21,8 +21,8 @@ case class TransposeW() extends Pattern(arity = 1) with isGenerable {
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case ArrayType(ArrayType(t, n), m) => ArrayType(ArrayType(t, m), n)
-      case _ => throw new TypeException(argType, "ArrayType(ArrayType(_,_),_)")
+      case ArrayTypeWSWC(ArrayTypeWSWC(t, ns,nc), ms,mc) => ArrayTypeWSWC(ArrayTypeWSWC(t, ms,mc), ns,nc)
+      case _ => throw new TypeException(argType, "ArrayType(ArrayType(_,_),_)", this)
     }
   }
 

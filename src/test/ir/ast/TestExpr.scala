@@ -1,9 +1,9 @@
 package ir.ast
 
-import opencl.ir.pattern._
-import org.junit._
-import org.junit.Assert._
 import opencl.ir._
+import opencl.ir.pattern._
+import org.junit.Assert._
+import org.junit._
 
 class TestExpr {
 

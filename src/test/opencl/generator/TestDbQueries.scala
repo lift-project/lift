@@ -1,13 +1,11 @@
 package opencl.generator
 
-import ir.ast.{Gather, Join, Split,Tuple, UserFun, Zip, fun, shiftRight}
-import ir.{ArrayType, TupleType}
+import ir.ast.{Gather, Join, Split, Tuple, UserFun, Zip, fun, shiftRight}
+import ir.{ArrayTypeWSWC, TupleType}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
-import opencl.ir.pattern.{
-  MapGlb, MapWrg, MapLcl, MapSeq, toGlobal, toLocal, ReduceSeq
-}
+import opencl.ir.pattern._
 import org.junit.Assert.{assertArrayEquals, assertEquals}
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -38,6 +36,9 @@ object TestDbQueries {
  * - HAVING: it consists in composing on the left with a filter
  */
 class TestDbQueries {
+  /** Because the executor can't return tuple of type (bool, int) */
+  val toInt = UserFun("to_int", "x", "return x;", Bool, Int)
+  
   @Test def combine(): Unit = {
     /**
      * Not an SQL query.
@@ -56,7 +57,7 @@ class TestDbQueries {
     val tupleId = id(TupleType(Int, Int))
     
     val combine = fun(
-      ArrayType(Int, N), ArrayType(Int, M),
+      ArrayTypeWSWC(Int, N), ArrayTypeWSWC(Int, M),
       (left, right) => {
         Join() o MapGlb(
           toGlobal(MapSeq(tupleId)) o fun(lRow => {
@@ -99,7 +100,7 @@ class TestDbQueries {
     val sameKeys = UserFun(
       "sameKeys", Array("x", "y"),
       "return (x._0 == y._0);",
-      Seq(TupleType(Int, Int), TupleType(Int, Int)), Int
+      Seq(TupleType(Int, Int), TupleType(Int, Int)), Bool
     )
     
     val toTuple = UserFun(
@@ -109,12 +110,12 @@ class TestDbQueries {
     )
     
     val query = fun(
-      ArrayType(TupleType(Int, Int), N),
-      ArrayType(TupleType(Int, Int), M),
+      ArrayTypeWSWC(TupleType(Int, Int), N),
+      ArrayTypeWSWC(TupleType(Int, Int), M),
       (left, right) => {
         Join() o MapGlb(fun(lRows =>
           MapSeq(toGlobal(toTuple)) $ Zip(
-            Join() o MapSeq(MapSeq(not) o ReduceSeq(or, 0)) o
+            Join() o MapSeq(MapSeq(toInt o not) o ReduceSeq(or, false)) o
               MapSeq(fun(lRow => {
                 MapSeq(fun(rRow => sameKeys.apply(lRow, rRow))) $ right
               })) $ lRows,
@@ -155,7 +156,7 @@ class TestDbQueries {
     val int_max = max(Int)
     
     val aggregateMax = fun(
-      ArrayType(Int, N),
+      ArrayTypeWSWC(Int, N),
       table => {
         toGlobal(MapSeq(idI)) o ReduceSeq(int_max, 0) $ table
       }
@@ -192,12 +193,12 @@ class TestDbQueries {
   
     // We assume that the input table is already sorted
     val groupBy = fun(
-      ArrayType(TupleType(Int, Int), N),
+      ArrayTypeWSWC(TupleType(Int, Int), N),
       table => {
         Join() o MapGlb(
           fun(bx =>
             toGlobal(MapSeq(tuple_id)) o
-            MapSeq(fun(tot => Tuple(bx._0, bx._1, tot))) o
+            MapSeq(fun(tot => Tuple(toInt $ bx._0, bx._1, tot))) o
             ReduceSeq(addI, 0) o
             MapSeq(filterOnX) o
             MapSeq(fun(row => Tuple(bx._1, row))) $ table
@@ -260,13 +261,13 @@ class TestDbQueries {
     
     val where_clause = UserFun(
       "where_clause", "t",
-      "Tuple1 row = {(t._0 && ((t._1 + t._3) > 10)), t._2};\n return row;",
+      "Tuple1 t2 = {(t._0 && ((t._1 + t._3) > 10)), t._2}; return t2;",
       TupleType(Int, Int, Int, Int), TupleType(Int, Int)
     )
     
     val query = fun(
-      ArrayType(TupleType(Int, Int, Int), N),
-      ArrayType(TupleType(Int, Int), M),
+      ArrayTypeWSWC(TupleType(Int, Int, Int), N),
+      ArrayTypeWSWC(TupleType(Int, Int), M),
       (leftTable, rightTable) => {
         MapSeq(toGlobal(idI)) o ReduceSeq(addI, 0) o Join() o
         MapWrg(

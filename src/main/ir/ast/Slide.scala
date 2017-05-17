@@ -18,13 +18,15 @@ case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) wi
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case ArrayType(t, n) =>
+      case ArrayTypeWSWC(et,s,c) if s == c =>
         // todo check that the sliding window always ends at the last element of the input
         //if (((n - (size - step)) % step) != Cst(0)) throw new TypeException(argType, "slide args not as")
-        val innerLength = size
-        val outerLength = (n - (size - step)) / step
-        ArrayType(ArrayType(t, innerLength), outerLength)
-      case _ => throw new TypeException(argType, "ArrayType")
+        val innerSize = size
+        val innerCapacity = size
+        val outerSize = (s - (size - step)) / step
+        val outerCapacity = (c - (size - step)) / step
+        ArrayTypeWSWC(ArrayTypeWSWC(et, innerSize, innerCapacity), outerSize, outerCapacity)
+      case _ => throw new TypeException(argType, "ArrayType", this)
     }
   }
 
