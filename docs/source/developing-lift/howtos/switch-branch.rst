@@ -1,4 +1,4 @@
-… switch branch
+â€¦ switch branch
 ---------------
 
 To switch/create/delete branches, you can either use IntelliJ or the command
