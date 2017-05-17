@@ -23,6 +23,22 @@ object TestFilterSeq {
 }
 
 class TestFilterSeq {
+  /**
+   * Helper function for decoding arrays as they are returned by the executor.
+   * /!\ only works for 1D arrays for which the capacity is statically known.
+   *
+   * @param raw the encoded array
+   * @param elemSize the size of one element in a Scala array
+   *                 (e.g. 2 for int * int)
+   * @tparam T the base type
+   * @return the decoded array
+   */
+  def decodeWC1D[T](raw: Array[T], elemSize: Int = 1)
+                   (implicit num: Numeric[T]): Array[T] = {
+    val size = num.toInt(raw(0))
+    raw.slice(elemSize, elemSize * (1 + size))
+  }
+  
   // Some user functions
   def lt(n: Int): UserFun =
     UserFun(s"lt$n", "x", s"return x < $n;", Int, Bool)
@@ -38,16 +54,14 @@ class TestFilterSeq {
     
     val expr = fun(
       ArrayTypeWSWC(Float, N),
-      l => MapGlb(toGlobal(id(Float))) o FilterSeq(predicate) $ l
+      l => toGlobal(FilterSeq(predicate)) $ l
     )
     
     assertEquals(ArrayTypeWC(Float, N), TypeChecker(expr))
     
-    // TODO: uncomment this once PR #86 and #89 are merged
-    // val (output: Array[Float], _) = Execute(size)(expr, input)
-    // val gold = input.filter(x => (x < 0.8) && (x > 0.2))
-    
-    // assertArrayEquals(gold, output.slice(0, gold.length), 0f)
+    val (output: Array[Float], _) = Execute(size)(expr, input)
+    val gold = input.filter(x => (x < 0.8) && (x > 0.2))
+    assertArrayEquals(gold, decodeWC1D(output), 0f)
   }
   
   @Test def filterMapGlb(): Unit = {
@@ -68,23 +82,20 @@ class TestFilterSeq {
       TypeChecker(expr)
     )
   
-    // TODO: uncomment this once PR #86 and #89 are merged
-    // val (output: Array[Int], _) = Execute(size)(expr, left, right)
-    // // Because RuntimeSizeArrays are not supported yet, we have to reshape the
-    // // output
-    // val reshapedOutput =
-    //   ((left zip right).grouped(32) zip output.grouped(2).grouped(32))
-    //   .map({ case (in, out) =>
-    //     out.slice(0, in.count(t => t._1 == t._2))
-    //   })
-    //   .toArray.flatten.flatten
-    //
-    // // We assertArrayEquals does not support arrays of tuples
-    // val gold = (left zip right)
-    //   .filter(t => t._1 == t._2)
-    //   .flatMap(t => Array(t._1, t._2))
-   
-    // assertArrayEquals(gold, reshapedOutput)
+    val (outputRaw: Array[Int], _) = Execute(size)(expr, left, right)
+    
+    // Decoding
+    val output = outputRaw
+      .grouped((32 + 1) * 2)
+      .map(decodeWC1D(_, elemSize = 2))
+      .toArray
+  
+    // Flatten tuples
+    val gold = (left zip right)
+      .filter(t => t._1 == t._2)
+      .flatMap(t => Array(t._1, t._2))
+  
+    assertArrayEquals(gold, output.flatten)
   }
   
   @Test def filterMapWrg(): Unit = {
@@ -104,28 +115,26 @@ class TestFilterSeq {
       TypeChecker(expr)
     )
   
-    // TODO: uncomment this once PR #86 and #89 are merged
-    // val (output: Array[Int], _) = Execute(size)(expr, input)
-    // // Because RuntimeSizeArrays are not supported yet, we have to reshape the
-    // // output
-    // val reshapedOutput = output.grouped(32).map(_.grouped(4)).flatten
-    // val reshapedInput = input.grouped(32).map(_.grouped(4)).flatten
-    // val finalOutput = (reshapedOutput zip reshapedInput)
-    //   .map(p => p._1.slice(0, p._2.count(_ < 5)))
-    //   .flatten
-    //   .toArray
-    //
-    // assertArrayEquals(input.filter(_ < 5), finalOutput)
+    val (outputRaw: Array[Int], _) = Execute(size)(expr, input)
+  
+    // Decoding
+    val output = outputRaw
+      .grouped(32 + (32 / 4) * 1).map(_.grouped(4 + 1))
+      .map(arr => arr.map(decodeWC1D(_)))
+      .flatten.flatten
+      .toArray
+  
+    assertArrayEquals(input.filter(_ < 5), output)
   }
   
   @Test def filterArray(): Unit = {
     val size = 1024
-    val input = Array.fill(size)(util.Random.nextInt(10))
+    val input = Array.fill(size)(util.Random.nextInt(8))
     val N = SizeVar("N")
     
     val expr = fun(
       ArrayTypeWSWC(Int, N),
-      l => MapGlb(MapSeq(toGlobal(id(Int)))) o FilterSeq(
+      l => MapSeq(MapSeq(toGlobal(id(Int)))) o FilterSeq(
         fun(xs => fun(x => x.at(0)) o MapSeq(lt(100)) o ReduceSeq(addI, 0) $ xs)
       ) o Split(32) $ l
     )
@@ -134,14 +143,13 @@ class TestFilterSeq {
       ArrayTypeWC(ArrayType(Int, 32), N /^ 32),
       TypeChecker(expr)
     )
-    
-    // TODO: uncomment this once PR #86 and #89 are merged
-    // val (output: Array[Int], _) = Execute(size)(expr, input)
-    // val gold = input.grouped(32)
-    //   .filter(row => row.sum < 100)
-    //   .flatten
-    //   .toArray
   
-    // assertArrayEquals(gold, output.slice(0, gold.length))
+    val (output: Array[Int], _) = Execute(size)(expr, input)
+    val gold = input.grouped(32)
+      .filter(row => row.sum < 100)
+      .flatten
+      .toArray
+  
+    assertArrayEquals(gold, output.slice(1, 1 + gold.length))
   }
 }

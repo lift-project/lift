@@ -664,6 +664,23 @@ class OpenCLGenerator extends Generator {
     
     generateForLoop(block, call.args.head, f.loopRead, generateBody)
     
+    def castSize(ty: Type): (Type, OpenCLAST.OclAstNode) = {
+      Type.getBaseType(ty) match {
+        case tt: TupleType =>
+          val values = tt.elemsT.map(castSize).map(_._2)
+          val tv = OpenCLAST.StructConstructor(tt, values.toVector)
+          (tt, tv)
+        case bt => (bt, OpenCLAST.Cast(VarRef(f.loopWrite), bt))
+      }
+    }
+    
+    // Write the header of the output array
+    val (baseType, value) = castSize(call.t)
+    (block: Block) += generateStoreNode(
+      OpenCLMemory.asOpenCLMemory(f.copyFun.body.mem),
+      baseType, call.view.size(), value
+    )
+    
     (block: Block) += OpenCLAST.Comment("end filter_seq")
   }
 
