@@ -204,11 +204,8 @@ object OutputView {
                               writeView: View): View = {
     visitAndBuildViews(f.f.body, writeView.access(Cst(0)))
     val outDepth = getAccessDepth(f.f.body.accessInf, f.f.body.mem)
-    f.f.body.outputView = View.initialiseNewView(f.f.body.t, outDepth)
-    
-    // Write at the "top" of the output array
-    visitAndBuildViews(f.copyFun.body, writeView.access(f.loopWrite))
-    ViewMap(f.copyFun.params.head.outputView, f.loopWrite, call.args.head.t)
+    f.f.body.outputView = View.initialiseNewView(f.f.body.t, List())
+    ViewMap(f.f.params.head.outputView, f.loopWrite, call.args.head.t)
   }
   
   private def buildViewReduce(r: AbstractPartRed,

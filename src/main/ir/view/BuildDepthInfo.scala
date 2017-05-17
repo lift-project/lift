@@ -143,9 +143,6 @@ private class BuildDepthInfo() {
     f.f.params.head.accessInf = l(inf, readsPrivate, readsLocal)
     buildDepthInfoPatternCall(f.f.body, call, f.loopRead, readsLocal, readsPrivate)
   
-    f.copyFun.params.head.accessInf = l(inf, readsPrivate, readsLocal)
-    buildDepthInfoPatternCall(f.copyFun.body, call, f.loopRead, readsLocal, readsPrivate)
-  
     if (f.f.body.isConcrete) // create fresh input view for following function
       AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
     else // call.isAbstract, return input

@@ -145,7 +145,7 @@ object OpenCLMemoryAllocator {
 
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
 
-      case sp: SlideSeqPlus => allocSlideSeqPlus(sp,call.t, numGlb, numLcl, numPvt, inMem)
+      case sp: SlideSeqPlus => allocSlideSeqPlus(sp, call.t, numGlb, numLcl, numPvt, inMem)
 
       case s: AbstractSearch => allocSearch(s, call, numGlb, numLcl, numPvt, inMem)
 
@@ -263,13 +263,9 @@ object OpenCLMemoryAllocator {
                              numPvt: ArithExpr,
                              inMem: OpenCLMemory): OpenCLMemory = {
     fs.f.params.head.mem = inMem
-    fs.copyFun.params.head.mem = inMem
     alloc(fs.f.body, numGlb, numLcl, numPvt)
-    alloc(fs.copyFun.body,
-          sizeOfArray(numGlb, call.t),
-          sizeOfArray(numLcl, call.t),
-          sizeOfArray(numPvt, call.t)
-    )
+    val sizeInBytes = Type.getAllocatedSize(call.t)
+    OpenCLMemory.allocMemory(sizeInBytes, sizeInBytes, sizeInBytes, call.addressSpace)
   }
 
   private def allocReduce(r: AbstractPartRed,

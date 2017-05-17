@@ -46,7 +46,6 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
             }
 
           case f: FilterSeq => {
-            apply(f.copyFun.body)
             apply(f.f.body)
             setRangeFilterSeq(f, call)
           }

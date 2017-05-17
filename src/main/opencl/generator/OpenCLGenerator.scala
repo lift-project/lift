@@ -629,16 +629,16 @@ class OpenCLGenerator extends Generator {
     (block: Block) += OpenCLAST.Comment("filter_seq")
     
     // Declare the index for the output array as a local variable
-    (block: Block) += OpenCLAST.VarDecl(
-      f.loopWrite,
-      opencl.ir.Int,
-      ArithExpression(Cst(0))
-    )
+    (block: Block) += OpenCLAST.VarDecl(f.loopWrite, opencl.ir.Int, ArithExpression(0))
   
-    // If the predicate returns true:
+    // If the predicate is satisfied
     def copyAndIncrementIndex(block: Block): Unit = {
       // 1. Store the input value at "the top" of the output array
-      generate(f.copyFun.body, block)
+      (block: Block) += generateCopy(
+        call.args.head.mem, call.args.head.view.access(f.loopRead),
+        call.mem, call.view.access(f.loopWrite),
+        call.t.asInstanceOf[ArrayType].elemT
+      )
       // 2. Increment the index of "the top" of the output array
       (block: Block) += AssignmentExpression(
         ArithExpression(f.loopWrite),
@@ -677,7 +677,7 @@ class OpenCLGenerator extends Generator {
     // Write the header of the output array
     val (baseType, value) = castSize(call.t)
     (block: Block) += generateStoreNode(
-      OpenCLMemory.asOpenCLMemory(f.copyFun.body.mem),
+      OpenCLMemory.asOpenCLMemory(call.mem),
       baseType, call.view.size(), value
     )
     
