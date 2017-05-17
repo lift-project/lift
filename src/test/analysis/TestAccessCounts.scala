@@ -253,4 +253,37 @@ class TestAccessCounts {
     count.evalDouble
   }
 
+  @Test
+  def issue99(): Unit = {
+    val factory = (variables: Seq[ArithExpr]) => {
+      val v_M_0 = variables(0)
+      val v_N_1 = variables(1)
+
+      val idfloat = UserFun("idfloat", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
+      val idTuple2_float_float = UserFun("idTuple2_float_float", Array("x"), """|{ return x; }""".stripMargin, Seq(TupleType(Float, Float)), TupleType(Float, Float))
+      val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
+      val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
+      fun(ArrayType(ArrayType(Float, v_M_0), v_N_1), ArrayType(Float, 9),(p_0, p_1) => FunCall(MapWrg(0)(fun((p_2) => FunCall(MapLcl(0)(fun((p_3) => FunCall(toGlobal(fun((p_4) => FunCall(MapSeq(fun((p_5) => FunCall(idfloat, p_5))), p_4))), FunCall(MapSeq(fun((p_6) => FunCall(toLocal(fun((p_7) => FunCall(idfloat, p_7))), p_6))), FunCall(ReduceSeq(fun((p_8, p_9) => FunCall(fun((p_10) => FunCall(fun((p_11) => FunCall(add, p_8, FunCall(mult, FunCall(Get(0), p_11), FunCall(Get(1), p_11)))), p_10)), FunCall(toPrivate(fun((p_12) => FunCall(idTuple2_float_float, p_12))), p_9)))), FunCall(idfloat, Value("0.0f", Float)), FunCall(Zip(2), p_1, FunCall(Join(), p_3))))))), FunCall(Transpose(), p_2)))), FunCall(Slide(3,1), FunCall(Map(fun((p_13) => FunCall(Slide(3,1), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_13)))), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_0)))))
+    }
+
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+
+    val f = factory(Seq(M, N))
+    val (localSize, globalSize) = InferNDRange(f)
+
+    val counts = AccessCounts(f, localSize, globalSize)
+
+    assertEquals(Cst(1), counts.getStores(GlobalMemory, CoalescedPattern, exact = false))
+    assertEquals(Cst(0), counts.getStores(GlobalMemory, UnknownPattern, exact = false))
+
+    assertEquals(Cst(0), counts.getLoads(GlobalMemory, CoalescedPattern, exact = false))
+    assertEquals(Cst(18), counts.getLoads(GlobalMemory, UnknownPattern, exact = false))
+
+    assertEquals(Cst(1), counts.getStores(LocalMemory, CoalescedPattern, exact = false))
+    assertEquals(Cst(0), counts.getStores(LocalMemory, UnknownPattern, exact = false))
+
+    assertEquals(Cst(1), counts.getLoads(LocalMemory, CoalescedPattern, exact = false))
+    assertEquals(Cst(0), counts.getLoads(LocalMemory, UnknownPattern, exact = false))
+  }
 }

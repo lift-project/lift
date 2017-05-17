@@ -76,14 +76,14 @@ class OpenCLMemory(var variable: Var,
   }
 }
 
-class OpenCLMemoryCollection(val subMemories: Array[OpenCLMemory],
+case class OpenCLMemoryCollection(subMemories: Array[OpenCLMemory],
                              override val addressSpace: AddressSpaceCollection)
   extends OpenCLMemory(Var("Tuple"), subMemories.map(_.size).reduce(_+_),
                        addressSpace)
 
 object OpenCLMemoryCollection {
   def apply(mems: Seq[OpenCLMemory]) = {
-    val addressSpace = new AddressSpaceCollection(mems.map(_.addressSpace))
+    val addressSpace = AddressSpaceCollection(mems.map(_.addressSpace))
     new OpenCLMemoryCollection(mems.toArray, addressSpace)
   }
 }
@@ -353,7 +353,7 @@ object TypedOpenCLMemory {
 
     def collectSlideSeqPlus(sp: SlideSeqPlus,
                             argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
-      val mems: Seq[TypedOpenCLMemory] = collect(sp.f.body) ++ (Seq[TypedOpenCLMemory]())
+      val mems: Seq[TypedOpenCLMemory] = collect(sp.f.body) ++ Seq[TypedOpenCLMemory]()
 
       mems.filter(m => {
         val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
