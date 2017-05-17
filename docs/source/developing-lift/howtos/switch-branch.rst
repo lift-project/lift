@@ -1,10 +1,10 @@
-â€¦ switch branch
+… switch branch
 ---------------
 
 To switch/create/delete branches, you can either use IntelliJ or the command
 line using the following command:
 
-- Create a new branch  t the current commit (and switch on it)::
+- Create a new branch at the current commit (and switch to it)::
 
     > git checkout -b BRANCHNAME
 
