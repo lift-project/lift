@@ -169,7 +169,7 @@ It is probably a good idea to take a look at the classes defined in
 
 
 Testing
--------
+^^^^^^^
 
 You have to check that your pattern works as expected. For that add a
 test class in the test folder in the ``opencl.generator`` package
@@ -213,7 +213,7 @@ For example, for ``MapSeq``, you could have:
 
 
 Useful tips
------------
+^^^^^^^^^^^
 
 -  Use the debugger to compare what you have in your pattern and in an
    already existing one at different points in the compilation process.
