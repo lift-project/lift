@@ -85,7 +85,7 @@ sealed class OpenCLMemory(var variable: Var,
   }
 }
 
-class OpenCLMemoryCollection(val subMemories: Array[OpenCLMemory],
+case class OpenCLMemoryCollection(subMemories: Array[OpenCLMemory],
                              override val addressSpace: AddressSpaceCollection)
   extends OpenCLMemory(Var("Tuple"), subMemories.map(_.size).reduce(_+_),
                        addressSpace)
