@@ -240,11 +240,9 @@ abstract sealed class View(val t: Type = UndefType) {
    */
   def zip(): View = {
     t match {
-      case TupleType(ts@_*) if ts.forall(_.isInstanceOf[ArrayType with Size with Capacity]) =>
-        val arrayTs: Seq[ArrayType with Size with Capacity] = ts.map(_.asInstanceOf[ArrayType with Size  with Capacity])
-        val newT = ArrayTypeWSWC(TupleType(arrayTs.map(_.elemT):_*), arrayTs.head.size)
-        assert (arrayTs.head.size == arrayTs.head.capacity)
-        // TODO: handle the case where the capacity is different from size
+      case TupleType(ts@_*) if ts.forall(_.isInstanceOf[ArrayType]) =>
+        val arrayTs = ts.map(_.asInstanceOf[ArrayType])
+        val newT = Zip.computeOutType(arrayTs)
         ViewZip(this, newT)
       case other => throw new IllegalArgumentException("Can't zip " + other)
     }
