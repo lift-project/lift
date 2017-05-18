@@ -47,7 +47,7 @@ class TestSort {
   
   @Test def mapSort(): Unit = {
     val size = 1024
-    val input = Array.fill(size)(util.Random.nextInt())
+    val input = Array.fill(size)(util.Random.nextInt(4096))
     val N = SizeVar("N")
     
     val kernel = fun(
