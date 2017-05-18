@@ -1,5 +1,51 @@
 package opencl.ir
 
+/**
+ * About memory allocation
+ * The memory allocation process is decomposed in two steps:
+ *
+ * 1. The `OpenCLMemoryAllocator` class computes an arithmetic expression
+ *    representing the amount of space (in bytes) we need two allocate for each
+ *    input, output and temporary result depending on its **type**.
+ * 2. The `Executor` tries to infer a value for each variable appearing in
+ *    these sizes given the value of the inputs of a kernel, replace all theses
+ *    variables by their actual value and actually allocate OpenCL buffers.
+ *    (For example if an input array has type `ArrayType(Int, N)` and the
+ *    actual input given to the executor is an array of size 128, the
+ *    `Executor` will infer that N = 128.)
+ *
+ *
+ * This class implements the first point:
+ *
+ * The arithmetic expression computed for allocating memory only depends on the
+ * type of the lift expression and is derived from the capacity of the array to
+ * be allocated. We can only compute a meaningfull arithmetic expression
+ * **when the capacity is part of the array's type**. If the type of the
+ * expression for allocation contains an array for which the capacity is not
+ * part of the type, we cannot produce an expression for its size and the
+ * OpenCLMemoryAllocator returns the `?` special value.
+ *
+ * At the moment, arrays are the only structure for which we may not know how
+ * much space to allocated judging only from the type. Therefore, the only
+ * scenario in which the memory allocator returns `?` is when there is an
+ * `ArrayType` without all capacity information available in the type.
+ *
+ * In general, the special `?` value means: "Dynamic memory allocation is
+ * required". But:
+ *
+ * 1. OpenCL does not support dynamic allocation. We want to emulate this in
+ *    the future but this is **not implemented** yet.
+ * 2. There is a special case where we still can derive the allocation size in
+ *    the executor: In a case, where an input of the kernel has not been
+ *    allocated memory by the OpenCLMemoryAllocator, the `Executor` will look
+ *    at both the type **and** the actual value of the input to infer the
+ *    allocation size. Since the `Executor` can investigate the inputs of the
+ *    kernel it can use the lengths of the arrays for which the capacity is not
+ *    part of the type as their capacity and use them where the memory
+ *    allocator was stuck. This special memory allocation is performed by the
+ *    `allocArgumentWithoutFixedAllocatedSize` method in the executor.
+ */
+
 import arithmetic.TypeVar
 import lift.arithmetic.{?, ArithExpr, Cst}
 import ir._
@@ -415,6 +461,7 @@ object OpenCLMemoryAllocator {
             hSize + innerSize * ArithExpr.substitute(c.capacity, map.toMap)
           case _ =>
             // Unknown capacity. We can't know how much memory to allocate…
+            // See the comments at the top of this file for further information.
             ?
         }
       case _ => throw new IllegalArgumentException("sizeOfArray expects an array type")

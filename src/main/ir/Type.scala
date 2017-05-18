@@ -531,6 +531,9 @@ object Type {
 
   /**
    * Return the size (in bytes) of a given type.
+   * Note: this function can return `?`. See the comments at the top of
+   *       `OpenCLMemoryAllocator.scala` to get information about the meaning
+   *       of this special value here and when it is supposed to occur.
    *
    * @param t A type
    * @return The size in bytes.

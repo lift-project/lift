@@ -631,32 +631,30 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   }
   
   /**
-   * Here we are allocating an array which could not have been allocated
-   * earlier because we could not know how much space to allocate statically
-   * just by looking at the type.
-   * The difference here is that we have the value for which we are allocating
-   * memory since this is an argument of the kernel which gives us all the
-   * information we need.
+   * Here we are computing an meaningful expression for the size of the inputs
+   * when the `OpenCLMemoryAllocator` class has not been able to do it.
+   * See the comments at the top of `OpenCLMemoryAllocator.scala` for further
+   * information.
    *
    * @param ty the type of the value
    * @param value the value for which we are allocating memory
    * @return the size in bytes of this value once encoded
    */
-  private def lastMinuteAlloc(ty: Type, value: Any): ArithExpr = {
+  private def allocArgumentWithoutFixedAllocatedSize(ty: Type, value: Any): ArithExpr = {
     (ty, value) match {
       case (ScalarType(_, size), _) => size
       case (VectorType(st, len), _) => len.eval * st.size
       case (TupleType(elemsT @ _*), _) if elemsT.distinct.length == 1 =>
-        elemsT.length * lastMinuteAlloc(elemsT.head, value)
+        elemsT.length * allocArgumentWithoutFixedAllocatedSize(elemsT.head, value)
       case (at: ArrayType, array: Array[_]) =>
         val c = at match {
           case c: Capacity => c.capacity
           case _ => Cst(array.length)
         }
         if (at.elemT.hasFixedAllocatedSize)
-          at.getHeaderSize * 4 + c * 4 * lastMinuteAlloc(at.elemT, array.head)
+          at.getHeaderSize * 4 + c * 4 * allocArgumentWithoutFixedAllocatedSize(at.elemT, array.head)
         else
-          at.getHeaderSize + c + array.map(lastMinuteAlloc(at.elemT, _)).reduce(_ + _)
+          at.getHeaderSize + c + array.map(allocArgumentWithoutFixedAllocatedSize(at.elemT, _)).reduce(_ + _)
       case _ => throw new IllegalArgumentException()
     }
   }
@@ -668,7 +666,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     //    because we have their values.
     for ((p, value) <- f.params zip values) {
       if (p.mem.size == ?) {
-        val size = lastMinuteAlloc(p.t, value)
+        val size = allocArgumentWithoutFixedAllocatedSize(p.t, value)
         p.mem = OpenCLMemory(p.mem.variable, size, GlobalMemory)
       }
     }
