@@ -220,8 +220,8 @@ object OpenCLMemoryAllocator {
     val outMem = alloc(iss.copyFun.body, numGlb * len, numLcl * len, numPvt)
   
     // Comparison function
-    iss.f.params(0).mem = outMem
-    iss.f.params(1).mem = inMem
+    iss.f.params(1).mem = outMem
+    iss.f.params(0).mem = inMem
     alloc(iss.f.body, numGlb, numLcl, numPvt)
   
     // Shifting function

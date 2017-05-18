@@ -675,11 +675,7 @@ class OpenCLGenerator extends Generator {
                                         block: Block): Unit = {
     (block: Block) += OpenCLAST.Comment("insertion sort")
     
-    generateForLoop(
-      block,
-      iss.loopRead,
-      generateInsertion(call, _)
-    )
+    generateForLoop(block, call.args.head, iss.loopRead, generateInsertion(call, _))
     
     (block: Block) += OpenCLAST.Comment("end insertion sort")
   }
@@ -712,7 +708,7 @@ class OpenCLGenerator extends Generator {
         iss.f.body.t,
         iss.f.body.view
       )
-      generateConditional(block, comp, (_: Block) += OpenCLAST.Break(), shift)
+      generateConditional(block, comp, shift, (_: Block) += OpenCLAST.Break())
     }
   
     generateWhileLoop(

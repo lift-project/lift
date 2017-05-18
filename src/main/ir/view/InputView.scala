@@ -143,12 +143,12 @@ object InputView {
   private def buildViewSort(iss: InsertionSortSeq,
                             call: FunCall,
                             argView: View): View = {
-    // Note: the input view for the second argument of the comparison function
+    // Note: the input view for the first argument of the comparison function
     //       and for the argument of the shift function can't be set at this
     //       point because they will be accesses to the output array.
     //       cf. `OutputView.buildViewSort`
-    iss.f.params(0).view = argView.access(iss.loopWrite) // XXX: this is a hack
-    iss.f.params(1).view = argView.access(iss.loopRead)
+    iss.f.params(1).view = argView.access(iss.loopWrite) // hack
+    iss.f.params(0).view = argView.access(iss.loopRead)
     iss.copyFun.params.head.view = argView.access(iss.loopRead)
     
     visitAndBuildViews(iss.f.body)

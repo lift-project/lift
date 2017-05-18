@@ -254,15 +254,15 @@ object OutputView {
                             writeView: View): View = {
     val j = iss.loopWrite
     
-    // Note: at this point, we can set the input view for the second argument
+    // Note: at this point, we can set the input view for the first argument
     //       of the comparison function as an access to the output array of
     //       the pattern.
     //       cf. `InputView.buildViewSort`
-    iss.f.params(0).view = writeView.access(j)
-    // REMOVE ME BEFORE MERGING: is there a better way of doing this?
+    iss.f.params(1).view = writeView.access(j)
+    // TODO: REMOVE ME BEFORE MERGING: is there a better way of doing this?
     InputView(iss.f.body)
     val compareOutputView = View.initialiseNewView(
-      iss.f.body.t, // Int
+      iss.f.body.t,
       getAccessDepth(iss.f.body.accessInf, iss.f.body.mem)
     )
     visitAndBuildViews(iss.f.body, compareOutputView)
@@ -270,7 +270,7 @@ object OutputView {
     // Note2: similarly, the views for the shifting function can only be
     //        specified here.
     iss.shiftFun.params.head.view = writeView.access(j)
-    // REMOVE ME BEFORE MERGING: is there a better way of doing this?
+    // TODO: REMOVE ME BEFORE MERGING: is there a better way of doing this?
     InputView(iss.shiftFun.body)
     visitAndBuildViews(
       iss.shiftFun.body,

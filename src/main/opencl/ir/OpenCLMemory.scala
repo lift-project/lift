@@ -3,7 +3,7 @@ package opencl.ir
 import arithmetic.TypeVar
 import ir._
 import ir.ast._
-import lift.arithmetic.{ArithExpr, NotEvaluableException, Var}
+import lift.arithmetic._
 import opencl.ir.pattern._
 
 /** Represents memory in OpenCL as a raw collection of bytes allocated in an
@@ -324,7 +324,7 @@ object TypedOpenCLMemory {
         case GlobalMemory =>
           TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
         case coll: AddressSpaceCollection =>
-          changeType(coll.findCommonAddressSpace(), tm, loopVar, t)
+          changeType(tm, loopVar, t)
       }
     }
   
