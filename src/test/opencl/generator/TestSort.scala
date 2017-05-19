@@ -54,7 +54,9 @@ class TestSort {
       ArrayType(int, N),
       arr =>
         Join()
-          o MapWrg(toGlobal(InsertionSortSeq(int_compare)))
+          o MapWrg(
+            MapLcl(toGlobal(InsertionSortSeq(int_compare))) o Split(32)
+          )
           o Split(32) $ arr
     )
    
