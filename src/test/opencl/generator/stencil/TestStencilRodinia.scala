@@ -206,7 +206,7 @@ class TestStencilRodinia {
     )
 
     // testing
-    val input = Array.tabulate(512, 512, 8) { (i, j, k) => Random.nextFloat() }
+    val input = Array.tabulate(8, 512, 512) { (i, j, k) => Random.nextFloat() }
     val weights = Array.tabulate(27) { (i) => Random.nextFloat() }
     val (output: Array[Float], runtime) = Execute(64, 4, 1, 512, 512, 1, (true, true))(stencil, input, weights)
     println("Runtime: " + runtime)
@@ -233,7 +233,7 @@ class TestStencilRodinia {
       }
     )
 
-    val input = Array.fill(512)(Array.fill(512)(Array.fill(8)(1.0f)))
+    val input = Array.fill(8)(Array.fill(512)(Array.fill(512)(1.0f)))
     val weights = Array.fill(3)(Array.fill(3)(1.0f))
     val (output: Array[Float], runtime) = Execute(64, 4, 1, 512, 512, 8, (true, true))(stencil, input)
     println("Runtime: " + runtime)
@@ -257,7 +257,7 @@ class TestStencilRodinia {
     )
 
     // testing
-    val input = Array.tabulate(512, 512, 8) { (i, j, k) => Random.nextFloat() }
+    val input = Array.tabulate(8, 512, 512) { (i, j, k) => Random.nextFloat() }
     val (output: Array[Float], runtime) = Execute(64, 4, 1, 512, 512, 1, (true, true))(stencil, input)
     println("Runtime: " + runtime)
     //println(output.mkString(","))

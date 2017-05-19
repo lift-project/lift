@@ -42,8 +42,8 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(LocalMemory, subMemories(0).addressSpace)
     assertEquals(LocalMemory, subMemories(1).addressSpace)
-    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(0).size)
-    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(1).size)
+    assertEquals(Type.getAllocatedSize(arrayType), subMemories(0).size)
+    assertEquals(Type.getAllocatedSize(arrayType), subMemories(1).size)
   }
 
   @Test
@@ -78,8 +78,8 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(GlobalMemory, subMemories(0).addressSpace)
     assertEquals(GlobalMemory, subMemories(1).addressSpace)
-    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(0).size)
-    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(1).size)
+    assertEquals(Type.getAllocatedSize(arrayType), subMemories(0).size)
+    assertEquals(Type.getAllocatedSize(arrayType), subMemories(1).size)
   }
 
   @Test
@@ -114,7 +114,7 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(GlobalMemory, subMemories(0).addressSpace)
     assertEquals(GlobalMemory, subMemories(1).addressSpace)
-    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(0).size)
-    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(1).size)
+    assertEquals(Type.getAllocatedSize(arrayType), subMemories(0).size)
+    assertEquals(Type.getAllocatedSize(arrayType), subMemories(1).size)
   }
 }

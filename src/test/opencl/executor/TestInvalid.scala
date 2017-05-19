@@ -11,6 +11,7 @@ import opencl.generator.IllegalKernel
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assume.assumeFalse
+import org.junit.Assert.assertEquals
 import org.junit._
 
 object TestInvalid {
@@ -421,4 +422,49 @@ class TestInvalid {
     Compile(f)
   }
 
+  // Issue #98, snippet 1
+  @Test
+  def incorrectInference(): Unit = {
+    val f = \(
+      ArrayType(Float, 3),
+      ArrayType(Float, SizeVar("N")),
+      (a, b) => MapGlb(plusOne) $ b
+    )
+  
+    val input1 = Array.fill(3)(util.Random.nextFloat()  )
+    val input2 = Array.fill(12)(util.Random.nextFloat()  )
+  
+    val floats = Execute(1, 1)(f, input1, input2)._1.asInstanceOf[Array[Float]]
+    assertEquals(input2.length, floats.length)
+  }
+  
+  // Issue #98, snippet 2
+  @Test(expected = classOf[IllegalKernelArgument])
+  def inconsistentInference(): Unit = {
+    val sizeVar = SizeVar("N")
+    val f = \(
+      ArrayType(Float, sizeVar),
+      ArrayType(Float, sizeVar),
+      (a, b) => MapGlb(plusOne) $ b
+    )
+    
+    val input1 = Array.fill(4)(util.Random.nextFloat()  )
+    val input2 = Array.fill(12)(util.Random.nextFloat()  )
+    
+    Execute(1, 1)(f, input1, input2)
+  }
+  
+  // Issue #98, snippet 3
+  @Test(expected = classOf[IllegalKernelArgument])
+  def incorrectUsage(): Unit = {
+    val f = \(
+      ArrayType(Float, 6),
+      MapGlb(plusOne) $ _
+    )
+    
+    val input1 = Array.fill(4)(util.Random.nextFloat()  )
+    
+    val (floats: Array[Float], _) = Execute(1, 1)(f, input1)
+    assertEquals(input1.length, floats.length)
+  }
 }
