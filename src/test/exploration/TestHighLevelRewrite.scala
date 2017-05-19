@@ -78,6 +78,21 @@ class TestHighLevelRewrite {
   def getHash(lambda: Lambda): String =
     Utils.Sha256Hash(Utils.dumpLambdaToString(lambda))
 
+  @Test ( expected = classOf[TypeException] )//see Issue #114
+  def rewriteLambdaUsingInt {
+    val div9 = UserFun("div9", "x", "{ return x/9; }", Int, Int)
+    val stencilInt = fun(
+      ArrayType(ArrayType(Int, 6408), 4802),
+      input => {
+        Map(Map( \(neighborhood => Map(div9) o Reduce(addI, 0.0f) o Join() $ neighborhood)
+          //                                                ^ this must be of type Int
+			)) o Slide2D(3, 1) $ input
+    })
+
+    val rewriter = new HighLevelRewrite(4, 2, 2)
+    val rewrittenLambdas = rewriter(stencilInt)
+  }
+
   @Test
   def stencil1DRewrite(): Unit = {
 

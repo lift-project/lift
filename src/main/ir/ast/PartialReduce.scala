@@ -27,7 +27,7 @@ abstract class AbstractPartRed(val f: Lambda,
         f.params(1).t = elemT // array element type
 
         if (initT != elemT)
-          throw TypeException(s"Illegal customising function in\n$this.\n$initT != $elemT")
+          throw TypeException(s"Argument type mismatch in \n$this.\n$initT != $elemT")
 
         TypeChecker.assertTypeIs(f.body, initT, setType) // check the body
 
