@@ -67,6 +67,7 @@ set (SOURCES
 
 
 add_library (executor-jni ${SOURCES})
-target_link_libraries (executor-jni ${OPENCL_LIBRARIES} ${JNI_LIBRARIES} pthread)
+target_link_libraries (executor-jni ${OPENCL_LIBRARIES} ${JAVA_JVM_LIBRARY} pthread)
 
+install(TARGETS executor-jni DESTINATION lib)
 
