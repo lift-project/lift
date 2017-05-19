@@ -172,7 +172,7 @@ class OpenCLPrinter {
       print(s" ${c.cond.toString} ")
       print(c.rhs)
   }
-  
+
   private def print(c: Cast): Unit = {
     print(s"(${c.t})")
     print(c.v)
