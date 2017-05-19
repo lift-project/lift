@@ -26,7 +26,7 @@ case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) wi
         val outerSize = (s - (size - step)) / step
         val outerCapacity = (c - (size - step)) / step
         ArrayTypeWSWC(ArrayTypeWSWC(et, innerSize, innerCapacity), outerSize, outerCapacity)
-      case _ => throw new TypeException(argType, "ArrayType")
+      case _ => throw new TypeException(argType, "ArrayType", this)
     }
   }
 

@@ -3,8 +3,8 @@ val M = SizeVar("M")
 val K = SizeVar("K")
 
 fun(
-  ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K),
-  ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
+  ArrayType(ArrayType(Float, M), K),
+  ArrayType(ArrayType(Float, N), K),
   (A, B) => {
     Map(fun(aRow =>
       Map(fun(bCol =>

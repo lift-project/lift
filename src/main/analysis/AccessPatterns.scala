@@ -3,11 +3,12 @@ package analysis
 import analysis.AccessCounts.SubstitutionMap
 import lift.arithmetic.ArithExpr._
 import lift.arithmetic._
-import ir.Type
+import ir.{ScalarType, TupleType, Type, UndefType}
 import ir.ast._
 import ir.view._
-import opencl.generator.NDRange
+import opencl.generator.{NDRange, OpenCLGenerator}
 import opencl.generator.OpenCLAST.VarRef
+import opencl.ir.OpenCLMemoryCollection
 import opencl.ir.pattern.{MapGlb, MapLcl}
 
 import scala.collection.immutable
@@ -24,8 +25,11 @@ object AccessPatterns {
 }
 
 abstract class AccessPattern
+
 object CoalescedPattern extends AccessPattern
 object UnknownPattern extends AccessPattern
+
+case class AccessPatternCollection(comp: Seq[Option[AccessPattern]]) extends AccessPattern
 
 class AccessPatterns(
   lambda: Lambda,
@@ -36,6 +40,8 @@ class AccessPatterns(
 
   private var readPatterns = immutable.Map[Expr, AccessPattern]()
   private var writePatterns = immutable.Map[Expr, AccessPattern]()
+
+  private val varDecls = OpenCLGenerator.getDifferentMemories(lambda)._3
 
   private var coalescingId: Option[Var] = None
 
@@ -70,9 +76,9 @@ class AccessPatterns(
       Some(UnknownPattern)
   }
 
-  private def getAccessPattern(expr: Expr): Option[AccessPattern] = {
-    val length = Type.getLength(Type.getValueType(expr.view.t))
-    ViewPrinter.emit(Var(), expr.view) match {
+  private def getAccessPattern(view: View): Option[AccessPattern] = {
+    val length = Type.getLength(Type.getValueType(view.t))
+    ViewPrinter.emit(Var(), view) match {
       case v: VarRef => getAccessPattern(v, length)
       case _ => None
     }
@@ -100,13 +106,37 @@ class AccessPatterns(
           case _: UserFun | _: VectorizeUserFun =>
 
             args.foreach(arg => {
-              val accessPattern = getAccessPattern(arg)
 
-              if (accessPattern.isDefined)
-                readPatterns += arg -> accessPattern.get
+              val isMemoryCollection = arg.mem.isInstanceOf[OpenCLMemoryCollection]
+              val isTupleType = arg.t.isInstanceOf[TupleType]
+              val isScalarType = arg.t.isInstanceOf[ScalarType]
+
+              val declaredType = varDecls.getOrElse(arg.mem.variable, UndefType)
+              val declaredAsTupleType =
+                Type.getValueType(declaredType).isInstanceOf[TupleType]
+
+              if (isMemoryCollection && isTupleType) {
+
+                val tt = arg.t.asInstanceOf[TupleType]
+                val patterns = tt.elemsT.indices.map(i =>
+                  getAccessPattern(arg.view.get(i)))
+
+                readPatterns += arg -> AccessPatternCollection(patterns)
+
+              } else if (isScalarType && declaredAsTupleType) {
+
+                readPatterns += arg -> UnknownPattern
+
+              } else {
+
+                val accessPattern = getAccessPattern(arg.view)
+
+                if (accessPattern.isDefined)
+                  readPatterns += arg -> accessPattern.get
+              }
             })
 
-            writePatterns += expr -> getAccessPattern(expr).get
+            writePatterns += expr -> getAccessPattern(expr.outputView).get
 
           case _ =>
         }

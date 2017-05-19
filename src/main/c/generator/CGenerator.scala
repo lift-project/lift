@@ -10,6 +10,7 @@ import c.generator.CAst._
 import opencl.ir._
 import opencl.ir.pattern._
 import opencl.generator._
+
 import scala.collection.immutable
 
 object CGenerator extends Generator {
@@ -159,7 +160,7 @@ class CGenerator extends Generator {
     InferOpenCLAddressSpace(f)
     // Allocate the params and set the corresponding type
     f.params.foreach((p) => {
-      p.mem = OpenCLMemory.allocMemory(OpenCLMemory.getSizeInBytes(p.t), p.addressSpace)
+      p.mem = OpenCLMemory.allocMemory(Type.getAllocatedSize(p.t), p.addressSpace)
     })
 
     RangesAndCounts(f, localSize, globalSize, valueMap)
@@ -498,7 +499,7 @@ class CGenerator extends Generator {
               case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
             })
           case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) =>
-            throw new TypeException(e.t, "Array")
+            throw new TypeException(e.t, "Array", e)
         }
     }
   }
@@ -990,6 +991,9 @@ class CGenerator extends Generator {
                     else // Workaround for values
                       ""
                   CAst.VarRef(mem.variable, suffix = arraySuffix + suffix)
+                  
+                case UndefAddressSpace | AddressSpaceCollection(_) =>
+                  throw new IllegalArgumentException(s"Cannot load data from ${mem.addressSpace}")
               }
           }
         }
@@ -1014,7 +1018,8 @@ class CGenerator extends Generator {
         originalType match {
           case _: ArrayType => arrayAccessNode(v, addressSpace, view)
           case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
-          case NoType | UndefType => throw new TypeException(originalType, "A valid type")
+          case NoType | UndefType =>
+            throw new TypeException(originalType, "A valid type", null)
         }
 
       case PrivateMemory =>
@@ -1022,10 +1027,14 @@ class CGenerator extends Generator {
           case Some(typedMemory) => typedMemory.t match {
             case _: ArrayType => arrayAccessNode(v, addressSpace, view)
             case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
-            case NoType | UndefType => throw new TypeException(typedMemory.t, "A valid type")
+            case NoType | UndefType =>
+              throw new TypeException(typedMemory.t, "A valid type", null)
           }
           case _ => valueAccessNode(v)
         }
+        
+      case UndefAddressSpace | AddressSpaceCollection(_) =>
+        throw new IllegalArgumentException(s"Cannot load data from $addressSpace")
     }
   }
 
@@ -1049,6 +1058,9 @@ class CGenerator extends Generator {
 
       case PrivateMemory =>
         CAst.VarRef(v, suffix = arrayAccessPrivateMem(v, view))
+        
+      case UndefAddressSpace | AddressSpaceCollection(_) =>
+        throw new IllegalArgumentException(s"Cannot load data from $addressSpace")
     }
   }
 
@@ -1087,7 +1099,7 @@ class CGenerator extends Generator {
         }
         index / length
       case ArrayType(_) | NoType | UndefType =>
-        throw new TypeException(valueType, "A valid non array type")
+        throw new TypeException(valueType, "A valid non array type", null)
     }
 
     val real = ArithExpr.substitute(i, replacements).eval
@@ -1125,7 +1137,7 @@ class CGenerator extends Generator {
         }
         index % length
       case ArrayType(_) | NoType | ScalarType(_, _) | TupleType(_) | UndefType =>
-        throw new TypeException(valueType, "VectorType")
+        throw new TypeException(valueType, "VectorType", null)
     }
 
     ArithExpr.substitute(i, replacements).eval

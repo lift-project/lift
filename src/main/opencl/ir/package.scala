@@ -12,7 +12,7 @@ package object ir {
     UserFun(name, "x", "return x;", ty, ty)
   
   def equality(ty: Type, name: String = "equality"): UserFun =
-    UserFun(name, Array("x", "y"), "return x == y;", Seq(ty, ty), Int)
+    UserFun(name, Array("x", "y"), "return x == y;", Seq(ty, ty), Bool)
   
   def first(leftTy: Type, rightTy: Type, name: String="fst"): UserFun =
     UserFun(name, Array("x", "y"), "return x;", Seq(leftTy, rightTy), leftTy)
@@ -102,10 +102,10 @@ package object ir {
   // Logical
   
   val or: UserFun =
-    UserFun("or", Array("x", "y"), "return x | y;", Seq(Int, Int), Int)
+    UserFun("or", Array("x", "y"), "return x | y;", Seq(Bool, Bool), Bool)
   
   val not: UserFun =
-    UserFun("not", "x", "return !x;", Int, Int)
+    UserFun("not", "x", "return !x;", Bool, Bool)
 
   implicit def IntToValue(i: Int): Value = Value(i.toString, opencl.ir.Int)
 

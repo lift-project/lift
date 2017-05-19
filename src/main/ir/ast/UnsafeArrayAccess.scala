@@ -22,7 +22,7 @@ case class UnsafeArrayAccess(index: Expr) extends Pattern(arity = 1)
 
 	      case ArrayType(t) => ArrayTypeWSWC(t, Cst(1))
 
-	      case _ => throw new TypeException(argType, "ArrayType")
+	      case _ => throw new TypeException(argType, "ArrayType", this)
 	    }
 	}
   override def eval(valueMap: ValueMap, args: Any*): Any = {

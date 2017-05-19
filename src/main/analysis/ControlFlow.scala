@@ -25,6 +25,7 @@ class ControlFlow(
 
   private var ifStatements: ArithExpr = Cst(0)
   private var forStatements: ArithExpr = Cst(0)
+  private var forBranches : ArithExpr = Cst(0)
   private var currentNesting: ArithExpr = Cst(1)
 
   ShouldUnroll(lambda)
@@ -37,42 +38,53 @@ class ControlFlow(
   def getForStatements(exact: Boolean = false) =
     getExact(forStatements, exact)
 
+  def getForBranches(exact: Boolean = false) =
+    getExact(forBranches, exact)
+
   private def count(
     lambda: Lambda,
     loopVar: Var,
-    arithExpr: ArithExpr,
+    avgIterations: ArithExpr,
     unrolled: Boolean): Unit = {
 
     val range = loopVar.range.asInstanceOf[RangeAdd]
     // TODO: Information needed elsewhere. See OpenCLGenerator
     // try to see if we really need a loop
-    loopVar.range.numVals match {
+    range.numVals match {
       case Cst(0) => return
       case Cst(1) =>
 
+      // TODO: See TestInject.injectExactlyOneIterationVariable
+      // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
+      case _ if range.min.min == Cst(0) &&
+        ArithExpr.substituteDiv(range.stop) == ArithExpr.substituteDiv(range.step) =>
+
       // TODO: See TestOclFunction.numValues and issue #62
-      case numVals if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
+      case _ if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
         ifStatements += currentNesting
       case _ =>
-        (loopVar.range.numVals.min, loopVar.range.numVals.max) match {
+        (range.numVals.min, range.numVals.max) match {
+
           case (Cst(0),Cst(1)) =>
             // one or less iteration
             ifStatements += currentNesting
 
           case _  if !unrolled =>
+
+            forBranches += currentNesting * avgIterations
             forStatements += currentNesting
           case _ =>
         }
     }
 
-    currentNesting *= arithExpr
+    currentNesting *= avgIterations
     count(lambda.body)
-    currentNesting /^= arithExpr
+    currentNesting /^= avgIterations
   }
 
   private def count(expr: Expr): Unit = {
     expr match {
-      case call@FunCall(f, args@_*) =>
+      case FunCall(f, args@_*) =>
 
         args.foreach(count)
 

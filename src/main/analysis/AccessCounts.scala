@@ -1,14 +1,14 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-import lift.arithmetic._
 import ir._
 import ir.ast._
+import lift.arithmetic._
 import opencl.generator.NDRange
-import ir.view.ViewPrinter
-import opencl.generator.OpenCLAST.VarRef
 import opencl.ir._
 import opencl.ir.pattern._
+
+import scala.collection.mutable
 
 object AccessCounts {
 
@@ -139,16 +139,47 @@ class AccessCounts(
     getLoads(addressSpace, accessPattern, exact) +
       getStores(addressSpace, accessPattern, exact)
 
+  def scalarLoads(addressSpace: OpenCLAddressSpace,
+    accessPattern: AccessPattern, exact: Boolean = false) = {
+
+    val loads = loadsToAddressSpacesWithPatternAndWidth.
+      foldLeft(Cst(0): ArithExpr)((acc, loadAndCount) => {
+        val (load, count) = loadAndCount
+        if (load._3 == Cst(1) && load._2 == accessPattern && load._1 == addressSpace)
+          acc + count
+        else
+          acc
+      })
+
+    getExact(loads, exact)
+  }
+
+  def scalarStores(addressSpace: OpenCLAddressSpace,
+    accessPattern: AccessPattern, exact: Boolean = false) = {
+
+    val stores = storesToAddressSpacesWithPatternAndWidth.
+      foldLeft(Cst(0): ArithExpr)((acc, storeAndCount) => {
+        val (store, count) = storeAndCount
+        if (store._3 == Cst(1) && store._2 == accessPattern && store._1 == addressSpace)
+          acc + count
+        else
+          acc
+      })
+
+    getExact(stores, exact)
+  }
+
   def vectorLoads(addressSpace: OpenCLAddressSpace,
     accessPattern: AccessPattern, exact: Boolean = false) = {
 
     val loads = loadsToAddressSpacesWithPatternAndWidth.
-      foldLeft(Cst(0): ArithExpr)((acc, bla) =>
-        if (bla._1._3 != Cst(1) && bla._1._2 == accessPattern && bla._1._1 == addressSpace)
-          acc + bla._2
+      foldLeft(Cst(0): ArithExpr)((acc, loadAndCount) => {
+        val (load, count) = loadAndCount
+        if (load._3 != Cst(1) && load._2 == accessPattern && load._1 == addressSpace)
+          acc + count
         else
           acc
-      )
+      })
 
     getExact(loads, exact)
   }
@@ -157,12 +188,13 @@ class AccessCounts(
     accessPattern: AccessPattern, exact: Boolean = false) = {
 
     val stores = storesToAddressSpacesWithPatternAndWidth.
-      foldLeft(Cst(0): ArithExpr)((acc, bla) =>
-        if (bla._1._3 != Cst(1) && bla._1._2 == accessPattern && bla._1._1 == addressSpace)
-          acc + bla._2
+      foldLeft(Cst(0): ArithExpr)((acc, storeAndCount) => {
+        val (store, count) = storeAndCount
+        if (store._3 != Cst(1) && store._2 == accessPattern && store._1 == addressSpace)
+          acc + count
         else
           acc
-      )
+      })
 
     getExact(stores, exact)
   }
@@ -183,22 +215,42 @@ class AccessCounts(
     patternMap: collection.Map[Expr, AccessPattern],
     map: collection.mutable.Map[AccessKey, ArithExpr]): Unit = {
 
-    ViewPrinter.emit(Var(), expr.view) match {
-      case VarRef(_, _, _) =>
-        val memory = expr.mem
+    if (patternMap.isDefinedAt(expr)) {
 
-        val vectorWidth = Type.getValueType(expr.t) match {
+      val pattern = patternMap(expr)
+      val memory = expr.mem
+      val t = expr.t
+
+      updateEntry(map, memory, pattern, t)
+    }
+  }
+
+  private def updateEntry(
+    map: mutable.Map[AccessKey, ArithExpr],
+    memory: Memory,
+    pattern: AccessPattern,
+    t: Type): Unit =
+
+    (pattern, t, memory) match {
+      case (AccessPatternCollection(patterns), TupleType(tt@_*), OpenCLMemoryCollection(mems, _)) =>
+
+        (patterns, tt, mems).
+          zipped.
+          filter((maybePattern, _, _) => maybePattern.isDefined).
+          zipped.
+          foreach((maybePattern, t, mem) => updateEntry(map, mem, maybePattern.get, t))
+
+      case _ =>
+
+        val vectorWidth = Type.getValueType(t) match {
           case VectorType(_, n) => n
           case _ => Cst(1)
         }
 
-        val pattern = patternMap(expr)
         val key = (memory, pattern, vectorWidth)
         val loadsSoFar = map(key)
         map(key) = loadsSoFar + currentNesting
-      case _ =>
     }
-  }
 
   private def count(expr: Expr): Unit = {
 
@@ -230,7 +282,7 @@ class AccessCounts(
 
           case l: Lambda => count(l.body)
           case fp: FPattern => count(fp.f.body)
-          case _: UserFun =>
+          case _: UserFun | _: VectorizeUserFun =>
 
             args.foreach(updateEntry(_, accessPatterns.getReadPatterns, loads))
 

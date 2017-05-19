@@ -103,7 +103,7 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
 
         Type.substitute(closedFormInOutType._2, initialTvValMap.toMap)
 
-      case _ => throw new TypeException(argType, "ArrayType")
+      case _ => throw new TypeException(argType, "ArrayType", this)
     }
   }
 
@@ -167,12 +167,15 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
               }
 
               // if nothing has matched yet throw
-              throw TypeException("Cannot infer closed form for" +
-              "iterate return type (only support x*a). inT = " + inT +
-              " ouT = " + ouT)
+              throw TypeException(
+                "Cannot infer closed form for iterate return type " +
+                s"(only support x*a). inT = $inT, ouT = $ouT"
+              )
             case _ =>
-              throw TypeException("Cannot infer closed form for " +
-              "iterate return type. inT = " + inT + " ouT = " + ouT)
+              throw TypeException(
+                "Cannot infer closed form for iterate return type " +
+                s"(only support x*a). inT = $inT, ouT = $ouT"
+              )
           }
 
       case (_ : ArrayType, _ : ArrayType) => throw new NotImplementedError()
@@ -187,8 +190,10 @@ case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
         if (inT == ouT)
         // the input type of the function inside the iterate is independent from the number of iterations
           (Type.substitute(inT, initialTvValMap.toMap), Type.substitute(ouT,initialTvValMap.toMap))
-        else throw TypeException("Cannot infer closed form for iterate " +
-          "return type. inT = "+inT+" ouT = "+ouT)
+        else throw TypeException(
+          "Cannot infer closed form for iterate return type " +
+          s"(only support x*a). inT = $inT, ouT = $ouT"
+        )
     }
   }
 }

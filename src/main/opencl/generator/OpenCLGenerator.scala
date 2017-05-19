@@ -165,7 +165,7 @@ class OpenCLGenerator extends Generator {
 
     // Allocate the params and set the corresponding type
     f.params.foreach((p) => {
-      p.mem = OpenCLMemory.allocMemory(OpenCLMemory.getSizeInBytes(p.t), p.addressSpace)
+      p.mem = OpenCLMemory.allocMemory(Type.getAllocatedSize(p.t), p.addressSpace)
     })
 
     RangesAndCounts(f, localSize, globalSize, valueMap)
@@ -753,7 +753,7 @@ class OpenCLGenerator extends Generator {
     val compFuncResVar = Var("cmp_res_var")
     varDecls = varDecls.updated(compFuncResVar, Type.devectorize(s.f.body.t))
     // create a memory object for it
-    val compFuncResMem = OpenCLMemory(compFuncResVar, OpenCLMemory.getSizeInBytes(s.f.body.t), PrivateMemory)
+    val compFuncResMem = OpenCLMemory(compFuncResVar, Type.getAllocatedSize(s.f.body.t), PrivateMemory)
     // set the memory of the call to the mem
     s.f.body.mem = compFuncResMem
     // declare it, with the same type as the comparison result
@@ -827,7 +827,7 @@ class OpenCLGenerator extends Generator {
     val compFuncResVar = Var("cmp_res_var")
     varDecls = varDecls.updated(compFuncResVar, Type.devectorize(s.f.body.t))
     // create a memory object for it
-    val compFuncResMem = OpenCLMemory(compFuncResVar, OpenCLMemory.getSizeInBytes(s.f.body.t), PrivateMemory)
+    val compFuncResMem = OpenCLMemory(compFuncResVar, Type.getAllocatedSize(s.f.body.t), PrivateMemory)
     // set the memory of the call to the mem
     s.f.body.mem = compFuncResMem
     // declare it, with the same type as the comparison result
@@ -1304,18 +1304,29 @@ class OpenCLGenerator extends Generator {
                                                  indexVar: Var,
                                                  generateBody: (Block) => Unit): Unit = {
     val range = getRangeAdd(indexVar)
-
-    val init =
-      VarDecl(indexVar, opencl.ir.Int, ArithExpression(range.start), PrivateMemory)
-    val cond =
-      CondExpression(ArithExpression(indexVar), ArithExpression(range.stop),
-        CondExpression.Operator.<)
-    val increment =
-      AssignmentExpression(
-        ArithExpression(indexVar), ArithExpression(indexVar + range.step))
-
+    val ty = array.t.asInstanceOf[ArrayType]
+  
     val innerBlock  = OpenCLAST.Block(Vector.empty)
-    (block: Block) += OpenCLAST.ForLoop(init, ExpressionStatement(cond), increment, innerBlock)
+  
+    val start = ArithExpression(range.start)
+    // TODO: should it be in RangesAndCount instead?
+    val stop = ty match {
+      case _: Size => ArithExpression(range.stop)
+      case _ =>
+        ViewPrinter.emit(array.mem.variable, array.view.size())
+    }
+    val init = VarDecl(indexVar, Int, start, PrivateMemory)
+    
+    val increment = AssignmentExpression(
+      ArithExpression(indexVar), ArithExpression(indexVar + range.step)
+    )
+    
+    val cond = CondExpression(
+      ArithExpression(indexVar), stop, CondExpression.Operator.<
+    )
+    
+    (block: Block) += OpenCLAST.ForLoop(init, cond, increment, innerBlock)
+    
     generateBody(innerBlock)
   }
 
@@ -1576,6 +1587,9 @@ class OpenCLGenerator extends Generator {
                     else // Workaround for values
                       ""
                   OpenCLAST.VarRef(mem.variable, suffix = arraySuffix + suffix)
+
+                case UndefAddressSpace | AddressSpaceCollection(_) =>
+                  throw new IllegalArgumentException(s"Cannot load data from ${mem.addressSpace}")
               }
           }
         }
@@ -1600,7 +1614,8 @@ class OpenCLGenerator extends Generator {
         originalType match {
           case _: ArrayType => arrayAccessNode(v, addressSpace, view)
           case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
-          case NoType | UndefType => throw new TypeException(originalType, "A valid type")
+          case NoType | UndefType =>
+            throw new TypeException(originalType, "A valid type", null)
         }
 
       case PrivateMemory =>
@@ -1608,10 +1623,13 @@ class OpenCLGenerator extends Generator {
           case Some(typedMemory) => typedMemory.t match {
             case _: ArrayType => arrayAccessNode(v, addressSpace, view)
             case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
-            case NoType | UndefType => throw new TypeException(typedMemory.t, "A valid type")
+            case NoType | UndefType =>
+              throw new TypeException(typedMemory.t, "A valid type", null)
           }
           case _ => valueAccessNode(v)
         }
+      case UndefAddressSpace | AddressSpaceCollection(_) =>
+        throw new IllegalArgumentException(s"Cannot store data to $addressSpace")
     }
   }
 
@@ -1636,6 +1654,9 @@ class OpenCLGenerator extends Generator {
             OpenCLAST.VarRef(v, suffix = arrayAccessPrivateMem(v, view))
           case e: Expression => e
         }
+      
+      case UndefAddressSpace | AddressSpaceCollection(_) =>
+        throw new IllegalArgumentException(s"Cannot load data from $addressSpace")
     }
   }
 
@@ -1674,7 +1695,7 @@ class OpenCLGenerator extends Generator {
         }
         index / length
       case ArrayType(_) | NoType | UndefType =>
-        throw new TypeException(valueType, "A valid non array type")
+        throw new TypeException(valueType, "A valid non array type", null)
     }
 
     val real = try {
@@ -1721,7 +1742,7 @@ class OpenCLGenerator extends Generator {
         }
         index % length
       case ArrayType(_) | NoType | ScalarType(_, _) | TupleType(_) | UndefType =>
-        throw new TypeException(valueType, "VectorType")
+        throw new TypeException(valueType, "VectorType", null)
     }
 
     ArithExpr.substitute(i, replacements).eval

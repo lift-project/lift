@@ -20,7 +20,7 @@ case class Head() extends Pattern(arity = 1) with isGenerable {
     argType match {
       case ArrayType(t) => ArrayTypeWSWC(t, 1)
 
-      case _ => throw new TypeException(argType, "ArrayType")
+      case _ => throw new TypeException(argType, "ArrayType", this)
     }
   }
 

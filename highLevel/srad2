@@ -12,12 +12,12 @@ def calculateImageUpdate = UserFun("calculateImageUpdate", Array("img", "div"),
     "{ return img + 0.125 * div; }", Seq(Float, Float), Float)
 
 fun(
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
+    ArrayType(ArrayType(Float, m), n),
+    ArrayType(ArrayType(Float, m), n),
+    ArrayType(ArrayType(Float, m), n),
+    ArrayType(ArrayType(Float, m), n),
+    ArrayType(ArrayType(Float, m), n),
+    ArrayType(ArrayType(Float, m), n),
     (image, coeff, DN, DS, DE, DW) => {
         Map(Map(fun((m) => {
             val imageNBH = Get(m, 0)

@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import ir.{Type, UndefType}
+import ir.{ArrayType, Type, TypeException, UndefType}
 
 /**
  * Gather pattern. Performs a reorder on the next read.
@@ -18,7 +18,13 @@ import ir.{Type, UndefType}
 case class Gather(idx: IndexFunction) extends Pattern(arity = 1)
                                       with isGenerable {
 
-  override def checkType(argType: Type, setType: Boolean): Type = argType
+  override def checkType(argType: Type, setType: Boolean): Type = {
+    // Gather expects an array
+    argType match {
+      case ArrayType(_) => argType
+      case _ => throw new TypeException(argType, "ArrayType(_)", this)
+    }
+  }
 
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)

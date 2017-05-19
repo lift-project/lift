@@ -87,9 +87,10 @@ object ParameterRewrite {
 
       parser.parse(args)
 
-      if(exploreNDRange.value.isEmpty && sampleNDRange.value.isDefined)
+      if (exploreNDRange.value.isEmpty && sampleNDRange.value.isDefined)
         throw new RuntimeException("'sample' is defined without enabling 'explore'")
 
+      logger.info(s"Arguments: ${args.mkString(" ")}")
       val inputArgument = input.value.get
 
       topFolder = Paths.get(inputArgument).toString
@@ -155,15 +156,16 @@ object ParameterRewrite {
             if (Files.exists(Paths.get(loweredIndex))
               && substitutionCount < 800000) {
 
-              val low_level_expr_list = Source.fromFile(loweredIndex).getLines().toList
+              val lowLevelExprList = Source.fromFile(loweredIndex).getLines().toList
 
-              val low_level_counter = new AtomicInteger()
-              val lowLevelCount = low_level_expr_list.size
-              val propagation_counter = new AtomicInteger()
+              val lowLevelCounter = new AtomicInteger()
+              val lowLevelCount = lowLevelExprList.size
+              val propagationCounter = new AtomicInteger()
+              val kernelCounter = new AtomicInteger()
               val propagationCount = lowLevelCount * substitutionCount
               println(s"Found $lowLevelCount low level expressions")
 
-              val parList = if (sequential.value.isDefined) low_level_expr_list else low_level_expr_list.par
+              val parList = if (sequential.value.isDefined) lowLevelExprList else lowLevelExprList.par
 
               parList.foreach(low_level_filename => {
 
@@ -174,13 +176,11 @@ object ParameterRewrite {
                   val low_level_str = readFromFile(fullLowLevelFilename)
                   val low_level_factory = Eval.getMethod(low_level_str)
 
-                  println(s"Low-level expression ${low_level_counter.incrementAndGet()} / $lowLevelCount")
-                  println("Propagating parameters...")
-
+                  lowLevelCounter.incrementAndGet()
                   val potential_expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] =
                     all_substitution_tables.flatMap(st => {
 
-                      println(s"\rPropagation ${propagation_counter.incrementAndGet()} / $propagationCount")
+                      print(s"\rLow-Level expression: ${lowLevelCounter.get()}/$lowLevelCount | Propagation ${propagationCounter.incrementAndGet()}/$propagationCount")
                       val params = st.toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
                       try {
                         val expr = low_level_factory(sizesForFilter ++ params)
@@ -227,7 +227,7 @@ object ParameterRewrite {
                     }
                   }).flatten
 
-                  println(s"Generating ${potential_expressions.size} kernels")
+                  kernelCounter.addAndGet(potential_expressions.size)
 
                   val hashes = SaveOpenCL(topFolder, low_level_hash,
                     high_level_hash, settings, potential_expressions)
@@ -241,6 +241,7 @@ object ParameterRewrite {
                     logger.warn(t.toString)
                 }
               })
+              println(s"\nGenerated $kernelCounter kernels")
             }
           } catch {
             case t: Throwable =>

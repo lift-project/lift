@@ -2,8 +2,8 @@ val M = SizeVar("M")
 val N = SizeVar("N")
 
 fun(
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
-    ArrayTypeWSWC(Float, Cst(3)),
+    ArrayType(ArrayType(Float, M), N),
+    ArrayType(Float, Cst(3)),
     (input, weights) => {
         Map(Map( \(neighbourhood =>
 			Reduce(add, 0.0f) o Map( \(tuple =>

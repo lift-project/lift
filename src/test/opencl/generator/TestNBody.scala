@@ -86,26 +86,18 @@ object TestNBody {
 
   val gold: Array[Float] = nBodyScala(deltaT, espSqr, input)
 
-  val pos = Array.ofDim[Float](inputSize*4)
-  val vel = Array.ofDim[Float](inputSize*4)
+  val pos = Array.ofDim[Float](inputSize, 4)
+  val vel = Array.ofDim[Float](inputSize, 4)
 
   for (i <- 0 until inputSize) {
-    pos(4*i) = x(i)
-    pos(4*i+1) = y(i)
-    pos(4*i+2) = z(i)
-    pos(4*i+3) = mass(i)
-
-    vel(4*i) = velX(i)
-    vel(4*i+1) = velY(i)
-    vel(4*i+2) = velZ(i)
-    vel(4*i+3) = mass(i)
+    pos(i) = Array(x(i), y(i), z(i), mass(i))
+    vel(i) = Array(velX(i), velY(i), velZ(i), mass(i))
   }
 
   val N = SizeVar("N")
 }
 
 class TestNBody {
-
   @Test
   def nBodyAMD(): Unit = {
 
