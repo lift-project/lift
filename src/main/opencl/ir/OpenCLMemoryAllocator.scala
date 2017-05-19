@@ -1,27 +1,79 @@
 package opencl.ir
 
-import lift.arithmetic.{ArithExpr, Cst}
+/**
+ * About memory allocation
+ * The memory allocation process is decomposed in two steps:
+ *
+ * 1. The `OpenCLMemoryAllocator` class computes an arithmetic expression
+ *    representing the amount of space (in bytes) we need two allocate for each
+ *    input, output and temporary result depending on its **type**.
+ * 2. The `Executor` tries to infer a value for each variable appearing in
+ *    these sizes given the value of the inputs of a kernel, replace all theses
+ *    variables by their actual value and actually allocate OpenCL buffers.
+ *    (For example if an input array has type `ArrayType(Int, N)` and the
+ *    actual input given to the executor is an array of size 128, the
+ *    `Executor` will infer that N = 128.)
+ *
+ *
+ * This class implements the first point:
+ *
+ * The arithmetic expression computed for allocating memory only depends on the
+ * type of the lift expression and is derived from the capacity of the array to
+ * be allocated. We can only compute a meaningfull arithmetic expression
+ * **when the capacity is part of the array's type**. If the type of the
+ * expression for allocation contains an array for which the capacity is not
+ * part of the type, we cannot produce an expression for its size and the
+ * OpenCLMemoryAllocator returns the `?` special value.
+ *
+ * At the moment, arrays are the only structure for which we may not know how
+ * much space to allocated judging only from the type. Therefore, the only
+ * scenario in which the memory allocator returns `?` is when there is an
+ * `ArrayType` without all capacity information available in the type.
+ *
+ * In general, the special `?` value means: "Dynamic memory allocation is
+ * required". But:
+ *
+ * 1. OpenCL does not support dynamic allocation. We want to emulate this in
+ *    the future but this is **not implemented** yet.
+ * 2. There is a special case where we still can derive the allocation size in
+ *    the executor: In a case, where an input of the kernel has not been
+ *    allocated memory by the OpenCLMemoryAllocator, the `Executor` will look
+ *    at both the type **and** the actual value of the input to infer the
+ *    allocation size. Since the `Executor` can investigate the inputs of the
+ *    kernel it can use the lengths of the arrays for which the capacity is not
+ *    part of the type as their capacity and use them where the memory
+ *    allocator was stuck. This special memory allocation is performed by the
+ *    `allocArgumentWithoutFixedAllocatedSize` method in the executor.
+ */
+
+import arithmetic.TypeVar
+import lift.arithmetic.{?, ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.OpenCLMemory._
 import opencl.ir.pattern._
 
 object OpenCLMemoryAllocator {
-
+  /**
+    * Allocate memory for both the body and the parameters of a lambda
+    * expression
+    *
+    * @param f the lambda expression
+    * @return the OpenCLMemory used as output by f
+    */
   def apply(f: Lambda): OpenCLMemory = {
     f.params.foreach((p) =>
-      p.mem = OpenCLMemory.allocMemory(OpenCLMemory.getSizeInBytes(p.t), p.addressSpace)
+      p.mem = OpenCLMemory.allocMemory(Type.getAllocatedSize(p.t), p.addressSpace)
     )
 
     alloc(f.body)
   }
 
-  /** Allocate OpenCLMemory objects for a given Fun f
+  /** Allocate OpenCLMemory objects for a given expression
     *
     * @param expr   The expression for which memory should be allocated
-    * @param numGlb Number of ...
-    * @param numLcl Number of ..
-    * @return The OpenCLMemory used as output by f
+    * @param numGlb Number of ... // FIXME
+    * @param numLcl Number of ... // FIXME
+    * @return The OpenCLMemory used by expr
     */
   def alloc(expr: Expr,
     numGlb: ArithExpr = 1,
@@ -50,7 +102,7 @@ object OpenCLMemoryAllocator {
       assert(oclMem.addressSpace == PrivateMemory)
       oclMem
     } else {
-      OpenCLMemory.allocPrivateMemory(getSizeInBytes(v.t))
+      OpenCLMemory.allocPrivateMemory(Type.getAllocatedSize(v.t))
     }
   }
 
@@ -141,7 +193,7 @@ object OpenCLMemoryAllocator {
     if (call.addressSpace == UndefAddressSpace)
       throw new RuntimeException("No address space at " + call)
 
-    val maxSizeInBytes = getSizeInBytes(outT)
+    val maxSizeInBytes = Type.getAllocatedSize(outT)
     // size in bytes necessary to hold the result of f in the different
     // memory spaces
     val maxGlbOutSize = maxSizeInBytes * numGlb
@@ -169,8 +221,7 @@ object OpenCLMemoryAllocator {
     inMem: OpenCLMemory): OpenCLMemory = {
     am.f.params(0).mem = inMem
 
-    val len = Type.getMaxLength(outT)
-    alloc(am.f.body, numGlb * len, numLcl, numPvt)
+    alloc(am.f.body, sizeOfArray(numGlb, outT), numLcl, numPvt)
   }
 
   private def allocMapAtomWrg(am: AbstractMap,
@@ -184,8 +235,7 @@ object OpenCLMemoryAllocator {
     am.asInstanceOf[MapAtomWrg].globalTaskIndex =
       OpenCLMemory.allocGlobalMemory(Type.getMaxAllocatedSize(Int))
 
-    val len = Type.getMaxLength(outT)
-    alloc(am.f.body, numGlb * len, numLcl, numPvt)
+    alloc(am.f.body, sizeOfArray(numGlb, outT), numLcl, numPvt)
   }
 
   private def allocMapSeqLcl(am: AbstractMap,
@@ -196,16 +246,17 @@ object OpenCLMemoryAllocator {
     inMem: OpenCLMemory): OpenCLMemory = {
     am.f.params(0).mem = inMem
 
-    val len = Type.getMaxLength(outT)
-
     val privateMultiplier: ArithExpr =
       if (am.f.body.addressSpace.containsAddressSpace(PrivateMemory) ||
           inMem.addressSpace.containsAddressSpace(PrivateMemory))
         am.iterationCount
       else
         1
-
-    alloc(am.f.body, numGlb * len, numLcl * len, numPvt * privateMultiplier)
+  
+    alloc(am.f.body,
+          sizeOfArray(numGlb, outT),
+          sizeOfArray(numLcl, outT),
+          numPvt * privateMultiplier)
   }
   
   private def allocInsertionSort(iss: InsertionSortSeq,
@@ -282,7 +333,6 @@ object OpenCLMemoryAllocator {
                                 inMem: OpenCLMemory): OpenCLMemory = {
 
     sp.f.params(0).mem = OpenCLMemory(sp.windowVar, Type.getAllocatedSize(sp.f.params(0).t) * sp.size , PrivateMemory)
-    val len = Type.getMaxLength(outT)
 
     val privateMultiplier: ArithExpr =
       if (sp.f.body.addressSpace.containsAddressSpace(PrivateMemory) ||
@@ -290,7 +340,11 @@ object OpenCLMemoryAllocator {
         sp.iterationCount
       else
         1
-    alloc(sp.f.body, numGlb * len, numLcl * len, numPvt * privateMultiplier)
+    
+    alloc(sp.f.body,
+          sizeOfArray(numGlb, outT),
+          sizeOfArray(numLcl, outT),
+          numPvt * privateMultiplier)
   }
 
 
@@ -308,7 +362,7 @@ object OpenCLMemoryAllocator {
         // Allocate memory for the comparison function
         alloc(s.f.body, numGlb, numLcl, numPvt)
 
-        val size = getSizeInBytes(call.t)
+        val size = Type.getAllocatedSize(call.t)
         // TODO: Do this the way the reduce does it - it makes a lot more sense!?
         // HOW IT'S ACTUALLY DONE: manually allocate that memory,
         // storing it in the correct address space
@@ -328,7 +382,7 @@ object OpenCLMemoryAllocator {
     alloc(ua.index, numGlb, numLcl, numPvt)
 
     // allocate memory itself
-    val outputSize = getSizeInBytes(call.t)
+    val outputSize = Type.getAllocatedSize(call.t)
     // manually allocate that much memory, storing it in the correct address space
     if (call.addressSpace != UndefAddressSpace) {
      // use given address space
@@ -357,8 +411,8 @@ object OpenCLMemoryAllocator {
       case _ =>
         // Get sizes in bytes necessary to hold the input and output of the
         // function inside the iterate
-        val inSize = getSizeInBytes(call.argsType)
-        val outSize = getSizeInBytes(call.t)
+        val inSize = Type.getAllocatedSize(call.argsType)
+        val outSize = Type.getAllocatedSize(call.t)
 
         // Get the max from those two
         val largestSize = ArithExpr.max(inSize, outSize)
@@ -412,5 +466,29 @@ object OpenCLMemoryAllocator {
         (params zip coll.subMemories).foreach({case (p, m) => p.mem = m})
     }
   }
-
+  
+  /**
+   * Helper function for computing the size to allocate for an array given its
+   * type and the size of its elements
+   *
+   * @param innerSize the size of the elements of the array
+   * @param ty the type of the array
+   * @return the size to allocate. Might be `?`
+   */
+  private def sizeOfArray(innerSize: ArithExpr, ty: Type): ArithExpr = {
+    ty match {
+      case at: ArrayType =>
+        val hSize = at.getHeaderSize
+        at match {
+          case c: Capacity =>
+            val map = TypeVar.getTypeVars(c.capacity).map(tv => (tv, tv.range.max)).toMap
+            hSize + innerSize * ArithExpr.substitute(c.capacity, map.toMap)
+          case _ =>
+            // Unknown capacity. We can't know how much memory to allocate…
+            // See the comments at the top of this file for further information.
+            ?
+        }
+      case _ => throw new IllegalArgumentException("sizeOfArray expects an array type")
+    }
+  }
 }

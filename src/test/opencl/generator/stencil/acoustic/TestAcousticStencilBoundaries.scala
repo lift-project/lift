@@ -53,19 +53,17 @@ object BoundaryUtilities
   def createMaskDataAsym2D(sizeX: Int, sizeY: Int) =
   {
     val initMat = Array.tabulate(sizeX,sizeY){ (i,j) => (i+j+1).toFloat }
-    val maskArray = createMask(initMat,sizeX,sizeY,0).map(i => i.map(j => j.toString.toArray))
     val mask = createMask(initMat,sizeX,sizeY,0).map(i => i.map(j => j.toString.toArray))
     mask.map(i => i.map(j => j.map(k => k.toInt-parseIntAsCharAsInt(0))))
   }
 
-  def createMaskDataAsym3D(sizeX: Int, sizeY: Int, sizeZ: Int) = {
+  def createMaskDataAsym3D(sizeX: Int, sizeY: Int, sizeZ: Int): Array[Array[Array[Array[Int]]]] = {
 
     val pad2D = createMaskDataAsym2D(sizeX, sizeY)
-    val one2D = Array(Array.fill(sizeY,sizeX)(Array(1)))
-    var addArr = Array(pad2D)
+    val one2D = Array.fill(sizeY, sizeX)(Array(1))
+    val addArr = Array.fill(sizeZ-2)(pad2D)
 
-    for(i <- 1 to sizeZ-3) addArr = addArr ++ Array(pad2D)
-    one2D ++ addArr ++ one2D
+    one2D +: addArr :+ one2D
   }
 
   def createMaskDataAsym3DNoArray(sizeX: Int, sizeY: Int, sizeZ: Int) = {
@@ -213,10 +211,10 @@ class TestAcousticStencilBoundaries {
 
     val constantOriginal = 2.0f
     val constantBorder = 5.0f
-
+    
     val lambdaNeigh = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr(0).length), stencilarr.length),
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, 1), localDimY), localDimX),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, 1), localDimX), localDimY),
       ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
       (mat1, mask1, weights) => {
         MapGlb((fun((m) => {
@@ -382,7 +380,7 @@ class TestAcousticStencilBoundaries {
     val lambdaNeigh = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr2D(0).length), stencilarr2D.length),
       ArrayTypeWSWC(ArrayTypeWSWC(Float, stencilarr2D(0).length), stencilarr2D.length),
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, 1), localDimY), localDimX),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, 1), localDimX), localDimY),
       ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights(0).length), StencilUtilities.weights.length),
       ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle(0).length), StencilUtilities.weightsMiddle.length),
       (mat1, mat2, mask1, weights, weightsMiddle) => {

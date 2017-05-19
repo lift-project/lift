@@ -313,7 +313,7 @@ class TestStencil {
     )
 
     // testing
-    val input = Array.tabulate(512, 512, 64) { (i, j, k) => Random.nextFloat() }
+    val input = Array.tabulate(64, 512, 512) { (i, j, k) => Random.nextFloat() }
     val weights = Array.tabulate(27) { (i) => Random.nextFloat() }
     val (output: Array[Float], runtime) = Execute(32, 4, 1, 256, 512, 1, (true, true))(stencil, input, weights)
     println("Runtime: " + runtime)

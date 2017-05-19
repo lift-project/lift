@@ -6,6 +6,10 @@ import ir.ast._
 import lift.arithmetic._
 import opencl.ir.pattern._
 
+
+private class MemoryAllocationException(msg: String)
+  extends IllegalArgumentException(msg)
+
 /** Represents memory in OpenCL as a raw collection of bytes allocated in an
   * OpenCL address space.
   *
@@ -14,14 +18,14 @@ import opencl.ir.pattern._
   * @param size The size of the memory as numbers bytes
   * @param addressSpace The address space where the memory has been allocated
   */
-class OpenCLMemory(var variable: Var,
+sealed class OpenCLMemory(var variable: Var,
                    val size: ArithExpr,
                    val addressSpace: OpenCLAddressSpace) extends Memory {
 
   // size cannot be 0 unless it is the null memory
   try {
     if (size.eval == 0)
-      throw new IllegalArgumentException("Cannot have a memory of 0 bytes!")
+      throw new MemoryAllocationException("Cannot have a memory of 0 bytes!")
   } catch {
     case NotEvaluableException() => // nothing to do
     case e: Exception => throw e
@@ -29,7 +33,7 @@ class OpenCLMemory(var variable: Var,
 
   // no type variable allowed in the size
   if (TypeVar.getTypeVars(size).nonEmpty)
-    throw new IllegalArgumentException
+    throw new MemoryAllocationException("Cannot allocate memory for abstract types")
 
   // no unknown allowed in the size
   // val hasUnknown = ArithExpr.visitUntil(size, _ == ?)
@@ -44,7 +48,12 @@ class OpenCLMemory(var variable: Var,
       case GlobalMemory => OpenCLMemory.allocGlobalMemory(size)
       case LocalMemory => OpenCLMemory.allocLocalMemory(size)
       case PrivateMemory => OpenCLMemory.allocPrivateMemory(size)
-      case _ => this
+      case AddressSpaceCollection(_) => this match {
+        case coll: OpenCLMemoryCollection =>
+          OpenCLMemoryCollection(coll.subMemories.map(_.copy()))
+        case _ => throw new IllegalArgumentException()
+      }
+      case UndefAddressSpace => this
     }
   }
 
@@ -81,7 +90,7 @@ case class OpenCLMemoryCollection(subMemories: Array[OpenCLMemory],
                        addressSpace)
 
 object OpenCLMemoryCollection {
-  def apply(mems: Seq[OpenCLMemory]) = {
+  def apply(mems: Seq[OpenCLMemory]): OpenCLMemoryCollection = {
     val addressSpace = AddressSpaceCollection(mems.map(_.addressSpace))
     new OpenCLMemoryCollection(mems.toArray, addressSpace)
   }
@@ -149,6 +158,8 @@ object OpenCLMemory {
       case PrivateMemory => allocPrivateMemory(pvtOutSize)
       case co: AddressSpaceCollection =>
         allocMemory(glbOutSize, lclOutSize, pvtOutSize, co.findCommonAddressSpace())
+      case UndefAddressSpace =>
+        throw new MemoryAllocationException("Cannot allocate memory in UndefAddressSpace")
     }
   }
 
@@ -157,7 +168,6 @@ object OpenCLMemory {
     *
     * @param size Size of the memory to allocate in bytes
     * @param addressSpace Address space for the allocated memory
-    * @return
     */
   def allocMemory(size: ArithExpr, addressSpace: OpenCLAddressSpace) =
     OpenCLMemory(Var("", ContinuousRange(Cst(0), size)), size, addressSpace)
@@ -172,15 +182,6 @@ object OpenCLMemory {
 
   def allocPrivateMemory(size: ArithExpr): OpenCLMemory =
     allocMemory(size, PrivateMemory)
-
-  def getSizeInBytes(t: Type): ArithExpr = t match {
-    case st: ScalarType => st.size
-    case vt: VectorType => vt.len * getSizeInBytes(vt.scalarT)
-    case at: ArrayType with Capacity => at.capacity * getSizeInBytes(at.elemT)
-    case at: ArrayType => ?
-    case tt: TupleType => tt.elemsT.map(getSizeInBytes).reduce(_ + _)
-    case NoType | UndefType => throw new IllegalArgumentException(s"sizeof($t) = ??")
-  }
 }
 
 /** Represents an OpenCLMemory object combined with a type.
@@ -190,7 +191,7 @@ object OpenCLMemory {
   * @param t The type associated with the memory object
   */
 case class TypedOpenCLMemory(mem: OpenCLMemory, t: Type) {
-  override def toString = "(" + mem.toString +": " + t.toString + ")"
+  override def toString: String = s"($mem: $t)"
 }
 
 object TypedOpenCLMemory {
@@ -267,39 +268,8 @@ object TypedOpenCLMemory {
                    m: AbstractMap): Seq[TypedOpenCLMemory] = {
       val mems = collect(m.f.body)
 
-      @scala.annotation.tailrec
-      def changeType(addressSpace: OpenCLAddressSpace,
-                     tm: TypedOpenCLMemory): TypedOpenCLMemory = {
-        // TODO: This might return one of two types in case of reduce (T or Array(T, 1))
-        addressSpace match {
-          case PrivateMemory =>
-            m match {
-              case _: MapGlb | _: MapWrg  | _: Map =>
-                tm
-              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
-
-                var privateMultiplier = m.iterationCount
-                privateMultiplier = if (privateMultiplier == ?) 1 else privateMultiplier
-
-                TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t,privateMultiplier))
-            }
-          case LocalMemory =>
-            m match {
-              case _: MapGlb | _: MapWrg  | _: Map =>
-                tm
-              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
-                TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
-            }
-          case GlobalMemory =>
-            TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
-
-          case coll: AddressSpaceCollection =>
-            changeType(coll.findCommonAddressSpace(), tm)
-        }
-      }
-
       // change types for all of them
-      val cts = mems.map( (tm: TypedOpenCLMemory) => changeType(tm.mem.addressSpace, tm) )
+      val cts = mems.map(changeType(_, m.loopVar, t))
 
       // TODO: Think about other ways of refactoring this out 
       m match {
@@ -325,6 +295,9 @@ object TypedOpenCLMemory {
           TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, Type.getMaxLength(t)))
         case coll: AddressSpaceCollection =>
           changeType(tm, loopVar, t)
+
+        case UndefAddressSpace =>
+          throw new MemoryAllocationException("Address space must be known at this point")
       }
     }
   
