@@ -272,7 +272,7 @@ object TypedOpenCLMemory {
       def changeTypeMap(addressSpace: OpenCLAddressSpace,
                         tm: TypedOpenCLMemory): TypedOpenCLMemory = {
         // TODO: This might return one of two types in case of reduce (T or Array(T, 1))
-        tm.mem.addressSpace match {
+        addressSpace match {
           case PrivateMemory =>
             m match {
               case _: MapGlb | _: MapWrg  | _: Map =>
