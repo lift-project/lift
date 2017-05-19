@@ -17,3 +17,4 @@ Good luck ;)
 
 
 .. include:: howtos/new_opencl_pattern.rst
+.. include:: howtos/switch-branch.rst
