@@ -255,8 +255,8 @@ abstract sealed class View(val t: Type = UndefType) {
    */
   def unzip(): View = {
     t match {
-      case ArrayTypeWS(TupleType(ts@_*), len) =>
-        ViewUnzip(this, TupleType(ts.map(ArrayTypeWSWC(_, len)): _*))
+      case at@ArrayType(TupleType(ts@_*)) =>
+        ViewUnzip(this, TupleType(ts.map(at.replacedElemT): _*))
       case other => throw new IllegalArgumentException("Can't unzip " + other)
     }
   }
