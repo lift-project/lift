@@ -267,9 +267,45 @@ object TypedOpenCLMemory {
     def collectMap(t: Type,
                    m: AbstractMap): Seq[TypedOpenCLMemory] = {
       val mems = collect(m.f.body)
-
+  
+      @scala.annotation.tailrec
+      def changeTypeMap(addressSpace: OpenCLAddressSpace,
+                        tm: TypedOpenCLMemory): TypedOpenCLMemory = {
+        // TODO: This might return one of two types in case of reduce (T or Array(T, 1))
+        tm.mem.addressSpace match {
+          case PrivateMemory =>
+            m match {
+              case _: MapGlb | _: MapWrg  | _: Map =>
+                tm
+              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
+                val privateMultiplier = if (m.iterationCount == ?) Cst(1)
+                else m.iterationCount
+            
+                TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, privateMultiplier))
+            }
+          case LocalMemory =>
+            m match {
+              case _: MapGlb | _: MapWrg  | _: Map =>
+                tm
+              case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
+                val newType = t.asInstanceOf[ArrayType].replacedElemT(tm.t)
+                TypedOpenCLMemory(tm.mem, newType)
+            }
+          case GlobalMemory =>
+            val newType = t.asInstanceOf[ArrayType].replacedElemT(tm.t)
+            TypedOpenCLMemory(tm.mem, newType)
+      
+          case coll: AddressSpaceCollection =>
+            changeTypeMap(coll.findCommonAddressSpace(), tm)
+      
+          case UndefAddressSpace =>
+            throw new MemoryAllocationException("Address space must be known at this point")
+        }
+      }
+  
+  
       // change types for all of them
-      val cts = mems.map(changeType(_, m.loopVar, t))
+      val cts = mems.map(tm => changeTypeMap(tm.mem.addressSpace, tm))
 
       // TODO: Think about other ways of refactoring this out 
       m match {
