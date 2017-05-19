@@ -27,9 +27,8 @@ class TestConvolutionSeparable {
 
   @Test def convolutionSimple(): Unit = {
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
-      ArrayTypeWSWC(Float, 17 * 17),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17 * 17),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -46,25 +45,23 @@ class TestConvolutionSeparable {
     val weights = Array.fill[Float](17 * 17)(1.0f)
 
     // testing
-    val input = Array.tabulate(256, 256) { (i, j) => i * 256.0f + j }
-    val (output: Array[Float], runtime) = Execute(16, 16, 256, 256, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
+    val (output: Array[Float], _) = Execute(16, 16, 128, 128, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 17, 1, 8, 8, 8, 8, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
 
     // for generating 4k kernel
     //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
+    //val (output: Array[Float], _) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
   }
 
   @Test def convolutionTiled(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
-      ArrayTypeWSWC(Float, 17 * 17),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17 * 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -91,9 +88,8 @@ class TestConvolutionSeparable {
     val weights = Array.fill[Float](17 * 17)(1.0f)
 
     // testing
-    val input = Array.tabulate(256, 256) { (i, j) => i * 256.0f + j }
-    val (output: Array[Float], runtime) = Execute(32, 8, 256, 256, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
+    val (output: Array[Float], _) = Execute(32, 8, 128, 128, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 17, 1, 8, 8, 8, 8, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
@@ -101,17 +97,16 @@ class TestConvolutionSeparable {
     // for generating 4k kernel
     //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
     // idle threads
-    //val (output: Array[Float], runtime) = Execute(32, 32, 4096, 4096, (true, true))(stencil, input, weights)
+    //val (output: Array[Float], _) = Execute(32, 32, 4096, 4096, (true, true))(stencil, input, weights)
     // blocked loading to local mem
-    //val (output: Array[Float], runtime) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
+    //val (output: Array[Float], _) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
   }
 
   @Ignore //todo segfaults?
   @Test def blurY(): Unit = {
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
-      ArrayTypeWSWC(Float, 17),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -128,25 +123,23 @@ class TestConvolutionSeparable {
     val weights = Array.fill[Float](17)(1.0f)
 
     // testing
-    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
-    val (output: Array[Float], runtime) = Execute(16, 16, 1024, 1024, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
+    val (output: Array[Float], _) = Execute(16, 16, 128, 128, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaWrap)
     assertArrayEquals(gold, output, 0.2f)
 
     // for generating 4k kernel
     //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
+    //val (output: Array[Float], _) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
   }
 
   @Test def blurYTiled(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
-      ArrayTypeWSWC(Float, 17),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -173,25 +166,23 @@ class TestConvolutionSeparable {
     val weights = Array.fill[Float](17)(1.0f)
 
     // testing
-    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
-    val (output: Array[Float], runtime) = Execute(1, 4, 1024, 64, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
+    val (output: Array[Float], _) = Execute(1, 4, 128, 64, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
 
     // for generating 4k kernel
     //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    //val (output: Array[Float], runtime) = Execute(1, 8, 4096, 512, (true, true))(stencil, input, weights)
+    //val (output: Array[Float], _) = Execute(1, 8, 4096, 512, (true, true))(stencil, input, weights)
   }
 
   @Test def blurYTiled2D(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
-      ArrayTypeWSWC(Float, 17),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -218,30 +209,24 @@ class TestConvolutionSeparable {
     val weights = Array.fill[Float](17)(1.0f)
 
     // testing
-    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
-    val (output: Array[Float], runtime) = Execute(16, 4, 1024, 64, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
+    val (output: Array[Float], _) = Execute(16, 4, 128, 64, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
 
     // for generating 4k kernel
     //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
-
-    // for generating 3k kernel
-    //val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 8, 3072, 384, (true, true))(stencil, input, weights)
+    //val (output: Array[Float], _) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
   }
 
+  @Ignore //fix
   @Test def blurYTiled2DTiledLoading(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Cst(1024)), Cst(1024)),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
-      ArrayTypeWSWC(Float, 17),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -269,29 +254,23 @@ class TestConvolutionSeparable {
     val weights = Array.fill[Float](17)(1.0f)
 
     // testing
-    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
-    val (output: Array[Float], runtime) = Execute(16, 8, 1024, 64, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
+    val (output: Array[Float], _) = Execute(16, 8, 128, 64, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
 
     // for generating 4k kernel
     //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
-
-    // for generating 3k kernel
-    //val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 8, 3072, 384, (true, true))(stencil, input, weights)
+    //val (output: Array[Float], _) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
   }
 
   @Test def blurYTiled2DTransposed(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
-      ArrayTypeWSWC(Float, 17),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -320,26 +299,23 @@ class TestConvolutionSeparable {
     val weights = Array.fill[Float](17)(1.0f)
 
     // testing
-    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
-    val (output: Array[Float], runtime) = Execute(16, 4, 1024, 64, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
+    val (output: Array[Float], _) = Execute(16, 4, 128, 64, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
 
     // for generating 4k kernel
     //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
-
+    //val (output: Array[Float], _) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
   }
 
   @Test def blurYTiled2DTiledLoadingTransposed(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
-      ArrayTypeWSWC(Float, 17),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -372,24 +348,22 @@ class TestConvolutionSeparable {
     val weights = Array.fill[Float](17)(1.0f)
 
     // testing
-    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
-    val (output: Array[Float], runtime) = Execute(16, 4, 1024, 64, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
+    val (output: Array[Float], _) = Execute(16, 4, 128, 64, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
 
     // for generating 4k kernel
     //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
-
+    //val (output: Array[Float], _) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
   }
 
   @Ignore // pad is not the right primitive here, just to try things out
   @Test def blurYTiled2DTransposedPadded(): Unit = {
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayTypeWSWC(Float, 17),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -421,24 +395,21 @@ class TestConvolutionSeparable {
 
     // testing
 
-    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
-    val (output: Array[Float], runtime) = Execute(16, 4, 1024, 64, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
+    val (output: Array[Float], _) = Execute(16, 4, 128, 64, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
 
     // for generating 4k kernel
     //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
-
+    //val (output: Array[Float], _) = Execute(16, 8, 4096, 512, (true, true))(stencil, input, weights)
   }
 
   @Test def blurX(): Unit = {
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
-      ArrayTypeWSWC(Float, 17),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -456,23 +427,21 @@ class TestConvolutionSeparable {
 
     // testing
     val input = Array.tabulate(256, 256) { (i, j) => i * 256.0f + j }
-    val (output: Array[Float], runtime) = Execute(16, 16, 256, 256, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    val (output: Array[Float], _) = Execute(16, 16, 256, 256, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 1, 1, 17, 1, 0, 0, 8, 8, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
 
     // for generating 4k kernel
     //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
+    //val (output: Array[Float], _) = Execute(16, 16, 4096, 4096, (true, true))(stencil, input, weights)
   }
 
   @Ignore //fix
   @Test def blurXTiled(): Unit = {
     val stencil = fun(
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
-      ArrayTypeWSWC(Float, 17),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -500,23 +469,21 @@ class TestConvolutionSeparable {
 
     // testing
     //val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 1, 128, 3072, (true, true))(stencil, input, weights)
-    //println("Runtime: " + runtime)
+    //val (output: Array[Float], _) = Execute(16, 1, 128, 3072, (true, true))(stencil, input, weights)
 
     //val gold = Utils.scalaCompute2DStencil(input, 1,1, 17,1, 0,0,8,8, weights, scalaClamp)
     //assertArrayEquals(gold, output, 0.2f)
 
     // for generating 4k kernel
-    val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    val (output: Array[Float], runtime) = Execute(16, 1, 512, 4096, (true, true))(stencil, input, weights)
+    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
+    val (output: Array[Float], _) = Execute(16, 1, 512, 1024, (true, true))(stencil, input, weights)
   }
 
   @Ignore //fix
   @Test def blurXTiled2D(): Unit = {
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 4096), 4096),
-      ArrayTypeWSWC(Float, 17),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+      ArrayType(Float, 17),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -543,19 +510,14 @@ class TestConvolutionSeparable {
     val weights = Array.fill[Float](17)(1.0f)
 
     // testing
-    val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
-    val (output: Array[Float], runtime) = Execute(16, 4, 64, 1024, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
+    val input = Array.tabulate(256, 256) { (i, j) => i * 256.0f + j }
+    val (output: Array[Float], _) = Execute(16, 4, 64, 256, (true, true))(stencil, input, weights)
 
     //val gold = Utils.scalaCompute2DStencil(input, 1,1, 17,1, 0,0,8,8, weights, scalaClamp)
     //assertArrayEquals(gold, output, 0.2f)
 
     // for generating 4k kernel
     //val input = Array.tabulate(4096, 4096) { (i, j) => i * 4096.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 4, 512, 4096, (true, true))(stencil, input, weights)
-
-    // for generating 3k kernel
-    //val input = Array.tabulate(3072, 3072) { (i, j) => i * 3072.0f + j }
-    //val (output: Array[Float], runtime) = Execute(16, 8, 3072, 384, (true, true))(stencil, input, weights)
+    //val (output: Array[Float], _) = Execute(16, 4, 512, 4096, (true, true))(stencil, input, weights)
   }
 }
