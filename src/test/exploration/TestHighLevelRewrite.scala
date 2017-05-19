@@ -75,7 +75,6 @@ class TestHighLevelRewrite {
     input => Join() o Map(Reduce(add, 0.0f)) o Slide(3,1) o Pad(1,1,Pad.Boundary.Clamp) $ input
   )
 
-
   def getHash(lambda: Lambda): String =
     Utils.Sha256Hash(Utils.dumpLambdaToString(lambda))
 
