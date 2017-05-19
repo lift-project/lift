@@ -7,13 +7,13 @@ import ir.interpreter.Interpreter.ValueMap
 import lift.arithmetic.{PosVar, Var}
 
 /**
-  * An implementation of the insertion sort.
-  *
-  * @param f a comparision function of type `a -> a -> bool` returning true
-  *          iff it's first argument is less than the second one.
-  * @param loopRead the index used to read the data from the input array
-  * @param loopWrite the index used to write data to the output array.
-  */
+ * This is internal, see the `InsertionSort` object below for the high-level
+ * documentation.
+ *
+ * @param f the comparison function.
+ * @param loopRead the index used to read the data from the input array
+ * @param loopWrite the index used to write data to the output array.
+ */
 case class InsertionSortSeq(f: Lambda2, var loopRead: Var, var loopWrite: Var)
            extends Pattern(arity=1) with FPattern with isGenerable {
  
@@ -68,6 +68,29 @@ case class InsertionSortSeq(f: Lambda2, var loopRead: Var, var loopWrite: Var)
     InsertionSortSeq(f, PosVar("s"), PosVar("t"))
 }
 
+/**
+ * A sequential implementation of the insertion sort.
+ *
+ * Type:
+ *
+ *   `InsertionSeq(cmp): [a] → [a]`
+ *   where `cmp: (a → a → bool)`
+ *
+ *   The two arrays have the same size and capacity characteristics i.e. if
+ *   they are in the type of the input, their are in the type output with the
+ *   same value.
+ *
+ * Semantics:
+ *
+ *   - The first argument is a comparison function: `cmp x y` is true iff `x < y`
+ *     regarding to the order we want to use for sorting.
+ *
+ *   - The sort is stable: if  `x` appears before `y` in the input and `x = y`,
+ *     then `x` will appear before `y` in the output.
+ *
+ *   Hence, if `ys = InsertionSort(compare) $ xs`, then
+ *   for all `i ≤ j`, `!compare(ys[j], ys[i])`
+ */
 object InsertionSortSeq {
   def apply(compare: Lambda2): Lambda1 = {
     fun(l =>
