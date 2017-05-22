@@ -46,8 +46,7 @@ public class Executor {
     public static void loadLibrary()
     {
         try {
-
-            if (System.getProperty("os.name").equals("Mac OS X")) {
+            if (System.getProperty("os.name").toLowerCase().contains("mac")) {
                 NativeUtils.loadLibraryFromJar("/lib/libexecutor-jni.dylib");
             } else {
                 NativeUtils.loadLibraryFromJar("/lib/libexecutor-jni.so");
