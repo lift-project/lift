@@ -28,7 +28,7 @@ abstract class AbstractPartRed(val f: Lambda,
   
         val bodyType = TypeChecker.check(f.body, setType) // check the body
 
-        if (initT != elemT)
+        if (initT != elemT || initT != bodyType)
           throw TypeException(
             s"Illegal customising function in:\n``$this``.\n" +
             s"``($initT, $elemT) -> $bodyType`` does not match ``(α, α) -> α``"
