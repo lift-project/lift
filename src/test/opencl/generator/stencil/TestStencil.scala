@@ -49,7 +49,7 @@ class TestStencil {
                               size: Int, step: Int,
                               left: Int, right: Int): Unit = {
     val f = fun(
-      ArrayTypeWSWC(Float, Var("N", StartFromRange(2))),
+      ArrayType(Float, Var("N", StartFromRange(2))),
       (input) => MapGlb(MapSeqUnroll(id)) o Slide(size, step) o Pad(left, right, boundary) $ input
     )
 
@@ -113,9 +113,9 @@ class TestStencil {
     val gold = Utils.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)
 
     val stencil = fun(
-      //ArrayTypeWSWC(Float, inputLength), // more precise information
-      ArrayTypeWSWC(Float, Var("N", StartFromRange(2))),
-      ArrayTypeWSWC(Float, weights.length),
+      //ArrayType(Float, inputLength), // more precise information
+      ArrayType(Float, Var("N", StartFromRange(2))),
+      ArrayType(Float, weights.length),
       (input, weights) => {
         MapGlb(
           fun(neighbourhood => {
@@ -138,8 +138,8 @@ class TestStencil {
     val gold = Utils.scalaCompute1DStencil(randomData, 5, 1, 2, 2, weights, SCALABOUNDARY)
 
     val stencil = fun(
-      ArrayTypeWSWC(Float, Var("N", StartFromRange(3))),
-      ArrayTypeWSWC(Float, weights.length),
+      ArrayType(Float, Var("N", StartFromRange(3))),
+      ArrayType(Float, weights.length),
       (input, weights) => {
         MapGlb(
           fun(neighbourhood => {
@@ -160,7 +160,7 @@ class TestStencil {
     val gold = Array(1, 3, 6, 8).map(_.toFloat)
 
     val f = fun(
-      ArrayTypeWSWC(Float, Var("N", StartFromRange(2))),
+      ArrayType(Float, Var("N", StartFromRange(2))),
       (input) =>
         toGlobal(MapGlb(id)) o Join() o MapGlb(ReduceSeq(add, 0.0f)) o
           Slide(3, 1) o Pad(1, 1, Pad.Boundary.Clamp) $ input
@@ -177,8 +177,8 @@ class TestStencil {
 
     val gold = Utils.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)
     val stencil = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
-      ArrayTypeWSWC(Float, weights.length),
+      ArrayType(Float, SizeVar("N")),
+      ArrayType(Float, weights.length),
       (input, weights) => {
 
         Join() o
@@ -209,8 +209,8 @@ class TestStencil {
                                  tileSize: Int, tileStep: Int,
                                  left: Int, right: Int): Lambda2 = {
     fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
-      ArrayTypeWSWC(Float, weights.length),
+      ArrayType(Float, SizeVar("N")),
+      ArrayType(Float, weights.length),
       (input, weights) => {
         MapWrg(fun(tile =>
           MapLcl(
@@ -231,8 +231,8 @@ class TestStencil {
                             size: Int, step: Int,
                             left: Int, right: Int) = {
     fun(
-      ArrayTypeWSWC(Float, Var("N", StartFromRange(2))),
-      ArrayTypeWSWC(Float, weights.length),
+      ArrayType(Float, Var("N", StartFromRange(2))),
+      ArrayType(Float, weights.length),
       (input, weights) => {
         MapGlb(
           fun(neighbourhood => {
@@ -272,7 +272,7 @@ class TestStencil {
   ***********************************************************/
   @Test def reorderStride(): Unit = {
     val lambda = fun(
-      ArrayTypeWSWC(Float, 8),
+      ArrayType(Float, 8),
       (input) => MapSeq(id) o ReorderStride(4) $ input
     )
     val data = Array(0, 1, 2, 3, 4, 5, 6, 7).map(_.toFloat)
@@ -283,7 +283,7 @@ class TestStencil {
 
   @Test def outputViewSlideTest(): Unit = {
     val lambda = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) =>
         MapSeq(MapSeq(id)) o Slide(3, 1) o MapSeq(id) $ input
     )
@@ -296,12 +296,13 @@ class TestStencil {
   ***********************************************************/
   @Test def parboil(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    LongTestsEnabled()
 
-    //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayTypeWSWC(ArrayTypeWSWC(Float, 3),3)), Float)
+    //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
     // segfaults
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 512), 512), 64),
-      ArrayTypeWSWC(Float, 27),
+      ArrayType(ArrayType(ArrayType(Float, 512), 512), 64),
+      ArrayType(Float, 27),
       (input, weights) => {
         MapSeq(MapWrg(1)(MapWrg(0)( \(block =>
           MapSeq(MapLcl(1)(MapLcl(0)( \(nbh =>
@@ -313,7 +314,7 @@ class TestStencil {
     )
 
     // testing
-    val input = Array.tabulate(512, 512, 64) { (i, j, k) => Random.nextFloat() }
+    val input = Array.tabulate(64, 512, 512) { (i, j, k) => Random.nextFloat() }
     val weights = Array.tabulate(27) { (i) => Random.nextFloat() }
     val (output: Array[Float], runtime) = Execute(32, 4, 1, 256, 512, 1, (true, true))(stencil, input, weights)
     println("Runtime: " + runtime)

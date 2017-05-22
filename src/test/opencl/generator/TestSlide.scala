@@ -3,7 +3,7 @@ package opencl.generator
 import java.io.FileInputStream
 import java.util.Scanner
 
-import ir.ArrayTypeWSWC
+import ir.{ArrayType, ArrayTypeWSWC}
 import ir.ast._
 import lift.arithmetic.{ArithExpr, Cst, Lookup, SizeVar}
 import opencl.executor.{Execute, Executor, LongTestsEnabled, Utils}
@@ -74,14 +74,14 @@ class TestSlide {
 
   def createSimple1DGroupLambda(size: Int, step: Int): Lambda1 = {
     fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
+      ArrayType(Float, SizeVar("N")),
       (domain) => MapGlb(MapSeqOrMapSeqUnroll(id)) o Slide(size, step) $ domain
     )
   }
 
   def createSimple2DGroupLambda(size: Int, step: Int): Lambda1 = {
     fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       (domain) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours =>
@@ -95,7 +95,7 @@ class TestSlide {
   def createAsymmetric2DGroupLambda(size1: Int, step1: Int,
                                     size2: Int, step2: Int): Lambda1 = {
     fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       (domain) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours =>
@@ -109,7 +109,7 @@ class TestSlide {
   /* // Different Syntax
   def createSimple2DGroupLambda2(indices: Array[Int]): Lambda1 = {
     fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("M")), Var("N")),
+      ArrayType(ArrayType(Float, Var("M")), Var("N")),
       (domain) => {
         domain :>> Group2D(indices) :>> MapGlb(1)(
           MapGlb(0)(
@@ -343,8 +343,8 @@ class TestSlide {
 
   def createSimpleStencilWithoutPad(size: Int, step: Int, weights: Array[Float]): Lambda2 = {
     fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
-      ArrayTypeWSWC(Float, weights.length),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayType(Float, weights.length),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -398,7 +398,7 @@ class TestSlide {
     val data = Array(0,1,2,3,4,5).map(_.toFloat)
     val gold = Array(18,27).map(_.toFloat)
     val lambda = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => {
         Iterate(2) (Join() o MapGlb(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Slide(3,1)) $ input
       })
@@ -418,8 +418,8 @@ class TestSlide {
     val N = SizeVar("N")
     val b = Pad.Boundary.Clamp
     val fct = fun(
-      //ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N),
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 3), 3), 3),
+      //ArrayType(ArrayType(ArrayType(Float, N), N), N),
+      ArrayType(ArrayType(ArrayType(Float, 3), 3), 3),
       (input) => MapGlb(0)(MapGlb(1)(MapGlb(2)(
         //MapSeq(MapSeq(MapSeq(id)))))) o
         toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join() o Join()))) o
@@ -459,6 +459,8 @@ class TestSlide {
   }
 
   @Test def slideND(): Unit = {
+    LongTestsEnabled()
+
     val n = 3
     val s = 1
     val input3D = Array.tabulate(34, 34, 34) { (_, _, _) => scala.util.Random.nextFloat() }
@@ -468,13 +470,13 @@ class TestSlide {
     val applyId2D = MapGlb(1)(MapGlb(0)(MapSeq(MapSeq(id))))
     def lambda2D(f: Lambda) = {
       fun(
-        ArrayTypeWSWC(ArrayTypeWSWC(Float,SizeVar("M")), SizeVar("N")),
+        ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")),
         input => applyId2D o f $ input
       )
     }
     def lambda3D(f: Lambda) = {
       fun(
-        ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
+        ArrayType(ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
         input => applyId3D o f $ input
       )
     }
@@ -513,7 +515,7 @@ class TestSlide {
 
     def lambda1D(f: Lambda) = {
       fun(
-        ArrayTypeWSWC(Float, SizeVar("N")),
+        ArrayType(Float, SizeVar("N")),
         input => applyId1D o f $ input
       )
     }
@@ -539,7 +541,7 @@ class TestSlide {
 
     def lambda2D(f: Lambda) = {
       fun(
-        ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+        ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
         input => applyId2D o f $ input
       )
     }
@@ -552,6 +554,7 @@ class TestSlide {
 
   @Test def tiledSlideND3(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    LongTestsEnabled()
 
     val n = 3
     val s = 1
@@ -567,7 +570,7 @@ class TestSlide {
 
     def lambda3D(f: Lambda) = {
       fun(
-        ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")), SizeVar("O")),
+        ArrayType(ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")), SizeVar("O")),
         input => applyId3D o f $ input
       )
     }
@@ -596,7 +599,7 @@ class TestSlide {
     val applyId4D = MapSeq(MapWrg(2)(MapWrg(1)(MapWrg(0)(MapSeq(MapLcl(2)(MapLcl(1)(MapLcl(0)(id))))))))
     def lambda4D(f: Lambda) = {
       fun(
-        ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")), SizeVar("O")), SizeVar("P")),
+        ArrayType(ArrayType(ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")), SizeVar("O")), SizeVar("P")),
         input => applyId4D o f $ input
       )
     }

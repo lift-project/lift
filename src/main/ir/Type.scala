@@ -104,7 +104,10 @@ case class TupleType(elemsT: Type*) extends Type {
     = "Tuple(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
 
   override def hasFixedAllocatedSize: Boolean = elemsT.forall(_.hasFixedAllocatedSize)
-  
+
+  /**
+   * `proj(i)` is the i-th projection of the tuple type, i.e. its i-th component.
+   */
   def proj(i: Int): Type = {
     assert(i < elemsT.length)
     elemsT(i)
@@ -144,7 +147,7 @@ case class ArrayType(elemT: Type) extends Type {
       case _ => None
     }
   }
-  
+
   /**
    * Private helper function
    *
@@ -156,15 +159,15 @@ case class ArrayType(elemT: Type) extends Type {
       case _ => None
     }
   }
-  
+
   /**
    * @return the index at which the size of the array is stored in its header.
    */
   def getSizeIndex: Int = this match {
-    case _: Capacity => 1 // skip the capacity
-    case _ => 0
+    case _: Capacity => 0 // capacity is not in the header
+    case _ => 1 // skip the capacity
   }
-  
+
   /**
    * @return the number of values stored in the header of this array.
    *         (currently it can be 0, 1 or 2)
@@ -187,7 +190,7 @@ case class ArrayType(elemT: Type) extends Type {
       case _:Capacity => elemT.hasFixedAllocatedSize
       case _ => false
     }
-  
+
   /** Structural equality */
   override def equals(other: Any): Boolean = {
     other match {
@@ -208,7 +211,7 @@ case class ArrayType(elemT: Type) extends Type {
       (this match {case s:Size => s.size.hashCode case _ => 0 }) +
       (this match {case c:Capacity => c.capacity.hashCode case _ => 0 })
   }
- 
+
   /**
    * A shorthand for constructing a new ArrayType with the same shape
    * (i.e. same size and capacity if known) but a different element type.
@@ -250,16 +253,12 @@ object ArrayType {
 
 
 object ArrayTypeWSWC {
-
+  /** Shorthand: constructs an ArrayType with same size and capacity */
   def apply(elemT: Type, sizeAndCapacity: ArithExpr) : ArrayType with Size with Capacity = {
     apply(elemT, sizeAndCapacity, sizeAndCapacity)
   }
 
   def apply(elemT: Type, _size: ArithExpr, _capacity: ArithExpr) : ArrayType with Size with Capacity = {
-
-    // TODO: remove this assertation once the framework is ready to handle array with a different size and capacity
-    assert (_size == _capacity)
-
     ArrayType.checkSizeOrCapacity("size", _size)
     ArrayType.checkSizeOrCapacity("capacity", _capacity)
     new ArrayType(elemT) with Size with Capacity {
@@ -341,8 +340,10 @@ object Type {
 
   def fromAny(a: Any): Type = {
     a match {
-      case _: Float => ScalarType("float", 4)
-      case _: Int => ScalarType("int", 4)
+      case _: Float => opencl.ir.Float
+      case _: Int => opencl.ir.Int
+      case _: Double => opencl.ir.Double
+      case _: Boolean => opencl.ir.Bool
       case a: Seq[_] if a.nonEmpty => ArrayTypeWSWC(fromAny(a.head), a.length)
       case t: (_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2)):_*)
       case t: (_,_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2), fromAny(t._3)):_*)
@@ -530,6 +531,9 @@ object Type {
 
   /**
    * Return the size (in bytes) of a given type.
+   * Note: this function can return `?`. See the comments at the top of
+   *       `OpenCLMemoryAllocator.scala` to get information about the meaning
+   *       of this special value here and when it is supposed to occur.
    *
    * @param t A type
    * @return The size in bytes.
@@ -539,13 +543,20 @@ object Type {
       case st: ScalarType => st.size
       case vt: VectorType => vt.scalarT.size * vt.len
       case tt: TupleType  => tt.elemsT.map(getAllocatedSize).reduce(_+_)
-      case at: ArrayType with Capacity => at.capacity * getAllocatedSize(at.elemT)
-      case _ => throw new IllegalArgumentException
+      case at: ArrayType => at match {
+        case c: Capacity =>
+          if (at.elemT.hasFixedAllocatedSize)
+            (at.getHeaderSize * 4) + c.capacity * getAllocatedSize(at.elemT)
+          else ? // Dynamic allocation required
+        case _ => ? // Dynamic allocation required
+      }
+      case NoType | UndefType =>
+        throw new IllegalArgumentException(s"Cannot allocate memory for type: $t")
     }
   }
 
   def getMaxAllocatedSize(t: Type) : ArithExpr = {
-    // quick hack (set all the type var to theur max value)
+    // quick hack (set all the type var to their max value)
     // TODO: need to be fixed
     val size = getAllocatedSize(t)
     val map = TypeVar.getTypeVars(size).map(tv => (tv, tv.range.max)).toMap
