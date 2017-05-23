@@ -3,8 +3,9 @@ package rewriting.utils
 import ir._
 import ir.ast._
 import opencl.ir._
-import lift.arithmetic.{Cst, SizeVar, Var}
+import lift.arithmetic._
 import opencl.executor.Eval
+import opencl.ir.pattern.MapSeq
 import org.junit.Assert._
 import org.junit.Test
 
@@ -67,6 +68,26 @@ class TestUtils {
     )
 
     val string = Utils.dumpLambdaToString(f)
+    println(string)
     Eval(string)
   }
+
+  @Test
+  def printCorrectRangesForVars(): Unit = {
+    val M = Var("M", StartFromRange(32))
+    val N = Var("N", RangeUnknown)
+    val O = SizeVar("O")
+
+    val f = fun(
+      ArrayType(Float, M),
+      ArrayType(Float, N),
+      ArrayType(Float, O),
+      (m,n,o) => MapSeq(id) $ m)
+
+    val string = rewriting.utils.Utils.dumpLambdaToString(f)
+    assertTrue(string contains "Var(\"M\", StartFromRange(32))")
+    assertTrue(string contains "Var(\"N\", RangeUnknown)")
+    assertTrue(string contains "SizeVar(\"O\")")
+  }
+
 }

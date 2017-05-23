@@ -29,22 +29,6 @@ class TestMisc {
 
   val incr = UserFun("incr", "x", "{ return x+1; }", Float, Float)
 
-  @Test
-  def dumpLambda(): Unit = {
-    val M = Var("M", StartFromRange(32))
-    val N = Var("N", RangeUnknown)
-    val O = SizeVar("O")
-
-    val f = fun(
-      ArrayType(Float, M),
-      ArrayType(Float, N),
-      ArrayType(Float, O),
-      (m,n,o) => MapSeq(id) $ m)
-
-    val string = rewriting.utils.Utils.dumpLambdaToString(f)
-    assertTrue(string contains "val v_M_0 Var(\"M\", StartFromRange(32))\nval v_N_1 Var(\"N\", RangeUnknown)\nval v_O_2 = SizeVar(\"O\")")
-  }
-
   @Ignore
   @Test
   def reverseScatterAndVec(): Unit = {
