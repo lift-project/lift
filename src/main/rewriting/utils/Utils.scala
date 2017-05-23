@@ -220,15 +220,16 @@ object Utils {
    */
   def dumpLambdaToString(lambda: Lambda): String = {
 
+    val declStrings = lambda.getVarsInParams.map(param =>
+      param.range match {
+        case StartFromRange(Cst(1)) => "val " + param.toString + " = SizeVar(\"" + param.name  + "\")"
+        case _ => "val " + param.toString + " Var(\"" + param.name + "\", " + param.range.toString + ")"
+      }
+    )
+
     val fullString =  dumpLambdaToStringWithoutDecls(lambda)
 
-    val withIndex: List[(String, Int)] = findVariables(fullString)
-
-    val decls = withIndex.map(pair =>
-      "val " + getNewName(pair) + " = SizeVar(\"" + getIdentifier(pair) + "\")\n"
-    ).mkString("")
-
-    decls + "\n" + replaceVariableNames(fullString, withIndex)
+    declStrings.mkString("\n") + "\n\n" + fullString
   }
 
   private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String = {
