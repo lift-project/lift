@@ -213,6 +213,16 @@ class TestArray {
 
     assertEquals(TypeChecker(f), ArrayTypeWSWC(Float, Cst(1)))
 
-    Compile(f)
+    val p1 = Array.fill(37)(util.Random.nextFloat())
+    val p2 = Array.fill(78)(util.Random.nextFloat())
+    
+    val exec = Execute(128)
+    val (output, _) = exec[Vector[Float]](f, p1, p2)
+    val (outputRev, _) = exec[Vector[Float]](f, p2, p1)
+    
+    val gold = (p1 zip p2.slice(0, 78)).map(p => p._1 * p._2).sum
+    
+    assertEquals(gold, output.head, 0.0001f)
+    assertEquals(gold, outputRev.head, 0.0001f)
   }
 }

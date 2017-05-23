@@ -1372,7 +1372,9 @@ class OpenCLGenerator extends Generator {
     val start = ArithExpression(range.start)
     val stop = ty match {
       case _: Size => ArithExpression(range.stop)
-      case _ => ViewPrinter.emit(array.mem.variable, array.view.size(), addressSpace = array.addressSpace)
+      case _ =>
+        val mem = OpenCLMemory.asOpenCLMemory(array.mem)
+        getArraySize(mem, array.view.size())
     }
     val init = VarDecl(indexVar, Int, start, PrivateMemory)
     
@@ -1387,6 +1389,19 @@ class OpenCLGenerator extends Generator {
     (block: Block) += OpenCLAST.ForLoop(init, cond, increment, innerBlock)
     
     generateBody(innerBlock)
+  }
+
+  /**
+   * Generate an access to the size of an array (handle arrays of tuples)
+   */
+  private def getArraySize(mem: OpenCLMemory, view: View): Expression = {
+    mem match {
+      case OpenCLMemoryCollection(subMemories, _) =>
+        val sizes = subMemories.map(getArraySize(_, view))
+        sizes.reduce((x, y) => FunctionCall("min", List(x, y)))
+      case _ =>
+        ViewPrinter.emit(mem.variable, view, addressSpace = mem.addressSpace)
+    }
   }
 
   private def generateStatement(block: Block,
