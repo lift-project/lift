@@ -299,7 +299,7 @@ class TestSlideSeqPlus
         MapGlb(0)(toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b))) o Transpose() /* o Slide2D(a,b)*/ $ input
     )
 
-    println(Compile(stencil2DR(3,1)))
+    println(Compile(stencil2DCTest(3,1)))
 
     val (compare: Array[Float], _) = Execute(2,2)(atNeigh, values)
     val (output: Array[Float], _) = Execute(2,2)(stencil2DCTest(slidesize,slidestep), values)
@@ -329,9 +329,11 @@ class TestSlideSeqPlus
     val neighbours = secondSlide.map(x => x.map(y => y.transpose))
     val gold = neighbours.map(x => x.map(y => y.flatten.reduceLeft(_ + _))).flatten
 
+    val N = 2 + SizeVar("N")
+    val M = 2 + SizeVar("M")
 
     val orgStencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (mat) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -341,33 +343,32 @@ class TestSlideSeqPlus
         ) o Slide2D(3,1) $ mat
       })
 
+//    println(Compile(orgStencil))
 
+/*
     def stencil2D2D(a: Int ,b :Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       (input) =>
         MapGlb(1)(MapGlb(0)(fun(n => { toGlobal( SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b))   o Join() $ n} ))) o Slide2D(a,b) $ input
     )
 
-    val stencil2D = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
-      (mat) => {
-        MapGlb(1)(
-          MapGlb(0)(fun(neighbours => {
-            toGlobal(MapSeqUnroll(id)) o
-              ReduceSeq(add, 0.0f) o Join() $ neighbours
-          }))
-        ) o Slide2D(3,1) $ mat
-      })
-
     println(Compile(stencil2D2D(3,1)))
-
-    val N = 2 + SizeVar("N")
+*/
 
     def stencil2DR(a: Int ,b :Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (input) =>
-        MapGlb(0)(toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b)  o Join() /* o Slide2D(a,b)*/)) o Slide(a,b) $ input
+/*        MapGlb(0)(toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b)  o Join() /* o Slide2D(a,b)*/)) o Slide(a,b) $ input */
+        MapGlb(0)(fun(x => {
+          val side1 =  ReduceSeq(absAndSumUp,0.0f) o Slide(3,1)  $ x.at(0)
+          val side2 = x.at(2)
+          val sum = 0.0f
+//          val sum = ReduceSeq(absAndSumUp,0.0f) o Slide(3,1) $ side1
+          toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,sum) , a,b)) } $ x.at(1) )) o Slide(3,1) o Transpose() $ input
     )
+
+    println(Compile(stencil2DR(3,1)))
+
     val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
 
     StencilUtilities.print2DArray(values)
