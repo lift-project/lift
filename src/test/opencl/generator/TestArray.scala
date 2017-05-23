@@ -225,4 +225,38 @@ class TestArray {
     assertEquals(gold, output.head, 0.0001f)
     assertEquals(gold, outputRev.head, 0.0001f)
   }
+
+  @Test def twoDArrZipReduce(): Unit = {
+    val N = SizeVar("N")
+    val f = fun(
+      ArrayTypeWSWC(ArrayType(Float), N), ArrayTypeWSWC(ArrayType(Float), N), (p1, p2) =>
+        toGlobal(MapSeq(id)) o Join() o MapGlb(
+          fun(rowPair =>
+            ReduceSeq(fun((init, elem) => add(init, mult(elem._0, elem._1))), 0.0f) $ Zip(rowPair._0, rowPair._1)
+          )
+        ) $ Zip(p1, p2)
+    )
+
+    assertEquals(TypeChecker(f), ArrayTypeWSWC(Float, N))
+
+    val height = 128
+
+    val als : Array[Int] = Array.fill(height)(util.Random.nextInt(127) + 1)
+
+    val p1 = Array.tabulate(128)((i: Int) => Array.fill(als(i))(util.Random.nextFloat()))
+    val p2 = Array.tabulate(128)((i: Int) => Array.fill(als(i))(util.Random.nextFloat()))
+
+    val gold = (p1 zip p2).map{
+      case (arr1, arr2) => (arr1 zip arr2).map{
+      case (e1: Float, e2: Float) => e1 * e2}.fold(0.0f){
+        case (e1: Float, e2: Float) => e1 + e2}
+    }
+
+    val exec = Execute(128)
+    val (output, _) = exec[Vector[Float]](f, p1, p2)
+
+    assertArrayEquals(gold, output.toArray, 0.001f)
+
+
+  }
 }
