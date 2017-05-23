@@ -1,13 +1,13 @@
 package opencl.generator
 
-import ir._
-import ir.ast._
-import lift.arithmetic.SizeVar
+import ir.ast.{Zip, fun, _}
+import ir.{ArrayType, ArrayTypeWC, ArrayTypeWSWC, TypeChecker, _}
+import lift.arithmetic.{Cst, SizeVar}
 import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
-import org.junit.{AfterClass, Assume, BeforeClass, Test}
 import org.junit.Assert.{assertArrayEquals, assertEquals}
+import org.junit.{AfterClass, Assume, BeforeClass, Test}
 
 
 object TestArray {
@@ -191,6 +191,17 @@ class TestArray {
   
     assertEquals(TypeChecker(f), ArrayType(ArrayType(Int)))
   
+    Compile(f)
+  }
+
+  @Test def arrZipMap(): Unit = {
+    val f = fun(
+      ArrayType(Float), ArrayType(Float), (p1, p2) =>
+        ReduceSeq(add) o MapSeq(add) $ Zip(p1, p2)
+    )
+
+    assertEquals(TypeChecker(f), ArrayTypeWSWC(Float, Cst(1)))
+
     Compile(f)
   }
 }
