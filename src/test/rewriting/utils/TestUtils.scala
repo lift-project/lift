@@ -88,6 +88,7 @@ class TestUtils {
     assertTrue(string contains "Var(\"M\", StartFromRange(32))")
     assertTrue(string contains "Var(\"N\", RangeUnknown)")
     assertTrue(string contains "SizeVar(\"O\")")
+    Eval(string)
   }
 
 }

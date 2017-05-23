@@ -223,7 +223,7 @@ object Utils {
     val declStrings = lambda.getVarsInParams.map(param =>
       param.range match {
         case StartFromRange(Cst(1)) => "val " + param.toString + " = SizeVar(\"" + param.name  + "\")"
-        case _ => "val " + param.toString + " Var(\"" + param.name + "\", " + param.range.toString + ")"
+        case _ => "val " + param.toString + " = Var(\"" + param.name + "\", " + param.range.toString + ")"
       }
     )
 
