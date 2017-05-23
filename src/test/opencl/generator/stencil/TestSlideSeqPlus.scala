@@ -246,7 +246,7 @@ class TestSlideSeqPlus
         )  $ input
     )
     //val (compare: Array[Float], _) = Execute(2,2)(atNeigh, values)
-    val (output: Array[Float], _) = Execute(2,2)(stencil2DRSwap(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
 
     StencilUtilities.print2DArray(values)
     println("******")
@@ -292,10 +292,17 @@ class TestSlideSeqPlus
         MapGlb(0)(toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b) o Join() o Join() o Join() o Slide2D(a,b)/* o Slide2D(a,b)*/)) o Slide(a,b) $ input
     )
 
+
+    def stencil2DCTest(a: Int ,b :Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      (input) =>
+        MapGlb(0)(toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b))) o Transpose() /* o Slide2D(a,b)*/ $ input
+    )
+
     println(Compile(stencil2DR(3,1)))
 
     val (compare: Array[Float], _) = Execute(2,2)(atNeigh, values)
-    val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(stencil2DCTest(slidesize,slidestep), values)
 
     StencilUtilities.print2DArray(values)
     println("******")
