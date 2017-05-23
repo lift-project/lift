@@ -7,7 +7,7 @@ import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import org.junit.Assert.{assertArrayEquals, assertEquals}
-import org.junit.{AfterClass, Assume, BeforeClass, Test}
+import org.junit._
 
 
 object TestArray {
@@ -194,10 +194,21 @@ class TestArray {
     Compile(f)
   }
 
+  @Ignore @Test def arrZipMapWAllocation(): Unit = {
+    val f = fun(
+      ArrayType(Float), ArrayType(Float), (p1, p2) =>
+        ReduceSeq(add, 0.0f) o MapSeq(add) $ Zip(p1, p2)
+    )
+
+    assertEquals(TypeChecker(f), ArrayTypeWSWC(Float, Cst(1)))
+
+    Compile(f)
+  }
+
   @Test def arrZipMap(): Unit = {
     val f = fun(
       ArrayType(Float), ArrayType(Float), (p1, p2) =>
-        ReduceSeq(add) o MapSeq(add) $ Zip(p1, p2)
+        toGlobal(MapSeq(id)) o ReduceSeq(fun((init, elem) => add(init, mult(elem._0, elem._1))), 0.0f) $ Zip(p1, p2)
     )
 
     assertEquals(TypeChecker(f), ArrayTypeWSWC(Float, Cst(1)))
