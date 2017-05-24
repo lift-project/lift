@@ -231,18 +231,19 @@ object Utils {
 
     val fullString =  dumpLambdaToStringWithoutDecls(lambda)
     val allVars = inputVars.toSet ++ tunableVars
+    val withIndex = allVars.map(x => x.toString).zipWithIndex.toList
 
     val declStrings = allVars.zipWithIndex.map( tuple => {
       val param = tuple._1
       val index = tuple._2
       val newName = getNewName(param.toString, index)
+      val replacedRange = replaceVariableNames(param.range.toString, withIndex)
       param.range match {
         case StartFromRange(Cst(1)) => "val " + newName + " = SizeVar(\"" + param.name + "\")"
-        case _ => "val " + newName + " = Var(\"" + param.name + "\", " + param.range.toString + ")"
+        case _ => "val " + newName + " = Var(\"" + param.name + "\", " + replacedRange + ")"
       }
     })
 
-    val withIndex = allVars.map(x => x.toString).zipWithIndex.toList
 
     declStrings.mkString("\n") + "\n\n" + replaceVariableNames(fullString, withIndex)
   }
