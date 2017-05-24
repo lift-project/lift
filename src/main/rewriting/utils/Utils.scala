@@ -223,6 +223,7 @@ object Utils {
     TypeChecker(lambda)
 
     val inputVars = lambda.getVarsInParams()
+
     val tunableVars =
       findTunableNodes(lambda)
         .map(extractArithExpr)
@@ -231,9 +232,10 @@ object Utils {
 
     val fullString =  dumpLambdaToStringWithoutDecls(lambda)
     val allVars = inputVars.toSet ++ tunableVars
-    val withIndex = allVars.map(x => x.toString).zipWithIndex.toList
+    val orderedVars = allVars.toList.sortWith((x, y) => x.id < y.id)
+    val withIndex = orderedVars.map(x => x.toString).zipWithIndex
 
-    val declStrings = allVars.zipWithIndex.map( tuple => {
+    val declStrings = orderedVars.zipWithIndex.map( tuple => {
       val param = tuple._1
       val index = tuple._2
       val newName = getNewName(param.toString, index)
