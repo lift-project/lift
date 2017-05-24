@@ -218,7 +218,7 @@ object Utils {
    * @param lambda The lambda to dump to a string
    * @return
    */
-  def dumpLambdaToString(lambda: Lambda): String = {
+  def dumpLambdaToString(lambda: Lambda, useSizeVar: Boolean = false): String = {
 
     TypeChecker(lambda)
 
@@ -240,10 +240,12 @@ object Utils {
       val index = tuple._2
       val newName = getNewName(param.toString, index)
       val replacedRange = replaceVariableNames(param.range.toString, withIndex)
-      param.range match {
-        case StartFromRange(Cst(1)) => "val " + newName + " = SizeVar(\"" + param.name + "\")"
-        case _ => "val " + newName + " = Var(\"" + param.name + "\", " + replacedRange + ")"
-      }
+      val constructor = if(useSizeVar)
+        "SizeVar(\"" + param.name + "\")"
+      else
+        "Var(\"" + param.name + "\", " + replacedRange + ")"
+
+      "val " + newName + " = " + constructor
     })
 
 
