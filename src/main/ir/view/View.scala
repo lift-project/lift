@@ -240,9 +240,8 @@ abstract sealed class View(val t: Type = UndefType) {
    */
   def zip(): View = {
     t match {
-      case TupleType(ts@_*) if ts.forall(_.isInstanceOf[ArrayType]) =>
-        val arrayTs = ts.map(_.asInstanceOf[ArrayType])
-        val newT = Zip.computeOutType(arrayTs)
+      case tt: TupleType =>
+        val newT = Zip.computeOutType(tt)
         ViewZip(this, newT)
       case other => throw new IllegalArgumentException("Can't zip " + other)
     }

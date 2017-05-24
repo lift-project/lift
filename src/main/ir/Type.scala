@@ -756,7 +756,7 @@ case class TypeException(msg: String) extends Exception(msg) {
 }
 
 class ZipTypeException(val tt: TupleType)
-  extends TypeException(s"Can not statically prove that sizes ( ${tt.elemsT.mkString(", ")} ) match!")
+  extends TypeException(s"Some of theses sizes (${tt.elemsT.mkString(", ")}) do not match!")
 
 object ZipTypeException {
   def apply(tt: TupleType) = new ZipTypeException(tt)

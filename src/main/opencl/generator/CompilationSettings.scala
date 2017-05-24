@@ -18,6 +18,12 @@ object Verbose {
   def apply(verbose: Boolean): Unit = { this.verbose = verbose }
 }
 
+object StrictZip {
+  // By default, zip is strict
+  private val notStrict = System.getenv("LIFT_STRICT_ZIP") != null
+  def apply(): Boolean = !notStrict
+}
+
 object DeadCodeElimination {
   private val dce = System.getenv("LIFT_DCE") != null
   def apply(): Boolean = dce
