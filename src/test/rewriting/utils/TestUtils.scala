@@ -5,7 +5,7 @@ import ir.ast._
 import opencl.ir._
 import lift.arithmetic._
 import opencl.executor.Eval
-import opencl.ir.pattern.{MapSeq, ReduceSeq}
+import opencl.ir.pattern.MapSeq
 import org.junit.Assert._
 import org.junit.Test
 
@@ -81,6 +81,22 @@ class TestUtils {
     val string2 = Utils.dumpLambdaToString(f2)
 
     assertEquals(string1, string2)
+  }
+
+  @Test
+  def declarationOrder(): Unit = {
+    Var()
+    Var()
+    Var()
+    val N = Var("N", StartFromRange(1))
+    val M = Var("M", StartFromRange(N))
+
+    val f = \(ArrayType(Float, N), ArrayType(Float, M), (a, b) => Map(\(x => Map(\(y => add(x,y))) $ b)) $ a)
+
+    val string = Utils.dumpLambdaToString(f)
+
+    println(string)
+    Eval(string)
   }
 
   @Test
