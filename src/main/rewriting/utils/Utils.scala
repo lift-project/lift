@@ -5,7 +5,7 @@ import java.security.MessageDigest
 
 import lift.arithmetic._
 import ir.ast._
-import ir.{ArrayType, ArrayTypeWS, Type, TypeException}
+import ir._
 import opencl.ir.ast.OpenCLBuiltInFun
 
 import scala.sys.process._
@@ -220,16 +220,28 @@ object Utils {
    */
   def dumpLambdaToString(lambda: Lambda): String = {
 
-    val declStrings = lambda.getVarsInParams.map(param =>
-      param.range match {
-        case StartFromRange(Cst(1)) => "val " + param.toString + " = SizeVar(\"" + param.name  + "\")"
-        case _ => "val " + param.toString + " = Var(\"" + param.name + "\", " + param.range.toString + ")"
-      }
+    TypeChecker(lambda)
+
+    val inputVars = lambda.getVarsInParams().toSet[Var]
+    val tunableVars = Expr.visitLeftToRight(Set[Var]())(lambda.body, (e, s) =>
+      e.t.varList.toSet[Var] ++ s
     )
+    val allVars = inputVars ++ tunableVars
+
+    val declStrings = allVars.zipWithIndex.map( tuple => {
+      val param = tuple._1
+      val index = tuple._2
+      val newName = getNewName(param.toString, index)
+      param.range match {
+        case StartFromRange(Cst(1)) => "val " + newName + " = SizeVar(\"" + param.name + "\")"
+        case _ => "val " + newName + " = Var(\"" + param.name + "\", " + param.range.toString + ")"
+      }
+    })
 
     val fullString =  dumpLambdaToStringWithoutDecls(lambda)
+    val withIndex = allVars.map(x => x.toString).zipWithIndex.toList
 
-    declStrings.mkString("\n") + "\n\n" + fullString
+    declStrings.mkString("\n") + "\n\n" + replaceVariableNames(fullString, withIndex)
   }
 
   private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String = {
