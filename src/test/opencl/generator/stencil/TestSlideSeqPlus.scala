@@ -314,10 +314,8 @@ class TestSlideSeqPlus
 
   }
 
-
-
   @Test
-  def reduceSlide2DTest(): Unit = {
+  def reduceSlide2DTestUnoptimised(): Unit = {
 
     val size = 8
     val slidesize = 3
@@ -343,34 +341,92 @@ class TestSlideSeqPlus
         ) o Slide2D(3,1) $ mat
       })
 
-//    println(Compile(orgStencil))
-
-/*
-    def stencil2D2D(a: Int ,b :Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
-      (input) =>
-        MapGlb(1)(MapGlb(0)(fun(n => { toGlobal( SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b))   o Join() $ n} ))) o Slide2D(a,b) $ input
-    )
-
-    println(Compile(stencil2D2D(3,1)))
-*/
-
     def stencil2DR(a: Int ,b :Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (input) =>
-/*        MapGlb(0)(toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b)  o Join() /* o Slide2D(a,b)*/)) o Slide(a,b) $ input */
         MapGlb(0)(fun(x => {
 
           val side1 =  MapSeq( fun( t => { toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ t })) o Slide(3,1) $ x.at(0)
-          //val side1 =  toGlobal(MapSeqUnroll(ReduceSeq(absAndSumUp,0.0f))) o Slide(3,1) $ x.at(0)
           val side2 = MapSeq( fun( t => { toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ t })) o Slide(3,1) $ x.at(2)
           val sum = toGlobal(MapSeq(id) o MapSeq(addTuple)) $ Zip(Join() $ side1,Join() $ side2)
           val tmpSum = 0.0f
           val ssp =  toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) , a,b))  $ x.at(1)
           val actSum = toGlobal(MapSeq(addTuple)) $ Zip( Join() $ ssp,sum)
-          actSum //actSum
-          //          val sum = ReduceSeq(absAndSumUp,0.0f) o Slide(3,1) $ side1
-          //          Join() $ side1
+          actSum
+        })) o Slide(3,1) o Transpose() $ input
+    )
+
+    println(Compile(stencil2DR(3,1)))
+
+    val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
+
+    StencilUtilities.print2DArray(values)
+    StencilUtilities.print1DArrayAs2DArray(output,size-2)
+    StencilUtilities.print1DArray(output)
+    StencilUtilities.print1DArray(gold)
+
+    assertArrayEquals(gold, output, 0.1f)
+
+  }
+
+  @Test
+  def reduceSlide2DTestMoreOptimised(): Unit = {
+
+    val size = 8
+    val slidesize = 3
+    val slidestep = 1
+    val values = Array.tabulate(size,size) { (i,j) => (i + j + 1).toFloat }
+
+    val firstSlide = values.sliding(slidesize,slidestep).toArray
+    val secondSlide = firstSlide.map(x => x.transpose.sliding(3,1).toArray)
+    val neighbours = secondSlide.map(x => x.map(y => y.transpose))
+    val gold = neighbours.map(x => x.map(y => y.flatten.reduceLeft(_ + _))).flatten
+
+    val N = 2 + SizeVar("N")
+    val M = 2 + SizeVar("M")
+
+    val orgStencil = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      (mat) => {
+        MapGlb(1)(
+          MapGlb(0)(fun(neighbours => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeq(add, 0.0f) o Join() $ neighbours
+          }))
+        ) o Slide2D(3,1) $ mat
+      })
+
+    def stencil2DR(a: Int ,b :Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      (input) =>
+        MapGlb(0)(fun(x => {
+
+          val sumSide33 =  MapSeq( fun( t => {
+
+            val tP = Join() $ t
+
+
+            val p0 = tP.at(0).at(1)
+            val p1 = tP.at(1).at(0)
+            val p2 = tP.at(1).at(1)
+            val p6 = tP.at(1).at(1)
+            val p7 = tP.at(1).at(2)
+            val p8 = tP.at(2).at(1)
+
+            val stencil =  fun(x => add(x, p0)) o
+              fun(x => add(x,p1)) o
+              fun(x => add(x,p2)) o
+              fun(x => add(x,p6)) o
+              fun(x => add(x,p7)) $ p8
+
+              toGlobal(id) $ stencil
+
+               })) o Slide2D(3,1) o Transpose() $ x
+          val tmpSum = 0.0f
+          val ssp =  toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp, tmpSum) , a,b))  $ x.at(1)
+          val actSum = toGlobal(MapSeq(addTuple)) $ Zip( Join() $ ssp,sumSide33)
+//          val actSum = toGlobal(MapSeq(addTuple)) $ Zip( Join() $ ssp,sumSide33)
+          actSum
         })) o Slide(3,1) o Transpose() $ input
     )
 
