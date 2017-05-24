@@ -113,6 +113,24 @@ class TestUtils {
   }
 
   @Test
+  def sameExpressionTwice3(): Unit = {
+
+    val N1 = SizeVar("N")
+    val M1 = SizeVar("M")
+    val M2 = SizeVar("M")
+    val N2 = SizeVar("N")
+
+
+    val f1 = \(ArrayType(ArrayType(Float, M1), N1), Map(Map(plusOne)) $ _)
+    val f2 = \(ArrayType(ArrayType(Float, M2), N2), Map(Map(plusOne)) $ _)
+
+    val string1 = Utils.dumpLambdaToString(f1)
+    val string2 = Utils.dumpLambdaToString(f2)
+
+    assertEquals(string1, string2)
+  }
+
+  @Test
   def printCorrectRangesForVars(): Unit = {
     val M = Var("M", StartFromRange(32))
     val N = Var("N", RangeUnknown)
