@@ -84,6 +84,22 @@ class TestUtils {
   }
 
   @Test
+  def declarationOrder(): Unit = {
+    Var()
+    Var()
+    Var()
+    val N = Var("N", StartFromRange(1))
+    val M = Var("M", StartFromRange(N))
+
+    val f = \(ArrayType(Float, N), ArrayType(Float, M), (a, b) => Map(\(x => Map(\(y => add(x,y))) $ b)) $ a)
+
+    val string = Utils.dumpLambdaToString(f)
+
+    println(string)
+    Eval(string)
+  }
+
+  @Test
   def sameExpressionTwice2(): Unit = {
     val f1 = \(ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       Map(Map(plusOne) o Gather(ReorderWithStride(SizeVar("")))) $ _)
