@@ -360,11 +360,16 @@ class TestSlideSeqPlus
       (input) =>
 /*        MapGlb(0)(toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b)  o Join() /* o Slide2D(a,b)*/)) o Slide(a,b) $ input */
         MapGlb(0)(fun(x => {
-          val side1 =  ReduceSeq(absAndSumUp,0.0f) o Slide(3,1)  $ x.at(0)
-          val side2 = x.at(2)
-          val sum = 0.0f
+
+          val side1 =  MapSeq( fun( t => { toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ t })) o Slide(3,1) $ x.at(0)
+          //val side1 =  toGlobal(MapSeqUnroll(ReduceSeq(absAndSumUp,0.0f))) o Slide(3,1) $ x.at(0)
+          val side2 = MapSeq( fun( t => { toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ t })) o Slide(3,1) $ x.at(2)
+          val sum = toGlobal(MapSeq(id) o MapSeq(addTuple)) $ Zip(Join() $ side1,Join() $ side2)
+          val ssp =  toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,sum) , a,b))  $ x.at(1)
+         sum
 //          val sum = ReduceSeq(absAndSumUp,0.0f) o Slide(3,1) $ side1
-          toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,sum) , a,b)) } $ x.at(1) )) o Slide(3,1) o Transpose() $ input
+//          Join() $ side1
+        })) o Slide(3,1) o Transpose() $ input
     )
 
     println(Compile(stencil2DR(3,1)))
