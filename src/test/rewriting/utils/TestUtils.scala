@@ -5,7 +5,7 @@ import ir.ast._
 import opencl.ir._
 import lift.arithmetic._
 import opencl.executor.Eval
-import opencl.ir.pattern.MapSeq
+import opencl.ir.pattern.{MapSeq, ReduceSeq}
 import org.junit.Assert._
 import org.junit.Test
 
@@ -76,6 +76,19 @@ class TestUtils {
   def sameExpressionTwice(): Unit = {
     val f1 = \(ArrayType(Float, SizeVar("N")), Map(plusOne) $ _)
     val f2 = \(ArrayType(Float, SizeVar("N")), Map(plusOne) $ _)
+
+    val string1 = Utils.dumpLambdaToString(f1)
+    val string2 = Utils.dumpLambdaToString(f2)
+
+    assertEquals(string1, string2)
+  }
+
+  @Test
+  def sameExpressionTwice2(): Unit = {
+    val f1 = \(ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      Map(Map(plusOne) o Gather(ReorderWithStride(SizeVar("")))) $ _)
+    val f2 = \(ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      Map(Map(plusOne) o Gather(ReorderWithStride(SizeVar("")))) $ _)
 
     val string1 = Utils.dumpLambdaToString(f1)
     val string2 = Utils.dumpLambdaToString(f2)
