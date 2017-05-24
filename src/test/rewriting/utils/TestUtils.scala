@@ -5,7 +5,7 @@ import ir.ast._
 import opencl.ir._
 import lift.arithmetic._
 import opencl.executor.Eval
-import opencl.ir.pattern.{MapSeq, ReduceSeq}
+import opencl.ir.pattern.MapSeq
 import org.junit.Assert._
 import org.junit.Test
 
