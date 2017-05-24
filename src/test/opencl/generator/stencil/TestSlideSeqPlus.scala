@@ -367,8 +367,8 @@ class TestSlideSeqPlus
           val sum = toGlobal(MapSeq(id) o MapSeq(addTuple)) $ Zip(Join() $ side1,Join() $ side2)
           val tmpSum = 0.0f
           val ssp =  toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) , a,b))  $ x.at(1)
-          val actSum = toGlobal(MapSeq(id) o MapSeq(addTuple)) $ Zip(Join() $ ssp,Join() $ sum)
-          sum //actSum
+          val actSum = toGlobal(MapSeq(addTuple)) $ Zip( Join() $ ssp,sum)
+          actSum //actSum
           //          val sum = ReduceSeq(absAndSumUp,0.0f) o Slide(3,1) $ side1
           //          Join() $ side1
         })) o Slide(3,1) o Transpose() $ input
