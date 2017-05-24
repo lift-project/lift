@@ -405,13 +405,12 @@ class TestSlideSeqPlus
 
             val tP = Join() $ t
 
-
-            val p0 = tP.at(0).at(1)
-            val p1 = tP.at(1).at(0)
-            val p2 = tP.at(1).at(1)
-            val p6 = tP.at(1).at(1)
-            val p7 = tP.at(1).at(2)
-            val p8 = tP.at(2).at(1)
+            val p0 = tP.at(0).at(0)
+            val p1 = tP.at(0).at(1)
+            val p2 = tP.at(0).at(2)
+            val p6 = tP.at(2).at(0)
+            val p7 = tP.at(2).at(1)
+            val p8 = tP.at(2).at(2)
 
             val stencil =  fun(x => add(x, p0)) o
               fun(x => add(x,p1)) o
