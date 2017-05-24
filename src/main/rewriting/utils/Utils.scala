@@ -222,11 +222,15 @@ object Utils {
 
     TypeChecker(lambda)
 
-    val inputVars = lambda.getVarsInParams().toSet[Var]
-    val tunableVars = Expr.visitLeftToRight(Set[Var]())(lambda.body, (e, s) =>
-      e.t.varList.toSet[Var] ++ s
-    )
-    val allVars = inputVars ++ tunableVars
+    val inputVars = lambda.getVarsInParams()
+    val tunableVars =
+      findTunableNodes(lambda)
+        .map(extractArithExpr)
+        .collect({ case Some(c) => c.varList })
+        .flatten
+
+    val fullString =  dumpLambdaToStringWithoutDecls(lambda)
+    val allVars = inputVars.toSet ++ tunableVars
 
     val declStrings = allVars.zipWithIndex.map( tuple => {
       val param = tuple._1
@@ -238,7 +242,6 @@ object Utils {
       }
     })
 
-    val fullString =  dumpLambdaToStringWithoutDecls(lambda)
     val withIndex = allVars.map(x => x.toString).zipWithIndex.toList
 
     declStrings.mkString("\n") + "\n\n" + replaceVariableNames(fullString, withIndex)
