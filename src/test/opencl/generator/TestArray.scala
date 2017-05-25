@@ -40,7 +40,7 @@ class TestArray {
     val capacity = 1024
     val size = 700
     val input = Array.fill(size)(util.Random.nextInt(16))
-    
+
     val f = fun(
       ArrayTypeWC(Int, capacity),
       in =>
@@ -54,7 +54,7 @@ class TestArray {
     val (output, _) = exec[Vector[Int]](f, input)
     assertEquals(input.sum, output.head)
   }
-  
+
   /**
     * Same situation but this time the output is an array of the same shape
     * and not a constant.
@@ -106,19 +106,19 @@ class TestArray {
   @Test def inputZeroKnowledge(): Unit = {
     val size = 128
     val input = Array.fill(size)(util.Random.nextInt(16))
-    
+
     val f = fun(
       ArrayType(Int),
       MapGlb(toGlobal(idI)) o ReduceSeq(addI, 0) $ _
     )
-    
+
     assertEquals(TypeChecker(f), ArrayTypeWSWC(Int, 1, 1))
-    
+
     val exec = Execute(128)
     val (output, _) = exec[Vector[Int]](f, input)
     assertEquals(Vector(input.sum), output)
   }
-  
+
   /**
     * Here, you know nothing (Jon Snow).
     */
@@ -128,12 +128,12 @@ class TestArray {
       in =>
         MapGlb(toGlobal(idI)) $ in
     )
-    
+
     assertEquals(TypeChecker(f), ArrayType(Int))
-    
+
     Compile(f)
   }
-  
+
   /**
     * Nested arrays with no size
     */
@@ -154,7 +154,7 @@ class TestArray {
 
     assertArrayEquals(input.flatten, output.flatten.toArray)
   }
-  
+
   /**
    * If some capacity is not known at compile time in the type of an input
    * we can still allocate it at the last minute.
@@ -163,14 +163,14 @@ class TestArray {
   def unknownInnerCapacity(): Unit = {
     val size = 128
     val N = SizeVar("N")
-    
+
     val f = fun(
       ArrayTypeWSWC(ArrayType(Int), N),
-      
+
       Join() o
       MapGlb(MapSeq(toGlobal(idI)) o ReduceSeq(addI, 0)) $ _
     )
-    
+
     val input = Array.fill(size)(
       Array.fill(4 + util.Random.nextInt(8))(util.Random.nextInt(16))
     )
@@ -178,7 +178,7 @@ class TestArray {
     val (output, _) = exec[Vector[Int]](f, input)
     assertArrayEquals(input.map(_.sum), output.toArray)
   }
-  
+
   /**
     * Nested arrays.
     */
@@ -188,9 +188,9 @@ class TestArray {
       in =>
         MapGlb(MapSeq(toGlobal(idI))) $ in
     )
-  
+
     assertEquals(TypeChecker(f), ArrayType(ArrayType(Int)))
-  
+
     Compile(f)
   }
 
@@ -215,13 +215,13 @@ class TestArray {
 
     val p1 = Array.fill(37)(util.Random.nextFloat())
     val p2 = Array.fill(78)(util.Random.nextFloat())
-    
+
     val exec = Execute(128)
     val (output, _) = exec[Vector[Float]](f, p1, p2)
     val (outputRev, _) = exec[Vector[Float]](f, p2, p1)
-    
+
     val gold = (p1 zip p2.slice(0, 78)).map(p => p._1 * p._2).sum
-    
+
     assertEquals(gold, output.head, 0.0001f)
     assertEquals(gold, outputRev.head, 0.0001f)
   }
@@ -230,9 +230,11 @@ class TestArray {
     val N = SizeVar("N")
     val f = fun(
       ArrayTypeWSWC(ArrayType(Float), N), ArrayTypeWSWC(ArrayType(Float), N), (p1, p2) =>
-        toGlobal(MapSeq(id)) o Join() o MapGlb(
+        Join() o MapGlb(
           fun(rowPair =>
-            ReduceSeq(fun((init, elem) => add(init, mult(elem._0, elem._1))), 0.0f) $ Zip(rowPair._0, rowPair._1)
+            MapSeq(toGlobal(id)) o
+            ReduceSeq(fun((init, elem) => add(init, mult(elem._0, elem._1))), 0.0f) $
+            Zip(rowPair._0, rowPair._1)
           )
         ) $ Zip(p1, p2)
     )
@@ -247,16 +249,15 @@ class TestArray {
     val p2 = Array.tabulate(128)((i: Int) => Array.fill(als(i))(util.Random.nextFloat()))
 
     val gold = (p1 zip p2).map{
-      case (arr1, arr2) => (arr1 zip arr2).map{
-      case (e1: Float, e2: Float) => e1 * e2}.fold(0.0f){
-        case (e1: Float, e2: Float) => e1 + e2}
+      case (arr1, arr2) =>
+        (arr1 zip arr2)
+          .map{ case (e1: Float, e2: Float) => e1 * e2 }
+          .sum
     }
 
     val exec = Execute(128)
     val (output, _) = exec[Vector[Float]](f, p1, p2)
 
     assertArrayEquals(gold, output.toArray, 0.001f)
-
-
   }
 }
