@@ -260,4 +260,22 @@ class TestArray {
 
     assertArrayEquals(gold, output.toArray, 0.001f)
   }
+
+  @Test
+  def chainedMaps(): Unit = {
+    val capacity = 128
+    val size = 87 // random value < capacity
+    val f = fun(
+      ArrayTypeWC(Int, capacity),
+      MapSeq(fun(x => addI.apply(x, x)))
+      o MapSeq(fun(addI.apply(1, _)))
+      o MapSeq(id(Int)) $ _
+    )
+
+    val input = Array.fill(size)(util.Random.nextInt(1024))
+    val exec = Execute(capacity)
+    val (output, _) = exec[Vector[Int]](f, input)
+
+    assertArrayEquals(input.map(x => 2 * (x + 1)), output.toArray)
+  }
 }

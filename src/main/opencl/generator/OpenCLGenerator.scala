@@ -415,16 +415,35 @@ class OpenCLGenerator extends Generator {
 
     expr match {
       case call: FunCall => call.f match {
-        case m: MapWrg => generateMapWrgCall(m, call, block)
-        case m: MapGlb => generateMapGlbCall(m, call, block)
-        case m: MapAtomWrg => generateMapAtomWrgCall(m, call, block)
-        case m: MapLcl => generateMapLclCall(m, call, block)
-        case m: MapAtomLcl => generateMapAtomLclCall(m, call, block)
-        case m: MapWarp => generateMapWarpCall(m, call, block)
-        case m: MapLane => generateMapLaneCall(m, call, block)
-        case m: MapSeq => generateMapSeqCall(m, call, block)
-        case _: Map =>
-
+        case am: AbstractMap =>
+          am match {
+            case m: MapWrg => generateMapWrgCall(m, call, block)
+            case m: MapGlb => generateMapGlbCall(m, call, block)
+            case m: MapAtomWrg => generateMapAtomWrgCall(m, call, block)
+            case m: MapLcl => generateMapLclCall(m, call, block)
+            case m: MapAtomLcl => generateMapAtomLclCall(m, call, block)
+            case m: MapWarp => generateMapWarpCall(m, call, block)
+            case m: MapLane => generateMapLaneCall(m, call, block)
+            case m: MapSeq => generateMapSeqCall(m, call, block)
+            case _: Map =>
+          }
+          // If the size of the input array is not known in the type, it is not
+          // in the type of the output array either. Therefore, we have to copy
+          // it from the input's to the output.
+          call.t match {
+            case ArrayTypeWS(_, _) =>
+            case _ =>
+              val size = Var("size")
+              (block: Block) += VarDecl(
+                size, Int,
+                getArraySize(
+                  OpenCLMemory.asOpenCLMemory(call.args.head.mem),
+                  call.args.head.view.size()
+                )
+              )
+              (block: Block) += storeArraySize(call.t, call.mem, call.args.head.view.size(), size)
+          }
+          
         case f: FilterSeq => generateFilterSeqCall(f, call, block)
 
         case r: ReduceSeq => generateReduceSeqCall(r, call, block)
@@ -1078,7 +1097,7 @@ class OpenCLGenerator extends Generator {
 
     } /*, i.iterationCount*/)
   }
-
+  
   private def generateLoopMinMemoryAccess(block: Block,
                               sSP: SlideSeqPlus,
                               call: FunCall,
@@ -1402,6 +1421,31 @@ class OpenCLGenerator extends Generator {
       case _ =>
         ViewPrinter.emit(mem.variable, view, addressSpace = mem.addressSpace)
     }
+  }
+
+  /**
+   * Store the size of an array
+   */
+  private def storeArraySize(ty: Type, mem: Memory, view: View, size: Var): Expression = {
+    def castSize(ty: Type): (Type, OpenCLAST.OclAstNode) = {
+      Type.getBaseType(ty) match {
+        case tt: TupleType =>
+          val values = tt.elemsT.map(castSize).map(_._2)
+          val tv = OpenCLAST.StructConstructor(tt, values.toVector)
+          (tt, tv)
+        case bt =>
+          if (bt == Int) (bt, VarRef(size))
+          else (bt, Cast(VarRef(size), bt))
+      }
+    }
+    
+    val (baseType, castedSize) = castSize(ty)
+    generateStoreNode(
+      OpenCLMemory.asOpenCLMemory(mem),
+      baseType,
+      view,
+      castedSize
+    )
   }
 
   private def generateStatement(block: Block,
