@@ -24,7 +24,10 @@ object OpenCLPrinter {
         val num = toStringProd(numTerms)
         if (denTerms.isEmpty) s"($num)"
         else {
-          val den = toStringProd(denTerms.map{ case Pow(e, Cst(-1)) => e })
+          val den = toStringProd(denTerms.map({
+            case Pow(e, Cst(-1)) => e
+            case _ => throw new IllegalArgumentException()
+          }))
           s"(($num)/($den))"
         }
       case Sum(es) => "(" + es.map(toString).reduce( _ + " + " + _  ) + ")"
