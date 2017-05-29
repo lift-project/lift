@@ -228,11 +228,11 @@ object Utils {
       findTunableNodes(lambda)
         .map(extractArithExpr)
         .collect({ case Some(c) => c.varList })
-        .flatten
+        .flatten.filterNot(x => inputVars contains x).distinct
 
     val fullString =  dumpLambdaToStringWithoutDecls(lambda)
-    val allVars = inputVars.toSet ++ tunableVars
-    val orderedVars = allVars.toList.sortWith((x, y) => x.id < y.id)
+    val allVars = inputVars.distinct ++ tunableVars
+    val orderedVars = allVars.toList//.sortWith((x, y) => x.id < y.id)
     val withIndex = orderedVars.map(x => x.toString).zipWithIndex
 
     val declStrings = orderedVars.zipWithIndex.map( tuple => {
@@ -247,7 +247,6 @@ object Utils {
 
       "val " + newName + " = " + constructor
     })
-
 
     declStrings.mkString("\n") + "\n\n" + replaceVariableNames(fullString, withIndex)
   }

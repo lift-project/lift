@@ -67,7 +67,8 @@ abstract case class Lambda private[ast] (params: Array[Param],
   }
 
   def getVarsInParams() =
-    params.flatMap(_.t.varList).sortBy(_.name).distinct
+   params.flatMap(_.t.varList).distinct
+    //params.flatMap(_.t.varList).sortBy(_.name).distinct
 
   def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
