@@ -76,10 +76,10 @@ class TestHighLevelRewrite {
   )
 
   def getHash(lambda: Lambda): String =
-    Utils.Sha256Hash(Utils.dumpLambdaToString(lambda, true))
+    Utils.Sha256Hash(Utils.dumpLambdaToString(lambda, useOldVersion = true))
 
   @Test ( expected = classOf[TypeException] )//see Issue #114
-  def rewriteLambdaUsingInt {
+  def rewriteLambdaUsingInt(): Unit = {
     val div9 = UserFun("div9", "x", "{ return x/9; }", Int, Int)
     val stencilInt = fun(
       ArrayType(ArrayType(Int, 6408), 4802),
@@ -90,7 +90,7 @@ class TestHighLevelRewrite {
     })
 
     val rewriter = new HighLevelRewrite(4, 2, 2)
-    val rewrittenLambdas = rewriter(stencilInt)
+   rewriter(stencilInt)
   }
 
   @Test
@@ -99,7 +99,7 @@ class TestHighLevelRewrite {
     val rewriter = new HighLevelRewrite(4, 2, 2)
     val rewrittenLambdas = rewriter(stencil1D)
 
-    val gold = fun(ArrayTypeWSWC(Float, N),(p_0) => FunCall(Join(), FunCall(Join(), FunCall(Map(fun((p_1) => FunCall(Map(fun((p_2) => FunCall(Reduce(fun((p_3, p_4) => FunCall(add, p_3, p_4))), Value("0.0f", Float), p_2))), FunCall(Slide(3,1), p_1)))), FunCall(Slide((2+v__1),v__1), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_0))))))
+    val gold = fun(ArrayTypeWSWC(Float, N),(p_0) => FunCall(Join(), FunCall(Join(), FunCall(Map(fun((p_1) => FunCall(Map(fun((p_2) => FunCall(Reduce(fun((p_3, p_4) => FunCall(add, p_3, p_4))), Value("0.0f", Float), p_2))), FunCall(Slide(3,1), p_1)))), FunCall(Slide(2+v__1,v__1), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_0))))))
     val goldHash = getHash(gold)
 
     val tiledSeq = Seq(MacroRules.tileStencils)
