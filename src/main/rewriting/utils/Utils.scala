@@ -218,37 +218,45 @@ object Utils {
    * @param lambda The lambda to dump to a string
    * @return
    */
-  def dumpLambdaToString(lambda: Lambda, useSizeVar: Boolean = false): String = {
+  def dumpLambdaToString(lambda: Lambda, useOldVersion: Boolean = false): String = {
+    // old version does not print detailed Range information => old hashes stay valid
+    if (useOldVersion) {
+      val fullString =  dumpLambdaToStringWithoutDecls(lambda)
 
-    TypeChecker(lambda)
+      val withIndex: List[(String, Int)] = findVariables(fullString)
 
-    val inputVars = lambda.getVarsInParams()
+      val decls = withIndex.map(pair =>
+        "val " + getNewName(pair) + " = SizeVar(\"" + getIdentifier(pair) + "\")\n"
+      ).mkString("")
 
-    val tunableVars =
-      findTunableNodes(lambda)
-        .map(extractArithExpr)
-        .collect({ case Some(c) => c.varList })
-        .flatten.filterNot(x => inputVars contains x).distinct
+      decls + "\n" + replaceVariableNames(fullString, withIndex)
+    } else { // also print range information
+      TypeChecker(lambda)
 
-    val fullString =  dumpLambdaToStringWithoutDecls(lambda)
-    val allVars = inputVars.distinct ++ tunableVars
-    val orderedVars = allVars.toList//.sortWith((x, y) => x.id < y.id)
-    val withIndex = orderedVars.map(x => x.toString).zipWithIndex
+      val inputVars = lambda.getVarsInParams()
 
-    val declStrings = orderedVars.zipWithIndex.map( tuple => {
-      val param = tuple._1
-      val index = tuple._2
-      val newName = getNewName(param.toString, index)
-      val replacedRange = replaceVariableNames(param.range.toString, withIndex)
-      val constructor = if(useSizeVar)
-        "SizeVar(\"" + param.name + "\")"
-      else
-        "Var(\"" + param.name + "\", " + replacedRange + ")"
+      val tunableVars =
+        findTunableNodes(lambda)
+          .map(extractArithExpr)
+          .collect({ case Some(c) => c.varList })
+          .flatten.filterNot(x => inputVars contains x).distinct
 
-      "val " + newName + " = " + constructor
-    })
+      val fullString = dumpLambdaToStringWithoutDecls(lambda)
+      val allVars = inputVars.distinct ++ tunableVars
+      val orderedVars = allVars.toList
+      val withIndex = orderedVars.map(x => x.toString).zipWithIndex
 
-    declStrings.mkString("\n") + "\n\n" + replaceVariableNames(fullString, withIndex)
+      val declStrings = orderedVars.zipWithIndex.map(tuple => {
+        val param = tuple._1
+        val index = tuple._2
+        val newName = getNewName(param.toString, index)
+        val replacedRange = replaceVariableNames(param.range.toString, withIndex)
+
+        "val " + newName + " = Var(\"" + param.name + "\", " + replacedRange + ")"
+      })
+
+      declStrings.mkString("\n") + "\n\n" + replaceVariableNames(fullString, withIndex)
+    }
   }
 
   private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String = {
