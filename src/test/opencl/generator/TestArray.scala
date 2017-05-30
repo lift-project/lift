@@ -305,11 +305,16 @@ class TestArray {
     val values  = Array.tabulate(height)((i: Int) => Array.fill(als(i))(util.Random.nextFloat()))
     val vector  = Array.fill(width)(util.Random.nextFloat())
 
-    // build a gold
+    val gold = (indices zip values).map{
+      case (ixRow, valRow) =>
+        (ixRow zip valRow).map{
+        case (ix, v) => v * vector(ix)
+      }.sum
+    }
 
     val exec = Execute(128)
     val (output, _) = exec[Vector[Float]](f, indices, values, vector)
 
-    // check the gold
+    assertArrayEquals(gold, output, 0.001f)
   }
 }
