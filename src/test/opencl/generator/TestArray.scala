@@ -1,6 +1,6 @@
 package opencl.generator
 
-import ir.ast.{Zip, fun, _}
+import ir.ast.{CheckedArrayAccess, Join, Zip, fun, _}
 import ir.{ArrayType, ArrayTypeWC, ArrayTypeWSWC, TypeChecker, _}
 import lift.arithmetic.{Cst, SizeVar}
 import opencl.executor.{Compile, Execute, Executor}
@@ -238,26 +238,26 @@ class TestArray {
           )
         ) $ Zip(p1, p2)
     )
-  
+
     assertEquals(TypeChecker(f), ArrayTypeWSWC(Float, N))
-  
+
     val height = 128
-  
+
     val als: Array[Int] = Array.fill(height)(util.Random.nextInt(127) + 1)
-  
+
     val p1 = Array.tabulate(128)((i: Int) => Array.fill(als(i))(util.Random.nextFloat()))
     val p2 = Array.tabulate(128)((i: Int) => Array.fill(als(i))(util.Random.nextFloat()))
-  
+
     val gold = (p1 zip p2).map {
       case (arr1, arr2) =>
         (arr1 zip arr2)
           .map { case (e1: Float, e2: Float) => e1 * e2 }
           .sum
     }
-  
+
     val exec = Execute(128)
     val (output, _) = exec[Vector[Float]](f, p1, p2)
-  
+
     assertArrayEquals(gold, output.toArray, 0.001f)
   }
 
@@ -289,12 +289,11 @@ class TestArray {
       (arrayIndices, arrayValues, vector) =>
         Zip(arrayIndices, arrayValues) :>>
           MapSeq(fun( rowPair =>
-            Zip(rowPair._1, rowPair._2) :>>
-              ReduceSeq(fun(
-              (acc, (index, value)) => add(acc, mult(value, TestCheckedArrayAccess(index, 0.0f) $ vector))),
-              0.0f
-            )
-        ))
+            Zip(rowPair._0, rowPair._1) :>>
+              ReduceSeq(fun((acc, rowElem) =>
+                add(acc, mult(rowElem._1, CheckedArrayAccess(rowElem._0, 0.0f) $ vector))), 0.0f
+              ) :>> toGlobal(MapSeq(id))
+        )) :>> Join()
     )
 
     val height = 128
@@ -302,12 +301,14 @@ class TestArray {
 
     val als : Array[Int] = Array.fill(height)(util.Random.nextInt(width - 1) + 1)
 
-    val p1 = Array.tabulate(height)((i: Int) => Array.fill(als(i))(util.Random.nextFloat()))
-    val p2 = Array.tabulate(height)((i: Int) => Array.fill(als(i))(util.Random.nextFloat()))
+    val indices = Array.tabulate(height)((i: Int) => Array.fill(als(i))(util.Random.nextInt(width)))
+    val values  = Array.tabulate(height)((i: Int) => Array.fill(als(i))(util.Random.nextFloat()))
+    val vector  = Array.fill(width)(util.Random.nextFloat())
 
     // build a gold
 
-    val (output: Array[Float], _) = Execute(128)(f, p1, p2)
+    val exec = Execute(128)
+    val (output, _) = exec[Vector[Float]](f, indices, values, vector)
 
     // check the gold
   }
