@@ -233,31 +233,31 @@ class TestArray {
         Join() o MapGlb(
           fun(rowPair =>
             MapSeq(toGlobal(id)) o
-            ReduceSeq(fun((init, elem) => add(init, mult(elem._0, elem._1))), 0.0f) $
-            Zip(rowPair._0, rowPair._1)
+              ReduceSeq(fun((init, elem) => add(init, mult(elem._0, elem._1))), 0.0f) $
+              Zip(rowPair._0, rowPair._1)
           )
         ) $ Zip(p1, p2)
     )
-
+  
     assertEquals(TypeChecker(f), ArrayTypeWSWC(Float, N))
-
+  
     val height = 128
-
-    val als : Array[Int] = Array.fill(height)(util.Random.nextInt(127) + 1)
-
+  
+    val als: Array[Int] = Array.fill(height)(util.Random.nextInt(127) + 1)
+  
     val p1 = Array.tabulate(128)((i: Int) => Array.fill(als(i))(util.Random.nextFloat()))
     val p2 = Array.tabulate(128)((i: Int) => Array.fill(als(i))(util.Random.nextFloat()))
-
-    val gold = (p1 zip p2).map{
+  
+    val gold = (p1 zip p2).map {
       case (arr1, arr2) =>
         (arr1 zip arr2)
-          .map{ case (e1: Float, e2: Float) => e1 * e2 }
+          .map { case (e1: Float, e2: Float) => e1 * e2 }
           .sum
     }
-
+  
     val exec = Execute(128)
     val (output, _) = exec[Vector[Float]](f, p1, p2)
-
+  
     assertArrayEquals(gold, output.toArray, 0.001f)
   }
 
@@ -268,8 +268,8 @@ class TestArray {
     val f = fun(
       ArrayTypeWC(Int, capacity),
       MapSeq(fun(x => addI.apply(x, x)))
-      o MapSeq(fun(addI.apply(1, _)))
-      o MapSeq(id(Int)) $ _
+        o MapSeq(fun(addI.apply(1, _)))
+        o MapSeq(id(Int)) $ _
     )
 
     val input = Array.fill(size)(util.Random.nextInt(1024))
@@ -277,5 +277,38 @@ class TestArray {
     val (output, _) = exec[Vector[Int]](f, input)
 
     assertArrayEquals(input.map(x => 2 * (x + 1)), output.toArray)
+  }
+
+  @Test def basicSpMV(): Unit = {
+    val N = SizeVar("VectorLength")
+    val M = SizeVar("MatrixHeight")
+    val f = fun(
+      ArrayTypeWSWC(ArrayType(Int),   M),
+      ArrayTypeWSWC(ArrayType(Float), M),
+      ArrayTypeWSWC(Float, N),
+      (arrayIndices, arrayValues, vector) =>
+        Zip(arrayIndices, arrayValues) :>>
+          MapSeq(fun( rowPair =>
+            Zip(rowPair._1, rowPair._2) :>>
+              ReduceSeq(fun(
+              (acc, (index, value)) => add(acc, mult(value, TestCheckedArrayAccess(index, 0.0f) $ vector))),
+              0.0f
+            )
+        ))
+    )
+
+    val height = 128
+    val width = 64
+
+    val als : Array[Int] = Array.fill(height)(util.Random.nextInt(width - 1) + 1)
+
+    val p1 = Array.tabulate(height)((i: Int) => Array.fill(als(i))(util.Random.nextFloat()))
+    val p2 = Array.tabulate(height)((i: Int) => Array.fill(als(i))(util.Random.nextFloat()))
+
+    // build a gold
+
+    val (output: Array[Float], _) = Execute(128)(f, p1, p2)
+
+    // check the gold
   }
 }
