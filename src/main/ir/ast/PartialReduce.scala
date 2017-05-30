@@ -25,11 +25,14 @@ abstract class AbstractPartRed(val f: Lambda,
       case TupleType(initT, ArrayType(elemT)) =>
         f.params(0).t = initT // initial elem type
         f.params(1).t = elemT // array element type
+  
+        val bodyType = TypeChecker.check(f.body, setType) // check the body
 
-        if (initT != elemT)
-          throw TypeException(s"Argument type mismatch in \n$this.\n$initT != $elemT")
-
-        TypeChecker.assertTypeIs(f.body, initT, setType) // check the body
+        if (initT != elemT || initT != bodyType)
+          throw TypeException(
+            s"Illegal customising function in:\n``$this``.\n" +
+            s"``($initT, $elemT) -> $bodyType`` does not match ``(α, α) -> α``"
+          )
 
         // TODO: Output length of a partial reduce might not be 1
         ArrayTypeWSWC(initT, 1)

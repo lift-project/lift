@@ -3,6 +3,7 @@ package opencl.executor;
 import utils.NativeUtils;
 
 import java.io.IOException;
+import java.util.Objects;
 
 public class Executor {
 
@@ -45,7 +46,11 @@ public class Executor {
     public static void loadLibrary()
     {
         try {
-            NativeUtils.loadLibraryFromJar("/lib/libexecutor-jni.so");
+            if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+                NativeUtils.loadLibraryFromJar("/lib/libexecutor-jni.dylib");
+            } else {
+                NativeUtils.loadLibraryFromJar("/lib/libexecutor-jni.so");
+            }
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(-1);
