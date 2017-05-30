@@ -70,9 +70,9 @@ class AccessPatterns(
       Some(UnknownPattern)
   }
 
-  private def getAccessPattern(expr: Expr): Option[AccessPattern] = {
-    val length = Type.getLength(Type.getValueType(expr.view.t))
-    ViewPrinter.emit(Var(), expr.view) match {
+  private def getAccessPattern(view: View): Option[AccessPattern] = {
+    val length = Type.getLength(Type.getValueType(view.t))
+    ViewPrinter.emit(Var(), view) match {
       case v: VarRef => getAccessPattern(v, length)
       case _ => None
     }
@@ -100,13 +100,13 @@ class AccessPatterns(
           case _: UserFun | _: VectorizeUserFun =>
 
             args.foreach(arg => {
-              val accessPattern = getAccessPattern(arg)
+              val accessPattern = getAccessPattern(arg.view)
 
               if (accessPattern.isDefined)
                 readPatterns += arg -> accessPattern.get
             })
 
-            writePatterns += expr -> getAccessPattern(expr).get
+            writePatterns += expr -> getAccessPattern(expr.outputView).get
 
           case _ =>
         }
