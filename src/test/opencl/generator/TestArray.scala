@@ -288,7 +288,7 @@ class TestArray {
       ArrayTypeWSWC(Float, N),
       (arrayIndices, arrayValues, vector) =>
         Zip(arrayIndices, arrayValues) :>>
-          MapSeq(fun( rowPair =>
+          MapGlb(fun( rowPair =>
             Zip(rowPair._0, rowPair._1) :>>
               ReduceSeq(fun((acc, rowElem) =>
                 add(acc, mult(rowElem._1, CheckedArrayAccess(rowElem._0, 0.0f) $ vector))), 0.0f
@@ -315,6 +315,6 @@ class TestArray {
     val exec = Execute(128)
     val (output, _) = exec[Vector[Float]](f, indices, values, vector)
 
-    assertArrayEquals(gold, output, 0.001f)
+    assertArrayEquals(gold, output.toArray, 0.001f)
   }
 }
