@@ -1757,4 +1757,32 @@ class OpenCLGenerator extends Generator {
   private def valueAccessNode(v: Var): OpenCLAST.VarRef = {
     OpenCLAST.VarRef(v)
   }
+  
+  private def generateCopy(inMem: Memory, inView: View, outMem: Memory, outView: View,
+                           ty: Type): OpenCLAST.OclAstNode with BlockMember = {
+    ty match {
+      case ScalarType(_, _) | _: TupleType | _: VectorType =>
+        val load = generateLoadNode(OpenCLMemory.asOpenCLMemory(inMem), ty, inView)
+        generateStoreNode(OpenCLMemory.asOpenCLMemory(outMem), ty, outView, load)
+      case at: ArrayType =>
+        val innerBlock = Block(Vector.empty)
+        val loopVar = Var("cp")
+        val length = at match {
+          case s: Size => ArithExpression(s.size)
+          case _ => throw new NotImplementedError()
+        }
+        innerBlock += generateCopy(
+          inMem, inView.access(loopVar),
+          outMem, outView.access(loopVar),
+          at.elemT
+        )
+        ForLoop(
+          VarDecl(loopVar, Int, ArithExpression(0)),
+          CondExpression(ArithExpression(loopVar), length, CondExpression.Operator.<),
+          AssignmentExpression(VarRef(loopVar), ArithExpression(loopVar + 1)),
+          innerBlock
+        )
+      case _ => throw new NotImplementedError(s"generateCopy: $ty")
+    }
+  }
 }
