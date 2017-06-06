@@ -96,18 +96,22 @@ package object cnn {
     val cnnDir: String = nn.nnDir + "/cnn"
 
 
-    def getPathToInputs(nKernelsL0: Int, kernelShape: Shape): String = cnnDir + f"/experiment." +
-      f"$nKernelsL0%d.${kernelShape.w}%d.${kernelShape.h}%d"
+    def getPathToInputs(nKernelsL0: Int, kernelShape: Shape, imageShape: Shape): String = {
+      ({
+        val envPath = System.getenv("LIFT_CNN_RESOURCES")
+        if (envPath != null) envPath else cnnDir
+      } + f"/experiment.$nKernelsL0%d.${kernelShape.w}%d.${imageShape.h}%d").replace("//", "/")
+    }
     def getPathToResults(pathToInputs: String): String = pathToInputs + "/results_lift/"
+
+
+    def datasetsExist(pathToInputs: String): Boolean = exists(get(pathToInputs + "/wconv1.json"))
 
 
     def loadDatasets(nInputs: Int, pathToInputs: String):
     (PaddedArray[Array5D[Float]], Array5D[Float], Array2D[Float],
       Array5D[Float]) = {
-
-      if (!exists(get(pathToInputs + "/wconv1.json")))
-        throw new java.io.FileNotFoundException(f"Experiment (nInputs=$nInputs%d) " +
-          "resources not provided (JSON files with test images, NN weights and biases).")
+      println(f"Loading datasets for nInputs = $nInputs%d and pathToInputs = " + pathToInputs)
 
       var tfWconv = Array(nn.loadJSON4D(pathToInputs + "/wconv1.json"))
       var tfBconv = Array(nn.loadJSON1D(pathToInputs + "/bconv1.json"))

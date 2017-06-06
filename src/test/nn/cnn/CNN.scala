@@ -4,7 +4,7 @@ package nn.cnn
   * Created by nm on 09/01/17.
   */
 
-import ir.ast.{FunDecl, Get, Join, PrintType, Slide2D, Split, TiledSlidedND, Transpose, TransposeW, UserFun, Zip, λ}
+import ir.ast.{FunDecl, Get, Join, Slide2D, Split, TiledSlidedND, Transpose, TransposeW, UserFun, Zip, λ}
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
 import nn._
@@ -260,38 +260,52 @@ class CNN(/* CNN architectural parameters */
           val kernelsPerGroupL1: Int,
           val inputTileSizeL1: Int,
           /* CNN application parameters */
-          val inputsL0: PaddedArray[Array5D[Float]], val kWeights: Array5D[Float],
-          val kBiases: Array2D[Float], val targets: Array5D[Float],
+          val nLayers: Int, val nBatches: Int, val nInputs: Int,
+          val nKernels: Array[Int], val nInChannels: Array[Int],
+          val inputShape: Array[Shape], val kernelShape: Array[Shape],
+          /*val inputsL0: PaddedArray[Array5D[Float]], val kWeights: Array5D[Float],
+          val kBiases: Array2D[Float], val targets: Array5D[Float],*/
           val pathToResults: String) {
   /**
   * Initializes variables, computes workgroup sizes.
   */
   /* Sizes */
-  val nLayers: Int = kBiases.length
-  val nBatches: Int = inputsL0.nonPadded.length
-  val nInputs: Int = inputsL0.nonPadded.head.length
-  val nInChannels: Array[Int] = Array.fill[Int](nLayers)(0)
-  val nKernels: Array[Int] = Array.fill[Int](nLayers)(0)
-  for (layerNo <- 0 until nLayers) {
-    nInChannels(layerNo) = kWeights(layerNo).head.head.length
-    nKernels(layerNo) = kWeights(layerNo).head.head.head.length
-  }
+  //val nLayers: Int = kBiases.length
+  //val nBatches: Int = inputsL0.nonPadded.length
+  //val nInputs: Int = inputsL0.nonPadded.head.length
+  //val nInChannels: Array[Int] = Array.fill[Int](nLayers)(0)
+//  val nKernels: Array[Int] = Array.fill[Int](nLayers)(0)
+//  for (layerNo <- 0 until nLayers) {
+//    nInChannels(layerNo) = kWeights(layerNo).head.head.length
+//    nKernels(layerNo) = kWeights(layerNo).head.head.head.length
+//  }
 
 
   /* Data storage */
   var outputs: Array[PaddedArray[Array5D[Float]]] = _
   var inputs: Array[PaddedArray[Array5D[Float]]] = _
+  var inputsL0: PaddedArray[Array5D[Float]] = _
+  var kWeights: Array5D[Float] = _
+  var kBiases: Array2D[Float] = _
+  var targets: Array5D[Float] = _
+  def setData(data: (PaddedArray[Array5D[Float]], Array5D[Float], Array2D[Float], Array5D[Float])): Unit = {
+    // TODO: reformat this ugliness
+    inputsL0 = data._1
+    kWeights = data._2
+    kBiases = data._3
+    targets = data._4
+  }
   def updateInputs(layerNo: Int): Unit = if (inputs == null)
     inputs = Array(inputsL0) else inputs = inputs :+ outputs(layerNo - 1)
 
 
   /* Shapes */
-  var inputShape: Array[Shape] = Array.fill[Shape](nLayers)(Shape())
+//  val inputShape: Array[Shape] = Array.fill[Shape](nLayers)(Shape())
   var outputShape: Array[Shape] = Array.fill[Shape](nLayers)(Shape())
-  inputShape(0) = Shape(w = inputsL0.nonPadded.head.head.length, h = inputsL0.nonPadded.head.head.head.length,
-    ch = inputsL0.nonPadded.head.head.head.head.length)
-  var kernelShape: Array[Shape] = {for (layerNo <- 0 until nLayers) yield
-    Shape(w = kWeights(layerNo).head.length, h = kWeights(layerNo).length)}.toArray
+//  inputShape(0) = Shape(w = inputsL0.nonPadded.head.head.length, h = inputsL0.nonPadded.head.head.head.length,
+//    ch = inputsL0.nonPadded.head.head.head.head.length)
+//  var kernelShape: Array[Shape] = {for (layerNo <- 0 until nLayers) yield
+//    Shape(w = kWeights(layerNo).head.length, h = kWeights(layerNo).length)}.toArray
 
   var kernelStep: Array[Int] = Array.fill[Int](nLayers)(1)
 
@@ -372,7 +386,7 @@ class CNN(/* CNN architectural parameters */
 
 
   /* Parallelization parameters */
-  val elsPerThread: Array[Int] = Array.fill[Int](nLayers)(2)
+  val elsPerThread: Array[Int] = Array.fill[Int](nLayers)(1)
   elsPerThread(nLayers - 1) = elsPerThreadL1
   val kernelsPerGroup: Array[Int] = Array.fill[Int](nLayers)(4)
   kernelsPerGroup(nLayers - 1) = kernelsPerGroupL1
