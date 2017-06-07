@@ -16,12 +16,20 @@ object OpenCLPrinter {
       case Pow(b, ex) =>
         "(int)pow((float)" + toString(b) + ", " + toString(ex) + ")"
       case Log(b, x) => "(int)log"+b+"((float)"+toString(x)+")"
-      case Prod(es) => "(" + es.foldLeft("1")( (s: String, e: ArithExpr) => {
-        s + (e match {
-          case Pow(b, Cst(-1)) => " / (" + toString(b) + ")"
-          case _ => " * " + toString(e)
+      case Prod(es) =>
+        val (denTerms, numTerms) = es.partition({
+          case Pow(_, Cst(-1)) => true
+          case _ => false
         })
-      } ).drop(4) + ")" // drop(4) removes the initial "1 * "
+        val num = toStringProd(numTerms)
+        if (denTerms.isEmpty) s"($num)"
+        else {
+          val den = toStringProd(denTerms.map({
+            case Pow(e, Cst(-1)) => e
+            case _ => throw new IllegalArgumentException()
+          }))
+          s"(($num)/($den))"
+        }
       case Sum(es) => "(" + es.map(toString).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toString(a) + " % " + toString(n) + ")"
       case of: OclFunction => of.toOCLString
@@ -34,6 +42,12 @@ object OpenCLPrinter {
           s"${toString(i.t)} : ${toString(i.e)} )"
       case _ => throw new NotPrintableExpression(e.toString)
     }
+  }
+  
+  def toStringProd(terms: Seq[ArithExpr]): String = {
+    val res = terms.foldLeft("1")((s, e) => s + " * " + toString(e))
+    if (terms.isEmpty) "1"
+    else res.drop(4) // Drop "1 * "
   }
 
   def toString(t: Type, seenArray: Boolean = false) : String = {
