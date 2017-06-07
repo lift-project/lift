@@ -94,8 +94,6 @@ class TestUtils {
     val f = \(ArrayType(Float, N), ArrayType(Float, M), (a, b) => Map(\(x => Map(\(y => add(x,y))) $ b)) $ a)
 
     val string = Utils.dumpLambdaToString(f)
-
-    println(string)
     Eval(string)
   }
 
