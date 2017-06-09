@@ -6,6 +6,52 @@ import play.api.libs.json.Reads._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 
+case class MemoryMappingRewriteSettings(
+                                       vectorWidth: Int,
+                                       sequential: Boolean,
+                                       loadBalancing: Boolean,
+                                       unrollReduce: Boolean,
+                                       global0: Boolean,
+                                       global01: Boolean,
+                                       global10: Boolean,
+                                       global012: Boolean,
+                                       global210: Boolean,
+                                       group0: Boolean,
+                                       group01: Boolean,
+                                       group10: Boolean
+)
+
+object MemoryMappingRewriteSettings {
+
+  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None, None, None, None)
+  def createWithDefaults(
+                        vectorWidth: Option[Int],
+                        sequential: Option[Boolean],
+                        loadBalancing: Option[Boolean],
+                        unrollReduce: Option[Boolean],
+                        global0: Option[Boolean],
+                        global01: Option[Boolean],
+                        global10: Option[Boolean],
+                        global012: Option[Boolean],
+                        global210: Option[Boolean],
+                        group0: Option[Boolean],
+                        group01: Option[Boolean],
+                        group10: Option[Boolean]
+                        ) = MemoryMappingRewriteSettings(
+  vectorWidth.getOrElse(MemoryMappingRewrite.defaultVectorWidth),
+  sequential.getOrElse(MemoryMappingRewrite.defaultSequential),
+  loadBalancing.getOrElse(MemoryMappingRewrite.defaultLoadBalancing),
+  unrollReduce.getOrElse(MemoryMappingRewrite.defaultUnrollReduce),
+  global0.getOrElse(MemoryMappingRewrite.defaultGlobal0),
+  global01.getOrElse(MemoryMappingRewrite.defaultGlobal01),
+  global10.getOrElse(MemoryMappingRewrite.defaultGlobal10),
+  global012.getOrElse(MemoryMappingRewrite.defaultGlobal012),
+  global210.getOrElse(MemoryMappingRewrite.defaultGlobal210),
+  group0.getOrElse(MemoryMappingRewrite.defaultGroup0),
+  group01.getOrElse(MemoryMappingRewrite.defaultGroup01),
+  group10.getOrElse(MemoryMappingRewrite.defaultGroup10))
+}
+
 case class HighLevelRewriteSettings(
   explorationDepth: Int,
   depth: Int,
@@ -106,7 +152,8 @@ case class SearchParameters(
 case class Settings(
   inputCombinations: Option[Seq[Seq[ArithExpr]]] = None,
   searchParameters: SearchParameters = SearchParameters.createDefault,
-  highLevelRewriteSettings: HighLevelRewriteSettings = HighLevelRewriteSettings.createDefault
+  highLevelRewriteSettings: HighLevelRewriteSettings = HighLevelRewriteSettings.createDefault,
+  memoryMappingRewriteSettings: MemoryMappingRewriteSettings = MemoryMappingRewriteSettings.createDefault
 ) {
 
   override def toString: String = {
@@ -114,6 +161,7 @@ case class Settings(
        |  $inputCombinations,
        |  $searchParameters
        |  $highLevelRewriteSettings
+       |  $memoryMappingRewriteSettings
        |)""".stripMargin
   }
 
@@ -149,15 +197,32 @@ object ParseSettings {
     (JsPath \ "rule_collection").readNullable[String]
   )(HighLevelRewriteSettings.createWithDefaults _)
 
+  private[exploration] implicit val memoryMappingReads: Reads[MemoryMappingRewriteSettings] = (
+    (JsPath \ "vector_width").readNullable[Int] and
+    (JsPath \ "sequential").readNullable[Boolean] and
+    (JsPath \ "load_balancing").readNullable[Boolean] and
+    (JsPath \ "unroll_reduce").readNullable[Boolean] and
+    (JsPath \ "global0").readNullable[Boolean] and
+    (JsPath \ "global01").readNullable[Boolean] and
+    (JsPath \ "global10").readNullable[Boolean] and
+    (JsPath \ "global012").readNullable[Boolean] and
+    (JsPath \ "global210").readNullable[Boolean] and
+    (JsPath \ "group0").readNullable[Boolean] and
+    (JsPath \ "group01").readNullable[Boolean] and
+    (JsPath \ "group10").readNullable[Boolean]
+  )(MemoryMappingRewriteSettings.createWithDefaults _)
+
   private[exploration] implicit val settingsReads: Reads[Settings] = (
     (JsPath \ "input_combinations").readNullable[Seq[Seq[ArithExpr]]] and
     (JsPath \ "search_parameters").readNullable[SearchParameters] and
-    (JsPath \ "high_level_rewrite").readNullable[HighLevelRewriteSettings]
-  )((maybeCombinations, maybeParameters, maybeHighLevel) =>
+    (JsPath \ "high_level_rewrite").readNullable[HighLevelRewriteSettings] and
+    (JsPath \ "memory_mapping_rewrite").readNullable[MemoryMappingRewriteSettings]
+  )((maybeCombinations, maybeParameters, maybeHighLevel, maybeMemoryMapping) =>
     Settings(
       maybeCombinations,
       maybeParameters.getOrElse(SearchParameters.createDefault),
-      maybeHighLevel.getOrElse(HighLevelRewriteSettings.createDefault)
+      maybeHighLevel.getOrElse(HighLevelRewriteSettings.createDefault),
+      maybeMemoryMapping.getOrElse(MemoryMappingRewriteSettings.createDefault)
     ))
 
   def apply(optionFilename: Option[String]): Settings =

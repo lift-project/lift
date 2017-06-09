@@ -12,7 +12,22 @@
     "sequential" : false,
     "only_lower" : false,
     "old_string_representation" : false,
-    "rule_collection" : "default"
+    "rule_collection" : "convolution2D"
+  },
+
+  "memory_mapping_rewrite" : {
+    "vector_width" : 4,
+    "sequential" : false,
+    "load_balancing" : false,
+    "unroll_reduce" : false,
+    "global0" : false,
+    "global01" : false,
+    "global10" : false,
+    "global012" : false,
+    "global210" : false,
+    "group0" : false,
+    "group01" : false,
+    "group10" : false
   },
 
   "search_parameters" : {

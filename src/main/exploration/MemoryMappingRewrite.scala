@@ -37,64 +37,54 @@ object MemoryMappingRewrite {
       s
   }
 
-  private val defaultVectorWidth = 4
+  private val settingsFile = parser.option[String](List("f", "file"), "name",
+    "The settings file to use."
+    ) {
+    (s, _) =>
+      val file = new File(s)
+      if (!file.exists)
+        parser.usage(s"Settings file $file doesn't exist.")
+      s
+  }
 
-  private val vectorWidth = parser.option[Int](List("vectorWidth", "vw"), "vector width",
-    s"The vector width to use for vectorising rewrites. Default: $defaultVectorWidth")
+  private[exploration] val defaultVectorWidth = 4
+  private[exploration] val defaultSequential = false
+  private[exploration] val defaultLoadBalancing = false
+  private[exploration] val defaultUnrollReduce = false
+  private[exploration] val defaultGlobal0 = false
+  private[exploration] val defaultGlobal01 = false
+  private[exploration] val defaultGlobal10 = false
+  private[exploration] val defaultGlobal012 = false
+  private[exploration] val defaultGlobal210 = false
+  private[exploration] val defaultGroup0 = false
+  private[exploration] val defaultGroup01 = false
+  private[exploration] val defaultGroup10 = false
 
-  private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
-    "Don't execute in parallel.")
-
-  private val loadBalancing = parser.flag[Boolean](List("l", "lb", "loadBalancing"),
-    "Enable load balancing using MapAtomLocal and MapAtomWrg")
-
-  private val unrollReduce = parser.flag[Boolean](List("u", "ur", "unrollReduce"),
-   "Additionally generate expressions also using ReduceSeqUnroll")
-
-  private val global0 = parser.flag[Boolean](List("gl0", "global0"),
-    "Mapping: MapGlb(0)( MapSeq(...) )")
-
-  private val global01 = parser.flag[Boolean](List("gl01", "global01"),
-    "Mapping: MapGlb(0)(MapGlb(1)( MapSeq(...) ))")
-
-  private val global10 = parser.flag[Boolean](List("gl10", "global10"),
-    "Mapping: MapGlb(1)(MapGlb(0)( MapSeq(...) ))")
-
-  private val global012 = parser.flag[Boolean](List("gl012", "global012"),
-    "Mapping: MapGlb(0)(MapGlb(1)(MapGlb(2)( MapSeq(...) )))")
-
-  private val global210 = parser.flag[Boolean](List("gl210", "global210"),
-    "Mapping: MapGlb(2)(MapGlb(1)(MapGlb(0)( MapSeq(...) )))")
-
-  private val group0 = parser.flag[Boolean](List("gr0", "group0"),
-    "Mapping: MapWrg(0)(MapLcl(0)( MapSeq(...) ))")
-
-  private val group01 = parser.flag[Boolean](List("gr01", "group01"),
-    "Mapping: MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)( MapSeq(...) ))))")
-
-  private val group10 = parser.flag[Boolean](List("gr10", "group10"),
-    "Mapping: MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)( MapSeq(...) ))))")
-
+  private var settings = Settings()
 
   def main(args: Array[String]): Unit = {
 
     try {
 
       parser.parse(args)
+      settings = ParseSettings(settingsFile.value)
+      val config = settings.memoryMappingRewriteSettings
+
       val enabledMappings =
         EnabledMappings(
-          global0.value.isDefined,
-          global01.value.isDefined,
-          global10.value.isDefined,
-          global012.value.isDefined,
-          global210.value.isDefined,
-          group0.value.isDefined,
-          group01.value.isDefined,
-          group10.value.isDefined
+          config.global0,
+          config.global01,
+          config.global10,
+          config.global012,
+          config.global210,
+          config.group0,
+          config.group01,
+          config.group10
         )
 
       if(!enabledMappings.isOneEnabled) scala.sys.error("No mappings enabled")
 
+      logger.info(s"Settings:\n$settings")
       logger.info(s"Arguments: ${args.mkString(" ")}")
       logger.info("Defaults:")
       logger.info(s"\tVector width: $defaultVectorWidth")
@@ -106,7 +96,7 @@ object MemoryMappingRewrite {
 
       val counter = new AtomicInteger()
 
-      val allFilesPar = if (sequential.value.isDefined) all_files else all_files.par
+      val allFilesPar = if (config.sequential) all_files else all_files.par
 
       allFilesPar.foreach(filename => {
 
@@ -119,7 +109,7 @@ object MemoryMappingRewrite {
         try {
 
           val lambda = ParameterRewrite.readLambdaFromFile(filename)
-          val lowered = lowerLambda(lambda, enabledMappings, unrollReduce.value.isDefined, topFolder)
+          val lowered = lowerLambda(lambda, enabledMappings, config.unrollReduce, topFolder)
 
           lowered.foreach(dumpToFile(topFolder, hash, _))
 
@@ -214,7 +204,7 @@ object MemoryMappingRewrite {
     * @param lambda The lambda where to apply load balancing.
     */
   def  mapLoadBalancing(lambda: Lambda, hash: String): Seq[Lambda] = {
-    if (loadBalancing.value.isEmpty)
+    if (settings.memoryMappingRewriteSettings.loadBalancing)
       return Seq(lambda)
 
     try {
@@ -469,11 +459,10 @@ object MemoryMappingRewrite {
         })
 
         val vectorised = tryToVectorize.foldLeft(tuple)((currentLambda, a) => {
-          val width = vectorWidth.value.getOrElse(defaultVectorWidth)
           val vectorised =
             Rewrite.applyRulesUntilCannot(
               a,
-              Seq(Rules.vectorize(width))
+              Seq(Rules.vectorize(settings.memoryMappingRewriteSettings.vectorWidth))
             )
 
           FunDecl.replace(currentLambda, a, vectorised)
