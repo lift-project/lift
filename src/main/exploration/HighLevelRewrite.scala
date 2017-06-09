@@ -55,9 +55,6 @@ object HighLevelRewrite {
         parser.usage(s"Settings file $file doesn't exist.")
       s
   }
-
-  private var settings = Settings()
-
   protected[exploration] val defaultExplorationDepth = 5
   protected[exploration] val defaultDepthFilter = 6
   protected[exploration] val defaultDistanceFilter = 9
@@ -67,6 +64,8 @@ object HighLevelRewrite {
   protected[exploration] val defaultOnlyLower = false
   protected[exploration] val defaultOldStringRepresentation = false
   protected[exploration] val defaultRuleCollection = "default"
+
+  private var settings = Settings()
 
   def main(args: Array[String]): Unit = {
 
