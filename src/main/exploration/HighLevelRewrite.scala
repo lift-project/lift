@@ -46,38 +46,27 @@ object HighLevelRewrite {
       s
   }
 
-  private val explorationDepth = parser.option[Int](List("d", "explorationDepth"), "depth",
-    "How deep to explore.")
+  private val settingsFile = parser.option[String](List("f", "file"), "name",
+    "The settings file to use."
+    ) {
+    (s, _) =>
+      val file = new File(s)
+      if (!file.exists)
+        parser.usage(s"Settings file $file doesn't exist.")
+      s
+  }
 
-  private val depthFilter = parser.option[Int](List("depth"), "depth", "Cutoff depth for filtering.")
+  private var settings = Settings()
 
-  private val distanceFilter = parser.option[Int](List("distance"), "distance",
-    "Cutoff distance for filtering.")
-
-  private val ruleRepetition = parser.option[Int](List("repetition"), "repetition",
-    "How often the same rule can be applied.")
-
-  private val ruleCollection = parser.option[String](List("collection"), "collection",
-    "Which collection of rules are used for rewriting")
-
-  private val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
-    "The vector width to use for vectorising rewrites. Default: 4")
-
-  private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
-    "Don't execute in parallel.")
-
-  private val onlyLower = parser.flag[Boolean](List("onlyLower"),
-    "Do not perform high-level rewriting - only print lambda to enable next rewriting stages")
-
-  private val oldStringRepresentation = parser.flag[Boolean](List("oldString"),
-    "Use the old string representation for compatibility")
-
-  protected val defaultExplorationDepth = 5
-  protected val defaultVectorWidth = 4
-  protected val defaultDepthFilter = 6
-  protected val defaultDistanceFilter = 9
-  protected val defaultRuleRepetition = 2
-  protected val defaultRuleCollection = "default"
+  protected[exploration] val defaultExplorationDepth = 5
+  protected[exploration] val defaultDepthFilter = 6
+  protected[exploration] val defaultDistanceFilter = 9
+  protected[exploration] val defaultRuleRepetition = 2
+  protected[exploration] val defaultVectorWidth = 4
+  protected[exploration] val defaultSequential = false
+  protected[exploration] val defaultOnlyLower = false
+  protected[exploration] val defaultOldStringRepresentation = false
+  protected[exploration] val defaultRuleCollection = "default"
 
   def main(args: Array[String]): Unit = {
 
@@ -96,7 +85,9 @@ object HighLevelRewrite {
       val filename = input.value.get
       val lambda = ParameterRewrite.readLambdaFromFile(filename)
 
-      val dumpThese = if(onlyLower.value.isDefined)
+      settings = ParseSettings(settingsFile.value)
+
+      val dumpThese = if(settings.highLevelRewriteSettings.onlyLower)
         Seq((lambda, Seq()))
       else
         rewriteExpression(lambda)
@@ -117,10 +108,10 @@ object HighLevelRewrite {
   def rewriteExpression(startingExpression: Lambda): Seq[(Lambda, Seq[Rule])] = {
     val newLambdas =
       (new HighLevelRewrite(
-        vectorWidth.value.getOrElse(defaultVectorWidth),
-        ruleRepetition.value.getOrElse(defaultRuleRepetition),
-        explorationDepth.value.getOrElse(defaultExplorationDepth),
-        ruleCollection.value.getOrElse(defaultRuleCollection)
+        settings.highLevelRewriteSettings.vectorWidth,
+        settings.highLevelRewriteSettings.ruleRepetition,
+        settings.highLevelRewriteSettings.explorationDepth,
+        settings.highLevelRewriteSettings.ruleCollection
       )
         )(startingExpression)
 
@@ -160,7 +151,7 @@ object HighLevelRewrite {
     if (userFunCalls.length == 1)
       return true
 
-    val cutoff = distanceFilter.value.getOrElse(defaultDistanceFilter)
+    val cutoff = settings.highLevelRewriteSettings.distance
 
     val ids = userFunCalls.map(numberMap(_)).sorted
 
@@ -175,7 +166,7 @@ object HighLevelRewrite {
   }
 
   def filterByDepth(lambda: Lambda, ruleSeq: Seq[Rule] = Seq()): Boolean = {
-    val cutoff = depthFilter.value.getOrElse(defaultDepthFilter)
+    val cutoff = settings.highLevelRewriteSettings.depth
     val depth = NumberExpression.byDepth(lambda).values.max
 
     val isTiling = ruleSeq.nonEmpty && ruleSeq.head == MacroRules.tileMapMap
@@ -193,7 +184,7 @@ object HighLevelRewrite {
   }
 
   private def dumpLambdasToFiles(lambdas: Seq[(Lambda, Seq[Rule])], topLevelFolder: String): Unit = {
-    val x = if (sequential.value.isDefined) lambdas else lambdas.par
+    val x = if (settings.highLevelRewriteSettings.sequential) lambdas else lambdas.par
 
     x.foreach(lambda => {
       val id = processed.getAndIncrement()
@@ -207,7 +198,7 @@ object HighLevelRewrite {
         if (filterByDistance(appliedRules)) {
 
           val stringRep = Utils.dumpLambdaToString(appliedRules,
-            useOldVersion = oldStringRepresentation.value.isDefined)
+            useOldVersion = settings.highLevelRewriteSettings.oldStringRepresentation)
 
           val sha256 = Utils.Sha256Hash(stringRep)
           val folder = topLevelFolder + "/" + sha256.charAt(0) + "/" + sha256.charAt(1)

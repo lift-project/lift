@@ -6,6 +6,43 @@ import play.api.libs.json.Reads._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 
+case class HighLevelRewriteSettings(
+  explorationDepth: Int,
+  depth: Int,
+  distance: Int,
+  ruleRepetition: Int,
+  vectorWidth: Int,
+  sequential: Boolean,
+  onlyLower: Boolean,
+  oldStringRepresentation: Boolean,
+  ruleCollection: String
+)
+
+object HighLevelRewriteSettings {
+
+  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None)
+  def createWithDefaults(
+                        explorationDepth: Option[Int],
+                        depth: Option[Int],
+                        distance: Option[Int],
+                        ruleRepetion: Option[Int],
+                        vectorWidth: Option[Int],
+                        sequential: Option[Boolean],
+                        onlyLower: Option[Boolean],
+                        oldStringRepresentation: Option[Boolean],
+                        ruleCollection: Option[String]
+                        ) = HighLevelRewriteSettings(
+  explorationDepth.getOrElse(HighLevelRewrite.defaultExplorationDepth),
+  depth.getOrElse(HighLevelRewrite.defaultDepthFilter),
+  distance.getOrElse(HighLevelRewrite.defaultDistanceFilter),
+  ruleRepetion.getOrElse(HighLevelRewrite.defaultRuleRepetition),
+  vectorWidth.getOrElse(HighLevelRewrite.defaultVectorWidth),
+  sequential.getOrElse(HighLevelRewrite.defaultSequential),
+  onlyLower.getOrElse(HighLevelRewrite.defaultOnlyLower),
+  oldStringRepresentation.getOrElse(HighLevelRewrite.defaultOldStringRepresentation),
+  ruleCollection.getOrElse(HighLevelRewrite.defaultRuleCollection))
+}
+
 object SearchParameters {
   // Default input size for all dimensions to use for filtering, if no input combinations provided
   private val default_size = 1024
@@ -68,13 +105,15 @@ case class SearchParameters(
 
 case class Settings(
   inputCombinations: Option[Seq[Seq[ArithExpr]]] = None,
-  searchParameters: SearchParameters = SearchParameters.createDefault
+  searchParameters: SearchParameters = SearchParameters.createDefault,
+  highLevelRewriteSettings: HighLevelRewriteSettings = HighLevelRewriteSettings.createDefault
 ) {
 
   override def toString: String = {
     s"""Settings(
        |  $inputCombinations,
        |  $searchParameters
+       |  $highLevelRewriteSettings
        |)""".stripMargin
   }
 
@@ -98,13 +137,27 @@ object ParseSettings {
     (JsPath \ "max_workgroups").readNullable[Int]
   )(SearchParameters.createWithDefaults _)
 
+  private[exploration] implicit val highLevelReads: Reads[HighLevelRewriteSettings] = (
+    (JsPath \ "exploration_depth").readNullable[Int] and
+    (JsPath \ "depth").readNullable[Int] and
+    (JsPath \ "distance").readNullable[Int] and
+    (JsPath \ "rule_repetition").readNullable[Int] and
+    (JsPath \ "vector_width").readNullable[Int] and
+    (JsPath \ "sequential").readNullable[Boolean] and
+    (JsPath \ "only_lower").readNullable[Boolean] and
+    (JsPath \ "old_string_representation").readNullable[Boolean] and
+    (JsPath \ "rule_collection").readNullable[String]
+  )(HighLevelRewriteSettings.createWithDefaults _)
+
   private[exploration] implicit val settingsReads: Reads[Settings] = (
     (JsPath \ "input_combinations").readNullable[Seq[Seq[ArithExpr]]] and
-    (JsPath \ "search_parameters").readNullable[SearchParameters]
-  )((maybeCombinations, maybeParameters) =>
+    (JsPath \ "search_parameters").readNullable[SearchParameters] and
+    (JsPath \ "high_level_rewrite").readNullable[HighLevelRewriteSettings]
+  )((maybeCombinations, maybeParameters, maybeHighLevel) =>
     Settings(
       maybeCombinations,
-      maybeParameters.getOrElse(SearchParameters.createDefault)
+      maybeParameters.getOrElse(SearchParameters.createDefault),
+      maybeHighLevel.getOrElse(HighLevelRewriteSettings.createDefault)
     ))
 
   def apply(optionFilename: Option[String]): Settings =

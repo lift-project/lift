@@ -1,5 +1,28 @@
 {
   "input_combinations" : [
     [8194, 8194]
-  ]
+  ],
+
+  "high_level_rewrite" : {
+    "exploration_depth" : 5,
+    "depth" : 6,
+    "distance" : 9,
+    "rule_repetition" : 2,
+    "vector_width" : 4,
+    "sequential" : false,
+    "only_lower" : false,
+    "old_string_representation" : false,
+    "rule_collection" : "default"
+  },
+
+  "search_parameters" : {
+    "default_size" : 1337,
+    "min_work_items" : 2,
+    "max_work_items" : 2,
+    "min_grid_size" : 4,
+    "max_amount_private_memory" : 1024,
+    "max_amount_local_memory" : 1234,
+    "min_num_workgroups" : 8,
+    "max_num_workgroups" : 10000
+  }
 }
