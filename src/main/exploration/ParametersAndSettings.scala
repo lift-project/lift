@@ -6,6 +6,31 @@ import play.api.libs.json.Reads._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 
+case class ParameterRewriteSettings(
+  exploreNDRange: Boolean,
+  sampleNDRange: Int,
+  disableNDRangeInjection: Boolean,
+  sequential: Boolean,
+  generateScala: Boolean
+)
+
+object ParameterRewriteSettings {
+
+  def createDefault = createWithDefaults(None, None, None, None, None)
+  def createWithDefaults(
+                        exploreNDRange: Option[Boolean],
+                        sampleNDRange: Option[Int],
+                        disableNDRangeInjection: Option[Boolean],
+                        sequential: Option[Boolean],
+                        generateScala: Option[Boolean]
+                        ) = ParameterRewriteSettings(
+  exploreNDRange.getOrElse(ParameterRewrite.defaultExploreNDRange),
+  sampleNDRange.getOrElse(ParameterRewrite.defaultSampleNDRange),
+  disableNDRangeInjection.getOrElse(ParameterRewrite.defaultDisableNDRangeInjection),
+  sequential.getOrElse(ParameterRewrite.defaultSequential),
+  generateScala.getOrElse(ParameterRewrite.defaultGenerateScala))
+}
+
 case class MemoryMappingRewriteSettings(
                                        vectorWidth: Int,
                                        sequential: Boolean,
@@ -153,7 +178,8 @@ case class Settings(
   inputCombinations: Option[Seq[Seq[ArithExpr]]] = None,
   searchParameters: SearchParameters = SearchParameters.createDefault,
   highLevelRewriteSettings: HighLevelRewriteSettings = HighLevelRewriteSettings.createDefault,
-  memoryMappingRewriteSettings: MemoryMappingRewriteSettings = MemoryMappingRewriteSettings.createDefault
+  memoryMappingRewriteSettings: MemoryMappingRewriteSettings = MemoryMappingRewriteSettings.createDefault,
+  parameterRewriteSettings: ParameterRewriteSettings = ParameterRewriteSettings.createDefault
 ) {
 
   override def toString: String = {
@@ -162,6 +188,7 @@ case class Settings(
        |  $searchParameters
        |  $highLevelRewriteSettings
        |  $memoryMappingRewriteSettings
+       |  $parameterRewriteSettings
        |)""".stripMargin
   }
 
@@ -212,17 +239,27 @@ object ParseSettings {
     (JsPath \ "group10").readNullable[Boolean]
   )(MemoryMappingRewriteSettings.createWithDefaults _)
 
+  private[exploration] implicit val parameterRewriteReads: Reads[ParameterRewriteSettings] = (
+    (JsPath \ "explore_ndrange").readNullable[Boolean] and
+    (JsPath \ "sample_ndrange").readNullable[Int] and
+    (JsPath \ "disable_ndrange_injection").readNullable[Boolean] and
+    (JsPath \ "sequential").readNullable[Boolean] and
+    (JsPath \ "generate_scala").readNullable[Boolean]
+  )(ParameterRewriteSettings.createWithDefaults _)
+
   private[exploration] implicit val settingsReads: Reads[Settings] = (
     (JsPath \ "input_combinations").readNullable[Seq[Seq[ArithExpr]]] and
     (JsPath \ "search_parameters").readNullable[SearchParameters] and
     (JsPath \ "high_level_rewrite").readNullable[HighLevelRewriteSettings] and
-    (JsPath \ "memory_mapping_rewrite").readNullable[MemoryMappingRewriteSettings]
-  )((maybeCombinations, maybeParameters, maybeHighLevel, maybeMemoryMapping) =>
+    (JsPath \ "memory_mapping_rewrite").readNullable[MemoryMappingRewriteSettings] and
+    (JsPath \ "parameter_rewrite").readNullable[ParameterRewriteSettings]
+  )((maybeCombinations, maybeParameters, maybeHighLevel, maybeMemoryMapping, maybeParameterRewrite) =>
     Settings(
       maybeCombinations,
       maybeParameters.getOrElse(SearchParameters.createDefault),
       maybeHighLevel.getOrElse(HighLevelRewriteSettings.createDefault),
-      maybeMemoryMapping.getOrElse(MemoryMappingRewriteSettings.createDefault)
+      maybeMemoryMapping.getOrElse(MemoryMappingRewriteSettings.createDefault),
+      maybeParameterRewrite.getOrElse(ParameterRewriteSettings.createDefault)
     ))
 
   def apply(optionFilename: Option[String]): Settings =

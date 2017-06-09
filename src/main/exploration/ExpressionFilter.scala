@@ -151,7 +151,7 @@ object ExpressionFilter {
       }
 
       // in case of global-local size exploration, we already checked these before
-      if (ParameterRewrite.exploreNDRange.value.isEmpty)
+      if (!ParameterRewrite.settings.parameterRewriteSettings.exploreNDRange)
         filterNDRanges(ranges, searchParameters)
       else
         Success

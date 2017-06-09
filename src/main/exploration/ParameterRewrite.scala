@@ -52,20 +52,11 @@ object ParameterRewrite {
       s
   }
 
-  val exploreNDRange = parser.flag[Boolean](List("e", "exploreNDRange"),
-    "Additionally explore global and local sizes")
-
-  val sampleNDRange = parser.option[Int](List("sampleNDRange"), "n",
-    "Randomly sample n combinations of global and local sizes (requires 'explore')")
-
-  val disableNDRangeInjection = parser.flag[Boolean](List("disableNDRangeInjection"),
-    "Don't inject NDRanges while compiling the OpenCL Kernel")
-
-  private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
-    "Don't execute in parallel.")
-
-  private val generateScala = parser.flag[Boolean](List("generate-scala"),
-    "Generate lambdas in Scala as well as in OpenCL")
+  private[exploration] val defaultExploreNDRange = false
+  private[exploration] val defaultSampleNDRange = -1
+  private[exploration] val defaultDisableNDRangeInjection = false
+  private[exploration] val defaultSequential = false
+  private[exploration] val defaultGenerateScala = false
 
   private val settingsFile = parser.option[String](List("f", "file"), "name",
     "The settings file to use."
@@ -77,7 +68,7 @@ object ParameterRewrite {
       s
   }
 
-  private var settings = Settings()
+  private[exploration] var settings = Settings()
 
   private var lambdaFilename = ""
 
@@ -86,8 +77,9 @@ object ParameterRewrite {
     try {
 
       parser.parse(args)
-
-      if (exploreNDRange.value.isEmpty && sampleNDRange.value.isDefined)
+      settings = ParseSettings(settingsFile.value)
+      val config = settings.parameterRewriteSettings
+      if (!config.exploreNDRange && config.sampleNDRange > 0)
         throw new RuntimeException("'sample' is defined without enabling 'explore'")
 
       logger.info(s"Arguments: ${args.mkString(" ")}")
@@ -97,7 +89,7 @@ object ParameterRewrite {
 
       lambdaFilename = topFolder + "Scala/lambdaFile"
 
-      if (generateScala.value.isDefined) {
+      if (config.generateScala) {
         val f = new File(lambdaFilename)
         if (f.exists()) {
           f.delete()
@@ -106,7 +98,6 @@ object ParameterRewrite {
         }
       }
 
-      settings = ParseSettings(settingsFile.value)
 
       logger.info(s"Arguments: ${args.mkString(" ")}")
       logger.info(s"Settings:\n$settings")
@@ -165,7 +156,7 @@ object ParameterRewrite {
               val propagationCount = lowLevelCount * substitutionCount
               println(s"Found $lowLevelCount low level expressions")
 
-              val parList = if (sequential.value.isDefined) lowLevelExprList else lowLevelExprList.par
+              val parList = if (config.sequential) lowLevelExprList else lowLevelExprList.par
 
               parList.foreach(low_level_filename => {
 
@@ -186,7 +177,7 @@ object ParameterRewrite {
                         val expr = low_level_factory(sizesForFilter ++ params)
                         TypeChecker(expr)
 
-                      val rangeList = if (exploreNDRange.value.isDefined)
+                      val rangeList = if (config.exploreNDRange)
                         computeValidNDRanges(expr)
                       else
                         Seq(InferNDRange(expr))
@@ -202,9 +193,9 @@ object ParameterRewrite {
                           }
 
                       logger.debug(filtered.length + " NDRanges after filtering")
-                      val sampled = if (sampleNDRange.value.isDefined && filtered.nonEmpty) {
+                      val sampled = if (config.sampleNDRange > 0 && filtered.nonEmpty) {
                         Random.setSeed(0L) //always use the same seed
-                        Random.shuffle(filtered).take(sampleNDRange.value.get)
+                        Random.shuffle(filtered).take(config.sampleNDRange)
                       } else
                         filtered
 
@@ -232,7 +223,7 @@ object ParameterRewrite {
                   val hashes = SaveOpenCL(topFolder, low_level_hash,
                     high_level_hash, settings, potential_expressions)
 
-                  if (generateScala.value.isDefined)
+                  if (config.generateScala)
                     saveScala(potential_expressions, hashes)
 
                 } catch {

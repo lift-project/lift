@@ -20,7 +20,7 @@
     "sequential" : false,
     "load_balancing" : false,
     "unroll_reduce" : false,
-    "global0" : false,
+    "global0" : true,
     "global01" : false,
     "global10" : false,
     "global012" : false,
@@ -28,6 +28,14 @@
     "group0" : false,
     "group01" : false,
     "group10" : false
+  },
+
+  "parameter_rewrite" : {
+    "explore_ndrange" : false,
+    "sample_ndrange" : -1,
+    "disable_ndrange_injection" : false,
+    "sequential" : false,
+    "generate_scala" : false
   },
 
   "search_parameters" : {
