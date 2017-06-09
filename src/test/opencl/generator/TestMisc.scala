@@ -3,7 +3,7 @@ package opencl.generator
 import exploration.ParameterRewrite
 import ir._
 import ir.ast._
-import lift.arithmetic.{?, ArithExpr, Cst, SizeVar}
+import lift.arithmetic._
 import opencl.executor._
 import opencl.generator.OpenCLAST.ArithExpression
 import opencl.ir._

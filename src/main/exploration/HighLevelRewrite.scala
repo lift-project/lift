@@ -69,6 +69,9 @@ object HighLevelRewrite {
   private val onlyLower = parser.flag[Boolean](List("onlyLower"),
     "Do not perform high-level rewriting - only print lambda to enable next rewriting stages")
 
+  private val oldStringRepresentation = parser.flag[Boolean](List("oldString"),
+    "Use the old string representation for compatibility")
+
   protected val defaultExplorationDepth = 5
   protected val defaultVectorWidth = 4
   protected val defaultDepthFilter = 6
@@ -203,7 +206,8 @@ object HighLevelRewrite {
 
         if (filterByDistance(appliedRules)) {
 
-          val stringRep = Utils.dumpLambdaToString(appliedRules)
+          val stringRep = Utils.dumpLambdaToString(appliedRules,
+            useOldVersion = oldStringRepresentation.value.isDefined)
 
           val sha256 = Utils.Sha256Hash(stringRep)
           val folder = topLevelFolder + "/" + sha256.charAt(0) + "/" + sha256.charAt(1)
