@@ -196,8 +196,7 @@ object HighLevelRewrite {
 
         if (filterByDistance(appliedRules)) {
 
-          val stringRep = Utils.dumpLambdaToString(appliedRules,
-            useOldVersion = settings.highLevelRewriteSettings.oldStringRepresentation)
+          val stringRep = Utils.dumpLambdaToString(appliedRules)
 
           val sha256 = Utils.Sha256Hash(stringRep)
           val folder = topLevelFolder + "/" + sha256.charAt(0) + "/" + sha256.charAt(1)
