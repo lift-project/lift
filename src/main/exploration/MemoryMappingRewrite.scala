@@ -504,16 +504,21 @@ object MemoryMappingRewrite {
 
     assert(enabledRules.size > 0)
 
-    val temp = Rewrite.applyRulesUntilCannot(lambda,
-      Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl, Rules.addIdMapWrg))
+    val firstIds = Rewrite.applyRulesUntilCannot(lambda,
+        Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl, Rules.addIdMapWrg))
 
-    val reduceSeqs = Expr.visitLeftToRight(List[Expr]())(temp.body, (e, s) =>
-      e match {
-        case call@FunCall(_: ReduceSeq, _*) => call :: s
-        case _ => s
-      }).filterNot(e => temp.body.contains({ case FunCall(toGlobal(Lambda(_, c)), _*) if c eq e => }))
+    if(config.addIdAfterReduce) {
 
-    reduceSeqs.foldRight(temp)((e, l) => Rewrite.applyRuleAt(l, e, Rules.addIdAfterReduce))
+      val reduceSeqs = Expr.visitLeftToRight(List[Expr]())(firstIds.body, (e, s) =>
+        e match {
+          case call@FunCall(_: ReduceSeq, _*) => call :: s
+          case _ => s
+        }).filterNot(e => firstIds.body.contains({ case FunCall(toGlobal(Lambda(_, c)), _*) if c eq e => }))
+
+      reduceSeqs.foldRight(firstIds)((e, l) => Rewrite.applyRuleAt(l, e, Rules.addIdAfterReduce))
+    } else
+      firstIds
+
   }
 
   private def getCombinations(localIdList: List[Expr], max: Int): List[List[Expr]] =
