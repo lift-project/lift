@@ -31,6 +31,13 @@
     "group10" : false
   },
 
+  "local_memory_rules" : {
+    "addIdForCurrentValueInReduce" : false,
+    "addIdMapLcl" : false,
+    "addIdMapWrg" : true,
+    "addIdAfterReduce" : false
+  },
+
   "parameter_rewrite" : {
     "explore_ndrange" : false,
     "sample_ndrange" : -1,

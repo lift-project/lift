@@ -7,7 +7,6 @@ import com.typesafe.scalalogging.Logger
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
-import org.clapper.argot.ArgotConverters._
 import org.clapper.argot.{ArgotParser, ArgotUsageException}
 import rewriting.utils.{NumberExpression, Utils}
 import rewriting._
@@ -60,6 +59,12 @@ object MemoryMappingRewrite {
   private[exploration] val defaultGroup0 = false
   private[exploration] val defaultGroup01 = false
   private[exploration] val defaultGroup10 = false
+
+  //local-memory rules
+  private[exploration] val defaultAddIdforCurrentValueInReduce = true
+  private[exploration] val defaultAddIdMapLcl = true
+  private[exploration] val defaultAddIdMapWrg = true
+  private[exploration] val defaultAddIdAfterReduce = true
 
   private var settings = Settings()
 
@@ -485,6 +490,20 @@ object MemoryMappingRewrite {
     Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.tupleMap))
 
   private def addIdsForLocal(lambda: Lambda): Lambda = {
+    val config = settings.localMemoryRulesSettings
+
+    val enabledRules = scala.collection.Map(
+      Rules.addIdForCurrentValueInReduce -> config.addIdForCurrentValueInReduce,
+      Rules.addIdMapLcl -> config.addIdMapLcl,
+      Rules.addIdMapWrg -> config.addIdMapWrg).flatMap( x => {
+        val rule = x._1
+        val enabled = x._2
+        if(enabled) Some(rule)
+        else None
+    }).toSeq
+
+    assert(enabledRules.size > 0)
+
     val temp = Rewrite.applyRulesUntilCannot(lambda,
       Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl, Rules.addIdMapWrg))
 
