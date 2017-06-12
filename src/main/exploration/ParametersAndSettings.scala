@@ -32,6 +32,7 @@ object ParameterRewriteSettings {
 }
 
 case class MemoryMappingRewriteSettings(
+                                       vectorize: Boolean,
                                        vectorWidth: Int,
                                        sequential: Boolean,
                                        loadBalancing: Boolean,
@@ -48,8 +49,9 @@ case class MemoryMappingRewriteSettings(
 
 object MemoryMappingRewriteSettings {
 
-  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None, None, None, None)
+  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None, None, None, None, None)
   def createWithDefaults(
+                        vectorize: Option[Boolean],
                         vectorWidth: Option[Int],
                         sequential: Option[Boolean],
                         loadBalancing: Option[Boolean],
@@ -63,6 +65,7 @@ object MemoryMappingRewriteSettings {
                         group01: Option[Boolean],
                         group10: Option[Boolean]
                         ) = MemoryMappingRewriteSettings(
+  vectorize.getOrElse(MemoryMappingRewrite.defaultVectorize),
   vectorWidth.getOrElse(MemoryMappingRewrite.defaultVectorWidth),
   sequential.getOrElse(MemoryMappingRewrite.defaultSequential),
   loadBalancing.getOrElse(MemoryMappingRewrite.defaultLoadBalancing),
@@ -208,8 +211,8 @@ object ParseSettings {
     (JsPath \ "min_grid_size").readNullable[Int] and
     (JsPath \ "max_private_memory").readNullable[Int] and
     (JsPath \ "max_local_memory").readNullable[Int] and
-    (JsPath \ "min_workgroups").readNullable[Int] and
-    (JsPath \ "max_workgroups").readNullable[Int]
+    (JsPath \ "min_num_workgroups").readNullable[Int] and
+    (JsPath \ "max_num_workgroups").readNullable[Int]
   )(SearchParameters.createWithDefaults _)
 
   private[exploration] implicit val highLevelReads: Reads[HighLevelRewriteSettings] = (
@@ -225,6 +228,7 @@ object ParseSettings {
   )(HighLevelRewriteSettings.createWithDefaults _)
 
   private[exploration] implicit val memoryMappingReads: Reads[MemoryMappingRewriteSettings] = (
+    (JsPath \ "vectorize").readNullable[Boolean] and
     (JsPath \ "vector_width").readNullable[Int] and
     (JsPath \ "sequential").readNullable[Boolean] and
     (JsPath \ "load_balancing").readNullable[Boolean] and

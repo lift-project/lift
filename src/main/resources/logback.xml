@@ -29,7 +29,7 @@
         </encoder>
     </appender>
 
-    <logger name="exploration" level="info">
+    <logger name="exploration" level="debug">
       <appender-ref ref="explorationFile" />
     </logger>
 

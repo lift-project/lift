@@ -67,7 +67,7 @@ object ExpressionFilter {
       // Rule out obviously poor choices based on the grid size
       // - minimum size of the entire compute grid
       if (global.numberOfWorkItems < searchParameters.minGridSize) {
-        logger.debug("Not enough work-items in the grid")
+        logger.debug(s"Not enough work-items in the grid (${global.numberOfWorkItems} - ${local.toString} ${global.toString})")
         return NotEnoughWorkItems
       }
 
@@ -75,13 +75,13 @@ object ExpressionFilter {
 
         // - minimum of work-items in a workgroup
         if (local.numberOfWorkItems < searchParameters.minWorkItems) {
-          logger.debug("Not enough work-items in a group")
+          logger.debug(s"Not enough work-items in a group (${local.numberOfWorkItems} - ${local.toString} ${global.toString})")
           return NotEnoughWorkItems
         }
 
         // - maximum of work-items in a workgroup
         if (local.numberOfWorkItems > searchParameters.maxWorkItems) {
-          logger.debug("Too many work-items in a group")
+          logger.debug(s"Too many work-items in a group (${local.numberOfWorkItems} - ${local.toString} ${global.toString})")
           return TooManyWorkItems
         }
 
@@ -90,13 +90,13 @@ object ExpressionFilter {
 
         // - minimum number of workgroups
         if (numWorkgroups < searchParameters.minWorkgroups) {
-          logger.debug("Not enough work-groups")
+          logger.debug(s"Not enough work-groups ($numWorkgroups - ${local.toString} ${global.toString})")
           return NotEnoughWorkGroups
         }
 
         // - maximum number of workgroups
         if (numWorkgroups > searchParameters.maxWorkgroups){
-          logger.debug("Too many work-groups")
+          logger.debug(s"Too many work-groups ($numWorkgroups - ${local.toString} ${global.toString})")
           return TooManyWorkGroups
         }
 
@@ -106,7 +106,7 @@ object ExpressionFilter {
 
     } catch {
       case t: Throwable =>
-        logger.warn("Failed filtering", t)
+        logger.warn("Failed filtering NDRanges", t)
         InternalException
     }
   }
@@ -131,7 +131,7 @@ object ExpressionFilter {
 
       if (privateAllocSize > searchParameters.maxPrivateMemory ||
         privateMemories.exists(_.mem.size.eval <= 0)) {
-        logger.debug("Too much private memory")
+        logger.debug(s"Too much private memory ($privateAllocSize)")
         return TooMuchPrivateMemory
       }
 
@@ -140,7 +140,7 @@ object ExpressionFilter {
 
       if (localAllocSize > searchParameters.maxLocalMemory ||
         localMemories.exists(_.mem.size.eval <= 0)) {
-        logger.debug("Too much local memory")
+        logger.debug(s"Too much local memory ($localAllocSize)")
         return TooMuchLocalMemory
       }
 
@@ -158,7 +158,7 @@ object ExpressionFilter {
 
     } catch {
       case t: Throwable =>
-        logger.warn("Failed filtering", t)
+        logger.warn("Failed filtering Expression", t)
         InternalException
     }
   }

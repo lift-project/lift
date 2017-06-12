@@ -182,17 +182,16 @@ object ParameterRewrite {
                       else
                         Seq(InferNDRange(expr))
 
-                      logger.debug(rangeList.length + " generated NDRanges")
-
                         val filtered: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] =
                           rangeList.flatMap {ranges =>
-                            if (ExpressionFilter(expr, ranges, settings.searchParameters) == Success)
+                            // don't filter if we're not injecting the NDRanges
+                            if (config.disableNDRangeInjection || (expr, ranges, settings.searchParameters) == Success)
                               Some((low_level_factory(vars ++ params), params, ranges))
                             else
                               None
                           }
 
-                      logger.debug(filtered.length + " NDRanges after filtering")
+                      if(config.exploreNDRange) logger.debug(filtered.length + " NDRanges after filtering")
                       val sampled = if (config.sampleNDRange > 0 && filtered.nonEmpty) {
                         Random.setSeed(0L) //always use the same seed
                         Random.shuffle(filtered).take(config.sampleNDRange)
@@ -201,7 +200,7 @@ object ParameterRewrite {
 
                         val sampleStrings: Seq[String] = sampled.map(x => low_level_hash + "_" + x._2.mkString("_") +
                           "_" + x._3._1.toString.replace(",", "_") + "_" + x._3._2.toString.replace(",", "_"))
-                        logger.debug("\nSampled NDRanges:\n\t" + sampleStrings.mkString(" \n "))
+                        if(config.sampleNDRange > 0) logger.debug("\nSampled NDRanges:\n\t" + sampleStrings.mkString(" \n "))
                         Some(sampled)
 
                     } catch {
