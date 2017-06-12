@@ -72,6 +72,9 @@ object HighLevelRewrite {
     try {
       parser.parse(args)
 
+      settings = ParseSettings(settingsFile.value)
+
+      logger.info(s"Settings:\n$settings")
       logger.info(s"Arguments: ${args.mkString(" ")}")
       logger.info(s"Defaults:")
       logger.info(s"\tExploration depth: $defaultExplorationDepth")
@@ -84,7 +87,6 @@ object HighLevelRewrite {
       val filename = input.value.get
       val lambda = ParameterRewrite.readLambdaFromFile(filename)
 
-      settings = ParseSettings(settingsFile.value)
 
       val dumpThese = if(settings.highLevelRewriteSettings.onlyLower)
         Seq((lambda, Seq()))
