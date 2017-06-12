@@ -7,7 +7,7 @@
     "exploration_depth" : 5,
     "depth" : 6,
     "distance" : 9,
-    "rule_repetition" : 2,
+    "rule_repetition" : 1,
     "vector_width" : 4,
     "sequential" : false,
     "only_lower" : false,
@@ -16,36 +16,37 @@
   },
 
   "memory_mapping_rewrite" : {
+    "vectorize" : false,
     "vector_width" : 4,
     "sequential" : false,
     "load_balancing" : false,
     "unroll_reduce" : false,
-    "global0" : true,
+    "global0" : false,
     "global01" : false,
     "global10" : false,
     "global012" : false,
     "global210" : false,
     "group0" : false,
-    "group01" : false,
+    "group01" : true,
     "group10" : false
   },
 
   "parameter_rewrite" : {
     "explore_ndrange" : false,
     "sample_ndrange" : -1,
-    "disable_ndrange_injection" : false,
+    "disable_ndrange_injection" : true,
     "sequential" : false,
     "generate_scala" : false
   },
 
   "search_parameters" : {
-    "default_size" : 1337,
-    "min_work_items" : 2,
-    "max_work_items" : 2,
+    "default_size" : 8194,
+    "min_work_items" : 128,
+    "max_work_items" : 1024,
     "min_grid_size" : 4,
     "max_amount_private_memory" : 1024,
-    "max_amount_local_memory" : 1234,
+    "max_amount_local_memory" : 65536,
     "min_num_workgroups" : 8,
-    "max_num_workgroups" : 10000
+    "max_num_workgroups" : 65569
   }
 }

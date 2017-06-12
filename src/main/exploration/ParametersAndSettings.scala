@@ -32,6 +32,7 @@ object ParameterRewriteSettings {
 }
 
 case class MemoryMappingRewriteSettings(
+                                       vectorize: Boolean,
                                        vectorWidth: Int,
                                        sequential: Boolean,
                                        loadBalancing: Boolean,
@@ -48,8 +49,9 @@ case class MemoryMappingRewriteSettings(
 
 object MemoryMappingRewriteSettings {
 
-  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None, None, None, None)
+  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None, None, None, None, None)
   def createWithDefaults(
+                        vectorize: Option[Boolean],
                         vectorWidth: Option[Int],
                         sequential: Option[Boolean],
                         loadBalancing: Option[Boolean],
@@ -63,6 +65,7 @@ object MemoryMappingRewriteSettings {
                         group01: Option[Boolean],
                         group10: Option[Boolean]
                         ) = MemoryMappingRewriteSettings(
+  vectorize.getOrElse(MemoryMappingRewrite.defaultVectorize),
   vectorWidth.getOrElse(MemoryMappingRewrite.defaultVectorWidth),
   sequential.getOrElse(MemoryMappingRewrite.defaultSequential),
   loadBalancing.getOrElse(MemoryMappingRewrite.defaultLoadBalancing),
@@ -225,6 +228,7 @@ object ParseSettings {
   )(HighLevelRewriteSettings.createWithDefaults _)
 
   private[exploration] implicit val memoryMappingReads: Reads[MemoryMappingRewriteSettings] = (
+    (JsPath \ "vectorize").readNullable[Boolean] and
     (JsPath \ "vector_width").readNullable[Int] and
     (JsPath \ "sequential").readNullable[Boolean] and
     (JsPath \ "load_balancing").readNullable[Boolean] and

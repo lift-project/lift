@@ -47,6 +47,7 @@ object MemoryMappingRewrite {
       s
   }
 
+  private[exploration] val defaultVectorize = true
   private[exploration] val defaultVectorWidth = 4
   private[exploration] val defaultSequential = false
   private[exploration] val defaultLoadBalancing = false
@@ -223,7 +224,7 @@ object MemoryMappingRewrite {
   def mapAddressSpaces(lambda: Lambda, hash: String): Seq[Lambda] = {
     try {
 
-      val allLocalMappings = mapLocalMemory(lambda)
+      val allLocalMappings = mapLocalMemory(lambda, settings.memoryMappingRewriteSettings.vectorize)
 
       val allPrivateMappings = allLocalMappings.flatMap(mapPrivateMemory)
 
@@ -259,7 +260,7 @@ object MemoryMappingRewrite {
       }
     })
 
-  def mapLocalMemory(lambda: Lambda, doVectorisation: Boolean = true): List[Lambda] = {
+  def mapLocalMemory(lambda: Lambda, doVectorisation: Boolean): List[Lambda] = {
     // Step 1: Add id nodes in strategic locations
     val idsAdded = addIdsForLocal(lambda)
 
