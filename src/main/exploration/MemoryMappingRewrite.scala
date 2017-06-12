@@ -504,8 +504,7 @@ object MemoryMappingRewrite {
 
     assert(enabledRules.size > 0)
 
-    val firstIds = Rewrite.applyRulesUntilCannot(lambda,
-        Seq(Rules.addIdForCurrentValueInReduce, Rules.addIdMapLcl, Rules.addIdMapWrg))
+    val firstIds = Rewrite.applyRulesUntilCannot(lambda, enabledRules)
 
     if(config.addIdAfterReduce) {
 
