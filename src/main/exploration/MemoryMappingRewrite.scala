@@ -204,7 +204,7 @@ object MemoryMappingRewrite {
     * @param lambda The lambda where to apply load balancing.
     */
   def  mapLoadBalancing(lambda: Lambda, hash: String): Seq[Lambda] = {
-    if (settings.memoryMappingRewriteSettings.loadBalancing)
+    if (!settings.memoryMappingRewriteSettings.loadBalancing)
       return Seq(lambda)
 
     try {
