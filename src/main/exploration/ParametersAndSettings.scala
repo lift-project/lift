@@ -6,6 +6,28 @@ import play.api.libs.json.Reads._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 
+case class LocalMemoryRulesSettings(
+  addIdForCurrentValueInReduce: Boolean,
+  addIdMapLcl: Boolean,
+  addIdMapWrg: Boolean,
+  addIdAfterReduce: Boolean
+)
+
+object LocalMemoryRulesSettings{
+
+  def createDefault = createWithDefaults(None, None, None, None)
+  def createWithDefaults(
+                        addIdForCurrentValueInReduce: Option[Boolean],
+                        addIdMapLcl: Option[Boolean],
+                        addIdMapWrg: Option[Boolean],
+                        addIdAfterReduce: Option[Boolean]
+                        ) = LocalMemoryRulesSettings(
+  addIdForCurrentValueInReduce.getOrElse(MemoryMappingRewrite.defaultAddIdforCurrentValueInReduce),
+  addIdMapLcl.getOrElse(MemoryMappingRewrite.defaultAddIdMapLcl),
+  addIdMapWrg.getOrElse(MemoryMappingRewrite.defaultAddIdMapWrg),
+  addIdAfterReduce.getOrElse(MemoryMappingRewrite.defaultAddIdAfterReduce))
+}
+
 case class ParameterRewriteSettings(
   exploreNDRange: Boolean,
   sampleNDRange: Int,
@@ -182,7 +204,8 @@ case class Settings(
   searchParameters: SearchParameters = SearchParameters.createDefault,
   highLevelRewriteSettings: HighLevelRewriteSettings = HighLevelRewriteSettings.createDefault,
   memoryMappingRewriteSettings: MemoryMappingRewriteSettings = MemoryMappingRewriteSettings.createDefault,
-  parameterRewriteSettings: ParameterRewriteSettings = ParameterRewriteSettings.createDefault
+  parameterRewriteSettings: ParameterRewriteSettings = ParameterRewriteSettings.createDefault,
+  localMemoryRulesSettings: LocalMemoryRulesSettings= LocalMemoryRulesSettings.createDefault
 ) {
 
   override def toString: String = {
@@ -251,19 +274,28 @@ object ParseSettings {
     (JsPath \ "generate_scala").readNullable[Boolean]
   )(ParameterRewriteSettings.createWithDefaults _)
 
+  private[exploration] implicit val localMemoryRulesReads: Reads[LocalMemoryRulesSettings] = (
+    (JsPath \ "addIdForCurrentValueInReduce").readNullable[Boolean] and
+    (JsPath \ "addIdMapLcl").readNullable[Boolean] and
+    (JsPath \ "addIdMapWrg").readNullable[Boolean] and
+    (JsPath \ "addIdAfterReduce").readNullable[Boolean]
+  )(LocalMemoryRulesSettings.createWithDefaults _)
+
   private[exploration] implicit val settingsReads: Reads[Settings] = (
     (JsPath \ "input_combinations").readNullable[Seq[Seq[ArithExpr]]] and
     (JsPath \ "search_parameters").readNullable[SearchParameters] and
     (JsPath \ "high_level_rewrite").readNullable[HighLevelRewriteSettings] and
     (JsPath \ "memory_mapping_rewrite").readNullable[MemoryMappingRewriteSettings] and
-    (JsPath \ "parameter_rewrite").readNullable[ParameterRewriteSettings]
-  )((maybeCombinations, maybeParameters, maybeHighLevel, maybeMemoryMapping, maybeParameterRewrite) =>
+    (JsPath \ "parameter_rewrite").readNullable[ParameterRewriteSettings] and
+    (JsPath \ "local_memory_rules").readNullable[LocalMemoryRulesSettings]
+  )((maybeCombinations, maybeParameters, maybeHighLevel, maybeMemoryMapping, maybeParameterRewrite, maybeLocalMemoryRules) =>
     Settings(
       maybeCombinations,
       maybeParameters.getOrElse(SearchParameters.createDefault),
       maybeHighLevel.getOrElse(HighLevelRewriteSettings.createDefault),
       maybeMemoryMapping.getOrElse(MemoryMappingRewriteSettings.createDefault),
-      maybeParameterRewrite.getOrElse(ParameterRewriteSettings.createDefault)
+      maybeParameterRewrite.getOrElse(ParameterRewriteSettings.createDefault),
+      maybeLocalMemoryRules.getOrElse(LocalMemoryRulesSettings.createDefault)
     ))
 
   def apply(optionFilename: Option[String]): Settings =

@@ -111,7 +111,7 @@ class TestParametersAndSettings {
         |    [512, 1024]
         |  ],
         |  "search_parameters" : {
-        |    "max_workgroups" : 1024,
+        |    "max_num_workgroups" : 1024,
         |    "max_local_memory" : 32768
         |  }
         |}
