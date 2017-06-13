@@ -59,7 +59,7 @@ class TestSlideSeqPlus
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
     val lambda = Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep))
-//    println(lambda)
+    println(lambda)
 
     //OutputKernelJSON(SlideSeqPlusHelpers.stencil(slidesize,slidestep),"/home/reese/workspace/phd/sandbox/perftests/","stencil1Dssp.json","stencil1Dssp.cl")
     var outputX = Array[Float]()

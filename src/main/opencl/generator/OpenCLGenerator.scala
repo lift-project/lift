@@ -1046,31 +1046,52 @@ class OpenCLGenerator extends Generator {
     val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem) // values from the input that you want to
                                                                     // cut down to window size
 
+    //  ***** why is this necessary and why is it hardcoded to be float??
     val v = Value(0.0f, ArrayTypeWSWC(Float, size.eval))
+
+    // temporary bool to see what works
+    val viewType = call.args.head.view.access(0).t
+    val arrayType = viewType.getClass.getComponentType
+    val is2D = (viewType.isInstanceOf[ArrayType])
+    var windowSize = size.eval
+    var reuseSize = reuse.eval
+    var nDim = 1
+
+    if(is2D)
+      {
+        windowSize *= size.eval // this will only work for symmetrical stencils!
+        reuseSize *= ((windowSize*(size.eval-1))/size.eval)
+        nDim = 2
+      }
+
     varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
-    privateMems = privateMems :+ TypedOpenCLMemory(OpenCLMemory(sSP.windowVar, size.eval, PrivateMemory), v.t)
+    privateMems = privateMems :+ TypedOpenCLMemory(OpenCLMemory(sSP.windowVar, windowSize, PrivateMemory), v.t)
     val varD = OpenCLAST.VarDecl(sSP.windowVar, v.t,
-      init = null,PrivateMemory,size.eval)
+      init = null,PrivateMemory,windowSize)
     privateDecls  += (sSP.windowVar -> varD)
     (block: Block) += varD
 
-    for (i <- 0 until size.eval) {
-      replacements = replacements.updated(sSP.windowVar, i)
-      val j: ArithExpr =
-        if (range.min.isInstanceOf[OclFunction]) {
-          range.min + step * i
-        } else {
-          i
+    if(is2D)
+    {
+      val nx = 2
+      val ny = 1
+      for(i <- 0 to nx)
+        //for(i <- 0 to ((reuseSize+1)/2) -1)
+      {  // where window values are SET
+        for(j <- 0 to ny)
+          //for(j <- 0 to ((reuseSize+1)/2)-1)
+        {
+           val idx = i*nx+j
+          (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i).access(j)))
         }
-      replacementsWithFuns = replacementsWithFuns.updated(sSP.windowVar, j)
-
+      }
     }
-    // cleanup
-    replacements = replacements - sSP.windowVar
-    replacementsWithFuns = replacementsWithFuns - sSP.windowVar
-
-    for(i <- 0 to reuse.eval-1) {
-      (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_$i"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i)))
+    else
+    {
+      for(i <- 0 to reuseSize-1)
+      {  // where window values are SET
+        (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_$i"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i)))
+      }
     }
 
     // TODO: Should this stay?
@@ -1112,17 +1133,56 @@ class OpenCLGenerator extends Generator {
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
 
-
-    for(i <- reuse.eval to size.eval-1) {
-      innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_$i"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(indexVar*step.eval + i)))
+    if(is2D)
+    {
+      val nx = 2
+      val ny = 2
+//     for(i <- (((reuseSize+1)/2)-1) to ((windowSize/2)-1) )
+      for(i <- 2 to nx)
+      {  // where window values are SET
+//        for(j <- (((reuseSize+1)/2)-1) to ((windowSize/2)-1) )
+        for(j <- 2 to 4)
+        {
+          val idx = i*nx+j
+           innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(indexVar*step.eval + i).access(indexVar*step.eval+j)))
+        }
+      }
     }
+    else
+    {
+      for(i <- reuseSize to windowSize-1) {
+        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_$i"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(indexVar*step.eval + i)))
+      }
+    }
+
 
     generateBody(innerBlock)
 
-    for(i <- 1 to reuse.eval) {
-        innerBlock += AssignmentExpression(VarRef(sSP.windowVar,suffix = s"_${i-1}"),VarRef(sSP.windowVar,suffix = s"_${size.eval-reuse-1+i}"))
-    }
+    if(is2D)
+    {
 
+      val nx = 2
+      val ny = 2
+      //     for(i <- (((reuseSize+1)/2)-1) to ((windowSize/2)-1) )
+      for (i <- 0 to 2)
+      {
+        // where window values are SET
+        //        for(j <- (((reuseSize+1)/2)-1) to ((windowSize/2)-1) )
+        for (j <- 0 to 1)
+        {
+          val idxL = i*nx+j
+          val idxR = (i+1)*nx+(j+1)
+          innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idxL}"), VarRef(sSP.windowVar, suffix = s"_${idxR}"))
+        }
+      }
+    }
+    else
+    {
+      for (i <- 1 to reuseSize)
+      {
+        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${i - 1}"), VarRef(sSP.windowVar, suffix = s"_${size.eval - reuse - 1 + i}"))
+      }
+    }
   }
 
   private def generateForLoop(block: Block,
