@@ -1046,18 +1046,13 @@ class OpenCLGenerator extends Generator {
     val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem) // values from the input that you want to
                                                                     // cut down to window size
 
-    /*
-
-      TYPE SHOULD NOT BE ENCODED LIKE IT IS, SOMETHING LIKE :
-
-    val v = Value(0.0f, ArrayTypeWSWC(Float, size.eval))
     // temporary bool to see what works
-    var viewType = v.t//call.args.head.view.access(0).t
-    var arrayType = viewType.getClass.getComponentType
-    val is2D = (viewType.isInstanceOf[ArrayType])
     var windowSize = size.eval
     var reuseSize = reuse.eval
     var nDim = 1
+    var viewType = call.args.head.view.access(0).t
+    val arrayType = viewType.getClass.getComponentType
+    val is2D = (viewType.isInstanceOf[ArrayType])
 
     if(is2D)
       {
@@ -1066,25 +1061,8 @@ class OpenCLGenerator extends Generator {
         nDim = 2
         viewType = call.args.head.view.access(0).access(0).t
       }
-     */
 
-    val v = Value(0.0f, ArrayTypeWSWC(Float, size.eval))
-
-    // temporary bool to see what works
-    val viewType = call.args.head.view.access(0).t
-    val arrayType = viewType.getClass.getComponentType
-    val is2D = (viewType.isInstanceOf[ArrayType])
-    var windowSize = size.eval
-    var reuseSize = reuse.eval
-    var nDim = 1
-
-    if(is2D)
-      {
-        windowSize *= size.eval // this will only work for symmetrical stencils!
-        reuseSize *= ((windowSize*(size.eval-1))/size.eval)
-        nDim = 2
-      }
-
+    val v = Value(0.0f, ArrayTypeWSWC(viewType, windowSize))
     varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
     privateMems = privateMems :+ TypedOpenCLMemory(OpenCLMemory(sSP.windowVar, windowSize, PrivateMemory), v.t)
     val varD = OpenCLAST.VarDecl(sSP.windowVar, v.t,
