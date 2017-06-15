@@ -494,6 +494,9 @@ class TestSlideSeqPlus
     StencilUtilities.print2DArray(values)
     StencilUtilities.print1DArrayAs2DArray(output,size-2)
     StencilUtilities.print1DArrayAs2DArray(gold,size-2)
+
+    for(i <- 0 to gold.length-1)    gold(i) -= output(i)
+    StencilUtilities.print1DArrayAs2DArray(gold,size-2)
 //    StencilUtilities.print1DArray(output)
 //    StencilUtilities.print1DArray(gold)
 
