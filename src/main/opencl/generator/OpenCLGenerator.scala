@@ -1037,7 +1037,7 @@ class OpenCLGenerator extends Generator {
     val rangeStep = range.step
     val init = ArithExpression(range.start)
     val stop = range match {
-      case ra: RangeAdd => ra.stop
+      case ra: RangeAdd => ra.stop // why does this change for 1D but not 2D?
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
     }
     val reuse = size - step
@@ -1096,7 +1096,7 @@ class OpenCLGenerator extends Generator {
     // TODO: Should this stay?
     // TODO: Information needed elsewhere. See analysis.ControlFlow
     // try to see if we really need a loop
-    if (PerformLoopOptimisation())
+  /*  if (PerformLoopOptimisation())
     indexVar.range.numVals match {
       case Cst(0) =>
         // zero iterations
@@ -1126,7 +1126,7 @@ class OpenCLGenerator extends Generator {
           case _ =>
         }
     }
-
+*/
 
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar+1/* + step.eval*/))
     val innerBlock = OpenCLAST.Block(Vector.empty)
@@ -1135,7 +1135,7 @@ class OpenCLGenerator extends Generator {
     if(is2D)
     {
       val nx = 2
-      val ny = 2
+      val ny = 4
 //     for(i <- (((reuseSize+1)/2)-1) to ((windowSize/2)-1) )
       for(i <- 2 to nx)
       {  // where window values are SET
@@ -1143,7 +1143,8 @@ class OpenCLGenerator extends Generator {
         for(j <- 2 to 4)
         {
           val idx = i*nx+j
-           innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(indexVar*step.eval + i).access(indexVar*step.eval+j)))
+          // THIS IS WRONG! NEED TO ACCOUNT FOR 2D --
+           innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i+indexVar%8).access(j+indexVar/8)))
         }
       }
     }

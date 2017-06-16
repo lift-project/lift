@@ -451,7 +451,7 @@ class TestSlideSeqPlus
     val size = 8
     val slidesize = 3
     val slidestep = 1
-    val values = Array.tabulate(size,size) { (i,j) => (i + j + 1).toFloat }
+    val values = Array.tabulate(size,size) { (i,j) => (i*size + j + 1).toFloat }
 
     val firstSlide = values.sliding(slidesize,slidestep).toArray
     val secondSlide = firstSlide.map(x => x.transpose.sliding(3,1).toArray)
@@ -472,24 +472,30 @@ class TestSlideSeqPlus
         ) o Slide2D(3,1) $ mat
       })
 
-    def stencil2DR(a: Int ,b :Int) = fun(
+    def getMiddle(a: Int ,b :Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (input) =>
         MapGlb(0)(fun(x => {
 
-//          val side1 =  MapSeq( fun( t => { toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ t })) o Slide(3,1) $ x.at(0)
-//          val side2 = MapSeq( fun( t => { toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ t })) o Slide(3,1) $ x.at(2)
-
           val tmpSum = 0.0f
-          toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) o Join() o PrintType(), a,b)) o  Transpose() $ x
+          toGlobal(SlideSeqPlus( (fun (x => {  toGlobal(id) $ x.at(1).at(1) })), a,b)) o  Transpose() $ x
 
 
         })) o Slide(3,1) o Transpose() $ input
     )
 
+    def stencil2DR(a: Int ,b :Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      (input) =>
+        MapGlb(0)(fun(x => {
+          val tmpSum = 0.0f
+          toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) o Join() o PrintType(), a,b)) o  Transpose() $ x
+        })) o Slide(3,1) o Transpose() $ input
+    )
+
     println(Compile(stencil2DR(3,1)))
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(getMiddle(slidesize,slidestep), values)
 
     StencilUtilities.print2DArray(values)
     StencilUtilities.print1DArrayAs2DArray(output,size-2)
