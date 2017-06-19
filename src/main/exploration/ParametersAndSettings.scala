@@ -2,6 +2,7 @@ package exploration
 
 import com.typesafe.scalalogging.Logger
 import lift.arithmetic.{ArithExpr, Cst}
+import org.clapper.argot.{FlagOption, SingleValueOption}
 import play.api.libs.json.Reads._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
@@ -129,29 +130,37 @@ case class HighLevelRewriteSettings(
 
 object HighLevelRewriteSettings {
 
+  import HighLevelRewrite._
+
+  def getValue[T](option: SingleValueOption[T], config: Option[T], default: T) =
+    option.value.getOrElse(config.getOrElse(default))
+
+  def getValue[T](option: FlagOption[T], config: Option[T], default: T) =
+    option.value.getOrElse(config.getOrElse(default))
 
   def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None)
+
   def createWithDefaults(
-                        explorationDepth: Option[Int],
-                        depth: Option[Int],
-                        distance: Option[Int],
-                        ruleRepetition: Option[Int],
-                        vectorWidth: Option[Int],
-                        sequential: Option[Boolean],
-                        onlyLower: Option[Boolean],
-                        oldStringRepresentation: Option[Boolean],
-                        ruleCollection: Option[String]
+                        configExplorationDepth: Option[Int],
+                        configDepth: Option[Int],
+                        configDistance: Option[Int],
+                        configRuleRepetition: Option[Int],
+                        configVectorWidth: Option[Int],
+                        configSequential: Option[Boolean],
+                        configOnlyLower: Option[Boolean],
+                        configOldStringRepresentation: Option[Boolean],
+                        configRuleCollection: Option[String]
                         ) = HighLevelRewriteSettings(
   // priority: 1) command-line args; 2) config-file; 3) default values
-  HighLevelRewrite.explorationDepth.value.getOrElse(explorationDepth.getOrElse(HighLevelRewrite.defaultExplorationDepth)),
-  HighLevelRewrite.depthFilter.value.getOrElse(depth.getOrElse(HighLevelRewrite.defaultDepthFilter)),
-  HighLevelRewrite.distanceFilter.value.getOrElse(distance.getOrElse(HighLevelRewrite.defaultDistanceFilter)),
-  HighLevelRewrite.ruleRepetition.value.getOrElse(ruleRepetition.getOrElse(HighLevelRewrite.defaultRuleRepetition)),
-  HighLevelRewrite.vectorWidth.value.getOrElse(vectorWidth.getOrElse(HighLevelRewrite.defaultVectorWidth)),
-  HighLevelRewrite.sequential.value.getOrElse(sequential.getOrElse(HighLevelRewrite.defaultSequential)),
-  HighLevelRewrite.onlyLower.value.getOrElse(onlyLower.getOrElse(HighLevelRewrite.defaultOnlyLower)),
-  HighLevelRewrite.oldStringRepresentation.value.getOrElse(oldStringRepresentation.getOrElse(HighLevelRewrite.defaultOldStringRepresentation)),
-  HighLevelRewrite.ruleCollection.value.getOrElse(ruleCollection.getOrElse(HighLevelRewrite.defaultRuleCollection)))
+  getValue(explorationDepth, configExplorationDepth, defaultExplorationDepth),
+  getValue(depthFilter, configDepth, defaultDepthFilter),
+  getValue(distanceFilter, configDistance, defaultDistanceFilter),
+  getValue(ruleRepetition, configRuleRepetition, defaultRuleRepetition),
+  getValue(vectorWidth, configVectorWidth, defaultVectorWidth),
+  getValue(sequential, configSequential, defaultSequential),
+  getValue(onlyLower, configOnlyLower, defaultOnlyLower),
+  getValue(oldStringRepresentation, configOldStringRepresentation, defaultOldStringRepresentation),
+  getValue(ruleCollection, configRuleCollection, defaultRuleCollection))
 }
 
 object SearchParameters {
