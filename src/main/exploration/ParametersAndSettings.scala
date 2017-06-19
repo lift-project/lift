@@ -112,9 +112,23 @@ case class HighLevelRewriteSettings(
   onlyLower: Boolean,
   oldStringRepresentation: Boolean,
   ruleCollection: String
-)
+) {
+  override def toString: String =
+    s"""HighLevelRewriteSettings:
+      |    explorationDepth: $explorationDepth
+      |    depth: $depth
+      |    distance: $distance
+      |    ruleRepetition: $ruleRepetition
+      |    vectorWidth: $vectorWidth
+      |    sequential: $sequential
+      |    onlyLower: $onlyLower
+      |    oldStringRepresentation: $oldStringRepresentation
+      |    ruleCollection: $ruleCollection
+    """.stripMargin
+}
 
 object HighLevelRewriteSettings {
+
 
   def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None)
   def createWithDefaults(
@@ -128,15 +142,16 @@ object HighLevelRewriteSettings {
                         oldStringRepresentation: Option[Boolean],
                         ruleCollection: Option[String]
                         ) = HighLevelRewriteSettings(
-  explorationDepth.getOrElse(HighLevelRewrite.defaultExplorationDepth),
-  depth.getOrElse(HighLevelRewrite.defaultDepthFilter),
-  distance.getOrElse(HighLevelRewrite.defaultDistanceFilter),
-  ruleRepetition.getOrElse(HighLevelRewrite.defaultRuleRepetition),
-  vectorWidth.getOrElse(HighLevelRewrite.defaultVectorWidth),
-  sequential.getOrElse(HighLevelRewrite.defaultSequential),
-  onlyLower.getOrElse(HighLevelRewrite.defaultOnlyLower),
-  oldStringRepresentation.getOrElse(HighLevelRewrite.defaultOldStringRepresentation),
-  ruleCollection.getOrElse(HighLevelRewrite.defaultRuleCollection))
+  // priority: 1) command-line args; 2) config-file; 3) default values
+  HighLevelRewrite.explorationDepth.value.getOrElse(explorationDepth.getOrElse(HighLevelRewrite.defaultExplorationDepth)),
+  HighLevelRewrite.depthFilter.value.getOrElse(depth.getOrElse(HighLevelRewrite.defaultDepthFilter)),
+  HighLevelRewrite.distanceFilter.value.getOrElse(distance.getOrElse(HighLevelRewrite.defaultDistanceFilter)),
+  HighLevelRewrite.ruleRepetition.value.getOrElse(ruleRepetition.getOrElse(HighLevelRewrite.defaultRuleRepetition)),
+  HighLevelRewrite.vectorWidth.value.getOrElse(vectorWidth.getOrElse(HighLevelRewrite.defaultVectorWidth)),
+  HighLevelRewrite.sequential.value.getOrElse(sequential.getOrElse(HighLevelRewrite.defaultSequential)),
+  HighLevelRewrite.onlyLower.value.getOrElse(onlyLower.getOrElse(HighLevelRewrite.defaultOnlyLower)),
+  HighLevelRewrite.oldStringRepresentation.value.getOrElse(oldStringRepresentation.getOrElse(HighLevelRewrite.defaultOldStringRepresentation)),
+  HighLevelRewrite.ruleCollection.value.getOrElse(ruleCollection.getOrElse(HighLevelRewrite.defaultRuleCollection)))
 }
 
 object SearchParameters {

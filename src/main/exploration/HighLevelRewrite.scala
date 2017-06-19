@@ -55,6 +55,33 @@ object HighLevelRewrite {
         parser.usage(s"Settings file $file doesn't exist.")
       s
   }
+
+  protected[exploration] val explorationDepth = parser.option[Int](List("d", "explorationDepth"), "depth",
+    "How deep to explore.")
+
+  protected[exploration] val depthFilter = parser.option[Int](List("depth"), "depth", "Cutoff depth for filtering.")
+
+  protected[exploration] val distanceFilter = parser.option[Int](List("distance"), "distance",
+    "Cutoff distance for filtering.")
+
+  protected[exploration] val ruleRepetition = parser.option[Int](List("repetition"), "repetition",
+    "How often the same rule can be applied.")
+
+  protected[exploration] val ruleCollection = parser.option[String](List("collection"), "collection",
+    "Which collection of rules are used for rewriting")
+
+  protected[exploration] val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
+    "The vector width to use for vectorising rewrites. Default: 4")
+
+  protected[exploration] val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
+    "Don't execute in parallel.")
+
+  protected[exploration] val onlyLower = parser.flag[Boolean](List("onlyLower"),
+    "Do not perform high-level rewriting - only print lambda to enable next rewriting stages")
+
+  protected[exploration] val oldStringRepresentation = parser.flag[Boolean](List("oldStringRepresentation"),
+    "Use old representation for Lambdas")
+
   protected[exploration] val defaultExplorationDepth = 5
   protected[exploration] val defaultDepthFilter = 6
   protected[exploration] val defaultDistanceFilter = 9
