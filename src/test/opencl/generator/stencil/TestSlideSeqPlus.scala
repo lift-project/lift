@@ -481,7 +481,7 @@ class TestSlideSeqPlus
           toGlobal(SlideSeqPlus( (fun (x => {  toGlobal(id) $ x.at(1).at(1) })), a,b)) o  Transpose() $ x
 
 
-        })) o Slide(3,1)  o Transpose() $ input
+        })) o Slide(3,1)   $ input
     ) /* what about Map(Slide) ? */
 
     def stencil2DR(a: Int ,b :Int) = fun(
@@ -490,7 +490,7 @@ class TestSlideSeqPlus
         MapGlb(0)(fun(x => {
           val tmpSum = 0.0f
           toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) o Join() o PrintType(), a,b)) o  Transpose() $ x
-        })) o Slide(3,1) $ input
+        })) o Slide(3,1) o Transpose() $ input
     )
 
     println(Compile(stencil2DR(3,1)))
