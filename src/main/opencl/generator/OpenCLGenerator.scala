@@ -1072,16 +1072,18 @@ class OpenCLGenerator extends Generator {
 
     if(is2D)
     {
-      val nx = 2
+      val nx = 3
       val ny = 1
-      for(i <- 0 to nx)
+      var idx = 0
+      for(i <- 0 to 2)
         //for(i <- 0 to ((reuseSize+1)/2) -1)
       {  // where window values are SET
-        for(j <- 0 to ny)
+        for(j <- 0 to 1)
           //for(j <- 0 to ((reuseSize+1)/2)-1)
         {
-           val idx = i*nx+j
-          (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(j).access(i)))
+           idx = i*nx+j
+          (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i).access(j)))
+          //idx += 1
         }
       }
     }
@@ -1134,17 +1136,20 @@ class OpenCLGenerator extends Generator {
 
     if(is2D)
     {
-      val nx = 2
+      val nx = 3
       val ny = 4
+      var idx = 0
 //     for(i <- (((reuseSize+1)/2)-1) to ((windowSize/2)-1) )
-      for(i <- 2 to nx)
+      for(i <- 0 to 2)
       {  // where window values are SET
 //        for(j <- (((reuseSize+1)/2)-1) to ((windowSize/2)-1) )
-        for(j <- 2 to 4)
+        for(j <- 2 to 2)
         {
-          val idx = i*nx+j
+          idx = i*nx+j
+          //val idx = i+j*nx
           // THIS IS WRONG! NEED TO ACCOUNT FOR 2D --
-           innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i+indexVar%8).access(j+indexVar/8)))
+           //innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i+(indexVar*step.eval)%8).access(j+(indexVar*step.eval)/8)))
+           innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(j+(indexVar*step.eval)%8).access(i+(indexVar*step.eval)/8)))
         }
       }
     }
@@ -1161,17 +1166,17 @@ class OpenCLGenerator extends Generator {
     if(is2D)
     {
 
-      val nx = 2
+      val nx = 3
       val ny = 2
       //     for(i <- (((reuseSize+1)/2)-1) to ((windowSize/2)-1) )
-      for (i <- 0 to 2)
-      {
-        // where window values are SET
-        //        for(j <- (((reuseSize+1)/2)-1) to ((windowSize/2)-1) )
-        for (j <- 0 to 1)
+      for(i <- 0 to 2)
+      //for(i <- 0 to ((reuseSize+1)/2) -1)
+      {  // where window values are SET
+        for(j <- 0 to 1)
+        //for(j <- 0 to ((reuseSize+1)/2)-1)
         {
           val idxL = i*nx+j
-          val idxR = (i+1)*nx+(j+1)
+          val idxR = idxL + 1
           innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idxL}"), VarRef(sSP.windowVar, suffix = s"_${idxR}"))
         }
       }

@@ -467,7 +467,7 @@ class TestSlideSeqPlus
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
             toGlobal(MapSeqUnroll(id)) o
-              ReduceSeq(add, 0.0f) o Join() $ neighbours
+              ReduceSeqUnroll(add, 0.0f) o Join() $ neighbours
           }))
         ) o Slide2D(3,1) $ mat
       })
@@ -481,8 +481,8 @@ class TestSlideSeqPlus
           toGlobal(SlideSeqPlus( (fun (x => {  toGlobal(id) $ x.at(1).at(1) })), a,b)) o  Transpose() $ x
 
 
-        })) o Slide(3,1) o Transpose() $ input
-    )
+        })) o Slide(3,1)  o Transpose() $ input
+    ) /* what about Map(Slide) ? */
 
     def stencil2DR(a: Int ,b :Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
@@ -490,23 +490,24 @@ class TestSlideSeqPlus
         MapGlb(0)(fun(x => {
           val tmpSum = 0.0f
           toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) o Join() o PrintType(), a,b)) o  Transpose() $ x
-        })) o Slide(3,1) o Transpose() $ input
+        })) o Slide(3,1) $ input
     )
 
     println(Compile(stencil2DR(3,1)))
 
     val (output: Array[Float], _) = Execute(2,2)(getMiddle(slidesize,slidestep), values)
+    val (goldExec: Array[Float], _) = Execute(2,2)(orgStencil, values)
 
     StencilUtilities.print2DArray(values)
     StencilUtilities.print1DArrayAs2DArray(output,size-2)
-    StencilUtilities.print1DArrayAs2DArray(gold,size-2)
+    StencilUtilities.print1DArrayAs2DArray(goldExec,size-2)
 
-    for(i <- 0 to gold.length-1)    gold(i) -= output(i)
-    StencilUtilities.print1DArrayAs2DArray(gold,size-2)
+    for(i <- 0 to goldExec.length-1)    goldExec(i) -= output(i)
+    StencilUtilities.print1DArrayAs2DArray(goldExec,size-2)
 //    StencilUtilities.print1DArray(output)
 //    StencilUtilities.print1DArray(gold)
 
-    assertArrayEquals(gold, output, 0.1f)
+    assertArrayEquals(goldExec, output, 0.1f)
 
   }
 
