@@ -478,7 +478,7 @@ class TestSlideSeqPlus
         MapGlb(0)(fun(x => {
 
           val tmpSum = 0.0f
-          toGlobal(SlideSeqPlus( (fun (x => {  toGlobal(id) $ x.at(1).at(1) })), a,b)) o  Transpose() $ x
+          toGlobal(SlideSeqPlus( (fun (x => {  toGlobal(id) $ x.at(2).at(2) })), a,b)) o  Transpose() $ x
 
 
         })) o Slide(3,1)   $ input

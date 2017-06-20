@@ -1073,7 +1073,6 @@ class OpenCLGenerator extends Generator {
     if(is2D)
     {
       val nx = 3
-      val ny = 1
       var idx = 0
       for(i <- 0 to 2)
         //for(i <- 0 to ((reuseSize+1)/2) -1)
@@ -1082,7 +1081,7 @@ class OpenCLGenerator extends Generator {
           //for(j <- 0 to ((reuseSize+1)/2)-1)
         {
            idx = i*nx+j
-          (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i).access(j)))
+          (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(j).access(i)))
           //idx += 1
         }
       }
