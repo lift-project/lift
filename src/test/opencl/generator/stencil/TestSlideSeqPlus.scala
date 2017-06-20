@@ -490,19 +490,19 @@ class TestSlideSeqPlus
         MapGlb(0)(fun(x => {
           val tmpSum = 0.0f
           toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) o Join() o PrintType(), a,b)) o  Transpose() $ x
-        })) o Slide(3,1) o Transpose() $ input
+        })) o Slide(3,1)  $ input
     )
 
     println(Compile(stencil2DR(3,1)))
 
-    val (output: Array[Float], _) = Execute(2,2)(getMiddle(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
     val (goldExec: Array[Float], _) = Execute(2,2)(orgStencil, values)
 
     StencilUtilities.print2DArray(values)
     StencilUtilities.print1DArrayAs2DArray(output,size-2)
-    StencilUtilities.print1DArrayAs2DArray(goldExec,size-2)
+  //  StencilUtilities.print1DArrayAs2DArray(goldExec,size-2)
 
-    for(i <- 0 to goldExec.length-1)    goldExec(i) -= output(i)
+//    for(i <- 0 to goldExec.length-1)    goldExec(i) -= output(i)
     StencilUtilities.print1DArrayAs2DArray(goldExec,size-2)
 //    StencilUtilities.print1DArray(output)
 //    StencilUtilities.print1DArray(gold)
