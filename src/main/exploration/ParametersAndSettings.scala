@@ -7,26 +7,37 @@ import play.api.libs.json.Reads._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 
-case class LocalMemoryRulesSettings(
+case class LocalMemoryRulesSettings (
   addIdForCurrentValueInReduce: Boolean,
   addIdMapLcl: Boolean,
   addIdMapWrg: Boolean,
   addIdAfterReduce: Boolean
-)
+) {
+  override def toString: String =
+     s"""LocalMemoryRulesSettings:
+        |    addIdForCurrentValueInReduce: $addIdForCurrentValueInReduce
+        |    addIdMapLcl: $addIdMapLcl
+        |    addIdMapWrg: $addIdMapWrg
+        |    addIdAfterReduce: $addIdAfterReduce
+      """.stripMargin
+}
 
 object LocalMemoryRulesSettings{
 
+  import MemoryMappingRewrite._
+  import utils.ExplorationParameter._
+
   def createDefault = createWithDefaults(None, None, None, None)
   def createWithDefaults(
-                        addIdForCurrentValueInReduce: Option[Boolean],
-                        addIdMapLcl: Option[Boolean],
-                        addIdMapWrg: Option[Boolean],
-                        addIdAfterReduce: Option[Boolean]
+                        configAddIdForCurrentValueInReduce: Option[Boolean],
+                        configAddIdMapLcl: Option[Boolean],
+                        configAddIdMapWrg: Option[Boolean],
+                        configAddIdAfterReduce: Option[Boolean]
                         ) = LocalMemoryRulesSettings(
-  addIdForCurrentValueInReduce.getOrElse(MemoryMappingRewrite.defaultAddIdforCurrentValueInReduce),
-  addIdMapLcl.getOrElse(MemoryMappingRewrite.defaultAddIdMapLcl),
-  addIdMapWrg.getOrElse(MemoryMappingRewrite.defaultAddIdMapWrg),
-  addIdAfterReduce.getOrElse(MemoryMappingRewrite.defaultAddIdAfterReduce))
+    getValue(addIdForCurrentValueInReduce, configAddIdAfterReduce, defaultAddIdForCurrentValueInReduce),
+    getValue(addIdMapLcl, configAddIdMapLcl, defaultAddIdMapLcl),
+    getValue(addIdMapWrg, configAddIdMapWrg, defaultAddIdMapWrg),
+    getValue(addIdAfterReduce, configAddIdAfterReduce, defaultAddIdAfterReduce))
 }
 
 case class ParameterRewriteSettings(
@@ -68,39 +79,59 @@ case class MemoryMappingRewriteSettings(
                                        group0: Boolean,
                                        group01: Boolean,
                                        group10: Boolean
-)
+) {
+  override def toString: String =
+  s"""MemoryMappingRewriteSettings:
+     |    vectorize: $vectorize
+     |    vectorWidth: $vectorWidth
+     |    sequential: $sequential
+     |    loadBalancing: $loadBalancing
+     |    unrollReduce: $unrollReduce
+     |    global0: $global0
+     |    global01: $global01
+     |    global10: $global10
+     |    global012: $global012
+     |    global210: $global210
+     |    group0: $group0
+     |    group01: $group01
+     |    group10: $group10
+   """.stripMargin
+}
 
 object MemoryMappingRewriteSettings {
 
+  import MemoryMappingRewrite._
+  import exploration.utils.ExplorationParameter._
+
   def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None, None, None, None, None)
   def createWithDefaults(
-                        vectorize: Option[Boolean],
-                        vectorWidth: Option[Int],
-                        sequential: Option[Boolean],
-                        loadBalancing: Option[Boolean],
-                        unrollReduce: Option[Boolean],
-                        global0: Option[Boolean],
-                        global01: Option[Boolean],
-                        global10: Option[Boolean],
-                        global012: Option[Boolean],
-                        global210: Option[Boolean],
-                        group0: Option[Boolean],
-                        group01: Option[Boolean],
-                        group10: Option[Boolean]
+                        configVectorize: Option[Boolean],
+                        configVectorWidth: Option[Int],
+                        configSequential: Option[Boolean],
+                        configLoadBalancing: Option[Boolean],
+                        configUnrollReduce: Option[Boolean],
+                        configGlobal0: Option[Boolean],
+                        configGlobal01: Option[Boolean],
+                        configGlobal10: Option[Boolean],
+                        configGlobal012: Option[Boolean],
+                        configGlobal210: Option[Boolean],
+                        configGroup0: Option[Boolean],
+                        configGroup01: Option[Boolean],
+                        configGroup10: Option[Boolean]
                         ) = MemoryMappingRewriteSettings(
-  vectorize.getOrElse(MemoryMappingRewrite.defaultVectorize),
-  vectorWidth.getOrElse(MemoryMappingRewrite.defaultVectorWidth),
-  sequential.getOrElse(MemoryMappingRewrite.defaultSequential),
-  loadBalancing.getOrElse(MemoryMappingRewrite.defaultLoadBalancing),
-  unrollReduce.getOrElse(MemoryMappingRewrite.defaultUnrollReduce),
-  global0.getOrElse(MemoryMappingRewrite.defaultGlobal0),
-  global01.getOrElse(MemoryMappingRewrite.defaultGlobal01),
-  global10.getOrElse(MemoryMappingRewrite.defaultGlobal10),
-  global012.getOrElse(MemoryMappingRewrite.defaultGlobal012),
-  global210.getOrElse(MemoryMappingRewrite.defaultGlobal210),
-  group0.getOrElse(MemoryMappingRewrite.defaultGroup0),
-  group01.getOrElse(MemoryMappingRewrite.defaultGroup01),
-  group10.getOrElse(MemoryMappingRewrite.defaultGroup10))
+  getValue(vectorize, configVectorize, defaultVectorize),
+  getValue(vectorWidth, configVectorWidth, defaultVectorWidth),
+  getValue(sequential, configSequential, defaultSequential),
+  getValue(loadBalancing, configLoadBalancing, defaultLoadBalancing),
+  getValue(unrollReduce, configUnrollReduce, defaultUnrollReduce),
+  getValue(global0, configGlobal0, defaultGlobal0),
+  getValue(global01, configGlobal01, defaultGlobal01),
+  getValue(global10, configGlobal10, defaultGlobal10),
+  getValue(global012, configGlobal012, defaultGlobal012),
+  getValue(global210, configGlobal210, defaultGlobal210),
+  getValue(group0, configGroup0, defaultGroup0),
+  getValue(group01, configGroup01, defaultGroup01),
+  getValue(group10, configGroup10, defaultGroup10))
 }
 
 case class HighLevelRewriteSettings(
@@ -131,12 +162,7 @@ case class HighLevelRewriteSettings(
 object HighLevelRewriteSettings {
 
   import HighLevelRewrite._
-
-  def getValue[T](option: SingleValueOption[T], config: Option[T], default: T) =
-    option.value.getOrElse(config.getOrElse(default))
-
-  def getValue[T](option: FlagOption[T], config: Option[T], default: T) =
-    option.value.getOrElse(config.getOrElse(default))
+  import exploration.utils.ExplorationParameter._
 
   def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None)
 

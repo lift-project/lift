@@ -7,7 +7,8 @@ import com.typesafe.scalalogging.Logger
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
-import org.clapper.argot.{ArgotParser, ArgotUsageException}
+import org.clapper.argot._
+import org.clapper.argot.ArgotConverters._
 import rewriting.utils.{NumberExpression, Utils}
 import rewriting._
 
@@ -18,6 +19,26 @@ object MemoryMappingRewrite {
   private val logger = Logger(this.getClass)
 
   private val parser = new ArgotParser("MemoryMappingRewrite")
+
+  protected[exploration] val defaultVectorize = true
+  protected[exploration] val defaultVectorWidth = 4
+  protected[exploration] val defaultSequential = false
+  protected[exploration] val defaultLoadBalancing = false
+  protected[exploration] val defaultUnrollReduce = false
+  protected[exploration] val defaultGlobal0 = false
+  protected[exploration] val defaultGlobal01 = false
+  protected[exploration] val defaultGlobal10 = false
+  protected[exploration] val defaultGlobal012 = false
+  protected[exploration] val defaultGlobal210 = false
+  protected[exploration] val defaultGroup0 = false
+  protected[exploration] val defaultGroup01 = false
+  protected[exploration] val defaultGroup10 = false
+
+  //local-memory rules
+  protected[exploration] val defaultAddIdForCurrentValueInReduce = true
+  protected[exploration] val defaultAddIdMapLcl = true
+  protected[exploration] val defaultAddIdMapWrg = true
+  protected[exploration] val defaultAddIdAfterReduce = true
 
   parser.flag[Boolean](List("h", "help"),
     "Show this message.") {
@@ -46,25 +67,56 @@ object MemoryMappingRewrite {
       s
   }
 
-  private[exploration] val defaultVectorize = true
-  private[exploration] val defaultVectorWidth = 4
-  private[exploration] val defaultSequential = false
-  private[exploration] val defaultLoadBalancing = false
-  private[exploration] val defaultUnrollReduce = false
-  private[exploration] val defaultGlobal0 = false
-  private[exploration] val defaultGlobal01 = false
-  private[exploration] val defaultGlobal10 = false
-  private[exploration] val defaultGlobal012 = false
-  private[exploration] val defaultGlobal210 = false
-  private[exploration] val defaultGroup0 = false
-  private[exploration] val defaultGroup01 = false
-  private[exploration] val defaultGroup10 = false
+  protected[exploration] val vectorize : FlagOption[Boolean] = parser.flag[Boolean](List("vectorize"),
+    "Apply vectorization")
 
-  //local-memory rules
-  private[exploration] val defaultAddIdforCurrentValueInReduce = true
-  private[exploration] val defaultAddIdMapLcl = true
-  private[exploration] val defaultAddIdMapWrg = true
-  private[exploration] val defaultAddIdAfterReduce = true
+  protected[exploration] val vectorWidth : SingleValueOption[Int] = parser.option[Int](List("vectorWidth", "vw"), "vector width",
+    s"The vector width to use for vectorising rewrites. Default: $defaultVectorWidth")
+
+  private[exploration] val sequential : FlagOption[Boolean] = parser.flag[Boolean](List("s", "seq", "sequential"),
+    "Don't execute in parallel.")
+
+  private[exploration] val loadBalancing : FlagOption[Boolean] = parser.flag[Boolean](List("l", "lb", "loadBalancing"),
+    "Enable load balancing using MapAtomLocal and MapAtomWrg")
+
+  private[exploration] val unrollReduce : FlagOption[Boolean] = parser.flag[Boolean](List("u", "ur", "unrollReduce"),
+    "Additionally generate expressions also using ReduceSeqUnroll")
+
+  private[exploration] val global0 : FlagOption[Boolean] = parser.flag[Boolean](List("gl0", "global0"),
+    "Mapping: MapGlb(0)( MapSeq(...) )")
+
+  private[exploration] val global01 : FlagOption[Boolean] = parser.flag[Boolean](List("gl01", "global01"),
+    "Mapping: MapGlb(0)(MapGlb(1)( MapSeq(...) ))")
+
+  private[exploration] val global10 : FlagOption[Boolean] = parser.flag[Boolean](List("gl10", "global10"),
+    "Mapping: MapGlb(1)(MapGlb(0)( MapSeq(...) ))")
+
+  private[exploration] val global012 : FlagOption[Boolean] = parser.flag[Boolean](List("gl012", "global012"),
+    "Mapping: MapGlb(0)(MapGlb(1)(MapGlb(2)( MapSeq(...) )))")
+
+  private[exploration] val global210 : FlagOption[Boolean] = parser.flag[Boolean](List("gl210", "global210"),
+    "Mapping: MapGlb(2)(MapGlb(1)(MapGlb(0)( MapSeq(...) )))")
+
+  private[exploration] val group0 : FlagOption[Boolean] = parser.flag[Boolean](List("gr0", "group0"),
+    "Mapping: MapWrg(0)(MapLcl(0)( MapSeq(...) ))")
+
+  private[exploration] val group01 : FlagOption[Boolean] = parser.flag[Boolean](List("gr01", "group01"),
+    "Mapping: MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)( MapSeq(...) ))))")
+
+  private[exploration] val group10 : FlagOption[Boolean] = parser.flag[Boolean](List("gr10", "group10"),
+    "Mapping: MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)( MapSeq(...) ))))")
+
+  private[exploration] val addIdForCurrentValueInReduce : FlagOption[Boolean] = parser.flag[Boolean](List("addIdForCurrentValueInReduce"),
+    s"Enable local memory rule: addIdForCurrentValueInReduce. Default: $defaultAddIdForCurrentValueInReduce)")
+
+  private[exploration] val addIdMapLcl : FlagOption[Boolean] = parser.flag[Boolean](List("addIdMapLcl"),
+    s"Enable local memory rule: addIdMapLcl. Default: $defaultAddIdMapLcl)")
+
+  private[exploration] val addIdMapWrg : FlagOption[Boolean] = parser.flag[Boolean](List("addIdMapWrg"),
+    s"Enable local memory rule: addIdMapWrg. Default: $defaultAddIdMapWrg)")
+
+  private[exploration] val addIdAfterReduce : FlagOption[Boolean] = parser.flag[Boolean](List("addIdAfterReduce"),
+    s"Enable local memory rule: addIdAfterReduce. Default: $defaultAddIdAfterReduce)")
 
   private var settings = Settings()
 
