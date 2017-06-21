@@ -535,7 +535,7 @@ class TestSlideSeqPlus
   @Test
   def reduceSlide2DTest9PointStencilAsymmetric(): Unit = {
 
-    val sizeX = 12
+    val sizeX = 16
     val sizeY = 8
     val slidesize = 3
     val slidestep = 1
@@ -558,19 +558,20 @@ class TestSlideSeqPlus
         })) o Slide(3,1)  $ input
     )
 
-    //    println(Compile(stencil2DR(3,1)))
+    //println(Compile(stencil2DR(3,1)))
 
     val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
     val (goldExec: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original2DStencil(slidesize,slidestep), values)
 
     StencilUtilities.print2DArray(values)
     StencilUtilities.print1DArrayAs2DArray(output,sizeX-2)
-    //  StencilUtilities.print1DArrayAs2DArray(goldExec,size-2)
+     StencilUtilities.print1DArrayAs2DArray(goldExec,sizeX-2)
+   val sub = goldExec.clone()
 
-   for(i <- 0 to goldExec.length-1)    goldExec(i) -= output(i)
-    StencilUtilities.print1DArrayAs2DArray(goldExec,sizeX-2)
-    //    StencilUtilities.print1DArray(output)
-    //    StencilUtilities.print1DArray(gold)
+   /*for(i <- 0 to goldExec.length-1)    sub(i) -= output(i)
+     StencilUtilities.print1DArrayAs2DArray(sub,sizeX-2)
+     StencilUtilities.print1DArray(output)
+     StencilUtilities.print1DArray(gold) */
 
     assertArrayEquals(goldExec, output, 0.1f)
 
@@ -580,8 +581,8 @@ class TestSlideSeqPlus
   def reduceSlide2DTest9PointSize5Step3(): Unit = {
 
     val size = 8
-    val slidesize = 3
-    val slidestep = 1
+    val slidesize = 5
+    val slidestep = 3
     val values = Array.tabulate(size,size) { (i,j) => (i*size + j + 1).toFloat }
 
     val firstSlide = values.sliding(slidesize,slidestep).toArray

@@ -1042,7 +1042,6 @@ class OpenCLGenerator extends Generator {
     }
     val reuse = size - step
     val cond = CondExpression(ArithExpression(indexVar), ArithExpression((stop-reuse)/step), CondExpression.Operator.<)
-
     val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem) // values from the input that you want to
                                                                     // cut down to window size
 
@@ -1138,7 +1137,7 @@ class OpenCLGenerator extends Generator {
         for(j <- reuse.eval to size.eval-1)
         {
           val idx = i*nx+j
-           innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(j+(indexVar*step.eval)%8).access(i+(indexVar*step.eval)/8)))
+           innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(j+(indexVar*step.eval)%stop).access(i+(indexVar*step.eval)/stop)))
         }
       }
     }
