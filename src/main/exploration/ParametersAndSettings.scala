@@ -46,23 +46,35 @@ case class ParameterRewriteSettings(
   disableNDRangeInjection: Boolean,
   sequential: Boolean,
   generateScala: Boolean
-)
+) {
+  override def toString: String =
+  s"""ParameterRewriteSettings:
+     |    exploreNDRange: $exploreNDRange
+     |    sampleNDRange: $sampleNDRange
+     |    disableNDRangeInjection: $disableNDRangeInjection
+     |    sequential: $sequential
+     |    generateScala: $generateScala
+   """.stripMargin
+}
 
 object ParameterRewriteSettings {
 
+  import ParameterRewrite._
+  import exploration.utils.ExplorationParameter._
+
   def createDefault = createWithDefaults(None, None, None, None, None)
   def createWithDefaults(
-                        exploreNDRange: Option[Boolean],
-                        sampleNDRange: Option[Int],
-                        disableNDRangeInjection: Option[Boolean],
-                        sequential: Option[Boolean],
-                        generateScala: Option[Boolean]
+                        configExploreNDRange: Option[Boolean],
+                        configSampleNDRange: Option[Int],
+                        configDisableNDRangeInjection: Option[Boolean],
+                        configSequential: Option[Boolean],
+                        configGenerateScala: Option[Boolean]
                         ) = ParameterRewriteSettings(
-  exploreNDRange.getOrElse(ParameterRewrite.defaultExploreNDRange),
-  sampleNDRange.getOrElse(ParameterRewrite.defaultSampleNDRange),
-  disableNDRangeInjection.getOrElse(ParameterRewrite.defaultDisableNDRangeInjection),
-  sequential.getOrElse(ParameterRewrite.defaultSequential),
-  generateScala.getOrElse(ParameterRewrite.defaultGenerateScala))
+    getValue(exploreNDRange, configExploreNDRange, defaultExploreNDRange),
+    getValue(sampleNDRange, configSampleNDRange, defaultSampleNDRange),
+    getValue(disableNDRangeInjection, configDisableNDRangeInjection, defaultDisableNDRangeInjection),
+    getValue(sequential, configSequential, defaultSequential),
+    getValue(generateScala, configGenerateScala, defaultGenerateScala))
 }
 
 case class MemoryMappingRewriteSettings(
