@@ -1156,11 +1156,10 @@ class OpenCLGenerator extends Generator {
       val nx = size.eval
       for(i <- 0 to nx-1)
        {
-        for(j <- 0 to reuse.eval-1)
+        for(j <- 1 to reuse.eval)
         {
           val idxL = i*nx+j
-          val idxR = idxL + 1
-          innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idxL}"), VarRef(sSP.windowVar, suffix = s"_${idxR}"))
+          innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idxL-1}"), VarRef(sSP.windowVar, suffix = s"_${idxL+(size.eval-reuse-1)}"))
         }
       }
     }

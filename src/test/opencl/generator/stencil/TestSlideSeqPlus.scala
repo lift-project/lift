@@ -36,7 +36,7 @@ object SlideSeqPlusHelpers
   val M = 2+ SizeVar("M")
 
   def stencil(a: Int ,b :Int) = fun(
-    ArrayTypeWSWC(Float, SizeVar("N")),
+    ArrayTypeWSWC(Float, N),
     (input) =>
        toGlobal(SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
   )
@@ -163,13 +163,15 @@ class TestSlideSeqPlus
 
     val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
-/*
+    println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
+
+
     StencilUtilities.print1DArray(values)
     StencilUtilities.print2DArray(values.sliding(slidesize,slidestep).toArray)
 
     StencilUtilities.print1DArray(gold)
     StencilUtilities.print1DArray(output)
-*/
+
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -599,17 +601,22 @@ class TestSlideSeqPlus
         MapGlb(0)(fun(x => {
           val tmpSum = 0.0f
           toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) o Join(), a,b)) o  Transpose() $ x
-        })) o Slide(3,1)  $ input
+        })) o Slide(a,b)  $ input
     )
 
-    //    println(Compile(stencil2DR(3,1)))
+//    println(Compile(stencil2DR(slidesize,slidestep)))
 
     val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
     val (goldExec: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original2DStencil(slidesize,slidestep), values)
 
+
     StencilUtilities.print2DArray(values)
-    StencilUtilities.print1DArrayAs2DArray(output,size-2)
+
+    // These print incorrectly because size depends ALSO on step
+    println("=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*")
+     StencilUtilities.print1DArrayAs2DArray(output,size-2)
     //  StencilUtilities.print1DArrayAs2DArray(goldExec,size-2)
+    println("=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*")
 
     //    for(i <- 0 to goldExec.length-1)    goldExec(i) -= output(i)
     StencilUtilities.print1DArrayAs2DArray(goldExec,size-2)
