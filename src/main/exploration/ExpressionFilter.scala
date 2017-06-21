@@ -21,16 +21,16 @@ object ExpressionFilter {
   protected[exploration] val min_grid_size = 4
 
   // Max amount of private memory allocated (this is not necessarily the number of registers)
-  protected[exploration] val max_amount_private_memory = 1024
+  protected[exploration] val max_private_memory = 1024
 
   // Max static amount of local memory
-  protected[exploration] val max_amount_local_memory = 50000
+  protected[exploration] val max_local_memory = 50000
 
   // Minimum number of workgroups
-  protected[exploration] val min_num_workgroups = 8
+  protected[exploration] val min_workgroups = 8
 
   // Maximum number of workgroups
-  protected[exploration] val max_num_workgroups = 10000
+  protected[exploration] val max_workgroups = 10000
 
 
   private val logger = Logger(this.getClass)

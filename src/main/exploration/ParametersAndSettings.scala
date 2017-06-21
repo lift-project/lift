@@ -221,10 +221,10 @@ object SearchParameters {
     minWorkItems.getOrElse(min_work_items),
     maxWorkItems.getOrElse(max_work_items),
     minGridSize.getOrElse(min_grid_size),
-    maxPrivateMemory.getOrElse(max_amount_private_memory),
-    maxLocalMemory.getOrElse(max_amount_local_memory),
-    minWorkgroups.getOrElse(min_num_workgroups),
-    maxWorkgroups.getOrElse(max_num_workgroups)
+    maxPrivateMemory.getOrElse(max_private_memory),
+    maxLocalMemory.getOrElse(max_local_memory),
+    minWorkgroups.getOrElse(min_workgroups),
+    maxWorkgroups.getOrElse(max_workgroups)
   )
 
 }
