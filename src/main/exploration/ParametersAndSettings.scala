@@ -274,10 +274,10 @@ object ParseSettings {
     (JsPath \ "min_work_items").readNullable[Int] and
     (JsPath \ "max_work_items").readNullable[Int] and
     (JsPath \ "min_grid_size").readNullable[Int] and
-    (JsPath \ "max_amount_private_memory").readNullable[Int] and
-    (JsPath \ "max_amount_local_memory").readNullable[Int] and
-    (JsPath \ "min_num_workgroups").readNullable[Int] and
-    (JsPath \ "max_num_workgroups").readNullable[Int]
+    (JsPath \ "max_private_memory").readNullable[Int] and
+    (JsPath \ "max_local_memory").readNullable[Int] and
+    (JsPath \ "min_workgroups").readNullable[Int] and
+    (JsPath \ "max_workgroups").readNullable[Int]
   )(SearchParameters.createWithDefaults _)
 
   private[exploration] implicit val highLevelReads: Reads[HighLevelRewriteSettings] = (

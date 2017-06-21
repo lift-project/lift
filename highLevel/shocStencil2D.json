@@ -51,9 +51,9 @@
     "min_work_items" : 128,
     "max_work_items" : 1024,
     "min_grid_size" : 4,
-    "max_amount_private_memory" : 1024,
-    "max_amount_local_memory" : 65536,
-    "min_num_workgroups" : 8,
-    "max_num_workgroups" : 65569
+    "max_private_memory" : 1024,
+    "max_local_memory" : 65536,
+    "min_workgroups" : 8,
+    "max_workgroups" : 65569
   }
 }
