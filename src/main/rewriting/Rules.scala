@@ -116,9 +116,12 @@ object Rules {
   })
 
   val joinSplit = Rule("Map(Map(f)) => Split(I) o Map(f) o Join()", {
-    case FunCall(Map(Lambda(Array(p), FunCall(Map(f), mapArg))), arg)
+    case call @ FunCall(Map(Lambda(Array(p), FunCall(Map(f), mapArg))), arg)
       if p == mapArg =>
-      val length = Type.getLength(Type.getElemT(arg.t))
+      val length = arg.t match {
+        case at: ArrayType => Type.getLength(at.elemT)
+        case ty => throw new TypeException(ty, "Array(_)", call)
+      }
       Split(length) o Map(f) o Join() $ arg
   })
 
@@ -1143,11 +1146,6 @@ object Rules {
       case FunCall(Id(), _) => true
       case _ => false
     }
-
-  val addIdBeforeSlide = Rule("Slide(n,s) => Slide(n,s) o Id()", {
-    case call@FunCall(Slide(n,s) , arg)
-      => Slide(n,s) o Id() $ arg
-  })
 
   val addIdMapWrg = Rule("MapWrg(f) => MapWrg(f o Id())", {
     case call@FunCall(MapWrg(dim, f:Lambda1) , arg)

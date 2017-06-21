@@ -30,7 +30,7 @@ class TestTemporalBlocking {
                                          tileSize: Int, tileStep: Int,
                                          l: Int, r: Int, b: Pad.BoundaryFun) = {
     fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => {
         Join() o MapWrg(
           //temporal blocking
@@ -67,8 +67,8 @@ class TestTemporalBlocking {
 
   def create1DStencilLambda(weights: Array[Float], size: Int, step: Int, left: Int, right: Int): Lambda2 = {
     fun(
-      ArrayTypeWSWC(Float, Var("N", StartFromRange(3))),
-      ArrayTypeWSWC(Float, weights.length),
+      ArrayType(Float, Var("N", StartFromRange(3))),
+      ArrayType(Float, weights.length),
       (input, weights) => {
         MapGlb(
           fun(neighbourhood => {
@@ -108,8 +108,8 @@ class TestTemporalBlocking {
                                                       tileSize: Int, tileStep: Int,
                                                       left: Int, right: Int): Lambda2 = {
     fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
-      ArrayTypeWSWC(Float, weights.length),
+      ArrayType(Float, SizeVar("N")),
+      ArrayType(Float, weights.length),
       (input, weights) => {
         MapWrg(fun(tile =>
           toGlobal(MapSeqUnroll(id)) o Iterate(2)(fun(localTile =>
@@ -133,7 +133,7 @@ class TestTemporalBlocking {
                                                n: Int, s: Int,
                                                l: Int, r: Int) = {
     fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => {
 
         //f:      toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)

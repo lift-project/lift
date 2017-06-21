@@ -8,9 +8,10 @@ object NDRange {
       (global(1).eval / local(1).eval) *
         (global(2).eval / local(2).eval)
   }
+
 }
 
-case class NDRange(x: ArithExpr, y: ArithExpr, z: ArithExpr) {
+case class NDRange(x: ArithExpr, y: ArithExpr = 1, z: ArithExpr = 1) {
   def apply(i: Int): ArithExpr = {
     i match {
       case 0 => x

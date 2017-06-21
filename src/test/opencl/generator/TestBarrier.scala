@@ -865,4 +865,65 @@ class TestBarrier {
     val kernel = Compile(f, innerSize, innerSize, 1)
     assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
   }
+
+  @Test
+  def tupleBarrierJustLocal(): Unit = {
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      input => MapWrg(\(x =>
+        toGlobal(MapLcl(add)) o
+          Gather(reverse) o
+          MapLcl(\(y => Tuple(toLocal(id) $ y._0, toLocal(id) $ y._1))) $
+          Zip(x, x)
+      )) o Split(32) $ input
+    )
+
+    val kernel = Compile(f, NDRange(32), NDRange(N))
+    println(kernel)
+    assertEquals(0, "CLK_GLOBAL_MEM_FENCE".r.findAllMatchIn(kernel).length)
+    assertEquals(1, "CLK_LOCAL_MEM_FENCE".r.findAllMatchIn(kernel).length)
+  }
+
+  @Test
+  def tupleBarrierJustGlobal(): Unit = {
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      input => MapWrg(\(x =>
+        toGlobal(MapLcl(add)) o
+          Gather(reverse) o
+          MapLcl(\(y => Tuple(id $ y._0, id $ y._1))) $
+          Zip(x, x)
+      )) o Split(32) $ input
+    )
+
+    val kernel = Compile(f, NDRange(32), NDRange(N))
+    println(kernel)
+    assertEquals(1, "CLK_GLOBAL_MEM_FENCE".r.findAllMatchIn(kernel).length)
+    assertEquals(0, "CLK_LOCAL_MEM_FENCE".r.findAllMatchIn(kernel).length)
+  }
+
+    @Test
+  def tupleBarrierBoth(): Unit = {
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      input => MapWrg(\(x =>
+        toGlobal(MapLcl(add)) o
+          Gather(reverse) o
+          MapLcl(\(y => Tuple(toLocal(id) $ y._0, id $ y._1))) $
+          Zip(x, x)
+      )) o Split(32) $ input
+    )
+
+    val kernel = Compile(f, NDRange(32), NDRange(N))
+      println(kernel)
+    assertEquals(1, "CLK_GLOBAL_MEM_FENCE".r.findAllMatchIn(kernel).length)
+    assertEquals(1, "CLK_LOCAL_MEM_FENCE".r.findAllMatchIn(kernel).length)
+  }
+
 }

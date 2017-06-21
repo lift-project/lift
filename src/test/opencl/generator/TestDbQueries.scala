@@ -36,6 +36,9 @@ object TestDbQueries {
  * - HAVING: it consists in composing on the left with a filter
  */
 class TestDbQueries {
+  /** Because the executor can't return tuple of type (bool, int) */
+  val toInt = UserFun("to_int", "x", "return x;", Bool, Int)
+  
   @Test def combine(): Unit = {
     /**
      * Not an SQL query.
@@ -97,7 +100,7 @@ class TestDbQueries {
     val sameKeys = UserFun(
       "sameKeys", Array("x", "y"),
       "return (x._0 == y._0);",
-      Seq(TupleType(Int, Int), TupleType(Int, Int)), Int
+      Seq(TupleType(Int, Int), TupleType(Int, Int)), Bool
     )
     
     val toTuple = UserFun(
@@ -112,7 +115,7 @@ class TestDbQueries {
       (left, right) => {
         Join() o MapGlb(fun(lRows =>
           MapSeq(toGlobal(toTuple)) $ Zip(
-            Join() o MapSeq(MapSeq(not) o ReduceSeq(or, 0)) o
+            Join() o MapSeq(MapSeq(toInt o not) o ReduceSeq(or, false)) o
               MapSeq(fun(lRow => {
                 MapSeq(fun(rRow => sameKeys.apply(lRow, rRow))) $ right
               })) $ lRows,
@@ -195,7 +198,7 @@ class TestDbQueries {
         Join() o MapGlb(
           fun(bx =>
             toGlobal(MapSeq(tuple_id)) o
-            MapSeq(fun(tot => Tuple(bx._0, bx._1, tot))) o
+            MapSeq(fun(tot => Tuple(toInt $ bx._0, bx._1, tot))) o
             ReduceSeq(addI, 0) o
             MapSeq(filterOnX) o
             MapSeq(fun(row => Tuple(bx._1, row))) $ table

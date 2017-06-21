@@ -2,6 +2,7 @@ package ir
 
 import lift.arithmetic._
 import arithmetic.TypeVar
+import ir.ast.IRNode
 
 import scala.collection.immutable.HashMap
 import scala.collection.{immutable, mutable}
@@ -47,14 +48,16 @@ sealed abstract class Type {
     case tT: TupleType => TupleType( tT.elemsT.map( _.vectorize(n) ):_* )
     case aT: ArrayType with Size with Capacity => asVector(aT, n)
     case v: VectorType => v
-    case _ => throw new TypeException(this, "anything else")
+    case _: ArrayType => throw new NotImplementedError()
+    case NoType | UndefType =>
+      throw new IllegalArgumentException(s"Cannot vectorize type: $this")
   }
 
   private def asVector(at0: ArrayType with Size with Capacity, len: ArithExpr): Type = {
     at0.elemT match {
       case pt:ScalarType => ArrayTypeWSWC(VectorType(pt,len), at0.size/^len, at0.capacity/^len)
       case at1:ArrayType with Size with Capacity => ArrayTypeWSWC(asVector(at1,len), at0.size, at0.capacity)
-      case _ => throw new TypeException(at0.elemT, "ArrayType or PrimitiveType")
+      case _ => throw new TypeException(at0.elemT, "ArrayType or PrimitiveType", null)
     }
   }
 
@@ -101,7 +104,10 @@ case class TupleType(elemsT: Type*) extends Type {
     = "Tuple(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
 
   override def hasFixedAllocatedSize: Boolean = elemsT.forall(_.hasFixedAllocatedSize)
-  
+
+  /**
+   * `proj(i)` is the i-th projection of the tuple type, i.e. its i-th component.
+   */
   def proj(i: Int): Type = {
     assert(i < elemsT.length)
     elemsT(i)
@@ -141,7 +147,7 @@ case class ArrayType(elemT: Type) extends Type {
       case _ => None
     }
   }
-  
+
   /**
    * Private helper function
    *
@@ -153,15 +159,15 @@ case class ArrayType(elemT: Type) extends Type {
       case _ => None
     }
   }
-  
+
   /**
    * @return the index at which the size of the array is stored in its header.
    */
   def getSizeIndex: Int = this match {
-    case _: Capacity => 1 // skip the capacity
-    case _ => 0
+    case _: Capacity => 0 // capacity is not in the header
+    case _ => 1 // skip the capacity
   }
-  
+
   /**
    * @return the number of values stored in the header of this array.
    *         (currently it can be 0, 1 or 2)
@@ -184,7 +190,7 @@ case class ArrayType(elemT: Type) extends Type {
       case _:Capacity => elemT.hasFixedAllocatedSize
       case _ => false
     }
-  
+
   /** Structural equality */
   override def equals(other: Any): Boolean = {
     other match {
@@ -205,7 +211,7 @@ case class ArrayType(elemT: Type) extends Type {
       (this match {case s:Size => s.size.hashCode case _ => 0 }) +
       (this match {case c:Capacity => c.capacity.hashCode case _ => 0 })
   }
- 
+
   /**
    * A shorthand for constructing a new ArrayType with the same shape
    * (i.e. same size and capacity if known) but a different element type.
@@ -225,8 +231,6 @@ case class ArrayType(elemT: Type) extends Type {
 
 
 object ArrayType {
-
-
   def checkSizeOrCapacity(s: String, ae: ArithExpr) : Unit = {
     // TODO: remove the need to check for unknown (but this is used currently in a few places)
     if (ae != ? & ae.sign != Sign.Positive)
@@ -238,7 +242,7 @@ object ArrayType {
       val length = ae.evalDouble
 
       if (!length.isValidInt || length < 1)
-        throw TypeException(length + " is not a valid "+s+" for an array!")
+        throw TypeException(s"$length is not a valid $s for an array!")
     }
   }
 
@@ -249,16 +253,12 @@ object ArrayType {
 
 
 object ArrayTypeWSWC {
-
+  /** Shorthand: constructs an ArrayType with same size and capacity */
   def apply(elemT: Type, sizeAndCapacity: ArithExpr) : ArrayType with Size with Capacity = {
     apply(elemT, sizeAndCapacity, sizeAndCapacity)
   }
 
   def apply(elemT: Type, _size: ArithExpr, _capacity: ArithExpr) : ArrayType with Size with Capacity = {
-
-    // TODO: remove this assertation once the framework is ready to handle array with a different size and capacity
-    assert (_size == _capacity)
-
     ArrayType.checkSizeOrCapacity("size", _size)
     ArrayType.checkSizeOrCapacity("capacity", _capacity)
     new ArrayType(elemT) with Size with Capacity {
@@ -340,8 +340,10 @@ object Type {
 
   def fromAny(a: Any): Type = {
     a match {
-      case _: Float => ScalarType("float", 4)
-      case _: Int => ScalarType("int", 4)
+      case _: Float => opencl.ir.Float
+      case _: Int => opencl.ir.Int
+      case _: Double => opencl.ir.Double
+      case _: Boolean => opencl.ir.Bool
       case a: Seq[_] if a.nonEmpty => ArrayTypeWSWC(fromAny(a.head), a.length)
       case t: (_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2)):_*)
       case t: (_,_,_) => TupleType(Seq(fromAny(t._1), fromAny(t._2), fromAny(t._3)):_*)
@@ -506,20 +508,6 @@ object Type {
   }
 
   /**
-   * Return the element type of a vector or array type.
-   *
-   * @param t A type. Must be a vector or array type.
-   * @return The element type of `t`
-   */
-  def getElemT(t: Type): Type = {
-    t match {
-      case vt: VectorType => vt.scalarT
-      case at: ArrayType  => at.elemT
-      case _ => throw new TypeException(t, "ArrayType or VectorType")
-    }
-  }
-
-  /**
    * For a given array type turn every nested vector type into a corresponding
    * array type.
    *
@@ -532,14 +520,20 @@ object Type {
     // TODO: if the array has no size or capacity in the type, we need to somehow store the information that the new length is the same the old one but divided by the vector length
 
     at.elemT match {
-      case vt: VectorType => ArrayTypeWSWC(vt.scalarT, at.size*vt.len, at.capacity*vt.len)
-      case at: ArrayType with Size with Capacity =>  ArrayTypeWSWC(asScalarType(at),at.size, at.capacity)
-      case _ => throw new TypeException(at.elemT , "ArrayType or VectorType")
+      case vt: VectorType =>
+        ArrayTypeWSWC(vt.scalarT, at.size * vt.len, at.capacity * vt.len)
+      case at: ArrayType with Size with Capacity =>
+        ArrayTypeWSWC(asScalarType(at), at.size, at.capacity)
+      case _ =>
+        throw new TypeException(at.elemT , "ArrayType or VectorType", null)
     }
   }
 
   /**
    * Return the size (in bytes) of a given type.
+   * Note: this function can return `?`. See the comments at the top of
+   *       `OpenCLMemoryAllocator.scala` to get information about the meaning
+   *       of this special value here and when it is supposed to occur.
    *
    * @param t A type
    * @return The size in bytes.
@@ -549,13 +543,20 @@ object Type {
       case st: ScalarType => st.size
       case vt: VectorType => vt.scalarT.size * vt.len
       case tt: TupleType  => tt.elemsT.map(getAllocatedSize).reduce(_+_)
-      case at: ArrayType with Capacity => at.capacity * getAllocatedSize(at.elemT)
-      case _ => throw new IllegalArgumentException
+      case at: ArrayType => at match {
+        case c: Capacity =>
+          if (at.elemT.hasFixedAllocatedSize)
+            (at.getHeaderSize * 4) + c.capacity * getAllocatedSize(at.elemT)
+          else ? // Dynamic allocation required
+        case _ => ? // Dynamic allocation required
+      }
+      case NoType | UndefType =>
+        throw new IllegalArgumentException(s"Cannot allocate memory for type: $t")
     }
   }
 
   def getMaxAllocatedSize(t: Type) : ArithExpr = {
-    // quick hack (set all the type var to theur max value)
+    // quick hack (set all the type var to their max value)
     // TODO: need to be fixed
     val size = getAllocatedSize(t)
     val map = TypeVar.getTypeVars(size).map(tv => (tv, tv.range.max)).toMap
@@ -624,7 +625,7 @@ object Type {
       case (vt1: VectorType, vt2: VectorType) =>
         result ++= reifyExpr(vt1.len, vt2.len)
 
-      case _ => if (t1 != t2) throw new TypeException(t1, t2)
+      case _ => if (t1 != t2) throw new TypeException(t1, t2, null)
     }
     result.toMap
   }
@@ -741,13 +742,25 @@ object Type {
  * @param msg A string message presented to the user
  */
 case class TypeException(msg: String) extends Exception(msg) {
-
-  def this(found: Type, expected: String) =
-    this(found + " found but " + expected + " expected")
-
-  def this(found: Type, expected: Type) =
-    this(found + " found but " + expected + " expected")
-
+  /**
+   * @param found a type which is not correct
+   * @param expected the type we expected instead of `found` (as a string)
+   * @param where the IR node where the exception is raised.
+   *              NB. If null, the error message will still be nice but we
+   *              should avoid throwing type errors without a location as much
+   *              as possible.
+   */
+  def this(found: Type, expected: String, where: IRNode) = {
+    this({
+      val location = if (where == null) "" else s" in ``$where``"
+      s"Type mismatch$location:\n$found found but $expected expected"
+    })
+  }
+  
+  /** Same as before but `expected` must be a Type. */
+  def this(found: Type, expected: Type, where: IRNode) = {
+    this(found, expected.toString, where)
+  }
 }
 
 class ZipTypeException(val tt: TupleType)

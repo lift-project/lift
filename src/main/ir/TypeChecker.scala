@@ -1,36 +1,57 @@
 package ir
 
-import ir.ast._
-import lift.arithmetic.{ArithExpr, Var}
+import ir.ast.{Expr, FunCall, IRNode, Lambda, Param}
+import lift.arithmetic.Var
 import opencl.generator.TreatWarningsAsErrors
 
+/**
+ * Type-checks a lambda or an expression and returns its type/output type.
+ */
 object TypeChecker {
-
   def apply(lambda: Lambda): Type = {
     checkForSuspiciousTypeVariableDeclarations(lambda)
     check(lambda.body)
   }
-
+  
   def apply(expr: Expr): Type = check(expr)
-
+  
+  /**
+   * Shorthand to infer the type of an expression and check that it is equal to
+   * a given type.
+   *
+   * @param expr the expression to type-check
+   * @param expected the expected type for this expression
+   * @param setType flag passed to the `check` method.
+   */
+  def assertTypeIs(expr: Expr, expected: Type, setType: Boolean = true): Unit = {
+    val ty = check(expr, setType)
+    if (ty != expected)
+      throw new TypeException(ty, expected, expr)
+  }
+  
+  /**
+   * Infers and checks the type of an expression.
+   *
+   * @param expr the expression to type-check
+   * @param setType if true, attach the type to the expression
+   * @return the expression's inferred type.
+   */
   def check(expr: Expr, setType: Boolean = true): Type = {
-
     val inferredOuT = expr match {
       case call: FunCall =>
         // 1. get type of arguments
-        val argType = if (call.args.isEmpty) {
-          NoType // TODO: throw exception?
-        } else if (call.args.length == 1) {
+        val argType = if (call.args.isEmpty)
+          throw new IllegalArgumentException(s"FunCall without arguments: $call")
+        else if (call.args.length == 1)
           check(call.args.head, setType)
-        } else {
+        else
           // if multiple arguments wrap their types in a tuple
-          TupleType( call.args.map(check(_, setType)):_* )
-        }
+          TupleType(call.args.map(check(_, setType)): _*)
 
-        // 2. check type of function with the given arguments type
+        // 2. check return type of function with the given arguments type
         call.f.checkType(argType, setType)
 
-      case e: Expr=> e.t
+      case _ => expr.t
     }
 
     if (setType)
@@ -38,34 +59,28 @@ object TypeChecker {
 
     inferredOuT
   }
-
-  def checkAndSetTypeForParams(params: Array[Param], argType: Type): Unit = {
+  
+  def checkAndSetTypeForParams(params: Array[Param], argType: Type,
+                               where: IRNode // For error reporting
+                              ): Unit = {
     (params.length, argType) match {
-      case (0, _) =>
       case (1, _) => params.head.t = argType
       case (n, tt: TupleType) if n == tt.elemsT.length =>
         (params zip tt.elemsT).foreach({case (p, t) => p.t = t})
       // error cases:
       case (n, tt: TupleType) =>
-        throw NumberOfArgumentsException(s"Expected $n arguments but " +
-                                             s"got ${tt.elemsT.length}")
-      case _ => throw new TypeException(argType, "some other type")
+        throw NumberOfArgumentsException(
+          s"Expected ${tt.elemsT.length} arguments but got $n"
+        )
+      case (n, _) =>
+        throw new TypeException(argType, s"TupleType of arity $n", where)
     }
   }
-
-  def checkForSuspiciousTypeVariableDeclarations(lambda: Lambda): Unit = {
-
+  
+  private def checkForSuspiciousTypeVariableDeclarations(lambda: Lambda): Unit = {
     // collect all the variables
+    // TODO: getLengths is suspicious
     val vars = lambda.params.flatMap(p => Type.getLengths(p.t)).collect { case v: Var => v }
-
-
-    /*val vars = new collection.mutable.MutableList[Var]()
-    IRNode.visitArithExpr(lambda, (ae: ArithExpr) => ArithExpr.visit(ae, {
-      case v: Var => vars += v
-      case _ =>
-    }))*/
-
-    //val vars2 = lambda.params.flatMap(p => Type.getLengths(p.t)).collect { case v: Var => v }
 
     // check that no 2 variables with the same name, but different id's exist
     vars.groupBy(_.name).foreach { case (name, vs) =>
@@ -73,13 +88,10 @@ object TypeChecker {
       if (ids.distinct.length > 1) {
         val msg = s"Type variable '$name' declared multiple times with ids: " +
           s"[${ids.map(_.toString).reduce(_ + ", " + _)}]"
-        if (TreatWarningsAsErrors()) {
+        if (TreatWarningsAsErrors())
           throw SuspiciousTypeVariableDeclaredException(msg)
-        } else {
-          println("Warning: " + msg)
-        }
+        else println("Warning: " + msg)
       }
     }
   }
-
 }

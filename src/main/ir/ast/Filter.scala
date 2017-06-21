@@ -25,8 +25,9 @@ case class Filter() extends Pattern(arity = 2) with isGenerable {
         ArrayTypeWSWC(t, m)
 
       case _ =>
-        throw new TypeException(argType,
-                                "TupleType(ArrayType(_, _), ArrayType(Int, _))")
+        throw new TypeException(
+          argType, "TupleType(ArrayType(_, _), ArrayType(Int, _))", this
+        )
     }
   }
 

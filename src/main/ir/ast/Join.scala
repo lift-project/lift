@@ -24,7 +24,7 @@ case class Join() extends Pattern(arity = 1) with isGenerable {
                          setType: Boolean): Type = {
     argType match {
       case ArrayTypeWSWC(ArrayTypeWSWC(et,is,ic), os, oc) => ArrayTypeWSWC(et, is*os, ic*oc)
-      case _ => throw new TypeException(argType, "ArrayType(ArrayType(_, _), _)")
+      case _ => throw new TypeException(argType, "ArrayType(ArrayType(_, _), _)", this)
     }
   }
 

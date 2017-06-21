@@ -28,7 +28,7 @@ class Param() extends Expr with Cloneable {
    */
   def vectorize(n: ArithExpr): Param = this match {
     case v:VectorParam =>
-      throw new TypeException("Cannot vectorize a vectorized parameter")
+      throw TypeException("Cannot vectorize a vectorized parameter")
     case x => new VectorParam(x, n)
   }
 
