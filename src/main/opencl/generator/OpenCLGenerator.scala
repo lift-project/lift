@@ -1070,25 +1070,22 @@ class OpenCLGenerator extends Generator {
     privateDecls  += (sSP.windowVar -> varD)
     (block: Block) += varD
 
+    // where initial window values are set
     if(is2D)
     {
-      val nx = 3
-      var idx = 0
-      for(i <- 0 to 2)
-        //for(i <- 0 to ((reuseSize+1)/2) -1)
-      {  // where window values are SET
-        for(j <- 0 to 1)
-          //for(j <- 0 to ((reuseSize+1)/2)-1)
+      val nx = size.eval
+      for(i <- 0 to (nx-1))
+      {
+        for(j <- 0 to (reuse.eval-1))
         {
-           idx = i*nx+j
+           val idx = i*nx+j
           (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(j).access(i)))
-          //idx += 1
         }
       }
     }
     else
     {
-      for(i <- 0 to reuseSize-1)
+      for(i <- 0 to reuse.eval-1)
       {  // where window values are SET
         (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_$i"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i)))
       }
@@ -1135,19 +1132,12 @@ class OpenCLGenerator extends Generator {
 
     if(is2D)
     {
-      val nx = 3
-      val ny = 4
-      var idx = 0
-//     for(i <- (((reuseSize+1)/2)-1) to ((windowSize/2)-1) )
-      for(i <- 0 to 2)
-      {  // where window values are SET
-//        for(j <- (((reuseSize+1)/2)-1) to ((windowSize/2)-1) )
-        for(j <- 2 to 2)
+      val nx = size.eval
+      for(i <- 0 to nx-1)
+      {
+        for(j <- reuse.eval to size.eval-1)
         {
-          idx = i*nx+j
-          //val idx = i+j*nx
-          // THIS IS WRONG! NEED TO ACCOUNT FOR 2D --
-           //innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i+(indexVar*step.eval)%8).access(j+(indexVar*step.eval)/8)))
+          val idx = i*nx+j
            innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(j+(indexVar*step.eval)%8).access(i+(indexVar*step.eval)/8)))
         }
       }
@@ -1164,15 +1154,10 @@ class OpenCLGenerator extends Generator {
 
     if(is2D)
     {
-
-      val nx = 3
-      val ny = 2
-      //     for(i <- (((reuseSize+1)/2)-1) to ((windowSize/2)-1) )
-      for(i <- 0 to 2)
-      //for(i <- 0 to ((reuseSize+1)/2) -1)
-      {  // where window values are SET
-        for(j <- 0 to 1)
-        //for(j <- 0 to ((reuseSize+1)/2)-1)
+      val nx = size.eval
+      for(i <- 0 to nx-1)
+       {
+        for(j <- 0 to reuse.eval-1)
         {
           val idxL = i*nx+j
           val idxR = idxL + 1
