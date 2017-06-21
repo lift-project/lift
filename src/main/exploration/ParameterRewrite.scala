@@ -52,6 +52,21 @@ object ParameterRewrite {
       s
   }
 
+  protected[exploration] val exploreNDRange = parser.flag[Boolean](List("e", "exploreNDRange"),
+    "Additionally explore global and local sizes")
+
+  protected[exploration] val sampleNDRange = parser.option[Int](List("sampleNDRange"), "n",
+    "Randomly sample n combinations of global and local sizes (requires 'explore')")
+
+  protected[exploration] val disableNDRangeInjection = parser.flag[Boolean](List("disableNDRangeInjection"),
+    "Don't inject NDRanges while compiling the OpenCL Kernel")
+
+  protected[exploration] val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
+    "Don't execute in parallel.")
+
+  protected[exploration] val generateScala = parser.flag[Boolean](List("generate-scala"),
+    "Generate lambdas in Scala as well as in OpenCL")
+
   private[exploration] val defaultExploreNDRange = false
   private[exploration] val defaultSampleNDRange = -1
   private[exploration] val defaultDisableNDRangeInjection = false
