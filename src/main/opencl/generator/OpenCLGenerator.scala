@@ -1024,6 +1024,12 @@ class OpenCLGenerator extends Generator {
     } /*, i.iterationCount*/)
   }
 
+  def getType(v: View, n: Int): Type = n match {
+    case 1 => v.access(0).t
+    case _ => getType(v.access(0),n-1)
+  }
+
+
   private def generateLoopMinMemoryAccess(block: Block,
                               sSP: SlideSeqPlus,
                               call: FunCall,
@@ -1034,12 +1040,12 @@ class OpenCLGenerator extends Generator {
     val step = sSP.step
     val size = sSP.size
     val range = indexVar.range.asInstanceOf[RangeAdd]
-    val rangeStep = range.step
     val init = ArithExpression(range.start)
     val stop = range match {
       case ra: RangeAdd => ra.stop // why does this change for 1D but not 2D?
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
     }
+
     val reuse = size - step
     val cond = CondExpression(ArithExpression(indexVar), ArithExpression((stop-reuse)/step), CondExpression.Operator.<)
     val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem) // values from the input that you want to
@@ -1048,17 +1054,26 @@ class OpenCLGenerator extends Generator {
     // temporary bool to see what works
     var windowSize = size.eval
     var reuseSize = reuse.eval
-    var nDim = 1
-    var viewType = call.args.head.view.access(0).t
-    val arrayType = viewType.getClass.getComponentType
-    val is2D = (viewType.isInstanceOf[ArrayType])
+    var vType = call.args.head.view.access(0).t
+//    val is3D = (viewType.isInstanceOf[ArrayType(ArrayType))])
+
+    val nDim = vType match {
+      case ArrayType(ArrayTypeWS(_, _)) => 3
+      case ArrayTypeWS(_,_) => 2
+      case _ => 1
+    }
+
+    val viewType = getType(call.args.head.view,nDim)
+    val is2D = (nDim == 2)
+    val is3D = (nDim == 3)
+
+    println(nDim)
+
 
     if(is2D)
       {
         windowSize *= size.eval // this will only work for symmetrical stencils!
         reuseSize *= ((windowSize*(size.eval-1))/size.eval)
-        nDim = 2
-        viewType = call.args.head.view.access(0).access(0).t
       }
 
     val v = Value(0.0f, ArrayTypeWSWC(viewType, windowSize))
