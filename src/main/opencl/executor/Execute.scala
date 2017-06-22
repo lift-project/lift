@@ -846,154 +846,15 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       case Int | VectorType(Int, _)       => value(any.asInstanceOf[Int])
       case Float | VectorType(Float, _)   => value(any.asInstanceOf[Float])
       case Double | VectorType(Double, _) => value(any.asInstanceOf[Double])
+
       // Arrays
       case at: ArrayType =>
         val array = any.asInstanceOf[Array[_]]
-        flatTupleBaseType(at) match {
-          case Int =>
-            val encoder = new Encoder[Int](n => n)
-            val raw = encoder.encode(array, at, size/4)
-            global.input(raw)
-          case Float =>
-            val encoder = new Encoder[Float](_.toFloat)
-            val raw = encoder.encode(array, at, size/4)
-            global.input(raw)
-          case Double =>
-            val encoder = new Encoder[Double](_.toDouble)
-            val raw = encoder.encode(array, at, size/4)
-            global.input(raw)
-          case Bool =>
-            val encoder = new Encoder[Boolean](_ != 0) // This is very bad
-          val raw = encoder.encode(array, at, size)
-            global.input(raw)
-        }
-      case _ => throw new EncodeError(ty)
-    }
-    
-    /** Raise this exception if something cannot be encoded */
-    private class EncodeError(ty: Type)
-      extends IllegalArgumentException(s"Cannot encode type $ty")
-  
-    @scala.annotation.tailrec
-    private def flatTupleBaseType(ty: Type): ScalarType = {
-      Type.getBaseType(ty) match {
-        case tt: TupleType if tt.elemsT.distinct.length == 1 =>
-          flatTupleBaseType(tt.elemsT.head)
-        case st: ScalarType => st
-        case _ => throw new EncodeError(ty)
-      }
-    }
-  
-    /**
-     * Factory for marshalling a scala value
-     *
-     * @param cast function used to convert the eventual headers and offsets
-     *             of an array into the type of the elements of the array.
-     *             TODO: think about this limitation, the headers should remain integers
-     * @tparam T the underlying scalar type of the array we are encoding
-     *           (e.g. for a 3D array of floats, this is `Float`)
-     */
-    private class Encoder[T: ClassTag](cast: Int => T) {
-      /** Public wrapper for the encode method below */
-      def encode(array: Array[_], at: ArrayType, size: Int): Array[T] = {
-        val buffer = Array.fill(size)(cast(0))
-        val nextPos = encode(buffer, 0, array, at)
-        assert(nextPos <= size) // Sanity check
-        buffer
-      }
-  
-      /**
-       * Turn a scala array of arbitrary dimension into a flat representation
-       * with all the necessary headers and offsets and write it to `buffer`
-       *
-       * @param buffer where to write the encoded array
-       * @param pos at what position in `buffer` to write the encoded array
-       * @param array the array to encode
-       * @param at the Lift type of the array
-       * @return the next position in buffer we should write to
-       */
-      private def encode(buffer: Array[T], pos: Int,
-                         array: Array[_], at: ArrayType): Int = {
-        val newPos = writeHeader(buffer, pos, array, at)
-        at.elemT match {
-          case _: ScalarType | _: TupleType =>
-            // Copy
-            array.asInstanceOf[Array[T]].copyToArray(buffer, newPos)
-            // Return the next position
-            getNextPos(at, newPos, newPos + array.length)
-          case _: VectorType =>
-            val flat = array.asInstanceOf[Array[Array[T]]].flatten
-            flat.copyToArray(buffer ,newPos)
-            // Compute the next position
-            getNextPos(at, newPos, newPos + flat.length)
-          case elemT: ArrayType =>
-            val v = array.asInstanceOf[Array[Array[_]]]
-            if (elemT.hasFixedAllocatedSize) {
-              // Copy
-              val endPos = v.foldLeft(newPos)(encode(buffer, _, _, elemT))
-              // Compute the next position
-              getNextPos(at, newPos, endPos)
-            } else {
-              // Copy
-              var ofsIdx = newPos
-              val capacity = at match {
-                case c: Capacity => c.capacity.eval
-                case _ => array.length
-              }
-              v.foldLeft(newPos + capacity)((p, arr) => {
-                val pAfter = encode(buffer, p, arr, elemT)
-                buffer(ofsIdx) = cast(p - newPos) // store the offset
-                ofsIdx = ofsIdx + 1
-                pAfter
-              }) // May the force be with you…
-            }
-          case ty => throw new EncodeError(ty)
-        }
-      }
-      
-      // -------------------------------
-      // Below: private helper functions
-      // -------------------------------
-  
-      /**
-       * The size a type will take once encoded in a Scala array.
-       */
-      private def sizeOf(ty: Type): ArithExpr = {
-        val allocated = Type.getAllocatedSize(ty)
-        val nbBytes = Type.getAllocatedSize(Type.fromAny(cast(0)))
-        allocated / nbBytes
-      }
-  
-      /**
-       * Writes the header of this array into `buffer` at position `pos`. The
-       * shape of the header is specified in issue #107 and depends on the type
-       * `at` of the array while the content of the header depends on the
-       * actual length of `array`.
-       * TODO: move this specification to `docs/` (and update it)
-       *
-       * @return the next position where we should write in the buffer
-       *         (namely `pos` + header size)
-       */
-      private def writeHeader(buffer: Array[T], pos: Int,
-                            array: Array[_], at: ArrayType): Int = {
-        val hSize = at.getHeaderSize
-        val len = cast(array.length)
-        for (i <- pos until pos + hSize) buffer(i) = len
-        pos + hSize
-      }
-  
-      // TODO: I'm not very sweet
-      private def getNextPos(at: ArrayType, before: Int, fallback: Int): Int = {
-        at match {
-          case c: Capacity =>
-            // No evaluation exception should occur here, if something is not
-            // evaluable, it should have been handled before.
-            val nextPos = (before + c.capacity * sizeOf(at.elemT)).eval
-            assert(fallback <= nextPos) // sanity check
-            nextPos
-          case _ => fallback
-        }
-      }
+        val encoder = new Encoder(at, size)
+        val raw = encoder.encode(array)
+        global.input(raw.array)
+
+      case _ => throw new IllegalArgumentException(s"Cannot encode type $ty")
     }
   }
 
@@ -1006,12 +867,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     /**
      * Create global input arguments from an array
      */
-    object input {
-      def apply(array: Array[Float]): GlobalArg   = GlobalArg.createInput(array)
-      def apply(array: Array[Int]): GlobalArg     = GlobalArg.createInput(array)
-      def apply(array: Array[Double]): GlobalArg  = GlobalArg.createInput(array)
-      def apply(array: Array[Boolean]): GlobalArg = GlobalArg.createInput(array)
-    }
+    def input(array: Array[Byte]): GlobalArg = GlobalArg.createInput(array)
 
     /**
      * Create output argument given a Type and the number of elements

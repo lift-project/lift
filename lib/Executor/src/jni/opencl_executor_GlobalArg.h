@@ -7,37 +7,14 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-/*
- * Class:     opencl_executor_GlobalArg
- * Method:    createInput
- * Signature: ([F)Lopencl/executor/GlobalArg;
- */
-JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createInput___3F
-  (JNIEnv *, jclass, jfloatArray);
 
 /*
  * Class:     opencl_executor_GlobalArg
  * Method:    createInput
- * Signature: ([I)Lopencl/executor/GlobalArg;
+ * Signature: ([B)Lopencl/executor/GlobalArg;
  */
-JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createInput___3I
-  (JNIEnv *, jclass, jintArray);
-
-/*
- * Class:     opencl_executor_GlobalArg
- * Method:    createInput
- * Signature: ([D)Lopencl/executor/GlobalArg;
- */
-JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createInput___3D
-  (JNIEnv *, jclass, jdoubleArray);
-
-/*
- * Class:     opencl_executor_GlobalArg
- * Method:    createInput
- * Signature: ([Z)Lopencl/executor/GlobalArg;
- */
-JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createInput___3Z
-  (JNIEnv *, jclass, jbooleanArray);
+JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createInput___3B
+  (JNIEnv *, jclass, jbyteArray);
 
 /*
  * Class:     opencl_executor_GlobalArg

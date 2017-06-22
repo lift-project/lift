@@ -468,7 +468,6 @@ object Type {
     }, _=>{})
   }
 
-
   /**
    * Return the base type of a type.
    * The base type is defined as follows:
@@ -486,6 +485,17 @@ object Type {
       case vt: VectorType => vt.scalarT
       case at: ArrayType  => getBaseType(at.elemT)
       case _ => t
+    }
+  }
+
+  @scala.annotation.tailrec
+  def getBaseScalarType(ty: Type): ScalarType = {
+    ty match {
+      case VectorType(st, _) => st
+      case st: ScalarType => st
+      case at: ArrayType => getBaseScalarType(at.elemT)
+      case tt: TupleType => getBaseScalarType(tt.elemsT.head) // This is a huge limitation FIXME
+      case NoType | UndefType => throw new IllegalArgumentException()
     }
   }
 
@@ -539,6 +549,11 @@ object Type {
    * @return The size in bytes.
    */
   def getAllocatedSize(t: Type) : ArithExpr = {
+    val baseSize = getAllocatedSize(getBaseType(t), Cst(1))
+    getAllocatedSize(t, baseSize)
+  }
+
+  def getAllocatedSize(t: Type, baseSize: ArithExpr) : ArithExpr = {
     t match {
       case st: ScalarType => st.size
       case vt: VectorType => vt.scalarT.size * vt.len
@@ -546,7 +561,7 @@ object Type {
       case at: ArrayType => at match {
         case c: Capacity =>
           if (at.elemT.hasFixedAllocatedSize)
-            (at.getHeaderSize * 4) + c.capacity * getAllocatedSize(at.elemT)
+            (at.getHeaderSize * baseSize) + c.capacity * getAllocatedSize(at.elemT)
           else ? // Dynamic allocation required
         case _ => ? // Dynamic allocation required
       }
