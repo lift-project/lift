@@ -1096,11 +1096,16 @@ class OpenCLGenerator extends Generator {
     }
     else
     {
-      for(i <- 0 to reuse.eval-1)
-      {  // where window values are SET
-        (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_$i"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i)))
-      }
     }
+
+    def setupInitialWindowVars(v: View, idx: Int, n: Int): Unit = n match {
+      case 1 => for(j <- 0 to reuse.eval -1){ (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j+idx}"), ViewPrinter.emit(inputMem.variable, v.access(j))) }
+      case _ => for( i <- 0 to size.eval-1){ setupInitialWindowVars(v.access(i),idx+i*size.eval, n-1)}
+    }
+
+//    setupInitialWindowVars(call.args.head.view,0,nDim)
+
+
 
     // TODO: Should this stay?
     // TODO: Information needed elsewhere. See analysis.ControlFlow
