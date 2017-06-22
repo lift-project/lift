@@ -202,29 +202,8 @@ object HighLevelRewriteSettings {
 }
 
 object SearchParameters {
-  // Default input size for all dimensions to use for filtering, if no input combinations provided
-  private val default_size = 1024
 
-  // Minimum number of work item per workgroup
-  private val min_work_items = 128
-
-  // Maximum number of work item per workgroup
-  private val max_work_items = 1024
-
-  // Minimal global grid size
-  private val min_grid_size = 4
-
-  // Max amount of private memory allocated (this is not necessarily the number of registers)
-  private val max_amount_private_memory = 1024
-
-  // Max static amount of local memory
-  private val max_amount_local_memory = 50000
-
-  // Minimum number of workgroups
-  private val min_num_workgroups = 8
-
-  // Maximum number of workgroups
-  private val max_num_workgroups = 10000
+  import ExpressionFilter._
 
   def createDefault = createWithDefaults(None, None, None, None, None, None, None, None)
 
@@ -242,10 +221,10 @@ object SearchParameters {
     minWorkItems.getOrElse(min_work_items),
     maxWorkItems.getOrElse(max_work_items),
     minGridSize.getOrElse(min_grid_size),
-    maxPrivateMemory.getOrElse(max_amount_private_memory),
-    maxLocalMemory.getOrElse(max_amount_local_memory),
-    minWorkgroups.getOrElse(min_num_workgroups),
-    maxWorkgroups.getOrElse(max_num_workgroups)
+    maxPrivateMemory.getOrElse(max_private_memory),
+    maxLocalMemory.getOrElse(max_local_memory),
+    minWorkgroups.getOrElse(min_workgroups),
+    maxWorkgroups.getOrElse(max_workgroups)
   )
 
 }
@@ -295,10 +274,10 @@ object ParseSettings {
     (JsPath \ "min_work_items").readNullable[Int] and
     (JsPath \ "max_work_items").readNullable[Int] and
     (JsPath \ "min_grid_size").readNullable[Int] and
-    (JsPath \ "max_amount_private_memory").readNullable[Int] and
-    (JsPath \ "max_amount_local_memory").readNullable[Int] and
-    (JsPath \ "min_num_workgroups").readNullable[Int] and
-    (JsPath \ "max_num_workgroups").readNullable[Int]
+    (JsPath \ "max_private_memory").readNullable[Int] and
+    (JsPath \ "max_local_memory").readNullable[Int] and
+    (JsPath \ "min_workgroups").readNullable[Int] and
+    (JsPath \ "max_workgroups").readNullable[Int]
   )(SearchParameters.createWithDefaults _)
 
   private[exploration] implicit val highLevelReads: Reads[HighLevelRewriteSettings] = (
