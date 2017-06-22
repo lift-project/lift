@@ -1024,10 +1024,6 @@ class OpenCLGenerator extends Generator {
     } /*, i.iterationCount*/)
   }
 
-  def getType(v: View, n: Int): Type = n match {
-    case 1 => v.access(0).t
-    case _ => getType(v.access(0),n-1)
-  }
 
 
   private def generateLoopMinMemoryAccess(block: Block,
@@ -1052,10 +1048,7 @@ class OpenCLGenerator extends Generator {
                                                                     // cut down to window size
 
     // temporary bool to see what works
-    var windowSize = size.eval
-    var reuseSize = reuse.eval
     var vType = call.args.head.view.access(0).t
-//    val is3D = (viewType.isInstanceOf[ArrayType(ArrayType))])
 
     val nDim = vType match {
       case ArrayType(ArrayTypeWS(_, _)) => 3
@@ -1063,18 +1056,22 @@ class OpenCLGenerator extends Generator {
       case _ => 1
     }
 
+    def getType(v: View, n: Int): Type = n match {
+      case 1 => v.access(0).t
+      case _ => getType(v.access(0),n-1)
+    }
+
+    def getWindowSize(s: Int, n: Int): Int = n match {
+      case 1 => s
+      case _ => s*getWindowSize(s,n-1)
+    }
+
     val viewType = getType(call.args.head.view,nDim)
+    val windowSize = getWindowSize(size.eval, nDim)
+
     val is2D = (nDim == 2)
+    //reuseSize *= ((windowSize*(size.eval-1))/size.eval)
     val is3D = (nDim == 3)
-
-    println(nDim)
-
-
-    if(is2D)
-      {
-        windowSize *= size.eval // this will only work for symmetrical stencils!
-        reuseSize *= ((windowSize*(size.eval-1))/size.eval)
-      }
 
     val v = Value(0.0f, ArrayTypeWSWC(viewType, windowSize))
     varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
@@ -1158,7 +1155,7 @@ class OpenCLGenerator extends Generator {
     }
     else
     {
-      for(i <- reuseSize to windowSize-1) {
+      for(i <- reuse.eval to size.eval-1) {
         innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_$i"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(indexVar*step.eval + i)))
       }
     }
@@ -1180,7 +1177,7 @@ class OpenCLGenerator extends Generator {
     }
     else
     {
-      for (i <- 1 to reuseSize)
+      for (i <- 1 to reuse.eval)
       {
         innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${i - 1}"), VarRef(sSP.windowVar, suffix = s"_${size.eval - reuse - 1 + i}"))
       }
