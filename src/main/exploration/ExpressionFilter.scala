@@ -18,7 +18,7 @@ object ExpressionFilter {
   protected[exploration] val max_work_items = 1024
 
   // Minimal global grid size
-  protected[exploration] val min_grid_size = 4
+  protected[exploration] val min_grid_size = 8
 
   // Max amount of private memory allocated (this is not necessarily the number of registers)
   protected[exploration] val max_private_memory = 1024

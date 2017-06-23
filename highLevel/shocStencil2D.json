@@ -27,8 +27,8 @@
     "global012" : false,
     "global210" : false,
     "group0" : false,
-    "group01" : true,
-    "group10" : false
+    "group01" : false,
+    "group10" : true
   },
 
   "local_memory_rules" : {
