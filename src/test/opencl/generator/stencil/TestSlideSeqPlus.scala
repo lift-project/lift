@@ -147,6 +147,7 @@ class TestSlideSeqPlus
     }
 
 //    assertArrayEquals(gold, outputX, 0.1f)
+    println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
 
     println("Runtime: "+runTimeTotal/SlideSeqPlusHelpers.iterations)
 
@@ -190,6 +191,8 @@ class TestSlideSeqPlus
 
     assertArrayEquals(gold, output, 0.1f)
 
+    println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
+
   }
 
   @Test
@@ -203,6 +206,8 @@ class TestSlideSeqPlus
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _)).dropRight(1)
 
     val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
+
+    println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -233,6 +238,7 @@ class TestSlideSeqPlus
     )
 
     val source = Compile(orgStencil)
+    println(source)
     val (output: Array[Float], _) = Execute(2,2)(source, orgStencil, values, weights)
 
     assertArrayEquals(gold, output, 0.1f)
@@ -276,6 +282,8 @@ class TestSlideSeqPlus
 
     val (compare: Array[Float], _) = Execute(2,2)(atNeigh, values)
     val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
+
+    println(Compile(stencil2DR(slidesize,slidestep)))
 
     StencilUtilities.print2DArray(values)
     println("******")
@@ -323,6 +331,7 @@ class TestSlideSeqPlus
     val (compare: Array[Float], _) = Execute(2,2)(atNeigh, values)
     val (output: Array[Float], _) = Execute(2,2)(stencil2DCTest(slidesize,slidestep), values)
 
+    println(Compile(stencil2DCTest(slidesize,slidestep)))
     StencilUtilities.print2DArray(values)
     println("******")
     StencilUtilities.print1DArrayAs2DArray(compare, size-2)
@@ -425,6 +434,8 @@ class TestSlideSeqPlus
         })) o Slide(3,1) o Transpose() $ input
     )
 
+    println(Compile(stencil2DR(3,1)))
+
     val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
 
     StencilUtilities.print2DArray(values)
@@ -462,7 +473,7 @@ class TestSlideSeqPlus
         })) o Slide(3,1)  $ input
     )
 
-//    println(Compile(stencil2DR(3,1)))
+    println(Compile(stencil2DR(3,1)))
 
     val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
     val (goldExec: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original2DStencil(slidesize,slidestep), values)
@@ -515,7 +526,7 @@ class TestSlideSeqPlus
         })) o Slide(3,1)  $ input
     )
 
-    //    println(Compile(stencil2DR(3,1)))
+        println(Compile(stencil2DR(3,1)))
 
     val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values, StencilUtilities.weightsArr)
     val (goldExec: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original2DWeightStencil(slidesize,slidestep), values, StencilUtilities.weightsArr)
@@ -598,7 +609,7 @@ class TestSlideSeqPlus
         })) o Slide(a,b)  $ input
     )
 
-    //    println(Compile(stencil2DR(3,1)))
+        println(Compile(stencil2DR(3,1)))
 
     val (output: Array[Float], runtimeNew: Double) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
     val (goldExec: Array[Float], runtimeOrg: Double) = Execute(2,2)(lambdaNeighAt(slidesize,slidestep), values)
@@ -646,7 +657,7 @@ class TestSlideSeqPlus
         })) o Slide(3,1)  $ input
     )
 
-    //println(Compile(stencil2DR(3,1)))
+    println(Compile(stencil2DR(3,1)))
 
     val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
     val (goldExec: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original2DStencil(slidesize,slidestep), values)
@@ -690,7 +701,7 @@ class TestSlideSeqPlus
         })) o Slide(a,b)  $ input
     )
 
-//    println(Compile(stencil2DR(slidesize,slidestep)))
+    println(Compile(stencil2DR(slidesize,slidestep)))
 
     val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
     val (goldExec: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original2DStencil(slidesize,slidestep), values)
@@ -758,7 +769,7 @@ class TestSlideSeqPlus
           o Slide3D(a,b) $ mat)
       })
 
-    def stencil2DR(a: Int ,b :Int) = fun(
+    def stencil3DR(a: Int ,b :Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), O),
       (input) =>
         MapGlb(1)(MapGlb(0)(fun(x => {
@@ -785,9 +796,9 @@ class TestSlideSeqPlus
         }))) o Slide2D(a,b)  $ input
     )
 
-    //    println(Compile(stencil2DR(3,1)))
+    println(Compile(stencil3DR(3,1)))
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(stencil3DR(slidesize,slidestep), values)
     val (goldExec: Array[Float], _) = Execute(2,2)(lambdaNeighAt(slidesize,slidestep), values)
 
     StencilUtilities.print3DArray(values)

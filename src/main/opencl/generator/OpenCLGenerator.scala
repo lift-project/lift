@@ -1081,10 +1081,13 @@ class OpenCLGenerator extends Generator {
     privateDecls  += (sSP.windowVar -> varD)
     (block: Block) += varD
 
+    var indices = Array.fill(10)(0)
+
+
     // where initial window values are set
     if(is2D)
     {
-      val nx = size.eval
+/*      val nx = size.eval
       for(i <- 0 to (nx-1))
       {
         for(j <- 0 to (reuse.eval-1))
@@ -1092,18 +1095,24 @@ class OpenCLGenerator extends Generator {
            val idx = i*nx+j
           (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(j).access(i)))
         }
-      }
+      }*/
     }
     else
     {
     }
 
-    def setupInitialWindowVars(v: View, idx: Int, n: Int): Unit = n match {
-      case 1 => for(j <- 0 to reuse.eval -1){ (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j+idx}"), ViewPrinter.emit(inputMem.variable, v.access(j))) }
-      case _ => for( i <- 0 to size.eval-1){ setupInitialWindowVars(v.access(i),idx+i*size.eval, n-1)}
+    def getView(v: View, n: Int, nDim: Int) : View = n match {
+      case 1 => v.access(indices(nDim-n))
+      case _ => getView(v.access(indices(nDim-n)), n-1, nDim)
     }
 
-//    setupInitialWindowVars(call.args.head.view,0,nDim)
+    def setupInitialWindowVars(idx: Int, n: Int): Unit = n match {
+      case 1 => while(indices(n -1) < reuse.eval) { println(indices(n-1)+ " "+(reuse.eval-1));(block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${indices( n - 1)+idx}"), ViewPrinter.emit(inputMem.variable, getView(call.args.head.view,nDim,nDim))); indices(n-1) +=1 }
+      case _ => while(indices(n - 1) < size.eval) { setupInitialWindowVars(idx+(indices(n - 1))*size.eval, n-1); indices(n-1) +=1 }
+    }
+
+
+    setupInitialWindowVars(0,nDim)
 
 
 
