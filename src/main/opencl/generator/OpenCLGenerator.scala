@@ -1081,7 +1081,9 @@ class OpenCLGenerator extends Generator {
     privateDecls  += (sSP.windowVar -> varD)
     (block: Block) += varD
 
-    var indices = Array.fill(10)(0)
+    var indices = Array.fill(nDim)(0)
+    var accesses : Array[Int] = Array.fill(nDim)(0)
+
 
 
     // where initial window values are set
@@ -1094,6 +1096,7 @@ class OpenCLGenerator extends Generator {
         {
            val idx = i*nx+j
           (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(j).access(i)))
+           println("getview org: "+call.args.head.view.access(j).access(i))
         }
       }*/
     }
@@ -1101,18 +1104,20 @@ class OpenCLGenerator extends Generator {
     {
     }
 
-    def getView(v: View, n: Int, nDim: Int) : View = n match {
-      case 1 => v.access(indices(nDim-n))
-      case _ => getView(v.access(indices(nDim-n)), n-1, nDim)
+    def getView(v: View, accesses : Array[Int], n : Int) : View = n match {
+      case 0 => v.access(accesses(n))
+      case _ => getView(v.access(n),accesses,n-1)
     }
 
-    def setupInitialWindowVars(idx: Int, n: Int): Unit = n match {
-      case 1 => while(indices(n -1) < reuse.eval) { println(indices(n-1)+ " "+(reuse.eval-1));(block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${indices( n - 1)+idx}"), ViewPrinter.emit(inputMem.variable, getView(call.args.head.view,nDim,nDim))); indices(n-1) +=1 }
-      case _ => while(indices(n - 1) < size.eval) { setupInitialWindowVars(idx+(indices(n - 1))*size.eval, n-1); indices(n-1) +=1 }
+    for(acc)
+
+    def setupInitialWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = n match {
+      case 1 => for(j <- 0 to reuse.eval-1) { accesses(n-1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j+idx}"), ViewPrinter.emit(inputMem.variable, getView2(call.args.head.view,accesses.reverse,accesses.length-1))); println("getview: "+getView(call.args.head.view,accesses.reverse,accesses.length-1)) }
+      case _ => for(i <- 0 to size.eval-1) { accesses(n-1) = i; setupInitialWindowVars(idx+i*size.eval, n-1, accesses) }
     }
 
 
-    setupInitialWindowVars(0,nDim)
+    setupInitialWindowVars(0,nDim, accesses)
 
 
 
