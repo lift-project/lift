@@ -679,7 +679,7 @@ class TestSlideSeqPlus
   @Test
   def reduceSlide2DTest9PointSize5Step3(): Unit = {
 
-    val size = 8
+    val size = 15
     val slidesize = 5
     val slidestep = 3
     val values = Array.tabulate(size,size) { (i,j) => (i*size + j + 1).toFloat }

@@ -1161,27 +1161,28 @@ class OpenCLGenerator extends Generator {
       }
     }*/
 
+
     def getViewIncrement(v: View, idx: Var, accesses : Array[Int]) : View =
     {
       var viewReturn = v
       var idxToAdd : ArithExpr = idx
       for(i <- 0 to accesses.length-1)
       {
-        if((i+1)%2 == 0) { idxToAdd = (idxToAdd*step.eval)/stop }
-        else { idxToAdd = (idxToAdd*step.eval)%stop }
+        if((i+1)%2 == 0) {  println("mod 2 here: i="+i);idxToAdd = (idx*step.eval)/stop }
+        else { println("here: i="+i);idxToAdd = (idx*step.eval)%stop }
         viewReturn = viewReturn.access(accesses(i)+idxToAdd)
       }
       viewReturn
     }
 
     def updateWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = n match {
-      case 1 => for(j <- reuse.eval to size.eval-1) {  accesses(n-1) = j; innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, getViewIncrement(call.args.head.view,indexVar,accesses))) }
+      case 1 => for(j <- reuse.eval to size.eval-1) {  accesses(n-1) = j; innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, /*call.args.head.view.access(j+(indexVar*step.eval)%stop).access(accesses(n)+(indexVar*step.eval)/stop)))*/getViewIncrement(call.args.head.view,indexVar,accesses))) }
       case _ => for(i <- 0 to size.eval-1) { accesses(n-1) = i; updateWindowVars(idx+i*size.eval, n-1, accesses) }
     }
 
     println("update window vars")
     updateWindowVars(0,nDim, accesses)
-
+/**/
     generateBody(innerBlock)
 
 /*    if(is2D)
