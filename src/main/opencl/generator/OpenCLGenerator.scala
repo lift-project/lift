@@ -1070,7 +1070,6 @@ class OpenCLGenerator extends Generator {
     val windowSize = getWindowSize(size.eval, nDim)
 
     val is2D = (nDim == 2)
-    //reuseSize *= ((windowSize*(size.eval-1))/size.eval)
     val is3D = (nDim == 3)
 
     val v = Value(0.0f, ArrayTypeWSWC(viewType, windowSize))
@@ -1081,41 +1080,24 @@ class OpenCLGenerator extends Generator {
     privateDecls  += (sSP.windowVar -> varD)
     (block: Block) += varD
 
-    var indices = Array.fill(nDim)(0)
     var accesses : Array[Int] = Array.fill(nDim)(0)
 
-
+    def getView(v: View, accesses : Array[Int]) : View =
+    {
+        var viewReturn = v
+        for(i <- 0 to accesses.length-1)
+        {
+          println("accesses("+i+"): "+accesses(i))
+          viewReturn = viewReturn.access(accesses(i))
+        }
+        viewReturn
+    }
 
     // where initial window values are set
-    if(is2D)
-    {
-/*      val nx = size.eval
-      for(i <- 0 to (nx-1))
-      {
-        for(j <- 0 to (reuse.eval-1))
-        {
-           val idx = i*nx+j
-          (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(j).access(i)))
-           println("getview org: "+call.args.head.view.access(j).access(i))
-        }
-      }*/
-    }
-    else
-    {
-    }
-
-    def getView(v: View, accesses : Array[Int], n : Int) : View = n match {
-      case 0 => v.access(accesses(n))
-      case _ => getView(v.access(n),accesses,n-1)
-    }
-
-    for(acc)
-
     def setupInitialWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = n match {
-      case 1 => for(j <- 0 to reuse.eval-1) { accesses(n-1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j+idx}"), ViewPrinter.emit(inputMem.variable, getView2(call.args.head.view,accesses.reverse,accesses.length-1))); println("getview: "+getView(call.args.head.view,accesses.reverse,accesses.length-1)) }
+      case 1 => for(j <- 0 to reuse.eval-1) { accesses(n-1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j+idx}"), ViewPrinter.emit(inputMem.variable, getView(call.args.head.view,accesses))); println("getview: "+getView(call.args.head.view,accesses.reverse,accesses.length-1)) }
       case _ => for(i <- 0 to size.eval-1) { accesses(n-1) = i; setupInitialWindowVars(idx+i*size.eval, n-1, accesses) }
     }
-
 
     setupInitialWindowVars(0,nDim, accesses)
 
