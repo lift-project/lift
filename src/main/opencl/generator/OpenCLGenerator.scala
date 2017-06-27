@@ -1099,7 +1099,7 @@ class OpenCLGenerator extends Generator {
       case _ => println("n="+n);for(i <- 0 to size.eval-1) { accesses(n-1) = i; setupInitialWindowVars(idx+i*size.eval, n-1, accesses) }
     }
     println("setup window vars")
-//    setupInitialWindowVars(0,nDim, accesses)
+    //setupInitialWindowVars(0,nDim, accesses)
 
 
 
@@ -1324,8 +1324,9 @@ class OpenCLGenerator extends Generator {
                                                       generateBody: (Block) => Unit): Unit = {
     val range = getRangeAdd(indexVar)
     val init = ArithExpression(range.start)
+    generateDefaultForLoopRepresentation(block, array, indexVar, generateBody)
 
-    array.t match {
+    /*array.t match {
       case _: RuntimeSizedArrayType =>
         generateDefaultForLoopRepresentation(block, array, indexVar, generateBody)
 
@@ -1352,7 +1353,7 @@ class OpenCLGenerator extends Generator {
             generateDefaultForLoopRepresentation(block, array, indexVar, generateBody)
         }
       case _ => throw new NotImplementedError() // should never get there
-    }
+    }*/
   }
 
   private def generateDefaultForLoopRepresentation(block: Block,
