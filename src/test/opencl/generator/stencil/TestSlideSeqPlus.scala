@@ -605,7 +605,7 @@ class TestSlideSeqPlus
 
             toGlobal(id) $ stencil
 
-          }), a,b)) o  Transpose() $ x
+          }) o PrintType(), a,b)) o  Transpose() $ x
         })) o Slide(a,b)  $ input
     )
 
@@ -724,9 +724,7 @@ class TestSlideSeqPlus
 
   }
 
-
   /** 3D **/
-
 
   @Test
   def reduceSlide3DTest9PointWithWeightsAndAt(): Unit = {
@@ -744,7 +742,7 @@ class TestSlideSeqPlus
     val x = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), O)
 
     def lambdaNeighAt(a: Int, b: Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), O),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
       (mat) => {
         (MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
 
@@ -770,10 +768,13 @@ class TestSlideSeqPlus
       })
 
     def stencil3DR(a: Int ,b :Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), O),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
       (input) =>
         MapGlb(1)(MapGlb(0)(fun(x => {
-          toGlobal(SlideSeqPlus(fun(m => {
+          val tmpSum = 0.0f
+          toGlobal(SlideSeqPlus(
+/*            MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) o Join() o Join() o PrintType()*/
+            fun(m => {
 
             val `tile[1][1][1]` = m.at(1).at(1).at(1)
             val `tile[0][1][1]` = m.at(0).at(1).at(1)
@@ -783,16 +784,16 @@ class TestSlideSeqPlus
             val `tile[1][2][1]` = m.at(1).at(2).at(1)
             val `tile[2][1][1]` = m.at(2).at(1).at(1)
 
-            val stencil =  fun(x => add(x,`tile[0][1][1]`)) o
+            val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`)) o
               fun(x => add(x,`tile[1][1][1]`)) o
               fun(x => add(x,`tile[1][0][1]`)) o
               fun(x => add(x,`tile[1][1][0]`)) o
               fun(x => add(x,`tile[1][1][2]`)) o
-              fun(x => add(x,`tile[1][2][1]`)) $ `tile[2][1][1]`
+              fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
 
             toGlobal(id) $ stencil
 
-          }), a,b)) o  Transpose() $ x
+          }) o PrintType(), a,b)) o Transpose() o Map(Transpose()) o PrintType() $ x  /*o Map(Transpose()) o Map(Map(Transpose()))*/
         }))) o Slide2D(a,b)  $ input
     )
 
@@ -810,7 +811,7 @@ class TestSlideSeqPlus
     //    StencilUtilities.print1DArray(output)
     //    StencilUtilities.print1DArray(gold)
 
-//    assertArrayEquals(goldExec, output, 0.1f)
+    assertArrayEquals(goldExec, output, 0.1f)
 
   }
 

@@ -11,8 +11,11 @@ package object ast {
 
   // predefined reorder functions ...
   val transposeFunction = (outerSize: ArithExpr, innerSize: ArithExpr) => (i: ArithExpr, t: Type) => {
+    println(s"oS:$outerSize iS:$innerSize i$i t$t")
     val col = (i % innerSize) * outerSize
+    println(s"col:$col")
     val row = i / innerSize
+    println(s"row:$row")
 
     row + col
   }
