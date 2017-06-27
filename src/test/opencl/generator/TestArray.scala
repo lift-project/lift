@@ -1,12 +1,12 @@
 package opencl.generator
 
-import ir.{ArrayType, ArrayTypeWC, ArrayTypeWSWC, TypeChecker}
+import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
 import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, Assume, BeforeClass, Test}
 import org.junit.Assert.{assertArrayEquals, assertEquals}
 
 
@@ -16,14 +16,20 @@ object TestArray {
     println("Initialize the executor")
     Executor.init()
   }
-  
+
   @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
   }
+
+  def toByteArray(arr: Array[Boolean]): Array[Byte] = {
+    arr.map(b => (if (b) 1 else 0).toByte)
+  }
 }
 
 class TestArray {
+  import TestArray.toByteArray
+
   /**
     * Size is not statically know but the capacity is.
     * The array is filled with integers so we don't need to store the offsets.
@@ -52,23 +58,42 @@ class TestArray {
     * and not a constant.
     */
   @Test def unknownSizeMap(): Unit = {
-    val capacity = 1024
-    val size = 842
-    val input = Array.fill(size)(util.Random.nextFloat())
+    val capacity = 128
+    val size = 87
 
-    val f = fun(
-      ArrayTypeWC(Float, capacity),
-      MapGlb(toGlobal(id)) $ _
+    val bInput = Array.fill(size)(util.Random.nextBoolean())
+    val iInput = Array.fill(size)(util.Random.nextInt())
+    val fInput = Array.fill(size)(util.Random.nextFloat())
+
+    def mkMapId(st: ScalarType): Lambda1 = fun(
+      ArrayTypeWC(st, capacity),
+      MapGlb(toGlobal(id(st))) $ _
     )
 
-    assertEquals(TypeChecker(f), ArrayTypeWC(Float, capacity))
-
-    val (outputRaw: Array[Float], _) = Execute(128)(f, input)
-    // Decode: remove header and cut at `size`
-    val output = outputRaw.slice(1, size + 1) // Decode
-    assertArrayEquals(input, output, 0f)
+    val (bOutput: Array[Boolean], _) = Execute(128)(mkMapId(Bool), bInput)
+    assertArrayEquals(toByteArray(bInput), toByteArray(bOutput.slice(1, size + 1)))
+    val (iOutput: Array[Int], _) = Execute(128)(mkMapId(Int), iInput)
+    assertArrayEquals(iInput, iOutput.slice(1, size + 1))
+    val (fOutput: Array[Float], _) = Execute(128)(mkMapId(Float), fInput)
+    assertArrayEquals(fInput, fOutput.slice(1, size + 1), 0f)
   }
-  
+
+  @Test def unknownSizeMapDouble(): Unit = {
+    Assume.assumeTrue("Needs double support", Executor.supportsDouble())
+
+    val capacity = 128
+    val size = 87
+    val input = Array.fill(size)(util.Random.nextDouble())
+
+    val mapId = fun(
+      ArrayTypeWC(Double, capacity),
+      MapGlb(toGlobal(id(Double))) $ _
+    )
+
+    val (dOutput: Array[Double], _) = Execute(128)(mapId, input)
+    assertArrayEquals(input, dOutput.slice(1, size + 1), 0d)
+  }
+
   /**
     * This time we don't know the size either but we know the shape of the
     * output.

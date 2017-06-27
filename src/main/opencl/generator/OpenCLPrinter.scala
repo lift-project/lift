@@ -34,10 +34,10 @@ object OpenCLPrinter {
       case Mod(a,n) => "(" + toString(a) + " % " + toString(n) + ")"
       case of: OclFunction => of.toOCLString
       case ai: AccessVar =>
-        val index = toString(ai.idx.content)
-        ai.cast match {
-          case None => s"${ai.array}[$index]"
-          case Some(st) => s"((${st.name}*)${ai.array})[$index]"
+        val access = s"${ai.array}[${toString(ai.idx.content)}]"
+        ai.asType match {
+          case None => access
+          case Some(st) => s"as_${st.name}($access)"
         }
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
