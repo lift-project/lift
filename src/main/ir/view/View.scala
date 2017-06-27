@@ -4,6 +4,7 @@ import lift.arithmetic._
 import ir._
 import ir.ast._
 import opencl.generator.OpenCLAST.{ArithExpression, Expression, VarRef}
+import opencl.ir.{Bool, Double, Float, Int}
 
 import scala.collection.immutable
 import opencl.generator.{OpenCLAST, OpenCLPrinter}
@@ -22,12 +23,13 @@ private class IllegalView(v: View)
  * @param idx Index to access in the array
  */
 case class AccessVar(array: String, idx: ArithExpression,
+                     cast: Option[ScalarType] = None,
                      r: Range = RangeUnknown,
                      fixedId: Option[Long] = None) extends ExtensibleVar("", r, fixedId) {
-  override def copy(r: Range) = AccessVar(array, idx, r, Some(id))
+  override def copy(r: Range) = AccessVar(array, idx, cast, r, Some(id))
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
-    f(AccessVar(array, ArithExpression(idx.content.visitAndRebuild(f)), range.visitAndRebuild(f), Some(id)))
+    f(AccessVar(array, ArithExpression(idx.content.visitAndRebuild(f)), cast, range.visitAndRebuild(f), Some(id)))
 }
 
 /**
@@ -698,7 +700,8 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
                 // from the array's metadata (see issue #107)
                 // NB. We make a choice here, see issue #110
                 val elementOffset = AccessVar(
-                  v.toString, ArithExpression(acc + headerOffset + idx)
+                  v.toString, ArithExpression(acc + headerOffset + idx),
+                  cast = ViewPrinter.getCastType(Type.getBaseScalarType(at.elemT))
                 )
                 headerOffset + elementOffset
               }
@@ -822,6 +825,18 @@ object ViewPrinter {
         throw new IllegalAccess(ty)
     }
   }
+
+  /**
+   * Return an integer-like type which takes exactly the same space in memory
+   * than the input type for further pointer casting.
+   * The return type is wrapped into `Some(…)` except if no cast is required
+   * in which case the result is `None`
+   *
+   * @param st input type
+   */
+  def getCastType(st: ScalarType): Option[ScalarType] = st match {
+    case Bool | Int => None // No cast required
+    case Float => Some(Int)
+    case Double => Some(ScalarType("long", 8))
+  }
 }
-
-

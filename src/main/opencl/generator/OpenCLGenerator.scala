@@ -1368,7 +1368,14 @@ class OpenCLGenerator extends Generator {
     val stop = ty match {
       case _: Size => ArithExpression(range.stop)
       case _ =>
-        ViewPrinter.emit(array.mem.variable, array.view.size())
+        val size = ViewPrinter.emit(array.mem.variable, array.view.size())
+        ViewPrinter.getCastType(Type.getBaseScalarType(ty)) match {
+          case None => size
+          case Some(st) => size match {
+            case VarRef(v, _, idx) => ArithExpression(AccessVar(v.toString, idx, Some(st)))
+            case _ => throw new NotImplementedError()
+          }
+        }
     }
     val init = VarDecl(indexVar, Int, start, PrivateMemory)
     

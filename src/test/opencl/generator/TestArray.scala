@@ -1,7 +1,7 @@
 package opencl.generator
 
 import ir.{ArrayType, ArrayTypeWC, ArrayTypeWSWC, TypeChecker}
-import ir.ast.{Join, fun}
+import ir.ast._
 import lift.arithmetic.SizeVar
 import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
@@ -54,21 +54,19 @@ class TestArray {
   @Test def unknownSizeMap(): Unit = {
     val capacity = 1024
     val size = 842
-    val input = Array.fill(size)(util.Random.nextInt())
-    
+    val input = Array.fill(size)(util.Random.nextFloat())
+
     val f = fun(
-      ArrayTypeWC(Int, capacity),
-      in =>
-        MapGlb(toGlobal(idI)) $ in
+      ArrayTypeWC(Float, capacity),
+      MapGlb(toGlobal(id)) $ _
     )
-    
-    assertEquals(TypeChecker(f), ArrayTypeWC(Int, capacity))
-    
-    val (outputRaw: Array[Int], _) = Execute(128)(f, input)
+
+    assertEquals(TypeChecker(f), ArrayTypeWC(Float, capacity))
+
+    val (outputRaw: Array[Float], _) = Execute(128)(f, input)
     // Decode: remove header and cut at `size`
     val output = outputRaw.slice(1, size + 1) // Decode
-    
-    assertArrayEquals(input, output)
+    assertArrayEquals(input, output, 0f)
   }
   
   /**

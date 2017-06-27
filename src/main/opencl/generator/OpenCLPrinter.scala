@@ -33,7 +33,12 @@ object OpenCLPrinter {
       case Sum(es) => "(" + es.map(toString).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toString(a) + " % " + toString(n) + ")"
       case of: OclFunction => of.toOCLString
-      case ai: AccessVar => ai.array + "[" + toString(ai.idx.content) + "]"
+      case ai: AccessVar =>
+        val index = toString(ai.idx.content)
+        ai.cast match {
+          case None => s"${ai.array}[$index]"
+          case Some(st) => s"((${st.name}*)${ai.array})[$index]"
+        }
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
       case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"
