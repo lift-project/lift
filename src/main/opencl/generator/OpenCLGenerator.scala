@@ -1099,7 +1099,7 @@ class OpenCLGenerator extends Generator {
       case _ => println("n="+n);for(i <- 0 to size.eval-1) { accesses(n-1) = i; setupInitialWindowVars(idx+i*size.eval, n-1, accesses) }
     }
     println("setup window vars")
-    //setupInitialWindowVars(0,nDim, accesses)
+    setupInitialWindowVars(0,nDim, accesses)
 
 
 
