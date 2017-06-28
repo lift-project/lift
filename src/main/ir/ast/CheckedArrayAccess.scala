@@ -1,6 +1,5 @@
 package ir.ast
 
-import lift.arithmetic.{?, ArithExpr, Var, Cst}
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 
@@ -9,7 +8,6 @@ import ir.interpreter.Interpreter.ValueMap
   *
   * Code for this pattern can be generated
   */
-
 case class CheckedArrayAccess(index: Expr) extends Pattern(arity = 2)
   with isGenerable {
 
@@ -17,19 +15,17 @@ case class CheckedArrayAccess(index: Expr) extends Pattern(arity = 2)
                          setType: Boolean): Type = {
     val ixT = TypeChecker.check(index)
     if (ixT != opencl.ir.Int)
-      throw TypeException(s"Index type must be integral, got type ${ixT} instead!")
-//    TypeChecker.check(default)
+      throw TypeException(s"Index type must be integral, got type $ixT instead!")
+
     argType match {
       case TupleType(defaultT, ArrayType(elemT)) =>
         if(defaultT != elemT)
-          throw TypeException(s"Default access result type ($defaultT) must match array element type ($elemT)")
+          throw TypeException(
+            s"In:\n$this\n" +
+            s"Default access result type ($defaultT) must match array element type ($elemT)"
+          )
           elemT
-      case TupleType(defaultT, ArrayTypeWS(elemT, Cst(1))) =>
-        if(defaultT != elemT)
-          throw TypeException(s"Default access result type ($defaultT) must match array element type ($elemT)")
-        elemT
-        // TODO: Should we handle ArrayTypeWSWC?
-      case _ => throw new TypeException(argType, "ArrayType")
+      case _ => throw new TypeException(argType, "TupleType(α, ArrayType(α))", this)
     }
   }
   override def eval(valueMap: ValueMap, args: Any*): Any = {
