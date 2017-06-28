@@ -387,7 +387,7 @@ object OpenCLMemoryAllocator {
     alloc(ca.index, numGlb, numLcl, numPvt)
 
     // allocate memory itself
-    val outputSize = getSizeInBytes(call.t)
+    val outputSize = Type.getAllocatedSize(call.t)
     // manually allocate that much memory, storing it in the correct address space
     if (call.addressSpace != UndefAddressSpace) {
       // use given address space
