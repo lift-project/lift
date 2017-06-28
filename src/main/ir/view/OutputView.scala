@@ -278,7 +278,7 @@ object OutputView {
           reorder((i:ArithExpr) => { transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(typ, n), m)) }).
           split(n)
       case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
-        throw new TypeException(call.t, "Array")
+        throw new TypeException(call.t, "Array", call.f)
     }
   }
 
@@ -289,7 +289,7 @@ object OutputView {
           join(m).
           split(n)
       case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
-        throw new TypeException(call.t, "Array")
+        throw new TypeException(call.t, "Array", call.f)
     }
   }
 

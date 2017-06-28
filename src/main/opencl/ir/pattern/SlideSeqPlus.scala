@@ -26,7 +26,7 @@ case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loo
         val outerLength = (n - (size - step)) / step
         f.params(0).t = ArrayTypeWSWC(t,innerLength)
         ArrayTypeWSWC(TypeChecker.check(f.body,setType), outerLength)
-      case _ => throw new TypeException(argType, "ArrayTypeWSWC")
+      case _ => throw new TypeException(argType, "ArrayTypeWSWC", this)
     }
   }
 

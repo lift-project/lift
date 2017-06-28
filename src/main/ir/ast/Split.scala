@@ -32,7 +32,7 @@ case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1)
       case at: ArrayType with Size with Capacity =>
         ArrayTypeWSWC(ArrayTypeWSWC(at.elemT, chunkSize, chunkSize), at.size /^ chunkSize, at.capacity /^ chunkSize)
 
-      case _ => throw new TypeException(argType, "ArrayType")
+      case _ => throw new TypeException(argType, "ArrayType", this)
     }
   }
 

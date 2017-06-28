@@ -5,6 +5,7 @@ project/target/
 target/
 scripts/compiled_scripts/
 lib/Executor/build
+src/main/resources/lib/libexecutor-jni.*
 .idea/
 .tags
 .kernels

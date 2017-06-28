@@ -25,7 +25,7 @@ case class Tail() extends Pattern(arity = 1) with isGenerable {
 
       case ArrayTypeWSWC(t, s, c) => ArrayTypeWSWC(t, s - 1, c-1)
 
-      case _ => throw new TypeException(argType, "ArrayType")
+      case _ => throw new TypeException(argType, "ArrayType", this)
     }
   }
 

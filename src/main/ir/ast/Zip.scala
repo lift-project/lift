@@ -29,7 +29,7 @@ case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
         // make sure all arguments are array types of equal size and capacity
         tt.elemsT.foreach({
           case _: ArrayType with Size with Capacity =>
-          case t => throw new TypeException(t, "ArrayType")
+          case t => throw new TypeException(t, "ArrayType", this)
         })
         val arrayTypes = tt.elemsT.map(_.asInstanceOf[ArrayType with Size with Capacity])
 
@@ -39,7 +39,7 @@ case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
 
         ArrayTypeWSWC(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes.head.size)
 
-      case _ => throw new TypeException(argType, "TupleType")
+      case _ => throw new TypeException(argType, "TupleType", this)
     }
   }
 

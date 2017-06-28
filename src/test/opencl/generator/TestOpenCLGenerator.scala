@@ -123,4 +123,15 @@ class TestOpenCLGenerator {
     // Before 649c3b88a1f26133: "(Tuple2_int_int){4242}"
     assertEquals(s"(${Type.name(ty)}){42, 42}", code)
   }
+  
+  @Test
+  def printFraction(): Unit = {
+    val num = a pow 2
+    val den = b + c
+    
+    assertEquals(
+      s"((${OpenCLPrinter.toString(num)})/(${OpenCLPrinter.toString(den)}))",
+      OpenCLPrinter.toString(num /^ den)
+    )
+  }
 }

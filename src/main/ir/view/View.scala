@@ -106,7 +106,7 @@ abstract sealed class View(val t: Type = UndefType) {
   def split(chunkSize: ArithExpr): View = {
     this.t match {
       case ArrayTypeWS(elemT, n) => ViewSplit(chunkSize, this,
-        ArrayTypeWSWC(ArrayTypeWSWC(elemT, chunkSize), n / chunkSize))
+        ArrayTypeWSWC(ArrayTypeWSWC(elemT, chunkSize), n /^ chunkSize))
       case _ => throw new IllegalArgumentException("PANIC: split expects an array type")
     }
   }

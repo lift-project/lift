@@ -23,7 +23,7 @@ case class Unzip() extends Pattern(arity = 1) with isGenerable {
       case ArrayTypeWSWC(tt: TupleType, s,c) =>
         TupleType( tt.elemsT.map(t => ArrayTypeWSWC(t, s,c)):_* )
 
-      case _ => throw new TypeException(argType, "ArrayType(TupleType, _)")
+      case _ => throw new TypeException(argType, "ArrayType(TupleType, _)", this)
     }
   }
 

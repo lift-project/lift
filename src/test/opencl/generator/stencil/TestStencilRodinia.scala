@@ -79,6 +79,7 @@ class TestStencilRodinia {
  ***********************************************************/
   @Test def rodiniaHotspot(): Unit = {
 
+    LongTestsEnabled()
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     // p = powerValue, t = heatNbh; userfun has to compute:
@@ -122,11 +123,11 @@ class TestStencilRodinia {
     })
 
     val rodinia = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1036), 1036),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1036), 1036),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 8204), 8204),
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, 8204), 8204),
-      ArrayTypeWSWC(Float, 9),
+      ArrayType(ArrayType(Float, 1036), 1036),
+      ArrayType(ArrayType(Float, 1036), 1036),
+      //ArrayType(ArrayType(Float, 8204), 8204),
+      //ArrayType(ArrayType(Float, 8204), 8204),
+      ArrayType(Float, 9),
       (heat, power, coeff) => {
         MapWrg(1)(MapWrg(0)(\(tiles =>
           MapLcl(1)(MapLcl(0)(stencil)) o prepareData(coeff) $ tiles)
@@ -136,9 +137,9 @@ class TestStencilRodinia {
     )
     /*
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1036), 1036),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1036), 1036),
-      ArrayTypeWSWC(Float, 9),
+      ArrayType(ArrayType(Float, 1036), 1036),
+      ArrayType(ArrayType(Float, 1036), 1036),
+      ArrayType(Float, 9),
       (heat, power, coeff) => {
         MapWrg(1)(MapWrg(0)(
           fun(tiles => {
@@ -180,19 +181,18 @@ class TestStencilRodinia {
 
     val (output: Array[Float], runtime) = Execute(16, 16, 1184, 1184, (true, true))(rodinia, heat, power, coeff)
     //val (output: Array[Float], runtime) = Execute(16,16, 9376, 9376, (true, true))(rodinia, heat, power, coeff)
-    println("Runtime: " + runtime)
   }
 
   /* **********************************************************
       HOTSPOT 3D RODINIA
   ***********************************************************/
   @Test def rodiniaHotspot3D(): Unit = {
-    @Ignore //fix
-    //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayTypeWSWC(ArrayTypeWSWC(Float, 3),3)), Float)
+    LongTestsEnabled()
+    //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
     // segfaults
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 512), 512), 8),
-      ArrayTypeWSWC(Float, 27),
+      ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
+      ArrayType(Float, 27),
       (input, weights) => {
         MapSeq(MapGlb(1)(MapGlb(0)(\(nbh =>
 
@@ -206,11 +206,9 @@ class TestStencilRodinia {
     )
 
     // testing
-    val input = Array.tabulate(512, 512, 8) { (i, j, k) => Random.nextFloat() }
+    val input = Array.tabulate(8, 512, 512) { (i, j, k) => Random.nextFloat() }
     val weights = Array.tabulate(27) { (i) => Random.nextFloat() }
     val (output: Array[Float], runtime) = Execute(64, 4, 1, 512, 512, 1, (true, true))(stencil, input, weights)
-    println("Runtime: " + runtime)
-    //println(output.mkString(","))
   }
 
   // rodinia 3d opt1
@@ -220,7 +218,7 @@ class TestStencilRodinia {
     )
 
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 512), 512), 8),
+      ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
       (input) => {
         MapSeq(MapGlb(1)(MapGlb(0)(\(nbh =>
           toGlobal(MapSeq(\(acc => add(acc, nbh._2)))) o
@@ -233,18 +231,16 @@ class TestStencilRodinia {
       }
     )
 
-    val input = Array.fill(512)(Array.fill(512)(Array.fill(8)(1.0f)))
+    val input = Array.fill(8)(Array.fill(512)(Array.fill(512)(1.0f)))
     val weights = Array.fill(3)(Array.fill(3)(1.0f))
     val (output: Array[Float], runtime) = Execute(64, 4, 1, 512, 512, 8, (true, true))(stencil, input)
-    println("Runtime: " + runtime)
-    //println(output.mkString(","))
   }
 
   @Test def rodiniaHotspot3DLocalMemory(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 512), 512), 8),
+      ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
       (input) => {
         MapSeq(MapWrg(1)(MapWrg(0)(\(tiles =>
           MapSeq(MapLcl(1)(MapLcl(0)(\(nbh =>
@@ -257,10 +253,8 @@ class TestStencilRodinia {
     )
 
     // testing
-    val input = Array.tabulate(512, 512, 8) { (i, j, k) => Random.nextFloat() }
+    val input = Array.tabulate(8, 512, 512) { (i, j, k) => Random.nextFloat() }
     val (output: Array[Float], runtime) = Execute(64, 4, 1, 512, 512, 1, (true, true))(stencil, input)
-    println("Runtime: " + runtime)
-    //println(output.mkString(","))
   }
 
   @Test
@@ -277,8 +271,8 @@ class TestStencilRodinia {
       "{ return  tInC*cc + tInN*cn + tInS*cs + tInE*ce + tInW*cw + tInT*ct + tInB*cb + stepDivCap * pInC + ct*amb_temp; }", Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
     val rodiniaHotSpot3D =
-      fun(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
+      fun(ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
       Float,
       Float,
       Float,
@@ -385,10 +379,10 @@ class TestStencilRodinia {
     val idxF = UserFun("idxF", Array("i", "j", "m", "n"), "{ return i+502*j; }",
       Seq(Int, Int, Int, Int), Int)
 
-    val at = ArrayTypeWSWC(ArrayTypeWSWC(Int, n), m)
+    val at = ArrayType(ArrayType(Int, n), m)
 
     val sradKernel1 = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
+      ArrayType(ArrayType(Float, m), n),
       (image) => {
         MapGlb(1)(MapGlb(0)(fun((m) => {
 
@@ -414,7 +408,7 @@ class TestStencilRodinia {
           val Coeff = fun(x => calculateCoeff(x)) $ Den2
           val SCoeff = toPrivate(fun(x => saturateCoeff(x))) $ Coeff
 
-          //          val getIdx = Array2DFromUserFunGenerator(idxF, ArrayTypeWSWC(ArrayTypeWSWC(Float, m),n))
+          //          val getIdx = Array2DFromUserFunGenerator(idxF, ArrayType(ArrayType(Float, m),n))
 
           toGlobal(id) $ SCoeff
         }))
@@ -473,7 +467,7 @@ class TestStencilRodinia {
         " if(coeff > 1) { return 1.0f; } else if(coeff < 0 ) { return 0.0f; } else { return coeff;}  }", Seq(Float, Float, Float, Float, Float, Float), Float)
 
     val sradKernel1 = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
+      ArrayType(ArrayType(Float, m), n),
       Float,
       (image, q0sqr) => {
         MapGlb(1)(MapGlb(0)(fun((m) => {
@@ -549,8 +543,8 @@ class TestStencilRodinia {
       "{ return img + 0.125 * div; }", Seq(Float, Float), Float)
 
     val sradKernel2 = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
+      ArrayType(ArrayType(Float, m), n),
+      ArrayType(ArrayType(Float, m), n),
       (image, coeff) => {
         MapGlb(1)(MapGlb(0)(fun((m) => {
 
@@ -655,12 +649,12 @@ class TestStencilRodinia {
       "{ return img + 0.125 * div; }", Seq(Float, Float), Float)
 
     val sradKernel2 = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n),
+      ArrayType(ArrayType(Float, m), n),
+      ArrayType(ArrayType(Float, m), n),
+      ArrayType(ArrayType(Float, m), n),
+      ArrayType(ArrayType(Float, m), n),
+      ArrayType(ArrayType(Float, m), n),
+      ArrayType(ArrayType(Float, m), n),
       (image, coeff, DN, DS, DE, DW) => {
         MapGlb(1)(MapGlb(0)(fun((m) => {
 

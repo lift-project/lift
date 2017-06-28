@@ -34,4 +34,4 @@ object IntPtr extends ScalarType("int*", Cst(4))
 //   converted to 1 (`true`). (see OpenCL 1.2; Section 6.1.1).
 // For these reasons we represent the type `bool` as the integer type `unsigned char` which has a
 //   well defined size (8-bit).
-object Bool extends ScalarType("unsigned char", Cst(1))
+object Bool extends ScalarType("uchar", Cst(1))

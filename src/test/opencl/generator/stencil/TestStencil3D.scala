@@ -1,6 +1,6 @@
 package opencl.generator.stencil
 
-import ir.{ArrayType, ArrayTypeWSWC}
+import ir.{ArrayType}
 import ir.ast._
 import lift.arithmetic.SizeVar
 import opencl.executor._
@@ -25,6 +25,7 @@ object TestStencil3D {
 class TestStencil3D{
 
   @Test def slide3DInTermsOfSlide2D(): Unit = {
+    LongTestsEnabled()
     val n = 3
     val s = 1
     val input = Array.tabulate(34, 34, 34) { (_, _, _) => scala.util.Random.nextFloat() }
@@ -32,7 +33,7 @@ class TestStencil3D{
     val applyId = MapGlb(2)(MapGlb(1)(MapGlb(0)(MapSeq(MapSeq(MapSeq(id))))))
     def lambda(f: Lambda) = {
       fun(
-        ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
+        ArrayType(ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
         input => applyId o f $ input
       )
     }
@@ -63,6 +64,7 @@ class TestStencil3D{
   }
 
   @Test def tile2DInA3DStencil(): Unit = {
+    LongTestsEnabled()
     // REMARK: Final dimensions need to be corrected -> stencil function cannot be applied to rewritten expressions
     val n = 3 // stencil parameters
     val s = 1
@@ -117,7 +119,7 @@ class TestStencil3D{
     def lambda(f: Lambda) = {
       fun(
         //ArrayType(ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
-        ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,34), 34), 34),
+        ArrayType(ArrayType(ArrayType(Float,34), 34), 34),
         input => f $ input
       )
     }
@@ -185,7 +187,7 @@ class TestStencil3D{
     def lambda(f: Lambda) = {
       fun(
         //ArrayType(ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")), SizeVar("O")),
-        ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float,34), 34), 34),
+        ArrayType(ArrayType(ArrayType(Float,34), 34), 34),
         input => f $ input
       )
     }

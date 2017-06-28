@@ -51,7 +51,10 @@ class TestAnalyser {
       p4 -> 8
     )
 
-    val (localSizes, globalSizes) = InferNDRange(lambda, valueMap)
+    val (loc, glob) = InferNDRange(lambda)
+    val localSizes = InferNDRange.substituteInNDRange(loc, valueMap)
+    val globalSizes = InferNDRange.substituteInNDRange(glob, valueMap)
+    
 
     val localSizes2 = localSizes.map(substitute(_, valueMap))
     val globalSizes2 = globalSizes.map(substitute(_, valueMap))
