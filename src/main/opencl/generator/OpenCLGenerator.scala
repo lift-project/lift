@@ -625,16 +625,16 @@ class OpenCLGenerator extends Generator {
   private def generateFilterSeqCall(f: FilterSeq,
                                     call: FunCall,
                                     block: Block): Unit = {
-    
+
     (block: Block) += OpenCLAST.Comment("filter_seq")
-    
+
     // Declare the index for the output array as a local variable
     (block: Block) += OpenCLAST.VarDecl(f.loopWrite, opencl.ir.Int, ArithExpression(0))
-  
-    // If the predicate is satisfied
+
+    // Code to be generated if the predicate is satisfied
     def copyAndIncrementIndex(block: Block): Unit = {
       // 1. Store the input value at "the top" of the output array
-      (block: Block) += generateCopy(
+      (block: Block) += generateSeqCopy(
         call.args.head.mem, call.args.head.view.access(f.loopRead),
         call.mem, call.view.access(f.loopWrite),
         call.t.asInstanceOf[ArrayType].elemT
@@ -647,7 +647,7 @@ class OpenCLGenerator extends Generator {
           + f.loopWrite.range.asInstanceOf[RangeAdd].step)
       )
     }
-  
+
     def generateBody(block: Block): Unit = {
       generate(f.f.body, block)  // Evaluates the predicate
       generateConditional(
@@ -661,9 +661,25 @@ class OpenCLGenerator extends Generator {
         _ => ()
       )
     }
-    
+
     generateForLoop(block, call.args.head, f.loopRead, generateBody)
-    
+
+    // Since there is no support for storing the size as an actual integer yet,
+    // we have to cast it into the type of the content of the array.
+    // TODO: rewrite this later once support for Array2.0 has been extended.
+    /**
+     * Produces an OpenCL expression wrapping the output size (aka the variable
+     * storing the index used to write to the output) into a data structure
+     * that can be stored into the array's header.
+     *
+     * For instance:
+     * - If the base type of the array is float, it will produce `(float)j`
+     * - If the base type of the array is (float, int), it will produce
+     *   `(Tuple2_float_int){(float)j, j}`
+     *
+     * @param ty the array's type
+     * @return the base type of the array and an expression representing its size.
+     */
     def castSize(ty: Type): (Type, OpenCLAST.OclAstNode) = {
       Type.getBaseType(ty) match {
         case tt: TupleType =>
@@ -673,14 +689,14 @@ class OpenCLGenerator extends Generator {
         case bt => (bt, OpenCLAST.Cast(VarRef(f.loopWrite), bt))
       }
     }
-    
+
     // Write the header of the output array
     val (baseType, value) = castSize(call.t)
     (block: Block) += generateStoreNode(
       OpenCLMemory.asOpenCLMemory(call.mem),
       baseType, call.view.size(), value
     )
-    
+
     (block: Block) += OpenCLAST.Comment("end filter_seq")
   }
 
@@ -1774,8 +1790,19 @@ class OpenCLGenerator extends Generator {
   private def valueAccessNode(v: Var): OpenCLAST.VarRef = {
     OpenCLAST.VarRef(v)
   }
-  
-  private def generateCopy(inMem: Memory, inView: View, outMem: Memory, outView: View,
+
+  /**
+   * Generate code for *sequentially* copying data of type `ty` from a Memory
+   * to an other using the provided views.
+   *
+   * @param inMem memory location of the data to be copied
+   * @param inView view explaining how to access the data to be copied
+   * @param outMem memory location where to copy the data
+   * @param outView view explaining how to access the destination memory
+   * @param ty the type of the data to be copied.
+   * @return a piece of OpenCL code that performs the copy *sequentially*
+   */
+  private def generateSeqCopy(inMem: Memory, inView: View, outMem: Memory, outView: View,
                            ty: Type): OpenCLAST.OclAstNode with BlockMember = {
     ty match {
       case ScalarType(_, _) | _: TupleType | _: VectorType =>
@@ -1788,7 +1815,7 @@ class OpenCLGenerator extends Generator {
           case s: Size => ArithExpression(s.size)
           case _ => throw new NotImplementedError()
         }
-        innerBlock += generateCopy(
+        innerBlock += generateSeqCopy(
           inMem, inView.access(loopVar),
           outMem, outView.access(loopVar),
           at.elemT
@@ -1799,7 +1826,7 @@ class OpenCLGenerator extends Generator {
           AssignmentExpression(VarRef(loopVar), ArithExpression(loopVar + 1)),
           innerBlock
         )
-      case _ => throw new NotImplementedError(s"generateCopy: $ty")
+      case _ => throw new NotImplementedError(s"generateSeqCopy: $ty")
     }
   }
 }
