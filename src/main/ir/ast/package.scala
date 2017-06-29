@@ -35,7 +35,7 @@ package object ast {
     (i, t) => {
       val n = Type.getLength(t)
       (i + 1) - n*(i / (n-1))
-}
+  }
 
   val reorderStride = (s:ArithExpr) => (i: ArithExpr, t:Type) => {
     val n = Type.getLength(t) /^ s
