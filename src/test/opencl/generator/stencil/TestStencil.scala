@@ -1,15 +1,15 @@
 package opencl.generator.stencil
 
-import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import ir._
 import ir.ast.Pad.BoundaryFun
 import ir.ast._
+import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
-import org.junit._
 import org.junit.Assume.assumeFalse
+import org.junit._
 
 import scala.util.Random
 
@@ -296,6 +296,7 @@ class TestStencil {
   ***********************************************************/
   @Test def parboil(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    LongTestsEnabled()
 
     //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
     // segfaults
@@ -313,7 +314,7 @@ class TestStencil {
     )
 
     // testing
-    val input = Array.tabulate(512, 512, 64) { (i, j, k) => Random.nextFloat() }
+    val input = Array.tabulate(64, 512, 512) { (i, j, k) => Random.nextFloat() }
     val weights = Array.tabulate(27) { (i) => Random.nextFloat() }
     val (output: Array[Float], runtime) = Execute(32, 4, 1, 256, 512, 1, (true, true))(stencil, input, weights)
     println("Runtime: " + runtime)

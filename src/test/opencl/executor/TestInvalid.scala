@@ -4,14 +4,15 @@
 
 package opencl.executor
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.generator.IllegalKernel
 import opencl.ir._
 import opencl.ir.pattern._
-import org.junit._
 import org.junit.Assume.assumeFalse
+import org.junit.Assert.assertEquals
+import org.junit._
 
 object TestInvalid {
   @BeforeClass def before(): Unit = {
@@ -30,10 +31,10 @@ class TestInvalid {
   // Dummy user function
   val fct = UserFun("afunc", "array", " return array * 2.0f; ", Float, Float)
   // Dummy function
-  val f = fun(ArrayType(Float, SizeVar("N")), (in) => MapGlb(fun(a => fct(a))) $ in )
-  val f2 = fun(ArrayType(Float, SizeVar("N")), ArrayType(Float, SizeVar("M")),
+  val f = fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => MapGlb(fun(a => fct(a))) $ in )
+  val f2 = fun(ArrayTypeWSWC(Float, SizeVar("N")), ArrayTypeWSWC(Float, SizeVar("M")),
     (in1, in2) => MapGlb(fun(a => fct(a))) $ in1 )
-  val f3 = fun(ArrayType(Float, SizeVar("N")), ArrayType(Float, SizeVar("M")), ArrayType(Float, SizeVar("O")),
+  val f3 = fun(ArrayTypeWSWC(Float, SizeVar("N")), ArrayTypeWSWC(Float, SizeVar("M")), ArrayTypeWSWC(Float, SizeVar("O")),
     (in1, in2, in3) => MapGlb(fun(a => fct(a))) $ in1 )
 
   // Test invalid 1D array with default local size
@@ -240,7 +241,7 @@ class TestInvalid {
     val input = Array.ofDim[Float](inputSize)
 
     val f = fun(
-      ArrayType(Float, inputSize),
+      ArrayTypeWSWC(Float, inputSize),
       in => Join() o MapWrg(toGlobal(MapLcl(id)) o toLocal(MapLcl(id))) o Split(inputSize) $ in
     )
 
@@ -253,7 +254,7 @@ class TestInvalid {
     val input = Array.ofDim[Float](inputSize)
 
     val f = fun(
-      ArrayType(Float, inputSize),
+      ArrayTypeWSWC(Float, inputSize),
       in => Join() o MapWrg(toLocal(MapLcl(id))) o Split(inputSize) $ in
     )
 
@@ -266,7 +267,7 @@ class TestInvalid {
     val input = Array.ofDim[Float](inputSize)
 
     val f = fun(
-      ArrayType(Float, inputSize),
+      ArrayTypeWSWC(Float, inputSize),
       in => Join() o
         MapGlb(Map(id)) o
         Split(inputSize) $ in
@@ -281,7 +282,7 @@ class TestInvalid {
     val input = Array.ofDim[Float](inputSize)
 
     val f = fun(
-      ArrayType(Float, inputSize),
+      ArrayTypeWSWC(Float, inputSize),
       in => Join() o
         MapGlb(toGlobal(MapSeq(id)) o toLocal(MapSeq(id))) o
         Split(inputSize) $ in
@@ -296,7 +297,7 @@ class TestInvalid {
     val input = Array.ofDim[Float](inputSize)
 
     val f = fun(
-      ArrayType(Float, inputSize),
+      ArrayTypeWSWC(Float, inputSize),
       in => Join() o
         MapGlb(toGlobal(MapSeq(id)) o MapLcl(id)) o
         Split(inputSize) $ in
@@ -311,7 +312,7 @@ class TestInvalid {
     val input = Array.ofDim[Float](inputSize)
 
     val f = fun(
-      ArrayType(Float, inputSize),
+      ArrayTypeWSWC(Float, inputSize),
       in => Join() o MapGlb(MapGlb(id)) o Split(inputSize) $ in
     )
 
@@ -372,7 +373,7 @@ class TestInvalid {
 
     val maxGroupSize = Executor.getDeviceMaxWorkGroupSize.asInstanceOf[Int]
 
-    val f = fun(ArrayType(Float, SizeVar("N")),
+    val f = fun(ArrayTypeWSWC(Float, SizeVar("N")),
       input => MapGlb(id) $ input
     )
 
@@ -388,7 +389,7 @@ class TestInvalid {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => Gather(reverse) o MapSeq(id) $ input
     )
 
@@ -401,7 +402,7 @@ class TestInvalid {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => MapSeq(id) o Scatter(reverse) $ input
     )
 
@@ -414,11 +415,56 @@ class TestInvalid {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input => fun(x => MapSeq(fun(y => add(y._0, y._1))) $ Zip(x, Scatter(reverse) $ x)) o MapSeq(id) $ input
     )
 
     Compile(f)
   }
 
+  // Issue #98, snippet 1
+  @Test
+  def incorrectInference(): Unit = {
+    val f = \(
+      ArrayType(Float, 3),
+      ArrayType(Float, SizeVar("N")),
+      (a, b) => MapGlb(plusOne) $ b
+    )
+  
+    val input1 = Array.fill(3)(util.Random.nextFloat()  )
+    val input2 = Array.fill(12)(util.Random.nextFloat()  )
+  
+    val floats = Execute(1, 1)(f, input1, input2)._1.asInstanceOf[Array[Float]]
+    assertEquals(input2.length, floats.length)
+  }
+  
+  // Issue #98, snippet 2
+  @Test(expected = classOf[IllegalKernelArgument])
+  def inconsistentInference(): Unit = {
+    val sizeVar = SizeVar("N")
+    val f = \(
+      ArrayType(Float, sizeVar),
+      ArrayType(Float, sizeVar),
+      (a, b) => MapGlb(plusOne) $ b
+    )
+    
+    val input1 = Array.fill(4)(util.Random.nextFloat()  )
+    val input2 = Array.fill(12)(util.Random.nextFloat()  )
+    
+    Execute(1, 1)(f, input1, input2)
+  }
+  
+  // Issue #98, snippet 3
+  @Test(expected = classOf[IllegalKernelArgument])
+  def incorrectUsage(): Unit = {
+    val f = \(
+      ArrayType(Float, 6),
+      MapGlb(plusOne) $ _
+    )
+    
+    val input1 = Array.fill(4)(util.Random.nextFloat()  )
+    
+    val (floats: Array[Float], _) = Execute(1, 1)(f, input1)
+    assertEquals(input1.length, floats.length)
+  }
 }

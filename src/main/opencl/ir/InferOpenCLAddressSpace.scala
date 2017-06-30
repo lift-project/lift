@@ -3,7 +3,7 @@ package opencl.ir
 import ir.ScalarType
 import ir.ast._
 import opencl.generator.IllegalKernel
-import opencl.ir.pattern.{ReduceWhileSeq, toGlobal, toLocal, toPrivate}
+import opencl.ir.pattern._
 
 object InferOpenCLAddressSpace {
 
@@ -30,12 +30,13 @@ object InferOpenCLAddressSpace {
   }
 
   private def setAddressSpace(expr: Expr,
-    writeTo : OpenCLAddressSpace = UndefAddressSpace) : OpenCLAddressSpace = {
+                              writeTo : OpenCLAddressSpace = UndefAddressSpace) : OpenCLAddressSpace = {
 
     val result = expr match {
       case Value(_) => PrivateMemory
-      case vp: VectorParam => setAddressSpaceParam(vp.p)
-      case p: Param => setAddressSpaceParam(p)
+      case _: ArrayConstructors => UndefAddressSpace
+      case vp: VectorParam => vp.p.addressSpace
+      case p: Param => p.addressSpace
       case f: FunCall => setAddressSpaceFunCall(f, writeTo)
     }
 
@@ -43,14 +44,8 @@ object InferOpenCLAddressSpace {
     result
   }
 
-  private def setAddressSpaceParam(p: Param) = {
-    if (p.addressSpace == UndefAddressSpace)
-      throw UnexpectedAddressSpaceException(s"Param $p has no address space")
-    p.addressSpace
-  }
-
   private def setAddressSpaceFunCall(call: FunCall,
-    writeTo: OpenCLAddressSpace) : OpenCLAddressSpace = {
+                                     writeTo: OpenCLAddressSpace) : OpenCLAddressSpace = {
 
     val addressSpaces = call.args.map(setAddressSpace(_, writeTo))
 
@@ -66,9 +61,10 @@ object InferOpenCLAddressSpace {
       case toPrivate(_) | toLocal(_) | toGlobal(_) =>
         setAddressSpaceChange(call, addressSpaces)
 
-      case Filter() => addressSpaces(0)
+      case Filter() => addressSpaces.head
       case Get(i) => setAddressSpaceGet(i, addressSpaces.head)
 
+      case fs: FilterSeq => setAddressSpaceFilterSeq(fs, writeTo, addressSpaces)
       case rw: ReduceWhileSeq => setAddressSpaceReduceWhile(rw, call, addressSpaces)
       case r: AbstractPartRed => setAddressSpaceReduce(r.f, call, addressSpaces)
       case s: AbstractSearch => setAddressSpaceSearch(s, writeTo, addressSpaces)
@@ -96,15 +92,23 @@ object InferOpenCLAddressSpace {
     addressSpaces: Seq[OpenCLAddressSpace]) = {
 
     // First argument is initial value
-    if (call.args(0).addressSpace == UndefAddressSpace)
+    if (call.args.head.addressSpace == UndefAddressSpace)
       throw UnexpectedAddressSpaceException(
-        s"No address space ${call.args(0).addressSpace} at $call")
+        s"No address space ${call.args.head.addressSpace} at $call")
 
     // The address space of the result of a reduction
     // is always the same as the initial element
-    val writeTo = call.args(0).addressSpace
+    val writeTo = call.args.head.addressSpace
 
     setAddressSpaceLambda(lambda, writeTo, addressSpaces)
+  }
+  
+  private def setAddressSpaceFilterSeq(fs: FilterSeq,
+                                       writeTo: OpenCLAddressSpace,
+                                       addrSpaces: Seq[OpenCLAddressSpace]) = {
+    // We never need to keep the result of the predicate.
+    setAddressSpaceLambda(fs.f, PrivateMemory, addrSpaces)
+    setAddressSpaceLambda(fs.copyFun, writeTo, addrSpaces)
   }
 
   private def setAddressSpaceReduceWhile(rw: ReduceWhileSeq, call: FunCall,

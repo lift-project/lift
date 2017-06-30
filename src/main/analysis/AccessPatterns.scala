@@ -3,26 +3,33 @@ package analysis
 import analysis.AccessCounts.SubstitutionMap
 import lift.arithmetic.ArithExpr._
 import lift.arithmetic._
-import ir.Type
-import ir.ast.{Map => _, _}
+import ir.{ScalarType, TupleType, Type, UndefType}
+import ir.ast._
 import ir.view._
-import opencl.generator.OpenCLGenerator.NDRange
+import opencl.generator.{NDRange, OpenCLGenerator}
+import opencl.generator.OpenCLAST.VarRef
+import opencl.ir.OpenCLMemoryCollection
 import opencl.ir.pattern.{MapGlb, MapLcl}
+
+import scala.collection.immutable
 
 
 object AccessPatterns {
 
   def apply(lambda: Lambda,
-    localSize: NDRange = Array(?,?,?),
-    globalSize: NDRange = Array(?,?,?),
+    localSize: NDRange = NDRange(?,?,?),
+    globalSize: NDRange = NDRange(?,?,?),
     valueMap: SubstitutionMap = collection.immutable.Map()
   ) = new AccessPatterns(lambda, localSize, globalSize, valueMap)
 
 }
 
 abstract class AccessPattern
+
 object CoalescedPattern extends AccessPattern
 object UnknownPattern extends AccessPattern
+
+case class AccessPatternCollection(comp: Seq[Option[AccessPattern]]) extends AccessPattern
 
 class AccessPatterns(
   lambda: Lambda,
@@ -31,8 +38,10 @@ class AccessPatterns(
   valueMap: SubstitutionMap
 ) extends Analyser(lambda, localSize, globalSize, valueMap) {
 
-  private var readPatterns = Map[Expr, AccessPattern]()
-  private var writePatterns = Map[Expr, AccessPattern]()
+  private var readPatterns = immutable.Map[Expr, AccessPattern]()
+  private var writePatterns = immutable.Map[Expr, AccessPattern]()
+
+  private val varDecls = OpenCLGenerator.getDifferentMemories(lambda)._3
 
   private var coalescingId: Option[Var] = None
 
@@ -41,32 +50,38 @@ class AccessPatterns(
 
   determinePatterns(lambda.body)
 
-  def getReadPatterns = readPatterns
-  def getWritePatterns = writePatterns
+  def getReadPatterns: immutable.Map[Expr, AccessPattern] = readPatterns
+  def getWritePatterns: immutable.Map[Expr, AccessPattern] = writePatterns
 
-  def apply() =
+  def apply(): (immutable.Map[Expr, AccessPattern], immutable.Map[Expr, AccessPattern]) =
     (readPatterns, writePatterns)
 
-  private def isCoalesced(view: View): Boolean = {
-    val newVar = Var("")
-    val accessLocation = ViewPrinter.emit(view)
-
-    val length = Type.getLength(Type.getValueType(view.t))
+  private def isCoalesced(v: VarRef, length: ArithExpr): Boolean = {
+    val accessLocation = v.arrayIndex.content
 
     if (coalescingId.isEmpty)
       return false
 
-    val i0 = substitute(accessLocation, Map(coalescingId.get -> (newVar + 0)))
-    val i1 = substitute(accessLocation, Map(coalescingId.get -> (newVar + 1)))
+    val newVar = Var()
+    val i0 = substitute(accessLocation, immutable.Map(coalescingId.get -> (newVar + 0)))
+    val i1 = substitute(accessLocation, immutable.Map(coalescingId.get -> (newVar + 1)))
 
     i1 - i0 == length
   }
 
-  private def getPattern(view: View) = {
-    if (isCoalesced(view))
-      CoalescedPattern
+  private def getAccessPattern(v: VarRef, length: ArithExpr) = {
+    if (isCoalesced(v, length))
+      Some(CoalescedPattern)
     else
-      UnknownPattern
+      Some(UnknownPattern)
+  }
+
+  private def getAccessPattern(view: View): Option[AccessPattern] = {
+    val length = Type.getLength(Type.getValueType(view.t))
+    ViewPrinter.emit(Var(), view) match {
+      case v: VarRef => getAccessPattern(v, length)
+      case _ => None
+    }
   }
 
   private def determinePatterns(expr: Expr): Unit = {
@@ -90,9 +105,38 @@ class AccessPatterns(
           case fp: FPattern => determinePatterns(fp.f.body)
           case _: UserFun | _: VectorizeUserFun =>
 
-            args.foreach(arg => readPatterns += arg -> getPattern(arg.view))
+            args.foreach(arg => {
 
-            writePatterns += expr -> getPattern(expr.outputView)
+              val isMemoryCollection = arg.mem.isInstanceOf[OpenCLMemoryCollection]
+              val isTupleType = arg.t.isInstanceOf[TupleType]
+              val isScalarType = arg.t.isInstanceOf[ScalarType]
+
+              val declaredType = varDecls.getOrElse(arg.mem.variable, UndefType)
+              val declaredAsTupleType =
+                Type.getValueType(declaredType).isInstanceOf[TupleType]
+
+              if (isMemoryCollection && isTupleType) {
+
+                val tt = arg.t.asInstanceOf[TupleType]
+                val patterns = tt.elemsT.indices.map(i =>
+                  getAccessPattern(arg.view.get(i)))
+
+                readPatterns += arg -> AccessPatternCollection(patterns)
+
+              } else if (isScalarType && declaredAsTupleType) {
+
+                readPatterns += arg -> UnknownPattern
+
+              } else {
+
+                val accessPattern = getAccessPattern(arg.view)
+
+                if (accessPattern.isDefined)
+                  readPatterns += arg -> accessPattern.get
+              }
+            })
+
+            writePatterns += expr -> getAccessPattern(expr.outputView).get
 
           case _ =>
         }

@@ -3,16 +3,17 @@ package opencl.generator
 import java.io.FileInputStream
 import java.util.Scanner
 
-import scala.util.Random
-import lift.arithmetic.{ArithExpr, Cst, Lookup, SizeVar}
-import ir.ArrayType
+import ir.{ArrayType, ArrayTypeWSWC}
 import ir.ast._
+import lift.arithmetic.{ArithExpr, Cst, Lookup, SizeVar}
 import opencl.executor.{Execute, Executor, LongTestsEnabled, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import org.junit.Assume.assumeFalse
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+
+import scala.util.Random
 
 
 object TestSlide {
@@ -458,6 +459,8 @@ class TestSlide {
   }
 
   @Test def slideND(): Unit = {
+    LongTestsEnabled()
+
     val n = 3
     val s = 1
     val input3D = Array.tabulate(34, 34, 34) { (_, _, _) => scala.util.Random.nextFloat() }
@@ -551,6 +554,7 @@ class TestSlide {
 
   @Test def tiledSlideND3(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    LongTestsEnabled()
 
     val n = 3
     val s = 1

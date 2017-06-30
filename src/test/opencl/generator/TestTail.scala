@@ -1,8 +1,8 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
-import ir.ArrayType
+import ir.ArrayTypeWSWC
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq}
@@ -31,7 +31,7 @@ class TestTail {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Join() o MapGlb(
           MapSeq(id) o Tail() o MapSeq(id)
@@ -53,7 +53,7 @@ class TestTail {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Join() o MapGlb(
           MapSeq(id) o Tail() o Scatter(reverse) o MapSeq(id)
@@ -76,7 +76,7 @@ class TestTail {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Join() o MapGlb(
           MapSeq(id) o Scatter(reverse) o Tail() o MapSeq(id)
@@ -99,7 +99,7 @@ class TestTail {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Join() o MapGlb(
           MapSeq(id) o Scatter(reverse) o Tail() o Scatter(reverse) o MapSeq(id)
@@ -121,7 +121,7 @@ class TestTail {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Join() o MapGlb(
           Scatter(reverse) o MapSeq(id) o Tail()
@@ -143,7 +143,7 @@ class TestTail {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Join() o MapGlb(
           MapSeq(id) o Tail()
@@ -165,7 +165,7 @@ class TestTail {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Join() o MapGlb(
           MapSeq(id) o Tail() o Gather(reverse)
@@ -187,7 +187,7 @@ class TestTail {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Join() o MapGlb(
           MapSeq(id) o Gather(reverse) o Tail()
@@ -209,7 +209,7 @@ class TestTail {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Join() o MapGlb(
           MapSeq(id) o Gather(reverse) o Tail() o Gather(reverse)
@@ -231,7 +231,7 @@ class TestTail {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       input =>
         Join() o MapGlb(
           MapSeq(id) o Gather(reverse) o Tail() o Scatter(reverse) o MapSeq(id)

@@ -2,7 +2,6 @@ package c.generator
 
 import lift.arithmetic._
 import arithmetic.TypeVar
-import c.executor.Compile
 import generator.Generator
 import ir._
 import ir.ast._
@@ -11,17 +10,17 @@ import c.generator.CAst._
 import opencl.ir._
 import opencl.ir.pattern._
 import opencl.generator._
+
 import scala.collection.immutable
 
 object CGenerator extends Generator {
-  type NDRange = Array[ArithExpr]
 
   def generate(f: Lambda): String = {
-    generate(f, Array(?, ?, ?))
+    generate(f, NDRange(?, ?, ?))
   }
 
   def generate(f: Lambda, localSizes: NDRange): String = {
-    generate(f, localSizes, Array(?, ?, ?), immutable.Map())
+    generate(f, localSizes, NDRange(?, ?, ?), immutable.Map())
   }
 
   // Compile a type-checked function into an OpenCL kernel
@@ -62,7 +61,7 @@ object CGenerator extends Generator {
       (Array.empty[TypedOpenCLMemory], globalsFirst)
   }
 
-  def getDifferentMemories(lambda: Lambda) = {
+  def getDifferentMemories(lambda: Lambda): (Array[TypedOpenCLMemory], Array[TypedOpenCLMemory], Predef.Map[Var, Type]) = {
 
     val valMems = Expr.visitWithState(Set[Memory]())(lambda.body, (expr, set) =>
       expr match {
@@ -115,14 +114,13 @@ object CGenerator extends Generator {
       mem.mem.size.eval
       mem.mem.addressSpace == LocalMemory
     } catch {
-      case NotEvaluableException => false
+      case NotEvaluableException() => false
     }
   }
 }
 
 class CGenerator extends Generator {
 
-  type NDRange = Array[ArithExpr]
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
   type SymbolTable = immutable.Map[Var, Type]
 
@@ -130,8 +128,8 @@ class CGenerator extends Generator {
 
   protected var replacements: ValueTable = immutable.Map.empty
   protected var replacementsWithFuns: ValueTable = immutable.Map.empty
-  protected var privateMems = Array[TypedOpenCLMemory]()
-  protected var privateDecls = immutable.Map[Var, CAst.VarDecl]()
+  protected var privateMems: Array[TypedOpenCLMemory] = Array[TypedOpenCLMemory]()
+  protected var privateDecls: Predef.Map[Var, VarDecl] = immutable.Map[Var, CAst.VarDecl]()
 
   protected var varDecls: SymbolTable = immutable.Map.empty
 
@@ -146,11 +144,11 @@ class CGenerator extends Generator {
   }
 
   def generate(f: Lambda): String  = {
-    generate(f, Array(?, ?, ?))
+    generate(f, NDRange(?, ?, ?))
   }
 
   def generate(f: Lambda, localSizes: NDRange): String = {
-    generate(f, localSizes, Array(?, ?, ?), immutable.Map())
+    generate(f, localSizes, NDRange(?, ?, ?), immutable.Map())
   }
 
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
@@ -162,7 +160,7 @@ class CGenerator extends Generator {
     InferOpenCLAddressSpace(f)
     // Allocate the params and set the corresponding type
     f.params.foreach((p) => {
-      p.mem = OpenCLMemory.allocMemory(OpenCLMemory.getSizeInBytes(p.t), p.addressSpace)
+      p.mem = OpenCLMemory.allocMemory(Type.getAllocatedSize(p.t), p.addressSpace)
     })
 
     RangesAndCounts(f, localSize, globalSize, valueMap)
@@ -190,7 +188,7 @@ class CGenerator extends Generator {
 
     View(f)
 
-    val globalBlock = new CAst.Block(Vector.empty, global = true)
+    val globalBlock = CAst.Block(Vector.empty, global = true)
 
     val containsDouble = Expr.visitWithState(false)(f.body, {
       case (expr, _) if expr.t == Double => true
@@ -386,7 +384,7 @@ class CGenerator extends Generator {
     val liftKernel = CAst.Function(
       name = "liftKernel",
       ret = UndefType,
-      params = Kernel.memory.map((x => CAst.ParamDecl(x.mem.variable.toString,x.t))).toList, //f.params.map(x => CAst.ParamDecl(x.toString,x.t)).toList,
+      params = Kernel.memory.map(x => CAst.ParamDecl(x.mem.variable.toString,x.t)).toList, //f.params.map(x => CAst.ParamDecl(x.toString,x.t)).toList,
       body = Block(),
       kernel = true
     )
@@ -397,7 +395,7 @@ class CGenerator extends Generator {
       liftKernel.body +=
         CAst.VarDecl(x.mem.variable, x.t,
           addressSpace = x.mem.addressSpace,
-          length = (x.mem.size /^ Type.getMaxSize(Type.getBaseType(x.t))).eval))
+          length = (x.mem.size /^ Type.getMaxAllocatedSize(Type.getBaseType(x.t))).eval))
 
     liftKernel.body += CAst.Comment("Typed Value memory")
     typedValueMems.foreach(x =>
@@ -408,7 +406,7 @@ class CGenerator extends Generator {
 
     liftKernel.body += CAst.Comment("Private Memory")
     privateMems.foreach(x => {
-      val length = x.mem.size /^ Type.getMaxSize(Type.getValueType(x.t))
+      val length = x.mem.size /^ Type.getMaxAllocatedSize(Type.getValueType(x.t))
 
       if (!length.isEvaluable)
         throw new IllegalKernel("Private memory length has to be" +
@@ -487,13 +485,21 @@ class CGenerator extends Generator {
     e match {
       case e: Expr =>
         e.t match {
-          case a: UnknownLengthArrayType =>
+          case a: RuntimeSizedArrayType =>
             // TODO: Emitting a view of type ArrayType is illegal!
-            val arrayStart = ViewPrinter.emit(e.view)
-            Left(VarRef(e.mem.variable, arrayIndex = ArithExpression(arrayStart)))
-          case a: ArrayType => Right(a.len)
+            Left(ViewPrinter.emit(e.mem.variable, e.view) match {
+              case OpenCLAST.VarRef(v, s, i) => VarRef(v, s, ArithExpression(i.content))
+              case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+            })
+          case ArrayTypeWS(_,s) => Right(s)
+          case ArrayType(_) =>
+            // layout in memory: | capacity | size | ... |
+            Left(ViewPrinter.emit(e.mem.variable, e.view) match {
+              case OpenCLAST.VarRef(v, s, i) => VarRef(v, s, ArithExpression(i.content+1))
+              case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+            })
           case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) =>
-            throw new TypeException(e.t, "Array")
+            throw new TypeException(e.t, "Array", e)
         }
     }
   }
@@ -527,7 +533,6 @@ class CGenerator extends Generator {
 
     (block: Block) += CAst.Comment("end reduce_seq")
   }
-
 
   private def generateValue(v: Value, block: Block): Unit = {
     val temp = Var("tmp")
@@ -657,9 +662,12 @@ class CGenerator extends Generator {
       val iterationCount = try {
         indexVar.range.numVals.eval
       } catch {
-        case NotEvaluableException =>
+        case NotEvaluableException() =>
           throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
             "could not be determined statically.")
+        case NotEvaluableToIntException() =>
+          throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
+            "is larger than scala.Int.MaxValue.")
       }
 
       if (iterationCount > 0) {
@@ -823,12 +831,11 @@ class CGenerator extends Generator {
             && (mem.addressSpace == GlobalMemory
             || mem.addressSpace == LocalMemory) =>
 
-          CAst.Store(
-            CAst.VarRef(mem.variable), vt,
-            value = value,
-            offset = CAst.ArithExpression(
-              ViewPrinter.emit(view,
-                replacementsWithFuns) / vt.len), mem.addressSpace)
+          val offset = ViewPrinter.emit(mem.variable, view, replacementsWithFuns) match {
+            case OpenCLAST.VarRef(_, _, i) => CAst.ArithExpression(i.content / vt.len)
+            case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+          }
+          CAst.Store(CAst.VarRef(mem.variable), vt, value, offset, mem.addressSpace)
       }
     }
   }
@@ -879,10 +886,12 @@ class CGenerator extends Generator {
               if Type.isEqual(Type.getValueType(at), vt.scalarT)
                 && (mem.addressSpace == GlobalMemory || mem.addressSpace == LocalMemory) =>
 
-              CAst.Load(CAst.VarRef(mem.variable), vt,
-                offset = CAst.ArithExpression(
-                  ViewPrinter.emit(view,
-                    replacementsWithFuns) / vt.len),mem.addressSpace)
+              val offset = ViewPrinter.emit(mem.variable, view, replacementsWithFuns) match {
+                case OpenCLAST.VarRef(_, _, idx) => CAst.ArithExpression(idx.content / vt.len)
+                case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+              }
+
+              CAst.Load(CAst.VarRef(mem.variable), vt, offset, mem.addressSpace)
 
             // originally an array of scalar values in private memory,
             // but now a vector type
@@ -896,8 +905,8 @@ class CGenerator extends Generator {
               // TODO: this seems like a very specific local solution ... find a more generic proper one
 
               // iterate over the range, assuming that it is contiguous
-              val arraySuffixStartIndex: Int = arrayAccessPrivateMemIndex(mem.variable, view)
-              val arraySuffixStopIndex: Int = arraySuffixStartIndex + vt.len.eval
+              val arraySuffixStartIndex = arrayAccessPrivateMemIndex(mem.variable, view)
+              val arraySuffixStopIndex = arraySuffixStartIndex + vt.len.eval
 
               val seq = (arraySuffixStartIndex until arraySuffixStopIndex).map(i => {
                 CAst.VarRef(mem.variable, suffix = "_" + i)
@@ -968,9 +977,11 @@ class CGenerator extends Generator {
 
               mem.addressSpace match {
                 case LocalMemory | GlobalMemory =>
-                  val index = ViewPrinter.emit(innerView,
-                    replacementsWithFuns)
-                  CAst.VarRef(mem.variable, arrayIndex = CAst.ArithExpression(index), suffix = suffix)
+                  ViewPrinter.emit(mem.variable, innerView, replacementsWithFuns) match {
+                    case OpenCLAST.VarRef(v, _, i) =>
+                      CAst.VarRef(v, suffix, CAst.ArithExpression(i.content))
+                    case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+                  }
 
                 case PrivateMemory =>
 
@@ -980,6 +991,9 @@ class CGenerator extends Generator {
                     else // Workaround for values
                       ""
                   CAst.VarRef(mem.variable, suffix = arraySuffix + suffix)
+                  
+                case UndefAddressSpace | AddressSpaceCollection(_) =>
+                  throw new IllegalArgumentException(s"Cannot load data from ${mem.addressSpace}")
               }
           }
         }
@@ -1004,7 +1018,8 @@ class CGenerator extends Generator {
         originalType match {
           case _: ArrayType => arrayAccessNode(v, addressSpace, view)
           case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
-          case NoType | UndefType => throw new TypeException(originalType, "A valid type")
+          case NoType | UndefType =>
+            throw new TypeException(originalType, "A valid type", null)
         }
 
       case PrivateMemory =>
@@ -1012,10 +1027,14 @@ class CGenerator extends Generator {
           case Some(typedMemory) => typedMemory.t match {
             case _: ArrayType => arrayAccessNode(v, addressSpace, view)
             case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
-            case NoType | UndefType => throw new TypeException(typedMemory.t, "A valid type")
+            case NoType | UndefType =>
+              throw new TypeException(typedMemory.t, "A valid type", null)
           }
           case _ => valueAccessNode(v)
         }
+        
+      case UndefAddressSpace | AddressSpaceCollection(_) =>
+        throw new IllegalArgumentException(s"Cannot load data from $addressSpace")
     }
   }
 
@@ -1032,11 +1051,16 @@ class CGenerator extends Generator {
                               view: View): CAst.VarRef = {
     addressSpace match {
       case LocalMemory | GlobalMemory =>
-        val index = ViewPrinter.emit(view, replacementsWithFuns)
-        CAst.VarRef(v, arrayIndex = CAst.ArithExpression(index))
+        ViewPrinter.emit(v, view, replacementsWithFuns) match {
+          case OpenCLAST.VarRef(vr, s, i) => VarRef(vr, s, CAst.ArithExpression(i.content))
+          case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+        }
 
       case PrivateMemory =>
         CAst.VarRef(v, suffix = arrayAccessPrivateMem(v, view))
+        
+      case UndefAddressSpace | AddressSpaceCollection(_) =>
+        throw new IllegalArgumentException(s"Cannot load data from $addressSpace")
     }
   }
 
@@ -1060,15 +1084,22 @@ class CGenerator extends Generator {
     val originalType = declaration.t
     val valueType = Type.getValueType(originalType)
 
-    val i = valueType match {
-      case _: ScalarType | _: TupleType => ViewPrinter.emit(view)
+    val i: ArithExpr = valueType match {
+      case _: ScalarType | _: TupleType => ViewPrinter.emit(v, view) match {
+        case OpenCLAST.VarRef(_, _, idx) => idx.content
+        case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+      }
       // if the original value type is a vector:
       //   divide index by vector length
       case _: VectorType =>
         val length = Type.getLength(Type.getValueType(originalType))
-        ViewPrinter.emit(view) / length
-      case ArrayType(_, _) | NoType | UndefType =>
-        throw new TypeException(valueType, "A valid non array type")
+        val index = ViewPrinter.emit(v, view) match {
+          case OpenCLAST.VarRef(_, _, idx) => idx.content
+          case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+        }
+        index / length
+      case ArrayType(_) | NoType | UndefType =>
+        throw new TypeException(valueType, "A valid non array type", null)
     }
 
     val real = ArithExpr.substitute(i, replacements).eval
@@ -1100,9 +1131,13 @@ class CGenerator extends Generator {
     val i = valueType match {
       case _: VectorType =>
         val length = Type.getLength(Type.getValueType(originalType))
-        ViewPrinter.emit(view) % length
-      case ArrayType(_, _) | NoType | ScalarType(_, _) | TupleType(_) | UndefType =>
-        throw new TypeException(valueType, "VectorType")
+        val index = ViewPrinter.emit(v, view) match {
+          case OpenCLAST.VarRef(_, _, idx) => idx.content
+          case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+        }
+        index % length
+      case ArrayType(_) | NoType | ScalarType(_, _) | TupleType(_) | UndefType =>
+        throw new TypeException(valueType, "VectorType", null)
     }
 
     ArithExpr.substitute(i, replacements).eval

@@ -86,9 +86,9 @@ object GEMM {
   val K = SizeVar("K")
 
   val naive = fun(
-    ArrayType(ArrayType(Float, K), N),
-    ArrayType(ArrayType(Float, M), K),
-    ArrayType(ArrayType(Float, M), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
     Float,
     Float,
     (A, B, C, alpha, beta) => {
@@ -107,9 +107,9 @@ object GEMM {
   // Currently the best for NVIDIA
   def tiledAndBlockedBInnermost(tileSizeN: ArithExpr, tileSizeM: ArithExpr, tileSizeK: ArithExpr,
                                 workPerThreadN: ArithExpr, workPerThreadM: ArithExpr): Lambda = fun(
-    ArrayType(ArrayType(Float, M), K), // Transposed
-    ArrayType(ArrayType(Float, N), K),
-    ArrayType(ArrayType(Float, N), M),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K), // Transposed
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
     Float,
     Float,
     (A, B, C, alpha, beta) => {
@@ -177,7 +177,7 @@ object GEMM {
                 ))) $ Zip(Get(pairOfTiles, 0), Get(pairOfTiles, 1))
               )
                 , MapLcl(1)(MapLcl(0)(MapSeq(MapSeq(id)))) $ Value(0.0f,
-                  ArrayType(ArrayType(ArrayType(ArrayType(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN))
+                  ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, workPerThreadM), workPerThreadN), tileSizeM/workPerThreadM), tileSizeN/workPerThreadN))
               ) $ Zip(Get(aRows, 0), Get(bCols, 0))
 
             // Tile the matrices
@@ -200,9 +200,9 @@ object GEMM {
       Seq(VectorType(Float, tileSizeN), VectorType(Float, tileSizeN)), VectorType(Float, tileSizeN))
 
     fun(
-      ArrayType(ArrayType(Float, M), K),
-      ArrayType(ArrayType(Float, N), K),
-      ArrayType(ArrayType(Float, N), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
       VectorType(Float, tileSizeN),
       VectorType(Float, tileSizeN),
       (A, B, C, alpha, beta) => {
@@ -253,7 +253,7 @@ object GEMM {
                       )) $ pairOfTiles
                 )
                   , MapSeq(MapSeq(VectorizeUserFun(tileSizeN, id))) $
-                    Value(0.0f, ArrayType(ArrayType(VectorType(Float, tileSizeN), 1), tileSizeM))
+                    Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(VectorType(Float, tileSizeN), 1), tileSizeM))
                 ) $ Zip(aRows._0, bCols._0)
 
             )) $ Zip(Transpose() o Tile(tileSizeK, tileSizeN) $ B, aRows._1)
@@ -284,9 +284,9 @@ object GEMM {
       val mult2 = UserFun("mult2", Array("l", "r"), """|{ return l * r; }""".stripMargin,
         Seq(VectorType(Float, 2), VectorType(Float, 2)), VectorType(Float, 2))
       fun(
-        ArrayType(ArrayType(Float, v_M_0), v_K_1),
-        ArrayType(ArrayType(Float, v_N_2), v_K_1),
-        ArrayType(ArrayType(Float, v_N_2), v_M_0),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M_0), v_K_1),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_K_1),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_M_0),
         VectorType(Float, 2), VectorType(Float, 2),
         (p_0, p_1, C, alpha, beta) =>
           FunCall(Join(),
@@ -391,7 +391,7 @@ object GEMM {
                                   FunCall(MapLcl(0)(fun((p_35) =>
                                     FunCall(MapSeq(fun((p_36) =>
                                       FunCall(MapSeq(fun((p_37) =>
-                                        FunCall(idfloat, p_37))), p_36))), p_35))), p_34))), Value("0.0f", ArrayType(ArrayType(ArrayType(ArrayType(Float, v__3), v__4), v__7 * 1 /^ v__3), v__5 * 1 /^ v__4))),
+                                        FunCall(idfloat, p_37))), p_36))), p_35))), p_34))), Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, v__3), v__4), v__7 * 1 /^ v__3), v__5 * 1 /^ v__4))),
                                 FunCall(Zip(2), p_2._0, p_3._0))))))))),
                     Zip(FunCall(Transpose(),
                       FunCall(Map(fun((p_38) =>
@@ -429,9 +429,9 @@ object GEMM {
     val mult2 = UserFun("mult2", Array("x", "y"), "{ return x * y; }",
       Seq(VectorType(Float, vectorWidth), VectorType(Float, vectorWidth)), VectorType(Float, vectorWidth))
     fun(
-      ArrayType(ArrayType(Float, M), K),
-      ArrayType(ArrayType(Float, N), K),
-      ArrayType(ArrayType(Float, N), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
       VectorType(Float, vectorWidth),VectorType(Float, vectorWidth),
       (p_0, p_1, C, alpha, beta) =>
         FunCall(Map(fun((p_2) =>
@@ -476,7 +476,7 @@ object GEMM {
                                 asScalar() o toPrivate(MapSeq(VectorizeUserFun(4, id))) o asVector(vectorWidth) o Get(1) $ p_7
                               ))),
                               toPrivate(MapSeq(MapSeq(id))) $
-                                Value("0.0f", ArrayType(ArrayType(Float, v__3), v__4)),
+                                Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(Float, v__3), v__4)),
                               FunCall(Zip(2),
                                 FunCall(Transpose(), p_3._0),
                                 FunCall(Transpose(), p_4._0)))))))),
@@ -503,9 +503,9 @@ object GEMM {
       Seq(VectorType(Float, tileSizeN), VectorType(Float, tileSizeN)), VectorType(Float, tileSizeN))
 
     fun(
-      ArrayType(ArrayType(Float, M), K),
-      ArrayType(ArrayType(Float, N), K),
-      ArrayType(ArrayType(Float, N), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
       VectorType(Float, tileSizeN),
       VectorType(Float, tileSizeN),
       (A, B, C, alpha, beta) => {
@@ -556,7 +556,7 @@ object GEMM {
                       )) $ pairOfTiles
                 )
                   , MapSeq(MapSeq(VectorizeUserFun(tileSizeN, id))) $
-                    Value(0.0f, ArrayType(ArrayType(VectorType(Float, tileSizeN), 1), tileSizeM))
+                    Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(VectorType(Float, tileSizeN), 1), tileSizeM))
                 ) $ Zip(aRows._0, bCols._0)
 
             )) $ Zip(Transpose() o Tile(tileSizeK, tileSizeN) $ B, aRows._1)

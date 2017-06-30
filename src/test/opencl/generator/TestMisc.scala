@@ -5,7 +5,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic.{?, ArithExpr, Cst, SizeVar}
 import opencl.executor._
-import opencl.generator.OpenCLGenerator._
+import opencl.generator.OpenCLAST.ArithExpression
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -39,7 +39,7 @@ class TestMisc {
     val N = SizeVar("N")
 
     val f = \(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       Scatter(reverse) o asScalar() o MapGlb(VectorizeUserFun(4, id)) o asVector(4) $ _
     )
 
@@ -58,7 +58,7 @@ class TestMisc {
     val N = SizeVar("N")
 
     val f = \(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       asScalar() o MapGlb(VectorizeUserFun(4, id)) o asVector(4) o Gather(reverse) $ _
     )
     val (output: Array[Float], _) = Execute(size)(f, input)
@@ -76,7 +76,7 @@ class TestMisc {
     val N = SizeVar("N")
 
     val f = \(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       Scatter(ReorderWithStride(32)) o asScalar() o
         MapGlb(VectorizeUserFun(4, id)) o asVector(4) $ _
     )
@@ -96,7 +96,7 @@ class TestMisc {
     val N = SizeVar("N")
 
     val f = \(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       asScalar() o MapGlb(VectorizeUserFun(4, id)) o
         asVector(4) o Gather(ReorderWithStride(32)) $ _
     )
@@ -114,7 +114,7 @@ class TestMisc {
     val a = 2.0f
 
     val f = \(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       Float,
       (input, a) =>
         asScalar() o MapGlb(\(b => VectorizeUserFun(4, mult)(a, b))) o
@@ -132,7 +132,7 @@ class TestMisc {
 
     val input = Array.fill(128)(util.Random.nextFloat())
 
-    val f = fun(ArrayType(Float, SizeVar("N")),
+    val f = fun(ArrayTypeWSWC(Float, SizeVar("N")),
       input => MapGlb(fun(a => add(a, a))) $ input
     )
 
@@ -154,7 +154,7 @@ class TestMisc {
     val iterCount = 100
 
     val f = fun(
-        ArrayType(Float, SizeVar("N")),
+        ArrayTypeWSWC(Float, SizeVar("N")),
         x => MapGlb(Iterate(iterCount)(MapSeq(incr))) o Split(inputSize) $ x
       )
 
@@ -173,7 +173,7 @@ class TestMisc {
     val incr = UserFun("incr", "x", "{ return x+1; }", Double, Double)
 
     val f = fun(
-      ArrayType(Double, SizeVar("N")),
+      ArrayTypeWSWC(Double, SizeVar("N")),
       in => MapGlb(incr) $ in
     )
 
@@ -190,7 +190,7 @@ class TestMisc {
     val neg = UserFun("neg", "x", "{ if (x) { return false; } else { return true; } }", Bool, Bool)
 
     val f = fun(
-      ArrayType(Bool, SizeVar("N")),
+      ArrayTypeWSWC(Bool, SizeVar("N")),
       in => MapGlb(neg) $ in
     )
 
@@ -205,7 +205,7 @@ class TestMisc {
     val gold = inputData.map(_+5)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (inArr) => {
         Join() o MapGlb(
           Iterate(5)(fun((e) => MapSeq(incr) $ e))
@@ -214,7 +214,7 @@ class TestMisc {
     )
 
     val f2 = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       (inArr) => {
         Iterate(5)(fun((arr) =>
           MapGlb(incr) $ arr
@@ -234,7 +234,7 @@ class TestMisc {
   def issue76(): Unit = {
     val f = \(
       Float,
-      ArrayType(Float, 32),
+      ArrayTypeWSWC(Float, 32),
       (const, arr) =>
         MapGlb(\(a => add(const, add(const, a)))) $ arr
     )
@@ -253,7 +253,7 @@ class TestMisc {
   def issue76_2(): Unit = {
     val f = \(
       Float,
-      ArrayType(Float, 32),
+      ArrayTypeWSWC(Float, 32),
       (const, arr) =>
         MapGlb(\(a => add(toGlobal(id) $ const, add(const, a)))) $ arr
     )
@@ -271,8 +271,8 @@ class TestMisc {
   @Test
   def issue76_3(): Unit = {
     val f = \(
-      ArrayType(Float, 32),
-      ArrayType(Float, 32),
+      ArrayTypeWSWC(Float, 32),
+      ArrayTypeWSWC(Float, 32),
       (arr1, arr2) =>
         MapGlb(\(a => MapSeq(\(b => add(toPrivate(id) $ b, add(a, b)))) $ arr2)) $ arr1
     )
@@ -288,8 +288,8 @@ class TestMisc {
   @Test
   def issue76_4(): Unit = {
     val f = \(
-      ArrayType(Float, 32),
-      ArrayType(Float, 32),
+      ArrayTypeWSWC(Float, 32),
+      ArrayTypeWSWC(Float, 32),
       (arr1, arr2) =>
         MapGlb(\(a => MapSeq(\(b => add(add(a, b), toPrivate(id) $ b))) $ arr2)) $ arr1
     )
@@ -307,7 +307,7 @@ class TestMisc {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val l = fun (
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       Float,
       (in, init) => {
         fun( x0 => Join()(MapWrg(
@@ -332,7 +332,7 @@ class TestMisc {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun (ArrayType(Float, SizeVar("N")),
+    val l = fun (ArrayTypeWSWC(Float, SizeVar("N")),
       in => {
         Join() o MapWrg(
           Join() o  MapLcl(
@@ -351,7 +351,7 @@ class TestMisc {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val l =
-      fun (ArrayType(Float, SizeVar("N")),
+      fun (ArrayTypeWSWC(Float, SizeVar("N")),
          in => {
            in :>>
            Split(128) :>>
@@ -374,7 +374,7 @@ class TestMisc {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val l =
-      fun (ArrayType(Float, SizeVar("N")),
+      fun (ArrayTypeWSWC(Float, SizeVar("N")),
           in => {
             Join() <<:
             MapWrg(
@@ -396,7 +396,7 @@ class TestMisc {
     val input = Array.tabulate(2, 4, 8)((r, c, z) => c * 2.0f + r * 8.0f + z * 1.0f)
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")), SizeVar("L")),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")), SizeVar("L")),
       input => MapWrg(
         fun( x0 => toGlobal(MapLcl(MapSeq(id)))(x0) ) o
           Transpose() o TransposeW() o
@@ -414,7 +414,7 @@ class TestMisc {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun(ArrayType(Float, SizeVar("N")),
+    val l = fun(ArrayTypeWSWC(Float, SizeVar("N")),
       in => {
         MapSeq(id o id) $ in
       })
@@ -429,7 +429,7 @@ class TestMisc {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun(ArrayType(Float, SizeVar("N")),
+    val l = fun(ArrayTypeWSWC(Float, SizeVar("N")),
       in => {
         in :>> ReduceSeq(add, toPrivate(add)(0.0f, 1.0f)) :>> toGlobal(MapSeq(id))
       })
@@ -444,7 +444,7 @@ class TestMisc {
     val inputSize = 8
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun(ArrayType(Float, Cst(inputSize)),
+    val l = fun(ArrayTypeWSWC(Float, Cst(inputSize)),
                 in => {
                   in :>>
                   asVector(4) :>>
@@ -463,7 +463,7 @@ class TestMisc {
     val inputSize = 8
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun(ArrayType(Float, Cst(inputSize)),
+    val l = fun(ArrayTypeWSWC(Float, Cst(inputSize)),
       in => {
         in :>>
           asVector(4) :>>
@@ -483,7 +483,7 @@ class TestMisc {
     val inputSize = 8
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val l = fun(ArrayType(Float, Cst(inputSize)),
+    val l = fun(ArrayTypeWSWC(Float, Cst(inputSize)),
       in => {
         in :>>
           asVector(4) :>>
@@ -518,7 +518,7 @@ class TestMisc {
 
     // Expression
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       (xs) => MapGlb(
         fun(x => fct(x))
       ) $ xs
@@ -539,7 +539,7 @@ class TestMisc {
     val N = SizeVar("N")
 
     val compFun = fun(
-        ArrayType(Float, N),
+        ArrayTypeWSWC(Float, N),
       (input) =>
         MapGlb(composition) $ input
     )
@@ -558,8 +558,8 @@ class TestMisc {
     val K = SizeVar("K")
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, K), N), N),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), N),
+      ArrayTypeWSWC(Float, N),
       (matrix, vector) => MapGlb(fun(r =>
         MapSeq(fun(t =>
           MapSeq(id) $ Get(t, 0)
@@ -579,8 +579,8 @@ class TestMisc {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (A, B) =>
         MapGlb(fun(tuple => MapSeq(plusOne) $ Get(tuple, 0))) o
         MapGlb(fun( tuple =>
@@ -599,34 +599,34 @@ class TestMisc {
 
   @Test def vectorType(): Unit = {
     val inputSize = 1024
-    val inputData = Array.tabulate(inputSize*4)(_.toFloat)
+    val inputData = Array.tabulate(inputSize, 4)((i, j) => (i * 4 + j).toFloat)
 
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float4, N),
+      ArrayTypeWSWC(Float4, N),
       (input) =>
         MapGlb(id.vectorize(4)) $ input
     )
 
     val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
-    assertArrayEquals(inputData, output, 0.0f)
+    assertArrayEquals(inputData.flatten, output, 0.0f)
   }
 
   @Test def vectorizePattern(): Unit = {
     val inputSize = 1024
-    val inputData = Array.tabulate(inputSize*4)(_.toFloat)
+    val inputData = Array.tabulate(inputSize, 4)((i, j) => (i * 4 + j).toFloat)
 
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float4, N),
+      ArrayTypeWSWC(Float4, N),
       (input) =>
         MapGlb(VectorizeUserFun(4, id)) $ input
     )
 
     val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
-    assertArrayEquals(inputData, output, 0.0f)
+    assertArrayEquals(inputData.flatten, output, 0.0f)
   }
 
   @Test def mapValueArg(): Unit = {
@@ -638,7 +638,7 @@ class TestMisc {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       (input) =>
         MapGlb(fun(x => add(x, 3.0f))) $ input
     )
@@ -655,7 +655,7 @@ class TestMisc {
     val gold   = matrix.map(- _.sum)
 
     val function = fun(
-      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")),
       (input) => MapGlb(toGlobal(MapSeq(neg)) o ReduceSeq(add, 0.0f)) $ input
     )
 
@@ -670,7 +670,7 @@ class TestMisc {
     val gold = inputData.map(_+1)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => asScalar() o MapGlb(plusOne.vectorize(4)) o asVector(4) $ in
     )
 
@@ -685,7 +685,7 @@ class TestMisc {
     val gold = inputData.map(_+1)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapGlb(plusOne) o asScalar() o asVector(4) $ in
     )
 
@@ -704,7 +704,7 @@ class TestMisc {
 
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (matrix) => Split(Msize) o MapGlb(0)(id) o Join() $ matrix
     )
 
@@ -725,7 +725,7 @@ class TestMisc {
 
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M), N),
       (matrix) => Split(Msize) o MapGlb(0)(MapSeq(id)) o Join() $ matrix
     )
 
@@ -746,7 +746,7 @@ class TestMisc {
 
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M), N),
       (matrix) => MapGlb(0)(Split(Ksize) o MapSeq(id) o Join()) $ matrix
     )
 
@@ -767,7 +767,7 @@ class TestMisc {
 
 
     val f = fun(
-      ArrayType(ArrayType(ArrayType(Float, K), M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M), N),
       (matrix) => Split(Msize) o Split(Ksize) o MapGlb(0)(id) o Join() o Join() $ matrix
     )
 
@@ -784,7 +784,7 @@ class TestMisc {
     val gold = input.map(_+(1*7))
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Iterate(7)(MapGlb(plusOne)) $ in
     )
 
@@ -804,8 +804,8 @@ class TestMisc {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
       (inA,inB) => Iterate(5)(fun( (va) =>
         fun( (vb) =>
           MapWrg(add) $ Zip(va,vb)
@@ -826,14 +826,14 @@ class TestMisc {
     val gold = input.map(_+1).map(_+1).map(_+1).map(_+1).map(_+1)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join() o MapWrg( toGlobal(MapLcl(id)) o
         Iterate(5)( MapLcl(plusOne)) o
         toLocal(MapLcl(id))) o Split(16) $ in
     )
 
     val f_nested = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => fun(x1 => Join()(MapWrg(
         fun(x2 =>
           fun(x3 =>
@@ -844,7 +844,7 @@ class TestMisc {
     )
 
     val f_nested2 = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join()(MapWrg(fun(x2 =>
         fun(x3 =>
           fun(x4 => toGlobal(MapLcl(id))(x4))(
@@ -854,7 +854,7 @@ class TestMisc {
     )
 
     val f_nested3 = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join()(MapWrg(fun(x2 =>
         fun(x4 => toGlobal(MapLcl(id))(x4))(
           Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(
@@ -863,7 +863,7 @@ class TestMisc {
       )
 
     val f_nested4 = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join()(MapWrg(fun(x2 =>
         toGlobal(MapLcl(id))(
           Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(
@@ -872,7 +872,7 @@ class TestMisc {
     )
 
     val f_full = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Join()(MapWrg(fun(x0 =>
         toGlobal(MapLcl(id))(
           Iterate(5)(fun(x1 => MapLcl(plusOne)(x1)))(
@@ -908,8 +908,8 @@ class TestMisc {
     val M = SizeVar("M")
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), N),
-      ArrayType(ArrayType(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (X, Y) =>
         MapGlb(
           MapSeq(
@@ -925,7 +925,7 @@ class TestMisc {
   @Test def localMemoryRegression(): Unit = {
     val f =
       fun(
-        ArrayType(Float, SizeVar("N")),
+        ArrayTypeWSWC(Float, SizeVar("N")),
         x => Join() o MapWrg(
           Join() o MapLcl(
             Join() o MapSeq(
@@ -960,9 +960,9 @@ class TestMisc {
       val id = UserFun("id", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
       val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
       fun(
-        ArrayType(ArrayType(Float, v_M0_0), v_N1_1),
-        ArrayType(Float, v_M0_0),
-        ArrayType(Float, v_N1_1),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M0_0), v_N1_1),
+        ArrayTypeWSWC(Float, v_M0_0),
+        ArrayTypeWSWC(Float, v_N1_1),
         Float,
         Float,
         (p_0, p_1, p_2, p_3, p_4) =>
@@ -1039,7 +1039,7 @@ class TestMisc {
   def initFromValue(): Unit = {
     val f = Lambda( Array(),
       toGlobal(MapGlb(id))
-        $ Value(1.0f, ArrayType(Float, Cst(128)))
+        $ Value(1.0f, ArrayTypeWSWC(Float, Cst(128)))
     )
 
     val (output: Array[Float], _) = Execute(128)(f)
@@ -1052,7 +1052,7 @@ class TestMisc {
   def initFromVectorValue(): Unit = {
     val f = Lambda( Array(),
       toGlobal(MapGlb(VectorizeUserFun(4, id)))
-        $ Value(1.0f, ArrayType(Float4, Cst(128/4)))
+        $ Value(1.0f, ArrayTypeWSWC(Float4, Cst(128/4)))
     )
 
     val (output: Array[Float], _) = Execute(128)(f)
@@ -1066,7 +1066,7 @@ class TestMisc {
   def initFromValueAsVector(): Unit = {
     val f = Lambda( Array(),
       toGlobal(MapGlb(VectorizeUserFun(4, id)))
-        o asVector(4) $ Value(1.0f, ArrayType(Float, Cst(128)))
+        o asVector(4) $ Value(1.0f, ArrayTypeWSWC(Float, Cst(128)))
     )
 
     val (output: Array[Float], _) = Execute(128)(f)
@@ -1087,18 +1087,188 @@ class TestMisc {
     val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
     val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
     val expr = fun(
-        ArrayType(ArrayType(Float, v_K0_0), v_M1_1),
-        ArrayType(ArrayType(Float, v_N2_2), v_K0_0),
-        (p_0, p_1) => FunCall(Join(), FunCall(MapWrg(0)(fun((p_2) => FunCall(TransposeW(), FunCall(MapWrg(1)(fun((p_3) => FunCall(TransposeW(), FunCall(toGlobal(fun((p_4) => FunCall(MapSeq(fun((p_5) => FunCall(MapLcl(0)(fun((p_6) => FunCall(id, p_6))), p_5))), p_4))), FunCall(MapSeq(fun((p_7) => p_7)), FunCall(ReduceSeq(fun((p_8, p_9) => FunCall(fun((p_10) => FunCall(MapLcl(0)(fun((p_11) => FunCall(add, FunCall(Get(0), p_11), FunCall(mult, FunCall(Get(1), p_11), FunCall(Get(1), p_10))))), FunCall(toLocal(fun((p_12) => FunCall(MapLcl(0)(fun((p_13) => FunCall(Tuple(2), FunCall(id, FunCall(Get(0), p_13)), FunCall(id, FunCall(Get(1), p_13))))), p_12))), FunCall(Zip(2), p_8, FunCall(Get(0), p_10))))), p_9))), FunCall(MapLcl(0)(fun((p_14) => FunCall(id, p_14))), FunCall(toLocal(fun((p_15) => FunCall(asScalar(), FunCall(MapLcl(0)(fun((p_16) => FunCall(VectorizeUserFun(4,id), p_16))), FunCall(asVector(4), p_15))))), Value("0.0f", ArrayType(Float, v_3_3)))), FunCall(Zip(2), FunCall(Transpose(), p_2), p_3))))))), FunCall(Transpose(), p_1))))), FunCall(Split(v_3_3), p_0))))
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_K0_0), v_M1_1),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N2_2), v_K0_0),
+        (p_0, p_1) => FunCall(Join(), FunCall(MapWrg(0)(fun((p_2) => FunCall(TransposeW(), FunCall(MapWrg(1)(fun((p_3) => FunCall(TransposeW(), FunCall(toGlobal(fun((p_4) => FunCall(MapSeq(fun((p_5) => FunCall(MapLcl(0)(fun((p_6) => FunCall(id, p_6))), p_5))), p_4))), FunCall(MapSeq(fun((p_7) => p_7)), FunCall(ReduceSeq(fun((p_8, p_9) => FunCall(fun((p_10) => FunCall(MapLcl(0)(fun((p_11) => FunCall(add, FunCall(Get(0), p_11), FunCall(mult, FunCall(Get(1), p_11), FunCall(Get(1), p_10))))), FunCall(toLocal(fun((p_12) => FunCall(MapLcl(0)(fun((p_13) => FunCall(Tuple(2), FunCall(id, FunCall(Get(0), p_13)), FunCall(id, FunCall(Get(1), p_13))))), p_12))), FunCall(Zip(2), p_8, FunCall(Get(0), p_10))))), p_9))), FunCall(MapLcl(0)(fun((p_14) => FunCall(id, p_14))), FunCall(toLocal(fun((p_15) => FunCall(asScalar(), FunCall(MapLcl(0)(fun((p_16) => FunCall(VectorizeUserFun(4,id), p_16))), FunCall(asVector(4), p_15))))), Value("0.0f", ArrayTypeWSWC(Float, v_3_3)))), FunCall(Zip(2), FunCall(Transpose(), p_2), p_3))))))), FunCall(Transpose(), p_1))))), FunCall(Split(v_3_3), p_0))))
 
     println(expr)
 
-    var local: NDRange = Array(128, 1, 1)
-    var global: NDRange = Array(?, ?, ?)
+    var local: NDRange = NDRange(128, 1, 1)
+    var global: NDRange = NDRange(?, ?, ?)
     InferNDRange(expr) match { case (l, g) => local = l; global = g }
     val valueMap = ParameterRewrite.createValueMap(expr)
 
     val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
     OpenCLGenerator.generate(expr, local, globalSubstituted, valueMap)
+  }
+  
+  @Test def issue104(): Unit = {
+    val size = 128
+    val N = SizeVar("N")
+    val input = Array.fill(size, 4)(util.Random.nextInt(5))
+  
+    val flatten = UserFun(
+      "flatten", "t",
+      "Tuple1 t2 = {t._0._0, t._0._1, t._0._2, t._1}; return t2;",
+      TupleType(TupleType(Int, Int, Int), Int), TupleType(Int, Int, Int, Int)
+    )
+  
+    val reshape2 = UserFun(
+      "reshape2", "x",
+      "Tuple1 t = {{x._0._0, x._0._1, x._1}, x._2}; return t;",
+      TupleType(TupleType(Int, Int), Int, Int),
+      TupleType(TupleType(Int, Int, Int), Int)
+    )
+  
+    val reshape1 = UserFun(
+      "reshape1", Array("a", "b", "c", "d"),
+      "Tuple t = {{a, b}, c, d}; return t;",
+      Seq(Int, Int, Int, Int), TupleType(TupleType(Int, Int), Int, Int)
+    )
+  
+    val expr = fun(
+      ArrayTypeWSWC(TupleType(Int, Int, Int, Int), N),
+      arr => MapGlb(toGlobal(flatten) o reshape2 o reshape1) $ arr
+    )
+  
+    val (output: Array[Int], _) = Execute(size)(expr, input.flatten)
+    assertArrayEquals(input.flatten, output)
+  }
+
+  @Test
+  def arrayFromValue(): Unit = {
+
+    val input = Array.fill(128)(util.Random.nextFloat())
+
+    val at = ArrayTypeWSWC(Float, SizeVar("N"))
+
+    val f = fun(at,
+      input => MapGlb(add) $ Zip(input, ArrayFromValue(1, at))
+    )
+
+    val (output: Array[Float], _) = Execute(input.length)(f, input)
+
+    val gold = (input, Array.fill(input.length)(1)).zipped.map(_+_)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
+  @Test
+  def arrayFromGenerator(): Unit = {
+
+    val input = Array.fill(128)(util.Random.nextFloat())
+
+    val at = ArrayTypeWSWC(Float, SizeVar("N"))
+
+    val f = fun(at,
+      input => MapGlb(add) $ Zip(input, ArrayFromGenerator( (i, _) => ArithExpression(i), at))
+    )
+
+    val (output: Array[Float], _) = Execute(input.length)(f, input)
+
+    val gold = (input, Array.tabulate(input.length)( i => i )).zipped.map(_+_)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
+  @Test
+  def arrayFromUserFunGenerator(): Unit = {
+
+    val input = Array.fill(128)(util.Random.nextFloat())
+
+    val at = ArrayTypeWSWC(Float, SizeVar("N"))
+
+    val idxF = UserFun("idxF", Array("i", "n"), "{ return i; }", Seq(Int, Int), Int)
+
+    val f = fun(at,
+      input => MapGlb(add) $ Zip(input, ArrayFromUserFunGenerator(idxF, at))
+    )
+
+    val (output: Array[Float], _) = Execute(input.length)(f, input)
+
+    val gold = (input, Array.tabulate(input.length)( i => i )).zipped.map(_+_)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
+  @Test
+  def arrayFromUserFunGenerator2(): Unit = {
+
+    val input = Array.fill(128)(util.Random.nextInt())
+
+    val at = ArrayTypeWSWC(Int, SizeVar("N"))
+
+    val idxF = UserFun("idxF", Array("i", "n"), "{ return i; }", Seq(Int, Int), Int)
+
+    val f = fun(at,
+      input =>
+        ArrayFromUserFunGenerator(idxF, at) :>>
+          Split(64) :>>
+            toGlobal(MapGlb(MapSeq(idI)))
+    )
+
+    val (output: Array[Int], _) = Execute(input.length)(f, input)
+
+    val gold = Array.tabulate(input.length)( i => i )
+
+    assertArrayEquals(gold, output)
+  }
+
+  @Test
+  def arrayFromUserFunGenerator2D(): Unit = {
+    val m = 128
+    val n = 8
+
+    val input = Array.fill(m, n)(util.Random.nextInt())
+
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+
+    val at = ArrayTypeWSWC(ArrayTypeWSWC(Int, N), M)
+
+    val idxF = UserFun("idxF", Array("i", "j", "m", "n"), "{ return i+j; }",
+      Seq(Int, Int, Int, Int), Int)
+
+    val f = fun(ArrayTypeWSWC(ArrayTypeWSWC(Int, N), M),
+      input =>
+        Array2DFromUserFunGenerator(idxF, at) :>>
+          toGlobal(MapGlb(MapSeq(idI)))
+    )
+
+    val (output: Array[Int], _) = Execute(input.length)(f, input)
+
+    val gold = Array.tabulate(m, n)( (i, j) => i+j ).flatten
+
+    assertArrayEquals(gold, output)
+  }
+
+  @Test
+  def arrayFromUserFunGenerator3D(): Unit = {
+    val m = 128
+    val n = 8
+    val o = 4
+
+    val input = Array.fill(m, n, o)(util.Random.nextInt())
+
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+    val O = SizeVar("O")
+
+    val at = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, O), N), M)
+
+    val idxF = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ return i+j+k; }",
+      Seq(Int, Int, Int, Int, Int, Int), Int)
+
+    val f = fun(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, O), N), M),
+      input =>
+        Array3DFromUserFunGenerator(idxF, at) :>>
+          toGlobal(MapGlb(MapSeq(MapSeq(idI))))
+    )
+
+    val (output: Array[Int], _) = Execute(input.length)(f, input)
+
+    val gold = Array.tabulate(m, n, o)( (i, j, k) => i+j+k ).flatten.flatten
+
+    assertArrayEquals(gold, output)
   }
 }

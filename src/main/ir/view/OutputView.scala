@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.ReduceWhileSeq
+import opencl.ir.pattern.{ReduceWhileSeq, SlideSeqPlus, FilterSeq}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
@@ -26,13 +26,13 @@ object OutputView {
 
   private def visitAndBuildViews(expr: Expr, writeView: View): View = {
     expr match {
-      case p: Param =>
-
-        if (p.outputView == NoView)
-          p.outputView = writeView
-
-        p.outputView
       case call: FunCall => buildViewFunCall(call, writeView)
+      case e: Expr=>
+
+        if (e.outputView == NoView)
+          e.outputView = writeView
+
+        e.outputView
     }
   }
 
@@ -40,7 +40,9 @@ object OutputView {
     // first handle body
     val result = call.f match {
       case m: AbstractMap => buildViewMap(m, call, writeView)
+      case f: FilterSeq => buildViewFilter(f,  call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
+      case sp: SlideSeqPlus => buildViewSlideSeqPlus(sp, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
@@ -60,7 +62,12 @@ object OutputView {
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
-      case _ => writeView
+      case _: ArrayAccess | _: UnsafeArrayAccess =>
+        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
+      case PrintType() | Get(_) | _: Tuple | Gather(_) | Filter() |
+           Pad(_, _, _) =>
+        writeView
+      case dunno => throw new NotImplementedError(s"OutputView.scala: $dunno")
     }
 
     // then handle arguments
@@ -192,7 +199,19 @@ object OutputView {
     visitAndBuildViews(m.f.body, writeView.access(m.loopVar))
     ViewMap(m.f.params.head.outputView, m.loopVar, call.args.head.t)
   }
-
+  
+  private def buildViewFilter(f: FilterSeq, call: FunCall,
+                              writeView: View): View = {
+    // Output of the predicate is never stored in a variable
+    visitAndBuildViews(f.f.body, writeView.access(Cst(0)))
+    val outDepth = getAccessDepth(f.f.body.accessInf, f.f.body.mem)
+    f.f.body.outputView = View.initialiseNewView(f.f.body.t, outDepth)
+    
+    // Write at the "top" of the output array
+    visitAndBuildViews(f.copyFun.body, writeView.access(f.loopWrite))
+    ViewMap(f.copyFun.body.outputView, f.loopWrite, call.args.head.t)
+  }
+  
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, writeView: View): View = {
     // traverse into call.f
@@ -207,6 +226,13 @@ object OutputView {
 
     ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }
+
+  private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
+                                    call: FunCall, writeView: View): View = {
+    visitAndBuildViews(sp.f.body, writeView.access(sp.loopVar))
+    ViewMap(sp.f.params.head.outputView, sp.loopVar, call.args.head.t)
+  }
+
 
   private def buildViewSearch(s: AbstractSearch,
                               call:FunCall, writeView:View) :View = {
@@ -224,7 +250,7 @@ object OutputView {
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {
     call.argsType match {
-      case ArrayType(ArrayType(_, chunkSize), _) => writeView.split(chunkSize)
+      case ArrayType(ArrayTypeWS(_, chunkSize)) => writeView.split(chunkSize)
       case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + call.argsType)
     }
   }
@@ -239,31 +265,31 @@ object OutputView {
 
   private def buildViewAsScalar(call: FunCall, writeView: View): View = {
     call.args.head.t match {
-      case ArrayType(VectorType(_, n), _) => writeView.asVector(n)
+      case ArrayType(VectorType(_, n)) => writeView.asVector(n)
       case _ => throw new IllegalArgumentException("PANIC, expected array of vectors, found " + call.argsType)
     }
   }
 
   private def buildViewTransposeW(tw: TransposeW, call: FunCall, writeView: View): View = {
     call.t match {
-      case ArrayType(ArrayType(typ, m), n) =>
+      case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
         writeView.
           join(m).
-          reorder((i:ArithExpr) => { transpose(i, ArrayType(ArrayType(typ, n), m)) }).
+          reorder((i:ArithExpr) => { transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(typ, n), m)) }).
           split(n)
-      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_, _) =>
-        throw new TypeException(call.t, "Array")
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
+        throw new TypeException(call.t, "Array", call.f)
     }
   }
 
   private def buildViewTranspose(t: Transpose, call: FunCall, writeView: View): View = {
     call.t match {
-      case ArrayType(ArrayType(_, m), n) =>
+      case ArrayTypeWS(ArrayTypeWS(_, m), n) =>
         writeView.
           join(m).
           split(n)
-      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_, _) =>
-        throw new TypeException(call.t, "Array")
+      case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
+        throw new TypeException(call.t, "Array", call.f)
     }
   }
 

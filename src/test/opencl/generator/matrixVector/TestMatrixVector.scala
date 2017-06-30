@@ -1,9 +1,9 @@
 package opencl.generator.matrixVector
 
-import lift.arithmetic.{ArithExpr, Log, SizeVar}
 import benchmarks.MatrixVector
 import ir._
 import ir.ast._
+import lift.arithmetic.{ArithExpr, Log, SizeVar}
 import opencl.executor._
 import opencl.generator.AllocateLocalMemoryStatically
 import opencl.ir._
@@ -37,7 +37,7 @@ class TestMatrixVector {
       val id = UserFun("id", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
       val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
       val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
-      fun(ArrayType(ArrayType(Float, v_M0_0), v_N1_1), ArrayType(Float, v_M0_0), ArrayType(Float, v_N1_1), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(MapWrg(0)(fun((p_5) => FunCall(toGlobal(fun((p_6) => FunCall(MapLcl(0)(fun((p_7) => FunCall(add, FunCall(mult, p_7, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), p_6))), FunCall(MapSeq(fun((p_8) => FunCall(toLocal(fun((p_9) => FunCall(id, p_9))), p_8))), FunCall(ReduceSeq(fun((p_10, p_11) => FunCall(add, p_10, p_11))), FunCall(id, Value("0.0f", Float)), FunCall(Join(), FunCall(MapLcl(0)(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(toLocal(fun((p_14) => FunCall(id, p_14))), p_13))), FunCall(ReduceSeq(fun((p_15, p_16) => FunCall(fun((p_17) => FunCall(add, p_15, FunCall(mult, FunCall(Get(0), p_17), FunCall(Get(1), p_17)))), p_16))), FunCall(id, Value("0.0f", Float)), p_12)))), FunCall(Split(v_M0_0 * 1 /^ v_2_2), FunCall(Gather(ReorderWithStride(v_2_2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5))))))))))), FunCall(Zip(2), p_0, p_2)))
+      fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M0_0), v_N1_1), ArrayTypeWSWC(Float, v_M0_0), ArrayTypeWSWC(Float, v_N1_1), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(MapWrg(0)(fun((p_5) => FunCall(toGlobal(fun((p_6) => FunCall(MapLcl(0)(fun((p_7) => FunCall(add, FunCall(mult, p_7, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), p_6))), FunCall(MapSeq(fun((p_8) => FunCall(toLocal(fun((p_9) => FunCall(id, p_9))), p_8))), FunCall(ReduceSeq(fun((p_10, p_11) => FunCall(add, p_10, p_11))), FunCall(id, Value("0.0f", Float)), FunCall(Join(), FunCall(MapLcl(0)(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(toLocal(fun((p_14) => FunCall(id, p_14))), p_13))), FunCall(ReduceSeq(fun((p_15, p_16) => FunCall(fun((p_17) => FunCall(add, p_15, FunCall(mult, FunCall(Get(0), p_17), FunCall(Get(1), p_17)))), p_16))), FunCall(id, Value("0.0f", Float)), p_12)))), FunCall(Split(v_M0_0 * 1 /^ v_2_2), FunCall(Gather(ReorderWithStride(v_2_2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5))))))))))), FunCall(Zip(2), p_0, p_2)))
     }
 
     val M = SizeVar("M")
@@ -61,7 +61,7 @@ class TestMatrixVector {
       val id = UserFun("id", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
       val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
       val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
-      fun(ArrayType(ArrayType(Float, v_M0_0), v_N1_1), ArrayType(Float, v_M0_0), ArrayType(Float, v_N1_1), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(MapWrg(0)(fun((p_5) => FunCall(toGlobal(fun((p_6) => FunCall(MapLcl(0)(fun((p_7) => FunCall(add, FunCall(mult, p_7, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), p_6))), FunCall(MapSeq(fun((p_8) => FunCall(toLocal(fun((p_9) => FunCall(id, p_9))), p_8))), FunCall(ReduceSeq(fun((p_10, p_11) => FunCall(add, p_10, p_11))), FunCall(id, Value("0.0f", Float)), FunCall(Join(), FunCall(MapLcl(0)(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(toLocal(fun((p_14) => FunCall(id, p_14))), p_13))), FunCall(ReduceSeq(fun((p_15, p_16) => FunCall(fun((p_17) => FunCall(add, p_15, FunCall(mult, FunCall(Get(0), p_17), FunCall(Get(1), p_17)))), FunCall(toPrivate(fun((p_18) => FunCall(fun((p_19) => FunCall(Tuple(2), FunCall(id, FunCall(Get(0), p_19)), FunCall(id, FunCall(Get(1), p_19)))), p_18))), p_16)))), FunCall(id, Value("0.0f", Float)), p_12)))), FunCall(Split(v_M0_0 * 1 /^ v_2_2), FunCall(Gather(ReorderWithStride(v_2_2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5))))))))))), FunCall(Zip(2), p_0, p_2)))
+      fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M0_0), v_N1_1), ArrayTypeWSWC(Float, v_M0_0), ArrayTypeWSWC(Float, v_N1_1), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(MapWrg(0)(fun((p_5) => FunCall(toGlobal(fun((p_6) => FunCall(MapLcl(0)(fun((p_7) => FunCall(add, FunCall(mult, p_7, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), p_6))), FunCall(MapSeq(fun((p_8) => FunCall(toLocal(fun((p_9) => FunCall(id, p_9))), p_8))), FunCall(ReduceSeq(fun((p_10, p_11) => FunCall(add, p_10, p_11))), FunCall(id, Value("0.0f", Float)), FunCall(Join(), FunCall(MapLcl(0)(fun((p_12) => FunCall(MapSeq(fun((p_13) => FunCall(toLocal(fun((p_14) => FunCall(id, p_14))), p_13))), FunCall(ReduceSeq(fun((p_15, p_16) => FunCall(fun((p_17) => FunCall(add, p_15, FunCall(mult, FunCall(Get(0), p_17), FunCall(Get(1), p_17)))), FunCall(toPrivate(fun((p_18) => FunCall(fun((p_19) => FunCall(Tuple(2), FunCall(id, FunCall(Get(0), p_19)), FunCall(id, FunCall(Get(1), p_19)))), p_18))), p_16)))), FunCall(id, Value("0.0f", Float)), p_12)))), FunCall(Split(v_M0_0 * 1 /^ v_2_2), FunCall(Gather(ReorderWithStride(v_2_2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5))))))))))), FunCall(Zip(2), p_0, p_2)))
     }
 
     val M = SizeVar("M")
@@ -80,8 +80,8 @@ class TestMatrixVector {
     val vector = Array.fill(inputSize)(2.0f)
 
     val f = fun(
-      ArrayType(ArrayType(Float, 1024), 1024),
-      ArrayType(Float, 1024),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1024), 1024),
+      ArrayTypeWSWC(Float, 1024),
       (matrix, vector) => {
         Join() o MapWrg(
            MapLcl( fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(vector, r) ) )
@@ -109,8 +109,8 @@ class TestMatrixVector {
     val vector = Array.fill(inputSize)(2.0f)
 
     val f = fun(
-      ArrayType(ArrayType(Float, 1024), 1024),
-      ArrayType(Float, 1024),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1024), 1024),
+      ArrayTypeWSWC(Float, 1024),
       (matrix, vector) => {
         MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -136,8 +136,8 @@ class TestMatrixVector {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), SizeVar("M")),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), SizeVar("M")),
+      ArrayTypeWSWC(Float, N),
       (matrix, vector) => {
         Join() o MapWrg(
            MapLcl( fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(vector, r) ) )
@@ -162,8 +162,8 @@ class TestMatrixVector {
     val N = SizeVar("N")
     val M = SizeVar("M")
     val f = fun(
-      ArrayType(ArrayType(Float, N), M),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+      ArrayTypeWSWC(Float, N),
       (matrix, vector) => {
         MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -190,8 +190,8 @@ class TestMatrixVector {
     val N = SizeVar("N")
     val M = SizeVar("M")
     val f = fun(
-      ArrayType(ArrayType(Float, N), M),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+      ArrayTypeWSWC(Float, N),
       (matrix, vector) => {
         MapWrg(
           Join() o
@@ -224,8 +224,8 @@ class TestMatrixVector {
     val N = SizeVar("N")
     val M = SizeVar("M")
     val f1 = fun(
-      ArrayType(ArrayType(Float, N), M),
-      ArrayType(Float, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+      ArrayTypeWSWC(Float, N),
       Float,
       (matrix, vectorX, alpha) => {
         MapWrg(
@@ -244,8 +244,8 @@ class TestMatrixVector {
     assertArrayEquals(Utils.matrixVector(matrix, vectorX, alpha), firstOutput, 0.0f)
 
     val f2 = fun(
-      ArrayType(Float, M),
-      ArrayType(Float, M),
+      ArrayTypeWSWC(Float, M),
+      ArrayTypeWSWC(Float, M),
       Float,
       (tmp, vectorY, beta) => {
         Join() o Join() o MapWrg(
@@ -268,7 +268,7 @@ class TestMatrixVector {
     val inputSize = 4096
     val matrix = Array.tabulate(inputSize, inputSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 0.1f)
     val vectorX = Array.tabulate(inputSize)(i => ((i % 10) + 1) * 2.0f)
-    val vectorY = Array.tabulate(inputSize)(i => Array(((i*3 % 10) + 1) + 1.5f))
+    val vectorY = Array.tabulate(inputSize)(i => ((i*3 % 10) + 1) + 1.5f)
     val alpha = 2.5f
     val beta = 1.5f
 
@@ -281,7 +281,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY.flatten, alpha, beta), output,0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta), output,0.0f)
   }
 
   @Test def FULL_MATRIX_VECTOR_FUSED_OPENCL_AMD(): Unit = {
@@ -289,7 +289,7 @@ class TestMatrixVector {
     val inputSize = 4096
     val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
     val vectorX = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-    val vectorY = Array.fill(inputSize)(Array(util.Random.nextInt(5).toFloat))
+    val vectorY = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val alpha = 2.5f
     val beta = 1.5f
 
@@ -302,7 +302,7 @@ class TestMatrixVector {
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
 
-    assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY.flatten, alpha, beta), output,0.0f)
+    assertArrayEquals(Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta), output,0.0f)
   }
 
   @Test def FULL_MATRIX_VECTOR_FUSED(): Unit = {
@@ -315,9 +315,9 @@ class TestMatrixVector {
     val N = SizeVar("N")
     val M = SizeVar("M")
     val f = fun(
-      ArrayType(ArrayType(Float, N), M),
-      ArrayType(Float, N),
-      ArrayType(ArrayType(Float, 1), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 1), M),
       (matrix, vectorX, vectorY) => {
         MapWrg(
           Join() o  MapLcl(MapSeq(add)) o Split(1) o

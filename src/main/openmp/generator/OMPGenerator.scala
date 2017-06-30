@@ -87,9 +87,12 @@ object OMPGenerator extends CGenerator{
       val iterationCount = try {
         indexVar.range.numVals.eval
       } catch {
-        case NotEvaluableException =>
+        case NotEvaluableException() =>
           throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
             "could not be determined statically.")
+        case NotEvaluableToIntException() =>
+          throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count " +
+            "is bigger than scala.Int.MaxValue.")
       }
 
       if (iterationCount > 0) {

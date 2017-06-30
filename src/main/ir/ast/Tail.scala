@@ -2,7 +2,7 @@ package ir.ast
 
 import lift.arithmetic.Cst
 import ir.interpreter.Interpreter.ValueMap
-import ir.{ArrayType, Type, TypeException, UndefType}
+import ir._
 
 /**
  * Tail pattern.
@@ -19,13 +19,13 @@ case class Tail() extends Pattern(arity = 1) with isGenerable {
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case ArrayType(t, Cst(1)) =>
+      case ArrayTypeWS(t, Cst(1)) =>
         // TODO: think about this ... throw exception instead?
-        ArrayType(t, 1)
+        ArrayTypeWSWC(t, 1)
 
-      case ArrayType(t, n) => ArrayType(t, n - 1)
+      case ArrayTypeWSWC(t, s, c) => ArrayTypeWSWC(t, s - 1, c-1)
 
-      case _ => throw new TypeException(argType, "ArrayType")
+      case _ => throw new TypeException(argType, "ArrayType", this)
     }
   }
 

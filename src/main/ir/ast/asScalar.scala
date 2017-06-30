@@ -23,11 +23,11 @@ case class asScalar() extends Pattern(arity = 1) with isGenerable {
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case at@ArrayType(VectorType(_, _), _) => Type.asScalarType(at)
-      case _ => throw new TypeException(argType, "ArrayType(VectorType(_, _), _)")
+      case at@ArrayTypeWSWC(VectorType(_, _),_,_) => Type.asScalarType(at)
+      case _ =>
+        throw new TypeException(argType, "ArrayType(VectorType(_, _), _)", this)
     }
   }
-
 
   override def eval(valueMap: ValueMap, args: Any*): Any =
     Join().eval(valueMap, args:_*)

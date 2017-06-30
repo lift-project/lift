@@ -13,14 +13,14 @@ case class ReduceWhileSeq(override val f: Lambda, p: Lambda)
   override def checkType(argType: Type, setType: Boolean): Type =  {
     // TODO: Duplication with AbstractPartRed. ReduceWhileSeq is somewhat less strict.
     argType match {
-      case TupleType(initT, ArrayType(elemT, _)) =>
+      case TupleType(initT, ArrayType(elemT)) =>
         f.params(0).t = initT // initial elem type
         f.params(1).t = elemT // array element type
 
         val bodyType = TypeChecker.check(f.body, setType) // check the body
 
         if (bodyType != initT)
-          throw TypeException(s"ReduceWhileSeq operator returns $bodyType instead of the expected $initT")
+          throw new TypeException(bodyType, initT, this)
 
         p.params(0).t = initT
         p.params(1).t = elemT
@@ -28,11 +28,11 @@ case class ReduceWhileSeq(override val f: Lambda, p: Lambda)
         val predType = TypeChecker.check(p.body, setType)
 
         if (predType != opencl.ir.Int)
-        	throw TypeException(s"ReduceWhileSeq predicate returns $predType instead of the expected Int")
+        	throw new TypeException(predType, opencl.ir.Int, this)
 
-        ArrayType(initT, 1)
+        ArrayTypeWSWC(initT, 1)
 
-      case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))")
+      case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))", this)
     }
   }
 

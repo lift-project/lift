@@ -1,0 +1,7 @@
+val div9 = UserFun("div9", "x", "{ return x/9; }", Int, Int)
+fun(
+    ArrayType(ArrayType(Int, 6408), 4802),
+    input => {
+        Map(Map( \(neighborhood => Map(div9) o Reduce(addI, 0) o Join() $ neighborhood)
+			)) o Slide2D(3, 1) $ input
+})

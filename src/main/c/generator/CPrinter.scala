@@ -1,6 +1,7 @@
 package c.generator
 
 import lift.arithmetic._
+import lift.arithmetic.NotEvaluableToIntException._
 import ir._
 import ir.view.AccessVar
 import opencl.generator._
@@ -29,7 +30,7 @@ class CPrinter {
 
   def toString(t: Type, seenArray: Boolean = false) : String = {
     t match {
-      case ArrayType(elemT, _) =>
+      case ArrayType(elemT) =>
         val s = toString(elemT, seenArray=true)
         if (!seenArray) s + "*" else s
       case VectorType(elemT, len) => toString(elemT, seenArray) + toString(len)
@@ -55,7 +56,7 @@ class CPrinter {
       case Sum(es) => "(" + es.map(toString).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toString(a) + " % " + toString(n) + ")"
       case of: OclFunction => of.toOCLString
-      case ai: AccessVar => ai.array + "[" + toString(ai.idx) + "]"
+      case ai: AccessVar => ai.array + "[" + toString(ai.idx.content) + "]"
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
       case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"
@@ -166,7 +167,7 @@ class CPrinter {
 
   private def print(c: CondExpression): Unit = {
       print(c.lhs)
-      print(c.cond.toString)
+      print(s" ${c.cond.toString} ")
       print(c.rhs)
   }
 
@@ -289,7 +290,7 @@ class CPrinter {
 
   private def print(es: ExpressionStatement): Unit = {
     print(es.e)
-    print(";")
+    print("; ")
   }
 
 
@@ -300,7 +301,7 @@ class CPrinter {
   }
 
   private def print(p: ParamDecl): Unit = p.t match {
-    case ArrayType(_,_) =>
+    case ArrayType(_) =>
       // Const restricted pointers to read-only global memory. See issue #2.
       val (const, restrict) = if (p.const) ("const ", "restrict ") else ("","")
       //Cut out the address space, which is not used in plain C
@@ -316,7 +317,8 @@ class CPrinter {
     case a: ArrayType =>
       vd.addressSpace match {
         case PrivateMemory =>
-          for (i <- 0 until vd.length)
+          if(vd.length > scala.Int.MaxValue) throw NotEvaluableToInt
+          for (i <- 0 until vd.length.toInt)
             println(toString(Type.getValueType(vd.t)) + " " + toString(vd.v) + "_" +
                     toString(i) + ";")
 
@@ -332,7 +334,7 @@ class CPrinter {
             print(s" = ")
             print(vd.init)
           }
-          print(";")
+          print("; ")
       }
 
     case x =>
@@ -350,7 +352,7 @@ class CPrinter {
         print(s" = ")
         print(vd.init)
       }
-      print(";")
+      print("; ")
   }
 
   /**
@@ -375,7 +377,7 @@ class CPrinter {
     print(fl.init)
     print(fl.cond)
     print(fl.increment)
-    print(")")
+    print(") ")
     print(fl.body)
   }
 
@@ -397,15 +399,15 @@ class CPrinter {
     * @param s a [[IfThenElse]] node
     */
   private def print(s: CAst.IfThenElse): Unit = {
-    print("if(")
+    print("if (")
     print(s.cond)
-    println(")")
+    print(") ")
 
     print(s.trueBody)
 
     if(s.falseBody != Block())
     {
-      println("else")
+      print(" else ")
       print(s.falseBody)
     }
   }

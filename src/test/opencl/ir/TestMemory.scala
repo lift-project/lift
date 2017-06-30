@@ -1,8 +1,8 @@
 package opencl.ir
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.generator.IllegalKernel
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -14,10 +14,10 @@ class TestMemory {
   def zipInsideToLocalAllocation(): Unit = {
     val N = SizeVar("N")
 
-    val arrayType = ArrayType(Float, N)
+    val arrayType = ArrayTypeWSWC(Float, N)
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (A, B) =>
         MapWrg(fun( tuple =>
           toLocal(MapLcl(fun( tuple =>
@@ -42,15 +42,15 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(LocalMemory, subMemories(0).addressSpace)
     assertEquals(LocalMemory, subMemories(1).addressSpace)
-    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(0).size)
-    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(1).size)
+    assertEquals(Type.getAllocatedSize(arrayType), subMemories(0).size)
+    assertEquals(Type.getAllocatedSize(arrayType), subMemories(1).size)
   }
 
   @Test
   def zipInsideToGlobalAllocation(): Unit = {
     val N = SizeVar("N")
 
-    val arrayType = ArrayType(ArrayType(Float, N), N)
+    val arrayType = ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N)
     val f = fun(
       arrayType,
       arrayType,
@@ -78,15 +78,15 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(GlobalMemory, subMemories(0).addressSpace)
     assertEquals(GlobalMemory, subMemories(1).addressSpace)
-    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(0).size)
-    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(1).size)
+    assertEquals(Type.getAllocatedSize(arrayType), subMemories(0).size)
+    assertEquals(Type.getAllocatedSize(arrayType), subMemories(1).size)
   }
 
   @Test
   def zipAllocation(): Unit = {
     val N = SizeVar("N")
 
-    val arrayType = ArrayType(ArrayType(Float, N), N)
+    val arrayType = ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N)
     val f = fun(
       arrayType,
       arrayType,
@@ -114,7 +114,7 @@ class TestMemory {
     assertEquals(2, subMemories.length)
     assertEquals(GlobalMemory, subMemories(0).addressSpace)
     assertEquals(GlobalMemory, subMemories(1).addressSpace)
-    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(0).size)
-    assertEquals(OpenCLMemory.getSizeInBytes(arrayType), subMemories(1).size)
+    assertEquals(Type.getAllocatedSize(arrayType), subMemories(0).size)
+    assertEquals(Type.getAllocatedSize(arrayType), subMemories(1).size)
   }
 }

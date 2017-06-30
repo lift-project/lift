@@ -1,13 +1,13 @@
 package rewriting
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import opencl.ir.pattern._
 
 object TestDerivingMatrixReuse {
   @BeforeClass def before(): Unit = {
@@ -43,8 +43,8 @@ class TestDerivingMatrixReuse {
 
     // Starting expression
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         MapGlb(fun( aRow =>
           MapSeq(fun( bCol =>
@@ -58,8 +58,8 @@ class TestDerivingMatrixReuse {
 
     // split-join
     val f1 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         MapGlb(fun( aRow =>
           Join() o MapSeq(fun( bCols =>
@@ -75,8 +75,8 @@ class TestDerivingMatrixReuse {
 
     // Map fission
     val f2 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         MapGlb(fun( aRow =>
           Join() o MapSeq(fun( bCols =>
@@ -92,15 +92,15 @@ class TestDerivingMatrixReuse {
 
     // Map-Reduce interchange
     val f3 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         MapGlb(fun( aRow =>
           Join() o MapSeq(fun( bCols =>
             toGlobal(MapSeq(MapSeq(id))) o
               ReduceSeq(fun((acc, c) =>
                   MapSeq(add) $ Zip(acc, c)
-              ), MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSize))) o Transpose()
+              ), MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, chunkSize))) o Transpose()
               o MapSeq(fun(bCol => MapSeq(mult) $ Zip(aRow, bCol)
             )) $ bCols
           )) o Split(chunkSize) $ B
@@ -112,15 +112,15 @@ class TestDerivingMatrixReuse {
 
     // Map-Map transpose, pulling the zip out
     val f4 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         MapGlb(fun( aRow =>
           Join() o MapSeq(fun( bCols =>
             toGlobal(MapSeq(MapSeq(id))) o
               ReduceSeq(fun((acc, c) =>
                 MapSeq(add) $ Zip(acc, c)
-              ), MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSize))) o Transpose()
+              ), MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, chunkSize))) o Transpose()
               o Transpose() o MapSeq(fun(elemRowPair =>
               MapSeq(fun(bElem => mult.apply(bElem, Get(elemRowPair, 0))
               )) $ Get(elemRowPair, 1)
@@ -134,15 +134,15 @@ class TestDerivingMatrixReuse {
 
     // Transpose o Transpose => id
     val f5 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         MapGlb(fun( aRow =>
           Join() o MapSeq(fun( bCols =>
             toGlobal(MapSeq(MapSeq(id))) o
               ReduceSeq(fun((acc, c) =>
                 MapSeq(add) $ Zip(acc, c)
-              ), MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSize)))
+              ), MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, chunkSize)))
               o MapSeq(fun(elemRowPair =>
               MapSeq(fun(bElem => mult.apply(bElem, Get(elemRowPair, 0))
               )) $ Get(elemRowPair, 1)
@@ -156,8 +156,8 @@ class TestDerivingMatrixReuse {
 
     // ReduceSeq o MapSeq fusion
     val f6 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         MapGlb(fun( aRow =>
           Join() o MapSeq(fun( bCols =>
@@ -166,7 +166,7 @@ class TestDerivingMatrixReuse {
                 MapSeq(add) o fun(elemRowPair =>
                   Zip(toPrivate(MapSeq(fun(a => mult.apply(a, Get(elemRowPair, 0))))) $ Get(elemRowPair, 1), acc)
                 ) $ c
-              ), MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSize)))
+              ), MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, chunkSize)))
               $ Zip(aRow, Transpose() $ bCols)
           )) o Split(chunkSize) $ B
         )) $ A
@@ -181,8 +181,8 @@ class TestDerivingMatrixReuse {
 
     // Starting expression
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         MapGlb(fun( aRow =>
           MapSeq(fun( bCol =>
@@ -196,8 +196,8 @@ class TestDerivingMatrixReuse {
 
     // split-join
     val f1 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Join() o MapGlb(fun( aRows =>
           MapSeq(fun( aRow =>
@@ -213,8 +213,8 @@ class TestDerivingMatrixReuse {
 
     // Map-Map interchange
     val f2 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Join() o MapGlb(fun( aRows =>
           TransposeW() o MapSeq(fun( bCol =>
@@ -230,8 +230,8 @@ class TestDerivingMatrixReuse {
 
     // Map fission
     val f3 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Join() o MapGlb(fun( aRows =>
           TransposeW() o MapSeq(fun( bCol =>
@@ -246,14 +246,14 @@ class TestDerivingMatrixReuse {
 
     // Map-Reduce interchange
     val f4 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Join() o MapGlb(fun( aRows =>
           TransposeW() o Join() o MapSeq(fun( bCol =>
             toGlobal(MapSeq(MapSeq(id))) o
               ReduceSeq(fun((acc, c) => MapSeq(add) $ Zip(acc, c)),
-                MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSize))) o Transpose() o
+                MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, chunkSize))) o Transpose() o
               MapSeq(fun(aRow => MapSeq(mult) $ Zip(aRow, bCol))) $ aRows
           )) $ B
         )) o Split(chunkSize) $ A
@@ -264,14 +264,14 @@ class TestDerivingMatrixReuse {
 
     // Map-Map transpose, pulling the zip out
     val f5 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Join() o MapGlb(fun( aRows =>
           TransposeW() o Join() o MapSeq(fun( bCol =>
             toGlobal(MapSeq(MapSeq(id))) o
               ReduceSeq(fun((acc, c) => MapSeq(add) $ Zip(acc, c)),
-                MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSize))) o Transpose() o
+                MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, chunkSize))) o Transpose() o
               Transpose() o MapSeq(fun(rowElemPair => MapSeq(fun( aElem => mult.apply(aElem, Get(rowElemPair, 1)))) $ Get(rowElemPair, 0))) $ Zip(Transpose() $ aRows, bCol)
           )) $ B
         )) o Split(chunkSize) $ A
@@ -282,14 +282,14 @@ class TestDerivingMatrixReuse {
 
     // Transpose o Transpose => id
     val f6 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Join() o MapGlb(fun( aRows =>
           TransposeW() o Join() o MapSeq(fun( bCol =>
             toGlobal(MapSeq(MapSeq(id))) o
               ReduceSeq(fun((acc, c) => MapSeq(add) $ Zip(acc, c)),
-                MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSize)))
+                MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, chunkSize)))
               o MapSeq(fun(rowElemPair =>
               MapSeq(fun( aElem => mult.apply(aElem, Get(rowElemPair, 1)))) $ Get(rowElemPair, 0)
             )) $ Zip(Transpose() $ aRows, bCol)
@@ -302,15 +302,15 @@ class TestDerivingMatrixReuse {
 
     // ReduceSeq o MapSeq fusion
     val f7 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Join() o MapGlb(fun( aRows =>
           TransposeW() o Join() o MapSeq(fun( bCol =>
             toGlobal(MapSeq(MapSeq(id))) o
               ReduceSeq(fun((acc, c) => MapSeq(add) o fun(rowElemPair =>
                 Zip(acc, toPrivate(MapSeq(fun( aElem => mult.apply(aElem, Get(rowElemPair, 1))))) $ Get(rowElemPair, 0))) $ c),
-                MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSize))
+                MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, chunkSize))
               ) $ Zip(Transpose() $ aRows, bCol)
           )) $ B
         )) o Split(chunkSize) $ A
@@ -327,8 +327,8 @@ class TestDerivingMatrixReuse {
 
     // Starting expression
     val f = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         MapGlb(fun( aRow =>
           MapSeq(fun( bCol =>
@@ -342,8 +342,8 @@ class TestDerivingMatrixReuse {
 
     // Reorder both sides
     val f1 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         MapGlb(fun( aRow =>
           Scatter(reorderStride(chunkSizeM)) o MapSeq(fun( bCol =>
@@ -357,8 +357,8 @@ class TestDerivingMatrixReuse {
 
     // Map fission, pull reorder out
     val f2 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o
           MapGlb(fun( aRow =>
@@ -373,8 +373,8 @@ class TestDerivingMatrixReuse {
 
     // Split-join
     val f3 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           MapGlb(fun( aRows =>
@@ -391,8 +391,8 @@ class TestDerivingMatrixReuse {
 
     // Map-Map interchange
     val f4 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           MapGlb(fun( aRows =>
@@ -409,8 +409,8 @@ class TestDerivingMatrixReuse {
 
     // Split-join
     val f5 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           MapGlb(fun( aRows =>
@@ -430,8 +430,8 @@ class TestDerivingMatrixReuse {
 
     // Map-Map interchange
     val f6 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           MapGlb(fun( aRows =>
@@ -451,8 +451,8 @@ class TestDerivingMatrixReuse {
 
     // Map fission, pull join and transposes out
     val f7 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -472,8 +472,8 @@ class TestDerivingMatrixReuse {
 
     // Map fission, separate add and mult
     val f8 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -494,8 +494,8 @@ class TestDerivingMatrixReuse {
 
     // Map-Reduce interchange
     val f9 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -505,7 +505,7 @@ class TestDerivingMatrixReuse {
                 Join () o toGlobal(MapSeq(MapSeq(id))) o
                   ReduceSeq(fun((acc, c) =>
                     MapSeq(add) $ Zip(acc, c)
-                  ), MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSizeM))) o Transpose()
+                  ), MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, chunkSizeM))) o Transpose()
                   o
                   MapSeq(fun( bCol =>
                     MapSeq(mult) $ Zip(aRow, bCol)
@@ -520,8 +520,8 @@ class TestDerivingMatrixReuse {
 
     // Map-Map transpose, pulling the zip out
     val f10 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -531,7 +531,7 @@ class TestDerivingMatrixReuse {
                 Join () o toGlobal(MapSeq(MapSeq(id))) o
                   ReduceSeq(fun((acc, c) =>
                     MapSeq(add) $ Zip(acc, c)
-                  ), MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSizeM))) o Transpose()
+                  ), MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, chunkSizeM))) o Transpose()
                   o Transpose() o MapSeq(fun(elemRowPair =>
                   MapSeq(fun(bElem => mult.apply(bElem, Get(elemRowPair, 0))
                   )) $ Get(elemRowPair, 1)
@@ -546,8 +546,8 @@ class TestDerivingMatrixReuse {
 
     // Transpose() o Transpose() => id
     val f11 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -557,7 +557,7 @@ class TestDerivingMatrixReuse {
                 Join () o toGlobal(MapSeq(MapSeq(id))) o
                   ReduceSeq(fun((acc, c) =>
                     MapSeq(add) $ Zip(acc, c)
-                  ), MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSizeM)))
+                  ), MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, chunkSizeM)))
                   o
                   MapSeq(fun(elemRowPair =>
                     MapSeq(fun(bElem => mult.apply(bElem, Get(elemRowPair, 0))
@@ -573,8 +573,8 @@ class TestDerivingMatrixReuse {
 
     // Map fission, separate reduce
     val f12 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -584,7 +584,7 @@ class TestDerivingMatrixReuse {
                 Join () o toGlobal(MapSeq(MapSeq(id))) o
                   ReduceSeq(fun((acc, c) =>
                     MapSeq(add) $ Zip(acc, c)
-                  ), MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSizeM)))
+                  ), MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, chunkSizeM)))
               )
                 o
                 MapSeq(fun( aRow =>
@@ -602,8 +602,8 @@ class TestDerivingMatrixReuse {
 
     // Map fission, between reduce and copy back
     val f13 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -613,7 +613,7 @@ class TestDerivingMatrixReuse {
                 o MapSeq(
                 ReduceSeq(fun((acc, c) =>
                   MapSeq(add) $ Zip(acc, c)
-                ), MapSeq(id) $ Value(0.0f, ArrayType(Float, chunkSizeM)))
+                ), MapSeq(id) $ Value(0.0f, ArrayTypeWSWC(Float, chunkSizeM)))
               )
                 o
                 MapSeq(fun( aRow =>
@@ -631,8 +631,8 @@ class TestDerivingMatrixReuse {
 
     // Map-Reduce interchange
     val f14 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -642,7 +642,7 @@ class TestDerivingMatrixReuse {
                 o
                 ReduceSeq(fun((acc, c) =>
                   MapSeq(fun(pair => MapSeq(add) $ Zip(Get(pair, 0), Get(pair, 1)))) $ Zip(acc, c)
-                ), MapSeq(MapSeq(id)) $ Value(0.0f, ArrayType(ArrayType(Float, chunkSizeM), chunkSizeN)))
+                ), MapSeq(MapSeq(id)) $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, chunkSizeM), chunkSizeN)))
                 o Transpose()
                 o
                 MapSeq(fun( aRow =>
@@ -660,8 +660,8 @@ class TestDerivingMatrixReuse {
 
     // Map-Map interchange, pulling the zip out
     val f15 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -671,7 +671,7 @@ class TestDerivingMatrixReuse {
                 o
                 ReduceSeq(fun((acc, c) =>
                   MapSeq(fun(pair => MapSeq(add) $ Zip(Get(pair, 0), Get(pair, 1)))) $ Zip(acc, c)
-                ), MapSeq(MapSeq(id)) $ Value(0.0f, ArrayType(ArrayType(Float, chunkSizeM), chunkSizeN)))
+                ), MapSeq(MapSeq(id)) $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, chunkSizeM), chunkSizeN)))
                 o Transpose()
                 o Transpose() o
                 MapSeq(fun( rowPair =>
@@ -689,8 +689,8 @@ class TestDerivingMatrixReuse {
 
     // Transpose() o Transpose() => id
     val f16 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -700,7 +700,7 @@ class TestDerivingMatrixReuse {
                 o
                 ReduceSeq(fun((acc, c) =>
                   MapSeq(fun(pair => MapSeq(add) $ Zip(Get(pair, 0), Get(pair, 1)))) $ Zip(acc, c)
-                ), MapSeq(MapSeq(id)) $ Value(0.0f, ArrayType(ArrayType(Float, chunkSizeM), chunkSizeN)))
+                ), MapSeq(MapSeq(id)) $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, chunkSizeM), chunkSizeN)))
                 o
                 MapSeq(fun( rowPair =>
                   MapSeq(fun(a =>
@@ -717,8 +717,8 @@ class TestDerivingMatrixReuse {
 
     // ReduceSeq-MapSeq fusion
     val f17 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -733,7 +733,7 @@ class TestDerivingMatrixReuse {
                       MapSeq(fun(bElem => mult.apply(bElem, a)
                       )) $ Get(rowPair, 1)
                     )) $ Get(rowPair, 0))) $ rowPair
-                ), MapSeq(MapSeq(id)) $ Value(0.0f, ArrayType(ArrayType(Float, chunkSizeM), chunkSizeN))
+                ), MapSeq(MapSeq(id)) $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, chunkSizeM), chunkSizeN))
                 ) $ Zip(Transpose() $ aRows, Transpose() $ bCols)
             )) o Split(chunkSizeM) o ReorderStride(chunkSizeM) $ B
           )) o Split(chunkSizeN) $ A
@@ -744,8 +744,8 @@ class TestDerivingMatrixReuse {
 
     // MapSeq(f) => toPrivate(MapSeq(f))
     val f18 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -760,7 +760,7 @@ class TestDerivingMatrixReuse {
                       MapSeq(fun(bElem => mult.apply(bElem, a)
                       )) $ Get(rowPair, 1)
                     ))) $ Get(rowPair, 0))) $ rowPair
-                ), MapSeq(MapSeq(id)) $ Value(0.0f, ArrayType(ArrayType(Float, chunkSizeM), chunkSizeN))
+                ), MapSeq(MapSeq(id)) $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, chunkSizeM), chunkSizeN))
                 ) $ Zip(Transpose() $ aRows, Transpose() $ bCols)
             )) o Split(chunkSizeM) o ReorderStride(chunkSizeM) $ B
           )) o Split(chunkSizeN) $ A
@@ -771,8 +771,8 @@ class TestDerivingMatrixReuse {
 
     // split-join + join o split => id
     val f19 = fun(
-      ArrayType(ArrayType(Float, K), M),
-      ArrayType(ArrayType(Float, K), N), // Already transposed
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), // Already transposed
       (A, B) => {
         Map(Scatter(reorderStride(chunkSizeM))) o Join() o
           Map(TransposeW() o Join() o Map(TransposeW())) o
@@ -787,7 +787,7 @@ class TestDerivingMatrixReuse {
                       MapSeq(fun(bElem => mult.apply(bElem, a)
                       )) $ Get(rowPair, 1)
                     ))) $ Get(rowPair, 0))) $ rowPair
-                ), MapSeq(MapSeq(id)) $ Value(0.0f, ArrayType(ArrayType(Float, chunkSizeM), chunkSizeN))
+                ), MapSeq(MapSeq(id)) $ Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, chunkSizeM), chunkSizeN))
                 ) $ Zip(Transpose() $ aRows, Transpose() $ bCols)
             )) o Split(chunkSizeM) o ReorderStride(chunkSizeM) $ B
           )) o Split(chunkSizeN) $ A

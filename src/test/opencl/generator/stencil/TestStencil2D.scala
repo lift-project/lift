@@ -1,15 +1,16 @@
 package opencl.generator.stencil
 
-import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import ir._
 import ir.ast.Pad.BoundaryFun
 import ir.ast._
+import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
-import org.junit._
 import org.junit.Assume.assumeFalse
+import org.junit._
+
 import scala.util.Random
 
 object TestStencil2D {
@@ -33,7 +34,7 @@ class TestStencil2D {
   val SCALABOUNDARY = Utils.scalaClamp
   val BOUNDARY = Pad.Boundary.Clamp
 
-  val randomData2D = Array.tabulate(1024, 1024) { (i, j) => Random.nextFloat() }
+  val randomData2D = Array.tabulate(32, 32) { (i, j) => Random.nextFloat() }
   val data2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j }
 
   val gaussWeights = Array(
@@ -75,6 +76,7 @@ class TestStencil2D {
   }
 
   @Test def groupBigClampPaddedData2D(): Unit = {
+    LongTestsEnabled()
     val data2D = Array.tabulate(10, 10) { (i, j) => i * 10.0f + j }
     val boundary = Pad.Boundary.Clamp
     val scalaBoundary = Utils.scalaClamp
@@ -163,6 +165,7 @@ class TestStencil2D {
   }
 
   @Test def gaussianBlur(): Unit = {
+    LongTestsEnabled()
     val stencil = createSimple2DStencil(3, 1, 1, 1, gaussWeights, BOUNDARY, 2)
     run2DStencil(stencil, 3, 1, 1, 1, gaussWeights, SCALABOUNDARY)
   }
@@ -179,6 +182,7 @@ class TestStencil2D {
   }
 
   @Test def blurX3Point(): Unit = {
+    LongTestsEnabled()
     val weights = Array.fill[Float](3)(1.0f)
     val stencil = createSimple2DStencil(1, 1, 3, 1, 0, 0, 1, 1, weights, Pad.Boundary.Wrap, 2)
     run2DStencil(stencil, 1, 1, 3, 1, 0, 0, 1, 1, weights, Utils.scalaWrap)
@@ -259,7 +263,7 @@ class TestStencil2D {
 
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
   @Test def tiling2DBiggerTiles(): Unit = {
-    val data2D = Array.tabulate(1024, 1024) { (i, j) => i * 24.0f + j }
+    val data2D = Array.tabulate(32, 32) { (i, j) => i * 24.0f + j }
     val tiled: Lambda = createTiled2DStencil(3, 1, 10, 8, 1, 1, gaussWeights, BOUNDARY)
     val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (false, false))(tiled, data2D, gaussWeights)
     val gold = Utils.scalaCompute2DStencil(data2D, 3, 1, 3, 1, 1, 1, 1, 1, gaussWeights, SCALABOUNDARY)
@@ -269,6 +273,7 @@ class TestStencil2D {
 
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
   @Test def tiled2D9PointStencil(): Unit = {
+    LongTestsEnabled()
     val tiled: Lambda = createTiled2DStencil(3, 1, 4, 2, 1, 1, gaussWeights, BOUNDARY)
     run2DStencil(tiled, 3, 1, 1, 1, gaussWeights, SCALABOUNDARY)
   }
@@ -456,9 +461,9 @@ class TestStencil2D {
   compare to 10x10 array. SHOC does not handle boundary but provides a padded input array
    */
   @Test def shocStencil2D(): Unit = {
+    LongTestsEnabled()
     val stencil = fun(
-      //ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
-      ArrayType(ArrayType(Float, 8194), 8194),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
       ArrayType(Float, 9),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
@@ -491,6 +496,114 @@ class TestStencil2D {
     //val haloSize = 1
     //val outputSize = inputSize - 2 * haloSize
     // testing - change tilesize!
+    val inputSize = 512
+    val haloSize = 1
+    val outputSize = inputSize - 2 * haloSize
+    // 4k
+    //val inputSize = 4096
+    //val haloSize = 1
+    //val outputSize = inputSize - 2 * haloSize
+
+    // create already padded input array with inner elements (i,j) = i * j
+    var input = Array.tabulate(inputSize, inputSize) { (i, j) => (i - haloSize) * (j - haloSize) * 1.0f }
+    input(0) = input(0).map((_ * 0.0f))
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+    input(0) = input(0).map(_ * 0.0f)
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+
+    try {
+      val (output: Array[Float], runtime) = Execute(1, 256, 512, 512, (false, false))(stencil, input, weights)
+      println("Runtime: " + runtime)
+    } catch {
+      case e: DeviceCapabilityException =>
+        Assume.assumeNoException("Device not supported.", e)
+    }
+  }
+
+  @Test def shocStencil2DNoTiling(): Unit = {
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
+      ArrayType(Float, 9),
+      (matrix, weights) => {
+
+        MapGlb(1)(MapGlb(0)(
+          // stencil computation
+          fun(elem => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun( (acc, pair) => {
+                val pixel = pair._0
+                val weight = pair._1
+                multAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $ Zip(Join() $ elem, weights)
+          })
+          // create neighbourhoods in tiles
+        )) o Slide2D(3, 1, 3, 1) $ matrix
+      }
+    )
+    val weights = Array(0.05, 0.15, 0.05,
+      0.15, 0.25, 0.15,
+      0.05, 0.15, 0.05).map(_.toFloat)
+
+    val inputSize = 34
+    val haloSize = 1
+    val outputSize = inputSize - 2 * haloSize
+
+    // create already padded input array with inner elements (i,j) = i * j
+    var input = Array.tabulate(inputSize, inputSize) { (i, j) => (i - haloSize) * (j - haloSize) * 1.0f }
+    input(0) = input(0).map((_ * 0.0f))
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+    input(0) = input(0).map(_ * 0.0f)
+    input(inputSize - 1) = input(inputSize - 1).map(_ * 0.0f)
+    input = input.transpose
+
+    try {
+      val (output: Array[Float], runtime) = Execute(1, 32, 32, 32, (false, false))(stencil, input, weights)
+    } catch {
+      case e: DeviceCapabilityException =>
+        Assume.assumeNoException("Device not supported.", e)
+    }
+  }
+
+  @Ignore //todo does not compute correct result yet
+  @Test def shocStencil2DNoTilingFloat3(): Unit = {
+    val dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
+      "{ return acc + dot(l, r); }",
+      Seq(Float, Float3, Float3), Float)
+
+    val stencil = fun(
+      ArrayType(ArrayType(Float, Var("M", StartFromRange(6))), Var("N", StartFromRange(6))),
+      ArrayType(Float, 9),
+      (matrix, weights) => {
+        //weights.addressSpace = ConstantMemory
+
+        MapGlb(1)(MapGlb(0)(
+          // stencil computation
+          fun(elem => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(fun( (acc, pair) => {
+                val pixel = pair._0
+                val weight = pair._1
+                dotAndSumUp.apply(acc, pixel, weight)
+              }), 0.0f) $
+              Zip(asVector(3) o Join() $ elem, asVector(3) $ weights)
+          })
+          // create neighbourhoods in tiles
+        )) o Slide2D(3, 1) $ matrix
+      }
+    )
+    val weights = Array(
+      0.05, 0.15, 0.05,
+      0.15, 0.25, 0.15,
+      0.05, 0.15, 0.05 ).map(_.toFloat)
+
+    // testing - change tilesize!
+    //val inputSize = 10
+    //val haloSize = 1
+    //val outputSize = inputSize - 2 * haloSize
+    // testing - change tilesize!
     val inputSize = 8194
     val haloSize = 1
     val outputSize = inputSize - 2 * haloSize
@@ -511,6 +624,7 @@ class TestStencil2D {
     try {
       val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
       println("Runtime: " + runtime)
+      println(output.take(10).mkString(", "))
     } catch {
       case e: DeviceCapabilityException =>
         Assume.assumeNoException("Device not supported.", e)
@@ -521,6 +635,7 @@ class TestStencil2D {
        THREE LEVEL TILING
    ***********************************************************/
   @Test def threeLevelTilingTest(): Unit = {
+    LongTestsEnabled()
     val stencil = fun(
       //ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
       ArrayType(ArrayType(Float, 8192), 8192),
@@ -572,6 +687,7 @@ class TestStencil2D {
 
   @Test
   def stencil2DTilingRewriteIdentities(): Unit = {
+    LongTestsEnabled()
     val N = SizeVar("N")
     val M = SizeVar("M")
 
@@ -714,6 +830,7 @@ class TestStencil2D {
 
   @Test
   def stencil2DTilingLocalMemIdentities(): Unit = {
+    LongTestsEnabled()
     // stencil shape
     val n = 3
     val s = 1

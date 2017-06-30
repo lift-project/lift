@@ -6,8 +6,8 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import org.junit.Assume.assumeFalse
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
 import scala.util.Random
 
@@ -55,8 +55,8 @@ class TestHarrisCornerDetection {
         ) o Slide2D(3, 1, 3, 1) $ matrix
       })
 
-    val input = Array.tabulate(1536, 2560) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 1536, 2560, (true, true))(stencil, input, sobelX)
+    val input = Array.tabulate(2560, 1536) { (i, j) => Random.nextFloat() }
+    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(stencil, input, sobelX)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -68,6 +68,7 @@ class TestHarrisCornerDetection {
   ***********************************************************/
   @Test def computeDerivativeXX(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    LongTestsEnabled()
 
     val mult = fun(
       ArrayType(ArrayType(Float, 1534), 2558),
@@ -76,8 +77,8 @@ class TestHarrisCornerDetection {
       }
     )
 
-    val input = Array.tabulate(1534, 2558) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 1536, 2560, (true, true))(mult, input)
+    val input = Array.tabulate(2558, 1534) { (i, j) => Random.nextFloat() }
+    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(mult, input)
     println("Runtime: " + runtime)
 
     val gold = input.flatten.map(x => x * x)
@@ -85,6 +86,7 @@ class TestHarrisCornerDetection {
     assertArrayEquals(gold,output,0.2f)
   }
 
+  @Ignore //does not test anything yet
   @Test def computeDerivativeXY(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
@@ -96,9 +98,9 @@ class TestHarrisCornerDetection {
       }
     )
 
-    val input1 = Array.tabulate(1534, 2558) { (i, j) => Random.nextFloat() }
-    val input2 = Array.tabulate(1534, 2558) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 1536, 2560, (true, true))(mult, input1, input2)
+    val input1 = Array.tabulate(2558, 1534) { (i, j) => Random.nextFloat() }
+    val input2 = Array.tabulate(2558, 1534) { (i, j) => Random.nextFloat() }
+    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(mult, input1, input2)
     println("Runtime: " + runtime)
 
     //todo scala check
@@ -120,8 +122,8 @@ class TestHarrisCornerDetection {
         ) o Slide2D(3, 1, 3, 1) $ matrix
       })
 
-    val input = Array.tabulate(1534, 2558) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 1536, 2560, (true, true))(stencil, input)
+    val input = Array.tabulate(2558, 1534) { (i, j) => Random.nextFloat() }
+    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(stencil, input)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -131,6 +133,7 @@ class TestHarrisCornerDetection {
   /* **********************************************************
        STAGE 3 - compute the determinant
   ***********************************************************/
+  @Ignore //does not test anything yet
   @Test def computedeterminant(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
@@ -148,10 +151,10 @@ class TestHarrisCornerDetection {
       })
     //val square = UserFun("square", "x", "{ return x*x; }", Float, Float)
 
-    val input1 = Array.tabulate(1532, 2556) { (i, j) => Random.nextFloat() }
-    val input2 = Array.tabulate(1532, 2556) { (i, j) => Random.nextFloat() }
-    val input3 = Array.tabulate(1532, 2556) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 1536, 2560, (true, true))(determinant, input1, input2, input3)
+    val input1 = Array.tabulate(2556, 1532) { (i, j) => Random.nextFloat() }
+    val input2 = Array.tabulate(2556, 1532) { (i, j) => Random.nextFloat() }
+    val input3 = Array.tabulate(2556, 1532) { (i, j) => Random.nextFloat() }
+    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(determinant, input1, input2, input3)
     println("Runtime: " + runtime)
 
     // todo implement

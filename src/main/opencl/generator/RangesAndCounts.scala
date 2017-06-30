@@ -15,13 +15,13 @@ object RangesAndCounts {
    * @param globalSizes Array containing the global sizes of the ND-Range.
    * @param valueMap The map from variables to lengths.
    */
-  def apply(lambda: Lambda, localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr],
+  def apply(lambda: Lambda, localSizes: NDRange, globalSizes: NDRange,
             valueMap: scala.collection.Map[ArithExpr, ArithExpr]): Unit = {
     new RangesAndCounts(localSizes, globalSizes, valueMap)(lambda.body)
   }
 }
 
-private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[ArithExpr],
+private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
                               valueMap: scala.collection.Map[ArithExpr, ArithExpr]) {
   private def apply(expr: Expr): Unit = {
     expr match {
@@ -45,12 +45,20 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
               case _ => apply(m.f.body)
             }
 
+          case f: FilterSeq => {
+            apply(f.copyFun.body)
+            apply(f.f.body)
+            setRangeFilterSeq(f, call)
+          }
+
           case r: AbstractPartRed =>
             r match {
               case r : ReduceSeq => setRangeReduceSeq(r, call)
               case r : ReduceWhileSeq => setRangeReduceSeq(r, call) 
             }
             apply(r.f.body)
+          case sp: SlideSeqPlus => setRangeSlideSeqPlus(sp, call)
+            apply(sp.f.body)
 
           case i: Iterate =>
             setRangeIterate(i)
@@ -165,11 +173,21 @@ private class RangesAndCounts(localSizes: Array[ArithExpr], globalSizes: Array[A
   private def setRangeMapSeq(m: MapSeq, call: FunCall): Unit = {
     m.loopVar = Var(m.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
   }
-
+  
+  private def setRangeFilterSeq(f: FilterSeq, call: FunCall): Unit = {
+    f.loopRead = Var(f.loopRead.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
+    f.loopWrite = Var(f.loopWrite.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
+  }
+  
   private def setRangeReduceSeq(r: AbstractReduce, call: FunCall): Unit = {
     val inT = call.args(1).t
     r.loopVar = Var(r.loopVar.name, RangeAdd(Cst(0), Type.getLength(inT), Cst(1)))
   }
+
+  private def setRangeSlideSeqPlus(sp: SlideSeqPlus, call: FunCall): Unit = {
+    sp.loopVar = Var(sp.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
+  }
+
 
   private def setRangeIterate(i: Iterate): Unit = {
     i.indexVar = Var(i.indexVar.name,range = ContinuousRange(Cst(0), i.n))

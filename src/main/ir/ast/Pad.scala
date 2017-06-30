@@ -14,8 +14,8 @@ case class Pad(left: Int, right: Int, boundary: Pad.BoundaryFun)
                          setType: Boolean): Type = {
     argType match {
         //todo @bastian include comment again, issue with pad2d(a,b, 0,0)
-      case ArrayType(t, n) /*if (left > 0 || right > 0)*/ => ArrayType(t, n + left + right)
-      case _ => throw new TypeException(argType, "ArrayType")
+      case ArrayTypeWSWC(et,s,c)/*if (left > 0 || right > 0)*/ => ArrayTypeWSWC(et, s + left + right, c + left + right)
+      case _ => throw new TypeException(argType, "ArrayType", this)
     }
   }
 

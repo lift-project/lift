@@ -1,14 +1,14 @@
 package analysis
 
-import lift.arithmetic._
 import ir._
 import ir.ast._
+import lift.arithmetic._
 import opencl.generator._
 import opencl.ir._
 import opencl.ir.pattern._
-import rewriting.InferNDRange
 import org.junit.Assert._
 import org.junit.Test
+import rewriting.InferNDRange
 
 class TestAccessCounts {
 
@@ -23,7 +23,7 @@ class TestAccessCounts {
   def simple(): Unit = {
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       x => MapGlb(MapSeq(id)) $ x
     )
 
@@ -36,7 +36,7 @@ class TestAccessCounts {
   def simple2(): Unit = {
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       x => MapGlb(1)(MapGlb(0)(id)) $ x
     )
 
@@ -50,7 +50,7 @@ class TestAccessCounts {
   def moreReads(): Unit = {
 
     val f = fun(
-      ArrayType(Float, N),
+      ArrayTypeWSWC(Float, N),
       x => MapSeq(add) $ Zip(x,x)
     )
 
@@ -66,7 +66,7 @@ class TestAccessCounts {
   @Test
   def simpleLocal(): Unit = {
     val f = fun(
-      ArrayType(ArrayType(Float, 16), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 16), N),
       x => MapWrg(toGlobal(MapLcl(id)) o toLocal(MapLcl(id))) $ x
     )
 
@@ -82,29 +82,103 @@ class TestAccessCounts {
   def withPattern(): Unit = {
 
     val f = fun(
-      ArrayType(ArrayType(Float, N), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       x => MapGlb(1)(MapGlb(0)(id)) o Transpose() $ x
     )
 
     val accessCounts = AccessCounts(f)
 
     assertEquals((N /^ globalSize1) * (N /^ globalSize0),
-      accessCounts.getLoads(GlobalMemory, UnknownPattern, exact = false))
+      accessCounts.scalarLoads(GlobalMemory, UnknownPattern))
     assertEquals((N /^ globalSize1) * (N /^ globalSize0),
-      accessCounts.getStores(GlobalMemory, CoalescedPattern, exact = false))
+      accessCounts.scalarStores(GlobalMemory, CoalescedPattern))
 
     assertEquals(Cst(0),
-      accessCounts.getLoads(GlobalMemory, CoalescedPattern, exact = false))
+      accessCounts.scalarLoads(GlobalMemory, CoalescedPattern))
     assertEquals(Cst(0),
-      accessCounts.getStores(GlobalMemory, UnknownPattern, exact = false))
+      accessCounts.scalarStores(GlobalMemory, UnknownPattern))
   }
 
   @Test
   def vector(): Unit = {
 
     val f = fun(
-      ArrayType(Float4, N),
+      ArrayTypeWSWC(Float4, N),
       x => MapGlb(0)(idF4) $ x
+    )
+
+    val accessCounts = AccessCounts(f)
+
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorLoads(GlobalMemory, CoalescedPattern))
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
+
+     assertEquals(Cst(0),
+       accessCounts.scalarLoads(GlobalMemory, CoalescedPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarStores(GlobalMemory, CoalescedPattern))
+    assertEquals(Cst(0),
+       accessCounts.vectorLoads(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.vectorStores(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarLoads(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarStores(GlobalMemory, UnknownPattern))
+  }
+
+  @Test
+  def vector2(): Unit = {
+
+    val f = fun(
+      ArrayTypeWSWC(Float, 4*N),
+      x => asScalar() o MapGlb(0)(idF4) o asVector(4) $ x
+    )
+
+    val accessCounts = AccessCounts(f)
+
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorLoads(GlobalMemory, CoalescedPattern))
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
+
+    assertEquals(Cst(0),
+       accessCounts.scalarLoads(GlobalMemory, CoalescedPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarStores(GlobalMemory, CoalescedPattern))
+    assertEquals(Cst(0),
+       accessCounts.vectorLoads(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.vectorStores(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarLoads(GlobalMemory, UnknownPattern))
+    assertEquals(Cst(0),
+       accessCounts.scalarStores(GlobalMemory, UnknownPattern))
+  }
+
+  @Test
+  def vector3(): Unit = {
+
+    val f = fun(
+      ArrayType(Float, 4*N),
+      x => asScalar() o MapGlb(0)(idF4) o Gather(reverse) o asVector(4) $ x
+    )
+
+    val accessCounts = AccessCounts(f)
+
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorLoads(GlobalMemory, UnknownPattern))
+    assertEquals(N /^ globalSize0,
+      accessCounts.vectorStores(GlobalMemory, CoalescedPattern))
+  }
+
+  @Test
+  def vectorizeUserFun(): Unit = {
+
+    val f = fun(
+      ArrayTypeWSWC(Float4, N),
+      x => MapGlb(0)(VectorizeUserFun(4, id)) $ x
     )
 
     val accessCounts = AccessCounts(f)
@@ -116,11 +190,11 @@ class TestAccessCounts {
   }
 
   @Test
-  def vector2(): Unit = {
+  def vectorizeUserFun2(): Unit = {
 
     val f = fun(
-      ArrayType(Float, 4*N),
-      x => asScalar() o MapGlb(0)(idF4) o asVector(4) $ x
+      ArrayTypeWSWC(Float, 4*N),
+      x => asScalar() o MapGlb(0)(VectorizeUserFun(4, id)) o asVector(4) $ x
     )
 
     val accessCounts = AccessCounts(f)
@@ -163,7 +237,7 @@ class TestAccessCounts {
          |}
          |    """.stripMargin, Seq(VectorType(Float, 4), VectorType(Float, 4), Float, VectorType(Float, 4)), TupleType(VectorType(Float, 4), VectorType(Float, 4)))
 
-    val f = fun(ArrayType(VectorType(Float, 4), v_N_0), ArrayType(VectorType(Float, 4), v_N_0), Float, Float,(p_0, p_1, p_2, p_3) => FunCall(MapWrg(0)(fun((p_4) => FunCall(toGlobal(fun((p_5) => FunCall(MapLcl(0)(fun((p_6) => FunCall(update, FunCall(Get(0), p_4), FunCall(Get(1), p_4), p_3, p_6))), p_5))), FunCall(MapSeq(fun((p_7) => FunCall(toLocal(fun((p_8) => FunCall(idfloat4, p_8))), p_7))), FunCall(ReduceSeq(fun((p_9, p_10) => FunCall(fun((p_11) => FunCall(fun((p_12) => FunCall(VectorizeUserFun(4,add), p_9, p_12)), p_11)), p_10))), FunCall(idfloat4, Value("0.0f", VectorType(Float, 4))), FunCall(Join(), FunCall(MapLcl(0)(fun((p_13) => FunCall(MapSeq(fun((p_14) => FunCall(toLocal(fun((p_15) => FunCall(idfloat4, p_15))), p_14))), FunCall(ReduceSeq(fun((p_16, p_17) => FunCall(fun((p_18) => FunCall(fun((p_19) => FunCall(VectorizeUserFun(4,add), p_16, FunCall(calcAcc, FunCall(Get(0), p_4), p_19, p_3, p_2))), p_18)), p_17))), FunCall(idfloat4, Value("0.0f", VectorType(Float, 4))), p_13)))), FunCall(Split(v_N_0 * 1 /^ 512), FunCall(Gather(ReorderWithStride(512)), p_0))))))))), FunCall(Zip(2), p_0, p_1)))
+    val f = fun(ArrayTypeWSWC(VectorType(Float, 4), v_N_0), ArrayTypeWSWC(VectorType(Float, 4), v_N_0), Float, Float,(p_0, p_1, p_2, p_3) => FunCall(MapWrg(0)(fun((p_4) => FunCall(toGlobal(fun((p_5) => FunCall(MapLcl(0)(fun((p_6) => FunCall(update, FunCall(Get(0), p_4), FunCall(Get(1), p_4), p_3, p_6))), p_5))), FunCall(MapSeq(fun((p_7) => FunCall(toLocal(fun((p_8) => FunCall(idfloat4, p_8))), p_7))), FunCall(ReduceSeq(fun((p_9, p_10) => FunCall(fun((p_11) => FunCall(fun((p_12) => FunCall(VectorizeUserFun(4,add), p_9, p_12)), p_11)), p_10))), FunCall(idfloat4, Value("0.0f", VectorType(Float, 4))), FunCall(Join(), FunCall(MapLcl(0)(fun((p_13) => FunCall(MapSeq(fun((p_14) => FunCall(toLocal(fun((p_15) => FunCall(idfloat4, p_15))), p_14))), FunCall(ReduceSeq(fun((p_16, p_17) => FunCall(fun((p_18) => FunCall(fun((p_19) => FunCall(VectorizeUserFun(4,add), p_16, FunCall(calcAcc, FunCall(Get(0), p_4), p_19, p_3, p_2))), p_18)), p_17))), FunCall(idfloat4, Value("0.0f", VectorType(Float, 4))), p_13)))), FunCall(Split(v_N_0 * 1 /^ 512), FunCall(Gather(ReorderWithStride(512)), p_0))))))))), FunCall(Zip(2), p_0, p_1)))
 
     TypeChecker(f)
 
@@ -176,7 +250,40 @@ class TestAccessCounts {
 
     val count = accessCounts.vectorLoads(GlobalMemory, UnknownPattern, exact = true)
 
-    count.evalDbl
+    count.evalDouble
   }
 
+  @Test
+  def issue99(): Unit = {
+    val factory = (variables: Seq[ArithExpr]) => {
+      val v_M_0 = variables(0)
+      val v_N_1 = variables(1)
+
+      val idfloat = UserFun("idfloat", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
+      val idTuple2_float_float = UserFun("idTuple2_float_float", Array("x"), """|{ return x; }""".stripMargin, Seq(TupleType(Float, Float)), TupleType(Float, Float))
+      val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
+      val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
+      fun(ArrayType(ArrayType(Float, v_M_0), v_N_1), ArrayType(Float, 9),(p_0, p_1) => FunCall(MapWrg(0)(fun((p_2) => FunCall(MapLcl(0)(fun((p_3) => FunCall(toGlobal(fun((p_4) => FunCall(MapSeq(fun((p_5) => FunCall(idfloat, p_5))), p_4))), FunCall(MapSeq(fun((p_6) => FunCall(toLocal(fun((p_7) => FunCall(idfloat, p_7))), p_6))), FunCall(ReduceSeq(fun((p_8, p_9) => FunCall(fun((p_10) => FunCall(fun((p_11) => FunCall(add, p_8, FunCall(mult, FunCall(Get(0), p_11), FunCall(Get(1), p_11)))), p_10)), FunCall(toPrivate(fun((p_12) => FunCall(idTuple2_float_float, p_12))), p_9)))), FunCall(idfloat, Value("0.0f", Float)), FunCall(Zip(2), p_1, FunCall(Join(), p_3))))))), FunCall(Transpose(), p_2)))), FunCall(Slide(3,1), FunCall(Map(fun((p_13) => FunCall(Slide(3,1), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_13)))), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_0)))))
+    }
+
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+
+    val f = factory(Seq(M, N))
+    val (localSize, globalSize) = InferNDRange(f)
+
+    val counts = AccessCounts(f, localSize, globalSize)
+
+    assertEquals(Cst(1), counts.getStores(GlobalMemory, CoalescedPattern, exact = false))
+    assertEquals(Cst(0), counts.getStores(GlobalMemory, UnknownPattern, exact = false))
+
+    assertEquals(Cst(0), counts.getLoads(GlobalMemory, CoalescedPattern, exact = false))
+    assertEquals(Cst(18), counts.getLoads(GlobalMemory, UnknownPattern, exact = false))
+
+    assertEquals(Cst(1), counts.getStores(LocalMemory, CoalescedPattern, exact = false))
+    assertEquals(Cst(0), counts.getStores(LocalMemory, UnknownPattern, exact = false))
+
+    assertEquals(Cst(1), counts.getLoads(LocalMemory, CoalescedPattern, exact = false))
+    assertEquals(Cst(0), counts.getLoads(LocalMemory, UnknownPattern, exact = false))
+  }
 }

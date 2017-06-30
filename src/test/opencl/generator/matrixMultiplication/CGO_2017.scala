@@ -1,10 +1,10 @@
 package opencl.generator.matrixMultiplication
 
 
-import lift.arithmetic.ArithExpr
 import benchmarks.GEMM
 import ir._
 import ir.ast._
+import lift.arithmetic.ArithExpr
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
@@ -62,8 +62,8 @@ class CGO_2017 {
       val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
       val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
       fun(
-        ArrayType(ArrayType(Float, v_M_0), v_K_1),
-        ArrayType(ArrayType(Float, v_N_2), v_K_1),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_M_0), v_K_1),
+        ArrayTypeWSWC(ArrayTypeWSWC(Float, v_N_2), v_K_1),
         (p_0, p_1) =>
         FunCall(Join(),
           FunCall(MapWrg(1)(fun((p_2) =>
@@ -159,7 +159,7 @@ class CGO_2017 {
                                 FunCall(MapLcl(0)(fun((p_35) =>
                                   FunCall(MapSeq(fun((p_36) =>
                                     FunCall(MapSeq(fun((p_37) =>
-                                      FunCall(idfloat, p_37))), p_36))), p_35))), p_34))), Value("0.0f", ArrayType(ArrayType(ArrayType(ArrayType(Float, v__3), v__4), v__7 * 1 /^ v__3), v__5 * 1 /^ v__4))),
+                                      FunCall(idfloat, p_37))), p_36))), p_35))), p_34))), Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, v__3), v__4), v__7 * 1 /^ v__3), v__5 * 1 /^ v__4))),
                               FunCall(Zip(2), p_2, p_3))))))))),
                   FunCall(Transpose(),
                     FunCall(Map(fun((p_38) =>
@@ -200,7 +200,9 @@ class CGO_2017 {
 
     val (output: Array[Float], _) =
       Execute(128/param, 8, 1, 1024/param, 1024/8, 1, (true, true))(
-        code, f, matrixA.transpose, matrixB, matrixC, alpha, beta)
+        code, f, matrixA.transpose, matrixB, matrixC,
+        alpha, beta
+      )
 
     assertArrayEquals(gemmGold, output, 0.001f)
   }
@@ -213,8 +215,8 @@ class CGO_2017 {
     val vectorWidth = 4
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), K),
-      ArrayType(ArrayType(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (p_0, p_1) =>
         FunCall(Map(fun((p_2) =>
           p_2)),
@@ -247,7 +249,7 @@ class CGO_2017 {
                                 asScalar() o toPrivate(MapSeq(VectorizeUserFun(4, id))) o asVector(vectorWidth) o Get(1) $ p_7
                               ))),
                               toPrivate(MapSeq(MapSeq(id))) $
-                                Value("0.0f", ArrayType(ArrayType(Float, v__3), v__4)),
+                                Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(Float, v__3), v__4)),
                               FunCall(Zip(2),
                                 FunCall(Transpose(), p_3),
                                 FunCall(Transpose(), p_4)))))))),
@@ -275,8 +277,10 @@ class CGO_2017 {
     val code = Compile(f, 32, 8, 1, N/v__3, M/v__4,1, collection.immutable.Map())
 
     val (output: Array[Float], _) =
-      Execute(32, 8, nSize/v__3, mSize/v__4,
-        (true, true))(code, f, matrixA.transpose, matrixB, matrixC, alpha, beta)
+      Execute(32, 8, nSize/v__3, mSize/v__4, (true, true))(
+        code, f, matrixA.transpose, matrixB, matrixC,
+        alpha, beta
+      )
 
     assertArrayEquals(gemmGold, output, 0.0001f)
   }
@@ -311,8 +315,8 @@ class CGO_2017 {
       VectorType(Float, tileSizeN))
 
     val f = fun(
-      ArrayType(ArrayType(Float, M), K),
-      ArrayType(ArrayType(Float, N), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), K),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) => {
         // Undo the tiling
         Untile2D() o
@@ -352,7 +356,7 @@ class CGO_2017 {
                       )) $ pairOfTiles
                 )
                   , MapSeq(MapSeq(VectorizeUserFun(tileSizeN, id))) $
-                    Value(0.0f, ArrayType(ArrayType(VectorType(Float, tileSizeN), 1), tileSizeM))
+                    Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(VectorType(Float, tileSizeN), 1), tileSizeM))
                 ) $ Zip(aRows, bCols)
 
             )) o Transpose() o Tile(tileSizeK, tileSizeN) $ B

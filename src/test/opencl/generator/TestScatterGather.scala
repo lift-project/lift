@@ -1,8 +1,8 @@
 package opencl.generator
 
-import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
+import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -29,7 +29,7 @@ class TestScatterGather {
     val vector = Array.tabulate(Nsize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Scatter(reverse) o MapGlb(id) $ in
     )
 
@@ -48,7 +48,7 @@ class TestScatterGather {
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
 
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       in => MapGlb(Scatter(reverse) o MapSeq(id)) $ in
     )
 
@@ -67,7 +67,7 @@ class TestScatterGather {
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
 
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       in => Scatter(reverse) o MapGlb(MapSeq(id)) $ in
     )
 
@@ -86,7 +86,7 @@ class TestScatterGather {
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
 
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       in => Scatter(reverse) o MapGlb(Scatter(reverse) o MapSeq(id)) $ in
     )
 
@@ -104,7 +104,7 @@ class TestScatterGather {
     val vector = Array.tabulate(Nsize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapGlb(id) o Gather(reverse) $ in
     )
 
@@ -123,7 +123,7 @@ class TestScatterGather {
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
 
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       in => MapGlb(MapSeq(id) o Gather(reverse)) $ in
     )
 
@@ -142,7 +142,7 @@ class TestScatterGather {
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
 
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       in => MapGlb(MapSeq(id)) o Gather(reverse) $ in
     )
 
@@ -161,7 +161,7 @@ class TestScatterGather {
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
 
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       in => MapGlb(MapSeq(id) o Gather(reverse)) o Gather(reverse) $ in
     )
 
@@ -179,7 +179,7 @@ class TestScatterGather {
     val vector = Array.tabulate(Nsize)(_.toFloat)
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapWrg(id) o Gather(reverse) $ in
     )
 
@@ -198,7 +198,7 @@ class TestScatterGather {
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
 
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       in => MapWrg( MapLcl(id) o Gather(reverse)) $ in
     )
 
@@ -217,7 +217,7 @@ class TestScatterGather {
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
 
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       in => MapWrg( MapLcl(id)) o Gather(reverse) $ in
     )
 
@@ -236,7 +236,7 @@ class TestScatterGather {
     val matrix = Array.tabulate(Nsize, Msize)((r, c) => c + r * Msize.toFloat)
 
     val f = fun(
-      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       in => MapWrg( MapLcl(id) o Gather(reverse)) o Gather(reverse) $ in
     )
 
@@ -256,7 +256,7 @@ class TestScatterGather {
     val splitSize = 64
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapGlb(MapSeq(id)) o Gather(reverse) o Split(splitSize) $ in
     )
 
@@ -276,7 +276,7 @@ class TestScatterGather {
     val splitSize = 64
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapGlb(MapSeq(id) o Gather(reverse)) o Split(splitSize) $ in
     )
 
@@ -296,7 +296,7 @@ class TestScatterGather {
     val splitSize = 64
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => Scatter(reverse) o MapGlb(MapSeq(id)) o Split(splitSize) $ in
     )
 
@@ -311,12 +311,12 @@ class TestScatterGather {
     val splitSize = 64
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapGlb(Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
     val f_broken = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapGlb(fun(x => Scatter(reverse)(MapSeq(id)(x))))(Split(splitSize)(in))
     )
 
@@ -333,7 +333,7 @@ class TestScatterGather {
     val splitSize = 64
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapGlb(MapSeq(id) o Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
@@ -350,7 +350,7 @@ class TestScatterGather {
     val splitSize = 64
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapGlb(MapSeq(id)) o MapGlb(Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
@@ -366,7 +366,7 @@ class TestScatterGather {
     val splitSize = 64
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapGlb(MapSeq(id) o Scatter(reverse)) o MapGlb(MapSeq(id)) o Split(splitSize) $ in
     )
 
@@ -382,7 +382,7 @@ class TestScatterGather {
     val splitSize = 64
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapGlb(MapSeq(id) o Scatter(reverse)) o MapGlb(Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
@@ -398,7 +398,7 @@ class TestScatterGather {
     val splitSize = 64
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapGlb(MapSeq(id)) o MapGlb(Gather(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
@@ -414,7 +414,7 @@ class TestScatterGather {
     val splitSize = 64
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapGlb(MapSeq(id) o Gather(reverse)) o MapGlb(MapSeq(id)) o Split(splitSize) $ in
     )
 
@@ -430,11 +430,37 @@ class TestScatterGather {
     val splitSize = 64
 
     val f = fun(
-      ArrayType(Float, SizeVar("N")),
+      ArrayTypeWSWC(Float, SizeVar("N")),
       in => MapGlb(MapSeq(id) o Gather(reverse)) o MapGlb(Gather(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
     val (output: Array[Float], _) = Execute(nSize)(f, vector)
     assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse.reverse), output, 0.0f)
+  }
+  
+  /**
+   * Gather must expect an array
+   */
+  @Test(expected = classOf[TypeException])
+  def illegalGather(): Unit = {
+    val f = fun(
+      ArrayType(Int, 128),
+      MapGlb(toGlobal(idI) o Gather(reverse)) $ _
+    )
+    
+    TypeChecker(f)
+  }
+  
+  /**
+   * Scatter must expect an array
+   */
+  @Test(expected = classOf[TypeException])
+  def illegalScatter(): Unit = {
+    val f = fun(
+      ArrayType(Int, 128),
+      MapGlb(Scatter(reverse) o toGlobal(idI)) $ _
+    )
+    
+    TypeChecker(f)
   }
 }

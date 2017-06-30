@@ -1,8 +1,9 @@
 package ir.view
 
-import lift.arithmetic._
 import ir._
 import ir.ast._
+import lift.arithmetic._
+import opencl.generator.OpenCLAST._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
@@ -12,14 +13,14 @@ class ViewTest {
   @Test
   def test1(): Unit = {
 
-    val a = View(ArrayType(Int, 8), "a")
-    val B = View(ArrayType(ArrayType(Int, 8), 8), "B")
+    val a = View(ArrayTypeWSWC(Int, 8), "a")
+    val B = View(ArrayTypeWSWC(ArrayTypeWSWC(Int, 8), 8), "B")
 
     // map(b => zip(a,b)) o B
     val var_i = Var("i", RangeUnknown)
     val b = B.access(var_i)
     val zip_ab = View.tuple(a, b).zip()
-    val map_zip_ab = new ViewMap(zip_ab, var_i, ArrayType(ArrayType(TupleType(Int, Int), 8), 8))
+    val map_zip_ab = new ViewMap(zip_ab, var_i, ArrayTypeWSWC(ArrayTypeWSWC(TupleType(Int, Int), 8), 8))
 
     // map(map(f)) o ...
     val var_j = Var("j", RangeUnknown)
@@ -30,14 +31,15 @@ class ViewTest {
     val map_mapf0 = map_mapf.get(0)
     val map_mapf1 = map_mapf.get(1)
 
-    assertEquals(var_k, ViewPrinter.emit(map_mapf0))
-    assertEquals(var_j*8 + var_k, ViewPrinter.emit(map_mapf1))
+    val v = Var()
+    assertEquals(VarRef(v, null, ArithExpression(var_k)), ViewPrinter.emit(v, map_mapf0))
+    assertEquals(VarRef(v, null, ArithExpression(var_j*8 + var_k)), ViewPrinter.emit(v, map_mapf1))
   }
 
   @Test
   def test2(): Unit = {
-    val A = View(ArrayType(ArrayType(Int, 8), 8), "A")
-    val B = View(ArrayType(ArrayType(Int, 8), 8), "B")
+    val A = View(ArrayTypeWSWC(ArrayTypeWSWC(Int, 8), 8), "A")
+    val B = View(ArrayTypeWSWC(ArrayTypeWSWC(Int, 8), 8), "B")
 
     //  map(map(map(f))) o map(a => map(b => zip(a,b) o B) o A equivalent to
     // map(a => map(b => map(f) $ zip(a,b)) o B) o A
@@ -50,8 +52,8 @@ class ViewTest {
     val b = B.access(var_j)
     // ... $ zip(a, b) ...
     val zip_ab = View.tuple(a, b).zip()
-    val map_zip_ab = new ViewMap(zip_ab, var_j, ArrayType(ArrayType(TupleType(Int, Int), 8), 8))
-    val map_map_zip_ab = new ViewMap(map_zip_ab, var_i, ArrayType(ArrayType(ArrayType(TupleType(Int, Int), 8), 8), 8))
+    val map_zip_ab = new ViewMap(zip_ab, var_j, ArrayTypeWSWC(ArrayTypeWSWC(TupleType(Int, Int), 8), 8))
+    val map_map_zip_ab = new ViewMap(map_zip_ab, var_i, ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(TupleType(Int, Int), 8), 8), 8))
 
     // ... map(f) $ ...
 
@@ -66,14 +68,15 @@ class ViewTest {
     val map_map_map_f0 = map_map_map_f.get(0)
     val map_map_map_f1 = map_map_map_f.get(1)
 
-    assertEquals(8*var_k + 9, ViewPrinter.emit(map_map_map_f0))
-    assertEquals(8*var_l + 9, ViewPrinter.emit(map_map_map_f1))
+    val v = Var()
+    assertEquals(VarRef(v, null, ArithExpression(8*var_k + 9)), ViewPrinter.emit(v, map_map_map_f0))
+    assertEquals(VarRef(v, null, ArithExpression(8*var_l + 9)), ViewPrinter.emit(v, map_map_map_f1))
   }
 
   @Test
   def test3(): Unit = {
-    val A = View(ArrayType(ArrayType(Int, 8), 8), "A")
-    val B = View(ArrayType(ArrayType(Int, 8), 8), "B")
+    val A = View(ArrayTypeWSWC(ArrayTypeWSWC(Int, 8), 8), "A")
+    val B = View(ArrayTypeWSWC(ArrayTypeWSWC(Int, 8), 8), "B")
 
     // map(a => map(b => map(fun(t => Get(t, 0) * Get(t, 1))) o zip(a,b)) o B) o A
     val var_i = Var("i", RangeUnknown)
@@ -87,15 +90,15 @@ class ViewTest {
     val zip_ab_3_0 = zip_ab_3.get(0)
     val zip_ab_3_1 = zip_ab_3.get(1)
 
-
-    assertEquals(8*var_i + 3, ViewPrinter.emit(zip_ab_3_0))
-    assertEquals(8*var_j + 3, ViewPrinter.emit(zip_ab_3_1))
+    val v = Var()
+    assertEquals(VarRef(v, null, ArithExpression(8*var_i + 3)), ViewPrinter.emit(v, zip_ab_3_0))
+    assertEquals(VarRef(v, null, ArithExpression(8*var_j + 3)), ViewPrinter.emit(v, zip_ab_3_1))
   }
 
   @Test
   def testSplit(): Unit = {
 
-    val A = View(ArrayType(Int, 8), "A")
+    val A = View(ArrayTypeWSWC(Int, 8), "A")
 
     // split-2 o A
     val split2A = A.split(2)
@@ -105,13 +108,14 @@ class ViewTest {
     val split2A_i = split2A.access(var_i)
     val split2A_i_j = split2A_i.access(var_j)
 
-    assertEquals(2*var_i + var_j, ViewPrinter.emit(split2A_i_j))
+    val v = Var()
+    assertEquals(VarRef(v, null, ArithExpression(2*var_i + var_j)), ViewPrinter.emit(v, split2A_i_j))
   }
 
   @Test
   def testReorder(): Unit = {
 
-    val A = View(ArrayType(Int, SizeVar("N")), "A")
+    val A = View(ArrayTypeWSWC(Int, SizeVar("N")), "A")
 
     // reorder o A
     val reorder_A = A.reorder((idx) => 40-idx)
@@ -122,7 +126,8 @@ class ViewTest {
     val reorder_split_reorder_A_1 = split_reorder_A.access(1)
     val reorder_split_reorder_A_1_3 = reorder_split_reorder_A_1.access(3)
 
-    assertEquals(Cst(33), ViewPrinter.emit(reorder_split_reorder_A_1_3))
+    val v = Var()
+    assertEquals(VarRef(v, null, ArithExpression(Cst(33))), ViewPrinter.emit(v, reorder_split_reorder_A_1_3))
   }
 
   @Test
@@ -132,8 +137,8 @@ class ViewTest {
     val N = SizeVar("N")
     val M = SizeVar("M")
 
-    val origArray = ArrayType(ArrayType(Float, M), N)
-    val transposedArray = ArrayType(ArrayType(Float, N), M)
+    val origArray = ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N)
+    val transposedArray = ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M)
 
     val i = Var("i", ContinuousRange(0, N))
     val j = Var("j", ContinuousRange(0, M))
@@ -143,7 +148,8 @@ class ViewTest {
     val reality = View(transposedArray, "").join(N).
       reorder(i => transpose(i, origArray)).split(M).access(i).access(j)
 
-    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(reality))
+    val v = Var()
+    assertEquals(ViewPrinter.emit(v, goal), ViewPrinter.emit(v, reality))
   }
 
   @Test
@@ -153,9 +159,9 @@ class ViewTest {
     val N = SizeVar("N")
     val M = SizeVar("M")
 
-    val origArray = ArrayType(ArrayType(Float, M), N)
-    val finalArray = ArrayType(Float, M*N)
-    val transposedArray = ArrayType(ArrayType(Float, N), M)
+    val origArray = ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N)
+    val finalArray = ArrayTypeWSWC(Float, M*N)
+    val transposedArray = ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M)
 
     val i = Var("i", ContinuousRange(0, N))
     val j = Var("j", ContinuousRange(0, M))
@@ -165,7 +171,8 @@ class ViewTest {
     val view = View(finalArray, "").
       reorder(i => transpose(i, origArray)).split(M).access(i).access(j)
 
-    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
+    val v = Var()
+    assertEquals(ViewPrinter.emit(v, goal), ViewPrinter.emit(v, view))
   }
 
   @Test
@@ -174,9 +181,9 @@ class ViewTest {
     val N = SizeVar("N")
     val M = SizeVar("M")
 
-    val origArray = ArrayType(ArrayType(Float, M), N)
-    val transposedArray = ArrayType(ArrayType(Float, N), M)
-    val finalArray = ArrayType(Float, M*N)
+    val origArray = ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N)
+    val transposedArray = ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M)
+    val finalArray = ArrayTypeWSWC(Float, M*N)
 
     val i = Var("i", ContinuousRange(0, N))
     val j = Var("j", ContinuousRange(0, M))
@@ -188,7 +195,8 @@ class ViewTest {
       split(N).join(N).reorder(i => transpose(i, origArray)).
       split(M).access(i).access(j)
 
-    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
+    val v = Var()
+    assertEquals(ViewPrinter.emit(v, goal), ViewPrinter.emit(v, view))
   }
 
   @Test
@@ -197,9 +205,9 @@ class ViewTest {
     val N = SizeVar("N")
     val M = SizeVar("M")
 
-    val origArray = ArrayType(ArrayType(Float, M), N)
-    val transposedArray = ArrayType(ArrayType(Float, N), M)
-    val finalArray = ArrayType(ArrayType(Float, N), M)
+    val origArray = ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N)
+    val transposedArray = ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M)
+    val finalArray = ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M)
 
     val i = Var("i", ContinuousRange(0, N))
     val j = Var("j", ContinuousRange(0, M))
@@ -211,8 +219,9 @@ class ViewTest {
       join(N).split(N).join(N).reorder(i => transpose(i, origArray)).
       split(M).access(i).access(j)
 
-    val accGoal = ViewPrinter.emit(goal)
-    val accView = ViewPrinter.emit(view)
+    val v = Var()
+    val accGoal = ViewPrinter.emit(v, goal)
+    val accView = ViewPrinter.emit(v, view)
     assertEquals(accGoal, accView)
   }
 
@@ -228,25 +237,26 @@ class ViewTest {
     val j = Var("j", ContinuousRange(0, M))
     val k = Var("k", ContinuousRange(0, L))
 
-    // origArray = ArrayType(ArrayType(ArrayType(Float, L), M), N)
-    val middleArray = ArrayType(ArrayType(ArrayType(Float, M), L), N)
-    val finalArray = ArrayType(ArrayType(ArrayType(Float, M), N), L)
+    // origArray = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, L), M), N)
+    val middleArray = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), L), N)
+    val finalArray = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), L)
 
     val goal = View(finalArray, "").access(k).access(i).access(j)
 
     val midGoal = View(middleArray, "").access(i).access(k).access(j)
 
     val midPoint = View(middleArray, "").access(i).join(M).
-      reorder(i => transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
+      reorder(i => transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(Float, L), M))).split(L).
       access(j).access(k)
 
     val view = View(finalArray, "").join(N).
       reorder(i => transpose(i, middleArray)).split(L).access(i).
-      join(M).reorder(i => transpose(i, ArrayType(ArrayType(Float, L), M))).split(L).
+      join(M).reorder(i => transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(Float, L), M))).split(L).
       access(j).access(k)
 
-    assertEquals(ViewPrinter.emit(midGoal), ViewPrinter.emit(midPoint))
-    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
+    val v = Var()
+    assertEquals(ViewPrinter.emit(v, midGoal), ViewPrinter.emit(v, midPoint))
+    assertEquals(ViewPrinter.emit(v, goal),    ViewPrinter.emit(v, view))
 
   }
 }

@@ -9,7 +9,7 @@ case class Get(n: Int) extends Pattern(arity = 1) with isGenerable {
                          setType: Boolean): Type = {
     argType match {
       case tt: TupleType => tt.elemsT(n)
-      case _ => throw new TypeException(argType, "TupleType")
+      case _ => throw new TypeException(argType, "TupleType", this)
     }
   }
 
