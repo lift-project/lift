@@ -34,9 +34,15 @@ class Encoder(arrayType: ArrayType, sizeof: Int) {
    * and write it into `buffer` at its current position.
    */
   private def putArray(ty: ArrayType, array: Array[_], buffer: ByteBuffer): Unit = {
-    putHeader(ty, array, buffer)
-    val capacity = getCapacityOr(ty, array.length)
+    val beforeHeader = buffer.position()
+    val afterHeader = beforeHeader + ty.getHeaderSize * sizeOfInt
 
+    // Header of the array
+    val header = Array.fill(ty.getHeaderSize)(array.length)
+    putIntegers(header, buffer)
+
+    // Content of the array
+    val capacity = getCapacityOr(ty, array.length)
     ty.elemT match {
       case st: ScalarType => putScalarArray(st, capacity, array, buffer)
 
@@ -47,31 +53,31 @@ class Encoder(arrayType: ArrayType, sizeof: Int) {
 
       case VectorType(st, vLen) =>
         val array2D = array.asInstanceOf[Array[Array[_]]]
-        val before = buffer.position()
         array2D.foreach {
           arr => putScalarArray(st, vLen.evalInt, arr, buffer)
         }
-        buffer.position(before + capacity * vLen.evalInt * baseSize)
+        buffer.position(afterHeader + capacity * vLen.evalInt * baseSize)
 
       case elemT: ArrayType =>
         val array2D = array.asInstanceOf[Array[Array[_]]]
-        val currPos = buffer.position()
         if (elemT.hasFixedAllocatedSize) {
+          // "Plain" array
           array2D.foreach(putArray(elemT, _, buffer))
           val sizeOfElem = Type.getAllocatedSize(elemT).evalInt
-          buffer.position(currPos + capacity * sizeOfElem)
+          buffer.position(afterHeader + capacity * sizeOfElem)
         } else {
-          val ofsSize = capacity * baseSize
+          // Ragged array: we store offsets between the header and the actual data
+          val ofsSize = capacity * sizeOfInt
           val offsets = ByteBuffer.allocate(ofsSize)
           offsets.order(endianness)
-          buffer.position(currPos + ofsSize)
-          array2D.foldLeft(capacity)((ofs, arr) => {
+          buffer.position(afterHeader + ofsSize)
+          array2D.foldLeft(buffer.position() - beforeHeader)((ofs, arr) => {
             putArray(elemT, arr, buffer)
             putIntegers(Array(ofs), offsets)
-            (buffer.position() - currPos)/baseSize
+            buffer.position() - beforeHeader
           })
           val endPos = buffer.position()
-          buffer.position(currPos)
+          buffer.position(afterHeader)
           offsets.position(0)
           buffer.put(offsets)
           buffer.position(endPos)
@@ -84,28 +90,22 @@ class Encoder(arrayType: ArrayType, sizeof: Int) {
   // ---
   // Some private helper functions
   // ---
-
-  /** Write the header of an array depending on its type. */
-  private def putHeader(ty: ArrayType, array: Array[_], buffer: ByteBuffer): Unit = {
-    val header = Array.fill(ty.getHeaderSize)(array.length)
-    putIntegers(header, buffer)
-  }
   
-  /** Wrapper on the top of `ByteBuffer.put` that
-   *  1. Increments the position
-   *  2. Call the appropriate `asXXXBuffer()` method depending on baseSize
+  /**
+   * Wrapper on the top of `ByteBuffer.put` that interprets a byte buffer as a
+   * int buffer, put `values` in it and increment the position.
    */
   private def putIntegers(values: Array[Int], buffer: ByteBuffer): Unit = {
     val before = buffer.position()
-    baseSize match {
-      case 1 => buffer.put(values.map(_.toByte))
-      case 4 => buffer.asIntBuffer().put(values)
-      case 8 => buffer.asLongBuffer().put(values.map(_.toLong))
-      case _ => throw new IllegalArgumentException()
-    }
-    buffer.position(before + baseSize * values.length)
+    buffer.asIntBuffer().put(values)
+    buffer.position(before + sizeOfInt * values.length)
   }
-
+  
+  /**
+   * Wrapper on the top of `ByteBuffer.put` that interprets the buffer as a
+   * buffer of the appropriate type depending on the provided `ScalarType`,
+   * put `array` in it and increment the position.
+   */
   private def putScalarArray(st: ScalarType, capacity: Int,
                              array: Array[_], buffer: ByteBuffer): Unit = {
     val before = buffer.position()
@@ -118,7 +118,8 @@ class Encoder(arrayType: ArrayType, sizeof: Int) {
     buffer.position(before + baseSize * capacity)
   }
   
-  /** Shorthand to get the capacity of an array of fall back on its length if
+  /**
+   * Shorthand to get the capacity of an array of fall back on its length if
    * the capacity is not in the type.
    */
   private def getCapacityOr(ty: ArrayType, fallback: Int): Int = ty match {
@@ -127,6 +128,7 @@ class Encoder(arrayType: ArrayType, sizeof: Int) {
   }
 
   val endianness = ByteOrder.LITTLE_ENDIAN // First approximation, FIXME (at some point)
+  private lazy val sizeOfInt = Int.size.evalInt
   private lazy val baseType = Type.getBaseScalarType(arrayType)
   private lazy val baseSize = Type.getAllocatedSize(baseType).evalInt
 }

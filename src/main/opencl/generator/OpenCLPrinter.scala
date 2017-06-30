@@ -3,7 +3,7 @@ package opencl.generator
 import lift.arithmetic._
 import lift.arithmetic.NotEvaluableToIntException._
 import ir._
-import ir.view.AccessVar
+import ir.view.{AccessVar, CastedPointer}
 import opencl.generator.OpenCLAST._
 import opencl.ir._
 
@@ -33,12 +33,10 @@ object OpenCLPrinter {
       case Sum(es) => "(" + es.map(toString).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toString(a) + " % " + toString(n) + ")"
       case of: OclFunction => of.toOCLString
-      case ai: AccessVar =>
-        val access = s"${ai.array}[${toString(ai.idx.content)}]"
-        ai.asType match {
-          case None => access
-          case Some(st) => s"as_${st.name}($access)"
-        }
+      case ai: AccessVar => s"${toString(ai.array)}[${toString(ai.idx)}]"
+      case CastedPointer(v, ty, ofs) =>
+        val offset = if (ofs == Cst(0)) "" else s" + ${toString(ofs)}"
+        s"((${Type.name(ty)}*)(${toString(v)}$offset))"
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
       case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"

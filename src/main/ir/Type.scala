@@ -1,8 +1,9 @@
 package ir
 
-import lift.arithmetic._
 import arithmetic.TypeVar
 import ir.ast.IRNode
+import lift.arithmetic._
+import opencl.ir.Int
 
 import scala.collection.immutable.HashMap
 import scala.collection.{immutable, mutable}
@@ -167,6 +168,7 @@ case class ArrayType(elemT: Type) extends Type {
     case _: Capacity => 0 // capacity is not in the header
     case _ => 1 // skip the capacity
   }
+  lazy val capacityIndex: Int = 0
 
   /**
    * @return the number of values stored in the header of this array.
@@ -549,11 +551,6 @@ object Type {
    * @return The size in bytes.
    */
   def getAllocatedSize(t: Type) : ArithExpr = {
-    val baseSize = getAllocatedSize(getBaseType(t), Cst(1))
-    getAllocatedSize(t, baseSize)
-  }
-
-  def getAllocatedSize(t: Type, baseSize: ArithExpr) : ArithExpr = {
     t match {
       case st: ScalarType => st.size
       case vt: VectorType => vt.scalarT.size * vt.len
@@ -561,7 +558,8 @@ object Type {
       case at: ArrayType => at match {
         case c: Capacity =>
           if (at.elemT.hasFixedAllocatedSize)
-            (at.getHeaderSize * baseSize) + c.capacity * getAllocatedSize(at.elemT)
+            (at.getHeaderSize * getAllocatedSize(Int)) +
+            c.capacity * getAllocatedSize(at.elemT)
           else ? // Dynamic allocation required
         case _ => ? // Dynamic allocation required
       }

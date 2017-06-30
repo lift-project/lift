@@ -18,7 +18,7 @@ class TestEncoder {
     val tyCon = (st: ScalarType) => ArrayType(st, size)
 
     val (bArray, iArray, fArray, dArray) = get1DData(size)
-    val (bEncoder, iEncoder, fEncoder, dEncoder) = getEncoders(tyCon, size)
+    val (bEncoder, iEncoder, fEncoder, dEncoder) = getEncoders(tyCon, size * _)
 
     assertBufferEquals(toBuffer(fArray), fEncoder.encode(fArray))
     assertBufferEquals(toBuffer(iArray), iEncoder.encode(iArray))
@@ -30,24 +30,23 @@ class TestEncoder {
   def encodeRagged1D(): Unit = {
     val capacity = 32
     val size = 17
-    val allocatedSize = capacity + 1
+    val allocatedSize = (baseSize: Int) => sizeOfInt + capacity * baseSize
     val tyCon = (st: ScalarType) => ArrayTypeWC(st, capacity)
 
     val (bArray, iArray, fArray, dArray) = get1DData(size)
     val (bEncoder, iEncoder, fEncoder, dEncoder) = getEncoders(tyCon, allocatedSize)
 
     def gold[T](array: Array[T], baseSize: Int): ByteBuffer = {
-      val buffer = ByteBuffer.allocate(allocatedSize * baseSize)
-      // Header
-      buffer.order(endianness)
-      putInt(size, baseSize, buffer)
-      buffer.position(baseSize)
-      // Data
+      val buffer = mkBuffer(allocatedSize(baseSize))
+      // Header: just the size
+      buffer.asIntBuffer().put(size)
+      buffer.position(sizeOfInt)
+      // Data: raw array
       val data = toBuffer(array)
       data.position(0)
       buffer.put(data)
     }
-
+    
     assertBufferEquals(gold(fArray, 4), fEncoder.encode(fArray))
     assertBufferEquals(gold(iArray, 4), iEncoder.encode(iArray))
     assertBufferEquals(gold(dArray, 8), dEncoder.encode(dArray))
@@ -57,7 +56,7 @@ class TestEncoder {
   @Test
   def encodeFull2D(): Unit = {
     val (sizeX, sizeY) = (3, 7)
-    val allocSize = sizeX * sizeY
+    val allocSize = (baseSize: Int) => sizeX * sizeY * baseSize
     val tyCon = (st: ScalarType) => ArrayType(ArrayType(st, sizeY), sizeX)
 
     val (bArray, iArray, fArray, dArray) = get2DData(sizeX, sizeY)
@@ -74,28 +73,29 @@ class TestEncoder {
     val capX = 16
     val capY = 8
     val sizeX = 13
-    val allocSize = 1 + capX * (1 + capY)
+    val allocSize = (baseSize: Int) => sizeOfInt + capX * (sizeOfInt + capY * baseSize)
     val tyCon = (st: ScalarType) => ArrayTypeWC(ArrayTypeWC(st, capY), capX)
 
     val (bArray, iArray, fArray, dArray) = get2DRaggedData(sizeX, (1, capY))
     val (bEncoder, iEncoder, fEncoder, dEncoder) = getEncoders(tyCon, allocSize)
 
     def gold[T: ClassTag](array2D: Array[Array[T]], baseSize: Int): ByteBuffer = {
-      val buffer = ByteBuffer.allocate(allocSize * baseSize)
-      buffer.order(endianness)
+      val buffer = mkBuffer(allocSize(baseSize))
 
-      putInt(sizeX, baseSize, buffer)
-      buffer.position(baseSize)
+      // Header: just the size
+      buffer.asIntBuffer().put(sizeX)
+      buffer.position(sizeOfInt)
 
+      // Body: a flattened version of the 2D array padded with zeros
       array2D.foreach {
         (arr: Array[T]) =>
           val start = buffer.position()
-          putInt(arr.length, baseSize, buffer)
-          buffer.position(start + baseSize)
+          buffer.asIntBuffer().put(arr.length)
+          buffer.position(start + sizeOfInt)
           val encodedRow = toBuffer(arr)
           encodedRow.position(0)
           buffer.put(encodedRow)
-          buffer.position(start + (1 + capY) * baseSize)
+          buffer.position(start + sizeOfInt + capY * baseSize)
       }
 
       buffer
@@ -116,36 +116,41 @@ class TestEncoder {
     // This allocated size is chosen based on our knowledge of the data, this
     // information cannot be retrieved from the type.
     // See the ScalaDoc comment at the top of `OpenCLMemoryAllocator.scala`
-    val allocSize = 1 + capX + capX * (2 + yBounds._2)
+    val allocSize = (baseSize: Int) =>
+      sizeOfInt * (1 + capX) + capX * (2 * sizeOfInt + yBounds._2 * baseSize)
 
     val (bArray, iArray, fArray, dArray) = get2DRaggedData(sizeX, yBounds)
     val (bEncoder, iEncoder, fEncoder, dEncoder) = getEncoders(tyCon, allocSize)
 
     def gold[T: ClassTag](array2D: Array[Array[T]], baseSize: Int): ByteBuffer = {
-      val buffer = ByteBuffer.allocate(allocSize * baseSize)
-      buffer.order(endianness)
+      val buffer = mkBuffer(allocSize(baseSize))
 
-      putInt(sizeX, baseSize, buffer)
-      array2D.map(_.length + 2).scan(capX)(_ + _).slice(0, array2D.length).zipWithIndex.foreach {
-        case (ofs, idx) =>
-          buffer.position((1 + idx) * baseSize)
-          putInt(ofs, baseSize, buffer)
+      // Header: just the size
+      buffer.asIntBuffer().put(sizeX)
+      // Offsets: `capX` integer values storing the offset in bytes between the
+      //          beginning of the outer array and the beginning of each inner
+      //          array.
+      var ofs = sizeOfInt * (1 + capX)
+      array2D.map(_.length).zipWithIndex.foreach {
+        case (len, idx) =>
+          buffer.position((1 + idx) * sizeOfInt)
+          buffer.asIntBuffer().put(ofs)
+          ofs += len * baseSize + 2 * sizeOfInt
       }
-      buffer.position((1 + capX) * baseSize)
+      buffer.position((1 + capX) * sizeOfInt)
 
+      // A flattened version of the 2D array with *NO* padding.
       array2D.foreach {
         (arr: Array[T]) =>
           val start = buffer.position()
           // Header
-          putInt(arr.length, baseSize, buffer)
-          buffer.position(start + baseSize)
-          putInt(arr.length, baseSize, buffer)
-          buffer.position(start + 2 * baseSize)
+          buffer.asIntBuffer().put(Array(arr.length, arr.length))
+          buffer.position(start + 2 * sizeOfInt)
           // Content
           val encodedRow = toBuffer(arr)
           encodedRow.position(0)
           buffer.put(encodedRow)
-          buffer.position(start + (2 + arr.length) * baseSize)
+          buffer.position(start + 2 * sizeOfInt + arr.length * baseSize)
       }
 
       buffer
@@ -160,13 +165,14 @@ class TestEncoder {
 
 object TestEncoder {
   val endianness = ByteOrder.LITTLE_ENDIAN
+  val sizeOfInt: Int = Type.getAllocatedSize(Int).evalInt
 
   /** Instantiate 4 encoders for the 4 supported scalar types */
-  def getEncoders(tyCon: ScalarType => ArrayType, allocSize: Int): (Encoder, Encoder, Encoder, Encoder) = (
-    new Encoder(tyCon(Bool), allocSize * 1),
-    new Encoder(tyCon(Int), allocSize * 4),
-    new Encoder(tyCon(Float), allocSize * 4),
-    new Encoder(tyCon(Double), allocSize * 8)
+  def getEncoders(tyCon: ScalarType => ArrayType, allocSize: Int => Int): (Encoder, Encoder, Encoder, Encoder) = (
+    new Encoder(tyCon(Bool), allocSize(1)),
+    new Encoder(tyCon(Int), allocSize(4)),
+    new Encoder(tyCon(Float), allocSize(4)),
+    new Encoder(tyCon(Double), allocSize(8))
   )
 
   // ---
@@ -212,24 +218,21 @@ object TestEncoder {
     case _: Double => 8
   }
 
-  def putInt(n: Int, baseSize: Int, buffer: ByteBuffer): Unit = {
-    baseSize match {
-      case 1 => buffer.put(n.toByte)
-      case 4 => buffer.asIntBuffer().put(n)
-      case 8 => buffer.asLongBuffer().put(n.toLong)
-    }
-  }
-
   def toBuffer(array: Array[_]): ByteBuffer = {
-    val buffer = ByteBuffer.allocate(array.length * sizeOf(array.head))
-    buffer.order(endianness)
-    buffer.position(0)
+    val buffer = mkBuffer(array.length * sizeOf(array.head))
     array match {
       case ab: Array[Boolean] => buffer.put(ab.map(b => (if (b) 1 else 0).toByte))
       case ai: Array[Int] => buffer.asIntBuffer().put(ai)
       case af: Array[Float] => buffer.asFloatBuffer().put(af)
       case ad: Array[Double] => buffer.asDoubleBuffer().put(ad)
     }
+    buffer
+  }
+
+  /** Shorthand */
+  def mkBuffer(size: Int): ByteBuffer = {
+    val buffer = ByteBuffer.allocate(size)
+    buffer.order(endianness)
     buffer
   }
 
