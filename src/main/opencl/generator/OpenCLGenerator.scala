@@ -1095,7 +1095,7 @@ class OpenCLGenerator extends Generator {
 
     // where initial window values are set
     def setupInitialWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = n match {
-      case 1 => println("n="+n);for(j <- 0 to reuse.eval-1) { println("j="+j);accesses(n-1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j+idx}"), ViewPrinter.emit(inputMem.variable, getView(call.args.head.view,accesses))) }
+      case 1 => println("n="+n);for(j <- 0 to reuse.eval-1) { println("j+idx="+(j+idx));accesses(n-1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j+idx}"), ViewPrinter.emit(inputMem.variable, getView(call.args.head.view,accesses))) }
       case _ => println("n="+n);for(i <- 0 to size.eval-1) { accesses(n-1) = i; setupInitialWindowVars(idx+i*size.eval, n-1, accesses) }
     }
     println("setup window vars")
