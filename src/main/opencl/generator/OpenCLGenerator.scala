@@ -1085,18 +1085,20 @@ class OpenCLGenerator extends Generator {
     def getView(v: View, accesses : Array[Int]) : View =
     {
         var viewReturn = v
+        print("(")
         for(i <- 0 to accesses.length-1)
         {
-          println("accesses("+i+"): "+accesses(i))
+          print(accesses(i)+",")
           viewReturn = viewReturn.access(accesses(i))
         }
+        println(")")
         viewReturn
     }
 
     // where initial window values are set
     def setupInitialWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = n match {
-      case 1 => println("n="+n);for(j <- 0 to reuse.eval-1) { println("j+idx="+(j+idx));accesses(n-1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j+idx}"), ViewPrinter.emit(inputMem.variable, getView(call.args.head.view,accesses))) }
-      case _ => println("n="+n);for(i <- 0 to size.eval-1) { accesses(n-1) = i; setupInitialWindowVars(idx+i*math.pow(size.eval,n-1).toInt, n-1, accesses) }
+      case 1 => for(j <- 0 to reuse.eval-1) { print("idx="+(j+idx)+" ");accesses(n-1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j+idx}"), ViewPrinter.emit(inputMem.variable, getView(call.args.head.view,accesses))) }
+      case _ => for(i <- 0 to size.eval-1) { accesses(n-1) = i; setupInitialWindowVars(idx+i*math.pow(size.eval,n-1).toInt, n-1, accesses) }
     }
     println("setup window vars")
     setupInitialWindowVars(0,nDim, accesses)
@@ -1146,8 +1148,9 @@ class OpenCLGenerator extends Generator {
     if(is3D)
     {
       println("3D")
+      println("update window vars")
       val nx = size.eval
-      println("nx: "+nx+" reuse: "+reuse.eval)
+
       for(i <- 0 to nx-1)
       {
         for (j <- 0 to nx - 1)
@@ -1155,8 +1158,9 @@ class OpenCLGenerator extends Generator {
           for (k <- reuse.eval to size.eval - 1)
           {
             val idx = i*nx*nx + j * nx + k
-            println("idx: "+idx+"(i,j,k): ("+i+","+j+","+k+")")
-            innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(k + (indexVar * step.eval) / (stop*stop)).access(j + (indexVar * step.eval) / stop).access(i+(indexVar*step.eval)/stop)))
+            println("idx: "+idx+"(i,j,k): ("+k+","+j+","+i+")")
+            println("idx actual: "+idx+" ("+{(k + (indexVar * step.eval) / (stop*stop))}+","+{(j + (indexVar * step.eval) / stop)}+","+{(i+(indexVar*step.eval)%stop)}+")")
+            innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(k + (indexVar * step.eval) / (stop*stop)).access(j + (indexVar * step.eval) / stop).access(i+(indexVar*step.eval)%stop)))
           }
         }
       }
