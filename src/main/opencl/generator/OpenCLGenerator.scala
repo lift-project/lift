@@ -1156,7 +1156,7 @@ class OpenCLGenerator extends Generator {
           {
             val idx = i*nx*nx + j * nx + k
             println("idx: "+idx+"(i,j,k): ("+i+","+j+","+k+")")
-            innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(k + (indexVar * step.eval) % stop).access(j + (indexVar * step.eval) / stop).access(k+(indexVar*step.eval)/(stop*stop))))
+            innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(k + (indexVar * step.eval) / (stop*stop)).access(j + (indexVar * step.eval) / stop).access(i+(indexVar*step.eval)/stop)))
           }
         }
       }
