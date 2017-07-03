@@ -52,6 +52,12 @@ object ParameterRewrite {
       s
   }
 
+  private[exploration] val defaultExploreNDRange = false
+  private[exploration] val defaultSampleNDRange = -1
+  private[exploration] val defaultDisableNDRangeInjection = false
+  private[exploration] val defaultSequential = false
+  private[exploration] val defaultGenerateScala = false
+
   protected[exploration] val exploreNDRange = parser.flag[Boolean](List("e", "exploreNDRange"),
     s"Explore global and local sizes instead of inferring (default: $defaultExploreNDRange)")
 
@@ -67,11 +73,6 @@ object ParameterRewrite {
   protected[exploration] val generateScala = parser.flag[Boolean](List("generate-scala"),
     s"Generate lambdas in Scala as well as in OpenCL (default: $defaultGenerateScala)")
 
-  private[exploration] val defaultExploreNDRange = false
-  private[exploration] val defaultSampleNDRange = -1
-  private[exploration] val defaultDisableNDRangeInjection = false
-  private[exploration] val defaultSequential = false
-  private[exploration] val defaultGenerateScala = false
 
   private val settingsFile = parser.option[String](List("f", "file"), "name",
     "The settings file to use."
