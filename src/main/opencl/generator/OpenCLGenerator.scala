@@ -1085,13 +1085,14 @@ class OpenCLGenerator extends Generator {
     def getView(v: View, accesses : Array[Int]) : View =
     {
         var viewReturn = v
+        var str = ""
         print("(")
         for(i <- 0 to accesses.length-1)
         {
-          print(accesses(i)+",")
+          str = str + accesses(i)+","
           viewReturn = viewReturn.access(accesses(i))
         }
-        println(")")
+        println(str+")")
         viewReturn
     }
 
@@ -1160,7 +1161,7 @@ class OpenCLGenerator extends Generator {
             val idx = i*nx*nx + j * nx + k
             println("idx: "+idx+"(i,j,k): ("+k+","+j+","+i+")")
             println("idx actual: "+idx+" ("+{(k + (indexVar * step.eval) / (stop*stop))}+","+{(j + (indexVar * step.eval) / stop)}+","+{(i+(indexVar*step.eval)%stop)}+")")
-            innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(k + (indexVar * step.eval) / (stop*stop)).access(j + (indexVar * step.eval) / stop).access(i+(indexVar*step.eval)%stop)))
+            innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i + (indexVar * step.eval) % stop).access(j+(indexVar*step.eval) / stop).access(k + (indexVar * step.eval) / (stop*stop))))
           }
         }
       }
@@ -1212,7 +1213,21 @@ class OpenCLGenerator extends Generator {
 
     generateBody(innerBlock)
 
-/*    if(is2D)
+    if(is3D)
+    {
+      val nx = size.eval
+      for( i <- 0 to nx-1 )
+      {
+        for ( j <- 0 to nx - 1 )
+        {
+          for ( k <- 1 to reuse.eval ) {
+            val idxL = i * nx * nx + j*nx + k
+            innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idxL - 1}"), VarRef(sSP.windowVar, suffix = s"_${idxL}"))
+          }
+        }
+      }
+    }
+    else if(is2D)
     {
       val nx = size.eval
       for(i <- 0 to nx-1)
@@ -1220,7 +1235,7 @@ class OpenCLGenerator extends Generator {
         for(j <- 1 to reuse.eval)
         {
           val idxL = i*nx+j
-          innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idxL-1}"), VarRef(sSP.windowVar, suffix = s"_${idxL+(size.eval-reuse-1)}"))
+          //innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idxL-1}"), VarRef(sSP.windowVar, suffix = s"_${idxL+(size.eval-reuse-1)}"))
         }
       }
     }
@@ -1230,15 +1245,16 @@ class OpenCLGenerator extends Generator {
       {
         innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${i - 1}"), VarRef(sSP.windowVar, suffix = s"_${size.eval - reuse - 1 + i}"))
       }
-    }*/
+    }
+    /**/
 
-    def swapWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = n match {
-      case 1 => for(j <- 1 to reuse.eval) {  accesses(n-1) = j; innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j+idx-1}"), VarRef(sSP.windowVar, suffix = s"_${j+idx+(size.eval-reuse-1)}")) }
-      case _ => for(i <- 0 to size.eval-1) { accesses(n-1) = i; swapWindowVars(idx+i*math.pow(size.eval,n-1).toInt, n-1, accesses) }
+    def swapWindowVars(idx: Int, n: Int): Unit = n match {
+      case 1 => for(j <- 1 to reuse.eval) { val newidx = j+idx/*idx+size.eval-reuse.eval-1*/;println("swap: "+newidx); innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j+idx-1}"), VarRef(sSP.windowVar, suffix = s"_${newidx}")) }
+      case _ => for(i <- 0 to size.eval-1) { swapWindowVars(idx+i*math.pow(size.eval,n-1).toInt, n-1) }
     }
 
     println("swap window vars")
-    swapWindowVars(0,nDim, accesses)
+    //swapWindowVars(0,nDim)
   }
 
   private def generateForLoop(block: Block,

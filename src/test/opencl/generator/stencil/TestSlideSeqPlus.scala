@@ -729,7 +729,7 @@ class TestSlideSeqPlus
   @Test
   def reduceSlide3DTest9PointWithWeightsAndAt(): Unit = {
 
-    val size = 8
+    val size = 6
 
     val slidesize = 3
     val slidestep = 1
@@ -761,7 +761,8 @@ class TestSlideSeqPlus
             fun(x => add(x,`tile[1][1][2]`)) o
             fun(x => add(x,`tile[1][2][1]`)) $ `tile[2][1][1]`
 
-          toGlobal(id) $ stencil
+//          toGlobal(id) $ stencil
+          toGlobal(id) $ `tile[1][1][1]`
 
         }))))
           o Slide3D(a,b) $ mat)
@@ -791,7 +792,8 @@ class TestSlideSeqPlus
               fun(x => add(x,`tile[1][1][2]`)) o
               fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
 
-            toGlobal(id) $ stencil
+            //toGlobal(id) $ stencil
+              toGlobal(id) $ `tile[1][1][1]`
 
           }) o PrintType(), a,b)) o Transpose() o Map(Transpose()) o PrintType() $ x  /*o Map(Transpose()) o Map(Map(Transpose()))*/
         }))) o Slide2D(a,b)  $ input
