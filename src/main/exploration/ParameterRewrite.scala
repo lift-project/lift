@@ -227,7 +227,7 @@ object ParameterRewrite {
                         logger.warn(low_level_hash)
                         logger.warn(params.mkString("; "))
                         logger.warn(low_level_str)
-                        logger.warn(settings.searchParameters.defaultSize.toString)
+                        logger.warn(settings.searchParameters.defaultInputSize.toString)
                         None
                     }
                   }).flatten
@@ -293,7 +293,7 @@ object ParameterRewrite {
     val vars = lambda.getVarsInParams()
 
     val actualSizes: Seq[ArithExpr] =
-      if (sizes.isEmpty) Seq.fill(vars.length)(settings.searchParameters.defaultSize)
+      if (sizes.isEmpty) Seq.fill(vars.length)(settings.searchParameters.defaultInputSize)
       else sizes
 
     (vars, actualSizes).zipped.toMap

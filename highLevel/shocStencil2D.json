@@ -47,7 +47,7 @@
   },
 
   "search_parameters" : {
-    "default_size" : 8194,
+    "default_input_size" : 8194,
     "min_work_items" : 128,
     "max_work_items" : 1024,
     "min_grid_size" : 4,

@@ -9,7 +9,7 @@ import lift.arithmetic.{ArithExpr, Cst}
 object ExpressionFilter {
 
     // Default input size for all dimensions to use for filtering, if no input combinations provided
-  protected[exploration] val default_size = 1024
+  protected[exploration] val default_input_size = 1024
 
   // Minimum number of work item per workgroup
   protected[exploration] val min_work_items = 128
