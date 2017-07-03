@@ -3,7 +3,7 @@ package opencl.generator
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{ExecuteOld, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -39,7 +39,7 @@ class TestTriple {
       ) o Split(1024) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputArray)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize)(f, inputArray)
     assertArrayEquals(gold, output, 0.0f)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -57,7 +57,7 @@ class TestTriple {
         ) o Split(1024) $ Zip(xs, ys, zs)
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputArray1, inputArray2, inputArray3)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize)(f, inputArray1, inputArray2, inputArray3)
     assertArrayEquals(gold, output, 0.0f)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)    

@@ -4,7 +4,7 @@ import benchmarks.MatrixTransposition
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, Utils}
+import opencl.executor.{ExecuteOld, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -48,7 +48,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], _) = Execute(32, Nsize * Msize)(f, matrix)
+    val (output: Array[Float], _) = ExecuteOld(32, Nsize * Msize)(f, matrix)
 
     println("tile: ")
     Utils.myPrint(gold(0)(0))
@@ -79,7 +79,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], _) = Execute(4,4, Nsize, Msize, (false, false))(f, matrix)
+    val (output: Array[Float], _) = ExecuteOld(4,4, Nsize, Msize, (false, false))(f, matrix)
 
     println("tile: ")
     Utils.myPrint(gold(0)(0))
@@ -112,7 +112,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], _) = Execute(32, Nsize * Msize)(f, matrix)
+    val (output: Array[Float], _) = ExecuteOld(32, Nsize * Msize)(f, matrix)
 
     println("gold: ")
     Utils.myPrint(gold.flatten, 8)
@@ -145,7 +145,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], _) = Execute(4,4, Nsize, Msize, (false, false))(f, matrix)
+    val (output: Array[Float], _) = ExecuteOld(4,4, Nsize, Msize, (false, false))(f, matrix)
 
     println("gold: ")
     Utils.myPrint(gold.flatten, 8)
@@ -170,7 +170,7 @@ class TestTiling {
         MapWrg(0)(MapWrg(1)( MapLcl(0)(MapLcl(1)(id)) o Transpose())) o Tile(4) $ matrix
       })
 
-    val (output: Array[Float], _) = Execute(32, Nsize * Msize)(f, matrix)
+    val (output: Array[Float], _) = ExecuteOld(32, Nsize * Msize)(f, matrix)
 
     println("tile: 0,0 ")
     Utils.myPrint(gold(0)(0))
@@ -203,7 +203,7 @@ class TestTiling {
             TransposeW() o  toLocal(MapLcl(0)(MapLcl(1)(id))))) o Tile(4) $ matrix
       })
 
-    val (output: Array[Float], _) = Execute(4,4, Nsize, Msize, (false, false))(f, matrix)
+    val (output: Array[Float], _) = ExecuteOld(4,4, Nsize, Msize, (false, false))(f, matrix)
 
     println("tile: 0,0 ")
     Utils.myPrint(gold(0)(0))
@@ -235,7 +235,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], _) = Execute(32, Nsize * Msize)(f, matrix)
+    val (output: Array[Float], _) = ExecuteOld(32, Nsize * Msize)(f, matrix)
 
     println("tile: 0,0 ")
     Utils.myPrint(gold(0)(0))
@@ -272,7 +272,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], _) = Execute(32, Nsize * Msize)(f, matrix)
+    val (output: Array[Float], _) = ExecuteOld(32, Nsize * Msize)(f, matrix)
 
     println("gold: ")
     Utils.myPrint(transposeGold.flatten, Nsize)
@@ -289,7 +289,7 @@ class TestTiling {
     Utils.myPrint(matrix)
 
     val (output: Array[Float], _) =
-      Execute(32, Nsize * Msize)(MatrixTransposition.coalesced(), matrix)
+      ExecuteOld(32, Nsize * Msize)(MatrixTransposition.coalesced(), matrix)
 
     println("gold: ")
     Utils.myPrint(transposeGold.flatten, Nsize)
@@ -318,7 +318,7 @@ class TestTiling {
           Tile(4) $ matrix
       })
 
-    val (output: Array[Float], _) = Execute(32, Nsize * Msize)(f, matrix)
+    val (output: Array[Float], _) = ExecuteOld(32, Nsize * Msize)(f, matrix)
 
     assertArrayEquals(transposeGold.flatten, output, 0.0f)
   }
@@ -329,7 +329,7 @@ class TestTiling {
     Utils.myPrint(matrix)
 
     val (output: Array[Float], _) =
-      Execute(32, Nsize * Msize)(MatrixTransposition.coalesced(4,8), matrix)
+      ExecuteOld(32, Nsize * Msize)(MatrixTransposition.coalesced(4,8), matrix)
 
     println("gold: ")
     Utils.myPrint(transposeGold.flatten, Nsize)

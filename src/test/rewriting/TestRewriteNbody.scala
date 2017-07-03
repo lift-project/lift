@@ -5,7 +5,7 @@ import exploration.{ExpressionFilter, ParameterRewrite}
 import ir._
 import ir.ast._
 import lift.arithmetic.ArithExpr
-import opencl.executor.{Execute, Executor, Utils}
+import opencl.executor.{ExecuteOld, Executor, Utils}
 import opencl.generator.TestNBody._
 import opencl.ir._
 import org.junit.Assert._
@@ -81,7 +81,7 @@ class TestRewriteNbody {
     val replacedGlobal = global.map(ArithExpr.substitute(_, replacement))
 
     val (output: Array[Float], _) =
-      Execute(local, replacedGlobal, (true, false))(f27, pos, vel, espSqr, deltaT)
+      ExecuteOld(local, replacedGlobal, (true, false))(f27, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
 
     val x = ParameterRewrite.replaceInputTypes(f27, replacementFilter)

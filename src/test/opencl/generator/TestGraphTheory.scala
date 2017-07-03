@@ -56,7 +56,7 @@ class TestGraphTheory {
         ) $ bfsFringe
       }
     )
-    val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(denseBFSIteration, graph, fringe)
+    val (output:Array[Float], runtime) = ExecuteOld(inputSize*inputSize)(denseBFSIteration, graph, fringe)
     val gold:Array[Float] = scalaBFSIteration(graph,fringe)
     println(fringe.toList)
     println("Fringe sum = "+ fringe.sum)
@@ -85,7 +85,7 @@ class TestGraphTheory {
         ) $ ranks
       }
     )
-    val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(densePageRankIteration, graph, ranks)
+    val (output:Array[Float], runtime) = ExecuteOld(inputSize*inputSize)(densePageRankIteration, graph, ranks)
     val gold:Array[Float] = scalaDotProductIteration(graph,ranks)
     println(ranks.toList)
     println("Fringe sum = "+ ranks.sum)
@@ -113,7 +113,7 @@ class TestGraphTheory {
         ) o Split(128) $ graph
       }
     )
-    val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(denseBFSIteration, graph, fringe)
+    val (output:Array[Float], runtime) = ExecuteOld(inputSize*inputSize)(denseBFSIteration, graph, fringe)
     val gold:Array[Float] = scalaBFSIteration(graph,fringe)
     println(fringe.toList)
     println("Fringe sum = "+ fringe.sum)
@@ -145,7 +145,7 @@ class TestGraphTheory {
         )) $ pageRanks
       })
 
-    val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(pageRankMultiIteration, graph, ranks)
+    val (output:Array[Float], runtime) = ExecuteOld(inputSize*inputSize)(pageRankMultiIteration, graph, ranks)
     val gold = scalaIterateDotProduct(1,graph,ranks)
     println(ranks.toList)
     println("Fringe sum = "+ ranks.sum)
@@ -174,7 +174,7 @@ class TestGraphTheory {
       })
 
 
-    val (output:Array[Float], runtime) = Execute(1,1)(BFSMultiIteration, graphArr, fringeArr)
+    val (output:Array[Float], runtime) = ExecuteOld(1,1)(BFSMultiIteration, graphArr, fringeArr)
     val gold = scalaIterateBFS(5,graphArr,fringeArr)
     println(fringeArr.toList)
     println("Fringe sum = "+ fringeArr.sum)

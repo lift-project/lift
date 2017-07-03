@@ -89,3 +89,16 @@ jbooleanArray Java_opencl_executor_GlobalArg_asBooleanArray(JNIEnv* env, jobject
                          reinterpret_cast<jboolean*>(vec.hostBuffer().data()));
   return res;
 }
+
+jbyteArray Java_opencl_executor_GlobalArg_asByteArray(JNIEnv* env, jobject obj)
+{
+  auto ptr = getHandle<executor::GlobalArg>(env, obj);
+  auto& vec = ptr->data();
+
+  auto res = env->NewByteArray(vec.size() / sizeof(jbyte));
+  if (res == nullptr) return nullptr;
+
+  env->SetByteArrayRegion(res, 0, vec.size() / sizeof(jbyte),
+                          reinterpret_cast<jbyte*>(vec.hostBuffer().data()));
+  return res;
+}

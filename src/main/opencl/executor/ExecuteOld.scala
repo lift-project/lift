@@ -1,29 +1,43 @@
 package opencl.executor
 
-import java.nio.{ByteBuffer, ByteOrder}
-
+import lift.arithmetic._
 import ir._
 import ir.ast._
-import lift.arithmetic._
-import opencl.executor.Decoder.DecodeTypes.DecodeType
-import opencl.generator.{NDRange, OpenCLGenerator, Verbose}
+import opencl.generator.NDRange
+import opencl.generator.{OpenCLGenerator, Verbose}
 import opencl.ir._
 import rewriting.InferNDRange
 
 import scala.collection.immutable
 import scala.reflect.ClassTag
 
+/** Thrown when the global size is not divisible by the local size */
+class InvalidIndexSpaceException(msg: String) extends Exception(msg)
+/** Thrown on negative or 0 global size */
+class InvalidGlobalSizeException(msg: String) extends Exception(msg)
+/** Thrown on negative or 0 local size */
+class InvalidLocalSizeException(msg: String) extends Exception(msg)
+
+/** Thrown when the executor receive ill-formed/ill-typed arguments */
+class IllegalKernelArgument(msg: String) extends IllegalArgumentException(msg)
+
+/** Thrown when the device cannot execute the kernel */
+class DeviceCapabilityException(msg: String) extends RuntimeException(msg)
+
 /**
  * Interface for executing a lambda object in OpenCL via Java -> JNI -> SkelCL -> OpenCL
  */
 
-/** Factory functions for creating an instance of the class Execute */
-object Execute {
+/**
+ * This object provides factory functions for creating an instance of the class Execute
+ */
+object ExecuteOld {
   /**
    * Creates an Execute instance with the given one dimensional global size and a default local
    * size. Neither the global nor the local size is injected in the OpenCL kernel code.
    */
-  def apply(globalSize: Int): Execute = apply(128, globalSize)
+  def apply(globalSize: Int): ExecuteOld =
+    apply(128, globalSize)
 
   /**
    *
@@ -33,31 +47,42 @@ object Execute {
    */
   def apply(localSize: Int,
             globalSize: Int,
-            injectSizes: (Boolean, Boolean) = (false, false)): Execute = {
-    new Execute(localSize, 1, 1, globalSize, 1, 1, injectSizes._1, injectSizes._2)
+            injectSizes: (Boolean, Boolean) = (false, false)): ExecuteOld = {
+    println("***************************************************")
+    println("* ExecutorOld is deprecated, use Executor instead *")
+    println("***************************************************")
+    new ExecuteOld(localSize, 1, 1, globalSize, 1, 1, injectSizes._1, injectSizes._2)
   }
 
-  def apply(localSize1: Int, localSize2: Int,
-            globalSize1: Int,  globalSize2: Int,
-            injectSizes: (Boolean, Boolean)): Execute = {
-    new Execute(localSize1, localSize2, 1, globalSize1, globalSize2, 1,
-                  injectSizes._1, injectSizes._2)
+  def apply(localSize1: Int, localSize2: Int, globalSize1: Int,  globalSize2: Int,
+            injectSizes: (Boolean, Boolean)): ExecuteOld = {
+    println("***************************************************")
+    println("* ExecutorOld is deprecated, use Executor instead *")
+    println("***************************************************")
+    new ExecuteOld(localSize1, localSize2, 1, globalSize1, globalSize2, 1,
+                injectSizes._1, injectSizes._2)
   }
 
   def apply(localSize1: Int, localSize2: Int, localSize3: Int,
             globalSize1: Int,  globalSize2: Int, globalSize3: Int,
-            injectSizes: (Boolean, Boolean)): Execute = {
-    new Execute(localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
-                  injectSizes._1, injectSizes._2)
+            injectSizes: (Boolean, Boolean)): ExecuteOld = {
+    println("***************************************************")
+    println("* ExecutorOld is deprecated, use Executor instead *")
+    println("***************************************************")
+    new ExecuteOld(localSize1, localSize2, localSize3, globalSize1, globalSize2, globalSize3,
+                injectSizes._1, injectSizes._2)
   }
 
-  /** Same but the sizes are wrapped into a NDRange object */ // TODO: should this be the preferred method?
+
   def apply(localSize: NDRange,
             globalSize: NDRange,
-            injectSizes: (Boolean, Boolean)): Execute = {
-    new Execute(localSize(0), localSize(1), localSize(2),
-                  globalSize(0), globalSize(1), globalSize(2),
-                  injectSizes._1, injectSizes._2)
+            injectSizes: (Boolean, Boolean)): ExecuteOld = {
+    println("***************************************************")
+    println("* ExecutorOld is deprecated, use Executor instead *")
+    println("***************************************************")
+    new ExecuteOld(localSize(0), localSize(1), localSize(2),
+                globalSize(0), globalSize(1), globalSize(2),
+                injectSizes._1, injectSizes._2)
   }
 
   /**
@@ -65,325 +90,13 @@ object Execute {
     * sizes to minimise generated loops and injects them into the kernel.
     *
     * @see [[rewriting.InferNDRange]] for more details on the inference process.
+    *
     */
-  def apply(): Execute = new Execute(?, ?, ?, ?, ?, ?, true, true)
-
-  /**
-   * Create a map which maps variables (e.g., N) to values (e.g, "1024")
-   */
-  object createValueMap {
-    /**
-     * Creates the map given a lambda and its arguments
-     */
-    def apply(f: Lambda, values: Any*): immutable.Map[ArithExpr, Cst] = {
-      // sanity check: there must be as many inputs as parameters in f
-      if (f.params.length != values.length)
-        throw new IllegalArgumentException(
-          s"""| Wrong number of argument.
-              | Expected: ${f.params.length}. Got: ${values.length}"""
-            .stripMargin
-        )
-
-      // Traverse the the arguments and their types simultaneously to fetch
-      // Any length information
-      val (caps, sizes) = fetchAllConstraints(f.params.map(_.t), values)
-
-      // Look for errors in the inferred sizes and build a map out of the list
-      // of constraints
-      val cleanedSizes = cleanSizeConstraints(sizes)
-
-      // Compute a value for each capacity variable and checks that it is
-      // consistent with the previously inferred sizes.
-      val cleanedCaps = cleanCapacityConstraints(caps, cleanedSizes)
-
-      // Finally, merge the two maps and cast the values into arithmetic
-      // expressions.
-      (cleanedSizes ++ cleanedCaps).mapValues(Cst(_))
-    }
-
-    // -------------------------------
-    // Below: private helper functions
-    // -------------------------------
-
-    /**
-     * A class representing a size/capacity constraint:
-     * - A size constraint has to be interpreted the following way:
-     *   `(size) variable == value`
-     * - A capacity constraint has to be interpreted the following way:
-     *   `(capacity) variable >= value`
-     *
-     * @param variable the variable as an arithmetic expression (should be a Var?)
-     * @param value a possible value / lower bound for this variable
-     */
-    case class Constraint(variable: ArithExpr, value: Int)
-
-    /**
-     * Compute a list of capacity constraints and a list of size constraints
-     * given a list of types and a list of values supposed to be matching them.
-     */
-    private def fetchAllConstraints(tys: Seq[Type], values: Seq[Any]): (Seq[Constraint], Seq[Constraint]) = {
-      // Look for constraints in all the pairs like `(type, value)`
-      // Hack: if vectors are passed to a kernel *not* wrapped in an array,
-      //       they are passed as scalar types and they will be casted into
-      //       vector later by OpenCL.
-      //       For example:
-      //       - a float4 should be passed as a Float
-      //       - but an array of float4 must be passed as a 2D array of Floats
-      val constraints =
-      (tys zip values)
-        .map(p => {
-          val (ty, value) = p
-          ty match {
-            case VectorType(st, _) =>
-              checkParamWithValue(st, value)
-              (Seq.empty, Seq.empty)
-            case _ =>
-              val (caps, sizes) = fetchConstraints(ty, value)
-              (simplify(caps), simplify(sizes))
-          }
-        })
-
-      // Reshape this set of information into two sequences of constraints
-      val (capacityConstraints2D, sizeConstraints2D) = constraints.unzip
-      (capacityConstraints2D.flatten, sizeConstraints2D.flatten)
-    }
-
-    /**
-     * Takes a list of size constraints, checks that they are consistent
-     * altogether and build map from variable to values out of this list.
-     */
-    private def cleanSizeConstraints(sizeConstraints: Seq[Constraint]): immutable.Map[ArithExpr, Int] = {
-      val map = sizeConstraints.groupBy(_.variable)
-
-      // Check that the sizes are consistent (see issue #98, snippet 2)
-      map.mapValues(pairs => {
-        // If we have more than one value for a given key (N = 16 and N = 32),
-        // throw an exception
-        val values = pairs.map(_.value).distinct
-        val variable = pairs.head.variable
-        if (values.length != 1)
-          throw new IllegalKernelArgument(
-            s"Incompatible values inferred for variable: $variable\n" +
-              values.map(v => s" - `$v`").mkString("\n")
-          )
-        // otherwise we keep that value
-        values.head
-      })
-    }
-
-    /**
-     * Takes a list of capacity constraints and the map containing the inferred
-     * sizes, infers a value for each capacity variable and checks that it is
-     * consistent with the inferred sizes.
-     */
-    private def cleanCapacityConstraints(capacityConstraints: Seq[Constraint],
-                                         sizes: immutable.Map[ArithExpr, Int]): immutable.Map[ArithExpr, Int] = {
-      val map = capacityConstraints.groupBy(_.variable)
-
-      // Take the maximum value for each variable.
-      // e.g. if [1, 3] and [0, 0, 0] have both capacity N, then N must be at
-      //      least 3 so we choose N = 3.
-      map.mapValues(pairs => {
-        val max = pairs.map(_.value).max
-        val variable = pairs.head.variable
-        // If the variable is also a size variable, check that this size
-        // is at least the maximum capacity inferred. In this case the
-        // occurrence of this variable in this Map will be ignored and we
-        // keep the value found in the "sizes" Map.
-        if (sizes.isDefinedAt(variable) && sizes(variable) < max)
-          throw new IllegalKernelArgument(
-            s"Overflow: ${sizes(variable)} has been inferred for size " +
-              s"variable $variable but $variable is also the capacity of an " +
-              s"array with $max elements."
-          )
-        max
-      })
-    }
-
-    /**
-     * Traverses a value and its Lift type and produces:
-     * - a list of size constraints:       var == array length
-     * - a list of capacity constraints:   var >= array length
-     *
-     * @param ty the type
-     * @param value the value
-     */
-    private def fetchConstraints(ty: Type, value: Any): (Seq[Constraint], Seq[Constraint]) = {
-      ty match {
-        case at: ArrayType =>
-          val array = asArray(value)
-          val len = array.length / tupleSize(at.elemT)
-
-          // Recursive call if array of arrays
-          val (caps, sizes) = at.elemT match {
-            case _: ArrayType =>
-              val (cs, ss) = array.map(fetchConstraints(at.elemT, _)).toSeq.unzip
-              (cs.flatten, ss.flatten)
-            case _ =>
-              checkParamWithValue(at.elemT, array.head)
-              (Seq.empty, Seq.empty)
-          }
-
-          // fetch information for the current array
-          (collectCapacityConstraints(at, len, caps), collectSizeConstraints(at, len, sizes))
-        case TupleType(_) | ScalarType(_, _) =>
-          // We assume tuples do not contain arrays
-          checkParamWithValue(ty, value)
-          (Seq.empty, Seq.empty)
-        case VectorType(_, _) =>
-          checkParamWithValue(ty, value)
-          (Seq.empty, Seq.empty)
-        case NoType | UndefType =>
-          throw new IllegalArgumentException("Executor: Untyped parameter in lambda")
-      }
-    }
-
-    /**
-     * Type-checks a bit of kernel argument.
-     * Arrays are handled in fetchConstraints using `asArray` and a recursive
-     * call to itself since more work is required for them.
-     */
-    private def checkParamWithValue(t: Type, v: Any): Unit = {
-      (t, v) match {
-        case (Float,   _: Float) => // fine
-        case (Int,   _: Int) => // fine
-        case (Double,   _: Double) => // fine
-        case (Bool, _: Boolean) => // fine
-
-        case (VectorType(st, len), _) =>
-          // Vectors must be passed as arrays
-          if (!v.isInstanceOf[Array[_]])
-            throw TypeException(
-              s"Expected Array[$st] of size $len (representing a vector). " +
-                s"Got ${v.getClass} instead."
-            )
-          val array = v.asInstanceOf[Array[_]]
-          // Validate the underlying type and the length
-          st match {
-            case Float | Int | Double =>
-            case _ => throw TypeException(s"$t is not a valid vector type")
-          }
-          val headType = Type.fromAny(array.head)
-          if (headType != st || array.length != len.eval)
-            throw TypeException(
-              s"Expected Array[$st] of size $len (representing a vector). " +
-                s"Got Array[$headType] of length ${array.length} instead."
-            )
-
-        // handle tuples if all their components are of the same type
-        case (tt: TupleType, _: Float)
-          if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Float) => // fine
-        case (tt: TupleType, _: Int)
-          if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Int) => // fine
-        case (tt: TupleType, _: Double)
-          if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Double) => // fine
-        case (tt: TupleType, _: Boolean)
-          if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Bool) => // fine
-
-        // Arrays are already handled by `fetchConstraints`
-        case (_: ArrayType, _) =>
-          throw new NotImplementedError("Sould not reach this point")
-
-        case _ => throw new IllegalArgumentException(
-          s"Expected value of type $t, but value of type ${v.getClass} given")
-      }
-    }
-
-    /**
-     * Tries to interpret a value as an array and throws a useful exception
-     * if it cannot (not just a `ClassCastException`)
-     */
-    private def asArray(any: Any): Array[_] = any match {
-      case array: Array[_] => array
-      case _ => throw new IllegalKernelArgument(s"Array expected, got: ${any.getClass}")
-    }
-
-    /**
-     * Tuples are given to the executor in a flattened format, we
-     * have to take this into consideration while inferring the sizes.
-     */
-    private def tupleSize(ty: Type): Int = ty match {
-      case tt: TupleType => tt.elemsT.length
-      case _ => 1
-    }
-
-    /**
-     * Infers a capacity constraint and appends it to the current sequence of
-     * constraints.
-     */
-    private def collectCapacityConstraints(ty: ArrayType,
-                                           len: Int,
-                                           caps: Seq[Constraint]): Seq[Constraint] = {
-      ty match {
-        case c: Capacity => c.capacity match {
-          case Cst(n) =>
-            // Capacity must be at least the actual size
-            if (n.toInt < len)
-              throw new IllegalKernelArgument(s"Ill-sized argument: $n < $len")
-            caps
-          case expr => Constraint(expr, len) +: caps
-        }
-        case _ => caps
-      }
-    }
-
-    /**
-     * Infers a size constraint and appends it to the current sequence of
-     * constraints.
-     */
-    private def collectSizeConstraints(ty: ArrayType, len: Int,
-                                       sizes: Seq[Constraint]): Seq[Constraint] = {
-      ty match {
-        case s: Size => s.size match {
-          case Cst(n) =>
-            // Look for ill-sized inputs. See issue #98, snippet 3
-            if (n.toInt != len)
-              throw new IllegalKernelArgument(s"Ill-sized argument: $n ≠ $len")
-            sizes
-          case expr => Constraint(expr, len) +: sizes
-        }
-        case _ => sizes
-      }
-    }
-
-    /**
-     * Simplify a list of constraints
-     */
-    private def simplify(c: Seq[Constraint]): Seq[Constraint] = c.map({
-      case Constraint(v, len) =>
-        val newLen = SolveForVariable(v, len).eval
-        Constraint(v.varList.head, newLen)
-    })
-  }
-
-  /**
-   * Helper function to run sanity checks on the global and local size.
-   * @param globalSize Global range
-   * @param localSize Local range
-   * @param dim Current dimension
-   * @throws InvalidLocalSizeException if localSize == 0
-   *         InvalidGlobalSizeException if GlobalSize == 0
-   *         InvalidIndexSpaceException if GlobalSize % localSize != 0
-   */
-  def ValidateNDRange(globalSize: Int, localSize: Int, dim: Int): Unit = {
-    if (localSize <= 0)
-      throw new InvalidLocalSizeException(
-        s"Local size ($localSize) cannot be negative in dim $dim")
-    if (globalSize <= 0)
-      throw new InvalidGlobalSizeException(
-        s"Global size ($globalSize) cannot be negative in dim $dim")
-    if (globalSize % localSize != 0)
-      throw new InvalidIndexSpaceException(
-        s"Global size ($globalSize) is not divisible by local size ($localSize) in dim $dim")
-  }
-
-  def ValidateGroupSize(localSize: Int): Unit = {
-    val maxWorkGroupSize = Executor.getDeviceMaxWorkGroupSize
-
-    if (localSize > maxWorkGroupSize)
-      throw new DeviceCapabilityException(
-        s"Device ${Executor.getDeviceName} can't execute kernels with " +
-          s"work-groups larger than $maxWorkGroupSize.")
+  def apply(): ExecuteOld = {
+    println("***************************************************")
+    println("* ExecutorOld is deprecated, use Executor instead *")
+    println("***************************************************")
+    new ExecuteOld (?, ?, ?, ?, ?, ?, true, true)
   }
 }
 
@@ -399,43 +112,41 @@ object Execute {
  * @param injectLocalSize should the OpenCL local size be injected into the kernel code?
  * @param injectGroupSize should the size of an OpenCL work group be injected into the kernel code?
  */
-class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSize3: ArithExpr,
-              val globalSize1: ArithExpr, val globalSize2: ArithExpr, val globalSize3: ArithExpr,
-              val injectLocalSize: Boolean, val injectGroupSize: Boolean = false) {
+class ExecuteOld(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSize3: ArithExpr,
+                 val globalSize1: ArithExpr, val globalSize2: ArithExpr, val globalSize3: ArithExpr,
+                 val injectLocalSize: Boolean, val injectGroupSize: Boolean = false) {
   import Execute.{ValidateGroupSize, ValidateNDRange, createValueMap}
 
   /**
    * Given just a string: evaluate the string into a lambda and
    * then call the function below
    */
-  def apply[T](input: String, values: Any*)(implicit decodeType: DecodeType[T]): (T, Double) = {
-    apply(Eval(input), values: _*)(decodeType)
+  def apply(input: String, values: Any*): (Any, Double) = {
+    apply(Eval(input), values: _*)
   }
 
   /**
    * Given a lambda: compile it and then execute it
    */
-  def apply[T](f: Lambda, values: Any*)(implicit decodeType: DecodeType[T]): (T, Double) = {
+  def apply(f: Lambda, values: Any*): (Any, Double) = {
     val kernel = compile(f, values:_*)
 
-    execute(kernel, f, values: _*)(decodeType)
+    execute(kernel, f, values: _*)
   }
 
   /**
    * Given a lambda: compile it and then execute it <code>iterations</code> times
    */
-  def apply[T](iterations: Int, timeout: Double, f: Lambda, values: Any*)
-              (implicit decodeType: DecodeType[T]): (T, Array[Double]) = {
+  def apply(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Array[Double]) = {
     val kernel = compile(f, values:_*)
 
-    benchmark(iterations, timeout, kernel, f, values:_*)(decodeType)
+    benchmark(iterations, timeout, kernel, f, values:_*)
   }
 
-  def evaluate[T](iterations: Int, timeout: Double, f: Lambda, values: Any*)
-                 (implicit decodeType: DecodeType[T]): (T, Double) = {
+  def evaluate(iterations: Int, timeout: Double, f: Lambda, values: Any*): (Any, Double) = {
     val kernel = compile(f, values:_*)
 
-    evaluate(iterations, timeout, kernel, f, values:_*)(decodeType)
+    evaluate(iterations, timeout, kernel, f, values:_*)
   }
 
   private def compile(f: Lambda, values: Any*) : String = {
@@ -502,8 +213,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    * This function can be used for debug purposes, where the OpenCL kernel code is changed slightly
    * but the corresponding lambda can remain unchanged.
    */
-  def apply[T](code: String, f: Lambda, values: Any*)(implicit decodeType: DecodeType[T]): (T, Double) = {
-    execute(code, f, values: _*)(decodeType)
+  def apply(code: String, f: Lambda, values: Any*): (Any, Double) = {
+    execute(code, f, values: _*)
   }
 
   /**
@@ -512,7 +223,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    * Returns a pair consisting of the computed values as its first and the runtime as its second
    * component
    */
-  def execute[T](code: String, f: Lambda, values: Any*)(implicit decodeType: DecodeType[T]): (T, Double) = {
+  def execute(code: String, f: Lambda, values: Any*): (Array[_], Double) = {
 
     val executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
       (localSize1, localSize2, localSize3,
@@ -526,7 +237,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         }
       }
 
-    execute(executeFunction, f, values:_*)(decodeType)
+    execute(executeFunction, f, values:_*)
   }
 
   /**
@@ -538,8 +249,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    * Returns a pair consisting of the computed values as its first and an array of runtimes in the
     * order of execution as its second component
    */
-  def benchmark[T](iterations: Int, timeout: Double, code: String, f: Lambda, values: Any*)
-                  (implicit decodeType: DecodeType[T]): (T, Array[Double]) = {
+  def benchmark(iterations: Int, timeout: Double, code: String, f: Lambda, values: Any*): (Array[_], Array[Double]) = {
 
     val executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Array[Double] =
       (localSize1, localSize2, localSize3,
@@ -553,11 +263,10 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         }
       }
 
-    execute(executeFunction, f, values:_*)(decodeType)
+    execute(executeFunction, f, values:_*)
   }
 
-  def evaluate[T](iterations: Int, timeout: Double, code: String, f: Lambda, values: Any*)
-                 (implicit decodeType: DecodeType[T]): (T, Double) = {
+  def evaluate(iterations: Int, timeout: Double, code: String, f: Lambda, values: Any*): (Array[_], Double) = {
 
     val executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Double =
       (localSize1, localSize2, localSize3,
@@ -571,7 +280,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         }
       }
 
-    execute(executeFunction, f, values:_*)(decodeType)
+    execute(executeFunction, f, values:_*)
   }
 
   private[executor] def getAndValidateSizesForExecution(f: Lambda,
@@ -614,7 +323,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
     (localSize, globalSize)
   }
-
+  
   /**
    * Here we are computing an meaningful expression for the size of the inputs
    * when the `OpenCLMemoryAllocator` class has not been able to do it.
@@ -644,9 +353,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     }
   }
 
-  private def execute[T, Time](executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => Time,
-                               f: Lambda, values: Any*)
-                              (implicit decodeType: DecodeType[T]): (T, Time) = {
+  private def execute[T](executeFunction: (Int, Int, Int, Int, Int, Int, Array[KernelArg]) => T,
+                         f: Lambda, values: Any*): (Array[_], T) = {
     // 1. If some inputs could not been allocated so far because of some
     //    unknown capacity in their type, we have a last chance to do it now
     //    because we have their values.
@@ -656,7 +364,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         p.mem = OpenCLMemory(p.mem.variable, size, GlobalMemory)
       }
     }
-
+    
     // 2. create map associating Variables, e.g., SizeVar("N"), with values, e.g., "1024".
     //    Also type-checks the inputs.
     val valueMap = createValueMap(f, values: _*)
@@ -686,7 +394,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     }
 
     // 9. cast the output accordingly to the output type
-    val output = castToOutputType(f.body.t, outputData)(decodeType)
+    val output = castToOutputType(f.body.t, outputData)
 
     // 10. release OpenCL objects
     args.foreach(_.dispose)
@@ -695,11 +403,53 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     (output, t)
   }
 
-  private def castToOutputType[T](t: Type, outputData: GlobalArg)(implicit decodeType: DecodeType[T]): T = {
-    val byteArray = outputData.asByteArray()
-    val buffer = ByteBuffer.wrap(byteArray)
-    buffer.order(ByteOrder.LITTLE_ENDIAN) // FIXME
-    Decoder.decode(t, buffer)(decodeType)
+  private def castToOutputType(t: Type, outputData: GlobalArg): Array[_] = {
+    assert(t.isInstanceOf[ArrayType])
+    Type.getBaseType(t) match {
+      case Float => outputData.asFloatArray()
+      case Int   => outputData.asIntArray()
+      case Double   => outputData.asDoubleArray()
+      case Bool  => outputData.asBooleanArray()
+      // handle tuples if all their components are of the same type
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float) =>
+        outputData.asFloatArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float2) =>
+        outputData.asFloatArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float3) =>
+        outputData.asFloatArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float4) =>
+        outputData.asFloatArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float8) =>
+        outputData.asFloatArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Float16) =>
+        outputData.asFloatArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int) =>
+        outputData.asIntArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int2) =>
+        outputData.asIntArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int3) =>
+        outputData.asIntArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int4) =>
+        outputData.asIntArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int8) =>
+        outputData.asIntArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Int16) =>
+        outputData.asIntArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double) =>
+        outputData.asDoubleArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double2) =>
+        outputData.asDoubleArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double3) =>
+        outputData.asDoubleArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double4) =>
+        outputData.asDoubleArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double8) =>
+        outputData.asDoubleArray()
+      case t: TupleType if (t.elemsT.distinct.length == 1) && (t.elemsT.head == Double16) =>
+        outputData.asDoubleArray()
+      case _ => throw new IllegalArgumentException(
+        s"Return type of the given lambda expression not supported: $t")
+    }
   }
 
   private def createMemArgs(f: Lambda,

@@ -4,7 +4,7 @@ import benchmarks.{BlackScholes, DotProduct, MolecularDynamics}
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, ExecuteOld, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert.{assertEquals, _}
@@ -34,7 +34,7 @@ class TestBenchmark {
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (output: Array[Float], runtimes) = Execute(
+    val (output: Array[Float], runtimes) = ExecuteOld(
       128, 1, 1,
       1024, 1, 1,
       (false, false)
@@ -65,7 +65,7 @@ class TestBenchmark {
       inRand => MapGlb(BlackScholes.blackScholesComp) $ inRand
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(kernel, input)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize)(kernel, input)
 
     assertArrayEquals(gold, output, 0.01f)
 
@@ -133,7 +133,7 @@ class TestBenchmark {
       (in, niters, size) => MapGlb(fun(i => MapSeq(fun(j => md(i, j, niters, size))) $ in)) $ in
     )
 
-    val (output: Array[Int], runtime) = Execute(inputSize)(f, input, iterations, inputSize)
+    val (output: Array[Int], runtime) = ExecuteOld(inputSize)(f, input, iterations, inputSize)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -175,7 +175,7 @@ class TestBenchmark {
     )
 
     val (output: Array[Float], runtime) =
-      Execute(inputSize)(f, particles, neighbours, cutsq, lj1, lj2)
+      ExecuteOld(inputSize)(f, particles, neighbours, cutsq, lj1, lj2)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -210,7 +210,7 @@ class TestBenchmark {
                .map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
 
     val (output: Array[Float], _) =
-      Execute(inputSize)(MolecularDynamics.shoc, particles, neighbours, cutsq, lj1, lj2)
+      ExecuteOld(inputSize)(MolecularDynamics.shoc, particles, neighbours, cutsq, lj1, lj2)
 
     assertEquals(output.length, gold.length)
 
@@ -258,7 +258,7 @@ class TestBenchmark {
     )
 
     // execute
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, a, xs, ys)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize)(f, a, xs, ys)
 
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.001f)

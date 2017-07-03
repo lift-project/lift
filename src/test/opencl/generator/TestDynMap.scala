@@ -50,7 +50,7 @@ class TestDynMap {
       }
     )
 
-    val (output: Array[Int], runtime) = Execute(25,300)(kernel, arr)
+    val (output: Array[Int], runtime) = ExecuteOld(25,300)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())
@@ -83,7 +83,7 @@ class TestDynMap {
       }
     )
 
-    val (output: Array[Int], runtime) = Execute(25,300)(kernel, arr)
+    val (output: Array[Int], runtime) = ExecuteOld(25,300)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())
@@ -119,7 +119,7 @@ class TestDynMap {
       }
     )
 
-    val (output: Array[Int], runtime) = Execute(25,300)(kernel, arr)
+    val (output: Array[Int], runtime) = ExecuteOld(25,300)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())
@@ -152,7 +152,7 @@ class TestDynMap {
       }
     )
     
-    val (output: Array[Int], runtime) = Execute(25,300)(kernel, arr)
+    val (output: Array[Int], runtime) = ExecuteOld(25,300)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())

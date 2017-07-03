@@ -182,7 +182,7 @@ class CGO_2017 {
     val code = Compile(f, 128/param, 8, 1, N/param, M/8,1, collection.immutable.Map())
 
     val (output: Array[Float], _) =
-      Execute(128/param, 8, 1, 1024/param, 1024/8, 1, (true, true))(code, f, matrixA.transpose, matrixB)
+      ExecuteOld(128/param, 8, 1, 1024/param, 1024/8, 1, (true, true))(code, f, matrixA.transpose, matrixB)
 
     assertArrayEquals(mmGold, output, 0.001f)
   }
@@ -199,7 +199,7 @@ class CGO_2017 {
     val code = Compile(f, 128/param, 8, 1, N/param, M/8,1, collection.immutable.Map())
 
     val (output: Array[Float], _) =
-      Execute(128/param, 8, 1, 1024/param, 1024/8, 1, (true, true))(
+      ExecuteOld(128/param, 8, 1, 1024/param, 1024/8, 1, (true, true))(
         code, f, matrixA.transpose, matrixB, matrixC,
         alpha, beta
       )
@@ -260,7 +260,7 @@ class CGO_2017 {
     val code = Compile(f, 32, 8, 1, N/v__3, M/v__4,1, collection.immutable.Map())
 
     val (output: Array[Float], _) =
-      Execute(32, 8, nSize/v__3, mSize/v__4,
+      ExecuteOld(32, 8, nSize/v__3, mSize/v__4,
         (true, true))(code, f, matrixA.transpose, matrixB)
 
     assertArrayEquals(mmGold, output, 0.0001f)
@@ -277,7 +277,7 @@ class CGO_2017 {
     val code = Compile(f, 32, 8, 1, N/v__3, M/v__4,1, collection.immutable.Map())
 
     val (output: Array[Float], _) =
-      Execute(32, 8, nSize/v__3, mSize/v__4, (true, true))(
+      ExecuteOld(32, 8, nSize/v__3, mSize/v__4, (true, true))(
         code, f, matrixA.transpose, matrixB, matrixC,
         alpha, beta
       )
@@ -295,7 +295,7 @@ class CGO_2017 {
     val f = GEMM.clblas_hawaii
 
     val (output: Array[Float], _) =
-      Execute(16, 16, nSize/tileSizeN, nSize/tileSizeM, (true, true))(
+      ExecuteOld(16, 16, nSize/tileSizeN, nSize/tileSizeM, (true, true))(
         f, matrixA.transpose, matrixB, matrixC, alpha, beta)
     assertArrayEquals(gemmGold, output, 0.0f)
   }
@@ -365,7 +365,7 @@ class CGO_2017 {
       })
 
     val (output: Array[Float], _) =
-      Execute(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))(f, matrixA.transpose, matrixB)
+      ExecuteOld(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))(f, matrixA.transpose, matrixB)
     assertArrayEquals(mmGold, output, 0.0f)
   }
 
@@ -380,7 +380,7 @@ class CGO_2017 {
     val f = GEMM.clblas_kepler
 
     val (output: Array[Float], _) =
-      Execute(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))(
+      ExecuteOld(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))(
         f, matrixA.transpose, matrixB, matrixC, alpha, beta)
     assertArrayEquals(gemmGold, output, 0.0f)
   }

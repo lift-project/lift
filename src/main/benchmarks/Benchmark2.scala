@@ -307,7 +307,7 @@ abstract class Benchmark2[T: ClassTag](val name: String,
 
     var kernelSource = getKernelSource(lambda, variant, name, configuration)
 
-    val (unprocessed_output : Array[T], runtimes : Array[Double]) = Execute(
+    val (unprocessed_output : Array[T], runtimes : Array[Double]) = ExecuteOld(
       localSize(0),
       localSize(1),
       localSize(2),
@@ -397,7 +397,7 @@ abstract class Benchmark2[T: ClassTag](val name: String,
             realGlobalSizes(2),
             (configuration.injectLocal, configuration.injectGroup))
 
-        val (kOutput: Array[T], kRuntime) = Execute(
+        val (kOutput: Array[T], kRuntime) = ExecuteOld(
           localSize(0),
           localSize(1),
           localSize(2),

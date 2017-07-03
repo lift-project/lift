@@ -4,7 +4,7 @@ import exploration.HighLevelRewrite
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, LongTestsEnabled, Utils}
+import opencl.executor.{ExecuteOld, Executor, LongTestsEnabled, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -145,7 +145,7 @@ class TestRewriteMatrixMatrix {
 
     val (localRange, globalRange) = InferNDRange(f13, values:_*)
 
-    val (output: Array[Float], _) = Execute(localRange(0).eval, localRange(1).eval,
+    val (output: Array[Float], _) = ExecuteOld(localRange(0).eval, localRange(1).eval,
       globalRange(0).eval, globalRange(1).eval, (true, true))(f13, values:_*)
 
     val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
@@ -175,7 +175,7 @@ class TestRewriteMatrixMatrix {
 
     val (localRange, globalRange) = InferNDRange(h1, values:_*)
 
-    val (output: Array[Float], _) = Execute(localRange(0).eval, localRange(1).eval,
+    val (output: Array[Float], _) = ExecuteOld(localRange(0).eval, localRange(1).eval,
       globalRange(0).eval, globalRange(1).eval, (true, true))(h1, values:_*)
 
     val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
@@ -261,7 +261,7 @@ class TestRewriteMatrixMatrix {
     val gold = matrix.transpose
 
     val (output: Array[Float], _) =
-      Execute(y, x, nSize, mSize, (false, false))(f5, matrix)
+      ExecuteOld(y, x, nSize, mSize, (false, false))(f5, matrix)
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
@@ -288,7 +288,7 @@ class TestRewriteMatrixMatrix {
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val (output: Array[Float], _) = Execute(4, 4, mSize, kSize, (true, true))(f5, matrixA, matrixB.transpose)
+    val (output: Array[Float], _) = ExecuteOld(4, 4, mSize, kSize, (true, true))(f5, matrixA, matrixB.transpose)
 
     val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
 

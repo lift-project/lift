@@ -48,7 +48,7 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
+    val (output: Array[Float], _) = ExecuteOld(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -63,7 +63,7 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
+    val (output: Array[Float], _) = ExecuteOld(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
 /*
     StencilUtilities.print1DArray(values)
@@ -86,7 +86,7 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
+    val (output: Array[Float], _) = ExecuteOld(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -102,7 +102,7 @@ class TestSlideSeqPlus
     // drop right one on the comparison array because scala sliding does not work exactly the same as Lift sliding ...
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _)).dropRight(1)
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
+    val (output: Array[Float], _) = ExecuteOld(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -134,7 +134,7 @@ class TestSlideSeqPlus
     )
 
     val source = Compile(orgStencil)
-    val (output: Array[Float], _) = Execute(2,2)(source, orgStencil, values, weights)
+    val (output: Array[Float], _) = ExecuteOld(2,2)(source, orgStencil, values, weights)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -176,7 +176,7 @@ class TestSlideSeqPlus
         ) o Slide2D(3,1) $ mat
       })
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil2D, values)
+    val (output: Array[Float], _) = ExecuteOld(2,2)(stencil2D, values)
 
     StencilUtilities.print2DArray(values)
     StencilUtilities.print1DArrayAs2DArray(output,size-2)
@@ -212,7 +212,7 @@ class TestSlideSeqPlus
         ) o Slide2D(3,1) $ input
       })
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil, values, weights)
+    val (output: Array[Float], _) = ExecuteOld(2,2)(stencil, values, weights)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -237,7 +237,7 @@ class TestSlideSeqPlus
       } o Slide(3, 1)  $ input
     )
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil, values)
+    val (output: Array[Float], _) = ExecuteOld(2,2)(stencil, values)
 
     StencilUtilities.print1DArray(values)
     StencilUtilities.print1DArray(output)

@@ -283,7 +283,7 @@ object Utils {
       globalSize1, globalSize2, globalSize3,
       injectSizes)
 
-    val (output: Array[Float], runtime) = Execute(localSize1, localSize2, localSize3,
+    val (output: Array[Float], runtime) = ExecuteOld(localSize1, localSize2, localSize3,
                                                   globalSize1, globalSize2, globalSize3,
                                                   injectSizes)(kernel, f, values:_*)
 

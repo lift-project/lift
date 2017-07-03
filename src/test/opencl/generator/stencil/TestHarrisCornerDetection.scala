@@ -56,7 +56,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array.tabulate(2560, 1536) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(stencil, input, sobelX)
+    val (output: Array[Float], runtime) = ExecuteOld(16, 8, 2560, 1536, (true, true))(stencil, input, sobelX)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -78,7 +78,7 @@ class TestHarrisCornerDetection {
     )
 
     val input = Array.tabulate(2558, 1534) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(mult, input)
+    val (output: Array[Float], runtime) = ExecuteOld(16, 8, 2560, 1536, (true, true))(mult, input)
     println("Runtime: " + runtime)
 
     val gold = input.flatten.map(x => x * x)
@@ -100,7 +100,7 @@ class TestHarrisCornerDetection {
 
     val input1 = Array.tabulate(2558, 1534) { (i, j) => Random.nextFloat() }
     val input2 = Array.tabulate(2558, 1534) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(mult, input1, input2)
+    val (output: Array[Float], runtime) = ExecuteOld(16, 8, 2560, 1536, (true, true))(mult, input1, input2)
     println("Runtime: " + runtime)
 
     //todo scala check
@@ -123,7 +123,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array.tabulate(2558, 1534) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(stencil, input)
+    val (output: Array[Float], runtime) = ExecuteOld(16, 8, 2560, 1536, (true, true))(stencil, input)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -154,7 +154,7 @@ class TestHarrisCornerDetection {
     val input1 = Array.tabulate(2556, 1532) { (i, j) => Random.nextFloat() }
     val input2 = Array.tabulate(2556, 1532) { (i, j) => Random.nextFloat() }
     val input3 = Array.tabulate(2556, 1532) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(determinant, input1, input2, input3)
+    val (output: Array[Float], runtime) = ExecuteOld(16, 8, 2560, 1536, (true, true))(determinant, input1, input2, input3)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -191,7 +191,7 @@ class TestHarrisCornerDetection {
     val input1 = Array.tabulate(1534, 2558) { (i, j) => Random.nextFloat() }
     val input2 = Array.tabulate(1534, 2558) { (i, j) => Random.nextFloat() }
     val input3 = Array.tabulate(1534, 2558) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 1536, 2560, (true, true))(cornerDetection, input1, input2, input3)
+    val (output: Array[Float], runtime) = ExecuteOld(16, 8, 1536, 2560, (true, true))(cornerDetection, input1, input2, input3)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -228,7 +228,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array.tabulate(1536, 2560) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
+    val (output: Array[Float], runtime) = ExecuteOld(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -293,7 +293,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array.tabulate(1536, 2560) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
+    val (output: Array[Float], runtime) = ExecuteOld(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -369,7 +369,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array.tabulate(1536, 2560) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
+    val (output: Array[Float], runtime) = ExecuteOld(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -391,7 +391,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array(0,1,2,3).map(_.toFloat)
-    val (output: Array[Float], runtime) = Execute(1, 1, 1, 1, (true, true))(lambda, input)
+    val (output: Array[Float], runtime) = ExecuteOld(1, 1, 1, 1, (true, true))(lambda, input)
     println("Runtime: " + runtime)
 
     println(output.mkString(","))
@@ -484,7 +484,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array.tabulate(1536, 2560) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
+    val (output: Array[Float], runtime) = ExecuteOld(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
     println("Runtime: " + runtime)
 
     // todo implement

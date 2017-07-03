@@ -2,7 +2,7 @@ package rewriting
 
 import ir._
 import ir.ast._
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{ExecuteOld, Executor}
 import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
@@ -66,7 +66,7 @@ class TestRewriteKmeans {
 
     val gold = calculateMembership(points, clusters)
 
-    val (output: Array[Int], _) = Execute(numPoints)(f13, points.transpose, clusters)
+    val (output: Array[Int], _) = ExecuteOld(numPoints)(f13, points.transpose, clusters)
     assertArrayEquals(gold, output)
   }
 }

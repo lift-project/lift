@@ -3,7 +3,7 @@ package opencl.generator
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, ExecuteOld, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -112,7 +112,7 @@ class TestAddressSpaces {
         o Split(4) $ in
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -135,7 +135,7 @@ class TestAddressSpaces {
 
     val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(kernel, f, input)
 
     val memories = OpenCLGenerator.getMemories(f)._2
 
@@ -163,7 +163,7 @@ class TestAddressSpaces {
 
     val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(kernel, f, input)
     val memories = OpenCLGenerator.getMemories(f)._2
 
     assertArrayEquals(gold, output, 0.0f)
@@ -185,7 +185,7 @@ class TestAddressSpaces {
         o Split(4) $ in
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -202,7 +202,7 @@ class TestAddressSpaces {
         o Split(128) $ in
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold: Array[Float], output, 0.0f)
   }
@@ -221,7 +221,7 @@ class TestAddressSpaces {
       ) o Split(128) $ in
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold: Array[Float], output, 0.0f)
   }
@@ -240,7 +240,7 @@ class TestAddressSpaces {
       ) o Split(128) $ in
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -255,7 +255,7 @@ class TestAddressSpaces {
       ) o Split(4) $ in
     })
 
-    val (output: Array[Float], _) = Execute(inputData.length)( l, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputData.length)( l, inputData)
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -270,7 +270,7 @@ class TestAddressSpaces {
       ) o Split(4) $ in
     })
 
-    val (output: Array[Float], _) = Execute(inputData.length)( l, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputData.length)( l, inputData)
 
     assertEquals(0.0f, output.sum, 0.0)
   }
@@ -288,7 +288,7 @@ class TestAddressSpaces {
         o Split(4) $ in
     )
 
-    val (output: Array[Float], _) = Execute(4, inputSize, (true, false))(f, input)
+    val (output: Array[Float], _) = ExecuteOld(4, inputSize, (true, false))(f, input)
 
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -306,7 +306,7 @@ class TestAddressSpaces {
         o Split(4) $ in
     )
 
-    val (output: Array[Float], _) = Execute(2, inputSize, (true, false))(f, input)
+    val (output: Array[Float], _) = ExecuteOld(2, inputSize, (true, false))(f, input)
 
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -323,7 +323,7 @@ class TestAddressSpaces {
         o Split(4) $ in
     )
 
-    Execute(inputSize)(f, input, inputSize)
+    ExecuteOld(inputSize)(f, input, inputSize)
   }
 
   @Test def initArrayValuePrivate(): Unit = {
@@ -336,7 +336,7 @@ class TestAddressSpaces {
       ) o Split(4) $ in
     })
 
-    val (output: Array[Float], _) = Execute(4, inputData.length, (true, false))( l, inputData)
+    val (output: Array[Float], _) = ExecuteOld(4, inputData.length, (true, false))( l, inputData)
 
     assertArrayEquals(Array.fill(inputSize)(1.0f), output, 0.0f)
   }

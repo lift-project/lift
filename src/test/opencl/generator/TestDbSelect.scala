@@ -1,7 +1,7 @@
 package opencl.generator
 
 import benchmarks.DbSelect
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{ExecuteOld, Executor}
 import org.junit.Assert.assertArrayEquals
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -36,7 +36,7 @@ class TestDbSelect {
     val colB = Array.fill(inputSize)(util.Random.nextInt(5))
     val colC = Array.fill(inputSize)(util.Random.nextInt(5))
   
-    val (output: Array[Int], runtime) = Execute(inputSize)(
+    val (output: Array[Int], runtime) = ExecuteOld(inputSize)(
       DbSelect.naive, colA, colB, colC
     )
    
@@ -51,7 +51,7 @@ class TestDbSelect {
     val colB = Array.fill(inputSize)(util.Random.nextInt(5))
     val colC = Array.fill(inputSize)(util.Random.nextInt(5))
   
-    val (output: Array[Int], runtime) = Execute(inputSize)(
+    val (output: Array[Int], runtime) = ExecuteOld(inputSize)(
       DbSelect.divideNConquer, colA, colB, colC
     )
   

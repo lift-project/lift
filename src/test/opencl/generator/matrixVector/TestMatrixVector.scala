@@ -89,7 +89,7 @@ class TestMatrixVector {
 
       })
 
-    val (output: Array[Float], runtime) = Execute(inputSize * inputSize)(f, matrix, vector )
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize * inputSize)(f, matrix, vector )
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -120,7 +120,7 @@ class TestMatrixVector {
 
       })
 
-    val (output: Array[Float], _) = Execute(inputSize * inputSize)(f, matrix, vector)
+    val (output: Array[Float], _) = ExecuteOld(inputSize * inputSize)(f, matrix, vector)
 
     AllocateLocalMemoryStatically(true)
     assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
@@ -144,7 +144,7 @@ class TestMatrixVector {
         ) o Split(128) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(inputSize * inputSize)(f, matrix, vector)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize * inputSize)(f, matrix, vector)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -172,7 +172,7 @@ class TestMatrixVector {
         ) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(inputSize * inputSize)(f, matrix, vector)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize * inputSize)(f, matrix, vector)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -206,7 +206,7 @@ class TestMatrixVector {
         ) $ matrix
       })
 
-    val (output: Array[Float], _) = Execute(inputSize * inputSize)(f, matrix, vector)
+    val (output: Array[Float], _) = ExecuteOld(inputSize * inputSize)(f, matrix, vector)
     assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
 
   }
@@ -235,7 +235,7 @@ class TestMatrixVector {
         ) $ matrix
       })
 
-    val (firstOutput: Array[Float], firstRuntime) = Execute(inputSize * inputSize)(f1, matrix, vectorX, alpha)
+    val (firstOutput: Array[Float], firstRuntime) = ExecuteOld(inputSize * inputSize)(f1, matrix, vectorX, alpha)
 
     println("output.size = " + firstOutput.length)
     println("output(0) = " + firstOutput(0))
@@ -253,7 +253,7 @@ class TestMatrixVector {
         ) o Split(128) o Split(32) $ Zip(tmp, vectorY)
       })
 
-    val (output: Array[Float], secondRuntime) = Execute(inputSize)(f2, firstOutput, vectorY, beta)
+    val (output: Array[Float], secondRuntime) = ExecuteOld(inputSize)(f2, firstOutput, vectorY, beta)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -275,7 +275,7 @@ class TestMatrixVector {
     val f = MatrixVector.fullMatrixVectorFusedOpenCL
 
     val (output: Array[Float], runtime) =
-      Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY, alpha, beta)
+      ExecuteOld(inputSize * inputSize)(f, matrix, vectorX, vectorY, alpha, beta)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -296,7 +296,7 @@ class TestMatrixVector {
     val f = MatrixVector.fullMatrixVectorFusedOpenCLAMD
 
     val (output: Array[Float], runtime) =
-      Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY, alpha, beta)
+      ExecuteOld(inputSize * inputSize)(f, matrix, vectorX, vectorY, alpha, beta)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -327,7 +327,7 @@ class TestMatrixVector {
         ) $ Zip(matrix, vectorY)
       })
 
-    val (output: Array[Float], runtime) = Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize * inputSize)(f, matrix, vectorX, vectorY)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))

@@ -144,7 +144,7 @@ abstract class Benchmark(val name: String,
           realGlobalSizes(2),
           (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false)))
 
-      val (output: Array[Float], runtime) = Execute(
+      val (output: Array[Float], runtime) = ExecuteOld(
         localSize(0),
         localSize(1),
         localSize(2),
@@ -269,7 +269,7 @@ abstract class Benchmark(val name: String,
       val timeout = if (timeoutOpt.value.isDefined) timeoutOpt.value.get.toDouble else Double.MaxValue
 
       if (loadKernel.value.isDefined) {
-        Execute(
+        ExecuteOld(
           localSize(0),
           localSize(1),
           localSize(2),
@@ -281,7 +281,7 @@ abstract class Benchmark(val name: String,
         
         val code = scala.io.Source.fromFile(loadKernel.value.get).mkString
 
-        val (output: Array[Float], runtimes) = Execute(
+        val (output: Array[Float], runtimes) = ExecuteOld(
           localSize(0),
           localSize(1),
           localSize(2),
@@ -305,7 +305,7 @@ abstract class Benchmark(val name: String,
 
       }
       else {
-        val (output: Array[Float], runtimes) = Execute(
+        val (output: Array[Float], runtimes) = ExecuteOld(
           localSize(0),
           localSize(1),
           localSize(2),

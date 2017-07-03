@@ -97,7 +97,7 @@ class Best {
       })
 
     val (output: Array[Float], _) =
-      Execute(tileSizeN, tileSizeM, nSize/tileSizeN, nSize/tileSizeM, (true, true))(f, matrixA, matrixB)
+      ExecuteOld(tileSizeN, tileSizeM, nSize/tileSizeN, nSize/tileSizeM, (true, true))(f, matrixA, matrixB)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -145,7 +145,7 @@ class Best {
     )
 
     val (output: Array[Float], _) =
-      Execute(tileGroupM, tileGroupN, mSize/tileSizeM, nSize/tileSizeN, (true, true))(f, matrixA.transpose, matrixB.transpose)
+      ExecuteOld(tileGroupM, tileGroupN, mSize/tileSizeM, nSize/tileSizeN, (true, true))(f, matrixA.transpose, matrixB.transpose)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -192,8 +192,8 @@ class Best {
         )), p_640363654)
       )), p_924477420))
 
-    val (output1: Array[Float], _) = Execute(16, 16, Msize, Nsize, (true, true))(f1, matrixA, matrixB.transpose)
-    val (output2: Array[Float], _) = Execute(16, 16, Msize, Nsize, (true, true))(fd, matrixA, matrixB.transpose)
+    val (output1: Array[Float], _) = ExecuteOld(16, 16, Msize, Nsize, (true, true))(f1, matrixA, matrixB.transpose)
+    val (output2: Array[Float], _) = ExecuteOld(16, 16, Msize, Nsize, (true, true))(fd, matrixA, matrixB.transpose)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
@@ -228,7 +228,7 @@ class Best {
           )) $ A
     )
 
-    val (output: Array[Float], _) = Execute(mSize, nSize)(f, matrixA, matrixB)
+    val (output: Array[Float], _) = ExecuteOld(mSize, nSize)(f, matrixA, matrixB)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
@@ -355,9 +355,9 @@ class Best {
       )), FunCall(Split(tileSize), A))))
 
 
-    val (output1: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(f, matrixA, matrixB.transpose)
-    val (output2: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(fd, matrixA, matrixB.transpose)
-    val (output3: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(fdot, matrixA, matrixB.transpose)
+    val (output1: Array[Float], _) = ExecuteOld(2, 2, mSize/2, nSize/2, (true, true))(f, matrixA, matrixB.transpose)
+    val (output2: Array[Float], _) = ExecuteOld(2, 2, mSize/2, nSize/2, (true, true))(fd, matrixA, matrixB.transpose)
+    val (output3: Array[Float], _) = ExecuteOld(2, 2, mSize/2, nSize/2, (true, true))(fdot, matrixA, matrixB.transpose)
 
     assertArrayEquals(gold, output1, 0.0001f)
     assertArrayEquals(gold, output2, 0.0001f)
@@ -455,7 +455,7 @@ class Best {
     val f = maliFactory(Seq[ArithExpr](K, M, N, 2, 2, 4))
 
     val (output: Array[Float], _) =
-      Execute(2, 2, mSize/2, nSize/2, (true, true))(
+      ExecuteOld(2, 2, mSize/2, nSize/2, (true, true))(
         f, matrixA, matrixB.transpose, matrixC, alpha, beta)
 
     assertArrayEquals(gold, output, 0.0001f)
@@ -492,7 +492,7 @@ class Best {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB)
 
-    val (output: Array[Float], _) = Execute()(f, matrixA.transpose, matrixB)
+    val (output: Array[Float], _) = ExecuteOld()(f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
@@ -641,7 +641,7 @@ class Best {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB, matrixC, alpha, beta)
 
     val (output: Array[Float], _) =
-      Execute()(f, matrixA.transpose, matrixB, matrixC, alpha, beta)
+      ExecuteOld()(f, matrixA.transpose, matrixB, matrixC, alpha, beta)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
@@ -679,7 +679,7 @@ class Best {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB)
 
-    val (output: Array[Float], _) = Execute()(f, matrixA.transpose, matrixB)
+    val (output: Array[Float], _) = ExecuteOld()(f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
@@ -817,7 +817,7 @@ class Best {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB)
 
-    val (output: Array[Float], _) = Execute()(f, matrixA.transpose, matrixB)
+    val (output: Array[Float], _) = ExecuteOld()(f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
@@ -973,7 +973,7 @@ class Best {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB, matrixC, alpha, beta)
 
     val (output: Array[Float], _) =
-      Execute()(f, matrixA.transpose, matrixB, matrixC, alpha, beta)
+      ExecuteOld()(f, matrixA.transpose, matrixB, matrixC, alpha, beta)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }

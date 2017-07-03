@@ -3,7 +3,7 @@ package opencl.generator
 import ir.ArrayTypeWSWC
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{ExecuteOld, Executor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq}
 import org.junit.Assert._
@@ -38,7 +38,7 @@ class TestTail {
         ) o Split(128) $ input
     )
 
-    val (result: Array[Float], _) = Execute(inputSize)(f, input)
+    val (result: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold, result, 0.0f)
   }
@@ -60,7 +60,7 @@ class TestTail {
         ) o Split(128) $ input
     )
 
-    val (result: Array[Float], _) = Execute(inputSize)(f, input)
+    val (result: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold, result, 0.0f)
   }
@@ -83,7 +83,7 @@ class TestTail {
         ) o Split(128) $ input
     )
 
-    val (result: Array[Float], _) = Execute(inputSize)(f, input)
+    val (result: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold, result, 0.0f)
   }
@@ -106,7 +106,7 @@ class TestTail {
         ) o Split(128) $ input
     )
 
-    val (result: Array[Float], _) = Execute(inputSize)(f, input)
+    val (result: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold, result, 0.0f)
   }
@@ -128,7 +128,7 @@ class TestTail {
         ) o Split(128) $ input
     )
 
-    val (result: Array[Float], _) = Execute(inputSize)(f, input)
+    val (result: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold, result, 0.0f)
   }
@@ -150,7 +150,7 @@ class TestTail {
         ) o Split(128) $ input
     )
 
-    val (result: Array[Float], _) = Execute(inputSize)(f, input)
+    val (result: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold, result, 0.0f)
   }
@@ -172,7 +172,7 @@ class TestTail {
         ) o Split(128) $ input
     )
 
-    val (result: Array[Float], _) = Execute(inputSize)(f, input)
+    val (result: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold, result, 0.0f)
   }
@@ -194,7 +194,7 @@ class TestTail {
         ) o Split(128) $ input
     )
 
-    val (result: Array[Float], _) = Execute(inputSize)(f, input)
+    val (result: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold, result, 0.0f)
   }
@@ -216,7 +216,7 @@ class TestTail {
         ) o Split(128) $ input
     )
 
-    val (result: Array[Float], _) = Execute(inputSize)(f, input)
+    val (result: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold, result, 0.0f)
   }
@@ -238,7 +238,7 @@ class TestTail {
         ) o Split(128) $ input
     )
 
-    val (result: Array[Float], _) = Execute(inputSize)(f, input)
+    val (result: Array[Float], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(gold, result, 0.0f)
   }

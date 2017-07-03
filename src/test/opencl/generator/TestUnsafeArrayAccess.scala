@@ -42,7 +42,7 @@ class TestUnsafeArrayAccess {
         ) $ ix
       }
     )
-    val (output:Array[Float], runtime) = Execute(1,1)(accessKernel, inputArr, Array(index))
+    val (output:Array[Float], runtime) = ExecuteOld(1,1)(accessKernel, inputArr, Array(index))
     println("Time: "+runtime)
     println("Gold: "+ gold)
     println("Output: "+ output(0))
@@ -70,7 +70,7 @@ class TestUnsafeArrayAccess {
         ) $ arr
       }
     )
-    val (output:Array[Float], runtime) = Execute(1,1)(accessKernel, inputArr, Array(index))
+    val (output:Array[Float], runtime) = ExecuteOld(1,1)(accessKernel, inputArr, Array(index))
     println("Time: "+runtime)
     println("Gold: "+ gold.deep.mkString(", "))
     println("Output: "+ output.deep.mkString(", "))
@@ -92,7 +92,7 @@ class TestUnsafeArrayAccess {
         )) $ Zip(ix, arr)
       }
     )
-    val (output:Array[Float], runtime) = Execute(1,1)(accessKernel, inputArr, indexArr)
+    val (output:Array[Float], runtime) = ExecuteOld(1,1)(accessKernel, inputArr, indexArr)
     println("Time: "+runtime)
     println("Gold: "+ gold(0))
     println("Output: "+ output(0))
@@ -119,7 +119,7 @@ class TestUnsafeArrayAccess {
         ) $ ix
       }
     )
-    val (output:Array[Int], runtime) = Execute(1,1)(accessKernel, passArr, Array(index))
+    val (output:Array[Int], runtime) = ExecuteOld(1,1)(accessKernel, passArr, Array(index))
     println("Time: "+runtime)
     println("Gold: "+ gold)
     println("Output: ("+ output(0)+","+output(1)+")")

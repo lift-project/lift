@@ -42,7 +42,7 @@ class TestEval {
       )
     """
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(addFun, leftInputData, rightInputData)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize)(addFun, leftInputData, rightInputData)
 
     (gold, output).zipped.map(assertEquals(_,_,0.0))
 
@@ -65,7 +65,7 @@ val gensym1 = fun(ArrayTypeWSWC(Int, SizeVar("N")), gensym2 => MapGlb(gensym0) $
 gensym1
     """
 
-    val (output: Array[Int], _) = Execute(inputSize)(code, inputData)
+    val (output: Array[Int], _) = ExecuteOld(inputSize)(code, inputData)
 
     (gold, output).zipped.map(assertEquals(_,_))
 

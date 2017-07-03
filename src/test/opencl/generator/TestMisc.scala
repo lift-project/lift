@@ -43,7 +43,7 @@ class TestMisc {
       Scatter(reverse) o asScalar() o MapGlb(VectorizeUserFun(4, id)) o asVector(4) $ _
     )
 
-    val (output: Array[Float], _) = Execute(size)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(size)(f, input)
 
     assertArrayEquals(input.reverse, output, 0.0f)
   }
@@ -61,7 +61,7 @@ class TestMisc {
       ArrayTypeWSWC(Float, N),
       asScalar() o MapGlb(VectorizeUserFun(4, id)) o asVector(4) o Gather(reverse) $ _
     )
-    val (output: Array[Float], _) = Execute(size)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(size)(f, input)
 
     assertArrayEquals(input.reverse, output, 0.0f)
   }
@@ -81,7 +81,7 @@ class TestMisc {
         MapGlb(VectorizeUserFun(4, id)) o asVector(4) $ _
     )
 
-    val (output: Array[Float], _) = Execute(size)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(size)(f, input)
 
     assertArrayEquals(input.reverse, output, 0.0f)
   }
@@ -100,7 +100,7 @@ class TestMisc {
       asScalar() o MapGlb(VectorizeUserFun(4, id)) o
         asVector(4) o Gather(ReorderWithStride(32)) $ _
     )
-    val (output: Array[Float], _) = Execute(size)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(size)(f, input)
 
     assertArrayEquals(input.reverse, output, 0.0f)
   }
@@ -121,7 +121,7 @@ class TestMisc {
           asVector(4) $ input
     )
 
-    val (output: Array[Float], _) = Execute(size)(f, input, a)
+    val (output: Array[Float], _) = ExecuteOld(size)(f, input, a)
     val gold = input.map(_*a)
 
     assertArrayEquals(gold, output, 0.001f)
@@ -136,7 +136,7 @@ class TestMisc {
       input => MapGlb(fun(a => add(a, a))) $ input
     )
 
-    val (output: Array[Float], _) = Execute(input.length)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(input.length)(f, input)
 
     val gold = (input, input).zipped.map(_+_)
 
@@ -158,7 +158,7 @@ class TestMisc {
         x => MapGlb(Iterate(iterCount)(MapSeq(incr))) o Split(inputSize) $ x
       )
 
-    val (output: Array[Float], _) = Execute(1,1)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(1,1)(f, input)
 
     assertArrayEquals(Array.fill(inputSize)(100.0f), output, 0.0f)
   }
@@ -177,7 +177,7 @@ class TestMisc {
       in => MapGlb(incr) $ in
     )
 
-    val (output: Array[Double], _) = Execute(inputSize)(f, input)
+    val (output: Array[Double], _) = ExecuteOld(inputSize)(f, input)
 
     assertArrayEquals(input.map(_ + 1), output, 0.0)
   }
@@ -194,7 +194,7 @@ class TestMisc {
       in => MapGlb(neg) $ in
     )
 
-    val (output: Array[Boolean], _) = Execute(inputSize)(f, input)
+    val (output: Array[Boolean], _) = ExecuteOld(inputSize)(f, input)
 
     assert( (input, output).zipped.forall((i, o) => i == !o) )
   }
@@ -223,10 +223,10 @@ class TestMisc {
     )
 
 
-    val (output1: Array[Float], _) = Execute(inputData.length)(f, inputData)
+    val (output1: Array[Float], _) = ExecuteOld(inputData.length)(f, inputData)
     assertArrayEquals(gold, output1, 0.0f)
 
-    val (output2: Array[Float], _) = Execute(inputData.length)(f2, inputData)
+    val (output2: Array[Float], _) = ExecuteOld(inputData.length)(f2, inputData)
     assertArrayEquals(gold, output2, 0.0f)
   }
 
@@ -244,7 +244,7 @@ class TestMisc {
 
     val gold = input.map(_ + 2*const)
 
-    val (result: Array[Float], _) = Execute(1,1)(f, const, input)
+    val (result: Array[Float], _) = ExecuteOld(1,1)(f, const, input)
 
     assertArrayEquals(gold, result, 0.0f)
   }
@@ -263,7 +263,7 @@ class TestMisc {
 
     val gold = input.map(_ + 2*const)
 
-    val (result: Array[Float], _) = Execute(1,1)(f, const, input)
+    val (result: Array[Float], _) = ExecuteOld(1,1)(f, const, input)
 
     assertArrayEquals(gold, result, 0.0f)
   }
@@ -281,7 +281,7 @@ class TestMisc {
 
     val gold = input.flatMap(a => input.map(b => a + b + b))
 
-    val (result: Array[Float], _) = Execute(1,1)(f, input, input)
+    val (result: Array[Float], _) = ExecuteOld(1,1)(f, input, input)
     assertArrayEquals(gold, result, 0.0f)
   }
 
@@ -298,7 +298,7 @@ class TestMisc {
 
     val gold = input.flatMap(a => input.map(b => a + b + b))
 
-    val (result: Array[Float], _) = Execute(1,1)(f, input, input)
+    val (result: Array[Float], _) = ExecuteOld(1,1)(f, input, input)
     assertArrayEquals(gold, result, 0.0f)
   }
 
@@ -323,7 +323,7 @@ class TestMisc {
         )(Split(128)(in))
       })
 
-    val (output: Array[Float], _) = Execute(inputData.length)( l, inputData, 0.0f)
+    val (output: Array[Float], _) = ExecuteOld(inputData.length)( l, inputData, 0.0f)
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -341,7 +341,7 @@ class TestMisc {
         ) o Split(128) $ in
       })
 
-    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputData.length)(l, inputData)
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -364,7 +364,7 @@ class TestMisc {
            Join()
          })
 
-    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputData.length)(l, inputData)
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -387,7 +387,7 @@ class TestMisc {
             in
           })
 
-    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputData.length)(l, inputData)
 
     assertEquals(inputData.sum, output.sum, 0.0)
   }
@@ -404,7 +404,7 @@ class TestMisc {
       ) $ input
     )
 
-    val (output: Array[Float], _) = Execute(4, 4)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(4, 4)(f, input)
 
     assertArrayEquals(input.flatten.flatten, output, 0.0f)
   }
@@ -419,7 +419,7 @@ class TestMisc {
         MapSeq(id o id) $ in
       })
 
-    val (output: Array[Float], _) = Execute(inputData.length)(l, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputData.length)(l, inputData)
 
     assertArrayEquals(inputData, output, 0.0f)
   }
@@ -434,7 +434,7 @@ class TestMisc {
         in :>> ReduceSeq(add, toPrivate(add)(0.0f, 1.0f)) :>> toGlobal(MapSeq(id))
       })
 
-    val (output: Array[Float], _) = Execute(inputSize)(l, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(l, inputData)
 
     assertEquals(inputData.sum + 1, output.head, 0.0f)
   }
@@ -453,7 +453,7 @@ class TestMisc {
                   toGlobal(MapSeq(id))
                 })
 
-    val (output: Array[Float], _) = Execute(1, 1)(l, inputData)
+    val (output: Array[Float], _) = ExecuteOld(1, 1)(l, inputData)
 
     assertArrayEquals(inputData, output, 0.0f)
   }
@@ -471,7 +471,7 @@ class TestMisc {
           asScalar() :>>
           toGlobal(MapSeq(id))
       })
-    val (output: Array[Float], _) = Execute(1, 1)(l, inputData)
+    val (output: Array[Float], _) = ExecuteOld(1, 1)(l, inputData)
 
     val gold = inputData.splitAt(inputSize/2).zipped.map(_+_)
 
@@ -492,7 +492,7 @@ class TestMisc {
           ReduceSeq(add, 0.0f) :>>
           toGlobal(MapSeq(id))
       })
-    val (output: Array[Float], _) = Execute(1, 1)(l, inputData)
+    val (output: Array[Float], _) = ExecuteOld(1, 1)(l, inputData)
 
     val gold = Array(inputData.sum)
 
@@ -525,7 +525,7 @@ class TestMisc {
     )
 
     // execute
-    val (output: Array[Float], _) = Execute(inputSize)(f, xs)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, xs)
     assertArrayEquals(gold, output, 0.001f)
   }
 
@@ -544,7 +544,7 @@ class TestMisc {
         MapGlb(composition) $ input
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(compFun, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(compFun, inputData)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -567,7 +567,7 @@ class TestMisc {
       )) $ Zip(matrix, vector)
     )
 
-    val (output: Array[Float], _) = Execute(4, Nsize)(f, matrix, vector)
+    val (output: Array[Float], _) = ExecuteOld(4, Nsize)(f, matrix, vector)
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
   }
 
@@ -593,7 +593,7 @@ class TestMisc {
         )) $ Zip(A, B)
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputData, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, inputData, inputData)
     assertArrayEquals(inputData.flatten.map(_ + 1), output, 0.0f)
   }
 
@@ -609,7 +609,7 @@ class TestMisc {
         MapGlb(id.vectorize(4)) $ input
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, inputData)
     assertArrayEquals(inputData.flatten, output, 0.0f)
   }
 
@@ -625,7 +625,7 @@ class TestMisc {
         MapGlb(VectorizeUserFun(4, id)) $ input
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, inputData)
     assertArrayEquals(inputData.flatten, output, 0.0f)
   }
 
@@ -643,7 +643,7 @@ class TestMisc {
         MapGlb(fun(x => add(x, 3.0f))) $ input
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, inputData)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -659,7 +659,7 @@ class TestMisc {
       (input) => MapGlb(toGlobal(MapSeq(neg)) o ReduceSeq(add, 0.0f)) $ input
     )
 
-    val (output: Array[Float], _) = Execute(Nsize * Msize)(function, matrix)
+    val (output: Array[Float], _) = ExecuteOld(Nsize * Msize)(function, matrix)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -674,7 +674,7 @@ class TestMisc {
       in => asScalar() o MapGlb(plusOne.vectorize(4)) o asVector(4) $ in
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, inputData)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -689,7 +689,7 @@ class TestMisc {
       in => MapGlb(plusOne) o asScalar() o asVector(4) $ in
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputData)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, inputData)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -708,7 +708,7 @@ class TestMisc {
       (matrix) => Split(Msize) o MapGlb(0)(id) o Join() $ matrix
     )
 
-    val (output: Array[Float], _) = Execute(Nsize)(f, matrix)
+    val (output: Array[Float], _) = ExecuteOld(Nsize)(f, matrix)
     assertArrayEquals(matrix.flatten, output, 0.0f)
   }
 
@@ -729,7 +729,7 @@ class TestMisc {
       (matrix) => Split(Msize) o MapGlb(0)(MapSeq(id)) o Join() $ matrix
     )
 
-    val (output: Array[Float], _) = Execute(Nsize)(f, matrix)
+    val (output: Array[Float], _) = ExecuteOld(Nsize)(f, matrix)
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
   }
 
@@ -750,7 +750,7 @@ class TestMisc {
       (matrix) => MapGlb(0)(Split(Ksize) o MapSeq(id) o Join()) $ matrix
     )
 
-    val (output: Array[Float], _) = Execute(Nsize)(f, matrix)
+    val (output: Array[Float], _) = ExecuteOld(Nsize)(f, matrix)
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
   }
 
@@ -771,7 +771,7 @@ class TestMisc {
       (matrix) => Split(Msize) o Split(Ksize) o MapGlb(0)(id) o Join() o Join() $ matrix
     )
 
-    val (output: Array[Float], _) = Execute(Nsize)(f, matrix)
+    val (output: Array[Float], _) = ExecuteOld(Nsize)(f, matrix)
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
   }
 
@@ -788,7 +788,7 @@ class TestMisc {
       in => Iterate(7)(MapGlb(plusOne)) $ in
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, input)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -813,7 +813,7 @@ class TestMisc {
       )) $ inA
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inputA, inputB)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, inputA, inputB)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -880,17 +880,17 @@ class TestMisc {
               ))(Split(16)(in)))
     )
 
-    val (output1: Array[Float], _) = Execute(inputSize)(f, input)
+    val (output1: Array[Float], _) = ExecuteOld(inputSize)(f, input)
     assertArrayEquals(gold, output1, 0.0f)
-    val (output2: Array[Float], _) = Execute(inputSize)(f_nested, input)
+    val (output2: Array[Float], _) = ExecuteOld(inputSize)(f_nested, input)
     assertArrayEquals(gold, output2, 0.0f)
-    val (output3: Array[Float], _) = Execute(inputSize)(f_nested2, input)
+    val (output3: Array[Float], _) = ExecuteOld(inputSize)(f_nested2, input)
     assertArrayEquals(gold, output3, 0.0f)
-    val (output4: Array[Float], _) = Execute(inputSize)(f_nested3, input)
+    val (output4: Array[Float], _) = ExecuteOld(inputSize)(f_nested3, input)
     assertArrayEquals(gold, output4, 0.0f)
-    val (output5: Array[Float], _) = Execute(inputSize)(f_nested4, input)
+    val (output5: Array[Float], _) = ExecuteOld(inputSize)(f_nested4, input)
     assertArrayEquals(gold, output5, 0.0f)
-    val (output6: Array[Float], _) = Execute(inputSize)(f_full, input)
+    val (output6: Array[Float], _) = ExecuteOld(inputSize)(f_full, input)
     assertArrayEquals(gold, output6, 0.0f)
   }
 
@@ -918,7 +918,7 @@ class TestMisc {
         ) $ X
     )
 
-    val (output: Array[Float], _) = Execute(nSize)(f, A, B)
+    val (output: Array[Float], _) = ExecuteOld(nSize)(f, A, B)
     assertArrayEquals(gold.flatten.flatten, output, 0.0f)
   }
 
@@ -940,7 +940,7 @@ class TestMisc {
 
     val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(16, 2048)(kernel, f, input)
+    val (output: Array[Float], _) = ExecuteOld(16, 2048)(kernel, f, input)
 
     assertEquals(input.sum, output.sum, 0.0f)
     assertEquals(9, "l_id".r.findAllMatchIn(kernel).length)
@@ -1032,7 +1032,7 @@ class TestMisc {
     val values = Seq(matrix, vectorX, vectorY, alpha, beta)
 
     val expr = factory(Array[ArithExpr](1024,1024,128,128,8,2))
-    Execute(128, 1, 128*1024, 1, (true, true))(expr, values: _*)
+    ExecuteOld(128, 1, 128*1024, 1, (true, true))(expr, values: _*)
   }
 
   @Test
@@ -1042,7 +1042,7 @@ class TestMisc {
         $ Value(1.0f, ArrayTypeWSWC(Float, Cst(128)))
     )
 
-    val (output: Array[Float], _) = Execute(128)(f)
+    val (output: Array[Float], _) = ExecuteOld(128)(f)
 
     val gold = Array.fill(128)(1.0f)
     assertArrayEquals(gold, output, 0.0f)
@@ -1055,7 +1055,7 @@ class TestMisc {
         $ Value(1.0f, ArrayTypeWSWC(Float4, Cst(128/4)))
     )
 
-    val (output: Array[Float], _) = Execute(128)(f)
+    val (output: Array[Float], _) = ExecuteOld(128)(f)
 
     val gold = Array.fill(128)(1.0f)
     assertArrayEquals(gold, output, 0.0f)
@@ -1069,7 +1069,7 @@ class TestMisc {
         o asVector(4) $ Value(1.0f, ArrayTypeWSWC(Float, Cst(128)))
     )
 
-    val (output: Array[Float], _) = Execute(128)(f)
+    val (output: Array[Float], _) = ExecuteOld(128)(f)
 
     val gold = Array.fill(128)(1.0f)
     assertArrayEquals(gold, output, 0.0f)
@@ -1131,7 +1131,7 @@ class TestMisc {
       arr => MapGlb(toGlobal(flatten) o reshape2 o reshape1) $ arr
     )
   
-    val (output: Array[Int], _) = Execute(size)(expr, input.flatten)
+    val (output: Array[Int], _) = ExecuteOld(size)(expr, input.flatten)
     assertArrayEquals(input.flatten, output)
   }
 
@@ -1146,7 +1146,7 @@ class TestMisc {
       input => MapGlb(add) $ Zip(input, ArrayFromValue(1, at))
     )
 
-    val (output: Array[Float], _) = Execute(input.length)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(input.length)(f, input)
 
     val gold = (input, Array.fill(input.length)(1)).zipped.map(_+_)
 
@@ -1164,7 +1164,7 @@ class TestMisc {
       input => MapGlb(add) $ Zip(input, ArrayFromGenerator( (i, _) => ArithExpression(i), at))
     )
 
-    val (output: Array[Float], _) = Execute(input.length)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(input.length)(f, input)
 
     val gold = (input, Array.tabulate(input.length)( i => i )).zipped.map(_+_)
 
@@ -1184,7 +1184,7 @@ class TestMisc {
       input => MapGlb(add) $ Zip(input, ArrayFromUserFunGenerator(idxF, at))
     )
 
-    val (output: Array[Float], _) = Execute(input.length)(f, input)
+    val (output: Array[Float], _) = ExecuteOld(input.length)(f, input)
 
     val gold = (input, Array.tabulate(input.length)( i => i )).zipped.map(_+_)
 
@@ -1207,7 +1207,7 @@ class TestMisc {
             toGlobal(MapGlb(MapSeq(idI)))
     )
 
-    val (output: Array[Int], _) = Execute(input.length)(f, input)
+    val (output: Array[Int], _) = ExecuteOld(input.length)(f, input)
 
     val gold = Array.tabulate(input.length)( i => i )
 
@@ -1235,7 +1235,7 @@ class TestMisc {
           toGlobal(MapGlb(MapSeq(idI)))
     )
 
-    val (output: Array[Int], _) = Execute(input.length)(f, input)
+    val (output: Array[Int], _) = ExecuteOld(input.length)(f, input)
 
     val gold = Array.tabulate(m, n)( (i, j) => i+j ).flatten
 
@@ -1265,7 +1265,7 @@ class TestMisc {
           toGlobal(MapGlb(MapSeq(MapSeq(idI))))
     )
 
-    val (output: Array[Int], _) = Execute(input.length)(f, input)
+    val (output: Array[Int], _) = ExecuteOld(input.length)(f, input)
 
     val gold = Array.tabulate(m, n, o)( (i, j, k) => i+j+k ).flatten.flatten
 

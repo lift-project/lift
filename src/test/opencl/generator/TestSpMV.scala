@@ -87,7 +87,7 @@ class TestSpMV {
       }
     )
 
-    val (output:Array[Int], runtime) = Execute(1,matrix.length)(f, matrix.map(flattenTupleArray), flattenTupleArray(vector))
+    val (output:Array[Int], runtime) = ExecuteOld(1,matrix.length)(f, matrix.map(flattenTupleArray), flattenTupleArray(vector))
     println("Time: "+runtime)
     println("Gold sum = "+gold.sum.toString)
     println("Output sum = "+output.sum.toString)
@@ -167,7 +167,7 @@ class TestSpMV {
         )) $ mat
       }
     )
-    val (output:Array[Int], runtime) = Execute(1,1)(f, matrix.map(flattenTupleArray), flattenTupleArray(vector))
+    val (output:Array[Int], runtime) = ExecuteOld(1,1)(f, matrix.map(flattenTupleArray), flattenTupleArray(vector))
     println("Time: "+runtime)
     println("Gold sum = "+gold.sum.toString)
     println("Output sum = "+output.sum.toString)
@@ -222,7 +222,7 @@ class TestSpMV {
       }
     )
 
-    val (output:Array[Int], runtime) = Execute(1,1)(f, flattenTupleArray(vectA), flattenTupleArray(vectB))
+    val (output:Array[Int], runtime) = ExecuteOld(1,1)(f, flattenTupleArray(vectA), flattenTupleArray(vectB))
     println("Time: "+runtime)
     println("Gold = "+gold)
     println("output = "+output.deep.mkString(" "))
@@ -293,7 +293,7 @@ class TestSpMV {
       }
     )
 
-    val (output:Array[Int], runtime) = Execute(1,1)(f, flattenTupleArray(vectA), flattenTupleArray(vectB))
+    val (output:Array[Int], runtime) = ExecuteOld(1,1)(f, flattenTupleArray(vectA), flattenTupleArray(vectB))
     println("Time: "+runtime)
     println("Gold = "+gold)
     println("output = "+output.deep.mkString(" "))
@@ -364,7 +364,7 @@ class TestSpMV {
       }
     )
 
-    val (output:Array[Int], runtime) = Execute(1,1)(f, flattenTupleArray(vectA), flattenTupleArray(vectB))
+    val (output:Array[Int], runtime) = ExecuteOld(1,1)(f, flattenTupleArray(vectA), flattenTupleArray(vectB))
     println("Time: "+runtime)
     println("Gold = "+gold)
     println("output = "+output.deep.mkString(" "))
@@ -387,7 +387,7 @@ class TestSpMV {
     val f = fun(ArrayTypeWSWC(TupleType(Int, Int), SizeVar("N")), (input) =>
        MapGlb(negElem)  $ input
     )
-    val (output:Array[Int], runtime) = Execute(1,1)(f, inputVector)
+    val (output:Array[Int], runtime) = ExecuteOld(1,1)(f, inputVector)
 
     println("output(0) = " + output(0))
     println("Input: "+inputVector.toList)
@@ -424,7 +424,7 @@ class TestSpMV {
       ) $ input
     )
 
-    val (output:Array[Float], runtime) = Execute(1,1)(scalFun, inputVector, alpha)
+    val (output:Array[Float], runtime) = ExecuteOld(1,1)(scalFun, inputVector, alpha)
 
     println("output(0) = " + output(0))
     println("input = " + inputVector.toList)

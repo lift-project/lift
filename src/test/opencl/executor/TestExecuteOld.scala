@@ -9,7 +9,7 @@ import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
 
-object TestExecute {
+object TestExecuteOld {
   @BeforeClass def before() =
     Executor.loadAndInit()
 
@@ -17,7 +17,7 @@ object TestExecute {
     Executor.shutdown()
 }
 
-class TestExecute {
+class TestExecuteOld {
 
   private val N = SizeVar("N")
   private val M = SizeVar("M")
@@ -32,7 +32,7 @@ class TestExecute {
       MapSeq(plusOne) $ _
     )
 
-    val execute = Execute()
+    val execute = ExecuteOld()
     val (output: Array[Float], _) =
       execute(f, input)
 
@@ -58,7 +58,7 @@ class TestExecute {
       MapGlb(plusOne) $ _
     )
 
-    val execute = Execute()
+    val execute = ExecuteOld()
     val (output: Array[Float], _) =
       execute(f, input)
 
@@ -85,7 +85,7 @@ class TestExecute {
       MapGlb(1)(MapGlb(0)(plusOne)) $ _
     )
 
-    val execute = Execute()
+    val execute = ExecuteOld()
     val (output: Array[Float], _) =
       execute(f, input)
 
@@ -111,7 +111,7 @@ class TestExecute {
       MapWrg(MapLcl(plusOne)) o Split(split) $ _
     )
 
-    val execute = Execute()
+    val execute = ExecuteOld()
     val (output: Array[Float], _) =
       execute(f, input)
 
@@ -144,7 +144,7 @@ class TestExecute {
         Tile(split1, split2) $ _
     )
 
-    val execute = Execute()
+    val execute = ExecuteOld()
     val (output: Array[Float], _) =
       execute(f, input)
 
@@ -180,7 +180,7 @@ class TestExecute {
       ) $ _
     )
 
-    val execute = Execute()
+    val execute = ExecuteOld()
     val (output: Array[Float], _) =
       execute(f, input)
 
@@ -208,7 +208,7 @@ class TestExecute {
       )) o ReduceSeq(add, 0.0f) $ varArr
     )
 
-    val execute = Execute()
+    val execute = ExecuteOld()
     val (output: Array[Float], _) =
       execute(f, inputA, inputB)
 
@@ -217,5 +217,4 @@ class TestExecute {
 
     assertArrayEquals(gold, output, 0.001f)
   }
-
 }

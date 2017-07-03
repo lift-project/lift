@@ -22,13 +22,14 @@ object TestArray {
     Executor.shutdown()
   }
 
-  def toByteArray(arr: Array[Boolean]): Array[Byte] = {
-    arr.map(b => (if (b) 1 else 0).toByte)
+  def assertBoolArrayEquals(expected: Array[Boolean], actual: Array[Boolean]): Unit = {
+    def toByte(b: Boolean): Byte = (if (b) 1 else 0).toByte
+    assertArrayEquals(expected.map(toByte), actual.map(toByte))
   }
 }
 
 class TestArray {
-  import TestArray.toByteArray
+  import TestArray.assertBoolArrayEquals
 
   /**
     * Size is not statically know but the capacity is.
@@ -49,7 +50,8 @@ class TestArray {
     val t = TypeChecker(f)
     assertEquals(t, ArrayTypeWSWC(Int, 1, 1))
 
-    val (output: Array[Int], _) = Execute(128)(f, input)
+    val exec = Execute(128)
+    val (output, _) = exec[Vector[Int]](f, input)
     assertEquals(input.sum, output.head)
   }
   
@@ -70,12 +72,13 @@ class TestArray {
       MapGlb(toGlobal(id(st))) $ _
     )
 
-    val (bOutput: Array[Boolean], _) = Execute(128)(mkMapId(Bool), bInput)
-    assertArrayEquals(toByteArray(bInput), toByteArray(bOutput.slice(1, size + 1)))
-    val (iOutput: Array[Int], _) = Execute(128)(mkMapId(Int), iInput)
-    assertArrayEquals(iInput, iOutput.slice(1, size + 1))
-    val (fOutput: Array[Float], _) = Execute(128)(mkMapId(Float), fInput)
-    assertArrayEquals(fInput, fOutput.slice(1, size + 1), 0f)
+    val exec = Execute(128)
+    val (bOutput, _) = exec[Vector[Boolean]](mkMapId(Bool), bInput)
+    assertBoolArrayEquals(bInput, bOutput.toArray)
+    val (iOutput, _) = exec[Vector[Int]](mkMapId(Int), iInput)
+    assertArrayEquals(iInput, iOutput.toArray)
+    val (fOutput, _) = exec[Vector[Float]](mkMapId(Float), fInput)
+    assertArrayEquals(fInput, fOutput.toArray, 0f)
   }
 
   @Test def unknownSizeMapDouble(): Unit = {
@@ -90,8 +93,9 @@ class TestArray {
       MapGlb(toGlobal(id(Double))) $ _
     )
 
-    val (dOutput: Array[Double], _) = Execute(128)(mapId, input)
-    assertArrayEquals(input, dOutput.slice(1, size + 1), 0d)
+    val exec = Execute(128)
+    val (dOutput, _) = exec[Vector[Double]](mapId, input)
+    assertArrayEquals(input, dOutput.toArray, 0d)
   }
 
   /**
@@ -110,8 +114,9 @@ class TestArray {
     
     assertEquals(TypeChecker(f), ArrayTypeWSWC(Int, 1, 1))
     
-    val (output: Array[Int], _) = Execute(size)(f, input)
-    assertEquals(input.sum, output.head)
+    val exec = Execute(128)
+    val (output, _) = exec[Vector[Int]](f, input)
+    assertEquals(Vector(input.sum), output)
   }
   
   /**
@@ -141,16 +146,13 @@ class TestArray {
       ArrayTypeWC(ArrayTypeWC(Int, capacity), capacity),
       MapGlb(MapSeq(idI)) $ _
     )
-    
+
     assertEquals(TypeChecker(f), ArrayTypeWC(ArrayTypeWC(Int, capacity), capacity))
-    
-    val (outputRaw: Array[Int], _) = Execute(capacity)(f, input)
-    val output = outputRaw
-      .slice(1, 1 + size1 * 129)                // Remove main header and cau at `size`
-      .grouped(129).map(_.slice(1, 1 + size2))  // Remove sub-arrays' headers
-      .toArray
-    
-    assertArrayEquals(input.flatten, output.flatten)
+
+    val exec = Execute(capacity)
+    val (output, _) = exec[Vector[Vector[Int]]](f, input)
+
+    assertArrayEquals(input.flatten, output.flatten.toArray)
   }
   
   /**
@@ -172,8 +174,9 @@ class TestArray {
     val input = Array.fill(size)(
       Array.fill(4 + util.Random.nextInt(8))(util.Random.nextInt(16))
     )
-    val (output: Array[Int], _) = Execute(size)(f, input)
-    assertArrayEquals(input.map(_.sum), output)
+    val exec = Execute(size)
+    val (output, _) = exec[Vector[Int]](f, input)
+    assertArrayEquals(input.map(_.sum), output.toArray)
   }
   
   /**

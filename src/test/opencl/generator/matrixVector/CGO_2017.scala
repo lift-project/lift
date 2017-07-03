@@ -70,7 +70,7 @@ class CGO_2017 {
     )
 
     val (result: Array[Float], _) =
-      Execute(64, n, (true, true))(f, matrix, vectorX, vectorY, alpha, beta)
+      ExecuteOld(64, n, (true, true))(f, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, result, 0.001f)
   }
@@ -111,7 +111,7 @@ class CGO_2017 {
     )
 
     val (result: Array[Float], _) =
-      Execute(64, n, (true, true))(f, matrix.transpose, vectorX, vectorY, alpha, beta)
+      ExecuteOld(64, n, (true, true))(f, matrix.transpose, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, result, 0.001f)
 

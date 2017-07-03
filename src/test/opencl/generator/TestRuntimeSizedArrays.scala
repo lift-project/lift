@@ -3,7 +3,7 @@ package opencl.generator
 import ir.{ArrayTypeWSWC, RuntimeSizedArrayType}
 import ir.ast.fun
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{ExecuteOld, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -34,7 +34,7 @@ class TestRuntimeSizedArrays {
       a => toGlobal(MapSeq(idI)) o ReduceSeq(fun((acc, x) => addI(acc, x)), 0) $ a
     )
 
-    val (output: Array[Int], runtime) = Execute(inputData.length)(l, inputData)
+    val (output: Array[Int], runtime) = ExecuteOld(inputData.length)(l, inputData)
 
     assertEquals(inputData.drop(1).sum, output.sum, 0.0)
 
@@ -54,7 +54,7 @@ class TestRuntimeSizedArrays {
       a => toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, x) => add(acc, x)), 0.0f) $ a
     )
 
-    val (output: Array[Float], runtime) = Execute(inputData.length)(l, inputData)
+    val (output: Array[Float], runtime) = ExecuteOld(inputData.length)(l, inputData)
 
     assertEquals(inputData.drop(1).sum, output.sum, 0.0)
 
@@ -104,7 +104,7 @@ class TestRuntimeSizedArrays {
       a => MapGlb(toGlobal(MapSeq(idI)) o ReduceSeq(fun((acc, x) => addI(acc, x)), 0)) $ a
     )
 
-    val (output: Array[Int], runtime) = Execute(inputData.length)(l, inputData)
+    val (output: Array[Int], runtime) = ExecuteOld(inputData.length)(l, inputData)
 
     assertEquals(inputData.drop(1).map(_.drop(1).sum).sum, output.sum)
 

@@ -3,7 +3,7 @@ package opencl.generator
 import ir._
 import ir.ast.{Join, Split, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{ExecuteOld, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert.{assertArrayEquals, assertEquals}

@@ -45,7 +45,7 @@ class TestReduceWhile {
       }
     )
 
-    val (output: Array[Int], runtime) = Execute(1,1)(kernel, arr)
+    val (output: Array[Int], runtime) = ExecuteOld(1,1)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output(0): " + output(0))
@@ -80,7 +80,7 @@ class TestReduceWhile {
       }
     )
 
-    val (output: Array[Int], runtime) = Execute(1,1)(kernel, arr)
+    val (output: Array[Int], runtime) = ExecuteOld(1,1)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())
@@ -115,7 +115,7 @@ class TestReduceWhile {
       }
     )
 
-    val (output: Array[Int], runtime) = Execute(1,1)(kernel, arr)
+    val (output: Array[Int], runtime) = ExecuteOld(1,1)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())
@@ -152,7 +152,7 @@ class TestReduceWhile {
       }
     )
 
-    val (output: Array[Int], runtime) = Execute(1,1)(kernel, arr)
+    val (output: Array[Int], runtime) = ExecuteOld(1,1)(kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())

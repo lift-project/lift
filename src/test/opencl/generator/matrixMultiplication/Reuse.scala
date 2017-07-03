@@ -4,7 +4,7 @@ import benchmarks.{GEMM, MatrixMultiplication}
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, Utils}
+import opencl.executor.{ExecuteOld, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -103,7 +103,7 @@ class Reuse {
           )) o Transpose() o Tile(tileSizeK, tileSizeM) $ A // Transposed
       })
 
-    val (output: Array[Float], _) = Execute(tileSizeM, tileSizeN / workPerThread,
+    val (output: Array[Float], _) = ExecuteOld(tileSizeM, tileSizeN / workPerThread,
       mSize, nSize / workPerThread, (true, true))(f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
@@ -135,7 +135,7 @@ class Reuse {
           )) o Split(workPerThreadN) $ A
     )
 
-    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB)
+    val (output: Array[Float], _) = ExecuteOld(mSize * nSize)(f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -161,7 +161,7 @@ class Reuse {
 
     val f = MatrixMultiplication.tiledAndBlockedBInnermost(tileSizeN, tileSizeM, tileSizeK, workPerThreadN, workPerThreadM)
 
-    val (output: Array[Float], _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
+    val (output: Array[Float], _) = ExecuteOld(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
       mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
@@ -190,7 +190,7 @@ class Reuse {
 
     val f = GEMM.tiledAndBlockedBInnermost(tileSizeN, tileSizeM, tileSizeK, workPerThreadN, workPerThreadM)
 
-    val (output: Array[Float], _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
+    val (output: Array[Float], _) = ExecuteOld(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
       mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB,
           matrixC, alpha, beta)
 
@@ -217,7 +217,7 @@ class Reuse {
     val f = MatrixMultiplication.vectorLoads(tileSizeN, tileSizeM, tileSizeK,
       workPerThreadN, workPerThreadM, 8)
 
-    val (output: Array[Float], _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
+    val (output: Array[Float], _) = ExecuteOld(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
       mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
@@ -309,7 +309,7 @@ class Reuse {
           )) o Transpose() o Tile(tileSizeK, tileSizeM) $ A
       })
 
-    val (output: Array[Float], _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
+    val (output: Array[Float], _) = ExecuteOld(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
       mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
@@ -340,7 +340,7 @@ class Reuse {
           )) o Split(tileSize) $ A
     )
 
-    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB)
+    val (output: Array[Float], _) = ExecuteOld(mSize * nSize)(f, matrixA, matrixB)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -370,7 +370,7 @@ class Reuse {
         )) $ A
     )
 
-    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB)
+    val (output: Array[Float], _) = ExecuteOld(mSize * nSize)(f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -391,7 +391,7 @@ class Reuse {
 
     val f = MatrixMultiplication.moreWorkPerThread(tileSize, blockSize)
 
-    val (output: Array[Float], _) = Execute(tileSize, tileSize / blockSize,
+    val (output: Array[Float], _) = ExecuteOld(tileSize, tileSize / blockSize,
       mSize, nSize / blockSize, (true, true))(f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
@@ -467,7 +467,7 @@ class Reuse {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = Execute(tileSize/blockSize, tileSize, mSize/blockSize, nSize, (true, false))(f, matrixA, matrixB)
+    val (output: Array[Float], _) = ExecuteOld(tileSize/blockSize, tileSize, mSize/blockSize, nSize, (true, false))(f, matrixA, matrixB)
     assertArrayEquals(gold, output, 0.0001f)
   }
 }

@@ -3,7 +3,7 @@ package opencl.generator
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{ExecuteOld, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -44,7 +44,7 @@ class TestTuple {
       }
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inArrA, inArrB)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, inArrA, inArrB)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -65,7 +65,7 @@ class TestTuple {
       }
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inArrA, inArrB)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, inArrA, inArrB)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -86,7 +86,7 @@ class TestTuple {
       }
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inArrA, inArrB)
+    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, inArrA, inArrB)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -107,7 +107,7 @@ class TestTuple {
                  }
                )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inArrA, inArrB)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize)(f, inArrA, inArrB)
 
     assertArrayEquals(gold, output, 0.0f)
     println("output(0) = " + output(0))
@@ -129,7 +129,7 @@ class TestTuple {
       ) o Split(1024) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputArray)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize)(f, inputArray)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -155,7 +155,7 @@ class TestTuple {
         ) o Split(1024) $ Zip(left, right)
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, leftArray, rightArray)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize)(f, leftArray, rightArray)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -178,7 +178,7 @@ class TestTuple {
       ) o Split(1024) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputArray.length)(pairFun, inputArray)
+    val (output: Array[Float], runtime) = ExecuteOld(inputArray.length)(pairFun, inputArray)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -207,7 +207,7 @@ class TestTuple {
       input => toGlobal(MapSeq(idFF)) o ReduceSeq(maxFirstArg, (0.0f, 0.0f)) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(function, input)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize)(function, input)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -233,7 +233,7 @@ class TestTuple {
       input => toGlobal(MapSeq(idFF)) o ReduceSeq(addPair, (0.0f, 0.0f)) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(function, input)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize)(function, input)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -264,7 +264,7 @@ class TestTuple {
       }
     )
 
-    val (output: Array[Float], runtime) = Execute(nSize)(function, input, array)
+    val (output: Array[Float], runtime) = ExecuteOld(nSize)(function, input, array)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -286,7 +286,7 @@ class TestTuple {
       ) o Split(1024) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputArray)
+    val (output: Array[Float], runtime) = ExecuteOld(inputSize)(f, inputArray)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -307,7 +307,7 @@ class TestTuple {
     val input = input2.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Int]].toArray
     val gold = input2.map(_._1)
 
-    val (output: Array[Int], _) = Execute(128)(f, input)
+    val (output: Array[Int], _) = ExecuteOld(128)(f, input)
 
     assertArrayEquals(gold, output)
   }

@@ -4,7 +4,7 @@ import benchmarks.MatrixMultiplication
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, Utils}
+import opencl.executor.{ExecuteOld, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -190,7 +190,7 @@ class Tiled {
         )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = Execute(4, 4, mSize, nSize, (false, false))(f, matrixA, matrixB.transpose)
+    val (output: Array[Float], _) = ExecuteOld(4, 4, mSize, nSize, (false, false))(f, matrixA, matrixB.transpose)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -239,7 +239,7 @@ class Tiled {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = Execute(mSize, nSize)(f, matrixA, matrixB.transpose)
+    val (output: Array[Float], _) = ExecuteOld(mSize, nSize)(f, matrixA, matrixB.transpose)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -293,7 +293,7 @@ class Tiled {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = Execute(4, 4, mSize, nSize, (true, true))(f, matrixA, matrixB.transpose)
+    val (output: Array[Float], _) = ExecuteOld(4, 4, mSize, nSize, (true, true))(f, matrixA, matrixB.transpose)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -350,7 +350,7 @@ class Tiled {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = Execute(4, 4, mSize, nSize, (true, true))(f, matrixA, matrixB.transpose)
+    val (output: Array[Float], _) = ExecuteOld(4, 4, mSize, nSize, (true, true))(f, matrixA, matrixB.transpose)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -407,7 +407,7 @@ class Tiled {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = Execute(tileSize, tileSize, mSize, nSize,
+    val (output: Array[Float], _) = ExecuteOld(tileSize, tileSize, mSize, nSize,
       (true, true))(f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
@@ -428,7 +428,7 @@ class Tiled {
 
     val f = MatrixMultiplication.tiled(tileSize)
 
-    val (output: Array[Float], _) = Execute(4, 4, mSize, nSize, (true, false))(f, matrixA, matrixB)
+    val (output: Array[Float], _) = ExecuteOld(4, 4, mSize, nSize, (true, false))(f, matrixA, matrixB)
     assertArrayEquals(gold, output, 0.0001f)
   }
 }

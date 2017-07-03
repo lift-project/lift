@@ -3,7 +3,7 @@ package rewriting
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{ExecuteOld, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -53,7 +53,7 @@ class TestDerivingMatrixReuse {
         )) $ A
       })
 
-    val (output: Array[Float], _) = Execute(1, mSize)(f, matrixA, transposedMatrixB)
+    val (output: Array[Float], _) = ExecuteOld(1, mSize)(f, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output, 0.0f)
 
     // split-join
@@ -70,7 +70,7 @@ class TestDerivingMatrixReuse {
         )) $ A
       })
 
-    val (output1: Array[Float], _) = Execute(1, mSize)(f1, matrixA, transposedMatrixB)
+    val (output1: Array[Float], _) = ExecuteOld(1, mSize)(f1, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output1, 0.0f)
 
     // Map fission
@@ -87,7 +87,7 @@ class TestDerivingMatrixReuse {
         )) $ A
       })
 
-    val (output2: Array[Float], _) = Execute(1, mSize)(f2, matrixA, transposedMatrixB)
+    val (output2: Array[Float], _) = ExecuteOld(1, mSize)(f2, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output2, 0.0f)
 
     // Map-Reduce interchange
@@ -107,7 +107,7 @@ class TestDerivingMatrixReuse {
         )) $ A
       })
 
-    val (output3: Array[Float], _) = Execute(1, mSize)(f3, matrixA, transposedMatrixB)
+    val (output3: Array[Float], _) = ExecuteOld(1, mSize)(f3, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output3, 0.0f)
 
     // Map-Map transpose, pulling the zip out
@@ -129,7 +129,7 @@ class TestDerivingMatrixReuse {
         )) $ A
       })
 
-    val (output4: Array[Float], _) = Execute(1, mSize)(f4, matrixA, transposedMatrixB)
+    val (output4: Array[Float], _) = ExecuteOld(1, mSize)(f4, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output4, 0.0f)
 
     // Transpose o Transpose => id
@@ -151,7 +151,7 @@ class TestDerivingMatrixReuse {
         )) $ A
       })
 
-    val (output5: Array[Float], _) = Execute(1, mSize)(f5, matrixA, transposedMatrixB)
+    val (output5: Array[Float], _) = ExecuteOld(1, mSize)(f5, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output5, 0.0f)
 
     // ReduceSeq o MapSeq fusion
@@ -172,7 +172,7 @@ class TestDerivingMatrixReuse {
         )) $ A
       })
 
-    val (output6: Array[Float], _) = Execute(1, mSize)(f6, matrixA, transposedMatrixB)
+    val (output6: Array[Float], _) = ExecuteOld(1, mSize)(f6, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output6, 0.0f)
   }
 
@@ -191,7 +191,7 @@ class TestDerivingMatrixReuse {
         )) $ A
       })
 
-    val (output: Array[Float], _) = Execute(1, mSize)(f, matrixA, transposedMatrixB)
+    val (output: Array[Float], _) = ExecuteOld(1, mSize)(f, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output, 0.0f)
 
     // split-join
@@ -208,7 +208,7 @@ class TestDerivingMatrixReuse {
         )) o Split(chunkSize) $ A
       })
 
-    val (output1: Array[Float], _) = Execute(1, mSize)(f1, matrixA, transposedMatrixB)
+    val (output1: Array[Float], _) = ExecuteOld(1, mSize)(f1, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output1, 0.0f)
 
     // Map-Map interchange
@@ -225,7 +225,7 @@ class TestDerivingMatrixReuse {
         )) o Split(chunkSize) $ A
       })
 
-    val (output2: Array[Float], _) = Execute(1, mSize)(f2, matrixA, transposedMatrixB)
+    val (output2: Array[Float], _) = ExecuteOld(1, mSize)(f2, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output2, 0.0f)
 
     // Map fission
@@ -241,7 +241,7 @@ class TestDerivingMatrixReuse {
         )) o Split(chunkSize) $ A
       })
 
-    val (output3: Array[Float], _) = Execute(1, mSize)(f3, matrixA, transposedMatrixB)
+    val (output3: Array[Float], _) = ExecuteOld(1, mSize)(f3, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output3, 0.0f)
 
     // Map-Reduce interchange
@@ -259,7 +259,7 @@ class TestDerivingMatrixReuse {
         )) o Split(chunkSize) $ A
       })
 
-    val (output4: Array[Float], _) = Execute(1, mSize)(f4, matrixA, transposedMatrixB)
+    val (output4: Array[Float], _) = ExecuteOld(1, mSize)(f4, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output4, 0.0f)
 
     // Map-Map transpose, pulling the zip out
@@ -277,7 +277,7 @@ class TestDerivingMatrixReuse {
         )) o Split(chunkSize) $ A
       })
 
-    val (output5: Array[Float], _) = Execute(1, mSize)(f5, matrixA, transposedMatrixB)
+    val (output5: Array[Float], _) = ExecuteOld(1, mSize)(f5, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output5, 0.0f)
 
     // Transpose o Transpose => id
@@ -297,7 +297,7 @@ class TestDerivingMatrixReuse {
         )) o Split(chunkSize) $ A
       })
 
-    val (output6: Array[Float], _) = Execute(1, mSize)(f6, matrixA, transposedMatrixB)
+    val (output6: Array[Float], _) = ExecuteOld(1, mSize)(f6, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output6, 0.0f)
 
     // ReduceSeq o MapSeq fusion
@@ -316,7 +316,7 @@ class TestDerivingMatrixReuse {
         )) o Split(chunkSize) $ A
       })
 
-    val (output7: Array[Float], _) = Execute(1, mSize)(f7, matrixA, transposedMatrixB)
+    val (output7: Array[Float], _) = ExecuteOld(1, mSize)(f7, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output7, 0.0f)
   }
 
@@ -337,7 +337,7 @@ class TestDerivingMatrixReuse {
         )) $ A
       })
 
-    val (output: Array[Float], _) = Execute(1, mSize)(f, matrixA, transposedMatrixB)
+    val (output: Array[Float], _) = ExecuteOld(1, mSize)(f, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output, 0.0f)
 
     // Reorder both sides
@@ -352,7 +352,7 @@ class TestDerivingMatrixReuse {
         )) $ A
       })
 
-    val (output1: Array[Float], _) = Execute(1, mSize)(f1, matrixA, transposedMatrixB)
+    val (output1: Array[Float], _) = ExecuteOld(1, mSize)(f1, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output1, 0.0f)
 
     // Map fission, pull reorder out
@@ -368,7 +368,7 @@ class TestDerivingMatrixReuse {
           )) $ A
       })
 
-    val (output2: Array[Float], _) = Execute(1, mSize)(f2, matrixA, transposedMatrixB)
+    val (output2: Array[Float], _) = ExecuteOld(1, mSize)(f2, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output2, 0.0f)
 
     // Split-join
@@ -386,7 +386,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output3: Array[Float], _) = Execute(1, mSize)(f3, matrixA, transposedMatrixB)
+    val (output3: Array[Float], _) = ExecuteOld(1, mSize)(f3, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output3, 0.0f)
 
     // Map-Map interchange
@@ -404,7 +404,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output4: Array[Float], _) = Execute(1, mSize)(f4, matrixA, transposedMatrixB)
+    val (output4: Array[Float], _) = ExecuteOld(1, mSize)(f4, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output4, 0.0f)
 
     // Split-join
@@ -425,7 +425,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output5: Array[Float], _) = Execute(1, mSize)(f5, matrixA, transposedMatrixB)
+    val (output5: Array[Float], _) = ExecuteOld(1, mSize)(f5, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output5, 0.0f)
 
     // Map-Map interchange
@@ -446,7 +446,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output6: Array[Float], _) = Execute(1, mSize)(f6, matrixA, transposedMatrixB)
+    val (output6: Array[Float], _) = ExecuteOld(1, mSize)(f6, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output6, 0.0f)
 
     // Map fission, pull join and transposes out
@@ -467,7 +467,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output7: Array[Float], _) = Execute(1, mSize)(f7, matrixA, transposedMatrixB)
+    val (output7: Array[Float], _) = ExecuteOld(1, mSize)(f7, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output7, 0.0f)
 
     // Map fission, separate add and mult
@@ -489,7 +489,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output8: Array[Float], _) = Execute(1, mSize)(f8, matrixA, transposedMatrixB)
+    val (output8: Array[Float], _) = ExecuteOld(1, mSize)(f8, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output8, 0.0f)
 
     // Map-Reduce interchange
@@ -515,7 +515,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output9: Array[Float], _) = Execute(1, mSize)(f9, matrixA, transposedMatrixB)
+    val (output9: Array[Float], _) = ExecuteOld(1, mSize)(f9, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output9, 0.0f)
 
     // Map-Map transpose, pulling the zip out
@@ -541,7 +541,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output10: Array[Float], _) = Execute(1, mSize)(f10, matrixA, transposedMatrixB)
+    val (output10: Array[Float], _) = ExecuteOld(1, mSize)(f10, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output10, 0.0f)
 
     // Transpose() o Transpose() => id
@@ -568,7 +568,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output11: Array[Float], _) = Execute(1, mSize)(f11, matrixA, transposedMatrixB)
+    val (output11: Array[Float], _) = ExecuteOld(1, mSize)(f11, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output11, 0.0f)
 
     // Map fission, separate reduce
@@ -597,7 +597,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output12: Array[Float], _) = Execute(1, mSize)(f12, matrixA, transposedMatrixB)
+    val (output12: Array[Float], _) = ExecuteOld(1, mSize)(f12, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output12, 0.0f)
 
     // Map fission, between reduce and copy back
@@ -626,7 +626,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output13: Array[Float], _) = Execute(1, mSize)(f13, matrixA, transposedMatrixB)
+    val (output13: Array[Float], _) = ExecuteOld(1, mSize)(f13, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output13, 0.0f)
 
     // Map-Reduce interchange
@@ -655,7 +655,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output14: Array[Float], _) = Execute(1, mSize)(f14, matrixA, transposedMatrixB)
+    val (output14: Array[Float], _) = ExecuteOld(1, mSize)(f14, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output14, 0.0f)
 
     // Map-Map interchange, pulling the zip out
@@ -684,7 +684,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output15: Array[Float], _) = Execute(1, mSize)(f15, matrixA, transposedMatrixB)
+    val (output15: Array[Float], _) = ExecuteOld(1, mSize)(f15, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output15, 0.0f)
 
     // Transpose() o Transpose() => id
@@ -712,7 +712,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output16: Array[Float], _) = Execute(1, mSize)(f16, matrixA, transposedMatrixB)
+    val (output16: Array[Float], _) = ExecuteOld(1, mSize)(f16, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output16, 0.0f)
 
     // ReduceSeq-MapSeq fusion
@@ -739,7 +739,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output17: Array[Float], _) = Execute(1, mSize)(f17, matrixA, transposedMatrixB)
+    val (output17: Array[Float], _) = ExecuteOld(1, mSize)(f17, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output17, 0.0f)
 
     // MapSeq(f) => toPrivate(MapSeq(f))
@@ -766,7 +766,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output18: Array[Float], _) = Execute(1, mSize)(f18, matrixA, transposedMatrixB)
+    val (output18: Array[Float], _) = ExecuteOld(1, mSize)(f18, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output18, 0.0f)
 
     // split-join + join o split => id
@@ -793,7 +793,7 @@ class TestDerivingMatrixReuse {
           )) o Split(chunkSizeN) $ A
       })
 
-    val (output19: Array[Float], _) = Execute(1, mSize)(f19, matrixA, transposedMatrixB)
+    val (output19: Array[Float], _) = ExecuteOld(1, mSize)(f19, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output19, 0.0f)
   }
 }

@@ -137,7 +137,7 @@ class GettingStarted {
       * 'Execute' type-checks the lambda, compiles it to OpenCL and executes
       * it using the given input
       */
-    val (output: Array[Float], _) = Execute()(lowLevel3pointJacobi, input)
+    val (output: Array[Float], _) = ExecuteOld()(lowLevel3pointJacobi, input)
     println(s"Output:\t [${output.mkString(", ")}]")
   }
 
@@ -271,8 +271,8 @@ class GettingStarted {
       * Therefore the kernel is still executable with arbitrary global- and localsizes and not
       * specialized for this specific combination
       */
-    val (gold: Array[Float], _) = Execute(1,1,2,2,(false,false))(lowLevel3pointJacobi, input)
-    val (output: Array[Float], _) = Execute(1,1,2,2,(false,false))(tiled3pointJacobi, input)
+    val (gold: Array[Float], _) = ExecuteOld(1,1,2,2,(false,false))(lowLevel3pointJacobi, input)
+    val (output: Array[Float], _) = ExecuteOld(1,1,2,2,(false,false))(tiled3pointJacobi, input)
 
     assertArrayEquals(gold, output, 0.001f)
   }

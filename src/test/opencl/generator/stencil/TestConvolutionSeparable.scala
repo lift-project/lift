@@ -46,7 +46,7 @@ class TestConvolutionSeparable {
 
     // testing
     val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
-    val (output: Array[Float], _) = Execute(16, 16, 128, 128, (true, true))(stencil, input, weights)
+    val (output: Array[Float], _) = ExecuteOld(16, 16, 128, 128, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 17, 1, 8, 8, 8, 8, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
@@ -89,7 +89,7 @@ class TestConvolutionSeparable {
 
     // testing
     val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
-    val (output: Array[Float], _) = Execute(32, 8, 128, 128, (true, true))(stencil, input, weights)
+    val (output: Array[Float], _) = ExecuteOld(32, 8, 128, 128, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 17, 1, 8, 8, 8, 8, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
@@ -124,7 +124,7 @@ class TestConvolutionSeparable {
 
     // testing
     val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
-    val (output: Array[Float], _) = Execute(16, 16, 128, 128, (true, true))(stencil, input, weights)
+    val (output: Array[Float], _) = ExecuteOld(16, 16, 128, 128, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaWrap)
     assertArrayEquals(gold, output, 0.2f)
@@ -167,7 +167,7 @@ class TestConvolutionSeparable {
 
     // testing
     val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
-    val (output: Array[Float], _) = Execute(1, 4, 128, 64, (true, true))(stencil, input, weights)
+    val (output: Array[Float], _) = ExecuteOld(1, 4, 128, 64, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
@@ -210,7 +210,7 @@ class TestConvolutionSeparable {
 
     // testing
     val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
-    val (output: Array[Float], _) = Execute(16, 4, 128, 64, (true, true))(stencil, input, weights)
+    val (output: Array[Float], _) = ExecuteOld(16, 4, 128, 64, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
@@ -255,7 +255,7 @@ class TestConvolutionSeparable {
 
     // testing
     val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
-    val (output: Array[Float], _) = Execute(16, 8, 128, 64, (true, true))(stencil, input, weights)
+    val (output: Array[Float], _) = ExecuteOld(16, 8, 128, 64, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
@@ -300,7 +300,7 @@ class TestConvolutionSeparable {
 
     // testing
     val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
-    val (output: Array[Float], _) = Execute(16, 4, 128, 64, (true, true))(stencil, input, weights)
+    val (output: Array[Float], _) = ExecuteOld(16, 4, 128, 64, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
@@ -349,7 +349,7 @@ class TestConvolutionSeparable {
 
     // testing
     val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
-    val (output: Array[Float], _) = Execute(16, 4, 128, 64, (true, true))(stencil, input, weights)
+    val (output: Array[Float], _) = ExecuteOld(16, 4, 128, 64, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
@@ -396,7 +396,7 @@ class TestConvolutionSeparable {
     // testing
 
     val input = Array.tabulate(128, 128) { (i, j) => i * 128.0f + j }
-    val (output: Array[Float], _) = Execute(16, 4, 128, 64, (true, true))(stencil, input, weights)
+    val (output: Array[Float], _) = ExecuteOld(16, 4, 128, 64, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 17, 1, 1, 1, 8, 8, 0, 0, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
@@ -427,7 +427,7 @@ class TestConvolutionSeparable {
 
     // testing
     val input = Array.tabulate(256, 256) { (i, j) => i * 256.0f + j }
-    val (output: Array[Float], _) = Execute(16, 16, 256, 256, (true, true))(stencil, input, weights)
+    val (output: Array[Float], _) = ExecuteOld(16, 16, 256, 256, (true, true))(stencil, input, weights)
 
     val gold = Utils.scalaCompute2DStencil(input, 1, 1, 17, 1, 0, 0, 8, 8, weights, Utils.scalaClamp)
     assertArrayEquals(gold, output, 0.2f)
@@ -476,7 +476,7 @@ class TestConvolutionSeparable {
 
     // for generating 4k kernel
     val input = Array.tabulate(1024, 1024) { (i, j) => i * 1024.0f + j }
-    val (output: Array[Float], _) = Execute(16, 1, 512, 1024, (true, true))(stencil, input, weights)
+    val (output: Array[Float], _) = ExecuteOld(16, 1, 512, 1024, (true, true))(stencil, input, weights)
   }
 
   @Ignore //fix
@@ -511,7 +511,7 @@ class TestConvolutionSeparable {
 
     // testing
     val input = Array.tabulate(256, 256) { (i, j) => i * 256.0f + j }
-    val (output: Array[Float], _) = Execute(16, 4, 64, 256, (true, true))(stencil, input, weights)
+    val (output: Array[Float], _) = ExecuteOld(16, 4, 64, 256, (true, true))(stencil, input, weights)
 
     //val gold = Utils.scalaCompute2DStencil(input, 1,1, 17,1, 0,0,8,8, weights, scalaClamp)
     //assertArrayEquals(gold, output, 0.2f)

@@ -3,7 +3,7 @@ package opencl.generator
 import ir.ast.{Gather, Join, Split, Tuple, UserFun, Zip, fun, shiftRight}
 import ir.{ArrayTypeWSWC, TupleType}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{ExecuteOld, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert.{assertArrayEquals, assertEquals}
@@ -67,7 +67,7 @@ class TestDbQueries {
       }
     )
     
-    val (output: Array[Int], runtime) = Execute(n)(combine, left, right)
+    val (output: Array[Int], runtime) = ExecuteOld(n)(combine, left, right)
     val gold = (for {x <- left; y <- right} yield Array(x, y)).flatten
     
     println("combine left right")
@@ -126,7 +126,7 @@ class TestDbQueries {
     )
     
     val (output: Array[Int], runtime) =
-      Execute(n)(query, leftTable.flatten, rightTable.flatten)
+      ExecuteOld(n)(query, leftTable.flatten, rightTable.flatten)
     
     val gold: Array[Int] = leftTable.flatMap(row =>
       Array(if (rightTable.exists(_(0) == row(0))) 0 else 1,
@@ -162,7 +162,7 @@ class TestDbQueries {
       }
     )
     
-    val (output: Array[Int], runtime) = Execute(size)(aggregateMax, table)
+    val (output: Array[Int], runtime) = ExecuteOld(size)(aggregateMax, table)
     
     println("SELECT MAX(x) FROM table")
     println(s"Runtime: $runtime")
@@ -213,7 +213,7 @@ class TestDbQueries {
       }
     )
     
-    val (unprocessedOutput: Array[Int], runtime) = Execute(size)(groupBy, table.flatten)
+    val (unprocessedOutput: Array[Int], runtime) = ExecuteOld(size)(groupBy, table.flatten)
     // We will not need to perform this post-processing pass once we have a Filter pattern
     val output: Array[Int] = unprocessedOutput
       .grouped(3)
@@ -290,7 +290,7 @@ class TestDbQueries {
                       if a == x && b + y > 10) yield c}.sum
   
   val (output: Array[Int], runtime) =
-    Execute(n)(query, leftTable.flatten, rightTable.flatten)
+    ExecuteOld(n)(query, leftTable.flatten, rightTable.flatten)
   
     println("SELECT SUM(c) FROM leftTable INNER JOIN rightTable ON a = x " +
             "WHERE b + y > 10")
