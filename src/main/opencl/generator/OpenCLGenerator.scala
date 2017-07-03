@@ -1271,7 +1271,7 @@ class OpenCLGenerator extends Generator {
         for(j <- 1 to reuse.eval)
         {
           val idxL = i*nx+j
-          //innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idxL-1}"), VarRef(sSP.windowVar, suffix = s"_${idxL+(size.eval-reuse-1)}"))
+          innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idxL-1}"), VarRef(sSP.windowVar, suffix = s"_${idxL+(size.eval-reuse-1)}"))
         }
       }
     }
@@ -1285,7 +1285,7 @@ class OpenCLGenerator extends Generator {
     /**/
 
     def swapWindowVars(idx: Int, n: Int): Unit = n match {
-      case 1 => for(j <- 1 to reuse.eval) { val newidx = j+idx/*idx+size.eval-reuse.eval-1*/;println("swap: "+newidx); innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j+idx-1}"), VarRef(sSP.windowVar, suffix = s"_${newidx}")) }
+      case 1 => for(j <- 1 to reuse.eval) { val newidx = j+idx+size.eval-reuse.eval-1;println("swap: "+newidx); innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j+idx-1}"), VarRef(sSP.windowVar, suffix = s"_${newidx}")) }
       case _ => for(i <- 0 to size.eval-1) { swapWindowVars(idx+i*math.pow(size.eval,n-1).toInt, n-1) }
     }
 
