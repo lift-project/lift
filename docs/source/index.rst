@@ -12,6 +12,7 @@ This is the documentation of the *Lift* programming language and compiler.
    getting-started/index
    lift-overview/index
    developing-lift/index
+   exploration/index
 
 
 
