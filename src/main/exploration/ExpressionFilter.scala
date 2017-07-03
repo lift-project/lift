@@ -12,13 +12,13 @@ object ExpressionFilter {
   protected[exploration] val default_input_size = 1024
 
   // Minimum number of work item per workgroup
-  protected[exploration] val min_work_items = 128
+  protected[exploration] val min_local_size = 128
 
   // Maximum number of work item per workgroup
-  protected[exploration] val max_work_items = 1024
+  protected[exploration] val max_local_size = 1024
 
   // Minimal global grid size
-  protected[exploration] val min_grid_size = 8
+  protected[exploration] val min_global_size = 8
 
   // Max amount of private memory allocated (this is not necessarily the number of registers)
   protected[exploration] val max_private_memory = 1024
@@ -91,7 +91,7 @@ object ExpressionFilter {
     try {
       // Rule out obviously poor choices based on the grid size
       // - minimum size of the entire compute grid
-      if (global.numberOfWorkItems < searchParameters.minGridSize) {
+      if (global.numberOfWorkItems < searchParameters.minGlobalSize) {
         logger.debug(s"Not enough work-items in the grid (${global.numberOfWorkItems} - ${local.toString} ${global.toString})")
         return NotEnoughWorkItems
       }
@@ -99,13 +99,13 @@ object ExpressionFilter {
       if (local.forall(_.isEvaluable)) {
 
         // - minimum of work-items in a workgroup
-        if (local.numberOfWorkItems < searchParameters.minWorkItems) {
+        if (local.numberOfWorkItems < searchParameters.minLocalSize) {
           logger.debug(s"Not enough work-items in a group (${local.numberOfWorkItems} - ${local.toString} ${global.toString})")
           return NotEnoughWorkItems
         }
 
         // - maximum of work-items in a workgroup
-        if (local.numberOfWorkItems > searchParameters.maxWorkItems) {
+        if (local.numberOfWorkItems > searchParameters.maxLocalSize) {
           logger.debug(s"Too many work-items in a group (${local.numberOfWorkItems} - ${local.toString} ${global.toString})")
           return TooManyWorkItems
         }
