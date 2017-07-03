@@ -729,7 +729,7 @@ class TestSlideSeqPlus
   @Test
   def reduceSlide3DTest9PointWithWeightsAndAt(): Unit = {
 
-    val size = 6
+    val size = 10
 
     val slidesize = 3
     val slidestep = 1
@@ -739,12 +739,13 @@ class TestSlideSeqPlus
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
 
-    val x = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), O)
 
     def lambdaNeighAt(a: Int, b: Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
       (mat) => {
         (MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
+          val `tile[0][0][0]` = m.at(0).at(0).at(0)
+          val `tile[2][2][2]` = m.at(2).at(2).at(2)
 
           val `tile[1][1][1]` = m.at(1).at(1).at(1)
           val `tile[0][1][1]` = m.at(0).at(1).at(1)
@@ -762,7 +763,7 @@ class TestSlideSeqPlus
             fun(x => add(x,`tile[1][2][1]`)) $ `tile[2][1][1]`
 
 //          toGlobal(id) $ stencil
-          toGlobal(id) $ `tile[1][1][1]`
+          toGlobal(id) $ `tile[0][0][0]`
 
         }))))
           o Slide3D(a,b) $ mat)
@@ -776,6 +777,9 @@ class TestSlideSeqPlus
           toGlobal(SlideSeqPlus(
 /*            MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) o Join() o Join() o PrintType()*/
             fun(m => {
+
+            val `tile[0][0][0]` = m.at(0).at(0).at(0)
+            val `tile[2][2][2]` = m.at(2).at(2).at(2)
 
             val `tile[1][1][1]` = m.at(1).at(1).at(1)
             val `tile[0][1][1]` = m.at(0).at(1).at(1)
@@ -793,9 +797,9 @@ class TestSlideSeqPlus
               fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
 
             //toGlobal(id) $ stencil
-              toGlobal(id) $ `tile[1][1][1]`
+              toGlobal(id) $ `tile[0][0][0]`
 
-          }) o PrintType(), a,b)) o Transpose() o Map(Transpose()) o PrintType() $ x  /*o Map(Transpose()) o Map(Map(Transpose()))*/
+          }) o PrintType(), a,b)) o /*Map(Transpose()) o*/ Transpose() o Map(Transpose()) o PrintType() $ x  /*o Map(Transpose()) o Map(Map(Transpose()))*/
         }))) o Slide2D(a,b)  $ input
     )
 
