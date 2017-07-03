@@ -803,15 +803,16 @@ class TestSlideSeqPlus
     val (goldExec: Array[Float], _) = Execute(2,2)(lambdaNeighAt(slidesize,slidestep), values)
 
     StencilUtilities.print3DArray(values)
-    //StencilUtilities.print1DArrayAs3DArray(output,size-2)
-    //  StencilUtilities.print1DArrayAs3DArray(goldExec,size-2)
+    StencilUtilities.print1DArrayAs3DArray(output,size-2,size-2,size-2)
+    StencilUtilities.print1DArrayAs3DArray(goldExec,size-2,size-2,size-2)
 
-    //    for(i <- 0 to goldExec.length-1)    goldExec(i) -= output(i)
+    val gold = goldExec.clone()
+    for(i <- 0 to goldExec.length-1)    goldExec(i) -= output(i)
     StencilUtilities.print1DArrayAs3DArray(goldExec,size-2,size-2,size-2)
     //    StencilUtilities.print1DArray(output)
     //    StencilUtilities.print1DArray(gold)
 
-    assertArrayEquals(goldExec, output, 0.1f)
+    assertArrayEquals(gold, output, 0.1f)
 
   }
 
