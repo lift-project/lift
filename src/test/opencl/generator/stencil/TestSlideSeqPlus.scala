@@ -32,6 +32,7 @@ object SlideSeqPlusHelpers
 
   val compareSize = 1000000
   val iterations = 10
+  val O = 2 + SizeVar("O")
   val N = 2+ SizeVar("N")
   val M = 2+ SizeVar("M")
 
@@ -77,7 +78,69 @@ object SlideSeqPlusHelpers
       })) o Slide(3,1)  $ input
   )
 
-  def getMiddle(a: Int ,b :Int) = fun(
+  def stencil3DCompare(a: Int, b: Int) = fun(
+    ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
+    (mat) => {
+      (MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
+        val `tile[0][0][0]` = m.at(0).at(0).at(0)
+        val `tile[2][2][2]` = m.at(2).at(2).at(2)
+
+        val `tile[1][1][1]` = m.at(1).at(1).at(1)
+        val `tile[0][1][1]` = m.at(0).at(1).at(1)
+        val `tile[1][0][1]` = m.at(1).at(0).at(1)
+        val `tile[1][1][0]` = m.at(1).at(1).at(0)
+        val `tile[1][1][2]` = m.at(1).at(1).at(2)
+        val `tile[1][2][1]` = m.at(1).at(2).at(1)
+        val `tile[2][1][1]` = m.at(2).at(1).at(1)
+
+        val stencil =  fun(x => add(x,`tile[0][1][1]`)) o
+          fun(x => add(x,`tile[1][1][1]`)) o
+          fun(x => add(x,`tile[1][0][1]`)) o
+          fun(x => add(x,`tile[1][1][0]`)) o
+          fun(x => add(x,`tile[1][1][2]`)) o
+          fun(x => add(x,`tile[1][2][1]`)) $ `tile[2][1][1]`
+
+        toGlobal(id) $ stencil
+        //toGlobal(id) $ `tile[0][0][0]`
+
+      }))))
+        o Slide3D(a,b) $ mat)
+    })
+
+  def stencil3D(a: Int ,b :Int) = fun(
+    ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
+    (input) =>
+      MapGlb(1)(MapGlb(0)(fun(x => {
+        val tmpSum = 0.0f
+        toGlobal(SlideSeqPlus(
+          fun(m => {
+
+            val `tile[0][0][0]` = m.at(0).at(0).at(0)
+            val `tile[2][2][2]` = m.at(2).at(2).at(2)
+
+            val `tile[1][1][1]` = m.at(1).at(1).at(1)
+            val `tile[0][1][1]` = m.at(0).at(1).at(1)
+            val `tile[1][0][1]` = m.at(1).at(0).at(1)
+            val `tile[1][1][0]` = m.at(1).at(1).at(0)
+            val `tile[1][1][2]` = m.at(1).at(1).at(2)
+            val `tile[1][2][1]` = m.at(1).at(2).at(1)
+            val `tile[2][1][1]` = m.at(2).at(1).at(1)
+
+            val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`)) o
+              fun(x => add(x,`tile[1][1][1]`)) o
+              fun(x => add(x,`tile[1][0][1]`)) o
+              fun(x => add(x,`tile[1][1][0]`)) o
+              fun(x => add(x,`tile[1][1][2]`)) o
+              fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
+
+            toGlobal(id) $ stencil
+            //              toGlobal(id) $ `tile[0][0][0]`
+
+          }) o PrintType(), a,b)) o /*Map(Transpose()) o*/ Transpose() o Map(Transpose()) o PrintType() $ x  /*o Map(Transpose()) o Map(Map(Transpose()))*/
+      }))) o Slide2D(a,b)  $ input
+  )
+
+  def getMiddle2D(a: Int, b :Int) = fun(
     ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
     (input) =>
       MapGlb(0)(fun(x => {
@@ -545,7 +608,7 @@ class TestSlideSeqPlus
   }
 
   @Test
-  def reduceSlide2DTest9PointWithWeightsAndAt(): Unit = {
+  def reduceSlide2DTest9WithAt(): Unit = {
 
     val size = 14
 
@@ -727,9 +790,9 @@ class TestSlideSeqPlus
   /** 3D **/
 
   @Test
-  def reduceSlide3DTest9PointWithWeightsAndAt(): Unit = {
+  def reduceSlide3DTest9PointWithAt(): Unit = {
 
-    val size = 10
+    val size = 8
 
     val slidesize = 3
     val slidestep = 1
@@ -739,74 +802,10 @@ class TestSlideSeqPlus
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
 
+    println(Compile(SlideSeqPlusHelpers.stencil3D(3,1)))
 
-    def lambdaNeighAt(a: Int, b: Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
-      (mat) => {
-        (MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
-          val `tile[0][0][0]` = m.at(0).at(0).at(0)
-          val `tile[2][2][2]` = m.at(2).at(2).at(2)
-
-          val `tile[1][1][1]` = m.at(1).at(1).at(1)
-          val `tile[0][1][1]` = m.at(0).at(1).at(1)
-          val `tile[1][0][1]` = m.at(1).at(0).at(1)
-          val `tile[1][1][0]` = m.at(1).at(1).at(0)
-          val `tile[1][1][2]` = m.at(1).at(1).at(2)
-          val `tile[1][2][1]` = m.at(1).at(2).at(1)
-          val `tile[2][1][1]` = m.at(2).at(1).at(1)
-
-          val stencil =  fun(x => add(x,`tile[0][1][1]`)) o
-            fun(x => add(x,`tile[1][1][1]`)) o
-            fun(x => add(x,`tile[1][0][1]`)) o
-            fun(x => add(x,`tile[1][1][0]`)) o
-            fun(x => add(x,`tile[1][1][2]`)) o
-            fun(x => add(x,`tile[1][2][1]`)) $ `tile[2][1][1]`
-
-            toGlobal(id) $ stencil
-          //toGlobal(id) $ `tile[0][0][0]`
-
-        }))))
-          o Slide3D(a,b) $ mat)
-      })
-
-    def stencil3DR(a: Int ,b :Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
-      (input) =>
-        MapGlb(1)(MapGlb(0)(fun(x => {
-          val tmpSum = 0.0f
-          toGlobal(SlideSeqPlus(
-/*            MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) o Join() o Join() o PrintType()*/
-            fun(m => {
-
-            val `tile[0][0][0]` = m.at(0).at(0).at(0)
-            val `tile[2][2][2]` = m.at(2).at(2).at(2)
-
-            val `tile[1][1][1]` = m.at(1).at(1).at(1)
-            val `tile[0][1][1]` = m.at(0).at(1).at(1)
-            val `tile[1][0][1]` = m.at(1).at(0).at(1)
-            val `tile[1][1][0]` = m.at(1).at(1).at(0)
-            val `tile[1][1][2]` = m.at(1).at(1).at(2)
-            val `tile[1][2][1]` = m.at(1).at(2).at(1)
-            val `tile[2][1][1]` = m.at(2).at(1).at(1)
-
-            val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`)) o
-              fun(x => add(x,`tile[1][1][1]`)) o
-              fun(x => add(x,`tile[1][0][1]`)) o
-              fun(x => add(x,`tile[1][1][0]`)) o
-              fun(x => add(x,`tile[1][1][2]`)) o
-              fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
-
-              toGlobal(id) $ stencil
-//              toGlobal(id) $ `tile[0][0][0]`
-
-          }) o PrintType(), a,b)) o /*Map(Transpose()) o*/ Transpose() o Map(Transpose()) o PrintType() $ x  /*o Map(Transpose()) o Map(Map(Transpose()))*/
-        }))) o Slide2D(a,b)  $ input
-    )
-
-    println(Compile(stencil3DR(3,1)))
-
-    val (output: Array[Float], _) = Execute(2,2)(stencil3DR(slidesize,slidestep), values)
-    val (goldExec: Array[Float], _) = Execute(2,2)(lambdaNeighAt(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil3D(slidesize,slidestep), values)
+    val (goldExec: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil3DCompare(slidesize,slidestep), values)
 
     StencilUtilities.print3DArray(values)
     StencilUtilities.print1DArrayAs3DArray(output,size-2,size-2,size-2)
@@ -815,8 +814,143 @@ class TestSlideSeqPlus
     val gold = goldExec.clone()
     for(i <- 0 to goldExec.length-1)    goldExec(i) -= output(i)
     StencilUtilities.print1DArrayAs3DArray(goldExec,size-2,size-2,size-2)
-    //    StencilUtilities.print1DArray(output)
-    //    StencilUtilities.print1DArray(gold)
+
+    assertArrayEquals(gold, output, 0.1f)
+
+  }
+
+  @Test
+  def reduceSlide3DTest9PointWithAtSize5Step3(): Unit = {
+
+    val size = 10
+
+    val slidesize = 5
+    val slidestep = 3
+    val values = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size + k + 1).toFloat }
+
+
+    println(Compile(SlideSeqPlusHelpers.stencil3D(5,3)))
+
+    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil3D(slidesize,slidestep), values)
+    val (goldExec: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil3DCompare(slidesize,slidestep), values)
+
+    StencilUtilities.print3DArray(values)
+    StencilUtilities.print1DArrayAs3DArray(output,size-2,size-2,size-2)
+    StencilUtilities.print1DArrayAs3DArray(goldExec,size-2,size-2,size-2)
+
+    val gold = goldExec.clone()
+    for(i <- 0 to goldExec.length-1)    goldExec(i) -= output(i)
+    StencilUtilities.print1DArrayAs3DArray(goldExec,size-2,size-2,size-2)
+
+    assertArrayEquals(gold, output, 0.1f)
+
+  }
+
+  @Test
+  def reduceSlide3DTest9PointWithAtSize5Step5(): Unit = {
+
+    val size = 15
+
+    val slidesize = 5
+    val slidestep = 5
+    val values = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size + k + 1).toFloat }
+
+    println(Compile(SlideSeqPlusHelpers.stencil3D(5,3)))
+
+    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil3D(slidesize,slidestep), values)
+    val (goldExec: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil3DCompare(slidesize,slidestep), values)
+
+    StencilUtilities.print3DArray(values)
+    StencilUtilities.print1DArrayAs3DArray(output,size-2,size-2,size-2)
+    StencilUtilities.print1DArrayAs3DArray(goldExec,size-2,size-2,size-2)
+
+    val gold = goldExec.clone()
+    for(i <- 0 to goldExec.length-1)    goldExec(i) -= output(i)
+    StencilUtilities.print1DArrayAs3DArray(goldExec,size-2,size-2,size-2)
+
+    assertArrayEquals(gold, output, 0.1f)
+
+  }
+
+  @Test
+  def reduceSlide3DTest9PointWithAtAsymmetric(): Unit = {
+
+    val size = 8
+
+    val slidesize = 3
+    val slidestep = 1
+    val values = Array.tabulate(size,size+3,size+6) { (i,j,k) => (i*(size+6)*(size+3) + j*(size+6) + k + 1).toFloat }
+
+    val O = 2 + SizeVar("O")
+    val N = 2 + SizeVar("N")
+    val M = 2 + SizeVar("M")
+
+    println(Compile(SlideSeqPlusHelpers.stencil3D(3,1)))
+
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(SlideSeqPlusHelpers.stencil3D(slidesize,slidestep), values)
+    val (goldExec: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(SlideSeqPlusHelpers.stencil3DCompare(slidesize,slidestep), values)
+
+    StencilUtilities.print3DArray(values)
+    StencilUtilities.print1DArrayAs3DArray(output,size-2,size-2,size-2)
+    StencilUtilities.print1DArrayAs3DArray(goldExec,size-2,size-2,size-2)
+
+    val gold = goldExec.clone()
+    for(i <- 0 to goldExec.length-1)    goldExec(i) -= output(i)
+    StencilUtilities.print1DArrayAs3DArray(goldExec,size-2,size-2,size-2)
+
+    assertArrayEquals(gold, output, 0.1f)
+
+  }
+  @Test
+  def reduceSlide3DTest9PointWithAtAndWeights(): Unit = {
+
+    val size = 8
+
+    val slidesize = 3
+    val slidestep = 1
+    val values = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size + k + 1).toFloat }
+
+    val O = 2 + SizeVar("O")
+    val N = 2 + SizeVar("N")
+    val M = 2 + SizeVar("M")
+
+    def stencil3DCompareWeights(a: Int, b: Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
+      ArrayTypeWSWC(Float, slidesize*slidesize*slidesize),
+      (mat, weights) => {
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(neighbours => {
+          toGlobal(MapSeq(id)) o
+            ReduceSeqUnroll(\((acc, next) =>
+              multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() $ neighbours, weights)
+        })))
+        ) o Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
+      })
+
+    def stencil3DWeights(a: Int ,b :Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
+      ArrayTypeWSWC(Float, slidesize*slidesize*slidesize),
+      (input,weights) =>
+        MapGlb(1)(MapGlb(0)(fun(x => {
+          toGlobal(SlideSeqPlus(
+            fun(neighbours => {
+              toGlobal(MapSeq(id)) o
+                ReduceSeqUnroll(\((acc, next) =>
+                  multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() $ neighbours, weights)
+            }) o PrintType(), a,b)) o /*Map(Transpose()) o*/ Transpose() o Map(Transpose()) o PrintType() $ x  /*o Map(Transpose()) o Map(Map(Transpose()))*/
+        }))) o Slide2D(a,b)  $ input
+    )
+    println(Compile(stencil3DWeights(3,1)))
+
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(stencil3DWeights(slidesize,slidestep), values,StencilUtilities.weights3D.flatten.flatten)
+    val (goldExec: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(stencil3DCompareWeights(slidesize,slidestep), values, StencilUtilities.weights3D.flatten.flatten)
+
+    StencilUtilities.print3DArray(values)
+    StencilUtilities.print1DArrayAs3DArray(output,size-2,size-2,size-2)
+    StencilUtilities.print1DArrayAs3DArray(goldExec,size-2,size-2,size-2)
+
+    val gold = goldExec.clone()
+    for(i <- 0 to goldExec.length-1)    goldExec(i) -= output(i)
+    StencilUtilities.print1DArrayAs3DArray(goldExec,size-2,size-2,size-2)
 
     assertArrayEquals(gold, output, 0.1f)
 
