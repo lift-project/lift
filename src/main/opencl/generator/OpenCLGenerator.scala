@@ -1081,58 +1081,25 @@ class OpenCLGenerator extends Generator {
     (block: Block) += varD
 
     var accesses: Array[Int] = Array.fill(nDim)(0)
-/*
-    if (is3D) {
-      val nx = size.eval
-      for (j <- 0 to (nx - 1)) {
-        for (i <- 0 to (nx - 1)) {
-          for (k <- 0 to (reuse.eval - 1)) {
-            val idx = i * nx * nx + j * nx + k
-            println("idx: " + idx + " (" + k + "," + i + "," + j + ")")
-            (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(k).access(i).access(j)))
-          }
-        }
-      }
-    }
-    else if (is2D) {
-      val nx = size.eval
-      for (i <- 0 to (nx - 1)) {
-        for (j <- 0 to (reuse.eval - 1)) {
-          val idx = i * nx + j
-          (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(j).access(i)))
-        }
-      }
-    }
-    else {
-      for (i <- 0 to reuse.eval - 1) {
-        // where window values are SET
-        (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_$i"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(i)))
-      }
-    }
-*/
+
     def getView(v: View, accesses: Array[Int]): View = {
       var viewReturn = v
-      var str = ""
-      print("(")
       for (i <- 0 to accesses.length - 1) {
-        str = str + accesses(i) + ","
         viewReturn = viewReturn.access(accesses(i))
       }
-      println(str + ")")
       viewReturn
     }
 
     // where initial window values are set
     def setupInitialWindowVars(idx: Int, n: Int, accesses: Array[Int]): Unit = n match {
       case 1 => for (j <- 0 to reuse.eval - 1) {
-        print("idx=" + (j + idx) + " "); accesses(n - 1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, getView(call.args.head.view, accesses)))
+         accesses(n - 1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, getView(call.args.head.view, accesses)))
       }
       case _ => for (i <- 0 to size.eval - 1) {
         accesses(n - 1) = i; setupInitialWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
       }
     }
 
-    println("setup window vars")
     setupInitialWindowVars(0,nDim, accesses)
 
 
@@ -1175,54 +1142,14 @@ class OpenCLGenerator extends Generator {
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
 
-
-    if (is3D) {
-      println("3D")
-      println("update window vars")
-      val nx = size.eval
-
-      for (j <- 0 to nx - 1) {
-        for (i <- 0 to nx - 1) {
-          for (k <- reuse.eval to size.eval - 1) {
-            val idx = i * nx * nx + j * nx + k
-            println("idx: " + idx + "(i,j,k): (" + k + "," + i + "," + j + ")")
-            println("stop:"+stop)
-            //            println("idx actual: "+idx+" ("+{(k + (indexVar * step.eval) / (stop*stop))}+","+{(j + (indexVar * step.eval) / stop)}+","+{(i+(indexVar*step.eval)%stop)}+")")
-            innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(k + (indexVar * step.eval) /*/ (nx * nx)*/).access(i).access(j)))
-            /*org*/
-            //innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(k + (indexVar * step.eval) / (stop*stop)).access(j+(indexVar*step.eval) / stop).access(i + (indexVar * step.eval) % stop)))
-            //innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(k).access(j).access(i)))
-          }
-        }
-      }
-    }
-    else if (is2D) {
-      println("2D")
-      val nx = size.eval
-      for (i <- 0 to nx - 1) {
-        for (j <- reuse.eval to size.eval - 1) {
-          val idx = i * nx + j
-          innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idx}"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access(j + (indexVar * step.eval) % stop).access(i + (indexVar * step.eval) / stop)))
-        }
-      }
-    }
-    else {
-      println("1D")
-      for (i <- reuse.eval to size.eval - 1) {
-        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_$i"), ViewPrinter.emit(inputMem.variable, call.args.head.view.access((indexVar * step.eval) % stop + i)))
-      }
-    }
-
-
-    /*
     def getViewIncrement(v: View, idx: Var, accesses : Array[Int]) : View =
     {
       var viewReturn = v
-      var idxToAdd : ArithExpr = idx
+      var idxToAdd : ArithExpr = 0
       for(i <- 0 to accesses.length-1)
       {
-        if((i+1)%2 == 0) { idxToAdd = (idx*step.eval)/stop }
-        else { idxToAdd = (idx*step.eval)%stop }
+        if(i == 0) { idxToAdd = (idx*step.eval) }
+        else { idxToAdd = 0}
         viewReturn = viewReturn.access(accesses(i)+idxToAdd)
       }
       viewReturn
@@ -1230,12 +1157,10 @@ class OpenCLGenerator extends Generator {
 
     def updateWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = n match {
       case 1 => for(j <- reuse.eval to size.eval-1) {  accesses(n-1) = j; innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, /*call.args.head.view.access(j+(indexVar*step.eval)%stop).access(accesses(n)+(indexVar*step.eval)/stop)))*/getViewIncrement(call.args.head.view,indexVar,accesses))) }
-      case _ => for(i <- 0 to size.eval-1) { accesses(n-1) = i; updateWindowVars(idx+i*size.eval, n-1, accesses) } // need to add a loop here to multiply by size as many times as dim > 2 ie. for 3d size*size
+      case _ => for(i <- 0 to size.eval-1) { accesses(n-1) = i; updateWindowVars(idx+i*math.pow(size.eval,n-1).toInt, n-1, accesses) } // need to add a loop here to multiply by size as many times as dim > 2 ie. for 3d size*size
     }
 
-    println("update window vars")
     updateWindowVars(0,nDim, accesses)
-*/
 
     generateBody(innerBlock)
 
@@ -1248,7 +1173,6 @@ class OpenCLGenerator extends Generator {
       }
     }
 
-    println("swap window vars")
     swapWindowVars(0,nDim)
   }
 
