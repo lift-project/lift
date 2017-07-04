@@ -26,7 +26,7 @@ More verbose output can be enabled by setting the ``LIFT_VERBOSE`` environment v
 NB: if you encounter a ``lift.arithmetic.NotEvaluableException`` the compiler
 will not print the stack trace which can be annoying for debugging. This is
 because this exception implements ``ControlThrowable`` (which itself implements
-``NoStackTrace``) for performance reasons. If you want to temporary enable the
+``NoStackTrace``) for performance reasons. If you want to temporarily enable the
 stack trace, change ``ControlThrowable`` to ``Throwable`` in the definition of
 the exception and also change ``val`` to ``def`` in the companion object otherwise
 you will always get the same stack trace. Now you should have a more helpful
