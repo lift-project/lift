@@ -236,7 +236,7 @@ object ArrayType {
     if (ae != ? & ae.sign != Sign.Positive)
     // TODO: turn this back into an error (eventually)
     //throw new TypeException("Length must be provably positive! (len="+len+")")
-    //  println(s"Warning: $s must be provably positive! (len=$ae)")
+      println(s"Warning: $s must be provably positive! (len=$ae)")
 
     if (ae.isEvaluable) {
       val length = ae.evalDouble
