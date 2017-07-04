@@ -1239,34 +1239,6 @@ class OpenCLGenerator extends Generator {
 
     generateBody(innerBlock)
 
-    /*
-    if (is3D) {
-      val nx = size.eval
-      for (i <- 0 to nx - 1) {
-        for (j <- 0 to nx - 1) {
-          for (k <- 1 to reuse.eval) {
-            val idxL = i * nx * nx + j * nx + k
-            innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idxL - 1}"), VarRef(sSP.windowVar, suffix = s"_${idxL}"))
-          }
-        }
-      }
-    }
-    else if (is2D) {
-      val nx = size.eval
-      for (i <- 0 to nx - 1) {
-        for (j <- 1 to reuse.eval) {
-          val idxL = i * nx + j
-          innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${idxL - 1}"), VarRef(sSP.windowVar, suffix = s"_${idxL + (size.eval - reuse - 1)}"))
-        }
-      }
-    }
-    else {
-      for (i <- 1 to reuse.eval) {
-        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${i - 1}"), VarRef(sSP.windowVar, suffix = s"_${size.eval - reuse - 1 + i}"))
-      }
-    }
-    */
-
     def swapWindowVars(idx: Int, n: Int): Unit = n match {
       case 1 => for (j <- 1 to reuse.eval) {
         val newidx = j + idx + size.eval - reuse.eval - 1; println("swap: " + newidx); innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx - 1}"), VarRef(sSP.windowVar, suffix = s"_${newidx}"))
