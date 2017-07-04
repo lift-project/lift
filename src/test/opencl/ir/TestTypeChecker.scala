@@ -93,6 +93,25 @@ class TestTypeChecker {
 
     TypeChecker(lambda)
   }
+  
+  /**
+   * The type of the body of the customising function should be equal to its
+   * arguments' type
+   */
+  @Test(expected = classOf[TypeException])
+  def incorrectReduceCustomisingFunctionBodyType(): Unit = {
+    val tuplize = UserFun(
+      "tuplize", Array("x", "y"), "return {x, y};",
+      Seq(Int, Int), TupleType(Int, Int)
+    )
+    
+    val lambda = fun(
+      ArrayType(Int, K),
+      Reduce(tuplize, 0) $ _
+    )
+    
+    TypeChecker(lambda)
+  }
 
   @Test(expected = classOf[TypeException])
   def incorrectZip(): Unit = {
