@@ -85,5 +85,19 @@ class TestArith {
     assertTrue(ret.isEmpty /* answer should be "I don't know" */)
   }
 
+  @Test
+  def sortList() : Unit = {
+
+    val v_P_0 : ArithExpr = Var("P", StartFromRange(1))
+    val v_N_2 : ArithExpr = Var("N", StartFromRange(1))
+    val v_O_1 : ArithExpr = Var("O", StartFromRange(1))
+    val v_gl_id_45 : ArithExpr = Var(RangeAdd(get_global_id(45,RangeAdd(0,2,1)),6,2))
+    val v_gl_id_44 : ArithExpr = Var(RangeAdd(get_global_id(44,RangeAdd(0,2,1)),6,2))
+    val v_gl_id_46 : ArithExpr = Var(RangeAdd(get_global_id(46,RangeAdd(0,2,1)),6,2))
+    val listToSort : List[ArithExpr] = List(Cst(6), (2*v_N_2*v_O_1*v_gl_id_44), (2*v_N_2*v_P_0*v_gl_id_44), (2*v_O_1*v_P_0*v_gl_id_44), (2*v_O_1*v_P_0*((v_gl_id_45+(v_gl_id_46) / ((3*v_O_1)))) / (v_N_2)), (2*v_O_1*v_P_0*((v_gl_id_46) / (v_O_1) % (3))), (4*v_O_1*v_gl_id_44), (2*v_O_1*v_gl_id_45), (2*v_O_1*(v_gl_id_46) / ((3*v_O_1))), (2*v_O_1), (2*v_P_0), (2*v_P_0*v_gl_id_45), (4*v_P_0*v_gl_id_44), (v_O_1*v_P_0*v_gl_id_45), (2*v_P_0*(v_gl_id_46) / ((3*v_O_1))), (4*v_O_1*((v_gl_id_45+(v_gl_id_46) / ((3*v_O_1)))) / (v_N_2)), (4*v_P_0*((v_gl_id_46) / (v_O_1) % (3))), (4*v_gl_id_45), (8*v_gl_id_44), (8*((v_gl_id_45+(v_gl_id_46) / ((3*v_O_1)))) / (v_N_2)), (v_N_2*v_O_1*v_P_0*v_gl_id_44), (2*v_N_2*v_O_1*((v_gl_id_46) / (v_O_1) % (3))), (2*v_N_2*v_P_0*((v_gl_id_46) / (v_O_1) % (3))), (v_N_2*v_O_1*v_P_0*((v_gl_id_46) / (v_O_1) % (3))), (4*v_N_2*v_gl_id_44), (4*v_P_0*((v_gl_id_45+(v_gl_id_46) / ((3*v_O_1)))) / (v_N_2)), (4*v_N_2*((v_gl_id_46) / (v_O_1) % (3))), (4*v_O_1*((v_gl_id_46) / (v_O_1) % (3))), (v_O_1*v_P_0*(v_gl_id_46) / ((3*v_O_1))), (v_O_1*v_P_0), (4*(v_gl_id_46) / ((3*v_O_1))), (8*((v_gl_id_46) / (v_O_1) % (3))))
+//    listToSort.sortWith(ArithExpr.sort)// with SimplifiedExpr
+    Sum(listToSort.sortWith(ArithExpr.sort))
+
+  }
 
 }

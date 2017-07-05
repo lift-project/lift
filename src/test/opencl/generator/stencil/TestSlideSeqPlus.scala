@@ -160,19 +160,9 @@ class TestSlideSeqPlus
     val values = Array.tabulate(SlideSeqPlusHelpers.compareSize) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    var outputX = Array[Float]()
-    var runtime = 0.0
-    var runTimeTotal = 0.0
+    val (output : Array[Float], runtime) = Execute(2, 2)(SlideSeqPlusHelpers.stencil(slidesize, slidestep), values)
 
-
-    for(x <- 1 to SlideSeqPlusHelpers.iterations) {
-      val (outputX, runtime) = Execute(2, 2)(SlideSeqPlusHelpers.stencil(slidesize, slidestep), values)
-      runTimeTotal += runtime
-    }
-
-    assertArrayEquals(gold, outputX, 0.1f)
-
-    println("Runtime: "+runTimeTotal/SlideSeqPlusHelpers.iterations)
+    assertArrayEquals(gold, output, 0.1f)
 
   }
 
@@ -786,7 +776,7 @@ class TestSlideSeqPlus
   /** 3D **/
 
   @Test
-  def reduceSlide3DTest9PointWithAt(): Unit = {
+  def reduceSlide3DTest7PointWithAt(): Unit = {
 
     val size = 8
 
@@ -816,7 +806,7 @@ class TestSlideSeqPlus
   }
 
   @Test
-  def reduceSlide3DTest9PointWithAtSize5Step3(): Unit = {
+  def reduceSlide3DTest7PointWithAtSize5Step3(): Unit = {
 
     val size = 10
 
@@ -843,7 +833,7 @@ class TestSlideSeqPlus
   }
 
   @Test
-  def reduceSlide3DTest9PointWithAtSize5Step5(): Unit = {
+  def reduceSlide3DTest7PointWithAtSize5Step5(): Unit = {
 
     val size = 15
 
@@ -869,7 +859,7 @@ class TestSlideSeqPlus
   }
 
   @Test
-  def reduceSlide3DTest9PointWithAtAsymmetric(): Unit = {
+  def reduceSlide3DTest7PointWithAtAsymmetric(): Unit = {
 
     val size = 8
 
@@ -898,7 +888,7 @@ class TestSlideSeqPlus
 
   }
   @Test
-  def reduceSlide3DTest9PointWithAtAndWeights(): Unit = {
+  def reduceSlide3DTest27PointWithWeights(): Unit = {
 
     val size = 8
 
@@ -952,4 +942,70 @@ class TestSlideSeqPlus
 
   }
 
+  /** 4D **/
+
+  @Test
+  def reduceSlide4DTest81Point(): Unit = {
+
+    val size = 8
+    val nDim = 4
+
+    val slidesize = 3
+    val slidestep = 1
+    val values = Array.tabulate(size,size,size,size) { (i,j,k,l) => (l*size*size*size+i*size*size + j*size + k + 1).toFloat }
+    val weights4D = Array.fill(math.pow(slidesize,nDim).toInt)(2).map(_.toFloat)
+
+    val P = 2 + SizeVar("P")
+    val O = 2 + SizeVar("O")
+    val N = 2 + SizeVar("N")
+    val M = 2 + SizeVar("M")
+
+        def stencil4DCompareWeights(a: Int, b: Int) = fun(
+          ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, P), O), N), M),
+          ArrayTypeWSWC(Float, math.pow(slidesize,nDim).toInt),
+          (mat, weights) => {
+            MapGlb(2)(MapGlb(1)(MapGlb(0)(MapSeq(fun(neighbours => {
+              toGlobal(MapSeq(id)) o
+                ReduceSeqUnroll(\((acc, next) =>
+                  multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() o Join() $ neighbours, weights)
+            }))))
+            ) o SlideND(nDim)(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
+          })
+
+    /*
+          def stencil4DCompare(a: Int, b: Int) = fun(
+            ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, P), O), N), M),
+            ArrayTypeWSWC(Float, math.pow(slidesize,nDim).toInt),
+            (mat, weights) => {
+              MapGlb(2)(MapGlb(1)(MapGlb(0)(MapSeq(fun(neighbours => {
+                toGlobal(MapSeq(id)) o Join() o Join() o Join() $ neighbours
+              }))))
+              ) o SlideND(nDim)(3,1) $ mat
+            })
+
+          println(Compile(stencil4DCompare(3,1)))
+
+
+      def stencil4DWeights(a: Int ,b :Int) = fun(
+        ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, P), O), N), M),
+        ArrayTypeWSWC(Float, math.pow(slidesize,nDim).toInt),
+        (input,weights) =>
+          MapWrg(1)(MapWrg(0)(MapLcl(1)(fun(x => {
+            toGlobal(SlideSeqPlus(
+              fun(neighbours => {
+                toGlobal(MapSeq(id)) o
+  /*                ReduceSeqUnroll(\((acc, next) =>
+                    multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(*/Join() o Join() o Join() $ neighbours/*, weights)*/
+              }) o PrintType(), a,b)) o Transpose() o Map(Transpose()) o Map(Map(Transpose())) o PrintType() $ x  /*o Map(Transpose()) o Map(Map(Transpose()))*/
+          })))) o Slide3D(a,b)  $ input
+      )
+      println(Compile(stencil4DWeights(3,1)))
+    */
+
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(stencil4DCompareWeights(slidesize,slidestep), values, weights4D)
+//    val (gold: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(stencil4DWeights(slidesize,slidestep), values, weights4D)
+
+//    assertArrayEquals(gold, output, 0.1f)
+
+  }
 }
