@@ -8,6 +8,31 @@ import lift.arithmetic.{ArithExpr, Cst}
 
 object ExpressionFilter {
 
+    // Default input size for all dimensions to use for filtering, if no input combinations provided
+  protected[exploration] val default_input_size = 1024
+
+  // Minimum number of work item per workgroup
+  protected[exploration] val min_local_size = 128
+
+  // Maximum number of work item per workgroup
+  protected[exploration] val max_local_size = 1024
+
+  // Minimal global grid size
+  protected[exploration] val min_global_size = 8
+
+  // Max amount of private memory allocated (this is not necessarily the number of registers)
+  protected[exploration] val max_private_memory = 1024
+
+  // Max static amount of local memory
+  protected[exploration] val max_local_memory = 50000
+
+  // Minimum number of workgroups
+  protected[exploration] val min_workgroups = 8
+
+  // Maximum number of workgroups
+  protected[exploration] val max_workgroups = 10000
+
+
   private val logger = Logger(this.getClass)
 
   object Status extends Enumeration {
@@ -66,22 +91,22 @@ object ExpressionFilter {
     try {
       // Rule out obviously poor choices based on the grid size
       // - minimum size of the entire compute grid
-      if (global.numberOfWorkItems < searchParameters.minGridSize) {
-        logger.debug("Not enough work-items in the grid")
+      if (global.numberOfWorkItems < searchParameters.minGlobalSize) {
+        logger.debug(s"Not enough work-items in the grid (${global.numberOfWorkItems} - ${local.toString} ${global.toString})")
         return NotEnoughWorkItems
       }
 
       if (local.forall(_.isEvaluable)) {
 
         // - minimum of work-items in a workgroup
-        if (local.numberOfWorkItems < searchParameters.minWorkItems) {
-          logger.debug("Not enough work-items in a group")
+        if (local.numberOfWorkItems < searchParameters.minLocalSize) {
+          logger.debug(s"Not enough work-items in a group (${local.numberOfWorkItems} - ${local.toString} ${global.toString})")
           return NotEnoughWorkItems
         }
 
         // - maximum of work-items in a workgroup
-        if (local.numberOfWorkItems > searchParameters.maxWorkItems) {
-          logger.debug("Too many work-items in a group")
+        if (local.numberOfWorkItems > searchParameters.maxLocalSize) {
+          logger.debug(s"Too many work-items in a group (${local.numberOfWorkItems} - ${local.toString} ${global.toString})")
           return TooManyWorkItems
         }
 
@@ -90,13 +115,13 @@ object ExpressionFilter {
 
         // - minimum number of workgroups
         if (numWorkgroups < searchParameters.minWorkgroups) {
-          logger.debug("Not enough work-groups")
+          logger.debug(s"Not enough work-groups ($numWorkgroups - ${local.toString} ${global.toString})")
           return NotEnoughWorkGroups
         }
 
         // - maximum number of workgroups
         if (numWorkgroups > searchParameters.maxWorkgroups){
-          logger.debug("Too many work-groups")
+          logger.debug(s"Too many work-groups ($numWorkgroups - ${local.toString} ${global.toString})")
           return TooManyWorkGroups
         }
 
@@ -106,7 +131,7 @@ object ExpressionFilter {
 
     } catch {
       case t: Throwable =>
-        logger.warn("Failed filtering", t)
+        logger.warn("Failed filtering NDRanges", t)
         InternalException
     }
   }
@@ -131,7 +156,7 @@ object ExpressionFilter {
 
       if (privateAllocSize > searchParameters.maxPrivateMemory ||
         privateMemories.exists(_.mem.size.eval <= 0)) {
-        logger.debug("Too much private memory")
+        logger.debug(s"Too much private memory ($privateAllocSize)")
         return TooMuchPrivateMemory
       }
 
@@ -140,7 +165,7 @@ object ExpressionFilter {
 
       if (localAllocSize > searchParameters.maxLocalMemory ||
         localMemories.exists(_.mem.size.eval <= 0)) {
-        logger.debug("Too much local memory")
+        logger.debug(s"Too much local memory ($localAllocSize)")
         return TooMuchLocalMemory
       }
 
@@ -151,14 +176,14 @@ object ExpressionFilter {
       }
 
       // in case of global-local size exploration, we already checked these before
-      if (ParameterRewrite.exploreNDRange.value.isEmpty)
+      if (!ParameterRewrite.settings.parameterRewriteSettings.exploreNDRange)
         filterNDRanges(ranges, searchParameters)
       else
         Success
 
     } catch {
       case t: Throwable =>
-        logger.warn("Failed filtering", t)
+        logger.warn("Failed filtering Expression", t)
         InternalException
     }
   }
