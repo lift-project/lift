@@ -346,9 +346,9 @@ class ExecuteOld(val localSize1: ArithExpr, val localSize2: ArithExpr, val local
           case _ => Cst(array.length)
         }
         if (at.elemT.hasFixedAllocatedSize)
-          at.getHeaderSize * 4 + c * 4 * allocArgumentWithoutFixedAllocatedSize(at.elemT, array.head)
+          at.headerSize * 4 + c * 4 * allocArgumentWithoutFixedAllocatedSize(at.elemT, array.head)
         else
-          at.getHeaderSize + c + array.map(allocArgumentWithoutFixedAllocatedSize(at.elemT, _)).reduce(_ + _)
+          at.headerSize + c + array.map(allocArgumentWithoutFixedAllocatedSize(at.elemT, _)).reduce(_ + _)
       case _ => throw new IllegalArgumentException()
     }
   }

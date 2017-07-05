@@ -483,7 +483,7 @@ object OpenCLMemoryAllocator {
   private def sizeOfArray(innerSize: ArithExpr, ty: Type): ArithExpr = {
     ty match {
       case at: ArrayType =>
-        val hSize = at.getHeaderSize
+        val hSize = at.headerSize
         at match {
           case c: Capacity =>
             val map = TypeVar.getTypeVars(c.capacity).map(tv => (tv, tv.range.max)).toMap

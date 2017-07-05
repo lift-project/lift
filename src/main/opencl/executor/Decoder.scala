@@ -90,7 +90,7 @@ object Decoder {
 
   private def decodeArray[E](ty: ArrayType, buffer: ByteBuffer)(hint: DecodeType[E]): Vector[E] = {
     val beforeHeader = buffer.position()
-    val afterHeader = beforeHeader + ty.getHeaderSize * sizeOfInt
+    val afterHeader = beforeHeader + ty.headerSize * sizeOfInt
 
     // Fetch header
     val (capacity, size) = decodeHeader(ty, buffer)
@@ -132,11 +132,11 @@ object Decoder {
       )
       case c: Capacity => (
         c.capacity.evalInt,
-        buffer.getInt(before + ty.getSizeIndex * sizeOfInt)
+        buffer.getInt(before + ty.sizeIndex * sizeOfInt)
       )
       case _ => (
        buffer.getInt(before + ty.capacityIndex * sizeOfInt),
-       buffer.getInt(before + ty.getSizeIndex * sizeOfInt)
+       buffer.getInt(before + ty.sizeIndex * sizeOfInt)
      )
    }
   }

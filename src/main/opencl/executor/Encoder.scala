@@ -35,10 +35,10 @@ class Encoder(arrayType: ArrayType, sizeof: Int) {
    */
   private def putArray(ty: ArrayType, array: Array[_], buffer: ByteBuffer): Unit = {
     val beforeHeader = buffer.position()
-    val afterHeader = beforeHeader + ty.getHeaderSize * sizeOfInt
+    val afterHeader = beforeHeader + ty.headerSize * sizeOfInt
 
     // Header of the array
-    val header = Array.fill(ty.getHeaderSize)(array.length)
+    val header = Array.fill(ty.headerSize)(array.length)
     putIntegers(header, buffer)
 
     // Content of the array

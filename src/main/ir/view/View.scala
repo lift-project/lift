@@ -706,10 +706,10 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
             idx match {
               case SizeIndex() =>
                 // Special index: we are fetching the size of the array
-                getInt(v, offset, at.getSizeIndex)
+                getInt(v, offset, at.sizeIndex)
               case _ =>
                 // 1. Skip the header
-                val (afterHeaderV, afterHeaderOfs) = skipBytes(v, offset, at.getHeaderSize * sizeOfInt)
+                val (afterHeaderV, afterHeaderOfs) = skipBytes(v, offset, at.headerSize * sizeOfInt)
 
                 // 2. Compute the new position:
                 //    - If the element type has a fixed size in memory, multiply this size by `idx` and
@@ -751,7 +751,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         case ScalarType(_, size) => size
         case vt: VectorType => vt.len * vt.scalarT.size
         case at @ ArrayTypeWC(elemT, n) =>
-          Int.size * at.getHeaderSize + n * getLengthForArrayAccess(elemT, tupleAccessStack)
+          Int.size * at.headerSize + n * getLengthForArrayAccess(elemT, tupleAccessStack)
         // If tupleAccessStack is not empty, it means that the tuple comes from a view and
         // we should only look at one component. Otherwise, it's a struct.
         case tt: TupleType =>

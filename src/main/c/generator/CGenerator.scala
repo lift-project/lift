@@ -827,7 +827,7 @@ class CGenerator extends Generator {
         // originally a scalar type in global memory, but now a vector type
         //  => emit vstore
         case (at: ArrayType, vt: VectorType)
-          if Type.isEqual(Type.getValueType(at), vt.scalarT)
+          if Type.getValueType(at) == vt.scalarT
             && (mem.addressSpace == GlobalMemory
             || mem.addressSpace == LocalMemory) =>
 
@@ -876,14 +876,14 @@ class CGenerator extends Generator {
           (originalType, currentType) match {
             // originally a scalar type, but now a vector type
             //  => emit cast
-            case (st: ScalarType, vt: VectorType) if Type.isEqual(st, vt.scalarT) =>
+            case (st: ScalarType, vt: VectorType) if st == vt.scalarT =>
               CAst.Cast(CAst.VarRef(mem.variable), st)
 
             // originally an array of scalar values in global memory,
             // but now a vector type
             //  => emit vload
             case (at: ArrayType, vt: VectorType)
-              if Type.isEqual(Type.getValueType(at), vt.scalarT)
+              if Type.getValueType(at) == vt.scalarT
                 && (mem.addressSpace == GlobalMemory || mem.addressSpace == LocalMemory) =>
 
               val offset = ViewPrinter.emit(mem.variable, view, replacementsWithFuns) match {
@@ -897,7 +897,7 @@ class CGenerator extends Generator {
             // but now a vector type
             //  => emit (float2)(f1, f2) primitive
             case (at: ArrayType, vt: VectorType)
-              if Type.isEqual(Type.getValueType(at), vt.scalarT)
+              if Type.getValueType(at) == vt.scalarT
                 && (mem.addressSpace == PrivateMemory) =>
 
               assert(privateMems.exists(m => m.mem == mem))
@@ -918,8 +918,7 @@ class CGenerator extends Generator {
             // but now a scalar type
             //  => emit load from components
             case (vt: VectorType, st: ScalarType)
-              if Type.isEqual(st, vt.scalarT)
-                && (mem.addressSpace == PrivateMemory) =>
+              if st == vt.scalarT && (mem.addressSpace == PrivateMemory) =>
 
               val componentSuffix = componentAccessVectorVar(mem.variable, view)
               CAst.VarRef(mem.variable, suffix = componentSuffix)
