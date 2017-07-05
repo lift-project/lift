@@ -445,6 +445,7 @@ class OpenCLGenerator extends Generator {
         case fp: FPattern => generate(fp.f.body, block)
         case l: Lambda => generate(l.body, block)
         case ua: UnsafeArrayAccess => generateUnsafeArrayAccess(ua, call, block)
+        case ca: CheckedArrayAccess => generateCheckedArrayAccess(ca, call, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) |
@@ -902,9 +903,62 @@ class OpenCLGenerator extends Generator {
     val loadFromArray = generateLoadNode(clInArrMem, inArr.t, inArr.view.access(indexVar))
 
     val storeToOutput = generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t,
-      call.view.access(0), loadFromArray)
-
+                                          call.view, loadFromArray)
     (block: Block) += storeToOutput
+  }
+
+  private def generateCheckedArrayAccess(ca: CheckedArrayAccess,
+                                        call: FunCall,
+                                        block: Block) : Unit = {
+    // generate a load to get the index at which we're accessing
+    val index = ca.index
+    val clIndexMem = OpenCLMemory.asOpenCLMemory(index.mem)
+    val loadIndex = generateLoadNode(clIndexMem, index.t, index.view)
+
+    // and generate a load to get the "default" value that we'd otherwise return
+    val default = call.args(0)
+    val clDefaultMem = OpenCLMemory.asOpenCLMemory(default.mem)
+    val loadDefault = generateLoadNode(clDefaultMem, default.t, default.view)
+
+    // generate the load into an index variable
+    val indexVar = Var("index")
+    (block: Block) += OpenCLAST.VarDecl(indexVar, Int, init=loadIndex)
+
+    // pre-generate the load from default/store to output
+    val storeDefaultToOutput = generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t,
+      call.view, loadDefault)
+
+    // get the in array so we can use it later
+    val inArr = call.args(1)
+    val arrLength = Type.getLength(inArr.t)
+
+    // generate a conditional to check the bounds of the index
+    generateConditional(block,
+      // Lower bound of the index var
+      Predicate(indexVar, 0, Predicate.Operator.<),
+      (ccb) => { // If the indexVar is less than zero it's trivially invalid (true branch)
+        (ccb: Block) += storeDefaultToOutput
+      },
+      // otherwise, it must be equal to, so jump to returning the result
+      (ccb) => {
+        generateConditional(ccb,
+          // Upper bound of the index var
+          Predicate(indexVar, arrLength, Predicate.Operator.>=),
+          (cccb) => { // If the indexVar is greater than or equal, it is also invalid (true branch)
+            (cccb: Block) += storeDefaultToOutput
+          },
+          (cccb) => { // Otherwise, it's valid!
+
+            val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
+            val loadFromArray = generateLoadNode(clInArrMem, inArr.t, inArr.view.access(indexVar))
+            val storeToOutput = generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t,
+              call.view, loadFromArray)
+            (cccb :Block) += storeToOutput
+          }
+        )
+      }
+    )
+    // all done!
   }
 
   private def generateValue(v: Value, block: Block): Unit = {

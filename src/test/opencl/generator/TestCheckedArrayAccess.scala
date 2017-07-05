@@ -9,7 +9,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
-object TestUnsafeArrayAccess {
+object TestCheckedArrayAccess {
   @BeforeClass def TestUnsafeArrayAccess() {
     Executor.loadLibrary()
     println("Initialize the executor")
@@ -24,7 +24,7 @@ object TestUnsafeArrayAccess {
 
 
 
-class TestUnsafeArrayAccess {
+class TestCheckedArrayAccess {
   @Test def TEST_ACCESS() : Unit = {
     val inputSize = Math.pow(2, 7).toInt
     val index = util.Random.nextInt(inputSize)
@@ -37,11 +37,14 @@ class TestUnsafeArrayAccess {
       (arr, ix) => {
         MapSeq(
           fun((index) => 
-            UnsafeArrayAccess(index) $ arr
+            toGlobal(id) o CheckedArrayAccess(index, -142.0f) $ arr
           )
         ) $ ix
       }
     )
+    println("Kernel:")
+    println(Compile(accessKernel))
+    println("===---===---===")
     val (output:Array[Float], runtime) = Execute(1,1)(accessKernel, inputArr, Array(index))
     println("Time: "+runtime)
     println("Gold: "+ gold)
@@ -63,13 +66,16 @@ class TestUnsafeArrayAccess {
           fun((row) => 
             MapSeq(
               fun((index) =>
-                UnsafeArrayAccess(index) $ row
+                toGlobal(id) o CheckedArrayAccess(index, -142.0f) $ row
               )
             ) $ ix
           )
         ) $ arr
       }
     )
+    println("Kernel:")
+    println(Compile(accessKernel))
+    println("===---===---===")
     val (output:Array[Float], runtime) = Execute(1,1)(accessKernel, inputArr, Array(index))
     println("Time: "+runtime)
     println("Gold: "+ gold.deep.mkString(", "))
@@ -88,10 +94,13 @@ class TestUnsafeArrayAccess {
       ArrayTypeWSWC(Int, N),
       (arr, ix) => {
         MapSeq(fun((indexRowPair) =>
-          UnsafeArrayAccess(indexRowPair._0) $ indexRowPair._1
+          toGlobal(id) o CheckedArrayAccess(indexRowPair._0, -142.0f) $ indexRowPair._1
         )) $ Zip(ix, arr)
       }
     )
+    println("Kernel:")
+    println(Compile(accessKernel))
+    println("===---===---===")
     val (output:Array[Float], runtime) = Execute(1,1)(accessKernel, inputArr, indexArr)
     println("Time: "+runtime)
     println("Gold: "+ gold(0))
@@ -113,16 +122,73 @@ class TestUnsafeArrayAccess {
         MapSeq(
           fun((index) => 
             // MapSeq(idII) o Head() $ arr
-//            MapSeq(t_id) o UnsafeArrayAccess(index) $ arr
-             UnsafeArrayAccess(index) $ arr
+//            MapSeq(t_id) o CheckedArrayAccess(index, Tuple(2)(-142, -142)) $ arr
+            toGlobal(t_id) o CheckedArrayAccess(index, Tuple(2)(-142, -142)) $ arr
           )
         ) $ ix
       }
     )
+    println("Kernel:")
+    println(Compile(accessKernel))
+    println("===---===---===")
     val (output:Array[Int], runtime) = Execute(1,1)(accessKernel, passArr, Array(index))
     println("Time: "+runtime)
     println("Gold: "+ gold)
     println("Output: ("+ output(0)+","+output(1)+")")
     assert(output(0) == gold._1 && output(1) == gold._2)
+  }
+
+  @Test def TEST_OUT_OF_BOUNDS_ACCESS() : Unit = {
+    val inputSize = Math.pow(2, 7).toInt
+    val index = inputSize * 2
+    val inputArr = Array.tabulate(inputSize)(_.toFloat)
+    val gold = -142.0f
+    val N = SizeVar("N")
+    val accessKernel = fun(
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Int, 1),
+      (arr, ix) => {
+        MapSeq(
+          fun((index) =>
+            toGlobal(id) o CheckedArrayAccess(index, -142.0f) $ arr
+          )
+        ) $ ix
+      }
+    )
+    println("Kernel:")
+    println(Compile(accessKernel))
+    println("===---===---===")
+    val (output:Array[Float], runtime) = Execute(1,1)(accessKernel, inputArr, Array(index))
+    println("Time: "+runtime)
+    println("Gold: "+ gold)
+    println("Output: "+ output(0))
+    assert(output(0) == gold)
+  }
+
+  @Test def TEST_NEGATIVE_ACCESS() : Unit = {
+    val inputSize = Math.pow(2, 7).toInt
+    val index = -1
+    val inputArr = Array.tabulate(inputSize)(_.toFloat)
+    val gold = -142.0f
+    val N = SizeVar("N")
+    val accessKernel = fun(
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Int, 1),
+      (arr, ix) => {
+        MapSeq(
+          fun((index) =>
+            toGlobal(id) o CheckedArrayAccess(index, -142.0f) $ arr
+          )
+        ) $ ix
+      }
+    )
+    println("Kernel:")
+    println(Compile(accessKernel))
+    println("===---===---===")
+    val (output:Array[Float], runtime) = Execute(1,1)(accessKernel, inputArr, Array(index))
+    println("Time: "+runtime)
+    println("Gold: "+ gold)
+    println("Output: "+ output(0))
+    assert(output(0) == gold)
   }
 }
