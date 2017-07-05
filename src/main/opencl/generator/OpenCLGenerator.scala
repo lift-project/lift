@@ -1038,23 +1038,22 @@ class OpenCLGenerator extends Generator {
     val range = indexVar.range.asInstanceOf[RangeAdd]
     val init = ArithExpression(range.start)
     val stop = range match {
-      case ra: RangeAdd => ra.stop // why does this change for 1D but not 2D?
+      case ra: RangeAdd => ra.stop
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
     }
 
     val reuse = size - step
     val cond = CondExpression(ArithExpression(indexVar), ArithExpression((stop - reuse) / step), CondExpression.Operator.<)
-    val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem) // values from the input that you want to
-    // cut down to window size
+    val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
 
-    // temporary bool to see what works
     var vType = call.args.head.view.access(0).t
 
-    val nDim = vType match {
-      case ArrayType(ArrayTypeWS(_, _)) => 3
-      case ArrayTypeWS(_, _) => 2
-      case _ => 1
+    def getDim(n : Int, t : Type) : Int = t match {
+      case ArrayType(elemT) => getDim(n+1, elemT)
+      case _ => n
     }
+
+    val nDim = getDim(1,vType)
 
     def getType(v: View, n: Int): Type = n match {
       case 1 => v.access(0).t
@@ -1068,9 +1067,6 @@ class OpenCLGenerator extends Generator {
 
     val viewType = getType(call.args.head.view, nDim)
     val windowSize = getWindowSize(size.eval, nDim)
-
-    val is2D = (nDim == 2)
-    val is3D = (nDim == 3)
 
     val v = Value(0.0f, ArrayTypeWSWC(viewType, windowSize))
     varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
@@ -1138,7 +1134,8 @@ class OpenCLGenerator extends Generator {
       }
   */
 
-    val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + 1 /* + step.eval*/))
+    // window values get updated at the start of the loop
+    val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + 1))
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
 
@@ -1156,21 +1153,27 @@ class OpenCLGenerator extends Generator {
     }
 
     def updateWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = n match {
-      case 1 => for(j <- reuse.eval to size.eval-1) {  accesses(n-1) = j; innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, /*call.args.head.view.access(j+(indexVar*step.eval)%stop).access(accesses(n)+(indexVar*step.eval)/stop)))*/getViewIncrement(call.args.head.view,indexVar,accesses))) }
-      case _ => for(i <- 0 to size.eval-1) { accesses(n-1) = i; updateWindowVars(idx+i*math.pow(size.eval,n-1).toInt, n-1, accesses) } // need to add a loop here to multiply by size as many times as dim > 2 ie. for 3d size*size
+      case 1 => for(j <- reuse.eval to size.eval-1) {
+        accesses(n-1) = j
+        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, getViewIncrement(call.args.head.view,indexVar,accesses)))
+      }
+      case _ => for(i <- 0 to size.eval-1) {
+        accesses(n-1) = i
+        updateWindowVars(idx+i*math.pow(size.eval,n-1).toInt, n-1, accesses)
+      }
     }
 
     updateWindowVars(0,nDim, accesses)
 
     generateBody(innerBlock)
 
+    // window values are swapped at the end of the loop
     def swapWindowVars(idx: Int, n: Int): Unit = n match {
       case 1 => for (j <- 1 to reuse.eval) {
-        val newidx = j + idx + size.eval - reuse.eval - 1; println("swap: " + newidx); innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx - 1}"), VarRef(sSP.windowVar, suffix = s"_${newidx}"))
+        val newidx = j + idx + size.eval - reuse.eval - 1
+        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx - 1}"), VarRef(sSP.windowVar, suffix = s"_${newidx}"))
       }
-      case _ => for (i <- 0 to size.eval - 1) {
-        swapWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1)
-      }
+      case _ => for (i <- 0 to size.eval - 1) { swapWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1) }
     }
 
     swapWindowVars(0,nDim)

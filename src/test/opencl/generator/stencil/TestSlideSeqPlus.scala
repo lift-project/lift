@@ -11,7 +11,6 @@ import opencl.ir.pattern._
 import ir.ast._
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
-import utils.OutputKernelJSON
 
 object TestSlideSeqPlus
 {
@@ -30,8 +29,9 @@ object TestSlideSeqPlus
 object SlideSeqPlusHelpers
 {
 
-  val compareSize = 1000000
+  val compareSize = 100//0000
   val iterations = 10
+
   val O = 2 + SizeVar("O")
   val N = 2+ SizeVar("N")
   val M = 2+ SizeVar("M")
@@ -160,21 +160,17 @@ class TestSlideSeqPlus
     val values = Array.tabulate(SlideSeqPlusHelpers.compareSize) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val lambda = Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep))
-    println(lambda)
-
-    //OutputKernelJSON(SlideSeqPlusHelpers.stencil(slidesize,slidestep),"/home/reese/workspace/phd/sandbox/perftests/","stencil1Dssp.json","stencil1Dssp.cl")
     var outputX = Array[Float]()
     var runtime = 0.0
     var runTimeTotal = 0.0
 
-    println(Compile(SlideSeqPlusHelpers.stencil(slidesize,slidestep)))
 
     for(x <- 1 to SlideSeqPlusHelpers.iterations) {
       val (outputX, runtime) = Execute(2, 2)(SlideSeqPlusHelpers.stencil(slidesize, slidestep), values)
       runTimeTotal += runtime
     }
-   // assertArrayEquals(gold, outputX, 0.1f)
+
+    assertArrayEquals(gold, outputX, 0.1f)
 
     println("Runtime: "+runTimeTotal/SlideSeqPlusHelpers.iterations)
 
