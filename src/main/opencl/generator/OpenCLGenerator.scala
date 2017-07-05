@@ -1316,9 +1316,8 @@ class OpenCLGenerator extends Generator {
                                                       generateBody: (Block) => Unit): Unit = {
     val range = getRangeAdd(indexVar)
     val init = ArithExpression(range.start)
-    generateDefaultForLoopRepresentation(block, array, indexVar, generateBody)
 
-    /*array.t match {
+    array.t match {
       case _: RuntimeSizedArrayType =>
         generateDefaultForLoopRepresentation(block, array, indexVar, generateBody)
 
@@ -1345,7 +1344,7 @@ class OpenCLGenerator extends Generator {
             generateDefaultForLoopRepresentation(block, array, indexVar, generateBody)
         }
       case _ => throw new NotImplementedError() // should never get there
-    }*/
+    }
   }
 
   private def generateDefaultForLoopRepresentation(block: Block,

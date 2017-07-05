@@ -319,8 +319,6 @@ class TestAcousticStencils {
         ) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
       })
 
-  println(Compile(lambdaNeigh))
-
     val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, StencilUtilities.weightsArr)
 
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
