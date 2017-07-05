@@ -5,12 +5,15 @@ import ir.ast._
 import lift.arithmetic._
 import opencl.generator.OpenCLAST.{ArithExpression, Expression, VarRef}
 import opencl.generator.{OpenCLAST, OpenCLPrinter}
-import opencl.ir.{Bool, Int, OpenCLAddressSpace, PrivateMemory, UndefAddressSpace}
+import opencl.ir.{AddressSpaceCollection, Bool, Int, OpenCLAddressSpace, PrivateMemory, UndefAddressSpace}
 
 import scala.collection.immutable
 
-private class IllegalAccess(ty: Type)
-      extends IllegalArgumentException(s"Cannot compute access for type $ty")
+private class IllegalAccess(err: String)
+      extends IllegalArgumentException() {
+  def this(ty: Type) = this(s"Cannot compute access for type $ty")
+  def this(ty: Type, as: OpenCLAddressSpace) = this(s"Cannot compute access for type $ty in $as")
+}
 
 private class IllegalView(err: String)
       extends IllegalArgumentException(err) {
@@ -829,9 +832,11 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
      */
     type Accumulator = (Var, ArithExpr)
 
-    lazy val baseType: Type = getBaseType(mainTy, initTas)
-    lazy val baseSize: ArithExpr = Type.getAllocatedSize(baseType)
     lazy val sizeOfInt: ArithExpr = Int.size
+    private lazy val bTAndAS = getBaseTypeAndAddressSpace(mainTy, initTas, addressSpace)
+    val baseType: Type = bTAndAS._1
+    val baseSize: ArithExpr = Type.getAllocatedSize(baseType)
+    val baseAddressSpace: OpenCLAddressSpace = bTAndAS._2
 
     override def getSize(acc: (Var, ArithExpr), at: ArrayType): (Var, ArithExpr) = {
       val (v, offset) = acc
@@ -839,7 +844,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
       if (baseType == Int)
         (v, offset + sizeIdx)
       else
-        (CastedPointer(v, Int, offset, addressSpace), sizeIdx)
+        (CastedPointer(v, Int, offset, baseAddressSpace), sizeIdx)
     }
 
     override def getElementAt(acc: (Var, ArithExpr), at: ArrayType, idx: ArithExpr,
@@ -870,7 +875,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
       if (aligned)
         (v, offset + nb / baseSize)
       else
-        (CastedPointer(CastedPointer(v, Bool, offset, addressSpace), baseType, nb, addressSpace), Cst(0))
+        (CastedPointer(CastedPointer(v, Bool, offset, baseAddressSpace), baseType, nb, addressSpace), Cst(0))
     }
 
     /**
@@ -899,22 +904,27 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
     }
 
     /**
-     * Get the type of the elements of the actual C array we are reading from.
-     * We have to project the the components of the tuples that come from views.
+     * Get the type and the address space of the elements of the actual C array
+     * we are reading from. We have to project the the components of the tuples
+     * that come from views.
      *
      * @param tupleAccessStack list of tuple indices used all along the way to
      *                         choose what component of tuples should be
      *                         considered.
+     * @param addressSpace address space(s) where the value(s) is (are) stored.
+     *                     Might be an address space collection that we want to
+     *                     project.
      */
-    private def getBaseType(ty: Type, tupleAccessStack: List[Int]): Type = {
-      if (tupleAccessStack.isEmpty) Type.getBaseType(ty)
-      else ty match {
-        case tt: TupleType => getBaseType(
-          tt.proj(tupleAccessStack.head),
-          tupleAccessStack.tail
-        )
-        case ArrayType(elemT) => getBaseType(elemT, tupleAccessStack)
-        case _ => throw new IllegalAccess(ty)
+    private def getBaseTypeAndAddressSpace(ty: Type, tupleAccessStack: List[Int],
+                                           addressSpace: OpenCLAddressSpace): (Type, OpenCLAddressSpace) = {
+      if (tupleAccessStack.isEmpty) (Type.getBaseType(ty), addressSpace)
+      else (ty, addressSpace) match {
+        case (tt: TupleType, AddressSpaceCollection(coll)) =>
+          val i :: tas = tupleAccessStack
+          getBaseTypeAndAddressSpace(tt.proj(i), tas, coll(i))
+        case (ArrayType(elemT), _) =>
+          getBaseTypeAndAddressSpace(elemT, tupleAccessStack, addressSpace)
+        case _ => throw new IllegalAccess(ty, addressSpace)
       }
     }
 
