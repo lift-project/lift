@@ -283,7 +283,11 @@ abstract sealed class View(val t: Type = UndefType) {
   def size(): View = {
     this match {
       case z: ViewZip => z.iv match {
-        case t: ViewTuple => t.ivs.head.size()
+        case ViewTuple(ivs, tt) =>
+          ViewTuple(
+            ivs.map(_.size()),
+            TupleType(Seq.fill(tt.asInstanceOf[TupleType].elemsT.length)(Int): _*)
+          )
         case _ => throw new IllegalView(z)
       }
       case _ => this.t match {

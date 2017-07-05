@@ -1416,7 +1416,9 @@ class OpenCLGenerator extends Generator {
   private def getArraySize(mem: OpenCLMemory, view: View): Expression = {
     mem match {
       case OpenCLMemoryCollection(subMemories, _) =>
-        val sizes = subMemories.map(getArraySize(_, view))
+        val sizes = subMemories.zipWithIndex.map(p =>
+          getArraySize(p._1, view.get(p._2))
+        )
         sizes.reduce((x, y) => FunctionCall("min", List(x, y)))
       case _ =>
         ViewPrinter.emit(mem.variable, view, addressSpace = mem.addressSpace)
