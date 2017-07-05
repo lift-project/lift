@@ -127,7 +127,7 @@ class Encoder(arrayType: ArrayType, sizeof: Int) {
     case _ => fallback
   }
 
-  val endianness = ByteOrder.LITTLE_ENDIAN // First approximation, FIXME (at some point)
+  private lazy val endianness = if (Executor.isLittleEndian) ByteOrder.LITTLE_ENDIAN else ByteOrder.BIG_ENDIAN
   private lazy val sizeOfInt = Int.size.evalInt
   private lazy val baseType = Type.getBaseScalarType(arrayType)
   private lazy val baseSize = Type.getAllocatedSize(baseType).evalInt

@@ -5,7 +5,7 @@ import java.nio.{ByteBuffer, ByteOrder}
 import ir.{ArrayType, ArrayTypeWC, ScalarType, Type}
 import opencl.ir.{Bool, Double, Float, Int}
 import org.junit.Assert.assertArrayEquals
-import org.junit.Test
+import org.junit.{AfterClass, BeforeClass, Test}
 
 import scala.reflect.ClassTag
 
@@ -164,8 +164,19 @@ class TestEncoder {
 }
 
 object TestEncoder {
-  val endianness = ByteOrder.LITTLE_ENDIAN
-  val sizeOfInt: Int = Type.getAllocatedSize(Int).evalInt
+  @BeforeClass def before(): Unit = {
+    Executor.loadLibrary()
+    println("Initialize the executor")
+    Executor.init()
+  }
+
+  @AfterClass def after(): Unit = {
+    println("Shutdown the executor")
+    Executor.shutdown()
+  }
+
+  lazy val endianness: ByteOrder = if (Executor.isLittleEndian) ByteOrder.LITTLE_ENDIAN else ByteOrder.BIG_ENDIAN
+  lazy val sizeOfInt: Int = Type.getAllocatedSize(Int).evalInt
 
   /** Instantiate 4 encoders for the 4 supported scalar types */
   def getEncoders(tyCon: ScalarType => ArrayType, allocSize: Int => Int): (Encoder, Encoder, Encoder, Encoder) = (
