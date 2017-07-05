@@ -686,7 +686,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     }
 
     // 9. cast the output accordingly to the output type
-    val output = castToOutputType(f.body.t, outputData)(decodeType)
+    val outT = Type.substitute(f.body.t, valueMap)
+    val output = castToOutputType(outT, outputData)(decodeType)
 
     // 10. release OpenCL objects
     args.foreach(_.dispose)
