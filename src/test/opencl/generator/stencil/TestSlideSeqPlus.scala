@@ -944,6 +944,7 @@ class TestSlideSeqPlus
 
   /** 4D **/
 
+  @Ignore
   @Test
   def reduceSlide4DTest81Point(): Unit = {
 
@@ -955,11 +956,12 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size,size,size,size) { (i,j,k,l) => (l*size*size*size+i*size*size + j*size + k + 1).toFloat }
     val weights4D = Array.fill(math.pow(slidesize,nDim).toInt)(2).map(_.toFloat)
 
+    val M = 2 + SizeVar("M")
+    val N = 2 + SizeVar("N")
     val P = 2 + SizeVar("P")
     val O = 2 + SizeVar("O")
-    val N = 2 + SizeVar("N")
-    val M = 2 + SizeVar("M")
 
+    /*
         def stencil4DCompareWeights(a: Int, b: Int) = fun(
           ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, P), O), N), M),
           ArrayTypeWSWC(Float, math.pow(slidesize,nDim).toInt),
@@ -972,7 +974,6 @@ class TestSlideSeqPlus
             ) o SlideND(nDim)(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
           })
 
-    /*
           def stencil4DCompare(a: Int, b: Int) = fun(
             ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, P), O), N), M),
             ArrayTypeWSWC(Float, math.pow(slidesize,nDim).toInt),
@@ -985,12 +986,13 @@ class TestSlideSeqPlus
 
           println(Compile(stencil4DCompare(3,1)))
 
+    */
 
       def stencil4DWeights(a: Int ,b :Int) = fun(
         ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, P), O), N), M),
         ArrayTypeWSWC(Float, math.pow(slidesize,nDim).toInt),
         (input,weights) =>
-          MapWrg(1)(MapWrg(0)(MapLcl(1)(fun(x => {
+          MapGlb(0)(MapGlb(1)(MapGlb(2)(fun(x => {
             toGlobal(SlideSeqPlus(
               fun(neighbours => {
                 toGlobal(MapSeq(id)) o
@@ -1000,10 +1002,9 @@ class TestSlideSeqPlus
           })))) o Slide3D(a,b)  $ input
       )
       println(Compile(stencil4DWeights(3,1)))
-    */
 
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(stencil4DCompareWeights(slidesize,slidestep), values, weights4D)
-//    val (gold: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(stencil4DWeights(slidesize,slidestep), values, weights4D)
+//    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(stencil4DCompareWeights(slidesize,slidestep), values, weights4D)
+    val (gold: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(stencil4DWeights(slidesize,slidestep), values, weights4D)
 
 //    assertArrayEquals(gold, output, 0.1f)
 
