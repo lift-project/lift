@@ -407,6 +407,86 @@ class TestAcousticActualRoom {
         assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 }
 
+
+  @Test
+  def roomCodeUsingSlideSeqPlus(): Unit = {
+
+    val compareData = AcousticComparisonArrays.test3DAsymMaskStencilComparisonData8x6x10
+
+    val localDimX = 8
+    val localDimY = 6
+    val localDimZ = 10
+
+    val data = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
+    val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
+    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
+    val stencilarrOther3D = stencilarrpadded3D.map(x => x.map(y => y.map(z => z * 2.0f)))
+
+    val getNumNeighbours = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ " +
+      "int count = 6; if(i == (m-1) || i == 0){ count--; } if(j == (n-1) || j == 0){ count--; } if(k == (o-1) || k == 0){ count--; }return count; }", Seq(Int,Int,Int,Int,Int,Int), Int)
+
+    val getCF = UserFun("getCF", Array("neigh", "cfB", "cfI"), "{ if(neigh < 6) { return cfB; } else{ return cfI;} }", Seq(Int,Float,Float), Float)
+
+
+    val m = SizeVar("M")
+    val n = SizeVar("N")
+    val o = SizeVar("O")
+
+    val arraySig = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, m), n), o)
+
+    val lambdaNeighAt = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2), n+2), o+2),
+      (mat1, mat2) => {
+        (MapGlb(1)(MapGlb(0)(fun(m => {
+          toGlobal(SlideSeqPlus(fun(neighbours => {
+
+            val cf = toPrivate(fun(x => getCF(x, RoomConstants.cf(0), RoomConstants.cf(1)))) $ Get(m, 2)
+            val cf2 = toPrivate(fun(x => getCF(x, RoomConstants.cf2(0), RoomConstants.cf2(1)))) $ Get(m, 2)
+            val maskedValStencil = RoomConstants.l2
+
+            val `tile[1][1][1]` = Get(m, 1).at(1).at(1).at(1)
+
+            val `tile[0][1][1]` = Get(m, 1).at(0).at(1).at(1)
+            val `tile[1][0][1]` = Get(m, 1).at(1).at(0).at(1)
+            val `tile[1][1][0]` = Get(m, 1).at(1).at(1).at(0)
+            val `tile[1][1][2]` = Get(m, 1).at(1).at(1).at(2)
+            val `tile[1][2][1]` = Get(m, 1).at(1).at(2).at(1)
+            val `tile[2][1][1]` = Get(m, 1).at(2).at(1).at(1)
+
+            val stencil = toPrivate(fun(x => add(x, `tile[0][1][1]`))) o
+              toPrivate(fun(x => add(x, `tile[1][0][1]`))) o
+              toPrivate(fun(x => add(x, `tile[1][1][0]`))) o
+              toPrivate(fun(x => add(x, `tile[1][1][2]`))) o
+              toPrivate(fun(x => add(x, `tile[1][2][1]`))) $ `tile[2][1][1]`
+
+            val valueMat1 = Get(m, 0)
+            val valueMask = toPrivate(BoundaryUtilities.idIF) $ Get(m, 2)
+
+            toGlobal(id) o toPrivate(fun(x => mult(x, cf))) o toPrivate(addTuple) $
+              Tuple(toPrivate(multTuple) $ Tuple(toPrivate(fun(x => subtract(2.0f, x))) o toPrivate(fun(x => mult(x, RoomConstants.l2))) $ valueMask, `tile[1][1][1]`),
+                toPrivate(subtractTuple) $ Tuple(
+                  toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
+                  toPrivate(fun(x => mult(x, cf2))) $ valueMat1))
+          },StencilUtilities.slidesize,StencilUtilities.slidestep)
+          ))})))
+        ) $ Zip3D(mat1, Transpose() o Map(Transpose()) o Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+      })
+
+    val newLambda = SimplifyAndFuse(lambdaNeighAt)
+    val source = Compile(newLambda)
+//    val source = Compile(newLambda, 64,4,2,512,512,404, immutable.Map())
+//    println(source)
+
+        val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,newLambda, data, stencilarrOther3D)
+        if(StencilUtilities.printOutput)
+        {
+            StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
+        }
+
+        assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
+}
+
 }
 
 
