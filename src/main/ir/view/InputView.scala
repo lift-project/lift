@@ -78,6 +78,7 @@ object InputView {
       case h: Head => buildViewHead(call, argView)
       case h: Tail => buildViewTail(call, argView)
       case uaa: UnsafeArrayAccess => buildViewUnsafeArrayAccess(uaa, call, argView)
+      case ca: CheckedArrayAccess => buildViewCheckedArrayAccess(ca, call, argView)
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case ArrayAccess(i) => argView.access(i)
@@ -271,6 +272,13 @@ object InputView {
    // visit the index
    visitAndBuildViews(a.index)
    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+  }
+
+  private def buildViewCheckedArrayAccess(a: CheckedArrayAccess, call: FunCall, argView: View) : View = {
+    // visit the index
+    visitAndBuildViews(a.index)
+//    visitAndBuildViews(a.default)
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
   private def buildViewPad(left: Int, right: Int, boundary: Pad.BoundaryFun, argView: View) : View = {
