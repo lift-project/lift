@@ -1124,7 +1124,7 @@ class OpenCLGenerator extends Generator {
     privateDecls += (sSP.windowVar -> varD)
     (block: Block) += varD
 
-    var accesses: Array[Int] = Array.fill(nDim)(0)
+    var accesses: Array[Int] = Array.fill(nDim)(0) // cannot do a direct access-on-access because the ordering is wrong
 
     def getView(v: View, accesses: Array[Int]): View = {
       var viewReturn = v
@@ -1134,7 +1134,7 @@ class OpenCLGenerator extends Generator {
       viewReturn
     }
 
-    // where initial window values are set
+    // initial window values are set
     def setupInitialWindowVars(idx: Int, n: Int, accesses: Array[Int]): Unit = n match {
       case 1 => for (j <- 0 to reuse.eval - 1) {
          accesses(n - 1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, getView(call.args.head.view, accesses)))
@@ -1193,8 +1193,7 @@ class OpenCLGenerator extends Generator {
       var idxToAdd : ArithExpr = 0
       for(i <- 0 to accesses.length-1)
       {
-        if(i == 0) { idxToAdd = (idx*step.eval) }
-        else { idxToAdd = 0}
+        idxToAdd = if (i==0) { (idx*step.eval) } else { 0 }
         viewReturn = viewReturn.access(accesses(i)+idxToAdd)
       }
       viewReturn
@@ -1212,7 +1211,6 @@ class OpenCLGenerator extends Generator {
     }
 
     updateWindowVars(0,nDim, accesses)
-
     generateBody(innerBlock)
 
     // window values are swapped at the end of the loop
@@ -1225,6 +1223,7 @@ class OpenCLGenerator extends Generator {
     }
 
     swapWindowVars(0,nDim)
+
   }
 
   private def generateForLoop(block: Block,
