@@ -97,7 +97,7 @@ object OpenCLGenerator extends Generator {
   }
 
   def getOriginalType(mem: OpenCLMemory,
-                      varDecls: immutable.Map[Var, Type]): Type = {
+     varDecls: immutable.Map[Var, Type]): Type = {
 
     try {
       varDecls(mem.variable)
@@ -110,13 +110,12 @@ object OpenCLGenerator extends Generator {
   }
 
   private[generator] def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
-    mem =>
-      try {
-        mem.mem.size.eval
-        mem.mem.addressSpace == LocalMemory
-      } catch {
-        case NotEvaluableException() => false
-      }
+    mem => try {
+      mem.mem.size.eval
+      mem.mem.addressSpace == LocalMemory
+    } catch {
+      case NotEvaluableException() => false
+    }
   }
 }
 
@@ -146,7 +145,7 @@ class OpenCLGenerator extends Generator {
     }, (_: Expr) => {})
   }
 
-  def generate(f: Lambda): String = {
+  def generate(f: Lambda): String  = {
     generate(f, NDRange(?, ?, ?))
   }
 
@@ -155,7 +154,7 @@ class OpenCLGenerator extends Generator {
   }
 
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
-               valueMap: collection.Map[ArithExpr, ArithExpr]): String = {
+                valueMap: collection.Map[ArithExpr, ArithExpr]): String = {
 
     this.localSize = localSize
 
@@ -627,16 +626,13 @@ class OpenCLGenerator extends Generator {
   private def generateFilterSeqCall(f: FilterSeq,
                                     call: FunCall,
                                     block: Block): Unit = {
-
     (block: Block) += OpenCLAST.Comment("filter_seq")
-
     // Declare the index for the output array as a local variable
     (block: Block) += OpenCLAST.VarDecl(
       f.loopWrite,
       opencl.ir.Int,
       ArithExpression(Cst(0))
     )
-
     // If the predicate returns true:
     def copyAndIncrementIndex(block: Block): Unit = {
       // 1. Store the input value at "the top" of the output array
@@ -646,12 +642,12 @@ class OpenCLGenerator extends Generator {
         ArithExpression(f.loopWrite),
         ArithExpression(
           f.loopWrite
-            + f.loopWrite.range.asInstanceOf[RangeAdd].step)
+          + f.loopWrite.range.asInstanceOf[RangeAdd].step)
       )
     }
 
     def generateBody(block: Block): Unit = {
-      generate(f.f.body, block) // Evaluates the predicate
+      generate(f.f.body, block)  // Evaluates the predicate
       generateConditional(
         block,
         generateLoadNode(
@@ -663,9 +659,7 @@ class OpenCLGenerator extends Generator {
         _ => ()
       )
     }
-
     generateForLoop(block, call.args.head, f.loopRead, generateBody)
-
     (block: Block) += OpenCLAST.Comment("end filter_seq")
   }
 
@@ -694,14 +688,14 @@ class OpenCLGenerator extends Generator {
   // === ReduceWhile ===
   private def generateReduceWhileCall(r: ReduceWhileSeq,
                                       call: FunCall,
-                                      block: Block): Unit = {
+                                      block: Block) : Unit = {
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.Comment("reduce_while_seq")
 
     // get the memory address of the predicate result
     val pResMem = generateLoadNode(OpenCLMemory.asOpenCLMemory(r.pmem), r.p.body.t, r.p.body.view)
 
-    val generateBody = (ib: Block) => {
+    val generateBody = (ib: Block) =>  {
       // generate the Predicate
       generate(r.p.body, ib)
       // generate the access and break
@@ -895,7 +889,7 @@ class OpenCLGenerator extends Generator {
     val loadIndex = generateLoadNode(clIndexMem, index.t, index.view)
 
     val indexVar = Var("index")
-    (block: Block) += OpenCLAST.VarDecl(indexVar, Int, init = loadIndex)
+    (block: Block) += OpenCLAST.VarDecl(indexVar, Int, init=loadIndex)
 
     val inArr = call.args(0)
     val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
@@ -1393,7 +1387,7 @@ class OpenCLGenerator extends Generator {
       AssignmentExpression(
         ArithExpression(indexVar), ArithExpression(indexVar + range.step))
 
-    val innerBlock = OpenCLAST.Block(Vector.empty)
+    val innerBlock  = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.ForLoop(init, ExpressionStatement(cond), increment, innerBlock)
 
     // shift index by header length
@@ -1413,7 +1407,7 @@ class OpenCLGenerator extends Generator {
     val range = getRangeAdd(indexVar)
     val ty = array.t.asInstanceOf[ArrayType]
 
-    val innerBlock = OpenCLAST.Block(Vector.empty)
+    val innerBlock  = OpenCLAST.Block(Vector.empty)
 
     val start = ArithExpression(range.start)
     // TODO: should it be in RangesAndCount instead?
@@ -1423,17 +1417,13 @@ class OpenCLGenerator extends Generator {
         ViewPrinter.emit(array.mem.variable, array.view.size())
     }
     val init = VarDecl(indexVar, Int, start, PrivateMemory)
-
     val increment = AssignmentExpression(
       ArithExpression(indexVar), ArithExpression(indexVar + range.step)
     )
-
     val cond = CondExpression(
       ArithExpression(indexVar), stop, CondExpression.Operator.<
     )
-
     (block: Block) += OpenCLAST.ForLoop(init, cond, increment, innerBlock)
-
     generateBody(innerBlock)
   }
 
@@ -1465,9 +1455,9 @@ class OpenCLGenerator extends Generator {
   }
 
   private def generateConditional(block: Block,
-                                  condition: Expression,
-                                  genTrueBranch: (Block) => Unit,
-                                  genFalseBranch: (Block) => Unit): Unit = {
+                                      condition: Expression,
+                                      genTrueBranch: (Block) => Unit,
+                                      genFalseBranch: (Block) => Unit): Unit = {
     val trueBlock = OpenCLAST.Block(Vector.empty)
     val falseBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.IfThenElse(condition, trueBody = trueBlock, falseBody = falseBlock)
@@ -1694,7 +1684,6 @@ class OpenCLGenerator extends Generator {
                     else // Workaround for values
                       ""
                   OpenCLAST.VarRef(mem.variable, suffix = arraySuffix + suffix)
-
                 case UndefAddressSpace | AddressSpaceCollection(_) =>
                   throw new IllegalArgumentException(s"Cannot load data from ${mem.addressSpace}")
               }
