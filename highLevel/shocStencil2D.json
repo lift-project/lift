@@ -48,9 +48,9 @@
 
   "search_parameters" : {
     "default_input_size" : 8194,
-    "min_work_items" : 128,
-    "max_work_items" : 1024,
-    "min_grid_size" : 4,
+    "min_local_size" : 128,
+    "max_local_size" : 1024,
+    "min_global_size" : 4,
     "max_private_memory" : 1024,
     "max_local_memory" : 65536,
     "min_workgroups" : 8,
