@@ -52,26 +52,27 @@ object ParameterRewrite {
       s
   }
 
-  protected[exploration] val exploreNDRange = parser.flag[Boolean](List("e", "exploreNDRange"),
-    "Additionally explore global and local sizes")
-
-  protected[exploration] val sampleNDRange = parser.option[Int](List("sampleNDRange"), "n",
-    "Randomly sample n combinations of global and local sizes (requires 'explore')")
-
-  protected[exploration] val disableNDRangeInjection = parser.flag[Boolean](List("disableNDRangeInjection"),
-    "Don't inject NDRanges while compiling the OpenCL Kernel")
-
-  protected[exploration] val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
-    "Don't execute in parallel.")
-
-  protected[exploration] val generateScala = parser.flag[Boolean](List("generate-scala"),
-    "Generate lambdas in Scala as well as in OpenCL")
-
   private[exploration] val defaultExploreNDRange = false
   private[exploration] val defaultSampleNDRange = -1
   private[exploration] val defaultDisableNDRangeInjection = false
   private[exploration] val defaultSequential = false
   private[exploration] val defaultGenerateScala = false
+
+  protected[exploration] val exploreNDRange = parser.flag[Boolean](List("e", "exploreNDRange"),
+    s"Explore global and local sizes instead of inferring (default: $defaultExploreNDRange)")
+
+  protected[exploration] val sampleNDRange = parser.option[Int](List("sampleNDRange"), "n",
+    s"Randomly sample n combinations of global and local sizes (requires 'explore') (default: $defaultSampleNDRange)")
+
+  protected[exploration] val disableNDRangeInjection = parser.flag[Boolean](List("disableNDRangeInjection"),
+    s"Don't inject NDRanges while compiling the OpenCL Kernel (default: $defaultDisableNDRangeInjection)")
+
+  protected[exploration] val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
+    s"Don't execute in parallel (default: $defaultSequential)")
+
+  protected[exploration] val generateScala = parser.flag[Boolean](List("generate-scala"),
+    s"Generate lambdas in Scala as well as in OpenCL (default: $defaultGenerateScala)")
+
 
   private val settingsFile = parser.option[String](List("f", "file"), "name",
     "The settings file to use."
@@ -227,7 +228,7 @@ object ParameterRewrite {
                         logger.warn(low_level_hash)
                         logger.warn(params.mkString("; "))
                         logger.warn(low_level_str)
-                        logger.warn(settings.searchParameters.defaultSize.toString)
+                        logger.warn(settings.searchParameters.defaultInputSize.toString)
                         None
                     }
                   }).flatten
@@ -293,7 +294,7 @@ object ParameterRewrite {
     val vars = lambda.getVarsInParams()
 
     val actualSizes: Seq[ArithExpr] =
-      if (sizes.isEmpty) Seq.fill(vars.length)(settings.searchParameters.defaultSize)
+      if (sizes.isEmpty) Seq.fill(vars.length)(settings.searchParameters.defaultInputSize)
       else sizes
 
     (vars, actualSizes).zipped.toMap

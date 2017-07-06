@@ -208,19 +208,19 @@ object SearchParameters {
   def createDefault = createWithDefaults(None, None, None, None, None, None, None, None)
 
   def createWithDefaults(
-    defaultSize: Option[Int],
-    minWorkItems: Option[Int],
-    maxWorkItems: Option[Int],
-    minGridSize: Option[Int],
-    maxPrivateMemory: Option[Int],
-    maxLocalMemory: Option[Int],
-    minWorkgroups: Option[Int],
-    maxWorkgroups: Option[Int]
+                          defaultInputSize: Option[Int],
+                          minLocalSize: Option[Int],
+                          maxLocalSize: Option[Int],
+                          minGlobalSize: Option[Int],
+                          maxPrivateMemory: Option[Int],
+                          maxLocalMemory: Option[Int],
+                          minWorkgroups: Option[Int],
+                          maxWorkgroups: Option[Int]
   ) = SearchParameters(
-    defaultSize.getOrElse(default_size),
-    minWorkItems.getOrElse(min_work_items),
-    maxWorkItems.getOrElse(max_work_items),
-    minGridSize.getOrElse(min_grid_size),
+    defaultInputSize.getOrElse(default_input_size),
+    minLocalSize.getOrElse(min_local_size),
+    maxLocalSize.getOrElse(max_local_size),
+    minGlobalSize.getOrElse(min_global_size),
     maxPrivateMemory.getOrElse(max_private_memory),
     maxLocalMemory.getOrElse(max_local_memory),
     minWorkgroups.getOrElse(min_workgroups),
@@ -230,14 +230,14 @@ object SearchParameters {
 }
 
 case class SearchParameters(
-  defaultSize: Int,
-  minWorkItems: Int,
-  maxWorkItems: Int,
-  minGridSize: Int,
-  maxPrivateMemory: Int,
-  maxLocalMemory: Int,
-  minWorkgroups: Int,
-  maxWorkgroups: Int
+                             defaultInputSize: Int,
+                             minLocalSize: Int,
+                             maxLocalSize: Int,
+                             minGlobalSize: Int,
+                             maxPrivateMemory: Int,
+                             maxLocalMemory: Int,
+                             minWorkgroups: Int,
+                             maxWorkgroups: Int
 )
 
 case class Settings(
@@ -270,10 +270,10 @@ object ParseSettings {
     JsPath.read[Long].map(Cst)
 
   private[exploration] implicit val parametersReads: Reads[SearchParameters] = (
-    (JsPath \ "default_size").readNullable[Int] and
-    (JsPath \ "min_work_items").readNullable[Int] and
-    (JsPath \ "max_work_items").readNullable[Int] and
-    (JsPath \ "min_grid_size").readNullable[Int] and
+    (JsPath \ "default_input_size").readNullable[Int] and
+    (JsPath \ "min_local_size").readNullable[Int] and
+    (JsPath \ "max_local_size").readNullable[Int] and
+    (JsPath \ "min_global_size").readNullable[Int] and
     (JsPath \ "max_private_memory").readNullable[Int] and
     (JsPath \ "max_local_memory").readNullable[Int] and
     (JsPath \ "min_workgroups").readNullable[Int] and
