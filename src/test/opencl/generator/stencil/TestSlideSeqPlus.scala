@@ -593,11 +593,11 @@ class TestSlideSeqPlus
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }), a,b)) o  Transpose() $ x
-        })) o Slide(3,1)  $ input
+        })) o Slide(a,b)  $ input
     )
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values, StencilUtilities.weightsArr)
-    val (gold: Array[Float], _) = Execute(2,2)(original2DWeightStencil(slidesize,slidestep), values, StencilUtilities.weightsArr)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(stencil2DR(slidesize,slidestep), values, StencilUtilities.weightsArr)
+    val (gold: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(original2DWeightStencil(slidesize,slidestep), values, StencilUtilities.weightsArr)
 
     assertArrayEquals(gold, output, 0.1f)
 
