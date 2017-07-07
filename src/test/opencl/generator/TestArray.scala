@@ -60,8 +60,8 @@ class TestArray {
     * and not a constant.
     */
   @Test def unknownSizeMap(): Unit = {
-    val capacity = 128
-    val size = 87
+    val capacity = 1024
+    val size = 879
 
     val bInput = Array.fill(size)(util.Random.nextBoolean())
     val iInput = Array.fill(size)(util.Random.nextInt())

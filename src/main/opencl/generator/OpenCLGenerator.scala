@@ -429,21 +429,17 @@ class OpenCLGenerator extends Generator {
           }
           // If the size of the input array is not known in the type, it is not
           // in the type of the output array either. Therefore, we have to copy
-          // it from the input's to the output.
+          // it from the input's header to the output's header.
           call.t match {
             case ArrayTypeWS(_, _) =>
             case _ =>
-              val size = Var("size")
-              (block: Block) += VarDecl(
-                size, Int,
-                getArraySize(
-                  OpenCLMemory.asOpenCLMemory(call.args.head.mem),
-                  call.args.head.view.size()
-                )
+              val sizeView = call.args.head.view.size()
+              (block: Block) += AssignmentExpression(
+                to = accessNode(call.mem.variable, call.addressSpace, sizeView),
+                value = getArraySize(OpenCLMemory.asOpenCLMemory(call.args.head.mem), sizeView)
               )
-              (block: Block) += storeArraySize(call.t, call.mem, call.args.head.view.size(), size)
           }
-          
+
         case f: FilterSeq => generateFilterSeqCall(f, call, block)
 
         case r: ReduceSeq => generateReduceSeqCall(r, call, block)
@@ -1440,7 +1436,7 @@ class OpenCLGenerator extends Generator {
           else (bt, Cast(VarRef(size), bt))
       }
     }
-    
+
     val (baseType, castedSize) = castSize(ty)
     generateStoreNode(
       OpenCLMemory.asOpenCLMemory(mem),
