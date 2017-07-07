@@ -471,9 +471,9 @@ class TestAcousticActualRoom {
                 toPrivate(subtractTuple) $ Tuple(
                   toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
                   toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
-            }),size,step)) $ inp
+            }),size,step)) /*o Transpose() o Map(Transpose()) */ $ inp
           })
-        )) o Transpose() o Map(Transpose()) $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+        )) $ Zip3D(mat1, Map(Map(Map(Transpose()))) o Map(Map(Map(Map(Transpose())))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
       })
 
     val newLambda = SimplifyAndFuse(lambdaNeighAt)
