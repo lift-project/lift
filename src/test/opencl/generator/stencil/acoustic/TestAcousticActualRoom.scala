@@ -389,8 +389,7 @@ class TestAcousticActualRoom {
                 toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
                 toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
 
-        })))
-        ) $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+        })))) $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
       })
 
     val newLambda = SimplifyAndFuse(lambdaNeighAt)
@@ -412,6 +411,9 @@ class TestAcousticActualRoom {
   def roomCodeUsingSlideSeqPlus(): Unit = {
 
     val compareData = AcousticComparisonArrays.test3DAsymMaskStencilComparisonData8x6x10
+
+    val size = 3
+    val step =1
 
     val localDimX = 8
     val localDimY = 6
@@ -438,39 +440,40 @@ class TestAcousticActualRoom {
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2), n+2), o+2),
       (mat1, mat2) => {
-        (MapGlb(1)(MapGlb(0)(fun(m => {
-          toGlobal(SlideSeqPlus(fun(neighbours => {
+        MapGlb(1)(MapGlb(0)(
+          fun(inp => {
+          toGlobal(SlideSeqPlus(fun( m => {
 
-            val cf = toPrivate(fun(x => getCF(x, RoomConstants.cf(0), RoomConstants.cf(1)))) $ Get(m, 2)
-            val cf2 = toPrivate(fun(x => getCF(x, RoomConstants.cf2(0), RoomConstants.cf2(1)))) $ Get(m, 2)
+            val cf = toPrivate( fun(x => getCF(x,RoomConstants.cf(0), RoomConstants.cf(1))) ) $ Get(m,2)
+            val cf2 = toPrivate( fun(x => getCF(x,RoomConstants.cf2(0), RoomConstants.cf2(1))) ) $ Get(m,2)
             val maskedValStencil = RoomConstants.l2
 
-            val `tile[1][1][1]` = Get(m, 1).at(1).at(1).at(1)
+            val `tile[1][1][1]` = Get(m,1).at(1).at(1).at(1)
 
-            val `tile[0][1][1]` = Get(m, 1).at(0).at(1).at(1)
-            val `tile[1][0][1]` = Get(m, 1).at(1).at(0).at(1)
-            val `tile[1][1][0]` = Get(m, 1).at(1).at(1).at(0)
-            val `tile[1][1][2]` = Get(m, 1).at(1).at(1).at(2)
-            val `tile[1][2][1]` = Get(m, 1).at(1).at(2).at(1)
-            val `tile[2][1][1]` = Get(m, 1).at(2).at(1).at(1)
+            val `tile[0][1][1]` = Get(m,1).at(0).at(1).at(1)
+            val `tile[1][0][1]` = Get(m,1).at(1).at(0).at(1)
+            val `tile[1][1][0]` = Get(m,1).at(1).at(1).at(0)
+            val `tile[1][1][2]` = Get(m,1).at(1).at(1).at(2)
+            val `tile[1][2][1]` = Get(m,1).at(1).at(2).at(1)
+            val `tile[2][1][1]` = Get(m,1).at(2).at(1).at(1)
 
-            val stencil = toPrivate(fun(x => add(x, `tile[0][1][1]`))) o
-              toPrivate(fun(x => add(x, `tile[1][0][1]`))) o
-              toPrivate(fun(x => add(x, `tile[1][1][0]`))) o
-              toPrivate(fun(x => add(x, `tile[1][1][2]`))) o
-              toPrivate(fun(x => add(x, `tile[1][2][1]`))) $ `tile[2][1][1]`
+            val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
+              toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+              toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
 
-            val valueMat1 = Get(m, 0)
-            val valueMask = toPrivate(BoundaryUtilities.idIF) $ Get(m, 2)
+            val valueMat1 = Get(m,0)
+            val valueMask = toPrivate(BoundaryUtilities.idIF) $ Get(m,2)
 
-            toGlobal(id) o toPrivate(fun(x => mult(x, cf))) o toPrivate(addTuple) $
-              Tuple(toPrivate(multTuple) $ Tuple(toPrivate(fun(x => subtract(2.0f, x))) o toPrivate(fun(x => mult(x, RoomConstants.l2))) $ valueMask, `tile[1][1][1]`),
+            toGlobal(id) o toPrivate(fun( x => mult(x,cf))) o toPrivate(addTuple) $
+              Tuple(toPrivate(multTuple) $ Tuple(toPrivate(fun(x => subtract(2.0f,x))) o toPrivate(fun(x => mult(x,RoomConstants.l2))) $ valueMask, `tile[1][1][1]`),
                 toPrivate(subtractTuple) $ Tuple(
                   toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
-                  toPrivate(fun(x => mult(x, cf2))) $ valueMat1))
-          },StencilUtilities.slidesize,StencilUtilities.slidestep)
-          ))})))
-        ) $ Zip3D(mat1, Transpose() o Map(Transpose()) o Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+                  toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
+            }),size,step)) $ inp
+          })
+        )) o Transpose() o Map(Transpose()) $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
       })
 
     val newLambda = SimplifyAndFuse(lambdaNeighAt)
