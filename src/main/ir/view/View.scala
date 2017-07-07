@@ -894,7 +894,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
         // we should only look at one component. Otherwise, it's a struct.
         case tt: TupleType =>
           if (tupleAccessStack.isEmpty)
-            Type.getAllocatedSize(tt)
+            tt.alignment._1
           else getLengthForArrayAccess(
             tt.proj(tupleAccessStack.head),
             tupleAccessStack.tail
