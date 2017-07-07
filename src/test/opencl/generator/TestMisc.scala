@@ -1101,36 +1101,92 @@ class TestMisc {
     val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
     OpenCLGenerator.generate(expr, local, globalSubstituted, valueMap)
   }
-  
+
+  /**
+   * The executor can handle tuples that are not homogeneous in type
+   */
+  @Test
+  def issue102IntFloat(): Unit = {
+    val size = 128
+    val N = SizeVar("N")
+    val left = Array.fill(size)(util.Random.nextInt())
+    val right = Array.fill(size)(util.Random.nextFloat())
+
+    val tuple_id = UserFun(
+      "tuple_id", "x", "return x;", TupleType(Int, Float), TupleType(Int, Float)
+    )
+
+    val intFloatZip = fun(
+      ArrayType(Int, N),
+      ArrayType(Float, N),
+      MapGlb(toGlobal(tuple_id)) $ Zip(_, _)
+    )
+
+    val exec = Execute(128)
+    val (output, _) = exec[Vector[(Int, Float)]](intFloatZip, left, right)
+
+    val (outputLeft, outputRight) = output.unzip
+    assertArrayEquals(left, outputLeft.toArray)
+    assertArrayEquals(right, outputRight.toArray, 0.0f)
+  }
+
+  /**
+   * The executor can handle tuples of tuples
+   */
+  @Test
+  def issue102TupleOfTuple(): Unit = {
+    Assume.assumeTrue("Needs double support", Executor.supportsDouble())
+
+    val size = 128
+    val inputA = Array.fill(size)(util.Random.nextDouble())
+    val inputB = Array.fill(size)(util.Random.nextBoolean())
+    val inputC = Array.fill(size)(util.Random.nextInt())
+    val outType = TupleType(TupleType(Double, Bool), Int)
+
+    val kernel = fun(
+      ArrayTypeWSWC(Double, size),
+      ArrayTypeWSWC(Bool, size),
+      ArrayTypeWSWC(Int, size),
+      (a, b, c) => MapGlb(toGlobal(id(outType))) $ Zip(Zip(a, b), c)
+    )
+
+    val exec = Execute(128)
+    val (output, _) = exec[Vector[((Double, Boolean), Int)]](kernel, inputA, inputB, inputC)
+    val (outA, outB, outC) = output.map({ case ((a, b), c) => (a, b, c) }).unzip3
+    assertArrayEquals(inputA, outA.toArray, 0d)
+    assertEquals(inputB.toVector, outB)
+    assertArrayEquals(inputC, outC.toArray)
+  }
+
   @Test def issue104(): Unit = {
     val size = 128
     val N = SizeVar("N")
     val input = Array.fill(size, 4)(util.Random.nextInt(5))
-  
+
     val flatten = UserFun(
       "flatten", "t",
       "Tuple1 t2 = {t._0._0, t._0._1, t._0._2, t._1}; return t2;",
       TupleType(TupleType(Int, Int, Int), Int), TupleType(Int, Int, Int, Int)
     )
-  
+
     val reshape2 = UserFun(
       "reshape2", "x",
       "Tuple1 t = {{x._0._0, x._0._1, x._1}, x._2}; return t;",
       TupleType(TupleType(Int, Int), Int, Int),
       TupleType(TupleType(Int, Int, Int), Int)
     )
-  
+
     val reshape1 = UserFun(
       "reshape1", Array("a", "b", "c", "d"),
       "Tuple t = {{a, b}, c, d}; return t;",
       Seq(Int, Int, Int, Int), TupleType(TupleType(Int, Int), Int, Int)
     )
-  
+
     val expr = fun(
       ArrayTypeWSWC(TupleType(Int, Int, Int, Int), N),
       arr => MapGlb(toGlobal(flatten) o reshape2 o reshape1) $ arr
     )
-  
+
     val (output: Array[Int], _) = ExecuteOld(size)(expr, input.flatten)
     assertArrayEquals(input.flatten, output)
   }

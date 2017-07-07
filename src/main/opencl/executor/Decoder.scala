@@ -63,7 +63,7 @@ object Decoder {
         val (baseSize, _) = tt.alignment
         (decodeTupleElt(baseSize, t1, buffer)(a1), decodeTupleElt(baseSize, t2, buffer)(a2), decodeTupleElt(baseSize, t3, buffer)(a3), decodeTupleElt(baseSize, t4, buffer)(a4))
 
-      case _ => throw new IllegalArgumentException()
+      case _ => throw new IllegalArgumentException(s"$hint and $ty are not compatible")
     }
   }
   
