@@ -4,27 +4,16 @@ import java.nio.ByteBuffer
 
 import ir._
 import lift.arithmetic.ArithExpr
+import opencl.generator.AlignArrays
 import opencl.ir.{Bool, Double, Float, Int}
 
-object Decoder {
-  import DecodeTypes._
-  private lazy val sizeOfInt = Int.size.evalInt
 
-  /**
-   * Public interface for building a typed value out of a byte buffer.
-   * Only specify the expected type as `T` and Scala will infer a `DecodeType[T]`
-   * instance to help the `Decoder` to keep track of the types of the produced
-   * values all along the way. See `DecodeTypes` below for the list of supported
-   * types.
-   *
-   * @param ty the Lift type of the value to decode
-   * @param buffer a byte buffer, typically return by the Executor
-   * @return a value of the expected type
-   */
-  def decode[T](ty: Type, buffer: ByteBuffer)(implicit hint: DecodeType[T]): T = {
-    buffer.position(0)
-    decodeAny(ty, buffer)(hint)
-  }
+class Decoder(mainType: Type) {
+  import Decoder.DecodeTypes._
+
+  private lazy val sizeOfInt = if (AlignArrays())
+    Type.getAllocatedSize(Type.getBaseType(mainType)).eval
+  else Int.size.eval
 
   /**
    * Main function: decode any supported type.
@@ -66,7 +55,7 @@ object Decoder {
       case _ => throw new IllegalArgumentException(s"$hint and $ty are not compatible")
     }
   }
-  
+
   /**
    * Helper function to decode an component of a tuple.
    *
@@ -116,7 +105,7 @@ object Decoder {
         vec
     }
   }
-  
+
   /**
    * Decode or read from the type the "header" information, namely the size and
    * the capacity of the array.
@@ -127,18 +116,52 @@ object Decoder {
       case sc: Size with Capacity =>
         (sc.capacity.evalInt, sc.size.evalInt)
       case s: Size => (
-        buffer.getInt(before + ty.capacityIndex * sizeOfInt),
+        decodeHeaderValue(before + ty.capacityIndex * sizeOfInt, buffer),
         s.size.evalInt
       )
       case c: Capacity => (
         c.capacity.evalInt,
-        buffer.getInt(before + ty.sizeIndex * sizeOfInt)
+        decodeHeaderValue(before + ty.sizeIndex * sizeOfInt, buffer)
       )
       case _ => (
-       buffer.getInt(before + ty.capacityIndex * sizeOfInt),
-       buffer.getInt(before + ty.sizeIndex * sizeOfInt)
-     )
-   }
+        decodeHeaderValue(before + ty.capacityIndex * sizeOfInt, buffer),
+        decodeHeaderValue(before + ty.sizeIndex * sizeOfInt, buffer)
+      )
+    }
+  }
+
+  /**
+   * Read an integer-like value at position `idx` depending of the expected
+   * size and cast it to a Scala `Int`
+   */
+  private def decodeHeaderValue(idx: Int, buffer: ByteBuffer): Int = {
+    sizeOfInt match {
+      case 1 => buffer.get(idx).toInt
+      case 4 => buffer.getInt(idx)
+      case 8 => buffer.getLong(idx).toInt // Hum…
+      case _ => throw new NotImplementedError()
+    }
+  }
+}
+
+object Decoder {
+  import DecodeTypes._
+
+  /**
+   * Public interface for building a typed value out of a byte buffer.
+   * Only specify the expected type as `T` and Scala will infer a `DecodeType[T]`
+   * instance to help the `Decoder` to keep track of the types of the produced
+   * values all along the way. See `DecodeTypes` below for the list of supported
+   * types.
+   *
+   * @param ty the Lift type of the value to decode
+   * @param buffer a byte buffer, typically return by the Executor
+   * @return a value of the expected type
+   */
+  def decode[T](ty: Type, buffer: ByteBuffer)(implicit hint: DecodeType[T]): T = {
+    buffer.position(0)
+    val decoder = new Decoder(ty)
+    decoder.decodeAny(ty, buffer)(hint)
   }
 
   object DecodeTypes {

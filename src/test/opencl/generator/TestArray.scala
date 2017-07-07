@@ -3,7 +3,7 @@ package opencl.generator
 import ir.ast.{CheckedArrayAccess, Join, Zip, fun, _}
 import ir.{ArrayType, ArrayTypeWC, ArrayTypeWSWC, TypeChecker, _}
 import lift.arithmetic.{Cst, SizeVar}
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import org.junit.Assert.{assertArrayEquals, assertEquals}
@@ -11,26 +11,29 @@ import org.junit._
 
 
 object TestArray {
+  private var alignArray: Boolean = false
+
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
+
+    if (Utils.isNvidiaGPU) {
+      println("Align headers and content in arrays on nvidia")
+      alignArray = AlignArrays()
+      AlignArrays(true)
+    }
   }
 
   @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
-  }
 
-  def assertBoolArrayEquals(expected: Array[Boolean], actual: Array[Boolean]): Unit = {
-    def toByte(b: Boolean): Byte = (if (b) 1 else 0).toByte
-    assertArrayEquals(expected.map(toByte), actual.map(toByte))
+    if (Utils.isNvidiaGPU) AlignArrays(alignArray)
   }
 }
 
 class TestArray {
-  import TestArray.assertBoolArrayEquals
-
   /**
     * Size is not statically know but the capacity is.
     * The array is filled with integers so we don't need to store the offsets.
@@ -63,7 +66,6 @@ class TestArray {
     val capacity = 1024
     val size = 879
 
-    val bInput = Array.fill(size)(util.Random.nextBoolean())
     val iInput = Array.fill(size)(util.Random.nextInt())
     val fInput = Array.fill(size)(util.Random.nextFloat())
 
@@ -73,19 +75,31 @@ class TestArray {
     )
 
     val exec = Execute(128)
-    val (bOutput, _) = exec[Vector[Boolean]](mkMapId(Bool), bInput)
-    assertBoolArrayEquals(bInput, bOutput.toArray)
     val (iOutput, _) = exec[Vector[Int]](mkMapId(Int), iInput)
     assertArrayEquals(iInput, iOutput.toArray)
     val (fOutput, _) = exec[Vector[Float]](mkMapId(Float), fInput)
     assertArrayEquals(fInput, fOutput.toArray, 0f)
   }
 
+  @Test def unknownSizeMapBool(): Unit = {
+    val capacity = 128
+    val size = 87
+    val input = Array.fill(size)(util.Random.nextBoolean())
+
+    val mapId = fun(
+      ArrayTypeWC(Bool, capacity),
+      MapGlb(toGlobal(id(Bool))) $ _
+    )
+
+    val (bOutput, _) = Execute(128)[Vector[Boolean]](mapId, input)
+    assertEquals(input.toVector, bOutput)
+  }
+
   @Test def unknownSizeMapDouble(): Unit = {
     Assume.assumeTrue("Needs double support", Executor.supportsDouble())
 
-    val capacity = 128
-    val size = 87
+    val capacity = 1024
+    val size = 879
     val input = Array.fill(size)(util.Random.nextDouble())
 
     val mapId = fun(

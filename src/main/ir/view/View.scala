@@ -4,7 +4,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic._
 import opencl.generator.OpenCLAST.{ArithExpression, Expression, VarRef}
-import opencl.generator.{OpenCLAST, OpenCLPrinter}
+import opencl.generator.{AlignArrays, OpenCLAST, OpenCLPrinter}
 import opencl.ir.{AddressSpaceCollection, Bool, Int, OpenCLAddressSpace, PrivateMemory, UndefAddressSpace}
 
 import scala.collection.immutable
@@ -698,29 +698,31 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
    * Because arrays are "unrolled" in private memory, we have two different
    * implementation of this process. However the main structure of the algorithm
    * is the same in both case and has been factorized in the `GenerateAccess`
-   * abstract class below whereas the two following traits (`InPrivateMemory`
-   * and `InGlobalMemory`) provide the specific implementation of both cases.
+   * abstract class below whereas the two following traits (`Aligned`
+   * and `PointerCasts`) provide the specific implementation of both cases.
    */
+  // TODO: mention nvidia in there ^
 
   def aggregateAccesses(mainVar: Var, mainTy: Type,
                         arrayAccessStack: List[ArithExpr],
                         tupleAccessStack: List[Int]): VarRef = {
-    addressSpace match {
-      case PrivateMemory =>
-        val g = new GenerateAccess(mainVar, mainTy, tupleAccessStack) with InPrivateMemory
-        g.generate(0, arrayAccessStack)
-      case _ =>
-        val g = new GenerateAccess(mainVar, mainTy, tupleAccessStack) with InGlobalMemory
-        g.generate((mainVar, Cst(0)), arrayAccessStack)
+    if (addressSpace == PrivateMemory || AlignArrays()) {
+      val g = new GenerateAccess(mainVar, mainTy, tupleAccessStack) with Aligned
+      g.generate(0, arrayAccessStack)
+    } else {
+      val g = new GenerateAccess(mainVar, mainTy, tupleAccessStack) with PointerCasts
+      g.generate((mainVar, Cst(0)), arrayAccessStack)
     }
   }
 
   /** Boilerplate for private and global/local memory accesses */
   abstract private class GenerateAccess(val mainVar: Var, val mainTy: Type, val initTas: List[Int]) {
     /**
+     * They have to be overridden
+     *
      * - We produce either a pair (var, index) or a simple index. This is what
      *   `Accumulator` represents.
-     * - The `getXXX` methods explain how to perform two different kind of
+     * - The two `getXXX` methods explain how to perform two different kind of
      *   accesses: get the size from the header and get an element.
      * - `finalize` produces an `ArrayAccess` from the accumulator.
      */
@@ -771,30 +773,105 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
         }
       }
     }
+
+    /** Some shorthand available in the mixins */
+    private lazy val bTAndAS = getBaseTypeAndAddressSpace(mainTy, initTas, addressSpace)
+    val baseType: Type = bTAndAS._1
+    val baseAddressSpace: OpenCLAddressSpace = bTAndAS._2
+    lazy val baseSize: ArithExpr = Type.getAllocatedSize(baseType)
+
+    /**
+     * Get the type and the address space of the elements of the actual C array
+     * we are reading from. We have to project the the components of the tuples
+     * that come from views.
+     *
+     * @param tupleAccessStack list of tuple indices used all along the way to
+     *                         choose what component of tuples should be
+     *                         considered.
+     * @param addressSpace address space(s) where the value(s) is (are) stored.
+     *                     Might be an address space collection that we want to
+     *                     project.
+     */
+    private def getBaseTypeAndAddressSpace(ty: Type, tupleAccessStack: List[Int],
+                                           addressSpace: OpenCLAddressSpace): (Type, OpenCLAddressSpace) = {
+      if (tupleAccessStack.isEmpty) (Type.getBaseScalarType(ty), addressSpace)
+      else (ty, addressSpace) match {
+        case (tt: TupleType, AddressSpaceCollection(coll)) =>
+          val i :: tas = tupleAccessStack
+          getBaseTypeAndAddressSpace(tt.proj(i), tas, coll(i))
+        case (ArrayType(elemT), _) =>
+          getBaseTypeAndAddressSpace(elemT, tupleAccessStack, addressSpace)
+        case _ => throw new IllegalAccess(ty, addressSpace)
+      }
+    }
+
+    /**
+     * Look for size and capacity information: return true iff at least one of them is missing.
+     */
+    def storesHeadersOrOffsets(ty: Type, tupleAccessStack: List[Int]): Boolean = {
+      ty match {
+        case tt: TupleType =>
+          if (tupleAccessStack.isEmpty) false
+          else storesHeadersOrOffsets(
+            tt.proj(tupleAccessStack.head),
+            tupleAccessStack.tail
+          )
+        case at: ArrayType =>
+          if (at.headerSize == 0 && at.elemT.hasFixedAllocatedSize)
+            storesHeadersOrOffsets(at.elemT, tupleAccessStack)
+          else true
+        case _: ScalarType | _: VectorType => false
+        case NoType | UndefType => throw new IllegalAccess(ty)
+      }
+    }
   }
 
   /**
-   * Accessing an array in private memory consists in choosing the right
-   * variable among `v__X_0`, `v__X_1`, `v__X_2`, …
+   * Arrays with aligned base elements: we compute an index `idx` that will be
+   * directly used to access the array like `mainVar[idx]`. The result will
+   * eventually be reinterpreted as an integer-like type by casting the
+   * `mainVar` pointer.
    */
-  private trait InPrivateMemory extends GenerateAccess {
+  private trait Aligned extends GenerateAccess {
     type Accumulator = ArithExpr // index
 
-    def getSize(acc: ArithExpr, at: ArrayType): Nothing = {
-      throw new IllegalView("An array in private memory must have a size and a capacity in the type")
+    private lazy val alignedIntType = Type.getIntegerTypeOfSize(baseSize.eval)
+    private lazy val storesHeadersOrOffsets: Boolean = storesHeadersOrOffsets(mainTy, initTas)
+
+    def getSize(acc: ArithExpr, at: ArrayType): ArithExpr = {
+      if (addressSpace == PrivateMemory)
+        throw new IllegalView("An array in private memory must have a size and a capacity in the type")
+      else
+        CastedPointer(mainVar, alignedIntType, acc + at.sizeIndex, addressSpace)
     }
 
     override def getElementAt(acc: ArithExpr, at: ArrayType, idx: ArithExpr,
-                     tupleAccessStack: List[Int]): ArithExpr = {
-      val hSize = at.headerSize
-      if (at.headerSize != 0 || !at.elemT.hasFixedAllocatedSize) {
+                              tupleAccessStack: List[Int]): ArithExpr = {
+      // Sanity check
+      if (addressSpace == PrivateMemory && storesHeadersOrOffsets) {
         throw new IllegalView("An array in private memory must have a size and a capacity in the type")
       }
-      val len = getLengthForArrayAccess(at.elemT, tupleAccessStack)
-      acc + hSize + idx * len
+
+      if (at.elemT.hasFixedAllocatedSize) {
+        // Just skip the header
+        val len = getLengthForArrayAccess(at.elemT, tupleAccessStack)
+        acc + at.headerSize + idx * len
+      } else {
+        // Perform an indirection. Do not reinterpret the value if it's not required.
+        val elementOffset = if (baseType == alignedIntType)
+          AccessVar(Right(mainVar), acc + at.headerSize + idx)
+        else
+          AccessVar(Right(CastedPointer(mainVar, alignedIntType, acc + at.headerSize, addressSpace)), idx)
+        acc + elementOffset / baseSize
+      }
     }
 
-    override def finalize(acc: ArithExpr): VarRef = VarRef(mainVar, arrayIndex = ArithExpression(acc))
+    override def finalize(acc: ArithExpr): VarRef = acc match {
+      case CastedPointer(v, ty, ofs, as) =>
+        VarRef(CastedPointer(v, ty, 0, as), arrayIndex = ArithExpression(ofs))
+      case _ =>
+        VarRef(mainVar, arrayIndex = ArithExpression(acc))
+    }
 
     /**
      * Get the number of elements contained in a type once we have projected
@@ -803,7 +880,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
      */
     private def getLengthForArrayAccess(ty: Type, tupleAccessStack: List[Int]): ArithExpr = {
       ty match {
-        case ScalarType(_, _) => 1
+        case ScalarType(_, size) => 1
         case VectorType(_, len) => len
         case at@ArrayTypeWC(elemT, capacity) =>
           at.headerSize + capacity * getLengthForArrayAccess(elemT, tupleAccessStack)
@@ -825,7 +902,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
    * We try to avoid pointer casts as much as possible to produce less
    * unreadable code.
    */
-  private trait InGlobalMemory extends GenerateAccess {
+  private trait PointerCasts extends GenerateAccess {
     /**
      * - The `Var` represents a pointer **always** of type `(baseType*)`
      * - The `ArithExpr` is an offset between the pointer and our "current"
@@ -833,11 +910,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
      */
     type Accumulator = (Var, ArithExpr)
 
-    lazy val sizeOfInt: ArithExpr = Int.size
-    private lazy val bTAndAS = getBaseTypeAndAddressSpace(mainTy, initTas, addressSpace)
-    val baseType: Type = bTAndAS._1
-    val baseSize: ArithExpr = Type.getAllocatedSize(baseType)
-    val baseAddressSpace: OpenCLAddressSpace = bTAndAS._2
+    private lazy val sizeOfInt = Int.size
 
     override def getSize(acc: (Var, ArithExpr), at: ArrayType): (Var, ArithExpr) = {
       val (v, offset) = acc
@@ -851,7 +924,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
     override def getElementAt(acc: (Var, ArithExpr), at: ArrayType, idx: ArithExpr,
                               tupleAccessStack: List[Int]): (Var, ArithExpr) = {
       val (v, offset) = acc
-      // `aligned` tell if all the BASE elements + potential headers are
+      // `aligned` here means that all the BASE elements + potential headers are
       // aligned on the same number of bytes.
       val aligned = !storesHeadersOrOffsets(at, tupleAccessStack) || sizeOfInt == baseSize
       if (at.elemT.hasFixedAllocatedSize) {
@@ -889,7 +962,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
         case ScalarType(_, size) => size
         case vt: VectorType => vt.len * vt.scalarT.size
         case at @ ArrayTypeWC(elemT, n) =>
-          Int.size * at.headerSize + n * getLengthForArrayAccess(elemT, tupleAccessStack)
+          sizeOfInt * at.headerSize + n * getLengthForArrayAccess(elemT, tupleAccessStack)
         // If tupleAccessStack is not empty, it means that the tuple comes from a view and
         // we should only look at one component. Otherwise, it's a struct.
         case tt: TupleType =>
@@ -901,48 +974,6 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
           )
         case _ =>
           throw new IllegalAccess(ty)
-      }
-    }
-
-    /**
-     * Get the type and the address space of the elements of the actual C array
-     * we are reading from. We have to project the the components of the tuples
-     * that come from views.
-     *
-     * @param tupleAccessStack list of tuple indices used all along the way to
-     *                         choose what component of tuples should be
-     *                         considered.
-     * @param addressSpace address space(s) where the value(s) is (are) stored.
-     *                     Might be an address space collection that we want to
-     *                     project.
-     */
-    private def getBaseTypeAndAddressSpace(ty: Type, tupleAccessStack: List[Int],
-                                           addressSpace: OpenCLAddressSpace): (Type, OpenCLAddressSpace) = {
-      if (tupleAccessStack.isEmpty) (Type.getBaseType(ty), addressSpace)
-      else (ty, addressSpace) match {
-        case (tt: TupleType, AddressSpaceCollection(coll)) =>
-          val i :: tas = tupleAccessStack
-          getBaseTypeAndAddressSpace(tt.proj(i), tas, coll(i))
-        case (ArrayType(elemT), _) =>
-          getBaseTypeAndAddressSpace(elemT, tupleAccessStack, addressSpace)
-        case _ => throw new IllegalAccess(ty, addressSpace)
-      }
-    }
-
-    private def storesHeadersOrOffsets(ty: Type, tupleAccessStack: List[Int]): Boolean = {
-      ty match {
-        case tt: TupleType =>
-          if (tupleAccessStack.isEmpty) false
-          else storesHeadersOrOffsets(
-            tt.proj(tupleAccessStack.head),
-            tupleAccessStack.tail
-          )
-        case at: ArrayType =>
-          if (at.headerSize == 0 && at.elemT.hasFixedAllocatedSize)
-            storesHeadersOrOffsets(at.elemT, tupleAccessStack)
-          else true
-        case _: ScalarType | _: VectorType => false
-        case NoType | UndefType => throw new IllegalAccess(ty)
       }
     }
   }

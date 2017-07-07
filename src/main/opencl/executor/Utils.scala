@@ -24,6 +24,10 @@ object Utils {
     Executor.getPlatformName == "AMD Accelerated Parallel Processing" && 
     Executor.getDeviceType == "GPU"
 
+  def isNvidiaGPU: Boolean =
+    Executor.getPlatformName.contains("NVIDIA") &&
+    Executor.getDeviceType == "GPU"
+
   def writeMD(width: Int, height: Int, data: Array[Float], name: String): Unit = {
     val out = new File(name + ".png")
     val img = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY)

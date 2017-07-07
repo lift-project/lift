@@ -3,6 +3,7 @@ package opencl.executor
 import java.nio.{ByteBuffer, ByteOrder}
 
 import ir._
+import opencl.generator.AlignArrays
 import opencl.ir._
 
 /**
@@ -113,7 +114,9 @@ class Encoder(arrayType: ArrayType, sizeof: Int) {
       case Int => buffer.asIntBuffer().put(array.asInstanceOf[Array[Int]])
       case Float => buffer.asFloatBuffer().put(array.asInstanceOf[Array[Float]])
       case Double => buffer.asDoubleBuffer().put(array.asInstanceOf[Array[Double]])
-      case Bool => buffer.put(array.asInstanceOf[Array[Boolean]].map(b => (if (b) 1 else 0).toByte))
+      case Bool =>
+        val data = array.asInstanceOf[Array[Boolean]].map(b => if (b) 1 else 0)
+        buffer.put(data.map(_.toByte))
     }
     buffer.position(before + baseSize * capacity)
   }
@@ -128,7 +131,7 @@ class Encoder(arrayType: ArrayType, sizeof: Int) {
   }
 
   private lazy val endianness = if (Executor.isLittleEndian) ByteOrder.LITTLE_ENDIAN else ByteOrder.BIG_ENDIAN
-  private lazy val sizeOfInt = Int.size.evalInt
   private lazy val baseType = Type.getBaseScalarType(arrayType)
-  private lazy val baseSize = Type.getAllocatedSize(baseType).evalInt
+  private lazy val baseSize = Type.getAllocatedSize(baseType).eval
+  private lazy val sizeOfInt = if (AlignArrays()) baseSize else Int.size.eval
 }

@@ -1,5 +1,10 @@
 package opencl.generator
 
+
+// TODO *********************
+// TODO * Document all this *
+// TODO *********************
+
 object Debug {
   private var debug = System.getenv("LIFT_DEBUG") != null
   def apply(): Boolean = debug
@@ -47,6 +52,16 @@ object PerformLoopOptimisation {
 object UseCastsForVectors {
   private val vectorCast = System.getenv("LIFT_VECTOR_CAST") != null
   def apply(): Boolean = vectorCast
+}
+
+/**
+ * Ensure that headers and values in arrays are stored at addresses that are
+ * divisible by their size.
+ */
+object AlignArrays {
+  private var alignArrays = System.getenv("LIFT_ALIGN_ARRAYS") != null
+  def apply(): Boolean = alignArrays
+  def apply(align: Boolean): Unit = alignArrays = align
 }
 
 object AllocateLocalMemoryStatically {

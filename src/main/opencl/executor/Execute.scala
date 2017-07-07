@@ -627,8 +627,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    */
   private def allocArgumentWithoutFixedAllocatedSize(ty: Type, value: Any): ArithExpr = {
     (ty, value) match {
-      case (ScalarType(_, size), _) => size
-      case (VectorType(st, len), _) => len.eval * st.size
+      case (ScalarType(_, _), _) | (VectorType(_, _), _) => Type.getAllocatedSize(ty)
       case (TupleType(elemsT @ _*), _) if elemsT.distinct.length == 1 =>
         elemsT.length * allocArgumentWithoutFixedAllocatedSize(elemsT.head, value)
       case (at: ArrayType, array: Array[_]) =>

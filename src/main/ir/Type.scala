@@ -3,11 +3,11 @@ package ir
 import arithmetic.TypeVar
 import ir.ast.IRNode
 import lift.arithmetic._
-import opencl.ir.Int
+import opencl.generator.AlignArrays
+import opencl.ir.{Bool, Int, Long}
 
 import scala.collection.immutable.HashMap
 import scala.collection.{immutable, mutable}
-
 
 
 /**
@@ -564,26 +564,40 @@ object Type {
    * @return The size in bytes.
    */
   def getAllocatedSize(t: Type) : ArithExpr = {
-    t match {
-      case st: ScalarType => st.size
-      case vt: VectorType => vt.scalarT.size * vt.len
-      case tt: TupleType  =>
-        // FIXME (issue #119): it's not clear which method should be preferred here
-        // Old method (valid if the tuple comes from a view): tt.elemsT.map(getAllocatedSize).reduce(_+_)
-        val (baseSize, nb) = tt.alignment
-        baseSize * nb
-      case at: ArrayType => at match {
-        case c: Capacity =>
-          if (at.elemT.hasFixedAllocatedSize)
-            (at.headerSize * getAllocatedSize(Int)) +
-            c.capacity * getAllocatedSize(at.elemT)
-          else ? // Dynamic allocation required
-        case _ => ? // Dynamic allocation required
+    lazy val sizeOfInt = if (AlignArrays()) {
+      def getBaseSize(ty: Type): ArithExpr = getBaseType(ty) match {
+        case ScalarType(_, size) => size
+        case VectorType(st, len) => st.size * len
+        case tt: TupleType => tt.elemsT.map(getBaseSize).reduce(_ + _)
+        case _ => throw new NotImplementedError()
       }
-      case NoType | UndefType =>
-        throw new IllegalArgumentException(s"Cannot allocate memory for type: $t")
+      getBaseSize(t)
+    } else Cst(4)
+
+    def sizeOf(t: Type): ArithExpr = {
+      t match {
+        case st: ScalarType => st.size
+        case vt: VectorType => vt.scalarT.size * vt.len
+        case tt: TupleType  =>
+          // FIXME (issue #119): it's not clear which method should be preferred here
+          // Old method (valid if the tuple comes from a view): tt.elemsT.map(getAllocatedSize).reduce(_+_)
+          val (baseSize, nb) = tt.alignment
+          baseSize * nb
+        case at: ArrayType => at match {
+          case c: Capacity =>
+            if (at.elemT.hasFixedAllocatedSize)
+              (at.headerSize * sizeOfInt) + c.capacity * sizeOf(at.elemT)
+            else ? // Dynamic allocation required
+          case _ => ? // Dynamic allocation required
+        }
+        case NoType | UndefType =>
+          throw new IllegalArgumentException(s"Cannot allocate memory for type: $t")
+      }
     }
+
+    sizeOf(t)
   }
+
 
   def getMaxAllocatedSize(t: Type) : ArithExpr = {
     // quick hack (set all the type var to their max value)
@@ -727,6 +741,16 @@ object Type {
       }
   }
 
+  def getIntegerTypeOfSize(sizeof: Int): ScalarType = {
+    sizeof match {
+      case 1 =>
+        println("Warning: string size or offset in a uchar, potential overflow.")
+        Bool
+      case 4 => Int
+      case 8 => Long
+      case n => throw new NotImplementedError(s"Integer-like type of size $n")
+    }
+  }
 }
 
 /**
