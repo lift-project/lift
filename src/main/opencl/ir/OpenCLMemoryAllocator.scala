@@ -377,10 +377,10 @@ object OpenCLMemoryAllocator {
   }
 
   private def allocIterate(it: Iterate, call: FunCall,
-    numGlb: ArithExpr,
-    numLcl: ArithExpr,
-    numPvt: ArithExpr,
-    inMem: OpenCLMemory): OpenCLMemory = {
+                           numGlb: ArithExpr,
+                           numLcl: ArithExpr,
+                           numPvt: ArithExpr,
+                           inMem: OpenCLMemory): OpenCLMemory = {
 
     it.n match {
       case Cst(1) => // do not allocate a swap buffer when we only iterate once

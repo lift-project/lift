@@ -13,6 +13,8 @@ object OpenCLPrinter {
   def toString(e: ArithExpr) : String = {
     e match {
       case Cst(c) => c.toString
+      case XOR(a, b) =>
+        "(" + toString(a) + ") ^ (" + toString(b) + ")"
       case Pow(b, ex) =>
         "(int)pow((float)" + toString(b) + ", " + toString(ex) + ")"
       case Log(b, x) => "(int)log"+b+"((float)"+toString(x)+")"

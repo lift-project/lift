@@ -36,9 +36,9 @@ class TestSort {
     val idxArr = ArrayFromGenerator( (i, N) => ArithExpression(i), ArrayTypeWSWC(Int, N))
     val tfiadd = UserFun("tuplefiadd", "x", "{return x._0 + (float)x._1;}", TupleType(Float, Int), Float);
 
-    val up_down_swap = (m: ArithExpr) => (i: ArithExpr, t: Type) => {
+    val hypercube_offset = (dim: ArithExpr) => (i: ArithExpr, t: Type) => {
 //      val n = Type.getLength(t)
-      i + (m) - (m-1)
+      i ^ Pow(2, dim)
     }
 
     val kernel = fun(
@@ -46,13 +46,13 @@ class TestSort {
       (array) => {
         MapWrg(
           MapLcl(id)
-        ) o Split(N) o Gather(up_down_swap(4)) $ array
+        ) o Split(N) o Gather(hypercube_offset(2)) $ array
       }
     )
 
     val (output:Array[Float], runtime) = Execute(1,1)(kernel, arr)
     println("Time: " + runtime)
-    println(s"Input: ${arr.take(20).mkString("[",",","]")}")
+    println(s"Input:  ${arr.take(20).mkString("[",",","]")}")
     println(s"Output: ${output.take(20).mkString("[",",","]")}")
     assertArrayEquals(arr, output, 0.01f)
   }
