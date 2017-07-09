@@ -69,8 +69,10 @@ class Decoder(mainType: Type) {
       case tt: TupleType =>
         val (_, count) = tt.alignment
         buffer.position(before + baseSize.eval * count.eval)
-      case ScalarType(_, _) | VectorType(_, _) =>
+      case ScalarType(_, _) =>
         buffer.position(before + baseSize.eval)
+      case VectorType(_, len) =>
+        buffer.position(before + (baseSize * len).eval)
       case _ =>
         throw new IllegalArgumentException(s"structs cannot contain $ty")
     }

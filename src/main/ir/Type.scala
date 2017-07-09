@@ -130,7 +130,7 @@ case class TupleType(elemsT: Type*) extends Type {
   def getAlignment(ty: Type): (ArithExpr, ArithExpr) = {
     ty match {
       case ScalarType(_, size) => (size, 1)
-      case VectorType(st, len) => (len * st.size, 1)
+      case VectorType(st, len) => (st.size, len.eval)
       case tt: TupleType =>
         tt.elemsT.map(getAlignment).reduce[(ArithExpr, ArithExpr)]({
           case ((lSize, lNb), (rSize, rNb)) => (ArithExpr.Math.Max(lSize, rSize), lNb + rNb)
