@@ -225,7 +225,7 @@ class OpenCLPrinter {
       val fields = tt.elemsT.zipWithIndex.map({case (ty,i) => Type.name(ty)+" _"+i})
       print(s"""#ifndef ${name}_DEFINED
         |#define ${name}_DEFINED
-        |typedef struct {
+        |typedef struct __attribute__((aligned(${tt.alignment._1}))) {
         |  ${fields.reduce(_+";\n  "+_)};
         |} $name;
         |#endif
