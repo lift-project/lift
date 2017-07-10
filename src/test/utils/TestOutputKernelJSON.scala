@@ -38,12 +38,11 @@ class TestOutputKernelJSON {
   @Test
   def testLambdaWithAllTypesOfParameters(): Unit =
   {
+    val compareJson = "{\"parameters\" : {\"float* v__111\" : \"(32+(4*v_M_1*v_N_0*v_O_2)+(8*v_M_1*v_N_0)+(8*v_M_1*v_O_2)+(8*v_N_0*v_O_2)+(16*v_M_1)+(16*v_N_0)+(16*v_O_2))\", \"float* v__112\" : \"(32+(4*v_M_1*v_N_0*v_O_2)+(8*v_M_1*v_N_0)+(8*v_M_1*v_O_2)+(8*v_N_0*v_O_2)+(16*v_M_1)+(16*v_N_0)+(16*v_O_2))\", \"float* v__113\" : \"108\", \"float* v__114\" : \"108\", \"float v__115\" : \"4\"}, \"outputs\" : {\"float* v__167\" : \"(4*v_M_1*v_N_0*v_O_2)\"}, \"temporary buffers\" : {\"float* v__137\" : \"(108*v_M_1*v_N_0*v_O_2)\", \"float* v__154\" : \"(108*v_M_1*v_N_0*v_O_2)\", \"float* v__122\" : \"(108*v_M_1*v_N_0*v_O_2)\"}, \"sizes\" : {\"int v_M_1\" : \"4\", \"int v_N_0\" : \"4\", \"int v_O_2\" : \"4\"}}"
 
-    val compareJson = "{\"parameters\" : {\"float* v__1006\" : \" (4*v_M_1*v_N_0*v_O_2)\", \"float* v__1007\" : \" (4*v_M_1*v_N_0*v_O_2)\", \"float* v__1008\" : \" 108\", \"float* v__1009\" : \" 108\", \"float v__1010\" : \" 4\"}, \"outputs\" : {\"float* v__1055\" : \" (-32+(-8*v_M_1*v_N_0)+(-8*v_M_1*v_O_2)+(-8*v_N_0*v_O_2)+(4*v_M_1*v_N_0*v_O_2)+(16*v_M_1)+(16*v_N_0)+(16*v_O_2))\"}, \"temporary buffers\" : {\"float* v__1029\" : \" (-864+(-216*v_M_1*v_N_0)+(108*v_M_1*v_N_0*v_O_2)+(-216*v_M_1*v_O_2)+(-216*v_N_0*v_O_2)+(432*v_M_1)+(432*v_N_0)+(432*v_O_2))\", \"float* v__1043\" : \" (-864+(-216*v_M_1*v_N_0)+(108*v_M_1*v_N_0*v_O_2)+(-216*v_M_1*v_O_2)+(-216*v_N_0*v_O_2)+(432*v_M_1)+(432*v_N_0)+(432*v_O_2))\", \"float* v__1017\" : \" (-864+(-216*v_M_1*v_N_0)+(108*v_M_1*v_N_0*v_O_2)+(-216*v_M_1*v_O_2)+(-216*v_N_0*v_O_2)+(432*v_M_1)+(432*v_N_0)+(432*v_O_2))\"}, \"sizes\" : {\"int v_M_1\" : \"4\", \"int v_N_0\" : \"4\", \"int v_O_2\" : \"4\"}}"
-
-    val n = SizeVar("N")
-    val m = SizeVar("M")
-    val o = SizeVar("O")
+    val n = 2 + SizeVar("N")
+    val m = 2 + SizeVar("M")
+    val o = 2 + SizeVar("O")
 
     val constantOriginal = Array(1.0f, 2.0f, 1.5f, 0.25f)
 
@@ -72,9 +71,5 @@ class TestOutputKernelJSON {
       val sanCompareJson = TestOutputKernelJSON.sanitiseData(compareJson)
 
       assertEquals(sanCompareJson.mkString, json.mkString)
-
   }
-
 }
-
-
