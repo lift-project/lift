@@ -59,6 +59,21 @@ class TestDecoder {
   }
 
   @Test
+  def tupleOfArrays(): Unit = {
+    val tt = TupleType(ArrayTypeWSWC(Int, 8, 8), ArrayTypeWC(Bool, 5))
+    val left = Array(1024, 65, 99999, -3, 1, 2, 3, 4)
+    val right = Array(true, true, false)
+    val buf = mkBuffer(8 * 4 + 4 + 5 * 4)
+
+    buf.asIntBuffer().put(left)
+    buf.position(8 * 4)
+    buf.putInt(right.length)
+    buf.put(right.map(b => (if (b) 1 else 0).toByte))
+
+    assertEquals((left.toVector, right.toVector), Decoder.decode[(Vector[Int], Vector[Boolean])](tt, buf))
+  }
+
+  @Test
   def arrayWithHeader(): Unit = {
     val data = Array(42d, 77d, 0.43d)
     val ty = ArrayTypeWC(Double, 10) // The capacity (can be anything ≥ 3)

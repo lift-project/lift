@@ -74,7 +74,6 @@ class Decoder(mainType: Type) {
       case VectorType(_, len) =>
         buffer.position(before + (baseSize * len).eval)
       case _ =>
-        throw new IllegalArgumentException(s"structs cannot contain $ty")
     }
     value
   }
