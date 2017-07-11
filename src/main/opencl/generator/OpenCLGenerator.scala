@@ -196,8 +196,12 @@ class OpenCLGenerator extends Generator {
     val globalBlock = OpenCLAST.Block(Vector.empty, global = true)
 
     val containsDouble = Expr.visitWithState(false)(f.body, {
-      case (expr, _) if expr.t == Double => true
-      case (_, state) => state
+      case (expr, state) =>
+        // A `Double` may be hidden in a TupleType. We need to visit the type
+        // of each expression
+        var found = false
+        Type.visit(expr.t, t => if (t == Double) found = true, _ => ())
+        found || state
     })
 
     if (containsDouble) {
