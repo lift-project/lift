@@ -3,6 +3,7 @@ package opencl.executor
 import java.nio.{ByteBuffer, ByteOrder}
 
 import ir.{ArrayType, ArrayTypeWC, ScalarType, Type}
+import opencl.generator.AlignArrays
 import opencl.ir.{Bool, Double, Float, Int}
 import org.junit.Assert.assertArrayEquals
 import org.junit.{AfterClass, BeforeClass, Test}
@@ -164,15 +165,20 @@ class TestEncoder {
 }
 
 object TestEncoder {
+  private var alignArrays: Boolean = _
+
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
+    alignArrays = AlignArrays()
+    AlignArrays(false)
   }
 
   @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
+    AlignArrays(alignArrays)
   }
 
   lazy val endianness: ByteOrder = if (Executor.isLittleEndian) ByteOrder.LITTLE_ENDIAN else ByteOrder.BIG_ENDIAN

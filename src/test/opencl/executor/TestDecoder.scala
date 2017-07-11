@@ -5,9 +5,10 @@ import java.nio.{ByteBuffer, ByteOrder}
 import ir._
 import lift.arithmetic.ArithExpr
 import lift.arithmetic.ArithExpr.Math.Max
+import opencl.generator.AlignArrays
 import opencl.ir.{Bool, Double, Float, Float4, Int}
 import org.junit.Assert.{assertArrayEquals, assertEquals}
-import org.junit.Test
+import org.junit.{AfterClass, BeforeClass, Test}
 
 class TestDecoder {
   import TestDecoder._
@@ -123,9 +124,21 @@ class TestDecoder {
 }
 
 object TestDecoder {
+  private var alignArrays: Boolean = _
   val endianness = ByteOrder.LITTLE_ENDIAN
 
-  def max(exprs: ArithExpr*): ArithExpr = exprs.reduce(Max(_, _))
+  @BeforeClass
+  def before(): Unit = {
+    alignArrays = AlignArrays()
+    AlignArrays(false)
+  }
+
+  @AfterClass
+  def after(): Unit = {
+    AlignArrays(alignArrays)
+  }
+
+  def max(exprs: ArithExpr*): ArithExpr = exprs.reduce(Max)
 
   /**
    * Shorthand to create a new buffer with the correct endianness

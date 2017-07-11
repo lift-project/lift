@@ -3,10 +3,10 @@ package opencl.ir
 import ir._
 import ir.ast._
 import lift.arithmetic.{ArithExpr, SizeVar}
-import opencl.generator.IllegalKernel
+import opencl.generator.{AlignArrays, IllegalKernel}
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{AfterClass, BeforeClass, Test}
 
 class TestMemory {
   import TestMemory._
@@ -143,6 +143,19 @@ class TestMemory {
 }
 
 object TestMemory {
+  private var alignArrays: Boolean = _
+
+  @BeforeClass
+  def before(): Unit = {
+    alignArrays = AlignArrays()
+    AlignArrays(false)
+  }
+
+  @AfterClass
+  def after(): Unit = {
+    AlignArrays(alignArrays)
+  }
+
   private def idForType(ty: Type): Lambda = ty match {
     case ArrayType(elemT) => MapSeq(idForType(elemT))
     case _ => toGlobal(id(ty))
