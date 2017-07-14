@@ -841,8 +841,12 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
     def getSize(acc: ArithExpr, at: ArrayType): ArithExpr = {
       if (addressSpace == PrivateMemory)
         throw new IllegalView("An array in private memory must have a size and a capacity in the type")
-      else
-        CastedPointer(mainVar, alignedIntType, acc + at.sizeIndex, addressSpace)
+      else {
+        if (baseType == alignedIntType)
+          acc + at.sizeIndex
+        else
+          CastedPointer(mainVar, alignedIntType, acc + at.sizeIndex, addressSpace)
+      }
     }
 
     override def getElementAt(acc: ArithExpr, at: ArrayType, idx: ArithExpr,

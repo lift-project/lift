@@ -49,7 +49,7 @@ class Encoder(arrayType: ArrayType, sizeof: Int) {
 
       case tt: TupleType => tt.elemsT.head match {
         case st: ScalarType => putScalarArray(st, capacity * tt.elemsT.length, array, buffer)
-        case other => throw new NotImplementedError(s"Encoding of tuples of $other")
+        case _ => throw new NotImplementedError(s"Encoding of $tt")
       }
 
       case VectorType(st, vLen) =>
@@ -98,7 +98,11 @@ class Encoder(arrayType: ArrayType, sizeof: Int) {
    */
   private def putIntegers(values: Array[Int], buffer: ByteBuffer): Unit = {
     val before = buffer.position()
-    buffer.asIntBuffer().put(values)
+    integerType match {
+      case Bool => buffer.put(values.map(_.toByte))
+      case Int => buffer.asIntBuffer().put(values)
+      case Long => buffer.asLongBuffer().put(values.map(_.toLong))
+    }
     buffer.position(before + sizeOfInt * values.length)
   }
   
@@ -134,4 +138,5 @@ class Encoder(arrayType: ArrayType, sizeof: Int) {
   private lazy val baseType = Type.getBaseScalarType(arrayType)
   private lazy val baseSize = Type.getAllocatedSize(baseType).eval
   private lazy val sizeOfInt = if (AlignArrays()) baseSize else Int.size.eval
+  private lazy val integerType = Type.getIntegerTypeOfSize(sizeOfInt)
 }
