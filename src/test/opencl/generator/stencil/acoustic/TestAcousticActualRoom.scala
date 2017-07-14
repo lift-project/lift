@@ -473,7 +473,7 @@ class TestAcousticActualRoom {
                   toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
             }),size,step)) /*o Transpose() o Map(Transpose()) */ $ inp
           })
-        )) $ Zip3D(mat1, Map(Map(Map(Transpose()))) o Map(Map(Map(Map(Transpose())))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+        )) $ Zip2D(PrintType() $ mat1, PrintType() o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, PrintType() $ Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
       })
 
     val newLambda = SimplifyAndFuse(lambdaNeighAt)

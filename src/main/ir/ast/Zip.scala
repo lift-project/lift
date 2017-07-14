@@ -90,4 +90,8 @@ object Zip2D{
     Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(arg1, arg2)
   }
 
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr) : Expr = {
+    Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2))) $ Zip(arg1, arg2, arg3)
+  }
+
 }

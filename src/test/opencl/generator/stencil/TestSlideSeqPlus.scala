@@ -713,4 +713,50 @@ class TestSlideSeqPlus
 
   }
 
+  @Test
+  def reduceSlide3DTest27PointWithWeightsSwapTranspose(): Unit = {
+
+    val size = 8
+
+    val slidesize = 3
+    val slidestep = 1
+    val values = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size + k + 1).toFloat }
+
+    val O = 2 + SizeVar("O")
+    val N = 2 + SizeVar("N")
+    val M = 2 + SizeVar("M")
+
+    def stencil3DCompareWeights(a: Int, b: Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
+      ArrayTypeWSWC(Float, slidesize*slidesize*slidesize),
+      (mat, weights) => {
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(neighbours => {
+          toGlobal(MapSeq(id)) o
+            ReduceSeqUnroll(\((acc, next) =>
+              multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() $ neighbours, weights)
+        })))
+        ) o Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
+      })
+
+    def stencil3DWeights(a: Int ,b :Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
+      ArrayTypeWSWC(Float, slidesize*slidesize*slidesize),
+      (input,weights) =>
+        MapGlb(1)(MapGlb(0)(fun(x => {
+          toGlobal(SlideSeqPlus(
+            fun(neighbours => {
+              toGlobal(MapSeq(id)) o
+                ReduceSeqUnroll(\((acc, next) =>
+                  multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() $ neighbours, weights)
+            }) /*o PrintType()*/, a,b)) /*o  Transpose() o Map(Transpose())*/ $ x
+        }))) o PrintType () o  Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(a,b)  $ input
+    )
+
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(stencil3DWeights(slidesize,slidestep), values,StencilUtilities.weights3D.flatten.flatten)
+    val (gold: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(stencil3DCompareWeights(slidesize,slidestep), values, StencilUtilities.weights3D.flatten.flatten)
+
+    assertArrayEquals(gold, output, 0.1f)
+
+  }
+
 }
