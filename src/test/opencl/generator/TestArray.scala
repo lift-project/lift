@@ -26,10 +26,10 @@ object TestArray {
   }
 
   @AfterClass def after(): Unit = {
+    if (Utils.isNvidiaGPU) AlignArrays(alignArray)
+
     println("Shutdown the executor")
     Executor.shutdown()
-
-    if (Utils.isNvidiaGPU) AlignArrays(alignArray)
   }
 }
 
@@ -155,18 +155,18 @@ class TestArray {
     val capacity = 128
     val size1 = 90
     val size2 = 42
-    val input = Array.fill(size1, size2)(util.Random.nextInt())
+    val input = Array.fill(size1, size2)(util.Random.nextFloat())
     val f = fun(
-      ArrayTypeWC(ArrayTypeWC(Int, capacity), capacity),
-      MapGlb(MapSeq(idI)) $ _
+      ArrayTypeWC(ArrayTypeWC(Float, capacity), capacity),
+      MapGlb(MapSeq(id(Float))) $ _
     )
 
-    assertEquals(TypeChecker(f), ArrayTypeWC(ArrayTypeWC(Int, capacity), capacity))
+    assertEquals(TypeChecker(f), ArrayTypeWC(ArrayTypeWC(Float, capacity), capacity))
 
     val exec = Execute(capacity)
-    val (output, _) = exec[Vector[Vector[Int]]](f, input)
+    val (output, _) = exec[Vector[Vector[Float]]](f, input)
 
-    assertArrayEquals(input.flatten, output.flatten.toArray)
+    assertArrayEquals(input.flatten, output.flatten.toArray, 0.0001f)
   }
 
   /**

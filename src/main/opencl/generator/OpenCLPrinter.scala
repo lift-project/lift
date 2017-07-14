@@ -38,7 +38,7 @@ object OpenCLPrinter {
         s"$array[${toString(ai.idx)}]"
       case CastedPointer(v, ty, ofs, addressSpace) =>
         val offset = if (ofs == Cst(0)) "" else s" + ${toString(ofs)}"
-        s"((__$addressSpace ${Type.name(ty)}*)(${toString(v)}$offset))"
+        s"(($addressSpace ${Type.name(ty)}*)(${toString(v)}$offset))"
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
       case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"
