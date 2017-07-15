@@ -2,7 +2,7 @@ package opencl.ir.pattern
 
 import ir.ast.isGenerable
 import lift.arithmetic.{ArithExpr, PosVar, Var}
-import ir._
+import ir.{ArrayTypeWSWC, _}
 import ir.ast._
 import ir.interpreter.Interpreter.ValueMap
 
@@ -26,6 +26,15 @@ case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loo
         val outerLength = (n - (size - step)) / step
         f.params(0).t = ArrayTypeWSWC(t,innerLength)
         ArrayTypeWSWC(TypeChecker.check(f.body,setType), outerLength)
+      case TupleType(a,b,c) =>  b match {
+        case ArrayTypeWSWC(t, _, n) =>
+          val innerLength = size
+          val outerLength = (n - (size - step)) / step
+          f.params(0).t = b
+          TupleType(TypeChecker.check(f.body,setType))
+        case _ => throw new TypeException(argType, "ArrayTypeWSWC", this)
+      }
+      /*case ArrayTypeWSWC(tt: TupleType, s,c) =>i */
       case _ => throw new TypeException(argType, "ArrayTypeWSWC", this)
     }
   }
