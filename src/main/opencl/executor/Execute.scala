@@ -6,7 +6,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic._
 import opencl.executor.Decoder.DecodeTypes.DecodeType
-import opencl.generator.{NDRange, OpenCLGenerator, Verbose}
+import opencl.generator.{AlignArrays, NDRange, OpenCLGenerator, Verbose}
 import opencl.ir._
 import rewriting.InferNDRange
 
@@ -616,7 +616,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   }
 
   /**
-   * Here we are computing an meaningful expression for the size of the inputs
+   * Here we are computing a meaningful expression for the size of the inputs
    * when the `OpenCLMemoryAllocator` class has not been able to do it.
    * See the comments at the top of `OpenCLMemoryAllocator.scala` for further
    * information.
@@ -626,19 +626,33 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    * @return the size in bytes of this value once encoded
    */
   private def allocArgumentWithoutFixedAllocatedSize(ty: Type, value: Any): ArithExpr = {
+    lazy val sizeOfInt = if (AlignArrays()) {
+      def getBaseSize(ty: Type): ArithExpr = Type.getBaseType(ty) match {
+        case ScalarType(_, size) => size
+        case VectorType(st, len) => st.size * len
+        case tt: TupleType => tt.elemsT.map(getBaseSize).reduce(_ + _)
+        case _ => throw new NotImplementedError()
+      }
+      getBaseSize(ty)
+    } else Cst(4)
+
     (ty, value) match {
       case (ScalarType(_, _), _) | (VectorType(_, _), _) => Type.getAllocatedSize(ty)
-      case (TupleType(elemsT @ _*), _) if elemsT.distinct.length == 1 =>
-        elemsT.length * allocArgumentWithoutFixedAllocatedSize(elemsT.head, value)
+      case (tt: TupleType, _) =>
+        // FIXME (issue #119): it's not clear which method should be preferred here
+        val (baseSize, nb) = tt.alignment
+        baseSize * nb
       case (at: ArrayType, array: Array[_]) =>
         val c = at match {
           case c: Capacity => c.capacity
           case _ => Cst(array.length)
         }
         if (at.elemT.hasFixedAllocatedSize)
-          at.headerSize * 4 + c * 4 * allocArgumentWithoutFixedAllocatedSize(at.elemT, array.head)
-        else
-          at.headerSize + c + array.map(allocArgumentWithoutFixedAllocatedSize(at.elemT, _)).reduce(_ + _)
+          at.headerSize * sizeOfInt + c * allocArgumentWithoutFixedAllocatedSize(at.elemT, array.head)
+        else {
+          val innerSize = array.map(allocArgumentWithoutFixedAllocatedSize(at.elemT, _)).reduce(_ + _)
+          (at.headerSize + c) * sizeOfInt + innerSize
+        }
       case _ => throw new IllegalArgumentException()
     }
   }
