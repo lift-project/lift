@@ -698,7 +698,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   private def castToOutputType[T](t: Type, outputData: GlobalArg)(implicit decodeType: DecodeType[T]): T = {
     val byteArray = outputData.asByteArray()
     val buffer = ByteBuffer.wrap(byteArray)
-    buffer.order(ByteOrder.LITTLE_ENDIAN) // FIXME
+    val endianness = if (Executor.isLittleEndian) ByteOrder.LITTLE_ENDIAN else ByteOrder.BIG_ENDIAN
+    buffer.order(endianness)
     Decoder.decode(t, buffer)(decodeType)
   }
 
