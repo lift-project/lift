@@ -298,7 +298,7 @@ object Utils {
               localSize1: Int, localSize2: Int, localSize3: Int,
               globalSize1: Int,  globalSize2: Int, globalSize3: Int,
               injectSizes: (Boolean, Boolean)) : String= {
-    val valueMap = Execute.createValueMap(f, values:_*)
+    val valueMap = ExecuteOld.createValueMap(f, values:_*)
 
     if (injectSizes._1)
       if (injectSizes._2)

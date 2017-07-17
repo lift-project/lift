@@ -504,12 +504,12 @@ object Type {
   }
 
   @scala.annotation.tailrec
-  def getBaseScalarType(ty: Type): ScalarType = {
+  def getBaseSize(ty: Type): ArithExpr = {
     ty match {
-      case VectorType(st, _) => st
-      case st: ScalarType => st
-      case at: ArrayType => getBaseScalarType(at.elemT)
-      case tt: TupleType => getBaseScalarType(tt.elemsT.head) // This is a huge limitation FIXME
+      case VectorType(st, _) => st.size
+      case ScalarType(_, size) => size
+      case at: ArrayType => getBaseSize(at.elemT)
+      case tt: TupleType => tt.alignment._1
       case NoType | UndefType => throw new IllegalArgumentException()
     }
   }

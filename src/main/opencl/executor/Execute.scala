@@ -211,21 +211,23 @@ object Execute {
     private def fetchConstraints(ty: Type, value: Any): (Seq[Constraint], Seq[Constraint]) = {
       ty match {
         case at: ArrayType =>
-          val array = asArray(value)
-          val len = array.length / tupleSize(at.elemT)
+          val vector = value match {
+            case v: Vector[_] => v
+            case _ => throw new IllegalKernelArgument(s"Vector expected, got: ${value.getClass}")
+          }
 
           // Recursive call if array of arrays
           val (caps, sizes) = at.elemT match {
             case _: ArrayType =>
-              val (cs, ss) = array.map(fetchConstraints(at.elemT, _)).toSeq.unzip
+              val (cs, ss) = vector.map(fetchConstraints(at.elemT, _)).unzip
               (cs.flatten, ss.flatten)
             case _ =>
-              checkParamWithValue(at.elemT, array.head)
+              checkParamWithValue(at.elemT, vector.head)
               (Seq.empty, Seq.empty)
           }
 
           // fetch information for the current array
-          (collectCapacityConstraints(at, len, caps), collectSizeConstraints(at, len, sizes))
+          (collectCapacityConstraints(at, vector.length, caps), collectSizeConstraints(at, vector.length, sizes))
         case TupleType(_) | ScalarType(_, _) =>
           // We assume tuples do not contain arrays
           checkParamWithValue(ty, value)
@@ -240,7 +242,7 @@ object Execute {
 
     /**
      * Type-checks a bit of kernel argument.
-     * Arrays are handled in fetchConstraints using `asArray` and a recursive
+     * Arrays are handled in fetchConstraints using `asVector` and a recursive
      * call to itself since more work is required for them.
      */
     private def checkParamWithValue(t: Type, v: Any): Unit = {
@@ -252,59 +254,35 @@ object Execute {
 
         case (VectorType(st, len), _) =>
           // Vectors must be passed as arrays
-          if (!v.isInstanceOf[Array[_]])
-            throw TypeException(
-              s"Expected Array[$st] of size $len (representing a vector). " +
-                s"Got ${v.getClass} instead."
-            )
-          val array = v.asInstanceOf[Array[_]]
+          if (!v.isInstanceOf[Vector[_]])
+            throw TypeException(s"Expected Vector[$st] of size $len. Got ${v.getClass} instead.")
+          val vector = v.asInstanceOf[Vector[_]]
           // Validate the underlying type and the length
           st match {
             case Float | Int | Double =>
             case _ => throw TypeException(s"$t is not a valid vector type")
           }
-          val headType = Type.fromAny(array.head)
-          if (headType != st || array.length != len.eval)
+          val headType = Type.fromAny(vector.head)
+          if (headType != st || vector.length != len.eval)
             throw TypeException(
-              s"Expected Array[$st] of size $len (representing a vector). " +
-                s"Got Array[$headType] of length ${array.length} instead."
+              s"Expected Vector[$st] of size $len. Got Vector[$headType] of length ${vector.length} instead."
             )
 
-        // handle tuples if all their components are of the same type
-        case (tt: TupleType, _: Float)
-          if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Float) => // fine
-        case (tt: TupleType, _: Int)
-          if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Int) => // fine
-        case (tt: TupleType, _: Double)
-          if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Double) => // fine
-        case (tt: TupleType, _: Boolean)
-          if (tt.elemsT.distinct.length == 1) && (tt.elemsT.head == Bool) => // fine
+        case (tt: TupleType, p: Product) =>
+          if (tt.elemsT.length != p.productArity)
+            throw TypeException(s"Expected $tt. Found ${p.getClass}")
+          else
+            (tt.elemsT zip p.productIterator.toSeq).foreach{
+              case (elemT, elem) => checkParamWithValue(elemT, elem)
+            }
 
         // Arrays are already handled by `fetchConstraints`
         case (_: ArrayType, _) =>
-          throw new NotImplementedError("Sould not reach this point")
+          throw new NotImplementedError("Should not reach this point")
 
         case _ => throw new IllegalArgumentException(
           s"Expected value of type $t, but value of type ${v.getClass} given")
       }
-    }
-
-    /**
-     * Tries to interpret a value as an array and throws a useful exception
-     * if it cannot (not just a `ClassCastException`)
-     */
-    private def asArray(any: Any): Array[_] = any match {
-      case array: Array[_] => array
-      case _ => throw new IllegalKernelArgument(s"Array expected, got: ${any.getClass}")
-    }
-
-    /**
-     * Tuples are given to the executor in a flattened format, we
-     * have to take this into consideration while inferring the sizes.
-     */
-    private def tupleSize(ty: Type): Int = ty match {
-      case tt: TupleType => tt.elemsT.length
-      case _ => 1
     }
 
     /**
@@ -642,7 +620,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         // FIXME (issue #119): it's not clear which method should be preferred here
         val (baseSize, nb) = tt.alignment
         baseSize * nb
-      case (at: ArrayType, array: Array[_]) =>
+      case (at: ArrayType, array: Vector[_]) =>
         val c = at match {
           case c: Capacity => c.capacity
           case _ => Cst(array.length)

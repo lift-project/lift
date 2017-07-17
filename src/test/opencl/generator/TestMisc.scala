@@ -1109,8 +1109,8 @@ class TestMisc {
   def issue102IntFloat(): Unit = {
     val size = 128
     val N = SizeVar("N")
-    val left = Array.fill(size)(util.Random.nextInt())
-    val right = Array.fill(size)(util.Random.nextFloat())
+    val left = Vector.fill(size)(util.Random.nextInt())
+    val right = Vector.fill(size)(util.Random.nextFloat())
 
     val tuple_id = UserFun(
       "tuple_id", "x", "return x;", TupleType(Int, Float), TupleType(Int, Float)
@@ -1122,12 +1122,9 @@ class TestMisc {
       MapGlb(toGlobal(tuple_id)) $ Zip(_, _)
     )
 
-    val exec = Execute(128)
-    val (output, _) = exec[Vector[(Int, Float)]](intFloatZip, left, right)
+    val (output, _) = Execute(128)[Vector[(Int, Float)]](intFloatZip, left, right)
 
-    val (outputLeft, outputRight) = output.unzip
-    assertArrayEquals(left, outputLeft.toArray)
-    assertArrayEquals(right, outputRight.toArray, 0.0f)
+    assertEquals(left zip right, output)
   }
 
   /**
@@ -1135,27 +1132,25 @@ class TestMisc {
    */
   @Test
   def issue102TupleOfTuple(): Unit = {
-    Assume.assumeTrue("Needs double support", Executor.supportsDouble())
-
     val size = 128
-    val inputA = Array.fill(size)(util.Random.nextDouble())
-    val inputB = Array.fill(size)(util.Random.nextBoolean())
-    val inputC = Array.fill(size)(util.Random.nextInt())
-    val outType = TupleType(TupleType(Double, Bool), Int)
-
-    val kernel = fun(
-      ArrayTypeWSWC(Double, size),
-      ArrayTypeWSWC(Bool, size),
-      ArrayTypeWSWC(Int, size),
-      (a, b, c) => MapGlb(toGlobal(id(outType))) $ Zip(Zip(a, b), c)
+    val input = {
+      import util.Random.{nextBoolean, nextFloat, nextInt}
+      Vector.fill(size)((nextBoolean(), (nextInt(), nextFloat())))
+    }
+    val mix = UserFun(
+      "user_mix", "t", "Tuple1 t2 = {{t._1._1, t._0}, t._1._0}; return t2;",
+      TupleType(Bool, TupleType(Int, Float)),
+      TupleType(TupleType(Float, Bool), Int)
     )
 
-    val exec = Execute(128)
-    val (output, _) = exec[Vector[((Double, Boolean), Int)]](kernel, inputA, inputB, inputC)
-    val (outA, outB, outC) = output.map({ case ((a, b), c) => (a, b, c) }).unzip3
-    assertArrayEquals(inputA, outA.toArray, 0d)
-    assertEquals(inputB.toVector, outB)
-    assertArrayEquals(inputC, outC.toArray)
+    val kernel = fun(
+      ArrayTypeWSWC(TupleType(Bool, TupleType(Int, Float)), size, size),
+      MapGlb(toGlobal(mix)) $ _
+    )
+
+    val (output, _) = Execute(128)[Vector[((Float, Boolean), Int)]](kernel, input)
+    val gold = input.map{ case (b, (i, f)) => ((f, b), i) }
+    assertEquals(gold, output)
   }
 
   @Test def issue104(): Unit = {

@@ -2,7 +2,7 @@ package opencl.executor
 
 import java.nio.{ByteBuffer, ByteOrder}
 
-import ir.{ArrayType, ArrayTypeWC, ScalarType, Type}
+import ir._
 import opencl.generator.AlignArrays
 import opencl.ir.{Bool, Double, Float, Int}
 import org.junit.Assert.assertArrayEquals
@@ -12,6 +12,17 @@ import scala.reflect.ClassTag
 
 class TestEncoder {
   import TestEncoder._
+
+  @Test
+  def encodeTuple(): Unit = {
+    val buf = mkBuffer(12)
+    buf.put(0, 1.toByte)
+    buf.putInt(4, 42)
+    buf.putFloat(8, 13.13f)
+
+    val encoder = new Encoder(TupleType(Bool, TupleType(Int, Float)), 12)
+    assertBufferEquals(buf, encoder.encode((true, (42, 13.13f))))
+  }
 
   @Test
   def encodeFull1D(): Unit = {
@@ -37,7 +48,7 @@ class TestEncoder {
     val (bArray, iArray, fArray, dArray) = get1DData(size)
     val (bEncoder, iEncoder, fEncoder, dEncoder) = getEncoders(tyCon, allocatedSize)
 
-    def gold[T](array: Array[T], baseSize: Int): ByteBuffer = {
+    def gold[T](array: Vector[T], baseSize: Int): ByteBuffer = {
       val buffer = mkBuffer(allocatedSize(baseSize))
       // Header: just the size
       buffer.asIntBuffer().put(size)
@@ -47,7 +58,7 @@ class TestEncoder {
       data.position(0)
       buffer.put(data)
     }
-    
+
     assertBufferEquals(gold(fArray, 4), fEncoder.encode(fArray))
     assertBufferEquals(gold(iArray, 4), iEncoder.encode(iArray))
     assertBufferEquals(gold(dArray, 8), dEncoder.encode(dArray))
@@ -80,7 +91,7 @@ class TestEncoder {
     val (bArray, iArray, fArray, dArray) = get2DRaggedData(sizeX, (1, capY))
     val (bEncoder, iEncoder, fEncoder, dEncoder) = getEncoders(tyCon, allocSize)
 
-    def gold[T: ClassTag](array2D: Array[Array[T]], baseSize: Int): ByteBuffer = {
+    def gold[T: ClassTag](array2D: Vector[Vector[T]], baseSize: Int): ByteBuffer = {
       val buffer = mkBuffer(allocSize(baseSize))
 
       // Header: just the size
@@ -89,7 +100,7 @@ class TestEncoder {
 
       // Body: a flattened version of the 2D array padded with zeros
       array2D.foreach {
-        (arr: Array[T]) =>
+        (arr: Vector[T]) =>
           val start = buffer.position()
           buffer.asIntBuffer().put(arr.length)
           buffer.position(start + sizeOfInt)
@@ -123,7 +134,7 @@ class TestEncoder {
     val (bArray, iArray, fArray, dArray) = get2DRaggedData(sizeX, yBounds)
     val (bEncoder, iEncoder, fEncoder, dEncoder) = getEncoders(tyCon, allocSize)
 
-    def gold[T: ClassTag](array2D: Array[Array[T]], baseSize: Int): ByteBuffer = {
+    def gold[T: ClassTag](array2D: Vector[Vector[T]], baseSize: Int): ByteBuffer = {
       val buffer = mkBuffer(allocSize(baseSize))
 
       // Header: just the size
@@ -142,7 +153,7 @@ class TestEncoder {
 
       // A flattened version of the 2D array with *NO* padding.
       array2D.foreach {
-        (arr: Array[T]) =>
+        (arr: Vector[T]) =>
           val start = buffer.position()
           // Header
           buffer.asIntBuffer().put(Array(arr.length, arr.length))
@@ -196,31 +207,31 @@ object TestEncoder {
   // Random data generators
   // ---
 
-  def get1DData(size: Int): (Array[Boolean], Array[Int], Array[Float], Array[Double]) = (
-    Array.fill(size)(util.Random.nextBoolean()),
-    Array.fill(size)(util.Random.nextInt()),
-    Array.fill(size)(util.Random.nextFloat()),
-    Array.fill(size)(util.Random.nextDouble())
+  def get1DData(size: Int): (Vector[Boolean], Vector[Int], Vector[Float], Vector[Double]) = (
+    Vector.fill(size)(util.Random.nextBoolean()),
+    Vector.fill(size)(util.Random.nextInt()),
+    Vector.fill(size)(util.Random.nextFloat()),
+    Vector.fill(size)(util.Random.nextDouble())
   )
 
-  def get2DData(sizeX: Int, sizeY: Int): (Array[Array[Boolean]], Array[Array[Int]],
-                                           Array[Array[Float]], Array[Array[Double]]) = (
-    Array.fill(sizeX, sizeY)(util.Random.nextBoolean()),
-    Array.fill(sizeX, sizeY)(util.Random.nextInt()),
-    Array.fill(sizeX, sizeY)(util.Random.nextFloat()),
-    Array.fill(sizeX, sizeY)(util.Random.nextDouble())
+  def get2DData(sizeX: Int, sizeY: Int): (Vector[Vector[Boolean]], Vector[Vector[Int]],
+                                           Vector[Vector[Float]], Vector[Vector[Double]]) = (
+    Vector.fill(sizeX, sizeY)(util.Random.nextBoolean()),
+    Vector.fill(sizeX, sizeY)(util.Random.nextInt()),
+    Vector.fill(sizeX, sizeY)(util.Random.nextFloat()),
+    Vector.fill(sizeX, sizeY)(util.Random.nextDouble())
   )
 
-  def get2DRaggedData(sizeX: Int, yBounds: (Int, Int)): (Array[Array[Boolean]], Array[Array[Int]],
-                                                         Array[Array[Float]], Array[Array[Double]]) = {
+  def get2DRaggedData(sizeX: Int, yBounds: (Int, Int)): (Vector[Vector[Boolean]], Vector[Vector[Int]],
+                                                         Vector[Vector[Float]], Vector[Vector[Double]]) = {
     val (minY, maxY) = yBounds
     assert(minY <= maxY)  // Sanity check
-    val sizesY = Array.fill(sizeX)(minY + util.Random.nextInt(maxY - minY))
+    val sizesY = Vector.fill(sizeX)(minY + util.Random.nextInt(maxY - minY))
     (
-      sizesY.map(Array.fill(_)(util.Random.nextBoolean())),
-      sizesY.map(Array.fill(_)(util.Random.nextInt())),
-      sizesY.map(Array.fill(_)(util.Random.nextFloat())),
-      sizesY.map(Array.fill(_)(util.Random.nextDouble()))
+      sizesY.map(Vector.fill(_)(util.Random.nextBoolean())),
+      sizesY.map(Vector.fill(_)(util.Random.nextInt())),
+      sizesY.map(Vector.fill(_)(util.Random.nextFloat())),
+      sizesY.map(Vector.fill(_)(util.Random.nextDouble()))
     )
   }
 
@@ -235,13 +246,21 @@ object TestEncoder {
     case _: Double => 8
   }
 
-  def toBuffer(array: Array[_]): ByteBuffer = {
-    val buffer = mkBuffer(array.length * sizeOf(array.head))
-    array match {
-      case ab: Array[Boolean] => buffer.put(ab.map(b => (if (b) 1 else 0).toByte))
-      case ai: Array[Int] => buffer.asIntBuffer().put(ai)
-      case af: Array[Float] => buffer.asFloatBuffer().put(af)
-      case ad: Array[Double] => buffer.asDoubleBuffer().put(ad)
+  def toBuffer(vector: Vector[_]): ByteBuffer = {
+    val buffer = mkBuffer(vector.length * sizeOf(vector.head))
+    vector.head match {
+      case _: Boolean =>
+        val array = vector.asInstanceOf[Vector[Boolean]].toArray
+        buffer.put(array.map(b => (if (b) 1 else 0).toByte))
+      case _: Int =>
+        val array = vector.asInstanceOf[Vector[Int]].toArray
+        buffer.asIntBuffer().put(array)
+      case _: Float =>
+        val array = vector.asInstanceOf[Vector[Float]].toArray
+        buffer.asFloatBuffer().put(array)
+      case _: Double =>
+        val array = vector.asInstanceOf[Vector[Double]].toArray
+        buffer.asDoubleBuffer().put(array)
     }
     buffer
   }

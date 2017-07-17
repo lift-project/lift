@@ -9,15 +9,15 @@ import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
 
-object TestExecuteOld {
-  @BeforeClass def before() =
+object TestExecute {
+  @BeforeClass def before(): Unit =
     Executor.loadAndInit()
 
-  @AfterClass def after() =
+  @AfterClass def after(): Unit =
     Executor.shutdown()
 }
 
-class TestExecuteOld {
+class TestExecute {
 
   private val N = SizeVar("N")
   private val M = SizeVar("M")
@@ -26,15 +26,14 @@ class TestExecuteOld {
   def testInferSeq(): Unit = {
 
     val size = 1024
-    val input = Array.fill(size)(util.Random.nextFloat() * 10)
+    val input = Vector.fill(size)(util.Random.nextFloat() * 10)
 
     val f = \(ArrayTypeWSWC(Float, N),
       MapSeq(plusOne) $ _
     )
 
-    val execute = ExecuteOld()
-    val (output: Array[Float], _) =
-      execute(f, input)
+    val execute = Execute()
+    val (output, _) = execute[Vector[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -45,22 +44,21 @@ class TestExecuteOld {
     assertEquals(Cst(1), global(0))
     assertEquals(Cst(1), global(1))
     assertEquals(Cst(1), global(2))
-    assertArrayEquals(input.map(_+1), output, 0.001f)
+    assertArrayEquals(input.map(_+1).toArray, output.toArray, 0.001f)
   }
 
   @Test
   def testInferNoLocalOneDim(): Unit = {
 
     val size = 1024
-    val input = Array.fill(size)(util.Random.nextFloat() * 10)
+    val input = Vector.fill(size)(util.Random.nextFloat() * 10)
 
     val f = \(ArrayTypeWSWC(Float, N),
       MapGlb(plusOne) $ _
     )
 
-    val execute = ExecuteOld()
-    val (output: Array[Float], _) =
-      execute(f, input)
+    val execute = Execute()
+    val (output, _) = execute[Vector[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -71,7 +69,7 @@ class TestExecuteOld {
     assertEquals(Cst(size), global(0))
     assertEquals(Cst(1), global(1))
     assertEquals(Cst(1), global(2))
-    assertArrayEquals(input.map(_+1), output, 0.001f)
+    assertArrayEquals(input.map(_+1).toArray, output.toArray, 0.001f)
   }
 
   @Test
@@ -79,15 +77,14 @@ class TestExecuteOld {
 
     val size1 = 1024
     val size2 = 512
-    val input = Array.fill(size1, size2)(util.Random.nextFloat() * 10)
+    val input = Vector.fill(size1, size2)(util.Random.nextFloat() * 10)
 
     val f = \(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       MapGlb(1)(MapGlb(0)(plusOne)) $ _
     )
 
-    val execute = ExecuteOld()
-    val (output: Array[Float], _) =
-      execute(f, input)
+    val execute = Execute()
+    val (output, _) = execute[Vector[Vector[Float]]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -98,22 +95,21 @@ class TestExecuteOld {
     assertEquals(Cst(size2), global(0))
     assertEquals(Cst(size1), global(1))
     assertEquals(Cst(1), global(2))
-    assertArrayEquals(input.flatten.map(_+1), output, 0.001f)
+    assertArrayEquals(input.flatten.map(_+1).toArray, output.flatten.toArray, 0.001f)
   }
 
   @Test
   def testInferOneDim(): Unit = {
     val size = 1024
     val split = 32
-    val input = Array.fill(size)(util.Random.nextFloat() * 10)
+    val input = Vector.fill(size)(util.Random.nextFloat() * 10)
 
     val f = \(ArrayTypeWSWC(Float, N),
       MapWrg(MapLcl(plusOne)) o Split(split) $ _
     )
 
-    val execute = ExecuteOld()
-    val (output: Array[Float], _) =
-      execute(f, input)
+    val execute = Execute()
+    val (output, _) = execute[Vector[Vector[Float]]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -124,7 +120,7 @@ class TestExecuteOld {
     assertEquals(Cst(size), global(0))
     assertEquals(Cst(1), global(1))
     assertEquals(Cst(1), global(2))
-    assertArrayEquals(input.map(_+1), output, 0.001f)
+    assertArrayEquals(input.map(_+1).toArray, output.flatten.toArray, 0.001f)
   }
 
   @Test
@@ -136,7 +132,7 @@ class TestExecuteOld {
     val size2 = 512
     val split1 = 32
     val split2 = 8
-    val input = Array.fill(size1, size2)(util.Random.nextFloat() * 10)
+    val input = Vector.fill(size1, size2)(util.Random.nextFloat() * 10)
 
     val f = \(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       Untile2D() o
@@ -144,9 +140,8 @@ class TestExecuteOld {
         Tile(split1, split2) $ _
     )
 
-    val execute = ExecuteOld()
-    val (output: Array[Float], _) =
-      execute(f, input)
+    val execute = Execute()
+    val (output, _) = execute[Vector[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -157,7 +152,7 @@ class TestExecuteOld {
     assertEquals(Cst(size2), global(0))
     assertEquals(Cst(size1), global(1))
     assertEquals(Cst(1), global(2))
-    assertArrayEquals(input.flatten.map(_+1), output, 0.001f)
+    assertArrayEquals(input.flatten.map(_+1).toArray, output.toArray, 0.001f)
   }
 
   @Test
@@ -170,9 +165,7 @@ class TestExecuteOld {
     val sizeA = 128
     val sizeB = 16*cst1
 
-    val input = Array.fill(sizeA)(
-      Array.fill(sizeB)(util.Random.nextFloat() * 10)
-    )
+    val input = Vector.fill(sizeA, sizeB)(util.Random.nextFloat() * 10)
 
     val f = λ(ArrayTypeWSWC(ArrayTypeWSWC(Float, B*Cst(cst1)), A),
       MapWrg(
@@ -180,14 +173,13 @@ class TestExecuteOld {
       ) $ _
     )
 
-    val execute = ExecuteOld()
-    val (output: Array[Float], _) =
-      execute(f, input)
+    val execute = Execute()
+    val (output, _) = execute[Vector[Vector[Vector[Float]]]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
 
-    assertArrayEquals(input.flatten, output, 0.001f)
+    assertArrayEquals(input.flatten.toArray, output.flatten.flatten.toArray, 0.001f)
   }
 
   @Test
@@ -196,10 +188,10 @@ class TestExecuteOld {
 
     val cst1 = 8
 
-    val inputA = Array.fill(cst1)(util.Random.nextFloat() * 10)
-    val inputB = Array.fill(cst1)(util.Random.nextFloat() * 10)
+    val inputA = Vector.fill(cst1)(util.Random.nextFloat() * 10)
+    val inputB = Vector.fill(cst1)(util.Random.nextFloat() * 10)
 
-    val gold = Array(inputA.sum + inputB.sum)
+    val gold = inputA.sum + inputB.sum
 
     val f = λ(ArrayTypeWSWC(Float, cst1), ArrayTypeWSWC(Float, A),
       (cstArr, varArr) =>
@@ -208,13 +200,13 @@ class TestExecuteOld {
       )) o ReduceSeq(add, 0.0f) $ varArr
     )
 
-    val execute = ExecuteOld()
-    val (output: Array[Float], _) =
-      execute(f, inputA, inputB)
+    val execute = Execute()
+    val (output, _) = execute[Vector[Float]](f, inputA, inputB)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, inputA, inputB))
 
-    assertArrayEquals(gold, output, 0.001f)
+    assertEquals(1, output.length)
+    assertEquals(gold, output.head, 0.001f)
   }
 }

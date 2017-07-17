@@ -778,7 +778,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
     private lazy val bTAndAS = getBaseTypeAndAddressSpace(mainTy, initTas, addressSpace)
     val baseType: Type = bTAndAS._1
     val baseAddressSpace: OpenCLAddressSpace = bTAndAS._2
-    lazy val baseSize: ArithExpr = Type.getAllocatedSize(baseType)
+    lazy val baseSize: ArithExpr = Type.getBaseSize(baseType)
 
     /**
      * Get the type and the address space of the elements of the actual C array
@@ -794,7 +794,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
      */
     private def getBaseTypeAndAddressSpace(ty: Type, tupleAccessStack: List[Int],
                                            addressSpace: OpenCLAddressSpace): (Type, OpenCLAddressSpace) = {
-      if (tupleAccessStack.isEmpty) (Type.getBaseScalarType(ty), addressSpace)
+      if (tupleAccessStack.isEmpty) (Type.getBaseType(ty), addressSpace)
       else (ty, addressSpace) match {
         case (tt: TupleType, AddressSpaceCollection(coll)) =>
           val i :: tas = tupleAccessStack
