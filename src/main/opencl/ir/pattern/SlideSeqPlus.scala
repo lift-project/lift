@@ -26,14 +26,23 @@ case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loo
         val outerLength = (n - (size - step)) / step
         f.params(0).t = ArrayTypeWSWC(t,innerLength)
         ArrayTypeWSWC(TypeChecker.check(f.body,setType), outerLength)
-      case TupleType(a,b,c) =>  b match {
-        case ArrayTypeWSWC(t, _, n) =>
-          val innerLength = size
-          val outerLength = (n - (size - step)) / step
-          f.params(0).t = b
-          TupleType(TypeChecker.check(f.body,setType))
-        case _ => throw new TypeException(argType, "ArrayTypeWSWC", this)
-      }
+      case TupleType(a,b,c) =>
+        // need to get inside (a, b, c)
+        val firstType = a match {
+          case ArrayTypeWSWC(t, _, n) =>
+            t
+        }
+        val middleType = b match {
+          case ArrayTypeWSWC(t, _, n) =>
+            val innerLength = size
+            ArrayTypeWSWC(t,innerLength)
+        }
+        val lastType = c match {
+          case ArrayTypeWSWC(t, _, n) =>
+            t
+        }
+        f.params(0).t = TupleType(firstType, middleType,lastType)
+        TupleType(TypeChecker.check(f.body,setType))
       /*case ArrayTypeWSWC(tt: TupleType, s,c) =>i */
       case _ => throw new TypeException(argType, "ArrayTypeWSWC", this)
     }

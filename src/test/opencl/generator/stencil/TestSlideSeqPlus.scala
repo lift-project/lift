@@ -742,7 +742,8 @@ class TestSlideSeqPlus
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
       ArrayTypeWSWC(Float, slidesize*slidesize*slidesize),
       (input,weights) =>
-        MapGlb(1)(MapGlb(0)(fun(x => {
+        MapGlb(1)(MapGlb(0)(
+          fun(x => {
           toGlobal(SlideSeqPlus(
             fun(neighbours => {
               toGlobal(MapSeq(id)) o
