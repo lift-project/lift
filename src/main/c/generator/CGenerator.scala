@@ -485,12 +485,6 @@ class CGenerator extends Generator {
     e match {
       case e: Expr =>
         e.t match {
-          case a: RuntimeSizedArrayType =>
-            // TODO: Emitting a view of type ArrayType is illegal!
-            Left(ViewPrinter.emit(e.mem.variable, e.view) match {
-              case OpenCLAST.VarRef(v, s, i) => VarRef(v, s, ArithExpression(i.content))
-              case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
-            })
           case ArrayTypeWS(_,s) => Right(s)
           case ArrayType(_) =>
             // layout in memory: | capacity | size | ... |

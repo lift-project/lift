@@ -315,21 +315,6 @@ object ArrayTypeWC {
   }
 }
 
-
-
-
-// todo make sure we can distinguish between different unkownlengtharraytype (override hashCode and equals)
-class RuntimeSizedArrayType(override val elemT: Type) extends ArrayType(elemT) {
-  override def hasFixedAllocatedSize: Boolean = false
-}
-
-object RuntimeSizedArrayType {
-  def apply(elemT: Type): RuntimeSizedArrayType = {
-    new RuntimeSizedArrayType(elemT)
-  }
-  def unapply(array: RuntimeSizedArrayType): Type = array.elemT
-}
-
 /**
  * This instance indicates that a type has not been determined yet, e.g., prior
  * to type checking

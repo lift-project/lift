@@ -597,7 +597,7 @@ class OpenCLGenerator extends Generator {
     // get the loop variable as a range variable
     val range = loopVar.range.asInstanceOf[RangeAdd]
 
-    // generate a while loop which increments the task index atomically, while 
+    // generate a while loop which increments the task index atomically, while
     // it's less than the maximum range of the loop variable
     generateWhileLoop(nestedBlock,
       Predicate(loopVar, range.stop, Predicate.Operator.<),
@@ -645,16 +645,15 @@ class OpenCLGenerator extends Generator {
   private def generateFilterSeqCall(f: FilterSeq,
                                     call: FunCall,
                                     block: Block): Unit = {
-    
     (block: Block) += OpenCLAST.Comment("filter_seq")
-    
+
     // Declare the index for the output array as a local variable
     (block: Block) += OpenCLAST.VarDecl(
       f.loopWrite,
       opencl.ir.Int,
       ArithExpression(Cst(0))
     )
-  
+
     // If the predicate returns true:
     def copyAndIncrementIndex(block: Block): Unit = {
       // 1. Store the input value at "the top" of the output array
@@ -667,7 +666,7 @@ class OpenCLGenerator extends Generator {
           + f.loopWrite.range.asInstanceOf[RangeAdd].step)
       )
     }
-  
+
     def generateBody(block: Block): Unit = {
       generate(f.f.body, block)  // Evaluates the predicate
       generateConditional(
@@ -681,9 +680,9 @@ class OpenCLGenerator extends Generator {
         _ => ()
       )
     }
-    
+
     generateForLoop(block, call.args.head, f.loopRead, generateBody)
-    
+
     (block: Block) += OpenCLAST.Comment("end filter_seq")
   }
 
@@ -711,7 +710,7 @@ class OpenCLGenerator extends Generator {
 
   // === ReduceWhile ===
   private def generateReduceWhileCall(r: ReduceWhileSeq,
-                                      call: FunCall, 
+                                      call: FunCall,
                                       block: Block) : Unit = {
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.Comment("reduce_while_seq")
@@ -1221,11 +1220,11 @@ class OpenCLGenerator extends Generator {
       if (PerformLoopOptimisation())
         generateOptimizedForLoopRepresentations(block, array, indexVar, generateBody)
       else
-        generateDefaultForLoopRepresentation(block, array, indexVar, generateBody)
+        generateDefaultForLoopRepresentations(block, array, indexVar, generateBody)
     }
   }
 
-      private def getRangeAdd(indexVar: Var) = {
+  private def getRangeAdd(indexVar: Var) = {
     indexVar.range match {
       case r: RangeAdd => r
       case _ =>
@@ -1234,13 +1233,6 @@ class OpenCLGenerator extends Generator {
   }
 
   private def getIterationCount(array: Expr, indexVar: Var): Int = {
-    array.t match {
-      case _: RuntimeSizedArrayType =>
-        throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count could " +
-          "not be determined statically.")
-      case _ =>
-    }
-
     try {
       indexVar.range.numVals.enforceSimplification.eval
     } catch {
@@ -1291,9 +1283,6 @@ class OpenCLGenerator extends Generator {
     val init = ArithExpression(range.start)
 
     array.t match {
-      case _: RuntimeSizedArrayType =>
-        generateDefaultForLoopRepresentation(block, array, indexVar, generateBody)
-
       case _: ArrayType =>
         range.numVals match {
           case Cst(0) => (block: Block) += OpenCLAST.Comment("iteration count is 0, no loop emitted")
@@ -1314,75 +1303,16 @@ class OpenCLGenerator extends Generator {
             generateIfStatement(block, indexVar, generateBody, init, range.stop)
 
           case _ =>
-            generateDefaultForLoopRepresentation(block, array, indexVar, generateBody)
+            generateDefaultForLoopRepresentations(block, array, indexVar, generateBody)
         }
       case _ => throw new NotImplementedError() // should never get there
     }
   }
 
-  private def generateDefaultForLoopRepresentation(block: Block,
-                                                   array: Expr,
-                                                   indexVar: Var,
-                                                   generateBody: (Block) => Unit): Unit = {
-    array.t match {
-      case _: RuntimeSizedArrayType =>
-        generateDefaultForLoopForRuntimeSizedArrayType(block, array, indexVar, generateBody)
-
-      case _: ArrayType =>
-        generateDefaultForLoopForArrayType(block, array, indexVar, generateBody)
-
-      case _ => throw new NotImplementedError() // should never get there
-    }
-  }
-
-  private def getVarForSize(mem: Memory): Var = {
-    OpenCLMemory.asOpenCLMemory(mem) match {
-      case ms: OpenCLMemoryCollection => getVarForSize(ms.subMemories.head)
-      case x => x.variable
-    }
-  }
-
-  private def generateDefaultForLoopForRuntimeSizedArrayType(block: Block,
-                                                             array: Expr,
-                                                             indexVar: Var,
-                                                             generateBody: (Block) => Unit): Unit = {
-    val range = getRangeAdd(indexVar)
-
-    val headerIndex = ViewPrinter.emit(getVarForSize(array.mem), array.view.size()) match {
-      case VarRef(_, _, arrayIndex) => arrayIndex
-      case _ => throw new NotImplementedError() // should never get there
-    }
-    val headerLength: ArithExpr = 2 // TODO: this is in words! what happens if we have arrays of byte or double?
-
-    val addressSpace = OpenCLMemory.asOpenCLMemory(array.mem).addressSpace
-    val sizeExpr = PointerCast(
-      VarRef(array.mem.variable, arrayIndex = headerIndex), Int, addressSpace)
-
-    val init =
-      VarDecl(indexVar, opencl.ir.Int, ArithExpression(range.start), PrivateMemory)
-    val cond =
-      CondExpression(ArithExpression(indexVar), sizeExpr, CondExpression.Operator.<)
-    val increment =
-      AssignmentExpression(
-        ArithExpression(indexVar), ArithExpression(indexVar + range.step))
-
-    val innerBlock  = OpenCLAST.Block(Vector.empty)
-    (block: Block) += OpenCLAST.ForLoop(init, ExpressionStatement(cond), increment, innerBlock)
-
-    // shift index by header length
-    replacements = replacements.updated(indexVar, indexVar + headerLength)
-    replacementsWithFuns = replacementsWithFuns.updated(indexVar, indexVar + headerLength)
-
-    generateBody(innerBlock)
-
-    replacements = replacements - indexVar
-    replacementsWithFuns = replacementsWithFuns - indexVar
-  }
-
-  private def generateDefaultForLoopForArrayType(block: Block,
-                                                 array: Expr,
-                                                 indexVar: Var,
-                                                 generateBody: (Block) => Unit): Unit = {
+  private def generateDefaultForLoopRepresentations(block: Block,
+                                                    array: Expr,
+                                                    indexVar: Var,
+                                                    generateBody: (Block) => Unit): Unit = {
     val range = getRangeAdd(indexVar)
     val ty = array.t.asInstanceOf[ArrayType]
   
@@ -1419,31 +1349,6 @@ class OpenCLGenerator extends Generator {
       case _ =>
         ViewPrinter.emit(mem.variable, view, addressSpace = mem.addressSpace)
     }
-  }
-
-  /**
-   * Store the size of an array
-   */
-  private def storeArraySize(ty: Type, mem: Memory, view: View, size: Var): Expression = {
-    def castSize(ty: Type): (Type, OpenCLAST.OclAstNode) = {
-      Type.getBaseType(ty) match {
-        case tt: TupleType =>
-          val values = tt.elemsT.map(castSize).map(_._2)
-          val tv = OpenCLAST.StructConstructor(tt, values.toVector)
-          (tt, tv)
-        case bt =>
-          if (bt == Int) (bt, VarRef(size))
-          else (bt, Cast(VarRef(size), bt))
-      }
-    }
-
-    val (baseType, castedSize) = castSize(ty)
-    generateStoreNode(
-      OpenCLMemory.asOpenCLMemory(mem),
-      baseType,
-      view,
-      castedSize
-    )
   }
 
   private def generateStatement(block: Block,
