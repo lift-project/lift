@@ -321,7 +321,7 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size,size) { (i,j) => (i + j + 1).toFloat }
 
     val firstSlide = values.sliding(slidesize,slidestep).toArray
-    val secondSlide = firstSlide.map(x => x.transpose.sliding(3,1).toArray)
+    val secondSlide = firstSlide.map(x => x.transpose.sliding(slidesize,slidestep).toArray)
     val neighbours = secondSlide.map(x => x.map(y => y.transpose))
     val gold = neighbours.map(x => x.map(y => y.flatten.reduceLeft(_ + _))).flatten
 
@@ -334,14 +334,14 @@ class TestSlideSeqPlus
       (input) =>
         MapGlb(0)(fun(x => {
 
-          val side1 =  MapSeq( fun( t => { toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ t })) o Slide(3,1) $ x.at(0)
-          val side2 = MapSeq( fun( t => { toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ t })) o Slide(3,1) $ x.at(2)
+          val side1 =  MapSeq( fun( t => { toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ t })) o Slide(a,b) $ x.at(0)
+          val side2 = MapSeq( fun( t => { toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ t })) o Slide(a,b) $ x.at(2)
           val sum = toGlobal(MapSeq(id) o MapSeq(addTuple)) $ Zip(Join() $ side1,Join() $ side2)
           val tmpSum = 0.0f
           val ssp =  toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) , a,b))  $ x.at(1)
           val actSum = toGlobal(MapSeq(addTuple)) $ Zip( Join() $ ssp,sum)
           actSum
-        })) o Slide(3,1) o Transpose() $ input
+        })) o Slide(a,b) o Transpose() $ input
     )
 
     val (output: Array[Float], _) = Execute(2,2)(stencil2D(slidesize,slidestep), values)
@@ -359,7 +359,7 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size,size) { (i,j) => (i + j + 1).toFloat }
 
     val firstSlide = values.sliding(slidesize,slidestep).toArray
-    val secondSlide = firstSlide.map(x => x.transpose.sliding(3,1).toArray)
+    val secondSlide = firstSlide.map(x => x.transpose.sliding(slidesize,slidestep).toArray)
     val neighbours = secondSlide.map(x => x.map(y => y.transpose))
     val gold = neighbours.map(x => x.map(y => y.flatten.reduceLeft(_ + _))).flatten
 
@@ -390,12 +390,12 @@ class TestSlideSeqPlus
 
               toGlobal(id) $ stencil
 
-               })) o Slide2D(3,1) o Transpose() $ x
+               })) o Slide2D(a,b) o Transpose() $ x
           val tmpSum = 0.0f
           val ssp =  toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp, tmpSum) , a,b))  $ x.at(1)
           val actSum = toGlobal(MapSeq(addTuple)) $ Zip( Join() $ ssp,sumSide33)
           actSum
-        })) o Slide(3,1) o Transpose() $ input
+        })) o Slide(a,b) o Transpose() $ input
     )
 
     val (output: Array[Float], _) = Execute(2,2)(stencil2D(slidesize,slidestep), values)
@@ -499,10 +499,6 @@ class TestSlideSeqPlus
     val slidestep = 1
     val values = Array.tabulate(sizeY,sizeX) { (i,j) => (i*sizeX + j + 1).toFloat }
 
-    val firstSlide = values.sliding(slidesize,slidestep).toArray
-    val secondSlide = firstSlide.map(x => x.transpose.sliding(3,1).toArray)
-    val neighbours = secondSlide.map(x => x.map(y => y.transpose))
-
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
 
@@ -521,14 +517,6 @@ class TestSlideSeqPlus
     val slidestep = 4
     val values = Array.tabulate(size,size) { (i,j) => (i*size + j + 1).toFloat }
 
-    val firstSlide = values.sliding(slidesize,slidestep).toArray
-    val secondSlide = firstSlide.map(x => x.transpose.sliding(3,1).toArray)
-    val neighbours = secondSlide.map(x => x.map(y => y.transpose))
-    val gold = neighbours.map(x => x.map(y => y.flatten.reduceLeft(_ + _))).flatten
-
-    val N = 2 + SizeVar("N")
-    val M = 2 + SizeVar("M")
-
     val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil2D(slidesize,slidestep), values)
     val (goldExec: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original2DStencil(slidesize,slidestep), values)
 
@@ -544,10 +532,6 @@ class TestSlideSeqPlus
     val slidesize = 3
     val slidestep = 1
     val values = Array.tabulate(size,size) { (i,j) => (i*size + j + 1).toFloat }
-
-    val firstSlide = values.sliding(slidesize,slidestep).toArray
-    val secondSlide = firstSlide.map(x => x.transpose.sliding(3,1).toArray)
-    val neighbours = secondSlide.map(x => x.map(y => y.transpose))
 
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
