@@ -648,6 +648,7 @@ class TestSlideSeqPlus
 
   }
 
+  @Ignore
   @Test
   def reduceSlide3DTest7PointWithAtAsymmetric(): Unit = {
 
