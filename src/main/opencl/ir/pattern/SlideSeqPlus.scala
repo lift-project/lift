@@ -5,6 +5,17 @@ import lift.arithmetic.{ArithExpr, PosVar, Var}
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter.ValueMap
+/**
+  * The SlideSeqPlus primitive is a slide followed by a sequential map
+  *
+  * The purpose is to reuse memory accesses when computing over a dimension
+  * (this can be the only dimension if SlideSeqPlus is called directly).
+  *
+  * @param f a function to be applied after the slide in the sequential map
+  * @param size the size of the slide
+  * @param step the step of the slide
+  *
+  */
 
 case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loopVar: Var, var windowVar: Var) extends Pattern(arity = 1) with isGenerable with FPattern
 {
