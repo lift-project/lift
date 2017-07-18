@@ -1393,18 +1393,14 @@ class OpenCLGenerator extends Generator {
       case _: Size => ArithExpression(range.stop)
       case _ =>
         val mem = OpenCLMemory.asOpenCLMemory(array.mem)
-        getArraySize(mem, array.view.size())
+        val stopVar = Var("stop")
+        (block: Block) += VarDecl(stopVar, Int, getArraySize(mem, array.view.size()))
+        VarRef(stopVar)
     }
     val init = VarDecl(indexVar, Int, start, PrivateMemory)
-    
-    val increment = AssignmentExpression(
-      ArithExpression(indexVar), ArithExpression(indexVar + range.step)
-    )
-    
-    val cond = CondExpression(
-      ArithExpression(indexVar), stop, CondExpression.Operator.<
-    )
-    
+    val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
+    val cond = CondExpression(ArithExpression(indexVar), stop, CondExpression.Operator.<)
+
     (block: Block) += OpenCLAST.ForLoop(init, cond, increment, innerBlock)
     
     generateBody(innerBlock)
