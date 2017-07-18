@@ -173,6 +173,68 @@ class TestEncoder {
     assertBufferEquals(gold(dArray, 8), dEncoder.encode(dArray))
     assertBufferEquals(gold(bArray, 1), bEncoder.encode(bArray))
   }
+
+  @Test
+  def encode4D(): Unit = {
+    val ty = ArrayType(ArrayType(ArrayType(ArrayType(Int), 2), 2), 3)
+    val array =
+      Vector(
+        Vector(
+          Vector(
+            Vector(1, 2, 3), Vector(4, 5)
+          ),
+          Vector(
+            Vector(6, 7), Vector(8, 9, 10, 11)
+          )
+        ),
+        Vector(
+          Vector(
+            Vector(12), Vector(13, 14, 15)
+          ),
+          Vector(
+            Vector(16, 17, 18, 19), Vector(20, 21)
+          )
+        ),
+        Vector(
+          Vector(
+            Vector(22), Vector(23, 24)
+          ),
+          Vector(
+            Vector(25, 26), Vector(27, 28, 29, 30, 31)
+          )
+        )
+      )
+    val gold = Vector(
+      3 * 4, 28 * 4, 52* 4,
+        // Element 0
+        2 * 4, 13 * 4,
+          // Element 0,0
+          2 * 4, 7 * 4,
+          3, 3, 1, 2, 3,   2, 2, 4, 5,
+          // Element 0,1
+          2 * 4, 6 * 4,
+          2, 2, 6, 7,   4, 4, 8, 9, 10, 11,
+        // Element 1
+        2 * 4, 12 * 4,
+          // Element 1,0
+          2 * 4, 5 * 4,
+          1, 1, 12,   3, 3, 13, 14, 15,
+          // Element 1,1
+          2 * 4, 8 * 4,
+          4, 4, 16, 17, 18, 19,   2, 2, 20, 21,
+        // Element 2
+        2 * 4, 11 * 4,
+          // Element 2,0
+          2 * 4, 5 * 4,
+          1, 1, 22,   2, 2, 23, 24,
+          // Element 2,1
+          2 * 4, 6 * 4,
+          2, 2, 25, 26,   5, 5, 27, 28, 29, 30, 31
+    )
+
+    val encoder = new Encoder(ty, gold.length * 4)
+    assertBufferEquals(toBuffer(gold), encoder.encode(array))
+  }
 }
 
 object TestEncoder {

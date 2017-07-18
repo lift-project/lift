@@ -940,7 +940,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], address
         // Elements are not aligned: do an indirection
         val elementOffset = if (baseType == Int) AccessVar(Right(v), offset + idx)
                             else AccessVar(Right(CastedPointer(v, Int, offset, addressSpace)), idx)
-        skipBytes(mainVar, 0, elementOffset, aligned = aligned)
+        skipBytes(mainVar, offset, elementOffset, aligned = aligned)
       }
     }
 

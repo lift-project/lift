@@ -39,7 +39,8 @@ class TestArray {
     * The array is filled with integers so we don't need to store the offsets.
     * Layout: [size, elt_0, elt_1, …, elt_{κ-1}]
     */
-  @Test def unknownSizeReduce(): Unit = {
+  @Test
+  def unknownSizeReduce(): Unit = {
     val capacity = 1024
     val size = 700
     val input = Vector.fill(size)(util.Random.nextInt(16))
@@ -62,7 +63,8 @@ class TestArray {
     * Same situation but this time the output is an array of the same shape
     * and not a constant.
     */
-  @Test def unknownSizeMap(): Unit = {
+  @Test
+  def unknownSizeMap(): Unit = {
     val capacity = 1024
     val size = 879
 
@@ -81,7 +83,8 @@ class TestArray {
     assertEquals(fInput, fOutput)
   }
 
-  @Test def unknownSizeMapBool(): Unit = {
+  @Test
+  def unknownSizeMapBool(): Unit = {
     val capacity = 128
     val size = 87
     val input = Vector.fill(size)(util.Random.nextBoolean())
@@ -95,7 +98,8 @@ class TestArray {
     assertEquals(input, bOutput)
   }
 
-  @Test def unknownSizeMapDouble(): Unit = {
+  @Test
+  def unknownSizeMapDouble(): Unit = {
     Assume.assumeTrue("Needs double support", Executor.supportsDouble())
 
     val capacity = 1024
@@ -117,7 +121,8 @@ class TestArray {
     * output.
     * Layout: [κ, size, elt_0, elt_1, elt_2, …]
     */
-  @Test def inputZeroKnowledge(): Unit = {
+  @Test
+  def inputZeroKnowledge(): Unit = {
     val size = 128
     val input = Vector.fill(size)(util.Random.nextInt(16))
 
@@ -136,7 +141,8 @@ class TestArray {
   /**
     * Here, you know nothing (Jon Snow).
     */
-  @Test def zeroKnowledge(): Unit = {
+  @Test
+  def zeroKnowledge(): Unit = {
     val f = fun(
       ArrayType(Int),
       in =>
@@ -151,7 +157,8 @@ class TestArray {
   /**
     * Nested arrays with no size
     */
-  @Test def nestedArraysNoSize(): Unit = {
+  @Test
+  def nestedArraysNoSize(): Unit = {
     val capacity = 128
     val size1 = 90
     val size2 = 42
@@ -194,7 +201,8 @@ class TestArray {
   /**
     * Nested arrays.
     */
-  @Test def nestedArraysZeroKnowledge(): Unit = {
+  @Test
+  def nestedArraysZeroKnowledge(): Unit = {
     val f = fun(
       ArrayType(ArrayType(Int)),
       in =>
@@ -206,7 +214,9 @@ class TestArray {
     Compile(f)
   }
 
-  @Ignore @Test def arrZipMapWAllocation(): Unit = {
+  @Ignore
+  @Test
+  def arrZipMapWAllocation(): Unit = {
     val f = fun(
       ArrayType(Float), ArrayType(Float), (p1, p2) =>
         ReduceSeq(add, 0.0f) o MapSeq(add) $ Zip(p1, p2)
@@ -217,7 +227,8 @@ class TestArray {
     Compile(f)
   }
 
-  @Test def arrZipMap(): Unit = {
+  @Test
+  def arrZipMap(): Unit = {
     val f = fun(
       ArrayType(Float), ArrayType(Float), (p1, p2) =>
         toGlobal(MapSeq(id)) o ReduceSeq(fun((init, elem) => add(init, mult(elem._0, elem._1))), 0.0f) $ Zip(p1, p2)
@@ -238,7 +249,8 @@ class TestArray {
     assertArrayEquals(Array(gold), outputRev.toArray, 0.0001f)
   }
 
-  @Test def twoDArrZipReduce(): Unit = {
+  @Test
+  def twoDArrZipReduce(): Unit = {
     val N = SizeVar("N")
     val f = fun(
       ArrayTypeWSWC(ArrayType(Float), N), ArrayTypeWSWC(ArrayType(Float), N), (p1, p2) =>
@@ -290,7 +302,37 @@ class TestArray {
     assertEquals(input.map(x => 2 * (x + 1)), output)
   }
 
-  @Test def basicSpMV(): Unit = {
+  @Test
+  def highDimension(): Unit = {
+    val dimSizes = Array(4, 2, 3, 2, 3)
+    val inner = ArrayType(Int)
+
+    val kernel = fun(
+      dimSizes.foldRight(inner)({ case (size, t) => ArrayTypeWSWC(t, size, size) }),
+      array =>
+        MapGlb(
+          MapSeq(
+            MapSeq(
+              MapSeq(
+                Join() o MapSeq(MapSeq(toGlobal(id(Int))) o ReduceSeq(add(Int), 0))
+              )
+            )
+          )
+        ) $ array
+    )
+
+    val input = Vector.fill(dimSizes(0), dimSizes(1), dimSizes(2), dimSizes(3), dimSizes(4))({
+      val len = util.Random.nextInt(8) + 1
+      Vector.fill(len)(util.Random.nextInt(512))
+    })
+    val gold = input.map(_.map(_.map(_.map(_.map(_.sum)))))
+
+    val (output, _) = Execute(4, 4)[Vector[Vector[Vector[Vector[Vector[Int]]]]]](kernel, input)
+    assertEquals(gold, output)
+  }
+
+  @Test
+  def basicSpMV(): Unit = {
     val N = SizeVar("VectorLength")
     val M = SizeVar("MatrixHeight")
     val f = fun(
