@@ -69,17 +69,6 @@ object Zip {
   }
 }
 
-object Zip3D {
-
-   def apply(arg1: Expr, arg2: Expr) : Expr = {
-      Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1)))) o Map( \(tuple => Zip(tuple._0, tuple._1))) $ Zip(arg1,arg2)
-    }
-
-  def apply(arg1: Expr, arg2: Expr, arg3: Expr) : Expr = {
-      Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2)))) o Map( \(tuple => Zip(tuple._0, tuple._1, tuple._2))) $ Zip(arg1,arg2,arg3)
-   }
-}
-
 object Zip2D{
 
   def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr) : Expr = {
@@ -94,4 +83,15 @@ object Zip2D{
     Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2))) $ Zip(arg1, arg2, arg3)
   }
 
+}
+
+object Zip3D {
+
+  def apply(arg1: Expr, arg2: Expr) : Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1)))) o Map( \(tuple => Zip(tuple._0, tuple._1))) $ Zip(arg1,arg2)
+  }
+
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr) : Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2)))) o Map( \(tuple => Zip(tuple._0, tuple._1, tuple._2))) $ Zip(arg1,arg2,arg3)
+  }
 }

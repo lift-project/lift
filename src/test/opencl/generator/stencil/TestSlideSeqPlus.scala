@@ -611,6 +611,7 @@ class TestSlideSeqPlus
 
     val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil3D(slidesize,slidestep), values)
     val (gold: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original3DStencil(slidesize,slidestep), values)
+    println(Compile(SlideSeqPlusHelpers.stencil3D(slidesize,slidestep)))
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -705,6 +706,8 @@ class TestSlideSeqPlus
             }) /*o PrintType()*/, a,b)) o  Transpose() o Map(Transpose()) $ x
         }))) o Slide2D(a,b)  $ input
     )
+
+  println(Compile(stencil3DWeights(3,1)))
 
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(stencil3DWeights(slidesize,slidestep), values,StencilUtilities.weights3D.flatten.flatten)
     val (gold: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(stencil3DCompareWeights(slidesize,slidestep), values, StencilUtilities.weights3D.flatten.flatten)
