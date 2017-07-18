@@ -125,8 +125,7 @@ class TestExecute {
 
   @Test
   def testInferTwoDim(): Unit = {
-
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val size1 = 1024
     val size2 = 512
@@ -141,7 +140,7 @@ class TestExecute {
     )
 
     val execute = Execute()
-    val (output, _) = execute[Vector[Float]](f, input)
+    val (output, _) = execute[Vector[Vector[Float]]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -152,7 +151,7 @@ class TestExecute {
     assertEquals(Cst(size2), global(0))
     assertEquals(Cst(size1), global(1))
     assertEquals(Cst(1), global(2))
-    assertArrayEquals(input.flatten.map(_+1).toArray, output.toArray, 0.001f)
+    assertArrayEquals(input.flatten.map(_+1).toArray, output.flatten.toArray, 0.001f)
   }
 
   @Test

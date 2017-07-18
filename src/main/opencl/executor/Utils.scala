@@ -20,6 +20,10 @@ object Utils {
 
   def isApplePlatform = Executor.getPlatformName == "Apple"
 
+  def isAppleCPU: Boolean =
+    Executor.getPlatformName == "Apple" &&
+    Executor.getDeviceType == "CPU"
+
   def isAmdGpu =
     Executor.getPlatformName == "AMD Accelerated Parallel Processing" && 
     Executor.getDeviceType == "GPU"
