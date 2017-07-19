@@ -218,9 +218,9 @@ object Utils {
    * @param lambda The lambda to dump to a string
    * @return
    */
-  def dumpLambdaToString(lambda: Lambda, useOldVersion: Boolean = false): String = {
-    // old version does not print detailed Range information => old hashes stay valid
-    if (useOldVersion) {
+  def dumpLambdaToString(lambda: Lambda, printRangeInformation: Boolean = false): String = {
+    // do not print detailed Range information => existing hashes stay valid
+    if (!printRangeInformation) {
       val fullString =  dumpLambdaToStringWithoutDecls(lambda)
 
       val withIndex: List[(String, Int)] = findVariables(fullString)

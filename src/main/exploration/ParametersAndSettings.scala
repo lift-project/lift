@@ -147,15 +147,15 @@ object MemoryMappingRewriteSettings {
 }
 
 case class HighLevelRewriteSettings(
-  explorationDepth: Int,
-  depth: Int,
-  distance: Int,
-  ruleRepetition: Int,
-  vectorWidth: Int,
-  sequential: Boolean,
-  onlyLower: Boolean,
-  oldStringRepresentation: Boolean,
-  ruleCollection: String
+                                     explorationDepth: Int,
+                                     depth: Int,
+                                     distance: Int,
+                                     ruleRepetition: Int,
+                                     vectorWidth: Int,
+                                     sequential: Boolean,
+                                     onlyLower: Boolean,
+                                     keepRangeInformation: Boolean,
+                                     ruleCollection: String
 ) {
   override def toString: String =
     s"""HighLevelRewriteSettings:
@@ -166,7 +166,7 @@ case class HighLevelRewriteSettings(
       |    vectorWidth: $vectorWidth
       |    sequential: $sequential
       |    onlyLower: $onlyLower
-      |    oldStringRepresentation: $oldStringRepresentation
+      |    keepRangeInformation: $keepRangeInformation
       |    ruleCollection: $ruleCollection
     """.stripMargin
 }
@@ -179,15 +179,15 @@ object HighLevelRewriteSettings {
   def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None)
 
   def createWithDefaults(
-                        configExplorationDepth: Option[Int],
-                        configDepth: Option[Int],
-                        configDistance: Option[Int],
-                        configRuleRepetition: Option[Int],
-                        configVectorWidth: Option[Int],
-                        configSequential: Option[Boolean],
-                        configOnlyLower: Option[Boolean],
-                        configOldStringRepresentation: Option[Boolean],
-                        configRuleCollection: Option[String]
+                          configExplorationDepth: Option[Int],
+                          configDepth: Option[Int],
+                          configDistance: Option[Int],
+                          configRuleRepetition: Option[Int],
+                          configVectorWidth: Option[Int],
+                          configSequential: Option[Boolean],
+                          configOnlyLower: Option[Boolean],
+                          configKeepRangeInformation: Option[Boolean],
+                          configRuleCollection: Option[String]
                         ) = HighLevelRewriteSettings(
   // priority: 1) command-line args; 2) config-file; 3) default values
   getValue(explorationDepth, configExplorationDepth, defaultExplorationDepth),
@@ -197,7 +197,7 @@ object HighLevelRewriteSettings {
   getValue(vectorWidth, configVectorWidth, defaultVectorWidth),
   getValue(sequential, configSequential, defaultSequential),
   getValue(onlyLower, configOnlyLower, defaultOnlyLower),
-  getValue(oldStringRepresentation, configOldStringRepresentation, defaultOldStringRepresentation),
+  getValue(keepRangeInformation, configKeepRangeInformation, defaultKeepRangeInformation),
   getValue(ruleCollection, configRuleCollection, defaultRuleCollection))
 }
 
@@ -288,7 +288,7 @@ object ParseSettings {
     (JsPath \ "vector_width").readNullable[Int] and
     (JsPath \ "sequential").readNullable[Boolean] and
     (JsPath \ "only_lower").readNullable[Boolean] and
-    (JsPath \ "old_string_representation").readNullable[Boolean] and
+    (JsPath \ "keep_range_information").readNullable[Boolean] and
     (JsPath \ "rule_collection").readNullable[String]
   )(HighLevelRewriteSettings.createWithDefaults _)
 

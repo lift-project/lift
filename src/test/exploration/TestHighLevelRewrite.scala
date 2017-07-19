@@ -76,7 +76,7 @@ class TestHighLevelRewrite {
   )
 
   def getHash(lambda: Lambda): String =
-    Utils.Sha256Hash(Utils.dumpLambdaToString(lambda, useOldVersion = true))
+    Utils.Sha256Hash(Utils.dumpLambdaToString(lambda, printRangeInformation = true))
 
   @Test ( expected = classOf[TypeException] )//see Issue #114
   def rewriteLambdaUsingInt(): Unit = {
