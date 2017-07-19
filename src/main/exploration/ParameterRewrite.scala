@@ -201,7 +201,7 @@ object ParameterRewrite {
                         val filtered: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] =
                           rangeList.flatMap {ranges =>
                             // don't filter if we're not injecting the NDRanges
-                            if (config.disableNDRangeInjection || (expr, ranges, settings.searchParameters) == Success)
+                            if (config.disableNDRangeInjection || ExpressionFilter(expr, ranges, settings.searchParameters) == Success)
                               Some((low_level_factory(vars ++ params), params, ranges))
                             else
                               None
