@@ -824,7 +824,7 @@ class Best {
 
   @Test
   def keplerBestSgemm(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M_0 = variables(0)

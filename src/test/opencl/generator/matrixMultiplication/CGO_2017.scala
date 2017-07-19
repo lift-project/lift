@@ -371,8 +371,7 @@ class CGO_2017 {
 
   @Test
   def clblas_kepler_sgemm_TN(): Unit = {
-
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val tileSizeM = 8
     val tileSizeN = 8
