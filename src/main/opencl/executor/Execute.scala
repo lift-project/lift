@@ -121,7 +121,7 @@ object Execute {
      * Compute a list of capacity constraints and a list of size constraints
      * given a list of types and a list of values supposed to be matching them.
      */
-    private def fetchAllConstraints(tys: Seq[Type], values: Seq[Any]): (Seq[Constraint], Seq[Constraint]) = {
+    private def fetchAllConstraints(tys: Seq[Type], values: Seq[Any]): (Set[Constraint], Set[Constraint]) = {
       // Look for constraints in all the pairs like `(type, value)`
       // Hack: if vectors are passed to a kernel *not* wrapped in an array,
       //       they are passed as scalar types and they will be casted into
@@ -129,39 +129,34 @@ object Execute {
       //       For example:
       //       - a float4 should be passed as a Float
       //       - but an array of float4 must be passed as a 2D array of Floats
-      val constraints =
-      (tys zip values)
-        .map(p => {
-          val (ty, value) = p
-          ty match {
-            case VectorType(st, _) =>
-              checkParamWithValue(st, value)
-              (Seq.empty, Seq.empty)
-            case _ =>
-              val (caps, sizes) = fetchConstraints(ty, value)
-              (simplify(caps), simplify(sizes))
-          }
-        })
-
-      // Reshape this set of information into two sequences of constraints
-      val (capacityConstraints2D, sizeConstraints2D) = constraints.unzip
-      (capacityConstraints2D.flatten, sizeConstraints2D.flatten)
+      val init: (Set[Constraint], Set[Constraint]) = (Set.empty, Set.empty)
+      (tys zip values).foldLeft(init)((cons, typedVal) => {
+        val (ty, value) = typedVal
+        ty match {
+          case VectorType(st, _) =>
+            checkParamWithValue(st, value)
+            cons
+          case _ =>
+            val (caps, sizes) = fetchConstraints(ty, value, cons)
+            (simplify(caps), simplify(sizes))
+        }
+      })
     }
 
     /**
      * Takes a list of size constraints, checks that they are consistent
      * altogether and build map from variable to values out of this list.
      */
-    private def cleanSizeConstraints(sizeConstraints: Seq[Constraint]): immutable.Map[ArithExpr, Int] = {
+    private def cleanSizeConstraints(sizeConstraints: Set[Constraint]): immutable.Map[ArithExpr, Int] = {
       val map = sizeConstraints.groupBy(_.variable)
 
       // Check that the sizes are consistent (see issue #98, snippet 2)
       map.mapValues(pairs => {
         // If we have more than one value for a given key (N = 16 and N = 32),
         // throw an exception
-        val values = pairs.map(_.value).distinct
+        val values = pairs.map(_.value)
         val variable = pairs.head.variable
-        if (values.length != 1)
+        if (values.size != 1)
           throw new IllegalKernelArgument(
             s"Incompatible values inferred for variable: $variable\n" +
               values.map(v => s" - `$v`").mkString("\n")
@@ -176,7 +171,7 @@ object Execute {
      * sizes, infers a value for each capacity variable and checks that it is
      * consistent with the inferred sizes.
      */
-    private def cleanCapacityConstraints(capacityConstraints: Seq[Constraint],
+    private def cleanCapacityConstraints(capacityConstraints: Set[Constraint],
                                          sizes: immutable.Map[ArithExpr, Int]): immutable.Map[ArithExpr, Int] = {
       val map = capacityConstraints.groupBy(_.variable)
 
@@ -208,7 +203,8 @@ object Execute {
      * @param ty the type
      * @param value the value
      */
-    private def fetchConstraints(ty: Type, value: Any): (Seq[Constraint], Seq[Constraint]) = {
+    private def fetchConstraints(ty: Type, value: Any, constraints: (Set[Constraint], Set[Constraint]))
+                                : (Set[Constraint], Set[Constraint]) = {
       ty match {
         case at: ArrayType =>
           val vector = value match {
@@ -217,26 +213,23 @@ object Execute {
           }
 
           // Recursive call if array of arrays
-          val (caps, sizes) = at.elemT match {
-            case _: ArrayType =>
-              val (cs, ss) = vector.map(fetchConstraints(at.elemT, _)).unzip
-              (cs.flatten, ss.flatten)
+          val (caps: Set[Constraint], sizes: Set[Constraint]) = at.elemT match {
+            case elemT: ArrayType =>
+              val (cs, ss) = vector.map(fetchConstraints(elemT, _, (Set.empty, Set.empty))).unzip
+              (cs.toSet.flatten, ss.toSet.flatten)
             case _ =>
               checkParamWithValue(at.elemT, vector.head)
-              (Seq.empty, Seq.empty)
+              (Set.empty, Set.empty)
           }
 
           // fetch information for the current array
-          (collectCapacityConstraints(at, vector.length, caps), collectSizeConstraints(at, vector.length, sizes))
-        case TupleType(_) | ScalarType(_, _) =>
-          // We assume tuples do not contain arrays
+          (
+            collectCapacityConstraints(at, vector.length, caps ++ constraints._1),
+            collectSizeConstraints(at, vector.length, sizes ++ constraints._2)
+          )
+        case _ =>
           checkParamWithValue(ty, value)
-          (Seq.empty, Seq.empty)
-        case VectorType(_, _) =>
-          checkParamWithValue(ty, value)
-          (Seq.empty, Seq.empty)
-        case NoType | UndefType =>
-          throw new IllegalArgumentException("Executor: Untyped parameter in lambda")
+          constraints
       }
     }
 
@@ -291,7 +284,7 @@ object Execute {
      */
     private def collectCapacityConstraints(ty: ArrayType,
                                            len: Int,
-                                           caps: Seq[Constraint]): Seq[Constraint] = {
+                                           caps: Set[Constraint]): Set[Constraint] = {
       ty match {
         case c: Capacity => c.capacity match {
           case Cst(n) =>
@@ -299,7 +292,7 @@ object Execute {
             if (n.toInt < len)
               throw new IllegalKernelArgument(s"Ill-sized argument: $n < $len")
             caps
-          case expr => Constraint(expr, len) +: caps
+          case expr => caps + Constraint(expr, len)
         }
         case _ => caps
       }
@@ -310,7 +303,7 @@ object Execute {
      * constraints.
      */
     private def collectSizeConstraints(ty: ArrayType, len: Int,
-                                       sizes: Seq[Constraint]): Seq[Constraint] = {
+                                       sizes: Set[Constraint]): Set[Constraint] = {
       ty match {
         case s: Size => s.size match {
           case Cst(n) =>
@@ -318,7 +311,7 @@ object Execute {
             if (n.toInt != len)
               throw new IllegalKernelArgument(s"Ill-sized argument: $n ≠ $len")
             sizes
-          case expr => Constraint(expr, len) +: sizes
+          case expr => sizes + Constraint(expr, len)
         }
         case _ => sizes
       }
@@ -327,7 +320,7 @@ object Execute {
     /**
      * Simplify a list of constraints
      */
-    private def simplify(c: Seq[Constraint]): Seq[Constraint] = c.map({
+    private def simplify(c: Set[Constraint]): Set[Constraint] = c.map({
       case Constraint(v, len) =>
         val newLen = SolveForVariable(v, len).eval
         Constraint(v.varList.head, newLen)
