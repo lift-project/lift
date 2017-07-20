@@ -1,6 +1,6 @@
 {
   "input_combinations" : [
-    [6408, 4802]
+    [4802, 6408]
   ],
 
   "high_level_rewrite" : {
@@ -39,7 +39,7 @@
   },
 
   "parameter_rewrite" : {
-    "explore_ndrange" : false,
+    "explore_ndrange" : true,
     "sample_ndrange" : -1,
     "disable_ndrange_injection" : false,
     "sequential" : false,
