@@ -20,15 +20,15 @@
     "vector_width" : 4,
     "sequential" : false,
     "load_balancing" : false,
-    "unroll_reduce" : false,
-    "global0" : true,
+    "unroll_reduce" : true,
+    "global0" : false,
     "global01" : false,
-    "global10" : false,
+    "global10" : true,
     "global012" : false,
     "global210" : false,
     "group0" : false,
     "group01" : false,
-    "group10" :false
+    "group10" : true
   },
 
   "local_memory_rules" : {
