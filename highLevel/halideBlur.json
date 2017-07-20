@@ -40,7 +40,7 @@
 
   "parameter_rewrite" : {
     "explore_ndrange" : true,
-    "sample_ndrange" : -1,
+    "sample_ndrange" : 20,
     "disable_ndrange_injection" : false,
     "sequential" : false,
     "generate_scala" : false
