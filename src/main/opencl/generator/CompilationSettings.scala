@@ -54,16 +54,6 @@ object UseCastsForVectors {
   def apply(): Boolean = vectorCast
 }
 
-/**
- * Ensure that headers and values in arrays are stored at addresses that are
- * divisible by their size.
- */
-object AlignArrays {
-  private var alignArrays = System.getenv("LIFT_ALIGN_ARRAYS") != null
-  def apply(): Boolean = alignArrays
-  def apply(align: Boolean): Unit = alignArrays = align
-}
-
 object AllocateLocalMemoryStatically {
   private var allocateLocalMemoryStatically = true
   def apply(): Boolean = allocateLocalMemoryStatically

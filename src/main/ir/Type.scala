@@ -3,7 +3,6 @@ package ir
 import arithmetic.TypeVar
 import ir.ast.IRNode
 import lift.arithmetic._
-import opencl.generator.AlignArrays
 import opencl.ir.{Bool, Int, Long}
 
 import scala.collection.immutable.HashMap
@@ -123,11 +122,13 @@ case class TupleType(elemsT: Type*) extends Type {
    *
    * Example: for `(int, (double, char))` it is:
    *          `(max(sizeof(int), sizeof(double), sizeof(char)), 3)`
+   *
+   * FIXME (issue #119): it's not clear which method should be preferred here
    */
   lazy val alignment: (ArithExpr, ArithExpr) = getAlignment(this)
 
   /** See definition of `alignment` above */
-  def getAlignment(ty: Type): (ArithExpr, ArithExpr) = {
+  private def getAlignment(ty: Type): (ArithExpr, ArithExpr) = {
     ty match {
       case ScalarType(_, size) => (size, 1)
       case VectorType(st, len) => (st.size, len.eval)
@@ -337,6 +338,8 @@ object NoType extends Type {
  * Collection of operations on types
  */
 object Type {
+  /** Type used to store header values and offset in an array */
+  val size_t: ScalarType = Int
 
   def fromAny(a: Any): Type = {
     a match {
@@ -488,17 +491,6 @@ object Type {
     }
   }
 
-  @scala.annotation.tailrec
-  def getBaseSize(ty: Type): ArithExpr = {
-    ty match {
-      case VectorType(st, _) => st.size
-      case ScalarType(_, size) => size
-      case at: ArrayType => getBaseSize(at.elemT)
-      case tt: TupleType => tt.alignment._1
-      case NoType | UndefType => throw new IllegalArgumentException()
-    }
-  }
-
   /**
    * Return the value type of a type.
    * The value type is defined as follows:
@@ -540,7 +532,10 @@ object Type {
   }
 
   /**
-   * Return the size (in bytes) of a given type.
+   * Return the size (in bytes) of a given type stored in **one** location in
+   * memory if `t` is the type of a memory collection, the returned size will
+   * not make sense.
+   *
    * Note: this function can return `?`. See the comments at the top of
    *       `OpenCLMemoryAllocator.scala` to get information about the meaning
    *       of this special value here and when it is supposed to occur.
@@ -548,39 +543,29 @@ object Type {
    * @param t A type
    * @return The size in bytes.
    */
-  def getAllocatedSize(t: Type) : ArithExpr = {
-    lazy val sizeOfInt = if (AlignArrays()) {
-      def getBaseSize(ty: Type): ArithExpr = getBaseType(ty) match {
-        case ScalarType(_, size) => size
-        case VectorType(st, len) => st.size * len
-        case tt: TupleType => tt.elemsT.map(getBaseSize).reduce(_ + _)
-        case _ => throw new NotImplementedError()
-      }
-      getBaseSize(t)
-    } else Cst(4)
-
-    def sizeOf(t: Type): ArithExpr = {
-      t match {
-        case st: ScalarType => st.size
-        case vt: VectorType => vt.scalarT.size * vt.len
-        case tt: TupleType  =>
-          // FIXME (issue #119): it's not clear which method should be preferred here
-          // Old method (valid if the tuple comes from a view): tt.elemsT.map(getAllocatedSize).reduce(_+_)
-          val (baseSize, nb) = tt.alignment
-          baseSize * nb
-        case at: ArrayType => at match {
-          case c: Capacity =>
-            if (at.elemT.hasFixedAllocatedSize)
-              (at.headerSize * sizeOfInt) + c.capacity * sizeOf(at.elemT)
-            else ? // Dynamic allocation required
-          case _ => ? // Dynamic allocation required
-        }
-        case NoType | UndefType =>
-          throw new IllegalArgumentException(s"Cannot allocate memory for type: $t")
-      }
+  def getAllocatedSize(t: Type) : ArithExpr = t match {
+    case st: ScalarType => st.size
+    case vt: VectorType => vt.scalarT.size * vt.len
+    case tt: TupleType  =>
+      val (baseSize, nb) = tt.alignment
+      baseSize * nb
+    case at: ArrayType => at match {
+      case c: Capacity =>
+        if (at.elemT.hasFixedAllocatedSize) {
+          val baseSize = getAllocatedSize(getBaseType(at.elemT)).eval
+          val alignment = Math.max(baseSize, size_t.size.eval)
+          val elemSize = getAllocatedSize(at.elemT)
+          val contentSize = {
+            if (baseSize != alignment && at.headerSize != 0)
+              ((c.capacity * elemSize + alignment - 1) / alignment) * alignment // pad at the end
+            else c.capacity * elemSize
+          }
+          at.headerSize * alignment + contentSize
+        } else ? // Dynamic allocation required
+      case _ => ? // Dynamic allocation required
     }
-
-    sizeOf(t)
+    case NoType | UndefType =>
+      throw new IllegalArgumentException(s"Cannot allocate memory for type: $t")
   }
 
 

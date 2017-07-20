@@ -2,11 +2,12 @@ package opencl.executor
 
 import java.nio.{ByteBuffer, ByteOrder}
 
+import ir.Type.size_t
 import ir._
 import ir.ast._
 import lift.arithmetic._
 import opencl.executor.Decoder.DecodeTypes.DecodeType
-import opencl.generator.{AlignArrays, NDRange, OpenCLGenerator, Verbose}
+import opencl.generator.{NDRange, OpenCLGenerator, Verbose}
 import opencl.ir._
 import rewriting.InferNDRange
 
@@ -597,32 +598,26 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    * @return the size in bytes of this value once encoded
    */
   private def allocArgumentWithoutFixedAllocatedSize(ty: Type, value: Any): ArithExpr = {
-    lazy val sizeOfInt = if (AlignArrays()) {
-      def getBaseSize(ty: Type): ArithExpr = Type.getBaseType(ty) match {
-        case ScalarType(_, size) => size
-        case VectorType(st, len) => st.size * len
-        case tt: TupleType => tt.elemsT.map(getBaseSize).reduce(_ + _)
-        case _ => throw new NotImplementedError()
-      }
-      getBaseSize(ty)
-    } else Cst(4)
-
     (ty, value) match {
-      case (ScalarType(_, _), _) | (VectorType(_, _), _) => Type.getAllocatedSize(ty)
-      case (tt: TupleType, _) =>
-        // FIXME (issue #119): it's not clear which method should be preferred here
-        val (baseSize, nb) = tt.alignment
-        baseSize * nb
+      case (ScalarType(_, _), _) | (VectorType(_, _), _) | (_: TupleType, _) => Type.getAllocatedSize(ty)
       case (at: ArrayType, array: Vector[_]) =>
         val c = at match {
           case c: Capacity => c.capacity
           case _ => Cst(array.length)
         }
-        if (at.elemT.hasFixedAllocatedSize)
-          at.headerSize * sizeOfInt + c * allocArgumentWithoutFixedAllocatedSize(at.elemT, array.head)
+        val baseSize = Type.getAllocatedSize(Type.getBaseType(at.elemT)).eval
+        val alignment = Math.max(baseSize, size_t.size.eval)
+        if (at.elemT.hasFixedAllocatedSize) {
+          val contentSize = {
+            val elemSize = allocArgumentWithoutFixedAllocatedSize(at.elemT, array.head)
+            if (baseSize < alignment && at.headerSize != 0) ((c * elemSize + alignment - 1)/alignment)*alignment // pad at the end
+            else c * elemSize
+          }
+          at.headerSize * alignment + contentSize
+        }
         else {
           val innerSize = array.map(allocArgumentWithoutFixedAllocatedSize(at.elemT, _)).reduce(_ + _)
-          (at.headerSize + c) * sizeOfInt + innerSize
+          (at.headerSize + c) * alignment + innerSize
         }
       case _ => throw new IllegalArgumentException()
     }

@@ -3,7 +3,6 @@ package opencl.executor
 import java.nio.{ByteBuffer, ByteOrder}
 
 import ir._
-import opencl.generator.AlignArrays
 import opencl.ir.{Bool, Double, Float, Int}
 import org.junit.Assert.assertArrayEquals
 import org.junit.{AfterClass, BeforeClass, Test}
@@ -42,7 +41,7 @@ class TestEncoder {
   def encodeRagged1D(): Unit = {
     val capacity = 32
     val size = 17
-    val allocatedSize = (baseSize: Int) => sizeOfInt + capacity * baseSize
+    val allocatedSize = (baseSize: Int) => Math.max(4, baseSize) + capacity * baseSize
     val tyCon = (st: ScalarType) => ArrayTypeWC(st, capacity)
 
     val (bArray, iArray, fArray, dArray) = get1DData(size)
@@ -51,8 +50,8 @@ class TestEncoder {
     def gold[T](array: Vector[T], baseSize: Int): ByteBuffer = {
       val buffer = mkBuffer(allocatedSize(baseSize))
       // Header: just the size
-      buffer.asIntBuffer().put(size)
-      buffer.position(sizeOfInt)
+      buffer.putInt(size)
+      buffer.position(Math.max(baseSize, 4))
       // Data: raw array
       val data = toBuffer(array)
       data.position(0)
@@ -67,7 +66,7 @@ class TestEncoder {
 
   @Test
   def encodeFull2D(): Unit = {
-    val (sizeX, sizeY) = (3, 7)
+    val (sizeX, sizeY) = (4, 8)
     val allocSize = (baseSize: Int) => sizeX * sizeY * baseSize
     val tyCon = (st: ScalarType) => ArrayType(ArrayType(st, sizeY), sizeX)
 
@@ -85,7 +84,7 @@ class TestEncoder {
     val capX = 16
     val capY = 8
     val sizeX = 13
-    val allocSize = (baseSize: Int) => sizeOfInt + capX * (sizeOfInt + capY * baseSize)
+    val allocSize = (baseSize: Int) => Math.max(baseSize, 4) + capX * (Math.max(4, baseSize) + baseSize * capY)
     val tyCon = (st: ScalarType) => ArrayTypeWC(ArrayTypeWC(st, capY), capX)
 
     val (bArray, iArray, fArray, dArray) = get2DRaggedData(sizeX, (1, capY))
@@ -95,19 +94,19 @@ class TestEncoder {
       val buffer = mkBuffer(allocSize(baseSize))
 
       // Header: just the size
-      buffer.asIntBuffer().put(sizeX)
-      buffer.position(sizeOfInt)
+      buffer.putInt(sizeX)
+      buffer.position(Math.max(baseSize, 4))
 
       // Body: a flattened version of the 2D array padded with zeros
       array2D.foreach {
         (arr: Vector[T]) =>
           val start = buffer.position()
-          buffer.asIntBuffer().put(arr.length)
-          buffer.position(start + sizeOfInt)
+          buffer.putInt(arr.length)
+          buffer.position(start + Math.max(baseSize, 4))
           val encodedRow = toBuffer(arr)
           encodedRow.position(0)
           buffer.put(encodedRow)
-          buffer.position(start + sizeOfInt + capY * baseSize)
+          buffer.position(start + Math.max(baseSize, 4) + baseSize * capY)
       }
 
       buffer
@@ -128,13 +127,16 @@ class TestEncoder {
     // This allocated size is chosen based on our knowledge of the data, this
     // information cannot be retrieved from the type.
     // See the ScalaDoc comment at the top of `OpenCLMemoryAllocator.scala`
-    val allocSize = (baseSize: Int) =>
-      sizeOfInt * (1 + capX) + capX * (2 * sizeOfInt + yBounds._2 * baseSize)
+    val allocSize = (baseSize: Int) => {
+      val alignment = Math.max(baseSize, 4)
+       alignment * (1 + capX) + capX * (2 * alignment + baseSize * yBounds._2)
+    }
 
     val (bArray, iArray, fArray, dArray) = get2DRaggedData(sizeX, yBounds)
     val (bEncoder, iEncoder, fEncoder, dEncoder) = getEncoders(tyCon, allocSize)
 
     def gold[T: ClassTag](array2D: Vector[Vector[T]], baseSize: Int): ByteBuffer = {
+      val alignment = Math.max(baseSize, 4)
       val buffer = mkBuffer(allocSize(baseSize))
 
       // Header: just the size
@@ -142,27 +144,29 @@ class TestEncoder {
       // Offsets: `capX` integer values storing the offset in bytes between the
       //          beginning of the outer array and the beginning of each inner
       //          array.
-      var ofs = sizeOfInt * (1 + capX)
+      var ofs = alignment * (1 + capX)
       array2D.map(_.length).zipWithIndex.foreach {
         case (len, idx) =>
-          buffer.position((1 + idx) * sizeOfInt)
-          buffer.asIntBuffer().put(ofs)
-          ofs += len * baseSize + 2 * sizeOfInt
+          buffer.position((1 + idx) * alignment)
+          buffer.putInt(ofs)
+          ofs += alignOn(len * baseSize, alignment) + 2 * alignment
       }
-      buffer.position((1 + capX) * sizeOfInt)
+      buffer.position((1 + capX) * alignment)
 
       // A flattened version of the 2D array with *NO* padding.
       array2D.foreach {
         (arr: Vector[T]) =>
           val start = buffer.position()
           // Header
-          buffer.asIntBuffer().put(Array(arr.length, arr.length))
-          buffer.position(start + 2 * sizeOfInt)
+          buffer.putInt(arr.length)
+          buffer.position(start + alignment)
+          buffer.putInt(arr.length)
+          buffer.position(start + alignment * 2)
           // Content
           val encodedRow = toBuffer(arr)
           encodedRow.position(0)
           buffer.put(encodedRow)
-          buffer.position(start + 2 * sizeOfInt + arr.length * baseSize)
+          buffer.position(start + 2 * alignment + alignOn(arr.length * baseSize, alignment))
       }
 
       buffer
@@ -238,24 +242,18 @@ class TestEncoder {
 }
 
 object TestEncoder {
-  private var alignArrays: Boolean = _
-
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
-    alignArrays = AlignArrays()
-    AlignArrays(false)
   }
 
   @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
-    AlignArrays(alignArrays)
   }
 
   lazy val endianness: ByteOrder = if (Executor.isLittleEndian) ByteOrder.LITTLE_ENDIAN else ByteOrder.BIG_ENDIAN
-  lazy val sizeOfInt: Int = Type.getAllocatedSize(Int).evalInt
 
   /** Instantiate 4 encoders for the 4 supported scalar types */
   def getEncoders(tyCon: ScalarType => ArrayType, allocSize: Int => Int): (Encoder, Encoder, Encoder, Encoder) = (
@@ -300,6 +298,8 @@ object TestEncoder {
   // ---
   // Some helper functions for working with buffers
   // ---
+
+  def alignOn(n: Int, alignment: Int): Int = ((n + alignment - 1) / alignment ) * alignment
 
   def sizeOf(x: Any): Int = x match {
     case _: Boolean => 1

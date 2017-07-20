@@ -3,10 +3,10 @@ package opencl.ir
 import ir._
 import ir.ast._
 import lift.arithmetic.{ArithExpr, SizeVar}
-import opencl.generator.{AlignArrays, IllegalKernel}
+import opencl.generator.IllegalKernel
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
 class TestMemory {
   import TestMemory._
@@ -125,10 +125,10 @@ class TestMemory {
     val N = SizeVar("N")
     val O = SizeVar("O")
 
-    testAlloc(ArrayTypeWC(Double, M), 4 + 8 * M)
-    testAlloc(ArrayTypeWC(Bool, M), 4 + M)
-    testAlloc(ArrayTypeWC(ArrayTypeWC(Double, N), M), 4 + M * (4 + 8 * N))
-    testAlloc(ArrayTypeWC(ArrayTypeWSWC(ArrayTypeWC(Double, O), N, N), M), 4 + M * N * (4 + O * 8))
+    testAlloc(ArrayTypeWC(Double, M), 8 + 8 * M)
+    testAlloc(ArrayTypeWC(Bool, M), 4 + ((M + 3)/4)*4)
+    testAlloc(ArrayTypeWC(ArrayTypeWC(Double, N), M), 8 + M * (8 + 8 * N))
+    testAlloc(ArrayTypeWC(ArrayTypeWSWC(ArrayTypeWC(Double, O), N, N), M), 8 + M * N * (8 + O * 8))
   }
 
   @Test
@@ -137,25 +137,12 @@ class TestMemory {
     val N = SizeVar("N")
 
     testAlloc(ArrayTypeWSWC(TupleType(Int, Bool), N), 8 * N)
-    testAlloc(ArrayTypeWC(TupleType(Float4, Float), N), 4 + N * 5 * 4)
-    testAlloc(ArrayTypeWSWC(ArrayTypeWC(TupleType(Double, TupleType(Bool, Bool)), M), N), N * (4 + M * (3 * 8)))
+    testAlloc(ArrayTypeWC(TupleType(Float4, Float), N), 20 + N * 5 * 4)
+    testAlloc(ArrayTypeWSWC(ArrayTypeWC(TupleType(Double, TupleType(Bool, Bool)), M), N), N * (3 * 8 + M * (3 * 8)))
   }
 }
 
 object TestMemory {
-  private var alignArrays: Boolean = _
-
-  @BeforeClass
-  def before(): Unit = {
-    alignArrays = AlignArrays()
-    AlignArrays(false)
-  }
-
-  @AfterClass
-  def after(): Unit = {
-    AlignArrays(alignArrays)
-  }
-
   private def idForType(ty: Type): Lambda = ty match {
     case ArrayType(elemT) => MapSeq(idForType(elemT))
     case _ => toGlobal(id(ty))

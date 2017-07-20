@@ -48,11 +48,15 @@ package opencl.ir
 
 import arithmetic.TypeVar
 import lift.arithmetic.{?, ArithExpr, Cst}
+import ir.Type.size_t
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
 
 object OpenCLMemoryAllocator {
+  /** (baseSize, innerSize) => totalSize */
+  type Allocator = (ArithExpr, ArithExpr) => ArithExpr
+
   /**
     * Allocate memory for both the body and the parameters of a lambda
     * expression
@@ -68,17 +72,21 @@ object OpenCLMemoryAllocator {
     alloc(f.body)
   }
 
-  /** Allocate OpenCLMemory objects for a given expression
-    *
-    * @param expr   The expression for which memory should be allocated
-    * @param numGlb Number of ... // FIXME
-    * @param numLcl Number of ... // FIXME
-    * @return The OpenCLMemory used by expr
-    */
+  /**
+   * Allocate OpenCLMemory objects for a given expression
+   *
+   * @param expr   The expression for which memory should be allocated
+   * @param numGlb Function computing the number of bytes to allocate in global
+   *               memory given the sizes of the elements and of the base
+   *               elements in case this is an array.
+   * @param numLcl Idem in local memory
+   * @param numPvt Idem in private memory
+   * @return The OpenCLMemory used by expr
+   */
   def alloc(expr: Expr,
-    numGlb: ArithExpr => ArithExpr = x => x,
-    numLcl: ArithExpr => ArithExpr = x => x,
-    numPvt: ArithExpr => ArithExpr = x => x): OpenCLMemory = {
+    numGlb: Allocator = (_, x) => x,
+    numLcl: Allocator = (_, x) => x,
+    numPvt: Allocator = (_, x) => x): OpenCLMemory = {
 
     val result = expr match {
       case _: ArrayConstructors => OpenCLNullMemory // an array constructor is not backed by memory
@@ -114,9 +122,9 @@ object OpenCLMemoryAllocator {
   }
 
   private def allocFunCall(call: FunCall,
-    numGlb: ArithExpr => ArithExpr,
-    numLcl: ArithExpr => ArithExpr,
-    numPvt: ArithExpr => ArithExpr,
+    numGlb: Allocator,
+    numLcl: Allocator,
+    numPvt: Allocator,
     addressSpace: OpenCLAddressSpace): OpenCLMemory = {
     // Get the input memory of f from the input arguments
     val inMem = getInMFromArgs(call, numGlb, numLcl, numPvt)
@@ -172,9 +180,9 @@ object OpenCLMemoryAllocator {
   }
 
   private def getInMFromArgs(call: FunCall,
-    numGlb: ArithExpr => ArithExpr,
-    numLcl: ArithExpr => ArithExpr,
-    numPvt: ArithExpr => ArithExpr): OpenCLMemory = {
+    numGlb: Allocator,
+    numLcl: Allocator,
+    numPvt: Allocator): OpenCLMemory = {
     call.args.length match {
       case 0 =>
         throw new IllegalArgumentException(s"Function call without arguments $call")
@@ -186,29 +194,30 @@ object OpenCLMemoryAllocator {
   }
 
   private def allocUserFun(outT: Type,
-    numGlb: ArithExpr => ArithExpr,
-    numLcl: ArithExpr => ArithExpr,
-    numPvt: ArithExpr => ArithExpr,
+    numGlb: Allocator,
+    numLcl: Allocator,
+    numPvt: Allocator,
     call: FunCall): OpenCLMemory = {
 
     if (call.addressSpace == UndefAddressSpace)
       throw new RuntimeException("No address space at " + call)
 
     val maxSizeInBytes = Type.getAllocatedSize(outT)
+    val baseSize = Type.getAllocatedSize(Type.getBaseType(outT))
     // size in bytes necessary to hold the result of f in the different
     // memory spaces
-    val maxGlbOutSize = numGlb(maxSizeInBytes)
-    val maxLclOutSize = numLcl(maxSizeInBytes)
-    val maxPvtOutSize = numPvt(maxSizeInBytes)
+    val maxGlbOutSize = numGlb(baseSize, maxSizeInBytes)
+    val maxLclOutSize = numLcl(baseSize, maxSizeInBytes)
+    val maxPvtOutSize = numPvt(baseSize, maxSizeInBytes)
 
     OpenCLMemory.allocMemory(maxGlbOutSize, maxLclOutSize,
       maxPvtOutSize, call.addressSpace)
   }
 
   private def allocLambda(l: Lambda,
-    numGlb: ArithExpr => ArithExpr,
-    numLcl: ArithExpr => ArithExpr,
-    numPvt: ArithExpr => ArithExpr,
+    numGlb: Allocator,
+    numLcl: Allocator,
+    numPvt: Allocator,
     inMem: OpenCLMemory): OpenCLMemory = {
     setMemInParams(l.params, inMem)
     alloc(l.body, numGlb, numLcl, numPvt)
@@ -216,9 +225,9 @@ object OpenCLMemoryAllocator {
 
   private def allocMapGlb(am: AbstractMap,
     outT: Type,
-    numGlb: ArithExpr => ArithExpr,
-    numLcl: ArithExpr => ArithExpr,
-    numPvt: ArithExpr => ArithExpr,
+    numGlb: Allocator,
+    numLcl: Allocator,
+    numPvt: Allocator,
     inMem: OpenCLMemory): OpenCLMemory = {
     am.f.params(0).mem = inMem
 
@@ -227,9 +236,9 @@ object OpenCLMemoryAllocator {
 
   private def allocMapAtomWrg(am: AbstractMap,
     outT: Type,
-    numGlb: ArithExpr => ArithExpr,
-    numLcl: ArithExpr => ArithExpr,
-    numPvt: ArithExpr => ArithExpr,
+    numGlb: Allocator,
+    numLcl: Allocator,
+    numPvt: Allocator,
     inMem: OpenCLMemory): OpenCLMemory = {
     am.f.params(0).mem = inMem
 
@@ -241,9 +250,9 @@ object OpenCLMemoryAllocator {
 
   private def allocMapSeqLcl(am: AbstractMap,
     outT: Type,
-    numGlb: ArithExpr => ArithExpr,
-    numLcl: ArithExpr => ArithExpr,
-    numPvt: ArithExpr => ArithExpr,
+    numGlb: Allocator,
+    numLcl: Allocator,
+    numPvt: Allocator,
     inMem: OpenCLMemory): OpenCLMemory = {
     am.f.params(0).mem = inMem
 
@@ -257,13 +266,13 @@ object OpenCLMemoryAllocator {
     alloc(am.f.body,
           sizeOfArray(numGlb, outT),
           sizeOfArray(numLcl, outT),
-          x => numPvt(privateMultiplier * x))
+      (bs, inner) => numPvt(bs, privateMultiplier * inner))
   }
   
   private def allocFilterSeq(fs: FilterSeq, outT: Type,
-                             numGlb: ArithExpr => ArithExpr,
-                             numLcl: ArithExpr => ArithExpr,
-                             numPvt: ArithExpr => ArithExpr,
+                             numGlb: Allocator,
+                             numLcl: Allocator,
+                             numPvt: Allocator,
                              inMem: OpenCLMemory): OpenCLMemory = {
     fs.f.params.head.mem = inMem
     fs.copyFun.params.head.mem = inMem
@@ -272,9 +281,9 @@ object OpenCLMemoryAllocator {
   }
 
   private def allocReduce(r: AbstractPartRed,
-    numGlb: ArithExpr => ArithExpr,
-    numLcl: ArithExpr => ArithExpr,
-    numPvt: ArithExpr => ArithExpr,
+    numGlb: Allocator,
+    numLcl: Allocator,
+    numPvt: Allocator,
     inMem: OpenCLMemory): OpenCLMemory = {
     inMem match {
       case coll: OpenCLMemoryCollection =>
@@ -303,9 +312,9 @@ object OpenCLMemoryAllocator {
 
   private def allocSlideSeqPlus(sp: SlideSeqPlus,
                                 outT: Type,
-                                numGlb: ArithExpr => ArithExpr,
-                                numLcl: ArithExpr => ArithExpr,
-                                numPvt: ArithExpr => ArithExpr,
+                                numGlb: Allocator,
+                                numLcl: Allocator,
+                                numPvt: Allocator,
                                 inMem: OpenCLMemory): OpenCLMemory = {
 
     sp.f.params(0).mem = OpenCLMemory(sp.windowVar, Type.getAllocatedSize(sp.f.params(0).t) * sp.size , PrivateMemory)
@@ -320,14 +329,14 @@ object OpenCLMemoryAllocator {
     alloc(sp.f.body,
           sizeOfArray(numGlb, outT),
           sizeOfArray(numLcl, outT),
-           x => numPvt(privateMultiplier * x))
+      (bs, inner) => numPvt(bs, privateMultiplier * inner))
   }
 
 
   private def allocSearch(s: AbstractSearch, call: FunCall,
-    numGlb: ArithExpr => ArithExpr,
-    numLcl: ArithExpr => ArithExpr,
-    numPvt: ArithExpr => ArithExpr,
+    numGlb: Allocator,
+    numLcl: Allocator,
+    numPvt: Allocator,
     inMem: OpenCLMemory): OpenCLMemory = {
 
     inMem match {
@@ -350,20 +359,25 @@ object OpenCLMemoryAllocator {
 
   private def allocUnsafeArrayAccess(ua: UnsafeArrayAccess,
                                      call: FunCall,
-                                     numGlb: ArithExpr => ArithExpr,
-                                     numLcl: ArithExpr => ArithExpr,
-                                     numPvt: ArithExpr => ArithExpr,
+                                     numGlb: Allocator,
+                                     numLcl: Allocator,
+                                     numPvt: Allocator,
                                      inMem: OpenCLMemory): OpenCLMemory = {
     // let the index allocate memory for itself (most likely a param, so it will know its memory)
     alloc(ua.index, numGlb, numLcl, numPvt)
 
     // allocate memory itself
     val outputSize = Type.getAllocatedSize(call.t)
+    val baseSize = Type.getAllocatedSize(Type.getBaseType(call.t))
     // manually allocate that much memory, storing it in the correct address space
     if (call.addressSpace != UndefAddressSpace) {
      // use given address space
-      OpenCLMemory.allocMemory(numGlb(outputSize), numLcl(outputSize), numPvt(outputSize),
-        call.addressSpace)
+      OpenCLMemory.allocMemory(
+        numGlb(baseSize, outputSize),
+        numLcl(baseSize, outputSize),
+        numPvt(baseSize, outputSize),
+        call.addressSpace
+      )
     } else {
       // address space is not predetermined
       //  => figure out the address space based on the input address space(s)
@@ -378,20 +392,25 @@ object OpenCLMemoryAllocator {
 
   private def allocCheckedArrayAccess(ca: CheckedArrayAccess,
                                       call: FunCall,
-                                      numGlb: ArithExpr => ArithExpr,
-                                      numLcl: ArithExpr => ArithExpr,
-                                      numPvt: ArithExpr => ArithExpr,
+                                      numGlb: Allocator,
+                                      numLcl: Allocator,
+                                      numPvt: Allocator,
                                       inMem: OpenCLMemory): OpenCLMemory = {
     // let the index allocate memory for itself (most likely a param, so it will know its memory)
     alloc(ca.index, numGlb, numLcl, numPvt)
 
     // allocate memory itself
     val outputSize = Type.getAllocatedSize(call.t)
+    val baseSize = Type.getAllocatedSize(Type.getBaseType(call.t))
     // manually allocate that much memory, storing it in the correct address space
     if (call.addressSpace != UndefAddressSpace) {
       // use given address space
-      OpenCLMemory.allocMemory(numGlb(outputSize), numLcl(outputSize), numPvt(outputSize),
-        call.addressSpace)
+      OpenCLMemory.allocMemory(
+        numGlb(baseSize, outputSize),
+        numLcl(baseSize, outputSize),
+        numPvt(baseSize, outputSize),
+        call.addressSpace
+      )
     } else {
       // address space is not predetermined
       //  => figure out the address space based on the input address space(s)
@@ -405,9 +424,9 @@ object OpenCLMemoryAllocator {
   }
 
   private def allocIterate(it: Iterate, call: FunCall,
-    numGlb: ArithExpr => ArithExpr,
-    numLcl: ArithExpr => ArithExpr,
-    numPvt: ArithExpr => ArithExpr,
+    numGlb: Allocator,
+    numLcl: Allocator,
+    numPvt: Allocator,
     inMem: OpenCLMemory): OpenCLMemory = {
 
     it.n match {
@@ -420,10 +439,15 @@ object OpenCLMemoryAllocator {
 
         // Get the max from those two
         val largestSize = ArithExpr.max(inSize, outSize)
+        val baseSize = Type.getAllocatedSize(Type.getBaseType(call.t))
 
         // Create a swap buffer
         it.swapBuffer = OpenCLMemory.allocMemory(
-          numGlb(largestSize), numLcl(largestSize), numPvt(largestSize), inMem.addressSpace)
+          numGlb(baseSize, largestSize),
+          numLcl(baseSize, largestSize),
+          numPvt(baseSize, largestSize),
+          inMem.addressSpace
+        )
     }
 
     // Recurse to allocate memory for the function(s) inside
@@ -451,8 +475,8 @@ object OpenCLMemoryAllocator {
   }
 
   private def allocFilter(f: Filter,
-    numGlb: ArithExpr => ArithExpr,
-    numLcl: ArithExpr => ArithExpr,
+    numGlb: Allocator,
+    numLcl: Allocator,
     inMem: OpenCLMemory): OpenCLMemory = {
     inMem match {
       case coll: OpenCLMemoryCollection =>
@@ -479,18 +503,26 @@ object OpenCLMemoryAllocator {
    * @param ty the type of the array
    * @return a scala function that allocates this array. Might be `?`
    */
-  private def sizeOfArray(getSizeFromInner: ArithExpr => ArithExpr, ty: Type): ArithExpr => ArithExpr = {
+  private def sizeOfArray(getSizeFromInner: Allocator, ty: Type): Allocator = {
+    def align(n: ArithExpr): ArithExpr = ((n + size_t.size - 1) / size_t.size) * size_t.size
+
     ty match {
       case at: ArrayType =>
         at match {
           case c: Capacity =>
             val map = TypeVar.getTypeVars(c.capacity).map(tv => (tv, tv.range.max)).toMap
             val capacity = ArithExpr.substitute(c.capacity, map.toMap)
-            innerSize => getSizeFromInner(at.headerSize * Int.size + capacity * innerSize)
+            def alloc(baseSize: ArithExpr, innerSize: ArithExpr): ArithExpr = {
+              if (baseSize.eval < size_t.size.eval)
+                getSizeFromInner(baseSize, at.headerSize * size_t.size + align(capacity * innerSize))
+              else
+                getSizeFromInner(baseSize, at.headerSize * baseSize + capacity * innerSize)
+            }
+            alloc
           case _ =>
             // Unknown capacity. We can't know how much memory to allocate…
             // See the comments at the top of this file for further information.
-            _ => ?
+            (_, _) => ?
         }
       case _ => throw new IllegalArgumentException("sizeOfArray expects an array type")
     }

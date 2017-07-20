@@ -2,8 +2,8 @@ package opencl.executor
 
 import java.nio.{ByteBuffer, ByteOrder}
 
+import ir.Type.size_t
 import ir._
-import opencl.generator.AlignArrays
 import opencl.ir._
 
 /**
@@ -62,11 +62,16 @@ class Encoder(mainTy: Type, sizeof: Int) {
 
   private def encodeArray(at: ArrayType, vector: Vector[_], buffer: ByteBuffer): Unit = {
     val beforeHeader = buffer.position()
-    val afterHeader = beforeHeader + at.headerSize * sizeOfInt
+    val afterHeader = beforeHeader + at.headerSize * alignment
+    def align(value: Int): Int = {
+      if (baseSize < alignment && at.headerSize != 0)
+        ((value + alignment - 1) / alignment) * alignment // pad at the end
+      else value
+    }
 
     // Header of the array
     val header = Array.fill(at.headerSize)(vector.length)
-    putIntegers(header, buffer)
+    header.foreach(size => putHeaderValue(size, buffer))
 
     // Content of the array
     val capacity = getCapacityOr(at, vector.length)
@@ -74,23 +79,24 @@ class Encoder(mainTy: Type, sizeof: Int) {
     if (elemT.hasFixedAllocatedSize) {
       // "Plain" array
       vector.foreach(encodeAny(elemT, _, buffer))
-      buffer.position(afterHeader + capacity * Type.getAllocatedSize(elemT).eval)
+      val contentSize = align(capacity * Type.getAllocatedSize(elemT).eval)
+      buffer.position(afterHeader + contentSize)
     } else {
       // Ragged array: we store offsets between the header and the actual data
-      val ofsSize = capacity * sizeOfInt
+      val ofsSize = capacity * alignment
       val offsets = ByteBuffer.allocate(ofsSize)
       offsets.order(endianness)
       buffer.position(afterHeader + ofsSize)
       vector.foldLeft(buffer.position() - beforeHeader)((ofs, vec) => {
         encodeAny(elemT, vec, buffer)
-        putIntegers(Array(ofs), offsets)
+        putHeaderValue(ofs, offsets)
         buffer.position() - beforeHeader
       })
       val endPos = buffer.position()
       offsets.position(0)
       buffer.position(afterHeader)
       buffer.put(offsets)
-      buffer.position(endPos)
+      buffer.position(align(endPos))
     }
   }
 
@@ -121,17 +127,16 @@ class Encoder(mainTy: Type, sizeof: Int) {
   // ---
 
   /**
-   * Wrapper on the top of `ByteBuffer.put` that interprets a byte buffer as an
-   * integral buffer, put `values` in it and increment its position.
+   * Put a header value in the buffer and set the position to the next place
+   * where to write
    */
-  private def putIntegers(values: Array[Int], buffer: ByteBuffer): Unit = {
+  private def putHeaderValue(value: Int, buffer: ByteBuffer): Unit = {
     val before = buffer.position()
-    integerType match {
-      case Bool => buffer.put(values.map(_.toByte))
-      case Int => buffer.asIntBuffer().put(values)
-      case Long => buffer.asLongBuffer().put(values.map(_.toLong))
+    size_t match {
+      case Int => buffer.putInt(value)
+      case _ => throw new NotImplementedError(size_t.toString)
     }
-    buffer.position(before + sizeOfInt * values.length)
+    buffer.position(before + alignment)
   }
 
   /**
@@ -139,14 +144,13 @@ class Encoder(mainTy: Type, sizeof: Int) {
    * the capacity is not in the type.
    */
   private def getCapacityOr(ty: ArrayType, fallback: Int): Int = ty match {
-    case c: Capacity => c.capacity.evalInt
+    case c: Capacity => c.capacity.eval
     case _ => fallback
   }
 
   private lazy val endianness = if (Executor.isLittleEndian) ByteOrder.LITTLE_ENDIAN else ByteOrder.BIG_ENDIAN
-  private lazy val baseSize = Type.getBaseSize(mainTy).eval
-  private lazy val sizeOfInt = if (AlignArrays()) baseSize else Int.size.eval
-  private lazy val integerType = Type.getIntegerTypeOfSize(sizeOfInt)
+  private lazy val baseSize = Type.getAllocatedSize(Type.getBaseType(mainTy)).eval
+  private lazy val alignment = Math.max(baseSize, size_t.size.eval)
 }
 
 class EncodingError(ty: Type, value: Any) extends IllegalArgumentException(s"Cannot encode value $value with type $ty")

@@ -2,8 +2,8 @@ package opencl.executor
 
 import java.nio.{ByteBuffer, ByteOrder}
 
+import ir.Type.size_t
 import ir._
-import opencl.generator.AlignArrays
 import opencl.ir._
 
 /**
@@ -36,7 +36,7 @@ class EncoderOld(arrayType: ArrayType, sizeof: Int) {
    */
   private def putArray(ty: ArrayType, array: Array[_], buffer: ByteBuffer): Unit = {
     val beforeHeader = buffer.position()
-    val afterHeader = beforeHeader + ty.headerSize * sizeOfInt
+    val afterHeader = beforeHeader + ty.headerSize * baseSize
 
     // Header of the array
     val header = Array.fill(ty.headerSize)(array.length)
@@ -68,7 +68,7 @@ class EncoderOld(arrayType: ArrayType, sizeof: Int) {
           buffer.position(afterHeader + capacity * sizeOfElem)
         } else {
           // Ragged array: we store offsets between the header and the actual data
-          val ofsSize = capacity * sizeOfInt
+          val ofsSize = capacity * baseSize
           val offsets = ByteBuffer.allocate(ofsSize)
           offsets.order(endianness)
           buffer.position(afterHeader + ofsSize)
@@ -98,12 +98,10 @@ class EncoderOld(arrayType: ArrayType, sizeof: Int) {
    */
   private def putIntegers(values: Array[Int], buffer: ByteBuffer): Unit = {
     val before = buffer.position()
-    integerType match {
-      case Bool => buffer.put(values.map(_.toByte))
+    size_t match {
       case Int => buffer.asIntBuffer().put(values)
-      case Long => buffer.asLongBuffer().put(values.map(_.toLong))
     }
-    buffer.position(before + sizeOfInt * values.length)
+    buffer.position(before + baseSize * values.length)
   }
   
   /**
@@ -124,18 +122,23 @@ class EncoderOld(arrayType: ArrayType, sizeof: Int) {
     }
     buffer.position(before + baseSize * capacity)
   }
-  
+
   /**
    * Shorthand to get the capacity of an array of fall back on its length if
    * the capacity is not in the type.
    */
   private def getCapacityOr(ty: ArrayType, fallback: Int): Int = ty match {
-    case c: Capacity => c.capacity.evalInt
+    case c: Capacity => c.capacity.eval
     case _ => fallback
   }
 
   private lazy val endianness = if (Executor.isLittleEndian) ByteOrder.LITTLE_ENDIAN else ByteOrder.BIG_ENDIAN
-  private lazy val baseSize = Type.getBaseSize(arrayType).eval
-  private lazy val sizeOfInt = if (AlignArrays()) baseSize else Int.size.eval
-  private lazy val integerType = Type.getIntegerTypeOfSize(sizeOfInt)
+  private val baseSize = {
+    // Hack, will do the trick for all the old stuff, this code is deprecated anyway…
+    val baseType = Type.getBaseType(arrayType) match {
+      case tt: TupleType => tt.elemsT.head
+      case t => t
+    }
+    Type.getAllocatedSize(baseType).eval
+  }
 }

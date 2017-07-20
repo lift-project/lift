@@ -5,7 +5,6 @@ import java.nio.{ByteBuffer, ByteOrder}
 import ir._
 import lift.arithmetic.ArithExpr
 import lift.arithmetic.ArithExpr.Math.Max
-import opencl.generator.AlignArrays
 import opencl.ir.{Bool, Double, Float, Float4, Int}
 import org.junit.Assert.{assertArrayEquals, assertEquals}
 import org.junit.{AfterClass, BeforeClass, Test}
@@ -59,27 +58,13 @@ class TestDecoder {
   }
 
   @Test
-  def tupleOfArrays(): Unit = {
-    val tt = TupleType(ArrayTypeWSWC(Int, 8, 8), ArrayTypeWC(Bool, 5))
-    val left = Array(1024, 65, 99999, -3, 1, 2, 3, 4)
-    val right = Array(true, true, false)
-    val buf = mkBuffer(8 * 4 + 4 + 5 * 4)
-
-    buf.asIntBuffer().put(left)
-    buf.position(8 * 4)
-    buf.putInt(right.length)
-    buf.put(right.map(b => (if (b) 1 else 0).toByte))
-
-    assertEquals((left.toVector, right.toVector), Decoder.decode[(Vector[Int], Vector[Boolean])](tt, buf))
-  }
-
-  @Test
   def arrayWithHeader(): Unit = {
     val data = Array(42d, 77d, 0.43d)
     val ty = ArrayTypeWC(Double, 10) // The capacity (can be anything ≥ 3)
 
-    val buffer = mkBuffer(10 * Double.size + Int.size)
+    val buffer = mkBuffer(10 * Double.size + Double.size)
     buffer.putInt(3)
+    buffer.position(8)
     buffer.asDoubleBuffer().put(data)
 
     assertArrayEquals(data, Decoder.decode[Vector[Double]](ty, buffer).toArray, 0d)
@@ -89,14 +74,16 @@ class TestDecoder {
   def array2DWithHeaders(): Unit = {
     val array2D = Array(Array(23.5d, .8d), Array(0d, 1d, 3d, 4d, 5d), Array(99.3d, 42d, 8d))
     val ty = ArrayTypeWC(ArrayTypeWC(Double, 7), 5)
-    val buf = mkBuffer(5 * (7 * Double.size.eval + Int.size.eval) + Int.size.eval)
+    val buf = mkBuffer(5 * ((7 + 1) * Double.size.eval) + Double.size.eval)
 
     buf.putInt(array2D.length)
+    buf.position(8)
     for (arr <- array2D) {
       val before = buf.position()
       buf.putInt(arr.length)
+      buf.position(before + 8)
       buf.asDoubleBuffer().put(arr)
-      buf.position(before + 7 * Double.size.eval + Int.size.eval)
+      buf.position(before + (7 + 1) * Double.size.eval)
     }
 
     assertEquals(
@@ -110,25 +97,29 @@ class TestDecoder {
     val array2D = Array(Array(23.5d, .8d), Array(0d, 1d, 3d, 4d, 5d), Array(99.3d, 42d, 8d))
     val ty = ArrayTypeWC(ArrayType(Double), 4)
     val buf = mkBuffer(
-      Int.size.eval * (1 + 4) // Header + offsets
-      + array2D.map(_.length * Double.size.eval + 2 * Int.size.eval).sum // Nested arrays
+      Double.size.eval * (1 + 4) // Header + offsets
+      + array2D.map(arr => (arr.length + 2) * Double.size.eval).sum // Nested arrays
     )
 
     // Header and offsets
     buf.putInt(array2D.length)
-    var offset = Int.size.eval * (1 + 4)
+    buf.position(8)
+    var offset = Double.size.eval * (1 + 4)
     for (arr <- array2D) {
       buf.putInt(offset)
-      offset += (arr.length * Double.size + 2 * Int.size).eval
+      buf.position(buf.position() + 4)
+      offset += ((arr.length + 2) * Double.size).eval
     }
-    buf.position((1 + 4) * Int.size.eval)
+    buf.position((1 + 4) * Double.size.eval)
 
     for (arr <- array2D) {
       val before = buf.position()
       buf.putInt(arr.length)
+      buf.position(before + 8)
       buf.putInt(arr.length)
+      buf.position(before + 16)
       buf.asDoubleBuffer().put(arr)
-      buf.position(before + (2 * Int.size + arr.length * Double.size).eval)
+      buf.position(before + ((arr.length + 2) * Double.size).eval)
     }
 
     assertEquals(
@@ -139,19 +130,18 @@ class TestDecoder {
 }
 
 object TestDecoder {
-  private var alignArrays: Boolean = _
-  val endianness = ByteOrder.LITTLE_ENDIAN
-
-  @BeforeClass
-  def before(): Unit = {
-    alignArrays = AlignArrays()
-    AlignArrays(false)
+  @BeforeClass def before(): Unit = {
+    Executor.loadLibrary()
+    println("Initialize the executor")
+    Executor.init()
   }
 
-  @AfterClass
-  def after(): Unit = {
-    AlignArrays(alignArrays)
+  @AfterClass def after(): Unit = {
+    println("Shutdown the executor")
+    Executor.shutdown()
   }
+
+  lazy val endianness: ByteOrder = if (Executor.isLittleEndian) ByteOrder.LITTLE_ENDIAN else ByteOrder.BIG_ENDIAN
 
   def max(exprs: ArithExpr*): ArithExpr = exprs.reduce(Max)
 

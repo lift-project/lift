@@ -2,18 +2,17 @@ package opencl.executor
 
 import java.nio.ByteBuffer
 
+import ir.Type.size_t
 import ir._
 import lift.arithmetic.ArithExpr
-import opencl.generator.AlignArrays
 import opencl.ir.{Bool, Double, Float, Int}
 
 
 class Decoder(mainType: Type) {
   import Decoder.DecodeTypes._
 
-  private lazy val sizeOfInt = if (AlignArrays())
-    Type.getAllocatedSize(Type.getBaseType(mainType)).eval
-  else Int.size.eval
+  private lazy val baseSize = Type.getAllocatedSize(Type.getBaseType(mainType)).eval
+  private lazy val alignment = Math.max(baseSize, size_t.size.eval)
 
   /**
    * Main function: decode any supported type.
@@ -80,7 +79,12 @@ class Decoder(mainType: Type) {
 
   private def decodeArray[E](ty: ArrayType, buffer: ByteBuffer)(hint: DecodeType[E]): Vector[E] = {
     val beforeHeader = buffer.position()
-    val afterHeader = beforeHeader + ty.headerSize * sizeOfInt
+    val afterHeader = beforeHeader + ty.headerSize * alignment
+    def align(value: Int): Int = {
+      if (baseSize < alignment && ty.headerSize != 0)
+        ((value + alignment - 1) / alignment) * alignment // pad at the end
+      else value
+    }
 
     // Fetch header
     val (capacity, size) = decodeHeader(ty, buffer)
@@ -91,14 +95,18 @@ class Decoder(mainType: Type) {
       case (VECTOR(_), at: ArrayType) =>
         if (at.hasFixedAllocatedSize) {
           val vec = Vector.fill(size)(decodeAny(at, buffer)(hint))
-          buffer.position(afterHeader + capacity * Type.getAllocatedSize(at).eval)
+          val contentSize = align(Type.getAllocatedSize(at).eval * capacity)
+          buffer.position(afterHeader + contentSize)
           vec
         } else {
-          val offsets = Vector.fill(size)(buffer.getInt())
-          offsets.map((ofs: Int) => {
+          val offsets = Vector.fill(size)(decodeHeaderValue(buffer.position(), buffer))
+          val vec = offsets.map((ofs: Int) => {
             buffer.position(beforeHeader + ofs)
             decodeAny(at, buffer)(hint)
           })
+          val after = buffer.position()
+          buffer.position(afterHeader + align(after - afterHeader))
+          vec
         }
       case (_, elemT) =>
         val vec = Vector.fill(size)(decodeAny(ty.elemT, buffer)(hint))
@@ -115,33 +123,30 @@ class Decoder(mainType: Type) {
     val before = buffer.position()
     ty match {
       case sc: Size with Capacity =>
-        (sc.capacity.evalInt, sc.size.evalInt)
+        (sc.capacity.eval, sc.size.eval)
       case s: Size => (
-        decodeHeaderValue(before + ty.capacityIndex * sizeOfInt, buffer),
-        s.size.evalInt
+        decodeHeaderValue(before + ty.capacityIndex * alignment, buffer),
+        s.size.eval
       )
       case c: Capacity => (
-        c.capacity.evalInt,
-        decodeHeaderValue(before + ty.sizeIndex * sizeOfInt, buffer)
+        c.capacity.eval,
+        decodeHeaderValue(before + ty.sizeIndex * alignment, buffer)
       )
       case _ => (
-        decodeHeaderValue(before + ty.capacityIndex * sizeOfInt, buffer),
-        decodeHeaderValue(before + ty.sizeIndex * sizeOfInt, buffer)
+        decodeHeaderValue(before + ty.capacityIndex * alignment, buffer),
+        decodeHeaderValue(before + ty.sizeIndex * alignment, buffer)
       )
     }
   }
 
-  /**
-   * Read an integer-like value at position `idx` depending of the expected
-   * size and cast it to a Scala `Int`
-   */
+  /** Read a header value at position `idx`. */
   private def decodeHeaderValue(idx: Int, buffer: ByteBuffer): Int = {
-    sizeOfInt match {
-      case 1 => buffer.get(idx).toInt
-      case 4 => buffer.getInt(idx)
-      case 8 => buffer.getLong(idx).toInt // Hum…
-      case _ => throw new NotImplementedError()
+    val v = size_t match {
+      case Int => buffer.getInt(idx)
+      case _ => throw new NotImplementedError(size_t.toString)
     }
+    buffer.position(idx + alignment)
+    v
   }
 }
 

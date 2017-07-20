@@ -3,7 +3,7 @@ package opencl.generator
 import ir.ast.{CheckedArrayAccess, Join, Zip, fun, _}
 import ir.{ArrayType, ArrayTypeWC, ArrayTypeWSWC, TypeChecker, _}
 import lift.arithmetic.{Cst, SizeVar}
-import opencl.executor.{Compile, Execute, Executor, Utils}
+import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import org.junit.Assert.{assertArrayEquals, assertEquals}
@@ -11,23 +11,13 @@ import org.junit._
 
 
 object TestArray {
-  private var alignArray: Boolean = false
-
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init()
-
-    if (Utils.isNvidiaGPU) {
-      println("Align headers and content in arrays on nvidia")
-      alignArray = AlignArrays()
-      AlignArrays(true)
-    }
   }
 
   @AfterClass def after(): Unit = {
-    if (Utils.isNvidiaGPU) AlignArrays(alignArray)
-
     println("Shutdown the executor")
     Executor.shutdown()
   }
@@ -196,6 +186,26 @@ class TestArray {
     val exec = Execute(size)
     val (output, _) = exec[Vector[Int]](f, input)
     assertEquals(input.map(_.sum), output)
+  }
+
+  @Test
+  def unknownInnerCapacityBool(): Unit = {
+    val size = 256
+    val N = SizeVar("N")
+
+    val countTrue = UserFun(
+      "countTrue", Array("tot", "b"), "return (b) ? tot + 1 : tot;", Seq(Int, Bool), Int
+    )
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayType(Bool), N),
+      Join() o MapGlb(MapSeq(toGlobal(id(Int))) o ReduceSeq(countTrue, 0)) $ _
+    )
+
+    val input = Vector.fill(size)(Vector.fill(4 + util.Random.nextInt(8))(util.Random.nextBoolean()))
+    val exec = Execute(size)
+    val (output, _) = exec[Vector[Int]](f, input)
+    assertEquals(input.map(_.count(b => b)), output)
   }
 
   /**
