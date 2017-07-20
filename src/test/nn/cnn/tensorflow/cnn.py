@@ -49,7 +49,34 @@ class CNN:
                               padding='VALID')  # padding='SAME')
 
     @staticmethod
-    def conv_net(x, weights, biases):
+    def conv_net_full(x, weights, biases, image_shape):
+        # Reshape input picture
+        x = tf.reshape(x, shape=[-1, image_shape[0], image_shape[1], 1])
+
+        # Convolution Layer
+        conv1 = CNN.conv2d(x, weights['wconv1'], biases['bconv1'])
+        # Max Pooling (down-sampling)
+        #conv1 = CNN.maxpool2d(conv1, k=2)
+
+        # Convolution Layer
+        conv2 = CNN.conv2d(conv1, weights['wconv2'], biases['bconv2'])
+        # Max Pooling (down-sampling)
+        #conv2 = CNN.maxpool2d(conv2, k=2)
+
+        # Fully connected layer
+        # Reshape conv2 output to fit fully connected layer input
+        fc1 = tf.reshape(conv2, [-1, weights['wmlp1'].get_shape().as_list()[0]])
+        fc1 = tf.add(tf.matmul(fc1, weights['wmlp1']), biases['bmlp1'])
+        fc1 = tf.nn.relu(fc1)
+        # Apply Dropout
+        #fc1 = tf.nn.dropout(fc1, dropout)
+
+        # Output, class prediction
+        out = tf.add(tf.matmul(fc1, weights['wout']), biases['bout'])
+        return out
+
+    @staticmethod
+    def conv_net(x, weights, biases, image_shape):
         """
         # Create model
         :param x:
@@ -58,7 +85,7 @@ class CNN:
         :return:
         """
         # Reshape input picture
-        x = tf.reshape(x, shape=[-1, 28, 28, 1])
+        x = tf.reshape(x, shape=[-1, image_shape[0], image_shape[1], 1])
 
         # Convolution Layer
         conv1 = CNN.conv2d(x, weights['wconv1'], biases['bconv1'])
@@ -83,7 +110,7 @@ class CNN:
         #return out
         return conv2
 
-    def __init__(self, n_kernels, kernel_shape):
+    def __init__(self, n_kernels, kernel_shape, image_shape):
         self.mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
         # Parameters
@@ -95,7 +122,8 @@ class CNN:
         # Network Parameters
         self.n_kernels = n_kernels  # [16, 32]
         self.kernel_shape = kernel_shape  # (10, 10)
-        self.input_len = 784  # MNIST data input (img shape: 28*28)
+        self.image_shape = image_shape
+        self.input_len = self.image_shape[0] * self.image_shape[1]  # MNIST data input (img shape: 28*28)
         self.n_classes = 10  # MNIST total classes (0-9 digits)
         self.dropout = 0.75  # Dropout, probability to keep units
 
@@ -115,7 +143,7 @@ class CNN:
                 tf.random_normal([self.kernel_shape[0], self.kernel_shape[1], self.n_kernels[0], self.n_kernels[1]])),
             # fully connected, 7*7*64 inputs, 1024 outputs
             'wmlp1': tf.Variable(
-                tf.random_normal([self.kernel_shape[0] * self.kernel_shape[1] * self.n_kernels[1], 256])),
+                tf.random_normal([self.n_kernels[1] * np.power((self.image_shape[0] - (self.kernel_shape[0] - 1) * 2), 2), 256])),
             # 7*7*64, 1024])),
             # 1024 inputs, 10 outputs (class prediction)
             'wout': tf.Variable(tf.random_normal([256, self.n_classes]))
@@ -131,7 +159,7 @@ class CNN:
         self.trained_biases = None
 
         # Construct model
-        self.pred = CNN.conv_net(self.x, self.weights, self.biases)  # , keep_prob)
+        self.pred = CNN.conv_net_full(self.x, self.weights, self.biases, self.image_shape)  # , keep_prob)
 
         # Define loss and optimizer
         self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.pred, labels=self.y))
@@ -148,29 +176,32 @@ class CNN:
         self.config = tf.ConfigProto(device_count={'GPU': 0})
 
         # Get experiment directory name
-        self.dir_name = CNN.get_dir_name(self.n_kernels, self.kernel_shape)
+        self.dir_name = CNN.get_dir_name(self.n_kernels, self.kernel_shape, self.image_shape)
         # Create directory
         if not os.path.isdir(self.dir_name):
             os.mkdir(self.dir_name)
 
 
     @staticmethod
-    def get_dir_name(n_kernels, kernel_shape):
+    def get_dir_name(n_kernels, kernel_shape, image_shape):
         """
         Forms a directory name for a given experiment.
         :param n_kernels:
         :param kernel_shape:
         :return:
         """
-        return "experiment." + str(n_kernels[0]) + "." + str(kernel_shape[0]) + "." + str(kernel_shape[1])
+        if os.environ["LIFT_CNN_RESOURCES"] is None:
+            raise EnvironmentError("LIFT_CNN_RESOURCES is not set!")
+        return os.path.join(os.environ["LIFT_CNN_RESOURCES"],
+                            "experiment." + str(n_kernels[1]) + "." + str(kernel_shape[0]) + "." + str(image_shape[0]))
 
     @staticmethod
-    def restore(n_kernels, kernel_shape):
+    def restore(n_kernels, kernel_shape, image_shape):
         """
         Restore data if requested and possible.
         :return:
         """
-        dir_name = CNN.get_dir_name(n_kernels, kernel_shape)
+        dir_name = CNN.get_dir_name(n_kernels, kernel_shape, image_shape)
         if os.path.isfile(os.path.join(dir_name, "pickled_acnn.p")):
             return pickle.load(open(os.path.join(dir_name, "pickled_acnn.p"), "rb"))
         else:
@@ -187,7 +218,7 @@ class CNN:
             # Keep training until reach max iterations
             acc = 0
             # while step * batch_size < training_iters:
-            while acc < 0.8:
+            while acc < 0.2:
                 batch_x, batch_y = self.mnist.train.next_batch(self.batch_size)
                 # Run optimization op (backprop)
                 sess.run(self.optimizer, feed_dict={self.x: batch_x, self.y: batch_y,
@@ -229,14 +260,50 @@ class CNN:
                 outfile.close()
             print("Saved param \"" + param_name + "\"")
 
-    def fprop(self, n_batches, n_inputs):
+
+    def train_bogus(self):
+        self.trained_weights = {
+            # 5x5 conv, 1 input, 32 outputs
+            # Original dimensions: 5, 5, 1, 32
+            'wconv1': np.random.normal(size=(self.kernel_shape[0], self.kernel_shape[1], 1, self.n_kernels[0])),
+            # 5x5 conv, 32 inputs, 64 outputs
+            # Original dimensions: 5, 5, 32, 64
+            'wconv2': np.random.normal(size=(self.kernel_shape[0], self.kernel_shape[1],
+                                             self.n_kernels[0], self.n_kernels[1])),
+            # fully connected, 7*7*64 inputs, 1024 outputs
+            'wmlp1': np.random.normal(
+                size=(self.n_kernels[1] * np.power((self.image_shape[0] - (self.kernel_shape[0] - 1) * 2), 2), 256)),
+            # 7*7*64, 1024])),
+            # 1024 inputs, 10 outputs (class prediction)
+            'wout': np.random.normal(size=(256, self.n_classes))
+        }
+
+        self.trained_biases = {
+            'bconv1': np.random.normal(size=(self.n_kernels[0])),
+            'bconv2': np.random.normal(size=(self.n_kernels[1])),
+            'bmlp1': np.random.normal(size=256),
+            'bout': np.random.normal(size=self.n_classes)
+        }
+        trained_params = {**self.trained_weights, **self.trained_biases}
+        for param_name in trained_params:
+            json_string = json.dumps(trained_params[param_name].astype(np.float16).tolist())
+            print(trained_params[param_name].shape)
+            with open(self.dir_name + '/' + param_name + '.json', 'w') as outfile:
+                outfile.write(json_string)
+                outfile.close()
+            print("Saved param \"" + param_name + "\"")
+
+
+    def fprop(self, n_batches, n_inputs, bogus=False):
         """
         Forward-propagation; saves input samples and classification results as files.
         :param n_inputs:
         :param n_batches:
         """
-        test_images = np.empty([n_batches, n_inputs, 28, 28, 1])
-        test_results = np.empty([n_batches, n_inputs, 10, 10, 32])
+        test_images = np.empty([n_batches, n_inputs, self.image_shape[0], self.image_shape[1], 1])
+        test_results = np.empty([n_batches, n_inputs,
+                                 self.image_shape[0] - (self.kernel_shape[0] - 1) * 2,
+                                 self.image_shape[1] - (self.kernel_shape[0] - 1) * 2, self.n_kernels[1]])
         test_targets = np.empty([n_batches, n_inputs, 10])
 
         # Convert arrays to tensors
@@ -250,18 +317,23 @@ class CNN:
             trained_biases_tensors[bias_name] = tf.convert_to_tensor(
                 self.trained_biases[bias_name].astype(np.float16).astype(np.float32))
 
-        input_len = 784
+        input_len = self.image_shape[0] * self.image_shape[1]
         x = tf.placeholder("float", [None, input_len])
 
         for batch_no in np.arange(0, n_batches):
-            test_batch_images_flat, test_targets[batch_no] = self.mnist.test.next_batch(n_inputs)
+            if not bogus:
+                test_batch_images_flat, _ = self.mnist.test.next_batch(n_inputs)
+            else:
+                test_batch_images_flat = \
+                    np.random.normal(size=(n_inputs, self.image_shape[0] * self.image_shape[0]))
 
-            test_images[batch_no] = np.reshape(test_batch_images_flat, [-1, 28, 28, 1])
+            test_images[batch_no] = np.reshape(test_batch_images_flat,
+                                               [-1, self.image_shape[0], self.image_shape[1], 1])
 
             print("Forward-propagating...")
 
             # Construct model
-            pred = self.conv_net(x, trained_weights_tensors, trained_biases_tensors)
+            pred = self.conv_net(x, trained_weights_tensors, trained_biases_tensors, self.image_shape)
 
             # Initializing the variables
             init = tf.global_variables_initializer()

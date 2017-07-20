@@ -4,7 +4,7 @@ package nn.cnn
   * Created by nm on 09/01/17.
   */
 
-import ir.ast.{FunDecl, Get, Join, Slide2D, Split, TiledSlidedND, Transpose, TransposeW, UserFun, Zip, λ}
+import ir.ast.{FunDecl, Get, Join, Slide2D, Split, TiledSlidedND, Transpose, TransposeW, Tuple, UserFun, Zip, λ}
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
 import nn._
@@ -133,8 +133,7 @@ object CNN {
             /* (nKernels / tile.kernels_per_group, tile.kernels_per_group, n_k_passes, n_k_windows) ->
             *  (nKernels, n_k_passes, n_k_windows) */
             Join() o MapWrg(2)(λ(TupleType(
-              AT(AT(AT(AT(AT(Float, tile.kernels_per_group),
-                n_in_channels), kernel_shape.w), kernel_shape.h), tile.kernels_per_group),
+              AT(AT(AT(AT(Float, n_in_channels), kernel_shape.w), kernel_shape.h), tile.kernels_per_group),
               AT(Float, tile.kernels_per_group)),
               (kernels_tile) => {
                 /* (tile.kernels_per_group, n_passes*n_windows) -> (tile.kernels_per_group, n_k_passes, n_k_windows) */
@@ -149,8 +148,8 @@ object CNN {
                   MapLcl(2)(λ((window_row, kernels_row) => {
                     Join() o MapSeq(ReduceRow()) o
                     // (tile.kernels_per_group, kernel_shape.w)
-                      MapSeq(Join(/*tiles of elements*/) o
-                        MapSeq(/* Dissolve one-element output of Reduce */Join())) o
+                      MapSeq(Join(/*tiles of elements*/)/* o
+                        MapSeq(/* Dissolve one-element output of Reduce */Join())*/) o
                       Split(kernel_shape.w / tile.els_per_thread) o
                       MapLcl(0)(WeightedSumOfInputChannels()) o
     /* (tile.kernels_per_group, kernel_shape.w / tile.els_per_thread, tile.els_per_thread, tuple of n_in_channels) ->
@@ -164,7 +163,11 @@ object CNN {
                        * (tile.kernels_per_group, kernel_shape.w, n_in_channels) */
                       Transpose() o MapSeq(Transpose()) $ kernels_row
                   })) $ Zip(pass_window, RestoreKernelShape() $ /* weights */ Get(kernels_tile, 0))
-                })) o /* (n_passes, n_windows, n_rows) -> (n_passes*n_windows, n_rows) */
+                })) o toLocal(MapLcl(1)(λ((pass_window) =>
+                MapLcl(2)(λ((window_row) => {
+                  MapSeq(MapSeq(id)) $ window_row
+                })) $ pass_window))) o
+                  /* (n_passes, n_windows, n_rows) -> (n_passes*n_windows, n_rows) */
                   Join() $ input_tile
               })) $ ReshapeAndTileKernels()(K, B)
           })) $ inputs_batch
@@ -213,14 +216,15 @@ object CNN {
             AT(Float, n_in_channels)),
           tile.els_per_thread),
         (tile_of_els) => {
+        MapSeq(toGlobal(id)) o ReduceSeq(add, toPrivate(id) $ 0.0f) o Join() o
         MapSeq(λ(TupleType(AT(Float, n_in_channels), /*x_el_in_chs*/
           AT(AT(Float, tile.kernels_per_group), n_in_channels) /*k_el_in_chs*/),
           (single_element) =>
             /*Join() o*/
-            MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) o
+            /*MapSeq(toGlobal(id)) o */ReduceSeq(add, toPrivate(id) $ 0.0f) o
               MapSeq(λ(TupleType(Float /*x_el_in_ch*/ , Float /*k_el_in_ch*/),
                 (el_in_ch) =>
-                  mult(/*x_el_in_chs*/ Get(el_in_ch, 0), /*k_el_in_ch*/ Get(el_in_ch, 1)))) $
+                  mult(toPrivate(id) $ /*x_el_in_chs*/ Get(el_in_ch, 0), toPrivate(id) $ /*k_el_in_ch*/ Get(el_in_ch, 1)))) $
               Zip(Get(single_element, 0), Get(single_element, 1))
         )) $ tile_of_els
       })
@@ -229,7 +233,7 @@ object CNN {
      * Returns:
      * AT(Float, 1) */
     def ReduceRow(): FunDecl =
-      λ(AT(Float, kernel_shape.w),
+      λ(AT(Float, kernel_shape.w / tile.els_per_thread),
         (weighted_row_per_out_ch) => {
           MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) $ weighted_row_per_out_ch
       })
