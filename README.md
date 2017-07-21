@@ -14,7 +14,7 @@ The script `buildExecutor.sh` builds the executor.
 ```
 ./buildExecutor.sh
 ```
-The script is also called by sbt when running `sbt compile`
+Both scripts are also called by sbt when running `sbt compile`
 
 Finally add the Executor build directory to the Java library path:
 
