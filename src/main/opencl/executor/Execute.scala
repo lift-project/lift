@@ -12,7 +12,6 @@ import opencl.ir._
 import rewriting.InferNDRange
 
 import scala.collection.immutable
-import scala.reflect.ClassTag
 
 /**
  * Interface for executing a lambda object in OpenCL via Java -> JNI -> SkelCL -> OpenCL
@@ -52,7 +51,7 @@ object Execute {
                   injectSizes._1, injectSizes._2)
   }
 
-  /** Same but the sizes are wrapped into a NDRange object */ // TODO: should this be the preferred method?
+  /** Same but the sizes are wrapped into a NDRange object */
   def apply(localSize: NDRange,
             globalSize: NDRange,
             injectSizes: (Boolean, Boolean)): Execute = {
@@ -123,24 +122,11 @@ object Execute {
      * given a list of types and a list of values supposed to be matching them.
      */
     private def fetchAllConstraints(tys: Seq[Type], values: Seq[Any]): (Set[Constraint], Set[Constraint]) = {
-      // Look for constraints in all the pairs like `(type, value)`
-      // Hack: if vectors are passed to a kernel *not* wrapped in an array,
-      //       they are passed as scalar types and they will be casted into
-      //       vector later by OpenCL.
-      //       For example:
-      //       - a float4 should be passed as a Float
-      //       - but an array of float4 must be passed as a 2D array of Floats
       val init: (Set[Constraint], Set[Constraint]) = (Set.empty, Set.empty)
       (tys zip values).foldLeft(init)((cons, typedVal) => {
         val (ty, value) = typedVal
-        ty match {
-          case VectorType(st, _) =>
-            checkParamWithValue(st, value)
-            cons
-          case _ =>
-            val (caps, sizes) = fetchConstraints(ty, value, cons)
-            (simplify(caps), simplify(sizes))
-        }
+        val (caps, sizes) = fetchConstraints(ty, value, cons)
+        (simplify(caps), simplify(sizes))
       })
     }
 
@@ -761,68 +747,25 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   }
 
   /**
-   * Factory functions for creating OpenCL kernel arguments
+   * Factory function for creating OpenCL kernel arguments
    */
-  object arg {
-    /** Entry point for creating an OpenCL kernel argument */
-    def apply(any: Any, ty: Type, size: Int): KernelArg = ty match {
-      // Scalars and vectors that are not nested in an array
-      case Bool  => value(any.asInstanceOf[Boolean])
-      case Int | VectorType(Int, _)       => value(any.asInstanceOf[Int])
-      case Float | VectorType(Float, _)   => value(any.asInstanceOf[Float])
-      case Double | VectorType(Double, _) => value(any.asInstanceOf[Double])
+  private def arg(data: Any, ty: Type, size: Int): KernelArg = {
+    val encoder = new Encoder(ty, size)
+    val raw = encoder.encode(data).array()
 
-      // Arrays
-      case at: ArrayType =>
-        val array = any.asInstanceOf[Array[_]]
-        val encoder = new Encoder(at, size)
-        val raw = encoder.encode(array)
-        global.input(raw.array)
-
-      case _ => throw new IllegalArgumentException(s"Cannot encode type $ty")
+    ty match {
+      case ArrayType(_) => GlobalArg.createInput(raw)
+      case _ => ValueArg.create(raw)
     }
   }
 
   /**
    * Create global argument allocated with the given size in bytes
    */
-  object global {
-    def apply(sizeInBytes: Long): GlobalArg = GlobalArg.createOutput(sizeInBytes)
-
-    /**
-     * Create global input arguments from an array
-     */
-    def input(array: Array[Byte]): GlobalArg = GlobalArg.createInput(array)
-
-    /**
-     * Create output argument given a Type and the number of elements
-     */
-    object output {
-      def apply[T: ClassTag](length: Int): GlobalArg = {
-        implicitly[ClassTag[T]] match {
-          case ClassTag.Float => GlobalArg.createOutput(length * 4) // in bytes
-          case ClassTag.Int => GlobalArg.createOutput(length * 4) // in bytes
-          case tag =>
-            throw new IllegalArgumentException(s"Given type: $tag not supported")
-        }
-      }
-    }
-  }
+  private def global(sizeInBytes: Long): GlobalArg = GlobalArg.createOutput(sizeInBytes)
 
   /**
    * Create local argument allocated with the given size in bytes
    */
-  object local {
-    def apply(sizeInBytes: Long): LocalArg = LocalArg.create(sizeInBytes)
-  }
-
-  /**
-   * Create a kernel argument passed by value
-   */
-  object value {
-    def apply(value: Float): ValueArg   = ValueArg.create(value)
-    def apply(value: Int): ValueArg     = ValueArg.create(value)
-    def apply(value: Double): ValueArg  = ValueArg.create(value)
-    def apply(value: Boolean): ValueArg = ValueArg.create(value)
-  }
+  private def local(sizeInBytes: Long): LocalArg = LocalArg.create(sizeInBytes)
 }

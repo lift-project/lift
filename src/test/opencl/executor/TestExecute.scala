@@ -208,4 +208,28 @@ class TestExecute {
     assertEquals(1, output.length)
     assertEquals(gold, output.head, 0.001f)
   }
+
+  @Test
+  def tupleArgument(): Unit = {
+    val size = 32
+    val inputA = Vector.fill(size)(util.Random.nextFloat() * 10)
+    val inputB = (13, 42.24f)
+
+    val addTuple = UserFun(
+      "addTuple", Array("x", "y"), "Tuple z = {x._0 + (int)y, x._1 + y}; return z;",
+      Seq(TupleType(Int, Float), Float), TupleType(Int, Float)
+    )
+
+    val f = fun(
+      ArrayType(Float, size),
+      TupleType(Int, Float),
+      (arr, t) =>
+        MapSeq(id(TupleType(Int, Float))) o ReduceSeq(addTuple, t) $ arr
+    )
+
+    val (Vector((intSum, floatSum)), _) = Execute(1, 1)[Vector[(Int, Float)]](f, inputA, inputB)
+
+    assertEquals(inputA.map(_.toInt).sum + inputB._1, intSum)
+    assertEquals(inputA.sum + inputB._2, floatSum, 0.0001f)
+  }
 }
