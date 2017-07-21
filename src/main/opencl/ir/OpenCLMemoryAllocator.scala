@@ -147,7 +147,7 @@ object OpenCLMemoryAllocator {
 
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
 
-      case sp: SlideSeqPlus => allocSlideSeqPlus(sp,call.t, numGlb, numLcl, numPvt, inMem)
+      case sp: MapSeqSlide => allocMapSeqSlide(sp,call.t, numGlb, numLcl, numPvt, inMem)
 
       case s: AbstractSearch => allocSearch(s, call, numGlb, numLcl, numPvt, inMem)
 
@@ -302,7 +302,7 @@ object OpenCLMemoryAllocator {
     }
   }
 
-  private def allocSlideSeqPlus(sp: SlideSeqPlus,
+  private def allocMapSeqSlide(sp: MapSeqSlide,
                                 outT: Type,
                                 numGlb: ArithExpr,
                                 numLcl: ArithExpr,

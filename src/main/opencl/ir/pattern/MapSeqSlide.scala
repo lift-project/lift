@@ -5,14 +5,25 @@ import lift.arithmetic.{ArithExpr, PosVar, Var}
 import ir.{ArrayTypeWSWC, _}
 import ir.ast._
 import ir.interpreter.Interpreter.ValueMap
+/**
+  * The MapSeqSlide primitive is a slide followed by a sequential map
+  *
+  * The purpose is to reuse memory accesses when computing over a dimension
+  * (this can be the only dimension if MapSeqSlide is called directly).
+  *
+  * @param f a function to be applied after the slide in the sequential map
+  * @param size the size of the slide
+  * @param step the step of the slide
+  *
+  */
 
-case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loopVar: Var, var windowVar: Var) extends Pattern(arity = 1) with isGenerable with FPattern
+case class MapSeqSlide(val f: Lambda, size: ArithExpr, step: ArithExpr, var loopVar: Var, var windowVar: Var) extends Pattern(arity = 1) with isGenerable with FPattern
 {
 
-  override def toString: String = "SlideSeqPlus(" + f + ", " + size + ", " + step + ")"
+  override def toString: String = "MapSeqSlide(" + f + ", " + size + ", " + step + ")"
 
-  SlideSeqPlus.cnt += 1
-  val id = SlideSeqPlus.cnt
+  MapSeqSlide.cnt += 1
+  val id = MapSeqSlide.cnt
   override def hashCode = id.hashCode()
 
   val iterationCount = loopVar.range.numVals
@@ -58,10 +69,10 @@ case class SlideSeqPlus(val f: Lambda, size: ArithExpr, step: ArithExpr, var loo
 
   var shouldUnroll = false
 
-  override def copy(f: Lambda): Pattern = SlideSeqPlus(f,size,step,PosVar("i"),PosVar("window"))
+  override def copy(f: Lambda): Pattern = MapSeqSlide(f,size,step,PosVar("i"),PosVar("window"))
 }
 
-object SlideSeqPlus {
+object MapSeqSlide {
   var cnt: Int = -1
-  def apply(f: Lambda1, size: ArithExpr, step: ArithExpr): Lambda1 = fun((x) => SlideSeqPlus(f,size,step,PosVar("i"),PosVar("window"))(x))
+  def apply(f: Lambda1, size: ArithExpr, step: ArithExpr): Lambda1 = fun((x) => MapSeqSlide(f,size,step,PosVar("i"),PosVar("window"))(x))
 }
