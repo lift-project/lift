@@ -12,7 +12,7 @@ import ir.ast._
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
 
-object TestSlideSeqPlus
+object TestMapSeqSlide
 {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
@@ -26,7 +26,7 @@ object TestSlideSeqPlus
   }
 }
 
-object SlideSeqPlusHelpers
+object MapSeqSlideHelpers
 {
 
   val O = 2 + SizeVar("O")
@@ -45,7 +45,7 @@ object SlideSeqPlusHelpers
   def stencil1D(a: Int ,b :Int) = fun(
     ArrayTypeWSWC(Float, N),
     (input) =>
-       toGlobal(SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
+       toGlobal(MapSeqSlide(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
   )
 
   def original2DStencil(size: Int, step: Int) = fun(
@@ -64,7 +64,7 @@ object SlideSeqPlusHelpers
     ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
     (input) =>
       MapGlb(0)(fun(x => {
-        toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(add, 0.0f) o Join(), size, step)) o  Transpose() $ x
+        toGlobal(MapSeqSlide(MapSeq(id) o ReduceSeq(add, 0.0f) o Join(), size, step)) o  Transpose() $ x
       })) o Slide(size,step)  $ input
   )
 
@@ -72,7 +72,7 @@ object SlideSeqPlusHelpers
     ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
     (input) =>
       MapGlb(0)(fun(x => {
-        toGlobal(SlideSeqPlus( (fun (x => {  toGlobal(id) $ x.at(1).at(1) })), size, step)) o  Transpose() $ x
+        toGlobal(MapSeqSlide( (fun (x => {  toGlobal(id) $ x.at(1).at(1) })), size, step)) o  Transpose() $ x
       })) o Slide(size,step)   $ input
   )
 
@@ -109,7 +109,7 @@ object SlideSeqPlusHelpers
     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
     (input) =>
       MapGlb(1)(MapGlb(0)(fun(x => {
-        toGlobal(SlideSeqPlus(
+        toGlobal(MapSeqSlide(
           fun(m => {
 
             val `tile[0][0][0]` = m.at(0).at(0).at(0)
@@ -136,7 +136,7 @@ object SlideSeqPlusHelpers
   )
 }
 
-class TestSlideSeqPlus
+class TestMapSeqSlide
 {
 
   /** 1D **/
@@ -149,7 +149,7 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val (output : Array[Float], _) = Execute(2, 2)(SlideSeqPlusHelpers.stencil1D(slidesize, slidestep), values)
+    val (output : Array[Float], _) = Execute(2, 2)(MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -164,7 +164,7 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil1D(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil1D(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -179,7 +179,7 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil1D(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil1D(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -195,7 +195,7 @@ class TestSlideSeqPlus
     // drop right one on the comparison array because scala sliding does not work exactly the same as Lift sliding ...
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _)).dropRight(1)
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil1D(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil1D(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -215,7 +215,7 @@ class TestSlideSeqPlus
       ArrayTypeWSWC(Float, SizeVar("N")),
       ArrayTypeWSWC(Float, 3),
       (input,wgts) => {
-        SlideSeqPlus(
+        MapSeqSlide(
           fun(neighbourhood => {
             toGlobal(MapSeqUnroll(id)) o
             ReduceSeqUnroll(add, 0.0f) o
@@ -262,7 +262,7 @@ class TestSlideSeqPlus
     def stencil2DR(a: Int ,b :Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (input) =>
-        MapGlb(0)(toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b)  o Join())) o Slide(1,b) $ input
+        MapGlb(0)(toGlobal(MapSeqSlide(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b)  o Join())) o Slide(1,b) $ input
     )
 
     val (compare: Array[Float], _) = Execute(2,2)(compare2Dstencil, values)
@@ -303,7 +303,7 @@ class TestSlideSeqPlus
     def stencil2D(a: Int, b :Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
       (input) =>
-        MapGlb(0)(toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b))) o Transpose() /* o Slide2D(a,b)*/ $ input
+        MapGlb(0)(toGlobal(MapSeqSlide(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b))) o Transpose() /* o Slide2D(a,b)*/ $ input
     )
 
     val (compare: Array[Float], _) = Execute(2,2)(compare2Dstencil, values)
@@ -338,7 +338,7 @@ class TestSlideSeqPlus
           val side2 = MapSeq( fun( t => { toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ t })) o Slide(a,b) $ x.at(2)
           val sum = toGlobal(MapSeq(id) o MapSeq(addTuple)) $ Zip(Join() $ side1,Join() $ side2)
           val tmpSum = 0.0f
-          val ssp =  toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) , a,b))  $ x.at(1)
+          val ssp =  toGlobal(MapSeqSlide(MapSeq(id) o ReduceSeq(absAndSumUp,tmpSum) , a,b))  $ x.at(1)
           val actSum = toGlobal(MapSeq(addTuple)) $ Zip( Join() $ ssp,sum)
           actSum
         })) o Slide(a,b) o Transpose() $ input
@@ -392,7 +392,7 @@ class TestSlideSeqPlus
 
                })) o Slide2D(a,b) o Transpose() $ x
           val tmpSum = 0.0f
-          val ssp =  toGlobal(SlideSeqPlus(MapSeq(id) o ReduceSeq(absAndSumUp, tmpSum) , a,b))  $ x.at(1)
+          val ssp =  toGlobal(MapSeqSlide(MapSeq(id) o ReduceSeq(absAndSumUp, tmpSum) , a,b))  $ x.at(1)
           val actSum = toGlobal(MapSeq(addTuple)) $ Zip( Join() $ ssp,sumSide33)
           actSum
         })) o Slide(a,b) o Transpose() $ input
@@ -416,8 +416,8 @@ class TestSlideSeqPlus
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil2D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original2DStencil(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
+    val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -463,7 +463,7 @@ class TestSlideSeqPlus
       (input) =>
         MapGlb(0)(fun(x => {
 
-          toGlobal(SlideSeqPlus(fun(m => {
+          toGlobal(MapSeqSlide(fun(m => {
 
             val `tile[1][1]` = m.at(1).at(1)
             val `tile[0][1]` = m.at(0).at(1)
@@ -502,8 +502,8 @@ class TestSlideSeqPlus
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil2D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original2DStencil(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
+    val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -517,8 +517,8 @@ class TestSlideSeqPlus
     val slidestep = 4
     val values = Array.tabulate(size,size) { (i,j) => (i*size + j + 1).toFloat }
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil2D(slidesize,slidestep), values)
-    val (goldExec: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original2DStencil(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
+    val (goldExec: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(goldExec, output, 0.1f)
 
@@ -559,7 +559,7 @@ class TestSlideSeqPlus
       (input, weights) =>
         MapGlb(0)(fun(x => {
           val tmpSum = 0.0f
-          toGlobal(SlideSeqPlus(fun(neighbours => {
+          toGlobal(MapSeqSlide(fun(neighbours => {
             toGlobal(MapSeq(id)) o
               ReduceSeq(fun((acc, pair) => {
                 val pixel = Get(pair, 0)
@@ -593,8 +593,8 @@ class TestSlideSeqPlus
     val M = 2 + SizeVar("M")
 
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil3D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original3DStencil(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil3D(slidesize,slidestep), values)
+    val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original3DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -609,8 +609,8 @@ class TestSlideSeqPlus
     val slidestep = 3
     val values = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size + k + 1).toFloat }
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil3D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original3DStencil(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil3D(slidesize,slidestep), values)
+    val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original3DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -625,8 +625,8 @@ class TestSlideSeqPlus
     val slidestep = 5
     val values = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size + k + 1).toFloat }
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil3D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.original3DStencil(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil3D(slidesize,slidestep), values)
+    val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original3DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -645,8 +645,8 @@ class TestSlideSeqPlus
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
 
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(SlideSeqPlusHelpers.stencil3D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(SlideSeqPlusHelpers.original3DStencil(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(MapSeqSlideHelpers.stencil3D(slidesize,slidestep), values)
+    val (gold: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(MapSeqSlideHelpers.original3DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -681,7 +681,7 @@ class TestSlideSeqPlus
       ArrayTypeWSWC(Float, slidesize*slidesize*slidesize),
       (input,weights) =>
         MapGlb(1)(MapGlb(0)(fun(x => {
-          toGlobal(SlideSeqPlus(
+          toGlobal(MapSeqSlide(
             fun(neighbours => {
               toGlobal(MapSeq(id)) o
                 ReduceSeqUnroll(\((acc, next) =>

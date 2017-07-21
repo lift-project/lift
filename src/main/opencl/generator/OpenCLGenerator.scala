@@ -430,7 +430,7 @@ class OpenCLGenerator extends Generator {
         case r: ReduceSeq => generateReduceSeqCall(r, call, block)
         case r: ReduceWhileSeq => generateReduceWhileCall(r, call, block)
 
-        case sp: SlideSeqPlus => generateSlideSeqPlusCall(sp, call, block)
+        case sp: MapSeqSlide => generateMapSeqSlideCall(sp, call, block)
 
         case bs: BSearch => generateBSearchCall(bs, call, block)
         case ls: LSearch => generateLSearchCall(ls, call, block)
@@ -677,7 +677,7 @@ class OpenCLGenerator extends Generator {
   }
 
 
-  private def generateSlideSeqPlusCall(sp: SlideSeqPlus,
+  private def generateMapSeqSlideCall(sp: MapSeqSlide,
                                        call: FunCall,
                                        block: Block): Unit = {
     (block: Block) += OpenCLAST.Comment("slideSeq_plus")
@@ -1075,7 +1075,7 @@ class OpenCLGenerator extends Generator {
 
 
   private def generateLoopMinMemoryAccess(block: Block,
-                                          sSP: SlideSeqPlus,
+                                          sSP: MapSeqSlide,
                                           call: FunCall,
                                           generateBody: (Block) => Unit,
                                           needUnroll: Boolean = false): Unit = {

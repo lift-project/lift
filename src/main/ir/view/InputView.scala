@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.ArithExpr
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{ReduceWhileSeq, SlideSeqPlus, FilterSeq}
+import opencl.ir.pattern.{ReduceWhileSeq, MapSeqSlide, FilterSeq}
 
 /**
  * A helper object for constructing views.
@@ -56,7 +56,7 @@ object InputView {
       case m: AbstractMap => buildViewMap(m, call, argView)
       case f: FilterSeq => buildViewFilter(f, call, argView)
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
-      case sp: SlideSeqPlus => buildViewSlideSeqPlus(sp, call, argView)
+      case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
       case z: Zip => buildViewZip(call, argView)
@@ -160,7 +160,7 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
-  private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
+  private def buildViewMapSeqSlide(sp: MapSeqSlide,
                                     call: FunCall, argView: View): View = {
 
     sp.f.params(0).view = ViewMem(sp.windowVar.name, sp.f.params(0).t)
