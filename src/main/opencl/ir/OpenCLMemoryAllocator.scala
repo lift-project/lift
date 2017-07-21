@@ -317,11 +317,22 @@ object OpenCLMemoryAllocator {
         sp.iterationCount
       else
         1
-    
-    alloc(sp.f.body,
+
+
+/*   outT match {
+      case ArrayType(_) =>*/
+        alloc(sp.f.body,
           sizeOfArray(numGlb, outT),
           sizeOfArray(numLcl, outT),
           numPvt * privateMultiplier)
+/*      case Tuple(_,_,_) =>
+        alloc(sp.f.body,
+          sizeOfArray(numGlb, outT),
+          sizeOfArray(numLcl, outT),
+          numPvt * privateMultiplier)
+//      case _ => throw new TypeException(outT, "ArrayTypeWSWC or Tuple", this)
+    }*/
+
   }
 
 

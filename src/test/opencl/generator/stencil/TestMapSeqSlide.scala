@@ -730,7 +730,7 @@ class TestMapSeqSlide
       (input,weights) =>
         MapGlb(1)(MapGlb(0)(
           fun(x => {
-          toGlobal(SlideSeqPlus(
+          toGlobal(MapSeqSlide(
             fun(neighbours => {
               toGlobal(MapSeq(id)) o
                 ReduceSeqUnroll(\((acc, next) =>
