@@ -190,7 +190,22 @@ object Decoder {
     decoder.decodeAny(ty, buffer)(hint)
   }
 
-  private def downloadFlat[T](baseType: Type, data: GlobalArg)(implicit hint: DecodeType[T]): Array[T] = {
+  private def isFlatArray(ty: Type): Boolean = {
+    def isFlat(ty: Type): Boolean = ty match {
+      case ScalarType(_, _) | VectorType(_, _) => true
+      case ArrayTypeWSWC(elemT, size, capacity) if size == capacity => isFlat(elemT)
+      case _ => false
+    }
+
+    ty match {
+      case _: ArrayType => isFlat(ty)
+      case _ => false
+    }
+  }
+
+  private def downloadFlat[T](ty: Type, data: GlobalArg)(implicit hint: DecodeType[T]): Array[T] = {
+    if (!isFlatArray(ty)) println(s"Warning: decoding a value of $ty as a flat array, use at your own risk…")
+    val baseType = Type.getBaseType(ty)
     (baseType, hint) match {
       case (Bool, BOOL()) => data.asBooleanArray()
       case (Int, INT()) => data.asIntArray()
