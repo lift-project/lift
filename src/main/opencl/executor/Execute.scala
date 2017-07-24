@@ -1,7 +1,5 @@
 package opencl.executor
 
-import java.nio.{ByteBuffer, ByteOrder}
-
 import ir.Type.size_t
 import ir._
 import ir.ast._
@@ -652,21 +650,13 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
     // 9. cast the output accordingly to the output type
     val outT = Type.substitute(f.body.t, valueMap)
-    val output = castToOutputType(outT, outputData)(decodeType)
+    val output = Decoder(outT, outputData)(decodeType)
 
     // 10. release OpenCL objects
     args.foreach(_.dispose)
 
     // 11. return output data and runtime as a tuple
     (output, t)
-  }
-
-  private def castToOutputType[T](t: Type, outputData: GlobalArg)(implicit decodeType: DecodeType[T]): T = {
-    val byteArray = outputData.asByteArray()
-    val buffer = ByteBuffer.wrap(byteArray)
-    val endianness = if (Executor.isLittleEndian) ByteOrder.LITTLE_ENDIAN else ByteOrder.BIG_ENDIAN
-    buffer.order(endianness)
-    Decoder.decode(t, buffer)(decodeType)
   }
 
   private def createMemArgs(f: Lambda,

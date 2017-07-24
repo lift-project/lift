@@ -1,6 +1,6 @@
 package opencl.executor
 
-import java.nio.ByteBuffer
+import java.nio.{ByteBuffer, ByteOrder}
 
 import ir.Type.size_t
 import ir._
@@ -154,6 +154,26 @@ object Decoder {
   import DecodeTypes._
 
   /**
+   * Download a global argument through the JNI and return a Scala value of
+   * type `T`.
+   *
+   * - If `T` is `Array[some scalar type]`, the output is a flattened version
+   * of the kernel's output type.
+   * - Otherwise the output is build out of a byte array. It is much slower but
+   * can handle any Lift type.
+   */
+  def apply[T](ty: Type, data: GlobalArg)(implicit hint: DecodeType[T]): T = {
+    hint match {
+      case ARRAY(elt) => downloadFlat(Type.getBaseType(ty), data)(elt)
+      case _ =>
+        val buffer = ByteBuffer.wrap(data.asByteArray())
+        val endianness = if (Executor.isLittleEndian) ByteOrder.LITTLE_ENDIAN else ByteOrder.BIG_ENDIAN
+        buffer.order(endianness)
+        decode(ty, buffer)(hint)
+    }
+  }
+
+  /**
    * Public interface for building a typed value out of a byte buffer.
    * Only specify the expected type as `T` and Scala will infer a `DecodeType[T]`
    * instance to help the `Decoder` to keep track of the types of the produced
@@ -170,14 +190,25 @@ object Decoder {
     decoder.decodeAny(ty, buffer)(hint)
   }
 
+  private def downloadFlat[T](baseType: Type, data: GlobalArg)(implicit hint: DecodeType[T]): Array[T] = {
+    (baseType, hint) match {
+      case (Bool, BOOL()) => data.asBooleanArray()
+      case (Int, INT()) => data.asIntArray()
+      case (Float, FLOAT()) => data.asFloatArray()
+      case (Double, DOUBLE()) => data.asDoubleArray()
+      case _ => throw new IllegalArgumentException(s"$hint and $baseType are not compatible")
+    }
+  }
+
   object DecodeTypes {
     sealed trait DecodeType[T]
+    sealed trait Scalar // Special tag for scalar types
 
     // Scalars
-    final case class BOOL() extends DecodeType[Boolean]
-    final case class INT() extends DecodeType[Int]
-    final case class FLOAT() extends DecodeType[Float]
-    final case class DOUBLE() extends DecodeType[Double]
+    final case class BOOL() extends DecodeType[Boolean] with Scalar
+    final case class INT() extends DecodeType[Int] with Scalar
+    final case class FLOAT() extends DecodeType[Float] with Scalar
+    final case class DOUBLE() extends DecodeType[Double] with Scalar
     implicit val _B = BOOL()
     implicit val _I = INT()
     implicit val _F = FLOAT()
@@ -186,6 +217,11 @@ object Decoder {
     // Array (decoded as a vector)
     final case class VECTOR[E](elt: DecodeType[E]) extends DecodeType[Vector[E]]
     implicit def wrapInVector[E](implicit elt: DecodeType[E]): DecodeType[Vector[E]] = VECTOR(elt)
+
+    // Array (decoded as a flat 1D array)
+    // The element type must me a scalar type
+    case class ARRAY[E](elt: DecodeType[E] with Scalar) extends DecodeType[Array[E]]
+    implicit def wrapInArray[E](implicit elt: DecodeType[E] with Scalar): DecodeType[Array[E]] = ARRAY(elt)
 
     // Tuples, up to 4 components (extend at will)
     final case class T1[A1](a1: DecodeType[A1]) extends DecodeType[Tuple1[A1]]
