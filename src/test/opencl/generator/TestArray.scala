@@ -33,7 +33,7 @@ class TestArray {
   def unknownSizeReduce(): Unit = {
     val capacity = 1024
     val size = 700
-    val input = Vector.fill(size)(util.Random.nextInt(16))
+    val input = Array.fill(size)(util.Random.nextInt(16))
 
     val f = fun(
       ArrayTypeWC(Int, capacity),
@@ -44,9 +44,8 @@ class TestArray {
     val t = TypeChecker(f)
     assertEquals(t, ArrayTypeWSWC(Int, 1, 1))
 
-    val exec = Execute(128)
-    val (output, _) = exec[Vector[Int]](f, input)
-    assertEquals(Vector(input.sum), output)
+    val (output, _) = Execute(128)[Array[Int]](f, input)
+    assertArrayEquals(Array(input.sum), output)
   }
 
   /**
@@ -58,8 +57,8 @@ class TestArray {
     val capacity = 1024
     val size = 879
 
-    val iInput = Vector.fill(size)(util.Random.nextInt())
-    val fInput = Vector.fill(size)(util.Random.nextFloat())
+    val iInput = Array.fill(size)(util.Random.nextInt())
+    val fInput = Array.fill(size)(util.Random.nextFloat())
 
     def mkMapId(st: ScalarType): Lambda1 = fun(
       ArrayTypeWC(st, capacity),
@@ -68,16 +67,16 @@ class TestArray {
 
     val exec = Execute(128)
     val (iOutput, _) = exec[Vector[Int]](mkMapId(Int), iInput)
-    assertEquals(iInput, iOutput)
+    assertArrayEquals(iInput, iOutput.toArray)
     val (fOutput, _) = exec[Vector[Float]](mkMapId(Float), fInput)
-    assertEquals(fInput, fOutput)
+    assertArrayEquals(fInput, fOutput.toArray, 0f)
   }
 
   @Test
   def unknownSizeMapBool(): Unit = {
-    val capacity = 128
-    val size = 87
-    val input = Vector.fill(size)(util.Random.nextBoolean())
+    val capacity = 1024
+    val size = 877
+    val input = Array.fill(size)(util.Random.nextBoolean())
 
     val mapId = fun(
       ArrayTypeWC(Bool, capacity),
@@ -85,7 +84,7 @@ class TestArray {
     )
 
     val (bOutput, _) = Execute(128)[Vector[Boolean]](mapId, input)
-    assertEquals(input, bOutput)
+    assertEquals(input.toVector, bOutput)
   }
 
   @Test
@@ -94,16 +93,15 @@ class TestArray {
 
     val capacity = 1024
     val size = 879
-    val input = Vector.fill(size)(util.Random.nextDouble())
+    val input = Array.fill(size)(util.Random.nextDouble())
 
     val mapId = fun(
       ArrayTypeWC(Double, capacity),
       MapGlb(toGlobal(id(Double))) $ _
     )
 
-    val exec = Execute(128)
-    val (dOutput, _) = exec[Vector[Double]](mapId, input)
-    assertEquals(input, dOutput)
+    val (dOutput, _) = Execute(128)[Vector[Double]](mapId, input)
+    assertArrayEquals(input, dOutput.toArray, 0d)
   }
 
   /**
@@ -114,18 +112,15 @@ class TestArray {
   @Test
   def inputZeroKnowledge(): Unit = {
     val size = 128
-    val input = Vector.fill(size)(util.Random.nextInt(16))
+    val input = Array.fill(size)(util.Random.nextInt(16))
 
     val f = fun(
       ArrayType(Int),
       MapGlb(toGlobal(idI)) o ReduceSeq(addI, 0) $ _
     )
 
-    assertEquals(TypeChecker(f), ArrayTypeWSWC(Int, 1, 1))
-
-    val exec = Execute(128)
-    val (output, _) = exec[Vector[Int]](f, input)
-    assertEquals(Vector(input.sum), output)
+    val (output, _) = Execute(128)[Array[Int]](f, input)
+    assertArrayEquals(Array(input.sum), output)
   }
 
   /**
@@ -152,7 +147,7 @@ class TestArray {
     val capacity = 128
     val size1 = 90
     val size2 = 42
-    val input = Vector.fill(size1, size2)(util.Random.nextFloat())
+    val input = Array.fill(size1, size2)(util.Random.nextFloat())
     val f = fun(
       ArrayTypeWC(ArrayTypeWC(Float, capacity), capacity),
       MapGlb(MapSeq(id(Float))) $ _
@@ -160,10 +155,9 @@ class TestArray {
 
     assertEquals(TypeChecker(f), ArrayTypeWC(ArrayTypeWC(Float, capacity), capacity))
 
-    val exec = Execute(capacity)
-    val (output, _) = exec[Vector[Vector[Float]]](f, input)
+    val (output, _) = Execute(capacity)[Vector[Vector[Float]]](f, input)
 
-    assertArrayEquals(input.flatten.toArray, output.flatten.toArray, 0.0001f)
+    assertArrayEquals(input.flatten, output.flatten.toArray, 0.0001f)
   }
 
   /**
@@ -182,10 +176,9 @@ class TestArray {
       MapGlb(MapSeq(toGlobal(idI)) o ReduceSeq(addI, 0)) $ _
     )
 
-    val input = Vector.fill(size)(Vector.fill(4 + util.Random.nextInt(8))(util.Random.nextInt(16)))
-    val exec = Execute(size)
-    val (output, _) = exec[Vector[Int]](f, input)
-    assertEquals(input.map(_.sum), output)
+    val input = Array.fill(size)(Array.fill(4 + util.Random.nextInt(8))(util.Random.nextInt(16)))
+    val (output, _) = Execute(size)[Array[Int]](f, input)
+    assertArrayEquals(input.map(_.sum), output)
   }
 
   @Test
@@ -202,10 +195,10 @@ class TestArray {
       Join() o MapGlb(MapSeq(toGlobal(id(Int))) o ReduceSeq(countTrue, 0)) $ _
     )
 
-    val input = Vector.fill(size)(Vector.fill(4 + util.Random.nextInt(8))(util.Random.nextBoolean()))
+    val input = Array.fill(size)(Array.fill(4 + util.Random.nextInt(8))(util.Random.nextBoolean()))
     val exec = Execute(size)
-    val (output, _) = exec[Vector[Int]](f, input)
-    assertEquals(input.map(_.count(b => b)), output)
+    val (output, _) = exec[Array[Int]](f, input)
+    assertArrayEquals(input.map(_.count(b => b)), output)
   }
 
   /**
@@ -246,17 +239,17 @@ class TestArray {
 
     assertEquals(TypeChecker(f), ArrayTypeWSWC(Float, Cst(1)))
 
-    val p1 = Vector.fill(37)(util.Random.nextFloat())
-    val p2 = Vector.fill(78)(util.Random.nextFloat())
+    val p1 = Array.fill(37)(util.Random.nextFloat())
+    val p2 = Array.fill(78)(util.Random.nextFloat())
 
     val exec = Execute(128)
-    val (output, _) = exec[Vector[Float]](f, p1, p2)
-    val (outputRev, _) = exec[Vector[Float]](f, p2, p1)
+    val (output, _) = exec[Array[Float]](f, p1, p2)
+    val (outputRev, _) = exec[Array[Float]](f, p2, p1)
 
     val gold = (p1 zip p2.slice(0, 78)).map(p => p._1 * p._2).sum
 
-    assertArrayEquals(Array(gold), output.toArray, 0.0001f)
-    assertArrayEquals(Array(gold), outputRev.toArray, 0.0001f)
+    assertArrayEquals(Array(gold), output, 0.0001f)
+    assertArrayEquals(Array(gold), outputRev, 0.0001f)
   }
 
   @Test
@@ -277,9 +270,9 @@ class TestArray {
 
     val height = 128
 
-    val als: Vector[Int] = Vector.fill(height)(util.Random.nextInt(127) + 1)
-    val p1 = als.map(Vector.fill(_)(util.Random.nextFloat()))
-    val p2 = als.map(Vector.fill(_)(util.Random.nextFloat()))
+    val als: Array[Int] = Array.fill(height)(util.Random.nextInt(127) + 1)
+    val p1 = als.map(Array.fill(_)(util.Random.nextFloat()))
+    val p2 = als.map(Array.fill(_)(util.Random.nextFloat()))
 
     val gold = (p1 zip p2).map {
       case (arr1, arr2) =>
@@ -288,10 +281,9 @@ class TestArray {
           .sum
     }
 
-    val exec = Execute(128)
-    val (output, _) = exec[Vector[Float]](f, p1, p2)
+    val (output, _) = Execute(128)[Array[Float]](f, p1, p2)
 
-    assertArrayEquals(gold.toArray, output.toArray, 0.001f)
+    assertArrayEquals(gold, output, 0.001f)
   }
 
   @Test
@@ -305,11 +297,11 @@ class TestArray {
         o MapSeq(id(Int)) $ _
     )
 
-    val input = Vector.fill(size)(util.Random.nextInt(1024))
+    val input = Array.fill(size)(util.Random.nextInt(1024))
     val exec = Execute(capacity)
     val (output, _) = exec[Vector[Int]](f, input)
 
-    assertEquals(input.map(x => 2 * (x + 1)), output)
+    assertArrayEquals(input.map(x => 2 * (x + 1)), output.toArray)
   }
 
   @Test
@@ -331,12 +323,13 @@ class TestArray {
         ) $ array
     )
 
-    val input = Vector.fill(dimSizes(0), dimSizes(1), dimSizes(2), dimSizes(3), dimSizes(4))({
+    val input = Array.fill(dimSizes(0), dimSizes(1), dimSizes(2), dimSizes(3), dimSizes(4))({
       val len = util.Random.nextInt(8) + 1
-      Vector.fill(len)(util.Random.nextInt(512))
+      Array.fill(len)(util.Random.nextInt(512))
     })
-    val gold = input.map(_.map(_.map(_.map(_.map(_.sum)))))
+    val gold = input.map(_.map(_.map(_.map(_.map(_.sum).toVector).toVector).toVector).toVector).toVector
 
+    // Do not use [Array[Int]] here, we want to know if the Decoder can handle such a structure
     val (output, _) = Execute(4, 4)[Vector[Vector[Vector[Vector[Vector[Int]]]]]](kernel, input)
     assertEquals(gold, output)
   }
@@ -362,10 +355,10 @@ class TestArray {
     val height = 128
     val width = 64
 
-    val als: Vector[Int] = Vector.fill(height)(util.Random.nextInt(width - 1) + 1)
-    val indices = als.map(Vector.fill(_)(util.Random.nextInt(width)))
-    val values = als.map(Vector.fill(_)(util.Random.nextFloat()))
-    val vector  = Vector.fill(width)(util.Random.nextFloat())
+    val als: Array[Int] = Array.fill(height)(util.Random.nextInt(width - 1) + 1)
+    val indices = als.map(Array.fill(_)(util.Random.nextInt(width)))
+    val values = als.map(Array.fill(_)(util.Random.nextFloat()))
+    val vector  = Array.fill(width)(util.Random.nextFloat())
 
     val gold = (indices zip values).map{
       case (ixRow, valRow) =>
@@ -375,8 +368,8 @@ class TestArray {
     }
 
     val exec = Execute(128)
-    val (output, _) = exec[Vector[Float]](f, indices, values, vector)
+    val (output, _) = exec[Array[Float]](f, indices, values, vector)
 
-    assertArrayEquals(gold.toArray, output.toArray, 0.001f)
+    assertArrayEquals(gold, output, 0.001f)
   }
 }

@@ -26,14 +26,14 @@ class TestExecute {
   def testInferSeq(): Unit = {
 
     val size = 1024
-    val input = Vector.fill(size)(util.Random.nextFloat() * 10)
+    val input = Array.fill(size)(util.Random.nextFloat() * 10)
 
     val f = \(ArrayTypeWSWC(Float, N),
       MapSeq(plusOne) $ _
     )
 
     val execute = Execute()
-    val (output, _) = execute[Vector[Float]](f, input)
+    val (output, _) = execute[Array[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -44,21 +44,21 @@ class TestExecute {
     assertEquals(Cst(1), global(0))
     assertEquals(Cst(1), global(1))
     assertEquals(Cst(1), global(2))
-    assertArrayEquals(input.map(_+1).toArray, output.toArray, 0.001f)
+    assertArrayEquals(input.map(_+1), output, 0.001f)
   }
 
   @Test
   def testInferNoLocalOneDim(): Unit = {
 
     val size = 1024
-    val input = Vector.fill(size)(util.Random.nextFloat() * 10)
+    val input = Array.fill(size)(util.Random.nextFloat() * 10)
 
     val f = \(ArrayTypeWSWC(Float, N),
       MapGlb(plusOne) $ _
     )
 
     val execute = Execute()
-    val (output, _) = execute[Vector[Float]](f, input)
+    val (output, _) = execute[Array[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -69,7 +69,7 @@ class TestExecute {
     assertEquals(Cst(size), global(0))
     assertEquals(Cst(1), global(1))
     assertEquals(Cst(1), global(2))
-    assertArrayEquals(input.map(_+1).toArray, output.toArray, 0.001f)
+    assertArrayEquals(input.map(_+1), output, 0.001f)
   }
 
   @Test
@@ -77,14 +77,14 @@ class TestExecute {
 
     val size1 = 1024
     val size2 = 512
-    val input = Vector.fill(size1, size2)(util.Random.nextFloat() * 10)
+    val input = Array.fill(size1, size2)(util.Random.nextFloat() * 10)
 
     val f = \(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       MapGlb(1)(MapGlb(0)(plusOne)) $ _
     )
 
     val execute = Execute()
-    val (output, _) = execute[Vector[Vector[Float]]](f, input)
+    val (output, _) = execute[Array[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -95,21 +95,21 @@ class TestExecute {
     assertEquals(Cst(size2), global(0))
     assertEquals(Cst(size1), global(1))
     assertEquals(Cst(1), global(2))
-    assertArrayEquals(input.flatten.map(_+1).toArray, output.flatten.toArray, 0.001f)
+    assertArrayEquals(input.flatten.map(_+1), output, 0.001f)
   }
 
   @Test
   def testInferOneDim(): Unit = {
     val size = 1024
     val split = 32
-    val input = Vector.fill(size)(util.Random.nextFloat() * 10)
+    val input = Array.fill(size)(util.Random.nextFloat() * 10)
 
     val f = \(ArrayTypeWSWC(Float, N),
       MapWrg(MapLcl(plusOne)) o Split(split) $ _
     )
 
     val execute = Execute()
-    val (output, _) = execute[Vector[Vector[Float]]](f, input)
+    val (output, _) = execute[Array[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -120,7 +120,7 @@ class TestExecute {
     assertEquals(Cst(size), global(0))
     assertEquals(Cst(1), global(1))
     assertEquals(Cst(1), global(2))
-    assertArrayEquals(input.map(_+1).toArray, output.flatten.toArray, 0.001f)
+    assertArrayEquals(input.map(_+1), output, 0.001f)
   }
 
   @Test
@@ -131,7 +131,7 @@ class TestExecute {
     val size2 = 512
     val split1 = 32
     val split2 = 8
-    val input = Vector.fill(size1, size2)(util.Random.nextFloat() * 10)
+    val input = Array.fill(size1, size2)(util.Random.nextFloat() * 10)
 
     val f = \(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       Untile2D() o
@@ -140,7 +140,7 @@ class TestExecute {
     )
 
     val execute = Execute()
-    val (output, _) = execute[Vector[Vector[Float]]](f, input)
+    val (output, _) = execute[Array[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -151,7 +151,7 @@ class TestExecute {
     assertEquals(Cst(size2), global(0))
     assertEquals(Cst(size1), global(1))
     assertEquals(Cst(1), global(2))
-    assertArrayEquals(input.flatten.map(_+1).toArray, output.flatten.toArray, 0.001f)
+    assertArrayEquals(input.flatten.map(_+1), output, 0.001f)
   }
 
   @Test
@@ -164,7 +164,7 @@ class TestExecute {
     val sizeA = 128
     val sizeB = 16*cst1
 
-    val input = Vector.fill(sizeA, sizeB)(util.Random.nextFloat() * 10)
+    val input = Array.fill(sizeA, sizeB)(util.Random.nextFloat() * 10)
 
     val f = λ(ArrayTypeWSWC(ArrayTypeWSWC(Float, B*Cst(cst1)), A),
       MapWrg(
@@ -173,12 +173,12 @@ class TestExecute {
     )
 
     val execute = Execute()
-    val (output, _) = execute[Vector[Vector[Vector[Float]]]](f, input)
+    val (output, _) = execute[Array[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
 
-    assertArrayEquals(input.flatten.toArray, output.flatten.flatten.toArray, 0.001f)
+    assertArrayEquals(input.flatten, output, 0.001f)
   }
 
   @Test
@@ -187,8 +187,8 @@ class TestExecute {
 
     val cst1 = 8
 
-    val inputA = Vector.fill(cst1)(util.Random.nextFloat() * 10)
-    val inputB = Vector.fill(cst1)(util.Random.nextFloat() * 10)
+    val inputA = Array.fill(cst1)(util.Random.nextFloat() * 10)
+    val inputB = Array.fill(cst1)(util.Random.nextFloat() * 10)
 
     val gold = inputA.sum + inputB.sum
 
@@ -200,10 +200,9 @@ class TestExecute {
     )
 
     val execute = Execute()
-    val (output, _) = execute[Vector[Float]](f, inputA, inputB)
+    val (output, _) = execute[Array[Float]](f, inputA, inputB)
 
-    val (local, global) = execute.getAndValidateSizesForExecution(f,
-      Execute.createValueMap(f, inputA, inputB))
+    execute.getAndValidateSizesForExecution(f, Execute.createValueMap(f, inputA, inputB))
 
     assertEquals(1, output.length)
     assertEquals(gold, output.head, 0.001f)
@@ -212,7 +211,7 @@ class TestExecute {
   @Test
   def tupleArgument(): Unit = {
     val size = 32
-    val inputA = Vector.fill(size)(util.Random.nextFloat() * 10)
+    val inputA = Array.fill(size)(util.Random.nextFloat() * 10)
     val inputB = (13, 42.24f)
 
     val addTuple = UserFun(

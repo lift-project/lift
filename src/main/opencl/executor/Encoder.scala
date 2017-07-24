@@ -39,8 +39,8 @@ class Encoder(mainTy: Type, sizeof: Int) {
   private def encodeAny(ty: Type, value: Any, buffer: ByteBuffer): Unit = {
     (ty, value) match {
       case (st: ScalarType, _) => encodeScalar(st, value, buffer)
-      case (vt: VectorType, v: Vector[_]) => encodeVector(vt, v, buffer)
-      case (at: ArrayType, vector: Vector[_]) => encodeArray(at, vector, buffer)
+      case (vt: VectorType, v: Array[_]) => encodeVector(vt, v, buffer)
+      case (at: ArrayType, vector: Array[_]) => encodeArray(at, vector, buffer)
       case (tt: TupleType, tuple: Product) => encodeTuple(tt, tuple, buffer)
       case _ => throw new EncodingError(ty, value)
     }
@@ -56,11 +56,11 @@ class Encoder(mainTy: Type, sizeof: Int) {
     }
   }
 
-  private def encodeVector(vt: VectorType, vector: Vector[_], buffer: ByteBuffer): Unit = {
+  private def encodeVector(vt: VectorType, vector: Array[_], buffer: ByteBuffer): Unit = {
     vector.foreach(encodeScalar(vt.scalarT, _, buffer))
   }
 
-  private def encodeArray(at: ArrayType, vector: Vector[_], buffer: ByteBuffer): Unit = {
+  private def encodeArray(at: ArrayType, vector: Array[_], buffer: ByteBuffer): Unit = {
     val beforeHeader = buffer.position()
     val afterHeader = beforeHeader + at.headerSize * alignment
     def align(value: Int): Int = {

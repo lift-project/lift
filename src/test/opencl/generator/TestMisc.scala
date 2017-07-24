@@ -1109,8 +1109,8 @@ class TestMisc {
   def issue102IntFloat(): Unit = {
     val size = 128
     val N = SizeVar("N")
-    val left = Vector.fill(size)(util.Random.nextInt())
-    val right = Vector.fill(size)(util.Random.nextFloat())
+    val left = Array.fill(size)(util.Random.nextInt())
+    val right = Array.fill(size)(util.Random.nextFloat())
 
     val tuple_id = UserFun(
       "tuple_id", "x", "return x;", TupleType(Int, Float), TupleType(Int, Float)
@@ -1124,7 +1124,7 @@ class TestMisc {
 
     val (output, _) = Execute(128)[Vector[(Int, Float)]](intFloatZip, left, right)
 
-    assertEquals(left zip right, output)
+    assertEquals((left zip right).toVector, output)
   }
 
   /**
@@ -1135,7 +1135,7 @@ class TestMisc {
     val size = 128
     val input = {
       import util.Random.{nextBoolean, nextFloat, nextInt}
-      Vector.fill(size)((nextBoolean(), (nextInt(), nextFloat())))
+      Array.fill(size)((nextBoolean(), (nextInt(), nextFloat())))
     }
     val mix = UserFun(
       "user_mix", "t", "Tuple1 t2 = {{t._1._1, t._0}, t._1._0}; return t2;",
@@ -1149,7 +1149,7 @@ class TestMisc {
     )
 
     val (output, _) = Execute(128)[Vector[((Float, Boolean), Int)]](kernel, input)
-    val gold = input.map{ case (b, (i, f)) => ((f, b), i) }
+    val gold = input.map{ case (b, (i, f)) => ((f, b), i) }.toVector
     assertEquals(gold, output)
   }
 

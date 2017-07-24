@@ -192,25 +192,25 @@ object Execute {
                                 : (Set[Constraint], Set[Constraint]) = {
       ty match {
         case at: ArrayType =>
-          val vector = value match {
-            case v: Vector[_] => v
-            case _ => throw new IllegalKernelArgument(s"Vector expected, got: ${value.getClass}")
+          val array = value match {
+            case arr: Array[_] => arr
+            case _ => throw new IllegalKernelArgument(s"Array expected, got: ${value.getClass}")
           }
 
           // Recursive call if array of arrays
           val (caps: Set[Constraint], sizes: Set[Constraint]) = at.elemT match {
             case elemT: ArrayType =>
-              val (cs, ss) = vector.map(fetchConstraints(elemT, _, (Set.empty, Set.empty))).unzip
+              val (cs, ss) = array.map(fetchConstraints(elemT, _, (Set.empty, Set.empty))).unzip
               (cs.toSet.flatten, ss.toSet.flatten)
             case _ =>
-              checkParamWithValue(at.elemT, vector.head)
+              checkParamWithValue(at.elemT, array.head)
               (Set.empty, Set.empty)
           }
 
           // fetch information for the current array
           (
-            collectCapacityConstraints(at, vector.length, caps ++ constraints._1),
-            collectSizeConstraints(at, vector.length, sizes ++ constraints._2)
+            collectCapacityConstraints(at, array.length, caps ++ constraints._1),
+            collectSizeConstraints(at, array.length, sizes ++ constraints._2)
           )
         case _ =>
           checkParamWithValue(ty, value)
@@ -220,8 +220,7 @@ object Execute {
 
     /**
      * Type-checks a bit of kernel argument.
-     * Arrays are handled in fetchConstraints using `asVector` and a recursive
-     * call to itself since more work is required for them.
+     * Arrays are handled in fetchConstraints since more work is required for them.
      */
     private def checkParamWithValue(t: Type, v: Any): Unit = {
       (t, v) match {
@@ -232,9 +231,9 @@ object Execute {
 
         case (VectorType(st, len), _) =>
           // Vectors must be passed as arrays
-          if (!v.isInstanceOf[Vector[_]])
-            throw TypeException(s"Expected Vector[$st] of size $len. Got ${v.getClass} instead.")
-          val vector = v.asInstanceOf[Vector[_]]
+          if (!v.isInstanceOf[Array[_]])
+            throw TypeException(s"Expected Array[$st] of size $len representing a $t. Got ${v.getClass} instead.")
+          val vector = v.asInstanceOf[Array[_]]
           // Validate the underlying type and the length
           st match {
             case Float | Int | Double =>
@@ -243,7 +242,8 @@ object Execute {
           val headType = Type.fromAny(vector.head)
           if (headType != st || vector.length != len.eval)
             throw TypeException(
-              s"Expected Vector[$st] of size $len. Got Vector[$headType] of length ${vector.length} instead."
+              s"Expected Array[$st] of size $len representing a $t. " +
+              s"Got Array[$headType] of length ${vector.length} instead."
             )
 
         case (tt: TupleType, p: Product) =>
@@ -584,7 +584,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   private def allocArgumentWithoutFixedAllocatedSize(ty: Type, value: Any): ArithExpr = {
     (ty, value) match {
       case (ScalarType(_, _), _) | (VectorType(_, _), _) | (_: TupleType, _) => Type.getAllocatedSize(ty)
-      case (at: ArrayType, array: Vector[_]) =>
+      case (at: ArrayType, array: Array[_]) =>
         val c = at match {
           case c: Capacity => c.capacity
           case _ => Cst(array.length)
