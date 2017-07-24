@@ -523,17 +523,21 @@ class TestAcousticActualRoom {
             val secondArr = inp._1
             val thirdArr = inp._2
 
+             PrintType() $ firstArr
+             PrintType() $ secondArr
+             PrintType() $ thirdArr
+
             toGlobal(MapSeqSlide(fun( m => {
 
-              val `tile[1][1][1]` = m.at(1).at(1).at(1)
+              val `tile[1][1][1]` = Get(m,0).at(1)
 
               toGlobal(id) $ `tile[1][1][1]`
 
             /*}),size,step)) $ inp*/
-          }),size,step)) $ secondArr
+          }),size,step)) o PrintType() $ Zip(firstArr,firstArr)
 
           })
-        )) o PrintType() $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+        )) /*o PrintType()*/ $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
       })
 
     val newLambda = SimplifyAndFuse(lambdaNeighMapSeqSlide)
@@ -592,15 +596,16 @@ class TestAcousticActualRoom {
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m-2), n-2), o-2),
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
       (mat1, mat2) => {
-        MapGlb(1)(MapGlb(0)(
-          toGlobal(MapSeq/*Slide*/(fun(m => {
+        MapGlb(1)(MapGlb(0)(fun(x => {
+          toGlobal(MapSeq(fun(m => {
 
-          val `tile[1][1][1]` = Get(m,1).at(1).at(1).at(1)
+          val `tile[1][1][1]` = Get(m,1)//.at(1).at(1).at(1)
 
           toGlobal(id) $ `tile[1][1][1]`
 
-        })/*,StencilUtilities.slidesize,StencilUtilities.slidestep*/)))
-        ) $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)
+        })/*,StencilUtilities.slidesize,StencilUtilities.slidestep*/))} $ x)
+          )
+        ) o PrintType() /*o Transpose() o Map(Transpose()) o*/$ Zip3D(mat1, mat1) /*Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)*/
       })
 
     //val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeighAt, input, input3D)
@@ -613,6 +618,7 @@ class TestAcousticActualRoom {
   }
 
 }
+
 
 
 
