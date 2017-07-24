@@ -189,10 +189,19 @@ object StencilUtilities
       Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i + j + k + 1).toFloat }
     }
 
+
+  def createDataFloat3DInOrder(sizeX: Int, sizeY: Int, sizeZ: Int) = {
+    Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i*sizeX*sizeY + j*sizeX + k + 1).toFloat }
+  }
+
     def createDataFloat3DWithPadding(sizeX: Int, sizeY: Int, sizeZ: Int) = {
       val filling = createDataFloat3D(sizeX,sizeY, sizeZ)
       createFakePaddingFloat3D(filling,0.0f,sizeX,sizeY)
     }
+  def createDataFloat3DWithPaddingInOrder(sizeX: Int, sizeY: Int, sizeZ: Int) = {
+    val filling = createDataFloat3DInOrder(sizeX,sizeY, sizeZ)
+    createFakePaddingFloat3D(filling,0.0f,sizeX,sizeY)
+  }
 
     /* these helper functions do not work, but it would be nice if they did! */
   def map2D(f: Lambda1): FunDecl = {
