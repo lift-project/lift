@@ -737,15 +737,70 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   }
 
   /**
-   * Factory function for creating OpenCL kernel arguments
+   * Factory functions for creating OpenCL kernel arguments
    */
-  private def arg(data: Any, ty: Type, size: Int): KernelArg = {
-    val encoder = new Encoder(ty, size)
-    val raw = encoder.encode(data).array()
+  private object arg {
+    def apply(data: Any, ty: Type, size: Int): KernelArg = {
+      // Optimisation: if we can simply flatten the input, do it
+      val dim = dimension(ty, 0)
+      if (dim > 0 && dim < 6 && canFlatten(ty)) flatUpload(data)
+      else {
+        val raw = new Encoder(ty, size).encode(data).array()
+        ty match {
+          case ArrayType(_) => GlobalArg.createInput(raw)
+          case _ => ValueArg.create(raw)
+        }
+      }
+    }
 
-    ty match {
-      case ArrayType(_) => GlobalArg.createInput(raw)
-      case _ => ValueArg.create(raw)
+    private def flatUpload(data: Any): GlobalArg = {
+      data match {
+        case af: Array[Float] => globalArg(af)
+        case aaf: Array[Array[Float]] => globalArg(aaf.flatten)
+        case aaaf: Array[Array[Array[Float]]] => globalArg(aaaf.flatten.flatten)
+        case aaaaf: Array[Array[Array[Array[Float]]]] => globalArg(aaaaf.flatten.flatten.flatten)
+        case aaaaaf: Array[Array[Array[Array[Array[Float]]]]] => globalArg(aaaaaf.flatten.flatten.flatten.flatten)
+
+        case ai: Array[Int] => globalArg(ai)
+        case aai: Array[Array[Int]] => globalArg(aai.flatten)
+        case aaai: Array[Array[Array[Int]]] => globalArg(aaai.flatten.flatten)
+        case aaaai: Array[Array[Array[Array[Int]]]] => globalArg(aaaai.flatten.flatten.flatten)
+        case aaaaai: Array[Array[Array[Array[Array[Int]]]]] => globalArg(aaaaai.flatten.flatten.flatten.flatten)
+
+        case ad: Array[Double] => globalArg(ad)
+        case aad: Array[Array[Double]] => globalArg(aad.flatten)
+        case aaad: Array[Array[Array[Double]]] => globalArg(aaad.flatten.flatten)
+        case aaaad: Array[Array[Array[Array[Double]]]] => globalArg(aaaad.flatten.flatten.flatten)
+        case aaaaad: Array[Array[Array[Array[Array[Double]]]]] => globalArg(aaaaad.flatten.flatten.flatten.flatten)
+
+        case ad: Array[Boolean] => globalArg(ad)
+        case aad: Array[Array[Boolean]] => globalArg(aad.flatten)
+        case aaad: Array[Array[Array[Boolean]]] => globalArg(aaad.flatten.flatten)
+        case aaaad: Array[Array[Array[Array[Boolean]]]] => globalArg(aaaad.flatten.flatten.flatten)
+        case aaaaad: Array[Array[Array[Array[Array[Boolean]]]]] => globalArg(aaaaad.flatten.flatten.flatten.flatten)
+
+        case _ => throw new NotImplementedError(s"You should not end up here: ${data.getClass}")
+      }
+    }
+
+    private def globalArg(data: Array[_]): GlobalArg = data match {
+      case af: Array[Float]   => GlobalArg.createInput(af)
+      case ai: Array[Int]     => GlobalArg.createInput(ai)
+      case ad: Array[Double]  => GlobalArg.createInput(ad)
+      case ab: Array[Boolean] => GlobalArg.createInput(ab)
+    }
+
+    @scala.annotation.tailrec
+    private def dimension(ty: Type, dim: Int): Int = ty match {
+      case ArrayType(elemT) => dimension(elemT, dim + 1)
+      case _ => dim
+    }
+
+    @scala.annotation.tailrec
+    private def canFlatten(ty: Type): Boolean = ty match {
+      case ArrayTypeWSWC(elemT, s, c) if s == c => canFlatten(elemT)
+      case ScalarType(_, _) => true
+      case _ => false
     }
   }
 

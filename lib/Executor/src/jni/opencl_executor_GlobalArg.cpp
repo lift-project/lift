@@ -19,11 +19,63 @@ jobject Java_opencl_executor_GlobalArg_createInput___3B(JNIEnv* env, jclass cls,
   return obj;
 }
 
+jobject Java_opencl_executor_GlobalArg_createInput___3F(JNIEnv* env, jclass cls,
+                                                        jfloatArray data)
+{
+  auto arrayPtr = env->GetFloatArrayElements(data, nullptr);
+  auto ptr = executor::GlobalArg::create(arrayPtr,
+                               env->GetArrayLength(data) * sizeof(jfloat));
+  env->ReleaseFloatArrayElements(data, arrayPtr, JNI_ABORT);
+
+  auto methodID = env->GetMethodID(cls, "<init>", "(J)V");
+  auto obj = env->NewObject(cls, methodID, ptr);
+  return obj;
+}
+
+jobject Java_opencl_executor_GlobalArg_createInput___3I(JNIEnv* env, jclass cls,
+                                                        jintArray data)
+{
+  auto arrayPtr = env->GetIntArrayElements(data, nullptr);
+  auto ptr = executor::GlobalArg::create(arrayPtr,
+                               env->GetArrayLength(data) * sizeof(jint));
+  env->ReleaseIntArrayElements(data, arrayPtr, JNI_ABORT);
+
+  auto methodID = env->GetMethodID(cls, "<init>", "(J)V");
+  auto obj = env->NewObject(cls, methodID, ptr);
+  return obj;
+}
+
+jobject Java_opencl_executor_GlobalArg_createInput___3D(JNIEnv* env, jclass cls,
+                                                        jdoubleArray data)
+{
+  auto arrayPtr = env->GetDoubleArrayElements(data, nullptr);
+  auto ptr = executor::GlobalArg::create(arrayPtr,
+                               env->GetArrayLength(data) * sizeof(jdouble));
+  env->ReleaseDoubleArrayElements(data, arrayPtr, JNI_ABORT);
+
+  auto methodID = env->GetMethodID(cls, "<init>", "(J)V");
+  auto obj = env->NewObject(cls, methodID, ptr);
+  return obj;
+}
+
+jobject Java_opencl_executor_GlobalArg_createInput___3Z(JNIEnv* env, jclass cls,
+                                                        jbooleanArray data)
+{
+  auto arrayPtr = env->GetBooleanArrayElements(data, nullptr);
+  auto ptr = executor::GlobalArg::create(arrayPtr,
+                               env->GetArrayLength(data) * sizeof(jboolean));
+  env->ReleaseBooleanArrayElements(data, arrayPtr, JNI_ABORT);
+
+  auto methodID = env->GetMethodID(cls, "<init>", "(J)V");
+  auto obj = env->NewObject(cls, methodID, ptr);
+  return obj;
+}
+
 jobject Java_opencl_executor_GlobalArg_createOutput(JNIEnv* env, jclass cls,
                                                     jlong size)
 {
   auto ptr = executor::GlobalArg::create(size, true);
-  auto methodID = env->GetMethodID(cls, "<init>", "(J)V"); 
+  auto methodID = env->GetMethodID(cls, "<init>", "(J)V");
   auto obj = env->NewObject(cls, methodID, ptr);
   return obj;
 }
