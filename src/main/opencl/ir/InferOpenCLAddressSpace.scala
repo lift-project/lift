@@ -53,8 +53,8 @@ object InferOpenCLAddressSpace {
 
       case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
            asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
-           Pad(_,_,_) | Tuple(_) | Slide(_,_) | Head() | Tail() | PrintType(_) |
-           UnsafeArrayAccess(_) | ArrayAccess(_) =>
+           Pad(_,_,_) | Tuple(_) | Slide(_,_) | Head() | Tail() | debug.PrintType(_) |
+           debug.PrintComment(_) | UnsafeArrayAccess(_) | ArrayAccess(_) =>
 
         setAddressSpaceDefault(addressSpaces)
 
@@ -71,6 +71,8 @@ object InferOpenCLAddressSpace {
 
       case l: Lambda => setAddressSpaceLambda(l, writeTo, addressSpaces)
       case fp: FPattern => setAddressSpaceLambda(fp.f, writeTo, addressSpaces)
+
+      case pv: debug.PrintView => setAddressSpaceLambda(pv.f, writeTo, addressSpaces)
 
       case VectorizeUserFun(_, _) | UserFun(_, _, _, _, _) =>
         inferAddressSpace(writeTo, addressSpaces)

@@ -163,9 +163,12 @@ object OpenCLMemoryAllocator {
       case f: Filter => allocFilter(f, numGlb, numLcl, inMem)
       case ua: UnsafeArrayAccess => allocUnsafeArrayAccess(ua, call, numGlb, numLcl, numPvt, inMem)
 
+      case debug.PrintView(_, f) => allocLambda(f, numGlb, numLcl, numPvt, inMem)
+
       case Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Slide(_, _) | Pad(_, _, _) |
-           Head() | Tail() | Gather(_) | Scatter(_) | ArrayAccess(_) | PrintType(_) =>
+           Head() | Tail() | Gather(_) | Scatter(_) | ArrayAccess(_) |
+           debug.PrintType(_) | debug.PrintComment(_) =>
         inMem
     }
   }

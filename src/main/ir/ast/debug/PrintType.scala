@@ -1,11 +1,12 @@
-package ir.ast
+package ir.ast.debug
 
 import ir.Type
+import ir.ast.{Pattern, isGenerable}
 import ir.interpreter.Interpreter._
 
 /**
   * A pattern for debugging Lift code.
-  * Identity function that prints the Lift type of its input.
+  * An identity function that prints the Lift type of its input.
   * Generates no OpenCL code.
   */
 case class PrintType(msg: String = "") extends Pattern(arity = 1) with isGenerable {

@@ -12,6 +12,7 @@ import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
 
 import scala.collection.immutable
+import scala.util.matching.Regex
 
 object OpenCLGenerator extends Generator {
 
@@ -441,19 +442,52 @@ class OpenCLGenerator extends Generator {
         case vec: VectorizeUserFun => generateUserFunCall(vec.vectorizedFunction, call, block)
         case u: UserFun => generateUserFunCall(u, call, block)
 
+        case dpv @ debug.PrintView(msg, _) => debugPrintView(dpv, call, msg, block)
         case fp: FPattern => generate(fp.f.body, block)
         case l: Lambda => generate(l.body, block)
         case ua: UnsafeArrayAccess => generateUnsafeArrayAccess(ua, call, block)
+        case debug.PrintComment(msg) => debugPrintComment(msg, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) |
-             ArrayAccess(_) | PrintType(_) =>
+             ArrayAccess(_) | debug.PrintType(_) =>
         case _ => (block: Block) += OpenCLAST.Comment("__" + call.toString + "__")
       }
       case v: Value => generateValue(v, block)
       case _: Param =>
       case _: ArrayConstructors =>
     }
+  }
+
+  // === Debugging primitives ===
+  private def debugPrintComment(msg: String, block: Block): Unit = {
+    (block: Block) += OpenCLAST.Comment(msg)
+  }
+
+  /* Prints the view as a comment in OpenCL kernel with newlines and tabs */
+  private def debugPrintView(dpv: debug.PrintView, call: FunCall, msg: String, block: Block): Unit = {
+    val inlineView: String = call.args.head.view.toString
+    var printedView: String = ""
+    val commas = """,(.)(?<![\d|c=|s=])|\(|\)""".r.findAllIn(inlineView)
+    var level = 1
+    var start = 0
+    while (commas.hasNext) {
+      printedView += inlineView.substring(start, commas.start)
+      inlineView.charAt(commas.start) match {
+        case '(' =>
+          printedView += "("
+          level += 1
+        case ')' =>
+          printedView += ")"
+          level -= 1
+        case _ =>
+          printedView += ",\n" + "  " * level
+      }
+      start = commas.start + 1
+      commas.next()
+    }
+    printedView += inlineView.substring(start, inlineView.length()) + ",\n" + "  " * level
+    (block: Block) += OpenCLAST.Comment(msg + ":\n" + printedView)
   }
 
   // === Maps ===
