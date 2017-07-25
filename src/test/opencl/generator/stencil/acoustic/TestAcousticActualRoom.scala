@@ -597,9 +597,13 @@ class TestAcousticActualRoom {
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m), n), o),
       (mat1, mat2) => {
         MapGlb(1)(MapGlb(0)(fun(x => {
-          toGlobal(MapSeq(fun(m => {
+          toGlobal(MapSeq/*Slide*/(fun(m => {
 
-          val `tile[1][1][1]` = Get(m,1)//.at(1).at(1).at(1)
+            /*
+            val tup = m.at(1)
+            val `tile[1][1][1]` = Get(tup,0)//.at(1).at(1).at(1)
+            */
+            val `tile[1][1][1]` = Get(m,0)//.at(1).at(1).at(1)
 
           toGlobal(id) $ `tile[1][1][1]`
 
