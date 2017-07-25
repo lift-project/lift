@@ -3,7 +3,7 @@ package rewriting
 import lift.arithmetic.{?, ArithExpr, Cst}
 import ir._
 import ir.ast.{Expr, FunCall, Lambda}
-import opencl.executor.ExecuteOld
+import opencl.executor.Execute
 import opencl.generator.NDRange
 import opencl.ir.pattern._
 
@@ -41,7 +41,7 @@ object InferNDRange {
   def apply(lambda: Lambda, values: Any*): (NDRange, NDRange) = {
     val nDRanges = apply(lambda)
 
-    val valueMap = ExecuteOld.createValueMap(lambda, values:_*)
+    val valueMap = Execute.createValueMap(lambda, values:_*)
 
     (substituteInNDRange(nDRanges._1, valueMap), substituteInNDRange(nDRanges._2, valueMap))
   }

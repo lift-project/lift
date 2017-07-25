@@ -5,7 +5,7 @@ import exploration.{ExpressionFilter, ParameterRewrite}
 import ir._
 import ir.ast._
 import lift.arithmetic.ArithExpr
-import opencl.executor.{ExecuteOld, Executor, Utils}
+import opencl.executor.{Execute, Executor, Utils}
 import opencl.generator.TestNBody._
 import opencl.ir._
 import org.junit.Assert._
@@ -29,7 +29,7 @@ class TestRewriteNbody {
 
   @Test
   def nBodyLocalMem(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val f = fun(
       ArrayTypeWSWC(Float4, N),
@@ -80,8 +80,7 @@ class TestRewriteNbody {
 
     val replacedGlobal = global.map(ArithExpr.substitute(_, replacement))
 
-    val (output: Array[Float], _) =
-      ExecuteOld(local, replacedGlobal, (true, false))(f27, pos, vel, espSqr, deltaT)
+    val (output, _) = Execute(local, replacedGlobal, (true, false))[Array[Float]](f27, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
 
     val x = ParameterRewrite.replaceInputTypes(f27, replacementFilter)

@@ -144,7 +144,7 @@ abstract class Benchmark(val name: String,
           realGlobalSizes(2),
           (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false)))
 
-      val (output: Array[Float], runtime) = ExecuteOld(
+      val (output, runtime) = Execute(
         localSize(0),
         localSize(1),
         localSize(2),
@@ -152,7 +152,7 @@ abstract class Benchmark(val name: String,
         realGlobalSizes(1),
         realGlobalSizes(2),
         (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
-      )(generatedKernel(i), f, realInputs)
+      )[Array[Float]](generatedKernel(i), f, realInputs)
 
       // Adjust parameters for the next kernel, if any
       realInputs = Seq(output)
@@ -269,7 +269,7 @@ abstract class Benchmark(val name: String,
       val timeout = if (timeoutOpt.value.isDefined) timeoutOpt.value.get.toDouble else Double.MaxValue
 
       if (loadKernel.value.isDefined) {
-        ExecuteOld(
+        Execute(
           localSize(0),
           localSize(1),
           localSize(2),
@@ -277,11 +277,11 @@ abstract class Benchmark(val name: String,
           globalSize(1),
           globalSize(2),
           (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
-        )(0, timeout, lambdas.head, inputs:_*)
+        )[Array[Float]](0, timeout, lambdas.head, inputs:_*)
         
         val code = scala.io.Source.fromFile(loadKernel.value.get).mkString
 
-        val (output: Array[Float], runtimes) = ExecuteOld(
+        val (output, runtimes) = Execute(
           localSize(0),
           localSize(1),
           localSize(2),
@@ -289,7 +289,7 @@ abstract class Benchmark(val name: String,
           globalSize(1),
           globalSize(2),
           (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
-        ).benchmark(iterations, timeout, code, lambdas.head, inputs:_*)
+        ).benchmark[Array[Float]](iterations, timeout, code, lambdas.head, inputs:_*)
 
         if (checkResult)
           checkResult(output)
@@ -305,7 +305,7 @@ abstract class Benchmark(val name: String,
 
       }
       else {
-        val (output: Array[Float], runtimes) = ExecuteOld(
+        val (output, runtimes) = Execute(
           localSize(0),
           localSize(1),
           localSize(2),
@@ -313,7 +313,7 @@ abstract class Benchmark(val name: String,
           globalSize(1),
           globalSize(2),
           (injectLocal.value.getOrElse(false), injectGroup.value.getOrElse(false))
-        )(iterations, timeout, lambdas.head, inputs:_*)
+        )[Array[Float]](iterations, timeout, lambdas.head, inputs:_*)
 
         if (checkResult)
           checkResult(output)

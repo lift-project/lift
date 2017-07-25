@@ -291,9 +291,9 @@ object Utils {
       globalSize1, globalSize2, globalSize3,
       injectSizes)
 
-    val (output: Array[Float], runtime) = ExecuteOld(localSize1, localSize2, localSize3,
-                                                  globalSize1, globalSize2, globalSize3,
-                                                  injectSizes)(kernel, f, values:_*)
+    val (output, runtime) = Execute(localSize1, localSize2, localSize3,
+                                    globalSize1, globalSize2, globalSize3,
+                                    injectSizes)[Array[Float]](kernel, f, values:_*)
 
     (output, runtime, kernel)
   }
@@ -302,7 +302,7 @@ object Utils {
               localSize1: Int, localSize2: Int, localSize3: Int,
               globalSize1: Int,  globalSize2: Int, globalSize3: Int,
               injectSizes: (Boolean, Boolean)) : String= {
-    val valueMap = ExecuteOld.createValueMap(f, values:_*)
+    val valueMap = Execute.createValueMap(f, values:_*)
 
     if (injectSizes._1)
       if (injectSizes._2)

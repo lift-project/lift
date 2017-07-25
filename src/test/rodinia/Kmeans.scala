@@ -115,8 +115,7 @@ class Kmeans {
       }
     )
 
-    val (output: Array[Int], _) =
-      ExecuteOld(inputSize)(function, pointsX, pointsY, centresX, centresY, indices)
+    val (output, _) = Execute(inputSize)[Array[Int]](function, pointsX, pointsY, centresX, centresY, indices)
 
     assertArrayEquals(gold, output)
   }
@@ -147,7 +146,7 @@ class Kmeans {
         }) )
       })
 
-    val (output: Array[Int], _) = ExecuteOld(numPoints)(kMeans, points.transpose, clusters)
+    val (output, _) = Execute(numPoints)[Array[Int]](kMeans, points.transpose, clusters)
     assertArrayEquals(gold, output)
   }
 
@@ -183,7 +182,7 @@ class Kmeans {
         )) :>> Join()
       })
 
-    val (output: Array[Int], _) = ExecuteOld(numPoints)(kMeans, points.transpose, clusters)
+    val (output, _) = Execute(numPoints)[Array[Int]](kMeans, points.transpose, clusters)
     assertArrayEquals(gold, output)
   }
 

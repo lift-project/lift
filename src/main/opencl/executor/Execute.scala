@@ -11,6 +11,20 @@ import rewriting.InferNDRange
 
 import scala.collection.immutable
 
+/** Thrown when the global size is not divisible by the local size */
+class InvalidIndexSpaceException(msg: String) extends Exception(msg)
+/** Thrown on negative or 0 global size */
+class InvalidGlobalSizeException(msg: String) extends Exception(msg)
+/** Thrown on negative or 0 local size */
+class InvalidLocalSizeException(msg: String) extends Exception(msg)
+
+/** Thrown when the executor receive ill-formed/ill-typed arguments */
+class IllegalKernelArgument(msg: String) extends IllegalArgumentException(msg)
+
+/** Thrown when the device cannot execute the kernel */
+class DeviceCapabilityException(msg: String) extends RuntimeException(msg)
+
+
 /**
  * Interface for executing a lambda object in OpenCL via Java -> JNI -> SkelCL -> OpenCL
  */

@@ -53,7 +53,7 @@ class TestStencil {
       (input) => MapGlb(MapSeqUnroll(id)) o Slide(size, step) o Pad(left, right, boundary) $ input
     )
 
-    val (output: Array[Float], _) = ExecuteOld(data.length, data.length)(f, data)
+    val (output, _) = Execute(data.length, data.length)[Array[Float]](f, data)
     assertArrayEquals(gold, output, 0.1f)
   }
 
@@ -129,7 +129,7 @@ class TestStencil {
       }
     )
 
-    val (output: Array[Float], _) = ExecuteOld(randomData.length)(stencil, randomData, weights)
+    val (output, _) = Execute(randomData.length)[Array[Float]](stencil, randomData, weights)
     assertArrayEquals(gold, output, 0.1f)
   }
 
@@ -151,7 +151,7 @@ class TestStencil {
         ) o Slide(5, 1) o Pad(2, 2, BOUNDARY) $ input
       }
     )
-    val (output: Array[Float], _) = ExecuteOld(randomData.length)(stencil, randomData, weights)
+    val (output, _) = Execute(randomData.length)[Array[Float]](stencil, randomData, weights)
     assertArrayEquals(gold, output, 0.1f)
   }
 
@@ -165,7 +165,7 @@ class TestStencil {
         toGlobal(MapGlb(id)) o Join() o MapGlb(ReduceSeq(add, 0.0f)) o
           Slide(3, 1) o Pad(1, 1, Pad.Boundary.Clamp) $ input
     )
-    val (output: Array[Float], _) = ExecuteOld(data.length, data.length)(f, data)
+    val (output, _) = Execute(data.length, data.length)[Array[Float]](f, data)
     assertArrayEquals(gold, output, 0.1f)
   }
 
@@ -197,7 +197,7 @@ class TestStencil {
             input)
       }
     )
-    val (output: Array[Float], runtime) = ExecuteOld(randomData.length)(stencil, randomData, weights)
+    val (output, runtime) = Execute(randomData.length)[Array[Float]](stencil, randomData, weights)
     assertArrayEquals(gold, output, 0.1f)
   }
 
@@ -252,8 +252,8 @@ class TestStencil {
     val stencil = createTiled1DStencilLambda(weights, 3, 1, 4, 2, 1, 1)
     val goldLambda = create1DStencilLambda(weights, 3, 1, 1, 1)
 
-    val (output: Array[Float], runtime) = ExecuteOld(randomData.length)(stencil, randomData, weights)
-    val (gold: Array[Float], _) = ExecuteOld(randomData.length)(goldLambda, randomData, weights)
+    val (output, runtime) = Execute(randomData.length)[Array[Float]](stencil, randomData, weights)
+    val (gold, _) = Execute(randomData.length)[Array[Float]](goldLambda, randomData, weights)
     assertArrayEquals(gold, output, 0.1f)
   }
 
@@ -262,8 +262,8 @@ class TestStencil {
     val stencil = createTiled1DStencilLambda(weights, 3, 1, 18, 16, 1, 1)
     val newLambda = create1DStencilLambda(weights, 3, 1, 1, 1)
 
-    val (output: Array[Float], runtime) = ExecuteOld(randomData.length)(stencil, randomData, weights)
-    val (gold: Array[Float], _) = ExecuteOld(randomData.length)(newLambda, randomData, weights)
+    val (output, runtime) = Execute(randomData.length)[Array[Float]](stencil, randomData, weights)
+    val (gold, _) = Execute(randomData.length)[Array[Float]](newLambda, randomData, weights)
     assertArrayEquals(gold, output, 0.1f)
   }
 
@@ -276,7 +276,7 @@ class TestStencil {
       (input) => MapSeq(id) o ReorderStride(4) $ input
     )
     val data = Array(0, 1, 2, 3, 4, 5, 6, 7).map(_.toFloat)
-    val (output: Array[Float], _) = ExecuteOld(data.length, data.length)(lambda, data)
+    val (output, _) = Execute(data.length, data.length)[Array[Float]](lambda, data)
     val gold = Array(0, 4, 1, 5, 2, 6, 3, 7).map(_.toFloat)
     assertArrayEquals(gold, output, 0.1f)
   }
@@ -295,7 +295,7 @@ class TestStencil {
       PARBOIL
   ***********************************************************/
   @Test def parboil(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
     LongTestsEnabled()
 
     //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
@@ -316,7 +316,7 @@ class TestStencil {
     // testing
     val input = Array.tabulate(64, 512, 512) { (i, j, k) => Random.nextFloat() }
     val weights = Array.tabulate(27) { (i) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = ExecuteOld(32, 4, 1, 256, 512, 1, (true, true))(stencil, input, weights)
+    val (output, runtime) = Execute(32, 4, 1, 256, 512, 1, (true, true))[Array[Float]](stencil, input, weights)
     println("Runtime: " + runtime)
     //println(output.mkString(","))
   }

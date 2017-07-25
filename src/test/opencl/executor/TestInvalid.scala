@@ -45,7 +45,7 @@ class TestInvalid {
     val array = Array.fill(inputSize)(util.Random.nextFloat())
 
     // execute
-    ExecuteOld(inputSize)(f, array) // should throw
+    Execute(inputSize)[Array[Float]](f, array) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -59,7 +59,7 @@ class TestInvalid {
     val array = Array.fill(inputSize)(util.Random.nextFloat())
 
     // execute
-    ExecuteOld(100, inputSize)(f, array) // should throw
+    Execute(100, inputSize)[Array[Float]](f, array) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -73,7 +73,7 @@ class TestInvalid {
     val array = Array.fill(inputSize)(util.Random.nextFloat())
 
     // execute
-    ExecuteOld(inputSize)(f, array) // should throw
+    Execute(inputSize)[Array[Float]](f, array) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -87,7 +87,7 @@ class TestInvalid {
     val array = Array.fill(inputSize)(util.Random.nextFloat())
 
     // execute
-    ExecuteOld(0)(f, array) // should throw
+    Execute(0)[Array[Float]](f, array) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -101,7 +101,7 @@ class TestInvalid {
     val array = Array.fill(inputSize)(util.Random.nextFloat())
 
     // execute
-    ExecuteOld(-inputSize)(f, array) // should throw
+    Execute(-inputSize)[Array[Float]](f, array) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -115,7 +115,7 @@ class TestInvalid {
     val array = Array.fill(inputSize)(util.Random.nextFloat())
 
     // execute
-    ExecuteOld(inputSize,0)(f, array) // should throw
+    Execute(inputSize,0)[Array[Float]](f, array) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -129,7 +129,7 @@ class TestInvalid {
     val array = Array.fill(inputSize)(util.Random.nextFloat())
 
     // execute
-    ExecuteOld(inputSize,-inputSize)(f, array) // should throw
+    Execute(inputSize,-inputSize)[Array[Float]](f, array) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -142,7 +142,7 @@ class TestInvalid {
     val array = Array.fill(inputSize)(util.Random.nextFloat())
 
     // execute
-    ExecuteOld(inputSize)(f, array, array) // should throw
+    Execute(inputSize)[Array[Float]](f, array, array) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -155,7 +155,7 @@ class TestInvalid {
     val array = Array.fill(inputSize)(util.Random.nextInt())
 
     // execute
-    ExecuteOld(inputSize)(f, array) // should throw
+    Execute(inputSize)[Array[Float]](f, array) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -182,7 +182,7 @@ class TestInvalid {
     val array = Array.fill(inputSize)(util.Random.nextFloat())
 
     // execute
-    ExecuteOld(100, 100, inputSize + 1, inputSize, (false, false))(f2, array, array) // should throw
+    Execute(100, 100, inputSize + 1, inputSize, (false, false))[Array[Float]](f2, array, array) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -196,7 +196,7 @@ class TestInvalid {
     val array = Array.fill(inputSize)(util.Random.nextFloat())
 
     // execute
-    ExecuteOld(inputSize, 128*2, inputSize, inputSize, (false, false))(f2, array, array) // should throw
+    Execute(inputSize, 128*2, inputSize, inputSize, (false, false))[Array[Float]](f2, array, array) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -211,7 +211,7 @@ class TestInvalid {
     val array = Array.fill(inputSize)(util.Random.nextFloat())
 
     // execute
-    ExecuteOld(100, 100, 100, inputSize, inputSize, inputSize + 1, (false, false))(f3, array, array, array) // should throw
+    Execute(100, 100, 100, inputSize, inputSize, inputSize + 1, (false, false))[Array[Float]](f3, array, array, array) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -225,8 +225,8 @@ class TestInvalid {
     val array = Array.fill(inputSize)(util.Random.nextFloat())
 
     // execute
-    ExecuteOld(inputSize, inputSize, inputSize*2, inputSize, inputSize, inputSize, (false, false)
-    )(f3, array, array, array) // should throw
+    Execute(inputSize, inputSize, inputSize*2, inputSize, inputSize, inputSize, (false, false)
+    )[Array[Float]](f3, array, array, array) // should throw
 
     // explicit failure
     assert(assertion = false)
@@ -245,7 +245,7 @@ class TestInvalid {
       in => Join() o MapWrg(toGlobal(MapLcl(id)) o toLocal(MapLcl(id))) o Split(inputSize) $ in
     )
 
-    ExecuteOld(1, inputSize)(f, input)
+    Execute(1, inputSize)[Array[Float]](f, input)
   }
 
   @Test(expected = classOf[IllegalKernel])
@@ -258,7 +258,7 @@ class TestInvalid {
       in => Join() o MapWrg(toLocal(MapLcl(id))) o Split(inputSize) $ in
     )
 
-    ExecuteOld(1, inputSize)(f, input)
+    Execute(1, inputSize)[Array[Float]](f, input)
   }
 
   @Test(expected = classOf[IllegalKernel])
@@ -273,7 +273,7 @@ class TestInvalid {
         Split(inputSize) $ in
     )
 
-    ExecuteOld(1, inputSize)(f, input)
+    Execute(1, inputSize)[Array[Float]](f, input)
   }
 
   @Test(expected = classOf[IllegalKernel])
@@ -288,7 +288,7 @@ class TestInvalid {
         Split(inputSize) $ in
     )
 
-    ExecuteOld(1, inputSize)(f, input)
+    Execute(1, inputSize)[Array[Float]](f, input)
   }
 
   @Test(expected = classOf[IllegalKernel])
@@ -303,7 +303,7 @@ class TestInvalid {
         Split(inputSize) $ in
     )
 
-    ExecuteOld(1, inputSize)(f, input)
+    Execute(1, inputSize)[Array[Float]](f, input)
   }
 
   @Test(expected = classOf[IllegalKernel])
@@ -316,7 +316,7 @@ class TestInvalid {
       in => Join() o MapGlb(MapGlb(id)) o Split(inputSize) $ in
     )
 
-    ExecuteOld(1, inputSize)(f, input)
+    Execute(1, inputSize)[Array[Float]](f, input)
   }
 
   // Trigger an error in the executor in the executor and recover
@@ -380,7 +380,7 @@ class TestInvalid {
     val size = maxGroupSize * 2
     val input = Array.fill(size)(util.Random.nextFloat())
 
-    ExecuteOld(size, size)(f, input)
+    Execute(size, size)[Array[Float]](f, input)
   }
 
   @Ignore
@@ -434,7 +434,7 @@ class TestInvalid {
     val input1 = Array.fill(3)(util.Random.nextFloat()  )
     val input2 = Array.fill(12)(util.Random.nextFloat()  )
   
-    val floats = ExecuteOld(1, 1)(f, input1, input2)._1.asInstanceOf[Array[Float]]
+    val (floats, _) = Execute(1, 1)[Array[Float]](f, input1, input2)
     assertEquals(input2.length, floats.length)
   }
   
@@ -451,7 +451,7 @@ class TestInvalid {
     val input1 = Array.fill(4)(util.Random.nextFloat()  )
     val input2 = Array.fill(12)(util.Random.nextFloat()  )
     
-    ExecuteOld(1, 1)(f, input1, input2)
+    Execute(1, 1)[Array[Float]](f, input1, input2)
   }
   
   // Issue #98, snippet 3
@@ -464,7 +464,7 @@ class TestInvalid {
     
     val input1 = Array.fill(4)(util.Random.nextFloat()  )
     
-    val (floats: Array[Float], _) = ExecuteOld(1, 1)(f, input1)
+    val (floats, _) = Execute(1, 1)[Array[Float]](f, input1)
     assertEquals(input1.length, floats.length)
   }
 }

@@ -3,7 +3,7 @@ package opencl.generator.stencil
 import ir.{ArrayType}
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor._
+import opencl.executor.{Execute, Executor, LongTestsEnabled}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
@@ -53,10 +53,10 @@ class TestStencil3D{
     val slide3DAlternative3 = Map(Map(Transpose())) o Map(Transpose()) o
       Map(Map(Slide2D(n,s))) o Slide(n,s)
 
-    val (outGold: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(slide3DOriginal), input)
-    val (outAlternative1: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(slide3DAlternative1), input)
-    val (outAlternative2: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(slide3DAlternative2), input)
-    val (outAlternative3: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(slide3DAlternative3), input)
+    val (outGold, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(slide3DOriginal), input)
+    val (outAlternative1, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(slide3DAlternative1), input)
+    val (outAlternative2, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(slide3DAlternative2), input)
+    val (outAlternative3, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(slide3DAlternative3), input)
 
     assertArrayEquals(outGold, outAlternative1, 0.1f)
     assertArrayEquals(outGold, outAlternative2, 0.1f)
@@ -124,17 +124,17 @@ class TestStencil3D{
       )
     }
 
-    val (outGold: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(applyId o goldXY), input)
-    val (tiledXY: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(applyId o tileXY), input)
-    val (tiledXY1: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(usefulTileXY), input)
+    val (outGold, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(applyId o goldXY), input)
+    val (tiledXY, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(applyId o tileXY), input)
+    val (tiledXY1, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(usefulTileXY), input)
 
-    val (outGoldYZ: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(applyId o goldYZ), input)
-    val (tiledYZ: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(applyId o tileYZ), input)
-    val (tiledYZFissioned: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(applyId o tileYZFissioned), input)
+    val (outGoldYZ, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(applyId o goldYZ), input)
+    val (tiledYZ, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(applyId o tileYZ), input)
+    val (tiledYZFissioned, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(applyId o tileYZFissioned), input)
 
-    val (outGoldYZ2: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(applyId o goldYZ2), input)
-    val (tiledYZ2: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(applyId o tileYZ2), input)
-    val (tiledYZ21: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(usefulTileYZ2), input)
+    val (outGoldYZ2, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(applyId o goldYZ2), input)
+    val (tiledYZ2, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(applyId o tileYZ2), input)
+    val (tiledYZ21, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(usefulTileYZ2), input)
 
     assertArrayEquals(outGold, tiledXY, 0.1f)
     assertArrayEquals(outGold, tiledXY1, 0.1f)
@@ -192,12 +192,12 @@ class TestStencil3D{
       )
     }
 
-    val (outGold: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(gold), input)
-    val (outUseSlide2D: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(useSlide2D), input)
-    val (outTileXY: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(tileXY), input)
-    val (outAfterSwapping: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(afterSwapping), input)
-    val (outPromoteMaps: Array[Float], _) = ExecuteOld(1,1,1,32,32,32,(false,false))(lambda(promoteMaps), input)
-    val (outPromoteZ: Array[Float], _) = ExecuteOld(4,4,32,32,(true,true))(lambda(promoteZ), input)
+    val (outGold, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(gold), input)
+    val (outUseSlide2D, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(useSlide2D), input)
+    val (outTileXY, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(tileXY), input)
+    val (outAfterSwapping, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(afterSwapping), input)
+    val (outPromoteMaps, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda(promoteMaps), input)
+    val (outPromoteZ, _) = Execute(4,4,32,32,(true,true))[Array[Float]](lambda(promoteZ), input)
 
     assertArrayEquals(outGold, outUseSlide2D, 0.1f)
     assertArrayEquals(outGold, outTileXY, 0.1f)

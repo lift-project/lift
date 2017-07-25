@@ -3,10 +3,10 @@ package opencl.generator
 import ir._
 import ir.ast.{Join, Split, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
-import opencl.executor.{ExecuteOld, Executor}
+import opencl.executor.Executor
 import opencl.ir._
 import opencl.ir.pattern._
-import org.junit.Assert.{assertArrayEquals, assertEquals}
+import org.junit.Assert.assertEquals
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestFilterSeq {

@@ -3,7 +3,7 @@ package opencl.generator
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor._
+import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -38,7 +38,7 @@ class TestSearch {
         Join() o MapSeq(MapSeq(toGlobal(idI)) o MapSeq(toLocal(plusOne))) o Split(8) $ array
        }
      )
-     val (output:Array[Int], runtime) = ExecuteOld(1,1, (true, true))(searchKernel, arr)
+     val (output, runtime) = Execute(1,1, (true, true))[Array[Int]](searchKernel, arr)
      println("Time: " + runtime)
      println("Running!")
      assertArrayEquals(output, gold)
@@ -63,7 +63,7 @@ class TestSearch {
          ) $ ixarr
        }
      )
-     val (output:Array[Int], runtime) = ExecuteOld(1,1, (true, true))(searchKernel, search_arr, Array(search_index))
+     val (output, runtime) = Execute(1,1, (true, true))[Array[Int]](searchKernel, search_arr, Array(search_index))
      println("Search Index: " + search_index)
      println("Gold: "+gold)
      println("Result: "+output(0))
@@ -91,7 +91,7 @@ class TestSearch {
          ) $ ixarr
        }
      )
-     val (output:Array[Int], runtime) = ExecuteOld(1,1, (true, true))(searchKernel, search_arr, Array(search_index))
+     val (output, runtime) = Execute(1,1, (true, true))[Array[Int]](searchKernel, search_arr, Array(search_index))
      println("Search Index: " + search_index)
      println("Gold: "+gold)
      println("Result: "+output(0))
@@ -125,7 +125,7 @@ class TestSearch {
         )) $ ixarr
       }
     )
-    val (output:Array[Int], runtime) = ExecuteOld(1,1, (true, true))(searchKernel, search_arr, Array(search_index))
+    val (output, runtime) = Execute(1,1, (true, true))[Array[Int]](searchKernel, search_arr, Array(search_index))
     
     println("Search Index: " + search_index)
     println("Gold: "+gold)
@@ -158,7 +158,7 @@ class TestSearch {
         ) o Split(8) $ Zip(ixs, arrs) // pair indicies with arrays to search
       }
     )
-    val (output: Array[Int], runtime) = ExecuteOld(inputSize,inputSize)(searchKernel, search_indices, search_arrs)
+    val (output, runtime) = Execute(inputSize,inputSize)[Array[Int]](searchKernel, search_indices, search_arrs)
     println("Search Indicies: [" + search_indices.deep.mkString(",") + "]")
     println("Gold: ["+gold.deep.mkString(",") + "]")
     println("Result: ["+output.deep.mkString(",") + "]")
@@ -187,7 +187,7 @@ class TestSearch {
         ) $ Zip(ixs, arrs) // pair indicies with arrays to search
       }
     )
-    val (output: Array[Int], runtime) = ExecuteOld(inputSize,inputSize)(searchKernel, search_indices, search_arrs)
+    val (output, runtime) = Execute(inputSize,inputSize)[Array[Int]](searchKernel, search_indices, search_arrs)
     println("Search Indicies: [" + search_indices.deep.mkString(",") + "]")
     println("Gold: ["+gold.deep.mkString(",") + "]")
     println("Result: ["+output.deep.mkString(",") + "]")
@@ -244,7 +244,7 @@ class TestSearch {
       }
     )
 
-    val (output:Array[Int], runtime) = ExecuteOld(1,1)(searchKernel, flat_arr, flat_search_index)
+    val (output, runtime) = Execute(1,1)[Array[Int]](searchKernel, flat_arr, flat_search_index)
     println("Search Index: "+search_index)
     println("Gold: " + gold)
     println("Result: " + output(0))
@@ -300,7 +300,7 @@ class TestSearch {
       }
     )
 
-    val (output:Array[Int], runtime) = ExecuteOld(1,1)(searchKernel, flat_arr, flat_search_index)
+    val (output, runtime) = Execute(1,1)[Array[Int]](searchKernel, flat_arr, flat_search_index)
     println("Search Index: "+search_index)
     println("Gold: " + gold)
     println("Result: " + output(0))

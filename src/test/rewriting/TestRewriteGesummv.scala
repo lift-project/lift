@@ -3,7 +3,7 @@ package rewriting
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{ExecuteOld, Executor, Utils}
+import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
@@ -99,7 +99,7 @@ class TestRewriteGesummv {
     val tmp2Gold = Utils.matrixVector(B, x, beta)
     val yGold = (tmp1Gold, tmp2Gold).zipped.map(_+_)
 
-    val (y: Array[Float], _) = ExecuteOld(n)(f18, A, B, x, alpha, beta)
+    val (y, _) = Execute(n)[Array[Float]](f18, A, B, x, alpha, beta)
 
     assertArrayEquals(yGold, y, 0.001f)
   }

@@ -177,7 +177,7 @@ class TestAcousticStencilBoundaries {
 
     val source = Compile(lambdaNeigh)
 
-    val (output: Array[Float], runtime) = ExecuteOld(stencilarr.length, stencilarr.length)(source, lambdaNeigh, stencilarr, mask, StencilUtilities.weights)
+    val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](source, lambdaNeigh, stencilarr, mask, StencilUtilities.weights)
     if (StencilUtilities.printOutput) {
       StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
     }
@@ -227,7 +227,7 @@ class TestAcousticStencilBoundaries {
         ) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), Join() $ mask1)
       })
 
-    val (output: Array[Float], runtime) = ExecuteOld(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, mask2D, StencilUtilities.weights)
+    val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](lambdaNeigh, stencilarr, mask2D, StencilUtilities.weights)
     if (StencilUtilities.printOutput) {
       StencilUtilities.printOriginalAndOutput2D(stencilarr, output, localDimX)
     }
@@ -277,7 +277,7 @@ class TestAcousticStencilBoundaries {
         ) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), Join() $ mask1)
       })
 
-    val (output: Array[Float], runtime) = ExecuteOld(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, mask, StencilUtilities.weights)
+    val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](lambdaNeigh, stencilarr, mask, StencilUtilities.weights)
 
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
@@ -337,7 +337,7 @@ class TestAcousticStencilBoundaries {
         ) $ Zip(Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))), Join() $ mask1)
       })
 
-    val (output: Array[Float], runtime) = ExecuteOld(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrsame, mask, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+    val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](lambdaNeigh, stencilarr, stencilarrsame, mask, StencilUtilities.weights, StencilUtilities.weightsMiddle)
 
     if (StencilUtilities.printOutput)
       StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
@@ -410,7 +410,7 @@ class TestAcousticStencilBoundaries {
         ) $ Zip(Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))), Join() $ mask1)
       })
 
-    val (output: Array[Float], runtime) = ExecuteOld(stencilarr2D.length, stencilarr2D.length)(lambdaNeigh, stencilarr2D, stencilarr2DCopy, mask2D, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+    val (output, runtime) = Execute(stencilarr2D.length, stencilarr2D.length)[Array[Float]](lambdaNeigh, stencilarr2D, stencilarr2DCopy, mask2D, StencilUtilities.weights, StencilUtilities.weightsMiddle)
 
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr2D, output, localDimX)
 
@@ -420,7 +420,7 @@ class TestAcousticStencilBoundaries {
 
   @Test
   def testSimpleOneGridWithBoundaryCheckMask3D(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val localDim = 4
     val stencilarr3D = StencilUtilities.createDataFloat3DWithPadding(localDim, localDim, localDim)
@@ -464,7 +464,7 @@ class TestAcousticStencilBoundaries {
         ) $ Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), Join() o Join() $ mask1)
       })
 
-    val (output: Array[Float], runtime) = ExecuteOld(2, 2, 2, 2, 2, 2, (true, true))(lambdaNeigh, stencilarr3D, mask3D, StencilUtilities.weights3D)
+    val (output, runtime) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](lambdaNeigh, stencilarr3D, mask3D, StencilUtilities.weights3D)
 
     if (StencilUtilities.printOutput) {
       StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
@@ -477,7 +477,7 @@ class TestAcousticStencilBoundaries {
 
   @Test
   def testTwoGridsThreeCalculationsWithMask3D(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val localDim = 4
     val stencilarr3D = StencilUtilities.createDataFloat3DWithPadding(localDim, localDim, localDim)
@@ -541,7 +541,7 @@ class TestAcousticStencilBoundaries {
         ) $ Zip(Zip((Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), (Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))), Join() o Join() $ mask1)
       })
     try {
-      val (output: Array[Float], runtime) = ExecuteOld(8, 8, 8, 8, 8, 8, (true, true))(lambdaNeigh, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+      val (output, runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))[Array[Float]](lambdaNeigh, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
       if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
       assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
     } catch {
@@ -553,7 +553,7 @@ class TestAcousticStencilBoundaries {
 
   @Test
   def testTwoGridsThreeCalculationsWithMaskAsym3D(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val localDimX = 6
     val localDimY = 8
@@ -609,7 +609,7 @@ class TestAcousticStencilBoundaries {
     try {
       val newLambda = SimplifyAndFuse(lambdaNeigh)
       val source = Compile(newLambda)
-      val (output: Array[Float], runtime) = ExecuteOld(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+      val (output, runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))[Array[Float]](source, newLambda, stencilarr3D, stencilarr3DCopy, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
       if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
       assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
     } catch {
@@ -620,7 +620,7 @@ class TestAcousticStencilBoundaries {
 
   @Test
   def testTwoGridsThreeCalculationsWithMaskAsym3DGeneral(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val localDimX = 4
     val localDimY = 6
@@ -683,7 +683,7 @@ class TestAcousticStencilBoundaries {
       val source = Compile(newLambda)
 
       // OutputKernelJSON(newLambda,"/home/reese/workspace/sandbox/")
-      val (output: Array[Float], runtime) = ExecuteOld(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, stencilarr3D, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+      val (output, runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))[Array[Float]](source, newLambda, stencilarr3D, stencilarr3DCopy, stencilarr3D, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
       if (StencilUtilities.printOutput)
       {
         StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)
@@ -700,7 +700,7 @@ class TestAcousticStencilBoundaries {
 
   @Test
   def testTwoGridsThreeCalculationsAsym3DGeneralNoMask(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val compareData  = AcousticComparisonArrays.testTwoGridsThreeCalculationsAsym3DGeneralNoMaskComparisonData8x4x12
 
@@ -749,7 +749,7 @@ class TestAcousticStencilBoundaries {
       val newLambda = SimplifyAndFuse(lambdaNeigh)
       val source = Compile(newLambda)
 
-      val (output: Array[Float], runtime) = ExecuteOld(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda, stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+      val (output, runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))[Array[Float]](source, newLambda, stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
       if (StencilUtilities.printOutput)
       {
         StencilUtilities.printOriginalAndOutput3D(stencilarr3D, output)

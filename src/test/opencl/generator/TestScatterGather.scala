@@ -3,7 +3,7 @@ package opencl.generator
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{ExecuteOld, Executor}
+import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -33,7 +33,7 @@ class TestScatterGather {
       in => Scatter(reverse) o MapGlb(id) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(Nsize)(f, vector)
+    val (output, runtime) = Execute(Nsize)[Array[Float]](f, vector)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -52,7 +52,7 @@ class TestScatterGather {
       in => MapGlb(Scatter(reverse) o MapSeq(id)) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(Nsize)(f, matrix)
+    val (output, runtime) = Execute(Nsize)[Array[Float]](f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -71,7 +71,7 @@ class TestScatterGather {
       in => Scatter(reverse) o MapGlb(MapSeq(id)) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(Nsize)(f, matrix)
+    val (output, runtime) = Execute(Nsize)[Array[Float]](f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -90,7 +90,7 @@ class TestScatterGather {
       in => Scatter(reverse) o MapGlb(Scatter(reverse) o MapSeq(id)) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(Nsize)(f, matrix)
+    val (output, runtime) = Execute(Nsize)[Array[Float]](f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -108,7 +108,7 @@ class TestScatterGather {
       in => MapGlb(id) o Gather(reverse) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(Nsize)(f, vector)
+    val (output, runtime) = Execute(Nsize)[Array[Float]](f, vector)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -127,7 +127,7 @@ class TestScatterGather {
       in => MapGlb(MapSeq(id) o Gather(reverse)) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(Nsize)(f, matrix)
+    val (output, runtime) = Execute(Nsize)[Array[Float]](f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -146,7 +146,7 @@ class TestScatterGather {
       in => MapGlb(MapSeq(id)) o Gather(reverse) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(Nsize)(f, matrix)
+    val (output, runtime) = Execute(Nsize)[Array[Float]](f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -165,7 +165,7 @@ class TestScatterGather {
       in => MapGlb(MapSeq(id) o Gather(reverse)) o Gather(reverse) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(Nsize)(f, matrix)
+    val (output, runtime) = Execute(Nsize)[Array[Float]](f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -183,7 +183,7 @@ class TestScatterGather {
       in => MapWrg(id) o Gather(reverse) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(Nsize)(f, vector)
+    val (output, runtime) = Execute(Nsize)[Array[Float]](f, vector)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -202,7 +202,7 @@ class TestScatterGather {
       in => MapWrg( MapLcl(id) o Gather(reverse)) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(Nsize)(f, matrix)
+    val (output, runtime) = Execute(Nsize)[Array[Float]](f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -221,7 +221,7 @@ class TestScatterGather {
       in => MapWrg( MapLcl(id)) o Gather(reverse) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(Nsize)(f, matrix)
+    val (output, runtime) = Execute(Nsize)[Array[Float]](f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -240,7 +240,7 @@ class TestScatterGather {
       in => MapWrg( MapLcl(id) o Gather(reverse)) o Gather(reverse) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(Nsize)(f, matrix)
+    val (output, runtime) = Execute(Nsize)[Array[Float]](f, matrix)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -260,7 +260,7 @@ class TestScatterGather {
       in => MapGlb(MapSeq(id)) o Gather(reverse) o Split(splitSize) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(1,Nsize)(f, vector)
+    val (output, runtime) = Execute(1,Nsize)[Array[Float]](f, vector)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -280,7 +280,7 @@ class TestScatterGather {
       in => MapGlb(MapSeq(id) o Gather(reverse)) o Split(splitSize) $ in
     )
 
-    val (output: Array[Float], runtime) = ExecuteOld(Nsize)(f, vector)
+    val (output, runtime) = Execute(Nsize)[Array[Float]](f, vector)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -300,7 +300,7 @@ class TestScatterGather {
       in => Scatter(reverse) o MapGlb(MapSeq(id)) o Split(splitSize) $ in
     )
 
-    val (output: Array[Float], _) = ExecuteOld(1,Nsize)(f, vector)
+    val (output, _) = Execute(1,Nsize)[Array[Float]](f, vector)
     assertArrayEquals(vector.grouped(splitSize).toArray.reverse.flatten, output, 0.0f)
   }
 
@@ -320,8 +320,8 @@ class TestScatterGather {
       in => MapGlb(fun(x => Scatter(reverse)(MapSeq(id)(x))))(Split(splitSize)(in))
     )
 
-    val (output0: Array[Float], _) = ExecuteOld(Nsize)(f, vector)
-    val (output1: Array[Float], _) = ExecuteOld(Nsize)(f_broken, vector)
+    val (output0, _) = Execute(Nsize)[Array[Float]](f, vector)
+    val (output1, _) = Execute(Nsize)[Array[Float]](f_broken, vector)
     assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output0, 0.0f)
     assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output1, 0.0f)
   }
@@ -337,7 +337,7 @@ class TestScatterGather {
       in => MapGlb(MapSeq(id) o Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
-    val (output: Array[Float], _) = ExecuteOld(Nsize)(f, vector)
+    val (output, _) = Execute(Nsize)[Array[Float]](f, vector)
     assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output, 0.0f)
 
   }
@@ -354,7 +354,7 @@ class TestScatterGather {
       in => MapGlb(MapSeq(id)) o MapGlb(Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
-    val (output: Array[Float], _) = ExecuteOld(nSize)(f, vector)
+    val (output, _) = Execute(nSize)[Array[Float]](f, vector)
     assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output, 0.0f)
   }
 
@@ -370,7 +370,7 @@ class TestScatterGather {
       in => MapGlb(MapSeq(id) o Scatter(reverse)) o MapGlb(MapSeq(id)) o Split(splitSize) $ in
     )
 
-    val (output: Array[Float], _) = ExecuteOld(nSize)(f, vector)
+    val (output, _) = Execute(nSize)[Array[Float]](f, vector)
     assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output, 0.0f)
   }
 
@@ -386,7 +386,7 @@ class TestScatterGather {
       in => MapGlb(MapSeq(id) o Scatter(reverse)) o MapGlb(Scatter(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
-    val (output: Array[Float], _) = ExecuteOld(nSize)(f, vector)
+    val (output, _) = Execute(nSize)[Array[Float]](f, vector)
     assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse.reverse), output, 0.0f)
   }
 
@@ -402,7 +402,7 @@ class TestScatterGather {
       in => MapGlb(MapSeq(id)) o MapGlb(Gather(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
-    val (output: Array[Float], _) = ExecuteOld(nSize)(f, vector)
+    val (output, _) = Execute(nSize)[Array[Float]](f, vector)
     assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output, 0.0f)
   }
 
@@ -418,7 +418,7 @@ class TestScatterGather {
       in => MapGlb(MapSeq(id) o Gather(reverse)) o MapGlb(MapSeq(id)) o Split(splitSize) $ in
     )
 
-    val (output: Array[Float], _) = ExecuteOld(nSize)(f, vector)
+    val (output, _) = Execute(nSize)[Array[Float]](f, vector)
     assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse), output, 0.0f)
   }
 
@@ -434,7 +434,7 @@ class TestScatterGather {
       in => MapGlb(MapSeq(id) o Gather(reverse)) o MapGlb(Gather(reverse) o MapSeq(id)) o Split(splitSize) $ in
     )
 
-    val (output: Array[Float], _) = ExecuteOld(nSize)(f, vector)
+    val (output, _) = Execute(nSize)[Array[Float]](f, vector)
     assertArrayEquals(vector.grouped(splitSize).toArray.flatMap(_.reverse.reverse), output, 0.0f)
   }
   

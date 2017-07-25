@@ -40,10 +40,12 @@ class CGO_2017 {
   val mmGold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
   val gemmGold = Utils.matrixMatrixMultiply(matrixA, matrixB, matrixC, alpha, beta).flatten
 
+  private def vectorize(n: Int, f: Float): Array[Float] = Array.fill(n)(f)
+
   @Test
   def clblast_kepler_mm_TN(): Unit = {
 
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val vectorWidth = 2
 
@@ -181,8 +183,8 @@ class CGO_2017 {
 
     val code = Compile(f, 128/param, 8, 1, N/param, M/8,1, collection.immutable.Map())
 
-    val (output: Array[Float], _) =
-      ExecuteOld(128/param, 8, 1, 1024/param, 1024/8, 1, (true, true))(code, f, matrixA.transpose, matrixB)
+    val (output, _) =
+      Execute(128/param, 8, 1, 1024/param, 1024/8, 1, (true, true))[Array[Float]](code, f, matrixA.transpose, matrixB)
 
     assertArrayEquals(mmGold, output, 0.001f)
   }
@@ -190,7 +192,7 @@ class CGO_2017 {
   @Test
   def clblast_kepler_sgemm_TN(): Unit = {
 
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val param = 8
 
@@ -198,10 +200,10 @@ class CGO_2017 {
 
     val code = Compile(f, 128/param, 8, 1, N/param, M/8,1, collection.immutable.Map())
 
-    val (output: Array[Float], _) =
-      ExecuteOld(128/param, 8, 1, 1024/param, 1024/8, 1, (true, true))(
+    val (output, _) =
+      Execute(128/param, 8, 1, 1024/param, 1024/8, 1, (true, true))[Array[Float]](
         code, f, matrixA.transpose, matrixB, matrixC,
-        alpha, beta
+        vectorize(2, alpha), vectorize(2, beta)
       )
 
     assertArrayEquals(gemmGold, output, 0.001f)
@@ -259,9 +261,9 @@ class CGO_2017 {
 
     val code = Compile(f, 32, 8, 1, N/v__3, M/v__4,1, collection.immutable.Map())
 
-    val (output: Array[Float], _) =
-      ExecuteOld(32, 8, nSize/v__3, mSize/v__4,
-        (true, true))(code, f, matrixA.transpose, matrixB)
+    val (output, _) =
+      Execute(32, 8, nSize/v__3, mSize/v__4,
+        (true, true))[Array[Float]](code, f, matrixA.transpose, matrixB)
 
     assertArrayEquals(mmGold, output, 0.0001f)
   }
@@ -276,10 +278,10 @@ class CGO_2017 {
 
     val code = Compile(f, 32, 8, 1, N/v__3, M/v__4,1, collection.immutable.Map())
 
-    val (output: Array[Float], _) =
-      ExecuteOld(32, 8, nSize/v__3, mSize/v__4, (true, true))(
+    val (output, _) =
+      Execute(32, 8, nSize/v__3, mSize/v__4, (true, true))[Array[Float]](
         code, f, matrixA.transpose, matrixB, matrixC,
-        alpha, beta
+        vectorize(4, alpha), vectorize(4, beta)
       )
 
     assertArrayEquals(gemmGold, output, 0.0001f)
@@ -294,16 +296,18 @@ class CGO_2017 {
 
     val f = GEMM.clblas_hawaii
 
-    val (output: Array[Float], _) =
-      ExecuteOld(16, 16, nSize/tileSizeN, nSize/tileSizeM, (true, true))(
-        f, matrixA.transpose, matrixB, matrixC, alpha, beta)
+    val (output, _) =
+      Execute(16, 16, nSize/tileSizeN, nSize/tileSizeM, (true, true))[Array[Float]](
+        f, matrixA.transpose, matrixB, matrixC,
+        vectorize(8, alpha), vectorize(8, beta)
+      )
     assertArrayEquals(gemmGold, output, 0.0f)
   }
 
   @Test
   def clblas_kepler_mm_TN(): Unit = {
 
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val tileSizeM = 8
     val tileSizeK = 4
@@ -364,8 +368,8 @@ class CGO_2017 {
           )) o Transpose() o Tile(tileSizeK, tileSizeM) $ A
       })
 
-    val (output: Array[Float], _) =
-      ExecuteOld(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))(f, matrixA.transpose, matrixB)
+    val (output, _) =
+      Execute(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))[Array[Float]](f, matrixA.transpose, matrixB)
     assertArrayEquals(mmGold, output, 0.0f)
   }
 
@@ -378,9 +382,11 @@ class CGO_2017 {
 
     val f = GEMM.clblas_kepler
 
-    val (output: Array[Float], _) =
-      ExecuteOld(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))(
-        f, matrixA.transpose, matrixB, matrixC, alpha, beta)
+    val (output, _) =
+      Execute(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))[Array[Float]](
+        f, matrixA.transpose, matrixB, matrixC,
+        vectorize(8, alpha), vectorize(8, beta)
+      )
     assertArrayEquals(gemmGold, output, 0.0f)
   }
 

@@ -4,6 +4,7 @@ import lift.arithmetic.SizeVar
 import benchmarks.NBody
 import ir._
 import ir.ast.{Get, Join, Lambda2, Pad, Split, Transpose, Tuple, Unzip, UserFun, Value, Zip, fun}
+import opencl.executor.Execute
 import opencl.generator.OpenCLGenerator
 import opencl.ir._
 import opencl.ir.pattern.{MapLcl, _}
@@ -434,7 +435,7 @@ object Benchmarks {
   def runBlackScholesCL(N:Int):Unit = {
     val rand = new Random
     val input = Array.fill(N)(rand.nextFloat())
-    val (total, runtime) = opencl.executor.ExecuteOld(N)(blackScholesCL(N),input)
+    val (total, runtime) = Execute(N)[Array[Float]](blackScholesCL(N),input)
     println(s"BS$N total = ${total.toString}, runtime = $runtime")
   }
 
@@ -442,7 +443,7 @@ object Benchmarks {
     val rand = new Random
     val matrixA = Array.tabulate(N, N)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(N, N)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-    val (total, runtime) = opencl.executor.ExecuteOld(N*N)(matrixMultCL(N),matrixA, matrixB)
+    val (total, runtime) = Execute(N*N)[Array[Float]](matrixMultCL(N),matrixA, matrixB)
     println(s"MM$N runtime = $runtime")
   }
 
@@ -452,7 +453,7 @@ object Benchmarks {
     val inputsB = Array.fill(N)(rand.nextFloat())
     val deltaT = 0.005f
     val espSqr = 500.0f
-    val (_, runtime) = opencl.executor.ExecuteOld(N)(nbodyCL(N), inputsA, inputsB, deltaT, espSqr)
+    val (_, runtime) = Execute(N)[Array[Float]](nbodyCL(N), inputsA, inputsB, deltaT, espSqr)
     println(s"NBody$N runtime = $runtime")
   }
 

@@ -4,7 +4,7 @@ import benchmarks.MatrixMultiplication
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{ExecuteOld, Executor, Utils}
+import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -152,7 +152,7 @@ class Tiled {
   }
 
   @Test def tiledMatrixMultiply(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val mSize = 16
     val kSize = 16
@@ -190,7 +190,7 @@ class Tiled {
         )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = ExecuteOld(4, 4, mSize, nSize, (false, false))(f, matrixA, matrixB.transpose)
+    val (output, _) = Execute(4, 4, mSize, nSize, (false, false))[Array[Float]](f, matrixA, matrixB.transpose)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -239,12 +239,12 @@ class Tiled {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = ExecuteOld(mSize, nSize)(f, matrixA, matrixB.transpose)
+    val (output, _) = Execute(mSize, nSize)[Array[Float]](f, matrixA, matrixB.transpose)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
   @Test def tiledMatrixMultiplyLocalMemory(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val mSize = 16
     val kSize = 16
@@ -293,12 +293,12 @@ class Tiled {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = ExecuteOld(4, 4, mSize, nSize, (true, true))(f, matrixA, matrixB.transpose)
+    val (output, _) = Execute(4, 4, mSize, nSize, (true, true))[Array[Float]](f, matrixA, matrixB.transpose)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
   @Test def tiledMatrixMultiplyLocalMemory2(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val mSize = 16
     val kSize = 16
@@ -350,12 +350,12 @@ class Tiled {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = ExecuteOld(4, 4, mSize, nSize, (true, true))(f, matrixA, matrixB.transpose)
+    val (output, _) = Execute(4, 4, mSize, nSize, (true, true))[Array[Float]](f, matrixA, matrixB.transpose)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
   @Test def tiledMatrixMultiplyWithTranspose(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val mSize = 16
     val kSize = 16
@@ -407,14 +407,13 @@ class Tiled {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = ExecuteOld(tileSize, tileSize, mSize, nSize,
-      (true, true))(f, matrixA, matrixB)
+    val (output, _) = Execute(tileSize, tileSize, mSize, nSize, (true, true))[Array[Float]](f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
 
   @Test def tiledMatrixMultiplyWithTransposeAndPrivate(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val mSize = 16
     val kSize = 16
@@ -428,7 +427,7 @@ class Tiled {
 
     val f = MatrixMultiplication.tiled(tileSize)
 
-    val (output: Array[Float], _) = ExecuteOld(4, 4, mSize, nSize, (true, false))(f, matrixA, matrixB)
+    val (output, _) = Execute(4, 4, mSize, nSize, (true, false))[Array[Float]](f, matrixA, matrixB)
     assertArrayEquals(gold, output, 0.0001f)
   }
 }

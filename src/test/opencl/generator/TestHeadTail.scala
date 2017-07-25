@@ -3,7 +3,7 @@ package opencl.generator
 import ir._
 import ir.ast._
 import lift.arithmetic._
-import opencl.executor._
+import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -44,7 +44,7 @@ class TestHeadTail {
       MapSeq(id) o Tail() $ input
     )
 
-    val (output:Array[Float], runtime) = ExecuteOld(1, 1)(f,vector)
+    val (output, runtime) = Execute(1, 1)[Array[Float]](f,vector)
 
     println("output(0) = "+output(0))
     println("vector = " + vector.toList.toString())
@@ -60,7 +60,7 @@ class TestHeadTail {
     val f = fun (ArrayTypeWSWC(Float,SizeVar("N")),(input) =>
         MapSeq(id) o Head() $ input
     )
-    val (output:Array[Float], runtime) = ExecuteOld(1,1)(f,vector)
+    val (output, runtime) = Execute(1,1)[Array[Float]](f,vector)
 
 
     println("output(0) = "+output(0))
@@ -77,7 +77,7 @@ class TestHeadTail {
     val f = fun (ArrayTypeWSWC(Float,Var("N",StartFromRange(2))),(input) =>
       MapSeq(id) o Head() o Tail() $ input
     )
-    val (output: Array[Float], runtime) = ExecuteOld(vector.length)(f,vector)
+    val (output, runtime) = Execute(vector.length)[Array[Float]](f,vector)
 
     println("output(0) = "+output(0))
     println("vector = "+vector.toList.toString())
@@ -93,7 +93,7 @@ class TestHeadTail {
     val f = fun (ArrayTypeWSWC(Float,SizeVar("N")),(input) =>
       Join() o MapSeq(MapSeq(id) o Head()) o Split(32) $ input
     )
-    val (output: Array[Float], runtime) = ExecuteOld(vector.length)(f,vector)
+    val (output, runtime) = Execute(vector.length)[Array[Float]](f,vector)
 
     println("output(0) = "+output(0))
     println("vector = "+vector.toList.toString())
@@ -109,7 +109,7 @@ class TestHeadTail {
     val f = fun (ArrayTypeWSWC(Float,SizeVar("N")),(input) =>
       Join() o MapSeq(MapSeq(id) o Tail()) o Split(32) $ input
     )
-    val (output: Array[Float], runtime) = ExecuteOld(vector.length)(f,vector)
+    val (output, runtime) = Execute(vector.length)[Array[Float]](f,vector)
 
     println("output(0) = "+output(0))
     println("vector = "+vector.toList.toString())

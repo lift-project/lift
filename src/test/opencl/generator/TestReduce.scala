@@ -4,7 +4,7 @@ import benchmarks.SumAbsoluteValues
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor._
+import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -38,7 +38,7 @@ class TestReduce {
       ) o Split(128) $ in
     })
 
-    val (output: Array[Float], runtime) = ExecuteOld(inputData.length)( l, inputData, 0.0f)
+    val (output, runtime) = Execute(inputData.length)[Array[Float]]( l, inputData, 0.0f)
 
     assertEquals(inputData.sum, output.sum, 0.0)
 
@@ -63,7 +63,7 @@ class TestReduce {
         }), MapSeq(id) $ init)) o Split(M) $ in
       })
 
-    val (output: Array[Float], runtime) = ExecuteOld(1, 1)(l, matrix, inputData)
+    val (output, runtime) = Execute(1, 1)[Array[Float]](l, matrix, inputData)
 
     val gold = matrix.reduce((x, y) => (x, y).zipped.map(_+_))
 
@@ -91,7 +91,7 @@ class TestReduce {
         ) o Split(M) $ in
       })
 
-    val (output: Array[Float], runtime) = ExecuteOld(1, 1)(l, matrix)
+    val (output, runtime) = Execute(1, 1)[Array[Float]](l, matrix)
 
     val gold = matrix.reduce((x, y) => (x, y).zipped.map(_+_))
 
@@ -113,7 +113,7 @@ class TestReduce {
         ) o Split(128) $ in
       })
 
-    val (output: Array[Float], runtime) = ExecuteOld(inputData.length)(l, inputData, 0.0f)
+    val (output, runtime) = Execute(inputData.length)[Array[Float]](l, inputData, 0.0f)
 
     assertEquals(inputData.sum, output.sum, 0.0)
 
@@ -133,7 +133,7 @@ class TestReduce {
         ) o Split(128) $ in
       })
 
-    val (output: Array[Float], runtime) = ExecuteOld(inputData.length)(l, inputData, 0.0f)
+    val (output, runtime) = Execute(inputData.length)[Array[Float]](l, inputData, 0.0f)
 
     assertEquals(inputData.sum, output.sum, 0.0)
 
@@ -153,7 +153,7 @@ class TestReduce {
         ) o Split(128) $ in
       })
 
-    val (output: Array[Float], runtime) = ExecuteOld(inputData.length)(l, inputData)
+    val (output, runtime) = Execute(inputData.length)[Array[Float]](l, inputData)
 
     assertEquals(inputData.sum, output.sum, 0.0)
 
@@ -174,7 +174,7 @@ class TestReduce {
         ) o Split(128) $ in
       })
 
-    val (output: Array[Float], runtime) = ExecuteOld(inputData.length)(l, inputData)
+    val (output, runtime) = Execute(inputData.length)[Array[Float]](l, inputData)
 
     assertEquals(inputData.flatten.sum, output.sum, 0.0)
 
@@ -193,7 +193,7 @@ class TestReduce {
       ) o Split(262144) $ in
     } )
 
-    val (output: Array[Float], runtime) = ExecuteOld(inputData.length)( l, inputData )
+    val (output, runtime) = Execute(inputData.length)[Array[Float]]( l, inputData )
 
     assertEquals(inputData.sum, output.sum, 0.0)
 
@@ -208,7 +208,7 @@ class TestReduce {
     //val inputData = Array.fill(inputSize)(1.0f)
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (output: Array[Float], runtime) = ExecuteOld(inputData.length)(
+    val (output, runtime) = Execute(inputData.length)[Array[Float]](
       fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
         Join() o Join() o  MapWrg(
            MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f))
@@ -234,7 +234,7 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, _) = {
-      val (output: Array[Float], runtime) = ExecuteOld(inputData.length)(
+      val (output, runtime) = Execute(inputData.length)[Array[Float]](
         fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
           Join() o MapWrg(
             Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -248,7 +248,7 @@ class TestReduce {
     }
 
     {
-      val (output: Array[Float], _) = ExecuteOld(8, firstOutput.length)(
+      val (output, _) = Execute(8, firstOutput.length)[Array[Float]](
         fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
           Join() o MapWrg(
             Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -277,7 +277,7 @@ class TestReduce {
     val inputSize = 1024
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (output: Array[Float], _) = ExecuteOld(inputData.length)(
+    val (output, _) = Execute(inputData.length)[Array[Float]](
       fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -300,7 +300,7 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
-      val (output: Array[Float], runtime) = ExecuteOld(128, inputData.length, (true, true))(
+      val (output, runtime) = Execute(128, inputData.length, (true, true))[Array[Float]](
         fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
 
           Join() o MapWrg(
@@ -322,7 +322,7 @@ class TestReduce {
     }
 
     {
-      val (output: Array[Float], _) = ExecuteOld(64, firstOutput.length)(
+      val (output, _) = Execute(64, firstOutput.length)[Array[Float]](
         fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
 
           Join() o MapWrg(
@@ -363,10 +363,9 @@ class TestReduce {
       ) o Split(262144) $ in
       })
 
-    val (firstOutput: Array[Float], _) =
-      ExecuteOld(inputData.length)(f, inputData)
+    val (firstOutput, _) = Execute(inputData.length)[Array[Float]](f, inputData)
 
-    val (output: Array[Float], _) = ExecuteOld(64, firstOutput.length)(
+    val (output, _) = Execute(64, firstOutput.length)[Array[Float]](
       fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
 
         Join() o MapWrg(
@@ -398,7 +397,7 @@ class TestReduce {
 
     val (firstOutput, _) = {
 
-      val (output: Array[Float], runtime) = ExecuteOld(inputData.length)(
+      val (output, runtime) = Execute(inputData.length)[Array[Float]](
         fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
 
           Join() o MapWrg( asScalar() o
@@ -419,7 +418,7 @@ class TestReduce {
     }
 
 
-    val (output: Array[Float], _) = ExecuteOld(64, firstOutput.length)(
+    val (output, _) = Execute(64, firstOutput.length)[Array[Float]](
       fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
         Join() o MapWrg(
           Join() o  toGlobal(MapLcl(MapSeq(id))) o Split(1) o
@@ -446,15 +445,13 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
     val (firstOutput, _) = {
-      val (output: Array[Float], runtime) =
-        ExecuteOld(inputData.length)(SumAbsoluteValues.nvidiaDerived1, inputData)
+      val (output, runtime) = Execute(inputData.length)[Array[Float]](SumAbsoluteValues.nvidiaDerived1, inputData)
 
 
       (output, runtime)
     }
 
-    val (output: Array[Float], _) =
-      ExecuteOld(firstOutput.length)(SumAbsoluteValues.amdNvidiaDerived2, firstOutput)
+    val (output, _) = Execute(firstOutput.length)[Array[Float]](SumAbsoluteValues.amdNvidiaDerived2, firstOutput)
 
     AllocateLocalMemoryStatically(true)
     val gold = inputData.sum
@@ -471,11 +468,9 @@ class TestReduce {
     val inputSize = 16777216
     val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (firstOutput: Array[Float], _) = 
-      ExecuteOld(inputData.length)(SumAbsoluteValues.amdDerived1, inputData)
+    val (firstOutput, _) = Execute(inputData.length)[Array[Float]](SumAbsoluteValues.amdDerived1, inputData)
 
-    val (output: Array[Float], _) =
-      ExecuteOld(firstOutput.length)(SumAbsoluteValues.amdNvidiaDerived2, firstOutput)
+    val (output, _) = Execute(firstOutput.length)[Array[Float]](SumAbsoluteValues.amdNvidiaDerived2, firstOutput)
 
     AllocateLocalMemoryStatically(true)
     val gold = inputData.sum
@@ -489,7 +484,7 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
-      val (output: Array[Float], runtime) = ExecuteOld(128, inputData.length, (true, true))(
+      val (output, runtime) = Execute(128, inputData.length, (true, true))[Array[Float]](
         fun(ArrayTypeWSWC(Float, SizeVar("N")), (in) => {
 
           Join() o MapWrg(
@@ -511,8 +506,7 @@ class TestReduce {
 
     {
 
-      val (output: Array[Float], runtime) =
-        ExecuteOld(firstOutput.length)(SumAbsoluteValues.intelDerived2, firstOutput)
+      val (output, runtime) = Execute(firstOutput.length)[Array[Float]](SumAbsoluteValues.intelDerived2, firstOutput)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
@@ -529,8 +523,7 @@ class TestReduce {
     val inputData = Array.fill(inputSize)(util.Random.nextInt(2).toFloat)
 
     val (firstOutput, _) = {
-      val (output: Array[Float], runtime) =
-        ExecuteOld(inputData.length)(SumAbsoluteValues.intelDerivedNoWarp1, inputData)
+      val (output, runtime) = Execute(inputData.length)[Array[Float]](SumAbsoluteValues.intelDerivedNoWarp1, inputData)
 
       println("first output(0) = " + output(0))
       println("first runtime = " + runtime)
@@ -541,8 +534,7 @@ class TestReduce {
     }
 
     {
-      val (output: Array[Float], runtime) =
-        ExecuteOld(firstOutput.length)(SumAbsoluteValues.intelDerived2, firstOutput)
+      val (output, runtime) = Execute(firstOutput.length)[Array[Float]](SumAbsoluteValues.intelDerived2, firstOutput)
 
       println("second output(0) = " + output(0))
       println("second runtime = " + runtime)
@@ -577,7 +569,7 @@ class TestReduce {
         ) o Split(inputSize) $ input
       })
 
-    val (output: Array[Float], _) = ExecuteOld(inputSize)(f, inputArray)
+    val (output, _) = Execute(inputSize)[Array[Float]](f, inputArray)
 
     AllocateLocalMemoryStatically(true)
     assertEquals(gold, output(0), 0.1)
@@ -600,7 +592,7 @@ class TestReduce {
         ) o Split(inputSize) $ input
       })
 
-    val (output: Array[Float], runtime) = ExecuteOld(inputSize)(f, inputArray)
+    val (output, runtime) = Execute(inputSize)[Array[Float]](f, inputArray)
 
     assertEquals(gold, output(0), 0.1)
     assertEquals(1, output.length)
@@ -626,7 +618,7 @@ class TestReduce {
       }
     )
 
-    val (output:Array[Float], _) = ExecuteOld(1,1, (true, true))(reduce_kernel, search_arr)
+    val (output, _) = Execute(1,1, (true, true))[Array[Float]](reduce_kernel, search_arr)
     assertEquals(gold, output(0), 0.0f)
   }
 
@@ -649,7 +641,7 @@ class TestReduce {
         ) o Split(8) $ array
       }
     )
-    val (output:Array[Int], _) = ExecuteOld(1,1, (true, true))(reduce_kernel, search_arr)
+    val (output, _) = Execute(1,1, (true, true))[Array[Int]](reduce_kernel, search_arr)
 
     assertEquals(gold, output(0))
   }
