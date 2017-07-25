@@ -15,3 +15,6 @@ src/main/resources/lib/libexecutor-jni.*
 *.html
 *.pyc
 *.swp
+.gdb_history
+classes
+src/test/nn.bak/
