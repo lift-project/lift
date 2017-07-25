@@ -681,7 +681,7 @@ class OpenCLGenerator extends Generator {
                                        call: FunCall,
                                        block: Block): Unit = {
     (block: Block) += OpenCLAST.Comment("slideSeq_plus")
-    generateLoopMinMemoryAccess(block, sp, call, generate(sp.f.body, _), sp.shouldUnroll)
+    generateMapSeqSlideLoop(block, sp, call, generate(sp.f.body, _), sp.shouldUnroll)
     (block: Block) += OpenCLAST.Comment("end slideSeq_plus")
   }
 
@@ -1074,7 +1074,7 @@ class OpenCLGenerator extends Generator {
   }
 
 
-  private def generateLoopMinMemoryAccess(block: Block,
+  private def generateMapSeqSlideLoop(block: Block,
                                           sSP: MapSeqSlide,
                                           call: FunCall,
                                           generateBody: (Block) => Unit,
@@ -1096,16 +1096,12 @@ class OpenCLGenerator extends Generator {
 
     var vType = call.args.head.view.access(0).t
 
-    def getDim(n : Int, t : Type) : Int = t match {
-      case ArrayType(elemT) => getDim(n+1, elemT)
-      case _ => n
-    }
 
-    val nDim = getDim(1,vType)
+    val nDim = ArrayType.getDimension(1,vType)
 
-    def getType(v: View, n: Int): Type = n match {
+    def getNType(v: View, n: Int): Type = n match {
       case 1 => v.access(0).t
-      case _ => getType(v.access(0), n - 1)
+      case _ => getNType(v.access(0), n - 1)
     }
 
     def getWindowSize(s: Int, n: Int): Int = n match {
@@ -1113,7 +1109,7 @@ class OpenCLGenerator extends Generator {
       case _ => s * getWindowSize(s, n - 1)
     }
 
-    val viewType = getType(call.args.head.view, nDim)
+    val viewType = getNType(call.args.head.view, nDim)
     val windowSize = getWindowSize(size.eval, nDim)
 
     val v = Value(0.0f, ArrayTypeWSWC(viewType, windowSize))
@@ -1145,42 +1141,6 @@ class OpenCLGenerator extends Generator {
     }
 
     setupInitialWindowVars(0,nDim, accesses)
-
-
-    // TODO: Should this stay?
-    // TODO: Information needed elsewhere. See analysis.ControlFlow
-    // try to see if we really need a loop
-    /*  if (PerformLoopOptimisation())
-      indexVar.range.numVals match {
-        case Cst(0) =>
-          // zero iterations
-          (block: Block) += OpenCLAST.Comment("iteration count is 0, no loop emitted")
-          return
-
-        case Cst(1) =>
-          generateStatement(block, indexVar, generateBody, init)
-          return
-
-        case _ if range.start.min.min == Cst(0) &&
-          ArithExpr.substituteDiv(range.stop) == ArithExpr.substituteDiv(range.step) =>
-
-          generateStatement(block, indexVar, generateBody, init)
-          return
-
-        case _ if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
-          generateIfStatement(block, indexVar, generateBody, init, stop)
-          return
-        case _ =>
-          (indexVar.range.numVals.min, indexVar.range.numVals.max) match {
-            case (Cst(0), Cst(1)) =>
-              // one or less iteration
-              generateIfStatement(block, indexVar, generateBody, init, stop)
-              return
-
-            case _ =>
-          }
-      }
-  */
 
     // window values get updated at the start of the loop
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + 1))
