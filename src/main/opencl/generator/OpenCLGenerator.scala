@@ -80,8 +80,9 @@ object OpenCLGenerator extends Generator {
     // the base type is used for allocation of all variables ...
     var varDecls =
       typedMems.map(tm => {
-        if (tm.mem.addressSpace == PrivateMemory) {
+        if (tm.mem.addressSpace == PrivateMemory || tm.t.isInstanceOf[VectorType]) {
           // do not de-vectorise for private memory
+          // only de-vectorise arrays
           (tm.mem.variable, tm.t)
         } else {
           (tm.mem.variable, Type.devectorize(tm.t))
@@ -346,7 +347,11 @@ class OpenCLGenerator extends Generator {
       params =
         Kernel.memory.map(x =>
           OpenCLAST.ParamDecl(
-            x.mem.variable.toString, Type.devectorize(x.t),
+            x.mem.variable.toString,
+            x.t match { // Only de-vectorise arrays
+              case vt: VectorType => vt
+              case t => Type.devectorize(t)
+            },
             const = x.mem.readOnly,
             addressSpace = x.mem.addressSpace
           )
