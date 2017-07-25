@@ -190,22 +190,29 @@ object Decoder {
     decoder.decodeAny(ty, buffer)(hint)
   }
 
-  private def isFlatArray(ty: Type): Boolean = {
-    def isFlat(ty: Type): Boolean = ty match {
-      case ScalarType(_, _) | VectorType(_, _) => true
-      case ArrayTypeWSWC(elemT, size, capacity) if size == capacity => isFlat(elemT)
-      case _ => false
-    }
-
-    ty match {
-      case _: ArrayType => isFlat(ty)
-      case _ => false
-    }
+  /**
+   * Find a scalar type `st` such as casting the memory of the output as a
+   * `st*` pointer makes sense.
+   */
+  private def getBaseTypeWithChecks(ty: Type): ScalarType = ty match {
+    case st: ScalarType => st
+    case vt: VectorType => vt.scalarT
+    case tt: TupleType =>
+      tt.elemsT.distinct match {
+        case Seq(elemT) => getBaseTypeWithChecks(elemT)
+        case _ => throw new IllegalArgumentException(s"Heterogeneous tuple type: $tt")
+      }
+    case at: ArrayType =>
+      at match {
+        case sc: Size with Capacity if sc.size == sc.capacity =>
+        case _ => println(s"Warning: decoding a value of $ty as a flat array, use at your own risk…")
+      }
+      getBaseTypeWithChecks(at.elemT)
+    case NoType | UndefType => throw new IllegalArgumentException(s"Not supported type")
   }
 
   private def downloadFlat[T](ty: Type, data: GlobalArg)(implicit hint: DecodeType[T]): Array[T] = {
-    if (!isFlatArray(ty)) println(s"Warning: decoding a value of $ty as a flat array, use at your own risk…")
-    val baseType = Type.getBaseType(ty)
+    val baseType = getBaseTypeWithChecks(ty)
     (baseType, hint) match {
       case (Bool, BOOL()) => data.asBooleanArray()
       case (Int, INT()) => data.asIntArray()
