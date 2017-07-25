@@ -130,7 +130,7 @@ package object ir {
     case _: Float => Float
     case _: Double => Double
     case _: Boolean => Bool
-    case x: _root_.ir.ast.Expr => x.t
+    case x: _root_.ir.ast.Value => x.t
     case _ => throw new IllegalArgumentException
   }
 }
