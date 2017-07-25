@@ -9,6 +9,7 @@ import nn.{PaddedArray, Shape}
 import opencl.executor.{Execute, Executor}
 import org.junit.{AfterClass, BeforeClass, Test}
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
 
 /**
   * Created by s1569687 on 01/03/17.
@@ -30,7 +31,7 @@ class TestCNN {
   private val logger = Logger(this.getClass)
 
   // TODO: increase precision
-  val precision: Float = 0.001f
+  val precision: Float = 0.01f
 
   //@Test
   def Sanity_CNN(): Unit = {
@@ -96,8 +97,8 @@ class TestCNN {
     val nLayers: Int = 2
     val nBatches: Int = 2
     for {
-      nKernelsL1 <- 16 until 17 by 4 //8 until 48 by 4
-      kernelSize <- 8 until 64 by 4 //4 until 64 by 4
+      nKernelsL1 <- 8 until 48 by 4//16 until 17 by 4
+      kernelSize <- 4 until 64 by 4 //8 until 64 by 4
       imageSize <- 64 until 65 by 4//8 until 64 by 8//16 until 512 by 16
       pathToInputs = Experiment.getPathToInputs(
         nKernelsL1, Shape(w=kernelSize, h=kernelSize), Shape(w=imageSize, h=imageSize))
@@ -113,20 +114,20 @@ class TestCNN {
         file => file.getName.endsWith("_n%d.csv".format(nInputs))} == 0
       // Load datasets once for all experiments (across all multsPerThread and neuronsPerWrg)
       if Experiment.datasetsExist(pathToInputs)
-      elsPerThreadL1 <- 1 until 16 //1 to 16
-      kernelsPerGroupL1 <- 1 until nKernelsL1
-      inputTileSize <- 8 until imageSize by 4 //kernelSize until imageSize
+      elsPerThreadL1 <- List(1) ++ (4 until 16 by 4)
+      kernelsPerGroupL1 <- List(1) ++ (1 until nKernelsL1 by 4)// until nKernelsL1 //1 until nKernelsL1
+      inputTileSize <- kernelSize until imageSize by 4 // kernelSize
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
         try {
           cnn = new CNN(CNN.Par, Array(nn.ReLU, nn.ReLU), elsPerThreadL1, kernelsPerGroupL1, inputTileSize,
-            nLayers, nBatches, nInputs, Array(16, nKernelsL1), Array(1, 16, nKernelsL1),
+            nLayers, nBatches, nInputs, Array(16, nKernelsL1), Array(1, 16),
             {
               val inputShape: Array[Shape] = Array.fill[Shape](nLayers)(Shape())
               inputShape(0) = Shape(w=imageSize, h=imageSize, ch=1)
               inputShape
-            }, {for (layerNo <- 0 until nLayers) yield Shape(w=kernelSize, h=kernelSize)}.toArray,
-            /*tfX, tfWconv, tfBconv, tfResult, */pathToResults)
+            }, {for (_ <- 0 until nLayers) yield Shape(w=kernelSize, h=kernelSize)}.toArray,
+            pathToInputs, pathToResults, Experiment.loadDatasets, cnn)
 //          logger.info(f"Prepared the experiment (nKernelsL1=$nKernelsL1%d, " +
 //            f"inputTileSize=$inputTileSize%d, elsPerThreadL1=$elsPerThreadL1%d, " +
 //            f"kernelsPerGroupL1=$kernelsPerGroupL1%d,\nkernelSize=$kernelSize%d, " +
@@ -146,7 +147,7 @@ class TestCNN {
         }
       }
     } {
-      cnn.setData(Experiment.loadDatasets(nInputs, pathToInputs))
+      //cnn.setData(Experiment.loadDatasets(nInputs, pathToInputs))
       try {
         singleTest(cnn)
       } catch {
@@ -175,12 +176,9 @@ class TestCNN {
       f"imageSize=${cnn.inputShape(0).s}%d).")
 
     for (layerNo <- 0 until cnn.nLayers) {
-      logger.info("1")
       cnn.updateInputs(layerNo)
       /* Padding */
-      logger.info("2")
       cnn.padInputs(layerNo)
-      logger.info("3")
       val (outputFlat: Array[Float], runtime) =
         Execute(
           cnn.localSize(0)(layerNo), cnn.localSize(1)(layerNo), cnn.localSize(2)(layerNo),
@@ -195,7 +193,6 @@ class TestCNN {
               n_windows_per_tile_per_dim=cnn.nWindowsPerTilePerDim(layerNo))),
 
           cnn.kWeights(layerNo), cnn.kBiases(layerNo), cnn.inputs(layerNo).padded)
-      logger.info("4")
       cnn.runTimes(layerNo) = runtime
 
       /* Group and unpad */
@@ -210,7 +207,6 @@ class TestCNN {
         if (cnn.outputs == null) Array(PaddedArray(getShapedOutputs)) else
           cnn.outputs :+ PaddedArray(getShapedOutputs)
       }
-      logger.info("5")
       logger.info(f"Layer $layerNo%d runtime: $runtime%1.5f ms")
 
     }
@@ -254,10 +250,25 @@ class TestCNN {
         (liftRow, targetRow, row_no) <- (liftResult, targetResult, 0 to targetResult.length).zipped.toList
         (liftElement, targetElement, el_no) <- (liftRow, targetRow, 0 to targetRow.length).zipped.toList
       } {
-        logger.info(f"target $batch_no%d,$input_no%d,$row_no%d,$el_no%d:   " + targetElement.mkString(", "))
-        logger.info(f"actual $batch_no%d,$input_no%d,$row_no%d,$el_no%d:   " + liftElement.mkString(", "))
-        assertArrayEquals(f"Batch $batch_no%d input $input_no%d row $row_no%d element $el_no%d: " +
-          f"the lift output is different to the target output", targetElement, liftElement, precision)
+//        logger.info(f"target $batch_no%d,$input_no%d,$row_no%d,$el_no%d:  " + targetElement.mkString(", "))
+//        logger.info(f"actual $batch_no%d,$input_no%d,$row_no%d,$el_no%d:  " + liftElement.mkString(", "))
+        var testFailed: Boolean = false
+        for {(liftElementKernel, targetElementKernel, elk_no) <-
+             (liftElement, targetElement, 0 to targetElement.length).zipped.toList} {
+          try {
+//            assertArrayEquals(f"Batch $batch_no%d input $input_no%d row $row_no%d element $el_no%d: " +
+//              f"the lift output is different to the target output", targetElement, liftElement, precision)
+            assertEquals("", targetElementKernel, liftElementKernel, precision)
+          }
+          catch {
+            case e: AssertionError =>
+              logger.info(f"$batch_no%d,$input_no%d,$row_no%d,$el_no%d,$elk_no%d:  " +
+                          targetElementKernel + " != " + liftElementKernel)
+              testFailed = true
+          }
+        }
+        if (testFailed)
+          throw new AssertionError()
       }
       noErrors = true
       logger.info(f"SUCCESS. Processed ${cnn.nInputs}%d inputs, the results were equal to targets " +
