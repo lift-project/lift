@@ -46,41 +46,64 @@ object HighLevelRewrite {
       s
   }
 
-  private val explorationDepth = parser.option[Int](List("d", "explorationDepth"), "depth",
-    "How deep to explore.")
+  private val settingsFile = parser.option[String](List("f", "file"), "name",
+    "The settings file to use."
+    ) {
+    (s, _) =>
+      val file = new File(s)
+      if (!file.exists)
+        parser.usage(s"Settings file $file doesn't exist.")
+      s
+  }
 
-  private val depthFilter = parser.option[Int](List("depth"), "depth", "Cutoff depth for filtering.")
+  protected[exploration] val defaultExplorationDepth = 5
+  protected[exploration] val defaultDepthFilter = 6
+  protected[exploration] val defaultDistanceFilter = 9
+  protected[exploration] val defaultRuleRepetition = 2
+  protected[exploration] val defaultVectorWidth = 4
+  protected[exploration] val defaultSequential = false
+  protected[exploration] val defaultOnlyLower = false
+  protected[exploration] val defaultOldStringRepresentation = false
+  protected[exploration] val defaultRuleCollection = "default"
 
-  private val distanceFilter = parser.option[Int](List("distance"), "distance",
-    "Cutoff distance for filtering.")
+  protected[exploration] val explorationDepth = parser.option[Int](List("d", "explorationDepth"), "depth",
+    s"How deep to explore (default: $defaultExplorationDepth)")
 
-  private val ruleRepetition = parser.option[Int](List("repetition"), "repetition",
-    "How often the same rule can be applied.")
+  protected[exploration] val depthFilter = parser.option[Int](List("depth"), "depth",
+    s"Cutoff depth for filtering (default: $defaultDepthFilter)")
 
-  private val ruleCollection = parser.option[String](List("collection"), "collection",
-    "Which collection of rules are used for rewriting")
+  protected[exploration] val distanceFilter = parser.option[Int](List("distance"), "distance",
+    s"Cutoff distance for filtering (default: $defaultDistanceFilter)")
 
-  private val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
-    "The vector width to use for vectorising rewrites. Default: 4")
+  protected[exploration] val ruleRepetition = parser.option[Int](List("repetition"), "repetition",
+    s"How often the same rule can be applied (default: $defaultRuleRepetition)")
 
-  private val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
-    "Don't execute in parallel.")
+  protected[exploration] val ruleCollection = parser.option[String](List("collection"), "collection",
+    s"Which collection of rules are used for rewriting (default: $defaultRuleCollection)")
 
-  private val onlyLower = parser.flag[Boolean](List("onlyLower"),
-    "Do not perform high-level rewriting - only print lambda to enable next rewriting stages")
+  protected[exploration] val vectorWidth = parser.option[Int](List("vector-width", "vw"), "vector width",
+    s"The vector width to use for vectorising rewrites (default: $defaultVectorWidth)")
 
-  protected val defaultExplorationDepth = 5
-  protected val defaultVectorWidth = 4
-  protected val defaultDepthFilter = 6
-  protected val defaultDistanceFilter = 9
-  protected val defaultRuleRepetition = 2
-  protected val defaultRuleCollection = "default"
+  protected[exploration] val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
+    s"Don't execute in parallel (default: $defaultSequential)")
+
+  protected[exploration] val onlyLower = parser.flag[Boolean](List("onlyLower"),
+    s"Do not perform high-level rewriting - only print lambda to enable next rewriting stages (default: $defaultOnlyLower)")
+
+  protected[exploration] val oldStringRepresentation = parser.flag[Boolean](List("oldStringRepresentation"),
+    s"Use old representation for Lambdas (default: $defaultOldStringRepresentation)")
+
+
+  private var settings = Settings()
 
   def main(args: Array[String]): Unit = {
 
     try {
       parser.parse(args)
 
+      settings = ParseSettings(settingsFile.value)
+
+      logger.info(s"Settings:\n$settings")
       logger.info(s"Arguments: ${args.mkString(" ")}")
       logger.info(s"Defaults:")
       logger.info(s"\tExploration depth: $defaultExplorationDepth")
@@ -93,7 +116,8 @@ object HighLevelRewrite {
       val filename = input.value.get
       val lambda = ParameterRewrite.readLambdaFromFile(filename)
 
-      val dumpThese = if(onlyLower.value.isDefined)
+
+      val dumpThese = if(settings.highLevelRewriteSettings.onlyLower)
         Seq((lambda, Seq()))
       else
         rewriteExpression(lambda)
@@ -114,10 +138,10 @@ object HighLevelRewrite {
   def rewriteExpression(startingExpression: Lambda): Seq[(Lambda, Seq[Rule])] = {
     val newLambdas =
       (new HighLevelRewrite(
-        vectorWidth.value.getOrElse(defaultVectorWidth),
-        ruleRepetition.value.getOrElse(defaultRuleRepetition),
-        explorationDepth.value.getOrElse(defaultExplorationDepth),
-        ruleCollection.value.getOrElse(defaultRuleCollection)
+        settings.highLevelRewriteSettings.vectorWidth,
+        settings.highLevelRewriteSettings.ruleRepetition,
+        settings.highLevelRewriteSettings.explorationDepth,
+        settings.highLevelRewriteSettings.ruleCollection
       )
         )(startingExpression)
 
@@ -157,7 +181,7 @@ object HighLevelRewrite {
     if (userFunCalls.length == 1)
       return true
 
-    val cutoff = distanceFilter.value.getOrElse(defaultDistanceFilter)
+    val cutoff = settings.highLevelRewriteSettings.distance
 
     val ids = userFunCalls.map(numberMap(_)).sorted
 
@@ -172,7 +196,7 @@ object HighLevelRewrite {
   }
 
   def filterByDepth(lambda: Lambda, ruleSeq: Seq[Rule] = Seq()): Boolean = {
-    val cutoff = depthFilter.value.getOrElse(defaultDepthFilter)
+    val cutoff = settings.highLevelRewriteSettings.depth
     val depth = NumberExpression.byDepth(lambda).values.max
 
     val isTiling = ruleSeq.nonEmpty && ruleSeq.head == MacroRules.tileMapMap
@@ -190,7 +214,7 @@ object HighLevelRewrite {
   }
 
   private def dumpLambdasToFiles(lambdas: Seq[(Lambda, Seq[Rule])], topLevelFolder: String): Unit = {
-    val x = if (sequential.value.isDefined) lambdas else lambdas.par
+    val x = if (settings.highLevelRewriteSettings.sequential) lambdas else lambdas.par
 
     x.foreach(lambda => {
       val id = processed.getAndIncrement()

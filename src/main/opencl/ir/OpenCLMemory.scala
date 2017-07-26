@@ -242,9 +242,10 @@ object TypedOpenCLMemory {
         case m: AbstractMap => collectMap(call.t, m)
         case f: FilterSeq   => collect(f.f.body) :+ TypedOpenCLMemory(call)
         case r: AbstractPartRed => collectReduce(r, argMems)
-        case sp: SlideSeqPlus => collectSlideSeqPlus(sp, argMems)
+        case sp: MapSeqSlide => collectMapSeqSlide(sp, argMems)
         case s: AbstractSearch => collectSearch(s, call, argMems)
         case ua: UnsafeArrayAccess => collectUnsafeArrayAccess(ua, call, argMems)
+        case ca: CheckedArrayAccess => collectCheckedArrayAccess(ca, call, argMems)
         case i: Iterate     => collectIterate(call, i)
         case fp: FPattern   => collect(fp.f.body)
         case _              => Seq()
@@ -331,7 +332,7 @@ object TypedOpenCLMemory {
       })
     }
 
-    def collectSlideSeqPlus(sp: SlideSeqPlus,
+    def collectMapSeqSlide(sp: MapSeqSlide,
                             argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
       val mems: Seq[TypedOpenCLMemory] = collect(sp.f.body) ++ Seq[TypedOpenCLMemory]()
 
@@ -356,6 +357,10 @@ object TypedOpenCLMemory {
     }
 
     def collectUnsafeArrayAccess(ua: UnsafeArrayAccess, call: FunCall, argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
+      Seq(TypedOpenCLMemory(call))
+    }
+
+    def collectCheckedArrayAccess(ca: CheckedArrayAccess, call: FunCall, argMems: Seq[TypedOpenCLMemory]) : Seq[TypedOpenCLMemory] = {
       Seq(TypedOpenCLMemory(call))
     }
 

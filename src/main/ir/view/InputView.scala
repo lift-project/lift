@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.ArithExpr
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{ReduceWhileSeq, SlideSeqPlus, FilterSeq}
+import opencl.ir.pattern.{ReduceWhileSeq, MapSeqSlide, FilterSeq}
 
 /**
  * A helper object for constructing views.
@@ -56,7 +56,7 @@ object InputView {
       case m: AbstractMap => buildViewMap(m, call, argView)
       case f: FilterSeq => buildViewFilter(f, call, argView)
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
-      case sp: SlideSeqPlus => buildViewSlideSeqPlus(sp, call, argView)
+      case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
       case z: Zip => buildViewZip(call, argView)
@@ -78,6 +78,7 @@ object InputView {
       case h: Head => buildViewHead(call, argView)
       case h: Tail => buildViewTail(call, argView)
       case uaa: UnsafeArrayAccess => buildViewUnsafeArrayAccess(uaa, call, argView)
+      case ca: CheckedArrayAccess => buildViewCheckedArrayAccess(ca, call, argView)
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case ArrayAccess(i) => argView.access(i)
@@ -149,7 +150,7 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
-  private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
+  private def buildViewMapSeqSlide(sp: MapSeqSlide,
                                     call: FunCall, argView: View): View = {
 
     sp.f.params(0).view = ViewMem(sp.windowVar.name, sp.f.params(0).t)
@@ -261,6 +262,13 @@ object InputView {
    // visit the index
    visitAndBuildViews(a.index)
    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+  }
+
+  private def buildViewCheckedArrayAccess(a: CheckedArrayAccess, call: FunCall, argView: View) : View = {
+    // visit the index
+    visitAndBuildViews(a.index)
+//    visitAndBuildViews(a.default)
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
   private def buildViewPad(left: Int, right: Int, boundary: Pad.BoundaryFun, argView: View) : View = {
