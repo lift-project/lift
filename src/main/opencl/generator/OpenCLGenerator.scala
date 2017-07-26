@@ -664,6 +664,39 @@ class OpenCLGenerator extends Generator {
     }
 
     generateForLoop(block, call.args.head, f.loopRead, generateBody)
+
+    // Ugly hack used to store somehow the size of the array in the outptut's header
+    // FIXME: remove me
+    /**
+     * Produces an OpenCL expression wrapping the output size (aka the variable
+     * storing the index used to write to the output) into a data structure
+     * that can be stored into the array's header.
+     *
+     * For instance:
+     * - If the base type of the array is float, it will produce `(float)j`
+     * - If the base type of the array is (float, int), it will produce
+     *   `(Tuple2_float_int){(float)j, j}`
+     *
+     * @param ty the array's type
+     * @return the base type of the array and an expression representing its size.
+     */
+    def castSize(ty: Type): (Type, OpenCLAST.OclAstNode) = {
+      Type.getBaseType(ty) match {
+        case tt: TupleType =>
+          val values = tt.elemsT.map(castSize).map(_._2)
+          val tv = OpenCLAST.StructConstructor(tt, values.toVector)
+          (tt, tv)
+        case bt => (bt, OpenCLAST.Cast(VarRef(f.loopWrite), bt))
+      }
+    }
+
+    // Write the header of the output array
+    val (baseType, value) = castSize(call.t)
+    (block: Block) += generateStoreNode(
+      OpenCLMemory.asOpenCLMemory(call.mem),
+      baseType, call.view.size(), value
+    )
+
     (block: Block) += OpenCLAST.Comment("end filter_seq")
   }
 
