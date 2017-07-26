@@ -1852,8 +1852,10 @@ class OpenCLGenerator extends Generator {
 
   /**
    * Generate code for *sequentially* copying data of type `ty` from a Memory
-   * to an other using the provided views. The data has to be backed in one
-   * single location in memory: no memory collection and no tuple of arrays.
+   * to an other using the provided views. We can only write in one single
+   * location in memory: no memory collection and no tuple of arrays. Although,
+   * reading from a memory collection is possible, for instance: copying after
+   * a Zip.
    *
    * @param inMem memory location of the data to be copied
    * @param inView view explaining how to access the data to be copied
@@ -1864,7 +1866,7 @@ class OpenCLGenerator extends Generator {
    */
   private def generateSeqCopy(inMem: Memory, inView: View, outMem: Memory, outView: View,
                            ty: Type): OpenCLAST.OclAstNode with BlockMember = {
-    assert(!inMem.isInstanceOf[OpenCLMemoryCollection]) // cannot handle that: see comment above
+    assert(!outMem.isInstanceOf[OpenCLMemoryCollection]) // cannot handle that: see comment above
     ty match {
       case ScalarType(_, _) | _: TupleType | _: VectorType =>
         val load = generateLoadNode(OpenCLMemory.asOpenCLMemory(inMem), ty, inView)
