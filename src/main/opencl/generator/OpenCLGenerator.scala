@@ -1864,6 +1864,7 @@ class OpenCLGenerator extends Generator {
    */
   private def generateSeqCopy(inMem: Memory, inView: View, outMem: Memory, outView: View,
                            ty: Type): OpenCLAST.OclAstNode with BlockMember = {
+    assert(!inMem.isInstanceOf[OpenCLMemoryCollection]) // cannot handle that: see comment above
     ty match {
       case ScalarType(_, _) | _: TupleType | _: VectorType =>
         val load = generateLoadNode(OpenCLMemory.asOpenCLMemory(inMem), ty, inView)
