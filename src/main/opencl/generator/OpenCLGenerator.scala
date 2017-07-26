@@ -1852,7 +1852,8 @@ class OpenCLGenerator extends Generator {
 
   /**
    * Generate code for *sequentially* copying data of type `ty` from a Memory
-   * to an other using the provided views.
+   * to an other using the provided views. The data has to be backed in one
+   * single location in memory: no memory collection and no tuple of arrays.
    *
    * @param inMem memory location of the data to be copied
    * @param inView view explaining how to access the data to be copied
