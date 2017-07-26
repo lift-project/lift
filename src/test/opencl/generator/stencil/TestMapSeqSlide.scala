@@ -150,7 +150,7 @@ class TestMapSeqSlide
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
     val (output : Array[Float], _) = Execute(2, 2)(MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
-
+  println(Compile(MapSeqSlideHelpers.stencil1D(slidesize, slidestep)))
     assertArrayEquals(gold, output, 0.1f)
 
   }
@@ -418,6 +418,7 @@ class TestMapSeqSlide
 
     val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
     val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
+    println(Compile(MapSeqSlideHelpers.stencil2D(slidesize, slidestep)))
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -592,6 +593,7 @@ class TestMapSeqSlide
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
 
+    println(Compile(MapSeqSlideHelpers.stencil3D(3,1)))
 
     val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil3D(slidesize,slidestep), values)
     val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original3DStencil(slidesize,slidestep), values)
