@@ -1083,6 +1083,9 @@ class OpenCLGenerator extends Generator {
     val indexVar = sSP.loopVar
     val step = sSP.step
     val size = sSP.size
+    var vType = call.args.head.view.access(0).t
+    val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
+
     val range = indexVar.range.asInstanceOf[RangeAdd]
     val init = ArithExpression(range.start)
     val stop = range match {
@@ -1092,11 +1095,6 @@ class OpenCLGenerator extends Generator {
 
     val reuse = size - step
     val cond = CondExpression(ArithExpression(indexVar), ArithExpression((stop - reuse) / step), CondExpression.Operator.<)
-    val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
-
-    var vType = call.args.head.view.access(0).t
-
-
     val nDim = ArrayType.getDimension(1,vType)
 
     def getNType(v: View, n: Int): Type = n match {
@@ -1120,6 +1118,59 @@ class OpenCLGenerator extends Generator {
     privateDecls += (sSP.windowVar -> varD)
     (block: Block) += varD
 
+    def generateWindowVars(windowSize : Int, eType : Type) = {
+
+       def genVars(eType : Type, prefix : String) : Any = {
+         eType match {
+           case ScalarType(_,_) => Var(prefix)
+           case ArrayTypeWSWC(eT, size : Cst, _) => for ( j <- 0 to size.eval-1) yield { genVars(eT,s"${prefix}_${j}") }
+           case TupleType(elemTypes @ _*) => elemTypes.zipWithIndex.map( (x)  => genVars(x._1,s"${prefix}_${x._2}"))
+           case _ =>  Var(s"ERROR") // TODO: add exception
+         }
+       }
+
+        for ( i <- 0 to size.eval-1) yield {
+            genVars(eType,s"w_${i}")
+        }
+    }
+    // create the data structure
+    val windowArray = generateWindowVars(size.eval,vType)
+
+    // then print them all out
+    /*
+    for (i <- 0 until vd.length.toInt)
+      println(OpenCLPrinter.toString(Type.getValueType(vd.t)) + " " +
+        OpenCLPrinter.toString(vd.v) + "_" +
+        OpenCLPrinter.toString(i) + ";")
+    */
+
+    def generateAssign(vars : Any, t : Type, v : View): Unit =
+    {
+      t match {
+        case ScalarType(_,_) =>
+          (block: Block) += AssignmentExpression(VarRef(vars.asInstanceOf[Var]), ViewPrinter.emit(inputMem.variable,v))
+        case ArrayTypeWSWC(eT, size : Cst, _) => vars.asInstanceOf[IndexedSeq[Any]].zipWithIndex.foreach( x => generateAssign(x._1,eT,v.access(x._2)))
+        case TupleType(elemTypes @ _*) =>
+          elemTypes.zip(vars.asInstanceOf[IndexedSeq[Any]]).zipWithIndex.map( (x) => generateAssign(x._1._2,x._1._1,v.get(x._2)))
+        case _ =>  println("ERROR") // TODO: add exception
+      }
+    }
+
+    // setup initial states
+    // need to loop over this (0 should not be hardcoded) for all values previously initialised
+    // and then also actually assign stuff to the values
+  //  generateAssign(windowArray(0),vType,call.args.head.view.access(0))
+
+
+    // Add loop
+
+    // update variables
+
+    // do function
+
+    // swap window variables
+
+/*
     var accesses: Array[Int] = Array.fill(nDim)(0) // cannot do a direct access-on-access because the ordering is wrong
 
     def getView(v: View, accesses: Array[Int]): View = {
@@ -1183,7 +1234,7 @@ class OpenCLGenerator extends Generator {
     }
 
     swapWindowVars(0,nDim)
-
+*/
   }
 
   private def generateForLoop(block: Block,

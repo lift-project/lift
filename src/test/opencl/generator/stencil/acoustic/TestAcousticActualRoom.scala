@@ -621,7 +621,7 @@ class TestAcousticActualRoom {
       (ArrayTypeWSWC(ArrayTypeWSWC(Float, m-2), n-2)),
       (mat1, mat2) => {
 
-          toGlobal(MapSeq/*Slide*/(fun(m => {
+          toGlobal(MapSeqSlide(fun(m => {
 
             /*
             val tup = m.at(1)
@@ -629,11 +629,11 @@ class TestAcousticActualRoom {
             */
             val `tile[1][1][1]` = Get(m,0)//.at(1).at(1).at(1)
 
-            toGlobal(tf_id) o toPrivate((tf_id)) $ m//`tile[1][1][1]`
+            toGlobal(tf_id) o toPrivate((tf_id)) $ m.at(1)//`tile[1][1][1]`
 
-          })/*,StencilUtilities.slidesize,StencilUtilities.slidestep*/))}
+          }),StencilUtilities.slidesize,StencilUtilities.slidestep))}
 
-         o PrintType() /*o Transpose() o Map(Transpose()) o*/$ Zip(mat1, mat2) /*Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)*/
+         o PrintType() /*o Transpose() o Map(Transpose()) o*/$ Zip(mat1, mat1) /*Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)*/
     )
 
     println(Compile(lambda1D))
