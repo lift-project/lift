@@ -2,6 +2,7 @@ import java.nio.file.Files._
 import java.nio.file.Paths._
 import java.util.Calendar
 
+import ir.ScalarType
 import ir.ast.UserFun
 import opencl.executor.Executor
 import opencl.ir._
@@ -62,6 +63,7 @@ package object nn {
 
   // Activation functions
   val ReLU: UserFun = UserFun("ReLU", "x", "{ return(max(0.0f, x)); }", Float, Float)
+  val max: UserFun = UserFun("max", Array("x", "y"), "return x > y ? x : y;", Seq(Float, Float), Float)
   val Linear: UserFun = id
 
   def loadJSON5D(json_file_path: String): Array5D[Float] = {

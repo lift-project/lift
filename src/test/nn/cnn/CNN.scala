@@ -82,7 +82,8 @@ object CNN {
               AT(AT(AT(AT(Float, n_in_channels), kernel_shape.w), kernel_shape.h), tile.kernels_per_group),
               AT(Float, tile.kernels_per_group)),
               (kernels_tile) => {
-                /* (tile.kernels_per_group, n_passes*n_windows) -> (tile.kernels_per_group, n_k_passes, n_k_windows) */
+                /* (tile.kernels_per_group, n_k_passes*n_k_windows) ->
+                 * (tile.kernels_per_group, n_k_passes, n_k_windows) */
                 Map(Split(tile.n_windows_per_tile_per_dim)) o
                 /* (n_passes*n_windows, tile.kernels_per_group) -> (tile.kernels_per_group, n_k_passes*n_k_windows) */
                 TransposeW() o
@@ -123,7 +124,7 @@ object CNN {
 
     /* Produces a tiled slided version of X.
      * Returns:
-     * AT(AT(AT(AT(AT(AT(AT(Float, input_channels), input_xdim), input_ydim), n_kernel_pass_windows_in_tile),
+     * AT(AT(AT(AT(AT(AT(AT(Float, input_channels), kernel_shape.s), kernel_shape.s), n_kernel_pass_windows_in_tile),
      * n_kernel_pass_strips_in_tile), n_tile_pass_windows * n_tile_pass_strips * n_inputs), n_batches) */
     def SlideX(): FunDecl =
       λ(AT(AT(AT(AT(AT(Float, n_in_channels), input_shape.wPadded), input_shape.hPadded), n_inputs), n_batches), (X) =>
@@ -183,7 +184,7 @@ object CNN {
       λ(AT(AT(Float, kernel_shape.w / tile.els_per_thread), tile.kernels_per_group),
         (weighted_row) => {
           Join() o MapLcl(0)(λ((weighted_row_per_out_ch) => {
-            MapSeq(toGlobal(id)) o debug.PrintView("3rd ReduceSeq View", ReduceSeq(add, 0.0f)) $ weighted_row_per_out_ch
+            MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) $ weighted_row_per_out_ch
           })) $ weighted_row
       })
 
@@ -228,24 +229,7 @@ class CNN(/* CNN architectural parameters */
   /**
   * Initializes variables, computes workgroup sizes.
   */
-  /* Sizes */
-  //val nLayers: Int = kBiases.length
-  //val nBatches: Int = inputsL0.nonPadded.length
-  //val nInputs: Int = inputsL0.nonPadded.head.length
-  //val nInChannels: Array[Int] = Array.fill[Int](nLayers)(0)
-//  val nKernels: Array[Int] = Array.fill[Int](nLayers)(0)
-//  for (layerNo <- 0 until nLayers) {
-//    nInChannels(layerNo) = kWeights(layerNo).head.head.length
-//    nKernels(layerNo) = kWeights(layerNo).head.head.head.length
-//  }
-
-  /* Shapes */
-//  val inputShape: Array[Shape] = Array.fill[Shape](nLayers)(Shape())
   var outputShape: Array[Shape] = Array.fill[Shape](nLayers)(Shape())
-//  inputShape(0) = Shape(w = inputsL0.nonPadded.head.head.length, h = inputsL0.nonPadded.head.head.head.length,
-//    ch = inputsL0.nonPadded.head.head.head.head.length)
-//  var kernelShape: Array[Shape] = {for (layerNo <- 0 until nLayers) yield
-//    Shape(w = kWeights(layerNo).head.length, h = kWeights(layerNo).length)}.toArray
 
   var kernelStep: Array[Int] = Array.fill[Int](nLayers)(1)
 
