@@ -64,7 +64,6 @@ object OutputView {
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
       case _: ArrayAccess | _: UnsafeArrayAccess =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
-      case pv: debug.PrintView => buildViewLambda(pv.f, call, writeView)
       case debug.PrintType(_) | debug.PrintComment(_) | Get(_) |
            _: Tuple | Gather(_) | Filter() | Pad(_, _, _) =>
         writeView

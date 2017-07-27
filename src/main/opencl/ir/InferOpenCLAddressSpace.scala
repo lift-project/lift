@@ -72,8 +72,6 @@ object InferOpenCLAddressSpace {
       case l: Lambda => setAddressSpaceLambda(l, writeTo, addressSpaces)
       case fp: FPattern => setAddressSpaceLambda(fp.f, writeTo, addressSpaces)
 
-      case pv: debug.PrintView => setAddressSpaceLambda(pv.f, writeTo, addressSpaces)
-
       case VectorizeUserFun(_, _) | UserFun(_, _, _, _, _) =>
         inferAddressSpace(writeTo, addressSpaces)
 

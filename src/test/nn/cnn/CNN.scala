@@ -111,7 +111,7 @@ object CNN {
                   })) $ Zip(pass_window, RestoreKernelShape() $ /* weights */ Get(kernels_tile, 0))
                 })) o toLocal(MapLcl(1)(λ((pass_window) =>
                 MapLcl(2)(λ((window_row) => {
-                  debug.PrintView("MyMsg", MapSeq(MapSeq(id))) $ window_row
+                  MapSeq(MapSeq(id)) $ window_row
                 })) $ pass_window))) o
                   /* (n_passes, n_windows, n_rows) -> (n_passes*n_windows, n_rows) */
                   Join() $ input_tile
@@ -183,7 +183,7 @@ object CNN {
       λ(AT(AT(Float, kernel_shape.w / tile.els_per_thread), tile.kernels_per_group),
         (weighted_row) => {
           Join() o MapLcl(0)(λ((weighted_row_per_out_ch) => {
-            MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) $ weighted_row_per_out_ch
+            MapSeq(toGlobal(id)) o debug.PrintView("3rd ReduceSeq View", ReduceSeq(add, 0.0f)) $ weighted_row_per_out_ch
           })) $ weighted_row
       })
 

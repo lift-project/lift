@@ -3,12 +3,13 @@ package nn.cnn
 import java.io.{File, PrintWriter}
 import java.nio.file.Files.{createDirectory, exists}
 import java.nio.file.Paths.get
+import java.util.Calendar
 
 import com.typesafe.scalalogging.Logger
 import nn.{PaddedArray, Shape}
+import nn.mysql.Connector
 import opencl.executor.{Execute, Executor}
 import org.junit.{AfterClass, BeforeClass, Test}
-import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 
 /**
@@ -24,14 +25,15 @@ object TestCNN {
   @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
+    Connector.close()
   }
 }
 
 class TestCNN {
   private val logger = Logger(this.getClass)
 
-  // TODO: increase precision
   val precision: Float = 0.01f
+  val codeVersion: Int = 1
 
   //@Test
   def Sanity_CNN(): Unit = {
@@ -97,9 +99,10 @@ class TestCNN {
     val nLayers: Int = 2
     val nBatches: Int = 2
     for {
+      rerun <- 1 until 10
       nKernelsL1 <- 8 until 48 by 4//16 until 17 by 4
       kernelSize <- 4 until 64 by 4 //8 until 64 by 4
-      imageSize <- 64 until 65 by 4//8 until 64 by 8//16 until 512 by 16
+      imageSize <- 8 until 64 by 4//8 until 64 by 8//16 until 512 by 16
       pathToInputs = Experiment.getPathToInputs(
         nKernelsL1, Shape(w=kernelSize, h=kernelSize), Shape(w=imageSize, h=imageSize))
       if exists(get(pathToInputs))
@@ -143,20 +146,22 @@ class TestCNN {
               f"nBatches=$nBatches%d, nInputs=$nInputs%d).")
             logger.warn(e.getMessage)
             logger.warn("SKIPPING EXPERIMENT.")
+            recordFailureInSQL(e)
             false
         }
       }
     } {
-      //cnn.setData(Experiment.loadDatasets(nInputs, pathToInputs))
       try {
         singleTest(cnn)
       } catch {
         case e: opencl.executor.Executor.ExecutorFailureException =>
           logger.warn("EXCEPTION: opencl.executor.Executor.ExecutorFailureException")
           logger.warn(e.getMessage)
+          recordFailureInSQL(e)
         case e: opencl.executor.DeviceCapabilityException =>
           logger.warn("EXCEPTION: opencl.executor.DeviceCapabilityException")
           logger.warn(e.getMessage)
+          recordFailureInSQL(e)
       }
     }
   }
@@ -174,6 +179,8 @@ class TestCNN {
       f"kernelSize=${cnn.kernelShape(cnn.nLayers - 1).s}%d, " +
       f"nBatches=${cnn.nBatches}%d, nInputs=${cnn.nInputs}%d, " +
       f"imageSize=${cnn.inputShape(0).s}%d).")
+
+    val now = Calendar.getInstance().getTime()
 
     for (layerNo <- 0 until cnn.nLayers) {
       cnn.updateInputs(layerNo)
@@ -213,73 +220,84 @@ class TestCNN {
     logger.info("")
 
     /* Check and save results */
-    var pw: PrintWriter = null
-    if (cnn.pathToResults != "") {
-      val file = new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputs))
-      file.getParentFile.mkdirs()
-      pw = new PrintWriter(file)
-    }
-    var noErrors = false
-    try {
-      if (cnn.pathToResults != "") {
-        pw.write("device_name,n_batches,n_inputs," + {
-          for (layerNo <- 0 until cnn.nLayers) yield f"n_kernels_l$layerNo%d"
-        }.mkString(",") + "," + {
-          for (layerNo <- 0 until cnn.nLayers) yield f"kernel_size_l$layerNo%d"
-        }.mkString(",") + "," +
-          "input_tile_size_l1,input_tile_step_l1,els_per_thread_l1,kernels_per_group_l1," + {
-          for (layerNo <- 0 until cnn.nLayers) yield f"runtime_l$layerNo%d"
-        }.mkString(",") + ",tag\n")
-
-        pw.write(nn.deviceName + "," + f"${cnn.nBatches}%d,${cnn.nInputs}%d,")
-        for (layerNo <- 0 until cnn.nLayers)
-          pw.write(f"${cnn.nKernels(layerNo)}%d,")
-        for (layerNo <- 0 until cnn.nLayers)
-          pw.write(f"${cnn.kernelShape(layerNo).s}%d,")
-        pw.write(f"${cnn.inputTileSize(cnn.nLayers - 1)}%d,${cnn.inputTileStep(cnn.nLayers - 1)}%d,${cnn.elsPerThread(cnn.nLayers - 1)}%d," +
-          f"${cnn.kernelsPerGroup(1)}%d")
-        for (layerNo <- 0 until cnn.nLayers)
-          pw.write(f",${cnn.runTimes(layerNo)}%1.5f")
-        pw.write(",3\n")
-      }
-
-      for {
-        (liftBatch, targetBatch, batch_no) <-
-          (cnn.outputs.last.nonPadded, cnn.targets, 0 to cnn.targets.length).zipped.toList
-        (liftResult, targetResult, input_no) <- (liftBatch, targetBatch, 0 to targetBatch.length).zipped.toList
-        (liftRow, targetRow, row_no) <- (liftResult, targetResult, 0 to targetResult.length).zipped.toList
-        (liftElement, targetElement, el_no) <- (liftRow, targetRow, 0 to targetRow.length).zipped.toList
-      } {
+    var testFailed: Boolean = false
+    for {
+      (liftBatch, targetBatch, batch_no) <-
+        (cnn.outputs.last.nonPadded, cnn.targets, 0 to cnn.targets.length).zipped.toList
+      (liftResult, targetResult, input_no) <- (liftBatch, targetBatch, 0 to targetBatch.length).zipped.toList
+      (liftRow, targetRow, row_no) <- (liftResult, targetResult, 0 to targetResult.length).zipped.toList
+      (liftElement, targetElement, el_no) <- (liftRow, targetRow, 0 to targetRow.length).zipped.toList
+    } {
 //        logger.info(f"target $batch_no%d,$input_no%d,$row_no%d,$el_no%d:  " + targetElement.mkString(", "))
 //        logger.info(f"actual $batch_no%d,$input_no%d,$row_no%d,$el_no%d:  " + liftElement.mkString(", "))
-        var testFailed: Boolean = false
-        for {(liftElementKernel, targetElementKernel, elk_no) <-
-             (liftElement, targetElement, 0 to targetElement.length).zipped.toList} {
-          try {
+      for {(liftElementKernel, targetElementKernel, elk_no) <-
+           (liftElement, targetElement, 0 to targetElement.length).zipped.toList} {
+        try {
 //            assertArrayEquals(f"Batch $batch_no%d input $input_no%d row $row_no%d element $el_no%d: " +
 //              f"the lift output is different to the target output", targetElement, liftElement, precision)
-            assertEquals("", targetElementKernel, liftElementKernel, precision)
-          }
-          catch {
-            case e: AssertionError =>
-              logger.info(f"$batch_no%d,$input_no%d,$row_no%d,$el_no%d,$elk_no%d:  " +
-                          targetElementKernel + " != " + liftElementKernel)
-              testFailed = true
-          }
+          assertEquals("", targetElementKernel, liftElementKernel, precision)
         }
-        if (testFailed)
-          throw new AssertionError()
+        catch {
+          case e: AssertionError =>
+            logger.info(f"$batch_no%d,$input_no%d,$row_no%d,$el_no%d,$elk_no%d:  " +
+                        targetElementKernel + " != " + liftElementKernel)
+            testFailed = true
+        }
       }
-      noErrors = true
+    }
+    if (!testFailed)
       logger.info(f"SUCCESS. Processed ${cnn.nInputs}%d inputs, the results were equal to targets " +
         f"(precision=$precision%1.4f).")
-    }
-    finally {
+
+
+    /* JSON */
+    if (cnn.pathToResults != "") {
+      var pw: PrintWriter = null
       if (cnn.pathToResults != "") {
-        pw.close()
-        if (!noErrors)
-          new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputs)).delete()
+        val file = new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputs))
+        file.getParentFile.mkdirs()
+        pw = new PrintWriter(file)
       }
+      pw.write("device_name,n_batches,n_inputs," + {
+        for (layerNo <- 0 until cnn.nLayers) yield f"n_kernels_l$layerNo%d"
+      }.mkString(",") + "," + {
+        for (layerNo <- 0 until cnn.nLayers) yield f"kernel_size_l$layerNo%d"
+      }.mkString(",") + "," +
+        "input_tile_size_l1,input_tile_step_l1,els_per_thread_l1,kernels_per_group_l1," + {
+        for (layerNo <- 0 until cnn.nLayers) yield f"runtime_l$layerNo%d"
+      }.mkString(",") + ",tag\n")
+
+      pw.write(nn.deviceName + "," + f"${cnn.nBatches}%d,${cnn.nInputs}%d,")
+      for (layerNo <- 0 until cnn.nLayers)
+        pw.write(f"${cnn.nKernels(layerNo)}%d,")
+      for (layerNo <- 0 until cnn.nLayers)
+        pw.write(f"${cnn.kernelShape(layerNo).s}%d,")
+      pw.write(f"${cnn.inputTileSize(cnn.nLayers - 1)}%d,${cnn.inputTileStep(cnn.nLayers - 1)}%d," +
+        f"${cnn.elsPerThread(cnn.nLayers - 1)}%d,${cnn.kernelsPerGroup(1)}%d")
+      for (layerNo <- 0 until cnn.nLayers)
+        pw.write(f",${cnn.runTimes(layerNo)}%1.5f")
+      pw.write(",3\n")
+      pw.close()
+      if (!testFailed)
+        new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputs)).delete()
     }
+
+    /* SQL */
+    Connector.statement.execute("INSERT INTO lift_results " +
+      "(batches, images, imagesize, kernels_l0, kernels_l1, kernelsize_l0, kernelsize_l1, " +
+      "elsperthread_l0, elsperthread_l1, kernelspergroup_l0, kernelspergroup_l1, inputtilesize_l0, " +
+      "inputtilesize_l1, ran, success, runtime_l0, runtime_l1, experiment_id, datetime) " +
+      f"VALUES (${cnn.nBatches}%d, ${cnn.nInputs}%d, ${cnn.inputShape(0).s}%d, ${cnn.nKernels(0)}%d, " +
+      f"${cnn.nKernels(1)}%d, ${cnn.kernelShape(0).s}%d, ${cnn.kernelShape(1).s}, ${cnn.elsPerThread(0)}%d, " +
+      f"${cnn.elsPerThread(1)}%d, ${cnn.kernelsPerGroup(0)}%d, ${cnn.kernelsPerGroup(1)}%d, " +
+      f"${cnn.inputTileSize(0)}%d, ${cnn.inputTileSize(1)}%d, true, ${!testFailed}%b, ${cnn.runTimes(0)}%1.5f, " +
+      f"${cnn.runTimes(1)}%1.5f, $codeVersion%d, " +
+      f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now)}%s');")
+  }
+
+  def recordFailureInSQL(e: Exception): Unit = {
+    /* SQL */
+    Connector.statement.execute("INSERT INTO lift_results (ran, abort_reason) VALUES " +
+      "(false, '" + e.getClass.getSimpleName + ": " + e.getMessage + "')")
   }
 }

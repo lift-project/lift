@@ -488,6 +488,8 @@ class OpenCLGenerator extends Generator {
     }
     printedView += inlineView.substring(start, inlineView.length()) + ",\n" + "  " * level
     (block: Block) += OpenCLAST.Comment(msg + ":\n" + printedView)
+
+    generate(dpv.f.body, block)
   }
 
   // === Maps ===
