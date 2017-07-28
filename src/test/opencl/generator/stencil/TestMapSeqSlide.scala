@@ -748,4 +748,52 @@ class TestMapSeqSlide
 
   }
 
+  /** Tuple-rama **/
+
+  @Test
+  def zip1DTuple(): Unit = {
+
+    val size = 8
+    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+    val values2 = Array.tabulate(size) { (i) => (i*2 + 1).toFloat }
+
+    val n = SizeVar("N")+2
+
+    val lambda1DOriginal = fun(
+      (ArrayTypeWSWC(Float, n)),
+      (ArrayTypeWSWC(Float, n)),
+      (mat1, mat2) => {
+
+        toGlobal(MapSeq(addTuple))
+          //toGlobal(tf_id) o toPrivate((tf_id)) $ m.at(1)//`tile[1][1][1]`
+        } o PrintType() $ Zip(mat1, mat2))
+
+    val lambda1D = fun(
+      (ArrayTypeWSWC(Float, n)),
+      (ArrayTypeWSWC(Float, n)),
+      (mat1, mat2) => {
+
+        toGlobal(MapSeqSlide(fun(m => {
+
+          toGlobal(addTuple) $ m.at(1)//`tile[1][1][1]`
+          //toGlobal(id) o toPrivate((id)) $ m.at(1)//`tile[1][1][1]`
+
+        }),StencilUtilities.slidesize,StencilUtilities.slidestep))}
+
+          //toGlobal(tf_id) o toPrivate((tf_id)) $ m.at(1)//`tile[1][1][1]`
+          //toGlobal(id) o toPrivate((id)) $ m.at(1)//`tile[1][1][1]`
+
+        o PrintType() /*o Transpose() o Map(Transpose()) o*/$ Zip(mat1, mat2) /*Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)*/
+    )
+
+    println(Compile(lambda1D))
+
+    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1DOriginal,values,values2)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1D,values,values2)
+
+    assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
+
+  }
 }
+
+

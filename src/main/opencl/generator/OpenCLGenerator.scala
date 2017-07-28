@@ -1110,19 +1110,12 @@ class OpenCLGenerator extends Generator {
     val viewType = getNType(call.args.head.view, nDim)
     val windowSize = getWindowSize(size.eval, nDim)
 
-    val v = Value(0.0f, ArrayTypeWSWC(viewType, windowSize))
-    varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
-    privateMems = privateMems :+ TypedOpenCLMemory(OpenCLMemory(sSP.windowVar, windowSize, PrivateMemory), v.t)
-    val varD = OpenCLAST.VarDecl(sSP.windowVar, v.t,
-      init = null, PrivateMemory, windowSize)
-    privateDecls += (sSP.windowVar -> varD)
-    (block: Block) += varD
 
     def generateWindowVars(windowSize : Int, eType : Type) = {
 
        def genVars(eType : Type, prefix : String) : Any = {
          eType match {
-           case ScalarType(_,_) => Var(prefix)
+           case ScalarType(_,_) => Var(s"${OpenCLPrinter.toString(Type.getValueType(eType))} "+prefix)
            case ArrayTypeWSWC(eT, size : Cst, _) => for ( j <- 0 to size.eval-1) yield { genVars(eT,s"${prefix}_${j}") }
            case TupleType(elemTypes @ _*) => elemTypes.zipWithIndex.map( (x)  => genVars(x._1,s"${prefix}_${x._2}"))
            case _ =>  Var(s"ERROR") // TODO: add exception
@@ -1130,19 +1123,22 @@ class OpenCLGenerator extends Generator {
        }
 
         for ( i <- 0 to size.eval-1) yield {
-            genVars(eType,s"w_${i}")
+            genVars(eType,s"${sSP.windowVar.name}_${i}")
         }
     }
     // create the data structure
     val windowArray = generateWindowVars(size.eval,vType)
 
+    windowArray.foreach(println)
+
     // then print them all out
-    /*
-    for (i <- 0 until vd.length.toInt)
-      println(OpenCLPrinter.toString(Type.getValueType(vd.t)) + " " +
-        OpenCLPrinter.toString(vd.v) + "_" +
-        OpenCLPrinter.toString(i) + ";")
-    */
+    val v = Value(0.0f, ArrayTypeWSWC(viewType, windowSize))
+    varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
+    privateMems = privateMems :+ TypedOpenCLMemory(OpenCLMemory(sSP.windowVar, windowSize, PrivateMemory), v.t)
+    val varD = OpenCLAST.VarDecl(sSP.windowVar, v.t,
+      init = null, PrivateMemory, windowSize,windowArray)
+    privateDecls += (sSP.windowVar -> varD)
+    (block: Block) += varD
 
     def generateAssign(vars : Any, t : Type, v : View): Unit =
     {
@@ -1159,7 +1155,10 @@ class OpenCLGenerator extends Generator {
     // setup initial states
     // need to loop over this (0 should not be hardcoded) for all values previously initialised
     // and then also actually assign stuff to the values
-  //  generateAssign(windowArray(0),vType,call.args.head.view.access(0))
+    for(i <- 0 to size.eval-1) yield
+    {
+      generateAssign(windowArray(i), vType, call.args.head.view.access(i))
+    }
 
 
     // Add loop

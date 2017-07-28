@@ -7,6 +7,8 @@ import ir.view.AccessVar
 import opencl.generator.OpenCLAST._
 import opencl.ir._
 
+import scala.collection.mutable.ArrayBuffer
+
 object OpenCLPrinter {
   def apply() = new OpenCLPrinter
 
@@ -350,10 +352,20 @@ class OpenCLPrinter {
       vd.addressSpace match {
         case PrivateMemory =>
           if(vd.length > scala.Int.MaxValue) throw NotEvaluableToInt
-          for (i <- 0 until vd.length.toInt)
-            println(OpenCLPrinter.toString(Type.getValueType(vd.t)) + " " +
-              OpenCLPrinter.toString(vd.v) + "_" +
-              OpenCLPrinter.toString(i) + ";")
+            if(vd.names != null)
+              {
+                def printNames(seq : Any) : Unit = seq match {
+                  case s : Var => println(OpenCLPrinter.toString(s))
+                  case aB : ArrayBuffer[Var] => for(a <- aB) { printNames(a) }
+                }
+                for(i <- vd.names){ printNames(i) }
+              }
+            else {
+              for (i <- 0 until vd.length.toInt)
+                println(OpenCLPrinter.toString(Type.getValueType(vd.t)) + " " +
+                OpenCLPrinter.toString(vd.v) + "_" +
+                OpenCLPrinter.toString(i) + ";")
+            }
 
         case LocalMemory if vd.length != 0 =>
           val baseType = Type.getBaseType(vd.t)
