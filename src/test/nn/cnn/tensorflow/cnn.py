@@ -190,9 +190,9 @@ class CNN:
         :param kernel_shape:
         :return:
         """
-        if os.environ["LIFT_CNN_RESOURCES"] is None:
-            raise EnvironmentError("LIFT_CNN_RESOURCES is not set!")
-        return os.path.join(os.environ["LIFT_CNN_RESOURCES"],
+        if os.environ["LIFT_NN_RESOURCES"] is None:
+            raise EnvironmentError("LIFT_NN_RESOURCES is not set!")
+        return os.path.join(os.environ["LIFT_NN_RESOURCES"],
                             "experiment." + str(n_kernels[1]) + "." + str(kernel_shape[0]) + "." + str(image_shape[0]))
 
     @staticmethod

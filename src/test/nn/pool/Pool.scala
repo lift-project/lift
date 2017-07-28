@@ -24,8 +24,8 @@ object Pool {
   val n_batches_SV = SizeVar("n_batches_SV")
 
   /* Parallel layer */
-  def Par(activation_f: UserFun, input_shape: Shape, kernel_shape: Shape,
-          n_inputs: Int, n_batches: Int, n_in_channels: Int, n_out_channels: Int, tile: Tile): FunDecl = {
+  def Par(activation_f: UserFun, input_shape: Shape, kernel_shape: Shape, kernel_stride: Int,
+          n_inputs: Int, n_batches: Int, n_in_channels: Int, tile: Tile): FunDecl = {
     def AT = ArrayType // alias
 
     def Layer: FunDecl = λ(
@@ -38,17 +38,17 @@ object Pool {
               (nImages, nInputTilesPerDim * n_k_passes, nInputTilesPerDim * n_k_windows) ->
           *   (nImages, n_passes, n_windows) */
           Map(/*input*/Join() o Map(/*tile_row*/Map(Join()) o TransposeW())) o
-          Split(tile.nInputTilesPerDim) o Split(tile.nInputTilesPerDim) o
+          Split(tile.n_input_tiles_per_dim) o Split(tile.n_input_tiles_per_dim) o
           /*  (nImages * nInputTilesPerDim * nInputTilesPerDim, n_k_passes, n_k_windows) ->
            *  (nImages * nInputTilesPerDim * nInputTilesPerDim, n_k_passes, n_k_windows) */
           MapWrg(1)(λ(AT(AT(AT(AT(AT(Float, n_in_channels), kernel_shape.s), kernel_shape.s),
-            tile.n_windows_per_tile_per_dim), tile.n_windows_per_tile_per_dim),
+            tile.n_kwindows_per_tile_per_dim), tile.n_kwindows_per_tile_per_dim),
             (input_tile_to_wrap) => {
             Join() o MapWrg(2)(λ(AT(AT(AT(AT(AT(Float, n_in_channels), kernel_shape.s), kernel_shape.s),
-              tile.n_windows_per_tile_per_dim), tile.n_windows_per_tile_per_dim),
+              tile.n_kwindows_per_tile_per_dim), tile.n_kwindows_per_tile_per_dim),
               (input_tile) => {
                 /* (n_k_passes * n_k_windows) -> (n_k_passes, n_k_windows) */
-                Split(tile.n_windows_per_tile_per_dim) o
+                Split(tile.n_kwindows_per_tile_per_dim) o
                 MapLcl(0)(λ((pass_window) => {
                   Join() o MapLcl(1)(λ((input_channel) => {
                     ReduceWindow() o Join() o MapLcl(2)(PartiallyReduceWindow()) o
@@ -63,7 +63,7 @@ object Pool {
                   /* (n_passes, n_windows, n_rows) -> (n_passes*n_windows, n_rows) */
                   Join() $ input_tile
               })) o /* Wrap into an array of 1 element */
-              Split(tile.n_windows_per_tile_per_dim) $ input_tile_to_wrap
+              Split(tile.n_kwindows_per_tile_per_dim) $ input_tile_to_wrap
           })) $ inputs_batch
         })) o SlideX() $ X
       }
@@ -75,14 +75,14 @@ object Pool {
      * n_kernel_pass_strips_in_tile), n_tile_pass_windows * n_tile_pass_strips * n_inputs), n_batches) */
     def SlideX(): FunDecl =
       λ(AT(AT(AT(AT(AT(Float, n_in_channels), input_shape.wPadded), input_shape.hPadded), n_inputs), n_batches), (X) =>
-        Map(Join() o Map(Join() o TiledSlidedND(2)(kernel_shape.s, 1, tile.inputTileSlideStep))) $ X)
+        Map(Join() o Map(Join() o TiledSlidedND(2)(kernel_shape.s, kernel_stride, tile.input_tile_stride))) $ X)
 
     /* Computes a max of elsPerThread elements for each input channel separately
      * Returns:
      * AT(Float, 1) */
     def PartiallyReduceWindow(): FunDecl =
       λ(AT(Float, tile.els_per_thread), (tile_of_els) => {
-        MapSeq(toGlobal(id)) o ReduceSeq(max, toPrivate(id) $ 0.0f) $ tile_of_els})
+        MapSeq(toGlobal(id)) o ReduceSeq(activation_f, toPrivate(id) $ 0.0f) $ tile_of_els})
 
     /* Computes a max of all elements in the kernel window.
      * NB: Rows are already partially reduced by the factor of els_per_thread in PartiallyReduceWindow()
@@ -92,7 +92,7 @@ object Pool {
       λ(AT(Float, kernel_shape.s * kernel_shape.s / tile.els_per_thread),
         (partially_reduced_row_to_wrap) => {
         Join() o MapLcl(2)(λ((partially_reduced_row) => {
-          MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) $ partially_reduced_row
+          MapSeq(toGlobal(id)) o ReduceSeq(activation_f, 0.0f) $ partially_reduced_row
         })) o /* Wrap data into an array of 1 element */
         Split(kernel_shape.s * kernel_shape.s / tile.els_per_thread) $ partially_reduced_row_to_wrap
       })
@@ -101,36 +101,29 @@ object Pool {
   }
 }
 
-class Pool(/* CNN architectural parameters */
-           val liftCNN: (UserFun, Shape, Shape, Int, Int, Int, Int, Tile) => FunDecl,
+class Pool(/* Pool architectural parameters */
+           val liftPool: (UserFun, Shape, Shape, Int, Int, Int, Int, Tile) => FunDecl,
            val activationFun/*per layer*/: Array[UserFun],
-           /* CNN parallelisation parameters */
+           /* Pool parallelisation parameters */
            val elsPerThreadL1: Int,
-           val kernelsPerGroupL1: Int,
            val inputTileSizeL1: Int,
-           /* CNN application parameters */
+           /* Pool application parameters */
            val nLayers: Int, val nBatches: Int, val nInputs: Int,
-           val nKernels: Array[Int], val nInChannels: Array[Int],
-           val inputShape: Array[Shape], val kernelShape: Array[Shape],
-           /*val inputsL0: PaddedArray[Array5D[Float]], val kWeights: Array5D[Float],
-           val kBiases: Array2D[Float], val targets: Array5D[Float],*/
+           val nInChannels: Array[Int],
+           val inputShape: Array[Shape], val kernelShape: Array[Shape], val kernelStride: Array[Int],
            val pathToInputs: String, val pathToResults: String,
-           val loadDatasets: (Int, String) => (PaddedArray[Array5D[Float]], Array5D[Float],
-                                              Array2D[Float], Array5D[Float]),
-           val previousCNN: Pool) {
+           val loadDatasets: (Int, String) => (PaddedArray[Array5D[Float]], Array5D[Float]),
+           val previousPool: Pool) {
   /**
   * Initializes variables, computes workgroup sizes.
   */
   var outputShape: Array[Shape] = Array.fill[Shape](nLayers)(Shape())
 
-  var kernelStep: Array[Int] = Array.fill[Int](nLayers)(1)
-
-
   /* Tiles */
   var inputTileSize: Array[Int] = {for (layerNo <- 0 until nLayers) yield
     if (layerNo == 0 && nLayers > 1) kernelShape(layerNo).s else inputTileSizeL1 }.toArray
   var inputTileStep: Array[Int] = {for (layerNo <- 0 until nLayers) yield
-    inputTileSize(layerNo) - (kernelShape(layerNo).s - kernelStep(layerNo))}.toArray
+    inputTileSize(layerNo) - (kernelShape(layerNo).s - kernelStride(layerNo))}.toArray
   var nTilesPerDim: Array[Int] = Array.fill[Int](nLayers)(0)
   var nWindowsPerTilePerDim: Array[Int] = Array.fill[Int](nLayers)(0)
 
@@ -147,31 +140,32 @@ class Pool(/* CNN architectural parameters */
     inputShape(layerNo).wPadded = inputTileSize(layerNo) + inputTileStep(layerNo) * (nTilesPerDim(layerNo) - 1)
     inputShape(layerNo).hPadded = inputShape(layerNo).wPadded
     nWindowsPerTilePerDim(layerNo) = {
-      val n: Float = (inputTileSize(layerNo) - (kernelShape(layerNo).s - kernelStep(layerNo))).toFloat / kernelStep(layerNo)
-      if (n % 1 != 0) throw new java.lang.IllegalArgumentException("Input tiles are not divisible by the chosen " +
-        "kernelShape and kernelStep")
+      val n: Float = (inputTileSize(layerNo) -
+        (kernelShape(layerNo).s - kernelStride(layerNo))).toFloat / kernelStride(layerNo)
+      if (n % 1 != 0) throw new java.lang.IllegalArgumentException(
+        "Input tiles are not divisible by the chosen kernelShape and kernelStep")
       n.toInt
     }
 
     /* Output shape */
     outputShape(layerNo) = Shape(
-      w={val w: Float = (inputShape(layerNo).w - (kernelShape(layerNo).w - kernelStep(layerNo))).toFloat /
-        kernelStep(layerNo)
-        if (w % 1 != 0) throw new java.lang.IllegalArgumentException("Inputs are not divisible by the chosen " +
-          "kernelShape and kernelStep")
+      w={val w: Float = (inputShape(layerNo).w - (kernelShape(layerNo).w - kernelStride(layerNo))).toFloat /
+        kernelStride(layerNo)
+        if (w % 1 != 0) throw new java.lang.IllegalArgumentException(
+          "Inputs are not divisible by the chosen kernelShape and kernelStep")
         w.toInt
       },
-      h={val h: Float = (inputShape(layerNo).h - (kernelShape(layerNo).h - kernelStep(layerNo))).toFloat /
-        kernelStep(layerNo)
-        if (h % 1 != 0) throw new java.lang.IllegalArgumentException("Inputs are not divisible by the chosen " +
-          "kernelShape and kernelStep")
+      h={val h: Float = (inputShape(layerNo).h - (kernelShape(layerNo).h - kernelStride(layerNo))).toFloat /
+        kernelStride(layerNo)
+        if (h % 1 != 0) throw new java.lang.IllegalArgumentException(
+          "Inputs are not divisible by the chosen kernelShape and kernelStep")
         h.toInt
       },
-      ch=nKernels(layerNo),
-      wPadded=((inputShape(layerNo).wPadded - (kernelShape(layerNo).w - kernelStep(layerNo))).toFloat /
-        kernelStep(layerNo)).toInt,
-      hPadded=((inputShape(layerNo).hPadded - (kernelShape(layerNo).h - kernelStep(layerNo))).toFloat /
-        kernelStep(layerNo)).toInt)
+      ch=inputShape(layerNo).ch,
+      wPadded=((inputShape(layerNo).wPadded - (kernelShape(layerNo).w - kernelStride(layerNo))).toFloat /
+        kernelStride(layerNo)).toInt,
+      hPadded=((inputShape(layerNo).hPadded - (kernelShape(layerNo).h - kernelStride(layerNo))).toFloat /
+        kernelStride(layerNo)).toInt)
   }
 
 
@@ -182,59 +176,55 @@ class Pool(/* CNN architectural parameters */
   /* Parallelization parameters */
   val elsPerThread: Array[Int] = Array.fill[Int](nLayers)(1)
   elsPerThread(nLayers - 1) = elsPerThreadL1
-  val kernelsPerGroup: Array[Int] = Array.fill[Int](nLayers)(4)
-  kernelsPerGroup(nLayers - 1) = kernelsPerGroupL1
   val localSize: Array[Array[Int]] = Array.fill[Array[Int]](3)(Array.fill[Int](nLayers)(0))
   val globalSize: Array[Array[Int]] = Array.fill[Array[Int]](3)(Array.fill[Int](nLayers)(0))
 
   for (layerNo <- 0 until nLayers) {
     /* Check parameters */
-    if (nKernels(layerNo) % kernelsPerGroup(layerNo) != 0)
+    if (inputShape(layerNo).s < kernelShape(layerNo).s)
       throw new java.lang.IllegalArgumentException(
-        f"The number of kernels in layer $layerNo%d (=${nKernels(layerNo)}%d) must be divisible by kernelsPerGroup " +
-          f"(=${kernelsPerGroup(layerNo)}%d)")
+        f"The kernel size in layer $layerNo%d (=${kernelShape(layerNo).s}%d) must be smaller than the image size " +
+        f"(=${inputShape(layerNo).s}%d)")
+
     if (kernelShape(layerNo).s % elsPerThread(layerNo) != 0)
       throw new java.lang.IllegalArgumentException(
         f"Kernel size in all dimensions (=${kernelShape(layerNo).s}%d) must be divisible by elsPerThread " +
-          f"(=${elsPerThread(layerNo)}%d)")
+        f"(=${elsPerThread(layerNo)}%d)")
 
 
     /* Compute local sizes */
-    // Local size 0 =
-    localSize(0)(layerNo) = (kernelsPerGroup(layerNo) *
-      Math.ceil(kernelShape(layerNo).s.toFloat / elsPerThread(layerNo))).toInt
 
-    // Local size 1 =
-    localSize(1)(layerNo) = scala.math.pow((inputTileSize(layerNo) - (kernelShape(layerNo).s - 1)) /
-      kernelStep(layerNo), 2).toInt
+    // Local size 0
+    localSize(0)(layerNo) = scala.math.pow(nWindowsPerTilePerDim(layerNo), 2).toInt
 
-    // Local size 2 = height of the convolutional window
-    localSize(2)(layerNo) = kernelShape(layerNo).h
+    // Local size 1
+    localSize(1)(layerNo) = inputShape(layerNo).s
+
+    // Local size 2
+    localSize(2)(layerNo) = Math.ceil(scala.math.pow(kernelShape(layerNo).s, 2).toFloat / elsPerThread(layerNo)).toInt
 
     {
       val groupSize: Int = localSize(0)(layerNo) * localSize(1)(layerNo) * localSize(2)(layerNo)
         if (groupSize > nn.maxWorkGroupSize)
         throw new java.lang.IllegalArgumentException(
           f"Layer $layerNo%d group size (==$groupSize%d) must be less or equal to maxWorkGroupSize " +
-            f"(${nn.maxWorkGroupSize}%d).\nDecrease nKernels or inputTileSize or increase elsPerThread " +
+            f"(${nn.maxWorkGroupSize}%d).\nDecrease inputTileSize or increase elsPerThread " +
             f"(${elsPerThread(layerNo)}%d).")
     }
 
     /* Compute global sizes */
-    globalSize(0)(layerNo) = localSize(0)(layerNo) * nInputs * nTilesPerDim(layerNo) * nTilesPerDim(layerNo)
-    globalSize(1)(layerNo) = localSize(1)(layerNo) * nBatches
-    globalSize(2)(layerNo) = localSize(2)(layerNo) *
-      Math.ceil(nKernels(layerNo).toFloat / kernelsPerGroup(layerNo)).toInt
+    globalSize(0)(layerNo) = localSize(0)(layerNo) * nBatches
+    globalSize(1)(layerNo) = localSize(1)(layerNo) * nInputs * nTilesPerDim(layerNo) * nTilesPerDim(layerNo)
+    globalSize(2)(layerNo) = localSize(2)(layerNo) * 1
   }
 
   /* Data: if all checks above succeeded, load the data */
   var outputs: Array[PaddedArray[Array5D[Float]]] = _
   var inputs: Array[PaddedArray[Array5D[Float]]] = _
-  var (inputsL0: PaddedArray[Array5D[Float]], kWeights: Array5D[Float],
-       kBiases: Array2D[Float], targets: Array5D[Float]) = {
-    if (previousCNN != null && previousCNN.nInputs == nInputs && previousCNN.pathToResults == pathToResults)
+  var (inputsL0: PaddedArray[Array5D[Float]], targets: Array5D[Float]) = {
+    if (previousPool != null && previousPool.nInputs == nInputs && previousPool.pathToResults == pathToResults)
       // Avoid loading the same data
-      (previousCNN.inputsL0, previousCNN.kWeights, previousCNN.kBiases, previousCNN.targets)
+      (previousPool.inputsL0, previousPool.targets)
     else
       loadDatasets(nInputs, pathToInputs)
   }

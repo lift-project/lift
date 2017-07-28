@@ -20,6 +20,7 @@ object TestCNN {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init(/*monaco*/0, 0)
+    nn.cnn.mysql.CreateTable
   }
 
   @AfterClass def after(): Unit = {
@@ -95,7 +96,7 @@ class TestCNN {
       * already run or for which the data was not provided; load data for all experiments
       */
 
-    var cnn: CNN = null
+    var aCNN: CNN = null
     val nLayers: Int = 2
     val nBatches: Int = 2
     for {
@@ -123,14 +124,14 @@ class TestCNN {
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
         try {
-          cnn = new CNN(CNN.Par, Array(nn.ReLU, nn.ReLU), elsPerThreadL1, kernelsPerGroupL1, inputTileSize,
+          aCNN = new CNN(CNN.Par, Array(nn.ReLU, nn.ReLU), elsPerThreadL1, kernelsPerGroupL1, inputTileSize,
             nLayers, nBatches, nInputs, Array(16, nKernelsL1), Array(1, 16),
             {
               val inputShape: Array[Shape] = Array.fill[Shape](nLayers)(Shape())
               inputShape(0) = Shape(w=imageSize, h=imageSize, ch=1)
               inputShape
             }, {for (_ <- 0 until nLayers) yield Shape(w=kernelSize, h=kernelSize)}.toArray,
-            pathToInputs, pathToResults, Experiment.loadDatasets, cnn)
+            pathToInputs, pathToResults, Experiment.loadDatasets, aCNN)
 //          logger.info(f"Prepared the experiment (nKernelsL1=$nKernelsL1%d, " +
 //            f"inputTileSize=$inputTileSize%d, elsPerThreadL1=$elsPerThreadL1%d, " +
 //            f"kernelsPerGroupL1=$kernelsPerGroupL1%d,\nkernelSize=$kernelSize%d, " +
@@ -152,7 +153,7 @@ class TestCNN {
       }
     } {
       try {
-        singleTest(cnn)
+        singleTest(aCNN)
       } catch {
         case e: opencl.executor.Executor.ExecutorFailureException =>
           logger.warn("EXCEPTION: opencl.executor.Executor.ExecutorFailureException")
@@ -180,7 +181,7 @@ class TestCNN {
       f"nBatches=${cnn.nBatches}%d, nInputs=${cnn.nInputs}%d, " +
       f"imageSize=${cnn.inputShape(0).s}%d).")
 
-    val now = Calendar.getInstance().getTime()
+    val now = Calendar.getInstance().getTime
 
     for (layerNo <- 0 until cnn.nLayers) {
       cnn.updateInputs(layerNo)
@@ -205,7 +206,7 @@ class TestCNN {
       /* Group and unpad */
       cnn.outputs = {
         def getShapedOutputs = nn.group(outputFlat, (cnn.nBatches, cnn.nInputs, cnn.outputShape(layerNo).hPadded,
-          cnn.outputShape(layerNo).wPadded, cnn.nKernels(layerNo))).map(
+          cnn.outputShape(layerNo).wPadded, cnn.outputShape(layerNo).ch)).map(
           batch => batch.map(
             input => input.map(
               row => row.slice(0, cnn.outputShape(layerNo).wNonPadded)
@@ -276,14 +277,14 @@ class TestCNN {
         f"${cnn.elsPerThread(cnn.nLayers - 1)}%d,${cnn.kernelsPerGroup(1)}%d")
       for (layerNo <- 0 until cnn.nLayers)
         pw.write(f",${cnn.runTimes(layerNo)}%1.5f")
-      pw.write(",3\n")
+      pw.write(f",$codeVersion\n")
       pw.close()
       if (!testFailed)
         new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputs)).delete()
     }
 
     /* SQL */
-    Connector.statement.execute("INSERT INTO lift_results " +
+    Connector.statement.execute("INSERT INTO lift_results_cnn " +
       "(batches, images, imagesize, kernels_l0, kernels_l1, kernelsize_l0, kernelsize_l1, " +
       "elsperthread_l0, elsperthread_l1, kernelspergroup_l0, kernelspergroup_l1, inputtilesize_l0, " +
       "inputtilesize_l1, ran, success, runtime_l0, runtime_l1, experiment_id, datetime) " +
@@ -297,7 +298,7 @@ class TestCNN {
 
   def recordFailureInSQL(e: Exception): Unit = {
     /* SQL */
-    Connector.statement.execute("INSERT INTO lift_results (ran, abort_reason) VALUES " +
+    Connector.statement.execute("INSERT INTO lift_results_cnn (ran, abort_reason) VALUES " +
       "(false, '" + e.getClass.getSimpleName + ": " + e.getMessage + "')")
   }
 }

@@ -98,7 +98,7 @@ package object cnn {
 
     def getPathToInputs(nKernelsL0: Int, kernelShape: Shape, imageShape: Shape): String = {
       {
-        val envPath = System.getenv("LIFT_CNN_RESOURCES")
+        val envPath = System.getenv("LIFT_NN_RESOURCES")
         if (envPath != null) envPath else cnnDir
       } + f"/experiment.$nKernelsL0%d.${kernelShape.w}%d.${imageShape.h}%d"
     }
