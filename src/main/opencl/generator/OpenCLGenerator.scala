@@ -1115,7 +1115,7 @@ class OpenCLGenerator extends Generator {
 
        def genVars(eType : Type, prefix : String) : Any = {
          eType match {
-           case ScalarType(_,_) => Var(s"${OpenCLPrinter.toString(Type.getValueType(eType))} "+prefix)
+           case ScalarType(_,_) => MSVar(eType.toString()+" "+prefix)
            case ArrayTypeWSWC(eT, size : Cst, _) => for ( j <- 0 to size.eval-1) yield { genVars(eT,s"${prefix}_${j}") }
            case TupleType(elemTypes @ _*) => elemTypes.zipWithIndex.map( (x)  => genVars(x._1,s"${prefix}_${x._2}"))
            case _ =>  Var(s"ERROR") // TODO: add exception
