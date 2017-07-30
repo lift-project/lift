@@ -218,7 +218,7 @@ class OpenCLGenerator extends Generator {
 
     tupleTypes.foreach(globalBlock += OpenCLAST.TypeDef(_))
 
-    // pass 2: find and generate user and group functions
+    // pass 2: find and generate user functions
     generateUserFunctions(f.body).foreach(globalBlock += _)
 
     // pass 3: generate the

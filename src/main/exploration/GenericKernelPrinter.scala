@@ -10,7 +10,7 @@ import ir.ast.{Expr, FunCall, Lambda}
 import ir.{Type, TypeChecker}
 import lift.arithmetic._
 import opencl.executor.Eval
-import opencl.generator.NDRange
+import opencl.generator.{NDRange, OpenCLGenerator}
 import opencl.ir.pattern._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
@@ -185,8 +185,9 @@ object GenericKernelPrinter {
                       TypeChecker(expr)
 
                   val kernel = opencl.executor.Compile(expr)
-                  if(low_level_hash == "974323ee359506c482e957a975b7837f54f1e0f25b23b2d0b1fa1b061aacfc6a")
+                  if(low_level_hash == "974323ee359506c482e957a975b7837f54f1e0f25b23b2d0b1fa1b061aacfc6a") {
                     println(kernel)
+                  }
 
                 } catch {
                   case t: Throwable =>
