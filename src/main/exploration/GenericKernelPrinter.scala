@@ -185,9 +185,9 @@ object GenericKernelPrinter {
                       TypeChecker(expr)
 
                   val kernel = opencl.executor.Compile(expr)
-                  if(low_level_hash == "974323ee359506c482e957a975b7837f54f1e0f25b23b2d0b1fa1b061aacfc6a") {
+                  //if(low_level_hash == "974323ee359506c482e957a975b7837f54f1e0f25b23b2d0b1fa1b061aacfc6a") {
                     println(kernel)
-                  }
+                  //}
 
                 } catch {
                   case t: Throwable =>

@@ -327,7 +327,10 @@ class OpenCLGenerator extends Generator {
     val allVars = Kernel.memory.map(_.mem.size.varList)
       .filter(_.nonEmpty).flatten.distinct
     // partition into iteration variables and all others variables
-    val (iterateVars, vars) = allVars.partition(_.name == Iterate.varName)
+    val (iterateVars, otherVars) = allVars.partition(_.name == Iterate.varName)
+
+    // filter out tuning parameters to not have them as kernel args
+    val vars = otherVars.filter(!_.isInstanceOf[TuningParameter])
 
     val attribute =
       if (localSize.forall(_.isEvaluable) &&
