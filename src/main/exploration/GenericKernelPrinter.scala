@@ -6,16 +6,14 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.Logger
 import exploration.ExpressionFilter.Status.Success
-import exploration.ParameterSearch.SubstitutionMap
 import ir.ast.{Expr, FunCall, Lambda}
 import ir.{Type, TypeChecker}
-import lift.arithmetic.{?, ArithExpr, Cst, Var}
+import lift.arithmetic._
 import opencl.executor.Eval
 import opencl.generator.NDRange
 import opencl.ir.pattern._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
-import rewriting.InferNDRange
 import rewriting.utils.Utils
 
 import scala.collection.immutable.Map
@@ -181,13 +179,13 @@ object GenericKernelPrinter {
 
                   def countSubstring( str:String, substr:String ) = substr.r.findAllMatchIn(str).length
                   val number = countSubstring(low_level_str, "variables") - 3
-                  val vars = Seq.fill(number)(Var("TUNE_ME"))
+                  val vars = Seq.fill(number)(TuningParameter())
 
                   val expr = low_level_factory(/*sizesForFilter ++*/ Seq(Var("M"), Var("N")) ++ vars)
                       TypeChecker(expr)
 
                   val kernel = opencl.executor.Compile(expr)
-                  //if(low_level_hash == "974323ee359506c482e957a975b7837f54f1e0f25b23b2d0b1fa1b061aacfc6a")
+                  if(low_level_hash == "974323ee359506c482e957a975b7837f54f1e0f25b23b2d0b1fa1b061aacfc6a")
                     println(kernel)
 
                 } catch {
