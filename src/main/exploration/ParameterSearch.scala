@@ -48,6 +48,19 @@ object ParameterSearch {
       substitutions :: table
   }
 
+  def getTunableSplitsAndSlides(lambda: Lambda) = {
+     // find all the nodes using variables
+    val tunableNodes = Utils.findTunableNodes(lambda)
+
+    // from that, isolate only the splits/slides
+    tunableNodes.collect({
+      case FunCall(Split(cs), x) => (cs, x.t.asInstanceOf[ArrayType with Size].size)
+        // step has to divide len - (size - step)
+      case FunCall(Slide(size, step), x) => (step, x.t.asInstanceOf[ArrayType with Size].size - (size-step))
+      case FunCall(Gather(ReorderWithStride(s)), x) if s.isInstanceOf[Var] => (s, x.t.asInstanceOf[ArrayType with Size].size)
+    })
+  }
+
   /**
    * Return all the possible parameter sets for a given expression.
    *
@@ -55,17 +68,7 @@ object ParameterSearch {
    * @return Table of valid substitutions.
    */
   def apply(lambda: Lambda): SubstitutionTable = {
-    // find all the nodes using variables
-    val tunableNodes = Utils.findTunableNodes(lambda)
-
-    // from that, isolate only the splits/slides
-    val splits = tunableNodes.collect({
-      case FunCall(Split(cs), x) => (cs, x.t.asInstanceOf[ArrayType with Size].size)
-        // step has to divide len - (size - step)
-      case FunCall(Slide(size, step), x) => (step, x.t.asInstanceOf[ArrayType with Size].size - (size-step))
-      case FunCall(Gather(ReorderWithStride(s)), x) if s.isInstanceOf[Var] => (s, x.t.asInstanceOf[ArrayType with Size].size)
-    })
-
-    substitute(splits, Map.empty, List.empty)
+    val splitsAndSlides = getTunableSplitsAndSlides(lambda)
+    substitute(splitsAndSlides, Map.empty, List.empty)
   }
 }
