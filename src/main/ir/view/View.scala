@@ -286,7 +286,7 @@ private[view] case class ViewConstant(value: Value, override val t: Type) extend
  * @param name Name of the memory object/array.
  * @param t Type of the view.
  */
-private[view] case class ViewMem(name: String, override val t: Type) extends View(t)
+private[view] case class ViewMem(name: Either[Var,String], override val t: Type) extends View(t)
 
 /**
  * A view for accessing another view at position `i`.
@@ -450,10 +450,13 @@ object View {
    * Create new view based on the given type
    *
    * @param t The type of the view.
-   * @param name A name for the array.
+   * @param v A name for the array.
    * @return
    */
-  def apply(t: Type, name: String): View = ViewMem(name, t)
+  def apply(t: Type, v: Var): View = ViewMem(Left(v), t)
+
+  def apply(t: Type, name: String): View =
+    ViewMem(Right(name), t)
 
   private[view] def tuple(ivs: View*) = ViewTuple(ivs, TupleType(ivs.map(_.t): _*))
 
@@ -464,7 +467,7 @@ object View {
    */
   def apply(lambda: Lambda): Unit = {
    lambda.params.foreach((p) => {
-      p.view = View(p.t, OpenCLPrinter.toString(p.mem.variable))
+      p.view = View(p.t, p.mem.variable)
     })
     View(lambda.body)
   }
@@ -487,10 +490,10 @@ object View {
     })
   }
 
-  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], name: String = ""): View = {
+  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], v: Var = Var("dummy")): View = {
     // Use the lengths and iteration vars to mimic inputs
     val outArray = getFullType(t, outputAccessInf)
-    val outView = View(outArray, name)
+    val outView = View(outArray, v)
     outputAccessInf.foldRight(outView)((inf, view) => view.access(inf._2))
   }
 
@@ -517,10 +520,10 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
                        arrayAccessStack: List[ArithExpr],
                        tupleAccessStack: List[Int]): Expression = {
     sv match {
-      case _: ViewMem =>
+      case vm :  ViewMem =>
         assert(tupleAccessStack.isEmpty)
         val index = aggregateAccesses(0, v, sv.t, arrayAccessStack, tupleAccessStack)
-        VarRef(v, arrayIndex = ArithExpression(index))
+        VarRef(vm.name match { case Left(vv) => vv; case Right(_) => v } , arrayIndex = ArithExpression(index))
 
       case access: ViewAccess =>
         emitView(v, access.iv, access.i :: arrayAccessStack, tupleAccessStack)
@@ -551,7 +554,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         
         val indirection = newIdx match {
           case VarRef(_, _, index) =>
-            AccessVar(ViewPrinter.getViewMem(filter.ids).name, index)
+            AccessVar(ViewPrinter.getViewMem(filter.ids).name.asInstanceOf[String], index)
           case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
 

@@ -237,9 +237,9 @@ object OutputView {
   private def buildViewSearch(s: AbstractSearch,
                               call:FunCall, writeView:View) :View = {
     visitAndBuildViews(call.args.head,
-      View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable.name))
+      View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable))
     visitAndBuildViews(s.f.body, writeView.access(Cst(0)))
-    View.initialiseNewView(call.args(1).t, call.outputDepth, call.mem.variable.name)
+    View.initialiseNewView(call.args(1).t, call.outputDepth, call.mem.variable)
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {
@@ -306,6 +306,6 @@ object OutputView {
     // TODO: Not right. See TestTail.tailBetweenMapsScatterAfter and
     // TODO: TestTail.tailBetweenMapsScatterBeforeAndAfter. Not sure how to fix.
     View.initialiseNewView(funCall.args.head.t, funCall.outputDepth,
-      funCall.mem.variable.name)
+      funCall.mem.variable)
   }
 }

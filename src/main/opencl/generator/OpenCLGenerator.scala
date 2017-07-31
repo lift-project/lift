@@ -1110,21 +1110,20 @@ class OpenCLGenerator extends Generator {
     val viewType = getNType(call.args.head.view, nDim)
     val windowSize = getWindowSize(size.eval, nDim)
 
-
     def generateWindowVars(windowSize : Int, eType : Type) = {
 
-       def genVars(eType : Type, prefix : String) : Any = {
+       def genSeqVars(eType : Type, prefix : String) : Any  = {
          eType match {
-           case ScalarType(_,_) => MSVar(eType.toString()+" "+prefix)
-           case ArrayTypeWSWC(eT, size : Cst, _) => for ( j <- 0 to size.eval-1) yield { genVars(eT,s"${prefix}_${j}") }
-           case TupleType(elemTypes @ _*) => elemTypes.zipWithIndex.map( (x)  => genVars(x._1,s"${prefix}_${x._2}"))
-           case _ =>  Var(s"ERROR") // TODO: add exception
+           case ScalarType(_,_) => Tuple2(eType,Var(prefix))
+           case ArrayTypeWSWC(eT, size : Cst, _) => for ( j <- 0 to size.eval-1) yield { genSeqVars(eT,s"${prefix}_${j}")}
+           case TupleType(elemTypes @ _*) => elemTypes.zipWithIndex.map( (x)  => genSeqVars(x._1,s"${prefix}_${x._2}"))
+           case _ =>  Tuple2("ERROR",Var("ERROR")) // TODO: add exception
          }
        }
 
-        for ( i <- 0 to size.eval-1) yield {
-            genVars(eType,s"${sSP.windowVar.name}_${i}")
-        }
+       for ( i <- 0 to size.eval-1) yield {
+          genSeqVars(eType,s"${sSP.windowVar.name}_${i}")
+       }
     }
     // create the data structure
     val windowArray = generateWindowVars(size.eval,vType)
@@ -1144,7 +1143,7 @@ class OpenCLGenerator extends Generator {
     {
       t match {
         case ScalarType(_,_) =>
-          (block: Block) += AssignmentExpression(VarRef(vars.asInstanceOf[Var]), ViewPrinter.emit(inputMem.variable,v))
+          (block: Block) += AssignmentExpression(VarRef(vars.asInstanceOf[Tuple2[Type,Var]]._2), ViewPrinter.emit(inputMem.variable,v))
         case ArrayTypeWSWC(eT, size : Cst, _) => vars.asInstanceOf[IndexedSeq[Any]].zipWithIndex.foreach( x => generateAssign(x._1,eT,v.access(x._2)))
         case TupleType(elemTypes @ _*) =>
           elemTypes.zip(vars.asInstanceOf[IndexedSeq[Any]]).zipWithIndex.map( (x) => generateAssign(x._1._2,x._1._1,v.get(x._2)))
@@ -1157,7 +1156,14 @@ class OpenCLGenerator extends Generator {
     // and then also actually assign stuff to the values
     for(i <- 0 to size.eval-1) yield
     {
-      generateAssign(windowArray(i), vType, call.args.head.view.access(i))
+        generateAssign(windowArray(i), vType, call.args.head.view.access(i))
+          /*
+          windowArray(i) match {
+          case Tuple2[String,Var] => generateAssign(i._1, vType, call.args.head.view.access(i))
+          case Seq[_] =>
+          }
+          */
+
     }
 
 

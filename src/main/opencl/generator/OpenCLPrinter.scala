@@ -355,8 +355,9 @@ class OpenCLPrinter {
             if(vd.names != null)
               {
                 def printNames(seq : Any) : Unit = seq match {
-                  case v : MSVar => println(v + ";")
-                  case aB : ArrayBuffer[Var] => for(a <- aB) { printNames(a) }
+                  case v : Tuple2[Type,Var] => println(OpenCLPrinter.toString(v._1) + " " + OpenCLPrinter.toString(v._2) +";")
+                  case aB : ArrayBuffer[_] => for(a <- aB) { printNames(a) }
+                  case s : Seq[_] => for(a <- s) { printNames(a) }
                 }
                 for(i <- vd.names){ printNames(i) }
               }
