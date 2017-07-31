@@ -185,17 +185,41 @@ object GenericKernelPrinter {
                   val expr = low_level_factory(vars ++ tuningParameters)
                       TypeChecker(expr)
 
-                  val allTuningParams = ParameterSearch.getTunableSplitsAndSlides(expr).filter(_._1.isInstanceOf[TuningParameter])
 
                   val kernel = opencl.executor.Compile(expr)
+
+                  def replaceOCLFunctions(kernel: String, fun: String, tuningParameter: String): String = {
+                    kernel.replaceAll(
+                      fun + """\(0\)""", s"""${tuningParameter}_0""").replaceAll(
+                      fun + """\(1\)""", s"""${tuningParameter}_1""").replaceAll(
+                      fun + """\(2\)""", s"""${tuningParameter}_2""")
+                  }
+
+                  def introduceOCLTuningParameters(kernel: String): String = {
+                    val global_size = replaceOCLFunctions(kernel, "get_global_size", "GLOBAL_SIZE")
+                    val local_size = replaceOCLFunctions(global_size, "get_local_size", "LOCAL_SIZE")
+                    replaceOCLFunctions(local_size, "get_num_groups", "NUM_GROUPS")
+                  }
+
+                  val genericKernel = introduceOCLTuningParameters(kernel)
                   //if(low_level_hash == "974323ee359506c482e957a975b7837f54f1e0f25b23b2d0b1fa1b061aacfc6a") {
-                    println(kernel)
+                  //  println(genericKernel)
                   //}
+
+                  val allTuningParams = ParameterSearch.getTunableSplitsAndSlides(expr).filter(_._1.isInstanceOf[TuningParameter])
+                  val sb = new java.lang.StringBuilder
+                  allTuningParams.foreach(x => {
+                    sb.append(s"""#atf::tp name \"${x._1.toString}\" type \"int\" range \"atf::interval<int>(1,N)\" constraint \"atf::divides(${x._2})\"\n""")
+                  })
+                  val kernelWithTPs = sb.toString + "\n" + kernel
+                  println(kernelWithTPs)
+
 
                 } catch {
                   case t: Throwable =>
                     // Failed reading file or similar.
-                    logger.warn(t.toString)
+                    //logger.warn(t.toString)
+                    println(s"failed: ${t.toString}")
                 } //&& substitutionCount < 800000
               })
               println(s"\nGenerated $kernelCounter kernels")
