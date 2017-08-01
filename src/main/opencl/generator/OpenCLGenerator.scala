@@ -1157,8 +1157,6 @@ class OpenCLGenerator extends Generator {
         generateAssign(windowArray(i), vType, call.args.head.view.access(i))
     }
 
-
-
     // Add loop
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + 1))
     val innerBlock = OpenCLAST.Block(Vector.empty)
@@ -1171,9 +1169,9 @@ class OpenCLGenerator extends Generator {
         case ScalarType(_,_) =>
           innerBlock += AssignmentExpression(VarRef(vars.asInstanceOf[Tuple2[Type,Var]]._2), ViewPrinter.emit(inputMem.variable, v))
           //innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, getViewIncrement(call.args.head.view,indexVar,accesses)))
-        case ArrayTypeWSWC(eT, size : Cst, _) => vars.asInstanceOf[IndexedSeq[Any]].zipWithIndex.foreach( x => generateAssign(x._1,eT,v.access(x._2)))
+        case ArrayTypeWSWC(eT, size : Cst, _) => vars.asInstanceOf[IndexedSeq[Any]].zipWithIndex.foreach( x => generateWindowUpdates(x._1,eT,v.access(x._2)))
         case TupleType(elemTypes @ _*) =>
-          elemTypes.zip(vars.asInstanceOf[IndexedSeq[Any]]).zipWithIndex.map( (x) => generateAssign(x._1._2,x._1._1,v.get(x._2)))
+          elemTypes.zip(vars.asInstanceOf[IndexedSeq[Any]]).zipWithIndex.map( (x) => generateWindowUpdates(x._1._2,x._1._1,v.get(x._2)))
         case _ =>  println("ERROR") // TODO: add exception
       }
     }
@@ -1184,11 +1182,7 @@ class OpenCLGenerator extends Generator {
       }
 
     generateBody(innerBlock)
-    /*
-    */
 
-    // swap window variables
-    /*
     // window values are swapped at the end of the loop
     def swapWindowVars(idx: Int, n: Int): Unit = n match {
       case 1 => for (j <- 1 to reuse.eval) {
@@ -1198,8 +1192,25 @@ class OpenCLGenerator extends Generator {
       case _ => for (i <- 0 to size.eval - 1) { swapWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1) }
     }
 
-    swapWindowVars(0,nDim)
-    */
+    def swapWindowValues(preVars : Any, vars : Any, t : Type, v : View): Unit =
+    {
+      t match {
+        case ScalarType(_,_) =>
+          innerBlock += AssignmentExpression(VarRef(preVars.asInstanceOf[Tuple2[Type,Var]]._2),VarRef(vars.asInstanceOf[Tuple2[Type,Var]]._2 ))
+        case ArrayTypeWSWC(eT, size : Cst, _) =>
+          preVars.asInstanceOf[IndexedSeq[Any]].zip(vars.asInstanceOf[IndexedSeq[Any]]).zipWithIndex.foreach( x => swapWindowValues(x._1._1,x._1._2,eT,v.access(x._2)))
+        case TupleType(elemTypes @ _*) =>
+          elemTypes.zip(preVars.asInstanceOf[IndexedSeq[Any]]).zip(vars.asInstanceOf[IndexedSeq[Any]]).zipWithIndex.map( (x) => swapWindowValues(x._1._1._2,x._1._2,x._1._1._1,v.get(x._2)))
+        case _ =>  println("ERROR") // TODO: add exception
+      }
+    }
+
+    for(i <- 1 to reuse.eval) yield
+    {
+        // need to pass the original and the next one in line:
+        swapWindowValues(windowArray(i-1),windowArray(i), vType, call.args.head.view.access(i+indexVar))
+    }
+
   }
 
   private def generateForLoop(block: Block,

@@ -149,8 +149,8 @@ class TestMapSeqSlide
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
+    println(Compile(MapSeqSlideHelpers.stencil1D(slidesize, slidestep)))
     val (output : Array[Float], _) = Execute(2, 2)(MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
-  println(Compile(MapSeqSlideHelpers.stencil1D(slidesize, slidestep)))
     assertArrayEquals(gold, output, 0.1f)
 
   }
