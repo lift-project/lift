@@ -1152,83 +1152,43 @@ class OpenCLGenerator extends Generator {
     }
 
     // setup initial states
-    // need to loop over this (0 should not be hardcoded) for all values previously initialised
-    // and then also actually assign stuff to the values
-    for(i <- 0 to size.eval-1) yield
+    for(i <- 0 to reuse.eval-1) yield
     {
         generateAssign(windowArray(i), vType, call.args.head.view.access(i))
-          /*
-          windowArray(i) match {
-          case Tuple2[String,Var] => generateAssign(i._1, vType, call.args.head.view.access(i))
-          case Seq[_] =>
-          }
-          */
-
     }
+
 
 
     // Add loop
-
-    // update variables
-
-    // do function
-
-    // swap window variables
-
-/*
-    var accesses: Array[Int] = Array.fill(nDim)(0) // cannot do a direct access-on-access because the ordering is wrong
-
-    def getView(v: View, accesses: Array[Int]): View = {
-      var viewReturn = v
-      for (i <- 0 to accesses.length - 1) {
-        viewReturn = viewReturn.access(accesses(i))
-      }
-      viewReturn
-    }
-
-    // initial window values are set
-    def setupInitialWindowVars(idx: Int, n: Int, accesses: Array[Int]): Unit = n match {
-      case 1 => for (j <- 0 to reuse.eval - 1) {
-         accesses(n - 1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, getView(call.args.head.view, accesses)))
-      }
-      case _ => for (i <- 0 to size.eval - 1) {
-        accesses(n - 1) = i; setupInitialWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
-      }
-    }
-
-    setupInitialWindowVars(0,nDim, accesses)
-
-    // window values get updated at the start of the loop
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + 1))
     val innerBlock = OpenCLAST.Block(Vector.empty)
     (block: Block) += OpenCLAST.ForLoop(VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory), ExpressionStatement(cond), increment, innerBlock)
 
-    def getViewIncrement(v: View, idx: Var, accesses : Array[Int]) : View =
+    // window values get updated at the start of the loop
+    def generateWindowUpdates(vars : Any, t : Type, v : View): Unit =
     {
-      var viewReturn = v
-      var idxToAdd : ArithExpr = 0
-      for(i <- 0 to accesses.length-1)
+      t match {
+        case ScalarType(_,_) =>
+          innerBlock += AssignmentExpression(VarRef(vars.asInstanceOf[Tuple2[Type,Var]]._2), ViewPrinter.emit(inputMem.variable, v))
+          //innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, getViewIncrement(call.args.head.view,indexVar,accesses)))
+        case ArrayTypeWSWC(eT, size : Cst, _) => vars.asInstanceOf[IndexedSeq[Any]].zipWithIndex.foreach( x => generateAssign(x._1,eT,v.access(x._2)))
+        case TupleType(elemTypes @ _*) =>
+          elemTypes.zip(vars.asInstanceOf[IndexedSeq[Any]]).zipWithIndex.map( (x) => generateAssign(x._1._2,x._1._1,v.get(x._2)))
+        case _ =>  println("ERROR") // TODO: add exception
+      }
+    }
+
+    for(i <- reuse.eval to size.eval-1) yield
       {
-        idxToAdd = if (i==0) { (idx*step.eval) } else { 0 }
-        viewReturn = viewReturn.access(accesses(i)+idxToAdd)
+        generateWindowUpdates(windowArray(i), vType, call.args.head.view.access(i+indexVar))
       }
-      viewReturn
-    }
 
-    def updateWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = n match {
-      case 1 => for(j <- reuse.eval to size.eval-1) {
-        accesses(n-1) = j
-        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, getViewIncrement(call.args.head.view,indexVar,accesses)))
-      }
-      case _ => for(i <- 0 to size.eval-1) {
-        accesses(n-1) = i
-        updateWindowVars(idx+i*math.pow(size.eval,n-1).toInt, n-1, accesses)
-      }
-    }
-
-    updateWindowVars(0,nDim, accesses)
     generateBody(innerBlock)
+    /*
+    */
 
+    // swap window variables
+    /*
     // window values are swapped at the end of the loop
     def swapWindowVars(idx: Int, n: Int): Unit = n match {
       case 1 => for (j <- 1 to reuse.eval) {
@@ -1239,7 +1199,7 @@ class OpenCLGenerator extends Generator {
     }
 
     swapWindowVars(0,nDim)
-*/
+    */
   }
 
   private def generateForLoop(block: Block,

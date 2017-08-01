@@ -790,9 +790,9 @@ class TestMapSeqSlide
 
     println(Compile(lambda1D/*Original*/))
 
-    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1DOriginal,values,values2)
+/*    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1DOriginal,values,values2)
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1D,values,values2)
-
+*/
  //   assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
 
   }
