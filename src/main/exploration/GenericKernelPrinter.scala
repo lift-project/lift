@@ -292,11 +292,8 @@ object GenericKernelPrinter {
                   })
                   // output
                   val outputType = Type.getValueType(high_level_expr.body.t)
-                  val outputLengths = Type.getElementCount(high_level_expr.body.t)
-                  val test = high_level_expr_orig
-                  TypeChecker(high_level_expr_orig)
                   //val outputLengths2 = Type.getElementCount(high_level_expr_orig.body.t)
-                  sb.append(s"""#atf::ocl::input \"atf::buffer<$outputType>(${Type.getElementCount(high_level_expr.body.t)})\"\n""")
+                  sb.append(s"""#atf::ocl::input \"atf::buffer<$outputType>(${Type.getElementCount(expr.body.t)})\"\n""")
                   vars.map(x => x.toString).sorted.foreach(x =>
                     sb.append(s"""#atf::ocl::input \"atf::scalar<int>($x)\"\n""")
                   )
@@ -332,8 +329,10 @@ object GenericKernelPrinter {
               println(s"\nGenerated $kernelCounter kernels")
             }
           } catch {
-            case t: Throwable =>
+            case t: Throwable => {
+              println(t.toString)
               logger.warn(t.toString)
+            }
           }
         }
       })
