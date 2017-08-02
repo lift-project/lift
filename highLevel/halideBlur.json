@@ -46,6 +46,17 @@
     "generate_scala" : false
   },
 
+  "generic_kernel_printer" : {
+    "speedup" : 1.0,
+    "configs_to_achieve_speedup" : 100,
+    "timeout_in_seconds" : 60,
+    "max_configs" : 500,
+    "max_local_size" : 512,
+    "vendor" : "Intel",
+    "device_type" : "GPU",
+    "device_id" : 0
+  },
+
   "search_parameters" : {
     "default_input_size" : 8194,
     "min_local_size" : 128,
