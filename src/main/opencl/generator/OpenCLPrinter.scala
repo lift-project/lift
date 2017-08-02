@@ -352,21 +352,10 @@ class OpenCLPrinter {
       vd.addressSpace match {
         case PrivateMemory =>
           if(vd.length > scala.Int.MaxValue) throw NotEvaluableToInt
-            if(vd.names != null)
-              {
-                def printNames(seq : Any) : Unit = seq match {
-                  case v : Tuple2[Type,Var] => println(OpenCLPrinter.toString(v._1) + " " + OpenCLPrinter.toString(v._2) +";")
-                  case aB : ArrayBuffer[_] => for(a <- aB) { printNames(a) }
-                  case s : Seq[_] => for(a <- s) { printNames(a) }
-                }
-                for(i <- vd.names){ printNames(i) }
-              }
-            else {
               for (i <- 0 until vd.length.toInt)
                 println(OpenCLPrinter.toString(Type.getValueType(vd.t)) + " " +
                 OpenCLPrinter.toString(vd.v) + "_" +
                 OpenCLPrinter.toString(i) + ";")
-            }
 
         case LocalMemory if vd.length != 0 =>
           val baseType = Type.getBaseType(vd.t)

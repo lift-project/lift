@@ -12,6 +12,7 @@ import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
 
 import scala.collection.immutable
+import scala.collection.mutable.ArrayBuffer
 
 object OpenCLGenerator extends Generator {
 
@@ -1102,13 +1103,7 @@ class OpenCLGenerator extends Generator {
       case _ => getNType(v.access(0), n - 1)
     }
 
-    def getWindowSize(s: Int, n: Int): Int = n match {
-      case 1 => s
-      case _ => s * getWindowSize(s, n - 1)
-    }
-
     val viewType = getNType(call.args.head.view, nDim)
-    val windowSize = getWindowSize(size.eval, nDim)
 
     def generateWindowVars(windowSize : Int, eType : Type) = {
 
@@ -1117,27 +1112,46 @@ class OpenCLGenerator extends Generator {
            case ScalarType(_,_) => Tuple2(eType,Var(prefix))
            case ArrayTypeWSWC(eT, size : Cst, _) => for ( j <- 0 to size.eval-1) yield { genSeqVars(eT,s"${prefix}_${j}")}
            case TupleType(elemTypes @ _*) => elemTypes.zipWithIndex.map( (x)  => genSeqVars(x._1,s"${prefix}_${x._2}"))
-           case _ =>  Tuple2("ERROR",Var("ERROR")) // TODO: add exception
+           case _ =>
+             throw new OpenCLGeneratorException("Invalid type for MapSeqSlide!")
          }
        }
 
-       for ( i <- 0 to size.eval-1) yield {
-          genSeqVars(eType,s"${sSP.windowVar.name}_${i}")
-       }
+     for ( i <- 0 to size.eval-1) yield {
+       genSeqVars(eType,s"${sSP.windowVar.name}_${i}")
+     }
     }
-    // create the data structure
-    val windowArray = generateWindowVars(size.eval,vType)
 
-    windowArray.foreach(println)
+    def getWindowLength(v : Any): Int = v match {
+      case Tuple2(_,_) => 1
+      case a : Seq[Any] => a.map(x => getWindowLength(x)).sum
+    }
+    // create the mirrored data structure
+    val windowArray = generateWindowVars(size.eval,vType)
+    val windowArraySize = getWindowLength(windowArray)
+
 
     // then print them all out
-    val v = Value(0.0f, ArrayTypeWSWC(viewType, windowSize))
+    val v = Value(0.0f, ArrayTypeWSWC(viewType, windowArraySize))
     varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
-    privateMems = privateMems :+ TypedOpenCLMemory(OpenCLMemory(sSP.windowVar, windowSize, PrivateMemory), v.t)
-    val varD = OpenCLAST.VarDecl(sSP.windowVar, v.t,
-      init = null, PrivateMemory, windowSize,windowArray)
-    privateDecls += (sSP.windowVar -> varD)
-    (block: Block) += varD
+    privateMems = privateMems :+ TypedOpenCLMemory(OpenCLMemory(sSP.windowVar, windowArraySize, PrivateMemory), vType)
+
+    def generateVarDecl(vars : Any) : Unit = vars match
+    {
+      case Tuple2(t : Type, v: Var) =>
+        val varD = OpenCLAST.VarDecl(v, t/*v.t*/,
+          init = null, PrivateMemory, 1/*windowArraySize*/)
+        privateDecls += (sSP.windowVar -> varD)
+        (block: Block) += varD
+      case a : Seq[Any] => a.foreach( x => generateVarDecl(x))
+      case _ =>
+        throw new OpenCLGeneratorException("Invalid type for MapSeqSlide!")
+    }
+
+    for(i <- 0 to size.eval-1) yield
+    {
+      generateVarDecl(windowArray(i))
+    }
 
     def generateAssign(vars : Any, t : Type, v : View): Unit =
     {
@@ -1147,7 +1161,8 @@ class OpenCLGenerator extends Generator {
         case ArrayTypeWSWC(eT, size : Cst, _) => vars.asInstanceOf[IndexedSeq[Any]].zipWithIndex.foreach( x => generateAssign(x._1,eT,v.access(x._2)))
         case TupleType(elemTypes @ _*) =>
           elemTypes.zip(vars.asInstanceOf[IndexedSeq[Any]]).zipWithIndex.map( (x) => generateAssign(x._1._2,x._1._1,v.get(x._2)))
-        case _ =>  println("ERROR") // TODO: add exception
+        case _ =>
+          throw new OpenCLGeneratorException("Invalid type for MapSeqSlide!")
       }
     }
 
@@ -1172,7 +1187,8 @@ class OpenCLGenerator extends Generator {
         case ArrayTypeWSWC(eT, size : Cst, _) => vars.asInstanceOf[IndexedSeq[Any]].zipWithIndex.foreach( x => generateWindowUpdates(x._1,eT,v.access(x._2)))
         case TupleType(elemTypes @ _*) =>
           elemTypes.zip(vars.asInstanceOf[IndexedSeq[Any]]).zipWithIndex.map( (x) => generateWindowUpdates(x._1._2,x._1._1,v.get(x._2)))
-        case _ =>  println("ERROR") // TODO: add exception
+        case _ =>
+          throw new OpenCLGeneratorException("Invalid type for MapSeqSlide!")
       }
     }
 
@@ -1201,7 +1217,8 @@ class OpenCLGenerator extends Generator {
           preVars.asInstanceOf[IndexedSeq[Any]].zip(vars.asInstanceOf[IndexedSeq[Any]]).zipWithIndex.foreach( x => swapWindowValues(x._1._1,x._1._2,eT,v.access(x._2)))
         case TupleType(elemTypes @ _*) =>
           elemTypes.zip(preVars.asInstanceOf[IndexedSeq[Any]]).zip(vars.asInstanceOf[IndexedSeq[Any]]).zipWithIndex.map( (x) => swapWindowValues(x._1._1._2,x._1._2,x._1._1._1,v.get(x._2)))
-        case _ =>  println("ERROR") // TODO: add exception
+        case _ =>
+          throw new OpenCLGeneratorException("Invalid type for MapSeqSlide!")
       }
     }
 
