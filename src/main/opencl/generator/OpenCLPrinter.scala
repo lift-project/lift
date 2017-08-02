@@ -7,8 +7,6 @@ import ir.view.AccessVar
 import opencl.generator.OpenCLAST._
 import opencl.ir._
 
-import scala.collection.mutable.ArrayBuffer
-
 object OpenCLPrinter {
   def apply() = new OpenCLPrinter
 

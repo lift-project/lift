@@ -1,7 +1,5 @@
 package opencl.generator
 
-import com.sun.javafx.css.Declaration
-import com.sun.org.apache.xpath.internal.operations.Bool
 import lift.arithmetic.{ArithExpr, Predicate, Var}
 import ir.{TupleType, Type, VectorType}
 import opencl.ir.{OpenCLAddressSpace, OpenCLMemory, UndefAddressSpace}
