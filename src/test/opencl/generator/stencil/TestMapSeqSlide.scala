@@ -416,9 +416,9 @@ class TestMapSeqSlide
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
 
+    println(Compile(MapSeqSlideHelpers.stencil2D(slidesize, slidestep)))
     val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
     val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
-    println(Compile(MapSeqSlideHelpers.stencil2D(slidesize, slidestep)))
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -788,7 +788,7 @@ class TestMapSeqSlide
         o PrintType() /*o Transpose() o Map(Transpose()) o*/$ Zip(mat1, mat2) /*Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)*/
     )
 
-    println(Compile(lambda1D/*Original*/))
+    println(Compile(lambda1DOriginal))
 
 /*    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1DOriginal,values,values2)
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1D,values,values2)

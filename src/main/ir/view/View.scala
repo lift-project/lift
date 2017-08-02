@@ -453,12 +453,14 @@ object View {
    * @param v A name for the array.
    * @return
    */
-  def apply(t: Type, v: Var): View = ViewMem(Left(v), t)
+  def apply(t: Type, v: Var): View =
+    ViewMem(Left(v), t)
 
   def apply(t: Type, name: String): View =
     ViewMem(Right(name), t)
 
-  private[view] def tuple(ivs: View*) = ViewTuple(ivs, TupleType(ivs.map(_.t): _*))
+  private[view] def tuple(ivs: View*) =
+    ViewTuple(ivs, TupleType(ivs.map(_.t): _*))
 
   /**
    * Visit the expression and construct all views for all sub-expressions.
