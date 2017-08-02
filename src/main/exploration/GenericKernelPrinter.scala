@@ -305,19 +305,18 @@ object GenericKernelPrinter {
                   val lsDirective = Seq.tabulate[String](usedDimensions)(i => s"LOCAL_SIZE_$i")
                   sb.append(s"""#atf::ocl::ls \"${lsDirective.mkString(", ")}\"\n""")
                   sb.append(s"""#atf::ocl::gs \"${gsDirective.mkString(", ")}\"\n""")
+                  sb.append("\n")
+
+                  // add NUM_GROUPS macro
+                  if(genericKernel.contains("NUM_GROUPS")) {
+                    val num_groups = Seq.tabulate[String](usedDimensions)(i =>
+                      s"#define NUM_GROUPS_$i (GLOBAL_SIZE_$i / LOCAL_SIZE_$i)"
+                    )
+                    sb.append(num_groups.mkString("\n"))
+                  }
 
                   val kernelWithDirectives = sb.toString + "\n" + genericKernel
                   println(kernelWithDirectives)
-
-                  /*
-                  // add input buffer directive //todo change it to buffer directive
-                  sb.setLength(0)
-                  expr.params.foreach(x => {
-                    val elemT = Type.getValueType(x.t)
-                    sb.append(s"#atf::var<$elemT> ${x.mem.variable} = 1234")
-                  })
-                  val kernelWithATFVars = sb.toString + "\n" + kernelWithVars
-                  */
 
                 } catch {
                   case t: Throwable =>
