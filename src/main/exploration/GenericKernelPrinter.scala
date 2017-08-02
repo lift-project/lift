@@ -177,22 +177,26 @@ object GenericKernelPrinter {
 
                   lowLevelCounter.incrementAndGet()
 
-                  def countSubstring( str:String, substr:String ) = substr.r.findAllMatchIn(str).length
+                  def countSubstring(str: String, substr: String) = substr.r.findAllMatchIn(str).length
+
                   // how many tuning parameters are there?
                   val tpCount = countSubstring(low_level_str, "variables") - vars.length - 1
                   val tuningParameters = Seq.fill(tpCount)(TuningParameter())
 
                   val expr = low_level_factory(vars ++ tuningParameters)
-                      TypeChecker(expr)
+                  TypeChecker(expr)
 
 
                   val kernel = opencl.executor.Compile(expr)
 
                   def replaceOCLFunctions(kernel: String, fun: String, tuningParameter: String): String = {
                     kernel.replaceAll(
-                      fun + """\(0\)""", s"""${tuningParameter}_0""").replaceAll(
-                      fun + """\(1\)""", s"""${tuningParameter}_1""").replaceAll(
-                      fun + """\(2\)""", s"""${tuningParameter}_2""")
+                      fun + """\(0\)""",
+                      s"""${tuningParameter}_0""").replaceAll(
+                      fun + """\(1\)""",
+                      s"""${tuningParameter}_1""").replaceAll(
+                      fun + """\(2\)""",
+                      s"""${tuningParameter}_2""")
                   }
 
                   def introduceOCLTuningParameters(kernel: String): String = {
@@ -227,7 +231,7 @@ object GenericKernelPrinter {
 
                   // add global size directives
                   // find out which map loops over which input dimension
-                  def globalSizeInputVarMappedOver(v: Var, d: Int) : (String, ArithExpr) = {
+                  def globalSizeInputVarMappedOver(v: Var, d: Int): (String, ArithExpr) = {
                     val inputVarsMappedOver = v.range.max.varList.intersect(vars.toSet)
                     assert(inputVarsMappedOver.size == 1)
                     (s"GLOBAL_SIZE_$d", inputVarsMappedOver.head)
@@ -248,7 +252,7 @@ object GenericKernelPrinter {
                     }
 
                     case _ =>
-                      }, (_) => Unit)
+                  }, (_) => Unit)
 
                   globalSizeMaxValues.foreach(x => {
                     //todo maybe add divides constraint for global sizes
@@ -308,7 +312,7 @@ object GenericKernelPrinter {
                   sb.append("\n")
 
                   // add NUM_GROUPS macro
-                  if(genericKernel.contains("NUM_GROUPS")) {
+                  if (genericKernel.contains("NUM_GROUPS")) {
                     val num_groups = Seq.tabulate[String](usedDimensions)(i =>
                       s"#define NUM_GROUPS_$i (GLOBAL_SIZE_$i / LOCAL_SIZE_$i)"
                     )
@@ -316,7 +320,22 @@ object GenericKernelPrinter {
                   }
 
                   val kernelWithDirectives = sb.toString + "\n" + genericKernel
-                  println(kernelWithDirectives)
+
+                  // generate folder structure
+                  s"mkdir -p ${topFolder}Cl/".!
+
+                  val finalKernel =
+                    s"""
+                       |// High-level hash: $high_level_hash
+                       |// Low-level hash: $low_level_hash
+                       |
+                       |$kernelWithDirectives
+                       |""".stripMargin
+
+                  //println(finalKernel)
+                  val path = s"${topFolder}Cl"
+                  val filename = low_level_hash + ".cl"
+                  Utils.dumpToFile(finalKernel, filename, path)
 
                 } catch {
                   case t: Throwable =>
