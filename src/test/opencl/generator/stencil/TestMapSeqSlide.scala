@@ -1,16 +1,15 @@
 package opencl.generator.stencil
 
-import ir.{ArrayTypeWSWC}
-import ir.ast.{Get, Slide, Zip, fun}
-import lift.arithmetic.{SizeVar}
+import ir.ArrayTypeWSWC
+import ir.ast.{Get, Slide, Zip, fun, _}
+import lift.arithmetic.SizeVar
 import opencl.executor._
-import org.junit.{AfterClass, BeforeClass}
-import org.junit.Assert._
-import org.junit._
-import opencl.ir.pattern._
-import ir.ast._
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
+import opencl.ir.pattern._
+import org.junit.Assert._
+import org.junit.Assume.assumeFalse
+import org.junit.{AfterClass, BeforeClass, _}
 
 object TestMapSeqSlide
 {
@@ -581,6 +580,7 @@ class TestMapSeqSlide
 
   @Test
   def reduceSlide3DTest7PointWithAt(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val size = 8
 
@@ -602,6 +602,7 @@ class TestMapSeqSlide
 
   @Test
   def reduceSlide3DTest7PointWithAtSize5Step3(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val size = 10
 
@@ -634,6 +635,7 @@ class TestMapSeqSlide
 
   @Test
   def reduceSlide3DTest7PointWithAtAsymmetric(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val size = 8
 
@@ -653,6 +655,7 @@ class TestMapSeqSlide
   }
   @Test
   def reduceSlide3DTest27PointWithWeights(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val size = 8
 
