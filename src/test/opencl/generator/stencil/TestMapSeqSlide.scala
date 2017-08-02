@@ -64,7 +64,7 @@ object MapSeqSlideHelpers
     ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
     (input) =>
       MapGlb(0)(fun(x => {
-        toGlobal(MapSeqSlide(MapSeq(id) o ReduceSeq(add, 0.0f) o Join(), size, step)) o  Transpose() $ x
+        toGlobal(MapSeqSlide(MapSeq(id) o ReduceSeq(add, 0.0f) o Join(), size, step)) o Transpose() $ x
       })) o Slide(size,step)  $ input
   )
 
@@ -751,9 +751,12 @@ class TestMapSeqSlide
   /** Tuple-rama **/
 
   @Test
-  def zip1DTuple(): Unit = {
+  def simple1DTupleTest(): Unit = {
 
     val size = 8
+    val slidesize = 3
+    val slidestep= 1
+
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val values2 = Array.tabulate(size) { (i) => (i*2 + 1).toFloat }
 
@@ -763,24 +766,17 @@ class TestMapSeqSlide
       (ArrayTypeWSWC(Float, n)),
       (ArrayTypeWSWC(Float, n)),
       (mat1, mat2) => {
-
-          toGlobal(MapSeq(tf_id))
-          /*toGlobal(MapSeq(addTuple))*/
+          toGlobal(MapSeq(addTuple))
           //toGlobal(tf_id) o toPrivate((tf_id)) $ m.at(1)//`tile[1][1][1]`
-        } o PrintType() $ Zip(mat1, mat2))
+        } o Slide(slidesize,slidestep) o PrintType() $ Zip(mat1, mat2))
 
     val lambda1D = fun(
       (ArrayTypeWSWC(Float, n)),
       (ArrayTypeWSWC(Float, n)),
       (mat1, mat2) => {
-
         toGlobal(MapSeqSlide(fun(m => {
-
-          toGlobal(tf_id) $ m.at(1)
-          //toGlobal(addTuple) $ m.at(1)
-          //toGlobal(id) o toPrivate((id)) $ m.at(1)//`tile[1][1][1]`
-
-        }),StencilUtilities.slidesize,StencilUtilities.slidestep))}
+          toGlobal(addTuple) $ m.at(1)
+        }),slidesize,slidestep))}
 
           //toGlobal(tf_id) o toPrivate((tf_id)) $ m.at(1)//`tile[1][1][1]`
           //toGlobal(id) o toPrivate((id)) $ m.at(1)//`tile[1][1][1]`
@@ -796,6 +792,276 @@ class TestMapSeqSlide
  //   assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
 
   }
+
+  @Test
+  def addMiddle1DTuple2Test(): Unit = {
+
+    val size = 10
+    val slidesize = 3
+    val slidestep = 1
+
+    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+    val values2 = Array.tabulate(size) { (i) => (i * 2 + 1).toFloat }
+
+    val N = SizeVar("N") + 2
+
+
+    def original1DStencil(size: Int, step: Int) = fun(
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
+      (mat1,mat2) =>
+        MapGlb(0)(
+          fun(neighbours => {
+            toGlobal(addTuple)  $ neighbours.at(1)
+          })) o Slide(size, step) $ Zip(mat1,mat2)
+    )
+
+    val lambda1D = fun(
+      (ArrayTypeWSWC(Float, N)),
+      (ArrayTypeWSWC(Float, N)),
+      (mat1, mat2) => {
+        toGlobal(MapSeqSlide(fun(m => {
+          toGlobal(addTuple) $ m.at(1)
+        }),slidesize,slidestep))}
+
+        o PrintType() $ Zip(mat1, mat2)
+    )
+
+    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(original1DStencil(slidesize,slidestep),values,values2)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1D,values,values2)
+
+    //   assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
+    StencilUtilities.print1DArray(values)
+    StencilUtilities.print1DArray(values2)
+    StencilUtilities.print1DArray(outputOrg)
+
+  }
+
+  @Test
+  def addMidLeftStencilRight1DTuple2TestSize3Step1(): Unit = {
+
+    val size = 15
+    val slidesize = 3
+    val slidestep = 1
+
+    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+    val values2 = Array.tabulate(size) { (i) => (i * 2 + 1).toFloat }
+
+    val N = SizeVar("N") + 2
+
+    def original1DStencil(size: Int, step: Int) = fun(
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
+      (mat1,mat2) =>
+        MapGlb(0)(
+          fun(neighbours => {
+
+            val mL = Get(neighbours.at(1),0)
+            val lR = Get(neighbours.at(0),1)
+            val mR = Get(neighbours.at(1),1)
+            val rR = Get(neighbours.at(2),1)
+
+            val stencilP = toPrivate(fun (x => add(x,mL))) o toPrivate(fun(x => add(x, lR))) o toPrivate(fun(x => add(x, mR))) $ rR
+
+            toGlobal(id) $ stencilP
+
+          })) o Slide(size, step) $ Zip(mat1,mat2)
+    )
+
+    val lambda1D = fun(
+      (ArrayTypeWSWC(Float, N)),
+      (ArrayTypeWSWC(Float, N)),
+      (mat1, mat2) => {
+        toGlobal(MapSeqSlide(fun(m => {
+
+          val mL = Get(m.at(1),0)
+          val lR = Get(m.at(0),1)
+          val mR = Get(m.at(1),1)
+          val rR = Get(m.at(2),1)
+
+          val stencilP = toPrivate(fun (x => add(x,mL))) o toPrivate(fun(x => add(x, lR))) o toPrivate(fun(x => add(x, mR))) $ rR
+
+          toGlobal(id) $ stencilP
+
+        }),slidesize,slidestep))}
+
+        o PrintType() $ Zip(mat1, mat2)
+    )
+
+    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(original1DStencil(slidesize,slidestep),values,values2)
+//    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1D,values,values2)
+
+    //   assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
+    StencilUtilities.print1DArray(values)
+    StencilUtilities.print1DArray(values2)
+    StencilUtilities.print1DArray(outputOrg)
+
+  }
+
+  @Test
+  def addMidLeftStencil2DTuple2TestSize3Step1(): Unit = {
+
+    val size = 12
+    val slidesize = 3
+    val slidestep = 1
+
+    val values = Array.tabulate(size,size) { (i,j) => (i*size + j + 1).toFloat }
+    val values2 = Array.tabulate(size,size) { (i,j) => (i*size + j * 2 + 1).toFloat }
+
+    val N = SizeVar("N") + 2
+    val M = SizeVar("M") + 2
+
+    def original2DStencil(size: Int, step: Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
+      (mat1,mat2) =>
+        MapGlb(1)(MapGlb(0)(
+          fun(neighbours => {
+
+            val mL = Get(neighbours.at(1).at(1),0)
+
+            val tR = Get(neighbours.at(0).at(1),1)
+            val mR = Get(neighbours.at(1).at(1),1)
+            val lR = Get(neighbours.at(1).at(0),1)
+            val rR = Get(neighbours.at(1).at(2),1)
+            val bR = Get(neighbours.at(2).at(1),1)
+
+            val stencilP = toPrivate(fun (x => add(x,mL))) o
+                           toPrivate(fun(x => add(x, tR))) o
+                           toPrivate(fun(x => add(x, bR))) o
+                           toPrivate(fun(x => add(x, lR))) o
+                           toPrivate(fun(x => add(x, mR))) $ rR
+
+            toGlobal(id) $ stencilP
+
+          }))) o Slide2D(size, step) $ Zip2D(mat1,mat2)
+    )
+
+    val lambda2D = fun(
+      (ArrayTypeWSWC(Float, N)),
+      (ArrayTypeWSWC(Float, N)),
+      (mat1, mat2) => {
+        toGlobal(MapSeqSlide(fun(m => {
+
+          val mL = Get(m.at(1).at(1),0)
+
+          val tR = Get(m.at(0).at(1),1)
+          val mR = Get(m.at(1).at(1),1)
+          val lR = Get(m.at(1).at(0),1)
+          val rR = Get(m.at(1).at(2),1)
+          val bR = Get(m.at(2).at(1),1)
+
+          val stencilP = toPrivate(fun (x => add(x,mL))) o
+            toPrivate(fun(x => add(x, tR))) o
+            toPrivate(fun(x => add(x, bR))) o
+            toPrivate(fun(x => add(x, lR))) o
+            toPrivate(fun(x => add(x, mR))) $ rR
+
+          toGlobal(id) $ stencilP
+
+        }),slidesize,slidestep)) o Transpose() }
+        o PrintType() $ Zip2D(mat1, mat2)
+    )
+
+    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(original2DStencil(slidesize,slidestep),values,values2)
+    //    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda2D,values,values2)
+
+    //   assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
+    StencilUtilities.print2DArray(values)
+    StencilUtilities.print2DArray(values2)
+    StencilUtilities.print1DArrayAs2DArray(outputOrg,size)
+
+  }
+
+
+  @Test
+  def addMidLeftStencil3DTuple2TestSize3Step1(): Unit = {
+
+    val size = 12
+    val slidesize = 3
+    val slidestep = 1
+
+    val values = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size + k + 1).toFloat }
+    val values2 = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size*2 + k*.5 + 1).toFloat }
+
+    val N = SizeVar("N") + 2
+    val M = SizeVar("M") + 2
+    val O = SizeVar("O") + 2
+
+    def original3DStencil(size: Int, step: Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),O),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),O),
+      (mat1,mat2) =>
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(
+          fun( m => {
+
+            val `tile[1][1][1]L` = Get(m.at(1).at(1).at(1),0)
+
+            val `tile[0][1][1]` = Get(m.at(0).at(1).at(1),1)
+            val `tile[1][0][1]` = Get(m.at(1).at(0).at(1),1)
+            val `tile[1][1][0]` = Get(m.at(1).at(1).at(0),1)
+            val `tile[1][1][2]` = Get(m.at(1).at(1).at(2),1)
+            val `tile[1][2][1]` = Get(m.at(1).at(2).at(1),1)
+            val `tile[2][1][1]` = Get(m.at(2).at(1).at(1),1)
+
+            val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
+              toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][1]L`))) o
+              toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
+
+            toGlobal(id) $ stencil
+
+          })))) o Slide3D(size, step) $ Zip3D(mat1,mat2)
+    )
+
+    val lambda3D = fun(
+      (ArrayTypeWSWC(Float, N)),
+      (ArrayTypeWSWC(Float, N)),
+      (mat1, mat2) => {
+        toGlobal(MapSeqSlide(fun(m => {
+
+          val `tile[1][1][1]L` = Get(m.at(1).at(1).at(1),0)
+
+          val `tile[0][1][1]` = Get(m.at(0).at(1).at(1),1)
+          val `tile[1][0][1]` = Get(m.at(1).at(0).at(1),1)
+          val `tile[1][1][0]` = Get(m.at(1).at(1).at(0),1)
+          val `tile[1][1][2]` = Get(m.at(1).at(1).at(2),1)
+          val `tile[1][2][1]` = Get(m.at(1).at(2).at(1),1)
+          val `tile[2][1][1]` = Get(m.at(2).at(1).at(1),1)
+
+          val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
+            toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][1]L`))) o
+            toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
+
+          toGlobal(id) $ stencil
+
+        }),slidesize,slidestep)) o Transpose() o Map(Transpose()) }
+        o PrintType() $ Zip3D(mat1, mat2)
+    )
+
+    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(original3DStencil(slidesize,slidestep),values,values2)
+    //    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda3D,values,values2)
+
+    //   assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
+    StencilUtilities.print3DArray(values)
+    StencilUtilities.print3DArray(values2)
+    StencilUtilities.print1DArrayAs3DArray(outputOrg,size,size,size)
+
+  }
+
+  @Test
+  def addMidSlideOneStencil3DTuple3TestSize3Step1(): Unit = {
+  }
+
 }
 
 
