@@ -97,7 +97,7 @@ object Execute {
       // sanity check: there must be as many inputs as parameters in f
       if (f.params.length != values.length)
         throw new IllegalArgumentException(
-          s"""| Wrong number of argument.
+          s"""| Wrong number of arguments.
               | Expected: ${f.params.length}. Got: ${values.length}"""
           .stripMargin
         )

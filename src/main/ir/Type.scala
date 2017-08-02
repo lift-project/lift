@@ -246,9 +246,22 @@ object ArrayType {
     }
   }
 
+  /**
+    * Returns the depth (dimension) of the given ArrayType object
+    *
+    * @param n An integer for starting size of dimension
+    * @param t A type
+    * @return number of dimensions deep 't' is
+    */
+  def getDimension(n : Int, t : Type) : Int = t match {
+    case ArrayType(elemT) => getDimension(n+1, elemT)
+    case _ => n
+  }
+
   def apply(elemT: Type, sizeAndCapacity: ArithExpr) : ArrayType with Size with Capacity = {
     ArrayTypeWSWC(elemT, sizeAndCapacity)
   }
+
 }
 
 
