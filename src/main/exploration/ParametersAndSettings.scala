@@ -7,6 +7,55 @@ import play.api.libs.json.Reads._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 
+case class GenericKernelPrinterSettings (
+  speedup: Float,
+  configsToAchieveSpeedup: Int,
+  timeoutInSeconds: Int,
+  maxConfigs: Int,
+  maxLocalSize: Int,
+  vendor: String,
+  deviceType: String,
+  deviceId: Int
+) {
+  override def toString: String =
+  s"""GenericKernelPrinterSettings:
+     |    speedup: $speedup
+     |    configsToAchieveSpeedup: $configsToAchieveSpeedup
+     |    timeoutInSeconds: $timeoutInSeconds
+     |    maxConfigs: $maxConfigs
+     |    maxLocalSize: $maxLocalSize
+     |    vendor: $vendor
+     |    deviceType: $deviceType
+     |    deviceId: $deviceId
+   """.stripMargin
+}
+
+object GenericKernelPrinterSettings {
+
+  import GenericKernelPrinter._
+  import exploration.utils.ExplorationParameter._
+
+  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None)
+  def createWithDefaults(
+                        configSpeedup: Option[Float],
+                        configConfigsToAchieveSpeedup: Option[Int],
+                        configTimeoutInSeconds: Option[Int],
+                        configMaxConfigs: Option[Int],
+                        configMaxLocalSize: Option[Int],
+                        configVendor: Option[String],
+                        configDeviceType: Option[String],
+                        configDeviceId: Option[Int]
+                        ) = GenericKernelPrinterSettings (
+    getValue(speedup, configSpeedup, defaultSpeedup),
+    getValue(configsToAchieveSpeedup, configConfigsToAchieveSpeedup, defaultConfigsToAchieveSpeedup),
+    getValue(timeoutInSeconds, configTimeoutInSeconds, defaultTimeoutInSeconds),
+    getValue(maxConfigs, configMaxConfigs, defaultMaxConfigs),
+    getValue(maxLocalSize, configMaxLocalSize, defaultMaxLocalSize),
+    getValue(vendor, configVendor, defaultVendor),
+    getValue(deviceType, configDeviceType, defaultDeviceType),
+    getValue(deviceId, configDeviceId, defaultDeviceId))
+}
+
 case class LocalMemoryRulesSettings (
   addIdForCurrentValueInReduce: Boolean,
   addIdMapLcl: Boolean,
@@ -246,6 +295,7 @@ case class Settings(
   highLevelRewriteSettings: HighLevelRewriteSettings = HighLevelRewriteSettings.createDefault,
   memoryMappingRewriteSettings: MemoryMappingRewriteSettings = MemoryMappingRewriteSettings.createDefault,
   parameterRewriteSettings: ParameterRewriteSettings = ParameterRewriteSettings.createDefault,
+  genericKernelPrinterSettings: GenericKernelPrinterSettings = GenericKernelPrinterSettings.createDefault,
   localMemoryRulesSettings: LocalMemoryRulesSettings= LocalMemoryRulesSettings.createDefault
 ) {
 
@@ -256,6 +306,7 @@ case class Settings(
        |  $highLevelRewriteSettings
        |  $memoryMappingRewriteSettings
        |  $parameterRewriteSettings
+       |  $genericKernelPrinterSettings
        |  $localMemoryRulesSettings
        |)""".stripMargin
   }
@@ -316,6 +367,17 @@ object ParseSettings {
     (JsPath \ "generate_scala").readNullable[Boolean]
   )(ParameterRewriteSettings.createWithDefaults _)
 
+  private[exploration] implicit val genericReads: Reads[GenericKernelPrinterSettings] = (
+    (JsPath \ "speedup").readNullable[Float] and
+    (JsPath \ "configs_to_achieve_speedup").readNullable[Int] and
+    (JsPath \ "timeout_in_seconds").readNullable[Int] and
+    (JsPath \ "max_configs").readNullable[Int] and
+    (JsPath \ "max_local_size").readNullable[Int] and
+    (JsPath \ "vendor").readNullable[String] and
+    (JsPath \ "device_type").readNullable[String] and
+    (JsPath \ "device_id").readNullable[Int]
+  )(GenericKernelPrinterSettings.createWithDefaults _)
+
   private[exploration] implicit val localMemoryRulesReads: Reads[LocalMemoryRulesSettings] = (
     (JsPath \ "addIdForCurrentValueInReduce").readNullable[Boolean] and
     (JsPath \ "addIdMapLcl").readNullable[Boolean] and
@@ -329,14 +391,16 @@ object ParseSettings {
     (JsPath \ "high_level_rewrite").readNullable[HighLevelRewriteSettings] and
     (JsPath \ "memory_mapping_rewrite").readNullable[MemoryMappingRewriteSettings] and
     (JsPath \ "parameter_rewrite").readNullable[ParameterRewriteSettings] and
+    (JsPath \ "generic_kernel_printer").readNullable[GenericKernelPrinterSettings] and
     (JsPath \ "local_memory_rules").readNullable[LocalMemoryRulesSettings]
-  )((maybeCombinations, maybeParameters, maybeHighLevel, maybeMemoryMapping, maybeParameterRewrite, maybeLocalMemoryRules) =>
+  )((maybeCombinations, maybeParameters, maybeHighLevel, maybeMemoryMapping, maybeParameterRewrite, maybeGeneric, maybeLocalMemoryRules) =>
     Settings(
       maybeCombinations,
       maybeParameters.getOrElse(SearchParameters.createDefault),
       maybeHighLevel.getOrElse(HighLevelRewriteSettings.createDefault),
       maybeMemoryMapping.getOrElse(MemoryMappingRewriteSettings.createDefault),
       maybeParameterRewrite.getOrElse(ParameterRewriteSettings.createDefault),
+      maybeGeneric.getOrElse(GenericKernelPrinterSettings.createDefault),
       maybeLocalMemoryRules.getOrElse(LocalMemoryRulesSettings.createDefault)
     ))
 

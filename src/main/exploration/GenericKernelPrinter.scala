@@ -50,27 +50,38 @@ object GenericKernelPrinter {
       s
   }
 
-  private[exploration] val defaultExploreNDRange = false
-  private[exploration] val defaultSampleNDRange = -1
-  private[exploration] val defaultDisableNDRangeInjection = false
-  private[exploration] val defaultSequential = false
-  private[exploration] val defaultGenerateScala = false
+  private[exploration] val defaultSpeedup = 1.0f
+  private[exploration] val defaultConfigsToAchieveSpeedup = 100
+  private[exploration] val defaultTimeoutInSeconds = 60
+  private[exploration] val defaultMaxConfigs = 500
+  private[exploration] val defaultMaxLocalSize = 512
+  private[exploration] val defaultVendor = "Nvidia"
+  private[exploration] val defaultDeviceType = "GPU"
+  private[exploration] val defaultDeviceId = 0
 
-  protected[exploration] val exploreNDRange = parser.flag[Boolean](List("e", "exploreNDRange"),
-    s"Explore global and local sizes instead of inferring (default: $defaultExploreNDRange)")
+  protected[exploration] val speedup = parser.option[Float](List("speedup"), "s",
+    s"Specifies Speedup to achieve within 'configsToAchieveSpeedup'-many configs (default: $defaultSpeedup)")
 
-  protected[exploration] val sampleNDRange = parser.option[Int](List("sampleNDRange"), "n",
-    s"Randomly sample n combinations of global and local sizes (requires 'explore') (default: $defaultSampleNDRange)")
+  protected[exploration] val configsToAchieveSpeedup = parser.option[Int](List("configsToAchieveSpeedup"), "c",
+    s"Specifies how many configs to try to achieve 'speedup' (default: $defaultConfigsToAchieveSpeedup)")
 
-  protected[exploration] val disableNDRangeInjection = parser.flag[Boolean](List("disableNDRangeInjection"),
-    s"Don't inject NDRanges while compiling the OpenCL Kernel (default: $defaultDisableNDRangeInjection)")
+  protected[exploration] val timeoutInSeconds = parser.option[Int](List("timeout"), "t",
+    s"Abort tuning after t seconds (default: $defaultTimeoutInSeconds)")
 
-  protected[exploration] val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
-    s"Don't execute in parallel (default: $defaultSequential)")
+  protected[exploration] val maxConfigs = parser.option[Int](List("maxConfigs"), "m",
+    s"Abort tuning after trying m configs (default: $defaultMaxConfigs)")
 
-  protected[exploration] val generateScala = parser.flag[Boolean](List("generate-scala"),
-    s"Generate lambdas in Scala as well as in OpenCL (default: $defaultGenerateScala)")
+  protected[exploration] val maxLocalSize = parser.option[Int](List("maxLocalSize"), "l",
+    s"Specifies max local size per dimension for device - see clinfo (default: $defaultMaxLocalSize)")
 
+  protected[exploration] val vendor = parser.option[String](List("vendor"), "v",
+    s"Specifies which OpenCL platform to use (matches substring) (default: $defaultVendor)")
+
+  protected[exploration] val deviceType = parser.option[String](List("deviceType"), "d",
+    s"Specifies which OpenCL device type to use (default: $defaultDeviceType)")
+
+  protected[exploration] val deviceId = parser.option[Int](List("deviceId"), "i",
+    s"Specifies ID of the OpenCL device to use (default: $defaultDeviceId)")
 
   private val settingsFile = parser.option[String](List("f", "file"), "name",
     "The settings file to use."
@@ -92,9 +103,7 @@ object GenericKernelPrinter {
 
       parser.parse(args)
       settings = ParseSettings(settingsFile.value)
-      val config = settings.parameterRewriteSettings
-      if (!config.exploreNDRange && config.sampleNDRange > 0)
-        throw new RuntimeException("'sample' is defined without enabling 'explore'")
+      val config = settings.genericKernelPrinterSettings
 
       logger.info(s"Arguments: ${args.mkString(" ")}")
       val inputArgument = input.value.get
@@ -102,15 +111,6 @@ object GenericKernelPrinter {
       topFolder = Paths.get(inputArgument).toString
 
       lambdaFilename = topFolder + "Scala/lambdaFile"
-
-      if (config.generateScala) {
-        val f = new File(lambdaFilename)
-        if (f.exists()) {
-          f.delete()
-        } else {
-          s"mkdir -p ${topFolder}Scala".!
-        }
-      }
 
 
       logger.info(s"Arguments: ${args.mkString(" ")}")
@@ -164,7 +164,9 @@ object GenericKernelPrinter {
               val kernelCounter = new AtomicInteger()
               println(s"Found $lowLevelCount low level expressions")
 
-              val parList = if (config.sequential) lowLevelExprList else lowLevelExprList.par
+              //val parList = if (config.sequential) lowLevelExprList else lowLevelExprList.par
+              // todo add sequential command line arg
+              val parList = lowLevelExprList.par
 
               parList.foreach(low_level_filename => {
 
@@ -222,10 +224,13 @@ object GenericKernelPrinter {
                   sb.append("\n")
 
                   // add search technique and abort condition
-                  // todo read from config and/or config file
                   val searchTechnique = "atf::open_tuner"
-                  val abortCondition = "atf::cond::speedup(1,100)"
                   sb.append(s"""#atf::search_technique \"$searchTechnique\"\n""")
+
+                  val abortCondition =
+                    s"atf::cond::speedup(${config.speedup},${config.configsToAchieveSpeedup}) || " +
+                    s"atf::cond::duration<::std::chrono::seconds>(${config.timeoutInSeconds}) || " +
+                    s"atf::cond::evaluations(${config.maxConfigs})"
                   sb.append(s"""#atf::abort_condition \"$abortCondition\"\n""")
                   sb.append("\n")
 
@@ -260,13 +265,11 @@ object GenericKernelPrinter {
                   })
 
                   // add local size directives
-                  // todo get max local size param
-                  val maxLocalSize = 512
                   val usedDimensions = globalSizeMaxValues.size
                   assert(usedDimensions <= 3)
 
                   val localSizeDirectives = Seq.tabulate[String](usedDimensions)(
-                    i => s"""#atf::tp name \"LOCAL_SIZE_$i\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,$maxLocalSize)" \\\n constraint \"atf::divides(GLOBAL_SIZE_$i)\"\n""")
+                    i => s"""#atf::tp name \"LOCAL_SIZE_$i\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,${config.maxLocalSize})" \\\n constraint \"atf::divides(GLOBAL_SIZE_$i)\"\n""")
                   localSizeDirectives.foreach(x => sb.append(x))
 
                   // add tuning parameter directives
@@ -281,11 +284,7 @@ object GenericKernelPrinter {
                   sb.append("\n")
 
                   // add vendor directives
-                  // todo get them from command line and/or config file
-                  val vendor = "Intel"
-                  val deviceType = "GPU"
-                  val deviceId = 0
-                  sb.append(s"""#atf::ocl::device_info vendor \"$vendor\" type \"$deviceType\" id $deviceId\n""")
+                  sb.append(s"""#atf::ocl::device_info vendor \"${config.vendor}\" type \"${config.deviceType}\" id ${config.deviceId}\n""")
                   sb.append("\n")
 
                   // add kernel input directives
@@ -360,27 +359,6 @@ object GenericKernelPrinter {
       case e: ArgotUsageException =>
         println(e.message)
     }
-  }
-
-  def saveScala(expressions: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))], hashes: Seq[Option[String]]): Unit = {
-    val filename = lambdaFilename
-    val file = scala.tools.nsc.io.File(filename)
-
-    (expressions, hashes).zipped.foreach((f, hash) => {
-
-      try {
-        val stringRep = "{ " + Utils.dumpLambdaToString(f._1).replace("\n", "; ") + "}"
-
-        val sha256 = hash.get
-
-        synchronized {
-          file.appendAll("(\"" + sha256 + "\",  " + s"Array($stringRep)) ,\n")
-        }
-      } catch {
-        case t: Throwable =>
-          logger.warn(t.toString)
-      }
-    })
   }
 
   def readFromFile(filename: String) =
