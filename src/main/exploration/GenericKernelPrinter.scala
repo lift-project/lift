@@ -6,8 +6,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.Logger
 import exploration.ExpressionFilter.Status.Success
-import ir.ast.{Expr, FunCall, Lambda}
-import ir.{Type, TypeChecker}
+import ir.ast.{Expr, FunCall, Lambda, Param}
+import ir.{ArrayType, Type, TypeChecker}
 import lift.arithmetic._
 import opencl.executor.Eval
 import opencl.generator.{NDRange, OpenCLGenerator}
@@ -206,14 +206,121 @@ object GenericKernelPrinter {
                   //  println(genericKernel)
                   //}
 
-                  val allTuningParams = ParameterSearch.getTunableSplitsAndSlides(expr).filter(_._1.isInstanceOf[TuningParameter])
                   val sb = new java.lang.StringBuilder
-                  allTuningParams.foreach(x => {
-                    sb.append(s"""#atf::tp name \"${x._1.toString}\" type \"int\" range \"atf::interval<int>(1,N)\" constraint \"atf::divides(${x._2})\"\n""")
-                  })
-                  val kernelWithTPs = sb.toString + "\n" + kernel
-                  println(kernelWithTPs)
 
+                  // todo (@bastian) currently only uses the first input combination
+                  // add atf vars
+                  assert(vars.length == combinations.get.head.length)
+                  val varsWithSizes = vars.zip(combinations.get.head)
+                  varsWithSizes.foreach(x => {
+                    sb.append(s"""#atf::var<int> ${x._1.toString} = ${x._2.toString}\n""")
+                  })
+                  sb.append("\n")
+
+                  // add search technique and abort condition
+                  // todo read from config and/or config file
+                  val searchTechnique = "atf::open_tuner"
+                  val abortCondition = "atf::cond::speedup(1,100)"
+                  sb.append(s"""#atf::search_technique \"$searchTechnique\"\n""")
+                  sb.append(s"""#atf::abort_condition \"$abortCondition\"\n""")
+                  sb.append("\n")
+
+                  // add global size directives
+                  // find out which map loops over which input dimension
+                  def globalSizeInputVarMappedOver(v: Var, d: Int) : (String, ArithExpr) = {
+                    val inputVarsMappedOver = v.range.max.varList.intersect(vars.toSet)
+                    assert(inputVarsMappedOver.size == 1)
+                    (s"GLOBAL_SIZE_$d", inputVarsMappedOver.head)
+                  }
+
+                  var globalSizeMaxValues: Set[(String, ArithExpr)] = Set()
+                  Expr.visit(expr.body, {
+                    case FunCall(f@MapGlb(dim, _), _) => {
+                      globalSizeMaxValues += globalSizeInputVarMappedOver(f.loopVar, dim)
+                    }
+
+                    case FunCall(f@MapWrg(dim, _), _) => {
+                      globalSizeMaxValues += globalSizeInputVarMappedOver(f.loopVar, dim)
+                    }
+
+                    case FunCall(f@MapAtomWrg(dim, _, _), _) => {
+                      globalSizeMaxValues += globalSizeInputVarMappedOver(f.loopVar, dim)
+                    }
+
+                    case _ =>
+                      }, (_) => Unit)
+
+                  globalSizeMaxValues.foreach(x => {
+                    //todo maybe add divides constraint for global sizes
+                    sb.append(s"""#atf::tp name \"${x._1}\" type \"int\" range \"atf::interval<int>(1,${x._2})"\n""")
+                  })
+
+                  // add local size directives
+                  // todo get max local size param
+                  val maxLocalSize = 512
+                  val usedDimensions = globalSizeMaxValues.size
+                  assert(usedDimensions <= 3)
+
+                  val localSizeDirectives = Seq.tabulate[String](usedDimensions)(
+                    i => s"""#atf::tp name \"LOCAL_SIZE_$i\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,$maxLocalSize)" \\\n constraint \"atf::divides(GLOBAL_SIZE_$i)\"\n""")
+                  localSizeDirectives.foreach(x => sb.append(x))
+
+                  // add tuning parameter directives
+                  val allTuningParams = ParameterSearch.getTunableSplitsAndSlides(expr).filter(_._1.isInstanceOf[TuningParameter])
+                  val elemT = Type.getValueType(expr.params.head.t)
+
+                  allTuningParams.foreach(x => {
+                    val tpName = x._1.toString
+                    val divides = x._2
+                    sb.append(s"""#atf::tp name \"$tpName\" \\\n type \"$elemT\" \\\n range \"atf::interval<$elemT>(1,$divides)" \\\n constraint \"atf::divides($divides)\"\n""")
+                  })
+                  sb.append("\n")
+
+                  // add vendor directives
+                  // todo get them from command line and/or config file
+                  val vendor = "Intel"
+                  val deviceType = "GPU"
+                  val deviceId = 0
+                  sb.append(s"""#atf::ocl::device_info vendor \"$vendor\" type \"$deviceType\" id $deviceId\n""")
+                  sb.append("\n")
+
+                  // add kernel input directives
+                  expr.params.foreach(x => {
+                    val size = Type.getElementCount(x.t)
+                    val elemT = Type.getValueType(x.t)
+                    sb.append(s"""#atf::ocl::input \"atf::buffer<$elemT>($size)\"\n""")
+                  })
+                  // output
+                  val outputType = Type.getValueType(high_level_expr.body.t)
+                  val outputLengths = Type.getElementCount(high_level_expr.body.t)
+                  val test = high_level_expr_orig
+                  TypeChecker(high_level_expr_orig)
+                  //val outputLengths2 = Type.getElementCount(high_level_expr_orig.body.t)
+                  sb.append(s"""#atf::ocl::input \"atf::buffer<$outputType>(${Type.getElementCount(high_level_expr.body.t)})\"\n""")
+                  vars.map(x => x.toString).sorted.foreach(x =>
+                    sb.append(s"""#atf::ocl::input \"atf::scalar<int>($x)\"\n""")
+                  )
+
+                  // add kernel name and gs/ls directives
+                  sb.append("#atf::ocl::kernel_name \"KERNEL\"\n")
+                  //val usedGlobalSizes = globalSizeMaxValues.map(x => x._1).toList.sorted
+                  val gsDirective = Seq.tabulate[String](usedDimensions)(i => s"GLOBAL_SIZE_$i")
+                  val lsDirective = Seq.tabulate[String](usedDimensions)(i => s"LOCAL_SIZE_$i")
+                  sb.append(s"""#atf::ocl::ls \"${lsDirective.mkString(", ")}\"\n""")
+                  sb.append(s"""#atf::ocl::gs \"${gsDirective.mkString(", ")}\"\n""")
+
+                  val kernelWithDirectives = sb.toString + "\n" + genericKernel
+                  println(kernelWithDirectives)
+
+                  /*
+                  // add input buffer directive //todo change it to buffer directive
+                  sb.setLength(0)
+                  expr.params.foreach(x => {
+                    val elemT = Type.getValueType(x.t)
+                    sb.append(s"#atf::var<$elemT> ${x.mem.variable} = 1234")
+                  })
+                  val kernelWithATFVars = sb.toString + "\n" + kernelWithVars
+                  */
 
                 } catch {
                   case t: Throwable =>
@@ -279,60 +386,5 @@ object GenericKernelPrinter {
     val tunable_nodes = Utils.findTunableNodes(lambda).reverse
     lambda.params.foreach(p => p.t = Type.substitute(p.t, st))
     Utils.quickAndDirtySubstitution(st, tunable_nodes, lambda)
-  }
-
-  private def computeValidNDRanges(expr: Lambda): Seq[(NDRange, NDRange)] = {
-    var usedDimensions: Set[Int] = Set()
-    Expr.visit(expr.body, {
-      case FunCall(MapGlb(dim, _), _) =>
-        usedDimensions += dim
-
-      case FunCall(MapLcl(dim, _), _) =>
-        usedDimensions += dim
-
-      case FunCall(MapWrg(dim, _), _) =>
-        usedDimensions += dim
-
-      case FunCall(MapAtomLcl(dim, _, _), _) =>
-        usedDimensions += dim
-
-      case FunCall(MapAtomWrg(dim, _, _), _) =>
-        usedDimensions += dim
-
-      case _ =>
-    }, (_) => Unit)
-    val nDRangeDim = usedDimensions.max + 1
-
-    logger.debug(s"computing ${nDRangeDim}D NDRanges")
-
-    // hardcoded highest power of two = 8192
-    val pow2 = Seq.tabulate(14)(x => scala.math.pow(2, x).toInt)
-    val localGlobalCombinations: Seq[(ArithExpr, ArithExpr)] = (for {
-      local <- pow2
-      global <- pow2
-      if local <= global
-    } yield (local, global)).map { case (l, g) => (Cst(l), Cst(g)) }
-
-    nDRangeDim match {
-      case 1 => for {
-        x <- localGlobalCombinations
-        if ExpressionFilter(x._1, x._2, settings.searchParameters) == Success
-      } yield (NDRange(x._1, 1, 1), NDRange(x._2, 1, 1))
-
-      case 2 => for {
-        x: (ArithExpr, ArithExpr) <- localGlobalCombinations
-        y: (ArithExpr, ArithExpr) <- localGlobalCombinations
-        if ExpressionFilter(x._1, y._1, x._2, y._2, settings.searchParameters) == Success
-      } yield (NDRange(x._1, y._1, 1), NDRange(x._2, y._2, 1))
-
-      case 3 => for {
-        x <- localGlobalCombinations
-        y <- localGlobalCombinations
-        z <- localGlobalCombinations
-        if ExpressionFilter(x._1, y._1, z._1, x._2, y._2, z._2, settings.searchParameters) == Success
-      } yield (NDRange(x._1, y._1, z._1), NDRange(x._2, y._2, z._2))
-
-      case _ => throw new RuntimeException("Could not pre-compute NDRanges for exploration")
-    }
   }
 }
