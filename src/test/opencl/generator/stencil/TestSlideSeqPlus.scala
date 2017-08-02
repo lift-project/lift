@@ -30,7 +30,7 @@ object SlideSeqPlusHelpers
   def stencil(a: Int ,b :Int) = fun(
     ArrayTypeWSWC(Float, SizeVar("N")),
     (input) =>
-       toGlobal(SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
+       toGlobal(MapSeqSlide(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
   )
 }
 
@@ -121,7 +121,7 @@ class TestSlideSeqPlus
       ArrayTypeWSWC(Float, SizeVar("N")),
       ArrayTypeWSWC(Float, 3),
       (input,wgts) => {
-        SlideSeqPlus(
+        MapSeqSlide(
           fun(neighbourhood => {
             toGlobal(MapSeqUnroll(id)) o
             ReduceSeqUnroll(add, 0.0f) o

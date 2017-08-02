@@ -30,7 +30,7 @@ object ScalaPrinter {
       case mapGlb: MapGlb => s"MapGlb(${mapGlb.dim})(${apply(mapGlb.f)})"
       case reduceSeqUnroll: ReduceSeqUnroll => s"ReduceSeqUnroll(${apply(reduceSeqUnroll.f)})"
       case reduceSeq: ReduceSeq => s"ReduceSeq(${apply(reduceSeq.f)})"
-      case slideseqplus: SlideSeqPlus => s"SlideSeqPlus(${apply(slideseqplus.f)})"
+      case mapSeqSlide: MapSeqSlide => s"MapSeqSlide(${apply(mapSeqSlide.f)})"
       case reduce: Reduce => s"Reduce(${apply(reduce.f)})"
       case reduce: PartRed => s"PartRed(${apply(reduce.f)})"
       case toGlobal: toGlobal => s"toGlobal(${apply(toGlobal.f)})"

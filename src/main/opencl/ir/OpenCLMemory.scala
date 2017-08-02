@@ -242,7 +242,7 @@ object TypedOpenCLMemory {
         case m: AbstractMap => collectMap(call.t, m)
         case f: FilterSeq   => collectFilter(call.t, f)
         case r: AbstractPartRed => collectReduce(r, argMems)
-        case sp: SlideSeqPlus => collectSlideSeqPlus(sp, argMems)
+        case sp: MapSeqSlide => collectMapSeqSlide(sp, argMems)
         case s: AbstractSearch => collectSearch(s, call, argMems)
         case ua: UnsafeArrayAccess => collectUnsafeArrayAccess(ua, call, argMems)
         case ca: CheckedArrayAccess => collectCheckedArrayAccess(ca, call, argMems)
@@ -364,7 +364,7 @@ object TypedOpenCLMemory {
       })
     }
 
-    def collectSlideSeqPlus(sp: SlideSeqPlus,
+    def collectMapSeqSlide(sp: MapSeqSlide,
                             argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
       val mems: Seq[TypedOpenCLMemory] = collect(sp.f.body) ++ Seq[TypedOpenCLMemory]()
 

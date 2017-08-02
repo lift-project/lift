@@ -76,7 +76,7 @@ object ParameterRewrite {
 
   private val settingsFile = parser.option[String](List("f", "file"), "name",
     "The settings file to use."
-    ) {
+  ) {
     (s, _) =>
       val file = new File(s)
       if (!file.exists)
@@ -144,7 +144,7 @@ object ParameterRewrite {
 
             val st =
               if (combinations.isDefined &&
-                  combinations.get.head.length == vars.length)
+                combinations.get.head.length == vars.length)
                 (vars: Seq[ArithExpr], combinations.get.head).zipped.toMap
               else
                 createValueMap(high_level_expr_orig)
@@ -193,45 +193,45 @@ object ParameterRewrite {
                         val expr = low_level_factory(sizesForFilter ++ params)
                         TypeChecker(expr)
 
-                      val rangeList = if (config.exploreNDRange)
-                        computeValidNDRanges(expr)
-                      else
-                        Seq(InferNDRange(expr))
+                        val rangeList = if (config.exploreNDRange)
+                          computeValidNDRanges(expr)
+                        else
+                          Seq(InferNDRange(expr))
 
                         val filtered: Seq[(Lambda, Seq[ArithExpr], (NDRange, NDRange))] =
-                          rangeList.flatMap {ranges =>
+                          rangeList.flatMap { ranges =>
                             // don't filter if we're not injecting the NDRanges
-                            if (config.disableNDRangeInjection || (expr, ranges, settings.searchParameters) == Success)
+                            if (config.disableNDRangeInjection || ExpressionFilter(expr, ranges, settings.searchParameters) == Success)
                               Some((low_level_factory(vars ++ params), params, ranges))
                             else
                               None
                           }
 
-                      if(config.exploreNDRange) logger.debug(filtered.length + " NDRanges after filtering")
-                      val sampled = if (config.sampleNDRange > 0 && filtered.nonEmpty) {
-                        Random.setSeed(0L) //always use the same seed
-                        Random.shuffle(filtered).take(config.sampleNDRange)
-                      } else
-                        filtered
+                        if (config.exploreNDRange) logger.debug(filtered.length + " NDRanges after filtering")
+                        val sampled = if (config.sampleNDRange > 0 && filtered.nonEmpty) {
+                          Random.setSeed(0L) //always use the same seed
+                          Random.shuffle(filtered).take(config.sampleNDRange)
+                        } else
+                          filtered
 
                         val sampleStrings: Seq[String] = sampled.map(x => low_level_hash + "_" + x._2.mkString("_") +
                           "_" + x._3._1.toString.replace(",", "_") + "_" + x._3._2.toString.replace(",", "_"))
-                        if(config.sampleNDRange > 0) logger.debug("\nSampled NDRanges:\n\t" + sampleStrings.mkString(" \n "))
+                        if (config.sampleNDRange > 0) logger.debug("\nSampled NDRanges:\n\t" + sampleStrings.mkString(" \n "))
                         Some(sampled)
 
-                    } catch {
-                      case _: ir.TypeException => None
+                      } catch {
+                        case _: ir.TypeException => None
 
-                      //noinspection SideEffectsInMonadicTransformation
-                      case x: Throwable =>
-                        logger.warn("Failed parameter propagation", x)
-                        logger.warn(low_level_hash)
-                        logger.warn(params.mkString("; "))
-                        logger.warn(low_level_str)
-                        logger.warn(settings.searchParameters.defaultInputSize.toString)
-                        None
-                    }
-                  }).flatten
+                        //noinspection SideEffectsInMonadicTransformation
+                        case x: Throwable =>
+                          logger.warn("Failed parameter propagation", x)
+                          logger.warn(low_level_hash)
+                          logger.warn(params.mkString("; "))
+                          logger.warn(low_level_str)
+                          logger.warn(settings.searchParameters.defaultInputSize.toString)
+                          None
+                      }
+                    }).flatten
 
                   kernelCounter.addAndGet(potential_expressions.size)
 
@@ -308,36 +308,35 @@ object ParameterRewrite {
 
   private def computeValidNDRanges(expr: Lambda): Seq[(NDRange, NDRange)] = {
     var usedDimensions: Set[Int] = Set()
-    Expr.visit(expr.body,
-      {
-        case FunCall(MapGlb(dim, _), _) =>
-          usedDimensions += dim
+    Expr.visit(expr.body, {
+      case FunCall(MapGlb(dim, _), _) =>
+        usedDimensions += dim
 
-        case FunCall(MapLcl(dim, _), _) =>
-          usedDimensions += dim
+      case FunCall(MapLcl(dim, _), _) =>
+        usedDimensions += dim
 
-        case FunCall(MapWrg(dim, _), _) =>
-          usedDimensions += dim
+      case FunCall(MapWrg(dim, _), _) =>
+        usedDimensions += dim
 
-        case FunCall(MapAtomLcl(dim, _, _), _) =>
-          usedDimensions += dim
+      case FunCall(MapAtomLcl(dim, _, _), _) =>
+        usedDimensions += dim
 
-        case FunCall(MapAtomWrg(dim, _, _), _) =>
-          usedDimensions += dim
+      case FunCall(MapAtomWrg(dim, _, _), _) =>
+        usedDimensions += dim
 
-        case _ =>
-      }, (_) => Unit)
+      case _ =>
+    }, (_) => Unit)
     val nDRangeDim = usedDimensions.max + 1
 
     logger.debug(s"computing ${nDRangeDim}D NDRanges")
 
     // hardcoded highest power of two = 8192
-    val pow2 = Seq.tabulate(14)(x => scala.math.pow(2,x).toInt)
+    val pow2 = Seq.tabulate(14)(x => scala.math.pow(2, x).toInt)
     val localGlobalCombinations: Seq[(ArithExpr, ArithExpr)] = (for {
       local <- pow2
       global <- pow2
       if local <= global
-    } yield (local, global)).map{ case (l,g) => (Cst(l), Cst(g))}
+    } yield (local, global)).map { case (l, g) => (Cst(l), Cst(g)) }
 
     nDRangeDim match {
       case 1 => for {
