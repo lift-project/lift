@@ -64,7 +64,7 @@ object IRNode {
       case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
            Split(_) | Join() | Zip(_) | Tuple(_) | Filter() |
            Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Slide(_, _) |
-           Pad(_,_,_) | Value(_) | UnsafeArrayAccess(_) | Id() =>  // nothing to visit here
+           Pad(_,_,_) | Value(_) | UnsafeArrayAccess(_) | CheckedArrayAccess(_) | Id() =>  // nothing to visit here
 
       case _: Param | _:ArrayAccess | _: ArrayConstructors =>  // nothing to visit here
 
@@ -115,7 +115,7 @@ object IRNode {
       case x@(MapGlb(_, _) | MapLcl(_, _) | MapWarp(_) | MapLane(_) | MapSeq(_) | MapWrg(_,_) | Map(_) |
               Reduce(_) | PartRed(_) | ReduceSeq(_) | ReduceWhileSeq(_,_) | BSearch(_) | LSearch(_) | FunCall(_, _) | Lambda(_, _) |
               Unzip() | Transpose() | TransposeW() | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
-              Head() | Tail() | Get(_) | toGlobal(_) | toLocal(_) | toPrivate(_) | Id() | UnsafeArrayAccess(_) ) =>
+              Head() | Tail() | Get(_) | toGlobal(_) | toLocal(_) | toPrivate(_) | Id() | UnsafeArrayAccess(_) | CheckedArrayAccess(_) ) =>
 
     })
   }

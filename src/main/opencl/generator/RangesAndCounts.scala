@@ -46,7 +46,6 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
             }
 
           case f: FilterSeq =>
-            apply(f.copyFun.body)
             apply(f.f.body)
             setRangeFilterSeq(f, call)
 
@@ -62,7 +61,7 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
               case r : ReduceWhileSeq => setRangeReduceSeq(r, call) 
             }
             apply(r.f.body)
-          case sp: SlideSeqPlus => setRangeSlideSeqPlus(sp, call)
+          case sp: MapSeqSlide => setRangeMapSeqSlide(sp, call)
             apply(sp.f.body)
 
           case i: Iterate =>
@@ -200,7 +199,7 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
     r.loopVar = Var(r.loopVar.name, RangeAdd(Cst(0), Type.getLength(inT), Cst(1)))
   }
 
-  private def setRangeSlideSeqPlus(sp: SlideSeqPlus, call: FunCall): Unit = {
+  private def setRangeMapSeqSlide(sp: MapSeqSlide, call: FunCall): Unit = {
     sp.loopVar = Var(sp.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
   }
 

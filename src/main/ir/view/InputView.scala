@@ -1,9 +1,9 @@
 package ir.view
 
-import lift.arithmetic.ArithExpr
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, ReduceWhileSeq, SlideSeqPlus}
+import lift.arithmetic.ArithExpr
+import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq}
 
 /**
  * A helper object for constructing views.
@@ -56,7 +56,7 @@ object InputView {
       case m: AbstractMap => buildViewMap(m, call, argView)
       case f: FilterSeq => buildViewFilter(f, call, argView)
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
-      case sp: SlideSeqPlus => buildViewSlideSeqPlus(sp, call, argView)
+      case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
       case iss: InsertionSortSeq => buildViewSort(iss, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
@@ -79,6 +79,7 @@ object InputView {
       case h: Head => buildViewHead(call, argView)
       case h: Tail => buildViewTail(call, argView)
       case uaa: UnsafeArrayAccess => buildViewUnsafeArrayAccess(uaa, call, argView)
+      case ca: CheckedArrayAccess => buildViewCheckedArrayAccess(ca, call, argView)
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case ArrayAccess(i) => argView.access(i)
@@ -125,19 +126,9 @@ object InputView {
   }
   
   private def buildViewFilter(f: FilterSeq, call: FunCall, argView: View): View = {
-    // The inputs are the same for both the predicate and the copy function
     f.f.params.head.view = argView.access(f.loopRead)
-    f.copyFun.params.head.view = argView.access(f.loopRead)
-    
     visitAndBuildViews(f.f.body)
-    val innerView = visitAndBuildViews(f.copyFun.body)
-    f.copyFun.body match {
-      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
-        // create fresh input view for following function
-        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
-      case _ => // call.isAbstract and return input map view
-        ViewMap(innerView, f.loopRead, call.t)
-    }
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
   
   private def buildViewSort(iss: InsertionSortSeq,
@@ -181,7 +172,7 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
-  private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
+  private def buildViewMapSeqSlide(sp: MapSeqSlide,
                                     call: FunCall, argView: View): View = {
 
     sp.f.params(0).view = ViewMem(sp.windowVar.name, sp.f.params(0).t)
@@ -293,6 +284,13 @@ object InputView {
    // visit the index
    visitAndBuildViews(a.index)
    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+  }
+
+  private def buildViewCheckedArrayAccess(a: CheckedArrayAccess, call: FunCall, argView: View) : View = {
+    // visit the index
+    visitAndBuildViews(a.index)
+//    visitAndBuildViews(a.default)
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
   private def buildViewPad(left: Int, right: Int, boundary: Pad.BoundaryFun, argView: View) : View = {

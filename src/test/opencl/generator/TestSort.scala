@@ -4,7 +4,7 @@ import ir.ArrayType
 import ir.ast.{Join, Split, UserFun, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor}
-import opencl.ir._
+import opencl.ir.{Int, add, IntToValue}
 import opencl.ir.pattern._
 import org.junit.{AfterClass, BeforeClass, Test}
 import org.junit.Assert.assertArrayEquals
@@ -23,22 +23,21 @@ object TestSort {
 }
 
 class TestSort {
-  private val int = opencl.ir.Int
   private val int_compare = UserFun(
-    "int_compare", Array("x", "y"), "return x < y;", Seq(int, int), int
+    "int_compare", Array("x", "y"), "return x < y;", Seq(Int, Int), Int
   )
   
-  @Test def sortInt(): Unit = {
+  @Test def sortIntSequential(): Unit = {
     val size = 128
     val input = Array.fill(size)(util.Random.nextInt(32))
     val N = SizeVar("N")
     
     val kernel = fun(
-      ArrayType(int, N),
-      arr => InsertionSortSeq(int_compare) $ arr
+      ArrayType(Int, N),
+      InsertionSortSeq(int_compare) $ _
     )
     
-    val (output: Array[Int], runtime) = Execute(size)(kernel, input)
+    val (output: Array[Int], runtime) = Execute(1, 1)(kernel, input)
     println(s"Runtime: $runtime")
     
     println(output.mkString(", "))
@@ -51,13 +50,12 @@ class TestSort {
     val N = SizeVar("N")
     
     val kernel = fun(
-      ArrayType(int, N),
+      ArrayType(Int, N),
       arr =>
-        Join()
-          o MapWrg(
-            MapLcl(toGlobal(InsertionSortSeq(int_compare))) o Split(32)
-          )
-          o Split(32) $ arr
+        Join() o MapWrg(
+          MapLcl(toGlobal(InsertionSortSeq(int_compare))) o Split(32)
+        )
+        o Split(32) $ arr
     )
    
     val gold = input.grouped(32).flatMap(_.sortWith(_ < _)).toArray
@@ -67,26 +65,26 @@ class TestSort {
     assertArrayEquals(gold, output)
   }
   
-  @Test def sortArrays(): Unit = {
+  @Test def sortArraysSequential(): Unit = {
     val size = 128
     val input = Array.fill(size)(util.Random.nextInt(64))
     val N = SizeVar("N")
     
     val kernel = fun(
-      ArrayType(int, N),
+      ArrayType(Int, N),
       arr =>
         Join() o InsertionSortSeq(
           fun((l, r) =>
             int_compare.apply(
-              fun(x => x.at(0)) o ReduceSeq(add(int), 0) $ l,
-              fun(x => x.at(0)) o ReduceSeq(add(int), 0) $ r
+              fun(x => x.at(0)) o ReduceSeq(add(Int), 0) $ l,
+              fun(x => x.at(0)) o ReduceSeq(add(Int), 0) $ r
             )
           )
         ) o Split(8) $ arr
     )
     
     val gold = input.grouped(8).toArray.sortWith(_.sum < _.sum).flatten
-    val (output: Array[Int], runtime) = Execute(size)(kernel, input)
+    val (output: Array[Int], runtime) = Execute(1, 1)(kernel, input)
     println(s"Runtime: $runtime")
   
     assertArrayEquals(gold, output)

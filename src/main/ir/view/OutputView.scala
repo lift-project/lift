@@ -1,9 +1,9 @@
 package ir.view
 
-import lift.arithmetic.{ArithExpr, Cst, RangeAdd}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, ReduceWhileSeq, SlideSeqPlus}
+import lift.arithmetic.{ArithExpr, Cst, RangeAdd}
+import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
@@ -42,7 +42,7 @@ object OutputView {
       case m: AbstractMap => buildViewMap(m, call, writeView)
       case f: FilterSeq => buildViewFilter(f,  call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
-      case sp: SlideSeqPlus => buildViewSlideSeqPlus(sp, call, writeView)
+      case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
       case iss: InsertionSortSeq => buildViewSort(iss, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
@@ -63,7 +63,7 @@ object OutputView {
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
-      case _: ArrayAccess | _: UnsafeArrayAccess =>
+      case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
       case PrintType() | Get(_) | _: Tuple | Gather(_) | Filter() |
            Pad(_, _, _) =>
@@ -203,14 +203,10 @@ object OutputView {
   
   private def buildViewFilter(f: FilterSeq, call: FunCall,
                               writeView: View): View = {
-    // Output of the predicate is never stored in a variable
     visitAndBuildViews(f.f.body, writeView.access(Cst(0)))
     val outDepth = getAccessDepth(f.f.body.accessInf, f.f.body.mem)
-    f.f.body.outputView = View.initialiseNewView(f.f.body.t, outDepth)
-    
-    // Write at the "top" of the output array
-    visitAndBuildViews(f.copyFun.body, writeView.access(f.loopWrite))
-    ViewMap(f.copyFun.body.outputView, f.loopWrite, call.args.head.t)
+    f.f.body.outputView = View.initialiseNewView(f.f.body.t, List())
+    ViewMap(f.f.params.head.outputView, f.loopWrite, call.args.head.t)
   }
   
   private def buildViewReduce(r: AbstractPartRed,
@@ -228,7 +224,7 @@ object OutputView {
     ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }
 
-  private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
+  private def buildViewMapSeqSlide(sp: MapSeqSlide,
                                     call: FunCall, writeView: View): View = {
     visitAndBuildViews(sp.f.body, writeView.access(sp.loopVar))
     ViewMap(sp.f.params.head.outputView, sp.loopVar, call.args.head.t)

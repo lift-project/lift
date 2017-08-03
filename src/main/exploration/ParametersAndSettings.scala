@@ -2,79 +2,261 @@ package exploration
 
 import com.typesafe.scalalogging.Logger
 import lift.arithmetic.{ArithExpr, Cst}
+import org.clapper.argot.{FlagOption, SingleValueOption}
 import play.api.libs.json.Reads._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 
+case class LocalMemoryRulesSettings (
+  addIdForCurrentValueInReduce: Boolean,
+  addIdMapLcl: Boolean,
+  addIdMapWrg: Boolean,
+  addIdAfterReduce: Boolean
+) {
+  override def toString: String =
+     s"""LocalMemoryRulesSettings:
+        |    addIdForCurrentValueInReduce: $addIdForCurrentValueInReduce
+        |    addIdMapLcl: $addIdMapLcl
+        |    addIdMapWrg: $addIdMapWrg
+        |    addIdAfterReduce: $addIdAfterReduce
+      """.stripMargin
+}
+
+object LocalMemoryRulesSettings{
+
+  import MemoryMappingRewrite._
+  import utils.ExplorationParameter._
+
+  def createDefault = createWithDefaults(None, None, None, None)
+  def createWithDefaults(
+                        configAddIdForCurrentValueInReduce: Option[Boolean],
+                        configAddIdMapLcl: Option[Boolean],
+                        configAddIdMapWrg: Option[Boolean],
+                        configAddIdAfterReduce: Option[Boolean]
+                        ) = LocalMemoryRulesSettings(
+    getValue(addIdForCurrentValueInReduce, configAddIdAfterReduce, defaultAddIdForCurrentValueInReduce),
+    getValue(addIdMapLcl, configAddIdMapLcl, defaultAddIdMapLcl),
+    getValue(addIdMapWrg, configAddIdMapWrg, defaultAddIdMapWrg),
+    getValue(addIdAfterReduce, configAddIdAfterReduce, defaultAddIdAfterReduce))
+}
+
+case class ParameterRewriteSettings(
+  exploreNDRange: Boolean,
+  sampleNDRange: Int,
+  disableNDRangeInjection: Boolean,
+  sequential: Boolean,
+  generateScala: Boolean
+) {
+  override def toString: String =
+  s"""ParameterRewriteSettings:
+     |    exploreNDRange: $exploreNDRange
+     |    sampleNDRange: $sampleNDRange
+     |    disableNDRangeInjection: $disableNDRangeInjection
+     |    sequential: $sequential
+     |    generateScala: $generateScala
+   """.stripMargin
+}
+
+object ParameterRewriteSettings {
+
+  import ParameterRewrite._
+  import exploration.utils.ExplorationParameter._
+
+  def createDefault = createWithDefaults(None, None, None, None, None)
+  def createWithDefaults(
+                        configExploreNDRange: Option[Boolean],
+                        configSampleNDRange: Option[Int],
+                        configDisableNDRangeInjection: Option[Boolean],
+                        configSequential: Option[Boolean],
+                        configGenerateScala: Option[Boolean]
+                        ) = ParameterRewriteSettings(
+    getValue(exploreNDRange, configExploreNDRange, defaultExploreNDRange),
+    getValue(sampleNDRange, configSampleNDRange, defaultSampleNDRange),
+    getValue(disableNDRangeInjection, configDisableNDRangeInjection, defaultDisableNDRangeInjection),
+    getValue(sequential, configSequential, defaultSequential),
+    getValue(generateScala, configGenerateScala, defaultGenerateScala))
+}
+
+case class MemoryMappingRewriteSettings(
+                                       vectorize: Boolean,
+                                       vectorWidth: Int,
+                                       sequential: Boolean,
+                                       loadBalancing: Boolean,
+                                       unrollReduce: Boolean,
+                                       global0: Boolean,
+                                       global01: Boolean,
+                                       global10: Boolean,
+                                       global012: Boolean,
+                                       global210: Boolean,
+                                       group0: Boolean,
+                                       group01: Boolean,
+                                       group10: Boolean
+) {
+  override def toString: String =
+  s"""MemoryMappingRewriteSettings:
+     |    vectorize: $vectorize
+     |    vectorWidth: $vectorWidth
+     |    sequential: $sequential
+     |    loadBalancing: $loadBalancing
+     |    unrollReduce: $unrollReduce
+     |    global0: $global0
+     |    global01: $global01
+     |    global10: $global10
+     |    global012: $global012
+     |    global210: $global210
+     |    group0: $group0
+     |    group01: $group01
+     |    group10: $group10
+   """.stripMargin
+}
+
+object MemoryMappingRewriteSettings {
+
+  import MemoryMappingRewrite._
+  import exploration.utils.ExplorationParameter._
+
+  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None, None, None, None, None)
+  def createWithDefaults(
+                        configVectorize: Option[Boolean],
+                        configVectorWidth: Option[Int],
+                        configSequential: Option[Boolean],
+                        configLoadBalancing: Option[Boolean],
+                        configUnrollReduce: Option[Boolean],
+                        configGlobal0: Option[Boolean],
+                        configGlobal01: Option[Boolean],
+                        configGlobal10: Option[Boolean],
+                        configGlobal012: Option[Boolean],
+                        configGlobal210: Option[Boolean],
+                        configGroup0: Option[Boolean],
+                        configGroup01: Option[Boolean],
+                        configGroup10: Option[Boolean]
+                        ) = MemoryMappingRewriteSettings(
+  getValue(vectorize, configVectorize, defaultVectorize),
+  getValue(vectorWidth, configVectorWidth, defaultVectorWidth),
+  getValue(sequential, configSequential, defaultSequential),
+  getValue(loadBalancing, configLoadBalancing, defaultLoadBalancing),
+  getValue(unrollReduce, configUnrollReduce, defaultUnrollReduce),
+  getValue(global0, configGlobal0, defaultGlobal0),
+  getValue(global01, configGlobal01, defaultGlobal01),
+  getValue(global10, configGlobal10, defaultGlobal10),
+  getValue(global012, configGlobal012, defaultGlobal012),
+  getValue(global210, configGlobal210, defaultGlobal210),
+  getValue(group0, configGroup0, defaultGroup0),
+  getValue(group01, configGroup01, defaultGroup01),
+  getValue(group10, configGroup10, defaultGroup10))
+}
+
+case class HighLevelRewriteSettings(
+  explorationDepth: Int,
+  depth: Int,
+  distance: Int,
+  ruleRepetition: Int,
+  vectorWidth: Int,
+  sequential: Boolean,
+  onlyLower: Boolean,
+  oldStringRepresentation: Boolean,
+  ruleCollection: String
+) {
+  override def toString: String =
+    s"""HighLevelRewriteSettings:
+      |    explorationDepth: $explorationDepth
+      |    depth: $depth
+      |    distance: $distance
+      |    ruleRepetition: $ruleRepetition
+      |    vectorWidth: $vectorWidth
+      |    sequential: $sequential
+      |    onlyLower: $onlyLower
+      |    oldStringRepresentation: $oldStringRepresentation
+      |    ruleCollection: $ruleCollection
+    """.stripMargin
+}
+
+object HighLevelRewriteSettings {
+
+  import HighLevelRewrite._
+  import exploration.utils.ExplorationParameter._
+
+  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None)
+
+  def createWithDefaults(
+                        configExplorationDepth: Option[Int],
+                        configDepth: Option[Int],
+                        configDistance: Option[Int],
+                        configRuleRepetition: Option[Int],
+                        configVectorWidth: Option[Int],
+                        configSequential: Option[Boolean],
+                        configOnlyLower: Option[Boolean],
+                        configOldStringRepresentation: Option[Boolean],
+                        configRuleCollection: Option[String]
+                        ) = HighLevelRewriteSettings(
+  // priority: 1) command-line args; 2) config-file; 3) default values
+  getValue(explorationDepth, configExplorationDepth, defaultExplorationDepth),
+  getValue(depthFilter, configDepth, defaultDepthFilter),
+  getValue(distanceFilter, configDistance, defaultDistanceFilter),
+  getValue(ruleRepetition, configRuleRepetition, defaultRuleRepetition),
+  getValue(vectorWidth, configVectorWidth, defaultVectorWidth),
+  getValue(sequential, configSequential, defaultSequential),
+  getValue(onlyLower, configOnlyLower, defaultOnlyLower),
+  getValue(oldStringRepresentation, configOldStringRepresentation, defaultOldStringRepresentation),
+  getValue(ruleCollection, configRuleCollection, defaultRuleCollection))
+}
+
 object SearchParameters {
-  // Default input size for all dimensions to use for filtering, if no input combinations provided
-  private val default_size = 1024
 
-  // Minimum number of work item per workgroup
-  private val min_work_items = 128
-
-  // Maximum number of work item per workgroup
-  private val max_work_items = 1024
-
-  // Minimal global grid size
-  private val min_grid_size = 4
-
-  // Max amount of private memory allocated (this is not necessarily the number of registers)
-  private val max_amount_private_memory = 1024
-
-  // Max static amount of local memory
-  private val max_amount_local_memory = 50000
-
-  // Minimum number of workgroups
-  private val min_num_workgroups = 8
-
-  // Maximum number of workgroups
-  private val max_num_workgroups = 10000
+  import ExpressionFilter._
 
   def createDefault = createWithDefaults(None, None, None, None, None, None, None, None)
 
   def createWithDefaults(
-    defaultSize: Option[Int],
-    minWorkItems: Option[Int],
-    maxWorkItems: Option[Int],
-    minGridSize: Option[Int],
-    maxPrivateMemory: Option[Int],
-    maxLocalMemory: Option[Int],
-    minWorkgroups: Option[Int],
-    maxWorkgroups: Option[Int]
+                          defaultInputSize: Option[Int],
+                          minLocalSize: Option[Int],
+                          maxLocalSize: Option[Int],
+                          minGlobalSize: Option[Int],
+                          maxPrivateMemory: Option[Int],
+                          maxLocalMemory: Option[Int],
+                          minWorkgroups: Option[Int],
+                          maxWorkgroups: Option[Int]
   ) = SearchParameters(
-    defaultSize.getOrElse(default_size),
-    minWorkItems.getOrElse(min_work_items),
-    maxWorkItems.getOrElse(max_work_items),
-    minGridSize.getOrElse(min_grid_size),
-    maxPrivateMemory.getOrElse(max_amount_private_memory),
-    maxLocalMemory.getOrElse(max_amount_local_memory),
-    minWorkgroups.getOrElse(min_num_workgroups),
-    maxWorkgroups.getOrElse(max_num_workgroups)
+    defaultInputSize.getOrElse(default_input_size),
+    minLocalSize.getOrElse(min_local_size),
+    maxLocalSize.getOrElse(max_local_size),
+    minGlobalSize.getOrElse(min_global_size),
+    maxPrivateMemory.getOrElse(max_private_memory),
+    maxLocalMemory.getOrElse(max_local_memory),
+    minWorkgroups.getOrElse(min_workgroups),
+    maxWorkgroups.getOrElse(max_workgroups)
   )
 
 }
 
 case class SearchParameters(
-  defaultSize: Int,
-  minWorkItems: Int,
-  maxWorkItems: Int,
-  minGridSize: Int,
-  maxPrivateMemory: Int,
-  maxLocalMemory: Int,
-  minWorkgroups: Int,
-  maxWorkgroups: Int
+                             defaultInputSize: Int,
+                             minLocalSize: Int,
+                             maxLocalSize: Int,
+                             minGlobalSize: Int,
+                             maxPrivateMemory: Int,
+                             maxLocalMemory: Int,
+                             minWorkgroups: Int,
+                             maxWorkgroups: Int
 )
 
 case class Settings(
   inputCombinations: Option[Seq[Seq[ArithExpr]]] = None,
-  searchParameters: SearchParameters = SearchParameters.createDefault
+  searchParameters: SearchParameters = SearchParameters.createDefault,
+  highLevelRewriteSettings: HighLevelRewriteSettings = HighLevelRewriteSettings.createDefault,
+  memoryMappingRewriteSettings: MemoryMappingRewriteSettings = MemoryMappingRewriteSettings.createDefault,
+  parameterRewriteSettings: ParameterRewriteSettings = ParameterRewriteSettings.createDefault,
+  localMemoryRulesSettings: LocalMemoryRulesSettings= LocalMemoryRulesSettings.createDefault
 ) {
 
   override def toString: String = {
     s"""Settings(
        |  $inputCombinations,
        |  $searchParameters
+       |  $highLevelRewriteSettings
+       |  $memoryMappingRewriteSettings
+       |  $parameterRewriteSettings
+       |  $localMemoryRulesSettings
        |)""".stripMargin
   }
 
@@ -88,23 +270,74 @@ object ParseSettings {
     JsPath.read[Long].map(Cst)
 
   private[exploration] implicit val parametersReads: Reads[SearchParameters] = (
-    (JsPath \ "default_size").readNullable[Int] and
-    (JsPath \ "min_work_items").readNullable[Int] and
-    (JsPath \ "max_work_items").readNullable[Int] and
-    (JsPath \ "min_grid_size").readNullable[Int] and
+    (JsPath \ "default_input_size").readNullable[Int] and
+    (JsPath \ "min_local_size").readNullable[Int] and
+    (JsPath \ "max_local_size").readNullable[Int] and
+    (JsPath \ "min_global_size").readNullable[Int] and
     (JsPath \ "max_private_memory").readNullable[Int] and
     (JsPath \ "max_local_memory").readNullable[Int] and
     (JsPath \ "min_workgroups").readNullable[Int] and
     (JsPath \ "max_workgroups").readNullable[Int]
   )(SearchParameters.createWithDefaults _)
 
+  private[exploration] implicit val highLevelReads: Reads[HighLevelRewriteSettings] = (
+    (JsPath \ "exploration_depth").readNullable[Int] and
+    (JsPath \ "depth").readNullable[Int] and
+    (JsPath \ "distance").readNullable[Int] and
+    (JsPath \ "rule_repetition").readNullable[Int] and
+    (JsPath \ "vector_width").readNullable[Int] and
+    (JsPath \ "sequential").readNullable[Boolean] and
+    (JsPath \ "only_lower").readNullable[Boolean] and
+    (JsPath \ "old_string_representation").readNullable[Boolean] and
+    (JsPath \ "rule_collection").readNullable[String]
+  )(HighLevelRewriteSettings.createWithDefaults _)
+
+  private[exploration] implicit val memoryMappingReads: Reads[MemoryMappingRewriteSettings] = (
+    (JsPath \ "vectorize").readNullable[Boolean] and
+    (JsPath \ "vector_width").readNullable[Int] and
+    (JsPath \ "sequential").readNullable[Boolean] and
+    (JsPath \ "load_balancing").readNullable[Boolean] and
+    (JsPath \ "unroll_reduce").readNullable[Boolean] and
+    (JsPath \ "global0").readNullable[Boolean] and
+    (JsPath \ "global01").readNullable[Boolean] and
+    (JsPath \ "global10").readNullable[Boolean] and
+    (JsPath \ "global012").readNullable[Boolean] and
+    (JsPath \ "global210").readNullable[Boolean] and
+    (JsPath \ "group0").readNullable[Boolean] and
+    (JsPath \ "group01").readNullable[Boolean] and
+    (JsPath \ "group10").readNullable[Boolean]
+  )(MemoryMappingRewriteSettings.createWithDefaults _)
+
+  private[exploration] implicit val parameterRewriteReads: Reads[ParameterRewriteSettings] = (
+    (JsPath \ "explore_ndrange").readNullable[Boolean] and
+    (JsPath \ "sample_ndrange").readNullable[Int] and
+    (JsPath \ "disable_ndrange_injection").readNullable[Boolean] and
+    (JsPath \ "sequential").readNullable[Boolean] and
+    (JsPath \ "generate_scala").readNullable[Boolean]
+  )(ParameterRewriteSettings.createWithDefaults _)
+
+  private[exploration] implicit val localMemoryRulesReads: Reads[LocalMemoryRulesSettings] = (
+    (JsPath \ "addIdForCurrentValueInReduce").readNullable[Boolean] and
+    (JsPath \ "addIdMapLcl").readNullable[Boolean] and
+    (JsPath \ "addIdMapWrg").readNullable[Boolean] and
+    (JsPath \ "addIdAfterReduce").readNullable[Boolean]
+  )(LocalMemoryRulesSettings.createWithDefaults _)
+
   private[exploration] implicit val settingsReads: Reads[Settings] = (
     (JsPath \ "input_combinations").readNullable[Seq[Seq[ArithExpr]]] and
-    (JsPath \ "search_parameters").readNullable[SearchParameters]
-  )((maybeCombinations, maybeParameters) =>
+    (JsPath \ "search_parameters").readNullable[SearchParameters] and
+    (JsPath \ "high_level_rewrite").readNullable[HighLevelRewriteSettings] and
+    (JsPath \ "memory_mapping_rewrite").readNullable[MemoryMappingRewriteSettings] and
+    (JsPath \ "parameter_rewrite").readNullable[ParameterRewriteSettings] and
+    (JsPath \ "local_memory_rules").readNullable[LocalMemoryRulesSettings]
+  )((maybeCombinations, maybeParameters, maybeHighLevel, maybeMemoryMapping, maybeParameterRewrite, maybeLocalMemoryRules) =>
     Settings(
       maybeCombinations,
-      maybeParameters.getOrElse(SearchParameters.createDefault)
+      maybeParameters.getOrElse(SearchParameters.createDefault),
+      maybeHighLevel.getOrElse(HighLevelRewriteSettings.createDefault),
+      maybeMemoryMapping.getOrElse(MemoryMappingRewriteSettings.createDefault),
+      maybeParameterRewrite.getOrElse(ParameterRewriteSettings.createDefault),
+      maybeLocalMemoryRules.getOrElse(LocalMemoryRulesSettings.createDefault)
     ))
 
   def apply(optionFilename: Option[String]): Settings =

@@ -141,13 +141,13 @@ object OpenCLMemoryAllocator {
         allocMapSeqLcl(call.f.asInstanceOf[AbstractMap],
           call.t, numGlb, numLcl, numPvt, inMem)
 
-      case fs: FilterSeq => allocFilterSeq(fs, call.t, numGlb, numLcl, numPvt, inMem)
-
       case iss: InsertionSortSeq => allocInsertionSort(iss, numGlb, numLcl, numPvt, inMem)
+
+      case fs: FilterSeq => allocFilterSeq(fs, call, numGlb, numLcl, numPvt, inMem)
 
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
 
-      case sp: SlideSeqPlus => allocSlideSeqPlus(sp,call.t, numGlb, numLcl, numPvt, inMem)
+      case sp: MapSeqSlide => allocMapSeqSlide(sp,call.t, numGlb, numLcl, numPvt, inMem)
 
       case s: AbstractSearch => allocSearch(s, call, numGlb, numLcl, numPvt, inMem)
 
@@ -162,6 +162,7 @@ object OpenCLMemoryAllocator {
       case Get(n) => allocGet(n, inMem)
       case f: Filter => allocFilter(f, numGlb, numLcl, inMem)
       case ua: UnsafeArrayAccess => allocUnsafeArrayAccess(ua, call, numGlb, numLcl, numPvt, inMem)
+      case ca: CheckedArrayAccess => allocCheckedArrayAccess(ca, call, numGlb, numLcl, numPvt, inMem)
 
       case Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Slide(_, _) | Pad(_, _, _) |
@@ -252,47 +253,46 @@ object OpenCLMemoryAllocator {
         am.iterationCount
       else
         1
-  
+
     alloc(am.f.body,
           sizeOfArray(numGlb, outT),
           sizeOfArray(numLcl, outT),
           numPvt * privateMultiplier)
   }
-  
+
   private def allocInsertionSort(iss: InsertionSortSeq,
                                  numGlb: ArithExpr,
                                  numLcl: ArithExpr,
                                  numPvt: ArithExpr,
                                  inMem: OpenCLMemory): OpenCLMemory = {
     val len = Type.getLength(iss.f.params.head.t)
-  
+
     // Copy function
     iss.copyFun.params.head.mem = inMem
     val outMem = alloc(iss.copyFun.body, numGlb * len, numLcl * len, numPvt)
-  
+
     // Comparison function
     iss.f.params(1).mem = outMem
     iss.f.params(0).mem = inMem
     alloc(iss.f.body, numGlb, numLcl, numPvt)
-  
+
     // Shifting function
     iss.shiftFun.params.head.mem = outMem
     val wrongM = alloc(iss.shiftFun.body, numGlb, numLcl, numPvt)
     Expr.visit(iss.shiftFun.body, e => if (e.mem == wrongM) e.mem = outMem, _ => {})
-  
+
     outMem
   }
 
-  private def allocFilterSeq(fs: FilterSeq, outT: Type,
+  private def allocFilterSeq(fs: FilterSeq, call: FunCall,
                              numGlb: ArithExpr,
                              numLcl: ArithExpr,
                              numPvt: ArithExpr,
                              inMem: OpenCLMemory): OpenCLMemory = {
-    val len = Type.getMaxLength(outT)
     fs.f.params.head.mem = inMem
-    fs.copyFun.params.head.mem = inMem
     alloc(fs.f.body, numGlb, numLcl, numPvt)
-    alloc(fs.copyFun.body, numGlb * len, numLcl * len, numPvt)
+    val sizeInBytes = Type.getAllocatedSize(call.t)
+    OpenCLMemory.allocMemory(sizeInBytes, sizeInBytes, sizeInBytes, call.addressSpace)
   }
 
   private def allocReduce(r: AbstractPartRed,
@@ -325,7 +325,7 @@ object OpenCLMemoryAllocator {
     }
   }
 
-  private def allocSlideSeqPlus(sp: SlideSeqPlus,
+  private def allocMapSeqSlide(sp: MapSeqSlide,
                                 outT: Type,
                                 numGlb: ArithExpr,
                                 numLcl: ArithExpr,
@@ -340,7 +340,7 @@ object OpenCLMemoryAllocator {
         sp.iterationCount
       else
         1
-    
+
     alloc(sp.f.body,
           sizeOfArray(numGlb, outT),
           sizeOfArray(numLcl, outT),
@@ -386,7 +386,7 @@ object OpenCLMemoryAllocator {
     // manually allocate that much memory, storing it in the correct address space
     if (call.addressSpace != UndefAddressSpace) {
      // use given address space
-      OpenCLMemory.allocMemory(outputSize, outputSize, outputSize,
+      OpenCLMemory.allocMemory(outputSize * numGlb, outputSize * numLcl, outputSize * numPvt,
                            call.addressSpace)
     } else {
       // address space is not predetermined
@@ -396,6 +396,34 @@ object OpenCLMemoryAllocator {
           case m: OpenCLMemory => m.addressSpace
           case _ => throw new IllegalArgumentException("PANIC")
         }
+      OpenCLMemory.allocMemory(outputSize, outputSize, outputSize, addrSpace)
+    }
+  }
+
+  private def allocCheckedArrayAccess(ca: CheckedArrayAccess,
+                                      call: FunCall,
+                                      numGlb: ArithExpr,
+                                      numLcl: ArithExpr,
+                                      numPvt: ArithExpr,
+                                      inMem: OpenCLMemory): OpenCLMemory = {
+    // let the index allocate memory for itself (most likely a param, so it will know its memory)
+    alloc(ca.index, numGlb, numLcl, numPvt)
+
+    // allocate memory itself
+    val outputSize = Type.getAllocatedSize(call.t)
+    // manually allocate that much memory, storing it in the correct address space
+    if (call.addressSpace != UndefAddressSpace) {
+      // use given address space
+      OpenCLMemory.allocMemory(outputSize * numGlb, outputSize * numLcl, outputSize * numPvt,
+        call.addressSpace)
+    } else {
+      // address space is not predetermined
+      //  => figure out the address space based on the input address space(s)
+      val addrSpace =
+      inMem match {
+        case m: OpenCLMemory => m.addressSpace
+        case _ => throw new IllegalArgumentException("PANIC")
+      }
       OpenCLMemory.allocMemory(outputSize, outputSize, outputSize, addrSpace)
     }
   }
@@ -437,7 +465,7 @@ object OpenCLMemoryAllocator {
   }
 
   private def allocGet(n: Int, inMem: OpenCLMemory): OpenCLMemory = {
-    inMem match {     
+    inMem match {
       case coll: OpenCLMemoryCollection =>
         assert(n < coll.subMemories.length)
         coll.subMemories(n)
@@ -466,7 +494,7 @@ object OpenCLMemoryAllocator {
         (params zip coll.subMemories).foreach({case (p, m) => p.mem = m})
     }
   }
-  
+
   /**
    * Helper function for computing the size to allocate for an array given its
    * type and the size of its elements

@@ -1,5 +1,10 @@
 package opencl.executor;
 
+import utils.NativeUtils;
+
+import java.io.IOException;
+import java.util.Objects;
+
 public class Executor {
 
     public static class ExecutorFailureException extends Exception {
@@ -40,7 +45,16 @@ public class Executor {
 
     public static void loadLibrary()
     {
-        System.loadLibrary("executor-jni");
+        try {
+            if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+                NativeUtils.loadLibraryFromJar("/lib/libexecutor-jni.dylib");
+            } else {
+                NativeUtils.loadLibraryFromJar("/lib/libexecutor-jni.so");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
     }
 
     public static void loadAndInit() {

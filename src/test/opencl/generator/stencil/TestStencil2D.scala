@@ -34,7 +34,7 @@ class TestStencil2D {
   val SCALABOUNDARY = Utils.scalaClamp
   val BOUNDARY = Pad.Boundary.Clamp
 
-  val randomData2D = Array.tabulate(1024, 1024) { (i, j) => Random.nextFloat() }
+  val randomData2D = Array.tabulate(32, 32) { (i, j) => Random.nextFloat() }
   val data2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j }
 
   val gaussWeights = Array(
@@ -54,7 +54,7 @@ class TestStencil2D {
     val goldFlat = gold.flatten.flatten.flatten
 
     val lambda = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+      ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
       (domain) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours =>
@@ -76,6 +76,7 @@ class TestStencil2D {
   }
 
   @Test def groupBigClampPaddedData2D(): Unit = {
+    LongTestsEnabled()
     val data2D = Array.tabulate(10, 10) { (i, j) => i * 10.0f + j }
     val boundary = Pad.Boundary.Clamp
     val scalaBoundary = Utils.scalaClamp
@@ -116,8 +117,8 @@ class TestStencil2D {
                             boundary: BoundaryFun,
                             fromRange: Int): Lambda2 = {
     fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(fromRange))), Var("M", StartFromRange(fromRange))),
-      ArrayTypeWSWC(Float, weights.length),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(fromRange))), Var("M", StartFromRange(fromRange))),
+      ArrayType(Float, weights.length),
       (matrix, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -164,6 +165,7 @@ class TestStencil2D {
   }
 
   @Test def gaussianBlur(): Unit = {
+    LongTestsEnabled()
     val stencil = createSimple2DStencil(3, 1, 1, 1, gaussWeights, BOUNDARY, 2)
     run2DStencil(stencil, 3, 1, 1, 1, gaussWeights, SCALABOUNDARY)
   }
@@ -180,6 +182,7 @@ class TestStencil2D {
   }
 
   @Test def blurX3Point(): Unit = {
+    LongTestsEnabled()
     val weights = Array.fill[Float](3)(1.0f)
     val stencil = createSimple2DStencil(1, 1, 3, 1, 0, 0, 1, 1, weights, Pad.Boundary.Wrap, 2)
     run2DStencil(stencil, 1, 1, 3, 1, 0, 0, 1, 1, weights, Utils.scalaWrap)
@@ -213,8 +216,8 @@ class TestStencil2D {
                            left: Int, right: Int,
                            weights: Array[Float],
                            boundary: Pad.BoundaryFun): Lambda = fun(
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-    ArrayTypeWSWC(Float, weights.length),
+    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    ArrayType(Float, weights.length),
     (matrix, weights) => {
       Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -236,8 +239,8 @@ class TestStencil2D {
   def createCopyTilesLambda(size: Int, step: Int,
                             left: Int, right: Int,
                             boundary: Pad.BoundaryFun): Lambda = fun(
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
-    ArrayTypeWSWC(Float, 9),
+    ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+    ArrayType(Float, 9),
     (matrix, weights) => {
       MapWrg(1)(MapWrg(0)(fun(tile =>
         toGlobal(MapLcl(1)(MapLcl(0)(id))) $ tile
@@ -260,7 +263,7 @@ class TestStencil2D {
 
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
   @Test def tiling2DBiggerTiles(): Unit = {
-    val data2D = Array.tabulate(1024, 1024) { (i, j) => i * 24.0f + j }
+    val data2D = Array.tabulate(32, 32) { (i, j) => i * 24.0f + j }
     val tiled: Lambda = createTiled2DStencil(3, 1, 10, 8, 1, 1, gaussWeights, BOUNDARY)
     val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (false, false))(tiled, data2D, gaussWeights)
     val gold = Utils.scalaCompute2DStencil(data2D, 3, 1, 3, 1, 1, 1, 1, 1, gaussWeights, SCALABOUNDARY)
@@ -270,6 +273,7 @@ class TestStencil2D {
 
   // be carefull when choosing small input size because of 'StartsFromRange(100)'
   @Test def tiled2D9PointStencil(): Unit = {
+    LongTestsEnabled()
     val tiled: Lambda = createTiled2DStencil(3, 1, 4, 2, 1, 1, gaussWeights, BOUNDARY)
     run2DStencil(tiled, 3, 1, 1, 1, gaussWeights, SCALABOUNDARY)
   }
@@ -282,8 +286,8 @@ class TestStencil2D {
                                            left: Int, right: Int,
                                            weights: Array[Float],
                                            boundary: Pad.BoundaryFun): Lambda = fun(
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
-    ArrayTypeWSWC(Float, weights.length),
+    ArrayType(ArrayType(Float, Var("N", StartFromRange(100))), Var("M", StartFromRange(100))),
+    ArrayType(Float, weights.length),
     (matrix, weights) => {
       Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -355,13 +359,13 @@ class TestStencil2D {
 
 
     val lambda = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")),
+      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
       (input) => {
         MapGlb(1)(MapGlb(0)(f)) o nbh(3) o boundary(1, clamp) $ input
       })
 
     val lambda2 = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
+      ArrayType(Float, SizeVar("N")),
       (input) => {
         MapGlb(1)(id) o compN(Pad(1,1,clamp), 3) $ input
       })
@@ -383,7 +387,7 @@ class TestStencil2D {
 
     val data2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j }
     val lambda = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
       (domain) => {
         MapSeq(
           MapSeq(
@@ -457,10 +461,10 @@ class TestStencil2D {
   compare to 10x10 array. SHOC does not handle boundary but provides a padded input array
    */
   @Test def shocStencil2D(): Unit = {
+    LongTestsEnabled()
     val stencil = fun(
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, 8194), 8194),
-      ArrayTypeWSWC(Float, 9),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
+      ArrayType(Float, 9),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(fun(tile =>
 
@@ -492,7 +496,7 @@ class TestStencil2D {
     //val haloSize = 1
     //val outputSize = inputSize - 2 * haloSize
     // testing - change tilesize!
-    val inputSize = 8194
+    val inputSize = 512
     val haloSize = 1
     val outputSize = inputSize - 2 * haloSize
     // 4k
@@ -510,7 +514,7 @@ class TestStencil2D {
     input = input.transpose
 
     try {
-      val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
+      val (output: Array[Float], runtime) = Execute(1, 256, 512, 512, (false, false))(stencil, input, weights)
       println("Runtime: " + runtime)
     } catch {
       case e: DeviceCapabilityException =>
@@ -520,8 +524,8 @@ class TestStencil2D {
 
   @Test def shocStencil2DNoTiling(): Unit = {
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
-      ArrayTypeWSWC(Float, 9),
+      ArrayType(ArrayType(Float, Var("N", StartFromRange(6))), Var("M", StartFromRange(6))),
+      ArrayType(Float, 9),
       (matrix, weights) => {
 
         MapGlb(1)(MapGlb(0)(
@@ -542,7 +546,7 @@ class TestStencil2D {
       0.15, 0.25, 0.15,
       0.05, 0.15, 0.05).map(_.toFloat)
 
-    val inputSize = 8194
+    val inputSize = 34
     val haloSize = 1
     val outputSize = inputSize - 2 * haloSize
 
@@ -556,7 +560,7 @@ class TestStencil2D {
     input = input.transpose
 
     try {
-      val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
+      val (output: Array[Float], runtime) = Execute(1, 32, 32, 32, (false, false))(stencil, input, weights)
     } catch {
       case e: DeviceCapabilityException =>
         Assume.assumeNoException("Device not supported.", e)
@@ -570,8 +574,8 @@ class TestStencil2D {
       Seq(Float, Float3, Float3), Float)
 
     val stencil = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("M", StartFromRange(6))), Var("N", StartFromRange(6))),
-      ArrayTypeWSWC(Float, 9),
+      ArrayType(ArrayType(Float, Var("M", StartFromRange(6))), Var("N", StartFromRange(6))),
+      ArrayType(Float, 9),
       (matrix, weights) => {
         //weights.addressSpace = ConstantMemory
 
@@ -631,10 +635,11 @@ class TestStencil2D {
        THREE LEVEL TILING
    ***********************************************************/
   @Test def threeLevelTilingTest(): Unit = {
+    LongTestsEnabled()
     val stencil = fun(
-      //ArrayTypeWSWC(ArrayTypeWSWC(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, 8192), 8192),
-      ArrayTypeWSWC(Float, 15),
+      //ArrayType(ArrayType(Float, Var("N", StartFromRange(2))), Var("M", StartFromRange(2))),
+      ArrayType(ArrayType(Float, 8192), 8192),
+      ArrayType(Float, 15),
       (matrix, weights) => {
         Untile2D() o MapWrg(1)(MapWrg(0)(
           fun(wgBlock =>
@@ -682,6 +687,7 @@ class TestStencil2D {
 
   @Test
   def stencil2DTilingRewriteIdentities(): Unit = {
+    LongTestsEnabled()
     val N = SizeVar("N")
     val M = SizeVar("M")
 
@@ -779,7 +785,7 @@ class TestStencil2D {
       Slide(u,v) o Map(Slide(u,v))
 
     def lambda(f: Lambda): Lambda1 = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      ArrayType(ArrayType(Float, M), N),
       input =>
         MapGlb(1)(MapGlb(0)(MapSeq(MapSeq(id)))) o f $ input
     )
@@ -824,6 +830,7 @@ class TestStencil2D {
 
   @Test
   def stencil2DTilingLocalMemIdentities(): Unit = {
+    LongTestsEnabled()
     // stencil shape
     val n = 3
     val s = 1
@@ -843,7 +850,7 @@ class TestStencil2D {
 
     def lambda(f: Lambda) = {
       fun(
-        ArrayTypeWSWC(ArrayTypeWSWC(Float,SizeVar("M")), SizeVar("N")),
+        ArrayType(ArrayType(Float,SizeVar("M")), SizeVar("N")),
         input => f $ input
       )
     }

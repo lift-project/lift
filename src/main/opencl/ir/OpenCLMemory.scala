@@ -239,12 +239,13 @@ object TypedOpenCLMemory {
                             => collectUserFun(call)
         case l: Lambda      => collect(l.body)
         case m: AbstractMap => collectMap(call.t, m)
-        case f: FilterSeq   => collectFilter(call.t, f)
         case iss: InsertionSortSeq => collectSort(call.t, iss)
+        case f: FilterSeq   => collect(f.f.body) :+ TypedOpenCLMemory(call)
         case r: AbstractPartRed => collectReduce(r, argMems)
-        case sp: SlideSeqPlus => collectSlideSeqPlus(sp, argMems)
+        case sp: MapSeqSlide => collectMapSeqSlide(sp, argMems)
         case s: AbstractSearch => collectSearch(s, call, argMems)
         case ua: UnsafeArrayAccess => collectUnsafeArrayAccess(ua, call, argMems)
+        case ca: CheckedArrayAccess => collectCheckedArrayAccess(ca, call, argMems)
         case i: Iterate     => collectIterate(call, i)
         case fp: FPattern   => collect(fp.f.body)
         case _              => Seq()
@@ -267,7 +268,7 @@ object TypedOpenCLMemory {
     def collectMap(t: Type,
                    m: AbstractMap): Seq[TypedOpenCLMemory] = {
       val mems = collect(m.f.body)
-  
+
       @scala.annotation.tailrec
       def changeTypeMap(addressSpace: OpenCLAddressSpace,
                         tm: TypedOpenCLMemory): TypedOpenCLMemory = {
@@ -315,7 +316,7 @@ object TypedOpenCLMemory {
       }
       
     }
-  
+
     @scala.annotation.tailrec
     def changeType(tm: TypedOpenCLMemory, loopVar: Var, t: Type): TypedOpenCLMemory = {
       // TODO: This might return one of two types in case of reduce (T or Array(T, 1))
@@ -337,18 +338,12 @@ object TypedOpenCLMemory {
       }
     }
   
-    def collectFilter(t: Type,
-                      f: FilterSeq): Seq[TypedOpenCLMemory] = {
-      val mems = collect(f.f.body) ++ collect(f.copyFun.body)
-      mems.map(changeType(_, f.loopRead, t))
-    }
-  
     def collectSort(t: Type,
                     iss: InsertionSortSeq): Seq[TypedOpenCLMemory] = {
       val mems = collect(iss.f.body) ++ collect(iss.copyFun.body) ++ collect(iss.shiftFun.body)
       mems.map(changeType(_, iss.loopRead, t))
     }
-    
+
     def collectReduce(r: AbstractPartRed,
                       argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
       val mems: Seq[TypedOpenCLMemory] = collect(r.f.body) ++ (r match {
@@ -364,7 +359,7 @@ object TypedOpenCLMemory {
       })
     }
 
-    def collectSlideSeqPlus(sp: SlideSeqPlus,
+    def collectMapSeqSlide(sp: MapSeqSlide,
                             argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
       val mems: Seq[TypedOpenCLMemory] = collect(sp.f.body) ++ Seq[TypedOpenCLMemory]()
 
@@ -389,6 +384,10 @@ object TypedOpenCLMemory {
     }
 
     def collectUnsafeArrayAccess(ua: UnsafeArrayAccess, call: FunCall, argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
+      Seq(TypedOpenCLMemory(call))
+    }
+
+    def collectCheckedArrayAccess(ca: CheckedArrayAccess, call: FunCall, argMems: Seq[TypedOpenCLMemory]) : Seq[TypedOpenCLMemory] = {
       Seq(TypedOpenCLMemory(call))
     }
 
