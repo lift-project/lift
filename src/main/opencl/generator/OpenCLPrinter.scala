@@ -154,6 +154,7 @@ class OpenCLPrinter {
     case e: OpenCLExpression => sb ++= e.code
     case c: Comment       => print(s"/* ${c.content} */")
     case v: VarDecl       => print(v)
+    case v2: VarDecl2     => print(v2)
     case v: VarRef        => print(v)
     case p: ParamDecl     => print(p)
     case b: Barrier       => print(b)
@@ -344,6 +345,36 @@ class OpenCLPrinter {
       print(OpenCLPrinter.toString(p.t) + " " + p.name)
   }
 
+  private def print(vd: VarDecl2): Unit = vd.t match {
+    case _: ArrayType =>
+      vd.addressSpace match {
+
+        case LocalMemory if vd.length != 0 =>
+          val baseType = Type.getBaseType(vd.t)
+          val declaration =
+            s"${vd.addressSpace} ${OpenCLPrinter.toString(baseType)} " +
+              s"${OpenCLPrinter.toString(vd.v)}[${vd.length}]"
+
+          // Make sure the memory is correctly aligned when using pointer casts
+          // for forcing vector loads on NVIDIA.
+          val optionalAttribute =
+            if (UseCastsForVectors()) " __attribute__ ((aligned(16)));" else ";"
+
+          val fullDeclaration = declaration + optionalAttribute
+
+          print(fullDeclaration)
+
+        case _ =>
+          val baseType = Type.getBaseType(vd.t)
+          print(s"${vd.addressSpace} ${OpenCLPrinter.toString(baseType)} " +
+            s"*${OpenCLPrinter.toString(vd.v)}")
+          if(vd.init != null) {
+            print(s" = ")
+            print(vd.init)
+          }
+          print("; ")
+      }
+  }
 
   private def print(vd: VarDecl): Unit = vd.t match {
     case _: ArrayType =>

@@ -319,6 +319,7 @@ object GenericKernelPrinter {
                   }
 
                   val kernelWithDirectives = sb.toString + "\n" + genericKernel
+                  //println(kernelWithDirectives)
 
                   // generate folder structure
                   s"mkdir -p ${topFolder}Cl/".!
@@ -340,7 +341,7 @@ object GenericKernelPrinter {
                   case t: Throwable =>
                     // Failed reading file or similar.
                     //logger.warn(t.toString)
-                    println(s"failed: ${t.toString}")
+                    println(s"FAILED: ${t.toString}")
                 } //&& substitutionCount < 800000
               })
               println(s"\nGenerated $kernelCounter kernels")

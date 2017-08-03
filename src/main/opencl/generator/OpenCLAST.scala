@@ -56,6 +56,12 @@ object OpenCLAST {
                      addressSpace: OpenCLAddressSpace = UndefAddressSpace,
                      length: Long = 0) extends Declaration
 
+  case class VarDecl2(v: Var,
+                     t: Type,
+                     init: OclAstNode = null,
+                     addressSpace: OpenCLAddressSpace = UndefAddressSpace,
+                     length: String = "") extends Declaration
+
   /** Parameter declaration. These have to be separated from variable
     * declaration since the vectorization has to be handled differently
     */
