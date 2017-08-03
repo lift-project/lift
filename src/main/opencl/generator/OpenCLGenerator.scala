@@ -1111,10 +1111,12 @@ class OpenCLGenerator extends Generator {
        def genSeqVars(eType : Type, prefix : String) : Any  = {
          eType match {
            case ScalarType(_,_) => Tuple2(eType,Var(prefix))
-           case ArrayTypeWSWC(eT, size : Cst, _) => for ( j <- 0 to size.eval-1) yield { genSeqVars(eT,s"${prefix}_${j}")}
+           case ArrayTypeWSWC(eT, aSize : Cst, _) => for ( j <- 0 to aSize.eval-1) yield { genSeqVars(eT,s"${prefix}_${j}")}
+           case a: ArrayType =>
+             for ( j <- 0 to a.getSizeIndex) yield { genSeqVars(a.elemT,s"${prefix}_${j}")}
            case TupleType(elemTypes @ _*) => elemTypes.zipWithIndex.map( (x)  => genSeqVars(x._1,s"${prefix}_${x._2}"))
            case _ =>
-             throw new OpenCLGeneratorException("Invalid type for MapSeqSlide!")
+             throw new OpenCLGeneratorException("Invalid type for MapSeqSlide: " + eType + "!")
          }
        }
 
