@@ -87,7 +87,7 @@ class AccessPatterns(
   private def determinePatterns(expr: Expr): Unit = {
 
     expr match {
-      case FunCall(f, args@_*) =>
+      case fc @ FunCall(f, args@_*) =>
         args.foreach(determinePatterns)
 
         f match {
@@ -136,7 +136,7 @@ class AccessPatterns(
               }
             })
 
-            writePatterns += expr -> getAccessPattern(expr.outputView).get
+            writePatterns += expr -> getAccessPattern(fc.outputView).get
 
           case _ =>
         }

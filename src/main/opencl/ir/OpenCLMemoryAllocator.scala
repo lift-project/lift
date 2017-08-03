@@ -412,7 +412,6 @@ object OpenCLMemoryAllocator {
     inMem: OpenCLMemory): OpenCLMemory = {
 
     it.n match {
-      case Cst(1) => // do not allocate a swap buffer when we only iterate once
       case _ =>
         // Get sizes in bytes necessary to hold the input and output of the
         // function inside the iterate

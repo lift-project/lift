@@ -124,6 +124,7 @@ class OpenCLGenerator extends Generator {
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
   type SymbolTable = immutable.Map[Var, Type]
 
+
   private val openCLCodeGen = new OpenCLPrinter
 
   private var replacements: ValueTable = immutable.Map.empty
@@ -975,10 +976,11 @@ class OpenCLGenerator extends Generator {
     val swapMem = OpenCLMemory.asOpenCLMemory(i.swapBuffer)
 
     // directly generate function call of the body
-    if (i.n == Cst(1)) {
+    // we do not want to do this, since the view of the body is using the input and output ptr of the iterate!
+    /*if (i.n == Cst(1)) {
       generate(i.f.body, block)
       return
-    }
+    }*/
 
     // iterate more than once => generate for loop while swapping input and output buffer
     // after each iteration
@@ -1010,22 +1012,20 @@ class OpenCLGenerator extends Generator {
         OpenCLAST.ArithExpression(Type.getLength(call.argsType)))
 
     // create new temporary input and output pointers
-    val tin = Var("tin")
-    val tout = Var("tout")
-    varDecls = varDecls.updated(tin, Type.devectorize(call.t))
-    varDecls = varDecls.updated(tout, Type.devectorize(call.t))
+    varDecls = varDecls.updated(i.vPtrIn, Type.devectorize(call.t))
+    varDecls = varDecls.updated(i.vPtrOut, Type.devectorize(call.t))
 
     // ADDRSPC TYPE tin = in;
-    (block: Block) += OpenCLAST.VarDecl(tin, Type.devectorize(call.t),
+    (block: Block) += OpenCLAST.VarDecl(i.vPtrIn, Type.devectorize(call.t),
       OpenCLAST.VarRef(inputMem.variable),
       outputMem.addressSpace)
 
     val range = i.indexVar.range.asInstanceOf[RangeAdd]
 
     // ADDRSPC TYPE tin = (odd ? out : swap);
-    (block: Block) += OpenCLAST.VarDecl(tout, Type.devectorize(call.t),
+    (block: Block) += OpenCLAST.VarDecl(i.vPtrOut, Type.devectorize(call.t),
       init = OpenCLAST.ArithExpression(
-        ((range.stop % 2) ne Cst(0)) ?? outputMem.variable !! swapMem.variable),
+        ((range.numVals % 2) ne Cst(0)) ?? outputMem.variable !! swapMem.variable),
       addressSpace = outputMem.addressSpace)
 
     generateForLoop(block, call.args.head, i.indexVar, (b) => {
@@ -1033,8 +1033,8 @@ class OpenCLGenerator extends Generator {
       // modify the pointers to the memory before generating the body
       val oldInV = inputMem.variable
       val oldOutV = outputMem.variable
-      inputMem.variable = tin
-      outputMem.variable = tout
+      inputMem.variable = i.vPtrIn // TODO: remove this, shouldn't be necessary since all the info will be in the view
+      outputMem.variable = i.vPtrOut // TODO: remove this, shouldn't be necessary since all the info will be in the view
 
       // generate the function call in the body
       generate(funCall, b)
@@ -1052,21 +1052,22 @@ class OpenCLGenerator extends Generator {
         OpenCLAST.ArithExpression(innerOutputLength))
 
 
-      val tinVStrRef = OpenCLAST.VarRef(tin)
+      val tinVStrRef = OpenCLAST.VarRef(i.vPtrIn)
 
       // tin = (tout == swap) ? swap : out
       (b: Block) += OpenCLAST.AssignmentExpression(tinVStrRef,
-        OpenCLAST.ArithExpression((tout eq swapMem.variable) ??
+        OpenCLAST.ArithExpression((i.vPtrOut eq swapMem.variable) ??
           swapMem.variable !! outputMem.variable))
 
 
-      val toutVStrRef = OpenCLAST.VarRef(tout)
+      val toutVStrRef = OpenCLAST.VarRef(i.vPtrOut)
 
       // tout = (tout == swap) ? out : swap
       (b: Block) += OpenCLAST.AssignmentExpression(toutVStrRef,
-        OpenCLAST.ArithExpression((tout eq swapMem.variable) ??
+        OpenCLAST.ArithExpression((i.vPtrOut eq swapMem.variable) ??
           outputMem.variable !! swapMem.variable))
 
+      // TODO: CD: do we really need this?? any mapLocal inside iterate *should* take care of generating a barrier
       if (outputMem.addressSpace != PrivateMemory)
         (b: Block) += OpenCLAST.Barrier(outputMem)
 
@@ -1754,7 +1755,8 @@ class OpenCLGenerator extends Generator {
     }
 
     val real = try {
-      ArithExpr.substitute(i, replacements).eval
+      val sbstIdx = ArithExpr.substitute(i, replacements)
+      sbstIdx.eval
     } catch {
       case NotEvaluableException() =>
         throw new OpenCLGeneratorException(s"Could not access private array, as index $i could " +

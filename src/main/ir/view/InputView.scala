@@ -1,9 +1,9 @@
 package ir.view
 
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Var}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{ReduceWhileSeq, MapSeqSlide, FilterSeq}
+import opencl.ir.pattern.{FilterSeq, MapSeqSlide, ReduceWhileSeq}
 
 /**
  * A helper object for constructing views.
@@ -22,7 +22,7 @@ object InputView {
 
   private def visitAndBuildViews(expr: Expr): View = {
     val result = expr match {
-      case v: Value => if (v.view == NoView) View(v.t, v.value) else v.view
+      case v: Value => if (v.view == NoView) View(v.t, v) else v.view
       case vp: VectorParam => vp.p.view
       case p: Param => p.view
 
@@ -102,12 +102,25 @@ object InputView {
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, argView: View): View = {
-    i.f.params(0).view = argView
+
+    var firstSeenVar : Option[Var] = None
+    i.f.params(0).view = View.visit(argView, pre = {(v:View) => {v match {
+      case ViewMem(v, t) =>
+        if (firstSeenVar.isEmpty)
+          firstSeenVar = Some(v)
+        else if (firstSeenVar.get != v)
+          throw new NotImplementedError("Iterate can only work if the input received comes from a single memory view")
+        ViewMem(i.vPtrIn,t)
+      case _ => v
+    }}})
+
     visitAndBuildViews(i.f.body)
-    View.initialiseNewView(call.t, call.inputDepth)
+    View.initialiseNewView(call.t, call.inputDepth, i.f.body.mem.variable)
   }
 
+
   private def buildViewMap(m: AbstractMap, call: FunCall, argView: View): View = {
+
 
     // pass down input view
     m.f.params(0).view = argView.access(m.loopVar)
@@ -118,9 +131,9 @@ object InputView {
     m.f.body match {
       case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
         // create fresh input view for following function
-        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
       case _ => // call.isAbstract and return input map view
-        new ViewMap(innerView, m.loopVar, call.t)
+        ViewMap(innerView, m.loopVar, call.t)
     }
   }
   
@@ -134,7 +147,7 @@ object InputView {
     f.copyFun.body match {
       case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
         // create fresh input view for following function
-        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
       case _ => // call.isAbstract and return input map view
         ViewMap(innerView, f.loopRead, call.t)
     }
@@ -157,13 +170,13 @@ object InputView {
       case _ =>
     }
     // create fresh input view for following function
-    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
 
   private def buildViewMapSeqSlide(sp: MapSeqSlide,
                                     call: FunCall, argView: View): View = {
 
-    sp.f.params(0).view = ViewMem(sp.windowVar.name, sp.f.params(0).t)
+    sp.f.params(0).view = ViewMem(sp.windowVar, sp.f.params(0).t)
 
     // traverse into call.f
     val innerView = visitAndBuildViews(sp.f.body)
@@ -171,9 +184,9 @@ object InputView {
     sp.f.body match {
       case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
         // create fresh input view for following function
-        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
       case _ => // call.isAbstract and return input map view
-        new ViewMap(innerView, sp.loopVar, call.t)
+        ViewMap(innerView, sp.loopVar, call.t)
     }
   }
 
@@ -183,7 +196,7 @@ object InputView {
     // traverse into call.f
     visitAndBuildViews(s.f.body)
     // create fresh input view for following function
-    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, argView: View): View = {
@@ -231,7 +244,7 @@ object InputView {
   }
 
   private def buildViewUserFunDef(call: FunCall): View = {
-    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
 
   private def buildViewTranspose(t: Transpose, call: FunCall, argView: View): View = {
@@ -261,24 +274,24 @@ object InputView {
   }
 
   private def buildViewHead(head: FunCall, argView: View) : View = {
-    new ViewHead(argView.access(0), head.t)
+    ViewHead(argView.access(0), head.t)
   }
 
   private def buildViewTail(tail: FunCall, argView: View) : View = {
-    new ViewTail(argView, tail.t)
+    ViewTail(argView, tail.t)
   }
 
   private def buildViewUnsafeArrayAccess(a: UnsafeArrayAccess, call: FunCall, argView: View) : View = {
    // visit the index
    visitAndBuildViews(a.index)
-   View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+   View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
 
   private def buildViewCheckedArrayAccess(a: CheckedArrayAccess, call: FunCall, argView: View) : View = {
     // visit the index
     visitAndBuildViews(a.index)
 //    visitAndBuildViews(a.default)
-    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
 
   private def buildViewPad(left: Int, right: Int, boundary: Pad.BoundaryFun, argView: View) : View = {
