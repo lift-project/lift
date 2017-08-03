@@ -59,7 +59,7 @@ class TestFilterSeq {
     
     assertEquals(ArrayTypeWC(Float, N), TypeChecker(expr))
     
-    val (output: Array[Float], _) = Execute(size)(expr, input)
+    val (output: Array[Float], _) = Execute(1, 1)(expr, input)
     val gold = input.filter(x => (x < 0.8) && (x > 0.2))
     assertArrayEquals(gold, decodeWC1D(output), 0f)
   }
@@ -144,7 +144,7 @@ class TestFilterSeq {
       TypeChecker(expr)
     )
   
-    val (output: Array[Int], _) = Execute(size)(expr, input)
+    val (output: Array[Int], _) = Execute(1, 1)(expr, input)
     val gold = input.grouped(32)
       .filter(row => row.sum < 100)
       .flatten
