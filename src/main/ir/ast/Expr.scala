@@ -36,7 +36,6 @@ abstract class Expr extends IRNode {
    */
   var view: View = NoView
 
-  var outputView: View = NoView
 
 
 

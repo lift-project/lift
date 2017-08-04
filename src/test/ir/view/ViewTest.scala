@@ -3,12 +3,66 @@ package ir.view
 import ir._
 import ir.ast._
 import lift.arithmetic._
+import opencl.executor.Compile
 import opencl.generator.OpenCLAST._
 import opencl.ir._
+import opencl.ir.pattern.{MapSeq, toGlobal}
 import org.junit.Assert._
 import org.junit.Test
 
 class ViewTest {
+
+  @Test
+  def testMapScatter1(): Unit = {
+
+    val f = fun(
+      ArrayTypeWSWC(Float, SizeVar("N")),
+      input => Scatter(reverse) o MapSeq(id) $ input
+    )
+
+    val kernel = Compile(f)
+    println(kernel)
+  }
+
+  @Test
+  def testMapScatter2(): Unit = {
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float,SizeVar("N")), SizeVar("M")),
+      input => MapSeq(Scatter(reverse)) o MapSeq(MapSeq(id)) $ input
+    )
+
+    val kernel = Compile(f)
+    println(kernel)
+  }
+
+  @Test
+  def testMapScatter3(): Unit = {
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float,SizeVar("N")), SizeVar("M")),
+      input => MapSeq( fun ( p=> Scatter(reverse) $ p )  ) o MapSeq(MapSeq(id)) $ input
+    )
+
+    val kernel = Compile(f)
+    println(kernel)
+  }
+
+  @Test
+  def testMapScatter4(): Unit = {
+
+    var N = SizeVar("N")
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
+      (in1,in2) => toGlobal(MapSeq(tf_id)) o Scatter(reverse) $ (Zip(MapSeq(id) $ in1, MapSeq(id) $ in2))
+      )
+
+    val kernel = Compile(f)
+    println(kernel)
+  }
+
 
   @Test
   def test1(): Unit = {

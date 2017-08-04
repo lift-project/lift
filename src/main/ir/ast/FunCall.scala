@@ -13,6 +13,8 @@ import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
   assert(f != null)
 
+  var outputView: View = NoView
+
 
   override def toString = {
     val fS = f.toString

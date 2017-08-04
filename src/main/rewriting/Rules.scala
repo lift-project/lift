@@ -1379,11 +1379,11 @@ object Rules {
   })
 
   val iterate1 = Rule("Iterate(1, x) => x", {
-    case FunCall(Iterate(n, f), arg) if n.eval == 1 => f(arg)
+    case FunCall(Iterate(n, f, _, _), arg) if n.eval == 1 => f(arg)
   })
 
   val iterateId = Rule("Iterate(0, _) => Epsilon", {
-    case FunCall(Iterate(n, _), arg) if n.eval == 0 => arg
+    case FunCall(Iterate(n, _, _, _), arg) if n.eval == 0 => arg
   })
 
   val removeEmptyMap = Rule("Map(fun(x => x)) $ a => a", {
