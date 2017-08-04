@@ -1161,14 +1161,14 @@ class TestMapSeqSlide
     )
 
     val lambda3D = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),O),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N+2),M+2),O+2),
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N+2),M+2),O+2),
       (mat1, mat2) =>
         MapGlb(1)(MapGlb(0)( fun (x => {
           toGlobal(MapSeqSlide(fun(m => {
 
             PrintType() $ m
-          val leftVal = Get(m,0).at(1)
+          val leftVal = Get(m.at(1).at(1).at(1),0)//.at(1)
 
 
           val `tile[0][1][1]` = Get(m,1).at(0).at(1).at(1)
@@ -1190,7 +1190,11 @@ class TestMapSeqSlide
           toGlobal(id) $ leftVal //stencil
 
         }),slidesize,slidestep))  } /*o Map(Map(Transpose())) o Map(Map(Map(Transpose())))*/ $ x
-        ))) o PrintType() $ Zip3D(mat1,Slide3D(slidesize, slidestep) $ mat2))
+
+
+
+
+        ))) o PrintType() o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(slidesize, slidestep) $ Zip3D( mat1, mat2))
 
     println(Compile(original3DStencil(slidesize,slidestep)))
     println(Compile(lambda3D))
@@ -1209,3 +1213,4 @@ class TestMapSeqSlide
 }
 
 
+vv
