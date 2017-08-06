@@ -6,11 +6,13 @@ import java.nio.file.Paths.get
 import java.util.Calendar
 
 import com.typesafe.scalalogging.Logger
-import nn.{PaddedArray, Shape}
+import ir.ast.{FunDecl, UserFun}
+import nn.conv.{Conv, SlidingWindowConfig}
 import nn.mysql.Connector
+import nn.{Layer, PaddedArray, Shape}
 import opencl.executor.{Execute, Executor}
-import org.junit.{AfterClass, BeforeClass, Test}
 import org.junit.Assert.assertEquals
+import org.junit.{AfterClass, BeforeClass, Test}
 
 /**
   * Created by s1569687 on 01/03/17.
@@ -20,7 +22,7 @@ object TestCNN {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init(/*monaco*/0, 0)
-    nn.cnn.mysql.CreateTable
+    nn.conv.mysql.CreateTable()
   }
 
   @AfterClass def after(): Unit = {
@@ -33,59 +35,8 @@ object TestCNN {
 class TestCNN {
   private val logger = Logger(this.getClass)
 
-  val precision: Float = 0.01f
+  val precision: Float = 1f
   val codeVersion: Int = 1
-
-  //@Test
-  def Sanity_CNN(): Unit = {
-    val (lift_result: Array[Float], runtime) = Execute(1,1)(
-      CNN.Seq(2, 3, nn.Linear), input_K, input_b, input_X)
-
-    logger.info(f"\n1. Convolution sanity check.\nRuntime: $runtime%1.5f ms")
-
-    val lift_result3d = nn.group(lift_result, (gold.length, gold.head.length, gold.head.head.length))
-    for ((gold2d, lift_result2d) <- gold zip lift_result3d) {
-      logger.info(lift_result2d.flatten.mkString(", "))
-      logger.info(gold2d.flatten.mkString(", "))
-      /*for ((gold1d, lift_result1d) <- gold2d zip lift_result2d) {
-        assertArrayEquals(gold1d, lift_result1d, precision)
-      }*/
-    }
-  }
-
-  //@Test
-  /*def Sanity_CNN_Par(): Unit = {
-    /** Build an array of experimental parameters filtering out the experiments that where
-      * already run or for which the data was not provided; load data for all experiments
-      */
-
-    var cnn: CNN = null
-    val nKernelsL1: Int = 3
-    val kernelSize: Int = 3
-    val nInputs: Int = 2
-    val cnns = for {
-      elsPerThreadL1 <- 1 to 16
-      kernelsPerGroupL1 <- 1 to nKernelsL1
-      inputTileSize <- kernelSize to input_X.head.head.length
-      // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
-      if {
-        try {
-          cnn = new CNN(CNN.Par, Array(nn.ReLU, nn.ReLU), elsPerThreadL1, kernelsPerGroupL1, inputTileSize,
-            PaddedArray(input_X), Array(input_K), Array(input_b), gold, "")
-          true
-        }
-        catch {
-          case e: java.lang.IllegalArgumentException =>
-            false
-        }
-      }
-    } yield cnn
-
-    logger.info("-----------------------------------------------------------------")
-
-    for (cnn <- cnns)
-      singleTest(cnn)
-  }*/
 
   @Test
   def TestCNN(): Unit = {
@@ -96,16 +47,17 @@ class TestCNN {
       * already run or for which the data was not provided; load data for all experiments
       */
 
-    var aCNN: CNN = null
+    val aCNN: Array[Layer] = new Array[Layer](4)
     val nLayers: Int = 2
     val nBatches: Int = 2
+    val nChannels: Int = 1
+    val kernelStride: Int = 1
     for {
-      rerun <- 1 until 10
+      //rerun <- 1 until 10
       nKernelsL1 <- 8 until 48 by 4//16 until 17 by 4
       kernelSize <- 4 until 64 by 4 //8 until 64 by 4
       imageSize <- 8 until 64 by 4//8 until 64 by 8//16 until 512 by 16
-      pathToInputs = Experiment.getPathToInputs(
-        nKernelsL1, Shape(w=kernelSize, h=kernelSize), Shape(w=imageSize, h=imageSize))
+      pathToInputs = Experiment.getPathToInputs(nKernelsL1, kernelSize, imageSize)
       if exists(get(pathToInputs))
       pathToResults = Experiment.getPathToResults(pathToInputs)
       // Results dir doesn't exist (then create it) or it does, but reruns are allowed:
@@ -118,33 +70,27 @@ class TestCNN {
         file => file.getName.endsWith("_n%d.csv".format(nInputs))} == 0
       // Load datasets once for all experiments (across all multsPerThread and neuronsPerWrg)
       if Experiment.datasetsExist(pathToInputs)
-      elsPerThreadL1 <- List(1) ++ (4 until 16 by 4)
-      kernelsPerGroupL1 <- List(1) ++ (1 until nKernelsL1 by 4)// until nKernelsL1 //1 until nKernelsL1
       inputTileSize <- kernelSize until imageSize by 4 // kernelSize
+      elsPerThreadL1 <- List(1) ++ (4 until 16 by 4)
+      kernelsPerGroupL1 <- List(1) ++ (1 until nKernelsL1 by 4)
+      multsPerThread <- 4 until 5 by 2
+      neuronsPerWrg <- 4 until 5 by 5
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
         try {
-          aCNN = new CNN(CNN.Par, Array(nn.ReLU, nn.ReLU), elsPerThreadL1, kernelsPerGroupL1, inputTileSize,
-            nLayers, nBatches, nInputs, Array(16, nKernelsL1), Array(1, 16),
-            {
-              val inputShape: Array[Shape] = Array.fill[Shape](nLayers)(Shape())
-              inputShape(0) = Shape(w=imageSize, h=imageSize, ch=1)
-              inputShape
-            }, {for (_ <- 0 until nLayers) yield Shape(w=kernelSize, h=kernelSize)}.toArray,
-            pathToInputs, pathToResults, Experiment.loadDatasets, aCNN)
-//          logger.info(f"Prepared the experiment (nKernelsL1=$nKernelsL1%d, " +
-//            f"inputTileSize=$inputTileSize%d, elsPerThreadL1=$elsPerThreadL1%d, " +
-//            f"kernelsPerGroupL1=$kernelsPerGroupL1%d,\nkernelSize=$kernelSize%d, " +
-//            f"nBatches=$nBatches%d, nInputs=$nInputs%d).")
+          // TODO: Why can't I pass Conv.Par as an argument directly?
+          val convPar: (UserFun, Shape, SlidingWindowConfig, Int, SlidingWindowConfig, Int, Int) => FunDecl = Conv.Par
+          /* ---------------------------- BUILD NETWORK (BEGIN) ---------------------------- */
+          aCNN(0) = Conv(convPar, nn.ReLU, 1, 4, kernelSize, 16,
+            Shape(nBatches=nBatches, nInputs=nInputs, size=imageSize, nChannels=nChannels), kernelSize, kernelStride)
+          aCNN(1) = Conv(convPar, nn.ReLU, elsPerThreadL1, kernelsPerGroupL1, inputTileSize, nKernelsL1,
+            aCNN(0).asInstanceOf[Conv].outputShape.copy(), kernelSize, kernelStride)
+          /* ---------------------------- BUILD NETWORK (END) ---------------------------- */
           true
         }
         catch {
           case e: java.lang.IllegalArgumentException =>
             logger.warn("-----------------------------------------------------------------")
-            logger.warn(f"Cannot start the experiment (nKernelsL1=$nKernelsL1%d, " +
-              f"inputTileSize=$inputTileSize%d, elsPerThreadL1=$elsPerThreadL1%d, " +
-              f"kernelsPerGroupL1=$kernelsPerGroupL1%d,\nkernelSize=$kernelSize%d, " +
-              f"nBatches=$nBatches%d, nInputs=$nInputs%d).")
             logger.warn(e.getMessage)
             logger.warn("SKIPPING EXPERIMENT.")
             recordFailureInSQL(e)
@@ -167,53 +113,43 @@ class TestCNN {
     }
   }
 
-  def singleTest(cnn: CNN): Unit = {
+  def singleTest(aconv: Conv): Unit = {
     logger.info("-----------------------------------------------------------------")
-    System.out.println(f"Starting the experiment (inputTileSize(first)=${cnn.inputTileSize(0)}%d, " +
-      f"inputTileSize(last)=${cnn.inputTileSize(cnn.nLayers - 1)}%d, " +
-      f"nKernels(first)=${cnn.nKernels(0)}%d, " +
-      f"nKernels(last)=${cnn.nKernels(cnn.nLayers - 1)}%d,\n" +
-      f"elsPerThread(first)=${cnn.elsPerThread(0)}%d, " +
-      f"elsPerThread(last)=${cnn.elsPerThread(cnn.nLayers - 1)}%d, " +
-      f"kernelsPerGroup(first)=${cnn.kernelsPerGroup(0)}%d, " +
-      f"kernelsPerGroup(last)=${cnn.kernelsPerGroup(cnn.nLayers - 1)}%d, " +
-      f"kernelSize=${cnn.kernelShape(cnn.nLayers - 1).s}%d, " +
-      f"nBatches=${cnn.nBatches}%d, nInputs=${cnn.nInputs}%d, " +
-      f"imageSize=${cnn.inputShape(0).s}%d).")
+    System.out.println(f"Starting the experiment:\n" + aconv.configToString)
 
     val now = Calendar.getInstance().getTime
 
-    for (layerNo <- 0 until cnn.nLayers) {
-      cnn.updateInputs(layerNo)
+    for (layerNo <- 0 until aconv.nLayers) {
+      aconv.updateInputs(layerNo)
       /* Padding */
-      cnn.padInputs(layerNo)
+      aconv.padInputs(layerNo)
       val (outputFlat: Array[Float], runtime) =
         Execute(
-          cnn.localSize(0)(layerNo), cnn.localSize(1)(layerNo), cnn.localSize(2)(layerNo),
-          cnn.globalSize(0)(layerNo), cnn.globalSize(1)(layerNo), cnn.globalSize(2)(layerNo), (true, true))(
+          aconv.localSize(0)(layerNo), aconv.localSize(1)(layerNo), aconv.localSize(2)(layerNo),
+          aconv.globalSize(0)(layerNo), aconv.globalSize(1)(layerNo), aconv.globalSize(2)(layerNo), (true, true))(
 
-          cnn.liftCNN(
-            cnn.activationFun(layerNo), cnn.inputShape(layerNo), cnn.kernelShape(layerNo),
-            cnn.nInputs, cnn.nBatches, cnn.nInChannels(layerNo), cnn.nKernels(layerNo),
-            Tile(kernels_per_group=cnn.kernelsPerGroup(layerNo), els_per_thread=cnn.elsPerThread(layerNo),
-              inputTileSize=cnn.inputTileSize(layerNo), inputTileSlideStep=cnn.inputTileStep(layerNo),
-              nInputTilesPerDim=cnn.nTilesPerDim(layerNo),
-              n_windows_per_tile_per_dim=cnn.nWindowsPerTilePerDim(layerNo))),
+          aconv.liftCNN(
+            aconv.activationFun(layerNo), aconv.inputShape(layerNo), aconv.kernelShape(layerNo),
+            aconv.nInputs, aconv.nBatches, aconv.nInChannels(layerNo), aconv.nKernels(layerNo),
+            Tile(kernels_per_group=aconv.kernelsPerGroup(layerNo), els_per_thread=aconv.elsPerThread(layerNo),
+              inputTileSize=aconv.inputTileSize(layerNo), inputTileSlideStep=aconv.inputTileStep(layerNo),
+              nInputTilesPerDim=aconv.nTilesPerDim(layerNo),
+              n_windows_per_tile_per_dim=aconv.nWindowsPerTilePerDim(layerNo))),
 
-          cnn.kWeights(layerNo), cnn.kBiases(layerNo), cnn.inputs(layerNo).padded)
-      cnn.runTimes(layerNo) = runtime
+          aconv.kWeights(layerNo), aconv.kBiases(layerNo), aconv.inputs(layerNo).padded)
+      aconv.runTimes(layerNo) = runtime
 
       /* Group and unpad */
-      cnn.outputs = {
-        def getShapedOutputs = nn.group(outputFlat, (cnn.nBatches, cnn.nInputs, cnn.outputShape(layerNo).hPadded,
-          cnn.outputShape(layerNo).wPadded, cnn.outputShape(layerNo).ch)).map(
+      aconv.outputs = {
+        def getShapedOutputs = nn.group(outputFlat, (aconv.nBatches, aconv.nInputs, aconv.outputShape(layerNo).hPadded,
+          aconv.outputShape(layerNo).wPadded, aconv.outputShape(layerNo).ch)).map(
           batch => batch.map(
             input => input.map(
-              row => row.slice(0, cnn.outputShape(layerNo).wNonPadded)
-            ).slice(0, cnn.outputShape(layerNo).hNonPadded)
+              row => row.slice(0, aconv.outputShape(layerNo).wNonPadded)
+            ).slice(0, aconv.outputShape(layerNo).hNonPadded)
           ))
-        if (cnn.outputs == null) Array(PaddedArray(getShapedOutputs)) else
-          cnn.outputs :+ PaddedArray(getShapedOutputs)
+        if (aconv.outputs == null) Array(PaddedArray(getShapedOutputs)) else
+          aconv.outputs :+ PaddedArray(getShapedOutputs)
       }
       logger.info(f"Layer $layerNo%d runtime: $runtime%1.5f ms")
 
@@ -224,7 +160,7 @@ class TestCNN {
     var testFailed: Boolean = false
     for {
       (liftBatch, targetBatch, batch_no) <-
-        (cnn.outputs.last.nonPadded, cnn.targets, 0 to cnn.targets.length).zipped.toList
+        (aconv.outputs.last.nonPadded, aconv.targets, 0 to aconv.targets.length).zipped.toList
       (liftResult, targetResult, input_no) <- (liftBatch, targetBatch, 0 to targetBatch.length).zipped.toList
       (liftRow, targetRow, row_no) <- (liftResult, targetResult, 0 to targetResult.length).zipped.toList
       (liftElement, targetElement, el_no) <- (liftRow, targetRow, 0 to targetRow.length).zipped.toList
@@ -247,58 +183,58 @@ class TestCNN {
       }
     }
     if (!testFailed)
-      logger.info(f"SUCCESS. Processed ${cnn.nInputs}%d inputs, the results were equal to targets " +
+      logger.info(f"SUCCESS. Processed ${aconv.nInputs}%d inputs, the results were equal to targets " +
         f"(precision=$precision%1.4f).")
 
 
     /* JSON */
-    if (cnn.pathToResults != "") {
+    if (aconv.pathToResults != "") {
       var pw: PrintWriter = null
-      if (cnn.pathToResults != "") {
-        val file = new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputs))
+      if (aconv.pathToResults != "") {
+        val file = new File(nn.resultsFilename(aconv.pathToResults, aconv.nInputs))
         file.getParentFile.mkdirs()
         pw = new PrintWriter(file)
       }
       pw.write("device_name,n_batches,n_inputs," + {
-        for (layerNo <- 0 until cnn.nLayers) yield f"n_kernels_l$layerNo%d"
+        for (layerNo <- 0 until aconv.nLayers) yield f"n_kernels_l$layerNo%d"
       }.mkString(",") + "," + {
-        for (layerNo <- 0 until cnn.nLayers) yield f"kernel_size_l$layerNo%d"
+        for (layerNo <- 0 until aconv.nLayers) yield f"kernel_size_l$layerNo%d"
       }.mkString(",") + "," +
         "input_tile_size_l1,input_tile_step_l1,els_per_thread_l1,kernels_per_group_l1," + {
-        for (layerNo <- 0 until cnn.nLayers) yield f"runtime_l$layerNo%d"
+        for (layerNo <- 0 until aconv.nLayers) yield f"runtime_l$layerNo%d"
       }.mkString(",") + ",tag\n")
 
-      pw.write(nn.deviceName + "," + f"${cnn.nBatches}%d,${cnn.nInputs}%d,")
-      for (layerNo <- 0 until cnn.nLayers)
-        pw.write(f"${cnn.nKernels(layerNo)}%d,")
-      for (layerNo <- 0 until cnn.nLayers)
-        pw.write(f"${cnn.kernelShape(layerNo).s}%d,")
-      pw.write(f"${cnn.inputTileSize(cnn.nLayers - 1)}%d,${cnn.inputTileStep(cnn.nLayers - 1)}%d," +
-        f"${cnn.elsPerThread(cnn.nLayers - 1)}%d,${cnn.kernelsPerGroup(1)}%d")
-      for (layerNo <- 0 until cnn.nLayers)
-        pw.write(f",${cnn.runTimes(layerNo)}%1.5f")
+      pw.write(nn.deviceName + "," + f"${aconv.nBatches}%d,${aconv.nInputs}%d,")
+      for (layerNo <- 0 until aconv.nLayers)
+        pw.write(f"${aconv.nKernels(layerNo)}%d,")
+      for (layerNo <- 0 until aconv.nLayers)
+        pw.write(f"${aconv.kernelShape(layerNo).s}%d,")
+      pw.write(f"${aconv.inputTileSize(aconv.nLayers - 1)}%d,${aconv.inputTileStep(aconv.nLayers - 1)}%d," +
+        f"${aconv.elsPerThread(aconv.nLayers - 1)}%d,${aconv.kernelsPerGroup(1)}%d")
+      for (layerNo <- 0 until aconv.nLayers)
+        pw.write(f",${aconv.runTimes(layerNo)}%1.5f")
       pw.write(f",$codeVersion\n")
       pw.close()
       if (!testFailed)
-        new File(nn.resultsFilename(cnn.pathToResults, cnn.nInputs)).delete()
+        new File(nn.resultsFilename(aconv.pathToResults, aconv.nInputs)).delete()
     }
 
     /* SQL */
-    Connector.statement.execute("INSERT INTO lift_results_cnn " +
+    Connector.statement.execute("INSERT INTO lift_results_conv " +
       "(batches, images, imagesize, kernels_l0, kernels_l1, kernelsize_l0, kernelsize_l1, " +
       "elsperthread_l0, elsperthread_l1, kernelspergroup_l0, kernelspergroup_l1, inputtilesize_l0, " +
       "inputtilesize_l1, ran, success, runtime_l0, runtime_l1, experiment_id, datetime) " +
-      f"VALUES (${cnn.nBatches}%d, ${cnn.nInputs}%d, ${cnn.inputShape(0).s}%d, ${cnn.nKernels(0)}%d, " +
-      f"${cnn.nKernels(1)}%d, ${cnn.kernelShape(0).s}%d, ${cnn.kernelShape(1).s}, ${cnn.elsPerThread(0)}%d, " +
-      f"${cnn.elsPerThread(1)}%d, ${cnn.kernelsPerGroup(0)}%d, ${cnn.kernelsPerGroup(1)}%d, " +
-      f"${cnn.inputTileSize(0)}%d, ${cnn.inputTileSize(1)}%d, true, ${!testFailed}%b, ${cnn.runTimes(0)}%1.5f, " +
-      f"${cnn.runTimes(1)}%1.5f, $codeVersion%d, " +
+      f"VALUES (${aconv.nBatches}%d, ${aconv.nInputs}%d, ${aconv.inputShape(0).s}%d, ${aconv.nKernels(0)}%d, " +
+      f"${aconv.nKernels(1)}%d, ${aconv.kernelShape(0).s}%d, ${aconv.kernelShape(1).s}, ${aconv.elsPerThread(0)}%d, " +
+      f"${aconv.elsPerThread(1)}%d, ${aconv.kernelsPerGroup(0)}%d, ${aconv.kernelsPerGroup(1)}%d, " +
+      f"${aconv.inputTileSize(0)}%d, ${aconv.inputTileSize(1)}%d, true, ${!testFailed}%b, ${aconv.runTimes(0)}%1.5f, " +
+      f"${aconv.runTimes(1)}%1.5f, $codeVersion%d, " +
       f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now)}%s');")
   }
 
   def recordFailureInSQL(e: Exception): Unit = {
     /* SQL */
-    Connector.statement.execute("INSERT INTO lift_results_cnn (ran, abort_reason) VALUES " +
+    Connector.statement.execute("INSERT INTO lift_results_conv (ran, abort_reason) VALUES " +
       "(false, '" + e.getClass.getSimpleName + ": " + e.getMessage + "')")
   }
 }

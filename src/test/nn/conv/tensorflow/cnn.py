@@ -11,9 +11,16 @@ import json
 import os
 import numpy as np
 import pickle
+from enum import Enum
 
 # Import MNIST data
 from tensorflow.examples.tutorials.mnist import input_data
+
+
+class FPropMode(Enum):
+    MNIST = 1
+    RANDOM = 2
+    RESTORE = 3
 
 
 class CNN:
@@ -51,17 +58,25 @@ class CNN:
     @staticmethod
     def conv_net_full(x, weights, biases, image_shape):
         # Reshape input picture
-        x = tf.reshape(x, shape=[-1, image_shape[0], image_shape[1], 1])
+        """
+        Full CNN: 2 conv layers + 2 mlp layers
+        :param x: 
+        :param weights: 
+        :param biases: 
+        :param image_shape: 
+        :return: 
+        """
+        x = tf.reshape(x, shape=[-1, image_shape[0], image_shape[1], image_shape[2]])
 
         # Convolution Layer
         conv1 = CNN.conv2d(x, weights['wconv1'], biases['bconv1'])
         # Max Pooling (down-sampling)
-        #conv1 = CNN.maxpool2d(conv1, k=2)
+        # onv1 = CNN.maxpool2d(conv1, k=2)
 
         # Convolution Layer
         conv2 = CNN.conv2d(conv1, weights['wconv2'], biases['bconv2'])
         # Max Pooling (down-sampling)
-        #conv2 = CNN.maxpool2d(conv2, k=2)
+        # conv2 = CNN.maxpool2d(conv2, k=2)
 
         # Fully connected layer
         # Reshape conv2 output to fit fully connected layer input
@@ -69,16 +84,18 @@ class CNN:
         fc1 = tf.add(tf.matmul(fc1, weights['wmlp1']), biases['bmlp1'])
         fc1 = tf.nn.relu(fc1)
         # Apply Dropout
-        #fc1 = tf.nn.dropout(fc1, dropout)
+        # fc1 = tf.nn.dropout(fc1, dropout)
 
         # Output, class prediction
         out = tf.add(tf.matmul(fc1, weights['wout']), biases['bout'])
-        return out
+        out = tf.nn.relu(out)
+        return conv2
 
     @staticmethod
     def conv_net(x, weights, biases, image_shape):
         """
-        # Create model
+        Truncated CNN: only 2 conv layers
+        :param image_shape: 
         :param x:
         :param weights:
         :param biases:
@@ -106,25 +123,26 @@ class CNN:
         # fc1 = tf.nn.dropout(fc1, dropout)
 
         # Output, class prediction
-        #out = tf.add(tf.matmul(fc1, weights['wout']), biases['bout'])
-        #return out
+        # out = tf.add(tf.matmul(fc1, weights['wout']), biases['bout'])
+        # return out
         return conv2
 
-    def __init__(self, n_kernels, kernel_shape, image_shape):
-        self.mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+    def __init__(self, n_kernels, kernel_shape, kernel_stride, image_shape, mlp_size_l2, mlp_size_l3):
 
         # Parameters
         self.learning_rate = 0.001
         self.training_iters = 200000
-        self.batch_size = 128
+        # self.batch_size = 128
         self.display_step = 10
 
         # Network Parameters
         self.n_kernels = n_kernels  # [16, 32]
         self.kernel_shape = kernel_shape  # (10, 10)
+        self.kernel_stride = kernel_stride
         self.image_shape = image_shape
-        self.input_len = self.image_shape[0] * self.image_shape[1]  # MNIST data input (img shape: 28*28)
-        self.n_classes = 10  # MNIST total classes (0-9 digits)
+        self.input_len = self.image_shape[0] * self.image_shape[1] * self.image_shape[2]
+        self.mlp_size_l2 = mlp_size_l2
+        self.n_classes = mlp_size_l3  # MNIST total classes (0-9 digits)
         self.dropout = 0.75  # Dropout, probability to keep units
 
         # tf Graph input
@@ -133,59 +151,60 @@ class CNN:
         self.keep_prob = tf.placeholder(tf.float32)  # dropout (keep probability)
 
         # Store layers weight & bias
-        self.weights = {
-            # 5x5 conv, 1 input, 32 outputs
-            # Original dimensions: 5, 5, 1, 32
-            'wconv1': tf.Variable(tf.random_normal([self.kernel_shape[0], self.kernel_shape[1], 1, self.n_kernels[0]])),
-            # 5x5 conv, 32 inputs, 64 outputs
-            # Original dimensions: 5, 5, 32, 64
-            'wconv2': tf.Variable(
-                tf.random_normal([self.kernel_shape[0], self.kernel_shape[1], self.n_kernels[0], self.n_kernels[1]])),
-            # fully connected, 7*7*64 inputs, 1024 outputs
-            'wmlp1': tf.Variable(
-                tf.random_normal([self.n_kernels[1] * np.power((self.image_shape[0] - (self.kernel_shape[0] - 1) * 2), 2), 256])),
-            # 7*7*64, 1024])),
-            # 1024 inputs, 10 outputs (class prediction)
-            'wout': tf.Variable(tf.random_normal([256, self.n_classes]))
-        }
-        self.trained_weights = None
+        # TODO: rebuild Tensorflow to support GPU
+        with tf.device('/cpu:0'):
+            self.weights = {
+                'wconv1': tf.Variable(tf.random_normal([self.n_kernels[0], self.kernel_shape[0], self.kernel_shape[1],
+                                                        self.image_shape[2]])),
+                'wconv2': tf.Variable(
+                    tf.random_normal([self.n_kernels[1], self.kernel_shape[0], self.kernel_shape[1],
+                                      self.n_kernels[0]])),
+                'wmlp1': tf.Variable(
+                    tf.random_normal([self.n_kernels[1] *
+                                      (self.image_shape[0] - (self.kernel_shape[0] - self.kernel_stride[0]) * 2) *
+                                      (self.image_shape[1] - (self.kernel_shape[1] - self.kernel_stride[1]) * 2),
+                                      self.mlp_size_l2])),
+                'wout': tf.Variable(tf.random_normal([self.mlp_size_l2, self.n_classes]))
+            }
+            self.trained_weights = None
 
-        self.biases = {
-            'bconv1': tf.Variable(tf.random_normal([self.n_kernels[0]])),
-            'bconv2': tf.Variable(tf.random_normal([self.n_kernels[1]])),
-            'bmlp1': tf.Variable(tf.random_normal([256])),
-            'bout': tf.Variable(tf.random_normal([self.n_classes]))
-        }
-        self.trained_biases = None
+            self.biases = {
+                'bconv1': tf.Variable(tf.random_normal([self.n_kernels[0]])),
+                'bconv2': tf.Variable(tf.random_normal([self.n_kernels[1]])),
+                'bmlp1': tf.Variable(tf.random_normal([self.mlp_size_l2])),
+                'bout': tf.Variable(tf.random_normal([self.n_classes]))
+            }
+            self.trained_biases = None
 
-        # Construct model
-        self.pred = CNN.conv_net_full(self.x, self.weights, self.biases, self.image_shape)  # , keep_prob)
+            # Construct model
+            # self.pred = CNN.conv_net_full(self.x, self.weights, self.biases, self.image_shape)  # , keep_prob)
+            #
+            # # Define loss and optimizer
+            # self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.pred, labels=self.y))
+            # self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.cost)
+            #
+            # # Evaluate model
+            # self.correct_pred = tf.equal(tf.argmax(self.pred, 1), tf.argmax(self.y, 1))
+            # self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
+            #
+            # # Initializing the variables
+            # self.init = tf.global_variables_initializer()
 
-        # Define loss and optimizer
-        self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.pred, labels=self.y))
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.cost)
+            # Session configuration
+            self.config = tf.ConfigProto()
+            # log_device_placement=True)
 
-        # Evaluate model
-        self.correct_pred = tf.equal(tf.argmax(self.pred, 1), tf.argmax(self.y, 1))
-        self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
-
-        # Initializing the variables
-        self.init = tf.global_variables_initializer()
-
-        # Session configuration
-        self.config = tf.ConfigProto(device_count={'GPU': 0})
-
-        # Get experiment directory name
-        self.dir_name = CNN.get_dir_name(self.n_kernels, self.kernel_shape, self.image_shape)
-        # Create directory
-        if not os.path.isdir(self.dir_name):
-            os.mkdir(self.dir_name)
-
+            # Get experiment directory name
+            self.dir_name = CNN.get_dir_name(self.n_kernels, self.kernel_shape, self.image_shape)
+            # Create directory
+            if not os.path.isdir(self.dir_name):
+                os.mkdir(self.dir_name)
 
     @staticmethod
     def get_dir_name(n_kernels, kernel_shape, image_shape):
         """
         Forms a directory name for a given experiment.
+        :param image_shape: 
         :param n_kernels:
         :param kernel_shape:
         :return:
@@ -193,7 +212,8 @@ class CNN:
         if os.environ["LIFT_NN_RESOURCES"] is None:
             raise EnvironmentError("LIFT_NN_RESOURCES is not set!")
         return os.path.join(os.environ["LIFT_NN_RESOURCES"],
-                            "experiment." + str(n_kernels[1]) + "." + str(kernel_shape[0]) + "." + str(image_shape[0]))
+                            "experiment.cnn." + str(n_kernels[1]) + "." + str(kernel_shape[0]) + "." +
+                            str(image_shape[0]))
 
     @staticmethod
     def restore(n_kernels, kernel_shape, image_shape):
@@ -211,6 +231,9 @@ class CNN:
         """
         Trains the network
         """
+        # Load the data
+        self.mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+
         # Launch the graph
         with tf.Session(config=self.config) as sess:
             sess.run(self.init)
@@ -260,28 +283,27 @@ class CNN:
                 outfile.close()
             print("Saved param \"" + param_name + "\"")
 
-
     def train_bogus(self):
+        """
+        Generate random weights instead of training.
+        """
         self.trained_weights = {
-            # 5x5 conv, 1 input, 32 outputs
-            # Original dimensions: 5, 5, 1, 32
-            'wconv1': np.random.normal(size=(self.kernel_shape[0], self.kernel_shape[1], 1, self.n_kernels[0])),
-            # 5x5 conv, 32 inputs, 64 outputs
-            # Original dimensions: 5, 5, 32, 64
+            'wconv1': np.random.normal(size=(self.kernel_shape[0], self.kernel_shape[1],
+                                             self.image_shape[2], self.n_kernels[0])),
             'wconv2': np.random.normal(size=(self.kernel_shape[0], self.kernel_shape[1],
                                              self.n_kernels[0], self.n_kernels[1])),
-            # fully connected, 7*7*64 inputs, 1024 outputs
             'wmlp1': np.random.normal(
-                size=(self.n_kernels[1] * np.power((self.image_shape[0] - (self.kernel_shape[0] - 1) * 2), 2), 256)),
-            # 7*7*64, 1024])),
-            # 1024 inputs, 10 outputs (class prediction)
-            'wout': np.random.normal(size=(256, self.n_classes))
+                size=(self.n_kernels[1] *
+                      (self.image_shape[0] - (self.kernel_shape[0] - self.kernel_stride[0]) * 2) *
+                      (self.image_shape[1] - (self.kernel_shape[1] - self.kernel_stride[1]) * 2),
+                      self.mlp_size_l2)),
+            'wout': np.random.normal(size=(self.mlp_size_l2, self.n_classes))
         }
 
         self.trained_biases = {
             'bconv1': np.random.normal(size=(self.n_kernels[0])),
             'bconv2': np.random.normal(size=(self.n_kernels[1])),
-            'bmlp1': np.random.normal(size=256),
+            'bmlp1': np.random.normal(size=self.mlp_size_l2),
             'bout': np.random.normal(size=self.n_classes)
         }
         trained_params = {**self.trained_weights, **self.trained_biases}
@@ -293,66 +315,83 @@ class CNN:
                 outfile.close()
             print("Saved param \"" + param_name + "\"")
 
-
-    def fprop(self, n_batches, n_inputs, bogus=False):
+    def fprop(self, n_batches, n_inputs, mode=FPropMode.MNIST):
         """
         Forward-propagation; saves input samples and classification results as files.
+        :param mode: 
         :param n_inputs:
         :param n_batches:
         """
-        test_images = np.empty([n_batches, n_inputs, self.image_shape[0], self.image_shape[1], 1])
-        test_results = np.empty([n_batches, n_inputs,
-                                 self.image_shape[0] - (self.kernel_shape[0] - 1) * 2,
-                                 self.image_shape[1] - (self.kernel_shape[0] - 1) * 2, self.n_kernels[1]])
-        test_targets = np.empty([n_batches, n_inputs, 10])
+        # test_images = np.empty([n_batches, n_inputs, self.image_shape[0], self.image_shape[1],
+        #                         self.image_shape[2]])
 
         # Convert arrays to tensors
         trained_weights_tensors = {}
         for weight_name in self.trained_weights:
             trained_weights_tensors[weight_name] = tf.convert_to_tensor(
-                self.trained_weights[weight_name].astype(np.float16).astype(np.float32))
+                self.trained_weights[weight_name].astype(np.float32))
 
         trained_biases_tensors = {}
         for bias_name in self.trained_biases:
             trained_biases_tensors[bias_name] = tf.convert_to_tensor(
-                self.trained_biases[bias_name].astype(np.float16).astype(np.float32))
+                self.trained_biases[bias_name].astype(np.float32))
 
-        input_len = self.image_shape[0] * self.image_shape[1]
-        x = tf.placeholder("float", [None, input_len])
-
-        for batch_no in np.arange(0, n_batches):
-            if not bogus:
+        # Create an input dataset
+        if mode is FPropMode.MNIST:
+            print("Generating a random subset of MNIST images...")
+            for batch_no in np.arange(0, n_batches):
                 test_batch_images_flat, _ = self.mnist.test.next_batch(n_inputs)
-            else:
+                print("TODO: flatten batches into a single dataset")
+                raise NotImplementedError
+        else:
+            if mode is FPropMode.RANDOM:
+                print("Generating random input...")
                 test_batch_images_flat = \
-                    np.random.normal(size=(n_inputs, self.image_shape[0] * self.image_shape[0]))
+                    np.random.normal(size=(n_batches * n_inputs, self.image_shape[0] * self.image_shape[1] *
+                                           self.image_shape[2]))
+            else:
+                # if mode is FPropMode.RESTORE:
+                print("Restoring inputs from a JSON file...")
+                test_batch_images_flat = np.asarray(json.loads(open(
+                    self.dir_name + '/test_images_n' + str(n_inputs) + '.json').read())).reshape(
+                    (n_batches * n_inputs, self.image_shape[0] * self.image_shape[1] * self.image_shape[2]))
 
-            test_images[batch_no] = np.reshape(test_batch_images_flat,
-                                               [-1, self.image_shape[0], self.image_shape[1], 1])
+        # ---------------------- Forward propagation ---------------------- #
 
-            print("Forward-propagating...")
+        print("Forward-propagating...")
 
-            # Construct model
-            pred = self.conv_net(x, trained_weights_tensors, trained_biases_tensors, self.image_shape)
+        # Construct model
+        # pred = self.conv_net(x, trained_weights_tensors, trained_biases_tensors, self.image_shape)
+        pred = self.conv_net_full(self.x, trained_weights_tensors, trained_biases_tensors, self.image_shape)
 
-            # Initializing the variables
-            init = tf.global_variables_initializer()
+        # Initializing the variables
+        init = tf.global_variables_initializer()
 
-            # Launch the graph
-            with tf.Session(config=self.config) as sess:
-                sess.run(init)
-                # Produce outputs
-                test_results[batch_no] = sess.run([pred], feed_dict={x: test_batch_images_flat})[0]
+        # Launch the graph
+        with tf.Session(config=self.config) as sess:
+            sess.run(init)
+            # Produce outputs
+            test_results = sess.run([pred], feed_dict={self.x: test_batch_images_flat})[0]
 
-        # Save test images
-        json_string = json.dumps(test_images.astype(np.float32).tolist())
-        with open(self.dir_name + '/test_images_n' + str(n_inputs) + '.json', 'w') as outfile:
-            outfile.write(json_string)
-            outfile.close()
-        print("Saved (" + str(test_images.shape[0] * test_images.shape[1]) + ") images, shape: ", end='')
-        print(test_images.shape)
+        # ---------------------- Forward propagation ---------------------- #
+
+        if mode is not FPropMode.RESTORE:
+            # Save test images unless they've been restored from files
+            test_images = np.reshape(test_batch_images_flat,
+                                     [n_batches, n_inputs, self.image_shape[0], self.image_shape[1],
+                                      self.image_shape[2]])
+            json_string = json.dumps(test_images.astype(np.float32).tolist())
+            with open(self.dir_name + '/test_images_n' + str(n_inputs) + '.json', 'w') as outfile:
+                outfile.write(json_string)
+                outfile.close()
+            print("Saved (" + str(test_images.shape[0] * test_images.shape[1]) + ") images, shape: ", end='')
+            print(test_images.shape)
 
         # Save Tensorflow's forward propagation results into a JSON file
+        # test_results = np.reshape(test_results, [n_batches, n_inputs, self.n_classes])
+        #test_results = np.reshape(test_results, [n_batches, n_inputs, 400])
+        test_results = np.reshape(test_results, (n_batches, n_inputs, test_results.shape[1],
+                                                 test_results.shape[2], test_results.shape[3]))
         json_string = json.dumps(test_results.astype(np.float32).tolist())
         with open(self.dir_name + '/test_tf_results_n' + str(n_inputs) + '.json', 'w') as outfile:
             outfile.write(json_string)
@@ -364,21 +403,17 @@ class CNN:
         # Print results
         if self.verbose:
             np.set_printoptions(threshold=np.inf, suppress=True)
-            # print("Weights[0][0]:")
-            # print(trained_weights)
             input_no = 0
             batch_no = 0
-            print("Inputs[" + str(batch_no) + "][" + str(input_no) + "]:")
-            print(test_images[batch_no][input_no].sum())
-            print("Weights['wmlp1'][0]:")
-            print(self.trained_weights['wmlp1'][0])
-            print("Biases['bmlp1']:")
-            print(self.trained_biases['bmlp1'])
+            # print("Weights['wmlp1'][1]:")
+            # print(self.trained_weights['wmlp1'].transpose().shape)
+            # print(self.trained_weights['wmlp1'].transpose()[1])
+            # print("Biases['bmlp1']:")
+            # print(self.trained_biases['bmlp1'].shape)
+            # print(self.trained_biases['bmlp1'][1])
             print("Output[" + str(batch_no) + "][" + str(input_no) + "]:")
-            print(test_results[0][batch_no][input_no].shape)
-            print(test_results[0][batch_no][input_no])
-            print("Output[" + str(batch_no) + "][0:" + str(input_no + 1) + "] maxed:")
-            #print([list(decision).index(max(decision)) for decision in test_results[batch_no][:input_no + 1]])
-            print("Correct[" + str(batch_no) + "][0:" + str(input_no + 1) + "]:")
-            #print([list(decision).index(max(decision)) for decision in test_targets[batch_no][:input_no + 1]])
-
+            # print(np.transpose(test_results[batch_no][input_no], (2, 0, 1)).shape)
+            # print(np.transpose(test_results[batch_no][input_no], (2, 0, 1)))
+            print(test_results.shape)
+            print(test_results[0])
+            print()

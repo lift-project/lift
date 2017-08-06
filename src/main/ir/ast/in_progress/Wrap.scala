@@ -1,6 +1,7 @@
-package ir.ast
+package ir.ast.in_progress
 
 import ir._
+import ir.ast.{Lambda, Pattern, Split, isGenerable}
 import ir.interpreter.Interpreter._
 
 /**

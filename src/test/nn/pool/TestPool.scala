@@ -20,7 +20,8 @@ object TestPool {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init(/*monaco*/0, 0)
-    nn.pool.mysql.CreateTable
+    println("Create the MySQL table if necessary")
+    nn.pool.mysql.CreateTable()
   }
 
   @AfterClass def after(): Unit = {
@@ -53,7 +54,7 @@ class TestPool {
       //rerun <- 1 until 10
       kernelSize <- 4 until 64 by 4
       imageSize <- 8 until 128 by 8
-      pathToInputs = Experiment.getPathToInputs(Shape(w=kernelSize, h=kernelSize), Shape(w=imageSize, h=imageSize))
+      pathToInputs = Experiment.getPathToInputs(Shape(size=kernelSize, size=kernelSize), Shape(size=imageSize, size=imageSize))
       if exists(get(pathToInputs))
       pathToResults = Experiment.getPathToResults(pathToInputs)
       // Results dir doesn't exist (then create it) or it does, but reruns are allowed:
@@ -67,24 +68,28 @@ class TestPool {
       // Load datasets once for all experiments (across all multsPerThread and neuronsPerWrg)
       if Experiment.datasetsExist(pathToInputs)
       elsPerThreadL1 <- List(1) ++ (4 until 16 by 4)
-      inputTileSize <- kernelSize until imageSize by 4 // kernelSize
+      inputTileSizeL1 <- kernelSize until imageSize by 4 // kernelSize
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
+        val elsPerThread = Array(1, elsPerThreadL1)
+        val inputShape: Array[Shape] = Array.fill[Shape](nLayers)(Shape())
+        inputShape(0) = Shape(size=imageSize, size=imageSize, nChannels=inputChannels)
+        val kernelShape = Array(Shape(size=2, size=2), Shape(size=kernelSize, size=kernelSize))
+        val kernelStride = Array(2, kernelSize)
+        var inputTileSize: Array[Int] = {for (layerNo <- 0 until nLayers) yield
+          if (layerNo == 0 && nLayers > 1) kernelShape(layerNo).size else inputTileSizeL1 }.toArray
+
         try {
-          aPool = new Pool(Pool.Par, Array(nn.max, nn.max), elsPerThreadL1, inputTileSize,
-            nLayers, nBatches, nInputs, Array(inputChannels, inputChannels),
-            {
-              val inputShape: Array[Shape] = Array.fill[Shape](nLayers)(Shape())
-              inputShape(0) = Shape(w=imageSize, h=imageSize, ch=inputChannels)
-              inputShape
-            }, {for (_ <- 0 until nLayers) yield Shape(w=kernelSize, h=kernelSize)}.toArray,
-            Array(kernelSize / 2, kernelSize), pathToInputs, pathToResults, Experiment.loadDatasets, aPool)
+          aPool = new Pool(Pool.Par, Array(nn.max, nn.max), elsPerThread, inputTileSize,
+            nLayers, nBatches, nInputs, Array(inputChannels, inputChannels), inputShape, kernelShape,
+            kernelStride, pathToInputs, pathToResults, Experiment.loadDatasets, aPool)
           true
         }
         catch {
           case e: java.lang.IllegalArgumentException =>
             logger.warn("-----------------------------------------------------------------")
-            logger.warn(f"Cannot start the experiment\n" + poolToString(aPool))
+            logger.warn(f"Cannot start the experiment\n" + configToString(nBatches, nInputs, inputShape,
+              nLayers, inputTileSize, elsPerThread, kernelShape, kernelStride))
             logger.warn(e.getMessage)
             logger.warn("SKIPPING EXPERIMENT.")
             recordFailureInSQL(e)
@@ -109,7 +114,8 @@ class TestPool {
 
   def singleTest(aPool: Pool): Unit = {
     logger.info("-----------------------------------------------------------------")
-    System.out.println(f"Starting the experiment\n" + poolToString(aPool))
+    System.out.println(f"Starting the experiment\n" + configToString(aPool.nBatches, aPool.nInputs, aPool.inputShape,
+      aPool.nLayers, aPool.inputTileSize, aPool.elsPerThread, aPool.kernelShape, aPool.kernelStride))
 
     val now = Calendar.getInstance().getTime
 
@@ -137,8 +143,8 @@ class TestPool {
 
       /* Group and unpad */
       aPool.outputs = {
-        def getShapedOutputs = nn.group(outputFlat, (aPool.nBatches, aPool.nInputs, aPool.outputShape(layerNo).hPadded,
-          aPool.outputShape(layerNo).wPadded, aPool.outputShape(layerNo).ch)).map(
+        def getShapedOutputs = nn.group(outputFlat, (aPool.nBatches, aPool.nInputs, aPool.outputShape(layerNo).sizePadded,
+          aPool.outputShape(layerNo).sizePadded, aPool.outputShape(layerNo).nChannels)).map(
           batch => batch.map(
             input => input.map(
               row => row.slice(0, aPool.outputShape(layerNo).wNonPadded)
@@ -200,10 +206,10 @@ class TestPool {
         for (layerNo <- 0 until aPool.nLayers) yield f"runtime_l$layerNo%d"
       }.mkString(",") + ",tag\n")
 
-      pw.write(nn.deviceName + "," + f"${aPool.nBatches}%d,${aPool.nInputs}%d,${aPool.inputShape(0).s}%d, " +
-        f"${aPool.inputShape(0).ch}%d")
+      pw.write(nn.deviceName + "," + f"${aPool.nBatches}%d,${aPool.nInputs}%d,${aPool.inputShape(0).size}%d, " +
+        f"${aPool.inputShape(0).nChannels}%d")
       for (layerNo <- 0 until aPool.nLayers)
-        pw.write(f"${aPool.kernelShape(layerNo).s}%d,")
+        pw.write(f"${aPool.kernelShape(layerNo).size}%d,")
       for (layerNo <- 0 until aPool.nLayers)
         pw.write(f"${aPool.kernelStride(layerNo)}%d,")
       pw.write(f"${aPool.inputTileSize(aPool.nLayers - 1)}%d,${aPool.inputTileStep(aPool.nLayers - 1)}%d," +
@@ -219,10 +225,10 @@ class TestPool {
     /* SQL */
     Connector.statement.execute("INSERT INTO lift_results_pool " +
       "(batches, images, imagesize, input_channels, kernelsize_l0, kernelsize_l1, kernelstride_l0, kernelstride_l1, " +
-      "elsperthread_l0, elsperthread_l1, inputtilesize_l0, " +
-      "inputtilesize_l1, ran, success, runtime_l0, runtime_l1, experiment_id, datetime) " +
-      f"VALUES (${aPool.nBatches}%d, ${aPool.nInputs}%d, ${aPool.inputShape(0).s}%d, ${aPool.inputShape(0).ch}%d," +
-      f"${aPool.kernelShape(0).s}%d, ${aPool.kernelShape(1).s}, " +
+      "elsperthread_l0, elsperthread_l1, inputtilesize_l0, inputtilesize_l1, " +
+      "ran, success, runtime_l0, runtime_l1, experiment_id, datetime) " +
+      f"VALUES (${aPool.nBatches}%d, ${aPool.nInputs}%d, ${aPool.inputShape(0).size}%d, ${aPool.inputShape(0).nChannels}%d," +
+      f"${aPool.kernelShape(0).size}%d, ${aPool.kernelShape(1).size}, " +
       f"${aPool.kernelStride(0)}%d, ${aPool.kernelStride(1)}, " +
       f"${aPool.elsPerThread(0)}%d, ${aPool.elsPerThread(1)}%d, " +
       f"${aPool.inputTileSize(0)}%d, ${aPool.inputTileSize(1)}%d, true, " +

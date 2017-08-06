@@ -17,16 +17,18 @@ package object pool {
                   n_kwindows_per_tile_per_dim: Int = 0)
 
 
-  def poolToString(aPool: Pool): String = {
-    f"nBatches=${aPool.nBatches}%d, nInputs=${aPool.nInputs}%d, imageShape=${aPool.inputShape(0).s}%d\n" +
+  def configToString(nBatches: Int, nInputs: Int, inputShape: Array[Shape], nLayers: Int,
+                     inputTileSize: Array[Int], elsPerThread: Array[Int], kernelShape: Array[Shape],
+                     kernelStride: Array[Int]): String = {
+    f"nBatches=$nBatches%d, nInputs=$nInputs%d, imageShape=${inputShape(0).size}%d, " +
+      f"inputChannels=${inputShape(0).nChannels}%d, inputTileSize=${inputTileSize(0)}%d\n" +
       { var str: String = ""
-        for (layerNo <- 0 until aPool.nLayers)
+        for (layerNo <- 0 until nLayers)
           str +=
-            f"inputTileSize($layerNo%d)=${aPool.inputTileSize(layerNo)}%d, " +
-            f"elsPerThread($layerNo%d)=${aPool.elsPerThread(layerNo)}%d, " +
-            f"kernelStride($layerNo%d)=${aPool.kernelStride(layerNo)}%d, " +
-            f"kernelSize($layerNo%d)=${aPool.kernelShape(layerNo).s}%d, " +
-        str + "\n"}
+            f"elsPerThread($layerNo%d)=${elsPerThread(layerNo)}%d, " +
+            f"kernelSize($layerNo%d)=${kernelShape(layerNo).size}%d, " +
+            f"kernelStride($layerNo%d)=${kernelStride(layerNo)}%d\n"
+        str}
   }
 
 
@@ -38,12 +40,12 @@ package object pool {
       {
         val envPath = System.getenv("LIFT_NN_RESOURCES")
         if (envPath != null) envPath else cnnDir
-      } + f"/experiment.pool.${kernelShape.w}%d.${imageShape.h}%d"
+      } + f"/experiment.pool.${kernelShape.size}%d.${imageShape.size}%d"
     }
     def getPathToResults(pathToInputs: String): String = pathToInputs + "/results_lift/"
 
 
-    def datasetsExist(pathToInputs: String): Boolean = exists(get(pathToInputs + "/test_images_n.json"))
+    def datasetsExist(pathToInputs: String): Boolean = exists(get(pathToInputs + "/test_images_n8.json"))
 
 
     def loadDatasets(nInputs: Int, pathToInputs: String):

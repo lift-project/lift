@@ -7,10 +7,16 @@ import java.nio.file.Paths._
   * Created by nm on 08/02/17.
   * Things pertaining to TestMLP tests.
   */
-package object mlp {
+package object fc {
   /* Types and data structures */
 
   case class Tile(mults: Int, inputs: Int, neurons: Int)
+
+  case class FCDatasets(inputs: PaddedArray[Array2D[Float]] = null,
+                        var outputs: Array2D[Float] = null,
+                        targets: Array2D[Float] = null,
+                        weights: Array2D[Float] = null,
+                        biases: Array[Float] = null) extends NetDatasets
 
   /* Test values */
   val input_W1 = Array(Array(0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f),
@@ -39,6 +45,10 @@ package object mlp {
   val input_X2 = Array(3f, 4f, 5f, 0f, 1f, 2f)
   val gold = Array(17.492f, 11.356f, 14.406f, 17.636f, 17.492f, 17.732f)
   val gold2 = Array(6.884f, 4.486f, 5.784f, 7.244f, 6.884f, 6.86f)
+
+  def configToString(layerSize: Int, multsPerThread: Int,neuronsPerWrg: Int): String = {
+    f"layerSize=$layerSize%d, multsPerThread=$multsPerThread%d, neuronsPerWrg=$neuronsPerWrg%d\n"
+  }
 
 
   object Experiment {

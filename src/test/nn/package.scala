@@ -2,7 +2,7 @@ import java.nio.file.Files._
 import java.nio.file.Paths._
 import java.util.Calendar
 
-import ir.ScalarType
+import ir.{ArrayType, ScalarType}
 import ir.ast.UserFun
 import opencl.executor.Executor
 import opencl.ir._
@@ -15,31 +15,13 @@ import scala.util.parsing.json.JSON
 package object nn {
   /* Types and data structures */
 
-  case class Shape(in: Int = 0, out: Int = 0,
-                   w: Int = 0, h: Int = 0,
-                   l0: Int = 0, l1: Int = 0,
-                   ch: Int = 0,
-                   var wPadded: Int = 0,
-                   var hPadded: Int = 0) {
-    def wNonPadded: Int = w
-    def hNonPadded: Int = h
+  case class Shape(size: Int = 0,
+                   var sizePadded: Int = 0,
+                   nChannels: Int = 0,
+                   nInputs: Int = 0,
+                   nBatches: Int = 0)
 
-    @throws(classOf[java.lang.UnsupportedOperationException])
-    def s: Int = if (w == h) w else {
-      throw new java.lang.UnsupportedOperationException
-      0
-    }
-
-    def sPadded: Int = if (wPadded == hPadded) wPadded else {
-      throw new java.lang.UnsupportedOperationException
-      0
-    }
-
-//    def setSPadded(sNew: Int): Unit = if (wPadded == hPadded) {
-//      wPadded = sNew
-//      hPadded = sNew
-//    } else throw new java.lang.UnsupportedOperationException
-  }
+  case class NetDatasets()
 
   case class PaddedArray[T](var nonPadded: T) {
     var padded: T = _
@@ -50,6 +32,8 @@ package object nn {
   type Array4D[T] = Array[Array[Array[Array[T]]]]
   type Array5D[T] = Array[Array[Array[Array[Array[T]]]]]
   type Array6D[T] = Array[Array[Array[Array[Array[Array[T]]]]]]
+
+  def AT = ArrayType
 
 
   /* Variables */
@@ -63,7 +47,7 @@ package object nn {
 
   // Activation functions
   val ReLU: UserFun = UserFun("ReLU", "x", "{ return(max(0.0f, x)); }", Float, Float)
-  val max: UserFun = UserFun("max", Array("x", "y"), "return x > y ? x : y;", Seq(Float, Float), Float)
+  val max: UserFun = UserFun("maxFloat", Array("x", "y"), "return x > y ? x : y;", Seq(Float, Float), Float)
   val Linear: UserFun = id
 
   def loadJSON5D(json_file_path: String): Array5D[Float] = {

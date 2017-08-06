@@ -1,20 +1,23 @@
 import numpy as np
 import os
-from cnn import CNN
+from cnn import CNN, FPropMode
 import pickle
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-rerun = False
+retrain = False
+refprop = True
+fprop_mode = FPropMode.RESTORE
 
-#kernel_sizes = np.arange(5, 25+1, 5)
-kernel_sizes = np.arange(4, 64+1, 4)
+kernel_sizes = np.arange(4, 64 + 1, 4)
+kernel_stride = 1
 kernel_ns_l0 = [16]
-kernel_ns_l1 = np.arange(8, 48+1, 4)
+kernel_ns_l1 = np.arange(8, 48 + 1, 4)
+mlp_size_l2 = 256
+mlp_size_l3 = 10
+input_channels = 1
 batches_ns = [2]
-#inputs_ns = np.arange(8, 520+1, 32)
 inputs_ns = [8]
-#image_sizes = np.arange(16, 512+1, 16)
 image_sizes = [8, 16, 32, 64]
 # TODO: set kernel size for layer 0
 for kernel_n_l0 in kernel_ns_l0:
@@ -29,9 +32,12 @@ for kernel_n_l0 in kernel_ns_l0:
 
                     acnn = CNN(n_kernels=[kernel_n_l0, kernel_n_l1],
                                kernel_shape=[kernel_size, kernel_size],
-                               image_shape=[image_size, image_size])
+                               kernel_stride=[kernel_stride, kernel_stride],
+                               image_shape=[image_size, image_size, input_channels],
+                               mlp_size_l2=mlp_size_l2,
+                               mlp_size_l3=mlp_size_l3)
                     load = None
-                    if not rerun:
+                    if not retrain:
                         print("Loading trained parameters from a pickle.")
                         load = CNN.restore(n_kernels=[kernel_n_l0, kernel_n_l1],
                                            kernel_shape=[kernel_size, kernel_size],
@@ -39,9 +45,9 @@ for kernel_n_l0 in kernel_ns_l0:
                         if load is not None:
                             (acnn.trained_weights, acnn.trained_biases) = load
                     if load is None:
-                        if rerun:
+                        if retrain:
                             print("Could not load; retraining parameters.")
-                        #acnn.train()
+                        # acnn.train()
                         acnn.train_bogus()
                         print("Backing up parameters.")
                         pickle.dump((acnn.trained_weights, acnn.trained_biases),
@@ -50,9 +56,10 @@ for kernel_n_l0 in kernel_ns_l0:
                     try:
                         for batches_n in batches_ns:
                             for inputs_n in inputs_ns:
-                                if rerun or \
+                                if refprop or \
                                         not os.path.isfile(acnn.dir_name + '/test_images_n' + str(inputs_n) + '.json'):
                                     print("Forward-propagating " + str(inputs_n) + " inputs.")
-                                    acnn.fprop(batches_n, inputs_n, bogus=True)
+                                    acnn.fprop(batches_n, inputs_n, mode=fprop_mode)
                     except ValueError as e:
                         print(str(e))
+                    quit()

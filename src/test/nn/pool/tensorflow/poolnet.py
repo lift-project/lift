@@ -104,7 +104,7 @@ class PoolNet:
                                  self.image_shape[2]])
         # test_targets = np.empty([n_batches, n_inputs, 10])
 
-        input_len = self.image_shape[0] * self.image_shape[1]
+        input_len = self.image_shape[0] * self.image_shape[1] * self.image_shape[2]
         x = tf.placeholder("float", [None, input_len])
 
         for batch_no in np.arange(0, n_batches):
@@ -112,10 +112,10 @@ class PoolNet:
                 test_batch_images_flat, _ = self.mnist.test.next_batch(n_inputs)
             else:
                 test_batch_images_flat = \
-                    np.random.normal(size=(n_inputs, self.image_shape[0] * self.image_shape[0]))
+                    np.random.normal(size=(n_inputs, self.image_shape[0] * self.image_shape[1] * self.image_shape[2]))
 
             test_images[batch_no] = np.reshape(test_batch_images_flat,
-                                               [-1, self.image_shape[0], self.image_shape[1], 1])
+                                               [-1, self.image_shape[0], self.image_shape[1], self.image_shape[2]])
 
             print("Forward-propagating...")
 
@@ -133,7 +133,7 @@ class PoolNet:
         with open(self.dir_name + '/test_images_n' + str(n_inputs) + '.json', 'w') as outfile:
             outfile.write(json_string)
             outfile.close()
-        print("Saved (" + str(test_images.shape[0] * test_images.shape[1]) + ") images, shape: ", end='')
+        print("Saved (" + str(n_inputs) + ") images, shape: ", end='')
         print(test_images.shape)
 
         # Save Tensorflow's forward propagation results into a JSON file
