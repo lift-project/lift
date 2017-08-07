@@ -33,8 +33,9 @@ case class FC(liftFProp: FunDecl,
   /* Removes padded neurons from the final layer output
    */
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {
-    datasets.outputs = nn.group(outputsFlat, (outputShape.nInputs, outputShape.sizePadded)).map(
-      input => input.slice(0, outputShape.size))
+    datasets.asInstanceOf[FCDatasets].outputs.nonPadded =
+      nn.group(outputsFlat, (outputShape.nInputs, outputShape.sizePadded)).map(
+        input => input.slice(0, outputShape.size))
   }
 }
 
@@ -142,12 +143,14 @@ object FC {
           f"or equal to maxWorkGroupSize(${nn.maxWorkGroupSize}%d).\nDecrease neuronsPerWrg or " +
           f"increase multsPerThread.")
 
-    // Layer size 1 = the minimum of the maximum allowed layer size 1 considering layer size 0 and
+    // Layer size 0 = the minimum of the maximum allowed layer size 1 considering layer size 0 and
     // the number of inputs (the size of the workgroup job)
+    localSize(0) = Math.min(Math.floor(nn.maxWorkGroupSize.toFloat / localSize(0)).toInt, inputShape.nInputs)
+
+    // Layer size 1 = the batch size
     localSize(1) = Math.min(Math.floor(nn.maxWorkGroupSize.toFloat / localSize(0)).toInt, inputShape.nInputs)
 
-    // Layer size 2 = the batch size
-    localSize(2) = Math.min(Math.floor(nn.maxWorkGroupSize.toFloat / localSize(0)).toInt, inputShape.nInputs)
+    localSize(2) = 1
 
     // Check new memory consumption
     if (4.toLong * inputShape.nInputs * inputShape.sizePadded * neuronShape.sizePadded > Integer.MAX_VALUE)
@@ -162,7 +165,7 @@ object FC {
           f"group size (==$groupSize%d) must be less or equal to maxWorkGroupSize (${nn.maxWorkGroupSize}%d)")
     }
 
-    val globalSize: Array[Int] = Array.fill[Int](2)(0)
+    val globalSize: Array[Int] = Array.fill[Int](3)(0)
     // Check multsPerThread. Padding should ensure that this never happens, but for test coverage this check remains
 //    if (inputLenPadded(layerNo) % multsPerThread(layerNo) != 0)
 //      throw new java.lang.IllegalArgumentException(
@@ -173,6 +176,7 @@ object FC {
     globalSize(0) = localSize(0) * (neuronShape.sizePadded.toFloat / neuronsPerWrg).toInt
     // Global size 1 = mapping of workgroups across all inputs
     globalSize(1) = localSize(1) * Math.ceil(inputShape.nInputs.toFloat / localSize(1)).toInt
+    globalSize(2) = 1
 
     /* Now that all parameters are calculated and verified, build the layer */
 
@@ -197,8 +201,8 @@ object FC {
     weights.padded =
       Array.fill[Array[Float]](neuronShape.sizePadded)(
         Array.fill[Float](inputShape.sizePadded)(0))
-    for {i <- 0 until neuronShape.size}
-      weights.padded(i) = weights.nonPadded(i).padTo(inputShape.sizePadded, 0.toFloat)
+    weights.padded = weights.nonPadded.padTo(
+      neuronShape.sizePadded, Array.fill[Float](inputShape.sizePadded)(0))
 
     biases.padded = biases.nonPadded.padTo(neuronShape.sizePadded, 0.toFloat)
 

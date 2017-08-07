@@ -23,11 +23,11 @@ package object nn {
                    nBatches: Int = 0)
 
   trait NetDatasets {
-    var inputs: PaddedArray[_]
-    var outputs: Array[_]
-    var targets: Array[_]
-    var weights: Any
-    var biases: Any
+//    var inputs: PaddedArray[_]
+//    var outputs: PaddedArray[_]
+//    val targets: Array[_]
+//    val weights: Any
+//    val biases: Any
   }
 
   case class NetDatasetsCollection(pathToInputs: String,

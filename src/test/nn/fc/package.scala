@@ -9,17 +9,16 @@ package object fc {
 
   case class Tile(mults: Int, inputs: Int, neurons: Int)
 
-  case class FCDatasets(inputs: PaddedArray[Array2D[Float]] = PaddedArray(Array.empty),
-                             outputs: Array2D[Float] = Array.empty,
-                             targets: Array2D[Float] = Array.empty,
-                             weights: PaddedArray[Array2D[Float]] = PaddedArray(Array.empty),
-                             biases: PaddedArray[Array[Float]] = PaddedArray(Array.empty)) extends NetDatasets {
-    //TODO: Get rid of this
-    def inputs_=(x$1: nn.PaddedArray[_]): Unit = ???
-    def outputs_=(x$1: Array[_]): Unit = ???
-    def targets_=(x$1: Array[_]): Unit = ???
-    def weights_=(x$1: Any): Unit = ???
-    def biases_=(x$1: Any): Unit = ???
+  class FCDatasets(in: PaddedArray[Array2D[Float]] = PaddedArray(Array.empty),
+                   out: PaddedArray[Array2D[Float]] = PaddedArray(Array.empty),
+                   targ: Array2D[Float] = Array.empty,
+                   w: PaddedArray[Array2D[Float]] = PaddedArray(Array.empty),
+                   b: PaddedArray[Array[Float]] = PaddedArray(Array.empty)) extends NetDatasets {
+    val inputs: PaddedArray[Array2D[Float]] = in
+    val outputs: PaddedArray[Array2D[Float]] = out
+    val targets: Array2D[Float] = targ
+    val weights: PaddedArray[Array2D[Float]] = w
+    val biases: PaddedArray[Array[Float]] = b
   }
 
 
@@ -67,20 +66,20 @@ package object fc {
                      inputFilePrefix: String = "", targetFilePrefix: String = "",
                      paramFileInfix: String): FCDatasets = {
       new FCDatasets(
-        inputs = {
+        in = {
           if (inputFilePrefix != "")
             PaddedArray(nn.loadJSON2D(path + "/" + inputFilePrefix + ".json"))
           else
-            null
+            PaddedArray(Array.empty)
         },
-        targets = {
+        targ = {
           if (targetFilePrefix != "")
             nn.loadJSON2D(path + "/" + targetFilePrefix + ".json")
           else
-            null
+            Array.empty
         },
-        weights = PaddedArray(nn.loadJSON2D(path + "/w" + paramFileInfix + ".json")),
-        biases = PaddedArray(nn.loadJSON1D(path + "/b" + paramFileInfix + ".json")))
+        w = PaddedArray(nn.loadJSON2D(path + "/w" + paramFileInfix + ".json").transpose),
+        b = PaddedArray(nn.loadJSON1D(path + "/b" + paramFileInfix + ".json")))
     }
   }
 

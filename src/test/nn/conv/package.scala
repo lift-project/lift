@@ -26,17 +26,16 @@ package object conv {
                                  stride: Int,
                                  n: Int)
 
-  case class ConvDatasets(inputs: PaddedArray[Array5D[Float]] = PaddedArray(Array.empty),
-                          outputs: Array5D[Float] = Array.empty,
-                          targets: Array5D[Float] = Array.empty,
-                          weights: Array4D[Float] = Array.empty,
-                          biases: Array[Float] = Array.empty) extends NetDatasets {
-    //TODO: Get rid of this
-    def inputs_=(x$1: nn.PaddedArray[_]): Unit = ???
-    def outputs_=(x$1: Array[_]): Unit = ???
-    def targets_=(x$1: Array[_]): Unit = ???
-    def weights_=(x$1: Any): Unit = ???
-    def biases_=(x$1: Any): Unit = ???
+  class ConvDatasets(in: PaddedArray[Array5D[Float]] = PaddedArray(Array.empty),
+                     out: PaddedArray[Array5D[Float]] = PaddedArray(Array.empty),
+                     targ: Array5D[Float] = Array.empty,
+                     w: Array4D[Float] = Array.empty,
+                     b: Array[Float] = Array.empty) extends NetDatasets {
+    var inputs: PaddedArray[Array5D[Float]] = in
+    var outputs: PaddedArray[Array5D[Float]] = out
+    val targets: Array5D[Float] = targ
+    val weights: Array4D[Float] = w
+    val biases: Array[Float] = b
   }
 
 
@@ -140,20 +139,20 @@ package object conv {
     def loadDatasets(path: String, inputFilePrefix: String = "", targetFilePrefix: String = "",
                      paramFileInfix: String): ConvDatasets = {
       new ConvDatasets(
-        inputs = {
+        in = {
           if (inputFilePrefix != "")
             PaddedArray(nn.loadJSON5D(path + "/" + inputFilePrefix + ".json"))
           else
-            null
+            PaddedArray(Array.empty)
         },
-        targets = {
+        targ = {
           if (targetFilePrefix != "")
             nn.loadJSON5D(path + "/" + targetFilePrefix + ".json")
           else
-            null
+            Array.empty
         },
-        weights = nn.loadJSON4D(path + "/w" + paramFileInfix + ".json"),
-        biases = nn.loadJSON1D(path + "/b" + paramFileInfix + ".json"))
+        w = nn.loadJSON4D(path + "/w" + paramFileInfix + ".json"),
+        b = nn.loadJSON1D(path + "/b" + paramFileInfix + ".json"))
     }
   }
 }

@@ -5,6 +5,7 @@ import java.nio.file.Files.{createDirectory, exists}
 import java.nio.file.Paths.get
 import java.util.Calendar
 
+import com.sun.javaws.exceptions.InvalidArgumentException
 import com.typesafe.scalalogging.Logger
 import nn._
 import nn.conv.{Conv, ConvDatasets}
@@ -35,7 +36,7 @@ object TestCNN {
 class TestCNN {
   private val logger = Logger(this.getClass)
 
-  val precision: Float = 1f
+  val precision: Float = 10f
   val codeVersion: Int = 1
 
   @Test
@@ -166,9 +167,19 @@ class TestCNN {
 
           /* Execute */
           val (outputsFlat: Array[Float], runtime) =
-            Execute(layer.localSize(0), layer.localSize(1), layer.localSize(2),
+            Execute(
+              layer.localSize(0), layer.localSize(1), layer.localSize(2),
               layer.globalSize(0), layer.globalSize(1), layer.globalSize(2), (true, true))(
-              layer.liftFProp, layerData.weights, layerData.biases, layerData.inputs.padded)
+              layer.liftFProp,
+              layerData match {
+                case cd: ConvDatasets => cd.weights
+                case fd: FCDatasets => fd.weights.padded},
+              layerData match {
+                case cd: ConvDatasets => cd.biases
+                case fd: FCDatasets => fd.biases.padded},
+              layerData match {
+                case cd: ConvDatasets => cd.inputs.padded
+                case fd: FCDatasets => fd.inputs.padded})
           layer.runtime = runtime
           logger.info(f"Layer $layerNo%d runtime: $runtime%1.5f ms")
 
@@ -180,14 +191,21 @@ class TestCNN {
             (layer, aCNN.layers(layerNo + 1)) match {
                 case (_: Conv, _: FC) =>
                   // If the current layer is convolutional and the next one is fully connected
-                  data.layers(layerNo + 1).inputs =
+                  data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
                     // (n_batches, n_inputs) -> (n_batches * n_inputs)
-                    PaddedArray(layerData.asInstanceOf[ConvDatasets].outputs.flatMap(batch => batch.map(
+                    layerData.asInstanceOf[ConvDatasets].outputs.nonPadded.flatMap(batch => batch.map(
                       // (h, w, n_channels) -> (h * w * n_channels)
                       input => input.map(row => row.flatten).flatten
-                )))
-                case _ =>
-                  data.layers(layerNo + 1).inputs = PaddedArray(layerData.outputs)
+                ))
+                case (_: Conv, _: Conv) =>
+                  data.layers(layerNo + 1).asInstanceOf[ConvDatasets].inputs.nonPadded =
+                    layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
+                case (_: FC, _: FC) =>
+                  data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
+                    layerData.asInstanceOf[FCDatasets].outputs.nonPadded
+                case (_: FC, _: Conv) =>
+                  throw new java.lang.IllegalArgumentException(
+                    "Fully connected layer must not precede a convolutional layer")
             }
           }
         }
@@ -195,8 +213,8 @@ class TestCNN {
 
         /* Check and save results */
         var testFailed: Boolean = false
-        val netOutput: Array2D[Float] = data.layers.last.outputs.asInstanceOf[Array2D[Float]]
-        val netTarget: Array2D[Float] = data.layers.last.targets.asInstanceOf[Array2D[Float]]
+        val netOutput: Array2D[Float] = data.layers.last.asInstanceOf[FCDatasets].outputs.nonPadded
+        val netTarget: Array2D[Float] = data.layers.last.asInstanceOf[FCDatasets].targets.asInstanceOf[Array2D[Float]]
         for ((liftResult, targetResult, input_no) <- (netOutput, netTarget, 0 to netTarget.length).zipped.toList) {
           //        logger.info(f"target $batch_no%d,$input_no%d,$row_no%d,$el_no%d:  " + targetElement.mkString(", "))
           //        logger.info(f"actual $batch_no%d,$input_no%d,$row_no%d,$el_no%d:  " + liftElement.mkString(", "))
@@ -263,11 +281,11 @@ class TestCNN {
         }
 
         /* SQL */
-        Connector.statement.execute("INSERT INTO lift_results_cnn " +
+        val sqlCommand: String = "INSERT INTO lift_results_cnn " +
           "(device_name, n_batches, n_inputs, n_conv_layers, n_fc_layers, " + {
           for (layerNo <- aCNN.convLayers.indices)
-            yield f"n_kernels_l$layerNo%d, kernel_size_l$layerNo%d, kernel_stride_l$layerNo%d" +
-              f"input_tile_size_l$layerNo%d, input_tile_stride_l$layerNo%d" +
+            yield f"n_kernels_l$layerNo%d, kernel_size_l$layerNo%d, kernel_stride_l$layerNo%d, " +
+              f"input_tile_size_l$layerNo%d, input_tile_stride_l$layerNo%d, " +
               f"els_per_thread_l$layerNo%d, kernels_per_group_l$layerNo%d"
         }.mkString(", ") + ", " + {
           for (layerNo <- aCNN.fcLayers.indices.map(i => i + aCNN.convLayers.length))
@@ -277,8 +295,8 @@ class TestCNN {
           for (layerNo <- 0 until aCNN.nLayers)
             yield f"runtime_l$layerNo%d"}.mkString(", ") +
           ", ran, success, experiment_id, datetime) VALUES (" +
-          nn.deviceName + ", " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
-          f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d" + {
+          "'" + nn.deviceName + "', " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
+          f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d, " + {
           for (layerNo <- aCNN.convLayers.indices) yield {
             val c: Conv = aCNN.layers(layerNo).asInstanceOf[Conv]
             f"${c.outputShape.nChannels}%d, ${c.kernelSliding.size}%d, ${c.kernelSliding.stride}%d, " +
@@ -294,7 +312,9 @@ class TestCNN {
           for (layerNo <- 0 until aCNN.nLayers)
             yield f"${aCNN.layers(layerNo).runtime}%1.5f"
         }.mkString(", ") + f", true, ${!testFailed}%b, $codeVersion%d, " +
-          f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now)}%s');")
+          f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now)}%s');"
+        println(sqlCommand)
+        Connector.statement.execute(sqlCommand)
         /* ---------------------------- RUN EXPERIMENT (END) ---------------------------- */
       } catch {
         case e: opencl.executor.Executor.ExecutorFailureException =>

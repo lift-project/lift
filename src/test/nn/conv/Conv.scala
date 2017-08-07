@@ -33,13 +33,14 @@ case class Conv(liftFProp: FunDecl,
   var runtime: Double = 0
 
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {
-      datasets.outputs = nn.group(outputsFlat, (outputShape.nBatches, outputShape.nInputs,
-      outputShape.sizePadded, outputShape.sizePadded, outputShape.nChannels)).map(
-      batch => batch.map(
-        input => input.map(
-          row => row.slice(0, outputShape.size)
-        ).slice(0, outputShape.size)
-      ))
+      datasets.asInstanceOf[ConvDatasets].outputs.nonPadded =
+        nn.group(outputsFlat, (outputShape.nBatches, outputShape.nInputs,
+          outputShape.sizePadded, outputShape.sizePadded, outputShape.nChannels)).map(
+          batch => batch.map(
+            input => input.map(
+              row => row.slice(0, outputShape.size)
+            ).slice(0, outputShape.size)
+          ))
   }
 }
 
