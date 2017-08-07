@@ -11,7 +11,7 @@
     "vector_width" : 4,
     "sequential" : false,
     "only_lower" : false,
-    "keep_range_information" : true,
+    "old_string_representation" : false,
     "rule_collection" : "convolution2D"
   },
 
@@ -20,15 +20,15 @@
     "vector_width" : 4,
     "sequential" : false,
     "load_balancing" : false,
-    "unroll_reduce" : false,
+    "unroll_reduce" : true,
     "global0" : false,
-    "global01" : false,
+    "global01" : true,
     "global10" : false,
     "global012" : false,
     "global210" : false,
     "group0" : false,
-    "group01" : false,
-    "group10" : true
+    "group01" : true,
+    "group10" : false
   },
 
   "local_memory_rules" : {
@@ -39,9 +39,9 @@
   },
 
   "parameter_rewrite" : {
-    "explore_ndrange" : false,
-    "sample_ndrange" : -1,
-    "disable_ndrange_injection" : true,
+    "explore_ndrange" : true,
+    "sample_ndrange" : 20,
+    "disable_ndrange_injection" : false,
     "sequential" : false,
     "generate_scala" : false
   },
@@ -51,20 +51,19 @@
     "configs_to_achieve_speedup" : 100,
     "timeout_in_seconds" : 60,
     "max_configs" : 500,
-    "max_local_size" : 512,
-    "vendor" : "Intel",
+    "max_local_size" : 256,
+    "vendor" : "ARM",
     "device_type" : "GPU",
     "device_id" : 0
   },
-
   "search_parameters" : {
     "default_input_size" : 8194,
-    "min_work_items" : 128,
-    "max_work_items" : 1024,
-    "min_grid_size" : 4,
+    "min_local_size" : 4,
+    "max_local_size" : 256,
+    "min_global_size" : 4,
     "max_private_memory" : 1024,
-    "max_local_memory" : 65536,
-    "min_workgroups" : 8,
-    "max_workgroups" : 65569
+    "max_local_memory" : 32768,
+    "min_workgroups" : 1,
+    "max_workgroups" :1048576
   }
 }
