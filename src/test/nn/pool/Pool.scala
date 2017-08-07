@@ -169,15 +169,7 @@ class Pool(/* Pool architectural parameters */
           "Inputs are not divisible by the chosen kernelShape and kernelStride")
         w.toInt
       },
-      size={val h: Float = (inputShape(layerNo).size - (kernelShape(layerNo).size - kernelStride(layerNo))).toFloat /
-        kernelStride(layerNo)
-        if (h % 1 != 0) throw new java.lang.IllegalArgumentException(
-          "Inputs are not divisible by the chosen kernelShape and kernelStride")
-        h.toInt
-      },
       nChannels=inputShape(layerNo).nChannels,
-      sizePadded=((inputShape(layerNo).sizePadded - (kernelShape(layerNo).size - kernelStride(layerNo))).toFloat /
-        kernelStride(layerNo)).toInt,
       sizePadded=((inputShape(layerNo).sizePadded - (kernelShape(layerNo).size - kernelStride(layerNo))).toFloat /
         kernelStride(layerNo)).toInt)
   }
@@ -260,7 +252,7 @@ class Pool(/* Pool architectural parameters */
         Array.fill[Array[Float]](inputShape(layerNo).sizePadded)(
           Array.fill[Float](inputShape(layerNo).nChannels)(0)))
     // Add empty elements to lines
-    for {b <- 0 until nBatches; i <- 0 until nInputs; h <- 0 until inputShape(layerNo).hNonPadded}
+    for {b <- 0 until nBatches; i <- 0 until nInputs; h <- 0 until inputShape(layerNo).size}
       inputs(layerNo).padded(b)(i)(h) = inputs(layerNo).nonPadded(b)(i)(h).padTo(
         inputShape(layerNo).sizePadded,
         Array.fill[Float](inputShape(layerNo).nChannels)(0))

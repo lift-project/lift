@@ -15,8 +15,7 @@ import opencl.ir.pattern._
   * Configuration is to be preprocessed and verified by the companion object below.
   * @param liftFProp
   * @param inputShape
-  * @param outputShape
-  * @param inputTiling
+  * @param outputShape* @param inputTiling
   * @param kernelSliding
   * @param elsPerThread
   * @param kernelsPerGroup
@@ -28,9 +27,20 @@ case class Conv(liftFProp: FunDecl,
                 inputTiling: SlidingWindowConfig, kernelSliding: SlidingWindowConfig,
                 elsPerThread: Int, kernelsPerGroup: Int,
                 localSize: Array[Int], globalSize: Array[Int]) extends Layer {
-  def configToString: String =
+  val configToString: String =
     nn.conv.configToString(elsPerThread, outputShape.nChannels,
       kernelsPerGroup, kernelSliding.size, kernelSliding.stride)
+  var runtime: Double = 0
+
+  def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {
+      datasets.outputs = nn.group(outputsFlat, (outputShape.nBatches, outputShape.nInputs,
+      outputShape.sizePadded, outputShape.sizePadded, outputShape.nChannels)).map(
+      batch => batch.map(
+        input => input.map(
+          row => row.slice(0, outputShape.size)
+        ).slice(0, outputShape.size)
+      ))
+  }
 }
 
 /**
@@ -258,7 +268,7 @@ object Conv {
     /* Tiles */
     val kernelSliding: SlidingWindowConfig = SlidingWindowConfig(
       size = kernelSize,
-      stride= kernelStride,
+      stride = kernelStride,
       n = {
         val n: Float = (inputTileSize - (kernelSize - kernelStride)).toFloat / kernelStride
         if (n % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
@@ -268,12 +278,11 @@ object Conv {
       }
     )
     val inputTiling: SlidingWindowConfig = {
-      val stride = inputTiling.size - (kernelSliding.size - kernelSliding.stride)
+      val stride = inputTileSize - (kernelSliding.size - kernelSliding.stride)
       SlidingWindowConfig(
         size = inputTileSize,
         stride = stride,
-        n = 1 + Math.ceil((inputShape.size - inputTileSize).toFloat / stride).toInt
-      )
+        n = 1 + Math.ceil((inputShape.size - inputTileSize).toFloat / stride).toInt)
     }
 
     /* Check parameters */
@@ -338,7 +347,7 @@ object Conv {
   }
 
   /* Padding */
-  def padInputs(inputs: PaddedArray[Array5D[Float]], inputShape: Shape): Unit = {
+  def pad(inputs: PaddedArray[Array5D[Float]], inputShape: Shape): Unit = {
     inputs.padded =
       Array.fill[Array4D[Float]](inputShape.nBatches)(
         Array.fill[Array3D[Float]](inputShape.nInputs)(
@@ -356,16 +365,5 @@ object Conv {
       inputs.padded(b)(i)(h) = inputs.nonPadded(b)(i)(h).padTo(
         inputShape.sizePadded,
         Array.fill[Float](inputShape.nChannels)(0))
-  }
-
-
-  def unPadOutputs(outputsFlat: Array[Float], datasets: ConvDatasets, outputShape: Shape): Unit = {
-    datasets.outputs = nn.group(outputsFlat, (outputShape.nBatches, outputShape.nInputs,
-        outputShape.sizePadded, outputShape.sizePadded, outputShape.nChannels)).map(
-        batch => batch.map(
-          input => input.map(
-            row => row.slice(0, outputShape.size)
-          ).slice(0, outputShape.size)
-        ))
   }
 }

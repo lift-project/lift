@@ -7,7 +7,7 @@ package nn.fc
 
 import ir.ArrayType
 import ir.ast.{FunDecl, Join, ReorderWithStride, Scatter, Split, Transpose, TransposeW, UserFun, Zip, λ}
-import nn.{Array2D, Layer, PaddedArray, Shape}
+import nn._
 import opencl.ir._
 import opencl.ir.pattern._
 
@@ -27,7 +27,15 @@ case class FC(liftFProp: FunDecl,
               inputShape: Shape, outputShape: Shape, neuronShape: Shape,
               multsPerThread: Int, neuronsPerWrg: Int,
               localSize: Array[Int], globalSize: Array[Int]) extends Layer {
-  def configToString: String = nn.fc.configToString(neuronShape.size, multsPerThread, neuronsPerWrg)
+  val configToString: String = nn.fc.configToString(neuronShape.size, multsPerThread, neuronsPerWrg)
+  var runtime: Double = 0
+
+  /* Removes padded neurons from the final layer output
+   */
+  def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {
+    datasets.outputs = nn.group(outputsFlat, (outputShape.nInputs, outputShape.sizePadded)).map(
+      input => input.slice(0, outputShape.size))
+  }
 }
 
 /**
@@ -98,7 +106,7 @@ object FC {
     val exceptionMsgPrefix: String = "In the FC layer with the following configuration:\n" +
       configToString(neuronShape.size, multsPerThread, neuronsPerWrg)
 
-gi    // Padding: calculate how many neurons will need to be added
+    // Padding: calculate how many neurons will need to be added
     neuronShape.sizePadded = neuronsPerWrg * Math.ceil(neuronShape.size.toFloat / neuronsPerWrg).toInt
     // Padding: calculate how many input bits will need to be added
     inputShape.sizePadded = multsPerThread * Math.ceil(inputShape.size.toFloat / multsPerThread).toInt
@@ -145,7 +153,7 @@ gi    // Padding: calculate how many neurons will need to be added
     if (4.toLong * inputShape.nInputs * inputShape.sizePadded * neuronShape.sizePadded > Integer.MAX_VALUE)
       throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
         f"excessive memory consumption: 4 * inputShape.nInputs(${inputShape.nInputs}%d) * " +
-          f"inputShape.sizePadded(${inputShape.sizePadded}%d) * neuronShape.sizePadded%d)(" +
+          f"inputShape.sizePadded(${inputShape.sizePadded}%d) * ${neuronShape.sizePadded}%d)(" +
           f"${neuronShape.sizePadded}%d) > Integer.MAX_VALUE(${Integer.MAX_VALUE}%d)")
     {
       val groupSize: Int = localSize(0) * localSize(1) * localSize(2)
@@ -176,37 +184,27 @@ gi    // Padding: calculate how many neurons will need to be added
 /* Ensures that a single input can be evenly split among threads in dimension 0;
  * Ensures that neurons can be evenly split among workgroups in dimension 0.
  */
-  def padInputsAndNeurons(inputs: PaddedArray[Array2D[Float]], inputShape: Shape,
-                          weights: PaddedArray[Array2D[Float]], biases: PaddedArray[Array[Float]],
-                          neuronShape: Shape): Unit = {
+  def pad(inputs: PaddedArray[Array2D[Float]], inputShape: Shape,
+          weights: PaddedArray[Array2D[Float]], biases: PaddedArray[Array[Float]],
+          neuronShape: Shape): Unit = {
     /* Pad inputs (inputs and weights) and neurons (weights and biases) */
     inputs.padded =
       Array.fill[Array[Float]](inputShape.nInputs)(
         Array.fill[Float](inputShape.sizePadded)(0))
     for {i <- 0 until inputShape.nInputs}
-      inputs.padded(i) = inputs.nonPadded(i).padTo(inputShape.sizePadded, 0)
+      inputs.padded(i) = inputs.nonPadded(i).padTo(inputShape.sizePadded, 0.toFloat)
 
     weights.padded =
       Array.fill[Array[Float]](neuronShape.sizePadded)(
         Array.fill[Float](inputShape.sizePadded)(0))
     for {i <- 0 until neuronShape.size}
-      weights.padded(i) = weights.nonPadded(i).padTo(inputShape.sizePadded, 0)
+      weights.padded(i) = weights.nonPadded(i).padTo(inputShape.sizePadded, 0.toFloat)
 
-//    biases.padded =
-//      Array.fill[Float](neuronShape.sizePadded)(0)
-    biases.padded = biases.nonPadded.padTo(neuronShape.sizePadded, 0)
+    biases.padded = biases.nonPadded.padTo(neuronShape.sizePadded, 0.toFloat)
 
     if (inputShape.sizePadded != inputShape.size)
       println(f"Changed inputLen from ${inputShape.size}%d to ${inputShape.sizePadded}%d.")
     if (neuronShape.sizePadded != neuronShape.size)
       println(f"Changed nNeurons from ${neuronShape.size}%d to ${neuronShape.sizePadded}%d.")
-  }
-
-
-  /* Removes padded neurons from the final layer output
-   */
-  def unPadOutputs(outputsFlat: Array[Float], datasets: FCDatasets, outputShape: Shape): Unit = {
-    datasets.outputs = nn.group(outputsFlat, (outputShape.nInputs, outputShape.sizePadded)).map(
-        input => input.slice(0, outputShape.size))
   }
 }

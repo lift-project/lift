@@ -89,7 +89,7 @@ class CNN:
         # Output, class prediction
         out = tf.add(tf.matmul(fc1, weights['wout']), biases['bout'])
         out = tf.nn.relu(out)
-        return conv2
+        return out
 
     @staticmethod
     def conv_net(x, weights, biases, image_shape):
@@ -388,10 +388,10 @@ class CNN:
             print(test_images.shape)
 
         # Save Tensorflow's forward propagation results into a JSON file
-        # test_results = np.reshape(test_results, [n_batches, n_inputs, self.n_classes])
+        test_results = np.reshape(test_results, [n_batches * n_inputs, self.n_classes])
         #test_results = np.reshape(test_results, [n_batches, n_inputs, 400])
-        test_results = np.reshape(test_results, (n_batches, n_inputs, test_results.shape[1],
-                                                 test_results.shape[2], test_results.shape[3]))
+        # test_results = np.reshape(test_results, (n_batches, n_inputs, test_results.shape[1],
+        #                                          test_results.shape[2], test_results.shape[3]))
         json_string = json.dumps(test_results.astype(np.float32).tolist())
         with open(self.dir_name + '/test_tf_results_n' + str(n_inputs) + '.json', 'w') as outfile:
             outfile.write(json_string)
@@ -411,9 +411,9 @@ class CNN:
             # print("Biases['bmlp1']:")
             # print(self.trained_biases['bmlp1'].shape)
             # print(self.trained_biases['bmlp1'][1])
-            print("Output[" + str(batch_no) + "][" + str(input_no) + "]:")
-            # print(np.transpose(test_results[batch_no][input_no], (2, 0, 1)).shape)
-            # print(np.transpose(test_results[batch_no][input_no], (2, 0, 1)))
-            print(test_results.shape)
-            print(test_results[0])
-            print()
+            # print("Output[" + str(batch_no) + "][" + str(input_no) + "]:")
+            # # print(np.transpose(test_results[batch_no][input_no], (2, 0, 1)).shape)
+            # # print(np.transpose(test_results[batch_no][input_no], (2, 0, 1)))
+            # print(test_results.shape)
+            # print(test_results[0])
+            # print()

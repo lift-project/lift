@@ -54,7 +54,8 @@ class TestPool {
       //rerun <- 1 until 10
       kernelSize <- 4 until 64 by 4
       imageSize <- 8 until 128 by 8
-      pathToInputs = Experiment.getPathToInputs(Shape(size=kernelSize, size=kernelSize), Shape(size=imageSize, size=imageSize))
+      pathToInputs = Experiment.getPathToInputs(Shape(size=kernelSize),
+        Shape(size=imageSize))
       if exists(get(pathToInputs))
       pathToResults = Experiment.getPathToResults(pathToInputs)
       // Results dir doesn't exist (then create it) or it does, but reruns are allowed:
@@ -73,8 +74,8 @@ class TestPool {
       if {
         val elsPerThread = Array(1, elsPerThreadL1)
         val inputShape: Array[Shape] = Array.fill[Shape](nLayers)(Shape())
-        inputShape(0) = Shape(size=imageSize, size=imageSize, nChannels=inputChannels)
-        val kernelShape = Array(Shape(size=2, size=2), Shape(size=kernelSize, size=kernelSize))
+        inputShape(0) = Shape(size=imageSize, nChannels=inputChannels)
+        val kernelShape = Array(Shape(size=2), Shape(size=kernelSize))
         val kernelStride = Array(2, kernelSize)
         var inputTileSize: Array[Int] = {for (layerNo <- 0 until nLayers) yield
           if (layerNo == 0 && nLayers > 1) kernelShape(layerNo).size else inputTileSizeL1 }.toArray
@@ -147,8 +148,8 @@ class TestPool {
           aPool.outputShape(layerNo).sizePadded, aPool.outputShape(layerNo).nChannels)).map(
           batch => batch.map(
             input => input.map(
-              row => row.slice(0, aPool.outputShape(layerNo).wNonPadded)
-            ).slice(0, aPool.outputShape(layerNo).hNonPadded)
+              row => row.slice(0, aPool.outputShape(layerNo).size)
+            ).slice(0, aPool.outputShape(layerNo).size)
           ))
         if (aPool.outputs == null) Array(PaddedArray(getShapedOutputs)) else
           aPool.outputs :+ PaddedArray(getShapedOutputs)

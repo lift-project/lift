@@ -1,8 +1,5 @@
 package nn
 
-import java.nio.file.Files._
-import java.nio.file.Paths._
-
 /**
   * Created by nm on 08/02/17.
   * Things pertaining to TestMLP tests.
@@ -12,11 +9,19 @@ package object fc {
 
   case class Tile(mults: Int, inputs: Int, neurons: Int)
 
-  case class FCDatasets(inputs: PaddedArray[Array2D[Float]] = null,
-                        var outputs: Array2D[Float] = null,
-                        targets: Array2D[Float] = null,
-                        weights: Array2D[Float] = null,
-                        biases: Array[Float] = null) extends NetDatasets
+  case class FCDatasets(inputs: PaddedArray[Array2D[Float]] = PaddedArray(Array.empty),
+                             outputs: Array2D[Float] = Array.empty,
+                             targets: Array2D[Float] = Array.empty,
+                             weights: PaddedArray[Array2D[Float]] = PaddedArray(Array.empty),
+                             biases: PaddedArray[Array[Float]] = PaddedArray(Array.empty)) extends NetDatasets {
+    //TODO: Get rid of this
+    def inputs_=(x$1: nn.PaddedArray[_]): Unit = ???
+    def outputs_=(x$1: Array[_]): Unit = ???
+    def targets_=(x$1: Array[_]): Unit = ???
+    def weights_=(x$1: Any): Unit = ???
+    def biases_=(x$1: Any): Unit = ???
+  }
+
 
   /* Test values */
   val input_W1 = Array(Array(0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f),
@@ -51,34 +56,35 @@ package object fc {
   }
 
 
-  object Experiment {
+  object FCExperiment extends Experiment {
+    val mlpDir: String = nn.nnDir + "/mlp"
+
     def getPathToInputs(layerSize: Int): String = mlpDir + f"/experiment.$layerSize%d"
+
     def getPathToResults(pathToInputs: String): String = pathToInputs + "/results_lift"
 
-    def loadDatasets(layerSize: Int, nInputs: Int, pathToInputs: String):
-    (Array2D[Float], Array3D[Float], Array2D[Float], Array2D[Float]) = {
-      val hiddenLayers: Array[Int] = Array(layerSize, 32)
-
-      if (!exists(get(pathToInputs + "/W1_n" + nInputs + ".json")))
-        throw new java.io.FileNotFoundException(f"Experiment (layerSize=$layerSize%d, nInputs=$nInputs%d) " +
-          "resources not provided (JSON files with test images, NN weights and biases).")
-
-      var tfW = Array(nn.loadJSON2D(pathToInputs + "/W1_n" + nInputs + ".json"))
-      var tfB = Array(nn.loadJSON1D(pathToInputs + "/b1_n" + nInputs + ".json"))
-      for (i <- Range(2, hiddenLayers.length + 1)) {
-        tfW = tfW :+ nn.loadJSON2D(pathToInputs + "/W" + i.toString + "_n" + nInputs + ".json")
-        tfB = tfB :+ nn.loadJSON1D(pathToInputs + "/b" + i.toString + "_n" + nInputs + ".json")
-      }
-      tfW = tfW :+ nn.loadJSON2D(pathToInputs + "/Wout_n" + nInputs + ".json")
-      tfB = tfB :+ nn.loadJSON1D(pathToInputs + "/bout_n" + nInputs + ".json")
-      val tfX = nn.loadJSON2D(pathToInputs + "/test_images_n" + nInputs + ".json")
-      val tfResult = nn.loadJSON2D(pathToInputs + "/test_tf_results_n" + nInputs + ".json")
-
-      (tfX, tfW, tfB, tfResult)
+    def loadDatasets(path: String,
+                     inputFilePrefix: String = "", targetFilePrefix: String = "",
+                     paramFileInfix: String): FCDatasets = {
+      new FCDatasets(
+        inputs = {
+          if (inputFilePrefix != "")
+            PaddedArray(nn.loadJSON2D(path + "/" + inputFilePrefix + ".json"))
+          else
+            null
+        },
+        targets = {
+          if (targetFilePrefix != "")
+            nn.loadJSON2D(path + "/" + targetFilePrefix + ".json")
+          else
+            null
+        },
+        weights = PaddedArray(nn.loadJSON2D(path + "/w" + paramFileInfix + ".json")),
+        biases = PaddedArray(nn.loadJSON1D(path + "/b" + paramFileInfix + ".json")))
     }
   }
 
-  class Experiment(val multsPerThread: Int = 0,
+  /*class Experiment(val multsPerThread: Int = 0,
                    val neuronsPerWrg: Int = 0,
                    val layerSize: Int = 0,
                    val nInputs: Int = 0,
@@ -86,11 +92,9 @@ package object fc {
                    val tfW: Array3D[Float],
                    val tfB: Array2D[Float],
                    val tfResult: Array2D[Float]) {
-    val pathToInputs: String = Experiment.getPathToInputs(layerSize)
-    val pathToResults: String = Experiment.getPathToResults(pathToInputs)
+    val pathToInputs: String = FCExperiment.getPathToInputs(layerSize)
+    val pathToResults: String = FCExperiment.getPathToResults(pathToInputs)
     var isAFirstRun: Boolean = false
     var resultsDir: java.io.File = _
-  }
-
-  val mlpDir: String = nn.nnDir + "/mlp"
+  }*/
 }

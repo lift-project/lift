@@ -26,11 +26,18 @@ package object conv {
                                  stride: Int,
                                  n: Int)
 
-  case class ConvDatasets(inputs: PaddedArray[Array5D[Float]] = null,
-                          var outputs: Array5D[Float] = null,
-                          targets: Array5D[Float] = null,
-                          weights: Array5D[Float] = null,
-                          biases: Array2D[Float] = null) extends NetDatasets
+  case class ConvDatasets(inputs: PaddedArray[Array5D[Float]] = PaddedArray(Array.empty),
+                          outputs: Array5D[Float] = Array.empty,
+                          targets: Array5D[Float] = Array.empty,
+                          weights: Array4D[Float] = Array.empty,
+                          biases: Array[Float] = Array.empty) extends NetDatasets {
+    //TODO: Get rid of this
+    def inputs_=(x$1: nn.PaddedArray[_]): Unit = ???
+    def outputs_=(x$1: Array[_]): Unit = ???
+    def targets_=(x$1: Array[_]): Unit = ???
+    def weights_=(x$1: Any): Unit = ???
+    def biases_=(x$1: Any): Unit = ???
+  }
 
 
   /* Test values */
@@ -110,12 +117,12 @@ package object conv {
 
   def configToString(elsPerThread: Int, nKernels: Int, kernelsPerGroup: Int,
                      kernelSize: Int, kernelStride: Int): String = {
-    f"elsPerThread=$elsPerThread%d, nKernels=$nKernels%d, kernelsPerGroup=$kernelsPerGroup%d,\n" +
+    f"elsPerThread=$elsPerThread%d, nKernels=$nKernels%d, kernelsPerGroup=$kernelsPerGroup%d\n" +
       f"kernelSize=$kernelSize%d, kernelStride=$kernelStride%d\n"
   }
 
 
-  object Experiment {
+  object ConvExperiment extends Experiment {
     val convDir: String = nn.nnDir + "/conv"
 
     def getPathToInputs(nKernelsL0: Int, kernelShape: Shape, imageShape: Shape): String = {
@@ -130,26 +137,23 @@ package object conv {
     def datasetsExist(pathToInputs: String): Boolean = exists(get(pathToInputs + "/wconv1.json"))
 
 
-    def loadDatasets(nInputs: Int, pathToInputs: String):
-    (PaddedArray[Array5D[Float]], Array5D[Float], Array2D[Float],
-      Array5D[Float]) = {
-      println(f"Loading datasets for nInputs = $nInputs%d and pathToInputs = " + pathToInputs)
-
-      var tfWconv = Array(nn.loadJSON4D(pathToInputs + "/wconv1.json"))
-      var tfBconv = Array(nn.loadJSON1D(pathToInputs + "/bconv1.json"))
-      tfWconv = tfWconv :+ nn.loadJSON4D(pathToInputs + "/wconv2.json")
-      tfBconv = tfBconv :+ nn.loadJSON1D(pathToInputs + "/bconv2.json")
-//      var tfWmlp = Array(nn.loadJSON2D(pathToInputs + "/wmlp1.json"))
-//      tfWmlp = tfWmlp :+ nn.loadJSON2D(pathToInputs + "/wout.json")
-//      var tfBmlp = Array(nn.loadJSON1D(pathToInputs + "/bmlp1.json"))
-//      tfBmlp = tfBmlp :+ nn.loadJSON1D(pathToInputs + "/bout.json")
-
-      val tfX = PaddedArray(nn.loadJSON5D(pathToInputs + "/test_images_n" + nInputs + ".json"))
-      //val tfResult = nn.loadJSON2D(pathToInputs + "/test_tf_results_n" + nInputs + ".json")
-      val tfResult = nn.loadJSON5D(pathToInputs + "/test_tf_results_n" + nInputs + ".json")
-
-      (tfX, tfWconv, tfBconv, tfResult)
+    def loadDatasets(path: String, inputFilePrefix: String = "", targetFilePrefix: String = "",
+                     paramFileInfix: String): ConvDatasets = {
+      new ConvDatasets(
+        inputs = {
+          if (inputFilePrefix != "")
+            PaddedArray(nn.loadJSON5D(path + "/" + inputFilePrefix + ".json"))
+          else
+            null
+        },
+        targets = {
+          if (targetFilePrefix != "")
+            nn.loadJSON5D(path + "/" + targetFilePrefix + ".json")
+          else
+            null
+        },
+        weights = nn.loadJSON4D(path + "/w" + paramFileInfix + ".json"),
+        biases = nn.loadJSON1D(path + "/b" + paramFileInfix + ".json"))
     }
   }
-
 }

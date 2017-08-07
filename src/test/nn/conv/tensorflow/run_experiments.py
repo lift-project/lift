@@ -7,7 +7,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 retrain = False
 refprop = True
-fprop_mode = FPropMode.RESTORE
+fprop_mode = FPropMode.RANDOM
 
 kernel_sizes = np.arange(4, 64 + 1, 4)
 kernel_stride = 1
@@ -62,4 +62,3 @@ for kernel_n_l0 in kernel_ns_l0:
                                     acnn.fprop(batches_n, inputs_n, mode=fprop_mode)
                     except ValueError as e:
                         print(str(e))
-                    quit()

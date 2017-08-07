@@ -13,6 +13,7 @@ import scala.util.parsing.json.JSON
   * Created by s1569687 on 28/02/17.
   */
 package object nn {
+
   /* Types and data structures */
 
   case class Shape(size: Int = 0,
@@ -21,7 +22,17 @@ package object nn {
                    nInputs: Int = 0,
                    nBatches: Int = 0)
 
-  case class NetDatasets()
+  trait NetDatasets {
+    var inputs: PaddedArray[_]
+    var outputs: Array[_]
+    var targets: Array[_]
+    var weights: Any
+    var biases: Any
+  }
+
+  case class NetDatasetsCollection(pathToInputs: String,
+                                   nInputs: Int,
+                                   layers: Array[NetDatasets])
 
   case class PaddedArray[T](var nonPadded: T) {
     var padded: T = _
@@ -37,7 +48,6 @@ package object nn {
 
 
   /* Variables */
-
   val localMemSize: Int = Executor.getDeviceLocalMemSize.toInt
   val maxWorkGroupSize: Int = Executor.getDeviceMaxWorkGroupSize.toInt
   val deviceName: String = Executor.getDeviceName
@@ -227,4 +237,6 @@ package object nn {
     }
     arr5d
   }
+
+  trait Experiment
 }
