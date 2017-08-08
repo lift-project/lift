@@ -123,7 +123,7 @@ abstract sealed class View(val t: Type = UndefType) {
     this.t match {
       case ArrayTypeWS(ArrayTypeWS(elemT, n), m) =>
         ViewJoin(chunkSize, this, ArrayTypeWSWC(elemT, n * m))
-      case _ => throw new IllegalArgumentException("PANIC: join expects an array type")
+      case _ => throw new IllegalArgumentException("PANIC: join expects a 2D array type with size, found "+this.t.toString)
     }
   }
 

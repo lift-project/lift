@@ -1,10 +1,9 @@
 package ir.view
 
-import lift.arithmetic.{ArithExpr, Cst, Var}
+import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{FilterSeq, MapSeqSlide, ReduceWhileSeq}
-import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
+import opencl.ir.pattern.{ReduceWhileSeq, toGlobal, toLocal, toPrivate}
 
 /**
  * A helper object for constructing views.
@@ -19,15 +18,6 @@ object OutputView {
    *
    * @param expr Expression to build views for
    */
-  /*def apply(expr: Expr): Unit = {
-    expr match {
-      case fc: FunCall =>
-        fc.outputView = View(expr.t, expr.mem.variable)
-        visitAndBuildViews(expr, fc.outputView)
-      case _ => // if the expression is not a funcall, there is no output view
-    }
-  }*/
-
   def apply(expr: Expr): Unit = {
     expr match {
       case fc: FunCall =>
@@ -36,32 +26,41 @@ object OutputView {
     }
   }
 
- /* private def visitAndBuildViews(expr: Expr, writeView: View): View = {
-    expr match {
-      case call: FunCall => buildViewFunCall(call, writeView)
-      case e: Expr=> NoView
-    }
-  }*/
+
+  private val paramViewFuns : scala.collection.mutable.Map[Param, (View) => View] = scala.collection.mutable.Map()
+
 
   private def visitAndBuildViews(expr: Expr, buildView : ((View) => View)): ((View) => View) = {
     expr match {
       case call: FunCall => buildViewFunCall(call, buildView)
+      case p: Param =>
+
+        /* Retrieve the buildView function associated with the Param.
+        *  A new buildView function is created which first call the current buildView function and only then call the buildView function associated with the Param.
+        *  The buildView function from the param has to be called last, since this corresponds to the output view created for the argument of a lambda. */
+        (v: View) => {
+          val pBuildFun = paramViewFuns.get(p)
+          if (pBuildFun.isEmpty)
+            // the param was probably implicit (e.g. Map)
+            buildView(v)
+          else
+            pBuildFun.get(buildView(v))
+        }
+
       case e: Expr=> buildView
     }
   }
+
 
   private def buildViewFunCall(call: FunCall, buildView : ((View) => View) ) : ((View) => View) = {
     call.f match {
 
       case _: UserFun | _: VectorizeUserFun =>
+        //val viewMem = View.initialiseNewOutputView(call.t, call.inputDepth, call.mem.variable)
         val viewMem = View.initialiseNewOutputView(call.t, call.inputDepth, call.mem.variable)
         call.outputView = buildView(viewMem)
-        (v: View) => v
-
-      case s: Scatter =>
-        visitAndBuildViews(call.args.head, (v: View) => buildView(v).reorder((i: ArithExpr) => {
-          s.idx.f(i, call.t)
-        }))
+        buildView
+        //(v: View) => v
 
       case Split(n) =>
         visitAndBuildViews(call.args.head, (v: View) => buildView(v).join(n))
@@ -72,13 +71,47 @@ object OutputView {
           case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + call.argsType)
         }
 
+      case s: Scatter =>
+        visitAndBuildViews(call.args.head, (v: View) => buildView(v).reorder((i: ArithExpr) => s.idx.f(i, call.t)))
+
       case m: AbstractMap =>
 
-        val mapOutputViewFun = visitAndBuildViews(m.f.body,
-          // first the build the output view of everything that precedes, then access
-          (v: View) => buildView(v).access(m.loopVar)
-        )
+        val mapOutputViewFun = visitAndBuildViews(m.f.body, (v: View) => buildView(v).access(m.loopVar))
         visitAndBuildViews(call.args.head, (v: View) => ViewMap(mapOutputViewFun(v), m.loopVar, call.args.head.t))
+
+      case z: Zip =>
+
+        val argsViewFuns = call.args.map(arg => visitAndBuildViews(arg, (v:View) => buildView(v)))
+        (v: View) => ViewTuple(argsViewFuns.map(f => f(v)), call.argsType).unzip()
+
+      case uz: Unzip =>
+        visitAndBuildViews(call.args.head, (v: View) => buildView(v).zip())
+
+      case _:asVector =>
+        visitAndBuildViews(call.args.head, (v: View) => v.asScalar())
+
+      case _: asScalar =>
+
+        call.args.head.t match {
+          case ArrayType(VectorType(_, n)) => (v: View) => v.asVector(n)
+          case _ => throw new IllegalArgumentException("PANIC, expected array of vectors, found " + call.argsType)
+        }
+
+      case l: Lambda =>
+        /* We first visit each arguments and remember what the buildView function is.
+           We then visit the body of the lambda.
+           When a param is encountered, the corresponding buildView function will be retrieved and a new buildFunction constructed (see visitAndBuildViews).
+         */
+
+        val lParamViewFuns: scala.collection.immutable.Map[Param, (View) => View] = l.params.zip(call.args).map({ case (param,arg) => param -> visitAndBuildViews(arg, (v:View) => v)}).toMap
+
+        assert (paramViewFuns.keySet.intersect(lParamViewFuns.keySet).isEmpty)
+        paramViewFuns ++= lParamViewFuns
+        val resultFun = visitAndBuildViews(l.body, (v:View) => buildView(v))
+        paramViewFuns --= lParamViewFuns.keys
+
+        resultFun
+
 
       case r: AbstractPartRed =>
 
@@ -101,16 +134,21 @@ object OutputView {
         visitAndBuildViews(input, (v: View) => ViewMap(redOutputViewFun(v), r.loopVar, call.args.head.t))
 
 
-      case l: Lambda =>
-        val bodyViewFun = visitAndBuildViews(l.body, (v:View) => buildView(v))
+      case _: toGlobal | _: toLocal | _:toPrivate =>
+        val fp = call.f.asInstanceOf[FPattern]
 
-        val argsViewFuns = call.args.zipWithIndex.map({case (arg, id) => visitAndBuildViews(arg, (v:View) => buildView(bodyViewFun(v)))})
-        (v: View) => ViewTuple(argsViewFuns.zipWithIndex.map({case (f,idx) => f(v.get(idx))}), call.argsType)
+        val fpOutputViewFun = visitAndBuildViews(fp.f.body, (v: View) => buildView(v))
+        visitAndBuildViews(call.args.head, (v: View) => fpOutputViewFun(v))
 
-      case z: Zip =>
 
-        val argsViewFuns = call.args.zipWithIndex.map({case (arg, id) => visitAndBuildViews(arg, (v:View) => buildView(v))})
-        (v: View) => ViewTuple(argsViewFuns.zipWithIndex.map({case (f,idx) => f(v.get(idx))}), call.argsType)
+
+       /*   case fp: FPattern =>
+            visitAndBuildViews(l.body, (v: View) => v.asScalar())
+
+            visitAndBuildViews(l.body, writeView)
+
+            buildViewLambda(fp.f, call, writeView)*/
+
 
 
       /*
@@ -120,12 +158,8 @@ object OutputView {
       case i: Iterate => buildViewIterate(i, call, writeView)
       case tw: TransposeW => buildViewTransposeW(tw, call, writeView)
       case t: Transpose => buildViewTranspose(t, call, writeView)
-      case asVector(n) => buildViewAsVector(n, writeView)
-      case _: asScalar => buildViewAsScalar(call, writeView)
       case _: Head => buildViewHead(call, writeView)
       case _: Tail => buildViewTail(call, writeView)
-      case _: Zip => buildViewZip(call, writeView)
-      case _: Unzip => writeView.zip()
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.mem.variable)
@@ -175,7 +209,6 @@ object OutputView {
       case _: Zip => buildViewZip(call, writeView)
       case _: Unzip => writeView.zip()
       case l: Lambda => buildViewLambda(l, call, writeView)
-      case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.mem.variable)
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>

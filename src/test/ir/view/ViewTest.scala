@@ -6,11 +6,29 @@ import lift.arithmetic._
 import opencl.executor.Compile
 import opencl.generator.OpenCLAST._
 import opencl.ir._
-import opencl.ir.pattern.{MapSeq, toGlobal}
+import opencl.ir.pattern.{MapGlb, MapSeq, toGlobal}
 import org.junit.Assert._
 import org.junit.Test
 
 class ViewTest {
+
+  @Test
+  def testUserFuns(): Unit = {
+
+    val mapSeqId1 = MapSeq(id)
+    val mapSeqId2 = MapSeq(id)
+
+    val f = fun(
+      ArrayTypeWSWC( ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")),
+      input => MapGlb(mapSeqId1 o mapSeqId2) $ input
+    )
+
+    val kernel = Compile(f)
+
+    println(mapSeqId1.f.body.asInstanceOf[FunCall].outputView)
+
+    println(kernel)
+  }
 
   @Test
   def testMapScatter1(): Unit = {
@@ -39,13 +57,27 @@ class ViewTest {
   @Test
   def testMapScatter3(): Unit = {
 
+    val p = Param(Float)
+    val fcId =  FunCall(id, p)
+    val lambdaId = Lambda(Array(p), fcId)
+    //val idFunCall = fun(x => lambda $ x)
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    val mapId = MapSeq(lambdaId)
+    val mapMapId = MapSeq(mapId)
+
     val f = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float,SizeVar("N")), SizeVar("M")),
-      input => MapSeq( fun ( p=> Scatter(reverse) $ p )  ) o MapSeq(MapSeq(id)) $ input
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+      input => toGlobal(MapSeq( fun ( p=> Scatter(reverse) $ p )  ) o mapMapId) $ input
     )
 
     val kernel = Compile(f)
     println(kernel)
+
+    assertEquals(VarRef(f.body.mem.variable, null, ArithExpression(N - 1 - mapId.loopVar + N*mapMapId.loopVar)),
+                 ViewPrinter.emit(Var(""),fcId.outputView))
   }
 
   @Test
