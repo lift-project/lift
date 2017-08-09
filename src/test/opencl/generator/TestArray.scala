@@ -290,18 +290,23 @@ class TestArray {
   def chainedMaps(): Unit = {
     val capacity = 128
     val size = 87 // random value < capacity
+
+    val mkTuple = UserFun("mkTuple", "x", "return (Tuple){x, x};", Float, TupleType(Float, Float))
+    val addTuple = UserFun("addTuple", "t", "return t._0 + t._1;", TupleType(Float, Float), Float)
+
     val f = fun(
-      ArrayTypeWC(Int, capacity),
-      MapSeq(fun(x => addI.apply(x, x)))
-        o MapSeq(fun(addI.apply(1, _)))
-        o MapSeq(id(Int)) $ _
+      ArrayTypeWC(Float, capacity),
+      arr =>
+        MapSeq(addTuple)
+        o MapSeq(mkTuple)
+        o MapSeq(fun(add.apply(1f, _))) $ arr
     )
 
-    val input = Array.fill(size)(util.Random.nextInt(1024))
+    val input = Array.fill(size)(util.Random.nextFloat())
     val exec = Execute(capacity)
-    val (output, _) = exec[Vector[Int]](f, input)
+    val (output, _) = exec[Vector[Float]](f, input)
 
-    assertArrayEquals(input.map(x => 2 * (x + 1)), output.toArray)
+    assertArrayEquals(input.map(x => 2 * (x + 1)), output.toArray, 0.001f)
   }
 
   @Test
