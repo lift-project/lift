@@ -19,81 +19,93 @@ object OutputView {
    * @param expr Expression to build views for
    */
   def apply(expr: Expr): Unit = {
+
+    InferPtrOutType(expr)
+
     expr match {
       case fc: FunCall =>
-        visitAndBuildViews(expr, (v:View) => v)
+        visitAndBuildViews(expr, (v:View) => v, false)
       case _ => // if the expression is not a funcall, there is no output view
     }
   }
 
 
-  private val paramViewFuns : scala.collection.mutable.Map[Param, (View) => View] = scala.collection.mutable.Map()
+  private val paramViewFuns : scala.collection.mutable.Map[Param, ((View) => View, Boolean)] = scala.collection.mutable.Map()
 
 
-  private def visitAndBuildViews(expr: Expr, buildView : ((View) => View)): ((View) => View) = {
+  private def visitAndBuildViews(expr: Expr, buildView : ((View) => View), writing: Boolean): (((View) => View), Boolean) = {
     expr match {
-      case call: FunCall => buildViewFunCall(call, buildView)
+      case call: FunCall => buildViewFunCall(call, buildView, writing)
       case p: Param =>
 
         /* Retrieve the buildView function associated with the Param.
         *  A new buildView function is created which first call the current buildView function and only then call the buildView function associated with the Param.
         *  The buildView function from the param has to be called last, since this corresponds to the output view created for the argument of a lambda. */
-        (v: View) => {
+        ((v: View) => {
           val pBuildFun = paramViewFuns.get(p)
           if (pBuildFun.isEmpty)
             // the param was probably implicit (e.g. Map)
             buildView(v)
           else
-            pBuildFun.get(buildView(v))
-        }
+            pBuildFun.get._1(buildView(v))
+        }, writing)
 
-      case e: Expr=> buildView
+      case e: Expr=> (buildView, writing)
     }
   }
 
 
-  private def buildViewFunCall(call: FunCall, buildView : ((View) => View) ) : ((View) => View) = {
+  private def buildViewFunCall(call: FunCall, buildView : ((View) => View), writing: Boolean) : (((View) => View), Boolean) = {
     call.f match {
 
       case _: UserFun | _: VectorizeUserFun =>
-        //val viewMem = View.initialiseNewOutputView(call.t, call.inputDepth, call.mem.variable)
         val viewMem = View.initialiseNewOutputView(call.t, call.inputDepth, call.mem.variable)
+        //assert (call.outPtrType != NoType)
+        //val viewMem = ViewMem(call.mem.variable, call.outPtrType)
         call.outputView = buildView(viewMem)
-        buildView
-        //(v: View) => v
+
+        val argsViewFuns = call.args.map(arg => visitAndBuildViews(arg, buildView, false))
+        ((v: View) => ViewTuple(argsViewFuns.map(f => f._1(v)), call.argsType).unzip(), false)
 
       case Split(n) =>
-        visitAndBuildViews(call.args.head, (v: View) => buildView(v).join(n))
+        visitAndBuildViews(call.args.head, if (writing) (v: View) => buildView(v).join(n) else buildView, writing)
 
       case _: Join =>
         call.args.head.t match {
-          case ArrayType(ArrayTypeWS(_, chunkSize)) => visitAndBuildViews(call.args.head, (v: View) => buildView(v).split(chunkSize))
+          case ArrayType(ArrayTypeWS(_, chunkSize)) => visitAndBuildViews(call.args.head, if (writing) (v: View) => buildView(v).split(chunkSize) else buildView, writing)
           case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + call.argsType)
         }
 
       case s: Scatter =>
-        visitAndBuildViews(call.args.head, (v: View) => buildView(v).reorder((i: ArithExpr) => s.idx.f(i, call.t)))
+        visitAndBuildViews(call.args.head, (v: View) => buildView(v).reorder((i: ArithExpr) => s.idx.f(i, call.t)), true)
+
+      case g: Gather =>
+        if (writing)
+          throw new IllegalArgumentException("Gather encountered when building an ouput view")
+
+        visitAndBuildViews(call.args.head, buildView, false)
 
       case m: AbstractMap =>
 
-        val mapOutputViewFun = visitAndBuildViews(m.f.body, (v: View) => buildView(v).access(m.loopVar))
-        visitAndBuildViews(call.args.head, (v: View) => ViewMap(mapOutputViewFun(v), m.loopVar, call.args.head.t))
+        val mapOutputViewFun = visitAndBuildViews(m.f.body, (v: View) => buildView(v).access(m.loopVar), writing)
+
+        visitAndBuildViews(call.args.head, if (mapOutputViewFun._2) (v: View) => ViewMap(mapOutputViewFun._1(v), m.loopVar, call.args.head.t) else buildView, mapOutputViewFun._2)
 
       case z: Zip =>
 
-        val argsViewFuns = call.args.map(arg => visitAndBuildViews(arg, (v:View) => buildView(v)))
-        (v: View) => ViewTuple(argsViewFuns.map(f => f(v)), call.argsType).unzip()
+        val argsViewFuns = call.args.map(arg => visitAndBuildViews(arg, (v:View) => buildView(v), writing))
+        ((v: View) => ViewTuple(argsViewFuns.map(f => f._1(v)), call.argsType).unzip(), writing)
 
       case uz: Unzip =>
-        visitAndBuildViews(call.args.head, (v: View) => buildView(v).zip())
+        visitAndBuildViews(call.args.head, (v: View) => buildView(v).zip(), writing)
 
       case _:asVector =>
-        visitAndBuildViews(call.args.head, (v: View) => v.asScalar())
+        visitAndBuildViews(call.args.head, if (writing) (v: View) => v.asScalar() else buildView, writing)
 
       case _: asScalar =>
 
         call.args.head.t match {
-          case ArrayType(VectorType(_, n)) => (v: View) => v.asVector(n)
+          case ArrayType(VectorType(_, n)) => visitAndBuildViews(call.args.head, if (writing) (v: View) => v.asVector(n) else buildView, writing)
           case _ => throw new IllegalArgumentException("PANIC, expected array of vectors, found " + call.argsType)
         }
 
@@ -103,11 +115,11 @@ object OutputView {
            When a param is encountered, the corresponding buildView function will be retrieved and a new buildFunction constructed (see visitAndBuildViews).
          */
 
-        val lParamViewFuns: scala.collection.immutable.Map[Param, (View) => View] = l.params.zip(call.args).map({ case (param,arg) => param -> visitAndBuildViews(arg, (v:View) => v)}).toMap
+        val lParamViewFuns: scala.collection.immutable.Map[Param, ((View) => View, Boolean)] = l.params.zip(call.args).map({ case (param,arg) => param -> visitAndBuildViews(arg, (v:View) => v, writing)}).toMap
 
         assert (paramViewFuns.keySet.intersect(lParamViewFuns.keySet).isEmpty)
         paramViewFuns ++= lParamViewFuns
-        val resultFun = visitAndBuildViews(l.body, (v:View) => buildView(v))
+        val resultFun = visitAndBuildViews(l.body, (v:View) => buildView(v), writing)
         paramViewFuns --= lParamViewFuns.keys
 
         resultFun
@@ -118,27 +130,29 @@ object OutputView {
         // if the reduction is a while reduction, visit and build views for the predicate
         r match {
           case rws: ReduceWhileSeq =>
-            visitAndBuildViews(rws.p.body, (v: View) => buildView(v).access(Cst(0)))
+            visitAndBuildViews(rws.p.body, if (writing) (v: View) => buildView(v).access(Cst(0)) else buildView, writing)
           case _ =>
         }
 
         // deal with the accumulator
         val acc = call.args(0)
-        visitAndBuildViews(acc, (v: View) => buildView(v))
+        visitAndBuildViews(acc, buildView, writing)
 
         // deal with f
-        val redOutputViewFun = visitAndBuildViews(r.f.body, (v: View) => buildView(v).access(Cst(0)))
+        val redOutputViewFun = visitAndBuildViews(r.f.body, (v: View) => buildView(v).access(Cst(0)), writing)
 
         // deal with the input argument
         val input = call.args(1)
-        visitAndBuildViews(input, (v: View) => ViewMap(redOutputViewFun(v), r.loopVar, call.args.head.t))
+        visitAndBuildViews(input, if (redOutputViewFun._2) (v: View) => ViewMap(redOutputViewFun._1(v), r.loopVar, call.args.head.t) else redOutputViewFun._1, redOutputViewFun._2)
+
 
 
       case _: toGlobal | _: toLocal | _:toPrivate =>
         val fp = call.f.asInstanceOf[FPattern]
 
-        val fpOutputViewFun = visitAndBuildViews(fp.f.body, (v: View) => buildView(v))
-        visitAndBuildViews(call.args.head, (v: View) => fpOutputViewFun(v))
+        val fpOutputViewFun = visitAndBuildViews(fp.f.body, buildView, writing)
+        visitAndBuildViews(call.args.head, if (fpOutputViewFun._2) fpOutputViewFun._1 else buildView, fpOutputViewFun._2)
+
 
 
 

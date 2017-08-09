@@ -73,6 +73,39 @@ object IRNode {
     post(n)
   }
 
+  /**
+    * Traverses the AST recursively.
+    * @param n The root IRNode of the AST.
+    * @param pre This function is called before visiting each node in the AST. The resulting returned function is called once the node has been traversed.
+    */
+  def visitPrePost(n: IRNode,
+                   pre: IRNode => (IRNode => Unit)) : Unit = {
+    val post = pre(n)
+    n match {
+
+      case fc: FunCall =>
+        visitPrePost(fc.f,pre)
+        fc.args.foreach(visitPrePost(_,pre))
+
+      case vec: VectorizeUserFun => visitPrePost(vec.userFun,pre)
+      case u : UserFun =>
+
+      case l: Lambda =>
+        l.params.foreach(visitPrePost(_,pre))
+        visitPrePost(l.body,pre)
+
+      case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
+           Split(_) | Join() | Zip(_) | Tuple(_) | Filter() |
+           Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Slide(_, _) |
+           Pad(_,_,_) | Value(_) | UnsafeArrayAccess(_) | Id() =>  // nothing to visit here
+
+      case _: Param | _:ArrayAccess | _: ArrayConstructors =>  // nothing to visit here
+
+      case fp : FPattern => visitPrePost(fp.f,pre)
+    }
+    post(n)
+  }
+
 
   def visitArithExpr(n: IRNode, f: ArithExpr => Unit): Unit = {
 

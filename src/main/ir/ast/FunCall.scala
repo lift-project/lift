@@ -2,7 +2,7 @@ package ir.ast
 
 import ir.interpreter.Interpreter.ValueMap
 import ir.view.{NoView, View}
-import ir.{Memory, TupleType, Type}
+import ir.{Memory, NoType, TupleType, Type}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 
@@ -14,6 +14,7 @@ case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
   assert(f != null)
 
   var outputView: View = NoView
+  var outPtrType: Type = NoType
 
 
   override def toString = {

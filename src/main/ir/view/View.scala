@@ -94,7 +94,10 @@ abstract sealed class View(val t: Type = UndefType) {
    * @return The view for position `idx`
    */
   def access(idx: ArithExpr): View = {
-    ViewAccess(idx, this, t.asInstanceOf[ArrayType].elemT)
+    t match {
+      case ArrayType(et) => ViewAccess(idx, this, et)
+      case _ => throw new IllegalArgumentException("PANIC: access expects an array type, found "+t)
+    }
   }
 
   /**
