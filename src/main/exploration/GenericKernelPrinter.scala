@@ -230,7 +230,8 @@ object GenericKernelPrinter {
                   val abortCondition =
                     s"atf::cond::speedup(${config.speedup},${config.configsToAchieveSpeedup}) || " +
                     s"atf::cond::duration<::std::chrono::seconds>(${config.timeoutInSeconds}) || " +
-                    s"atf::cond::evaluations(${config.maxConfigs})"
+                    s"atf::cond::evaluations(${config.maxConfigs}) || " +
+                    s"atf::cond::abort_when_not_better(16000000, 500)"
                   sb.append(s"""#atf::abort_condition \"$abortCondition\"\n""")
                   sb.append("\n")
 
@@ -261,7 +262,7 @@ object GenericKernelPrinter {
 
                   globalSizeMaxValues.foreach(x => {
                     //todo maybe add divides constraint for global sizes
-                    sb.append(s"""#atf::tp name \"${x._1}\" type \"int\" range \"atf::interval<int>(1,${x._2})"\n""")
+                    sb.append(s"""#atf::tp name \"${x._1}\" type \"int\" range \"atf::interval<int>(1,${x._2})" constraint "[&](auto ${x._1}){ return (${x._1} & (${x._1} - 1)) == 0; }"\n""")
                   })
 
                   // add local size directives
@@ -274,12 +275,12 @@ object GenericKernelPrinter {
 
                   // add tuning parameter directives
                   val allTuningParams = ParameterSearch.getTunableSplitsAndSlides(expr).filter(_._1.isInstanceOf[TuningParameter])
-                  val elemT = Type.getValueType(expr.params.head.t)
 
                   allTuningParams.foreach(x => {
                     val tpName = x._1.toString
                     val divides = x._2
-                    sb.append(s"""#atf::tp name \"$tpName\" \\\n type \"$elemT\" \\\n range \"atf::interval<$elemT>(1,$divides)" \\\n constraint \"atf::divides($divides)\"\n""")
+                    // tuning parameters are always of type int
+                    sb.append(s"""#atf::tp name \"$tpName\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,$divides)" \\\n constraint \"atf::divides($divides)\"\n""")
                   })
                   sb.append("\n")
 

@@ -48,22 +48,22 @@
 
   "generic_kernel_printer" : {
     "speedup" : 1.0,
-    "configs_to_achieve_speedup" : 100,
-    "timeout_in_seconds" : 60,
-    "max_configs" : 500,
-    "max_local_size" : 512,
-    "vendor" : "Nvidia",
+    "configs_to_achieve_speedup" : 250,
+    "timeout_in_seconds" : 7200,
+    "max_configs" : 999999999,
+    "max_local_size" : 1024,
+    "vendor" : "NVIDIA",
     "device_type" : "GPU",
     "device_id" : 0
   },
 
   "search_parameters" : {
     "default_input_size" : 8194,
-    "min_work_items" : 128,
-    "max_work_items" : 1024,
-    "min_grid_size" : 4,
+    "min_local_size" : 32,
+    "max_local_size" : 1024,
+    "min_global_size" : 4,
     "max_private_memory" : 1024,
-    "max_local_memory" : 65536,
+    "max_local_memory" : 49152,
     "min_workgroups" : 8,
     "max_workgroups" : 65569
   }
