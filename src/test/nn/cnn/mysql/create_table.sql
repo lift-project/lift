@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS lift_results_cnn(
   n_inputs int,
   n_conv_layers int,
   n_fc_layers int,
+  image_size int,
 
   n_kernels_l0 int,
   kernel_size_l0 int,

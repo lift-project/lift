@@ -1,12 +1,16 @@
+import java.io.{BufferedInputStream, FileInputStream}
+import java.nio.{ByteBuffer, ByteOrder}
 import java.nio.file.Files._
 import java.nio.file.Paths._
 import java.util.Calendar
+import java.nio.file.{Files, Paths}
 
 import ir.{ArrayType, ScalarType}
 import ir.ast.UserFun
 import opencl.executor.Executor
 import opencl.ir._
 
+import scala.reflect.io.Path
 import scala.util.parsing.json.JSON
 
 /**
@@ -30,7 +34,7 @@ package object nn {
 //    val biases: Any
   }
 
-  case class NetDatasetsCollection(pathToInputs: String,
+  case class NetDatasetsCollection(pathToParams: String,
                                    nInputs: Int,
                                    layers: Array[NetDatasets])
 
@@ -60,7 +64,7 @@ package object nn {
   val max: UserFun = UserFun("maxFloat", Array("x", "y"), "return x > y ? x : y;", Seq(Float, Float), Float)
   val Linear: UserFun = id
 
-  def loadJSON5D(json_file_path: String): Array5D[Float] = {
+  /*def loadJSON5D(json_file_path: String): Array5D[Float] = {
     /* Load an array from a JSON file */
     val source = scala.io.Source.fromFile(json_file_path)
     val jsonString = source.getLines mkString "\n"
@@ -172,7 +176,7 @@ package object nn {
     val json:Option[Any] = JSON.parseFull(jsonString)
     val w_list: List[Double] = json.get.asInstanceOf[List[Double]]
 
-    // Convert from List[List[Double]] to Array2D[Float]
+    // Convert from List[List[Double]] to Array2D[Float] 
     val w_arr = Array.fill[Float](w_list.length)(0)
     var aline = Array.fill[Double](w_list.length)(0)
     aline = w_list.to[Array]
@@ -180,7 +184,34 @@ package object nn {
       w_arr(i) = aline(i).toFloat
     }
     w_arr
+  }*/
+
+
+  def loadBinary(filePath: String): Array[Float] = {
+    //val bis = new BufferedInputStream(new FileInputStream(filePath))
+    val byteArray: Array[Byte] = Files.readAllBytes(Paths.get(filePath))
+    val times = 4
+    val floats: Array[Float] = new Array[Float](byteArray.length / times)
+    var b: ByteBuffer = null
+    for (i <- floats.indices) {
+      b = ByteBuffer.wrap(byteArray, i * times, times)
+      b.order(ByteOrder.LITTLE_ENDIAN)
+      floats(i) = b.getFloat
+    }
+    floats
   }
+
+  def loadBinary(filePath: String, shape: (Int, Int)): Array2D[Float] =
+    group(loadBinary(filePath), (shape._1, shape._2))
+
+  def loadBinary(filePath: String, shape: (Int, Int, Int)): Array3D[Float] =
+    group(loadBinary(filePath), (shape._1, shape._2, shape._3))
+
+  def loadBinary(filePath: String, shape: (Int, Int, Int, Int)): Array4D[Float] =
+    group(loadBinary(filePath), (shape._1, shape._2, shape._3, shape._4))
+
+  def loadBinary(filePath: String, shape: (Int, Int, Int, Int, Int)): Array5D[Float] =
+    group(loadBinary(filePath), (shape._1, shape._2, shape._3, shape._4, shape._5))
 
   var runnerIsConsole: Boolean = false
 
@@ -222,6 +253,19 @@ package object nn {
       arr3d(i)(j)(k) = arr1d(i * shape._2 * shape._3 + j * shape._3 + k)
     }
     arr3d
+  }
+
+  def group(arr1d: Array[Float], shape: (Int, Int, Int, Int)): Array4D[Float] = {
+    val arr5d = Array.fill[Array3D[Float]](shape._1)(
+      Array.fill[Array2D[Float]](shape._2)(
+        Array.fill[Array[Float]](shape._3)(
+          Array.fill[Float](shape._4)(0))))
+    for (i <- 0 until shape._1; j <- 0 until shape._2; k <- 0 until shape._3;
+         l <- 0 until shape._4) {
+      arr5d(i)(j)(k)(l) = arr1d(i * shape._2 * shape._3 * shape._4 +
+        j * shape._3 * shape._4 + k * shape._4 + l)
+    }
+    arr5d
   }
 
   def group(arr1d: Array[Float], shape: (Int, Int, Int, Int, Int)): Array5D[Float] = {

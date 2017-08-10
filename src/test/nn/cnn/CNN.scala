@@ -19,7 +19,7 @@ class CNN(val nConvLayers: Int,
   val convLayers: Array[Conv] = new Array[Conv](nConvLayers)
   val fcLayers: Array[FC] = new Array[FC](nFCLayers)
 
-  def configToString: String = cnn.configToString(inputShape.nBatches, inputShape.nInputs, nLayers) + {
+  def configToString: String = cnn.configToString(inputShape.nBatches, inputShape.nInputs, inputShape.size, nLayers) + {
     var i: Int = -1
     for (convLayer <- convLayers) yield {
       i = i + 1

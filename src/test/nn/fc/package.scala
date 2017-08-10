@@ -7,7 +7,7 @@ package nn
 package object fc {
   /* Types and data structures */
 
-  case class Tile(mults: Int, inputs: Int, neurons: Int)
+  case class Tile(seqEls: Int, /*parEls: Int, */inputs: Int, neurons: Int)
 
   class FCDatasets(in: PaddedArray[Array2D[Float]] = PaddedArray(Array.empty),
                    out: PaddedArray[Array2D[Float]] = PaddedArray(Array.empty),
@@ -62,24 +62,26 @@ package object fc {
 
     def getPathToResults(pathToInputs: String): String = pathToInputs + "/results_lift"
 
-    def loadDatasets(path: String,
-                     inputFilePrefix: String = "", targetFilePrefix: String = "",
-                     paramFileInfix: String): FCDatasets = {
+    def loadDatasets(paramsPath: String,
+                     inputsPath: String = "", inputShape: Shape, targetFilePrefix: String = "",
+                     paramFileInfix: String, neuronShape: Shape): FCDatasets = {
       new FCDatasets(
         in = {
-          if (inputFilePrefix != "")
-            PaddedArray(nn.loadJSON2D(path + "/" + inputFilePrefix + ".json"))
+          if (inputsPath != "")
+            PaddedArray(nn.loadBinary(inputsPath, (inputShape.nBatches * inputShape.nInputs, inputShape.size)))
           else
             PaddedArray(Array.empty)
         },
         targ = {
           if (targetFilePrefix != "")
-            nn.loadJSON2D(path + "/" + targetFilePrefix + ".json")
+            nn.loadBinary(paramsPath + "/" + targetFilePrefix + ".binary",
+              (inputShape.nBatches * inputShape.nInputs, neuronShape.size))
           else
             Array.empty
         },
-        w = PaddedArray(nn.loadJSON2D(path + "/w" + paramFileInfix + ".json").transpose),
-        b = PaddedArray(nn.loadJSON1D(path + "/b" + paramFileInfix + ".json")))
+        w = PaddedArray(nn.loadBinary(paramsPath + "/w" + paramFileInfix + ".binary",
+          (inputShape.size, neuronShape.size)).transpose),
+        b = PaddedArray(nn.loadBinary(paramsPath + "/b" + paramFileInfix + ".binary")))
     }
   }
 

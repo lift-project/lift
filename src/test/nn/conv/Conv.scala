@@ -248,78 +248,83 @@ object Conv {
 
     Layer
   }
-  
 
-  def apply(liftFPropGenerator: (UserFun, Shape, SlidingWindowConfig, Int, SlidingWindowConfig, Int, Int) => FunDecl,
-            activationFun: UserFun,
-            elsPerThread: Int,
-            kernelsPerGroup: Int,
-            inputTileSize: Int,
-            nKernels: Int,
-            inputShape: Shape, kernelSize: Int, kernelStride: Int
-            /*pathToInputs: String, pathToResults: String*/): Conv = {
+  case class InitParameters(override val layerNo: Int,
+                            liftFPropGenerator: (UserFun, Shape, SlidingWindowConfig, Int,
+                              SlidingWindowConfig, Int, Int) => FunDecl,
+                            activationFun: UserFun,
+                            elsPerThread: Int,
+                            kernelsPerGroup: Int,
+                            inputTileSize: Int,
+                            nKernels: Int,
+                            override val inputShape: Shape, kernelSize: Int, kernelStride: Int)
+    extends Layer.InitParameters(layerNo, inputShape)
+
+
+  def apply(iP: InitParameters): Conv = {
     /**
     * Class factory: verifies that an object can be created,
     * initializes variables, computes workgroup sizes.
     */
 
     val exceptionMsgPrefix: String = "In the Conv layer with the following configuration:\n" +
-      configToString(elsPerThread, nKernels, kernelsPerGroup, kernelSize, kernelStride)
+      configToString(iP.elsPerThread, iP.nKernels, iP.kernelsPerGroup, iP.kernelSize, iP.kernelStride)
 
     /* Tiles */
     val kernelSliding: SlidingWindowConfig = SlidingWindowConfig(
-      size = kernelSize,
-      stride = kernelStride,
+      size = iP.kernelSize,
+      stride = iP.kernelStride,
       n = {
-        val n: Float = (inputTileSize - (kernelSize - kernelStride)).toFloat / kernelStride
+        val n: Float = (iP.inputTileSize - (iP.kernelSize - iP.kernelStride)).toFloat / iP.kernelStride
         if (n % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
-          f"input tiles ($inputTileSize%d) are not divisible by the chosen kernelSize ($kernelSize%d) " +
-          f"and kernelStride ($kernelStride%d)")
+          f"input tiles (${iP.inputTileSize}%d) are not divisible by the chosen kernelSize (${iP.kernelSize}%d) " +
+          f"and kernelStride (${iP.kernelStride}%d)")
         n.toInt
-      }
+      },
+      nChannels = iP.nKernels
     )
     val inputTiling: SlidingWindowConfig = {
-      val stride = inputTileSize - (kernelSliding.size - kernelSliding.stride)
+      val stride = iP.inputTileSize - (kernelSliding.size - kernelSliding.stride)
       SlidingWindowConfig(
-        size = inputTileSize,
+        size = iP.inputTileSize,
         stride = stride,
-        n = 1 + Math.ceil((inputShape.size - inputTileSize).toFloat / stride).toInt)
+        n = 1 + Math.ceil((iP.inputShape.size - iP.inputTileSize).toFloat / stride).toInt)
     }
 
     /* Check parameters */
-    if (nKernels % kernelsPerGroup != 0)
+    if (iP.nKernels % iP.kernelsPerGroup != 0)
       throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
-        f"the number of kernels ($nKernels%d) must be divisible by kernelsPerGroup ($kernelsPerGroup%d)")
+        f"the number of kernels (${iP.nKernels}%d) must be divisible by kernelsPerGroup (${iP.kernelsPerGroup}%d)")
 
-    if (kernelSliding.size % elsPerThread != 0)
+    if (kernelSliding.size % iP.elsPerThread != 0)
       throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
         f"kernel size in all dimensions (=${kernelSliding.size}%d) must be divisible by elsPerThread " +
-        f"($elsPerThread%d)")
+        f"(${iP.elsPerThread}%d)")
 
     /* Padding */
     // Calculate how much padding is required
-    inputShape.sizePadded = inputTiling.size + inputTiling.stride * (inputTiling.n - 1)
-    inputShape.sizePadded = inputShape.sizePadded
+    iP.inputShape.sizePadded = inputTiling.size + inputTiling.stride * (inputTiling.n - 1)
+    iP.inputShape.sizePadded = iP.inputShape.sizePadded
 
     val outputShape: Shape = { Shape(
-      nBatches = inputShape.nBatches,
-      nInputs = inputShape.nInputs,
-      size = ((inputShape.size - (kernelSliding.size - kernelSliding.stride)).toFloat / kernelSliding.stride).toInt,
+      nBatches = iP.inputShape.nBatches,
+      nInputs = iP.inputShape.nInputs,
+      size = ((iP.inputShape.size - (kernelSliding.size - kernelSliding.stride)).toFloat / kernelSliding.stride).toInt,
       sizePadded = {
-        val sizePadded: Float = (inputShape.sizePadded - (kernelSliding.size - kernelSliding.stride)).toFloat /
+        val sizePadded: Float = (iP.inputShape.sizePadded - (kernelSliding.size - kernelSliding.stride)).toFloat /
           kernelSliding.stride
         if (sizePadded % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
           "padded inputs are not divisible by the chosen kernelShape and kernelStride")
         sizePadded.toInt
       },
-      nChannels = nKernels)
+      nChannels = iP.nKernels)
     }
 
     /* Parallelization parameters */
     val localSize: Array[Int] = Array.fill[Int](3)(0)
     localSize(0) = scala.math.pow((inputTiling.size - (kernelSliding.size - 1)) / kernelSliding.stride, 2).toInt
 
-    localSize(1) = (kernelsPerGroup * Math.ceil(kernelSliding.size.toFloat / elsPerThread)).toInt
+    localSize(1) = (iP.kernelsPerGroup * Math.ceil(kernelSliding.size.toFloat / iP.elsPerThread)).toInt
 
     localSize(2) = kernelSliding.size
 
@@ -328,22 +333,22 @@ object Conv {
       if (groupSize > nn.maxWorkGroupSize)
         throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
           f"group size (==$groupSize%d) must be less or equal to maxWorkGroupSize (${nn.maxWorkGroupSize}%d).\n" +
-          f"Decrease nKernels or inputTileSize or increase elsPerThread ($elsPerThread%d)")
+          f"Decrease nKernels or inputTileSize or increase elsPerThread (${iP.elsPerThread}%d)")
     }
 
     val globalSize: Array[Int] = Array.fill[Int](3)(0)
-    globalSize(0) = localSize(0) * inputShape.nBatches
-    globalSize(1) = localSize(1) * inputShape.nInputs * inputTiling.n * inputTiling.n
-    globalSize(2) = localSize(2) * Math.ceil(nKernels.toFloat / kernelsPerGroup).toInt
+    globalSize(0) = localSize(0) * iP.inputShape.nBatches
+    globalSize(1) = localSize(1) * iP.inputShape.nInputs * inputTiling.n * inputTiling.n
+    globalSize(2) = localSize(2) * Math.ceil(iP.nKernels.toFloat / iP.kernelsPerGroup).toInt
 
     /* Now that all parameters are calculated and verified, build the layer */
 
     new Conv(
-      liftFPropGenerator(activationFun, inputShape, inputTiling,
-        nKernels,kernelSliding, kernelsPerGroup, elsPerThread),
-      inputShape, outputShape,
+      iP.liftFPropGenerator(iP.activationFun, iP.inputShape, inputTiling,
+        iP.nKernels,kernelSliding, iP.kernelsPerGroup, iP.elsPerThread),
+      iP.inputShape, outputShape,
       inputTiling, kernelSliding,
-      elsPerThread, kernelsPerGroup,
+      iP.elsPerThread, iP.kernelsPerGroup,
       localSize, globalSize)
   }
 

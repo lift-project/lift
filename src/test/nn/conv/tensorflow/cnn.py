@@ -7,15 +7,42 @@ Based on Aymeric Damien's project (https://github.com/aymericdamien/TensorFlow-E
 """
 
 import tensorflow as tf
-import json
+import struct
 import os
 import numpy as np
 import pickle
 from enum import Enum
+from array import array
 
 # Import MNIST data
 from tensorflow.examples.tutorials.mnist import input_data
 
+
+def saveToBinary(arr, filename):
+    print(filename)
+    print(arr.astype(np.float16).tolist())
+    flatten = lambda l: [item for sublist in l for item in sublist]
+    # Save to binary file
+    dim = len(arr.shape)
+    if dim == 1:
+        float_array = array('f', arr.astype(np.float16).tolist())
+    else:
+        if dim == 2:
+            float_array = array('f', flatten(
+                arr.astype(np.float16).tolist()))
+        else:
+            if dim == 3:
+                float_array = array('f', flatten(flatten(
+                    arr.astype(np.float16).tolist())))
+            else:
+                if dim == 4:
+                    float_array = array('f', flatten(flatten(flatten(
+                        arr.astype(np.float16).tolist()))))
+                else:
+                    float_array = array('f', flatten(flatten(flatten(flatten(
+                        arr.astype(np.float16).tolist())))))
+    with open(filename, "wb") as outfile:
+        float_array.tofile(outfile)
 
 class FPropMode(Enum):
     MNIST = 1
@@ -195,15 +222,18 @@ class CNN:
             # log_device_placement=True)
 
             # Get experiment directory name
-            self.dir_name = CNN.get_dir_name(self.n_kernels, self.kernel_shape, self.image_shape)
+            self.inputs_path = CNN.get_inputs_path(self.image_shape[0])
+            self.results_path = CNN.get_results_path(self.n_kernels, self.kernel_shape, self.image_shape)
             # Create directory
-            if not os.path.isdir(self.dir_name):
-                os.mkdir(self.dir_name)
+            if not os.path.isdir(self.results_path):
+                os.mkdir(self.results_path)
+            if not os.path.isdir(self.inputs_path):
+                os.mkdir(self.inputs_path)
 
     @staticmethod
-    def get_dir_name(n_kernels, kernel_shape, image_shape):
+    def get_results_path(n_kernels, kernel_shape, image_shape):
         """
-        Forms a directory name for a given experiment.
+        Forms a directory name for a given experiment parameters and outputs.
         :param image_shape: 
         :param n_kernels:
         :param kernel_shape:
@@ -216,14 +246,28 @@ class CNN:
                             str(image_shape[0]))
 
     @staticmethod
+    def get_inputs_path(image_shape):
+        """
+        Forms a directory name for a given experiment inputs.
+        :param image_shape: 
+        :param n_kernels:
+        :param kernel_shape:
+        :return:
+        """
+        if os.environ["LIFT_NN_RESOURCES"] is None:
+            raise EnvironmentError("LIFT_NN_RESOURCES is not set!")
+        return os.path.join(os.environ["LIFT_NN_RESOURCES"],
+                            "experiment.cnn.inputs." + str(image_shape))
+
+    @staticmethod
     def restore(n_kernels, kernel_shape, image_shape):
         """
         Restore data if requested and possible.
         :return:
         """
-        dir_name = CNN.get_dir_name(n_kernels, kernel_shape, image_shape)
-        if os.path.isfile(os.path.join(dir_name, "pickled_acnn.p")):
-            return pickle.load(open(os.path.join(dir_name, "pickled_acnn.p"), "rb"))
+        results_path = CNN.get_results_path(n_kernels, kernel_shape, image_shape)
+        if os.path.isfile(os.path.join(results_path, "pickled_acnn.p")):
+            return pickle.load(open(os.path.join(results_path, "pickled_acnn.p"), "rb"))
         else:
             return None
 
@@ -276,11 +320,12 @@ class CNN:
         trained_params = {**trained_params, **self.trained_biases}
 
         for param_name in trained_params:
-            json_string = json.dumps(trained_params[param_name].astype(np.float16).tolist())
-            print(trained_params[param_name].shape)
-            with open(self.dir_name + '/' + param_name + '.json', 'w') as outfile:
-                outfile.write(json_string)
-                outfile.close()
+            saveToBinary(trained_params[param_name], self.results_path + '/' + param_name + '.binary')
+            # json_string = json.dumps(trained_params[param_name].astype(np.float16).tolist())
+            # print(trained_params[param_name].shape)
+            # with open(self.results_path + '/' + param_name + '.json', 'w') as outfile:
+            #     outfile.write(json_string)
+            #     outfile.close()
             print("Saved param \"" + param_name + "\"")
 
     def train_bogus(self):
@@ -289,33 +334,60 @@ class CNN:
         """
         self.trained_weights = {
             'wconv1': np.random.normal(size=(self.kernel_shape[0], self.kernel_shape[1],
-                                             self.image_shape[2], self.n_kernels[0])),
+                                             self.image_shape[2], self.n_kernels[0])).astype(dtype=np.float32),
             'wconv2': np.random.normal(size=(self.kernel_shape[0], self.kernel_shape[1],
-                                             self.n_kernels[0], self.n_kernels[1])),
+                                             self.n_kernels[0], self.n_kernels[1])).astype(dtype=np.float32),
             'wmlp1': np.random.normal(
                 size=(self.n_kernels[1] *
                       (self.image_shape[0] - (self.kernel_shape[0] - self.kernel_stride[0]) * 2) *
                       (self.image_shape[1] - (self.kernel_shape[1] - self.kernel_stride[1]) * 2),
-                      self.mlp_size_l2)),
-            'wout': np.random.normal(size=(self.mlp_size_l2, self.n_classes))
+                      self.mlp_size_l2)).astype(dtype=np.float32),
+            'wout': np.random.normal(size=(self.mlp_size_l2, self.n_classes)).astype(dtype=np.float32)
         }
 
         self.trained_biases = {
-            'bconv1': np.random.normal(size=(self.n_kernels[0])),
-            'bconv2': np.random.normal(size=(self.n_kernels[1])),
-            'bmlp1': np.random.normal(size=self.mlp_size_l2),
-            'bout': np.random.normal(size=self.n_classes)
+            'bconv1': np.random.normal(size=(self.n_kernels[0])).astype(dtype=np.float32),
+            'bconv2': np.random.normal(size=(self.n_kernels[1])).astype(dtype=np.float32),
+            'bmlp1': np.random.normal(size=self.mlp_size_l2).astype(dtype=np.float32),
+            'bout': np.random.normal(size=self.n_classes).astype(dtype=np.float32)
         }
         trained_params = {**self.trained_weights, **self.trained_biases}
         for param_name in trained_params:
-            json_string = json.dumps(trained_params[param_name].astype(np.float16).tolist())
-            print(trained_params[param_name].shape)
-            with open(self.dir_name + '/' + param_name + '.json', 'w') as outfile:
-                outfile.write(json_string)
-                outfile.close()
+            saveToBinary(trained_params[param_name], self.results_path + '/' + param_name + '.binary')
+            # json_string = json.dumps(trained_params[param_name].astype(np.float16).tolist())
+            # print(trained_params[param_name].shape)
+            # with open(self.results_path + '/' + param_name + '.json', 'w') as outfile:
+            #     outfile.write(json_string)
+            #     outfile.close()
             print("Saved param \"" + param_name + "\"")
 
-    def fprop(self, n_batches, n_inputs, mode=FPropMode.MNIST):
+    def get_inputs(self, n_batches, n_inputs, mode=FPropMode.MNIST):
+        # Create an input dataset
+        test_batch_images_flat = None
+        filename = self.inputs_path + '/inputs/test_images_n' + str(n_inputs) + '.binary'
+        if mode is FPropMode.MNIST:
+            print("Generating a random subset of MNIST images...")
+            for batch_no in np.arange(0, n_batches):
+                test_batch_images_flat, _ = self.mnist.test.next_batch(n_inputs)
+                print("TODO: flatten batches into a single dataset")
+                raise NotImplementedError
+        else:
+            if mode is FPropMode.RANDOM or not os.path.isfile(filename):
+                print("Generating random input...")
+                test_batch_images_flat = \
+                    np.random.normal(size=(n_batches * n_inputs, self.image_shape[0] * self.image_shape[1] *
+                                           self.image_shape[2])).astype(dtype=np.float32)
+            else:
+                # if mode is FPropMode.RESTORE:
+                print("Restoring inputs from a binary file...")
+                with open(filename, mode="rb") as infile:
+                    test_batch_images_flat = np.asarray(struct.unpack(
+                        "f" * n_batches * n_inputs * self.image_shape[0] * self.image_shape[1] *
+                        self.image_shape[2], infile.read())).reshape(
+                        (n_batches * n_inputs, self.image_shape[0] * self.image_shape[1] * self.image_shape[2]))
+        return test_batch_images_flat
+
+    def fprop(self, n_batches, n_inputs, test_batch_images_flat, mode=FPropMode.MNIST):
         """
         Forward-propagation; saves input samples and classification results as files.
         :param mode: 
@@ -328,33 +400,20 @@ class CNN:
         # Convert arrays to tensors
         trained_weights_tensors = {}
         for weight_name in self.trained_weights:
-            trained_weights_tensors[weight_name] = tf.convert_to_tensor(
-                self.trained_weights[weight_name].astype(np.float32))
+            trained_weights_tensors[weight_name] = \
+                tf.Variable(self.trained_weights[weight_name].astype(dtype=np.float32))
+            # tf.placeholder(tf.float32,
+            #                                                       shape=self.trained_weights[weight_name].shape)
+                #tf.convert_to_tensor(self.trained_weights[weight_name].astype(np.float32))
 
         trained_biases_tensors = {}
         for bias_name in self.trained_biases:
-            trained_biases_tensors[bias_name] = tf.convert_to_tensor(
-                self.trained_biases[bias_name].astype(np.float32))
-
-        # Create an input dataset
-        if mode is FPropMode.MNIST:
-            print("Generating a random subset of MNIST images...")
-            for batch_no in np.arange(0, n_batches):
-                test_batch_images_flat, _ = self.mnist.test.next_batch(n_inputs)
-                print("TODO: flatten batches into a single dataset")
-                raise NotImplementedError
-        else:
-            if mode is FPropMode.RANDOM:
-                print("Generating random input...")
-                test_batch_images_flat = \
-                    np.random.normal(size=(n_batches * n_inputs, self.image_shape[0] * self.image_shape[1] *
-                                           self.image_shape[2]))
-            else:
-                # if mode is FPropMode.RESTORE:
-                print("Restoring inputs from a JSON file...")
-                test_batch_images_flat = np.asarray(json.loads(open(
-                    self.dir_name + '/test_images_n' + str(n_inputs) + '.json').read())).reshape(
-                    (n_batches * n_inputs, self.image_shape[0] * self.image_shape[1] * self.image_shape[2]))
+            trained_biases_tensors[bias_name] = \
+                tf.Variable(self.trained_biases[bias_name].astype(dtype=np.float32))
+            # tf.placeholder(tf.float32,
+                #                                                shape=self.trained_biases[bias_name].shape)
+                # = tf.convert_to_tensor(
+                # self.trained_biases[bias_name].astype(np.float32))
 
         # ---------------------- Forward propagation ---------------------- #
 
@@ -375,27 +434,30 @@ class CNN:
 
         # ---------------------- Forward propagation ---------------------- #
 
-        if mode is not FPropMode.RESTORE:
-            # Save test images unless they've been restored from files
+        filename = self.inputs_path + '/test_images_n' + str(n_inputs) + '.binary'
+        if mode is not FPropMode.RESTORE or not os.path.isfile(filename):
+            # Save test images unless they've been successfully restored from files
             test_images = np.reshape(test_batch_images_flat,
                                      [n_batches, n_inputs, self.image_shape[0], self.image_shape[1],
                                       self.image_shape[2]])
-            json_string = json.dumps(test_images.astype(np.float32).tolist())
-            with open(self.dir_name + '/test_images_n' + str(n_inputs) + '.json', 'w') as outfile:
-                outfile.write(json_string)
-                outfile.close()
+            saveToBinary(test_images, filename)
+            # json_string = json.dumps(test_images.astype(np.float32).tolist())
+            # with open(self.results_path + '/test_images_n' + str(n_inputs) + '.json', 'w') as outfile:
+            #     outfile.write(json_string)
+            #     outfile.close()
             print("Saved (" + str(test_images.shape[0] * test_images.shape[1]) + ") images, shape: ", end='')
             print(test_images.shape)
 
         # Save Tensorflow's forward propagation results into a JSON file
         test_results = np.reshape(test_results, [n_batches * n_inputs, self.n_classes])
+        saveToBinary(test_results, self.results_path + '/test_tf_results_n' + str(n_inputs) + '.binary')
         #test_results = np.reshape(test_results, [n_batches, n_inputs, 400])
         # test_results = np.reshape(test_results, (n_batches, n_inputs, test_results.shape[1],
         #                                          test_results.shape[2], test_results.shape[3]))
-        json_string = json.dumps(test_results.astype(np.float32).tolist())
-        with open(self.dir_name + '/test_tf_results_n' + str(n_inputs) + '.json', 'w') as outfile:
-            outfile.write(json_string)
-            outfile.close()
+        # json_string = json.dumps(test_results.astype(np.float32).tolist())
+        # with open(self.results_path + '/test_tf_results_n' + str(n_inputs) + '.json', 'w') as outfile:
+        #     outfile.write(json_string)
+        #     outfile.close()
         if self.verbose:
             print("Saved results, shape: ", end='')
             print(test_results.shape)

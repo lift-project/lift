@@ -3,9 +3,8 @@ package nn.cnn
 import java.io.{File, PrintWriter}
 import java.nio.file.Files.{createDirectory, exists}
 import java.nio.file.Paths.get
-import java.util.Calendar
+import java.util.{Calendar, Date}
 
-import com.sun.javaws.exceptions.InvalidArgumentException
 import com.typesafe.scalalogging.Logger
 import nn._
 import nn.conv.{Conv, ConvDatasets}
@@ -37,7 +36,7 @@ class TestCNN {
   private val logger = Logger(this.getClass)
 
   val precision: Float = 10f
-  val codeVersion: Int = 1
+  val codeVersion: Int = 2
 
   @Test
   def TestCNN(): Unit = {
@@ -51,14 +50,17 @@ class TestCNN {
     val fcSize: Array[Int] = Array[Int](256, 10)
     var aCNN: CNN = null
     var data: NetDatasetsCollection = null
+    var initParams: Layer.InitParameters = null
+    var now: Date = null
     for {
       //rerun <- 1 until 10
       nKernelsL1 <- 8 until 48 by 4//16 until 17 by 4
       kernelSize <- 4 until 64 by 4 //8 until 64 by 4
-      imageSize <- 8 until 64 by 4//8 until 64 by 8//16 until 512 by 16
-      pathToInputs = Experiment.getPathToInputs(nKernelsL1, kernelSize, imageSize)
-      if exists(get(pathToInputs))
-      pathToResults = Experiment.getPathToResults(pathToInputs)
+      imageSize <- List(8, /*16, 32, */64)//8 until 64 by 8//16 until 512 by 16
+      pathToInputs = Experiment.getPathToInputs(imageSize)
+      pathToParams = Experiment.getPathToParams(nKernelsL1, kernelSize, imageSize)
+      if exists(get(pathToParams))
+      pathToResults = Experiment.getPathToResults(pathToParams)
       // Results dir doesn't exist (then create it) or it does, but reruns are allowed:
       if rerunsAllowed || {if (!exists(get(pathToResults))) {
         createDirectory(get(pathToResults))
@@ -68,70 +70,84 @@ class TestCNN {
       if rerunsAllowed || new File(pathToResults).listFiles.toList.count {
         file => file.getName.endsWith("_n%d.csv".format(nInputs))} == 0
       // Load datasets once for all experiments (across all multsPerThread and neuronsPerWrg)
-      if Experiment.datasetsExist(pathToInputs)
+      if Experiment.datasetsExist(pathToParams)
       inputTileSize <- kernelSize until imageSize by 4 // kernelSize
-      elsPerThreadL1 <- List(1) ++ (4 until 16 by 4)
-      kernelsPerGroupL1 <- List(1) ++ (1 until nKernelsL1 by 4)
+      elsPerThreadL1 <- List(1) ++ (1 until kernelSize by 1)
+      kernelsPerGroupL1 <- List(1) ++ (1 until nKernelsL1 by 1)
       multsPerThread <- 4 until 5 by 2
       neuronsPerWrg <- 4 until 5 by 5
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
         try {
           /* ---------------------------- BUILD NETWORK (BEGIN) ---------------------------- */
+          now = Calendar.getInstance().getTime
           aCNN = new CNN(nConvLayers = 2, nFCLayers = 2,
-            inputShape = Shape(nBatches = nBatches, nInputs = nInputs, nChannels = nChannels),
+            inputShape = Shape(nBatches = nBatches, nInputs = nInputs, size=imageSize, nChannels = nChannels),
             pathToResults = pathToResults)
+
           //noinspection ConvertibleToMethodValue
-          aCNN.layers(0) = Conv(Conv.Par(_, _, _, _, _, _, _), nn.ReLU, 1, 4, kernelSize, 16,
+          initParams = Conv.InitParameters(0, Conv.Par(_, _, _, _, _, _, _), nn.ReLU, 1, 4, kernelSize, 16,
             inputShape = Shape(nBatches=nBatches, nInputs=nInputs, size=imageSize, nChannels=nChannels),
             kernelSize, kernelStride)
+          aCNN.layers(0) = Conv(initParams.asInstanceOf[Conv.InitParameters])
           aCNN.convLayers(0) = aCNN.layers(0).asInstanceOf[Conv]
 
           //noinspection ConvertibleToMethodValue
-          aCNN.layers(1) = Conv(Conv.Par(_, _, _, _, _, _, _), nn.ReLU, elsPerThreadL1, kernelsPerGroupL1,
+          initParams = Conv.InitParameters(1, Conv.Par(_, _, _, _, _, _, _), nn.ReLU, elsPerThreadL1, kernelsPerGroupL1,
             inputTileSize, nKernelsL1, inputShape = aCNN.convLayers(0).outputShape.copy(), kernelSize, kernelStride)
+          aCNN.layers(1) = Conv(initParams.asInstanceOf[Conv.InitParameters])
           aCNN.convLayers(1) = aCNN.layers(1).asInstanceOf[Conv]
 
-          aCNN.layers(2) = FC(FC.Par, nn.ReLU,
+          initParams = FC.InitParameters(2, FC.Par, nn.ReLU,
             inputShape = Shape(nInputs = nBatches * nInputs, size =
               aCNN.convLayers(1).outputShape.size * aCNN.convLayers(1).outputShape.size *
                 aCNN.convLayers(1).outputShape.nChannels),
             neuronShape = Shape(size = fcSize(0)),
             multsPerThread, neuronsPerWrg)
+          aCNN.layers(2) = FC(initParams.asInstanceOf[FC.InitParameters])
           aCNN.fcLayers(0) = aCNN.layers(2).asInstanceOf[FC]
 
-          aCNN.layers(3) = FC(FC.Par, nn.ReLU,
+          initParams = FC.InitParameters(3, FC.Par, nn.ReLU,
             inputShape = Shape(nInputs = nBatches * nInputs, size = fcSize(0)),
             neuronShape = Shape(size = fcSize(1)),
             multsPerThread, neuronsPerWrg)
+          aCNN.layers(3) = FC(initParams.asInstanceOf[FC.InitParameters])
           aCNN.fcLayers(1) = aCNN.layers(3).asInstanceOf[FC]
           /* ---------------------------- BUILD NETWORK (END) ---------------------------- */
 
           /* ----------------------------- LOAD DATA (BEGIN) ----------------------------- */
           // Now that we know that layers can be built we the chosen parameters, load the data.
           // Load the data only if it wasn't loaded before for a similar experiment
-          if (data == null || data.pathToInputs != pathToInputs || data.nInputs != nInputs)
+          if (data == null || data.pathToParams != pathToParams || data.nInputs != nInputs)
             data = NetDatasetsCollection(
-              pathToInputs = pathToInputs,
+              pathToParams = pathToParams,
               nInputs = nInputs,
               layers = Array[NetDatasets](
                 nn.conv.ConvExperiment.loadDatasets(
-                  path = pathToInputs,
-                  inputFilePrefix = "test_images_n" + nInputs,
-                  paramFileInfix = "conv1"),
+                  paramsPath = pathToParams,
+                  inputShape = aCNN.convLayers(0).inputShape,
+                  inputsPath = pathToInputs + "/test_images_n" + nInputs + ".binary",
+                  paramFileInfix = "conv1",
+                  kernelSliding = aCNN.convLayers(0).kernelSliding),
 
                 nn.conv.ConvExperiment.loadDatasets(
-                  path = pathToInputs,
-                  paramFileInfix = "conv2"),
+                  paramsPath = pathToParams,
+                  inputShape = aCNN.convLayers(1).inputShape,
+                  paramFileInfix = "conv2",
+                  kernelSliding = aCNN.convLayers(1).kernelSliding),
 
                 nn.fc.FCExperiment.loadDatasets(
-                  path = pathToInputs,
-                  paramFileInfix = "mlp1"),
+                  paramsPath = pathToParams,
+                  inputShape = aCNN.fcLayers(0).inputShape,
+                  paramFileInfix = "mlp1",
+                  neuronShape = aCNN.fcLayers(0).neuronShape),
 
                 nn.fc.FCExperiment.loadDatasets(
-                  path = pathToInputs,
+                  paramsPath = pathToParams,
+                  inputShape = aCNN.fcLayers(1).inputShape,
                   targetFilePrefix = "test_tf_results_n" + nInputs,
-                  paramFileInfix = "out")))
+                  paramFileInfix = "out",
+                  neuronShape = aCNN.fcLayers(1).neuronShape)))
           /* ----------------------------- LOAD DATA (END) ----------------------------- */
           true
         }
@@ -140,7 +156,8 @@ class TestCNN {
             logger.warn("-----------------------------------------------------------------")
             logger.warn(e.getMessage)
             logger.warn("SKIPPING EXPERIMENT.")
-            recordFailureInSQL(e)
+            recordFailureInSQL(e, initParams, now)
+            return
             false
         }
       }
@@ -151,7 +168,7 @@ class TestCNN {
         logger.info("-----------------------------------------------------------------")
         System.out.println(f"Starting the experiment:\n" + aCNN.configToString)
 
-        val now = Calendar.getInstance().getTime
+        now = Calendar.getInstance().getTime
 
         for (layerNo <- 0 until aCNN.nLayers) {
           val layer: Layer = aCNN.layers(layerNo)
@@ -159,10 +176,10 @@ class TestCNN {
 
           /* Padding */
           layer match {
-            case cl: Conv => Conv.pad(layerData.asInstanceOf[ConvDatasets].inputs, cl.inputShape)
-            case fl: FC =>
+            case cL: Conv => Conv.pad(layerData.asInstanceOf[ConvDatasets].inputs, cL.inputShape)
+            case fL: FC =>
               val fcData: FCDatasets = layerData.asInstanceOf[FCDatasets]
-              FC.pad(fcData.inputs, fl.inputShape, fcData.weights, fcData.biases, fl.neuronShape)
+              FC.pad(fcData.inputs, fL.inputShape, fcData.weights, fcData.biases, fL.neuronShape)
           }
 
           /* Execute */
@@ -236,53 +253,58 @@ class TestCNN {
 
 
         /* JSON */
-        if (aCNN.pathToResults != "") {
-          var pw: PrintWriter = null
-          if (aCNN.pathToResults != "") {
-            val file = new File(nn.resultsFilename(aCNN.pathToResults, aCNN.inputShape.nInputs))
-            file.getParentFile.mkdirs()
-            pw = new PrintWriter(file)
-          }
-          /* Headers */
-          pw.write("device_name, n_batches, n_inputs, n_conv_layers, n_fc_layers," + {
-            for (layerNo <- aCNN.convLayers.indices)
-              yield f"n_kernels_l$layerNo%d, kernel_size_l$layerNo%d, kernel_stride_l$layerNo%d" +
-                f"input_tile_size_l$layerNo%d, input_tile_stride_l$layerNo%d" +
-                f"els_per_thread_l$layerNo%d, kernels_per_group_l$layerNo%d"
-          }.mkString(", ") + ", " + {
-            for (layerNo <- aCNN.fcLayers.indices.map(i => i + aCNN.convLayers.length))
-              yield f"input_len_l$layerNo%d_nonpadded, input_len_l$layerNo%d_padded, " +
-                f"n_neurons_l$layerNo%d_nonpadded, n_neurons_l$layerNo%d_padded, " +
-                f"mults_per_thread_l$layerNo%d, neurons_per_wrg_l$layerNo%d"}.mkString(", ") + ", " + {
-            for (layerNo <- 0 until aCNN.nLayers)
-              yield f"runtime_l$layerNo%d"}.mkString(", ") + ", tag\n")
-
-          pw.write(nn.deviceName + ", " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
-            f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d" + {
-            for (layerNo <- aCNN.convLayers.indices) yield {
-              val c: Conv = aCNN.layers(layerNo).asInstanceOf[Conv]
-              f"${c.outputShape.nChannels}%d, ${c.kernelSliding.size}%d, ${c.kernelSliding.stride}%d, " +
-                f"${c.inputTiling.size}%d, ${c.inputTiling.stride}%d, " +
-                f"${c.elsPerThread}%d, ${c.kernelsPerGroup}%d"
-            }}.mkString(", ") + ", " + {
-            for (layerNo <- aCNN.fcLayers.indices.map(i => i + aCNN.convLayers.length)) yield {
-              val f: FC = aCNN.layers(layerNo).asInstanceOf[FC]
-              f"${f.inputShape.size}%d, ${f.inputShape.sizePadded}%d, " +
-                f"${f.neuronShape.size}%d, ${f.neuronShape.sizePadded}%d, " +
-                f"${f.multsPerThread}%d, ${f.neuronsPerWrg}%d"
-            }}.mkString(", ") + ", " + {
-              for (layerNo <- 0 until aCNN.nLayers)
-                yield f"${aCNN.layers(layerNo).runtime}%1.5f"
-          }.mkString(", ") + f", $codeVersion%d\n")
-
-          pw.close()
-          if (!testFailed)
-            new File(nn.resultsFilename(aCNN.pathToResults, aCNN.inputShape.nInputs)).delete()
-        }
+        if (aCNN.pathToResults != "" && ! testFailed)
+          recordInJSON(aCNN, now)
 
         /* SQL */
-        val sqlCommand: String = "INSERT INTO lift_results_cnn " +
-          "(device_name, n_batches, n_inputs, n_conv_layers, n_fc_layers, " + {
+        recordInSQL(aCNN, testRan = true, testFailed, now)
+        /* ---------------------------- RUN EXPERIMENT (END) ---------------------------- */
+      } catch {
+        case e: opencl.executor.Executor.ExecutorFailureException =>
+          logger.warn("EXCEPTION: opencl.executor.Executor.ExecutorFailureException")
+          logger.warn(e.getMessage)
+          recordFailureInSQL(e, aCNN, now)
+        case e: opencl.executor.DeviceCapabilityException =>
+          logger.warn("EXCEPTION: opencl.executor.DeviceCapabilityException")
+          logger.warn(e.getMessage)
+          recordFailureInSQL(e, aCNN, now)
+      }
+    }
+  }
+
+  def recordFailureInSQL(e: Exception, iP: Layer.InitParameters, runDate: Date): Unit = {
+    Connector.statement.execute("INSERT INTO lift_results_cnn " +
+      "(device_name, n_batches, n_inputs, image_size, " + {
+      iP match {
+        case _: Conv.InitParameters =>
+          f"n_kernels_l${iP.layerNo}%d, kernel_size_l${iP.layerNo}%d, kernel_stride_l${iP.layerNo}%d, " +
+            f"input_tile_size_l${iP.layerNo}%d, " +
+            f"els_per_thread_l${iP.layerNo}%d, kernels_per_group_l${iP.layerNo}%d, "
+        case _: FC.InitParameters =>
+          f"input_len_l${iP.layerNo}%d_nonpadded, n_neurons_l${iP.layerNo}%d_nonpadded, " +
+            f"mults_per_thread_l${iP.layerNo}%d, neurons_per_wrg_l${iP.layerNo}%d, "
+      }
+    } + "ran, abort_reason, experiment_id, datetime) VALUES (" +
+      "'" + nn.deviceName + "', " + f"${iP.inputShape.nBatches}%d, ${iP.inputShape.nInputs}%d, " +
+      f"${iP.inputShape.size}%d, " + {
+      iP match {
+        case cIP: Conv.InitParameters =>
+          f"${cIP.nKernels}%d, ${cIP.kernelSize}%d, ${cIP.kernelStride}%d, " +
+            f"${cIP.inputTileSize}%d, ${cIP.elsPerThread}%d, ${cIP.kernelsPerGroup}%d, "
+        case fcIP: FC.InitParameters =>
+          f"${fcIP.inputShape.size}%d, ${fcIP.neuronShape.size}%d, " +
+            f"${fcIP.multsPerThread}%d, ${fcIP.neuronsPerWrg}%d, "
+      }
+    } + f"false, '" + e.getMessage + f"', $codeVersion%d, " +
+      f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s');")
+  }
+
+  def recordFailureInSQL(e: Exception, aCNN: CNN, runDate: Date): Unit =
+    recordInSQL(aCNN, testRan = true, testFailed = true, runDate, e)
+
+  def recordInSQL(aCNN: CNN, testRan: Boolean, testFailed: Boolean = false, runDate: Date, e: Exception = null): Unit =
+    Connector.statement.execute("INSERT INTO lift_results_cnn " +
+          "(device_name, n_batches, n_inputs, image_size, n_conv_layers, n_fc_layers, " + {
           for (layerNo <- aCNN.convLayers.indices)
             yield f"n_kernels_l$layerNo%d, kernel_size_l$layerNo%d, kernel_stride_l$layerNo%d, " +
               f"input_tile_size_l$layerNo%d, input_tile_stride_l$layerNo%d, " +
@@ -296,7 +318,7 @@ class TestCNN {
             yield f"runtime_l$layerNo%d"}.mkString(", ") +
           ", ran, success, experiment_id, datetime) VALUES (" +
           "'" + nn.deviceName + "', " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
-          f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d, " + {
+          f"${aCNN.inputShape.size}%d, " + f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d, " + {
           for (layerNo <- aCNN.convLayers.indices) yield {
             val c: Conv = aCNN.layers(layerNo).asInstanceOf[Conv]
             f"${c.outputShape.nChannels}%d, ${c.kernelSliding.size}%d, ${c.kernelSliding.stride}%d, " +
@@ -311,27 +333,48 @@ class TestCNN {
           }}.mkString(", ") + ", " + {
           for (layerNo <- 0 until aCNN.nLayers)
             yield f"${aCNN.layers(layerNo).runtime}%1.5f"
-        }.mkString(", ") + f", true, ${!testFailed}%b, $codeVersion%d, " +
-          f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now)}%s');"
-        println(sqlCommand)
-        Connector.statement.execute(sqlCommand)
-        /* ---------------------------- RUN EXPERIMENT (END) ---------------------------- */
-      } catch {
-        case e: opencl.executor.Executor.ExecutorFailureException =>
-          logger.warn("EXCEPTION: opencl.executor.Executor.ExecutorFailureException")
-          logger.warn(e.getMessage)
-          recordFailureInSQL(e)
-        case e: opencl.executor.DeviceCapabilityException =>
-          logger.warn("EXCEPTION: opencl.executor.DeviceCapabilityException")
-          logger.warn(e.getMessage)
-          recordFailureInSQL(e)
-      }
-    }
-  }
+        }.mkString(", ") + f", ${testRan}%b, ${!testFailed}%b, $codeVersion%d, " +
+          f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s');")
 
-  def recordFailureInSQL(e: Exception): Unit = {
-    /* SQL */
-    Connector.statement.execute("INSERT INTO lift_results_cnn (ran, abort_reason) VALUES " +
-      "(false, '" + e.getClass.getSimpleName + ": " + e.getMessage + "')")
+
+  def recordInJSON(aCNN: CNN, runDate: Date): Unit = {
+    var pw: PrintWriter = null
+    val file = new File(nn.resultsFilename(aCNN.pathToResults, aCNN.inputShape.nInputs))
+    file.getParentFile.mkdirs()
+    pw = new PrintWriter(file)
+    /* Headers */
+    pw.write("device_name, n_batches, n_inputs, image_size, n_conv_layers, n_fc_layers," + {
+      for (layerNo <- aCNN.convLayers.indices)
+        yield f"n_kernels_l$layerNo%d, kernel_size_l$layerNo%d, kernel_stride_l$layerNo%d" +
+          f"input_tile_size_l$layerNo%d, input_tile_stride_l$layerNo%d" +
+          f"els_per_thread_l$layerNo%d, kernels_per_group_l$layerNo%d"
+    }.mkString(", ") + ", " + {
+      for (layerNo <- aCNN.fcLayers.indices.map(i => i + aCNN.convLayers.length))
+        yield f"input_len_l$layerNo%d_nonpadded, input_len_l$layerNo%d_padded, " +
+          f"n_neurons_l$layerNo%d_nonpadded, n_neurons_l$layerNo%d_padded, " +
+          f"mults_per_thread_l$layerNo%d, neurons_per_wrg_l$layerNo%d"}.mkString(", ") + ", " + {
+      for (layerNo <- 0 until aCNN.nLayers)
+        yield f"runtime_l$layerNo%d"}.mkString(", ") + ", tag\n")
+
+    pw.write(nn.deviceName + ", " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
+      f"${aCNN.inputShape.size}%d, " +
+      f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d" + {
+      for (layerNo <- aCNN.convLayers.indices) yield {
+        val c: Conv = aCNN.layers(layerNo).asInstanceOf[Conv]
+        f"${c.outputShape.nChannels}%d, ${c.kernelSliding.size}%d, ${c.kernelSliding.stride}%d, " +
+          f"${c.inputTiling.size}%d, ${c.inputTiling.stride}%d, " +
+          f"${c.elsPerThread}%d, ${c.kernelsPerGroup}%d"
+      }}.mkString(", ") + ", " + {
+      for (layerNo <- aCNN.fcLayers.indices.map(i => i + aCNN.convLayers.length)) yield {
+        val f: FC = aCNN.layers(layerNo).asInstanceOf[FC]
+        f"${f.inputShape.size}%d, ${f.inputShape.sizePadded}%d, " +
+          f"${f.neuronShape.size}%d, ${f.neuronShape.sizePadded}%d, " +
+          f"${f.multsPerThread}%d, ${f.neuronsPerWrg}%d"
+      }}.mkString(", ") + ", " + {
+      for (layerNo <- 0 until aCNN.nLayers)
+        yield f"${aCNN.layers(layerNo).runtime}%1.5f"
+    }.mkString(", ") + f", $codeVersion%d\n")
+
+    pw.close()
   }
 }

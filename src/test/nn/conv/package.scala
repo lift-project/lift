@@ -24,7 +24,8 @@ package object conv {
     */
   case class SlidingWindowConfig(size: Int,
                                  stride: Int,
-                                 n: Int)
+                                 n: Int,
+                                 nChannels: Int = 0)
 
   class ConvDatasets(in: PaddedArray[Array5D[Float]] = PaddedArray(Array.empty),
                      out: PaddedArray[Array5D[Float]] = PaddedArray(Array.empty),
@@ -124,35 +125,42 @@ package object conv {
   object ConvExperiment extends Experiment {
     val convDir: String = nn.nnDir + "/conv"
 
-    def getPathToInputs(nKernelsL0: Int, kernelShape: Shape, imageShape: Shape): String = {
+    def getPathToInputs(nKernelsL0: Int, kernelSize: Int, inputSize: Int): String = {
       {
         val envPath = System.getenv("LIFT_NN_RESOURCES")
         if (envPath != null) envPath else convDir
-      } + f"/experiment.conv.$nKernelsL0%d.${kernelShape.size}%d.${imageShape.size}%d"
+      } + f"/experiment.cnn.inputs.$inputSize%d"
     }
-    def getPathToResults(pathToInputs: String): String = pathToInputs + "/results_lift/"
+    def getPathToParams(nKernelsL0: Int, kernelSize: Int, inputSize: Int): String = {
+      {
+        val envPath = System.getenv("LIFT_NN_RESOURCES")
+        if (envPath != null) envPath else convDir
+      } + f"/experiment.cnn.$nKernelsL0%d.$kernelSize%d.$inputSize%d"
+    }
+    def datasetsExist(pathToParams: String): Boolean = exists(get(pathToParams + "/wconv1.binary"))
 
 
-    def datasetsExist(pathToInputs: String): Boolean = exists(get(pathToInputs + "/wconv1.json"))
-
-
-    def loadDatasets(path: String, inputFilePrefix: String = "", targetFilePrefix: String = "",
-                     paramFileInfix: String): ConvDatasets = {
+    def loadDatasets(paramsPath: String,
+                     inputsPath: String = "", inputShape: Shape, targetFilePrefix: String = "",
+                     paramFileInfix: String, kernelSliding: SlidingWindowConfig): ConvDatasets = {
       new ConvDatasets(
         in = {
-          if (inputFilePrefix != "")
-            PaddedArray(nn.loadJSON5D(path + "/" + inputFilePrefix + ".json"))
+          if (inputsPath != "")
+            PaddedArray(nn.loadBinary(inputsPath,
+              (inputShape.nBatches, inputShape.nInputs, inputShape.size, inputShape.size, inputShape.nChannels)))
           else
             PaddedArray(Array.empty)
         },
         targ = {
           if (targetFilePrefix != "")
-            nn.loadJSON5D(path + "/" + targetFilePrefix + ".json")
+          nn.loadBinary(paramsPath + "/" + targetFilePrefix + ".binary",
+            (inputShape.nBatches, inputShape.nInputs, kernelSliding.size, kernelSliding.size, kernelSliding.nChannels))
           else
             Array.empty
         },
-        w = nn.loadJSON4D(path + "/w" + paramFileInfix + ".json"),
-        b = nn.loadJSON1D(path + "/b" + paramFileInfix + ".json"))
+        w = nn.loadBinary(paramsPath + "/w" + paramFileInfix + ".binary",
+          (kernelSliding.size, kernelSliding.size, inputShape.nChannels, kernelSliding.nChannels)),
+        b = nn.loadBinary(paramsPath + "/b" + paramFileInfix + ".binary"))
     }
   }
 }
