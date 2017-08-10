@@ -86,7 +86,7 @@ object FC {
                   MapLcl(1)(λ((neuronBias, neuronPartialSumsToWrap) => {
                     MapLcl(2)(λ((neuronPartialSums) => {
                       //TransposeW() o
-                      toGlobal(MapSeq(activation_f)) o ReduceSeq(add, id(neuronBias)) $ neuronPartialSums
+                      toGlobal(MapSeq(activation_f)) o ReduceSeq(add, toPrivate(id) $ neuronBias) $ neuronPartialSums
                     })) o Split(input_shape.size / tile.seqEls) $ neuronPartialSumsToWrap
                   })) $ Zip(b_tile2, /*PrintType("input_tile") $ */tile_of_neurons)
                 })) o Split(tile.neurons) $ input
@@ -112,7 +112,7 @@ object FC {
                     /* Split by neurons *//*PrintType("token2") o*/
                     Split(input_tile_size / tile.seqEls) /*o PrintType("token1")*/ o Join() o
                     MapLcl(1)(
-                      toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)) o //PrintType("After Split(tile.seqEls) and Join") o
+                      toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(toPrivate(mult))) o //PrintType("After Split(tile.seqEls) and Join") o
                     Join() o Map(Split(tile.seqEls)) o //PrintType("Before Split(tile.seqEls)") o
                     ReorderStride(tile.seqEls) $ //Coalescing: or dim.in / tile_of_mults_size
                       input

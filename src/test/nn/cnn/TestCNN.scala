@@ -110,7 +110,7 @@ class TestCNN {
           initParams = FC.InitParameters(3, FC.Par, nn.ReLU,
             inputShape = Shape(nInputs = nBatches * nInputs, size = fcSize(0)),
             neuronShape = Shape(size = fcSize(1)),
-            multsPerThread, neuronsPerWrg)
+            multsPerThread = 1, neuronsPerWrg = 1)
           aCNN.layers(3) = FC(initParams.asInstanceOf[FC.InitParameters])
           aCNN.fcLayers(1) = aCNN.layers(3).asInstanceOf[FC]
           /* ---------------------------- BUILD NETWORK (END) ---------------------------- */
