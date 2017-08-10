@@ -36,7 +36,7 @@ class TestCNN {
   private val logger = Logger(this.getClass)
 
   val precision: Float = 10f
-  val codeVersion: Int = 2
+  val codeVersion: Int = 4
 
   @Test
   def TestCNN(): Unit = {
@@ -56,7 +56,7 @@ class TestCNN {
       //rerun <- 1 until 10
       nKernelsL1 <- 8 until 48 by 4//16 until 17 by 4
       kernelSize <- 4 until 64 by 4 //8 until 64 by 4
-      imageSize <- List(8, /*16, 32, */64)//8 until 64 by 8//16 until 512 by 16
+      imageSize <- List(8, 16, 32, 64)//8 until 64 by 8//16 until 512 by 16
       pathToInputs = Experiment.getPathToInputs(imageSize)
       pathToParams = Experiment.getPathToParams(nKernelsL1, kernelSize, imageSize)
       if exists(get(pathToParams))
@@ -72,10 +72,10 @@ class TestCNN {
       // Load datasets once for all experiments (across all multsPerThread and neuronsPerWrg)
       if Experiment.datasetsExist(pathToParams)
       inputTileSize <- kernelSize until imageSize by 4 // kernelSize
-      elsPerThreadL1 <- List(1) ++ (1 until kernelSize by 1)
-      kernelsPerGroupL1 <- List(1) ++ (1 until nKernelsL1 by 1)
-      multsPerThread <- 4 until 5 by 2
-      neuronsPerWrg <- 4 until 5 by 5
+      elsPerThreadL1 <- List(1) ++ (2 until kernelSize by 1)
+      kernelsPerGroupL1 <- List(1) ++ (2 until nKernelsL1 by 1)
+      multsPerThread <- List(1) ++ (2 until imageSize * imageSize by 2)
+      neuronsPerWrg <- List(1) ++ (2 until fcSize(0) by 2)
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
         try {
