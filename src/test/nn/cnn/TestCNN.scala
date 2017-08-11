@@ -36,7 +36,7 @@ class TestCNN {
   private val logger = Logger(this.getClass)
 
   val precision: Float = 10f
-  val codeVersion: Int = 4
+  val codeVersion: Int = 11
 
   @Test
   def TestCNN(): Unit = {
@@ -54,9 +54,9 @@ class TestCNN {
     var now: Date = null
     for {
       //rerun <- 1 until 10
-      nKernelsL1 <- 8 until 48 by 4//16 until 17 by 4
-      kernelSize <- 4 until 64 by 4 //8 until 64 by 4
-      imageSize <- List(8, 16, 32, 64)//8 until 64 by 8//16 until 512 by 16
+      nKernelsL1 <- 8 to 48 by 4//16 until 17 by 4
+      kernelSize <- 4 to 64 by 4 //8 until 64 by 4
+      imageSize <- List(8, 16, 32, 64, 128, 256, 512, 1024, 2048)//8 until 64 by 8//16 until 512 by 16
       pathToInputs = Experiment.getPathToInputs(imageSize)
       pathToParams = Experiment.getPathToParams(nKernelsL1, kernelSize, imageSize)
       if exists(get(pathToParams))
@@ -65,17 +65,17 @@ class TestCNN {
       if rerunsAllowed || {if (!exists(get(pathToResults))) {
         createDirectory(get(pathToResults))
         true} else false}
-      nInputs <- 8 until 9/*104*/ by 32//520 by 32 //512 by 32
+      nInputs <- List(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 2048)
       // Results dir exists, but doesn't contain results of this experiment or it does, but reruns are allowed:
       if rerunsAllowed || new File(pathToResults).listFiles.toList.count {
         file => file.getName.endsWith("_n%d.csv".format(nInputs))} == 0
       // Load datasets once for all experiments (across all multsPerThread and neuronsPerWrg)
       if Experiment.datasetsExist(pathToParams)
       inputTileSize <- kernelSize until imageSize by 4 // kernelSize
-      elsPerThreadL1 <- List(1) ++ (2 until kernelSize by 1)
-      kernelsPerGroupL1 <- List(1) ++ (2 until nKernelsL1 by 1)
-      multsPerThread <- List(1) ++ (2 until imageSize * imageSize by 2)
-      neuronsPerWrg <- List(1) ++ (2 until fcSize(0) by 2)
+      elsPerThreadL1 <- List(1) ++ (2 to kernelSize by 1)
+      kernelsPerGroupL1 <- List(1) ++ (2 to nKernelsL1 by 1)
+      multsPerThread <- List(1) ++ (2 to imageSize * imageSize by 2)
+      neuronsPerWrg <- List(1) ++ (2 to fcSize(0) by 2)
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
         try {
@@ -154,10 +154,11 @@ class TestCNN {
         catch {
           case e: java.lang.IllegalArgumentException =>
             logger.warn("-----------------------------------------------------------------")
-            logger.warn(e.getMessage)
+            val msg = "EXCEPTION: java.lang.IllegalArgumentException" + e.getMessage
+            logger.warn(msg)
+            recordFailureInSQL(msg, initParams, now)
             logger.warn("SKIPPING EXPERIMENT.")
-            recordFailureInSQL(e, initParams, now)
-            return
+            throw e
             false
         }
       }
@@ -250,6 +251,8 @@ class TestCNN {
         if (!testFailed)
           logger.info(f"SUCCESS. Processed ${aCNN.inputShape.nBatches * aCNN.inputShape.nInputs}%d inputs, " +
             f"the results were equal to targets (precision=$precision%1.4f).")
+        else
+          throw new AssertionError
 
 
         /* JSON */
@@ -261,18 +264,24 @@ class TestCNN {
         /* ---------------------------- RUN EXPERIMENT (END) ---------------------------- */
       } catch {
         case e: opencl.executor.Executor.ExecutorFailureException =>
-          logger.warn("EXCEPTION: opencl.executor.Executor.ExecutorFailureException")
-          logger.warn(e.getMessage)
-          recordFailureInSQL(e, aCNN, now)
+          val msg = "EXCEPTION: opencl.executor.Executor.ExecutorFailureException" + e.getMessage
+          logger.warn(msg)
+          recordFailureInSQL(msg, aCNN, now)
+          throw e
         case e: opencl.executor.DeviceCapabilityException =>
-          logger.warn("EXCEPTION: opencl.executor.DeviceCapabilityException")
-          logger.warn(e.getMessage)
-          recordFailureInSQL(e, aCNN, now)
+          val msg = "EXCEPTION: opencl.executor.DeviceCapabilityException" + e.getMessage
+          logger.warn(msg)
+          recordFailureInSQL(msg, aCNN, now)
+          throw e
+//        case e: lift.arithmetic.NotEvaluableException =>
+//          val msg = "EXCEPTION: lift.arithmetic.NotEvaluableException" + e.getMessage
+//          logger.warn(msg)
+//          recordFailureInSQL(msg, aCNN, now)
       }
     }
   }
 
-  def recordFailureInSQL(e: Exception, iP: Layer.InitParameters, runDate: Date): Unit = {
+  def recordFailureInSQL(exceptionMsg: String, iP: Layer.InitParameters, runDate: Date): Unit = {
     Connector.statement.execute("INSERT INTO lift_results_cnn " +
       "(device_name, n_batches, n_inputs, image_size, " + {
       iP match {
@@ -295,46 +304,52 @@ class TestCNN {
           f"${fcIP.inputShape.size}%d, ${fcIP.neuronShape.size}%d, " +
             f"${fcIP.multsPerThread}%d, ${fcIP.neuronsPerWrg}%d, "
       }
-    } + f"false, '" + e.getMessage + f"', $codeVersion%d, " +
+    } + f"false, '" + exceptionMsg + f"', $codeVersion%d, " +
       f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s');")
   }
 
-  def recordFailureInSQL(e: Exception, aCNN: CNN, runDate: Date): Unit =
-    recordInSQL(aCNN, testRan = true, testFailed = true, runDate, e)
+  def recordFailureInSQL(exceptionMsg: String, aCNN: CNN, runDate: Date): Unit =
+    recordInSQL(aCNN, testRan = true, testFailed = true, runDate, exceptionMsg)
 
-  def recordInSQL(aCNN: CNN, testRan: Boolean, testFailed: Boolean = false, runDate: Date, e: Exception = null): Unit =
+  def recordInSQL(aCNN: CNN, testRan: Boolean, testFailed: Boolean = false, runDate: Date,
+                  exceptionMsg: String = ""): Unit = {
     Connector.statement.execute("INSERT INTO lift_results_cnn " +
-          "(device_name, n_batches, n_inputs, image_size, n_conv_layers, n_fc_layers, " + {
-          for (layerNo <- aCNN.convLayers.indices)
-            yield f"n_kernels_l$layerNo%d, kernel_size_l$layerNo%d, kernel_stride_l$layerNo%d, " +
-              f"input_tile_size_l$layerNo%d, input_tile_stride_l$layerNo%d, " +
-              f"els_per_thread_l$layerNo%d, kernels_per_group_l$layerNo%d"
-        }.mkString(", ") + ", " + {
-          for (layerNo <- aCNN.fcLayers.indices.map(i => i + aCNN.convLayers.length))
-            yield f"input_len_l$layerNo%d_nonpadded, input_len_l$layerNo%d_padded, " +
-              f"n_neurons_l$layerNo%d_nonpadded, n_neurons_l$layerNo%d_padded, " +
-              f"mults_per_thread_l$layerNo%d, neurons_per_wrg_l$layerNo%d"}.mkString(", ") + ", " + {
-          for (layerNo <- 0 until aCNN.nLayers)
-            yield f"runtime_l$layerNo%d"}.mkString(", ") +
-          ", ran, success, experiment_id, datetime) VALUES (" +
-          "'" + nn.deviceName + "', " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
-          f"${aCNN.inputShape.size}%d, " + f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d, " + {
-          for (layerNo <- aCNN.convLayers.indices) yield {
-            val c: Conv = aCNN.layers(layerNo).asInstanceOf[Conv]
-            f"${c.outputShape.nChannels}%d, ${c.kernelSliding.size}%d, ${c.kernelSliding.stride}%d, " +
-              f"${c.inputTiling.size}%d, ${c.inputTiling.stride}%d, " +
-              f"${c.elsPerThread}%d, ${c.kernelsPerGroup}%d"
-          }}.mkString(", ") + ", " + {
-          for (layerNo <- aCNN.fcLayers.indices.map(i => i + aCNN.convLayers.length)) yield {
-            val f: FC = aCNN.layers(layerNo).asInstanceOf[FC]
-            f"${f.inputShape.size}%d, ${f.inputShape.sizePadded}%d, " +
-              f"${f.neuronShape.size}%d, ${f.neuronShape.sizePadded}%d, " +
-              f"${f.multsPerThread}%d, ${f.neuronsPerWrg}%d"
-          }}.mkString(", ") + ", " + {
-          for (layerNo <- 0 until aCNN.nLayers)
-            yield f"${aCNN.layers(layerNo).runtime}%1.5f"
-        }.mkString(", ") + f", ${testRan}%b, ${!testFailed}%b, $codeVersion%d, " +
-          f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s');")
+      "(device_name, n_batches, n_inputs, image_size, n_conv_layers, n_fc_layers, " + {
+      for (layerNo <- aCNN.convLayers.indices)
+        yield f"n_kernels_l$layerNo%d, kernel_size_l$layerNo%d, kernel_stride_l$layerNo%d, " +
+          f"input_tile_size_l$layerNo%d, input_tile_stride_l$layerNo%d, " +
+          f"els_per_thread_l$layerNo%d, kernels_per_group_l$layerNo%d"
+    }.mkString(", ") + ", " + {
+      for (layerNo <- aCNN.fcLayers.indices.map(i => i + aCNN.convLayers.length))
+        yield f"input_len_l$layerNo%d_nonpadded, input_len_l$layerNo%d_padded, " +
+          f"n_neurons_l$layerNo%d_nonpadded, n_neurons_l$layerNo%d_padded, " +
+          f"mults_per_thread_l$layerNo%d, neurons_per_wrg_l$layerNo%d"
+    }.mkString(", ") + ", " + {
+      for (layerNo <- 0 until aCNN.nLayers)
+        yield f"runtime_l$layerNo%d"
+    }.mkString(", ") +
+      ", ran, success, abort_reason, experiment_id, datetime) VALUES (" +
+      "'" + nn.deviceName + "', " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
+      f"${aCNN.inputShape.size}%d, " + f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d, " + {
+      for (layerNo <- aCNN.convLayers.indices) yield {
+        val c: Conv = aCNN.layers(layerNo).asInstanceOf[Conv]
+        f"${c.outputShape.nChannels}%d, ${c.kernelSliding.size}%d, ${c.kernelSliding.stride}%d, " +
+          f"${c.inputTiling.size}%d, ${c.inputTiling.stride}%d, " +
+          f"${c.elsPerThread}%d, ${c.kernelsPerGroup}%d"
+      }
+    }.mkString(", ") + ", " + {
+      for (layerNo <- aCNN.fcLayers.indices.map(i => i + aCNN.convLayers.length)) yield {
+        val f: FC = aCNN.layers(layerNo).asInstanceOf[FC]
+        f"${f.inputShape.size}%d, ${f.inputShape.sizePadded}%d, " +
+          f"${f.neuronShape.size}%d, ${f.neuronShape.sizePadded}%d, " +
+          f"${f.multsPerThread}%d, ${f.neuronsPerWrg}%d"
+      }
+    }.mkString(", ") + ", " + {
+      for (layerNo <- 0 until aCNN.nLayers)
+        yield f"${aCNN.layers(layerNo).runtime}%1.5f"
+    }.mkString(", ") + f", $testRan%b, ${!testFailed}%b, '" + exceptionMsg.replaceAll("'", "''") + f"', $codeVersion%d, " +
+      f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s');")
+  }
 
 
   def recordInJSON(aCNN: CNN, runDate: Date): Unit = {

@@ -19,8 +19,6 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 
 def saveToBinary(arr, filename):
-    print(filename)
-    print(arr.astype(np.float16).tolist())
     flatten = lambda l: [item for sublist in l for item in sublist]
     # Save to binary file
     dim = len(arr.shape)
@@ -179,7 +177,7 @@ class CNN:
 
         # Store layers weight & bias
         # TODO: rebuild Tensorflow to support GPU
-        with tf.device('/cpu:0'):
+        with tf.device('/gpu:0'):
             self.weights = {
                 'wconv1': tf.Variable(tf.random_normal([self.n_kernels[0], self.kernel_shape[0], self.kernel_shape[1],
                                                         self.image_shape[2]])),
@@ -219,6 +217,7 @@ class CNN:
 
             # Session configuration
             self.config = tf.ConfigProto()
+            self.config.gpu_options.allow_growth = True
             # log_device_placement=True)
 
             # Get experiment directory name
@@ -279,54 +278,55 @@ class CNN:
         self.mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
         # Launch the graph
-        with tf.Session(config=self.config) as sess:
-            sess.run(self.init)
-            step = 1
-            # Keep training until reach max iterations
-            acc = 0
-            # while step * batch_size < training_iters:
-            while acc < 0.2:
-                batch_x, batch_y = self.mnist.train.next_batch(self.batch_size)
-                # Run optimization op (backprop)
-                sess.run(self.optimizer, feed_dict={self.x: batch_x, self.y: batch_y,
-                                                    self.keep_prob: self.dropout})
-                if step % self.display_step == 0:
-                    # Calculate batch loss and accuracy
-                    loss, acc = sess.run([self.cost, self.accuracy], feed_dict={self.x: batch_x,
-                                                                                self.y: batch_y})
-                    print("Iter " + str(step * self.batch_size) + ", Minibatch Loss= " +
-                          "{:.6f}".format(loss) + ", Training Accuracy= " +
-                          "{:.5f}".format(acc))
-                step += 1
-            print("Optimization Finished!")
+        with tf.device('/gpu:0'):
+            with tf.Session(config=self.config) as sess:
+                sess.run(self.init)
+                step = 1
+                # Keep training until reach max iterations
+                acc = 0
+                # while step * batch_size < training_iters:
+                while acc < 0.2:
+                    batch_x, batch_y = self.mnist.train.next_batch(self.batch_size)
+                    # Run optimization op (backprop)
+                    sess.run(self.optimizer, feed_dict={self.x: batch_x, self.y: batch_y,
+                                                        self.keep_prob: self.dropout})
+                    if step % self.display_step == 0:
+                        # Calculate batch loss and accuracy
+                        loss, acc = sess.run([self.cost, self.accuracy], feed_dict={self.x: batch_x,
+                                                                                    self.y: batch_y})
+                        print("Iter " + str(step * self.batch_size) + ", Minibatch Loss= " +
+                              "{:.6f}".format(loss) + ", Training Accuracy= " +
+                              "{:.5f}".format(acc))
+                    step += 1
+                print("Optimization Finished!")
 
-            # Calculate accuracy for 256 mnist test images
-            print("Testing Accuracy:",
-                  sess.run(self.accuracy, feed_dict={self.x: self.mnist.test.images[:256],
-                                                     self.y: self.mnist.test.labels[:256],
-                                                     self.keep_prob: 1.}))
-            # Backup params
-            self.trained_weights = sess.run(self.weights)
-            self.trained_biases = sess.run(self.biases)
+                # Calculate accuracy for 256 mnist test images
+                print("Testing Accuracy:",
+                      sess.run(self.accuracy, feed_dict={self.x: self.mnist.test.images[:256],
+                                                         self.y: self.mnist.test.labels[:256],
+                                                         self.keep_prob: 1.}))
+                # Backup params
+                self.trained_weights = sess.run(self.weights)
+                self.trained_biases = sess.run(self.biases)
 
-        trained_params = {}
-        for weight_key in self.trained_weights:
-            if len(self.trained_weights[weight_key].shape) == 2:
-                # MLP weights
-                trained_params[weight_key] = self.trained_weights[weight_key].transpose()
-            else:
-                # Convolutional weights
-                trained_params[weight_key] = self.trained_weights[weight_key]
-        trained_params = {**trained_params, **self.trained_biases}
+            trained_params = {}
+            for weight_key in self.trained_weights:
+                if len(self.trained_weights[weight_key].shape) == 2:
+                    # MLP weights
+                    trained_params[weight_key] = self.trained_weights[weight_key].transpose()
+                else:
+                    # Convolutional weights
+                    trained_params[weight_key] = self.trained_weights[weight_key]
+            trained_params = {**trained_params, **self.trained_biases}
 
-        for param_name in trained_params:
-            saveToBinary(trained_params[param_name], self.results_path + '/' + param_name + '.binary')
-            # json_string = json.dumps(trained_params[param_name].astype(np.float16).tolist())
-            # print(trained_params[param_name].shape)
-            # with open(self.results_path + '/' + param_name + '.json', 'w') as outfile:
-            #     outfile.write(json_string)
-            #     outfile.close()
-            print("Saved param \"" + param_name + "\"")
+            for param_name in trained_params:
+                saveToBinary(trained_params[param_name], self.results_path + '/' + param_name + '.binary')
+                # json_string = json.dumps(trained_params[param_name].astype(np.float16).tolist())
+                # print(trained_params[param_name].shape)
+                # with open(self.results_path + '/' + param_name + '.json', 'w') as outfile:
+                #     outfile.write(json_string)
+                #     outfile.close()
+                print("Saved param \"" + param_name + "\"")
 
     def train_bogus(self):
         """
@@ -410,10 +410,6 @@ class CNN:
         for bias_name in self.trained_biases:
             trained_biases_tensors[bias_name] = \
                 tf.Variable(self.trained_biases[bias_name].astype(dtype=np.float32))
-            # tf.placeholder(tf.float32,
-                #                                                shape=self.trained_biases[bias_name].shape)
-                # = tf.convert_to_tensor(
-                # self.trained_biases[bias_name].astype(np.float32))
 
         # ---------------------- Forward propagation ---------------------- #
 
@@ -425,12 +421,12 @@ class CNN:
 
         # Initializing the variables
         init = tf.global_variables_initializer()
-
         # Launch the graph
-        with tf.Session(config=self.config) as sess:
-            sess.run(init)
-            # Produce outputs
-            test_results = sess.run([pred], feed_dict={self.x: test_batch_images_flat})[0]
+        with tf.device('/gpu:0'):
+            with tf.Session(config=self.config) as sess:
+                sess.run(init)
+                # Produce outputs
+                test_results = sess.run([pred], feed_dict={self.x: test_batch_images_flat})[0]
 
         # ---------------------- Forward propagation ---------------------- #
 

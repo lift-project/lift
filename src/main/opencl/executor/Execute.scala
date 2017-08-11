@@ -789,7 +789,15 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       (memories._1 ++ memories._2).
         partition(_.mem.addressSpace == GlobalMemory)
 
-    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval)
+    val globalSizes = globalMemories.map(mem => {
+      try {
+        ArithExpr.substitute(mem.mem.size, valueMap).eval
+      } catch {
+        case NotEvaluableException() =>
+          throw new IllegalKernelArgument(s"Kernel argument ${mem.mem.variable.toString} size is not whole " +
+            s"(${mem.mem.size.toString})")
+      }
+    })
     val totalSizeOfGlobal = globalSizes.sum
     val totalSizeOfLocal = localMemories.map(mem =>
       ArithExpr.substitute(mem.mem.size, valueMap).eval).sum

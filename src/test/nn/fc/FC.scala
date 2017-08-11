@@ -87,7 +87,7 @@ object FC {
                     MapLcl(2)(λ((neuronPartialSums) => {
                       //TransposeW() o
                       toGlobal(MapSeq(activation_f)) o ReduceSeq(add, toPrivate(id) $ neuronBias) $ neuronPartialSums
-                    })) o Split(input_shape.size / tile.seqEls) $ neuronPartialSumsToWrap
+                    })) o Split(input_tile_size / tile.seqEls) $ neuronPartialSumsToWrap
                   })) $ Zip(b_tile2, /*PrintType("input_tile") $ */tile_of_neurons)
                 })) o Split(tile.neurons) $ input
               })) o //PrintType("After transform") o
@@ -154,11 +154,13 @@ object FC {
     val exceptionMsgPrefix: String = "In the FC layer with the following configuration:\n" +
       configToString(iP.neuronShape.size, iP.multsPerThread, iP.neuronsPerWrg)
 
-    // Calculate input tile size without considering if it will be divisible by multsPerThread
-    var inputTileSize: Int = Math.ceil(iP.inputShape.size.toFloat / Math.ceil(
-      iP.inputShape.size.toFloat * iP.neuronsPerWrg / (nn.maxWorkGroupSize * iP.multsPerThread))).toInt
-    // Make sure it is divisible by multsPerThread
-    inputTileSize = iP.multsPerThread * Math.ceil(inputTileSize / iP.multsPerThread).toInt
+    val inputTileSize: Int = {
+        val iTSNonPadded: Int = Math.min(iP.inputShape.size,
+          Math.floor(nn.maxWorkGroupSize.toFloat * iP.multsPerThread / iP.neuronsPerWrg).toInt)
+        // Make sure iTS is divisible by multsPerThread, but use floor instead of ceil to avoid breaking
+        // the maxWrokGroupSize limit
+        (iP.multsPerThread * Math.floor(iTSNonPadded.toFloat / iP.multsPerThread)).toInt
+      }
 
     // Padding: calculate how many neurons will need to be added
     iP.neuronShape.sizePadded = iP.neuronsPerWrg * Math.ceil(iP.neuronShape.size.toFloat / iP.neuronsPerWrg).toInt
@@ -172,11 +174,11 @@ object FC {
     }
 
     // Check that padding didn't change dataset size too much
-    if (iP.inputShape.sizePadded > iP.inputShape.size * 1.5)
+    if (iP.inputShape.sizePadded > iP.inputShape.size * 10)
       throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
         f"padding with input bits increased the data set size too much, which might skew the experiment purity: " +
         f"inputShape.sizePadded(==${iP.inputShape.sizePadded}%d) > " +
-        f"inputShape.size (${iP.inputShape.size.toFloat}%.02f) * 1.5")
+        f"inputShape.size (${iP.inputShape.size.toFloat}%.02f) * 10")
 
     // Check neuronsPerWrg. Padding should ensure that this never happens, but for test coverage this check remains
 //    if (neuronShape.sizePadded % neuronsPerWrg != 0)
@@ -198,7 +200,8 @@ object FC {
 //          f"increase multsPerThread.")
 
     // Layer size 0 = the number of images in a batch or 1 if a single image cannot be processed by one group
-    localSize(0) = Math.floor(nn.maxWorkGroupSize.toFloat / localSize(1)).toInt
+    localSize(0) = Math.min(iP.inputShape.nInputs,
+      Math.max(1, Math.floor(nn.maxWorkGroupSize.toFloat / localSize(1)).toInt))
 
     localSize(2) = 1
 
