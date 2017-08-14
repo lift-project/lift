@@ -22,13 +22,13 @@
     "load_balancing" : false,
     "unroll_reduce" : true,
     "global0" : false,
-    "global01" : true,
-    "global10" : false,
+    "global01" : false,
+    "global10" : true,
     "global012" : false,
     "global210" : false,
     "group0" : false,
-    "group01" : true,
-    "group10" :false
+    "group01" : false,
+    "group10" : true
   },
 
   "local_memory_rules" : {
@@ -49,7 +49,7 @@
   "generic_kernel_printer" : {
     "speedup" : 1.0,
     "configs_to_achieve_speedup" : 250,
-    "timeout_in_seconds" : 7200,
+    "timeout_in_seconds" : 3600,
     "max_configs" : 999999999,
     "max_local_size" : 1024,
     "vendor" : "NVIDIA",

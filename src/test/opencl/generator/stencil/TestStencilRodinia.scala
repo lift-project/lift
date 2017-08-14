@@ -77,6 +77,46 @@ class TestStencilRodinia {
   /* **********************************************************
      RODINIA HOTSPOT
  ***********************************************************/
+  def test = UserFun("hotspot", Array("power", "top", "bottom", "left", "right", "center"), """
+      |#define MAX_PD  (3.0e6)
+      |#define PRECISION   0.001
+      |#define SPEC_HEAT_SI 1.75e6
+      |#define K_SI 100
+      |#define FACTOR_CHIP 0.5
+      |
+      |    /* chip parameters  */
+      |    const float t_chip = 0.0005f;
+      |    const float chip_height = 0.016f;
+      |    const float chip_width = 0.016f;
+      |    /* ambient temperature, assuming no package at all  */
+      |    const float amb_temp = 80.0f;
+      |
+      |    float row = 512.0f;
+      |    float col = 512.0f;
+      |
+      |    float grid_height = chip_height / row;
+      |    float grid_width = chip_width / col;
+      |
+      |    float Cap = FACTOR_CHIP * SPEC_HEAT_SI * t_chip * grid_width * grid_height;
+      |    float Rx = grid_width / (2.0 * K_SI * t_chip * grid_height);
+      |    float Ry = grid_height / (2.0 * K_SI * t_chip * grid_width);
+      |    float Rz = t_chip / (K_SI * grid_height * grid_width);
+      |
+      |    float max_slope = MAX_PD / (FACTOR_CHIP * t_chip * SPEC_HEAT_SI);
+      |    float stepl = PRECISION / max_slope;
+      |
+      |    float step_div_Cap=stepl/Cap;
+      |    float Rx_1=1/Rx;
+      |    float Ry_1=1/Ry;
+      |    float Rz_1=1/Rz;
+      |
+      |    return center +
+      |       step_div_Cap * (power + (bottom + top - 2.0f * center) * Ry_1 +
+      |               (right + left - 2.0f * center) * Rx_1 + (amb_temp - center) * Rz_1);
+      |
+    """.stripMargin, Seq(Float, Float, Float, Float, Float, Float), Float)
+
+
   @Test def rodiniaHotspot(): Unit = {
 
     LongTestsEnabled()
