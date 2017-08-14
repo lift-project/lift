@@ -11,7 +11,7 @@
     "vector_width" : 4,
     "sequential" : false,
     "only_lower" : false,
-    "old_string_representation" : false,
+    "keep_range_information" : true,
     "rule_collection" : "convolution2D"
   },
 
@@ -50,8 +50,6 @@
     "speedup" : 1.0,
     "configs_to_achieve_speedup" : 100,
     "timeout_in_seconds" : 3600,
-    "max_configs" : 500,
-    "max_local_size" : 256,
     "vendor" : "ARM",
     "device_type" : "GPU",
     "device_id" : 0

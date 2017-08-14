@@ -54,7 +54,6 @@ object GenericKernelPrinter {
   private[exploration] val defaultConfigsToAchieveSpeedup = 100
   private[exploration] val defaultTimeoutInSeconds = 60
   private[exploration] val defaultMaxConfigs = 500
-  private[exploration] val defaultMaxLocalSize = 512
   private[exploration] val defaultVendor = "Nvidia"
   private[exploration] val defaultDeviceType = "GPU"
   private[exploration] val defaultDeviceId = 0
@@ -70,9 +69,6 @@ object GenericKernelPrinter {
 
   protected[exploration] val maxConfigs = parser.option[Int](List("maxConfigs"), "m",
     s"Abort tuning after trying m configs (default: $defaultMaxConfigs)")
-
-  protected[exploration] val maxLocalSize = parser.option[Int](List("maxLocalSize"), "l",
-    s"Specifies max local size per dimension for device - see clinfo (default: $defaultMaxLocalSize)")
 
   protected[exploration] val vendor = parser.option[String](List("vendor"), "v",
     s"Specifies which OpenCL platform to use (matches substring) (default: $defaultVendor)")
@@ -227,10 +223,12 @@ object GenericKernelPrinter {
                   val searchTechnique = "atf::open_tuner"
                   sb.append(s"""#atf::search_technique \"$searchTechnique\"\n""")
 
+                  // use only speed-up and duration condition for now
                   val abortCondition =
                     s"atf::cond::speedup(${config.speedup},${config.configsToAchieveSpeedup}) || " +
-                    s"atf::cond::duration<::std::chrono::seconds>(${config.timeoutInSeconds}) || " +
-                    s"atf::cond::evaluations(${config.maxConfigs})"
+                    s"atf::cond::duration<::std::chrono::seconds>(${config.timeoutInSeconds})"
+                    //s"atf::cond::duration<::std::chrono::seconds>(${config.timeoutInSeconds}) || " +
+                    //s"atf::cond::evaluations(${config.maxConfigs})"
                     //s"atf::cond::evaluations(${config.maxConfigs}) || " +
                     /*s"atf::cond::abort_when_not_better(16000000, 250)"*/
                   sb.append(s"""#atf::abort_condition \"$abortCondition\"\n""")
@@ -271,7 +269,7 @@ object GenericKernelPrinter {
                   assert(usedDimensions <= 3)
 
                   val localSizeDirectives = Seq.tabulate[String](usedDimensions)(
-                    i => s"""#atf::tp name \"LOCAL_SIZE_$i\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,${config.maxLocalSize})" \\\n constraint \"atf::divides(GLOBAL_SIZE_$i)\"\n""")
+                    i => s"""#atf::tp name \"LOCAL_SIZE_$i\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,${settings.searchParameters.maxLocalSize})" \\\n constraint \"atf::divides(GLOBAL_SIZE_$i)\"\n""")
                   localSizeDirectives.foreach(x => sb.append(x))
 
                   // add tuning parameter directives

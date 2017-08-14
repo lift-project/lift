@@ -2,7 +2,6 @@ package exploration
 
 import com.typesafe.scalalogging.Logger
 import lift.arithmetic.{ArithExpr, Cst}
-import org.clapper.argot.{FlagOption, SingleValueOption}
 import play.api.libs.json.Reads._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
@@ -12,7 +11,6 @@ case class GenericKernelPrinterSettings (
   configsToAchieveSpeedup: Int,
   timeoutInSeconds: Int,
   maxConfigs: Int,
-  maxLocalSize: Int,
   vendor: String,
   deviceType: String,
   deviceId: Int
@@ -23,7 +21,6 @@ case class GenericKernelPrinterSettings (
      |    configsToAchieveSpeedup: $configsToAchieveSpeedup
      |    timeoutInSeconds: $timeoutInSeconds
      |    maxConfigs: $maxConfigs
-     |    maxLocalSize: $maxLocalSize
      |    vendor: $vendor
      |    deviceType: $deviceType
      |    deviceId: $deviceId
@@ -35,13 +32,12 @@ object GenericKernelPrinterSettings {
   import GenericKernelPrinter._
   import exploration.utils.ExplorationParameter._
 
-  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None)
+  def createDefault = createWithDefaults(None, None, None, None, None, None, None)
   def createWithDefaults(
                         configSpeedup: Option[Float],
                         configConfigsToAchieveSpeedup: Option[Int],
                         configTimeoutInSeconds: Option[Int],
                         configMaxConfigs: Option[Int],
-                        configMaxLocalSize: Option[Int],
                         configVendor: Option[String],
                         configDeviceType: Option[String],
                         configDeviceId: Option[Int]
@@ -50,7 +46,6 @@ object GenericKernelPrinterSettings {
     getValue(configsToAchieveSpeedup, configConfigsToAchieveSpeedup, defaultConfigsToAchieveSpeedup),
     getValue(timeoutInSeconds, configTimeoutInSeconds, defaultTimeoutInSeconds),
     getValue(maxConfigs, configMaxConfigs, defaultMaxConfigs),
-    getValue(maxLocalSize, configMaxLocalSize, defaultMaxLocalSize),
     getValue(vendor, configVendor, defaultVendor),
     getValue(deviceType, configDeviceType, defaultDeviceType),
     getValue(deviceId, configDeviceId, defaultDeviceId))
@@ -372,7 +367,6 @@ object ParseSettings {
     (JsPath \ "configs_to_achieve_speedup").readNullable[Int] and
     (JsPath \ "timeout_in_seconds").readNullable[Int] and
     (JsPath \ "max_configs").readNullable[Int] and
-    (JsPath \ "max_local_size").readNullable[Int] and
     (JsPath \ "vendor").readNullable[String] and
     (JsPath \ "device_type").readNullable[String] and
     (JsPath \ "device_id").readNullable[Int]
