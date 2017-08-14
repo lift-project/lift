@@ -141,9 +141,7 @@ object OpenCLMemoryAllocator {
         allocMapSeqLcl(call.f.asInstanceOf[AbstractMap],
           call.t, numGlb, numLcl, numPvt, inMem)
 
-      case FilterSeq(_, _, _) =>
-        allocFilterSeq(call.f.asInstanceOf[FilterSeq],
-          call.t, numGlb, numLcl, numPvt, inMem)
+      case fs: FilterSeq => allocFilterSeq(fs, call, numGlb, numLcl, numPvt, inMem)
 
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
 
@@ -260,16 +258,15 @@ object OpenCLMemoryAllocator {
           numPvt * privateMultiplier)
   }
   
-  private def allocFilterSeq(fs: FilterSeq, outT: Type,
+  private def allocFilterSeq(fs: FilterSeq, call: FunCall,
                              numGlb: ArithExpr,
                              numLcl: ArithExpr,
                              numPvt: ArithExpr,
                              inMem: OpenCLMemory): OpenCLMemory = {
-    val len = Type.getMaxLength(outT)
     fs.f.params.head.mem = inMem
-    fs.copyFun.params.head.mem = inMem
     alloc(fs.f.body, numGlb, numLcl, numPvt)
-    alloc(fs.copyFun.body, numGlb * len, numLcl * len, numPvt)
+    val sizeInBytes = Type.getAllocatedSize(call.t)
+    OpenCLMemory.allocMemory(sizeInBytes, sizeInBytes, sizeInBytes, call.addressSpace)
   }
 
   private def allocReduce(r: AbstractPartRed,
