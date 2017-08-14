@@ -367,7 +367,6 @@ object ParseSettings {
     (JsPath \ "configs_to_achieve_speedup").readNullable[Int] and
     (JsPath \ "timeout_in_seconds").readNullable[Int] and
     (JsPath \ "max_configs").readNullable[Int] and
-    (JsPath \ "max_local_size").readNullable[Int] and
     (JsPath \ "vendor").readNullable[String] and
     (JsPath \ "device_type").readNullable[String] and
     (JsPath \ "device_id").readNullable[Int]

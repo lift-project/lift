@@ -50,8 +50,6 @@
     "speedup" : 1.0,
     "configs_to_achieve_speedup" : 250,
     "timeout_in_seconds" : 3600,
-    "max_configs" : 999999999,
-    "max_local_size" : 1024,
     "vendor" : "NVIDIA",
     "device_type" : "GPU",
     "device_id" : 0

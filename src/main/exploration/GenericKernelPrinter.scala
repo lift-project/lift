@@ -223,10 +223,12 @@ object GenericKernelPrinter {
                   val searchTechnique = "atf::open_tuner"
                   sb.append(s"""#atf::search_technique \"$searchTechnique\"\n""")
 
+                  // use only speed-up and duration condition for now
                   val abortCondition =
                     s"atf::cond::speedup(${config.speedup},${config.configsToAchieveSpeedup}) || " +
-                    s"atf::cond::duration<::std::chrono::seconds>(${config.timeoutInSeconds}) || " +
-                    s"atf::cond::evaluations(${config.maxConfigs})"
+                    s"atf::cond::duration<::std::chrono::seconds>(${config.timeoutInSeconds})"
+                    //s"atf::cond::duration<::std::chrono::seconds>(${config.timeoutInSeconds}) || " +
+                    //s"atf::cond::evaluations(${config.maxConfigs})"
                     //s"atf::cond::evaluations(${config.maxConfigs}) || " +
                     /*s"atf::cond::abort_when_not_better(16000000, 250)"*/
                   sb.append(s"""#atf::abort_condition \"$abortCondition\"\n""")
