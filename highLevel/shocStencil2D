@@ -1,7 +1,6 @@
 val M = SizeVar("M") //need to be power_of_two +2 because of missing pad
 val N = SizeVar("N")
 
-/* old expression
 fun(
     ArrayType(ArrayType(Float, M), N),
     ArrayType(Float, Cst(9)),
@@ -13,8 +12,8 @@ fun(
 			         Join() $ neighbourhood)))) o
 		Slide2D(3, 1) $ input
   })
-  */
 
+/*
 fun(
     ArrayType(ArrayType(Float, M), N),
     ArrayType(Float, Cst(9)),
@@ -29,3 +28,4 @@ fun(
                           }) )) o
 		Slide2D(3, 1) $ input
   })
+  */
