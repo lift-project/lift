@@ -46,14 +46,22 @@
     "generate_scala" : false
   },
 
-  "generic_kernel_printer" : {
+ "generic_kernel_printer" : {
+    "enable_speedup_condition" : true,
     "speedup" : 1.0,
     "configs_to_achieve_speedup" : 250,
+    "enable_timeout_condition" : true,
     "timeout_in_seconds" : 3600,
+    "enable_max_configs_condition" : false,
+    "max_configs" : 500,
+    "enable_not_better_than_condition" : true,
+    "not_better_than_in_ns" : 12000000,
+    "not_better_within_configs" : 250,
     "vendor" : "NVIDIA",
     "device_type" : "GPU",
     "device_id" : 0
   },
+
 
   "search_parameters" : {
     "default_input_size" : 8194,
