@@ -19,8 +19,7 @@ fun(
     ArrayType(Float, Cst(9)),
     (input, weights) => {
         Map(Map(fun(elem => {
-                            toGlobal(MapSeqUnroll(id)) o
-                              ReduceSeqUnroll(fun( (acc, pair) => {
+                              Reduce(fun( (acc, pair) => {
                                 val pixel = pair._0
                                 val weight = pair._1
                                 multAndSumUp.apply(acc, pixel, weight)
@@ -28,4 +27,4 @@ fun(
                           }) )) o
 		Slide2D(3, 1) $ input
   })
-*/
+  */

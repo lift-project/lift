@@ -6,21 +6,33 @@ import play.api.libs.json.Reads._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 
-case class GenericKernelPrinterSettings (
-  speedup: Float,
-  configsToAchieveSpeedup: Int,
-  timeoutInSeconds: Int,
-  maxConfigs: Int,
-  vendor: String,
-  deviceType: String,
-  deviceId: Int
+case class GenericKernelPrinterSettings(
+enableSpeedupCondition: Boolean,
+speedup: Float,
+configsToAchieveSpeedup: Int,
+enableTimeoutCondition: Boolean,
+timeoutInSeconds: Int,
+enableMaxConfigsCondition: Boolean,
+maxConfigs: Int,
+enableNotBetterThanCondition: Boolean,
+notBetterThanInNs: Int,
+notBetterWithinConfigs: Int,
+vendor: String,
+deviceType: String,
+deviceId: Int
 ) {
-  override def toString: String =
-  s"""GenericKernelPrinterSettings:
+override def toString: String =
+s"""GenericKernelPrinterSettings:
+     |    enableSpeedupCondition: $enableSpeedupCondition
      |    speedup: $speedup
      |    configsToAchieveSpeedup: $configsToAchieveSpeedup
+     |    enableTimeoutCondition: $enableTimeoutCondition
      |    timeoutInSeconds: $timeoutInSeconds
+     |    enableMaxConfigsCondition: $enableMaxConfigsCondition
      |    maxConfigs: $maxConfigs
+     |    enableNotBetterThanCondition: $enableNotBetterThanCondition
+     |    notBetterThanInNs: $notBetterThanInNs
+     |    notBetterWithinConfigs: $notBetterWithinConfigs
      |    vendor: $vendor
      |    deviceType: $deviceType
      |    deviceId: $deviceId
@@ -32,51 +44,65 @@ object GenericKernelPrinterSettings {
   import GenericKernelPrinter._
   import exploration.utils.ExplorationParameter._
 
-  def createDefault = createWithDefaults(None, None, None, None, None, None, None)
+  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None, None, None, None, None)
+
   def createWithDefaults(
-                        configSpeedup: Option[Float],
-                        configConfigsToAchieveSpeedup: Option[Int],
-                        configTimeoutInSeconds: Option[Int],
-                        configMaxConfigs: Option[Int],
-                        configVendor: Option[String],
-                        configDeviceType: Option[String],
-                        configDeviceId: Option[Int]
-                        ) = GenericKernelPrinterSettings (
+                          configEnableSpeedupCondition: Option[Boolean],
+                          configSpeedup: Option[Float],
+                          configConfigsToAchieveSpeedup: Option[Int],
+                          configEnableTimeoutCondition: Option[Boolean],
+                          configTimeoutInSeconds: Option[Int],
+                          configEnableMaxConfigsCondition: Option[Boolean],
+                          configMaxConfigs: Option[Int],
+                          configEnableNotBetterThanCondition: Option[Boolean],
+                          configNotBetterThanInNs: Option[Int],
+                          configNotBetterWithinConfigs: Option[Int],
+                          configVendor: Option[String],
+                          configDeviceType: Option[String],
+                          configDeviceId: Option[Int]
+                        ) = GenericKernelPrinterSettings(
+    getValue(enableSpeedupCondition, configEnableSpeedupCondition, defaultEnableSpeedupCondition),
     getValue(speedup, configSpeedup, defaultSpeedup),
     getValue(configsToAchieveSpeedup, configConfigsToAchieveSpeedup, defaultConfigsToAchieveSpeedup),
+    getValue(enableTimeoutCondition, configEnableTimeoutCondition, defaultEnableTimeoutCondition),
     getValue(timeoutInSeconds, configTimeoutInSeconds, defaultTimeoutInSeconds),
+    getValue(enableMaxConfigsCondition, configEnableMaxConfigsCondition, defaultEnableMaxConfigsCondition),
     getValue(maxConfigs, configMaxConfigs, defaultMaxConfigs),
+    getValue(enableNotBetterThanCondition, configEnableNotBetterThanCondition, defaultEnableNotBetterThanCondition),
+    getValue(notBetterThanInNs, configNotBetterThanInNs, defaultNotBetterThanInNs),
+    getValue(notBetterWithinConfigs, configNotBetterWithinConfigs, defaultNotBetterWithinConfigs),
     getValue(vendor, configVendor, defaultVendor),
     getValue(deviceType, configDeviceType, defaultDeviceType),
     getValue(deviceId, configDeviceId, defaultDeviceId))
 }
 
-case class LocalMemoryRulesSettings (
-  addIdForCurrentValueInReduce: Boolean,
-  addIdMapLcl: Boolean,
-  addIdMapWrg: Boolean,
-  addIdAfterReduce: Boolean
-) {
+case class LocalMemoryRulesSettings(
+                                     addIdForCurrentValueInReduce: Boolean,
+                                     addIdMapLcl: Boolean,
+                                     addIdMapWrg: Boolean,
+                                     addIdAfterReduce: Boolean
+                                   ) {
   override def toString: String =
-     s"""LocalMemoryRulesSettings:
-        |    addIdForCurrentValueInReduce: $addIdForCurrentValueInReduce
-        |    addIdMapLcl: $addIdMapLcl
-        |    addIdMapWrg: $addIdMapWrg
-        |    addIdAfterReduce: $addIdAfterReduce
+    s"""LocalMemoryRulesSettings:
+       |    addIdForCurrentValueInReduce: $addIdForCurrentValueInReduce
+       |    addIdMapLcl: $addIdMapLcl
+       |    addIdMapWrg: $addIdMapWrg
+       |    addIdAfterReduce: $addIdAfterReduce
       """.stripMargin
 }
 
-object LocalMemoryRulesSettings{
+object LocalMemoryRulesSettings {
 
   import MemoryMappingRewrite._
   import utils.ExplorationParameter._
 
   def createDefault = createWithDefaults(None, None, None, None)
+
   def createWithDefaults(
-                        configAddIdForCurrentValueInReduce: Option[Boolean],
-                        configAddIdMapLcl: Option[Boolean],
-                        configAddIdMapWrg: Option[Boolean],
-                        configAddIdAfterReduce: Option[Boolean]
+                          configAddIdForCurrentValueInReduce: Option[Boolean],
+                          configAddIdMapLcl: Option[Boolean],
+                          configAddIdMapWrg: Option[Boolean],
+                          configAddIdAfterReduce: Option[Boolean]
                         ) = LocalMemoryRulesSettings(
     getValue(addIdForCurrentValueInReduce, configAddIdAfterReduce, defaultAddIdForCurrentValueInReduce),
     getValue(addIdMapLcl, configAddIdMapLcl, defaultAddIdMapLcl),
@@ -85,19 +111,19 @@ object LocalMemoryRulesSettings{
 }
 
 case class ParameterRewriteSettings(
-  exploreNDRange: Boolean,
-  sampleNDRange: Int,
-  disableNDRangeInjection: Boolean,
-  sequential: Boolean,
-  generateScala: Boolean
-) {
+                                     exploreNDRange: Boolean,
+                                     sampleNDRange: Int,
+                                     disableNDRangeInjection: Boolean,
+                                     sequential: Boolean,
+                                     generateScala: Boolean
+                                   ) {
   override def toString: String =
-  s"""ParameterRewriteSettings:
-     |    exploreNDRange: $exploreNDRange
-     |    sampleNDRange: $sampleNDRange
-     |    disableNDRangeInjection: $disableNDRangeInjection
-     |    sequential: $sequential
-     |    generateScala: $generateScala
+    s"""ParameterRewriteSettings:
+       |    exploreNDRange: $exploreNDRange
+       |    sampleNDRange: $sampleNDRange
+       |    disableNDRangeInjection: $disableNDRangeInjection
+       |    sequential: $sequential
+       |    generateScala: $generateScala
    """.stripMargin
 }
 
@@ -107,12 +133,13 @@ object ParameterRewriteSettings {
   import exploration.utils.ExplorationParameter._
 
   def createDefault = createWithDefaults(None, None, None, None, None)
+
   def createWithDefaults(
-                        configExploreNDRange: Option[Boolean],
-                        configSampleNDRange: Option[Int],
-                        configDisableNDRangeInjection: Option[Boolean],
-                        configSequential: Option[Boolean],
-                        configGenerateScala: Option[Boolean]
+                          configExploreNDRange: Option[Boolean],
+                          configSampleNDRange: Option[Int],
+                          configDisableNDRangeInjection: Option[Boolean],
+                          configSequential: Option[Boolean],
+                          configGenerateScala: Option[Boolean]
                         ) = ParameterRewriteSettings(
     getValue(exploreNDRange, configExploreNDRange, defaultExploreNDRange),
     getValue(sampleNDRange, configSampleNDRange, defaultSampleNDRange),
@@ -122,35 +149,35 @@ object ParameterRewriteSettings {
 }
 
 case class MemoryMappingRewriteSettings(
-                                       vectorize: Boolean,
-                                       vectorWidth: Int,
-                                       sequential: Boolean,
-                                       loadBalancing: Boolean,
-                                       unrollReduce: Boolean,
-                                       global0: Boolean,
-                                       global01: Boolean,
-                                       global10: Boolean,
-                                       global012: Boolean,
-                                       global210: Boolean,
-                                       group0: Boolean,
-                                       group01: Boolean,
-                                       group10: Boolean
-) {
+                                         vectorize: Boolean,
+                                         vectorWidth: Int,
+                                         sequential: Boolean,
+                                         loadBalancing: Boolean,
+                                         unrollReduce: Boolean,
+                                         global0: Boolean,
+                                         global01: Boolean,
+                                         global10: Boolean,
+                                         global012: Boolean,
+                                         global210: Boolean,
+                                         group0: Boolean,
+                                         group01: Boolean,
+                                         group10: Boolean
+                                       ) {
   override def toString: String =
-  s"""MemoryMappingRewriteSettings:
-     |    vectorize: $vectorize
-     |    vectorWidth: $vectorWidth
-     |    sequential: $sequential
-     |    loadBalancing: $loadBalancing
-     |    unrollReduce: $unrollReduce
-     |    global0: $global0
-     |    global01: $global01
-     |    global10: $global10
-     |    global012: $global012
-     |    global210: $global210
-     |    group0: $group0
-     |    group01: $group01
-     |    group10: $group10
+    s"""MemoryMappingRewriteSettings:
+       |    vectorize: $vectorize
+       |    vectorWidth: $vectorWidth
+       |    sequential: $sequential
+       |    loadBalancing: $loadBalancing
+       |    unrollReduce: $unrollReduce
+       |    global0: $global0
+       |    global01: $global01
+       |    global10: $global10
+       |    global012: $global012
+       |    global210: $global210
+       |    group0: $group0
+       |    group01: $group01
+       |    group10: $group10
    """.stripMargin
 }
 
@@ -160,58 +187,59 @@ object MemoryMappingRewriteSettings {
   import exploration.utils.ExplorationParameter._
 
   def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None, None, None, None, None)
+
   def createWithDefaults(
-                        configVectorize: Option[Boolean],
-                        configVectorWidth: Option[Int],
-                        configSequential: Option[Boolean],
-                        configLoadBalancing: Option[Boolean],
-                        configUnrollReduce: Option[Boolean],
-                        configGlobal0: Option[Boolean],
-                        configGlobal01: Option[Boolean],
-                        configGlobal10: Option[Boolean],
-                        configGlobal012: Option[Boolean],
-                        configGlobal210: Option[Boolean],
-                        configGroup0: Option[Boolean],
-                        configGroup01: Option[Boolean],
-                        configGroup10: Option[Boolean]
+                          configVectorize: Option[Boolean],
+                          configVectorWidth: Option[Int],
+                          configSequential: Option[Boolean],
+                          configLoadBalancing: Option[Boolean],
+                          configUnrollReduce: Option[Boolean],
+                          configGlobal0: Option[Boolean],
+                          configGlobal01: Option[Boolean],
+                          configGlobal10: Option[Boolean],
+                          configGlobal012: Option[Boolean],
+                          configGlobal210: Option[Boolean],
+                          configGroup0: Option[Boolean],
+                          configGroup01: Option[Boolean],
+                          configGroup10: Option[Boolean]
                         ) = MemoryMappingRewriteSettings(
-  getValue(vectorize, configVectorize, defaultVectorize),
-  getValue(vectorWidth, configVectorWidth, defaultVectorWidth),
-  getValue(sequential, configSequential, defaultSequential),
-  getValue(loadBalancing, configLoadBalancing, defaultLoadBalancing),
-  getValue(unrollReduce, configUnrollReduce, defaultUnrollReduce),
-  getValue(global0, configGlobal0, defaultGlobal0),
-  getValue(global01, configGlobal01, defaultGlobal01),
-  getValue(global10, configGlobal10, defaultGlobal10),
-  getValue(global012, configGlobal012, defaultGlobal012),
-  getValue(global210, configGlobal210, defaultGlobal210),
-  getValue(group0, configGroup0, defaultGroup0),
-  getValue(group01, configGroup01, defaultGroup01),
-  getValue(group10, configGroup10, defaultGroup10))
+    getValue(vectorize, configVectorize, defaultVectorize),
+    getValue(vectorWidth, configVectorWidth, defaultVectorWidth),
+    getValue(sequential, configSequential, defaultSequential),
+    getValue(loadBalancing, configLoadBalancing, defaultLoadBalancing),
+    getValue(unrollReduce, configUnrollReduce, defaultUnrollReduce),
+    getValue(global0, configGlobal0, defaultGlobal0),
+    getValue(global01, configGlobal01, defaultGlobal01),
+    getValue(global10, configGlobal10, defaultGlobal10),
+    getValue(global012, configGlobal012, defaultGlobal012),
+    getValue(global210, configGlobal210, defaultGlobal210),
+    getValue(group0, configGroup0, defaultGroup0),
+    getValue(group01, configGroup01, defaultGroup01),
+    getValue(group10, configGroup10, defaultGroup10))
 }
 
 case class HighLevelRewriteSettings(
-  explorationDepth: Int,
-  depth: Int,
-  distance: Int,
-  ruleRepetition: Int,
-  vectorWidth: Int,
-  sequential: Boolean,
-  onlyLower: Boolean,
-  oldStringRepresentation: Boolean,
-  ruleCollection: String
-) {
+                                     explorationDepth: Int,
+                                     depth: Int,
+                                     distance: Int,
+                                     ruleRepetition: Int,
+                                     vectorWidth: Int,
+                                     sequential: Boolean,
+                                     onlyLower: Boolean,
+                                     oldStringRepresentation: Boolean,
+                                     ruleCollection: String
+                                   ) {
   override def toString: String =
     s"""HighLevelRewriteSettings:
-      |    explorationDepth: $explorationDepth
-      |    depth: $depth
-      |    distance: $distance
-      |    ruleRepetition: $ruleRepetition
-      |    vectorWidth: $vectorWidth
-      |    sequential: $sequential
-      |    onlyLower: $onlyLower
-      |    oldStringRepresentation: $oldStringRepresentation
-      |    ruleCollection: $ruleCollection
+       |    explorationDepth: $explorationDepth
+       |    depth: $depth
+       |    distance: $distance
+       |    ruleRepetition: $ruleRepetition
+       |    vectorWidth: $vectorWidth
+       |    sequential: $sequential
+       |    onlyLower: $onlyLower
+       |    oldStringRepresentation: $oldStringRepresentation
+       |    ruleCollection: $ruleCollection
     """.stripMargin
 }
 
@@ -223,26 +251,26 @@ object HighLevelRewriteSettings {
   def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None)
 
   def createWithDefaults(
-                        configExplorationDepth: Option[Int],
-                        configDepth: Option[Int],
-                        configDistance: Option[Int],
-                        configRuleRepetition: Option[Int],
-                        configVectorWidth: Option[Int],
-                        configSequential: Option[Boolean],
-                        configOnlyLower: Option[Boolean],
-                        configOldStringRepresentation: Option[Boolean],
-                        configRuleCollection: Option[String]
+                          configExplorationDepth: Option[Int],
+                          configDepth: Option[Int],
+                          configDistance: Option[Int],
+                          configRuleRepetition: Option[Int],
+                          configVectorWidth: Option[Int],
+                          configSequential: Option[Boolean],
+                          configOnlyLower: Option[Boolean],
+                          configOldStringRepresentation: Option[Boolean],
+                          configRuleCollection: Option[String]
                         ) = HighLevelRewriteSettings(
-  // priority: 1) command-line args; 2) config-file; 3) default values
-  getValue(explorationDepth, configExplorationDepth, defaultExplorationDepth),
-  getValue(depthFilter, configDepth, defaultDepthFilter),
-  getValue(distanceFilter, configDistance, defaultDistanceFilter),
-  getValue(ruleRepetition, configRuleRepetition, defaultRuleRepetition),
-  getValue(vectorWidth, configVectorWidth, defaultVectorWidth),
-  getValue(sequential, configSequential, defaultSequential),
-  getValue(onlyLower, configOnlyLower, defaultOnlyLower),
-  getValue(oldStringRepresentation, configOldStringRepresentation, defaultOldStringRepresentation),
-  getValue(ruleCollection, configRuleCollection, defaultRuleCollection))
+    // priority: 1) command-line args; 2) config-file; 3) default values
+    getValue(explorationDepth, configExplorationDepth, defaultExplorationDepth),
+    getValue(depthFilter, configDepth, defaultDepthFilter),
+    getValue(distanceFilter, configDistance, defaultDistanceFilter),
+    getValue(ruleRepetition, configRuleRepetition, defaultRuleRepetition),
+    getValue(vectorWidth, configVectorWidth, defaultVectorWidth),
+    getValue(sequential, configSequential, defaultSequential),
+    getValue(onlyLower, configOnlyLower, defaultOnlyLower),
+    getValue(oldStringRepresentation, configOldStringRepresentation, defaultOldStringRepresentation),
+    getValue(ruleCollection, configRuleCollection, defaultRuleCollection))
 }
 
 object SearchParameters {
@@ -260,7 +288,7 @@ object SearchParameters {
                           maxLocalMemory: Option[Int],
                           minWorkgroups: Option[Int],
                           maxWorkgroups: Option[Int]
-  ) = SearchParameters(
+                        ) = SearchParameters(
     defaultInputSize.getOrElse(default_input_size),
     minLocalSize.getOrElse(min_local_size),
     maxLocalSize.getOrElse(max_local_size),
@@ -282,17 +310,17 @@ case class SearchParameters(
                              maxLocalMemory: Int,
                              minWorkgroups: Int,
                              maxWorkgroups: Int
-)
+                           )
 
 case class Settings(
-  inputCombinations: Option[Seq[Seq[ArithExpr]]] = None,
-  searchParameters: SearchParameters = SearchParameters.createDefault,
-  highLevelRewriteSettings: HighLevelRewriteSettings = HighLevelRewriteSettings.createDefault,
-  memoryMappingRewriteSettings: MemoryMappingRewriteSettings = MemoryMappingRewriteSettings.createDefault,
-  parameterRewriteSettings: ParameterRewriteSettings = ParameterRewriteSettings.createDefault,
-  genericKernelPrinterSettings: GenericKernelPrinterSettings = GenericKernelPrinterSettings.createDefault,
-  localMemoryRulesSettings: LocalMemoryRulesSettings= LocalMemoryRulesSettings.createDefault
-) {
+                     inputCombinations: Option[Seq[Seq[ArithExpr]]] = None,
+                     searchParameters: SearchParameters = SearchParameters.createDefault,
+                     highLevelRewriteSettings: HighLevelRewriteSettings = HighLevelRewriteSettings.createDefault,
+                     memoryMappingRewriteSettings: MemoryMappingRewriteSettings = MemoryMappingRewriteSettings.createDefault,
+                     parameterRewriteSettings: ParameterRewriteSettings = ParameterRewriteSettings.createDefault,
+                     genericKernelPrinterSettings: GenericKernelPrinterSettings = GenericKernelPrinterSettings.createDefault,
+                     localMemoryRulesSettings: LocalMemoryRulesSettings = LocalMemoryRulesSettings.createDefault
+                   ) {
 
   override def toString: String = {
     s"""Settings(
@@ -317,77 +345,83 @@ object ParseSettings {
 
   private[exploration] implicit val parametersReads: Reads[SearchParameters] = (
     (JsPath \ "default_input_size").readNullable[Int] and
-    (JsPath \ "min_local_size").readNullable[Int] and
-    (JsPath \ "max_local_size").readNullable[Int] and
-    (JsPath \ "min_global_size").readNullable[Int] and
-    (JsPath \ "max_private_memory").readNullable[Int] and
-    (JsPath \ "max_local_memory").readNullable[Int] and
-    (JsPath \ "min_workgroups").readNullable[Int] and
-    (JsPath \ "max_workgroups").readNullable[Int]
-  )(SearchParameters.createWithDefaults _)
+      (JsPath \ "min_local_size").readNullable[Int] and
+      (JsPath \ "max_local_size").readNullable[Int] and
+      (JsPath \ "min_global_size").readNullable[Int] and
+      (JsPath \ "max_private_memory").readNullable[Int] and
+      (JsPath \ "max_local_memory").readNullable[Int] and
+      (JsPath \ "min_workgroups").readNullable[Int] and
+      (JsPath \ "max_workgroups").readNullable[Int]
+    ) (SearchParameters.createWithDefaults _)
 
   private[exploration] implicit val highLevelReads: Reads[HighLevelRewriteSettings] = (
     (JsPath \ "exploration_depth").readNullable[Int] and
-    (JsPath \ "depth").readNullable[Int] and
-    (JsPath \ "distance").readNullable[Int] and
-    (JsPath \ "rule_repetition").readNullable[Int] and
-    (JsPath \ "vector_width").readNullable[Int] and
-    (JsPath \ "sequential").readNullable[Boolean] and
-    (JsPath \ "only_lower").readNullable[Boolean] and
-    (JsPath \ "old_string_representation").readNullable[Boolean] and
-    (JsPath \ "rule_collection").readNullable[String]
-  )(HighLevelRewriteSettings.createWithDefaults _)
+      (JsPath \ "depth").readNullable[Int] and
+      (JsPath \ "distance").readNullable[Int] and
+      (JsPath \ "rule_repetition").readNullable[Int] and
+      (JsPath \ "vector_width").readNullable[Int] and
+      (JsPath \ "sequential").readNullable[Boolean] and
+      (JsPath \ "only_lower").readNullable[Boolean] and
+      (JsPath \ "old_string_representation").readNullable[Boolean] and
+      (JsPath \ "rule_collection").readNullable[String]
+    ) (HighLevelRewriteSettings.createWithDefaults _)
 
   private[exploration] implicit val memoryMappingReads: Reads[MemoryMappingRewriteSettings] = (
     (JsPath \ "vectorize").readNullable[Boolean] and
-    (JsPath \ "vector_width").readNullable[Int] and
-    (JsPath \ "sequential").readNullable[Boolean] and
-    (JsPath \ "load_balancing").readNullable[Boolean] and
-    (JsPath \ "unroll_reduce").readNullable[Boolean] and
-    (JsPath \ "global0").readNullable[Boolean] and
-    (JsPath \ "global01").readNullable[Boolean] and
-    (JsPath \ "global10").readNullable[Boolean] and
-    (JsPath \ "global012").readNullable[Boolean] and
-    (JsPath \ "global210").readNullable[Boolean] and
-    (JsPath \ "group0").readNullable[Boolean] and
-    (JsPath \ "group01").readNullable[Boolean] and
-    (JsPath \ "group10").readNullable[Boolean]
-  )(MemoryMappingRewriteSettings.createWithDefaults _)
+      (JsPath \ "vector_width").readNullable[Int] and
+      (JsPath \ "sequential").readNullable[Boolean] and
+      (JsPath \ "load_balancing").readNullable[Boolean] and
+      (JsPath \ "unroll_reduce").readNullable[Boolean] and
+      (JsPath \ "global0").readNullable[Boolean] and
+      (JsPath \ "global01").readNullable[Boolean] and
+      (JsPath \ "global10").readNullable[Boolean] and
+      (JsPath \ "global012").readNullable[Boolean] and
+      (JsPath \ "global210").readNullable[Boolean] and
+      (JsPath \ "group0").readNullable[Boolean] and
+      (JsPath \ "group01").readNullable[Boolean] and
+      (JsPath \ "group10").readNullable[Boolean]
+    ) (MemoryMappingRewriteSettings.createWithDefaults _)
 
   private[exploration] implicit val parameterRewriteReads: Reads[ParameterRewriteSettings] = (
     (JsPath \ "explore_ndrange").readNullable[Boolean] and
-    (JsPath \ "sample_ndrange").readNullable[Int] and
-    (JsPath \ "disable_ndrange_injection").readNullable[Boolean] and
-    (JsPath \ "sequential").readNullable[Boolean] and
-    (JsPath \ "generate_scala").readNullable[Boolean]
-  )(ParameterRewriteSettings.createWithDefaults _)
+      (JsPath \ "sample_ndrange").readNullable[Int] and
+      (JsPath \ "disable_ndrange_injection").readNullable[Boolean] and
+      (JsPath \ "sequential").readNullable[Boolean] and
+      (JsPath \ "generate_scala").readNullable[Boolean]
+    ) (ParameterRewriteSettings.createWithDefaults _)
 
   private[exploration] implicit val genericReads: Reads[GenericKernelPrinterSettings] = (
-    (JsPath \ "speedup").readNullable[Float] and
-    (JsPath \ "configs_to_achieve_speedup").readNullable[Int] and
-    (JsPath \ "timeout_in_seconds").readNullable[Int] and
-    (JsPath \ "max_configs").readNullable[Int] and
-    (JsPath \ "vendor").readNullable[String] and
-    (JsPath \ "device_type").readNullable[String] and
-    (JsPath \ "device_id").readNullable[Int]
-  )(GenericKernelPrinterSettings.createWithDefaults _)
+      (JsPath \ "enable_speedup_condition").readNullable[Boolean] and
+      (JsPath \ "speedup").readNullable[Float] and
+      (JsPath \ "configs_to_achieve_speedup").readNullable[Int] and
+      (JsPath \ "enable_timeout_condition").readNullable[Boolean] and
+      (JsPath \ "timeout_in_seconds").readNullable[Int] and
+      (JsPath \ "enable_max_configs_condition").readNullable[Boolean] and
+      (JsPath \ "max_configs").readNullable[Int] and
+      (JsPath \ "enable_not_better_than_condition").readNullable[Boolean] and
+      (JsPath \ "not_better_than_in_ns").readNullable[Int] and
+      (JsPath \ "not_better_within_configs").readNullable[Int] and
+      (JsPath \ "vendor").readNullable[String] and
+      (JsPath \ "device_type").readNullable[String] and
+      (JsPath \ "device_id").readNullable[Int]
+    ) (GenericKernelPrinterSettings.createWithDefaults _)
 
   private[exploration] implicit val localMemoryRulesReads: Reads[LocalMemoryRulesSettings] = (
     (JsPath \ "addIdForCurrentValueInReduce").readNullable[Boolean] and
-    (JsPath \ "addIdMapLcl").readNullable[Boolean] and
-    (JsPath \ "addIdMapWrg").readNullable[Boolean] and
-    (JsPath \ "addIdAfterReduce").readNullable[Boolean]
-  )(LocalMemoryRulesSettings.createWithDefaults _)
+      (JsPath \ "addIdMapLcl").readNullable[Boolean] and
+      (JsPath \ "addIdMapWrg").readNullable[Boolean] and
+      (JsPath \ "addIdAfterReduce").readNullable[Boolean]
+    ) (LocalMemoryRulesSettings.createWithDefaults _)
 
   private[exploration] implicit val settingsReads: Reads[Settings] = (
     (JsPath \ "input_combinations").readNullable[Seq[Seq[ArithExpr]]] and
-    (JsPath \ "search_parameters").readNullable[SearchParameters] and
-    (JsPath \ "high_level_rewrite").readNullable[HighLevelRewriteSettings] and
-    (JsPath \ "memory_mapping_rewrite").readNullable[MemoryMappingRewriteSettings] and
-    (JsPath \ "parameter_rewrite").readNullable[ParameterRewriteSettings] and
-    (JsPath \ "generic_kernel_printer").readNullable[GenericKernelPrinterSettings] and
-    (JsPath \ "local_memory_rules").readNullable[LocalMemoryRulesSettings]
-  )((maybeCombinations, maybeParameters, maybeHighLevel, maybeMemoryMapping, maybeParameterRewrite, maybeGeneric, maybeLocalMemoryRules) =>
+      (JsPath \ "search_parameters").readNullable[SearchParameters] and
+      (JsPath \ "high_level_rewrite").readNullable[HighLevelRewriteSettings] and
+      (JsPath \ "memory_mapping_rewrite").readNullable[MemoryMappingRewriteSettings] and
+      (JsPath \ "parameter_rewrite").readNullable[ParameterRewriteSettings] and
+      (JsPath \ "generic_kernel_printer").readNullable[GenericKernelPrinterSettings] and
+      (JsPath \ "local_memory_rules").readNullable[LocalMemoryRulesSettings]
+    ) ((maybeCombinations, maybeParameters, maybeHighLevel, maybeMemoryMapping, maybeParameterRewrite, maybeGeneric, maybeLocalMemoryRules) =>
     Settings(
       maybeCombinations,
       maybeParameters.getOrElse(SearchParameters.createDefault),
@@ -412,7 +446,7 @@ object ParseSettings {
             settings
           case e: JsError =>
             logger.error("Failed parsing settings " +
-              e.recoverTotal( e => JsError.toFlatJson(e) ))
+              e.recoverTotal(e => JsError.toFlatJson(e)))
             sys.exit(1)
         }
 

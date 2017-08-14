@@ -50,13 +50,22 @@ object GenericKernelPrinter {
       s
   }
 
+  private[exploration] val defaultEnableSpeedupCondition = true
   private[exploration] val defaultSpeedup = 1.0f
   private[exploration] val defaultConfigsToAchieveSpeedup = 100
+  private[exploration] val defaultEnableTimeoutCondition = true
   private[exploration] val defaultTimeoutInSeconds = 60
+  private[exploration] val defaultEnableMaxConfigsCondition = false
   private[exploration] val defaultMaxConfigs = 500
+  private[exploration] val defaultEnableNotBetterThanCondition = false
+  private[exploration] val defaultNotBetterThanInNs = 60000000 // 60s
+  private[exploration] val defaultNotBetterWithinConfigs = 500
   private[exploration] val defaultVendor = "Nvidia"
   private[exploration] val defaultDeviceType = "GPU"
   private[exploration] val defaultDeviceId = 0
+
+  protected[exploration] val enableSpeedupCondition: FlagOption[Boolean] = parser.flag[Boolean](List("es", "enableSpeedupCondition"),
+    s"Use atf abort condition 'speedup' (default: $defaultEnableSpeedupCondition)")
 
   protected[exploration] val speedup = parser.option[Float](List("speedup"), "s",
     s"Specifies Speedup to achieve within 'configsToAchieveSpeedup'-many configs (default: $defaultSpeedup)")
@@ -64,11 +73,26 @@ object GenericKernelPrinter {
   protected[exploration] val configsToAchieveSpeedup = parser.option[Int](List("configsToAchieveSpeedup"), "c",
     s"Specifies how many configs to try to achieve 'speedup' (default: $defaultConfigsToAchieveSpeedup)")
 
+  protected[exploration] val enableTimeoutCondition: FlagOption[Boolean] = parser.flag[Boolean](List("et", "enableTimeoutCondition"),
+    s"Use atf abort condition 'timeout' (default: $defaultEnableTimeoutCondition)")
+
   protected[exploration] val timeoutInSeconds = parser.option[Int](List("timeout"), "t",
     s"Abort tuning after t seconds (default: $defaultTimeoutInSeconds)")
 
+  protected[exploration] val enableMaxConfigsCondition: FlagOption[Boolean] = parser.flag[Boolean](List("em", "enableMaxConfigsCondition"),
+    s"Use atf abort condition 'max_configs' (default: $defaultEnableMaxConfigsCondition)")
+
   protected[exploration] val maxConfigs = parser.option[Int](List("maxConfigs"), "m",
     s"Abort tuning after trying m configs (default: $defaultMaxConfigs)")
+
+  protected[exploration] val enableNotBetterThanCondition: FlagOption[Boolean] = parser.flag[Boolean](List("em", "enableNotBetterThanCondition"),
+    s"Use atf abort condition 'abort_when_not_better' (default: $defaultEnableNotBetterThanCondition)")
+
+  protected[exploration] val notBetterThanInNs = parser.option[Int](List("notBetterThan"), "nbt",
+    s"Sets the bar for 'abort_when_not_better' condition (default: $defaultNotBetterThanInNs)")
+
+  protected[exploration] val notBetterWithinConfigs = parser.option[Int](List("notBetterWithinConfigs"), "nbwc",
+    s"How many configs to try to get better than 'notBetterThan' (default: $defaultNotBetterWithinConfigs)")
 
   protected[exploration] val vendor = parser.option[String](List("vendor"), "v",
     s"Specifies which OpenCL platform to use (matches substring) (default: $defaultVendor)")
@@ -100,6 +124,12 @@ object GenericKernelPrinter {
       parser.parse(args)
       settings = ParseSettings(settingsFile.value)
       val config = settings.genericKernelPrinterSettings
+
+      if((config.enableSpeedupCondition ||
+        config.enableTimeoutCondition ||
+        config.enableMaxConfigsCondition ||
+        config.enableNotBetterThanCondition) == false)
+        scala.sys.error("No abort-condition defined")
 
       logger.info(s"Arguments: ${args.mkString(" ")}")
       val inputArgument = input.value.get
@@ -204,10 +234,6 @@ object GenericKernelPrinter {
                   }
 
                   val genericKernel = introduceOCLTuningParameters(kernel)
-                  //if(low_level_hash == "974323ee359506c482e957a975b7837f54f1e0f25b23b2d0b1fa1b061aacfc6a") {
-                  //  println(genericKernel)
-                  //}
-
                   val sb = new java.lang.StringBuilder
 
                   // todo (@bastian) currently only uses the first input combination
@@ -224,13 +250,17 @@ object GenericKernelPrinter {
                   sb.append(s"""#atf::search_technique \"$searchTechnique\"\n""")
 
                   // use only speed-up and duration condition for now
-                  val abortCondition =
-                    s"atf::cond::speedup(${config.speedup},${config.configsToAchieveSpeedup}) || " +
-                    s"atf::cond::duration<::std::chrono::seconds>(${config.timeoutInSeconds})"
-                    //s"atf::cond::duration<::std::chrono::seconds>(${config.timeoutInSeconds}) || " +
-                    //s"atf::cond::evaluations(${config.maxConfigs})"
-                    //s"atf::cond::evaluations(${config.maxConfigs}) || " +
-                    /*s"atf::cond::abort_when_not_better(16000000, 250)"*/
+                  var abortCondition = ""
+                  if(config.enableSpeedupCondition)
+                    abortCondition += s"atf::cond::speedup(${config.speedup},${config.configsToAchieveSpeedup}) || "
+                  if(config.enableTimeoutCondition)
+                    abortCondition += s"atf::cond::duration<::std::chrono::seconds>(${config.timeoutInSeconds}) || "
+                  if(config.enableMaxConfigsCondition)
+                    abortCondition += s"atf::cond::evaluations(${config.maxConfigs}) || "
+                  if(config.enableNotBetterThanCondition)
+                    abortCondition += s"atf::cond::abort_when_not_better(${config.notBetterThanInNs}, ${config.notBetterWithinConfigs}) || "
+
+                  abortCondition = abortCondition.dropRight(4) // drop last ' || '
                   sb.append(s"""#atf::abort_condition \"$abortCondition\"\n""")
                   sb.append("\n")
 
@@ -336,13 +366,14 @@ object GenericKernelPrinter {
                   val path = s"${topFolder}Cl"
                   val filename = low_level_hash + ".cl"
                   Utils.dumpToFile(finalKernel, filename, path)
+                  kernelCounter.incrementAndGet()
 
                 } catch {
                   case t: Throwable =>
                     // Failed reading file or similar.
-                    //logger.warn(t.toString)
+                    logger.warn(t.toString)
                     println(s"FAILED: ${t.toString}")
-                } //&& substitutionCount < 800000
+                }
               })
               println(s"\nGenerated $kernelCounter kernels")
             }
