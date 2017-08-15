@@ -11,7 +11,7 @@
     "vector_width" : 4,
     "sequential" : false,
     "only_lower" : false,
-    "old_string_representation" : false,
+    "keep_range_information" : true,
     "rule_collection" : "convolution2D"
   },
 
@@ -47,23 +47,29 @@
   },
 
   "generic_kernel_printer" : {
+    "enable_speedup_condition" : true,
     "speedup" : 1.0,
-    "configs_to_achieve_speedup" : 100,
+    "configs_to_achieve_speedup" : 250,
+    "enable_timeout_condition" : true,
     "timeout_in_seconds" : 3600,
-    "max_configs" : 9999999,
-    "max_local_size" : 256,
+    "enable_max_configs_condition" : false,
+    "max_configs" : 500,
+    "enable_not_better_than_condition" : false,
+    "not_better_than_in_ns" : 60000000,
+    "not_better_within_configs" : 1000,
     "vendor" : "ARM",
     "device_type" : "GPU",
     "device_id" : 0
   },
+
   "search_parameters" : {
-    "default_input_size" : 8194,
+    "default_input_size" : 1026,
     "min_local_size" : 4,
     "max_local_size" : 256,
     "min_global_size" : 4,
     "max_private_memory" : 1024,
     "max_local_memory" : 32768,
     "min_workgroups" : 1,
-    "max_workgroups" :1048576
+    "max_workgroups" : 1048576
   }
 }

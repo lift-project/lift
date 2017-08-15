@@ -2,6 +2,12 @@ def rodiniaUserFun = UserFun("rodiniaUserFun",
     Array("power", "top", "bottom", "left", "right", "center"), "{ float step_div_cap = 1.365333e+00; return center + step_div_cap*(power + 0.1f*(bottom + top - 2*center) + 0.1*(left + right - 2*center) + 4.882813e-05*(80.0f - center)); }",
     Seq(Float, Float, Float, Float, Float, Float), Float)
 
+def hotspotPrecomputedCoef = UserFun("hotspot", Array("power", "top", "bottom", "left", "right", "center"),
+        """return center +
+          |       0.341333299875259 * (power + (bottom + top - 2.0f * center) * 0.1 +
+          |               (right + left - 2.0f * center) * 0.1 + (80.0 - center) * 0.000195312502910);""".stripMargin,
+        Seq(Float, Float, Float, Float, Float, Float), Float)
+
 // alternative hotspot function
 def hotspot = UserFun("hotspot", Array("power", "top", "bottom", "left", "right", "center"), """
       |#define MAX_PD  (3.0e6)
@@ -59,7 +65,7 @@ fun(
         val right = tuple._0.at(1).at(2)
         val center = tuple._0.at(1).at(1)
 
-        toGlobal(id) o toPrivate(fun(x => hotspot(x, top, bottom, left, right, center))) $ powerValue
+        toGlobal(id) o toPrivate(fun(x => hotspotPrecomputedCoef(x, top, bottom, left, right, center))) $ powerValue
     }))) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(
         Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ heat,
         power)
