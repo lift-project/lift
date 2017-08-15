@@ -2,7 +2,7 @@ package opencl.generator.stencil
 
 import ir._
 import ir.ast._
-import lift.arithmetic.SizeVar
+import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import opencl.executor._
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
@@ -68,8 +68,6 @@ object HotSpotConstants {
   val cc = 1.0f - (2.0f * ce + 2.0f * cn + 3.0f * ct)
 
 
-
-
 }
 
 class TestStencilRodinia {
@@ -77,47 +75,116 @@ class TestStencilRodinia {
   /* **********************************************************
      RODINIA HOTSPOT
  ***********************************************************/
-  def test = UserFun("hotspot", Array("power", "top", "bottom", "left", "right", "center"), """
-      |#define MAX_PD  (3.0e6)
-      |#define PRECISION   0.001
-      |#define SPEC_HEAT_SI 1.75e6
-      |#define K_SI 100
-      |#define FACTOR_CHIP 0.5
-      |
-      |    /* chip parameters  */
-      |    const float t_chip = 0.0005f;
-      |    const float chip_height = 0.016f;
-      |    const float chip_width = 0.016f;
-      |    /* ambient temperature, assuming no package at all  */
-      |    const float amb_temp = 80.0f;
-      |
-      |    float row = 512.0f;
-      |    float col = 512.0f;
-      |
-      |    float grid_height = chip_height / row;
-      |    float grid_width = chip_width / col;
-      |
-      |    float Cap = FACTOR_CHIP * SPEC_HEAT_SI * t_chip * grid_width * grid_height;
-      |    float Rx = grid_width / (2.0 * K_SI * t_chip * grid_height);
-      |    float Ry = grid_height / (2.0 * K_SI * t_chip * grid_width);
-      |    float Rz = t_chip / (K_SI * grid_height * grid_width);
-      |
-      |    float max_slope = MAX_PD / (FACTOR_CHIP * t_chip * SPEC_HEAT_SI);
-      |    float stepl = PRECISION / max_slope;
-      |
-      |    float step_div_Cap=stepl/Cap;
-      |    float Rx_1=1/Rx;
-      |    float Ry_1=1/Ry;
-      |    float Rz_1=1/Rz;
-      |
-      |    return center +
-      |       step_div_Cap * (power + (bottom + top - 2.0f * center) * Ry_1 +
-      |               (right + left - 2.0f * center) * Rx_1 + (amb_temp - center) * Rz_1);
-      |
+  @Test def rodiniaHotspotNew(): Unit = {
+
+    LongTestsEnabled()
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
+    def hotspotIncludingCoef = UserFun("hotspot", Array("power", "top", "bottom", "left", "right", "center"),
+      """
+        |#define MAX_PD  (3.0e6)
+        |#define PRECISION   0.001
+        |#define SPEC_HEAT_SI 1.75e6
+        |#define K_SI 100
+        |#define FACTOR_CHIP 0.5
+        |
+        |    /* chip parameters  */
+        |    const float t_chip = 0.0005f;
+        |    const float chip_height = 0.016f;
+        |    const float chip_width = 0.016f;
+        |    /* ambient temperature, assuming no package at all  */
+        |    const float amb_temp = 80.0f;
+        |
+        |    float row = 512.0f;
+        |    float col = 512.0f;
+        |
+        |    float grid_height = chip_height / row;
+        |    float grid_width = chip_width / col;
+        |
+        |    float Cap = FACTOR_CHIP * SPEC_HEAT_SI * t_chip * grid_width * grid_height;
+        |    float Rx = grid_width / (2.0 * K_SI * t_chip * grid_height);
+        |    float Ry = grid_height / (2.0 * K_SI * t_chip * grid_width);
+        |    float Rz = t_chip / (K_SI * grid_height * grid_width);
+        |
+        |    float max_slope = MAX_PD / (FACTOR_CHIP * t_chip * SPEC_HEAT_SI);
+        |    float stepl = PRECISION / max_slope;
+        |
+        |    float step_div_Cap=stepl/Cap;
+        |    float Rx_1=1/Rx;
+        |    float Ry_1=1/Ry;
+        |    float Rz_1=1/Rz;
+        |
+        |    return center +
+        |       step_div_Cap * (power + (bottom + top - 2.0f * center) * Ry_1 +
+        |               (right + left - 2.0f * center) * Rx_1 + (amb_temp - center) * Rz_1);
+        |
     """.stripMargin, Seq(Float, Float, Float, Float, Float, Float), Float)
 
+    def hotspotPrecomputedCoef =
 
-  @Test def rodiniaHotspot(): Unit = {
+      UserFun("hotspot", Array("power", "top", "bottom", "left", "right", "center"),
+        """ return center +
+          |       0.341333299875259 * (power + (bottom + top - 2.0f * center) * 0.1 +
+          |               (right + left - 2.0f * center) * 0.1 + (80.0 - center) * 0.000195312502910);""".stripMargin,
+        Seq(Float, Float, Float, Float, Float, Float), Float)
+
+    val M = Var("M", StartFromRange(1024))
+    val N = Var("N", StartFromRange(1024))
+
+    val hotspot = fun(
+      ArrayType(ArrayType(Float, M), N),
+      ArrayType(ArrayType(Float, M), N),
+      (heat, power) => {
+        MapGlb(1)(MapGlb(0)(\(tuple => {
+          val nbh = tuple._0
+          val powerValue = tuple._1
+
+          val top = Get(tuple, 0).at(0).at(1)
+          val bottom = tuple._0.at(2).at(1)
+          val left = tuple._0.at(1).at(0)
+          val right = tuple._0.at(1).at(2)
+          val center = tuple._0.at(1).at(1)
+
+          toGlobal(id) o toPrivate(fun(x => hotspotPrecomputedCoef(x, top, bottom, left, right, center))) $ powerValue
+          //}))) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(
+        }))) $ Zip2D(
+          Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ heat,
+          power)
+      })
+
+    val hotspotLocalMemory = fun(
+      ArrayType(ArrayType(Float, M), N),
+      ArrayType(ArrayType(Float, M), N),
+      (heat, power) => {
+        MapWrg(1)(MapWrg(0)(\(tiles => {
+          MapLcl(1)(MapLcl(0)(\(tuple => {
+           val nbh = tuple._0
+           val powerValue = tuple._1
+
+           val top = Get(tuple, 0).at(0).at(1)
+           val bottom = tuple._0.at(2).at(1)
+           val left = tuple._0.at(1).at(0)
+           val right = tuple._0.at(1).at(2)
+           val center = tuple._0.at(1).at(1)
+           toGlobal(id) o toPrivate(fun(x => hotspotPrecomputedCoef(x, top, bottom, left, right, center))) $ powerValue
+
+          }))) $ Zip2D(
+            Slide2D(3,1) o MapLcl(1)(MapLcl(0)(toLocal(id))) $ Get(tiles,0),
+            Get(tiles,1))
+
+        }))) $ Zip2D(
+          Slide2D(18, 16) o Pad2D(1, 1, Pad.Boundary.Clamp) $ heat,
+          Slide2D(16, 16) $ power)
+      })
+
+    val kernel = Compile(hotspot)
+    val kernelLocalMemory = Compile(hotspotLocalMemory)
+    //println(kernel)
+    println(kernelLocalMemory)
+  }
+
+  @Test def
+  rodiniaHotspot(): Unit = {
 
     LongTestsEnabled()
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
@@ -312,65 +379,65 @@ class TestStencilRodinia {
 
     val rodiniaHotSpot3D =
       fun(ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      Float,
-      Float,
-      Float,
-      Float,
-      Float,
-      Float,
-      Float,
-      Float,
-      (temp, power, ce, cw, cn, cs, ct, cb, cc, stepDivCap) => {
-        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun((m) => {
+        ArrayType(ArrayType(ArrayType(Float, m), n), o),
+        Float,
+        Float,
+        Float,
+        Float,
+        Float,
+        Float,
+        Float,
+        Float,
+        (temp, power, ce, cw, cn, cs, ct, cb, cc, stepDivCap) => {
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun((m) => {
 
-          val amb_temp = 80.0f
-          val ct_amb_temp = fun(x => mult(x, ct)) $ amb_temp
+            val amb_temp = 80.0f
+            val ct_amb_temp = fun(x => mult(x, ct)) $ amb_temp
 
-          val tInC = Get(m, 1).at(1).at(1).at(1)
-          val tIncCC = toPrivate(fun(x => mult(x, cc))) $ tInC
+            val tInC = Get(m, 1).at(1).at(1).at(1)
+            val tIncCC = toPrivate(fun(x => mult(x, cc))) $ tInC
 
-          val tInW = Get(m, 1).at(0).at(1).at(1)
-          val tIncW = toPrivate(fun(x => mult(x, cw))) $ tInW
+            val tInW = Get(m, 1).at(0).at(1).at(1)
+            val tIncW = toPrivate(fun(x => mult(x, cw))) $ tInW
 
-          val tInN = Get(m, 1).at(1).at(0).at(1)
-          val tIncN = toPrivate(fun(x => mult(x, cn))) $ tInN
+            val tInN = Get(m, 1).at(1).at(0).at(1)
+            val tIncN = toPrivate(fun(x => mult(x, cn))) $ tInN
 
-          val tInB = Get(m, 1).at(1).at(1).at(0)
-          val tIncB = toPrivate(fun(x => mult(x, cb))) $ tInB
+            val tInB = Get(m, 1).at(1).at(1).at(0)
+            val tIncB = toPrivate(fun(x => mult(x, cb))) $ tInB
 
-          val tInT = Get(m, 1).at(1).at(1).at(2)
-          val tIncT = toPrivate(fun(x => mult(x, ct))) $ tInT
+            val tInT = Get(m, 1).at(1).at(1).at(2)
+            val tIncT = toPrivate(fun(x => mult(x, ct))) $ tInT
 
-          val tInS = Get(m, 1).at(1).at(2).at(1)
-          val tIncS = toPrivate(fun(x => mult(x, cs))) $ tInS
+            val tInS = Get(m, 1).at(1).at(2).at(1)
+            val tIncS = toPrivate(fun(x => mult(x, cs))) $ tInS
 
-          val tInE = Get(m, 1).at(2).at(1).at(1)
-          val tIncE = toPrivate(fun(x => mult(x, ce))) $ tInE
+            val tInE = Get(m, 1).at(2).at(1).at(1)
+            val tIncE = toPrivate(fun(x => mult(x, ce))) $ tInE
 
-          val pInc = Get(m, 0)
-          val pcSDC = toPrivate(fun(x => mult(x, stepDivCap))) $ pInc
+            val pInc = Get(m, 0)
+            val pcSDC = toPrivate(fun(x => mult(x, stepDivCap))) $ pInc
 
-          toGlobal(id) o
-            toPrivate(fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp))) $ tInC
-        })))
-        ) $ Zip3D(power, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) o Pad3D(1, 1, 1, Pad.Boundary.MirrorUnsafe) $ temp)
-      })
+            toGlobal(id) o
+              toPrivate(fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp))) $ tInC
+          })))
+          ) $ Zip3D(power, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) o Pad3D(1, 1, 1, Pad.Boundary.MirrorUnsafe) $ temp)
+        })
 
 
     val newLambda = SimplifyAndFuse(rodiniaHotSpot3D)
     val source = Compile(newLambda, 32, 4, 2, 512, 512, 8, immutable.Map())
 
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,newLambda, tempInput, powerInput, HotSpotConstants.ce,HotSpotConstants.cw,HotSpotConstants.cn,HotSpotConstants.cs,HotSpotConstants.ct,HotSpotConstants.cb,HotSpotConstants.cc,HotSpotConstants.stepDivCap)
+    val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, 2, 2, (true, true))(source, newLambda, tempInput, powerInput, HotSpotConstants.ce, HotSpotConstants.cw, HotSpotConstants.cn, HotSpotConstants.cs, HotSpotConstants.ct, HotSpotConstants.cb, HotSpotConstants.cc, HotSpotConstants.stepDivCap)
 
-    if(StencilUtilities.printOutput)
-    {
+    if (StencilUtilities.printOutput) {
       StencilUtilities.printOriginalAndOutput3DSame(tempInput, output)
     }
 
-//    assertArrayEquals(StencilDataArrays.compareDataHotspot3D, output, 0.1f)
+    //    assertArrayEquals(StencilDataArrays.compareDataHotspot3D, output, 0.1f)
 
   }
+
   @Ignore
   @Test
   def RodiniaSRAD1(): Unit = {
@@ -536,7 +603,7 @@ class TestStencilRodinia {
     val source = Compile(newLambda)
     println(source)
 
-    val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (true, true))(source, newLambda, imageValues2D,q0sqr)
+    val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (true, true))(source, newLambda, imageValues2D, q0sqr)
 
     // undo the transpose
     val outputRemixed = output.sliding(Ncols, Ncols).toArray
