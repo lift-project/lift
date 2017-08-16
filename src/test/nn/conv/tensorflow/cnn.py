@@ -81,7 +81,7 @@ class CNN:
                               padding='VALID')  # padding='SAME')
 
     @staticmethod
-    def conv_net_full(x, weights, biases, image_shape):
+    def conv_net_full(x, weights, biases, image_shape, pool_size=0):
         # Reshape input picture
         """
         Full CNN: 2 conv layers + 2 mlp layers
@@ -96,12 +96,13 @@ class CNN:
         # Convolution Layer
         conv1 = CNN.conv2d(x, weights['wconv1'], biases['bconv1'])
         # Max Pooling (down-sampling)
-        # onv1 = CNN.maxpool2d(conv1, k=2)
+        # conv1 = CNN.maxpool2d(conv1, k=5)
 
         # Convolution Layer
         conv2 = CNN.conv2d(conv1, weights['wconv2'], biases['bconv2'])
         # Max Pooling (down-sampling)
-        # conv2 = CNN.maxpool2d(conv2, k=2)
+        if pool_size > 0:
+            conv2 = CNN.maxpool2d(conv2, k=pool_size)
 
         # Fully connected layer
         # Reshape conv2 output to fit fully connected layer input
@@ -114,7 +115,7 @@ class CNN:
         # Output, class prediction
         out = tf.add(tf.matmul(fc1, weights['wout']), biases['bout'])
         out = tf.nn.relu(out)
-        return fc1
+        return out
 
     @staticmethod
     def conv_net(x, weights, biases, image_shape):
@@ -166,17 +167,32 @@ class CNN:
         self.kernel_stride = kernel_stride
         self.image_shape = image_shape
         self.input_len = self.image_shape[0] * self.image_shape[1] * self.image_shape[2]
+        self.conv2_size_in_one_dimension = self.image_shape[0] - (self.kernel_shape[0] - self.kernel_stride[0]) * 2
+        self.mlp_inputlen_l2_nonverified = (self.n_kernels[1] *
+                                            self.conv2_size_in_one_dimension *
+                                            self.conv2_size_in_one_dimension)
+        self.mlp_inputlen_l2 = self.mlp_inputlen_l2_nonverified
+        self.pool_size = 0
+        # Check that the input length is not more than 50mil (200MB in memory)
+        limit = 50000
+        if self.mlp_inputlen_l2 >= limit:
+            # Get minimum pool size
+            self.pool_size = np.ceil(float(self.mlp_inputlen_l2) / limit)
+            # Find the pool size that is greater than the minimum pool size and that is a factor of inputlen
+            while self.conv2_size_in_one_dimension % self.pool_size != 0:
+                self.pool_size += 1
+            if float(self.conv2_size_in_one_dimension) % self.pool_size != 0:
+                raise ArithmeticError
+            self.mlp_inputlen_l2 = int(self.mlp_inputlen_l2_nonverified / pow(self.pool_size, 2))
+
+
+
         self.mlp_size_l2 = mlp_size_l2
         self.n_classes = mlp_size_l3  # MNIST total classes (0-9 digits)
         self.dropout = 0.75  # Dropout, probability to keep units
 
-        # tf Graph input
-        self.x = tf.placeholder(tf.float32, [None, self.input_len])
-        self.y = tf.placeholder(tf.float32, [None, self.n_classes])
-        self.keep_prob = tf.placeholder(tf.float32)  # dropout (keep probability)
-
         # Session configuration
-        self.config = tf.ConfigProto(log_device_placement=True)
+        self.config = tf.ConfigProto()
         self.config.gpu_options.allow_growth = True
         # log_device_placement=True)
 
@@ -264,6 +280,7 @@ class CNN:
         :return:
         """
         results_path = CNN.get_results_path(n_kernels, kernel_shape, image_shape)
+        print(results_path)
         if os.path.isfile(os.path.join(results_path, "pickled_acnn.p")):
             return pickle.load(open(os.path.join(results_path, "pickled_acnn.p"), "rb"))
         else:
@@ -339,10 +356,7 @@ class CNN:
                                        size=(self.kernel_shape[0], self.kernel_shape[1],
                                              self.n_kernels[0], self.n_kernels[1])).astype(dtype=np.float32),
             'wmlp1': np.random.uniform(low=-1, high=1,
-                                      size=(self.n_kernels[1] *
-                      (self.image_shape[0] - (self.kernel_shape[0] - self.kernel_stride[0]) * 2) *
-                      (self.image_shape[1] - (self.kernel_shape[1] - self.kernel_stride[1]) * 2),
-                      self.mlp_size_l2)).astype(dtype=np.float32),
+                                      size=(self.mlp_inputlen_l2, self.mlp_size_l2)).astype(dtype=np.float32),
             'wout': np.random.uniform(low=-1, high=1,
                                      size=(self.mlp_size_l2, self.n_classes)).astype(dtype=np.float32)
         }
@@ -401,6 +415,11 @@ class CNN:
         :param n_inputs:
         :param n_batches:
         """
+        # tf Graph input
+        self.x = tf.placeholder(tf.float32, [None, self.input_len])
+        self.y = tf.placeholder(tf.float32, [None, self.n_classes])
+        self.keep_prob = tf.placeholder(tf.float32)  # dropout (keep probability)
+
         filename = self.inputs_path + '/test_images_n' + str(n_inputs) + '.binary'
         if mode is not FPropMode.RESTORE or not os.path.isfile(filename):
             # Save test images unless they've been successfully restored from files
@@ -430,13 +449,18 @@ class CNN:
             trained_biases_tensors[bias_name] = \
                 tf.Variable(self.trained_biases[bias_name].astype(dtype=np.float32))
 
+        print(str(self.mlp_inputlen_l2_nonverified) + " " + str(self.mlp_inputlen_l2) + " " + str(self.pool_size))
+        if self.pool_size > 0:
+            print("The network will use POOLING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
         # ---------------------- Forward propagation ---------------------- #
 
         print("Forward-propagating...")
 
         # Construct model
         # pred = self.conv_net(x, trained_weights_tensors, trained_biases_tensors, self.image_shape)
-        pred = self.conv_net_full(self.x, trained_weights_tensors, trained_biases_tensors, self.image_shape)
+        pred = self.conv_net_full(self.x, trained_weights_tensors, trained_biases_tensors, self.image_shape,
+                                  self.pool_size)
 
         # Initializing the variables
         init = tf.global_variables_initializer()
@@ -463,8 +487,8 @@ class CNN:
         if self.verbose:
             print("Saved results, shape: ", end='')
             print(test_results.shape)
-        print(test_results[0])
-        quit()
+        # print(test_results[0])
+        #quit()
 
         # Print results
         if self.verbose:
