@@ -126,6 +126,7 @@ object Conv {
                 TransposeW() o
                 MapLcl(0)(λ((pass_window) => {
                   λ(AT(AT(Float, kernel_sliding.size), kernels_per_group), (partially_reduced_window) =>
+                    // TODO: add if conditional to remove final reduce in case els_per_thread == kernel_size
                     ReduceWindowAndAddBias()(partially_reduced_window, /* biases */Get(kernels_tile, 1))) o
                   /* (kernel_sliding.size, kernels_per_group) -> (kernels_per_group, kernel_sliding.size) */
                   TransposeW() o
@@ -148,8 +149,8 @@ object Conv {
                       Transpose() o Map(Transpose()) $ kernels_row
                   })) $ Zip(pass_window, RestoreKernelShape() $ /* weights */ Get(kernels_tile, 0))
                 })) o toLocal(MapLcl(0)(λ((pass_window) =>
-                MapLcl(2)(λ((window_row) => {
-                  MapSeq(MapSeq(id)) $ window_row
+                MapLcl(1)(λ((window_row) => {
+                  MapLcl(2)(MapSeq(id)) $ window_row
                 })) $ pass_window))) o
                   /* (n_passes, n_windows, n_rows) -> (n_passes*n_windows, n_rows) */
                   Join() $ input_tile
@@ -200,7 +201,7 @@ object Conv {
       λ(AT(  TupleType(AT(Float, input_shape.nChannels), AT(Float, input_shape.nChannels)),   els_per_thread),
         (tile_of_els) => {
         /* Compute a sum of the whole batch */
-        MapSeq(toGlobal(id)) o ReduceSeq(add, toPrivate(id) $ 0.0f) o Join() o
+        MapSeq(toLocal(id)) o ReduceSeq(add, toPrivate(id) $ 0.0f) o Join() o
         /* Compute sums of each element separately */
         MapSeq(λ(TupleType(
           /*x_el_in_chs*/ AT(Float, input_shape.nChannels), 
@@ -210,9 +211,9 @@ object Conv {
             /*MapSeq(toGlobal(id)) o */ReduceSeq(add, toPrivate(id) $ 0.0f) o
             MapSeq(λ(TupleType(Float /*x_el_in_ch*/ , Float /*k_el_in_ch*/),
               (el_in_ch) =>
-                mult(toPrivate(id) $ /*x_el_in_chs*/ Get(el_in_ch, 0),
+                mult(toPrivate(id) $ /*x_el_in_ch*/ Get(el_in_ch, 0),
                      toPrivate(id) $ /*k_el_in_ch*/ Get(el_in_ch, 1)))) $
-            /* Zip across all input channels of the one element */
+            /* Zip input channels of one element */
             Zip(Get(single_element, 0), Get(single_element, 1))
         )) $ tile_of_els
       })
@@ -225,7 +226,7 @@ object Conv {
       λ(AT(AT(Float, kernel_sliding.size / els_per_thread), kernels_per_group),
         (weighted_row) => {
           Join() o MapLcl(1)(λ((weighted_row_per_out_ch) => {
-            MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) $ weighted_row_per_out_ch
+            MapSeq(toLocal(id)) o ReduceSeq(add, 0.0f) $ weighted_row_per_out_ch
           })) $ weighted_row
       })
 
@@ -288,6 +289,8 @@ object Conv {
       SlidingWindowConfig(
         size = iP.inputTileSize,
         stride = stride,
+        // TODO: change to n = ceil((iP.inputShape.size - iP.inputTileSize + stride) / stride)
+        // It's the same, but makes more sense
         n = 1 + Math.ceil((iP.inputShape.size - iP.inputTileSize).toFloat / stride).toInt)
     }
 
@@ -303,6 +306,8 @@ object Conv {
 
     /* Padding */
     // Calculate how much padding is required
+    // TODO: change to sizePadded = inputTiling.stride * inputTiling.n + (inputTiling.size - inputTiling.stride)
+    // It's the same, but makes more sense
     iP.inputShape.sizePadded = inputTiling.size + inputTiling.stride * (inputTiling.n - 1)
     iP.inputShape.sizePadded = iP.inputShape.sizePadded
 
@@ -326,7 +331,7 @@ object Conv {
 
     localSize(1) = (iP.kernelsPerGroup * Math.ceil(kernelSliding.size.toFloat / iP.elsPerThread)).toInt
 
-    localSize(2) = kernelSliding.size
+    localSize(2) = kernelSliding.size // TODO: make sure it is smaller than 64 (clinfo)
 
     {
       val groupSize: Int = localSize(0) * localSize(1) * localSize(2)

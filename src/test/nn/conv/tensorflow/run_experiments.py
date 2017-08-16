@@ -5,9 +5,9 @@ import pickle
 
 #os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-retrain = True
+retrain = False
 refprop = True
-fprop_mode = FPropMode.RANDOM
+fprop_mode = FPropMode.RESTORE
 
 kernel_sizes = np.arange(4, 64 + 1, 4)
 kernel_stride = 1
@@ -21,7 +21,7 @@ inputs_ns = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 2048]
 image_sizes = [8, 16, 32, 64, 128, 256, 512, 1024, 2048]
 # image_sizes = [128]
 inputs = None
-continueFromPrevious = True
+continueFromPrevious = False
 previousConfig = None
 if continueFromPrevious and\
     os.path.isfile(os.path.join(os.environ["LIFT_NN_RESOURCES"], "last_experiment.p")):

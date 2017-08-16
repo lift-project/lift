@@ -39,7 +39,32 @@ class TestCNN {
   val codeVersion: Int = 11
 
   @Test
-  def TestCNN(): Unit = {
+  def TestFC(): Unit = {
+    Test(nKernelsL1Range = List(8),
+      kernelSizeRange = List(4),
+      inputTileSizeRange = (kernelSize, _) => List(kernelSize),
+      elsPerThreadL1Range = _ => List(1),
+      kernelsPerGroupL1Range = _ => List(1),
+      multsPerThreadRange = imageSize => List(16) ++ (2 to imageSize * imageSize by 2),
+      neuronsPerWrgRange = fcSize0 => List(24) ++ (2 to fcSize0 by 2))
+  }
+
+  @Test
+  def TestConv(): Unit = {
+    Test(nKernelsL1Range = (8 to 48 by 4).toList,
+      kernelSizeRange = (4 to 64 by 4).toList,
+      inputTileSizeRange = (kernelSize, imageSize) => (kernelSize until imageSize by 4).toList,
+      elsPerThreadL1Range = kernelSize => List(1) ++ (2 to kernelSize by 1),
+      kernelsPerGroupL1Range = nKernelsL1 => List(1) ++ (2 to nKernelsL1 by 1),
+      multsPerThreadRange = _ => List(16),
+      neuronsPerWrgRange = _ => List(24))
+  }
+
+
+  def Test(nKernelsL1Range: List[Int], kernelSizeRange: List[Int],
+           inputTileSizeRange: (Int, Int) => List[Int],
+           elsPerThreadL1Range: Int => List[Int], kernelsPerGroupL1Range: Int => List[Int],
+           multsPerThreadRange: Int => List[Int], neuronsPerWrgRange: Int => List[Int]): Unit = {
     // If rerunsAllowed == False, the experiment will not be rerun if result files from previous runs
     // are found. Otherwise, new results will be added with a datetime timestamp
     val rerunsAllowed: Boolean = true
@@ -54,8 +79,8 @@ class TestCNN {
     var now: Date = null
     for {
       //rerun <- 1 until 10
-      nKernelsL1 <- 8 to 48 by 4//16 until 17 by 4
-      kernelSize <- 4 to 64 by 4 //8 until 64 by 4
+      nKernelsL1 <- nKernelsL1Range
+      kernelSize <- kernelSizeRange //8 until 64 by 4
       imageSize <- List(8, 16, 32, 64, 128, 256, 512, 1024, 2048)//8 until 64 by 8//16 until 512 by 16
       pathToInputs = Experiment.getPathToInputs(imageSize)
       pathToParams = Experiment.getPathToParams(nKernelsL1, kernelSize, imageSize)
@@ -71,11 +96,11 @@ class TestCNN {
         file => file.getName.endsWith("_n%d.csv".format(nInputs))} == 0
       // Load datasets once for all experiments (across all multsPerThread and neuronsPerWrg)
       if Experiment.datasetsExist(pathToParams)
-      inputTileSize <- kernelSize until imageSize by 4 // kernelSize
-      elsPerThreadL1 <- List(1) ++ (2 to kernelSize by 1)
-      kernelsPerGroupL1 <- List(1) ++ (2 to nKernelsL1 by 1)
-      multsPerThread <- List(1) ++ (2 to imageSize * imageSize by 2)
-      neuronsPerWrg <- List(1) ++ (2 to fcSize(0) by 2)
+      inputTileSize <- inputTileSizeRange(kernelSize, imageSize)
+      elsPerThreadL1 <- elsPerThreadL1Range(kernelSize)
+      kernelsPerGroupL1 <- kernelsPerGroupL1Range(nKernelsL1)
+      multsPerThread <- multsPerThreadRange(imageSize)
+      neuronsPerWrg <- neuronsPerWrgRange(fcSize(0))
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
         try {
@@ -99,7 +124,7 @@ class TestCNN {
           aCNN.convLayers(1) = aCNN.layers(1).asInstanceOf[Conv]
 
           initParams = FC.InitParameters(2, FC.Par, nn.ReLU,
-            inputShape = Shape(nInputs = nBatches * nInputs, size =
+            inputShape = Shape(nBatches = 1, nInputs = nBatches * nInputs, size =
               aCNN.convLayers(1).outputShape.size * aCNN.convLayers(1).outputShape.size *
                 aCNN.convLayers(1).outputShape.nChannels),
             neuronShape = Shape(size = fcSize(0)),
@@ -108,7 +133,7 @@ class TestCNN {
           aCNN.fcLayers(0) = aCNN.layers(2).asInstanceOf[FC]
 
           initParams = FC.InitParameters(3, FC.Par, nn.ReLU,
-            inputShape = Shape(nInputs = nBatches * nInputs, size = fcSize(0)),
+            inputShape = Shape(nBatches = 1, nInputs = nBatches * nInputs, size = fcSize(0)),
             neuronShape = Shape(size = fcSize(1)),
             multsPerThread = 1, neuronsPerWrg = 1)
           aCNN.layers(3) = FC(initParams.asInstanceOf[FC.InitParameters])
@@ -232,10 +257,11 @@ class TestCNN {
         /* Check and save results */
         var testFailed: Boolean = false
         val netOutput: Array2D[Float] = data.layers.last.asInstanceOf[FCDatasets].outputs.nonPadded
+        val netOutputTemp: Array2D[Float] = data.layers(2).asInstanceOf[FCDatasets].outputs.nonPadded
         val netTarget: Array2D[Float] = data.layers.last.asInstanceOf[FCDatasets].targets.asInstanceOf[Array2D[Float]]
         for ((liftResult, targetResult, input_no) <- (netOutput, netTarget, 0 to netTarget.length).zipped.toList) {
-          //        logger.info(f"target $batch_no%d,$input_no%d,$row_no%d,$el_no%d:  " + targetElement.mkString(", "))
-          //        logger.info(f"actual $batch_no%d,$input_no%d,$row_no%d,$el_no%d:  " + liftElement.mkString(", "))
+//          logger.info(f"target $input_no%d:  " + targetResult.mkString(", "))
+//          logger.info(f"actual $input_no%d:  " + liftResult.mkString(", "))
           for ((liftElement, targetElement, el_no) <-
                (liftResult, targetResult, 0 to targetResult.length).zipped.toList) {
             try {

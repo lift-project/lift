@@ -7,7 +7,7 @@ package nn
 package object fc {
   /* Types and data structures */
 
-  case class Tile(seqEls: Int, /*parEls: Int, */inputs: Int, neurons: Int)
+  case class Tile(seqEls: Int, /*parEls: Int, */ inputsInGroup: Int, neurons: Int)
 
   class FCDatasets(in: PaddedArray[Array2D[Float]] = PaddedArray(Array.empty),
                    out: PaddedArray[Array2D[Float]] = PaddedArray(Array.empty),

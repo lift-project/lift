@@ -15,7 +15,7 @@ from enum import Enum
 from array import array
 
 # Import MNIST data
-from tensorflow.examples.tutorials.mnist import input_data
+# from tensorflow.examples.tutorials.mnist import input_data
 
 
 def saveToBinary(arr, filename):
@@ -114,7 +114,7 @@ class CNN:
         # Output, class prediction
         out = tf.add(tf.matmul(fc1, weights['wout']), biases['bout'])
         out = tf.nn.relu(out)
-        return out
+        return fc1
 
     @staticmethod
     def conv_net(x, weights, biases, image_shape):
@@ -175,30 +175,43 @@ class CNN:
         self.y = tf.placeholder(tf.float32, [None, self.n_classes])
         self.keep_prob = tf.placeholder(tf.float32)  # dropout (keep probability)
 
-        # Store layers weight & bias
-        # TODO: rebuild Tensorflow to support GPU
-        with tf.device('/gpu:0'):
-            self.weights = {
-                'wconv1': tf.Variable(tf.random_normal([self.n_kernels[0], self.kernel_shape[0], self.kernel_shape[1],
-                                                        self.image_shape[2]])),
-                'wconv2': tf.Variable(
-                    tf.random_normal([self.n_kernels[1], self.kernel_shape[0], self.kernel_shape[1],
-                                      self.n_kernels[0]])),
-                'wmlp1': tf.Variable(
-                    tf.random_normal([self.n_kernels[1] *
-                                      (self.image_shape[0] - (self.kernel_shape[0] - self.kernel_stride[0]) * 2) *
-                                      (self.image_shape[1] - (self.kernel_shape[1] - self.kernel_stride[1]) * 2),
-                                      self.mlp_size_l2])),
-                'wout': tf.Variable(tf.random_normal([self.mlp_size_l2, self.n_classes]))
-            }
-            self.trained_weights = None
+        # Session configuration
+        self.config = tf.ConfigProto()
+        self.config.gpu_options.allow_growth = True
+        # log_device_placement=True)
 
-            self.biases = {
-                'bconv1': tf.Variable(tf.random_normal([self.n_kernels[0]])),
-                'bconv2': tf.Variable(tf.random_normal([self.n_kernels[1]])),
-                'bmlp1': tf.Variable(tf.random_normal([self.mlp_size_l2])),
-                'bout': tf.Variable(tf.random_normal([self.n_classes]))
-            }
+        # Get experiment directory name
+        self.inputs_path = CNN.get_inputs_path(self.image_shape[0])
+        self.results_path = CNN.get_results_path(self.n_kernels, self.kernel_shape, self.image_shape)
+        # Create directory
+        if not os.path.isdir(self.results_path):
+            os.mkdir(self.results_path)
+        if not os.path.isdir(self.inputs_path):
+            os.mkdir(self.inputs_path)
+
+        # Store layers weight & bias
+        with tf.device('/gpu:0'):
+            # self.weights = {
+            #     'wconv1': tf.Variable(tf.random_normal([self.n_kernels[0], self.kernel_shape[0], self.kernel_shape[1],
+            #                                             self.image_shape[2]])),
+            #     'wconv2': tf.Variable(
+            #         tf.random_normal([self.n_kernels[1], self.kernel_shape[0], self.kernel_shape[1],
+            #                           self.n_kernels[0]])),
+            #     'wmlp1': tf.Variable(
+            #         tf.random_normal([self.n_kernels[1] *
+            #                           (self.image_shape[0] - (self.kernel_shape[0] - self.kernel_stride[0]) * 2) *
+            #                           (self.image_shape[1] - (self.kernel_shape[1] - self.kernel_stride[1]) * 2),
+            #                           self.mlp_size_l2])),
+            #     'wout': tf.Variable(tf.random_normal([self.mlp_size_l2, self.n_classes]))
+            # }
+            # self.trained_weights = None
+            #
+            # self.biases = {
+            #     'bconv1': tf.Variable(tf.random_normal([self.n_kernels[0]])),
+            #     'bconv2': tf.Variable(tf.random_normal([self.n_kernels[1]])),
+            #     'bmlp1': tf.Variable(tf.random_normal([self.mlp_size_l2])),
+            #     'bout': tf.Variable(tf.random_normal([self.n_classes]))
+            # }
             self.trained_biases = None
 
             # Construct model
@@ -214,20 +227,6 @@ class CNN:
             #
             # # Initializing the variables
             # self.init = tf.global_variables_initializer()
-
-            # Session configuration
-            self.config = tf.ConfigProto()
-            self.config.gpu_options.allow_growth = True
-            # log_device_placement=True)
-
-            # Get experiment directory name
-            self.inputs_path = CNN.get_inputs_path(self.image_shape[0])
-            self.results_path = CNN.get_results_path(self.n_kernels, self.kernel_shape, self.image_shape)
-            # Create directory
-            if not os.path.isdir(self.results_path):
-                os.mkdir(self.results_path)
-            if not os.path.isdir(self.inputs_path):
-                os.mkdir(self.inputs_path)
 
     @staticmethod
     def get_results_path(n_kernels, kernel_shape, image_shape):
@@ -275,7 +274,7 @@ class CNN:
         Trains the network
         """
         # Load the data
-        self.mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+        self.mnist = None # input_data.read_data_sets("/tmp/data/", one_hot=True)
 
         # Launch the graph
         with tf.device('/gpu:0'):
@@ -333,7 +332,8 @@ class CNN:
         Generate random weights instead of training.
         """
         self.trained_weights = {
-            'wconv1': np.random.normal(size=(self.kernel_shape[0], self.kernel_shape[1],
+            'wconv1': TODO: np.random.uniform
+                np.random.normal(size=(self.kernel_shape[0], self.kernel_shape[1],
                                              self.image_shape[2], self.n_kernels[0])).astype(dtype=np.float32),
             'wconv2': np.random.normal(size=(self.kernel_shape[0], self.kernel_shape[1],
                                              self.n_kernels[0], self.n_kernels[1])).astype(dtype=np.float32),
@@ -364,7 +364,7 @@ class CNN:
     def get_inputs(self, n_batches, n_inputs, mode=FPropMode.MNIST):
         # Create an input dataset
         test_batch_images_flat = None
-        filename = self.inputs_path + '/inputs/test_images_n' + str(n_inputs) + '.binary'
+        filename = self.inputs_path + '/test_images_n' + str(n_inputs) + '.binary'
         if mode is FPropMode.MNIST:
             print("Generating a random subset of MNIST images...")
             for batch_no in np.arange(0, n_batches):
@@ -394,8 +394,20 @@ class CNN:
         :param n_inputs:
         :param n_batches:
         """
-        # test_images = np.empty([n_batches, n_inputs, self.image_shape[0], self.image_shape[1],
-        #                         self.image_shape[2]])
+        filename = self.inputs_path + '/test_images_n' + str(n_inputs) + '.binary'
+        if mode is not FPropMode.RESTORE or not os.path.isfile(filename):
+            # Save test images unless they've been successfully restored from files
+            test_images = np.reshape(test_batch_images_flat,
+                                     [n_batches, n_inputs, self.image_shape[0], self.image_shape[1],
+                                      self.image_shape[2]])
+            saveToBinary(test_images, filename)
+            # json_string = json.dumps(test_images.astype(np.float32).tolist())
+            # with open(self.results_path + '/test_images_n' + str(n_inputs) + '.json', 'w') as outfile:
+            #     outfile.write(json_string)
+            #     outfile.close()
+            print("Saved (" + str(test_images.shape[0] * test_images.shape[1]) + ") images, shape: ", end='')
+            print(test_images.shape)
+            return
 
         # Convert arrays to tensors
         trained_weights_tensors = {}
@@ -404,7 +416,7 @@ class CNN:
                 tf.Variable(self.trained_weights[weight_name].astype(dtype=np.float32))
             # tf.placeholder(tf.float32,
             #                                                       shape=self.trained_weights[weight_name].shape)
-                #tf.convert_to_tensor(self.trained_weights[weight_name].astype(np.float32))
+            #tf.convert_to_tensor(self.trained_weights[weight_name].astype(np.float32))
 
         trained_biases_tensors = {}
         for bias_name in self.trained_biases:
@@ -430,23 +442,10 @@ class CNN:
 
         # ---------------------- Forward propagation ---------------------- #
 
-        filename = self.inputs_path + '/test_images_n' + str(n_inputs) + '.binary'
-        if mode is not FPropMode.RESTORE or not os.path.isfile(filename):
-            # Save test images unless they've been successfully restored from files
-            test_images = np.reshape(test_batch_images_flat,
-                                     [n_batches, n_inputs, self.image_shape[0], self.image_shape[1],
-                                      self.image_shape[2]])
-            saveToBinary(test_images, filename)
-            # json_string = json.dumps(test_images.astype(np.float32).tolist())
-            # with open(self.results_path + '/test_images_n' + str(n_inputs) + '.json', 'w') as outfile:
-            #     outfile.write(json_string)
-            #     outfile.close()
-            print("Saved (" + str(test_images.shape[0] * test_images.shape[1]) + ") images, shape: ", end='')
-            print(test_images.shape)
-
         # Save Tensorflow's forward propagation results into a JSON file
-        test_results = np.reshape(test_results, [n_batches * n_inputs, self.n_classes])
+        # TODO: test_results = np.reshape(test_results, [n_batches * n_inputs, self.n_classes])
         saveToBinary(test_results, self.results_path + '/test_tf_results_n' + str(n_inputs) + '.binary')
+
         #test_results = np.reshape(test_results, [n_batches, n_inputs, 400])
         # test_results = np.reshape(test_results, (n_batches, n_inputs, test_results.shape[1],
         #                                          test_results.shape[2], test_results.shape[3]))
@@ -457,6 +456,8 @@ class CNN:
         if self.verbose:
             print("Saved results, shape: ", end='')
             print(test_results.shape)
+        print(test_results[0])
+        quit()
 
         # Print results
         if self.verbose:

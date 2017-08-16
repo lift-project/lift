@@ -78,64 +78,53 @@ object FC {
     ArrayType(ArrayType(Float, input_shape.sizePadded), input_shape.nInputs),
     (W, B, X) => {
       Join() o
-        MapWrg(0)(λ((tile0_of_inputs) => {
-          Scatter(ReorderWithStride(neuron_shape.sizePadded / tile.neurons)) o Join() o
-            MapWrg(1)(λ((w_tile2, b_tile2) => {
-              MapWrg(2)(λ((input) => {
-                MapLcl(0)(λ((tile_of_neurons) => {
-                  MapLcl(1)(λ((neuronBias, neuronPartialSumsToWrap) => {
-                    MapLcl(2)(λ((neuronPartialSums) => {
-                      //TransposeW() o
-                      toGlobal(MapSeq(activation_f)) o ReduceSeq(add, toPrivate(id) $ neuronBias) $ neuronPartialSums
-                    })) o Split(input_tile_size / tile.seqEls) $ neuronPartialSumsToWrap
-                  })) $ Zip(b_tile2, /*PrintType("input_tile") $ */tile_of_neurons)
-                })) o Split(tile.neurons) $ input
-              })) o //PrintType("After transform") o
-                /* (n_tiles_in_input, tile.inputs, tile.neurons, input_tile_size / tile.seqEls) ->
-                 * (tile.inputs, tile.neurons, n_tiles_in_input * input_tile_size / tile.seqEls)
+        MapWrg(0)(λ((group_of_inputs) => {
+          TransposeW() o Scatter(ReorderWithStride(neuron_shape.sizePadded / tile.neurons)) o
+            MapWrg(1)(λ((w_tile2, b_tile2) => {Join() o
+              MapWrg(2)(λ((inputs_wrapped) => {
+                MapLcl(0)(λ((input) => { //TODO: Join() o
+                  MapLcl(1)(λ((neuronBias, neuron_tiled_activations) => {
+                    toGlobal(MapSeq(activation_f)) o ReduceSeq(add, toPrivate(id) $ neuronBias) $ neuron_tiled_activations
+                  }))$ Zip(b_tile2, input)
+                })) $ inputs_wrapped
+              })) o
+                /* (n_tiles_in_input, tile.inputsInGroup, tile.neurons) ->
+                 * (1, tile.inputsInGroup, tile.neurons, n_tiles_in_input)
+                 *
                  * Where n_tiles_in_input = input_len / input_tile_size
                  */
-              Map(Map(Join()) o Transpose()) o Transpose() o //{
-//                println(f"neuron_shape.sizePadded = ${neuron_shape.sizePadded}%d")
-//                println(f"tile.neurons = ${tile.neurons}%d")
-//                println(f"neuron_shape.sizePadded / tile.neurons = ${neuron_shape.sizePadded / tile.neurons}%d")
-//                //Split(neuron_shape.sizePadded / tile.neurons)
-//                //Split(tile.neurons)
-//                PrintType("After MapWrg(2)")
-              //} o
-              /* (n_tiles_in_input, tile.inputs, tile.neurons, input_tile_size, tuple(f, f)) ->
-               * (n_tiles_in_input, tile.inputs, tile.neurons, input_tile_size / tile.seqEls)
+              Split(tile.inputsInGroup) o Map(Transpose()) o Transpose() o
+              /* (n_tiles_in_input, tile.inputsInGroup, tile.neurons, input_tile_size, tuple(f, f)) ->
+               * (n_tiles_in_input, tile.inputsInGroup, tile.neurons, input_tile_size / tile.seqEls) ->
+               * (n_tiles_in_input, tile.inputsInGroup, tile.neurons)
                * Where n_tiles_in_input = input_len / input_tile_size
                */
               MapWrg(2)(λ((input_tile1) => {
                 MapLcl(0)(λ((input) => {
-                    /* Split by neurons *//*PrintType("token2") o*/
-                    Split(input_tile_size / tile.seqEls) /*o PrintType("token1")*/ o Join() o
+                    Join() o
+                    // Reduce tile
+                    MapLcl(1)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o
+                    /* Split by neurons */
+                    Split(input_tile_size / tile.seqEls) o Join() o
                     MapLcl(1)(
-                      toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(toPrivate(mult))) o //PrintType("After Split(tile.seqEls) and Join") o
-                    Join() o Map(Split(tile.seqEls)) o //PrintType("Before Split(tile.seqEls)") o
-                    ReorderStride(tile.seqEls) $ //Coalescing: or dim.in / tile_of_mults_size
+                      toLocal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(toPrivate(mult))) o
+                    Join() o Map(Split(tile.seqEls) o ReorderStride(tile.seqEls)) $  //Coalescing: or dim.in / tile_of_mults_size
                       input
                   })) $ input_tile1
-              })) o //PrintType("After reshaping") o
+              })) o
               /* (tile.inputs, input_len) ->
-               * (n_tiles_in_input, tile.inputs, tile.neurons, input_tile_size, tuple(f, f))
+               * (n_tiles_in_input, tile.inputs, tile.neurons, input_tile_size[tuple(f, f)])
                * Where n_tiles_in_input = input_len / input_tile_size
                * */
                 Transpose() o Map(λ((input) => {
-                  Transpose() o //PrintType("here") o
+                  Transpose() o
                     // Split each input and each neuron by input_tile_size
                     Map(λ((single_neuron_weights) => {
                       Split(input_tile_size) $ Zip(input, single_neuron_weights)
                     })) $ w_tile2
-                })) $ {
-                /*println(f"tile.neurons = ${tile.neurons}%d")
-                println(f"tile.inputs = ${tile.inputs}%d")
-                println(f"input_tile_size = ${input_tile_size}%d")
-                PrintType("tile0_of_inputs") $ */tile0_of_inputs
-              }
-            })) /*o PrintType("params") */$ Zip(Split(tile.neurons) /*o PrintType("W") */$ W, Split(tile.neurons) $ B)})) o //PrintType("Xsplit") o
-        Split(tile.inputs) /*o PrintType("X")*/ $ X
+                })) $ group_of_inputs
+            })) $ Zip(Split(tile.neurons) $ W, Split(tile.neurons) $ B)})) o
+        Split(tile.inputsInGroup) $ X
     }
   )
 
@@ -235,7 +224,7 @@ object FC {
 
     new FC(iP.liftFPropGenerator(/*activation_f*/iP.activationFun, /*input_shape*/iP.inputShape,
       /*input_tile_size*/inputTileSize, /*neuron_shape*/iP.neuronShape, /*tile*/
-        Tile(seqEls = iP.multsPerThread, inputs = localSize(0), neurons = iP.neuronsPerWrg)),
+        Tile(seqEls = iP.multsPerThread, inputsInGroup = localSize(0), neurons = iP.neuronsPerWrg)),
       iP.inputShape, outputShape, iP.neuronShape, iP.multsPerThread, iP.neuronsPerWrg, inputTileSize,
       localSize, globalSize)
   }
