@@ -8,7 +8,7 @@ import pickle
 retrain = False
 refprop = False
 fprop_mode = FPropMode.RESTORE
-continueFromPrevious = True
+continueFromPrevious = False
 
 kernel_sizes = np.arange(4, 64 + 1, 4)
 kernel_stride = 1
@@ -23,6 +23,7 @@ image_sizes = [8, 16, 32, 64, 128, 256, 512, 1024, 2048]
 # image_sizes = [128]
 inputs = None
 previousConfig = None
+
 if continueFromPrevious and\
     os.path.isfile(os.path.join(os.environ["LIFT_NN_RESOURCES"], "last_experiment.p")):
     previousConfig = pickle.load(open(os.path.join(os.environ["LIFT_NN_RESOURCES"], "last_experiment.p"), "rb"))

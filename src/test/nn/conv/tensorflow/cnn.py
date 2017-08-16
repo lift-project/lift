@@ -415,95 +415,96 @@ class CNN:
         :param n_inputs:
         :param n_batches:
         """
-        # tf Graph input
-        self.x = tf.placeholder(tf.float32, [None, self.input_len])
-        self.y = tf.placeholder(tf.float32, [None, self.n_classes])
-        self.keep_prob = tf.placeholder(tf.float32)  # dropout (keep probability)
+        with tf.Graph().as_default():
+            # tf Graph input
+            self.x = tf.placeholder(tf.float32, [None, self.input_len])
+            self.y = tf.placeholder(tf.float32, [None, self.n_classes])
+            self.keep_prob = tf.placeholder(tf.float32)  # dropout (keep probability)
 
-        filename = self.inputs_path + '/test_images_n' + str(n_inputs) + '.binary'
-        if mode is not FPropMode.RESTORE or not os.path.isfile(filename):
-            # Save test images unless they've been successfully restored from files
-            test_images = np.reshape(test_batch_images_flat,
-                                     [n_batches, n_inputs, self.image_shape[0], self.image_shape[1],
-                                      self.image_shape[2]])
-            saveToBinary(test_images, filename)
-            # json_string = json.dumps(test_images.astype(np.float32).tolist())
-            # with open(self.results_path + '/test_images_n' + str(n_inputs) + '.json', 'w') as outfile:
+            filename = self.inputs_path + '/test_images_n' + str(n_inputs) + '.binary'
+            if mode is not FPropMode.RESTORE or not os.path.isfile(filename):
+                # Save test images unless they've been successfully restored from files
+                test_images = np.reshape(test_batch_images_flat,
+                                         [n_batches, n_inputs, self.image_shape[0], self.image_shape[1],
+                                          self.image_shape[2]])
+                saveToBinary(test_images, filename)
+                # json_string = json.dumps(test_images.astype(np.float32).tolist())
+                # with open(self.results_path + '/test_images_n' + str(n_inputs) + '.json', 'w') as outfile:
+                #     outfile.write(json_string)
+                #     outfile.close()
+                print("Saved (" + str(test_images.shape[0] * test_images.shape[1]) + ") images, shape: ", end='')
+                print(test_images.shape)
+                return
+
+            # Convert arrays to tensors
+            trained_weights_tensors = {}
+            for weight_name in self.trained_weights:
+                trained_weights_tensors[weight_name] = \
+                    tf.Variable(self.trained_weights[weight_name].astype(dtype=np.float32))
+                # tf.placeholder(tf.float32,
+                #                                                       shape=self.trained_weights[weight_name].shape)
+                #tf.convert_to_tensor(self.trained_weights[weight_name].astype(np.float32))
+
+            trained_biases_tensors = {}
+            for bias_name in self.trained_biases:
+                trained_biases_tensors[bias_name] = \
+                    tf.Variable(self.trained_biases[bias_name].astype(dtype=np.float32))
+
+            print(str(self.mlp_inputlen_l2_nonverified) + " " + str(self.mlp_inputlen_l2) + " " + str(self.pool_size))
+            if self.pool_size > 0:
+                print("The network will use POOLING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+            # ---------------------- Forward propagation ---------------------- #
+
+            print("Forward-propagating...")
+
+            # Construct model
+            # pred = self.conv_net(x, trained_weights_tensors, trained_biases_tensors, self.image_shape)
+            pred = self.conv_net_full(self.x, trained_weights_tensors, trained_biases_tensors, self.image_shape,
+                                      self.pool_size)
+
+            # Initializing the variables
+            init = tf.global_variables_initializer()
+            # Launch the graph
+            with tf.device('/gpu:0'):
+                with tf.Session(config=self.config) as sess:
+                    sess.run(init)
+                    # Produce outputs
+                    test_results = sess.run([pred], feed_dict={self.x: test_batch_images_flat})[0]
+
+            # ---------------------- Forward propagation ---------------------- #
+
+            # Save Tensorflow's forward propagation results into a JSON file
+            # TODO: test_results = np.reshape(test_results, [n_batches * n_inputs, self.n_classes])
+            saveToBinary(test_results, self.results_path + '/test_tf_results_n' + str(n_inputs) + '.binary')
+
+            #test_results = np.reshape(test_results, [n_batches, n_inputs, 400])
+            # test_results = np.reshape(test_results, (n_batches, n_inputs, test_results.shape[1],
+            #                                          test_results.shape[2], test_results.shape[3]))
+            # json_string = json.dumps(test_results.astype(np.float32).tolist())
+            # with open(self.results_path + '/test_tf_results_n' + str(n_inputs) + '.json', 'w') as outfile:
             #     outfile.write(json_string)
             #     outfile.close()
-            print("Saved (" + str(test_images.shape[0] * test_images.shape[1]) + ") images, shape: ", end='')
-            print(test_images.shape)
-            return
-
-        # Convert arrays to tensors
-        trained_weights_tensors = {}
-        for weight_name in self.trained_weights:
-            trained_weights_tensors[weight_name] = \
-                tf.Variable(self.trained_weights[weight_name].astype(dtype=np.float32))
-            # tf.placeholder(tf.float32,
-            #                                                       shape=self.trained_weights[weight_name].shape)
-            #tf.convert_to_tensor(self.trained_weights[weight_name].astype(np.float32))
-
-        trained_biases_tensors = {}
-        for bias_name in self.trained_biases:
-            trained_biases_tensors[bias_name] = \
-                tf.Variable(self.trained_biases[bias_name].astype(dtype=np.float32))
-
-        print(str(self.mlp_inputlen_l2_nonverified) + " " + str(self.mlp_inputlen_l2) + " " + str(self.pool_size))
-        if self.pool_size > 0:
-            print("The network will use POOLING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
-        # ---------------------- Forward propagation ---------------------- #
-
-        print("Forward-propagating...")
-
-        # Construct model
-        # pred = self.conv_net(x, trained_weights_tensors, trained_biases_tensors, self.image_shape)
-        pred = self.conv_net_full(self.x, trained_weights_tensors, trained_biases_tensors, self.image_shape,
-                                  self.pool_size)
-
-        # Initializing the variables
-        init = tf.global_variables_initializer()
-        # Launch the graph
-        with tf.device('/gpu:0'):
-            with tf.Session(config=self.config) as sess:
-                sess.run(init)
-                # Produce outputs
-                test_results = sess.run([pred], feed_dict={self.x: test_batch_images_flat})[0]
-
-        # ---------------------- Forward propagation ---------------------- #
-
-        # Save Tensorflow's forward propagation results into a JSON file
-        # TODO: test_results = np.reshape(test_results, [n_batches * n_inputs, self.n_classes])
-        saveToBinary(test_results, self.results_path + '/test_tf_results_n' + str(n_inputs) + '.binary')
-
-        #test_results = np.reshape(test_results, [n_batches, n_inputs, 400])
-        # test_results = np.reshape(test_results, (n_batches, n_inputs, test_results.shape[1],
-        #                                          test_results.shape[2], test_results.shape[3]))
-        # json_string = json.dumps(test_results.astype(np.float32).tolist())
-        # with open(self.results_path + '/test_tf_results_n' + str(n_inputs) + '.json', 'w') as outfile:
-        #     outfile.write(json_string)
-        #     outfile.close()
-        if self.verbose:
-            print("Saved results, shape: ", end='')
-            print(test_results.shape)
-        # print(test_results[0])
-        #quit()
-
-        # Print results
-        if self.verbose:
-            np.set_printoptions(threshold=np.inf, suppress=True)
-            input_no = 0
-            batch_no = 0
-            # print("Weights['wmlp1'][1]:")
-            # print(self.trained_weights['wmlp1'].transpose().shape)
-            # print(self.trained_weights['wmlp1'].transpose()[1])
-            # print("Biases['bmlp1']:")
-            # print(self.trained_biases['bmlp1'].shape)
-            # print(self.trained_biases['bmlp1'][1])
-            # print("Output[" + str(batch_no) + "][" + str(input_no) + "]:")
-            # # print(np.transpose(test_results[batch_no][input_no], (2, 0, 1)).shape)
-            # # print(np.transpose(test_results[batch_no][input_no], (2, 0, 1)))
-            # print(test_results.shape)
+            if self.verbose:
+                print("Saved results, shape: ", end='')
+                print(test_results.shape)
             # print(test_results[0])
-            # print()
+            #quit()
+
+            # Print results
+            if self.verbose:
+                np.set_printoptions(threshold=np.inf, suppress=True)
+                input_no = 0
+                batch_no = 0
+                # print("Weights['wmlp1'][1]:")
+                # print(self.trained_weights['wmlp1'].transpose().shape)
+                # print(self.trained_weights['wmlp1'].transpose()[1])
+                # print("Biases['bmlp1']:")
+                # print(self.trained_biases['bmlp1'].shape)
+                # print(self.trained_biases['bmlp1'][1])
+                # print("Output[" + str(batch_no) + "][" + str(input_no) + "]:")
+                # # print(np.transpose(test_results[batch_no][input_no], (2, 0, 1)).shape)
+                # # print(np.transpose(test_results[batch_no][input_no], (2, 0, 1)))
+                # print(test_results.shape)
+                # print(test_results[0])
+                # print()
