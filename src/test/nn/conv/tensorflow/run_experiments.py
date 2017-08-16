@@ -5,9 +5,10 @@ import pickle
 
 #os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-retrain = False
+retrain = True
 refprop = True
 fprop_mode = FPropMode.RESTORE
+continueFromPrevious = False
 
 kernel_sizes = np.arange(4, 64 + 1, 4)
 kernel_stride = 1
@@ -21,7 +22,6 @@ inputs_ns = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 2048]
 image_sizes = [8, 16, 32, 64, 128, 256, 512, 1024, 2048]
 # image_sizes = [128]
 inputs = None
-continueFromPrevious = False
 previousConfig = None
 if continueFromPrevious and\
     os.path.isfile(os.path.join(os.environ["LIFT_NN_RESOURCES"], "last_experiment.p")):
@@ -39,7 +39,7 @@ for batches_n in batches_ns:
                     # Check if kernel is not too big for the image
                     for kernel_n_l0 in kernel_ns_l0:
                         for kernel_n_l1 in kernel_ns_l1:
-                            if skip == True and \
+                            if skip and \
                                             (batches_n, inputs_n, image_size,
                                              kernel_size, kernel_n_l0, kernel_n_l1) == previousConfig:
                                 skip = False
@@ -49,7 +49,8 @@ for batches_n in batches_ns:
                                         open(os.path.join(os.environ["LIFT_NN_RESOURCES"], "last_experiment.p"), "wb"))
 
                             print("Creating a CNN with following parameters:")
-                            print("n_kernels=[" + str(kernel_n_l0) + ", " + str(kernel_n_l1) + "], kernel_shape=[" +
+                            print("batches_n = " + str(batches_n) + ", inputs_n = " + str(inputs_n) +
+                                  "n_kernels=[" + str(kernel_n_l0) + ", " + str(kernel_n_l1) + "], kernel_shape=[" +
                                   str(kernel_size) + ", " + str(kernel_size) + "]")
 
                             acnn = CNN(n_kernels=[kernel_n_l0, kernel_n_l1],

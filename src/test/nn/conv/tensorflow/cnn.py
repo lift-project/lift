@@ -176,7 +176,7 @@ class CNN:
         self.keep_prob = tf.placeholder(tf.float32)  # dropout (keep probability)
 
         # Session configuration
-        self.config = tf.ConfigProto()
+        self.config = tf.ConfigProto(log_device_placement=True)
         self.config.gpu_options.allow_growth = True
         # log_device_placement=True)
 
@@ -332,24 +332,30 @@ class CNN:
         Generate random weights instead of training.
         """
         self.trained_weights = {
-            'wconv1': TODO: np.random.uniform
-                np.random.normal(size=(self.kernel_shape[0], self.kernel_shape[1],
+            'wconv1': np.random.uniform(low=-1, high=1,
+                size=(self.kernel_shape[0], self.kernel_shape[1],
                                              self.image_shape[2], self.n_kernels[0])).astype(dtype=np.float32),
-            'wconv2': np.random.normal(size=(self.kernel_shape[0], self.kernel_shape[1],
+            'wconv2': np.random.uniform(low=-1, high=1,
+                                       size=(self.kernel_shape[0], self.kernel_shape[1],
                                              self.n_kernels[0], self.n_kernels[1])).astype(dtype=np.float32),
-            'wmlp1': np.random.normal(
-                size=(self.n_kernels[1] *
+            'wmlp1': np.random.uniform(low=-1, high=1,
+                                      size=(self.n_kernels[1] *
                       (self.image_shape[0] - (self.kernel_shape[0] - self.kernel_stride[0]) * 2) *
                       (self.image_shape[1] - (self.kernel_shape[1] - self.kernel_stride[1]) * 2),
                       self.mlp_size_l2)).astype(dtype=np.float32),
-            'wout': np.random.normal(size=(self.mlp_size_l2, self.n_classes)).astype(dtype=np.float32)
+            'wout': np.random.uniform(low=-1, high=1,
+                                     size=(self.mlp_size_l2, self.n_classes)).astype(dtype=np.float32)
         }
 
         self.trained_biases = {
-            'bconv1': np.random.normal(size=(self.n_kernels[0])).astype(dtype=np.float32),
-            'bconv2': np.random.normal(size=(self.n_kernels[1])).astype(dtype=np.float32),
-            'bmlp1': np.random.normal(size=self.mlp_size_l2).astype(dtype=np.float32),
-            'bout': np.random.normal(size=self.n_classes).astype(dtype=np.float32)
+            'bconv1': np.random.uniform(low=-1, high=1,
+                                       size=(self.n_kernels[0])).astype(dtype=np.float32),
+            'bconv2': np.random.uniform(low=-1, high=1,
+                                       size=(self.n_kernels[1])).astype(dtype=np.float32),
+            'bmlp1': np.random.uniform(low=-1, high=1,
+                                      size=self.mlp_size_l2).astype(dtype=np.float32),
+            'bout': np.random.uniform(low=-1, high=1,
+                                     size=self.n_classes).astype(dtype=np.float32)
         }
         trained_params = {**self.trained_weights, **self.trained_biases}
         for param_name in trained_params:
@@ -375,7 +381,8 @@ class CNN:
             if mode is FPropMode.RANDOM or not os.path.isfile(filename):
                 print("Generating random input...")
                 test_batch_images_flat = \
-                    np.random.normal(size=(n_batches * n_inputs, self.image_shape[0] * self.image_shape[1] *
+                    np.random.uniform(low=-1, high=1,
+                                      size=(n_batches * n_inputs, self.image_shape[0] * self.image_shape[1] *
                                            self.image_shape[2])).astype(dtype=np.float32)
             else:
                 # if mode is FPropMode.RESTORE:
