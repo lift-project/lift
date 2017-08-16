@@ -1,4 +1,4 @@
-package nn.pool
+package nn.poolScala
 
 /**
   * Created by nm on 09/01/17.

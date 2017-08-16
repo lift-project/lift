@@ -1,4 +1,4 @@
-package nn.pool
+package nn.poolScala
 
 /**
   * Created by nm on 09/01/17.
@@ -7,40 +7,18 @@ package nn.pool
 import ir.ast._
 import ir.{ArrayType, TupleType}
 import nn._
+import nn.poolScala.PoolDatasets
 import opencl.ir._
 import opencl.ir.pattern._
 
-/**
-  * Case class for storing the layer configuration.
-  * Configuration is to be preprocessed and verified by the companion object below.
-  * @param liftFProp
-  * @param inputShape
-  * @param outputShape* @param inputTiling
-  * @param kernelSliding
-  * @param elsPerThread
-  * @param kernelsPerGroup
-  * @param localSize
-  * @param globalSize
-  */
-case class Conv(liftFProp: FunDecl,
-                inputShape: Shape, outputShape: Shape,
-                inputTiling: SlidingWindowConfig, kernelSliding: SlidingWindowConfig,
-                elsPerThread: Int, kernelsPerGroup: Int,
-                localSize: Array[Int], globalSize: Array[Int]) extends Layer {
-  val configToString: String =
-    nn.conv.configToString(elsPerThread, outputShape.nChannels,
-      kernelsPerGroup, kernelSliding.size, kernelSliding.stride)
+
+case class PoolScala(inputShape: Shape, outputShape: Shape,
+                     localSize: Array[Int], globalSize: Array[Int]) extends Layer {
+  val configToString: String = "Scala Pooling layer"
   var runtime: Double = 0
 
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {
-      datasets.asInstanceOf[ConvDatasets].outputs.nonPadded =
-        nn.group(outputsFlat, (outputShape.nBatches, outputShape.nInputs,
-          outputShape.sizePadded, outputShape.sizePadded, outputShape.nChannels)).map(
-          batch => batch.map(
-            input => input.map(
-              row => row.slice(0, outputShape.size)
-            ).slice(0, outputShape.size)
-          ))
+      datasets.asInstanceOf[PoolDatasets].outputs.nonPadded = outputsFlat
   }
 }
 
@@ -48,7 +26,7 @@ case class Conv(liftFProp: FunDecl,
   * The companion object that contains the Lift expressions, configuration preprocessing and
   * verification, and helper functions.
   */
-object Conv {
+object PoolScala {
 //  val kernel_xdim_SV = SizeVar("kernel_xdim_SV")
 //  val kernel_ydim_SV = SizeVar("kernel_ydim_SV")
 //  val input_xdim_SV = SizeVar("input_xdim_SV")
@@ -262,7 +240,7 @@ object Conv {
     extends Layer.InitParameters(layerNo, inputShape)
 
 
-  def apply(iP: InitParameters): Conv = {
+  def apply(iP: InitParameters): PoolScala = {
     /**
     * Class factory: verifies that an object can be created,
     * initializes variables, computes workgroup sizes.
@@ -348,7 +326,7 @@ object Conv {
 
     /* Now that all parameters are calculated and verified, build the layer */
 
-    new Conv(
+    new PoolScala(
       iP.liftFPropGenerator(iP.activationFun, iP.inputShape, inputTiling,
         iP.nKernels,kernelSliding, iP.kernelsPerGroup, iP.elsPerThread),
       iP.inputShape, outputShape,

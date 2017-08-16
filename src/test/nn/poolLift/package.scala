@@ -7,7 +7,7 @@ import java.nio.file.Paths.get
   * Created by nm on 08/02/17.
   */
 
-package object pool {
+package object poolScala {
   /* Types and data structures */
   case class Tile(kernels_per_group: Int = 0,
                   els_per_thread: Int = 0,

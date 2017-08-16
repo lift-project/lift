@@ -1,4 +1,4 @@
-package nn.pool
+package nn.poolScala
 
 import java.io.{File, PrintWriter}
 import java.nio.file.Files.{createDirectory, exists}
@@ -21,7 +21,7 @@ object TestPool {
     println("Initialize the executor")
     Executor.init(/*monaco*/0, 0)
     println("Create the MySQL table if necessary")
-    nn.pool.mysql.CreateTable()
+    nn.poolScala.mysql.CreateTable()
   }
 
   @AfterClass def after(): Unit = {
