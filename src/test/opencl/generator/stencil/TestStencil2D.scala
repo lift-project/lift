@@ -133,6 +133,44 @@ class TestStencil2D {
       })
   }
 
+  @Test def j2d5pt: Unit = {
+    //val M = Var("M", StartFromRange(5))
+    //val N = Var("N", StartFromRange(5))
+    val M = 8192
+    val N = 8192
+
+    def vonNeumann5pt(x: Param) = {
+      val top = x.at(0).at(1)
+      val bottom = x.at(2).at(1)
+      val left = x.at(1).at(0)
+      val right = x.at(1).at(2)
+      val center = x.at(1).at(1)
+      (top, bottom, left, right, center)
+    }
+
+    // maybe got x and y wrong -- so confusing
+    def f = UserFun("jacobi", Array("top", "bottom", "left", "right", "center"),
+      """return (5 * top + 12 * left + 15 * center + 5 * bottom + 12 * right) / 118;""".stripMargin,
+      Seq(Float, Float, Float, Float, Float), Float)
+
+    val lambda = λ(
+      ArrayType(ArrayType(Float, M), N),
+      input => {
+        MapGlb(1)(MapGlb(0)(λ(nbh => {
+
+          // get stencil elements
+          val (top, bottom, left, right, center) = vonNeumann5pt(nbh)
+
+          toGlobal(id) o toPrivate(λ(x =>
+            f(x, bottom, left, right, center) )) $ top
+
+        }))) o Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ input
+      })
+
+    val kernel = Compile(lambda)
+    println(kernel)
+  }
+
   def run2DStencil(stencil: Lambda2,
                    size1: Int, step1: Int,
                    size2: Int, step2: Int,
