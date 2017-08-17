@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS lift_results_cnn(
   input_tile_stride_l1 int,
   els_per_thread_l1 int,
   kernels_per_group_l1 int,
+  
+  pool_size int,
+  l1_out_len_original int,
+  l1_out_len_new int,
 
   input_len_l2_nonpadded int,
   input_len_l2_padded int,

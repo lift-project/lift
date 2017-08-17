@@ -12,7 +12,8 @@ class CNN(val nConvLayers: Int,
           val inputShape: Shape,
           val pathToResults: String) {
 
-  val nLayers: Int = nConvLayers + nFCLayers
+  var nLayers: Int = nConvLayers + nFCLayers
+  var nPoolLayers: Int = 0
   val layers: Array[Layer] = new Array[Layer](nLayers)
   // convLayers and fcLayers are pointers to the elements of the "layers" array to avoid casting
   // Layer to Conv and FC each time a layer-specific field needs to be accessed

@@ -10,9 +10,12 @@ import nn._
 import nn.conv.{Conv, ConvDatasets}
 import nn.fc.{FC, FCDatasets}
 import nn.mysql.Connector
+import nn.poolScala.ScalaPool
 import opencl.executor.{Execute, Executor}
 import org.junit.Assert.assertEquals
 import org.junit.{AfterClass, BeforeClass, Test}
+
+import util.control.Breaks._
 
 /**
   * Created by s1569687 on 01/03/17.
@@ -53,7 +56,7 @@ class TestCNN {
   def TestConv(): Unit = {
     Test(nKernelsL1Range = (8 to 48 by 4).toList,
       kernelSizeRange = (4 to 64 by 4).toList,
-      inputTileSizeRange = (kernelSize, imageSize) => (kernelSize until imageSize by 4).toList,
+      inputTileSizeRange = (kernelSize, imageSize) => (kernelSize to imageSize by 4).toList,
       elsPerThreadL1Range = kernelSize => List(1) ++ (2 to kernelSize by 1),
       kernelsPerGroupL1Range = nKernelsL1 => List(1) ++ (2 to nKernelsL1 by 1),
       multsPerThreadRange = _ => List(16),
@@ -114,30 +117,59 @@ class TestCNN {
           initParams = Conv.InitParameters(0, Conv.Par(_, _, _, _, _, _, _), nn.ReLU, 1, 4, kernelSize, 16,
             inputShape = Shape(nBatches=nBatches, nInputs=nInputs, size=imageSize, nChannels=nChannels),
             kernelSize, kernelStride)
-          aCNN.layers(0) = Conv(initParams.asInstanceOf[Conv.InitParameters])
-          aCNN.convLayers(0) = aCNN.layers(0).asInstanceOf[Conv]
+          var currentLayer: Int = 0
+          aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
+          aCNN.convLayers(0) = aCNN.layers(currentLayer).asInstanceOf[Conv]
 
+          currentLayer = currentLayer + 1
           //noinspection ConvertibleToMethodValue
           initParams = Conv.InitParameters(1, Conv.Par(_, _, _, _, _, _, _), nn.ReLU, elsPerThreadL1, kernelsPerGroupL1,
             inputTileSize, nKernelsL1, inputShape = aCNN.convLayers(0).outputShape.copy(), kernelSize, kernelStride)
-          aCNN.layers(1) = Conv(initParams.asInstanceOf[Conv.InitParameters])
-          aCNN.convLayers(1) = aCNN.layers(1).asInstanceOf[Conv]
+          aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
+          aCNN.convLayers(1) = aCNN.layers(currentLayer).asInstanceOf[Conv]
 
+
+          /* Pooling */
+          val aPool: ScalaPool = new ScalaPool()
+          val conv2SizeInOneDimension = imageSize - (kernelSize - kernelStride) * 2
+          aPool.mlpInputlenL2NonVerified = nKernelsL1 * conv2SizeInOneDimension * conv2SizeInOneDimension
+          
+          if (aPool.mlpInputlenL2NonVerified >= aPool.mlpInputLenLimit) {
+            // Get minimum pool size
+            aPool.poolSize = Math.ceil(aPool.mlpInputlenL2NonVerified.toFloat / aPool.mlpInputLenLimit).toInt
+            // Find the pool size that is greater than the minimum pool size and that is a factor of inputlen
+            while (conv2SizeInOneDimension % aPool.poolSize != 0)
+              aPool.poolSize = aPool.poolSize + 1 
+            if (conv2SizeInOneDimension.toFloat % aPool.poolSize != 0)
+              throw java.lang.IllegalArgumentException
+            aPool.mlpInputlenL2 = (aPool.mlpInputlenL2NonVerified.toFloat / Math.pow(aPool.poolSize, 2)).toInt
+            aPool.nChannels = nKernelsL1
+          }
+          if (aPool.poolSize > 0) {
+            currentLayer = currentLayer + 1
+            aCNN.nPoolLayers = aCNN.nPoolLayers + 1
+            aCNN.nLayers = aCNN.nLayers + 1
+            aCNN.layers(currentLayer) = aPool
+          }
+          /* Pooling */
+
+          currentLayer = currentLayer + 1
           initParams = FC.InitParameters(2, FC.Par, nn.ReLU,
             inputShape = Shape(nBatches = 1, nInputs = nBatches * nInputs, size =
               aCNN.convLayers(1).outputShape.size * aCNN.convLayers(1).outputShape.size *
                 aCNN.convLayers(1).outputShape.nChannels),
             neuronShape = Shape(size = fcSize(0)),
             multsPerThread, neuronsPerWrg)
-          aCNN.layers(2) = FC(initParams.asInstanceOf[FC.InitParameters])
-          aCNN.fcLayers(0) = aCNN.layers(2).asInstanceOf[FC]
+          aCNN.layers(currentLayer) = FC(initParams.asInstanceOf[FC.InitParameters])
+          aCNN.fcLayers(0) = aCNN.layers(currentLayer).asInstanceOf[FC]
 
+          currentLayer = currentLayer + 1
           initParams = FC.InitParameters(3, FC.Par, nn.ReLU,
             inputShape = Shape(nBatches = 1, nInputs = nBatches * nInputs, size = fcSize(0)),
             neuronShape = Shape(size = fcSize(1)),
             multsPerThread = 1, neuronsPerWrg = 1)
-          aCNN.layers(3) = FC(initParams.asInstanceOf[FC.InitParameters])
-          aCNN.fcLayers(1) = aCNN.layers(3).asInstanceOf[FC]
+          aCNN.layers(currentLayer) = FC(initParams.asInstanceOf[FC.InitParameters])
+          aCNN.fcLayers(1) = aCNN.layers(currentLayer).asInstanceOf[FC]
           /* ---------------------------- BUILD NETWORK (END) ---------------------------- */
 
           /* ----------------------------- LOAD DATA (BEGIN) ----------------------------- */
@@ -198,40 +230,52 @@ class TestCNN {
 
         for (layerNo <- 0 until aCNN.nLayers) {
           val layer: Layer = aCNN.layers(layerNo)
-          val layerData: NetDatasets = data.layers(layerNo)
+          breakable {
+            layer match {
+              case poolLayer: ScalaPool => 
+                poolLayer.run()
+                logger.info(f"Layer $layerNo%d (pooling) completed")
+                break
+            }
+            
+            
+            val layerData: NetDatasets = data.layers(layerNo)
 
-          /* Padding */
-          layer match {
-            case cL: Conv => Conv.pad(layerData.asInstanceOf[ConvDatasets].inputs, cL.inputShape)
-            case fL: FC =>
-              val fcData: FCDatasets = layerData.asInstanceOf[FCDatasets]
-              FC.pad(fcData.inputs, fL.inputShape, fcData.weights, fcData.biases, fL.neuronShape)
-          }
+            /* Padding */
+            layer match {
+              case cL: Conv => Conv.pad(layerData.asInstanceOf[ConvDatasets].inputs, cL.inputShape)
+              case fL: FC =>
+                val fcData: FCDatasets = layerData.asInstanceOf[FCDatasets]
+                FC.pad(fcData.inputs, fL.inputShape, fcData.weights, fcData.biases, fL.neuronShape)
+            }
 
-          /* Execute */
-          val (outputsFlat: Array[Float], runtime) =
-            Execute(
-              layer.localSize(0), layer.localSize(1), layer.localSize(2),
-              layer.globalSize(0), layer.globalSize(1), layer.globalSize(2), (true, true))(
-              layer.liftFProp,
-              layerData match {
-                case cd: ConvDatasets => cd.weights
-                case fd: FCDatasets => fd.weights.padded},
-              layerData match {
-                case cd: ConvDatasets => cd.biases
-                case fd: FCDatasets => fd.biases.padded},
-              layerData match {
-                case cd: ConvDatasets => cd.inputs.padded
-                case fd: FCDatasets => fd.inputs.padded})
-          layer.runtime = runtime
-          logger.info(f"Layer $layerNo%d runtime: $runtime%1.5f ms")
+            /* Execute */
+            val (outputsFlat: Array[Float], runtime) =
+              Execute(
+                layer.localSize(0), layer.localSize(1), layer.localSize(2),
+                layer.globalSize(0), layer.globalSize(1), layer.globalSize(2), (true, true))(
+                layer.liftFProp,
+                layerData match {
+                  case cd: ConvDatasets => cd.weights
+                  case fd: FCDatasets => fd.weights.padded
+                },
+                layerData match {
+                  case cd: ConvDatasets => cd.biases
+                  case fd: FCDatasets => fd.biases.padded
+                },
+                layerData match {
+                  case cd: ConvDatasets => cd.inputs.padded
+                  case fd: FCDatasets => fd.inputs.padded
+                })
+            layer.runtime = runtime
+            logger.info(f"Layer $layerNo%d runtime: $runtime%1.5f ms")
 
-          /* Group and unpad */
-          layer.groupAndUnpad(outputsFlat, layerData)
+            /* Group and unpad */
+            layer.groupAndUnpad(outputsFlat, layerData)
 
-          /* Pass outputs to the next layer*/
-          if (layerNo != aCNN.nLayers - 1) {
-            (layer, aCNN.layers(layerNo + 1)) match {
+            /* Pass outputs to the next layer*/
+            if (layerNo != aCNN.nLayers - 1) {
+              (layer, aCNN.layers(layerNo + 1)) match {
                 case (_: Conv, _: FC) =>
                   // If the current layer is convolutional and the next one is fully connected
                   data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
@@ -239,7 +283,15 @@ class TestCNN {
                     layerData.asInstanceOf[ConvDatasets].outputs.nonPadded.flatMap(batch => batch.map(
                       // (h, w, n_channels) -> (h * w * n_channels)
                       input => input.map(row => row.flatten).flatten
-                ))
+                    ))
+                case (_: Conv, poolLayer: ScalaPool) =>
+                  poolLayer.inputs = layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
+                case (poolLayer: ScalaPool, _: FC) =>
+                  data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
+                    poolLayer.outputs.flatMap(batch => batch.map(
+                      // (h, w, n_channels) -> (h * w * n_channels)
+                      input => input.map(row => row.flatten).flatten
+                  ))
                 case (_: Conv, _: Conv) =>
                   data.layers(layerNo + 1).asInstanceOf[ConvDatasets].inputs.nonPadded =
                     layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
@@ -249,6 +301,7 @@ class TestCNN {
                 case (_: FC, _: Conv) =>
                   throw new java.lang.IllegalArgumentException(
                     "Fully connected layer must not precede a convolutional layer")
+              }
             }
           }
         }
@@ -354,7 +407,7 @@ class TestCNN {
       for (layerNo <- 0 until aCNN.nLayers)
         yield f"runtime_l$layerNo%d"
     }.mkString(", ") +
-      ", ran, success, abort_reason, experiment_id, datetime) VALUES (" +
+      ", ran, success, abort_reason, experiment_id, datetime, pool_size, l1_out_len_original, l1_out_len_new) VALUES (" +
       "'" + nn.deviceName + "', " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
       f"${aCNN.inputShape.size}%d, " + f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d, " + {
       for (layerNo <- aCNN.convLayers.indices) yield {
@@ -374,7 +427,23 @@ class TestCNN {
       for (layerNo <- 0 until aCNN.nLayers)
         yield f"${aCNN.layers(layerNo).runtime}%1.5f"
     }.mkString(", ") + f", $testRan%b, ${!testFailed}%b, '" + exceptionMsg.replaceAll("'", "''") + f"', $codeVersion%d, " +
-      f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s');")
+      f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s')," +
+      f"${
+        if (aCNN.nPoolLayers > 0)
+          aCNN.layers(2).asInstanceOf[ScalaPool].poolSize
+        else
+          0
+      }%d, ${
+        if (aCNN.nPoolLayers > 0)
+          aCNN.layers(2).asInstanceOf[ScalaPool].mlpInputlenL2NonVerified
+        else
+          0
+      }%d, ${
+        if (aCNN.nPoolLayers > 0)
+          aCNN.layers(2).asInstanceOf[ScalaPool].mlpInputlenL2
+        else
+          0
+      }%d;")
   }
 
 
