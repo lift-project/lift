@@ -1,5 +1,5 @@
-val M = SizeVar("M") //need to be power_of_two +2 because of missing pad
-val N = SizeVar("N")
+val M = Var("M", StartFromRange(8192)) //need to be power_of_two +2 because of missing pad
+val N = Var("N", StartFromRange(8192))
 
 fun(
     ArrayType(ArrayType(Float, M), N),

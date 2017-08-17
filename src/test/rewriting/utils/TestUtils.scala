@@ -3,8 +3,9 @@ package rewriting.utils
 import ir._
 import ir.ast._
 import opencl.ir._
-import lift.arithmetic.{Cst, SizeVar, Var}
+import lift.arithmetic._
 import opencl.executor.Eval
+import opencl.ir.pattern.MapSeq
 import org.junit.Assert._
 import org.junit.Test
 
@@ -67,6 +68,97 @@ class TestUtils {
     )
 
     val string = Utils.dumpLambdaToString(f)
+    println(string)
     Eval(string)
   }
+
+  @Test
+  def sameExpressionTwice(): Unit = {
+    val f1 = \(ArrayType(Float, SizeVar("N")), Map(plusOne) $ _)
+    val f2 = \(ArrayType(Float, SizeVar("N")), Map(plusOne) $ _)
+
+    val string1 = Utils.dumpLambdaToString(f1)
+    val string2 = Utils.dumpLambdaToString(f2)
+
+    assertEquals(string1, string2)
+  }
+
+  @Test
+  def declarationOrder(): Unit = {
+    Var()
+    Var()
+    Var()
+    val N = Var("N", StartFromRange(1))
+    val M = Var("M", StartFromRange(N))
+
+    val f = \(ArrayType(Float, N), ArrayType(Float, M), (a, b) => Map(\(x => Map(\(y => add(x,y))) $ b)) $ a)
+
+    val string = Utils.dumpLambdaToString(f)
+    Eval(string)
+  }
+
+  @Test
+  def declarationOrder2(): Unit = {
+    Var()
+    Var()
+    Var()
+    val M = Var("M", StartFromRange(1))
+    val N = Var("N", StartFromRange(M))
+
+    val f = \(ArrayType(Float, N), ArrayType(Float, M), (a, b) => Map(\(x => Map(\(y => add(x,y))) $ b)) $ a)
+
+    val string = Utils.dumpLambdaToString(f)
+    Eval(string)
+  }
+
+  @Test
+  def sameExpressionTwice2(): Unit = {
+    val f1 = \(ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      Map(Map(plusOne) o Gather(ReorderWithStride(SizeVar("")))) $ _)
+    val f2 = \(ArrayType(ArrayType(Float, SizeVar("M")), SizeVar("N")),
+      Map(Map(plusOne) o Gather(ReorderWithStride(SizeVar("")))) $ _)
+
+    val string1 = Utils.dumpLambdaToString(f1)
+    val string2 = Utils.dumpLambdaToString(f2)
+
+    assertEquals(string1, string2)
+  }
+
+  @Test
+  def sameExpressionTwice3(): Unit = {
+
+    val N1 = SizeVar("N")
+    val M1 = SizeVar("M")
+    val M2 = SizeVar("M")
+    val N2 = SizeVar("N")
+
+
+    val f1 = \(ArrayType(ArrayType(Float, M1), N1), Map(Map(plusOne)) $ _)
+    val f2 = \(ArrayType(ArrayType(Float, M2), N2), Map(Map(plusOne)) $ _)
+
+    val string1 = Utils.dumpLambdaToString(f1)
+    val string2 = Utils.dumpLambdaToString(f2)
+
+    assertEquals(string1, string2)
+  }
+
+  @Test
+  def printCorrectRangesForVars(): Unit = {
+    val M = Var("M", StartFromRange(32))
+    val N = Var("N", RangeUnknown)
+    val O = SizeVar("O")
+
+    val f = fun(
+      ArrayType(Float, M),
+      ArrayType(Float, N),
+      ArrayType(Float, O),
+      (m,n,o) => MapSeq(id) $ m)
+
+    val string = rewriting.utils.Utils.dumpLambdaToString(f, true)
+    assertTrue(string contains "Var(\"M\", StartFromRange(32))")
+    assertTrue(string contains "Var(\"N\", RangeUnknown)")
+    //assertTrue(string contains "SizeVar(\"O\")")
+    Eval(string)
+  }
+
 }

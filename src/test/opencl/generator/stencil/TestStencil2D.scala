@@ -984,4 +984,26 @@ class TestStencil2D {
     assertArrayEquals(outGold, outF4, 0.1f)
     assertArrayEquals(outGold, outF5, 0.1f)
   }
+
+  @Test //see Issue116
+  def halideBlur(): Unit = {
+    val M = Var("M")
+    val N = Var("N")
+    val M2 = 2 + Var("M")
+    val N2 = 2 + Var("N")
+
+    val input = Array.tabulate(128, 128) { (i, j) => j * 128.0f + i }
+
+    val div9 = UserFun("div9", "x", "{ return x/9; }", Float, Float)
+    val f = MapGlb(0)(MapSeq( \(neighborhood => toGlobal(MapSeq(div9)) o ReduceSeq(add, 0.0f) o Join() $ neighborhood)
+			)) o Slide2D(3, 1)
+
+    val stencil1 = fun( ArrayType(ArrayType(Float, M2), N2), input => {f $ input })
+    val stencil2 = fun( ArrayType(ArrayType(Float, M),  N),  input => {f $ input })
+
+    val(output1, _) = Execute(32,128)(stencil1, input)
+    val(output2, _) = Execute(32,128)(stencil2, input)
+
+    assertNotEquals(output1, output2)
+  }
 }

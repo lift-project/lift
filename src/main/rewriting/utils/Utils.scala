@@ -5,7 +5,7 @@ import java.security.MessageDigest
 
 import lift.arithmetic._
 import ir.ast._
-import ir.{ArrayType, ArrayTypeWS, Type, TypeException}
+import ir._
 import opencl.ir.ast.OpenCLBuiltInFun
 
 import scala.sys.process._
@@ -218,17 +218,45 @@ object Utils {
    * @param lambda The lambda to dump to a string
    * @return
    */
-  def dumpLambdaToString(lambda: Lambda): String = {
+  def dumpLambdaToString(lambda: Lambda, printRangeInformation: Boolean = false): String = {
+    // do not print detailed Range information => existing hashes stay valid
+    if (!printRangeInformation) {
+      val fullString =  dumpLambdaToStringWithoutDecls(lambda)
 
-    val fullString =  dumpLambdaToStringWithoutDecls(lambda)
+      val withIndex: List[(String, Int)] = findVariables(fullString)
 
-    val withIndex: List[(String, Int)] = findVariables(fullString)
+      val decls = withIndex.map(pair =>
+        "val " + getNewName(pair) + " = SizeVar(\"" + getIdentifier(pair) + "\")\n"
+      ).mkString("")
 
-    val decls = withIndex.map(pair =>
-      "val " + getNewName(pair) + " = SizeVar(\"" + getIdentifier(pair) + "\")\n"
-    ).mkString("")
+      decls + "\n" + replaceVariableNames(fullString, withIndex)
+    } else { // also print range information
+      TypeChecker(lambda)
 
-    decls + "\n" + replaceVariableNames(fullString, withIndex)
+      val inputVars = lambda.getVarsInParams(false)
+
+      val tunableVars =
+        findTunableNodes(lambda)
+          .map(extractArithExpr)
+          .collect({ case Some(c) => c.varList })
+          .flatten.filterNot(x => inputVars contains x).distinct
+
+      val fullString = dumpLambdaToStringWithoutDecls(lambda)
+      val allVars = inputVars.distinct ++ tunableVars
+      val orderedVars = allVars.toList
+      val withIndex = orderedVars.map(x => x.toString).zipWithIndex
+
+      val declStrings = orderedVars.zipWithIndex.map(tuple => {
+        val param = tuple._1
+        val index = tuple._2
+        val newName = getNewName(param.toString, index)
+        val replacedRange = replaceVariableNames(param.range.toString, withIndex)
+
+        "val " + newName + " = Var(\"" + param.name + "\", " + replacedRange + ")"
+      })
+
+      declStrings.mkString("\n") + "\n\n" + replaceVariableNames(fullString, withIndex)
+    }
   }
 
   private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String = {
