@@ -74,8 +74,10 @@ package object fc {
         },
         targ = {
           if (targetFilePrefix != "")
-            nn.loadBinary(paramsPath + "/" + targetFilePrefix + ".binary",
-              (inputShape.nBatches * inputShape.nInputs, neuronShape.size))
+            if (new java.io.File(paramsPath + "/" + targetFilePrefix + ".binary").exists)
+              nn.loadBinary(paramsPath + "/" + targetFilePrefix + ".binary",
+                (inputShape.nBatches * inputShape.nInputs, neuronShape.size))
+            else Array.empty
           else
             Array.empty
         },

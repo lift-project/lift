@@ -912,7 +912,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   
       /**
        * Turn a scala array of arbitrary dimension into a flat representation
-       * with all the necessary headers and offsets and write it to `buffer`
+       * with all the necessary headers and of fsets and write it to `buffer`
        *
        * @param buffer where to write the encoded array
        * @param pos at what position in `buffer` to write the encoded array

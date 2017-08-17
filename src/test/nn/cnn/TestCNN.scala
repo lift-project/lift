@@ -24,7 +24,7 @@ object TestCNN {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
-    Executor.init(/*monaco*/0, 0)
+    Executor.init(/*avus*/1, 0)
     nn.cnn.mysql.CreateTable()
   }
 
@@ -52,7 +52,7 @@ class TestCNN {
       neuronsPerWrgRange = fcSize0 => List(24) ++ (2 to fcSize0 by 2))
   }
 
-  @Test
+  //@Test
   def TestConv(): Unit = {
     Test(nKernelsL1Range = (8 to 48 by 4).toList,
       kernelSizeRange = (4 to 64 by 4).toList,
@@ -84,7 +84,7 @@ class TestCNN {
       //rerun <- 1 until 10
       nKernelsL1 <- nKernelsL1Range
       kernelSize <- kernelSizeRange //8 until 64 by 4
-      imageSize <- List(8, 16, 32, 64, 128, 256, 512, 1024, 2048)//8 until 64 by 8//16 until 512 by 16
+      imageSize <- List(/*8, 16, 32, 64, 128, 256, */512, 1024, 2048)//8 until 64 by 8//16 until 512 by 16
       pathToInputs = Experiment.getPathToInputs(imageSize)
       pathToParams = Experiment.getPathToParams(nKernelsL1, kernelSize, imageSize)
       if exists(get(pathToParams))
@@ -141,7 +141,7 @@ class TestCNN {
             while (conv2SizeInOneDimension % aPool.poolSize != 0)
               aPool.poolSize = aPool.poolSize + 1 
             if (conv2SizeInOneDimension.toFloat % aPool.poolSize != 0)
-              throw java.lang.IllegalArgumentException
+              throw new java.lang.IllegalArgumentException()
             aPool.mlpInputlenL2 = (aPool.mlpInputlenL2NonVerified.toFloat / Math.pow(aPool.poolSize, 2)).toInt
             aPool.nChannels = nKernelsL1
           }
@@ -156,8 +156,13 @@ class TestCNN {
           currentLayer = currentLayer + 1
           initParams = FC.InitParameters(2, FC.Par, nn.ReLU,
             inputShape = Shape(nBatches = 1, nInputs = nBatches * nInputs, size =
-              aCNN.convLayers(1).outputShape.size * aCNN.convLayers(1).outputShape.size *
-                aCNN.convLayers(1).outputShape.nChannels),
+              {
+                if (aCNN.nPoolLayers == 0)
+                  aCNN.convLayers(1).outputShape.size * aCNN.convLayers(1).outputShape.size *
+                    aCNN.convLayers(1).outputShape.nChannels
+                else
+                  aPool.mlpInputlenL2
+              }),
             neuronShape = Shape(size = fcSize(0)),
             multsPerThread, neuronsPerWrg)
           aCNN.layers(currentLayer) = FC(initParams.asInstanceOf[FC.InitParameters])
@@ -215,7 +220,6 @@ class TestCNN {
             logger.warn(msg)
             recordFailureInSQL(msg, initParams, now)
             logger.warn("SKIPPING EXPERIMENT.")
-            throw e
             false
         }
       }
@@ -230,16 +234,27 @@ class TestCNN {
 
         for (layerNo <- 0 until aCNN.nLayers) {
           val layer: Layer = aCNN.layers(layerNo)
+          val layerData: NetDatasets = data.layers({
+            if (aCNN.nPoolLayers > 0)
+              layerNo match {
+                case 0 => 0
+                case 1 => 1
+                case 2 => 2
+                case 3 => 2
+                case 4 => 3
+              }
+            else
+              layerNo
+          })
           breakable {
             layer match {
-              case poolLayer: ScalaPool => 
+              case poolLayer: ScalaPool =>
                 poolLayer.run()
                 logger.info(f"Layer $layerNo%d (pooling) completed")
                 break
+              case _ =>
             }
-            
-            
-            val layerData: NetDatasets = data.layers(layerNo)
+
 
             /* Padding */
             layer match {
@@ -272,36 +287,36 @@ class TestCNN {
 
             /* Group and unpad */
             layer.groupAndUnpad(outputsFlat, layerData)
+          }
 
-            /* Pass outputs to the next layer*/
-            if (layerNo != aCNN.nLayers - 1) {
-              (layer, aCNN.layers(layerNo + 1)) match {
-                case (_: Conv, _: FC) =>
-                  // If the current layer is convolutional and the next one is fully connected
-                  data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
-                    // (n_batches, n_inputs) -> (n_batches * n_inputs)
-                    layerData.asInstanceOf[ConvDatasets].outputs.nonPadded.flatMap(batch => batch.map(
-                      // (h, w, n_channels) -> (h * w * n_channels)
-                      input => input.map(row => row.flatten).flatten
-                    ))
-                case (_: Conv, poolLayer: ScalaPool) =>
-                  poolLayer.inputs = layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
-                case (poolLayer: ScalaPool, _: FC) =>
-                  data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
-                    poolLayer.outputs.flatMap(batch => batch.map(
-                      // (h, w, n_channels) -> (h * w * n_channels)
-                      input => input.map(row => row.flatten).flatten
+          /* Pass outputs to the next layer*/
+          if (layerNo != aCNN.nLayers - 1) {
+            (layer, aCNN.layers(layerNo + 1)) match {
+              case (_: Conv, _: FC) =>
+                // If the current layer is convolutional and the next one is fully connected
+                data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
+                  // (n_batches, n_inputs) -> (n_batches * n_inputs)
+                  layerData.asInstanceOf[ConvDatasets].outputs.nonPadded.flatMap(batch => batch.map(
+                    // (h, w, n_channels) -> (h * w * n_channels)
+                    input => input.map(row => row.flatten).flatten
                   ))
-                case (_: Conv, _: Conv) =>
-                  data.layers(layerNo + 1).asInstanceOf[ConvDatasets].inputs.nonPadded =
-                    layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
-                case (_: FC, _: FC) =>
-                  data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
-                    layerData.asInstanceOf[FCDatasets].outputs.nonPadded
-                case (_: FC, _: Conv) =>
-                  throw new java.lang.IllegalArgumentException(
-                    "Fully connected layer must not precede a convolutional layer")
-              }
+              case (_: Conv, poolLayer: ScalaPool) =>
+                poolLayer.inputs = layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
+              case (poolLayer: ScalaPool, _: FC) =>
+                data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
+                  poolLayer.outputs.flatMap(batch => batch.map(
+                    // (h, w, n_channels) -> (h * w * n_channels)
+                    input => input.map(row => row.flatten).flatten
+                ))
+              case (_: Conv, _: Conv) =>
+                data.layers(layerNo + 1).asInstanceOf[ConvDatasets].inputs.nonPadded =
+                  layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
+              case (_: FC, _: FC) =>
+                data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
+                  layerData.asInstanceOf[FCDatasets].outputs.nonPadded
+              case (_: FC, _: Conv) =>
+                throw new java.lang.IllegalArgumentException(
+                  "Fully connected layer must not precede a convolutional layer")
             }
           }
         }
@@ -309,21 +324,25 @@ class TestCNN {
 
         /* Check and save results */
         var testFailed: Boolean = false
-        val netOutput: Array2D[Float] = data.layers.last.asInstanceOf[FCDatasets].outputs.nonPadded
-        val netOutputTemp: Array2D[Float] = data.layers(2).asInstanceOf[FCDatasets].outputs.nonPadded
-        val netTarget: Array2D[Float] = data.layers.last.asInstanceOf[FCDatasets].targets.asInstanceOf[Array2D[Float]]
-        for ((liftResult, targetResult, input_no) <- (netOutput, netTarget, 0 to netTarget.length).zipped.toList) {
-//          logger.info(f"target $input_no%d:  " + targetResult.mkString(", "))
-//          logger.info(f"actual $input_no%d:  " + liftResult.mkString(", "))
-          for ((liftElement, targetElement, el_no) <-
-               (liftResult, targetResult, 0 to targetResult.length).zipped.toList) {
-            try {
-              assertEquals("", targetElement, liftElement, precision)
-            }
-            catch {
-              case e: AssertionError =>
-                logger.info(f"$input_no%d,$el_no%d,:  " + targetElement + " != " + liftElement)
-                testFailed = true
+        var testVerified: Boolean = false
+        if (data.layers.last.asInstanceOf[FCDatasets].targets.asInstanceOf[Array2D[Float]] == Array.empty) {
+          testVerified = true
+          val netOutput: Array2D[Float] = data.layers.last.asInstanceOf[FCDatasets].outputs.nonPadded
+          val netOutputTemp: Array2D[Float] = data.layers(2).asInstanceOf[FCDatasets].outputs.nonPadded
+          val netTarget: Array2D[Float] = data.layers.last.asInstanceOf[FCDatasets].targets.asInstanceOf[Array2D[Float]]
+          for ((liftResult, targetResult, input_no) <- (netOutput, netTarget, 0 to netTarget.length).zipped.toList) {
+            //          logger.info(f"target $input_no%d:  " + targetResult.mkString(", "))
+            //          logger.info(f"actual $input_no%d:  " + liftResult.mkString(", "))
+            for ((liftElement, targetElement, el_no) <-
+                 (liftResult, targetResult, 0 to targetResult.length).zipped.toList) {
+              try {
+                assertEquals("", targetElement, liftElement, precision)
+              }
+              catch {
+                case e: AssertionError =>
+                  logger.info(f"$input_no%d,$el_no%d,:  " + targetElement + " != " + liftElement)
+                  testFailed = true
+              }
             }
           }
         }
@@ -331,7 +350,10 @@ class TestCNN {
           logger.info(f"SUCCESS. Processed ${aCNN.inputShape.nBatches * aCNN.inputShape.nInputs}%d inputs, " +
             f"the results were equal to targets (precision=$precision%1.4f).")
         else
-          throw new AssertionError
+          if (!testVerified)
+            logger.info(f"NOT VERIFIED. Processed ${aCNN.inputShape.nBatches * aCNN.inputShape.nInputs}%d inputs.")
+          else
+            throw new AssertionError
 
 
         /* JSON */
@@ -339,7 +361,7 @@ class TestCNN {
           recordInJSON(aCNN, now)
 
         /* SQL */
-        recordInSQL(aCNN, testRan = true, testFailed, now)
+        recordInSQL(aCNN, testRan = true, testFailed, testVerified, now)
         /* ---------------------------- RUN EXPERIMENT (END) ---------------------------- */
       } catch {
         case e: opencl.executor.Executor.ExecutorFailureException =>
@@ -388,9 +410,9 @@ class TestCNN {
   }
 
   def recordFailureInSQL(exceptionMsg: String, aCNN: CNN, runDate: Date): Unit =
-    recordInSQL(aCNN, testRan = true, testFailed = true, runDate, exceptionMsg)
+    recordInSQL(aCNN, testRan = true, testFailed= false, testVerified = true, runDate, exceptionMsg)
 
-  def recordInSQL(aCNN: CNN, testRan: Boolean, testFailed: Boolean = false, runDate: Date,
+  def recordInSQL(aCNN: CNN, testRan: Boolean, testFailed: Boolean = false, testVerified: Boolean, runDate: Date,
                   exceptionMsg: String = ""): Unit = {
     Connector.statement.execute("INSERT INTO lift_results_cnn " +
       "(device_name, n_batches, n_inputs, image_size, n_conv_layers, n_fc_layers, " + {
@@ -407,7 +429,7 @@ class TestCNN {
       for (layerNo <- 0 until aCNN.nLayers)
         yield f"runtime_l$layerNo%d"
     }.mkString(", ") +
-      ", ran, success, abort_reason, experiment_id, datetime, pool_size, l1_out_len_original, l1_out_len_new) VALUES (" +
+      ", ran, verified, success, abort_reason, experiment_id, datetime, pool_size, l1_out_len_original, l1_out_len_new) VALUES (" +
       "'" + nn.deviceName + "', " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
       f"${aCNN.inputShape.size}%d, " + f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d, " + {
       for (layerNo <- aCNN.convLayers.indices) yield {
@@ -426,8 +448,8 @@ class TestCNN {
     }.mkString(", ") + ", " + {
       for (layerNo <- 0 until aCNN.nLayers)
         yield f"${aCNN.layers(layerNo).runtime}%1.5f"
-    }.mkString(", ") + f", $testRan%b, ${!testFailed}%b, '" + exceptionMsg.replaceAll("'", "''") + f"', $codeVersion%d, " +
-      f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s')," +
+    }.mkString(", ") + f", $testRan%b, $testVerified%b, ${!testFailed}%b, '" + exceptionMsg.replaceAll("'", "''") + f"', $codeVersion%d, " +
+      f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s'," +
       f"${
         if (aCNN.nPoolLayers > 0)
           aCNN.layers(2).asInstanceOf[ScalaPool].poolSize
@@ -443,7 +465,7 @@ class TestCNN {
           aCNN.layers(2).asInstanceOf[ScalaPool].mlpInputlenL2
         else
           0
-      }%d;")
+      }%d);")
   }
 
 

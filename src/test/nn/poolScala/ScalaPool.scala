@@ -27,19 +27,18 @@ case class ScalaPool(inputShape: Shape = null, outputShape: Shape = null,
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {}
   
   def run(): Unit = {
-    val nPools: Int = mlpInputlenL2 / poolSize
     
     outputs = Array.fill[Array4D[Float]](inputs.length)(
       Array.fill[Array3D[Float]](inputs(0).length)(
-        Array.fill[Array2D[Float]](nPools)(
-          Array.fill[Array[Float]](nPools)(
+        Array.fill[Array2D[Float]](mlpInputlenL2)(
+          Array.fill[Array[Float]](mlpInputlenL2)(
             Array.fill[Float](nChannels)(0)))))
     
     for (batchI <- inputs.indices) {
       for (inputI <- inputs(batchI).indices) {
-        for (poolX <- 0 until nPools) {
+        for (poolX <- 0 until Math.sqrt(mlpInputlenL2/nChannels).toInt) {
           val startX = poolX * poolSize
-          for (poolY <- 0 until nPools) {
+          for (poolY <- 0 until Math.sqrt(mlpInputlenL2/nChannels).toInt) {
             val startY = poolY * poolSize
             for (channelI <- 0 until nChannels) {
               outputs(batchI)(inputI)(poolX)(poolY)(channelI) =

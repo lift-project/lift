@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS lift_results_cnn(
   ran boolean NOT NULL,
   abort_reason varchar(1000),
   success boolean,
+  verified boolean,
   experiment_id int,
   datetime DATETIME,
   PRIMARY KEY (id)

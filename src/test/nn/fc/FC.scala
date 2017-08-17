@@ -148,7 +148,7 @@ object FC {
           Math.floor(nn.maxWorkGroupSize.toFloat * iP.multsPerThread / iP.neuronsPerWrg).toInt)
         // Make sure iTS is divisible by multsPerThread, but use floor instead of ceil to avoid breaking
         // the maxWrokGroupSize limit
-        (iP.multsPerThread * Math.floor(iTSNonPadded.toFloat / iP.multsPerThread)).toInt
+         (iP.multsPerThread * Math.floor(iTSNonPadded.toFloat / iP.multsPerThread)).toInt
       }
 
     // Padding: calculate how many neurons will need to be added
