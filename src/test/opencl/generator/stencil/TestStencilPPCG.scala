@@ -24,6 +24,8 @@ object TestStencilPPCG {
 
 class TestStecilPPCG {
 
+  def increaseAndShift() = Map(Scatter(shiftRight)) o Scatter(shiftRight) o Pad2D(1,1,Pad.Boundary.Clamp)
+
   @Test def j2d5pt: Unit = {
     val M = 8192
     val N = 8192
@@ -35,6 +37,7 @@ class TestStecilPPCG {
     val lambda = λ(
       ArrayType(ArrayType(Float, M), N),
       input => {
+        //increaseAndShift() o
         MapGlb(1)(MapGlb(0)(λ(nbh => {
 
           val (top, bottom, left, right, center) = vonNeumann5pt(nbh)
@@ -78,7 +81,8 @@ class TestStecilPPCG {
       ArrayType(ArrayType(Float, M), N),
       ArrayType(ArrayType(Float, 3), 3),
       (input, weights) => {
-        MapGlb(1)(MapGlb(0)(λ(nbh =>
+        increaseAndShift() o
+        MapGlb(1)(Join() o MapGlb(0)(λ(nbh =>
           MapSeq(toGlobal(id)) o
           ReduceSeqUnroll(λ( (acc, x) =>
             multAndSumUp(acc, x._0, x._1)), 0.0f)
@@ -89,7 +93,7 @@ class TestStecilPPCG {
       }
     )
 
-    val kernel = Compile(lambda1)
+    val kernel = Compile(lambda2)
     println(kernel)
   }
 }
