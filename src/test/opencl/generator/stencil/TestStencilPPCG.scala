@@ -50,8 +50,8 @@ class TestStecilPPCG {
   }
 
   @Test def j2d9pt: Unit = {
-    val M = 16
-    val N = 16
+    val M = 8192
+    val N = 8192
 
     def f = UserFun("jacobi", Array("NW","N","NE","W","C","E","SW","S","SE"),
       "return (7 * NW + 5 * N + 9 * NE + 12 * W + 15 * C + 12 * E + 9 * SW + 5 * S + 7 * SE) / 118;",
