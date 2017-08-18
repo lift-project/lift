@@ -238,12 +238,14 @@ object GenericKernelPrinter {
 
                   // todo (@bastian) currently only uses the first input combination
                   // add atf vars
-                  assert(vars.length == combinations.get.head.length)
-                  val varsWithSizes = vars.zip(combinations.get.head)
-                  varsWithSizes.foreach(x => {
-                    sb.append(s"""#atf::var<int> ${x._1.toString} = ${x._2.toString}\n""")
-                  })
-                  sb.append("\n")
+                  if(vars.nonEmpty) {
+                    assert(vars.length == combinations.get.head.length)
+                    val varsWithSizes = vars.zip(combinations.get.head)
+                    varsWithSizes.foreach(x => {
+                      sb.append(s"""#atf::var<int> ${x._1.toString} = ${x._2.toString}\n""")
+                    })
+                    sb.append("\n")
+                  }
 
                   // add search technique and abort condition
                   val searchTechnique = "atf::open_tuner"
@@ -264,12 +266,29 @@ object GenericKernelPrinter {
                   sb.append(s"""#atf::abort_condition \"$abortCondition\"\n""")
                   sb.append("\n")
 
+                  // add tuning parameter directives
+                  val allTuningParams = ParameterSearch.getTunableSplitsAndSlides(expr).filter(_._1.isInstanceOf[TuningParameter])
+
+                  allTuningParams.distinct.foreach(x => {
+                    val tpName = x._1.toString
+                    val divides = x._2
+                    // tuning parameters are always of type int
+                    sb.append(s"""#atf::tp name \"$tpName\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,$divides)" \\\n constraint \"atf::divides($divides)\"\n""")
+                  })
+                  sb.append("\n")
+
                   // add global size directives
                   // find out which map loops over which input dimension
                   def globalSizeInputVarMappedOver(v: Var, d: Int): (String, ArithExpr) = {
                     val inputVarsMappedOver = v.range.max.varList.intersect(vars.toSet)
-                    assert(inputVarsMappedOver.size == 1)
-                    (s"GLOBAL_SIZE_$d", inputVarsMappedOver.head)
+                    // usually we try to set the max global_size as high as the elements of the input in that dimension
+                    // therefore we use the var as max
+                    if(inputVarsMappedOver.size == 1)
+                      (s"GLOBAL_SIZE_$d", inputVarsMappedOver.head)
+                    else
+                      // if there is no var (e.g., a fixed-input size array is given) the max number of threads we
+                      // start is the size of the array in the according dimension taken from the config
+                      (s"GLOBAL_SIZE_$d", combinations.get.head(d)) // todo can we actually use this above too?
                   }
 
                   var globalSizeMaxValues: Set[(String, ArithExpr)] = Set()
@@ -302,16 +321,6 @@ object GenericKernelPrinter {
                     i => s"""#atf::tp name \"LOCAL_SIZE_$i\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,${settings.searchParameters.maxLocalSize})" \\\n constraint \"atf::divides(GLOBAL_SIZE_$i)\"\n""")
                   localSizeDirectives.foreach(x => sb.append(x))
 
-                  // add tuning parameter directives
-                  val allTuningParams = ParameterSearch.getTunableSplitsAndSlides(expr).filter(_._1.isInstanceOf[TuningParameter])
-
-                  allTuningParams.distinct.foreach(x => {
-                    val tpName = x._1.toString
-                    val divides = x._2
-                    // tuning parameters are always of type int
-                    sb.append(s"""#atf::tp name \"$tpName\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,$divides)" \\\n constraint \"atf::divides($divides)\"\n""")
-                  })
-                  sb.append("\n")
 
                   // add vendor directives
                   sb.append(s"""#atf::ocl::device_info vendor \"${config.vendor}\" type \"${config.deviceType}\" id ${config.deviceId}\n""")
