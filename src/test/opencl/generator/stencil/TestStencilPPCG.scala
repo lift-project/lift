@@ -37,7 +37,7 @@ class TestStecilPPCG {
     val lambda = λ(
       ArrayType(ArrayType(Float, M), N),
       input => {
-        //increaseAndShift() o
+        increaseAndShift() o
         MapGlb(1)(MapGlb(0)(λ(nbh => {
 
           val (top, bottom, left, right, center) = vonNeumann5pt(nbh)
@@ -60,9 +60,37 @@ class TestStecilPPCG {
       "return (7 * NW + 5 * N + 9 * NE + 12 * W + 15 * C + 12 * E + 9 * SW + 5 * S + 7 * SE) / 118;",
       Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
+    val reduce = λ(
+      ArrayType(ArrayType(ArrayType(Float, M), N), 1),
+      input => {
+        ReduceSeq(
+          // 'binary reduce operator' performing the stencil computation
+          λ((acc, x) => {
+            // restore input type
+            Split(8192) o
+            // increase output and shift writes
+            Map(Scatter(shiftRight)) o
+              Scatter(shiftRight) o Pad2D(1,1,Pad.Boundary.Clamp)
+            MapGlb(1)(MapGlb(0)(λ(nbh => {
+
+              val (northWest, north, northEast,
+                west, center, east,
+                southWest, south, southEast) = moore9pt(nbh)
+
+              toGlobal(id) o toPrivate(λ(x =>
+                f(x, north, northEast,
+                  west, center, east,
+              southWest, south, southEast))) $ northEast
+
+        }))) o Slide2D(3, 1) $ x}),
+          // initialize output
+          MapSeq(MapGlb(1)(MapGlb(0)(id))) $ input) $ input
+      })
+
     val lambda1 = λ(
       ArrayType(ArrayType(Float, M), N),
       input => {
+        increaseAndShift() o
         MapGlb(1)(MapGlb(0)(λ(nbh => {
 
           val (northWest, north, northEast,
@@ -93,7 +121,7 @@ class TestStecilPPCG {
       }
     )
 
-    val kernel = Compile(lambda2)
+    val kernel = Compile(reduce)
     println(kernel)
   }
 }
