@@ -225,6 +225,7 @@ object StencilUtilities
     fileOut.close()
   }
 
+  // outer => inner
   def vonNeumann5pt(x: Param) = {
     val N = x.at(0).at(1)
     val S = x.at(2).at(1)
@@ -246,6 +247,42 @@ object StencilUtilities
     val SE = x.at(2).at(2)
     (NW, N, NE, W, C, E, SW, S, SE)
   }
+
+  /*
+  def moore25pt(x: Param) = {
+    val NNWW = x.at(0).at(0)
+    val NNW = x.at(0).at(1)
+    val NN = x.at(0).at(2)
+    val NNE = x.at(0).at(3)
+    val NNEE = x.at(0).at(4)
+    val NWW  = x.at(1).at(0)
+    val NW  = x.at(1).at(1)
+    val N  = x.at(1).at(2)
+    val NE  = x.at(1).at(3)
+    val NEE  = x.at(1).at(4)
+    val WW  = x.at(2).at(0)
+    val W  = x.at(2).at(1)
+    val C  = x.at(2).at(2)
+    val E  = x.at(2).at(3)
+    val EE  = x.at(2).at(4)
+    val SWW = x.at(3).at(0)
+    val SW = x.at(3).at(1)
+    val S = x.at(3).at(2)
+    val SE = x.at(3).at(3)
+    val SEE = x.at(3).at(4)
+    val SSWW  = x.at(4).at(0)
+    val SSW  = x.at(4).at(1)
+    val SS  = x.at(4).at(2)
+    val SSE = x.at(4).at(3)
+    val SSEE = x.at(4).at(4)
+    (NNWW, NNW, NN, NNE, NNEE,
+      NWW, NW, N, NE, NEE,
+      WW, W, C, E, EE,
+      SWW, SW, S, SE, SEE,
+      SSWW, SSW, SS, SSE, SSEE
+    )
+  }
+  */
 }
 
 object TestAcousticStencils {
