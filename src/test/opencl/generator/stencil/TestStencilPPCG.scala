@@ -83,7 +83,7 @@ class TestStecilPPCG {
             Split(8192) o
             // increase output and shift writes
             Map(Scatter(shiftRight)) o
-              Scatter(shiftRight) o Pad2D(1,1,Pad.Boundary.Clamp)
+              Scatter(shiftRight) o Pad2D(1,1,Pad.Boundary.Clamp) o
             MapGlb(1)(MapGlb(0)(λ(nbh => {
 
               val (northWest, north, northEast,
