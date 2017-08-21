@@ -181,19 +181,42 @@ class TestStecilPPCG {
         Float, Float, Float, Float, Float,
         Float, Float, Float, Float, Float), Float)
 
-    // Scala only allows 22-tuples
-    /*
     val lambda1 = λ(
       ArrayType(ArrayType(Float, M), N),
       input => {
-        increaseAndShift() o
+        Map(Scatter(shift2Right)) o Scatter(shift2Right) o Pad2D(2,2,Pad.Boundary.Clamp) o
         MapGlb(1)(MapGlb(0)(λ(nbh => {
 
-          val (nnww, nnw, nn, nne, nnee,
-            nww, nw, n, nee, ne,
-            ww, w, c, e, ee,
-            sww, sw, s, se, see,
-            ssww, ssw, ss, sse, ssee) = moore25pt(nbh)
+          //               y     x
+          val nnww = nbh.at(0).at(0)
+          val nnw  = nbh.at(0).at(1)
+          val nn   = nbh.at(0).at(2)
+          val nne  = nbh.at(0).at(3)
+          val nnee = nbh.at(0).at(4)
+
+          val nww  = nbh.at(1).at(0)
+          val nw   = nbh.at(1).at(1)
+          val n    = nbh.at(1).at(2)
+          val ne   = nbh.at(1).at(3)
+          val nee  = nbh.at(1).at(4)
+
+          val ww   = nbh.at(2).at(0)
+          val w    = nbh.at(2).at(1)
+          val c    = nbh.at(2).at(2)
+          val e    = nbh.at(2).at(3)
+          val ee   = nbh.at(2).at(4)
+
+          val sww  = nbh.at(3).at(0)
+          val sw   = nbh.at(3).at(1)
+          val s    = nbh.at(3).at(2)
+          val se   = nbh.at(3).at(3)
+          val see  = nbh.at(3).at(4)
+
+          val ssww = nbh.at(4).at(0)
+          val ssw  = nbh.at(4).at(1)
+          val ss   = nbh.at(4).at(2)
+          val sse  = nbh.at(4).at(3)
+          val ssee = nbh.at(4).at(4)
 
           toGlobal(id) o toPrivate(λ(x =>
             f(x, nnw, nn, nne, nnee,
@@ -202,11 +225,10 @@ class TestStecilPPCG {
               sww, sw, s, se, see,
               ssww, ssw, ss, sse, ssee))) $ nnww
 
-        }))) o Slide2D(3, 1) $ input
+        }))) o Slide2D(5, 1) $ input
       })
-    */
 
-    val kernel = Compile(lambda2)
+    val kernel = Compile(lambda1)
     println(kernel)
   }
   // actually its only 17pt -- F and B are not used
@@ -299,6 +321,131 @@ class TestStecilPPCG {
             jacobi(x, n, s, e, w, f, b))) $ c
 
         })))) o Slide3D(3, 1) $ input
+      })
+
+    val kernel = Compile(lambda)
+    println(kernel)
+  }
+
+  @Test def j3d27pt: Unit = {
+    val M = 512
+    val N = 512
+    val O = 512
+
+    // [X-1][][] = F(ront) [X+1][][] = B(ack)
+    // [][X-1][] = N(orth) [][X+1][] = S(outh)
+    // [][][X-1] = W(est)  [][][X+1] = E(ast)
+    def jacobi = UserFun("jacobi", Array("FNW", "FN", "FNE", "FW", "F", "FE", "FSW", "FS", "FSE",
+              "NW", "N", "NE", "W", "C", "E", "SW", "S", "SE",
+              "BNW", "BN", "BNE", "BW", "B", "BE", "BSW", "BS", "BSE"),
+      """return (0.5 * FNW + 0.7 * FN + 0.9 * FNE +
+        |        1.2 * FW + 1.5 * F + 1.2 * FE +
+        |        0.9 * FSW + 0.7 * FS + 0.5 * FSE +
+        |        0.51 * NW + 0.71 * N + 0.91 * NE +
+        |        1.21 * W + 1.51 * C + 1.21 * E +
+        |        0.91 * SW + 0.71 * S + 0.51 * SE +
+        |        0.52 * BNW + 0.72 * BN + 0.92 * BNE +
+        |        1.22 * BW + 1.52 * B + 1.22 * BE +
+        |        0.92 * BSW + 0.72 * BS + 0.52 * BSE) / 159;""".stripMargin,
+      Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float,
+        Float, Float, Float, Float, Float, Float, Float, Float, Float,
+        Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
+    val lambda = λ(
+      ArrayType(ArrayType(ArrayType(Float, M), N), O),
+      input => {
+        Map(Map(Scatter(shiftRight))) o
+          Map(Scatter(shiftRight)) o
+            Scatter(shiftRight) o
+        Pad3D(1,1,1,Pad.Boundary.Clamp) o
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
+
+          //              z     y     x
+          val fnw = nbh.at(0).at(0).at(0)
+          val fn  = nbh.at(0).at(0).at(1)
+          val fne = nbh.at(0).at(0).at(2)
+          val fw  = nbh.at(0).at(1).at(0)
+          val f   = nbh.at(0).at(1).at(1)
+          val fe  = nbh.at(0).at(1).at(2)
+          val fsw = nbh.at(0).at(2).at(0)
+          val fs  = nbh.at(0).at(2).at(1)
+          val fse = nbh.at(0).at(2).at(2)
+
+          val nw  = nbh.at(1).at(0).at(0)
+          val n   = nbh.at(1).at(0).at(1)
+          val ne  = nbh.at(1).at(0).at(2)
+          val w   = nbh.at(1).at(1).at(0)
+          val c   = nbh.at(1).at(1).at(1)
+          val e   = nbh.at(1).at(1).at(2)
+          val sw  = nbh.at(1).at(2).at(0)
+          val s   = nbh.at(1).at(2).at(1)
+          val se  = nbh.at(1).at(2).at(2)
+
+          val bnw = nbh.at(2).at(0).at(0)
+          val bn  = nbh.at(2).at(0).at(1)
+          val bne = nbh.at(2).at(0).at(2)
+          val bw  = nbh.at(2).at(1).at(0)
+          val b   = nbh.at(2).at(1).at(1)
+          val be  = nbh.at(2).at(1).at(2)
+          val bsw = nbh.at(2).at(2).at(0)
+          val bs  = nbh.at(2).at(2).at(1)
+          val bse = nbh.at(2).at(2).at(2)
+
+          toGlobal(id) o toPrivate(λ(x =>
+            jacobi(x, fn, fne, fw, f, fe, fsw, fs, fse,
+              nw, n, ne, w, c, e, sw, s, se,
+              bnw, bn, bne, bw, b, be, bsw, bs, bse))) $ fnw
+
+        })))) o Slide3D(3, 1) $ input
+      })
+
+    val kernel = Compile(lambda)
+    println(kernel)
+  }
+
+  @Test def j3d13pt: Unit = {
+    val M = 512
+    val N = 512
+    val O = 512
+
+    // [X-1][][] = F(ront) [X+1][][] = B(ack)
+    // [][X-1][] = N(orth) [][X+1][] = S(outh)
+    // [][][X-1] = W(est)  [][][X+1] = E(ast)
+    def jacobi = UserFun("jacobi", Array("EE", "E", "W", "WW", "SS", "S", "N", "NN", "BB", "B", "F", "FF", "C"),
+      """return 0.083f * EE + 0.083f * E + 0.083f * W + 0.083f * WW +
+        |       0.083f * SS + 0.083f * S + 0.083f * N + 0.083f * NN +
+        |       0.083f * BB + 0.083f * B + 0.083f * F + 0.083f * FF -
+        |       0.996f * C;""".stripMargin,
+      Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
+    val lambda = λ(
+      ArrayType(ArrayType(ArrayType(Float, M), N), O),
+      input => {
+        Map(Map(Scatter(shift2Right))) o
+          Map(Scatter(shift2Right)) o
+            Scatter(shift2Right) o
+        Pad3D(2,2,2,Pad.Boundary.Clamp) o
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
+
+          //              z     y     x
+          val ee = nbh.at(2).at(2).at(4)
+          val e  = nbh.at(2).at(2).at(3)
+          val w  = nbh.at(2).at(2).at(1)
+          val ww = nbh.at(2).at(2).at(0)
+          val ss = nbh.at(2).at(4).at(2)
+          val s  = nbh.at(2).at(3).at(2)
+          val n  = nbh.at(2).at(1).at(2)
+          val nn = nbh.at(2).at(0).at(2)
+          val bb = nbh.at(4).at(2).at(2)
+          val b  = nbh.at(3).at(2).at(2)
+          val f  = nbh.at(1).at(2).at(2)
+          val ff = nbh.at(0).at(2).at(2)
+          val c  = nbh.at(2).at(2).at(2)
+
+          toGlobal(id) o toPrivate(λ(x =>
+            jacobi(x, e, w, ww, ss, s, n, nn, bb, b, f, ff, c))) $ ee
+
+        })))) o Slide3D(5, 1) $ input
       })
 
     val kernel = Compile(lambda)
