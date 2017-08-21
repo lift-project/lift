@@ -235,6 +235,18 @@ object StencilUtilities
     (N, S, W, E, C)
   }
 
+  def vonNeumann7pt(x: Param) = {
+    //         z      y     x
+    val N = x.at(1).at(0).at(1)
+    val S = x.at(1).at(2).at(1)
+    val W = x.at(1).at(1).at(0)
+    val E = x.at(1).at(1).at(2)
+    val C = x.at(1).at(1).at(1)
+    val F = x.at(0).at(1).at(1)
+    val B = x.at(2).at(1).at(1)
+    (N, S, W, E, F, B, C)
+  }
+
   def moore9pt(x: Param) = {
     val NW = x.at(0).at(0)
     val N  = x.at(0).at(1)
