@@ -82,7 +82,7 @@ class TestStecilPPCG {
             // restore input type
             Split(8192) o
             // increase output and shift writes
-            Map(Scatter(shiftRight)) o
+            Map(Scatter(Shift(1))) o
               Scatter(shiftRight) o Pad2D(1,1,Pad.Boundary.Clamp) o
             MapGlb(1)(MapGlb(0)(λ(nbh => {
 

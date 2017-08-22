@@ -11,7 +11,7 @@
     "vector_width" : 4,
     "sequential" : false,
     "only_lower" : false,
-    "keep_range_information" : true,
+    "keep_range_information" : false,
     "rule_collection" : "convolution2D"
   },
 

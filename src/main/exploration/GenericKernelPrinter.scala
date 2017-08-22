@@ -166,16 +166,11 @@ object GenericKernelPrinter {
 
             val combinations = settings.inputCombinations
 
-            val st =
-              if (combinations.isDefined &&
+            val high_level_expr = if (combinations.isDefined &&
                 combinations.get.head.length == vars.length)
-                (vars: Seq[ArithExpr], combinations.get.head).zipped.toMap
-              else
-                createValueMap(high_level_expr_orig)
-
-            val sizesForFilter = st.values.toSeq
-
-            val high_level_expr = replaceInputTypes(high_level_expr_orig, st)
+              replaceInputTypes(high_level_expr_orig, (vars: Seq[ArithExpr], combinations.get.head).zipped.toMap)
+            else
+              high_level_expr_orig
 
             TypeChecker(high_level_expr)
 
