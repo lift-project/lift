@@ -4,21 +4,21 @@ import ir._
 import ir.interpreter.Interpreter.ValueMap
 
 /**
- * Zip pattern.
- * Code for this pattern can be generated.
- *
- * The zip pattern has the following high-level semantics:
- *   <code>Zip(2)( [x,,1,,, ..., x,,n,,], [y,,1,,, ..., y,,n,,] )
- *      = [ (x,,1,,, y,,1,,), ..., (x,,n,,, y,,n,,) ]</code>
- * The definitions for `n > 2` are accordingly.
- *
- * The zip pattern has the following type:
- *   `Zip(2) : [a],,i,, -> [b],,i,, -> [a x b],,i,,`
- * The definitions for `n > 2` are accordingly.
- *
- * @param n The number of arrays which are combined. Must be >= 2.
- */
-case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
+  * Zip pattern.
+  * Code for this pattern can be generated.
+  *
+  * The zip pattern has the following high-level semantics:
+  * <code>Zip(2)( [x,,1,,, ..., x,,n,,], [y,,1,,, ..., y,,n,,] )
+  * = [ (x,,1,,, y,,1,,), ..., (x,,n,,, y,,n,,) ]</code>
+  * The definitions for `n > 2` are accordingly.
+  *
+  * The zip pattern has the following type:
+  * `Zip(2) : [a],,i,, -> [b],,i,, -> [a x b],,i,,`
+  * The definitions for `n > 2` are accordingly.
+  *
+  * @param n The number of arrays which are combined. Must be >= 2.
+  */
+case class Zip(n: Int) extends Pattern(arity = n) with isGenerable {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -37,7 +37,7 @@ case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
         if (arrayTypes.map(_.size).distinct.length != 1)
           throw new ZipTypeException(tt)
 
-        ArrayTypeWSWC(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes.head.size)
+        ArrayTypeWSWC(TupleType(arrayTypes.map(_.elemT): _*), arrayTypes.head.size)
 
       case _ => throw new TypeException(argType, "TupleType", this)
     }
@@ -48,7 +48,7 @@ case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
     assert(args.length == arity)
     (n, args) match {
       case (2, Seq(a: Vector[_], b: Vector[_])) => a zip b
-//      case (3, a, b, c) =>
+      //      case (3, a, b, c) =>
       case _ => throw new NotImplementedError()
     }
   }
@@ -56,37 +56,57 @@ case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
 
 object Zip {
   /**
-   * Create an instance of the zip pattern.
-   * This function infers the number of arrays which are combined with the zip
-   * pattern.
-   *
-   * @param args The arrays to be combined with the zip pattern.
-   * @return An instance of the zip pattern combining the arrays given by `args`
-   */
-  def apply(args : Expr*) : Expr = {
+    * Create an instance of the zip pattern.
+    * This function infers the number of arrays which are combined with the zip
+    * pattern.
+    *
+    * @param args The arrays to be combined with the zip pattern.
+    * @return An instance of the zip pattern combining the arrays given by `args`
+    */
+  def apply(args: Expr*): Expr = {
     assert(args.length >= 2)
-    Zip(args.length)(args:_*)
+    Zip(args.length)(args: _*)
   }
 }
 
 object Zip3D {
 
-   def apply(arg1: Expr, arg2: Expr) : Expr = {
-      Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1)))) o Map( \(tuple => Zip(tuple._0, tuple._1))) $ Zip(arg1,arg2)
-    }
+  def apply(arg1: Expr, arg2: Expr): Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1)))) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(arg1, arg2)
+  }
 
-  def apply(arg1: Expr, arg2: Expr, arg3: Expr) : Expr = {
-      Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2)))) o Map( \(tuple => Zip(tuple._0, tuple._1, tuple._2))) $ Zip(arg1,arg2,arg3)
-   }
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr): Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2)))) o Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2))) $ Zip(arg1, arg2, arg3)
+  }
+
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2, tuple2._3)))) o
+      Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2, tuple._3))) $ Zip(arg1, arg2, arg3, arg4)
+  }
+
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr): Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2, tuple2._3, tuple2._4)))) o
+      Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2, tuple._3, tuple._4))) $ Zip(arg1, arg2, arg3, arg4, arg5)
+  }
+
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr): Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2, tuple2._3, tuple2._4, tuple2._5)))) o
+      Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2, tuple._3, tuple._4, tuple._5))) $ Zip(arg1, arg2, arg3, arg4, arg5, arg6)
+  }
+
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr): Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2, tuple2._3, tuple2._4, tuple2._5, tuple2._6)))) o
+      Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2, tuple._3, tuple._4, tuple._5, tuple._6))) $ Zip(arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+  }
 }
 
-object Zip2D{
+object Zip2D {
 
-  def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr) : Expr = {
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr): Expr = {
     Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2, tuple._3, tuple._4, tuple._5))) $ Zip(arg1, arg2, arg3, arg4, arg5, arg6)
   }
 
-  def apply(arg1: Expr, arg2: Expr) : Expr = {
+  def apply(arg1: Expr, arg2: Expr): Expr = {
     Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(arg1, arg2)
   }
 
