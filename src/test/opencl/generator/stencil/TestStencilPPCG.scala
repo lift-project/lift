@@ -604,9 +604,9 @@ class TestStecilPPCG {
     val lambda = λ(
       ArrayType(ArrayType(ArrayType(Float, M), N), O),
       input => {
-        Map(Map(Scatter(shiftRight))) o
-          Map(Scatter(shiftRight)) o
-            Scatter(shiftRight) o
+        Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+            Scatter(Shift(1)) o
         Pad3D(1,1,1,Pad.Boundary.Clamp) o
         MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
 
@@ -642,28 +642,29 @@ class TestStecilPPCG {
     println(kernel)
   }
 
+  @Ignore // needs to allocate more than we currently can handle
   @Test def cheby3d: Unit = {
-    val M = 64 //512
-    val N = 64
-    val O = 64
+    val M = 512
+    val N = 512
+    val O = 512
 
     // [X-1][][] = F(ront) [X+1][][] = B(ack)
     // [][X-1][] = N(orth) [][X+1][] = S(outh)
     // [][][X-1] = W(est)  [][][X+1] = E(ast)
     def cheby = UserFun("cheby", Array("AcC", "c1", "ApC", "c2", "DinvC",
-      "RHS_C", "AcC", "h2inv", "AcFNW", "AcFNE", "AcFSW", "AcFSE",
+      "RHS_C", "h2inv", "AcFNW", "AcFNE", "AcFSW", "AcFSE",
       "AcBNW", "AcBNE", "AcBSW", "AcBSE", "AcFN", "AcFW", "AcFE", "AcFS",
       "AcNW", "AcNE", "AcSW", "AcSE", "AcBN", "AcBW", "AcBE", "AcBS",
       "AcF", "AcN", "AcW", "AcE", "AcS", "AcB"),
-      """return AcC + c1 * (AcC - ApC) + c2 * DinvC *
-        |          (RHS_C - (AcC - h2inv * (0.03f *
-        |          (AcFNW + AcFNE + AcFSW + AcFSE +
+      """return AcC + c1 * (AcC - ApC) + c2 * DinvC * (RHS_C -
+        |           (AcC - h2inv * (0.03f * (
+        |           AcFNW + AcFNE + AcFSW + AcFSE +
         |           AcBNW + AcBNE + AcBSW + AcBSE) + 0.1f * (
         |           AcFN + AcFW + AcFE + AcFS +
         |           AcNW + AcNE + AcSW + AcSE +
         |           AcBN + AcBW + AcBE + AcBS) + 0.46f * (
         |           AcF + AcN + AcW + AcE + AcS + AcB) - 4.26f * AcC)));""".stripMargin,
-      Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float,
+      Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float, Float,
         Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float,
         Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
@@ -676,19 +677,19 @@ class TestStecilPPCG {
       Float,                                           // c2
       Float,                                           // h2inv
       (Ac, Ap, Dinv, RHS, c1, c2, h2inv) => {
-        Map(Map(Scatter(shiftRight))) o
-          Map(Scatter(shiftRight)) o
-            Scatter(shiftRight) o
+        Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+            Scatter(Shift(1)) o
         Pad3D(1,1,1,Pad.Boundary.Clamp) o
         MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(tuple => {
 
           val ac   = tuple._0
           val ap   = tuple._1
-          val divn = tuple._2
+          val dinv = tuple._2
           val rhs  = tuple._3
           //              z     y     x
           val ApC   = ap.at(1).at(1).at(1)
-          val DivnC = divn.at(1).at(1).at(1)
+          val DinvC = dinv.at(1).at(1).at(1)
           val RHS_C = rhs.at(1).at(1).at(1)
 
           val AcC   = ac.at(1).at(1).at(1)
@@ -720,7 +721,7 @@ class TestStecilPPCG {
           val AcB   = ac.at(2).at(1).at(1)
 
           toGlobal(id) o toPrivate(λ(x =>
-            cheby(x, c1, ApC, c2, DivnC, RHS_C, AcC, h2inv, AcFNW, AcFNE, AcFSW, AcFSE, AcBNW,
+            cheby(x, c1, ApC, c2, DinvC, RHS_C, h2inv, AcFNW, AcFNE, AcFSW, AcFSE, AcBNW,
               AcBNE, AcBSW, AcBSE, AcFN, AcFW, AcFE, AcFS, AcNW, AcNE, AcSW, AcSE, AcBN, AcBW,
               AcBE, AcBS, AcF, AcN, AcW, AcE, AcS, AcB))) $ AcC
 
