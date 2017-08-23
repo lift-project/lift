@@ -54,7 +54,7 @@
     "timeout_in_seconds" : 7200,
     "enable_max_configs_condition" : false,
     "max_configs" : 500,
-    "enable_not_better_than_condition" : true,
+    "enable_not_better_than_condition" : false,
     "not_better_than_in_ns" : 12000000,
     "not_better_within_configs" : 250,
     "vendor" : "NVIDIA",

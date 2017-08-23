@@ -24,7 +24,7 @@ object TestStencilPPCG {
 
 class TestStecilPPCG {
 
-  def increaseAndShift() = Map(Scatter(shiftRight)) o Scatter(shiftRight) o Pad2D(1,1,Pad.Boundary.Clamp)
+  def increaseAndShift() = Map(Scatter(Shift(1))) o Scatter(Shift(1)) o Pad2D(1,1,Pad.Boundary.Clamp)
 
   // also the same as grad2d
   @Test def j2d5pt: Unit = {
@@ -83,7 +83,7 @@ class TestStecilPPCG {
             Split(8192) o
             // increase output and shift writes
             Map(Scatter(Shift(1))) o
-              Scatter(shiftRight) o Pad2D(1,1,Pad.Boundary.Clamp) o
+              Scatter(Shift(1)) o Pad2D(1,1,Pad.Boundary.Clamp) o
             MapGlb(1)(MapGlb(0)(λ(nbh => {
 
               val (northWest, north, northEast,
@@ -153,7 +153,7 @@ class TestStecilPPCG {
       ArrayType(ArrayType(Float, 5), 5),
       (input, weights) => {
         // increase and shift by 2!
-        Map(Scatter(shift2Right)) o Scatter(shift2Right) o Pad2D(2,2,Pad.Boundary.Clamp) o
+        Map(Scatter(Shift(2))) o Scatter(Shift(2)) o Pad2D(2,2,Pad.Boundary.Clamp) o
         MapGlb(1)(Join() o MapGlb(0)(λ(nbh =>
           MapSeq(toGlobal(id)) o
           ReduceSeqUnroll(λ( (acc, x) =>
@@ -184,7 +184,7 @@ class TestStecilPPCG {
     val lambda1 = λ(
       ArrayType(ArrayType(Float, M), N),
       input => {
-        Map(Scatter(shift2Right)) o Scatter(shift2Right) o Pad2D(2,2,Pad.Boundary.Clamp) o
+        Map(Scatter(Shift(2))) o Scatter(Shift(2)) o Pad2D(2,2,Pad.Boundary.Clamp) o
         MapGlb(1)(MapGlb(0)(λ(nbh => {
 
           //               y     x
@@ -256,9 +256,9 @@ class TestStecilPPCG {
     val lambda = λ(
       ArrayType(ArrayType(ArrayType(Float, M), N), O),
       input => {
-        Map(Map(Scatter(shiftRight))) o
-          Map(Scatter(shiftRight)) o
-            Scatter(shiftRight) o
+        Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+            Scatter(Shift(1)) o
         Pad3D(1,1,1,Pad.Boundary.Clamp) o
         MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
 
@@ -316,9 +316,9 @@ class TestStecilPPCG {
     val lambda = λ(
       ArrayType(ArrayType(ArrayType(Float, M), N), O),
       input => {
-        Map(Map(Scatter(shiftRight))) o
-          Map(Scatter(shiftRight)) o
-            Scatter(shiftRight) o
+        Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+            Scatter(Shift(1)) o
         Pad3D(1,1,1,Pad.Boundary.Clamp) o
         MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
 
@@ -364,9 +364,9 @@ class TestStecilPPCG {
     val lambda = λ(
       ArrayType(ArrayType(ArrayType(Float, M), N), O),
       input => {
-        Map(Map(Scatter(shiftRight))) o
-          Map(Scatter(shiftRight)) o
-            Scatter(shiftRight) o
+        Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+            Scatter(Shift(1)) o
         Pad3D(1,1,1,Pad.Boundary.Clamp) o
         MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
 
@@ -431,9 +431,9 @@ class TestStecilPPCG {
     val lambda = λ(
       ArrayType(ArrayType(ArrayType(Float, M), N), O),
       input => {
-        Map(Map(Scatter(shift2Right))) o
-          Map(Scatter(shift2Right)) o
-            Scatter(shift2Right) o
+        Map(Map(Scatter(Shift(2)))) o
+          Map(Scatter(Shift(2))) o
+            Scatter(Shift(2)) o
         Pad3D(2,2,2,Pad.Boundary.Clamp) o
         MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
 
@@ -462,201 +462,255 @@ class TestStecilPPCG {
     println(kernel)
   }
 
-  // one kernel is missing
-  @Test def denoise3d: Unit = {
-    val M = 500
-    val N = 500
-    val O = 500
+    @Test def denoise3d: Unit = {
+      val M = 500
+      val N = 500
+      val O = 500
 
-    // [X-1][][] = F(ront) [X+1][][] = B(ack)
-    // [][X-1][] = N(orth) [][X+1][] = S(outh)
-    // [][][X-1] = W(est)  [][][X+1] = E(ast)
-    def jacobi = UserFun("jacobi", Array("C", "S", "N", "E", "W", "B", "F"),
-      """float epsilon = 1.0E-20f;
-        | return 1.0f/sqrt (epsilon +
-        |          (C - S)*(C - S) +
-        |          (C - N)*(C - N) +
-        |          (C - E)*(C - E) +
-        |          (C - W)*(C - W) +
-        |          (C - B)*(C - B) +
-        |          (C - F)*(C - F));""".stripMargin,
-      Seq(Float, Float, Float, Float, Float, Float, Float), Float)
+      // [X-1][][] = F(ront) [X+1][][] = B(ack)
+      // [][X-1][] = N(orth) [][X+1][] = S(outh)
+      // [][][X-1] = W(est)  [][][X+1] = E(ast)
+      def denoise1 = UserFun("denoise1", Array("C", "S", "N", "E", "W", "B", "F"),
+        """float epsilon = 1.0E-20f;
+          | return 1.0f/sqrt (epsilon +
+          |          (C - S)*(C - S) +
+          |          (C - N)*(C - N) +
+          |          (C - E)*(C - E) +
+          |          (C - W)*(C - W) +
+          |          (C - B)*(C - B) +
+          |          (C - F)*(C - F));""".stripMargin,
+        Seq(Float, Float, Float, Float, Float, Float, Float), Float)
 
-    val lambda = λ(
-      ArrayType(ArrayType(ArrayType(Float, M), N), O),
-      input => {
-        Map(Map(Scatter(shiftRight))) o
-          Map(Scatter(shiftRight)) o
-            Scatter(shiftRight) o
-        Pad3D(1,1,1,Pad.Boundary.Clamp) o
-        MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
+      def denoise2 = UserFun("denoise2", Array("u0C", "fC", "u0S", "gS", "u0N", "gN", "u0E", "gE", "u0W", "gW",
+        "u0B", "gB", "u0F", "gF", "gamma", "sigma2"),
+        """  float r = u0C * fC / sigma2;
+          |        r = (r * (2.38944f + r * (0.950037f + r))) /
+          |            (4.65314f + r * (2.57541f + r * (1.48937f + r)));
+          |  return (u0C + 5.0f * (
+          |         u0S * gS + u0N * gN + u0E * gE +
+          |         u0W * gW + u0B * gB + u0F * gF + gamma * fC * r)) /
+          |         (1.0f + 5.0f * (gS + gN + gE + gW + gB + gF + gamma));""".stripMargin,
+        Seq(Float, Float, Float, Float, Float, Float, Float, Float,
+          Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
-          val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
+      val lambda1 = λ(
+        ArrayType(ArrayType(ArrayType(Float, M), N), O),
+        input => {
+          Map(Map(Scatter(Shift(1)))) o
+            Map(Scatter(Shift(1))) o
+              Scatter(Shift(1)) o
+          Pad3D(1,1,1,Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
 
-          toGlobal(id) o toPrivate(λ(x =>
-            jacobi(x, s, n, e, w, b, f))) $ c
+            val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
 
-        })))) o Slide3D(3, 1) $ input
-      })
+            toGlobal(id) o toPrivate(λ(x =>
+              denoise1(x, s, n, e, w, b, f))) $ c
 
-    val kernel = Compile(lambda)
-    println(kernel)
-  }
+          })))) o Slide3D(3, 1) $ input
+        })
 
-  @Test def minigmg: Unit = {
-    val M = 48
-    val N = 48
-    val O = 48
+      val lambda2 = λ(
+        ArrayType(ArrayType(ArrayType(Float, M), N), O), // f
+        ArrayType(ArrayType(ArrayType(Float, M), N), O), // g
+        Float,                                           // gamma
+        Float,                                           // sigma2
+        ArrayType(ArrayType(ArrayType(Float, M), N), O), // u0
+        (f, g, gamma, sigma2, u0) => {
+          Map(Map(Scatter(Shift(1)))) o
+            Map(Scatter(Shift(1))) o
+              Scatter(Shift(1)) o
+          Pad3D(1,1,1,Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(tuple => {
 
-    // [X-1][][] = F(ront) [X+1][][] = B(ack)
-    // [][X-1][] = N(orth) [][X+1][] = S(outh)
-    // [][][X-1] = W(est)  [][][X+1] = E(ast)
-    def f = UserFun("f", Array("a", "alphaC", "b", "h2inv",
-    "beta_iE", "beta_iC", "beta_jS", "beta_jC", "beta_kB", "beta_kC",
-    "inputC", "inputE", "inputW", "inputS", "inputN", "inputB", "inputF", "lambdaC", "rhsC"),
-      """float helmholtz = a * alphaC * inputC - b * h2inv *
-        |          (beta_iE * (inputE - inputC) -
-        |           beta_iC * (inputC - inputW) +
-        |           beta_jS * (inputS - inputC) -
-        |           beta_jC * (inputC - inputN) +
-        |           beta_kB * (inputB - inputC) -
-        |           beta_kC * (inputC - inputF));
-        |  return inputC - 2.0f * lambdaC * (helmholtz - rhsC) / 3.0f;""".stripMargin,
-      Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float,
-        Float, Float, Float, Float, Float, Float, Float, Float), Float)
+            val fC = tuple._0.at(1).at(1).at(1)
 
-    val lambda = λ(
-      Float,                                           // a
-      ArrayType(ArrayType(ArrayType(Float, M), N), O), // alpha
-      Float,                                           // b
-      ArrayType(ArrayType(ArrayType(Float, M), N), O), // beta_i
-      ArrayType(ArrayType(ArrayType(Float, M), N), O), // beta_j
-      ArrayType(ArrayType(ArrayType(Float, M), N), O), // beta_k
-      Float,                                           // h2inv
-      ArrayType(ArrayType(ArrayType(Float, M), N), O), // input
-      ArrayType(ArrayType(ArrayType(Float, M), N), O), // lambda
-      ArrayType(ArrayType(ArrayType(Float, M), N), O), // rhs
-      (a, alpha, b, beta_i, beta_j, beta_k, h2inv, input, lambda, rhs) => {
-        Map(Map(Scatter(shiftRight))) o
-          Map(Scatter(shiftRight)) o
-            Scatter(shiftRight) o
-        Pad3D(1,1,1,Pad.Boundary.Clamp) o
-        MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(tuple => {
+            val gS = tuple._1.at(1).at(2).at(1)
+            val gN = tuple._1.at(1).at(0).at(1)
+            val gE = tuple._1.at(1).at(1).at(2)
+            val gW = tuple._1.at(1).at(1).at(0)
+            val gB = tuple._1.at(2).at(1).at(1)
+            val gF = tuple._1.at(0).at(1).at(1)
 
-          val alphaC = tuple._0.at(1).at(1).at(1)
+            val u0C = tuple._2.at(1).at(1).at(1)
+            val u0S = tuple._2.at(1).at(2).at(1)
+            val u0N = tuple._2.at(1).at(0).at(1)
+            val u0E = tuple._2.at(1).at(1).at(2)
+            val u0W = tuple._2.at(1).at(1).at(0)
+            val u0B = tuple._2.at(2).at(1).at(1)
+            val u0F = tuple._2.at(0).at(1).at(1)
 
-          val beta_iE = tuple._1.at(1).at(1).at(2)
-          val beta_iC = tuple._1.at(1).at(1).at(1)
+            toGlobal(id) o toPrivate(λ(x =>
+              denoise2(x, fC, u0S, gS, u0N, gN, u0E, gE, u0W, gW, u0B, gB, u0F, gF, gamma, sigma2))) $ u0C
 
-          val beta_jS = tuple._2.at(1).at(2).at(1)
-          val beta_jC = tuple._2.at(1).at(1).at(1)
+          })))) $ Zip3D(
+            Slide3D(3,1) $ f,
+            Slide3D(3,1) $ g,
+            Slide3D(3,1) $ u0
+          )
+        })
 
-          val beta_kB = tuple._3.at(2).at(1).at(1)
-          val beta_kC = tuple._3.at(1).at(1).at(1)
+      val kernel1 = Compile(lambda1)
+      val kernel2 = Compile(lambda2)
+      println(kernel1)
+      println(kernel2)
+    }
 
-          val inputC = tuple._4.at(1).at(1).at(1)
-          val inputE = tuple._4.at(1).at(1).at(2)
-          val inputW = tuple._4.at(1).at(1).at(0)
-          val inputS = tuple._4.at(1).at(2).at(1)
-          val inputN = tuple._4.at(1).at(0).at(1)
-          val inputB = tuple._4.at(2).at(1).at(1)
-          val inputF = tuple._4.at(0).at(1).at(1)
+    @Ignore // needs to allocate more than we currently can handle
+    @Test def minigmg: Unit = {
+      val M = 480
+      val N = 480
+      val O = 480
 
-          val lambdaC = tuple._5.at(1).at(1).at(1)
-          val rhsC = tuple._6.at(1).at(1).at(1)
+      // [X-1][][] = F(ront) [X+1][][] = B(ack)
+      // [][X-1][] = N(orth) [][X+1][] = S(outh)
+      // [][][X-1] = W(est)  [][][X+1] = E(ast)
+      def f = UserFun("f", Array("a", "alphaC", "b", "h2inv",
+      "beta_iE", "beta_iC", "beta_jS", "beta_jC", "beta_kB", "beta_kC",
+      "inputC", "inputE", "inputW", "inputS", "inputN", "inputB", "inputF", "lambdaC", "rhsC"),
+        """float helmholtz = a * alphaC * inputC - b * h2inv *
+          |          (beta_iE * (inputE - inputC) -
+          |           beta_iC * (inputC - inputW) +
+          |           beta_jS * (inputS - inputC) -
+          |           beta_jC * (inputC - inputN) +
+          |           beta_kB * (inputB - inputC) -
+          |           beta_kC * (inputC - inputF));
+          |  return inputC - 2.0f * lambdaC * (helmholtz - rhsC) / 3.0f;""".stripMargin,
+        Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float,
+          Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
+      val lambda = λ(
+        Float,                                           // a
+        ArrayType(ArrayType(ArrayType(Float, M), N), O), // alpha
+        Float,                                           // b
+        ArrayType(ArrayType(ArrayType(Float, M), N), O), // beta_i
+        ArrayType(ArrayType(ArrayType(Float, M), N), O), // beta_j
+        ArrayType(ArrayType(ArrayType(Float, M), N), O), // beta_k
+        Float,                                           // h2inv
+        ArrayType(ArrayType(ArrayType(Float, M), N), O), // input
+        ArrayType(ArrayType(ArrayType(Float, M), N), O), // lambda
+        ArrayType(ArrayType(ArrayType(Float, M), N), O), // rhs
+        (a, alpha, b, beta_i, beta_j, beta_k, h2inv, input, lambda, rhs) => {
+          Map(Map(Scatter(Shift(1)))) o
+            Map(Scatter(Shift(1))) o
+              Scatter(Shift(1)) o
+          Pad3D(1,1,1,Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(tuple => {
 
-          toGlobal(id) o toPrivate(λ(x =>
-            f(x, alphaC, b, h2inv, beta_iE, beta_iC, beta_jS, beta_jC, beta_kB, beta_kC,
-              inputC, inputE, inputW, inputS, inputN, inputB, inputF, lambdaC, rhsC))) $ a
+            val alphaC = tuple._0.at(1).at(1).at(1)
 
-        })))) $ Zip3D(
-          Slide3D(3,1) $ alpha, // also works with Pad3D(-1, -1, -1, b) -- we only need center value
-          Slide3D(3,1) $ beta_i,
-          Slide3D(3,1) $ beta_j,
-          Slide3D(3,1) $ beta_k,
-          Slide3D(3,1) $ input,
-          Slide3D(3,1) $ lambda, // same here
-          Slide3D(3,1) $ rhs // and here
-        )
-      })
+            val beta_iE = tuple._1.at(1).at(1).at(2)
+            val beta_iC = tuple._1.at(1).at(1).at(1)
 
-    val kernel = Compile(lambda)
-    println(kernel)
-  }
+            val beta_jS = tuple._2.at(1).at(2).at(1)
+            val beta_jC = tuple._2.at(1).at(1).at(1)
 
-  @Test def poisson3d: Unit = {
-    val M = 512
-    val N = 512
-    val O = 512
+            val beta_kB = tuple._3.at(2).at(1).at(1)
+            val beta_kC = tuple._3.at(1).at(1).at(1)
 
-    // [X-1][][] = F(ront) [X+1][][] = B(ack)
-    // [][X-1][] = N(orth) [][X+1][] = S(outh)
-    // [][][X-1] = W(est)  [][][X+1] = E(ast)
-    def poisson = UserFun("jacobi", Array("C", "N", "S", "E", "W", "F", "B",
-    "FN", "BN", "FS", "BS", "FW", "BW", "NW", "SW", "FE", "BE", "NE", "SE"),
-      """return 2.666f * C - 0.166f * (F + B + N + S + E + W) -
-        |       0.0833f * (FN + BN + FS + BS + FW + BW +
-        |                  NW + SW + FE + BE + NE + SE);""".stripMargin,
-      Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float,
-        Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
+            val inputC = tuple._4.at(1).at(1).at(1)
+            val inputE = tuple._4.at(1).at(1).at(2)
+            val inputW = tuple._4.at(1).at(1).at(0)
+            val inputS = tuple._4.at(1).at(2).at(1)
+            val inputN = tuple._4.at(1).at(0).at(1)
+            val inputB = tuple._4.at(2).at(1).at(1)
+            val inputF = tuple._4.at(0).at(1).at(1)
 
-    val lambda = λ(
-      ArrayType(ArrayType(ArrayType(Float, M), N), O),
-      input => {
-        Map(Map(Scatter(Shift(1)))) o
-          Map(Scatter(Shift(1))) o
-            Scatter(Shift(1)) o
-        Pad3D(1,1,1,Pad.Boundary.Clamp) o
-        MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
-
-          //              z     y     x
-          val c  = nbh.at(1).at(1).at(1)
-          val n  = nbh.at(1).at(0).at(1)
-          val s  = nbh.at(1).at(2).at(1)
-          val e  = nbh.at(1).at(1).at(2)
-          val w  = nbh.at(1).at(1).at(0)
-          val f  = nbh.at(0).at(1).at(1)
-          val b  = nbh.at(2).at(1).at(1)
-          val fn = nbh.at(0).at(0).at(1)
-          val bn = nbh.at(2).at(0).at(1)
-          val fs = nbh.at(0).at(2).at(1)
-          val bs = nbh.at(2).at(2).at(1)
-          val fw = nbh.at(0).at(1).at(0)
-          val bw = nbh.at(2).at(1).at(0)
-          val nw = nbh.at(1).at(0).at(0)
-          val sw = nbh.at(1).at(2).at(0)
-          val fe = nbh.at(0).at(1).at(2)
-          val be = nbh.at(2).at(1).at(2)
-          val ne = nbh.at(1).at(0).at(2)
-          val se = nbh.at(1).at(2).at(2)
+            val lambdaC = tuple._5.at(1).at(1).at(1)
+            val rhsC = tuple._6.at(1).at(1).at(1)
 
 
-          toGlobal(id) o toPrivate(λ(x =>
-            poisson(x, n, s, e, w, f, b, fn, bn, fs, bs, fw, bw, nw, sw, fe, be, ne, se))) $ c
+            toGlobal(id) o toPrivate(λ(x =>
+              f(x, alphaC, b, h2inv, beta_iE, beta_iC, beta_jS, beta_jC, beta_kB, beta_kC,
+                inputC, inputE, inputW, inputS, inputN, inputB, inputF, lambdaC, rhsC))) $ a
 
-        })))) o Slide3D(3, 1) $ input
-      })
+          })))) $ Zip3D(
+            Slide3D(3,1) $ alpha, // also works with Pad3D(-1, -1, -1, b) -- we only need center value
+            Slide3D(3,1) $ beta_i,
+            Slide3D(3,1) $ beta_j,
+            Slide3D(3,1) $ beta_k,
+            Slide3D(3,1) $ input,
+            Slide3D(3,1) $ lambda, // same here
+            Slide3D(3,1) $ rhs // and here
+          )
+        })
 
-    val kernel = Compile(lambda)
-    println(kernel)
-  }
+      val kernel = Compile(lambda)
+      println(kernel)
+    }
 
-  @Ignore // needs to allocate more than we currently can handle
-  @Test def cheby3d: Unit = {
-    val M = 512
-    val N = 512
-    val O = 512
+    @Test def poisson3d: Unit = {
+      val M = 512
+      val N = 512
+      val O = 512
 
-    // [X-1][][] = F(ront) [X+1][][] = B(ack)
-    // [][X-1][] = N(orth) [][X+1][] = S(outh)
-    // [][][X-1] = W(est)  [][][X+1] = E(ast)
-    def cheby = UserFun("cheby", Array("AcC", "c1", "ApC", "c2", "DinvC",
-      "RHS_C", "h2inv", "AcFNW", "AcFNE", "AcFSW", "AcFSE",
-      "AcBNW", "AcBNE", "AcBSW", "AcBSE", "AcFN", "AcFW", "AcFE", "AcFS",
-      "AcNW", "AcNE", "AcSW", "AcSE", "AcBN", "AcBW", "AcBE", "AcBS",
-      "AcF", "AcN", "AcW", "AcE", "AcS", "AcB"),
-      """return AcC + c1 * (AcC - ApC) + c2 * DinvC * (RHS_C -
+      // [X-1][][] = F(ront) [X+1][][] = B(ack)
+      // [][X-1][] = N(orth) [][X+1][] = S(outh)
+      // [][][X-1] = W(est)  [][][X+1] = E(ast)
+      def poisson = UserFun("jacobi", Array("C", "N", "S", "E", "W", "F", "B",
+      "FN", "BN", "FS", "BS", "FW", "BW", "NW", "SW", "FE", "BE", "NE", "SE"),
+        """return 2.666f * C - 0.166f * (F + B + N + S + E + W) -
+          |       0.0833f * (FN + BN + FS + BS + FW + BW +
+          |                  NW + SW + FE + BE + NE + SE);""".stripMargin,
+        Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float,
+          Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
+      val lambda = λ(
+        ArrayType(ArrayType(ArrayType(Float, M), N), O),
+        input => {
+          Map(Map(Scatter(Shift(1)))) o
+            Map(Scatter(Shift(1))) o
+              Scatter(Shift(1)) o
+          Pad3D(1,1,1,Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
+
+            //              z     y     x
+            val c  = nbh.at(1).at(1).at(1)
+            val n  = nbh.at(1).at(0).at(1)
+            val s  = nbh.at(1).at(2).at(1)
+            val e  = nbh.at(1).at(1).at(2)
+            val w  = nbh.at(1).at(1).at(0)
+            val f  = nbh.at(0).at(1).at(1)
+            val b  = nbh.at(2).at(1).at(1)
+            val fn = nbh.at(0).at(0).at(1)
+            val bn = nbh.at(2).at(0).at(1)
+            val fs = nbh.at(0).at(2).at(1)
+            val bs = nbh.at(2).at(2).at(1)
+            val fw = nbh.at(0).at(1).at(0)
+            val bw = nbh.at(2).at(1).at(0)
+            val nw = nbh.at(1).at(0).at(0)
+            val sw = nbh.at(1).at(2).at(0)
+            val fe = nbh.at(0).at(1).at(2)
+            val be = nbh.at(2).at(1).at(2)
+            val ne = nbh.at(1).at(0).at(2)
+            val se = nbh.at(1).at(2).at(2)
+
+
+            toGlobal(id) o toPrivate(λ(x =>
+              poisson(x, n, s, e, w, f, b, fn, bn, fs, bs, fw, bw, nw, sw, fe, be, ne, se))) $ c
+
+          })))) o Slide3D(3, 1) $ input
+        })
+
+      val kernel = Compile(lambda)
+      println(kernel)
+    }
+
+    @Ignore // needs to allocate more than we currently can handle
+    @Test def cheby3d: Unit = {
+      val M = 512
+      val N = 512
+      val O = 512
+
+      // [X-1][][] = F(ront) [X+1][][] = B(ack)
+      // [][X-1][] = N(orth) [][X+1][] = S(outh)
+      // [][][X-1] = W(est)  [][][X+1] = E(ast)
+      def cheby = UserFun("cheby", Array("AcC", "c1", "ApC", "c2", "DinvC",
+        "RHS_C", "h2inv", "AcFNW", "AcFNE", "AcFSW", "AcFSE",
+        "AcBNW", "AcBNE", "AcBSW", "AcBSE", "AcFN", "AcFW", "AcFE", "AcFS",
+        "AcNW", "AcNE", "AcSW", "AcSE", "AcBN", "AcBW", "AcBE", "AcBS",
+        "AcF", "AcN", "AcW", "AcE", "AcS", "AcB"),
+        """return AcC + c1 * (AcC - ApC) + c2 * DinvC * (RHS_C -
         |           (AcC - h2inv * (0.03f * (
         |           AcFNW + AcFNE + AcFSW + AcFSE +
         |           AcBNW + AcBNE + AcBSW + AcBSE) + 0.1f * (
@@ -735,5 +789,69 @@ class TestStecilPPCG {
 
     val kernel = Compile(lambda)
     println(kernel)
+  }
+
+  @Test def fdtd: Unit = {
+    val M = 300
+    val N = 300
+    val O = 300
+
+    // [X-1][][] = F(ront) [X+1][][] = B(ack)
+    // [][X-1][] = N(orth) [][X+1][] = S(outh)
+    // [][][X-1] = W(est)  [][][X+1] = E(ast)
+    def fdtd1 = UserFun("fdtd1", Array("ExC", "HzC", "HzN", "HyC", "HyW"),
+      """return 0.0002f * ExC + 0.0005f * (HzC - HzN) + 0.0005f * (HyC - HyW);""".stripMargin,
+      Seq(Float, Float, Float, Float, Float), Float)
+
+    def fdtd2 = UserFun("fdtd2", Array("EyC", "HxC", "HxW", "HzC", "HzF"),
+      """return 0.0008f * EyC + 0.0005f * (HxC - HxW) + 0.0002f * (HzC - HzF);""".stripMargin,
+      Seq(Float, Float, Float, Float, Float), Float)
+
+    def fdtd3 = UserFun("fdtd3", Array("EzC", "HyC", "HyF", "HzC", "HzN"),
+      """return 0.0004f * EzC + 0.0002f * (HyC - HyF) + 0.0005f * (HzC - HzN);""".stripMargin,
+      Seq(Float, Float, Float, Float, Float), Float)
+
+    def fdtd4 = UserFun("fdtd4", Array("HxC", "EzS", "EzC", "EyE", "EyC"),
+      """return HxC + 0.0003f * (EzS - EzC) + 0.0007f * (EyE - EyC);""".stripMargin,
+      Seq(Float, Float, Float, Float, Float), Float)
+
+    def fdtd5 = UserFun("fdtd5", Array("HxC", "EzS", "EzC", "EyE", "EyC"),
+      """return HyC + 0.0004f * (ExE - ExC) + 0.0008f * (EzB - EzC);""".stripMargin,
+      Seq(Float, Float, Float, Float, Float), Float)
+
+    def fdtd6 = UserFun("fdtd5", Array("HxC", "EzS", "EzC", "EyE", "EyC"),
+      """return HzC + 0.0005f * (EyB - EyC) + 0.0009f * (EzS - EzC);""".stripMargin,
+      Seq(Float, Float, Float, Float, Float), Float)
+
+    val lambda1 = λ(
+      ArrayType(ArrayType(ArrayType(Float, M), N), O), // Ex
+      ArrayType(ArrayType(ArrayType(Float, M), N), O), // Hz
+      ArrayType(ArrayType(ArrayType(Float, M), N), O), // Hy
+      (Ex, Hz, Hy) => {
+        Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+            Scatter(Shift(1)) o
+        Pad3D(1,1,1,Pad.Boundary.Clamp) o
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(tuple => {
+
+          //                    z     y     x
+          val ExC = tuple._0.at(1).at(1).at(1)
+          val HzC = tuple._1.at(1).at(1).at(1)
+          val HzN = tuple._1.at(1).at(0).at(1)
+          val HyC = tuple._2.at(1).at(1).at(1)
+          val HyW = tuple._2.at(1).at(1).at(0)
+
+          toGlobal(id) o toPrivate(λ(x =>
+            fdtd1(x, HzC, HzN, HyC, HyW))) $ ExC
+
+        })))) $ Zip3D(
+          Slide3D(3,1) $ Ex,
+          Slide3D(3,1) $ Hz,
+          Slide3D(3,1) $ Hy
+        )
+      })
+
+    val kernel1 = Compile(lambda1)
+    println(kernel1)
   }
 }
