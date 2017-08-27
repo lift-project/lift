@@ -827,7 +827,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         //noinspection SideEffectsInMonadicTransformation
         if (Verbose())
           println(s)
-        Option(arg(s, Int, 4))
+        Option(arg(s, Long, 8))
       }
       // ... else return nothing
       else Option.empty
@@ -840,8 +840,10 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   object arg {
     /** Entry point for creating an OpenCL kernel argument */
     def apply(any: Any, ty: Type, size: Long): KernelArg = ty match {
+      // "special" scalar types
+      case Bool => value(any.asInstanceOf[Boolean])
+      case Long => value(any.asInstanceOf[Long])
       // Scalars and vectors that are not nested in an array
-      case Bool  => value(any.asInstanceOf[Boolean])
       case Int | VectorType(Int, _)       => value(any.asInstanceOf[Int])
       case Float | VectorType(Float, _)   => value(any.asInstanceOf[Float])
       case Double | VectorType(Double, _) => value(any.asInstanceOf[Double])
@@ -1042,6 +1044,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   object value {
     def apply(value: Float): ValueArg   = ValueArg.create(value)
     def apply(value: Int): ValueArg     = ValueArg.create(value)
+    def apply(value: Long): ValueArg    = ValueArg.create(value)
     def apply(value: Double): ValueArg  = ValueArg.create(value)
     def apply(value: Boolean): ValueArg = ValueArg.create(value)
   }

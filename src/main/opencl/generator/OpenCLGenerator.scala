@@ -348,7 +348,7 @@ class OpenCLGenerator extends Generator {
           )
         ).toList ++
           // size parameters
-          vars.sortBy(_.name).map(x => OpenCLAST.ParamDecl(x.toString, Int)),
+          vars.sortBy(_.name).map(x => OpenCLAST.ParamDecl(x.toString, Long)),
       body = OpenCLAST.Block(Vector.empty),
       kernel = true, attribute)
 
