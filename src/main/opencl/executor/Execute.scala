@@ -133,7 +133,7 @@ object Execute {
      * @param variable the variable as an arithmetic expression (should be a Var?)
      * @param value a possible value / lower bound for this variable
      */
-    case class Constraint(variable: ArithExpr, value: Int)
+    case class Constraint(variable: ArithExpr, value: Long)
   
     /**
      * Compute a list of capacity constraints and a list of size constraints
@@ -170,7 +170,7 @@ object Execute {
      * Takes a list of size constraints, checks that they are consistent
      * altogether and build map from variable to values out of this list.
      */
-    private def cleanSizeConstraints(sizeConstraints: Seq[Constraint]): immutable.Map[ArithExpr, Int] = {
+    private def cleanSizeConstraints(sizeConstraints: Seq[Constraint]): immutable.Map[ArithExpr, Long] = {
       val map = sizeConstraints.groupBy(_.variable)
       
       // Check that the sizes are consistent (see issue #98, snippet 2)
@@ -195,7 +195,7 @@ object Execute {
      * consistent with the inferred sizes.
      */
     private def cleanCapacityConstraints(capacityConstraints: Seq[Constraint],
-                                         sizes: immutable.Map[ArithExpr, Int]): immutable.Map[ArithExpr, Int] = {
+                                         sizes: immutable.Map[ArithExpr, Long]): immutable.Map[ArithExpr, Long] = {
       val map = capacityConstraints.groupBy(_.variable)
       
       // Take the maximum value for each variable.
@@ -369,7 +369,7 @@ object Execute {
      */
     private def simplify(c: Seq[Constraint]): Seq[Constraint] = c.map({
       case Constraint(v, len) =>
-        val newLen = SolveForVariable(v, len).eval
+        val newLen = SolveForVariable(v, len).evalLong
         Constraint(v.varList.head, newLen)
     })
   }
@@ -643,7 +643,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   private def allocArgumentWithoutFixedAllocatedSize(ty: Type, value: Any): ArithExpr = {
     (ty, value) match {
       case (ScalarType(_, size), _) => size
-      case (VectorType(st, len), _) => len.eval * st.size
+      case (VectorType(st, len), _) => len.evalLong * st.size
       case (TupleType(elemsT @ _*), _) if elemsT.distinct.length == 1 =>
         elemsT.length * allocArgumentWithoutFixedAllocatedSize(elemsT.head, value)
       case (at: ArrayType, array: Array[_]) =>
@@ -681,7 +681,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     validateMemorySizes(f, valueMap)
 
     // 4. create output OpenCL kernel argument
-    val outputSize = ArithExpr.substitute(Type.getMaxAllocatedSize(f.body.t), valueMap).eval
+    val outputSize = ArithExpr.substitute(Type.getMaxAllocatedSize(f.body.t), valueMap).evalLong
     val outputData = global(outputSize)
 
     // 5. create all OpenCL data kernel arguments
@@ -789,10 +789,9 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       (memories._1 ++ memories._2).
         partition(_.mem.addressSpace == GlobalMemory)
 
-    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval)
+    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).evalLong)
     val totalSizeOfGlobal = globalSizes.sum
-    val totalSizeOfLocal = localMemories.map(mem =>
-      ArithExpr.substitute(mem.mem.size, valueMap).eval).sum
+    val totalSizeOfLocal = localMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).evalLong).sum
 
     globalSizes.foreach(size => {
       val maxMemAllocSize = Executor.getDeviceMaxMemAllocSize
@@ -824,7 +823,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       val i = f.params.indexWhere( p => p.t.varList.contains(v) )
       // ... if found look up the runtime value in the valueMap and create kernel argument ...
       if (i != -1) {
-        val s = valueMap(v).eval
+        val s = valueMap(v).evalLong
         //noinspection SideEffectsInMonadicTransformation
         if (Verbose())
           println(s)
@@ -840,7 +839,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    */
   object arg {
     /** Entry point for creating an OpenCL kernel argument */
-    def apply(any: Any, ty: Type, size: Int): KernelArg = ty match {
+    def apply(any: Any, ty: Type, size: Long): KernelArg = ty match {
       // Scalars and vectors that are not nested in an array
       case Bool  => value(any.asInstanceOf[Boolean])
       case Int | VectorType(Int, _)       => value(any.asInstanceOf[Int])
@@ -895,8 +894,10 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
      */
     private class Encoder[T: ClassTag](cast: Int => T) {
       /** Public wrapper for the encode method below */
-      def encode(array: Array[_], at: ArrayType, size: Int): Array[T] = {
-        val buffer = Array.fill(size)(cast(0))
+      def encode(array: Array[_], at: ArrayType, size: Long): Array[T] = {
+        // FIXME
+        if (size > scala.Int.MaxValue) throw new NotImplementedError()
+        val buffer = Array.fill(size.toInt)(cast(0))
         val nextPos = encode(buffer, 0, array, at)
         assert(nextPos <= size) // Sanity check
         buffer
@@ -1017,7 +1018,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
      * Create output argument given a Type and the number of elements
      */
     object output {
-      def apply[T: ClassTag](length: Int): GlobalArg = {
+      def apply[T: ClassTag](length: Long): GlobalArg = {
         implicitly[ClassTag[T]] match {
           case ClassTag.Float => GlobalArg.createOutput(length * 4) // in bytes
           case ClassTag.Int => GlobalArg.createOutput(length * 4) // in bytes
