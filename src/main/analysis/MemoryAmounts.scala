@@ -58,8 +58,8 @@ class MemoryAmounts(
     }
 
     // Get the allocated buffers
-    val kernelMemory = TypedOpenCLMemory.get(lambda.body, lambda.params)
-    val buffers = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = true)
+    val kernelMemory = TypedOpenCLMemory.collectAsArray(lambda)
+    val buffers = TypedOpenCLMemory.collectAsArray(lambda, includePrivate = true)
 
     valueMemories =
       Expr.visitWithState(Set[Memory]())(lambda.body, (lambda, set) =>

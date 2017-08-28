@@ -118,7 +118,10 @@ object OutputKernelJSON {
     */
   private def convertKernelParameterstoJSON( lambda: Lambda, source: String): String =
   {
-    val params = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = false)  // pull out parameters with sizes
+//    val params = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = false)  // pull out parameters with sizes
+    val (inputs, outputs, intermediates) = TypedOpenCLMemory.collect(lambda)
+    // TODO: rewrite this, so that inputs, outputs, and intermediates are not parsed out again ...
+    val params = inputs ++ outputs ++ intermediates
     val ignoreable = ", \t({}"
     val toStrip = "){"
 
@@ -129,7 +132,7 @@ object OutputKernelJSON {
     var lm = ListMap[String,JSONObject]()
 
     // pull out values from kernel string to get c types
-    val kernelStr = source.split("\n").filter(x => x.toString().contains("kernel"))
+    val kernelStr = source.split("\n").filter(x => x.contains("kernel"))
     val parameters = kernelStr(0).split(",").map(x => x.stripPrefix("kernel void KERNEL("))
 
     // get size values (ints)
