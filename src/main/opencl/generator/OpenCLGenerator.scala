@@ -46,9 +46,7 @@ object OpenCLGenerator extends Generator {
     *         component all remaining memory objects (i.e. dynamically allocated local and global memory objects)
     */
   def getMemories(f: Lambda): (Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory]) = {
-    val (inputs, outputs, intermediates) = TypedOpenCLMemory.collect(f)
-
-    val (localIntermediates, globalIntermediates) = intermediates.partition(_.mem.addressSpace == LocalMemory)
+    val (inputs, outputs, globalIntermediates, localIntermediates) = TypedOpenCLMemory.collect(f)
 
     if (AllocateLocalMemoryStatically()) {
       val (staticLocalIntermediates, dynamicLocalIntermediates) = localIntermediates.partition(isFixedSizeLocalMemory)
@@ -65,9 +63,9 @@ object OpenCLGenerator extends Generator {
         case _ => set
       })
 
-    val typedMems = TypedOpenCLMemory.collectAsArray(lambda, includePrivate = true)
+    val typedMems = TypedOpenCLMemory.collectAsFlatSequence(lambda, includePrivate = true)
 
-    val memory = TypedOpenCLMemory.collectAsArray(lambda)
+    val memory = TypedOpenCLMemory.collectAsFlatSequence(lambda)
 
     val (typedValueMems, privateMems) =
       typedMems.diff(memory).partition(m => valMems.contains(m.mem))
@@ -182,13 +180,15 @@ class OpenCLGenerator extends Generator {
       printMemories(f.body)
 
       println("Allocated Memory:")
-      val (inputs, outputs, tmps) = TypedOpenCLMemory.collect(f, includePrivate = true)
+      val (inputs, outputs, globalTmps, localTmps) = TypedOpenCLMemory.collect(f, includePrivate = true)
       println(" inputs:")
       inputs.foreach(println(_))
       println(" outputs:")
       outputs.foreach(println(_))
-      println(" tmps:")
-      tmps.foreach(println(_))
+      println(" global tmps:")
+      globalTmps.foreach(println(_))
+      println(" local tmps:")
+      localTmps.foreach(println(_))
       println()
     }
 
@@ -300,7 +300,7 @@ class OpenCLGenerator extends Generator {
 
   def allocateMemory(f: Lambda): Unit = {
     OpenCLMemoryAllocator(f)
-    Kernel.memory = TypedOpenCLMemory.collectAsArray(f)
+    Kernel.memory = TypedOpenCLMemory.collectAsFlatSequence(f)
   }
 
   private object Kernel {

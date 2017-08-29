@@ -119,9 +119,8 @@ object OutputKernelJSON {
   private def convertKernelParameterstoJSON( lambda: Lambda, source: String): String =
   {
 //    val params = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = false)  // pull out parameters with sizes
-    val (inputs, outputs, intermediates) = TypedOpenCLMemory.collect(lambda)
     // TODO: rewrite this, so that inputs, outputs, and intermediates are not parsed out again ...
-    val params = inputs ++ outputs ++ intermediates
+    val params = TypedOpenCLMemory.collectAsFlatSequence(lambda)
     val ignoreable = ", \t({}"
     val toStrip = "){"
 

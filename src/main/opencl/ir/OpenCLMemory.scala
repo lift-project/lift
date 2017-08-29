@@ -215,7 +215,8 @@ object TypedOpenCLMemory {
     * @return A tuple with the memory objects of the (inputs, intermediates, outputs).
     */
   def collect(f: Lambda,
-              includePrivate: Boolean = false): (Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory]) = {
+              includePrivate: Boolean = false):
+  (Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory]) = {
 
     def collectIntermediateMemories(expr: Expr): Seq[TypedOpenCLMemory] = {
       expr match {
@@ -364,24 +365,29 @@ object TypedOpenCLMemory {
     }
 
     // this prevents that multiple memory objects (possibly with different types) are collected
-    // multiple times
+    // multiple times without changing the order
     def distinct(seq: Seq[TypedOpenCLMemory]) = {
-      val b = Seq.newBuilder[TypedOpenCLMemory]
+      val builder = Seq.newBuilder[TypedOpenCLMemory]
       val seen = scala.collection.mutable.HashSet[OpenCLMemory]()
       for (x <- seq) {
         if (!seen(x.mem)) {
-          b += x
+          builder += x
           seen += x.mem
         }
       }
-      b.result()
+      builder.result()
     }
 
     val inputs = f.params.map(TypedOpenCLMemory(_))
     val output = TypedOpenCLMemory(f.body)
-    val intermediates = distinct(collectIntermediateMemories(f.body))
 
-    (inputs, Seq(output), intermediates.filter(_.mem != output.mem))
+    val intermediates =
+      distinct(collectIntermediateMemories(f.body)).filter(_.mem != output.mem)
+
+    val (localIntermediates, globalIntermediates) =
+      intermediates.partition(_.mem.addressSpace == LocalMemory)
+
+    (inputs, Seq(output), globalIntermediates, localIntermediates)
   }
 
   /**
@@ -392,8 +398,8 @@ object TypedOpenCLMemory {
     * @param includePrivate indicate if private memories should be included in the intermediates.
     * @return A flat sequence with the memory objects in the order: [inputs ++ outputs ++ intermediates]
     */
-  def collectAsArray(f: Lambda, includePrivate: Boolean = false): Seq[TypedOpenCLMemory] = {
-    val (inputs, outputs, intermediates) = collect(f, includePrivate)
-    inputs ++ outputs ++ intermediates
+  def collectAsFlatSequence(f: Lambda, includePrivate: Boolean = false): Seq[TypedOpenCLMemory] = {
+    val (inputs, outputs, globalIntermediates, localIntermediates) = collect(f, includePrivate)
+    inputs ++ outputs ++ globalIntermediates ++ localIntermediates
   }
 }
