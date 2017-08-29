@@ -8,14 +8,9 @@ import opencl.ir.pattern._
 object CollectTypedOpenCLMemory {
   /**
     * Function to collect typed OpenCL memory objects of the given lambda.
-    * Returns a tuple with three components:
-    * the first component are the memory objects for the given parameters -- in the same order;
-    * the second component are output memory objects;
-    * the third component are temporary memory objects.
     *
-    * @param f The lambda from which memory objects are collected.
-    * @param includePrivate indicate if private memories should be included in the intermediates.
-    * @return A tuple with the memory objects of the (inputs, intermediates, outputs).
+    * @param includePrivate Should private memories be included in the intermediates.
+    * @return Memory objects of the (inputs, outputs, globalIntermediates, localIntermediates).
     */
   def apply(f: Lambda,
     includePrivate: Boolean = false):
@@ -25,11 +20,9 @@ object CollectTypedOpenCLMemory {
 
   /**
     * Function to collect typed OpenCL memory objects of the given lambda.
-    * Returns a flat sequence with the memory objects in the order: [inputs ++ outputs ++ intermediates]
     *
-    * @param f The lambda from which memory objects are collected.
-    * @param includePrivate indicate if private memories should be included in the intermediates.
-    * @return A flat sequence with the memory objects in the order: [inputs ++ outputs ++ intermediates]
+    * @param includePrivate Should private memories be included in the intermediates.
+    * @return Memory objects in the order: [inputs ++ outputs ++ globalIntermediates ++ localIntermediates]
     */
   def asFlatSequence(f: Lambda, includePrivate: Boolean = false): Seq[TypedOpenCLMemory] = {
     val (inputs, outputs, globalIntermediates, localIntermediates) = apply(f, includePrivate)
