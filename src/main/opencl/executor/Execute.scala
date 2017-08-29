@@ -691,12 +691,12 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     val sizes = createSizeArgs(f, valueMap)
 
     // 7. combine kernel arguments. first pointers and data, then the size information
-    val args: Array[KernelArg] = memArgs ++ sizes
+    val args: Seq[KernelArg] = memArgs ++ sizes
 
     // 8. execute via JNI and get the runtime (or runtimes)
     val t = this.synchronized {
       executeFunction(localSize(0).eval, localSize(1).eval, localSize(2).eval,
-        globalSize(0).eval, globalSize(1).eval, globalSize(2).eval, args)
+        globalSize(0).eval, globalSize(1).eval, globalSize(2).eval, args.toArray)
     }
 
     // 9. cast the output accordingly to the output type
@@ -761,9 +761,9 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   private def createMemArgs(f: Lambda,
                             outputData: KernelArg,
                             valueMap: immutable.Map[ArithExpr, ArithExpr],
-                            values: Any*): Array[KernelArg] = {
+                            values: Any*): Seq[KernelArg] = {
     // go through all memory objects associated with the generated kernel
-    OpenCLGenerator.getMemories(f)._2.toArray.map(mem => {
+    OpenCLGenerator.getMemories(f)._2.map(mem => {
       // get the OpenCL memory object ...
       val m = mem.mem
       val size = ArithExpr.substitute(m.size, valueMap).eval
@@ -810,9 +810,9 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   }
 
   private def createSizeArgs(f: Lambda,
-    valueMap: immutable.Map[ArithExpr, ArithExpr]): Array[KernelArg] = {
+    valueMap: immutable.Map[ArithExpr, ArithExpr]): Seq[KernelArg] = {
     // get the variables from the memory objects associated with the generated kernel
-    val allVars = OpenCLGenerator.getMemories(f)._2.toArray.map(
+    val allVars = OpenCLGenerator.getMemories(f)._2.map(
       _.mem.size.varList
      ).filter(_.nonEmpty).flatten.distinct
     // select the variables which are not (internal) iteration variables
