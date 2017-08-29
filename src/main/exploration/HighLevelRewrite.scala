@@ -120,7 +120,7 @@ object HighLevelRewrite {
       val dumpThese = if(settings.highLevelRewriteSettings.onlyLower)
         Seq((lambda, Seq()))
       else
-        rewriteExpression(lambda)
+        rewriteExpression(lambda) :+ (lambda, Seq())
 
       println(dumpThese.length + " expressions to dump")
 
@@ -129,7 +129,7 @@ object HighLevelRewrite {
 
       val folderName = output.value.getOrElse(filename.split("/").last)
 
-      dumpLambdasToFiles(dumpThese :+ (lambda, Seq()), folderName)
+      dumpLambdasToFiles(dumpThese, folderName)
     } catch {
       case e: ArgotUsageException => println(e.message)
     }
@@ -217,9 +217,9 @@ object HighLevelRewrite {
     val x = if (settings.highLevelRewriteSettings.sequential) lambdas else lambdas.par
 
     x.foreach(lambda => {
-      val id = processed.getAndIncrement()
+      val id = processed.getAndIncrement() + 1
 
-      print(s"\rProcessing $id/${lambdas.length - 1}")
+      print(s"\rProcessing $id/${lambdas.length}")
 
       try {
 
@@ -275,8 +275,8 @@ object HighLevelRewrite {
 
   private def printMinAndMaxDepth(lambda: Seq[Lambda]): Unit = {
     val res = lambda.map(NumberExpression.byDepth(_).values.max)
-    if(res.isEmpty)
-      throw new RuntimeException("No rules applicable")
+    if(res.size == 1)
+      println("No rules were applicable...")
 
     println(s"with a minimum depth of ${res.min} of and maximum depth of ${res.max}")
   }
