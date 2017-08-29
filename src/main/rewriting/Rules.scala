@@ -1147,14 +1147,19 @@ object Rules {
       case _ => false
     }
 
-  val addIdMapWrg = Rule("MapWrg(f) => MapWrg(f o Id())", {
-    case call@FunCall(MapWrg(dim, f:Lambda1) , arg)
+  val addIdForMapWrgParam = Rule("MapWrg(f) => MapWrg(f o Id())", {
+    case FunCall(MapWrg(dim, f:Lambda1) , arg)
       if !f.body.contains( {case FunCall(MapWrg(_,_), a) =>})
       && !f.body.contains( {case FunCall(Id(), b) =>  })
       => MapWrg(dim, f o Id()) $ arg
   })
 
-  val addIdMapLcl = Rule("MapLcl(f) => MapLcl(f) o Id()", {
+  val addIdForMapParam = Rule("Map(f) => Map(f o Id())", {
+    case FunCall(Map(f:Lambda1) , arg)
+      => Map(f o Id()) $ arg
+  })
+
+  val addIdBeforeMapLcl = Rule("MapLcl(f) => MapLcl(f) o Id()", {
     case call@FunCall(map:MapLcl, arg)
       if !isId(arg) && !call.context.inMapLcl.reduce(_ || _)
     =>

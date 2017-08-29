@@ -546,8 +546,8 @@ object MemoryMappingRewrite {
 
     val enabledRules = scala.collection.Map(
       Rules.addIdForCurrentValueInReduce -> config.addIdForCurrentValueInReduce,
-      Rules.addIdMapLcl -> config.addIdMapLcl,
-      Rules.addIdMapWrg -> config.addIdMapWrg).flatMap( x => {
+      Rules.addIdBeforeMapLcl -> config.addIdMapLcl,
+      Rules.addIdForMapWrgParam -> config.addIdMapWrg).flatMap( x => {
         val rule = x._1
         val enabled = x._2
         if(enabled) Some(rule)

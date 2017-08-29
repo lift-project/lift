@@ -480,11 +480,11 @@ class TestRules {
 
     // checks that the rule is only applicable once,
     // otherwise this will fail with a StackOverflowError
-    val rewrittenG = Rewrite.applyRulesUntilCannot(g, Seq(Rules.addIdMapWrg))
-    val rewrittenH = Rewrite.applyRulesUntilCannot(h, Seq(Rules.addIdMapWrg))
+    val rewrittenG = Rewrite.applyRulesUntilCannot(g, Seq(Rules.addIdForMapWrgParam))
+    val rewrittenH = Rewrite.applyRulesUntilCannot(h, Seq(Rules.addIdForMapWrgParam))
 
-    assertTrue(Rules.addIdMapWrg.rewrite.isDefinedAt(f.body))
-    assertTrue(Rules.addIdMapWrg.rewrite.isDefinedAt(g.body))
+    assertTrue(Rules.addIdForMapWrgParam.rewrite.isDefinedAt(f.body))
+    assertTrue(Rules.addIdForMapWrgParam.rewrite.isDefinedAt(g.body))
     assertTrue(rewrittenH.body.contains({case FunCall(Id(), a) =>}))
   }
 
