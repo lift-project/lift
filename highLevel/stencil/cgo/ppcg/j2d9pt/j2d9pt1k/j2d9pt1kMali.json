@@ -49,9 +49,9 @@
   "generic_kernel_printer" : {
     "enable_speedup_condition" : true,
     "speedup" : 1.0,
-    "configs_to_achieve_speedup" : 250,
+    "configs_to_achieve_speedup" : 500,
     "enable_timeout_condition" : true,
-    "timeout_in_seconds" : 3600,
+    "timeout_in_seconds" : 10800,
     "enable_max_configs_condition" : false,
     "max_configs" : 500,
     "enable_not_better_than_condition" : false,
@@ -63,13 +63,13 @@
   },
 
   "search_parameters" : {
-    "default_input_size" : 1026,
+    "default_input_size" : 1024,
     "min_local_size" : 4,
     "max_local_size" : 256,
     "min_global_size" : 4,
     "max_private_memory" : 1024,
-    "max_local_memory" : 32768,
-    "min_workgroups" : 1,
+    "max_local_memory" : 65536,
+    "min_workgroups" : 2,
     "max_workgroups" : 1048576
   }
 }
