@@ -8,10 +8,10 @@ import scala.collection.immutable.ListMap
 import scala.language.implicitConversions
 import scala.util.parsing.json._
 import java.io._
-import scala.io._
 
+import scala.io._
 import opencl.executor.Compile
-import opencl.ir.TypedOpenCLMemory
+import opencl.ir.{CollectTypedOpenCLMemory, TypedOpenCLMemory}
 
 /**
   *  apply: output lambda parameters to JSON file and outputs resulting OpenCL kernel to CL file.
@@ -120,7 +120,7 @@ object OutputKernelJSON {
   {
 //    val params = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = false)  // pull out parameters with sizes
     // TODO: rewrite this, so that inputs, outputs, and intermediates are not parsed out again ...
-    val params = TypedOpenCLMemory.collectAsFlatSequence(lambda)
+    val params = CollectTypedOpenCLMemory.asFlatSequence(lambda)
     val ignoreable = ", \t({}"
     val toStrip = "){"
 

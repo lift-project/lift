@@ -46,7 +46,7 @@ object CGenerator extends Generator {
     *         component all remaining memory objects (i.e. dynamically allocated local and global memory objects)
     */
   def getMemories(f: Lambda): (Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory]) = {
-    val (inputs, outputs, globalIntermediates, localIntermediates) = TypedOpenCLMemory.collect(f)
+    val (inputs, outputs, globalIntermediates, localIntermediates) = CollectTypedOpenCLMemory(f)
 
     if (AllocateLocalMemoryStatically()) {
       val (staticLocalIntermediates, dynamicLocalIntermediates) = localIntermediates.partition(isFixedSizeLocalMemory)
@@ -63,9 +63,9 @@ object CGenerator extends Generator {
         case _ => set
       })
 
-    val typedMems = TypedOpenCLMemory.collectAsFlatSequence(lambda, includePrivate = true)
+    val typedMems = CollectTypedOpenCLMemory.asFlatSequence(lambda, includePrivate = true)
 
-    val memory = TypedOpenCLMemory.collectAsFlatSequence(lambda)
+    val memory = CollectTypedOpenCLMemory.asFlatSequence(lambda)
 
     val (typedValueMems, privateMems) =
       typedMems.diff(memory).partition(m => valMems.contains(m.mem))
@@ -175,7 +175,7 @@ class CGenerator extends Generator {
       printMemories(f.body)
 
       println("Allocated Memory:")
-      val (inputs, outputs, globalTmps, localTmps) = TypedOpenCLMemory.collect(f, includePrivate = true)
+      val (inputs, outputs, globalTmps, localTmps) = CollectTypedOpenCLMemory(f, includePrivate = true)
       println(" inputs:")
       inputs.foreach(println(_))
       println(" outputs:")
@@ -290,7 +290,7 @@ class CGenerator extends Generator {
 
   def allocateMemory(f: Lambda): Unit = {
     OpenCLMemoryAllocator(f)
-    Kernel.memory = TypedOpenCLMemory.collectAsFlatSequence(f)
+    Kernel.memory = CollectTypedOpenCLMemory.asFlatSequence(f)
   }
 
   private object Kernel {
