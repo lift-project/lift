@@ -1,0 +1,11 @@
+val distance = UserFun("distance_", Array("loc", "lat", "lng"),
+    "{ return sqrt( (lat - loc._0) * (lat - loc._0) + (lng - loc._1) * (lng - loc._1) ); }",
+    Seq(TupleType(Float, Float), Float, Float), Float)
+
+val N = SizeVar("N")
+
+fun(
+  ArrayTypeWSWC(TupleType(Float, Float), N), Float, Float,
+  (locations, lat, lng) => {
+    locations :>> Map( \(loc => distance(loc, lat, lng)) )
+  })
