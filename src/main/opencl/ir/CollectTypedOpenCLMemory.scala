@@ -61,15 +61,19 @@ private class CollectTypedOpenCLMemory(val lambda: Lambda, val includePrivate: B
 
   private def collectIntermediateMemories(expr: Expr): Seq[TypedOpenCLMemory] = {
     expr match {
-      case v: Value =>
-        if (includePrivate)
-          Seq(TypedOpenCLMemory(v))
-        else
-          Seq()
+      case v: Value => collectValueOrUserFunMemory(v)
       case _: Param => Seq()
       case _: ArrayConstructors => Seq()
       case call: FunCall => collectFunCall(call)
     }
+  }
+
+  private def collectValueOrUserFunMemory(expr: Expr) = expr.mem match {
+    case memory: OpenCLMemory =>
+      if (!includePrivate && memory.addressSpace == PrivateMemory)
+        Seq()
+      else
+        Seq(TypedOpenCLMemory(expr))
   }
 
   private def collectFunCall(call: FunCall) = {
@@ -80,7 +84,7 @@ private class CollectTypedOpenCLMemory(val lambda: Lambda, val includePrivate: B
     }
 
     val bodyMemories = call.f match {
-      case _: UserFun | _: VectorizeUserFun => collectUserFun(call)
+      case _: UserFun | _: VectorizeUserFun => collectValueOrUserFunMemory(call)
       case l: Lambda              => collectIntermediateMemories(l.body)
       case m: AbstractMap         => collectMap(call.t, m)
       case f: FilterSeq           => collectIntermediateMemories(f.f.body) :+ TypedOpenCLMemory(call)
@@ -97,14 +101,6 @@ private class CollectTypedOpenCLMemory(val lambda: Lambda, val includePrivate: B
     argumentMemories ++ bodyMemories
   }
 
-  private def collectUserFun(call: FunCall) = call.mem match {
-    case memory: OpenCLMemory =>
-      if (!includePrivate && memory.addressSpace == PrivateMemory)
-        Seq()
-      else
-        Seq(TypedOpenCLMemory(call))
-  }
-
   private def collectMap(t: Type, map: AbstractMap) = {
     val memories = collectIntermediateMemories(map.f.body)
 
@@ -118,7 +114,8 @@ private class CollectTypedOpenCLMemory(val lambda: Lambda, val includePrivate: B
               tm
             case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
 
-              val privateMultiplier = if (map.iterationCount == ?) Cst(1) else map.iterationCount
+              val privateMultiplier =
+                if (map.iterationCount == ?) Cst(1) else map.iterationCount
 
               TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, privateMultiplier))
           }
