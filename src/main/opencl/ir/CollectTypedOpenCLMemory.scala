@@ -12,10 +12,9 @@ object CollectTypedOpenCLMemory {
     * @param includePrivate Should private memories be included in the intermediates.
     * @return Memory objects of the (inputs, outputs, globalIntermediates, localIntermediates).
     */
-  def apply(f: Lambda,
-    includePrivate: Boolean = false):
+  def apply(lambda: Lambda, includePrivate: Boolean = false):
   (Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory]) = {
-    new CollectTypedOpenCLMemory(f, includePrivate)()
+    new CollectTypedOpenCLMemory(lambda, includePrivate)()
   }
 
   /**
@@ -24,21 +23,21 @@ object CollectTypedOpenCLMemory {
     * @param includePrivate Should private memories be included in the intermediates.
     * @return Memory objects in the order: [inputs ++ outputs ++ globalIntermediates ++ localIntermediates]
     */
-  def asFlatSequence(f: Lambda, includePrivate: Boolean = false): Seq[TypedOpenCLMemory] = {
-    val (inputs, outputs, globalIntermediates, localIntermediates) = apply(f, includePrivate)
+  def asFlatSequence(lambda: Lambda, includePrivate: Boolean = false): Seq[TypedOpenCLMemory] = {
+    val (inputs, outputs, globalIntermediates, localIntermediates) = apply(lambda, includePrivate)
     inputs ++ outputs ++ globalIntermediates ++ localIntermediates
   }
 }
 
-private class CollectTypedOpenCLMemory(val f: Lambda, val includePrivate: Boolean) {
+private class CollectTypedOpenCLMemory(val lambda: Lambda, val includePrivate: Boolean) {
 
   private def apply():
   (Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory]) = {
-    val inputs = f.params.map(TypedOpenCLMemory(_))
-    val output = TypedOpenCLMemory(f.body)
+    val inputs = lambda.params.map(TypedOpenCLMemory(_))
+    val output = TypedOpenCLMemory(lambda.body)
 
     val intermediates =
-      distinct(collectIntermediateMemories(f.body)).filter(_.mem != output.mem)
+      distinct(collectIntermediateMemories(lambda.body)).filter(_.mem != output.mem)
 
     val (localIntermediates, globalIntermediates) =
       intermediates.partition(_.mem.addressSpace == LocalMemory)
@@ -48,13 +47,13 @@ private class CollectTypedOpenCLMemory(val f: Lambda, val includePrivate: Boolea
 
   // this prevents that multiple memory objects (possibly with different types)
   // are collected multiple times without changing the order
-  private def distinct(seq: Seq[TypedOpenCLMemory]) = {
+  private def distinct(memories: Seq[TypedOpenCLMemory]) = {
     val builder = Seq.newBuilder[TypedOpenCLMemory]
     val seen = scala.collection.mutable.HashSet[OpenCLMemory]()
-    for (x <- seq) {
-      if (!seen(x.mem)) {
-        builder += x
-        seen += x.mem
+    for (m <- memories) {
+      if (!seen(m.mem)) {
+        builder += m
+        seen += m.mem
       }
     }
     builder.result()
@@ -63,19 +62,18 @@ private class CollectTypedOpenCLMemory(val f: Lambda, val includePrivate: Boolea
   private def collectIntermediateMemories(expr: Expr): Seq[TypedOpenCLMemory] = {
     expr match {
       case v: Value =>
-        if (includePrivate) {
+        if (includePrivate)
           Seq(TypedOpenCLMemory(v))
-        } else {
+        else
           Seq()
-        }
       case _: Param => Seq()
       case _: ArrayConstructors => Seq()
       case call: FunCall => collectFunCall(call)
     }
   }
 
-  private def collectFunCall(call: FunCall): Seq[TypedOpenCLMemory] = {
-    val argMemories: Seq[TypedOpenCLMemory] = call.args.length match {
+  private def collectFunCall(call: FunCall) = {
+    val argumentMemories = call.args.length match {
       case 0 => Seq()
       case 1 => collectIntermediateMemories(call.args.head)
       case _ => call.args.map(collectIntermediateMemories).reduce(_ ++ _)
@@ -86,9 +84,9 @@ private class CollectTypedOpenCLMemory(val f: Lambda, val includePrivate: Boolea
       case l: Lambda              => collectIntermediateMemories(l.body)
       case m: AbstractMap         => collectMap(call.t, m)
       case f: FilterSeq           => collectIntermediateMemories(f.f.body) :+ TypedOpenCLMemory(call)
-      case r: AbstractPartRed     => collectReduce(r, argMemories)
-      case sp: MapSeqSlide        => collectMapSeqSlide(sp, argMemories)
-      case s: AbstractSearch      => collectSearch(s, call, argMemories)
+      case r: AbstractPartRed     => collectReduce(r, argumentMemories)
+      case sp: MapSeqSlide        => collectMapSeqSlide(sp, argumentMemories)
+      case s: AbstractSearch      => collectSearch(s, call, argumentMemories)
       case _: UnsafeArrayAccess   => Seq(TypedOpenCLMemory(call))
       case _: CheckedArrayAccess  => Seq(TypedOpenCLMemory(call))
       case i: Iterate             => collectIterate(call, i)
@@ -96,39 +94,36 @@ private class CollectTypedOpenCLMemory(val f: Lambda, val includePrivate: Boolea
       case _                      => Seq()
     }
 
-    argMemories ++ bodyMemories
+    argumentMemories ++ bodyMemories
   }
 
-  private def collectUserFun(call: FunCall): Seq[TypedOpenCLMemory] = call.mem match {
-    case m: OpenCLMemory =>
-      if (!includePrivate && m.addressSpace == PrivateMemory) {
+  private def collectUserFun(call: FunCall) = call.mem match {
+    case memory: OpenCLMemory =>
+      if (!includePrivate && memory.addressSpace == PrivateMemory)
         Seq()
-      } else {
+      else
         Seq(TypedOpenCLMemory(call))
-      }
   }
 
-  private def collectMap(t: Type,
-    m: AbstractMap): Seq[TypedOpenCLMemory] = {
-    val mems = collectIntermediateMemories(m.f.body)
+  private def collectMap(t: Type, map: AbstractMap) = {
+    val memories = collectIntermediateMemories(map.f.body)
 
     @scala.annotation.tailrec
-    def changeType(addressSpace: OpenCLAddressSpace,
-      tm: TypedOpenCLMemory): TypedOpenCLMemory = {
+    def changeType(addressSpace: OpenCLAddressSpace, tm: TypedOpenCLMemory): TypedOpenCLMemory = {
       // TODO: This might return one of two types in case of reduce (T or Array(T, 1))
       addressSpace match {
         case PrivateMemory =>
-          m match {
+          map match {
             case _: MapGlb | _: MapWrg  | _: Map =>
               tm
             case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
 
-              val privateMultiplier = if (m.iterationCount == ?) Cst(1) else m.iterationCount
+              val privateMultiplier = if (map.iterationCount == ?) Cst(1) else map.iterationCount
 
               TypedOpenCLMemory(tm.mem, ArrayTypeWSWC(tm.t, privateMultiplier))
           }
         case LocalMemory =>
-          m match {
+          map match {
             case _: MapGlb | _: MapWrg  | _: Map =>
               tm
             case _: MapLcl | _: MapWarp | _: MapLane | _: MapSeq =>
@@ -147,11 +142,10 @@ private class CollectTypedOpenCLMemory(val f: Lambda, val includePrivate: Boolea
       }
     }
 
-    // change types for all of them
-    val cts = mems.map( (tm: TypedOpenCLMemory) => changeType(tm.mem.addressSpace, tm) )
+    val cts = memories.map(tm => changeType(tm.mem.addressSpace, tm) )
 
     // TODO: Think about other ways of refactoring this out
-    m match {
+    map match {
       case aw : MapAtomWrg =>
         cts :+ TypedOpenCLMemory(aw.globalTaskIndex, ArrayTypeWSWC(Int, Cst(1)))
       case _ => cts
@@ -159,50 +153,61 @@ private class CollectTypedOpenCLMemory(val f: Lambda, val includePrivate: Boolea
 
   }
 
-  private def collectReduce(r: AbstractPartRed,
-    argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
-    val mems: Seq[TypedOpenCLMemory] = collectIntermediateMemories(r.f.body) ++ (r match {
+  private def collectReduce(
+    reduce: AbstractPartRed,
+    argumentMemories: Seq[TypedOpenCLMemory]) = {
+
+    val memories = collectIntermediateMemories(reduce.f.body) ++ (reduce match {
       case rws: ReduceWhileSeq => collectIntermediateMemories(rws.p.body)
       case _ => Seq[TypedOpenCLMemory]()
     })
 
-    mems.filter(m => {
-      val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
-      val isAlreadyInParams =  f.params.exists(_.mem.variable == m.mem.variable)
-
-      !isAlreadyInArgs && !isAlreadyInParams
-    })
+    removeParameterAndArgumentDuplicates(memories, argumentMemories)
   }
 
-  private def collectMapSeqSlide(sp: MapSeqSlide,
-    argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
-    val mems: Seq[TypedOpenCLMemory] = collectIntermediateMemories(sp.f.body) ++ Seq[TypedOpenCLMemory]()
+  private def collectMapSeqSlide(
+    slide: MapSeqSlide,
+    argumentMemories: Seq[TypedOpenCLMemory]) = {
 
-    mems.filter(m => {
-      val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
-      val isAlreadyInParams =  f.params.exists(_.mem.variable == m.mem.variable)
+    val memories = collectIntermediateMemories(slide.f.body)
 
-      !isAlreadyInArgs && !isAlreadyInParams
-    })
+    removeParameterAndArgumentDuplicates(memories, argumentMemories)
   }
 
-  private def collectSearch(s: AbstractSearch, call:FunCall, argMems: Seq[TypedOpenCLMemory]): Seq[TypedOpenCLMemory] = {
-    val mems = collectIntermediateMemories(s.f.body)
+  private def collectSearch(
+    search: AbstractSearch,
+    call:FunCall,
+    argumentMemories: Seq[TypedOpenCLMemory]) = {
+
+    val memories = collectIntermediateMemories(search.f.body)
 
     // TODO: Optimise so we use the default value instead of more allocated memory!
-    TypedOpenCLMemory(call) +: mems.filter(m => {
-      val isAlreadyInArgs   = argMems.exists(_.mem.variable == m.mem.variable)
-      val isAlreadyInParams =  f.params.exists(_.mem.variable == m.mem.variable)
+    TypedOpenCLMemory(call) +:
+      removeParameterAndArgumentDuplicates(memories, argumentMemories)
+  }
+
+  private def removeParameterAndArgumentDuplicates(
+    memories: Seq[TypedOpenCLMemory],
+    argumentMemories: Seq[TypedOpenCLMemory]) = {
+
+    memories.filter(m => {
+      val isAlreadyInArgs = argumentMemories.exists(_.mem.variable == m.mem.variable)
+      val isAlreadyInParams = lambda.params.exists(_.mem.variable == m.mem.variable)
 
       !isAlreadyInArgs && !isAlreadyInParams
     })
   }
 
-  private def collectIterate(call: FunCall, i: Iterate): Seq[TypedOpenCLMemory] = {
-    i.swapBuffer match {
-      case UnallocatedMemory => collectIntermediateMemories(i.f.body)
+  private def collectIterate(call: FunCall, iterate: Iterate) = {
+
+    val intermediateMemories = collectIntermediateMemories(iterate.f.body)
+    iterate.swapBuffer match {
+      case UnallocatedMemory => intermediateMemories
       case _ =>
-        TypedOpenCLMemory(i.swapBuffer, ArrayTypeWSWC(call.args.head.t, ?)) +: collectIntermediateMemories(i.f.body)
+        val swapBufferMemory =
+          TypedOpenCLMemory(iterate.swapBuffer, ArrayTypeWSWC(call.args.head.t, ?))
+
+        swapBufferMemory +: intermediateMemories
     }
   }
 
