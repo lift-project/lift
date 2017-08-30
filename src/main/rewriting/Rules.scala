@@ -859,7 +859,7 @@ object Rules {
       val secondNewParam = Param()
       val newZipArgs = zipArgs.updated(n, secondNewParam)
 
-      Transpose() o Map(Lambda(Array(secondNewParam),
+      TransposeW() o Map(Lambda(Array(secondNewParam),
         Map(Lambda(Array(newParam), finalNewExpr)) $ Zip(newZipArgs: _*)
       )) o Transpose() $ newArg
   })
