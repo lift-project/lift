@@ -25,6 +25,15 @@ class TestRewriteMatrixVector {
   val N = SizeVar("N")
   val M = SizeVar("M")
 
+  val inputSize = 4096
+
+  val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
+  val vectorX = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+  val vectorY = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+  val alpha = 2.5f
+  val beta = 1.5f
+  val gold = Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta)
+
   @Test
   def gemvAMD(): Unit = {
 
@@ -72,14 +81,7 @@ class TestRewriteMatrixVector {
     val f20 = Rewrite.applyRuleAtId(f19, 41, Rules.localMemory)
     val f21 = Rewrite.applyRuleAtId(f20, 4, Rules.globalMemory)
 
-    val inputSize = 4096
 
-    val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
-    val vectorX = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-    val vectorY = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-    val alpha = 2.5f
-    val beta = 1.5f
-    val gold = Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta)
     val (local, global) = InferNDRange(f21, matrix, vectorX, vectorY, alpha, beta)
 
     val (output: Array[Float], _) =
@@ -169,42 +171,45 @@ class TestRewriteMatrixVector {
         )) $ Zip(matrix, vectorY)
       })
 
-      val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
-      val f2 = Rewrite.applyRuleAtId(f1, 9, Rules.partialReduce)
-      val f3 = Rewrite.applyRuleAtId(f2, 10, Rules.partialReduceSplitJoin(64))
-      val f4 = Rewrite.applyRuleAtId(f3, 6, Rules.mapFission2)
-      val f5 = Rewrite.applyRuleAtId(f4, 8, MacroRules.mapFissionAtPosition(2))
-      val f6 = Rewrite.applyRuleAtId(f5, 22, Rules.reduceSeq)
-      val f7 = Rewrite.applyRuleAtId(f6, 8, Rules.mapReducePartialReduce)
-      val f8 = Rewrite.applyRuleAtId(f7, 14, Rules.splitJoin(64))
-      val f9 = Rewrite.applyRuleAtId(f8, 13, Rules.splitJoinId)
-      val f10 = Rewrite.applyRuleAtId(f9, 13, Rules.splitZip)
-      val f11 = Rewrite.applyRuleAtId(f10, 11, MacroRules.mapMapInterchange)
-      val f12 = Rewrite.applyRuleAtId(f11, 10, Rules.transposeTransposeId)
-      val f13 = Rewrite.applyRuleAtId(f12, 6, MacroRules.mapMapInterchange)
-      val f14 = Rewrite.applyRuleAtId(f13, 8, Rules.transposeTransposeId)
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
+    val f2 = Rewrite.applyRuleAtId(f1, 9, Rules.partialReduce)
+    val f3 = Rewrite.applyRuleAtId(f2, 10, Rules.partialReduceSplitJoin(64))
+    val f4 = Rewrite.applyRuleAtId(f3, 6, Rules.mapFission2)
+    val f5 = Rewrite.applyRuleAtId(f4, 8, MacroRules.mapFissionAtPosition(2))
+    val f6 = Rewrite.applyRuleAtId(f5, 22, Rules.reduceSeq)
+    val f7 = Rewrite.applyRuleAtId(f6, 8, Rules.mapReducePartialReduce)
+    val f8 = Rewrite.applyRuleAtId(f7, 14, Rules.splitJoin(64))
+    val f9 = Rewrite.applyRuleAtId(f8, 13, Rules.splitJoinId)
+    val f10 = Rewrite.applyRuleAtId(f9, 13, Rules.splitZip)
+    val f11 = Rewrite.applyRuleAtId(f10, 11, MacroRules.mapMapInterchange)
+    val f12 = Rewrite.applyRuleAtId(f11, 10, Rules.transposeTransposeId)
+    val f13 = Rewrite.applyRuleAtId(f12, 6, MacroRules.mapMapInterchange)
+    val f14 = Rewrite.applyRuleAtId(f13, 8, Rules.transposeTransposeId)
 
-      val l0 = Lower.lowerPartialReduces(f14)
-      val l1 = Lower.lowerReduces(l0)
-      val l2 = SimplifyAndFuse(l1)
-      val l3 = Rewrite.applyRulesUntilCannot(l2, Seq(Rules.dropId, Rules.removeEmptyMap))
-      val l4 = Lower.lowerNextLevelWithRule(l3, Rules.mapWrg)
-      val l5 = Rewrite.applyRuleAtId(l4, 7, Rules.mapSeq)
-      val l6 = Lower.lastWriteToGlobal(l5)
-      val l7 = Lower.lowerNextLevelWithRule(l6, Rules.mapLcl)
-      val l8 = Rewrite.applyRuleAtId(l7, 8, Rules.addIdForCurrentValueInReduce)
-      val l9 = Rewrite.applyRuleAtId(l8, 23, Rules.implementOneLevelOfId)
-      val l11 = Rewrite.applyRuleAtId(l9, 24, Rules.dropId)
-      val l12 = Rewrite.applyRuleAtId(l11, 26, Rules.implementIdAsDeepCopy)
-      val l13 = Rewrite.applyRuleAtId(l12, 26, Rules.mapLcl)
-      val l14 = Rewrite.applyRuleAtId(l13, 26, Rules.localMemory)
-      val l15 = Rewrite.applyRuleAtId(l14, 66, Rules.privateMemory)
-      val l16 = Rewrite.applyRuleAtId(l15, 61, Rules.privateMemory)
+    val l0 = Lower.lowerPartialReduces(f14)
+    val l1 = Lower.lowerReduces(l0)
+    val l2 = SimplifyAndFuse(l1)
+    val l3 = Rewrite.applyRulesUntilCannot(l2, Seq(Rules.dropId, Rules.removeEmptyMap))
+    val l4 = Lower.lowerNextLevelWithRule(l3, Rules.mapWrg)
+    val l5 = Rewrite.applyRuleAtId(l4, 7, Rules.mapSeq)
+    val l6 = Lower.lastWriteToGlobal(l5)
+    val l7 = Lower.lowerNextLevelWithRule(l6, Rules.mapLcl)
+    val l8 = Rewrite.applyRuleAtId(l7, 8, Rules.addIdForCurrentValueInReduce)
+    val l9 = Rewrite.applyRuleAtId(l8, 23, Rules.implementOneLevelOfId)
+    val l11 = Rewrite.applyRuleAtId(l9, 24, Rules.dropId)
+    val l12 = Rewrite.applyRuleAtId(l11, 26, Rules.implementIdAsDeepCopy)
+    val l13 = Rewrite.applyRuleAtId(l12, 26, Rules.mapLcl)
+    val l14 = Rewrite.applyRuleAtId(l13, 26, Rules.localMemory)
+    val l15 = Rewrite.applyRuleAtId(l14, 66, Rules.privateMemory)
+    val l16 = Rewrite.applyRuleAtId(l15, 61, Rules.privateMemory)
 
-      val (local, global) = InferNDRange(l16)
-      // TODO: Missing barrier!
-      println(Compile(l16, local, global))
+    val (local, global) = InferNDRange(l16)
+    val code = Compile(l16, local, global)
 
+    val (output: Array[Float], _) = Execute()(code, l16, matrix, vectorX, vectorY, alpha, beta)
+
+    assertEquals(2, "barrier".r.findAllMatchIn(code).length)
+    assertArrayEquals(gold, output, 0.001f)
   }
 
 }
