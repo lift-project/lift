@@ -59,13 +59,16 @@ class CGO_2017 {
           ) o
             ReduceSeq(fun((acc, next) =>
               Let(localX =>
-                Join() o MapLcl(fun(x => ReduceSeq(fun((acc2, next2) =>
-                  multAndSumUp(acc2, Get(next2, 0), Get(next2, 1)))
-                  , Get(x, 0)) $ Zip(Get(x, 1), localX))) $ Zip(acc, Get(next, 0))
+                Join() o MapLcl(fun(x =>
+                  ReduceSeq(fun((acc2, next2) =>
+                    multAndSumUp(acc2, Get(next2, 0), Get(next2, 1)))
+                    , Get(x, 0)
+                  ) $ Zip(Get(x, 1), localX))
+                ) $ Zip(acc, Get(next, 0))
               )  o toLocal(MapLcl(id)) $ Get(next, 1)),
 
-              MapLcl(id) $ Value(0.0f, ArrayTypeWSWC(Float, 64)))
-            $ Zip(Transpose() o Map(Split(64) o Get(0)) $ matChunk, Split(64) $ vectorX)
+              MapLcl(id) $ Value(0.0f, ArrayTypeWSWC(Float, 64))
+            ) $ Zip(Transpose() o Map(Split(64) o Get(0)) $ matChunk, Split(64) $ vectorX)
         )) o Split(64) $ Zip(matrix, vectorY)
     )
 
