@@ -30,6 +30,7 @@ class TestRules {
   }
 
   val N = SizeVar("N")
+  val M = SizeVar("M")
   val A = Array.fill[Float](128)(0.5f)
 
   @Test
@@ -1314,6 +1315,38 @@ class TestRules {
 
     TypeChecker(f)
     assertFalse(Rules.mapReducePartialReduce.isDefinedAt(f.body))
+  }
+
+  @Test
+  def joinFromZip0(): Unit = {
+    val t0 = ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M)
+    val t1 = ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N)
+
+    val f = fun(
+      t0, t1,
+      (a,b) => Zip(Join() $ a, Join() $ b)
+    )
+
+    TypeChecker(f)
+    assertFalse(Rules.joinFromZip.isDefinedAt(f.body))
+  }
+
+  @Test
+  def joinFromZip1(): Unit = {
+    val t0 = ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M)
+
+    val f = fun(
+      t0, t0,
+      (a,b) => Zip(Join() $ a, Join() $ b)
+    )
+
+    TypeChecker(f)
+    assertTrue(Rules.joinFromZip.isDefinedAt(f.body))
+
+    val result = Rewrite.applyRuleAt(f, f.body, Rules.joinFromZip)
+    TypeChecker(result)
+
+    assertEquals(f.body.t, result.body.t)
   }
 
 }

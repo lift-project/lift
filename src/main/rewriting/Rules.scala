@@ -955,7 +955,7 @@ object Rules {
     })
 
   // TODO: Does it matter there is a Map after the Split?
-  val splitZip = Rule("Map(fun(x => Map()  ) o Split() $ Zip(...) => " +
+  val splitIntoZip = Rule("Map(fun(x => Map()  ) o Split() $ Zip(...) => " +
                       "Map(x => Map() $ Zip(Get(n, x) ... ) $ Zip(Split $ ...)", {
     case FunCall(Map(Lambda(lambdaParam, FunCall(Map(mapLambda), mapArg))), FunCall(Split(n), FunCall(Zip(_), zipArgs@_*)))
       if lambdaParam.head eq mapArg
@@ -967,6 +967,25 @@ object Rules {
       val innerZipArgs = zipArgs.indices.map(Get(_)(newLambdaParam))
 
       Map(Lambda(Array(newLambdaParam), Map(mapLambda) $ Zip(innerZipArgs:_*))) $ Zip(newZipArgs:_*)
+  })
+
+  private val joinCall: PartialFunction[Expr, Unit] = { case FunCall(Join(), _) => }
+  private val getOutermostLengths: PartialFunction[Expr, (ArithExpr, ArithExpr)] =
+  { case FunCall(_, arg) => arg.t match {
+    case ArrayTypeWS(ArrayTypeWS(_, inner), outer) => (inner, outer)
+  }}
+
+  val joinFromZip = Rule(" Zip(Join() $ ..., Join() $ ..., ...) => " +
+                      "Join() o Zip(...)", {
+    case FunCall(Zip(_), zipArgs@_*)
+      if zipArgs.forall(joinCall.isDefinedAt) && zipArgs.map(getOutermostLengths).distinct.size == 1
+    =>
+
+      val newArgs = zipArgs.map({ case FunCall(_, arg) => arg })
+      val p = Param()
+      val innerArgs = newArgs.indices.map(Get(p, _))
+
+      Join() o Map(Lambda(Array(p), Zip(innerArgs:_*))) $ Zip(newArgs:_*)
   })
 
   val mapFissionWithZipInside = Rule("Map(fun(x => ... Zip(..., f $ x, ...))) " +

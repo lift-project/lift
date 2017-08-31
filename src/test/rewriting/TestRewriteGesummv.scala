@@ -7,26 +7,23 @@ import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import rewriting.utils.{NumberExpression, NumberPrinter}
 
 object TestRewriteGesummv {
   @BeforeClass
-  def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
+  def before(): Unit = Executor.loadAndInit()
 
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
+  @AfterClass
+  def after(): Unit = Executor.shutdown()
 }
 
 class TestRewriteGesummv {
 
+  private val K = SizeVar("K")
+  private val N = SizeVar("N")
+
   @Test
   def simpleFusion(): Unit = {
-
-    val K = SizeVar("K")
-    val N = SizeVar("N")
 
     def mvAlpha = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
@@ -60,7 +57,7 @@ class TestRewriteGesummv {
     )
 
     val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.splitJoin(1))
-    val f2 = Rewrite.applyRuleAtId(f1, 1, Rules.splitZip)
+    val f2 = Rewrite.applyRuleAtId(f1, 1, Rules.splitIntoZip)
     val f3 = Rewrite.applyRuleAtId(f2, 25, Rules.splitJoinId)
     val f4 = Rewrite.applyRuleAtId(f3, 3, Rules.splitJoinId)
     val f5 = Rewrite.applyRuleAtId(f4, 2, Rules.mapFusionInZip)
@@ -102,6 +99,52 @@ class TestRewriteGesummv {
     val (y: Array[Float], _) = Execute(n)(f18, A, B, x, alpha, beta)
 
     assertArrayEquals(yGold, y, 0.001f)
+  }
+
+  @Test
+  def automaticFusion(): Unit = {
+
+    def mvAlpha = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      ArrayTypeWSWC(Float, K),
+      Float,
+      (matrix, vector, alpha) =>
+        Join() o
+        Map(fun(row =>
+          Map(fun(x => mult(x, alpha))) o
+          Reduce(add, 0.0f) o Map(fun(y => mult(y._0, y._1))) $ Zip(row, vector)
+        )) $ matrix
+    )
+
+    val vecAdd = fun(
+      ArrayTypeWSWC(Float, K),
+      ArrayTypeWSWC(Float, K),
+      (a,b) => Map(fun(x => add(x._0, x._1))) $ Zip(a, b)
+    )
+
+    TypeChecker(mvAlpha)
+    TypeChecker(vecAdd)
+
+    val f0 = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      ArrayTypeWSWC(Float, K),
+      Float,
+      Float,
+      (A, B, x, alpha, beta) =>
+      vecAdd(mvAlpha(A, x, alpha), mvAlpha(B, x, beta))
+    )
+
+    val f1 = (new  SimplifyAndFuse(1500000l, false))(f0)
+    val f2 = Rewrite.applyRulesUntilCannot(f1, Seq(MacroRules.reduceMapFusion))
+
+    val numConcreteMapsAndReduces = Expr.visitWithState(0)(f2.body, {
+      case (FunCall(map: AbstractMap, _), a) if map.f.body.isConcrete => a+1
+      case (FunCall(map: AbstractPartRed, _, _), a) if map.f.body.isConcrete => a+1
+      case (_, a) => a
+    })
+
+    assertEquals(3, numConcreteMapsAndReduces)
   }
 
 }

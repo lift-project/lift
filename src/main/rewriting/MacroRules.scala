@@ -411,7 +411,7 @@ object MacroRules {
    */
   val movingJoin =
     Rule("Map(_) o Join() => Join() o Map(Map(_))", {
-      case call@FunCall(Map(_), joinCall@FunCall(Join(), arg)) =>
+      case call@FunCall(Map(_), FunCall(Join(), arg)) =>
 
         val splitFactor = arg.t match {
           case ArrayType(ArrayTypeWSWC(_,m,_)) => m
@@ -596,7 +596,7 @@ object MacroRules {
 
 
             val splitZip = getMapAtDepth(e0, 0)
-            val e1 = Rewrite.applyRuleAt(e0, Rules.splitZip, splitZip)
+            val e1 = Rewrite.applyRuleAt(e0, Rules.splitIntoZip, splitZip)
 
             val outer = getMapAtDepth(e1, 1)
             val e2 = applyInterchangeOnAllComponents(e1, outer)

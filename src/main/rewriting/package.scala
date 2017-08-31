@@ -49,7 +49,9 @@ package object rewriting {
     Seq(
       mapFusion,
       mapFusionWithZip,
-      MacroRules.reduceMapFusion,
+      mapFusionInZip,
+      reduceFusionInZip,
+      fuseZipTuple,
       reduceSeqMapSeqFusion
     )
 
@@ -103,7 +105,7 @@ package object rewriting {
       splitJoin,
       vectorize,
       reorderBothSidesWithStride,
-      splitZip
+      splitIntoZip
     )
 
   val allRules =
@@ -144,7 +146,7 @@ package object rewriting {
     Seq(partialReduce,
       gatherToScatter,
       scatterToGather,
-      splitZip,
+      splitIntoZip,
       partialReduceToReduce,
       reduceSeq,
       implementIdAsDeepCopy,

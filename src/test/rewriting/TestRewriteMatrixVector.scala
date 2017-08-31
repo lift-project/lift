@@ -22,17 +22,17 @@ object TestRewriteMatrixVector {
 
 class TestRewriteMatrixVector {
 
-  val N = SizeVar("N")
-  val M = SizeVar("M")
+  private val N = SizeVar("N")
+  private val M = SizeVar("M")
 
-  val inputSize = 4096
+  private val inputSize = 4096
 
-  val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
-  val vectorX = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-  val vectorY = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-  val alpha = 2.5f
-  val beta = 1.5f
-  val gold = Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta)
+  private val matrix = Array.fill(inputSize, inputSize)(util.Random.nextInt(5).toFloat)
+  private val vectorX = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+  private val vectorY = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+  private val alpha = 2.5f
+  private val beta = 1.5f
+  private val gold = Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta)
 
   @Test
   def gemvAMD(): Unit = {
@@ -180,7 +180,7 @@ class TestRewriteMatrixVector {
     val f7 = Rewrite.applyRuleAtId(f6, 8, Rules.mapReducePartialReduce)
     val f8 = Rewrite.applyRuleAtId(f7, 14, Rules.splitJoin(64))
     val f9 = Rewrite.applyRuleAtId(f8, 13, Rules.splitJoinId)
-    val f10 = Rewrite.applyRuleAtId(f9, 13, Rules.splitZip)
+    val f10 = Rewrite.applyRuleAtId(f9, 13, Rules.splitIntoZip)
     val f11 = Rewrite.applyRuleAtId(f10, 11, MacroRules.mapMapInterchange)
     val f12 = Rewrite.applyRuleAtId(f11, 10, Rules.transposeTransposeId)
     val f13 = Rewrite.applyRuleAtId(f12, 6, MacroRules.mapMapInterchange)
