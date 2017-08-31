@@ -50,6 +50,18 @@ class TestRewriteGesummv {
       vecAdd(mvAlpha(A, x, alpha), mvAlpha(B, x, beta))
   )
 
+  private val n = 128
+
+  private val alpha = 2.0f
+  private val beta = 1.5f
+  private val x = Array.fill(n)(util.Random.nextInt(5).toFloat)
+  private val A = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+  private val B = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+
+  private val tmp1Gold = Utils.matrixVector(A, x, alpha)
+  private val tmp2Gold = Utils.matrixVector(B, x, beta)
+  private val yGold = (tmp1Gold, tmp2Gold).zipped.map(_+_)
+
   @Test
   def simpleFusion(): Unit = {
 
@@ -80,18 +92,6 @@ class TestRewriteGesummv {
 
     // Won't write to accumulator without this
     val f18 = Rewrite.applyRuleAtId(f17, 17, Rules.tupleToStruct)
-
-    val n = 128
-
-    val alpha = 2.0f
-    val beta = 1.5f
-    val x = Array.fill(n)(util.Random.nextInt(5).toFloat)
-    val A = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
-    val B = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
-
-    val tmp1Gold = Utils.matrixVector(A, x, alpha)
-    val tmp2Gold = Utils.matrixVector(B, x, beta)
-    val yGold = (tmp1Gold, tmp2Gold).zipped.map(_+_)
 
     val (y: Array[Float], _) = Execute(n)(f18, A, B, x, alpha, beta)
 
@@ -126,17 +126,7 @@ class TestRewriteGesummv {
     // Won't write to accumulator without this
     val f18 = Rewrite.applyRuleAtId(f17, 17, Rules.tupleToStruct)
 
-    val n = 128
 
-    val alpha = 2.0f
-    val beta = 1.5f
-    val x = Array.fill(n)(util.Random.nextInt(5).toFloat)
-    val A = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
-    val B = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
-
-    val tmp1Gold = Utils.matrixVector(A, x, alpha)
-    val tmp2Gold = Utils.matrixVector(B, x, beta)
-    val yGold = (tmp1Gold, tmp2Gold).zipped.map(_+_)
 
     val (y: Array[Float], _) = Execute(n)(f18, A, B, x, alpha, beta)
 
