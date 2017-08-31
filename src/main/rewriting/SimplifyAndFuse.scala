@@ -7,6 +7,9 @@ object SimplifyAndFuse {
   def apply(lambda: Lambda, maxTime: Long = 900000 /* 15 min */) =
     (new SimplifyAndFuse(maxTime))(lambda)
 
+  def withoutPreventingFurtherOptimisation(lambda: Lambda, maxTime: Long = 900000) =
+    (new SimplifyAndFuse(maxTime, false))(lambda)
+
   def sortLambdaByTerms(lambda0: Lambda, lambda1: Lambda): Boolean = {
     val terms0 = getNumberOfTerms(lambda0)
     val terms1 = getNumberOfTerms(lambda1)

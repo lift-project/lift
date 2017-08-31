@@ -7,7 +7,7 @@ import opencl.executor.{Execute, Executor, Utils}
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import rewriting.utils.{NumberExpression, NumberPrinter}
+import rewriting.utils.NumberPrinter
 
 object TestRewriteGesummv {
   @BeforeClass
@@ -22,39 +22,36 @@ class TestRewriteGesummv {
   private val K = SizeVar("K")
   private val N = SizeVar("N")
 
-  @Test
-  def simpleFusion(): Unit = {
-
-    def mvAlpha = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
-      ArrayTypeWSWC(Float, K),
-      Float,
-      (matrix, vector, alpha) =>
-        Join() o
+  private def mvAlpha = fun(
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+    ArrayTypeWSWC(Float, K),
+    Float,
+    (matrix, vector, alpha) =>
+      Join() o
         Map(fun(row =>
           Map(fun(x => mult(x, alpha))) o
-          Reduce(add, 0.0f) o Map(fun(y => mult(y._0, y._1))) $ Zip(row, vector)
+            Reduce(add, 0.0f) o Map(fun(y => mult(y._0, y._1))) $ Zip(row, vector)
         )) $ matrix
-    )
+  )
 
-    val vecAdd = fun(
-      ArrayTypeWSWC(Float, K),
-      ArrayTypeWSWC(Float, K),
-      (a,b) => Map(fun(x => add(x._0, x._1))) $ Zip(a, b)
-    )
+  private val vecAdd = fun(
+    ArrayTypeWSWC(Float, K),
+    ArrayTypeWSWC(Float, K),
+    (a,b) => Map(fun(x => add(x._0, x._1))) $ Zip(a, b)
+  )
 
-    TypeChecker(mvAlpha)
-    TypeChecker(vecAdd)
-
-    val f0 = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
-      ArrayTypeWSWC(Float, K),
-      Float,
-      Float,
-      (A, B, x, alpha, beta) =>
+  private val f0 = fun(
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+    ArrayTypeWSWC(Float, K),
+    Float,
+    Float,
+    (A, B, x, alpha, beta) =>
       vecAdd(mvAlpha(A, x, alpha), mvAlpha(B, x, beta))
-    )
+  )
+
+  @Test
+  def simpleFusion(): Unit = {
 
     val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.splitJoin(1))
     val f2 = Rewrite.applyRuleAtId(f1, 1, Rules.splitIntoZip)
@@ -104,38 +101,7 @@ class TestRewriteGesummv {
   @Test
   def automaticFusion(): Unit = {
 
-    def mvAlpha = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
-      ArrayTypeWSWC(Float, K),
-      Float,
-      (matrix, vector, alpha) =>
-        Join() o
-        Map(fun(row =>
-          Map(fun(x => mult(x, alpha))) o
-          Reduce(add, 0.0f) o Map(fun(y => mult(y._0, y._1))) $ Zip(row, vector)
-        )) $ matrix
-    )
-
-    val vecAdd = fun(
-      ArrayTypeWSWC(Float, K),
-      ArrayTypeWSWC(Float, K),
-      (a,b) => Map(fun(x => add(x._0, x._1))) $ Zip(a, b)
-    )
-
-    TypeChecker(mvAlpha)
-    TypeChecker(vecAdd)
-
-    val f0 = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
-      ArrayTypeWSWC(Float, K),
-      Float,
-      Float,
-      (A, B, x, alpha, beta) =>
-      vecAdd(mvAlpha(A, x, alpha), mvAlpha(B, x, beta))
-    )
-
-    val f1 = (new  SimplifyAndFuse(1500000l, false))(f0)
+    val f1 = SimplifyAndFuse.withoutPreventingFurtherOptimisation(f0)
     val f2 = Rewrite.applyRulesUntilCannot(f1, Seq(MacroRules.reduceMapFusion))
 
     val numConcreteMapsAndReduces = Expr.visitWithState(0)(f2.body, {
@@ -145,6 +111,44 @@ class TestRewriteGesummv {
     })
 
     assertEquals(3, numConcreteMapsAndReduces)
+
+    val f13 = Rewrite.applyRuleAtId(f2, 47, Rules.tupleInline)
+    val f14 = Rewrite.applyRuleAtId(f13, 17, Rules.tupleInline)
+
+    // Still uses x twice. Flatten zips and get rid of duplicates?
+    // Could issue only one load. Would it make a difference?
+
+    val f15 = Lower.lowerNextLevelWithRule(f14, Rules.mapGlb)
+    val f16 = Lower.lowerNextLevelWithRule(f15, Rules.mapSeq)
+
+    val f17 = Rewrite.applyRuleAtId(f16, 5, Rules.globalMemory)
+
+    // Won't write to accumulator without this
+    val f18 = Rewrite.applyRuleAtId(f17, 17, Rules.tupleToStruct)
+
+    val n = 128
+
+    val alpha = 2.0f
+    val beta = 1.5f
+    val x = Array.fill(n)(util.Random.nextInt(5).toFloat)
+    val A = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+    val B = Array.fill(n, n)(util.Random.nextInt(5).toFloat)
+
+    val tmp1Gold = Utils.matrixVector(A, x, alpha)
+    val tmp2Gold = Utils.matrixVector(B, x, beta)
+    val yGold = (tmp1Gold, tmp2Gold).zipped.map(_+_)
+
+    val (y: Array[Float], _) = Execute(n)(f18, A, B, x, alpha, beta)
+
+    assertArrayEquals(yGold, y, 0.001f)
+  }
+
+  @Test
+  def fuseAndOptimise(): Unit = {
+
+    val f1 = SimplifyAndFuse.withoutPreventingFurtherOptimisation(f0)
+
+    println(NumberPrinter(f1))
   }
 
 }
