@@ -348,7 +348,7 @@ class OpenCLGenerator extends Generator {
           )
         ).toList ++
           // size parameters
-          vars.sortBy(_.name).map(x => OpenCLAST.ParamDecl(x.toString, Long)),
+          vars.sortBy(_.name).map(x => OpenCLAST.ParamDecl(x.toString, Int)),
       body = OpenCLAST.Block(Vector.empty),
       kernel = true, attribute)
 
@@ -368,7 +368,7 @@ class OpenCLGenerator extends Generator {
       kernel.body +=
         OpenCLAST.VarDecl(x.mem.variable, x.t,
           addressSpace = x.mem.addressSpace,
-          length = (x.mem.size /^ Type.getMaxAllocatedSize(Type.getBaseType(x.t))).evalLong))
+          length = (x.mem.size /^ Type.getMaxAllocatedSize(Type.getBaseType(x.t))).eval))
 
     kernel.body += OpenCLAST.Comment("Typed Value memory")
     typedValueMems.foreach(x =>

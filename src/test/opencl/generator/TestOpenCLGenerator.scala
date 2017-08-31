@@ -17,7 +17,7 @@ class TestOpenCLGenerator {
   private val c = SizeVar("C")
   private val d = SizeVar("D")
 
-  private val gold = """long v_A_\d+, long v_B_\d+, long v_C_\d+, long v_D_\d+""".r
+  private val gold = """int v_A_\d+, int v_B_\d+, int v_C_\d+, int v_D_\d+""".r
 
   @Test
   def one(): Unit = {

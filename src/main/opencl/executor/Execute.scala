@@ -133,7 +133,7 @@ object Execute {
      * @param variable the variable as an arithmetic expression (should be a Var?)
      * @param value a possible value / lower bound for this variable
      */
-    case class Constraint(variable: ArithExpr, value: Long)
+    case class Constraint(variable: ArithExpr, value: Int)
   
     /**
      * Compute a list of capacity constraints and a list of size constraints
@@ -170,7 +170,7 @@ object Execute {
      * Takes a list of size constraints, checks that they are consistent
      * altogether and build map from variable to values out of this list.
      */
-    private def cleanSizeConstraints(sizeConstraints: Seq[Constraint]): immutable.Map[ArithExpr, Long] = {
+    private def cleanSizeConstraints(sizeConstraints: Seq[Constraint]): immutable.Map[ArithExpr, Int] = {
       val map = sizeConstraints.groupBy(_.variable)
       
       // Check that the sizes are consistent (see issue #98, snippet 2)
@@ -195,7 +195,7 @@ object Execute {
      * consistent with the inferred sizes.
      */
     private def cleanCapacityConstraints(capacityConstraints: Seq[Constraint],
-                                         sizes: immutable.Map[ArithExpr, Long]): immutable.Map[ArithExpr, Long] = {
+                                         sizes: immutable.Map[ArithExpr, Int]): immutable.Map[ArithExpr, Int] = {
       val map = capacityConstraints.groupBy(_.variable)
       
       // Take the maximum value for each variable.
@@ -369,7 +369,7 @@ object Execute {
      */
     private def simplify(c: Seq[Constraint]): Seq[Constraint] = c.map({
       case Constraint(v, len) =>
-        val newLen = SolveForVariable(v, len).evalLong
+        val newLen = SolveForVariable(v, len).eval
         Constraint(v.varList.head, newLen)
     })
   }
@@ -823,11 +823,11 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       val i = f.params.indexWhere( p => p.t.varList.contains(v) )
       // ... if found look up the runtime value in the valueMap and create kernel argument ...
       if (i != -1) {
-        val s = valueMap(v).evalLong
+        val s = valueMap(v).eval
         //noinspection SideEffectsInMonadicTransformation
         if (Verbose())
           println(s)
-        Option(arg(s, Long, 8))
+        Option(arg(s, Int, 4))
       }
       // ... else return nothing
       else Option.empty
@@ -840,10 +840,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   object arg {
     /** Entry point for creating an OpenCL kernel argument */
     def apply(any: Any, ty: Type, size: Long): KernelArg = ty match {
-      // "special" scalar types
-      case Bool => value(any.asInstanceOf[Boolean])
-      case Long => value(any.asInstanceOf[Long])
       // Scalars and vectors that are not nested in an array
+      case Bool  => value(any.asInstanceOf[Boolean])
       case Int | VectorType(Int, _)       => value(any.asInstanceOf[Int])
       case Float | VectorType(Float, _)   => value(any.asInstanceOf[Float])
       case Double | VectorType(Double, _) => value(any.asInstanceOf[Double])
@@ -853,19 +851,19 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         flatTupleBaseType(at) match {
           case Int =>
             val encoder = new Encoder[Int](n => n)
-            val raw = encoder.encode(array, at, size/4)
+            val raw = encoder.encode(array, at, (size/4).toInt)
             global.input(raw)
           case Float =>
             val encoder = new Encoder[Float](_.toFloat)
-            val raw = encoder.encode(array, at, size/4)
+            val raw = encoder.encode(array, at, (size/4).toInt)
             global.input(raw)
           case Double =>
             val encoder = new Encoder[Double](_.toDouble)
-            val raw = encoder.encode(array, at, size/4)
+            val raw = encoder.encode(array, at, (size/4).toInt)
             global.input(raw)
           case Bool =>
             val encoder = new Encoder[Boolean](_ != 0) // This is very bad
-          val raw = encoder.encode(array, at, size)
+            val raw = encoder.encode(array, at, size.toInt)
             global.input(raw)
         }
       case _ => throw new EncodeError(ty)
@@ -896,10 +894,8 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
      */
     private class Encoder[T: ClassTag](cast: Int => T) {
       /** Public wrapper for the encode method below */
-      def encode(array: Array[_], at: ArrayType, size: Long): Array[T] = {
-        // FIXME
-        if (size > scala.Int.MaxValue) throw new NotImplementedError()
-        val buffer = Array.fill(size.toInt)(cast(0))
+      def encode(array: Array[_], at: ArrayType, size: Int): Array[T] = {
+        val buffer = Array.fill(size)(cast(0))
         val nextPos = encode(buffer, 0, array, at)
         assert(nextPos <= size) // Sanity check
         buffer
@@ -1020,10 +1016,10 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
      * Create output argument given a Type and the number of elements
      */
     object output {
-      def apply[T: ClassTag](length: Long): GlobalArg = {
+      def apply[T: ClassTag](length: Int): GlobalArg = {
         implicitly[ClassTag[T]] match {
-          case ClassTag.Float => GlobalArg.createOutput(length * 4) // in bytes
-          case ClassTag.Int => GlobalArg.createOutput(length * 4) // in bytes
+          case ClassTag.Float => GlobalArg.createOutput(length.toLong * 4) // in bytes
+          case ClassTag.Int => GlobalArg.createOutput(length.toLong * 4) // in bytes
           case tag =>
             throw new IllegalArgumentException(s"Given type: $tag not supported")
         }

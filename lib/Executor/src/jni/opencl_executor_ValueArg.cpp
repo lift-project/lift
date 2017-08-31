@@ -27,12 +27,6 @@ jobject Java_opencl_executor_ValueArg_create__I(JNIEnv* env, jclass cls,
   return helper(env, cls, value);
 }
 
-jobject Java_opencl_executor_ValueArg_create__J(JNIEnv* env, jclass cls,
-                                                jlong value)
-{
-  return helper(env, cls, value);
-}
-
 jobject Java_opencl_executor_ValueArg_create__D(JNIEnv* env, jclass cls,
                                                 jdouble value)
 {
