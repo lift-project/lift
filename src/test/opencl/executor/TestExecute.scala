@@ -23,6 +23,44 @@ class TestExecute {
   private val M = SizeVar("M")
 
   @Test
+  def allocateMoreThanMaxIntForInput(): Unit = {
+    val f = fun(
+      ArrayType(Int, N),
+      toGlobal(MapSeq(idI)) o ReduceSeq(addI, 0) $ _
+    )
+
+    try {
+      val inputSize = scala.Int.MaxValue / 4 + 1
+      val input = Array.fill(inputSize)(1)
+
+      val (output: Array[Int], _) = Execute(1, 1)(f, input)
+      assertTrue(inputSize * 4 < 0)
+      assertEquals(inputSize, output.head)
+    } catch {
+      case x: DeviceCapabilityException =>
+        Assume.assumeNoException("Device can't allocate that much memory", x)
+      case x: java.lang.OutOfMemoryError =>
+        Assume.assumeNoException("Not enough heap space or RAM", x)
+    }
+  }
+
+  // TODO: SEGFAULT in JNIEnv_::SetIntArrayRegion
+  @Ignore
+  @Test
+  def allocateMoreThanMaxIntForOutput(): Unit = {
+    val f = fun(
+      ArrayType(Int, N),
+      MapGlb(idI) $ _
+    )
+
+    val input = Array.tabulate(scala.Int.MaxValue / 4 + 1 )(i => i)
+
+    val (output: Array[Int], _) = Execute(input.length)(f, input)
+
+    assertArrayEquals(input, output)
+  }
+
+  @Test
   def testInferSeq(): Unit = {
 
     val size = 1024

@@ -231,7 +231,7 @@ object Execute {
         case at: ArrayType =>
           val array = asArray(value)
           val len = array.length / tupleSize(at.elemT)
-        
+
           // Recursive call if array of arrays
           val (caps, sizes) = at.elemT match {
             case _: ArrayType =>
@@ -766,7 +766,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     OpenCLGenerator.getMemories(f)._2.map(mem => {
       // get the OpenCL memory object ...
       val m = mem.mem
-      val size = ArithExpr.substitute(m.size, valueMap).eval
+      val size = ArithExpr.substitute(m.size, valueMap).evalLong
       // ... look for it in the parameter list ...
       val i = f.params.indexWhere(m == _.mem)
       // ... if found create an OpenCL kernel argument from the matching runtime value ...
