@@ -496,7 +496,7 @@ object MacroRules {
       val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeqMapSeqFusion)
       e1
 
-    case funCall @ FunCall(Reduce(_), _, mapCall@FunCall(MapSeq(_), _))
+    case funCall @ FunCall(Reduce(_), _, FunCall(MapSeq(_), _))
     =>
       val e0 = Rewrite.applyRuleAtId(funCall, 0, Rules.reduceSeq)
       val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeqMapSeqFusion)

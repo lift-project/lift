@@ -84,6 +84,7 @@ class TestRewriteGesummv {
 
     // Still uses x twice. Flatten zips and get rid of duplicates?
     // Could issue only one load. Would it make a difference?
+    // Would it be easier to rewrite and optimise later? Probably.
 
     val f15 = Lower.lowerNextLevelWithRule(f14, Rules.mapGlb)
     val f16 = Lower.lowerNextLevelWithRule(f15, Rules.mapSeq)
