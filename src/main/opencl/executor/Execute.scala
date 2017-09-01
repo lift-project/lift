@@ -859,7 +859,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
             global.input(raw)
           case Double =>
             val encoder = new Encoder[Double](_.toDouble)
-            val raw = encoder.encode(array, at, (size/4).toInt)
+            val raw = encoder.encode(array, at, (size/8).toInt)
             global.input(raw)
           case Bool =>
             val encoder = new Encoder[Boolean](_ != 0) // This is very bad
