@@ -8,6 +8,7 @@ import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import rewriting.utils.NumberPrinter
 
 object TestRewriteMatrixVector {
   @BeforeClass def before(): Unit = {
@@ -172,10 +173,10 @@ class TestRewriteMatrixVector {
       })
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
-    val f2 = Rewrite.applyRuleAtId(f1, 9, Rules.partialReduce)
-    val f3 = Rewrite.applyRuleAtId(f2, 10, Rules.partialReduceSplitJoin(64))
-    val f4 = Rewrite.applyRuleAtId(f3, 6, Rules.mapFission2)
-    val f5 = Rewrite.applyRuleAtId(f4, 8, MacroRules.mapFissionAtPosition(2))
+    val f4 = Rewrite.applyRuleAtId(f1, 6, Rules.mapFission2)
+    val f2 = Rewrite.applyRuleAtId(f4, 10, Rules.partialReduce)
+    val f3 = Rewrite.applyRuleAtId(f2, 11, Rules.partialReduceSplitJoin(64))
+    val f5 = Rewrite.applyRuleAtId(f3, 8, MacroRules.mapFissionAtPosition(2))
     val f6 = Rewrite.applyRuleAtId(f5, 22, Rules.reduceSeq)
     val f7 = Rewrite.applyRuleAtId(f6, 8, Rules.mapReducePartialReduce)
     val f8 = Rewrite.applyRuleAtId(f7, 14, Rules.splitJoin(64))
@@ -186,6 +187,7 @@ class TestRewriteMatrixVector {
     val l0 = Lower.lowerPartialReduces(f13)
     val l1 = Lower.lowerReduces(l0)
     val l2 = SimplifyAndFuse(l1)
+
     val l3 = Rewrite.applyRulesUntilCannot(l2, Seq(Rules.dropId, Rules.removeEmptyMap))
     val l4 = Lower.lowerNextLevelWithRule(l3, Rules.mapWrg)
     val l5 = Rewrite.applyRuleAtId(l4, 7, Rules.mapSeq)

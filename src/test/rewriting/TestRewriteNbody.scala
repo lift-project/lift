@@ -11,6 +11,7 @@ import opencl.ir._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
+import rewriting.utils.NumberPrinter
 
 object TestRewriteNbody {
    @BeforeClass
@@ -49,14 +50,13 @@ class TestRewriteNbody {
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(128))
     val f2 = Rewrite.applyRuleAtId(f1, 6, Rules.mapFission2)
-    val f3 = Rewrite.applyRuleAtId(f2, 8, Rules.mapFission)
-    val f4 = Rewrite.applyRuleAtId(f3, 19, Rules.partialReduce)
-    val f5 = Rewrite.applyRuleAtId(f4, 20, Rules.partialReduceSplitJoin(128))
+    val f4 = Rewrite.applyRuleAtId(f2, 10, Rules.partialReduce)
+    val f5 = Rewrite.applyRuleAtId(f4, 11, Rules.partialReduceSplitJoin(128))
     val f6 = Rewrite.applyRuleAtId(f5, 8, MacroRules.mapFissionAtPosition(2))
-    val g1 = Rewrite.applyRuleAtId(f6, 22, Rules.reduceSeq)
+    val g1 = Rewrite.applyRuleAtId(f6, 20, Rules.reduceSeq)
     val f7 = Rewrite.applyRuleAtId(g1, 8, Rules.mapReducePartialReduce)
     val f8 = Rewrite.applyRuleAtId(f7, 14, Rules.splitJoin(128))
-    val f11 = Rewrite.applyRuleAtId(f8, 12, MacroRules.mapMapInterchange)
+    val f11 = Rewrite.applyRuleAtId(f8, 11, MacroRules.mapMapInterchange)
 
     val f16 = SimplifyAndFuse(Lower.lowerPartialReduces(f11))
 
@@ -68,18 +68,13 @@ class TestRewriteNbody {
     val f26 = Lower.lowerNextLevelWithRule(f25, Rules.mapSeq)
     val f27 = Rewrite.applyRuleAtId(f26, 14, Rules.localMemory)
 
-
-    val replacement = collection.immutable.Map[ArithExpr, ArithExpr](N -> inputSize)
-    val replacementFilter = collection.immutable.Map[ArithExpr, ArithExpr](N -> 16384)
-
-    val (local, global) = InferNDRange(f27)
-
-    val replacedGlobal = global.map(ArithExpr.substitute(_, replacement))
+    println(f27)
 
     val (output: Array[Float], _) =
-      Execute(local, replacedGlobal, (true, false))(f27, pos, vel, espSqr, deltaT)
+      Execute()(f27, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
 
+    val replacementFilter = collection.immutable.Map[ArithExpr, ArithExpr](N -> 16384)
     val x = ParameterRewrite.replaceInputTypes(f27, replacementFilter)
     assertEquals(ExpressionFilter.Status.Success, ExpressionFilter(x, InferNDRange(x)))
  }
