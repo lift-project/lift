@@ -574,11 +574,11 @@ object Rules {
   })
 
   val mapFission = Rule("Map(f o g) => Map(f) o Map(g)", {
-    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(fun2, p2)))), arg)
+    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(fun2, p2@_*)))), arg)
       if !fun1.isInstanceOf[FPattern] ||
         !fun1.asInstanceOf[FPattern].f.body.contains({ case a if a eq p1.head => })
     =>
-      Map(fun1) o Map(Lambda(p1, fun2(p2))) $ arg
+      Map(fun1) o Map(Lambda(p1, fun2(p2:_*))) $ arg
 
     case FunCall(Map(Lambda(p1, FunCall(r: AbstractPartRed, init, FunCall(fun2, p2)))), arg)
       if !r.f.body.contains({ case a if a eq p1.head => }) &&

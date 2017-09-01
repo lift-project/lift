@@ -1349,4 +1349,20 @@ class TestRules {
     assertEquals(f.body.t, result.body.t)
   }
 
+  @Test
+  def mapFissionZip(): Unit = {
+    val t1 = ArrayType(TupleType(ArrayType(Float, N), ArrayType(Float, N)), N)
+    val t2 = ArrayType(Float, N)
+
+    val f = fun(
+      t1, t2, (a,b) =>
+        Map(fun(x => Split(64) $ Zip(b, Get(x, 0)))) $ a
+    )
+    TypeChecker(f)
+
+    assertTrue(Rules.mapFission.isDefinedAt(f.body))
+    val result = Rewrite.applyRuleAt(f, f.body, Rules.mapFission)
+    TypeChecker(result)
+  }
+
 }
