@@ -56,14 +56,10 @@ class TestRewriteNbody {
     val g1 = Rewrite.applyRuleAtId(f6, 22, Rules.reduceSeq)
     val f7 = Rewrite.applyRuleAtId(g1, 8, Rules.mapReducePartialReduce)
     val f8 = Rewrite.applyRuleAtId(f7, 14, Rules.splitJoin(128))
-    val f9 = Rewrite.applyRuleAtId(f8, 11, Rules.mapFusion)
-    val f10 = Rewrite.applyRuleAtId(f9, 13, Rules.splitJoinId)
-    val f11 = Rewrite.applyRuleAtId(f10, 11, MacroRules.mapMapInterchange)
-    val f12 = Rewrite.applyRuleAtId(f11, 10, Rules.transposeTransposeId)
-    val f13 = Rewrite.applyRuleAtId(f12, 9, MacroRules.reduceMapFusion)
-    val f14 = Rewrite.applyRuleAtId(f13, 14, Rules.mapFusionWithZip)
-    val f15 = Rewrite.applyRuleAtId(f14, 18, Rules.partialReduceToReduce)
-    val f16 = Rewrite.applyRuleAtId(f15, 18, MacroRules.reduceMapFusion)
+    val f11 = Rewrite.applyRuleAtId(f8, 12, MacroRules.mapMapInterchange)
+
+    val f16 = SimplifyAndFuse(Lower.lowerPartialReduces(f11))
+
     val f21 = Rewrite.applyRuleAtId(f16, 9, Rules.addIdForCurrentValueInReduce)
     val f22 = Rewrite.applyRuleAtId(f21, 14, Rules.implementIdAsDeepCopy)
     val f23 = Rewrite.applyRuleAtId(f22, 6, Rules.globalMemory)
