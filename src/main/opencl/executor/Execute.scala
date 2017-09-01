@@ -1011,20 +1011,6 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       def apply(array: Array[Double]): GlobalArg  = GlobalArg.createInput(array)
       def apply(array: Array[Boolean]): GlobalArg = GlobalArg.createInput(array)
     }
-
-    /**
-     * Create output argument given a Type and the number of elements
-     */
-    object output {
-      def apply[T: ClassTag](length: Int): GlobalArg = {
-        implicitly[ClassTag[T]] match {
-          case ClassTag.Float => GlobalArg.createOutput(length.toLong * 4) // in bytes
-          case ClassTag.Int => GlobalArg.createOutput(length.toLong * 4) // in bytes
-          case tag =>
-            throw new IllegalArgumentException(s"Given type: $tag not supported")
-        }
-      }
-    }
   }
 
   /**
@@ -1040,7 +1026,6 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   object value {
     def apply(value: Float): ValueArg   = ValueArg.create(value)
     def apply(value: Int): ValueArg     = ValueArg.create(value)
-    def apply(value: Long): ValueArg    = ValueArg.create(value)
     def apply(value: Double): ValueArg  = ValueArg.create(value)
     def apply(value: Boolean): ValueArg = ValueArg.create(value)
   }
