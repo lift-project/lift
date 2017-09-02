@@ -18,6 +18,7 @@ case class ScalaPool(inputShape: Shape = null, outputShape: Shape = null,
   var mlpInputlenL2NonVerified: Int = 0
   var poolSize: Int = 0
   val mlpInputLenLimit: Int = 50000
+  var conv2SizeInOneDimension: Int = 0
   
   var nChannels: Int = 0
   
@@ -30,8 +31,8 @@ case class ScalaPool(inputShape: Shape = null, outputShape: Shape = null,
     
     outputs = Array.fill[Array4D[Float]](inputs.length)(
       Array.fill[Array3D[Float]](inputs(0).length)(
-        Array.fill[Array2D[Float]](mlpInputlenL2)(
-          Array.fill[Array[Float]](mlpInputlenL2)(
+        Array.fill[Array2D[Float]](Math.sqrt(mlpInputlenL2/nChannels).toInt)(
+          Array.fill[Array[Float]](Math.sqrt(mlpInputlenL2/nChannels).toInt)(
             Array.fill[Float](nChannels)(0)))))
     
     for (batchI <- inputs.indices) {
@@ -56,6 +57,7 @@ case class ScalaPool(inputShape: Shape = null, outputShape: Shape = null,
         }
       }
     }
+    println("hi")
   }
 }
 

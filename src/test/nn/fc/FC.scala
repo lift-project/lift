@@ -150,6 +150,10 @@ object FC {
         // the maxWrokGroupSize limit
          (iP.multsPerThread * Math.floor(iTSNonPadded.toFloat / iP.multsPerThread)).toInt
       }
+    if (iP.multsPerThread > iP.inputShape.size)
+      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+        f"multsPerThread(==${iP.multsPerThread}%d) cannot be bigger than " +
+        f"inputShape.size (${iP.inputShape.size.toFloat}%.02f)")
 
     // Padding: calculate how many neurons will need to be added
     iP.neuronShape.sizePadded = iP.neuronsPerWrg * Math.ceil(iP.neuronShape.size.toFloat / iP.neuronsPerWrg).toInt

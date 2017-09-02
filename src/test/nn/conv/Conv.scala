@@ -29,7 +29,7 @@ case class Conv(liftFProp: FunDecl,
                 localSize: Array[Int], globalSize: Array[Int]) extends Layer {
   val configToString: String =
     nn.conv.configToString(elsPerThread, outputShape.nChannels,
-      kernelsPerGroup, kernelSliding.size, kernelSliding.stride)
+      kernelsPerGroup, kernelSliding.size, kernelSliding.stride, inputTiling.size)
   var runtime: Double = 0
 
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {
@@ -264,12 +264,12 @@ object Conv {
 
   def apply(iP: InitParameters): Conv = {
     /**
-    * Class factory: verifies that an object can be created,
+5    * Class factory: verifies that an object can be created,
     * initializes variables, computes workgroup sizes.
     */
 
     val exceptionMsgPrefix: String = "In the Conv layer with the following configuration:\n" +
-      configToString(iP.elsPerThread, iP.nKernels, iP.kernelsPerGroup, iP.kernelSize, iP.kernelStride)
+      configToString(iP.elsPerThread, iP.nKernels, iP.kernelsPerGroup, iP.kernelSize, iP.kernelStride, iP.inputTileSize)
 
     /* Tiles */
     val kernelSliding: SlidingWindowConfig = SlidingWindowConfig(
@@ -338,7 +338,7 @@ object Conv {
       if (groupSize > nn.maxWorkGroupSize)
         throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
           f"group size (==$groupSize%d) must be less or equal to maxWorkGroupSize (${nn.maxWorkGroupSize}%d).\n" +
-          f"Decrease nKernels or inputTileSize or increase elsPerThread (${iP.elsPerThread}%d)")
+          f"Decrease nKernelsPerGroup or inputTileSize or increase elsPerThread (${iP.elsPerThread}%d)")
     }
 
     val globalSize: Array[Int] = Array.fill[Int](3)(0)

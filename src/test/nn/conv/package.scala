@@ -116,9 +116,9 @@ package object conv {
             Array(4512f, 4512f+1, 4512f+2), Array(4593f, 4593f+1, 4593f+2), Array(4674f, 4674f+1, 4674f+2)))))
 
   def configToString(elsPerThread: Int, nKernels: Int, kernelsPerGroup: Int,
-                     kernelSize: Int, kernelStride: Int): String = {
+                     kernelSize: Int, kernelStride: Int, inputTileSize: Int): String = {
     f"elsPerThread=$elsPerThread%d, nKernels=$nKernels%d, kernelsPerGroup=$kernelsPerGroup%d\n" +
-      f"kernelSize=$kernelSize%d, kernelStride=$kernelStride%d\n"
+      f"kernelSize=$kernelSize%d, kernelStride=$kernelStride%d, inputTileSize=$inputTileSize%d\n"
   }
 
 

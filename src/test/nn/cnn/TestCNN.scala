@@ -33,91 +33,120 @@ object TestCNN {
     Executor.shutdown()
     Connector.close()
   }
+
 }
 
 class TestCNN {
   private val logger = Logger(this.getClass)
 
   val precision: Float = 10f
-  val codeVersion: Int = 11
+  val codeVersion: Int = 15
+  val reruns: Int = 1
 
   @Test
   def TestFC(): Unit = {
-    Test(nKernelsL1Range = List(8),
-      kernelSizeRange = List(4),
-      inputTileSizeRange = (kernelSize, _) => List(kernelSize),
-      elsPerThreadL1Range = _ => List(1),
-      kernelsPerGroupL1Range = _ => List(1),
-      multsPerThreadRange = imageSize => List(16) ++ (2 to imageSize * imageSize by 2),
-      neuronsPerWrgRange = fcSize0 => List(24) ++ (2 to fcSize0 by 2))
+    for (_ <- 0 to reruns)
+      Test(ExperimentsSet(nKernelsL1Range = List(2),
+        kernelSizeRange = List(2),
+        inputTileSizeRange = (kernelSize, _) => List(kernelSize),
+        elsPerThreadL1Range = _ => List(1),
+        kernelsPerGroupL1Range = _ => List(1),
+        multsPerThreadRange = imageSize => List(1) ++ (2 to imageSize * imageSize by 2),
+        //multsPerThreadRange = imageSize => List(16),
+        neuronsPerWrgRange = fcSize => List(1) ++ (2 to fcSize by 2), nKernelsL0 = 2,
+        imageSizeRange = List(8, 16, 32, 64, 128/*, 256, 512*/),
+        neuronsL1Range = List(16, 32, 64, 128, 256, 512),
+        kernelsPerGroupL0 = 2,
+        nInputsRange = List(8, 16, 32, 64, 128/*, 256, 512, 1024, 2048, 2048*/)))
+
+//        continueFrom = cnn.Experiment(
+//          nKernelsL1= 2,
+//          kernelSize= 2,
+//          inputTileSize= 2,
+//          elsPerThreadL1= 1,
+//          kernelsPerGroupL1= 1,
+//          multsPerThread= 38,
+//          neuronsPerWrg= 10,
+//          imageSize= 8,
+//          neuronsL1= 512,
+//          nInputs = 64))
   }
 
-  //@Test
-  def TestConv(): Unit = {
-    Test(nKernelsL1Range = (8 to 48 by 4).toList,
-      kernelSizeRange = (4 to 64 by 4).toList,
-      inputTileSizeRange = (kernelSize, imageSize) => (kernelSize to imageSize by 4).toList,
-      elsPerThreadL1Range = kernelSize => List(1) ++ (2 to kernelSize by 1),
-      kernelsPerGroupL1Range = nKernelsL1 => List(1) ++ (2 to nKernelsL1 by 1),
-      multsPerThreadRange = _ => List(16),
-      neuronsPerWrgRange = _ => List(24))
-  }
 
-
-  def Test(nKernelsL1Range: List[Int], kernelSizeRange: List[Int],
-           inputTileSizeRange: (Int, Int) => List[Int],
-           elsPerThreadL1Range: Int => List[Int], kernelsPerGroupL1Range: Int => List[Int],
-           multsPerThreadRange: Int => List[Int], neuronsPerWrgRange: Int => List[Int]): Unit = {
+  def Test(e: cnn.ExperimentsSet,
+           continueFrom: Experiment = null): Unit = {
     // If rerunsAllowed == False, the experiment will not be rerun if result files from previous runs
     // are found. Otherwise, new results will be added with a datetime timestamp
     val rerunsAllowed: Boolean = true
 
-    val nBatches: Int = 2
-    val nChannels: Int = 1
     val kernelStride: Int = 1
-    val fcSize: Array[Int] = Array[Int](256, 10)
     var aCNN: CNN = null
     var data: NetDatasetsCollection = null
     var initParams: Layer.InitParameters = null
     var now: Date = null
+    var skip: Boolean = continueFrom != null
+    var currentLayer: Int = 0
     for {
       //rerun <- 1 until 10
-      nKernelsL1 <- nKernelsL1Range
-      kernelSize <- kernelSizeRange //8 until 64 by 4
-      imageSize <- List(/*8, 16, 32, 64, 128, 256, */512, 1024, 2048)//8 until 64 by 8//16 until 512 by 16
-      pathToInputs = Experiment.getPathToInputs(imageSize)
-      pathToParams = Experiment.getPathToParams(nKernelsL1, kernelSize, imageSize)
-      if exists(get(pathToParams))
-      pathToResults = Experiment.getPathToResults(pathToParams)
+      nBatches <- e.nBatchesRange
+      nKernelsL1 <- e.nKernelsL1Range
+      kernelSize <- e.kernelSizeRange
+      imageSize <- e.imageSizeRange
+      neuronsL1 <- e.neuronsL1Range
+
+      pathToInputs = ExperimentsSet.getPathToInputs(imageSize)
+      pathToParams = ExperimentsSet.getPathToParams(nKernelsL1, kernelSize, imageSize, neuronsL1)
+      if exists(get(pathToInputs))
+      pathToResults = ExperimentsSet.getPathToResults(pathToParams)
       // Results dir doesn't exist (then create it) or it does, but reruns are allowed:
       if rerunsAllowed || {if (!exists(get(pathToResults))) {
         createDirectory(get(pathToResults))
         true} else false}
-      nInputs <- List(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 2048)
+      nInputs <- e.nInputsRange
       // Results dir exists, but doesn't contain results of this experiment or it does, but reruns are allowed:
       if rerunsAllowed || new File(pathToResults).listFiles.toList.count {
         file => file.getName.endsWith("_n%d.csv".format(nInputs))} == 0
       // Load datasets once for all experiments (across all multsPerThread and neuronsPerWrg)
-      if Experiment.datasetsExist(pathToParams)
-      inputTileSize <- inputTileSizeRange(kernelSize, imageSize)
-      elsPerThreadL1 <- elsPerThreadL1Range(kernelSize)
-      kernelsPerGroupL1 <- kernelsPerGroupL1Range(nKernelsL1)
-      multsPerThread <- multsPerThreadRange(imageSize)
-      neuronsPerWrg <- neuronsPerWrgRange(fcSize(0))
+      if ExperimentsSet.datasetsExist(pathToParams)
+
+      inputTileSize <- e.inputTileSizeRange(kernelSize, imageSize)
+      elsPerThreadL1 <- e.elsPerThreadL1Range(kernelSize)
+      kernelsPerGroupL1 <- e.kernelsPerGroupL1Range(nKernelsL1)
+      multsPerThread <- e.multsPerThreadRange(imageSize)
+      neuronsPerWrg <- e.neuronsPerWrgRange(neuronsL1)
+
+      if {
+        if (skip) {
+          if (continueFrom.nKernelsL1 == nKernelsL1 &&
+            continueFrom.kernelSize == kernelSize &&
+            continueFrom.inputTileSize == inputTileSize &&
+            continueFrom.elsPerThreadL1 == elsPerThreadL1 &&
+            continueFrom.kernelsPerGroupL1 == kernelsPerGroupL1 &&
+            continueFrom.multsPerThread == multsPerThread &&
+            continueFrom.neuronsPerWrg == neuronsPerWrg &&
+            continueFrom.imageSize == imageSize &&
+            continueFrom.neuronsL1 == neuronsL1 &&
+            continueFrom.nInputs == nInputs) {
+            skip = false
+            true
+          } else false
+        } else true}
+
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
         try {
           /* ---------------------------- BUILD NETWORK (BEGIN) ---------------------------- */
           now = Calendar.getInstance().getTime
-          aCNN = new CNN(nConvLayers = 2, nFCLayers = 2,
-            inputShape = Shape(nBatches = nBatches, nInputs = nInputs, size=imageSize, nChannels = nChannels),
+          aCNN = new CNN(nConvLayers = 2, nFCLayers = 2, //14,
+            inputShape = Shape(nBatches = nBatches, nInputs = nInputs, size=imageSize, nChannels = e.nChannels),
             pathToResults = pathToResults)
 
           //noinspection ConvertibleToMethodValue
-          initParams = Conv.InitParameters(0, Conv.Par(_, _, _, _, _, _, _), nn.ReLU, 1, 4, kernelSize, 16,
-            inputShape = Shape(nBatches=nBatches, nInputs=nInputs, size=imageSize, nChannels=nChannels),
+          initParams = Conv.InitParameters(0, Conv.Par(_, _, _, _, _, _, _), nn.ReLU,
+            elsPerThread=kernelSize, e.kernelsPerGroupL0, kernelSize, e.nKernelsL0,
+            inputShape = Shape(nBatches=nBatches, nInputs=nInputs, size=imageSize, nChannels = e.nChannels),
             kernelSize, kernelStride)
-          var currentLayer: Int = 0
+          currentLayer = 0
           aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
           aCNN.convLayers(0) = aCNN.layers(currentLayer).asInstanceOf[Conv]
 
@@ -130,17 +159,17 @@ class TestCNN {
 
 
           /* Pooling */
-          val aPool: ScalaPool = new ScalaPool()
-          val conv2SizeInOneDimension = imageSize - (kernelSize - kernelStride) * 2
-          aPool.mlpInputlenL2NonVerified = nKernelsL1 * conv2SizeInOneDimension * conv2SizeInOneDimension
+          val aPool: ScalaPool = ScalaPool()
+          aPool.conv2SizeInOneDimension = imageSize - (kernelSize - kernelStride) * 2
+          aPool.mlpInputlenL2NonVerified = nKernelsL1 * aPool.conv2SizeInOneDimension * aPool.conv2SizeInOneDimension
           
           if (aPool.mlpInputlenL2NonVerified >= aPool.mlpInputLenLimit) {
             // Get minimum pool size
             aPool.poolSize = Math.ceil(aPool.mlpInputlenL2NonVerified.toFloat / aPool.mlpInputLenLimit).toInt
             // Find the pool size that is greater than the minimum pool size and that is a factor of inputlen
-            while (conv2SizeInOneDimension % aPool.poolSize != 0)
+            while (aPool.conv2SizeInOneDimension % aPool.poolSize != 0)
               aPool.poolSize = aPool.poolSize + 1 
-            if (conv2SizeInOneDimension.toFloat % aPool.poolSize != 0)
+            if (aPool.conv2SizeInOneDimension.toFloat % aPool.poolSize != 0)
               throw new java.lang.IllegalArgumentException()
             aPool.mlpInputlenL2 = (aPool.mlpInputlenL2NonVerified.toFloat / Math.pow(aPool.poolSize, 2)).toInt
             aPool.nChannels = nKernelsL1
@@ -163,15 +192,15 @@ class TestCNN {
                 else
                   aPool.mlpInputlenL2
               }),
-            neuronShape = Shape(size = fcSize(0)),
+            neuronShape = Shape(size = neuronsL1),
             multsPerThread, neuronsPerWrg)
           aCNN.layers(currentLayer) = FC(initParams.asInstanceOf[FC.InitParameters])
           aCNN.fcLayers(0) = aCNN.layers(currentLayer).asInstanceOf[FC]
 
           currentLayer = currentLayer + 1
           initParams = FC.InitParameters(3, FC.Par, nn.ReLU,
-            inputShape = Shape(nBatches = 1, nInputs = nBatches * nInputs, size = fcSize(0)),
-            neuronShape = Shape(size = fcSize(1)),
+            inputShape = Shape(nBatches = 1, nInputs = nBatches * nInputs, size = neuronsL1),
+            neuronShape = Shape(size = 10),
             multsPerThread = 1, neuronsPerWrg = 1)
           aCNN.layers(currentLayer) = FC(initParams.asInstanceOf[FC.InitParameters])
           aCNN.fcLayers(1) = aCNN.layers(currentLayer).asInstanceOf[FC]
@@ -216,10 +245,14 @@ class TestCNN {
         catch {
           case e: java.lang.IllegalArgumentException =>
             logger.warn("-----------------------------------------------------------------")
-            val msg = "EXCEPTION: java.lang.IllegalArgumentException" + e.getMessage
+            val msg = f"Layer $currentLayer%d: EXCEPTION: java.lang.IllegalArgumentException\n" +
+              cnn.configToString(aCNN.inputShape.nBatches, aCNN.inputShape.nInputs,
+                aCNN.inputShape.size, aCNN.nLayers) + e.getMessage
             logger.warn(msg)
             recordFailureInSQL(msg, initParams, now)
             logger.warn("SKIPPING EXPERIMENT.")
+//            if (currentLayer != 0)
+//              throw e
             false
         }
       }
@@ -232,7 +265,7 @@ class TestCNN {
 
         now = Calendar.getInstance().getTime
 
-        for (layerNo <- 0 until aCNN.nLayers) {
+        for (layerNo <- 0 until 2/*aCNN.nLayers 14*/) {
           val layer: Layer = aCNN.layers(layerNo)
           val layerData: NetDatasets = data.layers({
             if (aCNN.nPoolLayers > 0)
@@ -303,7 +336,7 @@ class TestCNN {
               case (_: Conv, poolLayer: ScalaPool) =>
                 poolLayer.inputs = layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
               case (poolLayer: ScalaPool, _: FC) =>
-                data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
+                data.layers(/*no +1 on purpose */layerNo).asInstanceOf[FCDatasets].inputs.nonPadded =
                   poolLayer.outputs.flatMap(batch => batch.map(
                     // (h, w, n_channels) -> (h * w * n_channels)
                     input => input.map(row => row.flatten).flatten
@@ -312,7 +345,12 @@ class TestCNN {
                 data.layers(layerNo + 1).asInstanceOf[ConvDatasets].inputs.nonPadded =
                   layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
               case (_: FC, _: FC) =>
-                data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
+                data.layers({
+                  if (aCNN.nPoolLayers > 0)
+                    layerNo
+                  else
+                    layerNo + 1
+                }).asInstanceOf[FCDatasets].inputs.nonPadded =
                   layerData.asInstanceOf[FCDatasets].outputs.nonPadded
               case (_: FC, _: Conv) =>
                 throw new java.lang.IllegalArgumentException(
@@ -373,7 +411,6 @@ class TestCNN {
           val msg = "EXCEPTION: opencl.executor.DeviceCapabilityException" + e.getMessage
           logger.warn(msg)
           recordFailureInSQL(msg, aCNN, now)
-          throw e
 //        case e: lift.arithmetic.NotEvaluableException =>
 //          val msg = "EXCEPTION: lift.arithmetic.NotEvaluableException" + e.getMessage
 //          logger.warn(msg)
@@ -414,7 +451,7 @@ class TestCNN {
 
   def recordInSQL(aCNN: CNN, testRan: Boolean, testFailed: Boolean = false, testVerified: Boolean, runDate: Date,
                   exceptionMsg: String = ""): Unit = {
-    Connector.statement.execute("INSERT INTO lift_results_cnn " +
+    val cmd = "INSERT INTO lift_results_cnn " +
       "(device_name, n_batches, n_inputs, image_size, n_conv_layers, n_fc_layers, " + {
       for (layerNo <- aCNN.convLayers.indices)
         yield f"n_kernels_l$layerNo%d, kernel_size_l$layerNo%d, kernel_stride_l$layerNo%d, " +
@@ -426,7 +463,7 @@ class TestCNN {
           f"n_neurons_l$layerNo%d_nonpadded, n_neurons_l$layerNo%d_padded, " +
           f"mults_per_thread_l$layerNo%d, neurons_per_wrg_l$layerNo%d"
     }.mkString(", ") + ", " + {
-      for (layerNo <- 0 until aCNN.nLayers)
+      for (layerNo <- 0 until aCNN.nLayers - aCNN.nPoolLayers)
         yield f"runtime_l$layerNo%d"
     }.mkString(", ") +
       ", ran, verified, success, abort_reason, experiment_id, datetime, pool_size, l1_out_len_original, l1_out_len_new) VALUES (" +
@@ -439,16 +476,21 @@ class TestCNN {
           f"${c.elsPerThread}%d, ${c.kernelsPerGroup}%d"
       }
     }.mkString(", ") + ", " + {
-      for (layerNo <- aCNN.fcLayers.indices.map(i => i + aCNN.convLayers.length)) yield {
-        val f: FC = aCNN.layers(layerNo).asInstanceOf[FC]
+      for (layerNo <- aCNN.fcLayers.indices) yield {
+        val f: FC = aCNN.fcLayers(layerNo)
         f"${f.inputShape.size}%d, ${f.inputShape.sizePadded}%d, " +
           f"${f.neuronShape.size}%d, ${f.neuronShape.sizePadded}%d, " +
           f"${f.multsPerThread}%d, ${f.neuronsPerWrg}%d"
       }
     }.mkString(", ") + ", " + {
       for (layerNo <- 0 until aCNN.nLayers)
-        yield f"${aCNN.layers(layerNo).runtime}%1.5f"
-    }.mkString(", ") + f", $testRan%b, $testVerified%b, ${!testFailed}%b, '" + exceptionMsg.replaceAll("'", "''") + f"', $codeVersion%d, " +
+        yield {
+          aCNN.layers(layerNo) match {
+            case pl: ScalaPool => ""
+            case _ => f"${aCNN.layers(layerNo).runtime}%1.5f, "
+          }
+        }
+    }.mkString("") + f" $testRan%b, $testVerified%b, ${!testFailed}%b, '" + exceptionMsg.replaceAll("'", "''") + f"', $codeVersion%d, " +
       f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s'," +
       f"${
         if (aCNN.nPoolLayers > 0)
@@ -465,7 +507,9 @@ class TestCNN {
           aCNN.layers(2).asInstanceOf[ScalaPool].mlpInputlenL2
         else
           0
-      }%d);")
+      }%d);"
+    println(cmd)
+    Connector.statement.execute(cmd)
   }
 
 
@@ -497,8 +541,8 @@ class TestCNN {
           f"${c.inputTiling.size}%d, ${c.inputTiling.stride}%d, " +
           f"${c.elsPerThread}%d, ${c.kernelsPerGroup}%d"
       }}.mkString(", ") + ", " + {
-      for (layerNo <- aCNN.fcLayers.indices.map(i => i + aCNN.convLayers.length)) yield {
-        val f: FC = aCNN.layers(layerNo).asInstanceOf[FC]
+      for (layerNo <- aCNN.fcLayers.indices) yield {
+        val f: FC = aCNN.fcLayers(layerNo)
         f"${f.inputShape.size}%d, ${f.inputShape.sizePadded}%d, " +
           f"${f.neuronShape.size}%d, ${f.neuronShape.sizePadded}%d, " +
           f"${f.multsPerThread}%d, ${f.neuronsPerWrg}%d"
