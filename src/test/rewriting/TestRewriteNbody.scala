@@ -43,23 +43,19 @@ class TestRewriteNbody {
     )
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(128))
-    val f2 = Rewrite.applyRuleAtId(f1, 6, Rules.mapFission2)
-    val f4 = Rewrite.applyRuleAtId(f2, 10, Rules.partialReduce)
-    val f5 = Rewrite.applyRuleAtId(f4, 11, Rules.partialReduceSplitJoin(128))
-    val f6 = Rewrite.applyRuleAtId(f5, 8, MacroRules.mapFissionAtPosition(2))
-    val g1 = Rewrite.applyRuleAtId(f6, 20, Rules.reduceSeq)
-    val f7 = Rewrite.applyRuleAtId(g1, 8, Rules.mapReducePartialReduce)
-    val f8 = Rewrite.applyRuleAtId(f7, 14, Rules.splitJoin(128))
 
-    val f11 = Rewrite.applyRuleAtId(f8, 11, MacroRules.mapMapInterchange)
-    val f12 = Rewrite.applyRuleAtId(f11, 6, MacroRules.mapMapInterchange)
+    val f2 = Rewrite.applyRuleAtId(f1, 6, Rules.mapFission2)
+    val f12 = Rewrite.applyRuleAtId(f2, 6, MacroRules.mapMapInterchange)
+
+    val f4 = Rewrite.applyRuleAtId(f12, 9, MacroRules.introduceReuseFromMap(128))
+    val f11 = Rewrite.applyRuleAtId(f4, 12, MacroRules.introduceReuseFromMap(128))
 
     val mappings = EnabledMappings(
       global0 = false, global01 = false, global10 = false,
       global012 = false, global210 = false,
       group0 = true, group01 = false, group10 = false)
 
-    val lowered = Lower.mapCombinations(f12, mappings).head
+    val lowered = Lower.mapCombinations(f11, mappings).head
 
     val f21 = Rewrite.applyRuleAtId(lowered, 8, Rules.addIdForCurrentValueInReduce)
     val f22 = Rewrite.applyRuleAtId(f21, 16, Rules.implementIdAsDeepCopy)

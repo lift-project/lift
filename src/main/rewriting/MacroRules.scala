@@ -889,11 +889,11 @@ object MacroRules {
     Rule("", {
       case call@FunCall(Map(Lambda(_, body)), _)
         if Utils.getIndexForPatternInCallChain(body, mapPattern) != -1 ||
-          Utils.getIndexForPatternInCallChain(body, reducePattern) != -1 // TODO: make sure it's a reduce and not reduceseq or partred
+          Utils.getIndexForPatternInCallChain(body, { case FunCall(Reduce(_), _, _) => }) != -1
       =>
 
         val mapId = Utils.getIndexForPatternInCallChain(body, mapPattern)
-        val reduceId = Utils.getIndexForPatternInCallChain(body, reducePattern)
+        val reduceId = Utils.getIndexForPatternInCallChain(body, { case FunCall(Reduce(_), _, _) => })
 
         var splitJoined: Expr = call
 
@@ -901,7 +901,7 @@ object MacroRules {
           val insideMap = Utils.getExprForPatternInCallChain(body, mapPattern)
           splitJoined = Rewrite.applyRuleAt(call, Rules.splitJoin(arithExpr), insideMap.get)
         } else {
-          val insideReduce = Utils.getExprForPatternInCallChain(body, reducePattern)
+          val insideReduce = Utils.getExprForPatternInCallChain(body, { case FunCall(Reduce(_), _, _) => })
           val partialReduce = Rewrite.applyRuleAt(call, Rules.partialReduce, insideReduce.get)
 
           val newBody = getMapBody(partialReduce)
