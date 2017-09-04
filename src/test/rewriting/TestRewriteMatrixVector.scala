@@ -176,13 +176,8 @@ class TestRewriteMatrixVector {
     // TODO
 //    val f13 = Rewrite.applyRuleAtId(f1, 6, MacroRules.mapMapInterchange)
 
-    val f2 = Rewrite.applyRuleAtId(f13, 11, Rules.partialReduce)
-    val f3 = Rewrite.applyRuleAtId(f2, 12, Rules.partialReduceSplitJoin(64))
-    val f5 = Rewrite.applyRuleAtId(f3, 9, MacroRules.interchange)
-
-    val f8 = Rewrite.applyRuleAtId(f5, 15, Rules.splitJoin(64))
-    val f10 = Rewrite.applyRuleAtId(f8, 16, Rules.splitIntoZip)
-    val f11 = Rewrite.applyRuleAtId(f10, 12, MacroRules.interchange)
+    val f5 = Rewrite.applyRuleAtId(f13, 9, MacroRules.introduceReuseFromMap(64))
+    val f11 = Rewrite.applyRuleAtId(f5, 12, MacroRules.introduceReuseFromMap(64))
 
     val mappings = EnabledMappings(
       global0 = false, global01 = false, global10 = false,
@@ -198,7 +193,7 @@ class TestRewriteMatrixVector {
     val l14 = Rewrite.applyRuleAtId(l12, 26, Rules.localMemory)
     val l13 = Lower.lowerNextLevelWithRule(l14, Rules.mapLcl)
 
-    val l15 = Rewrite.applyRuleAtId(l13, 60,MacroRules.userFunCompositionToPrivate)
+    val l15 = Rewrite.applyRuleAtId(l13, 60, MacroRules.userFunCompositionToPrivate)
 
     val (local, global) = InferNDRange(l15)
     val code = Compile(l15, local, global)

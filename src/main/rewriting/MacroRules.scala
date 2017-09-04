@@ -39,7 +39,7 @@ object MacroRules {
     }
   }
 
-  private def isUserFun(expr: Expr) = expr match{
+  private def isUserFun(expr: Expr) = expr match {
      case FunCall(_: UserFun, _*) => true
      case _ => false
   }
@@ -66,6 +66,7 @@ object MacroRules {
     =>
       Rules.mapSeq.rewrite(call)
   })
+
 
   /**
    * Apply map fission. Helper rule for other macro rules.
@@ -880,7 +881,41 @@ object MacroRules {
           moveReduceOutOneLevel.rewrite(call)
         else
           mapMapInterchange.rewrite(call)
+   })
+
+  val introduceReuseFromMap: Rule = introduceReuseFromMap(?)
+
+  def introduceReuseFromMap(arithExpr: ArithExpr): Rule = {
+    Rule("", {
+      case call@FunCall(Map(Lambda(_, body)), _)
+        if Utils.getIndexForPatternInCallChain(body, mapPattern) != -1 ||
+          Utils.getIndexForPatternInCallChain(body, reducePattern) != -1 // TODO: make sure it's a reduce and not reduceseq or partred
+      =>
+
+        val mapId = Utils.getIndexForPatternInCallChain(body, mapPattern)
+        val reduceId = Utils.getIndexForPatternInCallChain(body, reducePattern)
+
+        var splitJoined: Expr = call
+
+        if (mapId < reduceId && mapId != -1 && reduceId != -1 || reduceId == -1) {
+          val insideMap = Utils.getExprForPatternInCallChain(body, mapPattern)
+          splitJoined = Rewrite.applyRuleAt(call, Rules.splitJoin(arithExpr), insideMap.get)
+        } else {
+          val insideReduce = Utils.getExprForPatternInCallChain(body, reducePattern)
+          val partialReduce = Rewrite.applyRuleAt(call, Rules.partialReduce, insideReduce.get)
+
+          val newBody = getMapBody(partialReduce)
+
+          val newReduce = Utils.getExprForPatternInCallChain(newBody, { case FunCall(PartRed(_), _, _) => })
+          splitJoined = Rewrite.applyRuleAt(partialReduce, Rules.partialReduceSplitJoin(arithExpr), newReduce.get)
+        }
+
+        // TODO: Only in the inside call chain
+        val moveSplit = Rewrite.applyRulesUntilCannot(splitJoined, Seq(Rules.splitIntoZip))
+
+        Rewrite.applyRuleAt(moveSplit, interchange, moveSplit)
     })
+  }
 
   val apply1DRegisterBlocking: Rule = apply1DRegisterBlocking(?)
 
