@@ -9,7 +9,7 @@ import opencl.ir.pattern.{MapSeq, ReduceSeq}
 object MacroRules {
 
   private val mapPattern: PartialFunction[Expr, Unit] =
-  { case FunCall(map: Map, _) if map.f.body.isConcrete => }
+  { case FunCall(map: AbstractMap, _) if map.f.body.isConcrete => }
 
   private val mapMapPattern: PartialFunction[Expr, Unit] =
   { case FunCall(Map(Lambda(_, FunCall(map:Map, _))), _) if map.f.body.isConcrete => }
@@ -35,7 +35,7 @@ object MacroRules {
 
   def getMapBody(expr: Expr) = {
     expr match {
-      case FunCall(Map(Lambda(_, body)), _) => body
+      case FunCall(m: AbstractMap, _) => m.f.body
     }
   }
 
@@ -58,6 +58,13 @@ object MacroRules {
         )
 
       uf(newArgs:_*)
+  })
+
+  val mapComposedWithReduceAsSequential = Rule("", {
+    case call@FunCall(_: AbstractMap, FunCall(_: AbstractPartRed, _*))
+      if Rules.mapSeq.isDefinedAt(call)
+    =>
+      Rules.mapSeq.rewrite(call)
   })
 
   /**

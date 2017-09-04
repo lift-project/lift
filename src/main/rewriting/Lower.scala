@@ -29,6 +29,7 @@ case class EnabledMappings(
 object Lower {
 
   private val logger = Logger(this.getClass)
+
   private def patchLambda(lambda: Lambda) = {
     val partialReducesLowered = lowerPartialReduces(lambda)
 
@@ -40,8 +41,13 @@ object Lower {
 
     val removeOtherIds = dropIds(allocatedToGlobal)
 
-    removeOtherIds
+    val compositionWithReduceSequential = mapComposedWithReduceAsSequential(removeOtherIds)
+
+   compositionWithReduceSequential
   }
+
+  def mapComposedWithReduceAsSequential(lambda: Lambda) =
+    Rewrite.applyRulesUntilCannot(lambda, Seq(MacroRules.mapComposedWithReduceAsSequential))
 
   def mapCombinations(lambda: Lambda,
     enabledMappings: EnabledMappings = EnabledMappings(
@@ -64,9 +70,8 @@ object Lower {
     mapsLowered
   }
 
-  // TODO: Also remove empty maps
   def dropIds(lambda: Lambda) =
-    Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.dropId))
+    Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.dropId, Rules.removeEmptyMap))
 
   def findAll(lambda: Lambda, at: (Expr) => Boolean): List[Expr] = {
     Expr.visitWithState(List[Expr]())(lambda.body, findAllFunction(at))
@@ -101,7 +106,7 @@ object Lower {
     mapsOnLevelThree == 1
   }
 
-  def findAllMapsLowering(lambda:Lambda,enabledMappings:EnabledMappings):List[Lambda] = {
+  def findAllMapsLowering(lambda:Lambda,enabledMappings:EnabledMappings): List[Lambda] = {
     val depthMap = NumberExpression.byDepth(lambda)
     val depthsOfUnLowered = depthMap.collect({ case (FunCall(Map(_), _*), depth) => depth })
 

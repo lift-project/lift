@@ -54,17 +54,16 @@ class TestRewriteNbody {
     val f11 = Rewrite.applyRuleAtId(f8, 11, MacroRules.mapMapInterchange)
     val f12 = Rewrite.applyRuleAtId(f11, 6, MacroRules.mapMapInterchange)
 
-    val f15 = Lower.lowerPartialReduces(f12)
-    val f16 = SimplifyAndFuse(f15)
+    val mappings = EnabledMappings(
+      global0 = false, global01 = false, global10 = false,
+      global012 = false, global210 = false,
+      group0 = true, group01 = false, group10 = false)
 
-    val f23 = Lower.lastWriteToGlobal(f16)
-    val f24 = Lower.lowerNextLevelWithRule(f23, Rules.mapWrg)
-    val f25 = Rewrite.applyRuleAtId(f24, 7, Rules.mapSeq)
-    val f26 = Lower.lowerNextLevelWithRule(f25, Rules.mapLcl)
+    val lowered = Lower.mapCombinations(f12, mappings).head
 
-    val f21 = Rewrite.applyRuleAtId(f26, 8, Rules.addIdForCurrentValueInReduce)
-    val f22 = Rewrite.applyRuleAtId(f21, 13, Rules.implementIdAsDeepCopy)
-    val f27 = Rewrite.applyRuleAtId(f22, 13, Rules.localMemory)
+    val f21 = Rewrite.applyRuleAtId(lowered, 8, Rules.addIdForCurrentValueInReduce)
+    val f22 = Rewrite.applyRuleAtId(f21, 16, Rules.implementIdAsDeepCopy)
+    val f27 = Rewrite.applyRuleAtId(f22, 16, Rules.localMemory)
     val f28 = Lower.lowerNextLevelWithRule(f27, Rules.mapLcl)
 
     val (output: Array[Float], _) =

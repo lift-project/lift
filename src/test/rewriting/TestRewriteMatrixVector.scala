@@ -181,17 +181,14 @@ class TestRewriteMatrixVector {
     val f11 = Rewrite.applyRuleAtId(f10, 11, MacroRules.mapMapInterchange)
     val f13 = Rewrite.applyRuleAtId(f11, 6, MacroRules.mapMapInterchange)
 
-    val l0 = Lower.lowerPartialReduces(f13)
-    val l1 = Lower.lowerReduces(l0)
-    val l2 = SimplifyAndFuse(l1)
+    val mappings = EnabledMappings(
+      global0 = false, global01 = false, global10 = false,
+      global012 = false, global210 = false,
+      group0 = true, group01 = false, group10 = false)
 
-    val l3 = Rewrite.applyRulesUntilCannot(l2, Seq(Rules.dropId, Rules.removeEmptyMap))
-    val l4 = Lower.lowerNextLevelWithRule(l3, Rules.mapWrg)
-    val l5 = Rewrite.applyRuleAtId(l4, 7, Rules.mapSeq)
-    val l6 = Lower.lastWriteToGlobal(l5)
-    val l7 = Lower.lowerNextLevelWithRule(l6, Rules.mapLcl)
+    val lowered = Lower.mapCombinations(f13, mappings).head
 
-    val l8 = Rewrite.applyRuleAtId(l7, 8, Rules.addIdForCurrentValueInReduce)
+    val l8 = Rewrite.applyRuleAtId(lowered, 8, Rules.addIdForCurrentValueInReduce)
     val l9 = Rewrite.applyRuleAtId(l8, 23, Rules.implementOneLevelOfId)
     val l11 = Rewrite.applyRuleAtId(l9, 24, Rules.dropId)
     val l12 = Rewrite.applyRuleAtId(l11, 26, Rules.implementIdAsDeepCopy)
