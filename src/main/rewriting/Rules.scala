@@ -436,7 +436,7 @@ object Rules {
       toPrivate(Id()) $ arg
 
     case call@FunCall(uf: UserFun, arg@_*)
-      if call.context.inMapWrg.reduce(_ || _)
+      if call.context.inMapWrg.reduce(_ || _) || call.context.inMapGlb.reduce(_ || _)
     =>
       toPrivate(uf)(arg:_*)
 
@@ -445,6 +445,7 @@ object Rules {
     =>
       toPrivate(f) $ arg
   })
+
 
   val localMemory = Rule("Map(f) => toLocal(Map(f))", {
     case call@FunCall(Id(), arg)

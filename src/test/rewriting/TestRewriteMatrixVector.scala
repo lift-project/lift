@@ -10,14 +10,11 @@ import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestRewriteMatrixVector {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
+  @BeforeClass
+  def before(): Unit = Executor.loadAndInit()
 
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
+  @AfterClass
+  def after(): Unit = Executor.shutdown()
 }
 
 class TestRewriteMatrixVector {
@@ -201,13 +198,12 @@ class TestRewriteMatrixVector {
     val l14 = Rewrite.applyRuleAtId(l12, 26, Rules.localMemory)
     val l13 = Lower.lowerNextLevelWithRule(l14, Rules.mapLcl)
 
-    val l15 = Rewrite.applyRuleAtId(l13, 66, Rules.privateMemory)
-    val l16 = Rewrite.applyRuleAtId(l15, 61, Rules.privateMemory)
+    val l15 = Rewrite.applyRuleAtId(l13, 60,MacroRules.userFunCompositionToPrivate)
 
-    val (local, global) = InferNDRange(l16)
-    val code = Compile(l16, local, global)
+    val (local, global) = InferNDRange(l15)
+    val code = Compile(l15, local, global)
 
-    val (output: Array[Float], _) = Execute()(code, l16, matrix, vectorX, vectorY, alpha, beta)
+    val (output: Array[Float], _) = Execute()(code, l15, matrix, vectorX, vectorY, alpha, beta)
 
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.001f)

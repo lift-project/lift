@@ -13,16 +13,11 @@ import org.junit.Assume.assumeFalse
 import org.junit._
 
 object TestRewriteNbody {
-   @BeforeClass
-  def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
+  @BeforeClass
+  def before(): Unit = Executor.loadAndInit()
 
   @AfterClass
-  def after(): Unit = {
-    Executor.shutdown()
-  }
+  def after(): Unit = Executor.shutdown()
 }
 
 class TestRewriteNbody {

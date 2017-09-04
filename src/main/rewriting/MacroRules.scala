@@ -39,6 +39,27 @@ object MacroRules {
     }
   }
 
+  private def isUserFun(expr: Expr) = expr match{
+     case FunCall(_: UserFun, _*) => true
+     case _ => false
+  }
+
+  val userFunCompositionToPrivate = Rule("", {
+    case FunCall(uf: UserFun, args@_*)
+      if args.count(expr => isUserFun(expr) && Rules.privateMemory.isDefinedAt(expr)) > 0
+    =>
+
+      val newArgs =
+        args.map(expr =>
+          if (isUserFun(expr) && Rules.privateMemory.isDefinedAt(expr))
+            Rules.privateMemory.rewrite(expr)
+          else
+            expr
+        )
+
+      uf(newArgs:_*)
+  })
+
   /**
    * Apply map fission. Helper rule for other macro rules.
    */
