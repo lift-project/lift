@@ -24,7 +24,7 @@ sealed class OpenCLMemory(var variable: Var,
 
   // size cannot be 0 unless it is the null memory
   try {
-    if (size.eval == 0)
+    if (size.evalLong == 0)
       throw new MemoryAllocationException("Cannot have a memory of 0 bytes!")
   } catch {
     case NotEvaluableException() => // nothing to do
@@ -35,13 +35,13 @@ sealed class OpenCLMemory(var variable: Var,
   if (TypeVar.getTypeVars(size).nonEmpty)
     throw new MemoryAllocationException("Cannot allocate memory for abstract types")
 
-  // no unknown allowed in the size
-  // val hasUnknown = ArithExpr.visitUntil(size, _ == ?)
-  // TODO: think about this
-  // if (hasUnknown)
-  //   throw new IllegalArgumentException
-
-
+  {
+    // Unknown in the size is likely to be a mistake but can be legit with Array2.0
+    // See top comment in OpenCLMemoryAllocator.scala
+    val hasUnknown = ArithExpr.visitUntil(size, _ == ?)
+    if (hasUnknown)
+      println(s"Warning: saw memory with unknown size $this")
+  }
 
   def copy(): OpenCLMemory = {
     addressSpace match {
@@ -86,7 +86,7 @@ sealed class OpenCLMemory(var variable: Var,
 
 case class OpenCLMemoryCollection(subMemories: Array[OpenCLMemory],
                              override val addressSpace: AddressSpaceCollection)
-  extends OpenCLMemory(Var("Tuple"), subMemories.map(_.size).reduce(_+_),
+  extends OpenCLMemory(Var("Tuple"), subMemories.distinct.map(_.size).reduce(_+_),
                        addressSpace)
 
 object OpenCLMemoryCollection {

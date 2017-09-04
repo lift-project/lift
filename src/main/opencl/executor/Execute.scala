@@ -231,7 +231,7 @@ object Execute {
         case at: ArrayType =>
           val array = asArray(value)
           val len = array.length / tupleSize(at.elemT)
-        
+
           // Recursive call if array of arrays
           val (caps, sizes) = at.elemT match {
             case _: ArrayType =>
@@ -643,7 +643,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   private def allocArgumentWithoutFixedAllocatedSize(ty: Type, value: Any): ArithExpr = {
     (ty, value) match {
       case (ScalarType(_, size), _) => size
-      case (VectorType(st, len), _) => len.eval * st.size
+      case (VectorType(st, len), _) => len.evalLong * st.size
       case (TupleType(elemsT @ _*), _) if elemsT.distinct.length == 1 =>
         elemsT.length * allocArgumentWithoutFixedAllocatedSize(elemsT.head, value)
       case (at: ArrayType, array: Array[_]) =>
@@ -681,7 +681,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     validateMemorySizes(f, valueMap)
 
     // 4. create output OpenCL kernel argument
-    val outputSize = ArithExpr.substitute(Type.getMaxAllocatedSize(f.body.t), valueMap).eval
+    val outputSize = ArithExpr.substitute(Type.getMaxAllocatedSize(f.body.t), valueMap).evalLong
     val outputData = global(outputSize)
 
     // 5. create all OpenCL data kernel arguments
@@ -766,7 +766,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     OpenCLGenerator.getMemories(f)._2.map(mem => {
       // get the OpenCL memory object ...
       val m = mem.mem
-      val size = ArithExpr.substitute(m.size, valueMap).eval
+      val size = ArithExpr.substitute(m.size, valueMap).evalLong
       // ... look for it in the parameter list ...
       val i = f.params.indexWhere(m == _.mem)
       // ... if found create an OpenCL kernel argument from the matching runtime value ...
@@ -789,10 +789,9 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       (memories._1 ++ memories._2).
         partition(_.mem.addressSpace == GlobalMemory)
 
-    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval)
+    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).evalLong)
     val totalSizeOfGlobal = globalSizes.sum
-    val totalSizeOfLocal = localMemories.map(mem =>
-      ArithExpr.substitute(mem.mem.size, valueMap).eval).sum
+    val totalSizeOfLocal = localMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).evalLong).sum
 
     globalSizes.foreach(size => {
       val maxMemAllocSize = Executor.getDeviceMaxMemAllocSize
@@ -840,7 +839,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    */
   object arg {
     /** Entry point for creating an OpenCL kernel argument */
-    def apply(any: Any, ty: Type, size: Int): KernelArg = ty match {
+    def apply(any: Any, ty: Type, size: Long): KernelArg = ty match {
       // Scalars and vectors that are not nested in an array
       case Bool  => value(any.asInstanceOf[Boolean])
       case Int | VectorType(Int, _)       => value(any.asInstanceOf[Int])
@@ -852,19 +851,19 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         flatTupleBaseType(at) match {
           case Int =>
             val encoder = new Encoder[Int](n => n)
-            val raw = encoder.encode(array, at, size/4)
+            val raw = encoder.encode(array, at, (size/4).toInt)
             global.input(raw)
           case Float =>
             val encoder = new Encoder[Float](_.toFloat)
-            val raw = encoder.encode(array, at, size/4)
+            val raw = encoder.encode(array, at, (size/4).toInt)
             global.input(raw)
           case Double =>
             val encoder = new Encoder[Double](_.toDouble)
-            val raw = encoder.encode(array, at, size/4)
+            val raw = encoder.encode(array, at, (size/8).toInt)
             global.input(raw)
           case Bool =>
             val encoder = new Encoder[Boolean](_ != 0) // This is very bad
-          val raw = encoder.encode(array, at, size)
+            val raw = encoder.encode(array, at, size.toInt)
             global.input(raw)
         }
       case _ => throw new EncodeError(ty)
@@ -1011,20 +1010,6 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       def apply(array: Array[Int]): GlobalArg     = GlobalArg.createInput(array)
       def apply(array: Array[Double]): GlobalArg  = GlobalArg.createInput(array)
       def apply(array: Array[Boolean]): GlobalArg = GlobalArg.createInput(array)
-    }
-
-    /**
-     * Create output argument given a Type and the number of elements
-     */
-    object output {
-      def apply[T: ClassTag](length: Int): GlobalArg = {
-        implicitly[ClassTag[T]] match {
-          case ClassTag.Float => GlobalArg.createOutput(length * 4) // in bytes
-          case ClassTag.Int => GlobalArg.createOutput(length * 4) // in bytes
-          case tag =>
-            throw new IllegalArgumentException(s"Given type: $tag not supported")
-        }
-      }
     }
   }
 

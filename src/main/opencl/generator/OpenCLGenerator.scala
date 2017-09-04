@@ -104,7 +104,7 @@ object OpenCLGenerator extends Generator {
 
   private[generator] def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
     mem => try {
-      mem.mem.size.eval
+      mem.mem.size.evalLong
       mem.mem.addressSpace == LocalMemory
     } catch {
       case NotEvaluableException() => false
