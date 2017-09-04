@@ -254,11 +254,15 @@ object Conv {
                             liftFPropGenerator: (UserFun, Shape, SlidingWindowConfig, Int,
                               SlidingWindowConfig, Int, Int) => FunDecl,
                             activationFun: UserFun,
-                            elsPerThread: Int,
-                            kernelsPerGroup: Int,
-                            inputTileSize: Int,
-                            nKernels: Int,
-                            override val inputShape: Shape, kernelSize: Int, kernelStride: Int)
+                            optParams: conv.Experiment.Config.OptimisationalParams,
+                            //                            elsPerThread: Int,
+                            //                            kernelsPerGroup: Int,
+                            //                            inputTileSize: Int,
+                            //                            nKernels: Int,
+                            override val inputShape: Shape,
+                            //                            kernelSize: Int,
+                            dim: conv.Experiment.Config.Dimensions,
+                            kernelStride: Int)
     extends Layer.InitParameters(layerNo, inputShape)
 
 
@@ -269,40 +273,42 @@ object Conv {
     */
 
     val exceptionMsgPrefix: String = "In the Conv layer with the following configuration:\n" +
-      configToString(iP.elsPerThread, iP.nKernels, iP.kernelsPerGroup, iP.kernelSize, iP.kernelStride, iP.inputTileSize)
+      configToString(iP.optParams.elsPerThread, iP.dim.nKernels,
+        iP.optParams.kernelsPerGroup, iP.dim.kernelSize, iP.kernelStride, iP.optParams.inputTileSize)
 
     /* Tiles */
     val kernelSliding: SlidingWindowConfig = SlidingWindowConfig(
-      size = iP.kernelSize,
+      size = iP.dim.kernelSize,
       stride = iP.kernelStride,
       n = {
-        val n: Float = (iP.inputTileSize - (iP.kernelSize - iP.kernelStride)).toFloat / iP.kernelStride
+        val n: Float = (iP.optParams.inputTileSize - (iP.dim.kernelSize - iP.kernelStride)).toFloat / iP.kernelStride
         if (n % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
-          f"input tiles (${iP.inputTileSize}%d) are not divisible by the chosen kernelSize (${iP.kernelSize}%d) " +
-          f"and kernelStride (${iP.kernelStride}%d)")
+          f"input tiles (${iP.optParams.inputTileSize}%d) are not divisible by the chosen " +
+          f"kernelSize (${iP.dim.kernelSize}%d) and kernelStride (${iP.kernelStride}%d)")
         n.toInt
       },
-      nChannels = iP.nKernels
+      nChannels = iP.dim.nKernels
     )
     val inputTiling: SlidingWindowConfig = {
-      val stride = iP.inputTileSize - (kernelSliding.size - kernelSliding.stride)
+      val stride = iP.optParams.inputTileSize - (kernelSliding.size - kernelSliding.stride)
       SlidingWindowConfig(
-        size = iP.inputTileSize,
+        size = iP.optParams.inputTileSize,
         stride = stride,
         // TODO: change to n = ceil((iP.inputShape.size - iP.inputTileSize + stride) / stride)
         // It's the same, but makes more sense
-        n = 1 + Math.ceil((iP.inputShape.size - iP.inputTileSize).toFloat / stride).toInt)
+        n = 1 + Math.ceil((iP.inputShape.size - iP.optParams.inputTileSize).toFloat / stride).toInt)
     }
 
     /* Check parameters */
-    if (iP.nKernels % iP.kernelsPerGroup != 0)
+    if (iP.dim.nKernels % iP.optParams.kernelsPerGroup != 0)
       throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
-        f"the number of kernels (${iP.nKernels}%d) must be divisible by kernelsPerGroup (${iP.kernelsPerGroup}%d)")
+        f"the number of kernels (${iP.dim.nKernels}%d) must be divisible by " +
+        f"kernelsPerGroup (${iP.optParams.kernelsPerGroup}%d)")
 
-    if (kernelSliding.size % iP.elsPerThread != 0)
+    if (kernelSliding.size % iP.optParams.elsPerThread != 0)
       throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
         f"kernel size in all dimensions (=${kernelSliding.size}%d) must be divisible by elsPerThread " +
-        f"(${iP.elsPerThread}%d)")
+        f"(${iP.optParams.elsPerThread}%d)")
 
     /* Padding */
     // Calculate how much padding is required
@@ -322,14 +328,15 @@ object Conv {
           "padded inputs are not divisible by the chosen kernelShape and kernelStride")
         sizePadded.toInt
       },
-      nChannels = iP.nKernels)
+      nChannels = iP.dim.nKernels)
     }
 
     /* Parallelization parameters */
     val localSize: Array[Int] = Array.fill[Int](3)(0)
     localSize(0) = scala.math.pow((inputTiling.size - (kernelSliding.size - 1)) / kernelSliding.stride, 2).toInt
 
-    localSize(1) = (iP.kernelsPerGroup * Math.ceil(kernelSliding.size.toFloat / iP.elsPerThread)).toInt
+    localSize(1) = (iP.optParams.kernelsPerGroup *
+      Math.ceil(kernelSliding.size.toFloat / iP.optParams.elsPerThread)).toInt
 
     localSize(2) = kernelSliding.size // TODO: make sure it is smaller than 64 (clinfo)
 
@@ -338,22 +345,22 @@ object Conv {
       if (groupSize > nn.maxWorkGroupSize)
         throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
           f"group size (==$groupSize%d) must be less or equal to maxWorkGroupSize (${nn.maxWorkGroupSize}%d).\n" +
-          f"Decrease nKernelsPerGroup or inputTileSize or increase elsPerThread (${iP.elsPerThread}%d)")
+          f"Decrease nKernelsPerGroup or inputTileSize or increase elsPerThread (${iP.optParams.elsPerThread}%d)")
     }
 
     val globalSize: Array[Int] = Array.fill[Int](3)(0)
     globalSize(0) = localSize(0) * iP.inputShape.nBatches
     globalSize(1) = localSize(1) * iP.inputShape.nInputs * inputTiling.n * inputTiling.n
-    globalSize(2) = localSize(2) * Math.ceil(iP.nKernels.toFloat / iP.kernelsPerGroup).toInt
+    globalSize(2) = localSize(2) * Math.ceil(iP.dim.nKernels.toFloat / iP.optParams.kernelsPerGroup).toInt
 
     /* Now that all parameters are calculated and verified, build the layer */
 
     new Conv(
       iP.liftFPropGenerator(iP.activationFun, iP.inputShape, inputTiling,
-        iP.nKernels,kernelSliding, iP.kernelsPerGroup, iP.elsPerThread),
+        iP.dim.nKernels,kernelSliding, iP.optParams.kernelsPerGroup, iP.optParams.elsPerThread),
       iP.inputShape, outputShape,
       inputTiling, kernelSliding,
-      iP.elsPerThread, iP.kernelsPerGroup,
+      iP.optParams.elsPerThread, iP.optParams.kernelsPerGroup,
       localSize, globalSize)
   }
 

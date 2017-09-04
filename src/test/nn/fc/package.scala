@@ -22,6 +22,7 @@ package object fc {
   }
 
 
+
   /* Test values */
   val input_W1 = Array(Array(0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f),
     Array(0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.0f),
@@ -50,12 +51,23 @@ package object fc {
   val gold = Array(17.492f, 11.356f, 14.406f, 17.636f, 17.492f, 17.732f)
   val gold2 = Array(6.884f, 4.486f, 5.784f, 7.244f, 6.884f, 6.86f)
 
-  def configToString(layerSize: Int, multsPerThread: Int,neuronsPerWrg: Int): String = {
+  def configToString(layerSize: Int, multsPerThread: Int, neuronsPerWrg: Int): String = {
     f"layerSize=$layerSize%d, multsPerThread=$multsPerThread%d, neuronsPerWrg=$neuronsPerWrg%d\n"
   }
 
 
-  object FCExperiment extends Experiment {
+  object Experiment extends nn.Experiment {
+    object Config {
+      case class Dimensions(nNeurons: Int) extends Layer.Experiment.Config.Dimensions
+
+      case class OptimisationalParams(multsPerThread: Int,
+                                      neuronsPerWrg: Int)
+
+    }
+
+    case class Config(dim: fc.Experiment.Config.Dimensions,
+                      optParams: fc.Experiment.Config.OptimisationalParams)
+
     val mlpDir: String = nn.nnDir + "/mlp"
 
     def getPathToInputs(layerSize: Int): String = mlpDir + f"/experiment.$layerSize%d"

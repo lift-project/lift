@@ -18,51 +18,54 @@
     },
     "n_channels": 1,
     "n_kernels": [
-      16,
-      {
-        "start": 12,
-        "end": 12,
-        "step_add": 4
-      }
+      {"initial": 16},
+      {"initial": 12}
     ],
-    "kernel_size": {
-      "start": 20,
-      "end": 20,
-      "step_add": 4
-    },
+    "kernel_size": [
+      {"initial": 20},
+      {"initial": 20}
+    ],
     "n_neurons": [
-      16, 10
+      {"initial": 16},
+      {"initial": 10}
     ]
   },
   "optimisational_parameters": {
-    "input_tile_size": {
-      "start": "kernel_size",
-      "end": "image_size",
-      "step_add": 4
-    },
-    "kernels_per_group": {
-      "initial": 1,
-      "start_comment": 2,
-      "end_comment": "n_kernels",
-      "step_multiply": 2
-    },
-    "els_per_thread": {
-      "initial": 1,
-      "start_comment": 2,
-      "end_comment": "kernel_size",
-      "step_add": 1
-    },
+    "input_tile_size": [
+      {"initial": "kernel_size"},
+      {
+        "start": "kernel_size",
+        "end": "image_size",
+        "step_add": 4
+      }
+    ],
+    "kernels_per_group": [
+      {"initial": 4},
+      {
+        "initial": 1,
+        "start": 2,
+        "end": "n_kernels",
+        "step_multiply": 2
+      }
+    ],
+    "els_per_thread": [
+      {"initial": "kernel_size"},
+      {
+        "initial": 1,
+        "start": 2,
+        "end": "kernel_size",
+        "step_add": 1
+      }
+    ],
 
-    "mults_per_thread": {
-      "start": 1,
-      "end": 1,
-      "step_add": 1
-    },
-    "neurons_per_wrg": {
-      "start": 1,
-      "end": 1,
-      "step_add": 1
-    }
+    "mults_per_thread": [
+      {"initial": 1},
+      {"initial": 1}
+    ],
+    "neurons_per_wrg": [
+      {"initial": 1},
+      {"initial": 1}
+    ]
   }
 
 }

@@ -20,4 +20,9 @@ trait Layer {
 object Layer {
   abstract class InitParameters(val layerNo: Int,
                                 val inputShape: Shape)
+  object Experiment {
+    object Config {
+      trait Dimensions
+    }
+  }
 }

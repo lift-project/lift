@@ -122,7 +122,20 @@ package object conv {
   }
 
 
-  object ConvExperiment extends Experiment {
+  object Experiment extends nn.Experiment {
+    object Config {
+      case class Dimensions(nKernels: Int,
+                            kernelSize: Int) extends Layer.Experiment.Config.Dimensions
+
+      case class OptimisationalParams(inputTileSize: Int,
+                                      elsPerThread: Int,
+                                      kernelsPerGroup: Int)
+    }
+
+    case class Config(dim: conv.Experiment.Config.Dimensions,
+                      optParams: conv.Experiment.Config.OptimisationalParams)
+
+
     val convDir: String = nn.nnDir + "/conv"
 
     def getPathToInputs(nKernelsL0: Int, kernelSize: Int, inputSize: Int): String = {

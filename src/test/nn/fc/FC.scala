@@ -132,7 +132,8 @@ object FC {
                             liftFPropGenerator: (UserFun, Shape, Int, Shape, Tile) => FunDecl,
                             activationFun: UserFun,
                             override val inputShape: Shape, neuronShape: Shape,
-                            multsPerThread: Int, neuronsPerWrg: Int) extends Layer.InitParameters(layerNo, inputShape)
+                            optParams: fc.Experiment.Config.OptimisationalParams) 
+    extends Layer.InitParameters(layerNo, inputShape)
 
   def apply(iP: InitParameters): FC = {
     /**
@@ -141,22 +142,22 @@ object FC {
       */
 
     val exceptionMsgPrefix: String = "In the FC layer with the following configuration:\n" +
-      configToString(iP.neuronShape.size, iP.multsPerThread, iP.neuronsPerWrg)
+      configToString(iP.neuronShape.size, iP.optParams.multsPerThread, iP.optParams.neuronsPerWrg)
 
     val inputTileSize: Int = {
         val iTSNonPadded: Int = Math.min(iP.inputShape.size,
-          Math.floor(nn.maxWorkGroupSize.toFloat * iP.multsPerThread / iP.neuronsPerWrg).toInt)
+          Math.floor(nn.maxWorkGroupSize.toFloat * iP.optParams.multsPerThread / iP.optParams.neuronsPerWrg).toInt)
         // Make sure iTS is divisible by multsPerThread, but use floor instead of ceil to avoid breaking
         // the maxWrokGroupSize limit
-         (iP.multsPerThread * Math.floor(iTSNonPadded.toFloat / iP.multsPerThread)).toInt
+         (iP.optParams.multsPerThread * Math.floor(iTSNonPadded.toFloat / iP.optParams.multsPerThread)).toInt
       }
-    if (iP.multsPerThread > iP.inputShape.size)
+    if (iP.optParams.multsPerThread > iP.inputShape.size)
       throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
-        f"multsPerThread(==${iP.multsPerThread}%d) cannot be bigger than " +
+        f"multsPerThread(==${iP.optParams.multsPerThread}%d) cannot be bigger than " +
         f"inputShape.size (${iP.inputShape.size.toFloat}%.02f)")
 
     // Padding: calculate how many neurons will need to be added
-    iP.neuronShape.sizePadded = iP.neuronsPerWrg * Math.ceil(iP.neuronShape.size.toFloat / iP.neuronsPerWrg).toInt
+    iP.neuronShape.sizePadded = iP.optParams.neuronsPerWrg * Math.ceil(iP.neuronShape.size.toFloat / iP.optParams.neuronsPerWrg).toInt
     // Padding: calculate how many input bits will need to be added
     iP.inputShape.sizePadded = inputTileSize * Math.ceil(iP.inputShape.size.toFloat / inputTileSize).toInt
 
@@ -178,13 +179,13 @@ object FC {
 //      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
 //        f"neuronShape.sizePadded(${neuronShape.sizePadded}%d) must be divisible by neuronsPerWrg" +
 //          f"($neuronsPerWrg%d) to split the neuron dimension evenly among threads.")
-    if (iP.neuronShape.size < iP.neuronsPerWrg)
+    if (iP.neuronShape.size < iP.optParams.neuronsPerWrg)
       throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
-        f"neuronShape.size(${iP.neuronShape.size}%d) must be bigger or equal to neuronsPerWrg(${iP.neuronsPerWrg}%d).")
+        f"neuronShape.size(${iP.neuronShape.size}%d) must be bigger or equal to neuronsPerWrg(${iP.optParams.neuronsPerWrg}%d).")
 
     val localSize: Array[Int] = Array.fill[Int](3)(0)
     // Layer size 1 = the total size of the workgroup job / the size of the job per thread
-    localSize(1) = Math.ceil((inputTileSize * iP.neuronsPerWrg).toFloat / iP.multsPerThread).toInt
+    localSize(1) = Math.ceil((inputTileSize * iP.optParams.neuronsPerWrg).toFloat / iP.optParams.multsPerThread).toInt
 
 //    if (localSize(1) > nn.maxWorkGroupSize)
 //      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
@@ -221,16 +222,17 @@ object FC {
     // Global size 0 = mapping of workgroups across all inputs
     globalSize(0) = localSize(0) * Math.ceil(iP.inputShape.nInputs.toFloat / localSize(0)).toInt
     // Global size 1 = (the number of threads per workgroup) * (the total number of neurons / neurons per workgroup)
-    globalSize(1) = localSize(1) * (iP.neuronShape.size.toFloat / iP.neuronsPerWrg).toInt
+    globalSize(1) = localSize(1) * (iP.neuronShape.size.toFloat / iP.optParams.neuronsPerWrg).toInt
     globalSize(2) = localSize(2) * Math.ceil(iP.inputShape.sizePadded / inputTileSize).toInt
 
     /* Now that all parameters are calculated and verified, build the layer */
 
     new FC(iP.liftFPropGenerator(/*activation_f*/iP.activationFun, /*input_shape*/iP.inputShape,
       /*input_tile_size*/inputTileSize, /*neuron_shape*/iP.neuronShape, /*tile*/
-        Tile(seqEls = iP.multsPerThread, inputsInGroup = localSize(0), neurons = iP.neuronsPerWrg)),
-      iP.inputShape, outputShape, iP.neuronShape, iP.multsPerThread, iP.neuronsPerWrg, inputTileSize,
-      localSize, globalSize)
+        Tile(seqEls = iP.optParams.multsPerThread, inputsInGroup = localSize(0),
+          neurons = iP.optParams.neuronsPerWrg)),
+      iP.inputShape, outputShape, iP.neuronShape, iP.optParams.multsPerThread,
+      iP.optParams.neuronsPerWrg, inputTileSize, localSize, globalSize)
   }
 
 /* Ensures that a single input can be evenly split among threads in dimension 0;

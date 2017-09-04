@@ -40,24 +40,26 @@ class TestCNN {
   private val logger = Logger(this.getClass)
 
   val precision: Float = 10f
-  val codeVersion: Int = 15
+  val codeVersion: Int = 16
   val reruns: Int = 1
 
-  @Test
+  //@Test
   def TestFC(): Unit = {
     for (_ <- 0 to reruns)
-      Test(ExperimentsSet(nKernelsL1Range = List(2),
-        kernelSizeRange = List(2),
-        inputTileSizeRange = (kernelSize, _) => List(kernelSize),
-        elsPerThreadL1Range = _ => List(1),
-        kernelsPerGroupL1Range = _ => List(1),
-        multsPerThreadRange = imageSize => List(1) ++ (2 to imageSize * imageSize by 2),
-        //multsPerThreadRange = imageSize => List(16),
-        neuronsPerWrgRange = fcSize => List(1) ++ (2 to fcSize by 2), nKernelsL0 = 2,
-        imageSizeRange = List(8, 16, 32, 64, 128/*, 256, 512*/),
-        neuronsL1Range = List(16, 32, 64, 128, 256, 512),
-        kernelsPerGroupL0 = 2,
-        nInputsRange = List(8, 16, 32, 64, 128/*, 256, 512, 1024, 2048, 2048*/)))
+      Test(
+        cnn.getConfigFromJSON("/home/s1569687/lift/src/test/nn/cnn/cnn_experiments.json"))
+//        ExperimentsSet(nKernelsL1Range = List(2),
+//        kernelSizeRange = List(2),
+//        inputTileSizeRange = (kernelSize, _) => List(kernelSize),
+//        elsPerThreadL1Range = _ => List(1),
+//        kernelsPerGroupL1Range = _ => List(1),
+//        multsPerThreadRange = imageSize => List(1) ++ (2 to imageSize * imageSize by 2),
+//        //multsPerThreadRange = imageSize => List(16),
+//        neuronsPerWrgRange = fcSize => List(1) ++ (2 to fcSize by 2), nKernelsL0 = 2,
+//        imageSizeRange = List(8, 16, 32, 64, 128/*, 256, 512*/),
+//        neuronsL1Range = List(16, 32, 64, 128, 256, 512),
+//        kernelsPerGroupL0 = 2,
+//        nInputsRange = List(8, 16, 32, 64, 128/*, 256, 512, 1024, 2048, 2048*/)))
 
 //        continueFrom = cnn.Experiment(
 //          nKernelsL1= 2,
@@ -88,45 +90,82 @@ class TestCNN {
     var currentLayer: Int = 0
     for {
       //rerun <- 1 until 10
-      nBatches <- e.nBatchesRange
-      nKernelsL1 <- e.nKernelsL1Range
-      kernelSize <- e.kernelSizeRange
-      imageSize <- e.imageSizeRange
-      neuronsL1 <- e.neuronsL1Range
+      _nBatches <- e.nBatchesRange
+      _imageSize <- e.imageSizeRange
 
-      pathToInputs = ExperimentsSet.getPathToInputs(imageSize)
-      pathToParams = ExperimentsSet.getPathToParams(nKernelsL1, kernelSize, imageSize, neuronsL1)
+      _nKernelsL0 <- e.nKernelsRange.head
+      _nKernelsL1 <- e.nKernelsRange(1)
+      _kernelSizeL0 <- e.kernelSizeRange.head
+      _kernelSizeL1 <- e.kernelSizeRange(1)
+      // Wrap kernel parameters into an object
+      convDimensions = List(
+        conv.Experiment.Config.Dimensions(_nKernelsL0, _kernelSizeL0),
+        conv.Experiment.Config.Dimensions(_nKernelsL1, _kernelSizeL1))
+
+      _nNeuronsL0 <- e.neuronsRange.head
+      _nNeuronsL1 <- e.neuronsRange(1)
+      fcDimensions = List(
+        fc.Experiment.Config.Dimensions(_nNeuronsL0),
+        fc.Experiment.Config.Dimensions(_nNeuronsL1))
+
+      pathToInputs = Experiment.getPathToInputs(_imageSize)
+      pathToParams = Experiment.getPathToParams(
+        nKernelsL1 = convDimensions(1).nKernels, kernelSize = convDimensions(1).kernelSize,
+        imageSize = _imageSize, nNeuronsL1 = fcDimensions(0).nNeurons)
+
       if exists(get(pathToInputs))
-      pathToResults = ExperimentsSet.getPathToResults(pathToParams)
+      pathToResults = Experiment.getPathToResults(pathToParams)
       // Results dir doesn't exist (then create it) or it does, but reruns are allowed:
       if rerunsAllowed || {if (!exists(get(pathToResults))) {
         createDirectory(get(pathToResults))
         true} else false}
-      nInputs <- e.nInputsRange
+
+      _nInputs <- e.nInputsRange
+      // Wrap input parameters into an object
+      inputConfig = cnn.Experiment.InputConfig(
+        nBatches = _nBatches, nInputs = _nInputs, imageSize = _imageSize, nChannels = e.nChannels)
+
       // Results dir exists, but doesn't contain results of this experiment or it does, but reruns are allowed:
       if rerunsAllowed || new File(pathToResults).listFiles.toList.count {
-        file => file.getName.endsWith("_n%d.csv".format(nInputs))} == 0
+        file => file.getName.endsWith("_n%d.csv".format(inputConfig.nInputs))} == 0
       // Load datasets once for all experiments (across all multsPerThread and neuronsPerWrg)
-      if ExperimentsSet.datasetsExist(pathToParams)
+      if Experiment.datasetsExist(pathToParams)
 
-      inputTileSize <- e.inputTileSizeRange(kernelSize, imageSize)
-      elsPerThreadL1 <- e.elsPerThreadL1Range(kernelSize)
-      kernelsPerGroupL1 <- e.kernelsPerGroupL1Range(nKernelsL1)
-      multsPerThread <- e.multsPerThreadRange(imageSize)
-      neuronsPerWrg <- e.neuronsPerWrgRange(neuronsL1)
+      _inputTileSizeL0 <- e.inputTileSizeRange.head(inputConfig, convDimensions.head)
+      _inputTileSizeL1 <- e.inputTileSizeRange(1)(inputConfig, convDimensions(1))
+      _elsPerThreadL0 <- e.elsPerThreadRange.head(inputConfig, convDimensions.head)
+      _elsPerThreadL1 <- e.elsPerThreadRange(1)(inputConfig, convDimensions(1))
+      _kernelsPerGroupL0 <- e.kernelsPerGroupRange.head(inputConfig, convDimensions.head)
+      _kernelsPerGroupL1 <- e.kernelsPerGroupRange(1)(inputConfig, convDimensions(1))
+       // Wrap conv parameters into an object
+       convConfig = List(
+         conv.Experiment.Config(
+           convDimensions.head, conv.Experiment.Config.OptimisationalParams(
+             inputTileSize = _inputTileSizeL0, elsPerThread = _elsPerThreadL0,
+             kernelsPerGroup = _kernelsPerGroupL0)),
+         conv.Experiment.Config(
+           convDimensions(1), conv.Experiment.Config.OptimisationalParams(
+             inputTileSize = _inputTileSizeL1, elsPerThread = _elsPerThreadL1,
+             kernelsPerGroup = _kernelsPerGroupL1)))
+
+      _multsPerThreadL0 <- e.multsPerThreadRange.head(inputConfig, fcDimensions.head)
+      _multsPerThreadL1 <- e.multsPerThreadRange(1)(inputConfig, fcDimensions(1))
+      _neuronsPerWrgL0 <- e.neuronsPerWrgRange.head(inputConfig, fcDimensions.head)
+      _neuronsPerWrgL1 <- e.neuronsPerWrgRange(1)(inputConfig, fcDimensions(1))
+      // Wrap FC parameters into an object
+      fcConfig = List(
+        fc.Experiment.Config(
+          fcDimensions.head, fc.Experiment.Config.OptimisationalParams(
+            multsPerThread = _multsPerThreadL0, neuronsPerWrg = _neuronsPerWrgL0)),
+        fc.Experiment.Config(
+          fcDimensions(1), fc.Experiment.Config.OptimisationalParams(
+            multsPerThread = _multsPerThreadL1, neuronsPerWrg = _neuronsPerWrgL1))
+    )
 
       if {
         if (skip) {
-          if (continueFrom.nKernelsL1 == nKernelsL1 &&
-            continueFrom.kernelSize == kernelSize &&
-            continueFrom.inputTileSize == inputTileSize &&
-            continueFrom.elsPerThreadL1 == elsPerThreadL1 &&
-            continueFrom.kernelsPerGroupL1 == kernelsPerGroupL1 &&
-            continueFrom.multsPerThread == multsPerThread &&
-            continueFrom.neuronsPerWrg == neuronsPerWrg &&
-            continueFrom.imageSize == imageSize &&
-            continueFrom.neuronsL1 == neuronsL1 &&
-            continueFrom.nInputs == nInputs) {
+          // Skip experiments until the checkpoint is hit
+          if (continueFrom == cnn.Experiment(inputConfig, convConfig, fcConfig)) {
             skip = false
             true
           } else false
@@ -138,30 +177,36 @@ class TestCNN {
           /* ---------------------------- BUILD NETWORK (BEGIN) ---------------------------- */
           now = Calendar.getInstance().getTime
           aCNN = new CNN(nConvLayers = 2, nFCLayers = 2, //14,
-            inputShape = Shape(nBatches = nBatches, nInputs = nInputs, size=imageSize, nChannels = e.nChannels),
+            inputShape = Shape(nBatches = inputConfig.nBatches, nInputs = inputConfig.nInputs,
+              size = inputConfig.imageSize, nChannels = e.nChannels),
             pathToResults = pathToResults)
 
           //noinspection ConvertibleToMethodValue
           initParams = Conv.InitParameters(0, Conv.Par(_, _, _, _, _, _, _), nn.ReLU,
-            elsPerThread=kernelSize, e.kernelsPerGroupL0, kernelSize, e.nKernelsL0,
-            inputShape = Shape(nBatches=nBatches, nInputs=nInputs, size=imageSize, nChannels = e.nChannels),
-            kernelSize, kernelStride)
+            optParams = convConfig.head.optParams,
+            inputShape = Shape(nBatches = inputConfig.nBatches, nInputs = inputConfig.nInputs,
+              size = inputConfig.imageSize, nChannels = e.nChannels),
+            dim = convConfig.head.dim, kernelStride)
           currentLayer = 0
           aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
           aCNN.convLayers(0) = aCNN.layers(currentLayer).asInstanceOf[Conv]
 
           currentLayer = currentLayer + 1
           //noinspection ConvertibleToMethodValue
-          initParams = Conv.InitParameters(1, Conv.Par(_, _, _, _, _, _, _), nn.ReLU, elsPerThreadL1, kernelsPerGroupL1,
-            inputTileSize, nKernelsL1, inputShape = aCNN.convLayers(0).outputShape.copy(), kernelSize, kernelStride)
+          initParams = Conv.InitParameters(1, Conv.Par(_, _, _, _, _, _, _), nn.ReLU,
+            optParams = convConfig(1).optParams,
+            inputShape = Shape(nBatches = inputConfig.nBatches, nInputs = inputConfig.nInputs,
+              size = inputConfig.imageSize, nChannels = e.nChannels),
+            dim = convConfig(1).dim, kernelStride)
           aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
           aCNN.convLayers(1) = aCNN.layers(currentLayer).asInstanceOf[Conv]
 
 
           /* Pooling */
           val aPool: ScalaPool = ScalaPool()
-          aPool.conv2SizeInOneDimension = imageSize - (kernelSize - kernelStride) * 2
-          aPool.mlpInputlenL2NonVerified = nKernelsL1 * aPool.conv2SizeInOneDimension * aPool.conv2SizeInOneDimension
+          aPool.conv2SizeInOneDimension = inputConfig.imageSize - (convConfig(1).dim.kernelSize - kernelStride) * 2
+          aPool.mlpInputlenL2NonVerified = convConfig(1).dim.nKernels * aPool.conv2SizeInOneDimension *
+            aPool.conv2SizeInOneDimension
           
           if (aPool.mlpInputlenL2NonVerified >= aPool.mlpInputLenLimit) {
             // Get minimum pool size
@@ -172,7 +217,7 @@ class TestCNN {
             if (aPool.conv2SizeInOneDimension.toFloat % aPool.poolSize != 0)
               throw new java.lang.IllegalArgumentException()
             aPool.mlpInputlenL2 = (aPool.mlpInputlenL2NonVerified.toFloat / Math.pow(aPool.poolSize, 2)).toInt
-            aPool.nChannels = nKernelsL1
+            aPool.nChannels = convConfig(1).dim.nKernels
           }
           if (aPool.poolSize > 0) {
             currentLayer = currentLayer + 1
@@ -184,7 +229,7 @@ class TestCNN {
 
           currentLayer = currentLayer + 1
           initParams = FC.InitParameters(2, FC.Par, nn.ReLU,
-            inputShape = Shape(nBatches = 1, nInputs = nBatches * nInputs, size =
+            inputShape = Shape(nBatches = 1, nInputs = inputConfig.nBatches * inputConfig.nInputs, size =
               {
                 if (aCNN.nPoolLayers == 0)
                   aCNN.convLayers(1).outputShape.size * aCNN.convLayers(1).outputShape.size *
@@ -192,16 +237,17 @@ class TestCNN {
                 else
                   aPool.mlpInputlenL2
               }),
-            neuronShape = Shape(size = neuronsL1),
-            multsPerThread, neuronsPerWrg)
+            neuronShape = Shape(size = fcConfig.head.dim.nNeurons),
+            optParams = fcConfig.head.optParams)
           aCNN.layers(currentLayer) = FC(initParams.asInstanceOf[FC.InitParameters])
           aCNN.fcLayers(0) = aCNN.layers(currentLayer).asInstanceOf[FC]
 
           currentLayer = currentLayer + 1
           initParams = FC.InitParameters(3, FC.Par, nn.ReLU,
-            inputShape = Shape(nBatches = 1, nInputs = nBatches * nInputs, size = neuronsL1),
+            inputShape = Shape(nBatches = 1, nInputs = inputConfig.nBatches * inputConfig.nInputs,
+              size = fcConfig(1).dim.nNeurons),
             neuronShape = Shape(size = 10),
-            multsPerThread = 1, neuronsPerWrg = 1)
+            optParams = fcConfig(1).optParams)
           aCNN.layers(currentLayer) = FC(initParams.asInstanceOf[FC.InitParameters])
           aCNN.fcLayers(1) = aCNN.layers(currentLayer).asInstanceOf[FC]
           /* ---------------------------- BUILD NETWORK (END) ---------------------------- */
@@ -209,34 +255,34 @@ class TestCNN {
           /* ----------------------------- LOAD DATA (BEGIN) ----------------------------- */
           // Now that we know that layers can be built we the chosen parameters, load the data.
           // Load the data only if it wasn't loaded before for a similar experiment
-          if (data == null || data.pathToParams != pathToParams || data.nInputs != nInputs)
+          if (data == null || data.pathToParams != pathToParams || data.nInputs != inputConfig.nInputs)
             data = NetDatasetsCollection(
               pathToParams = pathToParams,
-              nInputs = nInputs,
+              nInputs = inputConfig.nInputs,
               layers = Array[NetDatasets](
-                nn.conv.ConvExperiment.loadDatasets(
+                nn.conv.Experiment.loadDatasets(
                   paramsPath = pathToParams,
                   inputShape = aCNN.convLayers(0).inputShape,
-                  inputsPath = pathToInputs + "/test_images_n" + nInputs + ".binary",
+                  inputsPath = pathToInputs + "/test_images_n" + inputConfig.nInputs + ".binary",
                   paramFileInfix = "conv1",
                   kernelSliding = aCNN.convLayers(0).kernelSliding),
 
-                nn.conv.ConvExperiment.loadDatasets(
+                nn.conv.Experiment.loadDatasets(
                   paramsPath = pathToParams,
                   inputShape = aCNN.convLayers(1).inputShape,
                   paramFileInfix = "conv2",
                   kernelSliding = aCNN.convLayers(1).kernelSliding),
 
-                nn.fc.FCExperiment.loadDatasets(
+                nn.fc.Experiment.loadDatasets(
                   paramsPath = pathToParams,
                   inputShape = aCNN.fcLayers(0).inputShape,
                   paramFileInfix = "mlp1",
                   neuronShape = aCNN.fcLayers(0).neuronShape),
 
-                nn.fc.FCExperiment.loadDatasets(
+                nn.fc.Experiment.loadDatasets(
                   paramsPath = pathToParams,
                   inputShape = aCNN.fcLayers(1).inputShape,
-                  targetFilePrefix = "test_tf_results_n" + nInputs,
+                  targetFilePrefix = "test_tf_results_n" + inputConfig.nInputs,
                   paramFileInfix = "out",
                   neuronShape = aCNN.fcLayers(1).neuronShape)))
           /* ----------------------------- LOAD DATA (END) ----------------------------- */
@@ -436,11 +482,12 @@ class TestCNN {
       f"${iP.inputShape.size}%d, " + {
       iP match {
         case cIP: Conv.InitParameters =>
-          f"${cIP.nKernels}%d, ${cIP.kernelSize}%d, ${cIP.kernelStride}%d, " +
-            f"${cIP.inputTileSize}%d, ${cIP.elsPerThread}%d, ${cIP.kernelsPerGroup}%d, "
+          f"${cIP.dim.nKernels}%d, ${cIP.dim.kernelSize}%d, ${cIP.kernelStride}%d, " +
+            f"${cIP.optParams.inputTileSize}%d, ${cIP.optParams.elsPerThread}%d, " +
+            f"${cIP.optParams.kernelsPerGroup}%d, "
         case fcIP: FC.InitParameters =>
           f"${fcIP.inputShape.size}%d, ${fcIP.neuronShape.size}%d, " +
-            f"${fcIP.multsPerThread}%d, ${fcIP.neuronsPerWrg}%d, "
+            f"${fcIP.optParams.multsPerThread}%d, ${fcIP.optParams.neuronsPerWrg}%d, "
       }
     } + f"false, '" + exceptionMsg + f"', $codeVersion%d, " +
       f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s');")
