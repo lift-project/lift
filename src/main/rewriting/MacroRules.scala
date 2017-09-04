@@ -212,7 +212,7 @@ object MacroRules {
         var fissioned: Expr = funCall
 
         val index = Utils.getIndexForPatternInCallChain(firstBody,
-          { case FunCall(Transpose(), arg) if arg eq param1.head => })
+          { case FunCall(t, arg) if Rules.isTranspose(t) && (arg eq param1.head) => })
 
         if (index > 0)
           fissioned = mapFissionAtPosition(index - 1).rewrite(funCall)
