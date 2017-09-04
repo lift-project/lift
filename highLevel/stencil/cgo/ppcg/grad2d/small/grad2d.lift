@@ -7,8 +7,8 @@ def vonNeumann5pt(x: Param) = {
   (top, bottom, left, right, center)
 }
 
-val M = 1024
-val N = 1024
+val M = 4096
+val N = 4096
 
 def grad = UserFun("grad", Array("top", "bottom", "left", "right", "center"),
   """return center + 1.0f/sqrt(0.0001f +

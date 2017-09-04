@@ -7,8 +7,8 @@ def vonNeumann5pt(x: Param) = {
   (top, bottom, left, right, center)
 }
 
-val M = Cst(1024)
-val N = Cst(1024)
+val M = Cst(4096)
+val N = Cst(4096)
 
 val shiftRight: (ArithExpr, Type) => ArithExpr =
     (i, t) => {

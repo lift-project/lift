@@ -14,8 +14,8 @@ def f = UserFun("jacobi", Array("NNWW", "NNW", "NN", "NNE", "NNEE",
     Float, Float, Float, Float, Float,
     Float, Float, Float, Float, Float), Float)
 
-val M = Cst(1024)
-val N = Cst(1024)
+val M = Cst(4096)
+val N = Cst(4096)
 
 λ(
   ArrayType(ArrayType(Float, M), N),

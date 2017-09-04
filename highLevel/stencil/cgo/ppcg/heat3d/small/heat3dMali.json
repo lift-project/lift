@@ -1,6 +1,6 @@
 {
   "input_combinations" : [
-    [64, 64, 64]
+    [256, 256, 256]
   ],
 
   "high_level_rewrite" : {
@@ -63,7 +63,7 @@
   },
 
   "search_parameters" : {
-    "default_input_size" : 64,
+    "default_input_size" : 256,
     "min_local_size" : 4,
     "max_local_size" : 256,
     "min_global_size" : 4,

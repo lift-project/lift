@@ -1,6 +1,6 @@
-val M = 64
-val N = 64
-val O = 64
+val M = 256
+val N = 256
+val O = 256
 
 def jacobi = UserFun("jacobi", Array("FNW", "FNE", "FSW", "FSE",
   "NW", "N", "NE", "W", "C", "E", "SW", "S", "SE",
