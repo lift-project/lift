@@ -169,24 +169,27 @@ class TestRewriteMatrixVector {
       })
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
-    val f4 = Rewrite.applyRuleAtId(f1, 6, Rules.mapFission2)
-    val f2 = Rewrite.applyRuleAtId(f4, 10, Rules.partialReduce)
-    val f3 = Rewrite.applyRuleAtId(f2, 11, Rules.partialReduceSplitJoin(64))
-    val f5 = Rewrite.applyRuleAtId(f3, 8, MacroRules.mapFissionAtPosition(2))
-    val f6 = Rewrite.applyRuleAtId(f5, 22, Rules.reduceSeq)
-    val f7 = Rewrite.applyRuleAtId(f6, 8, Rules.mapReducePartialReduce)
-    val f8 = Rewrite.applyRuleAtId(f7, 14, Rules.splitJoin(64))
 
-    val f10 = Rewrite.applyRuleAtId(f8, 15, Rules.splitIntoZip)
-    val f11 = Rewrite.applyRuleAtId(f10, 11, MacroRules.mapMapInterchange)
-    val f13 = Rewrite.applyRuleAtId(f11, 6, MacroRules.mapMapInterchange)
+    val f4 = Rewrite.applyRuleAtId(f1, 6, Rules.mapFission2)
+    val f13 = Rewrite.applyRuleAtId(f4, 6, MacroRules.interchange)
+
+    // TODO
+//    val f13 = Rewrite.applyRuleAtId(f1, 6, MacroRules.mapMapInterchange)
+
+    val f2 = Rewrite.applyRuleAtId(f13, 11, Rules.partialReduce)
+    val f3 = Rewrite.applyRuleAtId(f2, 12, Rules.partialReduceSplitJoin(64))
+    val f5 = Rewrite.applyRuleAtId(f3, 9, MacroRules.interchange)
+
+    val f8 = Rewrite.applyRuleAtId(f5, 15, Rules.splitJoin(64))
+    val f10 = Rewrite.applyRuleAtId(f8, 16, Rules.splitIntoZip)
+    val f11 = Rewrite.applyRuleAtId(f10, 12, MacroRules.interchange)
 
     val mappings = EnabledMappings(
       global0 = false, global01 = false, global10 = false,
       global012 = false, global210 = false,
       group0 = true, group01 = false, group10 = false)
 
-    val lowered = Lower.mapCombinations(f13, mappings).head
+    val lowered = Lower.mapCombinations(f11, mappings).head
 
     val l8 = Rewrite.applyRuleAtId(lowered, 8, Rules.addIdForCurrentValueInReduce)
     val l9 = Rewrite.applyRuleAtId(l8, 23, Rules.implementOneLevelOfId)

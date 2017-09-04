@@ -86,7 +86,12 @@ object MacroRules {
 
     while (currentPos >= 0) {
 
-      val replacement = Rules.mapFission.rewrite(nextFission)
+      val fissionRule =
+        if (Rules.mapFission.isDefinedAt(nextFission)) Rules.mapFission
+        else if (Rules.mapFission2.isDefinedAt(nextFission)) Rules.mapFission2
+        else throw new NotImplementedError()
+
+      val replacement = fissionRule.rewrite(nextFission)
       fissioned = Expr.replace(fissioned, nextFission, replacement)
 
       nextFission = replacement match {
@@ -818,12 +823,17 @@ object MacroRules {
     case call@FunCall(Map(Lambda(_, innerCall: FunCall)), _)
       if Utils.getIndexForPatternInCallChain(innerCall, mapPattern) != -1
     =>
+
       val mapId = Utils.getIndexForPatternInCallChain(innerCall, mapPattern)
 
       var fissioned: Expr = call
 
       if (mapId > 0)
         fissioned = mapFissionAtPosition(mapId - 1).rewrite(fissioned)
+
+      // TODO: Can make mapMapTransposeZipOutside applicable but breaks lots
+//      if (Rules.mapFission2.isDefinedAt(fissioned))
+//        fissioned = Rewrite.applyRuleAt(fissioned, Rules.mapFission2, fissioned)
 
       val mapCall = Utils.getExprForPatternInCallChain(fissioned, mapMapPattern).get
 
