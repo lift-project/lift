@@ -64,8 +64,9 @@ object Lower {
     mapsLowered
   }
 
+  // TODO: Also remove empty maps
   def dropIds(lambda: Lambda) =
-    lowerPatternWithRule(lambda, { case FunCall(Id(), _) => }, Rules.dropId)
+    Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.dropId))
 
   def findAll(lambda: Lambda, at: (Expr) => Boolean): List[Expr] = {
     Expr.visitWithState(List[Expr]())(lambda.body, findAllFunction(at))
@@ -290,11 +291,10 @@ object Lower {
     findExpressionForPattern(lambda, { case FunCall(_:UserFun, _*) => } : PartialFunction[Expr, Unit])
 
   def lowerPartialReduces(lambda: Lambda): Lambda =
-    lowerPatternWithRule(lambda, { case FunCall(PartRed(_), _, _) => }, Rules.partialReduceToReduce)
+    Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.partialReduceToReduce))
 
   def lowerReduces(lambda: Lambda): Lambda = {
-    val stepOne =
-      lowerPatternWithRule(lambda, { case FunCall(Reduce(_), _, _) => }, Rules.reduceSeq)
+    val stepOne = Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.reduceSeq))
 
     val reduceSeqs = Rewrite.listAllPossibleRewrites(stepOne, Rules.addIdAfterReduce)
 
@@ -307,21 +307,6 @@ object Lower {
       Rewrite.applyRuleAt(lambda, pair._2, pair._1))
 
     valueIdsAdded
-  }
-
-  @scala.annotation.tailrec
-  def lowerPatternWithRule(lambda: Lambda, pattern: PartialFunction[Expr, Unit], rule: Rule): Lambda = {
-    TypeChecker.check(lambda.body)
-
-    if (lambda.body.contains(pattern)) {
-
-      val next = findExpressionForPattern(lambda, pattern).get
-      val replaced = FunDecl.replace(lambda, next, rule.rewrite(next))
-
-      lowerPatternWithRule(replaced, pattern, rule)
-    } else {
-      lambda
-    }
   }
 
   def findExpressionForPattern(lambda: Lambda, pattern: PartialFunction[Expr, Unit]): Option[Expr] =
