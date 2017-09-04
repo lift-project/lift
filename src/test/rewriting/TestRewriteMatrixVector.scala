@@ -8,7 +8,6 @@ import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import rewriting.utils.NumberPrinter
 
 object TestRewriteMatrixVector {
   @BeforeClass def before(): Unit = {
@@ -180,6 +179,7 @@ class TestRewriteMatrixVector {
     val f6 = Rewrite.applyRuleAtId(f5, 22, Rules.reduceSeq)
     val f7 = Rewrite.applyRuleAtId(f6, 8, Rules.mapReducePartialReduce)
     val f8 = Rewrite.applyRuleAtId(f7, 14, Rules.splitJoin(64))
+
     val f10 = Rewrite.applyRuleAtId(f8, 15, Rules.splitIntoZip)
     val f11 = Rewrite.applyRuleAtId(f10, 11, MacroRules.mapMapInterchange)
     val f13 = Rewrite.applyRuleAtId(f11, 6, MacroRules.mapMapInterchange)
@@ -193,13 +193,15 @@ class TestRewriteMatrixVector {
     val l5 = Rewrite.applyRuleAtId(l4, 7, Rules.mapSeq)
     val l6 = Lower.lastWriteToGlobal(l5)
     val l7 = Lower.lowerNextLevelWithRule(l6, Rules.mapLcl)
+
     val l8 = Rewrite.applyRuleAtId(l7, 8, Rules.addIdForCurrentValueInReduce)
     val l9 = Rewrite.applyRuleAtId(l8, 23, Rules.implementOneLevelOfId)
     val l11 = Rewrite.applyRuleAtId(l9, 24, Rules.dropId)
     val l12 = Rewrite.applyRuleAtId(l11, 26, Rules.implementIdAsDeepCopy)
-    val l13 = Rewrite.applyRuleAtId(l12, 26, Rules.mapLcl)
-    val l14 = Rewrite.applyRuleAtId(l13, 26, Rules.localMemory)
-    val l15 = Rewrite.applyRuleAtId(l14, 66, Rules.privateMemory)
+    val l14 = Rewrite.applyRuleAtId(l12, 26, Rules.localMemory)
+    val l13 = Lower.lowerNextLevelWithRule(l14, Rules.mapLcl)
+
+    val l15 = Rewrite.applyRuleAtId(l13, 66, Rules.privateMemory)
     val l16 = Rewrite.applyRuleAtId(l15, 61, Rules.privateMemory)
 
     val (local, global) = InferNDRange(l16)

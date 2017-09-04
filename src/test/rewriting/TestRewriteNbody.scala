@@ -11,7 +11,6 @@ import opencl.ir._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
-import rewriting.utils.NumberPrinter
 
 object TestRewriteNbody {
    @BeforeClass
@@ -56,22 +55,25 @@ class TestRewriteNbody {
     val g1 = Rewrite.applyRuleAtId(f6, 20, Rules.reduceSeq)
     val f7 = Rewrite.applyRuleAtId(g1, 8, Rules.mapReducePartialReduce)
     val f8 = Rewrite.applyRuleAtId(f7, 14, Rules.splitJoin(128))
+
     val f11 = Rewrite.applyRuleAtId(f8, 11, MacroRules.mapMapInterchange)
+    val f12 = Rewrite.applyRuleAtId(f11, 6, MacroRules.mapMapInterchange)
 
-    val f16 = SimplifyAndFuse(Lower.lowerPartialReduces(f11))
+    val f15 = Lower.lowerPartialReduces(f12)
+    val f16 = SimplifyAndFuse(f15)
 
-    val f21 = Rewrite.applyRuleAtId(f16, 9, Rules.addIdForCurrentValueInReduce)
-    val f22 = Rewrite.applyRuleAtId(f21, 14, Rules.implementIdAsDeepCopy)
-    val f23 = Rewrite.applyRuleAtId(f22, 6, Rules.globalMemory)
+    val f23 = Lower.lastWriteToGlobal(f16)
     val f24 = Lower.lowerNextLevelWithRule(f23, Rules.mapWrg)
-    val f25 = Lower.lowerNextLevelWithRule(f24, Rules.mapLcl)
-    val f26 = Lower.lowerNextLevelWithRule(f25, Rules.mapSeq)
-    val f27 = Rewrite.applyRuleAtId(f26, 14, Rules.localMemory)
+    val f25 = Rewrite.applyRuleAtId(f24, 7, Rules.mapSeq)
+    val f26 = Lower.lowerNextLevelWithRule(f25, Rules.mapLcl)
 
-    println(f27)
+    val f21 = Rewrite.applyRuleAtId(f26, 8, Rules.addIdForCurrentValueInReduce)
+    val f22 = Rewrite.applyRuleAtId(f21, 13, Rules.implementIdAsDeepCopy)
+    val f27 = Rewrite.applyRuleAtId(f22, 13, Rules.localMemory)
+    val f28 = Lower.lowerNextLevelWithRule(f27, Rules.mapLcl)
 
     val (output: Array[Float], _) =
-      Execute()(f27, pos, vel, espSqr, deltaT)
+      Execute()(f28, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
 
     val replacementFilter = collection.immutable.Map[ArithExpr, ArithExpr](N -> 16384)
