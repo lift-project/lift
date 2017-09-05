@@ -89,7 +89,7 @@ object MacroRules {
 
       val fissionRule =
         if (Rules.mapFission.isDefinedAt(nextFission)) Rules.mapFission
-        else if (Rules.mapFission2.isDefinedAt(nextFission)) Rules.mapFission2
+        else if (Rules.mapFissionCreateZip.isDefinedAt(nextFission)) Rules.mapFissionCreateZip
         else throw new NotImplementedError()
 
       val replacement = fissionRule.rewrite(nextFission)
@@ -832,9 +832,11 @@ object MacroRules {
       if (mapId > 0)
         fissioned = mapFissionAtPosition(mapId - 1).rewrite(fissioned)
 
-      // TODO: Can make mapMapTransposeZipOutside applicable but breaks lots
-//      if (Rules.mapFission2.isDefinedAt(fissioned))
-//        fissioned = Rewrite.applyRuleAt(fissioned, Rules.mapFission2, fissioned)
+      // TODO: Makes mapMapTransposeZipOutside applicable for gemv & nbody
+      // Restricted to only apply in that case, breaks stuff if more general.
+      // Doesn't seem like a great solution.
+      if (Rules.mapFissionCreateZip.isDefinedAt(fissioned))
+        fissioned = Rewrite.applyRuleAt(fissioned, Rules.mapFissionCreateZip, fissioned)
 
       val mapCall = Utils.getExprForPatternInCallChain(fissioned, mapMapPattern).get
 

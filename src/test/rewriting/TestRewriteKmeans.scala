@@ -48,8 +48,10 @@ class TestRewriteKmeans {
     // TODO: Next 3 should come after parallelism mapping
     val f2 = Rewrite.applyRuleAtId(f1, 8, Rules.addIdRed)
     val f4 = Rewrite.applyRuleAtId(f2, 5, Rules.mapFission)
+    println(f4)
     val f5 = Rewrite.applyRuleAtId(f4, 6, Rules.extractFromMap)
 
+    println(f5)
     val f6 = SimplifyAndFuse(f5)
 
     val lastToGlobal = Lower.lastWriteToGlobal(f6)

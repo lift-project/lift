@@ -602,10 +602,11 @@ object Rules {
       Map(fun((x) => r1(init1, x))) o Map(Lambda(p1, r2(init2, p2))) $ arg
   })
 
-  val mapFission2 = Rule("Map(x => f(x, g(...)) => Map(f) $ Zip(..., Map(g)  )", {
-    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(fun2, p2)))), arg)
+  val mapFissionCreateZip = Rule("Map(x => f(x, g(...)) => Map(f) $ Zip(..., Map(g)  )", {
+    case FunCall(Map(Lambda(p1, FunCall(fun1, call@FunCall(fun2, p2)))), arg)
       if fun1.isInstanceOf[FPattern] &&
-        fun1.asInstanceOf[FPattern].f.body.contains({ case a if a eq p1.head => })
+        fun1.asInstanceOf[FPattern].f.body.contains({ case a if a eq p1.head => }) &&
+      call.contains({ case a if a eq p1.head => }) && !arg.contains({ case FunCall(Zip(_), _*) => })
     =>
 
       val fp = fun1.asInstanceOf[FPattern]
@@ -625,7 +626,9 @@ object Rules {
       Map(Lambda(Array(newParam), newFp $ get1)) $
         Zip(arg, Map(Lambda(p1, fun2(p2))) $ arg)
 
-    case FunCall(Map(Lambda(p1, FunCall(r: AbstractPartRed, init, FunCall(fun2, p2)))), arg)
+    // TODO: Which behaviour should this rule have? Tests assume arg is used several times.
+    // TODO: Original rule assumes x is used in f. Now assumes x is used in f & g.
+ /*   case FunCall(Map(Lambda(p1, FunCall(r: AbstractPartRed, init, FunCall(fun2, p2)))), arg)
       if r.f.body.contains({ case a if a eq p1.head => }) ||
         init.contains({ case a if a eq p1.head => })
     =>
@@ -688,7 +691,7 @@ object Rules {
       val newInit = Expr.replace(init1, p1.head, replaceP1)
 
       Map(Lambda(Array(newParam), r1.copy(newLambda)(newInit, get1))) $
-        Zip(arg,  Map(Lambda(p1, r2.copy(r2.f)(init2, p2))) $ arg)
+        Zip(arg,  Map(Lambda(p1, r2.copy(r2.f)(init2, p2))) $ arg)*/
   })
 
   val mapMapInterchange = Rule("Map(fun(a => Map(fun( b => ... ) $ B) $ A => " +

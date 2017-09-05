@@ -170,12 +170,7 @@ class TestRewriteMatrixVector {
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
 
-    val f4 = Rewrite.applyRuleAtId(f1, 6, Rules.mapFission2)
-    val f13 = Rewrite.applyRuleAtId(f4, 6, MacroRules.interchange)
-
-    // TODO
-//    val f13 = Rewrite.applyRuleAtId(f1, 6, MacroRules.mapMapInterchange)
-
+    val f13 = Rewrite.applyRuleAtId(f1, 6, MacroRules.interchange)
     val f5 = Rewrite.applyRuleAtId(f13, 9, MacroRules.introduceReuseFromMap(64))
     val f11 = Rewrite.applyRuleAtId(f5, 12, MacroRules.introduceReuseFromMap(64))
 

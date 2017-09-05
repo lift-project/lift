@@ -44,8 +44,7 @@ class TestRewriteNbody {
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(128))
 
-    val f2 = Rewrite.applyRuleAtId(f1, 6, Rules.mapFission2)
-    val f12 = Rewrite.applyRuleAtId(f2, 6, MacroRules.mapMapInterchange)
+    val f12 = Rewrite.applyRuleAtId(f1, 6, MacroRules.interchange)
 
     val f4 = Rewrite.applyRuleAtId(f12, 9, MacroRules.introduceReuseFromMap(128))
     val f11 = Rewrite.applyRuleAtId(f4, 12, MacroRules.introduceReuseFromMap(128))
