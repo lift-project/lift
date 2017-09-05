@@ -26,14 +26,19 @@ object OutputView {
     */
   def apply(expr: Expr): Unit = {
 
-    InferPtrOutType(expr)
     val itDimNum = ItSpaceDimCount(expr)
+    //InferPtrOutType(expr, itDimNum)
+    BuildItVarInfo(expr, itDimNum)
 
     Mode.values.foreach({ mode =>
       val ov = new OutputViewBuilder(mode, itDimNum)
       expr match {
         case fc: FunCall =>
-          ov.visitAndBuildViews(expr, (v: View) => v, writing = false)
+          val initialOV = mode match {
+            case Mode.Global => Some(ViewMem(expr.mem.variable, expr.t))
+            case _ => None
+          }
+          ov.visitAndBuildViews(expr, initialOV)
         case _ => // if the expression is not a funcall, there is no output view
       }
     })
@@ -45,7 +50,7 @@ object OutputView {
 class OutputViewBuilder(val mode: Mode.Value, val itSpaceDim: Int) {
 
 
-  private val paramViewFuns : scala.collection.mutable.Map[Param, ((View) => View, Boolean)] = scala.collection.mutable.Map()
+  private val paramViews : scala.collection.mutable.Map[Param, Option[View]] = scala.collection.mutable.Map()
 
   private var wrgDepth = 0
   private var glbOrLclDepth = 0
@@ -59,6 +64,22 @@ class OutputViewBuilder(val mode: Mode.Value, val itSpaceDim: Int) {
     }
   }
 
+  /*private def wrapPtrType(outPtrType: Type, outputView: View) : (Type,View) = {
+    mode match {
+      case Mode.Global => outPtrType // TODO: add outer dimension from nesting info
+      case Mode.Local => wrgDepth == itSpaceDim
+      case Mode.Private => glbOrLclDepth == itSpaceDim
+    }
+  }*/
+
+  /*private def getPtrType(outPtrType: Option[Type], currentType: Type) : Option[Type] = {
+    mode match {
+      case Mode.Global => if (outPtrType.nonEmpty) outPtrType else Some(currentType) // TODO: add outer dimension from nesting info
+      case Mode.Local => wrgDepth == itSpaceDim
+      case Mode.Private => glbOrLclDepth == itSpaceDim
+    }
+  }*/
+
   private def addrSpaceMatchMode(addressSpace: OpenCLAddressSpace) : Boolean = {
     mode match {
       case Mode.Global => addressSpace == GlobalMemory
@@ -67,81 +88,85 @@ class OutputViewBuilder(val mode: Mode.Value, val itSpaceDim: Int) {
     }
   }
 
-  def visitAndBuildViews(expr: Expr, buildView : ((View) => View), writing: Boolean): (((View) => View), Boolean) = {
+  def visitAndBuildViews(expr: Expr, outputView: Option[View]): Option[View] = {
     expr match {
-      case call: FunCall => buildViewFunCall(call, buildView, writing)
+      case call: FunCall => buildViewFunCall(call, outputView)
       case p: Param =>
 
         /* Retrieve the buildView function associated with the Param.
         *  A new buildView function is created which first call the current buildView function and only then call the buildView function associated with the Param.
         *  The buildView function from the param has to be called last, since this corresponds to the output view created for the argument of a lambda. */
-        ((v: View) => {
-          val pBuildFun = paramViewFuns.get(p)
-          if (pBuildFun.isEmpty)
-            // the param was probably implicit (e.g. Map)
-            buildView(v)
-          else
-            pBuildFun.get._1(buildView(v))
-        }, writing)
 
-      case e: Expr=> (buildView, writing)
+        val pView = paramViews.get(p)
+        if (pView.isEmpty)
+          // the param was probably implicit (e.g. Map)
+          outputView
+        else
+          pView.get
+
+      case e: Expr=> outputView
     }
   }
 
 
-
-
-  private def buildSplitView(arg: Expr, n: ArithExpr, buildView : ((View) => View), writing: Boolean) : (((View) => View), Boolean) = {
-    visitAndBuildViews(arg, if (writing) (v: View) => buildView(v).join(n) else buildView, writing)
-  }
-
-  private def buildJoinView(arg: Expr, buildView : ((View) => View), writing: Boolean) : (((View) => View), Boolean) = {
-    arg.t match {
-      case ArrayType(ArrayTypeWS(_, chunkSize)) => visitAndBuildViews(arg, if (writing) (v: View) => buildView(v).split(chunkSize) else buildView, writing)
-      case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + arg.t)
+  private def getItVarsAndArrayFun(e: Expr) = {
+    e.addressSpace match {
+      case GlobalMemory => e.writeItVarsAndArrayFun(0) // TODO: use parallel version, but need to make sure Inputview uses the same logic
+      case LocalMemory => e.writeItVarsAndArrayFun(1)  // TODO: use parallel version, but need to make sure Inputview uses the same logic
+      case PrivateMemory => e.writeItVarsAndArrayFunParallel(2)
     }
-  }
-
-  private def buildScatterView(arg:Expr, retType: Type, s: Scatter, buildView : ((View) => View), writing: Boolean) : (((View) => View), Boolean) = {
-      visitAndBuildViews(arg, (v: View) => buildView(v).reorder((i: ArithExpr) => s.idx.f(i, retType)), depthAchieved())
-  }
-
-  private def buildGatherView(arg:Expr, buildView : ((View) => View), writing: Boolean) : (((View) => View), Boolean) = {
-    if (writing)
-      throw new IllegalArgumentException("Gather encountered when building an output view")
-    visitAndBuildViews(arg, buildView, false)
   }
 
     /**
     *
     * @param call
-    * @param buildView a continuation that will be invoked once a user function is encountered to build its output view
-    * @param writing true if we have encountered that modifies the way the output should be written
     * @return
     */
-  private def buildViewFunCall(call: FunCall, buildView : ((View) => View), writing: Boolean) : (((View) => View), Boolean) = {
+  private def buildViewFunCall(call: FunCall, outputView: Option[View]) : Option[View] = {
+
+    outputView match {
+      case Some(ov) => Some(ov)
+      case None =>
+        if (call.isConcrete)
+          // we allocate the view now
+
+    }
+
+
+
     call.f match {
 
       case _: UserFun | _: VectorizeUserFun =>
-        val viewMem = View.initialiseNewOutputView(call.t, call.inputDepth, call.mem.variable)
+        //val viewMemNew = ViewMem(call.mem.variable, call.outPtrType)
         //assert (call.outPtrType != NoType)
         //val viewMem = ViewMem(call.mem.variable, call.outPtrType)
 
-        if (depthAchieved && addrSpaceMatchMode(call.addressSpace))
-          call.outputView = buildView(viewMem)
+        if (depthAchieved && addrSpaceMatchMode(call.addressSpace)) {
 
-        val argsViewFuns = call.args.map(arg => visitAndBuildViews(arg, buildView, false))
-        ((v: View) => ViewTuple(argsViewFuns.map(f => f._1(v)), call.argsType).unzip(), false)
+          val ufOutputView = outputView match {
+            case Some(v) => v
+            case None =>
+              //val v1 = View.initialiseNewView(call.t, call.outputDepth,/*
+              //this.mode match {
+              //  case Mode.Global => call.accessInf.globalAccessInf
+              //  case Mode.Local => call.accessInf.localAccessInf
+              //  case Mode.Private => call.accessInf.privateAccessInf
+              //},*/ call.mem.variable)
+              View.initialiseNewOutputView2(call.t, getItVarsAndArrayFun(call), call.mem.variable)
+          }
 
-      case Split(n) =>
-        buildSplitView(call.args.head, n, buildView, writing)
+          call.outputView = ufOutputView
+          assert(call.outputView.t == call.t)
+        }
 
-      case _: Join =>
-        buildJoinView(call.args.head, buildView, writing)
+        call.args.map(arg => visitAndBuildViews(arg, None))
+        None
+        //((v: View) => ViewTuple(argsViews.map(f => f._1(v)), call.argsType).unzip(), None)
+
 
       case m: AbstractMap =>
 
-        val da = depthAchieved()
+        //val da = depthAchieved()
 
         m match {
           case _: MapWarp | _:MapGlb | _ : MapLcl | _: MapAtomLcl => glbOrLclDepth+=1
@@ -149,7 +174,9 @@ class OutputViewBuilder(val mode: Mode.Value, val itSpaceDim: Int) {
           case _ =>
         }
 
-        val mapOutputViewFun = visitAndBuildViews(m.f.body, if (da) (v: View) => buildView(v).access(m.loopVar) else buildView, writing)
+        val mapFOutputView = visitAndBuildViews(m.f.body, outputView match {
+          case Some(ov) => Some(ov.access(m.loopVar))
+          case None => None})//if (da) (v: View) => outputView(v).access(m.loopVar) else buildView, outPtrType)
 
         m match {
           case _: MapWarp | _:MapGlb | _ : MapLcl | _: MapAtomLcl => glbOrLclDepth-=1
@@ -157,38 +184,132 @@ class OutputViewBuilder(val mode: Mode.Value, val itSpaceDim: Int) {
           case _ =>
         }
 
-        visitAndBuildViews(call.args.head, if (mapOutputViewFun._2) (v: View) => ViewMap(mapOutputViewFun._1(v), m.loopVar, call.args.head.t) else buildView, mapOutputViewFun._2)
+        visitAndBuildViews(call.args.head, mapFOutputView match {
+          case Some(ov) => Some(ViewMap(ov, m.loopVar, call.args.head.t))
+          case None => None
+        })
+
+          //if (mapOutputViewFun._2.nonEmpty) (v: View) => ViewMap(mapOutputViewFun._1(v), m.loopVar, call.args.head.t) else buildView, mapOutputViewFun._2)
 
       case z: Zip =>
 
-        val argsViewFuns = call.args.map(arg => visitAndBuildViews(arg, (v:View) => buildView(v), writing))
-        ((v: View) => ViewTuple(argsViewFuns.map(f => f._1(v)), call.argsType).unzip(), writing)
+        val argsViews = call.args.map(arg => visitAndBuildViews(arg, outputView))
+
+        // all the argument must either be None or all contain some view
+        val cntSome = argsViews.count({
+            case None => false
+            case Some(_) => true
+          })
+        assert(cntSome == 0 || cntSome == argsViews.length)
+
+        if (cntSome == 0)
+          None
+        else
+          Some(ViewTuple(argsViews.map(av => av.get), call.argsType).unzip())
 
       case uz: Unzip =>
-        visitAndBuildViews(call.args.head, (v: View) => buildView(v).zip(), writing)
+        visitAndBuildViews(call.args.head,
+          outputView match {
+            case Some(ov) => Some(ov.zip())
+            case None => None
+          })
+
+      case _:Tuple =>
+
+        val argsViews = call.args.map(arg => visitAndBuildViews(arg, outputView))
+
+        // all the argument must either be None or all contain some view
+        val cntSome = argsViews.count({
+          case None => false
+          case Some(_) => true
+        })
+        assert(cntSome == 0 || cntSome == argsViews.length)
+
+        if (cntSome == 0)
+          None
+        else
+          Some(ViewTuple(argsViews.map(av => av.get), call.argsType))
+
+      case Get(i) =>
+
+        // TODO: do we encounter this case??
+        outputView match {
+          case Some(_) => throw new IllegalArgumentException("Get(i) encountered when building an output view")
+          case None =>
+        }
+        visitAndBuildViews(call.args.head, outputView)
+
+
+      /* val arg = call.args.head
+       val tt: TupleType = arg.t match {
+         case tt:TupleType => tt
+       }
+
+       visitAndBuildViews(arg,
+         Some(ViewTuple(
+           for (argI <- 0 until tt.elemsT.length) yield
+             if (argI == i)
+               outputView.get
+             else NoView , call.argsType))
+*/
+
+/*
+
+
+
+      case Get(i) =>
+        call.args.head match {
+          case param: Param =>
+            buildViewGet(i, param, call)
+            param.outputView
+          case arg =>
+
+            val view = arg.mem match {
+              case memCollection: OpenCLMemoryCollection =>
+                val subviews = getSubviews(arg, memCollection)
+                subviews(i) = result
+                ViewTuple(subviews, arg.t)
+              case _ => result
+            }
+
+            visitAndBuildViews(arg, view)
+        }
+*/
+
+
 
       case _:asVector =>
-        visitAndBuildViews(call.args.head, if (writing) (v: View) => v.asScalar() else buildView, writing)
+        visitAndBuildViews(call.args.head,
+          outputView match {
+            case Some(ov) => Some(ov.asScalar())
+            case None => None
+          })
 
       case _: asScalar =>
 
         call.args.head.t match {
-          case ArrayType(VectorType(_, n)) => visitAndBuildViews(call.args.head, if (writing) (v: View) => v.asVector(n) else buildView, writing)
+          case ArrayType(VectorType(_, n)) =>
+            visitAndBuildViews(call.args.head,
+              outputView match {
+                case Some(ov) => Some(ov.asVector(n))
+                case None => None
+              })
           case _ => throw new IllegalArgumentException("PANIC, expected array of vectors, found " + call.argsType)
         }
 
       case l: Lambda =>
-        /* We first visit each arguments and remember what the buildView function is.
+        /* We first visit each arguments and remember what the output view is.
            We then visit the body of the lambda.
-           When a param is encountered, the corresponding buildView function will be retrieved and a new buildFunction constructed (see visitAndBuildViews).
+           When a param is encountered, the corresponding output view will be retrieved and a new output view constructed (see visitAndBuildViews).
          */
 
-        val lParamViewFuns: scala.collection.immutable.Map[Param, ((View) => View, Boolean)] = l.params.zip(call.args).map({ case (param,arg) => param -> visitAndBuildViews(arg, (v:View) => v, writing)}).toMap
+        val lParamViews: scala.collection.immutable.Map[Param, Option[View]] =
+          l.params.zip(call.args).map({ case (param,arg) => param -> visitAndBuildViews(arg, None)}).toMap
 
-        assert (paramViewFuns.keySet.intersect(lParamViewFuns.keySet).isEmpty)
-        paramViewFuns ++= lParamViewFuns
-        val resultFun = visitAndBuildViews(l.body, (v:View) => buildView(v), writing)
-        paramViewFuns --= lParamViewFuns.keys
+        assert (paramViews.keySet.intersect(lParamViews.keySet).isEmpty)
+        paramViews ++= lParamViews
+        val resultFun = visitAndBuildViews(l.body, outputView)
+        paramViews --= lParamViews.keys
 
         resultFun
 
@@ -198,107 +319,145 @@ class OutputViewBuilder(val mode: Mode.Value, val itSpaceDim: Int) {
         // if the reduction is a while reduction, visit and build views for the predicate
         r match {
           case rws: ReduceWhileSeq =>
-            visitAndBuildViews(rws.p.body, if (writing) (v: View) => buildView(v).access(Cst(0)) else buildView, writing)
+            visitAndBuildViews(rws.p.body, None)
+              /*outputView match {
+                case Some(ov) => Some(ov.access(Cst(0))) // TODO: not sure if this is correct
+                case None => None
+              })*/
           case _ =>
         }
 
         // deal with the accumulator
         val acc = call.args(0)
-        visitAndBuildViews(acc, buildView, writing)
+        visitAndBuildViews(acc, outputView)
 
         // deal with f
-        val redOutputViewFun = visitAndBuildViews(r.f.body, (v: View) => buildView(v).access(Cst(0)), writing)
+        val redOutputView = visitAndBuildViews(r.f.body,
+          outputView match {
+            case Some(ov) => Some(ov.access(Cst(0)))
+            case None => None
+          })
 
         // deal with the input argument
         val input = call.args(1)
-        visitAndBuildViews(input, if (redOutputViewFun._2) (v: View) => ViewMap(redOutputViewFun._1(v), r.loopVar, call.args.head.t) else redOutputViewFun._1, redOutputViewFun._2)
-
+        visitAndBuildViews(input,
+          redOutputView match {
+            case Some(ov) => Some(ViewMap(ov, r.loopVar, call.args.head.t))
+            case None => None
+          })
 
 
       case _: toGlobal | _: toLocal | _:toPrivate =>
         val fp = call.f.asInstanceOf[FPattern]
 
-        val fpOutputViewFun = visitAndBuildViews(fp.f.body, buildView, writing)
-        visitAndBuildViews(call.args.head, if (fpOutputViewFun._2) fpOutputViewFun._1 else buildView, fpOutputViewFun._2)
+        val fpOutputView = visitAndBuildViews(fp.f.body, outputView)
+        visitAndBuildViews(call.args.head, fpOutputView)
 
       case s: Scatter =>
-        buildScatterView(call.args.head, call.t, s, buildView, writing)
+
+        val scatterOutputView = outputView match {
+          case Some(v) => v
+          case None =>
+            View.initialiseNewOutputView2(call.t, getItVarsAndArrayFun(call), call.mem.variable)
+          //View.initialiseNewView(call.t, call.outputDepth, call.mem.variable)
+        }
+        visitAndBuildViews(call.args.head, Some(scatterOutputView.reorder((i: ArithExpr) => s.idx.f(i, call.t))))
 
       case g: Gather =>
-        buildGatherView(call.args.head, buildView, writing)
+        outputView match {
+          case Some(_) => throw new IllegalArgumentException("Gather encountered when building an output view")
+          case None =>
+        }
+        visitAndBuildViews(call.args.head, outputView)
 
+      case Split(n) =>
+        visitAndBuildViews(call.args.head,
+          outputView match {
+            case Some(ov) => Some(ov.join(n))
+            case None => None
+          })
+
+      case _: Join =>
+        val arg = call.args.head
+        arg.t match {
+          case ArrayType(ArrayTypeWS(_, chunkSize)) => visitAndBuildViews(arg,
+            outputView match {
+              case Some(ov) => Some(ov.split(chunkSize))
+              case None => None
+            })
+          case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + arg.t)
+        }
       case tw: TransposeW =>
-        // equivalent to : Split o Scatter o Join
 
-        buildSplitView(arg: Expr, n: ArithExpr, buildView : ((View) => View), writing: Boolean) : (((View) => View), Boolean) = {
-    visitAndBuildViews(arg, if (writing) (v: View) => buildView(v).join(n) else buildView, writing)
-    }
+        val tWOutputView = outputView match {
+          case Some(v) => v
+          case None =>
+            View.initialiseNewOutputView2(call.t, getItVarsAndArrayFun(call), call.mem.variable)
+            //View.initialiseNewView(call.t, call.outputDepth, call.mem.variable)
+        }
 
-    private def buildJoinView(arg: Expr, buildView : ((View) => View), writing: Boolean) : (((View) => View), Boolean) = {
-    arg.t match {
-    case ArrayType(ArrayTypeWS(_, chunkSize)) => visitAndBuildViews(arg, if (writing) (v: View) => buildView(v).split(chunkSize) else buildView, writing)
-    case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + arg.t)
-    }
-    }
-
-    private def buildScatterView(arg:Expr, retType: Type, s: Scatter, buildView : ((View) => View), writing: Boolean) : (((View) => View), Boolean) = {
-    visitAndBuildViews(arg, (v: View) => buildView(v).reorder((i: ArithExpr) => s.idx.f(i, retType)), depthAchieved())
-    }
-
-    private def buildGatherView(arg:Expr, buildView : ((View) => View), writing: Boolean) : (((View) => View), Boolean) = {
-    if (writing)
-    throw new IllegalArgumentException("Gather encountered when building an output view")
-    visitAndBuildViews(arg, buildView, false)
-    }
-
-
+        visitAndBuildViews(call.args.head,
+          call.t match {
+            case ArrayTypeWS(ArrayTypeWS(et, m), n) =>
+              Some(tWOutputView.
+                join(m).
+                reorder((i: ArithExpr) => {
+                  transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(et, n), m))
+                }).
+                split(n))
+            case _ =>
+              throw new TypeException(call.t, "ArrayTypeWS", call.f)
+          }
+        )
 
       case t: Transpose =>
-        if (writing)
-          throw new IllegalArgumentException("Transpose encountered when building an output view")
-        visitAndBuildViews(call.args.head, buildView, false)
+        outputView match {
+          case Some(ov) => throw new IllegalArgumentException("Transpose encountered when building an output view")
+          case None => visitAndBuildViews(call.args.head, None)
+        }
 
 
-        private def buildViewTransposeW(tw: TransposeW, call: FunCall, writeView: View): View = {
-    call.t match {
-    case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
-    writeView.
-    join(m).
-    reorder((i:ArithExpr) => { transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(typ, n), m)) }).
-    split(n)
-    case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
-    throw new TypeException(call.t, "Array", call.f)
-    }
-    }
+      case _:Tail =>
+
+        // TODO: check that this works: TestTail.tailBetweenMapsScatterAfter
+        // TODO: check that this works: TestTail.tailBetweenMapsScatterBeforeAndAfter
+
+        outputView match {
+          case Some(ov) => throw new IllegalArgumentException("Tail encountered when building an output view")
+          case None => visitAndBuildViews(call.args.head, None)
+        }
+
+      case _: Head =>
+
+        outputView match {
+          case Some(ov) => throw new IllegalArgumentException("Head encountered when building an output view")
+          case None => visitAndBuildViews(call.args.head, None)
+        }
+
+      case i: Iterate =>
+
+        val innerFunOutView =
+          //Some(View.initialiseNewView(call.t, call.outputDepth, i.vPtrOut))
+          Some(View.initialiseNewOutputView2(call.t, getItVarsAndArrayFun(call), i.vPtrOut))
+        visitAndBuildViews(i.f.body, innerFunOutView)
+
+        visitAndBuildViews(call.args.head, None)
 
 
-
-
-       /*   case fp: FPattern =>
-            visitAndBuildViews(l.body, (v: View) => v.asScalar())
-
-            visitAndBuildViews(l.body, writeView)
-
-            buildViewLambda(fp.f, call, writeView)*/
-
-
-
-      /*
-      case f: FilterSeq => buildViewFilter(f,  call, writeView)
+/*
       case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
-      case i: Iterate => buildViewIterate(i, call, writeView)
 
-      case _: Head => buildViewHead(call, writeView)
-      case _: Tail => buildViewTail(call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.mem.variable)
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.mem.variable)
-      case PrintType() | Get(_) | _: Tuple | Gather(_) | Filter() |
-           Pad(_, _, _) =>
+      case PrintType() | Get(_) | _: Tuple | Gather(_) | Filter() =>
         writeView*/
+      case _:PrintType | _:Pad =>
+        visitAndBuildViews(call.args.head, outputView)
+
       case dunno => throw new NotImplementedError(s"OutputView.scala: $dunno")
 
 

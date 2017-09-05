@@ -1,12 +1,14 @@
 package ir.ast
 
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Var}
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 import ir.view.{AccessInfo, NoView, View}
 import opencl.ir.pattern.{FilterSeq, ReduceWhileSeq}
 import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
 
+import scala.collection.mutable
+import scala.collection.parallel.immutable
 import scala.language.implicitConversions
 
 /** Abstract class representing all kinds of expressions, i.e.,
@@ -55,6 +57,12 @@ abstract class Expr extends IRNode {
   var inputDepth: List[ir.view.SingleAccess] = List()
 
   var accessInf = AccessInfo()
+
+  // a list of global, local and private List
+  var writeItVarsAndArrayFun: List[scala.collection.immutable.List[(Var,  (Type) => ArrayType)]] = List()
+  var writeItVarsAndArrayFunParallel: List[scala.collection.immutable.List[(Var,  (Type) => ArrayType)]] = List()
+  var readItVarsAndArrayFunParallel: List[scala.collection.immutable.List[(Var,  (Type) => ArrayType)]] = List()
+
 
   /**
    * A list storing (ArrayType constructor, variable) tuples that describe the

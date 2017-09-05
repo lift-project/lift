@@ -4,7 +4,7 @@ import lift.arithmetic.{PosVar, Var}
 import ir.ast._
 
 case class MapGlb(dim: Int, override val f: Lambda1)
-  extends AbstractMap(f, "MapGlbl", PosVar("gl_id"))  {
+  extends AbstractMap(f, "MapGlbl", PosVar("gl_id")) with ParallelPattern {
   override def copy(f: Lambda): Pattern = MapGlb(dim, f)
 }
 

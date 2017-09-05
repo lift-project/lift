@@ -153,3 +153,8 @@ object FunDecl {
 trait isGenerable extends FunDecl {
   override val isGenerable = true
 }
+
+/**
+  * A trait to indicated whether the pattern modifies the way the input should write its results.
+  */
+trait ModifyWrite {}

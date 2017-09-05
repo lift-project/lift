@@ -9,7 +9,7 @@ import ir.ast._
  *  - MapLcl(f) => toLocal(MapLcl(f))
  */
 case class MapLcl(dim: Int, override val f: Lambda1)
-extends AbstractMap(f, "MapLcl", PosVar("l_id")) {
+extends AbstractMap(f, "MapLcl", PosVar("l_id")) with ParallelPattern {
   override def copy(f: Lambda): Pattern = MapLcl(dim, f)
   var shouldUnroll = false
   var emitBarrier = true

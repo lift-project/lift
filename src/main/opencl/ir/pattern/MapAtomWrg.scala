@@ -5,7 +5,7 @@ import ir.ast._
 import ir._
 
 case class MapAtomWrg(dim: Int, override val f: Lambda1, workVar: Var)
-extends AbstractMap(f, "MapAtomWrg", PosVar("w_id")) {
+extends AbstractMap(f, "MapAtomWrg", PosVar("w_id")) with ParallelPattern {
   override def copy(f: Lambda): Pattern = MapAtomWrg(dim, f, PosVar("work_idx"))
   var emitBarrier = true
 

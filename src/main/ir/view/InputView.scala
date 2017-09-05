@@ -18,7 +18,11 @@ object InputView {
    *
    * @param expr Expression to build views for
    */
-  def apply(expr: Expr): Unit = visitAndBuildViews(expr)
+  def apply(expr: Expr): Unit = {
+    val itDimNum = ItSpaceDimCount(expr)
+    BuildItVarInfo(expr, itDimNum)
+    visitAndBuildViews(expr)
+  }
 
   private def visitAndBuildViews(expr: Expr): View = {
     val result = expr match {

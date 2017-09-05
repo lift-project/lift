@@ -265,7 +265,7 @@ class TestTiling {
       (matrix) => {
         // Merge the tiles
         Untile2D() o
-        MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)(id)))) o
+        MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1) (id)))) o
           // Transpose the tiles and then the insides of tiles
           Map(Map(Transpose())) o Transpose() o
           // Tile the matrix

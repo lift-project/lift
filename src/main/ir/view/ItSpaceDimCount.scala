@@ -15,22 +15,22 @@ object ItSpaceDimCount {
 
     def prePost(n: IRNode) : (IRNode => Unit) = {
       n match {
-        case FunCall(am:AbstractMap,_) =>
+        case am:AbstractMap =>
           am match {
                 case _: MapWarp | _:MapGlb | _ : MapLcl | _: MapAtomLcl =>
                   lclOrGlbDepth+=1
                   if (lclOrGlbDepth > maxLclOrGlbDepth)
                     maxLclOrGlbDepth = lclOrGlbDepth
-                  (n:IRNode) => {lclOrGlbDepth-=1}
+                  (_) => {lclOrGlbDepth-=1}
                 case _: MapWrg =>
                   wrgDepth+=1
                   if (wrgDepth > maxWrgDepth)
                     maxWrgDepth = wrgDepth
-                  (n:IRNode) => { wrgDepth-=1}
+                  (_) => { wrgDepth-=1}
                 case _ =>
-                   (n:IRNode) => {}
+                   (_) => {}
               }
-        case _=>(n:IRNode) => {}
+        case _=>(_) => {}
       }
     }
 

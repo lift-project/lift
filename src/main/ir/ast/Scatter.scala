@@ -16,7 +16,7 @@ import ir.interpreter.Interpreter.ValueMap
  * @param idx The function to use for reordering
  */
 case class Scatter(idx: IndexFunction) extends Pattern(arity = 1)
-                                       with isGenerable {
+                                       with isGenerable with ModifyWrite {
 
   override def checkType(argType: Type, setType: Boolean): Type = {
     // Scatter expects an array
