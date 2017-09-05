@@ -195,8 +195,7 @@ class TestCNN {
           //noinspection ConvertibleToMethodValue
           initParams = Conv.InitParameters(1, Conv.Par(_, _, _, _, _, _, _), nn.ReLU,
             optParams = convConfig(1).optParams,
-            inputShape = Shape(nBatches = inputConfig.nBatches, nInputs = inputConfig.nInputs,
-              size = inputConfig.imageSize, nChannels = e.nChannels),
+            inputShape = aCNN.convLayers(0).outputShape.copy(),
             dim = convConfig(1).dim, kernelStride)
           aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
           aCNN.convLayers(1) = aCNN.layers(currentLayer).asInstanceOf[Conv]
