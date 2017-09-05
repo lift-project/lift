@@ -127,8 +127,6 @@ class TestRewriteGesummv {
     // Won't write to accumulator without this
     val f18 = Rewrite.applyRuleAtId(f17, 17, Rules.tupleToStruct)
 
-
-
     val (y: Array[Float], _) = Execute(n)(f18, A, B, x, alpha, beta)
 
     assertArrayEquals(yGold, y, 0.001f)
@@ -140,6 +138,13 @@ class TestRewriteGesummv {
     val f1 = SimplifyAndFuse.withoutPreventingFurtherOptimisation(f0)
 
     println(NumberPrinter(f1))
+
+    val f2 = Rewrite.applyRuleAtId(f1, 1, Rules.splitJoin(64))
+    val f3 = Rewrite.applyRuleAtId(f2, 7, MacroRules.interchange)
+    val f4 = Rewrite.applyRuleAtId(f3, 10, MacroRules.introduceReuseFromMap(64))
+//    val f5 = Rewrite.applyRuleAtId(f4, 13, MacroRules.introduceReuseFromMap(64))
+//    println(f5)
+//    println(NumberPrinter(f4))
   }
 
 }

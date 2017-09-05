@@ -865,7 +865,10 @@ object MacroRules {
         val newMapCall = Utils.getExprForPatternInCallChain(fissioned, mapPattern).get
 
         TypeChecker.check(fissioned)
-        Expr.replace(fissioned, newMapCall, transpose(newMapCall))
+        if (transpose.isDefinedAt(newMapCall))
+          Expr.replace(fissioned, newMapCall, transpose(newMapCall))
+        else
+          throw new NotImplementedError()
       }
   })
 
