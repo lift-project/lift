@@ -8,19 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit._
 
-
-object TestStencilPPCG {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestStencilPPCG extends TestWithExecutor
 
 class TestStecilPPCG {
 

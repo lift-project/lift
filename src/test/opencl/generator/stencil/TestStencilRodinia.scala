@@ -9,25 +9,14 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 import rewriting.SimplifyAndFuse
 
 import scala.collection.immutable
 import scala.io.Source
 import scala.util.Random
 
-object TestStencilRodinia {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestStencilRodinia extends TestWithExecutor
 
 object HotSpotConstants {
 
@@ -66,9 +55,6 @@ object HotSpotConstants {
   val cb = ct
 
   val cc = 1.0f - (2.0f * ce + 2.0f * cn + 3.0f * ct)
-
-
-
 
 }
 

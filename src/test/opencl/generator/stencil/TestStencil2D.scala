@@ -13,18 +13,7 @@ import org.junit._
 
 import scala.util.Random
 
-object TestStencil2D {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestStencil2D extends TestWithExecutor
 
 class TestStencil2D {
     /* **********************************************************
