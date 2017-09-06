@@ -4,7 +4,7 @@ import ir._
 import ir.ast._
 import opencl.ir._
 import lift.arithmetic.SizeVar
-import opencl.executor.TestWithExecutor
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Test
 import org.junit.Assert._
@@ -122,9 +122,6 @@ class TestInterchange {
 
   @Test
   def mapReduceInterchange0(): Unit = {
-    val N = SizeVar("N")
-    val M = SizeVar("M")
-
     val f = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Map(Reduce(add, 0.0f)) $ input
     )
@@ -137,9 +134,6 @@ class TestInterchange {
 
   @Test
   def mapReduceInterchange1(): Unit = {
-    val N = SizeVar("N")
-    val M = SizeVar("M")
-
     val f = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       input => Map(ReduceSeq(add, 0.0f)) $ input
     )
@@ -153,12 +147,91 @@ class TestInterchange {
   @Test
   def mapReduceInterchangeWithZipOutside0(): Unit = {
     // TODO: Reduce
-
   }
 
   @Test
   def mapReduceInterchangeWithZipOutside1(): Unit = {
     // TODO: ReduceSeq
+  }
 
+  @Test
+  def mapMapZipInsideUsedTwice(): Unit = {
+    val inputSize = 256
+    val input = Array.tabulate(inputSize, inputSize)((_, _) => util.Random.nextFloat())
+
+    val f = fun(
+      ArrayType(ArrayType(Float, N), M),
+      in1 =>
+        Map(fun(y =>
+          Map(fun(x =>
+            Map(fun(x =>
+              add(Get(x, 0), Get(x, 1))
+            )) $ Zip(Get(x, 0), Get(x, 1))
+          )) $ y
+        )) o Split(256) $ Zip(in1, in1)
+    )
+
+    val g = fun(
+      ArrayType(ArrayType(Float, N), M),
+      in1 =>
+        Map(fun(y =>
+          TransposeW() o
+          Map(fun(x =>
+            Map(fun(x =>
+              add(Get(x, 0), Get(x, 1))
+            )) $ Zip(Get(x, 0), Get(x, 1))
+          )) $ Zip(Transpose() o Map(Get(0)) $ y, Transpose() o Map(Get(1)) $ y)
+        )) o Split(256) $ Zip(in1, in1)
+    )
+
+    val loweredF = Rewrite.applyRuleUntilCannot(f, Rules.mapSeq)
+    val (outputF: Array[Float], _) = Execute()(loweredF, input)
+
+    val loweredG = Rewrite.applyRuleUntilCannot(g, Rules.mapSeq)
+    val (outputG: Array[Float], _) = Execute()(loweredG, input)
+
+    assertArrayEquals(outputF, outputG, 0.001f)
+  }
+
+  @Test
+  def mapMapZipInsideUsedTwicePlusExtra(): Unit = {
+    val inputSize = 256
+    val inputMatrix = Array.tabulate(inputSize, inputSize)((_, _) => util.Random.nextFloat())
+    val inputArray = Array.tabulate(inputSize)(_ => util.Random.nextFloat())
+
+    val f = fun(
+      ArrayType(ArrayType(Float, N), M),
+      ArrayType(Float, N),
+      (matrix, array) =>
+        Map(fun(y =>
+          Map(fun(x =>
+            Map(fun(x =>
+              add(Get(x, 0), mult(Get(x, 1), Get(x, 2)))
+            )) $ Zip(Get(x, 0), Get(x, 1), array)
+          )) $ y
+        )) o Split(256) $ Zip(matrix, matrix)
+    )
+
+    val g = fun(
+      ArrayType(ArrayType(Float, N), M),
+      ArrayType(Float, N),
+      (matrix, array) =>
+        Map(fun(y =>
+          TransposeW() o
+          Map(fun(outX =>
+            Map(fun(x =>
+              add(Get(x, 0), mult(Get(x, 1), Get(outX, 2)))
+            )) $ Zip(Get(outX, 0), Get(outX, 1))
+          )) $ Zip(Transpose() o Map(Get(0)) $ y, Transpose() o Map(Get(1)) $ y, array)
+        )) o Split(256) $ Zip(matrix, matrix)
+    )
+
+    val loweredF = Rewrite.applyRuleUntilCannot(f, Rules.mapSeq)
+    val (outputF: Array[Float], _) = Execute()(loweredF, inputMatrix, inputArray)
+
+    val loweredG = Rewrite.applyRuleUntilCannot(g, Rules.mapSeq)
+    val (outputG: Array[Float], _) = Execute()(loweredG, inputMatrix, inputArray)
+
+    assertArrayEquals(outputF, outputG, 0.001f)
   }
 }

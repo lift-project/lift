@@ -48,6 +48,9 @@ object Rewrite {
     replacedInExpr
   }
 
+  def applyRuleUntilCannot(lambda: Lambda, rule: Rule): Lambda =
+    applyRulesUntilCannot(lambda, Seq(rule))
+
   /**
     * Apply rules one by one until no rules apply anymore
     *
