@@ -1,22 +1,11 @@
 package opencl.generator
 
 import benchmarks.DbSelect
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, LoadExecutor}
 import org.junit.Assert.assertArrayEquals
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestDbSelect {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-  
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestDbSelect extends LoadExecutor
 
 class TestDbSelect {
   // As long as junit is not able to compare of objects of type

@@ -4,7 +4,7 @@ import benchmarks.MatrixTransposition
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, Utils}
+import opencl.executor.{Execute, Executor, LoadExecutor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -12,18 +12,7 @@ import org.junit.{AfterClass, BeforeClass, Test}
 
 import scala.util.Random
 
-object TestTranspose {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestTranspose extends LoadExecutor
 
 class TestTranspose {
 

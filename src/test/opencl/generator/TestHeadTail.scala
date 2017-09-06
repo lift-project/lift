@@ -7,21 +7,9 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestHeadTail {
-  @BeforeClass def TestMatrixBasic(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
-
+object TestHeadTail extends LoadExecutor
 
 class TestHeadTail {
 

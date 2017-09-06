@@ -10,13 +10,7 @@ import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
 
-object TestExecute {
-  @BeforeClass def before(): Unit =
-    Executor.loadAndInit()
-
-  @AfterClass def after(): Unit =
-    Executor.shutdown()
-}
+object TestExecute extends LoadExecutor
 
 class TestExecute {
 

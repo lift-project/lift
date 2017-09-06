@@ -4,24 +4,13 @@ import benchmarks.{BlackScholes, DotProduct, MolecularDynamics}
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Execute, LoadExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert.{assertEquals, _}
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestBenchmark {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestBenchmark extends LoadExecutor
 
 class TestBenchmark {
 

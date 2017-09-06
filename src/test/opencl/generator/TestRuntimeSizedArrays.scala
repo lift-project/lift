@@ -1,25 +1,15 @@
 package opencl.generator
 
-import ir.{ArrayTypeWSWC, RuntimeSizedArrayType}
 import ir.ast.fun
+import ir.{ArrayTypeWSWC, RuntimeSizedArrayType}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, LoadExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 
-object TestRuntimeSizedArrays {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestRuntimeSizedArrays extends LoadExecutor
 
 class TestRuntimeSizedArrays {
 

@@ -4,20 +4,9 @@ import benchmarks.DotProduct
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestDotProduct {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestDotProduct extends LoadExecutor
 
 class TestDotProduct {
 

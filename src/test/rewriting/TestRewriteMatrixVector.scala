@@ -7,18 +7,9 @@ import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestRewriteMatrixVector {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object TestRewriteMatrixVector extends LoadExecutor
 
 class TestRewriteMatrixVector {
 

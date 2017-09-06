@@ -3,24 +3,13 @@ package opencl.generator
 import ir.ast.{Gather, Join, Split, Tuple, UserFun, Zip, fun, shiftRight}
 import ir.{ArrayTypeWSWC, TupleType}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, LoadExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert.{assertArrayEquals, assertEquals}
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestDbQueries {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-  
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestDbQueries extends LoadExecutor
 
 /**
  * Some tests covering the basic features of our SQL queries.

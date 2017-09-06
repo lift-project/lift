@@ -8,20 +8,11 @@ import opencl.executor._
 import opencl.ir.pattern.{MapGlb, MapLcl, MapWrg, ReduceSeq, _}
 import opencl.ir.{Float4, _}
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
 import scala.language.reflectiveCalls
 
-object TestInterpreter {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object TestInterpreter extends LoadExecutor
 
 class TestInterpreter {
 

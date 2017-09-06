@@ -1,27 +1,16 @@
 package opencl.generator
 
-import ir.{ArrayType, ArrayTypeWC, ArrayTypeWSWC, TypeChecker}
 import ir.ast.{Join, fun}
+import ir.{ArrayType, ArrayTypeWC, ArrayTypeWSWC, TypeChecker}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Execute, LoadExecutor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
-import org.junit.{AfterClass, BeforeClass, Test}
 import org.junit.Assert.{assertArrayEquals, assertEquals}
+import org.junit.Test
 
 
-object TestArray {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-  
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestArray extends LoadExecutor
 
 class TestArray {
   /**

@@ -3,7 +3,7 @@ package prog_gen
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, LoadExecutor}
 import opencl.ir._
 import org.junit.Assert._
 import org.junit._
@@ -11,15 +11,7 @@ import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
 
-object ProgGenFinishedIssue {
-  @BeforeClass
-  def before(): Unit =
-    Executor.loadAndInit()
-
-  @AfterClass
-  def after(): Unit =
-    Executor.shutdown()
-}
+object ProgGenFinishedIssue extends LoadExecutor
 
 class ProgGenFinishedIssue {
 

@@ -4,23 +4,14 @@ import benchmarks.{GEMM, MatrixMultiplication}
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, Utils}
+import opencl.executor.{Execute, LoadExecutor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object Reuse {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object Reuse extends LoadExecutor
 
 class Reuse {
 

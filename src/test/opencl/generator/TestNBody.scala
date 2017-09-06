@@ -4,26 +4,14 @@ import benchmarks.NBody
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, Utils}
-import opencl.generator.TestNBody._
+import opencl.executor.{Execute, LoadExecutor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 
-object TestNBody {
-
-  @BeforeClass
-  def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass
-  def after(): Unit = {
-    Executor.shutdown()
-  }
+object TestNBody extends LoadExecutor {
 
   def nBodyScala(deltaT: Float, espSqr: Float, input: Array[(Float, Float, Float, Float, Float, Float, Float)]): Array[Float] = {
     val gold = input.map(x => {
@@ -98,6 +86,9 @@ object TestNBody {
 }
 
 class TestNBody {
+
+  import opencl.generator.TestNBody._
+
   @Test
   def nBodyAMD(): Unit = {
 

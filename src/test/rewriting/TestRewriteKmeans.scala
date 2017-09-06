@@ -2,23 +2,14 @@ package rewriting
 
 import ir._
 import ir.ast._
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, LoadExecutor}
 import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit._
 import rodinia.Kmeans._
 
-object TestRewriteKmeans {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object TestRewriteKmeans extends LoadExecutor
 
 class TestRewriteKmeans {
 

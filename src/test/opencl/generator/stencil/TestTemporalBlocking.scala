@@ -7,20 +7,9 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 
-object TestTemporalBlocking {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestTemporalBlocking extends LoadExecutor
 
 class TestTemporalBlocking {
   /* **********************************************************

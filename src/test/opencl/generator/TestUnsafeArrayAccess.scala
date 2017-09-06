@@ -7,22 +7,9 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestUnsafeArrayAccess {
-  @BeforeClass def TestUnsafeArrayAccess() {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after() {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
-
-
+object TestUnsafeArrayAccess extends LoadExecutor
 
 class TestUnsafeArrayAccess {
   @Test def TEST_ACCESS() : Unit = {

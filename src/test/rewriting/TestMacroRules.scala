@@ -3,23 +3,14 @@ package rewriting
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.Executor
+import opencl.executor.LoadExecutor
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 import rewriting.utils.NumberExpression
 
-object TestMacroRules {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object TestMacroRules extends LoadExecutor
 
 class TestMacroRules {
 

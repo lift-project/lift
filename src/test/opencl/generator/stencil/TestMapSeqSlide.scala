@@ -1,30 +1,16 @@
 package opencl.generator.stencil
 
-import ir.{ArrayTypeWSWC}
-import ir.ast.{Get, Slide, Zip, fun}
-import lift.arithmetic.{SizeVar}
+import ir.ArrayTypeWSWC
+import ir.ast.{Get, Slide, Zip, fun, _}
+import lift.arithmetic.SizeVar
 import opencl.executor._
-import org.junit.{AfterClass, BeforeClass}
-import org.junit.Assert._
-import org.junit._
-import opencl.ir.pattern._
-import ir.ast._
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
+import opencl.ir.pattern._
+import org.junit.Assert._
+import org.junit._
 
-object TestMapSeqSlide
-{
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestMapSeqSlide extends LoadExecutor
 
 object MapSeqSlideHelpers
 {
