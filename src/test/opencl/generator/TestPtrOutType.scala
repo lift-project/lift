@@ -7,14 +7,13 @@ import lift.arithmetic.SizeVar
 import opencl.executor.Compile
 import opencl.ir.pattern.{MapGlb, MapSeq}
 import opencl.ir.{Float, id, tf_id}
-import org.junit.Test
+import org.junit.{Ignore, Test}
 import org.junit.Assert._
 
 
 class TestPtrOutType {
 
-
-  @Test def zip(): Unit = {
+  @Ignore @Test def zip(): Unit = {
 
     val N = SizeVar("N")
 
@@ -39,7 +38,7 @@ class TestPtrOutType {
     assertEquals(ArrayType(Float, N), idFC1.outPtrType)
   }
 
-  @Test def transposeW(): Unit = {
+  @Ignore @Test def transposeW(): Unit = {
 
     val M = SizeVar("M")
     val N = SizeVar("N")
