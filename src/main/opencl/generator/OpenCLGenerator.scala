@@ -1015,17 +1015,15 @@ class OpenCLGenerator extends Generator {
     varDecls = varDecls.updated(i.vPtrIn, Type.devectorize(call.t))
     varDecls = varDecls.updated(i.vPtrOut, Type.devectorize(call.t))
 
-    // ADDRSPC TYPE tin = in;
+    // ADDRSPC TYPE ptrIn = in;
     (block: Block) += OpenCLAST.VarDecl(i.vPtrIn, Type.devectorize(call.t),
       OpenCLAST.VarRef(inputMem.variable),
       outputMem.addressSpace)
 
-    val range = i.indexVar.range.asInstanceOf[RangeAdd]
-
     // ADDRSPC TYPE tin = (odd ? out : swap);
     (block: Block) += OpenCLAST.VarDecl(i.vPtrOut, Type.devectorize(call.t),
       init = OpenCLAST.ArithExpression(
-        ((range.numVals % 2) ne Cst(0)) ?? outputMem.variable !! swapMem.variable),
+        ((i.n % 2) ne Cst(0)) ?? outputMem.variable !! swapMem.variable),
       addressSpace = outputMem.addressSpace)
 
     generateForLoop(block, call.args.head, i.indexVar, (b) => {
