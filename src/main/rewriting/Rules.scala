@@ -1066,6 +1066,72 @@ object Rules {
     }
   }
 
+  val flattenZips = Rule("", {
+    case call@FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), zipArgs@_*))
+      if zipArgs.exists({
+        case FunCall(Zip(_), _*) => true
+        case _ => false
+      })  && !(p eq body) &&
+        {
+          val (zips, _) = zipArgs.zipWithIndex.partition({
+            case (FunCall(Zip(_), _*), _) => true
+            case _ => false
+          })
+
+          // If the zip result is used, it must be in a get
+          val nonZipsUsedCorrectly = !body.contains({
+            case FunCall(f, args@_*) if args.exists(_ eq p) && !f.isInstanceOf[Get] =>
+          })
+
+          val zipsUsedCorrectly = zips.map(_._2).forall(id => {
+
+            // If this component is used, it must have a second get around it
+            val thisZipUsages = Utils.collect(body, {
+              case FunCall(Get(actual_id), arg) if actual_id == id && (p eq arg) => })
+
+            thisZipUsages.forall(zipUse =>
+              body.contains({ case FunCall(Get(_), arg) if zipUse eq arg => }))
+          })
+
+          nonZipsUsedCorrectly && zipsUsedCorrectly
+        }
+    =>
+
+      val newArgs = zipArgs.flatMap({
+        case FunCall(Zip(_), args@_*) => args
+        case other => Seq(other)
+      })
+
+      val sizes = zipArgs.map({
+        case FunCall(Zip(n), _*) => n
+        case _ => 1
+      })
+
+      val starts = sizes.scan(0)(_+_)
+
+      val newParam = Param()
+
+      val oldGets = Utils.collect(body, { case FunCall(Get(_), arg) if arg eq p => })
+      val oldGetsToNestedZip = Utils.collect(body, { case FunCall(Get(_), FunCall(Get(_), arg)) if arg eq p => })
+
+      val nestedGetIds = oldGetsToNestedZip.map({ case FunCall(Get(id2), FunCall(Get(id1), _)) => (id1, id2) })
+      val nonNestedGetIds = oldGets.map({ case FunCall(Get(id1), _) => id1 })
+
+      val newNestedIds = nestedGetIds.map(pair => starts(pair._1) + pair._2)
+      val newNonNestedIds = nonNestedGetIds.map(starts(_))
+
+      // Replace nested first
+      val newBody = (oldGetsToNestedZip ++ oldGets, newNestedIds ++ newNonNestedIds).zipped.foldLeft(body)(
+        (currentBody, pair) => {
+          val oldGet = pair._1
+          val newId = pair._2
+          Expr.replace(currentBody, oldGet, Get(newParam, newId))
+        })
+
+
+     Map(Lambda(Array(newParam), newBody)) $ Zip(newArgs:_*)
+  })
+
   val transposeMapTransposeReorder =
     Rule("Map(Gather(f) o Transpose()) o Transpose() => " +
          " Map(Transpose()) o Transpose() o Map(Map(Gather(f)))", {

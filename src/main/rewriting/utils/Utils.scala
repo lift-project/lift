@@ -121,6 +121,15 @@ object Utils {
     })
   }
 
+  def collect(expr: Expr, pattern: PartialFunction[Expr, Unit]): List[Expr] = {
+    Expr.visitWithState(List[Expr]())(expr, (e, s) => {
+      e match {
+        case currentExpr if pattern.isDefinedAt(currentExpr) => currentExpr :: s
+        case _ => s
+      }
+    })
+  }
+
   def getLengthOfSecondDim(t: Type) = t match {
     case ArrayType(ArrayTypeWS(_, m)) => m
     case _ => throw new TypeException(t, "ArrayType(ArrayType(), _)", null)
