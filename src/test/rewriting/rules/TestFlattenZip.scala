@@ -86,6 +86,46 @@ class TestFlattenZip {
   }
 
   @Test
+  def subZipUsedInLambda(): Unit = {
+    val f = \(
+      t, t, t,
+      (x,y,z) => Map(\(p =>
+        Tuple(\(x =>
+          mult(Get(x, 0), Get(x, 1))) $ Get(p, 1),
+          Get(p, 0))
+      )) $ Zip(x, Zip(y, z))
+    )
+
+    val origType = TypeChecker(f)
+    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+
+    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val resultType = TypeChecker(result)
+
+    assertEquals(origType, resultType)
+  }
+
+  @Test
+  def subZipUsedInLambda2LambdaInlined(): Unit = {
+    val f = \(
+      t, t, t,
+      (x,y,z) => Map(\(p =>
+        Tuple(
+          mult(Get(Get(p, 1), 0), Get(Get(p, 1), 1)),
+          Get(p, 0))
+      )) $ Zip(x, Zip(y, z))
+    )
+
+    val origType = TypeChecker(f)
+    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+
+    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val resultType = TypeChecker(result)
+
+    assertEquals(origType, resultType)
+  }
+
+  @Test
   def someUsed(): Unit = {
     val f = \(
       t, t, t,
