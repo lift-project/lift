@@ -2,7 +2,7 @@ package opencl.executor
 
 import org.junit.{AfterClass, BeforeClass}
 
-trait LoadExecutor {
+trait TestWithExecutor {
   @BeforeClass
   def before(): Unit =
     Executor.loadAndInit()

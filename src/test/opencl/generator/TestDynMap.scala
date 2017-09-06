@@ -9,7 +9,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 
-object TestDynMap extends LoadExecutor
+object TestDynMap extends TestWithExecutor
 
 class TestDynMap {
   @Test def FLAT_MAPS() : Unit = {

@@ -248,7 +248,7 @@ object StencilUtilities
   }
 }
 
-object TestAcousticStencils extends LoadExecutor
+object TestAcousticStencils extends TestWithExecutor
 
 class TestAcousticStencils {
 

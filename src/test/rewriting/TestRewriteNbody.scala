@@ -5,14 +5,14 @@ import exploration.{ExpressionFilter, ParameterRewrite}
 import ir._
 import ir.ast._
 import lift.arithmetic.ArithExpr
-import opencl.executor.{Execute, LoadExecutor, Utils}
+import opencl.executor.{Execute, TestWithExecutor, Utils}
 import opencl.generator.TestNBody._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
 
-object TestRewriteNbody extends LoadExecutor
+object TestRewriteNbody extends TestWithExecutor
 
 class TestRewriteNbody {
 

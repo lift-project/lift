@@ -16,7 +16,7 @@ import scala.collection.immutable
 import scala.io.Source
 import scala.util.Random
 
-object TestStencilRodinia extends LoadExecutor
+object TestStencilRodinia extends TestWithExecutor
 
 object HotSpotConstants {
 

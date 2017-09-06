@@ -117,7 +117,7 @@ object BoundaryUtilities
 
 }
 
-object TestAcousticStencilBoundaries extends LoadExecutor
+object TestAcousticStencilBoundaries extends TestWithExecutor
 
 class TestAcousticStencilBoundaries {
 

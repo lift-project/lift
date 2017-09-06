@@ -13,7 +13,7 @@ import org.junit._
 
 import scala.util.Random
 
-object TestStencil2D extends LoadExecutor
+object TestStencil2D extends TestWithExecutor
 
 class TestStencil2D {
     /* **********************************************************

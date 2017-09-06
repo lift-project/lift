@@ -3,14 +3,14 @@ package opencl.generator
 import ir.ast.{Join, fun}
 import ir.{ArrayType, ArrayTypeWC, ArrayTypeWSWC, TypeChecker}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, LoadExecutor}
+import opencl.executor.{Compile, Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import org.junit.Assert.{assertArrayEquals, assertEquals}
 import org.junit.Test
 
 
-object TestArray extends LoadExecutor
+object TestArray extends TestWithExecutor
 
 class TestArray {
   /**

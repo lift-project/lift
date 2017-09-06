@@ -4,14 +4,14 @@ import benchmarks.NBody
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, LoadExecutor, Utils}
+import opencl.executor.{Execute, TestWithExecutor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit.{Ignore, Test}
 
-object TestNBody extends LoadExecutor {
+object TestNBody extends TestWithExecutor {
 
   def nBodyScala(deltaT: Float, espSqr: Float, input: Array[(Float, Float, Float, Float, Float, Float, Float)]): Array[Float] = {
     val gold = input.map(x => {

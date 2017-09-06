@@ -4,7 +4,7 @@ import org.junit.Assert._
 import org.junit.Test
 
 
-object TestEval extends LoadExecutor
+object TestEval extends TestWithExecutor
 
 class TestEval {
 

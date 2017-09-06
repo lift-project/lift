@@ -12,7 +12,7 @@ import org.junit.Assume.assumeFalse
 import org.junit._
 import rewriting.utils.NumberExpression
 
-object TestRewriteMatrixMatrix extends LoadExecutor
+object TestRewriteMatrixMatrix extends TestWithExecutor
 
 class TestRewriteMatrixMatrix {
 

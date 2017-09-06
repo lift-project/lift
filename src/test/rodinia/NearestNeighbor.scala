@@ -8,7 +8,7 @@ import opencl.ir.Float
 import opencl.ir.pattern.MapGlb
 import org.junit.Test
 
-object NearestNeighbor extends LoadExecutor
+object NearestNeighbor extends TestWithExecutor
 
 class NearestNeighbor {
   @Test

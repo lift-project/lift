@@ -1,11 +1,11 @@
 package opencl.generator
 
 import benchmarks.DbSelect
-import opencl.executor.{Execute, LoadExecutor}
+import opencl.executor.{Execute, TestWithExecutor}
 import org.junit.Assert.assertArrayEquals
 import org.junit.Test
 
-object TestDbSelect extends LoadExecutor
+object TestDbSelect extends TestWithExecutor
 
 class TestDbSelect {
   // As long as junit is not able to compare of objects of type

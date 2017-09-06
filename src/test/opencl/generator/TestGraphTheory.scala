@@ -14,7 +14,7 @@ import org.junit.{Ignore, Test}
 import scala.language.postfixOps
 import scala.sys.process._
 
-object TestGraphTheory extends LoadExecutor
+object TestGraphTheory extends TestWithExecutor
 
 class TestGraphTheory {
 

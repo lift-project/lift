@@ -3,7 +3,7 @@ package prog_gen
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter
-import opencl.executor.{Eval, Execute, LoadExecutor}
+import opencl.executor.{Eval, Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 import org.junit.Assert._
@@ -12,7 +12,7 @@ import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
 
-object ProgGenIssues extends LoadExecutor
+object ProgGenIssues extends TestWithExecutor
 
 class ProgGenIssues{
 

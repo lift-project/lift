@@ -9,7 +9,7 @@ import org.junit.Assert._
 import org.junit.Test
 import rewriting.utils.NumberExpression
 
-object TestRewriteStencil extends LoadExecutor
+object TestRewriteStencil extends TestWithExecutor
 
 class TestRewriteStencil {
 

@@ -3,14 +3,14 @@ package rewriting
 import ir._
 import ir.ast._
 import lift.arithmetic.{RangeMul, SizeVar, Var}
-import opencl.executor.{Execute, LoadExecutor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.ast._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
 
-object TestRules extends LoadExecutor
+object TestRules extends TestWithExecutor
 
 class TestRules {
 

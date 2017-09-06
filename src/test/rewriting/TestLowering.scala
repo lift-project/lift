@@ -3,12 +3,12 @@ package rewriting
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.LoadExecutor
+import opencl.executor.TestWithExecutor
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
 
-object TestLowering extends LoadExecutor
+object TestLowering extends TestWithExecutor
 
 class TestLowering {
 

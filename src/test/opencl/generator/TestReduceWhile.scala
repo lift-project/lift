@@ -9,7 +9,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 
-object TestReduceWhile extends LoadExecutor
+object TestReduceWhile extends TestWithExecutor
 
 class TestReduceWhile {
 

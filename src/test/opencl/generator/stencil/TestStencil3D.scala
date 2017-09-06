@@ -9,7 +9,7 @@ import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
 import org.junit._
 
-object TestStencil3D extends LoadExecutor
+object TestStencil3D extends TestWithExecutor
 
 class TestStencil3D{
 

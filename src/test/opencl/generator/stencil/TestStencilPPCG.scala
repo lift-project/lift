@@ -8,7 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit._
 
-object TestStencilPPCG extends LoadExecutor
+object TestStencilPPCG extends TestWithExecutor
 
 class TestStecilPPCG {
 

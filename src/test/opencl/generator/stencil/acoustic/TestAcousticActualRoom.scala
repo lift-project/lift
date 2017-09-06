@@ -12,7 +12,7 @@ import rewriting.SimplifyAndFuse
 
 import scala.language.implicitConversions
 
-object TestAcousticActualRoom extends LoadExecutor
+object TestAcousticActualRoom extends TestWithExecutor
 
 object RoomConstants {
 

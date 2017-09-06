@@ -10,7 +10,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 
-object TestReduce extends LoadExecutor
+object TestReduce extends TestWithExecutor
 
 class TestReduce {
 

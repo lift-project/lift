@@ -9,7 +9,7 @@ import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
 
-object TestRewriteMatrixVector extends LoadExecutor
+object TestRewriteMatrixVector extends TestWithExecutor
 
 class TestRewriteMatrixVector {
 

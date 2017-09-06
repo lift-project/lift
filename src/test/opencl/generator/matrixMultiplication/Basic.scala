@@ -3,13 +3,13 @@ package opencl.generator.matrixMultiplication
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, LoadExecutor, Utils}
+import opencl.executor.{Execute, TestWithExecutor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
 
-object Basic extends LoadExecutor
+object Basic extends TestWithExecutor
 
 class Basic {
 

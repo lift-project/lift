@@ -10,7 +10,7 @@ import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit.{Ignore, Test}
 
-object TestConvolutionSeparable extends LoadExecutor
+object TestConvolutionSeparable extends TestWithExecutor
 
 class TestConvolutionSeparable {
 

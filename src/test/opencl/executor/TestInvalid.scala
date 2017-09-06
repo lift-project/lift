@@ -14,7 +14,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeFalse
 import org.junit._
 
-object TestInvalid extends LoadExecutor
+object TestInvalid extends TestWithExecutor
 
 class TestInvalid {
   // Dummy user function

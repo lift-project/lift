@@ -3,14 +3,14 @@ package opencl.generator
 import ir.ArrayTypeWSWC
 import ir.ast.{Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromGenerator, ArrayFromUserFunGenerator, ArrayFromValue, Split, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, LoadExecutor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.generator.OpenCLAST.ArithExpression
 import opencl.ir.pattern.{MapGlb, MapSeq, toGlobal}
 import opencl.ir.{Float, FloatToValue, Int, IntToValue, add, id}
 import org.junit.Assert.assertArrayEquals
 import org.junit.Test
 
-object ArrayGenerators extends LoadExecutor
+object ArrayGenerators extends TestWithExecutor
 
 class ArrayGenerators {
   @Test

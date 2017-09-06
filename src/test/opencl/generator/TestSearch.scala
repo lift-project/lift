@@ -9,7 +9,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
 
-object TestSearch extends LoadExecutor
+object TestSearch extends TestWithExecutor
 
 class TestSearch {
   @Ignore @Test def SPLIT_TO_PRIVATE() : Unit = {

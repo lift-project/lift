@@ -10,7 +10,7 @@ import org.junit.Assert._
 import org.junit.Test
 import rewriting.{MacroRules, Rewrite, Rules}
 
-object GettingStarted extends LoadExecutor
+object GettingStarted extends TestWithExecutor
 
 class GettingStarted {
   /**

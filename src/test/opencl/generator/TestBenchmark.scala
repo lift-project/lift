@@ -4,13 +4,13 @@ import benchmarks.{BlackScholes, DotProduct, MolecularDynamics}
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, LoadExecutor}
+import opencl.executor.{Compile, Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert.{assertEquals, _}
 import org.junit.Test
 
-object TestBenchmark extends LoadExecutor
+object TestBenchmark extends TestWithExecutor
 
 class TestBenchmark {
 

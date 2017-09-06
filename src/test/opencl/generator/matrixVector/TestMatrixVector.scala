@@ -12,7 +12,7 @@ import org.junit.Assert._
 import org.junit.Test
 import rewriting.utils.ScalaPrinter
 
-object TestMatrixVector extends LoadExecutor
+object TestMatrixVector extends TestWithExecutor
 
 class TestMatrixVector {
 

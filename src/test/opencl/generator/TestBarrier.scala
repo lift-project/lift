@@ -10,7 +10,7 @@ import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit.{Ignore, Test}
 
-object TestBarrier extends LoadExecutor
+object TestBarrier extends TestWithExecutor
 
 class TestBarrier {
   @Test def basicBarrier(): Unit = {

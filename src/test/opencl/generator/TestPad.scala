@@ -9,7 +9,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 
-object TestPad extends LoadExecutor
+object TestPad extends TestWithExecutor
 
 class TestPad {
   import ir.ast.Pad.Boundary._

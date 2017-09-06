@@ -3,13 +3,13 @@ package opencl.generator
 import ir.ArrayTypeWSWC
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, LoadExecutor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq}
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
 
-object TestTail extends LoadExecutor
+object TestTail extends TestWithExecutor
 
 class TestTail {
   @Test

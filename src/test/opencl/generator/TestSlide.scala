@@ -15,7 +15,7 @@ import org.junit.{Ignore, Test}
 
 import scala.util.Random
 
-object TestSlide extends LoadExecutor
+object TestSlide extends TestWithExecutor
 
 class TestSlide {
 

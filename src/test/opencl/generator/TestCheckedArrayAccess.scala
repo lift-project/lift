@@ -9,7 +9,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
 
-object TestCheckedArrayAccess extends LoadExecutor
+object TestCheckedArrayAccess extends TestWithExecutor
 
 class TestCheckedArrayAccess {
   @Test def TEST_ACCESS() : Unit = {

@@ -11,7 +11,7 @@ import org.junit.{Ignore, Test}
 
 import scala.util.Random
 
-object TestHarrisCornerDetection extends LoadExecutor
+object TestHarrisCornerDetection extends TestWithExecutor
 
 /**
   * Tests computation stages of the harris corner detection application.

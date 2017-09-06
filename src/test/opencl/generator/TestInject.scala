@@ -3,13 +3,13 @@ package opencl.generator
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, LoadExecutor, Utils}
+import opencl.executor.{Compile, TestWithExecutor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
 
-object TestInject extends LoadExecutor
+object TestInject extends TestWithExecutor
 
 class TestInject {
 

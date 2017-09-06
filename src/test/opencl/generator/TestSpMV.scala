@@ -11,7 +11,7 @@ import org.junit.{Ignore, Test}
 
 import scala.reflect.ClassTag
 
-object TestSpMV extends LoadExecutor
+object TestSpMV extends TestWithExecutor
 
 class TestSpMV {
   val t_id = UserFun("tuple_id", "x", "return x;", TupleType(Int, Int), TupleType(Int, Int))

@@ -5,14 +5,13 @@ import ir._
 import ir.ast._
 import lift.arithmetic.{?, ArithExpr, Cst, SizeVar}
 import opencl.executor._
-import opencl.generator.OpenCLAST.ArithExpression
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 import rewriting.InferNDRange
 
-object TestMisc extends LoadExecutor
+object TestMisc extends TestWithExecutor
 
 class TestMisc {
 

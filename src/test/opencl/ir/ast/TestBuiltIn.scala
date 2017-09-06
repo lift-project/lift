@@ -3,13 +3,13 @@ package opencl.ir.ast
 import ir.ArrayTypeWSWC
 import ir.ast.{\, asVector}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, LoadExecutor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern.MapGlb
 import org.junit.Assert._
 import org.junit.Test
 
-object TestBuiltIn extends LoadExecutor
+object TestBuiltIn extends TestWithExecutor
 
 class TestBuiltIn {
 

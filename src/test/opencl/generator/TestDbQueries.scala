@@ -3,13 +3,13 @@ package opencl.generator
 import ir.ast.{Gather, Join, Split, Tuple, UserFun, Zip, fun, shiftRight}
 import ir.{ArrayTypeWSWC, TupleType}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, LoadExecutor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert.{assertArrayEquals, assertEquals}
 import org.junit.Test
 
-object TestDbQueries extends LoadExecutor
+object TestDbQueries extends TestWithExecutor
 
 /**
  * Some tests covering the basic features of our SQL queries.

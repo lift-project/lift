@@ -10,7 +10,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 
-object TestMapSeqSlide extends LoadExecutor
+object TestMapSeqSlide extends TestWithExecutor
 
 object MapSeqSlideHelpers
 {

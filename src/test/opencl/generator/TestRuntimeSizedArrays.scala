@@ -3,13 +3,13 @@ package opencl.generator
 import ir.ast.fun
 import ir.{ArrayTypeWSWC, RuntimeSizedArrayType}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, LoadExecutor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
 
-object TestRuntimeSizedArrays extends LoadExecutor
+object TestRuntimeSizedArrays extends TestWithExecutor
 
 class TestRuntimeSizedArrays {
 

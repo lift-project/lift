@@ -10,7 +10,7 @@ import org.junit.Assert._
 import org.junit.Assume._
 import org.junit.Test
 
-object TestDerivingTiling extends LoadExecutor
+object TestDerivingTiling extends TestWithExecutor
 
 class TestDerivingTiling {
 

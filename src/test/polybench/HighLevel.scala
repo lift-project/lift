@@ -11,7 +11,7 @@ import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit.Test
 
-object HighLevel extends LoadExecutor
+object HighLevel extends TestWithExecutor
 
 class HighLevel {
 

@@ -13,7 +13,7 @@ import rewriting.SimplifyAndFuse
 
 import scala.language.implicitConversions
 
-object TestAcousticOpt extends LoadExecutor
+object TestAcousticOpt extends TestWithExecutor
 
 class TestAcousticOpt {
 

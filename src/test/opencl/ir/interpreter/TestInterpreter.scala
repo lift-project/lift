@@ -12,7 +12,7 @@ import org.junit.Test
 
 import scala.language.reflectiveCalls
 
-object TestInterpreter extends LoadExecutor
+object TestInterpreter extends TestWithExecutor
 
 class TestInterpreter {
 

@@ -10,7 +10,7 @@ import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit.Test
 
-object CGO_2017 extends LoadExecutor
+object CGO_2017 extends TestWithExecutor
 
 class CGO_2017 {
 

@@ -9,7 +9,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
 
-object Kmeans extends LoadExecutor {
+object Kmeans extends TestWithExecutor {
 
   val P = SizeVar("P") // number of points
   val C = SizeVar("C") // number of clusters

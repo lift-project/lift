@@ -12,7 +12,7 @@ import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
 
-object TestProgramGenerator extends LoadExecutor {
+object TestProgramGenerator extends TestWithExecutor {
 
   var generator: ProgramGenerator = _
   var generatedPrograms = Array[Lambda]()

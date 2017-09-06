@@ -6,7 +6,7 @@ import opencl.executor._
 import org.junit.Assert._
 import org.junit.Test
 
-object TestDotProduct extends LoadExecutor
+object TestDotProduct extends TestWithExecutor
 
 class TestDotProduct {
 

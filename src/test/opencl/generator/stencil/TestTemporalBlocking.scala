@@ -9,7 +9,7 @@ import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
 
-object TestTemporalBlocking extends LoadExecutor
+object TestTemporalBlocking extends TestWithExecutor
 
 class TestTemporalBlocking {
   /* **********************************************************

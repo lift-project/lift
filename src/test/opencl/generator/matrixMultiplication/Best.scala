@@ -11,7 +11,7 @@ import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit.Test
 
-object Best extends LoadExecutor
+object Best extends TestWithExecutor
 
 class Best {
 

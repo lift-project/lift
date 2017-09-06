@@ -3,12 +3,12 @@ package rewriting
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, LoadExecutor, Utils}
+import opencl.executor.{Execute, TestWithExecutor, Utils}
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
 
-object TestRewriteGesummv extends LoadExecutor
+object TestRewriteGesummv extends TestWithExecutor
 
 class TestRewriteGesummv {
 

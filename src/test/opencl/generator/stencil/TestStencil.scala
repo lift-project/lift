@@ -13,7 +13,7 @@ import org.junit._
 
 import scala.util.Random
 
-object TestStencil extends LoadExecutor
+object TestStencil extends TestWithExecutor
 
 /**
   * Contains tests which include the combined usage of the slide

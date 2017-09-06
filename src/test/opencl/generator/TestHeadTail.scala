@@ -9,7 +9,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
 
-object TestHeadTail extends LoadExecutor
+object TestHeadTail extends TestWithExecutor
 
 class TestHeadTail {
 
