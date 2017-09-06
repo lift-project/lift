@@ -9,20 +9,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 
-object TestDynMap {
-  @BeforeClass def TestDynMap(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
-
-
+object TestDynMap extends TestWithExecutor
 
 class TestDynMap {
   @Test def FLAT_MAPS() : Unit = {

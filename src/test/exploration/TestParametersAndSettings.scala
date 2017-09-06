@@ -83,8 +83,8 @@ class TestParametersAndSettings {
       """
         |{
         |  "search_parameters" : {
-        |    "min_grid_size" : 1024,
-        |    "default_size" : 512
+        |    "min_global_size" : 1024,
+        |    "default_input_size" : 512
         |  }
         |}
       """.stripMargin
@@ -94,8 +94,8 @@ class TestParametersAndSettings {
 
     validated match {
       case JsSuccess(settings, _) =>
-        assertEquals(1024, settings.searchParameters.minGridSize)
-        assertEquals(512, settings.searchParameters.defaultSize)
+        assertEquals(1024, settings.searchParameters.minGlobalSize)
+        assertEquals(512, settings.searchParameters.defaultInputSize)
       case _: JsError => fail()
     }
   }

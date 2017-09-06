@@ -3,24 +3,57 @@ package opencl.executor
 import ir._
 import ir.ast._
 import lift.arithmetic._
+import opencl.generator.OpenCLAST.ArithExpression
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
 
-object TestExecute {
-  @BeforeClass def before() =
-    Executor.loadAndInit()
-
-  @AfterClass def after() =
-    Executor.shutdown()
-}
+object TestExecute extends TestWithExecutor
 
 class TestExecute {
 
   private val N = SizeVar("N")
   private val M = SizeVar("M")
+
+  @Test
+  def allocateMoreThanMaxIntForInput(): Unit = {
+    val f = fun(
+      ArrayType(Int, N),
+      toGlobal(MapSeq(idI)) o ReduceSeq(addI, 0) $ _
+    )
+
+    try {
+      val inputSize = scala.Int.MaxValue / 4 + 1
+      val input = Array.fill(inputSize)(1)
+
+      val (output: Array[Int], _) = Execute(1, 1)(f, input)
+      assertTrue(inputSize * 4 < 0)
+      assertEquals(inputSize, output.head)
+    } catch {
+      case x: DeviceCapabilityException =>
+        Assume.assumeNoException("Device can't allocate that much memory", x)
+      case x: java.lang.OutOfMemoryError =>
+        Assume.assumeNoException("Not enough heap space or RAM", x)
+    }
+  }
+
+  // TODO: SEGFAULT in JNIEnv_::SetIntArrayRegion
+  @Ignore
+  @Test
+  def allocateMoreThanMaxIntForOutput(): Unit = {
+    val f = fun(
+      ArrayType(Int, N),
+      MapGlb(idI) $ _
+    )
+
+    val input = Array.tabulate(scala.Int.MaxValue / 4 + 1 )(i => i)
+
+    val (output: Array[Int], _) = Execute(input.length)(f, input)
+
+    assertArrayEquals(input, output)
+  }
 
   @Test
   def testInferSeq(): Unit = {
@@ -218,4 +251,38 @@ class TestExecute {
     assertArrayEquals(gold, output, 0.001f)
   }
 
+  @Test
+  def allocateMoreThan2GB(): Unit = {
+    val size = 268435456 // 2^28
+    val chunkSize = 1048576 // 2^20
+    val lclSize = 32768 // 2^15
+
+    assumeFalse(
+      "Cannot allocate memory for this kernel",
+      Executor.getDeviceGlobalMemSize < 2147483648L + lclSize * 4 ||
+        Executor.getDeviceMaxMemAllocSize < size * 4
+    )
+
+    val uf = UserFun(
+      "count", Array("nb", "x"), "return nb + (int)(x % 10 == 0);", Seq(Int, Int), Int
+    )
+    val f = Lambda(
+      Array(),
+      MapWrg(
+        MapLcl(
+          MapSeq(toGlobal(id(Int))) o ReduceSeq(uf, 0) // allocates lclSize * 4 bytes = ε
+            o MapSeq(toGlobal(id(Int))) // allocates 2^30
+            o MapSeq(toGlobal(id(Int))) // allocates 2^30
+        ) o Split(lclSize)
+      ) o Split(chunkSize)
+        $ ArrayFromGenerator((i, _) => ArithExpression(i), ArrayType(Int, size))
+    ) // Allocates 2GB + ε in total
+
+    val (output: Array[Int], _) = Execute(128, 512)(f)
+    val gold = Array.tabulate(size / lclSize)(i =>
+      Math.ceil(((i+1) * lclSize - 1).toDouble / 10d).toInt + 1
+        - Math.ceil((i * lclSize).toDouble / 10d).toInt - 1
+    )
+    assertArrayEquals(gold, output)
+  }
 }

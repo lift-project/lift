@@ -3,22 +3,13 @@ package opencl.generator
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestAddressSpaces {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object TestAddressSpaces extends TestWithExecutor
 
 class TestAddressSpaces {
 
