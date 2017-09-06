@@ -3,19 +3,13 @@ package rewriting
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, Utils}
+import opencl.executor.{Execute, TestWithExecutor, Utils}
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 import rewriting.utils.NumberPrinter
 
-object TestRewriteGesummv {
-  @BeforeClass
-  def before(): Unit = Executor.loadAndInit()
-
-  @AfterClass
-  def after(): Unit = Executor.shutdown()
-}
+object TestRewriteGesummv extends TestWithExecutor
 
 class TestRewriteGesummv {
 

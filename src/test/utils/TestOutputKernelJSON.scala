@@ -27,7 +27,7 @@ object TestOutputKernelJSON
       val kernelParamStr = OutputKernelJSON.kernelParamNameString
 
       val jsonarr = str.split(seps)
-      val j2 = jsonarr.map(x => x.split(whitespace)).flatten.map(y => y.filterNot(filterValues))
+      val j2 = jsonarr.flatMap(_.split(whitespace)).map(_.filterNot(filterValues))
       val j3 = j2.filter( x => !x.contains(kernelParamStr) && !x.isEmpty )
       j3.map( x => regExDel.replaceAllIn(x,""))
 
@@ -54,17 +54,17 @@ class TestOutputKernelJSON {
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length), StencilUtilities.weightsMiddle3D(0).length), StencilUtilities.weightsMiddle3D.length),
       Float,
       (mat1, mat2, weights, weightsMiddle, c4) => {
-        MapGlb((fun((m) =>
-          toGlobal(MapSeq(fun(x => mult(x,c4)))) o
+        MapGlb(fun((m) =>
+          toGlobal(MapSeq(fun(x => mult(x, c4)))) o
             MapSeq(addTuple) $
             Zip(MapSeq(addTuple) $
-              Zip(((MapSeq(fun(x => mult(x,constantOriginal(2))))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                Zip(Join() $ Get(m, 0), Join() $ weightsMiddle)),
-                (MapSeq(fun(x => mult(x, constantOriginal(0)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                  Zip(Join() $ Get(m, 1), Join() $ weights))),
-              (MapSeq(fun(x => mult(x,constantOriginal(1)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
-                Zip(Join() $ Get(m, 1), Join() $ weightsMiddle)))
-        ))) $ Zip(Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1), Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
+              Zip(MapSeq(fun(x => mult(x, constantOriginal(2)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
+                Zip(Join() $ Get(m, 0), Join() $ weightsMiddle),
+                MapSeq(fun(x => mult(x, constantOriginal(0)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
+                  Zip(Join() $ Get(m, 1), Join() $ weights)),
+              MapSeq(fun(x => mult(x, constantOriginal(1)))) o ReduceSeq(add, 0.0f) o Join() o MapSeq(ReduceSeq(add, id $ 0.0f) o MapSeq(multTuple)) o Map(\(tuple => Zip(tuple._0, tuple._1))) $
+                Zip(Join() $ Get(m, 1), Join() $ weightsMiddle))
+        )) $ Zip(Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1), Join() o Join() $ (Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2))
       })
 
       // remove random numbers in parameter names

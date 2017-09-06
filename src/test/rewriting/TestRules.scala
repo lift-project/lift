@@ -1,26 +1,16 @@
 package rewriting
 
-import ir.ast._
 import ir._
+import ir.ast._
 import lift.arithmetic.{RangeMul, SizeVar, Var}
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.ast._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
-import rewriting.utils.NumberExpression
+import org.junit.{Ignore, Test}
 
-object TestRules {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object TestRules extends TestWithExecutor
 
 class TestRules {
 

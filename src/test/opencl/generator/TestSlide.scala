@@ -3,31 +3,19 @@ package opencl.generator
 import java.io.FileInputStream
 import java.util.Scanner
 
-import ir.{ArrayType, ArrayTypeWSWC}
+import ir.ArrayType
 import ir.ast._
 import lift.arithmetic.{ArithExpr, Cst, Lookup, SizeVar}
-import opencl.executor.{Execute, Executor, LongTestsEnabled, Utils}
+import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 
 import scala.util.Random
 
-
-object TestSlide {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestSlide extends TestWithExecutor
 
 class TestSlide {
 

@@ -9,21 +9,10 @@ import opencl.generator.AllocateLocalMemoryStatically
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 import rewriting.utils.ScalaPrinter
 
-object TestMatrixVector {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestMatrixVector extends TestWithExecutor
 
 class TestMatrixVector {
 

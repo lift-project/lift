@@ -3,22 +3,13 @@ package opencl.ir.ast
 import ir.ArrayTypeWSWC
 import ir.ast.{\, asVector}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern.MapGlb
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestBuiltIn {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object TestBuiltIn extends TestWithExecutor
 
 class TestBuiltIn {
 

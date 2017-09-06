@@ -8,15 +8,9 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object CGO_2017 {
-  @BeforeClass def before(): Unit =
-    Executor.loadAndInit()
-
-  @AfterClass def after(): Unit =
-    Executor.shutdown()
-}
+object CGO_2017 extends TestWithExecutor
 
 class CGO_2017 {
 
