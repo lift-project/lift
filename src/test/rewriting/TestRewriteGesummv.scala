@@ -73,8 +73,7 @@ class TestRewriteGesummv {
     val f12 = Rewrite.applyRuleAtId(f11, 6, MacroRules.reduceMapFusion)
 
     // Not strictly necessary, but makes it look nicer
-    val f13 = Rewrite.applyRuleAtId(f12, 47, Rules.tupleInline)
-    val f14 = Rewrite.applyRuleAtId(f13, 17, Rules.tupleInline)
+    val f14 = Rewrite.applyRuleAtId(f12, 17, Rules.tupleInline)
 
     // Still uses x twice. Flatten zips and get rid of duplicates?
     // Could issue only one load. Would it make a difference?
@@ -107,8 +106,7 @@ class TestRewriteGesummv {
 
     assertEquals(3, numConcreteMapsAndReduces)
 
-    val f13 = Rewrite.applyRuleAtId(f2, 47, Rules.tupleInline)
-    val f14 = Rewrite.applyRuleAtId(f13, 17, Rules.tupleInline)
+    val f14 = Rewrite.applyRuleAtId(f2, 17, Rules.tupleInline)
 
     // Still uses x twice. Flatten zips and get rid of duplicates?
     // Could issue only one load. Would it make a difference?
@@ -134,7 +132,6 @@ class TestRewriteGesummv {
     val g = Rewrite.applyRulesUntilCannot(f1, Seq(Rules.flattenZips))
     println(g)
 
-    println(f1)
 //    println(NumberPrinter(f1))
 
     val f2 = Rewrite.applyRuleAtId(f1, 1, Rules.splitJoin(64))

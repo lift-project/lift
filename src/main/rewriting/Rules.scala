@@ -1383,7 +1383,10 @@ object Rules {
       val lambdaParam = Param()
 
       val maps = args.zipWithIndex.map({
-        case (FunCall(Map(f), _), n) => f $ Get(lambdaParam, n)
+        case (FunCall(Map(f), _), n) =>
+          val body = f.body
+          val p = f.params.head
+          Expr.replace(body, p, Get(lambdaParam, n))
       })
 
       Map(Lambda(Array(lambdaParam), Tuple(maps:_*))) $ Zip(zipArgs:_*)
