@@ -38,7 +38,7 @@ object OutputView {
       case call: FunCall => buildViewFunCall(call, writeView)
       case e: Expr=>
 
-        //if (e.outputView == NoView)
+        if (e.outputView == NoView)
           e.outputView = writeView
 
         e.outputView
