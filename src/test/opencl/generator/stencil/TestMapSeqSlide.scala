@@ -9,6 +9,7 @@ import org.junit.Assert._
 import org.junit._
 import opencl.ir.pattern._
 import ir.ast._
+import opencl.generator.NDRange
 import opencl.generator.stencil.acoustic.{BoundaryUtilities, RoomConstants, StencilUtilities}
 import opencl.ir._
 import rewriting.SimplifyAndFuse
@@ -1141,13 +1142,13 @@ class TestMapSeqSlide
           val numNeigh = Get(m,2)
           val leftVal = Get(m,0)
 
-          val `tile[1][1][1]` = Get(m,1).at(1).at(1).at(1)
-          val `tile[0][1][1]` = Get(m,1).at(0).at(1).at(1)
-          val `tile[1][0][1]` = Get(m,1).at(1).at(0).at(1)
-          val `tile[1][1][0]` = Get(m,1).at(1).at(1).at(0)
-          val `tile[1][1][2]` = Get(m,1).at(1).at(1).at(2)
-          val `tile[1][2][1]` = Get(m,1).at(1).at(2).at(1)
-          val `tile[2][1][1]` = Get(m,1).at(2).at(1).at(1)
+          val `tile[1][1][1]` = m.at(1).at(1).at(1)
+          val `tile[0][1][1]` = m.at(0).at(1).at(1)
+          val `tile[1][0][1]` = m.at(1).at(0).at(1)
+          val `tile[1][1][0]` = m.at(1).at(1).at(0)
+          val `tile[1][1][2]` = m.at(1).at(1).at(2)
+          val `tile[1][2][1]` = m.at(1).at(2).at(1)
+          val `tile[2][1][1]` = m.at(2).at(1).at(1)
 
           val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
             toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
@@ -1192,24 +1193,53 @@ class TestMapSeqSlide
 
         ))) o PrintType() /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide2D(a,b) $ Zip3D( mat1, mat2))
 
+    def lambda3DMapSeq(a : Int, b : Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o), n), m),
+      (mat1) =>
+        MapGlb(1)(MapGlb(0)(
+          toGlobal(MapSeq(fun(m => {
+
+            val leftVal = m.at(1).at(1).at(1)
+
+            val `tile[0][1][1]` = m.at(0).at(1).at(1)
+            val `tile[1][0][1]` = m.at(1).at(0).at(1)
+            val `tile[1][1][0]` = m.at(1).at(1).at(0)
+            val `tile[1][1][2]` = m.at(1).at(1).at(2)
+            val `tile[1][2][1]` = m.at(1).at(2).at(1)
+            val `tile[2][1][1]` = m.at(2).at(1).at(1)
+
+            val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
+              toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+              toPrivate(fun(x => add(x,leftVal))) o
+              toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
+
+            toGlobal(id) $ stencil
+
+          }))
+
+        ))) o PrintType() /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide3D(a,b) $ mat1)
+
 //   val newLambda = SimplifyAndFuse(lambda3D(slidesize,slidestep))
 //    val sourceNew = Compile(lambda3D(slidesize,slidestep))
 
-    val orgLambda = SimplifyAndFuse(lambdaNeighAt(slidesize,slidestep))
-    val sourceOrg = Compile(orgLambda)
+    val orgLambda = SimplifyAndFuse(lambda3DMapSeq(slidesize,slidestep))
+    val sourceOrg = Compile(orgLambda, NDRange(32,4,1), NDRange(n,m,1))
 
-//    println(sourceNew)
+    println(sourceOrg)
 
     //    val source = Compile(newLambda, 64,4,2,512,512,404, immutable.Map())
     //    println(source)
 
+/*
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(sourceOrg, orgLambda, data, stencilarrOther3D)
     val (outputNew: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda3D(slidesize,slidestep), stencilarrpadded3D, stencilarrOther3D)
     if(StencilUtilities.printOutput)
     {
       StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
     }
-
+*/
 //    assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
   }
 
