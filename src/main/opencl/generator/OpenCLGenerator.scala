@@ -1066,19 +1066,9 @@ class OpenCLGenerator extends Generator {
 
     generateForLoop(block, call.args.head, i.indexVar, (b) => {
 
-      // modify the pointers to the memory before generating the body
-      val oldInV = inputMem.variable
-      val oldOutV = outputMem.variable
-      inputMem.variable = i.vPtrIn // TODO: remove this, shouldn't be necessary since all the info will be in the view
-      outputMem.variable = i.vPtrOut // TODO: remove this, shouldn't be necessary since all the info will be in the view
-
       // generate the function call in the body
       generate(funCall, b)
-
-      // restore the pointers to memory
-      inputMem.variable = oldInV
-      outputMem.variable = oldOutV
-
+      
       val curOutLenRef = OpenCLAST.VarRef(curOutLen)
 
       val innerOutputLength = Type.getLength(funCall.t)

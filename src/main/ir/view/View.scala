@@ -530,26 +530,6 @@ object View {
     })
   }
 
-  private[view] def initialiseNewOutputView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], v: Var) : View = {
-    // Use the lengths and iteration vars to mimic inputs
-    val outArray = getFullType(t, outputAccessInf)
-    View(outArray, v)
-  }
-
-  private def buildArrayType(t: Type, itVarArrayFunList: List[(Var,(Type) => ArrayType)]) : Type = {
-    if (itVarArrayFunList.isEmpty)
-      return t
-
-    val itVarArrayFun :: rest = itVarArrayFunList
-    val fun = itVarArrayFun._2
-    buildArrayType(fun(t), rest)
-  }
-
-  private[view] def initialiseNewOutputView2(t: Type, itVarArrayFunList: List[(Var, (Type) => ArrayType)], v: Var) : View = {
-    val outArray = buildArrayType(t, itVarArrayFunList)
-    val outView = View(outArray, v)
-    itVarArrayFunList.foldRight(outView)((vl, view) => view.access(vl._1))
-  }
 
   private[view] def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], v: Var/* = Var("should_never_be_used")*/): View = {
     // Use the lengths and iteration vars to mimic inputs
