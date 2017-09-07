@@ -66,9 +66,9 @@ object OutputView {
       case l: Lambda => buildViewLambda(l, call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
-        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable) // TODO check this (call.mem.var)
+        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
-        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable) // TODO check this (call.mem.var)
+        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case PrintType() | Get(_) | _: Tuple | Gather(_) | Filter() |
            Pad(_, _, _) =>
         writeView
