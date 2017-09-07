@@ -2,12 +2,12 @@ package rewriting.rules
 
 import ir._
 import ir.ast._
-import opencl.ir._
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, TestWithExecutor}
+import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
-import org.junit.Test
 import org.junit.Assert._
+import org.junit.Test
 import rewriting.{Lower, Rewrite, Rules}
 
 object TestInterchange extends TestWithExecutor
@@ -283,6 +283,27 @@ class TestInterchange {
     )
 
     val g = Rewrite.applyRuleAtId(f, 5, Rules.mapMapTransposeZipInside)
+
+    test(f, g, inputMatrix, inputArray)
+  }
+
+  @Test
+  def mapMapZipInsideUsedTwiceWithReorder(): Unit = {
+
+    val f = fun(
+      ArrayType(ArrayType(Float, N), M),
+      ArrayType(Float, N),
+      (matrix, array) =>
+        Map(fun(y =>
+          Map(fun(x =>
+            Map(fun(x =>
+              add(Get(x, 0), mult(Get(x, 1), Get(x, 2)))
+            )) $ Zip(x, Gather(reverse) $ x, array)
+          )) $ y
+        )) o Split(256) $ matrix
+    )
+
+    val g = Rewrite.applyRuleAtId(f, 3, Rules.mapMapTransposeZipInside)
 
     test(f, g, inputMatrix, inputArray)
   }
