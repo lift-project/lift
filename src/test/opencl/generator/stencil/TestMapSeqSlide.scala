@@ -1194,7 +1194,7 @@ class TestMapSeqSlide
         ))) o PrintType() /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide2D(a,b) $ Zip3D( mat1, mat2))
 
     def lambda3DMapSeq(a : Int, b : Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o), n), m),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 406), 514), 514),
       (mat1) =>
         MapGlb(1)(MapGlb(0)(
           toGlobal(MapSeq(fun(m => {
