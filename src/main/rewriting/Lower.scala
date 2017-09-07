@@ -251,8 +251,12 @@ object Lower {
 
   private def lastMapToGlobal(lambda: Lambda): Lambda = {
     val lastWrite = getLastWrite(lambda).get
+
     val lastMap = findExpressionForPattern(lambda,
-      { case FunCall(ir.ast.Map(Lambda(_, body)), _) if body eq lastWrite => }: PartialFunction[Expr, Unit] )
+      { case FunCall(ir.ast.Map(Lambda(_, body)), _) if {
+        body.contains({ case x if x eq lastWrite => }) &&
+          !body.contains({ case FunCall(ir.ast.Map(_), _) => })
+      } => }: PartialFunction[Expr, Unit] )
 
     lastMap match {
       case None => logger.warn("No last map found. Possibly using at-notation? Assume last write uses toGlobal"); lambda

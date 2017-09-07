@@ -1083,7 +1083,7 @@ object Rules {
   }
 
   val flattenZips = Rule("", {
-    case call@FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), zipArgs@_*))
+    case FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), zipArgs@_*))
       if zipArgs.exists({
         case FunCall(Zip(_), _*) => true
         case _ => false
@@ -1294,6 +1294,12 @@ object Rules {
   val addCopy = Rule("f => f o Id()", {
     case FunCall(f, arg) =>
       f o generateCopy(arg.t) $ arg
+  })
+
+  val LambdaInline = Rule("", {
+    case call@FunCall(Lambda(Array(x), b), p) =>
+
+      Expr.replace(b, x, p)
   })
 
   val tupleInline = Rule("tupleInline", {

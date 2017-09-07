@@ -2,12 +2,12 @@ package rewriting
 
 import ir._
 import ir.ast._
+import ir.view.{AccessInfo, NoView}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, TestWithExecutor, Utils}
+import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.utils.NumberPrinter
 
 object TestRewriteGesummv extends TestWithExecutor
 
@@ -17,8 +17,8 @@ class TestRewriteGesummv {
   private val N = SizeVar("N")
 
   private def mvAlpha = fun(
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
-    ArrayTypeWSWC(Float, K),
+    ArrayType(ArrayTypeWSWC(Float, K), N),
+    ArrayType(Float, K),
     Float,
     (matrix, vector, alpha) =>
       Join() o
@@ -28,16 +28,16 @@ class TestRewriteGesummv {
         )) $ matrix
   )
 
-  private val vecAdd = fun(
-    ArrayTypeWSWC(Float, K),
-    ArrayTypeWSWC(Float, K),
+  private def vecAdd = fun(
+    ArrayType(Float, K),
+    ArrayType(Float, K),
     (a,b) => Map(fun(x => add(x._0, x._1))) $ Zip(a, b)
   )
 
-  private val f0 = fun(
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
-    ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
-    ArrayTypeWSWC(Float, K),
+  private def f0 = fun(
+    ArrayType(ArrayTypeWSWC(Float, K), N),
+    ArrayType(ArrayTypeWSWC(Float, K), N),
+    ArrayType(Float, K),
     Float,
     Float,
     (A, B, x, alpha, beta) =>
@@ -87,6 +87,8 @@ class TestRewriteGesummv {
     // Won't write to accumulator without this
     val f18 = Rewrite.applyRuleAtId(f17, 17, Rules.tupleToStruct)
 
+    println(f18)
+
     val (y: Array[Float], _) = Execute(n)(f18, A, B, x, alpha, beta)
 
     assertArrayEquals(yGold, y, 0.001f)
@@ -129,14 +131,53 @@ class TestRewriteGesummv {
 
     val f1 = SimplifyAndFuse.withoutPreventingFurtherOptimisation(f0)
 
-    val g = Rewrite.applyRulesUntilCannot(f1, Seq(Rules.flattenZips))
+    val g = Rewrite.applyRuleUntilCannot(f1, Rules.flattenZips)
 
     val f2 = Rewrite.applyRuleAtId(g, 1, Rules.splitJoin(64))
     val f3 = Rewrite.applyRuleAtId(f2, 7, MacroRules.interchange)
     val f4 = Rewrite.applyRuleAtId(f3, 10, MacroRules.introduceReuseFromMap(64))
     val f5 = Rewrite.applyRuleAtId(f4, 13, MacroRules.introduceReuseFromMap(64))
-    println(f5)
-//    println(NumberPrinter(f4))
+
+
+    val mappings = EnabledMappings(
+      global0 = false, global01 = false, global10 = false,
+      global012 = false, global210 = false,
+      group0 = true, group01 = false, group10 = false)
+
+    val lowered = Lower.mapCombinations(f5, mappings).head
+
+
+    val inline = Rewrite.applyRuleAtId(lowered, 41, Rules.LambdaInline)
+    val fuse = Rewrite.applyRuleAtId(inline, 40, MacroRules.reduceMapFusion)
+    val stringFormat = utils.Utils.dumpLambdaToString(fuse)
+    val copy = Eval(stringFormat)
+    val newStringFormat = utils.Utils.dumpLambdaToString(copy)
+
+    assertTrue(stringFormat  == newStringFormat)
+
+    Expr.visit(fuse.body, e => {
+      e.view = NoView
+      e.outputView = NoView
+      e.inputDepth = List()
+      e.outputDepth = List()
+      e.accessInf = AccessInfo()
+      e.mem = UnallocatedMemory
+      e.addressSpace = UndefAddressSpace
+      e.context = null
+
+      if (!(fuse.params.contains(e) || e.isInstanceOf[Value]))
+        e.t = UndefType
+    },
+      _ => {})
+
+    val finalExpr = Rewrite.applyRuleAtId(copy, 67, Rules.tupleToStruct)
+
+    val (local, global) = InferNDRange(finalExpr)
+    val code = Compile(finalExpr, local, global)
+
+    val (y: Array[Float], _) = Execute()(code, finalExpr, A, B, x, alpha, beta)
+
+    assertArrayEquals(yGold, y, 0.001f)
   }
 
 }
