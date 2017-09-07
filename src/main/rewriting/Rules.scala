@@ -782,58 +782,6 @@ object Rules {
 
   val mapMapTransposeZipInside = Rule("Map(fun(a => Map() $ Zip(..., ... $ a, ...)) $ A => " +
     "Transpose() o Map(Map(fun(a => ))) $ Zip(..., Transpose() o Map(...) $ A, ...) ", {
-    case FunCall(Map(Lambda(outerLambdaParam,
-        FunCall(Map(Lambda(innerLambdaParam, expr)),
-      FunCall(Zip(_), zipArgs@_*))
-    )), arg)
-      if zipArgs.count(Utils.getFinalArg(_) eq outerLambdaParam.head) == 1 && false
-    =>
-      // Find all Get patterns that refer to the an element from the zipped array
-      // and have to be replaced in expr
-      val gets = Utils.findGets(expr, innerLambdaParam.head)
-
-      // Find which Get pattern corresponds to the component containing an element of 'a'
-      val zipToReplace = zipArgs.zipWithIndex.find(e =>
-        e._1 eq zipArgs.find(Utils.getFinalArg(_) eq outerLambdaParam.head).get
-      ).get
-
-      // Create the new Get patterns with a new parameter
-      val newParam = Param()
-      val getPairs = gets zip gets.map(get => Get(newParam, get.f.asInstanceOf[Get].n))
-
-      // Separate the Get pattern containing an element of 'a', as it will now refer
-      // to the component containing an element of 'A'
-      val (one, two) = getPairs.partition(_._1.f.asInstanceOf[Get].n == zipToReplace._2)
-
-      // Replace most of the old Get patterns with new ones
-      val newExpr = two.foldRight(expr)((get, e) => Expr.replace(e, get._1, get._2))
-
-      // Create a new parameter for an element of 'a' and replace for the Get referring
-      // an element of 'a'
-      val secondNewParam = Param()
-      val finalNewExpr = Expr.replace(newExpr, one.head._1, secondNewParam)
-
-      var elem = Transpose() $ arg
-      if (!(zipToReplace._1 eq outerLambdaParam.head)) {
-        // Isolate any splits/joins/transposes/computation inside the zip
-        val thirdNewParam = Param()
-
-        val replace = Expr.replace(zipToReplace._1, outerLambdaParam.head, thirdNewParam)
-
-        // And include them before the transpose
-        val map = Map(Lambda(Array(thirdNewParam), replace))
-        elem = Transpose() o map $ arg
-      }
-
-      // Create the arguments for the zip, replacing '... o a' with 'Transpose() o Map(...) $ A'
-      val newZipArgs = zipArgs.updated(zipToReplace._2, elem)
-
-      // Construct the final expression
-      val lambda = Lambda(Array(secondNewParam), finalNewExpr)
-      Transpose() o Map(Lambda(Array(newParam), Map(lambda) $ one.head._2)) $ Zip(newZipArgs: _*)
-
-
-
     case FunCall(Map(Lambda(Array(outerLambdaParam),
           FunCall(Map(Lambda(Array(innerLambdaParam),
         expr
