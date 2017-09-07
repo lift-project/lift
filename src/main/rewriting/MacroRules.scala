@@ -512,7 +512,8 @@ object MacroRules {
   })
 
   /**
-   * Fuse Reduce o Map, automatically applying applying the ReduceSeq and MapSeq rules.
+   * Fuse Reduce o Map, automatically applying applying the
+   * ReduceSeq and MapSeq rules as necessary.
    */
   val reduceMapFusion = Rule("Reduce o Map => ReduceSeq(fused)", {
     case funCall @ FunCall(Reduce(_), _, mapCall@FunCall(Map(_), _))
@@ -535,6 +536,10 @@ object MacroRules {
       val e0 = Rewrite.applyRuleAtId(funCall, 0, Rules.reduceSeq)
       val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeqMapSeqFusion)
       e1
+
+    case funCall @ FunCall(ReduceSeq(_), _, FunCall(MapSeq(_), _))
+    =>
+      Rewrite.applyRuleAtId(funCall, 0, Rules.reduceSeqMapSeqFusion)
   })
 
   /**
