@@ -46,6 +46,11 @@ object Lower {
    compositionWithReduceSequential
   }
 
+  def sequential(lambda: Lambda): Lambda = {
+    val temp = patchLambda(lambda)
+    Rewrite.applyRuleUntilCannot(temp, Rules.mapSeq)
+  }
+
   def mapComposedWithReduceAsSequential(lambda: Lambda) =
     Rewrite.applyRulesUntilCannot(lambda, Seq(MacroRules.mapComposedWithReduceAsSequential))
 
