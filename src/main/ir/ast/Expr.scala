@@ -213,13 +213,6 @@ object Expr {
           case rs: ReduceWhileSeq =>
             val newResult2 = visitWithState(newResult)(rs.f.body, visitFun)
             visitWithState(newResult2)(rs.p.body, visitFun)
-          case fs: FilterSeq =>
-            // Both the predicate and the copy function have to be visited
-            val newResult2 = visitWithState(newResult)(fs.f.body, visitFun)
-            if (fs.copyFun != null)
-              visitWithState(newResult2)(fs.copyFun.body, visitFun)
-            else
-              newResult2
           case fp: FPattern =>  visitWithState(newResult)(fp.f.body, visitFun)
           case l: Lambda =>     visitWithState(newResult)(l.body, visitFun)
           case _ => newResult
@@ -237,12 +230,6 @@ object Expr {
 
         // do the rest ...
         val result = call.f match {
-          case fs: FilterSeq =>
-            val newResult = visitLeftToRight(z)(fs.f.body, visitFun)
-            if (fs.copyFun != null)
-              visitLeftToRight(newResult)(fs.copyFun.body, visitFun)
-            else
-              newResult
           case fp: FPattern =>  visitLeftToRight(z)(fp.f.body, visitFun)
           case l: Lambda =>     visitLeftToRight(z)(l.body, visitFun)
           case _ => z
@@ -274,12 +261,6 @@ object Expr {
 
         // do the rest ...
         val newResult = call.f match {
-          case fs: FilterSeq =>
-            val newResult2 = visitRightToLeft(result)(fs.f.body, visitFun)
-            if (fs.copyFun != null)
-              visitRightToLeft(newResult2)(fs.copyFun.body, visitFun)
-            else
-              newResult2
           case fp: FPattern =>  visitRightToLeft(result)(fp.f.body, visitFun)
           case l: Lambda =>     visitRightToLeft(result)(l.body, visitFun)
           case _ => result
@@ -313,12 +294,6 @@ object Expr {
       case call: FunCall =>
         // do the rest ...
         val newResult = call.f match {
-          case fs: FilterSeq =>
-            val newResult2 = visitWithStateDepthFirst(result)(fs.f.body, visitFun)
-            if (fs.copyFun != null)
-              visitWithStateDepthFirst(newResult2)(fs.copyFun.body, visitFun)
-            else
-              newResult2
           case fp: FPattern =>  visitWithStateDepthFirst(result)(fp.f.body, visitFun)
           case l: Lambda =>     visitWithStateDepthFirst(result)(l.body, visitFun)
           case _ => result

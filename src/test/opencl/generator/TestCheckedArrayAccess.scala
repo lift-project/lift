@@ -7,22 +7,9 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestCheckedArrayAccess {
-  @BeforeClass def TestUnsafeArrayAccess() {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after() {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
-
-
+object TestCheckedArrayAccess extends TestWithExecutor
 
 class TestCheckedArrayAccess {
   @Test def TEST_ACCESS() : Unit = {
@@ -36,7 +23,7 @@ class TestCheckedArrayAccess {
       ArrayTypeWSWC(Int, 1),
       (arr, ix) => {
         MapSeq(
-          fun((index) => 
+          fun((index) =>
             toGlobal(id) o CheckedArrayAccess(index, -142.0f) $ arr
           )
         ) $ ix
@@ -63,7 +50,7 @@ class TestCheckedArrayAccess {
       ArrayTypeWSWC(Int, 1),
       (arr, ix) => {
         MapSeq(
-          fun((row) => 
+          fun((row) =>
             MapSeq(
               fun((index) =>
                 toGlobal(id) o CheckedArrayAccess(index, -142.0f) $ row
@@ -120,7 +107,7 @@ class TestCheckedArrayAccess {
       ArrayTypeWSWC(Int, 1),
       (arr, ix) => {
         MapSeq(
-          fun((index) => 
+          fun((index) =>
             // MapSeq(idII) o Head() $ arr
 //            MapSeq(t_id) o CheckedArrayAccess(index, Tuple(2)(-142, -142)) $ arr
             toGlobal(t_id) o CheckedArrayAccess(index, Tuple(2)(-142, -142)) $ arr

@@ -1,11 +1,11 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-import lift.arithmetic.{?, Cst}
 import ir.ast.{Expr, Lambda}
 import ir.{Memory, UnallocatedMemory}
+import lift.arithmetic.{?, Cst}
 import opencl.generator._
-import opencl.ir.{GlobalMemory, InferOpenCLAddressSpace, LocalMemory, OpenCLMemoryAllocator, TypedOpenCLMemory}
+import opencl.ir.{CollectTypedOpenCLMemory, GlobalMemory, InferOpenCLAddressSpace, LocalMemory, OpenCLMemoryAllocator, TypedOpenCLMemory}
 
 object MemoryAmounts {
     def apply(
@@ -58,8 +58,8 @@ class MemoryAmounts(
     }
 
     // Get the allocated buffers
-    val kernelMemory = TypedOpenCLMemory.get(lambda.body, lambda.params)
-    val buffers = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = true)
+    val kernelMemory = CollectTypedOpenCLMemory.asFlatSequence(lambda)
+    val buffers = CollectTypedOpenCLMemory.asFlatSequence(lambda, includePrivate = true)
 
     valueMemories =
       Expr.visitWithState(Set[Memory]())(lambda.body, (lambda, set) =>

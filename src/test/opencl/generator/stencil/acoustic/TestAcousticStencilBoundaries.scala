@@ -117,18 +117,7 @@ object BoundaryUtilities
 
 }
 
-object TestAcousticStencilBoundaries {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestAcousticStencilBoundaries extends TestWithExecutor
 
 class TestAcousticStencilBoundaries {
 

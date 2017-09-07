@@ -18,11 +18,7 @@ object InputView {
    *
    * @param expr Expression to build views for
    */
-  def apply(expr: Expr): Unit = {
-    val itDimNum = ItSpaceDimCount(expr)
-    BuildItVarInfo(expr, itDimNum)
-    visitAndBuildViews(expr)
-  }
+  def apply(expr: Expr): Unit = visitAndBuildViews(expr)
 
   private def visitAndBuildViews(expr: Expr): View = {
     val result = expr match {
@@ -142,19 +138,9 @@ object InputView {
   }
   
   private def buildViewFilter(f: FilterSeq, call: FunCall, argView: View): View = {
-    // The inputs are the same for both the predicate and the copy function
     f.f.params.head.view = argView.access(f.loopRead)
-    f.copyFun.params.head.view = argView.access(f.loopRead)
-    
     visitAndBuildViews(f.f.body)
-    val innerView = visitAndBuildViews(f.copyFun.body)
-    f.copyFun.body match {
-      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
-        // create fresh input view for following function
-        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
-      case _ => // call.isAbstract and return input map view
-        ViewMap(innerView, f.loopRead, call.t)
-    }
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
   
   private def buildViewReduce(r: AbstractPartRed,

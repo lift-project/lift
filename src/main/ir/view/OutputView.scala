@@ -63,8 +63,7 @@ object OutputView {
       case _: Tail => buildViewTail(call, writeView)
       case _: Zip => buildViewZip(call, writeView)
       case _: Unzip => writeView.zip()
-      case l: Lambda =>
-        buildViewLambda(l, call, writeView)
+      case l: Lambda => buildViewLambda(l, call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable) // TODO check this (call.mem.var)
