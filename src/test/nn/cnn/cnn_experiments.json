@@ -6,7 +6,7 @@
       "end": 2,
       "step_add": 1
     },
-    "n_images": {
+    "n_inputs": {
       "start": 64,
       "end": 64,
       "step_multiply": 2

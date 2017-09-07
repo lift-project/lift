@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS lift_results_cnn(
   success boolean,
   runtime_l0 float,
   runtime_l1 float,
-  experiment_id int,
+  code_version int,
   datetime DATETIME,
   PRIMARY KEY (id)
 );

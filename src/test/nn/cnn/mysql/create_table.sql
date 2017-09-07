@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS lift_results_cnn(
   abort_reason varchar(1000),
   success boolean,
   verified boolean,
-  experiment_id int,
+  code_version int,
   datetime DATETIME,
   PRIMARY KEY (id)
 );

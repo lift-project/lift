@@ -82,7 +82,7 @@ package object cnn {
 
         ExperimentsSet(
           nBatchesRange = generateList(jWorkload("n_batches").asInstanceOf[Map[String, Double]]),
-          nInputsRange = generateList(jWorkload("n_images").asInstanceOf[Map[String, Double]]),
+          nInputsRange = generateList(jWorkload("n_inputs").asInstanceOf[Map[String, Double]]),
           imageSizeRange = generateList(jWorkload("image_size").asInstanceOf[Map[String, Double]]),
           nChannels = jWorkload("n_channels").asInstanceOf[Double].toInt,
 

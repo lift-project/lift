@@ -287,7 +287,7 @@ class TestConv {
 //    Connector.statement.execute("INSERT INTO lift_results_conv " +
 //      "(batches, images, imagesize, kernels_l0, kernels_l1, kernelsize_l0, kernelsize_l1, " +
 //      "elsperthread_l0, elsperthread_l1, kernelspergroup_l0, kernelspergroup_l1, inputtilesize_l0, " +
-//      "inputtilesize_l1, ran, success, runtime_l0, runtime_l1, experiment_id, datetime) " +
+//      "inputtilesize_l1, ran, success, runtime_l0, runtime_l1, code_version, datetime) " +
 //      f"VALUES (${aconv.nBatches}%d, ${aconv.nInputs}%d, ${aconv.inputShape(0).s}%d, ${aconv.nKernels(0)}%d, " +
 //      f"${aconv.nKernels(1)}%d, ${aconv.kernelShape(0).s}%d, ${aconv.kernelShape(1).s}, ${aconv.elsPerThread(0)}%d, " +
 //      f"${aconv.elsPerThread(1)}%d, ${aconv.kernelsPerGroup(0)}%d, ${aconv.kernelsPerGroup(1)}%d, " +
