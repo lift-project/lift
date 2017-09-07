@@ -478,10 +478,6 @@ object View {
     post(newView)
   }
 
-  // TODO: remove any uses of this!
-  @Deprecated
-  def apply(t: Type, s:String): View =
-    ViewMem(Var(s), t)
 
   /**
    * Create new view representing an array in memory
@@ -569,7 +565,6 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
     * Produces an openCL expression accessing a multi-dimentional array using
     * a given view
     *
-    * @param v the array
     * @param sv the view
     * @param arrayAccessStack
     *        see http://www.lift-project.org/papers/steuwer17LiftIR.pdf,
@@ -580,42 +575,41 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
     * @return an expression accessing the array
     */
   @scala.annotation.tailrec
-  private def emitView(v: Var,
-                       sv: View,
+  private def emitView(sv: View,
                        arrayAccessStack: List[ArithExpr],
                        tupleAccessStack: List[Int]): Expression = {
     sv match {
       case vm: ViewMem =>
         assert(tupleAccessStack.isEmpty)
-        val index = aggregateAccesses(0, vm.v, sv.t, arrayAccessStack, tupleAccessStack)
+        val index = aggregateAccesses(0, Some(vm.v), sv.t, arrayAccessStack, tupleAccessStack)
         VarRef(vm.v, arrayIndex = ArithExpression(index))
 
       case access: ViewAccess =>
-        emitView(v, access.iv, access.i :: arrayAccessStack, tupleAccessStack)
+        emitView(access.iv, access.i :: arrayAccessStack, tupleAccessStack)
 
       case map: ViewMap =>
         val idx :: indices = arrayAccessStack
         val newV = map.iv.replaced(map.itVar, idx)
-        emitView(v, newV, indices, tupleAccessStack)
+        emitView(newV, indices, tupleAccessStack)
 
       case split: ViewSplit =>
         val chunkIdx :: elemIdx :: indices = arrayAccessStack
         val newIdx = chunkIdx * split.n + elemIdx
-        emitView(v, split.iv, newIdx :: indices, tupleAccessStack)
+        emitView(split.iv, newIdx :: indices, tupleAccessStack)
 
       case join: ViewJoin =>
         val idx :: indices = arrayAccessStack
         val chunkIdx = idx / join.n
         val elemIdx = idx % join.n
-        emitView(v, join.iv, chunkIdx :: elemIdx :: indices, tupleAccessStack)
+        emitView(join.iv, chunkIdx :: elemIdx :: indices, tupleAccessStack)
 
       case gather: ViewReorder =>
         val idx :: indices = arrayAccessStack
-        emitView(v, gather.iv, gather.f(idx) :: indices, tupleAccessStack)
+        emitView(gather.iv, gather.f(idx) :: indices, tupleAccessStack)
 
       case filter: ViewFilter =>
         val idx :: indices = arrayAccessStack
-        val newIdx = ViewPrinter.emit(v, filter.ids.access(idx), replacements)
+        val newIdx = ViewPrinter.emit(filter.ids.access(idx), replacements)
 
         val indirection = newIdx match {
           case VarRef(_, _, index) =>
@@ -623,44 +617,44 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
           case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
 
-        emitView(v, filter.iv, indirection :: indices, tupleAccessStack)
+        emitView(filter.iv, indirection :: indices, tupleAccessStack)
 
       case component: ViewTupleComponent =>
         val newTAS = component.i :: tupleAccessStack
-        emitView(v, component.iv, arrayAccessStack, newTAS)
+        emitView(component.iv, arrayAccessStack, newTAS)
 
       case zip: ViewZip =>
-        emitView(v, zip.iv, arrayAccessStack, tupleAccessStack)
+        emitView(zip.iv, arrayAccessStack, tupleAccessStack)
 
       case unzip: ViewUnzip =>
-        emitView(v, unzip.iv, arrayAccessStack, tupleAccessStack)
+        emitView(unzip.iv, arrayAccessStack, tupleAccessStack)
 
       case tuple: ViewTuple =>
         val i :: newTAS = tupleAccessStack
-        emitView(v, tuple.ivs(i), arrayAccessStack, newTAS)
+        emitView(tuple.ivs(i), arrayAccessStack, newTAS)
 
       case asVector: ViewAsVector =>
         val idx :: indices = arrayAccessStack
         val newIdx = idx * asVector.n
-        emitView(v, asVector.iv, newIdx :: indices, tupleAccessStack)
+        emitView(asVector.iv, newIdx :: indices, tupleAccessStack)
 
       case asScalar: ViewAsScalar =>
         val idx :: indices = arrayAccessStack
         val newIdx = idx /^ asScalar.n
-        emitView(v, asScalar.iv, newIdx :: indices, tupleAccessStack)
+        emitView(asScalar.iv, newIdx :: indices, tupleAccessStack)
 
       case head: ViewHead =>
         val newAAS = arrayAccessStack.tail
-        emitView(v, head.iv, newAAS, tupleAccessStack)
+        emitView(head.iv, newAAS, tupleAccessStack)
 
       case tail: ViewTail =>
         val idx :: indices = arrayAccessStack
-        emitView(v, tail.iv, (idx + 1) :: indices, tupleAccessStack)
+        emitView(tail.iv, (idx + 1) :: indices, tupleAccessStack)
 
       case ag: ViewSlide =>
         val chunkIdx :: elemIdx :: indices = arrayAccessStack
         val newIdx = chunkIdx * ag.slide.step + elemIdx
-        emitView(v, ag.iv, newIdx :: indices, tupleAccessStack)
+        emitView(ag.iv, newIdx :: indices, tupleAccessStack)
 
       case pad: ViewPad =>
         val idx :: indices = arrayAccessStack
@@ -670,7 +664,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
           pad.fct(currentIdx, length)
         else
           currentIdx
-        emitView(v, pad.iv, newIdx :: indices, tupleAccessStack)
+        emitView(pad.iv, newIdx :: indices, tupleAccessStack)
 
       case ViewConstant(value, _) =>
         OpenCLAST.OpenCLExpression(value.value)
@@ -680,16 +674,16 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         //               sense to access it at a certain index…
         assert(arrayAccessStack.isEmpty)
         val newAAS = SizeIndex() :: Nil
-        emitView(v, iv, newAAS, tupleAccessStack)
+        emitView(iv, newAAS, tupleAccessStack)
 
       case ViewGenerator(f, ArrayTypeWS(_,s)) =>
-        val index = aggregateAccesses(0, v, sv.t, arrayAccessStack, tupleAccessStack)
+        val index = aggregateAccesses(0, None, sv.t, arrayAccessStack, tupleAccessStack)
         val i = ArithExpr.substitute(index, replacements)
         val l = ArithExpr.substitute(s, replacements)
         f(i, l)
 
       case ViewGeneratorUserFun(f, ArrayTypeWS(_,s)) =>
-        val index = aggregateAccesses(0, v, sv.t, arrayAccessStack, tupleAccessStack)
+        val index = aggregateAccesses(0, None, sv.t, arrayAccessStack, tupleAccessStack)
         val i = ArithExpr.substitute(index, replacements)
         val l = ArithExpr.substitute(s, replacements)
         OpenCLAST.FunctionCall(f.name,
@@ -738,7 +732,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
     */
   @scala.annotation.tailrec
   private def aggregateAccesses(acc: ArithExpr,
-                                v: Var, ty: Type,
+                                v: Option[Var], ty: Type,
                                 arrayAccessStack: List[ArithExpr],
                                 tupleAccessStack: List[Int]): ArithExpr = {
     if (arrayAccessStack.isEmpty) acc
@@ -766,7 +760,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
                 // from the array's metadata (see issue #107)
                 // NB. We make a choice here, see issue #110
                 val elementOffset = AccessVar(
-                  v.toString, ArithExpression(acc + headerOffset + idx)
+                  v.get.toString, ArithExpression(acc + headerOffset + idx)
                 )
                 headerOffset + elementOffset
               }
@@ -801,13 +795,10 @@ object ViewPrinter {
    * @param view The view to emit.
    * @return The arithmetic expression.
    */
-  def emit(v: Var,
-           view: View,
-           replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()
-          ): Expression = {
+  def emit(view: View, replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()): Expression = {
     val vp = new ViewPrinter(replacements)
     assert(!view.t.isInstanceOf[ArrayType])
-    vp.emitView(v, view.replaced(replacements), List(), List())
+    vp.emitView(view.replaced(replacements), List(), List())
   }
   
   /**

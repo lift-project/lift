@@ -1132,7 +1132,7 @@ class OpenCLGenerator extends Generator {
     // initial window values are set
     def setupInitialWindowVars(idx: Int, n: Int, accesses: Array[Int]): Unit = n match {
       case 1 => for (j <- 0 to reuse.eval - 1) {
-         accesses(n - 1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, getView(call.args.head.view, accesses)))
+         accesses(n - 1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(getView(call.args.head.view, accesses)))
       }
       case _ => for (i <- 0 to size.eval - 1) {
         accesses(n - 1) = i; setupInitialWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
@@ -1161,7 +1161,7 @@ class OpenCLGenerator extends Generator {
     def updateWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = n match {
       case 1 => for(j <- reuse.eval to size.eval-1) {
         accesses(n-1) = j
-        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(inputMem.variable, getViewIncrement(call.args.head.view,indexVar,accesses)))
+        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(getViewIncrement(call.args.head.view,indexVar,accesses)))
       }
       case _ => for(i <- 0 to size.eval-1) {
         accesses(n-1) = i
@@ -1327,7 +1327,7 @@ class OpenCLGenerator extends Generator {
                                                              generateBody: (Block) => Unit): Unit = {
     val range = getRangeAdd(indexVar)
 
-    val headerIndex = ViewPrinter.emit(getVarForSize(array.mem), array.view.size()) match {
+    val headerIndex = ViewPrinter.emit(array.view.size()) match {
       case VarRef(_, _, arrayIndex) => arrayIndex
       case _ => throw new NotImplementedError() // should never get there
     }
@@ -1372,7 +1372,7 @@ class OpenCLGenerator extends Generator {
     val stop = ty match {
       case _: Size => ArithExpression(range.stop)
       case _ =>
-        ViewPrinter.emit(array.mem.variable, array.view.size())
+        ViewPrinter.emit(array.view.size())
     }
     val init = VarDecl(indexVar, Int, start, PrivateMemory)
     val increment = AssignmentExpression(
@@ -1479,7 +1479,7 @@ class OpenCLGenerator extends Generator {
             && (mem.addressSpace == GlobalMemory
             || mem.addressSpace == LocalMemory) =>
 
-          val offset = ViewPrinter.emit(mem.variable, view, replacementsWithFuns) match {
+          val offset = ViewPrinter.emit(view, replacementsWithFuns) match {
             case VarRef(_, _, idx) => ArithExpression(idx.content / vt.len)
             case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
           }
@@ -1515,7 +1515,7 @@ class OpenCLGenerator extends Generator {
 
       // an OpenCLNullMemory object indicates that the view is not backed by memory and will directly return a value
       case OpenCLNullMemory =>
-        ViewPrinter.emit(Var(), view, replacementsWithFuns)
+        ViewPrinter.emit(view, replacementsWithFuns)
 
       // not a memory collection: the default case
       case _ =>
@@ -1538,7 +1538,7 @@ class OpenCLGenerator extends Generator {
               if Type.isEqual(Type.getValueType(at), vt.scalarT)
                 && (mem.addressSpace == GlobalMemory || mem.addressSpace == LocalMemory) =>
 
-              val offset = ViewPrinter.emit(mem.variable, view, replacementsWithFuns) match {
+              val offset = ViewPrinter.emit(view, replacementsWithFuns) match {
                 case VarRef(_, _, idx) => ArithExpression(idx.content / vt.len)
                 case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
               }
@@ -1629,7 +1629,7 @@ class OpenCLGenerator extends Generator {
 
               mem.addressSpace match {
                 case LocalMemory | GlobalMemory =>
-                  ViewPrinter.emit(mem.variable, innerView, replacementsWithFuns) match {
+                  ViewPrinter.emit(innerView, replacementsWithFuns) match {
                     case VarRef(v, _, index) => VarRef(v, suffix, index)
                     case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
                   }
@@ -1700,10 +1700,10 @@ class OpenCLGenerator extends Generator {
                               view: View): OpenCLAST.Expression = {
     addressSpace match {
       case LocalMemory | GlobalMemory =>
-        ViewPrinter.emit(v, view, replacementsWithFuns)
+        ViewPrinter.emit(view, replacementsWithFuns)
 
       case PrivateMemory =>
-        ViewPrinter.emit(v, view, replacementsWithFuns) match {
+        ViewPrinter.emit(view, replacementsWithFuns) match {
           case VarRef(_, _, _) =>
             OpenCLAST.VarRef(v, suffix = arrayAccessPrivateMem(v, view))
           case e: Expression => e
@@ -1735,7 +1735,7 @@ class OpenCLGenerator extends Generator {
     val valueType = Type.getValueType(originalType)
 
     val i = valueType match {
-      case _: ScalarType | _: TupleType => ViewPrinter.emit(v, view, replacements) match {
+      case _: ScalarType | _: TupleType => ViewPrinter.emit(view, replacements) match {
         case VarRef(_, _, idx) => idx.content
         case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
       }
@@ -1743,7 +1743,7 @@ class OpenCLGenerator extends Generator {
       //   divide index by vector length
       case _: VectorType =>
         val length = Type.getLength(Type.getValueType(originalType))
-        val index = ViewPrinter.emit(v, view, replacements) match {
+        val index = ViewPrinter.emit(view, replacements) match {
           case VarRef(_, _, idx) => idx.content
           case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
@@ -1791,7 +1791,7 @@ class OpenCLGenerator extends Generator {
     val i = valueType match {
       case _: VectorType =>
         val length = Type.getLength(Type.getValueType(originalType))
-        val index = ViewPrinter.emit(v, view, replacements) match {
+        val index = ViewPrinter.emit(view, replacements) match {
           case VarRef(_, _, idx) => idx.content
           case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }

@@ -22,11 +22,7 @@ object OutputView {
   def apply(expr: Expr): Unit = {
 
     // reset outputView for every expression
-    IRNode.visit(expr,
-    _ match {
-      case e:Expr => e.outputView = NoView
-      case _ =>
-    })
+    Expr.visit(expr, _.outputView = NoView, _ => {})
 
 
     expr.outputView = View(expr.t, expr.mem.variable)
