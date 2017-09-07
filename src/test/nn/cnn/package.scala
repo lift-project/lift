@@ -55,7 +55,7 @@ package object cnn {
       } else if (_config.contains("step_add")) {
         (0 to Math.floor((_config("end") - _config("start")).toFloat
           / _config("step_add")).toInt).toList.map(
-          x => _config("start") + x)
+          x => _config("start") + x * _config("step_add"))
       } else
         null
     }
@@ -107,8 +107,8 @@ package object cnn {
               (inputConfig, convLayerSizeConfig) =>
                 generateList(paramBlock.head, inputConfig, convLayerSizeConfig),
               (inputConfig, convLayerSizeConfig) =>
-                generateList(paramBlock(1), inputConfig, convLayerSizeConfig)
-            )},
+                generateList(paramBlock(1), inputConfig, convLayerSizeConfig))
+            },
           elsPerThreadRange = {
             val paramBlock = jOptParams("els_per_thread").asInstanceOf[List[Map[String, Any]]]
             List(

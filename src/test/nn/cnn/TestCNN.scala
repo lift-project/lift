@@ -40,7 +40,7 @@ class TestCNN {
   private val logger = Logger(this.getClass)
 
   val precision: Float = 10f
-  val codeVersion: Int = 18
+  val codeVersion: Int = 20
   val reruns: Int = 1
 
   //@Test
@@ -133,10 +133,7 @@ class TestCNN {
       if Experiment.datasetsExist(pathToParams)
 
       _inputTileSizeL0 <- e.inputTileSizeRange.head(inputConfig, convDimensions.head)
-      _inputTileSizeL1 <- {
-        val a = e.inputTileSizeRange(1)(inputConfig, convDimensions(1))
-        a
-      }
+      _inputTileSizeL1 <- e.inputTileSizeRange(1)(inputConfig, convDimensions(1))
       _elsPerThreadL0 <- e.elsPerThreadRange.head(inputConfig, convDimensions.head)
       _elsPerThreadL1 <- e.elsPerThreadRange(1)(inputConfig, convDimensions(1))
       _kernelsPerGroupL0 <- e.kernelsPerGroupRange.head(inputConfig, convDimensions.head)

@@ -25,40 +25,40 @@ object TestCNN_Conv {
 }
 
 class TestCNN_Conv {
-  val reruns: Int = 1
+  val reruns: Int = 2
 
   @Test
   def TestConv(): Unit = {
     for (_ <- 0 until reruns)
       new TestCNN().Test(
-        cnn.getConfigFromJSON("/home/s1569687/lift/src/test/nn/cnn/cnn_experiments.json"))
-//      continueFrom = Experiment(
-//        cnn.Experiment.InputConfig(
-//          nBatches = 2,
-//          nInputs = 64,
-//          imageSize = 64,
-//          nChannels = 1),
-//        convConfig = List(
-//          conv.Experiment.Config(
-//            conv.Experiment.Config.Dimensions(nKernels = 16, kernelSize = 20),
-//            conv.Experiment.Config.OptimisationalParams(inputTileSize = 20, elsPerThread = 20, kernelsPerGroup = 4)
-//          ),
-//          conv.Experiment.Config(
-//            conv.Experiment.Config.Dimensions(nKernels = 12, kernelSize = 20),
-//            conv.Experiment.Config.OptimisationalParams(inputTileSize = 20, elsPerThread = 4, kernelsPerGroup = 4)
-//          )
-//        ),
-//        fcConfig = List(
-//          fc.Experiment.Config(
-//            fc.Experiment.Config.Dimensions(nNeurons = 16),
-//            fc.Experiment.Config.OptimisationalParams(multsPerThread = 1, neuronsPerWrg = 1)
-//          ),
-//          fc.Experiment.Config(
-//            fc.Experiment.Config.Dimensions(nNeurons = 10),
-//            fc.Experiment.Config.OptimisationalParams(multsPerThread = 1, neuronsPerWrg = 1)
-//          )
-//        )
-//      ),
-//      abortAfter = Some(1))
+        cnn.getConfigFromJSON("/home/s1569687/lift/src/test/nn/cnn/cnn_experiments.json"),
+      continueFrom = Experiment(
+        cnn.Experiment.InputConfig(
+          nBatches = 2,
+          nInputs = 64,
+          imageSize = 64,
+          nChannels = 1),
+        convConfig = List(
+          conv.Experiment.Config(
+            conv.Experiment.Config.Dimensions(nKernels = 16, kernelSize = 20),
+            conv.Experiment.Config.OptimisationalParams(inputTileSize = 20, elsPerThread = 20, kernelsPerGroup = 4)
+          ),
+          conv.Experiment.Config(
+            conv.Experiment.Config.Dimensions(nKernels = 12, kernelSize = 20),
+            conv.Experiment.Config.OptimisationalParams(inputTileSize = 20, elsPerThread = 4, kernelsPerGroup = 4)
+          )
+        ),
+        fcConfig = List(
+          fc.Experiment.Config(
+            fc.Experiment.Config.Dimensions(nNeurons = 16),
+            fc.Experiment.Config.OptimisationalParams(multsPerThread = 1, neuronsPerWrg = 1)
+          ),
+          fc.Experiment.Config(
+            fc.Experiment.Config.Dimensions(nNeurons = 10),
+            fc.Experiment.Config.OptimisationalParams(multsPerThread = 1, neuronsPerWrg = 1)
+          )
+        )
+      ),
+      abortAfter = Some(1))
   }
 }
