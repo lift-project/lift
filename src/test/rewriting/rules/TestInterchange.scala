@@ -17,6 +17,10 @@ class TestInterchange {
   private val N = SizeVar("N")
   private val M = SizeVar("M")
 
+  private val inputSize = 256
+  private val inputMatrix = Array.tabulate(inputSize, inputSize)((_, _) => util.Random.nextFloat())
+  private val inputArray = Array.tabulate(inputSize)(_ => util.Random.nextFloat())
+
   @Test
   def transposeBothSides(): Unit = {
     val f = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
@@ -43,8 +47,16 @@ class TestInterchange {
     )
 
     assertTrue(Rules.mapMapTransposeZipInside.rewrite.isDefinedAt(f.body))
-    val f0 = Rules.mapMapTransposeZipInside.rewrite(f.body)
-    TypeChecker(f0)
+    val g = Rewrite.applyRuleAt(f, f.body, Rules.mapMapTransposeZipInside)
+    TypeChecker(g)
+
+    val loweredF = Rewrite.applyRuleUntilCannot(f, Rules.mapSeq)
+    val loweredG = Rewrite.applyRuleUntilCannot(g, Rules.mapSeq)
+
+    val (outputF: Array[Float], _) = Execute()(loweredF, inputMatrix, inputArray)
+    val (outputG: Array[Float], _) = Execute()(loweredG, inputMatrix, inputArray)
+
+    assertArrayEquals(outputF, outputG, 0.001f)
   }
 
   @Test
@@ -156,8 +168,6 @@ class TestInterchange {
 
   @Test
   def mapMapZipInsideUsedTwice(): Unit = {
-    val inputSize = 256
-    val input = Array.tabulate(inputSize, inputSize)((_, _) => util.Random.nextFloat())
 
     val f = fun(
       ArrayType(ArrayType(Float, N), M),
@@ -185,19 +195,42 @@ class TestInterchange {
     )
 
     val loweredF = Rewrite.applyRuleUntilCannot(f, Rules.mapSeq)
-    val (outputF: Array[Float], _) = Execute()(loweredF, input)
+    val (outputF: Array[Float], _) = Execute()(loweredF, inputMatrix)
 
     val loweredG = Rewrite.applyRuleUntilCannot(g, Rules.mapSeq)
-    val (outputG: Array[Float], _) = Execute()(loweredG, input)
+    val (outputG: Array[Float], _) = Execute()(loweredG, inputMatrix)
+
+    assertArrayEquals(outputF, outputG, 0.001f)
+  }
+
+  @Test
+  def mapMapZipInsideUsedTwiceUsingRule(): Unit = {
+
+    val f = fun(
+      ArrayType(ArrayType(Float, N), M),
+      in1 =>
+        Map(fun(y =>
+          Map(fun(x =>
+            Map(fun(x =>
+              add(Get(x, 0), Get(x, 1))
+            )) $ Zip(Get(x, 0), Get(x, 1))
+          )) $ y
+        )) o Split(256) $ Zip(in1, in1)
+    )
+
+    val g = Rewrite.applyRuleAtId(f, 5, Rules.mapMapTransposeZipInside)
+
+    val loweredF = Rewrite.applyRuleUntilCannot(f, Rules.mapSeq)
+    val (outputF: Array[Float], _) = Execute()(loweredF, inputMatrix)
+
+    val loweredG = Rewrite.applyRuleUntilCannot(g, Rules.mapSeq)
+    val (outputG: Array[Float], _) = Execute()(loweredG, inputMatrix)
 
     assertArrayEquals(outputF, outputG, 0.001f)
   }
 
   @Test
   def mapMapZipInsideUsedTwicePlusExtra(): Unit = {
-    val inputSize = 256
-    val inputMatrix = Array.tabulate(inputSize, inputSize)((_, _) => util.Random.nextFloat())
-    val inputArray = Array.tabulate(inputSize)(_ => util.Random.nextFloat())
 
     val f = fun(
       ArrayType(ArrayType(Float, N), M),
@@ -234,4 +267,32 @@ class TestInterchange {
 
     assertArrayEquals(outputF, outputG, 0.001f)
   }
+
+  @Test
+  def mapMapZipInsideUsedTwicePlusExtraUsingRule(): Unit = {
+
+    val f = fun(
+      ArrayType(ArrayType(Float, N), M),
+      ArrayType(Float, N),
+      (matrix, array) =>
+        Map(fun(y =>
+          Map(fun(x =>
+            Map(fun(x =>
+              add(Get(x, 0), mult(Get(x, 1), Get(x, 2)))
+            )) $ Zip(Get(x, 0), Get(x, 1), array)
+          )) $ y
+        )) o Split(256) $ Zip(matrix, matrix)
+    )
+
+    val g = Rewrite.applyRuleAtId(f, 5, Rules.mapMapTransposeZipInside)
+
+    val loweredF = Rewrite.applyRuleUntilCannot(f, Rules.mapSeq)
+    val (outputF: Array[Float], _) = Execute()(loweredF, inputMatrix, inputArray)
+
+    val loweredG = Rewrite.applyRuleUntilCannot(g, Rules.mapSeq)
+    val (outputG: Array[Float], _) = Execute()(loweredG, inputMatrix, inputArray)
+
+    assertArrayEquals(outputF, outputG, 0.001f)
+  }
+
 }

@@ -130,15 +130,12 @@ class TestRewriteGesummv {
     val f1 = SimplifyAndFuse.withoutPreventingFurtherOptimisation(f0)
 
     val g = Rewrite.applyRulesUntilCannot(f1, Seq(Rules.flattenZips))
-    println(g)
 
-//    println(NumberPrinter(f1))
-
-    val f2 = Rewrite.applyRuleAtId(f1, 1, Rules.splitJoin(64))
+    val f2 = Rewrite.applyRuleAtId(g, 1, Rules.splitJoin(64))
     val f3 = Rewrite.applyRuleAtId(f2, 7, MacroRules.interchange)
     val f4 = Rewrite.applyRuleAtId(f3, 10, MacroRules.introduceReuseFromMap(64))
-//    val f5 = Rewrite.applyRuleAtId(f4, 13, MacroRules.introduceReuseFromMap(64))
-//    println(f5)
+    val f5 = Rewrite.applyRuleAtId(f4, 13, MacroRules.introduceReuseFromMap(64))
+    println(f5)
 //    println(NumberPrinter(f4))
   }
 
