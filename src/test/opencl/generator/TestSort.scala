@@ -26,6 +26,10 @@ object TestSort {
 
 
 class TestSort {
+
+  def bitonic_shuffle(arr: Array[Int], dim_i: Int, dim_j: Int) : Array[Int] {
+
+  }
   @Test def bitonic_reordering(): Unit = {
     val inputSize = Math.pow(2, 8).toInt
     val arr = Array.tabulate(inputSize)((i:Int) => i.toFloat)
