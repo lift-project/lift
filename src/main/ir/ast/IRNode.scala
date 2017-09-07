@@ -61,16 +61,75 @@ object IRNode {
         l.params.foreach(visit(_,pre,post))
         visit(l.body,pre,post)
 
+      case UnsafeArrayAccess(e) =>
+        visit(e,pre,post)
+      case CheckedArrayAccess(e) =>
+        visit(e,pre,post)
+
       case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
            Split(_) | Join() | Zip(_) | Tuple(_) | Filter() |
            Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Slide(_, _) |
-           Pad(_,_,_) | Value(_) | UnsafeArrayAccess(_) | CheckedArrayAccess(_) | Id() =>  // nothing to visit here
+           Pad(_,_,_) | Value(_) | Id() =>  // nothing to visit here
 
       case _: Param | _:ArrayAccess | _: ArrayConstructors =>  // nothing to visit here
 
       case fp : FPattern => visit(fp.f,pre,post)
     }
     post(n)
+  }
+
+
+
+  /**
+    * Traverses the AST recursively.
+    * @param n The root IRNode of the AST.
+    * @param pre This function is called before visiting each node in the AST.
+    *            The resulting returned function is called once the node has been traversed.
+    *            Note that post is called before any argument of a funcall are traversed
+    */
+  def visitPrePost(n: IRNode,
+                   pre: IRNode => (IRNode => Unit)) : Unit = {
+    val post = pre(n)
+    n match {
+
+      case fc: FunCall =>
+        visitPrePost(fc.f,pre)
+        post(n)
+
+        // only continue with the arguments once the post function has been called
+        fc.args.foreach(visitPrePost(_,pre))
+
+      case vec: VectorizeUserFun =>
+        visitPrePost(vec.userFun,pre)
+        post(n)
+
+      case u : UserFun =>
+        post(n)
+
+      case l: Lambda =>
+        l.params.foreach(visitPrePost(_,pre))
+        visitPrePost(l.body,pre)
+        post(n)
+
+      case UnsafeArrayAccess(e) =>
+        visitPrePost(e,pre)
+        post(n)
+      case CheckedArrayAccess(e) =>
+        visitPrePost(e,pre)
+        post(n)
+
+      case _: Param | _:ArrayAccess | _: ArrayConstructors |
+           Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
+           Split(_) | Join() | Zip(_) | Tuple(_) | Filter() |
+           Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Slide(_, _) |
+           Pad(_,_,_) | Value(_)  | Id() | PrintType()  =>
+        post(n)
+
+      case fp : FPattern =>
+        visitPrePost(fp.f,pre)
+        post(n)
+
+    }
   }
 
 
@@ -160,11 +219,10 @@ object IRNode {
 
       case ArrayAccess(idx) => ArrayAccess(f(idx))
 
-
       case x@(MapGlb(_, _) | MapLcl(_, _) | MapWarp(_) | MapLane(_) | MapSeq(_) | MapWrg(_,_) | Map(_) |
               ReduceSeq(_) | PartRed(_) | BSearch(_) | LSearch(_) | FunCall(_, _) | Lambda(_, _) |
               Unzip() | Transpose() | TransposeW() | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
-              Head() | Tail() | Get(_) | toGlobal(_) | toLocal(_) | toPrivate(_)) => x
+              Head() | Tail() | Get(_) | toGlobal(_) | toLocal(_) | toPrivate(_)  | UnsafeArrayAccess(_) | CheckedArrayAccess(_)) => x
 
     }
       , x => x)

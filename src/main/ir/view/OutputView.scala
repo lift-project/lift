@@ -1,9 +1,9 @@
 package ir.view
 
-import lift.arithmetic.{ArithExpr, Cst, Var}
+import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{FilterSeq, MapSeqSlide, ReduceWhileSeq}
+import opencl.ir.pattern.{ReduceWhileSeq, MapSeqSlide, FilterSeq}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
@@ -20,6 +20,11 @@ object OutputView {
    * @param expr Expression to build views for
    */
   def apply(expr: Expr): Unit = {
+
+    // reset outputView for every expression
+    Expr.visit(expr, _.outputView = NoView, _ => {})
+
+
     expr.outputView = View(expr.t, expr.mem.variable)
     visitAndBuildViews(expr, expr.outputView)
   }
@@ -29,8 +34,8 @@ object OutputView {
       case call: FunCall => buildViewFunCall(call, writeView)
       case e: Expr=>
 
-        // we always override the outputView since the memory may have changed if the memory allocated has run more than once on the expression
-        e.outputView = writeView
+        if (e.outputView == NoView)
+          e.outputView = writeView
 
         e.outputView
     }
@@ -61,9 +66,9 @@ object OutputView {
       case l: Lambda => buildViewLambda(l, call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
-        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.mem.variable)
+        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
-        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.mem.variable)
+        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case PrintType() | Get(_) | _: Tuple | Gather(_) | Filter() |
            Pad(_, _, _) =>
         writeView
@@ -191,9 +196,7 @@ object OutputView {
   private def buildViewIterate(i: Iterate, call: FunCall, writeView: View): View = {
     val v = View.initialiseNewView(call.t, call.inputDepth, i.vPtrOut)
     visitAndBuildViews(i.f.body, v)
-
-    // TODO: CD: not sure if should use the inputview instead of the mem
-    View.initialiseNewView(call.t, call.outputDepth, call.args.head.mem.variable)
+    View.initialiseNewView(call.args.head.t, call.outputDepth, call.args.head.mem.variable)
   }
 
   private def buildViewMap(m: AbstractMap, call: FunCall, writeView: View): View = {
@@ -204,14 +207,10 @@ object OutputView {
   
   private def buildViewFilter(f: FilterSeq, call: FunCall,
                               writeView: View): View = {
-    // Output of the predicate is never stored in a variable
     visitAndBuildViews(f.f.body, writeView.access(Cst(0)))
     val outDepth = getAccessDepth(f.f.body.accessInf, f.f.body.mem)
-    f.f.body.outputView = View.initialiseNewView(f.f.body.t, outDepth, f.f.body.mem.variable)
-    
-    // Write at the "top" of the output array
-    visitAndBuildViews(f.copyFun.body, writeView.access(f.loopWrite))
-    ViewMap(f.copyFun.body.outputView, f.loopWrite, call.args.head.t)
+    f.f.body.outputView = View.initialiseNewView(f.f.body.t, List(), f.f.body.mem.variable)
+    ViewMap(f.f.params.head.outputView, f.loopWrite, call.args.head.t)
   }
   
   private def buildViewReduce(r: AbstractPartRed,
@@ -241,7 +240,7 @@ object OutputView {
     visitAndBuildViews(call.args.head,
       View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable))
     visitAndBuildViews(s.f.body, writeView.access(Cst(0)))
-    View.initialiseNewView(call.args(1).t, call.outputDepth, call.mem.variable)
+    View.initialiseNewView(call.args(1).t, call.outputDepth, call.args(1).mem.variable)
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {
@@ -308,6 +307,6 @@ object OutputView {
     // TODO: Not right. See TestTail.tailBetweenMapsScatterAfter and
     // TODO: TestTail.tailBetweenMapsScatterBeforeAndAfter. Not sure how to fix.
     View.initialiseNewView(funCall.args.head.t, funCall.outputDepth,
-      funCall.mem.variable)
+      funCall.args.head.mem.variable)
   }
 }

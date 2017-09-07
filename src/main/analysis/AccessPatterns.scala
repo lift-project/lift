@@ -78,7 +78,7 @@ class AccessPatterns(
 
   private def getAccessPattern(view: View): Option[AccessPattern] = {
     val length = Type.getLength(Type.getValueType(view.t))
-    ViewPrinter.emit(Var(), view) match {
+    ViewPrinter.emit(view) match {
       case v: VarRef => getAccessPattern(v, length)
       case _ => None
     }

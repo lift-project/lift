@@ -1,32 +1,18 @@
 package opencl.generator.stencil
 
 import ir.ArrayTypeWSWC
-import ir.ast.{Get, Slide, Zip, fun}
+import opencl.generator.NDRange
+import rewriting.SimplifyAndFuse
+import ir.ast.{Get, Slide, Zip, fun, _}
 import lift.arithmetic.SizeVar
 import opencl.executor._
-import org.junit.{AfterClass, BeforeClass}
+import opencl.generator.stencil.acoustic.StencilUtilities
+import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
-import opencl.ir.pattern._
-import ir.ast._
-import opencl.generator.NDRange
-import opencl.generator.stencil.acoustic.{BoundaryUtilities, RoomConstants, StencilUtilities}
-import opencl.ir._
-import rewriting.SimplifyAndFuse
 
-object TestMapSeqSlide
-{
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestMapSeqSlide extends TestWithExecutor
 
 object MapSeqSlideHelpers
 {
@@ -1092,7 +1078,7 @@ class TestMapSeqSlide
         o PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(mat1, mat2)
     )
 
-    println(Compile(original3DStencil(slidesize,slidestep)))
+//    println(Compile(original3DStencil(slidesize,slidestep)))
    println(Compile(lambda3D))
 
     val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(original3DStencil(slidesize,slidestep),values,values2)
