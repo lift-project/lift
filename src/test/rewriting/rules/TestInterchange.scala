@@ -22,6 +22,20 @@ class TestInterchange {
   private val inputArray = Array.tabulate(inputSize)(_ => util.Random.nextFloat())
   private val input3DMatrix = Array.tabulate(16,16,16)((_, _, _) => util.Random.nextFloat())
 
+  private def test(f: Lambda, g: Lambda, inputs: Any*): Unit = {
+    TypeChecker(f)
+    TypeChecker(g)
+    assertEquals(f.body.t, g.body.t)
+
+    val loweredF = Lower.sequential(f)
+    val loweredG = Lower.sequential(g)
+
+    val (outputF: Array[Float], _) = Execute()(loweredF, inputs:_*)
+    val (outputG: Array[Float], _) = Execute()(loweredG, inputs:_*)
+
+    assertArrayEquals(outputF, outputG, 0.001f)
+  }
+
   @Test
   def transposeBothSidesNotApplicable(): Unit = {
     val g = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
@@ -40,17 +54,7 @@ class TestInterchange {
 
     val g = Rewrite.applyRuleAtId(f, 0, Rules.transposeBothSides)
 
-    TypeChecker(f)
-    TypeChecker(g)
-    assertEquals(f.body.t, g.body.t)
-
-    val loweredF = Lower.sequential(f)
-    val loweredG = Lower.sequential(g)
-
-    val (outputF: Array[Float], _) = Execute()(loweredF, inputMatrix)
-    val (outputG: Array[Float], _) = Execute()(loweredG, inputMatrix)
-
-    assertArrayEquals(outputF, outputG, 0.001f)
+    test(f, g, inputMatrix)
   }
 
   @Test
@@ -62,17 +66,7 @@ class TestInterchange {
 
     val g = Rewrite.applyRuleAt(f, f.body, Rules.mapMapTransposeZipInside)
 
-    TypeChecker(f)
-    TypeChecker(g)
-    assertEquals(f.body.t, g.body.t)
-
-    val loweredF = Lower.sequential(f)
-    val loweredG = Lower.sequential(g)
-
-    val (outputF: Array[Float], _) = Execute()(loweredF, inputMatrix, inputArray)
-    val (outputG: Array[Float], _) = Execute()(loweredG, inputMatrix, inputArray)
-
-    assertArrayEquals(outputF, outputG, 0.001f)
+    test(f, g, inputMatrix, inputArray)
   }
 
   @Test
@@ -87,17 +81,7 @@ class TestInterchange {
 
     val g = Rewrite.applyRuleAtId(f, 0, Rules.mapMapTransposeZipOutside)
 
-    TypeChecker(f)
-    TypeChecker(g)
-    assertEquals(f.body.t, g.body.t)
-
-    val loweredF = Lower.sequential(f)
-    val loweredG = Lower.sequential(g)
-
-    val (outputF: Array[Float], _) = Execute()(loweredF, inputMatrix, inputArray)
-    val (outputG: Array[Float], _) = Execute()(loweredG, inputMatrix, inputArray)
-
-    assertArrayEquals(outputF, outputG, 0.001f)
+    test(f, g, inputMatrix, inputArray)
   }
 
   @Test
@@ -156,17 +140,7 @@ class TestInterchange {
 
     val g = Rewrite.applyRuleAtId(f, 0, Rules.mapReducePartialReduce)
 
-    TypeChecker(f)
-    TypeChecker(g)
-    assertEquals(f.body.t, g.body.t)
-
-    val loweredF = Lower.sequential(f)
-    val loweredG = Lower.sequential(g)
-
-    val (outputF: Array[Float], _) = Execute()(loweredF, input3DMatrix)
-    val (outputG: Array[Float], _) = Execute()(loweredG, input3DMatrix)
-
-    assertArrayEquals(outputF, outputG, 0.001f)
+    test(f, g, input3DMatrix)
   }
 
   @Test
@@ -180,17 +154,7 @@ class TestInterchange {
     val g = Rewrite.applyRuleAtId(f, 0, Rules.mapReduceInterchange)
     assertTrue(g.body.asInstanceOf[FunCall].args.head.asInstanceOf[FunCall].f.isInstanceOf[Reduce])
 
-    TypeChecker(f)
-    TypeChecker(g)
-    assertEquals(f.body.t, g.body.t)
-
-    val loweredF = Lower.sequential(f)
-    val loweredG = Lower.sequential(g)
-
-    val (outputF: Array[Float], _) = Execute()(loweredF, small2DMatrix)
-    val (outputG: Array[Float], _) = Execute()(loweredG, small2DMatrix)
-
-    assertArrayEquals(outputF, outputG, 0.001f)
+    test(f, g, small2DMatrix)
   }
 
   @Test
@@ -205,17 +169,7 @@ class TestInterchange {
 
     assertTrue(g.body.asInstanceOf[FunCall].args.head.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
 
-    TypeChecker(f)
-    TypeChecker(g)
-    assertEquals(f.body.t, g.body.t)
-
-    val loweredF = Lower.sequential(f)
-    val loweredG = Lower.sequential(g)
-
-    val (outputF: Array[Float], _) = Execute()(loweredF, small2DMatrix)
-    val (outputG: Array[Float], _) = Execute()(loweredG, small2DMatrix)
-
-    assertArrayEquals(outputF, outputG, 0.001f)
+    test(f, g, small2DMatrix)
   }
 
   @Test
@@ -256,13 +210,7 @@ class TestInterchange {
         )) o Split(256) $ Zip(in1, in1)
     )
 
-    val loweredF = Lower.sequential(f)
-    val (outputF: Array[Float], _) = Execute()(loweredF, inputMatrix)
-
-    val loweredG = Lower.sequential(g)
-    val (outputG: Array[Float], _) = Execute()(loweredG, inputMatrix)
-
-    assertArrayEquals(outputF, outputG, 0.001f)
+    test(f, g, inputMatrix)
   }
 
   @Test
@@ -282,13 +230,7 @@ class TestInterchange {
 
     val g = Rewrite.applyRuleAtId(f, 5, Rules.mapMapTransposeZipInside)
 
-    val loweredF = Lower.sequential(f)
-    val (outputF: Array[Float], _) = Execute()(loweredF, inputMatrix)
-
-    val loweredG = Lower.sequential(g)
-    val (outputG: Array[Float], _) = Execute()(loweredG, inputMatrix)
-
-    assertArrayEquals(outputF, outputG, 0.001f)
+    test(f, g, inputMatrix)
   }
 
   @Test
@@ -321,13 +263,7 @@ class TestInterchange {
         )) o Split(256) $ Zip(matrix, matrix)
     )
 
-    val loweredF = Lower.sequential(f)
-    val (outputF: Array[Float], _) = Execute()(loweredF, inputMatrix, inputArray)
-
-    val loweredG = Lower.sequential(g)
-    val (outputG: Array[Float], _) = Execute()(loweredG, inputMatrix, inputArray)
-
-    assertArrayEquals(outputF, outputG, 0.001f)
+    test(f, g, inputMatrix, inputArray)
   }
 
   @Test
@@ -348,13 +284,7 @@ class TestInterchange {
 
     val g = Rewrite.applyRuleAtId(f, 5, Rules.mapMapTransposeZipInside)
 
-    val loweredF = Lower.sequential(f)
-    val (outputF: Array[Float], _) = Execute()(loweredF, inputMatrix, inputArray)
-
-    val loweredG = Lower.sequential(g)
-    val (outputG: Array[Float], _) = Execute()(loweredG, inputMatrix, inputArray)
-
-    assertArrayEquals(outputF, outputG, 0.001f)
+    test(f, g, inputMatrix, inputArray)
   }
 
 }
