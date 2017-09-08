@@ -818,7 +818,6 @@ class TestMapSeqSlide
         o PrintType() $ Zip(mat1, mat2)
     )
 
-//    println(Compile(lambda1D))
     println(Compile(lambda1D))
     val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(original1DStencil(slidesize,slidestep),values,values2)
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1D,values,values2)

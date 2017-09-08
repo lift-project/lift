@@ -1150,7 +1150,7 @@ class OpenCLGenerator extends Generator {
     val windowSize = getWindowSize(size.eval, nDim)
 
     val v = Value(0.0f, ArrayTypeWSWC(viewType, windowSize))
-    varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
+    varDecls = varDecls.updated(sSP.windowVar, v.t)
     privateMems = privateMems :+ TypedOpenCLMemory(OpenCLMemory(sSP.windowVar, windowSize, PrivateMemory), v.t)
     val varD = OpenCLAST.VarDecl(sSP.windowVar, v.t,
       init = null, PrivateMemory, windowSize)
@@ -1170,7 +1170,13 @@ class OpenCLGenerator extends Generator {
     // initial window values are set
     def setupInitialWindowVars(idx: Int, n: Int, accesses: Array[Int]): Unit = n match {
       case 1 => for (j <- 0 to reuse.eval - 1) {
-         accesses(n - 1) = j; (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(getView(call.args.head.view, accesses)))
+         accesses(n - 1) = j
+         val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
+         val argViewi = getView(call.args.head.view, accesses)
+         val loadi = generateLoadNode(argMem, argViewi.t, argViewi)
+        (block: Block) += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), loadi)
+
+
       }
       case _ => for (i <- 0 to size.eval - 1) {
         accesses(n - 1) = i; setupInitialWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
@@ -1199,7 +1205,10 @@ class OpenCLGenerator extends Generator {
     def updateWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = n match {
       case 1 => for(j <- reuse.eval to size.eval-1) {
         accesses(n-1) = j
-        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), ViewPrinter.emit(getViewIncrement(call.args.head.view,indexVar,accesses)))
+        val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
+        val viewInc = getViewIncrement(call.args.head.view,indexVar,accesses)
+        val loadi = generateLoadNode(argMem, viewInc.t, viewInc)
+        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = s"_${j + idx}"), loadi)
       }
       case _ => for(i <- 0 to size.eval-1) {
         accesses(n-1) = i
