@@ -16,7 +16,7 @@ import ir.{ArrayType, Type, TypeException, UndefType}
  * @param idx The function to use for reordering
  */
 case class Gather(idx: IndexFunction) extends Pattern(arity = 1)
-                                      with isGenerable {
+                                       {
 
   override def checkType(argType: Type, setType: Boolean): Type = {
     // Gather expects an array

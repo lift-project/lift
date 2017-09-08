@@ -57,10 +57,13 @@ abstract case class Lambda private[ast] (params: Array[Param],
     }
   }
 
-  override lazy val isGenerable: Boolean = {
+  lazy val isGenerable: Boolean = {
     Expr.visitWithState(true)(body, (e, s) => {
       e match {
-        case call: FunCall if !call.f.isGenerable => false
+        case FunCall(Map(Lambda(_, expr)), _) if expr.isConcrete => false
+        case FunCall(Reduce(Lambda(_, expr)), _, _) if expr.isConcrete => false
+        case FunCall(PartRed(Lambda(_, expr)), _, _) if expr.isConcrete => false
+        case FunCall(Id(), _) => false
         case _ => s
       }
     })

@@ -22,7 +22,7 @@ import ir._
  * @param n The vector length used to split the input array in to.
  *          The size of the input array must be a multiple of `len`.
  */
-case class asVector(n: ArithExpr) extends Pattern(arity = 1) with isGenerable {
+case class asVector(n: ArithExpr) extends Pattern(arity = 1)  {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

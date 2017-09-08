@@ -16,7 +16,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
  * `Filter() : [a],,I,, -> [Int],,J,, -> [a],,J,,`
  *
  */
-case class Filter() extends Pattern(arity = 2) with isGenerable {
+case class Filter() extends Pattern(arity = 2)  {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

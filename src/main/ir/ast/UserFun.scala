@@ -14,7 +14,7 @@ import ir._
  */
 case class UserFun(name: String, paramNames: Array[String], body: String,
                    inTs: Seq[Type], outT: Type)
-  extends FunDecl(inTs.length) with isGenerable {
+  extends FunDecl(inTs.length)  {
 
   // enforce at runtime that types and names match
   if (paramNames.length != inTs.length || !namesAndTypesMatch())
@@ -166,14 +166,7 @@ case class VectorizeUserFun(n: ArithExpr, userFun: UserFun)
     Type.substitute(userFun.outT.vectorize(n), substitutions.toMap)
   }
 
-
   lazy val vectorizedFunction = userFun.vectorize(n)
-
-  /**
-   * Indicating if it is possible to generate code for this function declaration.
-   * Might be overwritten by a subclass or by mixing in the `isGenerable` trait.
-   */
-  override def isGenerable: Boolean = n.isEvaluable && n.evalDouble.isValidInt
 }
 
 object UserFun {

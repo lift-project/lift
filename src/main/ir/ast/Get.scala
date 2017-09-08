@@ -3,7 +3,7 @@ package ir.ast
 import ir.interpreter.Interpreter._
 import ir.{TupleType, Type, TypeException, UndefType}
 
-case class Get(n: Int) extends Pattern(arity = 1) with isGenerable {
+case class Get(n: Int) extends Pattern(arity = 1)  {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

@@ -1,10 +1,10 @@
 package opencl.ir.pattern
 
 import ir._
-import ir.ast.{FPattern, Lambda, Lambda1, Pattern, fun, isGenerable}
+import ir.ast.{FPattern, Lambda, Lambda1, Pattern, fun}
 import ir.interpreter.Interpreter.ValueMap
-import opencl.ir.{id, Bool}
 import lift.arithmetic.{PosVar, Var}
+import opencl.ir.Bool
 
 /**
   * An implementation of the sequential filter.
@@ -16,7 +16,7 @@ import lift.arithmetic.{PosVar, Var}
   * @param loopWrite is the index user to store data into the output array
   */
 case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
-  extends Pattern(arity=1) with FPattern with isGenerable {
+  extends Pattern(arity=1) with FPattern  {
   override def checkType(argType: Type, setType: Boolean): Type = {
     val retTy = argType match {
       // Filter expects an array

@@ -14,7 +14,7 @@ import ir._
  * The tail pattern has the following type:
  * `Tail() : [a],,I+1,, -> [a],,I,,`
  */
-case class Tail() extends Pattern(arity = 1) with isGenerable {
+case class Tail() extends Pattern(arity = 1)  {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

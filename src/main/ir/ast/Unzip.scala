@@ -15,7 +15,7 @@ import ir._
  * `Unzip() : [a x b],,i,, -> ([a],,i,,, [b],,i,,)`
  * The definitions for `n > 2` are accordingly.
  */
-case class Unzip() extends Pattern(arity = 1) with isGenerable {
+case class Unzip() extends Pattern(arity = 1)  {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

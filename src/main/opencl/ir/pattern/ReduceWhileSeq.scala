@@ -5,7 +5,7 @@ import ir._
 import ir.ast._
 
 case class ReduceWhileSeq(override val f: Lambda, p: Lambda)
-  extends AbstractReduce(f, PosVar("i")) with isGenerable {
+  extends AbstractReduce(f, PosVar("i"))  {
   assert(f.body.isConcrete)
 
   var pmem : Memory = UnallocatedMemory

@@ -29,7 +29,7 @@ import scala.collection._
  */
 case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
                                                      with FPattern
-                                                     with isGenerable {
+                                                      {
   var iterationCount: ArithExpr = ?
 
   var swapBuffer: Memory = UnallocatedMemory

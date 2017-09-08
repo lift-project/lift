@@ -11,7 +11,7 @@ import ir.interpreter.Interpreter.ValueMap
  */
 
 case class UnsafeArrayAccess(index: Expr) extends Pattern(arity = 1)
-  with isGenerable {
+   {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

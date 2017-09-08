@@ -9,7 +9,7 @@ import ir.interpreter.Interpreter.ValueMap
   * Code for this pattern can be generated
   */
 case class CheckedArrayAccess(index: Expr) extends Pattern(arity = 2)
-  with isGenerable {
+   {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

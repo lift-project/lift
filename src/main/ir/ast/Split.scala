@@ -24,7 +24,7 @@ import ir._
  *                  `chunkSize`.
  */
 case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1)
-  with isGenerable {
+   {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

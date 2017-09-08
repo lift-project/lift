@@ -46,8 +46,6 @@ abstract class AbstractMap(val f: Lambda,
       case a: Vector[_] => a.map(f.eval(valueMap, _))
     }
   }
-
-  override def isGenerable: Boolean = f.isGenerable
 }
 
 /**
@@ -72,18 +70,4 @@ abstract class AbstractMap(val f: Lambda,
  */
 case class Map(override val f: Lambda) extends AbstractMap(f, "Map", PosVar("")) {
   override def copy(f: Lambda): Pattern = Map(f)
-
-  /**
-   * Indicating if it is possible to generate code for this function
-   * declaration.
-   * Might be overwritten by a subclass or by mixing in the `isGenerable` trait.
-   */
-  override def isGenerable: Boolean = {
-    Expr.visitWithState(true)(f.body, (e, s) => {
-      e match {
-        case call: FunCall if call.isConcrete => false
-        case _ => s
-      }
-    })
-  }
 }
