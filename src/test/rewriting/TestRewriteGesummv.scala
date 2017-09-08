@@ -2,12 +2,12 @@ package rewriting
 
 import ir._
 import ir.ast._
-import ir.view.{AccessInfo, NoView}
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
+import rewriting.utils.NumberExpression
 
 object TestRewriteGesummv extends TestWithExecutor
 
@@ -138,7 +138,6 @@ class TestRewriteGesummv {
     val f4 = Rewrite.applyRuleAtId(f3, 10, MacroRules.introduceReuseFromMap(64))
     val f5 = Rewrite.applyRuleAtId(f4, 13, MacroRules.introduceReuseFromMap(64))
 
-
     val mappings = EnabledMappings(
       global0 = false, global01 = false, global10 = false,
       global012 = false, global210 = false,
@@ -146,33 +145,20 @@ class TestRewriteGesummv {
 
     val lowered = Lower.mapCombinations(f5, mappings).head
 
-
     val inline = Rewrite.applyRuleAtId(lowered, 41, Rules.LambdaInline)
-    val fuse = Rewrite.applyRuleAtId(inline, 40, MacroRules.reduceMapFusion)
-    val stringFormat = utils.Utils.dumpLambdaToString(fuse)
-    val copy = Eval(stringFormat)
-    val newStringFormat = utils.Utils.dumpLambdaToString(copy)
 
-    assertTrue(stringFormat  == newStringFormat)
+    // Make sure to rebuild the FunCall that appears twice
+    val numberMap = NumberExpression.breadthFirst(inline)
+    val origParam = numberMap.find(_._2 == 65).get._1
+    val newParam = Param()
+    val newInline = Lambda(inline.params, Expr.replace(inline.body, origParam, newParam))
 
-    Expr.visit(fuse.body, e => {
-      e.view = NoView
-      e.outputView = NoView
-      e.inputDepth = List()
-      e.outputDepth = List()
-      e.accessInf = AccessInfo()
-      e.mem = UnallocatedMemory
-      e.addressSpace = UndefAddressSpace
-      e.context = null
+    val fuse = Rewrite.applyRuleAtId(newInline, 40, MacroRules.reduceMapFusion)
 
-      if (!(fuse.params.contains(e) || e.isInstanceOf[Value]))
-        e.t = UndefType
-    },
-      _ => {})
-
-    val finalExpr = Rewrite.applyRuleAtId(copy, 67, Rules.tupleToStruct)
+    val finalExpr = Rewrite.applyRuleAtId(fuse, 67, Rules.tupleToStruct)
 
     val (local, global) = InferNDRange(finalExpr)
+
     val code = Compile(finalExpr, local, global)
 
     val (y: Array[Float], _) = Execute()(code, finalExpr, A, B, x, alpha, beta)
