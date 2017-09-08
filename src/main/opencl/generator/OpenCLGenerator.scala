@@ -1151,7 +1151,7 @@ class OpenCLGenerator extends Generator {
 
     val v = Value(0.0f, ArrayTypeWSWC(viewType, windowSize))
     varDecls = varDecls.updated(sSP.windowVar, v.t)
-    privateMems = privateMems :+ TypedOpenCLMemory(OpenCLMemory(sSP.windowVar, windowSize, PrivateMemory), v.t)
+    privateMems = privateMems :+ TypedOpenCLMemory(sSP.f.params(0).mem, sSP.f.params(0).t)
     val varD = OpenCLAST.VarDecl(sSP.windowVar, v.t,
       init = null, PrivateMemory, windowSize)
     privateDecls += (sSP.windowVar -> varD)
