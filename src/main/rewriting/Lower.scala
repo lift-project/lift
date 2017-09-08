@@ -3,7 +3,7 @@ package rewriting
 
 import com.typesafe.scalalogging.Logger
 import ir.ast._
-import ir.{Context, TypeChecker}
+import ir.{Context, TupleType, TypeChecker}
 import opencl.ir.pattern._
 import rewriting.utils._
 
@@ -43,7 +43,37 @@ object Lower {
 
     val compositionWithReduceSequential = mapComposedWithReduceAsSequential(removeOtherIds)
 
-   compositionWithReduceSequential
+    val tupleToStruct = tupleToStructInReduce(compositionWithReduceSequential)
+
+    tupleToStruct
+  }
+
+  private def tupleToStructInReduce(lambda: Lambda): Lambda = {
+    TypeChecker(lambda)
+
+    // TODO: Assuming all tuple accumulators are structs (true if it's the result of rewriting)
+    // TODO: and try to force writing to it. Result would be ignored otherwise
+    val applyHere =
+      Expr.visitLeftToRight(Seq[Expr]())(lambda.body, {
+
+        case (FunCall(ReduceSeq(Lambda(_, b)), acc, _), exprSet)
+          if acc.t.isInstanceOf[TupleType] =>
+
+          val maybeApplies =
+            Expr.visitLeftToRight(None: Option[Expr])(b, {
+              case (expr, None) if Rules.tupleToStruct.isDefinedAt(expr) => Some(expr)
+              case (_, maybeExpr) => maybeExpr
+            })
+
+          exprSet ++ maybeApplies
+
+        case (_, exprSet) => exprSet
+
+      })
+
+    applyHere.foldLeft(lambda)((currentExpr, toApplyAt) => {
+      Rewrite.applyRuleAt(currentExpr, toApplyAt, Rules.tupleToStruct)
+    })
   }
 
   def sequential(lambda: Lambda): Lambda = {

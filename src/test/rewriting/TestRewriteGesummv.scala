@@ -86,8 +86,6 @@ class TestRewriteGesummv {
     // Won't write to accumulator without this
     val f18 = Rewrite.applyRuleAtId(f17, 17, Rules.tupleToStruct)
 
-    println(f18)
-
     val (y: Array[Float], _) = Execute(n)(f18, A, B, x, alpha, beta)
 
     assertArrayEquals(yGold, y, 0.001f)
@@ -144,8 +142,7 @@ class TestRewriteGesummv {
 
     val lowered = Lower.mapCombinations(f5, mappings).head
 
-    val finalExpr = Rewrite.applyRuleAtId(lowered, 67, Rules.tupleToStruct)
-
+    val finalExpr = lowered
     val (local, global) = InferNDRange(finalExpr)
 
     val code = Compile(finalExpr, local, global)
