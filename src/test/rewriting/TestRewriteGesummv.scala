@@ -145,15 +145,8 @@ class TestRewriteGesummv {
 
     val lowered = Lower.mapCombinations(f5, mappings).head
 
-    val inline = Rewrite.applyRuleAtId(lowered, 41, Rules.LambdaInline)
-
-    // Make sure to rebuild the FunCall that appears twice
-    val numberMap = NumberExpression.breadthFirst(inline)
-    val origParam = numberMap.find(_._2 == 65).get._1
-    val newParam = Param()
-    val newInline = Lambda(inline.params, Expr.replace(inline.body, origParam, newParam))
-
-    val fuse = Rewrite.applyRuleAtId(newInline, 40, MacroRules.reduceMapFusion)
+    val inline = Rewrite.applyRuleAtId(lowered, 41, Rules.lambdaInline)
+    val fuse = Rewrite.applyRuleAtId(inline, 40, MacroRules.reduceMapFusion)
 
     val finalExpr = Rewrite.applyRuleAtId(fuse, 67, Rules.tupleToStruct)
 

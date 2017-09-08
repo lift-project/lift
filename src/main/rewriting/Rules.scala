@@ -1296,10 +1296,19 @@ object Rules {
       f o generateCopy(arg.t) $ arg
   })
 
-  val LambdaInline = Rule("", {
-    case call@FunCall(Lambda(Array(x), b), p) =>
+  val lambdaInline = Rule("", {
+    case FunCall(Lambda(Array(x), b), p)
+      if !p.isConcrete(true) &&
+        Utils.getFinalArg(p).isInstanceOf[Param] =>
 
-      Expr.replace(b, x, p)
+      val finalArg = Utils.getFinalArg(p)
+      val inlined = Expr.replace(b, x, p)
+
+      // Some trickery to make sure all FunCalls are rebuilt and
+      // the same object doesn't appear twice
+      val tempParam = Param()
+      val tempExpr = Expr.replace(inlined, finalArg, tempParam)
+      Expr.replace(tempExpr, tempParam, finalArg)
   })
 
   val tupleInline = Rule("tupleInline", {
