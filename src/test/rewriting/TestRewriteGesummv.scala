@@ -7,7 +7,6 @@ import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.utils.NumberExpression
 
 object TestRewriteGesummv extends TestWithExecutor
 
@@ -145,10 +144,7 @@ class TestRewriteGesummv {
 
     val lowered = Lower.mapCombinations(f5, mappings).head
 
-    val inline = Rewrite.applyRuleAtId(lowered, 41, Rules.lambdaInline)
-    val fuse = Rewrite.applyRuleAtId(inline, 40, MacroRules.reduceMapFusion)
-
-    val finalExpr = Rewrite.applyRuleAtId(fuse, 67, Rules.tupleToStruct)
+    val finalExpr = Rewrite.applyRuleAtId(lowered, 67, Rules.tupleToStruct)
 
     val (local, global) = InferNDRange(finalExpr)
 

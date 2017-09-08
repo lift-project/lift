@@ -914,7 +914,14 @@ object Rules {
         val newLambdaParam = Param()
         val gets = Utils.findGets(call, p.head)
         val newGets = gets.map({
-          case FunCall(Get(i), _) if i == mapInZipIndex => g $ Get(newLambdaParam, i)
+          case FunCall(Get(i), _) if i == mapInZipIndex =>
+
+            val lambdaCall = g $ Get(newLambdaParam, i)
+            if (Rules.lambdaInline.isDefinedAt(lambdaCall))
+              Rules.lambdaInline.rewrite(lambdaCall)
+            else
+              lambdaCall
+
           case FunCall(Get(i), _) => Get(newLambdaParam, i)
         })
 
