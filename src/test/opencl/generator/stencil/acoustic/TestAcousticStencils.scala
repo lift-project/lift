@@ -186,7 +186,7 @@ object StencilUtilities
 
 
     def createDataFloat3D(sizeX: Int, sizeY: Int, sizeZ: Int) = {
-      Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i + j + k + 1).toFloat }
+      Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i + sizeX*j + sizeX*sizeY*k + 1).toFloat }
     }
 
 

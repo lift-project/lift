@@ -444,18 +444,35 @@ class TestAcousticActualRoom {
           fun(inp => {
             toGlobal(MapSeqSlide(fun( m => {
 
+
               val cf = toPrivate( fun(x => getCF(x,RoomConstants.cf(0), RoomConstants.cf(1))) ) $ Get(m,2)
               val cf2 = toPrivate( fun(x => getCF(x,RoomConstants.cf2(0), RoomConstants.cf2(1))) ) $ Get(m,2)
               val maskedValStencil = RoomConstants.l2
 
               val `tile[1][1][1]` = Get(m,1).at(1).at(1).at(1)
 
-              toGlobal(id) $ `tile[1][1][1]`
-              /*toPrivate(fun( x => mult(x,cf))) o toPrivate(addTuple) $
-              Tuple(toPrivate(multTuple) $ Tuple(toPrivate(fun(x => subtract(2.0f,x))) o toPrivate(fun(x => mult(x,RoomConstants.l2))) $ valueMask, `tile[1][1][1]`),
-                toPrivate(subtractTuple) $ Tuple(
-                  toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
-                  toPrivate(fun(x => mult(x,cf2))) $ valueMat1))*/
+              val `tile[0][1][1]` = Get(m,1).at(0).at(1).at(1)
+              val `tile[1][0][1]` = Get(m,1).at(1).at(0).at(1)
+              val `tile[1][1][0]` = Get(m,1).at(1).at(1).at(0)
+              val `tile[1][1][2]` = Get(m,1).at(1).at(1).at(2)
+              val `tile[1][2][1]` = Get(m,1).at(1).at(2).at(1)
+              val `tile[2][1][1]` = Get(m,1).at(2).at(1).at(1)
+
+              val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
+                toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
+                toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
+                toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+                toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
+
+              val valueMat1 = Get(m,0)
+              val valueMask = toPrivate(BoundaryUtilities.idIF) $ Get(m,2)
+
+              toGlobal(id) o toPrivate(fun( x => mult(x,cf))) o toPrivate(addTuple) $
+                Tuple(toPrivate(multTuple) $ Tuple(toPrivate(fun(x => subtract(2.0f,x))) o toPrivate(fun(x => mult(x,RoomConstants.l2))) $ valueMask, `tile[1][1][1]`),
+                  toPrivate(subtractTuple) $ Tuple(
+                    toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
+                    toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
+
 
             }),size,step)) /*o Transpose() o Map(Transpose()) */ $ inp
           }))) o PrintType() $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
@@ -464,6 +481,7 @@ class TestAcousticActualRoom {
 
     val newLambda = SimplifyAndFuse(lambdaNeighAt)
     val source = Compile(newLambda)
+    println(source)
 
     val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,newLambda, data, stencilarrOther3D)
 
@@ -531,7 +549,7 @@ class TestAcousticActualRoom {
 
             toGlobal(MapSeqSlide(fun( m => {
 
-              val `tile[1][1][1]` = Get(m,0).at(1)
+              val `tile[1][1][1]` = Get(m.at(1),0)
 
               toGlobal(id) $ `tile[1][1][1]`
 
@@ -544,6 +562,7 @@ class TestAcousticActualRoom {
 
     val newLambda = SimplifyAndFuse(lambdaNeighMapSeqSlide)
     val source = Compile(newLambda)
+    println(source)
 
     val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,newLambda, data, stencilarrpadded3D)
     val (compareData: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh, stencilarrpadded3D)
