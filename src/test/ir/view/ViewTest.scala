@@ -3,12 +3,98 @@ package ir.view
 import ir._
 import ir.ast._
 import lift.arithmetic._
+import opencl.executor.Compile
 import opencl.generator.OpenCLAST._
 import opencl.ir._
+import opencl.ir.pattern.{MapGlb, MapSeq, toGlobal}
 import org.junit.Assert._
 import org.junit.Test
 
 class ViewTest {
+
+  @Test
+  def testUserFuns(): Unit = {
+
+    val mapSeqId1 = MapSeq(id)
+    val mapSeqId2 = MapSeq(id)
+
+    val f = fun(
+      ArrayTypeWSWC( ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")),
+      input => MapGlb(mapSeqId1 o mapSeqId2) $ input
+    )
+
+    val kernel = Compile(f)
+
+    println(mapSeqId1.f.body.asInstanceOf[FunCall].outputView)
+
+    println(kernel)
+  }
+
+  @Test
+  def testMapScatter1(): Unit = {
+
+    val f = fun(
+      ArrayTypeWSWC(Float, SizeVar("N")),
+      input => Scatter(reverse) o MapSeq(id) $ input
+    )
+
+    val kernel = Compile(f)
+    println(kernel)
+  }
+
+  @Test
+  def testMapScatter2(): Unit = {
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float,SizeVar("N")), SizeVar("M")),
+      input => MapSeq(Scatter(reverse)) o MapSeq(MapSeq(id)) $ input
+    )
+
+    val kernel = Compile(f)
+    println(kernel)
+  }
+
+  @Test
+  def testMapScatter3(): Unit = {
+
+    val p = Param(Float)
+    val fcId =  FunCall(id, p)
+    val lambdaId = Lambda(Array(p), fcId)
+    //val idFunCall = fun(x => lambda $ x)
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    val mapId = MapSeq(lambdaId)
+    val mapMapId = MapSeq(mapId)
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+      input => toGlobal(MapSeq( fun ( p=> Scatter(reverse) $ p )  ) o mapMapId) $ input
+    )
+
+    val kernel = Compile(f)
+    println(kernel)
+
+    assertEquals(VarRef(f.body.mem.variable, null, ArithExpression(N - 1 - mapId.loopVar + N*mapMapId.loopVar)),
+                 ViewPrinter.emit(fcId.outputView))
+  }
+
+  @Test
+  def testMapScatter4(): Unit = {
+
+    var N = SizeVar("N")
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
+      (in1,in2) => toGlobal(MapSeq(tf_id)) o Scatter(reverse) $ (Zip(MapSeq(id) $ in1, MapSeq(id) $ in2))
+      )
+
+    val kernel = Compile(f)
+    println(kernel)
+  }
+
 
   @Test
   def test1(): Unit = {
@@ -34,8 +120,8 @@ class ViewTest {
     val map_mapf0 = map_mapf.get(0)
     val map_mapf1 = map_mapf.get(1)
 
-    assertEquals(VarRef(va, null, ArithExpression(var_k)), ViewPrinter.emit(va, map_mapf0))
-    assertEquals(VarRef(vB, null, ArithExpression(var_j*8 + var_k)), ViewPrinter.emit(vB, map_mapf1))
+    assertEquals(VarRef(va, null, ArithExpression(var_k)), ViewPrinter.emit(map_mapf0))
+    assertEquals(VarRef(vB, null, ArithExpression(var_j*8 + var_k)), ViewPrinter.emit(map_mapf1))
   }
 
   @Test
@@ -72,8 +158,8 @@ class ViewTest {
     val map_map_map_f0 = map_map_map_f.get(0)
     val map_map_map_f1 = map_map_map_f.get(1)
 
-    assertEquals(VarRef(vA, null, ArithExpression(8*var_k + 9)), ViewPrinter.emit(vA, map_map_map_f0))
-    assertEquals(VarRef(vB, null, ArithExpression(8*var_l + 9)), ViewPrinter.emit(vB, map_map_map_f1))
+    assertEquals(VarRef(vA, null, ArithExpression(8*var_k + 9)), ViewPrinter.emit(map_map_map_f0))
+    assertEquals(VarRef(vB, null, ArithExpression(8*var_l + 9)), ViewPrinter.emit(map_map_map_f1))
   }
 
   @Test
@@ -95,8 +181,8 @@ class ViewTest {
     val zip_ab_3_0 = zip_ab_3.get(0)
     val zip_ab_3_1 = zip_ab_3.get(1)
 
-    assertEquals(VarRef(vA, null, ArithExpression(8*var_i + 3)), ViewPrinter.emit(vA, zip_ab_3_0))
-    assertEquals(VarRef(vB, null, ArithExpression(8*var_j + 3)), ViewPrinter.emit(vB, zip_ab_3_1))
+    assertEquals(VarRef(vA, null, ArithExpression(8*var_i + 3)), ViewPrinter.emit(zip_ab_3_0))
+    assertEquals(VarRef(vB, null, ArithExpression(8*var_j + 3)), ViewPrinter.emit(zip_ab_3_1))
   }
 
   @Test
@@ -113,7 +199,7 @@ class ViewTest {
     val split2A_i = split2A.access(var_i)
     val split2A_i_j = split2A_i.access(var_j)
 
-    assertEquals(VarRef(vA, null, ArithExpression(2*var_i + var_j)), ViewPrinter.emit(vA, split2A_i_j))
+    assertEquals(VarRef(vA, null, ArithExpression(2*var_i + var_j)), ViewPrinter.emit(split2A_i_j))
   }
 
   @Test
@@ -131,7 +217,7 @@ class ViewTest {
     val reorder_split_reorder_A_1 = split_reorder_A.access(1)
     val reorder_split_reorder_A_1_3 = reorder_split_reorder_A_1.access(3)
 
-    assertEquals(VarRef(vA, null, ArithExpression(Cst(33))), ViewPrinter.emit(vA, reorder_split_reorder_A_1_3))
+    assertEquals(VarRef(vA, null, ArithExpression(Cst(33))), ViewPrinter.emit(reorder_split_reorder_A_1_3))
   }
 
   @Test
@@ -154,7 +240,7 @@ class ViewTest {
     val reality = View(transposedArray, v).join(N).
       reorder(i => transpose(i, origArray)).split(M).access(i).access(j)
 
-    assertEquals(ViewPrinter.emit(v, goal), ViewPrinter.emit(v, reality))
+    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(reality))
   }
 
   @Test
@@ -178,7 +264,7 @@ class ViewTest {
     val view = View(finalArray, v).
       reorder(i => transpose(i, origArray)).split(M).access(i).access(j)
 
-    assertEquals(ViewPrinter.emit(v, goal), ViewPrinter.emit(v, view))
+    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
   }
 
   @Test
@@ -203,7 +289,7 @@ class ViewTest {
       split(N).join(N).reorder(i => transpose(i, origArray)).
       split(M).access(i).access(j)
 
-    assertEquals(ViewPrinter.emit(v, goal), ViewPrinter.emit(v, view))
+    assertEquals(ViewPrinter.emit(goal), ViewPrinter.emit(view))
   }
 
   @Test
@@ -228,8 +314,8 @@ class ViewTest {
       join(N).split(N).join(N).reorder(i => transpose(i, origArray)).
       split(M).access(i).access(j)
 
-    val accGoal = ViewPrinter.emit(v, goal)
-    val accView = ViewPrinter.emit(v, view)
+    val accGoal = ViewPrinter.emit(goal)
+    val accView = ViewPrinter.emit(view)
     assertEquals(accGoal, accView)
   }
 
@@ -264,8 +350,8 @@ class ViewTest {
       join(M).reorder(i => transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(Float, L), M))).split(L).
       access(j).access(k)
 
-    assertEquals(ViewPrinter.emit(v, midGoal), ViewPrinter.emit(v, midPoint))
-    assertEquals(ViewPrinter.emit(v, goal),    ViewPrinter.emit(v, view))
+    assertEquals(ViewPrinter.emit(midGoal), ViewPrinter.emit(midPoint))
+    assertEquals(ViewPrinter.emit(goal),    ViewPrinter.emit(view))
 
   }
 }

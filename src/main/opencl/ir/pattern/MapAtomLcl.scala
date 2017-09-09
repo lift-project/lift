@@ -4,7 +4,7 @@ import lift.arithmetic.{PosVar, Var}
 import ir.ast._
 
 case class MapAtomLcl(dim: Int, override val f: Lambda1, workVar: Var)
-extends AbstractMap(f, "MapAtomLcl", PosVar("l_id")) {
+extends AbstractMap(f, "MapAtomLcl", PosVar("l_id")) with ParallelPattern  {
   override def copy(f: Lambda): Pattern = MapAtomLcl(dim, f, PosVar("l_id"))
   var emitBarrier = true
 }

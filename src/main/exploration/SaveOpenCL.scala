@@ -146,8 +146,8 @@ class SaveOpenCL(
   }
 
   private def createCsv(hash: String, path: String, numParams: Int,
-                        globalBuffers: Array[TypedOpenCLMemory],
-                        localBuffers: Array[TypedOpenCLMemory]): Unit = {
+                        globalBuffers: Seq[TypedOpenCLMemory],
+                        localBuffers: Seq[TypedOpenCLMemory]): Unit = {
 
     inputCombinations.foreach(sizes => {
 
@@ -173,9 +173,9 @@ class SaveOpenCL(
           local.map(ArithExpr.substitute(_, inputVarMapping)).toString +
           s",$hash," + globalTempAlloc.length + "," +
           globalTempAlloc.mkString(",") +
-          (if (globalTempAlloc.length == 0) "" else ",") +
+          (if (globalTempAlloc.isEmpty) "" else ",") +
           localTempAlloc.length +
-          (if (localTempAlloc.length == 0) "" else ",") +
+          (if (localTempAlloc.isEmpty) "" else ",") +
           localTempAlloc.mkString(",")+ "\n")
 
         fileWriter.close()

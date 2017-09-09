@@ -4,12 +4,12 @@ import java.io._
 import ir.ArrayTypeWSWC
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, Executor, Utils}
+import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
@@ -233,20 +233,31 @@ object StencilUtilities
     dOut.close()
     fileOut.close()
   }
-}
 
-object TestAcousticStencils {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
+  def vonNeumann5pt(x: Param) = {
+    val N = x.at(0).at(1)
+    val S = x.at(2).at(1)
+    val W = x.at(1).at(0)
+    val E = x.at(1).at(2)
+    val C = x.at(1).at(1)
+    (N, S, W, E, C)
   }
 
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
+  def moore9pt(x: Param) = {
+    val NW = x.at(0).at(0)
+    val N  = x.at(0).at(1)
+    val NE = x.at(0).at(2)
+    val W  = x.at(1).at(0)
+    val C  = x.at(1).at(1)
+    val E  = x.at(1).at(2)
+    val SW = x.at(2).at(0)
+    val S  = x.at(2).at(1)
+    val SE = x.at(2).at(2)
+    (NW, N, NE, W, C, E, SW, S, SE)
   }
 }
+
+object TestAcousticStencils extends TestWithExecutor
 
 class TestAcousticStencils {
 

@@ -10,18 +10,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 
-object TestReduce {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestReduce extends TestWithExecutor
 
 class TestReduce {
 
@@ -129,10 +118,9 @@ class TestReduce {
       Float,
       (in, init) => {
         Join() o MapWrg(
-          Join()  o Iterate(1,  MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, id(init)))) o Split(4)
+          Join()  o MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, id(init))) o Split(4)
         ) o Split(128) $ in
       })
-
 
     val (output: Array[Float], runtime) = Execute(inputData.length)(l, inputData, 0.0f)
 

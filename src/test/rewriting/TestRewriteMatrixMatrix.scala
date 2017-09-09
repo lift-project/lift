@@ -4,7 +4,7 @@ import exploration.HighLevelRewrite
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, LongTestsEnabled, Utils}
+import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -12,16 +12,7 @@ import org.junit.Assume.assumeFalse
 import org.junit._
 import rewriting.utils.NumberExpression
 
-object TestRewriteMatrixMatrix {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object TestRewriteMatrixMatrix extends TestWithExecutor
 
 class TestRewriteMatrixMatrix {
 
