@@ -147,16 +147,16 @@ class TestSort {
       Predicate(idx & (2 << dim_i), 0, Predicate.Operator.!=)
     }
 
-    val direction_generator = (dim_i: ArithExpr) => ArrayFromGenerator((idx,_) => sort_direction(dim_i, idx), ArrayTypeWSWC(Int, N))
+    val direction_generator = (dim_i: ArithExpr) => ArrayFromGenerator((idx, _) => sort_direction(dim_i, idx), ArrayTypeWSWC(Int, N))
 
-    val index_generator = ArrayFromGenerator((idx,_) => ArithExpression(idx), ArrayTypeWSWC(Int, N))
+    val index_generator = ArrayFromGenerator((idx, _) => ArithExpression(idx), ArrayTypeWSWC(Int, N))
 
-      val other_index_generator =  (dim_j: ArithExpr) => ArrayFromGenerator((idx,_) => ArithExpression(hypercube_pair(dim_j)(idx, Int)), ArrayTypeWSWC(Int, N))
+    val other_index_generator = (dim_j: ArithExpr) => ArrayFromGenerator((idx, _) => ArithExpression(hypercube_pair(dim_j)(idx, Int)), ArrayTypeWSWC(Int, N))
 
     val dim_i = 0
     val dim_j = 0
 
-    val gold :Array[Float]= bitonic_iteration(arr.toSeq, dim_i, dim_j).toArray
+    val gold: Array[Float] = bitonic_iteration(arr.toSeq, dim_i, dim_j).toArray
 
     val select_new_value = UserFun("select_new_value", "x",
       """
@@ -206,16 +206,16 @@ class TestSort {
       Predicate(idx & (2 << dim_i), 0, Predicate.Operator.!=)
     }
 
-    val direction_generator = (dim_i: ArithExpr) => ArrayFromGenerator((idx,_) => sort_direction(dim_i, idx), ArrayTypeWSWC(Int, N))
+    val direction_generator = (dim_i: ArithExpr) => ArrayFromGenerator((idx, _) => sort_direction(dim_i, idx), ArrayTypeWSWC(Int, N))
 
-    val index_generator = ArrayFromGenerator((idx,_) => ArithExpression(idx), ArrayTypeWSWC(Int, N))
+    val index_generator = ArrayFromGenerator((idx, _) => ArithExpression(idx), ArrayTypeWSWC(Int, N))
 
-    val other_index_generator =  (dim_j: ArithExpr) => ArrayFromGenerator((idx,_) => ArithExpression(hypercube_pair(dim_j)(idx, Int)), ArrayTypeWSWC(Int, N))
+    val other_index_generator = (dim_j: ArithExpr) => ArrayFromGenerator((idx, _) => ArithExpression(hypercube_pair(dim_j)(idx, Int)), ArrayTypeWSWC(Int, N))
 
     val dim_i = 0
     val dim_j = 0
 
-    val gold :Array[Float]= arr.sorted
+    val gold: Array[Float] = arr.sorted
 
     val select_new_value = UserFun("select_new_value", "x",
       """
@@ -255,5 +255,80 @@ class TestSort {
     assertArrayEquals(arr, gold, 0.01f)
   }
 
+  @Test def full_sort_runtime_indices(): Unit = {
+    val dimensions = 8
+    val inputSize = Math.pow(2, dimensions).toInt
+    var arr = shuffle(Array.tabulate(inputSize)((i: Int) => i.toFloat))
+
+    val splitSize = 2
+
+    val N = SizeVar("N")
+
+    val index_generator = ArrayFromGenerator((idx, _) => ArithExpression(idx), ArrayTypeWSWC(Int, N))
+
+    val dim_i = 0
+    val dim_j = 0
+
+    val gold: Array[Float] = arr.sorted
+
+    val select_new_value = UserFun("select_new_value", Array("val", "o_val", "idx", "o_idx", "dir"),
+      """
+        | int should_swap = dir == ((o_val > val) == (o_idx > idx));
+        | return (should_swap ? o_val : val);
+      """.stripMargin, Array(Float, Float, Int, Int, Int), Float);
+
+    val get_other_index = UserFun("get_other_index", Array("dim_j", "idx"),
+      """
+        | return (idx ^ (1  << dim_j));
+      """.stripMargin, Array(Int, Int), Int)
+
+    val sort_direction = UserFun("sort_direction", Array("dim_i", "idx"),
+      """
+        | return ((idx & (2  << dim_i)) == 0);
+      """.stripMargin, Array(Int, Int), Int)
+
+    //    Gather(hypercube_pair(dim_j)) $ array, index_generator, other_index_generator(dim_j), direction_generator(dim_i))
+    val kernel = fun(
+      ArrayTypeWSWC(Float, N),
+      Int, Int,
+      (array, dim_i, dim_j) => {
+        MapWrg(
+          MapLcl(fun(elemIxPair =>
+            toGlobal(id) o toPrivate(Let(idx =>
+              Let(dir =>
+                Let(o_idx =>
+                  Let(o_val =>
+                    select_new_value(Get(elemIxPair, 0), o_val, idx, o_idx, dir)
+                  ) o CheckedArrayAccess(o_idx, -1.0f) $ array
+                ) $ get_other_index(dim_j, idx)
+              ) $ sort_direction(dim_i, idx)
+            )) $ Get(elemIxPair, 1)
+          )
+          )
+        ) o Split(N) $ Zip(array, index_generator)
+      }
+    )
+
+    val (output: Array[Float], runtime) = Execute(1, 1)(kernel, arr, 0, 0)
+    println(output.mkString("[",",","]"))
+
+
+    // try it with dimension 0
+    //    var total_runtime = 0.0
+    //    for (dim_i <- 0 to dimensions - 1) {
+    //      for (dim_j <- dim_i to 0 by -1) {
+    //
+    //
+    //
+    //        val (output: Array[Float], runtime) = Execute(1, 1)(kernel, arr)
+    //        total_runtime = total_runtime + runtime
+    //        arr = output
+    //      }
+    //    }
+    val total_runtime = 0
+    println("Time: " + total_runtime)
+    println(s"Output: ${arr.take(20).mkString("[", ",", "]")}")
+    assertArrayEquals(arr, gold, 0.01f)
+  }
 
 }
