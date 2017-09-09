@@ -114,6 +114,18 @@ object Lambda {
 }
 
 /**
+ * A "lambda" expression of arity 0. Basically an expression wrapped into a
+ * `Lambda` so it can be compiled and passed to the executor.
+ * @param body The body of the lambda expression.
+ */
+class Lambda0(override val body: Expr) extends Lambda(Array(), body)
+
+object Lambda0 {
+  def apply(expr: Expr) = new Lambda0(expr)
+  def unapply(l: Lambda0): Option[Expr] = Some(l.body)
+}
+
+/**
  * A lambda expression of arity 1.
  * @param params The parameters of the lambda expression.
  * @param body The body of the lambda expression.
@@ -393,6 +405,8 @@ class Lambda10(override val params: Array[Param], override val body: Expr) exten
 }
 
 trait funDef {
+  def apply(expr: Expr): Lambda0 = Lambda0(expr)
+
   def apply(f: (Param) => Expr): Lambda1 = {
     val params = Array(Param(UndefType))
     new Lambda1(params, f(params(0)))

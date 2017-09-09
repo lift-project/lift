@@ -71,7 +71,7 @@ object OpenCLMemoryAllocator {
   /** Allocate OpenCLMemory objects for a given expression
     *
     * @param expr   The expression for which memory should be allocated
-    * @param numGlb Number of ... // FIXME
+    * @param numGlb Product of the lengths of all arrays traversed so far
     * @param numLcl Number of ... // FIXME
     * @return The OpenCLMemory used by expr
     */
