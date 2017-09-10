@@ -93,7 +93,7 @@ class TestStecilPPCG {
               toGlobal(id) o toPrivate(λ(x =>
                 f(x, north, northEast,
                   west, center, east,
-              southWest, south, southEast))) $ northEast
+              southWest, south, southEast))) $ northWest
 
         }))) o Slide2D(3, 1) $ x}),
           // initialize output
@@ -113,7 +113,7 @@ class TestStecilPPCG {
           toGlobal(id) o toPrivate(λ(x =>
             f(x, north, northEast,
               west, center, east,
-              southWest, south, southEast))) $ northEast
+              southWest, south, southEast))) $ northWest
 
         }))) o Slide2D(3, 1) $ input
       })
@@ -134,7 +134,7 @@ class TestStecilPPCG {
       }
     )
 
-    val kernel = Compile(reduce)
+    val kernel = Compile(lambda1)
     println(kernel)
   }
 

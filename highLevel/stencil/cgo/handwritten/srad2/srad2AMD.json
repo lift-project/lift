@@ -1,17 +1,17 @@
 {
   "input_combinations" : [
-    [8192, 8192]
+    [502, 458]
   ],
 
   "high_level_rewrite" : {
     "exploration_depth" : 5,
     "depth" : 6,
-    "distance" : 9,
+    "distance" : 20,
     "rule_repetition" : 1,
     "vector_width" : 4,
     "sequential" : false,
     "only_lower" : false,
-    "keep_range_information" : true,
+    "keep_range_information" : false,
     "rule_collection" : "convolution2D"
   },
 
@@ -55,21 +55,21 @@
     "enable_max_configs_condition" : false,
     "max_configs" : 500,
     "enable_not_better_than_condition" : false,
-    "not_better_than_in_ns" : 12000000,
+    "not_better_than_in_ns" : 7000000,
     "not_better_within_configs" : 250,
-    "vendor" : "NVIDIA",
+    "vendor" : "Advanced Micro Devices",
     "device_type" : "GPU",
     "device_id" : 0
   },
 
   "search_parameters" : {
-    "default_input_size" : 8192,
+    "default_input_size" : 502,
     "min_local_size" : 32,
-    "max_local_size" : 1024,
+    "max_local_size" : 256,
     "min_global_size" : 4,
     "max_private_memory" : 1024,
-    "max_local_memory" : 49152,
-    "min_workgroups" : 8,
-    "max_workgroups" : 65569
+    "max_local_memory" : 32768,
+    "min_workgroups" : 1,
+    "max_workgroups" : 1048576
   }
 }

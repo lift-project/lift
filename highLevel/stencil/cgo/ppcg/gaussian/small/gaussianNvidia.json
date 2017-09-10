@@ -1,6 +1,6 @@
 {
   "input_combinations" : [
-    [8192, 8192]
+    [4096, 4096]
   ],
 
   "high_level_rewrite" : {
@@ -11,7 +11,7 @@
     "vector_width" : 4,
     "sequential" : false,
     "only_lower" : false,
-    "keep_range_information" : true,
+    "keep_range_information" : false,
     "rule_collection" : "convolution2D"
   },
 
@@ -63,7 +63,7 @@
   },
 
   "search_parameters" : {
-    "default_input_size" : 8192,
+    "default_input_size" : 4096,
     "min_local_size" : 32,
     "max_local_size" : 1024,
     "min_global_size" : 4,
