@@ -532,18 +532,14 @@ class TestAcousticActualRoom {
             val secondArr = inp._1
             val thirdArr = inp._2
 
-             PrintType() $ firstArr
-             PrintType() $ secondArr
-             PrintType() $ thirdArr
-
             toGlobal(MapSeqSlide(fun( m => {
 
-              val `tile[1][1][1]` = Get(m.at(1),0)
+              val leftVal = Get(m,0)
+              val `tile[1][1][1]` = Get(m,1).at(1).at(1).at(1)
 
               toGlobal(id) $ `tile[1][1][1]`
 
-            /*}),size,step)) $ inp*/
-          }),size,step)) o PrintType() $ Zip(firstArr,firstArr)
+          }),size,step)) o PrintType() $ inp
 
           })
         )) /*o PrintType()*/ $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
@@ -556,12 +552,8 @@ class TestAcousticActualRoom {
     val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,newLambda, data, stencilarrpadded3D)
     val (compareData: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh, stencilarrpadded3D)
 
-    if(StencilUtilities.printOutput)
-    {
-      StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
       StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
       StencilUtilities.print1DArrayAs3DArray(compareData,localDimX,localDimY,localDimZ)
-    }
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
