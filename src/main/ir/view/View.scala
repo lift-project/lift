@@ -531,7 +531,7 @@ object View {
   }
 
 
-  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], v: Var/* = Var("should_never_be_used")*/): View = {
+  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], v: Var): View = {
     // Use the lengths and iteration vars to mimic inputs
     val outArray = getFullType(t, outputAccessInf)
     val outView = View(outArray, v)
