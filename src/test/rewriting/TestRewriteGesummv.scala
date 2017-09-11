@@ -142,7 +142,21 @@ class TestRewriteGesummv {
 
     val lowered = Lower.mapCombinations(f5, mappings).head
 
-    val finalExpr = lowered
+    // TODO: Get rid of the second copy of `x` in local memory
+
+    val l0 = Rewrite.applyRuleAtId(lowered, 9, Rules.addIdForCurrentValueInReduce)
+    val l1 = Rewrite.applyRuleAtId(l0, 32, Rules.implementOneLevelOfId)
+    val l2 = Rewrite.applyRuleAtId(l1, 42, Rules.dropId)
+    val l3 = Rewrite.applyRuleAtId(l2, 39, Rules.implementIdAsDeepCopy)
+    val l4 = Rewrite.applyRuleAtId(l3, 36, Rules.dropId)
+    val l5 = Rewrite.applyRuleAtId(l4, 33, Rules.implementIdAsDeepCopy)
+    val l6 = Rewrite.applyRuleAtId(l5, 40, Rules.localMemory)
+    val l7 = Rewrite.applyRuleAtId(l6, 33, Rules.localMemory)
+    val l8 = Lower.lowerNextLevelWithRule(l7, Rules.mapLcl)
+
+    // TODO: Private memory for last temp results
+
+    val finalExpr = l8
     val (local, global) = InferNDRange(finalExpr)
 
     val code = Compile(finalExpr, local, global)
