@@ -143,7 +143,10 @@ class TestRewriteGesummv {
 
     val lowered = Lower.mapCombinations(f5, mappings).head
 
-    val l0 = Rewrite.applyRuleAtId(lowered, 9, Rules.addIdForCurrentValueInReduce)
+    // Make it look nicer + makes MacroRules.userFunCompositionToPrivate applicable
+    val tupleInlined = Rewrite.applyRuleAtId(lowered, 79, Rules.tupleInline)
+
+    val l0 = Rewrite.applyRuleAtId(tupleInlined, 9, Rules.addIdForCurrentValueInReduce)
     val l1 = Rewrite.applyRuleAtId(l0, 30, Rules.implementOneLevelOfId)
     val l2 = Rewrite.applyRuleAtId(l1, 37, Rules.dropId)
     val l3 = Rewrite.applyRuleAtId(l2, 34, Rules.implementIdAsDeepCopy)
@@ -151,7 +154,9 @@ class TestRewriteGesummv {
     val l7 = Rewrite.applyRuleAtId(l4, 33, Rules.localMemory)
     val l8 = Lower.lowerNextLevelWithRule(l7, Rules.mapLcl)
 
-    // TODO: Private memory for last temp results
+    // TODO: Private memory for last temp results, fails in emitView
+    val l9 = Rewrite.applyRuleAtId(l8, 92, MacroRules.userFunCompositionToPrivate)
+    println(l9)
 
     val finalExpr = l8
     val (local, global) = InferNDRange(finalExpr)
