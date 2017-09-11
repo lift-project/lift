@@ -319,4 +319,76 @@ class TestSort {
     assertArrayEquals(arr, gold, 0.01f)
   }
 
+  @Test def full_sort_runtime_indices(): Unit = {
+    val dimensions = 8
+    val inputSize = Math.pow(2, dimensions).toInt
+    var arr = shuffle(Array.tabulate(inputSize)((i: Int) => i.toFloat))
+
+    val splitSize = 128
+
+    val N = SizeVar("N")
+
+    val index_generator = ArrayFromGenerator((idx, _) => ArithExpression(idx), ArrayTypeWSWC(Int, N))
+
+    val dim_i = 0
+    val dim_j = 0
+
+    val gold: Array[Float] = arr.sorted
+
+    val select_new_value = UserFun("select_new_value", Array("val", "o_val", "idx", "o_idx", "dir"),
+      """
+        | int should_swap = dir == ((o_val > val) == (o_idx > idx));
+        | return (should_swap ? o_val : val);
+      """.stripMargin, Array(Float, Float, Int, Int, Int), Float);
+
+    val get_other_index = UserFun("get_other_index", Array("dim_j", "idx"),
+      """
+        | return (idx ^ (1  << dim_j));
+      """.stripMargin, Array(Int, Int), Int)
+
+    val sort_direction = UserFun("sort_direction", Array("dim_i", "idx"),
+      """
+        | return ((idx & (2  << dim_i)) != 0);
+      """.stripMargin, Array(Int, Int), Int)
+
+    val kernel = fun(
+      ArrayTypeWSWC(Float, N),
+      Int, Int,
+      (array, dim_i, dim_j) => {
+        MapWrg(
+          MapLcl(fun(elemIxPair =>
+            toGlobal(id) o toPrivate(Let(idx =>
+              Let(dir =>
+                Let(o_idx =>
+                  Let(o_val =>
+                    select_new_value(Get(elemIxPair, 0), o_val, idx, o_idx, dir)
+                  ) o CheckedArrayAccess(o_idx, -1.0f) $ array
+                ) $ get_other_index(dim_j, idx)
+              ) $ sort_direction(dim_i, idx)
+            )) $ Get(elemIxPair, 1)
+          )
+          )
+        ) o Split(N) $ Zip(array, index_generator)
+      }
+    )
+
+    val code = Compile(kernel)
+
+    var total_runtime = 0.0
+    var iterations = 0
+    for (dim_i <- 0 to dimensions - 1) {
+      for (dim_j <- 0 to dim_i reverse) {
+        val (output: Array[Float], runtime) = Execute(128, inputSize)(code, kernel, arr, dim_i, dim_j)
+        total_runtime = total_runtime + runtime
+        iterations = iterations + 1
+        arr = output
+      }
+    }
+
+    println("Time: " + total_runtime)
+    println("Iterations: " + iterations)
+    println(s"Output (first 20 elements): ${arr.take(20).mkString("[", ",", "]")}")
+    assertArrayEquals(arr, gold, 0.01f)
+  }
+
 }
