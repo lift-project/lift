@@ -154,11 +154,9 @@ class TestRewriteGesummv {
     val l7 = Rewrite.applyRuleAtId(l4, 33, Rules.localMemory)
     val l8 = Lower.lowerNextLevelWithRule(l7, Rules.mapLcl)
 
-    // TODO: Private memory for last temp results, fails in emitView
     val l9 = Rewrite.applyRuleAtId(l8, 92, MacroRules.userFunCompositionToPrivate)
-    println(l9)
 
-    val finalExpr = l8
+    val finalExpr = l9
     val (local, global) = InferNDRange(finalExpr)
 
     val code = Compile(finalExpr, local, global)
