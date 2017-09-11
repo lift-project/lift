@@ -69,7 +69,7 @@ class TestSort {
   }
 
   def shuffle[T](a: Array[T]) = {
-    for (i <- 1 until a.size reverse) {
+    for (i <- 1 until a.size) {
       val j = util.Random nextInt (i + 1)
       val t = a(i)
       a(i) = a(j)
@@ -85,7 +85,7 @@ class TestSort {
     val arr = Array.tabulate(array_size)((i: Int) => i)
     var c = 0
     for (i <- 0 to dimensions - 1) {
-      for (j <- i to 0 reverse) {
+      for (j <- 0 to i reverse) {
         println(s"${i}–${j}-${c}: " + arr.map { idx: Int => if (compute_direction(idx, i)) 1 else 0 }.mkString("[", ",", "]"))
         c = c + 1
       }
@@ -97,7 +97,7 @@ class TestSort {
     val array_size = 1 << dimensions
     val arr = Array.tabulate(array_size)((i: Int) => i)
     for (i <- 0 to dimensions - 1) {
-      for (j <- i to 0 reverse) {
+      for (j <- 0 to i reverse) {
         println(arr.map { idx: Int => compute_pair(idx, j) }.mkString("[", ",", "]"))
       }
     }
@@ -119,14 +119,16 @@ class TestSort {
     val array_size = 1 << dimensions
 
     var arr = shuffle(Array.tabulate(array_size)((i: Int) => i).toArray).toSeq
+    val gold = arr.sorted.toArray
     println(s"Array before: ${arr.mkString("[", ",", "]")}")
     for (i <- 0 to dimensions - 1) {
-      for (j <- i to 0 reverse) {
+      for (j <- 0 to i reverse) {
         val arr2 = bitonic_iteration(arr, i, j)
         println(arr2.mkString("[", ",", "]"))
         arr = arr2
       }
     }
+    assertArrayEquals(gold ,arr.toArray)
   }
 
   @Test def single_iteration_compile_time_indices(): Unit = {
@@ -296,13 +298,12 @@ class TestSort {
     // try it with dimension 0
     var total_runtime = 0.0
     for (dim_i <- 0 to dimensions - 1) {
-      for (dim_j <- dim_i to 0 reverse) {
+      for (dim_j <- 0 to dim_i reverse) {
         val kernel = fun(
           ArrayTypeWSWC(Float, N),
           (array) => {
             MapWrg(
               MapLcl(select_new_value)
-
             ) o Split(N) $ Zip(array, Gather(hypercube_pair(dim_j)) $ array, index_generator, other_index_generator(dim_j), direction_generator(dim_i))
           }
         )
