@@ -1089,6 +1089,45 @@ object Rules {
     }
   }
 
+  val removeDuplicateZipArg = Rule("removeDuplicateZipArgument", {
+    case FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), args@_*))
+      if args.distinct.size < args.size && !(p eq body) &&
+        // p only used in get
+        !body.contains({
+          case FunCall(f, args@_*) if args.exists(_ eq p) && !f.isInstanceOf[Get] =>
+        })
+    =>
+
+      val oldGets =
+        Utils.collect(body, { case FunCall(Get(_), arg) if arg eq p => })
+
+      val newArgs = args.distinct
+
+      val newParam = Param()
+
+      if (newArgs.size == 1) {
+
+        val newBody = oldGets.foldLeft(body)((currentBody, getCall) =>
+          Expr.replace(currentBody, getCall, newParam))
+
+        Map(Lambda(Array(newParam), newBody)) $ newArgs.head
+
+      } else {
+        val newGetIndex = args.map(newArgs.indexOf)
+
+        val newBody = oldGets.foldLeft(body)({
+          case (currentBody, getCall@FunCall(Get(n), _)) =>
+
+            val newId = newGetIndex(n)
+            val newGet = Get(newId)(newParam)
+            Expr.replace(currentBody, getCall, newGet)
+        })
+
+        val newZip = Zip(newArgs: _*)
+        Map(Lambda(Array(newParam), newBody)) $ newZip
+      }
+  })
+
   val flattenZips = Rule("", {
     case FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), zipArgs@_*))
       if zipArgs.exists({
