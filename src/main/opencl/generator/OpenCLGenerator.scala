@@ -1013,15 +1013,7 @@ class OpenCLGenerator extends Generator {
     val outputMem = OpenCLMemory.asOpenCLMemory(call.mem)
     val swapMem = OpenCLMemory.asOpenCLMemory(i.swapBuffer)
 
-    // directly generate function call of the body
-    // we do not want to do this, since the view of the body is using the input and output ptr of the iterate!
-    /*if (i.n == Cst(1)) {
-      generate(i.f.body, block)
-      return
-    }*/
-
-    // iterate more than once => generate for loop while swapping input and output buffer
-    // after each iteration
+    // generate for loop while swapping input and output buffer after each iteration
 
     assert(inputMem.addressSpace == outputMem.addressSpace)
 
