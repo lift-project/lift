@@ -704,7 +704,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
     *            position in memory of the very beginning of the next nested
     *            array we are going the access.
     * @param ty the type of the array
-    * @param v a variable representing the array (used for indirections)
+    * @param v a variable representing the array if the array is backed up by memory (will be None in the case of array generator for instance)
     * @param arrayAccessStack the indices used to access the array
     * @param tupleAccessStack the indices used to some tuples all along the way
     * @return the index we have to use to access the flattened memory
