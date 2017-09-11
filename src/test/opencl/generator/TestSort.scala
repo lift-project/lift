@@ -10,6 +10,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 
+import scala.language.postfixOps
 import reflect.ClassTag
 
 object TestSort {
@@ -84,7 +85,7 @@ class TestSort {
     val arr = Array.tabulate(array_size)((i: Int) => i)
     var c = 0
     for (i <- 0 to dimensions - 1) {
-      for (j <- i to 0 by -1) {
+      for (j <- i to 0 reverse) {
         println(s"${i}–${j}-${c}: " + arr.map { idx: Int => if (compute_direction(idx, i)) 1 else 0 }.mkString("[", ",", "]"))
         c = c + 1
       }
@@ -96,7 +97,7 @@ class TestSort {
     val array_size = 1 << dimensions
     val arr = Array.tabulate(array_size)((i: Int) => i)
     for (i <- 0 to dimensions - 1) {
-      for (j <- i to 0 by -1) {
+      for (j <- i to 0 reverse) {
         println(arr.map { idx: Int => compute_pair(idx, j) }.mkString("[", ",", "]"))
       }
     }
@@ -120,7 +121,7 @@ class TestSort {
     var arr = shuffle(Array.tabulate(array_size)((i: Int) => i).toArray).toSeq
     println(s"Array before: ${arr.mkString("[", ",", "]")}")
     for (i <- 0 to dimensions - 1) {
-      for (j <- i to 0 by -1) {
+      for (j <- i to 0 reverse) {
         val arr2 = bitonic_iteration(arr, i, j)
         println(arr2.mkString("[", ",", "]"))
         arr = arr2
@@ -295,7 +296,7 @@ class TestSort {
     // try it with dimension 0
     var total_runtime = 0.0
     for (dim_i <- 0 to dimensions - 1) {
-      for (dim_j <- dim_i to 0 by -1) {
+      for (dim_j <- dim_i to 0 reverse) {
         val kernel = fun(
           ArrayTypeWSWC(Float, N),
           (array) => {
