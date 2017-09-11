@@ -127,10 +127,11 @@ class TestRewriteGesummv {
   def fuseAndOptimise(): Unit = {
 
     val f1 = SimplifyAndFuse.withoutPreventingFurtherOptimisation(f0)
-
     val g = Rewrite.applyRuleUntilCannot(f1, Rules.flattenZips)
 
-    val f2 = Rewrite.applyRuleAtId(g, 1, Rules.splitJoin(64))
+    val g1 = Rewrite.applyRuleAtId(g, 7, Rules.removeDuplicateZipArg)
+
+    val f2 = Rewrite.applyRuleAtId(g1, 1, Rules.splitJoin(64))
     val f3 = Rewrite.applyRuleAtId(f2, 7, MacroRules.interchange)
     val f4 = Rewrite.applyRuleAtId(f3, 10, MacroRules.introduceReuseFromMap(64))
     val f5 = Rewrite.applyRuleAtId(f4, 13, MacroRules.introduceReuseFromMap(64))
@@ -142,16 +143,12 @@ class TestRewriteGesummv {
 
     val lowered = Lower.mapCombinations(f5, mappings).head
 
-    // TODO: Get rid of the second copy of `x` in local memory
-
     val l0 = Rewrite.applyRuleAtId(lowered, 9, Rules.addIdForCurrentValueInReduce)
-    val l1 = Rewrite.applyRuleAtId(l0, 32, Rules.implementOneLevelOfId)
-    val l2 = Rewrite.applyRuleAtId(l1, 42, Rules.dropId)
-    val l3 = Rewrite.applyRuleAtId(l2, 39, Rules.implementIdAsDeepCopy)
-    val l4 = Rewrite.applyRuleAtId(l3, 36, Rules.dropId)
-    val l5 = Rewrite.applyRuleAtId(l4, 33, Rules.implementIdAsDeepCopy)
-    val l6 = Rewrite.applyRuleAtId(l5, 40, Rules.localMemory)
-    val l7 = Rewrite.applyRuleAtId(l6, 33, Rules.localMemory)
+    val l1 = Rewrite.applyRuleAtId(l0, 30, Rules.implementOneLevelOfId)
+    val l2 = Rewrite.applyRuleAtId(l1, 37, Rules.dropId)
+    val l3 = Rewrite.applyRuleAtId(l2, 34, Rules.implementIdAsDeepCopy)
+    val l4 = Rewrite.applyRuleAtId(l3, 31, Rules.dropId)
+    val l7 = Rewrite.applyRuleAtId(l4, 33, Rules.localMemory)
     val l8 = Lower.lowerNextLevelWithRule(l7, Rules.mapLcl)
 
     // TODO: Private memory for last temp results
