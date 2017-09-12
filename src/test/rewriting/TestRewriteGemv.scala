@@ -8,7 +8,6 @@ import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.utils.NumberPrinter
 
 object TestRewriteGemv extends TestWithExecutor
 
@@ -44,6 +43,11 @@ class TestRewriteGemv {
             Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(vectorX, Get(t, 0))
         )) $ Zip(matrix, vectorY)
       })
+
+  private val group0Mapping = EnabledMappings(
+    global0 = false, global01 = false, global10 = false,
+    global012 = false, global210 = false,
+    group0 = true, group01 = false, group10 = false)
 
   @Test
   def gemvAMD(): Unit = {
@@ -91,12 +95,7 @@ class TestRewriteGemv {
 
     assertTrue(HighLevelRewrite.filterByDistance(f2))
 
-    val mappings = EnabledMappings(
-      global0 = false, global01 = false, global10 = false,
-      global012 = false, global210 = false,
-      group0 = true, group01 = false, group10 = false)
-
-    val lowered = Lower.mapCombinations(f2, mappings).head
+    val lowered = Lower.mapCombinations(f2, group0Mapping).head
 
     val l0 = Rewrite.applyRuleAtId(lowered, 14, Rules.addIdAfterReduce)
     val l1 = Rewrite.applyRuleAtId(l0, 14, Rules.localMemory)
@@ -106,7 +105,6 @@ class TestRewriteGemv {
     val l4 = Rewrite.applyRuleAtId(l3, 5, Rules.localMemory)
     val l5 = Rewrite.applyRuleAtId(l4, 38, Rules.implementIdAsDeepCopy)
     val l6 = Rewrite.applyRuleAtId(l5, 42, MacroRules.userFunCompositionToPrivate)
-    println(NumberPrinter(l5))
 
     val (output: Array[Float], _) =
       Execute()(l6, matrix, vectorX, vectorY, alpha, beta)
@@ -133,12 +131,7 @@ class TestRewriteGemv {
     val f5 = Rewrite.applyRuleAtId(f13, 9, MacroRules.introduceReuseFromMap(64))
     val f11 = Rewrite.applyRuleAtId(f5, 12, MacroRules.introduceReuseFromMap(64))
 
-    val mappings = EnabledMappings(
-      global0 = false, global01 = false, global10 = false,
-      global012 = false, global210 = false,
-      group0 = true, group01 = false, group10 = false)
-
-    val lowered = Lower.mapCombinations(f11, mappings).head
+    val lowered = Lower.mapCombinations(f11, group0Mapping).head
 
     val l8 = Rewrite.applyRuleAtId(lowered, 8, Rules.addIdForCurrentValueInReduce)
     val l9 = Rewrite.applyRuleAtId(l8, 23, Rules.implementOneLevelOfId)

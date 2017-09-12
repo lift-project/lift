@@ -16,25 +16,31 @@ object TestRewriteNbody extends TestWithExecutor
 
 class TestRewriteNbody {
 
+  private val f = fun(
+    ArrayTypeWSWC(Float4, N),
+    ArrayTypeWSWC(Float4, N),
+    Float,
+    Float,
+    (pos, vel, espSqr, deltaT) =>
+      Map(fun(p1 =>
+        Map(fun(acceleration =>
+          NBody.update(Get(p1, 0), Get(p1, 1), deltaT, acceleration)
+        )) o Reduce(VectorizeUserFun(4, add), Value("0.0f", Float4)
+        ) o Map(\(p2 =>
+          NBody.calcAccNoAdd(Get(p1,0), p2, deltaT, espSqr)
+        )) $ pos
+      )) $ Zip(pos, vel)
+  )
+
+
+  private val group0Mapping = EnabledMappings(
+    global0 = false, global01 = false, global10 = false,
+    global012 = false, global210 = false,
+    group0 = true, group01 = false, group10 = false)
+
   @Test
   def nBodyLocalMem(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
-
-    val f = fun(
-      ArrayTypeWSWC(Float4, N),
-      ArrayTypeWSWC(Float4, N),
-      Float,
-      Float,
-      (pos, vel, espSqr, deltaT) =>
-        Map(fun(p1 =>
-          Map(fun(acceleration =>
-            NBody.update(Get(p1, 0), Get(p1, 1), deltaT, acceleration)
-          )) o Reduce(VectorizeUserFun(4, add), Value("0.0f", Float4)
-          ) o Map(\(p2 =>
-            NBody.calcAccNoAdd(Get(p1,0), p2, deltaT, espSqr)
-          )) $ pos
-        )) $ Zip(pos, vel)
-    )
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(128))
 
@@ -43,12 +49,8 @@ class TestRewriteNbody {
     val f4 = Rewrite.applyRuleAtId(f12, 9, MacroRules.introduceReuseFromMap(128))
     val f11 = Rewrite.applyRuleAtId(f4, 12, MacroRules.introduceReuseFromMap(128))
 
-    val mappings = EnabledMappings(
-      global0 = false, global01 = false, global10 = false,
-      global012 = false, global210 = false,
-      group0 = true, group01 = false, group10 = false)
 
-    val lowered = Lower.mapCombinations(f11, mappings).head
+    val lowered = Lower.mapCombinations(f11, group0Mapping).head
 
     val f21 = Rewrite.applyRuleAtId(lowered, 8, Rules.addIdForCurrentValueInReduce)
     val f22 = Rewrite.applyRuleAtId(f21, 16, Rules.implementIdAsDeepCopy)
@@ -63,5 +65,23 @@ class TestRewriteNbody {
     val x = ParameterRewrite.replaceInputTypes(f27, replacementFilter)
     assertEquals(ExpressionFilter.Status.Success, ExpressionFilter(x, InferNDRange(x)))
  }
+
+  @Test
+  def partialReduceWithReorder(): Unit = {
+
+    val f0 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
+
+    val lowered = Lower.mapCombinations(f0, group0Mapping).head
+
+    val l0 = Rewrite.applyRuleAtId(lowered , 11, Rules.addIdAfterReduce)
+    val l1 = Rewrite.applyRuleAtId(l0, 24, Rules.implementIdAsDeepCopy)
+    val l2 = Rewrite.applyRuleAtId(l1, 11, Rules.localMemory)
+    val l3 = Rewrite.applyRuleAtId(l2, 5, Rules.addIdAfterReduce)
+    val l4 = Rewrite.applyRuleAtId(l3, 34, Rules.implementIdAsDeepCopy)
+    val l5 = Rewrite.applyRuleAtId(l4, 5, Rules.localMemory)
+
+    val (output: Array[Float], _) = Execute()(l5, pos, vel, espSqr, deltaT)
+    assertArrayEquals(gold, output, 0.001f)
+  }
 
 }
