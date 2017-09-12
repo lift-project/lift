@@ -121,4 +121,45 @@ class TestRewriteMriQ {
     assertArrayEquals(gold, output, 0.001f)
 
   }
+
+  @Test
+  def mriQ2(): Unit = {
+
+    val mapFun = UserFun("mapFun",
+      Array("sX", "sY", "sZ", "Kx", "Ky", "Kz", "PhiMag"),
+      """{
+        |    #define PIx2 6.2831853071795864769252867665590058f
+        |    float expArg = PIx2 * (Kx * sX + Ky * sY + Kz * sZ);
+        |    Tuple2_float_float bla = { PhiMag * cos(expArg), PhiMag * sin(expArg) };
+        |    return  bla;
+        |}""".stripMargin,
+      Seq(Float, Float, Float, Float, Float, Float, Float), TupleType(Float, Float))
+
+    val reduceFun = UserFun("reduceFun",
+      Array("x", "y"),
+      """{
+          | x._0 += y._0;
+          | x._1 += y._1;
+          | return x;
+        }""".stripMargin,
+      Seq(TupleType(Float, Float), TupleType(Float, Float)), TupleType(Float, Float))
+
+    val computeQ = fun(
+      ArrayTypeWSWC(Float, xSize),
+      ArrayTypeWSWC(Float, xSize),
+      ArrayTypeWSWC(Float, xSize),
+      ArrayTypeWSWC(TupleType(Float, Float, Float, Float), kSize),
+      (x, y, z, kValues) =>
+        MapGlb(\(t =>
+          toGlobal(MapSeq(idFF))  o
+            ReduceSeq(reduceFun, Value("{ 0.0f, 0.0f}", TupleType(Float, Float))) o
+            MapSeq(\(k => mapFun(t._0, t._1, t._2, k._0, k._1, k._2, k._3))) $ kValues
+        )) $ Zip(x, y, z)
+    )
+
+    val (output: Array[Float], _) =
+      Execute()(computeQ, x, y, z, k)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
 }
