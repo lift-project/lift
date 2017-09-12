@@ -1,45 +1,94 @@
 package rewriting
 
+import java.io.DataInputStream
+import java.nio.{ByteBuffer, ByteOrder}
+
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.Compile
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
+import org.junit.Assert._
 import org.junit.Test
+
+object TestRewriteMriQ extends TestWithExecutor
 
 class TestRewriteMriQ {
 
-  @Test
-  def computeQ(): Unit = {
-    val x = SizeVar("X")
-    val k = SizeVar("K")
+  private def bytesToFloats(bytes: Array[Byte]) = {
+    val byteBuffer = ByteBuffer.wrap(bytes)
+    val floatBuffer = byteBuffer.asFloatBuffer()
+    byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
-    // TODO: Break into ReduceSeq o Map? or Map() o Reduce() o Map
-    // Similar pattern to kmeans or gemv/nbody
-    val qFun = UserFun("computeQ",
-      Array("sX", "sY", "sZ", "Kx", "Ky", "Kz", "PhiMag", "acc"),
-      """{
+    val floatArray = Array.ofDim[Float](floatBuffer.capacity())
+
+    for (i <- floatArray.indices) {
+      floatArray(i) = byteBuffer.getFloat(i * 4)
+    }
+
+    floatArray
+  }
+
+  private def floatArrayFromResource(name: String): Array[Float] = {
+    val inputStream = this.getClass.getClassLoader.getResourceAsStream(name)
+    val availableBytes = inputStream.available()
+    val byteArray = Array.ofDim[Byte](availableBytes)
+
+    val dataInputStream = new DataInputStream(inputStream)
+    dataInputStream.readFully(byteArray)
+    dataInputStream.close()
+
+    bytesToFloats(byteArray)
+  }
+
+  private val x = floatArrayFromResource("mriq/xVals.bin")
+  private val y = floatArrayFromResource("mriq/yVals.bin")
+  private val z = floatArrayFromResource("mriq/zVals.bin")
+  private val k = floatArrayFromResource("mriq/kVals.bin")
+
+  private val Qr = floatArrayFromResource("mriq/qrVals.bin")
+  private val Qi = floatArrayFromResource("mriq/qiVals.bin")
+
+  private val xNum = x.length
+  private val kNum = k.length / 4
+
+  private val gold = (Qr, Qi).zipped.flatMap((a, b) => Seq(a,b))
+
+  private val qFun = UserFun("computeQ",
+    Array("sX", "sY", "sZ", "Kx", "Ky", "Kz", "PhiMag", "acc"),
+    """{
         |    #define PIx2 6.2831853071795864769252867665590058f
         |    float expArg = PIx2 * (Kx * sX + Ky * sY + Kz * sZ);
         |    acc._0 = acc._0 + PhiMag * cos(expArg);
         |    acc._1 = acc._1 + PhiMag * sin(expArg);
         |
         |    return acc;
-        |}""".stripMargin,
-      Seq(Float, Float, Float, Float, Float, Float, Float, TupleType(Float, Float)),
+        |}""".
+      stripMargin,
+      Seq(Float, Float, Float, Float, Float, Float, Float, TupleType
+      (Float, Float)),
       TupleType(Float, Float))
 
-    val pair = UserFun("pair", Array("x", "y"), "{ Tuple t = {x, y}; return t; }",
-      Seq(Float, Float), TupleType(Float, Float))
+  private val xSize = SizeVar("X")
+  private val kSize = SizeVar("K")
 
+  @Test
+  def computeQ(): Unit = {
+
+    // TODO: Break into ReduceSeq o Map? or Map() o Reduce() o Map
+    // Similar pattern to kmeans or gemv/nbody
+
+
+    // TODO: Qr & Qi are outputs initialised to 0.0f
+    // TODO: Whole kernel split into 3 invokations??
     val f = fun(
-      ArrayType(Float, x),
-      ArrayType(Float, x),
-      ArrayType(Float, x),
-      ArrayType(Float, x),
-      ArrayType(Float, x),
-      ArrayType(TupleType(Float, Float, Float, Float), k),
+      ArrayType(Float, xSize),
+      ArrayType(Float, xSize),
+      ArrayType(Float, xSize),
+      ArrayType(Float, xSize),
+      ArrayType(Float, xSize),
+      ArrayType(TupleType(Float, Float, Float, Float), kSize),
       (x, y, z, Qr, Qi, kvalues) =>
         Map(\(t =>
           ReduceSeq(\((acc, p) =>
@@ -66,7 +115,10 @@ class TestRewriteMriQ {
     val f14 = Rewrite.applyRuleAtId(f13, 16, Rules.privateMemory)
     val f15 = Rewrite.applyRuleAtId(f14, 13, Rules.privateMemory)
 
-    // TODO: Cross validation
-    println(Compile(f15))
+    val (output: Array[Float], _) =
+      Execute()(f15, x, y, z, Array.fill(xNum)(0.0f), Array.fill(xNum)(0.0f), k)
+
+    assertArrayEquals(gold, output, 0.001f)
+
   }
 }
