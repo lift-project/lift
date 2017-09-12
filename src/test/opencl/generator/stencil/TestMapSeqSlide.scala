@@ -726,7 +726,7 @@ class TestMapSeqSlide
                 ReduceSeqUnroll(\((acc, next) =>
                   multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() $ neighbours, weights)
             }) /*o PrintType()*/, a,b)) /*o  Transpose() o Map(Transpose())*/ $ x
-        }))) o PrintType () o  Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(a,b)  $ input
+        }))) o PrintType () o  Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(4,2)  $ input
     )
 
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(stencil3DWeights(slidesize,slidestep), values,StencilUtilities.weights3D.flatten.flatten)
@@ -1428,6 +1428,7 @@ class TestMapSeqSlide
 
     def jacobi3D(a: Int, b: Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
+     // ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 130),514),514),
       (mat) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
 
@@ -1452,10 +1453,10 @@ class TestMapSeqSlide
       })
 
     def jacobi3Dmapseqslide(a : Int, b : Int) = fun(
-      //ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2),n+2),m+2),
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 406),514),514),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2),n+2),o+2),
+      //ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 514),514),130),
       (mat) =>
-        Map(TransposeW()) o TransposeW() /*o Map(TransposeW())*/ o
+        Map(TransposeW()) o TransposeW() o Map(TransposeW()) /*o Map(TransposeW())*/ o
         MapGlb(0)(MapGlb(1)( fun (x => {
           toGlobal(MapSeqSlide(fun(m => {
 
@@ -1478,13 +1479,53 @@ class TestMapSeqSlide
 
 
           }),a,b))  } o Transpose() o Map(Transpose()) $ x
-        ))) /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide2D(a,b) /*o Map(Transpose())*/ o Transpose() o Map(Transpose()) $ mat)
+        ))) /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide2D(a,b) /*o Map(Transpose())*/o Map(Transpose())  o Transpose() o Map(Transpose()) $ mat)
 
-    def jacobi3DMapSeq(a : Int, b : Int) = fun(
- //     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
+
+    def jacobi3DmapseqslideLocal(a : Int, b : Int) = fun(
+      //ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2),n+2),m+2),
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 406),514),514),
       (mat) =>
         Map(TransposeW()) o TransposeW() /*o Map(TransposeW())*/ o
+          MapWrg(0)(MapWrg(1)( fun (x => {
+
+            toGlobal(MapSeqSlide(fun(m => {
+
+              //MapLcl(0)(MapLcl(1)( fun ( n => {
+              MapSeqUnroll(MapSeqUnroll( fun ( n => {
+                //MapSeq(MapSeq(MapSeq(id))) o PrintType() $ n
+
+                val `tile[1][1][1]` = n.at(1).at(1).at(1)
+
+                val `tile[0][1][1]` = n.at(0).at(1).at(1)
+                val `tile[1][0][1]` = n.at(1).at(0).at(1)
+                val `tile[1][1][0]` = n.at(1).at(1).at(0)
+                val `tile[1][1][2]` = n.at(1).at(1).at(2)
+                val `tile[1][2][1]` = n.at(1).at(2).at(1)
+                val `tile[2][1][1]` = n.at(2).at(1).at(1)
+
+                val stencil = (fun(x => add(x, `tile[0][1][1]`))) o
+                  (fun(x => add(x, `tile[1][0][1]`))) o
+                  (fun(x => add(x, `tile[1][1][0]`))) o
+                  (fun(x => add(x, `tile[1][1][2]`))) o
+                  (fun(x => add(x, `tile[1][1][1]`))) o
+                  (fun(x => add(x, `tile[1][2][1]`))) $ `tile[2][1][1]`
+
+                toGlobal(id) $ `tile[1][1][1]`// stencil
+
+
+              }))) o Map(Transpose()) o Transpose() o Map(Slide2D(a,b)) $ m
+
+
+            }),3,1)) o PrintType()   } o Transpose() o Map(Transpose()) $ x
+
+          ))) /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */  o Slide2D(4,2) /*o Map(Transpose())*/ o Transpose() o Map(Transpose()) $ mat)
+
+    def jacobi3DMapSeq(a : Int, b : Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2), n+2), o+2),
+      //ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 514),514),130),
+      (mat) =>
+        Map(TransposeW()) o TransposeW() o Map(TransposeW()) o
         MapGlb(0)(MapGlb(1)(
           toGlobal(MapSeq(
             fun(m => {
@@ -1507,14 +1548,14 @@ class TestMapSeqSlide
               toGlobal(id) $ stencil
 
             }))
-          ))) /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide3D(a,b) /*o Map(Transpose())*/ o Transpose() o Map(Transpose()) $ mat)
+          ))) /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide3D(a,b) /*o Map(Transpose())*/ o Map(Transpose())  o Transpose() o Map(Transpose()) $ mat)
 
 
     def jacobi3DmapseqslideCross(a : Int, b : Int) = fun(
-      //ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2),n+2),m+2),
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 406),514),514),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2),n+2),o+2),
+//      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 514),514),130),
       (mat) =>
-        Map(TransposeW()) o TransposeW() o
+        Map(TransposeW()) o TransposeW() o Map(TransposeW()) o
           MapGlb(0)(MapGlb(1)( fun (x => {
             toGlobal(MapSeqSlide(fun(m => {
 
@@ -1540,11 +1581,9 @@ class TestMapSeqSlide
 
               toGlobal(id) $ stencil
 
-            }),a,b))  } o Map(fun(m => Tuple(m.at(1),m.at(3),m.at(4),m.at(5),m.at(7))) o Join()) o Transpose() o Map(Transpose()) $ x
+            }),a,b))  } o Map(fun(m => Tuple(m.at(1),m.at(3),m.at(4),m.at(5),m.at(7))) o Join())   o Transpose() o Map(Transpose()) $ x
 
-          ))) o PrintType() /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide2D(a,b) o Transpose() o Map(Transpose()) $ mat)
-
-
+          ))) o PrintType() /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide2D(a,b) o Map(Transpose()) o Transpose() o Map(Transpose()) $ mat)
     val orgLambda = SimplifyAndFuse(jacobi3D(slidesize,slidestep))
     val sourceOrg = Compile(orgLambda)//, NDRange(32,4,2), NDRange(n,m,1))
     println(sourceOrg)
@@ -1560,6 +1599,12 @@ class TestMapSeqSlide
     val lambdaCross = SimplifyAndFuse(jacobi3DmapseqslideCross(slidesize,slidestep))
     val sourceCross = Compile(lambdaCross)//, NDRange(32,4,2), NDRange(n,m,1))
     println(sourceCross)
+
+    /*
+    val lambdaMSSL = SimplifyAndFuse(jacobi3DmapseqslideLocal(slidesize,slidestep))
+    val sourceMSSL = Compile(lambdaMSSL)//, NDRange(32,4,2), NDRange(n,m,1))
+    println(sourceMSSL)
+    */
 
     //    val source = Compile(newLambda, 64,4,2,512,512,404, immutable.Map())
     //    println(source)
@@ -1582,6 +1627,127 @@ class TestMapSeqSlide
             }
         */
   }
+
+  @Test
+  def stencil3DJacobiComparisonsCoalescedTestLocalMemory(): Unit = {
+
+    val localDimX = 10
+    val localDimY = 10
+    val localDimZ = 6
+
+    val slidesize = 3
+    val slidestep = 1
+
+    val data = StencilUtilities.createDataFloat3DInOrder(localDimX, localDimY, localDimZ)
+    val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
+    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPaddingInOrder(localDimX, localDimY, localDimZ)
+    val stencilarrOther3D = stencilarrpadded3D.map(x => x.map(y => y.map(z => z * 2.0f)))
+
+    val getNumNeighbours = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ " +
+      "int count = 6; if(i == (m-1) || i == 0){ count--; } if(j == (n-1) || j == 0){ count--; } if(k == (o-1) || k == 0){ count--; }return (float)count; }", Seq(Int,Int,Int,Int,Int,Int), Float)
+
+    val getCF = UserFun("getCF", Array("neigh", "cfB", "cfI"), "{ if(neigh < 6) { return cfB; } else{ return cfI;} }", Seq(Int,Float,Float), Float)
+
+
+    val m = SizeVar("M")
+    val n = SizeVar("N")
+    val o = SizeVar("O")
+
+
+    def jacobi3D(a: Int, b: Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
+      // ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 130),514),514),
+      (mat) => {
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
+
+          val `tile[1][1][1]` = m.at(1).at(1).at(1)
+          val `tile[0][1][1]` = m.at(0).at(1).at(1)
+          val `tile[1][0][1]` = m.at(1).at(0).at(1)
+          val `tile[1][1][0]` = m.at(1).at(1).at(0)
+          val `tile[1][1][2]` = m.at(1).at(1).at(2)
+          val `tile[1][2][1]` = m.at(1).at(2).at(1)
+          val `tile[2][1][1]` = m.at(2).at(1).at(1)
+
+          val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
+            toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][1]`))) o
+            toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
+
+          toGlobal(id) $ stencil
+
+        })))) o Slide3D(a,b) $ mat
+      })
+
+
+    def jacobi3DmapseqslideLocal(a : Int, b : Int) = fun(
+      //ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2),n+2),m+2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 406),514),514),
+      (mat) =>
+        Map(TransposeW()) o TransposeW() /*o Map(TransposeW())*/ o
+          MapWrg(0)(MapWrg(1)( fun (x => {
+
+            toGlobal(MapSeqSlide(fun(m => {
+
+              //MapLcl(0)(MapLcl(1)( fun ( n => {
+              MapSeqUnroll(MapSeqUnroll( fun ( n => {
+                //MapSeq(MapSeq(MapSeq(id))) o PrintType() $ n
+
+                val `tile[1][1][1]` = n.at(1).at(1).at(1)
+
+                val `tile[0][1][1]` = n.at(0).at(1).at(1)
+                val `tile[1][0][1]` = n.at(1).at(0).at(1)
+                val `tile[1][1][0]` = n.at(1).at(1).at(0)
+                val `tile[1][1][2]` = n.at(1).at(1).at(2)
+                val `tile[1][2][1]` = n.at(1).at(2).at(1)
+                val `tile[2][1][1]` = n.at(2).at(1).at(1)
+
+                val stencil = (fun(x => add(x, `tile[0][1][1]`))) o
+                  (fun(x => add(x, `tile[1][0][1]`))) o
+                  (fun(x => add(x, `tile[1][1][0]`))) o
+                  (fun(x => add(x, `tile[1][1][2]`))) o
+                  (fun(x => add(x, `tile[1][1][1]`))) o
+                  (fun(x => add(x, `tile[1][2][1]`))) $ `tile[2][1][1]`
+
+                toGlobal(id) $ `tile[1][1][1]`// stencil
+
+
+              }))) o Map(Transpose()) o Transpose() o Map(Slide2D(a,b)) $ m
+
+
+            }),3,1)) o PrintType()   } o Transpose() o Map(Transpose()) $ x
+
+          ))) /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */  o Slide2D(4,2) /*o Map(Transpose())*/ o Transpose() o Map(Transpose()) $ mat)
+
+    val orgLambda = SimplifyAndFuse(jacobi3D(slidesize,slidestep))
+    val sourceOrg = Compile(orgLambda)//, NDRange(32,4,2), NDRange(n,m,1))
+    println(sourceOrg)
+
+    val lambdaMSSL = SimplifyAndFuse(jacobi3DmapseqslideLocal(slidesize,slidestep))
+    val sourceMSSL = Compile(lambdaMSSL)//, NDRange(32,4,2), NDRange(n,m,1))
+    println(sourceMSSL)
+
+    //    val source = Compile(newLambda, 64,4,2,512,512,404, immutable.Map())
+    //    println(source)
+
+    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3D(slidesize,slidestep), stencilarrpadded3D)
+    val (output_MSSL: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3DmapseqslideLocal(slidesize,slidestep), stencilarrpadded3D)
+
+    assertArrayEquals(output_MSSL, output_org, StencilUtilities.stencilDelta)
+    /*
+        StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output_MSS)
+        StencilUtilities.printOriginalAndOutput3D(data, output_org )
+        val lambdaMSS = SimplifyAndFuse(jacobi3Dmapseqslide(slidesize,slidestep))
+        val sourceMSS = Compile(lambdaMSS)//, NDRange(32,4,2), NDRange(n,m,1))
+            val (outputNew: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda3D(slidesize,slidestep), stencilarrpadded3D, stencilarrOther3D)
+            if(StencilUtilities.printOutput)
+            {
+              StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
+            }
+        */
+  }
+
 
 
   @Test
