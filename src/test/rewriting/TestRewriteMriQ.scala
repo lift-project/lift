@@ -58,17 +58,36 @@ class TestRewriteMriQ {
   private val qFun = UserFun("computeQ",
     Array("sX", "sY", "sZ", "Kx", "Ky", "Kz", "PhiMag", "acc"),
     """{
-        |    #define PIx2 6.2831853071795864769252867665590058f
-        |    float expArg = PIx2 * (Kx * sX + Ky * sY + Kz * sZ);
-        |    acc._0 = acc._0 + PhiMag * cos(expArg);
-        |    acc._1 = acc._1 + PhiMag * sin(expArg);
-        |
-        |    return acc;
-        |}""".
+      |    #define PIx2 6.2831853071795864769252867665590058f
+      |    float expArg = PIx2 * (Kx * sX + Ky * sY + Kz * sZ);
+      |    acc._0 = acc._0 + PhiMag * cos(expArg);
+      |    acc._1 = acc._1 + PhiMag * sin(expArg);
+      |
+      |    return acc;
+      |}""".
       stripMargin,
-      Seq(Float, Float, Float, Float, Float, Float, Float, TupleType
-      (Float, Float)),
-      TupleType(Float, Float))
+    Seq(Float, Float, Float, Float, Float, Float, Float, TupleType
+    (Float, Float)),
+    TupleType(Float, Float))
+
+  private val mapFun = UserFun("mapFun",
+    Array("sX", "sY", "sZ", "Kx", "Ky", "Kz", "PhiMag"),
+    """{
+      |    #define PIx2 6.2831853071795864769252867665590058f
+      |    float expArg = PIx2 * (Kx * sX + Ky * sY + Kz * sZ);
+      |    Tuple2_float_float bla = { PhiMag * cos(expArg), PhiMag * sin(expArg) };
+      |    return  bla;
+      |}""".stripMargin,
+    Seq(Float, Float, Float, Float, Float, Float, Float), TupleType(Float, Float))
+
+  private val reduceFun = UserFun("reduceFun",
+    Array("x", "y"),
+    """{
+          | x._0 += y._0;
+          | x._1 += y._1;
+          | return x;
+        }""".stripMargin,
+    Seq(TupleType(Float, Float), TupleType(Float, Float)), TupleType(Float, Float))
 
   private val xSize = SizeVar("X")
   private val kSize = SizeVar("K")
@@ -123,6 +142,38 @@ class TestRewriteMriQ {
   }
 
   @Test
+  def mriqIntroduceReuse(): Unit = {
+    val f = fun(
+      ArrayType(Float, xSize),
+      ArrayType(Float, xSize),
+      ArrayType(Float, xSize),
+      ArrayType(TupleType(Float, Float, Float, Float), kSize),
+      (x, y, z, kValues) =>
+        Map(\(t =>
+          Reduce(reduceFun, Value("{ 0.0f, 0.0f}", TupleType(Float, Float))) o
+            Map(\(k => mapFun(t._0, t._1, t._2, k._0, k._1, k._2, k._3))) $ kValues
+        )) $ Zip(x, y, z)
+    )
+
+    val f0 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
+    val f1 = Rewrite.applyRuleAtId(f0, 7, Rules.mapFission)
+    val f2 = Rewrite.applyRuleAtId(f1, 7, MacroRules.introduceReuseFromMap(64))
+    val f3 = Rewrite.applyRuleAtId(f2, 11, MacroRules.introduceReuseFromMap(64))
+
+    val mappings = EnabledMappings(
+      global0 = false, global01 = false, global10 = false,
+      global012 = false, global210 = false,
+      group0 = true, group01 = false, group10 = false)
+
+    val lowered = Lower.mapCombinations(f3, mappings).head
+
+    val (output: Array[Float], _) =
+      Execute()(lowered, x, y, z, k)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
+  @Test
   def mriQ2(): Unit = {
 
     val mapFun = UserFun("mapFun",
@@ -145,10 +196,10 @@ class TestRewriteMriQ {
       Seq(TupleType(Float, Float), TupleType(Float, Float)), TupleType(Float, Float))
 
     val computeQ = fun(
-      ArrayTypeWSWC(Float, xSize),
-      ArrayTypeWSWC(Float, xSize),
-      ArrayTypeWSWC(Float, xSize),
-      ArrayTypeWSWC(TupleType(Float, Float, Float, Float), kSize),
+      ArrayType(Float, xSize),
+      ArrayType(Float, xSize),
+      ArrayType(Float, xSize),
+      ArrayType(TupleType(Float, Float, Float, Float), kSize),
       (x, y, z, kValues) =>
         MapGlb(\(t =>
           toGlobal(MapSeq(idFF))  o
