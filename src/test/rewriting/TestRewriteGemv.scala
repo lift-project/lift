@@ -9,9 +9,9 @@ import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
 
-object TestRewriteMatrixVector extends TestWithExecutor
+object TestRewriteGemv extends TestWithExecutor
 
-class TestRewriteMatrixVector {
+class TestRewriteGemv {
 
   private val N = SizeVar("N")
   private val M = SizeVar("M")
