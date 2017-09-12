@@ -9,15 +9,9 @@ import opencl.ir.ast._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object Best {
-  @BeforeClass def before(): Unit =
-    Executor.loadAndInit()
-
-  @AfterClass def after(): Unit =
-    Executor.shutdown()
-}
+object Best extends TestWithExecutor
 
 class Best {
 

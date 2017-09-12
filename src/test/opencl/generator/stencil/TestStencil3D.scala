@@ -1,26 +1,15 @@
 package opencl.generator.stencil
 
-import ir.{ArrayType}
+import ir.ArrayType
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, LongTestsEnabled}
+import opencl.executor.{Execute, Executor, LongTestsEnabled, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
-import org.junit.{BeforeClass, _}
+import org.junit._
 
-object TestStencil3D {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestStencil3D extends TestWithExecutor
 
 class TestStencil3D{
 

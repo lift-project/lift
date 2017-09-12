@@ -3,25 +3,14 @@ package opencl.generator
 import ir.ast.{CheckedArrayAccess, Join, Zip, fun, _}
 import ir.{ArrayType, ArrayTypeWC, ArrayTypeWSWC, TypeChecker, _}
 import lift.arithmetic.{Cst, SizeVar}
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Execute, Executor, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import org.junit.Assert.{assertArrayEquals, assertEquals}
-import org.junit._
+import org.junit.{Test, _}
 
 
-object TestArray {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestArray extends TestWithExecutor
 
 class TestArray {
   /**

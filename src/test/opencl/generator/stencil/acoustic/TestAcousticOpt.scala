@@ -3,7 +3,7 @@ package opencl.generator.stencil.acoustic
 import ir.ArrayTypeWSWC
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, DeviceCapabilityException, Execute, Executor, _}
+import opencl.executor.{Compile, DeviceCapabilityException, Execute, _}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -13,18 +13,7 @@ import rewriting.SimplifyAndFuse
 
 import scala.language.implicitConversions
 
-object TestAcousticOpt {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestAcousticOpt extends TestWithExecutor
 
 class TestAcousticOpt {
 

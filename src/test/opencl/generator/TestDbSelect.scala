@@ -1,22 +1,11 @@
 package opencl.generator
 
 import benchmarks.DbSelect
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, TestWithExecutor}
 import org.junit.Assert.assertEquals
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestDbSelect {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-  
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestDbSelect extends TestWithExecutor
 
 class TestDbSelect {
   private def gold(colA: Array[Int], colB: Array[Int], colC: Array[Int]): Vector[(Int, Int, Int)] = {

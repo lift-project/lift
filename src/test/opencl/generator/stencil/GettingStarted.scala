@@ -3,25 +3,14 @@ package opencl.generator.stencil
 import ir._
 import ir.ast._
 import lift.arithmetic._
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Execute, _}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 import rewriting.{MacroRules, Rewrite, Rules}
 
-object GettingStarted {
-   @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object GettingStarted extends TestWithExecutor
 
 class GettingStarted {
   /**

@@ -644,7 +644,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     validateMemorySizes(f, valueMap)
 
     // 4. create output OpenCL kernel argument
-    val outputSize = ArithExpr.substitute(Type.getMaxAllocatedSize(f.body.t), valueMap).eval
+    val outputSize = ArithExpr.substitute(Type.getMaxAllocatedSize(f.body.t), valueMap).evalLong
     val outputData = global(outputSize)
 
     // 5. create all OpenCL data kernel arguments
@@ -654,12 +654,12 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     val sizes = createSizeArgs(f, valueMap)
 
     // 7. combine kernel arguments. first pointers and data, then the size information
-    val args: Array[KernelArg] = memArgs ++ sizes
+    val args: Seq[KernelArg] = memArgs ++ sizes
 
     // 8. execute via JNI and get the runtime (or runtimes)
     val t = this.synchronized {
       executeFunction(localSize(0).eval, localSize(1).eval, localSize(2).eval,
-        globalSize(0).eval, globalSize(1).eval, globalSize(2).eval, args)
+        globalSize(0).eval, globalSize(1).eval, globalSize(2).eval, args.toArray)
     }
 
     // 9. cast the output accordingly to the output type
@@ -676,12 +676,12 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   private def createMemArgs(f: Lambda,
                             outputData: KernelArg,
                             valueMap: immutable.Map[ArithExpr, ArithExpr],
-                            values: Any*): Array[KernelArg] = {
+                            values: Any*): Seq[KernelArg] = {
     // go through all memory objects associated with the generated kernel
     OpenCLGenerator.getMemories(f)._2.map(mem => {
       // get the OpenCL memory object ...
       val m = mem.mem
-      val size = ArithExpr.substitute(m.size, valueMap).eval
+      val size = ArithExpr.substitute(m.size, valueMap).evalLong
       // ... look for it in the parameter list ...
       val i = f.params.indexWhere(m == _.mem)
       // ... if found create an OpenCL kernel argument from the matching runtime value ...
@@ -704,10 +704,9 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       (memories._1 ++ memories._2).
         partition(_.mem.addressSpace == GlobalMemory)
 
-    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).eval)
+    val globalSizes = globalMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).evalLong)
     val totalSizeOfGlobal = globalSizes.sum
-    val totalSizeOfLocal = localMemories.map(mem =>
-      ArithExpr.substitute(mem.mem.size, valueMap).eval).sum
+    val totalSizeOfLocal = localMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).evalLong).sum
 
     globalSizes.foreach(size => {
       val maxMemAllocSize = Executor.getDeviceMaxMemAllocSize
@@ -725,7 +724,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   }
 
   private def createSizeArgs(f: Lambda,
-    valueMap: immutable.Map[ArithExpr, ArithExpr]): Array[KernelArg] = {
+    valueMap: immutable.Map[ArithExpr, ArithExpr]): Seq[KernelArg] = {
     // get the variables from the memory objects associated with the generated kernel
     val allVars = OpenCLGenerator.getMemories(f)._2.map(
       _.mem.size.varList
@@ -754,7 +753,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    * Factory functions for creating OpenCL kernel arguments
    */
   private object arg {
-    def apply(data: Any, ty: Type, size: Int): KernelArg = {
+    def apply(data: Any, ty: Type, size: Long): KernelArg = {
       // Optimisation: if we can simply flatten the input, do it
       val dim = dimension(ty, 0)
       if (dim > 0 && dim < 6 && canFlatten(ty)) flatUpload(data)

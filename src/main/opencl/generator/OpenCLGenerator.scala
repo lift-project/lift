@@ -39,29 +39,23 @@ object OpenCLGenerator extends Generator {
 
   def printTypes(lambda: Lambda): Unit = printTypes(lambda.body)
 
-  def getMemories(f: Lambda): (Array[TypedOpenCLMemory], Array[TypedOpenCLMemory]) = {
-    val memories = TypedOpenCLMemory.get(f.body, f.params).toArray
+  /**
+    * Get memory objects allocated for given Lambda
+    * @param f The lambda for which to get the memory objects
+    * @return A tuple with the first component the statically allocated local memory objects and the second
+    *         component all remaining memory objects (i.e. dynamically allocated local and global memory objects)
+    */
+  def getMemories(f: Lambda): (Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory]) = {
+    val (inputs, outputs, globalIntermediates, localIntermediates) = CollectTypedOpenCLMemory(f)
 
-    val numInputs = f.params.length
-
-    val outputMem = memories.last
-
-    if (memories.length > numInputs) {
-      val temp = memories(numInputs)
-      memories(numInputs) = outputMem
-      memories(memories.length - 1) = temp
-    }
-
-    val (locals, globals) = memories.partition(_.mem.addressSpace == LocalMemory)
-    val globalsFirst = globals ++ locals
-
-    if (AllocateLocalMemoryStatically())
-      globalsFirst.partition(isFixedSizeLocalMemory)
-    else
-      (Array.empty[TypedOpenCLMemory], globalsFirst)
+    if (AllocateLocalMemoryStatically()) {
+      val (staticLocalIntermediates, dynamicLocalIntermediates) = localIntermediates.partition(isFixedSizeLocalMemory)
+      (staticLocalIntermediates, inputs ++ outputs ++ globalIntermediates ++ dynamicLocalIntermediates)
+    } else
+      (Seq.empty[TypedOpenCLMemory], inputs ++ outputs ++ globalIntermediates ++ localIntermediates)
   }
 
-  def getDifferentMemories(lambda: Lambda) = {
+  def getDifferentMemories(lambda: Lambda): (Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory], Predef.Map[Var, Type]) = {
 
     val valMems = Expr.visitWithState(Set[Memory]())(lambda.body, (expr, set) =>
       expr match {
@@ -69,10 +63,9 @@ object OpenCLGenerator extends Generator {
         case _ => set
       })
 
-    val typedMems =
-      TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = true).toArray
+    val typedMems = CollectTypedOpenCLMemory.asFlatSequence(lambda, includePrivate = true)
 
-    val memory = TypedOpenCLMemory.get(lambda.body, lambda.params)
+    val memory = CollectTypedOpenCLMemory.asFlatSequence(lambda)
 
     val (typedValueMems, privateMems) =
       typedMems.diff(memory).partition(m => valMems.contains(m.mem))
@@ -112,7 +105,7 @@ object OpenCLGenerator extends Generator {
 
   private[generator] def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
     mem => try {
-      mem.mem.size.eval
+      mem.mem.size.evalLong
       mem.mem.addressSpace == LocalMemory
     } catch {
       case NotEvaluableException() => false
@@ -129,7 +122,7 @@ class OpenCLGenerator extends Generator {
 
   private var replacements: ValueTable = immutable.Map.empty
   private var replacementsWithFuns: ValueTable = immutable.Map.empty
-  private var privateMems = Array[TypedOpenCLMemory]()
+  private var privateMems = Seq[TypedOpenCLMemory]()
   private var privateDecls = immutable.Map[Var, OpenCLAST.VarDecl]()
 
   private var varDecls: SymbolTable = immutable.Map.empty
@@ -188,7 +181,15 @@ class OpenCLGenerator extends Generator {
       printMemories(f.body)
 
       println("Allocated Memory:")
-      TypedOpenCLMemory.get(f.body, f.params, includePrivate = true).foreach(println(_))
+      val (inputs, outputs, globalTmps, localTmps) = CollectTypedOpenCLMemory(f, includePrivate = true)
+      println(" inputs:")
+      inputs.foreach(println(_))
+      println(" outputs:")
+      outputs.foreach(println(_))
+      println(" global tmps:")
+      globalTmps.foreach(println(_))
+      println(" local tmps:")
+      localTmps.foreach(println(_))
       println()
     }
 
@@ -304,12 +305,12 @@ class OpenCLGenerator extends Generator {
 
   def allocateMemory(f: Lambda): Unit = {
     OpenCLMemoryAllocator(f)
-    Kernel.memory = TypedOpenCLMemory.get(f.body, f.params).toArray
+    Kernel.memory = CollectTypedOpenCLMemory.asFlatSequence(f)
   }
 
   private object Kernel {
-    var memory = Array.empty[TypedOpenCLMemory]
-    var staticLocalMemory = Array.empty[TypedOpenCLMemory]
+    var memory = Seq.empty[TypedOpenCLMemory]
+    var staticLocalMemory = Seq.empty[TypedOpenCLMemory]
   }
 
 
@@ -319,7 +320,7 @@ class OpenCLGenerator extends Generator {
 
     val typedValueMems = someMemories._1
     this.privateMems = someMemories._2
-    varDecls = someMemories._3
+    this.varDecls = someMemories._3
 
     val memories = OpenCLGenerator.getMemories(f)
 
@@ -549,7 +550,7 @@ class OpenCLGenerator extends Generator {
     nestedBlock += OpenCLAST.Barrier(OpenCLMemory(workVar, 4, LocalMemory))
     // get the loop variable as a range variable
     val range = loopVar.range.asInstanceOf[RangeAdd]
-    // generate a while loop which increments the task index atomically, while 
+    // generate a while loop which increments the task index atomically, while
     // it's less than the maximum range of the loop variable
     generateWhileLoop(nestedBlock,
       Predicate(loopVar, range.stop, Predicate.Operator.<),
@@ -575,7 +576,7 @@ class OpenCLGenerator extends Generator {
       (block: Block) += OpenCLAST.Barrier(call.mem.asInstanceOf[OpenCLMemory])
   }
 
-  // MapAtomLcl 
+  // MapAtomLcl
   private def generateMapAtomLclCall(m: MapAtomLcl,
                                      call: FunCall,
                                      block: Block): Unit = {
@@ -650,19 +651,20 @@ class OpenCLGenerator extends Generator {
   private def generateFilterSeqCall(f: FilterSeq,
                                     call: FunCall,
                                     block: Block): Unit = {
+
     (block: Block) += OpenCLAST.Comment("filter_seq")
 
     // Declare the index for the output array as a local variable
-    (block: Block) += OpenCLAST.VarDecl(
-      f.loopWrite,
-      opencl.ir.Int,
-      ArithExpression(Cst(0))
-    )
+    (block: Block) += OpenCLAST.VarDecl(f.loopWrite, opencl.ir.Int, ArithExpression(0))
 
-    // If the predicate returns true:
+    // Code to be generated if the predicate is satisfied
     def copyAndIncrementIndex(block: Block): Unit = {
       // 1. Store the input value at "the top" of the output array
-      generate(f.copyFun.body, block)
+      (block: Block) += generateSeqCopy(
+        call.args.head.mem, call.args.head.view.access(f.loopRead),
+        call.mem, call.view.access(f.loopWrite),
+        call.t.asInstanceOf[ArrayType].elemT
+      )
       // 2. Increment the index of "the top" of the output array
       (block: Block) += AssignmentExpression(
         ArithExpression(f.loopWrite),
@@ -687,6 +689,12 @@ class OpenCLGenerator extends Generator {
     }
 
     generateForLoop(block, call.args.head, f.loopRead, generateBody)
+
+    // Write the header of the output array
+    (block: Block) += AssignmentExpression(
+      to = accessNode(call.mem.variable, call.addressSpace, call.view.size()),
+      value = VarRef(f.loopWrite)
+    )
 
     (block: Block) += OpenCLAST.Comment("end filter_seq")
   }
@@ -1779,5 +1787,48 @@ class OpenCLGenerator extends Generator {
     */
   private def valueAccessNode(v: Var): OpenCLAST.VarRef = {
     OpenCLAST.VarRef(v)
+  }
+
+  /**
+   * Generate code for *sequentially* copying data of type `ty` from a Memory
+   * to an other using the provided views. We can only write in one single
+   * location in memory: no memory collection and no tuple of arrays. Although,
+   * reading from a memory collection is possible, for instance: copying after
+   * a Zip.
+   *
+   * @param inMem memory location of the data to be copied
+   * @param inView view explaining how to access the data to be copied
+   * @param outMem memory location where to copy the data
+   * @param outView view explaining how to access the destination memory
+   * @param ty the type of the data to be copied.
+   * @return a piece of OpenCL code that performs the copy *sequentially*
+   */
+  private def generateSeqCopy(inMem: Memory, inView: View, outMem: Memory, outView: View,
+                           ty: Type): OpenCLAST.OclAstNode with BlockMember = {
+    assert(!outMem.isInstanceOf[OpenCLMemoryCollection]) // cannot handle that: see comment above
+    ty match {
+      case ScalarType(_, _) | _: TupleType | _: VectorType =>
+        val load = generateLoadNode(OpenCLMemory.asOpenCLMemory(inMem), ty, inView)
+        generateStoreNode(OpenCLMemory.asOpenCLMemory(outMem), ty, outView, load)
+      case at: ArrayType =>
+        val innerBlock = Block(Vector.empty)
+        val loopVar = Var("cp")
+        val length = at match {
+          case s: Size => ArithExpression(s.size)
+          case _ => throw new NotImplementedError()
+        }
+        innerBlock += generateSeqCopy(
+          inMem, inView.access(loopVar),
+          outMem, outView.access(loopVar),
+          at.elemT
+        )
+        ForLoop(
+          VarDecl(loopVar, Int, ArithExpression(0)),
+          CondExpression(ArithExpression(loopVar), length, CondExpression.Operator.<),
+          AssignmentExpression(VarRef(loopVar), ArithExpression(loopVar + 1)),
+          innerBlock
+        )
+      case _ => throw new NotImplementedError(s"generateSeqCopy: $ty")
+    }
   }
 }

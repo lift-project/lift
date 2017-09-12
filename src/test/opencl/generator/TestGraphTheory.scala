@@ -5,28 +5,16 @@ import java.io._
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, Executor, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 
 import scala.language.postfixOps
 import scala.sys.process._
 
-object TestGraphTheory {
-  @BeforeClass def TestMatrixBasic(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
-
+object TestGraphTheory extends TestWithExecutor
 
 class TestGraphTheory {
 

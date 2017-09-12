@@ -1,24 +1,15 @@
 package rodinia
 
-import ir.{ArrayTypeWSWC, TupleType}
 import ir.ast._
+import ir.{ArrayTypeWSWC, TupleType}
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
-import rodinia.Kmeans._
+import org.junit.Test
 
-object Kmeans {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
+object Kmeans extends TestWithExecutor {
 
   val P = SizeVar("P") // number of points
   val C = SizeVar("C") // number of clusters
@@ -74,6 +65,8 @@ object Kmeans {
 }
 
 class Kmeans {
+
+  import rodinia.Kmeans._
 
   @Test def kMeansMembership2Dim(): Unit = {
     val inputSize = 512

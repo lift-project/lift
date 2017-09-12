@@ -17,13 +17,15 @@ import opencl.ir._
  * @param mainTy Lift type of the values to be encoded
  * @param sizeof Allocated size in bytes
  */
-class Encoder(mainTy: Type, sizeof: Int) {
+class Encoder(mainTy: Type, sizeof: Long) {
   /**
    * Encode a Scala value that matches the type (and allocated size) of the
    * `Encoder` instance into a byte buffer.
    */
   def encode(any: Any): ByteBuffer = {
-    val buffer = ByteBuffer.allocate(sizeof)
+    // FIXME
+    assert(sizeof <= scala.Int.MaxValue)
+    val buffer = ByteBuffer.allocate(sizeof.toInt)
     buffer.position(0)
     buffer.order(endianness)
     encodeAny(mainTy, any, buffer)

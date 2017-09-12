@@ -13,18 +13,7 @@ import org.junit._
 
 import scala.util.Random
 
-object TestStencil {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestStencil extends TestWithExecutor
 
 /**
   * Contains tests which include the combined usage of the slide
