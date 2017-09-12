@@ -159,11 +159,14 @@ object MacroRules {
         res
     })
 
-  val partialReduceWithReorder =
+  val partialReduceWithReorder: Rule = partialReduceWithReorder(?)
+
+
+  def partialReduceWithReorder(strideGiven: ArithExpr): Rule =
     Rule("partialReduceWithReorder", {
       case funCall@FunCall(Reduce(_), _, arg) =>
 
-        val stride = Utils.validSplitVariable(arg.t)
+        val stride = if (strideGiven == ?) Utils.validSplitVariable(arg.t) else strideGiven
         val len = Type.getLength(arg.t)
         val splitFactor = len /^ stride
 

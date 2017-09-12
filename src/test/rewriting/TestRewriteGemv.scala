@@ -1,13 +1,14 @@
 package rewriting
 
 import exploration.HighLevelRewrite
-import ir.ArrayTypeWSWC
+import ir.ArrayType
 import ir.ast._
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
+import rewriting.utils.NumberPrinter
 
 object TestRewriteGemv extends TestWithExecutor
 
@@ -25,13 +26,10 @@ class TestRewriteGemv {
   private val beta = 1.5f
   private val gold = Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta)
 
-  @Test
-  def gemvAMD(): Unit = {
-
-    val f = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
-      ArrayTypeWSWC(Float, M),
-      ArrayTypeWSWC(Float,N),
+  private def f = fun(
+      ArrayType(ArrayType(Float, M), N),
+      ArrayType(Float, M),
+      ArrayType(Float,N),
       Float,
       Float,
       (matrix, vectorX, vectorY, alpha, beta) => {
@@ -46,6 +44,9 @@ class TestRewriteGemv {
             Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(vectorX, Get(t, 0))
         )) $ Zip(matrix, vectorY)
       })
+
+  @Test
+  def gemvAMD(): Unit = {
 
     // Algorithmic rewrite
     val f1 = Rewrite.applyRuleAtId(f, 5, Rules.partialReduce)
@@ -72,7 +73,6 @@ class TestRewriteGemv {
     val f20 = Rewrite.applyRuleAtId(f19, 41, Rules.localMemory)
     val f21 = Rewrite.applyRuleAtId(f20, 4, Rules.globalMemory)
 
-
     val (local, global) = InferNDRange(f21, matrix, vectorX, vectorY, alpha, beta)
 
     val (output: Array[Float], _) =
@@ -85,53 +85,37 @@ class TestRewriteGemv {
   @Test
   def gemvAMDMacro(): Unit = {
 
-    val f = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
-      ArrayTypeWSWC(Float, M),
-      ArrayTypeWSWC(Float, N),
-      Float,
-      Float,
-      (matrix, vectorX, vectorY, alpha, beta) => {
-        Map(fun(t =>
-          Map(fun(x =>
-            add(
-              mult(x, alpha),
-              mult(Get(t, 1), beta)
-            )
-          )) o
-            Reduce(add, 0.0f) o
-            Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(vectorX, Get(t, 0))
-        )) $ Zip(matrix, vectorY)
-      })
-
-    val f1 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder)
+    val f1 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
 
     val f2 = SimplifyAndFuse(f1)
+
     assertTrue(HighLevelRewrite.filterByDistance(f2))
-    Lower.mapCombinations(f2)
+
+    val mappings = EnabledMappings(
+      global0 = false, global01 = false, global10 = false,
+      global012 = false, global210 = false,
+      group0 = true, group01 = false, group10 = false)
+
+    val lowered = Lower.mapCombinations(f2, mappings).head
+
+    val l0 = Rewrite.applyRuleAtId(lowered, 14, Rules.addIdAfterReduce)
+    val l1 = Rewrite.applyRuleAtId(l0, 14, Rules.localMemory)
+    val l2 = Rewrite.applyRuleAtId(l1, 28, Rules.implementIdAsDeepCopy)
+    val l3 = Rewrite.applyRuleAtId(l2, 5, Rules.addIdAfterReduce)
+    // TODO: Could get away with private memory
+    val l4 = Rewrite.applyRuleAtId(l3, 5, Rules.localMemory)
+    val l5 = Rewrite.applyRuleAtId(l4, 38, Rules.implementIdAsDeepCopy)
+    val l6 = Rewrite.applyRuleAtId(l5, 42, MacroRules.userFunCompositionToPrivate)
+    println(NumberPrinter(l5))
+
+    val (output: Array[Float], _) =
+      Execute()(l6, matrix, vectorX, vectorY, alpha, beta)
+
+    assertArrayEquals(gold, output, 0.001f)
   }
 
   @Test
   def gemvVectorised(): Unit = {
-
-    val f = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
-      ArrayTypeWSWC(Float, M),
-      ArrayTypeWSWC(Float, N),
-      Float,
-      Float,
-      (matrix, vectorX, vectorY, alpha, beta) => {
-        Map(fun(t =>
-          Map(fun(x =>
-            add(
-              mult(x, alpha),
-              mult(Get(t, 1), beta)
-            )
-          )) o
-            Reduce(add, 0.0f) o
-            Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(vectorX, Get(t, 0))
-        )) $ Zip(matrix, vectorY)
-      })
 
     val f1 = Rewrite.applyRuleAtId(f, 6, Rules.vectorizeMapZip(4))
     val f2 = Rewrite.applyRuleAtId(f1, 5, MacroRules.vectorizeReduce(4))
@@ -142,25 +126,6 @@ class TestRewriteGemv {
 
   @Test
   def gemvCLBlast(): Unit = {
-
-    val f = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
-      ArrayTypeWSWC(Float, M),
-      ArrayTypeWSWC(Float, N),
-      Float,
-      Float,
-      (matrix, vectorX, vectorY, alpha, beta) => {
-        Map(fun(t =>
-          Map(fun(x =>
-            add(
-              mult(x, alpha),
-              mult(Get(t, 1), beta)
-            )
-          )) o
-            Reduce(add, 0.0f) o
-            Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(vectorX, Get(t, 0))
-        )) $ Zip(matrix, vectorY)
-      })
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
 
