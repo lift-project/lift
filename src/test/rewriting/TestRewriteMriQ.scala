@@ -6,11 +6,11 @@ import java.nio.{ByteBuffer, ByteOrder}
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, TestWithExecutor}
+import opencl.executor.{DeviceCapabilityException, Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Assume, Test}
 
 object TestRewriteMriQ extends TestWithExecutor
 
@@ -203,9 +203,14 @@ class TestRewriteMriQ {
         )) $ Zip(x, y, z)
     )
 
-    val (output: Array[Float], _) =
-      Execute()(computeQ, x, y, z, k)
+    try {
+      val (output: Array[Float], _) =
+        Execute()(computeQ, x, y, z, k)
 
-    assertArrayEquals(gold, output, 0.001f)
+      assertArrayEquals(gold, output, 0.001f)
+    } catch {
+      case t: DeviceCapabilityException =>
+        Assume.assumeNoException(t)
+    }
   }
 }
