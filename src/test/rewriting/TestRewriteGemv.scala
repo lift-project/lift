@@ -128,7 +128,7 @@ class TestRewriteGemv {
     val l3 = Rewrite.applyRuleAtId(l2, 27, Rules.localMemory)
 
     val (output: Array[Float], _) =
-      Execute(128, 524288, (true, true))(l3, matrix, vectorX, vectorY, alpha, beta)
+      Execute()(l3, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, output, 0.001f)
   }
