@@ -7,7 +7,7 @@ import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Assume, Test}
 
 object TestRewriteGemv extends TestWithExecutor
 
@@ -89,6 +89,8 @@ class TestRewriteGemv {
   @Test
   def gemvAMDMacro(): Unit = {
 
+    Assume.assumeTrue(Executor.getDeviceType == "GPU")
+
     val f1 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
 
     val f2 = SimplifyAndFuse(f1)
@@ -101,7 +103,8 @@ class TestRewriteGemv {
     val l1 = Rewrite.applyRuleAtId(l0, 14, Rules.localMemory)
     val l2 = Rewrite.applyRuleAtId(l1, 28, Rules.implementIdAsDeepCopy)
     val l3 = Rewrite.applyRuleAtId(l2, 5, Rules.addIdAfterReduce)
-    // TODO: Could get away with private memory
+    // TODO: Could get away with private memory & intel doesn't like all
+    // TODO: threads writing the same value and one thread reading it.
     val l4 = Rewrite.applyRuleAtId(l3, 5, Rules.localMemory)
     val l5 = Rewrite.applyRuleAtId(l4, 38, Rules.implementIdAsDeepCopy)
     val l6 = Rewrite.applyRuleAtId(l5, 42, MacroRules.userFunCompositionToPrivate)
