@@ -1679,8 +1679,9 @@ class OpenCLGenerator extends Generator {
 
                 case PrivateMemory =>
 
+                  val declaration = privateDecls.find(m => m._1 == mem.variable)
                   val arraySuffix =
-                    if (privateMems.exists(m => m.mem == mem)) // check if this is actually an array
+                    if (declaration.isDefined && declaration.get._2.t.isInstanceOf[ArrayType]) // check if this is actually an array
                       arrayAccessPrivateMem(mem.variable, innerView)
                     else // Workaround for values
                       ""
