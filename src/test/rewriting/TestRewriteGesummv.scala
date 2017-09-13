@@ -16,7 +16,7 @@ class TestRewriteGesummv {
   private val N = SizeVar("N")
 
   private def mvAlpha = fun(
-    ArrayType(ArrayTypeWSWC(Float, K), N),
+    ArrayType(ArrayType(Float, K), N),
     ArrayType(Float, K),
     Float,
     (matrix, vector, alpha) =>
@@ -34,8 +34,8 @@ class TestRewriteGesummv {
   )
 
   private def f0 = fun(
-    ArrayType(ArrayTypeWSWC(Float, K), N),
-    ArrayType(ArrayTypeWSWC(Float, K), N),
+    ArrayType(ArrayType(Float, K), N),
+    ArrayType(ArrayType(Float, K), N),
     ArrayType(Float, K),
     Float,
     Float,
