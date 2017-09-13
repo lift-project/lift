@@ -1,4 +1,4 @@
-package rewriting
+package rewriting.rules
 
 import ir._
 import ir.ast._
@@ -8,6 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
+import rewriting.{MacroRules, Rewrite, Rules}
 
 object TestRules extends TestWithExecutor
 
