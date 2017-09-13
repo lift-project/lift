@@ -76,6 +76,7 @@ class TestRewriteNbody {
     val l0 = Rewrite.applyRuleAtId(lowered , 11, Rules.addIdAfterReduce)
     val l1 = Rewrite.applyRuleAtId(l0, 24, Rules.implementIdAsDeepCopy)
     val l2 = Rewrite.applyRuleAtId(l1, 11, Rules.localMemory)
+    // TODO: Could get away with private memory
     val l3 = Rewrite.applyRuleAtId(l2, 5, Rules.addIdAfterReduce)
     val l4 = Rewrite.applyRuleAtId(l3, 34, Rules.implementIdAsDeepCopy)
     val l5 = Rewrite.applyRuleAtId(l4, 5, Rules.localMemory)

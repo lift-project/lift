@@ -92,12 +92,25 @@ class TestRewriteMriQ {
   private val xSize = SizeVar("X")
   private val kSize = SizeVar("K")
 
+  private val f = fun(
+      ArrayType(Float, xSize),
+      ArrayType(Float, xSize),
+      ArrayType(Float, xSize),
+      ArrayType(TupleType(Float, Float, Float, Float), kSize),
+      (x, y, z, kValues) =>
+        Map(\(t =>
+          Reduce(reduceFun, Value("{ 0.0f, 0.0f}", TupleType(Float, Float))) o
+            Map(\(k => mapFun(t._0, t._1, t._2, k._0, k._1, k._2, k._3))) $ kValues
+        )) $ Zip(x, y, z)
+    )
+
+  private val mappings = EnabledMappings(
+    global0 = false, global01 = false, global10 = false,
+    global012 = false, global210 = false,
+    group0 = true, group01 = false, group10 = false)
+
   @Test
   def computeQ(): Unit = {
-
-    // TODO: Break into ReduceSeq o Map? or Map() o Reduce() o Map
-    // Similar pattern to kmeans or gemv/nbody
-
 
     // TODO: Qr & Qi are outputs initialised to 0.0f
     // TODO: Whole kernel split into 3 invokations??
@@ -138,32 +151,14 @@ class TestRewriteMriQ {
       Execute()(f15, x, y, z, Array.fill(xNum)(0.0f), Array.fill(xNum)(0.0f), k)
 
     assertArrayEquals(gold, output, 0.001f)
-
   }
 
   @Test
   def mriqIntroduceReuse(): Unit = {
-    val f = fun(
-      ArrayType(Float, xSize),
-      ArrayType(Float, xSize),
-      ArrayType(Float, xSize),
-      ArrayType(TupleType(Float, Float, Float, Float), kSize),
-      (x, y, z, kValues) =>
-        Map(\(t =>
-          Reduce(reduceFun, Value("{ 0.0f, 0.0f}", TupleType(Float, Float))) o
-            Map(\(k => mapFun(t._0, t._1, t._2, k._0, k._1, k._2, k._3))) $ kValues
-        )) $ Zip(x, y, z)
-    )
-
     val f0 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
     val f1 = Rewrite.applyRuleAtId(f0, 7, Rules.mapFission)
     val f2 = Rewrite.applyRuleAtId(f1, 7, MacroRules.introduceReuseFromMap(64))
     val f3 = Rewrite.applyRuleAtId(f2, 11, MacroRules.introduceReuseFromMap(64))
-
-    val mappings = EnabledMappings(
-      global0 = false, global01 = false, global10 = false,
-      global012 = false, global210 = false,
-      group0 = true, group01 = false, group10 = false)
 
     val lowered = Lower.mapCombinations(f3, mappings).head
 
@@ -174,27 +169,27 @@ class TestRewriteMriQ {
   }
 
   @Test
+  def partialReduceWithReorder(): Unit = {
+
+    val f0 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
+
+    val lowered = Lower.mapCombinations(f0, mappings).head
+
+    val l0 = Rewrite.applyRuleAtId(lowered, 12, Rules.addIdAfterReduce)
+    val l1 = Rewrite.applyRuleAtId(l0, 6, Rules.addIdAfterReduce)
+    val l2 = Rewrite.applyRuleAtId(l1, 42, Rules.implementIdAsDeepCopy)
+    val l3 = Rewrite.applyRuleAtId(l2, 42, Rules.localMemory)
+    val l4 = Rewrite.applyRuleAtId(l3, 35, Rules.implementIdAsDeepCopy)
+    val l5 = Rewrite.applyRuleAtId(l4, 35, Rules.localMemory)
+
+    val (output: Array[Float], _) =
+      Execute()(l5, x, y, z, k)
+
+    assertArrayEquals(gold, output, 0.01f)
+  }
+
+  @Test
   def mriQ2(): Unit = {
-
-    val mapFun = UserFun("mapFun",
-      Array("sX", "sY", "sZ", "Kx", "Ky", "Kz", "PhiMag"),
-      """{
-        |    #define PIx2 6.2831853071795864769252867665590058f
-        |    float expArg = PIx2 * (Kx * sX + Ky * sY + Kz * sZ);
-        |    Tuple2_float_float bla = { PhiMag * cos(expArg), PhiMag * sin(expArg) };
-        |    return  bla;
-        |}""".stripMargin,
-      Seq(Float, Float, Float, Float, Float, Float, Float), TupleType(Float, Float))
-
-    val reduceFun = UserFun("reduceFun",
-      Array("x", "y"),
-      """{
-          | x._0 += y._0;
-          | x._1 += y._1;
-          | return x;
-        }""".stripMargin,
-      Seq(TupleType(Float, Float), TupleType(Float, Float)), TupleType(Float, Float))
-
     val computeQ = fun(
       ArrayType(Float, xSize),
       ArrayType(Float, xSize),
