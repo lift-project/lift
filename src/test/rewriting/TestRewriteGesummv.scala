@@ -7,6 +7,7 @@ import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
+import rewriting.utils.NumberPrinter
 
 object TestRewriteGesummv extends TestWithExecutor
 
@@ -55,6 +56,11 @@ class TestRewriteGesummv {
   private val tmp2Gold = Utils.matrixVector(B, x, beta)
   private val yGold = (tmp1Gold, tmp2Gold).zipped.map(_+_)
 
+  private val mappings = EnabledMappings(
+    global0 = false, global01 = false, global10 = false,
+    global012 = false, global210 = false,
+    group0 = true, group01 = false, group10 = false)
+
   @Test
   def simpleFusion(): Unit = {
 
@@ -73,10 +79,6 @@ class TestRewriteGesummv {
 
     // Not strictly necessary, but makes it look nicer
     val f14 = Rewrite.applyRuleAtId(f12, 17, Rules.tupleInline)
-
-    // Still uses x twice. Flatten zips and get rid of duplicates?
-    // Could issue only one load. Would it make a difference?
-    // Would it be easier to rewrite and optimise later? Probably.
 
     val f15 = Lower.lowerNextLevelWithRule(f14, Rules.mapGlb)
     val f16 = Lower.lowerNextLevelWithRule(f15, Rules.mapSeq)
@@ -107,9 +109,6 @@ class TestRewriteGesummv {
 
     val f14 = Rewrite.applyRuleAtId(f2, 17, Rules.tupleInline)
 
-    // Still uses x twice. Flatten zips and get rid of duplicates?
-    // Could issue only one load. Would it make a difference?
-
     val f15 = Lower.lowerNextLevelWithRule(f14, Rules.mapGlb)
     val f16 = Lower.lowerNextLevelWithRule(f15, Rules.mapSeq)
 
@@ -136,11 +135,6 @@ class TestRewriteGesummv {
     val f4 = Rewrite.applyRuleAtId(f3, 10, MacroRules.introduceReuseFromMap(64))
     val f5 = Rewrite.applyRuleAtId(f4, 13, MacroRules.introduceReuseFromMap(64))
 
-    val mappings = EnabledMappings(
-      global0 = false, global01 = false, global10 = false,
-      global012 = false, global210 = false,
-      group0 = true, group01 = false, group10 = false)
-
     val lowered = Lower.mapCombinations(f5, mappings).head
 
     // Make it look nicer + makes MacroRules.userFunCompositionToPrivate applicable
@@ -162,6 +156,31 @@ class TestRewriteGesummv {
     val code = Compile(finalExpr, local, global)
 
     val (y: Array[Float], _) = Execute()(code, finalExpr, A, B, x, alpha, beta)
+
+    assertArrayEquals(yGold, y, 0.001f)
+  }
+
+  @Test
+  def partialReduceWithReorder(): Unit = {
+    val f1 = SimplifyAndFuse.withoutPreventingFurtherOptimisation(f0)
+    val g = Rewrite.applyRuleUntilCannot(f1, Rules.flattenZips)
+
+    val g1 = Rewrite.applyRuleAtId(g, 7, Rules.removeDuplicateZipArg)
+
+    val g2 = Rewrite.applyRuleAtId(g1, 6, MacroRules.partialReduceWithReorder(128))
+
+    val lowered = Lower.mapCombinations(g2, mappings).head
+
+    val l0 = Rewrite.applyRuleAtId(lowered, 62, Rules.tupleInline)
+    val l1 = Rewrite.applyRuleAtId(l0, 62, MacroRules.userFunCompositionToPrivate)
+    val l2 = Rewrite.applyRuleAtId(l1, 17, Rules.addIdAfterReduce)
+    val l3 = Rewrite.applyRuleAtId(l2, 6, Rules.addIdAfterReduce)
+    val l4 = Rewrite.applyRuleAtId(l3, 64, Rules.implementIdAsDeepCopy)
+    val l5 = Rewrite.applyRuleAtId(l4, 64, Rules.localMemory)
+    val l6 = Rewrite.applyRuleAtId(l5, 48, Rules.implementIdAsDeepCopy)
+    val l7 = Rewrite.applyRuleAtId(l6, 48, Rules.localMemory)
+
+    val (y: Array[Float], _) = Execute()(l7, A, B, x, alpha, beta)
 
     assertArrayEquals(yGold, y, 0.001f)
   }
