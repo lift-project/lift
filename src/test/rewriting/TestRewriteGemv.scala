@@ -92,7 +92,6 @@ class TestRewriteGemv {
     Assume.assumeTrue(Executor.getDeviceType == "GPU")
 
     val f1 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
-
     val f2 = SimplifyAndFuse(f1)
 
     assertTrue(HighLevelRewrite.filterByDistance(f2))
@@ -111,6 +110,25 @@ class TestRewriteGemv {
 
     val (output: Array[Float], _) =
       Execute()(l6, matrix, vectorX, vectorY, alpha, beta)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
+  @Test
+  def partialReduceWithReorderNoRace(): Unit = {
+    val f0 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
+
+    val f1 = Rewrite.applyRuleAtId(f0, 5, Rules.splitJoinReduce)
+    val f2 = Rewrite.applyRuleAtId(f1, 4, Rules.splitJoin)
+    val lowered = Lower.mapCombinations(f2, group0Mapping).head
+
+    val l0 = Rewrite.applyRuleAtId(lowered, 36, MacroRules.userFunCompositionToPrivate)
+    val l1 = Rewrite.applyRuleAtId(l0, 15, Rules.addIdAfterReduce)
+    val l2 = Rewrite.applyRuleAtId(l1, 27, Rules.implementIdAsDeepCopy)
+    val l3 = Rewrite.applyRuleAtId(l2, 27, Rules.localMemory)
+
+    val (output: Array[Float], _) =
+      Execute(128, 524288, (true, true))(l3, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, output, 0.001f)
   }

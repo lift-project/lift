@@ -125,6 +125,14 @@ object Rules {
       Split(length) o Map(f) o Join() $ arg
   })
 
+  val splitJoinReduce = Rule("Reduce(f) => Join() o Map(Reduce(f)) o Split(N)", {
+    case FunCall(red: Reduce, init, arg) =>
+
+      val length = arg.t match { case ArrayTypeWS(_, n) => n }
+
+      Join() o Map(fun(x => red(init, x))) o Split(length) $ arg
+  })
+
   /* Reduce rules */
 
   val partialReduce = Rule("Reduce(f) => Reduce(f) o PartRed(f)", {
