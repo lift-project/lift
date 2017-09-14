@@ -158,13 +158,12 @@ object MacroRules {
         val partRed = Utils.getExprForPatternInCallChain(part,
           { case FunCall(PartRed(_), _*) => }).get
         val res =
-          Rewrite.applyRuleAt(part, Rules.partialReduceVectorize(vectorWidth), partRed)
+          Rewrite.applyRuleAt(part, OpenCLRules.partialReduceVectorize(vectorWidth), partRed)
 
         res
     })
 
   val partialReduceWithReorder: Rule = partialReduceWithReorder(?)
-
 
   def partialReduceWithReorder(strideGiven: ArithExpr): Rule =
     Rule("partialReduceWithReorder", {
@@ -768,7 +767,7 @@ object MacroRules {
       if Utils.getIndexForPatternInCallChain(innerCall, reducePattern) != -1
     =>
 
-      var rule = Rules.mapReduceInterchange
+      var rule = InterchangeRules.mapReduceInterchange
 
       val reduceArg = Utils.getExprForPatternInCallChain(innerCall, reducePattern).get.asInstanceOf[FunCall].args(1)
       val reduceId = Utils.getIndexForPatternInCallChain(innerCall, reducePattern)
@@ -798,12 +797,12 @@ object MacroRules {
         if (reduceOption.isDefined)
           fissioned = Rewrite.applyRuleAt(fissioned, Rules.reduceSeq, reduceOption.get)
 
-        rule = Rules.mapReducePartialReduce
+        rule = InterchangeRules.mapReducePartialReduce
         offset = 3
       }
 
       if (zipPattern.isDefinedAt(arg) && reduceArg.isAbstract) {
-        rule = Rules.mapReduceInterchangeWithZipOutside
+        rule = InterchangeRules.mapReduceInterchangeWithZipOutside
 
         var numFissions = finalArgId - reduceId - 2
 
@@ -852,10 +851,10 @@ object MacroRules {
 
       val mapCall = Utils.getExprForPatternInCallChain(fissioned, mapMapPattern).get
 
-      val zipInside = Rules.mapMapTransposeZipInside.rewrite
-      val zipOutside = Rules.mapMapTransposeZipOutside.rewrite
-      val interchange = Rules.mapMapInterchange.rewrite
-      val transpose = Rules.transposeBothSides.rewrite
+      val zipInside = InterchangeRules.mapMapTransposeZipInside.rewrite
+      val zipOutside = InterchangeRules.mapMapTransposeZipOutside.rewrite
+      val interchange = InterchangeRules.mapMapInterchange.rewrite
+      val transpose = InterchangeRules.transposeBothSides.rewrite
 
       if (zipInside.isDefinedAt(mapCall))
         Expr.replace(fissioned, mapCall, zipInside(mapCall))

@@ -43,7 +43,7 @@ class TestInterchange {
     )
 
     TypeChecker(g)
-    assertFalse(Rules.transposeBothSides.rewrite.isDefinedAt(g.body))
+    assertFalse(InterchangeRules.transposeBothSides.rewrite.isDefinedAt(g.body))
   }
 
   @Test
@@ -52,7 +52,7 @@ class TestInterchange {
       input => Map(Map(plusOne)) $ input
     )
 
-    val g = Rewrite.applyRuleAtId(f, 0, Rules.transposeBothSides)
+    val g = Rewrite.applyRuleAtId(f, 0, InterchangeRules.transposeBothSides)
 
     test(f, g, inputMatrix)
   }
@@ -64,7 +64,7 @@ class TestInterchange {
       (in1, in2) => Map(fun(x => Map(fun(x => add(Get(x, 0), Get(x, 1)))) $ Zip(in2, x))) $ in1
     )
 
-    val g = Rewrite.applyRuleAt(f, f.body, Rules.mapMapTransposeZipInside)
+    val g = Rewrite.applyRuleAt(f, f.body, InterchangeRules.mapMapTransposeZipInside)
 
     test(f, g, inputMatrix, inputArray)
   }
@@ -79,7 +79,7 @@ class TestInterchange {
         )) $ Zip(in1, in2)
     )
 
-    val g = Rewrite.applyRuleAtId(f, 0, Rules.mapMapTransposeZipOutside)
+    val g = Rewrite.applyRuleAtId(f, 0, InterchangeRules.mapMapTransposeZipOutside)
 
     test(f, g, inputMatrix, inputArray)
   }
@@ -93,7 +93,7 @@ class TestInterchange {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.mapReducePartialReduce.isDefinedAt(f.body))
+    assertFalse(InterchangeRules.mapReducePartialReduce.isDefinedAt(f.body))
   }
 
   @Test
@@ -105,7 +105,7 @@ class TestInterchange {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.mapReducePartialReduce.isDefinedAt(f.body))
+    assertFalse(InterchangeRules.mapReducePartialReduce.isDefinedAt(f.body))
   }
 
   @Test
@@ -117,7 +117,7 @@ class TestInterchange {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.mapReducePartialReduce.isDefinedAt(f.body))
+    assertFalse(InterchangeRules.mapReducePartialReduce.isDefinedAt(f.body))
   }
 
   @Test
@@ -129,7 +129,7 @@ class TestInterchange {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.mapReducePartialReduce.isDefinedAt(f.body))
+    assertFalse(InterchangeRules.mapReducePartialReduce.isDefinedAt(f.body))
   }
 
   @Test
@@ -138,7 +138,7 @@ class TestInterchange {
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 16), 16), 16),
       a => Map( ReduceSeq(add, 0.0f) o Join() o Map(PartRed(fun((x, y) => add(x, y)), 0.0f)) ) $ a)
 
-    val g = Rewrite.applyRuleAtId(f, 0, Rules.mapReducePartialReduce)
+    val g = Rewrite.applyRuleAtId(f, 0, InterchangeRules.mapReducePartialReduce)
 
     test(f, g, input3DMatrix)
   }
@@ -151,7 +151,7 @@ class TestInterchange {
       input => Map(Reduce(add, 0.0f)) $ input
     )
 
-    val g = Rewrite.applyRuleAtId(f, 0, Rules.mapReduceInterchange)
+    val g = Rewrite.applyRuleAtId(f, 0, InterchangeRules.mapReduceInterchange)
     assertTrue(g.body.asInstanceOf[FunCall].args.head.asInstanceOf[FunCall].f.isInstanceOf[Reduce])
 
     test(f, g, small2DMatrix)
@@ -165,7 +165,7 @@ class TestInterchange {
       input => Map(ReduceSeq(add, 0.0f)) $ input
     )
 
-    val g = Rewrite.applyRuleAtId(f, 0, Rules.mapReduceInterchange)
+    val g = Rewrite.applyRuleAtId(f, 0, InterchangeRules.mapReduceInterchange)
 
     assertTrue(g.body.asInstanceOf[FunCall].args.head.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
 
@@ -228,7 +228,7 @@ class TestInterchange {
         )) o Split(256) $ Zip(in1, in1)
     )
 
-    val g = Rewrite.applyRuleAtId(f, 5, Rules.mapMapTransposeZipInside)
+    val g = Rewrite.applyRuleAtId(f, 5, InterchangeRules.mapMapTransposeZipInside)
 
     test(f, g, inputMatrix)
   }
@@ -282,7 +282,7 @@ class TestInterchange {
         )) o Split(256) $ Zip(matrix, matrix)
     )
 
-    val g = Rewrite.applyRuleAtId(f, 5, Rules.mapMapTransposeZipInside)
+    val g = Rewrite.applyRuleAtId(f, 5, InterchangeRules.mapMapTransposeZipInside)
 
     test(f, g, inputMatrix, inputArray)
   }
@@ -303,7 +303,7 @@ class TestInterchange {
         )) o Split(256) $ matrix
     )
 
-    val g = Rewrite.applyRuleAtId(f, 3, Rules.mapMapTransposeZipInside)
+    val g = Rewrite.applyRuleAtId(f, 3, InterchangeRules.mapMapTransposeZipInside)
 
     test(f, g, inputMatrix, inputArray)
   }

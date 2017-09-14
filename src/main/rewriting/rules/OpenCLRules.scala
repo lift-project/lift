@@ -1,12 +1,14 @@
 package rewriting.rules
 
+import ir.{TupleType, VectorType}
 import ir.ast._
-import lift.arithmetic.Cst
+import lift.arithmetic._
 import opencl.ir._
 import opencl.ir.ast._
 import opencl.ir.pattern._
 
 object OpenCLRules {
+
   val mapSeq = Rule("Map(f) => MapSeq(f)", {
     case FunCall(Map(f), arg)
       if f.body.isConcrete
@@ -194,4 +196,49 @@ object OpenCLRules {
 
       ReduceSeq(add, init) o MapSeq(dot) $ arg
   })
+  /* Vectorization rule */
+
+  val vectorize: Rule = vectorize(?)
+
+  def vectorize(vectorWidth: ArithExpr): Rule =
+    Rule("Map(uf) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
+      case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArg))), arg)
+        if (p.head eq ufArg) && !ufArg.t.isInstanceOf[VectorType] && !ufArg.t.isInstanceOf[TupleType]
+      =>
+        // TODO: force the width to be less than the array length
+        val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
+        asScalar() o Map(VectorizeUserFun(n, uf)) o asVector(n) $ arg
+    })
+
+  def vectorizeMapZip(vectorWidth: ArithExpr): Rule =
+    Rule("Map(uf) $ Zip(a, b) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
+      case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArgs@_*))), FunCall(Zip(_), zipArgs@_*))
+        if zipArgs.forall(arg => !arg.t.isInstanceOf[VectorType] && !arg.t.isInstanceOf[TupleType]) &&
+          ufArgs.forall({
+            case FunCall(Get(_), x) if x == p.head => true
+            case _ => false
+          })
+      =>
+        // TODO: force the width to be less than the array length
+        val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
+        val newZipArgs = zipArgs.map(arg => asVector(n) $ arg)
+        val newParam = Param()
+        val newUfArgs = ufArgs.map({
+          case FunCall(Get(i), _) => FunCall(Get(i), newParam)
+        })
+
+        asScalar() o Map(Lambda(Array(newParam), VectorizeUserFun(n, uf)(newUfArgs:_*))) $ Zip(newZipArgs:_*)
+    })
+
+  val partialReduceVectorize: Rule = partialReduceVectorize(?)
+
+  def partialReduceVectorize(vectorWidth: ArithExpr): Rule =
+    Rule("PartRed(f) => Join() o Map(PartRed(f)) o Split()", {
+      case FunCall(PartRed(Lambda(_, FunCall(uf:UserFun, _*))), init:Value, arg)
+        if !init.t.isInstanceOf[TupleType] && !init.t.isInstanceOf[VectorType] =>
+        // TODO: force the width to be less than the array length
+        val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
+        asScalar() o PartRed(VectorizeUserFun(n, uf), init.vectorize(n)) o asVector(n) $ arg
+    })
+
 }

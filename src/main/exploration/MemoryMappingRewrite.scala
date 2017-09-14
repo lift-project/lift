@@ -521,7 +521,7 @@ object MemoryMappingRewrite {
           val vectorised =
             Rewrite.applyRulesUntilCannot(
               a,
-              Seq(Rules.vectorize(settings.memoryMappingRewriteSettings.vectorWidth))
+              Seq(OpenCLRules.vectorize(settings.memoryMappingRewriteSettings.vectorWidth))
             )
 
           FunDecl.replace(currentLambda, a, vectorised)

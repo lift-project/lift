@@ -137,7 +137,7 @@ class TestRewriteGemv {
   @Test
   def gemvVectorised(): Unit = {
 
-    val f1 = Rewrite.applyRuleAtId(f, 6, Rules.vectorizeMapZip(4))
+    val f1 = Rewrite.applyRuleAtId(f, 6, OpenCLRules.vectorizeMapZip(4))
     val f2 = Rewrite.applyRuleAtId(f1, 5, MacroRules.vectorizeReduce(4))
     val f3 = Rewrite.applyRuleAtId(f2, 7, Rules.partialReduceToReduce)
     val f4 = SimplifyAndFuse(f3)

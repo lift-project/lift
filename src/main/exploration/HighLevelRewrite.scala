@@ -9,7 +9,7 @@ import ir.ast._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 import rewriting._
-import rewriting.rules.{MacroRules, Rule, Rules}
+import rewriting.rules.{MacroRules, OpenCLRules, Rule, Rules}
 import rewriting.utils._
 
 object HighLevelRewrite {
@@ -290,7 +290,7 @@ class HighLevelRewrite(val vectorWidth: Int = HighLevelRewrite.defaultVectorWidt
                        val ruleCollection: String=HighLevelRewrite.defaultRuleCollection) {
 
   private[exploration] val vecRed = MacroRules.vectorizeReduce(vectorWidth)
-  private[exploration] val vecZip = Rules.vectorizeMapZip(vectorWidth)
+  private[exploration] val vecZip = OpenCLRules.vectorizeMapZip(vectorWidth)
 
 object RuleCollection {
 
