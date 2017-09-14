@@ -123,7 +123,7 @@ object EnablingRules {
         var fissioned: Expr = funCall
 
         if (index > 0)
-          fissioned = MacroRules.mapFissionAtPosition(index-1, funCall)
+          fissioned = MacroRules.mapFissionAtPosition(index-1).rewrite(funCall)
 
         val applyHere = Utils.getExprForPatternInCallChain(fissioned,
             { case e if Rules.mapSplitTranspose.isDefinedAt(e) => }).get
@@ -148,7 +148,7 @@ object EnablingRules {
 
         val splitJoined = Rewrite.applyRuleAt(call, Rules.splitJoin(splitFactor), call)
 
-        val newSplit = Utils.getExprForPatternInCallChain(splitJoined, MacroRules.splitPattern).get
+        val newSplit = Utils.getExprForPatternInCallChain(splitJoined, Utils.splitPattern).get
 
         val eliminated = Rewrite.applyRuleAt(splitJoined, SimplificationRules.splitJoinId, newSplit)
 

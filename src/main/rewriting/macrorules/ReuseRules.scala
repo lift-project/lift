@@ -9,7 +9,7 @@ import rewriting.utils.{NumberExpression, Utils}
 
 object ReuseRules {
 
-  import MacroRules.{mapPattern, reducePattern, getMapAtDepth, getMapBody}
+  import Utils.{mapPattern, reducePattern, concretePattern, getMapAtDepth, getMapBody}
 
   /**
     * Tile a computation in the form Map(Map(f))
@@ -23,8 +23,8 @@ object ReuseRules {
       =>
         val tiled = tileMapMap(x, y, funCall)
 
-        val innermostMap = MacroRules.getMapAtDepth(tiled, 3)
-        val callChain = MacroRules.getMapBody(innermostMap)
+        val innermostMap = getMapAtDepth(tiled, 3)
+        val callChain = getMapBody(innermostMap)
 
         val innerFission = findConcretePatterns(callChain)
 
@@ -36,7 +36,7 @@ object ReuseRules {
 
           fissioned = fissionBetweenConcretes(fissioned, innermostMap)
 
-          val fissionInHere = MacroRules.getMapAtDepth(fissioned, 2)
+          val fissionInHere = getMapAtDepth(fissioned, 2)
 
           fissioned = fissionBetweenConcretes(fissioned, fissionInHere)
         }
@@ -45,7 +45,7 @@ object ReuseRules {
     })
 
   private def fissionBetweenConcretes(expr: Expr, fissionInHere: Expr) = {
-    val body = MacroRules.getMapBody(fissionInHere)
+    val body = getMapBody(fissionInHere)
     val concretes = findConcretePatterns(body)
     val concreteIds = getIdsForExpressions(body, concretes)
     val res2 = concreteIds.tail.foldLeft(fissionInHere)((e, id) =>
@@ -61,7 +61,7 @@ object ReuseRules {
 
   private def findConcretePatterns(callChain: Expr): List[Expr] = {
     Utils.visitFunCallChainWithState(List[Expr]())(callChain, (e, s) => {
-      if (MacroRules.mapPattern.isDefinedAt(e) || MacroRules.reducePattern.isDefinedAt(e))
+      if (mapPattern.isDefinedAt(e) || reducePattern.isDefinedAt(e))
         e :: s
       else
         s
@@ -86,7 +86,7 @@ object ReuseRules {
       val interchanged = Rewrite.depthFirstApplyRuleAtId(split, 2, MacroRules.mapMapInterchange)
 
       // Interchange again on every map/reduce in the innermost dimension
-      val map = MacroRules.getMapAtDepth(interchanged, 2)
+      val map = getMapAtDepth(interchanged, 2)
       applyInterchangeOnAllComponents(interchanged, map)
   })
 
@@ -103,7 +103,7 @@ object ReuseRules {
         if getCallForBlocking(innerCall, lambdaArg).isDefined
         // TODO: is the guard good enough?
       =>
-        val innerMap = MacroRules.getMapAtDepth(call, 1)
+        val innerMap = getMapAtDepth(call, 1)
 
         // Reorder both sides of the inner map
         val realY = Utils.splitVariable(factorY, innerMap.t)
@@ -118,17 +118,17 @@ object ReuseRules {
         val tiled = tileMapMap(factorX, realY, reorderReplaced)
 
         // Bring innermost components out by 2 levels
-        val map0 = MacroRules.getMapAtDepth(tiled, 3)
+        val map0 = getMapAtDepth(tiled, 3)
         val firstInterchange = applyInterchangeOnAllComponents(tiled, map0)
 
-        val map1 = MacroRules.getMapAtDepth(firstInterchange, 2)
+        val map1 = getMapAtDepth(firstInterchange, 2)
         val secondInterchange = applyInterchangeOnAllComponents(firstInterchange, map1)
 
         secondInterchange
     })
 
     private def getCallForBlocking(innerCall: Expr, lambdaArg: Array[Param]): Option[Expr] = {
-    val firstConcrete = Utils.getExprForPatternInCallChain(innerCall, MacroRules.concretePattern)
+    val firstConcrete = Utils.getExprForPatternInCallChain(innerCall, concretePattern)
     firstConcrete match {
       case Some(FunCall(Map(_), _)) => firstConcrete
       case _ => None
@@ -153,7 +153,7 @@ object ReuseRules {
         val replacement = reduceRule(nextToInterchange)
         innerInterchanged = Expr.replace(innerInterchanged, nextToInterchange, replacement)
 
-        val reduceCall = Utils.getExprForPatternInCallChain(replacement, MacroRules.reducePattern).get
+        val reduceCall = Utils.getExprForPatternInCallChain(replacement, reducePattern).get
 
         reduceCall match {
           case FunCall(_, _, next) =>
@@ -167,7 +167,7 @@ object ReuseRules {
 
         innerInterchanged = Expr.replace(innerInterchanged, nextToInterchange, replacement)
 
-        val mapCall = Utils.getExprForPatternInCallChain(replacement, MacroRules.mapPattern).get
+        val mapCall = Utils.getExprForPatternInCallChain(replacement, mapPattern).get
 
         mapCall match {
           case FunCall(_, next) =>
@@ -190,24 +190,26 @@ object ReuseRules {
 
     private def tileMapMap(factorX: ArithExpr, factorY: ArithExpr, expr: Expr): Expr = {
 
-    // Fission if necessary
-    val mapIndex = Utils.getIndexForPatternInCallChain(MacroRules.getMapBody(expr), MacroRules.mapPattern)
-    val fissioned = if (mapIndex > 0) MacroRules.mapFissionAtPosition(mapIndex - 1, expr) else expr
+      // Fission if necessary
+      val mapIndex = Utils.getIndexForPatternInCallChain(getMapBody(expr), mapPattern)
+      val fissioned =
+        if (mapIndex > 0) MacroRules.mapFissionAtPosition(mapIndex - 1).rewrite(expr)
+        else expr
 
     // split-join on the outer map
-    val outerMap = MacroRules.getMapAtDepth(fissioned, 0)
+    val outerMap = getMapAtDepth(fissioned, 0)
     val outerMapSplitJoined = Rewrite.applyRuleAt(fissioned, Rules.splitJoin(factorX), outerMap)
 
     // interchange on the new dim
-    val newDimension = MacroRules.getMapAtDepth(outerMapSplitJoined, 1)
+    val newDimension = getMapAtDepth(outerMapSplitJoined, 1)
     val interchanged = Rewrite.applyRuleAt(outerMapSplitJoined, MacroRules.mapMapInterchange, newDimension)
 
     // split-join on the inner map
-    val innerMap = MacroRules.getMapAtDepth(interchanged, 1)
+    val innerMap = getMapAtDepth(interchanged, 1)
     val innerMapSplitJoined = Rewrite.applyRuleAt(interchanged, Rules.splitJoin(factorY), innerMap)
 
     // interchange on the new dim
-    val secondNewDimension = MacroRules.getMapAtDepth(innerMapSplitJoined, 2)
+    val secondNewDimension = getMapAtDepth(innerMapSplitJoined, 2)
     val e2 = Rewrite.applyRuleAt(innerMapSplitJoined, MacroRules.mapMapInterchange, secondNewDimension)
 
     e2

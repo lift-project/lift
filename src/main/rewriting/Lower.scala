@@ -127,7 +127,7 @@ object Lower {
 
   private def hasOneMapOnSecondLevel(lambda: Lambda): Boolean = {
     val body = lambda.body
-    val levelTwoBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(body, 0))
+    val levelTwoBody = Utils.getMapBody(Utils.getMapAtDepth(body, 0))
 
     val mapsOnLevelTwo = Utils.countMapsAtCurrentLevel(levelTwoBody)
 
@@ -136,8 +136,8 @@ object Lower {
 
   private def hasOneMapOnThirdLevel(lambda: Lambda): Boolean = {
     val body = lambda.body
-    val levelTwoBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(body, 0))
-    val levelThreeBody = MacroRules.getMapBody(MacroRules.getMapAtDepth(levelTwoBody, 0))
+    val levelTwoBody = Utils.getMapBody(Utils.getMapAtDepth(body, 0))
+    val levelThreeBody = Utils.getMapBody(Utils.getMapAtDepth(levelTwoBody, 0))
 
     val mapsOnLevelThree = Utils.countMapsAtCurrentLevel(levelThreeBody)
 

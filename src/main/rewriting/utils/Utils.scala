@@ -6,6 +6,34 @@ import lift.arithmetic._
 
 object Utils {
 
+  private[rewriting] val mapPattern: PartialFunction[Expr, Unit] =
+  { case FunCall(map: AbstractMap, _) if map.f.body.isConcrete => }
+
+  private[rewriting] val reducePattern: PartialFunction[Expr, Unit] =
+  { case FunCall(_: AbstractPartRed, _, _) => }
+
+  private[rewriting] val splitPattern: PartialFunction[Expr, Unit] =
+  { case FunCall(Split(_), _) => }
+
+  private[rewriting] val concretePattern: PartialFunction[Expr, Unit] =
+  { case call: FunCall if call.isConcrete(false) => }
+
+  @scala.annotation.tailrec
+  def getMapAtDepth(expr:Expr, depth: Int): Expr = {
+    val outermostMap = Utils.getExprForPatternInCallChain(expr, mapPattern).get
+
+    if (depth == 0)
+      outermostMap
+    else
+      getMapAtDepth(getMapBody(outermostMap), depth - 1)
+  }
+
+  def getMapBody(expr: Expr): Expr = {
+    expr match {
+      case FunCall(m: AbstractMap, _) => m.f.body
+    }
+  }
+
   /**
    * Quick and dirty substitution of arithmetic expressions.
    * This relies on the reference on the nodes gathered in the original expression.
