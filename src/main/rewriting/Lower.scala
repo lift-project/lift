@@ -5,7 +5,7 @@ import com.typesafe.scalalogging.Logger
 import ir.ast._
 import ir.{Context, TupleType, TypeChecker}
 import opencl.ir.pattern._
-import rewriting.rules.{MacroRules, Rule, Rules}
+import rewriting.rules.{MacroRules, OpenCLRules, Rule, Rules}
 import rewriting.utils._
 
 case class EnabledMappings(
@@ -79,7 +79,7 @@ object Lower {
 
   def sequential(lambda: Lambda): Lambda = {
     val temp = patchLambda(lambda)
-    Rewrite.applyRuleUntilCannot(temp, Rules.mapSeq)
+    Rewrite.applyRuleUntilCannot(temp, OpenCLRules.mapSeq)
   }
 
   def mapComposedWithReduceAsSequential(lambda: Lambda) =
@@ -159,58 +159,58 @@ object Lower {
 
     /* Global only */
     if (enabledMappings.global0) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, OpenCLRules.mapGlb(0))
       var lambdaN = lambda1
 
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+      while (lambdaN.body.contains({ case e if OpenCLRules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, OpenCLRules.mapSeq)
 
       lambdas = lambdaN :: lambdas
     }
 
     if (enabledMappings.global10 && maxDepth > 1 && oneMapOnLevelTwo) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(1))
-      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(0))
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, OpenCLRules.mapGlb(1))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, OpenCLRules.mapGlb(0))
       var lambdaN = lambda2
 
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+      while (lambdaN.body.contains({ case e if OpenCLRules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, OpenCLRules.mapSeq)
 
       lambdas = lambdaN :: lambdas
     }
 
 
     if (enabledMappings.global01 && maxDepth > 1 && oneMapOnLevelTwo) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
-      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(1))
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, OpenCLRules.mapGlb(0))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, OpenCLRules.mapGlb(1))
       var lambdaN = lambda2
 
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+      while (lambdaN.body.contains({ case e if OpenCLRules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, OpenCLRules.mapSeq)
 
       lambdas = lambdaN :: lambdas
     }
 
     if (enabledMappings.global012 && maxDepth > 2 && oneMapOnLevelThree) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(0))
-      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(1))
-      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(2))
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, OpenCLRules.mapGlb(0))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, OpenCLRules.mapGlb(1))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, OpenCLRules.mapGlb(2))
       var lambdaN = lambda3
 
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+      while (lambdaN.body.contains({ case e if OpenCLRules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, OpenCLRules.mapSeq)
 
       lambdas = lambdaN :: lambdas
     }
 
     if (enabledMappings.global210 && maxDepth > 2 && oneMapOnLevelThree) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapGlb(2))
-      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapGlb(1))
-      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapGlb(0))
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, OpenCLRules.mapGlb(2))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, OpenCLRules.mapGlb(1))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, OpenCLRules.mapGlb(0))
       var lambdaN = lambda3
 
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+      while (lambdaN.body.contains({ case e if OpenCLRules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, OpenCLRules.mapSeq)
 
       lambdas = lambdaN :: lambdas
     }
@@ -218,41 +218,41 @@ object Lower {
     /* Workgroup */
     if (enabledMappings.group0 && maxDepth > 1) {
 
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(0))
-      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapLcl(0))
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, OpenCLRules.mapWrg(0))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, OpenCLRules.mapLcl(0))
       var lambdaN = lambda2
 
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+      while (lambdaN.body.contains({ case e if OpenCLRules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, OpenCLRules.mapSeq)
 
       lambdas = lambdaN :: lambdas
     }
 
     if (enabledMappings.group01 && maxDepth > 3 && oneMapOnLevelTwo) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(0))
-      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(1))
-      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(0))
-      val lambda4 = Lower.lowerNextLevelWithRule(lambda3, Rules.mapLcl(1))
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, OpenCLRules.mapWrg(0))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, OpenCLRules.mapWrg(1))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, OpenCLRules.mapLcl(0))
+      val lambda4 = Lower.lowerNextLevelWithRule(lambda3, OpenCLRules.mapLcl(1))
 
       var lambdaN = lambda4
 
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+      while (lambdaN.body.contains({ case e if OpenCLRules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, OpenCLRules.mapSeq)
 
       lambdas = lambdaN :: lambdas
 
     }
 
     if (enabledMappings.group10 && maxDepth > 3 && oneMapOnLevelTwo) {
-      val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(1))
-      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(0))
-      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(1))
-      val lambda4 = Lower.lowerNextLevelWithRule(lambda3, Rules.mapLcl(0))
+      val lambda1 = Lower.lowerNextLevelWithRule(lambda, OpenCLRules.mapWrg(1))
+      val lambda2 = Lower.lowerNextLevelWithRule(lambda1, OpenCLRules.mapWrg(0))
+      val lambda3 = Lower.lowerNextLevelWithRule(lambda2, OpenCLRules.mapLcl(1))
+      val lambda4 = Lower.lowerNextLevelWithRule(lambda3, OpenCLRules.mapLcl(0))
 
       var lambdaN = lambda4
 
-      while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-        lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+      while (lambdaN.body.contains({ case e if OpenCLRules.mapSeq.isDefinedAt(e) => }))
+        lambdaN = lowerNextLevelWithRule(lambdaN, OpenCLRules.mapSeq)
 
       lambdas = lambdaN :: lambdas
     }
@@ -261,15 +261,15 @@ object Lower {
   }
 
   def simpleMapLoweringStrategy(lambda: Lambda) = {
-    val lambda1 = Lower.lowerNextLevelWithRule(lambda, Rules.mapWrg(1))
-    val lambda2 = Lower.lowerNextLevelWithRule(lambda1, Rules.mapWrg(0))
-    val lambda3 = Lower.lowerNextLevelWithRule(lambda2, Rules.mapLcl(1))
-    val lambda4 = Lower.lowerNextLevelWithRule(lambda3, Rules.mapLcl(0))
+    val lambda1 = Lower.lowerNextLevelWithRule(lambda, OpenCLRules.mapWrg(1))
+    val lambda2 = Lower.lowerNextLevelWithRule(lambda1, OpenCLRules.mapWrg(0))
+    val lambda3 = Lower.lowerNextLevelWithRule(lambda2, OpenCLRules.mapLcl(1))
+    val lambda4 = Lower.lowerNextLevelWithRule(lambda3, OpenCLRules.mapLcl(0))
 
     var lambdaN = lambda4
 
-    while (lambdaN.body.contains({ case e if Rules.mapSeq.isDefinedAt(e) => }))
-      lambdaN = lowerNextLevelWithRule(lambdaN, Rules.mapSeq)
+    while (lambdaN.body.contains({ case e if OpenCLRules.mapSeq.isDefinedAt(e) => }))
+      lambdaN = lowerNextLevelWithRule(lambdaN, OpenCLRules.mapSeq)
 
     lambdaN
   }
@@ -291,7 +291,7 @@ object Lower {
 
     lastMap match {
       case None => logger.warn("No last map found. Possibly using at-notation? Assume last write uses toGlobal"); lambda
-      case _ => Rewrite.applyRuleAt(lambda, lastMap.get, Rules.globalMemory)
+      case _ => Rewrite.applyRuleAt(lambda, lastMap.get, OpenCLRules.globalMemory)
     }
 
     //Rewrite.applyRuleAt(lambda, lastMap, Rules.globalMemory)
@@ -319,7 +319,7 @@ object Lower {
     val implementedId = Rules.implementIdAsDeepCopy.rewrite(idToImplement)
     val idReplaced = Expr.replace(mapSeqForId, idToImplement, implementedId)
 
-    val idToGlobal = Rules.globalMemory.rewrite(idReplaced)
+    val idToGlobal = OpenCLRules.globalMemory.rewrite(idReplaced)
     FunDecl.replace(lambda, mapSeqForId, idToGlobal)
   }
 

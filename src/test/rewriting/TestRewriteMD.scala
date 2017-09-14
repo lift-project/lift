@@ -9,7 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import rewriting.rules.Rules
+import rewriting.rules.{OpenCLRules, Rules}
 
 object TestRewriteMD {
   @BeforeClass
@@ -71,13 +71,13 @@ class TestRewriteMD {
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(128))
     val f2 = Rewrite.applyRuleAtId(f1, 7, Rules.addIdForMapParam)
     val f3 = Rewrite.applyRuleAtId(f2, 10, Rules.implementOneLevelOfId)
-    val f4 = Rewrite.applyRuleAtId(f3, 1, Rules.mapWrg)
-    val f5 = Rewrite.applyRuleAtId(f4, 7, Rules.mapLcl)
-    val f6 = Rewrite.applyRuleAtId(f5, 14, Rules.privateMemory)
+    val f4 = Rewrite.applyRuleAtId(f3, 1, OpenCLRules.mapWrg)
+    val f5 = Rewrite.applyRuleAtId(f4, 7, OpenCLRules.mapLcl)
+    val f6 = Rewrite.applyRuleAtId(f5, 14, OpenCLRules.privateMemory)
     val f7 = Rewrite.applyRuleAtId(f6, 17, Rules.implementOneLevelOfId)
     val f8 = Rewrite.applyRuleAtId(f7, 11, Rules.dropId)
     val f9 = Rewrite.applyRuleAtId(f8, 18, Rules.addIdAfterReduce)
-    val f10 = Rewrite.applyRuleAtId(f9, 18, Rules.globalMemory)
+    val f10 = Rewrite.applyRuleAtId(f9, 18, OpenCLRules.globalMemory)
     val f11 = Rewrite.applyRuleAtId(f10, 35, Rules.implementIdAsDeepCopy)
 
     val inputSize = 1024

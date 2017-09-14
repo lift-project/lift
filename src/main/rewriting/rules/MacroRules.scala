@@ -2,6 +2,9 @@ package rewriting.rules
 
 import ir._
 import ir.ast._
+import opencl.ir._
+import opencl.ir.ast._
+import opencl.ir.pattern._
 import lift.arithmetic.{?, ArithExpr}
 import opencl.ir.pattern.{MapSeq, ReduceSeq}
 import rewriting.Rewrite
@@ -47,13 +50,13 @@ object MacroRules {
 
   val userFunCompositionToPrivate = Rule("userFunCompositionToPrivate", {
     case FunCall(uf: UserFun, args@_*)
-      if args.count(expr => isUserFun(expr) && Rules.privateMemory.isDefinedAt(expr)) > 0
+      if args.count(expr => isUserFun(expr) && OpenCLRules.privateMemory.isDefinedAt(expr)) > 0
     =>
 
       val newArgs =
         args.map(expr =>
-          if (isUserFun(expr) && Rules.privateMemory.isDefinedAt(expr))
-            Rules.privateMemory.rewrite(expr)
+          if (isUserFun(expr) && OpenCLRules.privateMemory.isDefinedAt(expr))
+            OpenCLRules.privateMemory.rewrite(expr)
           else
             expr
         )
@@ -63,9 +66,9 @@ object MacroRules {
 
   val mapComposedWithReduceAsSequential = Rule("mapComposedWithReduceAsSequential", {
     case call@FunCall(_: AbstractMap, FunCall(_: AbstractPartRed, _*))
-      if Rules.mapSeq.isDefinedAt(call)
+      if OpenCLRules.mapSeq.isDefinedAt(call)
     =>
-      Rules.mapSeq.rewrite(call)
+      OpenCLRules.mapSeq.rewrite(call)
   })
 
 
@@ -521,17 +524,17 @@ object MacroRules {
    */
   val reduceMapFusion = Rule("Reduce o Map => ReduceSeq(fused)", {
     case funCall @ FunCall(Reduce(_), _, mapCall@FunCall(Map(_), _))
-      if Rules.mapSeq.isDefinedAt(mapCall)
+      if OpenCLRules.mapSeq.isDefinedAt(mapCall)
     =>
-      val e0 = Rewrite.applyRuleAtId(funCall, 1, Rules.mapSeq)
+      val e0 = Rewrite.applyRuleAtId(funCall, 1, OpenCLRules.mapSeq)
       val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeq)
       val e2 = Rewrite.applyRuleAtId(e1, 0, Rules.reduceSeqMapSeqFusion)
       e2
 
     case funCall @ FunCall(ReduceSeq(_), _, mapCall@FunCall(Map(_), _))
-      if Rules.mapSeq.isDefinedAt(mapCall)
+      if OpenCLRules.mapSeq.isDefinedAt(mapCall)
     =>
-      val e0 = Rewrite.applyRuleAtId(funCall, 1, Rules.mapSeq)
+      val e0 = Rewrite.applyRuleAtId(funCall, 1, OpenCLRules.mapSeq)
       val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeqMapSeqFusion)
       e1
 

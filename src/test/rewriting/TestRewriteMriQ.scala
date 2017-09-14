@@ -11,7 +11,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{Assume, Test}
-import rewriting.rules.{MacroRules, Rules}
+import rewriting.rules.{MacroRules, OpenCLRules, Rules}
 
 object TestRewriteMriQ extends TestWithExecutor
 
@@ -139,14 +139,14 @@ class TestRewriteMriQ {
     val f6 = Rewrite.applyRuleAtId(f5, 9, Rules.dropId)
 
     val f7 = Rewrite.applyRuleAtId(f6, 24, Rules.tupleToStruct)
-    val f8 = Lower.lowerNextLevelWithRule(f7, Rules.mapGlb)
+    val f8 = Lower.lowerNextLevelWithRule(f7, OpenCLRules.mapGlb)
     val f9 = Rewrite.applyRuleAtId(f8, 22, Rules.addIdAfterReduce)
-    val f10 = Rewrite.applyRuleAtId(f9, 22, Rules.globalMemory)
+    val f10 = Rewrite.applyRuleAtId(f9, 22, OpenCLRules.globalMemory)
     val f11 = Rewrite.applyRuleAtId(f10, 49, Rules.implementIdAsDeepCopy)
-    val f12 = Rewrite.applyRuleAtId(f11, 25, Rules.privateMemory)
-    val f13 = Rewrite.applyRuleAtId(f12, 19, Rules.privateMemory)
-    val f14 = Rewrite.applyRuleAtId(f13, 16, Rules.privateMemory)
-    val f15 = Rewrite.applyRuleAtId(f14, 13, Rules.privateMemory)
+    val f12 = Rewrite.applyRuleAtId(f11, 25, OpenCLRules.privateMemory)
+    val f13 = Rewrite.applyRuleAtId(f12, 19, OpenCLRules.privateMemory)
+    val f14 = Rewrite.applyRuleAtId(f13, 16, OpenCLRules.privateMemory)
+    val f15 = Rewrite.applyRuleAtId(f14, 13, OpenCLRules.privateMemory)
 
     val (output: Array[Float], _) =
       Execute()(f15, x, y, z, Array.fill(xNum)(0.0f), Array.fill(xNum)(0.0f), k)
@@ -179,9 +179,9 @@ class TestRewriteMriQ {
     val l0 = Rewrite.applyRuleAtId(lowered, 12, Rules.addIdAfterReduce)
     val l1 = Rewrite.applyRuleAtId(l0, 6, Rules.addIdAfterReduce)
     val l2 = Rewrite.applyRuleAtId(l1, 42, Rules.implementIdAsDeepCopy)
-    val l3 = Rewrite.applyRuleAtId(l2, 42, Rules.localMemory)
+    val l3 = Rewrite.applyRuleAtId(l2, 42, OpenCLRules.localMemory)
     val l4 = Rewrite.applyRuleAtId(l3, 35, Rules.implementIdAsDeepCopy)
-    val l5 = Rewrite.applyRuleAtId(l4, 35, Rules.localMemory)
+    val l5 = Rewrite.applyRuleAtId(l4, 35, OpenCLRules.localMemory)
 
     val (output: Array[Float], _) =
       Execute()(l5, x, y, z, k)

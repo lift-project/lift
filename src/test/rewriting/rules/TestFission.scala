@@ -204,14 +204,14 @@ class TestFission {
     val (result: Array[Float], _) = Execute(size)(f, A, A)
 
     val g0 = Rewrite.applyRuleAtId(fP, 2, Rules.mapFissionWithZipInside)
-    val g1 = Rewrite.applyRuleAtId(g0, 0, Rules.mapGlb)
-    val g2 = Rewrite.applyRuleAtId(g1, 2, Rules.mapSeq)
+    val g1 = Rewrite.applyRuleAtId(g0, 0, OpenCLRules.mapGlb)
+    val g2 = Rewrite.applyRuleAtId(g1, 2, OpenCLRules.mapSeq)
 
     val (resultG: Array[Float], _) = Execute(size)(g2, A, A)
 
     val h0 = Rewrite.applyRuleAtId(fP, 0, Rules.mapFissionWithZipInside)
-    val h1 = Rewrite.applyRuleAtId(h0, 0, Rules.mapGlb)
-    val h2 = Rewrite.applyRuleAtId(h1, 5, Rules.mapSeq)
+    val h1 = Rewrite.applyRuleAtId(h0, 0, OpenCLRules.mapGlb)
+    val h2 = Rewrite.applyRuleAtId(h1, 5, OpenCLRules.mapSeq)
 
     val (resultH: Array[Float], _) = Execute(size)(h2, A, A)
 

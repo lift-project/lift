@@ -306,7 +306,7 @@ class TestRules {
     TypeChecker(f)
 
     val g = Rewrite.applyRuleAt(f, f.body, Rules.joinSplit)
-    val h = Rewrite.applyRulesUntilCannot(g, Seq(Rules.mapGlb))
+    val h = Rewrite.applyRuleUntilCannot(g, OpenCLRules.mapGlb)
 
     val input = Array.fill[Float](128, 128)(util.Random.nextFloat())
 
@@ -329,7 +329,7 @@ class TestRules {
     )
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f,
-      Seq(Rules.reduceSeq, Rules.addIdAfterReduce, Rules.implementIdAsDeepCopy, Rules.globalMemory), 4)
+      Seq(Rules.reduceSeq, Rules.addIdAfterReduce, Rules.implementIdAsDeepCopy, OpenCLRules.globalMemory), 4)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 

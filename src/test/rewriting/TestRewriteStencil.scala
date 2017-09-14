@@ -7,7 +7,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.rules.{MacroRules, Rules}
+import rewriting.rules.{MacroRules, OpenCLRules, Rules}
 import rewriting.utils.NumberExpression
 
 object TestRewriteStencil extends TestWithExecutor
@@ -94,12 +94,12 @@ class TestRewriteStencil {
     val f3 = Rewrite.applyRuleAtId(f2, 1, Rules.mapFusion)
     // introduce low-level primitives
     val f4 = Rewrite.applyRuleAtId(f3, 8, Rules.reduceSeq)
-    val f5 = Rewrite.applyRuleAtId(f4, 1, Rules.mapWrg)
-    val f6 = Rewrite.applyRuleAtId(f5, 5, Rules.mapLcl)
+    val f5 = Rewrite.applyRuleAtId(f4, 1, OpenCLRules.mapWrg)
+    val f6 = Rewrite.applyRuleAtId(f5, 5, OpenCLRules.mapLcl)
     // copy result back to global memory
     val f7 = Rewrite.applyRuleAtId(f6, 8, Rules.addIdAfterReduce)
     val f8 = Rewrite.applyRuleAtId(f7, 15, Rules.implementIdAsDeepCopy)
-    val f9 = Rewrite.applyRuleAtId(f8, 8, Rules.globalMemory)
+    val f9 = Rewrite.applyRuleAtId(f8, 8, OpenCLRules.globalMemory)
 
     val (result: Array[Float], _) = Execute(n)(f9, A)
     assertArrayEquals(gold, result, 0.001f)
@@ -128,11 +128,11 @@ class TestRewriteStencil {
     val f6 = Rewrite.applyRuleAtId(f5, 11, Rules.reduceSeq)
     val f7 = Rewrite.applyRuleAtId(f6, 11, Rules.addIdAfterReduce)
     val f8 = Rewrite.applyRuleAtId(f7, 18, Rules.implementIdAsDeepCopy)
-    val f9 = Rewrite.applyRuleAtId(f8, 1, Rules.mapWrg)
-    val f10 = Rewrite.applyRuleAtId(f9, 5, Rules.mapLcl)
-    val f11 = Rewrite.applyRuleAtId(f10, 7, Rules.mapLcl)
-    val f12 = Rewrite.applyRuleAtId(f11, 7, Rules.localMemory)
-    val f13 = Rewrite.applyRuleAtId(f12, 13, Rules.globalMemory)
+    val f9 = Rewrite.applyRuleAtId(f8, 1, OpenCLRules.mapWrg)
+    val f10 = Rewrite.applyRuleAtId(f9, 5, OpenCLRules.mapLcl)
+    val f11 = Rewrite.applyRuleAtId(f10, 7, OpenCLRules.mapLcl)
+    val f12 = Rewrite.applyRuleAtId(f11, 7, OpenCLRules.localMemory)
+    val f13 = Rewrite.applyRuleAtId(f12, 13, OpenCLRules.globalMemory)
     //val test = NumberExpression.breadthFirst(f13.body)
 
     val (result: Array[Float], _) = Execute(n)(f13, A)
@@ -152,9 +152,9 @@ class TestRewriteStencil {
     val f2 = Rewrite.applyRuleAtId(f1, 9, Rules.reduceSeq)
     val f3 = Rewrite.applyRuleAtId(f2, 9, Rules.addIdAfterReduce)
     val f4 = Rewrite.applyRuleAtId(f3, 16, Rules.implementIdAsDeepCopy)
-    val f5 = Rewrite.applyRuleAtId(f4, 9, Rules.globalMemory)
-    val f6 = Rewrite.applyRuleAtId(f5, 2, Rules.mapWrg)
-    val f7 = Rewrite.applyRuleAtId(f6, 6, Rules.mapLcl)
+    val f5 = Rewrite.applyRuleAtId(f4, 9, OpenCLRules.globalMemory)
+    val f6 = Rewrite.applyRuleAtId(f5, 2, OpenCLRules.mapWrg)
+    val f7 = Rewrite.applyRuleAtId(f6, 6, OpenCLRules.mapLcl)
     val test = NumberExpression.breadthFirst(f5.body)
     println(test.mkString("\n\n"))
 

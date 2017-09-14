@@ -93,7 +93,7 @@ class TestBuiltIn {
           MapSeq(VectorizeUserFun(4, mult)) $ Zip(x, y)
     )
 
-    val g = Rewrite.applyRuleAtId(f, 1, Rules.dotBuiltinSeq)
+    val g = Rewrite.applyRuleAtId(f, 1, OpenCLRules.dotBuiltinSeq)
 
     val (outputF: Array[Float], _) = Execute(1, 1)(f, input, input)
     val (outputG: Array[Float], _) = Execute(1, 1)(g, input, input)

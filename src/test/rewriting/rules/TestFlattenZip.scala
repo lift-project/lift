@@ -139,7 +139,7 @@ class TestFlattenZip {
 
     assertEquals(origType, resultType)
 
-    val lowered = Rewrite.applyRulesUntilCannot(result, Seq(Rules.mapSeq))
+    val lowered = Rewrite.applyRuleUntilCannot(result, OpenCLRules.mapSeq)
 
     val (output: Array[Float], _) = Execute()(lowered, x,y,z)
 
@@ -170,7 +170,7 @@ class TestFlattenZip {
 
     assertEquals(origType, resultType)
 
-    val lowered = Rewrite.applyRulesUntilCannot(result, Seq(Rules.mapSeq))
+    val lowered = Rewrite.applyRuleUntilCannot(result, OpenCLRules.mapSeq)
 
     val (output: Array[Float], _) = Execute()(lowered, x,y,z)
 
@@ -198,7 +198,7 @@ class TestFlattenZip {
 
     assertEquals(origType, resultType)
 
-    val lowered = Rewrite.applyRulesUntilCannot(result, Seq(Rules.mapSeq))
+    val lowered = Rewrite.applyRuleUntilCannot(result, OpenCLRules.mapSeq)
 
     val (output: Array[Float], _) = Execute()(lowered, x,y,z,w)
 

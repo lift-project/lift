@@ -8,7 +8,7 @@ import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{Assume, Test}
-import rewriting.rules.{MacroRules, Rules}
+import rewriting.rules.{MacroRules, OpenCLRules, Rules}
 
 object TestRewriteGemv extends TestWithExecutor
 
@@ -70,13 +70,13 @@ class TestRewriteGemv {
     val f12 = Lower.lowerReduces(f11)
     val f13 = Rewrite.applyRuleAtId(f12, 34, Rules.implementIdAsDeepCopy)
     val f14 = Rewrite.applyRuleAtId(f13, 27, Rules.implementIdAsDeepCopy)
-    val f15 = Lower.lowerNextLevelWithRule(f14, Rules.mapWrg(0))
-    val f16 = Lower.lowerNextLevelWithRule(f15, Rules.mapLcl(0))
-    val f17 = Rewrite.applyRuleAtId(f16, 15, Rules.localMemory)
-    val f18 = Rewrite.applyRuleAtId(f17, 5, Rules.localMemory)
-    val f19 = Rewrite.applyRuleAtId(f18, 45, Rules.localMemory)
-    val f20 = Rewrite.applyRuleAtId(f19, 41, Rules.localMemory)
-    val f21 = Rewrite.applyRuleAtId(f20, 4, Rules.globalMemory)
+    val f15 = Lower.lowerNextLevelWithRule(f14, OpenCLRules.mapWrg(0))
+    val f16 = Lower.lowerNextLevelWithRule(f15, OpenCLRules.mapLcl(0))
+    val f17 = Rewrite.applyRuleAtId(f16, 15, OpenCLRules.localMemory)
+    val f18 = Rewrite.applyRuleAtId(f17, 5, OpenCLRules.localMemory)
+    val f19 = Rewrite.applyRuleAtId(f18, 45, OpenCLRules.localMemory)
+    val f20 = Rewrite.applyRuleAtId(f19, 41, OpenCLRules.localMemory)
+    val f21 = Rewrite.applyRuleAtId(f20, 4, OpenCLRules.globalMemory)
 
     val (local, global) = InferNDRange(f21, matrix, vectorX, vectorY, alpha, beta)
 
@@ -100,12 +100,12 @@ class TestRewriteGemv {
     val lowered = Lower.mapCombinations(f2, group0Mapping).head
 
     val l0 = Rewrite.applyRuleAtId(lowered, 14, Rules.addIdAfterReduce)
-    val l1 = Rewrite.applyRuleAtId(l0, 14, Rules.localMemory)
+    val l1 = Rewrite.applyRuleAtId(l0, 14, OpenCLRules.localMemory)
     val l2 = Rewrite.applyRuleAtId(l1, 28, Rules.implementIdAsDeepCopy)
     val l3 = Rewrite.applyRuleAtId(l2, 5, Rules.addIdAfterReduce)
     // TODO: Could get away with private memory & intel doesn't like all
     // TODO: threads writing the same value and one thread reading it.
-    val l4 = Rewrite.applyRuleAtId(l3, 5, Rules.localMemory)
+    val l4 = Rewrite.applyRuleAtId(l3, 5, OpenCLRules.localMemory)
     val l5 = Rewrite.applyRuleAtId(l4, 38, Rules.implementIdAsDeepCopy)
     val l6 = Rewrite.applyRuleAtId(l5, 42, MacroRules.userFunCompositionToPrivate)
 
@@ -126,7 +126,7 @@ class TestRewriteGemv {
     val l0 = Rewrite.applyRuleAtId(lowered, 36, MacroRules.userFunCompositionToPrivate)
     val l1 = Rewrite.applyRuleAtId(l0, 15, Rules.addIdAfterReduce)
     val l2 = Rewrite.applyRuleAtId(l1, 27, Rules.implementIdAsDeepCopy)
-    val l3 = Rewrite.applyRuleAtId(l2, 27, Rules.localMemory)
+    val l3 = Rewrite.applyRuleAtId(l2, 27, OpenCLRules.localMemory)
 
     val (output: Array[Float], _) =
       Execute()(l3, matrix, vectorX, vectorY, alpha, beta)
@@ -159,8 +159,8 @@ class TestRewriteGemv {
     val l9 = Rewrite.applyRuleAtId(l8, 23, Rules.implementOneLevelOfId)
     val l11 = Rewrite.applyRuleAtId(l9, 24, Rules.dropId)
     val l12 = Rewrite.applyRuleAtId(l11, 26, Rules.implementIdAsDeepCopy)
-    val l14 = Rewrite.applyRuleAtId(l12, 26, Rules.localMemory)
-    val l13 = Lower.lowerNextLevelWithRule(l14, Rules.mapLcl)
+    val l14 = Rewrite.applyRuleAtId(l12, 26, OpenCLRules.localMemory)
+    val l13 = Lower.lowerNextLevelWithRule(l14, OpenCLRules.mapLcl)
 
     val l15 = Rewrite.applyRuleAtId(l13, 60, MacroRules.userFunCompositionToPrivate)
 

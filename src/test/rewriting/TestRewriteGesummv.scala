@@ -7,7 +7,7 @@ import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.rules.{MacroRules, Rules}
+import rewriting.rules.{MacroRules, OpenCLRules, Rules}
 
 object TestRewriteGesummv extends TestWithExecutor
 
@@ -80,10 +80,10 @@ class TestRewriteGesummv {
     // Not strictly necessary, but makes it look nicer
     val f14 = Rewrite.applyRuleAtId(f12, 17, Rules.tupleInline)
 
-    val f15 = Lower.lowerNextLevelWithRule(f14, Rules.mapGlb)
-    val f16 = Lower.lowerNextLevelWithRule(f15, Rules.mapSeq)
+    val f15 = Lower.lowerNextLevelWithRule(f14, OpenCLRules.mapGlb)
+    val f16 = Lower.lowerNextLevelWithRule(f15, OpenCLRules.mapSeq)
 
-    val f17 = Rewrite.applyRuleAtId(f16, 5, Rules.globalMemory)
+    val f17 = Rewrite.applyRuleAtId(f16, 5, OpenCLRules.globalMemory)
 
     // Won't write to accumulator without this
     val f18 = Rewrite.applyRuleAtId(f17, 17, Rules.tupleToStruct)
@@ -109,10 +109,10 @@ class TestRewriteGesummv {
 
     val f14 = Rewrite.applyRuleAtId(f2, 17, Rules.tupleInline)
 
-    val f15 = Lower.lowerNextLevelWithRule(f14, Rules.mapGlb)
-    val f16 = Lower.lowerNextLevelWithRule(f15, Rules.mapSeq)
+    val f15 = Lower.lowerNextLevelWithRule(f14, OpenCLRules.mapGlb)
+    val f16 = Lower.lowerNextLevelWithRule(f15, OpenCLRules.mapSeq)
 
-    val f17 = Rewrite.applyRuleAtId(f16, 5, Rules.globalMemory)
+    val f17 = Rewrite.applyRuleAtId(f16, 5, OpenCLRules.globalMemory)
 
     // Won't write to accumulator without this
     val f18 = Rewrite.applyRuleAtId(f17, 17, Rules.tupleToStruct)
@@ -145,8 +145,8 @@ class TestRewriteGesummv {
     val l2 = Rewrite.applyRuleAtId(l1, 37, Rules.dropId)
     val l3 = Rewrite.applyRuleAtId(l2, 34, Rules.implementIdAsDeepCopy)
     val l4 = Rewrite.applyRuleAtId(l3, 31, Rules.dropId)
-    val l7 = Rewrite.applyRuleAtId(l4, 33, Rules.localMemory)
-    val l8 = Lower.lowerNextLevelWithRule(l7, Rules.mapLcl)
+    val l7 = Rewrite.applyRuleAtId(l4, 33, OpenCLRules.localMemory)
+    val l8 = Lower.lowerNextLevelWithRule(l7, OpenCLRules.mapLcl)
 
     val l9 = Rewrite.applyRuleAtId(l8, 92, MacroRules.userFunCompositionToPrivate)
 
@@ -176,9 +176,9 @@ class TestRewriteGesummv {
     val l2 = Rewrite.applyRuleAtId(l1, 17, Rules.addIdAfterReduce)
     val l3 = Rewrite.applyRuleAtId(l2, 6, Rules.addIdAfterReduce)
     val l4 = Rewrite.applyRuleAtId(l3, 64, Rules.implementIdAsDeepCopy)
-    val l5 = Rewrite.applyRuleAtId(l4, 64, Rules.localMemory)
+    val l5 = Rewrite.applyRuleAtId(l4, 64, OpenCLRules.localMemory)
     val l6 = Rewrite.applyRuleAtId(l5, 48, Rules.implementIdAsDeepCopy)
-    val l7 = Rewrite.applyRuleAtId(l6, 48, Rules.localMemory)
+    val l7 = Rewrite.applyRuleAtId(l6, 48, OpenCLRules.localMemory)
 
     val (y: Array[Float], _) = Execute()(l7, A, B, x, alpha, beta)
 

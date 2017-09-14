@@ -11,7 +11,7 @@ import org.clapper.argot._
 import org.clapper.argot.ArgotConverters._
 import rewriting.utils.{NumberExpression, Utils}
 import rewriting._
-import rewriting.rules.{Rule, Rules}
+import rewriting.rules.{OpenCLRules, Rule, Rules}
 
 import scala.io.Source
 
@@ -268,7 +268,7 @@ object MemoryMappingRewrite {
 
     try {
       val locations =
-        Rewrite.listAllPossibleRewritesForRules(lambda, Seq(Rules.mapAtomWrg, Rules.mapAtomLcl))
+        Rewrite.listAllPossibleRewritesForRules(lambda, Seq(OpenCLRules.mapAtomWrg, OpenCLRules.mapAtomLcl))
 
       val withLoadBalancing = locations.map(pair => Rewrite.applyRuleAt(lambda, pair._2, pair._1))
       withLoadBalancing :+ lambda
@@ -322,7 +322,7 @@ object MemoryMappingRewrite {
     // Step 1: Add id nodes in strategic locations
     val idsAdded = addIdsForLocal(lambda)
 
-    val toAddressAdded = addToAddressSpace(idsAdded, Rules.localMemory, 2)
+    val toAddressAdded = addToAddressSpace(idsAdded, OpenCLRules.localMemory, 2)
     val copiesAdded = toAddressAdded.flatMap(
       turnIdsIntoCopies(_, doTupleCombinations = false, doVectorisation))
 
@@ -346,9 +346,9 @@ object MemoryMappingRewrite {
             }
           case _ => s
         }
-      }).filter(Rules.localMemory.isDefinedAt)
+      }).filter(OpenCLRules.localMemory.isDefinedAt)
 
-      Some(res.foldLeft(f)((l, expr) => Rewrite.applyRuleAt(l, expr, Rules.localMemory)))
+      Some(res.foldLeft(f)((l, expr) => Rewrite.applyRuleAt(l, expr, OpenCLRules.localMemory)))
     }).collect({ case Some(s) => s })
   }
 
@@ -376,7 +376,7 @@ object MemoryMappingRewrite {
 
     val idsAdded = Rewrite.applyRulesUntilCannot(idsAddedToMapSeq, Seq(Rules.addIdForCurrentValueInReduce))
 
-    val toAddressAdded = addToAddressSpace(idsAdded, Rules.privateMemory, 2)
+    val toAddressAdded = addToAddressSpace(idsAdded, OpenCLRules.privateMemory, 2)
     val copiesAdded = toAddressAdded.flatMap(
       turnIdsIntoCopies(_, doTupleCombinations = true, doVectorisation = false))
 
@@ -439,9 +439,9 @@ object MemoryMappingRewrite {
       val lowerToType = tuple._2
 
       val rule = lowerToType match {
-        case FunCall(_: MapSeq, _) :: _ => Rules.mapSeq
-        case FunCall(MapLcl(dim, _), _) :: _ => Rules.mapLcl(dim)
-        case _ => Rules.mapSeq // Fall back to seq
+        case FunCall(_: MapSeq, _) :: _ => OpenCLRules.mapSeq
+        case FunCall(MapLcl(dim, _), _) :: _ => OpenCLRules.mapLcl(dim)
+        case _ => OpenCLRules.mapSeq // Fall back to seq
       }
 
       toLower.foreach(expr => {
