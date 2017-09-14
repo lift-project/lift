@@ -5,6 +5,7 @@ import com.typesafe.scalalogging.Logger
 import ir.ast._
 import ir.{Context, TupleType, TypeChecker}
 import opencl.ir.pattern._
+import rewriting.rules.{MacroRules, Rule, Rules}
 import rewriting.utils._
 
 case class EnabledMappings(

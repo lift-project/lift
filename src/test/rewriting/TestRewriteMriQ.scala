@@ -11,6 +11,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{Assume, Test}
+import rewriting.rules.{MacroRules, Rules}
 
 object TestRewriteMriQ extends TestWithExecutor
 

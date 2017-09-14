@@ -8,7 +8,8 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.{MacroRules, Rewrite, Rules}
+import rewriting.rules.{MacroRules, Rules}
+import rewriting.Rewrite
 
 object GettingStarted extends TestWithExecutor
 

@@ -7,7 +7,7 @@ import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.{Rewrite, Rules}
+import rewriting.Rewrite
 
 import scala.util.Random
 

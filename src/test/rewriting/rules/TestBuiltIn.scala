@@ -9,7 +9,7 @@ import opencl.ir.ast._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.{Rewrite, Rules}
+import rewriting.Rewrite
 
 object TestBuiltIn extends TestWithExecutor
 

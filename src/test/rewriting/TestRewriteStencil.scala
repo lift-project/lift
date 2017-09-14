@@ -7,6 +7,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.Test
+import rewriting.rules.{MacroRules, Rules}
 import rewriting.utils.NumberExpression
 
 object TestRewriteStencil extends TestWithExecutor

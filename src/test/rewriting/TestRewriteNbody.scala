@@ -11,6 +11,7 @@ import opencl.ir._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
+import rewriting.rules.{MacroRules, Rules}
 
 object TestRewriteNbody extends TestWithExecutor
 

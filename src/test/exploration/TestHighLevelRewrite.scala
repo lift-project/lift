@@ -8,7 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.MacroRules
+import rewriting.rules.MacroRules
 import rewriting.utils.Utils
 
 class TestHighLevelRewrite {

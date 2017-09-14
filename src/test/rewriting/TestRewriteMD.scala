@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import rewriting.rules.Rules
 
 object TestRewriteMD {
   @BeforeClass

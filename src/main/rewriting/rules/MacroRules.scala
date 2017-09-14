@@ -1,10 +1,11 @@
-package rewriting
+package rewriting.rules
 
-import lift.arithmetic.{?, ArithExpr}
-import rewriting.utils.{NumberExpression, Utils}
 import ir._
 import ir.ast._
+import lift.arithmetic.{?, ArithExpr}
 import opencl.ir.pattern.{MapSeq, ReduceSeq}
+import rewriting.Rewrite
+import rewriting.utils.{NumberExpression, Utils}
 
 object MacroRules {
 

@@ -1,12 +1,12 @@
-package rewriting
+package rewriting.rules
 
-import lift.arithmetic._
-import rewriting.utils.Utils
 import ir._
 import ir.ast._
+import lift.arithmetic._
 import opencl.ir._
 import opencl.ir.ast._
 import opencl.ir.pattern._
+import rewriting.utils.Utils
 
 case class Rule(desc: String,
                 rewrite: PartialFunction[Expr, Expr]) {

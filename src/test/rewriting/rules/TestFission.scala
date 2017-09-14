@@ -8,7 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
-import rewriting.{Rewrite, Rules}
+import rewriting.Rewrite
 
 object TestFission extends TestWithExecutor
 

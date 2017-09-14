@@ -10,13 +10,14 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
+import rewriting.rules.{MacroRules, Rules}
 import rewriting.utils.NumberExpression
 
 object TestRewriteMatrixMatrix extends TestWithExecutor
 
 class TestRewriteMatrixMatrix {
 
-  def checkDepth(lambda: Lambda, ruleSeq: Seq[Rule] = Seq()): Unit =
+  def checkDepth(lambda: Lambda, ruleSeq: Seq[rules.Rule] = Seq()): Unit =
     assertTrue("Depth filter.", HighLevelRewrite.filterByDepth(lambda, ruleSeq))
 
   def checkDistance(lambda: Lambda): Unit =

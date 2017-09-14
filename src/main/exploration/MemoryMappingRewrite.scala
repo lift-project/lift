@@ -11,6 +11,7 @@ import org.clapper.argot._
 import org.clapper.argot.ArgotConverters._
 import rewriting.utils.{NumberExpression, Utils}
 import rewriting._
+import rewriting.rules.{Rule, Rules}
 
 import scala.io.Source
 

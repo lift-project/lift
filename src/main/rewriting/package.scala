@@ -1,5 +1,6 @@
 import lift.arithmetic._
-import rewriting.Rules._
+import rewriting.rules.{MacroRules, Rule, Rules}
+import rewriting.rules.Rules._
 
 
 package object rewriting {

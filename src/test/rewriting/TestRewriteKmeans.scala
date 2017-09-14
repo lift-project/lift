@@ -7,6 +7,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit._
+import rewriting.rules.Rules
 import rodinia.Kmeans._
 
 object TestRewriteKmeans extends TestWithExecutor

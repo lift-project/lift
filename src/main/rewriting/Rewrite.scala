@@ -4,6 +4,7 @@ import lift.arithmetic.ArithExpr
 import rewriting.utils.{NumberExpression, Utils}
 import ir._
 import ir.ast._
+import rewriting.rules.{MacroRules, Rule}
 
 object Rewrite {
 
