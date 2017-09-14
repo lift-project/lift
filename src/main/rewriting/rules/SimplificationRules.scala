@@ -22,14 +22,14 @@ object SimplificationRules {
 
   val transposeTransposeId = Rule("Transpose() o Transpose() => id", {
     case FunCall(t1, FunCall(t2, arg))
-      if Rules.isTranspose(t1) && Rules.isTranspose(t2)
+      if Utils.isTranspose(t1) && Utils.isTranspose(t2)
     =>
       arg
   })
 
   val transposeTransposeId2 = Rule("Transpose() o Transpose() => Id()", {
     case FunCall(t1, FunCall(t2, arg))
-      if Rules.isTranspose(t1) && Rules.isTranspose(t2)
+      if Utils.isTranspose(t1) && Utils.isTranspose(t2)
     => Id() $ arg
   })
 

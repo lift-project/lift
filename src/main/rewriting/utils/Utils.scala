@@ -206,4 +206,7 @@ object Utils {
       case (FunCall(m: AbstractMap, _), count) if m.f.body.isConcrete => count + 1
       case (_, count) => count
     })
+
+  def isTranspose(funDecl: FunDecl): Boolean =
+    funDecl.isInstanceOf[Transpose] || funDecl.isInstanceOf[TransposeW]
 }

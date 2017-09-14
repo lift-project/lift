@@ -140,7 +140,7 @@ object MacroRules {
             ), arg))
         if (p1.head eq a1)
           && (p2.head eq a2)
-          && Rules.isTranspose(t)
+          && Utils.isTranspose(t)
       =>
         Map(Map(f)) o Transpose() $ arg
     })
@@ -214,7 +214,7 @@ object MacroRules {
               )), _))
         if Utils.getIndexForPatternInCallChain(a1, { case e if e eq p1.head => } ) != -1
         && Utils.getIndexForPatternInCallChain(a2, { case e if e eq p2.head => } ) != -1
-        && Rules.isTranspose(t)
+        && Utils.isTranspose(t)
       =>
         var fissioned: Expr = funCall
 
@@ -241,15 +241,15 @@ object MacroRules {
       secondMap@FunCall(Map(Lambda(param2, FunCall(t3, a2))), _)))
         if Utils.getIndexForPatternInCallChain(a2, { case e if e eq param2.head => }) != -1
           && Utils.getIndexForPatternInCallChain(firstBody,
-              { case FunCall(t, a) if Rules.isTranspose(t) && (a eq param1.head) => }) != -1
-          && Rules.isTranspose(t2)
-          && Rules.isTranspose(t3)
+              { case FunCall(t, a) if Utils.isTranspose(t) && (a eq param1.head) => }) != -1
+          && Utils.isTranspose(t2)
+          && Utils.isTranspose(t3)
       =>
 
         var fissioned: Expr = funCall
 
         val index = Utils.getIndexForPatternInCallChain(firstBody,
-          { case FunCall(t, arg) if Rules.isTranspose(t) && (arg eq param1.head) => })
+          { case FunCall(t, arg) if Utils.isTranspose(t) && (arg eq param1.head) => })
 
         if (index > 0)
           fissioned = mapFissionAtPosition(index - 1).rewrite(funCall)
@@ -270,7 +270,7 @@ object MacroRules {
   val transposeMapSplit =
     Rule("transposeMapSplit", {
       case funCall@FunCall(t, FunCall(Map(Lambda(p, FunCall(Split(_), a))), _))
-        if Rules.isTranspose(t)
+        if Utils.isTranspose(t)
       =>
 
         var fissioned: Expr = funCall
@@ -290,7 +290,7 @@ object MacroRules {
       case funCall@FunCall(Map(Lambda(param, body)), FunCall(t, _))
         if Utils.getIndexForPatternInCallChain(body,
             { case FunCall(Split(_), arg) if arg eq param.head => }) != -1
-          && Rules.isTranspose(t)
+          && Utils.isTranspose(t)
       =>
         val index = Utils.getIndexForPatternInCallChain(body,
                 { case FunCall(Split(_), arg) if arg eq param.head => })

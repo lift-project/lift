@@ -8,6 +8,8 @@ import rewriting.utils.Utils
 
 object Rules {
 
+  import rewriting.utils.Utils.isTranspose
+
   /* Rules required for 2D stencil rewrite *///TODO find appropriate names
 
   /* Slide-promotion *///TODO not really because of map(join)... find better name
@@ -136,8 +138,6 @@ object Rules {
     })
   }
 
-  def isTranspose(funDecl: FunDecl): Boolean =
-    funDecl.isInstanceOf[Transpose] || funDecl.isInstanceOf[TransposeW]
 
   val mapSplitTranspose = Rule("Map(Split(n)) o Transpose()" +
                                "Transpose() o Map(Transpose()) o Split(n)", {
