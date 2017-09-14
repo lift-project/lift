@@ -9,7 +9,7 @@ import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.Test
 import rewriting.rules.MacroRules
-import rewriting.utils.Utils
+import rewriting.utils.{DumpToFile, Utils}
 
 class TestHighLevelRewrite {
 
@@ -76,7 +76,7 @@ class TestHighLevelRewrite {
   )
 
   def getHash(lambda: Lambda): String =
-    Utils.Sha256Hash(Utils.dumpLambdaToString(lambda))
+    DumpToFile.Sha256Hash(DumpToFile.dumpLambdaToString(lambda))
 
   @Test ( expected = classOf[TypeException] )//see Issue #114
   def rewriteLambdaUsingInt {

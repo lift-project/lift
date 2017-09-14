@@ -9,7 +9,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
 import rewriting.EnabledMappings
-import rewriting.utils.Utils
+import rewriting.utils.{DumpToFile, Utils}
 
 class TestMemoryMappingRewrite {
 
@@ -35,7 +35,7 @@ class TestMemoryMappingRewrite {
   val gemvAmd = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), ArrayTypeWSWC(Float, M), ArrayTypeWSWC(Float, N), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(Map(fun((p_5) => FunCall(Map(fun((p_6) => FunCall(add, FunCall(mult, p_6, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), FunCall(Reduce(fun((p_7, p_8) => FunCall(add, p_7, p_8))), Value("0.0f", Float), FunCall(Join(), FunCall(Map(fun((p_9) => FunCall(ReduceSeq(fun((p_11, p_12) => FunCall(add, p_11, FunCall(mult, FunCall(Get(0), p_12), FunCall(Get(1), p_12))))), Value("0.0f", Float), p_9))), FunCall(Split(M*1/^v__2), FunCall(Gather(ReorderWithStride(v__2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5)))))))))), FunCall(Zip(2), p_0, p_2)))
 
   def getHash(lambda: Lambda) =
-    Utils.Sha256Hash(Utils.dumpLambdaToMethod(lambda))
+    DumpToFile.Sha256Hash(DumpToFile.dumpLambdaToMethod(lambda))
 
   @Test
   def mmKepler(): Unit = {

@@ -7,7 +7,7 @@ import exploration.ParameterRewrite
 import ir.TypeChecker
 import ir.ast.Lambda
 import org.clapper.argot.{ArgotParser, ArgotUsageException}
-import rewriting.utils.Utils
+import rewriting.utils.{DumpToFile, Utils}
 
 object RegenerateConfiguration {
 
@@ -63,9 +63,9 @@ object RegenerateConfiguration {
 
       val sizes = GeneratePrograms.getInputSizeCombinations(vars.length)
 
-      val lambdaString = Utils.dumpLambdaToString(lambda)
+      val lambdaString = DumpToFile.dumpLambdaToString(lambda)
 
-      val hash = Utils.Sha256Hash(lambdaString)
+      val hash = DumpToFile.Sha256Hash(lambdaString)
       val hashPrefix = hash(0) + "/" + hash(1)
       val thisLambdaConf = s"$configurationDirectory/$hashPrefix/$hash"
 

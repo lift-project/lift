@@ -9,7 +9,7 @@ import ir.ast._
 import opencl.ir.pattern._
 import org.clapper.argot._
 import org.clapper.argot.ArgotConverters._
-import rewriting.utils.{NumberExpression, Utils}
+import rewriting.utils.{DumpToFile, NumberExpression, Utils}
 import rewriting._
 import rewriting.rules._
 
@@ -243,11 +243,11 @@ object MemoryMappingRewrite {
 
   def dumpToFile(topFolder: String, hash: String, expr: Lambda): Unit = {
     // Dump to file
-    val str = Utils.dumpLambdaToMethod(expr)
-    val sha256 = Utils.Sha256Hash(str)
+    val str = DumpToFile.dumpLambdaToMethod(expr)
+    val sha256 = DumpToFile.Sha256Hash(str)
     val folder = s"${topFolder}Lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
 
-    if (Utils.dumpToFile(str, sha256, folder)) {
+    if (DumpToFile.dumpToFile(str, sha256, folder)) {
       // Add to index if it was unique
       synchronized {
         val idxFile = new FileWriter(s"${topFolder}Lower/$hash/index", true)

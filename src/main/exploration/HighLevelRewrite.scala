@@ -228,12 +228,12 @@ object HighLevelRewrite {
 
         if (filterByDistance(appliedRules)) {
 
-          val stringRep = Utils.dumpLambdaToString(appliedRules)
+          val stringRep = DumpToFile.dumpLambdaToString(appliedRules)
 
-          val sha256 = Utils.Sha256Hash(stringRep)
+          val sha256 = DumpToFile.Sha256Hash(stringRep)
           val folder = topLevelFolder + "/" + sha256.charAt(0) + "/" + sha256.charAt(1)
 
-          if (Utils.dumpToFile(stringRep, sha256, folder)) {
+          if (DumpToFile.dumpToFile(stringRep, sha256, folder)) {
             // Add to index if it was unique
             synchronized {
               val idxFile = new FileWriter(topLevelFolder + "/index", true)
@@ -242,7 +242,7 @@ object HighLevelRewrite {
             }
 
             val rules = lambda._2.mkString(",")
-            Utils.dumpToFile(rules, sha256 + "_rules", folder)
+            DumpToFile.dumpToFile(rules, sha256 + "_rules", folder)
           }
 
         } else
