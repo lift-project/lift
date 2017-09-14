@@ -11,7 +11,7 @@ import opencl.ir._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
-import rewriting.rules.`macro`.{MacroRules, ReuseRules}
+import rewriting.macrorules.{MacroRules, ReuseRules}
 import rewriting.rules.{CopyRules, OpenCLRules, Rules}
 
 object TestRewriteNbody extends TestWithExecutor

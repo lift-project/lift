@@ -2,7 +2,7 @@ package rewriting
 
 import rewriting.utils.{NumberExpression, Utils}
 import ir.ast._
-import rewriting.rules.`macro`.{EnablingRules, MacroRules}
+import rewriting.macrorules.{EnablingRules, MacroRules}
 import rewriting.rules.{Rule, Rules}
 
 object SimplifyAndFuse {

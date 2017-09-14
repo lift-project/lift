@@ -1,4 +1,4 @@
-package rewriting.rules.`macro`
+package rewriting.macrorules
 
 import ir.ast._
 import rewriting.Rewrite

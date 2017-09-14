@@ -1,4 +1,4 @@
-package rewriting.rules.`macro`
+package rewriting.macrorules
 
 import ir.{Type, TypeChecker}
 import ir.ast._

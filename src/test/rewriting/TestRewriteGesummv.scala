@@ -8,7 +8,7 @@ import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
 import rewriting.rules._
-import rewriting.rules.`macro`.{MacroRules, ReuseRules}
+import rewriting.macrorules.{MacroRules, ReuseRules}
 
 object TestRewriteGesummv extends TestWithExecutor
 

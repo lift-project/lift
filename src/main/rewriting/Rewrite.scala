@@ -5,7 +5,7 @@ import rewriting.utils.{NumberExpression, Utils}
 import ir._
 import ir.ast._
 import rewriting.rules.Rule
-import rewriting.rules.`macro`.MacroRules
+import rewriting.macrorules.MacroRules
 
 object Rewrite {
 

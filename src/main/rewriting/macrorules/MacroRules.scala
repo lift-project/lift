@@ -1,4 +1,4 @@
-package rewriting.rules.`macro`
+package rewriting.macrorules
 
 import ir._
 import ir.ast._
@@ -10,19 +10,19 @@ import rewriting.utils.Utils
 
 object MacroRules {
 
-  private[rules] val mapPattern: PartialFunction[Expr, Unit] =
+  private[rewriting] val mapPattern: PartialFunction[Expr, Unit] =
   { case FunCall(map: AbstractMap, _) if map.f.body.isConcrete => }
 
   private val mapMapPattern: PartialFunction[Expr, Unit] =
   { case FunCall(Map(Lambda(_, FunCall(map:Map, _))), _) if map.f.body.isConcrete => }
 
-  private[rules] val reducePattern: PartialFunction[Expr, Unit] =
+  private[rewriting] val reducePattern: PartialFunction[Expr, Unit] =
   { case FunCall(_: AbstractPartRed, _, _) => }
 
-  private[rules] val splitPattern: PartialFunction[Expr, Unit] =
+  private[rewriting] val splitPattern: PartialFunction[Expr, Unit] =
   { case FunCall(Split(_), _) => }
 
-  private[rules] val concretePattern: PartialFunction[Expr, Unit] =
+  private[rewriting] val concretePattern: PartialFunction[Expr, Unit] =
   { case call: FunCall if call.isConcrete(false) => }
 
   @scala.annotation.tailrec
@@ -81,7 +81,7 @@ object MacroRules {
         mapFissionAtPosition(position, funCall)
     })
 
-  private[rules] def mapFissionAtPosition(position: Int, expr: Expr): Expr = {
+  private[rewriting] def mapFissionAtPosition(position: Int, expr: Expr): Expr = {
     var nextFission = expr
     var fissioned = expr
     var currentPos = position

@@ -10,7 +10,7 @@ import org.junit.Assert._
 import org.junit.Test
 import rewriting.rules.{FusionRules, Rules}
 import rewriting.Rewrite
-import rewriting.rules.`macro`.{EnablingRules, MacroRules}
+import rewriting.macrorules.{EnablingRules, MacroRules}
 
 object GettingStarted extends TestWithExecutor
 

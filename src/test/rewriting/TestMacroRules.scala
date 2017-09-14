@@ -8,7 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.rules.`macro`.{MacroRules, ReuseRules, SlideTiling}
+import rewriting.macrorules.{MacroRules, ReuseRules, SlideTiling}
 import rewriting.utils.NumberExpression
 
 object TestMacroRules extends TestWithExecutor
