@@ -1,6 +1,5 @@
 package rewriting
 
-
 import com.typesafe.scalalogging.Logger
 import ir.ast._
 import ir.{Context, TupleType, TypeChecker}
@@ -18,12 +17,12 @@ case class EnabledMappings(
   group01: Boolean,
   group10: Boolean
 ) {
-  override def toString =
+  override def toString: String =
     s"Global 0 - $global0, Global 0,1 - $global01, Global 1,0 - $global10, " +
       s"Global 0,1,2 - $global012, Global 2,1,0 - $global210, " +
       s"Group 0 - $group0, Group 0,1 - $group01, Group 1,0 - $group10"
 
-  val isOneEnabled = global0 | global01 | global10 | global012 | global210 |
+  val isOneEnabled: Boolean = global0 | global01 | global10 | global012 | global210 |
     group0 | group01 | group10
 }
 
@@ -82,7 +81,7 @@ object Lower {
     Rewrite.applyRuleUntilCannot(temp, OpenCLRules.mapSeq)
   }
 
-  def mapComposedWithReduceAsSequential(lambda: Lambda) =
+  private def mapComposedWithReduceAsSequential(lambda: Lambda) =
     Rewrite.applyRulesUntilCannot(lambda, Seq(MacroRules.mapComposedWithReduceAsSequential))
 
   def mapCombinations(lambda: Lambda,
@@ -91,22 +90,24 @@ object Lower {
       global012 = false, global210 = false,
       group0 = true, group01 = false, group10 = true
     )
-  ) = {
+  ): List[Lambda] = {
 
     val removeOtherIds = SimplifyAndFuse(patchLambda(lambda))
 
     findAllMapsLowering(removeOtherIds,enabledMappings)
   }
 
-  def simpleMapStrategy(lambda: Lambda) = {
-    val removeOtherIds = SimplifyAndFuse(patchLambda(lambda))
+  def simpleMapStrategy(lambda: Lambda): Lambda = {
+    val mappings = EnabledMappings(
+      global0 = false, global01 = false, global10 = false,
+      global012 = false, global210 = false, group0 = false,
+      group01 = false, group10 = true
+    )
 
-    val mapsLowered = simpleMapLoweringStrategy(removeOtherIds)
-
-    mapsLowered
+    mapCombinations(lambda, mappings).head
   }
 
-  def dropIds(lambda: Lambda) =
+  private def dropIds(lambda: Lambda) =
     Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.dropId, Rules.removeEmptyMap))
 
   def findAll(lambda: Lambda, at: (Expr) => Boolean): List[Expr] = {
@@ -260,18 +261,14 @@ object Lower {
     lambdas
   }
 
-  def simpleMapLoweringStrategy(lambda: Lambda) = {
-    val lambda1 = Lower.lowerNextLevelWithRule(lambda, OpenCLRules.mapWrg(1))
-    val lambda2 = Lower.lowerNextLevelWithRule(lambda1, OpenCLRules.mapWrg(0))
-    val lambda3 = Lower.lowerNextLevelWithRule(lambda2, OpenCLRules.mapLcl(1))
-    val lambda4 = Lower.lowerNextLevelWithRule(lambda3, OpenCLRules.mapLcl(0))
+  def simpleMapLoweringStrategy(lambda: Lambda): Lambda = {
+    val mappings = EnabledMappings(
+      global0 = false, global01 = false, global10 = false,
+      global012 = false, global210 = false, group0 = false,
+      group01 = false, group10 = true
+    )
 
-    var lambdaN = lambda4
-
-    while (lambdaN.body.contains({ case e if OpenCLRules.mapSeq.isDefinedAt(e) => }))
-      lambdaN = lowerNextLevelWithRule(lambdaN, OpenCLRules.mapSeq)
-
-    lambdaN
+    findAllMapsLowering(lambda, mappings).head
   }
 
   def lastWriteToGlobal(lambda: Lambda): Lambda =
@@ -293,8 +290,6 @@ object Lower {
       case None => logger.warn("No last map found. Possibly using at-notation? Assume last write uses toGlobal"); lambda
       case _ => Rewrite.applyRuleAt(lambda, lastMap.get, OpenCLRules.globalMemory)
     }
-
-    //Rewrite.applyRuleAt(lambda, lastMap, Rules.globalMemory)
   }
 
   private def lastReduceToGlobal(lambda: Lambda): Lambda = {
@@ -313,7 +308,7 @@ object Lower {
     implementIdInMapSeq(lambda, ids.last, mapSeqs.last)
   }
 
-  def implementIdInMapSeq(lambda: Lambda, idToImplement: Expr, mapSeqForId: Expr): Lambda = {
+  private def implementIdInMapSeq(lambda: Lambda, idToImplement: Expr, mapSeqForId: Expr): Lambda = {
     TypeChecker.check(lambda.body)
 
     val implementedId = Rules.implementIdAsDeepCopy.rewrite(idToImplement)
@@ -323,16 +318,16 @@ object Lower {
     FunDecl.replace(lambda, mapSeqForId, idToGlobal)
   }
 
-  def isTheLastWriteNestedInReduce(lambda: Lambda): Boolean =
+  private def isTheLastWriteNestedInReduce(lambda: Lambda): Boolean =
     isNestedInReduce(getLastWrite(lambda).get, lambda.body)
 
-  def isNestedInReduce(expr: Expr, nestedIn: Expr): Boolean = {
+  private def isNestedInReduce(expr: Expr, nestedIn: Expr): Boolean = {
     findExpressionForPattern(nestedIn, {
       case FunCall(ReduceSeq(f), _, _) if f.body.contains({ case e if e eq expr =>}) =>
     }: PartialFunction[Expr, Unit]).isDefined
   }
 
-  def getLastWrite(lambda: Lambda) =
+  private def getLastWrite(lambda: Lambda) =
     findExpressionForPattern(lambda, { case FunCall(_:UserFun, _*) => } : PartialFunction[Expr, Unit])
 
   def lowerPartialReduces(lambda: Lambda): Lambda =
@@ -354,10 +349,10 @@ object Lower {
     valueIdsAdded
   }
 
-  def findExpressionForPattern(lambda: Lambda, pattern: PartialFunction[Expr, Unit]): Option[Expr] =
+  private def findExpressionForPattern(lambda: Lambda, pattern: PartialFunction[Expr, Unit]): Option[Expr] =
     findExpressionForPattern(lambda.body, pattern)
 
-  def findExpressionForPattern(expr: Expr, pattern: PartialFunction[Expr, Unit]): Option[Expr] = {
+  private def findExpressionForPattern(expr: Expr, pattern: PartialFunction[Expr, Unit]): Option[Expr] = {
     Expr.visitWithStateDepthFirst(None: Option[Expr])(expr, (e, a) =>
       a match {
         case None if pattern.isDefinedAt(e) => Some(e)
@@ -365,45 +360,12 @@ object Lower {
       })
   }
 
-  def lowerByLevels(lambda: Lambda): List[Lambda] = {
-
-    Context.updateContext(lambda.body)
-
-    val nextToLower = FindNextMapsToLower()(lambda)
-
-    if (nextToLower.nonEmpty) {
-
-      val idMap = NumberExpression.breadthFirst(lambda)
-
-      val applicableRules = mapLoweringRules.toList.filter(rule => {
-        nextToLower.map(id => {
-          val expr = Rewrite.getExprForId(lambda.body, id, idMap)
-          rule.rewrite.isDefinedAt(expr)
-        }).reduce(_&&_)
-      })
-
-      val newLambdas = applicableRules.map(applyRuleToExpressions(lambda, nextToLower, _))
-
-      newLambdas.map(lowerByLevels).reduce(_++_)
-    } else {
-      List(lambda)
-    }
-  }
-
-  def applyRuleToExpressions(lambda: Lambda, nextToLower: List[Int], rule: Rule): Lambda =
+  private def applyRuleToExpressions(lambda: Lambda, nextToLower: List[Int], rule: Rule): Lambda =
     nextToLower.foldLeft(lambda)((l, e) => Rewrite.applyRuleAtId(l, e, rule))
 
-  def lowerNextLevelWithRule(lambda: Lambda, rule: Rule) = {
+  def lowerNextLevelWithRule(lambda: Lambda, rule: Rule): Lambda = {
     val nextToLower = FindNextMapsToLower()(lambda)
     applyRuleToExpressions(lambda, nextToLower, rule)
-  }
-  def lowerFirstNWithRule(lambda:Lambda,rule:Rule,firstN:Int) ={
-    val nextToLower = FindNextMapsToLower()(lambda,firstN)
-    applyRuleToExpressions(lambda,nextToLower,rule)
-  }
-
-  def lower(lambda: Lambda): List[Lambda] = {
-    lowerByLevels(lastWriteToGlobal(lowerReduces(lambda)))
   }
 }
 
@@ -413,8 +375,8 @@ object FindNextMapsToLower {
 
 class FindNextMapsToLower {
 
-  var expressions = List[Int]()
-  var idMap = collection.Map[Expr, Int]()
+  private var expressions = List[Int]()
+  private var idMap = collection.Map[Expr, Int]()
 
   def apply(lambda: Lambda): List[Int] =
     apply(lambda.body)
@@ -423,18 +385,6 @@ class FindNextMapsToLower {
     idMap = NumberExpression.breadthFirst(expr)
     find(expr)
     expressions
-  }
-  def apply(lambda:Lambda,firstN:Int):List[Int] =
-    apply(lambda.body,firstN)
-  def apply(expr:Expr,firstN:Int):List[Int] = {
-    idMap = NumberExpression.breadthFirst(expr)
-    find(expr)
-    if(firstN>expressions.length){
-      expressions
-    }
-    else {
-      expressions.takeRight(firstN)
-    }
   }
 
   private def find(expr: Expr): Unit = {
