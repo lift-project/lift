@@ -10,7 +10,7 @@ import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 import rewriting._
 import rewriting.rules._
-import rewriting.rules.`macro`.{MacroRules, ReuseRules}
+import rewriting.rules.`macro`.{MacroRules, ReuseRules, SlideTiling}
 import rewriting.utils._
 
 object HighLevelRewrite {
@@ -295,11 +295,11 @@ class HighLevelRewrite(val vectorWidth: Int = HighLevelRewrite.defaultVectorWidt
 
 object RuleCollection {
 
-  private val convolution1DRules = Seq(MacroRules.tileStencils)
+  private val convolution1DRules = Seq(SlideTiling.tileStencils)
   private val convolution2DRules = Seq(
-    MacroRules.tile2DStencils,
-    MacroRules.tile2DStencilsZip,
-    MacroRules.tile2DStencilsZip6
+    SlideTiling.tile2DStencils,
+    SlideTiling.tile2DStencilsZip,
+    SlideTiling.tile2DStencilsZip6
   )
   private val defaultRules = Seq(
       ReuseRules.apply2DRegisterBlocking,
@@ -308,7 +308,7 @@ object RuleCollection {
       ReuseRules.tileMapMap,
       ReuseRules.finishTiling,
       MacroRules.partialReduceWithReorder,
-      MacroRules.tileStencils,
+      SlideTiling.tileStencils,
       vecRed,
       vecZip
     )

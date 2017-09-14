@@ -11,7 +11,7 @@ import opencl.ir._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
-import rewriting.rules.`macro`.MacroRules
+import rewriting.rules.`macro`.{MacroRules, ReuseRules}
 import rewriting.rules.{CopyRules, OpenCLRules, Rules}
 
 object TestRewriteNbody extends TestWithExecutor
@@ -48,8 +48,8 @@ class TestRewriteNbody {
 
     val f12 = Rewrite.applyRuleAtId(f1, 6, MacroRules.interchange)
 
-    val f4 = Rewrite.applyRuleAtId(f12, 9, MacroRules.introduceReuseFromMap(128))
-    val f11 = Rewrite.applyRuleAtId(f4, 12, MacroRules.introduceReuseFromMap(128))
+    val f4 = Rewrite.applyRuleAtId(f12, 9, ReuseRules.introduceReuseFromMap(128))
+    val f11 = Rewrite.applyRuleAtId(f4, 12, ReuseRules.introduceReuseFromMap(128))
 
 
     val lowered = Lower.mapCombinations(f11, group0Mapping).head

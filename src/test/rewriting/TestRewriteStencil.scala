@@ -8,7 +8,7 @@ import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.Test
 import rewriting.rules._
-import rewriting.rules.`macro`.{EnablingRules, MacroRules}
+import rewriting.rules.`macro`.{EnablingRules, MacroRules, SlideTiling}
 import rewriting.utils.NumberExpression
 
 object TestRewriteStencil extends TestWithExecutor
@@ -149,7 +149,7 @@ class TestRewriteStencil {
         Join() o Map(Reduce(add, 0.0f)) o Slide(3,1) o Pad(1,1,Pad.Boundary.Clamp) $ input
       )
 
-    val f1 = Rewrite.applyRuleAtId(f, 1, MacroRules.tileStencils)
+    val f1 = Rewrite.applyRuleAtId(f, 1, SlideTiling.tileStencils)
     val f2 = Rewrite.applyRuleAtId(f1, 9, OpenCLRules.reduceSeq)
     val f3 = Rewrite.applyRuleAtId(f2, 9, CopyRules.addIdAfterReduce)
     val f4 = Rewrite.applyRuleAtId(f3, 16, CopyRules.implementIdAsDeepCopy)

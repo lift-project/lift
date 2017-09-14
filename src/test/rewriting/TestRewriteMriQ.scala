@@ -12,7 +12,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{Assume, Test}
 import rewriting.rules._
-import rewriting.rules.`macro`.MacroRules
+import rewriting.rules.`macro`.{MacroRules, ReuseRules}
 
 object TestRewriteMriQ extends TestWithExecutor
 
@@ -159,8 +159,8 @@ class TestRewriteMriQ {
   def mriqIntroduceReuse(): Unit = {
     val f0 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
     val f1 = Rewrite.applyRuleAtId(f0, 7, FissionRules.mapFission)
-    val f2 = Rewrite.applyRuleAtId(f1, 7, MacroRules.introduceReuseFromMap(64))
-    val f3 = Rewrite.applyRuleAtId(f2, 11, MacroRules.introduceReuseFromMap(64))
+    val f2 = Rewrite.applyRuleAtId(f1, 7, ReuseRules.introduceReuseFromMap(64))
+    val f3 = Rewrite.applyRuleAtId(f2, 11, ReuseRules.introduceReuseFromMap(64))
 
     val lowered = Lower.mapCombinations(f3, mappings).head
 

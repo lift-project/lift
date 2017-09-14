@@ -8,7 +8,7 @@ import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
 import rewriting.rules._
-import rewriting.rules.`macro`.MacroRules
+import rewriting.rules.`macro`.{MacroRules, ReuseRules}
 
 object TestRewriteGesummv extends TestWithExecutor
 
@@ -133,8 +133,8 @@ class TestRewriteGesummv {
 
     val f2 = Rewrite.applyRuleAtId(g1, 1, Rules.splitJoin(64))
     val f3 = Rewrite.applyRuleAtId(f2, 7, MacroRules.interchange)
-    val f4 = Rewrite.applyRuleAtId(f3, 10, MacroRules.introduceReuseFromMap(64))
-    val f5 = Rewrite.applyRuleAtId(f4, 13, MacroRules.introduceReuseFromMap(64))
+    val f4 = Rewrite.applyRuleAtId(f3, 10, ReuseRules.introduceReuseFromMap(64))
+    val f5 = Rewrite.applyRuleAtId(f4, 13, ReuseRules.introduceReuseFromMap(64))
 
     val lowered = Lower.mapCombinations(f5, mappings).head
 

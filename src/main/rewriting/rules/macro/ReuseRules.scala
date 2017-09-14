@@ -9,7 +9,7 @@ import rewriting.utils.{NumberExpression, Utils}
 
 object ReuseRules {
 
-  import MacroRules.{mapPattern, reducePattern, getMapAtDepth}
+  import MacroRules.{mapPattern, reducePattern, getMapAtDepth, getMapBody}
 
   /**
     * Tile a computation in the form Map(Map(f))
@@ -99,7 +99,7 @@ object ReuseRules {
     doReorder: Boolean = true): Rule =
 
     Rule("2D register blocking" + (if (doReorder) "" else " no reorder"), {
-      case call@FunCall(Map(Lambda(lambdaArg, innerCall)), arg)
+      case call@FunCall(Map(Lambda(lambdaArg, innerCall)), _)
         if getCallForBlocking(innerCall, lambdaArg).isDefined
         // TODO: is the guard good enough?
       =>
@@ -367,4 +367,38 @@ object ReuseRules {
             outerExchanged
         }
     })
+
+  val introduceReuseFromMap: Rule = introduceReuseFromMap(?)
+
+  def introduceReuseFromMap(arithExpr: ArithExpr): Rule = {
+    Rule("introduceReuseFromMap", {
+      case call@FunCall(Map(Lambda(_, body)), _)
+        if Utils.getIndexForPatternInCallChain(body, mapPattern) != -1 ||
+          Utils.getIndexForPatternInCallChain(body, { case FunCall(Reduce(_), _, _) => }) != -1
+      =>
+
+        val mapId = Utils.getIndexForPatternInCallChain(body, mapPattern)
+        val reduceId = Utils.getIndexForPatternInCallChain(body, { case FunCall(Reduce(_), _, _) => })
+
+        var splitJoined: Expr = call
+
+        if (mapId < reduceId && mapId != -1 && reduceId != -1 || reduceId == -1) {
+          val insideMap = Utils.getExprForPatternInCallChain(body, mapPattern)
+          splitJoined = Rewrite.applyRuleAt(call, Rules.splitJoin(arithExpr), insideMap.get)
+        } else {
+          val insideReduce = Utils.getExprForPatternInCallChain(body, { case FunCall(Reduce(_), _, _) => })
+          val partialReduce = Rewrite.applyRuleAt(call, ReduceRules.partialReduce, insideReduce.get)
+
+          val newBody = getMapBody(partialReduce)
+
+          val newReduce = Utils.getExprForPatternInCallChain(newBody, { case FunCall(PartRed(_), _, _) => })
+          splitJoined = Rewrite.applyRuleAt(partialReduce, ReduceRules.partialReduceSplitJoin(arithExpr), newReduce.get)
+        }
+
+        // TODO: Only in the inside call chain
+        val moveSplit = Rewrite.applyRulesUntilCannot(splitJoined, Seq(Rules.splitIntoZip))
+
+        Rewrite.applyRuleAt(moveSplit, MacroRules.interchange, moveSplit)
+    })
+  }
 }
