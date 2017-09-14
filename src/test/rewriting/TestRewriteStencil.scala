@@ -8,7 +8,7 @@ import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.Test
 import rewriting.rules._
-import rewriting.rules.`macro`.MacroRules
+import rewriting.rules.`macro`.{EnablingRules, MacroRules}
 import rewriting.utils.NumberExpression
 
 object TestRewriteStencil extends TestWithExecutor
@@ -37,7 +37,7 @@ class TestRewriteStencil {
     val gold: Array[Float] = Utils.scalaCompute2DStencil(A,3,1,3,1,1,1,1,1,weights,scalaClamp)
 
     val f1 = Rewrite.applyRuleAtId(f, 2, Rules.slideTiling(4))
-    val f2 = Rewrite.applyRuleAtId(f1, 1, MacroRules.movingJoin)
+    val f2 = Rewrite.applyRuleAtId(f1, 1, EnablingRules.movingJoin)
     val f3 = Rewrite.applyRuleAtId(f2, 11, Rules.slideTiling(4))
     val f4 = Rewrite.applyRuleAtId(f3, 5, FissionRules.mapFission)
     val f5 = Rewrite.applyRuleAtId(f4, 6, FissionRules.mapFission)
@@ -91,7 +91,7 @@ class TestRewriteStencil {
       x.sum).toArray
 
     val f1 = Rewrite.applyRuleAtId(f, 1, Rules.slideTiling(4))
-    val f2 = Rewrite.applyRuleAtId(f1, 0, MacroRules.movingJoin)
+    val f2 = Rewrite.applyRuleAtId(f1, 0, EnablingRules.movingJoin)
     val f3 = Rewrite.applyRuleAtId(f2, 1, FusionRules.mapFusion)
     // introduce low-level primitives
     val f4 = Rewrite.applyRuleAtId(f3, 8, OpenCLRules.reduceSeq)
@@ -121,7 +121,7 @@ class TestRewriteStencil {
 
     // tiling
     val f1 = Rewrite.applyRuleAtId(f, 1, Rules.slideTiling(4))
-    val f2 = Rewrite.applyRuleAtId(f1, 0, MacroRules.movingJoin)
+    val f2 = Rewrite.applyRuleAtId(f1, 0, EnablingRules.movingJoin)
     val f3 = Rewrite.applyRuleAtId(f2, 1, FusionRules.mapFusion)
     // local memory
     val f4 = Rewrite.applyRuleAtId(f3, 6, CopyRules.addId)

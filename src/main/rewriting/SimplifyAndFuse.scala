@@ -2,14 +2,14 @@ package rewriting
 
 import rewriting.utils.{NumberExpression, Utils}
 import ir.ast._
-import rewriting.rules.`macro`.MacroRules
+import rewriting.rules.`macro`.{EnablingRules, MacroRules}
 import rewriting.rules.{Rule, Rules}
 
 object SimplifyAndFuse {
-  def apply(lambda: Lambda, maxTime: Long = 900000 /* 15 min */) =
+  def apply(lambda: Lambda, maxTime: Long = 900000 /* 15 min */): Lambda =
     (new SimplifyAndFuse(maxTime))(lambda)
 
-  def withoutPreventingFurtherOptimisation(lambda: Lambda, maxTime: Long = 900000) =
+  def withoutPreventingFurtherOptimisation(lambda: Lambda, maxTime: Long = 900000): Lambda =
     (new SimplifyAndFuse(maxTime, false))(lambda)
 
   def sortLambdaByTerms(lambda0: Lambda, lambda1: Lambda): Boolean = {
@@ -28,10 +28,10 @@ object SimplifyAndFuse {
     mapReduces0 < mapReduces1
   }
 
-  def getNumberOfTerms(lambda: Lambda) =
+  def getNumberOfTerms(lambda: Lambda): Int =
     NumberExpression.breadthFirst(lambda).values.max
 
-  def countConcreteMapAndReduce(lambda: Lambda) =
+  def countConcreteMapAndReduce(lambda: Lambda): Int =
     Expr.visitWithState(0)(lambda.body, {
       case (FunCall(map: AbstractMap, _), a) if map.f.body.isConcrete => a+1
       case (FunCall(map: AbstractPartRed, _, _), a) if map.f.body.isConcrete => a+1
@@ -90,7 +90,7 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
 
         // Deal with the case where movingSplit enables the simplification
         val possiblyMoreRewrites = Rewrite
-          .rewrite(fused, Seq(MacroRules.movingSplit), 1)
+          .rewrite(fused, Seq(EnablingRules.movingSplit), 1)
           .map(l => (l, listAndFilterSplitTransposeRewrites(l)))
 
         if (possiblyMoreRewrites.nonEmpty) {
@@ -111,7 +111,7 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
             seen = ruleAt._2 :: seen
 
             val expr = Utils.getExprForPatternInCallChain(replacement,
-              { case e if MacroRules.transposeMapSplit.isDefinedAt(e) => }).get
+              { case e if EnablingRules.transposeMapSplit.isDefinedAt(e) => }).get
             //noinspection SideEffectsInMonadicTransformation
             cantUndo = expr :: cantUndo
 
@@ -173,12 +173,12 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
 
   private val enablingRules =
     Seq(
-      MacroRules.mapTransposeTransposeMapTranspose,
-      MacroRules.transposeMapMap,
-      MacroRules.mapSplitTranspose,
-      MacroRules.transposeMapSplit,
-      MacroRules.movingJoin,
-      MacroRules.movingSplit,
+      EnablingRules.mapTransposeTransposeMapTranspose,
+      EnablingRules.transposeMapMap,
+      EnablingRules.mapSplitTranspose,
+      EnablingRules.transposeMapSplit,
+      EnablingRules.movingJoin,
+      EnablingRules.movingSplit,
       Rules.joinFromZip,
       Rules.reorderTranspose
     )
@@ -195,7 +195,7 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
     var allRulesAt = Rewrite.listAllPossibleRewritesForRules(lambda, enablingRules)
 
     allRulesAt = allRulesAt.filter(p =>
-      if (p._1 == MacroRules.transposeMapSplit) {
+      if (p._1 == EnablingRules.transposeMapSplit) {
         val applyHere = p._2
         !cantUndo.exists(_ eq applyHere)
       } else {

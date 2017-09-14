@@ -9,7 +9,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
 import rewriting.Rewrite
-import rewriting.rules.`macro`.MacroRules
+import rewriting.rules.`macro`.EnablingRules
 
 object TestRules extends TestWithExecutor
 
@@ -73,8 +73,8 @@ class TestRules {
       input => Map(Transpose()) o Join() $ input
     )
 
-    assertTrue(MacroRules.movingJoin.rewrite.isDefinedAt(f.body))
-    val result = MacroRules.movingJoin.rewrite(f.body)
+    assertTrue(EnablingRules.movingJoin.rewrite.isDefinedAt(f.body))
+    val result = EnablingRules.movingJoin.rewrite(f.body)
     TypeChecker.check(result)
   }
 
@@ -240,8 +240,8 @@ class TestRules {
       input => Map(id) o Join() $ input
     )
 
-    assertTrue(MacroRules.movingJoin.rewrite.isDefinedAt(f.body))
-    val result = MacroRules.movingJoin.rewrite(f.body)
+    assertTrue(EnablingRules.movingJoin.rewrite.isDefinedAt(f.body))
+    val result = EnablingRules.movingJoin.rewrite(f.body)
     TypeChecker.check(result)
   }
 
