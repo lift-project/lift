@@ -117,6 +117,17 @@ object Utils {
     })
   }
 
+  def findExpressionForPattern(lambda: Lambda, pattern: PartialFunction[Expr, Unit]): Option[Expr] =
+    findExpressionForPattern(lambda.body, pattern)
+
+  def findExpressionForPattern(expr: Expr, pattern: PartialFunction[Expr, Unit]): Option[Expr] = {
+    Expr.visitWithStateDepthFirst(None: Option[Expr])(expr, (e, a) =>
+      a match {
+        case None if pattern.isDefinedAt(e) => Some(e)
+        case _ => a
+      })
+  }
+
   def collect(expr: Expr, pattern: PartialFunction[Expr, Unit]): List[Expr] = {
     Expr.visitWithState(List[Expr]())(expr, (e, s) => {
       e match {
@@ -137,6 +148,9 @@ object Utils {
       case _ => throw new TypeException(t, "ArrayType", null)
     }
   }
+
+  def splitVariable(given: ArithExpr, t: Type): ArithExpr =
+    if (given == ?) Utils.validSplitVariable(t) else given
 
   def validSlideStep(t: Type, overlap: ArithExpr): ArithExpr = {
     t match {

@@ -35,7 +35,7 @@ object ReduceRules {
   def partialReduceReorder(s: ArithExpr): Rule =
     Rule("PartRed(f) => PartRed(f) o Reorder", {
       case FunCall(PartRed(f), init, arg) =>
-        val stride = if (s == ?) Utils.validSplitVariable(arg.t) else s
+        val stride = Utils.splitVariable(s, arg.t)
         PartRed(f, init) o Gather(ReorderWithStride(stride)) $ arg
     })
 
@@ -55,7 +55,7 @@ object ReduceRules {
   def partialReduceSplitJoin(split: ArithExpr): Rule =
     Rule("PartRed(f) => Join() o Map(PartRed(f)) o Split()", {
       case FunCall(PartRed(f), init, arg) =>
-        val chunkSize = if (split == ?) Utils.validSplitVariable(arg.t) else split
+        val chunkSize = Utils.splitVariable(split, arg.t)
         Join() o Map(PartRed(f, init)) o Split(chunkSize) $ arg
     })
 }

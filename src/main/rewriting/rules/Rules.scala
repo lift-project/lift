@@ -89,7 +89,7 @@ object Rules {
       ArithExpr.isSmaller(s,tileStep).getOrElse(false) || // tile is bigger (valid)
       tileStep.equals(s) => // tile is as big as previous slide (creates one sliding window, valid)
 
-      val step = if (tileStep == ?) Utils.validSplitVariable(arg.t) else tileStep
+      val step = Utils.splitVariable(tileStep, arg.t)
       val overlap = n-s
       Join() o Map(Slide(n, s)) o Slide(step + overlap, step) $ arg
   })
@@ -99,7 +99,7 @@ object Rules {
 
   def splitJoin(split: ArithExpr) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
     case FunCall(Map(f), arg) =>
-      val chunkSize = if (split == ?) Utils.validSplitVariable(arg.t) else split
+      val chunkSize = Utils.splitVariable(split, arg.t)
       Join() o Map(Map(f)) o Split(chunkSize) $ arg
   })
 
@@ -133,7 +133,7 @@ object Rules {
   def reorderBothSidesWithStride(stride: ArithExpr): Rule = {
     Rule("Map(f) => Reorder(g^{-1}) o Map(f) o Reorder(g)", {
       case FunCall(map@Map(_), arg) =>
-        val s = if (stride == ?) Utils.validSplitVariable(arg.t) else stride
+        val s = Utils.splitVariable(stride, arg.t)
         Scatter(ReorderWithStride(s)) o map o Gather(ReorderWithStride(s)) $ arg
     })
   }

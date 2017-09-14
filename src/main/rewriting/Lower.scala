@@ -280,7 +280,7 @@ object Lower {
   private def lastMapToGlobal(lambda: Lambda): Lambda = {
     val lastWrite = getLastWrite(lambda).get
 
-    val lastMap = findExpressionForPattern(lambda,
+    val lastMap = Utils.findExpressionForPattern(lambda,
       { case FunCall(ir.ast.Map(Lambda(_, body)), _) if {
         body.contains({ case x if x eq lastWrite => }) &&
           !body.contains({ case FunCall(ir.ast.Map(_), _) => })
@@ -322,13 +322,13 @@ object Lower {
     isNestedInReduce(getLastWrite(lambda).get, lambda.body)
 
   private def isNestedInReduce(expr: Expr, nestedIn: Expr): Boolean = {
-    findExpressionForPattern(nestedIn, {
+    Utils.findExpressionForPattern(nestedIn, {
       case FunCall(ReduceSeq(f), _, _) if f.body.contains({ case e if e eq expr =>}) =>
     }: PartialFunction[Expr, Unit]).isDefined
   }
 
   private def getLastWrite(lambda: Lambda) =
-    findExpressionForPattern(lambda, { case FunCall(_:UserFun, _*) => } : PartialFunction[Expr, Unit])
+    Utils.findExpressionForPattern(lambda, { case FunCall(_:UserFun, _*) => } : PartialFunction[Expr, Unit])
 
   def lowerPartialReduces(lambda: Lambda): Lambda =
     Rewrite.applyRuleUntilCannot(lambda, ReduceRules.partialReduceToReduce)
@@ -347,17 +347,6 @@ object Lower {
       Rewrite.applyRuleAt(lambda, pair._2, pair._1))
 
     valueIdsAdded
-  }
-
-  private def findExpressionForPattern(lambda: Lambda, pattern: PartialFunction[Expr, Unit]): Option[Expr] =
-    findExpressionForPattern(lambda.body, pattern)
-
-  private def findExpressionForPattern(expr: Expr, pattern: PartialFunction[Expr, Unit]): Option[Expr] = {
-    Expr.visitWithStateDepthFirst(None: Option[Expr])(expr, (e, a) =>
-      a match {
-        case None if pattern.isDefinedAt(e) => Some(e)
-        case _ => a
-      })
   }
 
   private def applyRuleToExpressions(lambda: Lambda, nextToLower: List[Int], rule: Rule): Lambda =

@@ -166,7 +166,7 @@ object MacroRules {
     Rule("partialReduceWithReorder", {
       case funCall@FunCall(Reduce(_), _, arg) =>
 
-        val stride = if (strideGiven == ?) Utils.validSplitVariable(arg.t) else strideGiven
+        val stride = Utils.splitVariable(strideGiven, arg.t)
         val len = Type.getLength(arg.t)
         val splitFactor = len /^ stride
 
@@ -1021,7 +1021,7 @@ object MacroRules {
         val innerMap = getMapAtDepth(call, 1)
 
         // Reorder both sides of the inner map
-        val realY = if (factorY != ?) factorY else Utils.validSplitVariable(innerMap.t)
+        val realY = Utils.splitVariable(factorY, innerMap.t)
         val stride = Type.getLength(innerMap.t) / realY
 
         val reorderReplaced =
