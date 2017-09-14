@@ -44,7 +44,7 @@ object MacroRules {
      case _ => false
   }
 
-  val userFunCompositionToPrivate = Rule("", {
+  val userFunCompositionToPrivate = Rule("userFunCompositionToPrivate", {
     case FunCall(uf: UserFun, args@_*)
       if args.count(expr => isUserFun(expr) && Rules.privateMemory.isDefinedAt(expr)) > 0
     =>
@@ -60,7 +60,7 @@ object MacroRules {
       uf(newArgs:_*)
   })
 
-  val mapComposedWithReduceAsSequential = Rule("", {
+  val mapComposedWithReduceAsSequential = Rule("mapComposedWithReduceAsSequential", {
     case call@FunCall(_: AbstractMap, FunCall(_: AbstractPartRed, _*))
       if Rules.mapSeq.isDefinedAt(call)
     =>
@@ -899,7 +899,7 @@ object MacroRules {
   val introduceReuseFromMap: Rule = introduceReuseFromMap(?)
 
   def introduceReuseFromMap(arithExpr: ArithExpr): Rule = {
-    Rule("", {
+    Rule("introduceReuseFromMap", {
       case call@FunCall(Map(Lambda(_, body)), _)
         if Utils.getIndexForPatternInCallChain(body, mapPattern) != -1 ||
           Utils.getIndexForPatternInCallChain(body, { case FunCall(Reduce(_), _, _) => }) != -1

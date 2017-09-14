@@ -63,7 +63,7 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
   def apply(lambda: Lambda): Lambda =
     simplify(lambda)
 
-  def simplify(lambda: Lambda, maxDepth: Int = 100): Lambda = {
+  private def simplify(lambda: Lambda, maxDepth: Int = 100): Lambda = {
     val currentTime = System.currentTimeMillis()
 
     if (maxDepth == 0 || (currentTime - startTime) > maxTime)
@@ -136,7 +136,7 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
     }
   }
 
-  def listAndFilterSplitTransposeRewrites(l: Lambda): Seq[(Rule, Expr)] = {
+  private def listAndFilterSplitTransposeRewrites(l: Lambda): Seq[(Rule, Expr)] = {
     Rewrite
       .listAllPossibleRewrites(l, Rules.splitTranspose)
       .filter(ruleAt => !ruleAt._2.isInstanceOf[Param] && !seen.contains(ruleAt._2))
@@ -144,7 +144,7 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
 
 
 
-  def tryToEnableMoreSimplifications(lambda: Lambda,
+  private def tryToEnableMoreSimplifications(lambda: Lambda,
                                      maxRulesToApply: Int,
                                      rules: List[Rule] = List()): (Lambda, Int, List[Rule]) = {
     if (maxRulesToApply < 1) {
@@ -165,7 +165,7 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
     }
   }
 
-  def getTheBestRule(lambda: Lambda,
+  private def getTheBestRule(lambda: Lambda,
                      candidates: Seq[(Lambda, Int, List[Rule])]): (Lambda, Int, List[Rule]) =
     candidates.fold((lambda, 0, List()))((a, b) => if (a._2 > b._2) a else b)
 
@@ -188,7 +188,7 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
    * @return A sequence of lambdas paired with the number of simplification
    *         rules that can be applied in it
    */
-  def applyOneEnablingRule(lambda: Lambda, rules: List[Rule]): Seq[(Lambda, Int, List[Rule])] = {
+  private def applyOneEnablingRule(lambda: Lambda, rules: List[Rule]): Seq[(Lambda, Int, List[Rule])] = {
 
     var allRulesAt = Rewrite.listAllPossibleRewritesForRules(lambda, enablingRules)
 

@@ -454,7 +454,6 @@ object Rules {
       toPrivate(f) $ arg
   })
 
-
   val localMemory = Rule("Map(f) => toLocal(Map(f))", {
     case call@FunCall(Id(), arg)
       if call.context.inMapWrg.reduce(_ || _)
@@ -1136,7 +1135,7 @@ object Rules {
       }
   })
 
-  val flattenZips = Rule("", {
+  val flattenZips = Rule("flattenZips", {
     case FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), zipArgs@_*))
       if zipArgs.exists({
         case FunCall(Zip(_), _*) => true
@@ -1350,7 +1349,7 @@ object Rules {
       f o generateCopy(arg.t) $ arg
   })
 
-  val lambdaInline = Rule("", {
+  val lambdaInline = Rule("lambdaInline", {
     case FunCall(Lambda(Array(x), b), p)
       if !p.isConcrete(true) &&
         Utils.getFinalArg(p).isInstanceOf[Param] =>

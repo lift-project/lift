@@ -335,10 +335,10 @@ object Lower {
     findExpressionForPattern(lambda, { case FunCall(_:UserFun, _*) => } : PartialFunction[Expr, Unit])
 
   def lowerPartialReduces(lambda: Lambda): Lambda =
-    Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.partialReduceToReduce))
+    Rewrite.applyRuleUntilCannot(lambda, Rules.partialReduceToReduce)
 
   def lowerReduces(lambda: Lambda): Lambda = {
-    val stepOne = Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.reduceSeq))
+    val stepOne = Rewrite.applyRuleUntilCannot(lambda, Rules.reduceSeq)
 
     val reduceSeqs = Rewrite.listAllPossibleRewrites(stepOne, Rules.addIdAfterReduce)
 
