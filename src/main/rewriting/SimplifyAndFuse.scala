@@ -2,7 +2,8 @@ package rewriting
 
 import rewriting.utils.{NumberExpression, Utils}
 import ir.ast._
-import rewriting.rules.{MacroRules, Rule, Rules}
+import rewriting.rules.`macro`.MacroRules
+import rewriting.rules.{Rule, Rules}
 
 object SimplifyAndFuse {
   def apply(lambda: Lambda, maxTime: Long = 900000 /* 15 min */) =

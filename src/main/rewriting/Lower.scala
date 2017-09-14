@@ -5,6 +5,7 @@ import ir.ast._
 import ir.{Context, TupleType, TypeChecker}
 import opencl.ir.pattern._
 import rewriting.rules._
+import rewriting.rules.`macro`.MacroRules
 import rewriting.utils._
 
 case class EnabledMappings(

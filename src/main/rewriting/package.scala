@@ -1,5 +1,5 @@
 import lift.arithmetic._
-import rewriting.rules.{MacroRules, Rule, Rules}
+import rewriting.rules.{Rule, Rules}
 import rewriting.rules.Rules._
 import rewriting.rules.IterateRules._
 import rewriting.rules.OpenCLRules._
@@ -9,6 +9,7 @@ import rewriting.rules.CopyRules._
 import rewriting.rules.FissionRules._
 import rewriting.rules.FusionRules._
 import rewriting.rules.SimplificationRules._
+import rewriting.rules.`macro`.MacroRules
 
 package object rewriting {
   val mapLoweringRules =

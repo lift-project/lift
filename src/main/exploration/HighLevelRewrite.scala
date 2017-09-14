@@ -10,6 +10,7 @@ import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 import rewriting._
 import rewriting.rules._
+import rewriting.rules.`macro`.MacroRules
 import rewriting.utils._
 
 object HighLevelRewrite {

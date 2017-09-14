@@ -9,6 +9,7 @@ import opencl.ir._
 import org.junit.Assert._
 import org.junit.{Assume, Test}
 import rewriting.rules._
+import rewriting.rules.`macro`.MacroRules
 
 object TestRewriteGemv extends TestWithExecutor
 

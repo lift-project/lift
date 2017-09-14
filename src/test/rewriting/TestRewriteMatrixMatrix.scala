@@ -11,6 +11,7 @@ import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
 import rewriting.rules._
+import rewriting.rules.`macro`.MacroRules
 import rewriting.utils.NumberExpression
 
 object TestRewriteMatrixMatrix extends TestWithExecutor

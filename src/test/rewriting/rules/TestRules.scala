@@ -9,6 +9,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
 import rewriting.Rewrite
+import rewriting.rules.`macro`.MacroRules
 
 object TestRules extends TestWithExecutor
 
