@@ -11,7 +11,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{Assume, Test}
-import rewriting.rules.{MacroRules, OpenCLRules, Rules}
+import rewriting.rules._
 
 object TestRewriteMriQ extends TestWithExecutor
 
@@ -130,19 +130,19 @@ class TestRewriteMriQ {
         )) $ Zip(x, y, z, Qr, Qi)
     )
 
-    val f0 = Rewrite.applyRuleAtId(f, 0, Rules.addIdForMapParam)
-    val f1 = Rewrite.applyRuleAtId(f0, 8, Rules.implementOneLevelOfId)
-    val f2 = Rewrite.applyRuleAtId(f1, 21, Rules.implementIdAsDeepCopy)
-    val f3 = Rewrite.applyRuleAtId(f2, 18, Rules.implementIdAsDeepCopy)
-    val f4 = Rewrite.applyRuleAtId(f3, 15, Rules.implementIdAsDeepCopy)
+    val f0 = Rewrite.applyRuleAtId(f, 0, CopyRules.addIdForMapParam)
+    val f1 = Rewrite.applyRuleAtId(f0, 8, CopyRules.implementOneLevelOfId)
+    val f2 = Rewrite.applyRuleAtId(f1, 21, CopyRules.implementIdAsDeepCopy)
+    val f3 = Rewrite.applyRuleAtId(f2, 18, CopyRules.implementIdAsDeepCopy)
+    val f4 = Rewrite.applyRuleAtId(f3, 15, CopyRules.implementIdAsDeepCopy)
     val f5 = Rewrite.applyRuleAtId(f4, 12, Rules.dropId)
     val f6 = Rewrite.applyRuleAtId(f5, 9, Rules.dropId)
 
-    val f7 = Rewrite.applyRuleAtId(f6, 24, Rules.tupleToStruct)
+    val f7 = Rewrite.applyRuleAtId(f6, 24, CopyRules.tupleToStruct)
     val f8 = Lower.lowerNextLevelWithRule(f7, OpenCLRules.mapGlb)
-    val f9 = Rewrite.applyRuleAtId(f8, 22, Rules.addIdAfterReduce)
+    val f9 = Rewrite.applyRuleAtId(f8, 22, CopyRules.addIdAfterReduce)
     val f10 = Rewrite.applyRuleAtId(f9, 22, OpenCLRules.globalMemory)
-    val f11 = Rewrite.applyRuleAtId(f10, 49, Rules.implementIdAsDeepCopy)
+    val f11 = Rewrite.applyRuleAtId(f10, 49, CopyRules.implementIdAsDeepCopy)
     val f12 = Rewrite.applyRuleAtId(f11, 25, OpenCLRules.privateMemory)
     val f13 = Rewrite.applyRuleAtId(f12, 19, OpenCLRules.privateMemory)
     val f14 = Rewrite.applyRuleAtId(f13, 16, OpenCLRules.privateMemory)
@@ -157,7 +157,7 @@ class TestRewriteMriQ {
   @Test
   def mriqIntroduceReuse(): Unit = {
     val f0 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
-    val f1 = Rewrite.applyRuleAtId(f0, 7, Rules.mapFission)
+    val f1 = Rewrite.applyRuleAtId(f0, 7, FissionRules.mapFission)
     val f2 = Rewrite.applyRuleAtId(f1, 7, MacroRules.introduceReuseFromMap(64))
     val f3 = Rewrite.applyRuleAtId(f2, 11, MacroRules.introduceReuseFromMap(64))
 
@@ -176,11 +176,11 @@ class TestRewriteMriQ {
 
     val lowered = Lower.mapCombinations(f0, mappings).head
 
-    val l0 = Rewrite.applyRuleAtId(lowered, 12, Rules.addIdAfterReduce)
-    val l1 = Rewrite.applyRuleAtId(l0, 6, Rules.addIdAfterReduce)
-    val l2 = Rewrite.applyRuleAtId(l1, 42, Rules.implementIdAsDeepCopy)
+    val l0 = Rewrite.applyRuleAtId(lowered, 12, CopyRules.addIdAfterReduce)
+    val l1 = Rewrite.applyRuleAtId(l0, 6, CopyRules.addIdAfterReduce)
+    val l2 = Rewrite.applyRuleAtId(l1, 42, CopyRules.implementIdAsDeepCopy)
     val l3 = Rewrite.applyRuleAtId(l2, 42, OpenCLRules.localMemory)
-    val l4 = Rewrite.applyRuleAtId(l3, 35, Rules.implementIdAsDeepCopy)
+    val l4 = Rewrite.applyRuleAtId(l3, 35, CopyRules.implementIdAsDeepCopy)
     val l5 = Rewrite.applyRuleAtId(l4, 35, OpenCLRules.localMemory)
 
     val (output: Array[Float], _) =

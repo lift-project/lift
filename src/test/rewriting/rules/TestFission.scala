@@ -27,8 +27,8 @@ class TestFission {
     )
     TypeChecker(f)
 
-    assertTrue(Rules.mapFission.isDefinedAt(f.body))
-    val result = Rewrite.applyRuleAt(f, f.body, Rules.mapFission)
+    assertTrue(FissionRules.mapFission.isDefinedAt(f.body))
+    val result = Rewrite.applyRuleAt(f, f.body, FissionRules.mapFission)
     TypeChecker(result)
   }
 
@@ -41,7 +41,7 @@ class TestFission {
         Map(fun(x => Map(fun(y => add(x, y))) o Map(plusOne) $ input)) $ input
     )
 
-    assertFalse(Rules.mapFission.rewrite.isDefinedAt(f.body))
+    assertFalse(FissionRules.mapFission.rewrite.isDefinedAt(f.body))
   }
 
   @Test
@@ -53,7 +53,7 @@ class TestFission {
         Map(fun(x => Map(fun(y => add(x, y))) o Reduce(add, 0.0f) $ input)) $ input
     )
 
-    assertFalse(Rules.mapFission.rewrite.isDefinedAt(f.body))
+    assertFalse(FissionRules.mapFission.rewrite.isDefinedAt(f.body))
   }
 
   @Test
@@ -69,7 +69,7 @@ class TestFission {
         )) $ input
     )
 
-    assertFalse(Rules.mapFission.rewrite.isDefinedAt(f.body))
+    assertFalse(FissionRules.mapFission.rewrite.isDefinedAt(f.body))
   }
 
   @Test
@@ -84,7 +84,7 @@ class TestFission {
         )) $ input
     )
 
-    assertFalse(Rules.mapFission.rewrite.isDefinedAt(f.body))
+    assertFalse(FissionRules.mapFission.rewrite.isDefinedAt(f.body))
   }
 
   @Ignore
@@ -97,7 +97,7 @@ class TestFission {
         Map(fun(x => Map(fun(y => add(x, y))) o Map(plusOne) $ input)) $ input
     )
 
-    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFissionCreateZip)
+    val f1 = Rewrite.applyRuleAtId(f, 0, FissionRules.mapFissionCreateZip)
     TypeChecker(f1)
   }
 
@@ -111,7 +111,7 @@ class TestFission {
         Map(fun(x => Map(fun(y => add(x, y))) o Reduce(add, 0.0f) $ input)) $ input
     )
 
-    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFissionCreateZip)
+    val f1 = Rewrite.applyRuleAtId(f, 0, FissionRules.mapFissionCreateZip)
     TypeChecker(f1)
   }
 
@@ -128,7 +128,7 @@ class TestFission {
         )) $ input
     )
 
-    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFissionCreateZip)
+    val f1 = Rewrite.applyRuleAtId(f, 0, FissionRules.mapFissionCreateZip)
     TypeChecker(f1)
     assertTrue(f1.body.asInstanceOf[FunCall].f.asInstanceOf[Map].f.body.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
   }
@@ -146,7 +146,7 @@ class TestFission {
         )) $ input
     )
 
-    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.mapFissionCreateZip)
+    val f1 = Rewrite.applyRuleAtId(f, 0, FissionRules.mapFissionCreateZip)
     TypeChecker(f1)
     assertTrue(f1.body.asInstanceOf[FunCall].f.asInstanceOf[Map].f.body.asInstanceOf[FunCall].f.isInstanceOf[ReduceSeq])
   }
@@ -159,8 +159,8 @@ class TestFission {
       input => Map(id o id) $ input
     )
 
-    assertTrue(Rules.mapFission.rewrite.isDefinedAt(f.body))
-    val f0 = Lambda(f.params, Rules.mapFission.rewrite(f.body))
+    assertTrue(FissionRules.mapFission.rewrite.isDefinedAt(f.body))
+    val f0 = Lambda(f.params, FissionRules.mapFission.rewrite(f.body))
     TypeChecker(f0)
 
     val M = SizeVar("M")
@@ -170,8 +170,8 @@ class TestFission {
       input => Map(fun(x => Reduce(add, 0.0f) o Map(id) $ x)) $ input
     )
 
-    assertTrue(Rules.mapFission.rewrite.isDefinedAt(g.body))
-    val g0 = Lambda(g.params, Rules.mapFission.rewrite(g.body))
+    assertTrue(FissionRules.mapFission.rewrite.isDefinedAt(g.body))
+    val g0 = Lambda(g.params, FissionRules.mapFission.rewrite(g.body))
     TypeChecker(g0)
   }
 
@@ -203,13 +203,13 @@ class TestFission {
 
     val (result: Array[Float], _) = Execute(size)(f, A, A)
 
-    val g0 = Rewrite.applyRuleAtId(fP, 2, Rules.mapFissionWithZipInside)
+    val g0 = Rewrite.applyRuleAtId(fP, 2, FissionRules.mapFissionWithZipInside)
     val g1 = Rewrite.applyRuleAtId(g0, 0, OpenCLRules.mapGlb)
     val g2 = Rewrite.applyRuleAtId(g1, 2, OpenCLRules.mapSeq)
 
     val (resultG: Array[Float], _) = Execute(size)(g2, A, A)
 
-    val h0 = Rewrite.applyRuleAtId(fP, 0, Rules.mapFissionWithZipInside)
+    val h0 = Rewrite.applyRuleAtId(fP, 0, FissionRules.mapFissionWithZipInside)
     val h1 = Rewrite.applyRuleAtId(h0, 0, OpenCLRules.mapGlb)
     val h2 = Rewrite.applyRuleAtId(h1, 5, OpenCLRules.mapSeq)
 

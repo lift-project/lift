@@ -34,7 +34,7 @@ object MacroRules {
       getMapAtDepth(getMapBody(outermostMap), depth - 1)
   }
 
-  def getMapBody(expr: Expr) = {
+  def getMapBody(expr: Expr): Expr = {
     expr match {
       case FunCall(m: AbstractMap, _) => m.f.body
     }
@@ -89,8 +89,8 @@ object MacroRules {
     while (currentPos >= 0) {
 
       val fissionRule =
-        if (Rules.mapFission.isDefinedAt(nextFission)) Rules.mapFission
-        else if (Rules.mapFissionCreateZip.isDefinedAt(nextFission)) Rules.mapFissionCreateZip
+        if (FissionRules.mapFission.isDefinedAt(nextFission)) FissionRules.mapFission
+        else if (FissionRules.mapFissionCreateZip.isDefinedAt(nextFission)) FissionRules.mapFissionCreateZip
         else throw new NotImplementedError()
 
       val replacement = fissionRule.rewrite(nextFission)
@@ -109,7 +109,7 @@ object MacroRules {
 
     while (currentPos > 0) {
 
-      fused = Rules.mapFusion.rewrite(fused)
+      fused = FusionRules.mapFusion.rewrite(fused)
 
       currentPos -= 1
     }
@@ -209,7 +209,7 @@ object MacroRules {
       case funCall@FunCall(t,
               FunCall(Map(Lambda(p1,
                 innerMapCall@FunCall(Map(Lambda(p2,
-                  FunCall(f, a2)
+                  FunCall(_, a2)
                 )), a1)
               )), _))
         if Utils.getIndexForPatternInCallChain(a1, { case e if e eq p1.head => } ) != -1
@@ -219,12 +219,12 @@ object MacroRules {
         var fissioned: Expr = funCall
 
         if (!(a2 eq p2.head))
-          fissioned = Expr.replace(fissioned, innerMapCall, Rules.mapFission.rewrite(innerMapCall))
+          fissioned = Expr.replace(fissioned, innerMapCall, FissionRules.mapFission.rewrite(innerMapCall))
 
         val map = Utils.getExprForPatternInCallChain(fissioned, { case FunCall(Map(_), _) => }).get
 
         if (!(p1.head eq a1) || !(a2 eq p2.head))
-          fissioned = Expr.replace(fissioned, map, Rules.mapFission.rewrite(map))
+          fissioned = Expr.replace(fissioned, map, FissionRules.mapFission.rewrite(map))
 
         transposeMapMapNoFission.rewrite(fissioned)
     })
@@ -255,7 +255,7 @@ object MacroRules {
           fissioned = mapFissionAtPosition(index - 1).rewrite(funCall)
 
         if (!(a2 eq param2.head))
-          fissioned = Expr.replace(fissioned, secondMap, Rules.mapFission.rewrite(secondMap))
+          fissioned = Expr.replace(fissioned, secondMap, FissionRules.mapFission.rewrite(secondMap))
 
         val applyHere = Utils.getExprForPatternInCallChain(fissioned,
           { case e if Rules.mapTransposeTransposeMapTranspose.isDefinedAt(e) => }).get
@@ -276,7 +276,7 @@ object MacroRules {
         var fissioned: Expr = funCall
 
         if (!(p.head eq a))
-          fissioned = Rewrite.applyRuleAtId(fissioned, 1, Rules.mapFission)
+          fissioned = Rewrite.applyRuleAtId(fissioned, 1, FissionRules.mapFission)
 
         Rules.transposeMapSplit.rewrite(fissioned)
     })
@@ -314,7 +314,7 @@ object MacroRules {
     case funCall@FunCall(Map(_), slideCall@FunCall(Slide(_,_), _)) =>
       val tiled = Rewrite.applyRuleAt(funCall, Rules.slideTiling, slideCall)
       val moved = Rewrite.applyRuleAt(tiled, MacroRules.movingJoin, tiled)
-      val fused = Rewrite.applyRuleAtId(moved, 1, Rules.mapFusion)
+      val fused = Rewrite.applyRuleAtId(moved, 1, FusionRules.mapFusion)
       fused
   })
 
@@ -333,8 +333,8 @@ object MacroRules {
     "Map(Join()) o Join() o Map(TransposeW()) o " +
     "Map(Map(Map(Map(f))))) o " +
     "Map(Map(Slide2D(n,s))) o Slide2D(tileSizeX/Y, tileStepX/Y)", {
-    case FunCall(Map(Lambda(Array(_), FunCall(Map(f), someArg))),
-      FunCall(Map(Lambda(Array(_), FunCall(Transpose(), transposeArg))),
+    case FunCall(Map(Lambda(Array(_), FunCall(Map(f), _))),
+      FunCall(Map(Lambda(Array(_), FunCall(Transpose(), _))),
       FunCall(Slide(n1,s1),
       FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), slideArg))), arg))))
     =>
@@ -350,14 +350,14 @@ object MacroRules {
   val tile2DStencilsZip =
   Rule("tile2DStencilsZip) => ", {
     case
-      FunCall(Map(Lambda(Array(_), FunCall(Map(f), someArg))),
+      FunCall(Map(Lambda(_, FunCall(Map(f), _))),
         // zip2D
-        FunCall(Map(Lambda(Array(_), FunCall(Zip(_), zipArgs @ _*))),
+        FunCall(Map(Lambda(_, FunCall(Zip(_), _*))),
           FunCall(Zip(_),
             // slide2D
-            FunCall(Map(Lambda(Array(_), FunCall(Transpose(), transposeArg))),
+            FunCall(Map(Lambda(_, FunCall(Transpose(), _))),
               FunCall(Slide(n1,s1),
-                FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), slideArg))),
+                FunCall(Map(Lambda(_, FunCall(Slide(n2,s2), slideArg))),
                  arrayToTile
                 )
               )
@@ -389,21 +389,21 @@ object MacroRules {
   val tile2DStencilsZip6 =
   Rule("tile2DStencilsZip6", {
     case
-      FunCall(Map(Lambda(Array(_), FunCall(Map(f), someArg))),
+      FunCall(Map(Lambda(_, FunCall(Map(f), _))),
         // zip2D
-        FunCall(Map(Lambda(Array(_), FunCall(Zip(_), zipArgs @ _*))),
+        FunCall(Map(Lambda(_, FunCall(Zip(_), _*))),
           FunCall(Zip(_),
             // slide2D
-            FunCall(Map(Lambda(Array(_), FunCall(Transpose(), transposeArg))),
+            FunCall(Map(Lambda(_, FunCall(Transpose(), _))),
               FunCall(Slide(n1,s1),
-                FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), slideArg))),
+                FunCall(Map(Lambda(_, FunCall(Slide(n2,s2), slideArg))),
                  arrayToTile
                 )
               )
             ),
-            FunCall(Map(Lambda(Array(_), FunCall(Transpose(), transposeArg2))),
-              FunCall(Slide(n3,s3),
-                FunCall(Map(Lambda(Array(_), FunCall(Slide(n4,s4), slideArg2))),
+            FunCall(Map(Lambda(_, FunCall(Transpose(), _))),
+              FunCall(Slide(_,_),
+                FunCall(Map(Lambda(_, FunCall(Slide(_,_), _))),
                  arrayToTile2
                 )
               )
@@ -523,26 +523,26 @@ object MacroRules {
       if OpenCLRules.mapSeq.isDefinedAt(mapCall)
     =>
       val e0 = Rewrite.applyRuleAtId(funCall, 1, OpenCLRules.mapSeq)
-      val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeq)
-      val e2 = Rewrite.applyRuleAtId(e1, 0, Rules.reduceSeqMapSeqFusion)
+      val e1 = Rewrite.applyRuleAtId(e0, 0, OpenCLRules.reduceSeq)
+      val e2 = Rewrite.applyRuleAtId(e1, 0, FusionRules.reduceSeqMapSeqFusion)
       e2
 
     case funCall @ FunCall(ReduceSeq(_), _, mapCall@FunCall(Map(_), _))
       if OpenCLRules.mapSeq.isDefinedAt(mapCall)
     =>
       val e0 = Rewrite.applyRuleAtId(funCall, 1, OpenCLRules.mapSeq)
-      val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeqMapSeqFusion)
+      val e1 = Rewrite.applyRuleAtId(e0, 0, FusionRules.reduceSeqMapSeqFusion)
       e1
 
     case funCall @ FunCall(Reduce(_), _, FunCall(MapSeq(_), _))
     =>
-      val e0 = Rewrite.applyRuleAtId(funCall, 0, Rules.reduceSeq)
-      val e1 = Rewrite.applyRuleAtId(e0, 0, Rules.reduceSeqMapSeqFusion)
+      val e0 = Rewrite.applyRuleAtId(funCall, 0, OpenCLRules.reduceSeq)
+      val e1 = Rewrite.applyRuleAtId(e0, 0, FusionRules.reduceSeqMapSeqFusion)
       e1
 
     case funCall @ FunCall(ReduceSeq(_), _, FunCall(MapSeq(_), _))
     =>
-      Rewrite.applyRuleAtId(funCall, 0, Rules.reduceSeqMapSeqFusion)
+      Rewrite.applyRuleAtId(funCall, 0, FusionRules.reduceSeqMapSeqFusion)
   })
 
   /**
@@ -688,13 +688,13 @@ object MacroRules {
         FunCall(Split(_), FunCall(Transpose(), _)))
       =>
         val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 4, Rules.splitTranspose)
-        val e1 = Rewrite.depthFirstApplyRuleAtId(e0, 0, Rules.mapFusion)
+        val e1 = Rewrite.depthFirstApplyRuleAtId(e0, 0, FusionRules.mapFusion)
         val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 2, Rules.transposeTransposeId)
         val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 0, Rules.mapSplitTranspose)
         e3
 
       // Applies after some manipulation
-      case funCall@FunCall(Map(Lambda(param, body)), arg@FunCall(Split(_), FunCall(Transpose(), _)))
+      case FunCall(Map(Lambda(param, body)), arg@FunCall(Split(_), FunCall(Transpose(), _)))
         if body.contains({ case FunCall(Split(_), FunCall(Transpose(), a)) if a eq param.head => })
           && Expr.visitWithState(0)(body, (e, count) => if (e eq param.head) count+1 else count) == 1
       =>
@@ -728,13 +728,13 @@ object MacroRules {
       FunCall(TransposeW(), FunCall(Join(),
       FunCall(Map(_), FunCall(Split(_), FunCall(Transpose(), _)))))
       )), FunCall(Split(_), _:Param))
-        if Rules.mapFissionWithZipInside.rewrite.isDefinedAt(funCall)
-          && Rules.mapFissionWithZipInside.rewrite.isDefinedAt(
+        if FissionRules.mapFissionWithZipInside.rewrite.isDefinedAt(funCall)
+          && FissionRules.mapFissionWithZipInside.rewrite.isDefinedAt(
             Rewrite.getExprForId(funCall, 5, NumberExpression.breadthFirst(funCall)))
       =>
         val e1 = Rewrite.applyRuleAtId(funCall, 5, moveTransposeInsideTiling)
-        val e5 = Rewrite.applyRuleAtId(e1, 0, Rules.mapFissionWithZipInside)
-        val e6 = Rewrite.applyRuleAtId(e5, 1, Rules.mapFission)
+        val e5 = Rewrite.applyRuleAtId(e1, 0, FissionRules.mapFissionWithZipInside)
+        val e6 = Rewrite.applyRuleAtId(e5, 1, FissionRules.mapFission)
         val e7 = Rewrite.applyRuleAtId(e6, 2, Rules.mapTransposeSplit)
         val e8 = Rewrite.applyRuleAtId(e7, 1, Rules.mapSplitTranspose)
 
@@ -792,7 +792,7 @@ object MacroRules {
           { case FunCall(Reduce(_), _, _) => })
 
         if (reduceOption.isDefined)
-          fissioned = Rewrite.applyRuleAt(fissioned, Rules.reduceSeq, reduceOption.get)
+          fissioned = Rewrite.applyRuleAt(fissioned, OpenCLRules.reduceSeq, reduceOption.get)
 
         rule = InterchangeRules.mapReducePartialReduce
         offset = 3
@@ -804,7 +804,7 @@ object MacroRules {
         var numFissions = finalArgId - reduceId - 2
 
         while (numFissions > 0) {
-          fissioned = Rules.mapFissionWithZipOutside.rewrite(fissioned)
+          fissioned = FissionRules.mapFissionWithZipOutside.rewrite(fissioned)
           numFissions -= 1
         }
 
@@ -843,8 +843,8 @@ object MacroRules {
       // TODO: Makes mapMapTransposeZipOutside applicable for gemv & nbody
       // Restricted to only apply in that case, breaks stuff if more general.
       // Doesn't seem like a great solution.
-      if (Rules.mapFissionCreateZip.isDefinedAt(fissioned))
-        fissioned = Rewrite.applyRuleAt(fissioned, Rules.mapFissionCreateZip, fissioned)
+      if (FissionRules.mapFissionCreateZip.isDefinedAt(fissioned))
+        fissioned = Rewrite.applyRuleAt(fissioned, FissionRules.mapFissionCreateZip, fissioned)
 
       val mapCall = Utils.getExprForPatternInCallChain(fissioned, mapMapPattern).get
 

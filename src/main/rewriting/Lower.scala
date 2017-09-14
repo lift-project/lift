@@ -61,7 +61,7 @@ object Lower {
 
           val maybeApplies =
             Expr.visitLeftToRight(None: Option[Expr])(b, {
-              case (expr, None) if Rules.tupleToStruct.isDefinedAt(expr) => Some(expr)
+              case (expr, None) if CopyRules.tupleToStruct.isDefinedAt(expr) => Some(expr)
               case (_, maybeExpr) => maybeExpr
             })
 
@@ -72,7 +72,7 @@ object Lower {
       })
 
     applyHere.foldLeft(lambda)((currentExpr, toApplyAt) => {
-      Rewrite.applyRuleAt(currentExpr, toApplyAt, Rules.tupleToStruct)
+      Rewrite.applyRuleAt(currentExpr, toApplyAt, CopyRules.tupleToStruct)
     })
   }
 
@@ -311,7 +311,7 @@ object Lower {
   private def implementIdInMapSeq(lambda: Lambda, idToImplement: Expr, mapSeqForId: Expr): Lambda = {
     TypeChecker.check(lambda.body)
 
-    val implementedId = Rules.implementIdAsDeepCopy.rewrite(idToImplement)
+    val implementedId = CopyRules.implementIdAsDeepCopy.rewrite(idToImplement)
     val idReplaced = Expr.replace(mapSeqForId, idToImplement, implementedId)
 
     val idToGlobal = OpenCLRules.globalMemory.rewrite(idReplaced)
@@ -334,14 +334,14 @@ object Lower {
     Rewrite.applyRuleUntilCannot(lambda, ReduceRules.partialReduceToReduce)
 
   def lowerReduces(lambda: Lambda): Lambda = {
-    val stepOne = Rewrite.applyRuleUntilCannot(lambda, Rules.reduceSeq)
+    val stepOne = Rewrite.applyRuleUntilCannot(lambda, OpenCLRules.reduceSeq)
 
-    val reduceSeqs = Rewrite.listAllPossibleRewrites(stepOne, Rules.addIdAfterReduce)
+    val reduceSeqs = Rewrite.listAllPossibleRewrites(stepOne, CopyRules.addIdAfterReduce)
 
     val idsAfterAdded = reduceSeqs.foldLeft(stepOne)((lambda, pair) =>
       Rewrite.applyRuleAt(lambda, pair._2, pair._1))
 
-    val values = Rewrite.listAllPossibleRewrites(idsAfterAdded, Rules.addIdValue)
+    val values = Rewrite.listAllPossibleRewrites(idsAfterAdded, CopyRules.addIdValue)
 
     val valueIdsAdded = values.foldLeft(idsAfterAdded)((lambda, pair) =>
       Rewrite.applyRuleAt(lambda, pair._2, pair._1))

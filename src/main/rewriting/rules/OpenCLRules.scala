@@ -241,4 +241,15 @@ object OpenCLRules {
         asScalar() o PartRed(VectorizeUserFun(n, uf), init.vectorize(n)) o asVector(n) $ arg
     })
 
+  /* Reduce Rule */
+
+  val reduceSeq = Rule("Reduce(f) => ReduceSeq(f)", {
+    case FunCall(Reduce(f), init, arg) =>
+      ReduceSeq(f, init) $ arg
+  })
+
+  val reduceSeqUnroll = Rule("ReduceSeq(f) => ReduceSeqUnroll(f)", {
+    case FunCall(ReduceSeq(f), init, arg) =>
+      ReduceSeqUnroll(f, init) $ arg
+  })
 }

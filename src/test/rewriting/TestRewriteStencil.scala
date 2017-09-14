@@ -7,7 +7,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.rules.{MacroRules, OpenCLRules, Rules}
+import rewriting.rules._
 import rewriting.utils.NumberExpression
 
 object TestRewriteStencil extends TestWithExecutor
@@ -38,30 +38,30 @@ class TestRewriteStencil {
     val f1 = Rewrite.applyRuleAtId(f, 2, Rules.slideTiling(4))
     val f2 = Rewrite.applyRuleAtId(f1, 1, MacroRules.movingJoin)
     val f3 = Rewrite.applyRuleAtId(f2, 11, Rules.slideTiling(4))
-    val f4 = Rewrite.applyRuleAtId(f3, 5, Rules.mapFission)
-    val f5 = Rewrite.applyRuleAtId(f4, 6, Rules.mapFission)
+    val f4 = Rewrite.applyRuleAtId(f3, 5, FissionRules.mapFission)
+    val f5 = Rewrite.applyRuleAtId(f4, 6, FissionRules.mapFission)
     val f6 = Rewrite.applyRuleAtId(f5, 4, Rules.slidePromotion)
-    val f7 = Rewrite.applyRuleAtId(f6, 3, Rules.mapFusion)
+    val f7 = Rewrite.applyRuleAtId(f6, 3, FusionRules.mapFusion)
     val f8 = Rewrite.applyRuleAtId(f7, 18, Rules.slidePromotion)
-    val f9 = Rewrite.applyRuleAtId(f8, 3, Rules.mapFission)
+    val f9 = Rewrite.applyRuleAtId(f8, 3, FissionRules.mapFission)
     val f10 = Rewrite.applyRuleAtId(f9, 5, Rules.slideSwap)
-    val f11 = Rewrite.applyRuleAtId(f10, 5, Rules.addId)
-    val f12 = Rewrite.applyRuleAtId(f11, 6, Rules.implementOneLevelOfId)
+    val f11 = Rewrite.applyRuleAtId(f10, 5, CopyRules.addId)
+    val f12 = Rewrite.applyRuleAtId(f11, 6, CopyRules.implementOneLevelOfId)
     val f13 = Rewrite.applyRuleAtId(f12, 16, Rules.idTransposeTranspose)
-    val f14 = Rewrite.applyRuleAtId(f13, 6, Rules.mapFission)
+    val f14 = Rewrite.applyRuleAtId(f13, 6, FissionRules.mapFission)
     val f15 = Rewrite.applyRuleAtId(f14, 5, Rules.slideTransposeSwap)
     val f16 = Rewrite.applyRuleAtId(f15, 4, Rules.slideTransposeReordering)
     //
-    val f17 = Rewrite.applyRuleAtId(f16, 2, Rules.mapFusion)
-    val f18 = Rewrite.applyRuleAtId(f17, 35, Rules.mapFusion)
+    val f17 = Rewrite.applyRuleAtId(f16, 2, FusionRules.mapFusion)
+    val f18 = Rewrite.applyRuleAtId(f17, 35, FusionRules.mapFusion)
     val f19 = Rewrite.applyRuleAtId(f18, 37, Rules.transposeMapJoinReordering)
-    val f20 = Rewrite.applyRuleAtId(f19, 35, Rules.mapFission)
-    val f21 = Rewrite.applyRuleAtId(f20, 2, Rules.mapFission)
-    val f22 = Rewrite.applyRuleAtId(f21, 36, Rules.mapFission)
-    val f23 = Rewrite.applyRuleAtId(f22, 3, Rules.mapFission)
+    val f20 = Rewrite.applyRuleAtId(f19, 35, FissionRules.mapFission)
+    val f21 = Rewrite.applyRuleAtId(f20, 2, FissionRules.mapFission)
+    val f22 = Rewrite.applyRuleAtId(f21, 36, FissionRules.mapFission)
+    val f23 = Rewrite.applyRuleAtId(f22, 3, FissionRules.mapFission)
     // cancel **T o **T
-    val f24 = Rewrite.applyRuleAtId(f23, 4, Rules.mapFusion)
-    val f25 = Rewrite.applyRuleAtId(f24, 32, Rules.mapFusion)
+    val f24 = Rewrite.applyRuleAtId(f23, 4, FusionRules.mapFusion)
+    val f25 = Rewrite.applyRuleAtId(f24, 32, FusionRules.mapFusion)
     val f26 = Rewrite.applyRuleAtId(f25, 34, Rules.transposeTransposeId2)
     val f27 = Rewrite.applyRuleAtId(f26, 4, Rules.dropId)
     //
@@ -91,14 +91,14 @@ class TestRewriteStencil {
 
     val f1 = Rewrite.applyRuleAtId(f, 1, Rules.slideTiling(4))
     val f2 = Rewrite.applyRuleAtId(f1, 0, MacroRules.movingJoin)
-    val f3 = Rewrite.applyRuleAtId(f2, 1, Rules.mapFusion)
+    val f3 = Rewrite.applyRuleAtId(f2, 1, FusionRules.mapFusion)
     // introduce low-level primitives
-    val f4 = Rewrite.applyRuleAtId(f3, 8, Rules.reduceSeq)
+    val f4 = Rewrite.applyRuleAtId(f3, 8, OpenCLRules.reduceSeq)
     val f5 = Rewrite.applyRuleAtId(f4, 1, OpenCLRules.mapWrg)
     val f6 = Rewrite.applyRuleAtId(f5, 5, OpenCLRules.mapLcl)
     // copy result back to global memory
-    val f7 = Rewrite.applyRuleAtId(f6, 8, Rules.addIdAfterReduce)
-    val f8 = Rewrite.applyRuleAtId(f7, 15, Rules.implementIdAsDeepCopy)
+    val f7 = Rewrite.applyRuleAtId(f6, 8, CopyRules.addIdAfterReduce)
+    val f8 = Rewrite.applyRuleAtId(f7, 15, CopyRules.implementIdAsDeepCopy)
     val f9 = Rewrite.applyRuleAtId(f8, 8, OpenCLRules.globalMemory)
 
     val (result: Array[Float], _) = Execute(n)(f9, A)
@@ -121,13 +121,13 @@ class TestRewriteStencil {
     // tiling
     val f1 = Rewrite.applyRuleAtId(f, 1, Rules.slideTiling(4))
     val f2 = Rewrite.applyRuleAtId(f1, 0, MacroRules.movingJoin)
-    val f3 = Rewrite.applyRuleAtId(f2, 1, Rules.mapFusion)
+    val f3 = Rewrite.applyRuleAtId(f2, 1, FusionRules.mapFusion)
     // local memory
-    val f4 = Rewrite.applyRuleAtId(f3, 6, Rules.addId)
-    val f5 = Rewrite.applyRuleAtId(f4, 7, Rules.implementIdAsDeepCopy)
-    val f6 = Rewrite.applyRuleAtId(f5, 11, Rules.reduceSeq)
-    val f7 = Rewrite.applyRuleAtId(f6, 11, Rules.addIdAfterReduce)
-    val f8 = Rewrite.applyRuleAtId(f7, 18, Rules.implementIdAsDeepCopy)
+    val f4 = Rewrite.applyRuleAtId(f3, 6, CopyRules.addId)
+    val f5 = Rewrite.applyRuleAtId(f4, 7, CopyRules.implementIdAsDeepCopy)
+    val f6 = Rewrite.applyRuleAtId(f5, 11, OpenCLRules.reduceSeq)
+    val f7 = Rewrite.applyRuleAtId(f6, 11, CopyRules.addIdAfterReduce)
+    val f8 = Rewrite.applyRuleAtId(f7, 18, CopyRules.implementIdAsDeepCopy)
     val f9 = Rewrite.applyRuleAtId(f8, 1, OpenCLRules.mapWrg)
     val f10 = Rewrite.applyRuleAtId(f9, 5, OpenCLRules.mapLcl)
     val f11 = Rewrite.applyRuleAtId(f10, 7, OpenCLRules.mapLcl)
@@ -149,9 +149,9 @@ class TestRewriteStencil {
       )
 
     val f1 = Rewrite.applyRuleAtId(f, 1, MacroRules.tileStencils)
-    val f2 = Rewrite.applyRuleAtId(f1, 9, Rules.reduceSeq)
-    val f3 = Rewrite.applyRuleAtId(f2, 9, Rules.addIdAfterReduce)
-    val f4 = Rewrite.applyRuleAtId(f3, 16, Rules.implementIdAsDeepCopy)
+    val f2 = Rewrite.applyRuleAtId(f1, 9, OpenCLRules.reduceSeq)
+    val f3 = Rewrite.applyRuleAtId(f2, 9, CopyRules.addIdAfterReduce)
+    val f4 = Rewrite.applyRuleAtId(f3, 16, CopyRules.implementIdAsDeepCopy)
     val f5 = Rewrite.applyRuleAtId(f4, 9, OpenCLRules.globalMemory)
     val f6 = Rewrite.applyRuleAtId(f5, 2, OpenCLRules.mapWrg)
     val f7 = Rewrite.applyRuleAtId(f6, 6, OpenCLRules.mapLcl)

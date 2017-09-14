@@ -26,7 +26,7 @@ class TestRules {
       (in1, in2) => Map(fun(x => Map(fun(y => add(x,y))) o Map(id) $ in2)) $ in1
     )
 
-    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.extractFromMap)
+    val f1 = Rewrite.applyRuleAtId(f, 0, FissionRules.extractFromMap)
     TypeChecker(f1)
 
     assertTrue(f1.body.asInstanceOf[FunCall].f.isInstanceOf[Lambda])
@@ -42,7 +42,7 @@ class TestRules {
       )) $ in1
     )
 
-    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.extractFromMap)
+    val f1 = Rewrite.applyRuleAtId(f, 0, FissionRules.extractFromMap)
     TypeChecker(f1)
 
     assertTrue(f1.body.asInstanceOf[FunCall].f.isInstanceOf[Lambda])
@@ -55,7 +55,7 @@ class TestRules {
       Map(plusOne) o Let(Map(id) $ _) $ _
     )
 
-    val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.mapFusion)
+    val f1 = Rewrite.applyRuleAtId(f0, 0, FusionRules.mapFusion)
     TypeChecker(f1)
     assertTrue(f1.body.asInstanceOf[FunCall].f.isInstanceOf[Lambda])
   }
@@ -329,7 +329,7 @@ class TestRules {
     )
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f,
-      Seq(Rules.reduceSeq, Rules.addIdAfterReduce, Rules.implementIdAsDeepCopy, OpenCLRules.globalMemory), 4)
+      Seq(OpenCLRules.reduceSeq, CopyRules.addIdAfterReduce, CopyRules.implementIdAsDeepCopy, OpenCLRules.globalMemory), 4)
 
     val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
 
