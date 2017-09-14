@@ -1120,15 +1120,10 @@ class OpenCLGenerator extends Generator {
     val indexVar = sSP.loopVar
     val step = sSP.step
     val size = sSP.size
-    val range = indexVar.range.asInstanceOf[RangeAdd]
+    val range: RangeAdd = indexVar.range.asInstanceOf[RangeAdd]
     val init = ArithExpression(range.start)
-    val stop = range match {
-      case ra: RangeAdd => ra.stop
-      case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
-    }
-
     val reuse = size - step
-    val cond = CondExpression(ArithExpression(indexVar), ArithExpression((stop - reuse) / step), CondExpression.Operator.<)
+    val cond = CondExpression(ArithExpression(indexVar), ArithExpression(range.stop), CondExpression.Operator.<)
     val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
 
     var vType = call.args.head.view.access(0).t

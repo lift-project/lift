@@ -12,6 +12,8 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 
+import scala.collection.immutable
+
 object TestMapSeqSlide extends TestWithExecutor
 
 object MapSeqSlideHelpers
@@ -1594,9 +1596,9 @@ class TestMapSeqSlide
   @Test
   def stencil3DJacobiMapSeqSlideTest(): Unit = {
 
-    val localDimX = 10
-    val localDimY = 10
-    val localDimZ = 6
+    val localDimX = 512
+    val localDimY = 512
+    val localDimZ = 8
 
     val slidesize = 3
     val slidestep = 1
@@ -1612,8 +1614,8 @@ class TestMapSeqSlide
 
 
     def jacobi3D(a: Int, b: Int) = fun(
-       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
-      // ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 204),514),514),
+       //ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 514),514),10),
       (mat) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
 
@@ -1638,8 +1640,8 @@ class TestMapSeqSlide
       })
 
     def jacobi3Dmapseqslide(a : Int, b : Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2),n+2),o+2),
-      // ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 514),514),204),
+      //ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2),n+2),o+2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 514),514),10),
       (mat) =>
         Map(TransposeW()) o TransposeW() o Map(TransposeW()) /*o Map(TransposeW())*/ o
           MapGlb(0)(MapGlb(1)( fun (x => {
@@ -1666,16 +1668,16 @@ class TestMapSeqSlide
             }),a,b))  } o Transpose() o Map(Transpose()) $ x
           )))  o Slide2D(a,b) o Map(Transpose())  o Transpose() o Map(Transpose()) $ mat)
 
-    val orgLambda = SimplifyAndFuse(jacobi3D(slidesize,slidestep))
-    val sourceOrg = Compile(orgLambda)//, NDRange(32,4,2), NDRange(n,m,1))
-    println(sourceOrg)
+    //val orgLambda = SimplifyAndFuse(jacobi3D(slidesize,slidestep))
+    //val sourceOrg = Compile(orgLambda)//, NDRange(32,4,2), NDRange(n,m,1))
+    //println(sourceOrg)
 
     val lambdaMSS = SimplifyAndFuse(jacobi3Dmapseqslide(slidesize,slidestep))
-    val sourceMSS = Compile(lambdaMSS)//, NDRange(32,4,2), NDRange(n,m,1))
+    val sourceMSS = Compile(lambdaMSS, 1,1,1, 512,512,1, immutable.Map())//, NDRange(32,4,2), NDRange(n,m,1))
     println(sourceMSS)
 
     val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3D(slidesize,slidestep), stencilarrpadded3D)
-    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
+    val (output_MSS: Array[Float], _) = Execute(1,1,1,512,512,1, (true,true))(jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
 
     assertArrayEquals(output_MSS, output_org, StencilUtilities.stencilDelta)
     /*
