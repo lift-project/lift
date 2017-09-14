@@ -32,7 +32,7 @@ class TestSimplification {
       })
 
     TypeChecker(f)
-    assertTrue(Rules.gatherScatterId.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.gatherScatterId.isDefinedAt(f.body))
   }
 
   @Test
@@ -44,7 +44,7 @@ class TestSimplification {
 
     TypeChecker(f)
 
-    assertTrue(Rules.joinSplitId.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.joinSplitId.isDefinedAt(f.body))
   }
 
   @Test
@@ -60,9 +60,9 @@ class TestSimplification {
 
     TypeChecker(f)
 
-    val applyAt = Rewrite.listAllPossibleRewrites(f, Rules.splitJoinId).head._2
+    val applyAt = Rewrite.listAllPossibleRewrites(f, SimplificationRules.splitJoinId).head._2
 
-    val rewritten = Rewrite.applyRuleAt(f, applyAt, Rules.splitJoinId)
+    val rewritten = Rewrite.applyRuleAt(f, applyAt, SimplificationRules.splitJoinId)
     TypeChecker(rewritten)
 
     assertTrue(rewritten.body.t.isInstanceOf[ArrayType])
@@ -84,8 +84,8 @@ class TestSimplification {
       in => Scatter(ReorderWithStride(16)) o Gather(ReorderWithStride(16)) $ in
     )
 
-    assertTrue(Rules.gatherScatterId.rewrite.isDefinedAt(f.body))
-    assertTrue(Rules.scatterGatherId.rewrite.isDefinedAt(g.body))
+    assertTrue(SimplificationRules.gatherScatterId.rewrite.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.scatterGatherId.rewrite.isDefinedAt(g.body))
   }
 
   @Test
@@ -100,7 +100,7 @@ class TestSimplification {
       })
 
     TypeChecker(f)
-    assertTrue(Rules.gatherScatterId.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.gatherScatterId.isDefinedAt(f.body))
   }
 
   @Test
@@ -110,8 +110,8 @@ class TestSimplification {
       input => Transpose() o Transpose() $ input
     )
 
-    assertTrue(Rules.transposeTransposeId.rewrite.isDefinedAt(f.body))
-    assertSame(f.params.head, Rules.transposeTransposeId.rewrite(f.body))
+    assertTrue(SimplificationRules.transposeTransposeId.rewrite.isDefinedAt(f.body))
+    assertSame(f.params.head, SimplificationRules.transposeTransposeId.rewrite(f.body))
   }
 
   @Test

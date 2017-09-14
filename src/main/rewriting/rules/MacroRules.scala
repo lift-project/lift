@@ -460,7 +460,7 @@ object MacroRules {
 
         val newSplit = Utils.getExprForPatternInCallChain(splitJoined, splitPattern).get
 
-        val eliminated = Rewrite.applyRuleAt(splitJoined, Rules.splitJoinId, newSplit)
+        val eliminated = Rewrite.applyRuleAt(splitJoined, SimplificationRules.splitJoinId, newSplit)
 
         eliminated
     })
@@ -474,7 +474,7 @@ object MacroRules {
       case call@FunCall(Split(n), mapCall@FunCall(Map(_), _)) =>
 
         val splitJoined = Rewrite.applyRuleAt(call, Rules.splitJoin(n), mapCall)
-        val eliminated = Rewrite.applyRuleAt(splitJoined, Rules.splitJoinId, splitJoined)
+        val eliminated = Rewrite.applyRuleAt(splitJoined, SimplificationRules.splitJoinId, splitJoined)
 
         eliminated
     })
@@ -501,12 +501,12 @@ object MacroRules {
       })._1
     =>
 
-      if (Rules.splitJoinId.isDefinedAt(call)) {
-        Rules.splitJoinId.rewrite(call)
+      if (SimplificationRules.splitJoinId.isDefinedAt(call)) {
+        SimplificationRules.splitJoinId.rewrite(call)
       } else {
         val newCall = Rewrite.applyRuleAt(call, Rules.splitJoin(n), arg)
 
-        val splitJoinEliminated = Rewrite.applyRuleAt(newCall, Rules.splitJoinId, newCall)
+        val splitJoinEliminated = Rewrite.applyRuleAt(newCall, SimplificationRules.splitJoinId, newCall)
 
         val newSplit = Utils.getExprForPatternInCallChain(splitJoinEliminated, splitPattern).get
 
@@ -689,7 +689,7 @@ object MacroRules {
       =>
         val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 4, Rules.splitTranspose)
         val e1 = Rewrite.depthFirstApplyRuleAtId(e0, 0, FusionRules.mapFusion)
-        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 2, Rules.transposeTransposeId)
+        val e2 = Rewrite.depthFirstApplyRuleAtId(e1, 2, SimplificationRules.transposeTransposeId)
         val e3 = Rewrite.depthFirstApplyRuleAtId(e2, 0, Rules.mapSplitTranspose)
         e3
 

@@ -62,8 +62,8 @@ class TestRewriteStencil {
     // cancel **T o **T
     val f24 = Rewrite.applyRuleAtId(f23, 4, FusionRules.mapFusion)
     val f25 = Rewrite.applyRuleAtId(f24, 32, FusionRules.mapFusion)
-    val f26 = Rewrite.applyRuleAtId(f25, 34, Rules.transposeTransposeId2)
-    val f27 = Rewrite.applyRuleAtId(f26, 4, Rules.dropId)
+    val f26 = Rewrite.applyRuleAtId(f25, 34, SimplificationRules.transposeTransposeId2)
+    val f27 = Rewrite.applyRuleAtId(f26, 4, SimplificationRules.dropId)
     //
     val f28 = Rewrite.applyRuleAtId(f27, 1, Rules.joinSwap)
     val f29 = Rewrite.applyRuleAtId(f28, 3, Rules.transposeSwap)

@@ -45,7 +45,7 @@ class TestRemoveDuplicateZipArg {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.removeDuplicateZipArg.isDefinedAt(f.body))
+    assertFalse(SimplificationRules.removeDuplicateZipArg.isDefinedAt(f.body))
   }
 
   @Test
@@ -55,7 +55,7 @@ class TestRemoveDuplicateZipArg {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.removeDuplicateZipArg.isDefinedAt(f.body))
+    assertFalse(SimplificationRules.removeDuplicateZipArg.isDefinedAt(f.body))
   }
 
   @Test
@@ -65,7 +65,7 @@ class TestRemoveDuplicateZipArg {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.removeDuplicateZipArg.isDefinedAt(f.body))
+    assertFalse(SimplificationRules.removeDuplicateZipArg.isDefinedAt(f.body))
   }
 
   @Test
@@ -74,7 +74,7 @@ class TestRemoveDuplicateZipArg {
       in => Map(\(x => add(x._0, x._1))) $ Zip(in, in)
     )
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.removeDuplicateZipArg)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.removeDuplicateZipArg)
 
     assertFalse(result.body.contains({ case FunCall(Zip(_), _*) => }))
 
@@ -87,7 +87,7 @@ class TestRemoveDuplicateZipArg {
       (a, b) => Map(\(x => add(x._0, mult(x._1, x._2)))) $ Zip(a, b, a)
     )
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.removeDuplicateZipArg)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.removeDuplicateZipArg)
 
     assertFalse(result.body.contains({ case FunCall(Zip(3), _*) => }))
     assertTrue(result.body.contains({ case FunCall(Zip(2), _*) => }))
@@ -105,7 +105,7 @@ class TestRemoveDuplicateZipArg {
       )) $ Zip(Split(64) $ in, Split(64) $ in)
     )
 
-    val result = Rewrite.applyRuleUntilCannot(f, Rules.removeDuplicateZipArg)
+    val result = Rewrite.applyRuleUntilCannot(f, SimplificationRules.removeDuplicateZipArg)
 
     assertFalse(result.body.contains({ case FunCall(Zip(_), _*) => }))
 
@@ -121,7 +121,7 @@ class TestRemoveDuplicateZipArg {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.removeDuplicateZipArg.isDefinedAt(f.body))
+    assertFalse(SimplificationRules.removeDuplicateZipArg.isDefinedAt(f.body))
   }
 
   @Test
@@ -133,7 +133,7 @@ class TestRemoveDuplicateZipArg {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.removeDuplicateZipArg.isDefinedAt(f.body))
+    assertFalse(SimplificationRules.removeDuplicateZipArg.isDefinedAt(f.body))
   }
 
 }

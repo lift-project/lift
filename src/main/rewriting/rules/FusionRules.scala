@@ -103,8 +103,8 @@ object FusionRules {
           case FunCall(Get(i), _) if i == mapInZipIndex =>
 
             val lambdaCall = g $ Get(newLambdaParam, i)
-            if (Rules.lambdaInline.isDefinedAt(lambdaCall))
-              Rules.lambdaInline.rewrite(lambdaCall)
+            if (SimplificationRules.lambdaInline.isDefinedAt(lambdaCall))
+              SimplificationRules.lambdaInline.rewrite(lambdaCall)
             else
               lambdaCall
 

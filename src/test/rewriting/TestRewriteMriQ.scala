@@ -135,8 +135,8 @@ class TestRewriteMriQ {
     val f2 = Rewrite.applyRuleAtId(f1, 21, CopyRules.implementIdAsDeepCopy)
     val f3 = Rewrite.applyRuleAtId(f2, 18, CopyRules.implementIdAsDeepCopy)
     val f4 = Rewrite.applyRuleAtId(f3, 15, CopyRules.implementIdAsDeepCopy)
-    val f5 = Rewrite.applyRuleAtId(f4, 12, Rules.dropId)
-    val f6 = Rewrite.applyRuleAtId(f5, 9, Rules.dropId)
+    val f5 = Rewrite.applyRuleAtId(f4, 12, SimplificationRules.dropId)
+    val f6 = Rewrite.applyRuleAtId(f5, 9, SimplificationRules.dropId)
 
     val f7 = Rewrite.applyRuleAtId(f6, 24, CopyRules.tupleToStruct)
     val f8 = Lower.lowerNextLevelWithRule(f7, OpenCLRules.mapGlb)

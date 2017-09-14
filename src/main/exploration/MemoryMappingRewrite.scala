@@ -396,7 +396,7 @@ object MemoryMappingRewrite {
         if (subset.contains(node) && addressSpaceRule.isDefinedAt(node)) {
           Rewrite.applyRuleAt(tuned_expr, node, addressSpaceRule)
         } else // otherwise we eliminate it
-          Rewrite.applyRuleAt(tuned_expr, node, Rules.dropId)
+          Rewrite.applyRuleAt(tuned_expr, node, SimplificationRules.dropId)
       })
     })
   }
@@ -484,7 +484,7 @@ object MemoryMappingRewrite {
                 copiesAdded = Rewrite.applyRuleAt(copiesAdded, ruleAt2._1, ruleAt2._2)
               })
 
-              val dropLocations = Rewrite.listAllPossibleRewrites(copiesAdded, Rules.dropId)
+              val dropLocations = Rewrite.listAllPossibleRewrites(copiesAdded, SimplificationRules.dropId)
 
               val droppedIds = dropLocations.foldLeft(copiesAdded)((a, b) => {
                 Rewrite.applyRuleAt(a, b._1, b._2)

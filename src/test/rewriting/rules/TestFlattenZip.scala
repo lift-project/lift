@@ -33,7 +33,7 @@ class TestFlattenZip {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.flattenZips.isDefinedAt(f.body))
+    assertFalse(SimplificationRules.flattenZips.isDefinedAt(f.body))
   }
 
   @Test
@@ -44,7 +44,7 @@ class TestFlattenZip {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.flattenZips.isDefinedAt(f.body))
+    assertFalse(SimplificationRules.flattenZips.isDefinedAt(f.body))
   }
 
   @Test
@@ -55,7 +55,7 @@ class TestFlattenZip {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.flattenZips.isDefinedAt(f.body))
+    assertFalse(SimplificationRules.flattenZips.isDefinedAt(f.body))
   }
 
   @Test
@@ -66,7 +66,7 @@ class TestFlattenZip {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.flattenZips.isDefinedAt(f.body))
+    assertFalse(SimplificationRules.flattenZips.isDefinedAt(f.body))
   }
 
   @Test
@@ -77,9 +77,9 @@ class TestFlattenZip {
     )
 
     val origType = TypeChecker(f)
-    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.flattenZips.isDefinedAt(f.body))
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.flattenZips)
     val resultType = TypeChecker(result)
 
     assertEquals(origType, resultType)
@@ -93,9 +93,9 @@ class TestFlattenZip {
     )
 
     val origType = TypeChecker(f)
-    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.flattenZips.isDefinedAt(f.body))
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.flattenZips)
     val resultType = TypeChecker(result)
 
     assertEquals(origType, resultType)
@@ -109,9 +109,9 @@ class TestFlattenZip {
     )
 
     val origType = TypeChecker(f)
-    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.flattenZips.isDefinedAt(f.body))
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.flattenZips)
     val resultType = TypeChecker(result)
 
     assertEquals(origType, resultType)
@@ -132,9 +132,9 @@ class TestFlattenZip {
     )
 
     val origType = TypeChecker(f)
-    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.flattenZips.isDefinedAt(f.body))
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.flattenZips)
     val resultType = TypeChecker(result)
 
     assertEquals(origType, resultType)
@@ -163,9 +163,9 @@ class TestFlattenZip {
     )
 
     val origType = TypeChecker(f)
-    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.flattenZips.isDefinedAt(f.body))
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.flattenZips)
     val resultType = TypeChecker(result)
 
     assertEquals(origType, resultType)
@@ -191,9 +191,9 @@ class TestFlattenZip {
     )
 
     val origType = TypeChecker(f)
-    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.flattenZips.isDefinedAt(f.body))
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.flattenZips)
     val resultType = TypeChecker(result)
 
     assertEquals(origType, resultType)

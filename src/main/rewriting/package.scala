@@ -8,6 +8,7 @@ import rewriting.rules.ReduceRules._
 import rewriting.rules.CopyRules._
 import rewriting.rules.FissionRules._
 import rewriting.rules.FusionRules._
+import rewriting.rules.SimplificationRules._
 
 package object rewriting {
   val mapLoweringRules =

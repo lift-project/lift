@@ -112,7 +112,7 @@ class TestRewriteMatrixMatrix {
     val f2 = Rewrite.applyRuleAtId(f1, 31, CopyRules.addIdForCurrentValueInReduce)
     val f3 = Rewrite.applyRuleAtId(f2, 46, CopyRules.implementIdAsDeepCopy)
     val f4 = Rewrite.applyRuleAtId(f3, 91, CopyRules.implementOneLevelOfId)
-    val f5 = Rewrite.applyRuleAtId(f4, 95, Rules.dropId)
+    val f5 = Rewrite.applyRuleAtId(f4, 95, SimplificationRules.dropId)
     val f6 = Rewrite.applyRuleAtId(f5, 92, CopyRules.implementIdAsDeepCopy)
     val f7 = Rewrite.applyRuleAtId(f6, 101, CopyRules.addCopy)
     val f8 = Rewrite.applyRuleAtId(f7, 46, FusionRules.tupleMap)

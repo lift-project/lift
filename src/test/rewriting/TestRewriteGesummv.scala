@@ -66,8 +66,8 @@ class TestRewriteGesummv {
 
     val f1 = Rewrite.applyRuleAtId(f0, 0, Rules.splitJoin(1))
     val f2 = Rewrite.applyRuleAtId(f1, 1, Rules.splitIntoZip)
-    val f3 = Rewrite.applyRuleAtId(f2, 25, Rules.splitJoinId)
-    val f4 = Rewrite.applyRuleAtId(f3, 3, Rules.splitJoinId)
+    val f3 = Rewrite.applyRuleAtId(f2, 25, SimplificationRules.splitJoinId)
+    val f4 = Rewrite.applyRuleAtId(f3, 3, SimplificationRules.splitJoinId)
     val f5 = Rewrite.applyRuleAtId(f4, 2, FusionRules.mapFusionInZip)
     val f6 = Rewrite.applyRuleAtId(f5, 1, FusionRules.mapFusion)
     val f7 = Rewrite.applyRuleAtId(f6, 5, FusionRules.fuseZipTuple)
@@ -78,7 +78,7 @@ class TestRewriteGesummv {
     val f12 = Rewrite.applyRuleAtId(f11, 6, MacroRules.reduceMapFusion)
 
     // Not strictly necessary, but makes it look nicer
-    val f14 = Rewrite.applyRuleAtId(f12, 17, Rules.tupleInline)
+    val f14 = Rewrite.applyRuleAtId(f12, 17, SimplificationRules.tupleInline)
 
     val f15 = Lower.lowerNextLevelWithRule(f14, OpenCLRules.mapGlb)
     val f16 = Lower.lowerNextLevelWithRule(f15, OpenCLRules.mapSeq)
@@ -107,7 +107,7 @@ class TestRewriteGesummv {
 
     assertEquals(3, numConcreteMapsAndReduces)
 
-    val f14 = Rewrite.applyRuleAtId(f2, 17, Rules.tupleInline)
+    val f14 = Rewrite.applyRuleAtId(f2, 17, SimplificationRules.tupleInline)
 
     val f15 = Lower.lowerNextLevelWithRule(f14, OpenCLRules.mapGlb)
     val f16 = Lower.lowerNextLevelWithRule(f15, OpenCLRules.mapSeq)
@@ -126,9 +126,9 @@ class TestRewriteGesummv {
   def fuseAndOptimise(): Unit = {
 
     val f1 = SimplifyAndFuse.withoutPreventingFurtherOptimisation(f0)
-    val g = Rewrite.applyRuleUntilCannot(f1, Rules.flattenZips)
+    val g = Rewrite.applyRuleUntilCannot(f1, SimplificationRules.flattenZips)
 
-    val g1 = Rewrite.applyRuleAtId(g, 7, Rules.removeDuplicateZipArg)
+    val g1 = Rewrite.applyRuleAtId(g, 7, SimplificationRules.removeDuplicateZipArg)
 
     val f2 = Rewrite.applyRuleAtId(g1, 1, Rules.splitJoin(64))
     val f3 = Rewrite.applyRuleAtId(f2, 7, MacroRules.interchange)
@@ -138,13 +138,13 @@ class TestRewriteGesummv {
     val lowered = Lower.mapCombinations(f5, mappings).head
 
     // Make it look nicer + makes MacroRules.userFunCompositionToPrivate applicable
-    val tupleInlined = Rewrite.applyRuleAtId(lowered, 79, Rules.tupleInline)
+    val tupleInlined = Rewrite.applyRuleAtId(lowered, 79, SimplificationRules.tupleInline)
 
     val l0 = Rewrite.applyRuleAtId(tupleInlined, 9, CopyRules.addIdForCurrentValueInReduce)
     val l1 = Rewrite.applyRuleAtId(l0, 30, CopyRules.implementOneLevelOfId)
-    val l2 = Rewrite.applyRuleAtId(l1, 37, Rules.dropId)
+    val l2 = Rewrite.applyRuleAtId(l1, 37, SimplificationRules.dropId)
     val l3 = Rewrite.applyRuleAtId(l2, 34, CopyRules.implementIdAsDeepCopy)
-    val l4 = Rewrite.applyRuleAtId(l3, 31, Rules.dropId)
+    val l4 = Rewrite.applyRuleAtId(l3, 31, SimplificationRules.dropId)
     val l7 = Rewrite.applyRuleAtId(l4, 33, OpenCLRules.localMemory)
     val l8 = Lower.lowerNextLevelWithRule(l7, OpenCLRules.mapLcl)
 
@@ -163,15 +163,15 @@ class TestRewriteGesummv {
   @Test
   def partialReduceWithReorder(): Unit = {
     val f1 = SimplifyAndFuse.withoutPreventingFurtherOptimisation(f0)
-    val g = Rewrite.applyRuleUntilCannot(f1, Rules.flattenZips)
+    val g = Rewrite.applyRuleUntilCannot(f1, SimplificationRules.flattenZips)
 
-    val g1 = Rewrite.applyRuleAtId(g, 7, Rules.removeDuplicateZipArg)
+    val g1 = Rewrite.applyRuleAtId(g, 7, SimplificationRules.removeDuplicateZipArg)
 
     val g2 = Rewrite.applyRuleAtId(g1, 6, MacroRules.partialReduceWithReorder(128))
 
     val lowered = Lower.mapCombinations(g2, mappings).head
 
-    val l0 = Rewrite.applyRuleAtId(lowered, 62, Rules.tupleInline)
+    val l0 = Rewrite.applyRuleAtId(lowered, 62, SimplificationRules.tupleInline)
     val l1 = Rewrite.applyRuleAtId(l0, 62, MacroRules.userFunCompositionToPrivate)
     val l2 = Rewrite.applyRuleAtId(l1, 17, CopyRules.addIdAfterReduce)
     val l3 = Rewrite.applyRuleAtId(l2, 6, CopyRules.addIdAfterReduce)

@@ -9,7 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
-import rewriting.rules.{CopyRules, OpenCLRules, Rules}
+import rewriting.rules.{CopyRules, OpenCLRules, Rules, SimplificationRules}
 
 object TestRewriteMD {
   @BeforeClass
@@ -75,7 +75,7 @@ class TestRewriteMD {
     val f5 = Rewrite.applyRuleAtId(f4, 7, OpenCLRules.mapLcl)
     val f6 = Rewrite.applyRuleAtId(f5, 14, OpenCLRules.privateMemory)
     val f7 = Rewrite.applyRuleAtId(f6, 17, CopyRules.implementOneLevelOfId)
-    val f8 = Rewrite.applyRuleAtId(f7, 11, Rules.dropId)
+    val f8 = Rewrite.applyRuleAtId(f7, 11, SimplificationRules.dropId)
     val f9 = Rewrite.applyRuleAtId(f8, 18, CopyRules.addIdAfterReduce)
     val f10 = Rewrite.applyRuleAtId(f9, 18, OpenCLRules.globalMemory)
     val f11 = Rewrite.applyRuleAtId(f10, 35, CopyRules.implementIdAsDeepCopy)
