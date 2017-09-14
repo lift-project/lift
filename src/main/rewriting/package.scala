@@ -4,6 +4,7 @@ import rewriting.rules.Rules._
 import rewriting.rules.IterateRules._
 import rewriting.rules.OpenCLRules._
 import rewriting.rules.InterchangeRules._
+import rewriting.rules.ReduceRules._
 
 package object rewriting {
   val mapLoweringRules =

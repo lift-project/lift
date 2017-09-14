@@ -9,7 +9,7 @@ import ir.ast._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 import rewriting._
-import rewriting.rules.{MacroRules, OpenCLRules, Rule, Rules}
+import rewriting.rules._
 import rewriting.utils._
 
 object HighLevelRewrite {
@@ -258,7 +258,7 @@ object HighLevelRewrite {
 
   def finishRewriting(lambda: Lambda): Lambda = {
     val partRedToReduce =
-      Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.partialReduceToReduce))
+      Rewrite.applyRuleUntilCannot(lambda, ReduceRules.partialReduceToReduce)
 
     val simplified = SimplifyAndFuse(partRedToReduce)
     applyAlwaysRules(simplified)

@@ -5,7 +5,7 @@ import com.typesafe.scalalogging.Logger
 import ir.ast._
 import ir.{Context, TupleType, TypeChecker}
 import opencl.ir.pattern._
-import rewriting.rules.{MacroRules, OpenCLRules, Rule, Rules}
+import rewriting.rules._
 import rewriting.utils._
 
 case class EnabledMappings(
@@ -336,7 +336,7 @@ object Lower {
     findExpressionForPattern(lambda, { case FunCall(_:UserFun, _*) => } : PartialFunction[Expr, Unit])
 
   def lowerPartialReduces(lambda: Lambda): Lambda =
-    Rewrite.applyRuleUntilCannot(lambda, Rules.partialReduceToReduce)
+    Rewrite.applyRuleUntilCannot(lambda, ReduceRules.partialReduceToReduce)
 
   def lowerReduces(lambda: Lambda): Lambda = {
     val stepOne = Rewrite.applyRuleUntilCannot(lambda, Rules.reduceSeq)

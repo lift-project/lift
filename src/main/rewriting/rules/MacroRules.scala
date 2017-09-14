@@ -2,9 +2,6 @@ package rewriting.rules
 
 import ir._
 import ir.ast._
-import opencl.ir._
-import opencl.ir.ast._
-import opencl.ir.pattern._
 import lift.arithmetic.{?, ArithExpr}
 import opencl.ir.pattern.{MapSeq, ReduceSeq}
 import rewriting.Rewrite
@@ -154,7 +151,7 @@ object MacroRules {
     Rule("vectorizeReduce", {
       case fc@FunCall(Reduce(_), _, _) =>
 
-        val part = Rewrite.applyRuleAt(fc, Rules.partialReduce, fc)
+        val part = Rewrite.applyRuleAt(fc, ReduceRules.partialReduce, fc)
         val partRed = Utils.getExprForPatternInCallChain(part,
           { case FunCall(PartRed(_), _*) => }).get
         val res =
@@ -174,13 +171,13 @@ object MacroRules {
         val splitFactor = len /^ stride
 
         // Rewrite Reduce to Reduce o Join() o Map(Reduce) o Split o ReorderStride
-        val part = Rewrite.applyRuleAt(funCall, Rules.partialReduce, funCall)
+        val part = Rewrite.applyRuleAt(funCall, ReduceRules.partialReduce, funCall)
         val partRed = Utils.getExprForPatternInCallChain(part, { case FunCall(PartRed(_), _*) => }).get
 
-        val reorder = Rewrite.applyRuleAt(part, Rules.partialReduceReorder(stride), partRed)
+        val reorder = Rewrite.applyRuleAt(part, ReduceRules.partialReduceReorder(stride), partRed)
         val partRed2 = Utils.getExprForPatternInCallChain(reorder, { case FunCall(PartRed(_), _*) => }).get
 
-        val splitJoin = Rewrite.applyRuleAt(reorder, Rules.partialReduceSplitJoin(splitFactor), partRed2)
+        val splitJoin = Rewrite.applyRuleAt(reorder, ReduceRules.partialReduceSplitJoin(splitFactor), partRed2)
 
         // Find maps before the reduce
         val maps = Utils.visitFunCallChainWithState((true, List[Expr]()))(arg, (e, s) => {
@@ -656,9 +653,9 @@ object MacroRules {
               if (Rules.splitJoin.isDefinedAt(expr))
                 Rewrite.applyRuleAt(funCall, Rules.splitJoin(x), expr)
               else {
-                val appliedPartialReduce = Rules.partialReduce.rewrite(expr)
+                val appliedPartialReduce = ReduceRules.partialReduce.rewrite(expr)
 
-                val rule = Rules.partialReduceSplitJoin(x)
+                val rule = ReduceRules.partialReduceSplitJoin(x)
                 val partialReduce = Utils.getExprForPatternInCallChain(
                 appliedPartialReduce, { case e if rule.isDefinedAt(e) => }).get
 
@@ -918,12 +915,12 @@ object MacroRules {
           splitJoined = Rewrite.applyRuleAt(call, Rules.splitJoin(arithExpr), insideMap.get)
         } else {
           val insideReduce = Utils.getExprForPatternInCallChain(body, { case FunCall(Reduce(_), _, _) => })
-          val partialReduce = Rewrite.applyRuleAt(call, Rules.partialReduce, insideReduce.get)
+          val partialReduce = Rewrite.applyRuleAt(call, ReduceRules.partialReduce, insideReduce.get)
 
           val newBody = getMapBody(partialReduce)
 
           val newReduce = Utils.getExprForPatternInCallChain(newBody, { case FunCall(PartRed(_), _, _) => })
-          splitJoined = Rewrite.applyRuleAt(partialReduce, Rules.partialReduceSplitJoin(arithExpr), newReduce.get)
+          splitJoined = Rewrite.applyRuleAt(partialReduce, ReduceRules.partialReduceSplitJoin(arithExpr), newReduce.get)
         }
 
         // TODO: Only in the inside call chain

@@ -8,7 +8,7 @@ import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{Assume, Test}
-import rewriting.rules.{MacroRules, OpenCLRules, Rules}
+import rewriting.rules.{MacroRules, OpenCLRules, ReduceRules, Rules}
 
 object TestRewriteGemv extends TestWithExecutor
 
@@ -54,15 +54,15 @@ class TestRewriteGemv {
   def gemvAMD(): Unit = {
 
     // Algorithmic rewrite
-    val f1 = Rewrite.applyRuleAtId(f, 5, Rules.partialReduce)
-    val f2 = Rewrite.applyRuleAtId(f1, 6, Rules.partialReduceReorder(128))
+    val f1 = Rewrite.applyRuleAtId(f, 5, ReduceRules.partialReduce)
+    val f2 = Rewrite.applyRuleAtId(f1, 6, ReduceRules.partialReduceReorder(128))
     val f3 = Rewrite.applyRuleAtId(f2, 8, Rules.reorderBothSidesWithStride(128))
     val f4 = Rewrite.applyRuleAtId(f3, 7, Rules.gatherScatterId)
     val f5 = Rewrite.applyRuleAtId(f4, 7, Rules.splitJoin(M/^128))
-    val f6 = Rewrite.applyRuleAtId(f5, 6, Rules.partialReduceSplitJoin(M/^128))
+    val f6 = Rewrite.applyRuleAtId(f5, 6, ReduceRules.partialReduceSplitJoin(M/^128))
     val f7 = Rewrite.applyRuleAtId(f6, 8, Rules.splitJoinId)
     val f8 = Rewrite.applyRuleAtId(f7, 7, Rules.mapFusion)
-    val f9 = Rewrite.applyRuleAtId(f8, 14, Rules.partialReduceToReduce)
+    val f9 = Rewrite.applyRuleAtId(f8, 14, ReduceRules.partialReduceToReduce)
     val f10 = Rewrite.applyRuleAtId(f9, 14, MacroRules.reduceMapFusion)
 
     // Lower to OpenCL
@@ -139,7 +139,7 @@ class TestRewriteGemv {
 
     val f1 = Rewrite.applyRuleAtId(f, 6, OpenCLRules.vectorizeMapZip(4))
     val f2 = Rewrite.applyRuleAtId(f1, 5, MacroRules.vectorizeReduce(4))
-    val f3 = Rewrite.applyRuleAtId(f2, 7, Rules.partialReduceToReduce)
+    val f3 = Rewrite.applyRuleAtId(f2, 7, ReduceRules.partialReduceToReduce)
     val f4 = SimplifyAndFuse(f3)
     assertTrue(HighLevelRewrite.filterByDistance(f4))
   }

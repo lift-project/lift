@@ -10,7 +10,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
-import rewriting.rules.{MacroRules, OpenCLRules, Rules}
+import rewriting.rules.{MacroRules, OpenCLRules, ReduceRules, Rules}
 import rewriting.utils.NumberExpression
 
 object TestRewriteMatrixMatrix extends TestWithExecutor
@@ -48,7 +48,7 @@ class TestRewriteMatrixMatrix {
     val f3 = Rewrite.applyRuleAtId(f2, 24, MacroRules.apply2DRegisterBlocking)
     val f4 = Rewrite.applyRuleAtId(f3, 11, MacroRules.apply2DRegisterBlocking)
     val f5 = Rewrite.applyRuleAtId(f4, 13, MacroRules.finishTiling)
-    val f6 = Rewrite.applyRuleAtId(f5, 98, Rules.partialReduceToReduce)
+    val f6 = Rewrite.applyRuleAtId(f5, 98, ReduceRules.partialReduceToReduce)
     val f7 = SimplifyAndFuse(f6)
 
     // Final steps, move transpose inside tiling + tiling (kernel) for A
@@ -209,7 +209,7 @@ class TestRewriteMatrixMatrix {
     val f5 = Rewrite.applyRuleAtId(f4, 12, MacroRules.finishTiling)
     val f6 = Rewrite.applyRuleAtId(f5, 6, MacroRules.moveTransposeInsideTiling)
 
-    val f7 = Rewrite.applyRuleAtId(f6, 82, Rules.partialReduceToReduce)
+    val f7 = Rewrite.applyRuleAtId(f6, 82, ReduceRules.partialReduceToReduce)
     val f8 = SimplifyAndFuse(f7)
 
     val ruleSeq = Seq(
@@ -365,7 +365,7 @@ class TestRewriteMatrixMatrix {
     val f3 = Rewrite.applyRuleAtId(f2, 1, MacroRules.moveTransposeInsideTiling)
 
     val f4 = Rewrite.applyRuleAtId(f3, 18, MacroRules.finishTiling)
-    val f5 = Rewrite.applyRuleAtId(f4, 70, Rules.partialReduceToReduce)
+    val f5 = Rewrite.applyRuleAtId(f4, 70, ReduceRules.partialReduceToReduce)
     val f6 = SimplifyAndFuse(f5)
 
     val numExpressions = NumberExpression.breadthFirst(f3).values.max
@@ -443,7 +443,7 @@ class TestRewriteMatrixMatrix {
 
     val f1 = Rewrite.applyRuleAtId(f0, 5, OpenCLRules.vectorizeMapZip(4))
     val f2 = Rewrite.applyRuleAtId(f1, 4, MacroRules.vectorizeReduce(4))
-    val f3 = Rewrite.applyRuleAtId(f2, 6, Rules.partialReduceToReduce)
+    val f3 = Rewrite.applyRuleAtId(f2, 6, ReduceRules.partialReduceToReduce)
     val f4 = SimplifyAndFuse(f3)
 
     val numExpressions = NumberExpression.breadthFirst(f4).values.max
@@ -473,7 +473,7 @@ class TestRewriteMatrixMatrix {
     val f3 = Rewrite.applyRuleAtId(f2, 25, MacroRules.apply2DRegisterBlockingNoReorder)
     val f4 = Rewrite.applyRuleAtId(f3, 12, MacroRules.apply2DRegisterBlockingNoReorder)
     val f5 = Rewrite.applyRuleAtId(f4, 13, MacroRules.finishTiling)
-    val f6 = Rewrite.applyRuleAtId(f5, 93, Rules.partialReduceToReduce)
+    val f6 = Rewrite.applyRuleAtId(f5, 93, ReduceRules.partialReduceToReduce)
     val f7 = SimplifyAndFuse(f6)
 
     // Final steps, move transpose inside tiling
