@@ -10,7 +10,7 @@ import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 import rewriting._
 import rewriting.rules._
-import rewriting.rules.`macro`.MacroRules
+import rewriting.rules.`macro`.{MacroRules, ReuseRules}
 import rewriting.utils._
 
 object HighLevelRewrite {
@@ -201,14 +201,14 @@ object HighLevelRewrite {
     val cutoff = settings.highLevelRewriteSettings.depth
     val depth = NumberExpression.byDepth(lambda).values.max
 
-    val isTiling = ruleSeq.nonEmpty && ruleSeq.head == MacroRules.tileMapMap
+    val isTiling = ruleSeq.nonEmpty && ruleSeq.head == ReuseRules.tileMapMap
     val has2finishTiling = isTiling && ruleSeq.length == 5 &&
-      ruleSeq.count(_ == MacroRules.finishTiling) == 2
+      ruleSeq.count(_ == ReuseRules.finishTiling) == 2
 
     val is1DBlocking = has2finishTiling &&
-      ruleSeq.count(_ == MacroRules.apply1DRegisterBlocking) == 2
+      ruleSeq.count(_ == ReuseRules.apply1DRegisterBlocking) == 2
     val is2DBlocking = has2finishTiling &&
-      ruleSeq.count(_ == MacroRules.apply2DRegisterBlocking) == 2
+      ruleSeq.count(_ == ReuseRules.apply2DRegisterBlocking) == 2
 
     isTiling && has2finishTiling &&
       (is2DBlocking && depth <= cutoff+2 || is1DBlocking && depth <= cutoff+1) ||
@@ -270,7 +270,7 @@ object HighLevelRewrite {
     Utils.countMapsAtCurrentLevel(lambda.body) == 1
 
   def applyAlwaysRules(lambda: Lambda): Lambda = {
-    val alwaysApply = Seq(MacroRules.moveTransposeInsideTiling)
+    val alwaysApply = Seq(ReuseRules.moveTransposeInsideTiling)
 
     Rewrite.applyRulesUntilCannot(lambda, alwaysApply)
   }
@@ -302,11 +302,11 @@ object RuleCollection {
     MacroRules.tile2DStencilsZip6
   )
   private val defaultRules = Seq(
-      MacroRules.apply2DRegisterBlocking,
-      MacroRules.apply2DRegisterBlockingNoReorder,
-      MacroRules.apply1DRegisterBlocking,
-      MacroRules.tileMapMap,
-      MacroRules.finishTiling,
+      ReuseRules.apply2DRegisterBlocking,
+      ReuseRules.apply2DRegisterBlockingNoReorder,
+      ReuseRules.apply1DRegisterBlocking,
+      ReuseRules.tileMapMap,
+      ReuseRules.finishTiling,
       MacroRules.partialReduceWithReorder,
       MacroRules.tileStencils,
       vecRed,
@@ -379,37 +379,37 @@ object RuleCollection {
       .filter((_, times) => times >= repetitions)
       ._1
 
-    if (!distinctRulesApplied.contains(MacroRules.tileMapMap))
-      dontTryThese = MacroRules.finishTiling +: dontTryThese
+    if (!distinctRulesApplied.contains(ReuseRules.tileMapMap))
+      dontTryThese = ReuseRules.finishTiling +: dontTryThese
 
-    if (distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking))
-      dontTryThese = MacroRules.apply2DRegisterBlockingNoReorder +: dontTryThese
+    if (distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlocking))
+      dontTryThese = ReuseRules.apply2DRegisterBlockingNoReorder +: dontTryThese
 
-    if (distinctRulesApplied.contains(MacroRules.apply2DRegisterBlockingNoReorder))
-      dontTryThese = MacroRules.apply2DRegisterBlocking +: dontTryThese
+    if (distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlockingNoReorder))
+      dontTryThese = ReuseRules.apply2DRegisterBlocking +: dontTryThese
 
-    if (distinctRulesApplied.contains(MacroRules.apply1DRegisterBlocking)
-        || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking)
-        || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlockingNoReorder)
-        || distinctRulesApplied.contains(MacroRules.tileMapMap))
-      dontTryThese = MacroRules.tileMapMap +: dontTryThese
+    if (distinctRulesApplied.contains(ReuseRules.apply1DRegisterBlocking)
+        || distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlocking)
+        || distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlockingNoReorder)
+        || distinctRulesApplied.contains(ReuseRules.tileMapMap))
+      dontTryThese = ReuseRules.tileMapMap +: dontTryThese
 
-    if (distinctRulesApplied.contains(MacroRules.apply1DRegisterBlocking))
-      dontTryThese = MacroRules.apply2DRegisterBlocking +: MacroRules.apply2DRegisterBlockingNoReorder +: MacroRules.tileMapMap +: dontTryThese
+    if (distinctRulesApplied.contains(ReuseRules.apply1DRegisterBlocking))
+      dontTryThese = ReuseRules.apply2DRegisterBlocking +: ReuseRules.apply2DRegisterBlockingNoReorder +: ReuseRules.tileMapMap +: dontTryThese
 
-    if (distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking)
-        || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlockingNoReorder))
-      dontTryThese = MacroRules.apply1DRegisterBlocking +: dontTryThese
+    if (distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlocking)
+        || distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlockingNoReorder))
+      dontTryThese = ReuseRules.apply1DRegisterBlocking +: dontTryThese
 
     if (distinctRulesApplied.contains(vecZip)
-          || (distinctRulesApplied.contains(MacroRules.tileMapMap)
-            && !distinctRulesApplied.contains(MacroRules.finishTiling)))
+          || (distinctRulesApplied.contains(ReuseRules.tileMapMap)
+            && !distinctRulesApplied.contains(ReuseRules.finishTiling)))
       dontTryThese = vecZip +: dontTryThese
 
-    if (distinctRulesApplied.contains(MacroRules.tileMapMap)
-        || distinctRulesApplied.contains(MacroRules.apply1DRegisterBlocking)
-        || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlocking)
-        || distinctRulesApplied.contains(MacroRules.apply2DRegisterBlockingNoReorder)
+    if (distinctRulesApplied.contains(ReuseRules.tileMapMap)
+        || distinctRulesApplied.contains(ReuseRules.apply1DRegisterBlocking)
+        || distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlocking)
+        || distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlockingNoReorder)
         || distinctRulesApplied.contains(vecRed))
       dontTryThese = vecRed +: dontTryThese
 

@@ -8,7 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.rules.`macro`.MacroRules
+import rewriting.rules.`macro`.{MacroRules, ReuseRules}
 import rewriting.utils.NumberExpression
 
 object TestMacroRules extends TestWithExecutor
@@ -261,7 +261,7 @@ class TestMacroRules {
     val idMap = NumberExpression.breadthFirst(f)
     val expr = Rewrite.getExprForId(f.body, 3, idMap)
 
-    assertFalse(MacroRules.apply2DRegisterBlocking.isDefinedAt(expr))
+    assertFalse(ReuseRules.apply2DRegisterBlocking.isDefinedAt(expr))
   }
 
 
@@ -319,7 +319,7 @@ class TestMacroRules {
               FunCall(Split(v__4),
                 FunCall(Transpose(), p_0))))))
 
-    val result = Rewrite.applyRuleAtId(f, 2, MacroRules.apply2DRegisterBlocking)
+    val result = Rewrite.applyRuleAtId(f, 2, ReuseRules.apply2DRegisterBlocking)
     TypeChecker(result)
   }
 
@@ -347,6 +347,6 @@ class TestMacroRules {
           )), FunCall(Transpose(), p_0)))
 
     // TODO: Doesn't quite do what you'd expect
-    Rewrite.applyRuleAtId(f, 0, MacroRules.finishTiling)
+    Rewrite.applyRuleAtId(f, 0, ReuseRules.finishTiling)
   }
 }

@@ -8,8 +8,8 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.rules.`macro`.MacroRules
-import rewriting.utils.{DumpToFile, Utils}
+import rewriting.rules.`macro`.{MacroRules, ReuseRules}
+import rewriting.utils.DumpToFile
 
 class TestHighLevelRewrite {
 
@@ -124,8 +124,8 @@ class TestHighLevelRewrite {
     val vectorisedSeq =
       Seq(rewriter.vecZip, rewriter.vecRed)
     val partiallyVectorisedTiledSeq =
-      Seq(MacroRules.tileMapMap, MacroRules.finishTiling,
-        MacroRules.finishTiling, rewriter.vecZip)
+      Seq(ReuseRules.tileMapMap, ReuseRules.finishTiling,
+        ReuseRules.finishTiling, rewriter.vecZip)
 
     val possibleVectorised = rewrittenLambdas.filter(_._2 == vectorisedSeq)
     val possiblePartiallyVectorisedTiled =
@@ -153,17 +153,17 @@ class TestHighLevelRewrite {
     val rewrittenLambdas = rewriter(mmTransposedA)
 
     val plainTilingSeq =
-      Seq(MacroRules.tileMapMap, MacroRules.finishTiling, MacroRules.finishTiling)
+      Seq(ReuseRules.tileMapMap, ReuseRules.finishTiling, ReuseRules.finishTiling)
 
     val tilingWith1DBlockingSeq =
-      Seq(MacroRules.tileMapMap, MacroRules.finishTiling,
-        MacroRules.apply1DRegisterBlocking, MacroRules.apply1DRegisterBlocking,
-        MacroRules.finishTiling)
+      Seq(ReuseRules.tileMapMap, ReuseRules.finishTiling,
+        ReuseRules.apply1DRegisterBlocking, ReuseRules.apply1DRegisterBlocking,
+        ReuseRules.finishTiling)
 
     val tilingWith2DBlockingSeq =
-      Seq(MacroRules.tileMapMap, MacroRules.finishTiling,
-        MacroRules.apply2DRegisterBlocking, MacroRules.apply2DRegisterBlocking,
-        MacroRules.finishTiling)
+      Seq(ReuseRules.tileMapMap, ReuseRules.finishTiling,
+        ReuseRules.apply2DRegisterBlocking, ReuseRules.apply2DRegisterBlocking,
+        ReuseRules.finishTiling)
 
     val possiblePlainTiling = rewrittenLambdas.filter(_._2 == plainTilingSeq)
     val possibleOneD = rewrittenLambdas.filter(_._2 == tilingWith1DBlockingSeq)
