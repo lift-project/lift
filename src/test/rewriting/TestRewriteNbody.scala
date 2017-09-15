@@ -19,8 +19,8 @@ object TestRewriteNbody extends TestWithExecutor
 class TestRewriteNbody {
 
   private val f = fun(
-    ArrayTypeWSWC(Float4, N),
-    ArrayTypeWSWC(Float4, N),
+    ArrayType(Float4, N),
+    ArrayType(Float4, N),
     Float,
     Float,
     (pos, vel, espSqr, deltaT) =>
@@ -50,7 +50,6 @@ class TestRewriteNbody {
 
     val f4 = Rewrite.applyRuleAtId(f12, 9, ReuseRules.introduceReuseFromMap(128))
     val f11 = Rewrite.applyRuleAtId(f4, 12, ReuseRules.introduceReuseFromMap(128))
-
 
     val lowered = Lower.mapCombinations(f11, group0Mapping).head
 
