@@ -15,14 +15,19 @@ object MacroRules {
   private val mapMapPattern: PartialFunction[Expr, Unit] =
   { case FunCall(Map(Lambda(_, FunCall(map:Map, _))), _) if map.f.body.isConcrete => }
 
-  private def isUserFun(expr: Expr) = expr match {
-     case FunCall(_: UserFun, _*)  | FunCall(_: VectorizeUserFun, _*) => true
+  private def isUserFun(expr: Expr): Boolean = expr match {
+     case FunCall(funDecl, _*) => isUserFun(funDecl)
      case _ => false
   }
 
+  private def isUserFun(funDecl: FunDecl): Boolean = funDecl match {
+    case _: UserFun | _: VectorizeUserFun => true
+    case _ => false
+  }
+
   val userFunCompositionToPrivate = Rule("userFunCompositionToPrivate", {
-    case FunCall(uf: UserFun, args@_*)
-      if args.count(expr => isUserFun(expr) && OpenCLRules.privateMemory.isDefinedAt(expr)) > 0
+    case FunCall(uf, args@_*)
+      if isUserFun(uf) && args.count(expr => isUserFun(expr) && OpenCLRules.privateMemory.isDefinedAt(expr)) > 0
     =>
 
       val newArgs =

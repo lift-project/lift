@@ -141,9 +141,7 @@ class TestRewriteGesummv {
     val l7 = Rewrite.applyRuleAtId(l4, 33, OpenCLRules.localMemory)
     val l8 = Lower.lowerNextLevelWithRule(l7, OpenCLRules.mapLcl)
 
-    val l9 = Rewrite.applyRuleAtId(l8, 82, MacroRules.userFunCompositionToPrivate)
-
-    val finalExpr = l9
+    val finalExpr = Rewrite.applyRuleUntilCannot(l8, MacroRules.userFunCompositionToPrivate)
     val (local, global) = InferNDRange(finalExpr)
 
     val code = Compile(finalExpr, local, global)
@@ -161,14 +159,13 @@ class TestRewriteGesummv {
 
     val lowered = Lower.mapCombinations(g2, mappings).head
 
-
-    val l1 = Rewrite.applyRuleAtId(lowered, 55, MacroRules.userFunCompositionToPrivate)
+    val l1 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
     val l2 = Rewrite.applyRuleAtId(l1, 17, CopyRules.addIdAfterReduce)
     val l3 = Rewrite.applyRuleAtId(l2, 6, CopyRules.addIdAfterReduce)
-    val l4 = Rewrite.applyRuleAtId(l3, 57, CopyRules.implementIdAsDeepCopy)
-    val l5 = Rewrite.applyRuleAtId(l4, 57, OpenCLRules.localMemory)
-    val l6 = Rewrite.applyRuleAtId(l5, 41, CopyRules.implementIdAsDeepCopy)
-    val l7 = Rewrite.applyRuleAtId(l6, 41, OpenCLRules.localMemory)
+    val l4 = Rewrite.applyRuleAtId(l3, 63, CopyRules.implementIdAsDeepCopy)
+    val l5 = Rewrite.applyRuleAtId(l4, 63, OpenCLRules.localMemory)
+    val l6 = Rewrite.applyRuleAtId(l5, 47, CopyRules.implementIdAsDeepCopy)
+    val l7 = Rewrite.applyRuleAtId(l6, 47, OpenCLRules.localMemory)
 
     val (y: Array[Float], _) = Execute()(l7, A, B, x, alpha, beta)
 
