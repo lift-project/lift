@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.Logger
 import ir.TypeChecker
 import ir.ast._
+import lift.arithmetic.ArithExpr
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 import rewriting._
@@ -122,7 +123,7 @@ object HighLevelRewrite {
       val dumpThese = if(settings.highLevelRewriteSettings.onlyLower)
         Seq((lambda, Seq()))
       else
-        rewriteExpression(lambda) :+ (lambda, Seq())
+        rewriteExpression(lambda)
 
       println(dumpThese.length + " expressions to dump")
 
@@ -285,10 +286,10 @@ object HighLevelRewrite {
 
 }
 
-class HighLevelRewrite(val vectorWidth: Int = HighLevelRewrite.defaultVectorWidth,
+class HighLevelRewrite(val vectorWidth: ArithExpr = HighLevelRewrite.defaultVectorWidth,
                        val repetitions: Int = HighLevelRewrite.defaultRuleRepetition,
                        val explorationDepth: Int = HighLevelRewrite.defaultExplorationDepth,
-                       val ruleCollection: String=HighLevelRewrite.defaultRuleCollection) {
+                       val ruleCollection: String = HighLevelRewrite.defaultRuleCollection) {
 
   private[exploration] val vecRed = MacroRules.vectorizeReduce(vectorWidth)
   private[exploration] val vecZip = OpenCLRules.vectorizeMapZip(vectorWidth)
@@ -329,10 +330,11 @@ object RuleCollection {
   private var failures = 0
 
   def apply(lambda: Lambda): Seq[(Lambda, Seq[Rule])] = {
+    val prepared = SimplifyAndFuse.withoutPreventingFurtherOptimisation(lambda)
     logger.info(s"Enabled rules:\n\t${highLevelRules.mkString(",\t\n ")}")
-    val rewritten = rewrite(lambda, explorationDepth)
+    val rewritten = rewrite(prepared, explorationDepth)
     logger.warn(failures + " rule application failures.")
-    rewritten
+    rewritten :+ (lambda, Seq()) :+ (prepared, Seq())
   }
 
   private def rewrite(lambda: Lambda,
