@@ -161,6 +161,7 @@ class TestRewriteGesummv {
 
     val lowered = Lower.mapCombinations(g2, mappings).head
 
+
     val l1 = Rewrite.applyRuleAtId(lowered, 55, MacroRules.userFunCompositionToPrivate)
     val l2 = Rewrite.applyRuleAtId(l1, 17, CopyRules.addIdAfterReduce)
     val l3 = Rewrite.applyRuleAtId(l2, 6, CopyRules.addIdAfterReduce)
