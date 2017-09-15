@@ -58,6 +58,9 @@ class TestRewriteNbody {
     val f27 = Rewrite.applyRuleAtId(f22, 16, OpenCLRules.localMemory)
     val f28 = Lower.lowerNextLevelWithRule(f27, OpenCLRules.mapLcl)
 
+    // TODO: Breaks
+//    val f29 = Rewrite.applyRuleUntilCannot(f28, MacroRules.userFunCompositionToPrivate)
+
     val (output: Array[Float], _) =
       Execute()(f28, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
@@ -81,8 +84,9 @@ class TestRewriteNbody {
     val l3 = Rewrite.applyRuleAtId(l2, 5, CopyRules.addIdAfterReduce)
     val l4 = Rewrite.applyRuleAtId(l3, 34, CopyRules.implementIdAsDeepCopy)
     val l5 = Rewrite.applyRuleAtId(l4, 5, OpenCLRules.localMemory)
+    val l6 = Rewrite.applyRuleUntilCannot(l5, MacroRules.userFunCompositionToPrivate)
 
-    val (output: Array[Float], _) = Execute()(l5, pos, vel, espSqr, deltaT)
+    val (output: Array[Float], _) = Execute()(l6, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
   }
 

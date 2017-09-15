@@ -8,8 +8,8 @@ import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{Assume, Test}
-import rewriting.rules._
 import rewriting.macrorules.{MacroRules, ReuseRules}
+import rewriting.rules._
 
 object TestRewriteGemv extends TestWithExecutor
 
@@ -108,7 +108,7 @@ class TestRewriteGemv {
     // TODO: threads writing the same value and one thread reading it.
     val l4 = Rewrite.applyRuleAtId(l3, 5, OpenCLRules.localMemory)
     val l5 = Rewrite.applyRuleAtId(l4, 38, CopyRules.implementIdAsDeepCopy)
-    val l6 = Rewrite.applyRuleAtId(l5, 42, MacroRules.userFunCompositionToPrivate)
+    val l6 = Rewrite.applyRuleUntilCannot(l5, MacroRules.userFunCompositionToPrivate)
 
     val (output: Array[Float], _) =
       Execute()(l6, matrix, vectorX, vectorY, alpha, beta)
@@ -124,10 +124,10 @@ class TestRewriteGemv {
     val f2 = Rewrite.applyRuleAtId(f1, 4, Rules.splitJoin)
     val lowered = Lower.mapCombinations(f2, group0Mapping).head
 
-    val l0 = Rewrite.applyRuleAtId(lowered, 36, MacroRules.userFunCompositionToPrivate)
+    val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
     val l1 = Rewrite.applyRuleAtId(l0, 15, CopyRules.addIdAfterReduce)
-    val l2 = Rewrite.applyRuleAtId(l1, 27, CopyRules.implementIdAsDeepCopy)
-    val l3 = Rewrite.applyRuleAtId(l2, 27, OpenCLRules.localMemory)
+    val l2 = Rewrite.applyRuleAtId(l1, 30, CopyRules.implementIdAsDeepCopy)
+    val l3 = Rewrite.applyRuleAtId(l2, 30, OpenCLRules.localMemory)
 
     val (output: Array[Float], _) =
       Execute()(l3, matrix, vectorX, vectorY, alpha, beta)
@@ -163,7 +163,7 @@ class TestRewriteGemv {
     val l14 = Rewrite.applyRuleAtId(l12, 26, OpenCLRules.localMemory)
     val l13 = Lower.lowerNextLevelWithRule(l14, OpenCLRules.mapLcl)
 
-    val l15 = Rewrite.applyRuleAtId(l13, 60, MacroRules.userFunCompositionToPrivate)
+    val l15 = Rewrite.applyRuleUntilCannot(l13, MacroRules.userFunCompositionToPrivate)
 
     val (local, global) = InferNDRange(l15)
     val code = Compile(l15, local, global)

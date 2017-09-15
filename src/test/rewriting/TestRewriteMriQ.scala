@@ -11,8 +11,8 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{Assume, Test}
-import rewriting.rules._
 import rewriting.macrorules.{MacroRules, ReuseRules}
+import rewriting.rules._
 
 object TestRewriteMriQ extends TestWithExecutor
 
@@ -164,8 +164,14 @@ class TestRewriteMriQ {
 
     val lowered = Lower.mapCombinations(f3, mappings).head
 
+    val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
+    val l1 = Rewrite.applyRuleAtId(l0, 9, CopyRules.addIdForCurrentValueInReduce)
+    val l2 = Rewrite.applyRuleAtId(l1, 17, CopyRules.implementIdAsDeepCopy)
+    val l3 = Rewrite.applyRuleAtId(l2, 17, OpenCLRules.localMemory)
+    val l4 = Lower.lowerNextLevelWithRule(l3, OpenCLRules.mapLcl)
+
     val (output: Array[Float], _) =
-      Execute()(lowered, x, y, z, k)
+      Execute()(l4, x, y, z, k)
 
     assertArrayEquals(gold, output, 0.001f)
   }
@@ -183,9 +189,10 @@ class TestRewriteMriQ {
     val l3 = Rewrite.applyRuleAtId(l2, 42, OpenCLRules.localMemory)
     val l4 = Rewrite.applyRuleAtId(l3, 35, CopyRules.implementIdAsDeepCopy)
     val l5 = Rewrite.applyRuleAtId(l4, 35, OpenCLRules.localMemory)
+    val l6 = Rewrite.applyRuleUntilCannot(l5, MacroRules.userFunCompositionToPrivate)
 
     val (output: Array[Float], _) =
-      Execute()(l5, x, y, z, k)
+      Execute()(l6, x, y, z, k)
 
     assertArrayEquals(gold, output, 0.01f)
   }
