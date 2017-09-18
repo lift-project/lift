@@ -59,10 +59,10 @@ class TestRewriteNbody {
     val f28 = Lower.lowerNextLevelWithRule(f27, OpenCLRules.mapLcl)
 
     // TODO: Breaks
-//    val f29 = Rewrite.applyRuleUntilCannot(f28, MacroRules.userFunCompositionToPrivate)
+    val f29 = Rewrite.applyRuleUntilCannot(f28, MacroRules.userFunCompositionToPrivate)
 
     val (output: Array[Float], _) =
-      Execute()(f28, pos, vel, espSqr, deltaT)
+      Execute()(f29, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
 
     val replacementFilter = collection.immutable.Map[ArithExpr, ArithExpr](N -> 16384)
