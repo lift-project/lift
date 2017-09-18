@@ -31,7 +31,7 @@ object OutputView {
   private def visitAndBuildViews(expr: Expr, writeView: View): View = {
     expr match {
       case call: FunCall => buildViewFunCall(call, writeView)
-      case e: Expr=>
+      case e: Expr =>
 
         if (e.outputView == NoView)
           e.outputView = writeView
@@ -109,6 +109,13 @@ object OutputView {
         (call.args, subviews).zipped.map((a,v) => visitAndBuildViews(a, v))
         result
 
+      // TODO: Also lambdas?
+      case fp: FPattern if fp.f.params.length > 1 =>
+
+        (call.args, fp.f.params).zipped.map((arg, param) => {
+          visitAndBuildViews(arg, param.outputView)})
+
+        result
       case _ =>
 
         val res = call.args.map(visitAndBuildViews(_, result))
