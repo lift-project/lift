@@ -143,6 +143,14 @@ class TestRewriteGemv {
     val f3 = Rewrite.applyRuleAtId(f2, 7, ReduceRules.partialReduceToReduce)
     val f4 = SimplifyAndFuse(f3)
     assertTrue(HighLevelRewrite.filterByDistance(f4))
+
+    val lowered = Lower.mapCombinations(f3, group0Mapping).head
+
+    val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
+
+    val (output: Array[Float], _) = Execute()(l0, matrix, vectorX, vectorY, alpha, beta)
+
+    assertArrayEquals(gold, output, 0.001f)
   }
 
   @Test

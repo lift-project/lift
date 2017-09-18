@@ -18,15 +18,15 @@ object TestRewriteMatrixMatrix extends TestWithExecutor
 
 class TestRewriteMatrixMatrix {
 
-  def checkDepth(lambda: Lambda, ruleSeq: Seq[rules.Rule] = Seq()): Unit =
+  private def checkDepth(lambda: Lambda, ruleSeq: Seq[rules.Rule] = Seq()): Unit =
     assertTrue("Depth filter.", HighLevelRewrite.filterByDepth(lambda, ruleSeq))
 
-  def checkDistance(lambda: Lambda): Unit =
+  private def checkDistance(lambda: Lambda): Unit =
     assertTrue("Distance filter.", HighLevelRewrite.filterByDistance(lambda))
 
-  val N = SizeVar("N")
-  val M = SizeVar("M")
-  val K = SizeVar("K")
+  private val N = SizeVar("N")
+  private val M = SizeVar("M")
+  private val K = SizeVar("K")
 
   @Test
   def reuseBothWithTiling(): Unit = {

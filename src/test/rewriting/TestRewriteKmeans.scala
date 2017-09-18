@@ -7,6 +7,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit._
+import rewriting.macrorules.MacroRules
 import rewriting.rules.{CopyRules, FissionRules, OpenCLRules, Rules}
 import rodinia.Kmeans._
 
@@ -55,6 +56,8 @@ class TestRewriteKmeans {
     val l0 = Lower.lowerNextLevelWithRule(f3, OpenCLRules.mapLcl)
     val l1 = Lower.lowerNextLevelWithRule(l0, OpenCLRules.mapSeq)
 
+    val l2 = Rewrite.applyRuleUntilCannot(l1, MacroRules.userFunCompositionToPrivate)
+
     val numPoints = 1024
     val numClusters = 5
     val numFeatures = 8
@@ -64,7 +67,7 @@ class TestRewriteKmeans {
 
     val gold = calculateMembership(points, clusters)
 
-    val (output: Array[Int], _) = Execute(numPoints)(l1, points.transpose, clusters)
+    val (output: Array[Int], _) = Execute(numPoints)(l2, points.transpose, clusters)
     assertArrayEquals(gold, output)
   }
 }
