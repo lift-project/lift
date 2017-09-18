@@ -11,6 +11,7 @@ import org.clapper.argot._
 import org.clapper.argot.ArgotConverters._
 import rewriting.utils.{DumpToFile, NumberExpression, Utils}
 import rewriting._
+import rewriting.macrorules.MacroRules
 import rewriting.rules._
 
 import scala.io.Source
@@ -282,7 +283,11 @@ object MemoryMappingRewrite {
   def mapAddressSpaces(lambda: Lambda, hash: String): Seq[Lambda] = {
     try {
 
-      val allLocalMappings = mapLocalMemory(lambda, settings.memoryMappingRewriteSettings.vectorize)
+      val compositionToPrivate =
+        Rewrite.applyRuleUntilCannot(lambda, MacroRules.userFunCompositionToPrivate)
+
+      val allLocalMappings =
+        mapLocalMemory(compositionToPrivate, settings.memoryMappingRewriteSettings.vectorize)
 
       val allPrivateMappings = allLocalMappings.flatMap(mapPrivateMemory)
 
