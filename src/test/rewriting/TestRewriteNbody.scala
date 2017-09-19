@@ -58,7 +58,6 @@ class TestRewriteNbody {
     val f27 = Rewrite.applyRuleAtId(f22, 16, OpenCLRules.localMemory)
     val f28 = Lower.lowerNextLevelWithRule(f27, OpenCLRules.mapLcl)
 
-    // TODO: Breaks
     val f29 = Rewrite.applyRuleUntilCannot(f28, MacroRules.userFunCompositionToPrivate)
 
     val (output: Array[Float], _) =
