@@ -291,7 +291,8 @@ object MemoryMappingRewrite {
 
       val allPrivateMappings = allLocalMappings.flatMap(mapPrivateMemory)
 
-      allPrivateMappings
+      val cleanupRules = Seq(SimplificationRules.removeEmptyMap, SimplificationRules.lambdaInlineParam)
+      allPrivateMappings.map(Rewrite.applyRulesUntilCannot(_, cleanupRules))
     } catch {
       case _: Throwable =>
         logger.warn(s"Address space mapping for $hash failed.")
@@ -329,7 +330,7 @@ object MemoryMappingRewrite {
 
     val toAddressAdded = addToAddressSpace(idsAdded, OpenCLRules.localMemory, 2)
     val copiesAdded = toAddressAdded.flatMap(
-      turnIdsIntoCopies(_, doTupleCombinations = false, doVectorisation))
+      turnIdsIntoCopies(_, doTupleCombinations = true, doVectorisation))
 
     val addedUserFun = addToAddressSpaceToUserFun(copiesAdded) ++ copiesAdded
 
@@ -468,6 +469,7 @@ object MemoryMappingRewrite {
   def turnIdsIntoCopies(lambda: Lambda,
                         doTupleCombinations: Boolean,
                         doVectorisation: Boolean): Seq[Lambda] = {
+    TypeChecker(lambda)
     val rewrites = Rewrite.listAllPossibleRewrites(lambda, CopyRules.implementIdAsDeepCopy)
 
     if (rewrites.nonEmpty) {
@@ -547,7 +549,7 @@ object MemoryMappingRewrite {
   private def applyLoopFusionToTuple(lambda: Lambda): Lambda =
     Rewrite.applyRuleUntilCannot(lambda, FusionRules.tupleMap)
 
-  private def addIdsForLocal(lambda: Lambda): Lambda = {
+  private[exploration] def addIdsForLocal(lambda: Lambda): Lambda = {
     val config = settings.localMemoryRulesSettings
 
     val enabledRules = scala.collection.Map(
