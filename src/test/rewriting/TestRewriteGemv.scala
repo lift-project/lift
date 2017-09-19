@@ -165,6 +165,13 @@ class TestRewriteGemv {
     val lowered = Lower.mapCombinations(f11, group0Mapping).head
 
     val l8 = Rewrite.applyRuleAtId(lowered, 8, CopyRules.addIdForCurrentValueInReduce)
+
+    val mapping0 = Rewrite.applyRuleAtId(l8, 23, OpenCLRules.localMemory)
+    val mapping1 = Rewrite.applyRuleAtId(mapping0, 25, CopyRules.implementOneLevelOfId)
+    val mapping2 = Rewrite.applyRuleAtId(mapping1, 29, CopyRules.implementIdAsDeepCopy)
+    val mapping3 = Rewrite.applyRuleAtId(mapping2, 26, SimplificationRules.dropId)
+    val mapping4 = Lower.lowerNextLevelWithRule(mapping3, OpenCLRules.mapLcl)
+
     val l9 = Rewrite.applyRuleAtId(l8, 23, CopyRules.implementOneLevelOfId)
     val l11 = Rewrite.applyRuleAtId(l9, 24, SimplificationRules.dropId)
     val l12 = Rewrite.applyRuleAtId(l11, 26, CopyRules.implementIdAsDeepCopy)
@@ -173,13 +180,16 @@ class TestRewriteGemv {
 
     val l15 = Rewrite.applyRuleUntilCannot(l13, MacroRules.userFunCompositionToPrivate)
 
+
     val (local, global) = InferNDRange(l15)
     val code = Compile(l15, local, global)
 
-    val (output: Array[Float], _) = Execute()(code, l15, matrix, vectorX, vectorY, alpha, beta)
+    val (output1: Array[Float], _) = Execute()(code, l15, matrix, vectorX, vectorY, alpha, beta)
+    val (output2: Array[Float], _) = Execute()(mapping4, matrix, vectorX, vectorY, alpha, beta)
 
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
-    assertArrayEquals(gold, output, 0.001f)
+    assertArrayEquals(gold, output1, 0.001f)
+    assertArrayEquals(gold, output2, 0.001f)
   }
 
 }
