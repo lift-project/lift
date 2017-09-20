@@ -79,13 +79,28 @@ class TestRewriteNbody {
     val l0 = Rewrite.applyRuleAtId(lowered , 11, CopyRules.addIdAfterReduce)
     val l1 = Rewrite.applyRuleAtId(l0, 24, CopyRules.implementIdAsDeepCopy)
     val l2 = Rewrite.applyRuleAtId(l1, 11, OpenCLRules.localMemory)
-    // TODO: Could get away with private memory
     val l3 = Rewrite.applyRuleAtId(l2, 5, CopyRules.addIdAfterReduce)
     val l4 = Rewrite.applyRuleAtId(l3, 34, CopyRules.implementIdAsDeepCopy)
     val l5 = Rewrite.applyRuleAtId(l4, 5, OpenCLRules.localMemory)
     val l6 = Rewrite.applyRuleUntilCannot(l5, MacroRules.userFunCompositionToPrivate)
 
     val (output: Array[Float], _) = Execute()(l6, pos, vel, espSqr, deltaT)
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
+  @Test
+  def partialReduceWithReorderNoRace(): Unit = {
+
+    val f0 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
+
+    val f1 = Lower.pushReduceDeeper(f0)
+    val lowered = Lower.mapCombinations(f1, group0Mapping).head
+
+    val l0 = Rewrite.applyRuleAtId(lowered, 12, CopyRules.addIdAfterReduce)
+    val l1 = Rewrite.applyRuleAtId(l0, 12, OpenCLRules.localMemory)
+    val l2 = Rewrite.applyRuleAtId(l1, 27, CopyRules.implementIdAsDeepCopy)
+
+    val (output: Array[Float], _) = Execute()(l2, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
   }
 

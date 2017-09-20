@@ -198,6 +198,24 @@ class TestRewriteMriQ {
   }
 
   @Test
+  def partialReduceWithReorderNoRace(): Unit = {
+
+    val f0 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
+
+    val f1 = Lower.pushReduceDeeper(f0)
+    val lowered = Lower.mapCombinations(f1, mappings).head
+
+    val l0 = Rewrite.applyRuleAtId(lowered, 13, CopyRules.addIdAfterReduce)
+    val l1 = Rewrite.applyRuleAtId(l0, 13, OpenCLRules.localMemory)
+    val l2 = Rewrite.applyRuleAtId(l1, 37, CopyRules.implementIdAsDeepCopy)
+
+    val (output: Array[Float], _) =
+      Execute()(l2, x, y, z, k)
+
+    assertArrayEquals(gold, output, 0.01f)
+  }
+
+  @Test
   def mriQ2(): Unit = {
     val computeQ = fun(
       ArrayType(Float, xSize),

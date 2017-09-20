@@ -107,8 +107,6 @@ class TestRewriteGemv {
     val l1 = Rewrite.applyRuleAtId(l0, 14, OpenCLRules.localMemory)
     val l2 = Rewrite.applyRuleAtId(l1, 28, CopyRules.implementIdAsDeepCopy)
     val l3 = Rewrite.applyRuleAtId(l2, 5, CopyRules.addIdAfterReduce)
-    // TODO: Could get away with private memory & intel doesn't like all
-    // TODO: threads writing the same value and one thread reading it.
     val l4 = Rewrite.applyRuleAtId(l3, 5, OpenCLRules.localMemory)
     val l5 = Rewrite.applyRuleAtId(l4, 38, CopyRules.implementIdAsDeepCopy)
     val l6 = Rewrite.applyRuleUntilCannot(l5, MacroRules.userFunCompositionToPrivate)

@@ -172,4 +172,23 @@ class TestRewriteGesummv {
     assertArrayEquals(yGold, y, 0.001f)
   }
 
+  @Test
+  def partialReduceWithReorderNoRace(): Unit = {
+    val f1 = SimplifyAndFuse.withoutPreventingFurtherOptimisation(f0)
+
+    val f2 = Rewrite.applyRuleAtId(f1, 6, MacroRules.partialReduceWithReorder(128))
+
+    val f3 = Lower.pushReduceDeeper(f2)
+    val lowered = Lower.mapCombinations(f3, mappings).head
+
+    val l0 = Rewrite.applyRuleAtId(lowered, 18, CopyRules.addIdAfterReduce)
+    val l1 = Rewrite.applyRuleAtId(l0, 18, OpenCLRules.localMemory)
+    val l2 = Rewrite.applyRuleAtId(l1, 43, CopyRules.implementIdAsDeepCopy)
+    val l3 = Rewrite.applyRuleUntilCannot(l2, MacroRules.userFunCompositionToPrivate)
+
+    val (y: Array[Float], _) = Execute()(l3, A, B, x, alpha, beta)
+
+    assertArrayEquals(yGold, y, 0.001f)
+  }
+
 }
