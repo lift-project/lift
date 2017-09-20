@@ -7,7 +7,7 @@ import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{Assume, Test}
+import org.junit.Test
 import rewriting.macrorules.{MacroRules, ReuseRules}
 import rewriting.rules._
 
@@ -96,8 +96,6 @@ class TestRewriteGemv {
   @Test
   def gemvAMDMacro(): Unit = {
 
-    Assume.assumeTrue(Executor.getDeviceType == "GPU")
-
     val f1 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
     val f2 = SimplifyAndFuse(f1)
 
@@ -125,8 +123,8 @@ class TestRewriteGemv {
   def partialReduceWithReorderNoRace(): Unit = {
     val f0 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
 
-    val f1 = Rewrite.applyRuleAtId(f0, 5, Rules.splitJoinReduce)
-    val f2 = Rewrite.applyRuleAtId(f1, 4, Rules.splitJoin)
+    // TODO: Apply in lowering.
+    val f2 = Lower.pushReduceDeeper(f0)
     val lowered = Lower.mapCombinations(f2, group0Mapping).head
 
     val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)

@@ -49,6 +49,42 @@ object Lower {
     tupleToStruct
   }
 
+  def pushReduceDeeper(lambda: Lambda): Lambda = {
+    val partialReducesLowered = lowerPartialReduces(lambda)
+
+    val simplified = SimplifyAndFuse(partialReducesLowered)
+
+    val patched = mapComposedWithReduceAsSequential(simplified)
+    val numbered = NumberExpression.byDepth(patched)
+
+    val reduces = utils.Utils.collect(patched.body, { case FunCall(_: AbstractPartRed, _, _) => })
+    val mapSeq = utils.Utils.collect(patched.body, { case FunCall(_: MapSeq, _) => })
+    val maps = utils.Utils.collect(patched.body, { case FunCall(_: Map, _) => })
+
+    val reduceLevels = reduces.map(numbered)
+    val mapLevels = maps.map(numbered)
+
+    // TODO: more general??
+    val shouldPushReduceDeeper = reduceLevels.count(_ == 1) > 0 && mapLevels.count(_ == 1) > 0
+
+    if (shouldPushReduceDeeper) {
+      val mapsToReplace = mapSeq.filter(numbered(_) == 1)
+      val reducesToReplace = reduces.filter(numbered(_) == 1)
+
+      val mapReplaced =
+        mapsToReplace.foldLeft(patched)((lambda, toReplace) =>
+          Rewrite.applyRuleAt(lambda, toReplace, Rules.splitJoinMapSeq))
+
+      val reduceReplaced =
+        reducesToReplace.foldLeft(mapReplaced)((lambda, toReplace) =>
+          Rewrite.applyRuleAt(lambda, toReplace, Rules.splitJoinReduce))
+
+      SimplifyAndFuse(reduceReplaced)
+    } else {
+      lambda
+    }
+  }
+
   private def tupleToStructInReduce(lambda: Lambda): Lambda = {
     TypeChecker(lambda)
 
@@ -82,7 +118,7 @@ object Lower {
     Rewrite.applyRuleUntilCannot(temp, OpenCLRules.mapSeq)
   }
 
-  private def mapComposedWithReduceAsSequential(lambda: Lambda) =
+  private[rewriting] def mapComposedWithReduceAsSequential(lambda: Lambda) =
     Rewrite.applyRulesUntilCannot(lambda, Seq(MacroRules.mapComposedWithReduceAsSequential))
 
   def mapCombinations(lambda: Lambda,
