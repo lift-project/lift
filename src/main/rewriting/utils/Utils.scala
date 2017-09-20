@@ -18,6 +18,9 @@ object Utils {
   private[rewriting] val concretePattern: PartialFunction[Expr, Unit] =
   { case call: FunCall if call.isConcrete(false) => }
 
+  def getHash(lambda: Lambda): String =
+    DumpToFile.Sha256Hash(DumpToFile.dumpLambdaToMethod(lambda))
+
   @scala.annotation.tailrec
   def getMapAtDepth(expr:Expr, depth: Int): Expr = {
     val outermostMap = Utils.getExprForPatternInCallChain(expr, mapPattern).get

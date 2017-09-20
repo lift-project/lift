@@ -10,7 +10,7 @@ import org.junit.Assert._
 import org.junit.Test
 import rewriting.macrorules.{MacroRules, ReuseRules, SlideTiling}
 import rewriting.rules.Rules
-import rewriting.utils.DumpToFile
+import rewriting.utils.Utils.getHash
 
 class TestHighLevelRewrite {
 
@@ -183,9 +183,6 @@ class TestHighLevelRewrite {
         )) $ pos
       )) $ Zip(pos, vel)
   )
-
-  private def getHash(lambda: Lambda): String =
-    DumpToFile.Sha256Hash(DumpToFile.dumpLambdaToString(lambda))
 
   private val partialReduceWithReorderSeq = Seq(MacroRules.partialReduceWithReorder)
   private val introduceReuseSeq =
