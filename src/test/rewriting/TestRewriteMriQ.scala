@@ -176,6 +176,28 @@ class TestRewriteMriQ {
     assertArrayEquals(gold, output, 0.001f)
   }
 
+
+  @Test
+  def mriqIntroduceReuseFromMapping(): Unit = {
+    val f0 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
+    val f1 = Rewrite.applyRuleAtId(f0, 7, FissionRules.mapFission)
+    val f2 = Rewrite.applyRuleAtId(f1, 7, ReuseRules.introduceReuseFromMap(64))
+    val f3 = Rewrite.applyRuleAtId(f2, 11, ReuseRules.introduceReuseFromMap(64))
+
+    val lowered = Lower.mapCombinations(f3, mappings).head
+
+    val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
+    val l1 = Rewrite.applyRuleAtId(l0, 9, CopyRules.addIdForCurrentValueInReduce)
+    val l2 = Rewrite.applyRuleAtId(l1, 17, OpenCLRules.localMemory)
+    val l3 = Rewrite.applyRuleAtId(l2, 19, CopyRules.implementIdAsDeepCopy)
+    val l4 = Lower.lowerNextLevelWithRule(l3, OpenCLRules.mapLcl)
+
+    val (output: Array[Float], _) =
+      Execute()(l4, x, y, z, k)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
   @Test
   def partialReduceWithReorder(): Unit = {
 

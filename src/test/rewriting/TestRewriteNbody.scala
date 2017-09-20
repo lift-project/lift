@@ -70,6 +70,32 @@ class TestRewriteNbody {
  }
 
   @Test
+  def nBodyIntroduceReuseFromMapping(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+
+    val f0 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(128))
+    val f1 = Rewrite.applyRuleAtId(f0, 6, MacroRules.interchange)
+    val f2 = Rewrite.applyRuleAtId(f1, 9, ReuseRules.introduceReuseFromMap(128))
+    val f3 = Rewrite.applyRuleAtId(f2, 12, ReuseRules.introduceReuseFromMap(128))
+
+    val lowered = Lower.mapCombinations(f3, group0Mapping).head
+
+    val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
+    val l1 = Rewrite.applyRuleAtId(l0, 8, CopyRules.addIdForCurrentValueInReduce)
+    val l2 = Rewrite.applyRuleAtId(l1, 16, OpenCLRules.localMemory)
+    val l3 = Rewrite.applyRuleAtId(l2, 18, CopyRules.implementIdAsDeepCopy)
+    val l4 = Lower.lowerNextLevelWithRule(l3, OpenCLRules.mapLcl)
+
+    val (output: Array[Float], _) =
+      Execute()(l4, pos, vel, espSqr, deltaT)
+    assertArrayEquals(gold, output, 0.001f)
+
+    val replacementFilter = collection.immutable.Map[ArithExpr, ArithExpr](N -> 16384)
+    val x = ParameterRewrite.replaceInputTypes(l4, replacementFilter)
+    assertEquals(ExpressionFilter.Status.Success, ExpressionFilter(x, InferNDRange(x)))
+ }
+
+  @Test
   def partialReduceWithReorder(): Unit = {
 
     val f0 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))

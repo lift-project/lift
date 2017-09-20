@@ -552,7 +552,31 @@ class TestMemoryMappingRewrite {
 
   @Test
   def mriqIntroduceReuse(): Unit = {
+    val mapFun = UserFun("mapFun", Array("sX", "sY", "sZ", "Kx", "Ky", "Kz", "PhiMag"),
+      """|{
+         |    #define PIx2 6.2831853071795864769252867665590058f
+         |    float expArg = PIx2 * (Kx * sX + Ky * sY + Kz * sZ);
+         |    Tuple2_float_float bla = { PhiMag * cos(expArg), PhiMag * sin(expArg) };
+         |    return  bla;
+         |}""".stripMargin, Seq(Float, Float, Float, Float, Float, Float, Float), TupleType(Float, Float))
 
+    val reduceFun = UserFun("reduceFun", Array("x", "y"),
+      """|{
+         | x._0 += y._0;
+         | x._1 += y._1;
+         | return x;
+         |        }""".stripMargin, Seq(TupleType(Float, Float), TupleType(Float, Float)), TupleType(Float, Float))
+
+    val idTuple4_float_float_float_float = UserFun("idTuple4_float_float_float_float", Array("x"), """|{ return x; }""".stripMargin, Seq(TupleType(Float, Float, Float, Float)), TupleType(Float, Float, Float, Float))
+    val idTuple2_float_float = UserFun("idTuple2_float_float", Array("x"), """|{ return x; }""".stripMargin, Seq(TupleType(Float, Float)), TupleType(Float, Float))
+
+    val f = fun(ArrayType(Float, X), ArrayType(Float, X), ArrayType(Float, X), ArrayType(TupleType(Float, Float, Float, Float), K),(p_0, p_1, p_2, p_3) => FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(TransposeW(), FunCall(ReduceSeq(fun((p_5, p_6) => FunCall(Join(), FunCall(Map(fun((p_7) => FunCall(PartRed(fun((p_8, p_9) => FunCall(reduceFun, p_8, p_9))), FunCall(Get(0), p_7), FunCall(Get(1), p_7)))), FunCall(Zip(2), p_5, p_6))))), Value("{ 0.0f, 0.0f}", ArrayType(TupleType(Float, Float), v__2)), FunCall(Transpose(), FunCall(Map(fun((p_10) => FunCall(Split(v__3), p_10))), FunCall(Map(fun((p_11) => FunCall(Join(), p_11))), FunCall(TransposeW(), FunCall(Map(fun((p_12) => FunCall(Map(fun((p_13) => FunCall(Map(fun((p_14) => FunCall(mapFun, FunCall(Get(0), p_13), FunCall(Get(1), p_13), FunCall(Get(2), p_13), FunCall(Get(0), p_14), FunCall(Get(1), p_14), FunCall(Get(2), p_14), FunCall(Get(3), p_14)))), p_12))), p_4))), FunCall(Split(v__4), p_3)))))))))), FunCall(Split(v__2), FunCall(Zip(3), p_0, p_1, p_2)))))
+    val gold = fun(ArrayType(Float, X), ArrayType(Float, X), ArrayType(Float, X), ArrayType(TupleType(Float, Float, Float, Float), K),(p_0, p_1, p_2, p_3) => FunCall(Join(), FunCall(MapWrg(0)(fun((p_4) => FunCall(TransposeW(), FunCall(toGlobal(fun((p_5) => FunCall(MapSeq(fun((p_6) => FunCall(MapLcl(0)(fun((p_7) => FunCall(idTuple2_float_float, p_7))), p_6))), p_5))), FunCall(ReduceSeq(fun((p_8, p_9) => FunCall(fun((p_10) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_11) => FunCall(ReduceSeq(fun((p_12, p_13) => FunCall(reduceFun, p_12, FunCall(toPrivate(fun((p_14, p_15, p_16, p_17, p_18, p_19, p_20) => FunCall(mapFun, p_14, p_15, p_16, p_17, p_18, p_19, p_20))), FunCall(Get(0), FunCall(Get(1), p_11)), FunCall(Get(1), FunCall(Get(1), p_11)), FunCall(Get(2), FunCall(Get(1), p_11)), FunCall(Get(0), p_13), FunCall(Get(1), p_13), FunCall(Get(2), p_13), FunCall(Get(3), p_13))))), FunCall(Get(0), p_11), p_10))), FunCall(Zip(2), p_8, p_4)))), FunCall(toLocal(fun((p_21) => FunCall(MapLcl(0)(fun((p_22) => FunCall(idTuple4_float_float_float_float, p_22))), p_21))), p_9)))), FunCall(MapLcl(0)(fun((p_23) => FunCall(idTuple2_float_float, p_23))), Value("{ 0.0f, 0.0f}", ArrayType(TupleType(Float, Float), v__2))), FunCall(Split(v__3), p_3)))))), FunCall(Split(v__2), FunCall(Zip(3), p_0, p_1, p_2)))))
+    val goldHash = getHash(gold)
+
+    val mapped = MemoryMappingRewrite.lowerLambda(f, enabledMappings)
+
+    assertTrue(mapped.exists(getHash(_) == goldHash))
   }
 
   @Test
@@ -564,6 +588,7 @@ class TestMemoryMappingRewrite {
          | x._1 += y._1;
          | return x;
          |        }""".stripMargin, Seq(TupleType(Float, Float), TupleType(Float, Float)), TupleType(Float, Float))
+
     val mapFun = UserFun("mapFun", Array("sX", "sY", "sZ", "Kx", "Ky", "Kz", "PhiMag"),
       """|{
          |    #define PIx2 6.2831853071795864769252867665590058f
@@ -571,6 +596,7 @@ class TestMemoryMappingRewrite {
          |    Tuple2_float_float bla = { PhiMag * cos(expArg), PhiMag * sin(expArg) };
          |    return  bla;
          |}""".stripMargin, Seq(Float, Float, Float, Float, Float, Float, Float), TupleType(Float, Float))
+
 
     val f = fun(ArrayType(Float, X), ArrayType(Float, X), ArrayType(Float, X), ArrayType(TupleType(Float, Float, Float, Float), K),(p_0, p_1, p_2, p_3) => FunCall(Map(fun((p_4) => FunCall(Reduce(fun((p_5, p_6) => FunCall(reduceFun, p_5, p_6))), Value("{ 0.0f, 0.0f}", TupleType(Float, Float)), FunCall(Join(), FunCall(Map(fun((p_7) => FunCall(PartRed(fun((p_8, p_9) => FunCall(reduceFun, p_8, p_9))), Value("{ 0.0f, 0.0f}", TupleType(Float, Float)), FunCall(Map(fun((p_10) => FunCall(mapFun, FunCall(Get(0), p_4), FunCall(Get(1), p_4), FunCall(Get(2), p_4), FunCall(Get(0), p_10), FunCall(Get(1), p_10), FunCall(Get(2), p_10), FunCall(Get(3), p_10)))), p_7)))), FunCall(Split( K * Pow(v__2, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__2)), p_3))))))), FunCall(Zip(3), p_0, p_1, p_2)))
     val gold = fun(ArrayType(Float, X), ArrayType(Float, X), ArrayType(Float, X), ArrayType(TupleType(Float, Float, Float, Float), K),(p_0, p_1, p_2, p_3) => FunCall(MapWrg(0)(fun((p_4) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_5) => FunCall(toGlobal(fun((p_6) => FunCall(MapSeq(fun((p_7) => FunCall(idTuple2_float_float, p_7))), p_6))), FunCall(ReduceSeq(fun((p_8, p_9) => FunCall(reduceFun, p_8, p_9))), FunCall(idTuple2_float_float, Value("{ 0.0f, 0.0f}", TupleType(Float, Float))), p_5)))), FunCall(Split(v__2), FunCall(Join(), FunCall(MapLcl(0)(fun((p_10) => FunCall(MapSeq(fun((p_11) => FunCall(toLocal(fun((p_12) => FunCall(idTuple2_float_float, p_12))), p_11))), FunCall(ReduceSeq(fun((p_13, p_14) => FunCall(reduceFun, p_13, FunCall(toPrivate(fun((p_15, p_16, p_17, p_18, p_19, p_20, p_21) => FunCall(mapFun, p_15, p_16, p_17, p_18, p_19, p_20, p_21))), FunCall(Get(0), p_4), FunCall(Get(1), p_4), FunCall(Get(2), p_4), FunCall(Get(0), p_14), FunCall(Get(1), p_14), FunCall(Get(2), p_14), FunCall(Get(3), p_14))))), FunCall(idTuple2_float_float, Value("{ 0.0f, 0.0f}", TupleType(Float, Float))), p_10)))), FunCall(Split( K * Pow(v__2, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__2)), p_3))))))))), FunCall(Zip(3), p_0, p_1, p_2)))
@@ -583,7 +609,16 @@ class TestMemoryMappingRewrite {
 
   @Test
   def gesummvIntroduceReuse(): Unit = {
+    val id_Tuple2_float_float = UserFun("id_Tuple2_float_float", Array("x"), """|{ return x; }""".stripMargin, Seq(TupleType(Float, Float)), TupleType(Float, Float))
+    val idTuple2_float_float = UserFun("idTuple2_float_float", Array("x"), """|{ return x; }""".stripMargin, Seq(TupleType(Float, Float)), TupleType(Float, Float))
 
+    val f = fun(ArrayType(ArrayType(Float, K), N), ArrayType(ArrayType(Float, K), N), ArrayType(Float, K), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(Join(), FunCall(Join(), FunCall(Map(fun((p_5) => FunCall(TransposeW(), FunCall(Map(fun((p_6) => FunCall(Map(fun((p_7) => FunCall(add, FunCall(mult, FunCall(Get(0), p_7), p_3), FunCall(mult, FunCall(Get(1), p_7), p_4)))), p_6))), FunCall(Transpose(), FunCall(TransposeW(), FunCall(ReduceSeq(fun((p_8, p_9) => FunCall(Join(), FunCall(Map(fun((p_10) => FunCall(PartRed(fun((p_11, p_12) => FunCall(Tuple(2), FunCall(add, FunCall(Get(0), p_11), FunCall(Get(0), p_12)), FunCall(add, FunCall(Get(1), p_11), FunCall(Get(1), p_12))))), FunCall(Get(0), p_10), FunCall(Get(1), p_10)))), FunCall(Zip(2), p_8, p_9))))), Value("{ 0.0f, 0.0f }", ArrayType(TupleType(Float, Float), v__2)), FunCall(Transpose(), FunCall(Map(fun((p_13) => FunCall(Split(v__3), FunCall(Join(), p_13)))), FunCall(TransposeW(), FunCall(Map(fun((p_14) => FunCall(Map(fun((p_15) => FunCall(Map(fun((p_16) => FunCall(Tuple(2), FunCall(mult, FunCall(Get(0), p_16), FunCall(Get(1), p_16)), FunCall(mult, FunCall(Get(2), p_16), FunCall(Get(1), p_16))))), FunCall(Zip(3), FunCall(Get(0), p_15), FunCall(Get(1), p_14), FunCall(Get(1), p_15))))), FunCall(Zip(2), FunCall(Get(0), p_14), FunCall(Get(2), p_14))))), FunCall(Zip(3), FunCall(Transpose(), FunCall(Map(fun((p_17) => FunCall(Split(v__4), FunCall(Get(0), p_17)))), p_5)), FunCall(Split(v__4), p_2), FunCall(Transpose(), FunCall(Map(fun((p_18) => FunCall(Split(v__4), FunCall(Get(1), p_18)))), p_5)))))))))))))), FunCall(Split(v__2), FunCall(Zip(2), p_0, p_1))))))
+    val gold = fun(ArrayType(ArrayType(Float, K), N), ArrayType(ArrayType(Float, K), N), ArrayType(Float, K), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(Join(), FunCall(Join(), FunCall(MapWrg(0)(fun((p_5) => FunCall(TransposeW(), FunCall(MapSeq(fun((p_6) => FunCall(toGlobal(fun((p_7) => FunCall(MapLcl(0)(fun((p_8) => FunCall(add, FunCall(toPrivate(fun((p_9, p_10) => FunCall(mult, p_9, p_10))), FunCall(Get(0), p_8), p_3), FunCall(toPrivate(fun((p_11, p_12) => FunCall(mult, p_11, p_12))), FunCall(Get(1), p_8), p_4)))), p_7))), p_6))), FunCall(ReduceSeq(fun((p_13, p_14) => FunCall(fun((p_15) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_16) => FunCall(ReduceSeq(fun((p_17, p_18) => FunCall(id_Tuple2_float_float, FunCall(Tuple(2), FunCall(add, FunCall(Get(0), p_17), FunCall(toPrivate(fun((p_19, p_20) => FunCall(mult, p_19, p_20))), FunCall(Get(0), p_18), FunCall(Get(1), p_18))), FunCall(add, FunCall(Get(1), p_17), FunCall(toPrivate(fun((p_21, p_22) => FunCall(mult, p_21, p_22))), FunCall(Get(2), p_18), FunCall(Get(1), p_18))))))), FunCall(Get(0), p_16), FunCall(Zip(3), FunCall(Get(1), p_16), FunCall(Get(1), p_15), FunCall(Get(2), p_16))))), FunCall(Zip(3), p_13, FunCall(Get(0), p_15), FunCall(Get(2), p_15))))), FunCall(toLocal(fun((p_23) => FunCall(Tuple(3), FunCall(Get(0), p_23), FunCall(MapLcl(0)(fun((p_24) => FunCall(idfloat, p_24))), FunCall(Get(1), p_23)), FunCall(Get(2), p_23)))), p_14)))), FunCall(MapLcl(0)(fun((p_25) => FunCall(idTuple2_float_float, p_25))), Value("{ 0.0f, 0.0f }", ArrayType(TupleType(Float, Float), v__2))), FunCall(Zip(3), FunCall(Transpose(), FunCall(Map(fun((p_26) => FunCall(Split(v__3), FunCall(Get(0), p_26)))), p_5)), FunCall(Split(v__3), p_2), FunCall(Transpose(), FunCall(Map(fun((p_27) => FunCall(Split(v__3), FunCall(Get(1), p_27)))), p_5)))))))), FunCall(Split(v__2), FunCall(Zip(2), p_0, p_1))))))
+    val goldHash = getHash(gold)
+
+    val mapped = MemoryMappingRewrite.lowerLambda(f, enabledMappings)
+
+    assertTrue(mapped.exists(getHash(_) == goldHash))
   }
 
   @Test
@@ -602,7 +637,42 @@ class TestMemoryMappingRewrite {
 
   @Test
   def nbodyIntroduceReuse(): Unit = {
+    val calcAcc = UserFun("calcAcc", Array("p1", "p2", "deltaT", "espSqr"),
+      """|{
+         |  float4 r;
+         |  r.xyz = p2.xyz - p1.xyz ;
+         |  float distSqr = r.x*r.x + r.y*r.y + r.z*r.z;
+         |  float invDist = 1.0f / sqrt(distSqr + espSqr);
+         |  float invDistCube = invDist * invDist * invDist;
+         |  float s = invDistCube * p2.w;
+         |  float4 res;
+         |  res.xyz = s * r.xyz;
+         |  return res;
+         |}
+         | """.stripMargin, Seq(VectorType(Float, 4), VectorType(Float, 4), Float, Float), VectorType(Float, 4))
 
+    val update = UserFun("update", Array("pos", "vel", "deltaT", "acceleration"),
+      """|{
+         |  float4 newPos;
+         |  newPos.xyz = pos.xyz + vel.xyz * deltaT + 0.5f * acceleration.xyz * deltaT * deltaT;
+         |  newPos.w = pos.w;
+         |  float4 newVel;
+         |  newVel.xyz = vel.xyz + acceleration.xyz * deltaT;
+         |  newVel.w = vel.w;
+         |  Tuple t = {newPos, newVel};
+         |  return t;
+         |}
+         |      """.stripMargin, Seq(VectorType(Float, 4), VectorType(Float, 4), Float, VectorType(Float, 4)), TupleType(VectorType(Float, 4), VectorType(Float, 4)))
+
+    val idfloat4 = UserFun("idfloat4", Array("x"), """|{ return x; }""".stripMargin, Seq(VectorType(Float, 4)), VectorType(Float, 4))
+
+    val f = fun(ArrayType(VectorType(Float, 4), N), ArrayType(VectorType(Float, 4), N), Float, Float,(p_0, p_1, p_2, p_3) => FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(TransposeW(), FunCall(Map(fun((p_5) => FunCall(Map(fun((p_6) => FunCall(update, FunCall(Get(0), FunCall(Get(0), p_6)), FunCall(Get(1), FunCall(Get(0), p_6)), p_3, FunCall(Get(1), p_6)))), FunCall(Zip(2), p_4, p_5)))), FunCall(Transpose(), FunCall(TransposeW(), FunCall(ReduceSeq(fun((p_7, p_8) => FunCall(Join(), FunCall(Map(fun((p_9) => FunCall(PartRed(fun((p_10, p_11) => FunCall(VectorizeUserFun(Cst(4),add), p_10, p_11))), FunCall(Get(0), p_9), FunCall(Get(1), p_9)))), FunCall(Zip(2), p_7, p_8))))), Value("0.0f", ArrayType(VectorType(Float, 4), v__1)), FunCall(Transpose(), FunCall(Map(fun((p_12) => FunCall(Split(v__2), FunCall(Join(), p_12)))), FunCall(TransposeW(), FunCall(Map(fun((p_13) => FunCall(Map(fun((p_14) => FunCall(Map(fun((p_15) => FunCall(calcAcc, FunCall(Get(0), p_14), p_15, p_3, p_2))), p_13))), p_4))), FunCall(Split(v__3), p_0)))))))))))), FunCall(Split(v__1), FunCall(Zip(2), p_0, p_1)))))
+    val gold = fun(ArrayType(VectorType(Float, 4), N), ArrayType(VectorType(Float, 4), N), Float, Float,(p_0, p_1, p_2, p_3) => FunCall(Join(), FunCall(MapWrg(0)(fun((p_4) => FunCall(TransposeW(), FunCall(MapSeq(fun((p_5) => FunCall(toGlobal(fun((p_6) => FunCall(MapLcl(0)(fun((p_7) => FunCall(update, FunCall(Get(0), FunCall(Get(0), p_7)), FunCall(Get(1), FunCall(Get(0), p_7)), p_3, FunCall(Get(1), p_7)))), p_6))), FunCall(Zip(2), p_4, p_5)))), FunCall(ReduceSeq(fun((p_8, p_9) => FunCall(fun((p_10) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_11) => FunCall(ReduceSeq(fun((p_12, p_13) => FunCall(VectorizeUserFun(Cst(4),add), p_12, FunCall(toPrivate(fun((p_14, p_15, p_16, p_17) => FunCall(calcAcc, p_14, p_15, p_16, p_17))), FunCall(Get(0), FunCall(Get(1), p_11)), p_13, p_3, p_2)))), FunCall(Get(0), p_11), p_10))), FunCall(Zip(2), p_8, p_4)))), FunCall(toLocal(fun((p_18) => FunCall(MapLcl(0)(fun((p_19) => FunCall(idfloat4, p_19))), p_18))), p_9)))), FunCall(MapLcl(0)(fun((p_20) => FunCall(idfloat4, p_20))), Value("0.0f", ArrayType(VectorType(Float, 4), v__1))), FunCall(Split(v__2), p_0)))))), FunCall(Split(v__1), FunCall(Zip(2), p_0, p_1)))))
+    val goldHash = getHash(gold)
+
+    val mapped = MemoryMappingRewrite.lowerLambda(f, enabledMappings)
+
+    assertTrue(mapped.exists(getHash(_) == goldHash))
   }
 
   @Test
