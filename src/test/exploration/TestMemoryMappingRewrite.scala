@@ -427,7 +427,7 @@ class TestMemoryMappingRewrite {
     val gemvAmdGold = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), ArrayTypeWSWC(Float, M), ArrayTypeWSWC(Float, N), Float, Float,(p_0, p_1, p_2, p_3, p_4) =>
       FunCall(MapWrg(0)(fun((p_5) =>
         FunCall(toGlobal(fun((p_6) =>
-          FunCall(MapLcl(0)(fun((p_7) =>
+          FunCall(MapSeq(fun((p_7) =>
             FunCall(add,
               FunCall(toPrivate(fun((p_8, p_9) =>
                 FunCall(mult, p_8, p_9))), p_7, p_3),
