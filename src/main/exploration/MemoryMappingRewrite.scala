@@ -7,12 +7,13 @@ import com.typesafe.scalalogging.Logger
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
-import org.clapper.argot._
 import org.clapper.argot.ArgotConverters._
-import rewriting.utils.{DumpToFile, NumberExpression, Utils}
+import org.clapper.argot._
 import rewriting._
 import rewriting.macrorules.MacroRules
 import rewriting.rules._
+import rewriting.utils.{DumpToFile, NumberExpression}
+import rewriting.utils.Utils.getHash
 
 import scala.io.Source
 
@@ -142,7 +143,7 @@ object MemoryMappingRewrite {
           config.group10
         )
 
-      if(!enabledMappings.isOneEnabled) scala.sys.error("No mappings enabled")
+      if (!enabledMappings.isOneEnabled) scala.sys.error("No mappings enabled")
 
       logger.info(s"Settings:\n$settings")
       logger.info(s"Arguments: ${args.mkString(" ")}")
@@ -186,11 +187,12 @@ object MemoryMappingRewrite {
     }
   }
 
-  def lowerLambda(lambda: Lambda, enabledMappings: EnabledMappings, unroll: Boolean = false, hash: String = "") = {
+  def lowerLambda(lambda: Lambda, enabledMappings: EnabledMappings, unroll: Boolean = false, hash: String = ""): Seq[Lambda] = {
 
     try {
 
-      val loweredExpressions = Lower.mapCombinations(lambda, enabledMappings)
+      val loweredExpressions =
+        Lower.mapCombinations(lambda, enabledMappings) ++ moveReduceAndMap(lambda, enabledMappings)
 
       val loadBalancedExpressions = loweredExpressions.flatMap(
         mapAddressSpaces(_, hash).flatMap(addressMapped => {
@@ -222,7 +224,18 @@ object MemoryMappingRewrite {
     }
   }
 
-  def filterIllegals(lambdaSeq: Seq[Lambda], hash: String = "") = {
+  private def moveReduceAndMap(lambda: Lambda, enabledMappings: EnabledMappings): List[Lambda] = {
+    if (enabledMappings.group0) {
+      val reduceDeeper = Lower.pushReduceDeeper(lambda)
+
+      if (getHash(lambda) != getHash(reduceDeeper))
+        return Lower.mapCombinations(reduceDeeper)
+    }
+
+    List()
+  }
+
+  def filterIllegals(lambdaSeq: Seq[Lambda], hash: String = ""): Seq[Lambda] = {
 
     lambdaSeq.filter(lambda =>
       try {
@@ -476,7 +489,9 @@ object MemoryMappingRewrite {
       val ruleAt = rewrites.head
 
       ruleAt._2.t match {
-        case TupleType(_*) if doTupleCombinations =>
+        case TupleType(tt@_*) if doTupleCombinations && !tt.forall(t =>
+          t.isInstanceOf[ScalarType] || t.isInstanceOf[VectorType]) =>
+
           val oneLevelImplemented = CopyRules.implementOneLevelOfId.rewrite(ruleAt._2)
 
           val idRewrites = Rewrite.listAllPossibleRewrites(oneLevelImplemented, CopyRules.implementIdAsDeepCopy)

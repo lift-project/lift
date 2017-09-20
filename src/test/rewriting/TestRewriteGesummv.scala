@@ -182,7 +182,7 @@ class TestRewriteGesummv {
     val lowered = Lower.mapCombinations(f3, mappings).head
 
     val l0 = Rewrite.applyRuleAtId(lowered, 18, CopyRules.addIdAfterReduce)
-    val l1 = Rewrite.applyRuleAtId(l0, 18, OpenCLRules.localMemory)
+    val l1 = Rewrite.applyRuleAtId(l0, 41, OpenCLRules.localMemory)
     val l2 = Rewrite.applyRuleAtId(l1, 43, CopyRules.implementIdAsDeepCopy)
     val l3 = Rewrite.applyRuleUntilCannot(l2, MacroRules.userFunCompositionToPrivate)
 

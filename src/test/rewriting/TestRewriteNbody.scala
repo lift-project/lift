@@ -96,11 +96,12 @@ class TestRewriteNbody {
     val f1 = Lower.pushReduceDeeper(f0)
     val lowered = Lower.mapCombinations(f1, group0Mapping).head
 
-    val l0 = Rewrite.applyRuleAtId(lowered, 12, CopyRules.addIdAfterReduce)
-    val l1 = Rewrite.applyRuleAtId(l0, 12, OpenCLRules.localMemory)
-    val l2 = Rewrite.applyRuleAtId(l1, 27, CopyRules.implementIdAsDeepCopy)
+    val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
+    val l1 = Rewrite.applyRuleAtId(l0, 12, CopyRules.addIdAfterReduce)
+    val l2 = Rewrite.applyRuleAtId(l1, 30, OpenCLRules.localMemory)
+    val l3 = Rewrite.applyRuleAtId(l2, 32, CopyRules.implementIdAsDeepCopy)
 
-    val (output: Array[Float], _) = Execute()(l2, pos, vel, espSqr, deltaT)
+    val (output: Array[Float], _) = Execute()(l3, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
   }
 

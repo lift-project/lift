@@ -121,7 +121,6 @@ class TestRewriteGemv {
   def partialReduceWithReorderNoRace(): Unit = {
     val f0 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
 
-    // TODO: Apply in lowering.
     val f2 = Lower.pushReduceDeeper(f0)
     val lowered = Lower.mapCombinations(f2, group0Mapping).head
 
