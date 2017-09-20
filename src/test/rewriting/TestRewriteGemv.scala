@@ -51,6 +51,11 @@ class TestRewriteGemv {
     global012 = false, global210 = false,
     group0 = true, group01 = false, group10 = false)
 
+  private val global0Mapping = EnabledMappings(
+    global0 = true, global01 = false, global10 = false,
+    global012 = false, global210 = false,
+    group0 = false, group01 = false, group10 = false)
+
   @Test
   def gemvAMD(): Unit = {
 
@@ -144,7 +149,7 @@ class TestRewriteGemv {
     val f4 = SimplifyAndFuse(f3)
     assertTrue(HighLevelRewrite.filterByDistance(f4))
 
-    val lowered = Lower.mapCombinations(f3, group0Mapping).head
+    val lowered = Lower.mapCombinations(f3, global0Mapping).head
 
     val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
 

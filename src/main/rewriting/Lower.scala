@@ -31,20 +31,20 @@ object Lower {
 
   private val logger = Logger(this.getClass)
 
-  private def patchLambda(lambda: Lambda) = {
+  private[rewriting] def patchLambda(lambda: Lambda) = {
     val partialReducesLowered = lowerPartialReduces(lambda)
 
     val simplified = SimplifyAndFuse(partialReducesLowered)
 
-    val reducesLowered = lowerReduces(simplified)
+    val compositionWithReduceSequential = mapComposedWithReduceAsSequential(simplified)
+
+    val reducesLowered = lowerReduces(compositionWithReduceSequential)
 
     val allocatedToGlobal = lastWriteToGlobal(reducesLowered)
 
     val removeOtherIds = dropIds(allocatedToGlobal)
 
-    val compositionWithReduceSequential = mapComposedWithReduceAsSequential(removeOtherIds)
-
-    val tupleToStruct = tupleToStructInReduce(compositionWithReduceSequential)
+    val tupleToStruct = tupleToStructInReduce(removeOtherIds)
 
     tupleToStruct
   }
@@ -282,9 +282,9 @@ object Lower {
     val lastWrite = getLastWrite(lambda).get
 
     val lastMap = Utils.findExpressionForPattern(lambda,
-      { case FunCall(ir.ast.Map(Lambda(_, body)), _) if {
+      { case FunCall(ir.ast.AbstractMap(Lambda(_, body)), _) if {
         body.contains({ case x if x eq lastWrite => }) &&
-          !body.contains({ case FunCall(ir.ast.Map(_), _) => })
+          !body.contains({ case FunCall(ir.ast.AbstractMap(_), _) => })
       } => }: PartialFunction[Expr, Unit] )
 
     lastMap match {
