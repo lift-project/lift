@@ -1,5 +1,6 @@
-package exploration
+package exploration.algorithmic
 
+import exploration.HighLevelRewrite
 import ir._
 import ir.ast._
 import lift.arithmetic._
