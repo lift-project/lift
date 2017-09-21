@@ -61,7 +61,7 @@ object HighLevelRewrite {
 
   protected[exploration] val defaultExplorationDepth = 5
   protected[exploration] val defaultDepthFilter = 6
-  protected[exploration] val defaultDistanceFilter = 9
+  protected[exploration] val defaultDistanceFilter = 11
   protected[exploration] val defaultRuleRepetition = 2
   protected[exploration] val defaultVectorWidth = 4
   protected[exploration] val defaultSequential = false

@@ -9,7 +9,7 @@ import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.Test
 import rewriting.macrorules.{MacroRules, ReuseRules, SlideTiling}
-import rewriting.rules.Rules
+import rewriting.rules.{Rule, Rules}
 import rewriting.utils.Utils.getHash
 
 class TestHighLevelRewrite {
@@ -189,6 +189,16 @@ class TestHighLevelRewrite {
     Seq(Rules.splitJoin, MacroRules.interchange,
       ReuseRules.introduceReuseFromMap, ReuseRules.introduceReuseFromMap)
 
+  private def checkDistance(lambda: Lambda): Unit =
+    assertTrue(HighLevelRewrite.filterByDistance(HighLevelRewrite.finishRewriting(lambda)))
+
+  private def check(lambdas: Seq[(Lambda, Seq[Rule])], hash: String): Unit = {
+    val lambda = lambdas.find(pair => getHash(pair._1) == hash)
+
+    assertTrue(lambda.isDefined)
+    checkDistance(lambda.get._1)
+  }
+
   def mriqComputeQRewrite(): Unit = {
 
     val introduceReuseGold = fun(ArrayType(Float, X), ArrayType(Float, X), ArrayType(Float, X), ArrayType(TupleType(Float, Float, Float, Float), K),(p_0, p_1, p_2, p_3) => FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(TransposeW(), FunCall(ReduceSeq(fun((p_5, p_6) => FunCall(Join(), FunCall(Map(fun((p_7) => FunCall(PartRed(fun((p_8, p_9) => FunCall(reduceFun, p_8, p_9))), FunCall(Get(0), p_7), FunCall(Get(1), p_7)))), FunCall(Zip(2), p_5, p_6))))), Value("{ 0.0f, 0.0f}", ArrayType(TupleType(Float, Float), v__2)), FunCall(Transpose(), FunCall(Map(fun((p_10) => FunCall(Split(v__3), p_10))), FunCall(Map(fun((p_11) => FunCall(Join(), p_11))), FunCall(TransposeW(), FunCall(Map(fun((p_12) => FunCall(Map(fun((p_13) => FunCall(Map(fun((p_14) => FunCall(mapFun, FunCall(Get(0), p_13), FunCall(Get(1), p_13), FunCall(Get(2), p_13), FunCall(Get(0), p_14), FunCall(Get(1), p_14), FunCall(Get(2), p_14), FunCall(Get(3), p_14)))), p_12))), p_4))), FunCall(Split(v__4), p_3)))))))))), FunCall(Split(v__2), FunCall(Zip(3), p_0, p_1, p_2)))))
@@ -203,8 +213,8 @@ class TestHighLevelRewrite {
     val possiblePartialReduce = rewrittenLambdas.filter(_._2 == partialReduceWithReorderSeq)
     val possibleIntroduceReuse = rewrittenLambdas.filter(_._2 == introduceReuseSeq)
 
-    assertTrue(possiblePartialReduce.exists(pair => getHash(pair._1) == partialReduceWithReorderHash))
-    assertTrue(possibleIntroduceReuse.exists(pair => getHash(pair._1) == introduceReuseHash))
+    check(possiblePartialReduce, partialReduceWithReorderHash)
+    check(possibleIntroduceReuse, introduceReuseHash)
   }
 
   def nbodyRewrite(): Unit = {
@@ -220,8 +230,8 @@ class TestHighLevelRewrite {
     val possiblePartialReduce = rewrittenLambdas.filter(_._2 == partialReduceWithReorderSeq)
     val possibleIntroduceReuse = rewrittenLambdas.filter(_._2 == introduceReuseSeq)
 
-    assertTrue(possiblePartialReduce.exists(pair => getHash(pair._1) == partialReduceWithReorderHash))
-    assertTrue(possibleIntroduceReuse.exists(pair => getHash(pair._1) == introduceReuseHash))
+    check(possiblePartialReduce, partialReduceWithReorderHash)
+    check(possibleIntroduceReuse, introduceReuseHash)
   }
 
   @Test
@@ -243,9 +253,9 @@ class TestHighLevelRewrite {
     val possibleFused = rewrittenLambdas.filter(_._2 == Seq())
     val possibleIntroduceReuse= rewrittenLambdas.filter(_._2 == introduceReuseSeq)
 
-    assertTrue(possiblePartialReduce.exists(pair => getHash(pair._1) == partialReduceWithReorderHash))
-    assertTrue(possibleFused.exists(pair => getHash(pair._1) == basicFusedHash))
-    assertTrue(possibleIntroduceReuse.exists(pair => getHash(pair._1) == introduceReuseHash))
+    check(possiblePartialReduce, partialReduceWithReorderHash)
+    check(possibleFused, basicFusedHash)
+    check(possibleIntroduceReuse, introduceReuseHash)
   }
 
   @Test ( expected = classOf[TypeException] )//see Issue #114
@@ -275,7 +285,7 @@ class TestHighLevelRewrite {
     val tiledSeq = Seq(SlideTiling.tileStencils)
     val possibleTiled = rewrittenLambdas.filter(_._2 == tiledSeq)
 
-    assertTrue(possibleTiled.exists(pair => getHash(pair._1) == goldHash))
+    check(possibleTiled, goldHash)
   }
 
   @Test
@@ -301,9 +311,8 @@ class TestHighLevelRewrite {
     val possiblePartiallyVectorisedTiled =
       rewrittenLambdas.filter(_._2 == partiallyVectorisedTiledSeq)
 
-    assertTrue(possibleVectorised.exists(pair => getHash(pair._1) == vectorisedHash))
-    assertTrue(possiblePartiallyVectorisedTiled.exists(pair =>
-      getHash(pair._1) == partiallyVectorisedTiledHash))
+    check(possibleVectorised, vectorisedHash)
+    check(possiblePartiallyVectorisedTiled, partiallyVectorisedTiledHash)
   }
 
   @Test
@@ -339,9 +348,9 @@ class TestHighLevelRewrite {
     val possibleOneD = rewrittenLambdas.filter(_._2 == tilingWith1DBlockingSeq)
     val possibleTwoD = rewrittenLambdas.filter(_._2 == tilingWith2DBlockingSeq)
 
-    assertTrue(possiblePlainTiling.exists(pair => getHash(pair._1) == plainTilingHash))
-    assertTrue(possibleOneD.exists(pair => getHash(pair._1) == oneDHash))
-    assertTrue(possibleTwoD.exists(pair => getHash(pair._1) == twoDHash))
+    check(possiblePlainTiling, plainTilingHash)
+    check(possibleOneD, oneDHash)
+    check(possibleTwoD, twoDHash)
   }
 
   @Test
@@ -364,11 +373,11 @@ class TestHighLevelRewrite {
 
     val possiblePartialReduce = rewrittenLambdas.filter(_._2 == partialReduceWithReorderSeq)
     val possibleVectorised = rewrittenLambdas.filter(_._2 == vectorisedSeq)
-    val possibleIntroduceReuse= rewrittenLambdas.filter(_._2 == introduceReuseSeq)
+    val possibleIntroduceReuse = rewrittenLambdas.filter(_._2 == introduceReuseSeq)
 
-    assertTrue(possiblePartialReduce.exists(pair => getHash(pair._1) == partialReduceWithReorderHash))
-    assertTrue(possibleVectorised.exists(pair => getHash(pair._1) == vectorisedHash))
-    assertTrue(possibleIntroduceReuse.exists(pair => getHash(pair._1) == introduceReuseHash))
+    check(possiblePartialReduce, partialReduceWithReorderHash)
+    check(possibleVectorised, vectorisedHash)
+    check(possibleIntroduceReuse, introduceReuseHash)
   }
 
 }
