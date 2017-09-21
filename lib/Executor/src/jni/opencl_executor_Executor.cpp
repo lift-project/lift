@@ -265,6 +265,12 @@ jboolean Java_opencl_executor_Executor_supportsDouble(JNIEnv *, jclass)
   return static_cast<bool>(supports);
 }
 
+jboolean Java_opencl_executor_Executor_isLittleEndian(JNIEnv *, jclass)
+{
+  auto littleEndian = isLittleEndian();
+  return static_cast<bool>(littleEndian);
+}
+
 void Java_opencl_executor_Executor_init__(JNIEnv *, jclass)
 {
   initExecutor("ANY");

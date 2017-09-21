@@ -6,6 +6,19 @@
 #include "Executor.h"
 #include "GlobalArg.h"
 
+jobject Java_opencl_executor_GlobalArg_createInput___3B(JNIEnv* env, jclass cls,
+                                                        jbyteArray data)
+{
+  auto arrayPtr = env->GetByteArrayElements(data, nullptr);
+  auto ptr = executor::GlobalArg::create(arrayPtr,
+                               env->GetArrayLength(data) * sizeof(jbyte));
+  env->ReleaseByteArrayElements(data, arrayPtr, JNI_ABORT);
+
+  auto methodID = env->GetMethodID(cls, "<init>", "(J)V");
+  auto obj = env->NewObject(cls, methodID, ptr);
+  return obj;
+}
+
 jobject Java_opencl_executor_GlobalArg_createInput___3F(JNIEnv* env, jclass cls,
                                                         jfloatArray data)
 {
@@ -14,7 +27,7 @@ jobject Java_opencl_executor_GlobalArg_createInput___3F(JNIEnv* env, jclass cls,
                                env->GetArrayLength(data) * sizeof(jfloat));
   env->ReleaseFloatArrayElements(data, arrayPtr, JNI_ABORT);
 
-  auto methodID = env->GetMethodID(cls, "<init>", "(J)V"); 
+  auto methodID = env->GetMethodID(cls, "<init>", "(J)V");
   auto obj = env->NewObject(cls, methodID, ptr);
   return obj;
 }
@@ -62,7 +75,7 @@ jobject Java_opencl_executor_GlobalArg_createOutput(JNIEnv* env, jclass cls,
                                                     jlong size)
 {
   auto ptr = executor::GlobalArg::create(size, true);
-  auto methodID = env->GetMethodID(cls, "<init>", "(J)V"); 
+  auto methodID = env->GetMethodID(cls, "<init>", "(J)V");
   auto obj = env->NewObject(cls, methodID, ptr);
   return obj;
 }
@@ -126,5 +139,18 @@ jbooleanArray Java_opencl_executor_GlobalArg_asBooleanArray(JNIEnv* env, jobject
 
   env->SetBooleanArrayRegion(res, 0, vec.size() / sizeof(jboolean),
                          reinterpret_cast<jboolean*>(vec.hostBuffer().data()));
+  return res;
+}
+
+jbyteArray Java_opencl_executor_GlobalArg_asByteArray(JNIEnv* env, jobject obj)
+{
+  auto ptr = getHandle<executor::GlobalArg>(env, obj);
+  auto& vec = ptr->data();
+
+  auto res = env->NewByteArray(vec.size() / sizeof(jbyte));
+  if (res == nullptr) return nullptr;
+
+  env->SetByteArrayRegion(res, 0, vec.size() / sizeof(jbyte),
+                          reinterpret_cast<jbyte*>(vec.hostBuffer().data()));
   return res;
 }

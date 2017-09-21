@@ -57,7 +57,7 @@ class TestRewriteKmeans {
 
     val gold = calculateMembership(points, clusters)
 
-    val (output: Array[Int], _) = Execute(numPoints)(f13, points.transpose, clusters)
+    val (output, _) = Execute(numPoints)[Array[Int]](f13, points.transpose, clusters)
     assertArrayEquals(gold, output)
   }
 }

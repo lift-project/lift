@@ -22,7 +22,7 @@ class ArrayGenerators {
       input => MapGlb(add) $ Zip(input, ArrayFromValue(1f, at))
     )
 
-    val (output: Array[Float], _) = Execute(input.length)(f, input)
+    val (output, _) = Execute(input.length)[Array[Float]](f, input)
     val gold = input.map(_ + 1)
 
     assertArrayEquals(gold, output, 0.001f)
@@ -38,7 +38,7 @@ class ArrayGenerators {
       ArrayFromValue(20, ArrayTypeWSWC(Int, size, capacity))
     )
 
-    val (output: Array[Int], _) = Execute(capacity)(f)
+    val (output, _) = Execute(capacity)[Array[Int]](f)
     assertArrayEquals(Array.fill(size)(42), output.slice(0, size))
   }
 
@@ -51,7 +51,7 @@ class ArrayGenerators {
       input => MapGlb(add) $ Zip(input, ArrayFromGenerator( (i, _) => ArithExpression(i), at))
     )
 
-    val (output: Array[Float], _) = Execute(input.length)(f, input)
+    val (output, _) = Execute(input.length)[Array[Float]](f, input)
     val gold = (input, Array.tabulate(input.length)( i => i )).zipped.map(_+_)
 
     assertArrayEquals(gold, output, 0.001f)
@@ -68,7 +68,7 @@ class ArrayGenerators {
       input => MapGlb(add) $ Zip(input, ArrayFromUserFunGenerator(idxF, at))
     )
 
-    val (output: Array[Float], _) = Execute(input.length)(f, input)
+    val (output, _) = Execute(input.length)[Array[Float]](f, input)
     val gold = (input, Array.tabulate(input.length)( i => i )).zipped.map(_+_)
 
     assertArrayEquals(gold, output, 0.001f)
@@ -88,7 +88,7 @@ class ArrayGenerators {
           toGlobal(MapGlb(MapSeq(id(Int))))
     )
 
-    val (output: Array[Int], _) = Execute(input.length)(f, input)
+    val (output, _) = Execute(input.length)[Array[Int]](f, input)
     val gold = Array.tabulate(input.length)( i => i )
 
     assertArrayEquals(gold, output)
@@ -115,7 +115,7 @@ class ArrayGenerators {
           toGlobal(MapGlb(MapSeq(id(Int))))
     )
 
-    val (output: Array[Int], _) = Execute(input.length)(f, input)
+    val (output, _) = Execute(input.length)[Array[Int]](f, input)
     val gold = Array.tabulate(m, n)( (i, j) => i+j ).flatten
 
     assertArrayEquals(gold, output)
@@ -144,7 +144,7 @@ class ArrayGenerators {
           toGlobal(MapGlb(MapSeq(MapSeq(id(Int)))))
     )
 
-    val (output: Array[Int], _) = Execute(input.length)(f, input)
+    val (output, _) = Execute(input.length)[Array[Int]](f, input)
     val gold = Array.tabulate(m, n, o)( (i, j, k) => i+j+k ).flatten.flatten
 
     assertArrayEquals(gold, output)

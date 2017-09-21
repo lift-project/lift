@@ -90,6 +90,12 @@ bool supportsDouble()
   return devicePtr->supportsDouble();
 }
 
+bool isLittleEndian()
+{
+  auto& devicePtr = executor::globalDeviceList.front();
+  return devicePtr->isLittleEndian();
+}
+
 double executeKernel(cl::Kernel kernel,
                      int localSize1, int localSize2, int localSize3,
                      int globalSize1, int globalSize2, int globalSize3,

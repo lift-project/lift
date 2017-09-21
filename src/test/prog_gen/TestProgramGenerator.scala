@@ -163,7 +163,7 @@ class TestProgramGenerator {
     val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)
+    val (output_exe, _) = Execute(1,32)[Array[Float]](code,fs.head,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 }
