@@ -7,7 +7,7 @@ import lift.arithmetic._
 import opencl.executor.LongTestsEnabled
 import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
-import rewriting.utils.Utils.getHash
+import org.junit.Test
 
 class AlgorithmicNbody {
 
@@ -60,20 +60,22 @@ class AlgorithmicNbody {
       )) $ Zip(pos, vel)
   )
 
-  def nbodyRewrite(): Unit = {
-    val introduceReuseGold = fun(ArrayType(VectorType(Float, 4), N), ArrayType(VectorType(Float, 4), N), Float, Float,(p_0, p_1, p_2, p_3) => FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(TransposeW(), FunCall(Map(fun((p_5) => FunCall(Map(fun((p_6) => FunCall(update, FunCall(Get(0), FunCall(Get(0), p_6)), FunCall(Get(1), FunCall(Get(0), p_6)), p_3, FunCall(Get(1), p_6)))), FunCall(Zip(2), p_4, p_5)))), FunCall(Transpose(), FunCall(TransposeW(), FunCall(ReduceSeq(fun((p_7, p_8) => FunCall(Join(), FunCall(Map(fun((p_9) => FunCall(PartRed(fun((p_10, p_11) => FunCall(VectorizeUserFun(Cst(4),add), p_10, p_11))), FunCall(Get(0), p_9), FunCall(Get(1), p_9)))), FunCall(Zip(2), p_7, p_8))))), Value("0.0f", ArrayType(VectorType(Float, 4), v__1)), FunCall(Transpose(), FunCall(Map(fun((p_12) => FunCall(Split(v__2), FunCall(Join(), p_12)))), FunCall(TransposeW(), FunCall(Map(fun((p_13) => FunCall(Map(fun((p_14) => FunCall(Map(fun((p_15) => FunCall(calcAcc, FunCall(Get(0), p_14), p_15, p_3, p_2))), p_13))), p_4))), FunCall(Split(v__3), p_0)))))))))))), FunCall(Split(v__1), FunCall(Zip(2), p_0, p_1)))))
-    val introduceReuseHash = getHash(introduceReuseGold)
+  private val rewriter = new HighLevelRewrite(4, 2, 4)
+  private val rewrittenLambdas = rewriter(nbody)
 
+  @Test
+  def partialReduceWithReorder(): Unit = {
     val partialReduceWithReorderGold = fun(ArrayType(VectorType(Float, 4), N), ArrayType(VectorType(Float, 4), N), Float, Float,(p_0, p_1, p_2, p_3) => FunCall(Map(fun((p_4) => FunCall(Map(fun((p_5) => FunCall(update, FunCall(Get(0), p_4), FunCall(Get(1), p_4), p_3, p_5))), FunCall(Reduce(fun((p_6, p_7) => FunCall(VectorizeUserFun(Cst(4),add), p_6, p_7))), Value("0.0f", VectorType(Float, 4)), FunCall(Join(), FunCall(Map(fun((p_8) => FunCall(PartRed(fun((p_9, p_10) => FunCall(VectorizeUserFun(Cst(4),add), p_9, p_10))), Value("0.0f", VectorType(Float, 4)), p_8))), FunCall(Split( N * Pow(v__1, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__1)), FunCall(Scatter(ReorderWithStride(v__1)), FunCall(Join(), FunCall(Map(fun((p_11) => FunCall(Map(fun((p_12) => FunCall(calcAcc, FunCall(Get(0), p_4), p_12, p_3, p_2))), p_11))), FunCall(Split( N * Pow(v__1, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__1)), p_0))))))))))))), FunCall(Zip(2), p_0, p_1)))
-    val partialReduceWithReorderHash = getHash(partialReduceWithReorderGold)
 
-    val rewriter = new HighLevelRewrite(4, 2, 4)
-    val rewrittenLambdas = rewriter(nbody)
+    checkExists(partialReduceWithReorderGold, partialReduceWithReorderSeq, rewrittenLambdas)
+    checkDistance(partialReduceWithReorderGold)
+  }
 
-    val possiblePartialReduce = rewrittenLambdas.filter(_._2 == partialReduceWithReorderSeq)
-    val possibleIntroduceReuse = rewrittenLambdas.filter(_._2 == introduceReuseSeq)
+  @Test
+  def introduceReuse(): Unit = {
+    val introduceReuseGold = fun(ArrayType(VectorType(Float, 4), N), ArrayType(VectorType(Float, 4), N), Float, Float,(p_0, p_1, p_2, p_3) => FunCall(Join(), FunCall(Map(fun((p_4) => FunCall(TransposeW(), FunCall(Map(fun((p_5) => FunCall(Map(fun((p_6) => FunCall(update, FunCall(Get(0), FunCall(Get(0), p_6)), FunCall(Get(1), FunCall(Get(0), p_6)), p_3, FunCall(Get(1), p_6)))), FunCall(Zip(2), p_4, p_5)))), FunCall(Transpose(), FunCall(TransposeW(), FunCall(ReduceSeq(fun((p_7, p_8) => FunCall(Join(), FunCall(Map(fun((p_9) => FunCall(PartRed(fun((p_10, p_11) => FunCall(VectorizeUserFun(Cst(4),add), p_10, p_11))), FunCall(Get(0), p_9), FunCall(Get(1), p_9)))), FunCall(Zip(2), p_7, p_8))))), Value("0.0f", ArrayType(VectorType(Float, 4), v__1)), FunCall(Transpose(), FunCall(Map(fun((p_12) => FunCall(Split(v__2), FunCall(Join(), p_12)))), FunCall(TransposeW(), FunCall(Map(fun((p_13) => FunCall(Map(fun((p_14) => FunCall(Map(fun((p_15) => FunCall(calcAcc, FunCall(Get(0), p_14), p_15, p_3, p_2))), p_13))), p_4))), FunCall(Split(v__3), p_0)))))))))))), FunCall(Split(v__1), FunCall(Zip(2), p_0, p_1)))))
 
-    check(possiblePartialReduce, partialReduceWithReorderHash)
-    check(possibleIntroduceReuse, introduceReuseHash)
+    checkExists(introduceReuseGold, introduceReuseSeq, rewrittenLambdas)
+    checkDistance(introduceReuseGold)
   }
 }

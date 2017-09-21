@@ -7,7 +7,6 @@ import opencl.executor.LongTestsEnabled
 import opencl.ir._
 import org.junit.Test
 import rewriting.macrorules.SlideTiling
-import rewriting.utils.Utils.getHash
 
 class TestHighLevelRewrite {
 
@@ -35,16 +34,14 @@ class TestHighLevelRewrite {
 
   @Test
   def stencil1DRewrite(): Unit = {
-
     val rewriter = new HighLevelRewrite(4, 2, 2)
     val rewrittenLambdas = rewriter(stencil1D)
 
     val gold = fun(ArrayType(Float, N),(p_0) => FunCall(Join(), FunCall(Join(), FunCall(Map(fun((p_1) => FunCall(Map(fun((p_2) => FunCall(Reduce(fun((p_3, p_4) => FunCall(add, p_3, p_4))), Value("0.0f", Float), p_2))), FunCall(Slide(3,1), p_1)))), FunCall(Slide(2+v__1,v__1), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_0))))))
-    val goldHash = getHash(gold)
 
     val tiledSeq = Seq(SlideTiling.tileStencils)
-    val possibleTiled = rewrittenLambdas.filter(_._2 == tiledSeq)
 
-    check(possibleTiled, goldHash)
+    checkExists(gold, tiledSeq, rewrittenLambdas)
+    checkDistance(gold)
   }
 }

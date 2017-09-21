@@ -33,10 +33,9 @@ package object algorithmic {
   def checkDistance(lambda: Lambda): Unit =
     assertTrue(HighLevelRewrite.filterByDistance(HighLevelRewrite.finishRewriting(lambda)))
 
-  def check(lambdas: Seq[(Lambda, Seq[Rule])], hash: String): Unit = {
-    val lambda = lambdas.find(pair => getHash(pair._1) == hash)
+  def checkExists(gold: Lambda, ruleSeq: Seq[Rule], lambdas: Seq[(Lambda, Seq[Rule])]): Unit = {
+    val goldHash = getHash(gold)
 
-    assertTrue(lambda.isDefined)
-    checkDistance(lambda.get._1)
+    assertTrue(lambdas.exists(pair => getHash(pair._1) == goldHash))
   }
 }
