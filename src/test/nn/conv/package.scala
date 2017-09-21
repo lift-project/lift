@@ -154,25 +154,25 @@ package object conv {
 
 
     def loadDatasets(paramsPath: String,
-                     inputsPath: String = "", inputShape: Shape, targetFilePrefix: String = "",
+                     inputsPath: String = "", inputShape: Shape, outputShape: Shape, targetFilePrefix: String = "",
                      paramFileInfix: String, kernelSliding: SlidingWindowConfig): ConvDatasets = {
       new ConvDatasets(
         in = {
           if (inputsPath != "")
             PaddedArray(nn.loadBinary(inputsPath,
-              (inputShape.nBatches, inputShape.nInputs, inputShape.size, inputShape.size, inputShape.nChannels)))
+              (inputShape.nBatches, inputShape.nInputs, inputShape.nChannels, inputShape.size, inputShape.size)))
           else
             PaddedArray(Array.empty)
         },
         targ = {
           if (targetFilePrefix != "")
           nn.loadBinary(paramsPath + "/" + targetFilePrefix + ".binary",
-            (inputShape.nBatches, inputShape.nInputs, kernelSliding.size, kernelSliding.size, kernelSliding.nChannels))
+            (inputShape.nBatches, inputShape.nInputs, kernelSliding.nChannels, outputShape.size, outputShape.size))
           else
             Array.empty
         },
         w = nn.loadBinary(paramsPath + "/w" + paramFileInfix + ".binary",
-          (kernelSliding.size, kernelSliding.size, inputShape.nChannels, kernelSliding.nChannels)),
+          (kernelSliding.nChannels, inputShape.nChannels, kernelSliding.size, kernelSliding.size)),
         b = nn.loadBinary(paramsPath + "/b" + paramFileInfix + ".binary"))
     }
   }

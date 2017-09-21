@@ -25,7 +25,7 @@ object TestCNN_Conv {
 }
 
 class TestCNN_Conv {
-  val reruns: Int = 2
+  val reruns: Int = 1
 
   @Test
   def TestConv(): Unit = {
@@ -41,11 +41,11 @@ class TestCNN_Conv {
         convConfig = List(
           conv.Experiment.Config(
             conv.Experiment.Config.Dimensions(nKernels = 16, kernelSize = 20),
-            conv.Experiment.Config.OptimisationalParams(inputTileSize = 20, elsPerThread = 20, kernelsPerGroup = 4)
+            conv.Experiment.Config.OptimisationalParams(inputTileSize = 20, elsPerThread = 20, kernelsPerGroup = 1)
           ),
           conv.Experiment.Config(
             conv.Experiment.Config.Dimensions(nKernels = 12, kernelSize = 20),
-            conv.Experiment.Config.OptimisationalParams(inputTileSize = 20, elsPerThread = 4, kernelsPerGroup = 4)
+            conv.Experiment.Config.OptimisationalParams(inputTileSize = 20, elsPerThread = 5, kernelsPerGroup = 4)
           )
         ),
         fcConfig = List(

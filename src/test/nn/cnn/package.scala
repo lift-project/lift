@@ -2,6 +2,10 @@ package nn
 
 import java.nio.file.Files.exists
 import java.nio.file.Paths.get
+
+import nn.fc.FCDatasets
+import org.junit.Assert.assertEquals
+
 import scala.util.parsing.json.JSON
 
 /**
@@ -180,6 +184,34 @@ package object cnn {
 
 
     def datasetsExist(pathToParams: String): Boolean = exists(get(pathToParams + "/wconv1.binary"))
+
+
+    def verifyOutputs(netOutputs: Any, targetOutputs: Any, precision: Float):
+    Option[(List[Int], Float, Float)] = {
+      (netOutputs, targetOutputs) match {
+        case (n: Array[Float], t: Array[Float]) =>
+          for ((netOutput, targetOutput, i) <- (n, t, 0 to t.length).zipped.toList) {
+            try {
+              assertEquals("", targetOutput, netOutput, precision)
+            }
+            catch {
+              case _: AssertionError =>
+                return Some(List(i), targetOutput, netOutput)
+            }
+          }
+          None
+        case (n: Array[_], t: Array[_]) =>
+          for ((netOutput, targetOutput, i) <- (n, t, t.indices).zipped.toList) {
+            verifyOutputs(netOutput, targetOutput, precision) match {
+              case Some((ix, unmatchedTarget, wrongResult)) =>
+                return Some(List(i) ++ ix, unmatchedTarget, wrongResult)
+              case None =>
+            }
+          }
+          None
+      }
+
+    }
   }
 
 

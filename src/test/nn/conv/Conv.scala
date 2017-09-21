@@ -5,10 +5,11 @@ package nn.conv
   */
 
 import ir.ast._
+import ir.ast.debug.PrintType
 import ir.{ArrayType, TupleType}
 import nn._
 import opencl.ir._
-import opencl.ir.pattern._
+import opencl.ir.pattern.{ReorderStride, _}
 
 /**
   * Case class for storing the layer configuration.
@@ -35,12 +36,12 @@ case class Conv(liftFProp: FunDecl,
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {
       datasets.asInstanceOf[ConvDatasets].outputs.nonPadded =
         nn.group(outputsFlat, (outputShape.nBatches, outputShape.nInputs,
-          outputShape.sizePadded, outputShape.sizePadded, outputShape.nChannels)).map(
+          outputShape.nChannels, outputShape.sizePadded, outputShape.sizePadded)).map(
           batch => batch.map(
             input => input.map(
-              row => row.slice(0, outputShape.size)
-            ).slice(0, outputShape.size)
-          ))
+              channel => channel.map(
+                row => row.slice(0, outputShape.size)
+              ).slice(0, outputShape.size))))
   }
 }
 
@@ -87,35 +88,46 @@ object Conv {
       })) $ X
     }
   )*/
+  val locA: Int = 0//0
+  val locB: Int = 1//1
+  val locC: Int = 2//2
 
 
   /* Parallel layer */
-  def Par(activation_f: UserFun, input_shape: Shape, input_tiling: SlidingWindowConfig, n_kernels: Int, 
+  def Par(activation_f: UserFun, input_shape: Shape, input_tiling: SlidingWindowConfig, n_kernels: Int,
           kernel_sliding: SlidingWindowConfig,
           kernels_per_group: Int, els_per_thread: Int): FunDecl = {
+
     def Layer: FunDecl = λ(
-      AT(AT(AT(AT(Float, n_kernels), input_shape.nChannels), kernel_sliding.size), kernel_sliding.size),
+      AT(AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size), input_shape.nChannels), n_kernels),
       AT(Float, n_kernels),
-      AT(AT(AT(AT(AT(Float, input_shape.nChannels), input_shape.sizePadded), input_shape.sizePadded), 
+      AT(AT(AT(AT(AT(Float, input_shape.sizePadded), input_shape.sizePadded), input_shape.nChannels),
         input_shape.nInputs), input_shape.nBatches),
       (K, B, X) => {
-        MapWrg(0)(λ((inputs_batch) => {
+        MapWrg(locC)(λ(AT(AT(AT(AT(AT(AT(AT(Float, input_shape.nChannels), kernel_sliding.size), kernel_sliding.size),
+          /* TODO: enforce size checks */(input_tiling.size - (kernel_sliding.size - kernel_sliding.stride)) / kernel_sliding.size),
+          (input_tiling.size - (kernel_sliding.size - kernel_sliding.stride)) / kernel_sliding.size),
+          ((input_shape.sizePadded - (input_tiling.size - input_tiling.stride)) / input_tiling.size) *
+            ((input_shape.sizePadded - (input_tiling.size - input_tiling.stride)) / input_tiling.size) *
+            input_shape.nInputs), input_shape.nBatches),
+          (inputs_batch) => {
           /*  (nImages, input_tiling.n, input_tiling.n, n_k_passes, n_k_windows, nKernels) ->
-              (nImages, input_tiling.n, n_k_passes, input_tiling.n, n_k_windows, nKernels) ->
-              (nImages, input_tiling.n, n_k_passes, input_tiling.n * n_k_windows, nKernels) ->
-              (nImages, input_tiling.n * n_k_passes, input_tiling.n * n_k_windows, nKernels) ->
-          *   (nImages, n_passes, n_windows, nKernels) */
-          Map(/*input*/Join() o Map(/*tile_row*/Map(Join()) o TransposeW())) o
+          *   (nImages, input_tiling.n, n_k_passes, input_tiling.n, n_k_windows, nKernels) ->
+          *   (nImages, input_tiling.n, n_k_passes, input_tiling.n * n_k_windows, nKernels) ->
+          *   (nImages, input_tiling.n * n_k_passes, input_tiling.n * n_k_windows, nKernels) ->
+          *   (nImages, n_passes, n_windows, nKernels) ->
+          *   (nImages, nKernels, n_passes, n_windows) -> */
+          Map(/*input*/TransposeW() o Join() o Map(/*tile_row*/Map(TransposeW() o Join()) o TransposeW())) o
           Split(input_tiling.n) o Split(input_tiling.n) o
           /*  (nImages * input_tiling.n * input_tiling.n, nKernels, n_k_passes, n_k_windows) ->
            *  (nImages * input_tiling.n * input_tiling.n, n_k_passes, n_k_windows, nKernels) */
           λ(AT(AT(AT(AT(Float, kernel_sliding.n), kernel_sliding.n),
             n_kernels), input_shape.nInputs * input_tiling.n * input_tiling.n),
             (tiled_outputs) => Map(Map(TransposeW()) o TransposeW()) $ tiled_outputs) o
-          MapWrg(1)(λ((input_tile) => {
+          MapWrg(locA)(λ((input_tile) => {
             /* (nKernels / kernels_per_group, kernels_per_group, n_k_passes, n_k_windows) ->
             *  (nKernels, n_k_passes, n_k_windows) */
-            Join() o MapWrg(2)(λ(TupleType(
+            Join() o MapWrg(locB)(λ(TupleType(
               AT(AT(AT(AT(Float, input_shape.nChannels), kernel_sliding.size), kernel_sliding.size), kernels_per_group),
               AT(Float, kernels_per_group)),
               (kernels_tile) => {
@@ -124,37 +136,40 @@ object Conv {
                 Map(Split(kernel_sliding.n)) o
                 /* (n_passes*n_windows, kernels_per_group) -> (kernels_per_group, n_k_passes*n_k_windows) */
                 TransposeW() o
-                MapLcl(0)(λ((pass_window) => {
+                MapLcl(locC)(λ((pass_window) => {
                   λ(AT(AT(Float, kernel_sliding.size), kernels_per_group), (partially_reduced_window) =>
                     // TODO: add if conditional to remove final reduce in case els_per_thread == kernel_size
                     ReduceWindowAndAddBias()(partially_reduced_window, /* biases */Get(kernels_tile, 1))) o
                   /* (kernel_sliding.size, kernels_per_group) -> (kernels_per_group, kernel_sliding.size) */
                   TransposeW() o
-                  MapLcl(2)(λ((window_row, kernels_row) => {
+                  MapLcl(locB)(λ((window_row, kernels_row) => {
                     ReduceRow() o
                       // (kernels_per_group, kernel_sliding.size / els_per_thread)
                       Map(Join(/*tiles of elements*/)/* o
                         MapSeq(/* Dissolve one-element output of Reduce */Join())*/) o
                       Split(kernel_sliding.size / els_per_thread) o
-                      MapLcl(1)(ReduceAndWeighInputChannels()) o
+                      MapLcl(locA)(ReduceAndWeighInputChannels()) o
 /* (kernels_per_group, kernel_sliding.size / els_per_thread, els_per_thread, tuple of input_shape.nChannels) ->
  * (kernels_per_group * kernel_sliding.size / els_per_thread, els_per_thread, tuple of input_shape.nChannels)*/
                       Join() o
 /* (kernels_per_group, kernel_sliding.size, input_shape.nChannels) ->
  * (kernels_per_group, kernel_sliding.size / els_per_thread, els_per_thread, tuple of input_shape.nChannels) */
                       Map(/* for each kernel in the tile */
-                        λ((kernel_row) => Split(els_per_thread) $ Zip(window_row, kernel_row))) o
+                        λ((kernel_row) => Split(els_per_thread) $
+                          Zip(
+                            /*ReorderStride(els_per_thread) $ */window_row,
+                            /*ReorderStride(input_shape.nChannels) $ */kernel_row))) o
                       /* (kernel_sliding.size, input_shape.nChannels, kernels_per_group) ->
                        * (kernels_per_group, kernel_sliding.size, input_shape.nChannels) */
                       Transpose() o Map(Transpose()) $ kernels_row
                   })) $ Zip(pass_window, RestoreKernelShape() $ /* weights */ Get(kernels_tile, 0))
-                })) o toLocal(MapLcl(0)(λ((pass_window) =>
-                MapLcl(1)(λ((window_row) => {
-                  MapLcl(2)(MapSeq(id)) $ window_row
+                })) o toLocal(MapLcl(locC)(λ((pass_window) =>
+                MapLcl(locA)(λ((window_row) => {
+                  MapLcl(locB)(MapSeq(id)) $ window_row
                 })) $ pass_window))) o
                   /* (n_passes, n_windows, n_rows) -> (n_passes*n_windows, n_rows) */
                   Join() $ input_tile
-              })) $ ReshapeAndTileKernels()(K, B)
+              })) $ ReshapeTileAndLoadKernels()(K, B)
           })) $ inputs_batch
         })) o SlideX() $ X
       }
@@ -165,23 +180,45 @@ object Conv {
      * AT(AT(AT(AT(AT(AT(AT(Float, input_channels), kernel_shape.s), kernel_shape.s), n_kernel_pass_windows_in_tile),
      * n_kernel_pass_strips_in_tile), n_tile_pass_windows * n_tile_pass_strips * input_shape.nInputs), input_shape.nBatches) */
     def SlideX(): FunDecl =
-      λ(AT(AT(AT(AT(AT(Float, input_shape.nChannels), input_shape.sizePadded), input_shape.sizePadded), 
+      λ(AT(AT(AT(AT(AT(Float, input_shape.sizePadded), input_shape.sizePadded), input_shape.nChannels),
         input_shape.nInputs), input_shape.nBatches), (X) =>
-        Map(Join() o Map(Join() o 
-          TiledSlidedND(2)(kernel_sliding.size, kernel_sliding.stride, input_tiling.stride))) $ X)
+        Map(Join() o Map(Join() o
+          TiledSlidedND(2)(kernel_sliding.size, kernel_sliding.stride, input_tiling.stride))) o
+          //Map(Map(Split(input_shape.sizePadded) o ReorderStride(els_per_thread) o Join())) o
+          Map(Map(Map(Transpose()) o Transpose())) $ X)
 
     /* Reshapes kernels -- makes the output channels the outermost dimension -- and splits them into tiles.
      * Returns:
      * AT(TupleType(
      *   /* weights */ AT(AT(AT(AT(Float, input_channels), kernel_sliding.size), kernel_sliding.size), kernels_per_group),
      *   /* biases */ AT(Float, kernels_per_group)), n_kernel_tiles) */
-    def ReshapeAndTileKernels(): FunDecl =
-      λ(AT(AT(AT(AT(Float, n_kernels), input_shape.nChannels), kernel_sliding.size), kernel_sliding.size),
+    def ReshapeTileAndLoadKernels(): FunDecl =
+      λ(AT(AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size), input_shape.nChannels), n_kernels),
+        //AT(AT(AT(AT(Float, n_kernels), input_shape.nChannels), kernel_sliding.size), kernel_sliding.size),
         AT(Float, n_kernels), (kernels, biases) =>
         Zip(
+          /* Load kernels into local memory */
+          /*MapWrg(c)(λ(AT(AT(AT(AT(Float, input_shape.nChannels), kernel_sliding.size),
+            kernel_sliding.size), kernels_per_group),
+            (kernels_tile_towrap) => {
+            Transpose() o Join() o
+            MapLcl(a)(λ(AT(AT(AT(AT(Float, input_shape.nChannels), kernel_sliding.size), kernels_per_group),
+              kernel_sliding.size),
+              (kernels_tile) => {
+                MapLcl(c)(λ(AT(AT(AT(Float, input_shape.nChannels), kernel_sliding.size), kernels_per_group),
+                  (kernels_row) => {
+                    Split(kernel_sliding.size) o Join() o
+                    MapLcl(b)(λ(AT(AT(Float, input_shape.nChannels), els_per_thread),
+                      (kernels_seq_of_els) => {
+                        MapSeq(MapSeq(toLocal(id))) $ kernels_seq_of_els
+                      })) o Split(els_per_thread) o Join() $ kernels_row
+                  })) $ kernels_tile
+              })) o PrintType("After wrapping") o Split(kernel_sliding.size) o PrintType("Before wrapping") o
+              Transpose() $ kernels_tile_towrap
+            })) o*/
           Split(kernels_per_group) o
-          /* (n_rows, n_columns, n_in_chs, n_out_chs) -> (n_out_chs, n_rows, n_columns, n_in_chs) */
-          Transpose() o Map(Transpose() o Map(Transpose())) $ kernels,
+          /* (n_out_chs, n_in_chs, n_rows, n_columns) -> (n_out_chs, n_rows, n_columns, n_in_chs) */
+          Map(Map(Transpose()) o Transpose()) $ kernels,
           Split(kernels_per_group) $ biases))
 
     /* Reshapes the kernel back to the original shape, where output channels are the lowest dimension
@@ -204,7 +241,7 @@ object Conv {
         MapSeq(toLocal(id)) o ReduceSeq(add, toPrivate(id) $ 0.0f) o Join() o
         /* Compute sums of each element separately */
         MapSeq(λ(TupleType(
-          /*x_el_in_chs*/ AT(Float, input_shape.nChannels), 
+          /*x_el_in_chs*/ AT(Float, input_shape.nChannels),
           /*k_el_in_chs*/ AT(Float, input_shape.nChannels)),
           (single_element) =>
             /*Join() o*/
@@ -225,7 +262,7 @@ object Conv {
     def ReduceRow(): FunDecl =
       λ(AT(AT(Float, kernel_sliding.size / els_per_thread), kernels_per_group),
         (weighted_row) => {
-          Join() o MapLcl(1)(λ((weighted_row_per_out_ch) => {
+          Join() o MapLcl(locA)(λ((weighted_row_per_out_ch) => {
             MapSeq(toLocal(id)) o ReduceSeq(add, 0.0f) $ weighted_row_per_out_ch
           })) $ weighted_row
       })
@@ -238,11 +275,11 @@ object Conv {
         AT(Float, kernels_per_group),
         (partially_reduced_windows, biases) => {
           Join() o Join() o
-          MapLcl(2)(λ((reduced_rows_to_wrap, bias) => {
-            MapLcl(1)(λ((reduced_rows) => {
+          MapLcl(locB)(λ((reduced_rows_to_wrap, bias) => {
+            MapLcl(locA)(λ((reduced_rows) => {
               // Reduce weighted pass window separately for each output channel
-              MapSeq(toGlobal(activation_f)) o ReduceSeq(add, id(bias)) $ reduced_rows
-            })) o /* Wrap into an array of 1 element. This is to avoid race condition in MapLcl(0) by using 1 thread. */
+              MapSeq(toGlobal(activation_f)) o ReduceSeq(add, toPrivate(id) $ bias) $ reduced_rows
+            })) o /* Wrap into an array of 1 element. This is to avoid race condition in MapLcl(a) by using 1 thread. */
             Split(kernel_sliding.size) $ reduced_rows_to_wrap
           })) $ Zip(partially_reduced_windows, biases)
       })
@@ -333,12 +370,12 @@ object Conv {
 
     /* Parallelization parameters */
     val localSize: Array[Int] = Array.fill[Int](3)(0)
-    localSize(0) = scala.math.pow((inputTiling.size - (kernelSliding.size - 1)) / kernelSliding.stride, 2).toInt
 
-    localSize(1) = (iP.optParams.kernelsPerGroup *
+    localSize(locA) = (iP.optParams.kernelsPerGroup *
       Math.ceil(kernelSliding.size.toFloat / iP.optParams.elsPerThread)).toInt
-
-    localSize(2) = kernelSliding.size // TODO: make sure it is smaller than 64 (clinfo)
+    localSize(locB) = kernelSliding.size
+    // TODO: make sure it is smaller than 64 (clinfo)
+    localSize(locC) = scala.math.pow((inputTiling.size - (kernelSliding.size - 1)) / kernelSliding.stride, 2).toInt
 
     {
       val groupSize: Int = localSize(0) * localSize(1) * localSize(2)
@@ -349,9 +386,9 @@ object Conv {
     }
 
     val globalSize: Array[Int] = Array.fill[Int](3)(0)
-    globalSize(0) = localSize(0) * iP.inputShape.nBatches
-    globalSize(1) = localSize(1) * iP.inputShape.nInputs * inputTiling.n * inputTiling.n
-    globalSize(2) = localSize(2) * Math.ceil(iP.dim.nKernels.toFloat / iP.optParams.kernelsPerGroup).toInt
+    globalSize(locA) = localSize(locA) * iP.inputShape.nInputs * inputTiling.n * inputTiling.n
+    globalSize(locB) = localSize(locB) * Math.ceil(iP.dim.nKernels.toFloat / iP.optParams.kernelsPerGroup).toInt
+    globalSize(locC) = localSize(locC) * iP.inputShape.nBatches
 
     /* Now that all parameters are calculated and verified, build the layer */
 
@@ -369,19 +406,31 @@ object Conv {
     inputs.padded =
       Array.fill[Array4D[Float]](inputShape.nBatches)(
         Array.fill[Array3D[Float]](inputShape.nInputs)(
-          Array.fill[Array2D[Float]](inputShape.sizePadded)(
+          Array.fill[Array2D[Float]](inputShape.nChannels)(
             Array.fill[Array[Float]](inputShape.sizePadded)(
-              Array.fill[Float](inputShape.nChannels)(0)))))
+              Array.fill[Float](inputShape.sizePadded)(0)))))
+
+     // Add empty elements to lines
+    for {b <- 0 until inputShape.nBatches; i <- 0 until inputShape.nInputs; c <- 0 until inputShape.nChannels
+         h <- 0 until inputShape.size}
+      inputs.padded(b)(i)(c)(h) = inputs.nonPadded(b)(i)(c)(h).padTo(inputShape.sizePadded, 0.0f)
+
     // Add empty lines
-    for {b <- 0 until inputShape.nBatches; i <- 0 until inputShape.nInputs}
-      inputs.padded(b)(i) = inputs.nonPadded(b)(i).padTo(
+    for {b <- 0 until inputShape.nBatches; i <- 0 until inputShape.nInputs; c <- 0 until inputShape.nChannels}
+      inputs.padded(b)(i)(c) = inputs.padded(b)(i)(c).padTo(
         inputShape.sizePadded,
-        Array.fill[Array[Float]](inputShape.sizePadded)(
-          Array.fill[Float](inputShape.nChannels)(0)))
-    // Add empty elements to lines
-    for {b <- 0 until inputShape.nBatches; i <- 0 until inputShape.nInputs; h <- 0 until inputShape.size}
-      inputs.padded(b)(i)(h) = inputs.nonPadded(b)(i)(h).padTo(
-        inputShape.sizePadded,
-        Array.fill[Float](inputShape.nChannels)(0))
+        Array.fill[Float](inputShape.sizePadded)(0))
+
+//    // Add empty lines
+//    for {b <- 0 until inputShape.nBatches; i <- 0 until inputShape.nInputs}
+//      inputs.padded(b)(i) = inputs.nonPadded(b)(i).padTo(
+//        inputShape.sizePadded,
+//        Array.fill[Array[Float]](inputShape.sizePadded)(
+//          Array.fill[Float](inputShape.nChannels)(0)))
+//    // Add empty elements to lines
+//    for {b <- 0 until inputShape.nBatches; i <- 0 until inputShape.nInputs; h <- 0 until inputShape.size}
+//      inputs.padded(b)(i)(h) = inputs.nonPadded(b)(i)(h).padTo(
+//        inputShape.sizePadded,
+//        Array.fill[Float](inputShape.nChannels)(0))
   }
 }

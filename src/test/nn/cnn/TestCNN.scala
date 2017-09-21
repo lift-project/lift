@@ -7,6 +7,7 @@ import java.util.{Calendar, Date}
 
 import com.typesafe.scalalogging.Logger
 import nn._
+import nn.cnn.Experiment.verifyOutputs
 import nn.conv.{Conv, ConvDatasets}
 import nn.fc.{FC, FCDatasets}
 import nn.mysql.Connector
@@ -34,13 +35,14 @@ object TestCNN {
     Connector.close()
   }
 
+
 }
 
 class TestCNN {
   private val logger = Logger(this.getClass)
 
-  val precision: Float = 10f
-  val codeVersion: Int = 20
+  val precision: Float = 2f
+  val codeVersion: Int = 22
   val reruns: Int = 1
 
   //@Test
@@ -263,6 +265,8 @@ class TestCNN {
                 nn.conv.Experiment.loadDatasets(
                   paramsPath = pathToParams,
                   inputShape = aCNN.convLayers(0).inputShape,
+                  outputShape = aCNN.convLayers(0).outputShape,
+//                  targetFilePrefix = "test_caffe_results_n" + inputConfig.nInputs,
                   inputsPath = pathToInputs + "/test_images_n" + inputConfig.nInputs + ".binary",
                   paramFileInfix = "conv1",
                   kernelSliding = aCNN.convLayers(0).kernelSliding),
@@ -270,6 +274,8 @@ class TestCNN {
                 nn.conv.Experiment.loadDatasets(
                   paramsPath = pathToParams,
                   inputShape = aCNN.convLayers(1).inputShape,
+                  outputShape = aCNN.convLayers(1).outputShape,
+                  targetFilePrefix = "test_caffe_results_n" + inputConfig.nInputs,
                   paramFileInfix = "conv2",
                   kernelSliding = aCNN.convLayers(1).kernelSliding),
 
@@ -282,7 +288,7 @@ class TestCNN {
                 nn.fc.Experiment.loadDatasets(
                   paramsPath = pathToParams,
                   inputShape = aCNN.fcLayers(1).inputShape,
-                  targetFilePrefix = "test_tf_results_n" + inputConfig.nInputs,
+                  //targetFilePrefix = "test_caffe_results_n" + inputConfig.nInputs,
                   paramFileInfix = "out",
                   neuronShape = aCNN.fcLayers(1).neuronShape)))
           /* ----------------------------- LOAD DATA (END) ----------------------------- */
@@ -311,7 +317,7 @@ class TestCNN {
 
         now = Calendar.getInstance().getTime
 
-        for (layerNo <- 0 until 2/*aCNN.nLayers 14*/) {
+        for (layerNo <- 0 until 2 /*aCNN.nLayers 14*/) {
           val layer: Layer = aCNN.layers(layerNo)
           val layerData: NetDatasets = data.layers({
             if (aCNN.nPoolLayers > 0)
@@ -408,29 +414,24 @@ class TestCNN {
 
         /* Check and save results */
         var testFailed: Boolean = false
-        var testVerified: Boolean = true // TODO: false
-        // TODO: add verification
-//        if (data.layers.last.asInstanceOf[FCDatasets].targets.asInstanceOf[Array2D[Float]] != Array.empty) {
-//          testVerified = true
-//          val netOutput: Array2D[Float] = data.layers.last.asInstanceOf[FCDatasets].outputs.nonPadded
-//          val netOutputTemp: Array2D[Float] = data.layers(2).asInstanceOf[FCDatasets].outputs.nonPadded
-//          val netTarget: Array2D[Float] = data.layers.last.asInstanceOf[FCDatasets].targets.asInstanceOf[Array2D[Float]]
-//          for ((liftResult, targetResult, input_no) <- (netOutput, netTarget, 0 to netTarget.length).zipped.toList) {
-//            //          logger.info(f"target $input_no%d:  " + targetResult.mkString(", "))
-//            //          logger.info(f"actual $input_no%d:  " + liftResult.mkString(", "))
-//            for ((liftElement, targetElement, el_no) <-
-//                 (liftResult, targetResult, 0 to targetResult.length).zipped.toList) {
-//              try {
-//                assertEquals("", targetElement, liftElement, precision)
-//              }
-//              catch {
-//                case e: AssertionError =>
-//                  logger.info(f"$input_no%d,$el_no%d,:  " + targetElement + " != " + liftElement)
-//                  testFailed = true
-//              }
-//            }
-//          }
-//        }
+        var testVerified: Boolean = true
+
+
+        val a = data.layers(1).asInstanceOf[ConvDatasets].outputs.nonPadded
+        val b = data.layers(1).asInstanceOf[ConvDatasets].targets
+          verifyOutputs(
+//          netOutputs = data.layers.last.asInstanceOf[FCDatasets].outputs.nonPadded,
+//          targetOutputs = data.layers.last.asInstanceOf[FCDatasets].targets,
+          netOutputs = data.layers(1).asInstanceOf[ConvDatasets].outputs.nonPadded,
+          targetOutputs = data.layers(1).asInstanceOf[ConvDatasets].targets,
+          precision) match {
+          case Some((ix, unmatchedTarget, wrongOutput)) =>
+            logger.info(ix.mkString(", ") + ": " + unmatchedTarget + " != " + wrongOutput)
+            testFailed = true
+          case None =>
+            // Verification successful
+        }
+
         if (!testFailed)
           logger.info(f"SUCCESS. Processed ${aCNN.inputShape.nBatches * aCNN.inputShape.nInputs}%d inputs, " +
             f"the results were equal to targets (precision=$precision%1.4f).")

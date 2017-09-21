@@ -36,16 +36,16 @@
       {
         "start": "kernel_size",
         "end": "image_size",
-        "step_add": 4
+        "step_add": 1
       }
     ],
     "kernels_per_group": [
-      {"initial": 4},
+      {"initial": 1},
       {
         "initial": 1,
         "start": 2,
         "end": "n_kernels",
-        "step_multiply": 2
+        "step_add": 1
       }
     ],
     "els_per_thread": [
