@@ -132,10 +132,7 @@ object CopyRules {
         !containsArray
       }
     =>
-
-      val copyFun = UserFun(s"id_${Type.name(call.t)}", "x",
-        "{ return x; }", call.t, call.t)
-
+      val copyFun = generateCopy(call.t)
       copyFun $ call
   })
 }
