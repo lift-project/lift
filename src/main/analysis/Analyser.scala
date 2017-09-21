@@ -4,7 +4,7 @@ import analysis.AccessCounts.SubstitutionMap
 import lift.arithmetic.ArithExpr.{contains, substitute}
 import lift.arithmetic._
 import ir._
-import ir.ast.{AbstractMap, Lambda}
+import ir.ast.{AbstractMap, AbstractPartRed, Expr, FunCall, Iterate, Lambda}
 import opencl.generator._
 import opencl.ir._
 import rewriting.InferNDRange.substituteInNDRange
@@ -47,5 +47,24 @@ class Analyser(
     OpenCLMemoryAllocator(lambda)
   }
 
+  protected def getReduceAndIteratePrivates: Seq[OpenCLMemory] = {
+    var allowedPrivate = Seq[OpenCLMemory]()
+
+    Expr.visit(lambda.body, _ => Unit, {
+      case FunCall(_: AbstractPartRed, init, _) =>
+        if (init.mem.asInstanceOf[OpenCLMemory].addressSpace == PrivateMemory)
+          allowedPrivate = allowedPrivate :+ init.mem.asInstanceOf[OpenCLMemory]
+
+        // TODO: OpenCLMemoryCollection/Tuple
+        if (init.mem.isInstanceOf[OpenCLMemoryCollection])
+          throw new NotImplementedError
+
+      case FunCall(_: Iterate, _) =>
+        throw new NotImplementedError
+      case _ =>
+    })
+
+    allowedPrivate
+  }
 
 }
