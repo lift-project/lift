@@ -2,28 +2,17 @@ package exploration.mapping
 import exploration.MemoryMappingRewrite
 import ir._
 import ir.ast._
-import lift.arithmetic.{Cst, Pow, SizeVar}
+import lift.arithmetic.{Cst, Pow}
 import opencl.executor.LongTestsEnabled
-import opencl.ir.pattern._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.EnabledMappings
 import rewriting.utils.Utils.getHash
 
 class MappingGesummv {
 
   LongTestsEnabled()
-
-  private val K = SizeVar("K")
-  private val N = SizeVar("N")
-
-  private val v__2 = SizeVar("")
-  private val v__3 = SizeVar("")
-  private val v__4 = SizeVar("")
-
-  private val enabledMappings = EnabledMappings(global0 = true, global01 = true, global10 = false, global012 = false, global210 = false, group0 = true, group01 = false, group10 = true)
-  private val idTuple2_float_float = UserFun("idTuple2_float_float", Array("x"), """|{ return x; }""".stripMargin, Seq(TupleType(Float, Float)), TupleType(Float, Float))
 
   @Test
   def gesummvIntroduceReuse(): Unit = {

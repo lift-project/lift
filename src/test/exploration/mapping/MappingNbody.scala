@@ -3,26 +3,17 @@ package exploration.mapping
 import exploration.MemoryMappingRewrite
 import ir._
 import ir.ast._
-import lift.arithmetic.{Cst, Pow, SizeVar}
+import lift.arithmetic.{Cst, Pow}
 import opencl.executor.LongTestsEnabled
-import opencl.ir.pattern._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.EnabledMappings
 import rewriting.utils.Utils.getHash
 
 class MappingNbody {
 
   LongTestsEnabled()
-
-  private val N = SizeVar("N")
-
-  private val v__1 = SizeVar("")
-  private val v__2 = SizeVar("")
-  private val v__3 = SizeVar("")
-
-  private val enabledMappings = EnabledMappings(global0 = true, global01 = true, global10 = false, global012 = false, global210 = false, group0 = true, group01 = false, group10 = true)
 
   private val calcAcc = UserFun("calcAcc", Array("p1", "p2", "deltaT", "espSqr"),
     """|{

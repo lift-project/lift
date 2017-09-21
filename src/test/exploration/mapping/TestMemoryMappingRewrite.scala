@@ -5,20 +5,15 @@ import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
 import opencl.executor.LongTestsEnabled
-import opencl.ir.pattern._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.EnabledMappings
 import rewriting.utils.Utils.getHash
 
 class TestMemoryMappingRewrite {
 
   LongTestsEnabled()
-
-  private val N = SizeVar("N")
-
-  private val enabledMappings = EnabledMappings(global0 = true, global01 = true, global10 = false, global012 = false, global210 = false, group0 = true, group01 = false, group10 = true)
 
   @Test
   def unrolledReduce(): Unit = {
@@ -48,12 +43,10 @@ class TestMemoryMappingRewrite {
     val v_F_1 = SizeVar("F")
     val v_C_2 = SizeVar("C")
 
-    val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
     val currentDistance = UserFun("currentDistance", Array("x", "y"), """|{ return (x - y) * (x - y); }""".stripMargin, Seq(Float, Float), Float)
     val test = UserFun("test", Array("dist", "tuple"), """|{float min_dist = tuple._0;int i          = tuple._1;int index      = tuple._2;if (dist < min_dist) {  Tuple t = {dist, i + 1, i};  return t;} else {  Tuple t = {min_dist, i + 1, index};  return t;}}""".stripMargin, Seq(Float, TupleType(Float, Int, Int)), TupleType(Float, Int, Int))
     val select_ = UserFun("select_", Array("tuple"), """|{ return tuple._2; }""".stripMargin, Seq(TupleType(Float, Int, Int)), Int)
 
-    val idfloat = UserFun("idfloat", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
     val idTuple_float_int_int = UserFun("idTuple3_float_int_int", Array("x"), """|{ return x; }""".stripMargin, Seq(TupleType(Float, Int, Int)), TupleType(Float, Int, Int))
 
     val start = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, v_P_0), v_F_1), ArrayTypeWSWC(ArrayTypeWSWC(Float, v_F_1), v_C_2),(p_0, p_1) => FunCall(Map(fun((p_2) => FunCall(Map(fun((p_3) => FunCall(Map(fun((p_4) => FunCall(select_, p_4))), p_3))), FunCall(ReduceSeq(fun((p_5, p_6) => FunCall(Map(fun((p_7) => FunCall(test, FunCall(Get(0), p_7), FunCall(Get(1), p_7)))), FunCall(Zip(2), FunCall(ReduceSeq(fun((p_8, p_9) => FunCall(add, p_8, FunCall(currentDistance, FunCall(Get(0), p_9), FunCall(Get(1), p_9))))), Value("0.0f", Float), FunCall(Zip(2), p_2, p_6)), p_5)))), Value("{3.40282347e+38, 0, 0}", ArrayTypeWSWC(TupleType(Float, Int, Int), 1)), p_1)))), FunCall(Transpose(), p_0)))
