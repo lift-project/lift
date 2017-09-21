@@ -1,11 +1,12 @@
-package exploration
+package exploration.mapping
 
+import exploration.MemoryMappingRewrite
 import ir._
 import ir.ast._
 import lift.arithmetic.{Cst, Pow, SizeVar}
 import opencl.executor.LongTestsEnabled
-import opencl.ir._
 import opencl.ir.pattern._
+import opencl.ir.{add, idfloat, _}
 import org.junit.Assert._
 import org.junit.Test
 import rewriting.EnabledMappings
