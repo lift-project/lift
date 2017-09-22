@@ -158,11 +158,10 @@ class TestRewriteMriQ {
   @Test
   def mriqIntroduceReuse(): Unit = {
     val f0 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
-    val f1 = Rewrite.applyRuleAtId(f0, 7, FissionRules.mapFission)
-    val f2 = Rewrite.applyRuleAtId(f1, 7, ReuseRules.introduceReuseFromMap(64))
-    val f3 = Rewrite.applyRuleAtId(f2, 11, ReuseRules.introduceReuseFromMap(64))
+    val f1 = Rewrite.applyRuleAtId(f0, 7, ReuseRules.introduceReuseFromMap(64))
+    val f2 = Rewrite.applyRuleAtId(f1, 11, ReuseRules.introduceReuseFromMap(64))
 
-    val lowered = Lower.mapCombinations(f3, mappings).head
+    val lowered = Lower.mapCombinations(f2, mappings).head
 
     val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
     val l1 = Rewrite.applyRuleAtId(l0, 9, CopyRules.addIdForCurrentValueInReduce)
@@ -176,15 +175,13 @@ class TestRewriteMriQ {
     assertArrayEquals(gold, output, 0.001f)
   }
 
-
   @Test
   def mriqIntroduceReuseFromMapping(): Unit = {
     val f0 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
-    val f1 = Rewrite.applyRuleAtId(f0, 7, FissionRules.mapFission)
-    val f2 = Rewrite.applyRuleAtId(f1, 7, ReuseRules.introduceReuseFromMap(64))
-    val f3 = Rewrite.applyRuleAtId(f2, 11, ReuseRules.introduceReuseFromMap(64))
+    val f1 = Rewrite.applyRuleAtId(f0, 7, ReuseRules.introduceReuseFromMap(64))
+    val f2 = Rewrite.applyRuleAtId(f1, 10, ReuseRules.introduceReuseFromMap(64))
 
-    val lowered = Lower.mapCombinations(f3, mappings).head
+    val lowered = Lower.mapCombinations(f2, mappings).head
 
     val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
     val l1 = Rewrite.applyRuleAtId(l0, 9, CopyRules.addIdForCurrentValueInReduce)
