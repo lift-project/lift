@@ -45,7 +45,7 @@ class TestRewriteMriQ {
   private val x = floatArrayFromResource("mriq/xVals.bin")
   private val y = floatArrayFromResource("mriq/yVals.bin")
   private val z = floatArrayFromResource("mriq/zVals.bin")
-  private val k = floatArrayFromResource("mriq/kVals.bin")
+  private val k = floatArrayFromResource("mriq/kVals.bin").grouped(4).map(x => (x(0), x(1), x(2), x(3))).toArray
 
   private val Qr = floatArrayFromResource("mriq/qrVals.bin")
   private val Qi = floatArrayFromResource("mriq/qiVals.bin")
