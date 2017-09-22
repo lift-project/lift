@@ -5,6 +5,7 @@ public class ValueArg extends KernelArg {
     public static native ValueArg create(int value);
     public static native ValueArg create(double value);
     public static native ValueArg create(boolean value);
+    public static native ValueArg create(byte[] value);
 
 
     ValueArg(long handle) {

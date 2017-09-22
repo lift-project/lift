@@ -1,22 +1,18 @@
 package benchmarks
 
 import java.io._
-import java.nio.file.{Files, Paths}
-import java.time
 
 import ir.ast.Lambda
-import lift.arithmetic.{?, ArithExpr}
-
+import opencl.executor.Decoder.DecodeTypes.DecodeType
 import opencl.executor.Executor.ExecutorFailureException
 import opencl.executor._
 import opencl.generator.Verbose
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 
-import scala.io.Source
+import scala.collection.immutable
 import scala.reflect.ClassTag
 import scala.sys.process._
-import scala.collection.immutable
 
 
 case class BenchmarkConfiguration
@@ -48,13 +44,13 @@ abstract class Benchmark2[T: ClassTag](val name: String,
                  var defaultInputSizes: Seq[Int],
                  val f:Seq[(String, Array[Lambda])],
                  val areEqual: (T, T) => Boolean,
-                 val defaultLocalSizes: Array[Int] = Array(128,1,1)) {
+                 val defaultLocalSizes: Array[Int] = Array(128,1,1))(implicit outT: DecodeType[T]) {
 
   /*
    To make it easier to implement the iterative benchmarks (which would inherit from this)
     we declare a type for the return type of the runScala function, which we can change when we subclass
    */
-  type SRes = Array[T]
+  type SRes = T
 
   /*
    So that we can report individiual kernel execution times, we define an "instance statistic" type, which
@@ -78,14 +74,10 @@ abstract class Benchmark2[T: ClassTag](val name: String,
     the behaviour of the benchmark for edge cases (e.g. for a variant which needs a transposed input)
    */
   // preprocess the inputs for a specific variant
-  def preProcessInputs(variant: Int, name: String, inputs: Seq[Any]) : Seq[Any] = {
-    inputs
-  }
+  def preProcessInputs(variant: Int, name: String, inputs: Seq[Any]): Seq[Any] = inputs
 
   // postprocess the results for a specific variant
-  def postProcessResult(variant: Int, name: String, result: Any) : Array[T] = {
-    result.asInstanceOf[Array[T]]
-  }
+  def postProcessResult(variant: Int, name: String, result: T): T = result
 
   // Mutate the lambdas of a particular variant, e.g. for a case that depends on last-minute information
   protected def updateLambdas(variant: Int, name: String, lambdas: Array[Lambda]) : Array[Lambda] = {
@@ -171,8 +163,11 @@ abstract class Benchmark2[T: ClassTag](val name: String,
   /*
     Print the result of the computation
    */
-  def printResult(result: Array[T]) : Unit = {
-    println(result.map(_.toString).mkString("[",",","]"))
+  def printResult(result: T) : Unit = {
+    result match {
+      case a: Array[_] => println(a.map(_.toString).mkString("[", ",", "]"))
+      case _ => throw new NotImplementedError(result.toString)
+    }
   }
 
   /*
@@ -307,7 +302,7 @@ abstract class Benchmark2[T: ClassTag](val name: String,
 
     var kernelSource = getKernelSource(lambda, variant, name, configuration)
 
-    val (unprocessed_output : Array[T], runtimes : Array[Double]) = Execute(
+    val (unprocessed_output, runtimes : Array[Double]) = Execute(
       localSize(0),
       localSize(1),
       localSize(2),
@@ -315,7 +310,7 @@ abstract class Benchmark2[T: ClassTag](val name: String,
       globalSize(1),
       globalSize(2),
       (configuration.injectLocal, configuration.injectGroup)
-    ).benchmark(configuration.trials, configuration.timeout, kernelSource, lambda, inputs: _*)
+    ).benchmark[T](configuration.trials, configuration.timeout, kernelSource, lambda, inputs: _*)
 
     val output = postProcessResult(variant, name, unprocessed_output)
     val validity = configuration.checkResult match {
@@ -383,7 +378,7 @@ abstract class Benchmark2[T: ClassTag](val name: String,
       var realInputs = inputs
       val realGlobalSizes = globalSize
       var totalRuntime = 0.0
-      var finalOutput = Array.ofDim[T](0)
+      var finalOutput: Array[T] = Array.ofDim[T](1)
 
       for (j <- lambdas.indices) {
         if(i == 0)
@@ -397,7 +392,7 @@ abstract class Benchmark2[T: ClassTag](val name: String,
             realGlobalSizes(2),
             (configuration.injectLocal, configuration.injectGroup))
 
-        val (kOutput: Array[T], kRuntime) = Execute(
+        val (kOutput, kRuntime) = Execute(
           localSize(0),
           localSize(1),
           localSize(2),
@@ -405,20 +400,21 @@ abstract class Benchmark2[T: ClassTag](val name: String,
           realGlobalSizes(1),
           realGlobalSizes(2),
           (configuration.injectLocal, configuration.injectGroup)
-        )(kernels(j), realInputs)
+        )[T](kernels(j), realInputs)
 
         // update parameters for next kernel, if any
         realInputs = Seq(kOutput)
-        realGlobalSizes(0) = kOutput.length
+        //realGlobalSizes(0) = kOutput.length
+        realGlobalSizes(0) = 128
         realGlobalSizes(1) = 1
         realGlobalSizes(2) = 1
 
         totalRuntime += kRuntime
         runtimes(i)(j) = kRuntime
-        finalOutput = kOutput
+        finalOutput(0) = kOutput
       }
 
-      val output = postProcessResult(variant, name, finalOutput)
+      val output = postProcessResult(variant, name, finalOutput(0))
 
       validities(i) = configuration.checkResult match {
         case true => {
@@ -570,30 +566,21 @@ abstract class Benchmark2[T: ClassTag](val name: String,
   case class BadLength(expected: Int, actual: Int) extends RunResult {
     override def toString = "badlength"
   }
-  case class BadValues(positions: Array[(Int, T, T)]) extends RunResult{
+  case class BadValues() extends RunResult{
     override def toString = "badvalues"
   }
   // generic way of reporting bad values without exact data
   case class GenericBadValues() extends RunResult {
     override def toString = "badvalues"
   }
-  def checkResult(output: SRes, expected: SRes) : RunResult = {
-    if (output.length != expected.length)  {
-      return BadLength(expected.length, output.length)
-    }else {
-      val compareResult = (output zip expected).zipWithIndex.filter {
-        case ((o, e), i) => !areEqual(o,e)
-      }.map {
-        case ((o,e), i) => (i,o,e)
-      }
 
-      if (compareResult.length > 0){
-        return BadValues(compareResult)
-      }else {
-        return Correct()
-      }
-    }
+  def checkResult(output: SRes, expected: SRes): RunResult = {
+    if (areEqual(expected, output))
+      Correct()
+    else
+      BadValues()
   }
+
   // how bad is a given run result
   private final def badness(validity: RunResult) : Int = {
     validity match {
@@ -602,7 +589,7 @@ abstract class Benchmark2[T: ClassTag](val name: String,
       case GenericFailure() => 2
       case BadLength(_, _) => 3
       case GenericBadValues() => 4
-      case BadValues(_) => 5
+      case BadValues() => 5
     }
   }
   // find the worst result in a list of results :)

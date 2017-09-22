@@ -1,26 +1,16 @@
 package rewriting
 
-import ir.ast._
 import ir._
+import ir.ast._
 import lift.arithmetic.{RangeMul, SizeVar, Var}
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.ast._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
-import rewriting.utils.NumberExpression
+import org.junit.Test
 
-object TestRules {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object TestRules extends TestWithExecutor
 
 class TestRules {
 
@@ -222,8 +212,8 @@ class TestRules {
           MapSeq(dot) $ Zip(x, y)
     )
 
-    val (outputF: Array[Float], _) = Execute(1, 1)(f, input, input)
-    val (outputG: Array[Float], _) = Execute(1, 1)(g, input, input)
+    val (outputF, _) = Execute(1, 1)[Array[Float]](f, input, input)
+    val (outputG, _) = Execute(1, 1)[Array[Float]](g, input, input)
 
     assertEquals(gold, outputF.head, 0.001f)
     assertEquals(gold, outputG.head, 0.001f)
@@ -256,8 +246,8 @@ class TestRules {
           MapSeq(dot) $ Zip(x, y)
     )
 
-    val (outputF: Array[Float], _) = Execute(1, 1)(f, input, input)
-    val (outputG: Array[Float], _) = Execute(1, 1)(g, input, input)
+    val (outputF, _) = Execute(1, 1)[Array[Float]](f, input, input)
+    val (outputG, _) = Execute(1, 1)[Array[Float]](g, input, input)
 
     assertEquals(gold, outputF.head, 0.001f)
     assertEquals(gold, outputG.head, 0.001f)
@@ -283,8 +273,8 @@ class TestRules {
 
     val g = Rewrite.applyRuleAtId(f, 1, Rules.dotBuiltinSeq)
 
-    val (outputF: Array[Float], _) = Execute(1, 1)(f, input, input)
-    val (outputG: Array[Float], _) = Execute(1, 1)(g, input, input)
+    val (outputF, _) = Execute(1, 1)[Array[Float]](f, input, input)
+    val (outputG, _) = Execute(1, 1)[Array[Float]](g, input, input)
 
     assertEquals(gold, outputF.head, 0.001f)
     assertEquals(gold, outputG.head, 0.001f)
@@ -411,19 +401,19 @@ class TestRules {
 
     val A = Array.tabulate(size, size)((x, y) => x*size + y.toFloat)
 
-    val (result: Array[Float], _) = Execute(size)(f, A, A)
+    val (result, _) = Execute(size)[Array[Float]](f, A, A)
 
     val g0 = Rewrite.applyRuleAtId(fP, 2, Rules.mapFissionWithZipInside)
     val g1 = Rewrite.applyRuleAtId(g0, 0, Rules.mapGlb)
     val g2 = Rewrite.applyRuleAtId(g1, 2, Rules.mapSeq)
 
-    val (resultG: Array[Float], _) = Execute(size)(g2, A, A)
+    val (resultG, _) = Execute(size)[Array[Float]](g2, A, A)
 
     val h0 = Rewrite.applyRuleAtId(fP, 0, Rules.mapFissionWithZipInside)
     val h1 = Rewrite.applyRuleAtId(h0, 0, Rules.mapGlb)
     val h2 = Rewrite.applyRuleAtId(h1, 5, Rules.mapSeq)
 
-    val (resultH: Array[Float], _) = Execute(size)(h2, A, A)
+    val (resultH, _) = Execute(size)[Array[Float]](h2, A, A)
 
     assertArrayEquals(result, resultG, 0.0f)
     assertArrayEquals(result, resultH, 0.0f)
@@ -812,12 +802,12 @@ class TestRules {
     )
 
     val options = Rewrite.rewriteJustGenerable(f, levels = 1)
-    val (gold: Array[Float], _) = Execute(128)(goldF, A)
+    val (gold, _) = Execute(128)[Array[Float]](goldF, A)
 
     assertTrue(options.nonEmpty)
 
     options.foreach(l => {
-      val (result: Array[Float], _) = Execute(128)(l, A)
+      val (result, _) = Execute(128)[Array[Float]](l, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -837,13 +827,13 @@ class TestRules {
     )
 
     val a = 1.0f
-    val (gold: Array[Float], _) = Execute(128)(goldF, A, a)
+    val (gold, _) = Execute(128)[Array[Float]](goldF, A, a)
     val lambdaOptions = Rewrite.rewriteJustGenerable(f)
 
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.zipWithIndex.foreach(l => {
-      val (result: Array[Float], _) = Execute(128)(l._1, A, a)
+      val (result, _) = Execute(128)[Array[Float]](l._1, A, a)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -863,7 +853,7 @@ class TestRules {
 
     val input = Array.fill[Float](128, 128)(util.Random.nextFloat())
 
-    val (result:Array[Float], _) = Execute(128)(h, input)
+    val (result, _) = Execute(128)[Array[Float]](h, input)
 
     assertArrayEquals(input.flatten, result, 0.0f)
     assertEquals(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), h.body.t)
@@ -876,7 +866,7 @@ class TestRules {
       input => MapGlb(id) $ input
     )
 
-    val (gold: Array[Float], _) = Execute(128)(goldF, A)
+    val (gold, _) = Execute(128)[Array[Float]](goldF, A)
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
@@ -889,7 +879,7 @@ class TestRules {
 
     assertTrue(lambdaOptions.nonEmpty)
     lambdaOptions.zipWithIndex.foreach(l => {
-      val (result: Array[Float], _) = Execute(128)(l._1, A)
+      val (result, _) = Execute(128)[Array[Float]](l._1, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -903,7 +893,7 @@ class TestRules {
       input => MapGlb(MapSeq(id)) $ input
     )
 
-    val (gold: Array[Float], _) = Execute(128)(goldF, A)
+    val (gold, _) = Execute(128)[Array[Float]](goldF, A)
 
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, 4), N),
@@ -917,7 +907,7 @@ class TestRules {
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.zipWithIndex.foreach(l => {
-      val (result: Array[Float], _) = Execute(128)(l._1, A)
+      val (result, _) = Execute(128)[Array[Float]](l._1, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -929,7 +919,7 @@ class TestRules {
       input => MapGlb(id) $ input
     )
 
-    val (gold: Array[Float], _) = Execute(128)(goldF, A)
+    val (gold, _) = Execute(128)[Array[Float]](goldF, A)
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
@@ -942,7 +932,7 @@ class TestRules {
 
     assertTrue(lambdaOptions.nonEmpty)
     lambdaOptions.zipWithIndex.foreach(l => {
-      val (result: Array[Float], _) = Execute(128)(l._1, A)
+      val (result, _) = Execute(128)[Array[Float]](l._1, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -956,7 +946,7 @@ class TestRules {
       input => MapGlb(MapSeq(id)) $ input
     )
 
-    val (gold: Array[Float], _) = Execute(128)(goldF, A)
+    val (gold, _) = Execute(128)[Array[Float]](goldF, A)
 
     val f = fun(
       ArrayTypeWSWC(VectorType(Float, 4), N),
@@ -970,7 +960,7 @@ class TestRules {
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.zipWithIndex.foreach(l => {
-      val (result: Array[Float], _) = Execute(128)(l._1, A)
+      val (result, _) = Execute(128)[Array[Float]](l._1, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -990,11 +980,11 @@ class TestRules {
     val lambdaOptions = Rewrite.rewriteJustGenerable(f,
       Seq(Rules.reduceSeq, Rules.addIdAfterReduce, Rules.implementIdAsDeepCopy, Rules.globalMemory), 4)
 
-    val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
+    val (gold ,_) = Execute(1, 1)[Array[Float]](goldF, A)
 
     assertTrue(lambdaOptions.nonEmpty)
 
-    val (result: Array[Float], _) = Execute(1, 1)(lambdaOptions(0), A)
+    val (result, _) = Execute(1, 1)[Array[Float]](lambdaOptions(0), A)
     assertArrayEquals(lambdaOptions(1) + " failed", gold, result, 0.0f)
   }
 
@@ -1012,12 +1002,12 @@ class TestRules {
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
 
-    val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
+    val (gold ,_) = Execute(1, 1)[Array[Float]](goldF, A)
 
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.foreach(l => {
-      val (result: Array[Float], _) = Execute(1, 1)(l, A)
+      val (result, _) = Execute(1, 1)[Array[Float]](l, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -1042,12 +1032,12 @@ class TestRules {
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
 
-    val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
+    val (gold ,_) = Execute(1, 1)[Array[Float]](goldF, A)
 
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.foreach(l => {
-      val (result: Array[Float], _) = Execute(1, 1)(l, A)
+      val (result, _) = Execute(1, 1)[Array[Float]](l, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -1071,14 +1061,14 @@ class TestRules {
           Value(0.0f, ArrayTypeWSWC(Float, 4))) o MapSeq(MapSeq(plusOne)) $ input
     )
 
-    val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
+    val (gold ,_) = Execute(1, 1)[Array[Float]](goldF, A)
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.foreach(l => {
-      val (result: Array[Float], _) = Execute(1, 1)(l, A)
+      val (result, _) = Execute(1, 1)[Array[Float]](l, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -1099,14 +1089,14 @@ class TestRules {
 
     val a = 2.0f
 
-    val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A, a)
+    val (gold ,_) = Execute(1, 1)[Array[Float]](goldF, A, a)
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.foreach(l => {
-      val (result: Array[Float], _) = Execute(1, 1)(l, A, a)
+      val (result, _) = Execute(1, 1)[Array[Float]](l, A, a)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }

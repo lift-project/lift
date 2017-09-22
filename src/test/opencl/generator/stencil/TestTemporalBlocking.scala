@@ -7,20 +7,9 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 
-object TestTemporalBlocking {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestTemporalBlocking extends TestWithExecutor
 
 class TestTemporalBlocking {
   /* **********************************************************
@@ -88,15 +77,15 @@ class TestTemporalBlocking {
 
     val newLambda = create1DStencilLambda(weights, 3, 1, 1, 1)
     //gold computation
-    val (firstIteration: Array[Float], _) = Execute(length, length)(newLambda, randomData, weights)
+    val (firstIteration, _) = Execute(length, length)[Array[Float]](newLambda, randomData, weights)
     //val (gold: Array[Float], runtime3) = Execute(length, length)(newLambda, firstIteration, weights)
 
-    val (secondIteration: Array[Float], _) = Execute(length, length)(newLambda, firstIteration, weights)
-    val (_, _) = Execute(length, length)(newLambda, secondIteration, weights)
+    val (secondIteration, _) = Execute(length, length)[Array[Float]](newLambda, firstIteration, weights)
+    Execute(length, length)[Array[Float]](newLambda, secondIteration, weights)
     //println(gold.mkString(","))
 
     val stencil = createTempAndSpatialBlockingLambda(3, 1, 4, 2, 1, 1, Pad.Boundary.Clamp)
-    val (_, _) = Execute(length, length)(stencil, randomData)
+    Execute(length, length)[Array[Float]](stencil, randomData)
     //println(output.mkString(","))
 
     //compareGoldWithOutput(gold, output, runtime)
@@ -181,14 +170,14 @@ class TestTemporalBlocking {
 
     val newLambda = create1DStencilLambda(weights, 3, 1, 1, 1)
     //gold computation
-    val (firstIteration: Array[Float], _) = Execute(length, length)(newLambda, randomData, weights)
+    val (firstIteration, _) = Execute(length, length)[Array[Float]](newLambda, randomData, weights)
     //val (gold: Array[Float], runtime3) = Execute(length, length)(newLambda, firstIteration, weights)
 
-    val (secondIteration: Array[Float], _) = Execute(length, length)(newLambda, firstIteration, weights)
-    val (gold: Array[Float], _) = Execute(length, length)(newLambda, secondIteration, weights)
+    val (secondIteration, _) = Execute(length, length)[Array[Float]](newLambda, firstIteration, weights)
+    val (gold, _) = Execute(length, length)[Array[Float]](newLambda, secondIteration, weights)
 
     val stencil = createTemporalBlockingUsingRewriteLambda(Pad.Boundary.Clamp, 3, 1, 1, 1)
-    val (output: Array[Float], runtime) = Execute(length, length)(stencil, randomData)
+    val (output, runtime) = Execute(length, length)[Array[Float]](stencil, randomData)
 
     assertArrayEquals(gold, output, 0.1f)
   }
@@ -201,9 +190,9 @@ class TestTemporalBlocking {
 
     val stencil = createTemporalBlockingUsingTiles1DStencilLambda(weights, Pad.Boundary.Clamp, 3, 1, 5, 1, 1, 1)
     val newLambda = create1DStencilLambda(weights, 3, 1, 1, 1)
-    val (output: Array[Float], runtime) = Execute(length, length)(stencil, randomData, weights)
-    val (firstIteration: Array[Float], _) = Execute(length, length)(newLambda, randomData, weights)
-    val (gold: Array[Float], _) = Execute(length, length)(newLambda, firstIteration, weights)
+    val (output, runtime) = Execute(length, length)[Array[Float]](stencil, randomData, weights)
+    val (firstIteration, _) = Execute(length, length)[Array[Float]](newLambda, randomData, weights)
+    val (gold, _) = Execute(length, length)[Array[Float]](newLambda, firstIteration, weights)
 
     //val (secondIteration: Array[Float], runtime5) = Execute(length, length)(newLambda, firstIteration, weights)
     //val (gold: Array[Float], runtime3) = Execute(length, length)(newLambda, secondIteration, weights)

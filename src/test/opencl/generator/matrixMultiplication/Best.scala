@@ -9,15 +9,9 @@ import opencl.ir.ast._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object Best {
-  @BeforeClass def before(): Unit =
-    Executor.loadAndInit()
-
-  @AfterClass def after(): Unit =
-    Executor.shutdown()
-}
+object Best extends TestWithExecutor
 
 class Best {
 
@@ -27,7 +21,7 @@ class Best {
 
   @Test
   def mm_clblas(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val mSize = 512
     val kSize = 512
@@ -96,8 +90,9 @@ class Best {
           )) o Tile(tileSizeM, tileSizeK) $ A
       })
 
-    val (output: Array[Float], _) =
-      Execute(tileSizeN, tileSizeM, nSize/tileSizeN, nSize/tileSizeM, (true, true))(f, matrixA, matrixB)
+    val (output, _) = Execute(
+      tileSizeN, tileSizeM,
+      nSize/tileSizeN, nSize/tileSizeM, (true, true))[Array[Float]](f, matrixA, matrixB)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -144,13 +139,14 @@ class Best {
           )) o Tile(tileSizeM, tileSizeK) o Transpose() $ A
     )
 
-    val (output: Array[Float], _) =
-      Execute(tileGroupM, tileGroupN, mSize/tileSizeM, nSize/tileSizeN, (true, true))(f, matrixA.transpose, matrixB.transpose)
+    val (output, _) = Execute(
+      tileGroupM, tileGroupN,
+      mSize/tileSizeM, nSize/tileSizeN, (true, true))[Array[Float]](f, matrixA.transpose, matrixB.transpose)
     assertArrayEquals(gold, output, 0.0f)
   }
 
   @Test def vectorised(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val Msize = 16
     val Ksize = 16
@@ -192,8 +188,8 @@ class Best {
         )), p_640363654)
       )), p_924477420))
 
-    val (output1: Array[Float], _) = Execute(16, 16, Msize, Nsize, (true, true))(f1, matrixA, matrixB.transpose)
-    val (output2: Array[Float], _) = Execute(16, 16, Msize, Nsize, (true, true))(fd, matrixA, matrixB.transpose)
+    val (output1, _) = Execute(16, 16, Msize, Nsize, (true, true))[Array[Float]](f1, matrixA, matrixB.transpose)
+    val (output2, _) = Execute(16, 16, Msize, Nsize, (true, true))[Array[Float]](fd, matrixA, matrixB.transpose)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
@@ -228,7 +224,7 @@ class Best {
           )) $ A
     )
 
-    val (output: Array[Float], _) = Execute(mSize, nSize)(f, matrixA, matrixB)
+    val (output, _) = Execute(mSize, nSize)[Array[Float]](f, matrixA, matrixB)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
@@ -237,7 +233,7 @@ class Best {
   }
 
   @Test def partiallyVectorisedTiled(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     // Basic tiled matrix multiply without local memory
     val mSize = 16
@@ -355,9 +351,9 @@ class Best {
       )), FunCall(Split(tileSize), A))))
 
 
-    val (output1: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(f, matrixA, matrixB.transpose)
-    val (output2: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(fd, matrixA, matrixB.transpose)
-    val (output3: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(fdot, matrixA, matrixB.transpose)
+    val (output1, _) = Execute(2, 2, mSize/2, nSize/2, (true, true))[Array[Float]](f, matrixA, matrixB.transpose)
+    val (output2, _) = Execute(2, 2, mSize/2, nSize/2, (true, true))[Array[Float]](fd, matrixA, matrixB.transpose)
+    val (output3, _) = Execute(2, 2, mSize/2, nSize/2, (true, true))[Array[Float]](fdot, matrixA, matrixB.transpose)
 
     assertArrayEquals(gold, output1, 0.0001f)
     assertArrayEquals(gold, output2, 0.0001f)
@@ -366,7 +362,7 @@ class Best {
 
   @Test
   def maliGEMM(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val maliFactory =
       (variables: Seq[ArithExpr]) => {
@@ -454,9 +450,8 @@ class Best {
 
     val f = maliFactory(Seq[ArithExpr](K, M, N, 2, 2, 4))
 
-    val (output: Array[Float], _) =
-      Execute(2, 2, mSize/2, nSize/2, (true, true))(
-        f, matrixA, matrixB.transpose, matrixC, alpha, beta)
+    val (output, _) =
+      Execute(2, 2, mSize/2, nSize/2, (true, true))[Array[Float]](f, matrixA, matrixB.transpose, matrixC, alpha, beta)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -464,7 +459,7 @@ class Best {
 
   @Test
   def hawaiiBest(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M_0 = variables(0)
@@ -492,14 +487,14 @@ class Best {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB)
 
-    val (output: Array[Float], _) = Execute()(f, matrixA.transpose, matrixB)
+    val (output, _) = Execute()[Array[Float]](f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
 
   @Test
   def hawaiiBestSgemm(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M_0 = variables(0)
@@ -640,14 +635,13 @@ class Best {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB, matrixC, alpha, beta)
 
-    val (output: Array[Float], _) =
-      Execute()(f, matrixA.transpose, matrixB, matrixC, alpha, beta)
+    val (output, _) = Execute()[Array[Float]](f, matrixA.transpose, matrixB, matrixC, alpha, beta)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
   @Test
   def clblast_TN_kepler(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M_0 = variables(0)
@@ -679,14 +673,14 @@ class Best {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB)
 
-    val (output: Array[Float], _) = Execute()(f, matrixA.transpose, matrixB)
+    val (output, _) = Execute()[Array[Float]](f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
 
   @Test
   def keplerBest(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M_0 = variables(0)
@@ -817,14 +811,14 @@ class Best {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB)
 
-    val (output: Array[Float], _) = Execute()(f, matrixA.transpose, matrixB)
+    val (output, _) = Execute()[Array[Float]](f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
 
   @Test
   def keplerBestSgemm(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val factory = (variables: Seq[ArithExpr]) => {
       val v_M_0 = variables(0)
@@ -972,8 +966,7 @@ class Best {
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB, matrixC, alpha, beta)
 
-    val (output: Array[Float], _) =
-      Execute()(f, matrixA.transpose, matrixB, matrixC, alpha, beta)
+    val (output, _) = Execute()[Array[Float]](f, matrixA.transpose, matrixB, matrixC, alpha, beta)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }

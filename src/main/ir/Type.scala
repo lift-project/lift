@@ -1,12 +1,12 @@
 package ir
 
-import lift.arithmetic._
 import arithmetic.TypeVar
 import ir.ast.IRNode
+import lift.arithmetic._
+import opencl.ir.{Bool, Int, Long}
 
 import scala.collection.immutable.HashMap
 import scala.collection.{immutable, mutable}
-
 
 
 /**
@@ -100,8 +100,7 @@ case class VectorType(scalarT: ScalarType, len: ArithExpr) extends Type {
  * @param elemsT The element types in order from left to right
  */
 case class TupleType(elemsT: Type*) extends Type {
-  override def toString : String
-    = "Tuple(" + elemsT.map(_.toString).reduce(_ + ", " + _) + ")"
+  override def toString : String = elemsT.map(_.toString).mkString("Tuple(", ", ", ")")
 
   override def hasFixedAllocatedSize: Boolean = elemsT.forall(_.hasFixedAllocatedSize)
 
@@ -112,20 +111,50 @@ case class TupleType(elemsT: Type*) extends Type {
     assert(i < elemsT.length)
     elemsT(i)
   }
-}
 
+  /**
+   * - First component is the maximum size of the "base" types, the value to be
+   *   passed to `__attribute((aligned(_)))__`.
+   * - Second component is the number of blocks of the size mentioned above that
+   *   need to be allocated for this TupleType IF IT IS STORED AS A STRUCT IN
+   *   MEMORY. If it comes from a view, the situation is different, see issue
+   *   #119 for example.
+   *
+   * Example: for `(int, (double, char))` it is:
+   *          `(max(sizeof(int), sizeof(double), sizeof(char)), 3)`
+   *
+   * FIXME (issue #119): it's not clear which method should be preferred here
+   */
+  lazy val alignment: (ArithExpr, ArithExpr) = getAlignment(this)
+
+  /** See definition of `alignment` above */
+  private def getAlignment(ty: Type): (ArithExpr, ArithExpr) = {
+    ty match {
+      case ScalarType(_, size) => (size, 1)
+      case VectorType(st, len) => (st.size, len.eval)
+      case tt: TupleType =>
+        tt.elemsT.map(getAlignment).reduce[(ArithExpr, ArithExpr)]({
+          case ((lSize, lNb), (rSize, rNb)) => (ArithExpr.Math.Max(lSize, rSize), lNb + rNb)
+        })
+      case ArrayTypeWC(elemT, capacity) =>
+        val (alignmentSize, nb) = getAlignment(elemT)
+        (alignmentSize, nb * capacity)
+      case _ => throw new IllegalArgumentException(s"Cannot compute alignment for $ty")
+    }
+  }
+}
 
 /**
   * This trait is used to store size information (number of elements in an array) in an ArrayType.
   */
-sealed trait Size {
+sealed trait Size extends ArrayType {
   val size: ArithExpr
 }
 
 /**
   * This trait is used to store capacity information (maximum number of elements that can be held in an array) in an ArrayType.
   */
-sealed trait Capacity {
+sealed trait Capacity extends ArrayType {
   val capacity: ArithExpr
 }
 
@@ -137,45 +166,26 @@ sealed trait Capacity {
  */
 case class ArrayType(elemT: Type) extends Type {
   /**
-   * Private helper function
-   *
-   * @return the size of the array if it is known.
+   * The indices at which the size and the capacity of the array is stored in its header.
    */
-  private def getSize : Option[ArithExpr] = {
-    this match {
-      case s:Size => Some(s.size)
-      case _ => None
-    }
-  }
-
-  /**
-   * Private helper function
-   *
-   * @return the capacity of the array if it is known.
-   */
-  private def getCapacity : Option[ArithExpr] = {
-    this match {
-      case c:Capacity => Some(c.capacity)
-      case _ => None
-    }
-  }
-
-  /**
-   * @return the index at which the size of the array is stored in its header.
-   */
-  def getSizeIndex: Int = this match {
+  lazy val sizeIndex: Int = this match {
+    case _: Size => throw new IllegalArgumentException(s"The size of $this is statically known")
     case _: Capacity => 0 // capacity is not in the header
     case _ => 1 // skip the capacity
   }
+  lazy val capacityIndex: Int = this match {
+    case _: Capacity => throw new IllegalArgumentException(s"The capacity of $this is statically known")
+    case _ => 0 // Capacity is always first in the header
+  }
 
   /**
-   * @return the number of values stored in the header of this array.
-   *         (currently it can be 0, 1 or 2)
+   * The number of values stored in the header of this array.
+   * At most 2, minus 1 for each bit of information which is statically known
    */
-  def getHeaderSize: Int = {
-    // At most 2
-    // Minus 1 for each bit of information which is statically known
-    2 - this.getSize.size - this.getCapacity.size
+  lazy val headerSize: Int = this match {
+    case _: Size with Capacity => 0
+    case _: Size | _: Capacity => 1
+    case _ => 2
   }
 
   override def toString : String = {
@@ -193,14 +203,20 @@ case class ArrayType(elemT: Type) extends Type {
 
   /** Structural equality */
   override def equals(other: Any): Boolean = {
+    def getSizeAndCapacity(at: ArrayType): (Option[ArithExpr], Option[ArithExpr]) = at match {
+      case sc: Size with Capacity => (Some(sc.size), Some(sc.capacity))
+      case s: Size => (Some(s.size), None)
+      case c: Capacity => (None, Some(c.capacity))
+      case _ => (None, None)
+    }
+
     other match {
       case o: ArrayType =>
         // Same underlying type
-        Type.isEqual(this.elemT, o.elemT) &&
+        this.elemT == o.elemT &&
         // Same size and capacity if known. If unknown, must be unknown for
         // both arrays!
-        this.getSize == o.getSize &&
-        this.getCapacity == o.getCapacity
+        getSizeAndCapacity(this) == getSizeAndCapacity(o)
       case _ => false
     }
   }
@@ -246,9 +262,22 @@ object ArrayType {
     }
   }
 
+  /**
+    * Returns the depth (dimension) of the given ArrayType object
+    *
+    * @param n An integer for starting size of dimension
+    * @param t A type
+    * @return number of dimensions deep 't' is
+    */
+  def getDimension(n : Int, t : Type) : Int = t match {
+    case ArrayType(elemT) => getDimension(n+1, elemT)
+    case _ => n
+  }
+
   def apply(elemT: Type, sizeAndCapacity: ArithExpr) : ArrayType with Size with Capacity = {
     ArrayTypeWSWC(elemT, sizeAndCapacity)
   }
+
 }
 
 
@@ -300,21 +329,6 @@ object ArrayTypeWC {
   }
 }
 
-
-
-
-// todo make sure we can distinguish between different unkownlengtharraytype (override hashCode and equals)
-class RuntimeSizedArrayType(override val elemT: Type) extends ArrayType(elemT) {
-  override def hasFixedAllocatedSize: Boolean = false
-}
-
-object RuntimeSizedArrayType {
-  def apply(elemT: Type): RuntimeSizedArrayType = {
-    new RuntimeSizedArrayType(elemT)
-  }
-  def unapply(array: RuntimeSizedArrayType): Type = array.elemT
-}
-
 /**
  * This instance indicates that a type has not been determined yet, e.g., prior
  * to type checking
@@ -337,6 +351,8 @@ object NoType extends Type {
  * Collection of operations on types
  */
 object Type {
+  /** Type used to store header values and offset in an array */
+  val size_t: ScalarType = Int
 
   def fromAny(a: Any): Type = {
     a match {
@@ -468,7 +484,6 @@ object Type {
     }, _=>{})
   }
 
-
   /**
    * Return the base type of a type.
    * The base type is defined as follows:
@@ -530,7 +545,10 @@ object Type {
   }
 
   /**
-   * Return the size (in bytes) of a given type.
+   * Return the size (in bytes) of a given type stored in **one** location in
+   * memory if `t` is the type of a memory collection, the returned size will
+   * not make sense.
+   *
    * Note: this function can return `?`. See the comments at the top of
    *       `OpenCLMemoryAllocator.scala` to get information about the meaning
    *       of this special value here and when it is supposed to occur.
@@ -538,22 +556,31 @@ object Type {
    * @param t A type
    * @return The size in bytes.
    */
-  def getAllocatedSize(t: Type) : ArithExpr = {
-    t match {
-      case st: ScalarType => st.size
-      case vt: VectorType => vt.scalarT.size * vt.len
-      case tt: TupleType  => tt.elemsT.map(getAllocatedSize).reduce(_+_)
-      case at: ArrayType => at match {
-        case c: Capacity =>
-          if (at.elemT.hasFixedAllocatedSize)
-            (at.getHeaderSize * 4) + c.capacity * getAllocatedSize(at.elemT)
-          else ? // Dynamic allocation required
-        case _ => ? // Dynamic allocation required
-      }
-      case NoType | UndefType =>
-        throw new IllegalArgumentException(s"Cannot allocate memory for type: $t")
+  def getAllocatedSize(t: Type) : ArithExpr = t match {
+    case st: ScalarType => st.size
+    case vt: VectorType => vt.scalarT.size * vt.len
+    case tt: TupleType  =>
+      val (baseSize, nb) = tt.alignment
+      baseSize * nb
+    case at: ArrayType => at match {
+      case c: Capacity =>
+        if (at.elemT.hasFixedAllocatedSize) {
+          val baseSize = getAllocatedSize(getBaseType(at.elemT)).eval
+          val alignment = Math.max(baseSize, size_t.size.eval)
+          val elemSize = getAllocatedSize(at.elemT)
+          val contentSize = {
+            if (baseSize != alignment && at.headerSize != 0)
+              ((c.capacity * elemSize + alignment - 1) / alignment) * alignment // pad at the end
+            else c.capacity * elemSize
+          }
+          at.headerSize * alignment + contentSize
+        } else ? // Dynamic allocation required
+      case _ => ? // Dynamic allocation required
     }
+    case NoType | UndefType =>
+      throw new IllegalArgumentException(s"Cannot allocate memory for type: $t")
   }
+
 
   def getMaxAllocatedSize(t: Type) : ArithExpr = {
     // quick hack (set all the type var to their max value)
@@ -665,47 +692,9 @@ object Type {
     visitAndRebuild(t, (ae: ArithExpr) => ArithExpr.substitute(ae, substitutions.toMap))
   }
 
+  def haveSameValueTypes(l: Type, r: Type): Boolean = Type.getValueType(l) == Type.getValueType(r)
 
-  /**
-   * Function to determine if two types are equal
-   *
-   * @param l A type object
-   * @param r Another type object
-   * @return True if `l` and `r` have the same type and are equal
-   */
-  def isEqual(l: Type, r: Type): Boolean = {
-    (l, r) match {
-      case (lst: ScalarType, rst: ScalarType) => isEqual(lst, rst)
-      case (ltt: TupleType, rtt: TupleType)   => isEqual(ltt, rtt)
-      case (lat: ArrayType, rat: ArrayType)   => isEqual(lat, rat)
-      case (lvt: VectorType, rvt: VectorType) => isEqual(lvt, rvt)
-      case _ => false
-    }
-  }
-
-  def haveSameValueTypes(l: Type, r: Type): Boolean = {
-    Type.isEqual(Type.getValueType(l), Type.getValueType(r))
-  }
-
-  def haveSameBaseTypes(l: Type, r: Type): Boolean = {
-    Type.isEqual(Type.getBaseType(l), Type.getBaseType(r))
-  }
-
-  private def isEqual(l: ScalarType, r: ScalarType): Boolean = {
-    l.size == r.size && l.name == r.name
-  }
-
-  private def isEqual(lt: TupleType, rt: TupleType): Boolean = {
-    if (lt.elemsT.length != rt.elemsT.length) return false
-
-    (lt.elemsT zip rt.elemsT).forall({ case (l,r) => isEqual(l, r) })
-  }
-
-  private def isEqual(l: ArrayType, r: ArrayType): Boolean = l.equals(r)
-
-  private def isEqual(l: VectorType, r: VectorType): Boolean = {
-    l.len == r.len && isEqual(l.scalarT, r.scalarT)
-  }
+  def haveSameBaseTypes(l: Type, r: Type): Boolean = Type.getBaseType(l) == Type.getBaseType(r)
 
   /**
    * Devectorize a given type.
@@ -735,6 +724,16 @@ object Type {
       }
   }
 
+  def getIntegerTypeOfSize(sizeof: Int): ScalarType = {
+    sizeof match {
+      case 1 =>
+        println("Warning: string size or offset in a uchar, potential overflow.")
+        Bool
+      case 4 => Int
+      case 8 => Long
+      case n => throw new NotImplementedError(s"Integer-like type of size $n")
+    }
+  }
 }
 
 /**
@@ -756,7 +755,7 @@ case class TypeException(msg: String) extends Exception(msg) {
       s"Type mismatch$location:\n$found found but $expected expected"
     })
   }
-  
+
   /** Same as before but `expected` must be a Type. */
   def this(found: Type, expected: Type, where: IRNode) = {
     this(found, expected.toString, where)
@@ -764,7 +763,7 @@ case class TypeException(msg: String) extends Exception(msg) {
 }
 
 class ZipTypeException(val tt: TupleType)
-  extends TypeException(s"Can not statically prove that sizes ( ${tt.elemsT.mkString(", ")} ) match!")
+  extends TypeException(s"Some of theses sizes (${tt.elemsT.mkString(", ")}) do not match!")
 
 object ZipTypeException {
   def apply(tt: TupleType) = new ZipTypeException(tt)

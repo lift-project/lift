@@ -1,6 +1,6 @@
 package opencl
 
-import _root_.ir.{Type, TupleType, ScalarType}
+import _root_.ir.{ScalarType, TupleType, Type}
 import _root_.ir.ast.{UserFun, Value}
 
 import scala.language.implicitConversions
@@ -102,10 +102,10 @@ package object ir {
   // Logical
   
   val or: UserFun =
-    UserFun("or", Array("x", "y"), "return x | y;", Seq(Bool, Bool), Bool)
+    UserFun("userOr", Array("x", "y"), "return x | y;", Seq(Bool, Bool), Bool)
   
   val not: UserFun =
-    UserFun("not", "x", "return !x;", Bool, Bool)
+    UserFun("userNot", "x", "return !x;", Bool, Bool)
 
   implicit def IntToValue(i: Int): Value = Value(i.toString, opencl.ir.Int)
 
@@ -130,6 +130,7 @@ package object ir {
     case _: Float => Float
     case _: Double => Double
     case _: Boolean => Bool
+    case x: _root_.ir.ast.Value => x.t
     case _ => throw new IllegalArgumentException
   }
 }

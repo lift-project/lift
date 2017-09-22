@@ -3,7 +3,7 @@ package prog_gen
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import org.junit.Assert._
 import org.junit._
@@ -11,15 +11,7 @@ import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
 
-object ProgGenFinishedIssue {
-  @BeforeClass
-  def before(): Unit =
-    Executor.loadAndInit()
-
-  @AfterClass
-  def after(): Unit =
-    Executor.shutdown()
-}
+object ProgGenFinishedIssue extends TestWithExecutor
 
 class ProgGenFinishedIssue {
 
@@ -47,7 +39,7 @@ class ProgGenFinishedIssue {
     val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_) = Execute(1,1)(fs.head,Args:_*)
+    val (output_exe, _) = Execute(1,1)[Array[Float]](fs.head,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
@@ -75,7 +67,7 @@ class ProgGenFinishedIssue {
     val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,1024)(fs.head,Args:_*)
+    val (output_exe,_)= Execute(1,1024)[Array[Float]](fs.head,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
@@ -104,7 +96,7 @@ class ProgGenFinishedIssue {
     val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,1024)(fs.head,Args:_*)
+    val (output_exe,_)= Execute(1,1024)[Array[Float]](fs.head,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
@@ -136,7 +128,7 @@ class ProgGenFinishedIssue {
     val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,32)(lowLevel,Args:_*)
+    val (output_exe,_)= Execute(1,32)[Array[Float]](lowLevel,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 }

@@ -39,29 +39,23 @@ object CGenerator extends Generator {
 
   def printTypes(lambda: Lambda): Unit = printTypes(lambda.body)
 
-  def getMemories(f: Lambda): (Array[TypedOpenCLMemory], Array[TypedOpenCLMemory]) = {
-    val memories = TypedOpenCLMemory.get(f.body, f.params).toArray
+  /**
+    * Get memory objects allocated for given Lambda
+    * @param f The lambda for which to get the memory objects
+    * @return A tuple with the first component the statically allocated local memory objects and the second
+    *         component all remaining memory objects (i.e. dynamically allocated local and global memory objects)
+    */
+  def getMemories(f: Lambda): (Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory]) = {
+    val (inputs, outputs, globalIntermediates, localIntermediates) = CollectTypedOpenCLMemory(f)
 
-    val numInputs = f.params.length
-
-    val outputMem = memories.last
-
-    if (memories.length > numInputs) {
-      val temp = memories(numInputs)
-      memories(numInputs) = outputMem
-      memories(memories.length - 1) = temp
-    }
-
-    val (locals, globals) = memories.partition(_.mem.addressSpace == LocalMemory)
-    val globalsFirst = globals ++ locals
-
-    if (AllocateLocalMemoryStatically())
-      globalsFirst.partition(isFixedSizeLocalMemory)
-    else
-      (Array.empty[TypedOpenCLMemory], globalsFirst)
+    if (AllocateLocalMemoryStatically()) {
+      val (staticLocalIntermediates, dynamicLocalIntermediates) = localIntermediates.partition(isFixedSizeLocalMemory)
+      (staticLocalIntermediates, inputs ++ outputs ++ globalIntermediates ++ dynamicLocalIntermediates)
+    } else
+      (Seq.empty[TypedOpenCLMemory], inputs ++ outputs ++ globalIntermediates ++ localIntermediates)
   }
 
-  def getDifferentMemories(lambda: Lambda): (Array[TypedOpenCLMemory], Array[TypedOpenCLMemory], Predef.Map[Var, Type]) = {
+  def getDifferentMemories(lambda: Lambda): (Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory], Predef.Map[Var, Type]) = {
 
     val valMems = Expr.visitWithState(Set[Memory]())(lambda.body, (expr, set) =>
       expr match {
@@ -69,10 +63,9 @@ object CGenerator extends Generator {
         case _ => set
       })
 
-    val typedMems =
-      TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = true).toArray
+    val typedMems = CollectTypedOpenCLMemory.asFlatSequence(lambda, includePrivate = true)
 
-    val memory = TypedOpenCLMemory.get(lambda.body, lambda.params)
+    val memory = CollectTypedOpenCLMemory.asFlatSequence(lambda)
 
     val (typedValueMems, privateMems) =
       typedMems.diff(memory).partition(m => valMems.contains(m.mem))
@@ -128,7 +121,7 @@ class CGenerator extends Generator {
 
   protected var replacements: ValueTable = immutable.Map.empty
   protected var replacementsWithFuns: ValueTable = immutable.Map.empty
-  protected var privateMems: Array[TypedOpenCLMemory] = Array[TypedOpenCLMemory]()
+  protected var privateMems: Seq[TypedOpenCLMemory] = Seq[TypedOpenCLMemory]()
   protected var privateDecls: Predef.Map[Var, VarDecl] = immutable.Map[Var, CAst.VarDecl]()
 
   protected var varDecls: SymbolTable = immutable.Map.empty
@@ -182,7 +175,15 @@ class CGenerator extends Generator {
       printMemories(f.body)
 
       println("Allocated Memory:")
-      TypedOpenCLMemory.get(f.body, f.params, includePrivate = true).foreach(println(_))
+      val (inputs, outputs, globalTmps, localTmps) = CollectTypedOpenCLMemory(f, includePrivate = true)
+      println(" inputs:")
+      inputs.foreach(println(_))
+      println(" outputs:")
+      outputs.foreach(println(_))
+      println(" global tmps:")
+      globalTmps.foreach(println(_))
+      println(" local tmps:")
+      localTmps.foreach(println(_))
       println()
     }
 
@@ -289,12 +290,12 @@ class CGenerator extends Generator {
 
   def allocateMemory(f: Lambda): Unit = {
     OpenCLMemoryAllocator(f)
-    Kernel.memory = TypedOpenCLMemory.get(f.body, f.params).toArray
+    Kernel.memory = CollectTypedOpenCLMemory.asFlatSequence(f)
   }
 
   private object Kernel {
-    var memory = Array.empty[TypedOpenCLMemory]
-    var staticLocalMemory = Array.empty[TypedOpenCLMemory]
+    var memory = Seq.empty[TypedOpenCLMemory]
+    var staticLocalMemory = Seq.empty[TypedOpenCLMemory]
   }
 
 
@@ -305,7 +306,7 @@ class CGenerator extends Generator {
 
     val typedValueMems = someMemories._1
     this.privateMems = someMemories._2
-    varDecls = someMemories._3
+    this.varDecls = someMemories._3
     /*
     val memories = CGenerator.getMemories(f)
 
@@ -485,12 +486,6 @@ class CGenerator extends Generator {
     e match {
       case e: Expr =>
         e.t match {
-          case a: RuntimeSizedArrayType =>
-            // TODO: Emitting a view of type ArrayType is illegal!
-            Left(ViewPrinter.emit(e.mem.variable, e.view) match {
-              case OpenCLAST.VarRef(v, s, i) => VarRef(v, s, ArithExpression(i.content))
-              case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
-            })
           case ArrayTypeWS(_,s) => Right(s)
           case ArrayType(_) =>
             // layout in memory: | capacity | size | ... |
@@ -827,7 +822,7 @@ class CGenerator extends Generator {
         // originally a scalar type in global memory, but now a vector type
         //  => emit vstore
         case (at: ArrayType, vt: VectorType)
-          if Type.isEqual(Type.getValueType(at), vt.scalarT)
+          if Type.getValueType(at) == vt.scalarT
             && (mem.addressSpace == GlobalMemory
             || mem.addressSpace == LocalMemory) =>
 
@@ -876,14 +871,14 @@ class CGenerator extends Generator {
           (originalType, currentType) match {
             // originally a scalar type, but now a vector type
             //  => emit cast
-            case (st: ScalarType, vt: VectorType) if Type.isEqual(st, vt.scalarT) =>
+            case (st: ScalarType, vt: VectorType) if st == vt.scalarT =>
               CAst.Cast(CAst.VarRef(mem.variable), st)
 
             // originally an array of scalar values in global memory,
             // but now a vector type
             //  => emit vload
             case (at: ArrayType, vt: VectorType)
-              if Type.isEqual(Type.getValueType(at), vt.scalarT)
+              if Type.getValueType(at) == vt.scalarT
                 && (mem.addressSpace == GlobalMemory || mem.addressSpace == LocalMemory) =>
 
               val offset = ViewPrinter.emit(mem.variable, view, replacementsWithFuns) match {
@@ -897,7 +892,7 @@ class CGenerator extends Generator {
             // but now a vector type
             //  => emit (float2)(f1, f2) primitive
             case (at: ArrayType, vt: VectorType)
-              if Type.isEqual(Type.getValueType(at), vt.scalarT)
+              if Type.getValueType(at) == vt.scalarT
                 && (mem.addressSpace == PrivateMemory) =>
 
               assert(privateMems.exists(m => m.mem == mem))
@@ -918,8 +913,7 @@ class CGenerator extends Generator {
             // but now a scalar type
             //  => emit load from components
             case (vt: VectorType, st: ScalarType)
-              if Type.isEqual(st, vt.scalarT)
-                && (mem.addressSpace == PrivateMemory) =>
+              if st == vt.scalarT && (mem.addressSpace == PrivateMemory) =>
 
               val componentSuffix = componentAccessVectorVar(mem.variable, view)
               CAst.VarRef(mem.variable, suffix = componentSuffix)

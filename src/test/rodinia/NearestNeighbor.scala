@@ -1,25 +1,14 @@
 package rodinia
 
-import ir.{ArrayTypeWSWC, TupleType}
 import ir.ast.{UserFun, \, fun}
+import ir.{ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{ArithExpr, SizeVar}
 import opencl.executor._
 import opencl.ir.Float
 import opencl.ir.pattern.MapGlb
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object NearestNeighbor {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object NearestNeighbor extends TestWithExecutor
 
 class NearestNeighbor {
   @Test

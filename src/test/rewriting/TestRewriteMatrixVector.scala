@@ -7,18 +7,9 @@ import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestRewriteMatrixVector {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object TestRewriteMatrixVector extends TestWithExecutor
 
 class TestRewriteMatrixVector {
 
@@ -82,8 +73,7 @@ class TestRewriteMatrixVector {
     val gold = Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta)
     val (local, global) = InferNDRange(f21, matrix, vectorX, vectorY, alpha, beta)
 
-    val (output: Array[Float], _) =
-      Execute(local(0).eval, global(0).eval)(f21, matrix, vectorX, vectorY, alpha, beta)
+    val (output, _) = Execute(local(0).eval, global(0).eval)[Array[Float]](f21, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, output,0.0f)
     assertTrue(HighLevelRewrite.filterByDistance(f11))
