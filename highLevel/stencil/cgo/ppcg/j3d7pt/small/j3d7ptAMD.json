@@ -1,6 +1,6 @@
 {
   "input_combinations" : [
-    [8192, 8192]
+    [256, 256, 256]
   ],
 
   "high_level_rewrite" : {
@@ -9,8 +9,8 @@
     "distance" : 9,
     "rule_repetition" : 1,
     "vector_width" : 4,
-    "sequential" : false,
-    "only_lower" : false,
+    "sequential" : true,
+    "only_lower" : true,
     "keep_range_information" : true,
     "rule_collection" : "convolution2D"
   },
@@ -23,12 +23,12 @@
     "unroll_reduce" : true,
     "global0" : false,
     "global01" : false,
-    "global10" : true,
+    "global10" : false,
     "global012" : false,
-    "global210" : false,
+    "global210" : true,
     "group0" : false,
     "group01" : false,
-    "group10" :true
+    "group10" : false
   },
 
   "local_memory_rules" : {
@@ -41,7 +41,7 @@
   "parameter_rewrite" : {
     "explore_ndrange" : false,
     "sample_ndrange" : -1,
-    "disable_ndrange_injection" : false,
+    "disable_ndrange_injection" : true,
     "sequential" : false,
     "generate_scala" : false
   },
@@ -51,7 +51,7 @@
     "speedup" : 1.0,
     "configs_to_achieve_speedup" : 500,
     "enable_timeout_condition" : true,
-    "timeout_in_seconds" : 2700,
+    "timeout_in_seconds" : 10800,
     "enable_max_configs_condition" : false,
     "max_configs" : 500,
     "enable_not_better_than_condition" : false,
@@ -63,13 +63,13 @@
   },
 
   "search_parameters" : {
-    "default_input_size" : 8192,
+    "default_input_size" : 256,
     "min_local_size" : 32,
     "max_local_size" : 256,
-    "min_global_size" : 32,
+    "min_global_size" : 4,
     "max_private_memory" : 1024,
     "max_local_memory" : 32768,
-    "min_workgroups" : 8,
+    "min_workgroups" : 1,
     "max_workgroups" : 1048576
   }
 }

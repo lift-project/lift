@@ -134,7 +134,27 @@ class TestStecilPPCG {
       }
     )
 
-    val kernel = Compile(lambda1)
+    val lambda3 = λ(
+      ArrayType(ArrayType(Float, M), N),
+      input => {
+        //Map(Scatter(Shift(1))) o Scatter(Shift(1)) o Pad2D(1,1,Pad.Boundary.Clamp) o
+        Untile2D() o MapWrg(1)(MapWrg(0)(λ(tile =>
+          MapLcl(1)(MapLcl(0)(λ(nbh => {
+
+          val (northWest, north, northEast,
+            west, center, east,
+            southWest, south, southEast) = moore9pt(nbh)
+
+          toGlobal(id) o toPrivate(λ(x =>
+            f(x, north, northEast,
+              west, center, east,
+              southWest, south, southEast))) $ northWest
+
+        }))) o Slide2D(3, 1) o toLocal(MapLcl(1)(MapLcl(0)(id))) $ tile))) o
+        Slide2D(4,2) o Pad(1,1,Pad.Boundary.Clamp) $ input
+      })
+
+    val kernel = Compile(lambda3)
     println(kernel)
   }
 

@@ -312,8 +312,22 @@ object GenericKernelPrinter {
                   val usedDimensions = globalSizeMaxValues.size
                   assert(usedDimensions <= 3)
 
-                  val localSizeDirectives = Seq.tabulate[String](usedDimensions)(
+                  var localSizeDirectives = Seq.tabulate[String](usedDimensions)(
                     i => s"""#atf::tp name \"LOCAL_SIZE_$i\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,${settings.searchParameters.maxLocalSize})" \\\n constraint \"atf::divides(GLOBAL_SIZE_$i)\"\n""")
+                  if(usedDimensions == 3) {
+                    def old = s"""#atf::tp name \"LOCAL_SIZE_2\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,${settings.searchParameters.maxLocalSize})" \\\n constraint \"atf::divides(GLOBAL_SIZE_2)\"\n"""
+                    localSizeDirectives = localSizeDirectives.map { x =>
+                      if (x == old) s"""#atf::tp name \"LOCAL_SIZE_2\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,${settings.searchParameters.maxLocalSize})" \\\n constraint \"atf::divides(GLOBAL_SIZE_2) && [&](auto LOCAL_SIZE_2){ return LOCAL_SIZE_0 * LOCAL_SIZE_1 * LOCAL_SIZE_2 >= ${settings.searchParameters.minLocalSize}; }\"\n"""
+                      else x
+                    }
+                  } else if(usedDimensions == 2) {
+                    def old = s"""#atf::tp name \"LOCAL_SIZE_1\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,${settings.searchParameters.maxLocalSize})" \\\n constraint \"atf::divides(GLOBAL_SIZE_1)\"\n"""
+                    localSizeDirectives = localSizeDirectives.map { x =>
+                      if (x == old) s"""#atf::tp name \"LOCAL_SIZE_1\" \\\n type \"int\" \\\n range \"atf::interval<int>(1,${settings.searchParameters.maxLocalSize})" \\\n constraint \"atf::divides(GLOBAL_SIZE_1) && [&](auto LOCAL_SIZE_1){ return LOCAL_SIZE_0 * LOCAL_SIZE_1 >= ${settings.searchParameters.minLocalSize}; }\"\n"""
+                      else x
+                    }
+                  }
+
                   localSizeDirectives.foreach(x => sb.append(x))
 
 

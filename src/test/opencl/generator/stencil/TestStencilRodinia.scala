@@ -31,9 +31,9 @@ object TestStencilRodinia {
 
 object HotSpotConstants {
 
-  val localDimX = 8
-  val localDimY = 8
-  val localDimZ = 4
+  val localDimX = 512
+  val localDimY = 512
+  val localDimZ = 8
 
   val t_chip = 0.0005f
   val chip_height = 0.016f
@@ -181,6 +181,286 @@ class TestStencilRodinia {
     val kernelLocalMemory = Compile(hotspotLocalMemory)
     //println(kernel)
     println(kernelLocalMemory)
+  }
+
+  @Test
+  def rodiniaHotspot3DNew() : Unit = {
+    val m = SizeVar("M")
+    val n = SizeVar("N")
+    val o = SizeVar("O")
+
+    val calculateHotspot = UserFun("calculateHotspot", Array("tInC", "cc", "tInN", "cn", "tInS", "cs", "tInE", "ce", "tInW", "cw", "tInT", "ct", "tInB", "cb", "stepDivCap", "pInC", "amb_temp"),
+      "{ return  tInC*cc + tInN*cn + tInS*cs + tInE*ce + tInW*cw + tInT*ct + tInB*cb + stepDivCap * pInC + ct*amb_temp; }", Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
+    val lambda = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      (temp, power) => {
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun((m) => {
+          val ce = 0.03413332998752593994f
+          val cw = 0.03413332998752593994f
+          val cn = 0.03413332998752593994f
+          val cs = 0.03413332998752593994f
+          val ct = 0.00053333328105509281f
+          val cb = 0.00053333328105509281f
+          val cc = 0.86186665296554565430f
+          val stepDivCap = 0.34133329987525939941f
+
+          val amb_temp = 80.0f
+          val ct_amb_temp = fun(x => mult(x, ct)) $ amb_temp
+
+          val tInC = Get(m, 1).at(1).at(1).at(1)
+          val tIncCC = toPrivate(fun(x => mult(x, cc))) $ tInC
+
+          val tInW = Get(m, 1).at(0).at(1).at(1)
+          val tIncW = toPrivate(fun(x => mult(x, cw))) $ tInW
+
+          val tInN = Get(m, 1).at(1).at(0).at(1)
+          val tIncN = toPrivate(fun(x => mult(x, cn))) $ tInN
+
+          val tInB = Get(m, 1).at(1).at(1).at(0)
+          val tIncB = toPrivate(fun(x => mult(x, cb))) $ tInB
+
+          val tInT = Get(m, 1).at(1).at(1).at(2)
+          val tIncT = toPrivate(fun(x => mult(x, ct))) $ tInT
+
+          val tInS = Get(m, 1).at(1).at(2).at(1)
+          val tIncS = toPrivate(fun(x => mult(x, cs))) $ tInS
+
+          val tInE = Get(m, 1).at(2).at(1).at(1)
+          val tIncE = toPrivate(fun(x => mult(x, ce))) $ tInE
+
+          val pInc = Get(m, 0)
+          val pcSDC = toPrivate(fun(x => mult(x, stepDivCap))) $ pInc
+
+          toGlobal(id) o
+            toPrivate(fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp))) $ tInC
+        })))
+        ) $ Zip3D(power, Slide3D(3,1) o Pad3D(1, 1, 1, Pad.Boundary.Clamp) $ temp)
+      })
+
+    val calculateHotspot2 = UserFun("calculateHotspot", Array("tInC", "tInN", "tInS", "tInE", "tInW", "tInT", "tInB", "pInC"),
+           """{ float ce = 0.03413332998752593994f;
+          float cw = 0.03413332998752593994f;
+          float cn = 0.03413332998752593994f
+          float cs = 0.03413332998752593994f
+          float ct = 0.00053333328105509281f
+          float cb = 0.00053333328105509281f
+          float cc = 0.86186665296554565430f
+          float stepDivCap = 0.34133329987525939941f;
+
+          float amb_temp = 80.0f;
+             |return  tInC*cc + tInN*cn + tInS*cs + tInE*ce + tInW*cw + tInT*ct + tInB*cb + stepDivCap * pInC + ct*amb_temp; }""".stripMargin,
+      Seq(Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
+    val calculateHotspot3 = UserFun("calculateHotspot", Array("tInC", "tInN", "tInS", "tInE", "tInW", "tInT", "tInB", "pInC"),
+           """{
+             |#define STR_SIZE 256
+             |#define EXPAND_RATE 2// add one iteration will extend the pyramid base by 2 per each borderline
+             |
+             |/* maximum power density possible (say 300W for a 10mm x 10mm chip) */
+             |#define MAX_PD  (3.0e6)
+             |/* required precision in degrees    */
+             |#define PRECISION   0.001
+             |#define SPEC_HEAT_SI 1.75e6
+             |#define K_SI 100
+             |/* capacitance fitting factor   */
+             |#define FACTOR_CHIP 0.5
+             |
+             |
+             |#define MIN(a, b) ((a)<=(b) ? (a) : (b))
+             |
+             |/* chip parameters  */
+             |const float t_chip = 0.0005;
+             |const float chip_height = 0.016;
+             |const float chip_width = 0.016;
+             |/* ambmperature, assuming no package at all  */
+             |const float amb_temp = 80.0;
+             |
+             |#define TOL      (0.001)
+             |#define MAX_PD   (3.0e6)
+             |
+             |/* required precision in degrees    */
+             |#define PRECISION    0.001
+             |#define SPEC_HEAT_SI 1.75e6
+             |#define K_SI         100
+             |
+             |/* capacitance fitting factor   */
+             |#define FACTOR_CHIP 0.5
+             |
+             |#define WG_SIZE_X (64)
+             |#define WG_SIZE_Y (4)
+             |
+             |  int numCols      = 512;
+             |  int numRows      = 512;
+             |  int layers       = 8;
+             |
+             |  float dx         = chip_height/numRows;
+             |  float dy         = chip_width/numCols;
+             |  float dz         = t_chip/layers;
+             |
+             |  float Cap        = FACTOR_CHIP * SPEC_HEAT_SI * t_chip * dx * dy;
+             |  float Rx         = dy / (2.0 * K_SI * t_chip * dx);
+             |  float Ry         = dx / (2.0 * K_SI * t_chip * dy);
+             |  float Rz         = dz / (K_SI * dx * dy);
+             |
+             |  float max_slope  = MAX_PD / (FACTOR_CHIP * t_chip * SPEC_HEAT_SI);
+             |  float dt         = PRECISION / max_slope;
+             |
+             |  float ce, cw, cn, cs, ct, cb, cc;
+             |  float stepDivCap = dt / Cap;
+             |  ce               = cw                                              = stepDivCap/ Rx;
+             |  cn               = cs                                              = stepDivCap/ Ry;
+             |  ct               = cb                                              = stepDivCap/ Rz;
+             |
+             |  cc               = 1.0 - (2.0*ce + 2.0*cn + 3.0*ct);
+             |
+             |return  tInC*cc + tInN*cn + tInS*cs + tInE*ce + tInW*cw + tInT*ct + tInB*cb + stepDivCap * pInC + ct*amb_temp; }""".stripMargin,
+      Seq(Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
+    val lambda1 = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      (temp, power) => {
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun((m) => {
+          val ce = 0.03413332998752593994f
+          val cw = 0.03413332998752593994f
+          val cn = 0.03413332998752593994f
+          val cs = 0.03413332998752593994f
+          val ct = 0.00053333328105509281f
+          val cb = 0.00053333328105509281f
+          val cc = 0.86186665296554565430f
+          val stepDivCap = 0.34133329987525939941f
+
+          val tInC = Get(m, 1).at(1).at(1).at(1)
+          val tInW = Get(m, 1).at(1).at(1).at(0)
+          val tInN = Get(m, 1).at(1).at(0).at(1)
+          val tInB = Get(m, 1).at(2).at(1).at(1)
+          val tInT = Get(m, 1).at(0).at(1).at(1)
+          val tInS = Get(m, 1).at(1).at(2).at(1)
+          val tInE = Get(m, 1).at(1).at(1).at(2)
+
+          val amb_temp = 80.0f
+          val ct_amb_temp = fun(x => mult(x, ct)) $ amb_temp
+
+          val tIncCC = toPrivate(fun(x => mult(x, cc))) $ tInC
+
+          val tIncW = toPrivate(fun(x => mult(x, cw))) $ tInW
+
+          val tIncN = toPrivate(fun(x => mult(x, cn))) $ tInN
+
+          val tIncB = toPrivate(fun(x => mult(x, cb))) $ tInB
+
+          val tIncT = toPrivate(fun(x => mult(x, ct))) $ tInT
+
+          val tIncS = toPrivate(fun(x => mult(x, cs))) $ tInS
+
+          val tIncE = toPrivate(fun(x => mult(x, ce))) $ tInE
+
+          val pInc = Get(m, 0)
+          val pcSDC = toPrivate(fun(x => mult(x, stepDivCap))) $ pInc
+
+          toGlobal(id) o
+            toPrivate(fun(x => calculateHotspot3(x, tInN, tInS, tInE, tInW, tInT, tInB, pInc))) $ tInC
+        })))
+        ) $ Zip3D(power, Slide3D(3,1) o Pad3D(1, 1, 1, Pad.Boundary.Clamp) $ temp)
+      })
+
+  val calculateHotspot4 = UserFun("calculateHotspot", Array("tInC", "tInN", "tInS", "tInE", "tInW", "tInT", "tInB", "pInC"),
+           """{
+             |#define STR_SIZE 256
+             |#define EXPAND_RATE 2// add one iteration will extend the pyramid base by 2 per each borderline
+             |
+             |/* maximum power density possible (say 300W for a 10mm x 10mm chip) */
+             |#define MAX_PD  (3.0e6)
+             |/* required precision in degrees    */
+             |#define PRECISION   0.001
+             |#define SPEC_HEAT_SI 1.75e6
+             |#define K_SI 100
+             |/* capacitance fitting factor   */
+             |#define FACTOR_CHIP 0.5
+             |
+             |
+             |#define MIN(a, b) ((a)<=(b) ? (a) : (b))
+             |
+             |/* chip parameters  */
+             |const float t_chip = 0.0005;
+             |const float chip_height = 0.016;
+             |const float chip_width = 0.016;
+             |/* ambmperature, assuming no package at all  */
+             |const float amb_temp = 80.0;
+             |~
+             |#define TOL      (0.001)
+             |#define MAX_PD   (3.0e6)
+             |
+             |/* required precision in degrees    */
+             |#define PRECISION    0.001
+             |#define SPEC_HEAT_SI 1.75e6
+             |#define K_SI         100
+             |
+             |/* capacitance fitting factor   */
+             |#define FACTOR_CHIP 0.5
+             |
+             |#define WG_SIZE_X (64)
+             |#define WG_SIZE_Y (4)
+             |
+             |  int numCols      = 512;
+             |  int numRows      = 512;
+             |  int layers       = 8;
+             |
+             |  float dx         = chip_height/numRows;
+             |  float dy         = chip_width/numCols;
+             |  float dz         = t_chip/layers;
+             |
+             |  float Cap        = FACTOR_CHIP * SPEC_HEAT_SI * t_chip * dx * dy;
+             |  float Rx         = dy / (2.0 * K_SI * t_chip * dx);
+             |  float Ry         = dx / (2.0 * K_SI * t_chip * dy);
+             |  float Rz         = dz / (K_SI * dx * dy);
+             |
+             |  float max_slope  = MAX_PD / (FACTOR_CHIP * t_chip * SPEC_HEAT_SI);
+             |  float dt         = PRECISION / max_slope;
+             |
+             |  float ce, cw, cn, cs, ct, cb, cc;
+             |  float stepDivCap = dt / Cap;
+             |  ce               = cw                                              = stepDivCap/ Rx;
+             |  cn               = cs                                              = stepDivCap/ Ry;
+             |  ct               = cb                                              = stepDivCap/ Rz;
+             |
+             |  cc               = 1.0 - (2.0*ce + 2.0*cn + 3.0*ct);
+             |  return  tInC*cc + tInN*cn + tInS*cs + tInE*ce + tInW*cw + tInT*ct + tInB*cb + stepDivCap * pInC + ct*amb_temp;
+             }""".stripMargin,
+      Seq(Float, Float, Float, Float, Float, Float, Float, Float), Float)
+    val lambda2 = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      (temp, power) => {
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun((m) => {
+
+          val tInC = Get(m, 1).at(1).at(1).at(1)
+          val tInW = Get(m, 1).at(1).at(1).at(0)
+          val tInN = Get(m, 1).at(1).at(0).at(1)
+          val tInB = Get(m, 1).at(2).at(1).at(1)
+          val tInT = Get(m, 1).at(0).at(1).at(1)
+          val tInS = Get(m, 1).at(1).at(2).at(1)
+          val tInE = Get(m, 1).at(1).at(1).at(2)
+          /*
+          val tInC = Get(m, 1).at(1).at(1).at(1)
+          val tInW = Get(m, 1).at(0).at(1).at(1)
+          val tInN = Get(m, 1).at(1).at(0).at(1)
+          val tInB = Get(m, 1).at(1).at(1).at(0)
+          val tInT = Get(m, 1).at(1).at(1).at(2)
+          val tInS = Get(m, 1).at(1).at(2).at(1)
+          val tInE = Get(m, 1).at(2).at(1).at(1)
+          */
+          val pInc = Get(m, 0)
+          toGlobal(id) o
+            toPrivate(fun(x => calculateHotspot4(x, tInN, tInS, tInE, tInW, tInT, tInB, pInc))) $ tInC
+        })))
+        ) $ Zip3D(power, Slide3D(3,1) o Pad3D(1, 1, 1, Pad.Boundary.Clamp) $ temp)
+      })
+
+    val kernel = Compile(lambda1)
+    println(kernel)
   }
 
   @Test def
@@ -377,6 +657,155 @@ class TestStencilRodinia {
     val calculateHotspot = UserFun("calculateHotspot", Array("tInC", "cc", "tInN", "cn", "tInS", "cs", "tInE", "ce", "tInW", "cw", "tInT", "ct", "tInB", "cb", "stepDivCap", "pInC", "amb_temp"),
       "{ return  tInC*cc + tInN*cn + tInS*cs + tInE*ce + tInW*cw + tInT*ct + tInB*cb + stepDivCap * pInC + ct*amb_temp; }", Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
+    val calculateHotspot2 = UserFun("calculateHotspot", Array("tInC", "tInN", "tInS", "tInE", "tInW", "tInT", "tInB", "pInC"),
+      """{
+        | #define STR_SIZE 256
+        |#define EXPAND_RATE 2// add one iteration will extend the pyramid base by 2 per each borderline
+        |
+        |/* maximum power density possible (say 300W for a 10mm x 10mm chip) */
+        |#define MAX_PD  (3.0e6)
+        |/* required precision in degrees    */
+        |#define PRECISION   0.001
+        |#define SPEC_HEAT_SI 1.75e6
+        |#define K_SI 100
+        |/* capacitance fitting factor   */
+        |#define FACTOR_CHIP 0.5
+        |
+        |
+        |#define MIN(a, b) ((a)<=(b) ? (a) : (b))
+        |
+        |/* chip parameters  */
+        |const float t_chip = 0.0005;
+        |const float chip_height = 0.016;
+        |const float chip_width = 0.016;
+        |/* ambmperature, assuming no package at all  */
+        |const float amb_temp = 80.0;
+        |
+        |#define TOL      (0.001)
+        |#define MAX_PD   (3.0e6)
+        |
+        |/* required precision in degrees    */
+        |#define PRECISION    0.001
+        |#define SPEC_HEAT_SI 1.75e6
+        |#define K_SI         100
+        |
+        |/* capacitance fitting factor   */
+        |#define FACTOR_CHIP 0.5
+        |
+        |#define WG_SIZE_X (64)
+        |#define WG_SIZE_Y (4)
+        |
+        |  int numCols      = 512;
+        |  int numRows      = 512;
+        |  int layers       = 8;
+        |
+        |  float dx         = chip_height/numRows;
+        |  float dy         = chip_width/numCols;
+        |  float dz         = t_chip/layers;
+        |
+        |  float Cap        = FACTOR_CHIP * SPEC_HEAT_SI * t_chip * dx * dy;
+        |  float Rx         = dy / (2.0 * K_SI * t_chip * dx);
+        |  float Ry         = dx / (2.0 * K_SI * t_chip * dy);
+        |  float Rz         = dz / (K_SI * dx * dy);
+        |
+        |  float max_slope  = MAX_PD / (FACTOR_CHIP * t_chip * SPEC_HEAT_SI);
+        |  float dt         = PRECISION / max_slope;
+        |
+        |  float ce, cw, cn, cs, ct, cb, cc;
+        |  float stepDivCap = dt / Cap;
+        |  ce               = cw                                              = stepDivCap/ Rx;
+        |  cn               = cs                                              = stepDivCap/ Ry;
+        |  ct               = cb                                              = stepDivCap/ Rz;
+        |
+        |  cc               = 1.0 - (2.0*ce + 2.0*cn + 3.0*ct);
+        |return  tInC*cc + tInN*cn + tInS*cs + tInE*ce + tInW*cw + tInT*ct + tInB*cb + stepDivCap * pInC + ct*amb_temp;
+        |}""".stripMargin,
+      Seq(Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
+  val rodiniaHotSpot3D2 =
+      fun(ArrayType(ArrayType(ArrayType(Float, m), n), o),
+        ArrayType(ArrayType(ArrayType(Float, m), n), o),
+        (temp, power) => {
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun((m) => {
+            /*
+          val tInC = Get(m, 1).at(1).at(1).at(1)
+          val tInW = Get(m, 1).at(1).at(1).at(0)
+          val tInN = Get(m, 1).at(1).at(0).at(1)
+          val tInB = Get(m, 1).at(2).at(1).at(1)
+          val tInT = Get(m, 1).at(0).at(1).at(1)
+          val tInS = Get(m, 1).at(1).at(2).at(1)
+          val tInE = Get(m, 1).at(1).at(1).at(2)
+          */
+              val localDimX = 512
+  val localDimY = 512
+  val localDimZ = 8
+
+  val t_chip = 0.0005f
+  val chip_height = 0.016f
+  val chip_width = 0.016f
+
+  val FACTOR_CHIP = 0.5f
+  val SPEC_HEAT_SI = 1750000
+  val K_SI = 100
+  val MAX_PD = 3000000
+  val PRECISION = 0.001f
+
+  val dx = chip_height / localDimX
+  val dy = chip_width / localDimY
+  val dz = t_chip / localDimZ
+
+  val Cap = FACTOR_CHIP * SPEC_HEAT_SI * t_chip * dx * dy
+  val Rx = dy / (2.0f * K_SI * t_chip * dx)
+  val Ry = dx / (2.0f * K_SI * t_chip * dy)
+  val Rz = dz / (K_SI * dx * dy)
+
+  val max_slope = MAX_PD / (FACTOR_CHIP * t_chip * SPEC_HEAT_SI)
+  val dt = PRECISION / max_slope
+
+  val stepDivCap = dt / Cap
+  val ce = stepDivCap / Rx
+  val cn = stepDivCap / Ry
+  val ct = stepDivCap / Rz
+  val cw = ce
+  val cs = cn
+  val cb = ct
+
+  val cc = 1.0f - (2.0f * ce + 2.0f * cn + 3.0f * ct)
+
+
+            val amb_temp = 80.0f
+            val ct_amb_temp = fun(x => mult(x, ct)) $ amb_temp
+
+            val tInC = Get(m, 1).at(1).at(1).at(1)
+            val tIncCC = toPrivate(fun(x => mult(x, cc))) $ tInC
+
+            val tInW = Get(m, 1).at(0).at(1).at(1)
+            val tIncW = toPrivate(fun(x => mult(x, cw))) $ tInW
+
+            val tInN = Get(m, 1).at(1).at(0).at(1)
+            val tIncN = toPrivate(fun(x => mult(x, cn))) $ tInN
+
+            val tInB = Get(m, 1).at(1).at(1).at(0)
+            val tIncB = toPrivate(fun(x => mult(x, cb))) $ tInB
+
+            val tInT = Get(m, 1).at(1).at(1).at(2)
+            val tIncT = toPrivate(fun(x => mult(x, ct))) $ tInT
+
+            val tInS = Get(m, 1).at(1).at(2).at(1)
+            val tIncS = toPrivate(fun(x => mult(x, cs))) $ tInS
+
+            val tInE = Get(m, 1).at(2).at(1).at(1)
+            val tIncE = toPrivate(fun(x => mult(x, ce))) $ tInE
+
+            val pInc = Get(m, 0)
+            val pcSDC = toPrivate(fun(x => mult(x, stepDivCap))) $ pInc
+
+            toGlobal(id) o
+              toPrivate(fun(x => calculateHotspot2(x, tInN, tInS, tInE, tInW, tInT, tInB, pInc))) $ tInC
+          })))
+          ) $ Zip3D(power, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) o Pad3D(1, 1, 1, Pad.Boundary.MirrorUnsafe) $ temp)
+        })
+
     val rodiniaHotSpot3D =
       fun(ArrayType(ArrayType(ArrayType(Float, m), n), o),
         ArrayType(ArrayType(ArrayType(Float, m), n), o),
@@ -390,6 +819,15 @@ class TestStencilRodinia {
         Float,
         (temp, power, ce, cw, cn, cs, ct, cb, cc, stepDivCap) => {
           MapGlb(2)(MapGlb(1)(MapGlb(0)(fun((m) => {
+            /*
+          val tInC = Get(m, 1).at(1).at(1).at(1)
+          val tInW = Get(m, 1).at(1).at(1).at(0)
+          val tInN = Get(m, 1).at(1).at(0).at(1)
+          val tInB = Get(m, 1).at(2).at(1).at(1)
+          val tInT = Get(m, 1).at(0).at(1).at(1)
+          val tInS = Get(m, 1).at(1).at(2).at(1)
+          val tInE = Get(m, 1).at(1).at(1).at(2)
+          */
 
             val amb_temp = 80.0f
             val ct_amb_temp = fun(x => mult(x, ct)) $ amb_temp
@@ -425,16 +863,19 @@ class TestStencilRodinia {
         })
 
 
-    val newLambda = SimplifyAndFuse(rodiniaHotSpot3D)
-    val source = Compile(newLambda, 32, 4, 2, 512, 512, 8, immutable.Map())
+    //val newLambda = SimplifyAndFuse(rodiniaHotSpot3D)
+    val newLambda = SimplifyAndFuse(rodiniaHotSpot3D2)
+    val source = Compile(newLambda/*, 32, 4, 2, 512, 512, 8, immutable.Map()*/)
+    println(source)
 
-    val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, 2, 2, (true, true))(source, newLambda, tempInput, powerInput, HotSpotConstants.ce, HotSpotConstants.cw, HotSpotConstants.cn, HotSpotConstants.cs, HotSpotConstants.ct, HotSpotConstants.cb, HotSpotConstants.cc, HotSpotConstants.stepDivCap)
+    //val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, 2, 2, (true, true))(source, newLambda, tempInput, powerInput, HotSpotConstants.ce, HotSpotConstants.cw, HotSpotConstants.cn, HotSpotConstants.cs, HotSpotConstants.ct, HotSpotConstants.cb, HotSpotConstants.cc, HotSpotConstants.stepDivCap)
+    val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, 2, 2, (true, true))(source, newLambda, tempInput, powerInput)
 
     if (StencilUtilities.printOutput) {
       StencilUtilities.printOriginalAndOutput3DSame(tempInput, output)
     }
 
-    //    assertArrayEquals(StencilDataArrays.compareDataHotspot3D, output, 0.1f)
+    assertArrayEquals(StencilDataArrays.compareDataHotspot3D, output, 0.3f)
 
   }
 
