@@ -113,9 +113,11 @@ object HighLevelRewrite {
       logger.info(s"\tRule Repetition: $defaultRuleRepetition")
       logger.info(s"\tRule Collection: $defaultRuleCollection")
 
-      val filename = input.value.get
-      val lambda = ParameterRewrite.readLambdaFromFile(filename)
+      val fullFilename = input.value.get
+      // remove file ending if provided
+      val filename = fullFilename.substring(0, fullFilename.lastIndexOf('.'))
 
+      val lambda = ParameterRewrite.readLambdaFromFile(fullFilename)
 
       val dumpThese = if(settings.highLevelRewriteSettings.onlyLower)
         Seq((lambda, Seq()))
