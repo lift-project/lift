@@ -218,45 +218,32 @@ object Utils {
    * @param lambda The lambda to dump to a string
    * @return
    */
-  def dumpLambdaToString(lambda: Lambda, printRangeInformation: Boolean = false): String = {
-    // do not print detailed Range information => existing hashes stay valid
-    if (!printRangeInformation) {
-      val fullString =  dumpLambdaToStringWithoutDecls(lambda)
+  def dumpLambdaToString(lambda: Lambda): String = {
+    TypeChecker(lambda)
 
-      val withIndex: List[(String, Int)] = findVariables(fullString)
+    val inputVars = lambda.getVarsInParams()
 
-      val decls = withIndex.map(pair =>
-        "val " + getNewName(pair) + " = SizeVar(\"" + getIdentifier(pair) + "\")\n"
-      ).mkString("")
+    val tunableVars =
+      findTunableNodes(lambda)
+        .map(extractArithExpr)
+        .collect({ case Some(c) => c.varList })
+        .flatten.filterNot(x => inputVars contains x).distinct
 
-      decls + "\n" + replaceVariableNames(fullString, withIndex)
-    } else { // also print range information
-      TypeChecker(lambda)
+    val fullString = dumpLambdaToStringWithoutDecls(lambda)
+    val allVars = inputVars.distinct ++ tunableVars
+    val orderedVars = allVars.toList
+    val withIndex = orderedVars.map(x => x.toString).zipWithIndex
 
-      val inputVars = lambda.getVarsInParams()
+    val declStrings = orderedVars.zipWithIndex.map(tuple => {
+      val param = tuple._1
+      val index = tuple._2
+      val newName = getNewName(param.toString, index)
+      val replacedRange = replaceVariableNames(param.range.toString, withIndex)
 
-      val tunableVars =
-        findTunableNodes(lambda)
-          .map(extractArithExpr)
-          .collect({ case Some(c) => c.varList })
-          .flatten.filterNot(x => inputVars contains x).distinct
+      "val " + newName + " = Var(\"" + param.name + "\", " + replacedRange + ")"
+    })
 
-      val fullString = dumpLambdaToStringWithoutDecls(lambda)
-      val allVars = inputVars.distinct ++ tunableVars
-      val orderedVars = allVars.toList
-      val withIndex = orderedVars.map(x => x.toString).zipWithIndex
-
-      val declStrings = orderedVars.zipWithIndex.map(tuple => {
-        val param = tuple._1
-        val index = tuple._2
-        val newName = getNewName(param.toString, index)
-        val replacedRange = replaceVariableNames(param.range.toString, withIndex)
-
-        "val " + newName + " = Var(\"" + param.name + "\", " + replacedRange + ")"
-      })
-
-      declStrings.mkString("\n") + "\n\n" + replaceVariableNames(fullString, withIndex)
-    }
+    declStrings.mkString("\n") + "\n\n" + replaceVariableNames(fullString, withIndex)
   }
 
   private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String = {

@@ -154,7 +154,6 @@ case class HighLevelRewriteSettings(
                                      vectorWidth: Int,
                                      sequential: Boolean,
                                      onlyLower: Boolean,
-                                     keepRangeInformation: Boolean,
                                      ruleCollection: String
 ) {
   override def toString: String =
@@ -166,7 +165,6 @@ case class HighLevelRewriteSettings(
       |    vectorWidth: $vectorWidth
       |    sequential: $sequential
       |    onlyLower: $onlyLower
-      |    keepRangeInformation: $keepRangeInformation
       |    ruleCollection: $ruleCollection
     """.stripMargin
 }
@@ -176,7 +174,7 @@ object HighLevelRewriteSettings {
   import HighLevelRewrite._
   import exploration.utils.ExplorationParameter._
 
-  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None, None)
+  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None)
 
   def createWithDefaults(
                           configExplorationDepth: Option[Int],
@@ -186,7 +184,6 @@ object HighLevelRewriteSettings {
                           configVectorWidth: Option[Int],
                           configSequential: Option[Boolean],
                           configOnlyLower: Option[Boolean],
-                          configKeepRangeInformation: Option[Boolean],
                           configRuleCollection: Option[String]
                         ) = HighLevelRewriteSettings(
   // priority: 1) command-line args; 2) config-file; 3) default values
@@ -197,7 +194,6 @@ object HighLevelRewriteSettings {
   getValue(vectorWidth, configVectorWidth, defaultVectorWidth),
   getValue(sequential, configSequential, defaultSequential),
   getValue(onlyLower, configOnlyLower, defaultOnlyLower),
-  getValue(keepRangeInformation, configKeepRangeInformation, defaultKeepRangeInformation),
   getValue(ruleCollection, configRuleCollection, defaultRuleCollection))
 }
 
@@ -288,7 +284,6 @@ object ParseSettings {
     (JsPath \ "vector_width").readNullable[Int] and
     (JsPath \ "sequential").readNullable[Boolean] and
     (JsPath \ "only_lower").readNullable[Boolean] and
-    (JsPath \ "keep_range_information").readNullable[Boolean] and
     (JsPath \ "rule_collection").readNullable[String]
   )(HighLevelRewriteSettings.createWithDefaults _)
 

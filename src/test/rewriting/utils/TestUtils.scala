@@ -154,7 +154,7 @@ class TestUtils {
       ArrayType(Float, O),
       (m,n,o) => MapSeq(id) $ m)
 
-    val string = rewriting.utils.Utils.dumpLambdaToString(f, true)
+    val string = rewriting.utils.Utils.dumpLambdaToString(f)
     assertTrue(string contains "Var(\"M\", StartFromRange(32))")
     assertTrue(string contains "Var(\"N\", RangeUnknown)")
     //assertTrue(string contains "SizeVar(\"O\")")
