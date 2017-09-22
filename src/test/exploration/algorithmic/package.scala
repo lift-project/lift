@@ -3,8 +3,7 @@ package exploration
 import ir.ast.Lambda
 import lift.arithmetic.SizeVar
 import org.junit.Assert._
-import rewriting.macrorules.{MacroRules, ReuseRules}
-import rewriting.rules.{Rule, Rules}
+import rewriting.rules.Rule
 import rewriting.utils.Utils.getHash
 
 package object algorithmic {
@@ -24,18 +23,11 @@ package object algorithmic {
   val v__9 = SizeVar("")
   val v__10 = SizeVar("")
 
-  val partialReduceWithReorderSeq = Seq(MacroRules.partialReduceWithReorder)
-
-  val introduceReuseSeq =
-    Seq(Rules.splitJoin, MacroRules.interchange,
-      ReuseRules.introduceReuseFromMap, ReuseRules.introduceReuseFromMap)
-
   def checkDistance(lambda: Lambda): Unit =
     assertTrue(HighLevelRewrite.filterByDistance(HighLevelRewrite.finishRewriting(lambda)))
 
-  def checkExists(gold: Lambda, ruleSeq: Seq[Rule], lambdas: Seq[(Lambda, Seq[Rule])]): Unit = {
+  def checkExists(gold: Lambda, lambdas: Seq[(Lambda, Seq[Rule])]): Unit = {
     val goldHash = getHash(gold)
-
     assertTrue(lambdas.exists(pair => getHash(pair._1) == goldHash))
   }
 }

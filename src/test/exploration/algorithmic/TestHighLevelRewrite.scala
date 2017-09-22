@@ -6,7 +6,6 @@ import ir.ast._
 import opencl.executor.LongTestsEnabled
 import opencl.ir._
 import org.junit.Test
-import rewriting.macrorules.SlideTiling
 
 class TestHighLevelRewrite {
 
@@ -39,9 +38,7 @@ class TestHighLevelRewrite {
 
     val gold = fun(ArrayType(Float, N),(p_0) => FunCall(Join(), FunCall(Join(), FunCall(Map(fun((p_1) => FunCall(Map(fun((p_2) => FunCall(Reduce(fun((p_3, p_4) => FunCall(add, p_3, p_4))), Value("0.0f", Float), p_2))), FunCall(Slide(3,1), p_1)))), FunCall(Slide(2+v__1,v__1), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_0))))))
 
-    val tiledSeq = Seq(SlideTiling.tileStencils)
-
-    checkExists(gold, tiledSeq, rewrittenLambdas)
+    checkExists(gold, rewrittenLambdas)
     checkDistance(gold)
   }
 }
