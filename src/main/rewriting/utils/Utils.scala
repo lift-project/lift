@@ -233,7 +233,7 @@ object Utils {
     } else { // also print range information
       TypeChecker(lambda)
 
-      val inputVars = lambda.getVarsInParams(false)
+      val inputVars = lambda.getVarsInParams()
 
       val tunableVars =
         findTunableNodes(lambda)
