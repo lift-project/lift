@@ -23,11 +23,11 @@ class TestBenchmark {
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val (output: Array[Float], runtimes) = Execute(
+    val (output, runtimes) = Execute(
       128, 1, 1,
       1024, 1, 1,
       (false, false)
-    ).benchmark(10, 0.0, Compile(DotProduct.dotProductSimple), DotProduct.dotProductSimple,
+    ).benchmark[Array[Float]](10, 0.0, Compile(DotProduct.dotProductSimple), DotProduct.dotProductSimple,
       leftInputData, rightInputData)
 
     val sorted = runtimes.sorted
@@ -54,7 +54,7 @@ class TestBenchmark {
       inRand => MapGlb(BlackScholes.blackScholesComp) $ inRand
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(kernel, input)
+    val (output, runtime) = Execute(inputSize)[Array[Float]](kernel, input)
 
     assertArrayEquals(gold, output, 0.01f)
 
@@ -122,7 +122,7 @@ class TestBenchmark {
       (in, niters, size) => MapGlb(fun(i => MapSeq(fun(j => md(i, j, niters, size))) $ in)) $ in
     )
 
-    val (output: Array[Int], runtime) = Execute(inputSize)(f, input, iterations, inputSize)
+    val (output, runtime) = Execute(inputSize)[Array[Int]](f, input, iterations, inputSize)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -163,8 +163,7 @@ class TestBenchmark {
         )) $ Zip(particles, neighbourIds)
     )
 
-    val (output: Array[Float], runtime) =
-      Execute(inputSize)(f, particles, neighbours, cutsq, lj1, lj2)
+    val (output, runtime) = Execute(inputSize)[Array[Float]](f, particles, neighbours, cutsq, lj1, lj2)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -198,8 +197,7 @@ class TestBenchmark {
     val gold = MolecularDynamics.mdScala(particlesTuple, neighbours, cutsq, lj1, lj2)
                .map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
 
-    val (output: Array[Float], _) =
-      Execute(inputSize)(MolecularDynamics.shoc, particles, neighbours, cutsq, lj1, lj2)
+    val (output, _) = Execute(inputSize)[Array[Float]](MolecularDynamics.shoc, particles, neighbours, cutsq, lj1, lj2)
 
     assertEquals(output.length, gold.length)
 
@@ -247,7 +245,7 @@ class TestBenchmark {
     )
 
     // execute
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, a, xs, ys)
+    val (output, runtime) = Execute(inputSize)[Array[Float]](f, a, xs, ys)
 
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.001f)

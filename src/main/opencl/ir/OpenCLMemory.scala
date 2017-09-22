@@ -205,5 +205,3 @@ object TypedOpenCLMemory {
 
 
 }
-
-

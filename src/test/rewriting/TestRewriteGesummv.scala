@@ -89,7 +89,7 @@ class TestRewriteGesummv {
     val tmp2Gold = Utils.matrixVector(B, x, beta)
     val yGold = (tmp1Gold, tmp2Gold).zipped.map(_+_)
 
-    val (y: Array[Float], _) = Execute(n)(f18, A, B, x, alpha, beta)
+    val (y, _) = Execute(n)[Array[Float]](f18, A, B, x, alpha, beta)
 
     assertArrayEquals(yGold, y, 0.001f)
   }

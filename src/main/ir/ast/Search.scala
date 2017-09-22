@@ -34,24 +34,18 @@ import ir.interpreter.Interpreter.ValueMap
 abstract class AbstractSearch(val f: Lambda, 
                               val name: String) extends Pattern(arity = 2) 
                                                         with FPattern {
-  assert(f.params.length == 1)
+  // check the direction function takes a single argument
+  if(f.params.length != 1) throw new NumberOfArgumentsException
   var indexVar: Var = PosVar("ix")
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case TupleType(defaultT, ArrayType(elemT)) =>
-        // check the default and element type match
-        // TODO: Can this be done in the pattern match statement?
-        if(defaultT != elemT) throw new TypeException(defaultT, elemT, this)
-        // check the direction function takes a single argument
-        if(f.params.length != 1) throw new NumberOfArgumentsException
+      case TupleType(defaultT, ArrayType(elemT)) if defaultT == elemT =>
         // set the argument type to the array element type
         f.params(0).t = elemT
-        // recursively check the body
-        TypeChecker.check(f.body, setType)
-        // ensure that the body function returns an integer
-        if(f.body.t != opencl.ir.Int) throw new TypeException(f.body.t, "Int", f.body)
+        // recursively check the body, ensure that it returns an integer
+        TypeChecker.assertTypeIs(f.body, opencl.ir.Int, setType)
         // finally, return a single element array type
         ArrayTypeWSWC(elemT, 1)
 

@@ -1,6 +1,6 @@
 package ir.ast
 
-import lift.arithmetic.Cst
+import lift.arithmetic.{ArithExpr, Cst}
 import ir.interpreter.Interpreter.ValueMap
 import ir._
 
@@ -14,21 +14,31 @@ import ir._
  * The tail pattern has the following type:
  * `Tail() : [a],,I+1,, -> [a],,I,,`
  */
-case class Tail() extends Pattern(arity = 1)  {
+case class Tail() extends Pattern(arity = 1) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
+    /**
+     * Subtract 1 from an expression and throw an error if we can prove that
+     * the result is not positive.
+     */
+    def minusOne(e: ArithExpr): ArithExpr = {
+      if (e == Cst(1)) throw new TypeException(
+        argType, "ArrayType with size/capacity > 1 (if known)", this
+      )
+      e - 1
+    }
+
     argType match {
-      case ArrayTypeWS(t, Cst(1)) =>
-        // TODO: think about this ... throw exception instead?
-        ArrayTypeWSWC(t, 1)
-
-      case ArrayTypeWSWC(t, s, c) => ArrayTypeWSWC(t, s - 1, c-1)
-
+      case at: ArrayType => at match {
+        case sc: Size with Capacity => ArrayTypeWSWC(at.elemT, minusOne(sc.size), minusOne(sc.capacity))
+        case c: Capacity => ArrayTypeWC(at.elemT, minusOne(c.capacity))
+        case s: Size => ArrayTypeWS(at.elemT, minusOne(s.size))
+        case _ => at // At your own risk…
+      }
       case _ => throw new TypeException(argType, "ArrayType", this)
     }
   }
-
 
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)

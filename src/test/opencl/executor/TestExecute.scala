@@ -28,7 +28,7 @@ class TestExecute {
       val inputSize = scala.Int.MaxValue / 4 + 1
       val input = Array.fill(inputSize)(1)
 
-      val (output: Array[Int], _) = Execute(1, 1)(f, input)
+      val (output, _) = Execute(1, 1)[Array[Int]](f, input)
       assertTrue(inputSize * 4 < 0)
       assertEquals(inputSize, output.head)
     } catch {
@@ -50,7 +50,7 @@ class TestExecute {
 
     val input = Array.tabulate(scala.Int.MaxValue / 4 + 1 )(i => i)
 
-    val (output: Array[Int], _) = Execute(input.length)(f, input)
+    val (output, _) = Execute(input.length)[Array[Int]](f, input)
 
     assertArrayEquals(input, output)
   }
@@ -66,8 +66,7 @@ class TestExecute {
     )
 
     val execute = Execute()
-    val (output: Array[Float], _) =
-      execute(f, input)
+    val (output, _) = execute[Array[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -92,8 +91,7 @@ class TestExecute {
     )
 
     val execute = Execute()
-    val (output: Array[Float], _) =
-      execute(f, input)
+    val (output, _) = execute[Array[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -119,8 +117,7 @@ class TestExecute {
     )
 
     val execute = Execute()
-    val (output: Array[Float], _) =
-      execute(f, input)
+    val (output, _) = execute[Array[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -145,8 +142,7 @@ class TestExecute {
     )
 
     val execute = Execute()
-    val (output: Array[Float], _) =
-      execute(f, input)
+    val (output, _) = execute[Array[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -162,8 +158,7 @@ class TestExecute {
 
   @Test
   def testInferTwoDim(): Unit = {
-
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val size1 = 1024
     val size2 = 512
@@ -178,8 +173,7 @@ class TestExecute {
     )
 
     val execute = Execute()
-    val (output: Array[Float], _) =
-      execute(f, input)
+    val (output, _) = execute[Array[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -203,9 +197,7 @@ class TestExecute {
     val sizeA = 128
     val sizeB = 16*cst1
 
-    val input = Array.fill(sizeA)(
-      Array.fill(sizeB)(util.Random.nextFloat() * 10)
-    )
+    val input = Array.fill(sizeA, sizeB)(util.Random.nextFloat() * 10)
 
     val f = λ(ArrayTypeWSWC(ArrayTypeWSWC(Float, B*Cst(cst1)), A),
       MapWrg(
@@ -214,8 +206,7 @@ class TestExecute {
     )
 
     val execute = Execute()
-    val (output: Array[Float], _) =
-      execute(f, input)
+    val (output, _) = execute[Array[Float]](f, input)
 
     val (local, global) = execute.getAndValidateSizesForExecution(f,
       Execute.createValueMap(f, input))
@@ -232,7 +223,7 @@ class TestExecute {
     val inputA = Array.fill(cst1)(util.Random.nextFloat() * 10)
     val inputB = Array.fill(cst1)(util.Random.nextFloat() * 10)
 
-    val gold = Array(inputA.sum + inputB.sum)
+    val gold = inputA.sum + inputB.sum
 
     val f = λ(ArrayTypeWSWC(Float, cst1), ArrayTypeWSWC(Float, A),
       (cstArr, varArr) =>
@@ -242,13 +233,36 @@ class TestExecute {
     )
 
     val execute = Execute()
-    val (output: Array[Float], _) =
-      execute(f, inputA, inputB)
+    val (output, _) = execute[Array[Float]](f, inputA, inputB)
 
-    val (local, global) = execute.getAndValidateSizesForExecution(f,
-      Execute.createValueMap(f, inputA, inputB))
+    execute.getAndValidateSizesForExecution(f, Execute.createValueMap(f, inputA, inputB))
 
-    assertArrayEquals(gold, output, 0.001f)
+    assertEquals(1, output.length)
+    assertEquals(gold, output.head, 0.001f)
+  }
+
+  @Test
+  def tupleArgument(): Unit = {
+    val size = 32
+    val inputA = Array.fill(size)(util.Random.nextFloat() * 10)
+    val inputB = (13, 42.24f)
+
+    val addTuple = UserFun(
+      "addTuple", Array("x", "y"), "Tuple z = {x._0 + (int)y, x._1 + y}; return z;",
+      Seq(TupleType(Int, Float), Float), TupleType(Int, Float)
+    )
+
+    val f = fun(
+      ArrayType(Float, size),
+      TupleType(Int, Float),
+      (arr, t) =>
+        MapSeq(id(TupleType(Int, Float))) o ReduceSeq(addTuple, t) $ arr
+    )
+
+    val (Vector((intSum, floatSum)), _) = Execute(1, 1)[Vector[(Int, Float)]](f, inputA, inputB)
+
+    assertEquals(inputA.map(_.toInt).sum + inputB._1, intSum)
+    assertEquals(inputA.sum + inputB._2, floatSum, 0.0001f)
   }
 
   @Test
@@ -278,7 +292,7 @@ class TestExecute {
         $ ArrayFromGenerator((i, _) => ArithExpression(i), ArrayType(Int, size))
     ) // Allocates 2GB + ε in total
 
-    val (output: Array[Int], _) = Execute(128, 512)(f)
+    val (output, _) = Execute(128, 512)[Array[Int]](f)
     val gold = Array.tabulate(size / lclSize)(i =>
       Math.ceil(((i+1) * lclSize - 1).toDouble / 10d).toInt + 1
         - Math.ceil((i * lclSize).toDouble / 10d).toInt - 1

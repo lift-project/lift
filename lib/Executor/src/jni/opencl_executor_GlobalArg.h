@@ -10,6 +10,14 @@ extern "C" {
 /*
  * Class:     opencl_executor_GlobalArg
  * Method:    createInput
+ * Signature: ([B)Lopencl/executor/GlobalArg;
+ */
+JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createInput___3B
+  (JNIEnv *, jclass, jbyteArray);
+
+/*
+ * Class:     opencl_executor_GlobalArg
+ * Method:    createInput
  * Signature: ([F)Lopencl/executor/GlobalArg;
  */
 JNIEXPORT jobject JNICALL Java_opencl_executor_GlobalArg_createInput___3F
@@ -85,6 +93,14 @@ JNIEXPORT jdoubleArray JNICALL Java_opencl_executor_GlobalArg_asDoubleArray
  * Signature: ()[Z
  */
 JNIEXPORT jbooleanArray JNICALL Java_opencl_executor_GlobalArg_asBooleanArray
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     opencl_executor_GlobalArg
+ * Method:    asByteArray
+ * Signature: ()[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_opencl_executor_GlobalArg_asByteArray
   (JNIEnv *, jobject);
 
 #ifdef __cplusplus

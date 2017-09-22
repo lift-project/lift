@@ -1,6 +1,7 @@
 package opencl.executor;
 
 public class GlobalArg extends KernelArg {
+    public static native GlobalArg createInput(byte[] array);
     public static native GlobalArg createInput(float[] array);
     public static native GlobalArg createInput(int[] array);
     public static native GlobalArg createInput(double[] array);
@@ -18,4 +19,5 @@ public class GlobalArg extends KernelArg {
     public native int[] asIntArray();
     public native double[] asDoubleArray();
     public native boolean[] asBooleanArray();
+    public native byte[] asByteArray();
 }
