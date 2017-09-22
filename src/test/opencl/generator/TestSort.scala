@@ -37,7 +37,7 @@ class TestSort {
       InsertionSortSeq(int_compare) $ _
     )
     
-    val (output: Array[Int], runtime) = Execute(1, 1)(kernel, input)
+    val (output, runtime) = Execute(1, 1)[Array[Int]](kernel, input)
     println(s"Runtime: $runtime")
     
     println(output.mkString(", "))
@@ -59,7 +59,7 @@ class TestSort {
     )
    
     val gold = input.grouped(32).flatMap(_.sortWith(_ < _)).toArray
-    val (output: Array[Int], runtime) = Execute(size)(kernel, input)
+    val (output, runtime) = Execute(size)[Array[Int]](kernel, input)
     println(s"Runtime: $runtime")
     
     assertArrayEquals(gold, output)
@@ -84,7 +84,7 @@ class TestSort {
     )
     
     val gold = input.grouped(8).toArray.sortWith(_.sum < _.sum).flatten
-    val (output: Array[Int], runtime) = Execute(1, 1)(kernel, input)
+    val (output, runtime) = Execute(1, 1)[Array[Int]](kernel, input)
     println(s"Runtime: $runtime")
   
     assertArrayEquals(gold, output)

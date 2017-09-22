@@ -97,7 +97,7 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def loweringTiledAndBlockedBInnermost(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val tileSizeMN = 16
     val tileSizeK = 8
@@ -136,8 +136,12 @@ class TestRewriteMatrixMatrix {
 
     val (localRange, globalRange) = InferNDRange(f13, values:_*)
 
-    val (output: Array[Float], _) = Execute(localRange(0).eval, localRange(1).eval,
-      globalRange(0).eval, globalRange(1).eval, (true, true))(f13, values:_*)
+    val (output, _) = Execute(
+      localRange(0).eval,
+      localRange(1).eval,
+      globalRange(0).eval,
+      globalRange(1).eval,
+      (true, true))[Array[Float]](f13, values:_*)
 
     val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
 
@@ -146,7 +150,7 @@ class TestRewriteMatrixMatrix {
 
   @Test
   def simpleLowering(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val tileSizeMN = 16
     val tileSizeK = 8
@@ -166,8 +170,8 @@ class TestRewriteMatrixMatrix {
 
     val (localRange, globalRange) = InferNDRange(h1, values:_*)
 
-    val (output: Array[Float], _) = Execute(localRange(0).eval, localRange(1).eval,
-      globalRange(0).eval, globalRange(1).eval, (true, true))(h1, values:_*)
+    val (output, _) = Execute(localRange(0).eval, localRange(1).eval,
+      globalRange(0).eval, globalRange(1).eval, (true, true))[Array[Float]](h1, values:_*)
 
     val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
 
@@ -251,14 +255,13 @@ class TestRewriteMatrixMatrix {
     val matrix = Array.tabulate(nSize, mSize)((r, c) => c * 1.0f + r * 8.0f)
     val gold = matrix.transpose
 
-    val (output: Array[Float], _) =
-      Execute(y, x, nSize, mSize, (false, false))(f5, matrix)
+    val (output, _) = Execute(y, x, nSize, mSize, (false, false))[Array[Float]](f5, matrix)
     assertArrayEquals(gold.flatten, output, 0.0f)
   }
 
   @Test
   def mmSquareTilesLocalMemory(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val f0 = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M), ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N), (p1538399081, p1800890735) => FunCall(Join(), FunCall(Map(fun((p1957502751) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p1177377518) => FunCall(TransposeW(), FunCall(Map(fun((p1122805102) => FunCall(TransposeW(), p1122805102))), FunCall(TransposeW(), FunCall(toGlobal(fun((p183284570) => FunCall(MapSeq(fun((p2109874862) => FunCall(Map(fun((p275310919) => FunCall(Map(fun((p797925218) => FunCall(id, p797925218))), p275310919))), p2109874862))), p183284570))), FunCall(ReduceSeq(fun((p1136497418, p1943325854) => FunCall(Map(fun((p1413378318) => FunCall(Map(fun((p1181869371) => FunCall(add, FunCall(Get(0), p1181869371), FunCall(Get(1), p1181869371)))), FunCall(Zip(2), FunCall(Get(0), p1413378318), FunCall(Join(), FunCall(Map(fun((p1256728724) => FunCall(toPrivate(fun((p1157058691) => FunCall(MapSeq(fun((p1667689440) => FunCall(id, p1667689440))), p1157058691))), FunCall(ReduceSeq(fun((p852687460, p1138193439) => FunCall(add, p852687460, FunCall(mult, FunCall(Get(0), p1138193439), FunCall(Get(1), p1138193439))))), FunCall(id, Value(0.0f, Float)), FunCall(Zip(2), FunCall(Get(1), p1413378318), p1256728724))))), FunCall(Transpose(), FunCall(Get(1), p1943325854)))))))), FunCall(Zip(2), p1136497418, FunCall(Transpose(), FunCall(Get(0), p1943325854)))))), FunCall(Map(fun((p194706439) => FunCall(Map(fun((p1686369710) => FunCall(id, p1686369710))), p194706439))), Value(0.0f, ArrayTypeWSWC(ArrayTypeWSWC(Float, 4), 4))), FunCall(Zip(2), FunCall(Split(4), FunCall(Transpose(), p1957502751)), FunCall(Split(4), FunCall(Transpose(), p1177377518)))))))))), FunCall(Split(4), p1800890735)))))), FunCall(Split(4), p1538399081))))
 
@@ -279,7 +282,7 @@ class TestRewriteMatrixMatrix {
     val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
 
-    val (output: Array[Float], _) = Execute(4, 4, mSize, kSize, (true, true))(f5, matrixA, matrixB.transpose)
+    val (output, _) = Execute(4, 4, mSize, kSize, (true, true))[Array[Float]](f5, matrixA, matrixB.transpose)
 
     val gold = opencl.executor.Utils.matrixMatrixMultiply(matrixA, matrixB)
 

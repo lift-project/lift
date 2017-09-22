@@ -143,18 +143,6 @@ class TestTypeChecker {
 //    }
 //  }
 
-  @Test
-  def unboundedArrayReduce(): Unit = {
-
-    val lambda = fun(
-      RuntimeSizedArrayType(Float),
-      a => ReduceSeq(fun((acc, x) => add(acc, x)), 0.0f) $ a
-    )
-
-    val t = TypeChecker(lambda)
-    assertEquals(ArrayTypeWSWC(Float, Cst(1), Cst(1)), t)
-  }
-
   @Test(expected = classOf[SuspiciousTypeVariableDeclaredException])
   def issue5(): Unit = {
     TreatWarningsAsErrors(true)

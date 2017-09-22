@@ -112,7 +112,7 @@ object OpenCLAST {
   case class WhileLoop(loopPredicate: Predicate,
                        body: Block) extends Statement
 
-  /** An if-then-else set of statements, with two branches. 
+  /** An if-then-else set of statements, with two branches.
     *
     * @param cond      the condition
     * @param trueBody  the body evaluated if switchPredicate is true

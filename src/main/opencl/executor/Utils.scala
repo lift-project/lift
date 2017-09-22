@@ -20,8 +20,16 @@ object Utils {
 
   def isApplePlatform = Executor.getPlatformName == "Apple"
 
+  def isAppleCPU: Boolean =
+    Executor.getPlatformName == "Apple" &&
+    Executor.getDeviceType == "CPU"
+
   def isAmdGpu =
     Executor.getPlatformName == "AMD Accelerated Parallel Processing" && 
+    Executor.getDeviceType == "GPU"
+
+  def isNvidiaGPU: Boolean =
+    Executor.getPlatformName.contains("NVIDIA") &&
     Executor.getDeviceType == "GPU"
 
   def writeMD(width: Int, height: Int, data: Array[Float], name: String): Unit = {
@@ -283,9 +291,9 @@ object Utils {
       globalSize1, globalSize2, globalSize3,
       injectSizes)
 
-    val (output: Array[Float], runtime) = Execute(localSize1, localSize2, localSize3,
-                                                  globalSize1, globalSize2, globalSize3,
-                                                  injectSizes)(kernel, f, values:_*)
+    val (output, runtime) = Execute(localSize1, localSize2, localSize3,
+                                    globalSize1, globalSize2, globalSize3,
+                                    injectSizes)[Array[Float]](kernel, f, values:_*)
 
     (output, runtime, kernel)
   }

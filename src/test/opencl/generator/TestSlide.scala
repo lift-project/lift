@@ -112,12 +112,12 @@ class TestSlide {
   */
 
   def createGroups1D(lambda: Lambda1, data: Array[Float]): (Array[Float], Double) = {
-    val (output: Array[Float], runtime) = Execute(data.length, data.length)(lambda, data)
+    val (output, runtime) = Execute(data.length, data.length)[Array[Float]](lambda, data)
     (output, runtime)
   }
 
   def createGroup2D(lambda: Lambda1, data2D: Array[Array[Float]]): (Array[Float], Double) = {
-    val (output: Array[Float], runtime) = Execute(data2D.length, data2D.length)(lambda, data2D)
+    val (output, runtime) = Execute(data2D.length, data2D.length)[Array[Float]](lambda, data2D)
     (output, runtime)
   }
 
@@ -356,7 +356,7 @@ class TestSlide {
 
       val f = createSimpleStencilWithoutPad(size, step, weights)
 
-      val (_, runtime) = Execute(1, 1, width, height, (false, false))(f, randomData2D, weights)
+      val (_, runtime) = Execute(1, 1, width, height, (false, false))[Array[Float]](f, randomData2D, weights)
       println("Runtime: " + runtime)
 
       // val outOfBoundElementsX = size + (size - step) / 2 //todo only true if symmetric padding! check this
@@ -391,7 +391,7 @@ class TestSlide {
         Iterate(2) (Join() o MapGlb(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f)) o Slide(3,1)) $ input
       })
 
-    val (output: Array[Float], runtime) = Execute(data.length, data.length)(lambda, data)
+    val (output, runtime) = Execute(data.length, data.length)[Array[Float]](lambda, data)
     compareGoldWithOutput(gold, output, runtime)
   }
 
@@ -438,7 +438,7 @@ class TestSlide {
     val nbh= test.map(_.map(_.map(_.flatten.flatten.foldLeft(0.0f)((acc, p) => acc + p))))
     val gold = Array(52,60,76,84,124,132,148,156).map(_.toFloat)
     //val first = nbh.head.head.head
-    val (output: Array[Float],runtime) = Execute(2,2,2,2,2,2,(true,true))(fct, input3D)
+    val (output,runtime) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](fct, input3D)
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.0f)
     //println("lift:  " + output.map(_.toInt).map(_+97).map(_.asInstanceOf[Char]).mkString(","))
@@ -473,8 +473,8 @@ class TestSlide {
     val generated2D = SlideND(2)(n,s)
     val handwritten2D = Map(Transpose()) o Slide(n,s) o Map(Slide(n,s))
 
-    val (outGold2D: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda2D(handwritten2D), input2D)
-    val (outGenerated2D: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda2D(generated2D), input2D)
+    val (outGold2D, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda2D(handwritten2D), input2D)
+    val (outGenerated2D, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda2D(generated2D), input2D)
 
     assertArrayEquals(outGold2D, outGenerated2D, 0.1f)
 
@@ -482,8 +482,8 @@ class TestSlide {
     val generated3D = SlideND(3)(n,s)
     val handwritten3D = Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Map(Transpose()))) o Slide(n,s) o Map(Slide(n,s)) o Map(Map(Slide(n,s)))
 
-    val (outGold: Array[Float], _) = Execute(1,1,1,32,32,32,(false,false))(lambda3D(handwritten3D), input3D)
-    val (outGenerated: Array[Float], _) = Execute(1,1,1,32,32,32,(false,false))(lambda3D(generated3D), input3D)
+    val (outGold, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda3D(handwritten3D), input3D)
+    val (outGenerated, _) = Execute(1,1,1,32,32,32,(false,false))[Array[Float]](lambda3D(generated3D), input3D)
 
     assertArrayEquals(outGold, outGenerated, 0.1f)
   }
@@ -508,8 +508,8 @@ class TestSlide {
       )
     }
 
-    val (outGold1D: Array[Float], _) = Execute(1, 32, (false, false))(lambda1D(slide1D), input1D)
-    val (outTiled1D: Array[Float], _) = Execute(1, 32, (false, false))(lambda1D(tiledSlide1D), input1D)
+    val (outGold1D, _) = Execute(1, 32, (false, false))[Array[Float]](lambda1D(slide1D), input1D)
+    val (outTiled1D, _) = Execute(1, 32, (false, false))[Array[Float]](lambda1D(tiledSlide1D), input1D)
 
     assertArrayEquals(outGold1D, outTiled1D, 0.1f)
   }
@@ -534,8 +534,8 @@ class TestSlide {
       )
     }
 
-    val (outGold2D: Array[Float], _) = Execute(1, 1, 32, 32, (false, false))(lambda2D(slide2D), input2D)
-    val (outTiled2D: Array[Float], _) = Execute(1, 1, 32, 32, (false, false))(lambda2D(tiledSlide2D), input2D)
+    val (outGold2D, _) = Execute(1, 1, 32, 32, (false, false))[Array[Float]](lambda2D(slide2D), input2D)
+    val (outTiled2D, _) = Execute(1, 1, 32, 32, (false, false))[Array[Float]](lambda2D(tiledSlide2D), input2D)
 
     assertArrayEquals(outGold2D, outTiled2D, 0.1f)
   }
@@ -563,8 +563,8 @@ class TestSlide {
       )
     }
 
-    val (outGold3D: Array[Float], _) = Execute(4, 4, 4, 32, 32, 32, (true, true))(lambda3D(slide3D), input3D)
-    val (outTiled3D: Array[Float], _) = Execute(4, 4, 4, 32, 32, 32, (true, true))(lambda3D(tiledSlide3D), input3D)
+    val (outGold3D, _) = Execute(4, 4, 4, 32, 32, 32, (true, true))[Array[Float]](lambda3D(slide3D), input3D)
+    val (outTiled3D, _) = Execute(4, 4, 4, 32, 32, 32, (true, true))[Array[Float]](lambda3D(tiledSlide3D), input3D)
 
     assertArrayEquals(outGold3D, outTiled3D, 0.1f)
   }
@@ -592,8 +592,8 @@ class TestSlide {
       )
     }
 
-    val (outGold4D: Array[Float], _) = Execute(4,4,4,8,8,8,(true,true))(lambda4D(slide4D), input4D)
-    val (outTiled4D: Array[Float], _) = Execute(4,4,4,8,8,8,(true,true))(lambda4D(tiledSlide4D), input4D)
+    val (outGold4D, _) = Execute(4,4,4,8,8,8,(true,true))[Array[Float]](lambda4D(slide4D), input4D)
+    val (outTiled4D, _) = Execute(4,4,4,8,8,8,(true,true))[Array[Float]](lambda4D(tiledSlide4D), input4D)
 
     assertArrayEquals(outGold4D, outTiled4D, 0.1f)
   }
