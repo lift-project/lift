@@ -8,9 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Test
 
-class AlgorithmicMmTN {
-
-  LongTestsEnabled()
+object AlgorithmicMmTN {
 
   private val mmTransposedA = fun(
     ArrayType(ArrayType(Float, M), K),
@@ -25,6 +23,12 @@ class AlgorithmicMmTN {
 
   private val rewriter = new HighLevelRewrite(4, 2, 5)
   private val rewrittenLambdas = rewriter(mmTransposedA)
+}
+
+class AlgorithmicMmTN {
+
+  LongTestsEnabled()
+  import AlgorithmicMmTN._
 
   @Test
   def tilingWithTwoDBlocking(): Unit = {

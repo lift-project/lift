@@ -8,10 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Test
 
-class AlgorithmicGemv {
-
-  LongTestsEnabled()
-
+object AlgorithmicGemv {
   private val gemv = fun(
     ArrayType(ArrayType(Float, M), N),
     ArrayType(Float, M),
@@ -33,6 +30,12 @@ class AlgorithmicGemv {
 
   private val rewriter = new HighLevelRewrite(4, 2, 5)
   private val rewrittenLambdas = rewriter(gemv)
+}
+
+class AlgorithmicGemv {
+
+  LongTestsEnabled()
+  import AlgorithmicGemv._
 
   @Test
   def partialReduceWithReorder(): Unit = {
@@ -45,8 +48,6 @@ class AlgorithmicGemv {
   @Test
   def vectorised(): Unit = {
     val vectorisedGold = fun(ArrayType(ArrayType(Float, M), N), ArrayType(Float, M), ArrayType(Float, N), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(Map(fun((p_5) => FunCall(Map(fun((p_6) => FunCall(add, FunCall(mult, p_6, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), FunCall(Reduce(fun((p_7, p_8) => FunCall(add, p_7, p_8))), Value("0.0f", Float), FunCall(asScalar(), FunCall(PartRed(fun((p_9, p_10) => FunCall(VectorizeUserFun(4,add), p_9, p_10))), Value("0.0f", VectorType(Float, 4)), FunCall(asVector(4), FunCall(asScalar(), FunCall(Map(fun((p_11) => FunCall(VectorizeUserFun(4,mult), FunCall(Get(0), p_11), FunCall(Get(1), p_11)))), FunCall(Zip(2), FunCall(asVector(4), p_1), FunCall(asVector(4), FunCall(Get(0), p_5)))))))))))), FunCall(Zip(2), p_0, p_2)))
-
-    val vectorisedSeq = Seq(rewriter.vecZip, rewriter.vecRed)
 
     checkExists(vectorisedGold, rewrittenLambdas)
     checkDistance(vectorisedGold)

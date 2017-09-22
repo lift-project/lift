@@ -8,9 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Test
 
-class AlgorithmicMmNT {
-
-  LongTestsEnabled()
+object AlgorithmicMmNT {
 
   private val mmTransposedB = fun(
     ArrayType(ArrayType(Float, K), M),
@@ -25,6 +23,12 @@ class AlgorithmicMmNT {
 
   private val rewriter = new HighLevelRewrite(4, 2, 5)
   private val rewrittenLambdas = rewriter(mmTransposedB)
+}
+
+class AlgorithmicMmNT {
+
+  LongTestsEnabled()
+  import AlgorithmicMmNT._
 
   @Test
   def vectorised(): Unit = {

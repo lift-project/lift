@@ -9,9 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Test
 
-class AlgorithmicMriq {
-
-  LongTestsEnabled()
+object AlgorithmicMriq {
 
   private val mapFun = UserFun("mapFun",
     Array("sX", "sY", "sZ", "Kx", "Ky", "Kz", "PhiMag"),
@@ -47,6 +45,12 @@ class AlgorithmicMriq {
 
   private val rewriter = new HighLevelRewrite(4, 2, 4)
   private val rewrittenLambdas = rewriter(mriqComputeQ)
+}
+
+class AlgorithmicMriq {
+
+  LongTestsEnabled()
+  import AlgorithmicMriq._
 
   @Test
   def partialReduceWithReorder(): Unit = {

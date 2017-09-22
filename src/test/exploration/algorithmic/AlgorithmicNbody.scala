@@ -9,38 +9,35 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Test
 
-class AlgorithmicNbody {
-
-  LongTestsEnabled()
-
+object AlgorithmicNbody {
   private val calcAcc =
     UserFun("calcAcc", Array("p1", "p2", "deltaT", "espSqr"),
       """|{
-        |  float4 r;
-        |  r.xyz = p2.xyz - p1.xyz ;
-        |  float distSqr = r.x*r.x + r.y*r.y + r.z*r.z;
-        |  float invDist = 1.0f / sqrt(distSqr + espSqr);
-        |  float invDistCube = invDist * invDist * invDist;
-        |  float s = invDistCube * p2.w;
-        |  float4 res;
-        |  res.xyz = s * r.xyz;
-        |  return res;
-        |}
-        | """.stripMargin,
+         |  float4 r;
+         |  r.xyz = p2.xyz - p1.xyz ;
+         |  float distSqr = r.x*r.x + r.y*r.y + r.z*r.z;
+         |  float invDist = 1.0f / sqrt(distSqr + espSqr);
+         |  float invDistCube = invDist * invDist * invDist;
+         |  float s = invDistCube * p2.w;
+         |  float4 res;
+         |  res.xyz = s * r.xyz;
+         |  return res;
+         |}
+         | """.stripMargin,
       Seq(Float4, Float4, Float, Float), Float4)
 
   private val update =
     UserFun("update", Array("pos", "vel", "deltaT", "acceleration"),
       """|{
-        |  float4 newPos;
-        |  newPos.xyz = pos.xyz + vel.xyz * deltaT + 0.5f * acceleration.xyz * deltaT * deltaT;
-        |  newPos.w = pos.w;
-        |  float4 newVel;
-        |  newVel.xyz = vel.xyz + acceleration.xyz * deltaT;
-        |  newVel.w = vel.w;
-        |  Tuple t = {newPos, newVel};
-        |  return t;
-        |}
+         |  float4 newPos;
+         |  newPos.xyz = pos.xyz + vel.xyz * deltaT + 0.5f * acceleration.xyz * deltaT * deltaT;
+         |  newPos.w = pos.w;
+         |  float4 newVel;
+         |  newVel.xyz = vel.xyz + acceleration.xyz * deltaT;
+         |  newVel.w = vel.w;
+         |  Tuple t = {newPos, newVel};
+         |  return t;
+         |}
       """.stripMargin,
       Seq(Float4, Float4, Float, Float4), TupleType(Float4, Float4))
 
@@ -62,6 +59,12 @@ class AlgorithmicNbody {
 
   private val rewriter = new HighLevelRewrite(4, 2, 4)
   private val rewrittenLambdas = rewriter(nbody)
+}
+
+class AlgorithmicNbody {
+
+  LongTestsEnabled()
+  import AlgorithmicNbody._
 
   @Test
   def partialReduceWithReorder(): Unit = {
