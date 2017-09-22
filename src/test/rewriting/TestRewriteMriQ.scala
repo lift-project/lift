@@ -147,8 +147,8 @@ class TestRewriteMriQ {
     val f14 = Rewrite.applyRuleAtId(f13, 16, Rules.privateMemory)
     val f15 = Rewrite.applyRuleAtId(f14, 13, Rules.privateMemory)
 
-    val (output: Array[Float], _) =
-      Execute()(f15, x, y, z, Array.fill(xNum)(0.0f), Array.fill(xNum)(0.0f), k)
+    val (output, _) =
+      Execute()[Array[Float]](f15, x, y, z, Array.fill(xNum)(0.0f), Array.fill(xNum)(0.0f), k)
 
     assertArrayEquals(gold, output, 0.001f)
   }
@@ -162,8 +162,8 @@ class TestRewriteMriQ {
 
     val lowered = Lower.mapCombinations(f3, mappings).head
 
-    val (output: Array[Float], _) =
-      Execute()(lowered, x, y, z, k)
+    val (output, _) =
+      Execute()[Array[Float]](lowered, x, y, z, k)
 
     assertArrayEquals(gold, output, 0.001f)
   }
@@ -182,8 +182,8 @@ class TestRewriteMriQ {
     val l4 = Rewrite.applyRuleAtId(l3, 35, Rules.implementIdAsDeepCopy)
     val l5 = Rewrite.applyRuleAtId(l4, 35, Rules.localMemory)
 
-    val (output: Array[Float], _) =
-      Execute()(l5, x, y, z, k)
+    val (output, _) =
+      Execute()[Array[Float]](l5, x, y, z, k)
 
     assertArrayEquals(gold, output, 0.01f)
   }
@@ -204,8 +204,8 @@ class TestRewriteMriQ {
     )
 
     try {
-      val (output: Array[Float], _) =
-        Execute()(computeQ, x, y, z, k)
+      val (output, _) =
+        Execute()[Array[Float]](computeQ, x, y, z, k)
 
       assertArrayEquals(gold, output, 0.001f)
     } catch {

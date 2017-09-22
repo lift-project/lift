@@ -24,7 +24,7 @@ class TestBuiltIn {
       MapGlb(\(a => dot(a, a))) o asVector(4) $ _
     )
 
-    val (output: Array[Float], _) = Execute(size)(f, input)
+    val (output, _) = Execute(size)[Array[Float]](f, input)
 
     val gold = input.grouped(4).map(x => (x, x).zipped.map(_*_).sum).toArray
 
@@ -40,7 +40,7 @@ class TestBuiltIn {
 
     val gold = input.map(a => a*a + a)
 
-    val (output: Array[Float], _) = Execute(size)(f, input)
+    val (output, _) = Execute(size)[Array[Float]](f, input)
 
     assertArrayEquals(gold, output, 0.001f)
   }

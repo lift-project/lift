@@ -201,19 +201,19 @@ class TestFission {
 
     val A = Array.tabulate(size, size)((x, y) => x*size + y.toFloat)
 
-    val (result: Array[Float], _) = Execute(size)(f, A, A)
+    val (result, _) = Execute(size)[Array[Float]](f, A, A)
 
     val g0 = Rewrite.applyRuleAtId(fP, 2, Rules.mapFissionWithZipInside)
     val g1 = Rewrite.applyRuleAtId(g0, 0, Rules.mapGlb)
     val g2 = Rewrite.applyRuleAtId(g1, 2, Rules.mapSeq)
 
-    val (resultG: Array[Float], _) = Execute(size)(g2, A, A)
+    val (resultG, _) = Execute(size)[Array[Float]](g2, A, A)
 
     val h0 = Rewrite.applyRuleAtId(fP, 0, Rules.mapFissionWithZipInside)
     val h1 = Rewrite.applyRuleAtId(h0, 0, Rules.mapGlb)
     val h2 = Rewrite.applyRuleAtId(h1, 5, Rules.mapSeq)
 
-    val (resultH: Array[Float], _) = Execute(size)(h2, A, A)
+    val (resultH, _) = Execute(size)[Array[Float]](h2, A, A)
 
     assertArrayEquals(result, resultG, 0.0f)
     assertArrayEquals(result, resultH, 0.0f)

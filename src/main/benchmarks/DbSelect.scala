@@ -7,16 +7,16 @@ import opencl.ir.pattern._
 import lift.arithmetic.SizeVar
 
 class DbSelect(override val f: Seq[(String, Array[Lambda])])
-      extends Benchmark2[(Int, Int, Int)]("SELECT", Seq(4096), f,(x, y) => x == y) {
+      extends Benchmark2[Vector[(Int, Int, Int)]]("SELECT", Seq(4096), f, _ == _) {
   
-  override def runScala(inputs: Seq[Any]): Array[(Int, Int, Int)] = {
+  override def runScala(inputs: Seq[Any]): Vector[(Int, Int, Int)] = {
     val colA = inputs(0).asInstanceOf[Array[Int]]
     val colB = inputs(1).asInstanceOf[Array[Int]]
     val colC = inputs(2).asInstanceOf[Array[Int]]
     
     def is_one(n: Int): Int = if (n == 1) 1 else 0
     
-    (colC.map(is_one), colA, colB).zipped.toArray
+    (colC.map(is_one), colA, colB).zipped.toVector
   }
   
   override def generateInputs(): Seq[Any] = {
@@ -28,15 +28,6 @@ class DbSelect(override val f: Seq[(String, Array[Lambda])])
     val colC: Array[Int] = Array.tabulate(n)(i => (3*i) % 10)
    
     Seq(colA, colB, colC)
-  }
-  
-  override def postProcessResult(variant: Int,
-                                 name: String,
-                                 result: Any): Array[(Int, Int, Int)] = {
-    // The executor returns the result in a flattened format so we need to
-    // post-process it
-    val unprocessed = result.asInstanceOf[Array[Int]].grouped(3)
-    unprocessed.map({ case Array(x, y, z) => (x, y, z) }).toArray
   }
   
   override protected def printParams(): Unit = {

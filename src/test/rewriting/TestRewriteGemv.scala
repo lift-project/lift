@@ -79,8 +79,8 @@ class TestRewriteGemv {
 
     val (local, global) = InferNDRange(f21, matrix, vectorX, vectorY, alpha, beta)
 
-    val (output: Array[Float], _) =
-      Execute(local(0).eval, global(0).eval)(f21, matrix, vectorX, vectorY, alpha, beta)
+    val (output, _) =
+      Execute(local(0).eval, global(0).eval)[Array[Float]](f21, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, output,0.0f)
     assertTrue(HighLevelRewrite.filterByDistance(f11))
@@ -108,8 +108,8 @@ class TestRewriteGemv {
     val l5 = Rewrite.applyRuleAtId(l4, 38, Rules.implementIdAsDeepCopy)
     val l6 = Rewrite.applyRuleAtId(l5, 42, MacroRules.userFunCompositionToPrivate)
 
-    val (output: Array[Float], _) =
-      Execute()(l6, matrix, vectorX, vectorY, alpha, beta)
+    val (output, _) =
+      Execute()[Array[Float]](l6, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, output, 0.001f)
   }
@@ -127,8 +127,8 @@ class TestRewriteGemv {
     val l2 = Rewrite.applyRuleAtId(l1, 27, Rules.implementIdAsDeepCopy)
     val l3 = Rewrite.applyRuleAtId(l2, 27, Rules.localMemory)
 
-    val (output: Array[Float], _) =
-      Execute()(l3, matrix, vectorX, vectorY, alpha, beta)
+    val (output, _) =
+      Execute()[Array[Float]](l3, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, output, 0.001f)
   }
@@ -166,7 +166,7 @@ class TestRewriteGemv {
     val (local, global) = InferNDRange(l15)
     val code = Compile(l15, local, global)
 
-    val (output: Array[Float], _) = Execute()(code, l15, matrix, vectorX, vectorY, alpha, beta)
+    val (output, _) = Execute()[Array[Float]](code, l15, matrix, vectorX, vectorY, alpha, beta)
 
     assertEquals(2, "barrier".r.findAllMatchIn(code).length)
     assertArrayEquals(gold, output, 0.001f)

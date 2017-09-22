@@ -40,7 +40,7 @@ class TestRewriteNbody {
 
   @Test
   def nBodyLocalMem(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(128))
 
@@ -57,8 +57,8 @@ class TestRewriteNbody {
     val f27 = Rewrite.applyRuleAtId(f22, 16, Rules.localMemory)
     val f28 = Lower.lowerNextLevelWithRule(f27, Rules.mapLcl)
 
-    val (output: Array[Float], _) =
-      Execute()(f28, pos, vel, espSqr, deltaT)
+    val (output, _) =
+      Execute()[Array[Float]](f28, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
 
     val replacementFilter = collection.immutable.Map[ArithExpr, ArithExpr](N -> 16384)
@@ -81,7 +81,7 @@ class TestRewriteNbody {
     val l4 = Rewrite.applyRuleAtId(l3, 34, Rules.implementIdAsDeepCopy)
     val l5 = Rewrite.applyRuleAtId(l4, 5, Rules.localMemory)
 
-    val (output: Array[Float], _) = Execute()(l5, pos, vel, espSqr, deltaT)
+    val (output, _) = Execute()[Array[Float]](l5, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)
   }
 

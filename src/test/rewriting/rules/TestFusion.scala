@@ -36,14 +36,14 @@ class TestFusion {
           Value(0.0f, ArrayTypeWSWC(Float, 4))) o MapSeq(MapSeq(plusOne)) $ input
     )
 
-    val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
+    val (gold,_) = Execute(1, 1)[Array[Float]](goldF, A)
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.foreach(l => {
-      val (result: Array[Float], _) = Execute(1, 1)(l, A)
+      val (result, _) = Execute(1, 1)[Array[Float]](l, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -64,14 +64,14 @@ class TestFusion {
 
     val a = 2.0f
 
-    val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A, a)
+    val (gold, _) = Execute(1, 1)[Array[Float]](goldF, A, a)
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
 
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.foreach(l => {
-      val (result: Array[Float], _) = Execute(1, 1)(l, A, a)
+      val (result, _) = Execute(1, 1)[Array[Float]](l, A, a)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -90,12 +90,12 @@ class TestFusion {
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
 
-    val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
+    val (gold, _) = Execute(1, 1)[Array[Float]](goldF, A)
 
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.foreach(l => {
-      val (result: Array[Float], _) = Execute(1, 1)(l, A)
+      val (result, _) = Execute(1, 1)[Array[Float]](l, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -119,12 +119,12 @@ class TestFusion {
 
     val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
 
-    val (gold: Array[Float] ,_) = Execute(1, 1)(goldF, A)
+    val (gold, _) = Execute(1, 1)[Array[Float]](goldF, A)
 
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.foreach(l => {
-      val (result: Array[Float], _) = Execute(1, 1)(l, A)
+      val (result, _) = Execute(1, 1)[Array[Float]](l, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }

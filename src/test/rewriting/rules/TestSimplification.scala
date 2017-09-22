@@ -137,7 +137,7 @@ class TestSimplification {
       input => MapGlb(id) $ input
     )
 
-    val (gold: Array[Float], _) = Execute(128)(goldF, A)
+    val (gold, _) = Execute(128)[Array[Float]](goldF, A)
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
@@ -150,7 +150,7 @@ class TestSimplification {
 
     assertTrue(lambdaOptions.nonEmpty)
     lambdaOptions.zipWithIndex.foreach(l => {
-      val (result: Array[Float], _) = Execute(128)(l._1, A)
+      val (result, _) = Execute(128)[Array[Float]](l._1, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -164,7 +164,7 @@ class TestSimplification {
       input => MapGlb(MapSeq(id)) $ input
     )
 
-    val (gold: Array[Float], _) = Execute(128)(goldF, A)
+    val (gold, _) = Execute(128)[Array[Float]](goldF, A)
 
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, 4), N),
@@ -178,7 +178,7 @@ class TestSimplification {
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.zipWithIndex.foreach(l => {
-      val (result: Array[Float], _) = Execute(128)(l._1, A)
+      val (result, _) = Execute(128)[Array[Float]](l._1, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -190,7 +190,7 @@ class TestSimplification {
       input => MapGlb(id) $ input
     )
 
-    val (gold: Array[Float], _) = Execute(128)(goldF, A)
+    val (gold, _) = Execute(128)[Array[Float]](goldF, A)
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
@@ -203,7 +203,7 @@ class TestSimplification {
 
     assertTrue(lambdaOptions.nonEmpty)
     lambdaOptions.zipWithIndex.foreach(l => {
-      val (result: Array[Float], _) = Execute(128)(l._1, A)
+      val (result, _) = Execute(128)[Array[Float]](l._1, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
@@ -217,7 +217,7 @@ class TestSimplification {
       input => MapGlb(MapSeq(id)) $ input
     )
 
-    val (gold: Array[Float], _) = Execute(128)(goldF, A)
+    val (gold, _) = Execute(128)[Array[Float]](goldF, A)
 
     val f = fun(
       ArrayTypeWSWC(VectorType(Float, 4), N),
@@ -231,7 +231,7 @@ class TestSimplification {
     assertTrue(lambdaOptions.nonEmpty)
 
     lambdaOptions.zipWithIndex.foreach(l => {
-      val (result: Array[Float], _) = Execute(128)(l._1, A)
+      val (result, _) = Execute(128)[Array[Float]](l._1, A)
       assertArrayEquals(l + " failed", gold, result, 0.0f)
     })
   }
