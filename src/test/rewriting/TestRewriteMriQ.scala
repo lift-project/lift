@@ -159,7 +159,7 @@ class TestRewriteMriQ {
   def mriqIntroduceReuse(): Unit = {
     val f0 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
     val f1 = Rewrite.applyRuleAtId(f0, 7, ReuseRules.introduceReuseFromMap(64))
-    val f2 = Rewrite.applyRuleAtId(f1, 11, ReuseRules.introduceReuseFromMap(64))
+    val f2 = Rewrite.applyRuleAtId(f1, 10, ReuseRules.introduceReuseFromMap(64))
 
     val lowered = Lower.mapCombinations(f2, mappings).head
 
