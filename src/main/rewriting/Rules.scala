@@ -1010,7 +1010,7 @@ object Rules {
   }}
 
   val joinFromZip = Rule(" Zip(Join() $ ..., Join() $ ..., ...) => " +
-                      "Join() o Zip(...)", {
+                      "Join() o Map(Zip(...)) $ Zip(...)", {
     case FunCall(Zip(_), zipArgs@_*)
       if zipArgs.forall(joinCall.isDefinedAt) && zipArgs.map(getOutermostLengths).distinct.size == 1
     =>
