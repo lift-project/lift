@@ -16,40 +16,11 @@ import lift.arithmetic.{PosVar, Var}
  */
 case class InsertionSortSeq(f: Lambda2, var loopRead: Var, var loopWrite: Var)
            extends Pattern(arity=1) with FPattern with isGenerable {
- 
-  // These two functions are used to
-  //   1. Copy data from the input array to the output array
-  //   2. Move data in the output array to free some space for the insertion
-  // Does this have to be here?
-  private var _copyFun: Lambda1 = _
-  def copyFun: Lambda1 = this._copyFun
-  
-  private var _shiftFun: Lambda1 = _
-  def shiftFun: Lambda1 = this._shiftFun
-  
-  // Generate the identity function for the type `ty`
-  private def generateCopyFun(ty: Type): Lambda1 = ty match {
-    case ScalarType(_, _) | TupleType(_) => id(ty, name="_insertion_sort_id")
-    case ArrayType(elemTy) => MapSeq(generateCopyFun(elemTy))
-    case _ =>
-      throw new NotImplementedError(s"InsertionSortSeq.generateCopyFun: $ty")
-  }
-  
   override def checkType(argType: Type, setType: Boolean): Type = {
     argType match {
       case at @ ArrayType(ty) =>
-        // Type-check the comparison function
         f.params.foreach(p => p.t = ty)
         TypeChecker.assertTypeIs(f.body, opencl.ir.Int, setType)
-        
-        // Generate and type-check the copy/shift functions
-        this._copyFun = generateCopyFun(ty)
-        this._shiftFun = generateCopyFun(ty)
-        copyFun.params.head.t = ty
-        shiftFun.params.head.t = ty
-        TypeChecker.assertTypeIs(copyFun.body, ty, setType)
-        TypeChecker.assertTypeIs(shiftFun.body, ty, setType)
-        
         // The return type is always the input type
         at
       case _ => throw new TypeException(argType, "ArrayType", this)

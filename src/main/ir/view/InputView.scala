@@ -134,22 +134,13 @@ object InputView {
   private def buildViewSort(iss: InsertionSortSeq,
                             call: FunCall,
                             argView: View): View = {
-    // Note: the input view for the first argument of the comparison function
-    //       and for the argument of the shift function can't be set at this
-    //       point because they will be accesses to the output array.
-    //       cf. `OutputView.buildViewSort`
-    iss.f.params(1).view = argView.access(iss.loopWrite) // hack
+    // FIXME: we need (?) a view to be set here but this view should depend on iss's output view…
+    // See comment in OutputView.buildViewSort
+    iss.f.params(1).view = argView.access(iss.loopWrite) // here is the hack
     iss.f.params(0).view = argView.access(iss.loopRead)
-    iss.copyFun.params.head.view = argView.access(iss.loopRead)
-    
     visitAndBuildViews(iss.f.body)
-    val innerView = visitAndBuildViews(iss.copyFun.body)
-    iss.copyFun.body match {
-      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
-        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
-      case _ =>
-        ViewMap(innerView, iss.loopRead, call.t)
-    }
+
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable.name)
   }
 
   private def buildViewReduce(r: AbstractPartRed,

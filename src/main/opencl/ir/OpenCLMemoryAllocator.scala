@@ -149,7 +149,7 @@ object OpenCLMemoryAllocator {
         allocMapSeqLcl(call.f.asInstanceOf[AbstractMap],
           call.t, numGlb, numLcl, numPvt, inMem)
 
-      case iss: InsertionSortSeq => allocInsertionSort(iss, call.t, numGlb, numLcl, numPvt, inMem)
+      case iss: InsertionSortSeq => allocInsertionSort(iss, call, numGlb, numLcl, numPvt, inMem)
 
       case fs: FilterSeq => allocFilterSeq(fs, call, numGlb, numLcl, numPvt, inMem)
 
@@ -270,31 +270,19 @@ object OpenCLMemoryAllocator {
   }
 
   private def allocInsertionSort(iss: InsertionSortSeq,
-                                 outT: Type,
+                                 call: FunCall,
                                  numGlb: Allocator,
                                  numLcl: Allocator,
                                  numPvt: Allocator,
                                  inMem: OpenCLMemory): OpenCLMemory = {
-    val len = Type.getLength(iss.f.params.head.t)
 
-    // Copy function
-    iss.copyFun.params.head.mem = inMem
-    val outMem = alloc(
-      iss.copyFun.body,
-      sizeOfArray(numGlb, outT),
-      sizeOfArray(numLcl, outT),
-      numPvt
-    )
+    val sizeInBytes = Type.getAllocatedSize(call.t)
+    val outMem = OpenCLMemory.allocMemory(sizeInBytes, sizeInBytes, sizeInBytes, call.addressSpace)
 
     // Comparison function
     iss.f.params(1).mem = outMem
     iss.f.params(0).mem = inMem
     alloc(iss.f.body, numGlb, numLcl, numPvt)
-
-    // Shifting function
-    iss.shiftFun.params.head.mem = outMem
-    val wrongM = alloc(iss.shiftFun.body, numGlb, numLcl, numPvt)
-    Expr.visit(iss.shiftFun.body, e => if (e.mem == wrongM) e.mem = outMem, _ => {})
 
     outMem
   }

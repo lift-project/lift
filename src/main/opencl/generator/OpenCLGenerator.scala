@@ -712,29 +712,38 @@ class OpenCLGenerator extends Generator {
     (block: Block) += OpenCLAST.Comment("end insertion sort")
   }
   
-  private def generateInsertion(call: FunCall,
-                                block: Block): Unit = {
+  private def generateInsertion(call: FunCall, block: Block): Unit = {
     val iss = call.f.asInstanceOf[InsertionSortSeq]
     val i = iss.loopRead
     val j = iss.loopWrite
-    
+    val jStep = j.range.asInstanceOf[RangeAdd].step
+
     (block: Block) += OpenCLAST.VarDecl(
       j, Int,
       ArithExpression(i - i.range.asInstanceOf[RangeAdd].step)
     )
-    
+
+    /**
+     * out[j+1] = out[j];
+     * j = j - 1;
+     */
     def shift(block: Block): Unit = {
-      generate(iss.shiftFun.body, block)
+      (block: Block) += generateSeqCopy(
+        call.mem, call.view.access(j),
+        call.mem, call.view.access(j + jStep),
+        iss.f.params.head.t
+      )
       (block: Block) += AssignmentExpression(
         ArithExpression(j),
-        ArithExpression(j - j.range.asInstanceOf[RangeAdd].step)
+        ArithExpression(j - jStep)
       )
     }
-    
+
+
     def generateBody(block: Block): Unit = {
       // Compare out[j-1] and in[i]
       generate(iss.f.body, block)
-      // Shift of insert
+      // Shift or insert
       val comp = generateLoadNode(
         OpenCLMemory.asOpenCLMemory(iss.f.body.mem),
         iss.f.body.t,
@@ -748,7 +757,11 @@ class OpenCLGenerator extends Generator {
       Predicate(j, Cst(0), Predicate.Operator.>=),
       generateBody
     )
-    generate(iss.copyFun.body, block)
+    (block: Block) += generateSeqCopy(
+      iss.f.params.head.mem, iss.f.params.head.view,
+      call.mem, call.view.access(j + jStep),
+      iss.f.params.head.t
+    )
   }
 
   // === Reduce ===

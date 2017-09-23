@@ -201,12 +201,6 @@ object Expr {
 
         // do the rest ...
         call.f match {
-          case iss: InsertionSortSeq =>
-            val newResult2 = visitWithState(newResult)(iss.f.body, visitFun)
-            if (iss.copyFun != null) {
-              val newResult3 = visitWithState(newResult2)(iss.copyFun.body, visitFun)
-              visitWithState(newResult3)(iss.shiftFun.body, visitFun)
-            } else newResult2
           case rs: ReduceWhileSeq =>
             val newResult2 = visitWithState(newResult)(rs.f.body, visitFun)
             visitWithState(newResult2)(rs.p.body, visitFun)

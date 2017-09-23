@@ -2,7 +2,7 @@ package ir.view
 
 import ir._
 import ir.ast._
-import lift.arithmetic.{ArithExpr, Cst, RangeAdd}
+import lift.arithmetic.{ArithExpr, Cst}
 import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
@@ -204,7 +204,6 @@ object OutputView {
   private def buildViewFilter(f: FilterSeq, call: FunCall,
                               writeView: View): View = {
     visitAndBuildViews(f.f.body, writeView.access(Cst(0)))
-    val outDepth = getAccessDepth(f.f.body.accessInf, f.f.body.mem)
     f.f.body.outputView = View.initialiseNewView(f.f.body.t, List())
     ViewMap(f.f.params.head.outputView, f.loopWrite, call.args.head.t)
   }
@@ -248,14 +247,11 @@ object OutputView {
   private def buildViewSort(iss: InsertionSortSeq,
                             call: FunCall,
                             writeView: View): View = {
-    val j = iss.loopWrite
-    
     // Note: at this point, we can set the input view for the first argument
     //       of the comparison function as an access to the output array of
     //       the pattern.
     //       cf. `InputView.buildViewSort`
-    iss.f.params(1).view = writeView.access(j)
-    // TODO: REMOVE ME BEFORE MERGING: is there a better way of doing this?
+    iss.f.params(1).view = writeView.access(iss.loopWrite)
     InputView(iss.f.body)
     val compareOutputView = View.initialiseNewView(
       iss.f.body.t,
@@ -263,23 +259,7 @@ object OutputView {
     )
     visitAndBuildViews(iss.f.body, compareOutputView)
     
-    // Note2: similarly, the views for the shifting function can only be
-    //        specified here.
-    iss.shiftFun.params.head.view = writeView.access(j)
-    // TODO: REMOVE ME BEFORE MERGING: is there a better way of doing this?
-    InputView(iss.shiftFun.body)
-    visitAndBuildViews(
-      iss.shiftFun.body,
-      writeView.access(j + j.range.asInstanceOf[RangeAdd].step)
-    )
-    
-    // The copy function is just like a map
-    visitAndBuildViews(
-      iss.copyFun.body,
-      writeView.access(j + j.range.asInstanceOf[RangeAdd].step)
-    )
-    
-    ViewMap(iss.copyFun.body.outputView, j, call.args.head.t)
+    View.initialiseNewView(call.t, call.outputDepth, call.mem.variable.name)
   }
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {

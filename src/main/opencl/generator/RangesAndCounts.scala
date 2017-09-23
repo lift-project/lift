@@ -51,8 +51,6 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
 
           case iss: InsertionSortSeq =>
             apply(iss.f.body)
-            apply(iss.copyFun.body)
-            apply(iss.shiftFun.body)
             setRangeInsertionSort(iss, call)
 
           case r: AbstractPartRed =>
