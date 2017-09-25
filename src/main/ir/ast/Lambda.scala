@@ -66,8 +66,31 @@ abstract case class Lambda private[ast] (params: Array[Param],
     })
   }
 
-  def getVarsInParams() =
-    params.flatMap(_.t.varList).distinct
+  /**
+    * This function is used for two use-cases:
+    * 1. determine arguments for kernels
+    * 2. print lambdas to file during rewriting (rewriting.utils.Utils.dumpLambdaToString)
+    *
+    * In the first use-case we order each kernel argument by name to have consistent
+    * and deterministic ordering. When printing lambdas to file we need to respect
+    * dependencies among parameters:
+    *
+    * val M = SizeVar("M")
+    * val N = Var("N", GoesToRange(M))
+    * val f = \(ArrayType(Float, N), ArrayType(Float, M), ...)
+    *
+    * In this case M needs to be declared before N because of their dependency even though
+    * M is used as the second parameter of the lambda.
+    *
+    * @param respectDependency specifies if variables are sorted by their name
+    * @return array of variables used in parameters of the Lambda
+    */
+  def getVarsInParams(respectDependency: Boolean = false) =
+    if (respectDependency)
+      params.flatMap(_.t.varList).distinct
+    else
+      params.flatMap(_.t.varList).sortBy(_.name).distinct
+
 
   def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
