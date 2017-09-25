@@ -45,7 +45,6 @@ abstract case class Lambda private[ast] (params: Array[Param],
     val allParams = args.forall(_.isInstanceOf[Param])
 
     if (!inline && !allParams) {
-//    if (!inline) {
       super.apply(args:_*)
     } else {
 

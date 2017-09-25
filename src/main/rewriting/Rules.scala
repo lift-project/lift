@@ -125,6 +125,15 @@ object Rules {
       Split(length) o Map(f) o Join() $ arg
   })
 
+  // Required for avoiding data races
+  val splitJoinReduce = Rule("Reduce(f) $ data => Join() o Map(Reduce(f)) o Split(data.length)", {
+    case FunCall(red: Reduce, init, arg) =>
+
+      val length = arg.t match { case ArrayTypeWS(_, n) => n }
+
+      Join() o Map(fun(x => red(init, x))) o Split(length) $ arg
+  })
+
   /* Reduce rules */
 
   val partialReduce = Rule("Reduce(f) => Reduce(f) o PartRed(f)", {
@@ -436,7 +445,7 @@ object Rules {
       toPrivate(Id()) $ arg
 
     case call@FunCall(uf: UserFun, arg@_*)
-      if call.context.inMapWrg.reduce(_ || _)
+      if call.context.inMapWrg.reduce(_ || _) || call.context.inMapGlb.reduce(_ || _)
     =>
       toPrivate(uf)(arg:_*)
 
@@ -574,11 +583,11 @@ object Rules {
   })
 
   val mapFission = Rule("Map(f o g) => Map(f) o Map(g)", {
-    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(fun2, p2)))), arg)
+    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(fun2, p2@_*)))), arg)
       if !fun1.isInstanceOf[FPattern] ||
         !fun1.asInstanceOf[FPattern].f.body.contains({ case a if a eq p1.head => })
     =>
-      Map(fun1) o Map(Lambda(p1, fun2(p2))) $ arg
+      Map(fun1) o Map(Lambda(p1, fun2(p2:_*))) $ arg
 
     case FunCall(Map(Lambda(p1, FunCall(r: AbstractPartRed, init, FunCall(fun2, p2)))), arg)
       if !r.f.body.contains({ case a if a eq p1.head => }) &&
@@ -601,10 +610,11 @@ object Rules {
       Map(fun((x) => r1(init1, x))) o Map(Lambda(p1, r2(init2, p2))) $ arg
   })
 
-  val mapFission2 = Rule("Map(x => f(x, g(...)) => Map(f) $ Zip(..., Map(g)  )", {
-    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(fun2, p2)))), arg)
+  val mapFissionCreateZip = Rule("Map(x => f(x, g(...)) => Map(f) $ Zip(..., Map(g)  )", {
+    case FunCall(Map(Lambda(p1, FunCall(fun1, call@FunCall(fun2, p2)))), arg)
       if fun1.isInstanceOf[FPattern] &&
-        fun1.asInstanceOf[FPattern].f.body.contains({ case a if a eq p1.head => })
+        fun1.asInstanceOf[FPattern].f.body.contains({ case a if a eq p1.head => }) &&
+      call.contains({ case a if a eq p1.head => }) && !arg.contains({ case FunCall(Zip(_), _*) => })
     =>
 
       val fp = fun1.asInstanceOf[FPattern]
@@ -624,6 +634,8 @@ object Rules {
       Map(Lambda(Array(newParam), newFp $ get1)) $
         Zip(arg, Map(Lambda(p1, fun2(p2))) $ arg)
 
+    // TODO: Which behaviour should this rule have? Tests assume arg is used several times.
+    // TODO: Original rule assumes x is used in f. Now assumes x is used in f & g.
     case FunCall(Map(Lambda(p1, FunCall(r: AbstractPartRed, init, FunCall(fun2, p2)))), arg)
       if r.f.body.contains({ case a if a eq p1.head => }) ||
         init.contains({ case a if a eq p1.head => })
@@ -778,21 +790,21 @@ object Rules {
 
   val mapMapTransposeZipInside = Rule("Map(fun(a => Map() $ Zip(..., ... $ a, ...)) $ A => " +
     "Transpose() o Map(Map(fun(a => ))) $ Zip(..., Transpose() o Map(...) $ A, ...) ", {
-    case FunCall(Map(Lambda(outerLambdaParam,
-      FunCall(Map(Lambda(innerLambdaParam,
+    case FunCall(Map(Lambda(Array(outerLambdaParam),
+          FunCall(Map(Lambda(Array(innerLambdaParam),
         expr
       )), FunCall(Zip(_), zipArgs@_*))
     )), arg)
-      if zipArgs.count(Utils.getFinalArg(_) eq outerLambdaParam.head) == 1
+      if zipArgs.count(Utils.getFinalArg(_) eq outerLambdaParam) >= 1
     =>
       // Find all Get patterns that refer to the an element from the zipped array
       // and have to be replaced in expr
-      val gets = Utils.findGets(expr, innerLambdaParam.head)
+      val gets = Utils.findGets(expr, innerLambdaParam)
 
       // Find which Get pattern corresponds to the component containing an element of 'a'
-      val zipToReplace = zipArgs.zipWithIndex.find(e =>
-        e._1 eq zipArgs.find(Utils.getFinalArg(_) eq outerLambdaParam.head).get
-      ).get
+      val zipToReplace = zipArgs.zipWithIndex.filter(e =>
+        Utils.getFinalArg(e._1) eq outerLambdaParam
+      )
 
       // Create the new Get patterns with a new parameter
       val newParam = Param()
@@ -800,7 +812,9 @@ object Rules {
 
       // Separate the Get pattern containing an element of 'a', as it will now refer
       // to the component containing an element of 'A'
-      val (one, two) = getPairs.partition(_._1.f.asInstanceOf[Get].n == zipToReplace._2)
+      val (one, two) = getPairs.partition(x =>
+        zipToReplace.map(_._2).contains(x._1.f.asInstanceOf[Get].n)
+      )
 
       // Replace most of the old Get patterns with new ones
       val newExpr = two.foldRight(expr)((get, e) => Expr.replace(e, get._1, get._2))
@@ -808,26 +822,40 @@ object Rules {
       // Create a new parameter for an element of 'a' and replace for the Get referring
       // an element of 'a'
       val secondNewParam = Param()
-      val finalNewExpr = Expr.replace(newExpr, one.head._1, secondNewParam)
 
-      var elem = Transpose() $ arg
-      if (!(zipToReplace._1 eq outerLambdaParam.head)) {
+      val finalNewExpr = one.zipWithIndex.foldLeft(newExpr)((expr, p) => {
+        val id = p._2 //zipToReplace.find(_._1 eq p._1).get._2
+        val newThing = if (one.size == 1) secondNewParam else Get(secondNewParam, id)
+        Expr.replace(expr, p._1._1, newThing)
+      })
+
+      val elems = zipToReplace.map(pair =>
+        if (!(pair._1 eq outerLambdaParam)) {
         // Isolate any splits/joins/transposes/computation inside the zip
         val thirdNewParam = Param()
 
-        val replace = Expr.replace(zipToReplace._1, outerLambdaParam.head, thirdNewParam)
+        val replace = Expr.replace(pair._1, outerLambdaParam, thirdNewParam)
 
         // And include them before the transpose
         val map = Map(Lambda(Array(thirdNewParam), replace))
-        elem = Transpose() o map $ arg
-      }
+        Transpose() o map $ arg
+      } else {
+        Transpose() $ arg
+      })
 
       // Create the arguments for the zip, replacing '... o a' with 'Transpose() o Map(...) $ A'
-      val newZipArgs = zipArgs.updated(zipToReplace._2, elem)
+      val newZipArgs = (zipToReplace, elems).zipped.foldLeft(zipArgs)((arguments, y) => {
+        val elem = y._2
+        val id = y._1._2
+
+        arguments.updated(id, elem)
+      })
+
+      val newArgs = if (one.size == 1) one.map(_._2).head else Zip(one.map(_._2):_*)
 
       // Construct the final expression
       val lambda = Lambda(Array(secondNewParam), finalNewExpr)
-      Transpose() o Map(Lambda(Array(newParam), Map(lambda) $ one.head._2)) $ Zip(newZipArgs: _*)
+      TransposeW() o Map(Lambda(Array(newParam), Map(lambda) $ newArgs)) $ Zip(newZipArgs: _*)
   })
 
   val mapMapTransposeZipOutside = Rule("Map(fun(x => Map(fun(a => )) $ Get(n, ) $ Zip(..., A, ...)  => " +
@@ -859,7 +887,7 @@ object Rules {
       val secondNewParam = Param()
       val newZipArgs = zipArgs.updated(n, secondNewParam)
 
-      Transpose() o Map(Lambda(Array(secondNewParam),
+      TransposeW() o Map(Lambda(Array(secondNewParam),
         Map(Lambda(Array(newParam), finalNewExpr)) $ Zip(newZipArgs: _*)
       )) o Transpose() $ newArg
   })
@@ -894,7 +922,14 @@ object Rules {
         val newLambdaParam = Param()
         val gets = Utils.findGets(call, p.head)
         val newGets = gets.map({
-          case FunCall(Get(i), _) if i == mapInZipIndex => g $ Get(newLambdaParam, i)
+          case FunCall(Get(i), _) if i == mapInZipIndex =>
+
+            val lambdaCall = g $ Get(newLambdaParam, i)
+            if (Rules.lambdaInline.isDefinedAt(lambdaCall))
+              Rules.lambdaInline.rewrite(lambdaCall)
+            else
+              lambdaCall
+
           case FunCall(Get(i), _) => Get(newLambdaParam, i)
         })
 
@@ -954,8 +989,8 @@ object Rules {
         Transpose() o Map(Transpose()) o Transpose() $ arg
     })
 
-  // TODO: Does it matter there is a Map after the Split?
-  val splitZip = Rule("Map(fun(x => Map()  ) o Split() $ Zip(...) => " +
+  // TODO: Does it matter there is a Map after the Split? Saves a fusion.
+  val splitIntoZip = Rule("Map(fun(x => Map()  ) o Split() $ Zip(...) => " +
                       "Map(x => Map() $ Zip(Get(n, x) ... ) $ Zip(Split $ ...)", {
     case FunCall(Map(Lambda(lambdaParam, FunCall(Map(mapLambda), mapArg))), FunCall(Split(n), FunCall(Zip(_), zipArgs@_*)))
       if lambdaParam.head eq mapArg
@@ -967,6 +1002,25 @@ object Rules {
       val innerZipArgs = zipArgs.indices.map(Get(_)(newLambdaParam))
 
       Map(Lambda(Array(newLambdaParam), Map(mapLambda) $ Zip(innerZipArgs:_*))) $ Zip(newZipArgs:_*)
+  })
+
+  private val joinCall: PartialFunction[Expr, Unit] = { case FunCall(Join(), _) => }
+  private val getOutermostLengths: PartialFunction[Expr, (ArithExpr, ArithExpr)] =
+  { case FunCall(_, arg) => arg.t match {
+    case ArrayTypeWS(ArrayTypeWS(_, inner), outer) => (inner, outer)
+  }}
+
+  val joinFromZip = Rule(" Zip(Join() $ ..., Join() $ ..., ...) => " +
+                      "Join() o Map(Zip(...)) $ Zip(...)", {
+    case FunCall(Zip(_), zipArgs@_*)
+      if zipArgs.forall(joinCall.isDefinedAt) && zipArgs.map(getOutermostLengths).distinct.size == 1
+    =>
+
+      val newArgs = zipArgs.map({ case FunCall(_, arg) => arg })
+      val p = Param()
+      val innerArgs = newArgs.indices.map(Get(p, _))
+
+      Join() o Map(Lambda(Array(p), Zip(innerArgs:_*))) $ Zip(newArgs:_*)
   })
 
   val mapFissionWithZipInside = Rule("Map(fun(x => ... Zip(..., f $ x, ...))) " +
@@ -1042,6 +1096,119 @@ object Rules {
       case _ => false
     }
   }
+
+  // Zip(a, b, a) => Zip(a, b)
+  val removeDuplicateZipArg = Rule("removeDuplicateZipArgument", {
+    case FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), args@_*))
+      if args.distinct.size < args.size && !(p eq body) &&
+        // p only used in get
+        !body.contains({
+          case FunCall(f, args@_*) if args.exists(_ eq p) && !f.isInstanceOf[Get] =>
+        })
+    =>
+
+      val oldGets =
+        Utils.collect(body, { case FunCall(Get(_), arg) if arg eq p => })
+
+      val newArgs = args.distinct
+
+      val newParam = Param()
+
+      if (newArgs.size == 1) {
+
+        val newBody = oldGets.foldLeft(body)((currentBody, getCall) =>
+          Expr.replace(currentBody, getCall, newParam))
+
+        Map(Lambda(Array(newParam), newBody)) $ newArgs.head
+
+      } else {
+        val newGetIndex = args.map(newArgs.indexOf)
+
+        val newBody = oldGets.foldLeft(body)({
+          case (currentBody, getCall@FunCall(Get(n), _)) =>
+
+            val newId = newGetIndex(n)
+            val newGet = Get(newId)(newParam)
+            Expr.replace(currentBody, getCall, newGet)
+        })
+
+        val newZip = Zip(newArgs: _*)
+        Map(Lambda(Array(newParam), newBody)) $ newZip
+      }
+  })
+
+  // Zip(Zip(a, b), Zip(c, d), e) => Zip(a, b, c, d, e)
+  val flattenZips = Rule("flattenZips", {
+    case FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), zipArgs@_*))
+      if zipArgs.exists({
+        case FunCall(Zip(_), _*) => true
+        case _ => false
+      })  && !(p eq body) &&
+        {
+          // To be able to replace all old usages of p they must all appear
+          // in body with the appropriate number of Gets. Otherwise, some result of Zip
+          // can leave body and we can't replace it from inside this rule.
+
+          // Check that all usages of `p` are of the form `FunCall(Get(_), p)`
+          val nonZipsUsedCorrectly = !body.contains({
+            case FunCall(f, args@_*) if args.exists(_ eq p) && !f.isInstanceOf[Get] =>
+          })
+
+          // Find the indices of zips being inlined into the existing one
+          val zipIndices = zipArgs.zipWithIndex.collect({
+            case (FunCall(Zip(_), _*), index) => index
+          })
+
+          // Check That all usages of `p` that refer to e.g. `Zip(a,b)` are of the form
+          // `FunCall(Get(_), FunCall(Get(_), p))`
+          val zipsUsedCorrectly = zipIndices.forall(id => {
+
+            val thisZipUsages = Utils.collect(body, {
+              case FunCall(Get(actual_id), arg) if actual_id == id && (p eq arg) => })
+
+            // If this component is used, it must have a second get around it
+            thisZipUsages.forall(zipUse =>
+              body.contains({ case FunCall(Get(_), arg) if zipUse eq arg => }))
+          })
+
+          nonZipsUsedCorrectly && zipsUsedCorrectly
+        }
+    =>
+
+      val newArgs = zipArgs.flatMap({
+        case FunCall(Zip(_), args@_*) => args
+        case other => Seq(other)
+      })
+
+      val sizes = zipArgs.map({
+        case FunCall(Zip(n), _*) => n
+        case _ => 1
+      })
+
+      val starts = sizes.scan(0)(_+_)
+
+      val newParam = Param()
+
+      val oldGets = Utils.collect(body, { case FunCall(Get(_), arg) if arg eq p => })
+      val oldGetsToNestedZip = Utils.collect(body, { case FunCall(Get(_), FunCall(Get(_), arg)) if arg eq p => })
+
+      val nestedGetIds = oldGetsToNestedZip.map({ case FunCall(Get(id2), FunCall(Get(id1), _)) => (id1, id2) })
+      val nonNestedGetIds = oldGets.map({ case FunCall(Get(id1), _) => id1 })
+
+      val newNestedIds = nestedGetIds.map(pair => starts(pair._1) + pair._2)
+      val newNonNestedIds = nonNestedGetIds.map(starts(_))
+
+      // Replace nested first
+      val newBody = (oldGetsToNestedZip ++ oldGets, newNestedIds ++ newNonNestedIds).zipped.foldLeft(body)(
+        (currentBody, pair) => {
+          val oldGet = pair._1
+          val newId = pair._2
+          Expr.replace(currentBody, oldGet, Get(newParam, newId))
+        })
+
+
+     Map(Lambda(Array(newParam), newBody)) $ Zip(newArgs:_*)
+  })
 
   val transposeMapTransposeReorder =
     Rule("Map(Gather(f) o Transpose()) o Transpose() => " +
@@ -1147,14 +1314,19 @@ object Rules {
       case _ => false
     }
 
-  val addIdMapWrg = Rule("MapWrg(f) => MapWrg(f o Id())", {
-    case call@FunCall(MapWrg(dim, f:Lambda1) , arg)
+  val addIdForMapWrgParam = Rule("MapWrg(f) => MapWrg(f o Id())", {
+    case FunCall(MapWrg(dim, f:Lambda1) , arg)
       if !f.body.contains( {case FunCall(MapWrg(_,_), a) =>})
       && !f.body.contains( {case FunCall(Id(), b) =>  })
       => MapWrg(dim, f o Id()) $ arg
   })
 
-  val addIdMapLcl = Rule("MapLcl(f) => MapLcl(f) o Id()", {
+  val addIdForMapParam = Rule("Map(f) => Map(f o Id())", {
+    case FunCall(Map(f:Lambda1) , arg)
+      => Map(f o Id()) $ arg
+  })
+
+  val addIdBeforeMapLcl = Rule("MapLcl(f) => MapLcl(f) o Id()", {
     case call@FunCall(map:MapLcl, arg)
       if !isId(arg) && !call.context.inMapLcl.reduce(_ || _)
     =>
@@ -1184,6 +1356,21 @@ object Rules {
   val addCopy = Rule("f => f o Id()", {
     case FunCall(f, arg) =>
       f o generateCopy(arg.t) $ arg
+  })
+
+  val lambdaInline = Rule("lambdaInline", {
+    case FunCall(Lambda(Array(x), b), p)
+      if !p.isConcrete(true) &&
+        Utils.getFinalArg(p).isInstanceOf[Param] =>
+
+      val finalArg = Utils.getFinalArg(p)
+      val inlined = Expr.replace(b, x, p)
+
+      // Some trickery to make sure all FunCalls are rebuilt and
+      // the same object doesn't appear twice
+      val tempParam = Param()
+      val tempExpr = Expr.replace(inlined, finalArg, tempParam)
+      Expr.replace(tempExpr, tempParam, finalArg)
   })
 
   val tupleInline = Rule("tupleInline", {
@@ -1289,7 +1476,10 @@ object Rules {
       val lambdaParam = Param()
 
       val maps = args.zipWithIndex.map({
-        case (FunCall(Map(f), _), n) => f $ Get(lambdaParam, n)
+        case (FunCall(Map(f), _), n) =>
+          val body = f.body
+          val p = f.params.head
+          Expr.replace(body, p, Get(lambdaParam, n))
       })
 
       Map(Lambda(Array(lambdaParam), Tuple(maps:_*))) $ Zip(zipArgs:_*)

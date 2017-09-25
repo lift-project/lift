@@ -277,8 +277,8 @@ class BarrierElimination(lambda: Lambda) {
   private def argumentToPossibleSharing(call: FunCall): Boolean = {
     Expr.visitWithState(false)(lambda.body, {
       case (FunCall(Lambda(params, FunCall(_, nestedArgs@_*)), args@_*), _ )
-      if args.contains(call) && !params.sameElements(nestedArgs)=>
-       true
+        if args.exists(arg => arg.contains({ case c if c eq call => } )) && !params.sameElements(nestedArgs)=>
+        true
       case (_, state) => state
     })
   }

@@ -3,7 +3,7 @@ package rewriting
 
 import com.typesafe.scalalogging.Logger
 import ir.ast._
-import ir.{Context, TypeChecker}
+import ir.{Context, TupleType, TypeChecker}
 import opencl.ir.pattern._
 import rewriting.utils._
 
@@ -29,6 +29,7 @@ case class EnabledMappings(
 object Lower {
 
   private val logger = Logger(this.getClass)
+
   private def patchLambda(lambda: Lambda) = {
     val partialReducesLowered = lowerPartialReduces(lambda)
 
@@ -40,8 +41,48 @@ object Lower {
 
     val removeOtherIds = dropIds(allocatedToGlobal)
 
-    removeOtherIds
+    val compositionWithReduceSequential = mapComposedWithReduceAsSequential(removeOtherIds)
+
+    val tupleToStruct = tupleToStructInReduce(compositionWithReduceSequential)
+
+    tupleToStruct
   }
+
+  private def tupleToStructInReduce(lambda: Lambda): Lambda = {
+    TypeChecker(lambda)
+
+    // TODO: Assuming all tuple accumulators are structs (true if it's the result of rewriting)
+    // TODO: and try to force writing to it. Result would be ignored otherwise
+    val applyHere =
+      Expr.visitLeftToRight(Seq[Expr]())(lambda.body, {
+
+        case (FunCall(ReduceSeq(Lambda(_, b)), acc, _), exprSet)
+          if acc.t.isInstanceOf[TupleType] =>
+
+          val maybeApplies =
+            Expr.visitLeftToRight(None: Option[Expr])(b, {
+              case (expr, None) if Rules.tupleToStruct.isDefinedAt(expr) => Some(expr)
+              case (_, maybeExpr) => maybeExpr
+            })
+
+          exprSet ++ maybeApplies
+
+        case (_, exprSet) => exprSet
+
+      })
+
+    applyHere.foldLeft(lambda)((currentExpr, toApplyAt) => {
+      Rewrite.applyRuleAt(currentExpr, toApplyAt, Rules.tupleToStruct)
+    })
+  }
+
+  def sequential(lambda: Lambda): Lambda = {
+    val temp = patchLambda(lambda)
+    Rewrite.applyRuleUntilCannot(temp, Rules.mapSeq)
+  }
+
+  def mapComposedWithReduceAsSequential(lambda: Lambda) =
+    Rewrite.applyRulesUntilCannot(lambda, Seq(MacroRules.mapComposedWithReduceAsSequential))
 
   def mapCombinations(lambda: Lambda,
     enabledMappings: EnabledMappings = EnabledMappings(
@@ -65,7 +106,7 @@ object Lower {
   }
 
   def dropIds(lambda: Lambda) =
-    lowerPatternWithRule(lambda, { case FunCall(Id(), _) => }, Rules.dropId)
+    Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.dropId, Rules.removeEmptyMap))
 
   def findAll(lambda: Lambda, at: (Expr) => Boolean): List[Expr] = {
     Expr.visitWithState(List[Expr]())(lambda.body, findAllFunction(at))
@@ -100,7 +141,7 @@ object Lower {
     mapsOnLevelThree == 1
   }
 
-  def findAllMapsLowering(lambda:Lambda,enabledMappings:EnabledMappings):List[Lambda] = {
+  def findAllMapsLowering(lambda:Lambda,enabledMappings:EnabledMappings): List[Lambda] = {
     val depthMap = NumberExpression.byDepth(lambda)
     val depthsOfUnLowered = depthMap.collect({ case (FunCall(Map(_), _*), depth) => depth })
 
@@ -240,8 +281,12 @@ object Lower {
 
   private def lastMapToGlobal(lambda: Lambda): Lambda = {
     val lastWrite = getLastWrite(lambda).get
+
     val lastMap = findExpressionForPattern(lambda,
-      { case FunCall(ir.ast.Map(Lambda(_, body)), _) if body eq lastWrite => }: PartialFunction[Expr, Unit] )
+      { case FunCall(ir.ast.Map(Lambda(_, body)), _) if {
+        body.contains({ case x if x eq lastWrite => }) &&
+          !body.contains({ case FunCall(ir.ast.Map(_), _) => })
+      } => }: PartialFunction[Expr, Unit] )
 
     lastMap match {
       case None => logger.warn("No last map found. Possibly using at-notation? Assume last write uses toGlobal"); lambda
@@ -290,11 +335,10 @@ object Lower {
     findExpressionForPattern(lambda, { case FunCall(_:UserFun, _*) => } : PartialFunction[Expr, Unit])
 
   def lowerPartialReduces(lambda: Lambda): Lambda =
-    lowerPatternWithRule(lambda, { case FunCall(PartRed(_), _, _) => }, Rules.partialReduceToReduce)
+    Rewrite.applyRuleUntilCannot(lambda, Rules.partialReduceToReduce)
 
   def lowerReduces(lambda: Lambda): Lambda = {
-    val stepOne =
-      lowerPatternWithRule(lambda, { case FunCall(Reduce(_), _, _) => }, Rules.reduceSeq)
+    val stepOne = Rewrite.applyRuleUntilCannot(lambda, Rules.reduceSeq)
 
     val reduceSeqs = Rewrite.listAllPossibleRewrites(stepOne, Rules.addIdAfterReduce)
 
@@ -307,21 +351,6 @@ object Lower {
       Rewrite.applyRuleAt(lambda, pair._2, pair._1))
 
     valueIdsAdded
-  }
-
-  @scala.annotation.tailrec
-  def lowerPatternWithRule(lambda: Lambda, pattern: PartialFunction[Expr, Unit], rule: Rule): Lambda = {
-    TypeChecker.check(lambda.body)
-
-    if (lambda.body.contains(pattern)) {
-
-      val next = findExpressionForPattern(lambda, pattern).get
-      val replaced = FunDecl.replace(lambda, next, rule.rewrite(next))
-
-      lowerPatternWithRule(replaced, pattern, rule)
-    } else {
-      lambda
-    }
   }
 
   def findExpressionForPattern(lambda: Lambda, pattern: PartialFunction[Expr, Unit]): Option[Expr] =

@@ -68,7 +68,7 @@ class InferNDRange {
     var mapWorkGroups = List[(Int, ArithExpr)]()
 
     Expr.visit(lambda.body,
-    {
+    (_) => Unit, {
       case FunCall(MapGlb(dim, _), arg) =>
         mapGlobals = (dim, Type.getLength(arg.t)) +: mapGlobals
 
@@ -85,7 +85,7 @@ class InferNDRange {
         mapWorkGroups = (dim, Type.getLength(arg.t)) +: mapWorkGroups
 
        case _ =>
-    }, (_) => Unit)
+    })
 
     mapGlb = getMostCommonLengthsForDimensions(mapGlobals)
     mapLcl = getMostCommonLengthsForDimensions(mapLocals)

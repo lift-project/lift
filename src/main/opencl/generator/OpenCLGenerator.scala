@@ -216,7 +216,11 @@ class OpenCLGenerator extends Generator {
         case FunCall(vec: VectorizeUserFun, _*) => typeList ++ vec.vectorizedFunction.tupleTypes
         case _ =>
           expr.t match {
-            case t: TupleType if t.elemsT.forall(!_.isInstanceOf[ArrayType]) => typeList + t
+            case t: TupleType if t.elemsT.forall(t => {
+              var containsArray = false
+              Type.visit(t, x => containsArray ||= x.isInstanceOf[ArrayType], _ => Unit)
+              !containsArray
+            }) => typeList + t
             case _ => typeList
           }
       }
@@ -1613,8 +1617,9 @@ class OpenCLGenerator extends Generator {
 
                 case PrivateMemory =>
 
+                  val declaration = privateDecls.find(m => m._1 == mem.variable)
                   val arraySuffix =
-                    if (privateMems.exists(m => m.mem == mem)) // check if this is actually an array
+                    if (declaration.isDefined && declaration.get._2.t.isInstanceOf[ArrayType]) // check if this is actually an array
                       arrayAccessPrivateMem(mem.variable, innerView)
                     else // Workaround for values
                       ""

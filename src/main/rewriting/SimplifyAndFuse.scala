@@ -4,35 +4,54 @@ import rewriting.utils.{NumberExpression, Utils}
 import ir.ast._
 
 object SimplifyAndFuse {
-  def apply(lambda: Lambda, maxTime: Long = 900000 /* 15 min */) = (new SimplifyAndFuse(maxTime))(lambda)
+  def apply(lambda: Lambda, maxTime: Long = 900000 /* 15 min */) =
+    (new SimplifyAndFuse(maxTime))(lambda)
 
-  /**
-   * Fuse all map-map and reduce-map sequences.
-   * If no fusion rules apply, returns the lambda.
-   *
-   * @param lambda The lambda where to apply fusion
-   * @return
-   */
-  def fuseAll(lambda: Lambda): Lambda =
-    Rewrite.applyRulesUntilCannot(lambda, fusionRules)
+  def withoutPreventingFurtherOptimisation(lambda: Lambda, maxTime: Long = 900000) =
+    (new SimplifyAndFuse(maxTime, false))(lambda)
 
-  /**
-   * Fuse all map-map and reduce-map sequences.
-   * If no fusion rules apply, returns the expression.
-   *
-   * @param expr The expression where to apply fusion
-   * @return
-   */
-  def fuseAll(expr: Expr): Expr =
-    Rewrite.applyRulesUntilCannot(expr, fusionRules)
+  def sortLambdaByTerms(lambda0: Lambda, lambda1: Lambda): Boolean = {
+    val terms0 = getNumberOfTerms(lambda0)
+    val terms1 = getNumberOfTerms(lambda1)
 
+    if (terms0 < terms1)
+      return true
+
+    if (terms0 > terms1)
+      return false
+
+    val mapReduces0 = countConcreteMapAndReduce(lambda0)
+    val mapReduces1 = countConcreteMapAndReduce(lambda1)
+
+    mapReduces0 < mapReduces1
+  }
+
+  def getNumberOfTerms(lambda: Lambda) =
+    NumberExpression.breadthFirst(lambda).values.max
+
+  def countConcreteMapAndReduce(lambda: Lambda) =
+    Expr.visitWithState(0)(lambda.body, {
+      case (FunCall(map: AbstractMap, _), a) if map.f.body.isConcrete => a+1
+      case (FunCall(map: AbstractPartRed, _, _), a) if map.f.body.isConcrete => a+1
+      case (_, a) => a
+    })
 }
 
-class SimplifyAndFuse(maxTime: Long) {
+class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean = true) {
+
+  import SimplifyAndFuse._
 
   private var cantUndo = List[Expr]()
   private var seen = List[Expr]()
   private val startTime = System.currentTimeMillis()
+
+  private var fusionRules = rewriting.fusionRules
+
+  if (fuseReduceMapImmediately)
+    fusionRules = fusionRules :+ MacroRules.reduceMapFusion
+
+  private def fuseAll(lambda: Lambda): Lambda =
+    Rewrite.applyRulesUntilCannot(lambda, fusionRules)
 
   /**
    * Try to simplify a lambda by eliminating sequences of operations that have
@@ -41,17 +60,16 @@ class SimplifyAndFuse(maxTime: Long) {
    * @param lambda The lambda to simplify
    * @return A lambda where possible simplifications and fusions have been performed
    */
-  def apply(lambda: Lambda) = {
+  def apply(lambda: Lambda): Lambda =
     simplify(lambda)
-  }
 
-  def simplify(lambda: Lambda, maxDepth: Int = 100): Lambda = {
+  private def simplify(lambda: Lambda, maxDepth: Int = 100): Lambda = {
     val currentTime = System.currentTimeMillis()
 
     if (maxDepth == 0 || (currentTime - startTime) > maxTime)
       return lambda
 
-    val fused = SimplifyAndFuse.fuseAll(lambda)
+    val fused = fuseAll(lambda)
 
     val allRulesAt = Rewrite.listAllPossibleRewritesForRules(fused, simplificationRules)
 
@@ -96,9 +114,9 @@ class SimplifyAndFuse(maxTime: Long) {
             cantUndo = expr :: cantUndo
 
             simplify(applyRuleAtId, maxDepth - 1)
-          }).minBy(getNumberOfTerms)
+          }).sortWith(sortLambdaByTerms).head
 
-          if (getNumberOfTerms(bestTry) < getNumberOfTerms(fused)) {
+          if (sortLambdaByTerms(bestTry, fused)) {
             seen = stored
             return bestTry
           }
@@ -118,16 +136,15 @@ class SimplifyAndFuse(maxTime: Long) {
     }
   }
 
-  def listAndFilterSplitTransposeRewrites(l: Lambda): Seq[(Rule, Expr)] = {
+  private def listAndFilterSplitTransposeRewrites(l: Lambda): Seq[(Rule, Expr)] = {
     Rewrite
       .listAllPossibleRewrites(l, Rules.splitTranspose)
       .filter(ruleAt => !ruleAt._2.isInstanceOf[Param] && !seen.contains(ruleAt._2))
   }
 
-  def getNumberOfTerms(lambda: Lambda) =
-    NumberExpression.breadthFirst(lambda).values.max
 
-  def tryToEnableMoreSimplifications(lambda: Lambda,
+
+  private def tryToEnableMoreSimplifications(lambda: Lambda,
                                      maxRulesToApply: Int,
                                      rules: List[Rule] = List()): (Lambda, Int, List[Rule]) = {
     if (maxRulesToApply < 1) {
@@ -148,7 +165,7 @@ class SimplifyAndFuse(maxTime: Long) {
     }
   }
 
-  def getTheBestRule(lambda: Lambda,
+  private def getTheBestRule(lambda: Lambda,
                      candidates: Seq[(Lambda, Int, List[Rule])]): (Lambda, Int, List[Rule]) =
     candidates.fold((lambda, 0, List()))((a, b) => if (a._2 > b._2) a else b)
 
@@ -160,6 +177,7 @@ class SimplifyAndFuse(maxTime: Long) {
       MacroRules.transposeMapSplit,
       MacroRules.movingJoin,
       MacroRules.movingSplit,
+      Rules.joinFromZip,
       Rules.reorderTranspose
     )
 
@@ -170,7 +188,7 @@ class SimplifyAndFuse(maxTime: Long) {
    * @return A sequence of lambdas paired with the number of simplification
    *         rules that can be applied in it
    */
-  def applyOneEnablingRule(lambda: Lambda, rules: List[Rule]): Seq[(Lambda, Int, List[Rule])] = {
+  private def applyOneEnablingRule(lambda: Lambda, rules: List[Rule]): Seq[(Lambda, Int, List[Rule])] = {
 
     var allRulesAt = Rewrite.listAllPossibleRewritesForRules(lambda, enablingRules)
 
@@ -182,11 +200,21 @@ class SimplifyAndFuse(maxTime: Long) {
         true
       })
 
+
     val rewritten = allRulesAt.map(ruleAt =>
-      SimplifyAndFuse.fuseAll(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1)))
+      if (fuseReduceMapImmediately)
+        fuseAll(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1))
+      else
+        Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1))
+
+
+    var rulesToEnable = simplificationRules
+
+    if (!fuseReduceMapImmediately)
+      rulesToEnable = rulesToEnable ++ fusionRules
 
     val numPossibleSimplifications =
-      rewritten.map(Rewrite.listAllPossibleRewritesForRules(_, simplificationRules).length)
+      rewritten.map(Rewrite.listAllPossibleRewritesForRules(_, rulesToEnable).length)
 
     (rewritten,  numPossibleSimplifications, allRulesAt.map(_._1 +: rules)).zipped.toSeq
   }
