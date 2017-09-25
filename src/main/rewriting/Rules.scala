@@ -1154,7 +1154,7 @@ object Rules {
             case FunCall(f, args@_*) if args.exists(_ eq p) && !f.isInstanceOf[Get] =>
           })
 
-          // Find the zips being inlined into the existing one and their ids
+          // Find the indices of zips being inlined into the existing one
           val zipIndices = zipArgs.zipWithIndex.collect({
             case (FunCall(Zip(_), _*), index) => index
           })
