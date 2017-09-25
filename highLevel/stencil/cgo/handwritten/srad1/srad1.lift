@@ -13,10 +13,9 @@ val calculateScoeff = UserFun("calculateScoeff", Array("dN", "dS", "dE", "dW", "
 
 fun(
       ArrayType(ArrayType(Float, M), N),
-      Float,
-      (image, q0sqr) => {
+      (image) => {
 		Map(Map(fun((m) => {
-    	//val q0sqr = 0.053787220269f // this value is dependent on data set size !!
+    	val q0sqr = 0.053787220269f // this value is dependent on data set size !!
     	val Jc = m.at(1).at(1)
     	val JW = m.at(1).at(0)
     	val JN = m.at(0).at(1)

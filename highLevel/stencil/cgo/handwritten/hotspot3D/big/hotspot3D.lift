@@ -8,16 +8,16 @@
 fun(
       ArrayType(ArrayType(ArrayType(Float, m), n), o),
       ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      Float,
-      Float,
-      Float,
-      Float,
-      Float,
-      Float,
-      Float,
-      Float,
-      (temp, power, ce, cw, cn, cs, ct, cb, cc, stepDivCap) => {
+      (temp, power) => {
         Map(Map(Map(fun((m) => {
+        val ce = 0.03413332998752593994f
+        val cw = 0.03413332998752593994f
+        val cn = 0.03413332998752593994f
+        val cs = 0.03413332998752593994f
+        val ct = 0.00053333328105509281f
+        val cb = 0.00053333328105509281f
+        val cc = 0.86186665296554565430f
+        val stepDivCap = 0.34133329987525939941f
 
           val amb_temp = 80.0f
           val ct_amb_temp = fun(x => mult(x, ct)) $ amb_temp

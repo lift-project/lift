@@ -1,7 +1,6 @@
-val M = Var("M", StartFromRange(8192)) //need to be power_of_two +2 because of missing pad
-val N = Var("N", StartFromRange(8192))
+val M = Var("M", StartFromRange(4098)) //need to be power_of_two +2 because of missing pad
+val N = Var("N", StartFromRange(4098))
 
-/* old expression
 fun(
     ArrayType(ArrayType(Float, M), N),
     ArrayType(Float, Cst(9)),
@@ -13,15 +12,14 @@ fun(
 			         Join() $ neighbourhood)))) o
 		Slide2D(3, 1) $ input
   })
-  */
 
+/*
 fun(
     ArrayType(ArrayType(Float, M), N),
     ArrayType(Float, Cst(9)),
     (input, weights) => {
         Map(Map(fun(elem => {
-                            toGlobal(MapSeqUnroll(id)) o
-                              ReduceSeqUnroll(fun( (acc, pair) => {
+                              Reduce(fun( (acc, pair) => {
                                 val pixel = pair._0
                                 val weight = pair._1
                                 multAndSumUp.apply(acc, pixel, weight)
@@ -29,3 +27,4 @@ fun(
                           }) )) o
 		Slide2D(3, 1) $ input
   })
+  */
