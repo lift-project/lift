@@ -115,7 +115,10 @@ object HighLevelRewrite {
 
       val fullFilename = input.value.get
       // remove file ending if provided
-      val filename = fullFilename.substring(0, fullFilename.lastIndexOf('.'))
+      val filename = if(fullFilename.contains("."))
+        fullFilename.substring(0, fullFilename.lastIndexOf('.'))
+      else
+        fullFilename
 
       val lambda = ParameterRewrite.readLambdaFromFile(fullFilename)
 
