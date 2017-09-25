@@ -1155,14 +1155,13 @@ object Rules {
           })
 
           // Find the zips being inlined into the existing one and their ids
-          val (zips, _) = zipArgs.zipWithIndex.partition({
-            case (FunCall(Zip(_), _*), _) => true
-            case _ => false
+          val zipIndices = zipArgs.zipWithIndex.collect({
+            case (FunCall(Zip(_), _*), index) => index
           })
 
           // Check That all usages of `p` that refer to e.g. `Zip(a,b)` are of the form
           // `FunCall(Get(_), FunCall(Get(_), p))`
-          val zipsUsedCorrectly = zips.map(_._2).forall(id => {
+          val zipsUsedCorrectly = zipIndices.forall(id => {
 
             val thisZipUsages = Utils.collect(body, {
               case FunCall(Get(actual_id), arg) if actual_id == id && (p eq arg) => })
