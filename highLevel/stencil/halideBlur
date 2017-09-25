@@ -1,0 +1,20 @@
+val M = Var("M", StartFromRange(4000))
+val N = Var("N", StartFromRange(6000))
+
+val div9 = UserFun("div9", "x", "{ return x/9; }", Int, Int)
+fun(
+    ArrayType(ArrayType(Int, M), N),
+    input => {
+        Map(Map( \(neighborhood => Map(div9) o Reduce(addI, 0) o Join() $ neighborhood)
+			)) o Slide2D(3, 1) $ input
+})
+
+/*
+val div9 = UserFun("div9", "x", "{ return x/9; }", Float, Float)
+fun(
+    ArrayType(ArrayType(Float, M), N),
+    input => {
+        Map(Map( \(neighborhood => Map(div9) o Reduce(add, 0.0f) o Join() $ neighborhood)
+			)) o Slide2D(3, 1) $ input
+})
+*/

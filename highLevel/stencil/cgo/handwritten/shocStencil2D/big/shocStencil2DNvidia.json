@@ -1,0 +1,76 @@
+{
+  "input_combinations" : [
+    [8194, 8194]
+  ],
+
+  "high_level_rewrite" : {
+    "exploration_depth" : 5,
+    "depth" : 6,
+    "distance" : 9,
+    "rule_repetition" : 1,
+    "vector_width" : 4,
+    "sequential" : false,
+    "only_lower" : false,
+    "keep_range_information" : true,
+    "rule_collection" : "convolution2D"
+  },
+
+  "memory_mapping_rewrite" : {
+    "vectorize" : false,
+    "vector_width" : 4,
+    "sequential" : false,
+    "load_balancing" : false,
+    "unroll_reduce" : true,
+    "global0" : false,
+    "global01" : false,
+    "global10" : true,
+    "global012" : false,
+    "global210" : false,
+    "group0" : false,
+    "group01" : false,
+    "group10" : true
+  },
+
+  "local_memory_rules" : {
+    "addIdForCurrentValueInReduce" : false,
+    "addIdMapLcl" : false,
+    "addIdMapWrg" : true,
+    "addIdAfterReduce" : false
+  },
+
+  "parameter_rewrite" : {
+    "explore_ndrange" : false,
+    "sample_ndrange" : -1,
+    "disable_ndrange_injection" : true,
+    "sequential" : false,
+    "generate_scala" : false
+  },
+
+ "generic_kernel_printer" : {
+    "enable_speedup_condition" : true,
+    "speedup" : 1.0,
+    "configs_to_achieve_speedup" : 500,
+    "enable_timeout_condition" : true,
+    "timeout_in_seconds" : 900,
+    "enable_max_configs_condition" : false,
+    "max_configs" : 500,
+    "enable_not_better_than_condition" : false,
+    "not_better_than_in_ns" : 12000000,
+    "not_better_within_configs" : 250,
+    "vendor" : "NVIDIA",
+    "device_type" : "GPU",
+    "device_id" : 0
+  },
+
+
+  "search_parameters" : {
+    "default_input_size" : 8194,
+    "min_local_size" : 32,
+    "max_local_size" : 1024,
+    "min_global_size" : 4,
+    "max_private_memory" : 1024,
+    "max_local_memory" : 49152,
+    "min_workgroups" : 8,
+    "max_workgroups" : 65569
+  }
+}
