@@ -30,8 +30,8 @@ class TestInterchange {
     val loweredF = Lower.sequential(f)
     val loweredG = Lower.sequential(g)
 
-    val (outputF: Array[Float], _) = Execute()(loweredF, inputs:_*)
-    val (outputG: Array[Float], _) = Execute()(loweredG, inputs:_*)
+    val (outputF, _) = Execute()[Array[Float]](loweredF, inputs:_*)
+    val (outputG, _) = Execute()[Array[Float]](loweredG, inputs:_*)
 
     assertArrayEquals(outputF, outputG, 0.001f)
   }

@@ -3,7 +3,7 @@ package opencl.generator
 import lift.arithmetic._
 import lift.arithmetic.NotEvaluableToIntException._
 import ir._
-import ir.view.AccessVar
+import ir.view.{AccessVar, CastedPointer}
 import opencl.generator.OpenCLAST._
 import opencl.ir._
 
@@ -33,7 +33,12 @@ object OpenCLPrinter {
       case Sum(es) => "(" + es.map(toString).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toString(a) + " % " + toString(n) + ")"
       case of: OclFunction => of.toOCLString
-      case ai: AccessVar => ai.array + "[" + toString(ai.idx.content) + "]"
+      case ai: AccessVar =>
+        val array = ai.array match { case Left(s) => s case Right(v) => toString(v) }
+        s"$array[${toString(ai.idx)}]"
+      case CastedPointer(v, ty, ofs, addressSpace) =>
+        val offset = if (ofs == Cst(0)) "" else s" + ${toString(ofs)}"
+        s"(($addressSpace ${Type.name(ty)}*)(${toString(v)}$offset))"
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
       case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"
@@ -220,7 +225,7 @@ class OpenCLPrinter {
       val fields = tt.elemsT.zipWithIndex.map({case (ty,i) => Type.name(ty)+" _"+i})
       print(s"""#ifndef ${name}_DEFINED
         |#define ${name}_DEFINED
-        |typedef struct {
+        |typedef struct __attribute__((aligned(${tt.alignment._1}))) {
         |  ${fields.reduce(_+";\n  "+_)};
         |} $name;
         |#endif

@@ -141,7 +141,7 @@ class TestFlattenZip {
 
     val lowered = Rewrite.applyRuleUntilCannot(result, OpenCLRules.mapSeq)
 
-    val (output: Array[Float], _) = Execute()(lowered, x,y,z)
+    val (output, _) = Execute()[Array[Float]](lowered, x,y,z)
 
     val gold = (x, (y,z).zipped.map(_+_)).zipped.map(_*_)
 
@@ -172,7 +172,7 @@ class TestFlattenZip {
 
     val lowered = Rewrite.applyRuleUntilCannot(result, OpenCLRules.mapSeq)
 
-    val (output: Array[Float], _) = Execute()(lowered, x,y,z)
+    val (output, _) = Execute()[Array[Float]](lowered, x,y,z)
 
     val gold = ((x,y).zipped.map(_+_), z).zipped.map(_*_)
 
@@ -200,7 +200,7 @@ class TestFlattenZip {
 
     val lowered = Rewrite.applyRuleUntilCannot(result, OpenCLRules.mapSeq)
 
-    val (output: Array[Float], _) = Execute()(lowered, x,y,z,w)
+    val (output, _) = Execute()[Array[Float]](lowered, x,y,z,w)
 
     val gold = ((x,y).zipped.map(_+_), (z,w).zipped.map(_+_)).zipped.map(_*_)
 

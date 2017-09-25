@@ -3,7 +3,7 @@ package opencl.generator
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor._
+import opencl.executor.{Execute, Executor, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -37,7 +37,7 @@ class TestDynMap {
       }
     )
 
-    val (output: Array[Int], runtime) = Execute(25,300)(kernel, arr)
+    val (output, runtime) = Execute(25,300)[Array[Int]](kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())
@@ -70,7 +70,7 @@ class TestDynMap {
       }
     )
 
-    val (output: Array[Int], runtime) = Execute(25,300)(kernel, arr)
+    val (output, runtime) = Execute(25,300)[Array[Int]](kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())
@@ -106,7 +106,7 @@ class TestDynMap {
       }
     )
 
-    val (output: Array[Int], runtime) = Execute(25,300)(kernel, arr)
+    val (output, runtime) = Execute(25,300)[Array[Int]](kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())
@@ -139,7 +139,7 @@ class TestDynMap {
       }
     )
     
-    val (output: Array[Int], runtime) = Execute(25,300)(kernel, arr)
+    val (output, runtime) = Execute(25,300)[Array[Int]](kernel, arr)
     println("Time: " + runtime)
     println("input[0:10]:  " + arr.take(10).toList.toString())
     println("output[0:10]: " + output.take(10).toList.toString())

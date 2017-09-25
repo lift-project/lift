@@ -180,7 +180,7 @@ object OpenCLAST {
     * @param content The arithmetic expression.
     */
   case class ArithExpression(var content: ArithExpr) extends Expression
-
+  
   case class CondExpression(lhs: Expression, rhs: Expression, cond: CondExpression.Operator.Operator) extends Expression
 
   object CondExpression {

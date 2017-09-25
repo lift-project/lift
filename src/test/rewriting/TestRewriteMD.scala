@@ -93,8 +93,8 @@ class TestRewriteMD {
     val gold = MolecularDynamics.mdScala(particlesTuple, neighbours, cutsq, lj1, lj2)
                .map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
 
-    val (output: Array[Float], _) =
-      Execute(inputSize)(f11, particles, neighbours, cutsq, lj1, lj2)
+    val (output, _) =
+      Execute(inputSize)[Array[Float]](f11, particles, neighbours, cutsq, lj1, lj2)
 
     assertEquals(gold.length, output.length)
 
