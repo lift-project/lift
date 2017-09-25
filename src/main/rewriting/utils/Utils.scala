@@ -221,7 +221,7 @@ object Utils {
   def dumpLambdaToString(lambda: Lambda): String = {
     TypeChecker(lambda)
 
-    val inputVars = lambda.getVarsInParams(respectDependency = true)
+    val inputVars = lambda.getVarsInParams(ordering = ByDeclarationOrder)
 
     val tunableVars =
       findTunableNodes(lambda)

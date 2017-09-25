@@ -20,7 +20,7 @@ abstract case class Lambda private[ast] (params: Array[Param],
   /**
    * Debug string representation
    */
-  override def toString = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
+  override def toString: String = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
       " -> \n" + body.toString.split("\n").map("  " + _ + "\n").mkString + ")"
 
   override def checkType(argType: Type,
@@ -82,14 +82,15 @@ abstract case class Lambda private[ast] (params: Array[Param],
     * In this case M needs to be declared before N because of their dependency even though
     * M is used as the second parameter of the lambda.
     *
-    * @param respectDependency specifies if variables are sorted by their name
-    * @return array of variables used in parameters of the Lambda
+    * @param ordering specifies the sorting of variables either by name or by declaration order
+    * @return sequence of variables used in parameters of the Lambda
     */
-  def getVarsInParams(respectDependency: Boolean = false) =
-    if (respectDependency)
-      params.flatMap(_.t.varList).distinct
-    else
-      params.flatMap(_.t.varList).sortBy(_.name).distinct
+  def getVarsInParams(ordering: Ordering = ByName): Seq[lift.arithmetic.Var] = {
+    ordering match {
+      case ByName => params.flatMap(_.t.varList).sortBy(_.name).distinct
+      case ByDeclarationOrder => params.flatMap(_.t.varList).distinct
+    }
+  }
 
 
   def eval(valueMap: ValueMap, args: Any*): Any = {
