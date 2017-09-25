@@ -125,7 +125,8 @@ object Rules {
       Split(length) o Map(f) o Join() $ arg
   })
 
-  val splitJoinReduce = Rule("Reduce(f) => Join() o Map(Reduce(f)) o Split(N)", {
+  // Required for avoiding data races
+  val splitJoinReduce = Rule("Reduce(f) $ data => Join() o Map(Reduce(f)) o Split(data.length)", {
     case FunCall(red: Reduce, init, arg) =>
 
       val length = arg.t match { case ArrayTypeWS(_, n) => n }
@@ -1096,6 +1097,7 @@ object Rules {
     }
   }
 
+  // Zip(a, b, a) => Zip(a, b)
   val removeDuplicateZipArg = Rule("removeDuplicateZipArgument", {
     case FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), args@_*))
       if args.distinct.size < args.size && !(p eq body) &&
@@ -1135,6 +1137,7 @@ object Rules {
       }
   })
 
+  // Zip(Zip(a, b), Zip(c, d), e) => Zip(a, b, c, d, e)
   val flattenZips = Rule("flattenZips", {
     case FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), zipArgs@_*))
       if zipArgs.exists({
@@ -1142,22 +1145,29 @@ object Rules {
         case _ => false
       })  && !(p eq body) &&
         {
+          // To be able to replace all old usages of p they must all appear
+          // in body with the appropriate number of Gets. Otherwise, some result of Zip
+          // can leave body and we can't replace it from inside this rule.
+
+          // Check that all usages of `p` are of the form `FunCall(Get(_), p)`
+          val nonZipsUsedCorrectly = !body.contains({
+            case FunCall(f, args@_*) if args.exists(_ eq p) && !f.isInstanceOf[Get] =>
+          })
+
+          // Find the zips being inlined into the existing one and their ids
           val (zips, _) = zipArgs.zipWithIndex.partition({
             case (FunCall(Zip(_), _*), _) => true
             case _ => false
           })
 
-          // If the zip result is used, it must be in a get
-          val nonZipsUsedCorrectly = !body.contains({
-            case FunCall(f, args@_*) if args.exists(_ eq p) && !f.isInstanceOf[Get] =>
-          })
-
+          // Check That all usages of `p` that refer to e.g. `Zip(a,b)` are of the form
+          // `FunCall(Get(_), FunCall(Get(_), p))`
           val zipsUsedCorrectly = zips.map(_._2).forall(id => {
 
-            // If this component is used, it must have a second get around it
             val thisZipUsages = Utils.collect(body, {
               case FunCall(Get(actual_id), arg) if actual_id == id && (p eq arg) => })
 
+            // If this component is used, it must have a second get around it
             thisZipUsages.forall(zipUse =>
               body.contains({ case FunCall(Get(_), arg) if zipUse eq arg => }))
           })
