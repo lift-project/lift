@@ -57,6 +57,6 @@ abstract class AbstractSearch(val f: Lambda,
     throw new NotImplementedError("AbstractSearch.eval is not implemented")
 }
 
-case class Search(override val f: Lambda1) extends AbstractSearch(f, "Search") with isGenerable{
+case class Search(override val f: Lambda1) extends AbstractSearch(f, "Search") {
   override def copy(f: Lambda): Pattern = Search(f)
 }
