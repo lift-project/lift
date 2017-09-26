@@ -174,7 +174,7 @@ class TestRewriteGesummv {
 
     val finalExpr = Rewrite.applyRuleUntilCannot(l6, MacroRules.userFunCompositionToPrivate)
 
-    val (y: Array[Float], _) = Execute()(finalExpr, A, B, x, alpha, beta)
+    val (y, _) = Execute()[Array[Float]](finalExpr, A, B, x, alpha, beta)
 
     assertArrayEquals(yGold, y, 0.001f)
   }
@@ -214,7 +214,7 @@ class TestRewriteGesummv {
     val l2 = Rewrite.applyRuleAtId(l1, 43, CopyRules.implementIdAsDeepCopy)
     val l3 = Rewrite.applyRuleUntilCannot(l2, MacroRules.userFunCompositionToPrivate)
 
-    val (y: Array[Float], _) = Execute()(l3, A, B, x, alpha, beta)
+    val (y, _) = Execute()[Array[Float]](l3, A, B, x, alpha, beta)
 
     assertArrayEquals(yGold, y, 0.001f)
   }

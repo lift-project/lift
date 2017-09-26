@@ -93,8 +93,8 @@ class TestMMExplicitPrivateBest {
       })
 
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
-    val (output: Array[Float], _) =
-      Execute(tileSizeN, tileSizeM, nSize/tileSizeN, nSize/tileSizeM, (true, true))(test, matrixA, matrixB)
+    val (output, _) =
+      Execute(tileSizeN, tileSizeM, nSize/tileSizeN, nSize/tileSizeM, (true, true))[Array[Float]](test, matrixA, matrixB)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -142,8 +142,8 @@ class TestMMExplicitPrivateBest {
     )
 
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
-    val (output: Array[Float], _) =
-      Execute(tileGroupM, tileGroupN, mSize/tileSizeM, nSize/tileSizeN, (true, true))(test, matrixA.transpose, matrixB.transpose)
+    val (output, _) =
+      Execute(tileGroupM, tileGroupN, mSize/tileSizeM, nSize/tileSizeN, (true, true))[Array[Float]](test, matrixA.transpose, matrixB.transpose)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -192,8 +192,8 @@ class TestMMExplicitPrivateBest {
 
     val testd = Rewrite.applyRuleUntilCannot(fd, MacroRules.userFunCompositionToPrivate)
     val test1 = Rewrite.applyRuleUntilCannot(f1, MacroRules.userFunCompositionToPrivate)
-    val (output1: Array[Float], _) = Execute(16, 16, Msize, Nsize, (true, true))(test1, matrixA, matrixB.transpose)
-    val (output2: Array[Float], _) = Execute(16, 16, Msize, Nsize, (true, true))(testd, matrixA, matrixB.transpose)
+    val (output1, _) = Execute(16, 16, Msize, Nsize, (true, true))[Array[Float]](test1, matrixA, matrixB.transpose)
+    val (output2, _) = Execute(16, 16, Msize, Nsize, (true, true))[Array[Float]](testd, matrixA, matrixB.transpose)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
@@ -229,7 +229,7 @@ class TestMMExplicitPrivateBest {
     )
 
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
-    val (output: Array[Float], _) = Execute(mSize, nSize)(test, matrixA, matrixB)
+    val (output, _) = Execute(mSize, nSize)[Array[Float]](test, matrixA, matrixB)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
@@ -359,9 +359,9 @@ class TestMMExplicitPrivateBest {
     val testd = Rewrite.applyRuleUntilCannot(fd, MacroRules.userFunCompositionToPrivate)
     val testdot = Rewrite.applyRuleUntilCannot(fdot, MacroRules.userFunCompositionToPrivate)
 
-    val (output1: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(test, matrixA, matrixB.transpose)
-    val (output2: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(testd, matrixA, matrixB.transpose)
-    val (output3: Array[Float], _) = Execute(2, 2, mSize/2, nSize/2, (true, true))(testdot, matrixA, matrixB.transpose)
+    val (output1, _) = Execute(2, 2, mSize/2, nSize/2, (true, true))[Array[Float]](test, matrixA, matrixB.transpose)
+    val (output2, _) = Execute(2, 2, mSize/2, nSize/2, (true, true))[Array[Float]](testd, matrixA, matrixB.transpose)
+    val (output3, _) = Execute(2, 2, mSize/2, nSize/2, (true, true))[Array[Float]](testdot, matrixA, matrixB.transpose)
 
     assertArrayEquals(gold, output1, 0.0001f)
     assertArrayEquals(gold, output2, 0.0001f)
@@ -459,8 +459,8 @@ class TestMMExplicitPrivateBest {
     val f = maliFactory(Seq[ArithExpr](K, M, N, 2, 2, 4))
 
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
-    val (output: Array[Float], _) =
-      Execute(2, 2, mSize/2, nSize/2, (true, true))(
+    val (output, _) =
+      Execute(2, 2, mSize/2, nSize/2, (true, true))[Array[Float]](
         test, matrixA, matrixB.transpose, matrixC, alpha, beta)
 
     assertArrayEquals(gold, output, 0.0001f)
@@ -498,7 +498,7 @@ class TestMMExplicitPrivateBest {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB)
 
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
-    val (output: Array[Float], _) = Execute()(test, matrixA.transpose, matrixB)
+    val (output, _) = Execute()[Array[Float]](test, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
@@ -647,8 +647,8 @@ class TestMMExplicitPrivateBest {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB, matrixC, alpha, beta)
 
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
-    val (output: Array[Float], _) =
-      Execute()(test, matrixA.transpose, matrixB, matrixC, alpha, beta)
+    val (output, _) =
+      Execute()[Array[Float]](test, matrixA.transpose, matrixB, matrixC, alpha, beta)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
@@ -687,7 +687,7 @@ class TestMMExplicitPrivateBest {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB)
 
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
-    val (output: Array[Float], _) = Execute()(test, matrixA.transpose, matrixB)
+    val (output, _) = Execute()[Array[Float]](test, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
@@ -826,7 +826,7 @@ class TestMMExplicitPrivateBest {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB)
 
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
-    val (output: Array[Float], _) = Execute()(test, matrixA.transpose, matrixB)
+    val (output, _) = Execute()[Array[Float]](test, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }
@@ -982,8 +982,8 @@ class TestMMExplicitPrivateBest {
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB, matrixC, alpha, beta)
 
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
-    val (output: Array[Float], _) =
-      Execute()(test, matrixA.transpose, matrixB, matrixC, alpha, beta)
+    val (output, _) =
+      Execute()[Array[Float]](test, matrixA.transpose, matrixB, matrixC, alpha, beta)
 
     assertArrayEquals(gold.flatten, output, 0.001f)
   }

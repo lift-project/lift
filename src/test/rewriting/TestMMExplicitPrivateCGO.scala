@@ -178,8 +178,8 @@ class TestMMExplicitPrivateCGO {
 
     val code = Compile(test, 128/param, 8, 1, N/param, M/8,1, collection.immutable.Map())
 
-    val (output: Array[Float], _) =
-      Execute(128/param, 8, 1, 1024/param, 1024/8, 1, (true, true))(code, test, matrixA.transpose, matrixB)
+    val (output, _) =
+      Execute(128/param, 8, 1, 1024/param, 1024/8, 1, (true, true))[Array[Float]](code, test, matrixA.transpose, matrixB)
 
     assertArrayEquals(mmGold, output, 0.001f)
   }
@@ -192,8 +192,8 @@ class TestMMExplicitPrivateCGO {
     val f = Eval(DumpToFile.dumpLambdaToString(GEMM.clblast_kepler))
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
 
-    val (output: Array[Float], _) =
-      Execute()(
+    val (output, _) =
+      Execute()[Array[Float]](
         test, matrixA.transpose, matrixB, matrixC,
         alpha, beta
       )
@@ -254,9 +254,9 @@ class TestMMExplicitPrivateCGO {
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
     val code = Compile(test, 32, 8, 1, N/v__3, M/v__4,1, collection.immutable.Map())
 
-    val (output: Array[Float], _) =
+    val (output, _) =
       Execute(32, 8, nSize/v__3, mSize/v__4,
-        (true, true))(code, test, matrixA.transpose, matrixB)
+        (true, true))[Array[Float]](code, test, matrixA.transpose, matrixB)
 
     assertArrayEquals(mmGold, output, 0.0001f)
   }
@@ -267,8 +267,8 @@ class TestMMExplicitPrivateCGO {
     val f = Eval(DumpToFile.dumpLambdaToString(GEMM.clblast_hawaii))
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
 
-    val (output: Array[Float], _) =
-      Execute()(
+    val (output, _) =
+      Execute()[Array[Float]](
         test, matrixA.transpose, matrixB, matrixC,
         alpha, beta
       )
@@ -285,8 +285,8 @@ class TestMMExplicitPrivateCGO {
     val f = GEMM.clblas_hawaii
 
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
-    val (output: Array[Float], _) =
-      Execute(16, 16, nSize/tileSizeN, nSize/tileSizeM, (true, true))(
+    val (output, _) =
+      Execute(16, 16, nSize/tileSizeN, nSize/tileSizeM, (true, true))[Array[Float]](
         test, matrixA.transpose, matrixB, matrixC, alpha, beta)
     assertArrayEquals(gemmGold, output, 0.0f)
   }
@@ -356,8 +356,8 @@ class TestMMExplicitPrivateCGO {
       })
 
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
-    val (output: Array[Float], _) =
-      Execute(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))(test, matrixA.transpose, matrixB)
+    val (output, _) =
+      Execute(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))[Array[Float]](test, matrixA.transpose, matrixB)
     assertArrayEquals(mmGold, output, 0.0f)
   }
 
@@ -372,8 +372,8 @@ class TestMMExplicitPrivateCGO {
     val f = GEMM.clblas_kepler
 
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
-    val (output: Array[Float], _) =
-      Execute(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))(
+    val (output, _) =
+      Execute(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))[Array[Float]](
         test, matrixA.transpose, matrixB, matrixC, alpha, beta)
     assertArrayEquals(gemmGold, output, 0.0f)
   }

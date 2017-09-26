@@ -148,7 +148,7 @@ class TestRewriteGemv {
 
     val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
 
-    val (output: Array[Float], _) = Execute()(l0, matrix, vectorX, vectorY, alpha, beta)
+    val (output: Array[Float], _) = Execute()[Array[Float]](l0, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, output, 0.001f)
   }
@@ -201,7 +201,7 @@ class TestRewriteGemv {
     val mapping4 = Lower.lowerNextLevelWithRule(mapping3, OpenCLRules.mapLcl)
     val mapping5 = Rewrite.applyRuleUntilCannot(mapping4, MacroRules.userFunCompositionToPrivate)
 
-    val (output: Array[Float], _) = Execute()(mapping5, matrix, vectorX, vectorY, alpha, beta)
+    val (output, _) = Execute()[Array[Float]](mapping5, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, output, 0.001f)
   }

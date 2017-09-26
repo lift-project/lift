@@ -169,8 +169,8 @@ class TestRewriteMriQ {
     val l3 = Rewrite.applyRuleAtId(l2, 17, OpenCLRules.localMemory)
     val l4 = Lower.lowerNextLevelWithRule(l3, OpenCLRules.mapLcl)
 
-    val (output: Array[Float], _) =
-      Execute()(l4, x, y, z, k)
+    val (output, _) =
+      Execute()[Array[Float]](l4, x, y, z, k)
 
     assertArrayEquals(gold, output, 0.001f)
   }
@@ -210,8 +210,8 @@ class TestRewriteMriQ {
     val l5 = Rewrite.applyRuleAtId(l4, 35, OpenCLRules.localMemory)
     val l6 = Rewrite.applyRuleUntilCannot(l5, MacroRules.userFunCompositionToPrivate)
 
-    val (output: Array[Float], _) =
-      Execute()(l6, x, y, z, k)
+    val (output, _) =
+      Execute()[Array[Float]](l6, x, y, z, k)
 
     assertArrayEquals(gold, output, 0.01f)
   }
