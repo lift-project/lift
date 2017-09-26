@@ -35,6 +35,8 @@ class TestMMExplicitPrivateCGO {
   private val mmGold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
   private val gemmGold = Utils.matrixMatrixMultiply(matrixA, matrixB, matrixC, alpha, beta).flatten
 
+  private def vectorize(n: Int, f: Float): Array[Float] = Array.fill(n)(f)
+
   @Test
   def clblast_kepler_mm_TN(): Unit = {
 
@@ -195,7 +197,7 @@ class TestMMExplicitPrivateCGO {
     val (output, _) =
       Execute()[Array[Float]](
         test, matrixA.transpose, matrixB, matrixC,
-        alpha, beta
+        vectorize(2, alpha), vectorize(2, beta)
       )
 
     assertArrayEquals(gemmGold, output, 0.001f)
@@ -270,7 +272,7 @@ class TestMMExplicitPrivateCGO {
     val (output, _) =
       Execute()[Array[Float]](
         test, matrixA.transpose, matrixB, matrixC,
-        alpha, beta
+        vectorize(4, alpha), vectorize(4, beta)
       )
 
     assertArrayEquals(gemmGold, output, 0.0001f)
@@ -287,7 +289,9 @@ class TestMMExplicitPrivateCGO {
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
     val (output, _) =
       Execute(16, 16, nSize/tileSizeN, nSize/tileSizeM, (true, true))[Array[Float]](
-        test, matrixA.transpose, matrixB, matrixC, alpha, beta)
+        test, matrixA.transpose, matrixB, matrixC,
+        vectorize(8, alpha), vectorize(8, beta)
+      )
     assertArrayEquals(gemmGold, output, 0.0f)
   }
 
@@ -374,7 +378,7 @@ class TestMMExplicitPrivateCGO {
     val test = Rewrite.applyRuleUntilCannot(f, MacroRules.userFunCompositionToPrivate)
     val (output, _) =
       Execute(8, 8, nSize/tileSizeN, nSize/tileSizeM, (true, true))[Array[Float]](
-        test, matrixA.transpose, matrixB, matrixC, alpha, beta)
+        test, matrixA.transpose, matrixB, matrixC, vectorize(8, alpha), vectorize(8, beta))
     assertArrayEquals(gemmGold, output, 0.0f)
   }
 
