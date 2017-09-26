@@ -38,14 +38,10 @@ class TestFusion {
 
     val (gold,_) = Execute(1, 1)[Array[Float]](goldF, A)
 
-    val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
+    val lambda = Rewrite.applyRuleUntilCannot(f, FusionRules.reduceSeqMapSeqFusion)
 
-    assertTrue(lambdaOptions.nonEmpty)
-
-    lambdaOptions.foreach(l => {
-      val (result, _) = Execute(1, 1)[Array[Float]](l, A)
-      assertArrayEquals(l + " failed", gold, result, 0.0f)
-    })
+    val (result, _) = Execute(1, 1)[Array[Float]](lambda, A)
+    assertArrayEquals(gold, result, 0.0f)
   }
 
   @Test
@@ -66,14 +62,10 @@ class TestFusion {
 
     val (gold, _) = Execute(1, 1)[Array[Float]](goldF, A, a)
 
-    val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
+    val lambda = Rewrite.applyRuleUntilCannot(f, FusionRules.reduceSeqMapSeqFusion)
 
-    assertTrue(lambdaOptions.nonEmpty)
-
-    lambdaOptions.foreach(l => {
-      val (result, _) = Execute(1, 1)[Array[Float]](l, A, a)
-      assertArrayEquals(l + " failed", gold, result, 0.0f)
-    })
+    val (result, _) = Execute(1, 1)[Array[Float]](lambda, A, a)
+    assertArrayEquals(gold, result, 0.0f)
   }
 
   @Test
@@ -88,16 +80,12 @@ class TestFusion {
       input => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(plusOne) $ input
     )
 
-    val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
+    val lambda = Rewrite.applyRuleUntilCannot(f, FusionRules.reduceSeqMapSeqFusion)
 
     val (gold, _) = Execute(1, 1)[Array[Float]](goldF, A)
 
-    assertTrue(lambdaOptions.nonEmpty)
-
-    lambdaOptions.foreach(l => {
-      val (result, _) = Execute(1, 1)[Array[Float]](l, A)
-      assertArrayEquals(l + " failed", gold, result, 0.0f)
-    })
+    val (result, _) = Execute(1, 1)[Array[Float]](lambda, A)
+    assertArrayEquals(gold, result, 0.0f)
   }
 
   @Test
@@ -117,15 +105,11 @@ class TestFusion {
 
     val A = Array.tabulate(128)(i => i)
 
-    val lambdaOptions = Rewrite.rewriteJustGenerable(f, fusionRules, 1)
+    val lambda = Rewrite.applyRuleUntilCannot(f, FusionRules.reduceSeqMapSeqFusion)
 
     val (gold, _) = Execute(1, 1)[Array[Float]](goldF, A)
 
-    assertTrue(lambdaOptions.nonEmpty)
-
-    lambdaOptions.foreach(l => {
-      val (result, _) = Execute(1, 1)[Array[Float]](l, A)
-      assertArrayEquals(l + " failed", gold, result, 0.0f)
-    })
+    val (result, _) = Execute(1, 1)[Array[Float]](lambda, A)
+    assertArrayEquals(gold, result, 0.0f)
   }
 }
