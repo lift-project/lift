@@ -26,7 +26,6 @@ class TestLowering {
         input => Map(Map(Map(id))) $ input)
 
     val fs = Lower.mapCombinations(f)
-    println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     fs.foreach(Compile(_))
@@ -40,7 +39,6 @@ class TestLowering {
     })
 
     val fs = Lower.mapCombinations(f)
-    println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     fs.foreach(Compile(_))
@@ -53,7 +51,6 @@ class TestLowering {
     })
 
     val fs = Lower.mapCombinations(f)
-    println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     fs.foreach(Compile(_))
@@ -66,7 +63,6 @@ class TestLowering {
     })
 
     val fs = Lower.mapCombinations(f)
-    println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     fs.foreach(Compile(_))
@@ -80,7 +76,6 @@ class TestLowering {
     })
 
     val fs = Lower.mapCombinations(f)
-    println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     fs.foreach(Compile(_))
@@ -122,7 +117,6 @@ class TestLowering {
       })
 
     val fs = Lower.mapCombinations(f, simpleMapping)
-    println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     fs.foreach(Compile(_))
@@ -144,7 +138,6 @@ class TestLowering {
       })
 
     val fs = Lower.mapCombinations(f)
-    println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     fs.foreach(Compile(_))
@@ -172,7 +165,6 @@ class TestLowering {
 
 
     val fs = Lower.mapCombinations(f)
-    println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     fs.foreach(Compile(_))
@@ -198,7 +190,6 @@ class TestLowering {
       })
 
     val fs = Lower.mapCombinations(f)
-    println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     fs.foreach(Compile(_))
@@ -236,7 +227,6 @@ class TestLowering {
       })
 
     val fs = Lower.mapCombinations(f)
-    println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     fs.foreach(Compile(_))
@@ -276,11 +266,10 @@ class TestLowering {
       })
 
     val fs = Lower.mapCombinations(f, simpleMapping)
-    println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     // TODO: Should MapWrg(MapLcl(_) o ReduceSeq(_) $ ...) be allowed or not?
-    // TODO: Probably not, can fail on Intel
+    // TODO: Probably not, can fail on Intel. Also disabled for now.
     fs.foreach(Compile(_))
   }
 
@@ -359,7 +348,6 @@ class TestLowering {
 
 
     val fs = Lower.mapCombinations(f, simpleMapping)
-    println(s"found: ${fs.size} lowerings")
 
     assertTrue(fs.nonEmpty)
     fs.foreach(Compile(_))
