@@ -8,7 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.Rewrite
+import rewriting.{Lower, Rewrite}
 import rewriting.macrorules.EnablingRules
 
 object TestRules extends TestWithExecutor
@@ -251,7 +251,6 @@ class TestRules {
     def f = fun(
       ArrayTypeWSWC(Float, N),
       input => Map(id) $ input
-      // input => Join() o MapWrg(Join() o Map(MapLane(id)) o Split(2) ) o Split(2) $ input
     )
 
     def goldF = fun(
@@ -259,10 +258,11 @@ class TestRules {
       input => MapGlb(id) $ input
     )
 
-    val options = Rewrite.rewriteJustGenerable(f)
+    val options = Seq(
+      Rewrite.applyRuleUntilCannot(f, OpenCLRules.mapSeq),
+      Rewrite.applyRuleUntilCannot(f, OpenCLRules.mapGlb)
+    )
     val (gold, _) = Execute(128)[Array[Float]](goldF, A)
-
-    assertTrue(options.nonEmpty)
 
     options.foreach(l => {
       val (result, _) = Execute(128)[Array[Float]](l, A)
@@ -286,9 +286,10 @@ class TestRules {
 
     val a = 1.0f
     val (gold, _) = Execute(128)[Array[Float]](goldF, A, a)
-    val lambdaOptions = Rewrite.rewriteJustGenerable(f)
-
-    assertTrue(lambdaOptions.nonEmpty)
+    val lambdaOptions = Seq(
+      Rewrite.applyRuleUntilCannot(f, OpenCLRules.mapSeq),
+      Rewrite.applyRuleUntilCannot(f, OpenCLRules.mapGlb)
+    )
 
     lambdaOptions.zipWithIndex.foreach(l => {
       val (result, _) = Execute(128)[Array[Float]](l._1, A, a)
@@ -329,15 +330,11 @@ class TestRules {
       input => Reduce(add, 0.0f) $ input
     )
 
-    val lambdaOptions = Rewrite.rewriteJustGenerable(f,
-      Seq(OpenCLRules.reduceSeq, CopyRules.addIdAfterReduce, CopyRules.implementIdAsDeepCopy, OpenCLRules.globalMemory), 4)
+    val lambda = Lower.sequential(f)
 
     val (gold, _) = Execute(1, 1)[Array[Float]](goldF, A)
-
-    assertTrue(lambdaOptions.nonEmpty)
-
-    val (result, _) = Execute(1, 1)[Array[Float]](lambdaOptions(0), A)
-    assertArrayEquals(lambdaOptions(1) + " failed", gold, result, 0.0f)
+    val (result, _) = Execute(1, 1)[Array[Float]](lambda, A)
+    assertArrayEquals(gold, result, 0.0f)
   }
 
   @Test
