@@ -4,6 +4,8 @@ import lift.arithmetic.ArithExpr
 import rewriting.utils.{NumberExpression, Utils}
 import ir._
 import ir.ast._
+import rewriting.rules.Rule
+import rewriting.macrorules.MacroRules
 
 object Rewrite {
 
@@ -47,6 +49,9 @@ object Rewrite {
 
     replacedInExpr
   }
+
+  def applyRuleUntilCannot(lambda: Lambda, rule: Rule): Lambda =
+    applyRulesUntilCannot(lambda, Seq(rule))
 
   /**
     * Apply rules one by one until no rules apply anymore
