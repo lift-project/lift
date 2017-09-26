@@ -255,8 +255,14 @@ class OpenCLGenerator extends Generator {
         throw new IllegalKernel(s"Illegal use of $call without MapWrg($dim)")
       case call@FunCall(toLocal(_), _) if !call.context.inMapWrg.reduce(_ || _) =>
         throw new IllegalKernel(s"Illegal use of local memory, without using MapWrg $call")
-      case call@FunCall(Map(nestedLambda), _*) if nestedLambda.body.isConcrete =>
+      case call@FunCall(Map(Lambda(_, expr)), _*) if expr.isConcrete =>
         throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
+      case call@FunCall(Reduce(Lambda(_, expr)), _, _) if expr.isConcrete =>
+        throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
+      case call@FunCall(PartRed(Lambda(_, expr)), _, _) if expr.isConcrete =>
+        throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
+      case call@FunCall(Id(), _) =>
+        throw new IllegalKernel(s"Illegal use of Id where it won't generate a copy in $call")
       case _ =>
     })
 
