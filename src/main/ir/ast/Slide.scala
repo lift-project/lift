@@ -9,7 +9,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
  * Slide pattern.
  * Create sliding windows of input
  */
-case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1)  {
+case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) {
   Slide.cnt += 1
   val id = Slide.cnt
 

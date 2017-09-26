@@ -17,7 +17,7 @@ import ir._
  *
  * @param n The number of elements which are combined. Must be >= 2
  */
-case class Tuple(n: Int) extends Pattern(arity = n)  {
+case class Tuple(n: Int) extends Pattern(arity = n) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

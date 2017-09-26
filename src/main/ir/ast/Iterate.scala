@@ -28,8 +28,7 @@ import scala.collection._
  * @param f Lambda to be iterated
  */
 case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
-                                                     with FPattern
-                                                      {
+                                                     with FPattern {
   var iterationCount: ArithExpr = ?
 
   var swapBuffer: Memory = UnallocatedMemory

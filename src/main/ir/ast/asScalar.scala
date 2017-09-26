@@ -18,7 +18,7 @@ import ir._
  * (so far):
  *  - `asScalar() o asVector(n) | asVector(n) o asScalar() => id`
  */
-case class asScalar() extends Pattern(arity = 1)  {
+case class asScalar() extends Pattern(arity = 1) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

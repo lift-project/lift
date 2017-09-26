@@ -16,7 +16,7 @@ import ir.interpreter.Interpreter.ValueMap
   *
   */
 
-case class MapSeqSlide(f: Lambda, size: ArithExpr, step: ArithExpr, var loopVar: Var, var windowVar: Var) extends Pattern(arity = 1)  with FPattern
+case class MapSeqSlide(f: Lambda, size: ArithExpr, step: ArithExpr, var loopVar: Var, var windowVar: Var) extends Pattern(arity = 1) with FPattern
 {
 
   override def toString: String = "MapSeqSlide(" + f + ", " + size + ", " + step + ")"

@@ -14,7 +14,7 @@ import ir._
  */
 case class UserFun(name: String, paramNames: Array[String], body: String,
                    inTs: Seq[Type], outT: Type)
-  extends FunDecl(inTs.length)  {
+  extends FunDecl(inTs.length) {
 
   // enforce at runtime that types and names match
   if (paramNames.length != inTs.length || !namesAndTypesMatch())

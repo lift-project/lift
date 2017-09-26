@@ -1,7 +1,7 @@
 package ir.ast
 
-import ir.{ArrayType, Type, TypeException, UndefType}
 import ir.interpreter.Interpreter.ValueMap
+import ir.{ArrayType, Type, TypeException}
 
 /**
  * Scatter pattern. Performs a reorder on the previous write.
@@ -15,8 +15,7 @@ import ir.interpreter.Interpreter.ValueMap
  *
  * @param idx The function to use for reordering
  */
-case class Scatter(idx: IndexFunction) extends Pattern(arity = 1)
-                                        {
+case class Scatter(idx: IndexFunction) extends Pattern(arity = 1) {
 
   override def checkType(argType: Type, setType: Boolean): Type = {
     // Scatter expects an array

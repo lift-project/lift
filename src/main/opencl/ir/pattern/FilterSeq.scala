@@ -16,7 +16,7 @@ import opencl.ir.Bool
   * @param loopWrite is the index user to store data into the output array
   */
 case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
-  extends Pattern(arity=1) with FPattern  {
+  extends Pattern(arity=1) with FPattern {
   override def checkType(argType: Type, setType: Boolean): Type = {
     val retTy = argType match {
       // Filter expects an array

@@ -20,7 +20,7 @@ class TestSimplification {
   private val M = SizeVar("M")
   private val A = Array.fill[Float](128)(0.5f)
 
-  private def checkSimplifiedIsSmaller(original: Lambda, simplified: Lambda) =
+  private def checkSimplifiedIsSmaller(original: Lambda, simplified: Lambda): Unit =
     assertTrue(getNumberOfTerms(simplified) < getNumberOfTerms(original))
 
   @Test
