@@ -93,7 +93,7 @@ object Rewrite {
       TypeChecker(replaced)
       replaced
     } catch {
-      case t: ZipTypeException =>
+      case _: ZipTypeException =>
 
         val newExpr = Utils.getLengthOfSecondDim(replacement.t)
         val oldExpr = Utils.getLengthOfSecondDim(toBeReplaced.t)
@@ -114,13 +114,13 @@ object Rewrite {
 
   def listAllPossibleRewritesForRules(expr: Expr, rules: Seq[Rule]): Seq[(Rule, Expr)] = {
     Context.updateContext(expr)
-    TypeChecker.check(expr)
+    TypeChecker(expr)
     rules.flatMap(rule => listAllPossibleRewrites(expr, rule))
   }
 
-  def listAllPossibleRewrites(lambda: Lambda,rule: Rule): Seq[(Rule, Expr)] = {
+  def listAllPossibleRewrites(lambda: Lambda,rule: Rule): Seq[(Rule, Expr)] =
     listAllPossibleRewrites(lambda.body, rule)
-  }
+
 
   def listAllPossibleRewrites(expr: Expr, rule: Rule): Seq[(Rule, Expr)] = {
     Expr.visitWithState(Seq[(Rule, Expr)]())( expr, (e, s) => {
@@ -130,45 +130,16 @@ object Rewrite {
     })
   }
 
-  def rewriteWithoutLowering(lambda:Lambda,rules:Seq[Rule],levels:Int):Seq[Lambda] ={
-    //val lStr = rewriting.utils.Utils.dumpLambdaToString(lambda)
-    //println(lStr)
-
-    TypeChecker.check(lambda.body)
-    val allRulesAt = listAllPossibleRewritesForRules(lambda,rules)
-    val rewritten = allRulesAt.map(ruleAt => applyRuleAt(lambda,ruleAt._2,ruleAt._1))
-
-    if(levels == 1){
-      rewritten
-    }
-    else{
-      rewritten.flatMap(l => rewriteWithoutLowering(l,rules,levels - 1 ))
-    }
-  }
-
   def rewrite(lambda: Lambda, rules: Seq[Rule], levels: Int): Seq[Lambda] = {
 
-
-    TypeChecker.check(lambda.body)
-
     val allRulesAt = listAllPossibleRewritesForRules(lambda, rules)
-
     val rewritten = allRulesAt.map(ruleAt => applyRuleAt(lambda, ruleAt._2, ruleAt._1))
 
-
-      if (levels == 1) {
-        rewritten
-      } else {
-        rewritten.flatMap( l => rewriteJustGenerable(l, rules, levels-1))
-      }
+    if (levels == 1)
+      rewritten
+    else
+      rewritten.flatMap( l => rewrite(l, rules, levels-1))
   }
-
-  def rewriteJustGenerable(lambda: Lambda, rules: Seq[Rule], levels: Int): Seq[Lambda] =
-    rewrite(lambda, rules, levels).filter(_.isGenerable)
-
-  def rewriteJustGenerable(lambda: Lambda, levels: Int = 1): Seq[Lambda] =
-    rewriteJustGenerable(lambda, allRules, levels)
-
 }
 
 

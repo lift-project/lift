@@ -4,7 +4,7 @@ import lift.arithmetic._
 import ir._
 import ir.interpreter.Interpreter._
 
-case class ArrayAccess(index: ArithExpr) extends Pattern(arity = 1) with isGenerable {
+case class ArrayAccess(index: ArithExpr) extends Pattern(arity = 1) {
 
   override def checkType(argType: Type, setType: Boolean): Type = {
     argType match {
