@@ -144,15 +144,10 @@ class TestSimplification {
       input => MapGlb(id) o Join() o Split(8) $ input
     )
 
-    TypeChecker.check(f.body)
+    val lambda = Rewrite.applyRuleUntilCannot(f, SimplificationRules.joinSplitId)
 
-    val lambdaOptions = Rewrite.rewriteJustGenerable(f, simplificationRules, 1)
-
-    assertTrue(lambdaOptions.nonEmpty)
-    lambdaOptions.zipWithIndex.foreach(l => {
-      val (result, _) = Execute(128)[Array[Float]](l._1, A)
-      assertArrayEquals(l + " failed", gold, result, 0.0f)
-    })
+    val (result, _) = Execute(128)[Array[Float]](lambda, A)
+    assertArrayEquals(gold, result, 0.0f)
   }
 
   @Test
@@ -171,16 +166,10 @@ class TestSimplification {
       input => MapGlb(MapSeq(id)) o Split(4) o Join() $ input
     )
 
-    TypeChecker.check(f.body)
+    val lambda = Rewrite.applyRuleUntilCannot(f, SimplificationRules.splitJoinId)
 
-    val lambdaOptions = Rewrite.rewriteJustGenerable(f, simplificationRules, 1)
-
-    assertTrue(lambdaOptions.nonEmpty)
-
-    lambdaOptions.zipWithIndex.foreach(l => {
-      val (result, _) = Execute(128)[Array[Float]](l._1, A)
-      assertArrayEquals(l + " failed", gold, result, 0.0f)
-    })
+    val (result, _) = Execute(128)[Array[Float]](lambda, A)
+    assertArrayEquals(gold, result, 0.0f)
   }
 
   @Test
@@ -199,13 +188,10 @@ class TestSimplification {
 
     TypeChecker.check(f.body)
 
-    val lambdaOptions = Rewrite.rewriteJustGenerable(f, simplificationRules, 1)
+    val lambda = Rewrite.applyRuleUntilCannot(f, SimplificationRules.asScalarAsVectorId)
 
-    assertTrue(lambdaOptions.nonEmpty)
-    lambdaOptions.zipWithIndex.foreach(l => {
-      val (result, _) = Execute(128)[Array[Float]](l._1, A)
-      assertArrayEquals(l + " failed", gold, result, 0.0f)
-    })
+    val (result, _) = Execute(128)[Array[Float]](lambda, A)
+    assertArrayEquals(gold, result, 0.0f)
   }
 
   @Test
@@ -224,15 +210,9 @@ class TestSimplification {
       input => MapGlb(id.vectorize(4)) o asVector(4) o asScalar() $ input
     )
 
-    TypeChecker.check(f.body)
+    val lambda = Rewrite.applyRuleUntilCannot(f, SimplificationRules.asVectorAsScalarId)
 
-    val lambdaOptions = Rewrite.rewriteJustGenerable(f, simplificationRules, 1)
-
-    assertTrue(lambdaOptions.nonEmpty)
-
-    lambdaOptions.zipWithIndex.foreach(l => {
-      val (result, _) = Execute(128)[Array[Float]](l._1, A)
-      assertArrayEquals(l + " failed", gold, result, 0.0f)
-    })
+    val (result, _) = Execute(128)[Array[Float]](lambda, A)
+    assertArrayEquals(gold, result, 0.0f)
   }
 }
