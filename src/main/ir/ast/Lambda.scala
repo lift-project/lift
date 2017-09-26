@@ -56,18 +56,6 @@ abstract case class Lambda private[ast] (params: Array[Param],
     }
   }
 
-  lazy val isGenerable: Boolean = {
-    Expr.visitWithState(true)(body, (e, s) => {
-      e match {
-        case FunCall(Map(Lambda(_, expr)), _) if expr.isConcrete => false
-        case FunCall(Reduce(Lambda(_, expr)), _, _) if expr.isConcrete => false
-        case FunCall(PartRed(Lambda(_, expr)), _, _) if expr.isConcrete => false
-        case FunCall(Id(), _) => false
-        case _ => s
-      }
-    })
-  }
-
   def getVarsInParams() =
     params.flatMap(_.t.varList).sortBy(_.name).distinct
 
