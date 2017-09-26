@@ -9,7 +9,7 @@ import opencl.ir.ast._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.{Rewrite, Rules}
+import rewriting.Rewrite
 
 object TestBuiltIn extends TestWithExecutor
 
@@ -93,7 +93,7 @@ class TestBuiltIn {
           MapSeq(VectorizeUserFun(4, mult)) $ Zip(x, y)
     )
 
-    val g = Rewrite.applyRuleAtId(f, 1, Rules.dotBuiltinSeq)
+    val g = Rewrite.applyRuleAtId(f, 1, OpenCLRules.dotBuiltinSeq)
 
     val (outputF, _) = Execute(1, 1)[Array[Float]](f, input, input)
     val (outputG, _) = Execute(1, 1)[Array[Float]](g, input, input)

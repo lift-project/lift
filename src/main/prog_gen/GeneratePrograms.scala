@@ -10,7 +10,7 @@ import opencl.executor.Eval
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot.{ArgotParser, ArgotUsageException}
 import play.api.libs.json._
-import rewriting.utils.Utils
+import rewriting.utils.{DumpToFile, Utils}
 
 import scala.sys.process._
 
@@ -87,13 +87,13 @@ object GeneratePrograms {
 
       val sizes = getInputSizeCombinations(vars.length)
 
-      val lambdaString = Utils.dumpLambdaToString(lambda)
+      val lambdaString = DumpToFile.dumpLambdaToString(lambda)
 
-      val hash = Utils.Sha256Hash(lambdaString)
+      val hash = DumpToFile.Sha256Hash(lambdaString)
       val hashPrefix = hash(0) + "/" + hash(1)
       val thisLambdaConf = s"$configurationDirectory/$hashPrefix/$hash"
 
-      Utils.dumpToFile(lambdaString, hash, s"$lambdaDirectory/$hashPrefix")
+      DumpToFile.dumpToFile(lambdaString, hash, s"$lambdaDirectory/$hashPrefix")
 
       generateConfigurations(sizes, hash, thisLambdaConf, lambda)
 
@@ -148,9 +148,9 @@ object GeneratePrograms {
       ))
 
       val settingsString = Json.prettyPrint(settings)
-      val settingsFilename = Utils.Sha256Hash(settingsString) + ".json"
+      val settingsFilename = DumpToFile.Sha256Hash(settingsString) + ".json"
 
-      Utils.dumpToFile(settingsString, settingsFilename, thisLambdaConf)
+      DumpToFile.dumpToFile(settingsString, settingsFilename, thisLambdaConf)
 
       // TODO: Run sequential for output
     })
@@ -192,7 +192,7 @@ object GeneratePrograms {
 
       val inputString = getInputString(input)
 
-      Utils.dumpToFile(inputString, filename, generatedInputsDirectory)
+      DumpToFile.dumpToFile(inputString, filename, generatedInputsDirectory)
     })
 
     logger.info(s"Inputs saved.")
@@ -215,7 +215,7 @@ object GeneratePrograms {
     val toReplace = nodes.map(Utils.extractArithExpr)
     val vars = lambda.getVarsInParams()
 
-    val factory = Eval.getMethod(Utils.dumpLambdaToMethod(lambda))
+    val factory = Eval.getMethod(DumpToFile.dumpLambdaToMethod(lambda))
 
     val replacementCombinations = splitFactors.combinations(toReplace.length)
 

@@ -8,8 +8,8 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.MacroRules
-import rewriting.utils.Utils
+import rewriting.macrorules.{MacroRules, ReuseRules, SlideTiling}
+import rewriting.utils.DumpToFile
 
 class TestHighLevelRewrite {
 
@@ -76,7 +76,7 @@ class TestHighLevelRewrite {
   )
 
   def getHash(lambda: Lambda): String =
-    Utils.Sha256Hash(Utils.dumpLambdaToString(lambda))
+    DumpToFile.Sha256Hash(DumpToFile.dumpLambdaToString(lambda))
 
   @Test ( expected = classOf[TypeException] )//see Issue #114
   def rewriteLambdaUsingInt {
@@ -102,7 +102,7 @@ class TestHighLevelRewrite {
     val gold = fun(ArrayTypeWSWC(Float, N),(p_0) => FunCall(Join(), FunCall(Join(), FunCall(Map(fun((p_1) => FunCall(Map(fun((p_2) => FunCall(Reduce(fun((p_3, p_4) => FunCall(add, p_3, p_4))), Value("0.0f", Float), p_2))), FunCall(Slide(3,1), p_1)))), FunCall(Slide((2+v__1),v__1), FunCall(Pad(1,1,Pad.Boundary.Clamp), p_0))))))
     val goldHash = getHash(gold)
 
-    val tiledSeq = Seq(MacroRules.tileStencils)
+    val tiledSeq = Seq(SlideTiling.tileStencils)
     val possibleTiled = rewrittenLambdas.filter(_._2 == tiledSeq)
 
     assertTrue(possibleTiled.exists(pair => getHash(pair._1) == goldHash))
@@ -124,8 +124,8 @@ class TestHighLevelRewrite {
     val vectorisedSeq =
       Seq(rewriter.vecZip, rewriter.vecRed)
     val partiallyVectorisedTiledSeq =
-      Seq(MacroRules.tileMapMap, MacroRules.finishTiling,
-        MacroRules.finishTiling, rewriter.vecZip)
+      Seq(ReuseRules.tileMapMap, ReuseRules.finishTiling,
+        ReuseRules.finishTiling, rewriter.vecZip)
 
     val possibleVectorised = rewrittenLambdas.filter(_._2 == vectorisedSeq)
     val possiblePartiallyVectorisedTiled =
@@ -153,17 +153,17 @@ class TestHighLevelRewrite {
     val rewrittenLambdas = rewriter(mmTransposedA)
 
     val plainTilingSeq =
-      Seq(MacroRules.tileMapMap, MacroRules.finishTiling, MacroRules.finishTiling)
+      Seq(ReuseRules.tileMapMap, ReuseRules.finishTiling, ReuseRules.finishTiling)
 
     val tilingWith1DBlockingSeq =
-      Seq(MacroRules.tileMapMap, MacroRules.finishTiling,
-        MacroRules.apply1DRegisterBlocking, MacroRules.apply1DRegisterBlocking,
-        MacroRules.finishTiling)
+      Seq(ReuseRules.tileMapMap, ReuseRules.finishTiling,
+        ReuseRules.apply1DRegisterBlocking, ReuseRules.apply1DRegisterBlocking,
+        ReuseRules.finishTiling)
 
     val tilingWith2DBlockingSeq =
-      Seq(MacroRules.tileMapMap, MacroRules.finishTiling,
-        MacroRules.apply2DRegisterBlocking, MacroRules.apply2DRegisterBlocking,
-        MacroRules.finishTiling)
+      Seq(ReuseRules.tileMapMap, ReuseRules.finishTiling,
+        ReuseRules.apply2DRegisterBlocking, ReuseRules.apply2DRegisterBlocking,
+        ReuseRules.finishTiling)
 
     val possiblePlainTiling = rewrittenLambdas.filter(_._2 == plainTilingSeq)
     val possibleOneD = rewrittenLambdas.filter(_._2 == tilingWith1DBlockingSeq)

@@ -8,7 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.{Rewrite, Rules}
+import rewriting.Rewrite
 
 object TestCopy extends TestWithExecutor
 
@@ -28,7 +28,7 @@ class TestCopy {
       case Lambda(_, FunCall(Map(Lambda(_, c)), _)) => c
     }
 
-    val value = Rewrite.applyRuleAt(f, e, Rules.addCopy)
+    val value = Rewrite.applyRuleAt(f, e, CopyRules.addCopy)
     println(value)
   }
 
@@ -43,7 +43,7 @@ class TestCopy {
       case Lambda(_, c@FunCall(_, _)) => c
     }
 
-    println(Rewrite.applyRuleAt(f, e, Rules.addCopy))
+    println(Rewrite.applyRuleAt(f, e, CopyRules.addCopy))
   }
 
   @Test
@@ -57,7 +57,7 @@ class TestCopy {
       case Lambda(_, c@FunCall(_, _)) => c
     }
 
-    println(Rewrite.applyRuleAt(f, e, Rules.addCopy))
+    println(Rewrite.applyRuleAt(f, e, CopyRules.addCopy))
   }
 
     @Test
@@ -86,11 +86,11 @@ class TestCopy {
 
     // checks that the rule is only applicable once,
     // otherwise this will fail with a StackOverflowError
-    val rewrittenG = Rewrite.applyRulesUntilCannot(g, Seq(Rules.addIdForMapWrgParam))
-    val rewrittenH = Rewrite.applyRulesUntilCannot(h, Seq(Rules.addIdForMapWrgParam))
+    val rewrittenG = Rewrite.applyRuleUntilCannot(g, CopyRules.addIdForMapWrgParam)
+    val rewrittenH = Rewrite.applyRuleUntilCannot(h, CopyRules.addIdForMapWrgParam)
 
-    assertTrue(Rules.addIdForMapWrgParam.rewrite.isDefinedAt(f.body))
-    assertTrue(Rules.addIdForMapWrgParam.rewrite.isDefinedAt(g.body))
+    assertTrue(CopyRules.addIdForMapWrgParam.rewrite.isDefinedAt(f.body))
+    assertTrue(CopyRules.addIdForMapWrgParam.rewrite.isDefinedAt(g.body))
     assertTrue(rewrittenH.body.contains({case FunCall(Id(), _) =>}))
   }
 }

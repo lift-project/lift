@@ -8,6 +8,8 @@ import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.{Assume, Test}
+import rewriting.rules._
+import rewriting.macrorules.{MacroRules, ReuseRules}
 
 object TestRewriteGemv extends TestWithExecutor
 
@@ -53,29 +55,29 @@ class TestRewriteGemv {
   def gemvAMD(): Unit = {
 
     // Algorithmic rewrite
-    val f1 = Rewrite.applyRuleAtId(f, 5, Rules.partialReduce)
-    val f2 = Rewrite.applyRuleAtId(f1, 6, Rules.partialReduceReorder(128))
+    val f1 = Rewrite.applyRuleAtId(f, 5, ReduceRules.partialReduce)
+    val f2 = Rewrite.applyRuleAtId(f1, 6, ReduceRules.partialReduceReorder(128))
     val f3 = Rewrite.applyRuleAtId(f2, 8, Rules.reorderBothSidesWithStride(128))
-    val f4 = Rewrite.applyRuleAtId(f3, 7, Rules.gatherScatterId)
+    val f4 = Rewrite.applyRuleAtId(f3, 7, SimplificationRules.gatherScatterId)
     val f5 = Rewrite.applyRuleAtId(f4, 7, Rules.splitJoin(M/^128))
-    val f6 = Rewrite.applyRuleAtId(f5, 6, Rules.partialReduceSplitJoin(M/^128))
-    val f7 = Rewrite.applyRuleAtId(f6, 8, Rules.splitJoinId)
-    val f8 = Rewrite.applyRuleAtId(f7, 7, Rules.mapFusion)
-    val f9 = Rewrite.applyRuleAtId(f8, 14, Rules.partialReduceToReduce)
+    val f6 = Rewrite.applyRuleAtId(f5, 6, ReduceRules.partialReduceSplitJoin(M/^128))
+    val f7 = Rewrite.applyRuleAtId(f6, 8, SimplificationRules.splitJoinId)
+    val f8 = Rewrite.applyRuleAtId(f7, 7, FusionRules.mapFusion)
+    val f9 = Rewrite.applyRuleAtId(f8, 14, ReduceRules.partialReduceToReduce)
     val f10 = Rewrite.applyRuleAtId(f9, 14, MacroRules.reduceMapFusion)
 
     // Lower to OpenCL
     val f11 = Lower.lowerPartialReduces(f10)
     val f12 = Lower.lowerReduces(f11)
-    val f13 = Rewrite.applyRuleAtId(f12, 34, Rules.implementIdAsDeepCopy)
-    val f14 = Rewrite.applyRuleAtId(f13, 27, Rules.implementIdAsDeepCopy)
-    val f15 = Lower.lowerNextLevelWithRule(f14, Rules.mapWrg(0))
-    val f16 = Lower.lowerNextLevelWithRule(f15, Rules.mapLcl(0))
-    val f17 = Rewrite.applyRuleAtId(f16, 15, Rules.localMemory)
-    val f18 = Rewrite.applyRuleAtId(f17, 5, Rules.localMemory)
-    val f19 = Rewrite.applyRuleAtId(f18, 45, Rules.localMemory)
-    val f20 = Rewrite.applyRuleAtId(f19, 41, Rules.localMemory)
-    val f21 = Rewrite.applyRuleAtId(f20, 4, Rules.globalMemory)
+    val f13 = Rewrite.applyRuleAtId(f12, 34, CopyRules.implementIdAsDeepCopy)
+    val f14 = Rewrite.applyRuleAtId(f13, 27, CopyRules.implementIdAsDeepCopy)
+    val f15 = Lower.lowerNextLevelWithRule(f14, OpenCLRules.mapWrg(0))
+    val f16 = Lower.lowerNextLevelWithRule(f15, OpenCLRules.mapLcl(0))
+    val f17 = Rewrite.applyRuleAtId(f16, 15, OpenCLRules.localMemory)
+    val f18 = Rewrite.applyRuleAtId(f17, 5, OpenCLRules.localMemory)
+    val f19 = Rewrite.applyRuleAtId(f18, 45, OpenCLRules.localMemory)
+    val f20 = Rewrite.applyRuleAtId(f19, 41, OpenCLRules.localMemory)
+    val f21 = Rewrite.applyRuleAtId(f20, 4, OpenCLRules.globalMemory)
 
     val (local, global) = InferNDRange(f21, matrix, vectorX, vectorY, alpha, beta)
 
@@ -98,14 +100,14 @@ class TestRewriteGemv {
 
     val lowered = Lower.mapCombinations(f2, group0Mapping).head
 
-    val l0 = Rewrite.applyRuleAtId(lowered, 14, Rules.addIdAfterReduce)
-    val l1 = Rewrite.applyRuleAtId(l0, 14, Rules.localMemory)
-    val l2 = Rewrite.applyRuleAtId(l1, 28, Rules.implementIdAsDeepCopy)
-    val l3 = Rewrite.applyRuleAtId(l2, 5, Rules.addIdAfterReduce)
+    val l0 = Rewrite.applyRuleAtId(lowered, 14, CopyRules.addIdAfterReduce)
+    val l1 = Rewrite.applyRuleAtId(l0, 14, OpenCLRules.localMemory)
+    val l2 = Rewrite.applyRuleAtId(l1, 28, CopyRules.implementIdAsDeepCopy)
+    val l3 = Rewrite.applyRuleAtId(l2, 5, CopyRules.addIdAfterReduce)
     // TODO: Could get away with private memory & intel doesn't like all
     // TODO: threads writing the same value and one thread reading it.
-    val l4 = Rewrite.applyRuleAtId(l3, 5, Rules.localMemory)
-    val l5 = Rewrite.applyRuleAtId(l4, 38, Rules.implementIdAsDeepCopy)
+    val l4 = Rewrite.applyRuleAtId(l3, 5, OpenCLRules.localMemory)
+    val l5 = Rewrite.applyRuleAtId(l4, 38, CopyRules.implementIdAsDeepCopy)
     val l6 = Rewrite.applyRuleAtId(l5, 42, MacroRules.userFunCompositionToPrivate)
 
     val (output, _) =
@@ -123,9 +125,9 @@ class TestRewriteGemv {
     val lowered = Lower.mapCombinations(f2, group0Mapping).head
 
     val l0 = Rewrite.applyRuleAtId(lowered, 36, MacroRules.userFunCompositionToPrivate)
-    val l1 = Rewrite.applyRuleAtId(l0, 15, Rules.addIdAfterReduce)
-    val l2 = Rewrite.applyRuleAtId(l1, 27, Rules.implementIdAsDeepCopy)
-    val l3 = Rewrite.applyRuleAtId(l2, 27, Rules.localMemory)
+    val l1 = Rewrite.applyRuleAtId(l0, 15, CopyRules.addIdAfterReduce)
+    val l2 = Rewrite.applyRuleAtId(l1, 27, CopyRules.implementIdAsDeepCopy)
+    val l3 = Rewrite.applyRuleAtId(l2, 27, OpenCLRules.localMemory)
 
     val (output, _) =
       Execute()[Array[Float]](l3, matrix, vectorX, vectorY, alpha, beta)
@@ -136,9 +138,9 @@ class TestRewriteGemv {
   @Test
   def gemvVectorised(): Unit = {
 
-    val f1 = Rewrite.applyRuleAtId(f, 6, Rules.vectorizeMapZip(4))
+    val f1 = Rewrite.applyRuleAtId(f, 6, OpenCLRules.vectorizeMapZip(4))
     val f2 = Rewrite.applyRuleAtId(f1, 5, MacroRules.vectorizeReduce(4))
-    val f3 = Rewrite.applyRuleAtId(f2, 7, Rules.partialReduceToReduce)
+    val f3 = Rewrite.applyRuleAtId(f2, 7, ReduceRules.partialReduceToReduce)
     val f4 = SimplifyAndFuse(f3)
     assertTrue(HighLevelRewrite.filterByDistance(f4))
   }
@@ -149,17 +151,17 @@ class TestRewriteGemv {
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
 
     val f13 = Rewrite.applyRuleAtId(f1, 6, MacroRules.interchange)
-    val f5 = Rewrite.applyRuleAtId(f13, 9, MacroRules.introduceReuseFromMap(64))
-    val f11 = Rewrite.applyRuleAtId(f5, 12, MacroRules.introduceReuseFromMap(64))
+    val f5 = Rewrite.applyRuleAtId(f13, 9, ReuseRules.introduceReuseFromMap(64))
+    val f11 = Rewrite.applyRuleAtId(f5, 12, ReuseRules.introduceReuseFromMap(64))
 
     val lowered = Lower.mapCombinations(f11, group0Mapping).head
 
-    val l8 = Rewrite.applyRuleAtId(lowered, 8, Rules.addIdForCurrentValueInReduce)
-    val l9 = Rewrite.applyRuleAtId(l8, 23, Rules.implementOneLevelOfId)
-    val l11 = Rewrite.applyRuleAtId(l9, 24, Rules.dropId)
-    val l12 = Rewrite.applyRuleAtId(l11, 26, Rules.implementIdAsDeepCopy)
-    val l14 = Rewrite.applyRuleAtId(l12, 26, Rules.localMemory)
-    val l13 = Lower.lowerNextLevelWithRule(l14, Rules.mapLcl)
+    val l8 = Rewrite.applyRuleAtId(lowered, 8, CopyRules.addIdForCurrentValueInReduce)
+    val l9 = Rewrite.applyRuleAtId(l8, 23, CopyRules.implementOneLevelOfId)
+    val l11 = Rewrite.applyRuleAtId(l9, 24, SimplificationRules.dropId)
+    val l12 = Rewrite.applyRuleAtId(l11, 26, CopyRules.implementIdAsDeepCopy)
+    val l14 = Rewrite.applyRuleAtId(l12, 26, OpenCLRules.localMemory)
+    val l13 = Lower.lowerNextLevelWithRule(l14, OpenCLRules.mapLcl)
 
     val l15 = Rewrite.applyRuleAtId(l13, 60, MacroRules.userFunCompositionToPrivate)
 

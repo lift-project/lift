@@ -11,6 +11,8 @@ import opencl.ir._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
+import rewriting.macrorules.{MacroRules, ReuseRules}
+import rewriting.rules.{CopyRules, OpenCLRules, Rules}
 
 object TestRewriteNbody extends TestWithExecutor
 
@@ -46,16 +48,16 @@ class TestRewriteNbody {
 
     val f12 = Rewrite.applyRuleAtId(f1, 6, MacroRules.interchange)
 
-    val f4 = Rewrite.applyRuleAtId(f12, 9, MacroRules.introduceReuseFromMap(128))
-    val f11 = Rewrite.applyRuleAtId(f4, 12, MacroRules.introduceReuseFromMap(128))
+    val f4 = Rewrite.applyRuleAtId(f12, 9, ReuseRules.introduceReuseFromMap(128))
+    val f11 = Rewrite.applyRuleAtId(f4, 12, ReuseRules.introduceReuseFromMap(128))
 
 
     val lowered = Lower.mapCombinations(f11, group0Mapping).head
 
-    val f21 = Rewrite.applyRuleAtId(lowered, 8, Rules.addIdForCurrentValueInReduce)
-    val f22 = Rewrite.applyRuleAtId(f21, 16, Rules.implementIdAsDeepCopy)
-    val f27 = Rewrite.applyRuleAtId(f22, 16, Rules.localMemory)
-    val f28 = Lower.lowerNextLevelWithRule(f27, Rules.mapLcl)
+    val f21 = Rewrite.applyRuleAtId(lowered, 8, CopyRules.addIdForCurrentValueInReduce)
+    val f22 = Rewrite.applyRuleAtId(f21, 16, CopyRules.implementIdAsDeepCopy)
+    val f27 = Rewrite.applyRuleAtId(f22, 16, OpenCLRules.localMemory)
+    val f28 = Lower.lowerNextLevelWithRule(f27, OpenCLRules.mapLcl)
 
     val (output, _) =
       Execute()[Array[Float]](f28, pos, vel, espSqr, deltaT)
@@ -73,13 +75,13 @@ class TestRewriteNbody {
 
     val lowered = Lower.mapCombinations(f0, group0Mapping).head
 
-    val l0 = Rewrite.applyRuleAtId(lowered , 11, Rules.addIdAfterReduce)
-    val l1 = Rewrite.applyRuleAtId(l0, 24, Rules.implementIdAsDeepCopy)
-    val l2 = Rewrite.applyRuleAtId(l1, 11, Rules.localMemory)
+    val l0 = Rewrite.applyRuleAtId(lowered , 11, CopyRules.addIdAfterReduce)
+    val l1 = Rewrite.applyRuleAtId(l0, 24, CopyRules.implementIdAsDeepCopy)
+    val l2 = Rewrite.applyRuleAtId(l1, 11, OpenCLRules.localMemory)
     // TODO: Could get away with private memory
-    val l3 = Rewrite.applyRuleAtId(l2, 5, Rules.addIdAfterReduce)
-    val l4 = Rewrite.applyRuleAtId(l3, 34, Rules.implementIdAsDeepCopy)
-    val l5 = Rewrite.applyRuleAtId(l4, 5, Rules.localMemory)
+    val l3 = Rewrite.applyRuleAtId(l2, 5, CopyRules.addIdAfterReduce)
+    val l4 = Rewrite.applyRuleAtId(l3, 34, CopyRules.implementIdAsDeepCopy)
+    val l5 = Rewrite.applyRuleAtId(l4, 5, OpenCLRules.localMemory)
 
     val (output, _) = Execute()[Array[Float]](l5, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.001f)

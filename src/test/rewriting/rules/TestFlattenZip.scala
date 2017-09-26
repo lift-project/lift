@@ -7,7 +7,7 @@ import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.{Rewrite, Rules}
+import rewriting.Rewrite
 
 import scala.util.Random
 
@@ -33,7 +33,7 @@ class TestFlattenZip {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.flattenZips.isDefinedAt(f.body))
+    assertFalse(SimplificationRules.flattenZips.isDefinedAt(f.body))
   }
 
   @Test
@@ -44,7 +44,7 @@ class TestFlattenZip {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.flattenZips.isDefinedAt(f.body))
+    assertFalse(SimplificationRules.flattenZips.isDefinedAt(f.body))
   }
 
   @Test
@@ -55,7 +55,7 @@ class TestFlattenZip {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.flattenZips.isDefinedAt(f.body))
+    assertFalse(SimplificationRules.flattenZips.isDefinedAt(f.body))
   }
 
   @Test
@@ -66,7 +66,7 @@ class TestFlattenZip {
     )
 
     TypeChecker(f)
-    assertFalse(Rules.flattenZips.isDefinedAt(f.body))
+    assertFalse(SimplificationRules.flattenZips.isDefinedAt(f.body))
   }
 
   @Test
@@ -77,9 +77,9 @@ class TestFlattenZip {
     )
 
     val origType = TypeChecker(f)
-    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.flattenZips.isDefinedAt(f.body))
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.flattenZips)
     val resultType = TypeChecker(result)
 
     assertEquals(origType, resultType)
@@ -93,9 +93,9 @@ class TestFlattenZip {
     )
 
     val origType = TypeChecker(f)
-    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.flattenZips.isDefinedAt(f.body))
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.flattenZips)
     val resultType = TypeChecker(result)
 
     assertEquals(origType, resultType)
@@ -109,9 +109,9 @@ class TestFlattenZip {
     )
 
     val origType = TypeChecker(f)
-    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.flattenZips.isDefinedAt(f.body))
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.flattenZips)
     val resultType = TypeChecker(result)
 
     assertEquals(origType, resultType)
@@ -132,14 +132,14 @@ class TestFlattenZip {
     )
 
     val origType = TypeChecker(f)
-    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.flattenZips.isDefinedAt(f.body))
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.flattenZips)
     val resultType = TypeChecker(result)
 
     assertEquals(origType, resultType)
 
-    val lowered = Rewrite.applyRulesUntilCannot(result, Seq(Rules.mapSeq))
+    val lowered = Rewrite.applyRuleUntilCannot(result, OpenCLRules.mapSeq)
 
     val (output, _) = Execute()[Array[Float]](lowered, x,y,z)
 
@@ -163,14 +163,14 @@ class TestFlattenZip {
     )
 
     val origType = TypeChecker(f)
-    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.flattenZips.isDefinedAt(f.body))
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.flattenZips)
     val resultType = TypeChecker(result)
 
     assertEquals(origType, resultType)
 
-    val lowered = Rewrite.applyRulesUntilCannot(result, Seq(Rules.mapSeq))
+    val lowered = Rewrite.applyRuleUntilCannot(result, OpenCLRules.mapSeq)
 
     val (output, _) = Execute()[Array[Float]](lowered, x,y,z)
 
@@ -191,14 +191,14 @@ class TestFlattenZip {
     )
 
     val origType = TypeChecker(f)
-    assertTrue(Rules.flattenZips.isDefinedAt(f.body))
+    assertTrue(SimplificationRules.flattenZips.isDefinedAt(f.body))
 
-    val result = Rewrite.applyRuleAtId(f, 0, Rules.flattenZips)
+    val result = Rewrite.applyRuleAtId(f, 0, SimplificationRules.flattenZips)
     val resultType = TypeChecker(result)
 
     assertEquals(origType, resultType)
 
-    val lowered = Rewrite.applyRulesUntilCannot(result, Seq(Rules.mapSeq))
+    val lowered = Rewrite.applyRuleUntilCannot(result, OpenCLRules.mapSeq)
 
     val (output, _) = Execute()[Array[Float]](lowered, x,y,z,w)
 
