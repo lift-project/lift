@@ -14,9 +14,14 @@ object TestSimplification extends TestWithExecutor
 
 class TestSimplification {
 
+  import SimplifyAndFuse.getNumberOfTerms
+
   private val N = SizeVar("N")
   private val M = SizeVar("M")
   private val A = Array.fill[Float](128)(0.5f)
+
+  private def checkSimplifiedIsSmaller(original: Lambda, simplified: Lambda) =
+    assertTrue(getNumberOfTerms(simplified) < getNumberOfTerms(original))
 
   @Test
   def scatterGatherWithRangesDivided(): Unit = {
@@ -148,6 +153,7 @@ class TestSimplification {
 
     val (result, _) = Execute(128)[Array[Float]](lambda, A)
     assertArrayEquals(gold, result, 0.0f)
+    checkSimplifiedIsSmaller(f, lambda)
   }
 
   @Test
@@ -170,6 +176,7 @@ class TestSimplification {
 
     val (result, _) = Execute(128)[Array[Float]](lambda, A)
     assertArrayEquals(gold, result, 0.0f)
+    checkSimplifiedIsSmaller(f, lambda)
   }
 
   @Test
@@ -192,6 +199,7 @@ class TestSimplification {
 
     val (result, _) = Execute(128)[Array[Float]](lambda, A)
     assertArrayEquals(gold, result, 0.0f)
+    checkSimplifiedIsSmaller(f, lambda)
   }
 
   @Test
@@ -214,5 +222,6 @@ class TestSimplification {
 
     val (result, _) = Execute(128)[Array[Float]](lambda, A)
     assertArrayEquals(gold, result, 0.0f)
+    checkSimplifiedIsSmaller(f, lambda)
   }
 }

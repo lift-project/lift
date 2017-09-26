@@ -14,8 +14,13 @@ object TestFusion extends TestWithExecutor
 
 class TestFusion {
 
+  import SimplifyAndFuse.getNumberOfTerms
+
   private val N = SizeVar("N")
   private val A = Array.fill[Float](128)(0.5f)
+
+  private def checkFusedIsSmaller(original: Lambda, fused: Lambda) =
+    assertTrue(getNumberOfTerms(fused) < getNumberOfTerms(original))
 
   @Test
   def ReduceSeqMapSeqArray(): Unit = {
@@ -42,6 +47,7 @@ class TestFusion {
 
     val (result, _) = Execute(1, 1)[Array[Float]](lambda, A)
     assertArrayEquals(gold, result, 0.0f)
+    checkFusedIsSmaller(f, lambda)
   }
 
   @Test
@@ -66,6 +72,7 @@ class TestFusion {
 
     val (result, _) = Execute(1, 1)[Array[Float]](lambda, A, a)
     assertArrayEquals(gold, result, 0.0f)
+    checkFusedIsSmaller(f, lambda)
   }
 
   @Test
@@ -86,6 +93,7 @@ class TestFusion {
 
     val (result, _) = Execute(1, 1)[Array[Float]](lambda, A)
     assertArrayEquals(gold, result, 0.0f)
+    checkFusedIsSmaller(f, lambda)
   }
 
   @Test
@@ -111,5 +119,6 @@ class TestFusion {
 
     val (result, _) = Execute(1, 1)[Array[Float]](lambda, A)
     assertArrayEquals(gold, result, 0.0f)
+    checkFusedIsSmaller(f, lambda)
   }
 }
