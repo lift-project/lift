@@ -19,7 +19,7 @@ class TestAcousticOpt {
 
   @Test
   def testTwoGridsThreeCalculationsAsym3DGeneralNoMaskWithOnlyOneWeights(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val compareData = AcousticComparisonArrays.testTwoGridsThreeCalculationsAsym3DGeneralNoMaskComparisonData8x4x12
 
@@ -67,7 +67,7 @@ class TestAcousticOpt {
 
       val source = Compile(newLambda)
 
-      val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true, true))(source, newLambda,stencilarr3D,stencilarrOther3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D,const1) // stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+      val (output, runtime) = Execute(2,2,2,2,2,2, (true, true))[Array[Float]](source, newLambda,stencilarr3D,stencilarrOther3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D,const1) // stencilarr3D, stencilarr3DCopy, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
 
       if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
 
@@ -83,7 +83,7 @@ class TestAcousticOpt {
 
   @Test
   def testTwoGridsThreeCalculationsWithMaskAsym3DGeneralOneWeights(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
    val compareData = AcousticComparisonArrays.testTwoGridsThreeCalculationsWithMaskAsym3DGeneralComparisonData4x6x10
 
@@ -141,7 +141,7 @@ class TestAcousticOpt {
       val newLambda = SimplifyAndFuse(lambdaNeigh)
       val source = Compile(newLambda)
 
-      val (output: Array[Float], runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))(source, newLambda,  stencilarr3D, stencilarrOther3D, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+      val (output, runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))[Array[Float]](source, newLambda,  stencilarr3D, stencilarrOther3D, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
       if (StencilUtilities.printOutput)
       {
         StencilUtilities.printOriginalAndOutput3D(data, output)
@@ -193,7 +193,7 @@ class TestAcousticOpt {
       }
     )
 
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true, true))(stencil, input3D, StencilUtilities.weightsMiddle3D.flatten.flatten)
+    val (output, runtime) = Execute(2,2,2,2,2,2, (true, true))[Array[Float]](stencil, input3D, StencilUtilities.weightsMiddle3D.flatten.flatten)
 
     if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(input3D, output)
     assertArrayEquals(compareData.flatten.flatten, output, StencilUtilities.stencilDelta)
@@ -203,7 +203,7 @@ class TestAcousticOpt {
 
   @Test
   def testSimple3DStencilWithAt(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val compareData = Array(
       1.0f, 2.0f, 3.0f, 4.0f,
@@ -245,7 +245,7 @@ class TestAcousticOpt {
       })
 
     val source = Compile(lambdaNeigh)
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,lambdaNeigh, input3D, StencilUtilities.weightsMiddle3D.flatten.flatten)
+    val (output, runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](source,lambdaNeigh, input3D, StencilUtilities.weightsMiddle3D.flatten.flatten)
 
     if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(input3D, output)
 
@@ -255,7 +255,7 @@ class TestAcousticOpt {
 
   @Test
   def test3DAsymNoMaskStencilWithAt(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val compareData = AcousticComparisonArrays.testTwoGridsThreeCalculationsAsym3DGeneralNoMaskComparisonData8x4x12
 
@@ -309,7 +309,7 @@ class TestAcousticOpt {
 
     val source = Compile(lambdaNeighAt)
 
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,lambdaNeighAt, data, stencilarrOther3D, StencilUtilities.weightsMiddle3D.flatten.flatten)
+    val (output, runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](source,lambdaNeighAt, data, stencilarrOther3D, StencilUtilities.weightsMiddle3D.flatten.flatten)
 
     if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
 
@@ -319,7 +319,7 @@ class TestAcousticOpt {
 
   @Test
   def test3DAsymMaskStencilWithAt(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val compareData = AcousticComparisonArrays.testTwoGridsThreeCalculationsWithMaskAsym3DGeneralComparisonData4x6x10
     val localDimX = 4
@@ -411,7 +411,7 @@ class TestAcousticOpt {
     val newLambda = SimplifyAndFuse(lambdaNeighAt)
     val source = Compile(newLambda)
 
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,newLambda, data, stencilarrOther3D, mask3D)
+    val (output, runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](source,newLambda, data, stencilarrOther3D, mask3D)
 
     if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
 
@@ -437,7 +437,7 @@ class TestAcousticOpt {
       }
     )
 
-    val (output: Array[Float], runtime) = Execute(4,4,4,4,4,4, (true, true))(stencil, data)
+    val (output, runtime) = Execute(4,4,4,4,4,4, (true, true))[Array[Float]](stencil, data)
     StencilUtilities.print2DArray(data)
     StencilUtilities.print1DArray(output)
     StencilUtilities.print1DArrayAs3DArray(output,3,3,4)
@@ -465,7 +465,7 @@ class TestAcousticOpt {
       input => toGlobal(MapGlb(MapSeq(MapSeq(idI)))) $ Array3DFromUserFunGenerator(idxF, inp3d)
     )
 
-    val (output: Array[Int], _) = Execute(2,2,2,2,2,2,(true,true))(numberOfNeighbours, input3D)
+    val (output, _) = Execute(2,2,2,2,2,2,(true,true))[Array[Int]](numberOfNeighbours, input3D)
 
     if(StencilUtilities.printOutput)
     {

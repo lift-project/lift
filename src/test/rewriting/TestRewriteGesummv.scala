@@ -89,7 +89,7 @@ class TestRewriteGesummv {
     // Won't write to accumulator without this
     val f18 = Rewrite.applyRuleAtId(f17, 17, CopyRules.tupleToStruct)
 
-    val (y: Array[Float], _) = Execute(n)(f18, A, B, x, alpha, beta)
+    val (y, _) = Execute(n)[Array[Float]](f18, A, B, x, alpha, beta)
 
     assertArrayEquals(yGold, y, 0.001f)
   }
@@ -116,7 +116,7 @@ class TestRewriteGesummv {
     // Won't write to accumulator without this
     val f18 = Rewrite.applyRuleAtId(f17, 27, CopyRules.tupleToStruct)
 
-    val (y: Array[Float], _) = Execute(n)(f18, A, B, x, alpha, beta)
+    val (y, _) = Execute(n)[Array[Float]](f18, A, B, x, alpha, beta)
 
     assertArrayEquals(yGold, y, 0.001f)
   }
@@ -146,7 +146,7 @@ class TestRewriteGesummv {
 
     val code = Compile(finalExpr, local, global)
 
-    val (y: Array[Float], _) = Execute()(code, finalExpr, A, B, x, alpha, beta)
+    val (y, _) = Execute()[Array[Float]](code, finalExpr, A, B, x, alpha, beta)
 
     assertArrayEquals(yGold, y, 0.001f)
   }
@@ -195,7 +195,7 @@ class TestRewriteGesummv {
     val l6 = Rewrite.applyRuleAtId(l5, 47, CopyRules.implementIdAsDeepCopy)
     val l7 = Rewrite.applyRuleAtId(l6, 47, OpenCLRules.localMemory)
 
-    val (y: Array[Float], _) = Execute()(l7, A, B, x, alpha, beta)
+    val (y, _) = Execute()[Array[Float]](l7, A, B, x, alpha, beta)
 
     assertArrayEquals(yGold, y, 0.001f)
   }

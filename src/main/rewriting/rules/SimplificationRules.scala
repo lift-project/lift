@@ -54,6 +54,7 @@ object SimplificationRules {
     => arg
   })
 
+  // Zip(a, b, a) => Zip(a, b)
   val removeDuplicateZipArg = Rule("removeDuplicateZipArgument", {
     case FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), args@_*))
       if args.distinct.size < args.size && !(p eq body) &&
@@ -93,6 +94,7 @@ object SimplificationRules {
       }
   })
 
+  // Zip(Zip(a, b), Zip(c, d), e) => Zip(a, b, c, d, e)
   val flattenZips = Rule("flattenZips", {
     case FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), zipArgs@_*))
       if zipArgs.exists({
@@ -100,22 +102,28 @@ object SimplificationRules {
         case _ => false
       })  && !(p eq body) &&
         {
-          val (zips, _) = zipArgs.zipWithIndex.partition({
-            case (FunCall(Zip(_), _*), _) => true
-            case _ => false
-          })
+          // To be able to replace all old usages of p they must all appear
+          // in body with the appropriate number of Gets. Otherwise, some result of Zip
+          // can leave body and we can't replace it from inside this rule.
 
-          // If the zip result is used, it must be in a get
+          // Check that all usages of `p` are of the form `FunCall(Get(_), p)`
           val nonZipsUsedCorrectly = !body.contains({
             case FunCall(f, args@_*) if args.exists(_ eq p) && !f.isInstanceOf[Get] =>
           })
 
-          val zipsUsedCorrectly = zips.map(_._2).forall(id => {
+          // Find the indices of zips being inlined into the existing one
+          val zipIndices = zipArgs.zipWithIndex.collect({
+            case (FunCall(Zip(_), _*), index) => index
+          })
 
-            // If this component is used, it must have a second get around it
+          // Check That all usages of `p` that refer to e.g. `Zip(a,b)` are of the form
+          // `FunCall(Get(_), FunCall(Get(_), p))`
+          val zipsUsedCorrectly = zipIndices.forall(id => {
+
             val thisZipUsages = Utils.collect(body, {
               case FunCall(Get(actual_id), arg) if actual_id == id && (p eq arg) => })
 
+            // If this component is used, it must have a second get around it
             thisZipUsages.forall(zipUse =>
               body.contains({ case FunCall(Get(_), arg) if zipUse eq arg => }))
           })

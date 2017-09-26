@@ -44,8 +44,8 @@ class TestBuiltIn {
           MapSeq(dot) $ Zip(x, y)
     )
 
-    val (outputF: Array[Float], _) = Execute(1, 1)(f, input, input)
-    val (outputG: Array[Float], _) = Execute(1, 1)(g, input, input)
+    val (outputF, _) = Execute(1, 1)[Array[Float]](f, input, input)
+    val (outputG, _) = Execute(1, 1)[Array[Float]](g, input, input)
 
     assertEquals(gold, outputF.head, 0.001f)
     assertEquals(gold, outputG.head, 0.001f)
@@ -73,8 +73,8 @@ class TestBuiltIn {
           MapSeq(dot) $ Zip(x, y)
     )
 
-    val (outputF: Array[Float], _) = Execute(1, 1)(f, input, input)
-    val (outputG: Array[Float], _) = Execute(1, 1)(g, input, input)
+    val (outputF, _) = Execute(1, 1)[Array[Float]](f, input, input)
+    val (outputG, _) = Execute(1, 1)[Array[Float]](g, input, input)
 
     assertEquals(gold, outputF.head, 0.001f)
     assertEquals(gold, outputG.head, 0.001f)
@@ -95,8 +95,8 @@ class TestBuiltIn {
 
     val g = Rewrite.applyRuleAtId(f, 1, OpenCLRules.dotBuiltinSeq)
 
-    val (outputF: Array[Float], _) = Execute(1, 1)(f, input, input)
-    val (outputG: Array[Float], _) = Execute(1, 1)(g, input, input)
+    val (outputF, _) = Execute(1, 1)[Array[Float]](f, input, input)
+    val (outputG, _) = Execute(1, 1)[Array[Float]](g, input, input)
 
     assertEquals(gold, outputF.head, 0.001f)
     assertEquals(gold, outputG.head, 0.001f)

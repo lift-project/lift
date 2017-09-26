@@ -121,7 +121,8 @@ object Rules {
       Split(length) o Map(f) o Join() $ arg
   })
 
-  val splitJoinReduce = Rule("Reduce(f) => Join() o Map(Reduce(f)) o Split(N)", {
+  // Required for avoiding data races
+  val splitJoinReduce = Rule("Reduce(f) $ data => Join() o Map(Reduce(f)) o Split(data.length)", {
     case FunCall(red: Reduce, init, arg) =>
 
       val length = arg.t match { case ArrayTypeWS(_, n) => n }
@@ -222,7 +223,7 @@ object Rules {
   }}
 
   val joinFromZip = Rule(" Zip(Join() $ ..., Join() $ ..., ...) => " +
-                      "Join() o Zip(...)", {
+    "Join() o Map(Zip(...)) $ Zip(...)", {
     case FunCall(Zip(_), zipArgs@_*)
       if zipArgs.forall(joinCall.isDefinedAt) && zipArgs.map(getOutermostLengths).distinct.size == 1
     =>

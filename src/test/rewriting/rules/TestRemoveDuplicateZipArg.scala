@@ -32,8 +32,8 @@ class TestRemoveDuplicateZipArg {
     val loweredOriginal = Lower.sequential(original)
     val loweredResult = Lower.sequential(result)
 
-    val (outputOriginal: Array[Float], _) = Execute()(loweredOriginal, args:_*)
-    val (outputResult: Array[Float], _) = Execute()(loweredResult, args:_*)
+    val (outputOriginal, _) = Execute()[Array[Float]](loweredOriginal, args:_*)
+    val (outputResult, _) = Execute()[Array[Float]](loweredResult, args:_*)
 
     assertArrayEquals(outputOriginal, outputResult, 0.001f)
   }
