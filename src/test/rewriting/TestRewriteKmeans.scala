@@ -7,6 +7,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit._
+import rewriting.rules.{CopyRules, FissionRules, OpenCLRules, Rules}
 import rodinia.Kmeans._
 
 object TestRewriteKmeans extends TestWithExecutor
@@ -35,18 +36,24 @@ class TestRewriteKmeans {
     )
 
     val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(128))
-    val f2 = Rewrite.applyRuleAtId(f1, 8, Rules.addIdRed)
-    val f3 = Rewrite.applyRuleAtId(f2, 9, Rules.implementIdAsDeepCopy)
-    val f4 = Rewrite.applyRuleAtId(f3, 5, Rules.mapFission)
-    val f5 = Rewrite.applyRuleAtId(f4, 6, Rules.extractFromMap)
-    val f6 = Rewrite.applyRuleAtId(f5, 5, Rules.mapFusion)
-    val f7 = Lower.lowerNextLevelWithRule(f6, Rules.mapWrg)
-    val f8 = Lower.lowerNextLevelWithRule(f7, Rules.mapLcl)
-    val f9 = Lower.lowerNextLevelWithRule(f8, Rules.mapSeq)
-    val f10 = Lower.lowerNextLevelWithRule(f9, Rules.mapSeq)
-    val f11 = Rewrite.applyRuleAtId(f10, 14, Rules.globalMemory)
-    val f12 = Rewrite.applyRuleAtId(f11, 6, Rules.localMemory)
-    val f13 = Rewrite.applyRuleAtId(f12, 23, MacroRules.reduceMapFusion)
+
+    // TODO: Next 3 should come after parallelism mapping
+    val f2 = Rewrite.applyRuleAtId(f1, 8, CopyRules.addIdRed)
+    val f4 = Rewrite.applyRuleAtId(f2, 5, FissionRules.mapFission)
+    val f5 = Rewrite.applyRuleAtId(f4, 6, FissionRules.extractFromMap)
+
+    val f6 = SimplifyAndFuse(f5)
+
+    val lastToGlobal = Lower.lastWriteToGlobal(f6)
+    val f7 = Lower.lowerNextLevelWithRule(lastToGlobal, OpenCLRules.mapWrg)
+    val f8 = Lower.lowerNextLevelWithRule(f7, OpenCLRules.mapLcl)
+    val f9 = Lower.lowerNextLevelWithRule(f8, OpenCLRules.mapSeq)
+    val f10 = Lower.lowerNextLevelWithRule(f9, OpenCLRules.mapSeq)
+
+    val f12 = Rewrite.applyRuleAtId(f10, 6, OpenCLRules.localMemory)
+    val f3 = Rewrite.applyRuleAtId(f12, 8, CopyRules.implementIdAsDeepCopy)
+    val l0 = Lower.lowerNextLevelWithRule(f3, OpenCLRules.mapLcl)
+    val l1 = Lower.lowerNextLevelWithRule(l0, OpenCLRules.mapSeq)
 
     val numPoints = 1024
     val numClusters = 5
@@ -57,7 +64,7 @@ class TestRewriteKmeans {
 
     val gold = calculateMembership(points, clusters)
 
-    val (output, _) = Execute(numPoints)[Array[Int]](f13, points.transpose, clusters)
+    val (output, _) = Execute(numPoints)[Array[Int]](l1, points.transpose, clusters)
     assertArrayEquals(gold, output)
   }
 }

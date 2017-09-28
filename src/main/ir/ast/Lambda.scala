@@ -20,7 +20,7 @@ abstract case class Lambda private[ast] (params: Array[Param],
   /**
    * Debug string representation
    */
-  override def toString: String = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
+  override def toString = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
       " -> \n" + body.toString.split("\n").map("  " + _ + "\n").mkString + ")"
 
   override def checkType(argType: Type,
@@ -45,7 +45,6 @@ abstract case class Lambda private[ast] (params: Array[Param],
     val allParams = args.forall(_.isInstanceOf[Param])
 
     if (!inline && !allParams) {
-//    if (!inline) {
       super.apply(args:_*)
     } else {
 
@@ -55,15 +54,6 @@ abstract case class Lambda private[ast] (params: Array[Param],
         case (e, (p, a)) => Expr.replace(e, p, a)
       }
     }
-  }
-
-  override lazy val isGenerable: Boolean = {
-    Expr.visitWithState(true)(body, (e, s) => {
-      e match {
-        case call: FunCall if !call.f.isGenerable => false
-        case _ => s
-      }
-    })
   }
 
   /**

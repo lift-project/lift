@@ -281,7 +281,7 @@ abstract class Benchmark2[T: ClassTag](val name: String,
 
       // if we want to save the compilation result, do it
       if (saveAll.value.getOrElse(false)) {
-        rewriting.utils.Utils.dumpToFile(KS, s"${name}.kernel", ".kernels")
+        rewriting.utils.DumpToFile.dumpToFile(KS, s"${name}.kernel", ".kernels")
       }
       KS
     }

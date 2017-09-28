@@ -216,7 +216,11 @@ class OpenCLGenerator extends Generator {
         case FunCall(vec: VectorizeUserFun, _*) => typeList ++ vec.vectorizedFunction.tupleTypes
         case _ =>
           expr.t match {
-            case t: TupleType if t.elemsT.forall(!_.isInstanceOf[ArrayType]) => typeList + t
+            case t: TupleType if t.elemsT.forall(t => {
+              var containsArray = false
+              Type.visit(t, x => containsArray ||= x.isInstanceOf[ArrayType], _ => Unit)
+              !containsArray
+            }) => typeList + t
             case _ => typeList
           }
       }
@@ -251,8 +255,14 @@ class OpenCLGenerator extends Generator {
         throw new IllegalKernel(s"Illegal use of $call without MapWrg($dim)")
       case call@FunCall(toLocal(_), _) if !call.context.inMapWrg.reduce(_ || _) =>
         throw new IllegalKernel(s"Illegal use of local memory, without using MapWrg $call")
-      case call@FunCall(Map(nestedLambda), _*) if nestedLambda.body.isConcrete =>
+      case call@FunCall(Map(Lambda(_, expr)), _*) if expr.isConcrete =>
         throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
+      case call@FunCall(Reduce(Lambda(_, expr)), _, _) if expr.isConcrete =>
+        throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
+      case call@FunCall(PartRed(Lambda(_, expr)), _, _) if expr.isConcrete =>
+        throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
+      case call@FunCall(Id(), _) =>
+        throw new IllegalKernel(s"Illegal use of Id where it won't generate a copy in $call")
       case _ =>
     })
 
@@ -1613,8 +1623,9 @@ class OpenCLGenerator extends Generator {
 
                 case PrivateMemory =>
 
+                  val declaration = privateDecls.find(m => m._1 == mem.variable)
                   val arraySuffix =
-                    if (privateMems.exists(m => m.mem == mem)) // check if this is actually an array
+                    if (declaration.isDefined && declaration.get._2.t.isInstanceOf[ArrayType]) // check if this is actually an array
                       arrayAccessPrivateMem(mem.variable, innerView)
                     else // Workaround for values
                       ""

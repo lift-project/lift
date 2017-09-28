@@ -164,7 +164,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
         if (quickCheck) {
           // TODO: Quicker way of rebuilding expressions and getting rid
           // TODO: of sharing components? And making sure it's legal
-          val newProgram = Eval(rewriting.utils.Utils.dumpLambdaToString(program))
+          val newProgram = Eval(rewriting.utils.DumpToFile.dumpLambdaToString(program))
           // TODO: Returning tuples is currently not supported, see issue #36
           !TypeChecker(newProgram).isInstanceOf[TupleType]
         } else {
@@ -185,7 +185,7 @@ class ProgramGenerator(val loopNum: Int = 30, var limitNum: Int = 40) {
   private def filterDuplicates(): Unit = {
 
     val grouped = RefinedResult.groupBy(l =>
-      rewriting.utils.Utils.Sha256Hash(rewriting.utils.Utils.dumpLambdaToString(l)))
+      rewriting.utils.DumpToFile.Sha256Hash(rewriting.utils.DumpToFile.dumpLambdaToString(l)))
 
     RefinedResult = grouped.map(_._2.head).toBuffer
   }

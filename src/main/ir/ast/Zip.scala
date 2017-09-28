@@ -21,7 +21,8 @@ import opencl.generator.StrictZip
  *
  * @param n The number of arrays which are combined. Must be >= 2.
  */
-case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
+case class Zip(n : Int) extends Pattern(arity = n) {
+
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {

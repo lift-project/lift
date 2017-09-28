@@ -1,0 +1,33 @@
+val mapFun = UserFun("mapFun",
+  Array("sX", "sY", "sZ", "Kx", "Ky", "Kz", "PhiMag"),
+  """{
+    |    #define PIx2 6.2831853071795864769252867665590058f
+    |    float expArg = PIx2 * (Kx * sX + Ky * sY + Kz * sZ);
+    |    Tuple2_float_float bla = { PhiMag * cos(expArg), PhiMag * sin(expArg) };
+    |    return  bla;
+    |}""".stripMargin,
+  Seq(Float, Float, Float, Float, Float, Float, Float), TupleType(Float, Float))
+
+val reduceFun = UserFun("reduceFun",
+  Array("x", "y"),
+  """{
+        | x._0 += y._0;
+        | x._1 += y._1;
+        | return x;
+      }""".stripMargin,
+  Seq(TupleType(Float, Float), TupleType(Float, Float)), TupleType(Float, Float))
+
+val xSize = SizeVar("X")
+val kSize = SizeVar("K")
+
+fun(
+    ArrayType(Float, xSize),
+    ArrayType(Float, xSize),
+    ArrayType(Float, xSize),
+    ArrayType(TupleType(Float, Float, Float, Float), kSize),
+    (x, y, z, kValues) =>
+      Map(\(t =>
+        Reduce(reduceFun, Value("{ 0.0f, 0.0f}", TupleType(Float, Float))) o
+          Map(\(k => mapFun(t._0, t._1, t._2, k._0, k._1, k._2, k._3))) $ kValues
+      )) $ Zip(x, y, z)
+  )

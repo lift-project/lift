@@ -1,0 +1,30 @@
+val K = SizeVar("K")
+val N = SizeVar("N")
+
+def mvAlpha = fun(
+  ArrayType(ArrayType(Float, K), N),
+  ArrayType(Float, K),
+  Float,
+  (matrix, vector, alpha) =>
+    Join() o
+      Map(fun(row =>
+        Map(fun(x => mult(x, alpha))) o
+          Reduce(add, 0.0f) o Map(fun(y => mult(y._0, y._1))) $ Zip(row, vector)
+      )) $ matrix
+)
+
+def vecAdd = fun(
+  ArrayType(Float, K),
+  ArrayType(Float, K),
+  (a,b) => Map(fun(x => add(x._0, x._1))) $ Zip(a, b)
+)
+
+fun(
+  ArrayType(ArrayType(Float, K), N),
+  ArrayType(ArrayType(Float, K), N),
+  ArrayType(Float, K),
+  Float,
+  Float,
+  (A, B, x, alpha, beta) =>
+    vecAdd(mvAlpha(A, x, alpha), mvAlpha(B, x, beta))
+)

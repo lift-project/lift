@@ -15,7 +15,7 @@ import opencl.ir.pattern._
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 import rewriting.InferNDRange
-import rewriting.utils.Utils
+import rewriting.utils.{DumpToFile, Utils}
 import ExpressionFilter.Status.Success
 
 import scala.collection.immutable.Map
@@ -270,7 +270,7 @@ object ParameterRewrite {
     (expressions, hashes).zipped.foreach((f, hash) => {
 
       try {
-        val stringRep = "{ " + Utils.dumpLambdaToString(f._1).replace("\n", "; ") + "}"
+        val stringRep = "{ " + DumpToFile.dumpLambdaToString(f._1).replace("\n", "; ") + "}"
 
         val sha256 = hash.get
 
