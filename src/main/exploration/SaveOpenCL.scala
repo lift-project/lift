@@ -76,7 +76,8 @@ class SaveOpenCL(
       case _: IllegalKernel =>
         None
       case t: Throwable =>
-        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${tuple._2.mkString(",")})", t)
+        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${tuple._2.mkString(",")}), " +
+          s"NDRanges: (${tuple._3._1.toString}, ${tuple._3._2.toString})", t)
         None
     }
   }

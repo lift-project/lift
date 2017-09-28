@@ -3,8 +3,9 @@ package opencl.generator
 import exploration.ParameterRewrite
 import ir._
 import ir.ast._
-import lift.arithmetic.{?, ArithExpr, Cst, SizeVar}
-import opencl.executor.{Compile, Execute, Executor, Utils, _}
+import lift.arithmetic._
+import opencl.executor._
+import opencl.generator.OpenCLAST.ArithExpression
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
