@@ -2,10 +2,9 @@ package rewriting.utils
 
 import ir._
 import ir.ast._
-import opencl.ir._
 import lift.arithmetic.{Cst, SizeVar, Var}
 import opencl.executor.Eval
-import opencl.ir.pattern.MapSeq
+import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
 
