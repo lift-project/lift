@@ -17,8 +17,6 @@ import ir.{ArrayType, Type, TypeException}
  */
 case class Scatter(idx: IndexFunction) extends Pattern(arity = 1) {
 
-  override def toString: String = "Scatter(" + idx + ")"
-
   override def checkType(argType: Type, setType: Boolean): Type = {
     // Scatter expects an array
     argType match {
