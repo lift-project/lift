@@ -1,10 +1,10 @@
 package ir.ast
 
-import lift.arithmetic.{ArithExpr, Var}
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 import ir.view.{AccessInfo, NoView, View}
-import opencl.ir.pattern.{ReduceWhileSeq}
+import lift.arithmetic.ArithExpr
+import opencl.ir.pattern.ReduceWhileSeq
 import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
 
 import scala.language.implicitConversions
@@ -38,7 +38,6 @@ abstract class Expr extends IRNode {
 
   var outputView: View = NoView
 
-
   /**
    * The context keeps track where this expression is inside a bigger
    * expression for checking (possible) constrains on nesting expression.
@@ -55,8 +54,6 @@ abstract class Expr extends IRNode {
   var inputDepth: List[ir.view.SingleAccess] = List()
 
   var accessInf = AccessInfo()
-
-
 
   /**
    * A list storing (ArrayType constructor, variable) tuples that describe the

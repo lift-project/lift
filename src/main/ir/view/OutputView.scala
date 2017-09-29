@@ -21,9 +21,8 @@ object OutputView {
    */
   def apply(expr: Expr): Unit = {
 
-    // reset outputView for every expression
+    // Reset outputView for every expression
     Expr.visit(expr, _.outputView = NoView, _ => {})
-
 
     expr.outputView = View(expr.t, expr.mem.variable)
     visitAndBuildViews(expr, expr.outputView)

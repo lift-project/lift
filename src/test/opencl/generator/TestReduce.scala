@@ -118,7 +118,7 @@ class TestReduce {
       Float,
       (in, init) => {
         Join() o MapWrg(
-          Join()  o MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, id(init))) o Split(4)
+          Join() o MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, id(init))) o Split(4)
         ) o Split(128) $ in
       })
 

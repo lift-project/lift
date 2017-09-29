@@ -118,9 +118,7 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, i.f.body.mem.variable)
   }
 
-
   private def buildViewMap(m: AbstractMap, call: FunCall, argView: View): View = {
-
 
     // pass down input view
     m.f.params(0).view = argView.access(m.loopVar)
