@@ -108,22 +108,42 @@ def minWithCheck(x: ArithExpr, y: ArithExpr, tt: TupleType): ArithExpr = {
 
 object Zip3D {
 
-   def apply(arg1: Expr, arg2: Expr) : Expr = {
-      Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1)))) o Map( \(tuple => Zip(tuple._0, tuple._1))) $ Zip(arg1,arg2)
-    }
+  def apply(arg1: Expr, arg2: Expr): Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1)))) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(arg1, arg2)
+  }
 
-  def apply(arg1: Expr, arg2: Expr, arg3: Expr) : Expr = {
-      Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2)))) o Map( \(tuple => Zip(tuple._0, tuple._1, tuple._2))) $ Zip(arg1,arg2,arg3)
-   }
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr): Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2)))) o Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2))) $ Zip(arg1, arg2, arg3)
+  }
+
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2, tuple2._3)))) o
+      Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2, tuple._3))) $ Zip(arg1, arg2, arg3, arg4)
+  }
+
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr): Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2, tuple2._3, tuple2._4)))) o
+      Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2, tuple._3, tuple._4))) $ Zip(arg1, arg2, arg3, arg4, arg5)
+  }
+
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr): Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2, tuple2._3, tuple2._4, tuple2._5)))) o
+      Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2, tuple._3, tuple._4, tuple._5))) $ Zip(arg1, arg2, arg3, arg4, arg5, arg6)
+  }
+
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr): Expr = {
+    Map(Map(\(tuple2 => Zip(tuple2._0, tuple2._1, tuple2._2, tuple2._3, tuple2._4, tuple2._5, tuple2._6)))) o
+      Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2, tuple._3, tuple._4, tuple._5, tuple._6))) $ Zip(arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+  }
 }
 
-object Zip2D{
+object Zip2D {
 
-  def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr) : Expr = {
+  def apply(arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr): Expr = {
     Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2, tuple._3, tuple._4, tuple._5))) $ Zip(arg1, arg2, arg3, arg4, arg5, arg6)
   }
 
-  def apply(arg1: Expr, arg2: Expr) : Expr = {
+  def apply(arg1: Expr, arg2: Expr): Expr = {
     Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(arg1, arg2)
   }
 

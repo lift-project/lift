@@ -28,6 +28,8 @@ sealed class OpenCLMemory(var variable: Var,
       throw new MemoryAllocationException("Cannot have a memory of 0 bytes!")
   } catch {
     case NotEvaluableException() => // nothing to do
+    case NotEvaluableToIntException() => throw new ArithmeticException(
+      s"Number of bytes trying to allocate is bigger than MAX_INT: $size")
     case e: Exception => throw e
   }
 
