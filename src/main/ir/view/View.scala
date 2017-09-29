@@ -579,9 +579,8 @@ object View {
 
 }
 
-class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
+class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mainAddressSpace: OpenCLAddressSpace) {
 
-  var mainAddressSpace: OpenCLAddressSpace = _
   /**
     * Produces an openCL expression accessing a multi-dimentional array using
     * a given view
@@ -604,8 +603,6 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         assert(tupleAccessStack.isEmpty)
 //        val index = aggregateAccesses(0, Some(vm.v), sv.t, arrayAccessStack, tupleAccessStack)
 //        VarRef(vm.v, arrayIndex = ArithExpression(index))
-
-//        mainAddressSpace = vm.
         GenerateAccess(vm.v, sv.t, arrayAccessStack, tupleAccessStack)
 
       case access: ViewAccess =>
@@ -632,16 +629,14 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         emitView(gather.iv, gather.f(idx) :: indices, tupleAccessStack)
 
       case filter: ViewFilter =>
+
         val idx :: indices = arrayAccessStack
-        val newIdx = ViewPrinter.emit(filter.ids.access(idx), replacements)
-
-        val indirection = newIdx match {
-          case VarRef(_, _, index) =>
-            AccessVar(Right(ViewPrinter.getViewMem(filter.ids).v), index.content)
-          case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
-        }
-
-        emitView(filter.iv, indirection :: indices, tupleAccessStack)
+         // Assume it's the same address space
+         val indirection = ViewPrinter.emit(filter.ids.access(idx), replacements, mainAddressSpace) match {
+           case VarRef(_, _, i) => AccessVar(Left(ViewPrinter.getViewMem(filter.ids).v.name), i.content)
+           case x => throw new IllegalArgumentException(s"Expected an ArithExpression, got $x")
+         }
+         emitView(filter.iv, indirection :: indices, tupleAccessStack)
 
       case component: ViewTupleComponent =>
         val newTAS = component.i :: tupleAccessStack
@@ -803,6 +798,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
       }
     }
   }
+
   /**
    * The code below is used to turn the list of indices used to access a
    * multi-dimensional array into a single index used to access the raw memory
@@ -964,8 +960,12 @@ object ViewPrinter {
    * @param view The view to emit.
    * @return The arithmetic expression.
    */
-  def emit(view: View, replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()): Expression = {
-    val vp = new ViewPrinter(replacements)
+  def emit(
+    view: View,
+    replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map(),
+    addressSpace: OpenCLAddressSpace = UndefAddressSpace
+  ): Expression = {
+    val vp = new ViewPrinter(replacements, addressSpace)
     assert(!view.t.isInstanceOf[ArrayType])
     vp.emitView(view.replaced(replacements), List(), List())
   }

@@ -1358,7 +1358,10 @@ class OpenCLGenerator extends Generator {
     val stop = ty match {
       case _: Size => ArithExpression(range.stop)
       case _ =>
-        ViewPrinter.emit(array.view.size())
+        val mem = OpenCLMemory.asOpenCLMemory(array.mem)
+        val stopVar = Var("stop")
+        (block: Block) += VarDecl(stopVar, Int, getArraySize(mem, array.view.size()))
+        VarRef(stopVar)
     }
     val init = VarDecl(indexVar, Int, start, PrivateMemory)
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
@@ -1379,7 +1382,7 @@ class OpenCLGenerator extends Generator {
         )
         sizes.reduce((x, y) => FunctionCall("min", List(x, y)))
       case _ =>
-        ViewPrinter.emit(view)
+        ViewPrinter.emit(view, addressSpace = mem.addressSpace)
     }
   }
 
@@ -1477,7 +1480,7 @@ class OpenCLGenerator extends Generator {
             && (mem.addressSpace == GlobalMemory
             || mem.addressSpace == LocalMemory) =>
 
-          val offset = ViewPrinter.emit(view, replacementsWithFuns) match {
+          val offset = ViewPrinter.emit(view, replacementsWithFuns, mem.addressSpace) match {
             case VarRef(_, _, idx) => ArithExpression(idx.content / vt.len)
             case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
           }
@@ -1536,7 +1539,7 @@ class OpenCLGenerator extends Generator {
               if Type.getValueType(at) == vt.scalarT
                 && (mem.addressSpace == GlobalMemory || mem.addressSpace == LocalMemory) =>
 
-              val offset = ViewPrinter.emit(view, replacementsWithFuns) match {
+              val offset = ViewPrinter.emit(view, replacementsWithFuns, mem.addressSpace) match {
                 case VarRef(_, _, idx) => ArithExpression(idx.content / vt.len)
                 case x => throw new MatchError(s"Expected a VarRef but got $x.")
               }
@@ -1625,7 +1628,7 @@ class OpenCLGenerator extends Generator {
 
               mem.addressSpace match {
                 case LocalMemory | GlobalMemory =>
-                  ViewPrinter.emit(innerView, replacementsWithFuns) match {
+                  ViewPrinter.emit(innerView, replacementsWithFuns, mem.addressSpace) match {
                     case VarRef(v, _, index) => VarRef(v, suffix, index)
                     case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
                   }
@@ -1697,10 +1700,10 @@ class OpenCLGenerator extends Generator {
                               view: View): OpenCLAST.Expression = {
     addressSpace match {
       case LocalMemory | GlobalMemory =>
-        ViewPrinter.emit(view, replacementsWithFuns)
+        ViewPrinter.emit(view, replacementsWithFuns, addressSpace)
 
       case PrivateMemory =>
-        ViewPrinter.emit(view, replacementsWithFuns) match {
+        ViewPrinter.emit(view, replacementsWithFuns, addressSpace) match {
           case VarRef(_, _, _) =>
             OpenCLAST.VarRef(v, suffix = arrayAccessPrivateMem(v, view))
           case e: Expression => e
@@ -1732,7 +1735,7 @@ class OpenCLGenerator extends Generator {
     val valueType = Type.getValueType(originalType)
 
     val i = valueType match {
-      case _: ScalarType | _: TupleType => ViewPrinter.emit(view, replacements) match {
+      case _: ScalarType | _: TupleType => ViewPrinter.emit(view, replacements, PrivateMemory) match {
         case VarRef(_, _, idx) => idx.content
         case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
       }
@@ -1740,7 +1743,7 @@ class OpenCLGenerator extends Generator {
       //   divide index by vector length
       case _: VectorType =>
         val length = Type.getLength(Type.getValueType(originalType))
-        val index = ViewPrinter.emit(view, replacements) match {
+        val index = ViewPrinter.emit(view, replacements, PrivateMemory) match {
           case VarRef(_, _, idx) => idx.content
           case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
@@ -1788,7 +1791,7 @@ class OpenCLGenerator extends Generator {
     val i = valueType match {
       case _: VectorType =>
         val length = Type.getLength(Type.getValueType(originalType))
-        val index = ViewPrinter.emit(view, replacements) match {
+        val index = ViewPrinter.emit(view, replacements, as) match {
           case VarRef(_, _, idx) => idx.content
           case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
