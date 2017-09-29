@@ -18,7 +18,7 @@ import ir._
  * (so far):
  *  - `Join() o Split(chunkSize) | Split(chunkSize) o Join() => id`
  */
-case class Join() extends Pattern(arity = 1) with isGenerable {
+case class Join() extends Pattern(arity = 1)  {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

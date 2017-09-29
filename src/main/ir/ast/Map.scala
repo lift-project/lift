@@ -23,18 +23,9 @@ abstract class AbstractMap(val f: Lambda,
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case ArrayTypeWSWC(et,s,c) =>
+      case at @ ArrayType(et) =>
         f.params(0).t = et
-        ArrayTypeWSWC(TypeChecker.check(f.body, setType), s, c)
-      case ArrayTypeWS(et,s) =>
-        f.params(0).t = et
-        ArrayTypeWS(TypeChecker.check(f.body, setType), s)
-      case ArrayTypeWC(et,c) =>
-        f.params(0).t = et
-        ArrayTypeWC(TypeChecker.check(f.body, setType), c)
-      case ArrayType(et) =>
-        f.params(0).t = et
-        ArrayType(TypeChecker.check(f.body, setType))
+        at.replacedElemT(TypeChecker.check(f.body, setType))
       case _ => throw new TypeException(argType, "ArrayType", this)
     }
   }
@@ -46,8 +37,6 @@ abstract class AbstractMap(val f: Lambda,
       case a: Vector[_] => a.map(f.eval(valueMap, _))
     }
   }
-
-  override def isGenerable: Boolean = f.isGenerable
 }
 
 /**
@@ -72,18 +61,4 @@ abstract class AbstractMap(val f: Lambda,
  */
 case class Map(override val f: Lambda) extends AbstractMap(f, "Map", PosVar("")) {
   override def copy(f: Lambda): Pattern = Map(f)
-
-  /**
-   * Indicating if it is possible to generate code for this function
-   * declaration.
-   * Might be overwritten by a subclass or by mixing in the `isGenerable` trait.
-   */
-  override def isGenerable: Boolean = {
-    Expr.visitWithState(true)(f.body, (e, s) => {
-      e match {
-        case call: FunCall if call.isConcrete => false
-        case _ => s
-      }
-    })
-  }
 }

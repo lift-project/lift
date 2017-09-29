@@ -319,26 +319,18 @@ object Expr {
           val newCall = call.f match {
 
             case fp: FPattern =>
-              // Try to do the replacement in the body
-              val replaced = replace(fp.f.body, oldE, newE)
+              // Try to do the replacement in the lambda
+              val replaced = FunDecl.replace(fp.f, oldE, newE)
 
-              // If replacement didn't occur return fp
+              // If replacement didn't occur return fp.f
               // else instantiate a new pattern with the updated lambda
-              if (fp.f.body.eq(replaced))
+              if (fp.f.eq(replaced))
                 fp
               else
-                fp.copy(Lambda(fp.f.params, replaced))
+                fp.copy(replaced)
 
             case l: Lambda =>
-              // Try to do the replacement in the body
-              val replaced = replace(l.body, oldE, newE)
-
-              // If replacement didn't occur return l
-              // else instantiate the updated lambda
-              if (l.body.eq(replaced))
-                l
-              else
-                Lambda(l.params, replaced)
+              FunDecl.replace(l, oldE, newE)
 
             case other => other
           }

@@ -2,6 +2,9 @@ package ir.ast
 
 import ir._
 import ir.interpreter.Interpreter.ValueMap
+import lift.arithmetic.ArithExpr
+import lift.arithmetic.ArithExpr.Math.Min
+import opencl.generator.StrictZip
 
 /**
  * Zip pattern.
@@ -18,7 +21,7 @@ import ir.interpreter.Interpreter.ValueMap
  *
  * @param n The number of arrays which are combined. Must be >= 2.
  */
-case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
+case class Zip(n : Int) extends Pattern(arity = n) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -26,23 +29,10 @@ case class Zip(n : Int) extends Pattern(arity = n) with isGenerable {
       case tt: TupleType =>
         if (tt.elemsT.length != n) throw new NumberOfArgumentsException
 
-        // make sure all arguments are array types of equal size and capacity
-        tt.elemsT.foreach({
-          case _: ArrayType with Size with Capacity =>
-          case t => throw new TypeException(t, "ArrayType", this)
-        })
-        val arrayTypes = tt.elemsT.map(_.asInstanceOf[ArrayType with Size with Capacity])
-
-        // make sure all arguments have the same size
-        if (arrayTypes.map(_.size).distinct.length != 1)
-          throw new ZipTypeException(tt)
-
-        ArrayTypeWSWC(TupleType(arrayTypes.map(_.elemT):_*), arrayTypes.head.size)
-
+        Zip.computeOutType(tt)
       case _ => throw new TypeException(argType, "TupleType", this)
     }
   }
-
 
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)
@@ -66,6 +56,53 @@ object Zip {
   def apply(args : Expr*) : Expr = {
     assert(args.length >= 2)
     Zip(args.length)(args:_*)
+  }
+
+def minWithCheck(x: ArithExpr, y: ArithExpr, tt: TupleType): ArithExpr = {
+    if (x == y) x
+    else {
+      if (StrictZip()) throw new ZipTypeException(tt)
+      else Min(x, y)
+    }
+  }
+
+  /**
+   * Combination is defined the following way:
+   * - If the two array types have a capacity, we keep the minimum value.
+   * - If the two array types have a size, we keep the minimum value.
+   * - If a size (resp. capacity) is not known in one array type, we drop
+   *   it and the result will have no size (resp. capacity).
+   */
+  private def combineArrayTypes(min: (ArithExpr, ArithExpr) => ArithExpr,
+                                at1: ArrayType, at2: ArrayType): ArrayType = (at1, at2) match {
+    case (ArrayTypeWSWC(_, s1, c1), ArrayTypeWSWC(_, s2, c2)) =>
+      ArrayTypeWSWC(UndefType, min(s1, s2), min(c1, c2))
+    case (ArrayTypeWS(_, s1), ArrayTypeWS(_, s2)) =>
+      ArrayTypeWS(UndefType, min(s1, s2))
+    case (ArrayTypeWC(_, c1), ArrayTypeWC(_, c2)) =>
+      ArrayTypeWC(UndefType, min(c1, c2))
+    case (ArrayType(_), ArrayType(_)) =>
+      ArrayType(UndefType)
+  }
+
+  /**
+   * Compute the type of Zip out the ArrayTypes of its arguments.
+   *
+   * The potential sizes and capacities are dealt with in the
+   * `combineArrayTypes` method above and the element type of the resulting
+   * array is a TupleType with all the element types of the input arrays as
+   * arguments.
+   */
+  def computeOutType(tt: TupleType, where: IRNode = null): ArrayType = {
+    // make sure all arguments are array types
+    val arrayTypes = tt.elemsT.map({
+      case (at: ArrayType) => at
+      case t => throw new TypeException(t, "ArrayType", where)
+    })
+
+    val elemT = TupleType(arrayTypes.map(_.elemT): _*)
+    def min(x: ArithExpr, y: ArithExpr): ArithExpr = minWithCheck(x, y, tt)
+    arrayTypes.reduce(combineArrayTypes(min, _, _)).replacedElemT(elemT)
   }
 }
 

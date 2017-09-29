@@ -193,7 +193,15 @@ object InputView {
       if (l.params.length != 1) throw new NumberOfArgumentsException
       l.params(0).view = argView
     } else {
-      l.params.zipWithIndex.foreach({ case (p, i) => p.view = argView.get(i) })
+      argView match {
+        // Undo the packing into `ViewTuple` done in `getViewFromArgs`.
+        // Several arguments are not a tuple. Also, without removing the unnecessary
+        // tuple, breaks with the last case in OpenCLGenerator.generateLoadNode
+        case ViewTuple(ivs, _) if call.args.length == l.params.length && ivs.length == l.params.length =>
+          (l.params, ivs).zipped.foreach({ case (p, v) => p.view = v })
+        case _ =>
+          throw new NumberOfArgumentsException()
+      }
     }
     visitAndBuildViews(l.body)
   }

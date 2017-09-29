@@ -3,7 +3,7 @@ package opencl.generator
 import ir.ArrayTypeWSWC
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor._
+import opencl.executor.{Execute, Executor, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -32,7 +32,7 @@ class TestPad {
       (domain) => MapGlb(id) o Pad(left, right, boundary) $ domain
     )
 
-    val (output: Array[Float],runtime) = Execute(input.length, input.length)(fct, input)
+    val (output,runtime) = Execute(input.length, input.length)[Array[Float]](fct, input)
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -48,7 +48,7 @@ class TestPad {
       (domain) => MapGlb(id) o Pad(1,1,bf) o Pad(1,1,bf) $ domain
     )
 
-    val (output: Array[Float], _) = Execute(input.length, input.length)(fct, input)
+    val (output, _) = Execute(input.length, input.length)[Array[Float]](fct, input)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -61,7 +61,7 @@ class TestPad {
       (domain) => MapSeq(id) o Pad(1,1,bf) o MapSeq(id) o Pad(1,1,bf) $ domain
     )
 
-    val (output: Array[Float], _) = Execute(5,5)(fct, input)
+    val (output, _) = Execute(5,5)[Array[Float]](fct, input)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -78,8 +78,8 @@ class TestPad {
       (domain) => MapSeq(id) o Pad(1,1,bf) o Join() o MapSeq(MapSeq(id)) $ domain
     )
 
-    val (output1: Array[Float], _) = Execute(128,128)(joinMapPad, input2D)
-    val (output2: Array[Float], _) = Execute(128,128)(padJoinMap, input2D)
+    val (output1, _) = Execute(128,128)[Array[Float]](joinMapPad, input2D)
+    val (output2, _) = Execute(128,128)[Array[Float]](padJoinMap, input2D)
     assertArrayEquals(output1, output2, 0.0f)
   }
 
@@ -177,7 +177,7 @@ class TestPad {
         Pad2D(top, bottom, left, right, boundary) $ domain
     )
 
-    val (output: Array[Float],runtime) = Execute(gold.length,gold.length)(fct, input2D)
+    val (output,runtime) = Execute(gold.length,gold.length)[Array[Float]](fct, input2D)
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -338,7 +338,7 @@ class TestPad {
       (input) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Pad(1,1,bf) $ input
     )
 
-    val (output: Array[Float], _) = Execute(1,1)(fct, input)
+    val (output, _) = Execute(1,1)[Array[Float]](fct, input)
     println(output.mkString(", "))
     println("test")
     //assertArrayEquals(gold, output, 0.0f)
@@ -359,7 +359,7 @@ class TestPad {
         Pad3D(z,y,x,b) $ domain
     )
 
-    val (output: Array[Float],runtime) = Execute(gold.length,gold.length)(fct, input3D)
+    val (output,runtime) = Execute(gold.length,gold.length)[Array[Float]](fct, input3D)
     println("runtime = " + runtime)
     assertArrayEquals(gold, output, 0.0f)
   }
@@ -396,7 +396,7 @@ class TestPad {
         Pad(1,1,b) o Transpose() o Pad(1,1,b) $ input
     )
 
-    val (output: Array[Float],runtime) = Execute(gold3d.length,gold3d.length)(fct, input3D)
+    val (output,runtime) = Execute(gold3d.length,gold3d.length)[Array[Float]](fct, input3D)
     println("runtime = " + runtime)
     assertArrayEquals(gold3d, output, 0.0f)
     println(output.mkString(","))

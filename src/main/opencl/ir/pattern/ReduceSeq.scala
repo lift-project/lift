@@ -5,7 +5,7 @@ import ir._
 import ir.ast._
 
 case class ReduceSeq(override val f: Lambda)
-  extends AbstractReduce(f, PosVar("i")) with isGenerable {
+  extends AbstractReduce(f, PosVar("i"))  {
   assert(f.body.isConcrete)
 
   override def checkType(argType: Type, setType: Boolean): Type =  {

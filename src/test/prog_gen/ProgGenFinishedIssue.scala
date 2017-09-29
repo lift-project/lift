@@ -39,7 +39,7 @@ class ProgGenFinishedIssue {
     val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_) = Execute(1,1)(fs.head,Args:_*)
+    val (output_exe, _) = Execute(1,1)[Array[Float]](fs.head,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
@@ -67,7 +67,7 @@ class ProgGenFinishedIssue {
     val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,1024)(fs.head,Args:_*)
+    val (output_exe,_)= Execute(1,1024)[Array[Float]](fs.head,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
@@ -96,7 +96,7 @@ class ProgGenFinishedIssue {
     val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,1024)(fs.head,Args:_*)
+    val (output_exe,_)= Execute(1,1024)[Array[Float]](fs.head,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
@@ -128,7 +128,7 @@ class ProgGenFinishedIssue {
     val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,32)(lowLevel,Args:_*)
+    val (output_exe,_)= Execute(1,32)[Array[Float]](lowLevel,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 }
