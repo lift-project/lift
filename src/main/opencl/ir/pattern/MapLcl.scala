@@ -1,7 +1,7 @@
 package opencl.ir.pattern
 
-import lift.arithmetic.PosVar
 import ir.ast._
+import lift.arithmetic.PosVar
 
 /**
  * Applicable rules:
@@ -9,7 +9,7 @@ import ir.ast._
  *  - MapLcl(f) => toLocal(MapLcl(f))
  */
 case class MapLcl(dim: Int, override val f: Lambda1)
-extends AbstractMap(f, "MapLcl", PosVar("l_id")) with ParallelPattern {
+extends AbstractMap(f, "MapLcl", PosVar("l_id")) {
   override def copy(f: Lambda): Pattern = MapLcl(dim, f)
   var shouldUnroll = false
   var emitBarrier = true

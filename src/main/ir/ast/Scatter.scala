@@ -15,8 +15,7 @@ import ir.{ArrayType, Type, TypeException}
  *
  * @param idx The function to use for reordering
  */
-case class Scatter(idx: IndexFunction) extends Pattern(arity = 1)
-                                       with ModifyWrite {
+case class Scatter(idx: IndexFunction) extends Pattern(arity = 1) {
 
   override def checkType(argType: Type, setType: Boolean): Type = {
     // Scatter expects an array

@@ -16,7 +16,7 @@ import ir._
  * The transpose pattern has the following type:
  * `TransposeW() : [ [a],,I,, ],,J,, -> [ [a],,J,, ],,I,,`
  */
-case class TransposeW() extends Pattern(arity = 1) with ModifyWrite {
+case class TransposeW() extends Pattern(arity = 1) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
