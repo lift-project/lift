@@ -358,7 +358,7 @@ class HighLevelRewrite(
 
     var rulesToTry = filterRules(rulesSoFar)
 
-    if (HighLevelRewrite.getLambdaDepth(lambda) <= 2) {
+    if (HighLevelRewrite.getLambdaDepth(lambda) <= 2 && !rulesToTry.contains(Rules.splitJoin)) {
       rulesToTry = rulesToTry :+ Rules.splitJoin
     }
 
@@ -429,10 +429,15 @@ class HighLevelRewrite(
         || distinctRulesApplied.contains(vecRed))
       dontTryThese = ReuseRules.introduceReuseFromMap +: MacroRules.interchange +: vecRed +: dontTryThese
 
-
     if (distinctRulesApplied.contains(ReuseRules.introduceReuseFromMap)
       ||distinctRulesApplied.contains(MacroRules.interchange))
-      dontTryThese = ReuseRules.tileMapMap +: ReuseRules.apply1DRegisterBlocking +: ReuseRules.apply2DRegisterBlocking +: dontTryThese
+      dontTryThese = ReuseRules.finishTiling +: ReuseRules.tileMapMap +: ReuseRules.apply1DRegisterBlocking +: ReuseRules.apply2DRegisterBlocking +: dontTryThese
+
+    if (distinctRulesApplied.contains(MacroRules.interchange))
+      dontTryThese = MacroRules.interchange +: dontTryThese
+
+    if (distinctRulesApplied.contains(MacroRules.partialReduceWithReorder))
+      dontTryThese = ReuseRules.introduceReuseFromMap +: MacroRules.interchange +: dontTryThese
 
     val rulesToTry = highLevelRules diff dontTryThese
     rulesToTry
