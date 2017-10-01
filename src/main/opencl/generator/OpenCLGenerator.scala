@@ -454,10 +454,12 @@ class OpenCLGenerator extends Generator {
           call.t match {
             case ArrayTypeWS(_, _) =>
             case _ =>
-              val sizeView = call.args.head.view.size()
+              val inSizeView = call.args.head.view.size()
+              // the output is accessed the same way as the input but the variable nam has to be replaced
+              val outSizeView = inSizeView.replaced(call.args.head.mem.variable, call.mem.variable)
               (block: Block) += AssignmentExpression(
-                to = accessNode(call.mem.variable, call.addressSpace, sizeView),
-                value = getArraySize(OpenCLMemory.asOpenCLMemory(call.args.head.mem), sizeView)
+                to = accessNode(call.mem.variable, call.addressSpace, outSizeView),
+                value = getArraySize(OpenCLMemory.asOpenCLMemory(call.args.head.mem), inSizeView)
               )
           }
 

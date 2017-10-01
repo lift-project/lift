@@ -107,6 +107,10 @@ abstract sealed class View(val t: Type = UndefType) {
 
   def replaced(subst: collection.Map[ArithExpr, ArithExpr]): View = {
     this match {
+      case ViewMem(memVar, ty) =>
+        if (subst.isDefinedAt(memVar))
+          ViewMem(subst(memVar).asInstanceOf[Var], ty)
+        else this
       case map: ViewMap => ViewMap(map.iv.replaced(subst), map.itVar, t)
       case access: ViewAccess => ViewAccess(ArithExpr.substitute(access.i, subst.toMap), access.iv.replaced(subst), t)
       case zip: ViewZip => ViewZip(zip.iv.replaced(subst), t)
@@ -121,7 +125,8 @@ abstract sealed class View(val t: Type = UndefType) {
       case component: ViewTupleComponent => ViewTupleComponent(component.i, component.iv.replaced(subst), t)
       case slide: ViewSlide => ViewSlide(slide.iv.replaced(subst), slide.slide, slide.t)
       case pad: ViewPad => ViewPad(pad.iv.replaced(subst), pad.left, pad.right, pad.fct, t)
-      case _: ViewMem | _: ViewHead | NoView | _: View2DGeneratorUserFun |
+      case ViewSize(iv) => ViewSize(iv.replaced(subst))
+      case _: ViewHead | NoView | _: View2DGeneratorUserFun |
            _: View3DGeneratorUserFun | _: ViewConstant | _: ViewGenerator |
            _: ViewGeneratorUserFun | _: ViewTail | _: ViewSize => this
     }
