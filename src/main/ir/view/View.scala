@@ -633,15 +633,14 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         val idx :: indices = arrayAccessStack
         emitView(gather.iv, gather.f(idx) :: indices, tupleAccessStack)
 
-      case filter: ViewFilter =>
-
+      case ViewFilter(iv, ids, _) =>
         val idx :: indices = arrayAccessStack
          // Assume it's the same address space
-         val indirection = ViewPrinter.emit(filter.ids.access(idx), replacements, mainAddressSpace) match {
-           case VarRef(_, _, i) => AccessVar(Left(ViewPrinter.getViewMem(filter.ids).v.name), i.content)
+         val indirection = ViewPrinter.emit(ids.access(idx), replacements, mainAddressSpace) match {
+           case VarRef(indicesVar, _, i) => AccessVar(Right(indicesVar), i.content)
            case x => throw new IllegalArgumentException(s"Expected an ArithExpression, got $x")
          }
-         emitView(filter.iv, indirection :: indices, tupleAccessStack)
+         emitView(iv, indirection :: indices, tupleAccessStack)
 
       case component: ViewTupleComponent =>
         val newTAS = component.i :: tupleAccessStack
