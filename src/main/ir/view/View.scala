@@ -27,20 +27,14 @@ private class IllegalView(err: String)
  * @param array variable referencing the array
  * @param idx index to access in the array
  */
-case class AccessVar(array: Either[String, Var], idx: ArithExpr, r: Range = RangeUnknown, fixedId: Option[Long] = None)
+case class AccessVar(array: Var, idx: ArithExpr, r: Range = RangeUnknown, fixedId: Option[Long] = None)
   extends ExtensibleVar("", r, fixedId) {
 
-  override def copy(r: Range): AccessVar = array match {
-    case Left(str) => AccessVar(Left(str), idx, r, Some(id))
-    case Right(v) => AccessVar(Right(v.copy(v.range)), idx, r, Some(id))
-  }
+  override def copy(r: Range): AccessVar = AccessVar(array.copy(array.range), idx, r, Some(id))
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(AccessVar(
-      array match {
-        case Left(str) => Left(str)
-        case Right(v) => Right(v.visitAndRebuild(f).asInstanceOf[Var])
-      },
+      array.visitAndRebuild(f).asInstanceOf[Var],
       idx.visitAndRebuild(f),
       range.visitAndRebuild(f),
       Some(id)
@@ -635,7 +629,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         val idx :: indices = arrayAccessStack
          // Assume it's the same address space
          val indirection = ViewPrinter.emit(ids.access(idx), replacements, mainAddressSpace) match {
-           case VarRef(indicesVar, _, i) => AccessVar(Right(indicesVar), i.content)
+           case VarRef(indicesVar, _, i) => AccessVar(indicesVar, i.content)
            case x => throw new IllegalArgumentException(s"Expected an VarRef, got $x")
          }
          emitView(iv, indirection :: indices, tupleAccessStack)
@@ -811,10 +805,10 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
       } else {
         // Perform an indirection. Do not cast the pointer if it's not required.
         val elementOffset = if (baseType == size_t)
-          AccessVar(Right(mainVar), acc + at.headerSize + idx)
+          AccessVar(mainVar, acc + at.headerSize + idx)
         else {
           val casted = CastedPointer(mainVar, size_t, acc, addressSpace)
-          AccessVar(Right(casted), at.headerSize * alignment / size_t.size + idx)
+          AccessVar(casted, at.headerSize * alignment / size_t.size + idx)
         }
         // The offset read from the headers is in bytes but must be a multiple of `baseSize`
         acc + elementOffset / baseSize
