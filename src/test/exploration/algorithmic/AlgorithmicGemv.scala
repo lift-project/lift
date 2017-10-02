@@ -6,7 +6,8 @@ import ir.ast._
 import opencl.executor.LongTestsEnabled
 import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
-import org.junit.Test
+import org.junit.{AfterClass, BeforeClass, Test}
+import rewriting.rules.Rule
 
 object AlgorithmicGemv {
   private val gemv = fun(
@@ -29,7 +30,14 @@ object AlgorithmicGemv {
     })
 
   private val rewriter = new HighLevelRewrite(4, 2, 5)
-  private val rewrittenLambdas = rewriter(gemv)
+  private var rewrittenLambdas: Seq[(Lambda, Seq[Rule])] = Seq()
+
+  @BeforeClass
+  def before(): Unit =
+    if (LongTestsEnabled.areEnabled) rewrittenLambdas = rewriter(gemv)
+
+  @AfterClass
+  def after(): Unit = rewrittenLambdas = Seq()
 }
 
 class AlgorithmicGemv {

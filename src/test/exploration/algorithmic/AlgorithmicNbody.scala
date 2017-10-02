@@ -7,7 +7,8 @@ import lift.arithmetic._
 import opencl.executor.LongTestsEnabled
 import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
-import org.junit.Test
+import org.junit.{AfterClass, BeforeClass, Test}
+import rewriting.rules.Rule
 
 object AlgorithmicNbody {
   private val calcAcc =
@@ -58,7 +59,15 @@ object AlgorithmicNbody {
   )
 
   private val rewriter = new HighLevelRewrite(4, 2, 4)
-  private val rewrittenLambdas = rewriter(nbody)
+  private var rewrittenLambdas: Seq[(Lambda, Seq[Rule])] = Seq()
+
+  @BeforeClass
+  def before(): Unit =
+    if (LongTestsEnabled.areEnabled) rewrittenLambdas = rewriter(nbody)
+
+  @AfterClass
+  def after(): Unit = rewrittenLambdas = Seq()
+
 }
 
 class AlgorithmicNbody {
