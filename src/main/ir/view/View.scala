@@ -103,24 +103,25 @@ abstract sealed class View(val t: Type = UndefType) {
         if (subst.isDefinedAt(memVar))
           ViewMem(subst(memVar).asInstanceOf[Var], ty)
         else this
-      case map: ViewMap => ViewMap(map.iv.replaced(subst), map.itVar, t)
-      case access: ViewAccess => ViewAccess(ArithExpr.substitute(access.i, subst.toMap), access.iv.replaced(subst), t)
-      case zip: ViewZip => ViewZip(zip.iv.replaced(subst), t)
-      case unzip: ViewUnzip => ViewUnzip(unzip.iv.replaced(subst), t)
-      case split: ViewSplit => ViewSplit(ArithExpr.substitute(split.n, subst.toMap), split.iv.replaced(subst), t)
-      case join: ViewJoin => ViewJoin(ArithExpr.substitute(join.n, subst.toMap), join.iv.replaced(subst), t)
-      case gather: ViewReorder => ViewReorder(gather.f, gather.iv.replaced(subst), t)
-      case asVector: ViewAsVector => ViewAsVector(asVector.n, asVector.iv.replaced(subst), t)
-      case asScalar: ViewAsScalar => ViewAsScalar(asScalar.iv.replaced(subst), asScalar.n, t)
-      case filter: ViewFilter => ViewFilter(filter.iv.replaced(subst), filter.ids.replaced(subst), t)
-      case tuple: ViewTuple => ViewTuple(tuple.ivs.map(_.replaced(subst)), t)
-      case component: ViewTupleComponent => ViewTupleComponent(component.i, component.iv.replaced(subst), t)
-      case slide: ViewSlide => ViewSlide(slide.iv.replaced(subst), slide.slide, slide.t)
-      case pad: ViewPad => ViewPad(pad.iv.replaced(subst), pad.left, pad.right, pad.fct, t)
+      case ViewMap(iv, itVar, ty) => ViewMap(iv.replaced(subst), itVar, ty)
+      case ViewAccess(i, iv, ty) => ViewAccess(ArithExpr.substitute(i, subst), iv.replaced(subst), ty)
+      case ViewZip(iv, ty) => ViewZip(iv.replaced(subst), ty)
+      case ViewUnzip(iv, ty) => ViewUnzip(iv.replaced(subst), ty)
+      case ViewSplit(n, iv, ty) => ViewSplit(ArithExpr.substitute(n, subst), iv.replaced(subst), ty)
+      case ViewJoin(n, iv, ty) => ViewJoin(ArithExpr.substitute(n, subst), iv.replaced(subst), ty)
+      case ViewReorder(f, iv, ty) => ViewReorder(f, iv.replaced(subst), ty)
+      case ViewAsVector(n, iv, ty) => ViewAsVector(n, iv.replaced(subst), ty)
+      case ViewAsScalar(iv, n, ty) => ViewAsScalar(iv.replaced(subst), n, ty)
+      case ViewFilter(iv, ids, ty) => ViewFilter(iv.replaced(subst), ids.replaced(subst), ty)
+      case ViewTuple(ivs, ty) => ViewTuple(ivs.map(_.replaced(subst)), ty)
+      case ViewTupleComponent(i, ivs, ty) => ViewTupleComponent(i, ivs.replaced(subst), ty)
+      case ViewSlide(iv, slide, ty) => ViewSlide(iv.replaced(subst), slide, ty)
+      case ViewPad(iv, left, right, padFun, ty) => ViewPad(iv.replaced(subst), left, right, padFun, ty)
       case ViewSize(iv) => ViewSize(iv.replaced(subst))
-      case _: ViewHead | NoView | _: View2DGeneratorUserFun |
-           _: View3DGeneratorUserFun | _: ViewConstant | _: ViewGenerator |
-           _: ViewGeneratorUserFun | _: ViewTail | _: ViewSize => this
+      case ViewHead(iv, ty) => ViewHead(iv.replaced(subst), ty)
+      case ViewTail(iv, ty) => ViewTail(iv.replaced(subst), ty)
+      case _: View2DGeneratorUserFun | _: View3DGeneratorUserFun | _: ViewGenerator | _: ViewGeneratorUserFun |
+           _: ViewConstant | NoView => this
     }
   }
 
