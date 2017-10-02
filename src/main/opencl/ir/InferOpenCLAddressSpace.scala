@@ -24,9 +24,6 @@ object InferOpenCLAddressSpace {
     })
 
     setAddressSpace(lambda.body)
-
-    if (lambda.body.addressSpace != GlobalMemory)
-      throw new IllegalKernel("Final result must be stored in global memory")
   }
 
   private def setAddressSpace(expr: Expr,
