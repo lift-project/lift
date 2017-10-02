@@ -104,15 +104,14 @@ object InputView {
   private def buildViewIterate(i: Iterate, call: FunCall, argView: View): View = {
 
     var firstSeenVar : Option[Var] = None
-    i.f.params(0).view = View.visit(argView, pre = {(v:View) => {v match {
-      case ViewMem(v, t) =>
-        if (firstSeenVar.isEmpty)
-          firstSeenVar = Some(v)
-        else if (firstSeenVar.get != v)
-          throw new NotImplementedError("Iterate can only work if the input received comes from a single memory view")
-        ViewMem(i.vPtrIn,t)
-      case _ => v
-    }}})
+    i.f.params(0).view = View.visit(argView, pre = {
+      case ViewMem(v, t) if firstSeenVar.isEmpty =>
+        firstSeenVar = Some(v)
+        ViewMem(i.vPtrIn, t)
+      case ViewMem(v, _) if firstSeenVar.get != v =>
+        throw new NotImplementedError("Iterate can only work if the input received comes from a single memory view")
+      case v => v
+    })
 
     visitAndBuildViews(i.f.body)
     View.initialiseNewView(call.t, call.inputDepth, i.f.body.mem.variable)
