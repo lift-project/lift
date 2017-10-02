@@ -66,7 +66,6 @@ object HighLevelRewrite {
   protected[exploration] val defaultVectorWidth = 4
   protected[exploration] val defaultSequential = false
   protected[exploration] val defaultOnlyLower = false
-  protected[exploration] val defaultOldStringRepresentation = false
   protected[exploration] val defaultRuleCollection = "default"
 
   protected[exploration] val explorationDepth = parser.option[Int](List("d", "explorationDepth"), "depth",
@@ -92,10 +91,6 @@ object HighLevelRewrite {
 
   protected[exploration] val onlyLower = parser.flag[Boolean](List("onlyLower"),
     s"Do not perform high-level rewriting - only print lambda to enable next rewriting stages (default: $defaultOnlyLower)")
-
-  protected[exploration] val oldStringRepresentation = parser.flag[Boolean](List("oldStringRepresentation"),
-    s"Use old representation for Lambdas (default: $defaultOldStringRepresentation)")
-
 
   private var settings = Settings()
 

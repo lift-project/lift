@@ -590,6 +590,11 @@ object Type {
     ArithExpr.substitute(size, map.toMap)
   }
 
+  def getElementCount(t: Type) : ArithExpr = {
+    val lengths = Type.getLengths(t)
+    lengths.reduce(_ * _)
+  }
+
   def getMaxLength(t: Type) : ArithExpr = {
     // quick hack (set all the type var to theur max value)
     // TODO: need to be fixed

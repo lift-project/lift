@@ -1,10 +1,10 @@
 package ir.ast
 
-import lift.arithmetic.ArithExpr
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 import ir.view.{AccessInfo, NoView, View}
-import opencl.ir.pattern.{FilterSeq, ReduceWhileSeq}
+import lift.arithmetic.ArithExpr
+import opencl.ir.pattern.ReduceWhileSeq
 import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
 
 import scala.language.implicitConversions
