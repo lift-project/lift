@@ -23,11 +23,7 @@ class ViewTest {
       input => MapGlb(mapSeqId1 o mapSeqId2) $ input
     )
 
-    val kernel = Compile(f)
-
-    println(mapSeqId1.f.body.asInstanceOf[FunCall].outputView)
-
-    println(kernel)
+    Compile(f)
   }
 
   @Test
@@ -38,8 +34,7 @@ class ViewTest {
       input => Scatter(reverse) o MapSeq(id) $ input
     )
 
-    val kernel = Compile(f)
-    println(kernel)
+    Compile(f)
   }
 
   @Test
@@ -50,8 +45,7 @@ class ViewTest {
       input => MapSeq(Scatter(reverse)) o MapSeq(MapSeq(id)) $ input
     )
 
-    val kernel = Compile(f)
-    println(kernel)
+    Compile(f)
   }
 
   @Test
@@ -73,8 +67,7 @@ class ViewTest {
       input => toGlobal(MapSeq( fun ( p=> Scatter(reverse) $ p )  ) o mapMapId) $ input
     )
 
-    val kernel = Compile(f)
-    println(kernel)
+    Compile(f)
 
     assertEquals(VarRef(f.body.mem.variable, null, ArithExpression(N - 1 - mapId.loopVar + N*mapMapId.loopVar)),
                  ViewPrinter.emit(fcId.outputView))
@@ -83,16 +76,15 @@ class ViewTest {
   @Test
   def testMapScatter4(): Unit = {
 
-    var N = SizeVar("N")
+    val N = SizeVar("N")
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
       ArrayTypeWSWC(Float, N),
-      (in1,in2) => toGlobal(MapSeq(tf_id)) o Scatter(reverse) $ (Zip(MapSeq(id) $ in1, MapSeq(id) $ in2))
+      (in1,in2) => toGlobal(MapSeq(tf_id)) o Scatter(reverse) $ Zip(MapSeq(id) $ in1, MapSeq(id) $ in2)
       )
 
-    val kernel = Compile(f)
-    println(kernel)
+    Compile(f)
   }
 
 
@@ -109,7 +101,7 @@ class ViewTest {
     val var_i = Var("i", RangeUnknown)
     val b = B.access(var_i)
     val zip_ab = View.tuple(a, b).zip()
-    val map_zip_ab = new ViewMap(zip_ab, var_i, ArrayTypeWSWC(ArrayTypeWSWC(TupleType(Int, Int), 8), 8))
+    val map_zip_ab = ViewMap(zip_ab, var_i, ArrayTypeWSWC(ArrayTypeWSWC(TupleType(Int, Int), 8), 8))
 
     // map(map(f)) o ...
     val var_j = Var("j", RangeUnknown)
@@ -142,8 +134,8 @@ class ViewTest {
     val b = B.access(var_j)
     // ... $ zip(a, b) ...
     val zip_ab = View.tuple(a, b).zip()
-    val map_zip_ab = new ViewMap(zip_ab, var_j, ArrayTypeWSWC(ArrayTypeWSWC(TupleType(Int, Int), 8), 8))
-    val map_map_zip_ab = new ViewMap(map_zip_ab, var_i, ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(TupleType(Int, Int), 8), 8), 8))
+    val map_zip_ab = ViewMap(zip_ab, var_j, ArrayTypeWSWC(ArrayTypeWSWC(TupleType(Int, Int), 8), 8))
+    val map_map_zip_ab = ViewMap(map_zip_ab, var_i, ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(TupleType(Int, Int), 8), 8), 8))
 
     // ... map(f) $ ...
 
@@ -305,7 +297,7 @@ class ViewTest {
     val i = Var("i", ContinuousRange(0, N))
     val j = Var("j", ContinuousRange(0, M))
 
-    val v = Var("")
+    val v = Var()
 
     // Write for g
     val goal = View(transposedArray, v).access(j).access(i)
