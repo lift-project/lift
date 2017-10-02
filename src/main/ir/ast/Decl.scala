@@ -70,7 +70,7 @@ abstract class FunDecl(val arity: Int) extends Decl {
    */
   def apply(args : Expr*) : Expr = {
     assert (args.length == arity)
-    new FunCall(this, args:_*)
+    FunCall(this, args:_*)
   }
 
   /**

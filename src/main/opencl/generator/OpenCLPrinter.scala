@@ -25,7 +25,7 @@ object OpenCLPrinter {
         if (denTerms.isEmpty) s"($num)"
         else {
           val den = toStringProd(denTerms.map({
-            case Pow(e, Cst(-1)) => e
+            case Pow(x, Cst(-1)) => x
             case _ => throw new IllegalArgumentException()
           }))
           s"(($num)/($den))"
@@ -33,9 +33,7 @@ object OpenCLPrinter {
       case Sum(es) => "(" + es.map(toString).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toString(a) + " % " + toString(n) + ")"
       case of: OclFunction => of.toOCLString
-      case ai: AccessVar =>
-        val array = ai.array match { case Left(s) => s case Right(v) => toString(v) }
-        s"$array[${toString(ai.idx)}]"
+      case AccessVar(array, idx, _, _) => s"${toString(array)}[${toString(idx)}]"
       case CastedPointer(v, ty, ofs, addressSpace) =>
         val offset = if (ofs == Cst(0)) "" else s" + ${toString(ofs)}"
         s"(($addressSpace ${Type.name(ty)}*)(${toString(v)}$offset))"
