@@ -109,6 +109,7 @@ object Utils {
     case FunCall(sl: Slide, _) => Some(sl.step)
     case FunCall(Scatter(ReorderWithStride(arithExpr)), _) => Some(arithExpr)
     case FunCall(Gather(ReorderWithStride(arithExpr)), _) => Some(arithExpr)
+    case FunCall(Scatter(Shift(arithExpr)), _) => Some(arithExpr)
 
     // Sanity checks: [[ReorderWithStride]] is currently the only index function defined.
     // The two tests below are just sanity checks to introduce a failure in case we add other functions.
