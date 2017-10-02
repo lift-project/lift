@@ -157,12 +157,6 @@ class OpenCLGenerator extends Generator {
       throw new OpenCLGeneratorException("Lambda has to be type-checked to generate code")
 
     InferOpenCLAddressSpace(f)
-
-    // Allocate the params and set the corresponding type
-    f.params.foreach((p) => {
-      p.mem = OpenCLMemory.allocMemory(Type.getAllocatedSize(p.t), p.addressSpace)
-    })
-
     RangesAndCounts(f, localSize, globalSize, valueMap)
     allocateMemory(f)
 
