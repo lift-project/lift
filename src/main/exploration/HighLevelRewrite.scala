@@ -4,9 +4,12 @@ import java.io.{File, FileWriter}
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.Logger
-import ir.TypeChecker
+import ir._
 import ir.ast._
-import lift.arithmetic.ArithExpr
+import ir.view._
+import opencl.ir._
+import lift.arithmetic.{?, ArithExpr}
+import opencl.generator.{NDRange, RangesAndCounts}
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 import rewriting._
@@ -169,29 +172,84 @@ object HighLevelRewrite {
     filterDepth
   }
 
-  def filterByDistance(lambda: Lambda): Boolean = {
-    val numberMap = NumberExpression.depthFirst(lambda)
-
-    val userFunCalls = Expr.visitWithState(List[Expr]())(lambda.body, (expr, state) => {
-      expr match {
-        case FunCall(uf: UserFun, _*) if !uf.name.contains("id") => expr :: state
-        case FunCall(uf: VectorizeUserFun, _*)
-          if !uf.userFun.name.contains("id") => expr :: state
-        case _ => state
-      }
+  def filtertest(nbodyintroduceReuseGold: Lambda): Int = {
+    val userFuns = Expr.visitWithState(Seq[FunCall]())(nbodyintroduceReuseGold.body, {
+      case (call@FunCall(_: UserFun, _*), seq) => seq :+ call
+      case (call@FunCall(_: VectorizeUserFun, _*), seq) => seq :+ call
+      case (_, seq) => seq
     })
 
-    if (userFunCalls.length == 1)
-      return true
+    TypeChecker(nbodyintroduceReuseGold)
+    InferOpenCLAddressSpace(nbodyintroduceReuseGold)
+    RangesAndCounts(nbodyintroduceReuseGold, NDRange(?, ?, ?), NDRange(?, ?, ?), collection.Map())
+    OpenCLMemoryAllocator(nbodyintroduceReuseGold)
+    View(nbodyintroduceReuseGold)
 
-    val cutoff = settings.highLevelRewriteSettings.distance
+    val memVars = userFuns.map(_.mem.variable)
 
-    val ids = userFunCalls.map(numberMap(_)).sorted
 
-    // TODO: A better distance measure. Number of hops through other
-    // TODO: expressions, if there is data-flow between the two?
-    // TODO: And somehow compared to the original expression?
-    ids.sliding(2).forall(w => (w.head - w(1)).abs <= cutoff)
+    val varsWithDataFlow = userFuns.map(_.args.filter(x => emitView(x.view).exists({
+      case ViewMem(v, _) => memVars.contains(v)
+      case _ => false
+    }))).filter(_.nonEmpty).flatten
+
+
+    val numbers = varsWithDataFlow.map(x => emitView(x.view).count(toCount.isDefinedAt)) :+ 0
+
+    numbers.max
+  }
+
+  val toCount: PartialFunction[View, Unit] = {
+      case _: ViewSplit =>
+      case _: ViewJoin =>
+      case _: ViewReorder =>
+      case _: ViewAsVector =>
+      case _: ViewAsScalar =>
+    }
+
+
+  @scala.annotation.tailrec
+  def emitView(sv: View, tupleAccessStack: List[Int] = List(), allView: Seq[View] = Seq()): Seq[View] = {
+    val newAllViews = allView :+ sv
+    sv match {
+      case ViewTuple(ivs, _) =>
+        val i :: newTAS = tupleAccessStack
+        emitView(ivs(i), newTAS, newAllViews)
+
+      case ViewTupleComponent(i, iv, _) =>
+        val newTAS = i :: tupleAccessStack
+        emitView(iv, newTAS, newAllViews)
+
+      case ViewAccess(_, iv, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewMap(iv, _, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewSplit(_, iv, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewJoin(_, iv, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewReorder(_, iv, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewFilter(iv, _, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewZip(iv, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewUnzip(iv, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewAsVector(_, iv, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewAsScalar(iv, _, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewHead(iv, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewTail(iv, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewSlide(iv, _, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewPad(iv, _, _, _, _) => emitView(iv, tupleAccessStack, newAllViews)
+      case ViewSize(iv) => emitView(iv, tupleAccessStack)
+
+      case ViewMem(_, _) => newAllViews
+      case ViewConstant(_, _) => newAllViews
+      case ViewGenerator(_, _) => newAllViews
+      case ViewGeneratorUserFun(_, _) => newAllViews
+      case View2DGeneratorUserFun(_, _) => newAllViews
+      case View3DGeneratorUserFun(_, _) => newAllViews
+    }
+  }
+
+  def filterByDistance(lambda: Lambda): Boolean = {
+
+    val bla = filtertest(lambda)
+
+    bla <= 1
   }
 
   def filterByDepth(pair: (Lambda, Seq[Rule])): Boolean =

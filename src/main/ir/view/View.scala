@@ -314,15 +314,15 @@ abstract sealed class View(val t: Type = UndefType) {
 
 
 // The view "generator" MUST have all sizes and capacity in their type
-private[view] case class ViewGeneratorUserFun(f: UserFun, override val t: ArrayType with Size with Capacity) extends View(t)
+ case class ViewGeneratorUserFun(f: UserFun, override val t: ArrayType with Size with Capacity) extends View(t)
 
-private[view] case class View2DGeneratorUserFun(f: UserFun, override val t: ArrayType with Size with Capacity) extends View(t)
+ case class View2DGeneratorUserFun(f: UserFun, override val t: ArrayType with Size with Capacity) extends View(t)
 
-private[view] case class View3DGeneratorUserFun(f: UserFun, override val t: ArrayType with Size with Capacity) extends View(t)
+ case class View3DGeneratorUserFun(f: UserFun, override val t: ArrayType with Size with Capacity) extends View(t)
 
-private[view] case class ViewGenerator(f: (ArithExpr, ArithExpr) => Expression, override val t: ArrayType with Size with Capacity) extends View(t)
+ case class ViewGenerator(f: (ArithExpr, ArithExpr) => Expression, override val t: ArrayType with Size with Capacity) extends View(t)
 
-private[view] case class ViewConstant(value: Value, override val t: Type) extends View(t)
+ case class ViewConstant(value: Value, override val t: Type) extends View(t)
 
 /**
  * A view to memory object.
@@ -330,7 +330,7 @@ private[view] case class ViewConstant(value: Value, override val t: Type) extend
  * @param v the variable representing the memory object/array.
  * @param t Type of the view.
  */
-private[view] case class ViewMem(v: Var, override val t: Type) extends View(t)
+ case class ViewMem(v: Var, override val t: Type) extends View(t)
 
 /**
  * A view for accessing another view at position `i`.
@@ -339,7 +339,7 @@ private[view] case class ViewMem(v: Var, override val t: Type) extends View(t)
  * @param iv View to access.
  * @param t Type of the view.
  */
-private[view] case class ViewAccess(i: ArithExpr, iv: View, override val t: Type) extends View(t)
+ case class ViewAccess(i: ArithExpr, iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for splitting another view.
@@ -348,7 +348,7 @@ private[view] case class ViewAccess(i: ArithExpr, iv: View, override val t: Type
  * @param iv View to split.
  * @param t Type of the view.
  */
-private[view] case class ViewSplit(n: ArithExpr, iv: View, override val t: Type) extends View(t)
+ case class ViewSplit(n: ArithExpr, iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for joining another view.
@@ -357,7 +357,7 @@ private[view] case class ViewSplit(n: ArithExpr, iv: View, override val t: Type)
  * @param iv The view to join.
  * @param t Type of the view.
  */
-private[view] case class ViewJoin(n: ArithExpr, iv: View, override val t: Type) extends View(t)
+ case class ViewJoin(n: ArithExpr, iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for zipping a number of views.
@@ -365,7 +365,7 @@ private[view] case class ViewJoin(n: ArithExpr, iv: View, override val t: Type) 
  * @param iv View to zip.
  * @param t Type of the view.
  */
-private[view] case class ViewZip(iv: View, override val t: Type) extends View(t)
+ case class ViewZip(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for unzipping another view
@@ -373,7 +373,7 @@ private[view] case class ViewZip(iv: View, override val t: Type) extends View(t)
  * @param iv View to unzip
  * @param t Type of the view
  */
-private[view] case class ViewUnzip(iv: View, override val t: Type) extends View(t)
+ case class ViewUnzip(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for reordering.
@@ -382,7 +382,7 @@ private[view] case class ViewUnzip(iv: View, override val t: Type) extends View(
  * @param iv View to reorder.
  * @param t Type of the view.
  */
-private[view] case class ViewReorder(f: ArithExpr => ArithExpr, iv: View, override val t: Type) extends View(t)
+ case class ViewReorder(f: ArithExpr => ArithExpr, iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for vectorisation.
@@ -391,7 +391,7 @@ private[view] case class ViewReorder(f: ArithExpr => ArithExpr, iv: View, overri
  * @param iv View to vectorise.
  * @param t Type of the view.
  */
-private[view] case class ViewAsVector(n: ArithExpr, iv: View, override val t: Type) extends View(t)
+ case class ViewAsVector(n: ArithExpr, iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for undoing vectorisation
@@ -400,7 +400,7 @@ private[view] case class ViewAsVector(n: ArithExpr, iv: View, override val t: Ty
  * @param n Vector width
  * @param t Type of the view
  */
-private[view] case class ViewAsScalar(iv: View, n: ArithExpr, override val t: Type) extends View(t)
+ case class ViewAsScalar(iv: View, n: ArithExpr, override val t: Type) extends View(t)
 
 /**
  * A view for filtering.
@@ -409,7 +409,7 @@ private[view] case class ViewAsScalar(iv: View, n: ArithExpr, override val t: Ty
  * @param ids A view providing the indices.
  * @param t Type of the View
  */
-private[view] case class ViewFilter(iv: View, ids: View, override val t: Type) extends View(t)
+ case class ViewFilter(iv: View, ids: View, override val t: Type) extends View(t)
 
 /**
  * A view for exiting a dimension
@@ -418,7 +418,7 @@ private[view] case class ViewFilter(iv: View, ids: View, override val t: Type) e
  * @param itVar Iteration variable used for the current dimension
  * @param t Type of the view
  */
-private[view] case class ViewMap(iv: View, itVar: ArithExpr, override val t: Type) extends View(t)
+ case class ViewMap(iv: View, itVar: ArithExpr, override val t: Type) extends View(t)
 
 /**
  * A view for accessing a tuple component.
@@ -435,7 +435,7 @@ case class ViewTupleComponent(i: Int, iv: View, override val t: Type) extends Vi
  * @param ivs The views to construct a tuple of.
  * @param t Type of the view.
  */
-private[view] case class ViewTuple(ivs: Seq[View], override val t: Type) extends View(t)
+ case class ViewTuple(ivs: Seq[View], override val t: Type) extends View(t)
 
 /**
  *  A view for sliding.
@@ -444,7 +444,7 @@ private[view] case class ViewTuple(ivs: Seq[View], override val t: Type) extends
  * @param slide The slide function to use.
  * @param t Type of the view.
  */
-private[view] case class ViewSlide(iv: View, slide: Slide, override val t: Type) extends View(t)
+ case class ViewSlide(iv: View, slide: Slide, override val t: Type) extends View(t)
 
 /**
  * Get the head of a view.
@@ -452,7 +452,7 @@ private[view] case class ViewSlide(iv: View, slide: Slide, override val t: Type)
  * @param iv The view to get the head of.
  * @param t Type of view
  */
-private[view] case class ViewHead(iv: View, override val t: Type) extends View(t)
+ case class ViewHead(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for getting the tail of a view.
@@ -460,7 +460,7 @@ private[view] case class ViewHead(iv: View, override val t: Type) extends View(t
  * @param iv The view to get the tail of.
  * @param t The type of view.
  */
-private[view] case class ViewTail(iv: View, override val t: Type) extends View(t)
+ case class ViewTail(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for padding an array.
@@ -471,7 +471,7 @@ private[view] case class ViewTail(iv: View, override val t: Type) extends View(t
  * @param fct The boundary handling function.
  * @param t The type of view.
  */
-private[view] case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
+ case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
                    override val t: Type) extends View(t)
 
 /**
@@ -480,7 +480,7 @@ private[view] case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.Bound
  *
  * @param iv the view of the array
  */
-private[view] case class ViewSize(iv: View) extends View(opencl.ir.Int)
+ case class ViewSize(iv: View) extends View(opencl.ir.Int)
 
 
 /**
@@ -536,7 +536,7 @@ object View {
   def apply(t: Type, v: Value): View = ViewConstant(v, t)
 
 
-  private[view] def tuple(ivs: View*) = ViewTuple(ivs, TupleType(ivs.map(_.t): _*))
+   def tuple(ivs: View*) = ViewTuple(ivs, TupleType(ivs.map(_.t): _*))
 
   /**
    * Visit the expression and construct all views for all sub-expressions.
@@ -561,7 +561,7 @@ object View {
     OutputView(expr)
   }
 
-  private[view] def getFullType(outputType: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)]): Type = {
+   def getFullType(outputType: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)]): Type = {
     outputAccessInf.foldLeft(outputType)((t, inf) => {
       val (arrayTypeConstructor, _) = inf
       arrayTypeConstructor(t)
@@ -569,7 +569,7 @@ object View {
   }
 
 
-  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], v: Var): View = {
+   def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], v: Var): View = {
     // Use the lengths and iteration vars to mimic inputs
     val outArray = getFullType(t, outputAccessInf)
     val outView = View(outArray, v)
