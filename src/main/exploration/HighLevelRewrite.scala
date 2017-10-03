@@ -64,7 +64,7 @@ object HighLevelRewrite {
 
   protected[exploration] val defaultExplorationDepth = 5
   protected[exploration] val defaultDepthFilter = 6
-  protected[exploration] val defaultDistanceFilter = 17
+  protected[exploration] val defaultDistanceFilter = 1
   protected[exploration] val defaultRuleRepetition = 2
   protected[exploration] val defaultVectorWidth = 4
   protected[exploration] val defaultSequential = false
@@ -78,7 +78,7 @@ object HighLevelRewrite {
     s"Cutoff depth for filtering (default: $defaultDepthFilter)")
 
   protected[exploration] val distanceFilter = parser.option[Int](List("distance"), "distance",
-    s"Cutoff distance for filtering (default: $defaultDistanceFilter)")
+    s"Number of Split/Join/Scatter/Gather/asVector/asScalar allowed between user functions (default: $defaultDistanceFilter)")
 
   protected[exploration] val ruleRepetition = parser.option[Int](List("repetition"), "repetition",
     s"How often the same rule can be applied (default: $defaultRuleRepetition)")
@@ -172,42 +172,6 @@ object HighLevelRewrite {
     filterDepth
   }
 
-  def filtertest(nbodyintroduceReuseGold: Lambda): Int = {
-    val userFuns = Expr.visitWithState(Seq[FunCall]())(nbodyintroduceReuseGold.body, {
-      case (call@FunCall(_: UserFun, _*), seq) => seq :+ call
-      case (call@FunCall(_: VectorizeUserFun, _*), seq) => seq :+ call
-      case (_, seq) => seq
-    })
-
-    TypeChecker(nbodyintroduceReuseGold)
-    InferOpenCLAddressSpace(nbodyintroduceReuseGold)
-    RangesAndCounts(nbodyintroduceReuseGold, NDRange(?, ?, ?), NDRange(?, ?, ?), collection.Map())
-    OpenCLMemoryAllocator(nbodyintroduceReuseGold)
-    View(nbodyintroduceReuseGold)
-
-    val memVars = userFuns.map(_.mem.variable)
-
-
-    val varsWithDataFlow = userFuns.map(_.args.filter(x => emitView(x.view).exists({
-      case ViewMem(v, _) => memVars.contains(v)
-      case _ => false
-    }))).filter(_.nonEmpty).flatten
-
-
-    val numbers = varsWithDataFlow.map(x => emitView(x.view).count(toCount.isDefinedAt)) :+ 0
-
-    numbers.max
-  }
-
-  val toCount: PartialFunction[View, Unit] = {
-      case _: ViewSplit =>
-      case _: ViewJoin =>
-      case _: ViewReorder =>
-      case _: ViewAsVector =>
-      case _: ViewAsScalar =>
-    }
-
-
   @scala.annotation.tailrec
   def emitView(sv: View, tupleAccessStack: List[Int] = List(), allView: Seq[View] = Seq()): Seq[View] = {
     val newAllViews = allView :+ sv
@@ -246,10 +210,38 @@ object HighLevelRewrite {
   }
 
   def filterByDistance(lambda: Lambda): Boolean = {
+    val userFuns = Expr.visitWithState(Seq[FunCall]())(lambda.body, {
+      case (call@FunCall(_: UserFun, _*), seq) => seq :+ call
+      case (call@FunCall(_: VectorizeUserFun, _*), seq) => seq :+ call
+      case (_, seq) => seq
+    })
 
-    val bla = filtertest(Lambda.copy(lambda))
+    TypeChecker(lambda)
+    InferOpenCLAddressSpace(lambda)
+    RangesAndCounts(lambda, NDRange(?, ?, ?), NDRange(?, ?, ?), collection.Map())
+    OpenCLMemoryAllocator(lambda)
+    View(lambda)
 
-    bla <= 1
+    val memVars = userFuns.map(_.mem.variable)
+
+    val varsWithDataFlow = userFuns.map(_.args.filter(x => emitView(x.view).exists({
+      case ViewMem(v, _) => memVars.contains(v)
+      case _ => false
+    }))).filter(_.nonEmpty).flatten
+
+    val numberOfPatterns = varsWithDataFlow.map(x => emitView(x.view).count(patternsToCount.isDefinedAt)) :+ 0
+
+    val maxNumberOfPatterns = numberOfPatterns.max
+
+    maxNumberOfPatterns <= settings.highLevelRewriteSettings.distance
+  }
+
+  private val patternsToCount: PartialFunction[View, Unit] = {
+    case _: ViewSplit =>
+    case _: ViewJoin =>
+    case _: ViewReorder =>
+    case _: ViewAsVector =>
+    case _: ViewAsScalar =>
   }
 
   def filterByDepth(pair: (Lambda, Seq[Rule])): Boolean =
