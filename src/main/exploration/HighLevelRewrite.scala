@@ -247,7 +247,7 @@ object HighLevelRewrite {
 
   def filterByDistance(lambda: Lambda): Boolean = {
 
-    val bla = filtertest(lambda)
+    val bla = filtertest(Lambda.copy(lambda))
 
     bla <= 1
   }
