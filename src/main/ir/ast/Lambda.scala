@@ -20,7 +20,7 @@ abstract case class Lambda private[ast] (params: Array[Param],
   /**
    * Debug string representation
    */
-  override def toString = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
+  override def toString: String = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
       " -> \n" + body.toString.split("\n").map("  " + _ + "\n").mkString + ")"
 
   override def checkType(argType: Type,
@@ -110,7 +110,6 @@ object Lambda {
     }
   }
 
-
   /**
    * Implicitly wrap a given function declaration `f` into a lambda.
    *
@@ -124,6 +123,39 @@ object Lambda {
         if ps.length == params.length => lambda
       case _ => Lambda(params, f(params: _*))
     }
+  }
+
+  /**
+    * Make a copy of `lambda`. Should only be called for
+    * lambdas where all `Param`s are bound.
+    */
+  def copy(lambda: Lambda): Lambda = {
+
+    val lambdaParams = lambda.params
+
+    val bodyParams = Expr.visitWithState(Set[Param]())(lambda.body, {
+      case (p: Param, set) => set + p
+      case (_, set) => set
+    }).filter(!lambdaParams.contains(_))
+
+    val bodyParamsMap = bodyParams.map({
+      case oldValue: Value => (oldValue, oldValue.copy)
+      case param => (param, Param())
+    }).toMap
+
+    val lambdaParamsMap = lambdaParams.map(oldParam => (oldParam: Expr, Param(oldParam.t))).toMap
+
+    val allParamsMap: collection.Map[Expr, Expr] = lambdaParamsMap ++ bodyParamsMap
+
+    val replaceFun: Expr => Expr = expr => {
+      allParamsMap.getOrElse(expr, expr)
+    }
+
+    val newLambda = FunDecl.replace(lambda, replaceFun)
+
+    assert(!newLambda.eq(lambda))
+
+    newLambda
   }
 }
 
