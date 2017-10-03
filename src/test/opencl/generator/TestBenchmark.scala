@@ -5,6 +5,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
 import opencl.executor.{Compile, Execute, TestWithExecutor}
+import opencl.generator.OpenCLAST.ArithExpression
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert.{assertEquals, _}
@@ -122,11 +123,78 @@ class TestBenchmark {
       (in, niters, size) => MapGlb(fun(i => MapSeq(fun(j => md(i, j, niters, size))) $ in)) $ in
     )
 
-    val (output, runtime) = Execute(inputSize)[Array[Int]](f, input, iterations, inputSize)
+    val (output, _) = Execute(inputSize)[Array[Int]](f, input, iterations, inputSize)
 
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    assertArrayEquals(gold, output)
+  }
 
+    @Test def mandelbrotFromGenerator(): Unit = {
+    val inputSize = 512
+
+    val iterations = 100
+
+    val input = Array.range(0, inputSize)
+
+    val gold = input.flatMap(i => {
+      input.map(j => {
+        val space = 2.0f / inputSize
+
+        var Zr = 0.0f
+        var Zi = 0.0f
+        val Cr = j * space - 1.5f
+        val Ci = i * space - 1.0f
+
+        var ZrN = 0.0f
+        var ZiN = 0.0f
+        var y = 0
+        while (ZiN + ZrN <= 4.0f && y < iterations) {
+          Zi = 2.0f * Zr * Zi + Ci
+          Zr = ZrN - ZiN + Cr
+          ZiN = Zi * Zi
+          ZrN = Zr * Zr
+          y += 1
+        }
+
+        (y * 255) / iterations
+      })
+    })
+
+    val md = UserFun("md", Array("i", "j", "niters", "size"),
+      """|{
+         |  const float space = 2.0f / size;
+         |  float Zr = 0.0f;
+         |  float Zi = 0.0f;
+         |  float Cr = (j * space - 1.5f);
+         |  float Ci = (i * space - 1.0f);
+         |  int y = 0;
+         |
+         |  for (y = 0; y < niters; y++) {
+         |    const float ZiN = Zi * Zi;
+         |    const float ZrN = Zr * Zr;
+         |    if(ZiN + ZrN > 4.0f) break;
+         |    Zi *= Zr;
+         |    Zi *= 2.0f;
+         |    Zi += Ci;
+         |    Zr = ZrN - ZiN + Cr;
+         |  }
+         |  return ((y * 255) / niters);
+         |}
+         |""".stripMargin, Seq(Int, Int, Int, Int), Int)
+
+      val arrayType = ArrayTypeWSWC(Int, inputSize)
+
+      val f = fun(
+      Int,
+      Int,
+      (niters, size) => MapGlb(1)(fun(i =>
+        MapGlb(0)(fun(j =>
+          toGlobal(md)(i, j, niters, size)
+        )) $ ArrayFromGenerator( (i, _) => ArithExpression(i), arrayType)
+      )) $ ArrayFromGenerator( (i, _) => ArithExpression(i), arrayType)
+    )
+
+    val (output, _) =
+      Execute()[Array[Int]](f, iterations, inputSize)
 
     assertArrayEquals(gold, output)
   }

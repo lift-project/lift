@@ -23,8 +23,7 @@ import ir._
  *                  The size of the input array must be a multiple of
  *                  `chunkSize`.
  */
-case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1)
-  with isGenerable {
+case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

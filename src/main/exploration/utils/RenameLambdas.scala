@@ -4,7 +4,7 @@ import java.io.FileWriter
 import java.nio.file.{Files, Paths}
 
 import exploration.{HighLevelRewrite, ParameterRewrite}
-import rewriting.utils.Utils
+import rewriting.utils.{DumpToFile, Utils}
 
 import scala.io.Source
 
@@ -33,12 +33,12 @@ object RenameLambdas {
         if (Files.exists(Paths.get(fullFilename))) {
           val lambda = HighLevelRewrite.finishRewriting(ParameterRewrite.readLambdaFromFile(fullFilename))
 
-          val stringRep = Utils.dumpLambdaToString(lambda)
-          val sha256 = Utils.Sha256Hash(stringRep)
+          val stringRep = DumpToFile.dumpLambdaToString(lambda)
+          val sha256 = DumpToFile.Sha256Hash(stringRep)
 
           println(location.split("/").last + ", " + sha256)
 
-          if (Utils.dumpToFile(stringRep, sha256, newTopFolder)) {
+          if (DumpToFile.dumpToFile(stringRep, sha256, newTopFolder)) {
             // Add to index if it was unique
             synchronized {
               val idxFile = new FileWriter(newTopFolder + "/index", true)

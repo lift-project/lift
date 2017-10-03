@@ -26,10 +26,11 @@ import scala.collection._
  *
  * @param n Number of times to iterate
  * @param f Lambda to be iterated
+ * @param vPtrIn the variable representing the pointer for reading the input
+ * @param vPtrOut the variable representing the pointer for writing the output
  */
-case class Iterate(n: ArithExpr, f: Lambda) extends Pattern(arity = 1)
-                                                     with FPattern
-                                                     with isGenerable {
+case class Iterate(n: ArithExpr, f: Lambda, vPtrIn: Var = Var("inPtr"), vPtrOut: Var = Var("outPtr")) extends Pattern(arity = 1)
+                                                     with FPattern {
   var iterationCount: ArithExpr = ?
 
   var swapBuffer: Memory = UnallocatedMemory

@@ -1,7 +1,7 @@
 package opencl.ir.pattern
 
-import lift.arithmetic.PosVar
 import ir.ast._
+import lift.arithmetic.PosVar
 
 /**
  * Applicable rules:

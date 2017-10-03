@@ -1,9 +1,8 @@
 package opencl.ir.pattern
 
-import ir.{Type, ScalarType, TupleType, ArrayType, TypeChecker, TypeException}
-import opencl.ir.id
-import ir.ast.{FPattern, Lambda, Lambda1, Lambda2, Pattern, fun, isGenerable}
+import ir.ast.{FPattern, Lambda, Lambda1, Lambda2, Pattern, fun}
 import ir.interpreter.Interpreter.ValueMap
+import ir.{ArrayType, Type, TypeChecker, TypeException}
 import lift.arithmetic.{PosVar, Var}
 
 /**
@@ -14,8 +13,7 @@ import lift.arithmetic.{PosVar, Var}
  * @param loopRead the index used to read the data from the input array
  * @param loopWrite the index used to write data to the output array.
  */
-case class InsertionSortSeq(f: Lambda2, var loopRead: Var, var loopWrite: Var)
-           extends Pattern(arity=1) with FPattern with isGenerable {
+case class InsertionSortSeq(f: Lambda2, var loopRead: Var, var loopWrite: Var) extends Pattern(arity=1) with FPattern {
   override def checkType(argType: Type, setType: Boolean): Type = {
     argType match {
       case at @ ArrayType(ty) =>

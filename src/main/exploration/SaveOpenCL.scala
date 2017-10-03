@@ -12,7 +12,7 @@ import opencl.generator.{IllegalKernel, OpenCLGenerator}
 import opencl.ir._
 import opencl.ir.ast._
 import rewriting.InferNDRange
-import rewriting.utils.Utils
+import rewriting.utils.{DumpToFile, Utils}
 
 import scala.sys.process._
 
@@ -76,7 +76,8 @@ class SaveOpenCL(
       case _: IllegalKernel =>
         None
       case t: Throwable =>
-        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${tuple._2.mkString(",")})", t)
+        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${tuple._2.mkString(",")}), " +
+          s"NDRanges: (${tuple._3._1.toString}, ${tuple._3._2.toString})", t)
         None
     }
   }
@@ -107,7 +108,7 @@ class SaveOpenCL(
          |$code
          |""".stripMargin
 
-    Utils.findAndReplaceVariableNames(kernel)
+    DumpToFile.findAndReplaceVariableNames(kernel)
   }
 
   private def dumpOpenCLToFiles(tuple: (Lambda, Seq[ArithExpr], (NDRange, NDRange)), kernel: String): Option[String] = {
@@ -130,7 +131,7 @@ class SaveOpenCL(
     val (_, buffers) = OpenCLGenerator.getMemories(lambda)
     val (localBuffers, globalBuffers) = buffers.partition(_.mem.addressSpace == LocalMemory)
 
-    val dumped = Utils.dumpToFile(kernel, filename, path)
+    val dumped = DumpToFile.dumpToFile(kernel, filename, path)
     if (dumped) {
       createCsv(hash, path, lambda.params.length, globalBuffers, localBuffers)
 
