@@ -82,7 +82,7 @@ object InputView {
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case ArrayAccess(i) => argView.access(i)
-      case PrintType() | Scatter(_) | _: Tuple | Pad(_, _, _) => argView
+      case PrintType() | Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => argView
       case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
     }
   }
