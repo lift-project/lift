@@ -13,12 +13,12 @@ import scala.tools.reflect.ToolBox
  * This slightly simplifies the implementation of the type checking, memory allocation, ...
  * @param value The represented value in a string representation
  */
-case class Value(var value: String) extends Param {
+case class Value(value: String) extends Param {
 
   /**
    * Debug string representation
    */
-  override def toString = value
+  override def toString: String = value
 
   /**
    * Perform a copy of `this`
@@ -93,6 +93,6 @@ object Value {
    * @param v A value
    * @return The value `v`
    */
-  def apply(v: Value) = v
+  def apply(v: Value): Value = v
 
 }
