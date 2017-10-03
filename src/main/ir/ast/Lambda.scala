@@ -134,21 +134,19 @@ object Lambda {
     val lambdaParams = lambda.params
 
     val bodyParams = Expr.visitWithState(Set[Param]())(lambda.body, {
-      case (p: Param, set) => set + p
+      case (param: Param, set) => set + param
       case (_, set) => set
     }).filter(!lambdaParams.contains(_))
 
-    val bodyParamsMap = bodyParams.map({
-      case oldValue: Value => (oldValue, oldValue.copy)
-      case param => (param, Param())
-    }).toMap
+    val bodyParamsMap = bodyParams.map((_, Param())).toMap
 
     val lambdaParamsMap = lambdaParams.map(oldParam => (oldParam: Expr, Param(oldParam.t))).toMap
 
     val allParamsMap: collection.Map[Expr, Expr] = lambdaParamsMap ++ bodyParamsMap
 
-    val replaceFun: Expr => Expr = expr => {
-      allParamsMap.getOrElse(expr, expr)
+    val replaceFun: Expr => Expr = {
+      case Value(value, typ) => Value(value, typ)
+      case expr => allParamsMap.getOrElse(expr, expr)
     }
 
     val newLambda = FunDecl.replace(lambda, replaceFun)
