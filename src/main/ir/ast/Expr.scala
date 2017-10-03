@@ -346,6 +346,45 @@ object Expr {
     }
   }
 
+  def replace(e: Expr, f: Expr => Expr): Expr = {
+    val newE = f(e)
+    if (!e.eq(newE)) {
+      newE
+    } else {
+      e match {
+        case call: FunCall =>
+          val newArgs = call.args.map((arg) => replace(arg, f))
+
+          val newCall = call.f match {
+
+            case fp: FPattern =>
+              // Try to do the replacement in the lambda
+              val replaced = FunDecl.replace(fp.f, f)
+
+              // If replacement didn't occur return fp.f
+              // else instantiate a new pattern with the updated lambda
+              if (fp.f.eq(replaced))
+                fp
+              else
+                fp.copy(replaced)
+
+            case l: Lambda =>
+              FunDecl.replace(l, f)
+
+            case other => other
+          }
+
+          if (!newCall.eq(call.f) || (newArgs, call.args).zipped.exists( (e1, e2) => !e1.eq(e2)) ) {
+            // Instantiate a new FunCall if anything has changed
+            FunCall(newCall, newArgs: _*)
+          } else
+            e // Otherwise return the same FunCall object
+
+        case _ => e
+      }
+    }
+  }
+
   /**
    * Replace function which applies a given rewrite rule to every sub-expression
    * where the rule fires.
