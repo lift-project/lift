@@ -18,6 +18,14 @@ class TestMisc {
 
   val incr = UserFun("incr", "x", "{ return x+1; }", Float, Float)
 
+  @Test
+  def valueEquality(): Unit = {
+    val v1 = Value("0.0f", Float)
+    val v2 = Value("0.0f", Float4)
+
+    assertNotEquals(v1, v2)
+  }
+
   @Ignore
   @Test
   def reverseScatterAndVec(): Unit = {
