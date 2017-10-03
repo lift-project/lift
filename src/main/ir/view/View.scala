@@ -490,36 +490,6 @@ private[view] case class ViewSize(iv: View) extends View(opencl.ir.Int)
 object NoView extends View()
 
 object View {
-
-
-  def visit(v: View,
-            pre: View => View = {(pv) => pv},
-            post: View => View = {(pv) => pv},
-            aeF: ArithExpr => ArithExpr = {(ae) => ae}) : View = {
-    val vPre = pre(v)
-    val newView = vPre match {
-      case map: ViewMap => ViewMap(visit(map.iv, pre, post, aeF), aeF(map.itVar), vPre.t)
-      case access: ViewAccess => ViewAccess(aeF(access.i), visit(access.iv, pre, post, aeF), vPre.t)
-      case zip: ViewZip => ViewZip(visit(zip.iv, pre, post, aeF), vPre.t)
-      case unzip: ViewUnzip => ViewUnzip(visit(unzip.iv, pre, post, aeF), vPre.t)
-      case split: ViewSplit => ViewSplit(aeF(split.n), visit(split.iv, pre, post, aeF), vPre.t)
-      case join: ViewJoin => ViewJoin(aeF(join.n), visit(join.iv, pre, post, aeF), vPre.t)
-      case gather: ViewReorder => ViewReorder(gather.f, visit(gather.iv, pre, post, aeF), vPre.t)
-      case asVector: ViewAsVector => ViewAsVector(aeF(asVector.n), visit(asVector.iv, pre, post, aeF), vPre.t)
-      case asScalar: ViewAsScalar => ViewAsScalar(visit(asScalar.iv, pre, post, aeF), aeF(asScalar.n), vPre.t)
-      case filter: ViewFilter => ViewFilter(visit(filter.iv, pre, post, aeF), visit(filter.ids, pre, post, aeF), vPre.t)
-      case tuple: ViewTuple => ViewTuple(tuple.ivs.map(visit(_, pre, post, aeF)), vPre.t)
-      case component: ViewTupleComponent => ViewTupleComponent(component.i, visit(component.iv, pre, post, aeF), vPre.t)
-      case slide: ViewSlide => ViewSlide(visit(slide.iv, pre, post, aeF), slide.slide, slide.t)
-      case pad: ViewPad => ViewPad(visit(pad.iv, pre, post, aeF), pad.left, pad.right, pad.fct, vPre.t)
-      case _: ViewMem | _: ViewHead | NoView | _: View2DGeneratorUserFun |
-           _: View3DGeneratorUserFun | _: ViewConstant | _: ViewGenerator |
-           _: ViewGeneratorUserFun | _: ViewTail | _: ViewSize => vPre
-    }
-    post(newView)
-  }
-
-
   /**
    * Create new view representing an array in memory
    *

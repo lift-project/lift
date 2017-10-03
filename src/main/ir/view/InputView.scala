@@ -102,11 +102,7 @@ object InputView {
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, argView: View): View = {
-    i.f.params(0).view = View.visit(argView, pre = {
-      case ViewMem(v, t) if v == i.f.params.head.mem.variable => ViewMem(i.vPtrIn, t)
-      case v => v
-    })
-
+    i.f.params.head.view = argView.replaced(i.f.params.head.mem.variable, i.vPtrIn)
     visitAndBuildViews(i.f.body)
     View.initialiseNewView(call.t, call.inputDepth, i.f.body.mem.variable)
   }
