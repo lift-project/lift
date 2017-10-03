@@ -173,8 +173,8 @@ object HighLevelRewrite {
   }
 
   @scala.annotation.tailrec
-  def emitView(sv: View, tupleAccessStack: List[Int] = List(), allView: Seq[View] = Seq()): Seq[View] = {
-    val newAllViews = allView :+ sv
+  def emitView(sv: View, tupleAccessStack: List[Int] = List(), allViews: Seq[View] = Seq()): Seq[View] = {
+    val newAllViews = allViews :+ sv
     sv match {
       case ViewTuple(ivs, _) =>
         val i :: newTAS = tupleAccessStack
@@ -210,17 +210,19 @@ object HighLevelRewrite {
   }
 
   def filterByDistance(lambda: Lambda): Boolean = {
-    val userFuns = Expr.visitWithState(Seq[FunCall]())(lambda.body, {
+    val copiedLambda = Lambda.copy(lambda)
+
+    val userFuns = Expr.visitWithState(Seq[FunCall]())(copiedLambda.body, {
       case (call@FunCall(_: UserFun, _*), seq) => seq :+ call
       case (call@FunCall(_: VectorizeUserFun, _*), seq) => seq :+ call
       case (_, seq) => seq
     })
 
-    TypeChecker(lambda)
-    InferOpenCLAddressSpace(lambda)
-    RangesAndCounts(lambda, NDRange(?, ?, ?), NDRange(?, ?, ?), collection.Map())
-    OpenCLMemoryAllocator(lambda)
-    View(lambda)
+    TypeChecker(copiedLambda)
+    InferOpenCLAddressSpace(copiedLambda)
+    RangesAndCounts(copiedLambda, NDRange(?, ?, ?), NDRange(?, ?, ?), collection.Map())
+    OpenCLMemoryAllocator(copiedLambda)
+    View(copiedLambda)
 
     val memVars = userFuns.map(_.mem.variable)
 
