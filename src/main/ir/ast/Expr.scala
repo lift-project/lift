@@ -40,9 +40,9 @@ abstract class Expr extends IRNode {
 
   /**
    * The context keeps track where this expression is inside a bigger
-   * expression for checking (possible) constrains on nesting expression.
+   * expression for checking constrains on nesting expression.
    */
-  var context: Context = null
+  var context: Context = _
 
   /**
    * A list storing (ArrayType constructor, variable) tuples that describe the
