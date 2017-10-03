@@ -113,7 +113,7 @@ abstract class Expr extends IRNode {
    */
   def copy: Expr
 
-  def contains(pattern: PartialFunction[Expr, Unit]) =
+  def contains(pattern: PartialFunction[Expr, Unit]): Boolean =
     Expr.visitWithState(false)(this, (e, s) => pattern.isDefinedAt(e) || s)
 
   /**
@@ -133,7 +133,7 @@ abstract class Expr extends IRNode {
    */
   def <<:(f: FunDecl) = f.apply(this)
 
-  def at(i: ArithExpr) = ArrayAccess(i) $ this
+  def at(i: ArithExpr): Expr = ArrayAccess(i) $ this
 
   def eval(valueMap: ValueMap): Any
 }
@@ -308,43 +308,8 @@ object Expr {
    * @return The rebuild expression from `e` where `oldE` has be replaced with
    *         `newE`
    */
-  def replace(e: Expr, oldE: Expr, newE: Expr): Expr = {
-    if (e.eq(oldE)) {
-      newE
-    } else {
-      e match {
-        case call: FunCall =>
-          val newArgs = call.args.map((arg) => replace(arg, oldE, newE))
-
-          val newCall = call.f match {
-
-            case fp: FPattern =>
-              // Try to do the replacement in the lambda
-              val replaced = FunDecl.replace(fp.f, oldE, newE)
-
-              // If replacement didn't occur return fp.f
-              // else instantiate a new pattern with the updated lambda
-              if (fp.f.eq(replaced))
-                fp
-              else
-                fp.copy(replaced)
-
-            case l: Lambda =>
-              FunDecl.replace(l, oldE, newE)
-
-            case other => other
-          }
-
-          if (!newCall.eq(call.f) || (newArgs, call.args).zipped.exists( (e1, e2) => !e1.eq(e2)) ) {
-            // Instantiate a new FunCall if anything has changed
-            FunCall(newCall, newArgs: _*)
-          } else
-            e // Otherwise return the same FunCall object
-
-        case _ => e
-      }
-    }
-  }
+  def replace(e: Expr, oldE: Expr, newE: Expr): Expr =
+    replace(e, expr => if (expr eq oldE) newE else expr)
 
   def replace(e: Expr, f: Expr => Expr): Expr = {
     val newE = f(e)
