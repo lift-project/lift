@@ -795,7 +795,7 @@ class TestMisc {
     val f = fun(
       ArrayTypeWSWC(Float, N),
       ArrayTypeWSWC(Float, N),
-      (inA,inB) => Iterate(5)(fun( (va) =>
+      (inA,inB) => Iterate(5)(fun((va) =>
         fun( (vb) =>
           MapWrg(add) $ Zip(va,vb)
         ) $ inB

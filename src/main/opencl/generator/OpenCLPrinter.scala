@@ -40,6 +40,9 @@ object OpenCLPrinter {
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
       case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"
+      case BitwiseXOR(a, b) => "(" + toString(a) + "^" + toString(b) + ")"
+      case BitwiseAND(a, b) => "(" + toString(a) + "&" + toString(b) + ")"
+      case LShift(a, b) => "(" + toString(a) + " << " + toString(b) + ")"
       case i: lift.arithmetic.IfThenElse =>
         s"( (${toString(i.test.lhs)} ${i.test.op} ${toString(i.test.rhs)}) ? " +
           s"${toString(i.t)} : ${toString(i.e)} )"
