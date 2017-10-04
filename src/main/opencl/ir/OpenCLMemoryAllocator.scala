@@ -159,6 +159,8 @@ object OpenCLMemoryAllocator {
 
       case it: Iterate => allocIterate(it, call, numGlb, numLcl, numPvt, inMem)
 
+      case scan: ScanSeq => allocScanSeq(scan, call, numGlb, numLcl, numPvt, inMem)
+
       case l: Lambda => allocLambda(l, numGlb, numLcl, numPvt, inMem)
       case toGlobal(f) => allocLambda(f, numGlb, numLcl, numPvt, inMem)
       case toLocal(f) => allocLambda(f, numGlb, numLcl, numPvt, inMem)
@@ -450,6 +452,31 @@ object OpenCLMemoryAllocator {
     // Recurse to allocate memory for the function(s) inside
     it.f.params(0).mem = inMem
     alloc(it.f.body, numGlb, numLcl, numPvt)
+  }
+
+  private def allocScanSeq(scan: ScanSeq,
+                           call: FunCall,
+    numGlb: Allocator,
+    numLcl: Allocator,
+    numPvt: Allocator,
+    inMem: OpenCLMemory): OpenCLMemory = {
+      //println(s"Scan seq input mems $inMem")
+      inMem match {
+        case coll: OpenCLMemoryCollection =>
+          //"Connect" the input memories to the parameters of F
+          val init_mem = coll.subMemories(0)
+          val input_mem = coll.subMemories(1)
+          scan.f.params(0).mem = init_mem
+          scan.f.params(1).mem = input_mem
+
+          //alloc(scan.f.body, numGlb, numLcl, numPvt)
+          scan.f.body.mem = init_mem
+          val size = Type.getAllocatedSize(call.t)
+          val new_mem = OpenCLMemory.allocMemory(size, call.addressSpace)
+          new_mem
+        case _ =>
+          throw new IllegalArgumentException("Cannot allocate memory for scanSeq: an OpenCL memory collection input is needed")
+      }
   }
 
   private def allocZipTuple(inMem: OpenCLMemory): OpenCLMemory = {

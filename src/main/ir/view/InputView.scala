@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.{ArithExpr, Var}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{FilterSeq, MapSeqSlide, ReduceWhileSeq}
+import opencl.ir.pattern.{FilterSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
 
 /**
  * A helper object for constructing views.
@@ -58,6 +58,7 @@ object InputView {
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
       case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
+      case scan:ScanSeq => buildViewScanSeq(scan, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
       case z: Zip => buildViewZip(call, argView)
       case uz: Unzip => buildViewUnzip(call, argView)
@@ -183,6 +184,16 @@ object InputView {
     // traverse into call.f
     visitAndBuildViews(s.f.body)
     // create fresh input view for following function
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
+  }
+
+  private def buildViewScanSeq(scan:ScanSeq, call:FunCall, argView:View) : View = {
+    // pass down input view
+    scan.f.params(0).view = argView.get(0)
+    scan.f.params(1).view = argView.get(1).access(scan.loopVar)
+
+    visitAndBuildViews(scan.f.body)
+
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
 

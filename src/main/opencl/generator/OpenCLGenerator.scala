@@ -474,6 +474,8 @@ class OpenCLGenerator extends Generator {
         case ls: LSearch => generateLSearchCall(ls, call, block)
         case _: Search =>
 
+        case scan: ScanSeq => generateScanSeqCall(scan, call, block)
+
         case i: Iterate => generateIterateCall(i, call, block)
 
         case vec: VectorizeUserFun => generateUserFunCall(vec.vectorizedFunction, call, block)
@@ -927,6 +929,24 @@ class OpenCLGenerator extends Generator {
     nestedBlock += OpenCLAST.Label(finishLabel)
     (block: Block) += nestedBlock
     (block: Block) += OpenCLAST.Comment("linear_search")
+  }
+
+  // ScanSeqCall
+  private def generateScanSeqCall(scan: ScanSeq,
+                                 call: FunCall,
+                                 block: Block): Unit = {
+    val accumulator = call.args.head
+    val inputArr = call.args(1)
+    (block: Block) += OpenCLAST.Comment("scan_seq")
+    generateForLoop(block, call.args(1), scan.loopVar, block => {
+        generate(scan.f.body, block)
+        val accumulatorMemory = OpenCLMemory.asOpenCLMemory(accumulator.mem)
+        val loadAccumulator = generateLoadNode(accumulatorMemory, accumulator.t, accumulator.view)
+        val storeMemory = OpenCLMemory.asOpenCLMemory(call.mem)
+        val storeNode = generateStoreNode(storeMemory, call.t, call.view.access(scan.loopVar), loadAccumulator)
+        (block:Block) += storeNode
+    })
+    (block: Block) += OpenCLAST.Comment("end scan_seq")
   }
 
   private def generateUnsafeArrayAccess(ua: UnsafeArrayAccess,
@@ -1431,8 +1451,9 @@ class OpenCLGenerator extends Generator {
                                   block: Block): Block = {
     // Handle vector assignments for vector types
     val mem = OpenCLMemory.asOpenCLMemory(call.mem)
-    (block: Block) += generateStoreNode(mem, call.t, call.outputView,
-      generateFunCall(call, generateLoadNodes(call.args: _*)))
+    val funcall_node = generateFunCall(call, generateLoadNodes(call.args: _*))
+    val store_node = generateStoreNode(mem, call.t, call.outputView, funcall_node)
+    (block: Block) += store_node
 
     block
   }
