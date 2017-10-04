@@ -46,7 +46,7 @@ object OpenCLPrinter {
       case _ => throw new NotPrintableExpression(e.toString)
     }
   }
-  
+
   def toStringProd(terms: Seq[ArithExpr]): String = {
     val res = terms.foldLeft("1")((s, e) => s + " * " + toString(e))
     if (terms.isEmpty) "1"
@@ -314,7 +314,7 @@ class OpenCLPrinter {
     if(f.kernel)
       sb ++= "{ \n" +
         "#ifndef WORKGROUP_GUARD\n" +
-        "#define WORKGROUP_GUARD\n" + 
+        "#define WORKGROUP_GUARD\n" +
         "#endif\n" +
         "WORKGROUP_GUARD\n"
 

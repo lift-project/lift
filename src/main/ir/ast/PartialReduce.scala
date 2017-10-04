@@ -25,7 +25,7 @@ abstract class AbstractPartRed(val f: Lambda,
       case TupleType(initT, ArrayType(elemT)) =>
         f.params(0).t = initT // initial elem type
         f.params(1).t = elemT // array element type
-  
+
         val bodyType = TypeChecker.check(f.body, setType) // check the body
 
         if (initT != elemT || initT != bodyType)

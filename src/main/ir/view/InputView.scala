@@ -1,9 +1,9 @@
 package ir.view
 
-import lift.arithmetic.{ArithExpr, Var}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{FilterSeq, MapSeqSlide, ReduceWhileSeq}
+import lift.arithmetic.{ArithExpr, Var}
+import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq}
 
 /**
  * A helper object for constructing views.
@@ -58,6 +58,7 @@ object InputView {
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
       case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
+      case iss: InsertionSortSeq => buildViewSort(iss, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
       case z: Zip => buildViewZip(call, argView)
       case uz: Unzip => buildViewUnzip(call, argView)
@@ -140,6 +141,18 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
   
+  private def buildViewSort(iss: InsertionSortSeq,
+                            call: FunCall,
+                            argView: View): View = {
+    // FIXME: we need (?) a view to be set here but this view should depend on iss's output view…
+    // See comment in OutputView.buildViewSort
+    iss.f.params(1).view = argView.access(iss.loopWrite) // here is the hack
+    iss.f.params(0).view = argView.access(iss.loopRead)
+    visitAndBuildViews(iss.f.body)
+
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
+  }
+
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, argView: View): View = {
     // pass down input view
