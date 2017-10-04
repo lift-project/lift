@@ -31,7 +31,7 @@ class TestRewriteMatrixMatrix {
   @Test
   def reuseBothWithTiling(): Unit = {
 
-//    LongTestsEnabled()
+    LongTestsEnabled()
 
     val f0 = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
