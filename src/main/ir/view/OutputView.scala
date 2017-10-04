@@ -48,7 +48,6 @@ object OutputView {
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
       case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
-      case scan: ScanSeq => buildViewScanSeq(scan, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
       case uf: UserFun => buildViewUserFun(writeView,uf, call)
@@ -242,12 +241,6 @@ object OutputView {
     visitAndBuildViews(s.f.body, writeView.access(Cst(0)))
     View.initialiseNewView(call.args(1).t, call.outputDepth, call.args(1).mem.variable)
   }
-
-  private def buildViewScanSeq(scan:ScanSeq,
-                              call:FunCall, writeView:View) :View = {
-    null //For now
-  }
-
 
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {
     visitAndBuildViews(l.body, writeView)
