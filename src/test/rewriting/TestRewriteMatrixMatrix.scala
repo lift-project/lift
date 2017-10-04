@@ -31,7 +31,7 @@ class TestRewriteMatrixMatrix {
   @Test
   def reuseBothWithTiling(): Unit = {
 
-    LongTestsEnabled()
+//    LongTestsEnabled()
 
     val f0 = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
@@ -68,7 +68,7 @@ class TestRewriteMatrixMatrix {
     val numExpressionsFinal = NumberExpression.breadthFirst(f10).values.max
     assertEquals(113, numExpressionsFinal)
     checkDepth(f10, ruleSeq)
-    checkDistance(f10)
+    checkDistance(f8)
   }
 
   @Test
