@@ -1,8 +1,8 @@
-package rewriting
+package exploration
 
 import ir._
 import ir.ast._
-import ir.view.{View, ViewAccess, ViewMap}
+import ir.view.{View, ViewAccess, ViewMap, ViewMem}
 import lift.arithmetic._
 import opencl.generator.{NDRange, RangesAndCounts}
 import opencl.ir._
@@ -72,9 +72,31 @@ class DetectReuseForLocalMemory {
             FunCall(Split(Cst(64)),
               FunCall(Zip(2), p_0, p_2)))))
 
-    val reused = getReuseCandidates(f)
+    val bla = MemoryMappingRewrite.addIdsForLocal(f)
+    val reused = getReuseCandidates(bla)
     println(reused.mkString(", "))
 
+    val readingVar = View.getSubViews(reused.last.view).last.asInstanceOf[ViewMem].v
+
+    val numDimension = getNumDimensions(bla)
+
+    println(bla)
+
+    // Find which "strategic" Id location would copy the required variable and is suitable for local memory
+    val tryHere = Expr.visitWithState(Seq[Expr]())(bla.body, {
+      case (e@FunCall(Id(), _*) , seq) if getAllMemoryVars(e.mem).contains(readingVar) && !e.context.inMapLcl.reduce(_ || _) && e.context.inMapWrg.count(b => b) == numDimension =>
+        seq :+ e
+      case (_, seq) => seq
+    })
+
+    println(tryHere.mkString(", "))
+  }
+
+  private def getAllMemoryVars(memory: Memory): Seq[Var] = {
+    memory match {
+      case OpenCLMemoryCollection(subMemories, _) => subMemories.flatMap(getAllMemoryVars)
+      case _ => Seq(memory.variable)
+    }
   }
 
   private def getReuseCandidates(f: Lambda) = {
