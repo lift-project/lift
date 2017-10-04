@@ -23,8 +23,8 @@ class TestScanSeq {
       })
 
     val input = Array.fill(N)(1.0f)
-    val (dOutput, _) = Execute(128)[Vector[Float]](expr, input)
+    val (dOutput, _) = Execute(128)[Array[Float]](expr, input)
 
-    println(dOutput)
+    dOutput.foreach(x => println(s"$x"))
   }
 }
