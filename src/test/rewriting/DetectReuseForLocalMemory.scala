@@ -2,7 +2,7 @@ package rewriting
 
 import ir._
 import ir.ast._
-import ir.view.{View, ViewAccess}
+import ir.view.{View, ViewAccess, ViewMap}
 import lift.arithmetic._
 import opencl.generator.{NDRange, RangesAndCounts}
 import opencl.ir._
@@ -98,11 +98,23 @@ class DetectReuseForLocalMemory {
       case _ => true
     })
 
-    val reused = args.filterNot(a => View.getSubViews(a.view).count({
+    args.filterNot(getNumberOfLocalAccesses(_) == numDimensions)
+  }
+
+  private def getNumberOfLocalAccesses(a: Expr) = {
+    val views = View.getSubViews(a.view)
+
+    val viewMaps = views.count({
+      case ViewMap(_, v, _) => v.toString.contains("l_id")
+      case _ => false
+    })
+
+    val viewAccesses = views.count({
       case ViewAccess(v, _, _) => v.toString.contains("l_id")
       case _ => false
-    }) == numDimensions)
-    reused
+    })
+
+    viewAccesses - viewMaps
   }
 
   @Test
