@@ -489,6 +489,42 @@ object NoView extends View()
 
 object View {
 
+  @scala.annotation.tailrec
+  def getSubViews(sv: View, tupleAccessStack: List[Int] = List(), allViews: Seq[View] = Seq()): Seq[View] = {
+    val newAllViews = allViews :+ sv
+    sv match {
+      case ViewTuple(ivs, _) =>
+        val i :: newTAS = tupleAccessStack
+        getSubViews(ivs(i), newTAS, newAllViews)
+
+      case ViewTupleComponent(i, iv, _) =>
+        val newTAS = i :: tupleAccessStack
+        getSubViews(iv, newTAS, newAllViews)
+
+      case ViewAccess(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewMap(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewSplit(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewJoin(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewReorder(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewFilter(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewZip(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewUnzip(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewAsVector(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewAsScalar(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewHead(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewTail(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewSlide(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewPad(iv, _, _, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewSize(iv) => getSubViews(iv, tupleAccessStack)
+
+      case ViewMem(_, _) => newAllViews
+      case ViewConstant(_, _) => newAllViews
+      case ViewGenerator(_, _) => newAllViews
+      case ViewGeneratorUserFun(_, _) => newAllViews
+      case View2DGeneratorUserFun(_, _) => newAllViews
+      case View3DGeneratorUserFun(_, _) => newAllViews
+    }
+  }
 
   def visit(v: View,
             pre: View => View = {(pv) => pv},

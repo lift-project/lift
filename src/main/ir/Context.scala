@@ -62,11 +62,14 @@ class Context extends Cloneable {
     c
   }
   
-  def copy() =
+  def copy(): Context =
     this.clone().asInstanceOf[Context]
 }
 
 object Context {
+
+  def apply(lambda: Lambda): Unit = updateContext(lambda.body)
+
    /**
      * Update the context recursively
      */
