@@ -113,6 +113,14 @@ JNIEXPORT jstring JNICALL Java_opencl_executor_Executor_getDeviceType
 
 /*
  * Class:     opencl_executor_Executor
+ * Method:    isLittleEndian
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_opencl_executor_Executor_isLittleEndian
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     opencl_executor_Executor
  * Method:    shutdown
  * Signature: ()V
  */

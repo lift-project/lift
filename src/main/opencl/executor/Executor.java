@@ -130,6 +130,8 @@ public class Executor {
 
     public native static String getDeviceType();
 
+    public native static boolean isLittleEndian();
+
     public static void init() {
         String platform = System.getenv("LIFT_PLATFORM");
         String device = System.getenv("LIFT_DEVICE");

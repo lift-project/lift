@@ -19,7 +19,7 @@ class TestTriple {
   val inputArray2 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
   val inputArray3 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
   val gold = (inputArray1 zip inputArray2 zip inputArray3).map({case ((a,b),c) => a+b+c})
-  val inputArray = (inputArray1 zip inputArray2 zip inputArray3).flatMap { case ((a, b), c) => Array(a, b, c) }
+  val inputArray = (inputArray1 zip inputArray2 zip inputArray3).map{ case ((a, b), c) => (a, b, c) }
 
   @Test def VECTOR_SUM_TRIPLE(): Unit = {
     val f = fun(ArrayTypeWSWC(TupleType(Float,Float,Float), SizeVar("N")), (input) =>
@@ -28,7 +28,7 @@ class TestTriple {
       ) o Split(1024) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputArray)
+    val (output, runtime) = Execute(inputSize)[Array[Float]](f, inputArray)
     assertArrayEquals(gold, output, 0.0f)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -46,7 +46,7 @@ class TestTriple {
         ) o Split(1024) $ Zip(xs, ys, zs)
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputArray1, inputArray2, inputArray3)
+    val (output, runtime) = Execute(inputSize)[Array[Float]](f, inputArray1, inputArray2, inputArray3)
     assertArrayEquals(gold, output, 0.0f)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)    

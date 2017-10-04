@@ -13,7 +13,7 @@ import ir._
  * The head pattern has the following type:
  * `Head() : [a],,I,, -> a`
  */
-case class Head() extends Pattern(arity = 1) with isGenerable {
+case class Head() extends Pattern(arity = 1)  {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

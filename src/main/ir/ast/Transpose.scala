@@ -16,7 +16,7 @@ import ir._
  * The transpose pattern has the following type:
  * `Transpose() : [ [a],,I,, ],,J,, -> [ [a],,J,, ],,I,,`
  */
-case class Transpose() extends Pattern(arity = 1) with isGenerable {
+case class Transpose() extends Pattern(arity = 1) {
 
 
   override def checkType(argType: Type,

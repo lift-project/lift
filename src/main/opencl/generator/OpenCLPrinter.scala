@@ -3,7 +3,7 @@ package opencl.generator
 import lift.arithmetic._
 import lift.arithmetic.NotEvaluableToIntException._
 import ir._
-import ir.view.AccessVar
+import ir.view.{AccessVar, CastedPointer}
 import opencl.generator.OpenCLAST._
 import opencl.ir._
 
@@ -25,7 +25,7 @@ object OpenCLPrinter {
         if (denTerms.isEmpty) s"($num)"
         else {
           val den = toStringProd(denTerms.map({
-            case Pow(e, Cst(-1)) => e
+            case Pow(x, Cst(-1)) => x
             case _ => throw new IllegalArgumentException()
           }))
           s"(($num)/($den))"
@@ -33,7 +33,10 @@ object OpenCLPrinter {
       case Sum(es) => "(" + es.map(toString).reduce( _ + " + " + _  ) + ")"
       case Mod(a,n) => "(" + toString(a) + " % " + toString(n) + ")"
       case of: OclFunction => of.toOCLString
-      case ai: AccessVar => ai.array + "[" + toString(ai.idx.content) + "]"
+      case AccessVar(array, idx, _, _) => s"${toString(array)}[${toString(idx)}]"
+      case CastedPointer(v, ty, ofs, addressSpace) =>
+        val offset = if (ofs == Cst(0)) "" else s" + ${toString(ofs)}"
+        s"(($addressSpace ${Type.name(ty)}*)(${toString(v)}$offset))"
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
       case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"
@@ -46,7 +49,7 @@ object OpenCLPrinter {
       case _ => throw new NotPrintableExpression(e.toString)
     }
   }
-  
+
   def toStringProd(terms: Seq[ArithExpr]): String = {
     val res = terms.foldLeft("1")((s, e) => s + " * " + toString(e))
     if (terms.isEmpty) "1"
@@ -223,7 +226,7 @@ class OpenCLPrinter {
       val fields = tt.elemsT.zipWithIndex.map({case (ty,i) => Type.name(ty)+" _"+i})
       print(s"""#ifndef ${name}_DEFINED
         |#define ${name}_DEFINED
-        |typedef struct {
+        |typedef struct __attribute__((aligned(${tt.alignment._1}))) {
         |  ${fields.reduce(_+";\n  "+_)};
         |} $name;
         |#endif
@@ -314,7 +317,7 @@ class OpenCLPrinter {
     if(f.kernel)
       sb ++= "{ \n" +
         "#ifndef WORKGROUP_GUARD\n" +
-        "#define WORKGROUP_GUARD\n" + 
+        "#define WORKGROUP_GUARD\n" +
         "#endif\n" +
         "WORKGROUP_GUARD\n"
 

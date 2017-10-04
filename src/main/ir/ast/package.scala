@@ -25,17 +25,21 @@ package object ast {
     }
   }
 
+  case class Shift(i: ArithExpr) extends IndexFunction(shiftRightGeneric(i))
+
   val reverse = (i: ArithExpr, t: Type) => {
-    val n = Type.getLength(t)
+      val n = Type.getLength(t)
 
     n - 1 - i
   }
-  
-  val shiftRight: (ArithExpr, Type) => ArithExpr =
-    (i, t) => {
-      val n = Type.getLength(t)
-      (i + 1) - n*(i / (n-1))
+
+  val shiftRightGeneric = (shiftAmount: ArithExpr) => (i: ArithExpr, t: Type) => {
+    val n = Type.getLength(t)
+    (i + shiftAmount) - n*(i / (n-1))
   }
+
+  val shiftRight: (ArithExpr, Type) => ArithExpr = shiftRightGeneric(1)
+  val shift2Right: (ArithExpr, Type) => ArithExpr = shiftRightGeneric(2)
 
   val reorderStride = (s:ArithExpr) => (i: ArithExpr, t:Type) => {
     val n = Type.getLength(t) /^ s

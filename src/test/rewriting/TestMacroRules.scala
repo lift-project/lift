@@ -8,6 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
+import rewriting.macrorules.{MacroRules, ReuseRules, SlideTiling}
 import rewriting.utils.NumberExpression
 
 object TestMacroRules extends TestWithExecutor
@@ -69,7 +70,7 @@ class TestMacroRules {
   @Test
   def tileSlide2D(): Unit = {
     val s = Slide2D(3,1)
-    assertTrue(MacroRules.tileSlide2D.isDefinedAt(s.body))
+    assertTrue(SlideTiling.tileSlide2D.isDefinedAt(s.body))
   }
 
   @Test
@@ -80,9 +81,9 @@ class TestMacroRules {
       ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       a => gold $ a)
 
-    assertTrue(MacroRules.tile2DStencils.isDefinedAt(f.body))
+    assertTrue(SlideTiling.tile2DStencils.isDefinedAt(f.body))
     TypeChecker(f)
-    val tiled = Rewrite.applyRuleAt(f, f.body, MacroRules.tile2DStencils)
+    val tiled = Rewrite.applyRuleAt(f, f.body, SlideTiling.tile2DStencils)
     TypeChecker(tiled)
   }
 
@@ -94,9 +95,9 @@ class TestMacroRules {
       ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
       a => gold $ a)
 
-    assertTrue(MacroRules.tile2DStencils.isDefinedAt(f.body))
+    assertTrue(SlideTiling.tile2DStencils.isDefinedAt(f.body))
     TypeChecker(f)
-    val tiled = Rewrite.applyRuleAt(f, f.body, MacroRules.tile2DStencils)
+    val tiled = Rewrite.applyRuleAt(f, f.body, SlideTiling.tile2DStencils)
     TypeChecker(tiled)
   }
 
@@ -128,10 +129,10 @@ class TestMacroRules {
     )
 
     TypeChecker(hotspot)
-    assertFalse(MacroRules.tile2DStencils.isDefinedAt(hotspot.body))
-    assertTrue(MacroRules.tile2DStencilsZip.isDefinedAt(hotspot.body))
+    assertFalse(SlideTiling.tile2DStencils.isDefinedAt(hotspot.body))
+    assertTrue(SlideTiling.tile2DStencilsZip.isDefinedAt(hotspot.body))
 
-    val tiled = Rewrite.applyRuleAt(hotspot, hotspot.body, MacroRules.tile2DStencilsZip)
+    val tiled = Rewrite.applyRuleAt(hotspot, hotspot.body, SlideTiling.tile2DStencilsZip)
     TypeChecker(tiled)
   }
 
@@ -180,8 +181,8 @@ class TestMacroRules {
       }
     )
     TypeChecker(srad2)
-    assertTrue(MacroRules.tile2DStencilsZip6.isDefinedAt(srad2.body))
-    val tiled = Rewrite.applyRuleAt(srad2, srad2.body, MacroRules.tile2DStencilsZip6)
+    assertTrue(SlideTiling.tile2DStencilsZip6.isDefinedAt(srad2.body))
+    val tiled = Rewrite.applyRuleAt(srad2, srad2.body, SlideTiling.tile2DStencilsZip6)
     TypeChecker(tiled)
   }
 
@@ -201,9 +202,9 @@ class TestMacroRules {
       })
 
      TypeChecker(stencil)
-     assertTrue(MacroRules.tile2DStencils.isDefinedAt(stencil.body))
+     assertTrue(SlideTiling.tile2DStencils.isDefinedAt(stencil.body))
      TypeChecker(stencil)
-     val tiled = Rewrite.applyRuleAt(stencil, stencil.body, MacroRules.tile2DStencils)
+     val tiled = Rewrite.applyRuleAt(stencil, stencil.body, SlideTiling.tile2DStencils)
 
      println(tiled)
      TypeChecker(tiled)
@@ -260,7 +261,7 @@ class TestMacroRules {
     val idMap = NumberExpression.breadthFirst(f)
     val expr = Rewrite.getExprForId(f.body, 3, idMap)
 
-    assertFalse(MacroRules.apply2DRegisterBlocking.isDefinedAt(expr))
+    assertFalse(ReuseRules.apply2DRegisterBlocking.isDefinedAt(expr))
   }
 
 
@@ -318,7 +319,7 @@ class TestMacroRules {
               FunCall(Split(v__4),
                 FunCall(Transpose(), p_0))))))
 
-    val result = Rewrite.applyRuleAtId(f, 2, MacroRules.apply2DRegisterBlocking)
+    val result = Rewrite.applyRuleAtId(f, 2, ReuseRules.apply2DRegisterBlocking)
     TypeChecker(result)
   }
 
@@ -346,6 +347,6 @@ class TestMacroRules {
           )), FunCall(Transpose(), p_0)))
 
     // TODO: Doesn't quite do what you'd expect
-    Rewrite.applyRuleAtId(f, 0, MacroRules.finishTiling)
+    Rewrite.applyRuleAtId(f, 0, ReuseRules.finishTiling)
   }
 }

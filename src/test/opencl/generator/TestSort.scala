@@ -1,38 +1,26 @@
 package opencl.generator
 
-import ir._
 import ir.ast._
-import lift.arithmetic.{Predicate, _}
+import ir._
+import lift.arithmetic._
 import opencl.executor._
 import opencl.generator.OpenCLAST.ArithExpression
-import opencl.ir._
 import opencl.ir.pattern._
-import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import opencl.ir.{Int, IntToValue, add, _}
+import org.junit.Assert.assertArrayEquals
+import org.junit.Test
 
 import scala.language.postfixOps
-import reflect.ClassTag
+import scala.reflect.ClassTag
 
-object TestSort {
-  @BeforeClass def TestSort(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
-
+object TestSort extends TestWithExecutor
 
 class TestSort {
 
   /*
     perform a single layer of bitonic shuffling - this is our gold standard for a layer of the sorting operation
    */
-  def bitonic_iteration[T <% Ordered[T]](arr: Seq[T], dim_i: Int, dim_j: Int)(implicit ev1: ClassTag[T]): Seq[T] = {
+  private def bitonic_iteration[T <% Ordered[T]](arr: Seq[T], dim_i: Int, dim_j: Int)(implicit ev1: ClassTag[T]): Seq[T] = {
     // iterate over the arr, and calculate the new value...
     val new_arr: Seq[T] = arr.zipWithIndex.map { case (elem, idx) => compare_and_replace(arr, idx, dim_i, dim_j) }
     new_arr
@@ -41,7 +29,7 @@ class TestSort {
   /*
   A single compare-and-replace in a bitonic sort
    */
-  def compare_and_replace[T <% Ordered[T]](arr: Seq[T], index: Int, dim_i: Int, dim_j: Int)(implicit ev1: ClassTag[T]): T = {
+  private def compare_and_replace[T <% Ordered[T]](arr: Seq[T], index: Int, dim_i: Int, dim_j: Int)(implicit ev1: ClassTag[T]): T = {
     // get our value:
     val index_val: T = arr(index)
     //    println(s"index + val: ${index}, ${index_val}")
@@ -60,16 +48,16 @@ class TestSort {
     retval
   }
 
-  def compute_pair(index: Int, dim_j: Int): Int = {
+  private def compute_pair(index: Int, dim_j: Int): Int = {
     index ^ (1 << dim_j)
   }
 
-  def compute_direction(index: Int, dim_i: Int): Boolean = {
+  private def compute_direction(index: Int, dim_i: Int): Boolean = {
     (index & (2 << dim_i)) != 0
   }
 
-  def shuffle[T](a: Array[T]) = {
-    for (i <- 1 until a.size) {
+  private def shuffle[T](a: Array[T]) = {
+    for (i <- 1 until a.length) {
       val j = util.Random nextInt (i + 1)
       val t = a(i)
       a(i) = a(j)
@@ -78,15 +66,14 @@ class TestSort {
     a
   }
 
-
   @Test def print_bitonic_directions(): Unit = {
     val dimensions = 4
     val array_size = 1 << dimensions
     val arr = Array.tabulate(array_size)((i: Int) => i)
     var c = 0
-    for (i <- 0 to dimensions - 1) {
+    for (i <- 0 until dimensions) {
       for (j <- 0 to i reverse) {
-        println(s"${i}–${j}-${c}: " + arr.map { idx: Int => if (compute_direction(idx, i)) 1 else 0 }.mkString("[", ",", "]"))
+        println(s"$i–$j-$c: " + arr.map { idx: Int => if (compute_direction(idx, i)) 1 else 0 }.mkString("[", ",", "]"))
         c = c + 1
       }
     }
@@ -96,7 +83,7 @@ class TestSort {
     val dimensions = 4
     val array_size = 1 << dimensions
     val arr = Array.tabulate(array_size)((i: Int) => i)
-    for (i <- 0 to dimensions - 1) {
+    for (i <- 0 until dimensions) {
       for (j <- 0 to i reverse) {
         println(arr.map { idx: Int => compute_pair(idx, j) }.mkString("[", ",", "]"))
       }
@@ -118,10 +105,10 @@ class TestSort {
     val dimensions = 4
     val array_size = 1 << dimensions
 
-    var arr = shuffle(Array.tabulate(array_size)((i: Int) => i).toArray).toSeq
+    var arr = shuffle(Array.tabulate(array_size)((i: Int) => i)).toSeq
     val gold = arr.sorted.toArray
     println(s"Array before: ${arr.mkString("[", ",", "]")}")
-    for (i <- 0 to dimensions - 1) {
+    for (i <- 0 until dimensions) {
       for (j <- 0 to i reverse) {
         val arr2 = bitonic_iteration(arr, i, j)
         println(arr2.mkString("[", ",", "]"))
@@ -134,15 +121,11 @@ class TestSort {
   @Test def single_iteration_compile_time_indices(): Unit = {
     val inputSize = Math.pow(2, 8).toInt
     val arr = Array.tabulate(inputSize)((i: Int) => i.toFloat)
-    val splitSize = 2
 
     val N = SizeVar("N")
 
-    val idxArr = ArrayFromGenerator((i, N) => ArithExpression(i), ArrayTypeWSWC(Int, N))
-    val tfiadd = UserFun("tuplefiadd", "x", "{return x._0 + (float)x._1;}", TupleType(Float, Int), Float);
-
-    val hypercube_pair = (dim_j: ArithExpr) => (idx: ArithExpr, t: Type) => {
-      (idx ^ (1 << dim_j))
+    val hypercube_pair = (dim_j: ArithExpr) => (idx: ArithExpr, _: Type) => {
+      idx ^ (1 << dim_j)
     }
 
     val sort_direction = (dim_i: ArithExpr, idx: ArithExpr) => {
@@ -170,7 +153,7 @@ class TestSort {
         | // x._4 = sort direction
         | int should_swap = x._4 == ((x._1 > x._0) == (x._3 > x._2));
         | return (should_swap ? x._1 : x._0);
-      """.stripMargin, TupleType(Float, Float, Int, Int, Int), Float);
+      """.stripMargin, TupleType(Float, Float, Int, Int, Int), Float)
 
 
     // try it with dimension 0
@@ -184,7 +167,7 @@ class TestSort {
       }
     )
 
-    val (output: Array[Float], runtime) = Execute(1, 1)(kernel, arr)
+    val (output, runtime) = Execute(1, 1)[Array[Float]](kernel, arr)
     println("Time: " + runtime)
     println(s"Input:  ${arr.take(20).mkString("[", ",", "]")}")
     println(s"Output: ${output.take(20).mkString("[", ",", "]")}")
@@ -194,9 +177,7 @@ class TestSort {
   @Test def single_iteration_runtime_indices(): Unit = {
     val dimensions = 8
     val inputSize = Math.pow(2, dimensions).toInt
-    var arr = shuffle(Array.tabulate(inputSize)((i: Int) => i.toFloat))
-
-    val splitSize = 2
+    val arr = shuffle(Array.tabulate(inputSize)((i: Int) => i.toFloat))
 
     val N = SizeVar("N")
 
@@ -211,7 +192,7 @@ class TestSort {
       """
         | int should_swap = dir == ((o_val > val) == (o_idx > idx));
         | return (should_swap ? o_val : val);
-      """.stripMargin, Array(Float, Float, Int, Int, Int), Float);
+      """.stripMargin, Array(Float, Float, Int, Int, Int), Float)
 
     val get_other_index = UserFun("get_other_index", Array("dim_j", "idx"),
       """
@@ -244,7 +225,7 @@ class TestSort {
       }
     )
 
-    val (output: Array[Float], runtime) = Execute(1, 1)(kernel, arr, 0, 0)
+    val (output, runtime) = Execute(1, 1)[Array[Float]](kernel, arr, 0, 0)
 
 
     println("Time: " + runtime)
@@ -259,12 +240,10 @@ class TestSort {
     val inputSize = Math.pow(2, dimensions).toInt
     var arr = shuffle(Array.tabulate(inputSize)((i: Int) => i.toFloat))
 
-    val splitSize = 2
-
     val N = SizeVar("N")
 
-    val hypercube_pair = (dim_j: ArithExpr) => (idx: ArithExpr, t: Type) => {
-      (idx ^ (1 << dim_j))
+    val hypercube_pair = (dim_j: ArithExpr) => (idx: ArithExpr, _: Type) => {
+      idx ^ (1 << dim_j)
     }
 
     val sort_direction = (dim_i: ArithExpr, idx: ArithExpr) => {
@@ -276,9 +255,6 @@ class TestSort {
     val index_generator = ArrayFromGenerator((idx, _) => ArithExpression(idx), ArrayTypeWSWC(Int, N))
 
     val other_index_generator = (dim_j: ArithExpr) => ArrayFromGenerator((idx, _) => ArithExpression(hypercube_pair(dim_j)(idx, Int)), ArrayTypeWSWC(Int, N))
-
-    val dim_i = 0
-    val dim_j = 0
 
     val gold: Array[Float] = arr.sorted
 
@@ -292,12 +268,12 @@ class TestSort {
         | // x._4 = sort direction
         | int should_swap = x._4 == ((x._1 > x._0) == (x._3 > x._2));
         | return (should_swap ? x._1 : x._0);
-      """.stripMargin, TupleType(Float, Float, Int, Int, Int), Float);
+      """.stripMargin, TupleType(Float, Float, Int, Int, Int), Float)
 
 
     // try it with dimension 0
     var total_runtime = 0.0
-    for (dim_i <- 0 to dimensions - 1) {
+    for (dim_i <- 0 until dimensions) {
       for (dim_j <- 0 to dim_i reverse) {
         val kernel = fun(
           ArrayTypeWSWC(Float, N),
@@ -308,7 +284,7 @@ class TestSort {
           }
         )
 
-        val (output: Array[Float], runtime) = Execute(1, 1)(kernel, arr)
+        val (output, runtime) = Execute(1, 1)[Array[Float]](kernel, arr)
         total_runtime = total_runtime + runtime
         arr = output
       }
@@ -324,14 +300,9 @@ class TestSort {
     val inputSize = Math.pow(2, dimensions).toInt
     var arr = shuffle(Array.tabulate(inputSize)((i: Int) => i.toFloat))
 
-    val splitSize = 128
-
     val N = SizeVar("N")
 
     val index_generator = ArrayFromGenerator((idx, _) => ArithExpression(idx), ArrayTypeWSWC(Int, N))
-
-    val dim_i = 0
-    val dim_j = 0
 
     val gold: Array[Float] = arr.sorted
 
@@ -339,7 +310,7 @@ class TestSort {
       """
         | int should_swap = dir == ((o_val > val) == (o_idx > idx));
         | return (should_swap ? o_val : val);
-      """.stripMargin, Array(Float, Float, Int, Int, Int), Float);
+      """.stripMargin, Array(Float, Float, Int, Int, Int), Float)
 
     val get_other_index = UserFun("get_other_index", Array("dim_j", "idx"),
       """
@@ -376,9 +347,9 @@ class TestSort {
 
     var total_runtime = 0.0
     var iterations = 0
-    for (dim_i <- 0 to dimensions - 1) {
+    for (dim_i <- 0 until dimensions) {
       for (dim_j <- 0 to dim_i reverse) {
-        val (output: Array[Float], runtime) = Execute(128, inputSize)(code, kernel, arr, dim_i, dim_j)
+        val (output, runtime) = Execute(128, inputSize)[Array[Float]](code, kernel, arr, dim_i, dim_j)
         total_runtime = total_runtime + runtime
         iterations = iterations + 1
         arr = output
@@ -391,4 +362,70 @@ class TestSort {
     assertArrayEquals(arr, gold, 0.01f)
   }
 
+  private val int_compare = UserFun(
+    "int_compare", Array("x", "y"), "return x < y;", Seq(Int, Int), Int
+  )
+  
+  @Test def sortIntSequential(): Unit = {
+    val size = 128
+    val input = Array.fill(size)(util.Random.nextInt(32))
+    val N = SizeVar("N")
+    
+    val kernel = fun(
+      ArrayType(Int, N),
+      InsertionSortSeq(int_compare) $ _
+    )
+    
+    val (output, runtime) = Execute(1, 1)[Array[Int]](kernel, input)
+    println(s"Runtime: $runtime")
+    
+    println(output.mkString(", "))
+    assertArrayEquals(input.sortWith(_ < _), output)
+  }
+  
+  @Test def mapSort(): Unit = {
+    val size = 1024
+    val input = Array.fill(size)(util.Random.nextInt(4096))
+    val N = SizeVar("N")
+    
+    val kernel = fun(
+      ArrayType(Int, N),
+      arr =>
+        Join() o MapWrg(
+          MapLcl(toGlobal(InsertionSortSeq(int_compare))) o Split(32)
+        )
+        o Split(32) $ arr
+    )
+   
+    val gold = input.grouped(32).flatMap(_.sortWith(_ < _)).toArray
+    val (output, runtime) = Execute(size)[Array[Int]](kernel, input)
+    println(s"Runtime: $runtime")
+    
+    assertArrayEquals(gold, output)
+  }
+  
+  @Test def sortArraysSequential(): Unit = {
+    val size = 128
+    val input = Array.fill(size)(util.Random.nextInt(64))
+    val N = SizeVar("N")
+    
+    val kernel = fun(
+      ArrayType(Int, N),
+      arr =>
+        Join() o InsertionSortSeq(
+          fun((l, r) =>
+            int_compare.apply(
+              fun(x => x.at(0)) o ReduceSeq(add(Int), 0) $ l,
+              fun(x => x.at(0)) o ReduceSeq(add(Int), 0) $ r
+            )
+          )
+        ) o Split(8) $ arr
+    )
+    
+    val gold = input.grouped(8).toArray.sortWith(_.sum < _.sum).flatten
+    val (output, runtime) = Execute(1, 1)[Array[Int]](kernel, input)
+    println(s"Runtime: $runtime")
+  
+    assertArrayEquals(gold, output)
+  }
 }

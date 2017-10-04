@@ -94,8 +94,7 @@ class TestNBody {
 
     val function = NBody.amd
 
-    val (output: Array[Float], _) =
-      Execute(inputSize)(function, pos, vel, espSqr, deltaT)
+    val (output, _) = Execute(inputSize)[Array[Float]](function, pos, vel, espSqr, deltaT)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -105,8 +104,7 @@ class TestNBody {
 
     val function = NBody.lessLoadsToGlobal
 
-    val (output: Array[Float], _) =
-      Execute(inputSize)(function, pos, vel, espSqr, deltaT)
+    val (output, _) = Execute(inputSize)[Array[Float]](function, pos, vel, espSqr, deltaT)
 
     assertArrayEquals(gold, output, 0.0001f)
 
@@ -145,8 +143,7 @@ class TestNBody {
           )) o Split(tileX) $ Zip(pos, vel)
     )
 
-    val (output: Array[Float], _) =
-      Execute(tileX, inputSize, (true, false))(function, pos, vel, espSqr, deltaT)
+    val (output, _) = Execute(tileX, inputSize, (true, false))[Array[Float]](function, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -184,8 +181,7 @@ class TestNBody {
           )) o Split(tileX) $ Zip(pos, vel)
     )
 
-    val (output: Array[Float], _) =
-      Execute(tileX, inputSize, (true, false))(function, pos, vel, espSqr, deltaT)
+    val (output, _) = Execute(tileX, inputSize, (true, false))[Array[Float]](function, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -202,8 +198,7 @@ class TestNBody {
 
     val function = NBody.nvidia
 
-    val (output: Array[Float], _) =
-      Execute(tileX, tileY, threadsX, threadsY, (true, true))(function, pos, vel, espSqr, deltaT)
+    val (output, _) = Execute(tileX, tileY, threadsX, threadsY, (true, true))[Array[Float]](function, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -262,8 +257,8 @@ class TestNBody {
           )) o Split(tileX)) o Split(N/numGroups1) $ Zip(pos, vel)
     )
 
-    val (output: Array[Float], _) =
-      Execute(tileX, tileY, threadsX, threadsY, (true, true))(function, pos, vel, espSqr, deltaT)
+    val (output, _) =
+      Execute(tileX, tileY, threadsX, threadsY, (true, true))[Array[Float]](function, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
