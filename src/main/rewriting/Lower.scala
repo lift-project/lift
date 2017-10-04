@@ -2,7 +2,7 @@ package rewriting
 
 import com.typesafe.scalalogging.Logger
 import ir.ast._
-import ir.{Context, TupleType, TypeChecker}
+import ir.{Context, TupleType, TypeChecker, UpdateContext}
 import opencl.ir.pattern._
 import rewriting.rules._
 import rewriting.macrorules.MacroRules
@@ -334,7 +334,7 @@ object Lower {
       case FunCall(Id(), _) =>
     }
 
-    Context.updateContext(lambda.body)
+    UpdateContext(lambda)
 
     val ids = findAllDepthFirst(lambda, pattern1.isDefinedAt)
     val pattern2: PartialFunction[Expr, Unit] = {

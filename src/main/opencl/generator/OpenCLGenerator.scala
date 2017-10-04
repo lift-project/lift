@@ -237,7 +237,7 @@ class OpenCLGenerator extends Generator {
   private def checkLambdaIsLegal(lambda: Lambda): Unit = {
     CheckBarriersAndLoops(lambda)
 
-    Context.updateContext(lambda.body)
+    UpdateContext(lambda)
 
     Expr.visit(lambda.body, _ => Unit, {
       case call@FunCall(MapGlb(dim, _), _*) if call.context.inMapGlb(dim) =>

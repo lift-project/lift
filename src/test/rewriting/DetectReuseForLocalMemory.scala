@@ -85,7 +85,7 @@ class DetectReuseForLocalMemory {
     RangesAndCounts(f, NDRange(?, ?, ?), NDRange(?, ?, ?), collection.Map())
     OpenCLMemoryAllocator(f)
     View(f)
-    Context(f)
+    UpdateContext(f)
 
     val args = Expr.visitWithState(Seq[Expr]())(f.body, {
       case (call@FunCall(_: UserFun | _: VectorizeUserFun, args@_*), seq)

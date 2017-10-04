@@ -354,7 +354,7 @@ object MemoryMappingRewrite {
   // and that would otherwise be forced to global
   private def addToAddressSpaceToUserFun(copiesAdded: List[Lambda]): List[Lambda] = {
     copiesAdded.map(f => {
-      Context.updateContext(f.body)
+      UpdateContext(f)
       val res = Expr.visitLeftToRight(List[Expr]())(f.body, (e, s) => {
         e match {
           case FunCall(toGlobal(Lambda(_, FunCall(m: AbstractMap, _))), _) =>
@@ -373,7 +373,7 @@ object MemoryMappingRewrite {
 
   def mapPrivateMemory(lambda: Lambda): List[Lambda] = {
 
-    ir.Context.updateContext(lambda.body)
+    UpdateContext(lambda)
 
     val (mapSeq, _) = Expr.visitLeftToRight((List[Expr](), false))(lambda.body, (expr, pair) => {
       expr match {
