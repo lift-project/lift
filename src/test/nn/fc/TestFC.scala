@@ -59,7 +59,7 @@ class TestFC {
 //      */
 //
 //    val experiments = for {
-//      layerSize <- 32 to 288 by 32
+//      layerSize <- 32 to 288 by 32inputs
 //      pathToInputs = Experiment.getPathToInputs(layerSize)
 //      pathToResults = Experiment.getPathToResults(pathToInputs)
 //      if exists(get(pathToInputs))

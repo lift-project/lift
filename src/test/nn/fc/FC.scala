@@ -7,7 +7,7 @@ package nn.fc
 
 import ir.ArrayType
 import ir.ast._
-import ir.ast.debug.PrintType
+import lift.arithmetic.SizeVar
 import nn._
 import opencl.ir._
 import opencl.ir.pattern._
@@ -46,7 +46,7 @@ case class FC(liftFProp: FunDecl,
   * verification, and helper functions.
   */
 object FC {
-  /*val layer_idim = SizeVar("layer_idim")
+  val layer_idim = SizeVar("layer_idim")
   val layer_odim = SizeVar("layer_odim")
   val layer_ninputs = SizeVar("layer_ninputs")
   val idim = SizeVar("idim")
@@ -68,7 +68,7 @@ object FC {
           Zip(X, ws_per_neuron)
       })) $ Zip(W_layer, b_layer)
     }
-  )*/
+  )
 
   /* Parallel layer */
   def Par(activation_f: UserFun, input_shape: Shape, input_tile_size: Int,

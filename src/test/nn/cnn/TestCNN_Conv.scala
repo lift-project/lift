@@ -35,8 +35,8 @@ class TestCNN_Conv {
       continueFrom = Experiment(
         cnn.Experiment.InputConfig(
           nBatches = 2,
-          nInputs = 64,
-          imageSize = 64,
+          nInputs = 32,
+          imageSize = 32,
           nChannels = 1),
         convConfig = List(
           conv.Experiment.Config(
@@ -44,8 +44,8 @@ class TestCNN_Conv {
             conv.Experiment.Config.OptimisationalParams(inputTileSize = 20, elsPerThread = 20, kernelsPerGroup = 1)
           ),
           conv.Experiment.Config(
-            conv.Experiment.Config.Dimensions(nKernels = 12, kernelSize = 20),
-            conv.Experiment.Config.OptimisationalParams(inputTileSize = 20, elsPerThread = 5, kernelsPerGroup = 4)
+            conv.Experiment.Config.Dimensions(nKernels = 8, kernelSize = 8),
+            conv.Experiment.Config.OptimisationalParams(inputTileSize = 8, elsPerThread = 1, kernelsPerGroup = 1)
           )
         ),
         fcConfig = List(
