@@ -3,6 +3,7 @@ package ir.view
 import lift.arithmetic.{ArithExpr, Var}
 import ir._
 import ir.ast._
+import opencl.ir.OpenCLMemoryCollection
 import opencl.ir.pattern.{FilterSeq, MapSeqSlide, ReduceWhileSeq}
 
 /**
@@ -102,7 +103,12 @@ object InputView {
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, argView: View): View = {
-    i.f.params.head.view = argView.replaced(i.f.params.head.mem.variable, i.vPtrIn)
+    val fstParam = i.f.params.head
+    fstParam.mem match {
+      case OpenCLMemoryCollection(_, _) => throw new NotImplementedError("Cannot iterate on a memory collection")
+      case _ =>
+    }
+    fstParam.view = argView.replaced(fstParam.mem.variable, i.vPtrIn)
     visitAndBuildViews(i.f.body)
     View.initialiseNewView(call.t, call.inputDepth, i.f.body.mem.variable)
   }
