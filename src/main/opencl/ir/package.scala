@@ -11,6 +11,9 @@ package object ir {
   def id(ty: Type, name: String = "id"): UserFun =
     UserFun(name, "x", "return x;", ty, ty)
   
+  def add(ty: ScalarType, name: String = "add"): UserFun =
+    UserFun(name, Array("x", "y"), "return x + y;", Seq(ty, ty), ty)
+  
   def equality(ty: Type, name: String = "equality"): UserFun =
     UserFun(name, Array("x", "y"), "return x == y;", Seq(ty, ty), Bool)
   
@@ -20,9 +23,6 @@ package object ir {
   def max(ty: ScalarType, name: String="maximum"): UserFun =
     UserFun(name, Array("x", "y"), "return x > y ? x : y;", Seq(ty, ty), ty)
 
-  def add(ty: ScalarType, name: String = "add"): UserFun =
-    UserFun(name, Array("x", "y"), "return x + y;", Seq(ty, ty), ty)
-  
   // commonly used user functions
 
   val id = UserFun("id", "x", "{ return x; }", Float, Float).

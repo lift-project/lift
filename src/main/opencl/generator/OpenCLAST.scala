@@ -112,7 +112,7 @@ object OpenCLAST {
   case class WhileLoop(loopPredicate: Predicate,
                        body: Block) extends Statement
 
-  /** An if-then-else set of statements, with two branches. 
+  /** An if-then-else set of statements, with two branches.
     *
     * @param cond      the condition
     * @param trueBody  the body evaluated if switchPredicate is true
@@ -180,7 +180,7 @@ object OpenCLAST {
     * @param content The arithmetic expression.
     */
   case class ArithExpression(var content: ArithExpr) extends Expression
-  
+
   case class CondExpression(lhs: Expression, rhs: Expression, cond: CondExpression.Operator.Operator) extends Expression
 
   object CondExpression {

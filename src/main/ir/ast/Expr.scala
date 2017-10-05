@@ -42,7 +42,7 @@ abstract class Expr extends IRNode {
    * The context keeps track where this expression is inside a bigger
    * expression for checking (possible) constrains on nesting expression.
    */
-  var context: Context = null
+  var context: Context = _
 
   /**
    * A list storing (ArrayType constructor, variable) tuples that describe the
@@ -113,7 +113,7 @@ abstract class Expr extends IRNode {
    */
   def copy: Expr
 
-  def contains(pattern: PartialFunction[Expr, Unit]) =
+  def contains(pattern: PartialFunction[Expr, Unit]): Boolean =
     Expr.visitWithState(false)(this, (e, s) => pattern.isDefinedAt(e) || s)
 
   /**
@@ -133,7 +133,7 @@ abstract class Expr extends IRNode {
    */
   def <<:(f: FunDecl) = f.apply(this)
 
-  def at(i: ArithExpr) = ArrayAccess(i) $ this
+  def at(i: ArithExpr): Expr = ArrayAccess(i) $ this
 
   def eval(valueMap: ValueMap): Any
 }
