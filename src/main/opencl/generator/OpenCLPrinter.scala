@@ -40,13 +40,16 @@ object OpenCLPrinter {
       case v: Var => v.toString
       case IntDiv(n, d) => "(" + toString(n) + " / " + toString(d) + ")"
       case lu: Lookup => "lookup" + lu.id + "(" + toString(lu.index) + ")"
+      case BitwiseXOR(a, b) => "(" + toString(a) + "^" + toString(b) + ")"
+      case BitwiseAND(a, b) => "(" + toString(a) + "&" + toString(b) + ")"
+      case LShift(a, b) => "(" + toString(a) + " << " + toString(b) + ")"
       case i: lift.arithmetic.IfThenElse =>
         s"( (${toString(i.test.lhs)} ${i.test.op} ${toString(i.test.rhs)}) ? " +
           s"${toString(i.t)} : ${toString(i.e)} )"
       case _ => throw new NotPrintableExpression(e.toString)
     }
   }
-  
+
   def toStringProd(terms: Seq[ArithExpr]): String = {
     val res = terms.foldLeft("1")((s, e) => s + " * " + toString(e))
     if (terms.isEmpty) "1"
@@ -314,7 +317,7 @@ class OpenCLPrinter {
     if(f.kernel)
       sb ++= "{ \n" +
         "#ifndef WORKGROUP_GUARD\n" +
-        "#define WORKGROUP_GUARD\n" + 
+        "#define WORKGROUP_GUARD\n" +
         "#endif\n" +
         "WORKGROUP_GUARD\n"
 

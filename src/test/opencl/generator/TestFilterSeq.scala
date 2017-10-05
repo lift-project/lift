@@ -3,36 +3,31 @@ package opencl.generator
 import ir._
 import ir.ast.{Join, Split, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, TestWithExecutor}
+import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert.{assertArrayEquals, assertEquals}
-import org.junit.Test
+import org.junit.{AfterClass, BeforeClass, Test}
 
-object TestFilterSeq extends TestWithExecutor
-
-class TestFilterSeq {
-  /**
-   * Helper function for decoding arrays as they are returned by the executor.
-   * /!\ only works for 1D arrays for which the capacity is statically known.
-   *
-   * @param raw the encoded array
-   * @param elemSize the size of one element in a Scala array
-   *                 (e.g. 2 for int * int)
-   * @tparam T the base type
-   * @return the decoded array
-   */
-  def decodeWC1D[T](raw: Array[T], elemSize: Int = 1)
-                   (implicit num: Numeric[T]): Array[T] = {
-    val size = num.toInt(raw(0))
-    raw.slice(elemSize, elemSize * (1 + size))
+object TestFilterSeq {
+  @BeforeClass def before(): Unit = {
+    Executor.loadLibrary()
+    println("Initialize the executor")
+    Executor.init()
   }
 
-  // Some user functions
-  def lt(n: Int): UserFun =
-    UserFun(s"lt$n", "x", s"return x < $n;", Int, Bool)
+  @AfterClass def after(): Unit = {
+    println("Shutdown the executor")
+    Executor.shutdown()
+  }
+}
 
-  @Test def filterSimple(): Unit = {
+class TestFilterSeq {
+  // Some user functions
+  private def lt(n: Int): UserFun = UserFun(s"lt$n", "x", s"return x < $n;", Int, Bool)
+
+  @Test
+  def filterSimple(): Unit = {
     val size = 1024
     val input = Array.fill(size)(util.Random.nextFloat())
     val N = SizeVar("N")
@@ -53,7 +48,8 @@ class TestFilterSeq {
     assertArrayEquals(gold, output.toArray, 0f)
   }
 
-  @Test def filterMapGlb(): Unit = {
+  @Test
+  def filterMapGlb(): Unit = {
     val size = 1024
     val left = Array.fill(size)(util.Random.nextInt(10))
     val right = Array.fill(size)(util.Random.nextInt(10))
@@ -78,7 +74,8 @@ class TestFilterSeq {
     assertEquals(gold, output.flatten)
   }
 
-  @Test def filterMapWrg(): Unit = {
+  @Test
+  def filterMapWrg(): Unit = {
     val size = 4096
     val input = Array.fill(size)(util.Random.nextInt(10))
     val N = SizeVar("N")
@@ -96,11 +93,11 @@ class TestFilterSeq {
     )
 
     val (output, _) = Execute(size)[Vector[Vector[Int]]](expr, input)
-
     assertArrayEquals(input.filter(_ < 5), output.flatten.toArray)
   }
 
-  @Test def filterArray(): Unit = {
+  @Test
+  def filterArray(): Unit = {
     val size = 1024
     val input = Array.fill(size)(util.Random.nextInt(8))
     val N = SizeVar("N")

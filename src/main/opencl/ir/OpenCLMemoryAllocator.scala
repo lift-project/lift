@@ -149,6 +149,8 @@ object OpenCLMemoryAllocator {
         allocMapSeqLcl(call.f.asInstanceOf[AbstractMap],
           call.t, numGlb, numLcl, numPvt, inMem)
 
+      case iss: InsertionSortSeq => allocInsertionSort(iss, call, numGlb, numLcl, numPvt, inMem)
+
       case fs: FilterSeq => allocFilterSeq(fs, call, numGlb, numLcl, numPvt, inMem)
 
       case r: AbstractPartRed => allocReduce(r, numGlb, numLcl, numPvt, inMem)
@@ -260,13 +262,31 @@ object OpenCLMemoryAllocator {
         am.iterationCount
       else
         1
-  
+
     alloc(am.f.body,
           sizeOfArray(numGlb, outT),
           sizeOfArray(numLcl, outT),
       (bs, inner) => numPvt(bs, privateMultiplier * inner))
   }
-  
+
+  private def allocInsertionSort(iss: InsertionSortSeq,
+                                 call: FunCall,
+                                 numGlb: Allocator,
+                                 numLcl: Allocator,
+                                 numPvt: Allocator,
+                                 inMem: OpenCLMemory): OpenCLMemory = {
+
+    val sizeInBytes = Type.getAllocatedSize(call.t)
+    val outMem = OpenCLMemory.allocMemory(sizeInBytes, sizeInBytes, sizeInBytes, call.addressSpace)
+
+    // Comparison function
+    iss.f.params(1).mem = outMem
+    iss.f.params(0).mem = inMem
+    alloc(iss.f.body, numGlb, numLcl, numPvt)
+
+    outMem
+  }
+
   private def allocFilterSeq(fs: FilterSeq, call: FunCall,
                              numGlb: Allocator,
                              numLcl: Allocator,
@@ -462,7 +482,7 @@ object OpenCLMemoryAllocator {
   }
 
   private def allocGet(n: Int, inMem: OpenCLMemory): OpenCLMemory = {
-    inMem match {     
+    inMem match {
       case coll: OpenCLMemoryCollection =>
         assert(n < coll.subMemories.length)
         coll.subMemories(n)
@@ -491,7 +511,7 @@ object OpenCLMemoryAllocator {
         (params zip coll.subMemories).foreach({case (p, m) => p.mem = m})
     }
   }
-  
+
   /**
    * Helper function for computing the size to allocate for an array given its
    * type and the size of its elements
