@@ -9,8 +9,9 @@ import ir.ast._
 import opencl.ir.pattern._
 import org.clapper.argot._
 import org.clapper.argot.ArgotConverters._
-import rewriting.utils.{NumberExpression, Utils}
+import rewriting.utils.{DumpToFile, NumberExpression, Utils}
 import rewriting._
+import rewriting.rules._
 
 import scala.io.Source
 
@@ -204,7 +205,7 @@ object MemoryMappingRewrite {
           lambda => lambda.body.contains(
             { case FunCall(ReduceSeq(_), _*) => })).map(lambdaWithReduceSeq => {
 
-          val rewrites = Rewrite.listAllPossibleRewrites(lambdaWithReduceSeq, Rules.reduceSeqUnroll)
+          val rewrites = Rewrite.listAllPossibleRewrites(lambdaWithReduceSeq, OpenCLRules.reduceSeqUnroll)
           rewrites.foldLeft(lambdaWithReduceSeq)((expr, pair) =>
             Rewrite.applyRuleAt(expr, pair._2, pair._1))
         })
@@ -242,11 +243,11 @@ object MemoryMappingRewrite {
 
   def dumpToFile(topFolder: String, hash: String, expr: Lambda): Unit = {
     // Dump to file
-    val str = Utils.dumpLambdaToMethod(expr)
-    val sha256 = Utils.Sha256Hash(str)
+    val str = DumpToFile.dumpLambdaToMethod(expr)
+    val sha256 = DumpToFile.Sha256Hash(str)
     val folder = s"${topFolder}Lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
 
-    if (Utils.dumpToFile(str, sha256, folder)) {
+    if (DumpToFile.dumpToFile(str, sha256, folder)) {
       // Add to index if it was unique
       synchronized {
         val idxFile = new FileWriter(s"${topFolder}Lower/$hash/index", true)
@@ -267,7 +268,7 @@ object MemoryMappingRewrite {
 
     try {
       val locations =
-        Rewrite.listAllPossibleRewritesForRules(lambda, Seq(Rules.mapAtomWrg, Rules.mapAtomLcl))
+        Rewrite.listAllPossibleRewritesForRules(lambda, Seq(OpenCLRules.mapAtomWrg, OpenCLRules.mapAtomLcl))
 
       val withLoadBalancing = locations.map(pair => Rewrite.applyRuleAt(lambda, pair._2, pair._1))
       withLoadBalancing :+ lambda
@@ -321,7 +322,7 @@ object MemoryMappingRewrite {
     // Step 1: Add id nodes in strategic locations
     val idsAdded = addIdsForLocal(lambda)
 
-    val toAddressAdded = addToAddressSpace(idsAdded, Rules.localMemory, 2)
+    val toAddressAdded = addToAddressSpace(idsAdded, OpenCLRules.localMemory, 2)
     val copiesAdded = toAddressAdded.flatMap(
       turnIdsIntoCopies(_, doTupleCombinations = false, doVectorisation))
 
@@ -345,9 +346,9 @@ object MemoryMappingRewrite {
             }
           case _ => s
         }
-      }).filter(Rules.localMemory.isDefinedAt)
+      }).filter(OpenCLRules.localMemory.isDefinedAt)
 
-      Some(res.foldLeft(f)((l, expr) => Rewrite.applyRuleAt(l, expr, Rules.localMemory)))
+      Some(res.foldLeft(f)((l, expr) => Rewrite.applyRuleAt(l, expr, OpenCLRules.localMemory)))
     }).collect({ case Some(s) => s })
   }
 
@@ -371,11 +372,11 @@ object MemoryMappingRewrite {
     })
 
     val idsAddedToMapSeq =
-      mapSeq.foldLeft(lambda)((l, x) => Rewrite.applyRuleAt(l, x, Rules.addId))
+      mapSeq.foldLeft(lambda)((l, x) => Rewrite.applyRuleAt(l, x, CopyRules.addId))
 
-    val idsAdded = Rewrite.applyRulesUntilCannot(idsAddedToMapSeq, Seq(Rules.addIdForCurrentValueInReduce))
+    val idsAdded = Rewrite.applyRuleUntilCannot(idsAddedToMapSeq, CopyRules.addIdForCurrentValueInReduce)
 
-    val toAddressAdded = addToAddressSpace(idsAdded, Rules.privateMemory, 2)
+    val toAddressAdded = addToAddressSpace(idsAdded, OpenCLRules.privateMemory, 2)
     val copiesAdded = toAddressAdded.flatMap(
       turnIdsIntoCopies(_, doTupleCombinations = true, doVectorisation = false))
 
@@ -395,7 +396,7 @@ object MemoryMappingRewrite {
         if (subset.contains(node) && addressSpaceRule.isDefinedAt(node)) {
           Rewrite.applyRuleAt(tuned_expr, node, addressSpaceRule)
         } else // otherwise we eliminate it
-          Rewrite.applyRuleAt(tuned_expr, node, Rules.dropId)
+          Rewrite.applyRuleAt(tuned_expr, node, SimplificationRules.dropId)
       })
     })
   }
@@ -438,9 +439,9 @@ object MemoryMappingRewrite {
       val lowerToType = tuple._2
 
       val rule = lowerToType match {
-        case FunCall(_: MapSeq, _) :: _ => Rules.mapSeq
-        case FunCall(MapLcl(dim, _), _) :: _ => Rules.mapLcl(dim)
-        case _ => Rules.mapSeq // Fall back to seq
+        case FunCall(_: MapSeq, _) :: _ => OpenCLRules.mapSeq
+        case FunCall(MapLcl(dim, _), _) :: _ => OpenCLRules.mapLcl(dim)
+        case _ => OpenCLRules.mapSeq // Fall back to seq
       }
 
       toLower.foreach(expr => {
@@ -462,16 +463,16 @@ object MemoryMappingRewrite {
   def turnIdsIntoCopies(lambda: Lambda,
                         doTupleCombinations: Boolean,
                         doVectorisation: Boolean): Seq[Lambda] = {
-    val rewrites = Rewrite.listAllPossibleRewrites(lambda, Rules.implementIdAsDeepCopy)
+    val rewrites = Rewrite.listAllPossibleRewrites(lambda, CopyRules.implementIdAsDeepCopy)
 
     if (rewrites.nonEmpty) {
       val ruleAt = rewrites.head
 
       ruleAt._2.t match {
         case TupleType(_*) if doTupleCombinations =>
-          val oneLevelImplemented = Rules.implementOneLevelOfId.rewrite(ruleAt._2)
+          val oneLevelImplemented = CopyRules.implementOneLevelOfId.rewrite(ruleAt._2)
 
-          val idRewrites = Rewrite.listAllPossibleRewrites(oneLevelImplemented, Rules.implementIdAsDeepCopy)
+          val idRewrites = Rewrite.listAllPossibleRewrites(oneLevelImplemented, CopyRules.implementIdAsDeepCopy)
 
           var allCombinations = List[Expr]()
 
@@ -483,7 +484,7 @@ object MemoryMappingRewrite {
                 copiesAdded = Rewrite.applyRuleAt(copiesAdded, ruleAt2._1, ruleAt2._2)
               })
 
-              val dropLocations = Rewrite.listAllPossibleRewrites(copiesAdded, Rules.dropId)
+              val dropLocations = Rewrite.listAllPossibleRewrites(copiesAdded, SimplificationRules.dropId)
 
               val droppedIds = dropLocations.foldLeft(copiesAdded)((a, b) => {
                 Rewrite.applyRuleAt(a, b._1, b._2)
@@ -520,7 +521,7 @@ object MemoryMappingRewrite {
           val vectorised =
             Rewrite.applyRulesUntilCannot(
               a,
-              Seq(Rules.vectorize(settings.memoryMappingRewriteSettings.vectorWidth))
+              Seq(OpenCLRules.vectorize(settings.memoryMappingRewriteSettings.vectorWidth))
             )
 
           FunDecl.replace(currentLambda, a, vectorised)
@@ -539,22 +540,22 @@ object MemoryMappingRewrite {
   }
 
   private def applyLoopFusionToTuple(lambda: Lambda): Lambda =
-    Rewrite.applyRulesUntilCannot(lambda, Seq(Rules.tupleMap))
+    Rewrite.applyRuleUntilCannot(lambda, FusionRules.tupleMap)
 
   private def addIdsForLocal(lambda: Lambda): Lambda = {
     val config = settings.localMemoryRulesSettings
 
     val enabledRules = scala.collection.Map(
-      Rules.addIdForCurrentValueInReduce -> config.addIdForCurrentValueInReduce,
-      Rules.addIdMapLcl -> config.addIdMapLcl,
-      Rules.addIdMapWrg -> config.addIdMapWrg).flatMap( x => {
+      CopyRules.addIdForCurrentValueInReduce -> config.addIdForCurrentValueInReduce,
+      CopyRules.addIdBeforeMapLcl -> config.addIdMapLcl,
+      CopyRules.addIdForMapWrgParam -> config.addIdMapWrg).flatMap( x => {
         val rule = x._1
         val enabled = x._2
         if(enabled) Some(rule)
         else None
     }).toSeq
 
-    assert(enabledRules.size > 0)
+    assert(enabledRules.nonEmpty)
 
     val firstIds = Rewrite.applyRulesUntilCannot(lambda, enabledRules)
 
@@ -566,7 +567,7 @@ object MemoryMappingRewrite {
           case _ => s
         }).filterNot(e => firstIds.body.contains({ case FunCall(toGlobal(Lambda(_, c)), _*) if c eq e => }))
 
-      reduceSeqs.foldRight(firstIds)((e, l) => Rewrite.applyRuleAt(l, e, Rules.addIdAfterReduce))
+      reduceSeqs.foldRight(firstIds)((e, l) => Rewrite.applyRuleAt(l, e, CopyRules.addIdAfterReduce))
     } else
       firstIds
 

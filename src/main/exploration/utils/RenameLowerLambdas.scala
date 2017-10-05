@@ -5,7 +5,7 @@ import java.io.FileWriter
 import lift.arithmetic.{ArithExpr, Var}
 import exploration.ParameterRewrite
 import opencl.executor.Eval
-import rewriting.utils.Utils
+import rewriting.utils.{DumpToFile, Utils}
 
 import scala.io.Source
 
@@ -40,16 +40,16 @@ object RenameLowerLambdas {
 
           val factory = Eval.getMethod(ParameterRewrite.readFromFile(location).replace("id,", "idfloat,"))
 
-          val lambda = factory(Array[ArithExpr](Var("M"), Var("K"), Var("N"), Var(""), Var(""), Var(""), Var(""), Var(""), Var(""), Var(""), Var("")))
+          val lambda = factory(Array[ArithExpr](Var("M"), Var("K"), Var("N"), Var(), Var(), Var(), Var(), Var(), Var(), Var(), Var()))
 
-          val stringRep = Utils.dumpLambdaToMethod(lambda)
-          val sha256 = Utils.Sha256Hash(stringRep)
+          val stringRep = DumpToFile.dumpLambdaToMethod(lambda)
+          val sha256 = DumpToFile.Sha256Hash(stringRep)
 
           val folder = "/home/s1042579/Documents/cgo-2016-kernels/" +
               "mmTransposeALowerNewHash/" + hash + "/" + sha256.charAt(0) + "/" +
               sha256.charAt(1)
 
-          if (Utils.dumpToFile(stringRep, sha256, folder)) {
+          if (DumpToFile.dumpToFile(stringRep, sha256, folder)) {
             val idxFile = new FileWriter("/home/s1042579/Documents/cgo-2016-kernels/" +
               "mmTransposeALowerNewHash/" + hash+ "/index", true)
             idxFile.write("mmTransposeALower/" + hash + "/" + sha256.charAt(0) +

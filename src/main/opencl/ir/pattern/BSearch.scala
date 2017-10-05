@@ -2,7 +2,7 @@ package opencl.ir.pattern
 
 import ir.ast._
 
-case class BSearch(override val f: Lambda) extends AbstractSearch(f, "BSearch") with isGenerable{
+case class BSearch(override val f: Lambda) extends AbstractSearch(f, "BSearch") {
   override def copy(f: Lambda): Pattern = BSearch(f)
 }
 

@@ -1,9 +1,9 @@
 package opencl.ir
 
-import lift.arithmetic._
 import arithmetic.TypeVar
 import ir._
 import ir.ast._
+import lift.arithmetic._
 import opencl.ir.pattern._
 
 
@@ -202,8 +202,4 @@ object TypedOpenCLMemory {
   def apply(mem: Memory, t: Type): TypedOpenCLMemory = {
     new TypedOpenCLMemory(OpenCLMemory.asOpenCLMemory(mem), t)
   }
-
-
 }
-
-

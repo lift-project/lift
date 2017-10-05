@@ -27,5 +27,10 @@ class TestType {
     val t1 = ArrayTypeWSWC(ArrayTypeWSWC(Float,32),32)
     val t2 = ArrayTypeWSWC(ArrayTypeWSWC(Float,32),32)
     assertEquals(t1, t2)
+
+    assertNotEquals(t1, ArrayTypeWC(ArrayTypeWSWC(Float, 32), 32))
+    assertNotEquals(t1, ArrayTypeWS(ArrayTypeWSWC(Float, 32), 32))
+    assertNotEquals(t1, ArrayTypeWSWC(ArrayTypeWS(Float, 32), 32))
+    assertNotEquals(t1, ArrayTypeWSWC(ArrayTypeWC(Float, 32), 32))
   }
 }

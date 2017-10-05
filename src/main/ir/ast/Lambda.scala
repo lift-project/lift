@@ -45,7 +45,6 @@ abstract case class Lambda private[ast] (params: Array[Param],
     val allParams = args.forall(_.isInstanceOf[Param])
 
     if (!inline && !allParams) {
-//    if (!inline) {
       super.apply(args:_*)
     } else {
 
@@ -57,17 +56,32 @@ abstract case class Lambda private[ast] (params: Array[Param],
     }
   }
 
-  override lazy val isGenerable: Boolean = {
-    Expr.visitWithState(true)(body, (e, s) => {
-      e match {
-        case call: FunCall if !call.f.isGenerable => false
-        case _ => s
-      }
-    })
+  /**
+    * This function is used for two use-cases:
+    * 1. determine arguments for kernels
+    * 2. print lambdas to file during rewriting (rewriting.utils.Utils.dumpLambdaToString)
+    *
+    * In the first use-case we order each kernel argument by name to have consistent
+    * and deterministic ordering. When printing lambdas to file we need to respect
+    * dependencies among parameters:
+    *
+    * val M = SizeVar("M")
+    * val N = Var("N", GoesToRange(M))
+    * val f = \(ArrayType(Float, N), ArrayType(Float, M), ...)
+    *
+    * In this case M needs to be declared before N because of their dependency even though
+    * M is used as the second parameter of the lambda.
+    *
+    * @param ordering specifies the sorting of variables either by name or by declaration order
+    * @return sequence of variables used in parameters of the Lambda
+    */
+  def getVarsInParams(ordering: Ordering = ByName): Seq[lift.arithmetic.Var] = {
+    ordering match {
+      case ByName => params.flatMap(_.t.varList).sortBy(_.name).distinct
+      case ByDeclarationOrder => params.flatMap(_.t.varList).distinct
+    }
   }
 
-  def getVarsInParams() =
-    params.flatMap(_.t.varList).sortBy(_.name).distinct
 
   def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)

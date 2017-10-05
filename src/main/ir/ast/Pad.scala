@@ -6,7 +6,7 @@ import ir._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 case class Pad(left: Int, right: Int, boundary: Pad.BoundaryFun)
-  extends Pattern(arity = 1) with isGenerable {
+  extends Pattern(arity = 1) {
 
   override def toString: String = "Pad(" + left + "," + right + "," + boundary + ")"
 

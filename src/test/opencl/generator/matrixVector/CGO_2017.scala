@@ -30,7 +30,7 @@ class CGO_2017 {
 
   @Test
   def clblast_gemv_N(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
@@ -53,25 +53,27 @@ class CGO_2017 {
           ) o
             ReduceSeq(fun((acc, next) =>
               Let(localX =>
-                Join() o MapLcl(fun(x => ReduceSeq(fun((acc2, next2) =>
-                  multAndSumUp(acc2, Get(next2, 0), Get(next2, 1)))
-                  , Get(x, 0)) $ Zip(Get(x, 1), localX))) $ Zip(acc, Get(next, 0))
+                Join() o MapLcl(fun(x =>
+                  ReduceSeq(fun((acc2, next2) =>
+                    multAndSumUp(acc2, Get(next2, 0), Get(next2, 1)))
+                    , Get(x, 0)
+                  ) $ Zip(Get(x, 1), localX))
+                ) $ Zip(acc, Get(next, 0))
               )  o toLocal(MapLcl(id)) $ Get(next, 1)),
 
-              MapLcl(id) $ Value(0.0f, ArrayTypeWSWC(Float, 64)))
-            $ Zip(Transpose() o Map(Split(64) o Get(0)) $ matChunk, Split(64) $ vectorX)
+              MapLcl(id) $ Value(0.0f, ArrayTypeWSWC(Float, 64))
+            ) $ Zip(Transpose() o Map(Split(64) o Get(0)) $ matChunk, Split(64) $ vectorX)
         )) o Split(64) $ Zip(matrix, vectorY)
     )
 
-    val (result: Array[Float], _) =
-      Execute(64, n, (true, true))(f, matrix, vectorX, vectorY, alpha, beta)
+    val (result, _) = Execute(64, n, (true, true))[Array[Float]](f, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, result, 0.001f)
   }
 
   @Test
   def clblast_gemv_T(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
@@ -104,8 +106,7 @@ class CGO_2017 {
         )) o Split(64) $ Zip(Transpose() $ matrix, vectorY)
     )
 
-    val (result: Array[Float], _) =
-      Execute(64, n, (true, true))(f, matrix.transpose, vectorX, vectorY, alpha, beta)
+    val (result, _) = Execute(64, n, (true, true))[Array[Float]](f, matrix.transpose, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, result, 0.001f)
 
