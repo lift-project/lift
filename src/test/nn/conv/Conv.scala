@@ -11,34 +11,7 @@ import nn._
 import opencl.ir._
 import opencl.ir.pattern.{ReorderStride, _}
 
-/**
-  * Case class for storing the layer configuration.
-  * Configuration is to be preprocessed and verified by the companion object below.
-  * @param liftFProp
-  * @param inputShape
-  * @param outputShape* @param inputTiling
-  * @param kernelSliding
-  * @param elsPerThread
-  * @param kernelsPerGroup
-  * @param localSize
-  * @param globalSize
-  */
-abstract class Conv(liftFProp: FunDecl,
-                    inputShape: Shape, outputShape: Shape,
-                    inputTiling: SlidingWindowConfig, kernelSliding: SlidingWindowConfig,
-                    elsPerThread: Int, kernelsPerGroup: Int,
-                    localSize: Array[Int], globalSize: Array[Int]) extends Layer {
-  val configToString: String
-  var runtime: Double
-
-  def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit
-}
-
-/**
-  * The companion object that contains the Lift expressions, configuration preprocessing and
-  * verification, and helper functions.
-  */
-trait ConvTODO {
+trait ConvCompanion {
   val locA: Int
   val locB: Int
   val locC: Int
@@ -69,4 +42,32 @@ trait ConvTODO {
 
   /* Padding */
   def pad(inputs: PaddedArray[Array5D[Float]], inputShape: Shape): Unit
+}
+
+
+/**
+  * The companion object that contains the Lift expressions, configuration preprocessing and
+  * verification, and helper functions.
+  */
+/**
+  * Case class for storing the layer configuration.
+  * Configuration is to be preprocessed and verified by the companion object below.
+  * @param liftFProp
+  * @param inputShape
+  * @param outputShape* @param inputTiling
+  * @param kernelSliding
+  * @param elsPerThread
+  * @param kernelsPerGroup
+  * @param localSize
+  * @param globalSize
+  */
+abstract case class Conv(liftFProp: FunDecl,
+                         inputShape: Shape, outputShape: Shape,
+                         inputTiling: SlidingWindowConfig, kernelSliding: SlidingWindowConfig,
+                         elsPerThread: Int, kernelsPerGroup: Int,
+                         localSize: Array[Int], globalSize: Array[Int]) extends Layer {
+  val configToString: String
+  var runtime: Double
+
+  def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit
 }

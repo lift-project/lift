@@ -9,7 +9,6 @@ import com.typesafe.scalalogging.Logger
 import nn._
 import nn.cnn.Experiment.verifyOutputs
 import nn.conv.ConvDatasets
-import nn.conv.versions.Conv_0_SeqInChs
 import nn.fc.{FC, FCDatasets}
 import nn.mysql.Connector
 import nn.poolScala.ScalaPool
@@ -44,7 +43,8 @@ class TestCNN {
   val precision: Float = 2f
   val codeVersion: Int = 23
   val reruns: Int = 1
-  type ConvType = conv.versions.Conv_0_SeqInChs
+  val Conv = conv.versions.Conv0_SeqInChs
+  type Conv = conv.versions.Conv0_SeqInChs
 
   //@Test
   def TestFC(): Unit = {
@@ -188,23 +188,23 @@ class TestCNN {
             pathToResults = pathToResults)
 
           //noinspection ConvertibleToMethodValue
-          initParams = Conv_0_SeqInChs.InitParameters(0, Conv_0_SeqInChs.Par(_, _, _, _, _, _, _), nn.ReLU,
+          initParams = Conv.InitParameters(0, Conv.Par(_, _, _, _, _, _, _), nn.ReLU,
             optParams = convConfig.head.optParams,
             inputShape = Shape(nBatches = inputConfig.nBatches, nInputs = inputConfig.nInputs,
               size = inputConfig.imageSize, nChannels = e.nChannels),
             dim = convConfig.head.dim, kernelStride)
           currentLayer = 0
-          aCNN.layers(currentLayer) = Conv_0_SeqInChs(initParams.asInstanceOf[Conv_0_SeqInChs.InitParameters])
-          aCNN.convLayers(0) = aCNN.layers(currentLayer).asInstanceOf[ConvType]
+          aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
+          aCNN.convLayers(0) = aCNN.layers(currentLayer).asInstanceOf[Conv]
 
           currentLayer = currentLayer + 1
           //noinspection ConvertibleToMethodValue
-          initParams = Conv_0_SeqInChs.InitParameters(1, Conv_0_SeqInChs.Par(_, _, _, _, _, _, _), nn.ReLU,
+          initParams = Conv.InitParameters(1, Conv.Par(_, _, _, _, _, _, _), nn.ReLU,
             optParams = convConfig(1).optParams,
             inputShape = aCNN.convLayers(0).outputShape.copy(),
             dim = convConfig(1).dim, kernelStride)
-          aCNN.layers(currentLayer) = Conv_0_SeqInChs(initParams.asInstanceOf[Conv_0_SeqInChs.InitParameters])
-          aCNN.convLayers(1) = aCNN.layers(currentLayer).asInstanceOf[Conv_0_SeqInChs]
+          aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
+          aCNN.convLayers(1) = aCNN.layers(currentLayer).asInstanceOf[Conv]
 
 
           /* Pooling */
@@ -346,7 +346,7 @@ class TestCNN {
 
             /* Padding */
             layer match {
-              case cL: Conv_0_SeqInChs => Conv_0_SeqInChs.pad(layerData.asInstanceOf[ConvDatasets].inputs, cL.inputShape)
+              case cL: Conv => Conv.pad(layerData.asInstanceOf[ConvDatasets].inputs, cL.inputShape)
               case fL: FC =>
                 val fcData: FCDatasets = layerData.asInstanceOf[FCDatasets]
                 FC.pad(fcData.inputs, fL.inputShape, fcData.weights, fcData.biases, fL.neuronShape)
@@ -380,7 +380,7 @@ class TestCNN {
           /* Pass outputs to the next layer*/
           if (layerNo != aCNN.nLayers - 1) {
             (layer, aCNN.layers(layerNo + 1)) match {
-              case (_: Conv_0_SeqInChs, _: FC) =>
+              case (_: Conv, _: FC) =>
                 // If the current layer is convolutional and the next one is fully connected
                 data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
                   // (n_batches, n_inputs) -> (n_batches * n_inputs)
@@ -388,7 +388,7 @@ class TestCNN {
                     // (h, w, n_channels) -> (h * w * n_channels)
                     input => input.map(row => row.flatten).flatten
                   ))
-              case (_: Conv_0_SeqInChs, poolLayer: ScalaPool) =>
+              case (_: Conv, poolLayer: ScalaPool) =>
                 poolLayer.inputs = layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
               case (poolLayer: ScalaPool, _: FC) =>
                 data.layers(/*no +1 on purpose */layerNo).asInstanceOf[FCDatasets].inputs.nonPadded =
@@ -396,7 +396,7 @@ class TestCNN {
                     // (h, w, n_channels) -> (h * w * n_channels)
                     input => input.map(row => row.flatten).flatten
                 ))
-              case (_: Conv_0_SeqInChs, _: Conv_0_SeqInChs) =>
+              case (_: Conv, _: Conv) =>
                 data.layers(layerNo + 1).asInstanceOf[ConvDatasets].inputs.nonPadded =
                   layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
               case (_: FC, _: FC) =>
@@ -407,7 +407,7 @@ class TestCNN {
                     layerNo + 1
                 }).asInstanceOf[FCDatasets].inputs.nonPadded =
                   layerData.asInstanceOf[FCDatasets].outputs.nonPadded
-              case (_: FC, _: Conv_0_SeqInChs) =>
+              case (_: FC, _: Conv) =>
                 throw new java.lang.IllegalArgumentException(
                   "Fully connected layer must not precede a convolutional layer")
             }
@@ -481,7 +481,7 @@ class TestCNN {
     Connector.statement.execute("INSERT INTO lift_results_cnn " +
       "(device_name, n_batches, n_inputs, image_size, " + {
       iP match {
-        case _: Conv_0_SeqInChs.InitParameters =>
+        case _: Conv.InitParameters =>
           f"n_kernels_l${iP.layerNo}%d, kernel_size_l${iP.layerNo}%d, kernel_stride_l${iP.layerNo}%d, " +
             f"input_tile_size_l${iP.layerNo}%d, " +
             f"els_per_thread_l${iP.layerNo}%d, kernels_per_group_l${iP.layerNo}%d, "
@@ -493,7 +493,7 @@ class TestCNN {
       "'" + nn.deviceName + "', " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
       f"${aCNN.inputShape.size}%d, " + {
       iP match {
-        case cIP: Conv_0_SeqInChs.InitParameters =>
+        case cIP: Conv.InitParameters =>
           f"${cIP.dim.nKernels}%d, ${cIP.dim.kernelSize}%d, ${cIP.kernelStride}%d, " +
             f"${cIP.optParams.inputTileSize}%d, ${cIP.optParams.elsPerThread}%d, " +
             f"${cIP.optParams.kernelsPerGroup}%d, "
@@ -530,7 +530,7 @@ class TestCNN {
       "'" + nn.deviceName + "', " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
       f"${aCNN.inputShape.size}%d, " + f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d, " + {
       for (layerNo <- aCNN.convLayers.indices) yield {
-        val c: Conv_0_SeqInChs = aCNN.layers(layerNo).asInstanceOf[Conv_0_SeqInChs]
+        val c: Conv = aCNN.layers(layerNo).asInstanceOf[Conv]
         f"${c.outputShape.nChannels}%d, ${c.kernelSliding.size}%d, ${c.kernelSliding.stride}%d, " +
           f"${c.inputTiling.size}%d, ${c.inputTiling.stride}%d, " +
           f"${c.elsPerThread}%d, ${c.kernelsPerGroup}%d"
@@ -596,7 +596,7 @@ class TestCNN {
       f"${aCNN.inputShape.size}%d, " +
       f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d" + {
       for (layerNo <- aCNN.convLayers.indices) yield {
-        val c: Conv_0_SeqInChs = aCNN.layers(layerNo).asInstanceOf[Conv_0_SeqInChs]
+        val c: Conv = aCNN.layers(layerNo).asInstanceOf[Conv]
         f"${c.outputShape.nChannels}%d, ${c.kernelSliding.size}%d, ${c.kernelSliding.stride}%d, " +
           f"${c.inputTiling.size}%d, ${c.inputTiling.stride}%d, " +
           f"${c.elsPerThread}%d, ${c.kernelsPerGroup}%d"
