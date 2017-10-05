@@ -571,7 +571,7 @@ object View {
   def apply(t: Type, v: Value): View = ViewConstant(v, t)
 
 
-   def tuple(ivs: View*) = ViewTuple(ivs, TupleType(ivs.map(_.t): _*))
+  private[view] def tuple(ivs: View*) = ViewTuple(ivs, TupleType(ivs.map(_.t): _*))
 
   /**
    * Visit the expression and construct all views for all sub-expressions.
@@ -596,7 +596,7 @@ object View {
     OutputView(expr)
   }
 
-   def getFullType(outputType: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)]): Type = {
+  private[view] def getFullType(outputType: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)]): Type = {
     outputAccessInf.foldLeft(outputType)((t, inf) => {
       val (arrayTypeConstructor, _) = inf
       arrayTypeConstructor(t)
@@ -604,7 +604,7 @@ object View {
   }
 
 
-   def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], v: Var): View = {
+  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], v: Var): View = {
     // Use the lengths and iteration vars to mimic inputs
     val outArray = getFullType(t, outputAccessInf)
     val outView = View(outArray, v)
