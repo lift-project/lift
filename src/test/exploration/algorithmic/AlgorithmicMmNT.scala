@@ -27,7 +27,7 @@ object AlgorithmicMmNT {
 
   @BeforeClass
   def before(): Unit =
-    if (LongTestsEnabled.areEnabled) rewrittenLambdas = rewriter(mmTransposedB)
+    if (LongTestsEnabled.areEnabled) rewrittenLambdas = rewrite(rewriter, mmTransposedB)
 
   @AfterClass
   def after(): Unit = rewrittenLambdas = Seq()

@@ -34,7 +34,7 @@ object AlgorithmicGemv {
 
   @BeforeClass
   def before(): Unit =
-    if (LongTestsEnabled.areEnabled) rewrittenLambdas = rewriter(gemv)
+    if (LongTestsEnabled.areEnabled) rewrittenLambdas = rewrite(rewriter, gemv)
 
   @AfterClass
   def after(): Unit = rewrittenLambdas = Seq()

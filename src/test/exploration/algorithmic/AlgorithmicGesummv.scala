@@ -45,7 +45,7 @@ object AlgorithmicGesummv {
 
   @BeforeClass
   def before(): Unit =
-    if (LongTestsEnabled.areEnabled) rewrittenLambdas = rewriter(gesummv)
+    if (LongTestsEnabled.areEnabled) rewrittenLambdas = rewrite(rewriter, gesummv)
 
   @AfterClass
   def after(): Unit = rewrittenLambdas = Seq()

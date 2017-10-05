@@ -63,7 +63,7 @@ object AlgorithmicNbody {
 
   @BeforeClass
   def before(): Unit =
-    if (LongTestsEnabled.areEnabled) rewrittenLambdas = rewriter(nbody)
+    if (LongTestsEnabled.areEnabled) rewrittenLambdas = rewrite(rewriter, nbody)
 
   @AfterClass
   def after(): Unit = rewrittenLambdas = Seq()

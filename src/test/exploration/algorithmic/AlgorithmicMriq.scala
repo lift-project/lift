@@ -49,7 +49,7 @@ object AlgorithmicMriq {
 
   @BeforeClass
   def before(): Unit =
-    if (LongTestsEnabled.areEnabled) rewrittenLambdas = rewriter(mriqComputeQ)
+    if (LongTestsEnabled.areEnabled) rewrittenLambdas = rewrite(rewriter, mriqComputeQ)
 
   @AfterClass
   def after(): Unit = rewrittenLambdas = Seq()
