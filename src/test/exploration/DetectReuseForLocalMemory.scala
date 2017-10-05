@@ -14,7 +14,7 @@ class DetectReuseForLocalMemory {
   private val v_M_0 = Var("M", StartFromRange(1))
   private val v_N_1 = Var("N", StartFromRange(1))
 
-  def getNumDimensions(lambda: Lambda): Int = {
+  private def getNumDimensions(lambda: Lambda): Int = {
 
     val dims = Expr.visitWithState(Set[Int]())(lambda.body, {
       case (FunCall(MapLcl(dim, _), _), set) => set + dim
@@ -72,24 +72,42 @@ class DetectReuseForLocalMemory {
             FunCall(Split(Cst(64)),
               FunCall(Zip(2), p_0, p_2)))))
 
-    val bla = MemoryMappingRewrite.addIdsForLocal(f)
-    val reused = getReuseCandidates(bla)
-    println(reused.mkString(", "))
+    printStrategicLocalMemoryLocations(f)
+  }
 
-    val readingVar = View.getSubViews(reused.last.view).last.asInstanceOf[ViewMem].v
+  private def printStrategicLocalMemoryLocations(f: Lambda): Unit = {
+    val strategicLocationsMarked = MemoryMappingRewrite.addIdsForLocal(f)
+    val reuseCandidates = getReuseCandidates(strategicLocationsMarked)
+    val tryHere = reuseCandidates.flatMap(getLocalMemoryCandidates(strategicLocationsMarked, _))
 
-    val numDimension = getNumDimensions(bla)
-
-    println(bla)
-
-    // Find which "strategic" Id location would copy the required variable and is suitable for local memory
-    val tryHere = Expr.visitWithState(Seq[Expr]())(bla.body, {
-      case (e@FunCall(Id(), _*) , seq) if getAllMemoryVars(e.mem).contains(readingVar) && !e.context.inMapLcl.reduce(_ || _) && e.context.inMapWrg.count(b => b) == numDimension =>
-        seq :+ e
-      case (_, seq) => seq
-    })
-
+    println
+    println(strategicLocationsMarked)
     println(tryHere.mkString(", "))
+    println
+  }
+
+  private def getLocalMemoryCandidates(strategicLocationsMarked: Lambda, reuseExpr: Expr) = {
+    val sourceView = View.getSubViews(reuseExpr.view).last
+
+    sourceView match {
+      case ViewMem(sourceVar, _) =>
+
+        val numDimension = getNumDimensions(strategicLocationsMarked)
+
+        // Find which "strategic" Id location(s) would copy the required variable and is suitable for local memory
+        // TODO: Doesn't work for all reuse... Does it matter?
+        Expr.visitWithState(Seq[(Expr, Var)]())(strategicLocationsMarked.body, {
+          case (funCall@FunCall(Id(), _*), seq)
+            if getAllMemoryVars(funCall.mem).contains(sourceVar) &&
+              !funCall.context.inMapLcl.reduce(_ || _) &&
+              funCall.context.inMapWrg.count(b => b) == numDimension
+          =>
+            seq :+ (funCall, sourceVar)
+          case (_, seq) => seq
+        })
+
+      case _ => Seq()
+    }
   }
 
   private def getAllMemoryVars(memory: Memory): Seq[Var] = {
@@ -201,9 +219,7 @@ class DetectReuseForLocalMemory {
                           FunCall(Split(v__4), p_18))), p_1))))))))),
             FunCall(Split(v__3), p_0))))
 
-    println(f)
-    val reuseCandidates = getReuseCandidates(f)
-    println(reuseCandidates.mkString(", "))
+    printStrategicLocalMemoryLocations(f)
   }
 
   @Test
@@ -243,9 +259,8 @@ class DetectReuseForLocalMemory {
                           FunCall(Get(0), p_5))))))))))),
           FunCall(Zip(2), p_0, p_2)))
 
-    println(f)
-    val reuseCandidates = getReuseCandidates(f)
-    println(reuseCandidates.mkString(", "))
+
+    printStrategicLocalMemoryLocations(f)
   }
 
 }
