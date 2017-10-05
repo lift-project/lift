@@ -61,9 +61,11 @@ object InferOpenCLAddressSpace {
       case Filter() => addressSpaces.head
       case Get(i) => setAddressSpaceGet(i, addressSpaces.head)
 
+      case iss: InsertionSortSeq => setAddressSpaceSort(iss, writeTo, addressSpaces)
       case fs: FilterSeq =>
         setAddressSpaceLambda(fs.f, PrivateMemory, addressSpaces)
         inferAddressSpace(writeTo, addressSpaces)
+
       case rw: ReduceWhileSeq => setAddressSpaceReduceWhile(rw, call, addressSpaces)
       case r: AbstractPartRed => setAddressSpaceReduce(r.f, call, addressSpaces)
       case s: AbstractSearch => setAddressSpaceSearch(s, writeTo, addressSpaces)
@@ -86,6 +88,13 @@ object InferOpenCLAddressSpace {
       case collection: AddressSpaceCollection => collection.spaces(i)
       case _ => addressSpace
     }
+  
+  private def setAddressSpaceSort(iss: InsertionSortSeq,
+                             writeTo: OpenCLAddressSpace,
+                             addrSpaces: Seq[OpenCLAddressSpace]) = {
+    setAddressSpaceLambda(iss.f, PrivateMemory, addrSpaces)
+    inferAddressSpace(writeTo, addrSpaces)
+  }
 
   private def setAddressSpaceReduce(lambda: Lambda, call: FunCall,
     addressSpaces: Seq[OpenCLAddressSpace]) = {

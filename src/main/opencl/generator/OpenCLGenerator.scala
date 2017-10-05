@@ -459,6 +459,8 @@ class OpenCLGenerator extends Generator {
 
         case f: FilterSeq => generateFilterSeqCall(f, call, block)
 
+        case iss: InsertionSortSeq => generateInsertSortSeqCall(iss, call, block)
+
         case r: ReduceSeq => generateReduceSeqCall(r, call, block)
         case r: ReduceWhileSeq => generateReduceWhileCall(r, call, block)
 
@@ -704,6 +706,69 @@ class OpenCLGenerator extends Generator {
     )
 
     (block: Block) += OpenCLAST.Comment("end filter_seq")
+  }
+  
+  // === Sorting ===
+  private def generateInsertSortSeqCall(iss: InsertionSortSeq,
+                                        call: FunCall,
+                                        block: Block): Unit = {
+    (block: Block) += OpenCLAST.Comment("insertion sort")
+    
+    generateForLoop(block, call.args.head, iss.loopRead, generateInsertion(call, _))
+    
+    (block: Block) += OpenCLAST.Comment("end insertion sort")
+  }
+  
+  private def generateInsertion(call: FunCall, block: Block): Unit = {
+    val iss = call.f.asInstanceOf[InsertionSortSeq]
+    val i = iss.loopRead
+    val j = iss.loopWrite
+    val jStep = j.range.asInstanceOf[RangeAdd].step
+
+    (block: Block) += OpenCLAST.VarDecl(
+      j, Int,
+      ArithExpression(i - i.range.asInstanceOf[RangeAdd].step)
+    )
+
+    /**
+     * out[j+1] = out[j];
+     * j = j - 1;
+     */
+    def shift(block: Block): Unit = {
+      (block: Block) += generateSeqCopy(
+        call.mem, call.view.access(j),
+        call.mem, call.view.access(j + jStep),
+        iss.f.params.head.t
+      )
+      (block: Block) += AssignmentExpression(
+        ArithExpression(j),
+        ArithExpression(j - jStep)
+      )
+    }
+
+
+    def generateBody(block: Block): Unit = {
+      // Compare out[j-1] and in[i]
+      generate(iss.f.body, block)
+      // Shift or insert
+      val comp = generateLoadNode(
+        OpenCLMemory.asOpenCLMemory(iss.f.body.mem),
+        iss.f.body.t,
+        iss.f.body.view
+      )
+      generateConditional(block, comp, shift, (_: Block) += OpenCLAST.Break())
+    }
+  
+    generateWhileLoop(
+      block,
+      Predicate(j, Cst(0), Predicate.Operator.>=),
+      generateBody
+    )
+    (block: Block) += generateSeqCopy(
+      iss.f.params.head.mem, iss.f.params.head.view,
+      call.mem, call.view.access(j + jStep),
+      iss.f.params.head.t
+    )
   }
 
   // === Reduce ===
