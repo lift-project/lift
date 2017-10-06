@@ -1,9 +1,9 @@
 package ir.view
 
-import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{ReduceWhileSeq, SlideSeqPlus, FilterSeq}
+import lift.arithmetic.{ArithExpr, Cst, Var}
+import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
@@ -20,8 +20,12 @@ object OutputView {
    * @param expr Expression to build views for
    */
   def apply(expr: Expr): Unit = {
-    expr.outputView = View(expr.t, "")
-    visitAndBuildViews(expr, View(expr.t, ""))
+
+    // Reset outputView for every expression
+    Expr.visit(expr, _.outputView = NoView, _ => {})
+
+    expr.outputView = View(expr.t, expr.mem.variable)
+    visitAndBuildViews(expr, expr.outputView)
   }
 
   private def visitAndBuildViews(expr: Expr, writeView: View): View = {
@@ -42,8 +46,9 @@ object OutputView {
       case m: AbstractMap => buildViewMap(m, call, writeView)
       case f: FilterSeq => buildViewFilter(f,  call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
-      case sp: SlideSeqPlus => buildViewSlideSeqPlus(sp, call, writeView)
+      case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
+      case iss: InsertionSortSeq => buildViewSort(iss, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
       case uf: UserFun => buildViewUserFun(writeView,uf, call)
@@ -61,11 +66,11 @@ object OutputView {
       case l: Lambda => buildViewLambda(l, call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
       case _: Slide =>
-        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
-      case _: ArrayAccess | _: UnsafeArrayAccess =>
-        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth)
-      case debug.PrintType(_) | debug.PrintComment(_) | Get(_) |
-           _: Tuple | Gather(_) | Filter() | Pad(_, _, _) =>
+        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
+      case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
+        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
+      case debug.PrintType(_) | debug.PrintComment(_) | Get(_) | _: Tuple | Gather(_) | Filter() |
+           Pad(_, _, _) =>
         writeView
       case dunno => throw new NotImplementedError(s"OutputView.scala: $dunno")
     }
@@ -74,12 +79,12 @@ object OutputView {
     call.f match {
       case Zip(_) | Tuple(_) =>
         val res = call.args.map(arg =>
-          visitAndBuildViews(arg, View.initialiseNewView(arg.t, arg.inputDepth)))
+          visitAndBuildViews(arg, View.initialiseNewView(arg.t, arg.inputDepth, arg.mem.variable)))
 
         ViewTuple(res, call.argsType)
       case _: AbstractPartRed =>
         val acc = call.args.head
-        visitAndBuildViews(acc, View.initialiseNewView(acc.t, acc.inputDepth))
+        visitAndBuildViews(acc, View.initialiseNewView(acc.t, acc.inputDepth, acc.mem.variable))
         visitAndBuildViews(call.args(1), result)
       case Get(i) =>
         call.args.head match {
@@ -151,14 +156,14 @@ object OutputView {
         val subviews = getSubviews(param, memCollection)
 
         if (subviews(i) == NoView)
-          subviews(i) = View.initialiseNewView(call.t, outDepth)
+          subviews(i) = View.initialiseNewView(call.t, outDepth, call.mem.variable)
 
         call.outputView = subviews(i)
         param.outputView = ViewTuple(subviews, param.t)
 
       case _ =>
         val outDepth = getAccessDepth (param.accessInf, param.mem)
-        param.outputView = View.initialiseNewView(param.t, outDepth)
+        param.outputView = View.initialiseNewView(param.t, outDepth, param.mem.variable)
     }
   }
 
@@ -169,7 +174,7 @@ object OutputView {
     call.args.foreach({
       case p: Param  =>
         val outDepth = getAccessDepth(p.accessInf, p.mem)
-        p.outputView = View.initialiseNewView(p.t, outDepth)
+        p.outputView = View.initialiseNewView(p.t, outDepth, p.mem.variable)
 
       case getCall@FunCall(Get(i), param: Param) =>
         buildViewGet(i, param, getCall)
@@ -179,7 +184,7 @@ object OutputView {
 
     val newViews = call.args.map(a => {
       val depth = getAccessDepth(a.accessInf, a.mem)
-      View.initialiseNewView(a.t, depth)
+      View.initialiseNewView(a.t, depth, a.mem.variable)
     })
 
     if (newViews.length <= 1)
@@ -189,9 +194,9 @@ object OutputView {
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, writeView: View): View = {
-    val v = View.initialiseNewView(call.args.head.t, call.inputDepth)
+    val v = View.initialiseNewView(call.t, call.inputDepth, i.vPtrOut)
     visitAndBuildViews(i.f.body, v)
-    View.initialiseNewView(call.t, call.outputDepth)
+    View.initialiseNewView(call.args.head.t, call.outputDepth, call.args.head.mem.variable)
   }
 
   private def buildViewMap(m: AbstractMap, call: FunCall, writeView: View): View = {
@@ -202,14 +207,9 @@ object OutputView {
   
   private def buildViewFilter(f: FilterSeq, call: FunCall,
                               writeView: View): View = {
-    // Output of the predicate is never stored in a variable
     visitAndBuildViews(f.f.body, writeView.access(Cst(0)))
-    val outDepth = getAccessDepth(f.f.body.accessInf, f.f.body.mem)
-    f.f.body.outputView = View.initialiseNewView(f.f.body.t, outDepth)
-    
-    // Write at the "top" of the output array
-    visitAndBuildViews(f.copyFun.body, writeView.access(f.loopWrite))
-    ViewMap(f.copyFun.body.outputView, f.loopWrite, call.args.head.t)
+    f.f.body.outputView = View.initialiseNewView(f.f.body.t, List(), f.f.body.mem.variable)
+    ViewMap(f.f.params.head.outputView, f.loopWrite, call.args.head.t)
   }
   
   private def buildViewReduce(r: AbstractPartRed,
@@ -227,7 +227,7 @@ object OutputView {
     ViewMap(r.f.params(1).outputView, r.loopVar, call.args(1).t)
   }
 
-  private def buildViewSlideSeqPlus(sp: SlideSeqPlus,
+  private def buildViewMapSeqSlide(sp: MapSeqSlide,
                                     call: FunCall, writeView: View): View = {
     visitAndBuildViews(sp.f.body, writeView.access(sp.loopVar))
     ViewMap(sp.f.params.head.outputView, sp.loopVar, call.args.head.t)
@@ -237,15 +237,34 @@ object OutputView {
   private def buildViewSearch(s: AbstractSearch,
                               call:FunCall, writeView:View) :View = {
     visitAndBuildViews(call.args.head,
-      View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable.name))
+      View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable))
     visitAndBuildViews(s.f.body, writeView.access(Cst(0)))
-    View.initialiseNewView(call.args(1).t, call.outputDepth, call.mem.variable.name)
+    View.initialiseNewView(call.args(1).t, call.outputDepth, call.args(1).mem.variable)
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {
     visitAndBuildViews(l.body, writeView)
     // TODO: Not sure about this
     l.params.head.outputView
+  }
+  
+  private def buildViewSort(iss: InsertionSortSeq,
+                            call: FunCall,
+                            writeView: View): View = {
+    // Note: at this point, we can set the input view for the first argument
+    //       of the comparison function as an access to the output array of
+    //       the pattern.
+    //       cf. `InputView.buildViewSort`
+    iss.f.params(1).view = writeView.access(iss.loopWrite)
+    InputView(iss.f.body)
+    val compareOutputView = View.initialiseNewView(
+      iss.f.body.t,
+      getAccessDepth(iss.f.body.accessInf, iss.f.body.mem),
+      Var("comp")
+    )
+    visitAndBuildViews(iss.f.body, compareOutputView)
+    
+    View.initialiseNewView(call.t, call.outputDepth, call.mem.variable)
   }
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {
@@ -306,6 +325,6 @@ object OutputView {
     // TODO: Not right. See TestTail.tailBetweenMapsScatterAfter and
     // TODO: TestTail.tailBetweenMapsScatterBeforeAndAfter. Not sure how to fix.
     View.initialiseNewView(funCall.args.head.t, funCall.outputDepth,
-      funCall.mem.variable.name)
+      funCall.args.head.mem.variable)
   }
 }

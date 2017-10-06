@@ -3,24 +3,13 @@ package opencl.generator
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 
-object TestTuple {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestTuple extends TestWithExecutor
 
 class TestTuple {
 
@@ -33,7 +22,7 @@ class TestTuple {
     val inputSize = 1024
     val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-    val gold = inArrA.zip(inArrB).flatMap{case (a,b) => Array(a, b)}
+    val gold = (inArrA zip inArrB).toVector
 
     val N = SizeVar("N")
     val f = fun(
@@ -44,8 +33,8 @@ class TestTuple {
       }
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inArrA, inArrB)
-    assertArrayEquals(gold, output, 0.0f)
+    val (output, _) = Execute(inputSize)[Vector[(Float, Float)]](f, inArrA, inArrB)
+    assertEquals(gold, output)
   }
 
   @Test
@@ -65,7 +54,7 @@ class TestTuple {
       }
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inArrA, inArrB)
+    val (output, _) = Execute(inputSize)[Array[Float]](f, inArrA, inArrB)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -86,7 +75,7 @@ class TestTuple {
       }
     )
 
-    val (output: Array[Float], _) = Execute(inputSize)(f, inArrA, inArrB)
+    val (output, _) = Execute(inputSize)[Array[Float]](f, inArrA, inArrB)
     assertArrayEquals(gold, output, 0.0f)
   }
 
@@ -94,7 +83,7 @@ class TestTuple {
     val inputSize = 1024
     val inArrA = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val inArrB = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-    val gold = inArrA.zip(inArrB).flatMap{case (a,b) => Array(a, b)}
+    val gold = (inArrA zip inArrB).toVector
 
     val id =  UserFun("id", "x", "{ return x; }", TupleType(Float, Float), TupleType(Float, Float))
 
@@ -107,18 +96,18 @@ class TestTuple {
                  }
                )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inArrA, inArrB)
+    val (output, runtime) = Execute(inputSize)[Vector[(Float, Float)]](f, inArrA, inArrB)
 
-    assertArrayEquals(gold, output, 0.0f)
+    assertEquals(gold, output)
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
   }
   
   @Test def VECTOR_NEG_PAIR(): Unit = {
     val inputSize = 1024
-    val inputArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
+    val inputArray = Array.fill(inputSize)((util.Random.nextInt(5).toFloat, util.Random.nextInt(5).toFloat))
 
-    val gold = inputArray.map(-_)
+    val gold = inputArray.map(t => (-t._1, -t._2)).toVector
 
     val negPair = UserFun("pair", "x", "{ x._0 = -x._0; x._1 = -x._1; return x; }",
       TupleType(Float, Float), TupleType(Float, Float))
@@ -129,9 +118,9 @@ class TestTuple {
       ) o Split(1024) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputArray)
+    val (output, runtime) = Execute(inputSize)[Vector[(Float, Float)]](f, inputArray)
 
-    assertArrayEquals(gold, output, 0.0f)
+    assertEquals(gold, output)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -139,10 +128,10 @@ class TestTuple {
 
   @Test def VECTOR_ADD_PAIRS(): Unit = {
     val inputSize = 1024
-    val leftArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
-    val rightArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
+    val leftArray = Array.fill(inputSize, 2)(util.Random.nextInt(5).toFloat).map{ case Array(x, y) => (x, y) }
+    val rightArray = Array.fill(inputSize, 2)(util.Random.nextInt(5).toFloat).map{ case Array(x, y) => (x, y) }
 
-    val gold = (leftArray zip rightArray).map({case (l, r) => l + r})
+    val gold = (leftArray zip rightArray).map({ case ((lx, ly), (rx, ry)) => (lx + rx, ly + ry) }).toVector
 
     val N = SizeVar("N")
 
@@ -155,9 +144,9 @@ class TestTuple {
         ) o Split(1024) $ Zip(left, right)
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, leftArray, rightArray)
+    val (output, runtime) = Execute(inputSize)[Vector[(Float, Float)]](f, leftArray, rightArray)
 
-    assertArrayEquals(gold, output, 0.0f)
+    assertEquals(gold, output)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -167,7 +156,7 @@ class TestTuple {
     val inputSize = 1024
     val inputArray = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
-    val gold = inputArray.flatMap((f) => Array(f, f))
+    val gold = inputArray.map(f => (f, f)).toVector
 
     val pair = UserFun("pair", "x", "{ Tuple t = {x, x}; return t; }",
                           Float, TupleType(Float, Float))
@@ -178,9 +167,9 @@ class TestTuple {
       ) o Split(1024) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputArray.length)(pairFun, inputArray)
+    val (output, runtime) = Execute(inputArray.length)[Vector[(Float, Float)]](pairFun, inputArray)
 
-    assertArrayEquals(gold, output, 0.0f)
+    assertEquals(gold, output)
 
     println("output(0) = " + output(0))
     println("runtime = " + runtime)
@@ -196,24 +185,21 @@ class TestTuple {
 
     val N = SizeVar("N")
 
-    val input2 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat,util.Random.nextInt(5).toFloat)
+    val input = Array.fill(inputSize)(util.Random.nextInt(5).toFloat,util.Random.nextInt(5).toFloat)
 
-    val gold = input2.reduce((x, y) => if (x._1 > y._1) x else y).productIterator.asInstanceOf[Iterator[Float]].toArray
-
-    val input = input2.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
+    val gold = input.reduce((x, y) => if (x._1 > y._1) x else y)
 
     val function = fun(
       ArrayTypeWSWC(TupleType(Float, Float), N),
       input => toGlobal(MapSeq(idFF)) o ReduceSeq(maxFirstArg, (0.0f, 0.0f)) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(function, input)
+    val (Vector(output), runtime) = Execute(inputSize)[Vector[(Float, Float)]](function, input)
 
-    println("output.length = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    println(s"output = $output")
+    println(s"runtime = $runtime")
 
-    assertArrayEquals(gold, output, 0.0f)
+    assertEquals(gold, output)
   }
 
   @Test def sumOverTuples(): Unit = {
@@ -222,24 +208,21 @@ class TestTuple {
 
     val N = SizeVar("N")
 
-    val input2 = Array.fill(inputSize)(util.Random.nextInt(5).toFloat,util.Random.nextInt(5).toFloat)
+    val input = Array.fill(inputSize)(util.Random.nextInt(5).toFloat,util.Random.nextInt(5).toFloat)
 
-    val gold = input2.reduce((x, y) => (x._1 + y._1, x._2 + y._2)).productIterator.asInstanceOf[Iterator[Float]].toArray
-
-    val input = input2.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Float]].toArray
+    val gold = input.reduce((x, y) => (x._1 + y._1, x._2 + y._2))
 
     val function = fun(
       ArrayTypeWSWC(TupleType(Float, Float), N),
       input => toGlobal(MapSeq(idFF)) o ReduceSeq(addPair, (0.0f, 0.0f)) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(function, input)
+    val (Vector(output), runtime) = Execute(inputSize)[Vector[(Float, Float)]](function, input)
 
-    println("output.length = " + output.length)
-    println("output(0) = " + output(0))
+    println("output = " + output)
     println("runtime = " + runtime)
 
-    assertArrayEquals(gold, output, 0.0f)
+    assertEquals(gold, output)
   }
 
   @Test def tuplePattern(): Unit = {
@@ -264,7 +247,7 @@ class TestTuple {
       }
     )
 
-    val (output: Array[Float], runtime) = Execute(nSize)(function, input, array)
+    val (output, runtime) = Execute(nSize)[Array[Float]](function, input, array)
 
     println("output.length = " + output.length)
     println("output(0) = " + output(0))
@@ -276,9 +259,9 @@ class TestTuple {
   @Test
   def patternGetOfTuple(): Unit = {
     val inputSize = 1024
-    val inputArray = Array.fill(inputSize * 2)(util.Random.nextInt(5).toFloat)
+    val inputArray = Array.fill(inputSize, 2)(util.Random.nextInt(5).toFloat).map{ case Array(x, y) => (x, y) }
 
-    val gold = inputArray.zipWithIndex.filter(_._2 % 2 == 0).map(_._1)
+    val gold = inputArray.map(_._1)
 
     val f = fun(ArrayTypeWSWC(TupleType(Float, Float), SizeVar("N")), (input) =>
       Join() o MapWrg(
@@ -286,7 +269,7 @@ class TestTuple {
       ) o Split(1024) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize)(f, inputArray)
+    val (output, runtime) = Execute(inputSize)[Array[Float]](f, inputArray)
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -303,11 +286,10 @@ class TestTuple {
     })
 
     val inputSize = 1024
-    val input2 = Array.fill(inputSize)(util.Random.nextInt(5),util.Random.nextInt(5))
-    val input = input2.map(_.productIterator).reduce(_++_).asInstanceOf[Iterator[Int]].toArray
-    val gold = input2.map(_._1)
+    val input = Array.fill(inputSize)(util.Random.nextInt(5),util.Random.nextInt(5))
+    val gold = input.map(_._1)
 
-    val (output: Array[Int], _) = Execute(128)(f, input)
+    val (output, _) = Execute(128)[Array[Int]](f, input)
 
     assertArrayEquals(gold, output)
   }

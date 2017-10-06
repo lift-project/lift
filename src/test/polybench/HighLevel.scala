@@ -9,20 +9,9 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object HighLevel {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object HighLevel extends TestWithExecutor
 
 class HighLevel {
 
@@ -131,8 +120,8 @@ class HighLevel {
     val dGold = Utils.matrixMatrixMultiply(A, B)
     val eGold = Utils.matrixMatrixMultiply(C, dGold)
 
-    val D = Execute(i)(mm, A, B)._1.asInstanceOf[Array[Float]].grouped(j).toArray
-    val E = Execute(i)(mm, C, D)._1.asInstanceOf[Array[Float]]
+    val D = Execute(i)[Array[Float]](mm, A, B)._1.grouped(j).toArray
+    val E = Execute(i)[Array[Float]](mm, C, D)._1
 
     assertArrayEquals(dGold.flatten, D.flatten, 0.0f)
     assertArrayEquals(eGold.flatten, E, 0.0f)
@@ -156,9 +145,9 @@ class HighLevel {
     val fGold = Utils.matrixMatrixMultiply(C, D)
     val gGold = Utils.matrixMatrixMultiply(eGold, fGold)
 
-    val E = Execute(i)(mm, A, B)._1.asInstanceOf[Array[Float]].grouped(j).toArray
-    val F = Execute(j)(mm, C, D)._1.asInstanceOf[Array[Float]].grouped(l).toArray
-    val G = Execute(i)(mm, E, F)._1.asInstanceOf[Array[Float]]
+    val E = Execute(i)[Array[Float]](mm, A, B)._1.grouped(j).toArray
+    val F = Execute(j)[Array[Float]](mm, C, D)._1.grouped(l).toArray
+    val G = Execute(i)[Array[Float]](mm, E, F)._1
 
     assertArrayEquals(eGold.flatten, E.flatten, 0.0f)
     assertArrayEquals(fGold.flatten, F.flatten, 0.0f)
@@ -180,9 +169,9 @@ class HighLevel {
     val tmp2Gold = Utils.matrixVector(B, x, beta)
     val yGold = (tmp1Gold, tmp2Gold).zipped.map(_+_)
 
-    val tmp1 = Execute(n)(mvAlpha, A, x, alpha)._1.asInstanceOf[Array[Float]]
-    val tmp2 = Execute(n)(mvAlpha, B, x, beta)._1.asInstanceOf[Array[Float]]
-    val y = Execute(n)(vecAdd, tmp1, tmp2)._1.asInstanceOf[Array[Float]]
+    val tmp1 = Execute(n)[Array[Float]](mvAlpha, A, x, alpha)._1
+    val tmp2 = Execute(n)[Array[Float]](mvAlpha, B, x, beta)._1
+    val y    = Execute(n)[Array[Float]](vecAdd, tmp1, tmp2)._1
 
     assertArrayEquals(tmp1Gold, tmp1, 0.001f)
     assertArrayEquals(tmp2Gold, tmp2, 0.001f)
@@ -206,7 +195,7 @@ class HighLevel {
 
     val gesummv = GESUMMV.fused
 
-    val y = Execute(n)(gesummv, A, B, x, alpha, beta)._1.asInstanceOf[Array[Float]]
+    val y = Execute(n)[Array[Float]](gesummv, A, B, x, alpha, beta)._1
 
     assertArrayEquals(yGold, y, 0.001f)
   }
@@ -228,7 +217,7 @@ class HighLevel {
 
     val gesummv = GESUMMV.simpleUserFun
 
-    val y = Execute(n)(gesummv, A, B, x, alpha, beta)._1.asInstanceOf[Array[Float]]
+    val y = Execute(n)[Array[Float]](gesummv, A, B, x, alpha, beta)._1
 
     assertArrayEquals(yGold, y, 0.001f)
   }
@@ -236,7 +225,7 @@ class HighLevel {
   @Test
   def gesummvKepler(): Unit = {
 
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
 
     // y = A . x * alpha + B . x * beta
@@ -256,7 +245,7 @@ class HighLevel {
 
     val gesummv = GESUMMV.fusedOptimised
 
-    val y = Execute(stride, stride*n, (true, true))(gesummv, A, B, x, alpha, beta)._1.asInstanceOf[Array[Float]]
+    val y = Execute(stride, stride*n, (true, true))[Array[Float]](gesummv, A, B, x, alpha, beta)._1
 
     assertArrayEquals(yGold, y, 0.001f)
   }
@@ -292,13 +281,12 @@ class HighLevel {
       (a, b) => MapGlb(fun(x => MapSeq(fun(y => mult(x, y))) $ b)) $ a
     )
 
-    val (u1v1: Array[Float], _) = Execute(n)(outerProduct, u1, v1)
-    val (u2v2: Array[Float], _) = Execute(n)(outerProduct, u2, v2)
-    val (partialSum: Array[Float], _) = Execute(n)(matrixAdd, u1v1.grouped(n).toArray,
-                                                              u2v2.grouped(n).toArray)
-    val (newA: Array[Float], _) = Execute(n)(matrixAdd, A, partialSum.grouped(n).toArray)
-    val (x: Array[Float], _) = Execute(n)(gemvTransposed, newA.grouped(n).toArray, y, z, beta, 1.0f)
-    val (w: Array[Float], _) = Execute(n)(mvAlpha, newA.grouped(n).toArray, x, alpha)
+    val (u1v1, _) = Execute(n)[Array[Float]](outerProduct, u1, v1)
+    val (u2v2, _) = Execute(n)[Array[Float]](outerProduct, u2, v2)
+    val (partialSum, _) = Execute(n)[Array[Float]](matrixAdd, u1v1.grouped(n).toArray, u2v2.grouped(n).toArray)
+    val (newA, _) = Execute(n)[Array[Float]](matrixAdd, A, partialSum.grouped(n).toArray)
+    val (x, _) = Execute(n)[Array[Float]](gemvTransposed, newA.grouped(n).toArray, y, z, beta, 1.0f)
+    val (w, _) = Execute(n)[Array[Float]](mvAlpha, newA.grouped(n).toArray, x, alpha)
 
     assertArrayEquals(u1v1gold.flatten, u1v1, 0.001f)
     assertArrayEquals(u2v2gold.flatten, u2v2, 0.001f)
@@ -320,7 +308,7 @@ class HighLevel {
 
     val gold = Utils.matrixVector(matrix, vectorX, vectorY, alpha, beta)
 
-    val (result: Array[Float], _) = Execute(n)(gemvKernel, matrix, vectorX, vectorY, alpha, beta)
+    val (result, _) = Execute(n)[Array[Float]](gemvKernel, matrix, vectorX, vectorY, alpha, beta)
 
     assertArrayEquals(gold, result, 0.001f)
   }
@@ -364,7 +352,7 @@ class HighLevel {
         )) $ Zip(A, C)
       })
 
-    val (res: Array[Float], _) = Execute(n)(f, A, B, C, alpha, beta)
+    val (res, _) = Execute(n)[Array[Float]](f, A, B, C, alpha, beta)
 
     assertArrayEquals(gold.flatten, res, 0.001f)
   }
@@ -391,8 +379,8 @@ class HighLevel {
         )) o Transpose() $ matrix
     )
 
-    val (ax: Array[Float], _) = Execute(n)(mv, A, x)
-    val (atax: Array[Float], _) = Execute(n)(f, A, ax)
+    val (ax, _) = Execute(n)[Array[Float]](mv, A, x)
+    val (atax, _) = Execute(n)[Array[Float]](f, A, ax)
 
     assertArrayEquals(gold, atax, 0.001f)
   }

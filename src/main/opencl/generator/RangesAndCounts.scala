@@ -45,11 +45,13 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
               case _ => apply(m.f.body)
             }
 
-          case f: FilterSeq => {
-            apply(f.copyFun.body)
+          case f: FilterSeq =>
             apply(f.f.body)
             setRangeFilterSeq(f, call)
-          }
+
+          case iss: InsertionSortSeq =>
+            apply(iss.f.body)
+            setRangeInsertionSort(iss, call)
 
           case r: AbstractPartRed =>
             r match {
@@ -57,7 +59,7 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
               case r : ReduceWhileSeq => setRangeReduceSeq(r, call) 
             }
             apply(r.f.body)
-          case sp: SlideSeqPlus => setRangeSlideSeqPlus(sp, call)
+          case sp: MapSeqSlide => setRangeMapSeqSlide(sp, call)
             apply(sp.f.body)
 
           case i: Iterate =>
@@ -174,6 +176,17 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
     m.loopVar = Var(m.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
   }
   
+  private def setRangeInsertionSort(iss: InsertionSortSeq, call: FunCall): Unit = {
+    iss.loopRead = Var(
+      iss.loopRead.name,
+      ContinuousRange(Cst(0), Type.getLength(call.args.head.t))
+    )
+    iss.loopWrite = Var(
+      iss.loopWrite.name,
+      ContinuousRange(Cst(0), Type.getLength(call.args.head.t))
+    )
+  }
+
   private def setRangeFilterSeq(f: FilterSeq, call: FunCall): Unit = {
     f.loopRead = Var(f.loopRead.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
     f.loopWrite = Var(f.loopWrite.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
@@ -184,7 +197,7 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
     r.loopVar = Var(r.loopVar.name, RangeAdd(Cst(0), Type.getLength(inT), Cst(1)))
   }
 
-  private def setRangeSlideSeqPlus(sp: SlideSeqPlus, call: FunCall): Unit = {
+  private def setRangeMapSeqSlide(sp: MapSeqSlide, call: FunCall): Unit = {
     sp.loopVar = Var(sp.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
   }
 

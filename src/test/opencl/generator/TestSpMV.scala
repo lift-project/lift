@@ -3,28 +3,15 @@ package opencl.generator
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor._
+import opencl.executor.{Execute, Executor, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 
 import scala.reflect.ClassTag
 
-object TestSpMV {
-  @BeforeClass def TestSpMV(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
-
-
+object TestSpMV extends TestWithExecutor
 
 class TestSpMV {
   val t_id = UserFun("tuple_id", "x", "return x;", TupleType(Int, Int), TupleType(Int, Int))
@@ -87,7 +74,7 @@ class TestSpMV {
       }
     )
 
-    val (output:Array[Int], runtime) = Execute(1,matrix.length)(f, matrix.map(flattenTupleArray), flattenTupleArray(vector))
+    val (output, runtime) = Execute(1,matrix.length)[Array[Int]](f, matrix.map(flattenTupleArray), flattenTupleArray(vector))
     println("Time: "+runtime)
     println("Gold sum = "+gold.sum.toString)
     println("Output sum = "+output.sum.toString)
@@ -167,7 +154,7 @@ class TestSpMV {
         )) $ mat
       }
     )
-    val (output:Array[Int], runtime) = Execute(1,1)(f, matrix.map(flattenTupleArray), flattenTupleArray(vector))
+    val (output, runtime) = Execute(1,1)[Array[Int]](f, matrix.map(flattenTupleArray), flattenTupleArray(vector))
     println("Time: "+runtime)
     println("Gold sum = "+gold.sum.toString)
     println("Output sum = "+output.sum.toString)
@@ -222,7 +209,7 @@ class TestSpMV {
       }
     )
 
-    val (output:Array[Int], runtime) = Execute(1,1)(f, flattenTupleArray(vectA), flattenTupleArray(vectB))
+    val (output, runtime) = Execute(1,1)[Array[Int]](f, flattenTupleArray(vectA), flattenTupleArray(vectB))
     println("Time: "+runtime)
     println("Gold = "+gold)
     println("output = "+output.deep.mkString(" "))
@@ -293,7 +280,7 @@ class TestSpMV {
       }
     )
 
-    val (output:Array[Int], runtime) = Execute(1,1)(f, flattenTupleArray(vectA), flattenTupleArray(vectB))
+    val (output, runtime) = Execute(1,1)[Array[Int]](f, flattenTupleArray(vectA), flattenTupleArray(vectB))
     println("Time: "+runtime)
     println("Gold = "+gold)
     println("output = "+output.deep.mkString(" "))
@@ -364,7 +351,7 @@ class TestSpMV {
       }
     )
 
-    val (output:Array[Int], runtime) = Execute(1,1)(f, flattenTupleArray(vectA), flattenTupleArray(vectB))
+    val (output, runtime) = Execute(1,1)[Array[Int]](f, flattenTupleArray(vectA), flattenTupleArray(vectB))
     println("Time: "+runtime)
     println("Gold = "+gold)
     println("output = "+output.deep.mkString(" "))
@@ -387,7 +374,7 @@ class TestSpMV {
     val f = fun(ArrayTypeWSWC(TupleType(Int, Int), SizeVar("N")), (input) =>
        MapGlb(negElem)  $ input
     )
-    val (output:Array[Int], runtime) = Execute(1,1)(f, inputVector)
+    val (output, runtime) = Execute(1,1)[Array[Int]](f, inputVector)
 
     println("output(0) = " + output(0))
     println("Input: "+inputVector.toList)
@@ -424,7 +411,7 @@ class TestSpMV {
       ) $ input
     )
 
-    val (output:Array[Float], runtime) = Execute(1,1)(scalFun, inputVector, alpha)
+    val (output, runtime) = Execute(1,1)[Array[Float]](scalFun, inputVector, alpha)
 
     println("output(0) = " + output(0))
     println("input = " + inputVector.toList)

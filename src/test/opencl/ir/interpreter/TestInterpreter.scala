@@ -8,20 +8,11 @@ import opencl.executor._
 import opencl.ir.pattern.{MapGlb, MapLcl, MapWrg, ReduceSeq, _}
 import opencl.ir.{Float4, _}
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
 import scala.language.reflectiveCalls
 
-object TestInterpreter {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object TestInterpreter extends TestWithExecutor
 
 class TestInterpreter {
 
@@ -435,7 +426,7 @@ class TestInterpreter {
     val f = fun(
       ArrayTypeWSWC(Float, N),
       ArrayTypeWSWC(Float, N),
-      (inA,inB) => Iterate(5)(fun( (va) =>
+      (inA,inB) => Iterate(5)(fun((va) =>
         fun( (vb) =>
           MapWrg(add) $ Zip(va,vb)
         ) $ inB

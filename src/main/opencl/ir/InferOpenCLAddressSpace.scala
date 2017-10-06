@@ -54,7 +54,7 @@ object InferOpenCLAddressSpace {
       case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
            asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
            Pad(_,_,_) | Tuple(_) | Slide(_,_) | Head() | Tail() | debug.PrintType(_) |
-           debug.PrintComment(_) | UnsafeArrayAccess(_) | ArrayAccess(_) =>
+           debug.PrintComment(_) | UnsafeArrayAccess(_) | CheckedArrayAccess(_) | ArrayAccess(_) =>
 
         setAddressSpaceDefault(addressSpaces)
 
@@ -64,7 +64,11 @@ object InferOpenCLAddressSpace {
       case Filter() => addressSpaces.head
       case Get(i) => setAddressSpaceGet(i, addressSpaces.head)
 
-      case fs: FilterSeq => setAddressSpaceFilterSeq(fs, writeTo, addressSpaces)
+      case iss: InsertionSortSeq => setAddressSpaceSort(iss, writeTo, addressSpaces)
+      case fs: FilterSeq =>
+        setAddressSpaceLambda(fs.f, PrivateMemory, addressSpaces)
+        inferAddressSpace(writeTo, addressSpaces)
+
       case rw: ReduceWhileSeq => setAddressSpaceReduceWhile(rw, call, addressSpaces)
       case r: AbstractPartRed => setAddressSpaceReduce(r.f, call, addressSpaces)
       case s: AbstractSearch => setAddressSpaceSearch(s, writeTo, addressSpaces)
@@ -87,6 +91,13 @@ object InferOpenCLAddressSpace {
       case collection: AddressSpaceCollection => collection.spaces(i)
       case _ => addressSpace
     }
+  
+  private def setAddressSpaceSort(iss: InsertionSortSeq,
+                             writeTo: OpenCLAddressSpace,
+                             addrSpaces: Seq[OpenCLAddressSpace]) = {
+    setAddressSpaceLambda(iss.f, PrivateMemory, addrSpaces)
+    inferAddressSpace(writeTo, addrSpaces)
+  }
 
   private def setAddressSpaceReduce(lambda: Lambda, call: FunCall,
     addressSpaces: Seq[OpenCLAddressSpace]) = {
@@ -103,14 +114,6 @@ object InferOpenCLAddressSpace {
     setAddressSpaceLambda(lambda, writeTo, addressSpaces)
   }
   
-  private def setAddressSpaceFilterSeq(fs: FilterSeq,
-                                       writeTo: OpenCLAddressSpace,
-                                       addrSpaces: Seq[OpenCLAddressSpace]) = {
-    // We never need to keep the result of the predicate.
-    setAddressSpaceLambda(fs.f, PrivateMemory, addrSpaces)
-    setAddressSpaceLambda(fs.copyFun, writeTo, addrSpaces)
-  }
-
   private def setAddressSpaceReduceWhile(rw: ReduceWhileSeq, call: FunCall,
                                          addressSpaces: Seq[OpenCLAddressSpace]) = {
     // default to just writing to private memory

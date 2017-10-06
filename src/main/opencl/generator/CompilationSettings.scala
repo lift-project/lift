@@ -1,5 +1,10 @@
 package opencl.generator
 
+
+// TODO *********************
+// TODO * Document all this *
+// TODO *********************
+
 object Debug {
   private var debug = System.getenv("LIFT_DEBUG") != null
   def apply(): Boolean = debug
@@ -16,6 +21,12 @@ object Verbose {
   private var verbose = System.getenv("LIFT_VERBOSE") != null
   def apply(): Boolean = verbose
   def apply(verbose: Boolean): Unit = { this.verbose = verbose }
+}
+
+object StrictZip {
+  // By default, zip is strict
+  private val notStrict = System.getenv("LIFT_STRICT_ZIP") != null
+  def apply(): Boolean = !notStrict
 }
 
 object DeadCodeElimination {

@@ -97,7 +97,7 @@ class TestRNN {
     (gold zip scala_result).foreach{case (gold_iter_result: Array[Float], scala_iter_result: Array[Float]) =>
       assertArrayEquals(gold_iter_result, scala_iter_result, 0.0f)}
 
-    val (lift_result: Array[Float], _) = Execute(128)(propagate_lift, input_S0, input_W, input_X)
+    val (lift_result: Array[Float], _) = Execute(128)[Array[Float]](propagate_lift, input_S0, input_W, input_X)
     //println(lift_result.mkString(", "))
 
     assertArrayEquals(gold(1), lift_result, 0.0001f)

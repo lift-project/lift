@@ -1,7 +1,8 @@
 package ir.ast
 
 import ir.interpreter.Interpreter.ValueMap
-import ir.{Memory, TupleType, Type}
+import ir.view.{NoView, View}
+import ir.{Memory, NoType, TupleType, Type}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 
@@ -11,6 +12,7 @@ import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
   */
 case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
   assert(f != null)
+
 
   override def toString = {
     val fS = f.toString

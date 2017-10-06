@@ -1,10 +1,10 @@
 package opencl.ir.pattern
 
 import ir._
-import ir.ast.{FPattern, Lambda, Lambda1, Pattern, fun, isGenerable}
+import ir.ast.{FPattern, Lambda, Lambda1, Pattern, fun}
 import ir.interpreter.Interpreter.ValueMap
-import opencl.ir.{id, Bool}
 import lift.arithmetic.{PosVar, Var}
+import opencl.ir.Bool
 
 /**
   * An implementation of the sequential filter.
@@ -16,21 +16,7 @@ import lift.arithmetic.{PosVar, Var}
   * @param loopWrite is the index user to store data into the output array
   */
 case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
-  extends Pattern(arity=1) with FPattern with isGenerable {
-  /**
-    * This Lambda is used to copy the elements that satisfy the predicate from
-    * the input array to the output array. It is generated automatically during
-    * the type-checking.
-    */
-  private var _copyFun: Lambda1 = _
-  def copyFun: Lambda1 = this._copyFun
-  
-  private def generateCopyFun(ty: Type): Lambda1 = ty match {
-    case _: ScalarType | _: TupleType => id(ty, name=s"_filterseq_${Type.name(ty)}_id")
-    case ArrayType(elemTy) => MapSeq(generateCopyFun(elemTy))
-    case _ => throw new NotImplementedError()
-  }
-  
+  extends Pattern(arity=1) with FPattern {
   override def checkType(argType: Type, setType: Boolean): Type = {
     val retTy = argType match {
       // Filter expects an array
@@ -50,11 +36,6 @@ case class FilterSeq(f: Lambda1, var loopRead: Var, var loopWrite: Var)
     // Check that the predicate has type `elemT -> Bool`
     f.params.head.t = retTy.elemT
     TypeChecker.assertTypeIs(f.body, Bool, setType)
-    
-    // At this point, we are able to generate the copy function
-    _copyFun = generateCopyFun(retTy.elemT)
-    _copyFun.params.head.t = retTy.elemT
-    TypeChecker.assertTypeIs(_copyFun.body, retTy.elemT, setType)
     
     retTy
   }

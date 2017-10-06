@@ -13,18 +13,7 @@ import org.junit._
 
 import scala.util.Random
 
-object TestStencil2D {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestStencil2D extends TestWithExecutor
 
 class TestStencil2D {
     /* **********************************************************
@@ -63,7 +52,7 @@ class TestStencil2D {
         ) o Slide2D(size, step) o Pad2D(left, right, boundary) $ domain
       }
     )
-    val (output: Array[Float], _) = Execute(data.length, data.length)(lambda, data)
+    val (output, _) = Execute(data.length, data.length)[Array[Float]](lambda, data)
 
     assertArrayEquals(goldFlat, output, 0.1f)
   }
@@ -146,7 +135,7 @@ class TestStencil2D {
       val height = randomData2D.length
       val input = randomData2D
 
-      val (output: Array[Float], _) = Execute(1, 1, width, height, (false, false))(stencil, input, weights)
+      val (output, _) = Execute(1, 1, width, height, (false, false))[Array[Float]](stencil, input, weights)
 
       val gold = Utils.scalaCompute2DStencil(input, size1, step1, size2, step2, top, bottom, left, right, weights, scalaBoundary)
       assertArrayEquals(gold, output, 0.1f)
@@ -250,12 +239,12 @@ class TestStencil2D {
   )
 
   @Test def copyTilesIdentity(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val data2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j }
     val tiled: Lambda = createCopyTilesLambda(4, 2, 1, 1, BOUNDARY)
 
-    val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (false, false))(tiled, data2D, gaussWeights)
+    val (output, runtime) = Execute(2, 2, 2, 2, (false, false))[Array[Float]](tiled, data2D, gaussWeights)
     val gold = Utils.scalaGenerate2DNeighbours(data2D, 4, 2, 4, 2, 1, 1, 1, 1, SCALABOUNDARY).flatten.flatten.flatten
 
     assertArrayEquals(gold, output, 0.1f)
@@ -265,7 +254,7 @@ class TestStencil2D {
   @Test def tiling2DBiggerTiles(): Unit = {
     val data2D = Array.tabulate(32, 32) { (i, j) => i * 24.0f + j }
     val tiled: Lambda = createTiled2DStencil(3, 1, 10, 8, 1, 1, gaussWeights, BOUNDARY)
-    val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (false, false))(tiled, data2D, gaussWeights)
+    val (output, runtime) = Execute(2, 2, 2, 2, (false, false))[Array[Float]](tiled, data2D, gaussWeights)
     val gold = Utils.scalaCompute2DStencil(data2D, 3, 1, 3, 1, 1, 1, 1, 1, gaussWeights, SCALABOUNDARY)
 
     assertArrayEquals(gold, output, 0.1f)
@@ -398,7 +387,7 @@ class TestStencil2D {
           Transpose() o Pad(left, right, Pad.Boundary.Wrap) o Transpose() o Pad(left, right, Pad.Boundary.Wrap) $ domain
       }
     )
-    val (output: Array[Float], runtime) = Execute(data2D.length, data2D.length)(lambda, data2D)
+    val (output, runtime) = Execute(data2D.length, data2D.length)[Array[Float]](lambda, data2D)
     val gold = Array(15.0, 12.0, 13.0,
       3.0, 0.0, 1.0,
       7.0, 4.0, 5.0,
@@ -514,7 +503,7 @@ class TestStencil2D {
     input = input.transpose
 
     try {
-      val (output: Array[Float], runtime) = Execute(1, 256, 512, 512, (false, false))(stencil, input, weights)
+      val (output, runtime) = Execute(1, 256, 512, 512, (false, false))[Array[Float]](stencil, input, weights)
       println("Runtime: " + runtime)
     } catch {
       case e: DeviceCapabilityException =>
@@ -560,7 +549,7 @@ class TestStencil2D {
     input = input.transpose
 
     try {
-      val (output: Array[Float], runtime) = Execute(1, 32, 32, 32, (false, false))(stencil, input, weights)
+      val (output, runtime) = Execute(1, 32, 32, 32, (false, false))[Array[Float]](stencil, input, weights)
     } catch {
       case e: DeviceCapabilityException =>
         Assume.assumeNoException("Device not supported.", e)
@@ -622,7 +611,7 @@ class TestStencil2D {
     input = input.transpose
 
     try {
-      val (output: Array[Float], runtime) = Execute(1, 256, 1024, 8192, (false, false))(stencil, input, weights)
+      val (output, runtime) = Execute(1, 256, 1024, 8192, (false, false))[Array[Float]](stencil, input, weights)
       println("Runtime: " + runtime)
       println(output.take(10).mkString(", "))
     } catch {
@@ -677,7 +666,7 @@ class TestStencil2D {
      */
 
     try {
-      val (output: Array[Float], runtime) = Execute(64, 4, 1024, 512, (true, true))(stencil, input, weights)
+      val (output, runtime) = Execute(64, 4, 1024, 512, (true, true))[Array[Float]](stencil, input, weights)
       println("Runtime: " + runtime)
     } catch {
       case e: DeviceCapabilityException =>
@@ -790,24 +779,24 @@ class TestStencil2D {
         MapGlb(1)(MapGlb(0)(MapSeq(MapSeq(id)))) o f $ input
     )
 
-    val (outGold: Array[Float], runtime) = Execute(1,1,32,32,(false,false))(lambda(gold), input)
-    val (outDesired: Array[Float], runtime0) = Execute(1,1,32,32,(false,false))(lambda(desired), input)
-    val (outF1: Array[Float], runtime1) = Execute(1,1,32,32,(false,false))(lambda(f1), input)
-    val (outF2: Array[Float], runtime2) = Execute(1,1,32,32,(false,false))(lambda(f2), input)
-    val (outF3: Array[Float], runtime3) = Execute(1,1,32,32,(false,false))(lambda(f3), input)
-    val (outF4: Array[Float], runtime4) = Execute(1,1,32,32,(false,false))(lambda(f4), input)
-    val (outF5: Array[Float], runtime5) = Execute(1,1,32,32,(false,false))(lambda(f5), input)
-    val (outF6: Array[Float], runtime6) = Execute(1,1,32,32,(false,false))(lambda(f6), input)
-    val (outF7: Array[Float], runtime7) = Execute(1,1,32,32,(false,false))(lambda(f7), input)
-    val (outF8: Array[Float], runtime8) = Execute(1,1,32,32,(false,false))(lambda(f8), input)
-    val (outF9: Array[Float], runtime9) = Execute(1,1,32,32,(false,false))(lambda(f9), input)
-    val (outF10: Array[Float], runtime10) = Execute(1,1,32,32,(false,false))(lambda(f10), input)
-    val (outF11: Array[Float], runtime11) = Execute(1,1,32,32,(false,false))(lambda(f11), input)
-    val (outF12: Array[Float], runtime12) = Execute(1,1,32,32,(false,false))(lambda(f12), input)
-    val (outF13: Array[Float], runtime13) = Execute(1,1,32,32,(false,false))(lambda(f13), input)
-    val (outF14: Array[Float], runtime14) = Execute(1,1,32,32,(false,false))(lambda(f14), input)
-    val (outF15: Array[Float], runtime15) = Execute(1,1,32,32,(false,false))(lambda(f15), input)
-    val (outF16: Array[Float], runtime16) = Execute(1,1,32,32,(false,false))(lambda(f16), input)
+    val (outGold, runtime) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(gold), input)
+    val (outDesired, runtime0) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(desired), input)
+    val (outF1, runtime1) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f1), input)
+    val (outF2, runtime2) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f2), input)
+    val (outF3, runtime3) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f3), input)
+    val (outF4, runtime4) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f4), input)
+    val (outF5, runtime5) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f5), input)
+    val (outF6, runtime6) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f6), input)
+    val (outF7, runtime7) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f7), input)
+    val (outF8, runtime8) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f8), input)
+    val (outF9, runtime9) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f9), input)
+    val (outF10, runtime10) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f10), input)
+    val (outF11, runtime11) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f11), input)
+    val (outF12, runtime12) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f12), input)
+    val (outF13, runtime13) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f13), input)
+    val (outF14, runtime14) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f14), input)
+    val (outF15, runtime15) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f15), input)
+    val (outF16, runtime16) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f16), input)
 
     assertArrayEquals(outGold, outDesired, 0.1f)
     assertArrayEquals(outGold, outF1, 0.1f)
@@ -925,16 +914,16 @@ class TestStencil2D {
         *(T) o S_uv o *(S_uv) o               // Slide2D u v                   // (B.1) Create tiles
           P o *(P)                                                             // (A)
 
-    val (outGold: Array[Float], runtime) = Execute(1,1,32,32,(false,false))(lambda(gold), input)
-    val (outGoldShort: Array[Float], runtimeShort) = Execute(1,1,32,32,(false,false))(lambda(goldShort), input)
-    val (outF1: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(f1), input)
-    val (outG1: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(g1), input)
-    val (outG2: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(g2), input)
-    val (outG3: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(g3), input)
-    val (outF2: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(f2), input)
-    val (outF3: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(f3), input)
-    val (outF4: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(f4), input)
-    val (outF5: Array[Float], _) = Execute(1,1,32,32,(false,false))(lambda(f5), input)
+    val (outGold, runtime) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(gold), input)
+    val (outGoldShort, runtimeShort) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(goldShort), input)
+    val (outF1, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f1), input)
+    val (outG1, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(g1), input)
+    val (outG2, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(g2), input)
+    val (outG3, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(g3), input)
+    val (outF2, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f2), input)
+    val (outF3, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f3), input)
+    val (outF4, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f4), input)
+    val (outF5, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(f5), input)
 
     assertArrayEquals(outGold, outGoldShort, 0.1f)
     assertArrayEquals(outGold, outF1, 0.1f)
@@ -945,5 +934,27 @@ class TestStencil2D {
     assertArrayEquals(outGold, outF3, 0.1f)
     assertArrayEquals(outGold, outF4, 0.1f)
     assertArrayEquals(outGold, outF5, 0.1f)
+  }
+
+  @Test //see Issue116
+  def halideBlur(): Unit = {
+    val M = Var("M")
+    val N = Var("N")
+    val M2 = 2 + Var("M")
+    val N2 = 2 + Var("N")
+
+    val input = Array.tabulate(128, 128) { (i, j) => j * 128.0f + i }
+
+    val div9 = UserFun("div9", "x", "{ return x/9; }", Float, Float)
+    val f = MapGlb(0)(MapSeq( \(neighborhood => toGlobal(MapSeq(div9)) o ReduceSeq(add, 0.0f) o Join() $ neighborhood)
+			)) o Slide2D(3, 1)
+
+    val stencil1 = fun( ArrayType(ArrayType(Float, M2), N2), input => {f $ input })
+    val stencil2 = fun( ArrayType(ArrayType(Float, M),  N),  input => {f $ input })
+
+    val(output1, _) = Execute(32,128)[Array[Float]](stencil1, input)
+    val(output2, _) = Execute(32,128)[Array[Float]](stencil2, input)
+
+    assertNotEquals(output1, output2)
   }
 }

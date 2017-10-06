@@ -1,16 +1,14 @@
 package opencl.generator.stencil
 
-import ir.{ArrayType, ArrayTypeWSWC, TupleType}
-import ir.ast.{Get, Pad, Slide, Zip, fun}
-import lift.arithmetic.{SizeVar, StartFromRange, Var}
-import opencl.executor._
-import org.junit.{AfterClass, BeforeClass}
-import org.junit.Assert._
-import org.junit._
-import opencl.ir.pattern._
-import ir.ast._
+import ir.ArrayTypeWSWC
+import ir.ast.{Get, Slide, Zip, fun, _}
+import lift.arithmetic.SizeVar
+import opencl.executor.{Execute, Executor, Compile}
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
+import opencl.ir.pattern._
+import org.junit.Assert._
+import org.junit.{AfterClass, BeforeClass, _}
 
 object TestSlideSeqPlus
 {
@@ -32,7 +30,7 @@ object SlideSeqPlusHelpers
   def stencil(a: Int ,b :Int) = fun(
     ArrayTypeWSWC(Float, SizeVar("N")),
     (input) =>
-       toGlobal(SlideSeqPlus(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
+       toGlobal(MapSeqSlide(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
   )
 }
 
@@ -48,7 +46,7 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -63,7 +61,7 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
 /*
     StencilUtilities.print1DArray(values)
@@ -86,7 +84,7 @@ class TestSlideSeqPlus
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -102,7 +100,7 @@ class TestSlideSeqPlus
     // drop right one on the comparison array because scala sliding does not work exactly the same as Lift sliding ...
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _)).dropRight(1)
 
-    val (output: Array[Float], _) = Execute(2,2)(SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](SlideSeqPlusHelpers.stencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -123,7 +121,7 @@ class TestSlideSeqPlus
       ArrayTypeWSWC(Float, SizeVar("N")),
       ArrayTypeWSWC(Float, 3),
       (input,wgts) => {
-        SlideSeqPlus(
+        MapSeqSlide(
           fun(neighbourhood => {
             toGlobal(MapSeqUnroll(id)) o
             ReduceSeqUnroll(add, 0.0f) o
@@ -134,7 +132,7 @@ class TestSlideSeqPlus
     )
 
     val source = Compile(orgStencil)
-    val (output: Array[Float], _) = Execute(2,2)(source, orgStencil, values, weights)
+    val (output, _) = Execute(2,2)[Array[Float]](source, orgStencil, values, weights)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -176,7 +174,7 @@ class TestSlideSeqPlus
         ) o Slide2D(3,1) $ mat
       })
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil2D, values)
+    val (output, _) = Execute(2,2)[Array[Float]](stencil2D, values)
 
     StencilUtilities.print2DArray(values)
     StencilUtilities.print1DArrayAs2DArray(output,size-2)
@@ -212,7 +210,7 @@ class TestSlideSeqPlus
         ) o Slide2D(3,1) $ input
       })
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil, values, weights)
+    val (output, _) = Execute(2,2)[Array[Float]](stencil, values, weights)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -237,7 +235,7 @@ class TestSlideSeqPlus
       } o Slide(3, 1)  $ input
     )
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil, values)
+    val (output, _) = Execute(2,2)[Array[Float]](stencil, values)
 
     StencilUtilities.print1DArray(values)
     StencilUtilities.print1DArray(output)

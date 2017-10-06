@@ -354,7 +354,7 @@ class TestCNN {
             val (outputsFlat: Array[Float], runtime) =
               Execute(
                 layer.localSize(0), layer.localSize(1), layer.localSize(2),
-                layer.globalSize(0), layer.globalSize(1), layer.globalSize(2), (true, true))(
+                layer.globalSize(0), layer.globalSize(1), layer.globalSize(2), (true, true))[Array[Float]](
                 layer.liftFProp,
                 layerData match {
                   case cd: ConvDatasets => cd.weights

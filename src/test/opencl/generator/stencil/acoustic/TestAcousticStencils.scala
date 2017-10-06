@@ -4,12 +4,12 @@ import java.io._
 import ir.ArrayTypeWSWC
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, Executor, Utils}
+import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
@@ -224,20 +224,44 @@ object StencilUtilities
     dOut.close()
     fileOut.close()
   }
-}
 
-object TestAcousticStencils {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
+  // outer => inner
+  def vonNeumann5pt(x: Param) = {
+    val N = x.at(0).at(1)
+    val S = x.at(2).at(1)
+    val W = x.at(1).at(0)
+    val E = x.at(1).at(2)
+    val C = x.at(1).at(1)
+    (N, S, W, E, C)
   }
 
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
+  def vonNeumann7pt(x: Param) = {
+    //         z      y     x
+    val N = x.at(1).at(0).at(1)
+    val S = x.at(1).at(2).at(1)
+    val W = x.at(1).at(1).at(0)
+    val E = x.at(1).at(1).at(2)
+    val C = x.at(1).at(1).at(1)
+    val F = x.at(0).at(1).at(1)
+    val B = x.at(2).at(1).at(1)
+    (N, S, W, E, F, B, C)
+  }
+
+  def moore9pt(x: Param) = {
+    val NW = x.at(0).at(0)
+    val N  = x.at(0).at(1)
+    val NE = x.at(0).at(2)
+    val W  = x.at(1).at(0)
+    val C  = x.at(1).at(1)
+    val E  = x.at(1).at(2)
+    val SW = x.at(2).at(0)
+    val S  = x.at(2).at(1)
+    val SE = x.at(2).at(2)
+    (NW, N, NE, W, C, E, SW, S, SE)
   }
 }
+
+object TestAcousticStencils extends TestWithExecutor
 
 class TestAcousticStencils {
 
@@ -276,7 +300,7 @@ class TestAcousticStencils {
         ) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
       })
 
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, StencilUtilities.weightsArr)
+    val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](lambdaNeigh, stencilarr, StencilUtilities.weightsArr)
 
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
@@ -319,7 +343,7 @@ class TestAcousticStencils {
         ) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
       })
 
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, StencilUtilities.weightsArr)
+    val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](lambdaNeigh, stencilarr, StencilUtilities.weightsArr)
 
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
@@ -367,7 +391,7 @@ class TestAcousticStencils {
         ) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
       })
 
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, StencilUtilities.weightsArr)
+    val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](lambdaNeigh, stencilarr, StencilUtilities.weightsArr)
 
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
@@ -404,7 +428,7 @@ class TestAcousticStencils {
       })
 
     val source = Compile(lambdaNeigh)
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(source,lambdaNeigh, stencilarr, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+    val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](source,lambdaNeigh, stencilarr, StencilUtilities.weights, StencilUtilities.weightsMiddle)
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
@@ -470,7 +494,7 @@ class TestAcousticStencils {
           ))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
       })
 
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+    val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](lambdaNeigh, stencilarr, StencilUtilities.weights, StencilUtilities.weightsMiddle)
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
   }
 
@@ -519,7 +543,7 @@ class TestAcousticStencils {
 
     //    Compile(lambdaNeigh)
 
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+    val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](lambdaNeigh, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
@@ -556,7 +580,7 @@ class TestAcousticStencils {
 
       })
 
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+    val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](lambdaNeigh, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
@@ -598,7 +622,7 @@ class TestAcousticStencils {
       })
 
     val source = Compile(lambdaNeigh)
-    val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(source,lambdaNeigh, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+    val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](source,lambdaNeigh, stencilarr, stencilarrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
     if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
     assertArrayEquals(compareData, output, StencilUtilities.stencilDelta)
 
@@ -644,7 +668,7 @@ class TestAcousticStencils {
     var runtime = 0.0f
 
     for(x <- 1 to StencilUtilities.iter) {
-      val (output: Array[Float], runtime) = Execute(input.length, input.length)(lambdaNeigh, input, StencilUtilities.weightsArr)
+      val (output, runtime) = Execute(input.length, input.length)[Array[Float]](lambdaNeigh, input, StencilUtilities.weightsArr)
       if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(input, output, StencilUtilities.stencilSize)
       // need to re-pad, then slide and iterate
       input = StencilUtilities.createFakePaddingFloat2D(output.sliding(StencilUtilities.stencilSize,StencilUtilities.stencilSize).toArray,0.0f)
@@ -694,7 +718,7 @@ class TestAcousticStencils {
     for(x <- 1 to StencilUtilities.iter)
     {
       // why does this zip work but not the other one ? ? ? (in SimpleRoom..)
-      val (output: Array[Float], runtime) = Execute(stencilarr.length, stencilarr.length)(lambdaNeigh, inputArr, inputArrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+      val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](lambdaNeigh, inputArr, inputArrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
       if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
 
       inputArr = inputArrCopy
@@ -757,7 +781,7 @@ class TestAcousticStencils {
     var outputX = Array[Float]()
 
     for(x <- 1 to StencilUtilities.iter) {
-      val (output: Array[Float], runtime) = Execute(input.length, input.length)(lambdaNeigh, input, StencilUtilities.weightsArr)
+      val (output, runtime) = Execute(input.length, input.length)[Array[Float]](lambdaNeigh, input, StencilUtilities.weightsArr)
       if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(input, output, asymDimX)
       // need to re-pad, then slide and iterate
       input = StencilUtilities.createFakePaddingFloat2D(output.sliding(asymDimX,asymDimX).toArray,0.0f)
@@ -815,7 +839,7 @@ class TestAcousticStencils {
     var outputX = Array[Float]()
 
     for(x <- 1 to StencilUtilities.iter) {
-      val (output: Array[Float], runtime) = Execute(2,2)(lambdaNeigh, input, inputArrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
+      val (output, runtime) = Execute(2,2)[Array[Float]](lambdaNeigh, input, inputArrCopy, StencilUtilities.weights, StencilUtilities.weightsMiddle)
       input = inputArrCopy
       inputArrCopy = StencilUtilities.createFakePaddingFloat2D(output.sliding(asymDimX,asymDimX).toArray,0.0f)
 
@@ -829,7 +853,7 @@ class TestAcousticStencils {
 
   @Test
   def testStencil3DSimple(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     /* u[cp] = S */
 
@@ -863,7 +887,7 @@ class TestAcousticStencils {
       })
 
     val source = Compile(lambdaNeigh)
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,lambdaNeigh, input3D, StencilUtilities.weights3D.flatten.flatten)
+    val (output, runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](source,lambdaNeigh, input3D, StencilUtilities.weights3D.flatten.flatten)
 
     if(StencilUtilities.printOutput) {
       StencilUtilities.printOriginalAndOutput3Das1D(input3D, output)
@@ -876,7 +900,7 @@ class TestAcousticStencils {
 
  @Test
   def testStencil3DSwap(): Unit = {
-   assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+   assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     /* u[cp] = u[cp] + u1[cp] */
 
@@ -915,7 +939,7 @@ class TestAcousticStencils {
       })
 
     val source = Compile(lambdaNeigh2)
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,lambdaNeigh2, input3D, input3D2, StencilUtilities.weightsMiddle3D)
+    val (output, runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](source,lambdaNeigh2, input3D, input3D2, StencilUtilities.weightsMiddle3D)
 
     if(StencilUtilities.printOutput)
     {
@@ -929,7 +953,7 @@ class TestAcousticStencils {
 
   @Test
   def twoGridSwapWith3weightsCalculations3D(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val compareData = Array(
     8.75f,15.5f,22.25f,24.0f,
@@ -984,7 +1008,7 @@ class TestAcousticStencils {
       })
 
     val source = Compile(lambdaNeigh)
-    val (output: Array[Float], runtime) = Execute(dim,dim,dim,dim,dim,dim, (true,true))(source,lambdaNeigh, input3D, input3D2, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
+    val (output, runtime) = Execute(dim,dim,dim,dim,dim,dim, (true,true))[Array[Float]](source,lambdaNeigh, input3D, input3D2, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
 
     if(StencilUtilities.printOutput)
     {

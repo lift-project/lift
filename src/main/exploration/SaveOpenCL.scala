@@ -12,7 +12,7 @@ import opencl.generator.{IllegalKernel, OpenCLGenerator}
 import opencl.ir._
 import opencl.ir.ast._
 import rewriting.InferNDRange
-import rewriting.utils.Utils
+import rewriting.utils.{DumpToFile, Utils}
 
 import scala.sys.process._
 
@@ -76,7 +76,8 @@ class SaveOpenCL(
       case _: IllegalKernel =>
         None
       case t: Throwable =>
-        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${tuple._2.mkString(",")})", t)
+        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${tuple._2.mkString(",")}), " +
+          s"NDRanges: (${tuple._3._1.toString}, ${tuple._3._2.toString})", t)
         None
     }
   }
@@ -86,12 +87,12 @@ class SaveOpenCL(
     val substitutionMap = tuple._2
     val ranges = tuple._3
 
-    if (ParameterRewrite.exploreNDRange.value.isDefined)
+    if (ParameterRewrite.settings.parameterRewriteSettings.exploreNDRange)
       ranges match { case (l, g) => local = l; global = g }
     else
       InferNDRange(lambda) match { case (l, g) => local = l; global = g }
 
-    val code = if (ParameterRewrite.disableNDRangeInjection.value.isDefined)
+    val code = if (ParameterRewrite.settings.parameterRewriteSettings.disableNDRangeInjection)
       Compile(lambda)
     else
       Compile(lambda, local, global)
@@ -107,7 +108,7 @@ class SaveOpenCL(
          |$code
          |""".stripMargin
 
-    Utils.findAndReplaceVariableNames(kernel)
+    DumpToFile.findAndReplaceVariableNames(kernel)
   }
 
   private def dumpOpenCLToFiles(tuple: (Lambda, Seq[ArithExpr], (NDRange, NDRange)), kernel: String): Option[String] = {
@@ -120,7 +121,7 @@ class SaveOpenCL(
     var hash = lowLevelHash + "_" + tuple._2.mkString("_")
 
     // TODO: Also differentiate between injecting ranges on and off
-    if (ParameterRewrite.exploreNDRange.value.isDefined)
+    if (ParameterRewrite.settings.parameterRewriteSettings.exploreNDRange)
       hash += "_" + rangeStrings._1 + "_" + rangeStrings._2
 
     val filename = hash + ".cl"
@@ -130,7 +131,7 @@ class SaveOpenCL(
     val (_, buffers) = OpenCLGenerator.getMemories(lambda)
     val (localBuffers, globalBuffers) = buffers.partition(_.mem.addressSpace == LocalMemory)
 
-    val dumped = Utils.dumpToFile(kernel, filename, path)
+    val dumped = DumpToFile.dumpToFile(kernel, filename, path)
     if (dumped) {
       createCsv(hash, path, lambda.params.length, globalBuffers, localBuffers)
 
@@ -146,8 +147,8 @@ class SaveOpenCL(
   }
 
   private def createCsv(hash: String, path: String, numParams: Int,
-                        globalBuffers: Array[TypedOpenCLMemory],
-                        localBuffers: Array[TypedOpenCLMemory]): Unit = {
+                        globalBuffers: Seq[TypedOpenCLMemory],
+                        localBuffers: Seq[TypedOpenCLMemory]): Unit = {
 
     inputCombinations.foreach(sizes => {
 
@@ -173,9 +174,9 @@ class SaveOpenCL(
           local.map(ArithExpr.substitute(_, inputVarMapping)).toString +
           s",$hash," + globalTempAlloc.length + "," +
           globalTempAlloc.mkString(",") +
-          (if (globalTempAlloc.length == 0) "" else ",") +
+          (if (globalTempAlloc.isEmpty) "" else ",") +
           localTempAlloc.length +
-          (if (localTempAlloc.length == 0) "" else ",") +
+          (if (localTempAlloc.isEmpty) "" else ",") +
           localTempAlloc.mkString(",")+ "\n")
 
         fileWriter.close()

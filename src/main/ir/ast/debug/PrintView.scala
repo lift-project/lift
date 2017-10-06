@@ -1,7 +1,7 @@
 package ir.ast.debug
 
 import ir.Type
-import ir.ast.{FPattern, Lambda, Pattern, isGenerable}
+import ir.ast.{FPattern, Lambda, Pattern}
 import ir.interpreter.Interpreter._
 
 /**
@@ -9,7 +9,7 @@ import ir.interpreter.Interpreter._
   * TODO
   */
 case class PrintView(msg: String = "", f: Lambda) extends Pattern(arity = f.arity)
-                                                    with FPattern with isGenerable {
+                                                    with FPattern {
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     f.checkType(argType, setType)
