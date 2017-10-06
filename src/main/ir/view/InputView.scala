@@ -2,7 +2,8 @@ package ir.view
 
 import ir._
 import ir.ast._
-import lift.arithmetic.{ArithExpr, Var}
+import lift.arithmetic.ArithExpr
+import opencl.ir.OpenCLMemoryCollection
 import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq}
 
 /**
@@ -103,17 +104,12 @@ object InputView {
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, argView: View): View = {
-
-    var firstSeenVar : Option[Var] = None
-    i.f.params(0).view = View.visit(argView, pre = {
-      case ViewMem(v, t) if firstSeenVar.isEmpty =>
-        firstSeenVar = Some(v)
-        ViewMem(i.vPtrIn, t)
-      case ViewMem(v, _) if firstSeenVar.get != v =>
-        throw new NotImplementedError("Iterate can only work if the input received comes from a single memory view")
-      case v => v
-    })
-
+    val fstParam = i.f.params.head
+    fstParam.mem match {
+      case OpenCLMemoryCollection(_, _) => throw new NotImplementedError("Cannot iterate on a memory collection")
+      case _ =>
+    }
+    fstParam.view = argView.replaced(fstParam.mem.variable, i.vPtrIn)
     visitAndBuildViews(i.f.body)
     View.initialiseNewView(call.t, call.inputDepth, i.f.body.mem.variable)
   }
