@@ -61,11 +61,11 @@ trait ConvCompanion {
   * @param localSize
   * @param globalSize
   */
-abstract case class Conv(liftFProp: FunDecl,
-                         inputShape: Shape, outputShape: Shape,
-                         inputTiling: SlidingWindowConfig, kernelSliding: SlidingWindowConfig,
-                         elsPerThread: Int, kernelsPerGroup: Int,
-                         localSize: Array[Int], globalSize: Array[Int]) extends Layer {
+abstract class Conv(val liftFProp: FunDecl,
+                    val inputShape: Shape, val outputShape: Shape,
+                    val inputTiling: SlidingWindowConfig, val kernelSliding: SlidingWindowConfig,
+                    val elsPerThread: Int, val kernelsPerGroup: Int,
+                    val localSize: Array[Int], val globalSize: Array[Int]) extends Layer {
   val configToString: String
   var runtime: Double
 

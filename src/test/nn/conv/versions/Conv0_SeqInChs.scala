@@ -404,7 +404,7 @@ case class Conv0_SeqInChs(override val liftFProp: FunDecl,
                           override val inputTiling: SlidingWindowConfig, override val kernelSliding: SlidingWindowConfig,
                           override val elsPerThread: Int, override val kernelsPerGroup: Int,
                           override val localSize: Array[Int], override val globalSize: Array[Int])
-  extends Conv (liftFProp, inputShape, outputShape, inputTiling, kernelSliding,
+  extends Conv(liftFProp, inputShape, outputShape, inputTiling, kernelSliding,
     elsPerThread, kernelsPerGroup, localSize, globalSize) {
   val configToString: String =
     nn.conv.configToString(elsPerThread, outputShape.nChannels,

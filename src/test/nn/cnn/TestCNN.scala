@@ -33,8 +33,6 @@ object TestCNN {
     Executor.shutdown()
     Connector.close()
   }
-
-
 }
 
 class TestCNN {

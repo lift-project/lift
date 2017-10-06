@@ -1,7 +1,6 @@
 package nn.cnn
 
 import nn.conv.Conv
-import nn.conv.versions.Conv0_SeqInChs
 import nn.fc.FC
 import nn.{Layer, Shape, cnn}
 
