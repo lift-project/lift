@@ -10,7 +10,7 @@ import opencl.ir.pattern._
 import org.junit.Test
 import rewriting.{EnabledMappings, Lower}
 
-class DetectReuseForLocalMemory {
+class DetectReuseAcrossThreads {
 
   private val v_M_0 = Var("M", StartFromRange(1))
   private val v_N_1 = Var("N", StartFromRange(1))
