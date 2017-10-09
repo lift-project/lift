@@ -147,9 +147,8 @@ object Lower {
   private def dropIds(lambda: Lambda) =
     Rewrite.applyRulesUntilCannot(lambda, Seq(SimplificationRules.dropId, SimplificationRules.removeEmptyMap))
 
-  def findAll(lambda: Lambda, at: (Expr) => Boolean): List[Expr] = {
+  def findAll(lambda: Lambda, at: (Expr) => Boolean): List[Expr] =
     Expr.visitWithState(List[Expr]())(lambda.body, findAllFunction(at))
-  }
 
   def findAllDepthFirst(lambda: Lambda, at: (Expr) => Boolean): List[Expr] =
     Expr.visitWithStateDepthFirst(List[Expr]())(lambda.body, findAllFunction(at))
