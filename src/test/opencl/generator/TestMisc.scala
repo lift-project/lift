@@ -5,7 +5,6 @@ import ir._
 import ir.ast._
 import lift.arithmetic._
 import opencl.executor._
-import opencl.generator.OpenCLAST.ArithExpression
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -141,26 +140,6 @@ class TestMisc {
   }
 
   @Test
-  def testIterateAmdBug(): Unit = {
-
-    Assume.assumeFalse("Wrong AMD IL generated", Utils.isAmdGpu)
-
-    val inputSize = 1
-    val input = Array.fill(inputSize)(0.0f)
-
-    val iterCount = 100
-
-    val f = fun(
-        ArrayTypeWSWC(Float, SizeVar("N")),
-        x => MapGlb(Iterate(iterCount)(MapSeq(incr))) o Split(inputSize) $ x
-      )
-
-    val (output, _) = Execute(1,1)[Array[Float]](f, input)
-
-    assertArrayEquals(Array.fill(inputSize)(100.0f), output, 0.0f)
-  }
-
-  @Test
   def testDouble(): Unit = {
     Assume.assumeTrue("Needs double support", Executor.supportsDouble())
 
@@ -194,37 +173,6 @@ class TestMisc {
     val (output, _) = Execute(inputSize)[Array[Boolean]](f, input)
 
     assert( (input, output).zipped.forall((i, o) => i == !o) )
-  }
-
-  @Test def issue20(): Unit = {
-    val inputSize = 1024
-    val inputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
-    val gold = inputData.map(_+5)
-
-    val f = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
-      (inArr) => {
-        Join() o MapGlb(
-          Iterate(5)(fun((e) => MapSeq(incr) $ e))
-        ) o Split(1) $ inArr
-      }
-    )
-
-    val f2 = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
-      (inArr) => {
-        Iterate(5)(fun((arr) =>
-          MapGlb(incr) $ arr
-        )) $ inArr
-      }
-    )
-
-
-    val (output1, _) = Execute(inputData.length)[Array[Float]](f, inputData)
-    assertArrayEquals(gold, output1, 0.0f)
-
-    val (output2, _) = Execute(inputData.length)[Array[Float]](f2, inputData)
-    assertArrayEquals(gold, output2, 0.0f)
   }
 
   @Test
@@ -770,125 +718,6 @@ class TestMisc {
 
     val (output, _) = Execute(Nsize)[Array[Float]](f, matrix)
     assertArrayEquals(matrix.flatten.flatten, output, 0.0f)
-  }
-
-  @Test def iterate(): Unit = {
-
-    Assume.assumeFalse("Disabled on AMD GPUs.", Utils.isAmdGpu)
-
-    val inputSize = 512
-    val input = Array.tabulate(inputSize)(_.toFloat)
-    val gold = input.map(_+(1*7))
-
-    val f = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
-      in => Iterate(7)(MapGlb(plusOne)) $ in
-    )
-
-    val (output, _) = Execute(inputSize)[Array[Float]](f, input)
-    assertArrayEquals(gold, output, 0.0f)
-  }
-
-  @Test def iterateFixedSecondArg() : Unit = {
-
-    Assume.assumeFalse("Disabled on AMD GPUs.", Utils.isAmdGpu)
-
-    val inputSize = 512
-    val inputA = Array.tabulate(inputSize)(_.toFloat)
-    val inputB = Array.tabulate(inputSize)(_.toFloat).reverse
-    val gold = inputA.zip(inputB.map(_*5.0f)).map((t:(Float, Float)) => t match{ case (x:Float,y:Float) => x+y})
-
-    val N = SizeVar("N")
-
-    val f = fun(
-      ArrayTypeWSWC(Float, N),
-      ArrayTypeWSWC(Float, N),
-      (inA,inB) => Iterate(5)(fun((va) =>
-        fun( (vb) =>
-          MapWrg(add) $ Zip(va,vb)
-        ) $ inB
-      )) $ inA
-    )
-
-    val (output, _) = Execute(inputSize)[Array[Float]](f, inputA, inputB)
-    assertArrayEquals(gold, output, 0.0f)
-  }
-
-  @Test def iterateLocalOnly(): Unit = {
-
-    Assume.assumeFalse("Disabled on AMD GPUs.", Utils.isAmdGpu)
-
-    val inputSize = 512
-    val input = Array.tabulate(inputSize)(_.toFloat)
-    val gold = input.map(_+1).map(_+1).map(_+1).map(_+1).map(_+1)
-
-    val f = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
-      in => Join() o MapWrg( toGlobal(MapLcl(id)) o
-        Iterate(5)( MapLcl(plusOne)) o
-        toLocal(MapLcl(id))) o Split(16) $ in
-    )
-
-    val f_nested = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
-      in => fun(x1 => Join()(MapWrg(
-        fun(x2 =>
-          fun(x3 =>
-            fun(x4 => toGlobal(MapLcl(id))(x4))(
-              Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(x3)))(
-                toLocal(MapLcl(id))(x2)))
-          )(x1)))(Split(16)(in))
-    )
-
-    val f_nested2 = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
-      in => Join()(MapWrg(fun(x2 =>
-        fun(x3 =>
-          fun(x4 => toGlobal(MapLcl(id))(x4))(
-            Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(x3)))(
-              toLocal(MapLcl(id))(x2)))
-              )(Split(16)(in)))
-    )
-
-    val f_nested3 = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
-      in => Join()(MapWrg(fun(x2 =>
-        fun(x4 => toGlobal(MapLcl(id))(x4))(
-          Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(
-            toLocal(MapLcl(id))(x2)))
-              ))(Split(16)(in)))
-      )
-
-    val f_nested4 = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
-      in => Join()(MapWrg(fun(x2 =>
-        toGlobal(MapLcl(id))(
-          Iterate(5)(fun(x5 => MapLcl(plusOne)(x5)))(
-            toLocal(MapLcl(id))(x2)))
-              ))(Split(16)(in)))
-    )
-
-    val f_full = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
-      in => Join()(MapWrg(fun(x0 =>
-        toGlobal(MapLcl(id))(
-          Iterate(5)(fun(x1 => MapLcl(plusOne)(x1)))(
-            toLocal(MapLcl(id))(x0)))
-              ))(Split(16)(in)))
-    )
-
-    val (output1, _) = Execute(inputSize)[Array[Float]](f, input)
-    assertArrayEquals(gold, output1, 0.0f)
-    val (output2, _) = Execute(inputSize)[Array[Float]](f_nested, input)
-    assertArrayEquals(gold, output2, 0.0f)
-    val (output3, _) = Execute(inputSize)[Array[Float]](f_nested2, input)
-    assertArrayEquals(gold, output3, 0.0f)
-    val (output4, _) = Execute(inputSize)[Array[Float]](f_nested3, input)
-    assertArrayEquals(gold, output4, 0.0f)
-    val (output5, _) = Execute(inputSize)[Array[Float]](f_nested4, input)
-    assertArrayEquals(gold, output5, 0.0f)
-    val (output6, _) = Execute(inputSize)[Array[Float]](f_full, input)
-    assertArrayEquals(gold, output6, 0.0f)
   }
 
   @Test def decompose(): Unit = {
