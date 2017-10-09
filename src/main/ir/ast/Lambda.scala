@@ -126,17 +126,20 @@ object Lambda {
   }
 
   /**
-    * Make a copy of `lambda`. Should only be called for
-    * lambdas where all `Param`s are bound.
+    * Make a copy of `lambda` where all type/mem/etc fields are blank.
+    * Should only be called for lambdas where all `Param`s are bound.
     */
-  def copy(lambda: Lambda): Lambda = {
+  def copyStructure(lambda: Lambda): Lambda = {
 
     val lambdaParams = lambda.params
 
-    val bodyParams = Expr.visitWithState(Set[Param]())(lambda.body, {
-      case (param: Param, set) => set + param
-      case (_, set) => set
-    }).filter(!lambdaParams.contains(_))
+    val usedParams = getUsedParams(lambda)
+    val bodyParams = usedParams.filter(!lambdaParams.contains(_))
+    val declaredParams = getDeclaredParams(lambda)
+
+    val undeclaredParams = usedParams.filterNot(_.isInstanceOf[Value]).diff(declaredParams)
+    if (undeclaredParams.nonEmpty)
+      throw new IllegalArgumentException(s"Some Param (${undeclaredParams.mkString(", ")}) have not been declared!")
 
     val bodyParamsMap = bodyParams.map((_, Param())).toMap
 
@@ -154,6 +157,21 @@ object Lambda {
     assert(!newLambda.eq(lambda))
 
     newLambda
+  }
+
+  private def getUsedParams(lambda: Lambda) = {
+    Expr.visitWithState(Set[Param]())(lambda.body, {
+      case (param: Param, set) => set + param
+      case (_, set) => set
+    })
+  }
+
+  private def getDeclaredParams(lambda: Lambda) = {
+    Expr.visitWithState(Set[Param]())(lambda.body, {
+      case (FunCall(Lambda(params, _), _*), set) => set ++ params
+      case (FunCall(fp: FPattern, _*), set) => set ++ fp.f.params
+      case (_, set) => set
+    }) ++ lambda.params
   }
 }
 
