@@ -174,7 +174,7 @@ object HighLevelRewrite {
 
   def filterByDistance(lambda: Lambda): Boolean = {
     import View.getSubViews
-    val copiedLambda = Lambda.copy(lambda)
+    val copiedLambda = Lambda.copyStructure(lambda)
 
     val userFuns = Expr.visitWithState(Seq[FunCall]())(copiedLambda.body, {
       case (call@FunCall(_: UserFun, _*), seq) => seq :+ call
