@@ -110,7 +110,7 @@ object OutputView {
         result
 
       // TODO: Also lambdas?
-      case fp: FPattern if fp.f.params.length > 1 =>
+      case fp: FPattern if fp.f.params.length > 1 && !fp.isInstanceOf[InsertionSortSeq] =>
 
         (call.args, fp.f.params).zipped.map((arg, param) => {
           visitAndBuildViews(arg, param.outputView)})
