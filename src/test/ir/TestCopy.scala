@@ -27,7 +27,7 @@ class TestCopy {
         )) $ A
       })
 
-    val l = Lambda.copy(f)
+    val l = Lambda.copyStructure(f)
 
     assertNotSame(f, l)
     assertEquals(TypeChecker(f), TypeChecker(l))
@@ -65,9 +65,22 @@ class TestCopy {
                       FunCall(Get(0), p_5))))))))),
           FunCall(Zip(2), p_0, p_2)))
 
-    val fCopy = Lambda.copy(f)
+    val fCopy = Lambda.copyStructure(f)
 
     assertEquals(TypeChecker(f), TypeChecker(fCopy))
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def someUndeclared(): Unit = {
+    val N = SizeVar("N")
+
+    val f = \(
+      ArrayType(Float, N),
+      Float,
+      (A, b) => Map(\(a => add(a, b))) $ A
+    )
+
+    Lambda.copyStructure(f.body.asInstanceOf[FunCall].f.asInstanceOf[Map].f)
   }
 
 }
