@@ -121,14 +121,17 @@ object FunDecl {
     * @return The lambda expression `l` where all occurrences of `oldE` are
     *         replaced with `newE`
     */
-  def replace(l: Lambda, oldE: Expr, newE: Expr) : Lambda = {
-    val newBody = Expr.replace(l.body, oldE, newE)
+  def replace(l: Lambda, oldE: Expr, newE: Expr) : Lambda =
+    replace(l, expr => if (expr eq oldE) newE else expr)
 
-    val replaceInParams = newE.isInstanceOf[Param] && l.params.contains(oldE)
+  def replace(l: Lambda, f: Expr => Expr) : Lambda = {
+    val newBody = Expr.replace(l.body, f)
+
+    val replaceInParams = l.params.exists(p => !(f(p) eq p))
 
     val newParams =
       if (replaceInParams)
-        l.params.map(Expr.replace(_, oldE, newE).asInstanceOf[Param])
+        l.params.map(Expr.replace(_, f).asInstanceOf[Param])
       else
         l.params
 
