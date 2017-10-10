@@ -2,7 +2,9 @@ package exploration
 
 import ir._
 import ir.ast._
+import ir.view.{View, ViewMem}
 import lift.arithmetic._
+import opencl.generator.{NDRange, RangesAndCounts}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Test
@@ -49,7 +51,37 @@ class DetectCommunication {
                           FunCall(Get(0), p_5))))))))))),
           FunCall(Zip(2), p_0, p_2)))
 
-    // addIdAfterReduce / toLocal for last write
+    val copiedLambda = f
+    val userFuns = Expr.visitWithState(Seq[FunCall]())(copiedLambda.body, {
+      case (call@FunCall(_: UserFun, _*), seq) => seq :+ call
+      case (call@FunCall(_: VectorizeUserFun, _*), seq) => seq :+ call
+      case (_, seq) => seq
+    })
+
+    TypeChecker(copiedLambda)
+    InferOpenCLAddressSpace(copiedLambda)
+    RangesAndCounts(copiedLambda, NDRange(?, ?, ?), NDRange(?, ?, ?), collection.Map())
+    OpenCLMemoryAllocator(copiedLambda)
+    View(copiedLambda)
+    UpdateContext(copiedLambda)
+
+    val memVars = userFuns.map(_.mem.variable)
+
+    val varsWithDataFlow = userFuns.map(_.args.filter(x => View.getSubViews(x.view).exists({
+      case ViewMem(v, _) => memVars.contains(v) && userFuns.find(_.mem.variable == v).get.context.inMapLcl.reduce(_ || _)
+      case _ => false
+    }))).filter(_.nonEmpty).flatten.filterNot({
+      case FunCall(_: UserFun | _: VectorizeUserFun, _*) => true
+      case _ => false
+    })
+
+    // Filter ones that have ViewAccess("l_id") o Join/Split/etc o ViewMap("l_id")
+    // or simple approach MapLcl(...) o Split/Join/etc o MapLcl(...)
+
+    println(varsWithDataFlow)
+
+    // addIdAfterReduce / toLocal for last write where communication
+    // similar to final write to global.
     println(f)
   }
 

@@ -223,7 +223,6 @@ class DetectReuseAcrossThreads {
     printStrategicLocalMemoryLocations(f)
   }
 
-
   @Test
   def mmTATiled2DBlocked(): Unit = {
     val K = Var("K", StartFromRange(1))

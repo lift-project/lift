@@ -295,10 +295,10 @@ object HighLevelRewrite {
   }
 
   private def printMinAndMaxDepth(lambda: Seq[Lambda]): Unit = {
-    val res = lambda.map(getLambdaDepth)
-    if(res.size == 1)
+    if (lambda.size == 1)
       println("No rules were applicable...")
 
+    val res = lambda.map(getLambdaDepth)
     println(s"with a minimum depth of ${res.min} of and maximum depth of ${res.max}")
   }
 
