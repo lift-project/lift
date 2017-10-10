@@ -1,4 +1,4 @@
-package exploration
+package exploration.detection
 
 import ir._
 import ir.ast._

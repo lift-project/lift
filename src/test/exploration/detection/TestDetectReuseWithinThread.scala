@@ -1,39 +1,24 @@
-package exploration
+package exploration.detection
 
+import exploration.MemoryMappingRewrite
 import ir._
 import ir.ast._
 import ir.view.{View, ViewAccess, ViewMap, ViewMem}
-import lift.arithmetic.{?, RangeMul, StartFromRange, Var}
-import opencl.generator.{NDRange, RangesAndCounts}
+import lift.arithmetic.{RangeMul, StartFromRange, Var}
+import opencl.ir.OpenCLMemory.getAllMemoryVars
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Test
 
-class DetectReuseWithinThread {
+class TestDetectReuseWithinThread {
   private val v_K_0 = Var("K", StartFromRange(1))
   private val v_M_1 = Var("M", StartFromRange(1))
   private val v_N_2 = Var("N", StartFromRange(1))
 
-  private def getNumDimensions(lambda: Lambda): Int = {
-
-    val dims = Expr.visitWithState(Set[Int]())(lambda.body, {
-      case (FunCall(MapLcl(dim, _), _), set) => set + dim
-      case (FunCall(MapGlb(dim, _), _), set) => set + dim
-      case (_, set) => set
-    })
-
-    dims.size
-  }
-
   private def getReuseCandidates(f: Lambda) = {
     val numDimensions = getNumDimensions(f)
 
-    TypeChecker(f)
-    InferOpenCLAddressSpace(f)
-    RangesAndCounts(f, NDRange(?, ?, ?), NDRange(?, ?, ?), collection.Map())
-    OpenCLMemoryAllocator(f)
-    View(f)
-    UpdateContext(f)
+    prepareLambda(f)
 
     val args = Expr.visitWithState(Seq[Expr]())(f.body, {
       case (call@FunCall(_: UserFun | _: VectorizeUserFun, args@_*), seq)
@@ -119,13 +104,6 @@ class DetectReuseWithinThread {
         })
 
       case _ => Seq()
-    }
-  }
-
-  private def getAllMemoryVars(memory: Memory): Seq[Var] = {
-    memory match {
-      case OpenCLMemoryCollection(subMemories, _) => subMemories.flatMap(getAllMemoryVars)
-      case _ => Seq(memory.variable)
     }
   }
 

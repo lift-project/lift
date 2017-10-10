@@ -127,6 +127,13 @@ object OpenCLMemory {
     }
   }
 
+  def getAllMemoryVars(memory: Memory): Seq[Var] = {
+    memory match {
+      case OpenCLMemoryCollection(subMemories, _) => subMemories.flatMap(getAllMemoryVars)
+      case _ => Seq(memory.variable)
+    }
+  }
+
   def containsGlobalMemory(mem: Memory): Boolean =
     containsAddressSpace(mem, GlobalMemory)
 
