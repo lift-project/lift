@@ -393,7 +393,7 @@ object MemoryMappingRewrite {
           (pair._1, true)
         case call@FunCall(MapSeq(l), _)
           if !pair._2
-            && call.context.inMapLcl.reduce(_ || _) // TODO: MapGlb?
+            && (call.context.inMapLcl.reduce(_ || _) || call.context.inMapGlb.reduce(_ || _))
             && !l.body.contains({ case FunCall(uf: UserFun, _) if uf.name.startsWith("id") => })
             && CopyRules.addIdBeforeMapSeq.isDefinedAt(call)
         =>

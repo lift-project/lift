@@ -98,7 +98,7 @@ object CopyRules {
 
   val addIdBeforeMapSeq = Rule("MapSeq(f) => MapSeq(f) o Id()", {
     case call@FunCall(map: MapSeq, arg)
-      if !isId(arg) && call.context.inMapLcl.reduce(_ || _) // TODO: MapGlb
+      if !isId(arg) && (call.context.inMapLcl.reduce(_ || _) || call.context.inMapGlb.reduce(_ || _))
     =>
       map o Id() $ arg
   })
