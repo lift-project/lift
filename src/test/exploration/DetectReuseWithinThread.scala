@@ -50,6 +50,8 @@ class DetectReuseWithinThread {
   }
 
   private def getNumberOfSequentialDimensions(f: Lambda, expr: Expr) = {
+
+    // TODO: Ignore reduceseq if accumulator?
     Expr.visitWithState(0)(f.body, {
       case (FunCall(fp: FPattern, _*), count) if fp.isInstanceOf[MapSeq] || fp.isInstanceOf[ReduceSeq] =>
         // e is sequential
