@@ -51,24 +51,21 @@ class DetectReuseWithinThread {
 
   private def getNumberOfSequentialDimensions(f: Lambda, expr: Expr) = {
 
-    // TODO: Ignore reduceseq if accumulator?
-    Expr.visitWithState(0)(f.body, {
-      case (FunCall(fp: FPattern, _*), count) if fp.isInstanceOf[MapSeq] || fp.isInstanceOf[ReduceSeq] =>
-        // e is sequential
-        // e contains expr
-        // e doesn't contain parallel
+    val views = View.getSubViews(expr.view)
 
-        if (
-          fp.f.body.contains({ case e if e eq expr => }) &&
-            !fp.f.body.contains({ case FunCall(MapLcl(_, _), _) => }) &&
-            !fp.f.body.contains({ case FunCall(MapWrg(_, _), _) => }) &&
-            !fp.f.body.contains({ case FunCall(MapGlb(_, _), _) => })
-        )
-          count + 1
-        else
-          count
+    Expr.visitWithState(0)(f.body, {
+      case (FunCall(fp: ReduceSeq, acc, _), count)
+        if containsExprButNotParallel(fp, expr) && !views.contains(acc.view) => count + 1
+      case (FunCall(fp: MapSeq, _), count) if containsExprButNotParallel(fp, expr) => count + 1
       case (_, count) => count
     })
+  }
+
+  private def containsExprButNotParallel(fp: FunDecl with FPattern, expr: Expr) = {
+    fp.f.body.contains({ case e if e eq expr => }) && // e contains expr
+      !fp.f.body.contains({ case FunCall(MapLcl(_, _), _) => }) && // e doesn't contain parallel
+      !fp.f.body.contains({ case FunCall(MapWrg(_, _), _) => }) &&
+      !fp.f.body.contains({ case FunCall(MapGlb(_, _), _) => })
   }
 
   private def getNumberOfPrivateAccesses(expr: Expr) = {
