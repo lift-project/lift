@@ -383,9 +383,11 @@ object MemoryMappingRewrite {
   }
 
   private[exploration] def addIdsForPrivate(lambda: Lambda) = {
-    UpdateContext(lambda)
+    val idsAdded = Rewrite.applyRuleUntilCannot(lambda, CopyRules.addIdForCurrentValueInReduce)
 
-    val (mapSeq, _) = Expr.visitLeftToRight((List[Expr](), false))(lambda.body, (expr, pair) => {
+    UpdateContext(idsAdded)
+
+    val (mapSeq, _) = Expr.visitLeftToRight((List[Expr](), false))(idsAdded.body, (expr, pair) => {
       expr match {
         case FunCall(toLocal(_), _) =>
           (pair._1, true)
@@ -402,10 +404,9 @@ object MemoryMappingRewrite {
     })
 
     val idsAddedToMapSeq =
-      mapSeq.foldLeft(lambda)((l, x) => Rewrite.applyRuleAt(l, x, CopyRules.addIdBeforeMapSeq))
+      mapSeq.foldLeft(idsAdded)((l, x) => Rewrite.applyRuleAt(l, x, CopyRules.addIdBeforeMapSeq))
 
-    val idsAdded = Rewrite.applyRuleUntilCannot(idsAddedToMapSeq, CopyRules.addIdForCurrentValueInReduce)
-    idsAdded
+    idsAddedToMapSeq
   }
 
   def addToAddressSpace(lambda: Lambda,
