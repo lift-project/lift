@@ -139,7 +139,7 @@ class DetectReuseAcrossThreads {
       case _ => true
     })
 
-    args.filterNot(getNumberOfLocalAccesses(_) == numDimensions)
+    args.filterNot(getNumberOfLocalAccesses(_) >= numDimensions)
   }
 
   private def getNumberOfLocalAccesses(a: Expr) = {

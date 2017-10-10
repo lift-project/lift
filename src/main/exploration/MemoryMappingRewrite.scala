@@ -373,6 +373,16 @@ object MemoryMappingRewrite {
 
   def mapPrivateMemory(lambda: Lambda): List[Lambda] = {
 
+    val idsAdded = addIdsForPrivate(lambda)
+
+    val toAddressAdded = addToAddressSpace(idsAdded, OpenCLRules.privateMemory, 2)
+    val copiesAdded = toAddressAdded.flatMap(
+      turnIdsIntoCopies(_, doTupleCombinations = true, doVectorisation = false))
+
+    implementIds(copiesAdded)
+  }
+
+  private[exploration] def addIdsForPrivate(lambda: Lambda) = {
     UpdateContext(lambda)
 
     val (mapSeq, _) = Expr.visitLeftToRight((List[Expr](), false))(lambda.body, (expr, pair) => {
@@ -381,8 +391,9 @@ object MemoryMappingRewrite {
           (pair._1, true)
         case call@FunCall(MapSeq(l), _)
           if !pair._2
-            && call.context.inMapLcl.reduce(_ || _)
+            && call.context.inMapLcl.reduce(_ || _) // TODO: MapGlb?
             && !l.body.contains({ case FunCall(uf: UserFun, _) if uf.name.startsWith("id") => })
+            && CopyRules.addIdBeforeMapSeq.isDefinedAt(call)
         =>
           (call :: pair._1, false)
         case _ =>
@@ -391,15 +402,10 @@ object MemoryMappingRewrite {
     })
 
     val idsAddedToMapSeq =
-      mapSeq.foldLeft(lambda)((l, x) => Rewrite.applyRuleAt(l, x, CopyRules.addId))
+      mapSeq.foldLeft(lambda)((l, x) => Rewrite.applyRuleAt(l, x, CopyRules.addIdBeforeMapSeq))
 
     val idsAdded = Rewrite.applyRuleUntilCannot(idsAddedToMapSeq, CopyRules.addIdForCurrentValueInReduce)
-
-    val toAddressAdded = addToAddressSpace(idsAdded, OpenCLRules.privateMemory, 2)
-    val copiesAdded = toAddressAdded.flatMap(
-      turnIdsIntoCopies(_, doTupleCombinations = true, doVectorisation = false))
-
-    implementIds(copiesAdded)
+    idsAdded
   }
 
   def addToAddressSpace(lambda: Lambda,
@@ -577,11 +583,12 @@ object MemoryMappingRewrite {
         else None
     }).toSeq
 
+    // TODO: Why?
     assert(enabledRules.nonEmpty)
 
     val firstIds = Rewrite.applyRulesUntilCannot(lambda, enabledRules)
 
-    if(config.addIdAfterReduce) {
+    if (config.addIdAfterReduce) {
 
       val reduceSeqs = Expr.visitLeftToRight(List[Expr]())(firstIds.body, (e, s) =>
         e match {

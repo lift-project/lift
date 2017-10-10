@@ -96,6 +96,13 @@ object CopyRules {
       map o Id() $ arg
   })
 
+  val addIdBeforeMapSeq = Rule("MapSeq(f) => MapSeq(f) o Id()", {
+    case call@FunCall(map: MapSeq, arg)
+      if !isId(arg) && call.context.inMapLcl.reduce(_ || _) // TODO: MapGlb
+    =>
+      map o Id() $ arg
+  })
+
   val addIdForCurrentValueInReduce = Rule("reduce", {
     case call@FunCall(ReduceSeq(l), _, _)
       if !Utils.visitFunCallChainWithState(false)(l.body, (e, b) => isId(e) || b)

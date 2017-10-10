@@ -2,10 +2,10 @@ package rewriting
 
 import com.typesafe.scalalogging.Logger
 import ir.ast._
-import ir.{Context, TupleType, TypeChecker, UpdateContext}
+import ir.{TupleType, TypeChecker, UpdateContext}
 import opencl.ir.pattern._
-import rewriting.rules._
 import rewriting.macrorules.MacroRules
+import rewriting.rules._
 import rewriting.utils._
 
 case class EnabledMappings(
