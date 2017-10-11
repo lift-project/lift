@@ -313,7 +313,7 @@ object MemoryMappingRewrite {
     }
   }
 
-  def implementIds(lambdas: List[Lambda]): List[Lambda] = {
+  def implementIds(lambdas: Seq[Lambda]): Seq[Lambda] = {
 
     var list = List[Lambda]()
 
@@ -337,7 +337,7 @@ object MemoryMappingRewrite {
       }
     })
 
-  def mapLocalMemory(lambda: Lambda, doVectorisation: Boolean): List[Lambda] = {
+  def mapLocalMemory(lambda: Lambda, doVectorisation: Boolean): Seq[Lambda] = {
     // Step 1: Add id nodes in strategic locations
     val idsAdded = addIdsForLocal(lambda)
 
@@ -352,7 +352,7 @@ object MemoryMappingRewrite {
 
   // Try adding toLocal to user functions that are arguments to other user functions
   // and that would otherwise be forced to global
-  private def addToAddressSpaceToUserFun(copiesAdded: List[Lambda]): List[Lambda] = {
+  private def addToAddressSpaceToUserFun(copiesAdded: Seq[Lambda]): Seq[Lambda] = {
     copiesAdded.map(f => {
       UpdateContext(f)
       val res = Expr.visitLeftToRight(List[Expr]())(f.body, (e, s) => {
@@ -371,7 +371,7 @@ object MemoryMappingRewrite {
     }).collect({ case Some(s) => s })
   }
 
-  def mapPrivateMemory(lambda: Lambda): List[Lambda] = {
+  def mapPrivateMemory(lambda: Lambda): Seq[Lambda] = {
 
     val idsAdded = addIdsForPrivate(lambda)
 
@@ -411,7 +411,7 @@ object MemoryMappingRewrite {
 
   def addToAddressSpace(lambda: Lambda,
                         addressSpaceRule: Rule,
-                        maxCombinations: Int): List[Lambda] = {
+                        maxCombinations: Int): Seq[Lambda] = {
     val idLocations = collectIds(lambda)
     val combinations = getCombinations(idLocations, maxCombinations)
 
@@ -603,8 +603,16 @@ object MemoryMappingRewrite {
 
   }
 
-  private def getCombinations(localIdList: List[Expr], max: Int): List[List[Expr]] =
-    (0 to max).map(localIdList.combinations(_).toList).reduce(_ ++ _)
+  private[exploration] def getCombinations[T](localIdList: Seq[T], max: Int): Seq[Seq[T]] = {
+    if (localIdList.nonEmpty)
+      (1 to max).map(localIdList.combinations(_).toSeq).reduce(_ ++ _).toArray.toSeq
+    else
+      Seq()
+  }
+
+
+  private[exploration] def getCombinations[T](localIdList: Seq[T]): Seq[Seq[T]] =
+    getCombinations(localIdList, localIdList.length)
 
 }
 

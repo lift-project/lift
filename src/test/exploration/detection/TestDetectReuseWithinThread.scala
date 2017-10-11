@@ -1,111 +1,18 @@
 package exploration.detection
 
-import exploration.MemoryMappingRewrite
+import exploration.detection.DetectReuseWithinThread._
 import ir._
 import ir.ast._
-import ir.view.{View, ViewAccess, ViewMap, ViewMem}
 import lift.arithmetic.{RangeMul, StartFromRange, Var}
-import opencl.ir.OpenCLMemory.getAllMemoryVars
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Test
 
 class TestDetectReuseWithinThread {
+
   private val v_K_0 = Var("K", StartFromRange(1))
   private val v_M_1 = Var("M", StartFromRange(1))
   private val v_N_2 = Var("N", StartFromRange(1))
-
-  private def getReuseCandidates(f: Lambda) = {
-    val numDimensions = getNumDimensions(f)
-
-    prepareLambda(f)
-
-    val args = Expr.visitWithState(Seq[Expr]())(f.body, {
-      case (call@FunCall(_: UserFun | _: VectorizeUserFun, args@_*), seq)
-        if call.context.inMapLcl.count(b => b) + call.context.inMapGlb.count(b => b) == numDimensions
-      => seq ++ args
-      case (_, seq) => seq
-    }).distinct.diff(f.params).filter({
-      case FunCall(_: UserFun | _: VectorizeUserFun, _*) => false
-      case _: Value => false
-      case _ => true
-    })
-
-    args.filterNot(arg => getNumberOfPrivateAccesses(arg) >= getNumberOfSequentialDimensions(f, arg))
-  }
-
-  private def getNumberOfSequentialDimensions(f: Lambda, expr: Expr) = {
-
-    val views = View.getSubViews(expr.view)
-
-    Expr.visitWithState(0)(f.body, {
-      case (FunCall(fp: ReduceSeq, acc, _), count)
-        if containsExprButNotParallel(fp, expr) && !views.contains(acc.view) => count + 1
-      case (FunCall(fp: MapSeq, _), count) if containsExprButNotParallel(fp, expr) => count + 1
-      case (_, count) => count
-    })
-  }
-
-  private def containsExprButNotParallel(fp: FunDecl with FPattern, expr: Expr) = {
-    fp.f.body.contains({ case e if e eq expr => }) && // e contains expr
-      !fp.f.body.contains({ case FunCall(MapLcl(_, _), _) => }) && // e doesn't contain parallel
-      !fp.f.body.contains({ case FunCall(MapWrg(_, _), _) => }) &&
-      !fp.f.body.contains({ case FunCall(MapGlb(_, _), _) => })
-  }
-
-  private def getNumberOfPrivateAccesses(expr: Expr) = {
-    val views = View.getSubViews(expr.view)
-
-    val sequentialMapViews = views.takeWhile({
-      case ViewAccess(v, _, _) => v.toString.startsWith("v_i_")
-      case ViewMap(_, v, _) => v.toString.startsWith("v_i_")
-      case _ => true
-    })
-
-    val viewMaps = sequentialMapViews.count({
-      case ViewMap(_, v, _) => v.toString.startsWith("v_i_")
-      case _ => false
-    })
-
-    val viewAccesses = sequentialMapViews.count({
-      case ViewAccess(v, _, _) => v.toString.startsWith("v_i_")
-      case _ => false
-    })
-
-    viewAccesses - viewMaps
-  }
-
-  private def printStrategicLocations(lambda: Lambda): Unit = {
-    val strategicLocationsMarked = MemoryMappingRewrite.addIdsForPrivate(lambda)
-    val reuseCandidates = getReuseCandidates(strategicLocationsMarked)
-    val tryHere = reuseCandidates.flatMap(getRuleLocationCandidates(strategicLocationsMarked, _))
-
-    println
-    println(strategicLocationsMarked)
-    println(tryHere.mkString(", "))
-    println
-  }
-
-  private def getRuleLocationCandidates(strategicLocationsMarked: Lambda, reuseExpr: Expr) = {
-    val sourceView = View.getSubViews(reuseExpr.view).last
-
-    sourceView match {
-      case ViewMem(sourceVar, _) =>
-
-        // Find which "strategic" Id location(s) would copy the required variable and is suitable for local memory
-        // TODO: Doesn't work for all reuse... Does it matter? Still gets what we care about
-        Expr.visitWithState(Seq[(Expr, Var)]())(strategicLocationsMarked.body, {
-          case (funCall@FunCall(Id(), _*), seq)
-            if getAllMemoryVars(funCall.mem).contains(sourceVar) &&
-              (funCall.context.inMapLcl.reduce(_ || _) || funCall.context.inMapGlb.reduce(_ || _)) // TODO: insideAll
-          =>
-            seq :+ (funCall, sourceVar)
-          case (_, seq) => seq
-        })
-
-      case _ => Seq()
-    }
-  }
 
   @Test
   def oneDRegBlock(): Unit = {
