@@ -1,6 +1,7 @@
 package exploration.detection
 
 import exploration.MemoryMappingRewrite
+import ir.TypeChecker
 import ir.ast._
 import ir.view.{View, ViewAccess, ViewMap, ViewMem}
 import lift.arithmetic._
@@ -18,14 +19,7 @@ object DetectReuseAcrossThreads {
 
     val implementThese = createCombinations(tryHere)
 
-    println(implementThese.mkString("\n\n"))
-
-//    println(implementReuse(strategicLocationsMarked, tryHere.head._1, tryHere.head._2))
-
-//    println
-//    println(strategicLocationsMarked)
-//    println(tryHere.mkString(", "))
-//    println
+    implementCombination(strategicLocationsMarked, implementThese(4))
   }
 
   def createCombinations(seq: Seq[(Expr, Var)]): Seq[Seq[(Expr, Var)]] = {
@@ -51,31 +45,58 @@ object DetectReuseAcrossThreads {
     })
   }
 
-  def implementReuse(f: Lambda, location: Expr, variable: Var): Lambda = {
-    println(location.mem.variable)
-    println(variable)
+  def implementCombination(f: Lambda, combination: Seq[(Expr, Var)]): Lambda = {
+
+    val locations = combination.groupBy(_._1)
+
+    val simplifiedLocation = locations.map((pair) => (pair._1, pair._2.map(_._2)))
+
+    // Order such that references won't change when implementing
+    val order = Expr.visitLeftToRight(Seq[Expr]())(f.body, {
+      case (expr, seq) if locations.keys.exists(_ eq expr) => seq :+ expr
+      case (_, seq) => seq
+    })
+
+    val orderedLocations = order.map(expr => (expr, simplifiedLocation(expr)))
+
+    // Implement one by one
+    orderedLocations.foldLeft(f)((currentLambda, pair) =>
+      implementReuse(currentLambda, pair._1, pair._2))
+  }
+
+  def implementReuse(f: Lambda, location: Expr, variables: Seq[Var]): Lambda = {
+
+    println("imp")
     // TODO: toAddressSpace
-    if (location.mem.variable == variable) {
+    if (variables.length == 1 && location.mem.variable == variables.head) {
       // implement deep copy
       Rewrite.applyRuleAt(f, location, CopyRules.implementIdAsDeepCopy)
     } else {
-      // Implement one level and pick the component that contains variable
-      // Assuming it's a tuple. And Zips have been flattened, so only one level of Tuple, any second being a struct
+      // Assuming zips have been flattened, so only one level of Tuple
 
-      println(location.t)
-      val index =
-        location.mem.asInstanceOf[OpenCLMemoryCollection].subMemories.indexWhere(_.variable == variable)
+      val indices = variables.map(variable =>
+        location.mem.asInstanceOf[OpenCLMemoryCollection].subMemories.indexWhere(_.variable == variable))
 
-      println(location.mem)
-
-      val result = CopyRules.implementOneLevelOfId.rewrite(location)
-      val properResult = result match {
-        case FunCall(Tuple(_), args@_*) =>
-          Rewrite.applyRuleAt(result, CopyRules.implementIdAsDeepCopy, args(index))
-      }
+      val properResult = implementTuple(location, indices)
 
       FunDecl.replace(f, location, properResult)
+    }
+  }
 
+  def implementTuple(expr: Expr, indices: Seq[Int]): Expr = {
+
+    // Implement by one level until we get a tuple and then pick the components
+    val oneLevel = CopyRules.implementOneLevelOfId.rewrite(expr)
+    TypeChecker(oneLevel)
+
+    oneLevel match {
+      case FunCall(Tuple(_), args@_*) =>
+        indices.foldLeft(oneLevel)((expr, index) =>
+          Rewrite.applyRuleAt(expr, CopyRules.implementIdAsDeepCopy, args(index)))
+      case FunCall(fp: FPattern, _) =>
+        val newBody = implementTuple(fp.f.body, indices)
+        println(newBody)
+        Expr.replace(oneLevel, fp.f.body, newBody)
     }
   }
 
