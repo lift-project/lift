@@ -8,11 +8,11 @@ TODO: distinguish axioms from theorems
 
 map(f) o map(g) == map(f o g)
 
-reduceSeq(z, f) o map(g) == reduceSeq(z, (acc,x) -> f(acc, g(x)) )
+reduceSeq(z, f) o mapSeq(g) == reduceSeq(z, (acc,x) -> f(acc, g(x)) )
 
 reduce(z, f) == reduce(z, f) o partialReduce(z, f)
 
-partialReduce(z, f) == map(partialReduce(z, f)) o split   | if f is associative and z is the neutral element (i.e. f(z,x) = x)
+partialReduce(z, f) == join o map(partialReduce(z, f)) o split   | if f is associative and z is the neutral element (i.e. f(z,x) = x)
 
 New rules (possibly unimplemented/unverified)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
