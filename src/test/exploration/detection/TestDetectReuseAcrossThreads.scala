@@ -6,6 +6,7 @@ import ir.ast._
 import lift.arithmetic._
 import opencl.ir._
 import opencl.ir.pattern._
+import org.junit.Assert._
 import org.junit.Test
 import rewriting.{EnabledMappings, Lower}
 
@@ -62,7 +63,8 @@ class TestDetectReuseAcrossThreads {
             FunCall(Split(Cst(64)),
               FunCall(Zip(2), p_0, p_2)))))
 
-    printStrategicLocalMemoryLocations(f)
+    val locations = findStrategicLocations(f)._2
+    assertEquals(1, locations.length)
   }
 
   @Test
@@ -127,7 +129,8 @@ class TestDetectReuseAcrossThreads {
                           FunCall(Split(v__4), p_18))), p_1))))))))),
             FunCall(Split(v__3), p_0))))
 
-    printStrategicLocalMemoryLocations(f)
+    val locations = findStrategicLocations(f)._2
+    assertEquals(3, locations.length)
   }
 
   @Test
@@ -219,7 +222,8 @@ class TestDetectReuseAcrossThreads {
 
     val lowered = Lower.mapCombinations(f, enabledMappings).head
 
-    printStrategicLocalMemoryLocations(lowered)
+    val locations = findStrategicLocations(lowered)._2
+    assertEquals(3, locations.length)
   }
 
 }

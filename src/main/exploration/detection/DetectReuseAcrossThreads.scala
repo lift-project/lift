@@ -12,6 +12,14 @@ import rewriting.rules.CopyRules
 
 object DetectReuseAcrossThreads {
 
+  def findStrategicLocations(f: Lambda) = {
+    val strategicLocationsMarked = MemoryMappingRewrite.addIdsForLocal(f)
+    val reuseCandidates = getReuseCandidates(strategicLocationsMarked)
+    val tryHere = reuseCandidates.flatMap(getLocalMemoryCandidates(strategicLocationsMarked, _))
+
+    (strategicLocationsMarked, tryHere)
+  }
+
   def printStrategicLocalMemoryLocations(f: Lambda): Unit = {
     val strategicLocationsMarked = MemoryMappingRewrite.addIdsForLocal(f)
     val reuseCandidates = getReuseCandidates(strategicLocationsMarked)
@@ -66,7 +74,6 @@ object DetectReuseAcrossThreads {
 
   def implementReuse(f: Lambda, location: Expr, variables: Seq[Var]): Lambda = {
 
-    println("imp")
     // TODO: toAddressSpace
     if (variables.length == 1 && location.mem.variable == variables.head) {
       // implement deep copy
@@ -95,7 +102,6 @@ object DetectReuseAcrossThreads {
           Rewrite.applyRuleAt(expr, CopyRules.implementIdAsDeepCopy, args(index)))
       case FunCall(fp: FPattern, _) =>
         val newBody = implementTuple(fp.f.body, indices)
-        println(newBody)
         Expr.replace(oneLevel, fp.f.body, newBody)
     }
   }
