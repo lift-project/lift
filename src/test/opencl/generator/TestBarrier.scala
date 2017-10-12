@@ -27,7 +27,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(128)(kernel, f, input)
+    val (output, _) = Execute(128)[Array[Float]](kernel, f, input)
 
     assertArrayEquals(input, output, 0.0f)
     assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
@@ -44,7 +44,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(128)(kernel, f, input)
+    val (output, _) = Execute(128)[Array[Float]](kernel, f, input)
 
     assertArrayEquals(input, output, 0.0f)
     assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
@@ -63,7 +63,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(128)(kernel, f, input)
+    val (output, _) = Execute(128)[Array[Float]](kernel, f, input)
 
     val gold = input.grouped(128).map(_.sum).toArray
 
@@ -82,7 +82,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(128)(kernel, f, input)
+    val (output, _) = Execute(128)[Array[Float]](kernel, f, input)
 
     val gold = input.grouped(128).map(_.sum).toArray
 
