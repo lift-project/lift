@@ -605,7 +605,7 @@ object MemoryMappingRewrite {
 
   private[exploration] def getCombinations[T](localIdList: Seq[T], max: Int): Seq[Seq[T]] = {
     if (localIdList.nonEmpty)
-      (1 to max).map(localIdList.combinations(_).toSeq).reduce(_ ++ _).toArray.toSeq
+      (0 to max).map(localIdList.combinations(_).toSeq).reduce(_ ++ _).toArray.toSeq
     else
       Seq()
   }
