@@ -38,3 +38,15 @@ jobject Java_opencl_executor_ValueArg_create__Z(JNIEnv* env, jclass cls,
 {
   return helper(env, cls, value);
 }
+
+jobject Java_opencl_executor_ValueArg_create___3B(JNIEnv* env, jclass cls,
+                                                 jbyteArray value)
+{
+  auto arrayPtr = env->GetByteArrayElements(value, nullptr);
+  auto ptr = executor::ValueArg::create(arrayPtr, env->GetArrayLength(value) * sizeof(jbyte));
+  env->ReleaseByteArrayElements(value, arrayPtr, JNI_ABORT);
+
+  auto methodID = env->GetMethodID(cls, "<init>", "(J)V");
+  auto obj = env->NewObject(cls, methodID, ptr);
+  return obj;
+}

@@ -1,0 +1,30 @@
+val M = Var("M", StartFromRange(4098)) //need to be power_of_two +2 because of missing pad
+val N = Var("N", StartFromRange(4098))
+
+fun(
+    ArrayType(ArrayType(Float, M), N),
+    ArrayType(Float, Cst(9)),
+    (input, weights) => {
+        Map(Map( \(neighbourhood =>
+			Reduce(add, 0.0f) o Map( \(tuple =>
+				mult.apply(Get(tuple,0),Get(tuple,1))
+			)) $ Zip(weights,
+			         Join() $ neighbourhood)))) o
+		Slide2D(3, 1) $ input
+  })
+
+/*
+fun(
+    ArrayType(ArrayType(Float, M), N),
+    ArrayType(Float, Cst(9)),
+    (input, weights) => {
+        Map(Map(fun(elem => {
+                              Reduce(fun( (acc, pair) => {
+                                val pixel = pair._0
+                                val weight = pair._1
+                                multAndSumUp.apply(acc, pixel, weight)
+                              }), 0.0f) $ Zip(Join() $ elem, weights)
+                          }) )) o
+		Slide2D(3, 1) $ input
+  })
+  */

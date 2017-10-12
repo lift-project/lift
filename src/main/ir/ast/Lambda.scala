@@ -20,7 +20,7 @@ abstract case class Lambda private[ast] (params: Array[Param],
   /**
    * Debug string representation
    */
-  override def toString = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
+  override def toString: String = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
       " -> \n" + body.toString.split("\n").map("  " + _ + "\n").mkString + ")"
 
   override def checkType(argType: Type,
@@ -45,7 +45,6 @@ abstract case class Lambda private[ast] (params: Array[Param],
     val allParams = args.forall(_.isInstanceOf[Param])
 
     if (!inline && !allParams) {
-//    if (!inline) {
       super.apply(args:_*)
     } else {
 
@@ -57,17 +56,32 @@ abstract case class Lambda private[ast] (params: Array[Param],
     }
   }
 
-  override lazy val isGenerable: Boolean = {
-    Expr.visitWithState(true)(body, (e, s) => {
-      e match {
-        case call: FunCall if !call.f.isGenerable => false
-        case _ => s
-      }
-    })
+  /**
+    * This function is used for two use-cases:
+    * 1. determine arguments for kernels
+    * 2. print lambdas to file during rewriting (rewriting.utils.Utils.dumpLambdaToString)
+    *
+    * In the first use-case we order each kernel argument by name to have consistent
+    * and deterministic ordering. When printing lambdas to file we need to respect
+    * dependencies among parameters:
+    *
+    * val M = SizeVar("M")
+    * val N = Var("N", GoesToRange(M))
+    * val f = \(ArrayType(Float, N), ArrayType(Float, M), ...)
+    *
+    * In this case M needs to be declared before N because of their dependency even though
+    * M is used as the second parameter of the lambda.
+    *
+    * @param ordering specifies the sorting of variables either by name or by declaration order
+    * @return sequence of variables used in parameters of the Lambda
+    */
+  def getVarsInParams(ordering: Ordering = ByName): Seq[lift.arithmetic.Var] = {
+    ordering match {
+      case ByName => params.flatMap(_.t.varList).sortBy(_.name).distinct
+      case ByDeclarationOrder => params.flatMap(_.t.varList).distinct
+    }
   }
 
-  def getVarsInParams() =
-    params.flatMap(_.t.varList).sortBy(_.name).distinct
 
   def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
@@ -96,7 +110,6 @@ object Lambda {
     }
   }
 
-
   /**
    * Implicitly wrap a given function declaration `f` into a lambda.
    *
@@ -110,6 +123,55 @@ object Lambda {
         if ps.length == params.length => lambda
       case _ => Lambda(params, f(params: _*))
     }
+  }
+
+  /**
+    * Make a copy of `lambda` where all type/mem/etc fields are blank.
+    * Should only be called for lambdas where all `Param`s are bound.
+    */
+  def copyStructure(lambda: Lambda): Lambda = {
+
+    val lambdaParams = lambda.params
+
+    val usedParams = getUsedParams(lambda)
+    val bodyParams = usedParams.filter(!lambdaParams.contains(_))
+    val declaredParams = getDeclaredParams(lambda)
+
+    val undeclaredParams = usedParams.filterNot(_.isInstanceOf[Value]).diff(declaredParams)
+    if (undeclaredParams.nonEmpty)
+      throw new IllegalArgumentException(s"Some Param (${undeclaredParams.mkString(", ")}) have not been declared!")
+
+    val bodyParamsMap = bodyParams.map((_, Param())).toMap
+
+    val lambdaParamsMap = lambdaParams.map(oldParam => (oldParam: Expr, Param(oldParam.t))).toMap
+
+    val allParamsMap: collection.Map[Expr, Expr] = lambdaParamsMap ++ bodyParamsMap
+
+    val replaceFun: Expr => Expr = {
+      case Value(value, typ) => Value(value, typ)
+      case expr => allParamsMap.getOrElse(expr, expr)
+    }
+
+    val newLambda = FunDecl.replace(lambda, replaceFun)
+
+    assert(!newLambda.eq(lambda))
+
+    newLambda
+  }
+
+  private def getUsedParams(lambda: Lambda) = {
+    Expr.visitWithState(Set[Param]())(lambda.body, {
+      case (param: Param, set) => set + param
+      case (_, set) => set
+    })
+  }
+
+  private def getDeclaredParams(lambda: Lambda) = {
+    Expr.visitWithState(Set[Param]())(lambda.body, {
+      case (FunCall(Lambda(params, _), _*), set) => set ++ params
+      case (FunCall(fp: FPattern, _*), set) => set ++ fp.f.params
+      case (_, set) => set
+    }) ++ lambda.params
   }
 }
 

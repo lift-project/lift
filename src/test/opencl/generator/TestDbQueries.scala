@@ -6,7 +6,7 @@ import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
-import org.junit.Assert.{assertArrayEquals, assertEquals}
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 object TestDbQueries extends TestWithExecutor
@@ -35,8 +35,8 @@ class TestDbQueries {
      *   `combine : [a],,n,, -> [b],,m,, -> [(a,b)],,n×m,,`
      *   `combine left right = [(x, y) for x in left; y in right]`
      */
-    val n = 128
-    val m = 256
+    val n = 32
+    val m = 64
     val left = Array.fill(n)(util.Random.nextInt(5))
     val right = Array.fill(m)(util.Random.nextInt(5))
   
@@ -55,15 +55,14 @@ class TestDbQueries {
         ) $ left
       }
     )
-    
-    val (output: Array[Int], runtime) = Execute(n)(combine, left, right)
-    val gold = (for {x <- left; y <- right} yield Array(x, y)).flatten
+
+    val (output, runtime) = Execute(128)[Vector[(Int, Int)]](combine, left, right)
+    val gold = (for {x <- left; y <- right} yield (x, y)).toVector
     
     println("combine left right")
     println(s"Runtime: $runtime")
     
-    assertEquals(output.length, n * m * 2)
-    assertArrayEquals(output, gold)
+    assertEquals(output, gold)
   }
   
   @Test def leftJoin(): Unit = {
@@ -80,8 +79,8 @@ class TestDbQueries {
      */
     val n = 128
     val m = 128
-    val leftTable = Array.fill(n, 2)(util.Random.nextInt(10))
-    val rightTable = Array.fill(m, 2)(util.Random.nextInt(8))
+    val leftTable = Array.fill(n)((util.Random.nextInt(10), util.Random.nextInt(9)))
+    val rightTable = Array.fill(m)((util.Random.nextInt(8), util.Random.nextInt(9)))
     
     val N = SizeVar("N")
     val M = SizeVar("M")
@@ -114,20 +113,15 @@ class TestDbQueries {
       }
     )
     
-    val (output: Array[Int], runtime) =
-      Execute(n)(query, leftTable.flatten, rightTable.flatten)
+    val (output, runtime) = Execute(n)[Vector[(Int, Int, Int)]](query, leftTable, rightTable)
     
-    val gold: Array[Int] = leftTable.flatMap(row =>
-      Array(if (rightTable.exists(_(0) == row(0))) 0 else 1,
-            row(0),
-            row(1))
-    )
+    val gold = leftTable.map(row => (if (rightTable.exists(_._1 == row._1)) 0 else 1, row._1, row._2)).toVector
     
     println("SELECT a, b FROM leftTable LEFT JOIN rightTable ON a = x " +
             "WHERE y IS NULL")
     println(s"Runtime: $runtime")
   
-    assertArrayEquals(gold, output)
+    assertEquals(gold, output)
   }
   
   @Test def aggregation(): Unit = {
@@ -151,7 +145,7 @@ class TestDbQueries {
       }
     )
     
-    val (output: Array[Int], runtime) = Execute(size)(aggregateMax, table)
+    val (output, runtime) = Execute(size)[Array[Int]](aggregateMax, table)
     
     println("SELECT MAX(x) FROM table")
     println(s"Runtime: $runtime")
@@ -166,8 +160,8 @@ class TestDbQueries {
      *
      * Query: SELECT x, SUM(y) FROM table GROUP BY x
      */
-    val size = 1024
-    val table = Array.fill(size, 2)(util.Random.nextInt(10)).sortBy(_(0))
+    val size = 256
+    val table = Array.fill(size)((util.Random.nextInt(10), util.Random.nextInt(10))).sortBy(_._1)
     
     val N = SizeVar("N")
     
@@ -201,27 +195,16 @@ class TestDbQueries {
         )
       }
     )
-    
-    val (unprocessedOutput: Array[Int], runtime) = Execute(size)(groupBy, table.flatten)
+
+    val (unprocessedOutput, runtime) = Execute(size)[Vector[(Int, Int, Int)]](groupBy, table)
     // We will not need to perform this post-processing pass once we have a Filter pattern
-    val output: Array[Int] = unprocessedOutput
-      .grouped(3)
-      .filter(_(0) == 1)
-      .map(_.slice(1, 3))
-      .toArray
-      .flatten
-    
-    val gold: Array[Int] = table
-      .groupBy(_(0))
-      .mapValues(v => v.map(_ (1)).sum)
-      .toArray
-      .map(r => Array(r._1, r._2))
-      .sortBy(_(0))
-      .flatten
-    
+    val output = unprocessedOutput.filter(_._1 == 1).map{ case (_, a, b) => (a, b) }
+
+    val gold = table.groupBy(_._1).mapValues(v => v.map(_._2).sum).toArray.sortBy(_._1).toVector
+
     println("SELECT x, SUM(y) FROM table GROUP BY x")
     println(s"Runtime: $runtime")
-    assertArrayEquals(gold, output)
+    assertEquals(gold, output)
   }
   
   @Test def complexQuery(): Unit = {
@@ -235,8 +218,8 @@ class TestDbQueries {
      */
     val n = 2048
     val m = 512
-    val leftTable = Array.fill(n, 3)(util.Random.nextInt(10))
-    val rightTable = Array.fill(m, 2)(util.Random.nextInt(10))
+    val leftTable = Array.fill(n, 3)(util.Random.nextInt(10)).map{ case Array(a, b, c) => (a, b, c) }
+    val rightTable = Array.fill(m, 2)(util.Random.nextInt(10)).map{ case Array(a, b) => (a, b) }
     
     val N = SizeVar("N")
     val M = SizeVar("M")
@@ -274,16 +257,15 @@ class TestDbQueries {
       }
     )
     
-    val gold = { for (Array(a, b, c) <- leftTable;
-                      Array(x, y) <- rightTable
+    val gold = { for ((a, b, c) <- leftTable;
+                      (x, y) <- rightTable
                       if a == x && b + y > 10) yield c}.sum
   
-  val (output: Array[Int], runtime) =
-    Execute(n)(query, leftTable.flatten, rightTable.flatten)
+  val (output, runtime) = Execute(n)[Array[Int]](query, leftTable, rightTable)
   
     println("SELECT SUM(c) FROM leftTable INNER JOIN rightTable ON a = x " +
             "WHERE b + y > 10")
     println(s"Runtime: $runtime")
-    assertEquals(gold, output.sum)
+    assertEquals(gold, output.head)
   }
 }

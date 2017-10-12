@@ -406,6 +406,11 @@ bool Device::supportsDouble() const
   return (extensions.find("cl_khr_fp64") != std::string::npos);
 }
 
+bool Device::isLittleEndian() const
+{
+  return _device.getInfo<CL_DEVICE_ENDIAN_LITTLE>();
+}
+
 std::istream& operator>>(std::istream& stream, Device::Type& type)
 {
   std::string s;

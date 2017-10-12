@@ -1,0 +1,41 @@
+val mdCompute = UserFun("updateF",
+  Array("f", "ipos", "jpos", "cutsq", "lj1", "lj2"),
+  """|{
+     |  // Calculate distance
+     |  float delx = ipos.x - jpos.x;
+     |  float dely = ipos.y - jpos.y;
+     |  float delz = ipos.z - jpos.z;
+     |  float r2inv = delx*delx + dely*dely + delz*delz;
+     |  // If distance is less than cutoff, calculate force
+     |  if (r2inv < cutsq) {
+     |    r2inv = 1.0f/r2inv;
+     |    float r6inv = r2inv * r2inv * r2inv;
+     |    float forceC = r2inv*r6inv*(lj1*r6inv - lj2);
+     |    f.x += delx * forceC;
+     |    f.y += dely * forceC;
+     |    f.z += delz * forceC;
+     |  }
+     |  return f;
+     |}
+  """.stripMargin,
+  Seq(Float4, Float4, Float4, Float, Float, Float),
+  Float4)
+
+val N = SizeVar("N") // number of particles
+val M = SizeVar("M") // number of neighbors
+
+fun(
+  ArrayTypeWSWC(Float4, N),
+  ArrayTypeWSWC(ArrayTypeWSWC(Int, N), M),
+  Float,
+  Float,
+  Float,
+  (particles, neighbourIds, cutsq, lj1, lj2) =>
+    Zip(particles, Transpose() $ neighbourIds) :>>
+      Map( \(p =>
+        Filter(particles, p._1) :>>
+          ReduceSeq(\((force, n) =>
+            mdCompute(force, p._0, n, cutsq, lj1, lj2)
+          ), Value(0.0f, Float4))
+      ) )
+)

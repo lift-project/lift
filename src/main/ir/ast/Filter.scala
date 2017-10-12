@@ -16,12 +16,12 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
  * `Filter() : [a],,I,, -> [Int],,J,, -> [a],,J,,`
  *
  */
-case class Filter() extends Pattern(arity = 2) with isGenerable {
+case class Filter() extends Pattern(arity = 2) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case TupleType(ArrayTypeWS(t, n), ArrayTypeWS(Int, m)) =>
+      case TupleType(ArrayTypeWS(t, _), ArrayTypeWS(Int, m)) =>
         ArrayTypeWSWC(t, m)
 
       case _ =>

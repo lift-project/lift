@@ -295,7 +295,7 @@ class TestAnalyser {
       accessCounts.scalarLoads(PrivateMemory, UnknownPattern, exact).evalDouble
 
     assertEquals(69664.0, privateScalarStores, 0.0)
-    assertEquals(98368.0, privateScalarLoads, 0.0)
+    assertEquals(98336.0, privateScalarLoads, 0.0)
 
     val barriers = barrierCounts.getTotalCount(exact).evalDouble
 

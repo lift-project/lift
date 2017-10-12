@@ -37,7 +37,7 @@ object jStringArray {
 }
 
 object jArrayType {
-  def create(elemT: Type, len: ArithExpr) = ArrayTypeWSWC(elemT, len)
+  def create(elemT: Type, len: ArithExpr): ArrayType = ArrayTypeWSWC(elemT, len)
 }
 
 object jTupleType {
