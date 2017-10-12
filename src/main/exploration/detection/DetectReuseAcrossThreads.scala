@@ -28,6 +28,25 @@ object DetectReuseAcrossThreads {
       ImplementReuse.implementCombination(strategicLocationsMarked, _, OpenCLRules.localMemory))
   }
 
+  private def getReuseCandidates(f: Lambda) = {
+    val numDimensions = getNumDimensions(f)
+
+    prepareLambda(f)
+
+    val args = Expr.visitWithState(Seq[Expr]())(f.body, {
+      case (call@FunCall(_: UserFun | _: VectorizeUserFun, args@_*), seq)
+        if call.context.inMapWrg.count(b => b) == numDimensions
+      => seq ++ args
+      case (_, seq) => seq
+    }).distinct.diff(f.params).filter({
+      case FunCall(_: UserFun | _: VectorizeUserFun, _*) => false
+      case _: Value => false  // TODO: A copy will have been made here
+      case _ => true
+    })
+
+    args.filterNot(getNumberOfLocalAccesses(_) >= numDimensions)
+  }
+
   private def getLocalMemoryCandidates(strategicLocationsMarked: Lambda, reuseExpr: Expr) = {
     val sourceView = View.getSubViews(reuseExpr.view).last
 
@@ -50,25 +69,6 @@ object DetectReuseAcrossThreads {
 
       case _ => Seq()
     }
-  }
-
-  private def getReuseCandidates(f: Lambda) = {
-    val numDimensions = getNumDimensions(f)
-
-    prepareLambda(f)
-
-    val args = Expr.visitWithState(Seq[Expr]())(f.body, {
-      case (call@FunCall(_: UserFun | _: VectorizeUserFun, args@_*), seq)
-        if call.context.inMapWrg.count(b => b) == numDimensions
-      => seq ++ args
-      case (_, seq) => seq
-    }).distinct.diff(f.params).filter({
-      case FunCall(_: UserFun | _: VectorizeUserFun, _*) => false
-      case _: Value => false  // TODO: A copy will have been made here
-      case _ => true
-    })
-
-    args.filterNot(getNumberOfLocalAccesses(_) >= numDimensions)
   }
 
   private def getNumberOfLocalAccesses(a: Expr) = {

@@ -75,7 +75,7 @@ object ImplementReuse {
     }).get
   }
 
-  private def implementTuple(f: Lambda, expr: Expr, indices: Seq[Int], rule: Rule): Lambda= {
+  private def implementTuple(f: Lambda, expr: Expr, indices: Seq[Int], rule: Rule): Lambda = {
 
     // Implement by one level until we get a tuple and then pick the components
     val oneLevel = CopyRules.implementOneLevelOfId.rewrite(expr)

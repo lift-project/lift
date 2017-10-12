@@ -9,6 +9,17 @@ import opencl.ir.pattern._
 
 object DetectReuseWithinThread {
 
+  def printStrategicLocations(lambda: Lambda): Unit = {
+    val strategicLocationsMarked = MemoryMappingRewrite.addIdsForPrivate(lambda)
+    val reuseCandidates = getReuseCandidates(strategicLocationsMarked)
+    val tryHere = reuseCandidates.flatMap(getRuleLocationCandidates(strategicLocationsMarked, _))
+
+    println
+    println(strategicLocationsMarked)
+    println(tryHere.mkString(", "))
+    println
+  }
+
   private def getReuseCandidates(f: Lambda) = {
     val numDimensions = getNumDimensions(f)
 
@@ -26,6 +37,30 @@ object DetectReuseWithinThread {
     })
 
     args.filterNot(arg => getNumberOfPrivateAccesses(arg) >= getNumberOfSequentialDimensions(f, arg))
+  }
+
+  private def getRuleLocationCandidates(strategicLocationsMarked: Lambda, reuseExpr: Expr) = {
+    val sourceView = View.getSubViews(reuseExpr.view).last
+
+    sourceView match {
+      case ViewMem(sourceVar, _) =>
+
+        val numDimension = getNumDimensions(strategicLocationsMarked)
+
+        // Find which "strategic" Id location(s) would copy the required variable and is suitable for local memory
+        // TODO: Doesn't work for all reuse... Does it matter? Still gets what we care about
+        Expr.visitWithState(Seq[(Expr, Var)]())(strategicLocationsMarked.body, {
+          case (funCall@FunCall(Id(), _*), seq)
+            if getAllMemoryVars(funCall.mem).contains(sourceVar) &&
+              (funCall.context.inMapLcl.count(b => b) == numDimension
+                || funCall.context.inMapGlb.count(b => b) == numDimension)
+          =>
+            seq :+ (funCall, sourceVar)
+          case (_, seq) => seq
+        })
+
+      case _ => Seq()
+    }
   }
 
   private def getNumberOfSequentialDimensions(f: Lambda, expr: Expr) = {
@@ -69,35 +104,5 @@ object DetectReuseWithinThread {
     viewAccesses - viewMaps
   }
 
-  def printStrategicLocations(lambda: Lambda): Unit = {
-    val strategicLocationsMarked = MemoryMappingRewrite.addIdsForPrivate(lambda)
-    val reuseCandidates = getReuseCandidates(strategicLocationsMarked)
-    val tryHere = reuseCandidates.flatMap(getRuleLocationCandidates(strategicLocationsMarked, _))
 
-    println
-    println(strategicLocationsMarked)
-    println(tryHere.mkString(", "))
-    println
-  }
-
-  private def getRuleLocationCandidates(strategicLocationsMarked: Lambda, reuseExpr: Expr) = {
-    val sourceView = View.getSubViews(reuseExpr.view).last
-
-    sourceView match {
-      case ViewMem(sourceVar, _) =>
-
-        // Find which "strategic" Id location(s) would copy the required variable and is suitable for local memory
-        // TODO: Doesn't work for all reuse... Does it matter? Still gets what we care about
-        Expr.visitWithState(Seq[(Expr, Var)]())(strategicLocationsMarked.body, {
-          case (funCall@FunCall(Id(), _*), seq)
-            if getAllMemoryVars(funCall.mem).contains(sourceVar) &&
-              (funCall.context.inMapLcl.reduce(_ || _) || funCall.context.inMapGlb.reduce(_ || _)) // TODO: insideAll
-          =>
-            seq :+ (funCall, sourceVar)
-          case (_, seq) => seq
-        })
-
-      case _ => Seq()
-    }
-  }
 }
