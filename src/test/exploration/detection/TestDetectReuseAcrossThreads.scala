@@ -9,20 +9,32 @@ import rewriting.rules.OpenCLRules
 class TestDetectReuseAcrossThreads {
 
   @Test
+  def partialReduceWithReorderNoRace(): Unit = {
+    val locations = findStrategicLocations(gemvPartialReduceWithReorderNoRace)
+    assertEquals(0, locations.length)
+  }
+
+  @Test
   def introduceReuse(): Unit = {
-    val locations = findStrategicLocations(mmIntroduceReuse)._2
+    val locations = findStrategicLocations(gemvIntroduceReuse)
     assertEquals(1, locations.length)
   }
 
   @Test
   def mmPlainTiling(): Unit = {
-    val locations = findStrategicLocations(mmTiled)._2
+    val locations = findStrategicLocations(mmTiled)
+    assertEquals(3, locations.length)
+  }
+
+  @Test
+  def mmTATiled1DBlocked(): Unit = {
+    val locations = findStrategicLocations(mmTiled1DBlocked)
     assertEquals(3, locations.length)
   }
 
   @Test
   def mmTATiled2DBlocked(): Unit = {
-    val locations = findStrategicLocations(mmTiled2DBlocked)._2
+    val locations = findStrategicLocations(mmTiled2DBlocked)
     assertEquals(3, locations.length)
   }
 

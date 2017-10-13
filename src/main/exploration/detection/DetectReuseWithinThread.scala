@@ -9,14 +9,9 @@ import opencl.ir.pattern._
 
 object DetectReuseWithinThread {
 
-  def printStrategicLocations(lambda: Lambda): Unit = {
-    val strategicLocationsMarked = MemoryMappingRewrite.addIdsForPrivate(lambda)
-    val tryHere: Seq[(Expr, Var)] = getCandidates(strategicLocationsMarked)
-
-    println
-    println(strategicLocationsMarked)
-    println(tryHere.mkString(", "))
-    println
+  def findStrategicLocations(f: Lambda):  Seq[(Expr, Var)] = {
+    val strategicLocationsMarked = MemoryMappingRewrite.addIdsForPrivate(f)
+    getCandidates(strategicLocationsMarked)
   }
 
   def getCandidates(strategicLocationsMarked: Lambda): Seq[(Expr, Var)] = {

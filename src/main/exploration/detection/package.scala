@@ -1,12 +1,12 @@
 package exploration
 
-import ir.ast.{Expr, FunCall, Lambda, _}
+import ir._
+import ir.ast._
 import ir.view.{NoView, View}
-import ir.{TypeChecker, UnallocatedMemory, UpdateContext, _}
-import lift.arithmetic.{?, _}
+import lift.arithmetic._
 import opencl.generator.{NDRange, RangesAndCounts}
-import opencl.ir.pattern.{MapGlb, MapLcl, _}
-import opencl.ir.{InferOpenCLAddressSpace, OpenCLMemoryAllocator, _}
+import opencl.ir._
+import opencl.ir.pattern._
 import rewriting.{EnabledMappings, Lower}
 
 package object detection {
@@ -23,7 +23,9 @@ package object detection {
   }
 
   def prepareLambda(f: Lambda): Unit = {
-    if (f.body.context == null || f.body.view == NoView || f.body.mem == UnallocatedMemory) {
+    if (f.body.context == null || f.body.view == NoView ||
+      f.body.mem == UnallocatedMemory || f.body.t == UndefType) {
+
       TypeChecker(f)
       InferOpenCLAddressSpace(f)
       RangesAndCounts(f, NDRange(?, ?, ?), NDRange(?, ?, ?), collection.Map())
@@ -37,7 +39,41 @@ package object detection {
   private val N = Var("N", StartFromRange(1))
   private val K = Var("K", StartFromRange(1))
 
-  val mmIntroduceReuse = fun(
+  val gemvPartialReduceWithReorderNoRace: Lambda =
+    fun(
+      ArrayType(ArrayType(Float, M), N),
+      ArrayType(Float, M),
+      ArrayType(Float, N),
+      Float, Float,
+      (p_0, p_1, p_2, p_3, p_4) =>
+        FunCall(MapWrg(0)(fun((p_5) =>
+          FunCall(Join(),
+            FunCall(MapLcl(0)(fun((p_6) =>
+              FunCall(toGlobal(fun((p_7) =>
+                FunCall(MapSeq(fun((p_8) =>
+                  FunCall(add,
+                    FunCall(mult, p_8, p_3),
+                    FunCall(mult,
+                      FunCall(Get(1), p_5), p_4)))), p_7))),
+                FunCall(ReduceSeq(fun((p_9, p_10) =>
+                  FunCall(add, p_9, p_10))),
+                  FunCall(idfloat, Value("0.0f", Float)), p_6)))),
+              FunCall(Split(Cst(128)),
+                FunCall(Join(),
+                  FunCall(MapLcl(0)(fun((p_11) =>
+                    FunCall(ReduceSeq(fun((p_12, p_13) =>
+                      FunCall(add, p_12,
+                        FunCall(mult,
+                          FunCall(Get(0), p_13),
+                          FunCall(Get(1), p_13))))),
+                      FunCall(idfloat, Value("0.0f", Float)), p_11))),
+                    FunCall(Split( M * Pow(Cst(128), Cst(-1)) ),
+                      FunCall(Gather(ReorderWithStride(128)),
+                        FunCall(Zip(2), p_1,
+                          FunCall(Get(0), p_5))))))))))),
+          FunCall(Zip(2), p_0, p_2)))
+
+  val gemvIntroduceReuse = fun(
     ArrayType(ArrayType(Float, M), N),
     ArrayType(Float, M),
     ArrayType(Float, N),
@@ -81,10 +117,87 @@ package object detection {
           FunCall(Split(Cst(64)),
             FunCall(Zip(2), p_0, p_2)))))
 
+  val mm1DBlocked: Lambda = {
+    val v__3 = Var("", RangeMul(1,1+M,2))
+
+    fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N),
+      (p_0, p_1) =>
+        FunCall(Join(),
+          FunCall(MapGlb(1)(fun((p_2) =>
+            FunCall(TransposeW(),
+              FunCall(MapGlb(0)(fun((p_3) =>
+                FunCall(TransposeW(),
+                  FunCall(toGlobal(fun((p_4) =>
+                    FunCall(MapSeq(fun((p_5) =>
+                      FunCall(MapSeq(fun((p_6) =>
+                        FunCall(idfloat, p_6))), p_5))), p_4))),
+                    FunCall(ReduceSeq(fun((p_7, p_8) =>
+                      FunCall(MapSeq(fun((p_9) =>
+                        FunCall(add,
+                          FunCall(Get(0), p_9),
+                          FunCall(mult,
+                            FunCall(Get(1), p_9),
+                            FunCall(Get(1), p_8))))),
+                        FunCall(Zip(2), p_7,
+                          FunCall(Get(0), p_8))))),
+                      FunCall(MapSeq(fun((p_10) =>
+                        FunCall(idfloat, p_10))), Value("0.0f", ArrayType(Float, v__3))),
+                      FunCall(Zip(2),
+                        FunCall(Transpose(), p_2), p_3)))))), p_1)))),
+            FunCall(Split(v__3), p_0))))
+  }
+
+  val mm2DBlocked: Lambda = {
+    val v__3 = Var("", RangeMul(1,1+M,2))
+    val v__4 = Var("", RangeMul(1,1+N,2))
+
+    fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, K), N),
+      (p_0, p_1) =>
+        FunCall(Map(fun((p_2) =>
+          FunCall(Scatter(ReorderWithStride(N / v__4)), p_2))),
+          FunCall(Join(),
+            FunCall(MapGlb(1)(fun((p_3) =>
+              FunCall(TransposeW(),
+                FunCall(Join(),
+                  FunCall(MapGlb(0)(fun((p_4) =>
+                    FunCall(TransposeW(),
+                      FunCall(Map(fun((p_5) =>
+                        FunCall(TransposeW(), p_5))),
+                        FunCall(TransposeW(),
+                          FunCall(toGlobal(fun((p_6) =>
+                            FunCall(MapSeq(fun((p_7) =>
+                              FunCall(MapSeq(fun((p_8) =>
+                                FunCall(MapSeq(fun((p_9) =>
+                                  FunCall(idfloat, p_9))), p_8))), p_7))), p_6))),
+                            FunCall(ReduceSeq(fun((p_10, p_11) =>
+                              FunCall(MapSeq(fun((p_12) =>
+                                FunCall(MapSeq(fun((p_13) =>
+                                  FunCall(add,
+                                    FunCall(Get(0), p_13),
+                                    FunCall(mult,
+                                      FunCall(Get(1), p_12),
+                                      FunCall(Get(1), p_13))))),
+                                  FunCall(Zip(2),
+                                    FunCall(Get(0), p_12),
+                                    FunCall(Get(1), p_11))))),
+                                FunCall(Zip(2), p_10,
+                                  FunCall(Get(0), p_11))))),
+                              FunCall(MapSeq(fun((p_14) =>
+                                FunCall(MapSeq(fun((p_15) =>
+                                  FunCall(idfloat, p_15))), p_14))), Value("0.0f", ArrayType(ArrayType(Float, v__4), v__3))),
+                              FunCall(Zip(2),
+                                FunCall(Transpose(), p_3),
+                                FunCall(Transpose(), p_4))))))))),
+                    FunCall(Split(v__4),
+                      FunCall(Gather(ReorderWithStride(N / v__4)), p_1))))))),
+              FunCall(Split(v__3), p_0)))))
+  }
+
   val mmTiled: Lambda = {
-    val K = Var("K", StartFromRange(1))
-    val M = Var("M", StartFromRange(1))
-    val N = Var("N", StartFromRange(1))
     val v__3 = Var("", RangeMul(1,1+M,2))
     val v__4 = Var("", RangeMul(1,1+N,2))
     val v__5 = Var("", RangeMul(1,1+K,2))
@@ -140,6 +253,75 @@ package object detection {
                       FunCall(Split(v__5),
                         FunCall(Map(fun((p_18) =>
                           FunCall(Split(v__4), p_18))), p_1))))))))),
+            FunCall(Split(v__3), p_0))))
+  }
+
+  val mmTiled1DBlocked: Lambda = {
+    val v__3 = Var("", RangeMul(1,1+M,2))
+    val v__4 = Var("", RangeMul(1,1+K,2))
+    val v__5 = Var("", RangeMul(1,1+N,2))
+    val v__6 = Var("", RangeMul(1,1+v__3,2))
+
+    fun(
+      ArrayType(ArrayType(Float, K), M),
+      ArrayType(ArrayType(Float, N), K),
+      (p_0, p_1) =>
+        FunCall(Join(),
+          FunCall(MapWrg(1)(fun((p_2) =>
+            FunCall(TransposeW(),
+              FunCall(Join(),
+                FunCall(MapWrg(0)(fun((p_3) =>
+                  FunCall(TransposeW(),
+                    FunCall(Join(),
+                      FunCall(Map(fun((p_4) =>
+                        FunCall(TransposeW(),
+                          FunCall(Map(fun((p_5) =>
+                            FunCall(TransposeW(), p_5))),
+                            FunCall(TransposeW(), p_4))))),
+                        FunCall(TransposeW(),
+                          FunCall(toGlobal(fun((p_6) =>
+                            FunCall(MapSeq(fun((p_7) =>
+                              FunCall(MapLcl(1)(fun((p_8) =>
+                                FunCall(MapLcl(0)(fun((p_9) =>
+                                  FunCall(MapSeq(fun((p_10) =>
+                                    FunCall(idfloat, p_10))), p_9))), p_8))), p_7))), p_6))),
+                            FunCall(ReduceSeq(fun((p_11, p_12) =>
+                              FunCall(MapLcl(1)(fun((p_13) =>
+                                FunCall(Join(),
+                                  FunCall(MapLcl(0)(fun((p_14) =>
+                                    FunCall(ReduceSeq(fun((p_15, p_16) =>
+                                      FunCall(MapSeq(fun((p_17) =>
+                                        FunCall(add,
+                                          FunCall(Get(0), p_17),
+                                          FunCall(mult,
+                                            FunCall(Get(1), p_17),
+                                            FunCall(Get(1), p_16))))),
+                                        FunCall(Zip(2), p_15,
+                                          FunCall(Get(0), p_16))))),
+                                      FunCall(Get(0), p_14),
+                                      FunCall(Zip(2),
+                                        FunCall(Transpose(),
+                                          FunCall(Get(1), p_13)),
+                                        FunCall(Get(1), p_14))))),
+                                    FunCall(Zip(2),
+                                      FunCall(Get(0), p_13),
+                                      FunCall(Get(1), p_12)))))),
+                                FunCall(Zip(2), p_11,
+                                  FunCall(Split(v__6),
+                                    FunCall(Transpose(),
+                                      FunCall(Get(0), p_12))))))),
+                              FunCall(MapLcl(1)(fun((p_18) =>
+                                FunCall(MapLcl(0)(fun((p_19) =>
+                                  FunCall(MapSeq(fun((p_20) =>
+                                    FunCall(idfloat, p_20))), p_19))), p_18))), Value("0.0f", ArrayType(ArrayType(ArrayType(Float, v__6), v__5), v__3*1/^v__6))),
+                              FunCall(Zip(2),
+                                FunCall(Split(v__4),
+                                  FunCall(Transpose(), p_2)), p_3))))))))),
+                  FunCall(Transpose(),
+                    FunCall(Map(fun((p_21) =>
+                      FunCall(Split(v__5),
+                        FunCall(Transpose(), p_21)))),
+                      FunCall(Split(v__4), p_1)))))))),
             FunCall(Split(v__3), p_0))))
   }
 

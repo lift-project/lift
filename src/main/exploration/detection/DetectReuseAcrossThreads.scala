@@ -5,31 +5,18 @@ import ir.ast._
 import ir.view._
 import lift.arithmetic._
 import opencl.ir.OpenCLMemory.getAllMemoryVars
-import rewriting.rules.OpenCLRules
 
 object DetectReuseAcrossThreads {
 
-  def findStrategicLocations(f: Lambda): (Lambda, Seq[(Expr, Var)]) = {
+  def findStrategicLocations(f: Lambda):  Seq[(Expr, Var)] = {
     val strategicLocationsMarked = MemoryMappingRewrite.addIdsForLocal(f)
-    val tryHere: Seq[(Expr, Var)] = getCandidates(strategicLocationsMarked)
-
-    (strategicLocationsMarked, tryHere)
+    getCandidates(strategicLocationsMarked)
   }
 
   def getCandidates(strategicLocationsMarked: Lambda): Seq[(Expr, Var)] = {
     val reuseCandidates = getReuseCandidates(strategicLocationsMarked)
     val tryHere = reuseCandidates.flatMap(getLocalMemoryCandidates(strategicLocationsMarked, _))
     tryHere
-  }
-
-  def printStrategicLocalMemoryLocations(f: Lambda): Seq[Lambda] = {
-    val strategicLocationsMarked = MemoryMappingRewrite.addIdsForLocal(f)
-    val tryHere: Seq[(Expr, Var)] = getCandidates(strategicLocationsMarked)
-
-    val implementThese = ImplementReuse.createCombinations(tryHere)
-
-    implementThese.map(
-      ImplementReuse.implementCombination(strategicLocationsMarked, _, OpenCLRules.localMemory))
   }
 
   private def getReuseCandidates(f: Lambda) = {
