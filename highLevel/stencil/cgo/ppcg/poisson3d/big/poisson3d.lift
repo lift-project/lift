@@ -39,8 +39,8 @@ def poisson = UserFun("jacobi", Array("C", "N", "S", "E", "W", "F", "B",
       val ne = nbh.at(1).at(0).at(2)
       val se = nbh.at(1).at(2).at(2)
 
-      toGlobal(id) o toPrivate(λ(x =>
-        poisson(x, n, s, e, w, f, b, fn, bn, fs, bs, fw, bw, nw, sw, fe, be, ne, se))) $ c
+      λ(x =>
+        poisson(x, n, s, e, w, f, b, fn, bn, fs, bs, fw, bw, nw, sw, fe, be, ne, se)) $ c
 
     })))) o Slide3D(3, 1) $ input
   })
