@@ -2,17 +2,65 @@ package exploration.detection
 
 import ir._
 import ir.ast._
-import ir.view.{View, ViewMem}
+import ir.view._
 import lift.arithmetic._
-import opencl.generator.{NDRange, RangesAndCounts}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Test
 
-class DetectCommunication {
+class DetectCommunicationBetweenThreads {
 
   private val v_M_0 = Var("M", StartFromRange(1))
   private val v_N_1 = Var("N", StartFromRange(1))
+
+  def hasCommunication(expr: Expr): Boolean = {
+
+    val testViews = View.getSubViews(expr.view)
+
+    val dropTest = testViews.dropWhile({
+      case ViewAccess(i, _, _) => !i.toString.startsWith("v_l_id")
+      case _ => true
+    })
+
+    var accessCount = 0
+    var mapCount = 0
+
+    val takeTest = dropTest.takeWhile({
+      case ViewAccess(i, _, _) if i.toString.startsWith("v_l_id") =>
+        accessCount = accessCount + 1
+        true
+      case ViewMap(_, i, _) if i.toString.startsWith("v_l_id") =>
+        mapCount = mapCount + 1
+        accessCount != mapCount
+      case _ => true
+    })
+
+    val communication = takeTest.collect({
+      case ViewSplit(_, _, _) =>
+      case ViewJoin(i, _, _) if i != Cst(1) =>
+      case ViewReorder(_, _, _) =>
+      case ViewAsVector(_, _, _) =>
+      case ViewAsScalar(_, _, _) =>
+      case ViewHead(_, _) =>
+      case ViewTail(_, _) =>
+      case ViewPad(_, _, _, _, _) =>
+      case ViewSlide(_, _, _) =>
+      case ViewFilter(_, _, _) =>
+    }).nonEmpty
+
+    val accessesBeforeJoin = takeTest.takeWhile({
+      case ViewJoin(i, _, _) if i == Cst(1) => false
+      case _ => true
+    }).count({
+      case ViewAccess(i, _, _) if i.toString.startsWith("v_l_id") => true
+      case _ => false
+    })
+
+    val hasJoin = takeTest.collect({ case ViewJoin(i, _, _) if i == Cst(1) => }).nonEmpty
+    val joinCommunication = hasJoin && accessesBeforeJoin > accessCount
+    val tryToChangeAddressSpace = communication || joinCommunication
+    tryToChangeAddressSpace
+  }
 
   @Test
   def partialReduceWithReorderNoRace(): Unit = {
@@ -51,38 +99,39 @@ class DetectCommunication {
                           FunCall(Get(0), p_5))))))))))),
           FunCall(Zip(2), p_0, p_2)))
 
-    val copiedLambda = f
-    val userFuns = Expr.visitWithState(Seq[FunCall]())(copiedLambda.body, {
+    prepareLambda(f)
+
+    val userFuns = Expr.visitWithState(Seq[FunCall]())(f.body, {
       case (call@FunCall(_: UserFun, _*), seq) => seq :+ call
       case (call@FunCall(_: VectorizeUserFun, _*), seq) => seq :+ call
       case (_, seq) => seq
     })
 
-    TypeChecker(copiedLambda)
-    InferOpenCLAddressSpace(copiedLambda)
-    RangesAndCounts(copiedLambda, NDRange(?, ?, ?), NDRange(?, ?, ?), collection.Map())
-    OpenCLMemoryAllocator(copiedLambda)
-    View(copiedLambda)
-    UpdateContext(copiedLambda)
-
     val memVars = userFuns.map(_.mem.variable)
 
-    val varsWithDataFlow = userFuns.map(_.args.filter(x => View.getSubViews(x.view).exists({
-      case ViewMem(v, _) => memVars.contains(v) && userFuns.find(_.mem.variable == v).get.context.inMapLcl.reduce(_ || _)
-      case _ => false
-    }))).filter(_.nonEmpty).flatten.filterNot({
+    val varsWithDataFlow = userFuns.map(uf =>
+      uf.args.filter(arg =>
+        View.getSubViews(arg.view).exists({
+          case ViewMem(v, _) if memVars.contains(v) =>
+            val value = userFuns.filter(uf2 => uf2.mem.variable == v)
+            value.forall(_.context.inMapLcl.reduce(_ || _)) && !value.exists(_.eq(uf))
+          case _ => false
+        }))).filter(_.nonEmpty).flatten.filterNot({
       case FunCall(_: UserFun | _: VectorizeUserFun, _*) => true
       case _ => false
     })
 
+    println(varsWithDataFlow.filter(hasCommunication))
+
     // Filter ones that have ViewAccess("l_id") o Join/Split/etc o ViewMap("l_id")
     // or simple approach MapLcl(...) o Split/Join/etc o MapLcl(...)
+    // Join of inner length 1 is fine if the inner length was produced by ReduceSeq
 
-    println(varsWithDataFlow)
+
 
     // addIdAfterReduce / toLocal for last write where communication
     // similar to final write to global.
-    println(f)
+//    println(f)
   }
 
 }
