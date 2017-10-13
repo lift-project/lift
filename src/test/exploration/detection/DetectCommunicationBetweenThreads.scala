@@ -7,6 +7,8 @@ import lift.arithmetic._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Test
+import rewriting.Rewrite
+import rewriting.rules.{CopyRules, OpenCLRules, Rule}
 
 class DetectCommunicationBetweenThreads {
 
@@ -116,10 +118,10 @@ class DetectCommunicationBetweenThreads {
 
     // addIdAfterReduce / toLocal for last write where communication
     // similar to final write to global.
-    println(communicationHere.map(implementCopyOnCommunication(f, _)))
+    println(communicationHere.map(implementCopyOnCommunication(f, _, OpenCLRules.localMemory)))
   }
 
-  def implementCopyOnCommunication(lambda: Lambda, communicationArg: Expr) = {
+  def implementCopyOnCommunication(lambda: Lambda, communicationArg: Expr, rule: Rule): Lambda = {
 
     val userFuns = rewriting.utils.Utils.collect(lambda.body, {
       case call@FunCall(_: UserFun | _: VectorizeUserFun, _*)
@@ -137,23 +139,39 @@ class DetectCommunicationBetweenThreads {
 
     val copyThis = noAccumulator.head
 
-    // Find innermost Reduce around `copyThis` if it exists
+    // Find outermost Reduce around `copyThis` if it exists
     val inReduce = rewriting.utils.Utils.collect(lambda.body, {
-      case FunCall(reduce: AbstractReduce, _, _)
+      case call@FunCall(reduce: AbstractReduce, _, _)
         if reduce.f.body.contains({ case e if e.eq(copyThis) => }) &&
-          !reduce.f.body.contains({ case FunCall(_: AbstractReduce, _, _) => })
+          !call.context.inReduceSeq
       =>
     })
 
-    println(inReduce)
-
     if (inReduce.nonEmpty) {
       // in reduce, add id after reduce + implement + toLocal/toGlobal
+
+      val reduce = inReduce.head
+      val idAdded = Rewrite.applyRuleAt(reduce, CopyRules.addIdAfterReduce, reduce)
+      TypeChecker(idAdded)
+      val applyHere =
+        idAdded match { case FunCall(MapSeq(Lambda1(_, id@FunCall(Id(), _))), _) => id }
+
+      val idImplementation =
+        Rewrite.applyRuleAt(applyHere, CopyRules.implementIdAsDeepCopy, applyHere)
+
+      val idFun = rewriting.utils.Utils.collect(idImplementation, {
+        case FunCall(uf: UserFun, _*) if uf.name.startsWith("id") => })
+
+      val idImplemented = Expr.replace(idAdded, applyHere, idImplementation)
+      val idImplementedLambda = FunDecl.replace(lambda, reduce, idImplemented)
+
+      Rewrite.applyRuleAt(idImplementedLambda, idFun.head, rule)
+
     } else {
       // in map, add toLocal/toGlobal around copyThis
+      Rewrite.applyRuleAt(lambda, copyThis, rule)
     }
 
-    copyThis
   }
 
   private def getCandidatesToCheck(userFuns: Seq[FunCall]) = {
