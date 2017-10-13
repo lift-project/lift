@@ -10,12 +10,17 @@ import rewriting.rules.{CopyRules, Rule}
 
 object ImplementReuse {
 
+  def apply(lambda: Lambda, seq: Seq[(Expr, Var)], rule: Rule): Seq[Lambda] = {
+    val combinations = createCombinations(seq)
+    combinations.map(implementCombination(lambda, _, rule))
+  }
+
   def createCombinations(seq: Seq[(Expr, Var)]): Seq[Seq[(Expr, Var)]] = {
     val varToLocation = seq.groupBy(_._2)
     val allVariables = varToLocation.keys.toSeq
 
     val varCombinations =
-      MemoryMappingRewrite.getCombinations(allVariables)
+      MemoryMappingRewrite.getCombinations(allVariables).filterNot(_.isEmpty)
 
     varCombinations.flatMap(combination => {
 

@@ -2,25 +2,29 @@ package exploration.detection
 
 import exploration.MemoryMappingRewrite
 import ir.ast._
-import ir.view.{View, ViewAccess, ViewMap, ViewMem}
+import ir.view._
 import lift.arithmetic._
 import opencl.ir.OpenCLMemory.getAllMemoryVars
 import rewriting.rules.OpenCLRules
 
 object DetectReuseAcrossThreads {
 
-  def findStrategicLocations(f: Lambda) = {
+  def findStrategicLocations(f: Lambda): (Lambda, Seq[(Expr, Var)]) = {
     val strategicLocationsMarked = MemoryMappingRewrite.addIdsForLocal(f)
-    val reuseCandidates = getReuseCandidates(strategicLocationsMarked)
-    val tryHere = reuseCandidates.flatMap(getLocalMemoryCandidates(strategicLocationsMarked, _))
+    val tryHere: Seq[(Expr, Var)] = getCandidates(strategicLocationsMarked)
 
     (strategicLocationsMarked, tryHere)
   }
 
-  def printStrategicLocalMemoryLocations(f: Lambda): Seq[Lambda] = {
-    val strategicLocationsMarked = MemoryMappingRewrite.addIdsForLocal(f)
+  def getCandidates(strategicLocationsMarked: Lambda): Seq[(Expr, Var)] = {
     val reuseCandidates = getReuseCandidates(strategicLocationsMarked)
     val tryHere = reuseCandidates.flatMap(getLocalMemoryCandidates(strategicLocationsMarked, _))
+    tryHere
+  }
+
+  def printStrategicLocalMemoryLocations(f: Lambda): Seq[Lambda] = {
+    val strategicLocationsMarked = MemoryMappingRewrite.addIdsForLocal(f)
+    val tryHere: Seq[(Expr, Var)] = getCandidates(strategicLocationsMarked)
 
     val implementThese = ImplementReuse.createCombinations(tryHere)
 

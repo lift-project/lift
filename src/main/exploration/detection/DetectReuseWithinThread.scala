@@ -2,7 +2,7 @@ package exploration.detection
 
 import exploration.MemoryMappingRewrite
 import ir.ast._
-import ir.view.{View, ViewAccess, ViewMap, ViewMem}
+import ir.view._
 import lift.arithmetic.Var
 import opencl.ir.OpenCLMemory.getAllMemoryVars
 import opencl.ir.pattern._
@@ -11,13 +11,18 @@ object DetectReuseWithinThread {
 
   def printStrategicLocations(lambda: Lambda): Unit = {
     val strategicLocationsMarked = MemoryMappingRewrite.addIdsForPrivate(lambda)
-    val reuseCandidates = getReuseCandidates(strategicLocationsMarked)
-    val tryHere = reuseCandidates.flatMap(getRuleLocationCandidates(strategicLocationsMarked, _))
+    val tryHere: Seq[(Expr, Var)] = getCandidates(strategicLocationsMarked)
 
     println
     println(strategicLocationsMarked)
     println(tryHere.mkString(", "))
     println
+  }
+
+  def getCandidates(strategicLocationsMarked: Lambda): Seq[(Expr, Var)] = {
+    val reuseCandidates = getReuseCandidates(strategicLocationsMarked)
+    val tryHere = reuseCandidates.flatMap(getRuleLocationCandidates(strategicLocationsMarked, _))
+    tryHere
   }
 
   private def getReuseCandidates(f: Lambda) = {

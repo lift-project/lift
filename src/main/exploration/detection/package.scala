@@ -1,8 +1,8 @@
 package exploration
 
-import ir.{TypeChecker, UpdateContext}
+import ir.{TypeChecker, UnallocatedMemory, UpdateContext}
 import ir.ast.{Expr, FunCall, Lambda}
-import ir.view.View
+import ir.view.{NoView, View}
 import lift.arithmetic.?
 import opencl.generator.{NDRange, RangesAndCounts}
 import opencl.ir.{InferOpenCLAddressSpace, OpenCLMemoryAllocator}
@@ -22,11 +22,13 @@ package object detection {
   }
 
   def prepareLambda(f: Lambda): Unit = {
-    TypeChecker(f)
-    InferOpenCLAddressSpace(f)
-    RangesAndCounts(f, NDRange(?, ?, ?), NDRange(?, ?, ?), collection.Map())
-    OpenCLMemoryAllocator(f)
-    View(f)
-    UpdateContext(f)
+    if (f.body.context == null || f.body.view == NoView || f.body.mem == UnallocatedMemory) {
+      TypeChecker(f)
+      InferOpenCLAddressSpace(f)
+      RangesAndCounts(f, NDRange(?, ?, ?), NDRange(?, ?, ?), collection.Map())
+      OpenCLMemoryAllocator(f)
+      View(f)
+      UpdateContext(f)
+    }
   }
 }

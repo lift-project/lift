@@ -304,8 +304,7 @@ object MemoryMappingRewrite {
 
       val allPrivateMappings = allLocalMappings.flatMap(mapPrivateMemory)
 
-      val cleanupRules = Seq(SimplificationRules.removeEmptyMap, SimplificationRules.lambdaInlineParam)
-      allPrivateMappings.map(Rewrite.applyRulesUntilCannot(_, cleanupRules))
+      allPrivateMappings.map(cleanup)
     } catch {
       case _: Throwable =>
         logger.warn(s"Address space mapping for $hash failed.")
@@ -327,6 +326,16 @@ object MemoryMappingRewrite {
     })
 
     list
+  }
+
+  private[exploration] def cleanup(lambda: Lambda) = {
+
+    val cleanupRules = Seq(
+      SimplificationRules.removeEmptyMap,
+      SimplificationRules.lambdaInlineParam,
+      SimplificationRules.dropId)
+
+    Rewrite.applyRulesUntilCannot(lambda, cleanupRules)
   }
 
   private def collectIds(addedIds: Lambda): List[Expr] =
@@ -609,7 +618,6 @@ object MemoryMappingRewrite {
     else
       Seq()
   }
-
 
   private[exploration] def getCombinations[T](localIdList: Seq[T]): Seq[Seq[T]] =
     getCombinations(localIdList, localIdList.length)
