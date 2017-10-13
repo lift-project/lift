@@ -99,14 +99,64 @@ class DetectCommunicationBetweenThreads {
                           FunCall(Get(0), p_5))))))))))),
           FunCall(Zip(2), p_0, p_2)))
 
+    println(f)
     prepareLambda(f)
 
     val userFuns = Expr.visitWithState(Seq[FunCall]())(f.body, {
-      case (call@FunCall(_: UserFun, _*), seq) => seq :+ call
-      case (call@FunCall(_: VectorizeUserFun, _*), seq) => seq :+ call
+      case (call@FunCall(_: UserFun | _: VectorizeUserFun, _*), seq) => seq :+ call
       case (_, seq) => seq
     })
 
+    val argsWithDataFlow = getCandidatesToCheck(userFuns)
+
+    // Filter ones that have ViewAccess("l_id") o Join/Split/etc o ViewMap("l_id")
+    // or simple approach MapLcl(...) o Split/Join/etc o MapLcl(...)
+    // Join of inner length 1 is fine if the inner length was produced by ReduceSeq
+    val communicationHere = argsWithDataFlow.filter(hasCommunication)
+
+    // addIdAfterReduce / toLocal for last write where communication
+    // similar to final write to global.
+    println(communicationHere.map(implementCopyOnCommunication(f, _)))
+  }
+
+  def implementCopyOnCommunication(lambda: Lambda, communicationArg: Expr) = {
+
+    val userFuns = rewriting.utils.Utils.collect(lambda.body, {
+      case call@FunCall(_: UserFun | _: VectorizeUserFun, _*)
+        if call.mem == communicationArg.mem =>
+    })
+
+    val noAccumulator = userFuns.filter(expr =>
+      !lambda.body.contains({
+        case FunCall(_: AbstractReduce, acc, _) if acc.contains({ case e if e.eq(expr) => })=>
+      })
+    )
+
+    // Only one UserFunction is allowed to write, except in the case of accumulators
+    assert(noAccumulator.length == 1)
+
+    val copyThis = noAccumulator.head
+
+    // Find innermost Reduce around `copyThis` if it exists
+    val inReduce = rewriting.utils.Utils.collect(lambda.body, {
+      case FunCall(reduce: AbstractReduce, _, _)
+        if reduce.f.body.contains({ case e if e.eq(copyThis) => }) &&
+          !reduce.f.body.contains({ case FunCall(_: AbstractReduce, _, _) => })
+      =>
+    })
+
+    println(inReduce)
+
+    if (inReduce.nonEmpty) {
+      // in reduce, add id after reduce + implement + toLocal/toGlobal
+    } else {
+      // in map, add toLocal/toGlobal around copyThis
+    }
+
+    copyThis
+  }
+
+  private def getCandidatesToCheck(userFuns: Seq[FunCall]) = {
     val memVars = userFuns.map(_.mem.variable)
 
     val varsWithDataFlow = userFuns.map(uf =>
@@ -120,18 +170,6 @@ class DetectCommunicationBetweenThreads {
       case FunCall(_: UserFun | _: VectorizeUserFun, _*) => true
       case _ => false
     })
-
-    println(varsWithDataFlow.filter(hasCommunication))
-
-    // Filter ones that have ViewAccess("l_id") o Join/Split/etc o ViewMap("l_id")
-    // or simple approach MapLcl(...) o Split/Join/etc o MapLcl(...)
-    // Join of inner length 1 is fine if the inner length was produced by ReduceSeq
-
-
-
-    // addIdAfterReduce / toLocal for last write where communication
-    // similar to final write to global.
-//    println(f)
+    varsWithDataFlow
   }
-
 }
