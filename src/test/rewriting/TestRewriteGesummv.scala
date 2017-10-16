@@ -7,8 +7,8 @@ import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.rules._
 import rewriting.macrorules.{MacroRules, ReuseRules}
+import rewriting.rules._
 
 object TestRewriteGesummv extends TestWithExecutor
 
@@ -139,7 +139,7 @@ class TestRewriteGesummv {
     val lowered = Lower.mapCombinations(f5, mappings).head
 
     // Make it look nicer + makes MacroRules.userFunCompositionToPrivate applicable
-    val tupleInlined = Rewrite.applyRuleAtId(lowered, 79, SimplificationRules.tupleInline)
+    val tupleInlined = Rewrite.applyRuleAtId(lowered, 77, SimplificationRules.tupleInline)
 
     val l0 = Rewrite.applyRuleAtId(tupleInlined, 9, CopyRules.addIdForCurrentValueInReduce)
     val l1 = Rewrite.applyRuleAtId(l0, 30, CopyRules.implementOneLevelOfId)
@@ -149,7 +149,7 @@ class TestRewriteGesummv {
     val l7 = Rewrite.applyRuleAtId(l4, 33, OpenCLRules.localMemory)
     val l8 = Lower.lowerNextLevelWithRule(l7, OpenCLRules.mapLcl)
 
-    val l9 = Rewrite.applyRuleAtId(l8, 92, MacroRules.userFunCompositionToPrivate)
+    val l9 = Rewrite.applyRuleAtId(l8, 90, MacroRules.userFunCompositionToPrivate)
 
     val finalExpr = l9
     val (local, global) = InferNDRange(finalExpr)
@@ -172,8 +172,8 @@ class TestRewriteGesummv {
 
     val lowered = Lower.mapCombinations(g2, mappings).head
 
-    val l0 = Rewrite.applyRuleAtId(lowered, 62, SimplificationRules.tupleInline)
-    val l1 = Rewrite.applyRuleAtId(l0, 62, MacroRules.userFunCompositionToPrivate)
+    val l0 = Rewrite.applyRuleAtId(lowered, 60, SimplificationRules.tupleInline)
+    val l1 = Rewrite.applyRuleAtId(l0, 60, MacroRules.userFunCompositionToPrivate)
     val l2 = Rewrite.applyRuleAtId(l1, 17, CopyRules.addIdAfterReduce)
     val l3 = Rewrite.applyRuleAtId(l2, 6, CopyRules.addIdAfterReduce)
     val l4 = Rewrite.applyRuleAtId(l3, 64, CopyRules.implementIdAsDeepCopy)
