@@ -80,7 +80,41 @@ class TestMemoryMappingRewrite {
   @Test
   def gemv(): Unit = {
 
-    val gemvAmdGold = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), ArrayTypeWSWC(Float, M), ArrayTypeWSWC(Float, N), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(MapWrg(0)(fun((p_5) => FunCall(toGlobal(fun((p_6) => FunCall(MapLcl(0)(fun((p_7) => FunCall(add, FunCall(toLocal(fun((p_8, p_9) => FunCall(mult, p_8, p_9))), p_7, p_3), FunCall(toLocal(fun((p_10, p_11) => FunCall(mult, p_10, p_11))), FunCall(Get(1), p_5), p_4)))), p_6))), FunCall(MapSeq(fun((p_12) => FunCall(toLocal(fun((p_13) => FunCall(idfloat, p_13))), p_12))), FunCall(ReduceSeq(fun((p_14, p_15) => FunCall(fun((p_16) => FunCall(fun((p_17) => FunCall(add, p_14, p_17)), p_16)), p_15))), FunCall(idfloat, Value("0.0f", Float)), FunCall(Join(), FunCall(MapLcl(0)(fun((p_18) => FunCall(MapSeq(fun((p_19) => FunCall(toLocal(fun((p_20) => FunCall(idfloat, p_20))), p_19))), FunCall(ReduceSeq(fun((p_21, p_22) => FunCall(fun((p_23) => FunCall(fun((p_24) => FunCall(add, p_21, FunCall(mult, FunCall(Get(0), p_24), FunCall(Get(1), p_24)))), p_23)), p_22))), FunCall(idfloat, Value("0.0f", Float)), p_18)))), FunCall(Split(M * 1 /^ v__2), FunCall(Gather(ReorderWithStride(v__2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5))))))))))), FunCall(Zip(2), p_0, p_2)))
+    val gemvAmdGold = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), ArrayTypeWSWC(Float, M), ArrayTypeWSWC(Float, N), Float, Float,(p_0, p_1, p_2, p_3, p_4) =>
+      FunCall(MapWrg(0)(fun((p_5) =>
+          FunCall(MapSeq(fun((p_7) =>
+            FunCall(toGlobal(add),
+              FunCall(toLocal(fun((p_8, p_9) =>
+                FunCall(mult, p_8, p_9))), p_7, p_3),
+              FunCall(toLocal(fun((p_10, p_11) =>
+                FunCall(mult, p_10, p_11))),
+                FunCall(Get(1), p_5), p_4)))),
+          FunCall(MapSeq(fun((p_12) =>
+            FunCall(toLocal(fun((p_13) =>
+              FunCall(idfloat, p_13))), p_12))),
+            FunCall(ReduceSeq(fun((p_14, p_15) =>
+              FunCall(fun((p_16) =>
+                FunCall(fun((p_17) =>
+                  FunCall(add, p_14, p_17)), p_16)), p_15))),
+              FunCall(idfloat, Value("0.0f", Float)),
+              FunCall(Join(),
+                FunCall(MapLcl(0)(fun((p_18) =>
+                  FunCall(MapSeq(fun((p_19) =>
+                    FunCall(toLocal(fun((p_20) =>
+                      FunCall(idfloat, p_20))), p_19))),
+                    FunCall(ReduceSeq(fun((p_21, p_22) =>
+                      FunCall(fun((p_23) =>
+                        FunCall(fun((p_24) =>
+                          FunCall(add, p_21,
+                            FunCall(mult,
+                              FunCall(Get(0), p_24),
+                              FunCall(Get(1), p_24)))), p_23)), p_22))),
+                      FunCall(idfloat, Value("0.0f", Float)), p_18)))),
+                  FunCall(Split(M * 1 /^ v__2),
+                    FunCall(Gather(ReorderWithStride(v__2)),
+                      FunCall(Zip(2), p_1,
+                        FunCall(Get(0), p_5))))))))))),
+        FunCall(Zip(2), p_0, p_2)))
     val gemvAmdHash = getHash(gemvAmdGold)
 
     val mapped = MemoryMappingRewrite.lowerLambda(gemvAmd, enabledMappings)
@@ -115,7 +149,32 @@ class TestMemoryMappingRewrite {
 
     val start = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, v_P_0), v_F_1), ArrayTypeWSWC(ArrayTypeWSWC(Float, v_F_1), v_C_2),(p_0, p_1) => FunCall(Map(fun((p_2) => FunCall(Map(fun((p_3) => FunCall(Map(fun((p_4) => FunCall(select_, p_4))), p_3))), FunCall(ReduceSeq(fun((p_5, p_6) => FunCall(Map(fun((p_7) => FunCall(test, FunCall(Get(0), p_7), FunCall(Get(1), p_7)))), FunCall(Zip(2), FunCall(ReduceSeq(fun((p_8, p_9) => FunCall(add, p_8, FunCall(currentDistance, FunCall(Get(0), p_9), FunCall(Get(1), p_9))))), Value("0.0f", Float), FunCall(Zip(2), p_2, p_6)), p_5)))), Value("{3.40282347e+38, 0, 0}", ArrayTypeWSWC(TupleType(Float, Int, Int), 1)), p_1)))), FunCall(Transpose(), p_0)))
 
-    val kmeansGold = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, v_P_0), v_F_1), ArrayTypeWSWC(ArrayTypeWSWC(Float, v_F_1), v_C_2),(p_0, p_1) => FunCall(MapGlb(0)(fun((p_2) => FunCall(MapSeq(fun((p_3) => FunCall(toGlobal(fun((p_4) => FunCall(MapSeq(fun((p_5) => FunCall(select_, p_5))), p_4))), p_3))), FunCall(ReduceSeq(fun((p_6, p_7) => FunCall(fun((p_8) => FunCall(fun((p_9) => FunCall(MapSeq(fun((p_10) => FunCall(test, FunCall(Get(0), p_10), FunCall(Get(1), p_10)))), FunCall(Zip(2), FunCall(MapSeq(fun((p_11) => p_11)), FunCall(ReduceSeq(fun((p_12, p_13) => FunCall(fun((p_14) => FunCall(fun((p_15) => FunCall(add, p_12, FunCall(currentDistance, FunCall(Get(0), p_15), FunCall(Get(1), p_15)))), p_14)), p_13))), FunCall(idfloat, Value("0.0f", Float)), FunCall(Zip(2), p_2, p_9))), p_6))), p_8)), p_7))), FunCall(MapSeq(fun((p_16) => FunCall(idTuple_float_int_int, p_16))), Value("{3.40282347e+38, 0, 0}", ArrayTypeWSWC(TupleType(Float, Int, Int), 1))), p_1)))), FunCall(Transpose(), p_0)))
+    val kmeansGold = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, v_P_0), v_F_1), ArrayTypeWSWC(ArrayTypeWSWC(Float, v_F_1), v_C_2),(p_0, p_1) =>
+      FunCall(MapGlb(0)(fun((p_2) =>
+        FunCall(MapSeq(fun((p_3) =>
+            FunCall(MapSeq(fun((p_5) =>
+              FunCall(toGlobal(select_), p_5))), p_3))),
+          FunCall(ReduceSeq(fun((p_6, p_7) =>
+            FunCall(fun((p_8) =>
+              FunCall(fun((p_9) =>
+                FunCall(MapSeq(fun((p_10) =>
+                  FunCall(test,
+                    FunCall(Get(0), p_10),
+                    FunCall(Get(1), p_10)))),
+                  FunCall(Zip(2),
+                    FunCall(MapSeq(fun((p_11) => p_11)),
+                      FunCall(ReduceSeq(fun((p_12, p_13) =>
+                        FunCall(fun((p_14) =>
+                          FunCall(fun((p_15) =>
+                            FunCall(add, p_12,
+                              FunCall(currentDistance,
+                                FunCall(Get(0), p_15),
+                                FunCall(Get(1), p_15)))), p_14)), p_13))),
+                        FunCall(idfloat, Value("0.0f", Float)),
+                        FunCall(Zip(2), p_2, p_9))), p_6))), p_8)), p_7))),
+            FunCall(MapSeq(fun((p_16) =>
+              FunCall(idTuple_float_int_int, p_16))), Value("{3.40282347e+38, 0, 0}", ArrayTypeWSWC(TupleType(Float, Int, Int), 1))), p_1)))),
+        FunCall(Transpose(), p_0)))
     val kmeansHash = getHash(kmeansGold)
 
     val mapped = MemoryMappingRewrite.lowerLambda(start, enabledMappings)
