@@ -334,7 +334,9 @@ object MemoryMappingRewrite {
         lambdas.map(MemoryMappingRewrite.cleanup)
       }) ++ cleanedLambdas
 
-      implementIds(cleanedWithPrivate)
+      val tupleFusion = cleanedWithPrivate.map(applyLoopFusionToTuple)
+
+      implementIds(tupleFusion)
 
     } catch {
       case t: Throwable =>

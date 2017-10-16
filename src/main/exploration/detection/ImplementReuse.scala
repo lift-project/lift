@@ -65,9 +65,13 @@ object ImplementReuse {
 
     } else {
       // Assuming zips have been flattened, so only one level of Tuple and OpenCLMemoryCollection
+      // TODO: not good enough
 
       val indices = variables.map(variable =>
         location.mem.asInstanceOf[OpenCLMemoryCollection].subMemories.indexWhere(_.variable == variable))
+
+      if (indices.contains(-1))
+        throw new NotImplementedError()
 
       implementTuple(f, location, indices, rule)
     }

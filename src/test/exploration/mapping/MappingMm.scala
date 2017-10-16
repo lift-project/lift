@@ -68,14 +68,13 @@ class MappingMm {
                                               FunCall(Get(1), p_21))))),
                                           FunCall(Zip(2), p_19,
                                             FunCall(Get(0), p_21)))),
-                                        FunCall(toPrivate(fun((p_26) =>
                                           FunCall(Tuple(2),
                                             FunCall(MapSeq(fun((p_27) =>
-                                              FunCall(idfloat, p_27))),
-                                              FunCall(Get(0), p_26)),
+                                              FunCall(toPrivate(idfloat), p_27))),
+                                              FunCall(Get(0), p_20)),
                                             FunCall(MapSeq(fun((p_28) =>
-                                              FunCall(idfloat, p_28))),
-                                              FunCall(Get(1), p_26))))), p_20)))),
+                                              FunCall(toPrivate(idfloat), p_28))),
+                                              FunCall(Get(1), p_20)))))),
                                       FunCall(Get(0), p_18),
                                       FunCall(Zip(2),
                                         FunCall(Transpose(),
@@ -92,19 +91,18 @@ class MappingMm {
                                   FunCall(Split(v__5),
                                     FunCall(Transpose(),
                                       FunCall(Get(0), p_16)))))),
-                              FunCall(toLocal(fun((p_29) =>
                                 FunCall(Unzip(),
                                   FunCall(MapLcl(1)(fun((p_30) =>
                                     FunCall(Tuple(2),
                                       FunCall(MapLcl(0)(fun((p_31) =>
-                                        FunCall(idfloat, p_31))),
+                                        FunCall(toLocal(idfloat), p_31))),
                                         FunCall(Get(0), p_30)),
                                       FunCall(MapLcl(0)(fun((p_32) =>
-                                        FunCall(idfloat, p_32))),
+                                        FunCall(toLocal(idfloat), p_32))),
                                         FunCall(Get(1), p_30))))),
                                     FunCall(Zip(2),
-                                      FunCall(Get(0), p_29),
-                                      FunCall(Get(1), p_29)))))), p_15)))),
+                                      FunCall(Get(0), p_15),
+                                      FunCall(Get(1), p_15))))))),
                             FunCall(MapLcl(1)(fun((p_33) =>
                               FunCall(MapLcl(0)(fun((p_34) =>
                                 FunCall(MapSeq(fun((p_35) =>
@@ -164,7 +162,6 @@ class MappingMm {
                               FunCall(Join(),
                                 FunCall(MapLcl(0)(fun((p_17) =>
                                   FunCall(ReduceSeq(fun((p_18, p_19) =>
-                                    FunCall(fun((p_20) =>
                                       FunCall(fun((p_21) =>
                                         FunCall(MapSeq(fun((p_22) =>
                                           FunCall(MapSeq(fun((p_23) =>
@@ -179,20 +176,13 @@ class MappingMm {
                                               FunCall(Get(1), p_21))))),
                                           FunCall(Zip(2), p_18,
                                             FunCall(Get(0), p_21)))),
-                                        FunCall(toLocal(fun((p_26) =>
                                           FunCall(Tuple(2),
                                             FunCall(MapSeq(fun((p_27) =>
-                                              FunCall(idfloat, p_27))),
-                                              FunCall(Get(0), p_26)),
+                                              FunCall(toLocal(idfloat), p_27))),
+                                              FunCall(Get(0), p_19)),
                                             FunCall(MapSeq(fun((p_28) =>
-                                              FunCall(idfloat, p_28))),
-                                              FunCall(Get(1), p_26))))), p_20))),
-                                      FunCall(toPrivate(fun((p_29) =>
-                                        FunCall(Tuple(2),
-                                          FunCall(Get(0), p_29),
-                                          FunCall(MapSeq(fun((p_30) =>
-                                            FunCall(idfloat, p_30))),
-                                            FunCall(Get(1), p_29))))), p_19)))),
+                                              FunCall(toLocal(idfloat), p_28))),
+                                              FunCall(Get(1), p_19)))))),
                                     FunCall(Get(0), p_17),
                                     FunCall(Zip(2),
                                       FunCall(Transpose(),
@@ -227,6 +217,7 @@ class MappingMm {
               FunCall(Split(v__7),
                 FunCall(Map(fun((p_38) =>
                   FunCall(Split(v__6), p_38))), p_0)))))))
+
     val hawaiiHash = getHash(hawaiiGold)
 
     val mapped = MemoryMappingRewrite.lowerLambda(mmTATiled2DBlocked, enabledMappings)
@@ -235,6 +226,8 @@ class MappingMm {
 
   @Test
   def mmVectorLoads(): Unit = {
+
+    // TODO: No vector loads here.
 
     val vectorLoadsGold = fun(ArrayType(ArrayType(Float, M), K), ArrayType(ArrayType(Float, N), K),(p_0, p_1) =>
       FunCall(Join(),
@@ -283,14 +276,13 @@ class MappingMm {
                                               FunCall(Get(1), p_21))))),
                                           FunCall(Zip(2), p_19,
                                             FunCall(Get(0), p_21)))),
-                                        FunCall(toPrivate(fun((p_26) =>
                                           FunCall(Tuple(2),
                                             FunCall(MapSeq(fun((p_27) =>
-                                              FunCall(idfloat, p_27))),
-                                              FunCall(Get(0), p_26)),
+                                              FunCall(toPrivate(idfloat), p_27))),
+                                              FunCall(Get(0), p_20)),
                                             FunCall(MapSeq(fun((p_28) =>
-                                              FunCall(idfloat, p_28))),
-                                              FunCall(Get(1), p_26))))), p_20)))),
+                                              FunCall(toPrivate(idfloat), p_28))),
+                                              FunCall(Get(1), p_20)))))),
                                       FunCall(Get(0), p_18),
                                       FunCall(Zip(2),
                                         FunCall(Transpose(),
@@ -307,19 +299,18 @@ class MappingMm {
                                   FunCall(Split(v__5),
                                     FunCall(Transpose(),
                                       FunCall(Get(0), p_16)))))),
-                              FunCall(toLocal(fun((p_29) =>
                                 FunCall(Unzip(),
                                   FunCall(MapLcl(1)(fun((p_30) =>
                                     FunCall(Tuple(2),
                                       FunCall(MapLcl(0)(fun((p_31) =>
-                                        FunCall(idfloat, p_31))),
+                                        FunCall(toLocal(idfloat), p_31))),
                                         FunCall(Get(0), p_30)),
                                       FunCall(MapLcl(0)(fun((p_32) =>
-                                        FunCall(idfloat, p_32))),
+                                        FunCall(toLocal(idfloat), p_32))),
                                         FunCall(Get(1), p_30))))),
                                     FunCall(Zip(2),
-                                      FunCall(Get(0), p_29),
-                                      FunCall(Get(1), p_29)))))), p_15)))),
+                                      FunCall(Get(0), p_15),
+                                      FunCall(Get(1), p_15))))))),
                             FunCall(MapLcl(1)(fun((p_33) =>
                               FunCall(MapLcl(0)(fun((p_34) =>
                                 FunCall(MapSeq(fun((p_35) =>
