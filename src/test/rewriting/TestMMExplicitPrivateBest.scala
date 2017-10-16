@@ -10,7 +10,6 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit.Test
-import rewriting.Rewrite
 import rewriting.macrorules.MacroRules
 
 object TestMMExplicitPrivateBest extends TestWithExecutor

@@ -181,12 +181,11 @@ class MappingGemv {
                           FunCall(Get(1), p_16))))),
                       FunCall(Zip(2), p_13,
                         FunCall(Get(1), p_15))))),
-                  FunCall(toLocal(fun((p_21) =>
                     FunCall(Tuple(2),
                       FunCall(MapLcl(0)(fun((p_22) =>
-                        FunCall(idfloat, p_22))),
-                        FunCall(Get(0), p_21)),
-                      FunCall(Get(1), p_21)))), p_14)))),
+                        FunCall(toLocal(idfloat), p_22))),
+                        FunCall(Get(0), p_14)),
+                      FunCall(Get(1), p_14))))),
                 FunCall(MapLcl(0)(fun((p_23) =>
                   FunCall(idfloat, p_23))), Value("0.0f", ArrayType(Float, v__2))),
                 FunCall(Zip(2),
@@ -201,7 +200,6 @@ class MappingGemv {
     val goldHash = getHash(gold)
 
     val mapped = MemoryMappingRewrite.lowerLambda(f, enabledMappings)
-
     assertTrue(mapped.exists(getHash(_) == goldHash))
   }
 }

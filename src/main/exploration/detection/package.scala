@@ -35,6 +35,14 @@ package object detection {
     }
   }
 
+  def getUserFunName(decl: FunDecl): String = {
+    decl match {
+      case uf: UserFun => uf.name
+      case vuf: VectorizeUserFun => vuf.userFun.name
+      case _ => throw new IllegalArgumentException(decl.toString)
+    }
+  }
+
   private val M = Var("M", StartFromRange(1))
   private val N = Var("N", StartFromRange(1))
   private val K = Var("K", StartFromRange(1))

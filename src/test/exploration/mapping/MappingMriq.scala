@@ -95,9 +95,8 @@ class MappingMriq {
                             FunCall(Get(3), p_13))))),
                         FunCall(Get(0), p_11), p_10))),
                       FunCall(Zip(2), p_8, p_4)))),
-                  FunCall(toLocal(fun((p_21) =>
                     FunCall(MapLcl(0)(fun((p_22) =>
-                      FunCall(idTuple4_float_float_float_float, p_22))), p_21))), p_9)))),
+                      FunCall(toLocal(idTuple4_float_float_float_float), p_22))), p_9)))),
                 FunCall(MapLcl(0)(fun((p_23) =>
                   FunCall(idTuple2_float_float, p_23))), Value("{ 0.0f, 0.0f}", ArrayType(TupleType(Float, Float), v__2))),
                 FunCall(Split(v__3), p_3)))))),

@@ -20,6 +20,7 @@ object DetectReuseWithinThread {
     tryHere
   }
 
+
   private def getReuseCandidates(f: Lambda) = {
     val numDimensions = getNumDimensions(f)
 
@@ -27,7 +28,8 @@ object DetectReuseWithinThread {
 
     val args = Expr.visitWithState(Seq[Expr]())(f.body, {
       case (call@FunCall(_: UserFun | _: VectorizeUserFun, args@_*), seq)
-        if call.context.inMapLcl.count(b => b) + call.context.inMapGlb.count(b => b) == numDimensions
+        if !getUserFunName(call.f).startsWith("id") && // TODO: Better way to deal with forcing values into a tuple
+          call.context.inMapLcl.count(b => b) + call.context.inMapGlb.count(b => b) == numDimensions
       => seq ++ args
       case (_, seq) => seq
     }).distinct.diff(f.params).filter({

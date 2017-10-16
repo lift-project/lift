@@ -122,13 +122,12 @@ class MappingGesummv {
                         FunCall(Zip(3), p_13,
                           FunCall(Get(0), p_15),
                           FunCall(Get(2), p_15))))),
-                    FunCall(toLocal(fun((p_23) =>
                       FunCall(Tuple(3),
-                        FunCall(Get(0), p_23),
+                        FunCall(Get(0), p_14),
                         FunCall(MapLcl(0)(fun((p_24) =>
-                          FunCall(idfloat, p_24))),
-                          FunCall(Get(1), p_23)),
-                        FunCall(Get(2), p_23)))), p_14)))),
+                          FunCall(toLocal(idfloat), p_24))),
+                          FunCall(Get(1), p_14)),
+                        FunCall(Get(2), p_14))))),
                   FunCall(MapLcl(0)(fun((p_25) =>
                     FunCall(idTuple2_float_float, p_25))), Value("{ 0.0f, 0.0f }", ArrayType(TupleType(Float, Float), v__2))),
                   FunCall(Zip(3),

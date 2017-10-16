@@ -4,6 +4,7 @@ import java.io.{File, FileWriter}
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.Logger
+import exploration.detection.{DetectReuseAcrossThreads, DetectReuseWithinThread, ImplementReuse}
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
@@ -299,16 +300,46 @@ object MemoryMappingRewrite {
       val compositionToPrivate =
         Rewrite.applyRuleUntilCannot(lambda, MacroRules.userFunCompositionToPrivate)
 
-      val allLocalMappings =
+ /*     val allLocalMappings =
         mapLocalMemory(compositionToPrivate, settings.memoryMappingRewriteSettings.vectorize)
 
       val allPrivateMappings = allLocalMappings.flatMap(mapPrivateMemory)
 
-      allPrivateMappings.map(cleanup)
+      allPrivateMappings.map(cleanup)*/
+
+      val f = compositionToPrivate
+      val strategicLocationsMarked =
+        MemoryMappingRewrite.addIdsForPrivate(MemoryMappingRewrite.addIdsForLocal(f))
+
+      val localMemCandidates = (DetectReuseWithinThread.getCandidates(strategicLocationsMarked) ++
+        DetectReuseAcrossThreads.getCandidates(strategicLocationsMarked)).
+        distinct.
+        filter(x => OpenCLRules.localMemory.isDefinedAt(x._1))
+
+      val lambdas = ImplementReuse(strategicLocationsMarked, localMemCandidates, OpenCLRules.localMemory)
+
+      val cleanedLambdas = lambdas.map(MemoryMappingRewrite.cleanup) :+ f
+
+      val cleanedWithPrivate = cleanedLambdas.flatMap(lowered => {
+        val strategicLocationsMarked =
+          MemoryMappingRewrite.addIdsForPrivate(lowered)
+
+        val privateMemCandidates = (DetectReuseWithinThread.getCandidates(strategicLocationsMarked) ++
+          DetectReuseAcrossThreads.getCandidates(strategicLocationsMarked)).
+          distinct.
+          filter(x => OpenCLRules.privateMemory.isDefinedAt(x._1))
+
+        val lambdas = ImplementReuse(strategicLocationsMarked, privateMemCandidates, OpenCLRules.privateMemory)
+
+        lambdas.map(MemoryMappingRewrite.cleanup)
+      }) ++ cleanedLambdas
+
+      implementIds(cleanedWithPrivate)
+
     } catch {
-      case _: Throwable =>
-        logger.warn(s"Address space mapping for $hash failed.")
-       Seq()
+      case t: Throwable =>
+        logger.warn(s"Address space mapping for $hash failed.", t)
+        Seq()
     }
   }
 

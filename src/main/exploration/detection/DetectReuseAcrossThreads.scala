@@ -26,7 +26,8 @@ object DetectReuseAcrossThreads {
 
     val args = Expr.visitWithState(Seq[Expr]())(f.body, {
       case (call@FunCall(_: UserFun | _: VectorizeUserFun, args@_*), seq)
-        if call.context.inMapWrg.count(b => b) == numDimensions
+        if !getUserFunName(call.f).startsWith("id") && // TODO: Better way to deal with forcing values into a tuple
+          call.context.inMapWrg.count(b => b) == numDimensions
       => seq ++ args
       case (_, seq) => seq
     }).distinct.diff(f.params).filter({
@@ -62,8 +63,8 @@ object DetectReuseAcrossThreads {
     }
   }
 
-  private def getNumberOfLocalAccesses(a: Expr) = {
-    val views = View.getSubViews(a.view)
+  private def getNumberOfLocalAccesses(expr: Expr) = {
+    val views = View.getSubViews(expr.view)
 
     val viewMaps = views.count({
       case ViewMap(_, v, _) => v.toString.contains("l_id")
