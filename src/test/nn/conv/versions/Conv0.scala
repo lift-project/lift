@@ -2,6 +2,7 @@ package nn.conv.versions
 
 /**
   * Created by nm on 09/01/17.
+  * Input channels are processed sequentially in each thread.
   */
 
 import ir.ast._
@@ -16,7 +17,7 @@ import opencl.ir.pattern.{ReorderStride, _}
   * The companion object that contains the Lift expressions, configuration preprocessing and
   * verification, and helper functions.
   */
-object Conv0_SeqInChs extends ConvCompanion {
+object Conv0 extends ConvCompanion {
   //  val kernel_xdim_SV = SizeVar("kernel_xdim_SV")
   //  val kernel_ydim_SV = SizeVar("kernel_ydim_SV")
   //  val input_xdim_SV = SizeVar("input_xdim_SV")
@@ -255,7 +256,7 @@ object Conv0_SeqInChs extends ConvCompanion {
   }
 
 
-  def apply(iP: InitParameters): Conv0_SeqInChs = {
+  def apply(iP: InitParameters): Conv0 = {
     /**
     5    * Class factory: verifies that an object can be created,
       * initializes variables, computes workgroup sizes.
@@ -344,7 +345,7 @@ object Conv0_SeqInChs extends ConvCompanion {
 
     /* Now that all parameters are calculated and verified, build the layer */
 
-    new Conv0_SeqInChs(
+    new Conv0(
       iP.liftFPropGenerator(iP.activationFun, iP.inputShape, inputTiling,
         iP.dim.nKernels,kernelSliding, iP.optParams.kernelsPerGroup, iP.optParams.elsPerThread),
       iP.inputShape, outputShape,
@@ -399,11 +400,11 @@ object Conv0_SeqInChs extends ConvCompanion {
   * @param localSize
   * @param globalSize
   */
-case class Conv0_SeqInChs(override val liftFProp: FunDecl,
-                          override val inputShape: Shape, override val outputShape: Shape,
-                          override val inputTiling: SlidingWindowConfig, override val kernelSliding: SlidingWindowConfig,
-                          override val elsPerThread: Int, override val kernelsPerGroup: Int,
-                          override val localSize: Array[Int], override val globalSize: Array[Int])
+case class Conv0(override val liftFProp: FunDecl,
+                 override val inputShape: Shape, override val outputShape: Shape,
+                 override val inputTiling: SlidingWindowConfig, override val kernelSliding: SlidingWindowConfig,
+                 override val elsPerThread: Int, override val kernelsPerGroup: Int,
+                 override val localSize: Array[Int], override val globalSize: Array[Int])
   extends Conv(liftFProp, inputShape, outputShape, inputTiling, kernelSliding,
     elsPerThread, kernelsPerGroup, localSize, globalSize) {
   val configToString: String =

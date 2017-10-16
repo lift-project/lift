@@ -41,8 +41,8 @@ class TestCNN {
   val precision: Float = 2f
   val codeVersion: Int = 23
   val reruns: Int = 1
-  val Conv = conv.versions.Conv0_SeqInChs
-  type Conv = conv.versions.Conv0_SeqInChs
+  val Conv = conv.versions.Conv0
+  type Conv = conv.versions.Conv0
 
   //@Test
   def TestFC(): Unit = {

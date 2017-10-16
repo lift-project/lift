@@ -2,6 +2,7 @@ package nn.conv.versions
 
 /**
   * Created by nm on 09/01/17.
+  * Input channels are parallelised across workgroups
   */
 
 import ir.TupleType
@@ -13,7 +14,7 @@ import nn.conv.{Conv, ConvCompanion, ConvDatasets, SlidingWindowConfig}
 import opencl.ir._
 import opencl.ir.pattern._
 
-object Conv1_ParInChs extends ConvCompanion {
+object Conv1 extends ConvCompanion {
 
     val kernel_xdim_SV = SizeVar("kernel_xdim_SV")
     val kernel_ydim_SV = SizeVar("kernel_ydim_SV")
@@ -139,8 +140,8 @@ object Conv1_ParInChs extends ConvCompanion {
                 (input_tile_and_K) => {
                   //
                   MapWrg(locB)(λ(TupleType(
-                    AT(AT(AT(AT(Float, input_shape.nChannels), kernel_sliding.size), kernel_sliding.size), kernels_per_group),
-                    AT(Float, kernels_per_group)),
+                    AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size),
+                      kernels_per_group), AT(Float, kernels_per_group)),
                     (kernels_group) => {
                     /* (kernels_per_group, n_k_passes * n_k_windows) ->
                      * (kernels_per_group, n_k_passes, n_k_windows) */
@@ -218,7 +219,7 @@ object Conv1_ParInChs extends ConvCompanion {
     /* Reshapes kernels -- makes the output channels th e outermost dimension -- and groups them.
      * Returns:
      * AT(TupleType(
-     *   /* weights */ AT(AT(AT(AT(Float, input_channels), kernel_sliding.size), kernel_sliding.size), kernels_per_group),
+     *   /* weights */ AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size), kernels_per_group),
      *   /* biases */ AT(Float, kernels_per_group)),
      *   n_kernel_groups) */
     def ReshapeAndGroupKernels(): FunDecl =
@@ -376,7 +377,7 @@ object Conv1_ParInChs extends ConvCompanion {
 
     /* Now that all parameters are calculated and verified, build the layer */
 
-    new Conv1_ParInChs(
+    new Conv1(
       iP.liftFPropGenerator(iP.activationFun, iP.inputShape, inputTiling,
         iP.dim.nKernels,kernelSliding, iP.optParams.kernelsPerGroup, iP.optParams.elsPerThread),
       iP.inputShape, outputShape,
@@ -431,11 +432,11 @@ object Conv1_ParInChs extends ConvCompanion {
   * @param localSize
   * @param globalSize
   */
-case class Conv1_ParInChs(override val liftFProp: FunDecl,
-                          override val inputShape: Shape, override val outputShape: Shape,
-                          override val inputTiling: SlidingWindowConfig, override val kernelSliding: SlidingWindowConfig,
-                          override val elsPerThread: Int, override val kernelsPerGroup: Int,
-                          override val localSize: Array[Int], override val globalSize: Array[Int])
+case class Conv1(override val liftFProp: FunDecl,
+                 override val inputShape: Shape, override val outputShape: Shape,
+                 override val inputTiling: SlidingWindowConfig, override val kernelSliding: SlidingWindowConfig,
+                 override val elsPerThread: Int, override val kernelsPerGroup: Int,
+                 override val localSize: Array[Int], override val globalSize: Array[Int])
   extends Conv (liftFProp, inputShape, outputShape, inputTiling, kernelSliding,
     elsPerThread, kernelsPerGroup, localSize, globalSize) {
 
