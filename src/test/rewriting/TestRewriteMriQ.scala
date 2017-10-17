@@ -44,13 +44,15 @@ class TestRewriteMriQ {
     bytesToFloats(byteArray)
   }
 
-  private val x = floatArrayFromResource("mriq/xVals.bin")
-  private val y = floatArrayFromResource("mriq/yVals.bin")
-  private val z = floatArrayFromResource("mriq/zVals.bin")
-  private val k = floatArrayFromResource("mriq/kVals.bin").grouped(4).map(x => (x(0), x(1), x(2), x(3))).toArray
+  private val prefix = "mriq/small/"
 
-  private val Qr = floatArrayFromResource("mriq/qrVals.bin")
-  private val Qi = floatArrayFromResource("mriq/qiVals.bin")
+  private val x = floatArrayFromResource(prefix + "xVals.bin")
+  private val y = floatArrayFromResource(prefix + "yVals.bin")
+  private val z = floatArrayFromResource(prefix + "zVals.bin")
+  private val k = floatArrayFromResource(prefix + "kVals.bin").grouped(4).map(x => (x(0), x(1), x(2), x(3))).toArray
+
+  private val Qr = floatArrayFromResource(prefix + "qrVals.bin")
+  private val Qi = floatArrayFromResource(prefix + "qiVals.bin")
 
   private val xNum = x.length
   private val kNum = k.length / 4
@@ -158,6 +160,7 @@ class TestRewriteMriQ {
   @Test
   def mriqIntroduceReuse(): Unit = {
     val f0 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
+
     val f1 = Rewrite.applyRuleAtId(f0, 7, ReuseRules.introduceReuseFromMap(64))
     val f2 = Rewrite.applyRuleAtId(f1, 10, ReuseRules.introduceReuseFromMap(64))
 
