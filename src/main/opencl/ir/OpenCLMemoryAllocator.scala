@@ -468,12 +468,23 @@ object OpenCLMemoryAllocator {
           val input_mem = coll.subMemories(1)
           scan.f.params(0).mem = init_mem
           scan.f.params(1).mem = input_mem
-
-          //alloc(scan.f.body, numGlb, numLcl, numPvt)
+          val bodyM = alloc(scan.f.body, numGlb, numLcl, numPvt)
+          // replace `bodyM` by `init_mem` in the lambda's body
+          Expr.visit(scan.f.body, e => if (e.mem == bodyM) e.mem = init_mem, _ => {})
           scan.f.body.mem = init_mem
-          val size = Type.getAllocatedSize(call.t)
-          val new_mem = OpenCLMemory.allocMemory(size, call.addressSpace)
-          new_mem
+
+          val maxSizeInBytes = Type.getAllocatedSize(call.t)
+          val baseSize = Type.getAllocatedSize(Type.getBaseType(call.t))
+          // size in bytes necessary to hold the result of f in the different
+          // memory spaces
+          val maxGlbOutSize = numGlb(baseSize, maxSizeInBytes)
+          val maxLclOutSize = numLcl(baseSize, maxSizeInBytes)
+          val maxPvtOutSize = numPvt(baseSize, maxSizeInBytes)
+
+          val resultMem = OpenCLMemory.allocMemory(maxGlbOutSize, maxLclOutSize,
+            maxPvtOutSize, call.addressSpace)
+          resultMem
+
         case _ =>
           throw new IllegalArgumentException("Cannot allocate memory for scanSeq: an OpenCL memory collection input is needed")
       }

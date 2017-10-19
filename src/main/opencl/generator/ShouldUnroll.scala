@@ -2,7 +2,7 @@ package opencl.generator
 
 import ir._
 import ir.ast.{Expr, FunCall, Lambda}
-import opencl.ir.pattern.{MapLcl, MapSeq, ReduceSeq, MapSeqSlide}
+import opencl.ir.pattern._
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection, PrivateMemory}
 
 object ShouldUnroll {
@@ -57,6 +57,7 @@ class ShouldUnroll(val lambda: Lambda) {
            if (OpenCLMemory.containsPrivateMemory(call.args(1).mem))
              r.shouldUnroll = true
          case sp: MapSeqSlide=> if (shouldUnrollLoop(call)) sp.shouldUnroll = true
+         case scan:ScanSeq => scan.shouldUnroll=  OpenCLMemory.containsPrivateMemory(call.args(1).mem)
          case _ =>
        }
 

@@ -935,17 +935,18 @@ class OpenCLGenerator extends Generator {
   private def generateScanSeqCall(scan: ScanSeq,
                                  call: FunCall,
                                  block: Block): Unit = {
-    val accumulator = call.args.head
-    val inputArr = call.args(1)
     (block: Block) += OpenCLAST.Comment("scan_seq")
     generateForLoop(block, call.args(1), scan.loopVar, block => {
         generate(scan.f.body, block)
-        val accumulatorMemory = OpenCLMemory.asOpenCLMemory(accumulator.mem)
-        val loadAccumulator = generateLoadNode(accumulatorMemory, accumulator.t, accumulator.view)
-        val storeMemory = OpenCLMemory.asOpenCLMemory(call.mem)
-        val storeNode = generateStoreNode(storeMemory, call.t, call.view.access(scan.loopVar), loadAccumulator)
-        (block:Block) += storeNode
-    })
+        val copyNode = generateSeqCopy(
+          scan.f.params.head.mem,
+          scan.f.params.head.view,
+          call.mem,
+          call.view.access(scan.loopVar),
+          scan.f.body.t, scan.f.params.head.addressSpace == PrivateMemory
+        )
+        (block:Block) += copyNode
+    }, needUnroll = false)//scan.shouldUnroll)
     (block: Block) += OpenCLAST.Comment("end scan_seq")
   }
 
@@ -1251,7 +1252,7 @@ class OpenCLGenerator extends Generator {
 
     // if we need to unroll (e.g. because of access to private memory)
     if (needUnroll) {
-      generateForLoopUnrolled(block, array, indexVar, generateBody)
+      generateForLoopUnrolled(block, indexVar, generateBody)
     } else {
       // TODO: Information needed elsewhere. See analysis.ControlFlow
       // try to see if we really need a loop
@@ -1270,9 +1271,9 @@ class OpenCLGenerator extends Generator {
     }
   }
 
-  private def getIterationCount(array: Expr, indexVar: Var): Int = {
+  private def getIterationCount(range: RangeAdd): Int = {
     try {
-      indexVar.range.numVals.enforceSimplification.eval
+      range.numVals.enforceSimplification.eval
     } catch {
       case NotEvaluableException() =>
         throw new OpenCLGeneratorException("Trying to unroll loop, but iteration count could " +
@@ -1284,11 +1285,10 @@ class OpenCLGenerator extends Generator {
   }
 
   private def generateForLoopUnrolled(block: Block,
-                                      array: Expr,
                                       indexVar: Var,
                                       generateBody: (Block) => Unit): Unit = {
     val range = getRangeAdd(indexVar)
-    val iterationCount = getIterationCount(array, indexVar)
+    val iterationCount = getIterationCount(range)
 
     if (iterationCount > 0) {
       (block: Block) += OpenCLAST.Comment("unroll")
@@ -1848,10 +1848,11 @@ class OpenCLGenerator extends Generator {
    * @param outMem memory location where to copy the data
    * @param outView view explaining how to access the destination memory
    * @param ty the type of the data to be copied.
+    *@param shouldUnroll whether the generated copy loop should be unrolled          *
    * @return a piece of OpenCL code that performs the copy *sequentially*
    */
   private def generateSeqCopy(inMem: Memory, inView: View, outMem: Memory, outView: View,
-                           ty: Type): OpenCLAST.OclAstNode with BlockMember = {
+                              ty: Type, shouldUnroll: Boolean = false): OpenCLAST.OclAstNode with BlockMember = {
     assert(!outMem.isInstanceOf[OpenCLMemoryCollection]) // cannot handle that: see comment above
     ty match {
       case ScalarType(_, _) | _: TupleType | _: VectorType =>
@@ -1859,22 +1860,34 @@ class OpenCLGenerator extends Generator {
         generateStoreNode(OpenCLMemory.asOpenCLMemory(outMem), ty, outView, load)
       case at: ArrayType =>
         val innerBlock = Block(Vector.empty)
-        val loopVar = Var("cp")
         val length = at match {
-          case s: Size => ArithExpression(s.size)
+          case s: Size => s.size
           case _ => throw new NotImplementedError()
         }
-        innerBlock += generateSeqCopy(
-          inMem, inView.access(loopVar),
-          outMem, outView.access(loopVar),
-          at.elemT
-        )
-        ForLoop(
-          VarDecl(loopVar, Int, ArithExpression(0)),
-          CondExpression(ArithExpression(loopVar), length, CondExpression.Operator.<),
-          AssignmentExpression(VarRef(loopVar), ArithExpression(loopVar + 1)),
+        val loopVar = Var("cp", RangeAdd(0, length, 1))
+
+        if (shouldUnroll) {
+          generateForLoopUnrolled(innerBlock, loopVar, (block) => {
+            (block: Block) += generateSeqCopy(
+              inMem, inView.access(loopVar),
+              outMem, outView.access(loopVar),
+              at.elemT, shouldUnroll
+            )
+          })
           innerBlock
-        )
+        } else {
+          innerBlock += generateSeqCopy(
+            inMem, inView.access(loopVar),
+            outMem, outView.access(loopVar),
+            at.elemT, shouldUnroll
+          )
+          ForLoop(
+            VarDecl(loopVar, Int, ArithExpression(0)),
+            CondExpression(ArithExpression(loopVar), ArithExpression(length), CondExpression.Operator.<),
+            AssignmentExpression(VarRef(loopVar), ArithExpression(loopVar + 1)),
+            innerBlock
+          )
+        }
       case _ => throw new NotImplementedError(s"generateSeqCopy: $ty")
     }
   }

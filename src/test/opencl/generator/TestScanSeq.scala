@@ -1,7 +1,8 @@
 package opencl.generator
 
-import ir.{ArrayType, ArrayTypeWSWC}
-import ir.ast.{CheckedArrayAccess, Head, Join, Split, fun}
+import ir.ArrayTypeWSWC
+import ir.ast.{Join, Split, Value, Zip, fun}
+import lift.arithmetic.ArithExpr
 import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir.pattern._
 import opencl.ir.{Float, _}
@@ -14,8 +15,8 @@ object TestScanSeq extends TestWithExecutor
 
 class TestScanSeq {
 
-  //@Test
-  def testBasic = {
+  @Test
+  def testBasic() = {
     val N = 1024
     val expr  =
       fun(ArrayTypeWSWC(Float, N),
@@ -26,11 +27,13 @@ class TestScanSeq {
     val input = Array.fill(N)(1.0f)
     val (dOutput, _) = Execute(128)[Array[Float]](expr, input)
 
-    dOutput.foreach(x => println(s"$x"))
+    val scalaResult = input.scan(0.0f)((x, y) => x + y).tail
+    val zipped = scalaResult.zip(dOutput)
+    zipped.foreach(x => assert(x._1 == x._2))
+    zipped.foreach(println)
   }
 
-  @Test
-  def testWithJoinsAndSplits = {
+  def testInsideMapAndSplits() = {
     val N = 1024
 
     val expr  =
@@ -41,20 +44,61 @@ class TestScanSeq {
 
     val input = Array.fill(N)(1.0f)
     val (dOutput, _) = Execute(128)[Array[Float]](expr, input)
+  }
+
+  def testSplitJoin() = {
+    val N = 1024
+
+    val expr = fun(ArrayTypeWSWC(Float, N),
+      data => toGlobal(MapSeq(id)) o ScanSeq(add, 0.0f) o Join() o Split(32) $ data)
+
+    val input = Array.fill(N)(1.0f)
+    val (dOutput, _) = Execute(128)[Array[Float]](expr, input)
+
+    dOutput.foreach(x => println(s"$x"))
+  }
+
+
+  @Test
+  def testScanAcrossArraysGlobal() = {
+    val N = 1024
+    val SS = 16
+
+    def joinArray(S:ArithExpr) =
+      fun(ArrayTypeWSWC(Float,S), ArrayTypeWSWC(Float,S), (arr1,arr2) => MapSeq(add) $ Zip(arr1, arr2))
+
+    val expr = fun(ArrayTypeWSWC(Float, N),
+      data => toGlobal(MapSeq(MapSeq(id))) o
+        ScanSeq(
+          joinArray(SS),
+          toGlobal(MapSeq(id)) $ Value(1.0f, ArrayTypeWSWC(Float, SS))
+        ) o Split(SS) $ data
+    )
+
+    val input = Array.fill(N)(1.0f)
+    val (dOutput, _) = Execute(1024)[Array[Float]](expr, input)
 
     dOutput.foreach(x => println(s"$x"))
   }
 
   @Test
-  def testAcrossArrays = {
+  def testScanAcrossArraysPrivate() = {
     val N = 1024
+    val SS = 16
+
+    def joinArray(S:ArithExpr) =
+      fun(ArrayTypeWSWC(Float,S), ArrayTypeWSWC(Float,S), (arr1,arr2) => MapSeq(add) $ Zip(arr1, arr2))
+
     val expr = fun(ArrayTypeWSWC(Float, N),
-      data => toGlobal(MapSeq(id)) o
-        ScanSeq(fun(Float, ArrayType(Float), (accum, array) => {add.apply(accum, (ReduceSeq(add, 0.0f) $ array).at(0))}),0.0f)
-        o Split(32) $ data)
+      data => toGlobal(MapSeq(MapSeq(id))) o
+        ScanSeq(
+          joinArray(SS),
+          MapSeq(id) $ Value(1.0f, ArrayTypeWSWC(Float, SS))
+        ) o Split(SS) $ data
+    )
 
     val input = Array.fill(N)(1.0f)
-    val (dOutput, _) = Execute(128)[Array[Float]](expr, input)
+    val (dOutput, _) = Execute(1024)[Array[Float]](expr, input)
 
     dOutput.foreach(x => println(s"$x"))
   }

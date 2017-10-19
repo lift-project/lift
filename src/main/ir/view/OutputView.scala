@@ -48,6 +48,7 @@ object OutputView {
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
       case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
+      case scan:ScanSeq => buildViewScan(scan, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
       case uf: UserFun => buildViewUserFun(writeView,uf, call)
@@ -82,6 +83,10 @@ object OutputView {
 
         ViewTuple(res, call.argsType)
       case _: AbstractPartRed =>
+        val acc = call.args.head
+        visitAndBuildViews(acc, View.initialiseNewView(acc.t, acc.inputDepth, acc.mem.variable))
+        visitAndBuildViews(call.args(1), result)
+      case _: ScanSeq =>
         val acc = call.args.head
         visitAndBuildViews(acc, View.initialiseNewView(acc.t, acc.inputDepth, acc.mem.variable))
         visitAndBuildViews(call.args(1), result)
@@ -240,6 +245,12 @@ object OutputView {
       View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable))
     visitAndBuildViews(s.f.body, writeView.access(Cst(0)))
     View.initialiseNewView(call.args(1).t, call.outputDepth, call.args(1).mem.variable)
+  }
+
+  private def buildViewScan(scan: ScanSeq, call:FunCall, writeView:View) : View = {
+    //Mostly copied from reduce
+    visitAndBuildViews(scan.f.body, scan.f.params.head.view)
+    ViewMap(scan.f.params(1).outputView, scan.loopVar, call.args(1).t)
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {

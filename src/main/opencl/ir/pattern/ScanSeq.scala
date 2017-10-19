@@ -12,8 +12,9 @@ case class ScanSeq(f:Lambda, var loopVar: Var) extends Pattern(arity = 2) with F
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     throw new NotImplementedError()
   }
+  var shouldUnroll = false
 
-  //ScanSeq::((a, b) -> a ,a) -> [b]_n -> [a]_n
+  //ScanSeq::((a, b) -> a) -> a -> [b]_n -> [a]_n
   override def checkType(argType: Type, setType: Boolean): Type = {
     argType match {
       case TupleType(initT, arr@ArrayType(elemT)) =>
