@@ -4,7 +4,7 @@ import exploration.MemoryMappingRewrite
 import ir.TypeChecker
 import ir.ast._
 import lift.arithmetic._
-import opencl.ir.OpenCLMemoryCollection
+import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 import rewriting.Rewrite
 import rewriting.rules.{CopyRules, Rule}
 
@@ -64,14 +64,34 @@ object ImplementReuse {
       implementNonTuple(rule, f, location)
 
     } else {
-      // Assuming zips have been flattened, so only one level of Tuple and OpenCLMemoryCollection
-      // TODO: not good enough
 
+      val collection = location.mem.asInstanceOf[OpenCLMemoryCollection]
       val indices = variables.map(variable =>
-        location.mem.asInstanceOf[OpenCLMemoryCollection].subMemories.indexWhere(_.variable == variable))
+        collection.subMemories.indexWhere(_.variable == variable))
 
-      if (indices.contains(-1))
-        throw new NotImplementedError()
+      if (indices.contains(-1)) {
+
+        val loc2 = Rewrite.applyRuleAt(location, CopyRules.implementOneLevelOfId, location)
+        val f2 = FunDecl.replace(f, location, loc2)
+        prepareLambda(f2)
+
+        loc2 match {
+          case FunCall(Tuple(_), args@_*) =>
+
+            val bla = collection.subMemories.zipWithIndex.filter(pair => {
+              OpenCLMemory.getAllMemoryVars(pair._1).exists(variables.contains)
+            }).map(x => args(x._2))
+
+            return bla.foldLeft(f2)((lambda, loc) => {
+              implementReuse(lambda, loc, variables, rule)
+            })
+
+          case FunCall(Map(Lambda(_, call: FunCall)), _) =>
+            return implementReuse(f2, call, variables, rule)
+          case _ =>
+            throw new NotImplementedError()
+        }
+      }
 
       implementTuple(f, location, indices, rule)
     }

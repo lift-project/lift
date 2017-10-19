@@ -109,9 +109,8 @@ class MappingNbody {
                               FunCall(Get(1), p_11)), p_13, p_3, p_2)))),
                         FunCall(Get(0), p_11), p_10))),
                       FunCall(Zip(2), p_8, p_4)))),
-                  FunCall(toLocal(fun((p_18) =>
                     FunCall(MapLcl(0)(fun((p_19) =>
-                      FunCall(idfloat4, p_19))), p_18))), p_9)))),
+                      FunCall(toLocal(idfloat4), p_19))), p_9)))),
                 FunCall(MapLcl(0)(fun((p_20) =>
                   FunCall(idfloat4, p_20))), Value("0.0f", ArrayType(VectorType(Float, 4), v__1))),
                 FunCall(Split(v__2), p_0)))))),
