@@ -55,7 +55,7 @@ class TestRewriteMriQ {
   private val Qi = floatArrayFromResource(prefix + "qiVals.bin")
 
   private val xNum = x.length
-  private val kNum = k.length / 4
+  private val kNum = k.length
 
   private val gold = (Qr, Qi).zipped.flatMap((a, b) => Seq(a,b))
 
