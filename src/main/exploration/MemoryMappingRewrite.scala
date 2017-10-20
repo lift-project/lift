@@ -4,7 +4,7 @@ import java.io.{File, FileWriter}
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.Logger
-import exploration.detection.{DetectReuseAcrossThreads, DetectReuseWithinThread, ImplementReuse}
+import exploration.detection.{DetectCommunicationBetweenThreads, DetectReuseAcrossThreads, DetectReuseWithinThread, ImplementReuse}
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
@@ -300,13 +300,6 @@ object MemoryMappingRewrite {
       val compositionToPrivate =
         Rewrite.applyRuleUntilCannot(lambda, MacroRules.userFunCompositionToPrivate)
 
- /*     val allLocalMappings =
-        mapLocalMemory(compositionToPrivate, settings.memoryMappingRewriteSettings.vectorize)
-
-      val allPrivateMappings = allLocalMappings.flatMap(mapPrivateMemory)
-
-      allPrivateMappings.map(cleanup)*/
-
       val f = compositionToPrivate
       val strategicLocationsMarked =
         MemoryMappingRewrite.addIdsForPrivate(MemoryMappingRewrite.addIdsForLocal(f))
@@ -320,7 +313,35 @@ object MemoryMappingRewrite {
 
       val cleanedLambdas = lambdas.map(MemoryMappingRewrite.cleanup) :+ f
 
-      val cleanedWithPrivate = cleanedLambdas.flatMap(lowered => {
+      val communication = cleanedLambdas.flatMap(lambda => {
+        import DetectCommunicationBetweenThreads._
+        val communicationHere = getCommunicationExpr(lambda)
+
+        TypeChecker(lambda)
+        UpdateContext(lambda)
+
+        val implemented = communicationHere.flatMap(location => {
+          try {
+            Seq(implementCopyOnCommunication(lambda, location, OpenCLRules.localMemory))
+          } catch {
+            case _: Throwable =>
+              Seq()
+          }
+        })
+
+        val implementedGlobal = communicationHere.flatMap(location => {
+          try {
+            Seq(implementCopyOnCommunication(lambda, location, OpenCLRules.globalMemory))
+          } catch {
+            case _: Throwable =>
+              Seq()
+          }
+        })
+
+        implemented ++ implementedGlobal
+      }) ++ cleanedLambdas
+
+      val cleanedWithPrivate = communication.flatMap(lowered => {
         val strategicLocationsMarked =
           MemoryMappingRewrite.addIdsForPrivate(lowered)
 
@@ -332,7 +353,7 @@ object MemoryMappingRewrite {
         val lambdas = ImplementReuse(strategicLocationsMarked, privateMemCandidates, OpenCLRules.privateMemory)
 
         lambdas.map(MemoryMappingRewrite.cleanup)
-      }) ++ cleanedLambdas
+      }) ++ communication
 
       val tupleFusion = cleanedWithPrivate.map(applyLoopFusionToTuple)
 

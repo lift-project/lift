@@ -18,48 +18,6 @@ class MappingGemv {
   private val gemvAmd = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), ArrayTypeWSWC(Float, M), ArrayTypeWSWC(Float, N), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(Map(fun((p_5) => FunCall(Map(fun((p_6) => FunCall(add, FunCall(mult, p_6, p_3), FunCall(mult, FunCall(Get(1), p_5), p_4)))), FunCall(Reduce(fun((p_7, p_8) => FunCall(add, p_7, p_8))), Value("0.0f", Float), FunCall(Join(), FunCall(Map(fun((p_9) => FunCall(ReduceSeq(fun((p_11, p_12) => FunCall(add, p_11, FunCall(mult, FunCall(Get(0), p_12), FunCall(Get(1), p_12))))), Value("0.0f", Float), p_9))), FunCall(Split(M*1/^v__2), FunCall(Gather(ReorderWithStride(v__2)), FunCall(Zip(2), p_1, FunCall(Get(0), p_5)))))))))), FunCall(Zip(2), p_0, p_2)))
 
   @Test
-  def gemv(): Unit = {
-
-    val gemvAmdGold = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N), ArrayTypeWSWC(Float, M), ArrayTypeWSWC(Float, N), Float, Float,(p_0, p_1, p_2, p_3, p_4) =>
-      FunCall(MapWrg(0)(fun((p_5) =>
-        FunCall(toGlobal(fun((p_6) =>
-          FunCall(MapSeq(fun((p_7) =>
-            FunCall(add,
-              FunCall(toPrivate(fun((p_8, p_9) =>
-                FunCall(mult, p_8, p_9))), p_7, p_3),
-              FunCall(toPrivate(fun((p_10, p_11) =>
-                FunCall(mult, p_10, p_11))),
-                FunCall(Get(1), p_5), p_4)))), p_6))),
-          FunCall(MapSeq(fun((p_12) =>
-            FunCall(toLocal(fun((p_13) =>
-              FunCall(idfloat, p_13))), p_12))),
-            FunCall(ReduceSeq(fun((p_14, p_15) =>
-                  FunCall(add, p_14, p_15))),
-              FunCall(idfloat, Value("0.0f", Float)),
-              FunCall(Join(),
-                FunCall(MapLcl(0)(fun((p_18) =>
-                  FunCall(MapSeq(fun((p_19) =>
-                    FunCall(toLocal(fun((p_20) =>
-                      FunCall(idfloat, p_20))), p_19))),
-                    FunCall(ReduceSeq(fun((p_21, p_22) =>
-                          FunCall(add, p_21,
-                            FunCall(toPrivate(mult),
-                              FunCall(Get(0), p_22),
-                              FunCall(Get(1), p_22))))),
-                      FunCall(idfloat, Value("0.0f", Float)), p_18)))),
-                  FunCall(Split(M * 1 /^ v__2),
-                    FunCall(Gather(ReorderWithStride(v__2)),
-                      FunCall(Zip(2), p_1,
-                        FunCall(Get(0), p_5))))))))))),
-        FunCall(Zip(2), p_0, p_2)))
-
-    val gemvAmdHash = getHash(gemvAmdGold)
-
-    val mapped = MemoryMappingRewrite.lowerLambda(gemvAmd, enabledMappings)
-    assertTrue(mapped.exists(getHash(_) == gemvAmdHash))
-  }
-
-  @Test
   def gemvPartialReduceWithReorderNoRace(): Unit = {
     val gold = fun(ArrayType(ArrayType(Float, M), N), ArrayType(Float, M), ArrayType(Float, N), Float, Float,(p_0, p_1, p_2, p_3, p_4) =>
       FunCall(MapWrg(0)(fun((p_5) =>
