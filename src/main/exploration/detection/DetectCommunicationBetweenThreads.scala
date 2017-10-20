@@ -11,6 +11,7 @@ import rewriting.rules.{CopyRules, Rule}
 object DetectCommunicationBetweenThreads {
 
   def getCommunicationExpr(f: Lambda): Seq[Expr] = {
+    prepareLambda(f)
     val argsWithDataFlow = getCandidatesToCheck(f)
 
     // Filter ones that have ViewAccess("l_id") o Join/Split/etc o ViewMap("l_id")
@@ -23,7 +24,9 @@ object DetectCommunicationBetweenThreads {
     prepareLambda(lambda)
 
     val userFuns = Expr.visitWithState(Seq[FunCall]())(lambda.body, {
-      case (call@FunCall(_: UserFun | _: VectorizeUserFun, _*), seq) => seq :+ call
+      case (call@FunCall(_: UserFun | _: VectorizeUserFun, _*), seq)
+        if !getUserFunName(call.f).startsWith("id") // TODO: Better way to deal with forcing values into a tuple
+      => seq :+ call
       case (_, seq) => seq
     })
 

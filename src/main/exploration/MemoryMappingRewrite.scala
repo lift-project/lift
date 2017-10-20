@@ -317,9 +317,6 @@ object MemoryMappingRewrite {
         import DetectCommunicationBetweenThreads._
         val communicationHere = getCommunicationExpr(lambda)
 
-        TypeChecker(lambda)
-        UpdateContext(lambda)
-
         val implemented = communicationHere.flatMap(location => {
           try {
             Seq(implementCopyOnCommunication(lambda, location, OpenCLRules.localMemory))
@@ -631,7 +628,7 @@ object MemoryMappingRewrite {
     }
   }
 
-  private def applyLoopFusionToTuple(lambda: Lambda): Lambda =
+  private[exploration] def applyLoopFusionToTuple(lambda: Lambda): Lambda =
     Rewrite.applyRuleUntilCannot(lambda, FusionRules.tupleMap)
 
   private[exploration] def addIdsForLocal(lambda: Lambda): Lambda = {
