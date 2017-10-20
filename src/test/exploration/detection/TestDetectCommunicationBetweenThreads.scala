@@ -25,6 +25,22 @@ class TestDetectCommunicationBetweenThreads {
   }
 
   @Test
+  def gesummv(): Unit = {
+    // Communication between threads
+    val f = gesummvPartialReduceWithReorderNoRace
+
+    val communicationHere = getCommunicationExpr(f)
+
+    // TODO: Collapse to one? Both part of the same struct
+    assertEquals(2, communicationHere.length)
+
+    val implemented =
+      communicationHere.map(implementCopyOnCommunication(f, _, OpenCLRules.localMemory))
+
+    implemented.foreach(TypeChecker.apply)
+  }
+
+  @Test
   def introduceReuse(): Unit = {
     val communicationHere = getCommunicationExpr(gemvIntroduceReuse)
     assertEquals(0, communicationHere.length)

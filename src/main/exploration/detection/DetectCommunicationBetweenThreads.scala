@@ -24,15 +24,16 @@ object DetectCommunicationBetweenThreads {
     prepareLambda(lambda)
 
     val userFuns = Expr.visitWithState(Seq[FunCall]())(lambda.body, {
-      case (call@FunCall(_: UserFun | _: VectorizeUserFun, _*), seq)
-        if !getUserFunName(call.f).startsWith("id") // TODO: Better way to deal with forcing values into a tuple
-      => seq :+ call
+      case (call@FunCall(_: UserFun | _: VectorizeUserFun, _*), seq) => seq :+ call
       case (_, seq) => seq
     })
 
     val memVars = userFuns.map(_.mem.variable)
 
-    val varsWithDataFlow = userFuns.map(uf =>
+    val userFunsWoForceToTuple = userFuns.filterNot(call =>
+      getUserFunName(call.f).startsWith("id")) // TODO: Better way to deal with forcing values into a tuple
+
+    val varsWithDataFlow = userFunsWoForceToTuple.map(uf =>
       uf.args.filter(arg =>
         View.getSubViews(arg.view).exists({
           case ViewMem(v, _) if memVars.contains(v) =>
