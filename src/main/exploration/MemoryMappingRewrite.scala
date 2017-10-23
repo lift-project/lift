@@ -204,7 +204,7 @@ object MemoryMappingRewrite {
         })
       )
 
-      if(unroll) {
+      if (unroll) {
         val unrolledReduces = loadBalancedExpressions.filter(
           lambda => lambda.body.contains(
             { case FunCall(ReduceSeq(_), _*) => })).map(lambdaWithReduceSeq => {
@@ -225,6 +225,22 @@ object MemoryMappingRewrite {
     }
   }
 
+  private def dumpToFile(topFolder: String, hash: String, expr: Lambda): Unit = {
+    // Dump to file
+    val str = DumpToFile.dumpLambdaToMethod(expr)
+    val sha256 = DumpToFile.Sha256Hash(str)
+    val folder = s"${topFolder}Lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+
+    if (DumpToFile.dumpToFile(str, sha256, folder)) {
+      // Add to index if it was unique
+      synchronized {
+        val idxFile = new FileWriter(s"${topFolder}Lower/$hash/index", true)
+        idxFile.write(folder + "/" + sha256 + "\n")
+        idxFile.close()
+      }
+    }
+  }
+
   private def moveReduceAndMap(lambda: Lambda, enabledMappings: EnabledMappings): List[Lambda] = {
     if (enabledMappings.group0) {
       val reduceDeeper = Lower.pushReduceDeeper(lambda)
@@ -236,7 +252,48 @@ object MemoryMappingRewrite {
     List()
   }
 
-  def filterIllegals(lambdaSeq: Seq[Lambda], hash: String = ""): Seq[Lambda] = {
+  private def mapAddressSpaces(lambda: Lambda, hash: String): Seq[Lambda] = {
+    try {
+
+      val compositionToPrivate = implementCompositionToPrivate(lambda)
+
+      val localMemory = implementLocalMemory(compositionToPrivate) :+ compositionToPrivate
+
+      val communication = localMemory.flatMap(implementCommunication) ++ localMemory
+
+      val privateMemory = communication.flatMap(implementPrivateMemory) ++ communication
+
+      val vectorised = privateMemory.flatMap(implementVectorisation) ++ privateMemory
+
+      val tupleFusion = vectorised.map(implementLoopFusionForTuple)
+
+      implementIds(tupleFusion)
+
+    } catch {
+      case t: Throwable =>
+        logger.warn(s"Address space mapping for $hash failed.", t)
+        Seq()
+    }
+  }
+
+  private def  mapLoadBalancing(lambda: Lambda, hash: String): Seq[Lambda] = {
+    if (!settings.memoryMappingRewriteSettings.loadBalancing)
+      return Seq(lambda)
+
+    try {
+      val locations =
+        Rewrite.listAllPossibleRewritesForRules(lambda, Seq(OpenCLRules.mapAtomWrg, OpenCLRules.mapAtomLcl))
+
+      val withLoadBalancing = locations.map(pair => Rewrite.applyRuleAt(lambda, pair._2, pair._1))
+      withLoadBalancing :+ lambda
+    } catch {
+      case _: Throwable =>
+        logger.warn(s"Load balancing for $hash failed.")
+        Seq()
+    }
+  }
+
+  private def filterIllegals(lambdaSeq: Seq[Lambda], hash: String = ""): Seq[Lambda] = {
 
     lambdaSeq.filter(lambda =>
       try {
@@ -256,127 +313,58 @@ object MemoryMappingRewrite {
       })
   }
 
-  def dumpToFile(topFolder: String, hash: String, expr: Lambda): Unit = {
-    // Dump to file
-    val str = DumpToFile.dumpLambdaToMethod(expr)
-    val sha256 = DumpToFile.Sha256Hash(str)
-    val folder = s"${topFolder}Lower/$hash/" + sha256.charAt(0) + "/" + sha256.charAt(1)
+  private def implementCompositionToPrivate(lambda: Lambda) =
+    Rewrite.applyRuleUntilCannot(lambda, MacroRules.userFunCompositionToPrivate)
 
-    if (DumpToFile.dumpToFile(str, sha256, folder)) {
-      // Add to index if it was unique
-      synchronized {
-        val idxFile = new FileWriter(s"${topFolder}Lower/$hash/index", true)
-        idxFile.write(folder + "/" + sha256 + "\n")
-        idxFile.close()
-      }
-    }
+  private def implementLocalMemory(f: Lambda) = {
+    val strategicLocationsMarked = addIdsForPrivate(addIdsForLocal(f))
+    implementMemoryWithRule(strategicLocationsMarked, OpenCLRules.localMemory)
   }
 
-  /**
-    * Returns all combinations with at most one load balancing rule applied
-    *
-    * @param lambda The lambda where to apply load balancing.
-    */
-  def  mapLoadBalancing(lambda: Lambda, hash: String): Seq[Lambda] = {
-    if (!settings.memoryMappingRewriteSettings.loadBalancing)
-      return Seq(lambda)
+  private def implementCommunication(lambda: Lambda) = {
+    import DetectCommunicationBetweenThreads._
 
-    try {
-      val locations =
-        Rewrite.listAllPossibleRewritesForRules(lambda, Seq(OpenCLRules.mapAtomWrg, OpenCLRules.mapAtomLcl))
+    val communicationHere = getCommunicationExpr(lambda)
 
-      val withLoadBalancing = locations.map(pair => Rewrite.applyRuleAt(lambda, pair._2, pair._1))
-      withLoadBalancing :+ lambda
-    } catch {
-      case _: Throwable =>
-        logger.warn(s"Load balancing for $hash failed.")
-        Seq()
-    }
+    val implementedLocal =
+      implementCommunicationWithRule(lambda, communicationHere, OpenCLRules.localMemory)
+
+    val implementedGlobal =
+      implementCommunicationWithRule(lambda, communicationHere, OpenCLRules.globalMemory)
+
+    implementedLocal ++ implementedGlobal
   }
 
-  def mapAddressSpaces(lambda: Lambda, hash: String): Seq[Lambda] = {
-    try {
 
-      val compositionToPrivate =
-        Rewrite.applyRuleUntilCannot(lambda, MacroRules.userFunCompositionToPrivate)
-
-      val f = compositionToPrivate
-      val strategicLocationsMarked =
-        MemoryMappingRewrite.addIdsForPrivate(MemoryMappingRewrite.addIdsForLocal(f))
-
-      val localMemCandidates = (DetectReuseWithinThread.getCandidates(strategicLocationsMarked) ++
-        DetectReuseAcrossThreads.getCandidates(strategicLocationsMarked)).
-        distinct.
-        filter(x => OpenCLRules.localMemory.isDefinedAt(x._1))
-
-      val lambdas = ImplementReuse(strategicLocationsMarked, localMemCandidates, OpenCLRules.localMemory)
-
-      val cleanedLambdas = lambdas.map(MemoryMappingRewrite.cleanup) :+ f
-
-      val communication = cleanedLambdas.flatMap(lambda => {
-        import DetectCommunicationBetweenThreads._
-        val communicationHere = getCommunicationExpr(lambda)
-
-        val implemented = communicationHere.flatMap(location => {
-          try {
-            Seq(implementCopyOnCommunication(lambda, location, OpenCLRules.localMemory))
-          } catch {
-            case _: Throwable =>
-              Seq()
-          }
-        })
-
-        val implementedGlobal = communicationHere.flatMap(location => {
-          try {
-            Seq(implementCopyOnCommunication(lambda, location, OpenCLRules.globalMemory))
-          } catch {
-            case _: Throwable =>
-              Seq()
-          }
-        })
-
-        implemented ++ implementedGlobal
-      }) ++ cleanedLambdas
-
-      val cleanedWithPrivate = communication.flatMap(lowered => {
-        val strategicLocationsMarked =
-          MemoryMappingRewrite.addIdsForPrivate(lowered)
-
-        val privateMemCandidates = (DetectReuseWithinThread.getCandidates(strategicLocationsMarked) ++
-          DetectReuseAcrossThreads.getCandidates(strategicLocationsMarked)).
-          distinct.
-          filter(x => OpenCLRules.privateMemory.isDefinedAt(x._1))
-
-        val lambdas = ImplementReuse(strategicLocationsMarked, privateMemCandidates, OpenCLRules.privateMemory)
-
-        lambdas.map(MemoryMappingRewrite.cleanup)
-      }) ++ communication
-
-      // TODO: Only if enabled + don't add duplicates
-      val vectorised = cleanedWithPrivate.map(lambda => {
-
-        val vectorWidth = settings.memoryMappingRewriteSettings.vectorWidth
-
-        val vectorisationRules = Seq(
-          OpenCLRules.vectorize(vectorWidth),
-          OpenCLRules.vectorizeToAddressSpace(vectorWidth)
-        )
-
-        Rewrite.applyRulesUntilCannot(lambda, vectorisationRules)
-      }) ++ cleanedWithPrivate
-
-      val tupleFusion = vectorised.map(applyLoopFusionToTuple)
-
-      implementIds(tupleFusion)
-
-    } catch {
-      case t: Throwable =>
-        logger.warn(s"Address space mapping for $hash failed.", t)
-        Seq()
-    }
+  private def implementPrivateMemory(lowered: Lambda) = {
+    val strategicLocationsMarked = addIdsForPrivate(lowered)
+    implementMemoryWithRule(strategicLocationsMarked, OpenCLRules.privateMemory)
   }
 
-  def implementIds(lambdas: Seq[Lambda]): Seq[Lambda] = {
+  private def implementVectorisation(lambda: Lambda): Option[Lambda] = {
+
+    if (!settings.memoryMappingRewriteSettings.vectorize)
+      return None
+
+    val vectorWidth = settings.memoryMappingRewriteSettings.vectorWidth
+
+    val vectorisationRules = Seq(
+      OpenCLRules.vectorize(vectorWidth),
+      OpenCLRules.vectorizeToAddressSpace(vectorWidth)
+    )
+
+    val possiblyVectorised = Rewrite.applyRulesUntilCannot(lambda, vectorisationRules)
+
+    if (possiblyVectorised.eq(lambda))
+      None
+    else
+      Some(possiblyVectorised)
+  }
+
+  private[exploration] def implementLoopFusionForTuple(lambda: Lambda): Lambda =
+    Rewrite.applyRuleUntilCannot(lambda, FusionRules.tupleMap)
+
+  private def implementIds(lambdas: Seq[Lambda]): Seq[Lambda] = {
 
     var list = List[Lambda]()
 
@@ -392,12 +380,38 @@ object MemoryMappingRewrite {
     list
   }
 
+  private def implementMemoryWithRule(strategicLocationsMarked: Lambda, memory: Rule) = {
+    val reuseCandidates =
+      DetectReuseWithinThread.getCandidates(strategicLocationsMarked) ++
+        DetectReuseAcrossThreads.getCandidates(strategicLocationsMarked)
+
+    val memoryCandidates =
+      reuseCandidates.distinct.filter(x => memory.isDefinedAt(x._1))
+
+    val implementedReuse = ImplementReuse(strategicLocationsMarked, memoryCandidates, memory)
+
+    implementedReuse.map(cleanup)
+  }
+
+  private def implementCommunicationWithRule(lambda: Lambda, communicationHere: Seq[Expr], memory: Rule) = {
+    import DetectCommunicationBetweenThreads._
+    communicationHere.flatMap(location => {
+      try {
+        Seq(implementCopyOnCommunication(lambda, location, memory))
+      } catch {
+        case _: Throwable =>
+          Seq()
+      }
+    })
+  }
+
   private[exploration] def cleanup(lambda: Lambda) = {
 
     val cleanupRules = Seq(
       SimplificationRules.removeEmptyMap,
       SimplificationRules.lambdaInlineParam,
-      SimplificationRules.dropId)
+      SimplificationRules.dropId
+    )
 
     Rewrite.applyRulesUntilCannot(lambda, cleanupRules)
   }
@@ -414,9 +428,6 @@ object MemoryMappingRewrite {
         if(enabled) Some(rule)
         else None
     }).toSeq
-
-    // TODO: Why?
-    assert(enabledRules.nonEmpty)
 
     val firstIds = Rewrite.applyRulesUntilCannot(lambda, enabledRules)
 
@@ -508,20 +519,6 @@ object MemoryMappingRewrite {
 
     lowered
   }
-
-  private[exploration] def applyLoopFusionToTuple(lambda: Lambda): Lambda =
-    Rewrite.applyRuleUntilCannot(lambda, FusionRules.tupleMap)
-
-
-  private[exploration] def getCombinations[T](localIdList: Seq[T], max: Int): Seq[Seq[T]] = {
-    if (localIdList.nonEmpty)
-      (0 to max).map(localIdList.combinations(_).toSeq).reduce(_ ++ _).toArray.toSeq
-    else
-      Seq()
-  }
-
-  private[exploration] def getCombinations[T](localIdList: Seq[T]): Seq[Seq[T]] =
-    getCombinations(localIdList, localIdList.length)
 
 }
 
