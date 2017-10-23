@@ -1,8 +1,8 @@
 package ir.view
 
 import ir.Type.size_t
-import ir.{ArrayTypeWS, _}
 import ir.ast._
+import ir._
 import lift.arithmetic._
 import opencl.generator.OpenCLAST
 import opencl.generator.OpenCLAST.{ArithExpression, Expression, VarRef}
@@ -524,6 +524,7 @@ object View {
       case ViewGeneratorUserFun(_, _) => newAllViews
       case View2DGeneratorUserFun(_, _) => newAllViews
       case View3DGeneratorUserFun(_, _) => newAllViews
+      case unknownView :_ => throw new IllegalArgumentException(s"Unknown view: $unknownView")
     }
   }
 
