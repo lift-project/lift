@@ -303,10 +303,10 @@ class MappingMm {
                                   FunCall(MapLcl(1)(fun((p_30) =>
                                     FunCall(Tuple(2),
                                       FunCall(MapLcl(0)(fun((p_31) =>
-                                        FunCall(toLocal(idfloat), p_31))),
+                                        FunCall(toLocal(VectorizeUserFun(4, idfloat)), p_31))),
                                         FunCall(Get(0), p_30)),
                                       FunCall(MapLcl(0)(fun((p_32) =>
-                                        FunCall(toLocal(idfloat), p_32))),
+                                        FunCall(toLocal(VectorizeUserFun(4, idfloat)), p_32))),
                                         FunCall(Get(1), p_30))))),
                                     FunCall(Zip(2),
                                       FunCall(Get(0), p_15),

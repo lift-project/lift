@@ -210,6 +210,32 @@ object OpenCLRules {
         asScalar() o Map(VectorizeUserFun(n, uf)) o asVector(n) $ arg
     })
 
+
+  val vectorizeToAddressSpace: Rule = vectorizeToAddressSpace(?)
+
+  // TODO: Remove duplicatoin
+  def vectorizeToAddressSpace(vectorWidth: ArithExpr): Rule =
+    Rule("Map(uf) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
+      case FunCall(Map(Lambda(p, FunCall(toGlobal(Lambda(Array(p2), FunCall(uf: UserFun, ufArg))), a))), arg)
+        if (p.head eq a) && p2.eq(ufArg) && !ufArg.t.isInstanceOf[VectorType] && !ufArg.t.isInstanceOf[TupleType]
+      =>
+        // TODO: force the width to be less than the array length
+        val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
+        asScalar() o Map(toGlobal(VectorizeUserFun(n, uf))) o asVector(n) $ arg
+      case FunCall(Map(Lambda(p, FunCall(toLocal(Lambda(Array(p2), FunCall(uf: UserFun, ufArg))), a))), arg)
+        if (p.head eq a) && p2.eq(ufArg) && !ufArg.t.isInstanceOf[VectorType] && !ufArg.t.isInstanceOf[TupleType]
+      =>
+        // TODO: force the width to be less than the array length
+        val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
+        asScalar() o Map(toLocal(VectorizeUserFun(n, uf))) o asVector(n) $ arg
+      case FunCall(Map(Lambda(p, FunCall(toPrivate(Lambda(Array(p2), FunCall(uf: UserFun, ufArg))), a))), arg)
+        if (p.head eq a) && p2.eq(ufArg) && !ufArg.t.isInstanceOf[VectorType] && !ufArg.t.isInstanceOf[TupleType]
+      =>
+        // TODO: force the width to be less than the array length
+        val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
+        asScalar() o Map(toPrivate(VectorizeUserFun(n, uf))) o asVector(n) $ arg
+    })
+
   def vectorizeMapZip(vectorWidth: ArithExpr): Rule =
     Rule("Map(uf) $ Zip(a, b) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
       case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArgs@_*))), FunCall(Zip(_), zipArgs@_*))

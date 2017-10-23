@@ -364,7 +364,7 @@ object Lower {
   }
 
   private def getLastWrite(lambda: Lambda) =
-    Utils.findExpressionForPattern(lambda, { case FunCall(_:UserFun, _*) => } : PartialFunction[Expr, Unit])
+    Utils.findExpressionForPattern(lambda, { case FunCall(_:UserFun | _:VectorizeUserFun, _*) => } : PartialFunction[Expr, Unit])
 
   def lowerPartialReduces(lambda: Lambda): Lambda =
     Rewrite.applyRuleUntilCannot(lambda, ReduceRules.partialReduceToReduce)
