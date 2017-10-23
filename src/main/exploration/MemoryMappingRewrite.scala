@@ -352,7 +352,20 @@ object MemoryMappingRewrite {
         lambdas.map(MemoryMappingRewrite.cleanup)
       }) ++ communication
 
-      val tupleFusion = cleanedWithPrivate.map(applyLoopFusionToTuple)
+      // TODO: Only if enabled + don't add duplicates
+      val vectorised = cleanedWithPrivate.map(lambda => {
+
+        val vectorWidth = settings.memoryMappingRewriteSettings.vectorWidth
+
+        val vectorisationRules = Seq(
+          OpenCLRules.vectorize(vectorWidth),
+          OpenCLRules.vectorizeToAddressSpace(vectorWidth)
+        )
+
+        Rewrite.applyRulesUntilCannot(lambda, vectorisationRules)
+      }) ++ cleanedWithPrivate
+
+      val tupleFusion = vectorised.map(applyLoopFusionToTuple)
 
       implementIds(tupleFusion)
 
