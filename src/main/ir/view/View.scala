@@ -524,7 +524,7 @@ object View {
       case ViewGeneratorUserFun(_, _) => newAllViews
       case View2DGeneratorUserFun(_, _) => newAllViews
       case View3DGeneratorUserFun(_, _) => newAllViews
-      case unknownView :_ => throw new IllegalArgumentException(s"Unknown view: $unknownView")
+      case unknownView => throw new IllegalArgumentException(s"Unknown view: $unknownView")
     }
   }
 
