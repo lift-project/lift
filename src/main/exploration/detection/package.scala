@@ -2,11 +2,12 @@ package exploration
 
 import ir._
 import ir.ast._
-import ir.view.{NoView, View}
+import ir.view.{NoView, View, ViewMem}
 import lift.arithmetic._
 import opencl.generator.{NDRange, RangesAndCounts}
 import opencl.ir._
 import opencl.ir.pattern._
+import opencl.ir.OpenCLMemory.getAllMemoryVars
 import rewriting.{EnabledMappings, Lower}
 
 package object detection {
@@ -40,6 +41,47 @@ package object detection {
       case uf: UserFun => uf.name
       case vuf: VectorizeUserFun => vuf.userFun.name
       case _ => throw new IllegalArgumentException(decl.toString)
+    }
+  }
+
+  def isTuple(expr: Expr): Boolean =
+    expr match {
+      case FunCall(Tuple(_), _*) => true
+      case _ => false
+    }
+
+  def getArgumentsAtSuitableLevel(f: Lambda, testNesting: FunCall => Boolean): Seq[Expr] = {
+    prepareLambda(f)
+
+    Expr.visitWithState(Seq[Expr]())(f.body, {
+      case (call@FunCall(_: UserFun | _: VectorizeUserFun, args@_*), seq)
+        if testNesting(call) && !args.exists(isTuple) // Can't emit the view for Tuple
+
+      => seq ++ args
+      case (_, seq) => seq
+    }).distinct.diff(f.params).filter({
+      case FunCall(_: UserFun | _: VectorizeUserFun, _*) => false
+      case _: Value => false // TODO: A copy will have been made here
+      case _ => true
+    })
+  }
+
+  def getLocationsForCopy(lambda: Lambda, reuseExpr: Expr, testContext: FunCall => Boolean): Seq[(Expr, Var)] = {
+    val sourceView = View.getSubViews(reuseExpr.view).last
+    sourceView match {
+      case ViewMem(sourceVar, _) =>
+
+        // Find which "strategic" Id location(s) would copy the required variable and is suitable for local memory
+        // TODO: Doesn't work for all reuse... Does it matter? Still gets what we care about
+        Expr.visitWithState(Seq[(Expr, Var)]())(lambda.body, {
+          case (funCall@FunCall(Id(), _*), seq)
+            if getAllMemoryVars(funCall.mem).contains(sourceVar) && testContext(funCall)
+          =>
+            seq :+ (funCall, sourceVar)
+          case (_, seq) => seq
+        })
+
+      case _ => Seq()
     }
   }
 

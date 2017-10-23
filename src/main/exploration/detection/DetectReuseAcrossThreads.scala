@@ -4,7 +4,6 @@ import exploration.MemoryMappingRewrite
 import ir.ast._
 import ir.view._
 import lift.arithmetic._
-import opencl.ir.OpenCLMemory.getAllMemoryVars
 
 object DetectReuseAcrossThreads {
 
@@ -15,52 +14,30 @@ object DetectReuseAcrossThreads {
 
   def getCandidates(strategicLocationsMarked: Lambda): Seq[(Expr, Var)] = {
     val reuseCandidates = getReuseCandidates(strategicLocationsMarked)
-    val tryHere = reuseCandidates.flatMap(getLocalMemoryCandidates(strategicLocationsMarked, _))
+    val tryHere = reuseCandidates.flatMap(getLocationForCopyAcrossThreads(strategicLocationsMarked, _))
     tryHere
   }
 
   private def getReuseCandidates(f: Lambda) = {
     val numDimensions = getNumDimensions(f)
 
-    prepareLambda(f)
+    def testNesting(call: FunCall) =
+      call.context.inMapWrg.count(b => b) == numDimensions
 
-    val args = Expr.visitWithState(Seq[Expr]())(f.body, {
-      case (call@FunCall(_: UserFun | _: VectorizeUserFun, args@_*), seq)
-        if !getUserFunName(call.f).startsWith("id") && // TODO: Better way to deal with forcing values into a tuple
-          call.context.inMapWrg.count(b => b) == numDimensions
-      => seq ++ args
-      case (_, seq) => seq
-    }).distinct.diff(f.params).filter({
-      case FunCall(_: UserFun | _: VectorizeUserFun, _*) => false
-      case _: Value => false  // TODO: A copy will have been made here
-      case _ => true
-    })
+    val args = getArgumentsAtSuitableLevel(f, testNesting)
 
     args.filterNot(getNumberOfLocalAccesses(_) >= numDimensions)
   }
 
-  private def getLocalMemoryCandidates(strategicLocationsMarked: Lambda, reuseExpr: Expr) = {
-    val sourceView = View.getSubViews(reuseExpr.view).last
+  private def getLocationForCopyAcrossThreads(lambda: Lambda, reuseExpr: Expr) = {
 
-    sourceView match {
-      case ViewMem(sourceVar, _) =>
+    val numDimension = getNumDimensions(lambda)
 
-        val numDimension = getNumDimensions(strategicLocationsMarked)
+    def testContext(funCall: FunCall) =
+      !funCall.context.inMapLcl.reduce(_ || _) &&
+        funCall.context.inMapWrg.count(b => b) == numDimension
 
-        // Find which "strategic" Id location(s) would copy the required variable and is suitable for local memory
-        // TODO: Doesn't work for all reuse... Does it matter? Still gets what we care about
-        Expr.visitWithState(Seq[(Expr, Var)]())(strategicLocationsMarked.body, {
-          case (funCall@FunCall(Id(), _*), seq)
-            if getAllMemoryVars(funCall.mem).contains(sourceVar) &&
-              !funCall.context.inMapLcl.reduce(_ || _) &&
-              funCall.context.inMapWrg.count(b => b) == numDimension
-          =>
-            seq :+ (funCall, sourceVar)
-          case (_, seq) => seq
-        })
-
-      case _ => Seq()
-    }
+    getLocationsForCopy(lambda, reuseExpr, testContext)
   }
 
   private def getNumberOfLocalAccesses(expr: Expr) = {
