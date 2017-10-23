@@ -1,6 +1,5 @@
 package exploration.detection
 
-import exploration.MemoryMappingRewrite
 import ir.TypeChecker
 import ir.ast._
 import lift.arithmetic._
@@ -20,7 +19,7 @@ object ImplementReuse {
     val allVariables = varToLocation.keys.toSeq
 
     val varCombinations =
-      MemoryMappingRewrite.getCombinations(allVariables).filterNot(_.isEmpty)
+      getCombinations(allVariables).filterNot(_.isEmpty)
 
     varCombinations.flatMap(combination => {
 
@@ -37,6 +36,16 @@ object ImplementReuse {
       optionsForVariableCombination
     })
   }
+
+  private[exploration] def getCombinations[T](localIdList: Seq[T], max: Int): Seq[Seq[T]] = {
+    if (localIdList.nonEmpty)
+      (0 to max).map(localIdList.combinations(_).toSeq).reduce(_ ++ _).toArray.toSeq
+    else
+      Seq()
+  }
+
+  private[exploration] def getCombinations[T](localIdList: Seq[T]): Seq[Seq[T]] =
+    getCombinations(localIdList, localIdList.length)
 
   def implementCombination(f: Lambda, combination: Seq[(Expr, Var)], rule: Rule): Lambda = {
 
