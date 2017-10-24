@@ -23,14 +23,13 @@ class MappingGemv {
       FunCall(MapWrg(0)(fun((p_5) =>
         FunCall(Join(),
           FunCall(MapLcl(0)(fun((p_6) =>
-            FunCall(toGlobal(fun((p_7) =>
               FunCall(MapSeq(fun((p_8) =>
-                FunCall(add,
+                FunCall(toGlobal(add),
                   FunCall(toPrivate(fun((p_9, p_10) =>
                     FunCall(mult, p_9, p_10))), p_8, p_3),
                   FunCall(toPrivate(fun((p_11, p_12) =>
                     FunCall(mult, p_11, p_12))),
-                    FunCall(Get(1), p_5), p_4)))), p_7))),
+                    FunCall(Get(1), p_5), p_4)))),
               FunCall(ReduceSeq(fun((p_13, p_14) =>
                 FunCall(add, p_13, p_14))),
                 FunCall(idfloat, Value("0.0f", Float)), p_6)))),
@@ -112,16 +111,15 @@ class MappingGemv {
         FunCall(MapWrg(0)(fun((p_5) =>
           FunCall(TransposeW(),
             FunCall(MapSeq(fun((p_6) =>
-              FunCall(toGlobal(fun((p_7) =>
                 FunCall(MapLcl(0)(fun((p_8) =>
-                  FunCall(add,
+                  FunCall(toGlobal(add),
                     FunCall(toPrivate(fun((p_9, p_10) =>
                       FunCall(mult, p_9, p_10))),
                       FunCall(Get(1), p_8), p_3),
                     FunCall(toPrivate(fun((p_11, p_12) =>
                       FunCall(mult, p_11, p_12))),
                       FunCall(Get(1),
-                        FunCall(Get(0), p_8)), p_4)))), p_7))),
+                        FunCall(Get(0), p_8)), p_4)))),
                 FunCall(Zip(2), p_5, p_6)))),
               FunCall(ReduceSeq(fun((p_13, p_14) =>
                 FunCall(fun((p_15) =>

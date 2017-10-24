@@ -54,9 +54,8 @@ class TestMemoryMappingRewrite {
     val kmeansGold = fun(ArrayTypeWSWC(ArrayTypeWSWC(Float, v_P_0), v_F_1), ArrayTypeWSWC(ArrayTypeWSWC(Float, v_F_1), v_C_2),(p_0, p_1) =>
       FunCall(MapGlb(0)(fun((p_2) =>
         FunCall(MapSeq(fun((p_3) =>
-          FunCall(toGlobal(fun((p_4) =>
             FunCall(MapSeq(fun((p_5) =>
-              FunCall(select_, p_5))), p_4))), p_3))),
+              FunCall(toGlobal(select_), p_5))), p_3))),
           FunCall(ReduceSeq(fun((p_6, p_7) =>
                 FunCall(MapSeq(fun((p_10) =>
                   FunCall(test,

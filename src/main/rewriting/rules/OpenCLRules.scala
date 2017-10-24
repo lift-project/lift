@@ -156,6 +156,8 @@ object OpenCLRules {
       toGlobal(f) $ arg
     case FunCall(uf: UserFun, args@_*) =>
       toGlobal(uf)(args:_*)
+    case FunCall(uf: VectorizeUserFun, args@_*) =>
+      toGlobal(uf)(args:_*)
   })
 
   /* OpenCL builtins */

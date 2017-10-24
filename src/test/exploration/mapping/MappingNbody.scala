@@ -88,14 +88,13 @@ class MappingNbody {
         FunCall(MapWrg(0)(fun((p_4) =>
           FunCall(TransposeW(),
             FunCall(MapSeq(fun((p_5) =>
-              FunCall(toGlobal(fun((p_6) =>
                 FunCall(MapLcl(0)(fun((p_7) =>
-                  FunCall(update,
+                  FunCall(toGlobal(update),
                     FunCall(Get(0),
                       FunCall(Get(0), p_7)),
                     FunCall(Get(1),
                       FunCall(Get(0), p_7)), p_3,
-                    FunCall(Get(1), p_7)))), p_6))),
+                    FunCall(Get(1), p_7)))),
                 FunCall(Zip(2), p_4, p_5)))),
               FunCall(ReduceSeq(fun((p_8, p_9) =>
                 FunCall(fun((p_10) =>
@@ -153,11 +152,10 @@ class MappingNbody {
       FunCall(MapWrg(0)(fun((p_4) =>
         FunCall(Join(),
           FunCall(MapLcl(0)(fun((p_5) =>
-            FunCall(toGlobal(fun((p_6) =>
               FunCall(MapSeq(fun((p_7) =>
-                FunCall(update,
+                FunCall(toGlobal(update),
                   FunCall(Get(0), p_4),
-                  FunCall(Get(1), p_4), p_3, p_7))), p_6))),
+                  FunCall(Get(1), p_4), p_3, p_7))),
               FunCall(ReduceSeq(fun((p_8, p_9) =>
                 FunCall(VectorizeUserFun(Cst(4),add), p_8, p_9))),
                 FunCall(idfloat4, Value("0.0f", VectorType(Float, 4))), p_5)))),
