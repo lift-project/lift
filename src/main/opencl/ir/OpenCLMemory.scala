@@ -4,8 +4,6 @@ import arithmetic.TypeVar
 import ir._
 import ir.ast._
 import lift.arithmetic._
-import opencl.ir.pattern._
-
 
 private class MemoryAllocationException(msg: String)
   extends IllegalArgumentException(msg)

@@ -5,8 +5,9 @@ import ir._
 import ir.ast._
 import opencl.executor.LongTestsEnabled
 import opencl.ir._
+import opencl.ir.ast._
 import opencl.ir.pattern.ReduceSeq
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Ignore, Test}
 import rewriting.rules.Rule
 
 object AlgorithmicMmNT {
@@ -52,6 +53,13 @@ class AlgorithmicMmNT {
 
     checkExists(partiallyVectorisedTiledGold, rewrittenLambdas)
     checkDistance(partiallyVectorisedTiledGold)
+  }
+
+  @Ignore
+  @Test
+  def partiallyVectorisedTiledDot(): Unit = {
+    val tiledDotGold = fun(ArrayType(ArrayType(Float, K), M), ArrayType(ArrayType(Float, K), N),(p_0, p_1) => FunCall(Join(), FunCall(Map(fun((p_2) => FunCall(TransposeW(), FunCall(Join(), FunCall(Map(fun((p_3) => FunCall(TransposeW(), FunCall(Map(fun((p_4) => FunCall(TransposeW(), p_4))), FunCall(TransposeW(), FunCall(ReduceSeq(fun((p_5, p_6) => FunCall(Map(fun((p_7) => FunCall(Join(), FunCall(Map(fun((p_8) => FunCall(Reduce(fun((p_9, p_10) => FunCall(add, p_9, p_10))), FunCall(Get(0), p_8), FunCall(Map(fun((p_11) => FunCall(dot, FunCall(Get(0), p_11), FunCall(Get(1), p_11)))), FunCall(Zip(2), FunCall(asVector(4), FunCall(Get(1), p_7)), FunCall(asVector(4), FunCall(Get(1), p_8))))))), FunCall(Zip(2), FunCall(Get(0), p_7), FunCall(Transpose(), FunCall(Get(1), p_6))))))), FunCall(Zip(2), p_5, FunCall(Transpose(), FunCall(Get(0), p_6)))))), Value("0.0f", ArrayType(ArrayType(Float, v__4), v__3)), FunCall(Zip(2), FunCall(Split(v__5), FunCall(Transpose(), p_2)), FunCall(Split(v__5), FunCall(Transpose(), p_3))))))))), FunCall(Split(v__4), p_1)))))), FunCall(Split(v__3), p_0))))
+    // TODO: dot will need to be applied either after simplification or before/after memory mapping
   }
 
 }
