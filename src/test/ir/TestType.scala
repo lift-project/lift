@@ -33,4 +33,22 @@ class TestType {
     assertNotEquals(t1, ArrayTypeWSWC(ArrayTypeWS(Float, 32), 32))
     assertNotEquals(t1, ArrayTypeWSWC(ArrayTypeWC(Float, 32), 32))
   }
+
+  @Test
+  def tupleAlignment(): Unit = {
+    val tests = Seq(
+      (TupleType(Float4, Float4), (16, 2)),
+      (TupleType(Bool, Float4), (16, 2)),
+      (TupleType(Int, TupleType(Bool, Float)), (4, 3)),
+      (TupleType(Float, TupleType(Float2, Int)), (8, 3)),
+      (TupleType(TupleType(Bool, Bool), TupleType(Int2, Bool)), (8, 4))
+    )
+
+    tests.foreach({
+      case (tt, (expectedBaseSize, expectedNb)) =>
+        val (baseSize, nb) = tt.alignment
+        assertEquals(s"Base size of $tt", expectedBaseSize, baseSize.eval)
+        assertEquals(s"Nb of $tt", expectedNb, nb.eval)
+    })
+  }
 }

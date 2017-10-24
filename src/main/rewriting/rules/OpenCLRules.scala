@@ -154,6 +154,8 @@ object OpenCLRules {
   val globalMemory = Rule("Map(f) => toGlobal(Map(f))", {
     case FunCall(f: AbstractMap, arg) =>
       toGlobal(f) $ arg
+    case FunCall(uf: UserFun, args@_*) =>
+      toGlobal(uf)(args:_*)
   })
 
   /* OpenCL builtins */

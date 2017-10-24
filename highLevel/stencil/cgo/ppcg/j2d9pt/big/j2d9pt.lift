@@ -28,10 +28,10 @@ def f = UserFun("jacobi", Array("NW","N","NE","W","C","E","SW","S","SE"),
         west, center, east,
         southWest, south, southEast) = moore9pt(nbh)
 
-      toGlobal(id) o toPrivate(λ(x =>
+      λ(x =>
         f(x, north, northEast,
           west, center, east,
-          southWest, south, southEast))) $ northWest
+          southWest, south, southEast)) $ northWest
 
     }))) o Slide2D(3, 1) $ input
   })

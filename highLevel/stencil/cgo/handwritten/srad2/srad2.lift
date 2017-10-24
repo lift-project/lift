@@ -37,9 +37,8 @@ fun(
             val orgDW = Get(m, 5)
 
             val div = toPrivate(fun(x => calculateDiv(x, newDS, newDW, newDE, orgDN, orgDS, orgDW, orgDE))) $ newDN
-            val newImg = toPrivate(fun(x => calculateImageUpdate(x, div))) $ imageC
+            fun(x => calculateImageUpdate(x, div)) $ imageC
 
-            toGlobal(id) $ newImg
         }))
         ) $ zip2d6(Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ image, Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ coeff, DN, DS, DE, DW)
     }

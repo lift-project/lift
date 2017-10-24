@@ -65,7 +65,7 @@ fun(
         val right = tuple._0.at(1).at(2)
         val center = tuple._0.at(1).at(1)
 
-        toGlobal(id) o toPrivate(fun(x => hotspot(x, top, bottom, left, right, center))) $ powerValue
+        fun(x => hotspot(x, top, bottom, left, right, center)) $ powerValue
     }))) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(
         Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ heat,
         power)
