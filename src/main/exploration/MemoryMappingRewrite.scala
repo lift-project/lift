@@ -245,8 +245,14 @@ object MemoryMappingRewrite {
     if (enabledMappings.group0) {
       val reduceDeeper = Lower.pushReduceDeeper(lambda)
 
+      val enabledMappings = EnabledMappings(
+        global0 = false, global01 = true, global10 = false,
+        global012 = false, global210 = false,
+        group0 = true, group01 = false, group10 = false
+      )
+
       if (getHash(lambda) != getHash(reduceDeeper))
-        return Lower.mapCombinations(reduceDeeper)
+        return Lower.mapCombinations(reduceDeeper, enabledMappings)
     }
 
     List()
@@ -334,7 +340,6 @@ object MemoryMappingRewrite {
 
     implementedLocal ++ implementedGlobal
   }
-
 
   private def implementPrivateMemory(lowered: Lambda) = {
     val strategicLocationsMarked = addIdsForPrivate(lowered)
@@ -521,4 +526,3 @@ object MemoryMappingRewrite {
   }
 
 }
-
