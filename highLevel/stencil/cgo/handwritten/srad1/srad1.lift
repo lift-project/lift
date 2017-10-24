@@ -26,8 +26,7 @@ fun(
     	val DN = toPrivate(fun(x => subtract(x,Jc))) $ JN
     	val DS = toPrivate(fun(x => subtract(x,Jc))) $ JS
     	val DE = toPrivate(fun(x => subtract(x,Jc))) $ JE
-    	val scoeff = toPrivate(fun( x => calculateScoeff(x, DS, DE, DW, Jc, q0sqr))) $ DN
-    	toGlobal(id) $ scoeff
+    	fun( x => calculateScoeff(x, DS, DE, DW, Jc, q0sqr)) $ DN
     }))
 	) o Slide2D(3,1) o Pad2D(1,1,Pad.Boundary.Clamp) $ image
 })

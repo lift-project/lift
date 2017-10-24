@@ -338,12 +338,8 @@ object MemoryMappingRewrite {
       Context.updateContext(f.body)
       val res = Expr.visitLeftToRight(List[Expr]())(f.body, (e, s) => {
         e match {
-          case FunCall(toGlobal(Lambda(_, FunCall(m: AbstractMap, _))), _) =>
-            m.f.body match {
-              case FunCall(_: UserFun, args@_*) =>
-                args.collect({ case call@FunCall(_: UserFun, _*) => call }).toList ++ s
-              case _ => s
-            }
+          case FunCall(toGlobal(Lambda(_, FunCall(_: UserFun, _*))), args@_*) =>
+            args.collect({ case call@FunCall(_: UserFun, _*) => call }).toList ++ s
           case _ => s
         }
       }).filter(OpenCLRules.localMemory.isDefinedAt)

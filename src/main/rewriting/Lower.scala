@@ -289,7 +289,7 @@ object Lower {
 
     lastMap match {
       case None => logger.warn("No last map found. Possibly using at-notation? Assume last write uses toGlobal"); lambda
-      case _ => Rewrite.applyRuleAt(lambda, lastMap.get, OpenCLRules.globalMemory)
+      case _ => Rewrite.applyRuleAt(lambda, lastWrite, OpenCLRules.globalMemory)
     }
   }
 
