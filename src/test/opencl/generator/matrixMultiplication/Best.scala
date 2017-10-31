@@ -167,7 +167,6 @@ class Best {
         )) $ A
       })
 
-    // Derived. TODO: Actual one contains some empty MapSeqs.
     // High-level da55a60496191590d618057cadfe6d18b409f8b76cd31753123701e465a8ea4d
     // Low-level 330f47d76e559e4f466c49cde9d7bd9438b370f8cd032e22f20ee156db54bd9a
     val fd = fun(
@@ -297,7 +296,6 @@ class Best {
       }
     )
 
-    // Derived. TODO: Actual one contains some empty MapSeqs.
     // High-level 7352181db558ca218caa8723936a115f8e30dd4e69a2686e11d5a0255bf5d8a4
     // Low-level 72ef373f103c33cf9c79741a95fdd9d15d605f757529151844690d685c173c19
     val fd = fun(
