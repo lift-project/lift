@@ -137,7 +137,7 @@ class TestMemory {
     val N = SizeVar("N")
 
     testAlloc(ArrayTypeWSWC(TupleType(Int, Bool), N), 8 * N)
-    testAlloc(ArrayTypeWC(TupleType(Float4, Float), N), 20 + N * 5 * 4)
+    testAlloc(ArrayTypeWC(TupleType(Float4, Float), N), 8 * 4 + N * 8 * 4)
     testAlloc(ArrayTypeWSWC(ArrayTypeWC(TupleType(Double, TupleType(Bool, Bool)), M), N), N * (3 * 8 + M * (3 * 8)))
   }
 }

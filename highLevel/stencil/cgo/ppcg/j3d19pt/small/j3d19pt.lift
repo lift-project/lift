@@ -40,8 +40,8 @@ def jacobi = UserFun("jacobi", Array("FNW", "FNE", "FSW", "FSE",
       val bsw = nbh.at(2).at(2).at(0)
       val bse = nbh.at(2).at(2).at(2)
 
-      toGlobal(id) o toPrivate(λ(x =>
-        jacobi(x, fne, fsw, fse, nw, n, ne, w, c, e, sw, s, se, bnw, bne, bsw, bse))) $ fnw
+      λ(x =>
+        jacobi(x, fne, fsw, fse, nw, n, ne, w, c, e, sw, s, se, bnw, bne, bsw, bse)) $ fnw
 
     })))) o Slide3D(3, 1) $ input
   })

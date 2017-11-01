@@ -31,8 +31,8 @@ def jacobi = UserFun("jacobi", Array("C", "N", "S", "E", "W", "F", "B"),
 
       val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
 
-      toGlobal(id) o toPrivate(λ(x =>
-        jacobi(x, n, s, e, w, f, b))) $ c
+      λ(x =>
+        jacobi(x, n, s, e, w, f, b)) $ c
 
     })))) o Slide3D(3, 1) $ input
   })

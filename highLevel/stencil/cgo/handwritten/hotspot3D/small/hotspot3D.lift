@@ -46,8 +46,7 @@ fun(
           val pInc = Get(m, 0)
           val pcSDC = toPrivate(fun(x => mult(x, stepDivCap))) $ pInc
 
-          toGlobal(id) o
-            toPrivate(fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp))) $ tInC
+          fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp)) $ tInC
         })))
         ) $ Zip3D(power, Slide3D(3,1) o Pad3D(1, 1, 1, Pad.Boundary.Clamp) $ temp)
       })

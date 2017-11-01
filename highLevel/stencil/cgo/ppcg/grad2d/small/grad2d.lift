@@ -26,8 +26,8 @@ def grad = UserFun("grad", Array("top", "bottom", "left", "right", "center"),
 
       val (top, bottom, left, right, center) = vonNeumann5pt(nbh)
 
-      toGlobal(id) o toPrivate(λ(x =>
-        grad(x, bottom, left, right, center))) $ top
+      λ(x =>
+        grad(x, bottom, left, right, center)) $ top
 
     }))) o Slide2D(3, 1) $ input
   })
