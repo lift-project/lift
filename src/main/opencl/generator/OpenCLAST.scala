@@ -181,6 +181,21 @@ object OpenCLAST {
     */
   case class ArithExpression(var content: ArithExpr) extends Expression
 
+  case class BinaryExpression(lhs: Expression, rhs: Expression, op: BinaryExpression.Operator.Operator)
+    extends Expression
+
+  object BinaryExpression {
+
+    object Operator extends Enumeration {
+      type Operator = Value
+      val + = Value("+")
+      val - = Value("-")
+      val * = Value("*")
+      val / = Value("/")
+      val % = Value("%")
+    }
+  }
+
   case class CondExpression(lhs: Expression, rhs: Expression, cond: CondExpression.Operator.Operator) extends Expression
 
   object CondExpression {
@@ -268,6 +283,9 @@ object OpenCLAST {
       case c: CondExpression =>
         visitExpressionsInNode(c.lhs)
         visitExpressionsInNode(c.rhs)
+      case BinaryExpression(lhs, rhs, _) =>
+        visitExpressionsInNode(lhs)
+        visitExpressionsInNode(rhs)
       case f: FunctionCall =>
         f.args.foreach(visitExpressionsInNode)
       case l: Load =>
