@@ -184,7 +184,7 @@ class SaveOpenCL(
     })
   }
 
-  def statsHeader =
+  def statsHeader: String =
     "hash," +
     "globalSize0,globalSize1,globalSize2,localSize0,localSize1,localSize2," +
     "globalMemory,localMemory,privateMemory," +
@@ -208,12 +208,16 @@ class SaveOpenCL(
 
     inputCombinations.foreach(sizes => {
 
-      val string = getStatsString(lambda, hash, sizes)
+      val (stats, userfunCounts) = getStatsString(lambda, hash, sizes)
       val sizeId = getSizeId(sizes)
 
-      val fileWriter = new FileWriter(s"$path/stats_$sizeId.csv", true)
-      fileWriter.write(string)
-      fileWriter.close()
+      val statsWriter = new FileWriter(s"$path/stats_$sizeId.csv", true)
+      statsWriter.write(stats)
+      statsWriter.close()
+
+      val userFunWriter = new FileWriter(s"$path/userfuns_$sizeId.csv", true)
+      userFunWriter.write(userfunCounts)
+      userFunWriter.close()
     })
   }
 
@@ -226,7 +230,7 @@ class SaveOpenCL(
     sizeId
   }
 
-  def getStatsString(lambda: Lambda, hash: String, sizes: Seq[ArithExpr]): String = {
+  def getStatsString(lambda: Lambda, hash: String, sizes: Seq[ArithExpr]): (String, String) = {
 
     val exact = true
     val inputVarMapping: Map[ArithExpr, ArithExpr] = (sizeArgs, sizes).zipped.toMap
@@ -329,6 +333,14 @@ class SaveOpenCL(
     val opCount =
       addScalarCount + multScalarCount + addVecCount + multVecCount + dotCount
 
+    val allFunctions = functionCounts.getFunctions
+
+    val allUserFunctionCounts = allFunctions.map(function => {
+      val count = functionCounts.getFunctionCount(function, exact).evalDouble
+      val vectorisedCount = functionCounts.getVectorisedCount(function, exact).evalDouble
+      s"$function,$count,$vectorisedCount"
+    }).mkString(", ")
+
     val string =
       s"$hash,${globalSizes.toString},${localSizes.toString}," +
         s"$globalMemory,$localMemory,$privateMemory," +
@@ -349,7 +361,7 @@ class SaveOpenCL(
         s"$addScalarCount,$multScalarCount," +
         s"$addVecCount,$multVecCount,$addMult,$vecAddMult,$dotCount,$opCount\n"
 
-    string
+    (string, allUserFunctionCounts)
   }
 
 }
