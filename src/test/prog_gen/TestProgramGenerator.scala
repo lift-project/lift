@@ -14,8 +14,8 @@ import scala.language.reflectiveCalls
 
 object TestProgramGenerator extends TestWithExecutor {
 
-  var generator: ProgramGenerator = _
-  var generatedPrograms = Array[Lambda]()
+  private var generator: ProgramGenerator = _
+  private var generatedPrograms = Array[Lambda]()
 
   @BeforeClass
   override def before(): Unit = {
@@ -25,6 +25,12 @@ object TestProgramGenerator extends TestWithExecutor {
     // TODO: No randomness and less iterations for testing?
     if (LongTestsEnabled.areEnabled)
       generatedPrograms = generator.generatePrograms()
+  }
+
+  @AfterClass
+  override def after(): Unit = {
+    generatedPrograms = Array()
+    super.after()
   }
 
 }

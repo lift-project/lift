@@ -4,7 +4,7 @@ val K = SizeVar("K")
 
 fun(
   ArrayType(ArrayType(Float, M), K),
-  ArrayType(ArrayType(Float, N), K),
+  ArrayType(ArrayType(Float, K), N),
   (A, B) => {
     Map(fun(aRow =>
       Map(fun(bCol =>

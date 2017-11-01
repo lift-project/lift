@@ -189,6 +189,19 @@ object SimplificationRules {
       Expr.replace(tempExpr, tempParam, finalArg)
   })
 
+  val lambdaInlineParam = Rule("lambdaInlineParam", {
+    case FunCall(Lambda(Array(x), b), p: Param) =>
+
+      val finalArg = Utils.getFinalArg(p)
+      val inlined = Expr.replace(b, x, p)
+
+      // Some trickery to make sure all FunCalls are rebuilt and
+      // the same object doesn't appear twice
+      val tempParam = Param()
+      val tempExpr = Expr.replace(inlined, finalArg, tempParam)
+      Expr.replace(tempExpr, tempParam, finalArg)
+  })
+
   val tupleInline = Rule("tupleInline", {
     case FunCall(Lambda(params, body), args@_*)
       if {

@@ -96,9 +96,16 @@ object CopyRules {
       map o Id() $ arg
   })
 
+  val addIdBeforeMapSeq = Rule("MapSeq(f) => MapSeq(f) o Id()", {
+    case call@FunCall(map: MapSeq, arg)
+      if !isId(arg) && (call.context.inMapLcl.reduce(_ || _) || call.context.inMapGlb.reduce(_ || _))
+    =>
+      map o Id() $ arg
+  })
+
   val addIdForCurrentValueInReduce = Rule("reduce", {
     case call@FunCall(ReduceSeq(l), _, _)
-      if !Utils.visitFunCallChainWithState(false)(l.body, (e, b) => isId(e) || b)
+      if !Utils.visitFunCallChainWithState(false)(l.body, (e, b) => isId(e) || b) // Try to avoid a double copy
       && !l.body.contains( {case FunCall(Id(), a) if a eq l.params(1)=>  })
     =>
       val params = l.params
@@ -132,10 +139,7 @@ object CopyRules {
         !containsArray
       }
     =>
-
-      val copyFun = UserFun(s"id_${Type.name(call.t)}", "x",
-        "{ return x; }", call.t, call.t)
-
+      val copyFun = generateCopy(call.t)
       copyFun $ call
   })
 }

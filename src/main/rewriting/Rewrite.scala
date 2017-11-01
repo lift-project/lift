@@ -39,7 +39,7 @@ object Rewrite {
 
   def applyRuleAt(expr: Expr, rule: Rule, toBeReplaced: Expr): Expr = {
     TypeChecker.check(expr)
-    Context.updateContext(expr)
+    UpdateContext(expr)
 
     val replacement = rule.rewrite(toBeReplaced)
     var replacedInExpr = Expr.replace(expr, toBeReplaced, replacement)
@@ -113,7 +113,7 @@ object Rewrite {
   }
 
   def listAllPossibleRewritesForRules(expr: Expr, rules: Seq[Rule]): Seq[(Rule, Expr)] = {
-    Context.updateContext(expr)
+    UpdateContext(expr)
     TypeChecker(expr)
     rules.flatMap(rule => listAllPossibleRewrites(expr, rule))
   }

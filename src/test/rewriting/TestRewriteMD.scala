@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
 import org.junit.Assert._
 import org.junit.{AfterClass, BeforeClass, Test}
+import rewriting.macrorules.MacroRules
 import rewriting.rules.{CopyRules, OpenCLRules, Rules, SimplificationRules}
 
 object TestRewriteMD {
@@ -80,6 +81,8 @@ class TestRewriteMD {
     val f10 = Rewrite.applyRuleAtId(f9, 18, OpenCLRules.globalMemory)
     val f11 = Rewrite.applyRuleAtId(f10, 35, CopyRules.implementIdAsDeepCopy)
 
+    val l0 = Rewrite.applyRuleUntilCannot(f11, MacroRules.userFunCompositionToPrivate)
+
     val inputSize = 1024
     val maxNeighbours = 128
 
@@ -94,7 +97,7 @@ class TestRewriteMD {
                .map(_.productIterator).reduce(_ ++ _).asInstanceOf[Iterator[Float]].toArray
 
     val (output, _) =
-      Execute(inputSize)[Array[Float]](f11, particles, neighbours, cutsq, lj1, lj2)
+      Execute(inputSize)[Array[Float]](l0, particles, neighbours, cutsq, lj1, lj2)
 
     assertEquals(gold.length, output.length)
 
