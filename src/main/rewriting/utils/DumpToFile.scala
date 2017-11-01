@@ -162,6 +162,31 @@ object DumpToFile {
     withIndex
   }
 
+  def getStringForInputOutput(a: Any): String = {
+    a match {
+      case f: Float =>
+        f.toString
+      case af: Array[Float] =>
+        af.mkString(" ")
+      case aaf: Array[Array[Float]] =>
+        aaf.flatten.mkString(" ")
+      case aaaf: Array[Array[Array[Float]]] =>
+        aaaf.flatten.flatten.mkString(" ")
+      case aaaaf: Array[Array[Array[Array[Float]]]] =>
+        aaaaf.flatten.flatten.flatten.mkString(" ")
+      case f: Int =>
+        f.toString
+      case af: Array[Int] =>
+        af.mkString(" ")
+      case _ => throw new NotImplementedError()
+    }
+  }
+
+  def dumpInputOutputToFile(inout: Any, filename: String, path: String): Boolean = {
+    val inputString = DumpToFile.getStringForInputOutput(inout)
+    DumpToFile.dumpToFile(inputString, filename, path)
+  }
+
   private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String = {
 
     val numVariables = withIndex.length
@@ -188,7 +213,7 @@ object DumpToFile {
       ))
   }
 
-  def findAndReplaceVariableNames(code: String) = {
+  def findAndReplaceVariableNames(code: String): String = {
     val variables = findVariables(code)
     replaceVariableNames(code, variables)
   }
