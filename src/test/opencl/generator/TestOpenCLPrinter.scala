@@ -12,7 +12,7 @@ class TestOpenCLPrinter {
     val lhs = VarRef(Var("x"))
     val rhs = VarRef(Var("y"))
     val cond = CondExpression(lhs, rhs, CondExpression.Operator.==)
-    assertEquals("v_x_0 == v_y_1", OpenCLPrinter()(cond))
+    assertEquals(lhs.v.toString + " == " + rhs.v.toString, OpenCLPrinter()(cond))
   }
 
   @Test
@@ -20,7 +20,7 @@ class TestOpenCLPrinter {
     val lhs = VarRef(Var("x"))
     val rhs = VarRef(Var("y"))
     val binop = BinaryExpression(lhs, rhs, BinaryExpression.Operator.+)
-    assertEquals("v_x_0 + v_y_1", OpenCLPrinter()(binop))
+    assertEquals(lhs.v.toString + " + " + rhs.v.toString, OpenCLPrinter()(binop))
   }
 
 }
