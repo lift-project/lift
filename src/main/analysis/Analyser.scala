@@ -16,27 +16,27 @@ class Analyser(
   val valueMap: SubstitutionMap
 ) {
 
-  protected val substLocal = substituteInNDRange(localSize, valueMap)
-  protected val substGlobal = substituteInNDRange(globalSize, valueMap)
+  protected val substLocal: NDRange = substituteInNDRange(localSize, valueMap)
+  protected val substGlobal: NDRange = substituteInNDRange(globalSize, valueMap)
 
-  protected val substitutionMap = collection.immutable.Map[ArithExpr, ArithExpr](
-    get_local_size(0) -> substLocal(0),
-    get_local_size(1) -> substLocal(1),
-    get_local_size(2) -> substLocal(2),
-    get_global_size(0) -> substGlobal(0),
-    get_global_size(1) -> substGlobal(1),
-    get_global_size(2) -> substGlobal(2),
-    get_num_groups(0) -> (substGlobal(0) / substLocal(0)),
-    get_num_groups(1) -> (substGlobal(1) / substLocal(1)),
-    get_num_groups(2) -> (substGlobal(2) / substLocal(2))
-  ).filterNot(pair => contains(pair._2, ?)) ++ valueMap
+  protected val substitutionMap: collection.immutable.Map[ArithExpr, ArithExpr] =
+    collection.immutable.Map[ArithExpr, ArithExpr](
+      get_local_size(0) -> substLocal(0),
+      get_local_size(1) -> substLocal(1),
+      get_local_size(2) -> substLocal(2),
+      get_global_size(0) -> substGlobal(0),
+      get_global_size(1) -> substGlobal(1),
+      get_global_size(2) -> substGlobal(2),
+      get_num_groups(0) -> (substGlobal(0) / substLocal(0)),
+      get_num_groups(1) -> (substGlobal(1) / substLocal(1)),
+      get_num_groups(2) -> (substGlobal(2) / substLocal(2))
+    ).filterNot(pair => contains(pair._2, ?)) ++ valueMap
 
-  protected def getExact(arithExpr: ArithExpr, exact: Boolean) =
+  protected def getExact(arithExpr: ArithExpr, exact: Boolean): ArithExpr =
     if (exact) substitute(arithExpr, substitutionMap) else arithExpr
 
-  protected def getParallelMapTripCount(map: AbstractMap, t: Type) = {
+  protected def getParallelMapTripCount(map: AbstractMap, t: Type): ArithExpr =
     Type.getLength(t) /^ map.loopVar.range.asInstanceOf[RangeAdd].step
-  }
 
   if (lambda.body.t == UndefType)
     TypeChecker(lambda)
@@ -52,15 +52,24 @@ class Analyser(
 
     Expr.visit(lambda.body, _ => Unit, {
       case FunCall(_: AbstractPartRed, init, _) =>
-        if (init.mem.asInstanceOf[OpenCLMemory].addressSpace == PrivateMemory)
-          allowedPrivate = allowedPrivate :+ init.mem.asInstanceOf[OpenCLMemory]
+        val initMemories = init.mem.asInstanceOf[OpenCLMemory]
 
-        // TODO: OpenCLMemoryCollection/Tuple
-        if (init.mem.isInstanceOf[OpenCLMemoryCollection])
-          throw new NotImplementedError
+        val privateMemories =
+          OpenCLMemory.getAllMemories(initMemories).filter(_.addressSpace == PrivateMemory)
 
-      case FunCall(_: Iterate, _) =>
-        throw new NotImplementedError
+        allowedPrivate ++= privateMemories
+
+      case call@FunCall(iterate: Iterate, _) =>
+
+        val swapMemories = OpenCLMemory.getAllMemories(iterate.swapBuffer.asInstanceOf[OpenCLMemory])
+        val outputMemories = OpenCLMemory.getAllMemories(call.mem.asInstanceOf[OpenCLMemory])
+
+        val allMemory = swapMemories ++ outputMemories
+
+        val privateMemories = allMemory.filter(_.addressSpace == PrivateMemory)
+
+        allowedPrivate ++= privateMemories
+
       case _ =>
     })
 
