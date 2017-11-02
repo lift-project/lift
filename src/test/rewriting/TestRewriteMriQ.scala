@@ -11,8 +11,8 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.{Assume, Test}
-import rewriting.rules._
 import rewriting.macrorules.{MacroRules, ReuseRules}
+import rewriting.rules._
 
 object TestRewriteMriQ extends TestWithExecutor
 
@@ -44,16 +44,18 @@ class TestRewriteMriQ {
     bytesToFloats(byteArray)
   }
 
-  private val x = floatArrayFromResource("mriq/xVals.bin")
-  private val y = floatArrayFromResource("mriq/yVals.bin")
-  private val z = floatArrayFromResource("mriq/zVals.bin")
-  private val k = floatArrayFromResource("mriq/kVals.bin").grouped(4).map(x => (x(0), x(1), x(2), x(3))).toArray
+  private val prefix = "mriq/small/"
 
-  private val Qr = floatArrayFromResource("mriq/qrVals.bin")
-  private val Qi = floatArrayFromResource("mriq/qiVals.bin")
+  private val x = floatArrayFromResource(prefix + "xVals.bin")
+  private val y = floatArrayFromResource(prefix + "yVals.bin")
+  private val z = floatArrayFromResource(prefix + "zVals.bin")
+  private val k = floatArrayFromResource(prefix + "kVals.bin").grouped(4).map(x => (x(0), x(1), x(2), x(3))).toArray
+
+  private val Qr = floatArrayFromResource(prefix + "qrVals.bin")
+  private val Qi = floatArrayFromResource(prefix + "qiVals.bin")
 
   private val xNum = x.length
-  private val kNum = k.length / 4
+  private val kNum = k.length
 
   private val gold = (Qr, Qi).zipped.flatMap((a, b) => Seq(a,b))
 
@@ -158,14 +160,40 @@ class TestRewriteMriQ {
   @Test
   def mriqIntroduceReuse(): Unit = {
     val f0 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
-    val f1 = Rewrite.applyRuleAtId(f0, 7, FissionRules.mapFission)
-    val f2 = Rewrite.applyRuleAtId(f1, 7, ReuseRules.introduceReuseFromMap(64))
-    val f3 = Rewrite.applyRuleAtId(f2, 11, ReuseRules.introduceReuseFromMap(64))
 
-    val lowered = Lower.mapCombinations(f3, mappings).head
+    val f1 = Rewrite.applyRuleAtId(f0, 7, ReuseRules.introduceReuseFromMap(64))
+    val f2 = Rewrite.applyRuleAtId(f1, 10, ReuseRules.introduceReuseFromMap(64))
+
+    val lowered = Lower.mapCombinations(f2, mappings).head
+
+    val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
+    val l1 = Rewrite.applyRuleAtId(l0, 9, CopyRules.addIdForCurrentValueInReduce)
+    val l2 = Rewrite.applyRuleAtId(l1, 17, CopyRules.implementIdAsDeepCopy)
+    val l3 = Rewrite.applyRuleAtId(l2, 17, OpenCLRules.localMemory)
+    val l4 = Lower.lowerNextLevelWithRule(l3, OpenCLRules.mapLcl)
 
     val (output, _) =
-      Execute()[Array[Float]](lowered, x, y, z, k)
+      Execute()[Array[Float]](l4, x, y, z, k)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
+
+  @Test
+  def mriqIntroduceReuseFromMapping(): Unit = {
+    val f0 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
+    val f1 = Rewrite.applyRuleAtId(f0, 7, ReuseRules.introduceReuseFromMap(64))
+    val f2 = Rewrite.applyRuleAtId(f1, 10, ReuseRules.introduceReuseFromMap(64))
+
+    val lowered = Lower.mapCombinations(f2, mappings).head
+
+    val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
+    val l1 = Rewrite.applyRuleAtId(l0, 9, CopyRules.addIdForCurrentValueInReduce)
+    val l2 = Rewrite.applyRuleAtId(l1, 17, OpenCLRules.localMemory)
+    val l3 = Rewrite.applyRuleAtId(l2, 19, CopyRules.implementIdAsDeepCopy)
+    val l4 = Lower.lowerNextLevelWithRule(l3, OpenCLRules.mapLcl)
+
+    val (output, _) =
+      Execute()[Array[Float]](l4, x, y, z, k)
 
     assertArrayEquals(gold, output, 0.001f)
   }
@@ -183,9 +211,29 @@ class TestRewriteMriQ {
     val l3 = Rewrite.applyRuleAtId(l2, 42, OpenCLRules.localMemory)
     val l4 = Rewrite.applyRuleAtId(l3, 35, CopyRules.implementIdAsDeepCopy)
     val l5 = Rewrite.applyRuleAtId(l4, 35, OpenCLRules.localMemory)
+    val l6 = Rewrite.applyRuleUntilCannot(l5, MacroRules.userFunCompositionToPrivate)
 
     val (output, _) =
-      Execute()[Array[Float]](l5, x, y, z, k)
+      Execute()[Array[Float]](l6, x, y, z, k)
+
+    assertArrayEquals(gold, output, 0.01f)
+  }
+
+  @Test
+  def partialReduceWithReorderNoRace(): Unit = {
+
+    val f0 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
+
+    val f1 = Lower.pushReduceDeeper(f0)
+    val lowered = Lower.mapCombinations(f1, mappings).head
+
+    val l0 = Rewrite.applyRuleAtId(lowered, 13, CopyRules.addIdAfterReduce)
+    val l1 = Rewrite.applyRuleAtId(l0, 35, OpenCLRules.localMemory)
+    val l2 = Rewrite.applyRuleAtId(l1, 37, CopyRules.implementIdAsDeepCopy)
+    val l3 = Rewrite.applyRuleUntilCannot(l2, MacroRules.userFunCompositionToPrivate)
+
+    val (output, _) =
+      Execute()[Array[Float]](l3, x, y, z, k)
 
     assertArrayEquals(gold, output, 0.01f)
   }

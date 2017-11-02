@@ -15,30 +15,28 @@ object MacroRules {
   private val mapMapPattern: PartialFunction[Expr, Unit] =
   { case FunCall(Map(Lambda(_, FunCall(map:Map, _))), _) if map.f.body.isConcrete => }
 
-  private def isUserFun(expr: Expr) = expr match {
+  private def isUserFunCall(expr: Expr): Boolean = expr match {
      case FunCall(_: UserFun, _*)  | FunCall(_: VectorizeUserFun, _*) => true
      case _ => false
   }
 
-  private def isUserFun(decl: FunDecl): Boolean = decl match {
-    case _: UserFun => true
-    case _: VectorizeUserFun => true
-    case toGlobal(Lambda(_, FunCall(fun, _*))) => isUserFun(fun)
-    case toLocal(Lambda(_, FunCall(fun, _*))) => isUserFun(fun)
-    case toPrivate(Lambda(_, FunCall(fun, _*))) => isUserFun(fun)
-    case _ => false
+  private def isUserFunCallOrWrappedWithMemorySpace(expr: Expr): Boolean = expr match {
+    case FunCall(toGlobal(Lambda(_, body)), _*) => isUserFunCallOrWrappedWithMemorySpace(body)
+    case FunCall(toLocal(Lambda(_, body)), _*) => isUserFunCallOrWrappedWithMemorySpace(body)
+    case FunCall(toPrivate(Lambda(_, body)), _*) => isUserFunCallOrWrappedWithMemorySpace(body)
+    case _ => isUserFunCall(expr)
   }
 
   val userFunCompositionToPrivate = Rule("userFunCompositionToPrivate", {
-    case FunCall(uf, args@_*)
-      if isUserFun(uf) &&
-        args.count(expr => isUserFun(expr) &&
+    case call@FunCall(uf, args@_*)
+      if isUserFunCallOrWrappedWithMemorySpace(call) &&
+        args.count(expr => isUserFunCall(expr) &&
           OpenCLRules.privateMemory.isDefinedAt(expr)) > 0
     =>
 
       val newArgs =
         args.map(expr =>
-          if (isUserFun(expr) && OpenCLRules.privateMemory.isDefinedAt(expr))
+          if (isUserFunCall(expr) && OpenCLRules.privateMemory.isDefinedAt(expr))
             OpenCLRules.privateMemory.rewrite(expr)
           else
             expr
