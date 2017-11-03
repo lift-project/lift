@@ -4,8 +4,12 @@ import java.io.{File, FileWriter}
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.Logger
-import ir.TypeChecker
+import ir._
 import ir.ast._
+import ir.view._
+import opencl.ir._
+import lift.arithmetic.{?, ArithExpr}
+import opencl.generator.{NDRange, RangesAndCounts}
 import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 import rewriting._
@@ -60,7 +64,7 @@ object HighLevelRewrite {
 
   protected[exploration] val defaultExplorationDepth = 5
   protected[exploration] val defaultDepthFilter = 6
-  protected[exploration] val defaultDistanceFilter = 9
+  protected[exploration] val defaultDistanceFilter = 1
   protected[exploration] val defaultRuleRepetition = 2
   protected[exploration] val defaultVectorWidth = 4
   protected[exploration] val defaultSequential = false
@@ -74,7 +78,7 @@ object HighLevelRewrite {
     s"Cutoff depth for filtering (default: $defaultDepthFilter)")
 
   protected[exploration] val distanceFilter = parser.option[Int](List("distance"), "distance",
-    s"Cutoff distance for filtering (default: $defaultDistanceFilter)")
+    s"Number of Split/Join/Scatter/Gather/asVector/asScalar allowed between user functions (default: $defaultDistanceFilter)")
 
   protected[exploration] val ruleRepetition = parser.option[Int](List("repetition"), "repetition",
     s"How often the same rule can be applied (default: $defaultRuleRepetition)")
@@ -122,7 +126,7 @@ object HighLevelRewrite {
       val dumpThese = if(settings.highLevelRewriteSettings.onlyLower)
         Seq((lambda, Seq()))
       else
-        rewriteExpression(lambda) :+ (lambda, Seq())
+        rewriteExpression(lambda)
 
       println(dumpThese.length + " expressions to dump")
 
@@ -169,37 +173,49 @@ object HighLevelRewrite {
   }
 
   def filterByDistance(lambda: Lambda): Boolean = {
-    val numberMap = NumberExpression.depthFirst(lambda)
+    import View.getSubViews
+    val copiedLambda = Lambda.copyStructure(lambda)
 
-    val userFunCalls = Expr.visitWithState(List[Expr]())(lambda.body, (expr, state) => {
-      expr match {
-        case FunCall(uf: UserFun, _*) if !uf.name.contains("id") => expr :: state
-        case FunCall(uf: VectorizeUserFun, _*)
-          if !uf.userFun.name.contains("id") => expr :: state
-        case _ => state
-      }
+    val userFuns = Expr.visitWithState(Seq[FunCall]())(copiedLambda.body, {
+      case (call@FunCall(_: UserFun, _*), seq) => seq :+ call
+      case (call@FunCall(_: VectorizeUserFun, _*), seq) => seq :+ call
+      case (_, seq) => seq
     })
 
-    if (userFunCalls.length == 1)
-      return true
+    TypeChecker(copiedLambda)
+    InferOpenCLAddressSpace(copiedLambda)
+    RangesAndCounts(copiedLambda, NDRange(?, ?, ?), NDRange(?, ?, ?), collection.Map())
+    OpenCLMemoryAllocator(copiedLambda)
+    View(copiedLambda)
 
-    val cutoff = settings.highLevelRewriteSettings.distance
+    val memVars = userFuns.map(_.mem.variable)
 
-    val ids = userFunCalls.map(numberMap(_)).sorted
+    val varsWithDataFlow = userFuns.map(_.args.filter(x => getSubViews(x.view).exists({
+      case ViewMem(v, _) => memVars.contains(v)
+      case _ => false
+    }))).filter(_.nonEmpty).flatten
 
-    // TODO: A better distance measure. Number of hops through other
-    // TODO: expressions, if there is data-flow between the two?
-    // TODO: And somehow compared to the original expression?
-    ids.sliding(2).forall(w => (w.head - w(1)).abs <= cutoff)
+    val numberOfPatterns = varsWithDataFlow.map(x => getSubViews(x.view).count(patternsToCount.isDefinedAt)) :+ 0
+
+    val maxNumberOfPatterns = numberOfPatterns.max
+
+    maxNumberOfPatterns <= settings.highLevelRewriteSettings.distance
   }
 
-  def filterByDepth(pair: (Lambda, Seq[Rule])): Boolean = {
+  private val patternsToCount: PartialFunction[View, Unit] = {
+    case _: ViewSplit =>
+    case _: ViewJoin =>
+    case _: ViewReorder =>
+    case _: ViewAsVector =>
+    case _: ViewAsScalar =>
+  }
+
+  def filterByDepth(pair: (Lambda, Seq[Rule])): Boolean =
     filterByDepth(pair._1, pair._2)
-  }
 
   def filterByDepth(lambda: Lambda, ruleSeq: Seq[Rule] = Seq()): Boolean = {
     val cutoff = settings.highLevelRewriteSettings.depth
-    val depth = NumberExpression.byDepth(lambda).values.max
+    val depth = getLambdaDepth(lambda)
 
     val isTiling = ruleSeq.nonEmpty && ruleSeq.head == ReuseRules.tileMapMap
     val has2finishTiling = isTiling && ruleSeq.length == 5 &&
@@ -214,6 +230,9 @@ object HighLevelRewrite {
       (is2DBlocking && depth <= cutoff+2 || is1DBlocking && depth <= cutoff+1) ||
       depth <= cutoff
   }
+
+  private[exploration] def getLambdaDepth(lambda: Lambda) =
+    NumberExpression.byDepth(lambda).values.max
 
   private def dumpLambdasToFiles(lambdas: Seq[(Lambda, Seq[Rule])], topLevelFolder: String): Unit = {
     val x = if (settings.highLevelRewriteSettings.sequential) lambdas else lambdas.par
@@ -276,32 +295,33 @@ object HighLevelRewrite {
   }
 
   private def printMinAndMaxDepth(lambda: Seq[Lambda]): Unit = {
-    val res = lambda.map(NumberExpression.byDepth(_).values.max)
-    if(res.size == 1)
+    if (lambda.size == 1)
       println("No rules were applicable...")
 
+    val res = lambda.map(getLambdaDepth)
     println(s"with a minimum depth of ${res.min} of and maximum depth of ${res.max}")
   }
 
 }
 
-class HighLevelRewrite(val vectorWidth: Int = HighLevelRewrite.defaultVectorWidth,
-                       val repetitions: Int = HighLevelRewrite.defaultRuleRepetition,
-                       val explorationDepth: Int = HighLevelRewrite.defaultExplorationDepth,
-                       val ruleCollection: String=HighLevelRewrite.defaultRuleCollection) {
+class HighLevelRewrite(
+  val vectorWidth: ArithExpr = HighLevelRewrite.defaultVectorWidth,
+  val repetitions: Int = HighLevelRewrite.defaultRuleRepetition,
+  val explorationDepth: Int = HighLevelRewrite.defaultExplorationDepth,
+  val ruleCollection: String = HighLevelRewrite.defaultRuleCollection) {
 
   private[exploration] val vecRed = MacroRules.vectorizeReduce(vectorWidth)
   private[exploration] val vecZip = OpenCLRules.vectorizeMapZip(vectorWidth)
 
-object RuleCollection {
+  object RuleCollection {
 
-  private val convolution1DRules = Seq(SlideTiling.tileStencils)
-  private val convolution2DRules = Seq(
-    SlideTiling.tile2DStencils,
-    SlideTiling.tile2DStencilsZip,
-    SlideTiling.tile2DStencilsZip6
-  )
-  private val defaultRules = Seq(
+    private val convolution1DRules = Seq(SlideTiling.tileStencils)
+    private val convolution2DRules = Seq(
+      SlideTiling.tile2DStencils,
+      SlideTiling.tile2DStencilsZip,
+      SlideTiling.tile2DStencilsZip6
+    )
+    private val defaultRules = Seq(
       ReuseRules.apply2DRegisterBlocking,
       ReuseRules.apply2DRegisterBlockingNoReorder,
       ReuseRules.apply1DRegisterBlocking,
@@ -310,18 +330,20 @@ object RuleCollection {
       MacroRules.partialReduceWithReorder,
       SlideTiling.tileStencils,
       vecRed,
-      vecZip
+      vecZip,
+      MacroRules.interchange,
+      ReuseRules.introduceReuseFromMap
     )
 
-  private val ruleCollectionMap = scala.collection.Map(
-    "convolution1D" -> convolution1DRules,
-    "convolution2D" -> convolution2DRules,
-    "default" -> defaultRules)
+    private val ruleCollectionMap = scala.collection.Map(
+      "convolution1D" -> convolution1DRules,
+      "convolution2D" -> convolution2DRules,
+      "default" -> defaultRules)
 
-  def apply(collection: String): Seq[Rule] = {
-    ruleCollectionMap.getOrElse(collection, defaultRules)
+    def apply(collection: String): Seq[Rule] =
+      ruleCollectionMap.getOrElse(collection, defaultRules)
   }
-}
+
   private val logger = Logger(this.getClass)
 
   private val highLevelRules = RuleCollection(ruleCollection)
@@ -329,10 +351,11 @@ object RuleCollection {
   private var failures = 0
 
   def apply(lambda: Lambda): Seq[(Lambda, Seq[Rule])] = {
+    val prepared = SimplifyAndFuse.withoutPreventingFurtherOptimisation(lambda)
     logger.info(s"Enabled rules:\n\t${highLevelRules.mkString(",\t\n ")}")
-    val rewritten = rewrite(lambda, explorationDepth)
+    val rewritten = rewrite(prepared, explorationDepth)
     logger.warn(failures + " rule application failures.")
-    rewritten
+    rewritten :+ (lambda, Seq()) :+ (prepared, Seq())
   }
 
   private def rewrite(lambda: Lambda,
@@ -344,7 +367,11 @@ object RuleCollection {
 
     var rewritten = Seq[(Lambda, Seq[Rule])]()
 
-    val rulesToTry = filterRules(rulesSoFar)
+    var rulesToTry = filterRules(rulesSoFar)
+
+    if (HighLevelRewrite.getLambdaDepth(lambda) <= 2 && !rulesToTry.contains(Rules.splitJoin)) {
+      rulesToTry = rulesToTry :+ Rules.splitJoin
+    }
 
     val allRulesAt = Rewrite.listAllPossibleRewritesForRules(lambda, rulesToTry)
     allRulesAt.foreach(ruleAt => {
@@ -353,7 +380,7 @@ object RuleCollection {
 
         TypeChecker(applied)
 
-        rewritten = rewritten :+(applied, rulesSoFar :+ ruleAt._1)
+        rewritten = rewritten :+ (applied, rulesSoFar :+ ruleAt._1)
 
       } catch {
         case _: Throwable =>
@@ -383,23 +410,23 @@ object RuleCollection {
       dontTryThese = ReuseRules.finishTiling +: dontTryThese
 
     if (distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlocking))
-      dontTryThese = ReuseRules.apply2DRegisterBlockingNoReorder +: dontTryThese
+      dontTryThese = ReuseRules.introduceReuseFromMap +: MacroRules.interchange +: ReuseRules.apply2DRegisterBlockingNoReorder +: dontTryThese
 
     if (distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlockingNoReorder))
-      dontTryThese = ReuseRules.apply2DRegisterBlocking +: dontTryThese
+      dontTryThese = ReuseRules.introduceReuseFromMap +: MacroRules.interchange +: ReuseRules.apply2DRegisterBlocking +: dontTryThese
 
     if (distinctRulesApplied.contains(ReuseRules.apply1DRegisterBlocking)
         || distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlocking)
         || distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlockingNoReorder)
         || distinctRulesApplied.contains(ReuseRules.tileMapMap))
-      dontTryThese = ReuseRules.tileMapMap +: dontTryThese
+      dontTryThese = ReuseRules.introduceReuseFromMap +: MacroRules.interchange +: ReuseRules.tileMapMap +: dontTryThese
 
     if (distinctRulesApplied.contains(ReuseRules.apply1DRegisterBlocking))
-      dontTryThese = ReuseRules.apply2DRegisterBlocking +: ReuseRules.apply2DRegisterBlockingNoReorder +: ReuseRules.tileMapMap +: dontTryThese
+      dontTryThese = ReuseRules.introduceReuseFromMap +: MacroRules.interchange +: ReuseRules.apply2DRegisterBlocking +: ReuseRules.apply2DRegisterBlockingNoReorder +: ReuseRules.tileMapMap +: dontTryThese
 
     if (distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlocking)
         || distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlockingNoReorder))
-      dontTryThese = ReuseRules.apply1DRegisterBlocking +: dontTryThese
+      dontTryThese = ReuseRules.introduceReuseFromMap +: MacroRules.interchange +: ReuseRules.apply1DRegisterBlocking +: dontTryThese
 
     if (distinctRulesApplied.contains(vecZip)
           || (distinctRulesApplied.contains(ReuseRules.tileMapMap)
@@ -411,7 +438,17 @@ object RuleCollection {
         || distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlocking)
         || distinctRulesApplied.contains(ReuseRules.apply2DRegisterBlockingNoReorder)
         || distinctRulesApplied.contains(vecRed))
-      dontTryThese = vecRed +: dontTryThese
+      dontTryThese = ReuseRules.introduceReuseFromMap +: MacroRules.interchange +: vecRed +: dontTryThese
+
+    if (distinctRulesApplied.contains(ReuseRules.introduceReuseFromMap)
+      ||distinctRulesApplied.contains(MacroRules.interchange))
+      dontTryThese = ReuseRules.finishTiling +: ReuseRules.tileMapMap +: ReuseRules.apply1DRegisterBlocking +: ReuseRules.apply2DRegisterBlocking +: dontTryThese
+
+    if (distinctRulesApplied.contains(MacroRules.interchange))
+      dontTryThese = MacroRules.interchange +: dontTryThese
+
+    if (distinctRulesApplied.contains(MacroRules.partialReduceWithReorder))
+      dontTryThese = ReuseRules.introduceReuseFromMap +: MacroRules.interchange +: dontTryThese
 
     val rulesToTry = highLevelRules diff dontTryThese
     rulesToTry

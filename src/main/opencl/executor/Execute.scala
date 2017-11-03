@@ -741,7 +741,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         val s = valueMap(v).eval
         //noinspection SideEffectsInMonadicTransformation
         if (Verbose())
-          println(s)
+          println(s"$v: $s")
         Option(arg(s, Int, 4))
       }
       // ... else return nothing

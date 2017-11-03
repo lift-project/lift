@@ -39,6 +39,10 @@ abstract class AbstractMap(val f: Lambda,
   }
 }
 
+object AbstractMap {
+  def unapply(map: AbstractMap): Option[Lambda] = Some(map.f)
+}
+
 /**
  * Concrete class for the map pattern.
  * No code can be generated for this pattern.

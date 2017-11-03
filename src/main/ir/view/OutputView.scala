@@ -70,7 +70,7 @@ object OutputView {
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case PrintType() | Get(_) | _: Tuple | Gather(_) | Filter() |
-           Pad(_, _, _) =>
+           Pad(_, _, _) | Id() =>
         writeView
       case dunno => throw new NotImplementedError(s"OutputView.scala: $dunno")
     }
