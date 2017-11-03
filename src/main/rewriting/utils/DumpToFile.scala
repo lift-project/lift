@@ -178,6 +178,12 @@ object DumpToFile {
         f.toString
       case af: Array[Int] =>
         af.mkString(" ")
+      case af: Array[Array[Int]] =>
+        af.flatten.mkString(" ")
+      case af: Array[Array[Array[Int]]] =>
+        af.flatten.flatten.mkString(" ")
+      case af: Array[Array[Array[Array[Int]]]] =>
+        af.flatten.flatten.flatten.mkString(" ")
       case _ => throw new NotImplementedError()
     }
   }
