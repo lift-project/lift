@@ -2,14 +2,13 @@ package rewriting.rules
 
 import ir._
 import ir.ast._
-import opencl.ir._
 import lift.arithmetic.SizeVar
-import org.junit.Test
+import opencl.ir._
 import org.junit.Assert._
+import org.junit.Test
 import rewriting.Rewrite
 import rewriting.macrorules.ReuseRules
 import rewriting.utils.DumpToFile.dumpLambdaToString
-import rewriting.utils.NumberPrinter
 
 class SequencesForMacroRules {
 
