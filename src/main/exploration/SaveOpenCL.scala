@@ -339,7 +339,7 @@ class SaveOpenCL(
       val count = functionCounts.getFunctionCount(function, exact).evalDouble
       val vectorisedCount = functionCounts.getVectorisedCount(function, exact).evalDouble
       s"$function,$count,$vectorisedCount"
-    }).mkString(", ")
+    }).mkString(", ") + "\n"
 
     val string =
       s"$hash,${globalSizes.toString},${localSizes.toString}," +
