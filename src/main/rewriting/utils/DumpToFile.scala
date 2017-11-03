@@ -5,6 +5,7 @@ import java.security.MessageDigest
 
 import ir.{ByDeclarationOrder, TypeChecker}
 import ir.ast._
+import opencl.executor.Execute
 import opencl.ir.ast.OpenCLBuiltInFun
 
 import scala.sys.process._
@@ -164,26 +165,16 @@ object DumpToFile {
 
   def getStringForInputOutput(a: Any): String = {
     a match {
+      case b: Boolean =>
+        b.toString
       case f: Float =>
         f.toString
-      case af: Array[Float] =>
-        af.mkString(" ")
-      case aaf: Array[Array[Float]] =>
-        aaf.flatten.mkString(" ")
-      case aaaf: Array[Array[Array[Float]]] =>
-        aaaf.flatten.flatten.mkString(" ")
-      case aaaaf: Array[Array[Array[Array[Float]]]] =>
-        aaaaf.flatten.flatten.flatten.mkString(" ")
-      case f: Int =>
-        f.toString
-      case af: Array[Int] =>
-        af.mkString(" ")
-      case af: Array[Array[Int]] =>
-        af.flatten.mkString(" ")
-      case af: Array[Array[Array[Int]]] =>
-        af.flatten.flatten.mkString(" ")
-      case af: Array[Array[Array[Array[Int]]]] =>
-        af.flatten.flatten.flatten.mkString(" ")
+      case i: Int =>
+        i.toString
+      case d: Double =>
+        d.toString
+      case arr: Array[_] =>
+        Execute.flatten(arr).mkString(" ")
       case _ => throw new NotImplementedError()
     }
   }
