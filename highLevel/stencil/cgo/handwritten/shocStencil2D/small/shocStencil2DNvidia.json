@@ -51,7 +51,7 @@
     "speedup" : 1.0,
     "configs_to_achieve_speedup" : 500,
     "enable_timeout_condition" : true,
-    "timeout_in_seconds" : 900,
+    "timeout_in_seconds" : 10800,
     "enable_max_configs_condition" : false,
     "max_configs" : 500,
     "enable_not_better_than_condition" : false,
