@@ -23,7 +23,7 @@ object BenchmarkUserFun {
     val (local, global) = InferNDRange(f)
 
     val originalCode = Compile(f, local, global)
-    val kernelCode = spliceInBenchmarkedFunion(originalCode, uf)
+    val kernelCode = spliceInBenchmarkedFunction(originalCode, uf)
 
     val (_, time) = Execute().benchmark[Array[Float]](iterations, timeout, kernelCode, f, inputs:_*)
     val median = time.sorted.apply(time.length/2)
@@ -42,7 +42,7 @@ object BenchmarkUserFun {
     userFunInputs :+ conditionInput
   }
 
-  def spliceInBenchmarkedFunion(code: String, uf: UserFun): String = {
+  def spliceInBenchmarkedFunction(code: String, uf: UserFun): String = {
     val lines = code.split("\n")
 
     val benchmarkingFunctionLine = lines.indexWhere(_.contains("benchmark" + uf.name))
@@ -64,9 +64,9 @@ object BenchmarkUserFun {
 
     val params = inputTypes.map(Param.apply)
 
-    val wrapperFun = createBenchmarkingFunction(uf, callsPerThread)
+    val benchmarkingFun = createBenchmarkingFunction(uf, callsPerThread)
 
-    Lambda(params.toArray, MapGlb(wrapperFun) $ Zip(params:_*))
+    Lambda(params.toArray, MapGlb(benchmarkingFun) $ Zip(params:_*))
   }
 
   def createInputTypes(uf: UserFun): Seq[Type] =

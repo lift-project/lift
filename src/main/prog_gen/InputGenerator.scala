@@ -75,6 +75,23 @@ class InputGenerator(val concreteSizes: collection.Map[ArithExpr, Cst]) {
 
         Array.fill(actual1)(getInt)
 
+      case ArrayTypeWS(VectorType(Float, len2), len1) =>
+        val actual1 = evaluate(len1)
+        val actual2 = evaluate(len2)
+
+        Array.fill(actual1, actual2)(getFloat)
+
+      case ArrayTypeWS(TupleType(Float, Float), len1) =>
+        val actual1 = evaluate(len1)
+
+        Array.fill(actual1)((getFloat, getFloat))
+
+      case ArrayTypeWS(VectorType(Int, len2), len1) =>
+        val actual1 = evaluate(len1)
+        val actual2 = evaluate(len2)
+
+        Array.fill(actual1, actual2)(getInt)
+
       case Int => getInt
 
       case _ => throw new NotImplementedError()

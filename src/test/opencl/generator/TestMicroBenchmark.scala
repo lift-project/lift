@@ -42,22 +42,17 @@ class TestMicroBenchmark {
     BenchmarkUserFun.createBenchmarkingLambda(add, 1024)
   }
 
-//  @Test
-//  def inputTypesVec(): Unit = {
-//    val types = BenchmarkUserFun.createInputTypes(VectorizeUserFun(4, add))
-//
-//    val expected = Seq(ArrayType(Float4, N), ArrayType(Float4, N), ArrayType(Int, N))
-//    assertEquals(expected, types)
-//  }
-
   @Test
-  def bla2(): Unit = {
+  def inputTypesVec(): Unit = {
+    val types = BenchmarkUserFun.createInputTypes(add.vectorize(4))
 
+    val expected = Seq(ArrayType(Float4, N), ArrayType(Float4, N), ArrayType(Int, N))
+    assertEquals(expected, types)
   }
 
   @Test
-  def bla(): Unit = {
-    println(BenchmarkUserFun.benchmark(plusOne, 2*2048, 101))
+  def benchmark(): Unit = {
+    BenchmarkUserFun.benchmark(plusOne, 2*2048, 101)
   }
 
 }
