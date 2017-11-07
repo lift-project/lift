@@ -102,7 +102,7 @@ object BenchmarkUserFun {
   }
 
   def createIncrement(t: Type, name: String): String = t match {
-    case Float | Double | Int | Long => s"$name++;"
+    case Float | Double | Int | Long => s"$name = $name + 1;"
     case VectorType(basicType, n) =>
       (0 until n.eval).map(i => createIncrement(basicType, s"$name.s$i")).mkString(" ")
     case TupleType(tt@_*) =>
