@@ -39,7 +39,7 @@ class TestMicroBenchmark {
 
   @Test
   def wrapper(): Unit = {
-    BenchmarkUserFun(add, 1024)
+    BenchmarkUserFun.createBenchmarkingLambda(add, 1024)
   }
 
 //  @Test

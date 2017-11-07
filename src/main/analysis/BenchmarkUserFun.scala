@@ -15,19 +15,15 @@ object BenchmarkUserFun {
   val N = SizeVar("N")
 
   def benchmark(uf: UserFun, callsPerThread: Int, iterations: Int, timeout: Double = 200): Double = {
-    val inputSize = 1024*1024
 
-    val testbla = Array.tabulate(inputSize)(_ => 3)
+    val f = createBenchmarkingLambda(uf, callsPerThread)
 
-    val f = BenchmarkUserFun(uf, callsPerThread)
-
-    val generator = new InputGenerator(collection.Map(N -> Cst(inputSize)))
-    val inputs = f.params.init.map(p => generator(p.t)) :+ testbla
+    val inputs = createInputs(f)
 
     val (local, global) = InferNDRange(f)
 
-    val code = Compile(f, local, global)
-    val kernelCode = BenchmarkUserFun.spliceInUserFun(code, uf)
+    val originalCode = Compile(f, local, global)
+    val kernelCode = spliceInBenchmarkedFunion(originalCode, uf)
 
     val (_, time) = Execute().benchmark[Array[Float]](iterations, timeout, kernelCode, f, inputs:_*)
     val median = time.sorted.apply(time.length/2)
@@ -35,49 +31,55 @@ object BenchmarkUserFun {
     median
   }
 
-  def spliceInUserFun(code: String, uf: UserFun): String = {
+  def createInputs(f: Lambda): Array[Any] = {
+    val inputSize = 1024 * 1024
+
+    val conditionInput = Array.tabulate(inputSize)(_ => 3)
+
+    val generator = new InputGenerator(collection.Map(N -> Cst(inputSize)))
+    val userFunInputs = f.params.init.map(p => generator(p.t))
+
+    userFunInputs :+ conditionInput
+  }
+
+  def spliceInBenchmarkedFunion(code: String, uf: UserFun): String = {
     val lines = code.split("\n")
 
-    val kernelStartLine = lines.indexWhere(_.contains("benchmark" + uf.name))
+    val benchmarkingFunctionLine = lines.indexWhere(_.contains("benchmark" + uf.name))
 
     val userFunDefinition = OpenCLGenerator.createFunctionDefinition(uf)
+    val printedUserFun = OpenCLPrinter()(userFunDefinition)
 
-    val printeduserFun = OpenCLPrinter()(userFunDefinition)
+    val beginLines = lines.take(benchmarkingFunctionLine - 1).mkString("\n")
+    val endLines = lines.drop(benchmarkingFunctionLine - 1).mkString("\n")
 
-    val beginLines = lines.slice(0, kernelStartLine-1)
-    val endLines = lines.slice(kernelStartLine, lines.size)
-
-    val kernelCode = beginLines.mkString("\n") + s"\n\n$printeduserFun\n\n" + endLines.mkString("\n")
+    val kernelCode = beginLines + s"\n\n$printedUserFun\n\n" + endLines
 
     kernelCode
   }
 
-  def apply(uf: UserFun, count: Int): Lambda = {
+  def createBenchmarkingLambda(uf: UserFun, callsPerThread: Int): Lambda = {
 
     val inputTypes = createInputTypes(uf)
 
-    val params = inputTypes.map(t => {
-      val p = Param()
-      p.t = t
-      p
-    })
+    val params = inputTypes.map(Param.apply)
 
-    val wrapperFun = createWrapperFun(uf, count)
+    val wrapperFun = createBenchmarkingFunction(uf, callsPerThread)
 
     Lambda(params.toArray, MapGlb(wrapperFun) $ Zip(params:_*))
   }
 
-  def createInputTypes(uf: UserFun): Seq[Type] = {
+  def createInputTypes(uf: UserFun): Seq[Type] =
     uf.inTs.map(ArrayType(_, N)) :+ ArrayType(Int, N)
-  }
 
-  def createWrapperFun(uf: UserFun, count: Int): UserFun = {
-    val args = uf.paramNames :+ "testValue"
+  def createBenchmarkingFunction(uf: UserFun, count: Int): UserFun = {
+    val wrapperArgumentNames = uf.paramNames :+ "conditionValue"
     val inputTypes = uf.inTs :+ Int
 
     val outputTypeName = OpenCLPrinter.toString(uf.outT)
 
-    val increment = (uf.inTs, uf.paramNames).zipped.map((t, name) => createIncrement(t, name)).mkString(" ")
+    val increment =
+      (uf.inTs, uf.paramNames).zipped.map((t, name) => createIncrement(t, name)).mkString(" ")
 
     val body =
       s"""{
@@ -85,7 +87,7 @@ object BenchmarkUserFun {
         |  $outputTypeName my_output;
         |
         |  for (int i = 0; i < count; i++) {
-        |    if (testValue <= 10 + i) {
+        |    if (conditionValue <= 10 + i) {
         |      my_output = ${uf.name}(${uf.paramNames.mkString(", ")});
         |    } else {
         |      $increment
@@ -96,7 +98,7 @@ object BenchmarkUserFun {
         |}
       """.stripMargin
 
-    UserFun("benchmark" + uf.name, args, body, inputTypes, uf.outT)
+    UserFun("benchmark" + uf.name, wrapperArgumentNames, body, inputTypes, uf.outT)
   }
 
   def createIncrement(t: Type, name: String): String = t match {
