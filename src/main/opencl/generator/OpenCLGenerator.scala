@@ -103,6 +103,24 @@ object OpenCLGenerator extends Generator {
 
   }
 
+  def createFunctionDefinition(uf: UserFun): Function = {
+    val block = OpenCLAST.Block()
+    if (uf.tupleTypes.length == 1)
+      block += OpenCLAST.TupleAlias(uf.tupleTypes.head, "Tuple")
+    else uf.tupleTypes.zipWithIndex.foreach({ case (x, i) =>
+      // TODO: think about this one ...
+      block += OpenCLAST.TupleAlias(x, s"Tuple$i")
+    })
+    block += OpenCLAST.OpenCLCode(uf.body)
+
+    OpenCLAST.Function(
+      name = uf.name,
+      ret = uf.outT,
+      params = (uf.inTs, uf.paramNames).
+        zipped.map((t, n) => OpenCLAST.ParamDecl(n, t)).toList,
+      body = block)
+  }
+
   private[generator] def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
     mem => try {
       mem.mem.size.evalLong
@@ -270,7 +288,6 @@ class OpenCLGenerator extends Generator {
 
   /** Traversals f and print all user functions using oclPrinter */
   private def generateUserFunctions(expr: Expr): Seq[Declaration] = {
-    var fs = Seq[Declaration]()
 
     val userFuns = Expr.visitWithState(Set[UserFun]())(expr, (expr, set) =>
       expr match {
@@ -286,27 +303,9 @@ class OpenCLGenerator extends Generator {
         case _ => set
       })
 
-    userFuns.foreach(uf => {
-
-      val block = OpenCLAST.Block()
-      if (uf.tupleTypes.length == 1)
-        block += OpenCLAST.TupleAlias(uf.tupleTypes.head, "Tuple")
-      else uf.tupleTypes.zipWithIndex.foreach({ case (x, i) =>
-        // TODO: think about this one ...
-        block += OpenCLAST.TupleAlias(x, s"Tuple$i")
-      })
-      block += OpenCLAST.OpenCLCode(uf.body)
-
-      fs = fs :+ OpenCLAST.Function(
-        name = uf.name,
-        ret = uf.outT,
-        params = (uf.inTs, uf.paramNames).
-          zipped.map((t, n) => OpenCLAST.ParamDecl(n, t)).toList,
-        body = block)
-    })
-
-    fs
+    userFuns.toSeq.map(OpenCLGenerator.createFunctionDefinition)
   }
+
 
   def allocateMemory(f: Lambda): Unit = {
     OpenCLMemoryAllocator(f)
