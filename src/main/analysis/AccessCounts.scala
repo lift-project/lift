@@ -79,7 +79,7 @@ class AccessCounts(
 
   private val accessPatterns = AccessPatterns(lambda, localSize, globalSize, valueMap)
 
-  private var allowedPrivate = getReduceAndIteratePrivates
+  private val privateMemoriesForCounting = getReduceAndIteratePrivates
 
   count(lambda.body)
 
@@ -251,7 +251,7 @@ class AccessCounts(
 
         if (m.isInstanceOf[OpenCLMemory] &&
           m.asInstanceOf[OpenCLMemory].addressSpace == PrivateMemory &&
-        !allowedPrivate.contains(m))
+        !privateMemoriesForCounting.contains(m))
           return
 
         val key = (memory, pattern, vectorWidth)
