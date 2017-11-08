@@ -335,7 +335,7 @@ class SaveOpenCL(
 
     val allFunctions = functionCounts.getFunctions
 
-    val allUserFunctionCounts = allFunctions.map(function => {
+    val allUserFunctionCounts = hash + "," + allFunctions.map(function => {
       val count = functionCounts.getFunctionCount(function, exact).evalDouble
       val vectorisedCount = functionCounts.getVectorisedCount(function, exact).evalDouble
       s"$function,$count,$vectorisedCount"
