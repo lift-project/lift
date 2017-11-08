@@ -14,6 +14,8 @@ object BenchmarkUserFun {
 
   val N = SizeVar("N")
 
+  val conditionValue = 3
+
   def benchmark(uf: UserFun, callsPerThread: Int, iterations: Int, timeout: Double = 200): Double = {
 
     val f = createBenchmarkingLambda(uf, callsPerThread)
@@ -34,7 +36,7 @@ object BenchmarkUserFun {
   def createInputs(f: Lambda): Array[Any] = {
     val inputSize = 1024 * 1024
 
-    val conditionInput = Array.tabulate(inputSize)(_ => 3)
+    val conditionInput = Array.tabulate(inputSize)(_ => conditionValue)
 
     val generator = new InputGenerator(collection.Map(N -> Cst(inputSize)))
     val userFunInputs = f.params.init.map(p => generator(p.t))
@@ -87,7 +89,7 @@ object BenchmarkUserFun {
         |  $outputTypeName my_output;
         |
         |  for (int i = 0; i < count; i++) {
-        |    if (conditionValue <= 10 + i) {
+        |    if (conditionValue <= $conditionValue + i) {
         |      my_output = ${uf.name}(${uf.paramNames.mkString(", ")});
         |    } else {
         |      $increment

@@ -94,7 +94,7 @@ class InputGenerator(val concreteSizes: collection.Map[ArithExpr, Cst]) {
 
       case Int => getInt
 
-      case _ => throw new NotImplementedError()
+      case _ => throw new NotImplementedError(s"Generation for type $t not yet implemented")
     }
 
   }

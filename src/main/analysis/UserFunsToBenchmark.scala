@@ -82,16 +82,12 @@ object UserFunsToBenchmark {
     val weights = userFuns.map(uf => {
 
       val small = BenchmarkUserFun.benchmark(uf, baseCallsPerThread, iterations)
-      val large = BenchmarkUserFun.benchmark(uf, 2*baseCallsPerThread, iterations)
+      val large = BenchmarkUserFun.benchmark(uf, 2 * baseCallsPerThread, iterations)
 
       val change = large/small
 
-      if (change > 1.8 && change < 2.2) {
-        println("hurray")
-      } else {
-        println("boo")
-      }
-
+      if (! (change > 1.8 && change < 2.2) )
+        println(s"Function $uf time with more calls is more than 10% different from the expected!")
 
       large / (2 * baseCallsPerThread)
     })
