@@ -5,6 +5,7 @@ import java.security.MessageDigest
 
 import ir.{ByDeclarationOrder, TypeChecker}
 import ir.ast._
+import opencl.executor.Execute
 import opencl.ir.ast.OpenCLBuiltInFun
 
 import scala.sys.process._
@@ -162,6 +163,27 @@ object DumpToFile {
     withIndex
   }
 
+  def getStringForInputOutput(a: Any): String = {
+    a match {
+      case b: Boolean =>
+        b.toString
+      case f: Float =>
+        f.toString
+      case i: Int =>
+        i.toString
+      case d: Double =>
+        d.toString
+      case arr: Array[_] =>
+        Execute.flatten(arr).mkString(" ")
+      case _ => throw new NotImplementedError()
+    }
+  }
+
+  def dumpInputOutputToFile(inout: Any, filename: String, path: String): Boolean = {
+    val inputString = DumpToFile.getStringForInputOutput(inout)
+    DumpToFile.dumpToFile(inputString, filename, path)
+  }
+
   private def replaceVariableNames(fullString: String, withIndex: List[(String, Int)]): String = {
 
     val numVariables = withIndex.length
@@ -188,7 +210,7 @@ object DumpToFile {
       ))
   }
 
-  def findAndReplaceVariableNames(code: String) = {
+  def findAndReplaceVariableNames(code: String): String = {
     val variables = findVariables(code)
     replaceVariableNames(code, variables)
   }
