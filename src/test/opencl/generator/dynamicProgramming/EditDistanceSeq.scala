@@ -79,7 +79,7 @@ class EditDistanceSeq {
   }
   def solveTable(N:ArithExpr, M:ArithExpr, algo:EditDistanceConstants) = {
     fun(Table(N,M), table => {
-      ScanSeq(solveRow(N, algo),MapSeq(toGlobal(intID)) $ Value(Integer.MAX_VALUE, ArrayTypeWSWC(Int, N))) $ table
+      ScanSeq(solveRow(N, algo), MapSeq(toGlobal(intID)) $ Value(Integer.MAX_VALUE, ArrayTypeWSWC(Int, N))) $ table
     })
     //solveTable(table) = Scan(solveRow, [inf...])
   }
