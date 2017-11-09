@@ -176,10 +176,11 @@ object ParameterRewrite {
 
               parList.foreach(low_level_filename => {
 
+                val low_level_hash = low_level_filename.split("/").last
+                val fullLowLevelFilename = parentFolder + "/" + low_level_filename
+
                 try {
 
-                  val low_level_hash = low_level_filename.split("/").last
-                  val fullLowLevelFilename = parentFolder + "/" + low_level_filename
                   val low_level_str = readFromFile(fullLowLevelFilename)
                   val low_level_factory = Eval.getMethod(low_level_str)
 
@@ -244,20 +245,20 @@ object ParameterRewrite {
                 } catch {
                   case t: Throwable =>
                     // Failed reading file or similar.
-                    logger.warn(t.toString)
+                    logger.warn(s"Caught at low level hash: $low_level_hash", t)
                 }
               })
               println(s"\nGenerated $kernelCounter kernels")
             }
           } catch {
             case t: Throwable =>
-              logger.warn(t.toString)
+              logger.warn(s"Caught for high-level hash: $high_level_hash", t)
           }
         }
       })
     } catch {
       case io: IOException =>
-        logger.error(io.toString)
+        logger.error("IOException", io)
       case e: ArgotUsageException =>
         println(e.message)
     }
@@ -279,7 +280,7 @@ object ParameterRewrite {
         }
       } catch {
         case t: Throwable =>
-          logger.warn(t.toString)
+          logger.warn(s"Saving to scala failed, $hash", t)
       }
     })
   }
