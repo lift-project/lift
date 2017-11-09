@@ -55,21 +55,28 @@ class FunctionCounts (
 
   count(lambda.body)
 
-  def getFunctionCount(userFun: UserFun, exact: Boolean = false) =
-    getExact(functionCounts(userFun.name), exact)
+  def getFunctionCount(userFun: UserFun, exact: Boolean = false): ArithExpr =
+    getFunctionCount(userFun.name, exact)
 
-  def getVectorisedCount(userFun: UserFun, exact: Boolean = false) =
-    getExact(vectorisedFunctionCounts(userFun.name), exact)
+  def getVectorisedCount(userFun: UserFun, exact: Boolean = false): ArithExpr =
+    getVectorisedCount(userFun.name, exact)
 
-  def getTotalCount(userFun: UserFun, exact: Boolean = false) =
+  def getFunctionCount(userFun: String, exact: Boolean): ArithExpr =
+    getExact(functionCounts(userFun), exact)
+
+  def getVectorisedCount(userFun: String, exact: Boolean): ArithExpr =
+    getExact(vectorisedFunctionCounts(userFun), exact)
+
+  def getTotalCount(userFun: UserFun, exact: Boolean = false): ArithExpr =
     getFunctionCount(userFun, exact) + getVectorisedCount(userFun, exact)
 
-  def getFunctions = functionCounts.keySet ++ vectorisedFunctionCounts.keySet
+  def getFunctions: collection.Set[String] =
+    functionCounts.keySet ++ vectorisedFunctionCounts.keySet
 
-  def getAddMultCount(exact: Boolean = false) =
+  def getAddMultCount(exact: Boolean = false): ArithExpr =
     getExact(addMultCount, exact)
 
-  def getVectorisedAddMultCount(exact: Boolean = false) =
+  def getVectorisedAddMultCount(exact: Boolean = false): ArithExpr =
     getExact(vectorisedAddMultCount, exact)
 
   private def count(lambda: Lambda, arithExpr: ArithExpr): Unit = {
