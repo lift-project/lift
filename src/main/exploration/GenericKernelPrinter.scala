@@ -151,7 +151,7 @@ object GenericKernelPrinter {
       if (config.enableTimeoutCondition) {
         val message = "Seconds to tune a single lift kernel: " + config.timeoutInSeconds / totalLowLevelCount
         logger.info(message)
-        println(message)
+        //println(message)
       }
 
       val parentFolder = Paths.get(topFolder).toAbsolutePath.getParent
@@ -170,11 +170,14 @@ object GenericKernelPrinter {
             val inputVars = high_level_expr_orig.getVarsInParams()
 
             val combinations = settings.inputCombinations
+            /*
             val high_level_expr = if (combinations.isDefined &&
               combinations.get.head.length == inputVars.length)
               replaceInputTypes(high_level_expr_orig, (inputVars: Seq[ArithExpr], combinations.get.head).zipped.toMap)
             else
               high_level_expr_orig
+              */
+            val high_level_expr = high_level_expr_orig
 
             TypeChecker(high_level_expr)
 
