@@ -54,7 +54,7 @@ object ParameterSearch {
    * @param lambda The lambda to build substitutions for.
    * @return Table of valid substitutions.
    */
-  def apply(lambda: Lambda): SubstitutionTable = {
+  def apply(lambda: Lambda): List[Map[Var, ArithExpr]] = {
     // find all the nodes using variables
     val tunableNodes = Utils.findTunableNodes(lambda)
 
@@ -66,6 +66,8 @@ object ParameterSearch {
       case FunCall(Gather(ReorderWithStride(s)), x) if s.isInstanceOf[Var] => (s, x.t.asInstanceOf[ArrayType with Size].size)
     })
 
-    substitute(splits, Map.empty, List.empty)
+    val st = substitute(splits, Map.empty, List.empty)
+    // By construction only Vars are keys
+    st.map(sm => sm.map(x => x._1.asInstanceOf[Var] -> x._2))
   }
 }

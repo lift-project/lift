@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.Logger
 import exploration.ParameterSearch.SubstitutionMap
 import ir.ast.{Expr, FunCall, Lambda}
 import ir.{Type, TypeChecker}
-import lift.arithmetic.{ArithExpr, Cst}
+import lift.arithmetic.{ArithExpr, Cst, Var}
 import opencl.executor.Eval
 import opencl.generator.NDRange
 import opencl.ir.pattern._
@@ -155,7 +155,7 @@ object ParameterRewrite {
 
             TypeChecker(high_level_expr)
 
-            val all_substitution_tables: Seq[SubstitutionMap] = ParameterSearch(high_level_expr)
+            val all_substitution_tables: Seq[Map[Var, ArithExpr]] = ParameterSearch(high_level_expr)
             val substitutionCount = all_substitution_tables.size
             println(s"Found $substitutionCount valid parameter sets")
 
@@ -188,8 +188,7 @@ object ParameterRewrite {
                     all_substitution_tables.flatMap(st => {
 
                       print(s"\rLow-Level expression: ${lowLevelCounter.get()}/$lowLevelCount | Propagation ${propagationCounter.incrementAndGet()}/$propagationCount")
-                      // TODO: This is assuming all keys are vars with no name
-                      val params = st.toSeq.sortBy(_._1.toString.substring(3).toLong).map(_._2)
+                      val params = st.toSeq.sortBy(_._1.id).map(_._2)
                       try {
                         val expr = low_level_factory(sizesForFilter ++ params)
                         TypeChecker(expr)
