@@ -5,7 +5,7 @@ import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.Logger
-import exploration.ParameterSearch.SubstitutionMap
+import exploration.ExpressionFilter.Status.Success
 import ir.ast.{Expr, FunCall, Lambda}
 import ir.{Type, TypeChecker}
 import lift.arithmetic.{ArithExpr, Cst, Var}
@@ -16,7 +16,6 @@ import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 import rewriting.InferNDRange
 import rewriting.utils.{DumpToFile, Utils}
-import ExpressionFilter.Status.Success
 
 import scala.collection.immutable.Map
 import scala.io.Source

@@ -9,10 +9,10 @@ import scala.collection.immutable.Map
 
 object ParameterSearch {
   // A substitution map is a collection of var/value pairs
-  type SubstitutionMap = Map[ArithExpr, ArithExpr]
+  private type SubstitutionMap = Map[ArithExpr, ArithExpr]
 
   // A substitution table represents all valid substitution maps
-  type SubstitutionTable = List[SubstitutionMap]
+  private type SubstitutionTable = List[SubstitutionMap]
 
   private def propagate(splits: List[(ArithExpr, ArithExpr)],
                 m: SubstitutionMap): List[(ArithExpr, ArithExpr)] =
@@ -67,7 +67,7 @@ object ParameterSearch {
     })
 
     val st = substitute(splits, Map.empty, List.empty)
-    // By construction only Vars are keys
+    // By construction only Vars are keys, but Arith.substitute can't be called with Map[Var, ArithExpr]
     st.map(sm => sm.map(x => x._1.asInstanceOf[Var] -> x._2))
   }
 }
