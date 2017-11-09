@@ -15,7 +15,7 @@ object ParameterSearch {
   type SubstitutionTable = List[SubstitutionMap]
 
   private def propagate(splits: List[(ArithExpr, ArithExpr)],
-                m: Map[ArithExpr, ArithExpr]): List[(ArithExpr, ArithExpr)] =
+                m: SubstitutionMap): List[(ArithExpr, ArithExpr)] =
     splits.map((x) => (ArithExpr.substitute(x._1, m), ArithExpr.substitute(x._2, m)))
 
   // recursively build the substitution table.

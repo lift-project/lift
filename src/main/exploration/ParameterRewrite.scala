@@ -188,6 +188,7 @@ object ParameterRewrite {
                     all_substitution_tables.flatMap(st => {
 
                       print(s"\rLow-Level expression: ${lowLevelCounter.get()}/$lowLevelCount | Propagation ${propagationCounter.incrementAndGet()}/$propagationCount")
+                      // TODO: This is assuming all keys are vars with no name
                       val params = st.toSeq.sortBy(_._1.toString.substring(3).toLong).map(_._2)
                       try {
                         val expr = low_level_factory(sizesForFilter ++ params)
