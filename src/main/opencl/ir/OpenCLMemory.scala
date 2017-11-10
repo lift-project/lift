@@ -106,6 +106,11 @@ object OpenCLMemory {
     new OpenCLMemory(variable, size, addressSpace)
   }
 
+  def getAllMemories(memory: OpenCLMemory): Seq[OpenCLMemory] = memory match {
+    case OpenCLMemoryCollection(subMemories, _) => subMemories.flatMap(getAllMemories)
+    case _ => Seq(memory)
+  }
+
   def asOpenCLMemory(m: Memory): OpenCLMemory = {
     m match {
       case oclm: OpenCLMemory => oclm

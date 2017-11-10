@@ -355,6 +355,37 @@ object Execute {
         s"Device ${Executor.getDeviceName} can't execute kernels with " +
           s"work-groups larger than $maxWorkGroupSize.")
   }
+
+
+  def flatten(data: Any): Array[_] = {
+    data match {
+      case af: Array[Float] => af
+      case aaf: Array[Array[Float]] => aaf.flatten
+      case aaaf: Array[Array[Array[Float]]] => aaaf.flatten.flatten
+      case aaaaf: Array[Array[Array[Array[Float]]]] => aaaaf.flatten.flatten.flatten
+      case aaaaaf: Array[Array[Array[Array[Array[Float]]]]] => aaaaaf.flatten.flatten.flatten.flatten
+
+      case ai: Array[Int] => ai
+      case aai: Array[Array[Int]] => aai.flatten
+      case aaai: Array[Array[Array[Int]]] => aaai.flatten.flatten
+      case aaaai: Array[Array[Array[Array[Int]]]] => aaaai.flatten.flatten.flatten
+      case aaaaai: Array[Array[Array[Array[Array[Int]]]]] => aaaaai.flatten.flatten.flatten.flatten
+
+      case ad: Array[Double] => ad
+      case aad: Array[Array[Double]] => aad.flatten
+      case aaad: Array[Array[Array[Double]]] => aaad.flatten.flatten
+      case aaaad: Array[Array[Array[Array[Double]]]] => aaaad.flatten.flatten.flatten
+      case aaaaad: Array[Array[Array[Array[Array[Double]]]]] => aaaaad.flatten.flatten.flatten.flatten
+
+      case ad: Array[Boolean] => ad
+      case aad: Array[Array[Boolean]] => aad.flatten
+      case aaad: Array[Array[Array[Boolean]]] => aaad.flatten.flatten
+      case aaaad: Array[Array[Array[Array[Boolean]]]] => aaaad.flatten.flatten.flatten
+      case aaaaad: Array[Array[Array[Array[Array[Boolean]]]]] => aaaaad.flatten.flatten.flatten.flatten
+
+      case _ => throw new NotImplementedError(s"You should not end up here: ${data.getClass}")
+    }
+  }
 }
 
 /**
@@ -372,7 +403,7 @@ object Execute {
 class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSize3: ArithExpr,
               val globalSize1: ArithExpr, val globalSize2: ArithExpr, val globalSize3: ArithExpr,
               val injectLocalSize: Boolean, val injectGroupSize: Boolean = false) {
-  import Execute.{ValidateGroupSize, ValidateNDRange, createValueMap}
+  import Execute.{ValidateGroupSize, ValidateNDRange, createValueMap, flatten}
 
   /**
    * Given just a string: evaluate the string into a lambda and
@@ -766,35 +797,9 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
       }
     }
 
-    private def flatUpload(data: Any): GlobalArg = {
-      data match {
-        case af: Array[Float] => globalArg(af)
-        case aaf: Array[Array[Float]] => globalArg(aaf.flatten)
-        case aaaf: Array[Array[Array[Float]]] => globalArg(aaaf.flatten.flatten)
-        case aaaaf: Array[Array[Array[Array[Float]]]] => globalArg(aaaaf.flatten.flatten.flatten)
-        case aaaaaf: Array[Array[Array[Array[Array[Float]]]]] => globalArg(aaaaaf.flatten.flatten.flatten.flatten)
 
-        case ai: Array[Int] => globalArg(ai)
-        case aai: Array[Array[Int]] => globalArg(aai.flatten)
-        case aaai: Array[Array[Array[Int]]] => globalArg(aaai.flatten.flatten)
-        case aaaai: Array[Array[Array[Array[Int]]]] => globalArg(aaaai.flatten.flatten.flatten)
-        case aaaaai: Array[Array[Array[Array[Array[Int]]]]] => globalArg(aaaaai.flatten.flatten.flatten.flatten)
-
-        case ad: Array[Double] => globalArg(ad)
-        case aad: Array[Array[Double]] => globalArg(aad.flatten)
-        case aaad: Array[Array[Array[Double]]] => globalArg(aaad.flatten.flatten)
-        case aaaad: Array[Array[Array[Array[Double]]]] => globalArg(aaaad.flatten.flatten.flatten)
-        case aaaaad: Array[Array[Array[Array[Array[Double]]]]] => globalArg(aaaaad.flatten.flatten.flatten.flatten)
-
-        case ad: Array[Boolean] => globalArg(ad)
-        case aad: Array[Array[Boolean]] => globalArg(aad.flatten)
-        case aaad: Array[Array[Array[Boolean]]] => globalArg(aaad.flatten.flatten)
-        case aaaad: Array[Array[Array[Array[Boolean]]]] => globalArg(aaaad.flatten.flatten.flatten)
-        case aaaaad: Array[Array[Array[Array[Array[Boolean]]]]] => globalArg(aaaaad.flatten.flatten.flatten.flatten)
-
-        case _ => throw new NotImplementedError(s"You should not end up here: ${data.getClass}")
-      }
-    }
+    private def flatUpload(data: Any): GlobalArg =
+      globalArg(flatten(data))
 
     private def globalArg(data: Array[_]): GlobalArg = data match {
       case af: Array[Float]   => GlobalArg.createInput(af)
