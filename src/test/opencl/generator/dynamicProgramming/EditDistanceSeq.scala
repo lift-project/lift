@@ -77,6 +77,7 @@ class EditDistanceSeq {
 
     //solveRow(old,new) = Scan((x,y) => min(x + c2,y), +Inf) o map(\((p1, p2), x) => min(p1 + x, p2 + c2)) o zip(slide(old),new)
   }
+
   def solveTable(N:ArithExpr, M:ArithExpr, algo:EditDistanceConstants) = {
     fun(Table(N,M), table => {
       ScanSeq(solveRow(N, algo), MapSeq(toGlobal(intID)) $ Value(Integer.MAX_VALUE, ArrayTypeWSWC(Int, N))) $ table
