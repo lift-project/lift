@@ -1,9 +1,10 @@
 package ir.view
 
-import lift.arithmetic.{ArithExpr, Var}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{FilterSeq, MapSeqSlide, ReduceWhileSeq}
+import lift.arithmetic.ArithExpr
+import opencl.ir.OpenCLMemoryCollection
+import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq}
 
 /**
  * A helper object for constructing views.
@@ -58,6 +59,7 @@ object InputView {
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
       case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
+      case iss: InsertionSortSeq => buildViewSort(iss, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
       case z: Zip => buildViewZip(call, argView)
       case uz: Unzip => buildViewUnzip(call, argView)
@@ -82,7 +84,7 @@ object InputView {
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case ArrayAccess(i) => argView.access(i)
-      case PrintType() | Scatter(_) | _: Tuple | Pad(_, _, _) => argView
+      case PrintType() | Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => argView
       case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
     }
   }
@@ -102,25 +104,17 @@ object InputView {
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, argView: View): View = {
-
-    var firstSeenVar : Option[Var] = None
-    i.f.params(0).view = View.visit(argView, pre = {(v:View) => {v match {
-      case ViewMem(v, t) =>
-        if (firstSeenVar.isEmpty)
-          firstSeenVar = Some(v)
-        else if (firstSeenVar.get != v)
-          throw new NotImplementedError("Iterate can only work if the input received comes from a single memory view")
-        ViewMem(i.vPtrIn,t)
-      case _ => v
-    }}})
-
+    val fstParam = i.f.params.head
+    fstParam.mem match {
+      case OpenCLMemoryCollection(_, _) => throw new NotImplementedError("Cannot iterate on a memory collection")
+      case _ =>
+    }
+    fstParam.view = argView.replaced(fstParam.mem.variable, i.vPtrIn)
     visitAndBuildViews(i.f.body)
     View.initialiseNewView(call.t, call.inputDepth, i.f.body.mem.variable)
   }
 
-
   private def buildViewMap(m: AbstractMap, call: FunCall, argView: View): View = {
-
 
     // pass down input view
     m.f.params(0).view = argView.access(m.loopVar)
@@ -143,6 +137,18 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
   
+  private def buildViewSort(iss: InsertionSortSeq,
+                            call: FunCall,
+                            argView: View): View = {
+    // FIXME: we need (?) a view to be set here but this view should depend on iss's output view…
+    // See comment in OutputView.buildViewSort
+    iss.f.params(1).view = argView.access(iss.loopWrite) // here is the hack
+    iss.f.params(0).view = argView.access(iss.loopRead)
+    visitAndBuildViews(iss.f.body)
+
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
+  }
+
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, argView: View): View = {
     // pass down input view
@@ -195,7 +201,15 @@ object InputView {
       if (l.params.length != 1) throw new NumberOfArgumentsException
       l.params(0).view = argView
     } else {
-      l.params.zipWithIndex.foreach({ case (p, i) => p.view = argView.get(i) })
+      argView match {
+        // Undo the packing into `ViewTuple` done in `getViewFromArgs`.
+        // Several arguments are not a tuple. Also, without removing the unnecessary
+        // tuple, breaks with the last case in OpenCLGenerator.generateLoadNode
+        case ViewTuple(ivs, _) if call.args.length == l.params.length && ivs.length == l.params.length =>
+          (l.params, ivs).zipped.foreach({ case (p, v) => p.view = v })
+        case _ =>
+          throw new NumberOfArgumentsException()
+      }
     }
     visitAndBuildViews(l.body)
   }

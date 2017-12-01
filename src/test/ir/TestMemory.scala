@@ -3,6 +3,7 @@ package ir
 
 import ir.ast.{Value, Zip, fun}
 import lift.arithmetic.SizeVar
+import opencl.executor.Compile
 import opencl.generator.IllegalKernel
 import opencl.ir._
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal, toPrivate}
@@ -23,10 +24,8 @@ class TestMemory {
 
   @Test(expected = classOf[IllegalKernel])
   def mapSeqReturnPrivate(): Unit = {
-    val msidGlbToPrv = MapSeq(id)
-    val lambda = fun(ArrayTypeWSWC(Float, 16), (A) => toPrivate(msidGlbToPrv) $ A)
-    TypeChecker(lambda)
-    InferOpenCLAddressSpace(lambda)
+    val lambda = fun(ArrayTypeWSWC(Float, 16), toPrivate(MapSeq(id)) $ _)
+    Compile(lambda)
   }
 
   @Test

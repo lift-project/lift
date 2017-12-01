@@ -4,7 +4,6 @@ import ir._
 import ir.ast._
 import lift.arithmetic.ArithExpr.substitute
 import lift.arithmetic._
-import opencl.executor.Compile
 import opencl.ir._
 import opencl.ir.ast._
 import opencl.ir.pattern._
@@ -257,9 +256,6 @@ class TestAnalyser {
 
     val (localSizes, globalSizes) = InferNDRange(lambda)
 
-    println(Compile(lambda, localSizes, globalSizes))
-
-
     val actualLocalSizes = localSizes.map(substitute(_, valueMap))
     val actualGlobalSizes = globalSizes.map(substitute(_, valueMap))
 
@@ -277,7 +273,7 @@ class TestAnalyser {
 
     assertEquals(12582912l, globalMemory)
     assertEquals(12288l, localMemory)
-    assertEquals(272l, privateMemory)
+    assertEquals(128l, privateMemory)
 
     val scalarGlobalStores =
       accessCounts.scalarStores(GlobalMemory, UnknownPattern, exact).evalDouble
@@ -298,8 +294,8 @@ class TestAnalyser {
     val privateScalarLoads =
       accessCounts.scalarLoads(PrivateMemory, UnknownPattern, exact).evalDouble
 
-    assertEquals(69664.0, privateScalarStores, 0.0)
-    assertEquals(98336.0, privateScalarLoads, 0.0)
+    assertEquals(32800.0, privateScalarStores, 0.0)
+    assertEquals(32800.0, privateScalarLoads, 0.0)
 
     val barriers = barrierCounts.getTotalCount(exact).evalDouble
 

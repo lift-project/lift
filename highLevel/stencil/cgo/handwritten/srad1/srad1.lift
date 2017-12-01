@@ -1,0 +1,32 @@
+val M = SizeVar("M")
+val N = SizeVar("N")
+
+val calculateScoeff = UserFun("calculateScoeff", Array("dN", "dS", "dE", "dW", "jC", "q0sqr"),
+	"{ float g2 = (dN*dN + dS*dS + dW*dW + dE*dE) / (jC * jC);" +
+	"float l = (dN + dS + dW + dE ) / jC; " +
+	"float num = (0.5*g2) - ((1.0/16.0)*(l*l)); " +
+	"float  den = 1 + (0.25*l);" +
+	"float qsqr = num/(den*den); " +
+	"den = (qsqr-q0sqr) / (q0sqr * (1+q0sqr));" +
+	"float coeff = 1.0 / (1.0+den); " +
+	" if(coeff > 1) { return 1.0f; } else if(coeff < 0 ) { return 0.0f; } else { return coeff;}  }", Seq(Float, Float,Float, Float,Float,Float), Float)
+
+fun(
+      ArrayType(ArrayType(Float, M), N),
+      (image) => {
+		Map(Map(fun((m) => {
+    	val q0sqr = 0.053787220269f // this value is dependent on data set size !!
+    	val Jc = m.at(1).at(1)
+    	val JW = m.at(1).at(0)
+    	val JN = m.at(0).at(1)
+    	val JS = m.at(2).at(1)
+    	val JE = m.at(1).at(2)
+
+    	val DW = toPrivate(fun(x => subtract(x,Jc))) $ JW
+    	val DN = toPrivate(fun(x => subtract(x,Jc))) $ JN
+    	val DS = toPrivate(fun(x => subtract(x,Jc))) $ JS
+    	val DE = toPrivate(fun(x => subtract(x,Jc))) $ JE
+    	fun( x => calculateScoeff(x, DS, DE, DW, Jc, q0sqr)) $ DN
+    }))
+	) o Slide2D(3,1) o Pad2D(1,1,Pad.Boundary.Clamp) $ image
+})

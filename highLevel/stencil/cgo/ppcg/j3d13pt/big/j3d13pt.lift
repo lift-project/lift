@@ -1,0 +1,38 @@
+val M = 512
+val N = 512
+val O = 512
+
+def jacobi = UserFun("jacobi", Array("EE", "E", "W", "WW", "SS", "S", "N", "NN", "BB", "B", "F", "FF", "C"),
+  """return 0.083f * EE + 0.083f * E + 0.083f * W + 0.083f * WW +
+    |       0.083f * SS + 0.083f * S + 0.083f * N + 0.083f * NN +
+    |       0.083f * BB + 0.083f * B + 0.083f * F + 0.083f * FF -
+    |       0.996f * C;""".stripMargin,
+  Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
+λ(
+  ArrayType(ArrayType(ArrayType(Float, M), N), O),
+  input => {
+    Map(Map(Scatter(Shift(2)))) o
+      Map(Scatter(Shift(2))) o
+        Scatter(Shift(2)) o
+    Pad3D(2,2,2,Pad.Boundary.Clamp) o
+    Map(Map(Map(λ(nbh => {
+      val ee = nbh.at(2).at(2).at(4)
+      val e  = nbh.at(2).at(2).at(3)
+      val w  = nbh.at(2).at(2).at(1)
+      val ww = nbh.at(2).at(2).at(0)
+      val ss = nbh.at(2).at(4).at(2)
+      val s  = nbh.at(2).at(3).at(2)
+      val n  = nbh.at(2).at(1).at(2)
+      val nn = nbh.at(2).at(0).at(2)
+      val bb = nbh.at(4).at(2).at(2)
+      val b  = nbh.at(3).at(2).at(2)
+      val f  = nbh.at(1).at(2).at(2)
+      val ff = nbh.at(0).at(2).at(2)
+      val c  = nbh.at(2).at(2).at(2)
+
+      λ(x =>
+        jacobi(x, e, w, ww, ss, s, n, nn, bb, b, f, ff, c)) $ ee
+
+    })))) o Slide3D(5, 1) $ input
+  })

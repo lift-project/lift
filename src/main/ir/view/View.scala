@@ -1,33 +1,66 @@
 package ir.view
 
-import lift.arithmetic._
-import ir.{ArrayTypeWS, _}
+import ir.Type.size_t
 import ir.ast._
+import ir._
+import lift.arithmetic._
+import opencl.generator.OpenCLAST
 import opencl.generator.OpenCLAST.{ArithExpression, Expression, VarRef}
+import opencl.ir.{AddressSpaceCollection, Int, OpenCLAddressSpace, PrivateMemory, UndefAddressSpace}
 
 import scala.collection.immutable
-import opencl.generator.{OpenCLAST, OpenCLPrinter}
 
+private class IllegalAccess(err: String)
+      extends IllegalArgumentException() {
+  def this(ty: Type) = this(s"Cannot compute access for type $ty")
+  def this(ty: Type, as: OpenCLAddressSpace) = this(s"Cannot compute access for type $ty in $as")
+}
 
-private class IllegalAccess(ty: Type)
-      extends IllegalArgumentException(s"Cannot compute access for type $ty")
-
-private class IllegalView(v: View)
-      extends IllegalArgumentException(s"View $v is ill-formed")
+private class IllegalView(err: String)
+      extends IllegalArgumentException(err) {
+  def this(v: View) = this(s"View $v is ill-formed")
+}
 
 /**
  * An arithmetic expression that performs an access to `array[idx]`
  *
- * @param array Array name
- * @param idx Index to access in the array
+ * @param array variable referencing the array
+ * @param idx index to access in the array
  */
-case class AccessVar(array: String, idx: ArithExpression,
-                     r: Range = RangeUnknown,
-                     fixedId: Option[Long] = None) extends ExtensibleVar("", r, fixedId) {
-  override def copy(r: Range) = AccessVar(array, idx, r, Some(id))
+case class AccessVar(array: Var, idx: ArithExpr, r: Range = RangeUnknown, fixedId: Option[Long] = None)
+  extends ExtensibleVar("", r, fixedId) {
+
+  override def copy(r: Range): AccessVar = AccessVar(array.copy(array.range), idx, r, Some(id))
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
-    f(AccessVar(array, ArithExpression(idx.content.visitAndRebuild(f)), range.visitAndRebuild(f), Some(id)))
+    f(AccessVar(
+      array.visitAndRebuild(f).asInstanceOf[Var],
+      idx.visitAndRebuild(f),
+      range.visitAndRebuild(f),
+      Some(id)
+    ))
+}
+
+/**
+ * Variable storing a casted pointer.
+ * `CastedPointer(v, type, offset)` generates the following C code: `((type*)(v + offset))`
+ */
+case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpace: OpenCLAddressSpace)
+  extends ExtensibleVar("") {
+
+  override def copy(r: Range): CastedPointer = {
+    CastedPointer(ptr.copy(ptr.range), ty, offset, addressSpace)
+  }
+
+  override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
+    f(CastedPointer(
+      ptr.visitAndRebuild(f).asInstanceOf[Var],
+      ty,
+      offset.visitAndRebuild(f),
+      addressSpace
+    ))
+
+  override lazy val toString: String = s"(${ty.name}*)($ptr + $offset)"
 }
 
 /**
@@ -38,8 +71,8 @@ case class AccessVar(array: String, idx: ArithExpression,
  */
 case class SizeIndex() extends ExtensibleVar("SIZE", RangeUnknown, None) {
   override def copy(r: Range) = SizeIndex()
-  
-  override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = this
+
+  override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = f(SizeIndex())
 }
 
 /**
@@ -50,7 +83,6 @@ case class SizeIndex() extends ExtensibleVar("SIZE", RangeUnknown, None) {
  * @param t Type of the view.
  */
 abstract sealed class View(val t: Type = UndefType) {
-
 
   /**
    * Construct a new view, where `oldExpr` is replaced by `newExpr`
@@ -67,23 +99,29 @@ abstract sealed class View(val t: Type = UndefType) {
 
   def replaced(subst: collection.Map[ArithExpr, ArithExpr]): View = {
     this match {
-      case map: ViewMap => ViewMap(map.iv.replaced(subst), map.itVar, t)
-      case access: ViewAccess => ViewAccess(ArithExpr.substitute(access.i, subst.toMap), access.iv.replaced(subst), t)
-      case zip: ViewZip => ViewZip(zip.iv.replaced(subst), t)
-      case unzip: ViewUnzip => ViewUnzip(unzip.iv.replaced(subst), t)
-      case split: ViewSplit => ViewSplit(ArithExpr.substitute(split.n, subst.toMap), split.iv.replaced(subst), t)
-      case join: ViewJoin => ViewJoin(ArithExpr.substitute(join.n, subst.toMap), join.iv.replaced(subst), t)
-      case gather: ViewReorder => ViewReorder(gather.f, gather.iv.replaced(subst), t)
-      case asVector: ViewAsVector => ViewAsVector(asVector.n, asVector.iv.replaced(subst), t)
-      case asScalar: ViewAsScalar => ViewAsScalar(asScalar.iv.replaced(subst), asScalar.n, t)
-      case filter: ViewFilter => ViewFilter(filter.iv.replaced(subst), filter.ids.replaced(subst), t)
-      case tuple: ViewTuple => ViewTuple(tuple.ivs.map(_.replaced(subst)), t)
-      case component: ViewTupleComponent => ViewTupleComponent(component.i, component.iv.replaced(subst), t)
-      case slide: ViewSlide => ViewSlide(slide.iv.replaced(subst), slide.slide, slide.t)
-      case pad: ViewPad => ViewPad(pad.iv.replaced(subst), pad.left, pad.right, pad.fct, t)
-      case _: ViewMem | _: ViewHead | NoView | _: View2DGeneratorUserFun |
-           _: View3DGeneratorUserFun | _: ViewConstant | _: ViewGenerator |
-           _: ViewGeneratorUserFun | _: ViewTail | _: ViewSize => this
+      case ViewMem(memVar, ty) =>
+        if (subst.isDefinedAt(memVar))
+          ViewMem(subst(memVar).asInstanceOf[Var], ty)
+        else this
+      case ViewMap(iv, itVar, ty) => ViewMap(iv.replaced(subst), itVar, ty)
+      case ViewAccess(i, iv, ty) => ViewAccess(ArithExpr.substitute(i, subst), iv.replaced(subst), ty)
+      case ViewZip(iv, ty) => ViewZip(iv.replaced(subst), ty)
+      case ViewUnzip(iv, ty) => ViewUnzip(iv.replaced(subst), ty)
+      case ViewSplit(n, iv, ty) => ViewSplit(ArithExpr.substitute(n, subst), iv.replaced(subst), ty)
+      case ViewJoin(n, iv, ty) => ViewJoin(ArithExpr.substitute(n, subst), iv.replaced(subst), ty)
+      case ViewReorder(f, iv, ty) => ViewReorder(f, iv.replaced(subst), ty)
+      case ViewAsVector(n, iv, ty) => ViewAsVector(n, iv.replaced(subst), ty)
+      case ViewAsScalar(iv, n, ty) => ViewAsScalar(iv.replaced(subst), n, ty)
+      case ViewFilter(iv, ids, ty) => ViewFilter(iv.replaced(subst), ids.replaced(subst), ty)
+      case ViewTuple(ivs, ty) => ViewTuple(ivs.map(_.replaced(subst)), ty)
+      case ViewTupleComponent(i, ivs, ty) => ViewTupleComponent(i, ivs.replaced(subst), ty)
+      case ViewSlide(iv, slide, ty) => ViewSlide(iv.replaced(subst), slide, ty)
+      case ViewPad(iv, left, right, padFun, ty) => ViewPad(iv.replaced(subst), left, right, padFun, ty)
+      case ViewSize(iv) => ViewSize(iv.replaced(subst))
+      case ViewHead(iv, ty) => ViewHead(iv.replaced(subst), ty)
+      case ViewTail(iv, ty) => ViewTail(iv.replaced(subst), ty)
+      case _: View2DGeneratorUserFun | _: View3DGeneratorUserFun | _: ViewGenerator | _: ViewGeneratorUserFun |
+           _: ViewConstant | NoView => this
     }
   }
 
@@ -208,11 +246,8 @@ abstract sealed class View(val t: Type = UndefType) {
    */
   def zip(): View = {
     t match {
-      case TupleType(ts@_*) if ts.forall(_.isInstanceOf[ArrayType with Size with Capacity]) =>
-        val arrayTs: Seq[ArrayType with Size with Capacity] = ts.map(_.asInstanceOf[ArrayType with Size  with Capacity])
-        val newT = ArrayTypeWSWC(TupleType(arrayTs.map(_.elemT):_*), arrayTs.head.size)
-        assert (arrayTs.head.size == arrayTs.head.capacity)
-        // TODO: handle the case where the capacity is different from size
+      case tt: TupleType =>
+        val newT = Zip.computeOutType(tt)
         ViewZip(this, newT)
       case other => throw new IllegalArgumentException("Can't zip " + other)
     }
@@ -225,8 +260,8 @@ abstract sealed class View(val t: Type = UndefType) {
    */
   def unzip(): View = {
     t match {
-      case ArrayTypeWS(TupleType(ts@_*), len) =>
-        ViewUnzip(this, TupleType(ts.map(ArrayTypeWSWC(_, len)): _*))
+      case at@ArrayType(TupleType(ts@_*)) =>
+        ViewUnzip(this, TupleType(ts.map(at.replacedElemT): _*))
       case other => throw new IllegalArgumentException("Can't unzip " + other)
     }
   }
@@ -246,7 +281,7 @@ abstract sealed class View(val t: Type = UndefType) {
       case other => throw new IllegalArgumentException("Can't pad " + other)
     }
   }
-  
+
   /**
    * Construct a view for getting the size of an array assuming that it is not
    * statically known
@@ -254,7 +289,11 @@ abstract sealed class View(val t: Type = UndefType) {
   def size(): View = {
     this match {
       case z: ViewZip => z.iv match {
-        case t: ViewTuple => t.ivs.head.size()
+        case ViewTuple(ivs, tt) =>
+          ViewTuple(
+            ivs.map(_.size()),
+            TupleType(Seq.fill(tt.asInstanceOf[TupleType].elemsT.length)(Int): _*)
+          )
         case _ => throw new IllegalView(z)
       }
       case _ => this.t match {
@@ -274,15 +313,16 @@ abstract sealed class View(val t: Type = UndefType) {
   }
 }
 
-private[view] case class ViewGeneratorUserFun(f: UserFun, override val t: ArrayType) extends View(t)
+// The view "generator" MUST have all sizes and capacity in their type
+case class ViewGeneratorUserFun(f: UserFun, override val t: ArrayType with Size with Capacity) extends View(t)
 
-private[view] case class View2DGeneratorUserFun(f: UserFun, override val t: ArrayType) extends View(t)
+case class View2DGeneratorUserFun(f: UserFun, override val t: ArrayType with Size with Capacity) extends View(t)
 
-private[view] case class View3DGeneratorUserFun(f: UserFun, override val t: ArrayType) extends View(t)
+case class View3DGeneratorUserFun(f: UserFun, override val t: ArrayType with Size with Capacity) extends View(t)
 
-private[view] case class ViewGenerator(f: (ArithExpr, ArithExpr) => Expression, override val t: ArrayType) extends View(t)
+case class ViewGenerator(f: (ArithExpr, ArithExpr) => Expression, override val t: ArrayType with Size with Capacity) extends View(t)
 
-private[view] case class ViewConstant(value: Value, override val t: Type) extends View(t)
+case class ViewConstant(value: Value, override val t: Type) extends View(t)
 
 /**
  * A view to memory object.
@@ -290,7 +330,7 @@ private[view] case class ViewConstant(value: Value, override val t: Type) extend
  * @param v the variable representing the memory object/array.
  * @param t Type of the view.
  */
-private[view] case class ViewMem(v: Var, override val t: Type) extends View(t)
+case class ViewMem(v: Var, override val t: Type) extends View(t)
 
 /**
  * A view for accessing another view at position `i`.
@@ -299,7 +339,7 @@ private[view] case class ViewMem(v: Var, override val t: Type) extends View(t)
  * @param iv View to access.
  * @param t Type of the view.
  */
-private[view] case class ViewAccess(i: ArithExpr, iv: View, override val t: Type) extends View(t)
+case class ViewAccess(i: ArithExpr, iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for splitting another view.
@@ -308,7 +348,7 @@ private[view] case class ViewAccess(i: ArithExpr, iv: View, override val t: Type
  * @param iv View to split.
  * @param t Type of the view.
  */
-private[view] case class ViewSplit(n: ArithExpr, iv: View, override val t: Type) extends View(t)
+case class ViewSplit(n: ArithExpr, iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for joining another view.
@@ -317,7 +357,7 @@ private[view] case class ViewSplit(n: ArithExpr, iv: View, override val t: Type)
  * @param iv The view to join.
  * @param t Type of the view.
  */
-private[view] case class ViewJoin(n: ArithExpr, iv: View, override val t: Type) extends View(t)
+case class ViewJoin(n: ArithExpr, iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for zipping a number of views.
@@ -325,7 +365,7 @@ private[view] case class ViewJoin(n: ArithExpr, iv: View, override val t: Type) 
  * @param iv View to zip.
  * @param t Type of the view.
  */
-private[view] case class ViewZip(iv: View, override val t: Type) extends View(t)
+case class ViewZip(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for unzipping another view
@@ -333,7 +373,7 @@ private[view] case class ViewZip(iv: View, override val t: Type) extends View(t)
  * @param iv View to unzip
  * @param t Type of the view
  */
-private[view] case class ViewUnzip(iv: View, override val t: Type) extends View(t)
+case class ViewUnzip(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for reordering.
@@ -342,7 +382,7 @@ private[view] case class ViewUnzip(iv: View, override val t: Type) extends View(
  * @param iv View to reorder.
  * @param t Type of the view.
  */
-private[view] case class ViewReorder(f: ArithExpr => ArithExpr, iv: View, override val t: Type) extends View(t)
+case class ViewReorder(f: ArithExpr => ArithExpr, iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for vectorisation.
@@ -351,7 +391,7 @@ private[view] case class ViewReorder(f: ArithExpr => ArithExpr, iv: View, overri
  * @param iv View to vectorise.
  * @param t Type of the view.
  */
-private[view] case class ViewAsVector(n: ArithExpr, iv: View, override val t: Type) extends View(t)
+case class ViewAsVector(n: ArithExpr, iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for undoing vectorisation
@@ -360,7 +400,7 @@ private[view] case class ViewAsVector(n: ArithExpr, iv: View, override val t: Ty
  * @param n Vector width
  * @param t Type of the view
  */
-private[view] case class ViewAsScalar(iv: View, n: ArithExpr, override val t: Type) extends View(t)
+case class ViewAsScalar(iv: View, n: ArithExpr, override val t: Type) extends View(t)
 
 /**
  * A view for filtering.
@@ -369,7 +409,7 @@ private[view] case class ViewAsScalar(iv: View, n: ArithExpr, override val t: Ty
  * @param ids A view providing the indices.
  * @param t Type of the View
  */
-private[view] case class ViewFilter(iv: View, ids: View, override val t: Type) extends View(t)
+case class ViewFilter(iv: View, ids: View, override val t: Type) extends View(t)
 
 /**
  * A view for exiting a dimension
@@ -378,7 +418,7 @@ private[view] case class ViewFilter(iv: View, ids: View, override val t: Type) e
  * @param itVar Iteration variable used for the current dimension
  * @param t Type of the view
  */
-private[view] case class ViewMap(iv: View, itVar: ArithExpr, override val t: Type) extends View(t)
+case class ViewMap(iv: View, itVar: ArithExpr, override val t: Type) extends View(t)
 
 /**
  * A view for accessing a tuple component.
@@ -395,7 +435,7 @@ case class ViewTupleComponent(i: Int, iv: View, override val t: Type) extends Vi
  * @param ivs The views to construct a tuple of.
  * @param t Type of the view.
  */
-private[view] case class ViewTuple(ivs: Seq[View], override val t: Type) extends View(t)
+case class ViewTuple(ivs: Seq[View], override val t: Type) extends View(t)
 
 /**
  *  A view for sliding.
@@ -404,7 +444,7 @@ private[view] case class ViewTuple(ivs: Seq[View], override val t: Type) extends
  * @param slide The slide function to use.
  * @param t Type of the view.
  */
-private[view] case class ViewSlide(iv: View, slide: Slide, override val t: Type) extends View(t)
+case class ViewSlide(iv: View, slide: Slide, override val t: Type) extends View(t)
 
 /**
  * Get the head of a view.
@@ -412,7 +452,7 @@ private[view] case class ViewSlide(iv: View, slide: Slide, override val t: Type)
  * @param iv The view to get the head of.
  * @param t Type of view
  */
-private[view] case class ViewHead(iv: View, override val t: Type) extends View(t)
+case class ViewHead(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for getting the tail of a view.
@@ -420,7 +460,7 @@ private[view] case class ViewHead(iv: View, override val t: Type) extends View(t
  * @param iv The view to get the tail of.
  * @param t The type of view.
  */
-private[view] case class ViewTail(iv: View, override val t: Type) extends View(t)
+case class ViewTail(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for padding an array.
@@ -431,7 +471,7 @@ private[view] case class ViewTail(iv: View, override val t: Type) extends View(t
  * @param fct The boundary handling function.
  * @param t The type of view.
  */
-private[view] case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
+case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
                    override val t: Type) extends View(t)
 
 /**
@@ -440,7 +480,7 @@ private[view] case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.Bound
  *
  * @param iv the view of the array
  */
-private[view] case class ViewSize(iv: View) extends View(opencl.ir.Int)
+case class ViewSize(iv: View) extends View(opencl.ir.Int)
 
 
 /**
@@ -450,34 +490,43 @@ object NoView extends View()
 
 object View {
 
+  @scala.annotation.tailrec
+  def getSubViews(sv: View, tupleAccessStack: List[Int] = List(), allViews: Seq[View] = Seq()): Seq[View] = {
+    val newAllViews = allViews :+ sv
+    sv match {
+      case ViewTuple(ivs, _) =>
+        val i :: newTAS = tupleAccessStack
+        getSubViews(ivs(i), newTAS, newAllViews)
 
-  def visit(v: View,
-            pre: View => View = {(pv) => pv},
-            post: View => View = {(pv) => pv},
-            aeF: ArithExpr => ArithExpr = {(ae) => ae}) : View = {
-    val vPre = pre(v)
-    val newView = vPre match {
-      case map: ViewMap => ViewMap(visit(map.iv, pre, post, aeF), aeF(map.itVar), vPre.t)
-      case access: ViewAccess => ViewAccess(aeF(access.i), visit(access.iv, pre, post, aeF), vPre.t)
-      case zip: ViewZip => ViewZip(visit(zip.iv, pre, post, aeF), vPre.t)
-      case unzip: ViewUnzip => ViewUnzip(visit(unzip.iv, pre, post, aeF), vPre.t)
-      case split: ViewSplit => ViewSplit(aeF(split.n), visit(split.iv, pre, post, aeF), vPre.t)
-      case join: ViewJoin => ViewJoin(aeF(join.n), visit(join.iv, pre, post, aeF), vPre.t)
-      case gather: ViewReorder => ViewReorder(gather.f, visit(gather.iv, pre, post, aeF), vPre.t)
-      case asVector: ViewAsVector => ViewAsVector(aeF(asVector.n), visit(asVector.iv, pre, post, aeF), vPre.t)
-      case asScalar: ViewAsScalar => ViewAsScalar(visit(asScalar.iv, pre, post, aeF), aeF(asScalar.n), vPre.t)
-      case filter: ViewFilter => ViewFilter(visit(filter.iv, pre, post, aeF), visit(filter.ids, pre, post, aeF), vPre.t)
-      case tuple: ViewTuple => ViewTuple(tuple.ivs.map(visit(_, pre, post, aeF)), vPre.t)
-      case component: ViewTupleComponent => ViewTupleComponent(component.i, visit(component.iv, pre, post, aeF), vPre.t)
-      case slide: ViewSlide => ViewSlide(visit(slide.iv, pre, post, aeF), slide.slide, slide.t)
-      case pad: ViewPad => ViewPad(visit(pad.iv, pre, post, aeF), pad.left, pad.right, pad.fct, vPre.t)
-      case _: ViewMem | _: ViewHead | NoView | _: View2DGeneratorUserFun |
-           _: View3DGeneratorUserFun | _: ViewConstant | _: ViewGenerator |
-           _: ViewGeneratorUserFun | _: ViewTail | _: ViewSize => vPre
+      case ViewTupleComponent(i, iv, _) =>
+        val newTAS = i :: tupleAccessStack
+        getSubViews(iv, newTAS, newAllViews)
+
+      case ViewAccess(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewMap(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewSplit(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewJoin(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewReorder(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewFilter(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewZip(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewUnzip(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewAsVector(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewAsScalar(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewHead(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewTail(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewSlide(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewPad(iv, _, _, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewSize(iv) => getSubViews(iv, tupleAccessStack)
+
+      case ViewMem(_, _) => newAllViews
+      case ViewConstant(_, _) => newAllViews
+      case ViewGenerator(_, _) => newAllViews
+      case ViewGeneratorUserFun(_, _) => newAllViews
+      case View2DGeneratorUserFun(_, _) => newAllViews
+      case View3DGeneratorUserFun(_, _) => newAllViews
+      case unknownView => throw new IllegalArgumentException(s"Unknown view: $unknownView")
     }
-    post(newView)
   }
-
 
   /**
    * Create new view representing an array in memory
@@ -491,8 +540,6 @@ object View {
 
   /**
     * Create new view representing a value
-    * @param t
-    * @param v
     * @return
     */
   def apply(t: Type, v: Value): View = ViewConstant(v, t)
@@ -531,7 +578,7 @@ object View {
   }
 
 
-  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], v: Var/* = Var("should_never_be_used")*/): View = {
+  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], v: Var): View = {
     // Use the lengths and iteration vars to mimic inputs
     val outArray = getFullType(t, outputAccessInf)
     val outView = View(outArray, v)
@@ -540,7 +587,8 @@ object View {
 
 }
 
-class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
+class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mainAddressSpace: OpenCLAddressSpace) {
+
   /**
     * Produces an openCL expression accessing a multi-dimentional array using
     * a given view
@@ -559,92 +607,88 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
                        arrayAccessStack: List[ArithExpr],
                        tupleAccessStack: List[Int]): Expression = {
     sv match {
-      case vm: ViewMem =>
+      case ViewMem(memVar, ty) =>
         assert(tupleAccessStack.isEmpty)
-        val index = aggregateAccesses(0, Some(vm.v), sv.t, arrayAccessStack, tupleAccessStack)
-        VarRef(vm.v, arrayIndex = ArithExpression(index))
+        GenerateAccess(memVar, ty, arrayAccessStack, tupleAccessStack)
 
-      case access: ViewAccess =>
-        emitView(access.iv, access.i :: arrayAccessStack, tupleAccessStack)
+      case ViewAccess(i, iv, _) =>
+        emitView(iv, i :: arrayAccessStack, tupleAccessStack)
 
-      case map: ViewMap =>
+      case ViewMap(iv, itVar, _) =>
         val idx :: indices = arrayAccessStack
-        val newV = map.iv.replaced(map.itVar, idx)
+        val newV = iv.replaced(itVar, idx)
         emitView(newV, indices, tupleAccessStack)
 
-      case split: ViewSplit =>
+      case ViewSplit(chuckSize, iv, _) =>
         val chunkIdx :: elemIdx :: indices = arrayAccessStack
-        val newIdx = chunkIdx * split.n + elemIdx
-        emitView(split.iv, newIdx :: indices, tupleAccessStack)
+        val newIdx = chunkIdx * chuckSize + elemIdx
+        emitView(iv, newIdx :: indices, tupleAccessStack)
 
-      case join: ViewJoin =>
+      case ViewJoin(chunkSize, iv, _) =>
         val idx :: indices = arrayAccessStack
-        val chunkIdx = idx / join.n
-        val elemIdx = idx % join.n
-        emitView(join.iv, chunkIdx :: elemIdx :: indices, tupleAccessStack)
+        val chunkIdx = idx / chunkSize
+        val elemIdx = idx % chunkSize
+        emitView(iv, chunkIdx :: elemIdx :: indices, tupleAccessStack)
 
-      case gather: ViewReorder =>
+      case ViewReorder(reindexFun, iv, _) =>
         val idx :: indices = arrayAccessStack
-        emitView(gather.iv, gather.f(idx) :: indices, tupleAccessStack)
+        emitView(iv, reindexFun(idx) :: indices, tupleAccessStack)
 
-      case filter: ViewFilter =>
+      case ViewFilter(iv, ids, _) =>
         val idx :: indices = arrayAccessStack
-        val newIdx = ViewPrinter.emit(filter.ids.access(idx), replacements)
+         // Assume it's the same address space
+         val indirection = ViewPrinter.emit(ids.access(idx), replacements, mainAddressSpace) match {
+           case VarRef(indicesVar, _, i) => AccessVar(indicesVar, i.content)
+           case x => throw new IllegalArgumentException(s"Expected an VarRef, got $x")
+         }
+         emitView(iv, indirection :: indices, tupleAccessStack)
 
-        val indirection = newIdx match {
-          case VarRef(_, _, index) =>
-            AccessVar(ViewPrinter.getViewMem(filter.ids).v.toString, index)
-          case x => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
-        }
+      case ViewTupleComponent(i, iv, _) =>
+        val newTAS = i :: tupleAccessStack
+        emitView(iv, arrayAccessStack, newTAS)
 
-        emitView(filter.iv, indirection :: indices, tupleAccessStack)
+      case ViewZip(iv, _) =>
+        emitView(iv, arrayAccessStack, tupleAccessStack)
 
-      case component: ViewTupleComponent =>
-        val newTAS = component.i :: tupleAccessStack
-        emitView(component.iv, arrayAccessStack, newTAS)
+      case ViewUnzip(iv, _) =>
+        emitView(iv, arrayAccessStack, tupleAccessStack)
 
-      case zip: ViewZip =>
-        emitView(zip.iv, arrayAccessStack, tupleAccessStack)
-
-      case unzip: ViewUnzip =>
-        emitView(unzip.iv, arrayAccessStack, tupleAccessStack)
-
-      case tuple: ViewTuple =>
+      case ViewTuple(ivs, _) =>
         val i :: newTAS = tupleAccessStack
-        emitView(tuple.ivs(i), arrayAccessStack, newTAS)
+        emitView(ivs(i), arrayAccessStack, newTAS)
 
-      case asVector: ViewAsVector =>
+      case ViewAsVector(vecSize, iv, _) =>
         val idx :: indices = arrayAccessStack
-        val newIdx = idx * asVector.n
-        emitView(asVector.iv, newIdx :: indices, tupleAccessStack)
+        val newIdx = idx * vecSize
+        emitView(iv, newIdx :: indices, tupleAccessStack)
 
-      case asScalar: ViewAsScalar =>
+      case ViewAsScalar(iv, vecSize, _) =>
         val idx :: indices = arrayAccessStack
-        val newIdx = idx /^ asScalar.n
-        emitView(asScalar.iv, newIdx :: indices, tupleAccessStack)
+        val newIdx = idx /^ vecSize
+        emitView(iv, newIdx :: indices, tupleAccessStack)
 
-      case head: ViewHead =>
+      case ViewHead(iv, _) =>
         val newAAS = arrayAccessStack.tail
-        emitView(head.iv, newAAS, tupleAccessStack)
+        emitView(iv, newAAS, tupleAccessStack)
 
-      case tail: ViewTail =>
+      case ViewTail(iv, _) =>
         val idx :: indices = arrayAccessStack
-        emitView(tail.iv, (idx + 1) :: indices, tupleAccessStack)
+        emitView(iv, (idx + 1) :: indices, tupleAccessStack)
 
-      case ag: ViewSlide =>
+      case ViewSlide(iv, slide, _) =>
         val chunkIdx :: elemIdx :: indices = arrayAccessStack
-        val newIdx = chunkIdx * ag.slide.step + elemIdx
-        emitView(ag.iv, newIdx :: indices, tupleAccessStack)
+        val newIdx = chunkIdx * slide.step + elemIdx
+        emitView(iv, newIdx :: indices, tupleAccessStack)
 
-      case pad: ViewPad =>
+      case ViewPad(iv, left, _, padFun, _) =>
         val idx :: indices = arrayAccessStack
-        val currentIdx = idx - pad.left
-        val length = pad.iv.t.asInstanceOf[ArrayType with Size].size
+        val currentIdx = idx - left
+        val length = iv.t.asInstanceOf[ArrayType with Size].size
         val newIdx = if(ArithExpr.mightBeNegative(currentIdx) || ArithExpr.isSmaller(length -1, currentIdx.max).getOrElse(true))
-          pad.fct(currentIdx, length)
+          padFun(currentIdx, length)
         else
           currentIdx
-        emitView(pad.iv, newIdx :: indices, tupleAccessStack)
+        emitView(iv, newIdx :: indices, tupleAccessStack)
 
       case ViewConstant(value, _) =>
         OpenCLAST.OpenCLExpression(value.value)
@@ -657,23 +701,24 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         emitView(iv, newAAS, tupleAccessStack)
 
       case ViewGenerator(f, ArrayTypeWS(_,s)) =>
-        val index = aggregateAccesses(0, None, sv.t, arrayAccessStack, tupleAccessStack)
+        assert(arrayAccessStack.length == 1)
+        val index :: Nil = arrayAccessStack
         val i = ArithExpr.substitute(index, replacements)
         val l = ArithExpr.substitute(s, replacements)
         f(i, l)
 
-      case ViewGeneratorUserFun(f, ArrayTypeWS(_,s)) =>
-        val index = aggregateAccesses(0, None, sv.t, arrayAccessStack, tupleAccessStack)
-        val i = ArithExpr.substitute(index, replacements)
-        val l = ArithExpr.substitute(s, replacements)
-        OpenCLAST.FunctionCall(f.name,
-          List(OpenCLAST.ArithExpression(i), OpenCLAST.ArithExpression(l)))
+      case ViewGeneratorUserFun(f, ArrayTypeWS(_, m)) =>
+        assert(arrayAccessStack.length == 1)
+        val i :: Nil = arrayAccessStack
+        OpenCLAST.FunctionCall(
+          f.name,
+          List(i, m)
+              .map(ArithExpr.substitute(_, replacements))
+              .map(ArithExpression)
+        )
 
-      case View2DGeneratorUserFun(f, at) =>
+      case View2DGeneratorUserFun(f, ArrayTypeWS(ArrayTypeWS(_, n), m)) =>
         val i :: j :: _ = arrayAccessStack
-        val (m, n) = at match {
-          case ArrayTypeWS(ArrayTypeWS(_, n_), m_) => (n_, m_)
-        }
         OpenCLAST.FunctionCall(
           f.name,
           List(i, j, m, n)
@@ -681,12 +726,8 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
             .map(ArithExpression)
         )
 
-      case View3DGeneratorUserFun(f, at) =>
+      case View3DGeneratorUserFun(f, ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(_, o), n), m)) =>
         val i :: j :: k :: _ = arrayAccessStack
-        val (m, n, o) = at match {
-          case ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(_, o_), n_), m_) =>
-            (m_, n_, o_)
-        }
         OpenCLAST.FunctionCall(
           f.name,
           List(i, j, k, m, n, o)
@@ -695,64 +736,147 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
         )
     }
   }
-  
+
   /**
-    * Turn the list of indices used to access an multi-dimensional array into
-    * an arithmetic expression depending on the type of the array.
-    *
-    * @param acc the partial result of this aggregation. It corresponds to the
-    *            position in memory of the very beginning of the next nested
-    *            array we are going the access.
-    * @param ty the type of the array
-    * @param v a variable representing the array (used for indirections)
-    * @param arrayAccessStack the indices used to access the array
-    * @param tupleAccessStack the indices used to some tuples all along the way
-    * @return the index we have to use to access the flattened memory
-    *         representation of the array.
-    */
-  @scala.annotation.tailrec
-  private def aggregateAccesses(acc: ArithExpr,
-                                v: Option[Var], ty: Type,
-                                arrayAccessStack: List[ArithExpr],
-                                tupleAccessStack: List[Int]): ArithExpr = {
-    if (arrayAccessStack.isEmpty) acc
-    else {
+   * The code below is used to turn the list of indices used to access a
+   * multi-dimensional array into a single index used to access the raw memory
+   * depending on the type of the array.
+   */
+  object GenerateAccess {
+    def apply(mainVar: Var, mainType: Type,
+              arrayAccessStack: List[ArithExpr],
+              tupleAccessStack: List[Int]): VarRef = {
+      val g = new GenerateAccess(mainVar, mainType, tupleAccessStack)
+      g.generate(0, mainType, arrayAccessStack, tupleAccessStack)
+    }
+  }
+
+  private class GenerateAccess private (mainVar: Var, mainType: Type, mainTas: List[Int]) {
+    /**
+     * Main function computing the index for accessing a nd-array out of a
+     * list of indices.
+     *
+     * In this function, in `getSize` and in `getElementAt` below, `acc` refers
+     * to the partial result of the computation: the offset between `mainVar`
+     * and the "beginning" of the area of memory storing the next array to be
+     * accessed.
+     */
+    @scala.annotation.tailrec
+    private def generate(acc: ArithExpr, ty: Type,
+                         arrayAccessStack: List[ArithExpr],
+                         tupleAccessStack: List[Int]): VarRef = {
+      if (arrayAccessStack.isEmpty) varRef(mainVar, acc)
+      else {
+        ty match {
+          case at: ArrayType =>
+            val idx :: indices = arrayAccessStack
+            idx match {
+              case SizeIndex() => getSize(acc, at)
+              case _ =>
+                val newAcc = getElementAt(acc, at, idx, tupleAccessStack)
+                generate(newAcc, at.elemT, indices, tupleAccessStack)
+            }
+
+          // This tuple comes from a view, project and continue
+          case tt: TupleType =>
+            val i :: remaining = tupleAccessStack
+            generate(acc, tt.proj(i), arrayAccessStack, remaining)
+
+          case _ => throw new IllegalAccess(ty)
+        }
+      }
+    }
+
+    /** Generates an access to the size */
+    private def getSize(acc: ArithExpr, at: ArrayType): VarRef = {
+      // Sanity check
+      if (addressSpace == PrivateMemory)
+        throw new IllegalView("An array in private memory must have a size and a capacity in the type")
+
+      // Only cast the pointer if it's necessary
+      if (baseType == size_t) varRef(mainVar, acc + at.sizeIndex)
+      else {
+        val casted = CastedPointer(mainVar, size_t, acc, addressSpace)
+        varRef(casted, at.sizeIndex * alignment / size_t.size)
+      }
+    }
+
+    /** Generates an access at position `idx` in the nd-array */
+    private def getElementAt(acc: ArithExpr, at: ArrayType, idx: ArithExpr, tupleAccessStack: List[Int]): ArithExpr = {
+      // Sanity check
+      if (addressSpace == PrivateMemory && !at.isInstanceOf[ArrayType with Size with Capacity])
+        throw new IllegalView("An array in private memory must have a size and a capacity in the type")
+
+      if (at.elemT.hasFixedAllocatedSize) {
+        // Just skip the header
+        val len = getLengthForArrayAccess(at.elemT, tupleAccessStack)
+        acc + at.headerSize * alignment / baseSize + idx * len
+      } else {
+        // Perform an indirection. Do not cast the pointer if it's not required.
+        val elementOffset = if (baseType == size_t)
+          AccessVar(mainVar, acc + at.headerSize + idx)
+        else {
+          val casted = CastedPointer(mainVar, size_t, acc, addressSpace)
+          AccessVar(casted, at.headerSize * alignment / size_t.size + idx)
+        }
+        // The offset read from the headers is in bytes but must be a multiple of `baseSize`
+        acc + elementOffset / baseSize
+      }
+    }
+
+    // ---
+    // Some helper functions
+    // ---
+
+    private lazy val (baseType, addressSpace) = getBaseTypeAndAddressSpace(mainType, mainTas, mainAddressSpace)
+
+    // Useful shorthands
+    private lazy val baseSize = Type.getAllocatedSize(baseType).eval
+    private val alignment = Math.max(size_t.size.eval, baseSize)
+    private def varRef(v: Var, idx: ArithExpr): VarRef = VarRef(v, arrayIndex = ArithExpression(idx))
+    private def align(value: ArithExpr): ArithExpr = ((value + alignment - 1) / alignment) * alignment
+
+    /**
+     * Get the number of elements contained in a type once we have projected
+     * the tuples that come from a view (and therefore are not backed as structs
+     * in memory) on their appropriate component according to `tupleAccessStack`
+     */
+    private def getLengthForArrayAccess(ty: Type, tupleAccessStack: List[Int]): ArithExpr = {
       ty match {
-        case at: ArrayType =>
-          val idx :: indices = arrayAccessStack
-          
-          val position = idx match {
-            case SizeIndex() =>
-              // Special index:
-              // We are fetching the size of an array. `getSizeIndex` gives the
-              // index in the header where it is stored.
-              Cst(at.getSizeIndex)
-            case _ =>
-              // We are actually accessing the array at position idx.
-              val headerOffset = at.getHeaderSize // Skip the header.
-              if (at.elemT.hasFixedAllocatedSize) {
-                // Regular array
-                val length = ViewPrinter.getLengthForArrayAccess(1, at.elemT, tupleAccessStack)
-                headerOffset + idx * length
-              } else {
-                // The elements of this array may have different sizes. We need an
-                // indirection: we fetch the actual position of the i-th element
-                // from the array's metadata (see issue #107)
-                // NB. We make a choice here, see issue #110
-                val elementOffset = AccessVar(
-                  v.get.toString, ArithExpression(acc + headerOffset + idx)
-                )
-                headerOffset + elementOffset
-              }
+        case ScalarType(_, _) => 1
+        case VectorType(_, len) => len
+        case at@ArrayTypeWC(elemT, capacity) =>
+          val elemSize = getLengthForArrayAccess(elemT, tupleAccessStack)
+          val contentSize = {
+            if (baseSize < alignment && at.headerSize != 0) align(capacity * elemSize)
+            else capacity * elemSize
           }
-          
-          aggregateAccesses(acc + position,
-                            v, at.elemT, indices, tupleAccessStack)
+          at.headerSize * alignment / baseSize + contentSize
         case tt: TupleType =>
+          if (tupleAccessStack.isEmpty) 1
+          else getLengthForArrayAccess(
+            tt.proj(tupleAccessStack.head),
+            tupleAccessStack.tail
+          )
+        case _ => throw new IllegalArgumentException(ty.toString)
+      }
+    }
+
+    /**
+     * Similarly, get the base type and the address space of the memory we are
+     * accessing by projecting the tuples that come from a view in the type and
+     * in the address space collections.
+     */
+    private def getBaseTypeAndAddressSpace(ty: Type, tupleAccessStack: List[Int],
+                                           addressSpace: OpenCLAddressSpace): (Type, OpenCLAddressSpace) = {
+      if (tupleAccessStack.isEmpty) (Type.getBaseType(ty), addressSpace)
+      else (ty, addressSpace) match {
+        case (tt: TupleType, AddressSpaceCollection(coll)) =>
           val i :: tas = tupleAccessStack
-          aggregateAccesses(acc, v, tt.proj(i), arrayAccessStack, tas)
-        case _ =>
-          throw new IllegalAccess(ty)
+          getBaseTypeAndAddressSpace(tt.proj(i), tas, coll(i))
+        case (ArrayType(elemT), _) =>
+          getBaseTypeAndAddressSpace(elemT, tupleAccessStack, addressSpace)
+        case _ => throw new IllegalAccess(ty, addressSpace)
       }
     }
   }
@@ -767,7 +891,6 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr]) {
  * Finally flattens the expression, as arrays are stored in a flattened format.
  */
 object ViewPrinter {
-
   /**
    * Emit the arithmetic expression for accessing an array that corresponds
    * to the view.
@@ -775,92 +898,13 @@ object ViewPrinter {
    * @param view The view to emit.
    * @return The arithmetic expression.
    */
-  def emit(view: View, replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map()): Expression = {
-    val vp = new ViewPrinter(replacements)
+  def emit(
+    view: View,
+    replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map(),
+    addressSpace: OpenCLAddressSpace = UndefAddressSpace
+  ): Expression = {
+    val vp = new ViewPrinter(replacements, addressSpace)
     assert(!view.t.isInstanceOf[ArrayType])
     vp.emitView(view.replaced(replacements), List(), List())
   }
-  
-  /**
-    * Traverse a view, following the eventual tuple accesses, and returns
-    * the ViewMem (there must be one) at the bottom of it.
-    *
-    * @param sv ths view
-    * @param tupleAccessStack indices used tu project the tuple views all along
-    *                         the way
-    * @return a `ViewMem`
-    */
-  @scala.annotation.tailrec
-  private def getViewMem(sv: View, tupleAccessStack: List[Int] = List()): ViewMem = {
-    sv match {
-      case map: ViewMem => map
-      case access: ViewAccess => getViewMem(access.iv, tupleAccessStack)
-      case map: ViewMap => getViewMem(map.iv, tupleAccessStack)
-      case split: ViewSplit => getViewMem(split.iv, tupleAccessStack)
-      case join: ViewJoin => getViewMem(join.iv, tupleAccessStack)
-      case gather: ViewReorder => getViewMem(gather.iv, tupleAccessStack)
-      case filter: ViewFilter => getViewMem(filter.iv, tupleAccessStack)
-      case asVector: ViewAsVector => getViewMem(asVector.iv, tupleAccessStack)
-      case asScalar: ViewAsScalar => getViewMem(asScalar.iv, tupleAccessStack)
-
-      case component: ViewTupleComponent =>
-        val newTAS = tupleAccessStack.::(component.i)
-        getViewMem(component.iv, newTAS)
-
-      case zip: ViewZip =>
-        getViewMem(zip.iv, tupleAccessStack)
-
-      case tuple: ViewTuple =>
-        val i = tupleAccessStack.head
-        val newTAS = tupleAccessStack.tail
-        getViewMem(tuple.ivs(i), newTAS)
-
-      case op => throw new NotImplementedError(op.getClass.toString)
-    }
-  }
-  
-  /**
-    * The size in words of a type as we can find it in an array.
-    *
-    * @param acc partial result
-    * @param ty the type in question
-    * @param tupleAccessStack list of tuple indices used all along the way to
-    *                      choose what component of tuples should be
-    *                      considered.
-    * @return a size in words as an arithmetic expression
-    */
-  @scala.annotation.tailrec
-  private def getLengthForArrayAccess(acc: ArithExpr,
-                                      ty: Type,
-                                      tupleAccessStack: List[Int]): ArithExpr = {
-    ty match {
-      case _: ScalarType => acc
-      case vt: VectorType => vt.len * acc
-      case tt: TupleType =>
-        if (tupleAccessStack.isEmpty)
-          // All the tuple indices have been consumed: this array won't be
-          // traversed. We stop here.
-          acc
-        else getLengthForArrayAccess(
-          // We project one component of the tuple
-          acc,
-          tt.proj(tupleAccessStack.head),
-          tupleAccessStack.tail
-        )
-      case at @ ArrayTypeWC(elemT, n) =>
-        getLengthForArrayAccess(
-          acc * (n + at.getHeaderSize), // Do not forget the header!
-          elemT, tupleAccessStack
-        )
-      case ArrayType(elemT) =>
-        // We must know all the allocated sizes in this function
-        assert(elemT.hasFixedAllocatedSize)
-        // TODO: getLengthForArrayAccess(acc * v[0], elemT, tupleAccessStack)
-        throw new NotImplementedError()
-      case _ =>
-        throw new IllegalAccess(ty)
-    }
-  }
 }
-
-

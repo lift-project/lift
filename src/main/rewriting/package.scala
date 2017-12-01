@@ -1,6 +1,15 @@
 import lift.arithmetic._
-import rewriting.Rules._
-
+import rewriting.rules.{Rule, Rules}
+import rewriting.rules.Rules._
+import rewriting.rules.IterateRules._
+import rewriting.rules.OpenCLRules._
+import rewriting.rules.InterchangeRules._
+import rewriting.rules.ReduceRules._
+import rewriting.rules.CopyRules._
+import rewriting.rules.FissionRules._
+import rewriting.rules.FusionRules._
+import rewriting.rules.SimplificationRules._
+import rewriting.macrorules.MacroRules
 
 package object rewriting {
   val mapLoweringRules =
@@ -34,7 +43,10 @@ package object rewriting {
       gatherScatterId,
       scatterGatherId,
       removeEmptyMap,
-      Rules.transposeMapTransposeReorder
+      Rules.transposeMapTransposeReorder,
+      flattenZips,
+      removeDuplicateZipArg,
+      tupleInline
     )
 
   val reduceRules =
@@ -49,7 +61,9 @@ package object rewriting {
     Seq(
       mapFusion,
       mapFusionWithZip,
-      MacroRules.reduceMapFusion,
+      mapFusionInZip,
+      reduceFusionInZip,
+      fuseZipTuple,
       reduceSeqMapSeqFusion
     )
 
@@ -103,7 +117,7 @@ package object rewriting {
       splitJoin,
       vectorize,
       reorderBothSidesWithStride,
-      splitZip
+      splitIntoZip
     )
 
   val allRules =
@@ -144,7 +158,7 @@ package object rewriting {
     Seq(partialReduce,
       gatherToScatter,
       scatterToGather,
-      splitZip,
+      splitIntoZip,
       partialReduceToReduce,
       reduceSeq,
       implementIdAsDeepCopy,

@@ -93,7 +93,7 @@ class TestTypeChecker {
 
     TypeChecker(lambda)
   }
-  
+
   /**
    * The type of the body of the customising function should be equal to its
    * arguments' type
@@ -104,12 +104,12 @@ class TestTypeChecker {
       "tuplize", Array("x", "y"), "return {x, y};",
       Seq(Int, Int), TupleType(Int, Int)
     )
-    
+
     val lambda = fun(
       ArrayType(Int, K),
       Reduce(tuplize, 0) $ _
     )
-    
+
     TypeChecker(lambda)
   }
 
@@ -142,18 +142,6 @@ class TestTypeChecker {
 //      case _ => assert(false)
 //    }
 //  }
-
-  @Test
-  def unboundedArrayReduce(): Unit = {
-
-    val lambda = fun(
-      RuntimeSizedArrayType(Float),
-      a => ReduceSeq(fun((acc, x) => add(acc, x)), 0.0f) $ a
-    )
-
-    val t = TypeChecker(lambda)
-    assertEquals(ArrayTypeWSWC(Float, Cst(1), Cst(1)), t)
-  }
 
   @Test(expected = classOf[SuspiciousTypeVariableDeclaredException])
   def issue5(): Unit = {

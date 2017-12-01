@@ -1,0 +1,45 @@
+val m = SizeVar("M")
+val n = SizeVar("N")
+
+def zip2d6 = \((A, B, C, D, E, F) =>
+    Map(\(tuple => Zip(tuple._0, tuple._1, tuple._2, tuple._3, tuple._4, tuple._5))) $ Zip(A, B, C, D, E, F)
+)
+
+def calculateDiv = UserFun("calculateDiv", Array("dN", "dS", "dW", "dE", "orgDn", "orgDs", "orgDw", "orgDe"),
+    "{ return  (dN*orgDn + dS*orgDs + dW*orgDw + dE*orgDe) ; }", Seq(Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
+def calculateImageUpdate = UserFun("calculateImageUpdate", Array("img", "div"),
+    "{ return img + 0.125 * div; }", Seq(Float, Float), Float)
+
+fun(
+    ArrayType(ArrayType(Float, m), n),
+    ArrayType(ArrayType(Float, m), n),
+    ArrayType(ArrayType(Float, m), n),
+    ArrayType(ArrayType(Float, m), n),
+    ArrayType(ArrayType(Float, m), n),
+    ArrayType(ArrayType(Float, m), n),
+    (image, coeff, DN, DS, DE, DW) => {
+        Map(Map(fun((m) => {
+            val imageNBH = Get(m, 0)
+            val coeffNBH = Get(m, 1)
+
+            val imageC = imageNBH.at(1).at(1)
+            val coeffC = coeffNBH.at(1).at(1)
+
+            val newDW = coeffC
+            val newDN = coeffC
+            val newDS = coeffNBH.at(2).at(1)
+            val newDE = coeffNBH.at(1).at(2)
+
+            val orgDN = Get(m, 2)
+            val orgDS = Get(m, 3)
+            val orgDE = Get(m, 4)
+            val orgDW = Get(m, 5)
+
+            val div = toPrivate(fun(x => calculateDiv(x, newDS, newDW, newDE, orgDN, orgDS, orgDW, orgDE))) $ newDN
+            fun(x => calculateImageUpdate(x, div)) $ imageC
+
+        }))
+        ) $ zip2d6(Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ image, Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ coeff, DN, DS, DE, DW)
+    }
+)

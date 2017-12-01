@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import ir.{ArrayType, Type, TypeException, UndefType}
+import ir.{ArrayType, Type, TypeException}
 
 /**
  * Gather pattern. Performs a reorder on the next read.
@@ -15,8 +15,7 @@ import ir.{ArrayType, Type, TypeException, UndefType}
  *
  * @param idx The function to use for reordering
  */
-case class Gather(idx: IndexFunction) extends Pattern(arity = 1)
-                                      with isGenerable {
+case class Gather(idx: IndexFunction) extends Pattern(arity = 1) {
 
   override def checkType(argType: Type, setType: Boolean): Type = {
     // Gather expects an array

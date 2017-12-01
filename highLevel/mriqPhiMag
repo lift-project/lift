@@ -1,0 +1,12 @@
+val phiMag = UserFun("phiMag",
+                     Array("phiR", "phiI"),
+                     "{ return phiR * phiR + phiI * phiI; }",
+                     Seq(Float, Float),
+                     Float)
+val k = SizeVar("K")
+
+fun(
+  ArrayTypeWSWC(Float, k),
+  ArrayTypeWSWC(Float, k),
+  (phiR, phiI) => Map(\(x => phiMag(x._0, x._1))) $ Zip(phiR, phiI)
+)

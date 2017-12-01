@@ -1,9 +1,9 @@
 package ir.view
 
-import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{ReduceWhileSeq, MapSeqSlide, FilterSeq}
+import lift.arithmetic.{ArithExpr, Cst, Var}
+import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
@@ -21,9 +21,8 @@ object OutputView {
    */
   def apply(expr: Expr): Unit = {
 
-    // reset outputView for every expression
+    // Reset outputView for every expression
     Expr.visit(expr, _.outputView = NoView, _ => {})
-
 
     expr.outputView = View(expr.t, expr.mem.variable)
     visitAndBuildViews(expr, expr.outputView)
@@ -32,7 +31,7 @@ object OutputView {
   private def visitAndBuildViews(expr: Expr, writeView: View): View = {
     expr match {
       case call: FunCall => buildViewFunCall(call, writeView)
-      case e: Expr=>
+      case e: Expr =>
 
         if (e.outputView == NoView)
           e.outputView = writeView
@@ -49,6 +48,7 @@ object OutputView {
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
       case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
+      case iss: InsertionSortSeq => buildViewSort(iss, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
       case uf: UserFun => buildViewUserFun(writeView,uf, call)
@@ -70,7 +70,7 @@ object OutputView {
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case PrintType() | Get(_) | _: Tuple | Gather(_) | Filter() |
-           Pad(_, _, _) =>
+           Pad(_, _, _) | Id() =>
         writeView
       case dunno => throw new NotImplementedError(s"OutputView.scala: $dunno")
     }
@@ -109,6 +109,13 @@ object OutputView {
         (call.args, subviews).zipped.map((a,v) => visitAndBuildViews(a, v))
         result
 
+      // TODO: Also lambdas?
+      case fp: FPattern if fp.f.params.length > 1 && !fp.isInstanceOf[InsertionSortSeq] =>
+
+        (call.args, fp.f.params).zipped.map((arg, param) => {
+          visitAndBuildViews(arg, param.outputView)})
+
+        result
       case _ =>
 
         val res = call.args.map(visitAndBuildViews(_, result))
@@ -208,7 +215,6 @@ object OutputView {
   private def buildViewFilter(f: FilterSeq, call: FunCall,
                               writeView: View): View = {
     visitAndBuildViews(f.f.body, writeView.access(Cst(0)))
-    val outDepth = getAccessDepth(f.f.body.accessInf, f.f.body.mem)
     f.f.body.outputView = View.initialiseNewView(f.f.body.t, List(), f.f.body.mem.variable)
     ViewMap(f.f.params.head.outputView, f.loopWrite, call.args.head.t)
   }
@@ -247,6 +253,25 @@ object OutputView {
     visitAndBuildViews(l.body, writeView)
     // TODO: Not sure about this
     l.params.head.outputView
+  }
+  
+  private def buildViewSort(iss: InsertionSortSeq,
+                            call: FunCall,
+                            writeView: View): View = {
+    // Note: at this point, we can set the input view for the first argument
+    //       of the comparison function as an access to the output array of
+    //       the pattern.
+    //       cf. `InputView.buildViewSort`
+    iss.f.params(1).view = writeView.access(iss.loopWrite)
+    InputView(iss.f.body)
+    val compareOutputView = View.initialiseNewView(
+      iss.f.body.t,
+      getAccessDepth(iss.f.body.accessInf, iss.f.body.mem),
+      Var("comp")
+    )
+    visitAndBuildViews(iss.f.body, compareOutputView)
+    
+    View.initialiseNewView(call.t, call.outputDepth, call.mem.variable)
   }
 
   private def buildViewJoin(call: FunCall, writeView: View): View = {

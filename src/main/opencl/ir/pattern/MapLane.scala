@@ -1,9 +1,9 @@
 package opencl.ir.pattern
 
-import lift.arithmetic.{PosVar, Var}
 import ir.ast._
+import lift.arithmetic.PosVar
 
 case class MapLane(override val f: Lambda1) extends AbstractMap(f, "MapLane",
-  PosVar("lane_id")) with ParallelPattern  {
+  PosVar("lane_id")) {
   override def copy(f: Lambda): Pattern = MapLane(f)
 }

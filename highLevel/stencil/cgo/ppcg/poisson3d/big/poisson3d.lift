@@ -1,0 +1,46 @@
+val M = 512
+val N = 512
+val O = 512
+
+def poisson = UserFun("jacobi", Array("C", "N", "S", "E", "W", "F", "B",
+"FN", "BN", "FS", "BS", "FW", "BW", "NW", "SW", "FE", "BE", "NE", "SE"),
+  """return 2.666f * C - 0.166f * (F + B + N + S + E + W) -
+    |       0.0833f * (FN + BN + FS + BS + FW + BW +
+    |                  NW + SW + FE + BE + NE + SE);""".stripMargin,
+  Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float,
+    Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
+λ(
+  ArrayType(ArrayType(ArrayType(Float, M), N), O),
+  input => {
+    Map(Map(Scatter(Shift(1)))) o
+      Map(Scatter(Shift(1))) o
+        Scatter(Shift(1)) o
+    Pad3D(1,1,1,Pad.Boundary.Clamp) o
+    Map(Map(Map(λ(nbh => {
+
+      val c  = nbh.at(1).at(1).at(1)
+      val n  = nbh.at(1).at(0).at(1)
+      val s  = nbh.at(1).at(2).at(1)
+      val e  = nbh.at(1).at(1).at(2)
+      val w  = nbh.at(1).at(1).at(0)
+      val f  = nbh.at(0).at(1).at(1)
+      val b  = nbh.at(2).at(1).at(1)
+      val fn = nbh.at(0).at(0).at(1)
+      val bn = nbh.at(2).at(0).at(1)
+      val fs = nbh.at(0).at(2).at(1)
+      val bs = nbh.at(2).at(2).at(1)
+      val fw = nbh.at(0).at(1).at(0)
+      val bw = nbh.at(2).at(1).at(0)
+      val nw = nbh.at(1).at(0).at(0)
+      val sw = nbh.at(1).at(2).at(0)
+      val fe = nbh.at(0).at(1).at(2)
+      val be = nbh.at(2).at(1).at(2)
+      val ne = nbh.at(1).at(0).at(2)
+      val se = nbh.at(1).at(2).at(2)
+
+      λ(x =>
+        poisson(x, n, s, e, w, f, b, fn, bn, fs, bs, fw, bw, nw, sw, fe, be, ne, se)) $ c
+
+    })))) o Slide3D(3, 1) $ input
+  })

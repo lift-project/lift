@@ -13,6 +13,83 @@ import org.junit.{Ignore, Test}
 object TestBarrier extends TestWithExecutor
 
 class TestBarrier {
+
+  @Ignore
+  @Test
+  def sequentialMapFollowsParallelWithLocalMemory(): Unit = {
+    val inputSize = 1024
+    val input = Array.tabulate(inputSize)(_.toFloat)
+
+    // TODO: Can't have a barrier after MapSeq
+    val f = fun(
+      ArrayTypeWSWC(Float, SizeVar("N")),
+      input => Join() o MapWrg(toGlobal(MapSeq(id)) o toLocal(MapLcl(id))) o Split(128) $ input
+    )
+
+    val kernel = Compile(f)
+    val (output, _) = Execute(128)[Array[Float]](kernel, f, input)
+
+    assertArrayEquals(input, output, 0.0f)
+    assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
+  }
+
+  @Test
+  def sequentialMapFollowsParallel(): Unit = {
+    val inputSize = 1024
+    val input = Array.tabulate(inputSize)(_.toFloat)
+
+    val f = fun(
+      ArrayTypeWSWC(Float, SizeVar("N")),
+      input => Join() o MapWrg(MapSeq(id) o MapLcl(id)) o Split(128) $ input
+    )
+
+    val kernel = Compile(f)
+    val (output, _) = Execute(128)[Array[Float]](kernel, f, input)
+
+    assertArrayEquals(input, output, 0.0f)
+    assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
+  }
+
+  @Ignore
+  @Test
+  def sequentialReduceFollowsParallelWithLocalMemory(): Unit = {
+    val inputSize = 1024
+    val input = Array.tabulate(inputSize)(_.toFloat)
+
+    // TODO: Can't have a barrier after MapSeq or ReduceSeq
+    val f = fun(
+      ArrayTypeWSWC(Float, SizeVar("N")),
+      input => Join() o MapWrg(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o toLocal(MapLcl(id))) o Split(128) $ input
+    )
+
+    val kernel = Compile(f)
+    val (output, _) = Execute(128)[Array[Float]](kernel, f, input)
+
+    val gold = input.grouped(128).map(_.sum).toArray
+
+    assertArrayEquals(gold, output, 0.001f)
+    assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
+  }
+
+  @Test
+  def sequentialReduceFollowsParallel(): Unit = {
+    val inputSize = 1024
+    val input = Array.tabulate(inputSize)(_.toFloat)
+
+    val f = fun(
+      ArrayTypeWSWC(Float, SizeVar("N")),
+      input => Join() o MapWrg(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapLcl(id)) o Split(128) $ input
+    )
+
+    val kernel = Compile(f)
+    val (output, _) = Execute(128)[Array[Float]](kernel, f, input)
+
+    val gold = input.grouped(128).map(_.sum).toArray
+
+    assertArrayEquals(gold, output, 0.001f)
+    assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
+  }
+
   @Test def basicBarrier(): Unit = {
     val inputSize = 1024
     val input = Array.tabulate(inputSize)(_.toFloat)
@@ -24,7 +101,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input)
 
     assertArrayEquals(input, output, 0.0f)
     assertFalse(kernel.containsSlice("barrier"))
@@ -45,7 +122,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input)
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
@@ -66,7 +143,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input)
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(0, "barrier".r.findAllMatchIn(kernel).length)
@@ -87,7 +164,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input)
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
@@ -108,7 +185,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input)
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
@@ -129,7 +206,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input)
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
@@ -151,7 +228,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input)
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
@@ -286,7 +363,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(128, inputSize)(f, input)
+    val (output, _) = Execute(128, inputSize)[Array[Float]](f, input)
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
@@ -312,7 +389,7 @@ class TestBarrier {
 
     val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input, input)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
     assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
@@ -338,7 +415,7 @@ class TestBarrier {
 
     val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input, input)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
     assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
@@ -364,7 +441,7 @@ class TestBarrier {
 
     val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input, input)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
     assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
@@ -390,7 +467,7 @@ class TestBarrier {
 
     val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input, input)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
     assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
@@ -417,7 +494,7 @@ class TestBarrier {
 
     val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input, input)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
     assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
@@ -440,7 +517,7 @@ class TestBarrier {
 
     val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input, input)
 
     assertArrayEquals(gold.flatten, output, 0.0f)
     assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
@@ -463,8 +540,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
-      (false, false))(kernel, f, input)
+    val (output, _) = Execute(16, 16, inputSize, inputSize, (false, false))[Array[Float]](kernel, f, input)
 
     assertArrayEquals(input.flatten.flatten.flatten, output, 0.0f)
     assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
@@ -527,8 +603,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
-      (false, false))(kernel, f, input)
+    val (output, _) = Execute(16, 16, inputSize, inputSize, (false, false))[Array[Float]](kernel, f, input)
 
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
     assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
@@ -552,8 +627,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
-      (false, false))(kernel, f, input)
+    val (output, _) = Execute(16, 16, inputSize, inputSize, (false, false))[Array[Float]](kernel, f, input)
 
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
     assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
@@ -584,8 +658,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
-      (false, false))(kernel, f, input)
+    val (output, _) = Execute(16, 16, inputSize, inputSize, (false, false))[Array[Float]](kernel, f, input)
 
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
     assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
@@ -609,7 +682,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (result: Array[Float], _) = Execute(inputSize)(kernel, f, input)
+    val (result, _) = Execute(inputSize)[Array[Float]](kernel, f, input)
 
     assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
     assertArrayEquals(gold, result, 0.0f)
@@ -633,7 +706,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (result: Array[Float], _) = Execute(inputSize)(kernel, f, input)
+    val (result, _) = Execute(inputSize)[Array[Float]](kernel, f, input)
 
     assertEquals(2, "barrier".r.findAllMatchIn(kernel).length)
     assertArrayEquals(gold, result, 0.0f)
@@ -655,7 +728,7 @@ class TestBarrier {
       )) $ input
     )
 
-    Execute(32, 8, inputSize, inputSize, (true, true))(f, input)
+    Execute(32, 8, inputSize, inputSize, (true, true))[Array[Float]](f, input)
   }
 
   @Test
@@ -678,8 +751,7 @@ class TestBarrier {
 
     val kernel = Compile(f)
 
-    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
-      (false, false))(kernel, f, input)
+    val (output, _) = Execute(16, 16, inputSize, inputSize, (false, false))[Array[Float]](kernel, f, input)
 
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
     assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
@@ -704,8 +776,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
-      (false, false))(kernel, f, input)
+    val (output, _) = Execute(16, 16, inputSize, inputSize, (false, false))[Array[Float]](kernel, f, input)
 
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
     assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
@@ -730,8 +801,7 @@ class TestBarrier {
     )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(16, 16, inputSize, inputSize,
-      (false, false))(kernel, f, input)
+    val (output, _) = Execute(16, 16, inputSize, inputSize, (false, false))[Array[Float]](kernel, f, input)
 
     assertArrayEquals(gold.flatten.flatten.flatten, output, 0.0f)
     assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)
@@ -755,7 +825,7 @@ class TestBarrier {
      )
 
     val kernel = Compile(f)
-    val (output: Array[Float], _) = Execute(inputSize)(kernel, f, input)
+    val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input)
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(1, "barrier".r.findAllMatchIn(kernel).length)

@@ -1,0 +1,72 @@
+def rodiniaUserFun = UserFun("rodiniaUserFun",
+    Array("power", "top", "bottom", "left", "right", "center"), "{ float step_div_cap = 1.365333e+00; return center + step_div_cap*(power + 0.1f*(bottom + top - 2*center) + 0.1*(left + right - 2*center) + 4.882813e-05*(80.0f - center)); }",
+    Seq(Float, Float, Float, Float, Float, Float), Float)
+
+def hotspotPrecomputedCoef = UserFun("hotspot", Array("power", "top", "bottom", "left", "right", "center"),
+        """return center +
+          |       0.341333299875259 * (power + (bottom + top - 2.0f * center) * 0.1 +
+          |               (right + left - 2.0f * center) * 0.1 + (80.0 - center) * 0.000195312502910);""".stripMargin,
+        Seq(Float, Float, Float, Float, Float, Float), Float)
+
+// alternative hotspot function
+def hotspot = UserFun("hotspot", Array("power", "top", "bottom", "left", "right", "center"), """
+      |#define MAX_PD  (3.0e6)
+      |#define PRECISION   0.001
+      |#define SPEC_HEAT_SI 1.75e6
+      |#define K_SI 100
+      |#define FACTOR_CHIP 0.5
+      |
+      |    /* chip parameters  */
+      |    const float t_chip = 0.0005f;
+      |    const float chip_height = 0.016f;
+      |    const float chip_width = 0.016f;
+      |    /* ambient temperature, assuming no package at all  */
+      |    const float amb_temp = 80.0f;
+      |
+      |    float row = 512.0f;
+      |    float col = 512.0f;
+      |
+      |    float grid_height = chip_height / row;
+      |    float grid_width = chip_width / col;
+      |
+      |    float Cap = FACTOR_CHIP * SPEC_HEAT_SI * t_chip * grid_width * grid_height;
+      |    float Rx = grid_width / (2.0 * K_SI * t_chip * grid_height);
+      |    float Ry = grid_height / (2.0 * K_SI * t_chip * grid_width);
+      |    float Rz = t_chip / (K_SI * grid_height * grid_width);
+      |
+      |    float max_slope = MAX_PD / (FACTOR_CHIP * t_chip * SPEC_HEAT_SI);
+      |    float stepl = PRECISION / max_slope;
+      |
+      |    float step_div_Cap=stepl/Cap;
+      |    float Rx_1=1/Rx;
+      |    float Ry_1=1/Ry;
+      |    float Rz_1=1/Rz;
+      |
+      |    return center +
+      |       step_div_Cap * (power + (bottom + top - 2.0f * center) * Ry_1 +
+      |               (right + left - 2.0f * center) * Rx_1 + (amb_temp - center) * Rz_1);
+      |
+    """.stripMargin, Seq(Float, Float, Float, Float, Float, Float), Float)
+
+val M = Var("M", StartFromRange(1024))
+val N = Var("N", StartFromRange(1024))
+
+fun(
+    ArrayType(ArrayType(Float, M), N),
+    ArrayType(ArrayType(Float, M), N),
+    (heat, power) => {
+        Map(Map(\(tuple => {
+        val nbh = tuple._0
+        val powerValue = tuple._1
+
+        val top = Get(tuple,0).at(0).at(1)
+        val bottom = tuple._0.at(2).at(1)
+        val left = tuple._0.at(1).at(0)
+        val right = tuple._0.at(1).at(2)
+        val center = tuple._0.at(1).at(1)
+
+        fun(x => hotspot(x, top, bottom, left, right, center)) $ powerValue
+    }))) o Map(\(tuple => Zip(tuple._0, tuple._1))) $ Zip(
+        Slide2D(3, 1) o Pad2D(1, 1, Pad.Boundary.Clamp) $ heat,
+        power)
+})

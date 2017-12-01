@@ -77,4 +77,98 @@ class TestInferNDRange {
     assertEquals(Cst(1), global(2))
   }
 
+  @Test
+  def fixDependedingOnToGlobalLocation(): Unit = {
+    val v_M_0 = SizeVar("M")
+    val v_N_1 = SizeVar("N")
+
+    val idfloat = UserFun("idfloat", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
+    val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
+    val mult = UserFun("mult", Array("l", "r"), """|{ return l * r; }""".stripMargin, Seq(Float, Float), Float)
+
+    val f0 =
+      fun(
+        ArrayType(ArrayType(Float, v_M_0), v_N_1),
+        ArrayType(Float, v_M_0),
+        ArrayType(Float, v_N_1),
+        Float, Float,
+        (p_0, p_1, p_2, p_3, p_4) =>
+          FunCall(MapWrg(0)(fun((p_5) =>
+            FunCall(Join(),
+              FunCall(MapLcl(0)(fun((p_6) =>
+                FunCall(toGlobal(fun((p_7) =>
+                  FunCall(MapSeq(fun((p_8) =>
+                    FunCall(add,
+                      FunCall(toPrivate(fun((p_9, p_10) =>
+                        FunCall(mult, p_9, p_10))), p_8, p_3),
+                      FunCall(toPrivate(fun((p_11, p_12) =>
+                        FunCall(mult, p_11, p_12))),
+                        FunCall(Get(1), p_5), p_4)))), p_7))),
+                  FunCall(ReduceSeq(fun((p_13, p_14) =>
+                    FunCall(add, p_13, p_14))),
+                    FunCall(idfloat, Value("0.0f", Float)), p_6)))),
+                FunCall(Split(Cst(128)),
+                  FunCall(Join(),
+                    FunCall(MapLcl(0)(fun((p_15) =>
+                      FunCall(MapSeq(fun((p_16) =>
+                        FunCall(toLocal(fun((p_17) =>
+                          FunCall(idfloat, p_17))), p_16))),
+                        FunCall(ReduceSeq(fun((p_18, p_19) =>
+                          FunCall(add, p_18,
+                            FunCall(mult,
+                              FunCall(Get(0), p_19),
+                              FunCall(Get(1), p_19))))),
+                          FunCall(idfloat, Value("0.0f", Float)), p_15)))),
+                      FunCall(Split( v_M_0 * Pow(Cst(128), Cst(-1)) ),
+                        FunCall(Gather(ReorderWithStride(128)),
+                          FunCall(Zip(2), p_1,
+                            FunCall(Get(0), p_5))))))))))),
+            FunCall(Zip(2), p_0, p_2)))
+
+    val f1 =
+      fun(
+        ArrayType(ArrayType(Float, v_M_0), v_N_1),
+        ArrayType(Float, v_M_0),
+        ArrayType(Float, v_N_1),
+        Float, Float,
+        (p_0, p_1, p_2, p_3, p_4) =>
+          FunCall(MapWrg(0)(fun((p_5) =>
+            FunCall(Join(),
+              FunCall(toGlobal(fun((p_7) =>
+                FunCall(MapLcl(0)(fun((p_6) =>
+                  FunCall(MapSeq(fun((p_8) =>
+                    FunCall(add,
+                      FunCall(toPrivate(fun((p_9, p_10) =>
+                        FunCall(mult, p_9, p_10))), p_8, p_3),
+                      FunCall(toPrivate(fun((p_11, p_12) =>
+                        FunCall(mult, p_11, p_12))),
+                        FunCall(Get(1), p_5), p_4)))),
+                    FunCall(ReduceSeq(fun((p_13, p_14) =>
+                      FunCall(add, p_13, p_14))),
+                      FunCall(idfloat, Value("0.0f", Float)), p_6)))), p_7))),
+                FunCall(Split(Cst(128)),
+                  FunCall(Join(),
+                    FunCall(MapLcl(0)(fun((p_15) =>
+                      FunCall(MapSeq(fun((p_16) =>
+                        FunCall(toLocal(fun((p_17) =>
+                          FunCall(idfloat, p_17))), p_16))),
+                        FunCall(ReduceSeq(fun((p_18, p_19) =>
+                          FunCall(add, p_18,
+                            FunCall(mult,
+                              FunCall(Get(0), p_19),
+                              FunCall(Get(1), p_19))))),
+                          FunCall(idfloat, Value("0.0f", Float)), p_15)))),
+                      FunCall(Split( v_M_0 * Pow(Cst(128), Cst(-1)) ),
+                        FunCall(Gather(ReorderWithStride(128)),
+                          FunCall(Zip(2), p_1,
+                            FunCall(Get(0), p_5))))))))))),
+            FunCall(Zip(2), p_0, p_2)))
+
+    val (local0, global0) = InferNDRange(f0)
+    val (local1, global1) = InferNDRange(f1)
+
+    assertEquals(local0, local1)
+    assertEquals(global0, global1)
+  }
+
 }

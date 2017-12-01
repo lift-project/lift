@@ -1,0 +1,59 @@
+def f = UserFun("jacobi", Array("NNWW", "NNW", "NN", "NNE", "NNEE",
+  "NWW", "NW", "N", "NE", "NEE",
+  "WW", "W", "C", "E", "EE",
+  "SWW", "SW", "S", "SE", "SEE",
+  "SSWW", "SSW", "SS", "SSE", "SSEE"),
+  """return (2*NNWW + 4*NNW + 5*NN + 4*NNE + 2*NNEE +
+    | 4*NWW + 9*NW + 12*N + 9*NE + 4*NEE +
+    | 5*WW + 12*W + 15*C + 12*E + 5*EE +
+    | 4*SWW + 9*SW + 12*S + 9*SE + 4*SEE +
+    | 2*SSWW + 4*SSW + 5*SS + 4*SSE + 2*SSEE) / 159;""".stripMargin,
+  Seq(Float, Float, Float, Float, Float,
+    Float, Float, Float, Float, Float,
+    Float, Float, Float, Float, Float,
+    Float, Float, Float, Float, Float,
+    Float, Float, Float, Float, Float), Float)
+
+val M = Cst(4096)
+val N = Cst(4096)
+
+λ(
+  ArrayType(ArrayType(Float, M), N),
+  input => {
+    Map(Scatter(Shift(2))) o Scatter(Shift(2)) o Pad2D(2,2,Pad.Boundary.Clamp) o
+    Map(Map(λ(nbh => {
+      val nnww = nbh.at(0).at(0)
+      val nnw  = nbh.at(0).at(1)
+      val nn   = nbh.at(0).at(2)
+      val nne  = nbh.at(0).at(3)
+      val nnee = nbh.at(0).at(4)
+      val nww  = nbh.at(1).at(0)
+      val nw   = nbh.at(1).at(1)
+      val n    = nbh.at(1).at(2)
+      val ne   = nbh.at(1).at(3)
+      val nee  = nbh.at(1).at(4)
+      val ww   = nbh.at(2).at(0)
+      val w    = nbh.at(2).at(1)
+      val c    = nbh.at(2).at(2)
+      val e    = nbh.at(2).at(3)
+      val ee   = nbh.at(2).at(4)
+      val sww  = nbh.at(3).at(0)
+      val sw   = nbh.at(3).at(1)
+      val s    = nbh.at(3).at(2)
+      val se   = nbh.at(3).at(3)
+      val see  = nbh.at(3).at(4)
+      val ssww = nbh.at(4).at(0)
+      val ssw  = nbh.at(4).at(1)
+      val ss   = nbh.at(4).at(2)
+      val sse  = nbh.at(4).at(3)
+      val ssee = nbh.at(4).at(4)
+
+      λ(x =>
+        f(x, nnw, nn, nne, nnee,
+          nww, nw, n, ne, nee,
+          ww, w, c, e, ee,
+          sww, sw, s, se, see,
+          ssww, ssw, ss, sse, ssee)) $ nnww
+
+    }))) o Slide2D(5, 1) $ input
+  })

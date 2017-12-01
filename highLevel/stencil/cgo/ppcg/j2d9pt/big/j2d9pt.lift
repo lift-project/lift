@@ -1,0 +1,37 @@
+def moore9pt(x: Param) = {
+  val NW = x.at(0).at(0)
+  val N  = x.at(0).at(1)
+  val NE = x.at(0).at(2)
+  val W  = x.at(1).at(0)
+  val C  = x.at(1).at(1)
+  val E  = x.at(1).at(2)
+  val SW = x.at(2).at(0)
+  val S  = x.at(2).at(1)
+  val SE = x.at(2).at(2)
+  (NW, N, NE, W, C, E, SW, S, SE)
+}
+
+val M = Cst(8192)
+val N = Cst(8192)
+
+def f = UserFun("jacobi", Array("NW","N","NE","W","C","E","SW","S","SE"),
+  "return (7 * NW + 5 * N + 9 * NE + 12 * W + 15 * C + 12 * E + 9 * SW + 5 * S + 7 * SE) / 118;",
+  Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
+λ(
+  ArrayType(ArrayType(Float, M), N),
+  input => {
+    Map(Scatter(Shift(1))) o Scatter(Shift(1)) o Pad2D(1,1,Pad.Boundary.Clamp) o
+    Map(Map(λ(nbh => {
+
+      val (northWest, north, northEast,
+        west, center, east,
+        southWest, south, southEast) = moore9pt(nbh)
+
+      λ(x =>
+        f(x, north, northEast,
+          west, center, east,
+          southWest, south, southEast)) $ northWest
+
+    }))) o Slide2D(3, 1) $ input
+  })

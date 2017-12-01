@@ -1,0 +1,21 @@
+val N = SizeVar("N")
+val M = SizeVar("M")
+
+fun(
+  ArrayType(ArrayType(Float, N), M),
+  ArrayType(Float, M),
+  ArrayType(Float, N),
+  Float,
+  Float,
+  (matrix, vectorX, vectorY, alpha, beta) => {
+    Map(fun(t =>
+      Map(fun(x =>
+        add(
+          mult(x, alpha),
+          mult(Get(t, 1), beta)
+        )
+      )) o
+        Reduce(add, 0.0f) o
+        Map(fun(x => mult(Get(x, 0), Get(x, 1)))) $ Zip(vectorX, Get(t, 0))
+    )) $ Zip(Transpose() $ matrix, vectorY)
+  })

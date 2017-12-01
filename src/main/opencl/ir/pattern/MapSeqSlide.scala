@@ -1,6 +1,5 @@
 package opencl.ir.pattern
 
-import ir.ast.isGenerable
 import lift.arithmetic.{ArithExpr, PosVar, Var}
 import ir.{ArrayTypeWSWC, _}
 import ir.ast._
@@ -17,7 +16,7 @@ import ir.interpreter.Interpreter.ValueMap
   *
   */
 
-case class MapSeqSlide(val f: Lambda, size: ArithExpr, step: ArithExpr, var loopVar: Var, var windowVar: Var) extends Pattern(arity = 1) with isGenerable with FPattern
+case class MapSeqSlide(f: Lambda, size: ArithExpr, step: ArithExpr, var loopVar: Var, var windowVar: Var) extends Pattern(arity = 1) with FPattern
 {
 
   override def toString: String = "MapSeqSlide(" + f + ", " + size + ", " + step + ")"
