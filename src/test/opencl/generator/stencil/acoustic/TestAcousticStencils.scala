@@ -191,7 +191,8 @@ object StencilUtilities
 
 
   def createDataFloat3DInOrder(sizeX: Int, sizeY: Int, sizeZ: Int) = {
-    Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i*sizeX*sizeY + j*sizeX + k + 1).toFloat }
+    //Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i*sizeX*sizeY + j*sizeX + k + 1).toFloat }
+    Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i + j + k + 1).toFloat }
   }
 
     def createDataFloat3DWithPadding(sizeX: Int, sizeY: Int, sizeZ: Int) = {
