@@ -140,13 +140,8 @@ class TestMapSeqSlide
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-<<<<<<< HEAD
     println(Compile(MapSeqSlideHelpers.stencil1D(slidesize, slidestep)))
-    val (output : Array[Float], _) = Execute(2, 2)(MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
-=======
-    val (output, _) = Execute(2, 2)[Array[Float]](MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
-
->>>>>>> master
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
     assertArrayEquals(gold, output, 0.1f)
 
   }
@@ -412,14 +407,9 @@ class TestMapSeqSlide
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
 
-<<<<<<< HEAD
     println(Compile(MapSeqSlideHelpers.stencil2D(slidesize, slidestep)))
-    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
-=======
-    val (output, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
-    val (gold, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
->>>>>>> master
+    val (output: Array[Float], _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
+    val (gold: Array[Float], _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -697,11 +687,10 @@ class TestMapSeqSlide
         }))) o Slide2D(a,b)  $ input
     )
 
-<<<<<<< HEAD
   println(Compile(stencil3DWeights(3,1)))
 
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(stencil3DWeights(slidesize,slidestep), values,StencilUtilities.weights3D.flatten.flatten)
-    val (gold: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(stencil3DCompareWeights(slidesize,slidestep), values, StencilUtilities.weights3D.flatten.flatten)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](stencil3DWeights(slidesize,slidestep), values,StencilUtilities.weights3D.flatten.flatten)
+    val (gold: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](stencil3DCompareWeights(slidesize,slidestep), values, StencilUtilities.weights3D.flatten.flatten)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -747,12 +736,8 @@ class TestMapSeqSlide
         }))) o PrintType () o  Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(4,2)  $ input
     )
 
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(stencil3DWeights(slidesize,slidestep), values,StencilUtilities.weights3D.flatten.flatten)
-    val (gold: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(stencil3DCompareWeights(slidesize,slidestep), values, StencilUtilities.weights3D.flatten.flatten)
-=======
-    val (output, _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](stencil3DWeights(slidesize,slidestep), values,StencilUtilities.weights3D.flatten.flatten)
-    val (gold, runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](stencil3DCompareWeights(slidesize,slidestep), values, StencilUtilities.weights3D.flatten.flatten)
->>>>>>> master
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](stencil3DWeights(slidesize,slidestep), values,StencilUtilities.weights3D.flatten.flatten)
+    val (gold: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](stencil3DCompareWeights(slidesize,slidestep), values, StencilUtilities.weights3D.flatten.flatten)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -799,8 +784,8 @@ class TestMapSeqSlide
 
     println(Compile(lambda1D))
 
-    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1DOriginal,values,values2)
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1D,values,values2)
+    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda1DOriginal,values,values2)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda1D,values,values2)
 
     assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
 
@@ -842,8 +827,8 @@ class TestMapSeqSlide
 
     println(Compile(lambda1D))
     println(Compile(original1DStencil(slidesize,slidestep)))
-    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(original1DStencil(slidesize,slidestep),values,values2)
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1D,values,values2)
+    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original1DStencil(slidesize,slidestep),values,values2)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda1D,values,values2)
 
     assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
     StencilUtilities.print1DArray(values)
@@ -906,8 +891,8 @@ class TestMapSeqSlide
     println(Compile(lambda1D))
 //    println(Compile(original1DStencil(slidesize,slidestep)))
 
-    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(original1DStencil(slidesize,slidestep),values,values2)
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda1D,values,values2)
+    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original1DStencil(slidesize,slidestep),values,values2)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda1D,values,values2)
 
     assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
     /*StencilUtilities.print1DArray(values)
@@ -985,8 +970,8 @@ class TestMapSeqSlide
     println(Compile(original2DStencil(slidesize,slidestep)))
     println(Compile(lambda2D))
 
-    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(original2DStencil(slidesize,slidestep),values,values2)
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda2D,values,values2)
+    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original2DStencil(slidesize,slidestep),values,values2)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda2D,values,values2)
 
     assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
 /*    StencilUtilities.print2DArray(values)
@@ -1104,8 +1089,8 @@ class TestMapSeqSlide
    println(Compile(original3DStencil(slidesize,slidestep)))
    println(Compile(lambda3D))
 
-    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(original3DStencil(slidesize,slidestep),values,values2)
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda3D,values,values2)
+    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original3DStencil(slidesize,slidestep),values,values2)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda3D,values,values2)
 
     assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
 /*    StencilUtilities.print3DArray(values)
@@ -1266,7 +1251,7 @@ class TestMapSeqSlide
     //    val source = Compile(newLambda, 64,4,2,512,512,404, immutable.Map())
     //    println(source)
 
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda3DMapSeq(slidesize,slidestep), stencilarrpadded3D)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda3DMapSeq(slidesize,slidestep), stencilarrpadded3D)
     StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
 /*
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(sourceOrg, orgLambda, data, stencilarrOther3D)
@@ -1402,9 +1387,9 @@ class TestMapSeqSlide
     //    val source = Compile(newLambda, 64,4,2,512,512,404, immutable.Map())
     //    println(source)
 
-    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3D(slidesize,slidestep), stencilarrpadded3D)
-    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
-    val (output_MS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3DMapSeq(slidesize,slidestep), stencilarrpadded3D)
+    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3D(slidesize,slidestep), stencilarrpadded3D)
+    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
+    val (output_MS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3DMapSeq(slidesize,slidestep), stencilarrpadded3D)
 
     assertArrayEquals(output_MSS, output_org, StencilUtilities.stencilDelta)
     assertArrayEquals(output_MS, output_org, StencilUtilities.stencilDelta)
@@ -1593,9 +1578,9 @@ class TestMapSeqSlide
     //    val source = Compile(newLambda, 64,4,2,512,512,404, immutable.Map())
     //    println(source)
 
-    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3D(slidesize,slidestep), stencilarrpadded3D)
-    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
-    val (output_MS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3DMapSeq(slidesize,slidestep), stencilarrpadded3D)
+    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3D(slidesize,slidestep), stencilarrpadded3D)
+    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
+    val (output_MS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3DMapSeq(slidesize,slidestep), stencilarrpadded3D)
 
     assertArrayEquals(output_MSS, output_org, StencilUtilities.stencilDelta)
     assertArrayEquals(output_MS, output_org, StencilUtilities.stencilDelta)
@@ -1876,8 +1861,8 @@ class TestMapSeqSlide
     //    val source = Compile(newLambda, 64,4,2,512,512,404, immutable.Map())
     //    println(source)
 
-    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3D(slidesize,slidestep), stencilarrpadded3D)
-    val (output_MSSL: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3DmapseqslideLocal(slidesize,slidestep), stencilarrpadded3D)
+    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3D(slidesize,slidestep), stencilarrpadded3D)
+    val (output_MSSL: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3DmapseqslideLocal(slidesize,slidestep), stencilarrpadded3D)
 
     assertArrayEquals(output_MSSL, output_org, StencilUtilities.stencilDelta)
     /*
@@ -1992,8 +1977,8 @@ class TestMapSeqSlide
     println(sourceMSS)
 
 
-    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3D(slidesize,slidestep), stencilarrpadded3D)
-    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
+    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3D(slidesize,slidestep), stencilarrpadded3D)
+    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
 
     assertArrayEquals(output_MSS, output_org, StencilUtilities.stencilDelta)
   }
@@ -2113,8 +2098,8 @@ class TestMapSeqSlide
     println(Compile(original3DStencil(slidesize,slidestep)))
     println(Compile(lambda3D))
 
-    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(original3DStencil(slidesize,slidestep),stencilarrpadded3D, stencilarrpadded3D)
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambda3D,stencilarrpadded3D, stencilarrpadded3D)
+    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original3DStencil(slidesize,slidestep),stencilarrpadded3D, stencilarrpadded3D)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda3D,stencilarrpadded3D, stencilarrpadded3D)
 
     assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
 
