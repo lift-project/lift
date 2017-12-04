@@ -47,9 +47,9 @@ class TestAcousticActualRoom {
     val localDimY = 6
     val localDimZ = 10
 
-    val data = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
+    val data = StencilUtilities.createDataFloat3DInOrder(localDimX, localDimY, localDimZ)
     val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
-    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
+    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPaddingInOrder(localDimX, localDimY, localDimZ)
     val stencilarrOther3D = stencilarrpadded3D.map(x => x.map(y => y.map(z => z * 2.0f)))
     val mask3D = BoundaryUtilities.createMaskDataAsym3D(localDimX, localDimY, localDimZ)
 
@@ -123,9 +123,9 @@ class TestAcousticActualRoom {
 
     val compareData = AcousticComparisonArrays.test3DAsymMaskStencilComparisonData8x6x10
 
-    val data = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
+    val data = StencilUtilities.createDataFloat3DInOrder(localDimX, localDimY, localDimZ)
     val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
-    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
+    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPaddingInOrder(localDimX, localDimY, localDimZ)
     val stencilarrOther3D = stencilarrpadded3D.map(x => x.map(y => y.map(z => z * 2.0f)))
     val mask3DBP = BoundaryUtilities.createMaskDataWithNumBoundaryPts(localDimX+2, localDimY+2, localDimZ+2)
 
@@ -248,9 +248,9 @@ class TestAcousticActualRoom {
     val localDimY = 6
     val localDimZ = 10
 
-    val data = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
+    val data = StencilUtilities.createDataFloat3DInOrder(localDimX, localDimY, localDimZ)
     val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
-    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPadding(localDimX, localDimY, localDimZ)
+    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPaddingInOrder(localDimX, localDimY, localDimZ)
     val stencilarrOther3D = stencilarrpadded3D.map(x => x.map(y => y.map(z => z * 2.0f)))
     val mask3DBP = BoundaryUtilities.createMaskDataWithNumBoundaryPts(localDimX+2, localDimY+2, localDimZ+2).map(x => x.map(y => y.map(z => Array(z))))
 
@@ -296,8 +296,8 @@ class TestAcousticActualRoom {
 
       val newLambda = SimplifyAndFuse(lambdaNeigh)
       val source = Compile(newLambda)
-      println(source)
       /*
+      println(source)
       OutputKernelJSON(newLambda,"/home/reese/workspace/sandbox/")
       println(OutputKernelJSON.getJsonString(newLambda))
     */
