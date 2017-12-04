@@ -79,11 +79,11 @@ object OpenCLPrinter {
   */
 class OpenCLPrinter {
   /**
-   * Entry point for printing an AST.
-   *
-   * @param node The root of the AST (the global scope block).
-   * @return A string representation of the AST as OpenCL-C code.
-   */
+    * Entry point for printing an AST.
+    *
+    * @param node The root of the AST (the global scope block).
+    * @return A string representation of the AST as OpenCL-C code.
+    */
   def apply(node: OclAstNode): String = {
     indent = 0
     print(node)
@@ -132,10 +132,10 @@ class OpenCLPrinter {
   }
 
   /**
-   * Main print method. Print the current node and recurse.
-   *
-   * @param node The current node to emit code for.
-   */
+    * Main print method. Print the current node and recurse.
+    *
+    * @param node The current node to emit code for.
+    */
   private def print(node: OclAstNode): Unit = node match {
     case b: Block =>
       if(b.global) {
@@ -189,9 +189,9 @@ class OpenCLPrinter {
   }
 
   private def print(c: CondExpression): Unit = {
-      print(c.lhs)
-      print(s" ${c.cond.toString} ")
-      print(c.rhs)
+    print(c.lhs)
+    print(s" ${c.cond.toString} ")
+    print(c.rhs)
   }
 
   private def print(c: BinaryExpression): Unit = {
@@ -232,12 +232,12 @@ class OpenCLPrinter {
       val name = Type.name(tt)
       val fields = tt.elemsT.zipWithIndex.map({case (ty,i) => Type.name(ty)+" _"+i})
       print(s"""#ifndef ${name}_DEFINED
-        |#define ${name}_DEFINED
-        |typedef struct __attribute__((aligned(${tt.alignment._1}))) {
-        |  ${fields.reduce(_+";\n  "+_)};
-        |} $name;
-        |#endif
-        |""".stripMargin)
+               |#define ${name}_DEFINED
+               |typedef struct __attribute__((aligned(${tt.alignment._1}))) {
+               |  ${fields.reduce(_+";\n  "+_)};
+               |} $name;
+               |#endif
+               |""".stripMargin)
     case _ =>
   }
 
@@ -252,7 +252,7 @@ class OpenCLPrinter {
   }
 
   private def print(l: Load): Unit = {
-      if (!UseCastsForVectors()) {
+    if (!UseCastsForVectors()) {
       print(s"vload${l.t.len}(")
       print(l.offset)
       print(",")
@@ -351,7 +351,7 @@ class OpenCLPrinter {
       // Const restricted pointers to read-only global memory. See issue #2.
       val (const, restrict) = if (p.const) ("const ", "restrict ") else ("","")
       print(const + p.addressSpace + " " + OpenCLPrinter.toString(Type.devectorize(p.t)) +
-            " " + restrict + p.name)
+        " " + restrict + p.name)
 
     case _ =>
       print(OpenCLPrinter.toString(p.t) + " " + p.name)
@@ -363,10 +363,10 @@ class OpenCLPrinter {
       vd.addressSpace match {
         case PrivateMemory =>
           if(vd.length > scala.Int.MaxValue) throw NotEvaluableToInt
-              for (i <- 0 until vd.length.toInt)
-                println(OpenCLPrinter.toString(Type.getValueType(vd.t)) + " " +
-                OpenCLPrinter.toString(vd.v) + "_" +
-                OpenCLPrinter.toString(i) + ";")
+          for (i <- 0 until vd.length.toInt)
+            println(OpenCLPrinter.toString(Type.getValueType(vd.t)) + " " +
+              OpenCLPrinter.toString(vd.v) + "_" +
+              OpenCLPrinter.toString(i) + ";")
 
         case LocalMemory if vd.length != 0 =>
           val baseType = Type.getBaseType(vd.t)
@@ -377,7 +377,7 @@ class OpenCLPrinter {
           // Make sure the memory is correctly aligned when using pointer casts
           // for forcing vector loads on NVIDIA.
           val optionalAttribute =
-            if (UseCastsForVectors()) " __attribute__ ((aligned(16)));" else ";"
+          if (UseCastsForVectors()) " __attribute__ ((aligned(16)));" else ";"
 
           val fullDeclaration = declaration + optionalAttribute
 
@@ -397,10 +397,10 @@ class OpenCLPrinter {
     case _ =>
       // hackily add support for global memory pointers, but _only_ pointers
       vd.t match {
-        case IntPtr => 
+        case IntPtr =>
           if(vd.addressSpace == GlobalMemory)
-          print(vd.addressSpace + " ")
-        case _ => 
+            print(vd.addressSpace + " ")
+        case _ =>
       }
       if(vd.addressSpace == LocalMemory)
         print(vd.addressSpace + " ")
@@ -413,11 +413,11 @@ class OpenCLPrinter {
   }
 
   /**
-   * Generate a barrier for the given address space scope.
-   * If the scope is not defined as global or local, the barrier assumes both.
- *
-   * @param b A [[Barrier]] node.
-   */
+    * Generate a barrier for the given address space scope.
+    * If the scope is not defined as global or local, the barrier assumes both.
+    *
+    * @param b A [[Barrier]] node.
+    */
   private def print(b: Barrier): Unit = println (b.mem.addressSpace match {
     case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
     case LocalMemory => "barrier(CLK_LOCAL_MEM_FENCE);"
@@ -453,7 +453,7 @@ class OpenCLPrinter {
   /**
     * Generate a while loop. This is fairly simple so no 
     * optimisations can be realistically applied.
-    * 
+    *
     * @param wl a [[WhileLoop]] node.
     */
   private def print(wl: WhileLoop): Unit = {
@@ -463,7 +463,7 @@ class OpenCLPrinter {
 
 
   /** Generate an if-then-else conditional set of statements
-    * 
+    *
     * @param s a [[IfThenElse]] node
     */
   private def print(s: OpenCLAST.IfThenElse): Unit = {
@@ -481,7 +481,7 @@ class OpenCLPrinter {
   }
 
   /** Generate a label for a goto
-    * 
+    *
     * @param l a [[Label]] node
     */
   private def print(l: Label): Unit = {
@@ -489,7 +489,7 @@ class OpenCLPrinter {
   }
 
   /** Generate a goto statement for a corresponding label
-    * 
+    *
     * @param g a [[GOTO]] node
     */
   private def print(g: GOTO): Unit = {
@@ -505,11 +505,11 @@ class OpenCLPrinter {
     printList(s.args, ", ")
     print("}")
   }
-  
+
   /**
-   * Helper function for printing separated lists
-   * `printList([a, b, c], ",")  ==  "a,b,c"`
-   */
+    * Helper function for printing separated lists
+    * `printList([a, b, c], ",")  ==  "a,b,c"`
+    */
   private def printList(args: Seq[OclAstNode], sep: String): Unit = {
     args.init.foreach(a => {
       print(a)

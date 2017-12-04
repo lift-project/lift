@@ -391,11 +391,7 @@ class TestAcousticActualRoom {
     val source = Compile(newLambda)
     println(source)
 
-<<<<<<< HEAD
     /*    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,newLambda, data, stencilarrOther3D)
-=======
-        val (output, runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](source,newLambda, data, stencilarrOther3D)
->>>>>>> master
         if(StencilUtilities.printOutput)
         {
             StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
@@ -484,7 +480,7 @@ class TestAcousticActualRoom {
     val source = Compile(newLambda)
     println(source)
 
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,newLambda, data, stencilarrOther3D)
+    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](source,newLambda, data, stencilarrOther3D)
 
     if(StencilUtilities.printOutput)
     {
@@ -561,8 +557,8 @@ class TestAcousticActualRoom {
     val source = Compile(newLambda)
     println(source)
 
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,newLambda, data, stencilarrpadded3D)
-    val (compareData: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))(lambdaNeigh, stencilarrpadded3D)
+    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](source,newLambda, data, stencilarrpadded3D)
+    val (compareData: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambdaNeigh, stencilarrpadded3D)
 
       StencilUtilities.printOriginalAndOutput3D(stencilarrpadded3D, output)
       StencilUtilities.print1DArrayAs3DArray(compareData,localDimX,localDimY,localDimZ)
