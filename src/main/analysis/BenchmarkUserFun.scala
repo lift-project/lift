@@ -44,6 +44,9 @@ object BenchmarkUserFun {
     userFunInputs :+ conditionInput
   }
 
+  /**
+    * Return the kernel code with the definition for `uf`.
+    */
   def spliceInBenchmarkedFunction(code: String, uf: UserFun): String = {
     val lines = code.split("\n")
 
@@ -103,6 +106,9 @@ object BenchmarkUserFun {
     UserFun("benchmark" + uf.name, wrapperArgumentNames, body, inputTypes, uf.outT)
   }
 
+  /**
+    * Create the OpenCL C code to increment all fields in the variable `name` with type `t`.
+    */
   def createIncrement(t: Type, name: String): String = t match {
     case Float | Double | Int | Long => s"$name = $name + 1;"
     case VectorType(basicType, n) =>
