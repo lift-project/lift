@@ -16,16 +16,16 @@ object TestScanSeq extends TestWithExecutor
 class TestScanSeq {
 
   @Test
-  def testBasic() = {
+  def testBasicPrefixSum() = {
     val N = 1024
     val expr  =
       fun(ArrayTypeWSWC(Float, N),
         (data) => {
-        toGlobal(MapSeq(id)) o ScanSeq(add, 0.0f) $ data
+        Join() o MapGlb(toGlobal(MapSeq(id)) o ScanSeq(add, 0.0f)) o Split(N) $ data
       })
 
     val input = Array.fill(N)(1.0f)
-    val (dOutput, _) = Execute(128)[Array[Float]](expr, input)
+    val (dOutput, _) = Execute(1,1)[Array[Float]](expr, input)
 
     val scalaResult = input.scan(0.0f)((x, y) => x + y).tail
     val zipped = scalaResult.zip(dOutput)
@@ -33,7 +33,7 @@ class TestScanSeq {
   }
 
   @Test
-  def testInsideMapAndSplits() = {
+  def testPrefixSumWithMapAndSplits() = {
     val N = 1024
 
     val input = Array.fill(N)(1.0f)
@@ -42,10 +42,10 @@ class TestScanSeq {
     val expr  =
      fun(ArrayTypeWSWC(Float, N),
        (data) => {
-         toGlobal(MapSeq(id)) o Join() o MapSeq(ScanSeq(add, 0.0f)) o Split(32) $ data
+         Join() o MapGlb(toGlobal(MapSeq(id)) o Join() o MapSeq(ScanSeq(add, 0.0f)) o Split(32)) o Split(N) $ data
        })
 
-    val (dOutput, _) = Execute(128)[Array[Float]](expr, input)
+    val (dOutput, _) = Execute(1,1)[Array[Float]](expr, input)
 
     val zipped = scalaResult.zip(dOutput)
     zipped.foreach(x => assert(x._1 == x._2))
