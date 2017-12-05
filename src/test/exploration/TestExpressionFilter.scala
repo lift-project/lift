@@ -84,7 +84,6 @@ class TestExpressionFilter {
   @Test
   def mmHawaii(): Unit = {
     val lambda = hawaiiFactory(Array[ArithExpr](1024, 1024, 1024, 64, 4, 8, 64, 8))
-    val (local, global) = InferNDRange(lambda)
     assertEquals(Success, ExpressionFilter(lambda, InferNDRange(lambda)))
   }
 
@@ -98,7 +97,6 @@ class TestExpressionFilter {
   @Test
   def gemvHawaii(): Unit = {
     val lambda = gemvHawaiiFactory(Array[ArithExpr](1024, 1024, 256))
-    val (local, global) = InferNDRange(lambda)
     assertEquals(Success, ExpressionFilter(lambda, InferNDRange(lambda)))
   }
 

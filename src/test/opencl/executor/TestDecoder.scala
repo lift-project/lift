@@ -37,22 +37,22 @@ class TestDecoder {
   @Test
   def tuples(): Unit = {
     val tt1 = TupleType(Int, Double)
-    val buf1 = mkBuffer(2 * max(Int.size, Double.size))
+    val buf1 = mkBuffer(16)
     buf1.putInt(0, 42)
     buf1.putDouble(8, 12345.6789)
     assertEquals((42, 12345.6789d), Decoder.decode[(Int, Double)](tt1, buf1))
 
     val tt2 = TupleType(Float, TupleType(Bool, Int))
-    val buf2 = mkBuffer(3 * max(Float.size, Bool.size, Int.size))
+    val buf2 = mkBuffer(12)
     buf2.putFloat(0, 42.42f)
     buf2.put(4, 1.toByte)
     buf2.putInt(8, 989898)
     assertEquals((42.42f, (true, 989898)), Decoder.decode[(Float, (Boolean, Int))](tt2, buf2))
 
     val tt3 = TupleType(Bool, Float4)
-    val buf3 = mkBuffer(5 * max(Bool.size, Type.getAllocatedSize(Float)))
+    val buf3 = mkBuffer(32)
     buf3.put(0, 0.toByte)
-    buf3.position(4)
+    buf3.position(16)
     buf3.asFloatBuffer().put(Array(.1f, .2f, .3f, .4f))
     assertEquals((false, Vector(.1f, .2f, .3f, .4f)), Decoder.decode[(Boolean, Vector[Float])](tt3, buf3))
   }

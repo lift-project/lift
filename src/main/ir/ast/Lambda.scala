@@ -20,7 +20,7 @@ abstract case class Lambda private[ast] (params: Array[Param],
   /**
    * Debug string representation
    */
-  override def toString = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
+  override def toString: String = "(\\" + params.map(_.toString).reduce(_ + ", " + _) +
       " -> \n" + body.toString.split("\n").map("  " + _ + "\n").mkString + ")"
 
   override def checkType(argType: Type,
@@ -110,7 +110,6 @@ object Lambda {
     }
   }
 
-
   /**
    * Implicitly wrap a given function declaration `f` into a lambda.
    *
@@ -124,6 +123,55 @@ object Lambda {
         if ps.length == params.length => lambda
       case _ => Lambda(params, f(params: _*))
     }
+  }
+
+  /**
+    * Make a copy of `lambda` where all type/mem/etc fields are blank.
+    * Should only be called for lambdas where all `Param`s are bound.
+    */
+  def copyStructure(lambda: Lambda): Lambda = {
+
+    val lambdaParams = lambda.params
+
+    val usedParams = getUsedParams(lambda)
+    val bodyParams = usedParams.filter(!lambdaParams.contains(_))
+    val declaredParams = getDeclaredParams(lambda)
+
+    val undeclaredParams = usedParams.filterNot(_.isInstanceOf[Value]).diff(declaredParams)
+    if (undeclaredParams.nonEmpty)
+      throw new IllegalArgumentException(s"Some Param (${undeclaredParams.mkString(", ")}) have not been declared!")
+
+    val bodyParamsMap = bodyParams.map((_, Param())).toMap
+
+    val lambdaParamsMap = lambdaParams.map(oldParam => (oldParam: Expr, Param(oldParam.t))).toMap
+
+    val allParamsMap: collection.Map[Expr, Expr] = lambdaParamsMap ++ bodyParamsMap
+
+    val replaceFun: Expr => Expr = {
+      case Value(value, typ) => Value(value, typ)
+      case expr => allParamsMap.getOrElse(expr, expr)
+    }
+
+    val newLambda = FunDecl.replace(lambda, replaceFun)
+
+    assert(!newLambda.eq(lambda))
+
+    newLambda
+  }
+
+  private def getUsedParams(lambda: Lambda) = {
+    Expr.visitWithState(Set[Param]())(lambda.body, {
+      case (param: Param, set) => set + param
+      case (_, set) => set
+    })
+  }
+
+  private def getDeclaredParams(lambda: Lambda) = {
+    Expr.visitWithState(Set[Param]())(lambda.body, {
+      case (FunCall(Lambda(params, _), _*), set) => set ++ params
+      case (FunCall(fp: FPattern, _*), set) => set ++ fp.f.params
+      case (_, set) => set
+    }) ++ lambda.params
   }
 }
 

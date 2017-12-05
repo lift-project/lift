@@ -45,10 +45,13 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
               case _ => apply(m.f.body)
             }
 
-          case f: FilterSeq => {
+          case f: FilterSeq =>
             apply(f.f.body)
             setRangeFilterSeq(f, call)
-          }
+
+          case iss: InsertionSortSeq =>
+            apply(iss.f.body)
+            setRangeInsertionSort(iss, call)
 
           case scan: ScanSeq => {
             apply(scan.f.body)
@@ -179,6 +182,17 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
     m.loopVar = Var(m.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
   }
   
+  private def setRangeInsertionSort(iss: InsertionSortSeq, call: FunCall): Unit = {
+    iss.loopRead = Var(
+      iss.loopRead.name,
+      ContinuousRange(Cst(0), Type.getLength(call.args.head.t))
+    )
+    iss.loopWrite = Var(
+      iss.loopWrite.name,
+      ContinuousRange(Cst(0), Type.getLength(call.args.head.t))
+    )
+  }
+
   private def setRangeFilterSeq(f: FilterSeq, call: FunCall): Unit = {
     f.loopRead = Var(f.loopRead.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
     f.loopWrite = Var(f.loopWrite.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))

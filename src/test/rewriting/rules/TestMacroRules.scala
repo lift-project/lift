@@ -1,4 +1,4 @@
-package rewriting
+package rewriting.rules
 
 import ir._
 import ir.ast._
@@ -8,6 +8,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Test
+import rewriting.Rewrite
 import rewriting.macrorules.{MacroRules, ReuseRules, SlideTiling}
 import rewriting.utils.NumberExpression
 
@@ -112,7 +113,6 @@ class TestMacroRules {
       ArrayTypeWSWC(ArrayTypeWSWC(Float, 1024), 1024),
       (heat, power) => {
         Map(Map(\(tuple => {
-          val nbh = tuple._0
           val powerValue = tuple._1
 
           val top = Get(tuple,0).at(0).at(1)

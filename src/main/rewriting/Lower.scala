@@ -2,10 +2,10 @@ package rewriting
 
 import com.typesafe.scalalogging.Logger
 import ir.ast._
-import ir.{Context, TupleType, TypeChecker}
+import ir.{TupleType, TypeChecker, UpdateContext}
 import opencl.ir.pattern._
-import rewriting.rules._
 import rewriting.macrorules.MacroRules
+import rewriting.rules._
 import rewriting.utils._
 
 case class EnabledMappings(
@@ -31,22 +31,58 @@ object Lower {
 
   private val logger = Logger(this.getClass)
 
-  private def patchLambda(lambda: Lambda) = {
+  private[rewriting] def patchLambda(lambda: Lambda) = {
     val partialReducesLowered = lowerPartialReduces(lambda)
 
     val simplified = SimplifyAndFuse(partialReducesLowered)
 
-    val reducesLowered = lowerReduces(simplified)
+    val compositionWithReduceSequential = mapComposedWithReduceAsSequential(simplified)
+
+    val reducesLowered = lowerReduces(compositionWithReduceSequential)
 
     val allocatedToGlobal = lastWriteToGlobal(reducesLowered)
 
     val removeOtherIds = dropIds(allocatedToGlobal)
 
-    val compositionWithReduceSequential = mapComposedWithReduceAsSequential(removeOtherIds)
-
-    val tupleToStruct = tupleToStructInReduce(compositionWithReduceSequential)
+    val tupleToStruct = tupleToStructInReduce(removeOtherIds)
 
     tupleToStruct
+  }
+
+  def pushReduceDeeper(lambda: Lambda): Lambda = {
+    val partialReducesLowered = lowerPartialReduces(lambda)
+
+    val simplified = SimplifyAndFuse(partialReducesLowered)
+
+    val patched = mapComposedWithReduceAsSequential(simplified)
+    val numbered = NumberExpression.byDepth(patched)
+
+    val reduces = utils.Utils.collect(patched.body, { case FunCall(_: AbstractPartRed, _, _) => })
+    val mapSeq = utils.Utils.collect(patched.body, { case FunCall(_: MapSeq, _) => })
+    val maps = utils.Utils.collect(patched.body, { case FunCall(_: Map, _) => })
+
+    val reduceLevels = reduces.map(numbered)
+    val mapLevels = maps.map(numbered)
+
+    // TODO: more general??
+    val shouldPushReduceDeeper = reduceLevels.count(_ == 1) > 0 && mapLevels.count(_ == 1) > 0
+
+    if (shouldPushReduceDeeper) {
+      val mapsToReplace = mapSeq.filter(numbered(_) == 1)
+      val reducesToReplace = reduces.filter(numbered(_) == 1)
+
+      val mapReplaced =
+        mapsToReplace.foldLeft(patched)((lambda, toReplace) =>
+          Rewrite.applyRuleAt(lambda, toReplace, Rules.splitJoinMapSeq))
+
+      val reduceReplaced =
+        reducesToReplace.foldLeft(mapReplaced)((lambda, toReplace) =>
+          Rewrite.applyRuleAt(lambda, toReplace, Rules.splitJoinReduce))
+
+      SimplifyAndFuse(reduceReplaced)
+    } else {
+      lambda
+    }
   }
 
   private def tupleToStructInReduce(lambda: Lambda): Lambda = {
@@ -82,7 +118,7 @@ object Lower {
     Rewrite.applyRuleUntilCannot(temp, OpenCLRules.mapSeq)
   }
 
-  private def mapComposedWithReduceAsSequential(lambda: Lambda) =
+  private[rewriting] def mapComposedWithReduceAsSequential(lambda: Lambda) =
     Rewrite.applyRulesUntilCannot(lambda, Seq(MacroRules.mapComposedWithReduceAsSequential))
 
   def mapCombinations(lambda: Lambda,
@@ -111,9 +147,8 @@ object Lower {
   private def dropIds(lambda: Lambda) =
     Rewrite.applyRulesUntilCannot(lambda, Seq(SimplificationRules.dropId, SimplificationRules.removeEmptyMap))
 
-  def findAll(lambda: Lambda, at: (Expr) => Boolean): List[Expr] = {
+  def findAll(lambda: Lambda, at: (Expr) => Boolean): List[Expr] =
     Expr.visitWithState(List[Expr]())(lambda.body, findAllFunction(at))
-  }
 
   def findAllDepthFirst(lambda: Lambda, at: (Expr) => Boolean): List[Expr] =
     Expr.visitWithStateDepthFirst(List[Expr]())(lambda.body, findAllFunction(at))
@@ -282,14 +317,14 @@ object Lower {
     val lastWrite = getLastWrite(lambda).get
 
     val lastMap = Utils.findExpressionForPattern(lambda,
-      { case FunCall(ir.ast.Map(Lambda(_, body)), _) if {
+      { case FunCall(ir.ast.AbstractMap(Lambda(_, body)), _) if {
         body.contains({ case x if x eq lastWrite => }) &&
-          !body.contains({ case FunCall(ir.ast.Map(_), _) => })
+          !body.contains({ case FunCall(ir.ast.AbstractMap(_), _) => })
       } => }: PartialFunction[Expr, Unit] )
 
     lastMap match {
       case None => logger.warn("No last map found. Possibly using at-notation? Assume last write uses toGlobal"); lambda
-      case _ => Rewrite.applyRuleAt(lambda, lastMap.get, OpenCLRules.globalMemory)
+      case _ => Rewrite.applyRuleAt(lambda, lastWrite, OpenCLRules.globalMemory)
     }
   }
 
@@ -298,7 +333,7 @@ object Lower {
       case FunCall(Id(), _) =>
     }
 
-    Context.updateContext(lambda.body)
+    UpdateContext(lambda)
 
     val ids = findAllDepthFirst(lambda, pattern1.isDefinedAt)
     val pattern2: PartialFunction[Expr, Unit] = {
@@ -329,7 +364,7 @@ object Lower {
   }
 
   private def getLastWrite(lambda: Lambda) =
-    Utils.findExpressionForPattern(lambda, { case FunCall(_:UserFun, _*) => } : PartialFunction[Expr, Unit])
+    Utils.findExpressionForPattern(lambda, { case FunCall(_:UserFun | _:VectorizeUserFun, _*) => } : PartialFunction[Expr, Unit])
 
   def lowerPartialReduces(lambda: Lambda): Lambda =
     Rewrite.applyRuleUntilCannot(lambda, ReduceRules.partialReduceToReduce)

@@ -4,8 +4,6 @@ import lift.arithmetic.ArithExpr
 import ir.interpreter.Interpreter.ValueMap
 import ir.{Type, TypeException}
 
-
-
 /**
  * Parameters to functions and lambdas, i.e.: x, y, ...
  */
@@ -14,7 +12,7 @@ class Param() extends Expr with Cloneable {
   /**
    * Debug string representation
    */
-  override def toString = "p" + (hashCode() & 0xff)
+  override def toString: String = "p" + (hashCode() & 0xff)
 
   /**
    * Perform a copy of `this`
@@ -27,7 +25,7 @@ class Param() extends Expr with Cloneable {
    * @return A new vectorized parameter
    */
   def vectorize(n: ArithExpr): Param = this match {
-    case v:VectorParam =>
+    case _: VectorParam =>
       throw TypeException("Cannot vectorize a vectorized parameter")
     case x => new VectorParam(x, n)
   }
@@ -79,5 +77,5 @@ object Param {
  */
 class VectorParam(val p: Param, val n: ArithExpr) extends Param {
   t = p.t.vectorize(n) // set the type
-  override def toString = "v" + p.toString + "_" + n
+  override def toString: String = "v" + p.toString + "_" + n
 }

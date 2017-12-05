@@ -1,9 +1,14 @@
 package ir.view
 
-import lift.arithmetic.{ArithExpr, Var}
 import ir._
 import ir.ast._
+<<<<<<< HEAD
 import opencl.ir.pattern.{FilterSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
+=======
+import lift.arithmetic.ArithExpr
+import opencl.ir.OpenCLMemoryCollection
+import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq}
+>>>>>>> 4222dc7ff21e3a8b47039a55ce469b3c0a2ba3aa
 
 /**
  * A helper object for constructing views.
@@ -59,6 +64,7 @@ object InputView {
       case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
       case scan:ScanSeq => buildViewScanSeq(scan, call, argView)
+      case iss: InsertionSortSeq => buildViewSort(iss, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
       case z: Zip => buildViewZip(call, argView)
       case uz: Unzip => buildViewUnzip(call, argView)
@@ -83,7 +89,7 @@ object InputView {
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case ArrayAccess(i) => argView.access(i)
-      case PrintType() | Scatter(_) | _: Tuple | Pad(_, _, _) => argView
+      case PrintType() | Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => argView
       case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
     }
   }
@@ -103,17 +109,12 @@ object InputView {
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, argView: View): View = {
-
-    var firstSeenVar : Option[Var] = None
-    i.f.params(0).view = View.visit(argView, pre = {
-      case ViewMem(v, t) if firstSeenVar.isEmpty =>
-        firstSeenVar = Some(v)
-        ViewMem(i.vPtrIn, t)
-      case ViewMem(v, _) if firstSeenVar.get != v =>
-        throw new NotImplementedError("Iterate can only work if the input received comes from a single memory view")
-      case v => v
-    })
-
+    val fstParam = i.f.params.head
+    fstParam.mem match {
+      case OpenCLMemoryCollection(_, _) => throw new NotImplementedError("Cannot iterate on a memory collection")
+      case _ =>
+    }
+    fstParam.view = argView.replaced(fstParam.mem.variable, i.vPtrIn)
     visitAndBuildViews(i.f.body)
     View.initialiseNewView(call.t, call.inputDepth, i.f.body.mem.variable)
   }
@@ -141,6 +142,18 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
   
+  private def buildViewSort(iss: InsertionSortSeq,
+                            call: FunCall,
+                            argView: View): View = {
+    // FIXME: we need (?) a view to be set here but this view should depend on iss's output view…
+    // See comment in OutputView.buildViewSort
+    iss.f.params(1).view = argView.access(iss.loopWrite) // here is the hack
+    iss.f.params(0).view = argView.access(iss.loopRead)
+    visitAndBuildViews(iss.f.body)
+
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
+  }
+
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, argView: View): View = {
     // pass down input view

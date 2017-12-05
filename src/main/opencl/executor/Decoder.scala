@@ -21,7 +21,7 @@ class Decoder(mainType: Type) {
    * buffer position to the next position to read from after their computation.
    */
   private def decodeAny[T](ty: Type, buffer: ByteBuffer)(hint: DecodeType[T]): T = {
-    // Note: IntelliJ IDEA thinks this pattern matching does not type-checks but it does.
+    // Note: IntelliJ IDEA thinks this pattern matching does not type-check but it does.
     //       See: https://youtrack.jetbrains.com/issue/SCL-9888
     //       And: https://youtrack.jetbrains.com/issue/SCL-3170
     (hint, ty) match {
@@ -71,7 +71,7 @@ class Decoder(mainType: Type) {
       case ScalarType(_, _) =>
         buffer.position(before + baseSize.eval)
       case VectorType(_, len) =>
-        buffer.position(before + (baseSize * len).eval)
+        buffer.position(before + baseSize.eval)
       case _ =>
     }
     value

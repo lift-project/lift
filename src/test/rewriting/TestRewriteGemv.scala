@@ -7,9 +7,9 @@ import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import org.junit.Assert._
-import org.junit.{Assume, Test}
-import rewriting.rules._
+import org.junit.Test
 import rewriting.macrorules.{MacroRules, ReuseRules}
+import rewriting.rules._
 
 object TestRewriteGemv extends TestWithExecutor
 
@@ -51,6 +51,11 @@ class TestRewriteGemv {
     global012 = false, global210 = false,
     group0 = true, group01 = false, group10 = false)
 
+  private val global0Mapping = EnabledMappings(
+    global0 = true, global01 = false, global10 = false,
+    global012 = false, global210 = false,
+    group0 = false, group01 = false, group10 = false)
+
   @Test
   def gemvAMD(): Unit = {
 
@@ -91,8 +96,6 @@ class TestRewriteGemv {
   @Test
   def gemvAMDMacro(): Unit = {
 
-    Assume.assumeTrue(Executor.getDeviceType == "GPU")
-
     val f1 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
     val f2 = SimplifyAndFuse(f1)
 
@@ -104,11 +107,9 @@ class TestRewriteGemv {
     val l1 = Rewrite.applyRuleAtId(l0, 14, OpenCLRules.localMemory)
     val l2 = Rewrite.applyRuleAtId(l1, 28, CopyRules.implementIdAsDeepCopy)
     val l3 = Rewrite.applyRuleAtId(l2, 5, CopyRules.addIdAfterReduce)
-    // TODO: Could get away with private memory & intel doesn't like all
-    // TODO: threads writing the same value and one thread reading it.
     val l4 = Rewrite.applyRuleAtId(l3, 5, OpenCLRules.localMemory)
     val l5 = Rewrite.applyRuleAtId(l4, 38, CopyRules.implementIdAsDeepCopy)
-    val l6 = Rewrite.applyRuleAtId(l5, 42, MacroRules.userFunCompositionToPrivate)
+    val l6 = Rewrite.applyRuleUntilCannot(l5, MacroRules.userFunCompositionToPrivate)
 
     val (output, _) =
       Execute()[Array[Float]](l6, matrix, vectorX, vectorY, alpha, beta)
@@ -120,14 +121,13 @@ class TestRewriteGemv {
   def partialReduceWithReorderNoRace(): Unit = {
     val f0 = Rewrite.applyRuleAtId(f, 5, MacroRules.partialReduceWithReorder(128))
 
-    val f1 = Rewrite.applyRuleAtId(f0, 5, Rules.splitJoinReduce)
-    val f2 = Rewrite.applyRuleAtId(f1, 4, Rules.splitJoin)
+    val f2 = Lower.pushReduceDeeper(f0)
     val lowered = Lower.mapCombinations(f2, group0Mapping).head
 
-    val l0 = Rewrite.applyRuleAtId(lowered, 36, MacroRules.userFunCompositionToPrivate)
+    val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
     val l1 = Rewrite.applyRuleAtId(l0, 15, CopyRules.addIdAfterReduce)
-    val l2 = Rewrite.applyRuleAtId(l1, 27, CopyRules.implementIdAsDeepCopy)
-    val l3 = Rewrite.applyRuleAtId(l2, 27, OpenCLRules.localMemory)
+    val l2 = Rewrite.applyRuleAtId(l1, 30, CopyRules.implementIdAsDeepCopy)
+    val l3 = Rewrite.applyRuleAtId(l2, 30, OpenCLRules.localMemory)
 
     val (output, _) =
       Execute()[Array[Float]](l3, matrix, vectorX, vectorY, alpha, beta)
@@ -143,6 +143,14 @@ class TestRewriteGemv {
     val f3 = Rewrite.applyRuleAtId(f2, 7, ReduceRules.partialReduceToReduce)
     val f4 = SimplifyAndFuse(f3)
     assertTrue(HighLevelRewrite.filterByDistance(f4))
+
+    val lowered = Lower.mapCombinations(f3, global0Mapping).head
+
+    val l0 = Rewrite.applyRuleUntilCannot(lowered, MacroRules.userFunCompositionToPrivate)
+
+    val (output: Array[Float], _) = Execute()[Array[Float]](l0, matrix, vectorX, vectorY, alpha, beta)
+
+    assertArrayEquals(gold, output, 0.001f)
   }
 
   @Test
@@ -163,7 +171,7 @@ class TestRewriteGemv {
     val l14 = Rewrite.applyRuleAtId(l12, 26, OpenCLRules.localMemory)
     val l13 = Lower.lowerNextLevelWithRule(l14, OpenCLRules.mapLcl)
 
-    val l15 = Rewrite.applyRuleAtId(l13, 60, MacroRules.userFunCompositionToPrivate)
+    val l15 = Rewrite.applyRuleUntilCannot(l13, MacroRules.userFunCompositionToPrivate)
 
     val (local, global) = InferNDRange(l15)
     val code = Compile(l15, local, global)
@@ -174,4 +182,27 @@ class TestRewriteGemv {
     assertArrayEquals(gold, output, 0.001f)
   }
 
+  @Test
+  def gemvCLBlastFromMapping(): Unit = {
+
+    val f1 = Rewrite.applyRuleAtId(f, 0, Rules.splitJoin(64))
+
+    val f13 = Rewrite.applyRuleAtId(f1, 6, MacroRules.interchange)
+    val f5 = Rewrite.applyRuleAtId(f13, 9, ReuseRules.introduceReuseFromMap(64))
+    val f11 = Rewrite.applyRuleAtId(f5, 12, ReuseRules.introduceReuseFromMap(64))
+
+    val lowered = Lower.mapCombinations(f11, group0Mapping).head
+
+    val l8 = Rewrite.applyRuleAtId(lowered, 8, CopyRules.addIdForCurrentValueInReduce)
+    val mapping0 = Rewrite.applyRuleAtId(l8, 23, OpenCLRules.localMemory)
+    val mapping1 = Rewrite.applyRuleAtId(mapping0, 25, CopyRules.implementOneLevelOfId)
+    val mapping2 = Rewrite.applyRuleAtId(mapping1, 29, CopyRules.implementIdAsDeepCopy)
+    val mapping3 = Rewrite.applyRuleAtId(mapping2, 26, SimplificationRules.dropId)
+    val mapping4 = Lower.lowerNextLevelWithRule(mapping3, OpenCLRules.mapLcl)
+    val mapping5 = Rewrite.applyRuleUntilCannot(mapping4, MacroRules.userFunCompositionToPrivate)
+
+    val (output, _) = Execute()[Array[Float]](mapping5, matrix, vectorX, vectorY, alpha, beta)
+
+    assertArrayEquals(gold, output, 0.001f)
+  }
 }

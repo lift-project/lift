@@ -261,7 +261,8 @@ private class BuildDepthInfo() {
     if (call.args.length == 1)
       setAccessInfo(list, l.params.head)
     else
-      (l.params, list.l).zipped.foreach((param, accessInfo) => setAccessInfo(_, _))
+      (list.l, l.params).zipped.foreach((accessInfo, param) =>
+        setAccessInfo(accessInfo, param))
 
     visitAndBuildDepthInfo(l.body)
   }
