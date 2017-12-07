@@ -83,6 +83,7 @@ object InputView {
       case ca: CheckedArrayAccess => buildViewCheckedArrayAccess(ca, call, argView)
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
+      case PadConstant(left, right, value) => buildViewPadConstant(left, right, value, argView)
       case ArrayAccess(i) => argView.access(i)
       case PrintType() | Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => argView
       case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
@@ -300,5 +301,9 @@ object InputView {
 
   private def buildViewPad(left: Int, right: Int, boundary: Pad.BoundaryFun, argView: View) : View = {
     argView.pad(left, right, boundary)
+  }
+
+  private def buildViewPadConstant(left: Int, right: Int, constant: Value, argView: View): View = {
+    argView.padConstant(left, right, constant)
   }
 }

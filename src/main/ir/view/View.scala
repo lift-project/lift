@@ -117,6 +117,7 @@ abstract sealed class View(val t: Type = UndefType) {
       case ViewTupleComponent(i, ivs, ty) => ViewTupleComponent(i, ivs.replaced(subst), ty)
       case ViewSlide(iv, slide, ty) => ViewSlide(iv.replaced(subst), slide, ty)
       case ViewPad(iv, left, right, padFun, ty) => ViewPad(iv.replaced(subst), left, right, padFun, ty)
+      case ViewPadConstant(iv, left, right, constant, ty) => ViewPadConstant(iv.replaced(subst), left, right, constant, ty)
       case ViewSize(iv) => ViewSize(iv.replaced(subst))
       case ViewHead(iv, ty) => ViewHead(iv.replaced(subst), ty)
       case ViewTail(iv, ty) => ViewTail(iv.replaced(subst), ty)
@@ -279,6 +280,14 @@ abstract sealed class View(val t: Type = UndefType) {
       case ArrayTypeWS(elemT, len) =>
         ViewPad(this, left, right, boundary, ArrayTypeWSWC(elemT, len + left + right))
       case other => throw new IllegalArgumentException("Can't pad " + other)
+    }
+  }
+
+  def padConstant(left: Int, right: Int, constant: Value): View = {
+    this.t match {
+      case ArrayTypeWS(elemT, len) =>
+        ViewPadConstant(this, left, right, constant, ArrayTypeWSWC(elemT, len + left + right))
+      case other => throw new IllegalArgumentException("Can't pad constant " + other)
     }
   }
 
@@ -475,6 +484,18 @@ case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
                    override val t: Type) extends View(t)
 
 /**
+  * A view for padding an array.
+  *
+  * @param iv The view to pad.
+  * @param left The number of elements to add on the left
+  * @param right The number of elements to add on the right
+  * @param constant The constant value
+  * @param t The type of view.
+  */
+case class ViewPadConstant(iv: View, left: Int, right: Int, constant: Value,
+                   override val t: Type) extends View(t)
+
+/**
  * A view for fetching the size of an array assuming that it can't be known
  * statically
  *
@@ -602,7 +623,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
     *        section 5.3
     * @return an expression accessing the array
     */
-  @scala.annotation.tailrec
+//  @scala.annotation.tailrec
   private def emitView(sv: View,
                        arrayAccessStack: List[ArithExpr],
                        tupleAccessStack: List[Int]): Expression = {
@@ -689,6 +710,16 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         else
           currentIdx
         emitView(iv, newIdx :: indices, tupleAccessStack)
+
+      case ViewPadConstant(iv, left, _, constant, _) =>
+        val idx :: indices = arrayAccessStack
+        val currentIdx = idx - left
+        import OpenCLAST._
+        TernaryExpression(
+          CondExpression(ArithExpression(currentIdx), ArithExpression(0), CondExpression.Operator.<),
+          OpenCLExpression(constant.value),
+          emitView(iv, currentIdx :: indices, tupleAccessStack)
+        )
 
       case ViewConstant(value, _) =>
         OpenCLAST.OpenCLExpression(value.value)

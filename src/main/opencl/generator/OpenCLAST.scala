@@ -215,6 +215,8 @@ object OpenCLAST {
 
   }
 
+  case class TernaryExpression(cond: CondExpression, trueExpr: Expression, falseExpr: Expression) extends Expression
+
   /** Force a cast of a variable to the given type. This is used to
     *
     * @param v A referenced variable.
