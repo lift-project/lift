@@ -288,6 +288,10 @@ object OpenCLAST {
       case BinaryExpression(lhs, rhs, _) =>
         visitExpressionsInNode(lhs)
         visitExpressionsInNode(rhs)
+      case TernaryExpression(cond, trueExpr, falseExpr) =>
+        visitExpression(cond)
+        visitExpression(trueExpr)
+        visitExpression(falseExpr)
       case f: FunctionCall =>
         f.args.foreach(visitExpressionsInNode)
       case l: Load =>
