@@ -480,7 +480,6 @@ object OpenCLMemoryAllocator {
     numLcl: Allocator,
     numPvt: Allocator,
     inMem: OpenCLMemory): OpenCLMemory = {
-      //println(s"Scan seq input mems $inMem")
       inMem match {
         case coll: OpenCLMemoryCollection =>
           //"Connect" the input memories to the parameters of F
@@ -495,8 +494,7 @@ object OpenCLMemoryAllocator {
 
           val maxSizeInBytes = Type.getAllocatedSize(call.t)
           val baseSize = Type.getAllocatedSize(Type.getBaseType(call.t))
-          // size in bytes necessary to hold the result of f in the different
-          // memory spaces
+
           val maxGlbOutSize = numGlb(baseSize, maxSizeInBytes)
           val maxLclOutSize = numLcl(baseSize, maxSizeInBytes)
           val maxPvtOutSize = numPvt(baseSize, maxSizeInBytes)

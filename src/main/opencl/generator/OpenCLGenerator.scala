@@ -1004,7 +1004,7 @@ class OpenCLGenerator extends Generator {
           scan.f.body.t, scan.f.params.head.addressSpace == PrivateMemory
         )
         (block:Block) += copyNode
-    }, needUnroll = false)//scan.shouldUnroll)
+    }, needUnroll = scan.shouldUnroll)
     (block: Block) += OpenCLAST.Comment("end scan_seq")
   }
 
