@@ -24,3 +24,20 @@ case class PadConstant(left: Int, right: Int, constant: Value)
     }
   }
 }
+
+object PadConstant2D {
+   def apply(top: Int, bottom: Int, left: Int, right: Int, constant: Value): Lambda = {
+    Map(PadConstant(left, right, constant)) o PadConstant(top, bottom, constant)
+  }
+
+  def apply(left: Int, right: Int, constant: Value): Lambda = {
+    Map(PadConstant(left, right, constant)) o PadConstant(left, right, constant)
+  }
+
+}
+
+object PadConstant3D {
+  def apply(x: Int, y: Int, z: Int, constant: Value): Lambda = {
+    Map(Map(PadConstant(x, x, constant)) o PadConstant(y, y, constant)) o PadConstant(z, z, constant)
+  }
+}
