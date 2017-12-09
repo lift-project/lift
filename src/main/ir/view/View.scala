@@ -714,9 +714,16 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
       case ViewPadConstant(iv, left, _, constant, _) =>
         val idx :: indices = arrayAccessStack
         val currentIdx = idx - left
+        val originalSize = iv.t match {
+          case ArrayTypeWS(_, size) => size
+        }
         import OpenCLAST._
         TernaryExpression(
-          CondExpression(ArithExpression(currentIdx), ArithExpression(0), CondExpression.Operator.<),
+          CondExpression(
+            CondExpression(ArithExpression(currentIdx), ArithExpression(0), CondExpression.Operator.<),
+            CondExpression(ArithExpression(currentIdx), ArithExpression(originalSize), CondExpression.Operator.>=),
+            CondExpression.Operator.||
+          ),
           OpenCLExpression(constant.value),
           emitView(iv, currentIdx :: indices, tupleAccessStack)
         )

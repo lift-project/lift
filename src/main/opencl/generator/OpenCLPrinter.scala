@@ -190,9 +190,11 @@ class OpenCLPrinter {
   }
 
   private def print(c: CondExpression): Unit = {
+      print("(")
       print(c.lhs)
       print(s" ${c.cond.toString} ")
       print(c.rhs)
+      print(")")
   }
 
   private def print(c: BinaryExpression): Unit = {

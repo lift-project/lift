@@ -211,6 +211,8 @@ object OpenCLAST {
       val >= = Value(">=")
       val != = Value("!=")
       val == = Value("==")
+      val || = Value("||")
+      val && = Value("&&")
     }
 
   }
