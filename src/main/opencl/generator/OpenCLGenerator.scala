@@ -1186,10 +1186,9 @@ class OpenCLGenerator extends Generator {
     }
 
     val reuse = size - step
-    val cond = CondExpression(ArithExpression(indexVar), ArithExpression((stop - reuse) / step), CondExpression.Operator.<)
-    val inputMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
+    val cond = BinaryExpression(indexVar, BinaryExpression.Operator.<, (stop - reuse) / step)
 
-    var vType = call.args.head.view.access(0).t
+    val vType = call.args.head.view.access(0).t
 
 
     val nDim = ArrayType.getDimension(1,vType)
@@ -1425,7 +1424,7 @@ class OpenCLGenerator extends Generator {
     }
     val init = VarDecl(indexVar, Int, start, PrivateMemory)
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
-    val cond = CondExpression(ArithExpression(indexVar), stop, CondExpression.Operator.<)
+    val cond = BinaryExpression(ArithExpression(indexVar), BinaryExpression.Operator.<, stop)
 
     (block: Block) += OpenCLAST.ForLoop(init, cond, increment, innerBlock)
     generateBody(innerBlock)
@@ -1461,7 +1460,7 @@ class OpenCLGenerator extends Generator {
     (block: Block) += OpenCLAST.Comment("iteration count is exactly 1 or less, no loop emitted")
     val innerBlock = OpenCLAST.Block(Vector.empty)
     innerBlock += OpenCLAST.VarDecl(indexVar, opencl.ir.Int, init, PrivateMemory)
-    (block: Block) += OpenCLAST.IfThenElse(CondExpression(init, ArithExpression(stop), CondExpression.Operator.<), innerBlock)
+    (block: Block) += OpenCLAST.IfThenElse(BinaryExpression(init, BinaryExpression.Operator.<, ArithExpression(stop)), innerBlock)
     generateBody(innerBlock)
   }
 
@@ -1898,7 +1897,7 @@ class OpenCLGenerator extends Generator {
         val innerBlock = Block(Vector.empty)
         val loopVar = Var("cp")
         val length = at match {
-          case s: Size => ArithExpression(s.size)
+          case s: Size => s.size
           case _ => throw new NotImplementedError()
         }
         innerBlock += generateSeqCopy(
@@ -1908,7 +1907,7 @@ class OpenCLGenerator extends Generator {
         )
         ForLoop(
           VarDecl(loopVar, Int, ArithExpression(0)),
-          CondExpression(ArithExpression(loopVar), length, CondExpression.Operator.<),
+          BinaryExpression(loopVar, BinaryExpression.Operator.<, length),
           AssignmentExpression(VarRef(loopVar), ArithExpression(loopVar + 1)),
           innerBlock
         )
