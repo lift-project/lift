@@ -4,7 +4,6 @@ import ir.ArrayTypeWSWC
 import ir.ast._
 import lift.arithmetic.SizeVar
 import opencl.executor.{Compile, Execute, TestWithExecutor}
-import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -27,14 +26,10 @@ class TestPadConstant {
       (domain) => MapGlb(id) o PadConstant(1, 0, 0.0f) $ domain
     )
 
-//    println(Compile(fct))
+    println(Compile(fct))
 
     val (output,runtime) = Execute(input.length, input.length)[Array[Float]](fct, input)
     println("runtime = " + runtime)
-
-    println(gold.mkString(", "))
-    println("********************")
-    println(output.mkString(", "))
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -50,11 +45,6 @@ class TestPadConstant {
     )
 
     val (output,runtime) = Execute(input.length, input.length)[Array[Float]](fct, input)
-    println("runtime = " + runtime)
-
-    println(gold.mkString(", "))
-    println("********************")
-    println(output.mkString(", "))
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -71,11 +61,6 @@ class TestPadConstant {
     )
 
     val (output,runtime) = Execute(input.length, input.length)[Array[Float]](fct, input)
-    println("runtime = " + runtime)
-
-    println(gold.mkString(", "))
-    println("********************")
-    println(output.mkString(", "))
 
     assertArrayEquals(gold, output, 0.0f)
 
@@ -92,12 +77,7 @@ class TestPadConstant {
       (domain) => MapGlb(1)(MapGlb(0) (fun(m => { toGlobal(idI) $ m}))) o PadConstant2D(1, 1, 0) $ domain
     )
 
-
-    val (output2D,runtime2) = Execute(2,2)[Array[Int]](fct2D, input2D)
-
-    StencilUtilities.print1DArrayAs2DArray(output2D,input2D(0).length+2)
-    println("********************")
-    StencilUtilities.print1DArrayAs2DArray(gold2D,input2D(0).length+2)
+    val (output2D,runtime) = Execute(2,2)[Array[Int]](fct2D, input2D)
 
     assertArrayEquals(gold2D, output2D)
   }
@@ -119,11 +99,7 @@ class TestPadConstant {
       (domain) => MapGlb(2)(MapGlb(1)(MapGlb(0) (fun(m => { toGlobal(idI) $ m})))) o PadConstant3D(1, 1, 1, 0) $ domain
     )
 
-    val (output3D,runtime2) = Execute(2,2)[Array[Int]](fct3D, input3D)
-
-    StencilUtilities.print1DArrayAs3DArray(output3D,input3D.length+2,input3D(0).length+2,input3D(0)(0).length+2)
-    println("********************")
-    StencilUtilities.print1DArrayAs3DArray(gold3D,input3D.length+2,input3D(0).length+2,input3D(0)(0).length+2)
+    val (output3D,runtime) = Execute(2,2)[Array[Int]](fct3D, input3D)
 
     assertArrayEquals(gold3D, output3D)
   }
