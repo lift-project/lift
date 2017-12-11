@@ -211,9 +211,13 @@ object OpenCLAST {
       val >= = Value(">=")
       val != = Value("!=")
       val == = Value("==")
+      val || = Value("||")
+      val && = Value("&&")
     }
 
   }
+
+  case class TernaryExpression(cond: CondExpression, trueExpr: Expression, falseExpr: Expression) extends Expression
 
   /** Force a cast of a variable to the given type. This is used to
     *
@@ -286,6 +290,10 @@ object OpenCLAST {
       case BinaryExpression(lhs, rhs, _) =>
         visitExpressionsInNode(lhs)
         visitExpressionsInNode(rhs)
+      case TernaryExpression(cond, trueExpr, falseExpr) =>
+        visitExpression(cond)
+        visitExpression(trueExpr)
+        visitExpression(falseExpr)
       case f: FunctionCall =>
         f.args.foreach(visitExpressionsInNode)
       case l: Load =>

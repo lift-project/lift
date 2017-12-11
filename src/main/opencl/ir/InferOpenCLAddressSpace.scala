@@ -50,7 +50,7 @@ object InferOpenCLAddressSpace {
 
       case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
            asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
-           Pad(_,_,_) | Tuple(_) | Slide(_,_) | Head() | Tail() | PrintType() |
+           Pad(_,_,_) | PadConstant(_, _, _) | Tuple(_) | Slide(_,_) | Head() | Tail() | PrintType() |
            UnsafeArrayAccess(_) | CheckedArrayAccess(_) | ArrayAccess(_) | Id() =>
 
         setAddressSpaceDefault(addressSpaces)
