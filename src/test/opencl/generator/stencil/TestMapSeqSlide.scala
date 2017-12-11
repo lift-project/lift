@@ -987,7 +987,7 @@ class TestMapSeqSlide
 
     val localDimX = 10
     val localDimY = 6
-    val localDimZ = 8 //202dd
+    val localDimZ = 8
 
     val slidesize = 3
     val slidestep = 1
