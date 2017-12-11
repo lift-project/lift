@@ -2,10 +2,9 @@ package ir.view
 
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{FilterSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
 import lift.arithmetic.ArithExpr
 import opencl.ir.OpenCLMemoryCollection
-import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq}
+import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
 
 /**
  * A helper object for constructing views.

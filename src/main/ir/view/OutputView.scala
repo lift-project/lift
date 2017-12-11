@@ -2,9 +2,8 @@ package ir.view
 
 import ir._
 import ir.ast._
-import opencl.ir.pattern.{FilterSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
 import lift.arithmetic.{ArithExpr, Cst, Var}
-import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq}
+import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
@@ -256,7 +255,6 @@ object OutputView {
   }
 
   private def buildViewScan(scan: ScanSeq, call:FunCall, writeView:View) : View = {
-    //Mostly copied from reduce
     visitAndBuildViews(scan.f.body, scan.f.params.head.view)
     ViewMap(scan.f.params(1).outputView, scan.loopVar, call.args(1).t)
   }
