@@ -91,6 +91,7 @@ private class CollectTypedOpenCLMemory(val lambda: Lambda, val includePrivate: B
       case r: AbstractPartRed     => collectReduce(r, argumentMemories)
       case sp: MapSeqSlide        => collectMapSeqSlide(sp, argumentMemories)
       case s: AbstractSearch      => collectSearch(s, call, argumentMemories)
+      case s: ScanSeq             => collectScanSeq(s, call, argumentMemories)
       case _: UnsafeArrayAccess   => Seq(TypedOpenCLMemory(call))
       case _: CheckedArrayAccess  => Seq(TypedOpenCLMemory(call))
       case i: Iterate             => collectIterate(call, i)
@@ -177,6 +178,18 @@ private class CollectTypedOpenCLMemory(val lambda: Lambda, val includePrivate: B
     argumentMemories: Seq[TypedOpenCLMemory]) = {
 
     val memories = collectIntermediateMemories(search.f.body)
+
+    // TODO: Optimise so we use the default value instead of more allocated memory!
+    TypedOpenCLMemory(call) +:
+      removeParameterAndArgumentDuplicates(memories, argumentMemories)
+  }
+
+  private def collectScanSeq(
+                             scan: ScanSeq,
+                             call:FunCall,
+                             argumentMemories: Seq[TypedOpenCLMemory]) = {
+
+    val memories = collectIntermediateMemories(scan.f.body)
 
     // TODO: Optimise so we use the default value instead of more allocated memory!
     TypedOpenCLMemory(call) +:

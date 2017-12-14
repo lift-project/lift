@@ -69,14 +69,19 @@ class TestTranspose {
   }
 
   @Test def transposeTwiceAfterPadId(): Unit = {
-    val input = Array.tabulate(1024, 1024) { (i, j) => Random.nextFloat() }
+    val input = Array(0,1,2,3).map(_.toFloat).grouped(2).toArray
+    val gold = Array(
+      0,0,1,1,
+      0,0,1,1,
+      2,2,3,3,
+      2,2,3,3).map(_.toFloat)
     val f = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("N")), SizeVar("M")),
-      input => MapSeq(MapSeq(id)) o Transpose() o Pad(2,2,Pad.Boundary.Wrap) o Transpose() o Pad(2,2,Pad.Boundary.Wrap) $ input
+      ArrayType(ArrayType(Float, SizeVar("N")), SizeVar("M")),
+      input => MapSeq(MapSeq(id)) o Transpose() o Pad(1,1,Pad.Boundary.Clamp) o Transpose() o Pad(1,1,Pad.Boundary.Clamp) $ input
     )
 
     val (output, _) = Execute(32, 32)[Array[Float]](f, input)
-    val gold = input(0) ++ input ++ input(input.size -1)
+    assertArrayEquals(gold, output, 0.0f)
   }
 
   @Test def idTranspose(): Unit = {

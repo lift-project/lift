@@ -54,6 +54,11 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
             apply(iss.f.body)
             setRangeInsertionSort(iss, call)
 
+          case scan: ScanSeq => {
+            apply(scan.f.body)
+            setRangeScanSeq(scan, call)
+          }
+
           case r: AbstractPartRed =>
             r match {
               case r : ReduceSeq => setRangeReduceSeq(r, call)
@@ -67,6 +72,7 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
             setRangeIterate(i)
             evaluateIterateRange(i)
             apply(i.f.body)
+
 
           case f: FPattern => apply(f.f.body)
           case l: Lambda => apply(l.body)
@@ -211,6 +217,10 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
   private def evaluateIterateRange(i: Iterate): Unit = {
     i.iterationCount =
       evaluateRangeForCount(i.indexVar.range.asInstanceOf[RangeAdd])
+  }
+
+  private def setRangeScanSeq(scan:ScanSeq, call: FunCall): Unit = {
+    scan.loopVar = Var(scan.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args(1).t)))
   }
 
   private def evaluateRangeForCount(range: RangeAdd): ArithExpr = {

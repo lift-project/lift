@@ -161,6 +161,8 @@ object OpenCLMemoryAllocator {
 
       case it: Iterate => allocIterate(it, call, numGlb, numLcl, numPvt, inMem)
 
+      case scan: ScanSeq => allocScanSeq(scan, call, numGlb, numLcl, numPvt, inMem)
+
       case l: Lambda => allocLambda(l, numGlb, numLcl, numPvt, inMem)
       case toGlobal(f) => allocLambda(f, numGlb, numLcl, numPvt, inMem)
       case toLocal(f) => allocLambda(f, numGlb, numLcl, numPvt, inMem)
@@ -173,7 +175,7 @@ object OpenCLMemoryAllocator {
       case ca: CheckedArrayAccess => allocCheckedArrayAccess(ca, call, numGlb, numLcl, numPvt, inMem)
 
       case Split(_) | Join() | asVector(_) | asScalar() |
-           Transpose() | Unzip() | TransposeW() | Slide(_, _) | Pad(_, _, _) |
+           Transpose() | Unzip() | TransposeW() | Slide(_, _) | Pad(_, _, _) | PadConstant(_, _, _) |
            Head() | Tail() | Gather(_) | Scatter(_) | ArrayAccess(_) | PrintType() | Id() =>
         inMem
     }
@@ -470,6 +472,40 @@ object OpenCLMemoryAllocator {
     // Recurse to allocate memory for the function(s) inside
     it.f.params(0).mem = inMem
     alloc(it.f.body, numGlb, numLcl, numPvt)
+  }
+
+  private def allocScanSeq(scan: ScanSeq,
+                           call: FunCall,
+    numGlb: Allocator,
+    numLcl: Allocator,
+    numPvt: Allocator,
+    inMem: OpenCLMemory): OpenCLMemory = {
+      inMem match {
+        case coll: OpenCLMemoryCollection =>
+          //"Connect" the input memories to the parameters of F
+          val init_mem = coll.subMemories(0)
+          val input_mem = coll.subMemories(1)
+          scan.f.params(0).mem = init_mem
+          scan.f.params(1).mem = input_mem
+          val bodyM = alloc(scan.f.body, numGlb, numLcl, numPvt)
+          // replace `bodyM` by `init_mem` in the lambda's body
+          Expr.visit(scan.f.body, e => if (e.mem == bodyM) e.mem = init_mem, _ => {})
+          scan.f.body.mem = init_mem
+
+          val maxSizeInBytes = Type.getAllocatedSize(call.t)
+          val baseSize = Type.getAllocatedSize(Type.getBaseType(call.t))
+
+          val maxGlbOutSize = numGlb(baseSize, maxSizeInBytes)
+          val maxLclOutSize = numLcl(baseSize, maxSizeInBytes)
+          val maxPvtOutSize = numPvt(baseSize, maxSizeInBytes)
+
+          val resultMem = OpenCLMemory.allocMemory(maxGlbOutSize, maxLclOutSize,
+            maxPvtOutSize, call.addressSpace)
+          resultMem
+
+        case _ =>
+          throw new IllegalArgumentException("Cannot allocate memory for scanSeq: an OpenCL memory collection input is needed")
+      }
   }
 
   private def allocZipTuple(inMem: OpenCLMemory): OpenCLMemory = {
