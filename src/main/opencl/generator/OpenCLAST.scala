@@ -1,7 +1,7 @@
 package opencl.generator
 
 import lift.arithmetic.{ArithExpr, Predicate, Var}
-import ir.{TupleType, Type, VectorType}
+import ir.{TupleType, Type, VectorType, Memory}
 import opencl.ir.{OpenCLAddressSpace, OpenCLMemory, UndefAddressSpace}
 
 import generic.ast._
@@ -70,12 +70,13 @@ object OpenCLAST {
   /** Parameter declaration. These have to be separated from variable
     * declaration since the vectorization has to be handled differently
     */
-  trait CLDeclAttr {
+  trait CLSpaceInfo {
     def addressSpace: OpenCLAddressSpace = UndefAddressSpace
   }
+
   case class ParamDecl(name: String, t: Type,
-                       addressSpace: OpenCLAddressSpace = UndefAddressSpace,
-                       const: Boolean = false) extends GenericAST.ParamDecl(name, t, const) with CLDeclAttr
+                       override addressSpace: OpenCLAddressSpace = UndefAddressSpace,
+                       const: Boolean = false) extends GenericAST.ParamDecl(name, t, const) with CLSpaceInfo
 
   /** A Label, targeted by a corresponding goto
     *
@@ -145,7 +146,7 @@ object OpenCLAST {
 
   case class Break() extends Statement
 
-  case class Barrier(mem: OpenCLMemory) extends Statement
+  case class Barrier(mem: Memory) extends Statement
 
   case class TypeDef(t: Type) extends Statement
 
@@ -173,13 +174,13 @@ object OpenCLAST {
   case class Load(v: VarRef,
                   t: VectorType,
                   offset: ArithExpression,
-                  openCLAddressSpace: OpenCLAddressSpace) extends Expression
+                  openCLAddressSpace: OpenCLAddressSpace) extends Expression with CLSpaceInfo
 
   case class Store(v: VarRef,
                    t: VectorType,
                    value: OclAstNode,
                    offset: ArithExpression,
-                   openCLAddressSpace: OpenCLAddressSpace) extends Expression
+                   openCLAddressSpace: OpenCLAddressSpace) extends Expression with CLSpaceInfo
 
   /** Represent an assignment.
     *
