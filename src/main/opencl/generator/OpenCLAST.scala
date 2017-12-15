@@ -4,16 +4,19 @@ import lift.arithmetic.{ArithExpr, Predicate, Var}
 import ir.{TupleType, Type, VectorType}
 import opencl.ir.{OpenCLAddressSpace, OpenCLMemory, UndefAddressSpace}
 
+import generic.ast._
+import generic.ast.GenericAST._
+
 import scala.language.implicitConversions
 
 object OpenCLAST {
 
   /** Base class for all OpenCL AST nodes. */
-  sealed trait OclAstNode
+  sealed trait OclAstNode extends GenericAST.AstNode
 
-  trait BlockMember
+  trait OclBlockMember extends GenericAST.BlockMember
 
-  implicit def exprToStmt(e: Expression): ExpressionStatement = ExpressionStatement(e)
+  implicit def exprToStmt(e: GenericAST.Expression): ExpressionStatement = ExpressionStatement(e)
 
   implicit def predicateToCondExpression(p: Predicate): CondExpression = {
     CondExpression(ArithExpression(p.lhs), ArithExpression(p.rhs), p.op match {
@@ -26,15 +29,20 @@ object OpenCLAST {
     })
   }
 
-  sealed abstract class Attribute extends OclAstNode
+  sealed abstract class OclAttribute extends GenericAST.Attribute
 
-  sealed abstract class Declaration extends OclAstNode with BlockMember
+  sealed abstract class OclDeclaration extends GenericAST.Declaration
 
-  sealed abstract class Statement extends OclAstNode with BlockMember
+  sealed abstract class OclStatement extends GenericAST.Statement
 
-  sealed abstract class Expression extends OclAstNode
+  sealed abstract class OclExpression extends GenericAST.AstNode
 
-  case class RequiredWorkGroupSize(localSize: NDRange) extends Attribute
+  case class RequiredWorkGroupSize(localSize: NDRange) extends OclAttribute
+
+  trait CLFunctionAttr {
+    def kernel: Boolean = false
+    def attribute: Option[Attribute] = None
+  }
 
   /** A function declaration
     *
@@ -43,12 +51,15 @@ object OpenCLAST {
     * @param params List of parameter declaration.
     * @param body   Body of the function.
     * @param kernel Flag set if the function is a kernel
+    * @param attribute: Option[Attribute] = None
     */
   case class Function(name: String,
-                      ret: Type, params: List[ParamDecl],
-                      body: Block,
-                      kernel: Boolean = false,
-                      attribute: Option[Attribute] = None) extends Declaration
+                        ret: Type,
+                        params: List[ParamDecl],
+                        body: Block,
+                      override kernel: Boolean = false,
+                        override val attribute: Option[Attribute] = None)
+    extends GenericAST.Function(name, ret, params, body) with CLFunctionAttr
 
   case class VarDecl(v: Var,
                      t: Type,
@@ -59,9 +70,12 @@ object OpenCLAST {
   /** Parameter declaration. These have to be separated from variable
     * declaration since the vectorization has to be handled differently
     */
+  trait CLDeclAttr {
+    def addressSpace: OpenCLAddressSpace = UndefAddressSpace
+  }
   case class ParamDecl(name: String, t: Type,
                        addressSpace: OpenCLAddressSpace = UndefAddressSpace,
-                       const: Boolean = false) extends Declaration
+                       const: Boolean = false) extends GenericAST.ParamDecl(name, t, const) with CLDeclAttr
 
   /** A Label, targeted by a corresponding goto
     *
@@ -73,8 +87,8 @@ object OpenCLAST {
   /**
     * List of nodes enclosed in a bock. This behaves like (and emits) a C block.
     */
-  case class Block(var content: Vector[OclAstNode with BlockMember] = Vector.empty,
-                   global: Boolean = false) extends Statement {
+  case class CLBlock(var content: Vector[OclAstNode with BlockMember] = Vector.empty,
+                   global: Boolean = false) extends GenericAST.Block {
     /** Append a sub-node. Could be any node, including a sub-block.
       *
       * @param node The node to add to this block.

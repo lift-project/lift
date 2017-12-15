@@ -1,3 +1,0 @@
-package generic
-
-trait ASTNode
