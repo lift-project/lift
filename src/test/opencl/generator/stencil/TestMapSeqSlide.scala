@@ -1061,7 +1061,7 @@ class TestMapSeqSlide
 
 
             }),a,b))  } o Transpose() o Map(Transpose()) $ x
-          ))) /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide2D(a,b) /*o Map(Transpose())*/o Map(Transpose())  o Transpose() o Map(Transpose()) $ mat)
+          ))) /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide2D(a,b) /*o Map(Transpose())*/o Map(Transpose())  o Transpose() o Map(Transpose()) o PadConstant3D(1,1,1,0.0f) $ mat)
 
     val orgLambda = SimplifyAndFuse(jacobi3D(slidesize,slidestep))
     val sourceOrg = Compile(orgLambda)//, NDRange(32,4,2), NDRange(n,m,1))
