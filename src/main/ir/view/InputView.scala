@@ -4,7 +4,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic.ArithExpr
 import opencl.ir.OpenCLMemoryCollection
-import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq}
+import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
 
 /**
  * A helper object for constructing views.
@@ -59,6 +59,7 @@ object InputView {
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
       case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
+      case scan:ScanSeq => buildViewScanSeq(scan, call, argView)
       case iss: InsertionSortSeq => buildViewSort(iss, call, argView)
       case l: Lambda => buildViewLambda(l, call, argView)
       case z: Zip => buildViewZip(call, argView)
@@ -83,6 +84,7 @@ object InputView {
       case ca: CheckedArrayAccess => buildViewCheckedArrayAccess(ca, call, argView)
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
+      case PadConstant(left, right, value) => buildViewPadConstant(left, right, value, argView)
       case ArrayAccess(i) => argView.access(i)
       case PrintType() | Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => argView
       case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
@@ -195,6 +197,16 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
 
+  private def buildViewScanSeq(scan:ScanSeq, call:FunCall, argView:View) : View = {
+    // pass down input view
+    scan.f.params(0).view = argView.get(0)
+    scan.f.params(1).view = argView.get(1).access(scan.loopVar)
+
+    visitAndBuildViews(scan.f.body)
+
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
+  }
+
   private def buildViewLambda(l: Lambda, call: FunCall, argView: View): View = {
     assert(call.args.nonEmpty)
     if (call.args.length == 1) {
@@ -300,5 +312,9 @@ object InputView {
 
   private def buildViewPad(left: Int, right: Int, boundary: Pad.BoundaryFun, argView: View) : View = {
     argView.pad(left, right, boundary)
+  }
+
+  private def buildViewPadConstant(left: Int, right: Int, constant: Value, argView: View): View = {
+    argView.padConstant(left, right, constant)
   }
 }

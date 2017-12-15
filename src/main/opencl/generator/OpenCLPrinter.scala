@@ -169,6 +169,7 @@ class OpenCLPrinter {
     case ae: ArithExpression  => print(OpenCLPrinter.toString(ae.content))
     case c: CondExpression   => print(c)
     case c: BinaryExpression   => print(c)
+    case t: TernaryExpression => print(t)
     case a: AssignmentExpression    => print(a)
     case f: FunctionCall  => print(f)
     case l: Load          => print(l)
@@ -189,15 +190,26 @@ class OpenCLPrinter {
   }
 
   private def print(c: CondExpression): Unit = {
+      print("(")
       print(c.lhs)
       print(s" ${c.cond.toString} ")
       print(c.rhs)
+      print(")")
   }
 
   private def print(c: BinaryExpression): Unit = {
     print(c.lhs)
     print(s" ${c.op.toString} ")
     print(c.rhs)
+  }
+  private def print(t: TernaryExpression): Unit = {
+    print("(")
+    print(t.cond)
+    print(" ? ")
+    print(t.trueExpr)
+    print(" : ")
+    print(t.falseExpr)
+    print(")")
   }
 
   private def print(c: Cast): Unit = {

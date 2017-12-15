@@ -12,7 +12,7 @@ class TestOpenCLPrinter {
     val lhs = VarRef(Var("x"))
     val rhs = VarRef(Var("y"))
     val cond = CondExpression(lhs, rhs, CondExpression.Operator.==)
-    assertEquals(lhs.v.toString + " == " + rhs.v.toString, OpenCLPrinter()(cond))
+    assertEquals("(" + lhs.v.toString + " == " + rhs.v.toString + ")", OpenCLPrinter()(cond))
   }
 
   @Test
