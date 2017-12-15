@@ -2,7 +2,7 @@ package c.generator
 
 import lift.arithmetic._
 import arithmetic.TypeVar
-import generator.Generator
+import generic.Generator
 import ir._
 import ir.ast._
 import ir.view._
