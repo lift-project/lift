@@ -369,11 +369,8 @@ class HighLevelRewrite(
 
     var rulesToTry = filterRules(rulesSoFar)
 
-    if (HighLevelRewrite.getLambdaDepth(lambda) <= 2 && !rulesToTry.contains(Rules.splitJoin)) {
-      rulesToTry = rulesToTry :+ Rules.splitJoin
-    }
-
     val allRulesAt = Rewrite.listAllPossibleRewritesForRules(lambda, rulesToTry)
+
     allRulesAt.foreach(ruleAt => {
       try {
         val applied = Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1)
