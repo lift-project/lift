@@ -332,7 +332,8 @@ class HighLevelRewrite(
       vecRed,
       vecZip,
       MacroRules.interchange,
-      ReuseRules.introduceReuseFromMap
+      ReuseRules.introduceReuseFromMap,
+      Rules.splitJoin
     )
 
     private val ruleCollectionMap = scala.collection.Map(
@@ -367,7 +368,7 @@ class HighLevelRewrite(
 
     var rewritten = Seq[(Lambda, Seq[Rule])]()
 
-    var rulesToTry = filterRules(rulesSoFar)
+    val rulesToTry = filterRules(rulesSoFar, lambda)
 
     val allRulesAt = Rewrite.listAllPossibleRewritesForRules(lambda, rulesToTry)
 
@@ -393,7 +394,7 @@ class HighLevelRewrite(
     }
   }
 
-  def filterRules(rulesApplied: Seq[Rule]): Seq[Rule] = {
+  def filterRules(rulesApplied: Seq[Rule], lambda: Lambda): Seq[Rule] = {
     val distinctRulesApplied = rulesApplied.distinct
     val numberOfTimesEachRule = distinctRulesApplied.map(r1 => rulesApplied.count(r2 => r1 == r2))
 
@@ -402,6 +403,9 @@ class HighLevelRewrite(
       .zipped
       .filter((_, times) => times >= repetitions)
       ._1
+
+    if (HighLevelRewrite.getLambdaDepth(lambda) > 2)
+      dontTryThese = Rules.splitJoin +: dontTryThese
 
     if (!distinctRulesApplied.contains(ReuseRules.tileMapMap))
       dontTryThese = ReuseRules.finishTiling +: dontTryThese
