@@ -15,15 +15,19 @@ object OpenCLAST {
 
   implicit def exprToStmt(e: Expression): ExpressionStatement = ExpressionStatement(e)
 
-  implicit def predicateToCondExpression(p: Predicate): CondExpression = {
-    CondExpression(ArithExpression(p.lhs), ArithExpression(p.rhs), p.op match {
-      case Predicate.Operator.!= => CondExpression.Operator.!=
-      case Predicate.Operator.< => CondExpression.Operator.<
-      case Predicate.Operator.<= => CondExpression.Operator.<=
-      case Predicate.Operator.== => CondExpression.Operator.==
-      case Predicate.Operator.> => CondExpression.Operator.>
-      case Predicate.Operator.>= => CondExpression.Operator.>=
-    })
+  implicit def predicateToCondExpression(p: Predicate): BinaryExpression = {
+    BinaryExpression(
+      ArithExpression(p.lhs),
+      p.op match {
+        case Predicate.Operator.!= => BinaryExpression.Operator.!=
+        case Predicate.Operator.< => BinaryExpression.Operator.<
+        case Predicate.Operator.<= => BinaryExpression.Operator.<=
+        case Predicate.Operator.== => BinaryExpression.Operator.==
+        case Predicate.Operator.> => BinaryExpression.Operator.>
+        case Predicate.Operator.>= => BinaryExpression.Operator.>=
+      },
+      ArithExpression(p.rhs)
+    )
   }
 
   sealed abstract class Attribute extends OclAstNode
@@ -181,43 +185,33 @@ object OpenCLAST {
     */
   case class ArithExpression(var content: ArithExpr) extends Expression
 
-  case class BinaryExpression(lhs: Expression, rhs: Expression, op: BinaryExpression.Operator.Operator)
+  case class BinaryExpression(lhs: Expression, op: BinaryExpression.Operator.Operator, rhs: Expression)
     extends Expression
 
   object BinaryExpression {
+    def apply(lhs: ArithExpr, op: BinaryExpression.Operator.Operator, rhs: ArithExpr): BinaryExpression = {
+      BinaryExpression(ArithExpression(lhs), op, ArithExpression(rhs))
+    }
 
     object Operator extends Enumeration {
       type Operator = Value
-      val + = Value("+")
-      val - = Value("-")
-      val * = Value("*")
-      val / = Value("/")
-      val % = Value("%")
+      val + : BinaryExpression.Operator.Value = Value("+")
+      val - : BinaryExpression.Operator.Value = Value("-")
+      val * : BinaryExpression.Operator.Value = Value("*")
+      val / : BinaryExpression.Operator.Value = Value("/")
+      val % : BinaryExpression.Operator.Value = Value("%")
+      val < : BinaryExpression.Operator.Value = Value("<")
+      val > : BinaryExpression.Operator.Value = Value(">")
+      val <= : BinaryExpression.Operator.Value = Value("<=")
+      val >= : BinaryExpression.Operator.Value = Value(">=")
+      val != : BinaryExpression.Operator.Value = Value("!=")
+      val == : BinaryExpression.Operator.Value = Value("==")
+      val || : BinaryExpression.Operator.Value = Value("||")
+      val && : BinaryExpression.Operator.Value = Value("&&")
     }
   }
 
-  case class CondExpression(lhs: Expression, rhs: Expression, cond: CondExpression.Operator.Operator) extends Expression
-
-  object CondExpression {
-
-    /**
-      * List of comparison operators
-      */
-    object Operator extends Enumeration {
-      type Operator = Value
-      val < = Value("<")
-      val > = Value(">")
-      val <= = Value("<=")
-      val >= = Value(">=")
-      val != = Value("!=")
-      val == = Value("==")
-      val || = Value("||")
-      val && = Value("&&")
-    }
-
-  }
-
-  case class TernaryExpression(cond: CondExpression, trueExpr: Expression, falseExpr: Expression) extends Expression
+  case class TernaryExpression(cond: BinaryExpression, trueExpr: Expression, falseExpr: Expression) extends Expression
 
   /** Force a cast of a variable to the given type. This is used to
     *
@@ -284,10 +278,7 @@ object OpenCLAST {
         visitExpressionsInNode(c.v)
       case pc : PointerCast =>
         visitExpressionsInNode(pc.v)
-      case c: CondExpression =>
-        visitExpressionsInNode(c.lhs)
-        visitExpressionsInNode(c.rhs)
-      case BinaryExpression(lhs, rhs, _) =>
+      case BinaryExpression(lhs, _, rhs) =>
         visitExpressionsInNode(lhs)
         visitExpressionsInNode(rhs)
       case TernaryExpression(cond, trueExpr, falseExpr) =>
