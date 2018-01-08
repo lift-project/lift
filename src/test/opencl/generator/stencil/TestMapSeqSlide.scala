@@ -985,9 +985,9 @@ class TestMapSeqSlide
   @Test
   def stencil3DJacobiComparisonsCoalescedWithPadConstant(): Unit = {
 
-    val localDimX = 10
+    val localDimX = 8
     val localDimY = 6
-    val localDimZ = 8
+    val localDimZ = 4
 
     val slidesize = 3
     val slidestep = 1
@@ -1007,10 +1007,39 @@ class TestMapSeqSlide
     val n = SizeVar("N")
     val o = SizeVar("O")
 
+    val Nx = 10
+    val Ny = 6
+    val Nz = 4
+
+    def jacobi3DNoPC(a: Int, b: Int) = fun(
+       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
+      //ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, Nz+2),Ny+2),Nx+2),
+      (mat) => {
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
+
+          val `tile[1][1][1]` = m.at(1).at(1).at(1)
+          val `tile[0][1][1]` = m.at(0).at(1).at(1)
+          val `tile[1][0][1]` = m.at(1).at(0).at(1)
+          val `tile[1][1][0]` = m.at(1).at(1).at(0)
+          val `tile[1][1][2]` = m.at(1).at(1).at(2)
+          val `tile[1][2][1]` = m.at(1).at(2).at(1)
+          val `tile[2][1][1]` = m.at(2).at(1).at(1)
+
+          val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
+            toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][1]`))) o
+            toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
+
+          toGlobal(id) $ stencil
+
+        })))) o Slide3D(a,b) $ mat
+      })
 
     def jacobi3D(a: Int, b: Int) = fun(
-      // ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 128),512),512),
+       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o), n), m),
+      //ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, Nz),Ny),Nx),
       (mat) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
 
@@ -1035,8 +1064,8 @@ class TestMapSeqSlide
       })
 
     def jacobi3Dmapseqslide(a : Int, b : Int) = fun(
-      //      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2),n+2),o+2),
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 514),514),130),
+           ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m),n),o),
+      //ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, Nx),Ny),Nz),
       (mat) =>
         Map(TransposeW()) o TransposeW() o Map(TransposeW()) /*o Map(TransposeW())*/ o
           MapGlb(0)(MapGlb(1)( fun (x => {
@@ -1064,19 +1093,26 @@ class TestMapSeqSlide
           ))) /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide2D(a,b) /*o Map(Transpose())*/o Map(Transpose())  o Transpose() o Map(Transpose()) o PadConstant3D(1,1,1,0.0f) $ mat)
 
     val orgLambda = SimplifyAndFuse(jacobi3D(slidesize,slidestep))
-    val sourceOrg = Compile(orgLambda)//, NDRange(32,4,2), NDRange(n,m,1))
+    //val sourceOrg = Compile(orgLambda)//, NDRange(32,4,2), NDRange(n,m,1))
+    val sourceOrg = Compile(orgLambda, 2,2,2,Nx,Ny,Nz, immutable.Map())
     println(sourceOrg)
+
+    val orgLambdaNoPC = SimplifyAndFuse(jacobi3DNoPC(slidesize,slidestep))
+    //val sourceOrg = Compile(orgLambda)//, NDRange(32,4,2), NDRange(n,m,1))
+    val sourceOrgNoPC = Compile(orgLambda, 2,2,2,Nx,Ny,Nz, immutable.Map())
+    println(sourceOrgNoPC)
 
     val lambdaMSS = SimplifyAndFuse(jacobi3Dmapseqslide(slidesize,slidestep))
     val sourceMSS = Compile(lambdaMSS)//, NDRange(32,4,2), NDRange(n,m,1))
+    //val sourceMSS = Compile(lambdaMSS,64,4,1,Nx,Ny,Nz, immutable.Map())
     println(sourceMSS)
 
-/*
-    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3D(slidesize,slidestep), stencilarrpadded3D)
-    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
+    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3D(slidesize,slidestep), data)
+    val (output_NoPC: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3DNoPC(slidesize,slidestep), stencilarrpadded3D)
+    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dmapseqslide(slidesize,slidestep), data)
 
     assertArrayEquals(output_MSS, output_org, StencilUtilities.stencilDelta)
-*/
+    assertArrayEquals(output_NoPC, output_org, StencilUtilities.stencilDelta)
 
   }
 
