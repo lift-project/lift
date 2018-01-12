@@ -91,6 +91,19 @@ object StencilUtilities
     }
   }
 
+  def print3DArrayCorrect[T](input: Array[Array[Array[T]]]) = {
+    for (k <- 0 to input(0)(0).length-1){
+      for(j <- 0 to input(0).length-1){
+        for(i <- 0 to input.length-1)
+        {
+          print(input(i)(j)(k)+ " ")
+        }
+        println()
+      }
+      println()
+    }
+  }
+
   def print1DArrayAs2DArray[T](input: Array[T], dimX: Int) {
     var count = 1
     println()
@@ -115,6 +128,23 @@ object StencilUtilities
 
   }
 
+  def print1DArrayAs3DArrayCorrect[T](input: Array[T], dimX: Int, dimY: Int, dimZ: Int): Unit = {
+    val area = dimX * dimY
+    val vol = input.length
+
+    var idx : Int = 0
+    for (k <- 0 to dimZ - 1) {
+      for (j <- 0 to dimY - 1) {
+        for (i <- 0 to dimX - 1) {
+          print(input(idx) + " ")
+          idx = idx + 1
+        }
+        println()
+      }
+      println()
+    }
+  }
+
   def printOriginalAndOutput2D[T](original: Array[Array[T]], output: Array[T], dimX: Int): Unit = {
     println("ORIGINAL:")
     print2DArray(original)
@@ -136,10 +166,10 @@ object StencilUtilities
   def printOriginalAndOutput3DSame[T:ClassTag](original: Array[Array[Array[T]]], output: Array[T]): Unit = {
 
     println("ORIGINAL:" + original.flatten.flatten.length)
-    print3DArray(original)
+    print3DArrayCorrect(original)
     println("*********************")
     println("OUTPUT:" + output.length)
-    print1DArrayAs3DArray(output,original.length,original(0).length,original(0)(0).length)
+    print1DArrayAs3DArrayCorrect(output,original.length,original(0).length,original(0)(0).length)
   }
 
   def printOriginalAndOutput3D[T:ClassTag](original: Array[Array[Array[T]]], output: Array[T]): Unit = {
@@ -150,6 +180,7 @@ object StencilUtilities
     println("OUTPUT:" + output.length)
     print1DArrayAs3DArray(output,original(0)(0).length-2,original(0).length-2,original.length-2)
   }
+
     /* only one (value) layer of padding around 2D matrix */
     def createFakePaddingFloat2D(input: Array[Array[Float]], padValue: Float): Array[Array[Float]] = {
       val padSize = input(0).length
@@ -193,6 +224,46 @@ object StencilUtilities
   def createDataFloat3DInOrder(sizeX: Int, sizeY: Int, sizeZ: Int) = {
     //Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i*sizeX*sizeY + j*sizeX + k + 1).toFloat }
     Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i + j + k + 1).toFloat }
+  }
+
+
+  def convertFloatData(input: Array[Float], sizeX: Int, sizeY: Int, sizeZ: Int) =
+  {
+    val a = Array.ofDim[Float](sizeZ,sizeY,sizeX)
+    var count : Int = 0
+
+    for(i <- 0 until sizeZ)
+    {
+      for(j <- 0 until sizeY)
+      {
+        for(k <- 0 until sizeX)
+        {
+          a(i)(j)(k) = input(count)
+          count = count + 1
+        }
+      }
+    }
+    a
+  }
+
+  def createDataFloat3DInOrderValuesUp(sizeX: Int, sizeY: Int, sizeZ: Int) =
+  {
+      val a = Array.ofDim[Float](sizeX,sizeY,sizeZ)
+      var count : Int = 1
+
+    for(k <- 0 until sizeZ)
+      {
+        for(j <- 0 until sizeY)
+        {
+            for(i <- 0 until sizeX)
+          {
+              a(i)(j)(k) = count
+              //println("a("+i+")("+j+")("+k+") = "+count)
+              count = count + 1
+          }
+        }
+      }
+    a
   }
 
     def createDataFloat3DWithPadding(sizeX: Int, sizeY: Int, sizeZ: Int) = {
