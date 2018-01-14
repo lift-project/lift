@@ -24,6 +24,7 @@ class TestVisualization{
                 val lambda = \(ArrayType(Float, N), input => expression $ input)
         TypeChecker(lambda)
     }
+
 }
 
 
