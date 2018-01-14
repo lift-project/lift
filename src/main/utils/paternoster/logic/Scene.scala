@@ -1,6 +1,6 @@
 package utils.paternoster.logic
 
-import ir.{ArrayType, TupleType, Type, ast}
+import ir._
 import ir.ast.{Lambda, Tuple}
 import lift.arithmetic.ArithExpr;
 
@@ -51,9 +51,9 @@ object Scene {
 
   def typeNode(t:Type):TypeNode = t match {
       //Only float scalars for now
-    case scalarType => FloatNode()
+    case ScalarType("float",_) => FloatNode()
     case tt: TupleType => TupleNode(tt.elemsT.map(typeNode))
-    case array:ArrayType =>
+    case array:ArrayType with Size =>
       //Get the nested array sizes as an ordered list
       val sizes = flattenArraySizes(array)
       //Group the ordered list of sizes according to the default dimension rules
@@ -102,13 +102,14 @@ object Scene {
   }
 */
 
-  private def flattenArraySizes(array:ArrayType):List[Int] =
-
-      array.sizeIndex::(array.elemT match {
-      case nested:ArrayType => flattenArraySizes(nested)
+  private def flattenArraySizes(array:ArrayType with Size):List[Int] = {
+    var arrayVars = array.size.varList
+    arrayVars.map((arrVar)=> System.out.println(arrVar.toString))
+    array.size.eval :: (array.elemT match {
+      case nested: ArrayType with Size with Capacity => flattenArraySizes(nested)
       case _ => List()
     })
-
+  }
   private def defaultDimensionSplits(n:Int):List[Int] = n match {
     case 0 => Nil
     case 1 => List(1)
