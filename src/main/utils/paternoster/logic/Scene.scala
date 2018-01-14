@@ -25,6 +25,7 @@ object Scene {
   sealed trait ArrayTypeNode extends TypeNode
   case class LinearArrayNode(element:TypeNode, size:Int) extends ArrayTypeNode
   case class GridArrayNode(elementType: TypeNode, width:Int, height:Int) extends ArrayTypeNode
+  case class BoxArrayNode(elementType: TypeNode, size:Int) extends ArrayTypeNode
 
   //sealed trait OperationNode extends Node
   //case class MapNode(inputElement:TypeNode, outputElement:TypeNode, size:ArraySize) extends OperationNode
@@ -36,6 +37,7 @@ object Scene {
     case TupleNode(elements) => elements.map(nodeWidth).sum
     case LinearArrayNode(elem, size) => nodeWidth(elem) * size
     case GridArrayNode(elem, width, _) => nodeWidth(elem) * width
+    case BoxArrayNode(elem, size) => nodeWidth(elem) * size
     //case MapNode(input, output, size) => Math.max(nodeWidth(input) + size, nodeWidth(output) + size)
   }
 
@@ -44,6 +46,7 @@ object Scene {
     case TupleNode(elements) => elements.map(nodeHeight).max
     case LinearArrayNode(elem, size) => nodeHeight(elem)
     case GridArrayNode(elem, _, height) => nodeHeight(elem) * height
+    case BoxArrayNode(elem, size) => nodeHeight(elem)
     //case MapNode(input, output, size) => nodeHeight(input) +  MAP_NODE_CHILDREN_DISTANCE + nodeHeight(output)
   }
 
@@ -79,9 +82,10 @@ object Scene {
     //Now build the current level of array
     currentSizes.length match {
       //1 dimension - linear array. Dimension is length
-      case 1 => LinearArrayNode(inner, currentSizes.head)
+      //case 1 => LinearArrayNode(inner, currentSizes.head)
+      case 1|2 => BoxArrayNode(inner, currentSizes.head)
       //2 dimensions - grid. Dimensions are width and height
-      case 2 => GridArrayNode(inner, currentSizes.head, currentSizes.tail.head)
+      //case 2 => GridArrayNode(inner, currentSizes.head, currentSizes.tail.head)
       //any other - not supported yet!
       case n => throw new Exception(s"Unsupported rendering of $n-dimensional array level. Try another dimension grouping")
     }
@@ -113,7 +117,7 @@ object Scene {
   private def defaultDimensionSplits(n:Int):List[Int] = n match {
     case 0 => Nil
     case 1 => List(1)
-    case 2 => List(2)
+    case 2 => 1::defaultDimensionSplits(n - 1)//List(2)
     case _ => 2::defaultDimensionSplits(n - 2)
   }
 
@@ -131,7 +135,7 @@ object Scene {
     //The methods here take care of transforming nodes into sets of graphical primitives.
     def drawType(typeNode: TypeNode):Iterable[GraphicalPrimitive] = {
       typeNode match {
-        case FloatNode() => Seq(Rectangle(0, 0, 1, 1))
+        case FloatNode() => Seq(Rectangle(0, 0,0, 0))
         case TupleNode(elements) =>
           //Draw elements
           val elementPrimitives = elements.flatMap(drawType)
@@ -160,35 +164,34 @@ object Scene {
           val sets = positions.map{case (x,y) => translateAll(elementPrims, x, y)}
           //Flatten the sets and wrap in container box
           sets.flatten ++ Seq(Box(0, 0, width*elemWidth, height*elemHeight))
+        case BoxArrayNode(elementType, size) =>
+          val elemWidth =nodeWidth(elementType)
+          val elemHeight = nodeHeight(elementType)
+
+          var xMargin = 0.8
+          var yMargin = 0.5
+          var sets : IndexedSeq[Iterable[Graphics.GraphicalPrimitive]] = null
+          //compute inner element primitives
+          val elementPrims = drawType(elementType)
+          elementType match {
+            case _:BoxArrayNode => {
+              xMargin= 0.25
+              yMargin =0.2
+              sets = (0 until size).map(pos => translateAll(elementPrims, dx = (pos*elemWidth)+xMargin, dy = yMargin))
+            }
+            case _:Any =>{
+              xMargin = 0
+              yMargin = 0
+              //Repeat each set of primitives up to size times, translating the set by the
+              //position
+               sets = (0 until size).map(pos => translateAll(elementPrims, dx = pos*elemWidth, dy = 0))
+          }}
+
+        //As a final results, flatten the sets and add the container box
+          sets.flatten ++ Seq(BoxWithText(size.toString ,(size*elemWidth)-0.15+(xMargin*2),elemHeight+(yMargin*2)-0.2,0, 0, (size*elemWidth)+(xMargin*2), elemHeight+(yMargin*2)))
       }
     }
-  /*
-     def drawOperation(operationRenderer: OperationNode):Iterable[GraphicalPrimitive] = {
-       operationRenderer match {
-         case MapNode(inType, outType, size) =>
-           //First render the input type
-           val inputArray = LinearArrayNode(inType, size)
-           val outputArray = LinearArrayNode(outType, size)
-           val inputPrimitives = drawType(inputArray)
-           //Translate the output primitives under the input primitives
-           val outputPrimitives = translateAll(
-             drawType(outputArray),
-             dx = 0,
-             dy = nodeHeight(inputArray) + MAP_NODE_CHILDREN_DISTANCE
-           )
-           //Make the arrow from input array to output array
-           val arrowX = Math.max(nodeWidth(inputArray)/2, nodeWidth(outputArray)/2)
-           val arrowStartY = nodeHeight(inputArray)
-           val arrowEndY = arrowStartY + MAP_NODE_CHILDREN_DISTANCE
-           val arrow = Arrow(arrowX, arrowStartY, arrowX, arrowEndY)
-           //Problem:at this point, inputPrimitives and output primitives are not centered.
-           //Need to center the primitives.
-           val alignments = horizontalAlignment(Seq(inputArray, outputArray))
-           val centeredInputPrims = translateAll(inputPrimitives, dx = alignments(inputArray), dy = 0)
-           val centeredOutputPrims = translateAll(outputPrimitives, dx = alignments(outputArray), dy = 0)
-           centeredInputPrims ++ centeredOutputPrims ++ Seq(arrow)
-       }
-     }*/
+
 
      /***
        * Computes horizontal translations needed for each node to be aligned on a common

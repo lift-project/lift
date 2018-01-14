@@ -483,7 +483,7 @@ class OpenCLGenerator extends Generator {
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
-             ArrayAccess(_) | PrintType() =>
+             ArrayAccess(_) | PrintType(_) =>
         case _ => (block: Block) += OpenCLAST.Comment("__" + call.toString + "__")
       }
       case v: Value => generateValue(v, block)
