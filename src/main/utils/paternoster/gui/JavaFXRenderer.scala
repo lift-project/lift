@@ -48,11 +48,11 @@ object JavaFXRenderer {
 
       val newXScaling = (ctx.width-2*ctx.smallX)/maxwidth
       var newYScaling = newXScaling*0.5
-      if(minScaledHeight < (ctx.height*0.1)){
-        newYScaling = (ctx.height*0.1- 2*ctx.smallY)/(minheight)
+      if(minScaledHeight < (ctx.height*0.5)){
+        newYScaling = (ctx.height*0.08- 2*ctx.smallY)/(minheight)
       }
       val yPercentSmaller = newYScaling/defaultYScaling
-    val newFontSize = Math.max(ctx.gc.getFont.getSize*yPercentSmaller,1d)
+    val newFontSize = Math.max(ctx.gc.getFont.getSize*yPercentSmaller,10)
       ctx.gc.setFont(new Font(newFontSize))
       Context(ctx.gc, newXScaling, newYScaling, ctx.smallX, ctx.smallY,ctx.width,ctx.height)
   }
@@ -70,7 +70,7 @@ object JavaFXRenderer {
 
 
         val textX = ((bx*ctx.unitX + ctx.smallX)+(bwidth*ctx.unitX - 2*ctx.smallX))-Math.min((ctx.gc.getFont.getSize*text.size),(bwidth*ctx.unitX - 2*ctx.smallX)/2)
-        val textY = ((by*ctx.unitY + ctx.smallY)+(bheight*ctx.unitY - 2*ctx.smallY))-((bheight*ctx.unitY - 2*ctx.smallY)*0.05)
+        val textY = ((by*ctx.unitY + ctx.smallY)+(bheight*ctx.unitY - 2*ctx.smallY))-((bheight*ctx.unitY - 2*ctx.smallY)*0.025)
         //ctx.gc.setFont(new Font(ctx.gc.getFont.getName,10))
         ctx.gc.strokeText(text,textX,textY)
       case Rectangle(x, y, w, h) =>
