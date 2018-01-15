@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapLcl, MapSeq, MapWrg}
 import org.junit.Assert._
 import org.junit._
+import utils.Printer
 
 class TestOpenCLGenerator {
 
@@ -130,8 +131,8 @@ class TestOpenCLGenerator {
     val den = b + c
 
     assertEquals(
-      s"((${OpenCLPrinter.toString(num)})/(${OpenCLPrinter.toString(den)}))",
-      OpenCLPrinter.toString(num /^ den)
+      s"((${Printer.toString(num)})/(${Printer.toString(den)}))",
+      Printer.toString(num /^ den)
     )
   }
 }
