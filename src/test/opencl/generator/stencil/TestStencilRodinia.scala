@@ -313,9 +313,8 @@ class TestStencilRodinia {
 
     if(StencilUtilities.printOutput)
     {
-      StencilUtilities.printOriginalAndOutput3DSame(tempInput, output)
+      StencilUtilities.printOriginalAndOutput3D(tempInput, output)
     }
-//    StencilUtilities.printOriginalAndOutput3DSame(tempInput, output)
 
     assertArrayEquals(StencilDataArrays.compareDataHotspot3D, output, 0.3f)
 
