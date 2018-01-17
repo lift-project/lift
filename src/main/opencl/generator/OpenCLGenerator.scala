@@ -1213,7 +1213,7 @@ class OpenCLGenerator extends Generator {
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
 
     }
-    val cond = BinaryExpression(indexVar, BinaryExpression.Operator.<, stop - reuse / step)
+    val cond = BinaryExpression(indexVar, BinaryExpression.Operator.<, stop /*- reuse / step*/)
 
     val vType = call.args.head.view.access(0).t
 
