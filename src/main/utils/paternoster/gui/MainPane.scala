@@ -1,6 +1,7 @@
 package utils.paternoster.gui
 
 import javafx.scene.canvas.Canvas
+import javafx.scene.image.WritableImage
 import javafx.scene.layout.Pane
 import javafx.scene.paint.{Color, Paint}
 import javafx.scene.text.Font
@@ -32,6 +33,10 @@ class MainPane(val width:Int, val height:Int) extends Pane {
     gc.setFont(new Font(gc.getFont.getName,10))
     val context = JavaFXRenderer.Context(gc, unitX, unitY, smallX, smallY,width.toDouble,height.toDouble)
     JavaFXRenderer.drawPrimitives(primitives, context)
+  }
+
+  def getSnapShot(wim: WritableImage): Unit ={
+    canvas.snapshot(null,wim)
   }
 
 }
