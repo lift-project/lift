@@ -86,7 +86,7 @@ object InputView {
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case PadConstant(left, right, value) => buildViewPadConstant(left, right, value, argView)
       case ArrayAccess(i) => argView.access(i)
-      case PrintType(_) | Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => argView
+      case PrintType(_,_) | Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => argView
       case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
     }
   }

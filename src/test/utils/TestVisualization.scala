@@ -19,7 +19,7 @@ class TestVisualization{
     def psiPaperTestExpression(): Unit = {
         def M = Var("M")
         def N = Var("N")
-        def expression =   Join() o  PrintType(true)   o Map(Reduce(add, 0.0f))o  Split(M)
+        def expression =  PrintType(visual = true,render = true) o Join() o  PrintType(visual = true) o Map(Reduce(add, 0.0f))o PrintType(visual = true) o Split(M) o PrintType(visual = true)
 
                 val lambda = \(ArrayType(Float, N), input => expression $ input)
         TypeChecker(lambda)
