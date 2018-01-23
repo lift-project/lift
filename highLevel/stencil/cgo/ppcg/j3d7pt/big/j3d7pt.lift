@@ -1,0 +1,38 @@
+val M = 512
+val N = 512
+val O = 512
+
+def vonNeumann7pt(x: Param) = {
+  val N = x.at(1).at(0).at(1)
+  val S = x.at(1).at(2).at(1)
+  val W = x.at(1).at(1).at(0)
+  val E = x.at(1).at(1).at(2)
+  val C = x.at(1).at(1).at(1)
+  val F = x.at(0).at(1).at(1)
+  val B = x.at(2).at(1).at(1)
+  (N, S, W, E, F, B, C)
+}
+
+def jacobi = UserFun("jacobi", Array("C", "N", "S", "E", "W", "F", "B"),
+  """return 0.161f * E + 0.162f * W +
+  0.163f * S + 0.164f * N +
+  0.165f * B + 0.166f * F -
+  1.67f * C;""".stripMargin,
+  Seq(Float, Float, Float, Float, Float, Float, Float), Float)
+
+λ(
+  ArrayType(ArrayType(ArrayType(Float, M), N), O),
+  input => {
+    Map(Map(Scatter(Shift(1)))) o
+      Map(Scatter(Shift(1))) o
+        Scatter(Shift(1)) o
+    Pad3D(1,1,1,Pad.Boundary.Clamp) o
+    Map(Map(Map(λ(nbh => {
+
+      val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
+
+      λ(x =>
+        jacobi(x, n, s, e, w, f, b)) $ c
+
+    })))) o Slide3D(3, 1) $ input
+  })

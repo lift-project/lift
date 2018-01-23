@@ -3,7 +3,7 @@ package prog_gen
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter
-import opencl.executor.{Eval, Execute, Executor}
+import opencl.executor.{Eval, Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 import org.junit.Assert._
@@ -12,15 +12,7 @@ import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
 
-object ProgGenIssues{
-  @BeforeClass
-  def before(): Unit =
-    Executor.loadAndInit()
-
-  @AfterClass
-  def after(): Unit =
-    Executor.shutdown()
-}
+object ProgGenIssues extends TestWithExecutor
 
 class ProgGenIssues{
 
@@ -36,7 +28,7 @@ class ProgGenIssues{
 
     val Args = InputGenerator()(fs.head)
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,32)(lower,Args:_*)
+    val (output_exe,_)= Execute(1,32)[Array[Float]](lower,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
@@ -57,7 +49,7 @@ class ProgGenIssues{
     val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Float]].run(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,1024)(fs.head,Args:_*)
+    val (output_exe,_)= Execute(1,1024)[Array[Float]](fs.head,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 
@@ -78,7 +70,7 @@ class ProgGenIssues{
     val args = InputGenerator()(f)
 
     val output_int = Interpreter(f).->[Vector[Float]].run(args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,1024)(f, args:_*)
+    val (output_exe,_)= Execute(1,1024)[Array[Float]](f, args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 }

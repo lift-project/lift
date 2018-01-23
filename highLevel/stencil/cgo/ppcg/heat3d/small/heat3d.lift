@@ -1,0 +1,37 @@
+val M = 256
+val N = 256
+val O = 256
+
+def vonNeumann7pt(x: Param) = {
+  val N = x.at(1).at(0).at(1)
+  val S = x.at(1).at(2).at(1)
+  val W = x.at(1).at(1).at(0)
+  val E = x.at(1).at(1).at(2)
+  val C = x.at(1).at(1).at(1)
+  val F = x.at(0).at(1).at(1)
+  val B = x.at(2).at(1).at(1)
+  (N, S, W, E, F, B, C)
+}
+
+def heat = UserFun("heat", Array("C", "S", "N", "E", "W", "B", "F"),
+  """return 0.125f * (B - 2.0f * C + F) +
+    |       0.125f * (S - 2.0f * C + N) +
+    |       0.125f * (E - 2.0f * C + W) + C;""".stripMargin,
+  Seq(Float, Float, Float, Float, Float, Float, Float), Float)
+
+λ(
+  ArrayType(ArrayType(ArrayType(Float, M), N), O),
+  input => {
+    Map(Map(Scatter(Shift(1)))) o
+      Map(Scatter(Shift(1))) o
+        Scatter(Shift(1)) o
+    Pad3D(1,1,1,Pad.Boundary.Clamp) o
+    Map(Map(Map(λ(nbh => {
+
+      val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
+
+      λ(x =>
+        heat(x, n, s, e, w, f, b)) $ c
+
+    })))) o Slide3D(3, 1) $ input
+  })

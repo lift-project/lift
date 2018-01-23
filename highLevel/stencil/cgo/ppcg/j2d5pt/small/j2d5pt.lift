@@ -1,0 +1,35 @@
+def vonNeumann5pt(x: Param) = {
+  val top = x.at(0).at(1)
+  val bottom = x.at(2).at(1)
+  val left = x.at(1).at(0)
+  val right = x.at(1).at(2)
+  val center = x.at(1).at(1)
+  (top, bottom, left, right, center)
+}
+
+val M = Cst(4096)
+val N = Cst(4096)
+
+val shiftRight: (ArithExpr, Type) => ArithExpr =
+    (i, t) => {
+      val n = Type.getLength(t)
+      (i + 1) - n*(i / (n-1))
+  }
+
+def jacobi = UserFun("jacobi", Array("top", "bottom", "left", "right", "center"),
+  "return (5 * top + 12 * left + 15 * center + 5 * bottom + 12 * right) / 118;",
+  Seq(Float, Float, Float, Float, Float), Float)
+
+λ(
+  ArrayType(ArrayType(Float, M), N),
+  input => {
+    Map(Scatter(Shift(1))) o Scatter(Shift(1)) o Pad2D(1,1,Pad.Boundary.Clamp) o
+    Map(Map(λ(nbh => {
+
+      val (top, bottom, left, right, center) = vonNeumann5pt(nbh)
+
+          λ(x =>
+            jacobi(x, bottom, left, right, center)) $ top
+
+        }))) o Slide2D(3, 1) $ input
+      })

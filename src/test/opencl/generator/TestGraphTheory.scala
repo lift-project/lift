@@ -5,28 +5,16 @@ import java.io._
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor._
+import opencl.executor.{Execute, Executor, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 
 import scala.language.postfixOps
 import scala.sys.process._
 
-object TestGraphTheory {
-  @BeforeClass def TestMatrixBasic(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
-
+object TestGraphTheory extends TestWithExecutor
 
 class TestGraphTheory {
 
@@ -56,7 +44,7 @@ class TestGraphTheory {
         ) $ bfsFringe
       }
     )
-    val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(denseBFSIteration, graph, fringe)
+    val (output, runtime) = Execute(inputSize*inputSize)[Array[Float]](denseBFSIteration, graph, fringe)
     val gold:Array[Float] = scalaBFSIteration(graph,fringe)
     println(fringe.toList)
     println("Fringe sum = "+ fringe.sum)
@@ -85,7 +73,7 @@ class TestGraphTheory {
         ) $ ranks
       }
     )
-    val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(densePageRankIteration, graph, ranks)
+    val (output, runtime) = Execute(inputSize*inputSize)[Array[Float]](densePageRankIteration, graph, ranks)
     val gold:Array[Float] = scalaDotProductIteration(graph,ranks)
     println(ranks.toList)
     println("Fringe sum = "+ ranks.sum)
@@ -113,7 +101,7 @@ class TestGraphTheory {
         ) o Split(128) $ graph
       }
     )
-    val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(denseBFSIteration, graph, fringe)
+    val (output, runtime) = Execute(inputSize*inputSize)[Array[Float]](denseBFSIteration, graph, fringe)
     val gold:Array[Float] = scalaBFSIteration(graph,fringe)
     println(fringe.toList)
     println("Fringe sum = "+ fringe.sum)
@@ -145,7 +133,7 @@ class TestGraphTheory {
         )) $ pageRanks
       })
 
-    val (output:Array[Float], runtime) = Execute(inputSize*inputSize)(pageRankMultiIteration, graph, ranks)
+    val (output, runtime) = Execute(inputSize*inputSize)[Array[Float]](pageRankMultiIteration, graph, ranks)
     val gold = scalaIterateDotProduct(1,graph,ranks)
     println(ranks.toList)
     println("Fringe sum = "+ ranks.sum)
@@ -174,7 +162,7 @@ class TestGraphTheory {
       })
 
 
-    val (output:Array[Float], runtime) = Execute(1,1)(BFSMultiIteration, graphArr, fringeArr)
+    val (output, runtime) = Execute(1,1)[Array[Float]](BFSMultiIteration, graphArr, fringeArr)
     val gold = scalaIterateBFS(5,graphArr,fringeArr)
     println(fringeArr.toList)
     println("Fringe sum = "+ fringeArr.sum)

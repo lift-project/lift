@@ -128,7 +128,7 @@ class BarrierElimination(lambda: Lambda) {
 
   private def isLoop(range: Range): Boolean = {
 
-    // TODO: Inforamtion needed in several places
+    // TODO: Information needed in several places
     // TODO: Information needed elsewhere. See analysis.ControlFlow
     // try to see if we really need a loop
     range.numVals match {
@@ -262,6 +262,15 @@ class BarrierElimination(lambda: Lambda) {
             !groups.slice(0, id).map(_.exists(c => isMapLcl(c.f))).reduce(_ || _))
             needsBarrier(id) = true
         }
+
+        // Sequential pattern following parallel pattern needs barrier after parallel section
+        if (id < groups.length-1 && group.exists(x => isSequential(x.f)) && groups(id+1).exists(x => isMapLcl(x.f))) {
+          needsBarrier(id+1) = true
+
+          // TODO: Local memory? Can be overwritten before consumed but can't
+          // TODO: currently have a barrier after a sequential pattern
+        }
+
       })
 
       (groups, needsBarrier).zipped.foreach((group, valid) =>
@@ -277,8 +286,8 @@ class BarrierElimination(lambda: Lambda) {
   private def argumentToPossibleSharing(call: FunCall): Boolean = {
     Expr.visitWithState(false)(lambda.body, {
       case (FunCall(Lambda(params, FunCall(_, nestedArgs@_*)), args@_*), _ )
-      if args.contains(call) && !params.sameElements(nestedArgs)=>
-       true
+        if args.exists(arg => arg.contains({ case c if c eq call => } )) && !params.sameElements(nestedArgs)=>
+        true
       case (_, state) => state
     })
   }
@@ -316,6 +325,24 @@ class BarrierElimination(lambda: Lambda) {
       case toLocal(f) => isMapLclLambda(f)
       case toGlobal(f) => isMapLclLambda(f)
       case toPrivate(f) => isMapLclLambda(f)
+      case _ => false
+    }
+  }
+
+  private def isSequential(funDecl: FunDecl): Boolean = {
+    def isSequentialLambda(f: Lambda): Boolean = {
+      f.body match {
+        case call: FunCall => isSequential(call.f)
+        case _ => false
+      }
+    }
+
+    funDecl match {
+      case _: MapSeq => true
+      case _: ReduceSeq => true
+      case toLocal(f) => isSequentialLambda(f)
+      case toGlobal(f) => isSequentialLambda(f)
+      case toPrivate(f) => isSequentialLambda(f)
       case _ => false
     }
   }

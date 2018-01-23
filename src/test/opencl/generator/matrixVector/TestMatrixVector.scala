@@ -9,21 +9,10 @@ import opencl.generator.AllocateLocalMemoryStatically
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 import rewriting.utils.ScalaPrinter
 
-object TestMatrixVector {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestMatrixVector extends TestWithExecutor
 
 class TestMatrixVector {
 
@@ -89,7 +78,7 @@ class TestMatrixVector {
 
       })
 
-    val (output: Array[Float], runtime) = Execute(inputSize * inputSize)(f, matrix, vector )
+    val (output, runtime) = Execute(inputSize * inputSize)[Array[Float]](f, matrix, vector )
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -120,7 +109,7 @@ class TestMatrixVector {
 
       })
 
-    val (output: Array[Float], _) = Execute(inputSize * inputSize)(f, matrix, vector)
+    val (output, _) = Execute(inputSize * inputSize)[Array[Float]](f, matrix, vector)
 
     AllocateLocalMemoryStatically(true)
     assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
@@ -144,7 +133,7 @@ class TestMatrixVector {
         ) o Split(128) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(inputSize * inputSize)(f, matrix, vector)
+    val (output, runtime) = Execute(inputSize * inputSize)[Array[Float]](f, matrix, vector)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -172,7 +161,7 @@ class TestMatrixVector {
         ) $ matrix
       })
 
-    val (output: Array[Float], runtime) = Execute(inputSize * inputSize)(f, matrix, vector)
+    val (output, runtime) = Execute(inputSize * inputSize)[Array[Float]](f, matrix, vector)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -206,7 +195,7 @@ class TestMatrixVector {
         ) $ matrix
       })
 
-    val (output: Array[Float], _) = Execute(inputSize * inputSize)(f, matrix, vector)
+    val (output, _) = Execute(inputSize * inputSize)[Array[Float]](f, matrix, vector)
     assertArrayEquals(Utils.matrixVector(matrix, vector), output, 0.0f)
 
   }
@@ -235,7 +224,7 @@ class TestMatrixVector {
         ) $ matrix
       })
 
-    val (firstOutput: Array[Float], firstRuntime) = Execute(inputSize * inputSize)(f1, matrix, vectorX, alpha)
+    val (firstOutput, firstRuntime) = Execute(inputSize * inputSize)[Array[Float]](f1, matrix, vectorX, alpha)
 
     println("output.size = " + firstOutput.length)
     println("output(0) = " + firstOutput(0))
@@ -253,7 +242,7 @@ class TestMatrixVector {
         ) o Split(128) o Split(32) $ Zip(tmp, vectorY)
       })
 
-    val (output: Array[Float], secondRuntime) = Execute(inputSize)(f2, firstOutput, vectorY, beta)
+    val (output, secondRuntime) = Execute(inputSize)[Array[Float]](f2, firstOutput, vectorY, beta)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -274,8 +263,7 @@ class TestMatrixVector {
 
     val f = MatrixVector.fullMatrixVectorFusedOpenCL
 
-    val (output: Array[Float], runtime) =
-      Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY, alpha, beta)
+    val (output, runtime) = Execute(inputSize * inputSize)[Array[Float]](f, matrix, vectorX, vectorY, alpha, beta)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -295,8 +283,7 @@ class TestMatrixVector {
 
     val f = MatrixVector.fullMatrixVectorFusedOpenCLAMD
 
-    val (output: Array[Float], runtime) =
-      Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY, alpha, beta)
+    val (output, runtime) = Execute(inputSize * inputSize)[Array[Float]](f, matrix, vectorX, vectorY, alpha, beta)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))
@@ -327,7 +314,7 @@ class TestMatrixVector {
         ) $ Zip(matrix, vectorY)
       })
 
-    val (output: Array[Float], runtime) = Execute(inputSize * inputSize)(f, matrix, vectorX, vectorY)
+    val (output, runtime) = Execute(inputSize * inputSize)[Array[Float]](f, matrix, vectorX, vectorY)
 
     println("output.size = " + output.length)
     println("output(0) = " + output(0))

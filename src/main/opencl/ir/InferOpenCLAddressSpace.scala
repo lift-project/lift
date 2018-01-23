@@ -24,16 +24,13 @@ object InferOpenCLAddressSpace {
     })
 
     setAddressSpace(lambda.body)
-
-    if (lambda.body.addressSpace != GlobalMemory)
-      throw new IllegalKernel("Final result must be stored in global memory")
   }
 
   private def setAddressSpace(expr: Expr,
                               writeTo : OpenCLAddressSpace = UndefAddressSpace) : OpenCLAddressSpace = {
 
     val result = expr match {
-      case Value(_) => PrivateMemory
+      case Value(_, _) => PrivateMemory
       case _: ArrayConstructors => UndefAddressSpace
       case vp: VectorParam => vp.p.addressSpace
       case p: Param => p.addressSpace
@@ -53,8 +50,8 @@ object InferOpenCLAddressSpace {
 
       case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
            asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
-           Pad(_,_,_) | Tuple(_) | Slide(_,_) | Head() | Tail() | PrintType() |
-           UnsafeArrayAccess(_) | CheckedArrayAccess(_) | ArrayAccess(_) =>
+           Pad(_,_,_) | PadConstant(_, _, _) | Tuple(_) | Slide(_,_) | Head() | Tail() | PrintType() |
+           UnsafeArrayAccess(_) | CheckedArrayAccess(_) | ArrayAccess(_) | Id() =>
 
         setAddressSpaceDefault(addressSpaces)
 
@@ -64,9 +61,11 @@ object InferOpenCLAddressSpace {
       case Filter() => addressSpaces.head
       case Get(i) => setAddressSpaceGet(i, addressSpaces.head)
 
+      case iss: InsertionSortSeq => setAddressSpaceSort(iss, writeTo, addressSpaces)
       case fs: FilterSeq =>
         setAddressSpaceLambda(fs.f, PrivateMemory, addressSpaces)
         inferAddressSpace(writeTo, addressSpaces)
+
       case rw: ReduceWhileSeq => setAddressSpaceReduceWhile(rw, call, addressSpaces)
       case r: AbstractPartRed => setAddressSpaceReduce(r.f, call, addressSpaces)
       case s: AbstractSearch => setAddressSpaceSearch(s, writeTo, addressSpaces)
@@ -89,6 +88,13 @@ object InferOpenCLAddressSpace {
       case collection: AddressSpaceCollection => collection.spaces(i)
       case _ => addressSpace
     }
+  
+  private def setAddressSpaceSort(iss: InsertionSortSeq,
+                             writeTo: OpenCLAddressSpace,
+                             addrSpaces: Seq[OpenCLAddressSpace]) = {
+    setAddressSpaceLambda(iss.f, PrivateMemory, addrSpaces)
+    inferAddressSpace(writeTo, addrSpaces)
+  }
 
   private def setAddressSpaceReduce(lambda: Lambda, call: FunCall,
     addressSpaces: Seq[OpenCLAddressSpace]) = {

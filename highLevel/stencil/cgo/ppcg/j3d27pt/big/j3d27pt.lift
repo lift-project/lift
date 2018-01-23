@@ -1,0 +1,65 @@
+val M = 512
+val N = 512
+val O = 512
+
+def jacobi = UserFun("jacobi", Array("FNW", "FN", "FNE", "FW", "F", "FE", "FSW", "FS", "FSE",
+          "NW", "N", "NE", "W", "C", "E", "SW", "S", "SE",
+          "BNW", "BN", "BNE", "BW", "B", "BE", "BSW", "BS", "BSE"),
+  """return (0.5 * FNW + 0.7 * FN + 0.9 * FNE +
+    |        1.2 * FW + 1.5 * F + 1.2 * FE +
+    |        0.9 * FSW + 0.7 * FS + 0.5 * FSE +
+    |        0.51 * NW + 0.71 * N + 0.91 * NE +
+    |        1.21 * W + 1.51 * C + 1.21 * E +
+    |        0.91 * SW + 0.71 * S + 0.51 * SE +
+    |        0.52 * BNW + 0.72 * BN + 0.92 * BNE +
+    |        1.22 * BW + 1.52 * B + 1.22 * BE +
+    |        0.92 * BSW + 0.72 * BS + 0.52 * BSE) / 159;""".stripMargin,
+  Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float,
+    Float, Float, Float, Float, Float, Float, Float, Float, Float,
+    Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
+λ(
+  ArrayType(ArrayType(ArrayType(Float, M), N), O),
+  input => {
+    Map(Map(Scatter(Shift(1)))) o
+      Map(Scatter(Shift(1))) o
+        Scatter(Shift(1)) o
+    Pad3D(1,1,1,Pad.Boundary.Clamp) o
+    Map(Map(Map(λ(nbh => {
+      val fnw = nbh.at(0).at(0).at(0)
+      val fn  = nbh.at(0).at(0).at(1)
+      val fne = nbh.at(0).at(0).at(2)
+      val fw  = nbh.at(0).at(1).at(0)
+      val f   = nbh.at(0).at(1).at(1)
+      val fe  = nbh.at(0).at(1).at(2)
+      val fsw = nbh.at(0).at(2).at(0)
+      val fs  = nbh.at(0).at(2).at(1)
+      val fse = nbh.at(0).at(2).at(2)
+
+      val nw  = nbh.at(1).at(0).at(0)
+      val n   = nbh.at(1).at(0).at(1)
+      val ne  = nbh.at(1).at(0).at(2)
+      val w   = nbh.at(1).at(1).at(0)
+      val c   = nbh.at(1).at(1).at(1)
+      val e   = nbh.at(1).at(1).at(2)
+      val sw  = nbh.at(1).at(2).at(0)
+      val s   = nbh.at(1).at(2).at(1)
+      val se  = nbh.at(1).at(2).at(2)
+
+      val bnw = nbh.at(2).at(0).at(0)
+      val bn  = nbh.at(2).at(0).at(1)
+      val bne = nbh.at(2).at(0).at(2)
+      val bw  = nbh.at(2).at(1).at(0)
+      val b   = nbh.at(2).at(1).at(1)
+      val be  = nbh.at(2).at(1).at(2)
+      val bsw = nbh.at(2).at(2).at(0)
+      val bs  = nbh.at(2).at(2).at(1)
+      val bse = nbh.at(2).at(2).at(2)
+
+      λ(x =>
+        jacobi(x, fn, fne, fw, f, fe, fsw, fs, fse,
+          nw, n, ne, w, c, e, sw, s, se,
+          bnw, bn, bne, bw, b, be, bsw, bs, bse)) $ fnw
+
+    })))) o Slide3D(3, 1) $ input
+  })

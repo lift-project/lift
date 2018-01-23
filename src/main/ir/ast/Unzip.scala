@@ -1,7 +1,7 @@
 package ir.ast
 
-import ir.interpreter.Interpreter.ValueMap
 import ir._
+import ir.interpreter.Interpreter.ValueMap
 
 /**
  * Unzip pattern.
@@ -15,13 +15,13 @@ import ir._
  * `Unzip() : [a x b],,i,, -> ([a],,i,,, [b],,i,,)`
  * The definitions for `n > 2` are accordingly.
  */
-case class Unzip() extends Pattern(arity = 1) with isGenerable {
+case class Unzip() extends Pattern(arity = 1) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case ArrayTypeWSWC(tt: TupleType, s,c) =>
-        TupleType( tt.elemsT.map(t => ArrayTypeWSWC(t, s,c)):_* )
+      case at @ ArrayType(tt: TupleType) =>
+        TupleType(tt.elemsT.map(t => at.replacedElemT(t)):_* )
 
       case _ => throw new TypeException(argType, "ArrayType(TupleType, _)", this)
     }

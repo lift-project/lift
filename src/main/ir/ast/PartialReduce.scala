@@ -25,7 +25,7 @@ abstract class AbstractPartRed(val f: Lambda,
       case TupleType(initT, ArrayType(elemT)) =>
         f.params(0).t = initT // initial elem type
         f.params(1).t = elemT // array element type
-  
+
         val bodyType = TypeChecker.check(f.body, setType) // check the body
 
         if (initT != elemT || initT != bodyType)
@@ -80,13 +80,6 @@ object AbstractPartRed {
  */
 case class PartRed(override val f: Lambda) extends AbstractPartRed(f, PosVar("")) {
   override def copy(f: Lambda): Pattern = PartRed(f)
-
-  /**
-   * Indicating if it is possible to generate code for this function
-   * declaration.
-   * Might be overwritten by a subclass or by mixing in the `isGenerable` trait.
-   */
-  override def isGenerable: Boolean = false
 }
 
 object PartRed {

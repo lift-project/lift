@@ -310,6 +310,8 @@ public:
 
   bool supportsDouble() const;
 
+  bool isLittleEndian() const;
+
 private:
   cl::NDRange checkLocalSize(const cl::Kernel& kernel, cl::NDRange local) const;
 

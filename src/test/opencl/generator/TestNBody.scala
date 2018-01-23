@@ -4,26 +4,14 @@ import benchmarks.NBody
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, Utils}
-import opencl.generator.TestNBody._
+import opencl.executor.{Execute, TestWithExecutor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 
-object TestNBody {
-
-  @BeforeClass
-  def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass
-  def after(): Unit = {
-    Executor.shutdown()
-  }
+object TestNBody extends TestWithExecutor {
 
   def nBodyScala(deltaT: Float, espSqr: Float, input: Array[(Float, Float, Float, Float, Float, Float, Float)]): Array[Float] = {
     val gold = input.map(x => {
@@ -98,13 +86,15 @@ object TestNBody {
 }
 
 class TestNBody {
+
+  import opencl.generator.TestNBody._
+
   @Test
   def nBodyAMD(): Unit = {
 
     val function = NBody.amd
 
-    val (output: Array[Float], _) =
-      Execute(inputSize)(function, pos, vel, espSqr, deltaT)
+    val (output, _) = Execute(inputSize)[Array[Float]](function, pos, vel, espSqr, deltaT)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -114,8 +104,7 @@ class TestNBody {
 
     val function = NBody.lessLoadsToGlobal
 
-    val (output: Array[Float], _) =
-      Execute(inputSize)(function, pos, vel, espSqr, deltaT)
+    val (output, _) = Execute(inputSize)[Array[Float]](function, pos, vel, espSqr, deltaT)
 
     assertArrayEquals(gold, output, 0.0001f)
 
@@ -154,8 +143,7 @@ class TestNBody {
           )) o Split(tileX) $ Zip(pos, vel)
     )
 
-    val (output: Array[Float], _) =
-      Execute(tileX, inputSize, (true, false))(function, pos, vel, espSqr, deltaT)
+    val (output, _) = Execute(tileX, inputSize, (true, false))[Array[Float]](function, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -193,8 +181,7 @@ class TestNBody {
           )) o Split(tileX) $ Zip(pos, vel)
     )
 
-    val (output: Array[Float], _) =
-      Execute(tileX, inputSize, (true, false))(function, pos, vel, espSqr, deltaT)
+    val (output, _) = Execute(tileX, inputSize, (true, false))[Array[Float]](function, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -211,8 +198,7 @@ class TestNBody {
 
     val function = NBody.nvidia
 
-    val (output: Array[Float], _) =
-      Execute(tileX, tileY, threadsX, threadsY, (true, true))(function, pos, vel, espSqr, deltaT)
+    val (output, _) = Execute(tileX, tileY, threadsX, threadsY, (true, true))[Array[Float]](function, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -271,8 +257,8 @@ class TestNBody {
           )) o Split(tileX)) o Split(N/numGroups1) $ Zip(pos, vel)
     )
 
-    val (output: Array[Float], _) =
-      Execute(tileX, tileY, threadsX, threadsY, (true, true))(function, pos, vel, espSqr, deltaT)
+    val (output, _) =
+      Execute(tileX, tileY, threadsX, threadsY, (true, true))[Array[Float]](function, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.0001f)
   }
 

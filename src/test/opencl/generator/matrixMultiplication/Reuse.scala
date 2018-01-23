@@ -4,23 +4,14 @@ import benchmarks.{GEMM, MatrixMultiplication}
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, Utils}
+import opencl.executor.{Execute, TestWithExecutor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object Reuse {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object Reuse extends TestWithExecutor
 
 class Reuse {
 
@@ -103,8 +94,8 @@ class Reuse {
           )) o Transpose() o Tile(tileSizeK, tileSizeM) $ A // Transposed
       })
 
-    val (output: Array[Float], _) = Execute(tileSizeM, tileSizeN / workPerThread,
-      mSize, nSize / workPerThread, (true, true))(f, matrixA.transpose, matrixB)
+    val (output, _) = Execute(tileSizeM, tileSizeN / workPerThread,
+      mSize, nSize / workPerThread, (true, true))[Array[Float]](f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -135,7 +126,7 @@ class Reuse {
           )) o Split(workPerThreadN) $ A
     )
 
-    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB)
+    val (output, _) = Execute(mSize * nSize)[Array[Float]](f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -143,7 +134,7 @@ class Reuse {
 
   @Test def mmTiledAndBlockedBInnermost(): Unit = {
 
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val mSize = 512
     val kSize = 512
@@ -161,14 +152,14 @@ class Reuse {
 
     val f = MatrixMultiplication.tiledAndBlockedBInnermost(tileSizeN, tileSizeM, tileSizeK, workPerThreadN, workPerThreadM)
 
-    val (output: Array[Float], _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
-      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB)
+    val (output, _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
+      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))[Array[Float]](f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
 
   @Test def gemmTiledAndBlockedBInnermost(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val mSize = 512
     val kSize = 512
@@ -190,15 +181,15 @@ class Reuse {
 
     val f = GEMM.tiledAndBlockedBInnermost(tileSizeN, tileSizeM, tileSizeK, workPerThreadN, workPerThreadM)
 
-    val (output: Array[Float], _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
-      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB,
+    val (output, _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
+      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))[Array[Float]](f, matrixA.transpose, matrixB,
           matrixC, alpha, beta)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
 
   @Test def mmVectorLoads(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val mSize = 512
     val kSize = 512
@@ -217,14 +208,14 @@ class Reuse {
     val f = MatrixMultiplication.vectorLoads(tileSizeN, tileSizeM, tileSizeK,
       workPerThreadN, workPerThreadM, 8)
 
-    val (output: Array[Float], _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
-      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB)
+    val (output, _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
+      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))[Array[Float]](f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
 
     @Test def mmTiledAndBlockedAInnermost(): Unit = {
-      assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+      assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val mSize = 16
     val kSize = 16
@@ -309,8 +300,8 @@ class Reuse {
           )) o Transpose() o Tile(tileSizeK, tileSizeM) $ A
       })
 
-    val (output: Array[Float], _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
-      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))(f, matrixA.transpose, matrixB)
+    val (output, _) = Execute(tileSizeM / workPerThreadM, tileSizeN / workPerThreadN,
+      mSize / workPerThreadM, nSize / workPerThreadN, (true, true))[Array[Float]](f, matrixA.transpose, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
@@ -340,7 +331,7 @@ class Reuse {
           )) o Split(tileSize) $ A
     )
 
-    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB)
+    val (output, _) = Execute(mSize * nSize)[Array[Float]](f, matrixA, matrixB)
     assertArrayEquals(gold, output, 0.0001f)
   }
 
@@ -370,13 +361,13 @@ class Reuse {
         )) $ A
     )
 
-    val (output: Array[Float], _) = Execute(mSize * nSize)(f, matrixA, matrixB)
+    val (output, _) = Execute(mSize * nSize)[Array[Float]](f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
 
   @Test def mmTiledReuseB(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val mSize = 16
     val kSize = 16
@@ -391,14 +382,14 @@ class Reuse {
 
     val f = MatrixMultiplication.moreWorkPerThread(tileSize, blockSize)
 
-    val (output: Array[Float], _) = Execute(tileSize, tileSize / blockSize,
-      mSize, nSize / blockSize, (true, true))(f, matrixA, matrixB)
+    val (output, _) = Execute(tileSize, tileSize / blockSize,
+      mSize, nSize / blockSize, (true, true))[Array[Float]](f, matrixA, matrixB)
 
     assertArrayEquals(gold, output, 0.0001f)
   }
 
   @Test def mmTiledReuseA(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val mSize = 16
     val kSize = 16
@@ -467,7 +458,7 @@ class Reuse {
           )) o Tile(tileSize) $ A
       })
 
-    val (output: Array[Float], _) = Execute(tileSize/blockSize, tileSize, mSize/blockSize, nSize, (true, false))(f, matrixA, matrixB)
+    val (output, _) = Execute(tileSize/blockSize, tileSize, mSize/blockSize, nSize, (true, false))[Array[Float]](f, matrixA, matrixB)
     assertArrayEquals(gold, output, 0.0001f)
   }
 }

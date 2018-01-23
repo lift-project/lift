@@ -9,25 +9,14 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 import rewriting.SimplifyAndFuse
 
 import scala.collection.immutable
 import scala.io.Source
 import scala.util.Random
 
-object TestStencilRodinia {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestStencilRodinia extends TestWithExecutor
 
 object HotSpotConstants {
 
@@ -67,9 +56,6 @@ object HotSpotConstants {
 
   val cc = 1.0f - (2.0f * ce + 2.0f * cn + 3.0f * ct)
 
-
-
-
 }
 
 class TestStencilRodinia {
@@ -80,7 +66,7 @@ class TestStencilRodinia {
   @Test def rodiniaHotspot(): Unit = {
 
     LongTestsEnabled()
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     // p = powerValue, t = heatNbh; userfun has to compute:
     // out = t[0,0] + c(p + y(t[-1,0] + t[1,0] - 2t[0,0]) +
@@ -179,7 +165,7 @@ class TestStencilRodinia {
     val c = 1.068e-7f
     val coeff = Array(0, c * y, 0, c * x, c * (-2 * y - 2 * x - z + 1), c * x, 0, c * y, 0)
 
-    val (output: Array[Float], runtime) = Execute(16, 16, 1184, 1184, (true, true))(rodinia, heat, power, coeff)
+    val (output, runtime) = Execute(16, 16, 1184, 1184, (true, true))[Array[Float]](rodinia, heat, power, coeff)
     //val (output: Array[Float], runtime) = Execute(16,16, 9376, 9376, (true, true))(rodinia, heat, power, coeff)
   }
 
@@ -208,7 +194,7 @@ class TestStencilRodinia {
     // testing
     val input = Array.tabulate(8, 512, 512) { (i, j, k) => Random.nextFloat() }
     val weights = Array.tabulate(27) { (i) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(64, 4, 1, 512, 512, 1, (true, true))(stencil, input, weights)
+    val (output, runtime) = Execute(64, 4, 1, 512, 512, 1, (true, true))[Array[Float]](stencil, input, weights)
   }
 
   // rodinia 3d opt1
@@ -233,11 +219,11 @@ class TestStencilRodinia {
 
     val input = Array.fill(8)(Array.fill(512)(Array.fill(512)(1.0f)))
     val weights = Array.fill(3)(Array.fill(3)(1.0f))
-    val (output: Array[Float], runtime) = Execute(64, 4, 1, 512, 512, 8, (true, true))(stencil, input)
+    val (output, runtime) = Execute(64, 4, 1, 512, 512, 8, (true, true))[Array[Float]](stencil, input)
   }
 
   @Test def rodiniaHotspot3DLocalMemory(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val stencil = fun(
       ArrayType(ArrayType(ArrayType(Float, 512), 512), 8),
@@ -254,7 +240,7 @@ class TestStencilRodinia {
 
     // testing
     val input = Array.tabulate(8, 512, 512) { (i, j, k) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(64, 4, 1, 512, 512, 1, (true, true))(stencil, input)
+    val (output, runtime) = Execute(64, 4, 1, 512, 512, 1, (true, true))[Array[Float]](stencil, input)
   }
 
   @Test
@@ -321,7 +307,7 @@ class TestStencilRodinia {
     val newLambda = SimplifyAndFuse(rodiniaHotSpot3D)
     val source = Compile(newLambda, 32, 4, 2, 512, 512, 8, immutable.Map())
 
-    val (output: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(source,newLambda, tempInput, powerInput, HotSpotConstants.ce,HotSpotConstants.cw,HotSpotConstants.cn,HotSpotConstants.cs,HotSpotConstants.ct,HotSpotConstants.cb,HotSpotConstants.cc,HotSpotConstants.stepDivCap)
+    val (output, runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](source,newLambda, tempInput, powerInput, HotSpotConstants.ce,HotSpotConstants.cw,HotSpotConstants.cn,HotSpotConstants.cs,HotSpotConstants.ct,HotSpotConstants.cb,HotSpotConstants.cc,HotSpotConstants.stepDivCap)
 
     if(StencilUtilities.printOutput)
     {
@@ -418,7 +404,7 @@ class TestStencilRodinia {
     val newLambda = SimplifyAndFuse(sradKernel1)
     val source = Compile(newLambda)
 
-    val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (true, true))(source, newLambda, imageValues2D)
+    val (output, runtime) = Execute(2, 2, 2, 2, (true, true))[Array[Float]](source, newLambda, imageValues2D)
 
     // undo the transpose
     val outputRemixed = output.sliding(Ncols, Ncols).toArray
@@ -496,7 +482,7 @@ class TestStencilRodinia {
     val source = Compile(newLambda)
     println(source)
 
-    val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (true, true))(source, newLambda, imageValues2D,q0sqr)
+    val (output, runtime) = Execute(2, 2, 2, 2, (true, true))[Array[Float]](source, newLambda, imageValues2D,q0sqr)
 
     // undo the transpose
     val outputRemixed = output.sliding(Ncols, Ncols).toArray
@@ -580,7 +566,7 @@ class TestStencilRodinia {
     val newLambda = SimplifyAndFuse(sradKernel2)
     val source = Compile(newLambda)
 
-    val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (true, true))(source, newLambda, imageValues2D, coeffValues2D)
+    val (output, runtime) = Execute(2, 2, 2, 2, (true, true))[Array[Float]](source, newLambda, imageValues2D, coeffValues2D)
     val outputRemixed = output.sliding(Ncols, Ncols).toArray
     val outputRemixed2 = outputRemixed.transpose
 
@@ -685,7 +671,7 @@ class TestStencilRodinia {
     val newLambda = SimplifyAndFuse(sradKernel2)
     val source = Compile(newLambda)
 
-    val (output: Array[Float], runtime) = Execute(2, 2, 2, 2, (true, true))(source, newLambda, imageValues2D, coeffValues2D, DNValues2D, DSValues2D, DEValues2D, DWValues2D)
+    val (output, runtime) = Execute(2, 2, 2, 2, (true, true))[Array[Float]](source, newLambda, imageValues2D, coeffValues2D, DNValues2D, DSValues2D, DEValues2D, DWValues2D)
     val outputRemixed = output.sliding(Ncols, Ncols).toArray
     val outputRemixed2 = outputRemixed.transpose
 

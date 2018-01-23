@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapLcl, MapSeq, MapWrg}
 import org.junit.Assert._
 import org.junit._
+import utils.Printer
 
 class TestOpenCLGenerator {
 
@@ -108,7 +109,7 @@ class TestOpenCLGenerator {
 
     assertFalse(code.contains("attribute"))
   }
-  
+
   /**
    * The printer used to omit the comma in some situations.
    * see commit: 649c3b88a
@@ -119,19 +120,19 @@ class TestOpenCLGenerator {
     val ty = TupleType(Int, Int)
     val node = StructConstructor(ty, Vector(n, n))
     val code = OpenCLPrinter().apply(node)
-    
+
     // Before 649c3b88a1f26133: "(Tuple2_int_int){4242}"
     assertEquals(s"(${Type.name(ty)}){42, 42}", code)
   }
-  
+
   @Test
   def printFraction(): Unit = {
     val num = a pow 2
     val den = b + c
-    
+
     assertEquals(
-      s"((${OpenCLPrinter.toString(num)})/(${OpenCLPrinter.toString(den)}))",
-      OpenCLPrinter.toString(num /^ den)
+      s"((${Printer.toString(num)})/(${Printer.toString(den)}))",
+      Printer.toString(num /^ den)
     )
   }
 }

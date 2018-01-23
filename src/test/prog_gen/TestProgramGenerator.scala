@@ -3,7 +3,7 @@ package prog_gen
 import ir._
 import ir.ast._
 import ir.interpreter.Interpreter
-import opencl.executor.{Compile, Execute, Executor, LongTestsEnabled}
+import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{ReduceSeq, toGlobal}
 import org.junit.Assert._
@@ -12,25 +12,26 @@ import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
 
-object TestProgramGenerator {
+object TestProgramGenerator extends TestWithExecutor {
 
-  var generator: ProgramGenerator = _
-  var generatedPrograms = Array[Lambda]()
+  private var generator: ProgramGenerator = _
+  private var generatedPrograms = Array[Lambda]()
 
   @BeforeClass
-  def before(): Unit = {
-    Executor.loadAndInit()
+  override def before(): Unit = {
+    super.before()
     generator = new ProgramGenerator
 
     // TODO: No randomness and less iterations for testing?
     if (LongTestsEnabled.areEnabled)
       generatedPrograms = generator.generatePrograms()
-
   }
 
   @AfterClass
-  def after(): Unit =
-    Executor.shutdown()
+  override def after(): Unit = {
+    generatedPrograms = Array()
+    super.after()
+  }
 
 }
 
@@ -168,7 +169,7 @@ class TestProgramGenerator {
     val Args = InputGenerator()(fs.head)
 
     val output_int = Interpreter(f).->[Vector[Vector[Float]]].runAndFlatten(Args:_*).toArray[Float]
-    val(output_exe:Array[Float],_)= Execute(1,32)(code,fs.head,Args:_*)
+    val (output_exe, _) = Execute(1,32)[Array[Float]](code,fs.head,Args:_*)
     assertArrayEquals(output_int, output_exe, 0.0f)
   }
 }

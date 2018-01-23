@@ -21,13 +21,6 @@ abstract class Decl extends IRNode
  */
 abstract class FunDecl(val arity: Int) extends Decl {
 
-  /**
-   * Indicating if it is possible to generate code for this function declaration.
-   * Might be overwritten by a subclass or by mixing in the `isGenerable` trait.
-   */
-  def isGenerable: Boolean
-
-
   def checkType(argType: Type, setType: Boolean): Type
 
 
@@ -77,7 +70,7 @@ abstract class FunDecl(val arity: Int) extends Decl {
    */
   def apply(args : Expr*) : Expr = {
     assert (args.length == arity)
-    new FunCall(this, args:_*)
+    FunCall(this, args:_*)
   }
 
   /**
@@ -128,14 +121,17 @@ object FunDecl {
     * @return The lambda expression `l` where all occurrences of `oldE` are
     *         replaced with `newE`
     */
-  def replace(l: Lambda, oldE: Expr, newE: Expr) : Lambda = {
-    val newBody = Expr.replace(l.body, oldE, newE)
+  def replace(l: Lambda, oldE: Expr, newE: Expr) : Lambda =
+    replace(l, expr => if (expr eq oldE) newE else expr)
 
-    val replaceInParams = newE.isInstanceOf[Param] && l.params.contains(oldE)
+  def replace(l: Lambda, f: Expr => Expr) : Lambda = {
+    val newBody = Expr.replace(l.body, f)
+
+    val replaceInParams = l.params.exists(p => !(f(p) eq p))
 
     val newParams =
       if (replaceInParams)
-        l.params.map(Expr.replace(_, oldE, newE).asInstanceOf[Param])
+        l.params.map(Expr.replace(_, f).asInstanceOf[Param])
       else
         l.params
 
@@ -145,11 +141,4 @@ object FunDecl {
       Lambda(newParams, newBody)
   }
 
-}
-
-/**
- * A trait indicating that code can be generated for this function declaration.
- */
-trait isGenerable extends FunDecl {
-  override val isGenerable = true
 }

@@ -8,18 +8,9 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestDerivingTiling {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object TestDerivingTiling extends TestWithExecutor
 
 class TestDerivingTiling {
 
@@ -42,7 +33,7 @@ class TestDerivingTiling {
       input => MapGlb(MapSeq(plusOne)) $ input
     )
 
-    val (output: Array[Float], _) = Execute(1, nSize)(f, matrix)
+    val (output, _) = Execute(1, nSize)[Array[Float]](f, matrix)
     assertArrayEquals(gold, output, 0.0f)
 
     // split-join
@@ -51,7 +42,7 @@ class TestDerivingTiling {
       input => Join() o MapGlb(MapSeq(MapSeq(plusOne))) o Split(tileSizeN) $ input
     )
 
-    val (output1: Array[Float], _) = Execute(1, nSize)(f1, matrix)
+    val (output1, _) = Execute(1, nSize)[Array[Float]](f1, matrix)
     assertArrayEquals(gold, output1, 0.0f)
 
     // Transpose both sides
@@ -60,7 +51,7 @@ class TestDerivingTiling {
       input => Join() o MapGlb(TransposeW() o MapSeq(MapSeq(plusOne)) o Transpose()) o Split(tileSizeN) $ input
     )
 
-    val (output2: Array[Float], _) = Execute(1, nSize)(f2, matrix)
+    val (output2, _) = Execute(1, nSize)[Array[Float]](f2, matrix)
     assertArrayEquals(gold, output2, 0.0f)
 
     // split-join
@@ -69,7 +60,7 @@ class TestDerivingTiling {
       input => Join() o MapGlb(TransposeW() o Join() o MapSeq(MapSeq(MapSeq(plusOne))) o Split(tileSizeM) o Transpose()) o Split(tileSizeN) $ input
     )
 
-    val (output3: Array[Float], _) = Execute(1, nSize)(f3, matrix)
+    val (output3, _) = Execute(1, nSize)[Array[Float]](f3, matrix)
     assertArrayEquals(gold, output3, 0.0f)
 
     // Transpose both sides
@@ -78,7 +69,7 @@ class TestDerivingTiling {
       input => Join() o MapGlb(TransposeW() o Join() o MapSeq(TransposeW() o MapSeq(MapSeq(plusOne)) o Transpose()) o Split(tileSizeM) o Transpose()) o Split(tileSizeN) $ input
     )
 
-    val (output4: Array[Float], _) = Execute(1, nSize)(f4, matrix)
+    val (output4, _) = Execute(1, nSize)[Array[Float]](f4, matrix)
     assertArrayEquals(gold, output4, 0.0f)
 
     // Map fission, pull out splits, joins and transposes
@@ -89,7 +80,7 @@ class TestDerivingTiling {
         o Map(Map(Transpose()) o Split(tileSizeM) o Transpose()) o Split(tileSizeN) $ input
     )
 
-    val (output5: Array[Float], _) = Execute(1, nSize)(f5, matrix)
+    val (output5, _) = Execute(1, nSize)[Array[Float]](f5, matrix)
     assertArrayEquals(gold, output5, 0.0f)
 
 
@@ -101,7 +92,7 @@ class TestDerivingTiling {
         o Tile(tileSizeN, tileSizeM) $ input
     )
 
-    val (output6: Array[Float], _) = Execute(1, nSize)(f6, matrix)
+    val (output6, _) = Execute(1, nSize)[Array[Float]](f6, matrix)
     assertArrayEquals(gold, output6, 0.0f)
   }
 
@@ -136,7 +127,7 @@ class TestDerivingTiling {
         )) $ A
       })
 
-    val (output: Array[Float], _) = Execute(1, mSize)(f, matrixA, transposedMatrixB)
+    val (output, _) = Execute(1, mSize)[Array[Float]](f, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output, 0.0f)
 
     // split-join
@@ -153,7 +144,7 @@ class TestDerivingTiling {
         )) o Split(tileSize) $ A
       })
 
-    val (output1: Array[Float], _) = Execute(1, mSize)(f1, matrixA, transposedMatrixB)
+    val (output1, _) = Execute(1, mSize)[Array[Float]](f1, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output1, 0.0f)
 
     // Map-Map interchange
@@ -170,7 +161,7 @@ class TestDerivingTiling {
         )) o Split(tileSize) $ A
       })
 
-    val (output2: Array[Float], _) = Execute(1, mSize)(f2, matrixA, transposedMatrixB)
+    val (output2, _) = Execute(1, mSize)[Array[Float]](f2, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output2, 0.0f)
 
     // split-join
@@ -189,7 +180,7 @@ class TestDerivingTiling {
         )) o Split(tileSize) $ A
       })
 
-    val (output3: Array[Float], _) = Execute(1, mSize)(f3, matrixA, transposedMatrixB)
+    val (output3, _) = Execute(1, mSize)[Array[Float]](f3, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output3, 0.0f)
 
     // Map-Map interchange
@@ -208,7 +199,7 @@ class TestDerivingTiling {
         )) o Split(tileSize) $ A
       })
 
-    val (output4: Array[Float], _) = Execute(1, mSize)(f4, matrixA, transposedMatrixB)
+    val (output4, _) = Execute(1, mSize)[Array[Float]](f4, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output4, 0.0f)
 
     // Map fission, pull out joins and transposes
@@ -228,7 +219,7 @@ class TestDerivingTiling {
           )) o Split(tileSize) $ A
       })
 
-    val (output5: Array[Float], _) = Execute(1, mSize)(f5, matrixA, transposedMatrixB)
+    val (output5, _) = Execute(1, mSize)[Array[Float]](f5, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output5, 0.0f)
 
     // Replace with predefined untile
@@ -248,7 +239,7 @@ class TestDerivingTiling {
           )) o Split(tileSize) $ A
       })
 
-    val (output6: Array[Float], _) = Execute(1, mSize)(f6, matrixA, transposedMatrixB)
+    val (output6, _) = Execute(1, mSize)[Array[Float]](f6, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output6, 0.0f)
 
     // Partial Reduce
@@ -271,7 +262,7 @@ class TestDerivingTiling {
           )) o Split(tileSize) $ A
       })
 
-    val (output7: Array[Float], _) = Execute(1, mSize)(f7, matrixA, transposedMatrixB)
+    val (output7, _) = Execute(1, mSize)[Array[Float]](f7, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output7, 0.0f)
 
     // Map fission
@@ -294,7 +285,7 @@ class TestDerivingTiling {
           )) o Split(tileSize) $ A
       })
 
-    val (output8: Array[Float], _) = Execute(1, mSize)(f8, matrixA, transposedMatrixB)
+    val (output8, _) = Execute(1, mSize)[Array[Float]](f8, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output8, 0.0f)
 
     // Map-Reduce interchange
@@ -319,7 +310,7 @@ class TestDerivingTiling {
           )) o Split(tileSize) $ A
       })
 
-    val (output9: Array[Float], _) = Execute(1, mSize)(f9, matrixA, transposedMatrixB)
+    val (output9, _) = Execute(1, mSize)[Array[Float]](f9, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output9, 0.0f)
 
     // Map fission
@@ -344,7 +335,7 @@ class TestDerivingTiling {
           )) o Split(tileSize) $ A
       })
 
-    val (output10: Array[Float], _) = Execute(1, mSize)(f10, matrixA, transposedMatrixB)
+    val (output10, _) = Execute(1, mSize)[Array[Float]](f10, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output10, 0.0f)
 
     // Map fission
@@ -369,7 +360,7 @@ class TestDerivingTiling {
           )) o Split(tileSize) $ A
       })
 
-    val (output11: Array[Float], _) = Execute(1, mSize)(f11, matrixA, transposedMatrixB)
+    val (output11, _) = Execute(1, mSize)[Array[Float]](f11, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output11, 0.0f)
 
     // Map-Reduce interchange
@@ -403,7 +394,7 @@ class TestDerivingTiling {
           )) o Split(tileSize) $ A
       })
 
-    val (output12: Array[Float], _) = Execute(1, mSize)(f12, matrixA, transposedMatrixB)
+    val (output12, _) = Execute(1, mSize)[Array[Float]](f12, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output12, 0.0f)
 
 
@@ -438,7 +429,7 @@ class TestDerivingTiling {
           )) o Split(tileSize) $ A
       })
 
-    val (output13: Array[Float], _) = Execute(1, mSize)(f13, matrixA, transposedMatrixB)
+    val (output13, _) = Execute(1, mSize)[Array[Float]](f13, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output13, 0.0f)
 
 
@@ -474,7 +465,7 @@ class TestDerivingTiling {
               )) o Split(tileSize) $ A
           })
 
-        val (output14: Array[Float], _) = Execute(1, mSize)(f14, matrixA, transposedMatrixB)
+        val (output14, _) = Execute(1, mSize)[Array[Float]](f14, matrixA, transposedMatrixB)
         assertArrayEquals(gold, output14, 0.0f)
 
         // Map fission
@@ -510,7 +501,7 @@ class TestDerivingTiling {
               )) o Split(tileSize) $ A
           })
 
-        val (output15: Array[Float], _) = Execute(1, mSize)(f15, matrixA, transposedMatrixB)
+        val (output15, _) = Execute(1, mSize)[Array[Float]](f15, matrixA, transposedMatrixB)
         assertArrayEquals(gold, output15, 0.0f)
 
         // Map-Map interchange, pulling the zip out
@@ -546,7 +537,7 @@ class TestDerivingTiling {
               )) o Split(tileSize) $ A
           })
 
-        val (output16: Array[Float], _) = Execute(1, mSize)(f16, matrixA, transposedMatrixB)
+        val (output16, _) = Execute(1, mSize)[Array[Float]](f16, matrixA, transposedMatrixB)
         assertArrayEquals(gold, output16, 0.0f)
 
     // Pull transposes out of the zip + map fission
@@ -582,7 +573,7 @@ class TestDerivingTiling {
           )) o Map(Transpose()) o Split(tileSize) $ A
       })
 
-    val (output17: Array[Float], _) = Execute(1, mSize)(f17, matrixA, transposedMatrixB)
+    val (output17, _) = Execute(1, mSize)[Array[Float]](f17, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output17, 0.0f)
 
     // split-join
@@ -619,7 +610,7 @@ class TestDerivingTiling {
           )) o Map(Transpose()) o Split(tileSize) $ A
       })
 
-    val (output18: Array[Float], _) = Execute(1, mSize)(f18, matrixA, transposedMatrixB)
+    val (output18, _) = Execute(1, mSize)[Array[Float]](f18, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output18, 0.0f)
 
     // split-join
@@ -656,7 +647,7 @@ class TestDerivingTiling {
           )) o Map(Transpose()) o Split(tileSize) $ A
       })
 
-    val (output19: Array[Float], _) = Execute(1, mSize)(f19, matrixA, transposedMatrixB)
+    val (output19, _) = Execute(1, mSize)[Array[Float]](f19, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output19, 0.0f)
 
 
@@ -699,7 +690,7 @@ class TestDerivingTiling {
           )) o Map(Split(tileSize) o Transpose()) o Split(tileSize) $ A
       })
 
-    val (output20: Array[Float], _) = Execute(1, mSize)(f20, matrixA, transposedMatrixB)
+    val (output20, _) = Execute(1, mSize)[Array[Float]](f20, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output20, 0.0f)
 
     // Map-Map transpose pushing zip inside
@@ -736,7 +727,7 @@ class TestDerivingTiling {
           )) o Map(Split(tileSize) o Transpose()) o Split(tileSize) $ A
       })
 
-    val (output21: Array[Float], _) = Execute(1, mSize)(f21, matrixA, transposedMatrixB)
+    val (output21, _) = Execute(1, mSize)[Array[Float]](f21, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output21, 0.0f)
 
     // Map-Map transpose pushing zip inside
@@ -773,7 +764,7 @@ class TestDerivingTiling {
           )) o Map(Split(tileSize) o Transpose()) o Split(tileSize) $ A
       })
 
-    val (output22: Array[Float], _) = Execute(1, mSize)(f22, matrixA, transposedMatrixB)
+    val (output22, _) = Execute(1, mSize)[Array[Float]](f22, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output22, 0.0f)
 
     // pull transposes to zip, fission
@@ -810,7 +801,7 @@ class TestDerivingTiling {
           )) o Map(Split(tileSize) o Transpose()) o Split(tileSize) $ A
       })
 
-    val (output23: Array[Float], _) = Execute(1, mSize)(f23, matrixA, transposedMatrixB)
+    val (output23, _) = Execute(1, mSize)[Array[Float]](f23, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output23, 0.0f)
 
     // pull transposes outside zip + fusion
@@ -847,7 +838,7 @@ class TestDerivingTiling {
           )) o Map(Map(Transpose()) o Split(tileSize) o Transpose()) o Split(tileSize) $ A
       })
 
-    val (output24: Array[Float], _) = Execute(1, mSize)(f24, matrixA, transposedMatrixB)
+    val (output24, _) = Execute(1, mSize)[Array[Float]](f24, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output24, 0.0f)
 
     // replace with predefined tile
@@ -906,7 +897,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output25: Array[Float], _) = Execute(1, mSize)(f25, matrixA, transposedMatrixB)
+    val (output25, _) = Execute(1, mSize)[Array[Float]](f25, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output25, 0.0f)
 
     // Can't transpose both sides of a map if there is a split on one of those dimensions inside
@@ -946,7 +937,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output26: Array[Float], _) = Execute(1, mSize)(f26, matrixA, transposedMatrixB)
+    val (output26, _) = Execute(1, mSize)[Array[Float]](f26, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output26, 0.0f)
 
     // transpose both sides + transpose o transpose => id
@@ -983,7 +974,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output27: Array[Float], _) = Execute(1, mSize)(f27, matrixA, transposedMatrixB)
+    val (output27, _) = Execute(1, mSize)[Array[Float]](f27, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output27, 0.0f)
 
     // map(split) o transpose => transpose o map(transpose) o split
@@ -1020,7 +1011,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output28: Array[Float], _) = Execute(1, mSize)(f28, matrixA, transposedMatrixB)
+    val (output28, _) = Execute(1, mSize)[Array[Float]](f28, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output28, 0.0f)
 
     // split o join => id
@@ -1057,7 +1048,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output29: Array[Float], _) = Execute(1, mSize)(f29, matrixA, transposedMatrixB)
+    val (output29, _) = Execute(1, mSize)[Array[Float]](f29, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output29, 0.0f)
 
     // transpose both sides + transpose o transpose => id
@@ -1093,7 +1084,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output30: Array[Float], _) = Execute(1, mSize)(f30, matrixA, transposedMatrixB)
+    val (output30, _) = Execute(1, mSize)[Array[Float]](f30, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output30, 0.0f)
 
     // Map fusion + transpose o transpose => id
@@ -1128,7 +1119,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output31: Array[Float], _) = Execute(1, mSize)(f31, matrixA, transposedMatrixB)
+    val (output31, _) = Execute(1, mSize)[Array[Float]](f31, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output31, 0.0f)
 
     // Map fission + Map fusion + transpose o transpose => id
@@ -1162,7 +1153,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output32: Array[Float], _) = Execute(1, mSize)(f32, matrixA, transposedMatrixB)
+    val (output32, _) = Execute(1, mSize)[Array[Float]](f32, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output32, 0.0f)
 
     // Map fusion
@@ -1196,7 +1187,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output33: Array[Float], _) = Execute(1, mSize)(f33, matrixA, transposedMatrixB)
+    val (output33, _) = Execute(1, mSize)[Array[Float]](f33, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output33, 0.0f)
 
     // Map fusion
@@ -1229,7 +1220,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output34: Array[Float], _) = Execute(1, mSize)(f34, matrixA, transposedMatrixB)
+    val (output34, _) = Execute(1, mSize)[Array[Float]](f34, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output34, 0.0f)
 
     // Map fusion
@@ -1262,7 +1253,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output35: Array[Float], _) = Execute(1, mSize)(f35, matrixA, transposedMatrixB)
+    val (output35, _) = Execute(1, mSize)[Array[Float]](f35, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output35, 0.0f)
 
     // ReduceSeq o MapSeq fusion
@@ -1294,7 +1285,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output36: Array[Float], _) = Execute(1, mSize)(f36, matrixA, transposedMatrixB)
+    val (output36, _) = Execute(1, mSize)[Array[Float]](f36, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output36, 0.0f)
 
     // Map fission, separate join
@@ -1326,7 +1317,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output37: Array[Float], _) = Execute(1, mSize)(f37, matrixA, transposedMatrixB)
+    val (output37, _) = Execute(1, mSize)[Array[Float]](f37, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output37, 0.0f)
 
     // ReduceSeq o MapSeq fusion
@@ -1361,7 +1352,7 @@ class TestDerivingTiling {
           )) o Tile(tileSize) $ A
       })
 
-    val (output38: Array[Float], _) = Execute(1, mSize)(f38, matrixA, transposedMatrixB)
+    val (output38, _) = Execute(1, mSize)[Array[Float]](f38, matrixA, transposedMatrixB)
     assertArrayEquals(gold, output38, 0.0f)
 
     // Goal reached, same as TestMatrixMatrix.tiledMatrixMultiply2

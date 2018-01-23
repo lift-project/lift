@@ -1,7 +1,7 @@
 package opencl.ir.pattern
 
-import lift.arithmetic.{PosVar, Var}
 import ir.ast._
+import lift.arithmetic.{PosVar, Var}
 
 case class MapAtomLcl(dim: Int, override val f: Lambda1, workVar: Var)
 extends AbstractMap(f, "MapAtomLcl", PosVar("l_id")) {

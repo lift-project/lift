@@ -3,26 +3,14 @@ package opencl.generator
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
 
-object TestFilter {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
-
+object TestFilter extends TestWithExecutor
 
 class TestFilter {
 
@@ -43,7 +31,7 @@ class TestFilter {
         MapGlb(id) $ Filter(input, ids)
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize/2)(compFun, inputData, ids)
+    val (output, runtime) = Execute(inputSize/2)[Array[Float]](compFun, inputData, ids)
     assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
@@ -67,7 +55,7 @@ class TestFilter {
         Join() o MapWrg( MapLcl(id)) o Split(4) $ Filter(input, ids)
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize/2)(compFun, inputData, ids)
+    val (output, runtime) = Execute(inputSize/2)[Array[Float]](compFun, inputData, ids)
     assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
@@ -91,7 +79,7 @@ class TestFilter {
         Join() o MapWrg(fun( x =>  MapLcl(id) $ Filter(x, ids))) o Split(4) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize/2)(compFun, inputData, ids)
+    val (output, runtime) = Execute(inputSize/2)[Array[Float]](compFun, inputData, ids)
     assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
@@ -115,7 +103,7 @@ class TestFilter {
         MapWrg( MapLcl(id)) $ Filter(input, ids)
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize/2)(compFun, inputData, ids)
+    val (output, runtime) = Execute(inputSize/2)[Array[Float]](compFun, inputData, ids)
     assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))
@@ -139,7 +127,7 @@ class TestFilter {
         MapWrg(fun(x =>  MapLcl(id) $ Filter(x, ids))) $ input
     )
 
-    val (output: Array[Float], runtime) = Execute(inputSize/2)(compFun, inputData, ids)
+    val (output, runtime) = Execute(inputSize/2)[Array[Float]](compFun, inputData, ids)
     assertArrayEquals(gold, output, 0.0f)
 
     println("output(0) = " + output(0))

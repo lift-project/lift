@@ -1,11 +1,11 @@
 package analysis
 
 import analysis.AccessCounts.SubstitutionMap
-import lift.arithmetic.{?, Cst}
-import ir.ast.{Expr, Lambda}
+import ir.ast.{AbstractPartRed, Expr, FunCall, Iterate, Lambda}
 import ir.{Memory, UnallocatedMemory}
+import lift.arithmetic.{?, Cst}
 import opencl.generator._
-import opencl.ir.{GlobalMemory, InferOpenCLAddressSpace, LocalMemory, OpenCLMemoryAllocator, TypedOpenCLMemory}
+import opencl.ir.{CollectTypedOpenCLMemory, GlobalMemory, InferOpenCLAddressSpace, LocalMemory, OpenCLMemory, OpenCLMemoryAllocator, PrivateMemory, TypedOpenCLMemory}
 
 object MemoryAmounts {
     def apply(
@@ -57,9 +57,11 @@ class MemoryAmounts(
       OpenCLMemoryAllocator(lambda)
     }
 
+    val allowedPrivate = getReduceAndIteratePrivates
+
     // Get the allocated buffers
-    val kernelMemory = TypedOpenCLMemory.get(lambda.body, lambda.params)
-    val buffers = TypedOpenCLMemory.get(lambda.body, lambda.params, includePrivate = true)
+    val kernelMemory = CollectTypedOpenCLMemory.asFlatSequence(lambda)
+    val buffers = CollectTypedOpenCLMemory.asFlatSequence(lambda, includePrivate = true)
 
     valueMemories =
       Expr.visitWithState(Set[Memory]())(lambda.body, (lambda, set) =>
@@ -69,7 +71,10 @@ class MemoryAmounts(
         })
 
     privateMemories =
-      buffers.diff(kernelMemory).partition(m => valueMemories.contains(m.mem))._2
+      buffers.
+        diff(kernelMemory).
+        filterNot(m => valueMemories.contains(m.mem)).
+        filter(m => allowedPrivate.contains(m.mem))
 
     localMemories = buffers.filter(_.mem.addressSpace == LocalMemory)
     globalMemories = buffers.filter(_.mem.addressSpace == GlobalMemory)

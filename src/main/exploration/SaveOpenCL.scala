@@ -12,7 +12,7 @@ import opencl.generator.{IllegalKernel, OpenCLGenerator}
 import opencl.ir._
 import opencl.ir.ast._
 import rewriting.InferNDRange
-import rewriting.utils.Utils
+import rewriting.utils.{DumpToFile, Utils}
 
 import scala.sys.process._
 
@@ -76,7 +76,8 @@ class SaveOpenCL(
       case _: IllegalKernel =>
         None
       case t: Throwable =>
-        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${tuple._2.mkString(",")})", t)
+        logger.warn(s"Failed compilation $highLevelHash/$lowLevelHash (${tuple._2.mkString(",")}), " +
+          s"NDRanges: (${tuple._3._1.toString}, ${tuple._3._2.toString})", t)
         None
     }
   }
@@ -107,7 +108,7 @@ class SaveOpenCL(
          |$code
          |""".stripMargin
 
-    Utils.findAndReplaceVariableNames(kernel)
+    DumpToFile.findAndReplaceVariableNames(kernel)
   }
 
   private def dumpOpenCLToFiles(tuple: (Lambda, Seq[ArithExpr], (NDRange, NDRange)), kernel: String): Option[String] = {
@@ -130,7 +131,7 @@ class SaveOpenCL(
     val (_, buffers) = OpenCLGenerator.getMemories(lambda)
     val (localBuffers, globalBuffers) = buffers.partition(_.mem.addressSpace == LocalMemory)
 
-    val dumped = Utils.dumpToFile(kernel, filename, path)
+    val dumped = DumpToFile.dumpToFile(kernel, filename, path)
     if (dumped) {
       createCsv(hash, path, lambda.params.length, globalBuffers, localBuffers)
 
@@ -146,8 +147,8 @@ class SaveOpenCL(
   }
 
   private def createCsv(hash: String, path: String, numParams: Int,
-                        globalBuffers: Array[TypedOpenCLMemory],
-                        localBuffers: Array[TypedOpenCLMemory]): Unit = {
+                        globalBuffers: Seq[TypedOpenCLMemory],
+                        localBuffers: Seq[TypedOpenCLMemory]): Unit = {
 
     inputCombinations.foreach(sizes => {
 
@@ -173,9 +174,9 @@ class SaveOpenCL(
           local.map(ArithExpr.substitute(_, inputVarMapping)).toString +
           s",$hash," + globalTempAlloc.length + "," +
           globalTempAlloc.mkString(",") +
-          (if (globalTempAlloc.length == 0) "" else ",") +
+          (if (globalTempAlloc.isEmpty) "" else ",") +
           localTempAlloc.length +
-          (if (localTempAlloc.length == 0) "" else ",") +
+          (if (localTempAlloc.isEmpty) "" else ",") +
           localTempAlloc.mkString(",")+ "\n")
 
         fileWriter.close()
@@ -183,7 +184,7 @@ class SaveOpenCL(
     })
   }
 
-  def statsHeader =
+  def statsHeader: String =
     "hash," +
     "globalSize0,globalSize1,globalSize2,localSize0,localSize1,localSize2," +
     "globalMemory,localMemory,privateMemory," +
@@ -207,12 +208,16 @@ class SaveOpenCL(
 
     inputCombinations.foreach(sizes => {
 
-      val string = getStatsString(lambda, hash, sizes)
+      val (stats, userfunCounts) = getStatsString(lambda, hash, sizes)
       val sizeId = getSizeId(sizes)
 
-      val fileWriter = new FileWriter(s"$path/stats_$sizeId.csv", true)
-      fileWriter.write(string)
-      fileWriter.close()
+      val statsWriter = new FileWriter(s"$path/stats_$sizeId.csv", true)
+      statsWriter.write(stats)
+      statsWriter.close()
+
+      val userFunWriter = new FileWriter(s"$path/userfuns_$sizeId.csv", true)
+      userFunWriter.write(userfunCounts)
+      userFunWriter.close()
     })
   }
 
@@ -225,7 +230,7 @@ class SaveOpenCL(
     sizeId
   }
 
-  def getStatsString(lambda: Lambda, hash: String, sizes: Seq[ArithExpr]): String = {
+  def getStatsString(lambda: Lambda, hash: String, sizes: Seq[ArithExpr]): (String, String) = {
 
     val exact = true
     val inputVarMapping: Map[ArithExpr, ArithExpr] = (sizeArgs, sizes).zipped.toMap
@@ -328,6 +333,14 @@ class SaveOpenCL(
     val opCount =
       addScalarCount + multScalarCount + addVecCount + multVecCount + dotCount
 
+    val allFunctions = functionCounts.getFunctions
+
+    val allUserFunctionCounts = hash + "," + allFunctions.map(function => {
+      val count = functionCounts.getFunctionCount(function, exact).evalDouble
+      val vectorisedCount = functionCounts.getVectorisedCount(function, exact).evalDouble
+      s"$function,$count,$vectorisedCount"
+    }).mkString(", ") + "\n"
+
     val string =
       s"$hash,${globalSizes.toString},${localSizes.toString}," +
         s"$globalMemory,$localMemory,$privateMemory," +
@@ -348,7 +361,7 @@ class SaveOpenCL(
         s"$addScalarCount,$multScalarCount," +
         s"$addVecCount,$multVecCount,$addMult,$vecAddMult,$dotCount,$opCount\n"
 
-    string
+    (string, allUserFunctionCounts)
   }
 
 }

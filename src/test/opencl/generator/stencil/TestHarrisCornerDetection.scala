@@ -7,22 +7,11 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
-import org.junit.{AfterClass, BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 
 import scala.util.Random
 
-object TestHarrisCornerDetection {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestHarrisCornerDetection extends TestWithExecutor
 
 /**
   * Tests computation stages of the harris corner detection application.
@@ -37,7 +26,7 @@ class TestHarrisCornerDetection {
        STAGE 0 - compute X and Y derivatives of image
   ***********************************************************/
   @Test def computeDerivativeX(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val stencil = fun(
       ArrayType(ArrayType(Float, 1536), 2560),
@@ -56,7 +45,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array.tabulate(2560, 1536) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(stencil, input, sobelX)
+    val (output, runtime) = Execute(16, 8, 2560, 1536, (true, true))[Array[Float]](stencil, input, sobelX)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -67,7 +56,7 @@ class TestHarrisCornerDetection {
        STAGE 1 - compute products of derivatives
   ***********************************************************/
   @Test def computeDerivativeXX(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
     LongTestsEnabled()
 
     val mult = fun(
@@ -78,7 +67,7 @@ class TestHarrisCornerDetection {
     )
 
     val input = Array.tabulate(2558, 1534) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(mult, input)
+    val (output, runtime) = Execute(16, 8, 2560, 1536, (true, true))[Array[Float]](mult, input)
     println("Runtime: " + runtime)
 
     val gold = input.flatten.map(x => x * x)
@@ -88,7 +77,7 @@ class TestHarrisCornerDetection {
 
   @Ignore //does not test anything yet
   @Test def computeDerivativeXY(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val mult = fun(
       ArrayType(ArrayType(Float, 1534), 2558),
@@ -100,7 +89,7 @@ class TestHarrisCornerDetection {
 
     val input1 = Array.tabulate(2558, 1534) { (i, j) => Random.nextFloat() }
     val input2 = Array.tabulate(2558, 1534) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(mult, input1, input2)
+    val (output, runtime) = Execute(16, 8, 2560, 1536, (true, true))[Array[Float]](mult, input1, input2)
     println("Runtime: " + runtime)
 
     //todo scala check
@@ -110,7 +99,7 @@ class TestHarrisCornerDetection {
        STAGE 2 - compute the sums of the products of derivatives
   ***********************************************************/
   @Test def computeSumsOfProducts(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val stencil = fun(
       ArrayType(ArrayType(Float, 1534), 2558),
@@ -123,7 +112,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array.tabulate(2558, 1534) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(stencil, input)
+    val (output, runtime) = Execute(16, 8, 2560, 1536, (true, true))[Array[Float]](stencil, input)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -135,7 +124,7 @@ class TestHarrisCornerDetection {
   ***********************************************************/
   @Ignore //does not test anything yet
   @Test def computedeterminant(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
+    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
     val determinant = fun(
       ArrayType(ArrayType(Float, 1532), 2556),
@@ -154,7 +143,7 @@ class TestHarrisCornerDetection {
     val input1 = Array.tabulate(2556, 1532) { (i, j) => Random.nextFloat() }
     val input2 = Array.tabulate(2556, 1532) { (i, j) => Random.nextFloat() }
     val input3 = Array.tabulate(2556, 1532) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 2560, 1536, (true, true))(determinant, input1, input2, input3)
+    val (output, runtime) = Execute(16, 8, 2560, 1536, (true, true))[Array[Float]](determinant, input1, input2, input3)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -191,7 +180,7 @@ class TestHarrisCornerDetection {
     val input1 = Array.tabulate(1534, 2558) { (i, j) => Random.nextFloat() }
     val input2 = Array.tabulate(1534, 2558) { (i, j) => Random.nextFloat() }
     val input3 = Array.tabulate(1534, 2558) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 8, 1536, 2560, (true, true))(cornerDetection, input1, input2, input3)
+    val (output, runtime) = Execute(16, 8, 1536, 2560, (true, true))[Array[Float]](cornerDetection, input1, input2, input3)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -228,7 +217,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array.tabulate(1536, 2560) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
+    val (output, runtime) = Execute(16, 16, 1536, 2560, (true, true))[Array[Float]](cornerDetection, input)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -293,7 +282,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array.tabulate(1536, 2560) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
+    val (output, runtime) = Execute(16, 16, 1536, 2560, (true, true))[Array[Float]](cornerDetection, input)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -369,7 +358,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array.tabulate(1536, 2560) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
+    val (output, runtime) = Execute(16, 16, 1536, 2560, (true, true))[Array[Float]](cornerDetection, input)
     println("Runtime: " + runtime)
 
     // todo implement
@@ -391,7 +380,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array(0,1,2,3).map(_.toFloat)
-    val (output: Array[Float], runtime) = Execute(1, 1, 1, 1, (true, true))(lambda, input)
+    val (output, runtime) = Execute(1, 1, 1, 1, (true, true))[Array[Float]](lambda, input)
     println("Runtime: " + runtime)
 
     println(output.mkString(","))
@@ -484,7 +473,7 @@ class TestHarrisCornerDetection {
       })
 
     val input = Array.tabulate(1536, 2560) { (i, j) => Random.nextFloat() }
-    val (output: Array[Float], runtime) = Execute(16, 16, 1536, 2560, (true, true))(cornerDetection, input)
+    val (output, runtime) = Execute(16, 16, 1536, 2560, (true, true))[Array[Float]](cornerDetection, input)
     println("Runtime: " + runtime)
 
     // todo implement

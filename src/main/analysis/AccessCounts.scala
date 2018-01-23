@@ -79,6 +79,8 @@ class AccessCounts(
 
   private val accessPatterns = AccessPatterns(lambda, localSize, globalSize, valueMap)
 
+  private val privateMemoriesForCounting = getReduceAndIteratePrivates
+
   count(lambda.body)
 
   override def toString: String = {
@@ -93,7 +95,7 @@ class AccessCounts(
 
   def accesses = (loads, stores)
 
-  def getLoads(memory: Memory, exact: Boolean = false) = {
+  def getLoads(memory: Memory, exact: Boolean = false): ArithExpr = {
     val numLoads = loads.filterKeys({
       case (mem, _, _) if mem == memory => true
       case _ => false
@@ -101,7 +103,7 @@ class AccessCounts(
     getExact(numLoads, exact)
   }
 
-  def getStores(memory: Memory, exact: Boolean = false) = {
+  def getStores(memory: Memory, exact: Boolean = false): ArithExpr = {
     val numStores = stores.filterKeys({
       case (mem, _, _) if mem == memory => true
       case _ => false
@@ -109,38 +111,38 @@ class AccessCounts(
     getExact(numStores, exact)
   }
 
-  def accesses(memory: Memory, exact: Boolean = false) =
+  def accesses(memory: Memory, exact: Boolean = false): ArithExpr =
     getLoads(memory, exact) + getStores(memory, exact)
 
-  def getLoads(addressSpace: OpenCLAddressSpace, exact: Boolean) =
+  def getLoads(addressSpace: OpenCLAddressSpace, exact: Boolean): ArithExpr =
     getExact(loadsToAddressSpaces(addressSpace), exact)
 
-  def getStores(addressSpace: OpenCLAddressSpace, exact: Boolean) =
+  def getStores(addressSpace: OpenCLAddressSpace, exact: Boolean): ArithExpr =
     getExact(storesToAddressSpaces(addressSpace), exact)
 
-  def accesses(addressSpace: OpenCLAddressSpace, exact: Boolean) =
+  def accesses(addressSpace: OpenCLAddressSpace, exact: Boolean): ArithExpr =
     getLoads(addressSpace, exact) + getStores(addressSpace, exact)
 
   def getLoads(addressSpace: OpenCLAddressSpace,
-    accessPattern: AccessPattern, exact: Boolean) = {
+    accessPattern: AccessPattern, exact: Boolean): ArithExpr = {
     val key = (addressSpace, accessPattern)
     getExact(loadsToAddressSpacesWithPattern(key), exact)
   }
 
   def getStores(addressSpace: OpenCLAddressSpace,
-    accessPattern: AccessPattern, exact: Boolean) = {
+    accessPattern: AccessPattern, exact: Boolean): ArithExpr = {
     val key = (addressSpace, accessPattern)
     getExact(storesToAddressSpacesWithPattern(key), exact)
   }
 
   def accesses(addressSpace: OpenCLAddressSpace,
-    accessPattern: AccessPattern, exact: Boolean) =
+    accessPattern: AccessPattern, exact: Boolean): ArithExpr =
 
     getLoads(addressSpace, accessPattern, exact) +
       getStores(addressSpace, accessPattern, exact)
 
   def scalarLoads(addressSpace: OpenCLAddressSpace,
-    accessPattern: AccessPattern, exact: Boolean = false) = {
+    accessPattern: AccessPattern, exact: Boolean = false): ArithExpr = {
 
     val loads = loadsToAddressSpacesWithPatternAndWidth.
       foldLeft(Cst(0): ArithExpr)((acc, loadAndCount) => {
@@ -155,7 +157,7 @@ class AccessCounts(
   }
 
   def scalarStores(addressSpace: OpenCLAddressSpace,
-    accessPattern: AccessPattern, exact: Boolean = false) = {
+    accessPattern: AccessPattern, exact: Boolean = false): ArithExpr = {
 
     val stores = storesToAddressSpacesWithPatternAndWidth.
       foldLeft(Cst(0): ArithExpr)((acc, storeAndCount) => {
@@ -170,7 +172,7 @@ class AccessCounts(
   }
 
   def vectorLoads(addressSpace: OpenCLAddressSpace,
-    accessPattern: AccessPattern, exact: Boolean = false) = {
+    accessPattern: AccessPattern, exact: Boolean = false): ArithExpr = {
 
     val loads = loadsToAddressSpacesWithPatternAndWidth.
       foldLeft(Cst(0): ArithExpr)((acc, loadAndCount) => {
@@ -185,7 +187,7 @@ class AccessCounts(
   }
 
   def vectorStores(addressSpace: OpenCLAddressSpace,
-    accessPattern: AccessPattern, exact: Boolean = false) = {
+    accessPattern: AccessPattern, exact: Boolean = false): ArithExpr = {
 
     val stores = storesToAddressSpacesWithPatternAndWidth.
       foldLeft(Cst(0): ArithExpr)((acc, storeAndCount) => {
@@ -200,7 +202,7 @@ class AccessCounts(
   }
 
   def vectorAccesses(addressSpace: OpenCLAddressSpace,
-    accessPattern: AccessPattern, exact: Boolean = false) =
+    accessPattern: AccessPattern, exact: Boolean = false): ArithExpr =
    vectorLoads(addressSpace, accessPattern, exact) +
      vectorStores(addressSpace, accessPattern, exact)
 
@@ -240,12 +242,17 @@ class AccessCounts(
           zipped.
           foreach((maybePattern, t, mem) => updateEntry(map, mem, maybePattern.get, t))
 
-      case _ =>
+      case (_, _, m) =>
 
         val vectorWidth = Type.getValueType(t) match {
           case VectorType(_, n) => n
           case _ => Cst(1)
         }
+
+        if (m.isInstanceOf[OpenCLMemory] &&
+          m.asInstanceOf[OpenCLMemory].addressSpace == PrivateMemory &&
+        !privateMemoriesForCounting.contains(m))
+          return
 
         val key = (memory, pattern, vectorWidth)
         val loadsSoFar = map(key)
@@ -277,7 +284,7 @@ class AccessCounts(
             val n = Type.getLength(args(1).t)
             count(reduceSeq.f, n)
 
-          case Iterate(n, nestedLambda) =>
+          case Iterate(n, nestedLambda, _, _) =>
             count(nestedLambda, n)
 
           case l: Lambda => count(l.body)

@@ -1,0 +1,52 @@
+    val m = SizeVar("M")
+    val n = SizeVar("N")
+    val o = SizeVar("O")
+
+    val calculateHotspot = UserFun("calculateHotspot", Array("tInC", "cc", "tInN", "cn", "tInS", "cs", "tInE", "ce", "tInW", "cw", "tInT", "ct", "tInB", "cb", "stepDivCap", "pInC", "amb_temp"),
+      "{ return  tInC*cc + tInN*cn + tInS*cs + tInE*ce + tInW*cw + tInT*ct + tInB*cb + stepDivCap * pInC + ct*amb_temp; }", Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
+fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      (temp, power) => {
+        Map(Map(Map(fun((m) => {
+        val ce = 0.03413332998752593994f
+        val cw = 0.03413332998752593994f
+        val cn = 0.03413332998752593994f
+        val cs = 0.03413332998752593994f
+        val ct = 0.00053333328105509281f
+        val cb = 0.00053333328105509281f
+        val cc = 0.86186665296554565430f
+        val stepDivCap = 0.34133329987525939941f
+
+          val amb_temp = 80.0f
+          val ct_amb_temp = fun(x => mult(x, ct)) $ amb_temp
+
+          val tInC = Get(m, 1).at(1).at(1).at(1)
+          val tIncCC = toPrivate(fun(x => mult(x, cc))) $ tInC
+
+          val tInW = Get(m, 1).at(0).at(1).at(1)
+          val tIncW = toPrivate(fun(x => mult(x, cw))) $ tInW
+
+          val tInN = Get(m, 1).at(1).at(0).at(1)
+          val tIncN = toPrivate(fun(x => mult(x, cn))) $ tInN
+
+          val tInB = Get(m, 1).at(1).at(1).at(0)
+          val tIncB = toPrivate(fun(x => mult(x, cb))) $ tInB
+
+          val tInT = Get(m, 1).at(1).at(1).at(2)
+          val tIncT = toPrivate(fun(x => mult(x, ct))) $ tInT
+
+          val tInS = Get(m, 1).at(1).at(2).at(1)
+          val tIncS = toPrivate(fun(x => mult(x, cs))) $ tInS
+
+          val tInE = Get(m, 1).at(2).at(1).at(1)
+          val tIncE = toPrivate(fun(x => mult(x, ce))) $ tInE
+
+          val pInc = Get(m, 0)
+          val pcSDC = toPrivate(fun(x => mult(x, stepDivCap))) $ pInc
+
+          fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp)) $ tInC
+        })))
+        ) $ Zip3D(power, Slide3D(3,1) o Pad3D(1, 1, 1, Pad.Boundary.Clamp) $ temp)
+      })

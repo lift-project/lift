@@ -9,13 +9,13 @@ import scala.collection.immutable.Map
 
 object ParameterSearch {
   // A substitution map is a collection of var/value pairs
-  type SubstitutionMap = Map[ArithExpr, ArithExpr]
+  private type SubstitutionMap = Map[ArithExpr, ArithExpr]
 
   // A substitution table represents all valid substitution maps
-  type SubstitutionTable = List[SubstitutionMap]
+  private type SubstitutionTable = List[SubstitutionMap]
 
   private def propagate(splits: List[(ArithExpr, ArithExpr)],
-                m: Map[ArithExpr, ArithExpr]): List[(ArithExpr, ArithExpr)] =
+                m: SubstitutionMap): List[(ArithExpr, ArithExpr)] =
     splits.map((x) => (ArithExpr.substitute(x._1, m), ArithExpr.substitute(x._2, m)))
 
   // recursively build the substitution table.
@@ -54,7 +54,7 @@ object ParameterSearch {
    * @param lambda The lambda to build substitutions for.
    * @return Table of valid substitutions.
    */
-  def apply(lambda: Lambda): SubstitutionTable = {
+  def apply(lambda: Lambda): List[Map[Var, ArithExpr]] = {
     // find all the nodes using variables
     val tunableNodes = Utils.findTunableNodes(lambda)
 
@@ -66,6 +66,8 @@ object ParameterSearch {
       case FunCall(Gather(ReorderWithStride(s)), x) if s.isInstanceOf[Var] => (s, x.t.asInstanceOf[ArrayType with Size].size)
     })
 
-    substitute(splits, Map.empty, List.empty)
+    val st = substitute(splits, Map.empty, List.empty)
+    // By construction only Vars are keys, but Arith.substitute can't be called with Map[Var, ArithExpr]
+    st.map(sm => sm.map(x => x._1.asInstanceOf[Var] -> x._2))
   }
 }

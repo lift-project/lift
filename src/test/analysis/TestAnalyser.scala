@@ -273,7 +273,7 @@ class TestAnalyser {
 
     assertEquals(12582912l, globalMemory)
     assertEquals(12288l, localMemory)
-    assertEquals(272l, privateMemory)
+    assertEquals(128l, privateMemory)
 
     val scalarGlobalStores =
       accessCounts.scalarStores(GlobalMemory, UnknownPattern, exact).evalDouble
@@ -294,8 +294,8 @@ class TestAnalyser {
     val privateScalarLoads =
       accessCounts.scalarLoads(PrivateMemory, UnknownPattern, exact).evalDouble
 
-    assertEquals(69664.0, privateScalarStores, 0.0)
-    assertEquals(98368.0, privateScalarLoads, 0.0)
+    assertEquals(32800.0, privateScalarStores, 0.0)
+    assertEquals(32800.0, privateScalarLoads, 0.0)
 
     val barriers = barrierCounts.getTotalCount(exact).evalDouble
 

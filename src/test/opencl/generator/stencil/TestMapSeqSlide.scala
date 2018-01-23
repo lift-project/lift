@@ -1,30 +1,17 @@
 package opencl.generator.stencil
 
-import ir.{ArrayTypeWSWC}
-import ir.ast.{Get, Slide, Zip, fun}
-import lift.arithmetic.{SizeVar}
+import ir.ArrayTypeWSWC
+import ir.ast.{Get, Slide, Zip, fun, _}
+import lift.arithmetic.SizeVar
 import opencl.executor._
-import org.junit.{AfterClass, BeforeClass}
-import org.junit.Assert._
-import org.junit._
-import opencl.ir.pattern._
-import ir.ast._
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
+import opencl.ir.pattern._
+import org.junit.Assert._
+import org.junit.Assume.assumeFalse
+import org.junit._
 
-object TestMapSeqSlide
-{
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
+object TestMapSeqSlide extends TestWithExecutor
 
 object MapSeqSlideHelpers
 {
@@ -149,7 +136,7 @@ class TestMapSeqSlide
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val (output : Array[Float], _) = Execute(2, 2)(MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
+    val (output, _) = Execute(2, 2)[Array[Float]](MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -164,7 +151,7 @@ class TestMapSeqSlide
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil1D(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.stencil1D(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -179,7 +166,7 @@ class TestMapSeqSlide
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil1D(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.stencil1D(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -195,7 +182,7 @@ class TestMapSeqSlide
     // drop right one on the comparison array because scala sliding does not work exactly the same as Lift sliding ...
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _)).dropRight(1)
 
-    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil1D(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.stencil1D(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -225,7 +212,7 @@ class TestMapSeqSlide
         }  $ input
     )
 
-    val (output: Array[Float], _) = Execute(2,2)( orgStencil, values, weights )
+    val (output, _) = Execute(2,2)[Array[Float]]( orgStencil, values, weights )
 
     assertArrayEquals(gold, output, 0.1f)
   }
@@ -265,8 +252,8 @@ class TestMapSeqSlide
         MapGlb(0)(toGlobal(MapSeqSlide(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b)  o Join())) o Slide(1,b) $ input
     )
 
-    val (compare: Array[Float], _) = Execute(2,2)(compare2Dstencil, values)
-    val (output: Array[Float], _) = Execute(2,2)(stencil2DR(slidesize,slidestep), values)
+    val (compare, _) = Execute(2,2)[Array[Float]](compare2Dstencil, values)
+    val (output, _) = Execute(2,2)[Array[Float]](stencil2DR(slidesize,slidestep), values)
 
     assertArrayEquals(compare, output.dropRight(size-2).drop(size-2), 0.1f)
 
@@ -306,8 +293,8 @@ class TestMapSeqSlide
         MapGlb(0)(toGlobal(MapSeqSlide(MapSeq(id) o ReduceSeq(absAndSumUp,0.0f) , a,b))) o Transpose() /* o Slide2D(a,b)*/ $ input
     )
 
-    val (compare: Array[Float], _) = Execute(2,2)(compare2Dstencil, values)
-    val (output: Array[Float], _) = Execute(2,2)(stencil2D(slidesize,slidestep), values)
+    val (compare, _) = Execute(2,2)[Array[Float]](compare2Dstencil, values)
+    val (output, _) = Execute(2,2)[Array[Float]](stencil2D(slidesize,slidestep), values)
 
     assertArrayEquals(compare, output.dropRight(size-2).drop(size-2), 0.1f)
   }
@@ -344,7 +331,7 @@ class TestMapSeqSlide
         })) o Slide(a,b) o Transpose() $ input
     )
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil2D(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](stencil2D(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -398,7 +385,7 @@ class TestMapSeqSlide
         })) o Slide(a,b) o Transpose() $ input
     )
 
-    val (output: Array[Float], _) = Execute(2,2)(stencil2D(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](stencil2D(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -416,8 +403,8 @@ class TestMapSeqSlide
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
 
-    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
+    val (gold, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -483,8 +470,8 @@ class TestMapSeqSlide
         })) o Slide(a,b)  $ input
     )
 
-    val (output: Array[Float], runtimeNew: Double) = Execute(2,2)(stencil2Dat(slidesize,slidestep), values)
-    val (gold: Array[Float], runtimeOrg: Double) = Execute(2,2)(original2DAt(slidesize,slidestep), values)
+    val (output, runtimeNew: Double) = Execute(2,2)[Array[Float]](stencil2Dat(slidesize,slidestep), values)
+    val (gold, runtimeOrg: Double) = Execute(2,2)[Array[Float]](original2DAt(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -502,8 +489,8 @@ class TestMapSeqSlide
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
 
-    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
+    val (gold, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -517,8 +504,8 @@ class TestMapSeqSlide
     val slidestep = 4
     val values = Array.tabulate(size,size) { (i,j) => (i*size + j + 1).toFloat }
 
-    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
-    val (goldExec: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.stencil2D(slidesize,slidestep), values)
+    val (goldExec, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.original2DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(goldExec, output, 0.1f)
 
@@ -570,8 +557,8 @@ class TestMapSeqSlide
         })) o Slide(a,b)  $ input
     )
 
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(stencil2D(slidesize,slidestep), values, StencilUtilities.weightsArr)
-    val (gold: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(original2DWeightStencil(slidesize,slidestep), values, StencilUtilities.weightsArr)
+    val (output, _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](stencil2D(slidesize,slidestep), values, StencilUtilities.weightsArr)
+    val (gold, _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](original2DWeightStencil(slidesize,slidestep), values, StencilUtilities.weightsArr)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -581,6 +568,7 @@ class TestMapSeqSlide
 
   @Test
   def reduceSlide3DTest7PointWithAt(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val size = 8
 
@@ -593,8 +581,8 @@ class TestMapSeqSlide
     val M = 2 + SizeVar("M")
 
 
-    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil3D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original3DStencil(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.stencil3D(slidesize,slidestep), values)
+    val (gold, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.original3DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -602,6 +590,7 @@ class TestMapSeqSlide
 
   @Test
   def reduceSlide3DTest7PointWithAtSize5Step3(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val size = 10
 
@@ -609,8 +598,8 @@ class TestMapSeqSlide
     val slidestep = 3
     val values = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size + k + 1).toFloat }
 
-    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil3D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original3DStencil(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.stencil3D(slidesize,slidestep), values)
+    val (gold, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.original3DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -625,8 +614,8 @@ class TestMapSeqSlide
     val slidestep = 5
     val values = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size + k + 1).toFloat }
 
-    val (output: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.stencil3D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2)(MapSeqSlideHelpers.original3DStencil(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.stencil3D(slidesize,slidestep), values)
+    val (gold, _) = Execute(2,2)[Array[Float]](MapSeqSlideHelpers.original3DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
@@ -634,6 +623,7 @@ class TestMapSeqSlide
 
   @Test
   def reduceSlide3DTest7PointWithAtAsymmetric(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val size = 8
 
@@ -645,14 +635,15 @@ class TestMapSeqSlide
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
 
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(MapSeqSlideHelpers.stencil3D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(MapSeqSlideHelpers.original3DStencil(slidesize,slidestep), values)
+    val (output, _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](MapSeqSlideHelpers.stencil3D(slidesize,slidestep), values)
+    val (gold, _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](MapSeqSlideHelpers.original3DStencil(slidesize,slidestep), values)
 
     assertArrayEquals(gold, output, 0.1f)
 
   }
   @Test
   def reduceSlide3DTest27PointWithWeights(): Unit = {
+    assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
     val size = 8
 
@@ -690,8 +681,8 @@ class TestMapSeqSlide
         }))) o Slide2D(a,b)  $ input
     )
 
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))(stencil3DWeights(slidesize,slidestep), values,StencilUtilities.weights3D.flatten.flatten)
-    val (gold: Array[Float], runtime) = Execute(2,2,2,2,2,2, (true,true))(stencil3DCompareWeights(slidesize,slidestep), values, StencilUtilities.weights3D.flatten.flatten)
+    val (output, _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](stencil3DWeights(slidesize,slidestep), values,StencilUtilities.weights3D.flatten.flatten)
+    val (gold, runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](stencil3DCompareWeights(slidesize,slidestep), values, StencilUtilities.weights3D.flatten.flatten)
 
     assertArrayEquals(gold, output, 0.1f)
 

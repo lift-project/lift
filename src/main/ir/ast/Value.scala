@@ -13,12 +13,14 @@ import scala.tools.reflect.ToolBox
  * This slightly simplifies the implementation of the type checking, memory allocation, ...
  * @param value The represented value in a string representation
  */
-case class Value(var value: String) extends Param {
+case class Value(value: String, typ: Type) extends Param {
+
+  t = typ
 
   /**
    * Debug string representation
    */
-  override def toString = value
+  override def toString: String = value
 
   /**
    * Perform a copy of `this`
@@ -59,23 +61,8 @@ object Value {
    * @param t The type the value should be set to
    * @return A newly constructed value with the given type
    */
-  def apply(t: Type): Value = {
-    val v = Value("")
-    v.t = t
-    v
-  }
-
-  /**
-   * Create a new value with the given value (as a string) and type
-   * @param value The value as a string the newly constructed value should represent
-   * @param t The type the value should be set to
-   * @return A newly constructed value with the given type and value
-   */
-  def apply(value: String, t: Type): Value = {
-    val v = Value(value)
-    v.t = t
-    v
-  }
+  def apply(t: Type): Value =
+    Value("", t)
 
   /**
    * Set the type of the given value to the given type and return it
@@ -83,16 +70,14 @@ object Value {
    * @param t The type the value should be set to
    * @return The value `v` with the type set to `t`
    */
-  def apply(v: Value, t: Type): Value = {
-    v.t = t
-    v
-  }
+  def apply(v: Value, t: Type): Value =
+    Value(v.value, t)
 
   /**
    * Behaves like the identity and returns the given value `v`
    * @param v A value
    * @return The value `v`
    */
-  def apply(v: Value) = v
+  def apply(v: Value): Value = v
 
 }

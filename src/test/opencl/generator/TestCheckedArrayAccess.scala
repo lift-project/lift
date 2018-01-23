@@ -3,26 +3,13 @@ package opencl.generator
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor._
+import opencl.executor.{Compile, Execute, Executor, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object TestCheckedArrayAccess {
-  @BeforeClass def TestUnsafeArrayAccess() {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init()
-  }
-
-  @AfterClass def after() {
-    println("Shutdown the executor")
-    Executor.shutdown()
-  }
-}
-
-
+object TestCheckedArrayAccess extends TestWithExecutor
 
 class TestCheckedArrayAccess {
   @Test def TEST_ACCESS() : Unit = {
@@ -45,7 +32,7 @@ class TestCheckedArrayAccess {
     println("Kernel:")
     println(Compile(accessKernel))
     println("===---===---===")
-    val (output:Array[Float], runtime) = Execute(1,1)(accessKernel, inputArr, Array(index))
+    val (output, runtime) = Execute(1,1)[Array[Float]](accessKernel, inputArr, Array(index))
     println("Time: "+runtime)
     println("Gold: "+ gold)
     println("Output: "+ output(0))
@@ -76,7 +63,7 @@ class TestCheckedArrayAccess {
     println("Kernel:")
     println(Compile(accessKernel))
     println("===---===---===")
-    val (output:Array[Float], runtime) = Execute(1,1)(accessKernel, inputArr, Array(index))
+    val (output, runtime) = Execute(1,1)[Array[Float]](accessKernel, inputArr, Array(index))
     println("Time: "+runtime)
     println("Gold: "+ gold.deep.mkString(", "))
     println("Output: "+ output.deep.mkString(", "))
@@ -101,7 +88,7 @@ class TestCheckedArrayAccess {
     println("Kernel:")
     println(Compile(accessKernel))
     println("===---===---===")
-    val (output:Array[Float], runtime) = Execute(1,1)(accessKernel, inputArr, indexArr)
+    val (output, runtime) = Execute(1,1)[Array[Float]](accessKernel, inputArr, indexArr)
     println("Time: "+runtime)
     println("Gold: "+ gold(0))
     println("Output: "+ output(0))
@@ -113,7 +100,6 @@ class TestCheckedArrayAccess {
     val index = util.Random.nextInt(inputSize)
     val inputArr = Array.tabulate(inputSize)((i) => (i,i))
     val gold = inputArr(index)
-    val passArr = inputArr.map{case (i,j) => Array(i, j)}.flatten
     val N = SizeVar("N")
     val accessKernel = fun(
       ArrayTypeWSWC(TupleType(Int, Int), N),
@@ -131,11 +117,11 @@ class TestCheckedArrayAccess {
     println("Kernel:")
     println(Compile(accessKernel))
     println("===---===---===")
-    val (output:Array[Int], runtime) = Execute(1,1)(accessKernel, passArr, Array(index))
+    val (Vector(output), runtime) = Execute(1,1)[Vector[(Int, Int)]](accessKernel, inputArr, Array(index))
     println("Time: "+runtime)
     println("Gold: "+ gold)
-    println("Output: ("+ output(0)+","+output(1)+")")
-    assert(output(0) == gold._1 && output(1) == gold._2)
+    println(s"Output: $output")
+    assertEquals(gold, output)
   }
 
   @Test def TEST_OUT_OF_BOUNDS_ACCESS() : Unit = {
@@ -158,7 +144,7 @@ class TestCheckedArrayAccess {
     println("Kernel:")
     println(Compile(accessKernel))
     println("===---===---===")
-    val (output:Array[Float], runtime) = Execute(1,1)(accessKernel, inputArr, Array(index))
+    val (output, runtime) = Execute(1,1)[Array[Float]](accessKernel, inputArr, Array(index))
     println("Time: "+runtime)
     println("Gold: "+ gold)
     println("Output: "+ output(0))
@@ -185,7 +171,7 @@ class TestCheckedArrayAccess {
     println("Kernel:")
     println(Compile(accessKernel))
     println("===---===---===")
-    val (output:Array[Float], runtime) = Execute(1,1)(accessKernel, inputArr, Array(index))
+    val (output, runtime) = Execute(1,1)[Array[Float]](accessKernel, inputArr, Array(index))
     println("Time: "+runtime)
     println("Gold: "+ gold)
     println("Output: "+ output(0))

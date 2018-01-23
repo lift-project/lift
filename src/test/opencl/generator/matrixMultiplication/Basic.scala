@@ -3,22 +3,13 @@ package opencl.generator.matrixMultiplication
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, Utils}
+import opencl.executor.{Execute, TestWithExecutor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.Test
 
-object Basic {
-  @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    Executor.init()
-  }
-
-  @AfterClass def after(): Unit = {
-    Executor.shutdown()
-  }
-}
+object Basic extends TestWithExecutor
 
 class Basic {
 
@@ -45,7 +36,7 @@ class Basic {
         )) $ A
       })
 
-    val (output: Array[Float], _) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose)
+    val (output, _) = Execute(Msize * Nsize)[Array[Float]](f, matrixA, matrixB.transpose)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
@@ -71,7 +62,7 @@ class Basic {
         )) $ A
       })
 
-    val (output: Array[Float], _) = Execute(Msize * Nsize)(f, matrixA, matrixB.transpose)
+    val (output, _) = Execute(Msize * Nsize)[Array[Float]](f, matrixA, matrixB.transpose)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
@@ -109,12 +100,12 @@ class Basic {
           )) $ A
       })
 
-    val (output: Array[Float], _) = Execute(Msize * Nsize)(f1, matrixA, matrixB.transpose)
+    val (output, _) = Execute(Msize * Nsize)[Array[Float]](f1, matrixA, matrixB.transpose)
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     assertArrayEquals(gold, output, 0.001f)
 
-    val (output2: Array[Float], _) = Execute(Msize * Nsize)(f2, matrixA, matrixB.transpose)
+    val (output2, _) = Execute(Msize * Nsize)[Array[Float]](f2, matrixA, matrixB.transpose)
     assertArrayEquals(gold, output2, 0.001f)
   }
 
@@ -139,7 +130,7 @@ class Basic {
       }
     )
 
-    val (output: Array[Float], _) = Execute(mSize*kSize)(f, matrices)
+    val (output, _) = Execute(mSize*kSize)[Array[Float]](f, matrices)
     assertArrayEquals(gold, output, 0.001f)
   }
 
@@ -162,7 +153,7 @@ class Basic {
         )) $ A
       })
 
-    val (output: Array[Float], _) = Execute(Msize * Nsize)(f, matrixA, matrixB)
+    val (output, _) = Execute(Msize * Nsize)[Array[Float]](f, matrixA, matrixB)
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
     assertArrayEquals(gold, output, 0.0f)
@@ -196,7 +187,7 @@ class Basic {
         )) o Split(r) $ A
       })
 
-    val (output: Array[Float], _) = Execute(8, mSize * nSize)(f, matrixA, matrixB.transpose)
+    val (output, _) = Execute(8, mSize * nSize)[Array[Float]](f, matrixA, matrixB.transpose)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
