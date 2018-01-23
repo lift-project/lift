@@ -11,28 +11,37 @@ import ir.ast.debug.PrintType
 import lift.arithmetic.SizeVar
 import nn._
 import nn.conv.{Conv, ConvCompanion, ConvDatasets, SlidingWindowConfig}
+import opencl.executor.{Compile, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 
 object Conv1 extends ConvCompanion {
 
-    val kernel_xdim_SV = SizeVar("kernel_xdim_SV")
-    val kernel_ydim_SV = SizeVar("kernel_ydim_SV")
-    val input_xdim_SV = SizeVar("input_xdim_SV")
-    val input_ydim_SV = SizeVar("input_ydim_SV")
-    val layer_idim_SV = SizeVar("layer_idim_SV")
-    val layer_odim_SV = SizeVar("layer_odim_SV")
-    val in_channels_SV = SizeVar("in_channels_SV")
-    val out_channels_SV = SizeVar("out_channels_SV")
-    val n_inputs_SV = SizeVar("n_inputs_SV")
-    val n_batches_SV = SizeVar("n_batches_SV")
+    val kernel_xdim_SV = SizeVar("kernel_xdim")
+    val kernel_ydim_SV = SizeVar("kernel_ydim")
+    val input_xdim_SV = SizeVar("input_xdim")
+    val input_ydim_SV = SizeVar("input_ydim")
+    val layer_idim_SV = SizeVar("layer_idim")
+    val layer_odim_SV = SizeVar("layer_odim")
+    val in_channels_SV = SizeVar("in_channels")
+    val out_channels_SV = SizeVar("out_channels")
+    val n_inputs_SV = SizeVar("n_inputs")
+    val n_batches_SV = SizeVar("n_batches")
 
   /* Sequential layer */
-  def Seq(kernel_h: Int, kernel_w: Int, activation_f: UserFun): FunDecl = λ(
-    AT(AT(AT(AT(Float, out_channels_SV), in_channels_SV), kernel_w), kernel_h),
+  def Seq(activation_f: UserFun): FunDecl = λ(
+    // Lift K: y, x, i, o
+    // Caffe K: o, i, y, x
+//    AT(AT(AT(AT(Float, out_channels_SV), in_channels_SV), kernel_xdim_SV), kernel_ydim_SV),
+    AT(AT(AT(AT(Float, kernel_xdim_SV), kernel_ydim_SV), in_channels_SV), out_channels_SV),
     AT(Float, out_channels_SV),
-    AT(AT(AT(AT(Float, in_channels_SV), input_xdim_SV), input_ydim_SV), n_inputs_SV),
-    (K, B, X) => {
+    // Lift X: n, y, x, c
+    // Caffe X: n, c, y, x
+//    AT(AT(AT(AT(Float, in_channels_SV), input_xdim_SV), input_ydim_SV), n_inputs_SV),
+    AT(AT(AT(AT(Float, input_xdim_SV), input_ydim_SV), in_channels_SV), n_inputs_SV),
+    (K, B, X) => { 
+      // n, y, x, c -> n, c, y, x
+      Map(Transpose() o Map(Transpose())) o
       MapSeq(λ((single_input) => {
         MapSeq(λ((pass_strip) => {
           MapSeq(λ((pass_window) => { Join() o
@@ -48,12 +57,28 @@ object Conv1 extends ConvCompanion {
                   MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(x_el_in_chs, k_el_out_ch)
                 })) o Transpose() $ k_el_in_chs
               })) $ Zip(window_row, kernel_row)
-            })) $ Zip(pass_window, K)
+            })) $ Zip(pass_window,
+            // o, i, y, x -> 
+            // o, y, i, x -> 
+            // o, y, x, i -> 
+            // y, o, x, i -> 
+            // y, x, o, i ->            
+            // y, x, i, o
+            Map(Map(Transpose()) o Transpose()) o Transpose() o Map(Map(Transpose()) o Transpose()) $ K)
           })) $ pass_strip
-        })) o Slide2D(kernel_h, 1, kernel_w, 1) $ single_input
-      })) $ X
+        })) o Slide2D(kernel_ydim_SV, 1, kernel_xdim_SV, 1) $ single_input
+      })) o 
+        // n, c, y, x ->
+        // n, y, c, x ->
+        // n, y, x, c 
+      Map(Map(Transpose()) o Transpose()) $ X
     }
   )
+  def main(args: Array[String]): Unit = {
+      Executor.loadLibrary()
+      Executor.init()
+      println(Compile(Seq(Linear)))
+  }
   val locA: Int = 0
   val locB: Int = 1
   val locC: Int = 2
