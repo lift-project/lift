@@ -41,7 +41,7 @@ object Conv1 extends ConvCompanion {
     AT(AT(AT(AT(Float, input_xdim_SV), input_ydim_SV), in_channels_SV), n_inputs_SV),
     (K, B, X) => { 
       // n, y, x, c -> n, c, y, x
-      Map(Transpose() o Map(Transpose())) o
+      Map(TransposeW() o Map(TransposeW())) o
       MapSeq(λ((single_input) => {
         MapSeq(λ((pass_strip) => {
           MapSeq(λ((pass_window) => { Join() o
