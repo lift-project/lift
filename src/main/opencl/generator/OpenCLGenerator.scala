@@ -1518,7 +1518,7 @@ class OpenCLGenerator extends Generator {
 
   @scala.annotation.tailrec
   private def generateFunCall(expr: Expr,
-                              args: List[OclAstNode]): FunctionCall = {
+                              args: List[AstNode]): FunctionCall = {
     expr match {
       case call: FunCall => call.f match {
         case uf: UserFun =>
@@ -1544,7 +1544,7 @@ class OpenCLGenerator extends Generator {
   private def generateStoreNode(mem: OpenCLMemory,
                                 currentType: Type,
                                 view: View,
-                                value: OclAstNode): Expression = {
+                                value: AstNode): Expression = {
     val originalType = getOriginalType(mem)
 
     if (Type.haveSameValueTypes(originalType, currentType)) {
@@ -1571,7 +1571,7 @@ class OpenCLGenerator extends Generator {
     }
   }
 
-  private def generateLoadNodes(args: Expr*): List[OclAstNode] = {
+  private def generateLoadNodes(args: Expr*): List[AstNode] = {
     args.map(arg => {
       val mem = OpenCLMemory.asOpenCLMemory(arg.mem)
       generateLoadNode(mem, arg.t, arg.view)
@@ -1588,7 +1588,7 @@ class OpenCLGenerator extends Generator {
             s"not a tuple.")
         val tt = t.asInstanceOf[TupleType]
 
-        var args: Vector[OclAstNode] = Vector()
+        var args: Vector[AstNode] = Vector()
         for (i <- (coll.subMemories zip tt.elemsT).indices) {
           args = args :+ generateLoadNode(coll.subMemories(i), tt.elemsT(i), view.get(i))
         }
@@ -1910,7 +1910,7 @@ class OpenCLGenerator extends Generator {
    * @return a piece of OpenCL code that performs the copy *sequentially*
    */
   private def generateSeqCopy(inMem: Memory, inView: View, outMem: Memory, outView: View,
-                              ty: Type, shouldUnroll: Boolean = false): OpenCLAST.OclAstNode with BlockMember = {
+                              ty: Type, shouldUnroll: Boolean = false): OpenCLAST.AstNode with BlockMember = {
     assert(!outMem.isInstanceOf[OpenCLMemoryCollection]) // cannot handle that: see comment above
     ty match {
       case ScalarType(_, _) | _: TupleType | _: VectorType =>

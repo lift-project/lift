@@ -21,20 +21,24 @@ object GenericAST {
 
   trait BlockMember
 
-  abstract class Attribute extends AstNode
+  trait Attribute extends AstNode
 
-  abstract class Declaration extends AstNode with BlockMember
+  trait Declaration extends AstNode with BlockMember
 
-  abstract class Statement extends AstNode with BlockMember
+  trait Statement extends AstNode with BlockMember
 
-  abstract class Expression extends AstNode
+  trait Expression extends AstNode
 
   /**
     * A function declaration
     */
 
-  class Function(name: String, ret: Type, params: List[ParamDecl],
-                 body: Block) extends Declaration {
+  trait GenericFunction extends Declaration {
+    def name : String
+    def ret: Type
+    def params: List[ParamDecl]
+    def body: Block
+    def attribute: Option[Attribute]
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         // visit the function object
@@ -46,9 +50,15 @@ object GenericAST {
           }
         }) |>
         // visit the body
-        (body.visit(_)(visitFun))
+        (body.visit(_)(visitFun)) //|>
+      // TODO: visit the attribute
+
     }
   }
+
+  case class Function(name: String, ret: Type, params: List[ParamDecl],
+                 body: Block, attribute: Option[Attribute] = None) extends
+    GenericFunction
 
   case class VarDecl(v: Var,
                      t: Type,
@@ -372,109 +382,5 @@ object GenericAST {
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
       this)
   }
-
-//  def visitExpressionsInBlock(block: Block, fun: Expression => Unit): Unit = {
-//    visitExpressionsInNode(block)
-
-//    def visitExpressionsInNode(node: AstNode): Unit = {
-//      callFunOnExpression(node)
-//
-//      node match {
-//        case e: Expression => visitExpression(e)
-//        case s: Statement => visitStatement(s)
-//        case d: Declaration => visitDeclaration(d)
-//        case Comment(_) =>
-//      }
-//    }
-//    def callFunOnExpression(node: AstNode): Unit = {
-//      node match {
-//        case e: Expression => fun(e)
-//        case _: Statement =>
-//        case _: Declaration =>
-//        case Comment(_) =>
-//      }
-//    }
-//    def visitExpression(e: Expression): Unit = e match {
-//      case _: ArithExpression =>
-//      case _: OpenCLExpression =>
-//      case a: AssignmentExpression =>
-//        visitExpressionsInNode(a.value)
-//        visitExpressionsInNode(a.to)
-//      case c: Cast =>
-//        visitExpressionsInNode(c.v)
-//      case pc: PointerCast =>
-//        visitExpressionsInNode(pc.v)
-//      case c: CondExpression =>
-//        visitExpressionsInNode(c.lhs)
-//        visitExpressionsInNode(c.rhs)
-//      case BinaryExpression(lhs, rhs, _) =>
-//        visitExpressionsInNode(lhs)
-//        visitExpressionsInNode(rhs)
-//      case TernaryExpression(cond, trueExpr, falseExpr) =>
-//        visitExpression(cond)
-//        visitExpression(trueExpr)
-//        visitExpression(falseExpr)
-//      case f: FunctionCall =>
-//        f.args.foreach(visitExpressionsInNode)
-//      case l: Load =>
-//        visitExpressionsInNode(l.v)
-//        visitExpressionsInNode(l.offset)
-//      case s: Store =>
-//        visitExpressionsInNode(s.v)
-//        visitExpressionsInNode(s.value)
-//        visitExpressionsInNode(s.offset)
-//      case s: StructConstructor =>
-//        s.args.foreach(visitExpressionsInNode)
-//      case v: VarRef =>
-//        if (v.arrayIndex != null) visitExpressionsInNode(v.arrayIndex)
-//    }
-//    def visitStatement(s: Statement): Unit = s match {
-//      case b: Block => b.content.foreach(visitExpressionsInNode)
-//      case es: ExpressionStatement => visitExpressionsInNode(es.e)
-//      case f: ForLoop =>
-//        visitExpressionsInNode(f.init)
-//        visitExpressionsInNode(f.cond)
-//        visitExpressionsInNode(f.increment)
-//        visitExpressionsInNode(f.body)
-//      case ifte: IfThenElse =>
-//        visitExpressionsInNode(ifte.cond)
-//        visitExpressionsInNode(ifte.trueBody)
-//        visitExpressionsInNode(ifte.falseBody)
-//      case w: WhileLoop =>
-//        visitExpressionsInNode(w.loopPredicate)
-//        visitExpressionsInNode(w.body)
-//      case GOTO(_) | TupleAlias(_, _) | TypeDef(_) | Break() =>
-//    }
-//    def visitDeclaration(d: Declaration): Unit = d match {
-//      case f: Function => visitExpressionsInNode(f.body)
-//      case v: VarDecl => if (v.init != null) visitExpressionsInNode(v.init)
-//      case Label(_) | ParamDecl(_, _, _, _) =>
-//    }
-//  }
-//  def visitBlocks(node: OclAstNode, fun: Block => Unit): Unit = {
-//    node match {
-//      case _: Expression => // there are no blocks inside any expressions
-//
-//      case s: Statement => s match {
-//        case b: Block =>
-//          fun(b)
-//          b.content.foreach(visitBlocks(_, fun))
-//        case fl: ForLoop => visitBlocks(fl.body, fun)
-//        case wl: WhileLoop => visitBlocks(wl.body, fun)
-//        case ifte: IfThenElse =>
-//          visitBlocks(ifte.trueBody, fun)
-//          visitBlocks(ifte.falseBody, fun)
-//        case GOTO(_) | Barrier(_) | TypeDef(_) | TupleAlias(_, _) | ExpressionStatement(_) | Break() =>
-//      }
-//
-//      case d: Declaration => d match {
-//        case f: Function => visitBlocks(f.body, fun)
-//        case Label(_) | VarDecl(_, _, _, _, _) | ParamDecl(_, _, _, _) =>
-//      }
-//
-//      case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
-//    }
-//  }
-//}
 
 }
