@@ -12,15 +12,19 @@ object OpenCLAST {
 
   implicit def exprToStmt(e: Expression): ExpressionStatement = ExpressionStatement(e)
 
-  implicit def predicateToCondExpression(p: Predicate): CondExpression = {
-    CondExpression(ArithExpression(p.lhs), ArithExpression(p.rhs), p.op match {
-      case Predicate.Operator.!= => CondExpression.Operator.!=
-      case Predicate.Operator.< => CondExpression.Operator.<
-      case Predicate.Operator.<= => CondExpression.Operator.<=
-      case Predicate.Operator.== => CondExpression.Operator.==
-      case Predicate.Operator.> => CondExpression.Operator.>
-      case Predicate.Operator.>= => CondExpression.Operator.>=
-    })
+  implicit def predicateToCondExpression(p: Predicate): BinaryExpression = {
+    BinaryExpression(
+      ArithExpression(p.lhs),
+      p.op match {
+        case Predicate.Operator.!= => BinaryExpression.Operator.!=
+        case Predicate.Operator.< => BinaryExpression.Operator.<
+        case Predicate.Operator.<= => BinaryExpression.Operator.<=
+        case Predicate.Operator.== => BinaryExpression.Operator.==
+        case Predicate.Operator.> => BinaryExpression.Operator.>
+        case Predicate.Operator.>= => BinaryExpression.Operator.>=
+      },
+      ArithExpression(p.rhs)
+    )
   }
 
 //  trait
@@ -52,7 +56,6 @@ object OpenCLAST {
                        addressSpace: OpenCLAddressSpace = UndefAddressSpace,
                        const: Boolean = false) extends GenericAST.ParamDecl(name, t) with CLAddressSpace
 
-}
 
 //
 //  /** A Label, targeted by a corresponding goto

@@ -623,7 +623,6 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
     *        section 5.3
     * @return an expression accessing the array
     */
-//  @scala.annotation.tailrec
   private def emitView(sv: View,
                        arrayAccessStack: List[ArithExpr],
                        tupleAccessStack: List[Int]): Expression = {
@@ -718,11 +717,12 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
           case ArrayTypeWS(_, size) => size
         }
         import OpenCLAST._
+        import BinaryExpression.Operator._
         TernaryExpression(
-          CondExpression(
-            CondExpression(ArithExpression(currentIdx), ArithExpression(0), CondExpression.Operator.<),
-            CondExpression(ArithExpression(currentIdx), ArithExpression(originalSize), CondExpression.Operator.>=),
-            CondExpression.Operator.||
+          BinaryExpression(
+            BinaryExpression(ArithExpression(currentIdx), <, ArithExpression(0)),
+            ||,
+            BinaryExpression(ArithExpression(currentIdx), >=, ArithExpression(originalSize))
           ),
           OpenCLExpression(constant.value),
           emitView(iv, currentIdx :: indices, tupleAccessStack)
