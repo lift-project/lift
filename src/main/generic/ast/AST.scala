@@ -260,12 +260,18 @@ object GenericAST {
     * @param content The arithmetic expression.
     */
   case class ArithExpression(var content: ArithExpr) extends Expression {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = ???
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
+      this)
   }
 
   case class BinaryExpression(lhs: Expression, rhs: Expression, op: BinaryExpression.Operator.Operator)
     extends Expression {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = ???
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (visitFun(_, lhs)) |>
+        (visitFun(_, rhs))
+    }
   }
 
   object BinaryExpression {
@@ -282,7 +288,12 @@ object GenericAST {
   }
 
   case class CondExpression(lhs: Expression, rhs: Expression, cond: CondExpression.Operator.Operator) extends Expression {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = ???
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (visitFun(_, lhs)) |>
+        (visitFun(_, rhs))
+    }
   }
 
   object CondExpression {
@@ -305,7 +316,13 @@ object GenericAST {
   }
 
   case class TernaryExpression(cond: CondExpression, trueExpr: Expression, falseExpr: Expression) extends Expression {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = ???
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (visitFun(_, cond)) |>
+        (visitFun(_, trueExpr)) |>
+        (visitFun(_, falseExpr))
+    }
   }
 
   /** Force a cast of a variable to the given type. This is used to
@@ -314,20 +331,37 @@ object GenericAST {
     * @param t The type to cast the variable into.
     */
   case class Cast(v: VarRef, t: Type) extends Expression {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = ???
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (visitFun(_, v))
+    }
   }
 
   case class PointerCast(v: VarRef, t: Type) extends Expression {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = ???
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (visitFun(_, v))
+    }
   }
 
   case class StructConstructor(t: TupleType, args: Vector[AstNode]) extends
     Expression {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = ???
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (args.foldLeft(_) {
+          case (acc, node) => {
+            node.visit(acc)(visitFun)
+          }
+        })
+    }
   }
 
   case class ArbitraryExpression(code: String) extends Expression {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = ???
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
+      this)
   }
 
   /** Inline comment block.
@@ -335,7 +369,8 @@ object GenericAST {
     * @param content Comment string*
     */
   case class Comment(content: String) extends AstNode with BlockMember {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = ???
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
+      this)
   }
 
 //  def visitExpressionsInBlock(block: Block, fun: Expression => Unit): Unit = {

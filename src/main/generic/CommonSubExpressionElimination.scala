@@ -1,29 +1,24 @@
 package opencl.generator
 
-import generic.ast.GenericAST._
 import lift.arithmetic.{ArithExpr, Cst, Pow, Var}
-import opencl.ir.{Int, PrivateMemory}
+import generic.ast.GenericAST._
+//import opencl.ir.{Int, PrivateMemory}
 
 import scala.collection.mutable
 
 object CommonSubexpressionElimination {
-  def apply(node: AstNode) : Unit = {
+  def apply(block: Block): Unit = {
+    visitBlocks(block, processBlock)
 
-    // visit each of the blocks in node:
-    node.visit[Unit](())({
-      case (_, b: Block) => processBlock(b)
-      case _ => // do nothing, it's not a block, so we don't want to process it
-    })
-
-    def processBlock(block: Block) : Unit = {
-      // traverse the block, and accumulate the arithmetic expressions
-      val expressions = block.visit[Seq[ArithExpression]](Seq[ArithExpression]
-        ())({
-        case (exprs, ae: ArithExpression) => exprs :+ ae
-        case (exprs, _) => exprs
+    def processBlock(block: Block): Unit = {
+      // get all the arithmetic expressions from this block
+      var expressions = Seq[ArithExpression]()
+      visitExpressionsInBlock(block, {
+        case e: ArithExpression => expressions = expressions :+ e
+        case _ =>
       })
 
-      // create a map to count how often subterms appear
+      // map for counting how often subterms appear
       val counts = mutable.Map[ArithExpr, Int]()
 
       // count how many times a subterm appears in the expressions
@@ -54,7 +49,7 @@ object CommonSubexpressionElimination {
       val substitutions = mutable.Map[ArithExpr, ArithExpr]()
 
       val newVarDecls: mutable.Iterable[VarDecl] =
-        // for every subterm p._1 ...
+      // for every subterm p._1 ...
         subterms.map(p => {
           // ... create a new variable ...
           val newVar = Var("")
@@ -62,9 +57,10 @@ object CommonSubexpressionElimination {
           //     new variable
           substitutions put(p._1, newVar)
 
-          VarDecl(newVar,
+          OpenCLAST.VarDecl(newVar,
             t = Int,
-            init = ArithExpression(p._1))
+            init = OpenCLAST.ArithExpression(p._1),
+            addressSpace = PrivateMemory)
         })
 
       // update the Expression nodes to
