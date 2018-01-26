@@ -3,7 +3,6 @@ package opencl.generator
 import lift.arithmetic._
 import ir._
 import ir.ast._
-import opencl.generator.OpenCLAST.{ArithExpression, CondExpression}
 import opencl.ir.pattern._
 
 object RangesAndCounts {
