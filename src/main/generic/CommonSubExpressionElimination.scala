@@ -1,4 +1,4 @@
-package opencl.generator
+package generic.generator
 
 import lift.arithmetic.{ArithExpr, Cst, Pow, Var}
 import generic.ast.GenericAST._
