@@ -21,7 +21,7 @@ class OpenCLPrinter extends Printer {
    * @param node The root of the AST (the global scope block).
    * @return A string representation of the AST as OpenCL-C code.
    */
-  def apply(node: OclAstNode): String = {
+  def apply(node: AstNode): String = {
     indent = 0
     print(node)
     sb.toString()
@@ -32,7 +32,7 @@ class OpenCLPrinter extends Printer {
    *
    * @param node The current node to emit code for.
    */
-  private def print(node: OclAstNode): Unit = node match {
+  private def print(node: AstNode): Unit = node match {
     case b: Block =>
       if (b.global) {
         b.content.foreach(
@@ -412,7 +412,7 @@ class OpenCLPrinter extends Printer {
    * Helper function for printing separated lists
    * `printList([a, b, c], ",")  ==  "a,b,c"`
    */
-  private def printList(args: Seq[OclAstNode], sep: String): Unit = {
+  private def printList(args: Seq[AstNode], sep: String): Unit = {
     args.init.foreach(a => {
       print(a)
       print(sep)
