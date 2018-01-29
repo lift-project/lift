@@ -95,14 +95,22 @@ object HighLevelRewrite {
   protected[exploration] val onlyLower = parser.flag[Boolean](List("onlyLower"),
     s"Do not perform high-level rewriting - only print lambda to enable next rewriting stages (default: $defaultOnlyLower)")
 
-  private var settings = Settings()
+  private var settings = HighLevelRewriteSettings.createDefault
 
   def main(args: Array[String]): Unit = {
 
     try {
       parser.parse(args)
 
-      settings = ParseSettings(settingsFile.value)
+      val optionJson = ParseSettings.parse(settingsFile.value)
+      settings = optionJson match {
+        case Some(json) => {
+          import ParseSettings.highLevelReads
+          ParseSettings.extract[HighLevelRewriteSettings](json.validate[HighLevelRewriteSettings])
+        }
+        case None => settings
+      }
+
 
       logger.info(s"Settings:\n$settings")
       logger.info(s"Arguments: ${args.mkString(" ")}")
@@ -123,7 +131,7 @@ object HighLevelRewrite {
 
       val lambda = ParameterRewrite.readLambdaFromFile(fullFilename)
 
-      val dumpThese = if(settings.highLevelRewriteSettings.onlyLower)
+      val dumpThese = if(settings.onlyLower)
         Seq((lambda, Seq()))
       else
         rewriteExpression(lambda)
@@ -144,10 +152,10 @@ object HighLevelRewrite {
   def rewriteExpression(startingExpression: Lambda): Seq[(Lambda, Seq[Rule])] = {
     val newLambdas =
       (new HighLevelRewrite(
-        settings.highLevelRewriteSettings.vectorWidth,
-        settings.highLevelRewriteSettings.ruleRepetition,
-        settings.highLevelRewriteSettings.explorationDepth,
-        settings.highLevelRewriteSettings.ruleCollection
+        settings.vectorWidth,
+        settings.ruleRepetition,
+        settings.explorationDepth,
+        settings.ruleCollection
       )
         )(startingExpression)
 
@@ -199,7 +207,7 @@ object HighLevelRewrite {
 
     val maxNumberOfPatterns = numberOfPatterns.max
 
-    maxNumberOfPatterns <= settings.highLevelRewriteSettings.distance
+    maxNumberOfPatterns <= settings.distance
   }
 
   private val patternsToCount: PartialFunction[View, Unit] = {
@@ -214,7 +222,7 @@ object HighLevelRewrite {
     filterByDepth(pair._1, pair._2)
 
   def filterByDepth(lambda: Lambda, ruleSeq: Seq[Rule] = Seq()): Boolean = {
-    val cutoff = settings.highLevelRewriteSettings.depth
+    val cutoff = settings.depth
     val depth = getLambdaDepth(lambda)
 
     val isTiling = ruleSeq.nonEmpty && ruleSeq.head == ReuseRules.tileMapMap
@@ -235,7 +243,7 @@ object HighLevelRewrite {
     NumberExpression.byDepth(lambda).values.max
 
   private def dumpLambdasToFiles(lambdas: Seq[(Lambda, Seq[Rule])], topLevelFolder: String): Unit = {
-    val x = if (settings.highLevelRewriteSettings.sequential) lambdas else lambdas.par
+    val x = if (settings.sequential) lambdas else lambdas.par
 
     x.foreach(lambda => {
       val id = processed.getAndIncrement() + 1
