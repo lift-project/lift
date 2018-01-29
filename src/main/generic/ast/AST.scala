@@ -6,34 +6,57 @@ import lift.arithmetic._
 
 object GenericAST {
 
-  trait AstNode {
-    def visit[T](z: T)(visitFun: (T, AstNode) => T): T
-  }
 
-  // define an implicit class called pipe that lets us write visitors
-  //
+  // define an implicit class called pipe that lets us write visitors slightly more cleanly
   implicit class Pipe[A](a: A) {
     def |>[B](f: A => B): B = f(a)
     def pipe[B](f: A => B): B = f(a)
   }
 
+  /*
+  * The overall design of the AST is as follows: We define an "overall" AST
+  * trait which we use to define types that are members of the/an AST. We
+  * extend that with kinds of node (e.g. Attributes, Declarations, Statements,
+  * Expressions etc) expressed as traits, which we further extend with
+  * specifics, e.g. function declarations, function calls, blocks, etc.
+  *
+  * It is that final extension where the "magic" of this design lies: by
+  * expressing leaf nodes as traits themselves, they can be extended by using
+  * inheritance, and "default" implementations can easily be defined.
+  *
+  * A very basic example (for a function declaration):
+  *
+  * AstNode     BlockMember
+  *    ^            ^
+  *    |            |
+  *    +------------+
+  *    |
+  * Declaration
+  *    ^
+  *    |
+  *    |
+  * FunctionT
+  *    ^
+  *    +---------------------+
+       |                     |
+  * GenericFunction     OpenCLFunction
+  *
+  * */
 
+  trait AstNode {
+    def visit[T](z: T)(visitFun: (T, AstNode) => T): T
+  }
 
   trait BlockMember
-
   trait Attribute extends AstNode
-
   trait Declaration extends AstNode with BlockMember
-
   trait Statement extends AstNode with BlockMember
-
   trait Expression extends AstNode
 
   /**
     * A function declaration
     */
-
-  trait GenericFunction extends Declaration {
+  trait FunctionT extends Declaration {
     def name : String
     def ret: Type
     def params: List[ParamDecl]
@@ -50,22 +73,26 @@ object GenericAST {
           }
         }) |>
         // visit the body
-        (body.visit(_)(visitFun)) //|>
-      // TODO: visit the attribute
+        (body.visit(_)(visitFun)) |>
+        // TODO: Does this attribute visitor actually work?
+        (attribute match {
+          case Some(a) => a.visit(_)(visitFun)
+          case None => _
+        })
     }
   }
 
   case class Function(name: String, ret: Type, params: List[ParamDecl],
                  body: Block, attribute: Option[Attribute] = None) extends
-    GenericFunction
+    FunctionT
 
 
-  trait GenericVarDecl extends Declaration
-
-  case class VarDecl(v: Var,
-                     t: Type,
-                     init: AstNode = null,
-                     length: Long = 0) extends Declaration {
+  trait VarDeclT extends Declaration
+  {
+    val v: Var
+    val t: Type
+    val init: AstNode
+    val length: Long
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         // visit the VarDecl object
@@ -73,8 +100,12 @@ object GenericAST {
         // visit the initial value
         (visitFun(_, init))
     }
-
   }
+
+  case class VarDecl(v: Var,
+                     t: Type,
+                     init: AstNode = null,
+                     length: Long = 0) extends VarDeclT
 
   /** Parameter declaration. These have to be separated from variable
     * declaration since the vectorization has to be handled differently
