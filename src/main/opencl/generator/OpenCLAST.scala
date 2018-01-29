@@ -39,9 +39,7 @@ object OpenCLAST {
   trait Kernel
 
   case class KernelFunction(name: String, ret: Type, params: List[ParamDecl],
-                            body: Block, attribute: Option[Attribute] = None) extends Function(name, ret, params, body, attribute)
-    with
-    Kernel
+                            body: Block, attribute: Option[Attribute] = None) extends GenericFunction with Kernel
 
 //  case class VarDecl(v: Var,
 //                     t: Type,

@@ -52,13 +52,15 @@ object GenericAST {
         // visit the body
         (body.visit(_)(visitFun)) //|>
       // TODO: visit the attribute
-
     }
   }
 
   case class Function(name: String, ret: Type, params: List[ParamDecl],
                  body: Block, attribute: Option[Attribute] = None) extends
     GenericFunction
+
+
+  trait GenericVarDecl extends Declaration
 
   case class VarDecl(v: Var,
                      t: Type,

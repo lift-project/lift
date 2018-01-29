@@ -17,8 +17,7 @@ object CommonSubexpressionElimination {
 
     def processBlock(block: Block) : Unit = {
       // traverse the block, and accumulate the arithmetic expressions
-      val expressions = block.visit[Seq[ArithExpression]](Seq[ArithExpression]
-        ())({
+      val expressions = block.visit(Seq[ArithExpression]())({
         case (exprs, ae: ArithExpression) => exprs :+ ae
         case (exprs, _) => exprs
       })
