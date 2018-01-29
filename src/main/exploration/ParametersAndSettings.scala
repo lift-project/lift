@@ -289,13 +289,13 @@ object ParseSettings {
 
   private[exploration] implicit val highLevelReads: Reads[HighLevelRewriteSettings] = (
     (JsPath \ "high_level_rewrite" \ "exploration_depth").read[Int](min[Int](1)) and
-      (JsPath \ "high_level_rewrite"\ "depth").read[Int](min[Int](1)) and
-      (JsPath \ "high_level_rewrite"\ "distance").read[Int](min[Int](1)) and
-      (JsPath \ "high_level_rewrite"\ "rule_repetition").read[Int](min[Int](1)) and
-      (JsPath \ "high_level_rewrite"\ "vector_width").read[Int](min[Int](1)) and
-      (JsPath \ "high_level_rewrite"\ "sequential").read[Boolean] and
-      (JsPath \ "high_level_rewrite"\ "only_lower").read[Boolean] and
-      (JsPath \ "high_level_rewrite"\ "rule_collection").read[String]
+      (JsPath \ "high_level_rewrite" \ "depth").read[Int](min[Int](1)) and
+      (JsPath \ "high_level_rewrite" \ "distance").read[Int](min[Int](1)) and
+      (JsPath \ "high_level_rewrite" \ "rule_repetition").read[Int](min[Int](1)) and
+      (JsPath \ "high_level_rewrite" \ "vector_width").read[Int](min[Int](1)) and
+      (JsPath \ "high_level_rewrite" \ "sequential").read[Boolean] and
+      (JsPath \ "high_level_rewrite" \ "only_lower").read[Boolean] and
+      (JsPath \ "high_level_rewrite" \ "rule_collection").read[String]
     ) (HighLevelRewriteSettings.createWithDefaults _)
 
   private[exploration] implicit val memoryMappingReads: Reads[MemoryMappingRewriteSettings] = (
