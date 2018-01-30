@@ -177,35 +177,27 @@ object HighLevelRewriteSettings {
   import HighLevelRewrite._
   import exploration.utils.ExplorationParameter._
 
-  def createDefault = createWithDefaults(
-    defaultExplorationDepth,
-    defaultDepthFilter,
-    defaultDistanceFilter,
-    defaultRuleRepetition,
-    defaultVectorWidth,
-    defaultSequential,
-    defaultOnlyLower,
-    defaultRuleCollection)
+  def createDefault = createWithDefaults(None, None, None, None, None, None, None, None)
 
   def createWithDefaults(
-                          configExplorationDepth: Int,
-                          configDepthFilter: Int,
-                          configDistanceFilter: Int,
-                          configRuleRepetition: Int,
-                          configVectorWidth: Int,
-                          configSequential: Boolean,
-                          configOnlyLower: Boolean,
-                          configRuleCollection: String
+                          configExplorationDepth: Option[Int],
+                          configDepthFilter: Option[Int],
+                          configDistanceFilter: Option[Int],
+                          configRuleRepetition: Option[Int],
+                          configVectorWidth: Option[Int],
+                          configSequential: Option[Boolean],
+                          configOnlyLower: Option[Boolean],
+                          configRuleCollection: Option[String]
                         ) = HighLevelRewriteSettings(
     // priority: 1) command-line args; 2) config-file; 3) default values
-    getValue(explorationDepth, configExplorationDepth),
-    getValue(depthFilter, configDepthFilter),
-    getValue(distanceFilter, configDistanceFilter),
-    getValue(ruleRepetition, configRuleRepetition),
-    getValue(vectorWidth, configVectorWidth),
-    getValue(sequential, configSequential),
-    getValue(onlyLower, configOnlyLower),
-    getValue(ruleCollection, configRuleCollection))
+    getValue(explorationDepth, configExplorationDepth, defaultExplorationDepth),
+    getValue(depthFilter, configDepthFilter, defaultDepthFilter),
+    getValue(distanceFilter, configDistanceFilter, defaultDistanceFilter),
+    getValue(ruleRepetition, configRuleRepetition, defaultRuleRepetition),
+    getValue(vectorWidth, configVectorWidth, defaultVectorWidth),
+    getValue(sequential, configSequential, defaultSequential),
+    getValue(onlyLower, configOnlyLower, defaultOnlyLower),
+    getValue(ruleCollection, configRuleCollection, defaultRuleCollection))
 }
 
 object SearchParameters {
@@ -287,16 +279,42 @@ object ParseSettings {
       (JsPath \ "max_workgroups").readNullable[Int]
     ) (SearchParameters.createWithDefaults _)
 
+  val hlr = HighLevelRewrite
   private[exploration] implicit val highLevelReads: Reads[HighLevelRewriteSettings] = (
-    (JsPath \ "high_level_rewrite" \ "exploration_depth").read[Int](min[Int](1)) and
-      (JsPath \ "high_level_rewrite" \ "depth").read[Int](min[Int](1)) and
-      (JsPath \ "high_level_rewrite" \ "distance").read[Int](min[Int](1)) and
-      (JsPath \ "high_level_rewrite" \ "rule_repetition").read[Int](min[Int](1)) and
-      (JsPath \ "high_level_rewrite" \ "vector_width").read[Int](min[Int](1)) and
-      (JsPath \ "high_level_rewrite" \ "sequential").read[Boolean] and
-      (JsPath \ "high_level_rewrite" \ "only_lower").read[Boolean] and
-      (JsPath \ "high_level_rewrite" \ "rule_collection").read[String]
+    (JsPath \ hlr.keyHighLevelRewrite \ hlr.keyExplorationDepth).readNullable[Int](min[Int](1)) and
+      (JsPath \ hlr.keyHighLevelRewrite \ hlr.keyDepthFilter).readNullable[Int](min[Int](1)) and
+      (JsPath \ hlr.keyHighLevelRewrite \ hlr.keyDistanceFilter).readNullable[Int](min[Int](1)) and
+      (JsPath \ hlr.keyHighLevelRewrite \ hlr.keyRuleRepetition).readNullable[Int](min[Int](1)) and
+      (JsPath \ hlr.keyHighLevelRewrite \ hlr.keyVectorWidth).readNullable[Int](min[Int](1)) and
+      (JsPath \ hlr.keyHighLevelRewrite \ hlr.keySequential).readNullable[Boolean] and
+      (JsPath \ hlr.keyHighLevelRewrite \ hlr.keyOnlyLower).readNullable[Boolean] and
+      (JsPath \ hlr.keyHighLevelRewrite \ hlr.keyRuleCollection).readNullable[String]
     ) (HighLevelRewriteSettings.createWithDefaults _)
+
+  private[exploration] implicit val strictHighLevelReads = new Reads[HighLevelRewriteSettings] {
+    def reads(jsv: JsValue) = {
+      highLevelReads.reads(jsv).flatMap { entry =>
+        val obj = jsv.asInstanceOf[JsObject]
+
+        val highLevelJson = obj.fieldSet.collectFirst{ case (name, js) if name == hlr.keyHighLevelRewrite => js}
+        checkUnwantedEntry(highLevelJson.get, entry)
+      }
+    }
+
+    def checkUnwantedEntry(jsv: JsValue, p: HighLevelRewriteSettings): JsResult[HighLevelRewriteSettings] = {
+      val acceptedKeys = HighLevelRewrite.defaultParameters.keySet
+      val obj = jsv.asInstanceOf[JsObject]
+      val keys = obj.keys
+      val unwanted = keys.diff(acceptedKeys)
+      if (unwanted.isEmpty) {
+        JsSuccess(p)
+      } else {
+        JsError(s"Keys: ${unwanted.mkString(",")} found in the incoming JSON")
+      }
+
+    }
+  }
+
 
   private[exploration] implicit val memoryMappingReads: Reads[MemoryMappingRewriteSettings] = (
     (JsPath \ "vectorize").readNullable[Boolean] and
