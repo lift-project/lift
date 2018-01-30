@@ -102,7 +102,7 @@ object HighLevelRewrite {
     s"Cutoff depth for filtering (default: $defaultDepthFilter")
 
   protected[exploration] val distanceFilter = parser.option[Int](List(keyDistanceFilter), "distance filter",
-    s"Number of Split/Join/Scatter/Gather/asVector/asScalar allowed between user functions (default: $keyDistanceFilter")
+    s"Number of Split/Join/Scatter/Gather/asVector/asScalar allowed between user functions (default: $defaultDistanceFilter")
 
   protected[exploration] val ruleRepetition = parser.option[Int](List(keyRuleRepetition), "rule repetition",
     s"How often the same rule can be applied (default: $defaultRuleRepetition)")
