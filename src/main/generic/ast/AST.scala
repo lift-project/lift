@@ -2,6 +2,7 @@ package generic.ast
 
 import ir.{TupleType, Type}
 import lift.arithmetic._
+import opencl.ir.OpenCLAddressSpace
 
 
 object GenericAST {
@@ -10,6 +11,7 @@ object GenericAST {
   // define an implicit class called pipe that lets us write visitors slightly more cleanly
   implicit class Pipe[A](a: A) {
     def |>[B](f: A => B): B = f(a)
+
     def pipe[B](f: A => B): B = f(a)
   }
 
@@ -44,24 +46,33 @@ object GenericAST {
   * */
 
   trait AstNode {
-    def visit[T](z: T)(visitFun: (T, AstNode) => T): T
+    def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,this)
   }
 
   trait BlockMember
-  trait Attribute extends AstNode
-  trait Declaration extends AstNode with BlockMember
-  trait Statement extends AstNode with BlockMember
-  trait Expression extends AstNode
+
+  trait AttributeT extends AstNode
+
+  trait DeclarationT extends AstNode with BlockMember
+
+  trait StatementT extends AstNode with BlockMember
+
+  trait ExpressionT extends AstNode
 
   /**
-    * A function declaration
+    * Function Declarations
     */
-  trait FunctionT extends Declaration {
-    def name : String
+  trait FunctionT extends DeclarationT {
+    def name: String
+
     def ret: Type
+
     def params: List[ParamDecl]
+
     def body: Block
-    def attribute: Option[Attribute]
+
+    def attribute: Option[AttributeT]
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         // visit the function object
@@ -75,24 +86,37 @@ object GenericAST {
         // visit the body
         (body.visit(_)(visitFun)) |>
         // TODO: Does this attribute visitor actually work?
-        (attribute match {
-          case Some(a) => a.visit(_)(visitFun)
-          case None => _
+        (acc => attribute match {
+          case Some(a) => a.visit(acc)(visitFun)
+          case None => acc
         })
     }
   }
 
   case class Function(name: String, ret: Type, params: List[ParamDecl],
-                 body: Block, attribute: Option[Attribute] = None) extends
-    FunctionT
+                      body: Block, attribute: Option[AttributeT] = None) extends FunctionT
 
-
-  trait VarDeclT extends Declaration
-  {
-    val v: Var
+  /**
+    * Variables, generally
+    */
+  trait VarT extends DeclarationT {
+    val v: lift.arithmetic.Var
     val t: Type
+
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z, this)
+  }
+
+  case class Var(v: lift.arithmetic.Var, t: Type) extends VarT
+
+  /**
+    * Variable Declarations
+    */
+
+  trait VarDeclT extends DeclarationT {
+    val v: Var
     val init: AstNode
     val length: Long
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         // visit the VarDecl object
@@ -109,34 +133,31 @@ object GenericAST {
 
   /** Parameter declaration. These have to be separated from variable
     * declaration since the vectorization has to be handled differently
+    * in the OpenCL AST
     */
-  abstract class ParamDecl(name: String, t: Type,
-                           const: Boolean = false) extends Declaration {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
-      this)
+
+  trait ParamDeclT extends DeclarationT {
+    val name: String
+    val t: Type
+    val const: Boolean // = false
   }
+
+  abstract class ParamDecl(name: String, t: Type,
+                           const: Boolean = false) extends ParamDeclT
 
 
   /**
     * List of nodes enclosed in a bock. This behaves like (and emits) a C block.
     */
-  case class Block(var content: Vector[AstNode with BlockMember] = Vector.empty,
-                   global: Boolean = false) extends Statement {
-    /** Append a sub-node. Could be any node, including a sub-block.
-      *
-      * @param node The node to add to this block.
-      */
-    def +=(node: AstNode with BlockMember): Unit = {
-      content = content :+ node
-    }
 
-    def add(node: AstNode with BlockMember): Unit = {
-      this.content :+ node
-    }
+  trait BlockT extends StatementT {
+    // TODO: How do we handle default values when they're vals?
+    val content: Vector[AstNode with BlockMember] // = Vector.empty
+    val global: Boolean // = false
 
-    def ::(node: AstNode with BlockMember): Unit = {
-      content = node +: content
-    }
+    def :+(node: AstNode with BlockMember): BlockT
+
+    def ::(node: AstNode with BlockMember): BlockT
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -149,17 +170,23 @@ object GenericAST {
     }
   }
 
-  /**
-    *
-    * @param init      The expression/value initializing the iteration variabel. should either be an ExpressionStatement or VarDecl
-    * @param cond      The condition used in the for loop
-    * @param increment The expression used to increment the iteration variable
-    * @param body      The loop body
-    */
-  case class ForLoop(init: Declaration,
-                     cond: ExpressionStatement,
-                     increment: Expression,
-                     body: Block) extends Statement {
+  case class Block(content: Vector[AstNode with BlockMember],
+                   global: Boolean) extends BlockT {
+    /** Append a sub-node. Could be any node, including a sub-block.
+      *
+      * @param node The node to add to this block.
+      */
+    def :+(node: AstNode with BlockMember): Block = this.copy(content = content :+ node)
+
+    def ::(node: AstNode with BlockMember): Block = this.copy(content = node +: content)
+  }
+
+  trait ForLoopT extends StatementT {
+    val init: DeclarationT
+    val cond: ExpressionStatement
+    val increment: ExpressionT
+    val body: BlockT
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this))
@@ -167,14 +194,16 @@ object GenericAST {
     }
   }
 
+  case class ForLoop(init: DeclarationT,
+                     cond: ExpressionStatement,
+                     increment: ExpressionT,
+                     body: Block) extends ForLoopT
 
-  /** An alternative looping construct, using a predicate - a 'while' loop
-    *
-    * @param loopPredicate the predicate the loop tests each iteration
-    * @param body          the body of the loop
-    */
-  case class WhileLoop(loopPredicate: Predicate,
-                       body: Block) extends Statement {
+
+  trait WhileLoopT extends StatementT {
+    val loopPredicate: Predicate
+    val body: Block
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -182,15 +211,17 @@ object GenericAST {
     }
   }
 
-  /** An if-then-else set of statements, with two branches.
-    *
-    * @param cond      the condition
-    * @param trueBody  the body evaluated if switchPredicate is true
-    * @param falseBody the body evaluated if switchPredicate is false
+  case class WhileLoop(loopPredicate: Predicate,
+                       body: Block) extends WhileLoopT
+
+  /**
+    * An If-then-else sequence
     */
-  case class IfThenElse(cond: Expression,
-                        trueBody: Block,
-                        falseBody: Block = Block()) extends Statement {
+  trait IfThenElseT extends StatementT {
+    val cond: ExpressionT
+    val trueBody: BlockT
+    val falseBody: BlockT
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -200,32 +231,51 @@ object GenericAST {
     }
   }
 
+  case class IfThenElse(cond: ExpressionT,
+                        trueBody: Block,
+                        falseBody: Block) extends IfThenElseT
+
   /** A goto statement, targeting the label with corresponding name
     * TODO: Think of a better way of describing goto labels
-    *
-    * @param nameVar the name of the label to go to
     */
-  case class GOTO(nameVar: Var) extends Statement {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
-      this)
+  trait GOTOT extends StatementT {
+    val nameVar: Var
   }
 
-  case class Break() extends Statement {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
-      this)
+  case class GOTO(nameVar: Var) extends GOTOT
+
+  /**
+    * A break statement (e.g. for exiting a loop)
+    */
+  trait BreakT extends StatementT
+
+  case class Break() extends BreakT
+
+  /**
+    * Typedef statements? Type declarations?
+    */
+  trait TypeDefT extends StatementT {
+    val t: Type
   }
 
-  case class TypeDef(t: Type) extends Statement {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
-      this)
+  case class TypeDef(t: Type) extends TypeDefT
+
+  /**
+    * ??? Tuple aliases?
+    */
+  trait TupleAliasT extends StatementT {
+    val t: Type
+    val name: String
   }
 
-  case class TupleAlias(t: Type, name: String) extends Statement {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
-      this)
-  }
+  case class TupleAlias(t: Type, name: String) extends TupleAliasT
 
-  case class ExpressionStatement(e: Expression) extends Statement {
+  /**
+    * Expression statements??
+    */
+  trait ExpressionStatementT extends StatementT {
+    val e: ExpressionT
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -233,9 +283,12 @@ object GenericAST {
     }
   }
 
+  case class ExpressionStatement(e: ExpressionT) extends ExpressionStatementT
 
-  case class FunctionCall(name: String,
-                          args: List[GenericAST.AstNode]) extends Expression {
+  trait FunctionCallT extends ExpressionT {
+    val name: String
+    val args: List[AstNode]
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -247,23 +300,33 @@ object GenericAST {
     }
   }
 
-  /** A reference to a declared variable
-    *
-    * @param v          The variable referenced.
-    * @param suffix     An optional suffix appended to the name.
-    *                   Used e.g. for unrolled variables in private memory.
-    * @param arrayIndex Offset used to index from pointers, if any.
-    * @note This uses a String instead of a Var because some nodes (like user
-    *       functions), inject variables from string.
+  case class FunctionCall(name: String,
+                          args: List[GenericAST.AstNode]) extends FunctionCallT
+
+  /**
+    * A reference to a declared variable
     */
-  case class VarRef(v: Var,
-                    suffix: String = null,
-                    arrayIndex: ArithExpression = null) extends Expression {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z, this)
+  trait VarRefT extends ExpressionT {
+    val v: Var
+    val suffix: String
+    val arrayIndex: ArithExpression
+
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      visitFun(z, this) |> (visitFun(_, v))
+    }
   }
 
-  case class Load(v: VarRef,
-                  offset: ArithExpression) extends Expression {
+  case class VarRef(v: Var,
+                    suffix: String = null,
+                    arrayIndex: ArithExpression = null) extends VarRefT
+
+  /**
+    * A load from a variable, with (potentially) an offset
+    */
+  trait LoadT extends ExpressionT {
+    val v: VarRef
+    val offset: ArithExpression
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -271,9 +334,17 @@ object GenericAST {
     }
   }
 
-  case class Store(v: VarRef,
-                   value: AstNode,
-                   offset: ArithExpression) extends Expression {
+  case class Load(v: VarRef,
+                  offset: ArithExpression) extends LoadT
+
+  /**
+    * A Store into a variable with (potentially) an offset
+    */
+  trait StoreT extends ExpressionT {
+    val v: VarRef
+    val value: AstNode
+    val offset: ArithExpression
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -282,14 +353,17 @@ object GenericAST {
     }
   }
 
-  /** Represent an assignment.
-    *
-    * @param to    Left-hand side.
-    * @param value Right-hand side.
-    * @note Vectors are using Store instead of assignment.
+  case class Store(v: VarRef,
+                   value: AstNode,
+                   offset: ArithExpression) extends StoreT
+
+  /**
+    * Represent an assignment.
     */
-  case class AssignmentExpression(to: AstNode, value: AstNode) extends
-    Expression {
+  trait AssignmentExpressionT extends ExpressionT {
+    val to: AstNode
+    val value: AstNode
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -298,17 +372,26 @@ object GenericAST {
     }
   }
 
-  /** Wrapper for arithmetic expression
-    *
-    * @param content The arithmetic expression.
+  case class AssignmentExpression(to: AstNode, value: AstNode) extends
+    AssignmentExpressionT
+
+  /**
+    * Wrapper for arithmetic expression
     */
-  case class ArithExpression(var content: ArithExpr) extends Expression {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
-      this)
+  trait ArithExpressionT extends ExpressionT {
+    val content: ArithExpr
   }
 
-  case class BinaryExpression(lhs: Expression, rhs: Expression, op: BinaryExpression.Operator.Operator)
-    extends Expression {
+  case class ArithExpression(content: ArithExpr) extends ArithExpressionT
+
+  /**
+    * Binary expressions
+    */
+  trait BinaryExpressionT extends ExpressionT {
+    val lhs: ExpressionT
+    val rhs: ExpressionT
+    val op: BinaryExpressionT.Operator.Operator
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -317,7 +400,7 @@ object GenericAST {
     }
   }
 
-  object BinaryExpression {
+  object BinaryExpressionT {
 
     object Operator extends Enumeration {
       type Operator = Value
@@ -330,7 +413,19 @@ object GenericAST {
 
   }
 
-  case class CondExpression(lhs: Expression, rhs: Expression, cond: CondExpression.Operator.Operator) extends Expression {
+  case class BinaryExpression(lhs: ExpressionT, rhs: ExpressionT,
+                              op: BinaryExpressionT.Operator.Operator)
+    extends BinaryExpressionT
+
+
+  /**
+    * Conditional expressions, with an operator
+    */
+  trait CondExpressionT extends ExpressionT {
+    val lhs: ExpressionT
+    val rhs: ExpressionT
+    val cond: CondExpressionT.Operator.Operator
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -338,8 +433,7 @@ object GenericAST {
         (visitFun(_, rhs))
     }
   }
-
-  object CondExpression {
+  object CondExpressionT {
 
     /**
       * List of comparison operators
@@ -357,8 +451,18 @@ object GenericAST {
     }
 
   }
+  case class CondExpression(lhs: ExpressionT, rhs: ExpressionT,
+                            cond: CondExpressionT.Operator.Operator)
+    extends CondExpressionT
 
-  case class TernaryExpression(cond: CondExpression, trueExpr: Expression, falseExpr: Expression) extends Expression {
+  /**
+    * Ternary Expressions (i.e. cond ? trueExpr : falseExpr )
+    */
+  trait TernaryExpressionT extends ExpressionT {
+    val cond: CondExpression
+    val trueExpr: ExpressionT
+    val falseExpr: ExpressionT
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -367,13 +471,15 @@ object GenericAST {
         (visitFun(_, falseExpr))
     }
   }
+  case class TernaryExpression(cond: CondExpression, trueExpr: ExpressionT, falseExpr: ExpressionT)
+    extends TernaryExpressionT
 
-  /** Force a cast of a variable to the given type. This is used to
-    *
-    * @param v A referenced variable.
-    * @param t The type to cast the variable into.
+  /**
+    * Force a cast of a variable to the given type. This is used to
     */
-  case class Cast(v: VarRef, t: Type) extends Expression {
+  trait CastT extends  ExpressionT {
+    val v: VarRef
+    val t: Type
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -381,16 +487,15 @@ object GenericAST {
     }
   }
 
-  case class PointerCast(v: VarRef, t: Type) extends Expression {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
-      z |>
-        (visitFun(_, this)) |>
-        (visitFun(_, v))
-    }
-  }
+  /**
+    * TODO: Can we actually do this? What will break :D
+    */
+  case class Cast(v: VarRef, t: Type) extends CastT
+  case class PointerCast(v: VarRef, t: Type) extends CastT
 
-  case class StructConstructor(t: TupleType, args: Vector[AstNode]) extends
-    Expression {
+  trait StructConstructorT extends ExpressionT {
+    val t: TupleType
+    val args: Vector[AstNode]
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -401,19 +506,23 @@ object GenericAST {
         })
     }
   }
+  case class StructConstructor(t: TupleType, args: Vector[AstNode]) extends
+    StructConstructorT
 
-  case class ArbitraryExpression(code: String) extends Expression {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
-      this)
-  }
-
-  /** Inline comment block.
-    *
-    * @param content Comment string*
+  /**
+    * Snippets of raw code that we might want to embed in our program
     */
-  case class Comment(content: String) extends AstNode with BlockMember {
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
-      this)
+  trait RawCodeT extends ExpressionT{
+    val code: String
   }
+  case class RawCode(code: String) extends RawCodeT
+
+  /**
+    * Inline comment block.
+    */
+  trait CommentT extends AstNode with BlockMember{
+    val content: String
+  }
+  case class Comment(content: String) extends CommentT
 
 }
