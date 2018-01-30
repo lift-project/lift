@@ -1,24 +1,28 @@
-package opencl.generator
+package generic.generator
 
-import lift.arithmetic.{ArithExpr, Cst, Pow, Var}
 import generic.ast.GenericAST._
-//import opencl.ir.{Int, PrivateMemory}
+import lift.arithmetic.{ArithExpr, Cst, Pow, Var}
+import opencl.ir.{Int, PrivateMemory}
 
 import scala.collection.mutable
 
 object CommonSubexpressionElimination {
-  def apply(block: Block): Unit = {
-    visitBlocks(block, processBlock)
+  def apply(node: AstNode) : Unit = {
 
-    def processBlock(block: Block): Unit = {
-      // get all the arithmetic expressions from this block
-      var expressions = Seq[ArithExpression]()
-      visitExpressionsInBlock(block, {
-        case e: ArithExpression => expressions = expressions :+ e
-        case _ =>
+    // visit each of the blocks in node:
+    node.visit[Unit](())({
+      case (_, b: Block) => processBlock(b)
+      case _ => // do nothing, it's not a block, so we don't want to process it
+    })
+
+    def processBlock(block: Block) : Unit = {
+      // traverse the block, and accumulate the arithmetic expressions
+      val expressions = block.visit(Seq[ArithExpression]())({
+        case (exprs, ae: ArithExpression) => exprs :+ ae
+        case (exprs, _) => exprs
       })
 
-      // map for counting how often subterms appear
+      // create a map to count how often subterms appear
       val counts = mutable.Map[ArithExpr, Int]()
 
       // count how many times a subterm appears in the expressions
@@ -57,10 +61,9 @@ object CommonSubexpressionElimination {
           //     new variable
           substitutions put(p._1, newVar)
 
-          OpenCLAST.VarDecl(newVar,
+          VarDecl(newVar,
             t = Int,
-            init = OpenCLAST.ArithExpression(p._1),
-            addressSpace = PrivateMemory)
+            init = ArithExpression(p._1))
         })
 
       // update the Expression nodes to
