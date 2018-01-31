@@ -28,6 +28,26 @@ class TestParametersAndSettings {
   }
 
   @Test
+  def checkParameterConstraint(): Unit = {
+    // value cannot be negative
+    val config = s"""
+      |{
+      |  "${HighLevelRewrite.keyHighLevelRewrite}" : {
+      |    "${HighLevelRewrite.keyExplorationDepth}" : -1
+      |  }
+      |}
+    """.stripMargin
+    val json = Json.parse(config)
+    import ParseSettings.strictHighLevelReads
+    val validated = json.validate[HighLevelRewriteSettings]
+    validated match {
+      case JsSuccess(settings, _) =>
+        fail()
+      case _: JsError => assertTrue(true)
+    }
+  }
+
+  @Test
   def checkSetSingleValue(): Unit = {
     val value = 42
     val config = s"""
