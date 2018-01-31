@@ -45,7 +45,13 @@ object GenericAST {
   * */
 
   trait AstNode {
-    def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,this)
+    def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
+      this)
+
+    def prePostVisit[T](z: T)(preVisit: (T, AstNode) ⇒ T, postVisit: (T,
+      AstNode) ⇒ T): T = {
+      z |> (preVisit(_, this)) |> (postVisit(_, this))
+    }
   }
 
   trait BlockMember
@@ -101,12 +107,16 @@ object GenericAST {
     */
   trait VarT extends DeclarationT {
     val v: lift.arithmetic.Var
-    val t: Type
+//    val t: Type
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z, this)
   }
 
-  case class Var(v: lift.arithmetic.Var, t: Type) extends VarT
+  case class Var(v: lift.arithmetic.Var/*, t: Type*/) extends VarT
+
+  object Var {
+    implicit def createVar(v: lift.arithmetic.Var): Var = Var(v)
+  }
 
   /**
     * Variable Declarations
@@ -142,7 +152,7 @@ object GenericAST {
     val const: Boolean // = false
   }
 
-  abstract class ParamDecl(name: String, t: Type,
+  case class ParamDecl(name: String, t: Type,
                            const: Boolean = false) extends ParamDeclT
 
 
@@ -240,6 +250,7 @@ object GenericAST {
     */
   trait GOTOT extends StatementT {
     val nameVar: Var
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -254,6 +265,7 @@ object GenericAST {
     */
   trait LabelT extends DeclarationT {
     val nameVar: Var
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -304,7 +316,7 @@ object GenericAST {
 
   case class ExpressionStatement(e: ExpressionT) extends ExpressionStatementT
 
-  implicit def exprToStmt(e: ExpressionT) : ExpressionStatement =
+  implicit def exprToStmt(e: ExpressionT): ExpressionStatement =
     ExpressionStatement(e)
 
   trait FunctionCallT extends ExpressionT {
@@ -478,15 +490,17 @@ object GenericAST {
         (visitFun(_, falseExpr))
     }
   }
+
   case class TernaryExpression(cond: BinaryExpressionT, trueExpr: ExpressionT, falseExpr: ExpressionT)
     extends TernaryExpressionT
 
   /**
     * Force a cast of a variable to the given type. This is used to
     */
-  trait CastT extends  ExpressionT {
+  trait CastT extends ExpressionT {
     val v: VarRef
     val t: Type
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -498,11 +512,13 @@ object GenericAST {
     * TODO: Can we actually do this? What will break :D
     */
   case class Cast(v: VarRef, t: Type) extends CastT
+
   case class PointerCast(v: VarRef, t: Type) extends CastT
 
   trait StructConstructorT extends ExpressionT {
     val t: TupleType
     val args: Vector[AstNode]
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -513,23 +529,26 @@ object GenericAST {
         })
     }
   }
+
   case class StructConstructor(t: TupleType, args: Vector[AstNode]) extends
     StructConstructorT
 
   /**
     * Snippets of raw code that we might want to embed in our program
     */
-  trait RawCodeT extends ExpressionT{
+  trait RawCodeT extends ExpressionT {
     val code: String
   }
+
   case class RawCode(code: String) extends RawCodeT
 
   /**
     * Inline comment block.
     */
-  trait CommentT extends AstNode with BlockMember{
+  trait CommentT extends AstNode with BlockMember {
     val content: String
   }
+
   case class Comment(content: String) extends CommentT
 
 }

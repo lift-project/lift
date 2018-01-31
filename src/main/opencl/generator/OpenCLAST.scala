@@ -62,7 +62,7 @@ object OpenCLAST {
     */
   case class OclFunction(name: String,
                          ret: Type,
-                         params: List[ParamDecl],
+                         params: List[ParamDeclT],
                          body: Block,
                          attribute: Option[AttributeT] = None, kernel: Boolean =
                       false) extends

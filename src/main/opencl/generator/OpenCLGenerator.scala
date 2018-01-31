@@ -2,11 +2,14 @@ package opencl.generator
 
 import arithmetic.TypeVar
 import generic.Generator
+
 import ir._
 import ir.ast._
 import ir.view._
 import lift.arithmetic._
 import opencl.generator.OpenCLAST._
+import generic.ast.GenericAST._
+import generic.ast.GenericAST
 import opencl.ir._
 import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
@@ -57,7 +60,8 @@ object OpenCLGenerator extends Generator {
       (Seq.empty[TypedOpenCLMemory], inputs ++ outputs ++ globalIntermediates ++ localIntermediates)
   }
 
-  def getDifferentMemories(lambda: Lambda): (Seq[TypedOpenCLMemory], Seq[TypedOpenCLMemory], Predef.Map[Var, Type]) = {
+  def getDifferentMemories(lambda: Lambda): (Seq[TypedOpenCLMemory],
+    Seq[TypedOpenCLMemory], Predef.Map[GenericAST.Var, Type]) = {
 
     val valMems = Expr.visitWithState(Set[Memory]())(lambda.body, (expr, set) =>
       expr match {
@@ -78,22 +82,23 @@ object OpenCLGenerator extends Generator {
         if (tm.mem.addressSpace == PrivateMemory || tm.t.isInstanceOf[VectorType]) {
           // do not de-vectorise for private memory
           // only de-vectorise arrays
-          (tm.mem.variable, tm.t)
+          (Var(tm.mem.variable), tm.t)
         } else {
-          (tm.mem.variable, Type.devectorize(tm.t))
+          (Var(tm.mem.variable), Type.devectorize(tm.t))
         }
       }).toMap
 
     // ... besides the these variables which use the value types
     // (i.e., possibly a vector type)
     varDecls = varDecls ++
-      typedValueMems.map(tm => (tm.mem.variable, tm.t)).toMap
+      typedValueMems.map(tm => (Var(tm.mem.variable), tm.t))
+        .toMap
 
     (typedValueMems, privateMems, varDecls)
   }
 
   def getOriginalType(mem: OpenCLMemory,
-                      varDecls: immutable.Map[Var, Type]): Type = {
+                      varDecls: immutable.Map[GenericAST.Var, Type]): Type = {
 
     try {
       varDecls(mem.variable)
@@ -105,22 +110,24 @@ object OpenCLGenerator extends Generator {
 
   }
 
-  def createFunctionDefinition(uf: UserFun): OclFunction = {
-    val block = OpenCLAST.Block()
+  def createFunctionDefinition(uf: UserFun): Function = {
+    var block = Block(new Vector[AstNode with BlockMember], false)
+
     if (uf.tupleTypes.length == 1)
-      block += OpenCLAST.TupleAlias(uf.tupleTypes.head, "Tuple")
+      block = block :+ TupleAlias(uf.tupleTypes.head, "Tuple")
     else uf.tupleTypes.zipWithIndex.foreach({ case (x, i) =>
       // TODO: think about this one ...
-      block += OpenCLAST.TupleAlias(x, s"Tuple$i")
+      block = block :+ TupleAlias(x, s"Tuple$i")
     })
-    block += OpenCLAST.OpenCLCode(uf.body)
+    block = block :+ OpenCLAST.OpenCLCode(uf.body)
 
-    OpenCLAST.OclFunction(
+    Function(
       name = uf.name,
       ret = uf.outT,
+      body = block,
       params = (uf.inTs, uf.paramNames).
-        zipped.map((t, n) => OpenCLAST.ParamDecl(n, t)).toList,
-      body = block)
+        zipped.map((t, n) => GenericAST.ParamDecl(n, t)).toList
+      )
   }
 
   private[generator] def isFixedSizeLocalMemory: (TypedOpenCLMemory) => Boolean = {
@@ -137,7 +144,7 @@ object OpenCLGenerator extends Generator {
 class OpenCLGenerator extends Generator {
 
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
-  type SymbolTable = immutable.Map[Var, Type]
+  type SymbolTable = immutable.Map[GenericAST.Var, Type]
 
 
   private val openCLCodeGen = new OpenCLPrinter
@@ -145,7 +152,7 @@ class OpenCLGenerator extends Generator {
   private var replacements: ValueTable = immutable.Map.empty
   private var replacementsWithFuns: ValueTable = immutable.Map.empty
   private var privateMems = Seq[TypedOpenCLMemory]()
-  private var privateDecls = immutable.Map[Var, OpenCLAST.VarDecl]()
+  private var privateDecls = immutable.Map[GenericAST.Var, OclVarDecl]()
 
   private var varDecls: SymbolTable = immutable.Map.empty
 
@@ -211,7 +218,7 @@ class OpenCLGenerator extends Generator {
 
     View(f)
 
-    val globalBlock = OpenCLAST.Block(Vector.empty, global = true)
+    val globalBlock = Block(Vector.empty, true)
 
     val containsDouble = Expr.visitWithState(false)(f.body, {
       case (expr, state) =>
