@@ -1,10 +1,12 @@
 package exploration
 
 import com.typesafe.scalalogging.Logger
+import exploration.utils.ExplorationParameter
 import lift.arithmetic.{ArithExpr, Cst}
 import play.api.libs.json.Reads._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
+
 import scala.io.Source
 
 case class LocalMemoryRulesSettings(
@@ -280,7 +282,7 @@ object ParseSettings {
     ) (SearchParameters.createWithDefaults _)
 
   val hlr = HighLevelRewrite
-  private[exploration] implicit val highLevelReads: Reads[HighLevelRewriteSettings] = (
+  private val highLevelReads: Reads[HighLevelRewriteSettings] = (
     (JsPath \ hlr.keyHighLevelRewrite \ hlr.keyExplorationDepth).readNullable[Int](min[Int](1)) and
       (JsPath \ hlr.keyHighLevelRewrite \ hlr.keyDepthFilter).readNullable[Int](min[Int](1)) and
       (JsPath \ hlr.keyHighLevelRewrite \ hlr.keyDistanceFilter).readNullable[Int](min[Int](1)) and
@@ -292,29 +294,11 @@ object ParseSettings {
     ) (HighLevelRewriteSettings.createWithDefaults _)
 
   private[exploration] implicit val strictHighLevelReads = new Reads[HighLevelRewriteSettings] {
-    def reads(jsv: JsValue) = {
-      highLevelReads.reads(jsv).flatMap { entry =>
-        val obj = jsv.asInstanceOf[JsObject]
-
-        val highLevelJson = obj.fieldSet.collectFirst{ case (name, js) if name == hlr.keyHighLevelRewrite => js}
-        checkUnwantedEntry(highLevelJson.get, entry)
-      }
-    }
-
-    def checkUnwantedEntry(jsv: JsValue, p: HighLevelRewriteSettings): JsResult[HighLevelRewriteSettings] = {
-      val acceptedKeys = HighLevelRewrite.defaultParameters.keySet
-      val obj = jsv.asInstanceOf[JsObject]
-      val keys = obj.keys
-      val unwanted = keys.diff(acceptedKeys)
-      if (unwanted.isEmpty) {
-        JsSuccess(p)
-      } else {
-        JsError(s"Keys: ${unwanted.mkString(",")} found in the incoming JSON")
-      }
-
-    }
+    def reads(jsv: JsValue) : JsResult[HighLevelRewriteSettings] =
+      ExplorationParameter.reads[HighLevelRewriteSettings](
+        jsv, highLevelReads, hlr.keyHighLevelRewrite, hlr.defaultParameters.keySet
+      )
   }
-
 
   private[exploration] implicit val memoryMappingReads: Reads[MemoryMappingRewriteSettings] = (
     (JsPath \ "vectorize").readNullable[Boolean] and

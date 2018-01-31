@@ -1,6 +1,7 @@
 package exploration.utils
 
 import org.clapper.argot.{FlagOption, SingleValueOption}
+import play.api.libs.json._
 
 object ExplorationParameter {
 
@@ -29,4 +30,25 @@ object ExplorationParameter {
 
     option.getOrElse(config)
   }
+
+  def checkUnwantedEntry[T](jsv: JsValue, validKeys: Set[String], result: JsSuccess[T]) = {
+    val obj = jsv.asInstanceOf[JsObject]
+      val keys = obj.keys
+      val unwanted = keys.diff(validKeys)
+      if (unwanted.isEmpty) {
+        result
+      } else {
+        JsError(s"Keys: ${unwanted.mkString(",")} found in the incoming JSON")
+      }
+  }
+
+  def reads[T](jsv: JsValue, read: Reads[T], jsonKey: String, keys: Set[String]) : JsResult[T] = {
+      read.reads(jsv).flatMap { entry =>
+        val obj = jsv.asInstanceOf[JsObject]
+
+        val json = obj.fieldSet.collectFirst{ case (name, js) if name == jsonKey => js}
+        ExplorationParameter.checkUnwantedEntry[T](
+          json.get, keys, JsSuccess(entry))
+      }
+    }
 }

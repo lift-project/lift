@@ -16,7 +16,7 @@ import rewriting._
 import rewriting.rules._
 import rewriting.macrorules.{MacroRules, ReuseRules, SlideTiling}
 import rewriting.utils._
-import scala.collection.Map
+import scala.collection.immutable.Map
 
 object HighLevelRewrite {
 
