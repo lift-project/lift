@@ -42,7 +42,7 @@ object CommonSubexpressionElimination {
       val subterms = counts.filter(_._2 > 1)
         .filter(!_._1.isInstanceOf[Var])
         .filter(!_._1.isInstanceOf[Cst])
-        .filter(!_._1.isInstanceOf[OclFunction])
+        .filter(!_._1.isInstanceOf[Function])
         .filter(_._1 match {
           // don't choose pow(b, -1), as this might be
           // printed as "/b" inside of a product
@@ -61,7 +61,7 @@ object CommonSubexpressionElimination {
           //     new variable
           substitutions put(p._1, newVar)
 
-          VarDecl(newVar,
+          VarDecl(Var(newVar, Int),
             t = Int,
             init = ArithExpression(p._1))
         })

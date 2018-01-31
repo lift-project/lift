@@ -2,11 +2,10 @@ package generic.ast
 
 import ir.{TupleType, Type}
 import lift.arithmetic._
-import opencl.ir.OpenCLAddressSpace
 
+import scala.language.implicitConversions
 
 object GenericAST {
-
 
   // define an implicit class called pipe that lets us write visitors slightly more cleanly
   implicit class Pipe[A](a: A) {
@@ -69,7 +68,7 @@ object GenericAST {
 
     def params: List[ParamDecl]
 
-    def body: Block
+    def body: BlockT
 
     def attribute: Option[AttributeT]
 
@@ -94,7 +93,8 @@ object GenericAST {
   }
 
   case class Function(name: String, ret: Type, params: List[ParamDecl],
-                      body: Block, attribute: Option[AttributeT] = None) extends FunctionT
+                      body: BlockT, attribute: Option[AttributeT] = None)
+    extends FunctionT
 
   /**
     * Variables, generally
@@ -197,12 +197,12 @@ object GenericAST {
   case class ForLoop(init: DeclarationT,
                      cond: ExpressionStatement,
                      increment: ExpressionT,
-                     body: Block) extends ForLoopT
+                     body: BlockT) extends ForLoopT
 
 
   trait WhileLoopT extends StatementT {
     val loopPredicate: Predicate
-    val body: Block
+    val body: BlockT
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -212,7 +212,7 @@ object GenericAST {
   }
 
   case class WhileLoop(loopPredicate: Predicate,
-                       body: Block) extends WhileLoopT
+                       body: BlockT) extends WhileLoopT
 
   /**
     * An If-then-else sequence
@@ -232,17 +232,36 @@ object GenericAST {
   }
 
   case class IfThenElse(cond: ExpressionT,
-                        trueBody: Block,
-                        falseBody: Block) extends IfThenElseT
+                        trueBody: BlockT,
+                        falseBody: BlockT) extends IfThenElseT
 
   /** A goto statement, targeting the label with corresponding name
     * TODO: Think of a better way of describing goto labels
     */
   trait GOTOT extends StatementT {
     val nameVar: Var
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (visitFun(_, nameVar))
+    }
   }
 
   case class GOTO(nameVar: Var) extends GOTOT
+
+  /**
+    * A Label, targeted by a corresponding goto
+    */
+  trait LabelT extends DeclarationT {
+    val nameVar: Var
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (visitFun(_, nameVar))
+    }
+  }
+
+  case class Label(nameVar: Var) extends LabelT
 
   /**
     * A break statement (e.g. for exiting a loop)
@@ -284,6 +303,9 @@ object GenericAST {
   }
 
   case class ExpressionStatement(e: ExpressionT) extends ExpressionStatementT
+
+  implicit def exprToStmt(e: ExpressionT) : ExpressionStatement =
+    ExpressionStatement(e)
 
   trait FunctionCallT extends ExpressionT {
     val name: String
@@ -404,62 +426,47 @@ object GenericAST {
 
     object Operator extends Enumeration {
       type Operator = Value
-      val + = Value("+")
-      val - = Value("-")
-      val * = Value("*")
-      val / = Value("/")
-      val % = Value("%")
+      val + : BinaryExpressionT.Operator.Value = Value("+")
+      val - : BinaryExpressionT.Operator.Value = Value("-")
+      val * : BinaryExpressionT.Operator.Value = Value("*")
+      val / : BinaryExpressionT.Operator.Value = Value("/")
+      val % : BinaryExpressionT.Operator.Value = Value("%")
+      val < : BinaryExpressionT.Operator.Value = Value("<")
+      val > : BinaryExpressionT.Operator.Value = Value(">")
+      val <= : BinaryExpressionT.Operator.Value = Value("<=")
+      val >= : BinaryExpressionT.Operator.Value = Value(">=")
+      val != : BinaryExpressionT.Operator.Value = Value("!=")
+      val == : BinaryExpressionT.Operator.Value = Value("==")
+      val || : BinaryExpressionT.Operator.Value = Value("||")
+      val && : BinaryExpressionT.Operator.Value = Value("&&")
     }
 
   }
 
-  case class BinaryExpression(lhs: ExpressionT, rhs: ExpressionT,
-                              op: BinaryExpressionT.Operator.Operator)
+  case class BinaryExpression(lhs: ExpressionT,
+                              op: BinaryExpressionT.Operator.Operator, rhs: ExpressionT)
     extends BinaryExpressionT
 
-
-  /**
-    * Conditional expressions, with an operator
-    */
-  trait CondExpressionT extends ExpressionT {
-    val lhs: ExpressionT
-    val rhs: ExpressionT
-    val cond: CondExpressionT.Operator.Operator
-
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
-      z |>
-        (visitFun(_, this)) |>
-        (visitFun(_, lhs)) |>
-        (visitFun(_, rhs))
-    }
+  implicit def predicateToCondExpression(p: Predicate): BinaryExpression = {
+    BinaryExpression(
+      ArithExpression(p.lhs),
+      p.op match {
+        case Predicate.Operator.!= => BinaryExpressionT.Operator.!=
+        case Predicate.Operator.< => BinaryExpressionT.Operator.<
+        case Predicate.Operator.<= => BinaryExpressionT.Operator.<=
+        case Predicate.Operator.== => BinaryExpressionT.Operator.==
+        case Predicate.Operator.> => BinaryExpressionT.Operator.>
+        case Predicate.Operator.>= => BinaryExpressionT.Operator.>=
+      },
+      ArithExpression(p.rhs)
+    )
   }
-  object CondExpressionT {
-
-    /**
-      * List of comparison operators
-      */
-    object Operator extends Enumeration {
-      type Operator = Value
-      val < = Value("<")
-      val > = Value(">")
-      val <= = Value("<=")
-      val >= = Value(">=")
-      val != = Value("!=")
-      val == = Value("==")
-      val || = Value("||")
-      val && = Value("&&")
-    }
-
-  }
-  case class CondExpression(lhs: ExpressionT, rhs: ExpressionT,
-                            cond: CondExpressionT.Operator.Operator)
-    extends CondExpressionT
 
   /**
     * Ternary Expressions (i.e. cond ? trueExpr : falseExpr )
     */
   trait TernaryExpressionT extends ExpressionT {
-    val cond: CondExpression
+    val cond: BinaryExpressionT
     val trueExpr: ExpressionT
     val falseExpr: ExpressionT
 
@@ -471,7 +478,7 @@ object GenericAST {
         (visitFun(_, falseExpr))
     }
   }
-  case class TernaryExpression(cond: CondExpression, trueExpr: ExpressionT, falseExpr: ExpressionT)
+  case class TernaryExpression(cond: BinaryExpressionT, trueExpr: ExpressionT, falseExpr: ExpressionT)
     extends TernaryExpressionT
 
   /**

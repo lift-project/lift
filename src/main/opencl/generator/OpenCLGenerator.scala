@@ -105,7 +105,7 @@ object OpenCLGenerator extends Generator {
 
   }
 
-  def createFunctionDefinition(uf: UserFun): Function = {
+  def createFunctionDefinition(uf: UserFun): OclFunction = {
     val block = OpenCLAST.Block()
     if (uf.tupleTypes.length == 1)
       block += OpenCLAST.TupleAlias(uf.tupleTypes.head, "Tuple")
@@ -115,7 +115,7 @@ object OpenCLGenerator extends Generator {
     })
     block += OpenCLAST.OpenCLCode(uf.body)
 
-    OpenCLAST.Function(
+    OpenCLAST.OclFunction(
       name = uf.name,
       ret = uf.outT,
       params = (uf.inTs, uf.paramNames).

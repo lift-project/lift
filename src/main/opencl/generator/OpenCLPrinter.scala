@@ -50,7 +50,7 @@ class OpenCLPrinter extends Printer {
         })
       }
 
-    case f: Function              => print(f)
+    case f: OclFunction              => print(f)
     case a: RequiredWorkGroupSize => print(a)
     case i: OpenCLCode            => sb ++= i.code
     case e: OpenCLExpression      => sb ++= e.code
@@ -213,7 +213,7 @@ class OpenCLPrinter extends Printer {
       s"__attribute((reqd_work_group_size($localSize)))\n"
   }
 
-  private def print(f: Function): Unit = {
+  private def print(f: OclFunction): Unit = {
     if (f.kernel) sb ++= "kernel "
 
     if (f.attribute.isDefined) print(f.attribute.get)
