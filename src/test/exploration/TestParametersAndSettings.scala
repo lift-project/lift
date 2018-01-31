@@ -9,6 +9,64 @@ import play.api.libs.json._
 class TestParametersAndSettings {
 
   @Test
+  def checkSingleValue(): Unit = {
+    val config = s"""
+      |{
+      |  "${HighLevelRewrite.keyHighLevelRewrite}" : {
+      |    "${HighLevelRewrite.keyExplorationDepth}" : ${HighLevelRewrite.defaultExplorationDepth}
+      |  }
+      |}
+    """.stripMargin
+    val json = Json.parse(config)
+    import ParseSettings.strictHighLevelReads
+    val validated = json.validate[HighLevelRewriteSettings]
+    validated match {
+      case JsSuccess(settings, _) =>
+        assertEquals(HighLevelRewriteSettings.createDefault, settings)
+      case _: JsError => fail()
+    }
+  }
+
+  @Test
+  def checkSetSingleValue(): Unit = {
+    val value = 42
+    val config = s"""
+      |{
+      |  "${HighLevelRewrite.keyHighLevelRewrite}" : {
+      |    "${HighLevelRewrite.keyExplorationDepth}" : $value
+      |  }
+      |}
+    """.stripMargin
+    val json = Json.parse(config)
+    import ParseSettings.strictHighLevelReads
+    val validated = json.validate[HighLevelRewriteSettings]
+    validated match {
+      case JsSuccess(settings, _) =>
+        assertEquals(value, settings.explorationDepth)
+      case _: JsError => fail()
+    }
+  }
+
+  @Test
+  def typoDetection(): Unit = {
+    val config = s"""
+      |{
+      |  "${HighLevelRewrite.keyHighLevelRewrite}" : {
+      |    "exploraton_depth" : 42
+      |  }
+      |}
+    """.stripMargin
+    val json = Json.parse(config)
+    import ParseSettings.strictHighLevelReads
+    val validated = json.validate[HighLevelRewriteSettings]
+    validated match {
+      case JsSuccess(settings, _) =>
+        fail()
+      case _: JsError => assertTrue(true)
+    }
+  }
+
+  @Test
   def emptySettings(): Unit = {
 
     val string =
