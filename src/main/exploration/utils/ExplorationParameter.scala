@@ -1,5 +1,6 @@
 package exploration.utils
 
+import exploration.{ExplorationSettings, HighLevelRewrite, HighLevelRewriteSettings}
 import org.clapper.argot.{FlagOption, SingleValueOption}
 import play.api.libs.json._
 
@@ -51,4 +52,26 @@ object ExplorationParameter {
           json.get, keys, JsSuccess(entry))
       }
     }
+
+  def generateConfigFile(key: String, parameters: Map[String, Any]): String = {
+    val inner = parameters.zipWithIndex.map{x =>
+      val name = x._1._1
+      val value = x._1._2
+      val i = x._2
+      s"""    "$name": ${value match {
+        case s:String => s""""$s"""" // wrap string args in ""
+        case _ => value.toString()}
+      }${if(i<parameters.size-1) // drop comma for last parameter
+        ","
+      else ""
+      }"""
+    }.mkString("\n")
+
+    s"""{
+       |  "$key" : {
+       |$inner
+       |  }
+       |}
+     """.stripMargin
+  }
 }

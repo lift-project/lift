@@ -63,37 +63,7 @@ object HighLevelRewrite {
       s
   }
 
-  // keys used in json configuration file and for CLI
-  protected[exploration] val keyHighLevelRewrite = "high_level_rewrite"
-
-  protected[exploration] val keyExplorationDepth = "exploration_depth"
-  protected[exploration] val keyDepthFilter = "depth_filter"
-  protected[exploration] val keyDistanceFilter = "distance_filter"
-  protected[exploration] val keyRuleRepetition = "rule_repetition"
-  protected[exploration] val keyVectorWidth = "vector_width"
-  protected[exploration] val keySequential = "sequential"
-  protected[exploration] val keyOnlyLower = "only_lower"
-  protected[exploration] val keyRuleCollection = "rule_collection"
-
-  protected[exploration] val defaultExplorationDepth = 5
-  protected[exploration] val defaultDepthFilter = 6
-  protected[exploration] val defaultDistanceFilter = 1
-  protected[exploration] val defaultRuleRepetition = 2
-  protected[exploration] val defaultVectorWidth = 4
-  protected[exploration] val defaultSequential = false
-  protected[exploration] val defaultOnlyLower = false
-  protected[exploration] val defaultRuleCollection = "default"
-
-  protected[exploration] val defaultParameters = Map(
-    keyExplorationDepth -> defaultExplorationDepth,
-    keyDepthFilter -> defaultDepthFilter,
-    keyDistanceFilter -> defaultDistanceFilter,
-    keyRuleRepetition -> defaultRuleRepetition,
-    keyVectorWidth -> defaultVectorWidth,
-    keySequential -> defaultSequential,
-    keyOnlyLower -> defaultOnlyLower,
-    keyRuleCollection -> defaultRuleCollection
-  )
+  import HighLevelRewriteSettings._
 
   protected[exploration] val explorationDepth = parser.option[Int](List("d", keyExplorationDepth), "exploration depth",
     s"How deep to explore (default: $defaultExplorationDepth)")
@@ -332,10 +302,10 @@ object HighLevelRewrite {
 }
 
 class HighLevelRewrite(
-                        val vectorWidth: ArithExpr = HighLevelRewrite.defaultVectorWidth,
-                        val repetitions: Int = HighLevelRewrite.defaultRuleRepetition,
-                        val explorationDepth: Int = HighLevelRewrite.defaultExplorationDepth,
-                        val ruleCollection: String = HighLevelRewrite.defaultRuleCollection) {
+                        val vectorWidth: ArithExpr = HighLevelRewriteSettings.defaultVectorWidth,
+                        val repetitions: Int = HighLevelRewriteSettings.defaultRuleRepetition,
+                        val explorationDepth: Int = HighLevelRewriteSettings.defaultExplorationDepth,
+                        val ruleCollection: String = HighLevelRewriteSettings.defaultRuleCollection) {
 
   private[exploration] val vecRed = MacroRules.vectorizeReduce(vectorWidth)
   private[exploration] val vecZip = OpenCLRules.vectorizeMapZip(vectorWidth)

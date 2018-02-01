@@ -9,11 +9,24 @@ import play.api.libs.json._
 class TestParametersAndSettings {
 
   @Test
+  def checkValidConfigGeneration(): Unit = {
+    val config = HighLevelRewriteSettings.generateConfigFile
+    val json = Json.parse(config)
+    import ParseSettings.strictHighLevelReads
+    val validated = json.validate[HighLevelRewriteSettings]
+    validated match {
+      case JsSuccess(settings, _) =>
+        assertEquals(HighLevelRewriteSettings.createDefault, settings)
+      case _: JsError => fail()
+    }
+  }
+
+  @Test
   def checkSingleValue(): Unit = {
     val config = s"""
       |{
-      |  "${HighLevelRewrite.keyHighLevelRewrite}" : {
-      |    "${HighLevelRewrite.keyExplorationDepth}" : ${HighLevelRewrite.defaultExplorationDepth}
+      |  "${HighLevelRewriteSettings.keyHighLevelRewrite}" : {
+      |    "${HighLevelRewriteSettings.keyExplorationDepth}" : ${HighLevelRewriteSettings.defaultExplorationDepth}
       |  }
       |}
     """.stripMargin
@@ -32,8 +45,8 @@ class TestParametersAndSettings {
     // value cannot be negative
     val config = s"""
       |{
-      |  "${HighLevelRewrite.keyHighLevelRewrite}" : {
-      |    "${HighLevelRewrite.keyExplorationDepth}" : -1
+      |  "${HighLevelRewriteSettings.keyHighLevelRewrite}" : {
+      |    "${HighLevelRewriteSettings.keyExplorationDepth}" : -1
       |  }
       |}
     """.stripMargin
@@ -52,8 +65,8 @@ class TestParametersAndSettings {
     val value = 42
     val config = s"""
       |{
-      |  "${HighLevelRewrite.keyHighLevelRewrite}" : {
-      |    "${HighLevelRewrite.keyExplorationDepth}" : $value
+      |  "${HighLevelRewriteSettings.keyHighLevelRewrite}" : {
+      |    "${HighLevelRewriteSettings.keyExplorationDepth}" : $value
       |  }
       |}
     """.stripMargin
@@ -71,7 +84,7 @@ class TestParametersAndSettings {
   def typoDetection(): Unit = {
     val config = s"""
       |{
-      |  "${HighLevelRewrite.keyHighLevelRewrite}" : {
+      |  "${HighLevelRewriteSettings.keyHighLevelRewrite}" : {
       |    "exploraton_depth" : 42
       |  }
       |}

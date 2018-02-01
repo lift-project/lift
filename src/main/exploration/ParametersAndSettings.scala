@@ -9,25 +9,53 @@ import play.api.libs.functional.syntax._
 
 import scala.io.Source
 
+abstract class ExplorationSettings {
+  val defaultParameters : Map[String, Any]
+
+  def generateConfigFile : String
+}
+
 case class LocalMemoryRulesSettings(
                                      addIdForCurrentValueInReduce: Boolean,
                                      addIdMapLcl: Boolean,
                                      addIdMapWrg: Boolean,
                                      addIdAfterReduce: Boolean
-                                   ) {
+                                   ) extends ExplorationSettings {
   override def toString: String =
-    s"""LocalMemoryRulesSettings:
-       |    addIdForCurrentValueInReduce: $addIdForCurrentValueInReduce
-       |    addIdMapLcl: $addIdMapLcl
-       |    addIdMapWrg: $addIdMapWrg
-       |    addIdAfterReduce: $addIdAfterReduce
+    s"""${LocalMemoryRulesSettings.keyLocalMemoryRulesSettings}:
+       |    ${LocalMemoryRulesSettings.defaultParameters.mkString("\n")}
       """.stripMargin
+
+  override val defaultParameters: Map[String, Any] = LocalMemoryRulesSettings.defaultParameters
+  override def generateConfigFile : String = LocalMemoryRulesSettings.generateConfigFile
 }
 
 object LocalMemoryRulesSettings {
 
+  val defaultAddIdForCurrentValueInReduce = true
+  val defaultAddIdMapLcl = true
+  val defaultAddIdMapWrg = true
+  val defaultAddIdAfterReduce = true
+
+  val keyLocalMemoryRulesSettings = "local_memory_settings"
+  val keyAddIdForCurrentValueInReduce = "add_id_for_current_value_in_reduce"
+  val keyAddIdMapLcl = "add_id_maplcl"
+  val keyAddIdMapWrg = "add_id_mapwrg"
+  val keyAddIdAfterReduce = "add_id_after_reduce"
+
+  val defaultParameters = Map(
+    keyAddIdForCurrentValueInReduce -> defaultAddIdForCurrentValueInReduce,
+    keyAddIdMapLcl -> defaultAddIdMapLcl,
+    keyAddIdMapWrg -> defaultAddIdMapWrg,
+    keyAddIdAfterReduce -> defaultAddIdAfterReduce
+  )
+
   import MemoryMappingRewrite._
   import utils.ExplorationParameter._
+
+  def generateConfigFile : String = {
+    ExplorationParameter.generateConfigFile(keyLocalMemoryRulesSettings, defaultParameters)
+  }
 
   def createDefault = createWithDefaults(None, None, None, None)
 
@@ -151,6 +179,7 @@ object MemoryMappingRewriteSettings {
     getValue(group10, configGroup10, defaultGroup10))
 }
 
+
 case class HighLevelRewriteSettings(
                                      explorationDepth: Int,
                                      depth: Int,
@@ -160,7 +189,7 @@ case class HighLevelRewriteSettings(
                                      sequential: Boolean,
                                      onlyLower: Boolean,
                                      ruleCollection: String
-                                   ) {
+                                   ) extends ExplorationSettings {
   override def toString: String =
     s"""HighLevelRewriteSettings:
        |    explorationDepth: $explorationDepth
@@ -172,12 +201,47 @@ case class HighLevelRewriteSettings(
        |    onlyLower: $onlyLower
        |    ruleCollection: $ruleCollection
     """.stripMargin
+
+  override val defaultParameters: Map[String, Any] = HighLevelRewriteSettings.defaultParameters
+  override def generateConfigFile : String = HighLevelRewriteSettings.generateConfigFile
 }
 
 object HighLevelRewriteSettings {
 
   import HighLevelRewrite._
   import exploration.utils.ExplorationParameter._
+  protected[exploration] val keyHighLevelRewrite = "high_level_rewrite"
+
+  protected[exploration] val keyExplorationDepth = "exploration_depth"
+  protected[exploration] val keyDepthFilter = "depth_filter"
+  protected[exploration] val keyDistanceFilter = "distance_filter"
+  protected[exploration] val keyRuleRepetition = "rule_repetition"
+  protected[exploration] val keyVectorWidth = "vector_width"
+  protected[exploration] val keySequential = "sequential"
+  protected[exploration] val keyOnlyLower = "only_lower"
+  protected[exploration] val keyRuleCollection = "rule_collection"
+
+  protected[exploration] val defaultExplorationDepth = 5
+  protected[exploration] val defaultDepthFilter = 6
+  protected[exploration] val defaultDistanceFilter = 1
+  protected[exploration] val defaultRuleRepetition = 2
+  protected[exploration] val defaultVectorWidth = 4
+  protected[exploration] val defaultSequential = false
+  protected[exploration] val defaultOnlyLower = false
+  protected[exploration] val defaultRuleCollection = "default"
+
+  protected[exploration] val defaultParameters = Map(
+    keyExplorationDepth -> defaultExplorationDepth,
+    keyDepthFilter -> defaultDepthFilter,
+    keyDistanceFilter -> defaultDistanceFilter,
+    keyRuleRepetition -> defaultRuleRepetition,
+    keyVectorWidth -> defaultVectorWidth,
+    keySequential -> defaultSequential,
+    keyOnlyLower -> defaultOnlyLower,
+    keyRuleCollection -> defaultRuleCollection
+  )
+
+  def generateConfigFile: String = ExplorationParameter.generateConfigFile(keyHighLevelRewrite, defaultParameters)
 
   def createDefault = createWithDefaults(None, None, None, None, None, None, None, None)
 
@@ -281,7 +345,7 @@ object ParseSettings {
       (JsPath \ "max_workgroups").readNullable[Int]
     ) (SearchParameters.createWithDefaults _)
 
-  val hlr = HighLevelRewrite
+  val hlr = HighLevelRewriteSettings
   private val highLevelReads: Reads[HighLevelRewriteSettings] = (
     (JsPath \ hlr.keyHighLevelRewrite \ hlr.keyExplorationDepth).readNullable[Int](min[Int](1)) and
       (JsPath \ hlr.keyHighLevelRewrite \ hlr.keyDepthFilter).readNullable[Int](min[Int](1)) and
@@ -324,12 +388,20 @@ object ParseSettings {
       (JsPath \ "generate_scala").readNullable[Boolean]
     ) (ParameterRewriteSettings.createWithDefaults _)
 
-  private[exploration] implicit val localMemoryRulesReads: Reads[LocalMemoryRulesSettings] = (
-    (JsPath \ "addIdForCurrentValueInReduce").readNullable[Boolean] and
-      (JsPath \ "addIdMapLcl").readNullable[Boolean] and
-      (JsPath \ "addIdMapWrg").readNullable[Boolean] and
-      (JsPath \ "addIdAfterReduce").readNullable[Boolean]
+  val lmr = LocalMemoryRulesSettings
+  private val localMemoryRulesReads: Reads[LocalMemoryRulesSettings] = (
+    (JsPath \ lmr.keyLocalMemoryRulesSettings \ lmr.keyAddIdForCurrentValueInReduce).readNullable[Boolean] and
+      (JsPath \ lmr.keyLocalMemoryRulesSettings \ lmr.keyAddIdMapLcl).readNullable[Boolean] and
+      (JsPath \ lmr.keyLocalMemoryRulesSettings \ lmr.keyAddIdMapWrg).readNullable[Boolean] and
+      (JsPath \ lmr.keyLocalMemoryRulesSettings \ lmr.keyAddIdAfterReduce).readNullable[Boolean]
     ) (LocalMemoryRulesSettings.createWithDefaults _)
+
+  private[exploration] implicit val strictLocalMemoryReads = new Reads[LocalMemoryRulesSettings] {
+    def reads(jsv: JsValue) : JsResult[LocalMemoryRulesSettings] =
+      ExplorationParameter.reads[LocalMemoryRulesSettings](
+        jsv, localMemoryRulesReads, lmr.keyLocalMemoryRulesSettings, lmr.defaultParameters.keySet
+      )
+  }
 
   private[exploration] implicit val settingsReads: Reads[Settings] = (
     (JsPath \ "input_combinations").readNullable[Seq[Seq[ArithExpr]]] and
