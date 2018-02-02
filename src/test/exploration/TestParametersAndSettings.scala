@@ -12,11 +12,10 @@ class TestParametersAndSettings {
   def checkValidConfigGeneration(): Unit = {
     val config = HighLevelRewriteSettings.generateConfigFile
     val json = Json.parse(config)
-    import ParseSettings.strictHighLevelReads
-    val validated = json.validate[HighLevelRewriteSettings]
+    val validated = json.validate[Settings]
     validated match {
       case JsSuccess(settings, _) =>
-        assertEquals(HighLevelRewriteSettings.createDefault, settings)
+        assertEquals(Settings(), settings)
       case _: JsError => fail()
     }
   }
@@ -31,11 +30,10 @@ class TestParametersAndSettings {
       |}
     """.stripMargin
     val json = Json.parse(config)
-    import ParseSettings.strictHighLevelReads
-    val validated = json.validate[HighLevelRewriteSettings]
+    val validated = json.validate[Settings]
     validated match {
       case JsSuccess(settings, _) =>
-        assertEquals(HighLevelRewriteSettings.createDefault, settings)
+        assertEquals(Settings(), settings)
       case _: JsError => fail()
     }
   }
@@ -51,7 +49,6 @@ class TestParametersAndSettings {
       |}
     """.stripMargin
     val json = Json.parse(config)
-    import ParseSettings.strictHighLevelReads
     val validated = json.validate[HighLevelRewriteSettings]
     validated match {
       case JsSuccess(settings, _) =>
@@ -71,11 +68,10 @@ class TestParametersAndSettings {
       |}
     """.stripMargin
     val json = Json.parse(config)
-    import ParseSettings.strictHighLevelReads
-    val validated = json.validate[HighLevelRewriteSettings]
+    val validated = json.validate[Settings]
     validated match {
       case JsSuccess(settings, _) =>
-        assertEquals(value, settings.explorationDepth)
+        assertEquals(value, settings.highLevelRewriteSettings.explorationDepth)
       case _: JsError => fail()
     }
   }
@@ -90,8 +86,7 @@ class TestParametersAndSettings {
       |}
     """.stripMargin
     val json = Json.parse(config)
-    import ParseSettings.strictHighLevelReads
-    val validated = json.validate[HighLevelRewriteSettings]
+    val validated = json.validate[Settings]
     validated match {
       case JsSuccess(settings, _) =>
         fail()
@@ -186,7 +181,7 @@ class TestParametersAndSettings {
     validated match {
       case JsSuccess(settings, _) =>
         assertEquals(1024, settings.searchParameters.minGlobalSize)
-        assertEquals(512, settings.searchParameters.defaultInputSize)
+        assertEquals(512, settings.searchParameters.inputSize)
       case _: JsError => fail()
     }
   }

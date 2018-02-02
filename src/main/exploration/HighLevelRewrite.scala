@@ -16,7 +16,8 @@ import rewriting._
 import rewriting.rules._
 import rewriting.macrorules.{MacroRules, ReuseRules, SlideTiling}
 import rewriting.utils._
-import scala.collection.immutable.Map
+import HighLevelRewriteSettings._
+import ParseSettings.strictHighLevelReads
 
 object HighLevelRewrite {
 
@@ -63,8 +64,6 @@ object HighLevelRewrite {
       s
   }
 
-  import HighLevelRewriteSettings._
-
   protected[exploration] val explorationDepth = parser.option[Int](List("d", keyExplorationDepth), "exploration depth",
     s"How deep to explore (default: $defaultExplorationDepth)")
 
@@ -95,15 +94,7 @@ object HighLevelRewrite {
 
     try {
       parser.parse(args)
-
-      val optionJson = ParseSettings.parse(settingsFile.value)
-      settings = optionJson match {
-        case Some(json) => {
-          import ParseSettings.strictHighLevelReads
-          ParseSettings.extract[HighLevelRewriteSettings](json.validate[HighLevelRewriteSettings])
-        }
-        case None => settings
-      }
+      settings = ParseSettings(settingsFile.value).highLevelRewriteSettings
 
       logger.info(s"Settings:\n$settings")
       logger.info(s"Arguments: ${args.mkString(" ")}")

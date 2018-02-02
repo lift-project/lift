@@ -43,17 +43,16 @@ object ExplorationParameter {
       }
   }
 
-  def reads[T](jsv: JsValue, read: Reads[T], jsonKey: String, keys: Set[String]) : JsResult[T] = {
+  def reads[T](jsv: JsValue, read: Reads[T], keys: Set[String]) : JsResult[T] = {
       read.reads(jsv).flatMap { entry =>
         val obj = jsv.asInstanceOf[JsObject]
 
-        val json = obj.fieldSet.collectFirst{ case (name, js) if name == jsonKey => js}
         ExplorationParameter.checkUnwantedEntry[T](
-          json.get, keys, JsSuccess(entry))
+          obj, keys, JsSuccess(entry))
       }
     }
 
-  def generateConfigFile(key: String, parameters: Map[String, Any]): String = {
+  def generateConfigString(key: String, parameters: Map[String, Any]): String = {
     val inner = parameters.zipWithIndex.map{x =>
       val name = x._1._1
       val value = x._1._2

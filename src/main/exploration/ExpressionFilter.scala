@@ -8,29 +8,6 @@ import lift.arithmetic.{ArithExpr, Cst}
 
 object ExpressionFilter {
 
-    // Default input size for all dimensions to use for filtering, if no input combinations provided
-  protected[exploration] val default_input_size = 1024
-
-  // Minimum number of work item per workgroup
-  protected[exploration] val min_local_size = 128
-
-  // Maximum number of work item per workgroup
-  protected[exploration] val max_local_size = 1024
-
-  // Minimal global grid size
-  protected[exploration] val min_global_size = 8
-
-  // Max amount of private memory allocated (this is not necessarily the number of registers)
-  protected[exploration] val max_private_memory = 1024
-
-  // Max static amount of local memory
-  protected[exploration] val max_local_memory = 50000
-
-  // Minimum number of workgroups
-  protected[exploration] val min_workgroups = 8
-
-  // Maximum number of workgroups
-  protected[exploration] val max_workgroups = 10000
 
 
   private val logger = Logger(this.getClass)
