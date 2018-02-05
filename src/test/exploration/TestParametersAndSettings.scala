@@ -9,8 +9,21 @@ import play.api.libs.json._
 class TestParametersAndSettings {
 
   @Test
+  def generateCompleteDefaultConfigString(): Unit = {
+    val config = Settings.generateConfigString
+    println(config)
+    val json = Json.parse(config)
+    val validated = json.validate[Settings]
+    validated match {
+      case JsSuccess(settings, _) =>
+        assertEquals(Settings(), settings)
+      case _: JsError => fail()
+    }
+  }
+
+  @Test
   def checkValidConfigGeneration(): Unit = {
-    val config = HighLevelRewriteSettings.generateConfigFile
+    val config = HighLevelRewriteSettings.generateConfigString
     val json = Json.parse(config)
     val validated = json.validate[Settings]
     validated match {

@@ -7,10 +7,11 @@ import play.api.libs.json.Reads._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 
+import scala.collection.immutable.ListMap
 import scala.io.Source
 
 abstract class ExplorationSettings {
-  val defaultParameters : Map[String, Any]
+  val defaultParameters : ListMap[String, Any]
   def generateConfigString : String
 }
 
@@ -25,7 +26,7 @@ case class LocalMemoryRulesSettings(
        |    ${LocalMemoryRulesSettings.defaultParameters.mkString("\n")}
       """.stripMargin
 
-  override val defaultParameters: Map[String, Any] = LocalMemoryRulesSettings.defaultParameters
+  override val defaultParameters: ListMap[String, Any] = LocalMemoryRulesSettings.defaultParameters
   override def generateConfigString : String = LocalMemoryRulesSettings.generateConfigString
 }
 
@@ -42,7 +43,7 @@ object LocalMemoryRulesSettings {
   private[exploration] val keyAddIdMapWrg = "add_id_mapwrg"
   private[exploration] val keyAddIdAfterReduce = "add_id_after_reduce"
 
-  private[exploration] val defaultParameters = Map(
+  private[exploration] val defaultParameters = ListMap(
     keyAddIdForCurrentValueInReduce -> defaultAddIdForCurrentValueInReduce,
     keyAddIdMapLcl -> defaultAddIdMapLcl,
     keyAddIdMapWrg -> defaultAddIdMapWrg,
@@ -78,7 +79,7 @@ case class ParameterRewriteSettings(
                                      generateScala: Boolean
                                    ) extends ExplorationSettings {
 
-  override val defaultParameters: Map[String, Any] = ParameterRewriteSettings.defaultParameters
+  override val defaultParameters: ListMap[String, Any] = ParameterRewriteSettings.defaultParameters
   override val generateConfigString : String = ParameterRewriteSettings.generateConfigString
   override def toString: String =
     s"""${ParameterRewriteSettings.keyParameterRewriteSettings}:
@@ -104,7 +105,7 @@ object ParameterRewriteSettings {
   private[exploration] val keySequential = "sequential"
   private[exploration] val keyGenerateScala = "generate_scala"
 
-  private[exploration] val defaultParameters = Map(
+  private[exploration] val defaultParameters = ListMap(
     keyExploreNDRange -> defaultExploreNDRange,
     keySampleNDRange -> defaultSampleNDRange,
     keyDisableNDRangeInjection -> defaultDisableNDRangeInjection,
@@ -145,7 +146,7 @@ case class MemoryMappingRewriteSettings(
                                          group01: Boolean,
                                          group10: Boolean
                                        ) extends ExplorationSettings {
-  override val defaultParameters: Map[String, Any] = MemoryMappingRewriteSettings.defaultParameters
+  override val defaultParameters: ListMap[String, Any] = MemoryMappingRewriteSettings.defaultParameters
   override val generateConfigString : String = MemoryMappingRewriteSettings.generateConfigString
   override def toString: String =
     s"""${MemoryMappingRewriteSettings.keyMemoryMappingRewrite}:
@@ -188,7 +189,7 @@ object MemoryMappingRewriteSettings {
   protected[exploration] val keyGroup01 = "group01"
   protected[exploration] val keyGroup10 = "group10"
 
-  protected[exploration] val defaultParameters = Map(
+  protected[exploration] val defaultParameters = ListMap(
     keyVectorize -> defaultVectorize,
     keyVectorWidth -> defaultVectorWidth,
     keySequential -> defaultSequential,
@@ -254,8 +255,8 @@ case class HighLevelRewriteSettings(
        |    ${HighLevelRewriteSettings.defaultParameters.mkString("\n")}
       """.stripMargin
 
-  override val defaultParameters: Map[String, Any] = HighLevelRewriteSettings.defaultParameters
-  override def generateConfigString : String = HighLevelRewriteSettings.generateConfigFile
+  override val defaultParameters: ListMap[String, Any] = HighLevelRewriteSettings.defaultParameters
+  override def generateConfigString : String = HighLevelRewriteSettings.generateConfigString
 }
 
 object HighLevelRewriteSettings {
@@ -282,7 +283,7 @@ object HighLevelRewriteSettings {
   protected[exploration] val defaultOnlyLower = false
   protected[exploration] val defaultRuleCollection = "default"
 
-  protected[exploration] val defaultParameters = Map(
+  protected[exploration] val defaultParameters = ListMap(
     keyExplorationDepth -> defaultExplorationDepth,
     keyDepthFilter -> defaultDepthFilter,
     keyDistanceFilter -> defaultDistanceFilter,
@@ -293,7 +294,7 @@ object HighLevelRewriteSettings {
     keyRuleCollection -> defaultRuleCollection
   )
 
-  def generateConfigFile: String = ExplorationParameter.generateConfigString(keyHighLevelRewrite, defaultParameters)
+  def generateConfigString: String = ExplorationParameter.generateConfigString(keyHighLevelRewrite, defaultParameters)
 
   def createDefault = createWithDefaults(None, None, None, None, None, None, None, None)
 
@@ -347,7 +348,7 @@ object SearchParameters {
   protected[exploration] val keyMinWorkgroups = "min_workgroups"
   protected[exploration] val keyMaxWorkgroups = "max_workgroups"
 
-  protected[exploration] val defaultParameters = Map(
+  protected[exploration] val defaultParameters = ListMap(
     keyInputSize -> defaultInputSize,
     keyMinLocalSize -> defaultMinLocalSize,
     keyMaxLocalSize -> defaultMaxLocalSize,
@@ -358,7 +359,7 @@ object SearchParameters {
     keyMaxWorkgroups -> defaultMaxWorkgroups
   )
 
-  def generateConfigFile: String = ExplorationParameter.generateConfigString(keySearchParameters, defaultParameters)
+  def generateConfigString: String = ExplorationParameter.generateConfigString(keySearchParameters, defaultParameters)
 
   def createDefault = createWithDefaults(None, None, None, None, None, None, None, None)
 
@@ -398,8 +399,8 @@ case class SearchParameters(
        |    ${SearchParameters.defaultParameters.mkString("\n")}
       """.stripMargin
 
-  override val defaultParameters: Map[String, Any] = SearchParameters.defaultParameters
-  override def generateConfigString : String = SearchParameters.generateConfigFile
+  override val defaultParameters: ListMap[String, Any] = SearchParameters.defaultParameters
+  override def generateConfigString : String = SearchParameters.generateConfigString
 }
 
 case class Settings(
@@ -409,7 +410,7 @@ case class Settings(
                      memoryMappingRewriteSettings: MemoryMappingRewriteSettings = MemoryMappingRewriteSettings.createDefault,
                      parameterRewriteSettings: ParameterRewriteSettings = ParameterRewriteSettings.createDefault,
                      localMemoryRulesSettings: LocalMemoryRulesSettings = LocalMemoryRulesSettings.createDefault
-                   ) {
+                   ) extends ExplorationSettings {
 
   override def toString: String = {
     s"""Settings(
@@ -420,6 +421,32 @@ case class Settings(
        |  $parameterRewriteSettings
        |  $localMemoryRulesSettings
        |)""".stripMargin
+  }
+
+  override val defaultParameters: ListMap[String, Any] = Settings.defaultParameters
+  override def generateConfigString : String = Settings.generateConfigString
+}
+
+object Settings {
+  private[exploration] val keyInputCombinations = "input_combinations"
+
+  private[exploration] val defaultParameters = ListMap(
+    SearchParameters.keySearchParameters -> SearchParameters.createDefault,
+    HighLevelRewriteSettings.keyHighLevelRewrite -> HighLevelRewriteSettings.createDefault,
+    MemoryMappingRewriteSettings.keyMemoryMappingRewrite -> MemoryMappingRewriteSettings.createDefault,
+    ParameterRewriteSettings.keyParameterRewriteSettings -> ParameterRewriteSettings.createDefault,
+    LocalMemoryRulesSettings.keyLocalMemoryRulesSettings -> LocalMemoryRulesSettings.createDefault
+  )
+
+  def generateConfigString : String = {
+    "{\n" +
+      ExplorationParameter.generateInnerJson(HighLevelRewriteSettings.keyHighLevelRewrite, HighLevelRewriteSettings.defaultParameters) + ",\n" +
+      ExplorationParameter.generateInnerJson(MemoryMappingRewriteSettings.keyMemoryMappingRewrite, MemoryMappingRewriteSettings.defaultParameters) + ",\n" +
+      ExplorationParameter.generateInnerJson(ParameterRewriteSettings.keyParameterRewriteSettings, ParameterRewriteSettings.defaultParameters) + ",\n" +
+      ExplorationParameter.generateInnerJson(LocalMemoryRulesSettings.keyLocalMemoryRulesSettings, LocalMemoryRulesSettings.defaultParameters) + ",\n" +
+      ExplorationParameter.generateInnerJson(SearchParameters.keySearchParameters, SearchParameters.defaultParameters) + "\n" +
+    "}"
+
   }
 
 }
