@@ -1,7 +1,6 @@
 package ir.ast
 
 import ir._
-import ir.ast.{ArrayConstructors, Expr, UserFun}
 import ir.interpreter.Interpreter.ValueMap
 
 case class ArrayFromUserFunGenerator(f: UserFun,
