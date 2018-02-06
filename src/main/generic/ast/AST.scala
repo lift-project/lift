@@ -99,6 +99,10 @@ object GenericAST {
           case None => acc
         })
     }
+
+    override def print(pc: PrintContext) : Unit = {
+      if(attribute.isDefined) attribute.get.print(pc)
+    }
   }
 
   case class Function(name: String, ret: Type, params: List[ParamDecl],
