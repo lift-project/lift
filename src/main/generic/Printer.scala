@@ -11,15 +11,15 @@ object GenericPrinter {
 }
 
 /** The printer walks the AST emitted by the GenericGenerator and generates
- * standalone C code.
- */
+  * standalone C code.
+  */
 class GenericPrinter extends Printer {
   /**
-   * Entry point for printing an AST.
-   *
-   * @param node The root of the AST (the global scope block).
-   * @return A string representation of the AST as OpenCL-C code.
-   */
+    * Entry point for printing an AST.
+    *
+    * @param node The root of the AST (the global scope block).
+    * @return A string representation of the AST as OpenCL-C code.
+    */
   def apply(node: AstNode): String = {
     indent = 0
     print(node)
@@ -27,10 +27,10 @@ class GenericPrinter extends Printer {
   }
 
   /**
-   * Main print method. Print the current node and recurse.
-   *
-   * @param node The current node to emit code for.
-   */
+    * Main print method. Print the current node and recurse.
+    *
+    * @param node The current node to emit code for.
+    */
   private def print(node: AstNode): Unit = node match {
     case b: Block =>
       if (b.global) {
@@ -49,38 +49,51 @@ class GenericPrinter extends Printer {
         })
       }
 
-//    case f: OclFunction              => print(f)
-//    case a: RequiredWorkGroupSize => print(a)
-//    case i: OclCode            => sb ++= i.code
-//    case e: OpenCLExpression      => sb ++= e.code
-    case c: Comment               => print(s"/* ${c.content} */")
-    case v: VarDecl               => print(v)
-    case v: VarRef                => print(v)
-    case p: ParamDecl             => print(p)
-//    case b: Barrier               => print(b)
-    case l: ForLoop               => print(l)
-    case w: WhileLoop             => print(w)
-    case es: ExpressionStatement  => print(es)
-    case ae: ArithExpression      => print(Printer.toString(ae.content))
-    case c: BinaryExpression      => print(c)
-    case t: TernaryExpression     => print(t)
-    case a: AssignmentExpression  => print(a)
-    case f: FunctionCall          => print(f)
-    case l: Load                  => print(l)
-    case s: Store                 => print(s)
-    case t: TypeDef               => print(t)
-    case a: TupleAlias            => print(a)
-    case c: Cast                  => print(c)
-    case c: PointerCast           => print(c)
-//    case l: VectorLiteral         => print(l)
-//    case e: OclExtension       => print(e)
-//    case i: OpenCLAST.IfThenElse  => print(i)
-    case l: Label                 => print(l)
-    case g: GOTO                  => print(g)
-    case b: Break                 => print(b)
-    case s: StructConstructor     => print(s)
+    //    case f: OclFunction              => print(f)
+    //    case a: RequiredWorkGroupSize => print(a)
+    //    case i: OclCode            => sb ++= i.code
+    //    case e: OpenCLExpression      => sb ++= e.code
+    //    case b: Barrier               => print(b)
+    //    case l: VectorLiteral         => print(l)
+    //    case e: OclExtension       => print(e)
+    //    case i: OpenCLAST.IfThenElse  => print(i)
+    case f: Function             ⇒ print(f)
+    case c: Comment              ⇒ print(s"/* ${c.content} */")
+    case v: VarDecl              ⇒ print(v)
+    case v: VarRef               ⇒ print(v)
+    case p: ParamDecl            ⇒ print(p)
+    case l: ForLoop              ⇒ print(l)
+    case w: WhileLoop            ⇒ print(w)
+    case es: ExpressionStatement ⇒ print(es)
+    case ae: ArithExpression     ⇒ print(Printer.toString(ae.content))
+    case c: BinaryExpression     ⇒ print(c)
+    case t: TernaryExpression    ⇒ print(t)
+    case a: AssignmentExpression ⇒ print(a)
+    case f: FunctionCall         ⇒ print(f)
+    case l: Load                 ⇒ print(l)
+    case s: Store                ⇒ print(s)
+    case t: TypeDef              ⇒ print(t)
+    case a: TupleAlias           ⇒ print(a)
+    case c: Cast                 ⇒ print(c)
+    case c: PointerCast          ⇒ print(c)
+    case l: Label                ⇒ print(l)
+    case g: GOTO                 ⇒ print(g)
+    case b: Break                ⇒ print(b)
+    case s: StructConstructor    ⇒ print(s)
 
     case x => print(s"/* UNKNOWN: ${x.getClass.getSimpleName} */")
+  }
+
+  private def print(f: Function): Unit = {
+
+    if (f.attribute.isDefined) print(f.attribute.get)
+
+    sb ++= Printer.toString(f.ret)
+    print(s" ${f.name}(")
+    printList(f.params, ", ")
+    print(")")
+
+    print(f.body)
   }
 
   private def print(c: BinaryExpression): Unit = {
@@ -108,8 +121,8 @@ class GenericPrinter extends Printer {
 
   private def print(c: PointerCast): Unit = {
     print("(")
-    print(s"(${c.addressSpace} ${c.t}*)")
-    print(Printer.toString(c.v.v))
+    print(s"(${c.t}*)")
+    print(c.v.v)
     print(")")
     if (c.v.arrayIndex != null) {
       print("[")
@@ -121,11 +134,11 @@ class GenericPrinter extends Printer {
     }
   }
 
-//  private def print(l: VectorLiteral): Unit = {
-//    print(s"(${l.t})(")
-//    printList(l.vs, ", ")
-//    print(")")
-//  }
+  //  private def print(l: VectorLiteral): Unit = {
+  //    print(s"(${l.t})(")
+  //    printList(l.vs, ", ")
+  //    print(")")
+  //  }
 
   private def print(t: TypeDef): Unit = t.t match {
     case tt: TupleType =>
@@ -143,9 +156,9 @@ class GenericPrinter extends Printer {
     case _             =>
   }
 
-//  private def print(e: OclExtension): Unit = {
-//    println(s"#pragma OPENCL EXTENSION ${e.content} : enable")
-//  }
+  //  private def print(e: OclExtension): Unit = {
+  //    println(s"#pragma OPENCL EXTENSION ${e.content} : enable")
+  //  }
 
   private def print(alias: TupleAlias): Unit = alias.t match {
     case tt: TupleType =>
@@ -206,35 +219,35 @@ class GenericPrinter extends Printer {
     }
   }
 
-//  private def print(a: RequiredWorkGroupSize): Unit = {
-//    val localSize = a.localSize
-//    sb ++=
-//      s"__attribute((reqd_work_group_size($localSize)))\n"
-//  }
+  //  private def print(a: RequiredWorkGroupSize): Unit = {
+  //    val localSize = a.localSize
+  //    sb ++=
+  //      s"__attribute((reqd_work_group_size($localSize)))\n"
+  //  }
 
-//  private def print(f: OclFunction): Unit = {
-//    if (f.kernel) sb ++= "kernel "
-//
-//    if (f.attribute.isDefined) print(f.attribute.get)
-//
-//    if (f.kernel) sb ++= "void"
-//    else sb ++= Printer.toString(f.ret)
-//    print(s" ${f.name}(")
-//    printList(f.params, ", ")
-//    print(")")
-//
-//    if (f.kernel)
-//      sb ++= "{ \n" +
-//        "#ifndef WORKGROUP_GUARD\n" +
-//        "#define WORKGROUP_GUARD\n" +
-//        "#endif\n" +
-//        "WORKGROUP_GUARD\n"
-//
-//    print(f.body)
-//
-//    if (f.kernel)
-//      println("}")
-//  }
+  //  private def print(f: OclFunction): Unit = {
+  //    if (f.kernel) sb ++= "kernel "
+  //
+  //    if (f.attribute.isDefined) print(f.attribute.get)
+  //
+  //    if (f.kernel) sb ++= "void"
+  //    else sb ++= Printer.toString(f.ret)
+  //    print(s" ${f.name}(")
+  //    printList(f.params, ", ")
+  //    print(")")
+  //
+  //    if (f.kernel)
+  //      sb ++= "{ \n" +
+  //        "#ifndef WORKGROUP_GUARD\n" +
+  //        "#define WORKGROUP_GUARD\n" +
+  //        "#endif\n" +
+  //        "WORKGROUP_GUARD\n"
+  //
+  //    print(f.body)
+  //
+  //    if (f.kernel)
+  //      println("}")
+  //  }
 
   private def print(es: ExpressionStatement): Unit = {
     print(es.e)
@@ -315,33 +328,32 @@ class GenericPrinter extends Printer {
   }
 
   /**
-   * Generate a barrier for the given address space scope.
-   * If the scope is not defined as global or local, the barrier assumes both.
-   *
-   * @param b A [[Barrier]] node.
-   */
-//  private def print(b: Barrier): Unit = println(b.mem.addressSpace match {
-//    case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
-//    case LocalMemory  => "barrier(CLK_LOCAL_MEM_FENCE);"
-//
-//    case collection: AddressSpaceCollection
-//      if collection.containsAddressSpace(GlobalMemory) &&
-//        !collection.containsAddressSpace(LocalMemory) =>
-//      "barrier(CLK_GLOBAL_MEM_FENCE);"
-//
-//    case collection: AddressSpaceCollection
-//      if collection.containsAddressSpace(LocalMemory) &&
-//        !collection.containsAddressSpace(GlobalMemory) =>
-//      "barrier(CLK_LOCAL_MEM_FENCE);"
-//
-//    case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
-//  })
+    * Generate a barrier for the given address space scope.
+    * If the scope is not defined as global or local, the barrier assumes both.
+    *
+    */
+  //  private def print(b: Barrier): Unit = println(b.mem.addressSpace match {
+  //    case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
+  //    case LocalMemory  => "barrier(CLK_LOCAL_MEM_FENCE);"
+  //
+  //    case collection: AddressSpaceCollection
+  //      if collection.containsAddressSpace(GlobalMemory) &&
+  //        !collection.containsAddressSpace(LocalMemory) =>
+  //      "barrier(CLK_GLOBAL_MEM_FENCE);"
+  //
+  //    case collection: AddressSpaceCollection
+  //      if collection.containsAddressSpace(LocalMemory) &&
+  //        !collection.containsAddressSpace(GlobalMemory) =>
+  //      "barrier(CLK_LOCAL_MEM_FENCE);"
+  //
+  //    case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
+  //  })
 
   /**
-   * Generate a for loop.
-   *
-   * @param fl a [[ForLoop]] node.
-   */
+    * Generate a for loop.
+    *
+    * @param fl a [[ForLoop]] node.
+    */
   private def print(fl: ForLoop): Unit = {
     print("for (")
     print(fl.init)
@@ -353,11 +365,11 @@ class GenericPrinter extends Printer {
 
 
   /**
-   * Generate a while loop. This is fairly simple so no
-   * optimisations can be realistically applied.
-   *
-   * @param wl a [[WhileLoop]] node.
-   */
+    * Generate a while loop. This is fairly simple so no
+    * optimisations can be realistically applied.
+    *
+    * @param wl a [[WhileLoop]] node.
+    */
   private def print(wl: WhileLoop): Unit = {
     print("while(" + Printer.toString(wl.loopPredicate) + ")")
     print(wl.body)
@@ -365,9 +377,9 @@ class GenericPrinter extends Printer {
 
 
   /** Generate an if-then-else conditional set of statements
-   *
-   * @param s a [[IfThenElse]] node
-   */
+    *
+    * @param s a [[IfThenElse]] node
+    */
   private def print(s: IfThenElseT): Unit = {
     print("if (")
     print(s.cond)
@@ -382,17 +394,17 @@ class GenericPrinter extends Printer {
   }
 
   /** Generate a label for a goto
-   *
-   * @param l a [[Label]] node
-   */
+    *
+    * @param l a [[Label]] node
+    */
   private def print(l: Label): Unit = {
     println(l.nameVar.toString + ": ;")
   }
 
   /** Generate a goto statement for a corresponding label
-   *
-   * @param g a [[GOTO]] node
-   */
+    *
+    * @param g a [[GOTO]] node
+    */
   private def print(g: GOTO): Unit = {
     println("goto " + g.nameVar.toString + ";")
   }
@@ -408,10 +420,10 @@ class GenericPrinter extends Printer {
   }
 
   /**
-   * Helper function for printing separated lists
-   * `printList([a, b, c], ",")  ==  "a,b,c"`
-   */
-  private def printList(args: Seq[OclAstNode], sep: String): Unit = {
+    * Helper function for printing separated lists
+    * `printList([a, b, c], ",")  ==  "a,b,c"`
+    */
+  private def printList(args: Seq[AstNode], sep: String): Unit = {
     args.init.foreach(a => {
       print(a)
       print(sep)

@@ -2,6 +2,7 @@ package generic.ast
 
 import ir.{TupleType, Type}
 import lift.arithmetic._
+import utils.PrintContext
 
 import scala.language.implicitConversions
 
@@ -53,7 +54,7 @@ object GenericAST {
       z |> (preVisit(_, this)) |> (postVisit(_, this))
     }
 
-//    def print()
+    def print(pc: PrintContext) : Unit
   }
 
   trait BlockMember
