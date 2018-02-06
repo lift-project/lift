@@ -1,21 +1,19 @@
-package opencl.generator
+package generic
 
 import ir._
 import lift.arithmetic.NotEvaluableToIntException._
 import lift.arithmetic._
-import opencl.generator.OpenCLAST._
-import opencl.ir._
 import generic.ast.GenericAST._
 import utils.Printer
 
-object OpenCLPrinter {
-  def apply() = new OpenCLPrinter
+object GenericPrinter {
+  def apply() = new GenericPrinter
 }
 
-/** The printer walks the AST emitted by the [[OpenCLGenerator]] and generates
- * standalone OpenCL-C code.
+/** The printer walks the AST emitted by the GenericGenerator and generates
+ * standalone C code.
  */
-class OpenCLPrinter extends Printer {
+class GenericPrinter extends Printer {
   /**
    * Entry point for printing an AST.
    *
@@ -51,15 +49,15 @@ class OpenCLPrinter extends Printer {
         })
       }
 
-    case f: OclFunction              => print(f)
-    case a: RequiredWorkGroupSize => print(a)
-    case i: OclCode            => sb ++= i.code
-    case e: OpenCLExpression      => sb ++= e.code
+//    case f: OclFunction              => print(f)
+//    case a: RequiredWorkGroupSize => print(a)
+//    case i: OclCode            => sb ++= i.code
+//    case e: OpenCLExpression      => sb ++= e.code
     case c: Comment               => print(s"/* ${c.content} */")
     case v: VarDecl               => print(v)
     case v: VarRef                => print(v)
     case p: ParamDecl             => print(p)
-    case b: Barrier               => print(b)
+//    case b: Barrier               => print(b)
     case l: ForLoop               => print(l)
     case w: WhileLoop             => print(w)
     case es: ExpressionStatement  => print(es)
@@ -74,9 +72,9 @@ class OpenCLPrinter extends Printer {
     case a: TupleAlias            => print(a)
     case c: Cast                  => print(c)
     case c: PointerCast           => print(c)
-    case l: VectorLiteral         => print(l)
-    case e: OclExtension       => print(e)
-    case i: OpenCLAST.IfThenElse  => print(i)
+//    case l: VectorLiteral         => print(l)
+//    case e: OclExtension       => print(e)
+//    case i: OpenCLAST.IfThenElse  => print(i)
     case l: Label                 => print(l)
     case g: GOTO                  => print(g)
     case b: Break                 => print(b)
@@ -123,11 +121,11 @@ class OpenCLPrinter extends Printer {
     }
   }
 
-  private def print(l: VectorLiteral): Unit = {
-    print(s"(${l.t})(")
-    printList(l.vs, ", ")
-    print(")")
-  }
+//  private def print(l: VectorLiteral): Unit = {
+//    print(s"(${l.t})(")
+//    printList(l.vs, ", ")
+//    print(")")
+//  }
 
   private def print(t: TypeDef): Unit = t.t match {
     case tt: TupleType =>
@@ -145,9 +143,9 @@ class OpenCLPrinter extends Printer {
     case _             =>
   }
 
-  private def print(e: OclExtension): Unit = {
-    println(s"#pragma OPENCL EXTENSION ${e.content} : enable")
-  }
+//  private def print(e: OclExtension): Unit = {
+//    println(s"#pragma OPENCL EXTENSION ${e.content} : enable")
+//  }
 
   private def print(alias: TupleAlias): Unit = alias.t match {
     case tt: TupleType =>
@@ -208,35 +206,35 @@ class OpenCLPrinter extends Printer {
     }
   }
 
-  private def print(a: RequiredWorkGroupSize): Unit = {
-    val localSize = a.localSize
-    sb ++=
-      s"__attribute((reqd_work_group_size($localSize)))\n"
-  }
+//  private def print(a: RequiredWorkGroupSize): Unit = {
+//    val localSize = a.localSize
+//    sb ++=
+//      s"__attribute((reqd_work_group_size($localSize)))\n"
+//  }
 
-  private def print(f: OclFunction): Unit = {
-    if (f.kernel) sb ++= "kernel "
-
-    if (f.attribute.isDefined) print(f.attribute.get)
-
-    if (f.kernel) sb ++= "void"
-    else sb ++= Printer.toString(f.ret)
-    print(s" ${f.name}(")
-    printList(f.params, ", ")
-    print(")")
-
-    if (f.kernel)
-      sb ++= "{ \n" +
-        "#ifndef WORKGROUP_GUARD\n" +
-        "#define WORKGROUP_GUARD\n" +
-        "#endif\n" +
-        "WORKGROUP_GUARD\n"
-
-    print(f.body)
-
-    if (f.kernel)
-      println("}")
-  }
+//  private def print(f: OclFunction): Unit = {
+//    if (f.kernel) sb ++= "kernel "
+//
+//    if (f.attribute.isDefined) print(f.attribute.get)
+//
+//    if (f.kernel) sb ++= "void"
+//    else sb ++= Printer.toString(f.ret)
+//    print(s" ${f.name}(")
+//    printList(f.params, ", ")
+//    print(")")
+//
+//    if (f.kernel)
+//      sb ++= "{ \n" +
+//        "#ifndef WORKGROUP_GUARD\n" +
+//        "#define WORKGROUP_GUARD\n" +
+//        "#endif\n" +
+//        "WORKGROUP_GUARD\n"
+//
+//    print(f.body)
+//
+//    if (f.kernel)
+//      println("}")
+//  }
 
   private def print(es: ExpressionStatement): Unit = {
     print(es.e)
@@ -322,22 +320,22 @@ class OpenCLPrinter extends Printer {
    *
    * @param b A [[Barrier]] node.
    */
-  private def print(b: Barrier): Unit = println(b.mem.addressSpace match {
-    case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
-    case LocalMemory  => "barrier(CLK_LOCAL_MEM_FENCE);"
-
-    case collection: AddressSpaceCollection
-      if collection.containsAddressSpace(GlobalMemory) &&
-        !collection.containsAddressSpace(LocalMemory) =>
-      "barrier(CLK_GLOBAL_MEM_FENCE);"
-
-    case collection: AddressSpaceCollection
-      if collection.containsAddressSpace(LocalMemory) &&
-        !collection.containsAddressSpace(GlobalMemory) =>
-      "barrier(CLK_LOCAL_MEM_FENCE);"
-
-    case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
-  })
+//  private def print(b: Barrier): Unit = println(b.mem.addressSpace match {
+//    case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
+//    case LocalMemory  => "barrier(CLK_LOCAL_MEM_FENCE);"
+//
+//    case collection: AddressSpaceCollection
+//      if collection.containsAddressSpace(GlobalMemory) &&
+//        !collection.containsAddressSpace(LocalMemory) =>
+//      "barrier(CLK_GLOBAL_MEM_FENCE);"
+//
+//    case collection: AddressSpaceCollection
+//      if collection.containsAddressSpace(LocalMemory) &&
+//        !collection.containsAddressSpace(GlobalMemory) =>
+//      "barrier(CLK_LOCAL_MEM_FENCE);"
+//
+//    case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
+//  })
 
   /**
    * Generate a for loop.
@@ -370,7 +368,7 @@ class OpenCLPrinter extends Printer {
    *
    * @param s a [[IfThenElse]] node
    */
-  private def print(s: OpenCLAST.IfThenElse): Unit = {
+  private def print(s: IfThenElseT): Unit = {
     print("if (")
     print(s.cond)
     print(") ")

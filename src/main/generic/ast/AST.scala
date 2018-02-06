@@ -52,6 +52,8 @@ object GenericAST {
       AstNode) ⇒ T): T = {
       z |> (preVisit(_, this)) |> (postVisit(_, this))
     }
+
+//    def print()
   }
 
   trait BlockMember
@@ -112,10 +114,10 @@ object GenericAST {
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z, this)
   }
 
-  case class Var(v: lift.arithmetic.Var/*, t: Type*/) extends VarT
+  case class CVar(v: lift.arithmetic.Var /*, t: Type*/) extends VarT
 
-  object Var {
-    implicit def createVar(v: lift.arithmetic.Var): Var = Var(v)
+  object CVar {
+    implicit def createVar(v: lift.arithmetic.Var): CVar = CVar(v)
   }
 
   /**
@@ -123,7 +125,7 @@ object GenericAST {
     */
 
   trait VarDeclT extends DeclarationT {
-    val v: Var
+    val v: CVar
     val init: AstNode
     val length: Long
 
@@ -136,7 +138,7 @@ object GenericAST {
     }
   }
 
-  case class VarDecl(v: Var,
+  case class VarDecl(v: CVar,
                      t: Type,
                      init: AstNode = null,
                      length: Long = 0) extends VarDeclT
@@ -169,6 +171,8 @@ object GenericAST {
 
     def ::(node: AstNode with BlockMember): BlockT
 
+    def ++(nodes: Vector[AstNode with BlockMember]) : BlockT
+
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
@@ -180,8 +184,8 @@ object GenericAST {
     }
   }
 
-  case class Block(content: Vector[AstNode with BlockMember],
-                   global: Boolean) extends BlockT {
+  case class Block(content: Vector[AstNode with BlockMember] = Vector(),
+                   global: Boolean = false) extends BlockT {
     /** Append a sub-node. Could be any node, including a sub-block.
       *
       * @param node The node to add to this block.
@@ -189,6 +193,8 @@ object GenericAST {
     def :+(node: AstNode with BlockMember): Block = this.copy(content = content :+ node)
 
     def ::(node: AstNode with BlockMember): Block = this.copy(content = node +: content)
+
+    def ++(nodes: Vector[AstNode with BlockMember]) : Block = this.copy(content = content ++ nodes)
   }
 
   trait ForLoopT extends StatementT {
@@ -249,7 +255,7 @@ object GenericAST {
     * TODO: Think of a better way of describing goto labels
     */
   trait GOTOT extends StatementT {
-    val nameVar: Var
+    val nameVar: CVar
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -258,13 +264,13 @@ object GenericAST {
     }
   }
 
-  case class GOTO(nameVar: Var) extends GOTOT
+  case class GOTO(nameVar: CVar) extends GOTOT
 
   /**
     * A Label, targeted by a corresponding goto
     */
   trait LabelT extends DeclarationT {
-    val nameVar: Var
+    val nameVar: CVar
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -273,7 +279,7 @@ object GenericAST {
     }
   }
 
-  case class Label(nameVar: Var) extends LabelT
+  case class Label(nameVar: CVar) extends LabelT
 
   /**
     * A break statement (e.g. for exiting a loop)
@@ -341,7 +347,7 @@ object GenericAST {
     * A reference to a declared variable
     */
   trait VarRefT extends ExpressionT {
-    val v: Var
+    val v: CVar
     val suffix: String
     val arrayIndex: ArithExpression
 
@@ -350,7 +356,7 @@ object GenericAST {
     }
   }
 
-  case class VarRef(v: Var,
+  case class VarRef(v: CVar,
                     suffix: String = null,
                     arrayIndex: ArithExpression = null) extends VarRefT
 
@@ -550,5 +556,11 @@ object GenericAST {
   }
 
   case class Comment(content: String) extends CommentT
+
+  /**
+    * An empty block member, as a placeholder for when we want a node, but
+    * don't want to print any code.
+    */
+  case class EmptyNode() extends AstNode with BlockMember
 
 }

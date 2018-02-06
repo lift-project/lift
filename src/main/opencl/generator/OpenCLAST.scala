@@ -1,5 +1,6 @@
 package opencl.generator
 
+import generic.ast.GenericAST
 import generic.ast.GenericAST._
 import lift.arithmetic.{ArithExpr, Predicate, Var}
 import ir.{TupleType, Type, VectorType}
@@ -68,14 +69,15 @@ object OpenCLAST {
                       false) extends
     FunctionT with IsKernel
 
-  case class OclVar(v: lift.arithmetic.Var, t: Type,
-                    addressSpace: OpenCLAddressSpace) extends VarT with CLAddressSpace
+//  case class OclVar(v: lift.arithmetic.Var, t: Type,
+//                    addressSpace: OpenCLAddressSpace) extends VarT with CLAddressSpace
 
-  case class OclVarDecl(v: OclVar,
-                     t: Type,
-                     init: AstNode = null,
-                     length: Long = 0,
-                     addressSpace: OpenCLAddressSpace = UndefAddressSpace)
+
+  case class OclVarDecl(v: GenericAST.CVar,
+                        t: Type,
+                        init: AstNode = null,
+                        length: Long = 0,
+                        addressSpace: OpenCLAddressSpace = UndefAddressSpace)
     extends VarDeclT with CLAddressSpace
 
   /** Parameter declaration. These have to be separated from variable
@@ -107,9 +109,11 @@ object OpenCLAST {
     *
     * @param code Native code to insert
     */
-  case class OpenCLCode(code: String) extends RawCodeT
+  case class OclCode(code: String) extends RawCodeT
 
-  case class OpenCLExtension(content: String) extends AstNode with BlockMember
+  case class OclExtension(content: String) extends AstNode with BlockMember
+
+  case class OclBarrier(mem: OpenCLMemory) extends AstNode with BlockMember
 
 //
 //  def visitExpressionsInBlock(block: Block, fun: Expression => Unit): Unit = {
