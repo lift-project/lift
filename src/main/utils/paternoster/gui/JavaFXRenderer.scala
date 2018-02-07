@@ -5,6 +5,7 @@ import javafx.scene.paint.Color
 import javafx.scene.text.{Font, Text}
 
 import utils.paternoster.logic.Graphics._
+import utils.paternoster.logic.Scene.GridArrayNode
 
 /**
   * Created by Federico on 18-Aug-17.
@@ -41,6 +42,22 @@ object JavaFXRenderer {
         if ((currentScaledHeight) > maxScaledHeight) {
           maxScaledHeight = currentScaledHeight
           maxheight = bheight
+        }
+      }
+      case Box(x, y, w, h) => {
+        val currentScaledWidth = w * ctx.unitX - 2 * ctx.smallX
+        if ((currentScaledWidth) > maxScaledWidth) {
+          maxScaledWidth = currentScaledWidth
+          maxwidth = w
+        }
+        val currentScaledHeight = h * ctx.unitY - 2 * ctx.smallY
+        if ((currentScaledHeight) < minScaledHeight) {
+          minScaledHeight = currentScaledHeight
+          minheight = h
+        }
+        if ((currentScaledHeight) > maxScaledHeight) {
+          maxScaledHeight = currentScaledHeight
+          maxheight = h
         }
       }
       case _:Any =>

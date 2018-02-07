@@ -2,7 +2,8 @@ package utils.paternoster.logic
 
 import ir._
 import ir.ast.{Lambda, Tuple}
-import lift.arithmetic.ArithExpr;
+import lift.arithmetic.ArithExpr
+import utils.paternoster.logic.Graphics.BoxWithText;
 
 /**
   * Created by federico on 16/08/17.
@@ -52,10 +53,10 @@ object Scene {
 
   //Node construction (from lift source items)
 
-  def typeNode(t:Type):TypeNode = t match {
+  def typeNode(t:Type,dimensions : List[List[Int]]=List()):TypeNode = t match {
       //Only float scalars for now
     case ScalarType("float",_) => FloatNode()
-    case tt: TupleType => TupleNode(tt.elemsT.map(typeNode))
+    case tt: TupleType => TupleNode(tt.elemsT.map(typeNode(_)))
     case array:ArrayType with Size =>
       //Get the nested array sizes as an ordered list
       val sizes = flattenArraySizes(array)
@@ -63,7 +64,7 @@ object Scene {
       val groupedSizes = groupSizesByDimensions(defaultDimensionSplits(sizes.length), sizes)
       //The ultimate non-array element contained in the nested array
       val bottomElement = arrayBottomElementType(array)
-      arrayTypeNode(bottomElement, groupedSizes)
+      arrayTypeNode(bottomElement, dimensions)
     case _: Lambda => throw new NotImplementedError("No support for drawing function types yet")
   }
 
@@ -83,7 +84,22 @@ object Scene {
     currentSizes.length match {
       //1 dimension - linear array. Dimension is length
       //case 1 => LinearArrayNode(inner, currentSizes.head)
-      case 1|2 => BoxArrayNode(inner, currentSizes.head)
+
+      case 1 => BoxArrayNode(inner, currentSizes.head)
+
+      case 2 => {
+        var innerArrayType : Scene.TypeNode = null
+        var innerArraySize =0
+        inner match {
+          case b: BoxArrayNode => {
+            innerArrayType=b.elementType
+            innerArraySize = b.size
+            GridArrayNode(innerArrayType,currentSizes.head,innerArraySize)
+          }
+          case other => GridArrayNode(inner,currentSizes.head,currentSizes.tail.head)
+
+        }
+      }
       //2 dimensions - grid. Dimensions are width and height
       //case 2 => GridArrayNode(inner, currentSizes.head, currentSizes.tail.head)
       //any other - not supported yet!
@@ -117,7 +133,7 @@ object Scene {
   private def defaultDimensionSplits(n:Int):List[Int] = n match {
     case 0 => Nil
     case 1 => List(1)
-    case 2 => 1::defaultDimensionSplits(n - 1)//List(2)
+    case 2 => List(2)
     case _ => 2::defaultDimensionSplits(n - 2)
   }
 
@@ -126,7 +142,6 @@ object Scene {
     dimensions match {
       case Nil => List()
       case dim::other_dims => sizes.take(dim) ::groupSizesByDimensions(other_dims, sizes.drop(dim))
-
     }
   }
 
@@ -135,7 +150,7 @@ object Scene {
     //The methods here take care of transforming nodes into sets of graphical primitives.
     def drawType(typeNode: TypeNode):Iterable[GraphicalPrimitive] = {
       typeNode match {
-        case FloatNode() => Seq(Rectangle(0, 0,0, 0))
+        case FloatNode() => Seq(Rectangle(0, 0,1, 1))
         case TupleNode(elements) =>
           //Draw elements
           val elementPrimitives = elements.flatMap(drawType)
@@ -163,7 +178,9 @@ object Scene {
           //For each position, replicate the elementPrimitives and translate them to that place
           val sets = positions.map{case (x,y) => translateAll(elementPrims, x, y)}
           //Flatten the sets and wrap in container box
-          sets.flatten ++ Seq(Box(0, 0, width*elemWidth, height*elemHeight))
+          var xMargin = 0.25
+          var yMargin = 0.2
+          sets.flatten ++ Seq(BoxWithText(width.toString+"x"+height.toString ,(width*elemWidth)-0.15+(xMargin*2),elemHeight+(yMargin*2)-0.2,0, 0, (width*elemWidth)+(xMargin*2), (height*elemHeight)+(yMargin*2)))
         case BoxArrayNode(elementType, size) =>
           val elemWidth =nodeWidth(elementType)
           val elemHeight = nodeHeight(elementType)
