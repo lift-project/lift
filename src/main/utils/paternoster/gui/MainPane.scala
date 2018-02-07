@@ -38,5 +38,8 @@ class MainPane(val width:Int, val height:Int) extends Pane {
   def getSnapShot(wim: WritableImage): Unit ={
     canvas.snapshot(null,wim)
   }
+  def getFontSize():Double ={
+    this.canvas.getGraphicsContext2D.getFont.getSize
+  }
 
 }

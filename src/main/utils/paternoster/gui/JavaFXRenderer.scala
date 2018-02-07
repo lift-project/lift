@@ -28,7 +28,7 @@ object JavaFXRenderer {
     var maxScaledHeight = 0d
 
     primitives.foreach(primitive =>primitive match {
-      case BoxWithText(text, tx, ty, bx, by, bwidth, bheight) => {
+      case BoxWithText(text, bx, by, bwidth, bheight) => {
         val currentScaledWidth = bwidth * ctx.unitX - 2 * ctx.smallX
         if ((currentScaledWidth) > maxScaledWidth) {
           maxScaledWidth = currentScaledWidth
@@ -68,15 +68,16 @@ object JavaFXRenderer {
       if(minScaledHeight < (ctx.height*0.5)){
         newYScaling = (ctx.height*0.08- 2*ctx.smallY)/(minheight)
       }
-      val yPercentSmaller = newYScaling/defaultYScaling
+    /*  val yPercentSmaller = newYScaling/defaultYScaling
     val newFontSize = Math.max(ctx.gc.getFont.getSize*yPercentSmaller,10)
       ctx.gc.setFont(new Font(newFontSize))
+      */
       Context(ctx.gc, newXScaling, newYScaling, ctx.smallX, ctx.smallY,ctx.width,ctx.height)
   }
 
   def drawPrimitive(primitive:GraphicalPrimitive, ctx: Context) = {
     primitive match {
-      case BoxWithText(text,tx,ty,bx,by,bwidth,bheight)=>
+      case BoxWithText(text,bx,by,bwidth,bheight)=>
         ctx.gc.setFill(Color.BLACK)
         ctx.gc.strokeRect(
           bx*ctx.unitX + ctx.smallX,
@@ -86,8 +87,8 @@ object JavaFXRenderer {
         )
 
 
-        val textX = ((bx*ctx.unitX + ctx.smallX)+(bwidth*ctx.unitX - 2*ctx.smallX))-Math.min((ctx.gc.getFont.getSize*text.size),(bwidth*ctx.unitX - 2*ctx.smallX)/2)
-        val textY = ((by*ctx.unitY + ctx.smallY)+(bheight*ctx.unitY - 2*ctx.smallY))-((bheight*ctx.unitY - 2*ctx.smallY)*0.025)
+        val textX = ((bx*ctx.unitX + ctx.smallX)+(bwidth*ctx.unitX - 2*ctx.smallX))-(ctx.gc.getFont.getSize*text.size)/*Math.min((ctx.gc.getFont.getSize*text.size),(bwidth*ctx.unitX - 2*ctx.smallX)/2)*/
+        val textY =  ((by*ctx.unitY + ctx.smallY)+(bheight*ctx.unitY - 2*ctx.smallY)) /*((by*ctx.unitY + ctx.smallY)+(bheight*ctx.unitY - 2*ctx.smallY))-((bheight*ctx.unitY - 2*ctx.smallY)*0.025)*/
         //ctx.gc.setFont(new Font(ctx.gc.getFont.getName,10))
         ctx.gc.strokeText(text,textX,textY)
       case Rectangle(x, y, w, h) =>

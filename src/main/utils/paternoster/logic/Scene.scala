@@ -1,8 +1,11 @@
 package utils.paternoster.logic
 
+import javafx.scene.text.Font
+
 import ir._
 import ir.ast.{Lambda, Tuple}
 import lift.arithmetic.ArithExpr
+import utils.paternoster.gui.{MainPane, TypeVisualizer}
 import utils.paternoster.logic.Graphics.BoxWithText;
 
 /**
@@ -32,22 +35,29 @@ object Scene {
   //case class MapNode(inputElement:TypeNode, outputElement:TypeNode, size:ArraySize) extends OperationNode
 
   val MAP_NODE_CHILDREN_DISTANCE = 5
+  val drawingPane :MainPane = TypeVisualizer.getMainPane()
+  val ARRAY_NODE_MARGIN_TO_CHILDREN_X= drawingPane.getFontSize()
+  val ARRAY_NODE_MARGIN_TO_CHILDREN_Y = drawingPane.getFontSize()
 
-  private def nodeWidth(node: Node):Int = node match {
+
+
+
+
+  private def nodeWidth(node: Node):Double = node match {
     case FloatNode() => 1
     case TupleNode(elements) => elements.map(nodeWidth).sum
     case LinearArrayNode(elem, size) => nodeWidth(elem) * size
-    case GridArrayNode(elem, width, _) => nodeWidth(elem) * width
-    case BoxArrayNode(elem, size) => nodeWidth(elem) * size
+    case GridArrayNode(elem, width, _) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * width
+    case BoxArrayNode(elem, size) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * size
     //case MapNode(input, output, size) => Math.max(nodeWidth(input) + size, nodeWidth(output) + size)
   }
 
-  private def nodeHeight(node: Node):Int = node match {
+  private def nodeHeight(node: Node):Double = node match {
     case FloatNode() => 1
     case TupleNode(elements) => elements.map(nodeHeight).max
     case LinearArrayNode(elem, size) => nodeHeight(elem)
-    case GridArrayNode(elem, _, height) => nodeHeight(elem) * height
-    case BoxArrayNode(elem, size) => nodeHeight(elem)
+    case GridArrayNode(elem, _, height) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_Y) + nodeHeight(elem) * height
+    case BoxArrayNode(elem, size) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_Y) +nodeHeight(elem)
     //case MapNode(input, output, size) => nodeHeight(input) +  MAP_NODE_CHILDREN_DISTANCE + nodeHeight(output)
   }
 
@@ -91,11 +101,11 @@ object Scene {
         var innerArrayType : Scene.TypeNode = null
         var innerArraySize =0
         inner match {
-          case b: BoxArrayNode => {
+          /*case b: BoxArrayNode => {
             innerArrayType=b.elementType
             innerArraySize = b.size
             GridArrayNode(innerArrayType,currentSizes.head,innerArraySize)
-          }
+          }*/
           case other => GridArrayNode(inner,currentSizes.head,currentSizes.tail.head)
 
         }
@@ -176,11 +186,9 @@ object Scene {
           val positions = for(x <- 0 until width;
                               y <- 0 until height) yield (x*elemWidth, y*elemHeight)
           //For each position, replicate the elementPrimitives and translate them to that place
-          val sets = positions.map{case (x,y) => translateAll(elementPrims, x, y)}
+          val sets = positions.map{case (x,y) => translateAll(elementPrims, x+ARRAY_NODE_MARGIN_TO_CHILDREN_X, y+ARRAY_NODE_MARGIN_TO_CHILDREN_Y)}
           //Flatten the sets and wrap in container box
-          var xMargin = 0.25
-          var yMargin = 0.2
-          sets.flatten ++ Seq(BoxWithText(width.toString+"x"+height.toString ,(width*elemWidth)-0.15+(xMargin*2),elemHeight+(yMargin*2)-0.2,0, 0, (width*elemWidth)+(xMargin*2), (height*elemHeight)+(yMargin*2)))
+          sets.flatten ++ Seq(BoxWithText(width.toString+"x"+height.toString ,0, 0, (width*elemWidth)+(ARRAY_NODE_MARGIN_TO_CHILDREN_X*2), (height*elemHeight)+(ARRAY_NODE_MARGIN_TO_CHILDREN_Y*2)))
         case BoxArrayNode(elementType, size) =>
           val elemWidth =nodeWidth(elementType)
           val elemHeight = nodeHeight(elementType)
@@ -190,26 +198,16 @@ object Scene {
           var sets : IndexedSeq[Iterable[Graphics.GraphicalPrimitive]] = null
           //compute inner element primitives
           val elementPrims = drawType(elementType)
-          elementType match {
-            case _:BoxArrayNode => {
-              xMargin= 0.25
-              yMargin =0.2
-              sets = (0 until size).map(pos => translateAll(elementPrims, dx = (pos*elemWidth)+xMargin, dy = yMargin))
-            }
-            case _:Any =>{
-              xMargin = 0
-              yMargin = 0
-              //Repeat each set of primitives up to size times, translating the set by the
-              //position
-               sets = (0 until size).map(pos => translateAll(elementPrims, dx = pos*elemWidth, dy = 0))
-          }}
+
+              sets = (0 until size).map(pos => translateAll(elementPrims, dx = (pos*elemWidth)+ARRAY_NODE_MARGIN_TO_CHILDREN_X, dy = ARRAY_NODE_MARGIN_TO_CHILDREN_Y))
+
 
         //As a final results, flatten the sets and add the container box
-          sets.flatten ++ Seq(BoxWithText(size.toString ,(size*elemWidth)-0.15+(xMargin*2),elemHeight+(yMargin*2)-0.2,0, 0, (size*elemWidth)+(xMargin*2), elemHeight+(yMargin*2)))
+          sets.flatten ++ Seq(BoxWithText(size.toString,0, 0, (size*elemWidth)+(ARRAY_NODE_MARGIN_TO_CHILDREN_X*2), elemHeight+(ARRAY_NODE_MARGIN_TO_CHILDREN_Y*2)))
       }
     }
 
-
+/*
      /***
        * Computes horizontal translations needed for each node to be aligned on a common
        * center axis.
@@ -222,5 +220,5 @@ object Scene {
        //For each node, we need to translate by (maxWidth - nodeWidth)/2
        nodeWidthMap.mapValues(x => (maxWidth - x)/2)
      }
-
+*/
 }

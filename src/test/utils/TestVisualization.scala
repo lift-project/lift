@@ -33,9 +33,10 @@ class TestVisualization{
     val O = SizeVar("O")
     val lambda = fun(
       ArrayType(ArrayType(ArrayType(Float, N), M ), O),
-      input => MapGlb(id) o PrintType() o Join() o PrintType() o Join() o PrintType() $ input
+      input => MapGlb(id) o PrintType(visual = true,render = true) o Join() o PrintType(visual = true) o Join() o PrintType(visual = true) $ input
     )
-    println(Compile(lambda))
+    TypeChecker(lambda)
+    //println(Compile(lambda))
   }
 
 }

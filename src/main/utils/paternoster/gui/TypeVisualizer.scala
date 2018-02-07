@@ -46,7 +46,7 @@ class TypeVisualizer() extends Application {
     //mainPane is where we will draw
     val mainPane = new MainPane(drawingWidth, drawingHeight)
 
-
+    TypeVisualizer.setMainPane(mainPane)
 
     //Vbox - Main layout container
     var main = new VBox();
@@ -387,7 +387,7 @@ def renderNodes(argTypes:List[Type],dimensionGrouping: mutable.HashMap[Int,List[
   var allAdjustedNodes = for(nodes <- nodeBuffer.toList) yield {
 
     var firstBox = nodes.maxBy(gp => gp match {
-      case BoxWithText(text, tx, ty, bx, by, bwidth, bheight) => bwidth
+      case BoxWithText(text, bx, by, bwidth, bheight) => bwidth
       case Rectangle(x, y, w, h) => w
       case Box(x, y, w, h) => w
     })
@@ -405,7 +405,7 @@ def renderNodes(argTypes:List[Type],dimensionGrouping: mutable.HashMap[Int,List[
     }
   }
     firstBox match {
-      case BoxWithText(text, tx, ty, bx, by, bwidth, bheight) => accHeight+=bheight+yMargin
+      case BoxWithText(text, bx, by, bwidth, bheight) => accHeight+=bheight+yMargin
       case Rectangle(x, y, w, h) => accHeight+=h
       case Box(x, y, w, h) => accHeight+=h
     }
