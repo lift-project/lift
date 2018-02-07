@@ -18,8 +18,8 @@ class MainPane(val width:Int, val height:Int) extends Pane {
   var unitX = 120d
   var unitY = 60d
   //Used to separate things
-  val smallX = 4
-  val smallY = 4
+  val smallX = 1
+  val smallY = 1
   val canvas = new Canvas(width,height)
   //canvas.setScaleX(0.5)
   //canvas.setScaleY(0.5)

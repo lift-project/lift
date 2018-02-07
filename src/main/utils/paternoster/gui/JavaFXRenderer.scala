@@ -73,7 +73,7 @@ object JavaFXRenderer {
       val newXScaling = Math.round(Math.max(MINSCALING,Math.min((ctx.width-2*ctx.smallX)/maxwidth, MAXSCALING)))
       var newYScaling = Math.round(Math.max(MINSCALING,newXScaling*0.5))
 
-      Context(ctx.gc, newXScaling, newYScaling, ctx.smallX, ctx.smallY,ctx.width,ctx.height)
+      Context(ctx.gc, 6, 6, ctx.smallX, ctx.smallY,ctx.width,ctx.height)
 
   }
 
@@ -101,11 +101,11 @@ object JavaFXRenderer {
       }
     })
 
-    if(maxHeight > TypeVisualizer.getMainPane().height){
-      TypeVisualizer.getMainPane().setCanvasHeight(maxHeight)
+    if(maxHeight*ctx.unitY > TypeVisualizer.getMainPane().height){
+      TypeVisualizer.getMainPane().setCanvasHeight(maxHeight*ctx.unitY)
     }
-    if(maxWidth > TypeVisualizer.getMainPane().width){
-      TypeVisualizer.getMainPane().setCanvasWidth(maxWidth)
+    if(maxWidth*ctx.unitX > TypeVisualizer.getMainPane().width){
+      TypeVisualizer.getMainPane().setCanvasWidth(maxWidth*ctx.unitX)
     }
     Context(TypeVisualizer.getMainPane().getGraphicsContext(), ctx.unitX, ctx.unitY, ctx.smallX, ctx.smallY,TypeVisualizer.getMainPane().canvas.getWidth,TypeVisualizer.getMainPane().canvas.getHeight)
   }
@@ -127,7 +127,7 @@ object JavaFXRenderer {
         //ctx.gc.setFont(new Font(ctx.gc.getFont.getName,10))
         ctx.gc.strokeText(text,textX,textY)
       case Rectangle(x, y, w, h) =>
-        ctx.gc.setFill(Color.BLACK)
+        ctx.gc.setFill(Color.DARKGREEN)
         ctx.gc.fillRect(
           Math.round(x*ctx.unitX + ctx.smallX*4),
           Math.round(y*ctx.unitY + ctx.smallY*4),

@@ -36,15 +36,17 @@ object Scene {
 
   val MAP_NODE_CHILDREN_DISTANCE = 5
   val drawingPane :MainPane = TypeVisualizer.getMainPane()
-  val ARRAY_NODE_MARGIN_TO_CHILDREN_X= drawingPane.getFontSize()
-  val ARRAY_NODE_MARGIN_TO_CHILDREN_Y = drawingPane.getFontSize()
+  val ARRAY_NODE_MARGIN_TO_CHILDREN_X= 2
+  val ARRAY_NODE_MARGIN_TO_CHILDREN_Y = 2
+  val NODE_DISTANCE = 5
+
 
 
 
 
 
   private def nodeWidth(node: Node):Double = node match {
-    case FloatNode() => 1
+    case FloatNode() => 5
     case TupleNode(elements) => elements.map(nodeWidth).sum
     case LinearArrayNode(elem, size) => nodeWidth(elem) * size
     case GridArrayNode(elem, width, _) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * width
@@ -186,20 +188,24 @@ object Scene {
           val positions = for(x <- 0 until width;
                               y <- 0 until height) yield (x*elemWidth, y*elemHeight)
           //For each position, replicate the elementPrimitives and translate them to that place
-          val sets = positions.map{case (x,y) => translateAll(elementPrims, x+ARRAY_NODE_MARGIN_TO_CHILDREN_X, y+ARRAY_NODE_MARGIN_TO_CHILDREN_Y)}
+          val sets = positions.map{case (x,y) => translateAll(elementPrims, x+ARRAY_NODE_MARGIN_TO_CHILDREN_X-0.5, y+ARRAY_NODE_MARGIN_TO_CHILDREN_Y-0.5)}
           //Flatten the sets and wrap in container box
           sets.flatten ++ Seq(BoxWithText(width.toString+"x"+height.toString ,0, 0, (width*elemWidth)+(ARRAY_NODE_MARGIN_TO_CHILDREN_X*2), (height*elemHeight)+(ARRAY_NODE_MARGIN_TO_CHILDREN_Y*2)))
         case BoxArrayNode(elementType, size) =>
           val elemWidth =nodeWidth(elementType)
           val elemHeight = nodeHeight(elementType)
 
-          var xMargin = 0.8
-          var yMargin = 0.5
           var sets : IndexedSeq[Iterable[Graphics.GraphicalPrimitive]] = null
           //compute inner element primitives
           val elementPrims = drawType(elementType)
 
-              sets = (0 until size).map(pos => translateAll(elementPrims, dx = (pos*elemWidth)+ARRAY_NODE_MARGIN_TO_CHILDREN_X, dy = ARRAY_NODE_MARGIN_TO_CHILDREN_Y))
+          elementType match {
+            case _:FloatNode =>sets = (0 until size).map(pos => translateAll(elementPrims, dx = ((pos*elemWidth)+ARRAY_NODE_MARGIN_TO_CHILDREN_X)-0.5 , dy = ARRAY_NODE_MARGIN_TO_CHILDREN_Y-0.5))
+            case _:Any =>sets = (0 until size).map(pos => translateAll(elementPrims, dx = (pos*elemWidth)+ARRAY_NODE_MARGIN_TO_CHILDREN_X, dy = ARRAY_NODE_MARGIN_TO_CHILDREN_Y))
+          }
+
+
+
 
 
         //As a final results, flatten the sets and add the container box
