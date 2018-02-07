@@ -45,7 +45,6 @@ abstract class Printer {
       }
     }
   }
-
 }
 
 object Printer {

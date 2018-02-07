@@ -1,8 +1,9 @@
 package generic.ast
 
-import ir.{TupleType, Type}
+import ir.{ArrayType, TupleType, Type}
 import lift.arithmetic._
-import utils.PrintContext
+import opencl.generator.UseCastsForVectors
+import utils.{PrintContext, Printer}
 
 import scala.language.implicitConversions
 
@@ -54,7 +55,8 @@ object GenericAST {
       z |> (preVisit(_, this)) |> (postVisit(_, this))
     }
 
-    def print(pc: PrintContext) : Unit
+    // TODO: This is not the way I want to do this, but it will do for now
+    def print(pc: PrintContext): Unit
   }
 
   trait BlockMember
@@ -96,12 +98,23 @@ object GenericAST {
         // TODO: Does this attribute visitor actually work?
         (acc => attribute match {
           case Some(a) => a.visit(acc)(visitFun)
-          case None => acc
+          case None    => acc
         })
     }
 
-    override def print(pc: PrintContext) : Unit = {
-      if(attribute.isDefined) attribute.get.print(pc)
+    override def print(pc: PrintContext): Unit = {
+      if (attribute.isDefined) attribute.get.print(pc)
+
+      pc += Printer.toString(ret)
+
+      pc += s"${name}("
+      params.foreach(p ⇒ {
+        p.print(pc)
+        pc += ", "
+      })
+      pc += ")"
+
+      body.print(pc)
     }
   }
 
@@ -114,9 +127,13 @@ object GenericAST {
     */
   trait VarT extends DeclarationT {
     val v: lift.arithmetic.Var
-//    val t: Type
+    //    val t: Type
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z, this)
+
+    override def print(ct: PrintContext): Unit = {
+      ct += v.toString
+    }
   }
 
   case class CVar(v: lift.arithmetic.Var /*, t: Type*/) extends VarT
@@ -131,6 +148,7 @@ object GenericAST {
 
   trait VarDeclT extends DeclarationT {
     val v: CVar
+    val t: Type
     val init: AstNode
     val length: Long
 
@@ -140,6 +158,17 @@ object GenericAST {
         (visitFun(_, this)) |>
         // visit the initial value
         (visitFun(_, init))
+    }
+
+    override def print(pc: PrintContext): Unit = {
+      pc += s"${Type.getBaseType(t)} "
+      v.print(pc)
+      if (init != null) {
+        pc += " = "
+        init.print(pc)
+      }
+      pc += ";"
+      pc.endln()
     }
   }
 
@@ -157,10 +186,21 @@ object GenericAST {
     val name: String
     val t: Type
     val const: Boolean // = false
+
+    override def print(pc: PrintContext): Unit = t match {
+      case ArrayType(_) ⇒
+        // Const restricted pointers to read-only global memory. See issue #2.
+        val (const, restrict) = if (const) ("const", "restrict") else ("", "")
+        pc += const + " " + Printer.toString(Type.devectorize(t)) +
+          " " + restrict + " " + name
+
+      case _ =>
+        pc += Printer.toString(t) + " " + name
+    }
   }
 
   case class ParamDecl(name: String, t: Type,
-                           const: Boolean = false) extends ParamDeclT
+                       const: Boolean = false) extends ParamDeclT
 
 
   /**
@@ -176,7 +216,7 @@ object GenericAST {
 
     def ::(node: AstNode with BlockMember): BlockT
 
-    def ++(nodes: Vector[AstNode with BlockMember]) : BlockT
+    def ++(nodes: Vector[AstNode with BlockMember]): BlockT
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -186,6 +226,14 @@ object GenericAST {
             node.visit(acc)(visitFun)
           }
         })
+    }
+
+    override def print(pc: PrintContext): Unit = {
+      pc ++= "{"
+      +pc
+      content.foreach(c ⇒ c.print(pc))
+      -pc
+      pc ++= "}"
     }
   }
 
@@ -199,7 +247,7 @@ object GenericAST {
 
     def ::(node: AstNode with BlockMember): Block = this.copy(content = node +: content)
 
-    def ++(nodes: Vector[AstNode with BlockMember]) : Block = this.copy(content = content ++ nodes)
+    def ++(nodes: Vector[AstNode with BlockMember]): Block = this.copy(content = content ++ nodes)
   }
 
   trait ForLoopT extends StatementT {
@@ -212,6 +260,15 @@ object GenericAST {
       z |>
         (visitFun(_, this))
 
+    }
+
+    override def print(pc: PrintContext): Unit = {
+      pc += "for ("
+      init.print(pc)
+      cond.print(pc)
+      increment.print(pc)
+      pc += ") "
+      body.print(pc)
     }
   }
 
@@ -229,6 +286,13 @@ object GenericAST {
       z |>
         (visitFun(_, this)) |>
         (visitFun(_, body))
+    }
+
+    override def print(pc: PrintContext): Unit = {
+      pc += "while("
+      pc += Printer.toString(loopPredicate)
+      pc += ")"
+      body.print(pc)
     }
   }
 
@@ -250,6 +314,17 @@ object GenericAST {
         (visitFun(_, trueBody)) |>
         (visitFun(_, falseBody))
     }
+
+    override def print(pc: PrintContext): Unit = {
+      pc += "if ("
+      cond.print(pc)
+      pc += ")"
+      trueBody.print(pc)
+      if (falseBody != Block()) {
+        pc += " else "
+        falseBody.print(pc)
+      }
+    }
   }
 
   case class IfThenElse(cond: ExpressionT,
@@ -267,6 +342,13 @@ object GenericAST {
         (visitFun(_, this)) |>
         (visitFun(_, nameVar))
     }
+
+    override def print(pc: PrintContext): Unit = {
+      pc += "goto "
+      nameVar.print(pc)
+      pc += ";"
+      pc.endln()
+    }
   }
 
   case class GOTO(nameVar: CVar) extends GOTOT
@@ -282,6 +364,12 @@ object GenericAST {
         (visitFun(_, this)) |>
         (visitFun(_, nameVar))
     }
+
+    override def print(pc: PrintContext): Unit = {
+      nameVar.print(pc)
+      pc += ": ;"
+      pc.endln()
+    }
   }
 
   case class Label(nameVar: CVar) extends LabelT
@@ -289,7 +377,9 @@ object GenericAST {
   /**
     * A break statement (e.g. for exiting a loop)
     */
-  trait BreakT extends StatementT
+  trait BreakT extends StatementT {
+    override def print(pc: PrintContext): Unit = pc ++= "break;"
+  }
 
   case class Break() extends BreakT
 
@@ -298,6 +388,22 @@ object GenericAST {
     */
   trait TypeDefT extends StatementT {
     val t: Type
+
+    override def print(pc: PrintContext): Unit = t match {
+      case tt: TupleType ⇒
+        tt.elemsT.foreach(t ⇒ TypeDef(t).print(pc))
+        val name = Type.name(tt)
+        val fields = tt.elemsT.zipWithIndex.map({ case (ty, i) => Type.name(ty) + " _" + i })
+        pc +=
+          s"""#ifndef ${name}_DEFINED
+             |#define ${name}_DEFINED
+             |typedef struct __attribute__((aligned(${tt.alignment._1}))) {
+             |  ${fields.reduce(_ + ";\n  " + _)};
+             |} $name;
+             |#endif
+             |""".stripMargin
+      case _             ⇒ Comment("NOTE: trying to print unprintable type").print(pc)
+    }
   }
 
   case class TypeDef(t: Type) extends TypeDefT
@@ -308,6 +414,12 @@ object GenericAST {
   trait TupleAliasT extends StatementT {
     val t: Type
     val name: String
+
+    override def print(pc: PrintContext): Unit = t match {
+      case tt: TupleType ⇒
+        pc.println(s"typedef ${Type.name(tt)} ${name};")
+      case _             ⇒ Comment("NOTE: trying to print unprintable tuplealias").print(pc)
+    }
   }
 
   case class TupleAlias(t: Type, name: String) extends TupleAliasT
@@ -322,6 +434,12 @@ object GenericAST {
       z |>
         (visitFun(_, this)) |>
         (visitFun(_, e))
+    }
+
+    override def print(pc: PrintContext): Unit = {
+      e.print(pc)
+      pc += "; "
+      pc.endln()
     }
   }
 
@@ -343,6 +461,17 @@ object GenericAST {
           }
         })
     }
+
+    override def print(pc: PrintContext): Unit = {
+      pc += name
+      pc += "("
+      args.foreach({
+        a ⇒
+          a.print(pc)
+          pc += ", "
+      })
+      pc += ")"
+    }
   }
 
   case class FunctionCall(name: String,
@@ -353,15 +482,29 @@ object GenericAST {
     */
   trait VarRefT extends ExpressionT {
     val v: CVar
+    val t: Type
     val suffix: String
     val arrayIndex: ArithExpression
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       visitFun(z, this) |> (visitFun(_, v))
     }
+
+    override def print(pc: PrintContext): Unit = {
+      v.print(pc)
+      if (arrayIndex != null) {
+        pc += "["
+        arrayIndex.print(pc)
+        pc += "]"
+      }
+      if (suffix != null) {
+        pc += suffix
+      }
+    }
   }
 
   case class VarRef(v: CVar,
+                    t: Type,
                     suffix: String = null,
                     arrayIndex: ArithExpression = null) extends VarRefT
 
@@ -370,6 +513,7 @@ object GenericAST {
     */
   trait LoadT extends ExpressionT {
     val v: VarRef
+    val t: Type
     val offset: ArithExpression
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
@@ -377,9 +521,26 @@ object GenericAST {
         (visitFun(_, this)) |>
         (visitFun(_, v))
     }
+
+    override def print(pc: PrintContext): Unit = {
+      if (!UseCastsForVectors()) {
+        pc += s"vload${Type.getLength(t)}("
+        offset.print(pc)
+        pc += ","
+        v.print(pc)
+        pc += ")"
+      } else {
+        pc += s"*( ((${t}*)"
+        v.print(pc)
+        pc += ") + "
+        offset.print(pc)
+        pc += ")"
+      }
+    }
   }
 
   case class Load(v: VarRef,
+                  t: Type,
                   offset: ArithExpression) extends LoadT
 
   /**
@@ -387,6 +548,7 @@ object GenericAST {
     */
   trait StoreT extends ExpressionT {
     val v: VarRef
+    val t: Type
     val value: AstNode
     val offset: ArithExpression
 
@@ -396,9 +558,29 @@ object GenericAST {
         (visitFun(_, v)) |>
         (visitFun(_, value))
     }
+
+    override def print(pc: PrintContext): Unit = {
+      if (!UseCastsForVectors()) {
+        pc += s"vstore${Type.getLength(t)}("
+        value.print(pc)
+        pc += ","
+        offset.print(pc)
+        pc += ","
+        v.print(pc)
+        pc += ")"
+      } else {
+        pc += s"*( ((${t}*)"
+        v.print(pc)
+        pc += ") + "
+        offset.print(pc)
+        pc += ") = "
+        value.print(pc)
+      }
+    }
   }
 
   case class Store(v: VarRef,
+                   t: Type,
                    value: AstNode,
                    offset: ArithExpression) extends StoreT
 
@@ -415,6 +597,12 @@ object GenericAST {
         (visitFun(_, to)) |>
         (visitFun(_, value))
     }
+
+    override def print(pc: PrintContext): Unit = {
+      to.print(pc)
+      pc += " = "
+      value.print(pc)
+    }
   }
 
   case class AssignmentExpression(to: AstNode, value: AstNode) extends
@@ -425,6 +613,8 @@ object GenericAST {
     */
   trait ArithExpressionT extends ExpressionT {
     val content: ArithExpr
+
+    override def print(pc: PrintContext): Unit = pc += Printer.toString(content)
   }
 
   case class ArithExpression(content: ArithExpr) extends ArithExpressionT
@@ -442,6 +632,14 @@ object GenericAST {
         (visitFun(_, this)) |>
         (visitFun(_, lhs)) |>
         (visitFun(_, rhs))
+    }
+
+    override def print(pc: PrintContext): Unit = {
+      pc += "("
+      lhs.print(pc)
+      pc += s" ${op.toString()} "
+      rhs.print(pc)
+      pc += ")"
     }
   }
 
@@ -475,10 +673,10 @@ object GenericAST {
       ArithExpression(p.lhs),
       p.op match {
         case Predicate.Operator.!= => BinaryExpressionT.Operator.!=
-        case Predicate.Operator.< => BinaryExpressionT.Operator.<
+        case Predicate.Operator.<  => BinaryExpressionT.Operator.<
         case Predicate.Operator.<= => BinaryExpressionT.Operator.<=
         case Predicate.Operator.== => BinaryExpressionT.Operator.==
-        case Predicate.Operator.> => BinaryExpressionT.Operator.>
+        case Predicate.Operator.>  => BinaryExpressionT.Operator.>
         case Predicate.Operator.>= => BinaryExpressionT.Operator.>=
       },
       ArithExpression(p.rhs)
@@ -500,6 +698,16 @@ object GenericAST {
         (visitFun(_, trueExpr)) |>
         (visitFun(_, falseExpr))
     }
+
+    override def print(pc: PrintContext): Unit = {
+      pc += "("
+      cond.print(pc)
+      pc += " ? "
+      trueExpr.print(pc)
+      pc += " : "
+      falseExpr.print(pc)
+      pc += ")"
+    }
   }
 
   case class TernaryExpression(cond: BinaryExpressionT, trueExpr: ExpressionT, falseExpr: ExpressionT)
@@ -517,6 +725,11 @@ object GenericAST {
         (visitFun(_, this)) |>
         (visitFun(_, v))
     }
+
+    override def print(pc: PrintContext): Unit = {
+      pc += s"(${t})"
+      v.print(pc)
+    }
   }
 
   /**
@@ -524,7 +737,22 @@ object GenericAST {
     */
   case class Cast(v: VarRef, t: Type) extends CastT
 
-  case class PointerCast(v: VarRef, t: Type) extends CastT
+  case class PointerCast(v: VarRef, t: Type) extends CastT {
+    override def print(pc: PrintContext): Unit = {
+      pc += "("
+      pc += s"(${t}*)"
+      pc += Printer.toString(v.v.v)
+      pc += ")"
+      if (v.arrayIndex != null) {
+        pc += "["
+        v.arrayIndex.print(pc)
+        pc += "]"
+      }
+      if (v.suffix != null) {
+        pc += v.suffix
+      }
+    }
+  }
 
   trait StructConstructorT extends ExpressionT {
     val t: TupleType
@@ -539,6 +767,15 @@ object GenericAST {
           }
         })
     }
+
+    override def print(pc: PrintContext): Unit = {
+      pc += s"(${Printer.toString(t)}){"
+      args.foreach({ n ⇒
+        n.print(pc)
+        pc += ", "
+      })
+      pc += "}"
+    }
   }
 
   case class StructConstructor(t: TupleType, args: Vector[AstNode]) extends
@@ -549,6 +786,10 @@ object GenericAST {
     */
   trait RawCodeT extends ExpressionT {
     val code: String
+
+    override def print(pc: PrintContext): Unit = {
+      pc += code
+    }
   }
 
   case class RawCode(code: String) extends RawCodeT
@@ -558,6 +799,13 @@ object GenericAST {
     */
   trait CommentT extends AstNode with BlockMember {
     val content: String
+
+    override def print(pc: PrintContext): Unit = {
+      // TODO: Assert that the comment doesn't contain newlines
+      pc += "// "
+      pc += content
+      pc.endln()
+    }
   }
 
   case class Comment(content: String) extends CommentT
@@ -566,6 +814,8 @@ object GenericAST {
     * An empty block member, as a placeholder for when we want a node, but
     * don't want to print any code.
     */
-  case class EmptyNode() extends AstNode with BlockMember
+  case class EmptyNode() extends AstNode with BlockMember {
+    override def print(pc: PrintContext): Unit = {}
+  }
 
 }

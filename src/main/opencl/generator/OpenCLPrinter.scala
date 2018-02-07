@@ -400,7 +400,7 @@ class OpenCLPrinter extends Printer {
   }
 
   private def print(b: Break): Unit = {
-    print("break;")
+    print("break;")1
   }
 
   private def print(s: StructConstructor): Unit = {
