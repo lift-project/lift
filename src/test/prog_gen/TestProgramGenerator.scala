@@ -23,6 +23,7 @@ object TestProgramGenerator extends TestWithExecutor {
     super.before()
     // TODO: To whom it may concern: the test has been made deterministic. To experience failing behavior,
     // TODO: remove the Random.setSeed(0) line and re-run a few times - if lucky, you'll get the failure!
+    //see issue #147
     Random.setSeed(0)
     generator = new ProgramGenerator
 
@@ -46,7 +47,7 @@ class TestProgramGenerator {
   LongTestsEnabled()
 
   @Test
-  @Ignore
+  @Ignore //See issue #147
   def usefulZipGeneration(): Unit = {
 
     // Count the number of different components projected out of tuples
