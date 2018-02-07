@@ -5,6 +5,8 @@ import ir.view.{AccessVar, CastedPointer}
 import lift.arithmetic._
 import opencl.generator.{NotPrintableExpression, OclFunction}
 
+// TODO: Move much of this code to the new generic.AstPrinter module
+
 abstract class Printer {
   /** Output stream */
   val sb: StringBuilder = new StringBuilder

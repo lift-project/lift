@@ -3,7 +3,8 @@ package generic.ast
 import ir.{ArrayType, TupleType, Type}
 import lift.arithmetic._
 import opencl.generator.UseCastsForVectors
-import utils.{PrintContext, Printer}
+
+import utils.Printer
 
 import scala.language.implicitConversions
 
@@ -38,10 +39,12 @@ object GenericAST {
   *    ^
   *    |
   *    |
+  *    |
   * FunctionT
   *    ^
+  *    |
   *    +---------------------+
-       |                     |
+  *    |                     |
   * GenericFunction     OpenCLFunction
   *
   * */
@@ -417,7 +420,7 @@ object GenericAST {
 
     override def print(pc: PrintContext): Unit = t match {
       case tt: TupleType ⇒
-        pc.println(s"typedef ${Type.name(tt)} ${name};")
+        pc ++= s"typedef ${Type.name(tt)} ${name};"
       case _             ⇒ Comment("NOTE: trying to print unprintable tuplealias").print(pc)
     }
   }
