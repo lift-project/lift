@@ -53,7 +53,7 @@ object Scene {
   }
 
   private def nodeHeight(node: Node):Double = node match {
-    case FloatNode() => 1
+    case FloatNode() => 5
     case TupleNode(elements) => elements.map(nodeHeight).max
     case LinearArrayNode(elem, size) => nodeHeight(elem)
     case GridArrayNode(elem, _, height) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_Y) + nodeHeight(elem) * height
@@ -160,7 +160,7 @@ object Scene {
     //The methods here take care of transforming nodes into sets of graphical primitives.
     def drawType(typeNode: TypeNode):Iterable[GraphicalPrimitive] = {
       typeNode match {
-        case FloatNode() => Seq(Rectangle(0, 0,1, 1))
+        case FloatNode() => Seq(Rectangle(0, 0,5,5))
         case TupleNode(elements) =>
           //Draw elements
           val elementPrimitives = elements.flatMap(drawType)

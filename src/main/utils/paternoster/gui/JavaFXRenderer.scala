@@ -4,6 +4,7 @@ import javafx.scene.canvas.GraphicsContext
 import javafx.scene.paint.Color
 import javafx.scene.text.{Font, Text}
 
+import lift.arithmetic.?
 import utils.paternoster.logic.Graphics._
 import utils.paternoster.logic.Scene.GridArrayNode
 
@@ -13,8 +14,12 @@ import utils.paternoster.logic.Scene.GridArrayNode
 object JavaFXRenderer {
   case class Context(gc:GraphicsContext, unitX:Double, unitY:Double, smallX:Double, smallY:Double, width:Double,height:Double)
 
-  def drawPrimitives(primitives:Iterable[GraphicalPrimitive], ctx:Context) ={
+  def drawPrimitives(primitives:Iterable[GraphicalPrimitive], ctx:Context):Unit ={
     var newContext = adjustScaling(primitives,ctx)
+    newContext = adjustCanvas(primitives,newContext)
+    ctx.gc.clearRect(0, 0, newContext.width, newContext.height)
+    ctx.gc.setFill(Color.WHITE)
+    ctx.gc.fillRect(0,0,newContext.width,newContext.height)
     primitives.foreach(drawPrimitive(_, newContext))
   }
 
@@ -26,6 +31,8 @@ object JavaFXRenderer {
     var maxheight = 0d
     var minScaledHeight = 1000d
     var maxScaledHeight = 0d
+    val MAXSCALING = 3
+    val MINSCALING = 1
 
     primitives.foreach(primitive =>primitive match {
       case BoxWithText(text, bx, by, bwidth, bheight) => {
@@ -63,19 +70,48 @@ object JavaFXRenderer {
       case _:Any =>
     })
 
-      val newXScaling = (ctx.width-2*ctx.smallX)/maxwidth
-      var newYScaling = newXScaling*0.5
-      if(minScaledHeight < (ctx.height*0.5)){
-        newYScaling = (ctx.height*0.08- 2*ctx.smallY)/(minheight)
-      }
-    /*  val yPercentSmaller = newYScaling/defaultYScaling
-    val newFontSize = Math.max(ctx.gc.getFont.getSize*yPercentSmaller,10)
-      ctx.gc.setFont(new Font(newFontSize))
-      */
+      val newXScaling = Math.round(Math.max(MINSCALING,Math.min((ctx.width-2*ctx.smallX)/maxwidth, MAXSCALING)))
+      var newYScaling = Math.round(Math.max(MINSCALING,newXScaling*0.5))
+
       Context(ctx.gc, newXScaling, newYScaling, ctx.smallX, ctx.smallY,ctx.width,ctx.height)
+
+  }
+
+  def adjustCanvas(primitives:Iterable[GraphicalPrimitive],ctx:Context): Context ={
+      var maxWidth=0.0
+      var maxHeight=0.0
+      primitives.foreach(primitive=> primitive match {
+      case BoxWithText(_,x,y,w,h) => {
+        val width = x+w
+        val height = y+h
+        if(width > maxWidth) maxWidth=width
+        if(height > maxHeight) maxHeight = height
+      }
+      case Box(x,y,w,h)=>  {
+        val width = x+w
+        val height = y+h
+        if(width > maxWidth) maxWidth=width
+        if(height > maxHeight) maxHeight = height
+      }
+      case Rectangle(x,y,w,h)=> {
+        val width = x+w
+        val height = y+h
+        if(width > maxWidth) maxWidth=width
+        if(height > maxHeight) maxHeight = height
+      }
+    })
+
+    if(maxHeight > TypeVisualizer.getMainPane().height){
+      TypeVisualizer.getMainPane().setCanvasHeight(maxHeight)
+    }
+    if(maxWidth > TypeVisualizer.getMainPane().width){
+      TypeVisualizer.getMainPane().setCanvasWidth(maxWidth)
+    }
+    Context(TypeVisualizer.getMainPane().getGraphicsContext(), ctx.unitX, ctx.unitY, ctx.smallX, ctx.smallY,TypeVisualizer.getMainPane().canvas.getWidth,TypeVisualizer.getMainPane().canvas.getHeight)
   }
 
   def drawPrimitive(primitive:GraphicalPrimitive, ctx: Context) = {
+
     primitive match {
       case BoxWithText(text,bx,by,bwidth,bheight)=>
         ctx.gc.setFill(Color.BLACK)
@@ -86,18 +122,17 @@ object JavaFXRenderer {
           bheight*ctx.unitY - 2*ctx.smallY
         )
 
-
         val textX = ((bx*ctx.unitX + ctx.smallX)+(bwidth*ctx.unitX - 2*ctx.smallX))-(ctx.gc.getFont.getSize*text.size)/*Math.min((ctx.gc.getFont.getSize*text.size),(bwidth*ctx.unitX - 2*ctx.smallX)/2)*/
         val textY =  ((by*ctx.unitY + ctx.smallY)+(bheight*ctx.unitY - 2*ctx.smallY)) /*((by*ctx.unitY + ctx.smallY)+(bheight*ctx.unitY - 2*ctx.smallY))-((bheight*ctx.unitY - 2*ctx.smallY)*0.025)*/
         //ctx.gc.setFont(new Font(ctx.gc.getFont.getName,10))
         ctx.gc.strokeText(text,textX,textY)
       case Rectangle(x, y, w, h) =>
-        ctx.gc.setFill(Color.GREEN)
+        ctx.gc.setFill(Color.BLACK)
         ctx.gc.fillRect(
-          x*ctx.unitX + ctx.smallX*2,
-          y*ctx.unitY + ctx.smallY*2,
-          w*ctx.unitX - 4*ctx.smallX,
-          h*ctx.unitY - 4*ctx.smallY)
+          Math.round(x*ctx.unitX + ctx.smallX*4),
+          Math.round(y*ctx.unitY + ctx.smallY*4),
+          Math.round(w*ctx.unitX - 2*ctx.smallX),
+          Math.round(h*ctx.unitY - 2*ctx.smallY))
       case Box(x, y, w, h) =>
         ctx.gc.setStroke(Color.RED)
         ctx.gc.strokeRect(

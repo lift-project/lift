@@ -13,7 +13,7 @@ import javafx.embed.swing.SwingFXUtils
 import javafx.event.{ActionEvent, EventHandler}
 import javafx.scene.Node
 import javafx.scene.control.Alert.AlertType
-import javafx.scene.control.{Alert, Button, Label, TextField}
+import javafx.scene.control._
 import javafx.scene.image.WritableImage
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Pane
@@ -31,10 +31,10 @@ import scala.collection.mutable.ListBuffer
 class TypeVisualizer() extends Application {
 
   val defaultVarValue = 4
-  val drawingWidth =1280
-    val drawingHeight = 720
-
-
+  val DRAWING_WIDTH =1280
+  val DRAWING_HEIGHT = 720
+  val DEFAULT_WINDOW_WIDTH = 1280
+  val DEFAULT_WINDOW_HEIGHT =720
 
   override def start(stage: Stage): Unit = {
     //Get the Type
@@ -44,7 +44,7 @@ class TypeVisualizer() extends Application {
 
 
     //mainPane is where we will draw
-    val mainPane = new MainPane(drawingWidth, drawingHeight)
+    val mainPane = new MainPane(DRAWING_WIDTH, DRAWING_HEIGHT)
 
     TypeVisualizer.setMainPane(mainPane)
 
@@ -53,7 +53,10 @@ class TypeVisualizer() extends Application {
     main.setSpacing(10);
     main.setPadding(new Insets(8, 8, 8, 8));
 
-
+    val scrollPane = new ScrollPane()
+    scrollPane.setContent(mainPane)
+    scrollPane.setPrefViewportWidth(DEFAULT_WINDOW_WIDTH)
+    scrollPane.setPrefViewportHeight(DEFAULT_WINDOW_HEIGHT)
 
     //HBox top, display the expression here
     val top: VBox = new VBox
@@ -96,7 +99,7 @@ class TypeVisualizer() extends Application {
       //Create a map of varname and value and call the insetVarValues method with it.
       override def handle(event: ActionEvent): Unit = {
 
-        var wim = new WritableImage(drawingWidth, drawingHeight)
+        var wim = new WritableImage(DRAWING_WIDTH, DRAWING_HEIGHT)
         mainPane.getSnapShot(wim)
 
 
@@ -136,7 +139,7 @@ class TypeVisualizer() extends Application {
 
     //Combine ui elements
     //top.getChildren.addAll(typeLabels.toList)
-    bottom.getChildren.addAll(mainPane,buttonSave)
+    bottom.getChildren.addAll(scrollPane,buttonSave)
     main.getChildren.addAll(top,middle, bottom)
 
     var scene = new javafx.scene.Scene(main)
@@ -393,7 +396,7 @@ def renderNodes(argTypes:List[Type],dimensionGrouping: mutable.HashMap[Int,List[
     })
 
     var adjustedNodes = firstBox match {
-      case bwt: BoxWithText => Graphics.translateAll(nodes, -bwt.bx, -bwt.by)
+      case bwt: BoxWithText => Graphics.translateAll(nodes, -bwt.x, -bwt.y)
       case r: Rectangle => Graphics.translateAll(nodes, -r.x, -r.y)
       case b: Box => Graphics.translateAll(nodes, -b.x, -b.y)
     }
@@ -412,6 +415,8 @@ def renderNodes(argTypes:List[Type],dimensionGrouping: mutable.HashMap[Int,List[
     firstType=false
     adjustedNodes
  }
+  //allAdjustedNodes = allAdjustedNodes.map(node => Graphics.translateAllToRoundCoords(node))
+
   allAdjustedNodes.flatten
 }
 
