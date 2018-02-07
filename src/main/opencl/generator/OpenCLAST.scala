@@ -1,56 +1,32 @@
 package opencl.generator
 
-import generic.ast.GenericAST
+import generic.ast.{GenericAST, PrintContext}
 import generic.ast.GenericAST._
 import lift.arithmetic.{ArithExpr, Predicate, Var}
-import ir.{TupleType, Type, VectorType}
-import opencl.ir.{OpenCLAddressSpace, OpenCLMemory, UndefAddressSpace}
+import lift.arithmetic.NotEvaluableToIntException._
+import ir.{ArrayType, TupleType, Type, VectorType}
+import opencl.ir.{AddressSpaceCollection, GlobalMemory, IntPtr, LocalMemory, OpenCLAddressSpace, OpenCLMemory, PrivateMemory, UndefAddressSpace}
+import utils.Printer
 
 import scala.language.implicitConversions
 
 object OpenCLAST {
 
-//  /** Base class for all OpenCL AST nodes. */
-//  sealed trait OclAstNode
-//
-//  trait BlockMember
-//
-//  implicit def exprToStmt(e: Expression): ExpressionStatement = ExpressionStatement(e)
-//
-//  implicit def predicateToCondExpression(p: Predicate): BinaryExpression = {
-//    BinaryExpression(
-//      ArithExpression(p.lhs),
-//      p.op match {
-//        case Predicate.Operator.!= => BinaryExpression.Operator.!=
-//        case Predicate.Operator.< => BinaryExpression.Operator.<
-//        case Predicate.Operator.<= => BinaryExpression.Operator.<=
-//        case Predicate.Operator.== => BinaryExpression.Operator.==
-//        case Predicate.Operator.> => BinaryExpression.Operator.>
-//        case Predicate.Operator.>= => BinaryExpression.Operator.>=
-//      },
-//      ArithExpression(p.rhs)
-//    )
-//  }
-//
-//  sealed abstract class Attribute extends OclAstNode
-//
-//  sealed abstract class Declaration extends OclAstNode with BlockMember
-//
-//  sealed abstract class Statement extends OclAstNode with BlockMember
-//
-//  sealed abstract class Expression extends OclAstNode
-
-  case class RequiredWorkGroupSize(localSize: NDRange) extends AttributeT
+  case class RequiredWorkGroupSize(localSize: NDRange) extends AttributeT {
+    override def print(pc: PrintContext): Unit = {
+      pc += s"__attribute((reqd_work_group_size(${localSize})))\n"
+    }
+  }
 
   /*
    OpenCL specific traits
    */
   trait IsKernel {
-    val kernel : Boolean
+    val kernel: Boolean
   }
 
   trait CLAddressSpace {
-    val addressSpace : OpenCLAddressSpace
+    val addressSpace: OpenCLAddressSpace
   }
 
   /** A function declaration
@@ -66,11 +42,42 @@ object OpenCLAST {
                          params: List[ParamDeclT],
                          body: Block,
                          attribute: Option[AttributeT] = None, kernel: Boolean =
-                      false) extends
-    FunctionT with IsKernel
+                         false) extends
+    FunctionT with IsKernel {
+    override def print(pc: PrintContext): Unit = {
+      if (kernel) pc += "kernel "
 
-//  case class OclVar(v: lift.arithmetic.Var, t: Type,
-//                    addressSpace: OpenCLAddressSpace) extends VarT with CLAddressSpace
+      if (attribute.isDefined) attribute.get.print(pc)
+
+      if (kernel) {
+        pc += "void"
+      } else {
+        pc += Printer.toString(ret)
+      }
+
+      pc += s" ${name}("
+      params.foreach(p ⇒ {
+        p.print(pc)
+        pc += ", "
+      })
+      pc += ")"
+
+      if (kernel)
+        pc += "{ \n" +
+          "#ifndef WORKGROUP_GUARD\n" +
+          "#define WORKGROUP_GUARD\n" +
+          "#endif\n" +
+          "WORKGROUP_GUARD\n"
+
+      body.print(pc)
+
+      if (kernel)
+        pc += "}"
+    }
+  }
+
+  //  case class OclVar(v: lift.arithmetic.Var, t: Type,
+  //                    addressSpace: OpenCLAddressSpace) extends VarT with CLAddressSpace
 
 
   case class OclVarDecl(v: GenericAST.CVar,
@@ -78,30 +85,144 @@ object OpenCLAST {
                         init: AstNode = null,
                         length: Long = 0,
                         addressSpace: OpenCLAddressSpace = UndefAddressSpace)
-    extends VarDeclT with CLAddressSpace
+    extends VarDeclT with CLAddressSpace {
+    override def print(pc: PrintContext): Unit = t match {
+      case _: ArrayType =>
+        addressSpace match {
+          case PrivateMemory =>
+            if (length > scala.Int.MaxValue) throw NotEvaluableToInt
+            for (i <- 0 until length.toInt)
+              println(Printer.toString(Type.getValueType(t)) + " " +
+                Printer.toString(v.v) + "_" +
+                Printer.toString(i) + ";")
+
+          case LocalMemory if length != 0 =>
+            val baseType = Type.getBaseType(t)
+            val declaration =
+              s"${addressSpace} ${Printer.toString(baseType)} " +
+                s"${Printer.toString(v.v)}[${length}]"
+
+            // Make sure the memory is correctly aligned when using pointer casts
+            // for forcing vector loads on NVIDIA.
+            val optionalAttribute =
+            if (UseCastsForVectors()) " __attribute__ ((aligned(16)));" else ";"
+
+            val fullDeclaration = declaration + optionalAttribute
+
+            pc += fullDeclaration
+
+          case _ =>
+            val baseType = Type.getBaseType(t)
+            pc += s"${addressSpace} ${Printer.toString(baseType)} " +
+              s"*${Printer.toString(v.v)}"
+            if (init != null) {
+              pc += s" = "
+              init.print(pc)
+            }
+            pc += "; "
+        }
+
+      case _ =>
+        // hackily add support for global memory pointers, but _only_ pointers
+        t match {
+          case IntPtr =>
+            if (addressSpace == GlobalMemory)
+              pc += addressSpace + " "
+          case _      =>
+        }
+        if (addressSpace == LocalMemory)
+          pc += addressSpace + " "
+        pc += s"${Printer.toString(t)} ${Printer.toString(v.v)}"
+        if (init != null) {
+          pc += s" = "
+          init.print(pc)
+        }
+        pc += "; "
+    }
+  }
 
   /** Parameter declaration. These have to be separated from variable
     * declaration since the vectorization has to be handled differently
     */
   case class OclParamDecl(name: String, t: Type,
-                       const: Boolean = false,
-                       addressSpace: OpenCLAddressSpace = UndefAddressSpace)
-    extends ParamDeclT with CLAddressSpace
+                          const: Boolean = false,
+                          addressSpace: OpenCLAddressSpace = UndefAddressSpace)
+    extends ParamDeclT with CLAddressSpace {
+    override def print(pc: PrintContext): Unit = t match {
+      case ArrayType(_) =>
+        // Const restricted pointers to read-only global memory. See issue #2.
+        val (const, restrict) = if (const) ("const ", "restrict ") else ("", "")
+        pc += const + addressSpace + " " + Printer.toString(Type.devectorize
+        (t)) +
+          " " + restrict + name
+
+      case _ =>
+        pc += Printer.toString(t) + " " + name
+    }
+  }
 
 
-  case class OclLoad(v: VarRef, offset: ArithExpression,
+  case class OclLoad(v: VarRef,
+                     t: Type,
+                     offset: ArithExpression,
                      addressSpace: OpenCLAddressSpace) extends LoadT
-    with CLAddressSpace
+    with CLAddressSpace {
+
+    override def print(pc: PrintContext): Unit = {
+      if (!UseCastsForVectors()) {
+        pc += s"vload${Type.getLength(t)}("
+        offset.print(pc)
+        pc += ","
+        v.print(pc)
+        pc += ")"
+      } else {
+        pc += s"*( ((${addressSpace} ${t}*)"
+        v.print(pc)
+        pc += s") + "
+        offset.print(pc)
+        pc += ")"
+      }
+    }
+  }
 
   // TODO: Can we just get the address space from the var ref?
   case class OclStore(v: VarRef,
+                      t: Type,
                       value: AstNode,
                       offset: ArithExpression,
                       addressSpace: OpenCLAddressSpace) extends StoreT
-    with CLAddressSpace
+    with CLAddressSpace {
+    override def print(pc: PrintContext): Unit = {
+      if (!UseCastsForVectors()) {
+        pc += s"vstore${Type.getLength(t)}("
+        value.print(pc)
+        pc += ","
+        offset.print(pc)
+        pc += ","
+        v.print(pc)
+        pc += ");"
+      } else {
+        pc += s"*( ((${addressSpace} ${t}*)"
+        v.print(pc)
+        pc += s") + "
+        offset.print(pc)
+        pc += ") = "
+        value.print(pc)
+      }
+    }
+  }
 
 
-  case class VectorLiteral(t: VectorType, vs: VarRef*) extends ExpressionT
+  case class VectorLiteral(t: VectorType, vs: VarRef*) extends ExpressionT {
+    override def print(pc: PrintContext): Unit = {
+      pc += s"(${t})("
+      vs.foreach(vr ⇒ {
+        vr.print(pc)
+        pc += ", "
+      })
+      pc += ")"
+    }
+  }
 
 
   /** Inline native code block. Used mainly for UserFun, which are currently
@@ -111,115 +232,136 @@ object OpenCLAST {
     */
   case class OclCode(code: String) extends RawCodeT
 
-  case class OclExtension(content: String) extends AstNode with BlockMember
+  case class OclExtension(content: String) extends AstNode with BlockMember {
+    override def print(pc: PrintContext): Unit = {
+      pc ++= s"#pragma OPENCL EXTENSION ${content} : enable"
+    }
+  }
 
-  case class OclBarrier(mem: OpenCLMemory) extends AstNode with BlockMember
+  case class OclBarrier(mem: OpenCLMemory) extends AstNode with BlockMember {
+    override def print(pc: PrintContext): Unit = pc += (mem.addressSpace match {
+      case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
+      case LocalMemory  => "barrier(CLK_LOCAL_MEM_FENCE);"
 
-//
-//  def visitExpressionsInBlock(block: Block, fun: Expression => Unit): Unit = {
-//    visitExpressionsInNode(block)
-//
-//    def visitExpressionsInNode(node: OclAstNode): Unit = {
-//      callFunOnExpression(node)
-//
-//      node match {
-//        case e: Expression => visitExpression(e)
-//        case s: Statement => visitStatement(s)
-//        case d: Declaration => visitDeclaration(d)
-//        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
-//      }
-//    }
-//
-//    def callFunOnExpression(node: OclAstNode): Unit = {
-//      node match {
-//        case e: Expression => fun(e)
-//        case _: Statement =>
-//        case _: Declaration =>
-//        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
-//      }
-//    }
-//
-//    def visitExpression(e: Expression): Unit = e match {
-//      case _: ArithExpression =>
-//      case _: OpenCLExpression =>
-//      case a: AssignmentExpression =>
-//        visitExpressionsInNode(a.value)
-//        visitExpressionsInNode(a.to)
-//      case c: Cast =>
-//        visitExpressionsInNode(c.v)
-//      case pc : PointerCast =>
-//        visitExpressionsInNode(pc.v)
-//      case BinaryExpression(lhs, _, rhs) =>
-//        visitExpressionsInNode(lhs)
-//        visitExpressionsInNode(rhs)
-//      case TernaryExpression(cond, trueExpr, falseExpr) =>
-//        visitExpression(cond)
-//        visitExpression(trueExpr)
-//        visitExpression(falseExpr)
-//      case f: FunctionCall =>
-//        f.args.foreach(visitExpressionsInNode)
-//      case l: Load =>
-//        visitExpressionsInNode(l.v)
-//        visitExpressionsInNode(l.offset)
-//      case s: Store =>
-//        visitExpressionsInNode(s.v)
-//        visitExpressionsInNode(s.value)
-//        visitExpressionsInNode(s.offset)
-//      case s: StructConstructor =>
-//        s.args.foreach(visitExpressionsInNode)
-//      case v: VarRef =>
-//        if (v.arrayIndex != null) visitExpressionsInNode(v.arrayIndex)
-//      case v: VectorLiteral =>
-//        v.vs.foreach(visitExpressionsInNode)
-//    }
-//
-//    def visitStatement(s: Statement): Unit = s match {
-//      case b: Block => b.content.foreach(visitExpressionsInNode)
-//      case es: ExpressionStatement => visitExpressionsInNode(es.e)
-//      case f: ForLoop =>
-//        visitExpressionsInNode(f.init)
-//        visitExpressionsInNode(f.cond)
-//        visitExpressionsInNode(f.increment)
-//        visitExpressionsInNode(f.body)
-//      case ifte: IfThenElse =>
-//        visitExpressionsInNode(ifte.cond)
-//        visitExpressionsInNode(ifte.trueBody)
-//        visitExpressionsInNode(ifte.falseBody)
-//      case w: WhileLoop =>
-//        visitExpressionsInNode(w.loopPredicate)
-//        visitExpressionsInNode(w.body)
-//      case Barrier(_) | GOTO(_) | TupleAlias(_, _) | TypeDef(_) | Break() =>
-//    }
-//
-//    def visitDeclaration(d: Declaration): Unit = d match {
-//      case f: OclFunction => visitExpressionsInNode(f.body)
-//      case v: VarDecl => if (v.init != null) visitExpressionsInNode(v.init)
-//      case Label(_) | ParamDecl(_, _, _, _) =>
-//    }
-//  }
-//
-//  def visitBlocks(node: OclAstNode, fun: Block => Unit): Unit = {
-//    node match {
-//      case _: Expression => // there are no blocks inside any expressions
-//
-//      case s: Statement => s match {
-//        case b: Block =>
-//          fun(b)
-//          b.content.foreach(visitBlocks(_, fun))
-//        case fl: ForLoop => visitBlocks(fl.body, fun)
-//        case wl: WhileLoop => visitBlocks(wl.body, fun)
-//        case ifte: IfThenElse =>
-//          visitBlocks(ifte.trueBody, fun)
-//          visitBlocks(ifte.falseBody, fun)
-//        case GOTO(_) | Barrier(_) | TypeDef(_) | TupleAlias(_, _) | ExpressionStatement(_) | Break() =>
-//      }
-//
-//      case d: Declaration => d match {
-//        case f: OclFunction => visitBlocks(f.body, fun)
-//        case Label(_) | VarDecl(_, _, _, _, _) | ParamDecl(_, _, _, _) =>
-//      }
-//
-//      case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
-//    }
-//  }
+      case collection: AddressSpaceCollection
+        if collection.containsAddressSpace(GlobalMemory) &&
+          !collection.containsAddressSpace(LocalMemory) =>
+        "barrier(CLK_GLOBAL_MEM_FENCE);"
+
+      case collection: AddressSpaceCollection
+        if collection.containsAddressSpace(LocalMemory) &&
+          !collection.containsAddressSpace(GlobalMemory) =>
+        "barrier(CLK_LOCAL_MEM_FENCE);"
+
+      case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
+    })
+  }
+
+  //
+  //  def visitExpressionsInBlock(block: Block, fun: Expression => Unit): Unit = {
+  //    visitExpressionsInNode(block)
+  //
+  //    def visitExpressionsInNode(node: OclAstNode): Unit = {
+  //      callFunOnExpression(node)
+  //
+  //      node match {
+  //        case e: Expression => visitExpression(e)
+  //        case s: Statement => visitStatement(s)
+  //        case d: Declaration => visitDeclaration(d)
+  //        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
+  //      }
+  //    }
+  //
+  //    def callFunOnExpression(node: OclAstNode): Unit = {
+  //      node match {
+  //        case e: Expression => fun(e)
+  //        case _: Statement =>
+  //        case _: Declaration =>
+  //        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
+  //      }
+  //    }
+  //
+  //    def visitExpression(e: Expression): Unit = e match {
+  //      case _: ArithExpression =>
+  //      case _: OpenCLExpression =>
+  //      case a: AssignmentExpression =>
+  //        visitExpressionsInNode(a.value)
+  //        visitExpressionsInNode(a.to)
+  //      case c: Cast =>
+  //        visitExpressionsInNode(c.v)
+  //      case pc : PointerCast =>
+  //        visitExpressionsInNode(pc.v)
+  //      case BinaryExpression(lhs, _, rhs) =>
+  //        visitExpressionsInNode(lhs)
+  //        visitExpressionsInNode(rhs)
+  //      case TernaryExpression(cond, trueExpr, falseExpr) =>
+  //        visitExpression(cond)
+  //        visitExpression(trueExpr)
+  //        visitExpression(falseExpr)
+  //      case f: FunctionCall =>
+  //        f.args.foreach(visitExpressionsInNode)
+  //      case l: Load =>
+  //        visitExpressionsInNode(l.v)
+  //        visitExpressionsInNode(l.offset)
+  //      case s: Store =>
+  //        visitExpressionsInNode(s.v)
+  //        visitExpressionsInNode(s.value)
+  //        visitExpressionsInNode(s.offset)
+  //      case s: StructConstructor =>
+  //        s.args.foreach(visitExpressionsInNode)
+  //      case v: VarRef =>
+  //        if (v.arrayIndex != null) visitExpressionsInNode(v.arrayIndex)
+  //      case v: VectorLiteral =>
+  //        v.vs.foreach(visitExpressionsInNode)
+  //    }
+  //
+  //    def visitStatement(s: Statement): Unit = s match {
+  //      case b: Block => b.content.foreach(visitExpressionsInNode)
+  //      case es: ExpressionStatement => visitExpressionsInNode(es.e)
+  //      case f: ForLoop =>
+  //        visitExpressionsInNode(f.init)
+  //        visitExpressionsInNode(f.cond)
+  //        visitExpressionsInNode(f.increment)
+  //        visitExpressionsInNode(f.body)
+  //      case ifte: IfThenElse =>
+  //        visitExpressionsInNode(ifte.cond)
+  //        visitExpressionsInNode(ifte.trueBody)
+  //        visitExpressionsInNode(ifte.falseBody)
+  //      case w: WhileLoop =>
+  //        visitExpressionsInNode(w.loopPredicate)
+  //        visitExpressionsInNode(w.body)
+  //      case Barrier(_) | GOTO(_) | TupleAlias(_, _) | TypeDef(_) | Break() =>
+  //    }
+  //
+  //    def visitDeclaration(d: Declaration): Unit = d match {
+  //      case f: OclFunction => visitExpressionsInNode(f.body)
+  //      case v: VarDecl => if (v.init != null) visitExpressionsInNode(v.init)
+  //      case Label(_) | ParamDecl(_, _, _, _) =>
+  //    }
+  //  }
+  //
+  //  def visitBlocks(node: OclAstNode, fun: Block => Unit): Unit = {
+  //    node match {
+  //      case _: Expression => // there are no blocks inside any expressions
+  //
+  //      case s: Statement => s match {
+  //        case b: Block =>
+  //          fun(b)
+  //          b.content.foreach(visitBlocks(_, fun))
+  //        case fl: ForLoop => visitBlocks(fl.body, fun)
+  //        case wl: WhileLoop => visitBlocks(wl.body, fun)
+  //        case ifte: IfThenElse =>
+  //          visitBlocks(ifte.trueBody, fun)
+  //          visitBlocks(ifte.falseBody, fun)
+  //        case GOTO(_) | Barrier(_) | TypeDef(_) | TupleAlias(_, _) | ExpressionStatement(_) | Break() =>
+  //      }
+  //
+  //      case d: Declaration => d match {
+  //        case f: OclFunction => visitBlocks(f.body, fun)
+  //        case Label(_) | VarDecl(_, _, _, _, _) | ParamDecl(_, _, _, _) =>
+  //      }
+  //
+  //      case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
+  //    }
+  //  }
 }

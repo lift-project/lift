@@ -2,14 +2,13 @@ package opencl.generator
 
 import arithmetic.TypeVar
 import generic.Generator
-
 import ir._
 import ir.ast._
 import ir.view._
 import lift.arithmetic._
 import opencl.generator.OpenCLAST._
 import generic.ast.GenericAST._
-import generic.ast.GenericAST
+import generic.ast.{AstPrinter, GenericAST}
 import opencl.ir._
 import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
@@ -17,7 +16,7 @@ import utils.Printer
 
 import scala.collection.immutable
 
-object OpenCLGenerator2 extends Generator {
+object OpenCLGenerator extends Generator {
 
   def generate(f: Lambda): String = {
     generate(f, NDRange(?, ?, ?))
@@ -147,7 +146,7 @@ class OpenCLGenerator extends Generator {
   type SymbolTable = immutable.Map[GenericAST.CVar, Type]
 
 
-  private val openCLCodeGen = new OpenCLPrinter
+//  private val openCLCodeGen = new OpenCLPrinter
 
   private var replacements: ValueTable = immutable.Map.empty
   private var replacementsWithFuns: ValueTable = immutable.Map.empty
@@ -258,7 +257,7 @@ class OpenCLGenerator extends Generator {
     globalBlock = globalBlock :+ generateKernel(f)
 
     // return the code generated
-    openCLCodeGen(globalBlock)
+    AstPrinter(globalBlock)
   }
 
   // TODO: Gather(_)/Transpose() without read and Scatter(_)/TransposeW() without write

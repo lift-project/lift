@@ -110,7 +110,7 @@ object GenericAST {
 
       pc += Printer.toString(ret)
 
-      pc += s"${name}("
+      pc += s" ${name}("
       params.foreach(p ⇒ {
         p.print(pc)
         pc += ", "
@@ -193,8 +193,8 @@ object GenericAST {
     override def print(pc: PrintContext): Unit = t match {
       case ArrayType(_) ⇒
         // Const restricted pointers to read-only global memory. See issue #2.
-        val (const, restrict) = if (const) ("const", "restrict") else ("", "")
-        pc += const + " " + Printer.toString(Type.devectorize(t)) +
+        val (constS, restrict) = if (const) ("const", "restrict") else ("", "")
+        pc += constS + " " + Printer.toString(Type.devectorize(t)) +
           " " + restrict + " " + name
 
       case _ =>
