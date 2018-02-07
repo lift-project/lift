@@ -1,5 +1,6 @@
 package utils;
 
+import c.executor.Compile
 import ir.{ArrayType, ArrayTypeWSWC, TypeChecker}
 import ir.ast.{PrintType, _}
 import lift.arithmetic.{SizeVar, Var}
@@ -25,6 +26,17 @@ class TestVisualization{
         TypeChecker(lambda)
     }
 
+  @Test
+  def using3DArrays(): Unit = {
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val O = SizeVar("O")
+    val lambda = fun(
+      ArrayType(ArrayType(ArrayType(Float, N), M ), O),
+      input => MapGlb(id) o PrintType() o Join() o PrintType() o Join() o PrintType() $ input
+    )
+    println(Compile(lambda))
+  }
 }
 
 
