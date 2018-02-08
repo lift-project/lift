@@ -49,7 +49,7 @@ object GenericAST {
   *
   * */
 
-  trait AstNode {
+   sealed trait AstNode {
     def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
       this)
 
@@ -82,7 +82,7 @@ object GenericAST {
 
     def params: List[ParamDecl]
 
-    def body: BlockT
+    def body: MutableBlockT
 
     def attribute: Option[AttributeT]
 
@@ -122,7 +122,7 @@ object GenericAST {
   }
 
   case class Function(name: String, ret: Type, params: List[ParamDecl],
-                      body: BlockT, attribute: Option[AttributeT] = None)
+                      body: MutableBlockT, attribute: Option[AttributeT] = None)
     extends FunctionT
 
   /**
@@ -210,16 +210,20 @@ object GenericAST {
     * List of nodes enclosed in a bock. This behaves like (and emits) a C block.
     */
 
-  trait BlockT extends StatementT {
+  trait MutableBlockT extends StatementT {
     // TODO: How do we handle default values when they're vals?
-    val content: Vector[AstNode with BlockMember] // = Vector.empty
+    var content: Vector[AstNode with BlockMember] // = Vector.empty
     val global: Boolean // = false
 
-    def :+(node: AstNode with BlockMember): BlockT
+    def :+(node: AstNode with BlockMember): MutableBlockT
 
-    def ::(node: AstNode with BlockMember): BlockT
+    def ::(node: AstNode with BlockMember): MutableBlockT
 
-    def ++(nodes: Vector[AstNode with BlockMember]): BlockT
+    def ++(nodes: Vector[AstNode with BlockMember]): MutableBlockT
+
+    def +=(node: AstNode with BlockMember) : Unit = {
+      content = content :+ node
+    }
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -240,24 +244,24 @@ object GenericAST {
     }
   }
 
-  case class Block(content: Vector[AstNode with BlockMember] = Vector(),
-                   global: Boolean = false) extends BlockT {
+  case class MutableBlock(content: Vector[AstNode with BlockMember] = Vector(),
+                          global: Boolean = false) extends MutableBlockT {
     /** Append a sub-node. Could be any node, including a sub-block.
       *
       * @param node The node to add to this block.
       */
-    def :+(node: AstNode with BlockMember): Block = this.copy(content = content :+ node)
+    def :+(node: AstNode with BlockMember): MutableBlock = this.copy(content = content :+ node)
 
-    def ::(node: AstNode with BlockMember): Block = this.copy(content = node +: content)
+    def ::(node: AstNode with BlockMember): MutableBlock = this.copy(content = node +: content)
 
-    def ++(nodes: Vector[AstNode with BlockMember]): Block = this.copy(content = content ++ nodes)
+    def ++(nodes: Vector[AstNode with BlockMember]): MutableBlock = this.copy(content = content ++ nodes)
   }
 
   trait ForLoopT extends StatementT {
     val init: DeclarationT
     val cond: ExpressionStatement
     val increment: ExpressionT
-    val body: BlockT
+    val body: MutableBlockT
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -278,12 +282,12 @@ object GenericAST {
   case class ForLoop(init: DeclarationT,
                      cond: ExpressionStatement,
                      increment: ExpressionT,
-                     body: BlockT) extends ForLoopT
+                     body: MutableBlockT) extends ForLoopT
 
 
   trait WhileLoopT extends StatementT {
     val loopPredicate: Predicate
-    val body: BlockT
+    val body: MutableBlockT
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -300,15 +304,15 @@ object GenericAST {
   }
 
   case class WhileLoop(loopPredicate: Predicate,
-                       body: BlockT) extends WhileLoopT
+                       body: MutableBlockT) extends WhileLoopT
 
   /**
     * An If-then-else sequence
     */
   trait IfThenElseT extends StatementT {
     val cond: ExpressionT
-    val trueBody: BlockT
-    val falseBody: BlockT
+    val trueBody: MutableBlockT
+    val falseBody: MutableBlockT
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -323,7 +327,7 @@ object GenericAST {
       cond.print(pc)
       pc += ")"
       trueBody.print(pc)
-      if (falseBody != Block()) {
+      if (falseBody != MutableBlock()) {
         pc += " else "
         falseBody.print(pc)
       }
@@ -331,8 +335,8 @@ object GenericAST {
   }
 
   case class IfThenElse(cond: ExpressionT,
-                        trueBody: BlockT,
-                        falseBody: BlockT) extends IfThenElseT
+                        trueBody: MutableBlockT,
+                        falseBody: MutableBlockT) extends IfThenElseT
 
   /** A goto statement, targeting the label with corresponding name
     * TODO: Think of a better way of describing goto labels
@@ -485,7 +489,7 @@ object GenericAST {
     */
   trait VarRefT extends ExpressionT {
     val v: CVar
-    val t: Type
+//    val t: Type
     val suffix: String
     val arrayIndex: ArithExpression
 
@@ -507,7 +511,7 @@ object GenericAST {
   }
 
   case class VarRef(v: CVar,
-                    t: Type,
+//                    t: Type,
                     suffix: String = null,
                     arrayIndex: ArithExpression = null) extends VarRefT
 

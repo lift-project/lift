@@ -110,7 +110,7 @@ object OpenCLGeneratorNew extends Generator {
   }
 
   def createFunctionDefinition(uf: UserFun): Function = {
-    var block = Block(new Vector[AstNode with BlockMember], false)
+    var block = MutableBlock(Vector(), false)
 
     if (uf.tupleTypes.length == 1)
       block = block :+ TupleAlias(uf.tupleTypes.head, "Tuple")
@@ -217,7 +217,7 @@ class OpenCLGeneratorNew extends Generator {
 
     View(f)
 
-    var globalBlock = Block(Vector.empty, true)
+    var globalBlock = MutableBlock(Vector.empty, true)
 
     val containsDouble = Expr.visitWithState(false)(f.body, {
       case (expr, state) =>
@@ -356,7 +356,7 @@ class OpenCLGeneratorNew extends Generator {
 
 
     // Block of static local memory
-    val staticMemoriesDecls = Block(Vector(Comment("Static local memory"))) ++
+    val staticMemoriesDecls = MutableBlock(Vector(Comment("Static local memory"))) ++
       Kernel.staticLocalMemory.map(x ⇒
         OclVarDecl(
           v = CVar(x.mem.variable),
@@ -367,7 +367,7 @@ class OpenCLGeneratorNew extends Generator {
       ).toVector
 
     // Typed value memory declarations
-    val typedValueMemoriesDecls = Block(Vector(Comment("Typed Value memory"))) ++
+    val typedValueMemoriesDecls = MutableBlock(Vector(Comment("Typed Value memory"))) ++
       typedValueMems.map(x ⇒
         OclVarDecl(
           v = CVar(x.mem.variable),
@@ -377,7 +377,7 @@ class OpenCLGeneratorNew extends Generator {
       ).toVector
 
     // Private memory declarations
-    val privateMemoryDecls = Block(Vector(Comment("Private memory"))) ++
+    val privateMemoryDecls = MutableBlock(Vector(Comment("Private memory"))) ++
       privateMems.map(x ⇒ {
         val length =
           (x.mem.size /^ Type.getMaxAllocatedSize(Type.getValueType(x.t))).enforceSimplification
@@ -423,7 +423,7 @@ class OpenCLGeneratorNew extends Generator {
       ).toList ++
         // size parameters
         vars.sortBy(_.name).map(x => OclParamDecl(x.toString, Int)),
-      body = Block(Vector(
+      body = MutableBlock(Vector(
         staticMemoriesDecls,
         typedValueMemoriesDecls,
         privateMemoryDecls,

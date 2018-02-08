@@ -1,5 +1,6 @@
 package analysis
 
+import generic.ast.AstPrinter
 import ir._
 import ir.ast._
 import lift.arithmetic.{Cst, SizeVar}
@@ -54,7 +55,7 @@ object BenchmarkUserFun {
     val benchmarkingFunctionLine = lines.indexWhere(_.contains("benchmark" + uf.name))
 
     val userFunDefinition = OpenCLGeneratorNew.createFunctionDefinition(uf)
-    val printedUserFun = OpenCLPrinter()(userFunDefinition)
+    val printedUserFun = AstPrinter(userFunDefinition)()
 
     val beginLines = lines.take(benchmarkingFunctionLine - 1).mkString("\n")
     val endLines = lines.drop(benchmarkingFunctionLine - 1).mkString("\n")

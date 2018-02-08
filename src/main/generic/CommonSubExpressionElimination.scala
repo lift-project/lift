@@ -2,6 +2,7 @@ package generic.generator
 
 import generic.ast.GenericAST._
 import lift.arithmetic.{ArithExpr, Cst, Pow, Var}
+import opencl.generator.DeadCodeElimination
 import opencl.ir.{Int, PrivateMemory}
 
 import scala.collection.mutable
@@ -11,11 +12,11 @@ object CommonSubexpressionElimination {
 
     // visit each of the blocks in node:
     node.visit[Unit](())({
-      case (_, b: Block) => processBlock(b)
-      case _ => // do nothing, it's not a block, so we don't want to process it
+      case (_, b: MutableBlock) => processBlock(b)
+      case _                    => // do nothing, it's not a block, so we don't want to process it
     })
 
-    def processBlock(block: Block) : Unit = {
+    def processBlock(block: MutableBlock) : Unit = {
       // traverse the block, and accumulate the arithmetic expressions
       val expressions = block.visit(Seq[ArithExpression]())({
         case (exprs, ae: ArithExpression) => exprs :+ ae
@@ -61,19 +62,21 @@ object CommonSubexpressionElimination {
           //     new variable
           substitutions put(p._1, newVar)
 
-          VarDecl(Var(newVar, Int),
+          VarDecl(CVar(newVar),
             t = Int,
             init = ArithExpression(p._1))
         })
 
       // update the Expression nodes to
-      expressions.foreach {
-        case ae: ArithExpression => ae.content = ArithExpr.substitute(ae.content, substitutions.toMap)
+      val updatedExpressions = expressions.map{
+        case ae: ArithExpression => ArithExpression(ArithExpr.substitute(ae
+          .content,
+          substitutions.toMap))
       }
 
       // find actually used variables
       val usedVars: mutable.Set[VarDecl] = mutable.Set()
-      expressions.foreach(expr => {
+      updatedExpressions.foreach(expr => {
         ArithExpr.visit(expr.content, {
           case v: Var => newVarDecls.find(_.v == v) match {
             case Some(s) => usedVars += s
@@ -85,9 +88,9 @@ object CommonSubexpressionElimination {
 
       // introduce new var decls at the beginning of the current block
       if (DeadCodeElimination())
-        usedVars.foreach(_ :: (block: Block))
+        usedVars.foreach(_ :: (block: MutableBlock))
       else
-        newVarDecls.foreach(_ :: (block: Block))
+        newVarDecls.foreach(_ :: (block: MutableBlock))
     }
   }
 }

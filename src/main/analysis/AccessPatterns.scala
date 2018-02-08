@@ -7,7 +7,7 @@ import ir.{ScalarType, TupleType, Type, UndefType}
 import ir.ast._
 import ir.view._
 import opencl.generator.{NDRange, OpenCLGeneratorNew}
-import opencl.generator.OpenCLAST.VarRef
+import generic.ast.GenericAST.VarRef
 import opencl.ir.OpenCLMemoryCollection
 import opencl.ir.pattern.{MapGlb, MapLcl}
 

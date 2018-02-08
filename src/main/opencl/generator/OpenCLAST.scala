@@ -40,7 +40,7 @@ object OpenCLAST {
   case class OclFunction(name: String,
                          ret: Type,
                          params: List[ParamDeclT],
-                         body: Block,
+                         body: MutableBlock,
                          attribute: Option[AttributeT] = None, kernel: Boolean =
                          false) extends
     FunctionT with IsKernel {
@@ -151,8 +151,9 @@ object OpenCLAST {
     override def print(pc: PrintContext): Unit = t match {
       case ArrayType(_) =>
         // Const restricted pointers to read-only global memory. See issue #2.
-        val (const, restrict) = if (const) ("const ", "restrict ") else ("", "")
-        pc += const + addressSpace + " " + Printer.toString(Type.devectorize
+        val (consts, restrict) = if (const) ("const ", "restrict ") else ("",
+          "")
+        pc += consts + addressSpace + " " + Printer.toString(Type.devectorize
         (t)) +
           " " + restrict + name
 
@@ -232,13 +233,13 @@ object OpenCLAST {
     */
   case class OclCode(code: String) extends RawCodeT
 
-  case class OclExtension(content: String) extends AstNode with BlockMember {
+  case class OclExtension(content: String) extends StatementT with BlockMember {
     override def print(pc: PrintContext): Unit = {
       pc ++= s"#pragma OPENCL EXTENSION ${content} : enable"
     }
   }
 
-  case class OclBarrier(mem: OpenCLMemory) extends AstNode with BlockMember {
+  case class OclBarrier(mem: OpenCLMemory) extends StatementT with BlockMember {
     override def print(pc: PrintContext): Unit = pc += (mem.addressSpace match {
       case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
       case LocalMemory  => "barrier(CLK_LOCAL_MEM_FENCE);"
@@ -256,112 +257,4 @@ object OpenCLAST {
       case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
     })
   }
-
-  //
-  //  def visitExpressionsInBlock(block: Block, fun: Expression => Unit): Unit = {
-  //    visitExpressionsInNode(block)
-  //
-  //    def visitExpressionsInNode(node: OclAstNode): Unit = {
-  //      callFunOnExpression(node)
-  //
-  //      node match {
-  //        case e: Expression => visitExpression(e)
-  //        case s: Statement => visitStatement(s)
-  //        case d: Declaration => visitDeclaration(d)
-  //        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
-  //      }
-  //    }
-  //
-  //    def callFunOnExpression(node: OclAstNode): Unit = {
-  //      node match {
-  //        case e: Expression => fun(e)
-  //        case _: Statement =>
-  //        case _: Declaration =>
-  //        case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
-  //      }
-  //    }
-  //
-  //    def visitExpression(e: Expression): Unit = e match {
-  //      case _: ArithExpression =>
-  //      case _: OpenCLExpression =>
-  //      case a: AssignmentExpression =>
-  //        visitExpressionsInNode(a.value)
-  //        visitExpressionsInNode(a.to)
-  //      case c: Cast =>
-  //        visitExpressionsInNode(c.v)
-  //      case pc : PointerCast =>
-  //        visitExpressionsInNode(pc.v)
-  //      case BinaryExpression(lhs, _, rhs) =>
-  //        visitExpressionsInNode(lhs)
-  //        visitExpressionsInNode(rhs)
-  //      case TernaryExpression(cond, trueExpr, falseExpr) =>
-  //        visitExpression(cond)
-  //        visitExpression(trueExpr)
-  //        visitExpression(falseExpr)
-  //      case f: FunctionCall =>
-  //        f.args.foreach(visitExpressionsInNode)
-  //      case l: Load =>
-  //        visitExpressionsInNode(l.v)
-  //        visitExpressionsInNode(l.offset)
-  //      case s: Store =>
-  //        visitExpressionsInNode(s.v)
-  //        visitExpressionsInNode(s.value)
-  //        visitExpressionsInNode(s.offset)
-  //      case s: StructConstructor =>
-  //        s.args.foreach(visitExpressionsInNode)
-  //      case v: VarRef =>
-  //        if (v.arrayIndex != null) visitExpressionsInNode(v.arrayIndex)
-  //      case v: VectorLiteral =>
-  //        v.vs.foreach(visitExpressionsInNode)
-  //    }
-  //
-  //    def visitStatement(s: Statement): Unit = s match {
-  //      case b: Block => b.content.foreach(visitExpressionsInNode)
-  //      case es: ExpressionStatement => visitExpressionsInNode(es.e)
-  //      case f: ForLoop =>
-  //        visitExpressionsInNode(f.init)
-  //        visitExpressionsInNode(f.cond)
-  //        visitExpressionsInNode(f.increment)
-  //        visitExpressionsInNode(f.body)
-  //      case ifte: IfThenElse =>
-  //        visitExpressionsInNode(ifte.cond)
-  //        visitExpressionsInNode(ifte.trueBody)
-  //        visitExpressionsInNode(ifte.falseBody)
-  //      case w: WhileLoop =>
-  //        visitExpressionsInNode(w.loopPredicate)
-  //        visitExpressionsInNode(w.body)
-  //      case Barrier(_) | GOTO(_) | TupleAlias(_, _) | TypeDef(_) | Break() =>
-  //    }
-  //
-  //    def visitDeclaration(d: Declaration): Unit = d match {
-  //      case f: OclFunction => visitExpressionsInNode(f.body)
-  //      case v: VarDecl => if (v.init != null) visitExpressionsInNode(v.init)
-  //      case Label(_) | ParamDecl(_, _, _, _) =>
-  //    }
-  //  }
-  //
-  //  def visitBlocks(node: OclAstNode, fun: Block => Unit): Unit = {
-  //    node match {
-  //      case _: Expression => // there are no blocks inside any expressions
-  //
-  //      case s: Statement => s match {
-  //        case b: Block =>
-  //          fun(b)
-  //          b.content.foreach(visitBlocks(_, fun))
-  //        case fl: ForLoop => visitBlocks(fl.body, fun)
-  //        case wl: WhileLoop => visitBlocks(wl.body, fun)
-  //        case ifte: IfThenElse =>
-  //          visitBlocks(ifte.trueBody, fun)
-  //          visitBlocks(ifte.falseBody, fun)
-  //        case GOTO(_) | Barrier(_) | TypeDef(_) | TupleAlias(_, _) | ExpressionStatement(_) | Break() =>
-  //      }
-  //
-  //      case d: Declaration => d match {
-  //        case f: OclFunction => visitBlocks(f.body, fun)
-  //        case Label(_) | VarDecl(_, _, _, _, _) | ParamDecl(_, _, _, _) =>
-  //      }
-  //
-  //      case Comment(_) | OpenCLCode(_) | OpenCLExtension(_) | RequiredWorkGroupSize(_) =>
-  //    }
-  //  }
 }

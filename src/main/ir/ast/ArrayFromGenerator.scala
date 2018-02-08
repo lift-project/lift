@@ -3,9 +3,9 @@ package ir.ast
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 import lift.arithmetic.ArithExpr
-import opencl.generator.OpenCLAST.Expression
+import generic.ast.GenericAST._
 
-case class ArrayFromGenerator(f: (ArithExpr, ArithExpr) => Expression,
+case class ArrayFromGenerator(f: (ArithExpr, ArithExpr) => ExpressionT,
                               override val at: ArrayType with Size with Capacity) extends ArrayConstructors(at) {
   override def copy: Expr = ArrayFromGenerator(f, at)
 
