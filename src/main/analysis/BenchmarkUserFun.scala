@@ -53,7 +53,7 @@ object BenchmarkUserFun {
 
     val benchmarkingFunctionLine = lines.indexWhere(_.contains("benchmark" + uf.name))
 
-    val userFunDefinition = OpenCLGenerator.createFunctionDefinition(uf)
+    val userFunDefinition = OpenCLGeneratorNew.createFunctionDefinition(uf)
     val printedUserFun = OpenCLPrinter()(userFunDefinition)
 
     val beginLines = lines.take(benchmarkingFunctionLine - 1).mkString("\n")

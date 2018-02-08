@@ -14,10 +14,10 @@ object ShouldUnroll {
 
 class ShouldUnroll(val lambda: Lambda) {
 
-  private val (_, privateMems, varDecls) = OpenCLGenerator.getDifferentMemories(lambda)
+  private val (_, privateMems, varDecls) = OpenCLGeneratorNew.getDifferentMemories(lambda)
 
   private def getOriginalType(mem: OpenCLMemory) =
-    OpenCLGenerator.getOriginalType(mem, varDecls)
+    OpenCLGeneratorNew.getOriginalType(mem, varDecls)
 
   private def existsInPrivateMemories(mem: Memory): Boolean =
     privateMems.exists(_.mem == mem)

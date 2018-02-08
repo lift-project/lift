@@ -5,7 +5,7 @@ import benchmarks.NBody
 import ir._
 import ir.ast.{Get, Join, Lambda2, Pad, Split, Transpose, Tuple, Unzip, UserFun, Value, Zip, fun}
 import opencl.executor.Execute
-import opencl.generator.OpenCLGenerator
+import opencl.generator.OpenCLGeneratorNew
 import opencl.ir._
 import opencl.ir.pattern.{MapLcl, _}
 import openmp.ir.AuxTypes._
