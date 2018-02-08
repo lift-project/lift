@@ -3,7 +3,7 @@ package opencl.executor
 import ir._
 import ir.ast._
 import lift.arithmetic._
-import opencl.generator.OpenCLAST.ArithExpression
+import generic.ast.GenericAST.ArithExpression
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._

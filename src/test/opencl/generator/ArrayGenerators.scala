@@ -4,7 +4,7 @@ import ir.ArrayTypeWSWC
 import ir.ast.{Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromGenerator, ArrayFromUserFunGenerator, ArrayFromValue, Split, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, TestWithExecutor}
-import opencl.generator.OpenCLAST.ArithExpression
+import generic.ast.GenericAST.ArithExpression
 import opencl.ir.pattern.{MapGlb, MapSeq, toGlobal}
 import opencl.ir.{Float, FloatToValue, Int, IntToValue, add, id}
 import org.junit.Assert.assertArrayEquals

@@ -4,7 +4,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic._
 import opencl.executor.Compile
-import opencl.generator.OpenCLAST._
+import generic.ast.GenericAST._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, toGlobal}
 import org.junit.Assert._

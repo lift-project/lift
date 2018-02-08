@@ -80,7 +80,7 @@ object GenericAST {
 
     def ret: Type
 
-    def params: List[ParamDecl]
+    def params: List[ParamDeclT]
 
     def body: MutableBlockT
 
@@ -121,7 +121,7 @@ object GenericAST {
     }
   }
 
-  case class Function(name: String, ret: Type, params: List[ParamDecl],
+  case class Function(name: String, ret: Type, params: List[ParamDeclT],
                       body: MutableBlockT, attribute: Option[AttributeT] = None)
     extends FunctionT
 
@@ -244,7 +244,9 @@ object GenericAST {
     }
   }
 
-  case class MutableBlock(content: Vector[AstNode with BlockMember] = Vector(),
+  case class MutableBlock(override var content: Vector[AstNode with
+    BlockMember] =
+                          Vector(),
                           global: Boolean = false) extends MutableBlockT {
     /** Append a sub-node. Could be any node, including a sub-block.
       *
