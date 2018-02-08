@@ -128,7 +128,7 @@ class TestAddressSpaces {
 
     val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input)
 
-    val memories = OpenCLGeneratorNew.getMemories(f)._2
+    val memories = OpenCLGeneratorOld.getMemories(f)._2
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(2, memories.length)
@@ -155,7 +155,7 @@ class TestAddressSpaces {
     val kernel = Compile(f)
 
     val (output, _) = Execute(inputSize)[Array[Float]](kernel, f, input)
-    val memories = OpenCLGeneratorNew.getMemories(f)._2
+    val memories = OpenCLGeneratorOld.getMemories(f)._2
 
     assertArrayEquals(gold, output, 0.0f)
     assertEquals(3, memories.length)

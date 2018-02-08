@@ -111,9 +111,11 @@ object GenericAST {
       pc += Printer.toString(ret)
 
       pc += s" ${name}("
-      params.foreach(p ⇒ {
-        p.print(pc)
-        pc += ", "
+      params.zipWithIndex.foreach({
+        case (param, ix) ⇒
+          if (ix != 0)
+            pc += ","
+          param.print(pc)
       })
       pc += ")"
 
@@ -236,11 +238,11 @@ object GenericAST {
     }
 
     override def print(pc: PrintContext): Unit = {
-      pc ++= "{"
+      if (!global) pc ++= "{"
       +pc
       content.foreach(c ⇒ c.print(pc))
       -pc
-      pc ++= "}"
+      if (!global) pc ++= "}"
     }
   }
 
@@ -411,7 +413,9 @@ object GenericAST {
              |} $name;
              |#endif
              |""".stripMargin
-      case _             ⇒ Comment("NOTE: trying to print unprintable type").print(pc)
+      case _             ⇒ Comment(s"NOTE: trying to print unprintable " +
+        s"type: ${t.toString}")
+        .print(pc)
     }
   }
 
@@ -474,10 +478,11 @@ object GenericAST {
     override def print(pc: PrintContext): Unit = {
       pc += name
       pc += "("
-      args.foreach({
-        a ⇒
-          a.print(pc)
-          pc += ", "
+      args.zipWithIndex.foreach({
+        case (arg, ix) ⇒
+          if (ix != 0)
+            pc += ","
+          arg.print(pc)
       })
       pc += ")"
     }

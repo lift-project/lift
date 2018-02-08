@@ -16,7 +16,7 @@ import utils.Printer
 
 import scala.collection.immutable
 
-object OpenCLGenerator extends Generator {
+object OpenCLGeneratorOld extends Generator {
 
   def generate(f: Lambda): String = {
     generate(f, NDRange(?, ?, ?))
@@ -29,7 +29,7 @@ object OpenCLGenerator extends Generator {
   // Compile a type-checked function into an OpenCL kernel
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
                valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
-    (new OpenCLGenerator).generate(f, localSize, globalSize, valueMap)
+    (new OpenCLGeneratorOld).generate(f, localSize, globalSize, valueMap)
   }
 
   def printTypes(expr: Expr): Unit = {
@@ -136,7 +136,7 @@ object OpenCLGenerator extends Generator {
   }
 }
 
-class OpenCLGenerator extends Generator {
+class OpenCLGeneratorOld extends Generator {
 
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
   type SymbolTable = immutable.Map[Var, Type]
@@ -193,7 +193,7 @@ class OpenCLGenerator extends Generator {
     if (Verbose()) {
 
       println("Types:")
-      OpenCLGenerator.printTypes(f.body)
+      OpenCLGeneratorOld.printTypes(f.body)
 
       println("Memory:")
       printMemories(f.body)
@@ -308,7 +308,7 @@ class OpenCLGenerator extends Generator {
         case _                                  => set
       })
 
-    userFuns.toSeq.map(OpenCLGenerator.createFunctionDefinition)
+    userFuns.toSeq.map(OpenCLGeneratorOld.createFunctionDefinition)
   }
 
 
@@ -325,13 +325,13 @@ class OpenCLGenerator extends Generator {
 
   private def generateKernel(f: Lambda): DeclarationT = {
 
-    val someMemories = OpenCLGenerator.getDifferentMemories(f)
+    val someMemories = OpenCLGeneratorOld.getDifferentMemories(f)
 
     val typedValueMems = someMemories._1
     this.privateMems = someMemories._2
     this.varDecls = someMemories._3
 
-    val memories = OpenCLGenerator.getMemories(f)
+    val memories = OpenCLGeneratorOld.getMemories(f)
 
     Kernel.memory = memories._2
     Kernel.staticLocalMemory = memories._1
@@ -1564,7 +1564,7 @@ class OpenCLGenerator extends Generator {
   }
 
   private def getOriginalType(mem: OpenCLMemory) =
-    OpenCLGenerator.getOriginalType(mem, varDecls)
+    OpenCLGeneratorOld.getOriginalType(mem, varDecls)
 
   /**
     * Generate a simple or vector store.

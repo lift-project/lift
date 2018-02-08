@@ -56,9 +56,11 @@ object OpenCLAST {
       }
 
       pc += s" ${name}("
-      params.foreach(p ⇒ {
-        p.print(pc)
-        pc += ", "
+      params.zipWithIndex.foreach({
+        case (param, ix) ⇒
+          if (ix != 0)
+            pc += ","
+          param.print(pc)
       })
       pc += ")"
 

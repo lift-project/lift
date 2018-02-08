@@ -6,7 +6,8 @@ case class AstPrinter(ast: AstNode) {
   def apply() : String = {
     val ctx = new PrintContext
     ast.print(ctx)
-    ctx.sb.toString()
+    val result = ctx.sb.toString()
+    result
   }
 }
 

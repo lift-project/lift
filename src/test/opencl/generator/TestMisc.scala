@@ -925,7 +925,7 @@ class TestMisc {
     val valueMap = ParameterRewrite.createValueMap(expr)
 
     val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
-    OpenCLGeneratorNew.generate(expr, local, globalSubstituted, valueMap)
+    OpenCLGeneratorOld.generate(expr, local, globalSubstituted, valueMap)
   }
 
   /**

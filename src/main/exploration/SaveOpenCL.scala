@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.Logger
 import ir.ast.Lambda
 import opencl.executor.Compile
 import opencl.generator.NDRange
-import opencl.generator.{IllegalKernel, OpenCLGeneratorNew}
+import opencl.generator.{IllegalKernel, OpenCLGeneratorOld}
 import opencl.ir._
 import opencl.ir.ast._
 import rewriting.InferNDRange
@@ -128,7 +128,7 @@ class SaveOpenCL(
 
     val path = s"${topFolder}Cl/$lowLevelHash"
 
-    val (_, buffers) = OpenCLGeneratorNew.getMemories(lambda)
+    val (_, buffers) = OpenCLGeneratorOld.getMemories(lambda)
     val (localBuffers, globalBuffers) = buffers.partition(_.mem.addressSpace == LocalMemory)
 
     val dumped = DumpToFile.dumpToFile(kernel, filename, path)
