@@ -216,6 +216,24 @@ object OpenCLAST {
     }
   }
 
+  case class OclPointerCast(v: VarRef, t: Type,
+                           addressSpace: OpenCLAddressSpace) extends CastT with CLAddressSpace {
+    override def print(pc: PrintContext): Unit = {
+      pc += "("
+      pc += s"(${addressSpace} ${t}*)"
+      pc += Printer.toString(v.v.v)
+      pc += ")"
+      if (v.arrayIndex != null) {
+        pc += "["
+        v.arrayIndex.print(pc)
+        pc += "]"
+      }
+      if (v.suffix != null) {
+        pc += v.suffix
+      }
+    }
+  }
+
 
   case class VectorLiteral(t: VectorType, vs: VarRef*) extends ExpressionT {
     override def print(pc: PrintContext): Unit = {
