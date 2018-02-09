@@ -252,8 +252,12 @@ class OpenCLGeneratorOld extends Generator {
     // pass 3: generate the
     globalBlock += generateKernel(f)
 
-    // return the code generated
-    AstPrinter(globalBlock)()
+    val oclstring = AstPrinter(globalBlock)()
+
+    if(Verbose())
+      println(s"Generated AST: \n${globalBlock}")
+
+    oclstring
   }
 
   // TODO: Gather(_)/Transpose() without read and Scatter(_)/TransposeW() without write

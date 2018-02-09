@@ -220,9 +220,11 @@ object OpenCLAST {
   case class VectorLiteral(t: VectorType, vs: VarRef*) extends ExpressionT {
     override def print(pc: PrintContext): Unit = {
       pc += s"(${t})("
-      vs.foreach(vr ⇒ {
-        vr.print(pc)
-        pc += ", "
+      vs.zipWithIndex.foreach({
+        case (ref, ix) ⇒
+          if (ix != 0)
+            pc += ", "
+          ref.print(pc)
       })
       pc += ")"
     }
