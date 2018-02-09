@@ -746,8 +746,9 @@ object GenericAST {
     }
 
     override def print(pc: PrintContext): Unit = {
-      pc += s"(${t})"
+      pc += s"((${t})"
       v.print(pc)
+      pc += ")"
     }
   }
 

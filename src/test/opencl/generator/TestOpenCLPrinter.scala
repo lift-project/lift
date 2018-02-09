@@ -14,7 +14,7 @@ class TestOpenCLPrinter {
     val rhs = VarRef(Var("y"))
     val cond = BinaryExpression(lhs, BinaryExpressionT.Operator.==, rhs)
     assertEquals("(" + lhs.v.toString + " == " + rhs.v.toString + ")",
-      AstPrinter.apply(cond))
+      AstPrinter(cond)())
   }
 
   @Test
@@ -23,7 +23,7 @@ class TestOpenCLPrinter {
     val rhs = VarRef(Var("y"))
     val binop = BinaryExpression(lhs, BinaryExpressionT.Operator.+, rhs)
     assertEquals("(" + lhs.v.toString + " + " + rhs.v.toString + ")",
-      AstPrinter.apply(binop))
+      AstPrinter(binop)())
   }
 
 }
