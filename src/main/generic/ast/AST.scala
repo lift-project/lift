@@ -115,7 +115,7 @@ object GenericAST {
       params.zipWithIndex.foreach({
         case (param, ix) ⇒
           if (ix != 0)
-            pc += ","
+            pc += ", "
           param.print(pc)
       })
       pc += ")"
@@ -789,9 +789,11 @@ object GenericAST {
 
     override def print(pc: PrintContext): Unit = {
       pc += s"(${Printer.toString(t)}){"
-      args.foreach({ n ⇒
-        n.print(pc)
-        pc += ", "
+      args.zipWithIndex.foreach({
+        case (arg, ix) ⇒
+          if (ix != 0)
+            pc += ", "
+          arg.print(pc)
       })
       pc += "}"
     }

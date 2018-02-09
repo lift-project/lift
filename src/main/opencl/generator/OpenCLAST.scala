@@ -59,7 +59,7 @@ object OpenCLAST {
       params.zipWithIndex.foreach({
         case (param, ix) ⇒
           if (ix != 0)
-            pc += ","
+            pc += ", "
           param.print(pc)
       })
       pc += ")"

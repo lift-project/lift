@@ -120,7 +120,7 @@ class TestOpenCLGenerator {
     val n = ArithExpression(42)
     val ty = TupleType(Int, Int)
     val node = StructConstructor(ty, Vector(n, n))
-    val code = AstPrinter.apply(node)
+    val code = AstPrinter(node)()
 
     // Before 649c3b88a1f26133: "(Tuple2_int_int){4242}"
     assertEquals(s"(${Type.name(ty)}){42, 42}", code)
