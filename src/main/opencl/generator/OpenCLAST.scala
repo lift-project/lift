@@ -92,11 +92,12 @@ object OpenCLAST {
       case _: ArrayType =>
         addressSpace match {
           case PrivateMemory =>
+
             if (length > scala.Int.MaxValue) throw NotEvaluableToInt
             for (i <- 0 until length.toInt)
-              println(Printer.toString(Type.getValueType(t)) + " " +
+              pc ++= Printer.toString(Type.getValueType(t)) + " " +
                 Printer.toString(v.v) + "_" +
-                Printer.toString(i) + ";")
+                Printer.toString(i) + ";"
 
           case LocalMemory if length != 0 =>
             val baseType = Type.getBaseType(t)

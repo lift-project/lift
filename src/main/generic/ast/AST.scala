@@ -106,6 +106,7 @@ object GenericAST {
     }
 
     override def print(pc: PrintContext): Unit = {
+      pc.beginln()
       if (attribute.isDefined) attribute.get.print(pc)
 
       pc += Printer.toString(ret)
@@ -240,7 +241,10 @@ object GenericAST {
     override def print(pc: PrintContext): Unit = {
       if (!global) pc ++= "{"
       +pc
-      content.foreach(c ⇒ c.print(pc))
+      content.foreach({
+            pc.beginln()
+        c ⇒ c.print(pc)
+      })
       -pc
       if (!global) pc ++= "}"
     }
@@ -279,6 +283,7 @@ object GenericAST {
       cond.print(pc)
       increment.print(pc)
       pc += ") "
+      pc.endln()
       body.print(pc)
     }
   }
@@ -816,6 +821,7 @@ object GenericAST {
 
     override def print(pc: PrintContext): Unit = {
       // TODO: Assert that the comment doesn't contain newlines
+      pc.beginln()
       pc += "// "
       pc += content
       pc.endln()

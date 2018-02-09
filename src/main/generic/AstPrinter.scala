@@ -45,6 +45,10 @@ class PrintContext {
     indent -= 1
   }
 
+  def beginln() : Unit = {
+    sb ++= tab()
+  }
+
   def endln() : Unit = {
     sb ++= "\n"
   }
