@@ -138,7 +138,7 @@ object GenericAST {
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z, this)
 
     override def print(ct: PrintContext): Unit = {
-      ct += v.toString
+      ct += Printer.toString(v)
     }
   }
 
@@ -419,7 +419,7 @@ object GenericAST {
              |#endif
              |""".stripMargin
       case _             ⇒ Comment(s"NOTE: trying to print unprintable " +
-        s"type: ${t.toString}")
+        s"type: ${Printer.toString(t)}")
         .print(pc)
     }
   }

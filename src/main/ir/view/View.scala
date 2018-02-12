@@ -62,7 +62,14 @@ case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpa
       addressSpace
     ))
 
-  override lazy val toString: String = s"(${ty.name}*)($ptr + $offset)"
+  override lazy val toString: String =
+
+    s"[NOTE: THIS SHOULD NEVER BE PRINTED. USE Printer.ToString(...) " +
+      s"INSTEAD!]" +
+      s"($addressSpace ${ty
+      .name}*)($ptr" +
+      s" + " +
+    s"$offset)"
 }
 
 /**
