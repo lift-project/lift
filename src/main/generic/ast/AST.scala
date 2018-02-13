@@ -355,13 +355,6 @@ object GenericAST {
         (visitFun(_, body))
     }
 
-    override def printStatefully(pc: PrintContext): Unit = {
-      pc += "while("
-      pc += Printer.toString(loopPredicate)
-      pc += ")"
-      body.printStatefully(pc)
-    }
-
     override def print(): Doc = {
       "while(" <> Printer.toString(loopPredicate) <> ")" <>
         body.print
@@ -385,17 +378,6 @@ object GenericAST {
         (visitFun(_, cond)) |>
         (visitFun(_, trueBody)) |>
         (visitFun(_, falseBody))
-    }
-
-    override def printStatefully(pc: PrintContext): Unit = {
-      pc += "if ("
-      cond.printStatefully(pc)
-      pc += ")"
-      trueBody.printStatefully(pc)
-      if (falseBody != MutableBlock()) {
-        pc += " else "
-        falseBody.printStatefully(pc)
-      }
     }
 
     override def print(): Doc = {
@@ -552,8 +534,8 @@ object GenericAST {
   trait VarRefT extends ExpressionT {
     val v: CVar
     //    val t: Type
-    val suffix: String //TODO: Make an option type!
-    val arrayIndex: ArithExpression //TODO: Make an option type!
+    val suffix: String //Option[String]
+    val arrayIndex: ArithExpression //Option[ArithExpression]
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       visitFun(z, this) |> (visitFun(_, v))
@@ -578,8 +560,10 @@ object GenericAST {
 
   case class VarRef(v: CVar,
                     //                    t: Type,
-                    suffix: String = null,
-                    arrayIndex: ArithExpression = null) extends VarRefT
+                    suffix: String = null,//Option[String] = None,
+                    arrayIndex: ArithExpression = null//
+                    // Option[ArithExpression] = None
+                   ) extends VarRefT
 
   /**
     * A load from a variable, with (potentially) an offset
@@ -809,6 +793,9 @@ object GenericAST {
     }
   }
 
+  /**
+    * Constructors for structs (e.g. when initialising)
+    */
   trait StructConstructorT extends ExpressionT {
     val t: TupleType
     val args: Vector[AstNode]
