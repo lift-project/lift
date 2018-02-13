@@ -64,7 +64,7 @@ object CommonSubexpressionElimination {
 
           VarDecl(CVar(newVar),
             t = Int,
-            init = ArithExpression(p._1))
+            init = Some(ArithExpression(p._1)))
         })
 
       // update the Expression nodes to

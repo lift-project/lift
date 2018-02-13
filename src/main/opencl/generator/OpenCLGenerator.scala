@@ -16,7 +16,7 @@ import utils.Printer
 
 import scala.collection.immutable
 
-object OpenCLGeneratorOld extends Generator {
+object OpenCLGenerator extends Generator {
 
   def generate(f: Lambda): String = {
     generate(f, NDRange(?, ?, ?))
@@ -29,7 +29,7 @@ object OpenCLGeneratorOld extends Generator {
   // Compile a type-checked function into an OpenCL kernel
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
                valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
-    (new OpenCLGeneratorOld).generate(f, localSize, globalSize, valueMap)
+    (new OpenCLGenerator).generate(f, localSize, globalSize, valueMap)
   }
 
   def printTypes(expr: Expr): Unit = {
@@ -136,7 +136,7 @@ object OpenCLGeneratorOld extends Generator {
   }
 }
 
-class OpenCLGeneratorOld extends Generator {
+class OpenCLGenerator extends Generator {
 
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
   type SymbolTable = immutable.Map[Var, Type]
@@ -193,7 +193,7 @@ class OpenCLGeneratorOld extends Generator {
     if (Verbose()) {
 
       println("Types:")
-      OpenCLGeneratorOld.printTypes(f.body)
+      OpenCLGenerator.printTypes(f.body)
 
       println("Memory:")
       printMemories(f.body)
@@ -312,7 +312,7 @@ class OpenCLGeneratorOld extends Generator {
         case _                                  => set
       })
 
-    userFuns.toSeq.map(OpenCLGeneratorOld.createFunctionDefinition)
+    userFuns.toSeq.map(OpenCLGenerator.createFunctionDefinition)
   }
 
 
@@ -329,13 +329,13 @@ class OpenCLGeneratorOld extends Generator {
 
   private def generateKernel(f: Lambda): DeclarationT = {
 
-    val someMemories = OpenCLGeneratorOld.getDifferentMemories(f)
+    val someMemories = OpenCLGenerator.getDifferentMemories(f)
 
     val typedValueMems = someMemories._1
     this.privateMems = someMemories._2
     this.varDecls = someMemories._3
 
-    val memories = OpenCLGeneratorOld.getMemories(f)
+    val memories = OpenCLGenerator.getMemories(f)
 
     Kernel.memory = memories._2
     Kernel.staticLocalMemory = memories._1
@@ -555,7 +555,8 @@ class OpenCLGeneratorOld extends Generator {
 
     // declare a global variable holding the next index to process, and assign it a value
     nestedBlock += OclVarDecl(workVar, opencl.ir.IntPtr,
-      ArithExpression(m.globalTaskIndex.variable), addressSpace = GlobalMemory)
+      Some(ArithExpression(m.globalTaskIndex.variable)), addressSpace =
+        GlobalMemory)
     // initialise it to zero
     //    generateConditional(nestedBlock, Predicate(new get_global_id(0), 0, Predicate.Operator.==),
     //      (b) => {
@@ -618,7 +619,7 @@ class OpenCLGeneratorOld extends Generator {
 
     // declare an index for this thread, the loop variable, and give it a value from the task index
     nestedBlock += OclVarDecl(loopVar, opencl.ir.Int,
-      FunctionCall("atomic_inc", List(workVarPtr))
+      Some(FunctionCall("atomic_inc", List(workVarPtr)))
     )
 
     // get the loop variable as a range variable
@@ -676,7 +677,8 @@ class OpenCLGeneratorOld extends Generator {
     (block: MutableBlock) += Comment("filter_seq")
 
     // Declare the index for the output array as a local variable
-    (block: MutableBlock) += OclVarDecl(f.loopWrite, opencl.ir.Int, ArithExpression(0))
+    (block: MutableBlock) += OclVarDecl(f.loopWrite, opencl.ir.Int,
+      Some(ArithExpression(0)))
 
     // Code to be generated if the predicate is satisfied
     def copyAndIncrementIndex(block: MutableBlock): Unit = {
@@ -739,7 +741,7 @@ class OpenCLGeneratorOld extends Generator {
 
     (block: MutableBlock) += OclVarDecl(
       j, Int,
-      ArithExpression(i - i.range.asInstanceOf[RangeAdd].step)
+      Some(ArithExpression(i - i.range.asInstanceOf[RangeAdd].step))
     )
 
     /**
@@ -1028,7 +1030,7 @@ class OpenCLGeneratorOld extends Generator {
     val loadIndex = generateLoadNode(clIndexMem, index.t, index.view)
 
     val indexVar = Var("index")
-    (block: MutableBlock) += OclVarDecl(indexVar, Int, init = loadIndex)
+    (block: MutableBlock) += OclVarDecl(indexVar, Int, init = Some(loadIndex))
 
     val inArr = call.args(0)
     val clInArrMem = OpenCLMemory.asOpenCLMemory(inArr.mem)
@@ -1055,7 +1057,7 @@ class OpenCLGeneratorOld extends Generator {
 
     // generate the load into an index variable
     val indexVar = Var("index")
-    (block: MutableBlock) += OclVarDecl(indexVar, Int, init = loadIndex)
+    (block: MutableBlock) += OclVarDecl(indexVar, Int, init = Some(loadIndex))
 
     // pre-generate the load from default/store to output
     val storeDefaultToOutput = generateStoreNode(OpenCLMemory.asOpenCLMemory(call.mem), call.t,
@@ -1098,7 +1100,7 @@ class OpenCLGeneratorOld extends Generator {
     val temp = Var("tmp")
 
     (block: MutableBlock) += OclVarDecl(temp, Type.getValueType(v.t),
-      init = OclCode(v.value))
+      init = Some(OclCode(v.value)))
     (block: MutableBlock) += AssignmentExpression(
       VarRef(v.mem.variable),
       VarRef(temp))
@@ -1139,7 +1141,7 @@ class OpenCLGeneratorOld extends Generator {
 
     (block: MutableBlock) +=
       OclVarDecl(curOutLen, Int,
-        ArithExpression(Type.getLength(call.argsType)))
+        Some(ArithExpression(Type.getLength(call.argsType))))
 
     // create new temporary input and output pointers
     varDecls = varDecls.updated(i.vPtrIn, Type.devectorize(call.t))
@@ -1149,14 +1151,14 @@ class OpenCLGeneratorOld extends Generator {
     (block: MutableBlock) += OclVarDecl(
       v = i.vPtrIn,
       t = Type.devectorize(call.t),
-      init = VarRef(inputMem.variable),
+      init = Some(VarRef(inputMem.variable)),
       addressSpace = outputMem.addressSpace
     )
 
     // ADDRSPC TYPE tin = (odd ? out : swap);
     (block: MutableBlock) += OclVarDecl(i.vPtrOut, Type.devectorize(call.t),
-      init = ArithExpression(
-        ((i.n % 2) ne Cst(0)) ?? outputMem.variable !! swapMem.variable),
+      init = Some(ArithExpression(
+        ((i.n % 2) ne Cst(0)) ?? outputMem.variable !! swapMem.variable)),
       addressSpace = outputMem.addressSpace)
 
     generateForLoop(block, call.args.head, i.indexVar, (b) => {
@@ -1282,7 +1284,7 @@ class OpenCLGeneratorOld extends Generator {
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + 1))
     val innerBlock = MutableBlock(Vector.empty)
     (block: MutableBlock) += ForLoop(
-      OclVarDecl(v = indexVar, t = opencl.ir.Int, init = init,
+      OclVarDecl(v = indexVar, t = opencl.ir.Int, init = Some(init),
         addressSpace = PrivateMemory), ExpressionStatement(cond), increment,
       innerBlock)
 
@@ -1467,10 +1469,12 @@ class OpenCLGeneratorOld extends Generator {
       case _       =>
         val mem = OpenCLMemory.asOpenCLMemory(array.mem)
         val stopVar = Var("stop")
-        (block: MutableBlock) += OclVarDecl(stopVar, Int, getArraySize(mem, array.view.size()))
+        (block: MutableBlock) += OclVarDecl(stopVar, Int, Some(getArraySize
+        (mem, array.view.size())))
         VarRef(stopVar)
     }
-    val init = OclVarDecl(v = indexVar, t = Int, init = start, addressSpace =
+    val init = OclVarDecl(v = indexVar, t = Int, init = Some(start),
+      addressSpace =
       PrivateMemory)
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + range.step))
     val cond = BinaryExpression(ArithExpression(indexVar), BinaryExpressionT
@@ -1501,7 +1505,7 @@ class OpenCLGeneratorOld extends Generator {
     // one iteration
     (block: MutableBlock) += Comment("iteration count is exactly 1, no loop emitted")
     val innerBlock = MutableBlock(Vector.empty)
-    innerBlock += OclVarDecl(v = indexVar, t = opencl.ir.Int, init = init,
+    innerBlock += OclVarDecl(v = indexVar, t = opencl.ir.Int, init = Some(init),
       addressSpace = PrivateMemory)
     generateBody(innerBlock)
     (block: MutableBlock) += innerBlock
@@ -1510,7 +1514,7 @@ class OpenCLGeneratorOld extends Generator {
   private def generateIfStatement(block: MutableBlock, indexVar: Var, generateBody: (MutableBlock) => Unit, init: ArithExpression, stop: ArithExpr): Unit = {
     (block: MutableBlock) += Comment("iteration count is exactly 1 or less, no loop emitted")
     val innerBlock = MutableBlock(Vector.empty)
-    innerBlock += OclVarDecl(v = indexVar, t = opencl.ir.Int, init = init,
+    innerBlock += OclVarDecl(v = indexVar, t = opencl.ir.Int, init = Some(init),
       addressSpace =  PrivateMemory)
     (block: MutableBlock) += GenericAST.IfThenElse(
       BinaryExpression(init, BinaryExpressionT.Operator.<, ArithExpression(stop)),
@@ -1568,7 +1572,7 @@ class OpenCLGeneratorOld extends Generator {
   }
 
   private def getOriginalType(mem: OpenCLMemory) =
-    OpenCLGeneratorOld.getOriginalType(mem, varDecls)
+    OpenCLGenerator.getOriginalType(mem, varDecls)
 
   /**
     * Generate a simple or vector store.
@@ -1974,7 +1978,7 @@ class OpenCLGeneratorOld extends Generator {
             at.elemT, shouldUnroll
           )
           ForLoop(
-            OclVarDecl(loopVar, Int, ArithExpression(0)),
+            OclVarDecl(loopVar, Int, Some(ArithExpression(0))),
             BinaryExpression(ArithExpression(loopVar),
               BinaryExpressionT.Operator.<, ArithExpression(length)),
             AssignmentExpression(VarRef(CVar(loopVar)), ArithExpression

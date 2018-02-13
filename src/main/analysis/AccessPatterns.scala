@@ -6,7 +6,7 @@ import lift.arithmetic._
 import ir.{ScalarType, TupleType, Type, UndefType}
 import ir.ast._
 import ir.view._
-import opencl.generator.{NDRange, OpenCLGeneratorOld}
+import opencl.generator.{NDRange, OpenCLGenerator}
 import generic.ast.GenericAST.VarRef
 import opencl.ir.OpenCLMemoryCollection
 import opencl.ir.pattern.{MapGlb, MapLcl}
@@ -41,7 +41,7 @@ class AccessPatterns(
   private var readPatterns = immutable.Map[Expr, AccessPattern]()
   private var writePatterns = immutable.Map[Expr, AccessPattern]()
 
-  private val varDecls = OpenCLGeneratorOld.getDifferentMemories(lambda)._3
+  private val varDecls = OpenCLGenerator.getDifferentMemories(lambda)._3
 
   private var coalescingId: Option[Var] = None
 

@@ -1,11 +1,19 @@
 package generic.ast
 
 import generic.ast.GenericAST._
+import WadlerPrinter._
 
 case class AstPrinter(ast: AstNode) {
   def apply() : String = {
     val ctx = new PrintContext
-    ast.print(ctx)
+    ast.printStatefully(ctx)
+
+    val wDOC = ast.print()
+
+//    println(wDOC.toString())
+
+//    val result = pretty(120, ast.print())
+
     val result = ctx.sb.toString()
     result
   }
@@ -31,9 +39,9 @@ class PrintContext {
   }
 
   /** Print the given string and create an indented new line */
-  def ++=(s: String) : Unit = {
-    sb ++= tab() + s + "\n"
-  }
+//  def ++=(s: String) : Unit = {
+//    sb ++= tab() + s + "\n"
+//  }
 
   /** Start a block by indenting */
   def unary_+() : Unit = {
@@ -46,12 +54,12 @@ class PrintContext {
   }
 
   def beginln() : Unit = {
-    sb ++= tab()
+    sb ++= "\n" ++ tab()
   }
 
-  def endln() : Unit = {
-    sb ++= "\n"
-  }
+//  def endln() : Unit = {
+//    sb ++= "\n"
+//  }
 
   /** Insert the correct indentation */
   def tab(): String = {

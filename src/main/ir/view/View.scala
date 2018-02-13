@@ -63,9 +63,8 @@ case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpa
     ))
 
   override lazy val toString: String =
-
-    s"[NOTE: THIS SHOULD NEVER BE PRINTED. USE Printer.ToString(...) " +
-      s"INSTEAD!]" +
+    s"#error THE VARIABLE $ptr THIS SHOULD NEVER BE PRINTED. USE Printer" +
+      s".ToString(...) INSTEAD!\n" +
       s"($addressSpace ${ty
       .name}*)($ptr" +
       s" + " +

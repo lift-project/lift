@@ -2,6 +2,7 @@ package opencl.generator
 
 import generic.ast.{GenericAST, PrintContext}
 import generic.ast.GenericAST._
+import generic.ast.WadlerPrinter._
 import lift.arithmetic.{ArithExpr, Predicate, Var}
 import lift.arithmetic.NotEvaluableToIntException._
 import ir.{ArrayType, TupleType, Type, VectorType}
@@ -13,8 +14,12 @@ import scala.language.implicitConversions
 object OpenCLAST {
 
   case class RequiredWorkGroupSize(localSize: NDRange) extends AttributeT {
-    override def print(pc: PrintContext): Unit = {
+    override def printStatefully(pc: PrintContext): Unit = {
       pc += s"__attribute((reqd_work_group_size(${localSize})))\n"
+    }
+
+    override def print(): DOC = {
+      s"__attribute((reqd_work_group_size(${localSize})))" <> line
     }
   }
 
@@ -44,10 +49,10 @@ object OpenCLAST {
                          attribute: Option[AttributeT] = None, kernel: Boolean =
                          false) extends
     FunctionT with IsKernel {
-    override def print(pc: PrintContext): Unit = {
+    override def printStatefully(pc: PrintContext): Unit = {
       if (kernel) pc += "kernel "
 
-      if (attribute.isDefined) attribute.get.print(pc)
+      if (attribute.isDefined) attribute.get.printStatefully(pc)
 
       if (kernel) {
         pc += "void"
@@ -60,7 +65,7 @@ object OpenCLAST {
         case (param, ix) ⇒
           if (ix != 0)
             pc += ", "
-          param.print(pc)
+          param.printStatefully(pc)
       })
       pc += ")"
 
@@ -71,7 +76,7 @@ object OpenCLAST {
           "#endif\n" +
           "WORKGROUP_GUARD\n"
 
-      body.print(pc)
+      body.printStatefully(pc)
 
       if (kernel)
         pc += "}"
@@ -84,11 +89,11 @@ object OpenCLAST {
 
   case class OclVarDecl(v: GenericAST.CVar,
                         t: Type,
-                        init: AstNode = null,
+                        init: Option[AstNode] = None,
                         length: Long = 0,
                         addressSpace: OpenCLAddressSpace = UndefAddressSpace)
     extends VarDeclT with CLAddressSpace {
-    override def print(pc: PrintContext): Unit = t match {
+    override def printStatefully(pc: PrintContext): Unit = t match {
       case _: ArrayType =>
         addressSpace match {
           case PrivateMemory =>
@@ -118,9 +123,12 @@ object OpenCLAST {
             val baseType = Type.getBaseType(t)
             pc += s"${addressSpace} ${Printer.toString(baseType)} " +
               s"*${Printer.toString(v.v)}"
-            if (init != null) {
-              pc += s" = "
-              init.print(pc)
+            init match  {
+              case Some(i) ⇒ {
+                pc += " = "
+                i.printStatefully(pc)
+              }
+              case None ⇒
             }
             pc += "; "
         }
@@ -136,9 +144,12 @@ object OpenCLAST {
         if (addressSpace == LocalMemory)
           pc += addressSpace + " "
         pc += s"${Printer.toString(t)} ${Printer.toString(v.v)}"
-        if (init != null) {
-          pc += s" = "
-          init.print(pc)
+        init match  {
+          case Some(i) ⇒ {
+            pc += " = "
+            i.printStatefully(pc)
+          }
+          case None ⇒
         }
         pc += "; "
     }
@@ -151,7 +162,7 @@ object OpenCLAST {
                           const: Boolean = false,
                           addressSpace: OpenCLAddressSpace = UndefAddressSpace)
     extends ParamDeclT with CLAddressSpace {
-    override def print(pc: PrintContext): Unit = t match {
+    override def printStatefully(pc: PrintContext): Unit = t match {
       case ArrayType(_) =>
         // Const restricted pointers to read-only global memory. See issue #2.
         val (consts, restrict) = if (const) ("const ", "restrict ") else ("",
@@ -172,18 +183,18 @@ object OpenCLAST {
                      addressSpace: OpenCLAddressSpace) extends LoadT
     with CLAddressSpace {
 
-    override def print(pc: PrintContext): Unit = {
+    override def printStatefully(pc: PrintContext): Unit = {
       if (!UseCastsForVectors()) {
         pc += s"vload${Type.getLength(t)}("
-        offset.print(pc)
+        offset.printStatefully(pc)
         pc += ","
-        v.print(pc)
+        v.printStatefully(pc)
         pc += ")"
       } else {
         pc += s"*( ((${addressSpace} ${t}*)"
-        v.print(pc)
+        v.printStatefully(pc)
         pc += s") + "
-        offset.print(pc)
+        offset.printStatefully(pc)
         pc += ")"
       }
     }
@@ -196,36 +207,36 @@ object OpenCLAST {
                       offset: ArithExpression,
                       addressSpace: OpenCLAddressSpace) extends StoreT
     with CLAddressSpace {
-    override def print(pc: PrintContext): Unit = {
+    override def printStatefully(pc: PrintContext): Unit = {
       if (!UseCastsForVectors()) {
         pc += s"vstore${Type.getLength(t)}("
-        value.print(pc)
+        value.printStatefully(pc)
         pc += ","
-        offset.print(pc)
+        offset.printStatefully(pc)
         pc += ","
-        v.print(pc)
+        v.printStatefully(pc)
         pc += ");"
       } else {
         pc += s"*( ((${addressSpace} ${t}*)"
-        v.print(pc)
+        v.printStatefully(pc)
         pc += s") + "
-        offset.print(pc)
+        offset.printStatefully(pc)
         pc += ") = "
-        value.print(pc)
+        value.printStatefully(pc)
       }
     }
   }
 
   case class OclPointerCast(v: VarRef, t: Type,
                            addressSpace: OpenCLAddressSpace) extends CastT with CLAddressSpace {
-    override def print(pc: PrintContext): Unit = {
+    override def printStatefully(pc: PrintContext): Unit = {
       pc += "("
       pc += s"(${addressSpace} ${t}*)"
       pc += Printer.toString(v.v.v)
       pc += ")"
       if (v.arrayIndex != null) {
         pc += "["
-        v.arrayIndex.print(pc)
+        v.arrayIndex.printStatefully(pc)
         pc += "]"
       }
       if (v.suffix != null) {
@@ -236,15 +247,21 @@ object OpenCLAST {
 
 
   case class VectorLiteral(t: VectorType, vs: VarRef*) extends ExpressionT {
-    override def print(pc: PrintContext): Unit = {
+    override def printStatefully(pc: PrintContext): Unit = {
       pc += s"(${t})("
       vs.zipWithIndex.foreach({
         case (ref, ix) ⇒
           if (ix != 0)
             pc += ", "
-          ref.print(pc)
+          ref.printStatefully(pc)
       })
       pc += ")"
+    }
+
+    override def print(): DOC = {
+      s"(${t})(" <>
+      intersperse(vs.map(_.print).toList) <>
+      ")"
     }
   }
 
@@ -257,13 +274,16 @@ object OpenCLAST {
   case class OclCode(code: String) extends RawCodeT
 
   case class OclExtension(content: String) extends StatementT with BlockMember {
-    override def print(pc: PrintContext): Unit = {
+    override def printStatefully(pc: PrintContext): Unit = {
       pc ++= s"#pragma OPENCL EXTENSION ${content} : enable"
+    }
+    override def print(): DOC = {
+      "#pragma OPENCL EXTENSION " <> content <> " : enable"
     }
   }
 
   case class OclBarrier(mem: OpenCLMemory) extends StatementT with BlockMember {
-    override def print(pc: PrintContext): Unit = pc += (mem.addressSpace match {
+    override def printStatefully(pc: PrintContext): Unit = pc += (mem.addressSpace match {
       case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
       case LocalMemory  => "barrier(CLK_LOCAL_MEM_FENCE);"
 
@@ -279,5 +299,22 @@ object OpenCLAST {
 
       case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
     })
+
+    override def print() : DOC = mem.addressSpace match {
+      case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
+      case LocalMemory  => "barrier(CLK_LOCAL_MEM_FENCE);"
+
+      case collection: AddressSpaceCollection
+        if collection.containsAddressSpace(GlobalMemory) &&
+          !collection.containsAddressSpace(LocalMemory) =>
+        "barrier(CLK_GLOBAL_MEM_FENCE);"
+
+      case collection: AddressSpaceCollection
+        if collection.containsAddressSpace(LocalMemory) &&
+          !collection.containsAddressSpace(GlobalMemory) =>
+        "barrier(CLK_LOCAL_MEM_FENCE);"
+
+      case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
+    }
   }
 }
