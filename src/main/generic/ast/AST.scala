@@ -110,7 +110,7 @@ object GenericAST {
     }
 
     override def printStatefully(pc: PrintContext): Unit = {
-      pc.beginln()
+      pc.newln()
       if (attribute.isDefined) attribute.get.printStatefully(pc)
 
       pc += Printer.toString(ret)
@@ -191,7 +191,7 @@ object GenericAST {
     }
 
     override def printStatefully(pc: PrintContext): Unit = {
-      pc.beginln()
+      pc.newln()
       pc += s"${Type.getBaseType(t)} "
       v.printStatefully(pc)
       init match {
@@ -291,7 +291,7 @@ object GenericAST {
       if (!global) pc ++= "{"
       +pc
       content.foreach({
-        pc.beginln()
+        pc.newln()
         c ⇒ c.printStatefully(pc)
       })
       -pc
@@ -304,7 +304,7 @@ object GenericAST {
         LINE())
       // if we're global, bracket it, otherwise, don't
       if (global) {
-        bracket("", innerBlock, "")
+        innerBlock
       } else {
         bracket("{", innerBlock, "}")
       }
@@ -345,7 +345,7 @@ object GenericAST {
       cond.printStatefully(pc)
       increment.printStatefully(pc)
       pc += ") "
-      pc.endln()
+      pc.newln()
       body.printStatefully(pc)
     }
 
@@ -447,7 +447,7 @@ object GenericAST {
       pc += "goto "
       nameVar.printStatefully(pc)
       pc += ";"
-      pc.endln()
+      pc.newln()
     }
 
     override def print(): DOC = {
@@ -472,7 +472,7 @@ object GenericAST {
     override def printStatefully(pc: PrintContext): Unit = {
       nameVar.printStatefully(pc)
       pc += ": ;"
-      pc.endln()
+      pc.newln()
     }
 
     override def print(): DOC = {
@@ -520,21 +520,22 @@ object GenericAST {
     override def print(): DOC = t match {
       case tt: TupleType ⇒
         val name = Type.name(tt)
-
         spread(tt.elemsT.map(t ⇒ TypeDef(t).print).toList) <>
           text(s"#ifndef ${name}_DEFINED") <> line <>
           text(s"#define ${name}_DEFINED") <> line <>
-          s"typedef struct _attribute((aligned(${tt.alignment._1})))" <>
+          s"typedef struct __attribute__((aligned(${tt.alignment._1})))" <>
           bracket("{",
             stack(
-              tt.elemsT.zipWithIndex.map({ case (ty, i) ⇒ text(name) <> " _" <> i
+              tt.elemsT.zipWithIndex.map({ case (ty, i) ⇒
+                text(Type.name(ty)) <>
+                " _" <> i
                 .toString <> ";"
               }).toList
-            )
-            , "}") <>
+            ),
+            s"} $name;") <> line <>
           "#endif"
       case _             ⇒ Comment(s"NOTE: trying to print unprintable " +
-        s"type: ${Printer.toString(t)}").print
+        s"type: ${Printer.toString(t)}").print <> line
     }
   }
 
@@ -576,7 +577,7 @@ object GenericAST {
     override def printStatefully(pc: PrintContext): Unit = {
       e.printStatefully(pc)
       pc += "; "
-      pc.endln()
+      pc.newln()
     }
 
     override def print(): DOC = {
@@ -1032,14 +1033,13 @@ object GenericAST {
 
     override def printStatefully(pc: PrintContext): Unit = {
       // TODO: Assert that the comment doesn't contain newlines
-      pc.beginln()
-      pc += "// "
-      pc += content
-      pc.endln()
+//      pc += "// "
+//      pc += content
+//      pc.newln()
     }
 
     override def print(): DOC = {
-      "//" <+> content <> line
+      "//" <+> content
     }
   }
 

@@ -15,7 +15,7 @@ object OpenCLAST {
 
   case class RequiredWorkGroupSize(localSize: NDRange) extends AttributeT {
     override def printStatefully(pc: PrintContext): Unit = {
-      pc += s"__attribute((reqd_work_group_size(${localSize})))\n"
+      pc ++= s"__attribute((reqd_work_group_size(${localSize})))"
     }
 
     override def print(): DOC = {
@@ -69,17 +69,64 @@ object OpenCLAST {
       })
       pc += ")"
 
-      if (kernel)
-        pc += "{ \n" +
-          "#ifndef WORKGROUP_GUARD\n" +
-          "#define WORKGROUP_GUARD\n" +
-          "#endif\n" +
-          "WORKGROUP_GUARD\n"
+      if (kernel) {
+        pc += "{"
+        pc.newln()
+
+        pc += "#ifndef WORKGROUP_GUARD"
+        pc.newln()
+        pc += "#define WORKGROUP_GUARD"
+        pc.newln()
+        pc += "#endif"
+        pc.newln()
+        pc += "WORKGROUP_GUARD"
+        pc.newln()
+      }
 
       body.printStatefully(pc)
 
       if (kernel)
         pc += "}"
+    }
+
+    override def print(): DOC = {
+      val kdescrB =
+        (if (kernel) {
+          text("kernel ")
+        } else {
+          nil
+        })
+
+      val attrB =
+        (if (attribute.isDefined) {
+          attribute.get.print
+        } else {
+          nil
+        })
+
+      val typeB = (
+        if (kernel) {
+          "void"
+        } else {
+          Printer.toString(ret)
+        })
+
+      val defB = s" ${name}(" <> intersperse(params.map(_.print)) <> ")"
+
+      val innerB = (if (kernel) {
+        bracket("{",
+          "#ifndef WORKGROUP_GUARD" <> line <>
+            "#define WORKGROUP_GUARD" <> line <>
+            "#endif" <> line <>
+            "WORKGROUP_GUARD" <> line <>
+            body.print,
+          "}")
+      } else {
+        body.print
+      })
+
+      kdescrB <> attrB <> typeB <> defB <> innerB
+
     }
   }
 
@@ -123,12 +170,12 @@ object OpenCLAST {
             val baseType = Type.getBaseType(t)
             pc += s"${addressSpace} ${Printer.toString(baseType)} " +
               s"*${Printer.toString(v.v)}"
-            init match  {
+            init match {
               case Some(i) ⇒ {
                 pc += " = "
                 i.printStatefully(pc)
               }
-              case None ⇒
+              case None    ⇒
             }
             pc += "; "
         }
@@ -144,14 +191,73 @@ object OpenCLAST {
         if (addressSpace == LocalMemory)
           pc += addressSpace + " "
         pc += s"${Printer.toString(t)} ${Printer.toString(v.v)}"
-        init match  {
+        init match {
           case Some(i) ⇒ {
             pc += " = "
             i.printStatefully(pc)
           }
-          case None ⇒
+          case None    ⇒
         }
         pc += "; "
+    }
+
+    override def print(): DOC = t match {
+      case _: ArrayType =>
+        addressSpace match {
+          case PrivateMemory =>
+            if (length > scala.Int.MaxValue) throw NotEvaluableToInt
+            stack(List.tabulate(length.toInt)(i ⇒ {
+              Printer.toString(Type.getValueType(t)) <+> Printer.toString(v
+                .v) <> "_" <> Printer.toString(i) <> ";"
+            }))
+
+          case LocalMemory if length != 0 =>
+            val baseType = Type.getBaseType(t)
+            val declaration =
+              s"${addressSpace} ${Printer.toString(baseType)} " +
+                s"${Printer.toString(v.v)}[${length}]"
+
+            // Make sure the memory is correctly aligned when using pointer casts
+            // for forcing vector loads on NVIDIA.
+            val optionalAttribute =
+            if (UseCastsForVectors()) " __attribute__ ((aligned(16)));" else ";"
+
+            val fullDeclaration = declaration + optionalAttribute
+
+            fullDeclaration
+
+          case _ =>
+            val baseType = Type.getBaseType(t)
+            (s"${addressSpace} ${Printer.toString(baseType)} " +
+              s"*${Printer.toString(v.v)}") <>
+              (init match {
+                case Some(i) ⇒ " = " <> i.print()
+                case None    ⇒ nil
+              }) <>
+              "; "
+        }
+
+      case _ =>
+        // hackily add support for global memory pointers, but _only_ pointers
+        (t match {
+          case IntPtr =>
+            if (addressSpace == GlobalMemory) {
+              addressSpace.toString <> " "
+            } else {
+              nil
+            }
+          case _      => nil
+        }) <>
+          (if (addressSpace == LocalMemory) {
+            addressSpace.toString <> " "
+          } else {
+            nil
+          }) <> s"${Printer.toString(t)} ${Printer.toString(v.v)}" <>
+          (init match {
+            case Some(i) ⇒ " = " <> i.print()
+            case None    ⇒ nil
+          }) <>
+          "; "
     }
   }
 
@@ -173,6 +279,19 @@ object OpenCLAST {
 
       case _ =>
         pc += Printer.toString(t) + " " + name
+    }
+
+    override def print(): DOC = t match {
+      case ArrayType(_) ⇒
+        // Const restricted pointers to read-only global memory. See issue #2.
+        val (consts, restrict) = if (const) ("const ", "restrict ") else ("",
+          "")
+
+        consts <> addressSpace.toString <+> Printer.toString(Type.devectorize
+        (t)) <+> restrict <> name
+
+      case _ ⇒
+        Printer.toString(t) <+> name
     }
   }
 
@@ -198,6 +317,22 @@ object OpenCLAST {
         pc += ")"
       }
     }
+
+    override def print(): DOC = {
+      if (!UseCastsForVectors()) {
+        s"vload${Type.getLength(t)}(" <>
+          offset.print <>
+          "," <>
+          v.print <>
+          ")"
+      } else {
+        s"*( ((${addressSpace} ${t}*)" <>
+          v.print <>
+          s") + " <>
+          offset.print <>
+          ")"
+      }
+    }
   }
 
   // TODO: Can we just get the address space from the var ref?
@@ -215,7 +350,7 @@ object OpenCLAST {
         offset.printStatefully(pc)
         pc += ","
         v.printStatefully(pc)
-        pc += ");"
+        pc += ")"
       } else {
         pc += s"*( ((${addressSpace} ${t}*)"
         v.printStatefully(pc)
@@ -225,10 +360,29 @@ object OpenCLAST {
         value.printStatefully(pc)
       }
     }
+
+    override def print(): DOC = {
+      if (!UseCastsForVectors()) {
+        s"vstore${Type.getLength(t)}(" <>
+          value.print() <>
+          "," <>
+          offset.print() <>
+          "," <>
+          v.print <>
+          ");"
+      } else {
+        s"*( ((${addressSpace} ${t}*)" <>
+          v.print <>
+          s") + " <>
+          offset.print <>
+          ") = " <>
+          value.print
+      }
+    }
   }
 
   case class OclPointerCast(v: VarRef, t: Type,
-                           addressSpace: OpenCLAddressSpace) extends CastT with CLAddressSpace {
+                            addressSpace: OpenCLAddressSpace) extends CastT with CLAddressSpace {
     override def printStatefully(pc: PrintContext): Unit = {
       pc += "("
       pc += s"(${addressSpace} ${t}*)"
@@ -242,6 +396,18 @@ object OpenCLAST {
       if (v.suffix != null) {
         pc += v.suffix
       }
+    }
+
+    override def print(): DOC = {
+      "(" <> s"(${addressSpace} ${t}*)" <> Printer.toString(v.v.v) <> ")" <>
+        (v.arrayIndex match {
+          case null ⇒ nil
+          case _    ⇒ "[" <> v.arrayIndex.print <> "]"
+        }) <>
+        (v.suffix match {
+          case null ⇒ nil
+          case _    ⇒ text(v.suffix)
+        })
     }
   }
 
@@ -260,8 +426,8 @@ object OpenCLAST {
 
     override def print(): DOC = {
       s"(${t})(" <>
-      intersperse(vs.map(_.print).toList) <>
-      ")"
+        intersperse(vs.map(_.print).toList) <>
+        ")"
     }
   }
 
@@ -277,6 +443,7 @@ object OpenCLAST {
     override def printStatefully(pc: PrintContext): Unit = {
       pc ++= s"#pragma OPENCL EXTENSION ${content} : enable"
     }
+
     override def print(): DOC = {
       "#pragma OPENCL EXTENSION " <> content <> " : enable"
     }
@@ -300,7 +467,7 @@ object OpenCLAST {
       case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
     })
 
-    override def print() : DOC = mem.addressSpace match {
+    override def print(): DOC = mem.addressSpace match {
       case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
       case LocalMemory  => "barrier(CLK_LOCAL_MEM_FENCE);"
 
@@ -317,4 +484,5 @@ object OpenCLAST {
       case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
     }
   }
+
 }

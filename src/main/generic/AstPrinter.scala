@@ -6,15 +6,24 @@ import WadlerPrinter._
 case class AstPrinter(ast: AstNode) {
   def apply() : String = {
     val ctx = new PrintContext
+
+    val sft0 = System.nanoTime()
     ast.printStatefully(ctx)
+    val testPrint = ctx.sb.toString()
+    val sft1 = System.nanoTime()
+    println("Elapsed time for stateful pretty printing: " + ((sft1 - sft0) *
+      1e-6)+
+      "ms")
 
-    val wDOC = ast.print()
+    println(testPrint)
 
-//    println(wDOC.toString())
+    val wdt0 = System.nanoTime()
+    val result =  layout(ast.print(), 0)
+    val wdt1 = System.nanoTime()
+    println("Elapsed time for wadler pretty printing: " + ((wdt1 - wdt0) *
+      1e-6)+
+      "ms")
 
-//    val result = pretty(120, ast.print())
-
-    val result = ctx.sb.toString()
     result
   }
 }
@@ -39,9 +48,9 @@ class PrintContext {
   }
 
   /** Print the given string and create an indented new line */
-//  def ++=(s: String) : Unit = {
-//    sb ++= tab() + s + "\n"
-//  }
+  def ++=(s: String) : Unit = {
+    sb ++= tab() + s + "\n"
+  }
 
   /** Start a block by indenting */
   def unary_+() : Unit = {
@@ -53,11 +62,11 @@ class PrintContext {
     indent -= 1
   }
 
-  def beginln() : Unit = {
+  def newln() : Unit = {
     sb ++= "\n" ++ tab()
   }
 
-//  def endln() : Unit = {
+//  def newln() : Unit = {
 //    sb ++= "\n"
 //  }
 

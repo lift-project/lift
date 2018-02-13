@@ -1,4 +1,5 @@
 package generic.ast
+
 import scala.language.implicitConversions
 
 /**
@@ -14,18 +15,20 @@ object WadlerPrinter {
    */
   sealed abstract class DOC {
     // Concatenation
-    def :<>(that: DOC): Concat = Concat(this, that)
+    //    def :<>(that: DOC): Concat = Concat(this, that)
 
     // concatenation, with some optimisations
     def <>(that: DOC): DOC = (this, that) match {
-      case (TEXT(s), LINE()) ⇒ TEXT(s ++ "\n")
-      case (LINE(), TEXT(s)) ⇒ TEXT("\n"++s)
-      case (TEXT(s1), TEXT(s2)) ⇒ TEXT(s1 ++ s2)
+      case (NIL(), NIL())   ⇒ NIL()
+      case (NIL(), TEXT(s)) ⇒ TEXT(s)
       case (TEXT(s), NIL()) ⇒ TEXT(s)
-      case _ ⇒ Concat(this, that)
+      //      case (TEXT(s), LINE()) ⇒ TEXT(s ++ "\n")
+      //      case (LINE(), TEXT(s)) ⇒ TEXT("\n"++s)
+      case (TEXT(s1), TEXT(s2)) ⇒ TEXT(s1 ++ s2)
+      case _                    ⇒ Concat(this, that)
     }
 
-    def <>(that: String) : DOC = this <> TEXT(that)
+    //    def <>(that: String) : DOC = this <> TEXT(that)
 
     // defining more interesting utility concatenations as operators
     def <+>(that: DOC): DOC = this <> text(" ") <> that
@@ -91,10 +94,10 @@ object WadlerPrinter {
 
   def flatten(d: DOC): DOC = d match {
     case NIL()         ⇒ NIL()
-    case Concat(a, b)  ⇒ flatten(a) :<> flatten(b)
+    case Concat(a, b)  ⇒ flatten(a) <> flatten(b)
     case NEST(i, d)    ⇒ NEST(i, flatten(d))
     case TEXT(s)       ⇒ TEXT(s)
-    case LINE()        ⇒ TEXT(" ")
+    case LINE()        ⇒ TEXT("\n")
     case ConcatP(a, b) ⇒ flatten(a)
   }
 
@@ -107,13 +110,22 @@ object WadlerPrinter {
     case Line(i, x) ⇒ "\n" ++ ("  " * i) ++ layout(x)
   }
 
+  def layout(d: DOC, n: Int): String = d match {
+    case NIL()         ⇒ ""
+    case Concat(a, b)  ⇒ layout(a, n) ++ layout(b, n)
+    case NEST(i, _d)   ⇒ layout(_d, n + i)
+    case TEXT(s)       ⇒ s
+    case LINE()        ⇒ "\n" ++ ("  " * n)
+    case ConcatP(a, b) ⇒ layout(a, n) ++ layout(b, n)
+  }
+
   def best(w: Int, k: Int, x: DOC) = be(w, k, List((0, x)))
 
   def be(w: Int, k: Int, d: List[(Int, DOC)]): Doc = d match {
     case Nil                       ⇒ DNil()
     case ((i, NIL()) :: z)         ⇒ be(w, k, z)
     case ((i, Concat(x, y)) :: z)  ⇒ be(w, k, ((i, x) :: (i, y) :: z))
-    case ((i, NEST(j, x)) :: z)    ⇒ be(w, k, ((i + j, x) :: z))
+    case ((i, NEST(j, x)) :: z)    ⇒ be(w, k, (i + j, x) :: z)
     case ((i, TEXT(s)) :: z)       ⇒ Text(s, be(w, k + s.length(), z))
     case ((i, LINE()) :: z)        ⇒ Line(i, be(w, i, z))
     case ((i, ConcatP(x, y)) :: z) ⇒ better(w, k,
@@ -149,7 +161,8 @@ object WadlerPrinter {
   def </>(a: DOC, b: DOC): DOC = a <> line <> b
 
 
-  def folddoc(f: (DOC, DOC) ⇒ DOC, ds: List[DOC]): DOC = ds.foldLeft(NIL()
+  def folddoc(f: (DOC, DOC) ⇒ DOC, ds: List[DOC]): DOC = ds.tail.foldLeft(ds
+    .head
     : DOC
   )(f)
 
@@ -157,14 +170,13 @@ object WadlerPrinter {
 
   def stack(ds: List[DOC]) = folddoc(</>, ds)
 
-  def intersperse(ds: List[DOC], sep: DOC = text(",")) = ds.tail.foldLeft(ds
-    .head)((a: DOC, b: DOC) ⇒ a <> sep <> b)
-
+  def intersperse(ds: List[DOC], sep: DOC = text(",")) =
+    folddoc((a: DOC, b: DOC) ⇒ a <> sep <> b, ds)
 
   // note, this is not quite wadlers definition - we don't group, as
   // sometimes we want to handle the flattening ourselves!
   def bracket(l: String, x: DOC, r: String): DOC =
-    group(text(l) <> nest(2, line <> x) <> line <> text(r))
+    (text(l) <> nest(2, line <> x) <> line <> text(r))
 
   //  group(text(l) <> nest(2, line <> x)) <> line <> text(r))
 
