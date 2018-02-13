@@ -5,28 +5,7 @@ import PrettyPrinter._
 
 case class AstPrinter(ast: AstNode) {
   def apply(): String = {
-    val ctx = new PrintContext
-
-    def time[R](name: String, block: => R): R = {
-      val t0 = System.nanoTime()
-      val result = block // call-by-name
-      val t1 = System.nanoTime()
-      println(s"Elapsed time for $name: " + ((t1 - t0) * 1e-6) + "ms")
-      result
-    }
-
-    // Time how long it takes to run the method
-    time("printStatefully", ast.printStatefully(ctx))
-    val testPrint = time("statefulToString", ctx.sb.toString())
-    println(testPrint)
-
-    val wadlerAST = time("wadlerPrint", ast.print())
-    val result = time("layout", layout(wadlerAST))
-
-    val sb = new StringBuilder()
-    val result1 = time("layoutS", layoutS(wadlerAST))
-
-    result1
+    layoutS(ast.print())
   }
 }
 
