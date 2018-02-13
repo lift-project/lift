@@ -63,7 +63,7 @@ object GenericAST {
     // TODO: This is not the way I want to do this, but it will do for now
     def printStatefully(pc: PrintContext): Unit
 
-    def print(): DOC
+    def print(): Doc
   }
 
   trait BlockMember
@@ -127,11 +127,11 @@ object GenericAST {
       body.printStatefully(pc)
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       // print the attribute if it's defined
       (attribute match {
         case Some(a) ⇒ a.print() <> " "
-        case None    ⇒ NIL()
+        case None    ⇒ Empty()
       }) <>
         // print the return type and name
         text(ret.toString) <+> name <>
@@ -162,7 +162,7 @@ object GenericAST {
       ct += Printer.toString(v)
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       text(Printer.toString(v))
     }
   }
@@ -204,13 +204,13 @@ object GenericAST {
       pc += ";"
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       // print the type
       text(Printer.toString(Type.getBaseType(t))) <+>
         //print the variable name
         v.print() <>
         // print the assignment
-        init.map(text(" = ") <> _.print()).getOrElse(NIL()) <>
+        init.map(text(" = ") <> _.print()).getOrElse(Empty()) <>
         // end the line
         ";"
     }
@@ -242,7 +242,7 @@ object GenericAST {
         pc += Printer.toString(t) + " " + name
     }
 
-    override def print(): DOC = t match {
+    override def print(): Doc = t match {
       case ArrayType(_) ⇒
         val (constS, restrict) = if (const) ("const", "restrict") else ("", "")
         // const type restrict name
@@ -298,10 +298,10 @@ object GenericAST {
       if (!global) pc ++= "}"
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       // pre-calculate our inner block
       val innerBlock = intersperse(content.map(_.print()).toList,
-        LINE())
+        Line())
       // if we're global, bracket it, otherwise, don't
       if (global) {
         innerBlock
@@ -349,7 +349,7 @@ object GenericAST {
       body.printStatefully(pc)
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       text("for (") <>
         init.print <> cond.print <> increment.print <>
         ")" <> body.print
@@ -381,7 +381,7 @@ object GenericAST {
       body.printStatefully(pc)
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       text("while(") <> Printer.toString(loopPredicate) <> ")" <>
         body.print
     }
@@ -417,7 +417,7 @@ object GenericAST {
       }
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       text("if (") <> cond.print <> ")" <> trueBody.print <>
         (if (falseBody != MutableBlock()) {
           text(" else ") <> falseBody.print()
@@ -450,7 +450,7 @@ object GenericAST {
       pc.newln()
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       "goto " <> nameVar.print <> ";"
     }
   }
@@ -475,7 +475,7 @@ object GenericAST {
       pc.newln()
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       nameVar.print <> ": ;"
     }
   }
@@ -488,7 +488,7 @@ object GenericAST {
   trait BreakT extends StatementT {
     override def printStatefully(pc: PrintContext): Unit = pc ++= "break;"
 
-    override def print(): DOC = text("break;")
+    override def print(): Doc = text("break;")
   }
 
   case class Break() extends BreakT
@@ -517,7 +517,7 @@ object GenericAST {
         .printStatefully(pc)
     }
 
-    override def print(): DOC = t match {
+    override def print(): Doc = t match {
       case tt: TupleType ⇒
         val name = Type.name(tt)
         spread(tt.elemsT.map(t ⇒ TypeDef(t).print).toList) <>
@@ -580,7 +580,7 @@ object GenericAST {
       pc.newln()
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       e.print <> "; "
     }
   }
@@ -616,7 +616,7 @@ object GenericAST {
       pc += ")"
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       name <> "(" <> intersperse(args.map(_.print)) <> ")"
     }
   }
@@ -649,7 +649,7 @@ object GenericAST {
       }
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       v.print <>
         (arrayIndex match {
           case null ⇒ nil
@@ -698,7 +698,7 @@ object GenericAST {
       }
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       if (!UseCastsForVectors()) {
         text(s"vload${Type.getLength(t)}(") <>
           offset.print <>
@@ -753,7 +753,7 @@ object GenericAST {
       }
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       if (!UseCastsForVectors()) {
         text(s"vstore${Type.getLength(t)}(") <>
           value.print <> "," <>
@@ -793,7 +793,7 @@ object GenericAST {
       value.printStatefully(pc)
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       to.print <> " = " <> value.print
     }
   }
@@ -809,7 +809,7 @@ object GenericAST {
 
     override def printStatefully(pc: PrintContext): Unit = pc += Printer.toString(content)
 
-    override def print(): DOC = text(Printer.toString(content))
+    override def print(): Doc = text(Printer.toString(content))
   }
 
   case class ArithExpression(content: ArithExpr) extends ArithExpressionT
@@ -837,7 +837,7 @@ object GenericAST {
       pc += ")"
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       "(" <> lhs.print <+> op.toString <+> rhs.print <> ")"
     }
   }
@@ -908,7 +908,7 @@ object GenericAST {
       pc += ")"
     }
 
-    def print(): DOC = {
+    def print(): Doc = {
       "(" <>
         cond.print <+> "?" <+> trueExpr.print() <+> ":" <+> falseExpr.print() <>
         ")"
@@ -936,7 +936,7 @@ object GenericAST {
       v.printStatefully(pc)
     }
 
-    override def print() : DOC = {
+    override def print() : Doc = {
       "(" <> t.toString <> ")" <> v.print()
     }
   }
@@ -962,7 +962,7 @@ object GenericAST {
       }
     }
 
-    override def print() : DOC = {
+    override def print() : Doc = {
       "((" <> t.toString <> "*)" <> Printer.toString(v.v.v) <> ")" <>
         (v.arrayIndex match {
           case null ⇒ nil
@@ -1000,7 +1000,7 @@ object GenericAST {
       pc += "}"
     }
 
-    override def print() : DOC = {
+    override def print() : Doc = {
       "(" <> Printer.toString(t) <> "){" <>
        intersperse(args.map(_.print).toList) <>
       ")"
@@ -1020,7 +1020,7 @@ object GenericAST {
       pc += code
     }
 
-    override def print(): DOC = code
+    override def print(): Doc = code
   }
 
   case class RawCode(code: String) extends RawCodeT
@@ -1038,7 +1038,7 @@ object GenericAST {
 //      pc.newln()
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       "//" <+> content
     }
   }
@@ -1051,7 +1051,7 @@ object GenericAST {
     */
   case class EmptyNode() extends AstNode with BlockMember {
     override def printStatefully(pc: PrintContext): Unit = {}
-    override def print() : DOC = nil
+    override def print() : Doc = nil
   }
 
 }

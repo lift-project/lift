@@ -18,7 +18,7 @@ object OpenCLAST {
       pc ++= s"__attribute((reqd_work_group_size(${localSize})))"
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       s"__attribute((reqd_work_group_size(${localSize})))" <> line
     }
   }
@@ -89,7 +89,7 @@ object OpenCLAST {
         pc += "}"
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       val kdescrB =
         (if (kernel) {
           text("kernel ")
@@ -201,7 +201,7 @@ object OpenCLAST {
         pc += "; "
     }
 
-    override def print(): DOC = t match {
+    override def print(): Doc = t match {
       case _: ArrayType =>
         addressSpace match {
           case PrivateMemory =>
@@ -281,7 +281,7 @@ object OpenCLAST {
         pc += Printer.toString(t) + " " + name
     }
 
-    override def print(): DOC = t match {
+    override def print(): Doc = t match {
       case ArrayType(_) ⇒
         // Const restricted pointers to read-only global memory. See issue #2.
         val (consts, restrict) = if (const) ("const ", "restrict ") else ("",
@@ -318,7 +318,7 @@ object OpenCLAST {
       }
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       if (!UseCastsForVectors()) {
         s"vload${Type.getLength(t)}(" <>
           offset.print <>
@@ -361,7 +361,7 @@ object OpenCLAST {
       }
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       if (!UseCastsForVectors()) {
         s"vstore${Type.getLength(t)}(" <>
           value.print() <>
@@ -398,7 +398,7 @@ object OpenCLAST {
       }
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       "(" <> s"(${addressSpace} ${t}*)" <> Printer.toString(v.v.v) <> ")" <>
         (v.arrayIndex match {
           case null ⇒ nil
@@ -424,7 +424,7 @@ object OpenCLAST {
       pc += ")"
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       s"(${t})(" <>
         intersperse(vs.map(_.print).toList) <>
         ")"
@@ -444,7 +444,7 @@ object OpenCLAST {
       pc ++= s"#pragma OPENCL EXTENSION ${content} : enable"
     }
 
-    override def print(): DOC = {
+    override def print(): Doc = {
       "#pragma OPENCL EXTENSION " <> content <> " : enable"
     }
   }
@@ -467,7 +467,7 @@ object OpenCLAST {
       case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
     })
 
-    override def print(): DOC = mem.addressSpace match {
+    override def print(): Doc = mem.addressSpace match {
       case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
       case LocalMemory  => "barrier(CLK_LOCAL_MEM_FENCE);"
 
