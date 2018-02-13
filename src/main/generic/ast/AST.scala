@@ -555,7 +555,7 @@ object GenericAST {
     }
 
     override def print() = t match {
-      case tt: TupleType ⇒ text(s"typedef ") <> Type.name(tt) <+> name
+      case tt: TupleType ⇒ text(s"typedef ") <> Type.name(tt) <+> name <> ";"
       case _             ⇒ Comment("NOTE: trying to print unprintable tuplealias").print
     }
   }
