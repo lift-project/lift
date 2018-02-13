@@ -134,7 +134,7 @@ object GenericAST {
         case None    ⇒ Empty()
       }) <>
         // print the return type and name
-        text(ret.toString) <+> name <>
+        Printer.toString(ret) <+> name <>
         // print parameters
         "(" <>
         intersperse(params.map(_.print())) <>
