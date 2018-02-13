@@ -4,7 +4,7 @@ import ir.{ArrayType, TupleType, Type}
 import lift.arithmetic._
 import opencl.generator.UseCastsForVectors
 
-import WadlerPrinter._
+import PrettyPrinter._
 
 import utils.Printer
 

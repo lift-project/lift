@@ -1,30 +1,32 @@
 package generic.ast
 
 import generic.ast.GenericAST._
-import WadlerPrinter._
+import PrettyPrinter._
 
 case class AstPrinter(ast: AstNode) {
-  def apply() : String = {
+  def apply(): String = {
     val ctx = new PrintContext
 
-    val sft0 = System.nanoTime()
-    ast.printStatefully(ctx)
-    val testPrint = ctx.sb.toString()
-    val sft1 = System.nanoTime()
-    println("Elapsed time for stateful pretty printing: " + ((sft1 - sft0) *
-      1e-6)+
-      "ms")
+    def time[R](name: String, block: => R): R = {
+      val t0 = System.nanoTime()
+      val result = block // call-by-name
+      val t1 = System.nanoTime()
+      println(s"Elapsed time for $name: " + ((t1 - t0) * 1e-6) + "ms")
+      result
+    }
 
+    // Time how long it takes to run the method
+    time("printStatefully", ast.printStatefully(ctx))
+    val testPrint = time("statefulToString", ctx.sb.toString())
     println(testPrint)
 
-    val wdt0 = System.nanoTime()
-    val result =  layout(ast.print(), 0)
-    val wdt1 = System.nanoTime()
-    println("Elapsed time for wadler pretty printing: " + ((wdt1 - wdt0) *
-      1e-6)+
-      "ms")
+    val wadlerAST = time("wadlerPrint", ast.print())
+    val result = time("layout", layout(wadlerAST))
 
-    result
+    val sb = new StringBuilder()
+    val result1 = time("layoutS", layoutS(wadlerAST))
+
+    result1
   }
 }
 
@@ -42,33 +44,33 @@ class PrintContext {
   val tabSize = 2
 
   /** Print out the string by just appending it to the list, without a
-    * newline or tabs*/
-  def +=(s: String) : Unit = {
+    * newline or tabs */
+  def +=(s: String): Unit = {
     sb ++= s
   }
 
   /** Print the given string and create an indented new line */
-  def ++=(s: String) : Unit = {
+  def ++=(s: String): Unit = {
     sb ++= tab() + s + "\n"
   }
 
   /** Start a block by indenting */
-  def unary_+() : Unit = {
+  def unary_+(): Unit = {
     indent += 1
   }
 
   /** End a block by un-indenting */
-  def unary_-() : Unit = {
+  def unary_-(): Unit = {
     indent -= 1
   }
 
-  def newln() : Unit = {
+  def newln(): Unit = {
     sb ++= "\n" ++ tab()
   }
 
-//  def newln() : Unit = {
-//    sb ++= "\n"
-//  }
+  //  def newln() : Unit = {
+  //    sb ++= "\n"
+  //  }
 
   /** Insert the correct indentation */
   def tab(): String = {

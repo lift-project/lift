@@ -2,7 +2,7 @@ package opencl.generator
 
 import generic.ast.{GenericAST, PrintContext}
 import generic.ast.GenericAST._
-import generic.ast.WadlerPrinter._
+import generic.ast.PrettyPrinter._
 import lift.arithmetic.{ArithExpr, Predicate, Var}
 import lift.arithmetic.NotEvaluableToIntException._
 import ir.{ArrayType, TupleType, Type, VectorType}
