@@ -57,7 +57,7 @@ class AccessPatterns(
     (readPatterns, writePatterns)
 
   private def isCoalesced(v: VarRef, length: ArithExpr): Boolean = {
-    val accessLocation = v.arrayIndex.content
+    val accessLocation = v.arrayIndex.get.content
 
     if (coalescingId.isEmpty)
       return false

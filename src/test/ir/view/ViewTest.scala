@@ -69,7 +69,8 @@ class ViewTest {
 
     Compile(f)
 
-    assertEquals(VarRef(f.body.mem.variable, null, ArithExpression(N - 1 - mapId.loopVar + N*mapMapId.loopVar)),
+    assertEquals(VarRef(f.body.mem.variable, null, Some(ArithExpression(N - 1 -
+      mapId.loopVar + N*mapMapId.loopVar))),
                  ViewPrinter.emit(fcId.outputView))
   }
 
@@ -112,8 +113,10 @@ class ViewTest {
     val map_mapf0 = map_mapf.get(0)
     val map_mapf1 = map_mapf.get(1)
 
-    assertEquals(VarRef(va, null, ArithExpression(var_k)), ViewPrinter.emit(map_mapf0))
-    assertEquals(VarRef(vB, null, ArithExpression(var_j*8 + var_k)), ViewPrinter.emit(map_mapf1))
+    assertEquals(VarRef(va, null, Some(ArithExpression(var_k))), ViewPrinter
+      .emit(map_mapf0))
+    assertEquals(VarRef(vB, null, (Some(ArithExpression(var_j*8 + var_k)))),
+      ViewPrinter.emit(map_mapf1))
   }
 
   @Test
@@ -150,8 +153,10 @@ class ViewTest {
     val map_map_map_f0 = map_map_map_f.get(0)
     val map_map_map_f1 = map_map_map_f.get(1)
 
-    assertEquals(VarRef(vA, null, ArithExpression(8*var_k + 9)), ViewPrinter.emit(map_map_map_f0))
-    assertEquals(VarRef(vB, null, ArithExpression(8*var_l + 9)), ViewPrinter.emit(map_map_map_f1))
+    assertEquals(VarRef(vA, null, Some(ArithExpression(8*var_k + 9))),
+      ViewPrinter.emit(map_map_map_f0))
+    assertEquals(VarRef(vB, null, Some(ArithExpression(8*var_l + 9))),
+      ViewPrinter.emit(map_map_map_f1))
   }
 
   @Test
@@ -173,8 +178,10 @@ class ViewTest {
     val zip_ab_3_0 = zip_ab_3.get(0)
     val zip_ab_3_1 = zip_ab_3.get(1)
 
-    assertEquals(VarRef(vA, null, ArithExpression(8*var_i + 3)), ViewPrinter.emit(zip_ab_3_0))
-    assertEquals(VarRef(vB, null, ArithExpression(8*var_j + 3)), ViewPrinter.emit(zip_ab_3_1))
+    assertEquals(VarRef(vA, null, Some(ArithExpression(8*var_i + 3))),
+      ViewPrinter.emit(zip_ab_3_0))
+    assertEquals(VarRef(vB, null, Some(ArithExpression(8*var_j + 3))),
+      ViewPrinter.emit(zip_ab_3_1))
   }
 
   @Test
@@ -191,7 +198,8 @@ class ViewTest {
     val split2A_i = split2A.access(var_i)
     val split2A_i_j = split2A_i.access(var_j)
 
-    assertEquals(VarRef(vA, null, ArithExpression(2*var_i + var_j)), ViewPrinter.emit(split2A_i_j))
+    assertEquals(VarRef(vA, null, Some(ArithExpression(2*var_i + var_j))),
+      ViewPrinter.emit(split2A_i_j))
   }
 
   @Test
@@ -209,7 +217,8 @@ class ViewTest {
     val reorder_split_reorder_A_1 = split_reorder_A.access(1)
     val reorder_split_reorder_A_1_3 = reorder_split_reorder_A_1.access(3)
 
-    assertEquals(VarRef(vA, null, ArithExpression(Cst(33))), ViewPrinter.emit(reorder_split_reorder_A_1_3))
+    assertEquals(VarRef(vA, null, Some(ArithExpression(Cst(33)))), ViewPrinter
+      .emit(reorder_split_reorder_A_1_3))
   }
 
   @Test

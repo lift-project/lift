@@ -137,10 +137,6 @@ object GenericAST {
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z, this)
 
-    override def printStatefully(ct: PrintContext): Unit = {
-      ct += Printer.toString(v)
-    }
-
     override def print(): Doc = {
       text(Printer.toString(v))
     }
@@ -169,20 +165,6 @@ object GenericAST {
         (_z ⇒ init.map(visitFun(_z, _)).getOrElse(_z))
     }
 
-    override def printStatefully(pc: PrintContext): Unit = {
-      pc.newln()
-      pc += s"${Type.getBaseType(t)} "
-      v.printStatefully(pc)
-      init match {
-        case Some(i) ⇒ {
-          pc += " = "
-          i.printStatefully(pc)
-        }
-        case None    ⇒
-      }
-      pc += ";"
-    }
-
     override def print(): Doc = {
       // print the type
       Printer.toString(Type.getBaseType(t)) <+>
@@ -209,17 +191,6 @@ object GenericAST {
     val name: String
     val t: Type
     val const: Boolean // = false
-
-    override def printStatefully(pc: PrintContext): Unit = t match {
-      case ArrayType(_) ⇒
-        // Const restricted pointers to read-only global memory. See issue #2.
-        val (constS, restrict) = if (const) ("const", "restrict") else ("", "")
-        pc += constS + " " + Printer.toString(Type.devectorize(t)) +
-          " " + restrict + " " + name
-
-      case _ =>
-        pc += Printer.toString(t) + " " + name
-    }
 
     override def print(): Doc = t match {
       case ArrayType(_) ⇒
@@ -268,17 +239,6 @@ object GenericAST {
         })
     }
 
-    override def printStatefully(pc: PrintContext): Unit = {
-      if (!global) pc ++= "{"
-      +pc
-      content.foreach({
-        pc.newln()
-        c ⇒ c.printStatefully(pc)
-      })
-      -pc
-      if (!global) pc ++= "}"
-    }
-
     override def print(): Doc = {
       // pre-calculate our inner block
       val innerBlock = intersperse(content.map(_.print()).toList,
@@ -318,16 +278,6 @@ object GenericAST {
       z |>
         (visitFun(_, this))
 
-    }
-
-    override def printStatefully(pc: PrintContext): Unit = {
-      pc += "for ("
-      init.printStatefully(pc)
-      cond.printStatefully(pc)
-      increment.printStatefully(pc)
-      pc += ") "
-      pc.newln()
-      body.printStatefully(pc)
     }
 
     override def print(): Doc = {
@@ -534,8 +484,8 @@ object GenericAST {
   trait VarRefT extends ExpressionT {
     val v: CVar
     //    val t: Type
-    val suffix: String //Option[String]
-    val arrayIndex: ArithExpression //Option[ArithExpression]
+    val suffix: Option[String]
+    val arrayIndex: Option[ArithExpression]
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       visitFun(z, this) |> (visitFun(_, v))
@@ -544,13 +494,13 @@ object GenericAST {
     override def print(): Doc = {
 
       val accessD = arrayIndex match {
-        case null ⇒ nil
-        case _    ⇒ text("[") <> arrayIndex.print <> text("]")
+        case None     ⇒ nil
+        case Some(ix) ⇒ "[" <> ix.print <> "]"
       }
 
       val suffixD = suffix match {
-        case null ⇒ nil
-        case _    ⇒ text(suffix)
+        case None     ⇒ nil
+        case Some(sf) ⇒ text(sf)
       }
 
       v.print <> accessD <> suffixD
@@ -560,9 +510,8 @@ object GenericAST {
 
   case class VarRef(v: CVar,
                     //                    t: Type,
-                    suffix: String = null,//Option[String] = None,
-                    arrayIndex: ArithExpression = null//
-                    // Option[ArithExpression] = None
+                    suffix: Option[String] = None,
+                    arrayIndex: Option[ArithExpression] = None
                    ) extends VarRefT
 
   /**
@@ -783,12 +732,12 @@ object GenericAST {
     override def print(): Doc = {
       "((" <> t.toString <> "*)" <> Printer.toString(v.v.v) <> ")" <>
         (v.arrayIndex match {
-          case null ⇒ nil
-          case _    ⇒ "[" <> v.arrayIndex.print <> "]"
+          case None ⇒ nil
+          case Some(ix)    ⇒ "[" <> ix.print <> "]"
         }) <>
         (v.suffix match {
-          case null ⇒ nil
-          case _    ⇒ text(v.suffix)
+          case None ⇒ nil
+          case Some(sf)    ⇒ text(sf)
         })
     }
   }

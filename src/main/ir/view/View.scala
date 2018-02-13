@@ -667,7 +667,8 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         val idx :: indices = arrayAccessStack
          // Assume it's the same address space
          val indirection = ViewPrinter.emit(ids.access(idx), replacements, mainAddressSpace) match {
-           case VarRef(indicesVar, _, i) => AccessVar(indicesVar.v, i.content)
+           case VarRef(indicesVar, _, i) => AccessVar(indicesVar.v, i
+             .get.content)
            case x => throw new IllegalArgumentException(s"Expected an VarRef, got $x")
          }
          emitView(iv, indirection :: indices, tupleAccessStack)
@@ -879,7 +880,8 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
     // Useful shorthands
     private lazy val baseSize = Type.getAllocatedSize(baseType).eval
     private val alignment = Math.max(size_t.size.eval, baseSize)
-    private def varRef(v: Var, idx: ArithExpr): VarRef = VarRef(v, arrayIndex = ArithExpression(idx))
+    private def varRef(v: Var, idx: ArithExpr): VarRef = VarRef(v, arrayIndex
+      = Some(ArithExpression(idx)))
     private def align(value: ArithExpr): ArithExpr = ((value + alignment - 1) / alignment) * alignment
 
     /**

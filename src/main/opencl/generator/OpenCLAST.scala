@@ -14,10 +14,6 @@ import scala.language.implicitConversions
 object OpenCLAST {
 
   case class RequiredWorkGroupSize(localSize: NDRange) extends AttributeT {
-    override def printStatefully(pc: PrintContext): Unit = {
-      pc ++= s"__attribute((reqd_work_group_size(${localSize})))"
-    }
-
     override def print(): Doc = {
       s"__attribute((reqd_work_group_size(${localSize})))" <> line
     }
@@ -235,12 +231,12 @@ object OpenCLAST {
     override def print(): Doc = {
       "(" <> s"(${addressSpace} ${t}*)" <> Printer.toString(v.v.v) <> ")" <>
         (v.arrayIndex match {
-          case null ⇒ nil
-          case _    ⇒ "[" <> v.arrayIndex.print <> "]"
+          case None ⇒ nil
+          case Some(ix)    ⇒ "[" <> ix.print <> "]"
         }) <>
         (v.suffix match {
-          case null ⇒ nil
-          case _    ⇒ text(v.suffix)
+          case None ⇒ nil
+          case Some(sf)    ⇒ text(sf)
         })
     }
   }
