@@ -112,7 +112,7 @@ object PrettyPrinter {
   }
 
   // generic intersperse, with a given separator
-  def intersperse(ds: List[Doc], sep: Doc = text(",")) =
+  def intersperse(ds: List[Doc], sep: Doc = text(", ")) =
     folddoc((a: Doc, b: Doc) ⇒ a <> sep <> b, ds)
 
   // spread documents out horizontally with spaces
