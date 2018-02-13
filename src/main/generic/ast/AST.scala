@@ -528,12 +528,12 @@ object GenericAST {
             stack(
               tt.elemsT.zipWithIndex.map({ case (ty, i) ⇒
                 text(Type.name(ty)) <>
-                " _" <> i
-                .toString <> ";"
+                  " _" <> i
+                  .toString <> ";"
               }).toList
             ),
             s"} $name;") <> line <>
-          "#endif"
+          "#endif" <> line
       case _             ⇒ Comment(s"NOTE: trying to print unprintable " +
         s"type: ${Printer.toString(t)}").print <> line
     }
@@ -936,7 +936,7 @@ object GenericAST {
       v.printStatefully(pc)
     }
 
-    override def print() : Doc = {
+    override def print(): Doc = {
       "(" <> t.toString <> ")" <> v.print()
     }
   }
@@ -962,15 +962,15 @@ object GenericAST {
       }
     }
 
-    override def print() : Doc = {
+    override def print(): Doc = {
       "((" <> t.toString <> "*)" <> Printer.toString(v.v.v) <> ")" <>
         (v.arrayIndex match {
           case null ⇒ nil
-          case _ ⇒ "[" <> v.arrayIndex.print <> "]"
+          case _    ⇒ "[" <> v.arrayIndex.print <> "]"
         }) <>
         (v.suffix match {
           case null ⇒ nil
-          case _ ⇒ text(v.suffix)
+          case _    ⇒ text(v.suffix)
         })
     }
   }
@@ -1000,10 +1000,10 @@ object GenericAST {
       pc += "}"
     }
 
-    override def print() : Doc = {
+    override def print(): Doc = {
       "(" <> Printer.toString(t) <> "){" <>
-       intersperse(args.map(_.print).toList) <>
-      ")"
+        intersperse(args.map(_.print).toList) <>
+        "}"
     }
   }
 
@@ -1033,9 +1033,9 @@ object GenericAST {
 
     override def printStatefully(pc: PrintContext): Unit = {
       // TODO: Assert that the comment doesn't contain newlines
-//      pc += "// "
-//      pc += content
-//      pc.newln()
+      //      pc += "// "
+      //      pc += content
+      //      pc.newln()
     }
 
     override def print(): Doc = {
@@ -1051,7 +1051,8 @@ object GenericAST {
     */
   case class EmptyNode() extends AstNode with BlockMember {
     override def printStatefully(pc: PrintContext): Unit = {}
-    override def print() : Doc = nil
+
+    override def print(): Doc = nil
   }
 
 }
