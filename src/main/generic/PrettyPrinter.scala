@@ -105,11 +105,11 @@ object PrettyPrinter {
   Various interspersal methods defined in terms of a "fold" across a list of
   documents
    */
-  private def folddoc(f: (Doc, Doc) ⇒ Doc, ds: List[Doc]): Doc = ds.tail
-    .foldLeft(ds
-    .head
-    : Doc
-  )(f)
+  private def folddoc(f: (Doc, Doc) ⇒ Doc, ds: List[Doc]): Doc = ds match {
+    case Nil ⇒ Empty()
+    case (x :: Nil) ⇒ x
+    case (x :: xs) ⇒ xs.foldLeft(x)(f)
+  }
 
   // generic intersperse, with a given separator
   def intersperse(ds: List[Doc], sep: Doc = text(",")) =
