@@ -369,7 +369,7 @@ object OpenCLAST {
           offset.print() <>
           "," <>
           v.print <>
-          ");"
+          ")"
       } else {
         s"*( ((${addressSpace} ${t}*)" <>
           v.print <>

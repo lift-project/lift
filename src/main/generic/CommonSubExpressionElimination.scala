@@ -1,7 +1,7 @@
 package generic.generator
 
 import generic.ast.GenericAST._
-import lift.arithmetic.{ArithExpr, Cst, Pow, Var}
+import lift.arithmetic._
 import opencl.generator.DeadCodeElimination
 import opencl.ir.{Int, PrivateMemory}
 
@@ -43,7 +43,7 @@ object CommonSubexpressionElimination {
       val subterms = counts.filter(_._2 > 1)
         .filter(!_._1.isInstanceOf[Var])
         .filter(!_._1.isInstanceOf[Cst])
-        .filter(!_._1.isInstanceOf[Function])
+        .filter(!_._1.isInstanceOf[ArithExprFunction])
         .filter(_._1 match {
           // don't choose pow(b, -1), as this might be
           // printed as "/b" inside of a product
