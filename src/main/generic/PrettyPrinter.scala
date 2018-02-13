@@ -3,7 +3,7 @@ package generic.ast
 import scala.language.implicitConversions
 
 /*
-A pretty printer vaugley based on Wadler's "A prettier printer" paper. Users
+A pretty printer vaguely based on Wadler's "A prettier printer" paper. Users
 construct instances of a "document" ast, which is then (somewhat) efficiently
 serialised into a string in the "layout" function. This implementation is
 somewhat less functional than wadler's original, as it doesn't take into account
@@ -11,14 +11,15 @@ line lengths, but for our purposes this is sufficient: we generally lay out
 lines ourselves, and don't care how long they get.
   */
 object PrettyPrinter {
-
   /*
-    The"interface" algebraic data type which users construct
+    The "interface" algebraic data type which users construct
     instances of from their own trees.
    */
   sealed abstract class Doc {
     // concatenation, with some optimisations for when we don't need extra
     // objects
+
+    // side by side concatenation
     def <>(that: Doc): Doc = (this, that) match {
       case (Empty(), Empty()) ⇒ Empty()
       case (Empty(), Text(s)) ⇒ Text(s)
@@ -28,8 +29,10 @@ object PrettyPrinter {
     }
 
     // defining more interesting utility concatenations as operators
+    // concatenation with a space
     def <+>(that: Doc): Doc = this <> text(" ") <> that
 
+    // vertical concatenation with a line
     def </>(that: Doc): Doc = this <> line <> that
 
   }

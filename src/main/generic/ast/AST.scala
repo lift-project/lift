@@ -61,7 +61,7 @@ object GenericAST {
     }
 
     // TODO: This is not the way I want to do this, but it will do for now
-    def printStatefully(pc: PrintContext): Unit
+    @deprecated def printStatefully(pc: PrintContext): Unit
 
     def print(): Doc
   }
@@ -206,11 +206,11 @@ object GenericAST {
 
     override def print(): Doc = {
       // print the type
-      text(Printer.toString(Type.getBaseType(t))) <+>
+      Printer.toString(Type.getBaseType(t)) <+>
         //print the variable name
         v.print() <>
         // print the assignment
-        init.map(text(" = ") <> _.print()).getOrElse(Empty()) <>
+        init.map(text(" = ") <> _.print()).getOrElse(nil) <>
         // end the line
         ";"
     }
@@ -244,9 +244,11 @@ object GenericAST {
 
     override def print(): Doc = t match {
       case ArrayType(_) ⇒
-        val (constS, restrict) = if (const) ("const", "restrict") else ("", "")
+        val (constS, restrict) = if (const) (text("const"), text("restrict"))
+        else (nil,
+          nil)
         // const type restrict name
-        text(constS) <+>
+        constS <+>
           Printer.toString(Type.devectorize(t)) <+>
           restrict <+>
           name
@@ -382,7 +384,7 @@ object GenericAST {
     }
 
     override def print(): Doc = {
-      text("while(") <> Printer.toString(loopPredicate) <> ")" <>
+      "while(" <> Printer.toString(loopPredicate) <> ")" <>
         body.print
     }
   }
@@ -488,7 +490,7 @@ object GenericAST {
   trait BreakT extends StatementT {
     override def printStatefully(pc: PrintContext): Unit = pc ++= "break;"
 
-    override def print(): Doc = text("break;")
+    override def print(): Doc = "break;"
   }
 
   case class Break() extends BreakT
@@ -521,18 +523,16 @@ object GenericAST {
       case tt: TupleType ⇒
         val name = Type.name(tt)
         spread(tt.elemsT.map(t ⇒ TypeDef(t).print).toList) <>
-          text(s"#ifndef ${name}_DEFINED") <> line <>
-          text(s"#define ${name}_DEFINED") <> line <>
+          s"#ifndef ${name}_DEFINED" </>
+          s"#define ${name}_DEFINED" </>
           s"typedef struct __attribute__((aligned(${tt.alignment._1})))" <>
           bracket("{",
             stack(
               tt.elemsT.zipWithIndex.map({ case (ty, i) ⇒
-                text(Type.name(ty)) <>
-                  " _" <> i
-                  .toString <> ";"
+                Type.name(ty) <> " _" <> i.toString <> ";"
               }).toList
             ),
-            s"} $name;") <> line <>
+            s"} $name;") </>
           "#endif" <> line
       case _             ⇒ Comment(s"NOTE: trying to print unprintable " +
         s"type: ${Printer.toString(t)}").print <> line
@@ -650,15 +650,19 @@ object GenericAST {
     }
 
     override def print(): Doc = {
-      v.print <>
-        (arrayIndex match {
-          case null ⇒ nil
-          case _    ⇒ text("[") <> arrayIndex.print <> text("]")
-        }) <>
-        (suffix match {
-          case null ⇒ nil
-          case _    ⇒ text(suffix)
-        })
+
+      val accessD = arrayIndex match {
+        case null ⇒ nil
+        case _    ⇒ text("[") <> arrayIndex.print <> text("]")
+      }
+
+      val suffixD = suffix match {
+        case null ⇒ nil
+        case _    ⇒ text(suffix)
+      }
+
+      v.print <> accessD <> suffixD
+
     }
   }
 
@@ -794,7 +798,7 @@ object GenericAST {
     }
 
     override def print(): Doc = {
-      to.print <> " = " <> value.print
+      to.print <+> "=" <+> value.print
     }
   }
 
@@ -1039,7 +1043,7 @@ object GenericAST {
     }
 
     override def print(): Doc = {
-      "//" <+> content
+      s"// ${content}"
     }
   }
 

@@ -90,40 +90,37 @@ object OpenCLAST {
     }
 
     override def print(): Doc = {
-      val kdescrB =
-        (if (kernel) {
-          text("kernel ")
-        } else {
-          nil
-        })
+      val kdescrB = if (kernel) {
+        text("kernel ")
+      } else {
+        nil
+      }
 
-      val attrB =
-        (if (attribute.isDefined) {
-          attribute.get.print
-        } else {
-          nil
-        })
+      val attrB = if (attribute.isDefined) {
+        attribute.get.print
+      } else {
+        nil
+      }
 
-      val typeB = (
-        if (kernel) {
-          "void"
-        } else {
-          Printer.toString(ret)
-        })
+      val typeB = if (kernel) {
+        "void"
+      } else {
+        Printer.toString(ret)
+      }
 
       val defB = s" ${name}(" <> intersperse(params.map(_.print)) <> ")"
 
-      val innerB = (if (kernel) {
+      val innerB = if (kernel) {
         bracket("{",
-          "#ifndef WORKGROUP_GUARD" <> line <>
-            "#define WORKGROUP_GUARD" <> line <>
-            "#endif" <> line <>
-            "WORKGROUP_GUARD" <> line <>
+          "#ifndef WORKGROUP_GUARD" </>
+            "#define WORKGROUP_GUARD" </>
+            "#endif" </>
+            "WORKGROUP_GUARD" </>
             body.print,
           "}")
       } else {
         body.print
-      })
+      }
 
       kdescrB <> attrB <> typeB <> defB <> innerB
 
