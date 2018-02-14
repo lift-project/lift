@@ -19,7 +19,7 @@ object StencilUtilities
 
   /* globals */
   val iter = 5
-  val printOutput = false
+  val printOutput = true
   val stencilDelta = 0.00002f
   val slidesize = 3;
   val slidestep = 1;
@@ -133,15 +133,6 @@ object StencilUtilities
     print1DArray(output)
   }
 
-  def printOriginalAndOutput3DSame[T:ClassTag](original: Array[Array[Array[T]]], output: Array[T]): Unit = {
-
-    println("ORIGINAL:" + original.flatten.flatten.length)
-    print3DArray(original)
-    println("*********************")
-    println("OUTPUT:" + output.length)
-    print1DArrayAs3DArray(output,original.length,original(0).length,original(0)(0).length)
-  }
-
   def printOriginalAndOutput3D[T:ClassTag](original: Array[Array[Array[T]]], output: Array[T]): Unit = {
 
     println("ORIGINAL:" + original.flatten.flatten.length)
@@ -150,6 +141,7 @@ object StencilUtilities
     println("OUTPUT:" + output.length)
     print1DArrayAs3DArray(output,original(0)(0).length-2,original(0).length-2,original.length-2)
   }
+
     /* only one (value) layer of padding around 2D matrix */
     def createFakePaddingFloat2D(input: Array[Array[Float]], padValue: Float): Array[Array[Float]] = {
       val padSize = input(0).length
@@ -184,15 +176,35 @@ object StencilUtilities
       createFakePaddingFloat2D(filling,0.0f)
     }
 
+  def createDataFloat3D(sizeX: Int, sizeY: Int, sizeZ: Int) = {
+    Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i + j + k + 1).toFloat }
+  }
 
-    def createDataFloat3D(sizeX: Int, sizeY: Int, sizeZ: Int) = {
-      Array.tabulate(sizeZ,sizeY,sizeX) { (i,j,k) => (i + j + k + 1).toFloat }
+  def createDataFloat3DInOrder(sizeX: Int, sizeY: Int, sizeZ: Int) = {
+
+    var backwardsScalaArray : Array[Array[Array[Float]]] = Array.ofDim[Float](sizeZ, sizeY, sizeX)
+    var count : Int = 1
+
+    for {
+      i <- 0 until sizeZ
+      j <- 0 until sizeY
+      k <- 0 until sizeX
+    }  yield {
+      backwardsScalaArray(i)(j)(k) = count
+      count = count + 1
     }
+    backwardsScalaArray
+  }
 
-    def createDataFloat3DWithPadding(sizeX: Int, sizeY: Int, sizeZ: Int) = {
+  def createDataFloat3DWithPadding(sizeX: Int, sizeY: Int, sizeZ: Int) = {
       val filling = createDataFloat3D(sizeX,sizeY, sizeZ)
       createFakePaddingFloat3D(filling,0.0f,sizeX,sizeY)
     }
+
+  def createDataFloat3DWithPaddingInOrder(sizeX: Int, sizeY: Int, sizeZ: Int) = {
+    val filling = createDataFloat3DInOrder(sizeX,sizeY, sizeZ)
+    createFakePaddingFloat3D(filling,0.0f,sizeX,sizeY)
+  }
 
     /* these helper functions do not work, but it would be nice if they did! */
   def map2D(f: Lambda1): FunDecl = {

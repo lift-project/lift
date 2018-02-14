@@ -1,7 +1,7 @@
 package opencl.ir.pattern
 
 import lift.arithmetic.{ArithExpr, PosVar, Var}
-import ir._
+import ir.{ArrayTypeWSWC, _}
 import ir.ast._
 import ir.interpreter.Interpreter.ValueMap
 /**
