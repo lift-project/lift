@@ -637,7 +637,7 @@ class TestMapSeqSlide
     assertArrayEquals(gold, output, 0.1f)
 
   }
-  @Test
+  @Test @Ignore
   def reduceSlide3DTest27PointWithWeights(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
