@@ -1,7 +1,6 @@
 package opencl.generator
 
 import arithmetic.TypeVar
-import c.generator.CAst.CondExpression
 import generator.Generator
 import ir._
 import ir.ast._
