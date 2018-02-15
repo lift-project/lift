@@ -47,10 +47,6 @@ class PrintContext {
     sb ++= "\n" ++ tab()
   }
 
-  //  def newln() : Unit = {
-  //    sb ++= "\n"
-  //  }
-
   /** Insert the correct indentation */
   def tab(): String = {
     lazy val whiteSpace: String = " " * tabSize
