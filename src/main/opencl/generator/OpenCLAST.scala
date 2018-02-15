@@ -49,13 +49,13 @@ object OpenCLAST {
       val kdescrB = if (kernel) {
         text("kernel ")
       } else {
-        nil
+        empty
       }
 
       val attrB = if (attribute.isDefined) {
         attribute.get.print
       } else {
-        nil
+        empty
       }
 
       val typeB = if (kernel) {
@@ -125,7 +125,7 @@ object OpenCLAST {
               s"*${Printer.toString(v.v)}") <>
               (init match {
                 case Some(i) ⇒ " = " <> i.print()
-                case None    ⇒ nil
+                case None    ⇒ empty
               }) <>
               "; "
         }
@@ -137,18 +137,18 @@ object OpenCLAST {
             if (addressSpace == GlobalMemory) {
               addressSpace.toString <> " "
             } else {
-              nil
+              empty
             }
-          case _      => nil
+          case _      => empty
         }) <>
           (if (addressSpace == LocalMemory) {
             addressSpace.toString <> " "
           } else {
-            nil
+            empty
           }) <> s"${Printer.toString(t)} ${Printer.toString(v.v)}" <>
           (init match {
             case Some(i) ⇒ " = " <> i.print()
-            case None    ⇒ nil
+            case None    ⇒ empty
           }) <>
           "; "
     }
@@ -231,11 +231,11 @@ object OpenCLAST {
     override def print(): Doc = {
       "(" <> s"(${addressSpace} ${t}*)" <> Printer.toString(v.v.v) <> ")" <>
         (v.arrayIndex match {
-          case None ⇒ nil
+          case None ⇒ empty
           case Some(ix)    ⇒ "[" <> ix.print <> "]"
         }) <>
         (v.suffix match {
-          case None ⇒ nil
+          case None ⇒ empty
           case Some(sf)    ⇒ text(sf)
         })
     }

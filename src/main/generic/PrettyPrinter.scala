@@ -89,7 +89,7 @@ object PrettyPrinter {
     Some handy definitions and utility functions that make writing code
     cleaner and easier.
    */
-  def nil = Empty()
+  val empty = Empty()
 
   def nest(i: Int, x: Doc): Doc = Nest(i, x)
 

@@ -171,7 +171,7 @@ object GenericAST {
         //print the variable name
         v.print() <>
         // print the assignment
-        init.map(text(" = ") <> _.print()).getOrElse(nil) <>
+        init.map(text(" = ") <> _.print()).getOrElse(empty) <>
         // end the line
         ";"
     }
@@ -195,8 +195,8 @@ object GenericAST {
     override def print(): Doc = t match {
       case ArrayType(_) ⇒
         val (constS, restrict) = if (const) (text("const"), text("restrict"))
-        else (nil,
-          nil)
+        else (empty,
+          empty)
         // const type restrict name
         constS <+>
           Printer.toString(Type.devectorize(t)) <+>
@@ -335,7 +335,7 @@ object GenericAST {
         (if (falseBody != MutableBlock()) {
           text(" else ") <> falseBody.print()
         } else {
-          nil
+          empty
         })
     }
   }
@@ -494,12 +494,12 @@ object GenericAST {
     override def print(): Doc = {
 
       val accessD = arrayIndex match {
-        case None     ⇒ nil
+        case None     ⇒ empty
         case Some(ix) ⇒ "[" <> ix.print <> "]"
       }
 
       val suffixD = suffix match {
-        case None     ⇒ nil
+        case None     ⇒ empty
         case Some(sf) ⇒ text(sf)
       }
 
@@ -732,11 +732,11 @@ object GenericAST {
     override def print(): Doc = {
       "((" <> t.toString <> "*)" <> Printer.toString(v.v.v) <> ")" <>
         (v.arrayIndex match {
-          case None ⇒ nil
+          case None ⇒ empty
           case Some(ix)    ⇒ "[" <> ix.print <> "]"
         }) <>
         (v.suffix match {
-          case None ⇒ nil
+          case None ⇒ empty
           case Some(sf)    ⇒ text(sf)
         })
     }
@@ -800,7 +800,7 @@ object GenericAST {
     * don't want to print any code.
     */
   case class EmptyNode() extends AstNode with BlockMember {
-    override def print(): Doc = nil
+    override def print(): Doc = empty
   }
 
 }
