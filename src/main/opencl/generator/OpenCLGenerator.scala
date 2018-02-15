@@ -1219,21 +1219,12 @@ class OpenCLGenerator extends Generator {
     val init = ArithExpression(range.start)
     val reuse = size - step
     val stop = range match {
-
       case ra: RangeAdd => ra.stop
-
-//<<<<<<< HEAD
-//    val reuse = size - step
-//    val cond = BinaryExpression(ArithExpression(indexVar), BinaryExpressionT
-//      .Operator.<,
-//      ArithExpression((stop - reuse) / step))
-//=======
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
-
     }
+
     val cond = BinaryExpression(ArithExpression(indexVar), BinaryExpressionT
       .Operator.<, ArithExpression(stop))
-//>>>>>>> master
 
     val vType = call.args.head.view.access(0).t
 
@@ -1254,17 +1245,6 @@ class OpenCLGenerator extends Generator {
     val windowSize = getWindowSize(size.eval, nDim)
 
     val v = Value(0.0f, ArrayTypeWSWC(viewType, windowSize))
-//<<<<<<< HEAD
-//    varDecls = varDecls.updated(sSP.windowVar, Type.devectorize(call.t))
-//    privateMems = privateMems :+ TypedOpenCLMemory(OpenCLMemory(sSP.windowVar, windowSize, PrivateMemory), v.t)
-//    val varD = OclVarDecl(
-//      v = CVar(sSP.windowVar),
-//      t = v.t,
-//      init = null,
-//      length = windowSize,
-//      addressSpace = PrivateMemory
-//    )
-//=======
     varDecls = varDecls.updated(sSP.windowVar, v.t)
     privateMems = privateMems :+ TypedOpenCLMemory(sSP.f.params(0).mem, sSP.f.params(0).t)
     val varD = OpenCLAST.OclVarDecl(
@@ -1273,7 +1253,6 @@ class OpenCLGenerator extends Generator {
       init = None,
       length = windowSize,
       addressSpace = PrivateMemory)
-//>>>>>>> master
     privateDecls += (sSP.windowVar -> varD)
     (block: MutableBlock) += varD
 
@@ -1290,10 +1269,6 @@ class OpenCLGenerator extends Generator {
     // initial window values are set
     def setupInitialWindowVars(idx: Int, n: Int, accesses: Array[Int]): Unit = n match {
       case 1 => for (j <- 0 to reuse.eval - 1) {
-//<<<<<<< HEAD
-//        accesses(n - 1) = j; (block: MutableBlock) += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${j + idx}")), ViewPrinter.emit
-//        (getView(call.args.head.view, accesses)))
-//=======
          accesses(n - 1) = j
          val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
          val argViewi = getView(call.args.head.view, accesses)
@@ -1301,7 +1276,6 @@ class OpenCLGenerator extends Generator {
         (block: MutableBlock) += AssignmentExpression(VarRef(sSP.windowVar,
           suffix =
           Some(s"_${j + idx}")), loadi)
-//>>>>>>> master
       }
       case _ => for (i <- 0 to size.eval - 1) {
         accesses(n - 1) = i; setupInitialWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
@@ -1332,14 +1306,6 @@ class OpenCLGenerator extends Generator {
       viewReturn
     }
 
-//<<<<<<< HEAD
-//    def updateWindowVars(idx: Int, n: Int, accesses: Array[Int]): Unit = n match {
-//      case 1 => for (j <- reuse.eval to size.eval - 1) {
-//        accesses(n - 1) = j
-//        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix =
-//          Some(s"_${j + idx}")), ViewPrinter.emit(getViewIncrement(call.args
-//          .head.view, indexVar, accesses)))
-//=======
     def updateWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = n match {
       case 1 => for(j <- reuse.eval to size.eval-1) {
         accesses(n-1) = j
@@ -1348,7 +1314,6 @@ class OpenCLGenerator extends Generator {
         val loadi = generateLoadNode(argMem, viewInc.t, viewInc)
         innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix =
           Some(s"_${j + idx}")), loadi)
-//>>>>>>> master
       }
       case _ => for (i <- 0 to size.eval - 1) {
         accesses(n - 1) = i
