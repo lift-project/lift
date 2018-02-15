@@ -1,6 +1,6 @@
 package opencl.generator
 
-import generic.ast.GenericAST._
+import core.generator.GenericAST._
 import lift.arithmetic._
 import opencl.generator.OpenCLAST._
 import opencl.ir.{Int, PrivateMemory}

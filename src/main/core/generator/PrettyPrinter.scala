@@ -1,4 +1,4 @@
-package generic.ast
+package core.generator
 
 import scala.language.implicitConversions
 

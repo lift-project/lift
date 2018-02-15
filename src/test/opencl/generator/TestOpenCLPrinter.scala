@@ -1,8 +1,8 @@
 package opencl.generator
 
-import generic.ast.AstPrinter
+import core.generator.AstPrinter
 import lift.arithmetic.Var
-import generic.ast.GenericAST._
+import core.generator.GenericAST._
 import org.junit.Test
 import org.junit.Assert._
 

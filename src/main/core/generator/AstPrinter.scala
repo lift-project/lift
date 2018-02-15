@@ -1,7 +1,7 @@
-package generic.ast
+package core.generator
 
-import generic.ast.GenericAST._
-import PrettyPrinter._
+import core.generator.GenericAST._
+import core.generator.PrettyPrinter._
 
 case class AstPrinter(ast: AstNode) {
   def apply(): String = {

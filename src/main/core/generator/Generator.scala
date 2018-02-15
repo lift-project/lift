@@ -1,4 +1,4 @@
-package generic
+package core.generator
 
 import ir.ast.Lambda
 

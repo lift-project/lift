@@ -1,6 +1,6 @@
-package generic.generator
+package core.generator
 
-import generic.ast.GenericAST._
+import core.generator.GenericAST._
 import lift.arithmetic._
 import opencl.generator.DeadCodeElimination
 import opencl.ir.{Int, PrivateMemory}

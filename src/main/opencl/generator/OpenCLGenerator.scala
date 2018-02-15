@@ -1,13 +1,13 @@
 package opencl.generator
 
 import arithmetic.TypeVar
-import generic.Generator
-import generic.ast.{AstPrinter, GenericAST}
+import core.generator.Generator
+import core.generator.{AstPrinter, GenericAST}
 import ir._
 import ir.ast._
 import ir.view._
 import lift.arithmetic._
-import generic.ast.GenericAST._
+import core.generator.GenericAST._
 import opencl.generator.OpenCLAST._
 import opencl.ir._
 import opencl.ir.ast.OpenCLBuiltInFun

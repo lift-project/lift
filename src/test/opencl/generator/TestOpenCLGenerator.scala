@@ -1,11 +1,11 @@
 package opencl.generator
 
-import generic.ast.AstPrinter
+import core.generator.AstPrinter
 import ir._
 import ir.ast.{\, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor.Compile
-import generic.ast.GenericAST.{ArithExpression, StructConstructor}
+import core.generator.GenericAST.{ArithExpression, StructConstructor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapLcl, MapSeq, MapWrg}
 import org.junit.Assert._

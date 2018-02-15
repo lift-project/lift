@@ -1,4 +1,4 @@
-package generic.ast
+package core.generator
 
 import ir.{ArrayType, TupleType, Type}
 import lift.arithmetic._

@@ -1,6 +1,6 @@
 package analysis
 
-import generic.ast.AstPrinter
+import core.generator.AstPrinter
 import ir._
 import ir.ast._
 import lift.arithmetic.{Cst, SizeVar}

@@ -1,8 +1,8 @@
 package opencl.generator
 
-import generic.ast.{GenericAST, PrintContext}
-import generic.ast.GenericAST._
-import generic.ast.PrettyPrinter._
+import core.generator.{GenericAST, PrintContext}
+import core.generator.GenericAST._
+import core.generator.PrettyPrinter._
 import lift.arithmetic.{ArithExpr, Predicate, Var}
 import lift.arithmetic.NotEvaluableToIntException._
 import ir.{ArrayType, TupleType, Type, VectorType}

@@ -4,7 +4,7 @@ import ir.ast._
 import ir._
 import lift.arithmetic._
 import opencl.executor._
-import generic.ast.GenericAST.ArithExpression
+import core.generator.GenericAST.ArithExpression
 import opencl.ir.pattern._
 import opencl.ir.{Int, IntToValue, add, _}
 import org.junit.Assert.assertArrayEquals

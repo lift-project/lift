@@ -1,7 +1,7 @@
 package ir.view
 
-import generic.ast.GenericAST
-import generic.ast.GenericAST._
+import core.generator.GenericAST
+import core.generator.GenericAST._
 import ir.Type.size_t
 import ir.ast._
 import ir._
