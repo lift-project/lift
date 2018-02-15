@@ -204,7 +204,8 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
   }
 
   private def setRangeMapSeqSlide(sp: MapSeqSlide, call: FunCall): Unit = {
-    sp.loopVar = Var(sp.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
+    val reuse = sp.size - sp.step
+    sp.loopVar = Var(sp.loopVar.name, ContinuousRange(Cst(0), (Type.getLength(call.args.head.t) - reuse) / sp.step))
   }
 
 
