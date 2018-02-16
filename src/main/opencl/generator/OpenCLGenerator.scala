@@ -323,6 +323,7 @@ class OpenCLGenerator extends Generator {
   }
 
 
+  @Profile("OpenCL generator")
   private def generateKernel(f: Lambda): Declaration = {
 
     val someMemories = OpenCLGenerator.getDifferentMemories(f)

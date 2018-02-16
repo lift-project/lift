@@ -13,7 +13,12 @@ object Profile {
     import c.universe._
 
     val ctx: String = c.prefix.tree match {
-      case q"new Profile($extraContext)" => c.eval[String](c.Expr(extraContext))
+      case q"new Profile($extraContext)" =>
+        c.eval[String](c.Expr[String](extraContext))
+      // match for when we have no explicit context (i.e. this allows us to
+      // write `@Profile def ...` rather than `@Profile() def ...` which is
+      // (in some ways) slightly cleaner
+      case _⇒ "nocontext"
     }
 
     val result = {
