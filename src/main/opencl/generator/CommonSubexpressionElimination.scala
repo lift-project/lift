@@ -1,4 +1,4 @@
-package core.generator
+package opencl.generator
 
 import core.generator.GenericAST._
 import lift.arithmetic._

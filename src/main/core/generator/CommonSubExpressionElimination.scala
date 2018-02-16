@@ -2,8 +2,9 @@ package core.generator
 
 import core.generator.GenericAST._
 import lift.arithmetic._
+import opencl.ir.Int
 import opencl.generator.DeadCodeElimination
-import opencl.ir.{Int, PrivateMemory}
+//import opencl.ir.{Int, PrivateMemory}
 
 import scala.collection.mutable
 
@@ -62,9 +63,11 @@ object CommonSubexpressionElimination {
           //     new variable
           substitutions put(p._1, newVar)
 
-          VarDecl(CVar(newVar),
+          VarDecl(
+            v = CVar(newVar),
             t = Int,
-            init = Some(ArithExpression(p._1)))
+            init = Some(ArithExpression(p._1))
+          )
         })
 
       // update the Expression nodes to
