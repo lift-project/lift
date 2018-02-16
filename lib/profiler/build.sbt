@@ -1,4 +1,4 @@
-name := "profiling-annotation"
+name := "profiler"
 
 version := "1.0"
 

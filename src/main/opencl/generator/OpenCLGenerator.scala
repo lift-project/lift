@@ -169,6 +169,7 @@ class OpenCLGenerator extends Generator {
     generate(f, localSizes, NDRange(?, ?, ?), immutable.Map())
   }
 
+  @Profile
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
                valueMap: collection.Map[ArithExpr, ArithExpr]): String = {
 

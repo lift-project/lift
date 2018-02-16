@@ -1,5 +1,4 @@
-package lift
-package profiler
+package lift.profiler
 
 import scala.annotation.StaticAnnotation
 import scala.language.experimental.macros
