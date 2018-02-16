@@ -77,9 +77,9 @@ libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
 // Time utilities
 libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.16.0"
 
-lazy val profiling_annotation = RootProject(file("lib/profiling-annotation"))
+lazy val profiler = RootProject(file("lib/Profiler"))
 
-lazy val root = (project in file(".")).aggregate(profiling_annotation).dependsOn(profiling_annotation)
+lazy val root = (project in file(".")).aggregate(profiler).dependsOn(profiler)
 
 val paradiseVersion = "2.1.0"
 

@@ -1,7 +1,3 @@
 [submodule "lib/ArithExpr"]
   path = lib/ArithExpr
   url = https://github.com/lift-project/arithexpr.git
-
-[submodule "lib/profiling-annotation"]
-  path = lib/profiling-annotation
-  url = https://github.com/AdamHarries/profiling-annotation.git
