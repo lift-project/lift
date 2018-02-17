@@ -6,13 +6,14 @@ import javafx.geometry.{Insets, Pos}
 import javafx.stage.{FileChooser, Stage}
 import javafx.scene.layout.VBox
 
-import ir.{ArrayType, Size, Type}
+import ir.{ArrayType, Capacity, Size, Type}
 import lift.arithmetic._
 import javafx._
 import javafx.embed.swing.SwingFXUtils
 import javafx.event.{ActionEvent, EventHandler}
 import javafx.scene.Node
-import javafx.scene.control.{Button, Label, TextField}
+import javafx.scene.control.Alert.AlertType
+import javafx.scene.control._
 import javafx.scene.image.WritableImage
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Pane
@@ -22,6 +23,7 @@ import javax.imageio.ImageIO
 
 import utils.paternoster.logic.Graphics
 import utils.paternoster.logic.Graphics.{Box, BoxWithText, GraphicalPrimitive, Rectangle}
+import utils.paternoster.logic.Scene.flattenArraySizes
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -29,9 +31,10 @@ import scala.collection.mutable.ListBuffer
 class TypeVisualizer() extends Application {
 
   val defaultVarValue = 4
-  val drawingWidth =1280
-    val drawingHeight = 720
-
+  val DRAWING_WIDTH =1280
+  val DRAWING_HEIGHT = 720
+  val DEFAULT_WINDOW_WIDTH = 1280
+  val DEFAULT_WINDOW_HEIGHT =720
 
   override def start(stage: Stage): Unit = {
     //Get the Type
@@ -41,16 +44,19 @@ class TypeVisualizer() extends Application {
 
 
     //mainPane is where we will draw
-    val mainPane = new MainPane(drawingWidth, drawingHeight)
+    val mainPane = new MainPane(DRAWING_WIDTH, DRAWING_HEIGHT)
 
-
+    TypeVisualizer.setMainPane(mainPane)
 
     //Vbox - Main layout container
     var main = new VBox();
     main.setSpacing(10);
     main.setPadding(new Insets(8, 8, 8, 8));
 
-
+    val scrollPane = new ScrollPane()
+    scrollPane.setContent(mainPane)
+    scrollPane.setPrefViewportWidth(DEFAULT_WINDOW_WIDTH)
+    scrollPane.setPrefViewportHeight(DEFAULT_WINDOW_HEIGHT)
 
     //HBox top, display the expression here
     val top: VBox = new VBox
@@ -72,6 +78,17 @@ class TypeVisualizer() extends Application {
     val buttonDraw = new Button()
     buttonDraw.setText("Draw")
     buttonDraw.setPrefSize(100, 20)
+    //Button to save var values
+
+
+    //Button to save var values
+    val saveVars = new Button()
+    saveVars.setText("Set Vars")
+    saveVars.setPrefSize(100, 20)
+
+    val buttonDimension = new Button()
+    buttonDimension.setText("Set Dimensions")
+    buttonDimension.setPrefSize(100, 20)
 
     //Button to save image
     val buttonSave = new Button()
@@ -82,7 +99,7 @@ class TypeVisualizer() extends Application {
       //Create a map of varname and value and call the insetVarValues method with it.
       override def handle(event: ActionEvent): Unit = {
 
-        var wim = new WritableImage(drawingWidth, drawingHeight)
+        var wim = new WritableImage(DRAWING_WIDTH, DRAWING_HEIGHT)
         mainPane.getSnapShot(wim)
 
 
@@ -105,12 +122,24 @@ class TypeVisualizer() extends Application {
         }
     })
 
-    //Create the Label that displays the type as String
-    argTypes.foreach(argType => top.getChildren.add(new Label(argType.toString)))
+
+    var dimensionInputFields = ListBuffer[TextField]()
+    //Create the Labels that display the types as String
+    //Add Textfields that show the deflault grouping
+    argTypes.foreach(argType => {
+      var tf = new TextField()
+      tf.setId(argTypes.indexOf(argType).toString)
+      //new container per var
+      var hBox = new HBox()
+      dimensionInputFields+= tf
+      hBox.getChildren.addAll(new Label("Dimension Grouping:"),tf)
+      top.getChildren.addAll(
+      new Label(argType.toString),hBox)})
+    var dimensionInputFieldList = dimensionInputFields.toList
 
     //Combine ui elements
     //top.getChildren.addAll(typeLabels.toList)
-    bottom.getChildren.addAll(mainPane,buttonSave)
+    bottom.getChildren.addAll(scrollPane,buttonSave)
     main.getChildren.addAll(top,middle, bottom)
 
     var scene = new javafx.scene.Scene(main)
@@ -147,38 +176,173 @@ class TypeVisualizer() extends Application {
         override def handle(event: ActionEvent) {
           var allFilledOut = true
           inputFields.foreach( inputField => allFilledOut = !inputField.getText.trim.isEmpty)
+          dimensionInputFieldList.foreach( inputField => allFilledOut = !inputField.getText.trim.isEmpty)
+
           if(allFilledOut){
-            var userInput = new mutable.HashMap[String,Int]()
+            var userVarInput = new mutable.HashMap[String,Int]()
+            var userDimInput = new mutable.HashMap[Int,List[List[Int]]]()
             inputFields.foreach( inputField=>
               try{
-                userInput.put(inputField.getId, Integer.parseInt(inputField.getText()))
+                userVarInput.put(inputField.getId, Integer.parseInt(inputField.getText()))
               }catch{
                 case e: Exception =>
               } )
 
+            dimensionInputFieldList.foreach( dimInputField => {
+              try {
+                userDimInput.put(dimensionInputFieldList.indexOf(dimInputField),parseDimensionGrouping(dimInputField.getText))
+              } catch {
+                case e: Exception =>
+              }
+            })
+            try{
             //Finally draw the type
-            var typesWithValues = insertVarValuesToAll(argTypes,userInput)
-            draw(renderNodes(typesWithValues),mainPane)
+            var typesWithValues = insertVarValuesToAll(argTypes,userVarInput)
+
+            draw(renderNodes(typesWithValues,userDimInput),mainPane)
             System.out.println(typesWithValues.toString)
+          }catch{
+            case te: ir.TypeException=> {
+              var alert = new Alert(AlertType.INFORMATION)
+              alert.setTitle("Information Dialog")
+              alert.setHeaderText(null)
+              alert.setContentText(te.msg)
+              alert.showAndWait()
+            }}
           }
         }
       })
 
 
-        middle.getChildren.add(buttonDraw)
+      //Buttonlogic
+      saveVars.setOnAction( new EventHandler[ActionEvent] {
+        //Create a map of varname and value and call the insetVarValues method with it.
+        override def handle(event: ActionEvent) {
+          var allFilledOut = true
+          inputFields.foreach( inputField => allFilledOut = !inputField.getText.trim.isEmpty)
+          dimensionInputFieldList.foreach( inputField => allFilledOut = !inputField.getText.trim.isEmpty)
+
+          if(allFilledOut){
+            var userVarInput = new mutable.HashMap[String,Int]()
+            inputFields.foreach( inputField=>
+              try{
+                userVarInput.put(inputField.getId, Integer.parseInt(inputField.getText()))
+              }catch{
+                case e: Exception =>
+              } )
+
+            try{
+            //Finally draw the type
+            var typesWithValues = insertVarValuesToAll(argTypes,userVarInput)
+            var dimensionStringMap = new mutable.HashMap[Int,String]()
+            typesWithValues.foreach(t => dimensionStringMap.put(typesWithValues.indexOf(t),getDimensionGrouping(t)))
+            System.out.println(typesWithValues.toString)
+            var index = 0;
+            dimensionInputFieldList.foreach(t=>{
+              t.setText(dimensionStringMap.get(index).get)
+              index+=1
+            })
+            }catch{
+              case te: ir.TypeException=> {
+                var alert = new Alert(AlertType.INFORMATION)
+                alert.setTitle("Information Dialog")
+                alert.setHeaderText(null)
+                alert.setContentText(te.msg)
+                alert.showAndWait()
+              }}
+          }
+
+
+        }
+      })
+
+      buttonDimension.setOnAction( new EventHandler[ActionEvent] {
+        //Create a map of varname and value and call the insetVarValues method with it.
+        override def handle(event: ActionEvent) {
+          var allFilledOut = true
+          inputFields.foreach( inputField => allFilledOut = !inputField.getText.trim.isEmpty)
+          dimensionInputFieldList.foreach( inputField => allFilledOut = !inputField.getText.trim.isEmpty)
+
+          if(allFilledOut){
+            var userVarInput = new mutable.HashMap[String,Int]()
+            var userDimInput = new mutable.HashMap[Int,List[List[Int]]]()
+            inputFields.foreach( inputField=>
+              try{
+                userVarInput.put(inputField.getId, Integer.parseInt(inputField.getText()))
+              }catch{
+                case e: Exception =>
+              } )
+
+            dimensionInputFieldList.foreach( dimInputField => {
+              try {
+                userDimInput.put(dimensionInputFieldList.indexOf(dimInputField),parseDimensionGrouping(dimInputField.getText))
+              } catch {
+                case e: Exception =>
+              }
+            })
+            try{
+            //Finally draw the type
+            var typesWithValues = insertVarValuesToAll(argTypes,userVarInput)
+            draw(renderNodes(typesWithValues,userDimInput),mainPane)
+            System.out.println(typesWithValues.toString)
+            }catch{
+              case te: ir.TypeException=> {
+                var alert = new Alert(AlertType.INFORMATION)
+                alert.setTitle("Information Dialog")
+                alert.setHeaderText(null)
+                alert.setContentText(te.msg)
+                alert.showAndWait()
+              }}
+          }
+        }
+      })
+
+        middle.getChildren.addAll(buttonDraw,saveVars,buttonDimension)
         middle.setVisible(true);
       try{
         //Try to draw with default values
+
         var typesWithValues = insertVarValuesToAll(argTypes,getDefaultValues(argTypes))
-        draw(renderNodes(typesWithValues),mainPane)
+        var dimensionIndexMap = new mutable.HashMap[Int, List[List[Int]]]()
+        var dimensionStringMap = new mutable.HashMap[Int,String]()
+        typesWithValues.foreach(t => dimensionIndexMap.put(typesWithValues.indexOf(t),parseDimensionGrouping(getDimensionGrouping(t))))
+        typesWithValues.foreach(t => dimensionStringMap.put(typesWithValues.indexOf(t),getDimensionGrouping(t)))
+
+        var index = 0;
+        dimensionInputFieldList.foreach(t=>{
+          t.setText(dimensionStringMap.get(index).get)
+          index+=1
+        })
+        draw(renderNodes(typesWithValues,dimensionIndexMap),mainPane)
         System.out.println(typesWithValues.toString)
       }catch{
-        case e: Exception => System.out.println("Drawing with the default var value "+defaultVarValue+" failed.")
+        case te: ir.TypeException=> {
+          var alert = new Alert(AlertType.INFORMATION)
+          alert.setTitle("Information Dialog")
+          alert.setHeaderText(null)
+          alert.setContentText(te.msg)
+          alert.showAndWait()
+        }
+        case e: Exception => {
+          e.printStackTrace()
+          System.out.println("Drawing with the default var value "+defaultVarValue+" failed.")
+        }
+
       }
     }
     else {
       //If no vars need values to display then show it right away
-      draw(renderNodes(argTypes),mainPane)
+      var dimensionIndexMap = new mutable.HashMap[Int, List[List[Int]]]()
+      var dimensionStringMap = new mutable.HashMap[Int,String]()
+      argTypes.foreach(t => dimensionIndexMap.put(argTypes.indexOf(t),parseDimensionGrouping(getDimensionGrouping(t))))
+      argTypes.foreach(t => dimensionStringMap.put(argTypes.indexOf(t),getDimensionGrouping(t)))
+
+      var index = 0;
+      dimensionInputFieldList.foreach(t=>{
+        t.setText(dimensionStringMap.get(index).get)
+        index+=1
+      })
+      draw(renderNodes(argTypes,dimensionIndexMap),mainPane)
     }
 
     stage.setScene(scene)
@@ -186,25 +350,53 @@ class TypeVisualizer() extends Application {
     stage.show()
   }
 
+  def getDimensionGrouping(argType:Type): String ={
+    argType match {
+      case ar: ArrayType with Size => "("+ar.size.evalInt+")"+ getDimensionGrouping(ar.elemT)
+      case other => ""
+    }
+  }
+  def parseDimensionGrouping(dimensionGrouping : String): List[List[Int]] ={
+    var listBuffer = new ListBuffer[List[Int]]
+    var groupingString = dimensionGrouping
+    while(groupingString.size >= 3){
+      var opening = groupingString.indexOf("(")
+      var closing = groupingString.indexOf(")")
+      var dimension = groupingString.substring(opening+1,closing)
+      if(dimension.contains(",")){
+        var dimensionSplit = dimension.split(",")
+        var dimesions = dimensionSplit.map(str => Integer.parseInt(str))
+        listBuffer+= dimesions.toList
+        groupingString= groupingString.substring(closing+1)
+      }else{
+        listBuffer+= List(Integer.parseInt(dimension))
+        groupingString= groupingString.substring(closing+1)
+      }
 
-def renderNodes(argTypes:List[Type]):Iterable[Graphics.GraphicalPrimitive]={
+    }
+    listBuffer.toList
+  }
+
+
+def renderNodes(argTypes:List[Type],dimensionGrouping: mutable.HashMap[Int,List[List[Int]]]):Iterable[Graphics.GraphicalPrimitive]={
   var nodeBuffer = new ListBuffer[Iterable[Graphics.GraphicalPrimitive]]
+
   var firstType = true;
   var yMargin = 1f;
   var accHeight = 0d;
 
-  argTypes.map(argType => nodeBuffer += utils.paternoster.logic.Scene.drawType(utils.paternoster.logic.Scene.typeNode(argType)))
+  argTypes.map(argType => nodeBuffer += utils.paternoster.logic.Scene.drawType(utils.paternoster.logic.Scene.typeNode(argType,dimensionGrouping.get(argTypes.indexOf(argType)).get)))
 
   var allAdjustedNodes = for(nodes <- nodeBuffer.toList) yield {
 
     var firstBox = nodes.maxBy(gp => gp match {
-      case BoxWithText(text, tx, ty, bx, by, bwidth, bheight) => bwidth
+      case BoxWithText(text, bx, by, bwidth, bheight) => bwidth
       case Rectangle(x, y, w, h) => w
       case Box(x, y, w, h) => w
     })
 
     var adjustedNodes = firstBox match {
-      case bwt: BoxWithText => Graphics.translateAll(nodes, -bwt.bx, -bwt.by)
+      case bwt: BoxWithText => Graphics.translateAll(nodes, -bwt.x, -bwt.y)
       case r: Rectangle => Graphics.translateAll(nodes, -r.x, -r.y)
       case b: Box => Graphics.translateAll(nodes, -b.x, -b.y)
     }
@@ -216,15 +408,18 @@ def renderNodes(argTypes:List[Type]):Iterable[Graphics.GraphicalPrimitive]={
     }
   }
     firstBox match {
-      case BoxWithText(text, tx, ty, bx, by, bwidth, bheight) => accHeight+=bheight+yMargin
+      case BoxWithText(text, bx, by, bwidth, bheight) => accHeight+=bheight+yMargin
       case Rectangle(x, y, w, h) => accHeight+=h
       case Box(x, y, w, h) => accHeight+=h
     }
     firstType=false
     adjustedNodes
  }
+  //allAdjustedNodes = allAdjustedNodes.map(node => Graphics.translateAllToRoundCoords(node))
+
   allAdjustedNodes.flatten
 }
+
 
 
 
@@ -232,6 +427,7 @@ def renderNodes(argTypes:List[Type]):Iterable[Graphics.GraphicalPrimitive]={
     drawPane.draw(prims)
   }
 
+  @throws(classOf[ir.TypeException])
   def insertVarValuesToAll(types: List[Type], values: mutable.HashMap[String,Int]):List[Type]={
     for( argType <- types) yield insertVarValues(argType,values)
   }
@@ -242,20 +438,25 @@ def renderNodes(argTypes:List[Type]):Iterable[Graphics.GraphicalPrimitive]={
     * @param values A Map between varnames and values.
     * @return The new modified Type.
     */
+  @throws(classOf[ir.TypeException])
   def insertVarValues(t : Type, values: mutable.HashMap[String,Int]): Type = {
-    //Replace Var with Cst(value) if there is a matching value in "values".
-    val arithExpVisiterFunc = (ae: ArithExpr)=>{
-      ae match {
-        case v: Var if(values.contains(v.name)) => ArithExpr.LongToCst(Int.int2long(values.get(v.name).get))
-        case an:Any=>  an
-      }
-    }
-    //Call the arithExprVisiterFunc on every ArithExpr inside the ArithExpr with visitAndRebuild
-    val typeVisiterFunc = (ae:ArithExpr)=> ae.visitAndRebuild(arithExpVisiterFunc)
 
-    //Call the function typeVisiterFunc at every ArithExpr of the type with visitAndRebuild
-    var newT = Type.visitAndRebuild(t,typeVisiterFunc)
-    newT
+      //Replace Var with Cst(value) if there is a matching value in "values".
+      val arithExpVisiterFunc = (ae: ArithExpr)=>{
+        ae match {
+          case v: Var if(values.contains(v.name)) => ArithExpr.LongToCst(Int.int2long(values.get(v.name).get))
+          case an:Any=>  an
+        }
+      }
+      //Call the arithExprVisiterFunc on every ArithExpr inside the ArithExpr with visitAndRebuild
+      val typeVisiterFunc = (ae:ArithExpr)=> ae.visitAndRebuild(arithExpVisiterFunc)
+
+      //Call the function typeVisiterFunc at every ArithExpr of the type with visitAndRebuild
+      var newT = Type.visitAndRebuild(t,typeVisiterFunc)
+      newT
+
+
+
   }
 
   def getDefaultValues(types: List[Type]): mutable.HashMap[String,Int]={
