@@ -71,9 +71,9 @@ object Scene {
     case tt: TupleType => TupleNode(tt.elemsT.map(typeNode(_)))
     case array:ArrayType with Size =>
       //Get the nested array sizes as an ordered list
-      val sizes = flattenArraySizes(array)
+      //val sizes = flattenArraySizes(array)
       //Group the ordered list of sizes according to the default dimension rules
-      val groupedSizes = groupSizesByDimensions(defaultDimensionSplits(sizes.length), sizes)
+     // val groupedSizes = groupSizesByDimensions(defaultDimensionSplits(sizes.length), sizes)
       //The ultimate non-array element contained in the nested array
       val bottomElement = arrayBottomElementType(array)
       arrayTypeNode(bottomElement, dimensions)
