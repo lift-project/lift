@@ -14,11 +14,13 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 class TypeVisualizer(argTypes :List[Type])  {
+  case class TypeVisualisation(id : Int, argType:Type, dimensionGrouping: List[List[ArithExpr]])
   val INITIAL_VAR_VALUE = 4;
 
   var types = argTypes;
   var variables: mutable.HashMap[String,Int]=null;
-  var dimensionGrouping : mutable.HashMap[Type,List[List[ArithExpr]]]= null;
+  var typeVisualizations : List[TypeVisualisation]= null
+
 
   def init(): Unit ={
     initVarList()
@@ -31,8 +33,13 @@ class TypeVisualizer(argTypes :List[Type])  {
   }
 
   def initDimensionGrouping():Unit={
-    dimensionGrouping = new mutable.HashMap[Type,List[List[ArithExpr]]];
-    types.foreach(argType => dimensionGrouping.put(argType,getDimensionGrouping(argType)))
+    var listBuffer = new ListBuffer[TypeVisualisation]
+    var index = 0;
+    types.foreach(argType => {
+      listBuffer+= TypeVisualisation(index,argType,getDimensionGrouping(argType))
+      index +=1
+    })
+    typeVisualizations = listBuffer.toList
   }
 
   def startGui(args:Array[String]= Array("default argument")) = {
@@ -42,6 +49,9 @@ class TypeVisualizer(argTypes :List[Type])  {
   def getTypes(): List[Type]={
     types
   }
+  def getTypeVisualizations(): List[TypeVisualisation]={
+    typeVisualizations
+  }
 
   def getVariableNames(): List[String]={
        variables.keySet.toList
@@ -49,7 +59,7 @@ class TypeVisualizer(argTypes :List[Type])  {
   def getVariables():mutable.HashMap[String,Int]={
      variables
   }
-  def getDimensionGrouping():mutable.HashMap[Type, List[List[ArithExpr]]] ={
+/*  def getDimensionGrouping():mutable.HashMap[Type, List[List[ArithExpr]]] ={
     //Todo Check if ts still necessary to copy this
      var mapClone = new mutable.HashMap[Type, List[List[ArithExpr]]]()
     dimensionGrouping.keySet.foreach(argType => {
@@ -68,7 +78,7 @@ class TypeVisualizer(argTypes :List[Type])  {
     })
     mapClone
   }
-
+*/
 def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
 
   case Cst(c) => Cst(c)
@@ -130,25 +140,25 @@ def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
   }
 
   // Todo Throw exception if malformed
-  def updateDimensionGrouping( argTypeString: String, grouping :String ):Unit = {
-    getDimensionGrouping().keySet.foreach( argType => if(argType.toString.equals(argTypeString)) {
-      var currentGrouping = getDimensionGrouping(argType)
+  def updateDimensionGrouping( id: String, grouping :String ):Unit = {
+    var referencedVisualisation = typeVisualizations.filter(tv => tv.id.toString.equals(id)).head
+      var defaultGrouping = getDimensionGrouping(referencedVisualisation.argType)
       //var flatSizes = currentGrouping.flatten.reverse
-      var flatSizes = currentGrouping.flatten
+      var flatSizes = defaultGrouping.flatten
       var parsedGrouping = parseDimensionGrouping(grouping)
       var newGrouping = parsedGrouping.map(group=> {
         var sizes = flatSizes.take(group.size)
         flatSizes = flatSizes.drop(group.size)
         sizes
       })
-      dimensionGrouping.update(argType,newGrouping)
-    })
+    typeVisualizations = typeVisualizations.updated(typeVisualizations.indexOf(referencedVisualisation), referencedVisualisation.copy(referencedVisualisation.id,referencedVisualisation.argType,newGrouping))
   }
 
-  def getDimensionGroupingAsString(argType: Type): String ={
-    var groupingIterator = getDimensionGrouping().get(argType).get.iterator
+  def getDimensionGroupingAsString(dimensionGrouping: List[List[ArithExpr]]): String ={
+    //only for default groupings...
+    var groupingIterator = dimensionGrouping.iterator
     var dimensionString = "";
-    var dimension = if(getDimensionCount(argType) >0 ) getDimensionCount(argType) else 1
+    var dimension = if(dimensionGrouping.size >0 ) dimensionGrouping.size else 1
     var i = 1;
     while(i<=dimension){
       var currentGrouping = groupingIterator.next()
@@ -170,10 +180,9 @@ def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
     val oldVal = variables.get(varName).get
     variables.update(varName, Integer.parseInt(newValue))
     try{
-      types.foreach(argType =>{
-        getGroupingWithValues(getDimensionGrouping().get(argType).get)
+      typeVisualizations.foreach(tv =>{
+        getGroupingWithValues(tv.dimensionGrouping)
       })
-
     }catch {
       case tex:TypeException =>{
         //revert change and throw exception
@@ -240,10 +249,10 @@ def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
     var yMargin = 1f;
     var accHeight = 0d;
 
-    types.map(argType => {
-      val currentGrouping = getDimensionGrouping().get(argType).get
+    typeVisualizations.map(tv => {
+      val currentGrouping = tv.dimensionGrouping
       var groupingWithValues = getGroupingWithValues(currentGrouping)
-      nodeBuffer += utils.paternoster.logic.Scene.drawType(utils.paternoster.logic.Scene.typeNode(argType,groupingWithValues))
+      nodeBuffer += utils.paternoster.logic.Scene.drawType(utils.paternoster.logic.Scene.typeNode(tv.argType,groupingWithValues))
     })
 
     var allAdjustedNodes = for(nodes <- nodeBuffer.toList) yield {

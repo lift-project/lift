@@ -110,20 +110,19 @@ class VisualizerWindow extends Application {
 
 
     var dimensionInputFields = ListBuffer[TextField]()
-    val dimensionGrouping = visualizer.getDimensionGrouping()
-    val types = visualizer.getTypes()
+    val types = visualizer.getTypeVisualizations()
     //Create the Labels that display the types as String
     //Add Textfields that show the deflault grouping
 
-    types.foreach(argType => {
-      var tf = new TextField(visualizer.getDimensionGroupingAsString(argType))
-      tf.setId(argType.toString)
+    types.foreach(tv => {
+      var tf = new TextField(visualizer.getDimensionGroupingAsString(tv.dimensionGrouping))
+      tf.setId(tv.id.toString)
       //new container per var
       var hBox = new HBox()
       dimensionInputFields += tf
       hBox.getChildren.addAll(new Label("Dimension Grouping:"), tf)
       top.getChildren.addAll(
-        new Label(visualizer.getCleanedTypeName(argType)), hBox)
+        new Label(visualizer.getCleanedTypeName(tv.argType)), hBox)
     })
 
     var dimensionInputFieldList = dimensionInputFields.toList
@@ -239,9 +238,9 @@ class VisualizerWindow extends Application {
         })
       }
       if (userDimInput != null) {
-        userDimInput.keySet.foreach(typeString => {
+        userDimInput.keySet.foreach(id => {
           try {
-            visualizer.updateDimensionGrouping(typeString, userDimInput.get(typeString).get)
+            visualizer.updateDimensionGrouping(id, userDimInput.get(id).get)
           } catch {
             case tex: ir.TypeException =>{
               showAlert(tex.msg)
@@ -249,7 +248,7 @@ class VisualizerWindow extends Application {
             }
             case ex: NumberFormatException => {
               System.out.println(ex.getClass.toString)
-              showAlert("Could not parse dimension grouping for\"" + typeString + "\". All brackets have to be either \"(Int)\" or \"(Int,Int)\".")
+              showAlert("Could not parse dimension grouping for type #" + id + ". All brackets have to be either \"(Int)\" or \"(Int,Int)\".")
               noExceptions = false
             }
           }
