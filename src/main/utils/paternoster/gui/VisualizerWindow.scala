@@ -111,10 +111,11 @@ class VisualizerWindow extends Application {
 
     var dimensionInputFields = ListBuffer[TextField]()
     val dimensionGrouping = visualizer.getDimensionGrouping()
+    val types = visualizer.getTypes()
     //Create the Labels that display the types as String
     //Add Textfields that show the deflault grouping
 
-    dimensionGrouping.keys.foreach(argType => {
+    types.foreach(argType => {
       var tf = new TextField(visualizer.getDimensionGroupingAsString(argType))
       tf.setId(argType.toString)
       //new container per var
@@ -143,7 +144,7 @@ class VisualizerWindow extends Application {
     if (!arrayVars.isEmpty) {
       //If yes add an inputfield per variable
 
-      arrayVars.keySet.foreach(arrayVar => {
+      arrayVars.keySet.toList.sorted.foreach(arrayVar => {
         //new container per var
         var hBox = new HBox()
         //consists of label for varname and input field

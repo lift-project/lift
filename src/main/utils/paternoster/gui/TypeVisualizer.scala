@@ -50,6 +50,7 @@ class TypeVisualizer(argTypes :List[Type])  {
      variables
   }
   def getDimensionGrouping():mutable.HashMap[Type, List[List[ArithExpr]]] ={
+    //Todo Check if ts still necessary to copy this
      var mapClone = new mutable.HashMap[Type, List[List[ArithExpr]]]()
     dimensionGrouping.keySet.foreach(argType => {
       val outerList =  dimensionGrouping.get(argType).get
@@ -131,12 +132,13 @@ def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
   // Todo Throw exception if malformed
   def updateDimensionGrouping( argTypeString: String, grouping :String ):Unit = {
     getDimensionGrouping().keySet.foreach( argType => if(argType.toString.equals(argTypeString)) {
-      var currentGrouping = getDimensionGrouping().get(argType).get
-      var flatSizes = currentGrouping.flatten.reverse
+      var currentGrouping = getDimensionGrouping(argType)
+      //var flatSizes = currentGrouping.flatten.reverse
+      var flatSizes = currentGrouping.flatten
       var parsedGrouping = parseDimensionGrouping(grouping)
       var newGrouping = parsedGrouping.map(group=> {
         var sizes = flatSizes.take(group.size)
-        flatSizes.drop(group.size)
+        flatSizes = flatSizes.drop(group.size)
         sizes
       })
       dimensionGrouping.update(argType,newGrouping)
