@@ -110,7 +110,7 @@ class VisualizerWindow extends Application {
 
 
     var dimensionInputFields = ListBuffer[TextField]()
-    var dimensionGrouping = visualizer.getDimensionGrouping()
+    val dimensionGrouping = visualizer.getDimensionGrouping()
     //Create the Labels that display the types as String
     //Add Textfields that show the deflault grouping
 
@@ -226,6 +226,10 @@ class VisualizerWindow extends Application {
           try {
             visualizer.updateVariable(varName, userVarInput.get(varName).get)
           } catch {
+            case tex: ir.TypeException =>{
+              showAlert(tex.msg)
+              noExceptions = false
+            }
             case nfe: NumberFormatException => {
               showAlert("Could not parse value for " + varName + ". Expected an an Integer but was \"" + userVarInput.get(varName).get + "\".")
               noExceptions = false
@@ -238,7 +242,12 @@ class VisualizerWindow extends Application {
           try {
             visualizer.updateDimensionGrouping(typeString, userDimInput.get(typeString).get)
           } catch {
-            case ex: Exception => {
+            case tex: ir.TypeException =>{
+              showAlert(tex.msg)
+              noExceptions = false
+            }
+            case ex: NumberFormatException => {
+              System.out.println(ex.getClass.toString)
               showAlert("Could not parse dimension grouping for\"" + typeString + "\". All brackets have to be either \"(Int)\" or \"(Int,Int)\".")
               noExceptions = false
             }

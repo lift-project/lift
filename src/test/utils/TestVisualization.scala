@@ -39,6 +39,37 @@ class TestVisualization{
     //println(Compile(lambda))
   }
 
+
+  @Test
+  def tupleType(): Unit = {
+    val input = Array.tabulate(32){ i => i}
+    val N = Var("N")
+
+    def lambda = fun(
+      ArrayType(Float, N), input =>
+        MapGlb(\(tuple => id(tuple._0))) o PrintType() $ Zip(input, input)
+    )
+
+    val kernel = Compile(lambda)
+    println(kernel)
+  }
+
+  @Test
+  def vectorType(): Unit = {
+    val input = Array.tabulate(32){ i => i}
+    val N = Var("N")
+
+    def lambda = fun(
+      ArrayType(Float, N), input =>
+        PrintType(visual = true,render = true) o MapGlb(toGlobal(idF4)) o PrintType(visual = true)  o asVector(4) o PrintType(visual = true)  $ input
+    )
+
+    TypeChecker(lambda)
+   // val kernel = Compile(lambda)
+    //println(kernel)
+  }
+
+
 }
 
 
