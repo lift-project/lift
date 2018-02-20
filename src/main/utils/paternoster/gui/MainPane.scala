@@ -27,11 +27,13 @@ class MainPane(val width:Int, val height:Int) extends Pane {
 
   def draw(primitives:Iterable[GraphicalPrimitive]) = {
     val gc = this.canvas.getGraphicsContext2D
-
     gc.setFont(new Font(gc.getFont.getName,10))
     val context = JavaFXRenderer.Context(gc, unitX, unitY, smallX, smallY,width.toDouble,height.toDouble)
     JavaFXRenderer.drawPrimitives(primitives, context)
+  }
 
+  def renderToSvg(primitives:Iterable[GraphicalPrimitive]): Unit ={
+    //var bla = new SVGGraphics2D
   }
 
   def getSnapShot(wim: WritableImage): Unit ={

@@ -1,5 +1,6 @@
 package utils.paternoster.gui
 
+import java.io.File
 import javafx.application.Application
 import javafx.embed.swing.SwingFXUtils
 import javafx.event.{ActionEvent, EventHandler}
@@ -10,6 +11,7 @@ import javafx.scene.control.Alert.AlertType
 import javafx.scene.image.WritableImage
 import javafx.scene.input.{KeyCode, KeyEvent}
 import javafx.scene.layout.{HBox, VBox}
+import javafx.stage.FileChooser.ExtensionFilter
 import javafx.stage.{FileChooser, Stage}
 import javax.imageio.ImageIO
 
@@ -86,20 +88,25 @@ class VisualizerWindow extends Application {
       //Create a map of varname and value and call the insetVarValues method with it.
       override def handle(event: ActionEvent): Unit = {
 
-        var wim = new WritableImage(DRAWING_WIDTH, DRAWING_HEIGHT)
-        mainPane.getSnapShot(wim)
-
 
         var fileChooser = new FileChooser()
         fileChooser.setTitle("Save file")
-        fileChooser.setInitialFileName("typeDrawing.png")
-        var savedFile = fileChooser.showSaveDialog(stage)
-        if (savedFile != null) {
-          try
-            ImageIO.write(SwingFXUtils.fromFXImage(wim, null), "png", savedFile)
-          catch {
-            case s: Exception =>
+        fileChooser.setInitialFileName("typeDrawing")
 
+        fileChooser.getExtensionFilters.add(new ExtensionFilter("Svg (*.svg)","*.svg"))
+        fileChooser.getExtensionFilters.add(new ExtensionFilter("Png (*.png)","*.png"))
+
+        var savedFile = fileChooser.showSaveDialog(stage)
+
+        if (savedFile != null) {
+          val extension = fileChooser.selectedExtensionFilterProperty.get.getExtensions.get(0).substring(1)
+          if(!savedFile.getCanonicalPath.contains(".svg") && !savedFile.getCanonicalPath.contains(".png")){
+            savedFile = new File(savedFile.getCanonicalPath+extension)
+          }
+          try
+            visualizer.saveGraphic(savedFile, extension)
+          catch {
+            case nie: NotImplementedError => showAlert(nie.getMessage)
           }
 
         }

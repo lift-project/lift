@@ -1,3 +1,6 @@
 [submodule "lib/ArithExpr"]
   path = lib/ArithExpr
   url = https://github.com/lift-project/arithexpr.git
+[submodule "lib/jfree"]
+    path = lib/jfree
+    url= https://github.com/jfree/jfreesvg.git

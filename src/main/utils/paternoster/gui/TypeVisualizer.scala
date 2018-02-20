@@ -1,7 +1,11 @@
 package utils.paternoster.gui
 
 
+import java.io.File
 import javafx.application.Application
+import javafx.embed.swing.SwingFXUtils
+import javafx.scene.image.WritableImage
+import javax.imageio.ImageIO
 
 import ir._
 import lift.arithmetic.ArithExpr.evalDouble
@@ -24,7 +28,7 @@ class TypeVisualizer(argTypes :List[Type])  {
 
   def init(): Unit ={
     initVarList()
-    initDimensionGrouping()
+    initTypeVisualisationList()
   }
 
   def initVarList():Unit ={
@@ -32,7 +36,7 @@ class TypeVisualizer(argTypes :List[Type])  {
     types.collect{ case t: Type => t.varList}.flatten.distinct.sortWith(_.name>_.name).foreach(variable=> variables.put(variable.name,INITIAL_VAR_VALUE))
   }
 
-  def initDimensionGrouping():Unit={
+  def initTypeVisualisationList():Unit={
     var listBuffer = new ListBuffer[TypeVisualisation]
     var index = 0;
     types.foreach(argType => {
@@ -240,6 +244,21 @@ def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
       } )).asInstanceOf[List[List[Int]]]
   }
 
+  @throws(classOf[NotImplementedError])
+  def saveGraphic(file: File, extension: String):Unit ={
+    extension match {
+      case ".svg" => throw new NotImplementedError("Svg Export is not implemented yet.")
+      case ".png" => saveAsPng(file)
+      case default => throw new NotImplementedError("The export is only possible as .svg or .png file.")
+    }
+  }
+
+  def saveAsPng(file:File):Unit ={
+    val mainPane = TypeVisualizer.getMainPane()
+    var wim = new WritableImage(mainPane.canvas.getWidth.toInt, mainPane.canvas.getHeight.toInt)
+    mainPane.getSnapShot(wim)
+    ImageIO.write(SwingFXUtils.fromFXImage(wim,null),"png",file)
+  }
 
 
   def renderNodes():Iterable[Graphics.GraphicalPrimitive]={
