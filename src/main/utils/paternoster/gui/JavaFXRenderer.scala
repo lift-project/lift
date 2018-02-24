@@ -67,6 +67,23 @@ object JavaFXRenderer {
           maxheight = h
         }
       }
+      case CorneredClause(x, y, w, h) => {
+        val currentScaledWidth = w * ctx.unitX - 2 * ctx.smallX
+        if ((currentScaledWidth) > maxScaledWidth) {
+          maxScaledWidth = currentScaledWidth
+          maxwidth = w
+        }
+        val currentScaledHeight = h * ctx.unitY - 2 * ctx.smallY
+        if ((currentScaledHeight) < minScaledHeight) {
+          minScaledHeight = currentScaledHeight
+          minheight = h
+        }
+        if ((currentScaledHeight) > maxScaledHeight) {
+          maxScaledHeight = currentScaledHeight
+          maxheight = h
+        }
+      }
+
       case _:Any =>
     })
 
@@ -93,12 +110,19 @@ object JavaFXRenderer {
         if(width > maxWidth) maxWidth=width
         if(height > maxHeight) maxHeight = height
       }
+      case CorneredClause(x,y,w,h)=>  {
+        val width = x+w
+        val height = y+h
+        if(width > maxWidth) maxWidth=width
+        if(height > maxHeight) maxHeight = height
+      }
       case Rectangle(x,y,w,h)=> {
         val width = x+w
         val height = y+h
         if(width > maxWidth) maxWidth=width
         if(height > maxHeight) maxHeight = height
       }
+      case default =>
     })
 
     if(maxHeight*ctx.unitY > TypeVisualizer.getMainPane().height){
@@ -133,6 +157,59 @@ object JavaFXRenderer {
           Math.round(y*ctx.unitY + ctx.smallY*4),
           Math.round(w*ctx.unitX - 2*ctx.smallX),
           Math.round(h*ctx.unitY - 2*ctx.smallY))
+      case CorneredClause(x, y, w, h) =>
+        ctx.gc.setFill(Color.BLACK)
+        //Left line
+        ctx.gc.strokeLine(
+          x*ctx.unitX + ctx.smallX,
+          y*ctx.unitY + ctx.smallY,
+          x*ctx.unitX + ctx.smallX,
+          (y*ctx.unitY + ctx.smallY)+(h*ctx.unitY - 2*ctx.smallY)
+        )
+        //Left upper corner
+        ctx.gc.strokeLine(
+          x*ctx.unitX + ctx.smallX,
+          y*ctx.unitY + ctx.smallY,
+          x*ctx.unitX + ctx.smallX+(2),
+          y*ctx.unitY + ctx.smallY
+        )
+        //Left lower corner
+        ctx.gc.strokeLine(
+          x*ctx.unitX + ctx.smallX,
+          (y*ctx.unitY + ctx.smallY)+(h*ctx.unitY - 2*ctx.smallY),
+          x*ctx.unitX + ctx.smallX+(2),
+          (y*ctx.unitY + ctx.smallY)+(h*ctx.unitY - 2*ctx.smallY)
+        )
+
+        //Right line
+        ctx.gc.strokeLine(
+          (x*ctx.unitX + ctx.smallX)+(w*ctx.unitX - 2*ctx.smallX),
+          y*ctx.unitY + ctx.smallY,
+          (x*ctx.unitX + ctx.smallX)+(w*ctx.unitX - 2*ctx.smallX),
+          (y*ctx.unitY + ctx.smallY)+(h*ctx.unitY - 2*ctx.smallY)
+        )
+        //Right upper corner
+        ctx.gc.strokeLine(
+          (x*ctx.unitX + ctx.smallX)+(w*ctx.unitX - 2*ctx.smallX),
+          y*ctx.unitY + ctx.smallY,
+          (x*ctx.unitX + ctx.smallX)+(w*ctx.unitX - 2*ctx.smallX)-(2),
+          y*ctx.unitY + ctx.smallY
+        )
+        //Right lower corner
+        ctx.gc.strokeLine(
+          (x*ctx.unitX + ctx.smallX)+(w*ctx.unitX - 2*ctx.smallX),
+          (y*ctx.unitY + ctx.smallY)+(h*ctx.unitY - 2*ctx.smallY),
+          (x*ctx.unitX + ctx.smallX)+(w*ctx.unitX - 2*ctx.smallX)-(2),
+          (y*ctx.unitY + ctx.smallY)+(h*ctx.unitY - 2*ctx.smallY)
+        )
+      case Seperator(x,y)=>{
+        ctx.gc.setFill(Color.BLACK)
+        ctx.gc.strokeLine(
+          x*ctx.unitX + ctx.smallX,
+          y*ctx.unitY + ctx.smallY,
+          x*ctx.unitX + ctx.smallX,
+          y*ctx.unitY + ctx.smallY-(2))
+      }
       case Box(x, y, w, h) =>
         ctx.gc.setStroke(Color.RED)
         ctx.gc.strokeRect(

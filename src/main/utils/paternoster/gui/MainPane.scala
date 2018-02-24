@@ -9,6 +9,7 @@ import javafx.scene.text.Font
 import utils.paternoster.logic.Graphics.GraphicalPrimitive
 
 
+
 /**
   * Created by federico on 16/08/17.
   */
@@ -27,10 +28,12 @@ class MainPane(val width:Int, val height:Int) extends Pane {
 
   def draw(primitives:Iterable[GraphicalPrimitive]) = {
     val gc = this.canvas.getGraphicsContext2D
-
     gc.setFont(new Font(gc.getFont.getName,10))
     val context = JavaFXRenderer.Context(gc, unitX, unitY, smallX, smallY,width.toDouble,height.toDouble)
     JavaFXRenderer.drawPrimitives(primitives, context)
+  }
+
+  def renderToSvg(primitives:Iterable[GraphicalPrimitive]): Unit ={
 
   }
 

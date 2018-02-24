@@ -74,10 +74,15 @@ libraryDependencies += "org.clapper" %% "argot" % "1.0.3"
 libraryDependencies += "ch.qos.logback" %  "logback-classic" % "1.1.7"
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
 
+libraryDependencies += "org.jfree" % "jfreesvg" % "2.0"
+
 scalacOptions in (Compile,doc) := Seq("-implicits", "-diagrams")
 
 // Build ArithExpr
 unmanagedSourceDirectories in Compile += baseDirectory.value / "lib/ArithExpr/src/main/"
+
+//Build Jfree
+unmanagedSourceDirectories in Compile += baseDirectory.value / "lib/jfree/src/main/java/"
 
 ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*;.*arithmetic.*;.*testing.*"
 
