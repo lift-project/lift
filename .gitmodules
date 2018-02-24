@@ -4,3 +4,4 @@
 [submodule "jfree"]
 	path = lib/jfree
 	url = https://github.com/jfree/jfreesvg.git
+
