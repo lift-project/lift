@@ -47,11 +47,12 @@ class TestVisualization{
 
     def lambda = fun(
       ArrayType(Float, N), input =>
-        MapGlb(\(tuple => id(tuple._0))) o PrintType() $ Zip(input, input)
+        MapGlb(\(tuple => id(tuple._0))) o PrintType(visual = true,render = true) $ Zip(input, input)
     )
 
-    val kernel = Compile(lambda)
-    println(kernel)
+    TypeChecker(lambda)
+    // val kernel = Compile(lambda)
+    //println(kernel)
   }
 
   @Test

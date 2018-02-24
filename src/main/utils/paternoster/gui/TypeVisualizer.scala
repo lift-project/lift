@@ -2,6 +2,8 @@ package utils.paternoster.gui
 
 
 import java.io.File
+import java.util.regex.Pattern
+import java.util.stream.Collectors
 import javafx.application.Application
 import javafx.embed.swing.SwingFXUtils
 import javafx.scene.image.WritableImage
@@ -12,7 +14,7 @@ import lift.arithmetic.ArithExpr.evalDouble
 import lift.arithmetic.NotEvaluableException.NotEvaluable
 import lift.arithmetic.{SimplifiedExpr, _}
 import utils.paternoster.logic.Graphics
-import utils.paternoster.logic.Graphics.{Box, BoxWithText, GraphicalPrimitive, Rectangle}
+import utils.paternoster.logic.Graphics._
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -143,9 +145,93 @@ def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
       typeString
   }
 
+  def checkGroupingValid(referencedVisualisation: TypeVisualisation , grouping : String ) : Boolean={
+
+    var defaultGroupingString = getDimensionGroupingAsString(referencedVisualisation.argType)
+    var pattern = replaceArraysWithPatterns(defaultGroupingString)
+    pattern = "("+escapeSpecialRegexCharacters(pattern)+")"
+    var matches = grouping.matches(pattern)
+    matches
+  }
+  def escapeSpecialRegexCharacters(pattern:String) :String ={
+    var result = pattern.replaceAll("\\(","\\\\(")
+    result =result.replaceAll("\\)","\\\\)")
+    result =result.replaceAll("\\[", "\\\\[")
+    result =result.replaceAll("\\]", "\\\\]")
+    result
+  }
+
+  def replaceArraysWithPatterns(grouping: String, index : Int=0): String ={
+    val openingClause = grouping.indexOf("(",index)
+    if( openingClause.equals(-1)){
+      return grouping.substring(index)
+    }
+    var closingClause = grouping.indexOf(")",index)
+
+    while(closingClause+1 < grouping.size && grouping.charAt(closingClause+1)=='('){
+      //In this case we have a multidminensional array
+      closingClause = grouping.indexOf(")",closingClause+1)
+    }
+    var section = grouping.substring(openingClause,closingClause+1)
+    var arrayCount = section.count(_ == '(')
+    var replacement = getArrayGroupingCombinationPattern(arrayCount)
+    var returnString = grouping.subSequence(index,openingClause).toString
+    returnString+= replacement
+    returnString+= replaceArraysWithPatterns(grouping,closingClause+1)
+
+    return returnString
+  }
+
+  def getArrayGroupingCombinationPattern( arrayCount : Int): String ={
+    var pattern = ""
+    //1 represents not grouped 2 represents grouped
+    var allCodedGroupings = getAllPossibleGroupings(arrayCount)
+    allCodedGroupings.foreach(codedGrouping => pattern+= getSingleGroupingAsPattern(codedGrouping)+"|")
+    pattern.substring(0,pattern.length-1)
+  }
+
+  def getSingleGroupingAsPattern(grouping : List[Int]): String ={
+    var pattern = ""
+    grouping.foreach(number => {
+      if(number.equals(1)){
+        pattern+= "(\\d+)"
+      }else{
+        pattern += "(\\d+,\\d+)"
+      }
+    })
+    pattern
+  }
+
+  def getAllPossibleGroupings(arrayCount:Int): List[List[Int]] ={
+    var codedStandartGrouping = List.fill(arrayCount)(1)
+    var uniqueGroupingBuffer = new ListBuffer[List[Int]]()
+    uniqueGroupingBuffer+= codedStandartGrouping
+    getAllUniqueGroupings(codedStandartGrouping,uniqueGroupingBuffer)
+    var allUniqueGroupings =uniqueGroupingBuffer.toList
+    var allPossibleGroupingsBuffer = new ListBuffer[List[Int]]()
+    allUniqueGroupings.foreach(uniqueGrouping => uniqueGrouping.permutations.toList.foreach(permutation => allPossibleGroupingsBuffer+= permutation))
+    return allPossibleGroupingsBuffer.toList
+  }
+
+  def getAllUniqueGroupings(currentGrouping: List[Int] , allUniques: ListBuffer[List[Int]]): Unit ={
+    if(currentGrouping.size>=2){
+      var firstElem = currentGrouping.take(1).head
+      var secondElem = currentGrouping.take(2).tail.head
+      if(firstElem == 1 && secondElem == 1 ){
+        var buffer =  new ListBuffer[Int]()
+        currentGrouping.drop(2).foreach( number => buffer+= number)
+        buffer+= 2
+        var newGrouping  =  buffer.toList
+        allUniques+= newGrouping
+        getAllUniqueGroupings(newGrouping,allUniques)
+      }
+    }
+  }
+
   // Todo Throw exception if malformed
   def updateDimensionGrouping( id: String, grouping :String ):Unit = {
     var referencedVisualisation = typeVisualizations.filter(tv => tv.id.toString.equals(id)).head
+    if(checkGroupingValid(referencedVisualisation: TypeVisualisation ,grouping:String)){
       var defaultGrouping = getDimensionGrouping(referencedVisualisation.argType)
       //var flatSizes = currentGrouping.flatten.reverse
       var flatSizes = defaultGrouping.flatten
@@ -155,23 +241,38 @@ def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
         flatSizes = flatSizes.drop(group.size)
         sizes
       })
-    typeVisualizations = typeVisualizations.updated(typeVisualizations.indexOf(referencedVisualisation), referencedVisualisation.copy(referencedVisualisation.id,referencedVisualisation.argType,newGrouping))
+      typeVisualizations = typeVisualizations.updated(typeVisualizations.indexOf(referencedVisualisation), referencedVisualisation.copy(referencedVisualisation.id,referencedVisualisation.argType,newGrouping))
+    }else{
+      throw new IllegalArgumentException("The dimension grouping: \""+grouping+"\" is invalid.")
+    }
+
   }
 
-  def getDimensionGroupingAsString(dimensionGrouping: List[List[ArithExpr]]): String ={
+  def getDimensionGroupingAsString(argType:Type, arrayDepth: Int = 1): String ={
     //only for default groupings...
-    var groupingIterator = dimensionGrouping.iterator
-    var dimensionString = "";
-    var dimension = if(dimensionGrouping.size >0 ) dimensionGrouping.size else 1
-    var i = 1;
-    while(i<=dimension){
-      var currentGrouping = groupingIterator.next()
-      dimensionString+= getDimensionAsString(currentGrouping,i)
-      if(currentGrouping.size==2) i+=2 else i+=1
+    argType match {
+      case t: TupleType => {
+        var stringRepresentation = "[ "
+        for(elem <- t.elemsT){
+          stringRepresentation+=getDimensionGroupingAsString(elem)+" , "
+        }
+        //remove the last " , " and add closing clause
+        stringRepresentation= stringRepresentation.substring(0,stringRepresentation.length-3) + " ]"
+        stringRepresentation
+      }
+      case a: ArrayType with Size => {
+        var nestedArrays = a.elemT match {
+          case nested: ArrayType with Size => getDimensionGroupingAsString(nested, arrayDepth + 1)
+          case tuple: TupleType => getDimensionGroupingAsString(tuple)
+          case default => ""
+        }
+        "(" + arrayDepth + ")" + nestedArrays
+      }
+      case v: VectorType => "V"
+      case s: ScalarType => "S"
     }
-    dimensionString
   }
-  def getDimensionAsString(grouping: List[ArithExpr], dimension: Int):String={
+  def getDimensionAsString(grouping: List[ArithExpr], dimension: Int=1):String={
     grouping.size match {
       case 1 => "("+dimension+")"
       case 2 => "("+dimension+","+dimension+1+")"
@@ -203,17 +304,20 @@ def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
     while(groupingString.size >= 3){
       var opening = groupingString.indexOf("(")
       var closing = groupingString.indexOf(")")
-      var dimension = groupingString.substring(opening+1,closing)
-      if(dimension.contains(",")){
-        var dimensionSplit = dimension.split(",")
-        var dimesions = dimensionSplit.map(str => Integer.parseInt(str))
-        listBuffer+= dimesions.toList
-        groupingString= groupingString.substring(closing+1)
+      if(!opening.equals(-1) && !closing.equals(-1)){
+        var dimension = groupingString.substring(opening+1,closing)
+        if(dimension.contains(",")){
+          var dimensionSplit = dimension.split(",")
+          var dimesions = dimensionSplit.map(str => Integer.parseInt(str))
+          listBuffer+= dimesions.toList
+          groupingString= groupingString.substring(closing+1)
+        }else{
+          listBuffer+= List(Integer.parseInt(dimension))
+          groupingString= groupingString.substring(closing+1)
+        }
       }else{
-        listBuffer+= List(Integer.parseInt(dimension))
-        groupingString= groupingString.substring(closing+1)
+        return listBuffer.toList
       }
-
     }
     listBuffer.toList
   }
@@ -280,24 +384,29 @@ def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
         case BoxWithText(text, bx, by, bwidth, bheight) => bwidth
         case Rectangle(x, y, w, h) => w
         case Box(x, y, w, h) => w
+        case CorneredClause(x, y, w, h) => w
+        case Seperator(x,y) => 0
       })
 
       var adjustedNodes = firstBox match {
         case bwt: BoxWithText => Graphics.translateAll(nodes, -bwt.x, -bwt.y)
         case r: Rectangle => Graphics.translateAll(nodes, -r.x, -r.y)
         case b: Box => Graphics.translateAll(nodes, -b.x, -b.y)
+        case c: CorneredClause => Graphics.translateAll(nodes, -c.x, -c.y)
       }
       if(!firstType) {
         adjustedNodes = firstBox match {
           case bwt: BoxWithText => Graphics.translateAll(nodes, 0, accHeight)
           case r: Rectangle => Graphics.translateAll(nodes, 0, accHeight )
           case b: Box => Graphics.translateAll(nodes, 0, accHeight)
+          case c: CorneredClause => Graphics.translateAll(nodes, 0, accHeight)
         }
       }
       firstBox match {
         case BoxWithText(text, bx, by, bwidth, bheight) => accHeight+=bheight+yMargin
         case Rectangle(x, y, w, h) => accHeight+=h
         case Box(x, y, w, h) => accHeight+=h
+        case CorneredClause(x, y, w, h) => accHeight+=h
       }
       firstType=false
       adjustedNodes

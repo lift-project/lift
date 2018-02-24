@@ -122,7 +122,7 @@ class VisualizerWindow extends Application {
     //Add Textfields that show the deflault grouping
 
     types.foreach(tv => {
-      var tf = new TextField(visualizer.getDimensionGroupingAsString(tv.dimensionGrouping))
+      var tf = new TextField(visualizer.getDimensionGroupingAsString(tv.argType))
       tf.setId(tv.id.toString)
       //new container per var
       var hBox = new HBox()
@@ -249,6 +249,12 @@ class VisualizerWindow extends Application {
           try {
             visualizer.updateDimensionGrouping(id, userDimInput.get(id).get)
           } catch {
+            case ill: IllegalArgumentException => {
+              showAlert(ill.getMessage)
+              noExceptions = false
+              //Set textfields to default grouping
+              dimensionInputFieldList.foreach(tf => tf.setText(visualizer.getDimensionGroupingAsString(visualizer.getTypeVisualizations().filter(tv => tv.id.toString.equals(tf.getId)).head.argType)))
+            }
             case tex: ir.TypeException =>{
               showAlert(tex.msg)
               noExceptions = false

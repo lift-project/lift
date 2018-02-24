@@ -9,6 +9,7 @@ import javafx.scene.text.Font
 import utils.paternoster.logic.Graphics.GraphicalPrimitive
 
 
+
 /**
   * Created by federico on 16/08/17.
   */
@@ -33,7 +34,7 @@ class MainPane(val width:Int, val height:Int) extends Pane {
   }
 
   def renderToSvg(primitives:Iterable[GraphicalPrimitive]): Unit ={
-    //var bla = new SVGGraphics2D
+
   }
 
   def getSnapShot(wim: WritableImage): Unit ={

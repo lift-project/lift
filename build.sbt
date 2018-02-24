@@ -81,6 +81,9 @@ scalacOptions in (Compile,doc) := Seq("-implicits", "-diagrams")
 // Build ArithExpr
 unmanagedSourceDirectories in Compile += baseDirectory.value / "lib/ArithExpr/src/main/"
 
+//Build Jfree
+unmanagedSourceDirectories in Compile += baseDirectory.value / "lib/jfree/src/main/java/"
+
 ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*;.*arithmetic.*;.*testing.*"
 
 testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v", "-a")

@@ -10,9 +10,13 @@ object Graphics {
   case class Line(x:Double, y:Double, width:Double, height:Double) extends GraphicalPrimitive
   case class Arrow(x1:Double, y1:Double, x2:Double, y2:Double) extends GraphicalPrimitive
   case class BoxWithText(text:String, x:Double, y:Double, width:Double, height:Double)extends GraphicalPrimitive
+  case class CorneredClause(x:Double, y:Double, width:Double, height:Double) extends GraphicalPrimitive
+  case class Seperator(x:Double,y:Double) extends GraphicalPrimitive
 
   def translate(primitive:GraphicalPrimitive, dx:Double, dy:Double):GraphicalPrimitive = {
     primitive match {
+      case c: CorneredClause=> c.copy(x = c.x + dx, y = c.y + dy)
+      case s:Seperator => s.copy(x= s.x+dx, y= s.y+dy)
       case r:Rectangle => r.copy(x = r.x + dx, y = r.y + dy)
       case b:Box => b.copy(x = b.x + dx, y = b.y + dy)
       case bwt:BoxWithText => bwt.copy(bwt.text,bwt.x+dx,bwt.y+dy)

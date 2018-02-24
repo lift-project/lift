@@ -6,7 +6,9 @@ import ir._
 import ir.ast.{Lambda, Tuple}
 import lift.arithmetic.ArithExpr
 import utils.paternoster.gui.{MainPane, TypeVisualizer}
-import utils.paternoster.logic.Graphics.BoxWithText;
+import utils.paternoster.logic.Graphics.{BoxWithText, Seperator}
+
+import scala.collection.mutable.ListBuffer;
 
 /**
   * Created by federico on 16/08/17.
@@ -41,7 +43,9 @@ object Scene {
   val ARRAY_NODE_MARGIN_TO_CHILDREN_Y = 2
   val VECTOR_NODE_MARGIN_TO_CHILDREN_X= 2
   val VECTOR_NODE_MARGIN_TO_CHILDREN_Y = 2
+  val CONTAINER_NODE_SPACING = 1
   val NODE_DISTANCE = 5
+  val SEPERATOR_WIDTH=1
 
 
 
@@ -50,17 +54,17 @@ object Scene {
 
   private def nodeWidth(node: Node):Double = node match {
     case FloatNode() => 5
-    case TupleNode(elements) => elements.map(nodeWidth).sum
-    case LinearArrayNode(elem, size) => nodeWidth(elem) * size
-    case GridArrayNode(elem, width, _) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * width
-    case BoxArrayNode(elem, size) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * size
-    case VectorNode(elem, size) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_X) + nodeWidth(elem)
+    case TupleNode(elements) =>  2*CONTAINER_NODE_SPACING + elements.map(nodeWidth).sum + (2*ARRAY_NODE_MARGIN_TO_CHILDREN_X)+(elements.size-1 )*(SEPERATOR_WIDTH*4)//Add seperator width
+    case LinearArrayNode(elem, size) => 2*CONTAINER_NODE_SPACING +nodeWidth(elem) * size
+    case GridArrayNode(elem, width, _) => 2*CONTAINER_NODE_SPACING +(2*ARRAY_NODE_MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * width
+    case BoxArrayNode(elem, size) => 2*CONTAINER_NODE_SPACING +(2*ARRAY_NODE_MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * size
+    case VectorNode(elem, size) => 2*CONTAINER_NODE_SPACING +(2*ARRAY_NODE_MARGIN_TO_CHILDREN_X) + nodeWidth(elem)
     //case MapNode(input, output, size) => Math.max(nodeWidth(input) + size, nodeWidth(output) + size)
   }
 
   private def nodeHeight(node: Node):Double = node match {
     case FloatNode() => 5
-    case TupleNode(elements) => elements.map(nodeHeight).max
+    case TupleNode(elements) => elements.map(nodeHeight).max + (2*ARRAY_NODE_MARGIN_TO_CHILDREN_Y)
     case LinearArrayNode(elem, size) => nodeHeight(elem)
     case GridArrayNode(elem, _, height) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_Y) + nodeHeight(elem) * height
     case BoxArrayNode(elem, size) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_Y) +nodeHeight(elem)
@@ -73,7 +77,18 @@ object Scene {
   def typeNode(t:Type,dimensions : List[List[Int]]=List()):TypeNode = t match {
       //Only float scalars for now
     case ScalarType("float",_) => FloatNode()
-    case tt: TupleType => TupleNode(tt.elemsT.map(typeNode(_)))
+      //ToDo check if this is left side first
+    case tt: TupleType => {
+      var elementBuffer = new ListBuffer[TypeNode]()
+
+      var modifiedDimensions = dimensions
+      for(node <- tt.elemsT){
+        elementBuffer+= typeNode(node,dimensions)
+        var nestedArrayCount = getDimensionCount(node)
+        modifiedDimensions = dimensions.drop(nestedArrayCount)
+      }
+      TupleNode(elementBuffer.toSeq)
+    }
     case vt: VectorType => {
       val bottomElement = bottomElementType(vt)
       vectorTypeNode(bottomElement,dimensions)
@@ -177,20 +192,49 @@ object Scene {
       case dim::other_dims => sizes.take(dim) ::groupSizesByDimensions(other_dims, sizes.drop(dim))
     }
   }
-
+  def getDimensionCount(argType:Type): Int= {
+    argType match {
+      case ar: ArrayType with Size => 1 + getDimensionCount(ar.elemT)
+      case other => 0
+    }
+  }
     import Graphics._
 
     //The methods here take care of transforming nodes into sets of graphical primitives.
     def drawType(typeNode: TypeNode):Iterable[GraphicalPrimitive] = {
       typeNode match {
         case FloatNode() => Seq(Rectangle(0, 0,5,5))
-        case TupleNode(elements) =>
+        case TupleNode(elements) =>{
           //Draw elements
-          val elementPrimitives = elements.flatMap(drawType)
+          var elementIterator = elements.iterator
+          var accumulatedWidth = Double.box(0)
+          var maxNodeHeight    = Double.box(0)
+          var primitiveBuffer = new ListBuffer[GraphicalPrimitive]
+          var sets = new ListBuffer[Iterable[GraphicalPrimitive]]
+          var seperators = new ListBuffer[Iterable[GraphicalPrimitive]]
+          while(elementIterator.hasNext){
+            val current = elementIterator.next()
+            maxNodeHeight = Double.box(nodeHeight(current)).doubleValue().max(maxNodeHeight)
+
+            if(elementIterator.hasNext){
+              //Print seperator
+              sets += translateAll(drawType(current), dx =accumulatedWidth+ARRAY_NODE_MARGIN_TO_CHILDREN_X-0.5, dy =ARRAY_NODE_MARGIN_TO_CHILDREN_Y-0.5)
+              accumulatedWidth+= nodeWidth(current)
+              seperators += translateAll(Seq(Seperator(0,0)), dx =accumulatedWidth+ARRAY_NODE_MARGIN_TO_CHILDREN_X+SEPERATOR_WIDTH*2, dy =ARRAY_NODE_MARGIN_TO_CHILDREN_Y-0.5)
+              accumulatedWidth+= SEPERATOR_WIDTH*4//seperator width
+            }else{
+              //No seperator
+              sets += translateAll(drawType(current), dx =accumulatedWidth+ARRAY_NODE_MARGIN_TO_CHILDREN_X-0.5, dy =ARRAY_NODE_MARGIN_TO_CHILDREN_Y-0.5)
+              accumulatedWidth+= nodeWidth(current)
+            }
+          }
+
+          sets.flatten.toSeq ++ translateAll(seperators.flatten.toSeq, dx = 0, dy = maxNodeHeight) ++ Seq(CorneredClause(0,0,accumulatedWidth+(VECTOR_NODE_MARGIN_TO_CHILDREN_X*2), maxNodeHeight+(VECTOR_NODE_MARGIN_TO_CHILDREN_Y*2)))
+      }
           //TODO:Replicate and place elements
           //TODO:Alignment
           //TODO:Separator lines
-          throw new NotImplementedError("Tuple implementation not finished")
+          //throw new NotImplementedError("Tuple implementation not finished")
         case VectorNode(elementType,size)=>{
             val elemWidth =nodeWidth(elementType)
             val elemHeight = nodeHeight(elementType)
