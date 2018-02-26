@@ -12,7 +12,7 @@ import utils.paternoster.logic.Scene.GridArrayNode
   * Created by Federico on 18-Aug-17.
   */
 object JavaFXRenderer {
-  case class Context(gc:GraphicsContext, unitX:Double, unitY:Double, smallX:Double, smallY:Double, width:Double,height:Double)
+  case class Context(gc:GraphicsContext, unitX:Double, unitY:Double, smallX:Double, smallY:Double, numberFont :Font , expressionFont: Font , width:Double,height:Double)
 
   def drawPrimitives(primitives:Iterable[GraphicalPrimitive], ctx:Context):Unit ={
     var newContext = adjustScaling(primitives,ctx)
@@ -90,7 +90,7 @@ object JavaFXRenderer {
       val newXScaling = Math.round(Math.max(MINSCALING,Math.min((ctx.width-2*ctx.smallX)/maxwidth, MAXSCALING)))
       var newYScaling = Math.round(Math.max(MINSCALING,newXScaling*0.5))
 
-      Context(ctx.gc, 6, 6, ctx.smallX, ctx.smallY,ctx.width,ctx.height)
+      Context(ctx.gc, 6, 6, ctx.smallX, ctx.smallY,ctx.numberFont,ctx.expressionFont,ctx.width,ctx.height)
 
   }
 
@@ -131,13 +131,63 @@ object JavaFXRenderer {
     if(maxWidth*ctx.unitX > TypeVisualizer.getMainPane().width){
       TypeVisualizer.getMainPane().setCanvasWidth(maxWidth*ctx.unitX)
     }
-    Context(TypeVisualizer.getMainPane().getGraphicsContext(), ctx.unitX, ctx.unitY, ctx.smallX, ctx.smallY,TypeVisualizer.getMainPane().canvas.getWidth,TypeVisualizer.getMainPane().canvas.getHeight)
+    Context(TypeVisualizer.getMainPane().getGraphicsContext(), ctx.unitX, ctx.unitY, ctx.smallX, ctx.smallY,ctx.numberFont,ctx.expressionFont,TypeVisualizer.getMainPane().canvas.getWidth,TypeVisualizer.getMainPane().canvas.getHeight)
   }
 
   def drawPrimitive(primitive:GraphicalPrimitive, ctx: Context) = {
 
     primitive match {
+      case DashedBox(x,y,w,h)=>
+        ctx.gc.setLineDashes(2)
+        ctx.gc.setLineDashOffset(1)
+        ctx.gc.setFont(ctx.numberFont)
+        ctx.gc.setFill(Color.GREY)
+        ctx.gc.strokeRect(
+          x*ctx.unitX + ctx.smallX,
+          y*ctx.unitY + ctx.smallY,
+          w*ctx.unitX - 2*ctx.smallX,
+          h*ctx.unitY - 2*ctx.smallY
+        )
+
+      case ExpressionSource(text,begin,end, x,y)=>
+        ctx.gc.setLineDashes()
+        ctx.gc.setFont(ctx.expressionFont)
+
+        var beforeHightLightText = text.substring(0,begin)
+        var highLightText = text.substring(begin, end+1)
+        var afterHighLightText = text.substring(end+1,text.length)
+
+        var beforeHightLight = new Text(beforeHightLightText)
+        var highLight = new Text(highLightText)
+        var afterHighLight = new Text(afterHighLightText)
+        beforeHightLight.setFont(ctx.expressionFont)
+        highLight.setFont(ctx.expressionFont)
+        afterHighLight.setFont(ctx.expressionFont)
+
+        var beforeLength = beforeHightLight.getLayoutBounds.getWidth
+        var highLightLength = highLight.getLayoutBounds.getWidth
+        var afterLength = afterHighLight.getLayoutBounds.getWidth
+
+        //Paint text before highlighting
+        ctx.gc.strokeText(beforeHightLightText,
+          x,
+          y*ctx.unitY + ctx.smallY)
+
+        //Paint highlighted text
+        ctx.gc.setStroke(Color.RED)
+        ctx.gc.strokeText(highLightText,
+          (x+beforeLength),
+          y*ctx.unitY + ctx.smallY)
+
+        //Paint text after highlighting
+        ctx.gc.setStroke(Color.BLACK)
+        ctx.gc.strokeText(afterHighLightText,
+          (x+beforeLength+highLightLength),
+          y*ctx.unitY + ctx.smallY)
+
       case BoxWithText(text,bx,by,bwidth,bheight)=>
+        ctx.gc.setLineDashes()
+        ctx.gc.setFont(ctx.numberFont)
         ctx.gc.setFill(Color.BLACK)
         ctx.gc.strokeRect(
           bx*ctx.unitX + ctx.smallX,
@@ -151,6 +201,8 @@ object JavaFXRenderer {
         //ctx.gc.setFont(new Font(ctx.gc.getFont.getName,10))
         ctx.gc.strokeText(text,textX,textY)
       case Rectangle(x, y, w, h) =>
+        ctx.gc.setLineDashes()
+        ctx.gc.setFont(ctx.numberFont)
         ctx.gc.setFill(Color.DARKGREEN)
         ctx.gc.fillRect(
           Math.round(x*ctx.unitX + ctx.smallX*4),
@@ -158,6 +210,8 @@ object JavaFXRenderer {
           Math.round(w*ctx.unitX - 2*ctx.smallX),
           Math.round(h*ctx.unitY - 2*ctx.smallY))
       case CorneredClause(x, y, w, h) =>
+        ctx.gc.setLineDashes()
+        ctx.gc.setFont(ctx.numberFont)
         ctx.gc.setFill(Color.BLACK)
         //Left line
         ctx.gc.strokeLine(
@@ -203,6 +257,8 @@ object JavaFXRenderer {
           (y*ctx.unitY + ctx.smallY)+(h*ctx.unitY - 2*ctx.smallY)
         )
       case Seperator(x,y)=>{
+        ctx.gc.setLineDashes()
+        ctx.gc.setFont(ctx.numberFont)
         ctx.gc.setFill(Color.BLACK)
         ctx.gc.strokeLine(
           x*ctx.unitX + ctx.smallX,
@@ -211,6 +267,8 @@ object JavaFXRenderer {
           y*ctx.unitY + ctx.smallY-(2))
       }
       case Box(x, y, w, h) =>
+        ctx.gc.setLineDashes()
+        ctx.gc.setFont(ctx.numberFont)
         ctx.gc.setStroke(Color.RED)
         ctx.gc.strokeRect(
           x*ctx.unitX + ctx.smallX,

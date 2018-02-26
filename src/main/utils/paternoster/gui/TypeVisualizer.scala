@@ -7,6 +7,7 @@ import java.util.stream.Collectors
 import javafx.application.Application
 import javafx.embed.swing.SwingFXUtils
 import javafx.scene.image.WritableImage
+import javafx.scene.text.Text
 import javax.imageio.ImageIO
 
 import ir._
@@ -19,13 +20,14 @@ import utils.paternoster.logic.Graphics._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class TypeVisualizer(argTypes :List[Type])  {
+class TypeVisualizer(argTypes :List[Type],expressionSource :String = "")  {
   case class TypeVisualisation(id : Int, argType:Type, dimensionGrouping: List[List[ArithExpr]])
   val INITIAL_VAR_VALUE = 4;
 
-  var types = argTypes;
-  var variables: mutable.HashMap[String,Int]=null;
+  var types = argTypes
+  var variables: mutable.HashMap[String,Int]=null
   var typeVisualizations : List[TypeVisualisation]= null
+  var expressionSourceCode: String = expressionSource
 
 
   def init(): Unit ={
@@ -365,12 +367,42 @@ def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
   }
 
 
+  def getPrintTypeIndicies(): List[(Int,Int)] ={
+    var pattern = "PrintType("
+    var fromIndex =0
+    var listBuffer = new ListBuffer[(Int,Int)]
+    while(fromIndex < expressionSourceCode.length){
+      var beginIndex = expressionSourceCode.indexOf(pattern,fromIndex)
+      if(beginIndex == -1) return  listBuffer.toList
+      var endIndex = expressionSourceCode.indexOf(')',beginIndex)
+      val indicies = (beginIndex,endIndex)
+      listBuffer+= indicies
+      fromIndex= endIndex+1
+    }
+  return listBuffer.toList
+  }
+
   def renderNodes():Iterable[Graphics.GraphicalPrimitive]={
     var nodeBuffer = new ListBuffer[Iterable[Graphics.GraphicalPrimitive]]
 
     var firstType = true;
     var yMargin = 1f;
-    var accHeight = 0d;
+    var yMarginBetweenTypes = 5
+    var accHeight = 1d;
+    var expressionBuffer = new ListBuffer[Graphics.ExpressionSource]
+
+  if(typeVisualizations.length >0){
+     var printTypeIndicies = getPrintTypeIndicies()
+    for(indicies <- printTypeIndicies){
+      expressionBuffer+= Graphics.ExpressionSource(expressionSourceCode,indicies._1, indicies._2,0,0)
+    }
+    if(printTypeIndicies.length != typeVisualizations.length){
+      throw new IllegalArgumentException("The number of PrintTypes must match the number of types")
+    }
+  }
+    var expressionTexts = expressionBuffer.toList.reverse
+
+
 
     typeVisualizations.map(tv => {
       val currentGrouping = tv.dimensionGrouping
@@ -386,29 +418,41 @@ def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
         case Box(x, y, w, h) => w
         case CorneredClause(x, y, w, h) => w
         case Seperator(x,y) => 0
+        case ExpressionSource(_,_,_,_,_) => 0
+        case DashedBox(_,_,w,_) => w
       })
 
-      var adjustedNodes = firstBox match {
+     /* var adjustedNodes = firstBox match {
         case bwt: BoxWithText => Graphics.translateAll(nodes, -bwt.x, -bwt.y)
         case r: Rectangle => Graphics.translateAll(nodes, -r.x, -r.y)
         case b: Box => Graphics.translateAll(nodes, -b.x, -b.y)
         case c: CorneredClause => Graphics.translateAll(nodes, -c.x, -c.y)
       }
-      if(!firstType) {
-        adjustedNodes = firstBox match {
-          case bwt: BoxWithText => Graphics.translateAll(nodes, 0, accHeight)
-          case r: Rectangle => Graphics.translateAll(nodes, 0, accHeight )
-          case b: Box => Graphics.translateAll(nodes, 0, accHeight)
-          case c: CorneredClause => Graphics.translateAll(nodes, 0, accHeight)
-        }
+
+*/
+      var currentExpressionText: Graphics.GraphicalPrimitive = expressionTexts.take(1).head;
+      expressionTexts= expressionTexts.drop(1)
+
+      var expressionText = currentExpressionText match {
+        case ExpressionSource(text, _, _, _, _) => text
       }
+      val mainPane = TypeVisualizer.getMainPane()
+      var textHeight = mainPane.getStringHeight(expressionText,mainPane.getExpressionFont()).ceil+1
+      accHeight+=textHeight
+      currentExpressionText = Graphics.translate(currentExpressionText,0 ,accHeight-1)
+
+      var adjustedNodes = Graphics.translateAll(nodes, 0, accHeight)
+
+      adjustedNodes = Seq(currentExpressionText) ++ adjustedNodes
       firstBox match {
         case BoxWithText(text, bx, by, bwidth, bheight) => accHeight+=bheight+yMargin
         case Rectangle(x, y, w, h) => accHeight+=h
         case Box(x, y, w, h) => accHeight+=h
         case CorneredClause(x, y, w, h) => accHeight+=h
+        case DashedBox(_,_,w,_) => accHeight+=w
       }
       firstType=false
+      accHeight+= yMarginBetweenTypes
       adjustedNodes
     }
     //allAdjustedNodes = allAdjustedNodes.map(node => Graphics.translateAllToRoundCoords(node))
@@ -427,14 +471,18 @@ object TypeVisualizer {
   var types: ListBuffer[Type] = null;
   var mainPane:MainPane = null;
   var visualizer:TypeVisualizer = null;
+  var expressionSource = "";
 
-  def apply(argType: Type,render:Boolean): Unit ={
+  def apply(argType: Type,render:Boolean = false,expression :String): Unit ={
+    if(expression != "") expressionSource = expression
+
     addType(argType)
     if(render){
-      visualizer = new TypeVisualizer(types.toList)
+      visualizer = new TypeVisualizer(types.toList,expressionSource)
       visualizer.startGui(Array("default argument"))
     }
   }
+
   def addType(argType: Type): Unit ={
     if(types == null) types= new ListBuffer[Type]()
 
