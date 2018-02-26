@@ -200,7 +200,6 @@ class VisualizerWindow extends Application {
       override def handle(event: KeyEvent): Unit = {
         var source =  event.getSource
         var node = source.asInstanceOf[Scene]
-        System.out.println(node.toString())
         event.getCode match {
           case KeyCode.ENTER =>{
 
@@ -260,7 +259,6 @@ class VisualizerWindow extends Application {
               noExceptions = false
             }
             case ex: NumberFormatException => {
-              System.out.println(ex.getClass.toString)
               showAlert("Could not parse dimension grouping for type #" + id + ". All brackets have to be either \"(Int)\" or \"(Int,Int)\".")
               noExceptions = false
             }

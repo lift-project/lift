@@ -38,7 +38,6 @@ object Scene {
   //case class MapNode(inputElement:TypeNode, outputElement:TypeNode, size:ArraySize) extends OperationNode
 
   val MAP_NODE_CHILDREN_DISTANCE = 5
-  val drawingPane :MainPane = TypeVisualizer.getMainPane()
   val ARRAY_NODE_MARGIN_TO_CHILDREN_X= 2
   val ARRAY_NODE_MARGIN_TO_CHILDREN_Y = 2
   val VECTOR_NODE_MARGIN_TO_CHILDREN_X= 2
@@ -58,7 +57,7 @@ object Scene {
     case LinearArrayNode(elem, size) => 2*CONTAINER_NODE_SPACING +nodeWidth(elem) * size
     case GridArrayNode(elem, width, _) => 2*CONTAINER_NODE_SPACING +(2*ARRAY_NODE_MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * width
     case BoxArrayNode(elem, size) => 2*CONTAINER_NODE_SPACING +(2*ARRAY_NODE_MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * size
-    case VectorNode(elem, size) => 2*CONTAINER_NODE_SPACING +(2*ARRAY_NODE_MARGIN_TO_CHILDREN_X) + nodeWidth(elem)
+    case VectorNode(elem, size) => 2*CONTAINER_NODE_SPACING +(2*ARRAY_NODE_MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * size
     //case MapNode(input, output, size) => Math.max(nodeWidth(input) + size, nodeWidth(output) + size)
   }
 
@@ -68,7 +67,7 @@ object Scene {
     case LinearArrayNode(elem, size) => nodeHeight(elem)
     case GridArrayNode(elem, _, height) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_Y) + nodeHeight(elem) * height
     case BoxArrayNode(elem, size) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_Y) +nodeHeight(elem)
-    case VectorNode(elem, size) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_Y) + nodeHeight(elem) *size
+    case VectorNode(elem, size) => (2*ARRAY_NODE_MARGIN_TO_CHILDREN_Y) +nodeHeight(elem)
     //case MapNode(input, output, size) => nodeHeight(input) +  MAP_NODE_CHILDREN_DISTANCE + nodeHeight(output)
   }
 
@@ -91,7 +90,7 @@ object Scene {
     }
     case vt: VectorType => {
       val bottomElement = bottomElementType(vt)
-      vectorTypeNode(bottomElement,dimensions)
+      vectorTypeNode(bottomElement,vt.len.evalInt)
     }
     case array:ArrayType with Size =>
       //Get the nested array sizes as an ordered list
@@ -100,15 +99,14 @@ object Scene {
      // val groupedSizes = groupSizesByDimensions(defaultDimensionSplits(sizes.length), sizes)
       //The ultimate non-array element contained in the nested array
       val bottomElement = bottomElementType(array)
-      arrayTypeNode(t,bottomElement, dimensions)
+      arrayTypeNode(array,bottomElement, dimensions)
     case _: Lambda => throw new NotImplementedError("No support for drawing function types yet")
   }
 
-  private def vectorTypeNode(scalarT: Type, sizes: List[List[Int]]):VectorNode = {
-    val(currentSizes::nextSizes) = sizes
+  private def vectorTypeNode(scalarT: Type, size: Int):VectorNode = {
     //Build the contained element first...
     val inner = typeNode(scalarT);
-    VectorNode(inner,currentSizes.head)
+    VectorNode(inner,size)
   }
 
   private def arrayTypeNode(currentType:Type,bottomType:Type, sizes:List[List[Int]]):ArrayTypeNode = {
@@ -123,10 +121,10 @@ object Scene {
       //Otherwise recurse
       case _ => currentType match {
         case array:ArrayType=> array.elemT match {
-          case vector: VectorType => if(currentSizes.length == 2) typeNode(bottomType) else typeNode(array.elemT,nextSizes)
+          //case vector: VectorType => if(currentSizes.length == 2) typeNode(bottomType) else typeNode(array.elemT,nextSizes)
           case default => typeNode(array.elemT,nextSizes)
         }
-        case vector:VectorType => if(currentSizes.length == 1) vectorTypeNode(vector.scalarT,nextSizes) else typeNode(vector.scalarT)
+        //case vector:VectorType => if(currentSizes.length == 1) vectorTypeNode(vector.scalarT,nextSizes) else typeNode(vector.scalarT)
         case default =>throw new Exception("Should not be possible. Cases are exaustive.")
       }
     }
@@ -154,7 +152,6 @@ object Scene {
   def bottomElementType(arr:ArrayType):Type = {
     arr.elemT match {
       case array: ArrayType => bottomElementType(array)
-      case vector: VectorType => vector.scalarT
       case other => other
     }
   }
@@ -243,12 +240,12 @@ object Scene {
             //compute inner element primitives
             val elementPrims = drawType(elementType)
 
-            elementType match {
-              case _:FloatNode =>sets = (0 until size).map(pos => translateAll(elementPrims, dx = ARRAY_NODE_MARGIN_TO_CHILDREN_X-0.5 , dy = (pos*elemHeight) + ARRAY_NODE_MARGIN_TO_CHILDREN_Y-0.5))
-              case _:Any =>sets = throw new Exception("Vector elements must be scalars!")
-            }
+          elementType match {
+            case _:FloatNode =>sets = (0 until size).map(pos => translateAll(elementPrims, dx = ((pos*elemWidth)+ARRAY_NODE_MARGIN_TO_CHILDREN_X)-0.5 , dy = ARRAY_NODE_MARGIN_TO_CHILDREN_Y-0.5))
+            case _:Any =>sets = (0 until size).map(pos => translateAll(elementPrims, dx = (pos*elemWidth)+ARRAY_NODE_MARGIN_TO_CHILDREN_X, dy = ARRAY_NODE_MARGIN_TO_CHILDREN_Y))
+          }
             //As a final results, flatten the sets and add the container box
-            sets.flatten ++ Seq(BoxWithText(size.toString,0, 0, elemWidth+(VECTOR_NODE_MARGIN_TO_CHILDREN_X*2), (size*elemHeight)+(VECTOR_NODE_MARGIN_TO_CHILDREN_Y*2)))
+            sets.flatten ++ Seq(DashedBox(0, 0, (size*elemWidth)+(ARRAY_NODE_MARGIN_TO_CHILDREN_X*2), elemHeight+(ARRAY_NODE_MARGIN_TO_CHILDREN_Y*2)))
         }
         case LinearArrayNode(element, size) =>
           val elemWidth = nodeWidth(element)
