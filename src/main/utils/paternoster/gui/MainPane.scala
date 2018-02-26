@@ -3,9 +3,9 @@ package utils.paternoster.gui
 import javafx.scene.canvas.{Canvas, GraphicsContext}
 import javafx.scene.image.WritableImage
 import javafx.scene.layout.Pane
-import javafx.scene.paint.{Color, Paint}
 import javafx.scene.text.{Font, Text}
 
+import org.jfree.graphics2d.svg.SVGGraphics2D
 import utils.paternoster.logic.Graphics.GraphicalPrimitive
 
 
@@ -16,8 +16,8 @@ import utils.paternoster.logic.Graphics.GraphicalPrimitive
 
 class MainPane(val width:Int, val height:Int) extends Pane {
   //General scaling
-  var unitX = 120d
-  var unitY = 60d
+  var unitX = 6d
+  var unitY = 6d
   //Used to separate things
   val smallX = 1
   val smallY = 1
@@ -28,28 +28,39 @@ class MainPane(val width:Int, val height:Int) extends Pane {
 
   def draw(primitives:Iterable[GraphicalPrimitive]) = {
     val gc = this.canvas.getGraphicsContext2D
-    val context = JavaFXRenderer.Context(gc, unitX, unitY, smallX, smallY, getNumberFont() , getExpressionFont() ,width.toDouble,height.toDouble)
+    val context = JavaFXRenderer.Context(gc, unitX, unitY, smallX, smallY, getNumberFontFx() , getExpressionFontFx() ,width.toDouble,height.toDouble)
     JavaFXRenderer.drawPrimitives(primitives, context)
   }
 
-  def renderToSvg(primitives:Iterable[GraphicalPrimitive]): Unit ={
-
+  def renderToSvg(primitives:Iterable[GraphicalPrimitive]): String ={
+    var g2 = new SVGGraphics2D(canvas.getWidth.toInt,canvas.getHeight.toInt);
+    val context = SVGRenderer.Context(g2, unitX, unitY, smallX, smallY, getNumberFontAwt() , getExpressionFontAwt() ,width.toDouble,height.toDouble)
+    SVGRenderer.drawPrimitives(primitives,context)
+    var svgOuptut = g2.getSVGElement()
+    svgOuptut
   }
-  def getStringHeight(str:String,font: Font): Double ={
+  def getStringHeight(str:String,font: javafx.scene.text.Font): Double ={
     var text = new Text(str)
     text.setFont(font)
     var textHeight = text.getLayoutBounds().getHeight / unitY
     textHeight
   }
 
-  def getNumberFont():Font={
+  def getNumberFontAwt():java.awt.Font={
+    new java.awt.Font(canvas.getGraphicsContext2D.getFont.getName,java.awt.Font.PLAIN,10)
+  }
+
+  def getExpressionFontAwt() :java.awt.Font={
+    new java.awt.Font(canvas.getGraphicsContext2D.getFont.getName,java.awt.Font.PLAIN,15)
+  }
+
+  def getNumberFontFx():Font={
     new Font(canvas.getGraphicsContext2D.getFont.getName,10)
   }
 
-  def getExpressionFont() :Font={
+  def getExpressionFontFx() :Font={
     new Font(canvas.getGraphicsContext2D.getFont.getName,15)
   }
-
 
   def getSnapShot(wim: WritableImage): Unit ={
     canvas.snapshot(null,wim)

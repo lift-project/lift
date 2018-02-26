@@ -1,7 +1,7 @@
 package utils.paternoster.gui
 
 
-import java.io.File
+import java.io.{File, PrintWriter}
 import java.util.regex.Pattern
 import java.util.stream.Collectors
 import javafx.application.Application
@@ -353,9 +353,20 @@ def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
   @throws(classOf[NotImplementedError])
   def saveGraphic(file: File, extension: String):Unit ={
     extension match {
-      case ".svg" => throw new NotImplementedError("Svg Export is not implemented yet.")
+      case ".svg" => saveAsSvg(file)//throw new NotImplementedError("Svg Export is not implemented yet.")
       case ".png" => saveAsPng(file)
       case default => throw new NotImplementedError("The export is only possible as .svg or .png file.")
+    }
+  }
+
+  def saveAsSvg(file:File):Unit ={
+    val mainPane = TypeVisualizer.getMainPane()
+    var svgString = mainPane.renderToSvg(renderNodes())
+    try {
+      val out = new PrintWriter(file)
+      try
+        out.println(svgString)
+      finally if (out != null) out.close()
     }
   }
 
@@ -437,7 +448,7 @@ def copy(arithExpr: ArithExpr): ArithExpr= arithExpr match {
         case ExpressionSource(text, _, _, _, _) => text
       }
       val mainPane = TypeVisualizer.getMainPane()
-      var textHeight = mainPane.getStringHeight(expressionText,mainPane.getExpressionFont()).ceil+1
+      var textHeight = mainPane.getStringHeight(expressionText,mainPane.getExpressionFontFx()).ceil+1
       accHeight+=textHeight
       currentExpressionText = Graphics.translate(currentExpressionText,0 ,accHeight-1)
 
