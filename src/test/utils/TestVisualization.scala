@@ -52,9 +52,9 @@ class TestVisualization{
         MapGlb(\(tuple => id(tuple._0))) o PrintType(visual = true,render = true,expressionText) $ Zip(input, input)
     )
 
-    TypeChecker(lambda)
-    // val kernel = Compile(lambda)
-    //println(kernel)
+    //TypeChecker(lambda)
+    val kernel = Compile(lambda)
+    println(kernel)
   }
 
   @Test
