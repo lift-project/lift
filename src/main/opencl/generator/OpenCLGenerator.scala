@@ -1,5 +1,6 @@
 package opencl.generator
 
+import lift.profiler._
 import arithmetic.TypeVar
 import core.generator.Generator
 import core.generator.{AstPrinter, GenericAST}
@@ -171,6 +172,7 @@ class OpenCLGenerator extends Generator {
     generate(f, localSizes, NDRange(?, ?, ?), immutable.Map())
   }
 
+  @Profile
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
                valueMap: collection.Map[ArithExpr, ArithExpr]): String = {
 
@@ -327,6 +329,7 @@ class OpenCLGenerator extends Generator {
   }
 
 
+  @Profile("OpenCL generator")
   private def generateKernel(f: Lambda): DeclarationT = {
 
     val someMemories = OpenCLGenerator.getDifferentMemories(f)
