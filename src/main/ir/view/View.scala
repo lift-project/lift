@@ -1,11 +1,13 @@
 package ir.view
 
+import core.generator.GenericAST
+import core.generator.GenericAST._
 import ir.Type.size_t
 import ir.ast._
 import ir._
 import lift.arithmetic._
-import opencl.generator.OpenCLAST
-import opencl.generator.OpenCLAST.{ArithExpression, Expression, VarRef}
+//import opencl.generator.OpenCLAST
+//import opencl.generator.OpenCLAST.{ArithExpression, Expression, VarRef}
 import opencl.ir.{AddressSpaceCollection, Int, OpenCLAddressSpace, PrivateMemory, UndefAddressSpace}
 
 import scala.collection.immutable
@@ -60,7 +62,13 @@ case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpa
       addressSpace
     ))
 
-  override lazy val toString: String = s"(${ty.name}*)($ptr + $offset)"
+  override lazy val toString: String =
+    s"#error THE VARIABLE $ptr THIS SHOULD NEVER BE PRINTED. USE Printer" +
+      s".ToString(...) INSTEAD!\n" +
+      s"($addressSpace ${ty
+      .name}*)($ptr" +
+      s" + " +
+    s"$offset)"
 }
 
 /**
@@ -329,7 +337,8 @@ case class View2DGeneratorUserFun(f: UserFun, override val t: ArrayType with Siz
 
 case class View3DGeneratorUserFun(f: UserFun, override val t: ArrayType with Size with Capacity) extends View(t)
 
-case class ViewGenerator(f: (ArithExpr, ArithExpr) => Expression, override val t: ArrayType with Size with Capacity) extends View(t)
+case class ViewGenerator(f: (ArithExpr, ArithExpr) => ExpressionT, override
+val t: ArrayType with Size with Capacity) extends View(t)
 
 case class ViewConstant(value: Value, override val t: Type) extends View(t)
 
@@ -625,7 +634,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
     */
   private def emitView(sv: View,
                        arrayAccessStack: List[ArithExpr],
-                       tupleAccessStack: List[Int]): Expression = {
+                       tupleAccessStack: List[Int]): ExpressionT = {
     sv match {
       case ViewMem(memVar, ty) =>
         assert(tupleAccessStack.isEmpty)
@@ -658,7 +667,8 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         val idx :: indices = arrayAccessStack
          // Assume it's the same address space
          val indirection = ViewPrinter.emit(ids.access(idx), replacements, mainAddressSpace) match {
-           case VarRef(indicesVar, _, i) => AccessVar(indicesVar, i.content)
+           case VarRef(indicesVar, _, i) => AccessVar(indicesVar.v, i
+             .get.content)
            case x => throw new IllegalArgumentException(s"Expected an VarRef, got $x")
          }
          emitView(iv, indirection :: indices, tupleAccessStack)
@@ -716,20 +726,19 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         val originalSize = iv.t match {
           case ArrayTypeWS(_, size) => size
         }
-        import OpenCLAST._
-        import BinaryExpression.Operator._
+        import GenericAST.BinaryExpressionT.Operator._
         TernaryExpression(
           BinaryExpression(
             BinaryExpression(ArithExpression(currentIdx), <, ArithExpression(0)),
             ||,
             BinaryExpression(ArithExpression(currentIdx), >=, ArithExpression(originalSize))
           ),
-          OpenCLExpression(constant.value),
+          GenericAST.RawCode(constant.value),
           emitView(iv, currentIdx :: indices, tupleAccessStack)
         )
 
       case ViewConstant(value, _) =>
-        OpenCLAST.OpenCLExpression(value.value)
+        GenericAST.RawCode(value.value)
 
       case ViewSize(iv) =>
         // Sanity check: the size of an array is an integer, to does not make
@@ -748,7 +757,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
       case ViewGeneratorUserFun(f, ArrayTypeWS(_, m)) =>
         assert(arrayAccessStack.length == 1)
         val i :: Nil = arrayAccessStack
-        OpenCLAST.FunctionCall(
+        GenericAST.FunctionCall(
           f.name,
           List(i, m)
               .map(ArithExpr.substitute(_, replacements))
@@ -757,7 +766,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
 
       case View2DGeneratorUserFun(f, ArrayTypeWS(ArrayTypeWS(_, n), m)) =>
         val i :: j :: _ = arrayAccessStack
-        OpenCLAST.FunctionCall(
+        GenericAST.FunctionCall(
           f.name,
           List(i, j, m, n)
             .map(ArithExpr.substitute(_, replacements))
@@ -766,7 +775,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
 
       case View3DGeneratorUserFun(f, ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(_, o), n), m)) =>
         val i :: j :: k :: _ = arrayAccessStack
-        OpenCLAST.FunctionCall(
+        GenericAST.FunctionCall(
           f.name,
           List(i, j, k, m, n, o)
             .map(ArithExpr.substitute(_, replacements))
@@ -871,7 +880,8 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
     // Useful shorthands
     private lazy val baseSize = Type.getAllocatedSize(baseType).eval
     private val alignment = Math.max(size_t.size.eval, baseSize)
-    private def varRef(v: Var, idx: ArithExpr): VarRef = VarRef(v, arrayIndex = ArithExpression(idx))
+    private def varRef(v: Var, idx: ArithExpr): VarRef = VarRef(v, arrayIndex
+      = Some(ArithExpression(idx)))
     private def align(value: ArithExpr): ArithExpr = ((value + alignment - 1) / alignment) * alignment
 
     /**
@@ -940,7 +950,7 @@ object ViewPrinter {
     view: View,
     replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map(),
     addressSpace: OpenCLAddressSpace = UndefAddressSpace
-  ): Expression = {
+  ): ExpressionT = {
     val vp = new ViewPrinter(replacements, addressSpace)
     assert(!view.t.isInstanceOf[ArrayType])
     vp.emitView(view.replaced(replacements), List(), List())

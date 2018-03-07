@@ -1,9 +1,10 @@
-package opencl.generator
+package core.generator
 
 import core.generator.GenericAST._
 import lift.arithmetic._
-import opencl.generator.OpenCLAST._
-import opencl.ir.{Int, PrivateMemory}
+import opencl.ir.Int
+import opencl.generator.DeadCodeElimination
+//import opencl.ir.{Int, PrivateMemory}
 
 import scala.collection.mutable
 
@@ -53,7 +54,7 @@ object CommonSubexpressionElimination {
 
       val substitutions = mutable.Map[ArithExpr, ArithExpr]()
 
-      val newVarDecls: mutable.Iterable[OclVarDecl] =
+      val newVarDecls: mutable.Iterable[VarDecl] =
       // for every subterm p._1 ...
         subterms.map(p => {
           // ... create a new variable ...
@@ -62,15 +63,10 @@ object CommonSubexpressionElimination {
           //     new variable
           substitutions put(p._1, newVar)
 
-          //          VarDecl(CVar(newVar),
-          //            t = Int,
-          //            init = ArithExpression(p._1))
-
-          OclVarDecl(
+          VarDecl(
             v = CVar(newVar),
             t = Int,
-            init = Some(ArithExpression(p._1)),
-            addressSpace = PrivateMemory
+            init = Some(ArithExpression(p._1))
           )
         })
 
@@ -82,7 +78,7 @@ object CommonSubexpressionElimination {
       }
 
       // find actually used variables
-      var usedVars: mutable.Set[OclVarDecl] = mutable.Set()
+      val usedVars: mutable.Set[VarDecl] = mutable.Set()
       updatedExpressions.foreach(expr => {
         ArithExpr.visit(expr.content, {
           case v: Var => newVarDecls.find(_.v == v) match {
