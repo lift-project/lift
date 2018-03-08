@@ -1,25 +1,30 @@
-package c.generator
+package core.generator
 
-import lift.arithmetic.{ArithExpr, Cst, Pow, Var}
-import c.generator.CAst._
-import opencl.generator.{DeadCodeElimination, OclFunction}
-import opencl.ir.{Int, PrivateMemory}
+import core.generator.GenericAST._
+import lift.arithmetic._
+import opencl.ir.Int
+import opencl.generator.DeadCodeElimination
+//import opencl.ir.{Int, PrivateMemory}
 
 import scala.collection.mutable
 
 object CommonSubexpressionElimination {
-  def apply(block: Block): Unit = {
-    visitBlocks(block, processBlock)
+  def apply(node: AstNode) : Unit = {
 
-    def processBlock(block: Block): Unit = {
-      // get all the arithmetic expressions from this block
-      var expressions = Seq[ArithExpression]()
-      visitExpressionsInBlock(block, {
-        case e: ArithExpression => expressions = expressions :+ e
-        case _ =>
+    // visit each of the blocks in node:
+    node.visit[Unit](())({
+      case (_, b: MutableBlock) => processBlock(b)
+      case _                    => // do nothing, it's not a block, so we don't want to process it
+    })
+
+    def processBlock(block: MutableBlock) : Unit = {
+      // traverse the block, and accumulate the arithmetic expressions
+      val expressions = block.visit(Seq[ArithExpression]())({
+        case (exprs, ae: ArithExpression) => exprs :+ ae
+        case (exprs, _) => exprs
       })
 
-      // map for counting how often subterms appear
+      // create a map to count how often subterms appear
       val counts = mutable.Map[ArithExpr, Int]()
 
       // count how many times a subterm appears in the expressions
@@ -39,7 +44,7 @@ object CommonSubexpressionElimination {
       val subterms = counts.filter(_._2 > 1)
         .filter(!_._1.isInstanceOf[Var])
         .filter(!_._1.isInstanceOf[Cst])
-        .filter(!_._1.isInstanceOf[OclFunction])
+        .filter(!_._1.isInstanceOf[ArithExprFunction])
         .filter(_._1 match {
           // don't choose pow(b, -1), as this might be
           // printed as "/b" inside of a product
@@ -58,20 +63,23 @@ object CommonSubexpressionElimination {
           //     new variable
           substitutions put(p._1, newVar)
 
-          CAst.VarDecl(newVar,
+          VarDecl(
+            v = CVar(newVar),
             t = Int,
-            init = CAst.ArithExpression(p._1),
-            addressSpace = PrivateMemory)
+            init = Some(ArithExpression(p._1))
+          )
         })
 
       // update the Expression nodes to
-      expressions.foreach {
-        case ae: ArithExpression => ae.content = ArithExpr.substitute(ae.content, substitutions.toMap)
+      val updatedExpressions = expressions.map{
+        case ae: ArithExpression => ArithExpression(ArithExpr.substitute(ae
+          .content,
+          substitutions.toMap))
       }
 
       // find actually used variables
       val usedVars: mutable.Set[VarDecl] = mutable.Set()
-      expressions.foreach(expr => {
+      updatedExpressions.foreach(expr => {
         ArithExpr.visit(expr.content, {
           case v: Var => newVarDecls.find(_.v == v) match {
             case Some(s) => usedVars += s
@@ -83,9 +91,9 @@ object CommonSubexpressionElimination {
 
       // introduce new var decls at the beginning of the current block
       if (DeadCodeElimination())
-        usedVars.foreach(_ :: (block: Block))
+        usedVars.foreach(_ :: (block: MutableBlock))
       else
-        newVarDecls.foreach(_ :: (block: Block))
+        newVarDecls.foreach(_ :: (block: MutableBlock))
     }
   }
 }
