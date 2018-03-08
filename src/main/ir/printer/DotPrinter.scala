@@ -273,7 +273,14 @@ class DotPrinter(w: Writer,
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
         }
       case uf: UserFun =>
-        writeln(nodeId+" [style=rounded,shape=box,label=<<b>UserFun</b>("+uf.name+")>]")
+        val number = numbering.find{
+          case (expr, _) => println(expr.getClass.getName); expr match {
+            case FunCall(u : UserFun, _*) if uf == u => true
+            case _ => false
+          }
+        }.map(_._2.toString).getOrElse("")
+        val print = if (compressLambda) "<BR/><i>" + number + "</i>" else ""
+        writeln(nodeId+" [style=rounded,shape=box,label=<<b>UserFun</b>("+uf.name+")" + print + "*>]")
       case  _ =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
     }
