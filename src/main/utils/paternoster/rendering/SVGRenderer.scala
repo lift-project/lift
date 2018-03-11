@@ -1,24 +1,43 @@
-package utils.paternoster.gui
+package utils.paternoster.rendering
 
-import java.awt.{BasicStroke, RenderingHints}
-import javafx.scene.canvas.GraphicsContext
-import java.awt.Color
+import java.awt.{BasicStroke, Color, RenderingHints}
+import javafx.scene.text.Text
 
-
-import utils.paternoster.gui.JavaFXRenderer.{Context, adjustCanvas, adjustScaling, drawPrimitive}
-import utils.paternoster.logic.Graphics._
-import org.jfree
 import org.jfree.graphics2d.svg.SVGGraphics2D
+import utils.paternoster.rendering.Graphics._
 
-
+/**
+  * Handles drawing of the primitives to the svg file.
+  */
 object SVGRenderer {
+  /**
+    * The class capsules information on scaling, spacing and used fonts als well as the context of the canvas.
+    * @param gc The svg context that will be drawn to.
+    * @param unitX The x-scaling.
+    * @param unitY The y-scaling.
+    * @param smallX The x space between shapes.
+    * @param smallY The y space between shapes.
+    * @param numberFont The font that is used for the arraysize numbers.
+    * @param expressionFont The font that is used for the source code display.
+    * @param width The widht of the canvas.
+    * @param height The height of the canvas.
+    */
   case class Context(gc:SVGGraphics2D, unitX:Double, unitY:Double, smallX:Double, smallY:Double, numberFont :java.awt.Font , expressionFont: java.awt.Font , width:Double,height:Double)
 
+  /**
+    * Draws all primitives to the the picture.
+    * @param primitives The primitives that will be drawn.
+    * @param ctx The grahics context.
+    */
   def drawPrimitives(primitives:Iterable[GraphicalPrimitive], ctx:Context):Unit ={
     primitives.foreach(drawPrimitive(_, ctx))
   }
 
-
+  /**
+    * Draws a primitives to the svg context.
+    * @param primitive The primitives that will be drawn.
+    * @param ctx The graphics context.
+    */
   def drawPrimitive(primitive:GraphicalPrimitive, ctx: Context) = {
 
     primitive match {
@@ -48,25 +67,50 @@ object SVGRenderer {
         var highLightText = text.substring(begin, end+1)
         var afterHighLightText = text.substring(end+1,text.length)
 
-        var beforeLength = ctx.gc.getFontMetrics(ctx.expressionFont).stringWidth(beforeHightLightText)
-        var highLightLength = ctx.gc.getFontMetrics(ctx.expressionFont).stringWidth(highLightText)
-        var afterLength =ctx.gc.getFontMetrics(ctx.expressionFont).stringWidth(afterHighLightText)
+        var beforeLength = 0d
+        var beforeHeight = 0d
+        var beforeAndHighLightLength = 0d
+        var highLightHeight = 0d
+
+        val isMultiLine = text.contains("\n")
+
+        if(!isMultiLine){
+          beforeLength = ctx.gc.getFontMetrics(ctx.expressionFont).stringWidth(beforeHightLightText+" ")
+          beforeAndHighLightLength = ctx.gc.getFontMetrics(ctx.expressionFont).stringWidth(highLightText+" ")+beforeLength
+        }
+
 
         //Paint text before highlighting
         ctx.gc.setPaint(Color.BLACK)
-        ctx.gc.drawString(beforeHightLightText,x.toInt, (y*ctx.unitY + ctx.smallY).toInt)
+        var beforeLines = beforeHightLightText.split("\n")
+        var accLineHeight = 0d;
+        for( bfl <- beforeLines){
+          drawTextLine(bfl,x,y,0d,accLineHeight,ctx)
+          accLineHeight+=  ctx.gc.getFontMetrics(ctx.expressionFont).getStringBounds(bfl,ctx.gc).getHeight
+        }
+
 
         //Paint highlighted text
         ctx.gc.setPaint(Color.RED)
-        ctx.gc.drawString(highLightText,
-          (x+beforeLength).toInt,
-          (y*ctx.unitY + ctx.smallY).toInt)
+        if(!isMultiLine){
+          drawTextLine(highLightText,x,y,beforeLength,0d,ctx)
+        }else{
+          drawTextLine(highLightText,x,y,0d,accLineHeight,ctx)
+          accLineHeight+= ctx.gc.getFontMetrics(ctx.expressionFont).getStringBounds(highLightText,ctx.gc).getHeight
+        }
+
 
         //Paint text after highlighting
         ctx.gc.setPaint(Color.BLACK)
-        ctx.gc.drawString(afterHighLightText,
-          (x+beforeLength+highLightLength).toInt,
-          (y*ctx.unitY + ctx.smallY).toInt)
+        if(!isMultiLine){
+            drawTextLine(afterHighLightText,x,y,beforeAndHighLightLength,0d,ctx)
+        }else{
+          var afterLines = afterHighLightText.split("\n")
+          for( aftl <- afterLines){
+            drawTextLine(aftl,x,y,0d,accLineHeight,ctx)
+            accLineHeight+=  ctx.gc.getFontMetrics(ctx.expressionFont).getStringBounds(aftl,ctx.gc).getHeight
+          }
+        }
 
 
       case BoxWithText(text,bx,by,bwidth,bheight)=>
@@ -80,8 +124,8 @@ object SVGRenderer {
         )
 
 
-        val textX = ((bx*ctx.unitX + ctx.smallX)+(bwidth*ctx.unitX - 2*ctx.smallX))-(ctx.gc.getFont.getSize*text.size)/*Math.min((ctx.gc.getFont.getSize*text.size),(bwidth*ctx.unitX - 2*ctx.smallX)/2)*/
-        val textY =  ((by*ctx.unitY + ctx.smallY)+(bheight*ctx.unitY - 2*ctx.smallY)) /*((by*ctx.unitY + ctx.smallY)+(bheight*ctx.unitY - 2*ctx.smallY))-((bheight*ctx.unitY - 2*ctx.smallY)*0.025)*/
+        val textX = ((bx*ctx.unitX + ctx.smallX)+(bwidth*ctx.unitX - 2*ctx.smallX))-(ctx.gc.getFont.getSize*text.size)
+        val textY =  ((by*ctx.unitY + ctx.smallY)+(bheight*ctx.unitY - 2*ctx.smallY))-JavaFXRenderer.NUMBER_Y_MARGIN_TO_ARRAYBOX
         //ctx.gc.setFont(new Font(ctx.gc.getFont.getName,10))
         ctx.gc.drawString(text,
           textX.toInt,
@@ -151,7 +195,7 @@ object SVGRenderer {
         (x*ctx.unitX + ctx.smallX).toInt,
           (y*ctx.unitY + ctx.smallY).toInt,
           (x*ctx.unitX + ctx.smallX).toInt,
-          (y*ctx.unitY + ctx.smallY-(2)).toInt
+          (y*ctx.unitY + ctx.smallY-(JavaFXRenderer.SEPERATOR_HEIGHT)).toInt
         )
       }
       case Box(x, y, w, h) =>
@@ -163,6 +207,12 @@ object SVGRenderer {
           (w*ctx.unitX - 2*ctx.smallX).toInt,
           (h*ctx.unitY - 2*ctx.smallY).toInt)
     }
+  }
+
+  private def drawTextLine(text :String , x:Double ,y: Double,xOffset: Double , yOffset: Double,ctx: Context): Unit ={
+    ctx.gc.drawString(text,
+      (x*ctx.unitX+xOffset).toInt,
+      (y*ctx.unitY + ctx.smallY+yOffset).toInt)
   }
 
   /*private def drawArrow(gc:GraphicsContext, node1X:Double, node1Y:Double, node2X:Double, node2Y:Double) {

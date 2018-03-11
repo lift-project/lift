@@ -17,34 +17,45 @@ import javax.imageio.ImageIO
 
 import ir.{ArrayType, Size, Type}
 import lift.arithmetic.{ArithExpr, Var}
-import utils.paternoster.logic.Graphics
-import utils.paternoster.logic.Graphics.{Box, BoxWithText, Rectangle}
+import utils.paternoster.rendering.Graphics
+import utils.paternoster.rendering.Graphics.{Box, BoxWithText, Rectangle}
+import utils.paternoster.visualisation.TypeVisualiser
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class VisualizerWindow extends Application {
+class VisualiserWindow extends Application {
 
-
-  val defaultVarValue = 4
+  //The default values
   val DRAWING_WIDTH = 1280
   val DRAWING_HEIGHT = 720
   val DEFAULT_WINDOW_WIDTH = 1280
   val DEFAULT_WINDOW_HEIGHT = 720
-  var visualizer: TypeVisualizer = null;
+  var initSuccess=true;
 
+  //The reference to the visualiser
+  var visualiser: TypeVisualiser = null;
+
+
+  /**
+    * Gets called when the window is started.
+    * @param stage
+    */
   override def start(stage: Stage): Unit = {
     //Get the Type
-    var visualizer = TypeVisualizer.visualizer
+    var visualizer = TypeVisualiser.visualiser
 
     if(visualizer== null){
       System.exit(1)
     }
 
+
+    //initialise all gui elements.
+
     //mainPane is where we will draw
     val mainPane = new MainPane(DRAWING_WIDTH, DRAWING_HEIGHT)
 
-    TypeVisualizer.setMainPane(mainPane)
+    TypeVisualiser.setMainPane(mainPane)
 
     //Vbox - Main layout container
     var main = new VBox();
@@ -173,11 +184,20 @@ class VisualizerWindow extends Application {
 
         var success = updateModel(readVarInput(), readGroupingInput())
         if (success) {
-          visualizer.draw(mainPane)
+          try{
+            visualizer.draw(mainPane)
+          }catch {
+            case e: Exception => showAlert(e.getMessage)
+          }
         }
       }
     })
 
+
+    /**
+      * Read the user input from the variable fields.
+      * @return Mapping between user input and variable name.
+      */
     def readVarInput(): mutable.HashMap[String, String] ={
       var userVarInput: mutable.HashMap[String, String] = null;
       if (inputFields != null) {
@@ -188,6 +208,10 @@ class VisualizerWindow extends Application {
       userVarInput
     }
 
+    /**
+      * Read the user input from the Dimension-Grouping fields.
+      * @return Mapping between id of the TypeVisualisation and the new grouping.
+      */
     def readGroupingInput():mutable.HashMap[String, String]={
       var userDimInput: mutable.HashMap[String, String] = null;
       userDimInput = new mutable.HashMap[String, String]()
@@ -196,6 +220,7 @@ class VisualizerWindow extends Application {
       userDimInput
     }
 
+    //
     scene.setOnKeyReleased(new EventHandler[KeyEvent]() {
       override def handle(event: KeyEvent): Unit = {
         var source =  event.getSource
@@ -205,7 +230,12 @@ class VisualizerWindow extends Application {
 
             var success = updateModel(readVarInput(), readGroupingInput())
             if (success) {
-              visualizer.draw(mainPane)
+              try{
+                visualizer.draw(mainPane)
+              }catch {
+                case e: Exception => showAlert(e.getMessage)
+              }
+
             }
           }
           case default=>
@@ -218,13 +248,26 @@ class VisualizerWindow extends Application {
     middle.getChildren.addAll(buttonDraw)
     middle.setVisible(true);
 
-    visualizer.draw(mainPane)
+    try{
+      visualizer.draw(mainPane)
+    }catch {
+      case e : Exception =>{
+        showAlert("Could not draw with the default value: \"" + visualizer.INITIAL_VAR_VALUE+"\".")
+        initSuccess = false;
+      }
+    }
+
 
     stage.setScene(scene)
     stage.setTitle("lift-paternoster")
     stage.show()
 
-
+    /**
+      * Tries to update the visualisation with the user input. Displays errors if it was not successful.
+      * @param userVarInput The user input for variable values.
+      * @param userDimInput The user input for groupings.
+      * @return "true" if it was successful "false" otherwise
+      */
     def updateModel(userVarInput: mutable.HashMap[String, String], userDimInput: mutable.HashMap[String, String]): Boolean = {
       var noExceptions = true
       if (userVarInput != null) {
@@ -242,6 +285,10 @@ class VisualizerWindow extends Application {
             }
           }
         })
+      }
+      if(initSuccess == false){
+        visualizer.initTypeVisualisationList()
+        initSuccess=true
       }
       if (userDimInput != null) {
         userDimInput.keySet.foreach(id => {
@@ -269,6 +316,11 @@ class VisualizerWindow extends Application {
       noExceptions
     }
   }
+
+  /**
+    * Helper method that displays an error dialogue.
+    * @param msg The message that will be displayed in the dialogue.
+    */
   def showAlert(msg:String):Unit ={
     var alert = new Alert(AlertType.ERROR)
     alert.setTitle("Error")

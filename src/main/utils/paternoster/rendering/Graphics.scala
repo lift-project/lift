@@ -1,7 +1,7 @@
-package utils.paternoster.logic
+package utils.paternoster.rendering
 
 /**
-  * Created by Federico on 18-Aug-17.
+  * All basic shapes of wich the visualisation is made.
   */
 object Graphics {
   sealed trait GraphicalPrimitive
@@ -15,7 +15,13 @@ object Graphics {
   case class ExpressionSource(text:String, beginHighlight : Int , endHighLight: Int ,x:Double,y:Double) extends GraphicalPrimitive
   case class DashedBox(x:Double, y:Double, width:Double, height:Double) extends GraphicalPrimitive
 
-
+  /**
+    * Moves the give primitive by the given amount.
+    * @param primitive The primitive that will be moved.
+    * @param dx The amount that the primitive will be moved in x direction.
+    * @param dy The amount that the primitive will be moved in y direction.
+    * @return The moved primitive.
+    */
   def translate(primitive:GraphicalPrimitive, dx:Double, dy:Double):GraphicalPrimitive = {
     primitive match {
       case et: ExpressionSource => et.copy(text = et.text, beginHighlight = et.beginHighlight, endHighLight = et.endHighLight, x = et.x + dx, y = et.y + dy)
@@ -30,20 +36,13 @@ object Graphics {
     }
   }
 
-  def translateToRoundCoords(primitive:GraphicalPrimitive):GraphicalPrimitive={
-    primitive match {
-      case r:Rectangle => r.copy(x = Math.round(r.x), y = Math.round(r.y))
-      case b:Box => b.copy(x = Math.round(b.x), y = Math.round(b.x))
-      case bwt:BoxWithText => bwt.copy(bwt.text,Math.round(bwt.x),Math.round(bwt.y))
-      case Line(x1, y1, x2, y2) => Arrow(Math.round(x1), Math.round(y1),Math.round(x2),Math.round(x2))
-      case Arrow(x1, y1, x2, y2) => Arrow(Math.round(x1), Math.round(y1), Math.round(x2), Math.round(x2))
-    }
-  }
-
-  def translateAllToRoundCoords(primitives:Iterable[GraphicalPrimitive]):Iterable[GraphicalPrimitive] = {
-    primitives.map(translateToRoundCoords)
-  }
-
+  /**
+    * Moves all given primitives by the given amount.
+    * @param primitives The primitives that will be moved.
+    * @param dx The amount that the primitives will be moved in x direction.
+    * @param dy The amount that the primitives will be moved in y direction.
+    * @return The moved primitives.
+    */
   def translateAll(primitives:Iterable[GraphicalPrimitive], dx:Double, dy:Double):Iterable[GraphicalPrimitive] = {
     primitives.map(translate(_, dx = dx, dy = dy))
   }

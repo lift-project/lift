@@ -2,7 +2,7 @@ package ir.ast
 
 import ir.Type
 import ir.interpreter.Interpreter._
-import utils.paternoster.gui.TypeVisualizer
+import utils.paternoster.visualisation.TypeVisualiser
 
 /**
   * A pattern for debugging Lift code.
@@ -14,7 +14,7 @@ case class PrintType(visual: Boolean = false, render: Boolean = false,expression
                            setType: Boolean): Type = {
 
     if(visual){
-      TypeVisualizer(argType,render,expression)
+      TypeVisualiser(argType,render,expression)
     }else{
       println(argType.toString)
     }
