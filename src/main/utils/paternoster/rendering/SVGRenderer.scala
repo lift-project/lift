@@ -1,9 +1,9 @@
 package utils.paternoster.rendering
 
-import java.awt.{BasicStroke, Color, RenderingHints}
+import java.awt.{BasicStroke, Color, Paint, RenderingHints}
 import javafx.scene.text.Text
 
-import org.jfree.graphics2d.svg.SVGGraphics2D
+import org.jfree.graphics2d.svg.{SVGGraphics2D, SVGHints}
 import utils.paternoster.rendering.Graphics._
 
 /**
@@ -79,13 +79,15 @@ object SVGRenderer {
           beforeAndHighLightLength = ctx.gc.getFontMetrics(ctx.expressionFont).stringWidth(highLightText+" ")+beforeLength
         }
 
-
         //Paint text before highlighting
         ctx.gc.setPaint(Color.BLACK)
         var beforeLines = beforeHightLightText.split("\n")
         var accLineHeight = 0d;
         for( bfl <- beforeLines){
-          drawTextLine(bfl,x,y,0d,accLineHeight,ctx)
+          val spaceWidth = ctx.gc.getFontMetrics(ctx.expressionFont).stringWidth(" ")
+          val numSpaces = countSpaces(bfl)
+          val xOffset = numSpaces*spaceWidth
+          drawTextLine(bfl.trim,x,y,xOffset,accLineHeight,ctx)
           accLineHeight+=  ctx.gc.getFontMetrics(ctx.expressionFont).getStringBounds(bfl,ctx.gc).getHeight
         }
 
@@ -95,7 +97,10 @@ object SVGRenderer {
         if(!isMultiLine){
           drawTextLine(highLightText,x,y,beforeLength,0d,ctx)
         }else{
-          drawTextLine(highLightText,x,y,0d,accLineHeight,ctx)
+          val spaceWidth = ctx.gc.getFontMetrics(ctx.expressionFont).stringWidth(" ")
+          val numSpaces = countSpaces(highLightText)
+          val xOffset = numSpaces*spaceWidth
+          drawTextLine(highLightText.trim,x,y,xOffset,accLineHeight,ctx)
           accLineHeight+= ctx.gc.getFontMetrics(ctx.expressionFont).getStringBounds(highLightText,ctx.gc).getHeight
         }
 
@@ -107,7 +112,10 @@ object SVGRenderer {
         }else{
           var afterLines = afterHighLightText.split("\n")
           for( aftl <- afterLines){
-            drawTextLine(aftl,x,y,0d,accLineHeight,ctx)
+            val spaceWidth = ctx.gc.getFontMetrics(ctx.expressionFont).stringWidth(" ")
+            val numSpaces = countSpaces(aftl)
+            val xOffset = numSpaces*spaceWidth
+            drawTextLine(aftl.trim,x,y,xOffset,accLineHeight,ctx)
             accLineHeight+=  ctx.gc.getFontMetrics(ctx.expressionFont).getStringBounds(aftl,ctx.gc).getHeight
           }
         }
@@ -134,7 +142,10 @@ object SVGRenderer {
       case Rectangle(x, y, w, h) =>
 
         ctx.gc.setFont(ctx.numberFont)
-        ctx.gc.setPaint(Color.green)
+
+        var darkGreen = new Color(javafx.scene.paint.Color.DARKGREEN.getRed.toFloat,javafx.scene.paint.Color.DARKGREEN.getGreen.toFloat,javafx.scene.paint.Color.DARKGREEN.getBlue.toFloat)
+
+        ctx.gc.setPaint(darkGreen)
         ctx.gc.fillRect(
           (x*ctx.unitX + ctx.smallX*4).toInt,
           (y*ctx.unitY + ctx.smallY*4).toInt,
@@ -207,6 +218,12 @@ object SVGRenderer {
           (w*ctx.unitX - 2*ctx.smallX).toInt,
           (h*ctx.unitY - 2*ctx.smallY).toInt)
     }
+  }
+
+  def countSpaces(text:String): Integer={
+    var spaceCounter:Integer = 0
+    text.foreach(char => if(char == ' ') spaceCounter+=1)
+    spaceCounter
   }
 
   private def drawTextLine(text :String , x:Double ,y: Double,xOffset: Double , yOffset: Double,ctx: Context): Unit ={
