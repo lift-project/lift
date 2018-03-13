@@ -57,7 +57,7 @@ class Basic {
       (A, B) => {
         MapGlb(fun( Arow =>
           MapSeq(fun( Bcol =>
-            toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(Arow, Bcol)
+            toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)  $ Zip(Arow, Bcol)
           )) $ B
         )) $ A
       })
