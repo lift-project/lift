@@ -447,7 +447,7 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
       if (evalResult.isWhole()) {
         evalResult.toInt
       } else {
-        throw new TypeException(evalResult + " is not a valid array size.")
+        throw new TypeException("With the current variables the evaluation of:\n"+ae.toString() +"\nyields\n\""+ evalResult.toString + "\" wich is not a valid array size.")
       }
     })).asInstanceOf[List[List[Int]]]
   }
@@ -538,7 +538,7 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
           expressionBuffer += Graphics.ExpressionSource(expressionSourceCode, indicies._1, indicies._2, 0, 0)
         }
         if (printTypeIndicies.length != typeVisualizations.length) {
-          throw new IllegalArgumentException("The number of PrintTypes must match the number of types")
+          throw new IllegalArgumentException("The number of PrintType calls in the source code must match the number of displayed types.")
         }
       }
       var expressionTexts = expressionBuffer.toList.reverse

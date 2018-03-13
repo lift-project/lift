@@ -252,7 +252,7 @@ class VisualiserWindow extends Application {
       visualizer.draw(mainPane)
     }catch {
       case e : Exception =>{
-        showAlert("Could not draw with the default value: \"" + visualizer.INITIAL_VAR_VALUE+"\".")
+        showAlert("Could not draw with the default value: \"" + visualizer.INITIAL_VAR_VALUE+"\".\nThe following error occured: \n"+e.getMessage)
         initSuccess = false;
       }
     }

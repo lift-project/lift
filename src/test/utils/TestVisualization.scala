@@ -1,15 +1,18 @@
 package utils;
 
+import benchmarks.DotProduct
 import c.executor.Compile
 import ir.{ArrayType, ArrayTypeWSWC, TypeChecker}
 import ir.ast.{PrintType, Split, _}
-import lift.arithmetic.{SizeVar, Var}
+import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import opencl.executor.{Execute, Executor, TestWithExecutor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
+
+import scala.util.Random
 
 object TestVisualization extends TestWithExecutor
 
@@ -73,7 +76,43 @@ class TestVisualization{
     //println(kernel)
   }
 
-  @Test def MATRIX_MATRIX_SIMPLER(): Unit = {
+  private def dotProd(left: Array[Float], right: Array[Float]): Float = {
+    (left,right).zipped.map(_*_).sum
+  }
+
+  @Test def DOT_PRODUCT_SIMPLE_EVALUATION(): Unit = {
+
+    var expression = "    val inputSize = 128\n    val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)\n    val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)\n\n\n    val N = SizeVar(\"N\")\n\n    val dotProductSimple = fun(ArrayTypeWSWC(Float, N),\n      ArrayTypeWSWC(Float, N), (left, right) => {\n        PrintType(true,true,expression) o Join() o\n          PrintType(true) o MapWrg(\n           PrintType(true) o Join() o PrintType(true)  o\n             MapLcl(toGlobal(MapSeq(id)) o PrintType(true) o ReduceSeq(add, 0.0f) o PrintType(true) o MapSeq(mult)) o\n             PrintType(true) o Split(4) o PrintType(true)\n        ) o\n        PrintType(true) o Split(inputSize) o PrintType(true) $ Zip(left, right)\n      })"
+
+    val inputSize = 128
+    val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+    val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+
+    val N = SizeVar("N")
+
+    val dotProductSimple = fun(ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N), (left, right) => {
+        PrintType(true,true,expression) o Join() o
+          PrintType(true) o MapWrg(
+           PrintType(true) o Join() o PrintType(true)  o
+             MapLcl(toGlobal(MapSeq(id)) o PrintType(true) o ReduceSeq(add, 0.0f) o PrintType(true) o MapSeq(mult)) o
+             PrintType(true) o Split(4) o PrintType(true)
+        ) o
+        PrintType(true) o Split(inputSize) o PrintType(true) $ Zip(left, right)
+      })
+
+    val (output, runtime) = Execute(inputSize)[Array[Float]](dotProductSimple, leftInputData, rightInputData)
+
+    println("output.length = " + output.length)
+    println("output(0) = " + output(0))
+    println("runtime = " + runtime)
+
+    assertEquals(dotProd(leftInputData, rightInputData), output.sum, 0.0)
+
+  }
+
+  @Test def MATRIX_MATRIX_SIMPLE_EVALUATION(): Unit = {
 
     val N = SizeVar("N")
     val M = SizeVar("M")
@@ -84,19 +123,19 @@ class TestVisualization{
     val Nsize = 256
     val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
     val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-    val expression = "(A, B) => {\n        PrintType(true,true) o MapGlb(fun( Arow =>\n          PrintType(true) o MapSeq(fun( Bcol =>\n            PrintType(true) o toGlobal( MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) o PrintType(true) $ Zip(Arow, Bcol)\n          )) o PrintType(true) $ B\n        )) o PrintType(true) $ A\n      })"
+    val expression = "    val f = fun(\n      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),\n      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),\n      (A, B) => {\n        PrintType(true,true,expression) o MapGlb(fun( Arow =>\n          PrintType(true) o Join() o PrintType(true)  o MapSeq(fun( Bcol =>\n             toGlobal( MapSeq(id)) o PrintType(true) o ReduceSeq(add, 0.0f) o PrintType(true) o MapSeq(mult) o PrintType(true) $ Zip(Arow, Bcol)\n          )) o PrintType(true) o Transpose() $ B\n        )) o PrintType(true) $ A\n      })"
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) => {
         PrintType(true,true,expression) o MapGlb(fun( Arow =>
-          PrintType(true) o MapSeq(fun( Bcol =>
-            PrintType(true) o toGlobal( MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) o PrintType(true) $ Zip(Arow, Bcol)
-          )) o PrintType(true) $ B
+          PrintType(true) o Join() o PrintType(true)  o MapSeq(fun( Bcol =>
+             toGlobal( MapSeq(id)) o PrintType(true) o ReduceSeq(add, 0.0f) o PrintType(true) o MapSeq(mult) o PrintType(true) $ Zip(Arow, Bcol)
+          )) o PrintType(true) o Transpose() $ B
         )) o PrintType(true) $ A
       })
 
-    val (output, _) = Execute(Msize * Nsize)[Array[Float]](f, matrixA, matrixB.transpose)
+    val (output, _) = Execute(Msize * Nsize)[Array[Float]](f, matrixA, matrixB)
 
     val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
 
@@ -105,9 +144,45 @@ class TestVisualization{
 
 
 
+  /* **********************************************************
+    UTILS
+ ***********************************************************/
+  // boundary condition implemented in scala to create gold versions
+  val SCALABOUNDARY = Utils.scalaClamp
+  val BOUNDARY = Pad.Boundary.Clamp
+  val data = Array.tabulate(5)(_ * 1.0f)
+  val randomData = Seq.fill(1024)(Random.nextFloat()).toArray
+
+  @Test def simple3Point1DStencil_EVALUATION(): Unit = {
+    val expression = "    val weights = Array(1, 2, 1).map(_.toFloat)\n    val gold = Utils.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)\n\n    val stencil = fun(\n      //ArrayType(Float, inputLength), // more precise information\n      ArrayType(Float, Var(\"N\", StartFromRange(2))),\n      ArrayType(Float, weights.length),\n      (input, weights) => {\n        PrintType(true,true,expression) o Join() o PrintType(true) o  MapGlb(\n          PrintType(true) o\n          fun(neighbourhood => {\n            toGlobal(MapSeqUnroll(id)) o\n              ReduceSeqUnroll(\n                  fun((acc, y) =>\n                    { multAndSumUp.apply(acc, Get(y, 0), Get(y, 1)) }), 0.0f) o PrintType(true) $ Zip(weights, neighbourhood)\n          })\n        ) o PrintType(true) o Slide(3, 1) o PrintType(true) o Pad(1, 1, BOUNDARY) o PrintType(true) $ input\n      }\n    )"
+    val weights = Array(1, 2, 1).map(_.toFloat)
+    val gold = Utils.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)
+
+    val stencil = fun(
+      //ArrayType(Float, inputLength), // more precise information
+      ArrayType(Float, Var("N", StartFromRange(2))),
+      ArrayType(Float, weights.length),
+      (input, weights) => {
+        PrintType(true,true,expression) o Join() o PrintType(true) o  MapGlb(
+          PrintType(true) o
+          fun(neighbourhood => {
+            toGlobal(MapSeqUnroll(id)) o
+              ReduceSeqUnroll(
+                  fun((acc, y) =>
+                    { multAndSumUp.apply(acc, Get(y, 0), Get(y, 1)) }), 0.0f) o PrintType(true) $ Zip(weights, neighbourhood)
+          })
+        ) o PrintType(true) o Slide(3, 1) o PrintType(true) o Pad(1, 1, BOUNDARY) o PrintType(true) $ input
+      }
+    )
+
+    val (output, _) = Execute(randomData.length)[Array[Float]](stencil, randomData, weights)
+    assertArrayEquals(gold, output, 0.1f)
+  }
 
 
-  @Test def tiledMatrixMultiply(): Unit = {
+
+
+  @Test def tiledMatrixMultiply_MOTIVATION_TYPE_EXSAMPLE(): Unit = {
     assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
      val N = SizeVar("N")
@@ -146,7 +221,7 @@ class TestVisualization{
                 )) o PrintType() $ Zip(aRows, bCols)
 
               // Tile the matrices
-            )) o PrintType() o Tile(tileSize)o PrintType() $ B
+            )) o PrintType(true,true) o Tile(tileSize)o PrintType() $ B
           )) o Tile(tileSize) $ A
       })
 
