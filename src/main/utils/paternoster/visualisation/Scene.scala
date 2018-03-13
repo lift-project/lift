@@ -43,7 +43,7 @@ object Scene {
   private def nodeWidth(node: Node):Double = node match {
     case ScalarNode() => 5
     case TupleNode(elements) =>  2*CONTAINER_NODE_SPACING + elements.map(nodeWidth).sum + (2*MARGIN_TO_CHILDREN_X)+(elements.size-1 )*(SEPERATOR_WIDTH*4)//Add seperator width
-    case MatrixNode(elem, width, _) => 2*CONTAINER_NODE_SPACING +(2*MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * width
+    case MatrixNode(elem, columns, _) => 2*CONTAINER_NODE_SPACING +(2*MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * columns
     case LinearArrayNode(elem, size) => 2*CONTAINER_NODE_SPACING +(2*MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * size
     case VectorNode(elem, size) => 2*CONTAINER_NODE_SPACING +(2*MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * size
   }
@@ -56,7 +56,7 @@ object Scene {
   private def nodeHeight(node: Node):Double = node match {
     case ScalarNode() => 5
     case TupleNode(elements) => elements.map(nodeHeight).max + (2*MARGIN_TO_CHILDREN_Y)
-    case MatrixNode(elem, _, height) => (2*MARGIN_TO_CHILDREN_Y) + nodeHeight(elem) * height
+    case MatrixNode(elem, _, rows) => (2*MARGIN_TO_CHILDREN_Y) + nodeHeight(elem) * rows
     case LinearArrayNode(elem, size) => (2*MARGIN_TO_CHILDREN_Y) +nodeHeight(elem)
     case VectorNode(elem, size) => (2*MARGIN_TO_CHILDREN_Y) +nodeHeight(elem)
   }
@@ -139,7 +139,7 @@ object Scene {
 
       case 2 => {
         //2 dimensions
-        MatrixNode(inner,currentSizes.head,currentSizes.tail.head)
+        MatrixNode(inner,currentSizes.tail.head,currentSizes.head)
       }
       //any other - not supported yet!
       case n => throw new Exception(s"Unsupported rendering of $n-dimensional array level. Try another dimension grouping")
