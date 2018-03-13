@@ -55,10 +55,10 @@ object Scene {
     */
   private def nodeHeight(node: Node):Double = node match {
     case ScalarNode() => 5
-    case TupleNode(elements) => elements.map(nodeHeight).max + (2*MARGIN_TO_CHILDREN_Y)
-    case MatrixNode(elem, _, rows) => (2*MARGIN_TO_CHILDREN_Y) + nodeHeight(elem) * rows
-    case LinearArrayNode(elem, size) => (2*MARGIN_TO_CHILDREN_Y) +nodeHeight(elem)
-    case VectorNode(elem, size) => (2*MARGIN_TO_CHILDREN_Y) +nodeHeight(elem)
+    case TupleNode(elements) => 2*CONTAINER_NODE_SPACING + elements.map(nodeHeight).max + (2*MARGIN_TO_CHILDREN_Y)
+    case MatrixNode(elem, _, rows) => 2*CONTAINER_NODE_SPACING + (2*MARGIN_TO_CHILDREN_Y) + nodeHeight(elem) * rows
+    case LinearArrayNode(elem, size) => 2*CONTAINER_NODE_SPACING + (2*MARGIN_TO_CHILDREN_Y) +nodeHeight(elem)
+    case VectorNode(elem, size) => 2*CONTAINER_NODE_SPACING + (2*MARGIN_TO_CHILDREN_Y) +nodeHeight(elem)
   }
 
   //Node construction (from lift source items)

@@ -2,7 +2,7 @@ package utils;
 
 import benchmarks.DotProduct
 import c.executor.Compile
-import ir.{ArrayType, ArrayTypeWSWC, TypeChecker}
+import ir._
 import ir.ast.{PrintType, Split, _}
 import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import opencl.executor.{Execute, Executor, TestWithExecutor, Utils}
@@ -76,15 +76,86 @@ class TestVisualization{
     //println(kernel)
   }
 
+
+  @Test
+  def tupleOfTouplesType(): Unit = {
+    val input = Array.tabulate(32){ i => i}
+    val N = Var("N")
+    val expression ="    def lambda = fun(\n      TupleType(ArrayType(ArrayType(TupleType(VectorType(Float,4),ArrayType(TupleType(Float,Float),2)),2),2),Float),\n      input => PrintType(visual = true,render = true) $ input\n    )"
+    def lambda = fun(
+      TupleType(ArrayType(ArrayType(TupleType(VectorType(Float,4),ArrayType(TupleType(Float,Float),2)),2),2),Float),
+      input => PrintType(visual = true,render = true,expression) $ input
+    )
+
+    //TypeChecker(lambda)
+    val kernel = Compile(lambda)
+    println(kernel)
+  }
+
+  @Test
+  def ArrayOfMatrixes(): Unit = {
+    val input = Array.tabulate(32){ i => i}
+    val N = Var("N")
+    val expression ="    def lambda = fun(\n      ArrayType(ArrayType(ArrayType(Float,4),4),4),\n      input => PrintType(visual = true,render = true,expression) $ input\n    )"
+    def lambda = fun(
+      ArrayType(TupleType(ArrayType(ArrayType(Float,4),4),ArrayType(ArrayType(Float,4),4)),2),
+      input => PrintType(visual = true,render = true,expression) $ input
+    )
+
+    //TypeChecker(lambda)
+    val kernel = Compile(lambda)
+    println(kernel)
+  }
+
+
   private def dotProd(left: Array[Float], right: Array[Float]): Float = {
     (left,right).zipped.map(_*_).sum
   }
 
+  @Test def addArrayOfVectors_EVALUATION(): Unit = {
+    val inputSize = 4
+    val numVectors = 6
+    val inputArray = Array.fill(numVectors, inputSize)(util.Random.nextInt(5).toFloat)
+
+    val gold = inputArray.reduce((x, y) => (x, y).zipped.map(_+_))
+
+    val test = inputArray.transpose.map(_.sum)
+    //assertArrayEquals(gold, test, 0.001f)
+
+    var expression = "    val addArrayOfVectorsFun = fun(\n      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar(\"M\")), SizeVar(\"N\")),\n      input => PrintType(true,true,expression) o Join() o PrintType(true) o \n        MapGlb(toGlobal(MapSeq(id)) o PrintType(true) o ReduceSeq(add, 0.0f)) o PrintType(true) o Transpose() o PrintType(true) $ input\n    )"
+    val addArrayOfVectorsFun = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
+      input => PrintType(true,true,expression) o Join() o PrintType(true) o
+        MapGlb(toGlobal(MapSeq(id)) o PrintType(true) o ReduceSeq(add, 0.0f)) o PrintType(true) o Transpose() o PrintType(true) $ input
+    )
+
+    val kernel = Compile(addArrayOfVectorsFun)
+    println(kernel)
+  }
+
+  @Test def VECTOR_ADD_SIMPLE_EVALUATION(): Unit = {
+
+    val inputSize = 4
+
+    val N = SizeVar("N")
+    var expression = "    val vectorAddFun = fun(\n      ArrayTypeWSWC(Float, N),\n      ArrayTypeWSWC(Float, N),\n      (vector1, vector2) =>\n        PrintType(true,true,expression) o MapSeq(add)  o PrintType(true) $ Zip(vector1, vector2)\n    )"
+    val vectorAddFun = fun(
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
+      (vector1, vector2) =>
+        PrintType(true,true,expression) o MapSeq(add)  o PrintType(true) $ Zip(vector1, vector2)
+    )
+
+    val kernel = Compile(vectorAddFun)
+    println(kernel)
+  }
+
+
   @Test def DOT_PRODUCT_SIMPLE_EVALUATION(): Unit = {
 
-    var expression = "    val inputSize = 128\n    val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)\n    val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)\n\n\n    val N = SizeVar(\"N\")\n\n    val dotProductSimple = fun(ArrayTypeWSWC(Float, N),\n      ArrayTypeWSWC(Float, N), (left, right) => {\n        PrintType(true,true,expression) o Join() o\n          PrintType(true) o MapWrg(\n           PrintType(true) o Join() o PrintType(true)  o\n             MapLcl(toGlobal(MapSeq(id)) o PrintType(true) o ReduceSeq(add, 0.0f) o PrintType(true) o MapSeq(mult)) o\n             PrintType(true) o Split(4) o PrintType(true)\n        ) o\n        PrintType(true) o Split(inputSize) o PrintType(true) $ Zip(left, right)\n      })"
+    var expression = "    val inputSize = 4\n    val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)\n    val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)\n\n\n    val N = SizeVar(\"N\")\n\n    val dotProductSimple = fun(ArrayTypeWSWC(Float, N),\n      ArrayTypeWSWC(Float, N), (left, right) => {\n        PrintType(true,true,expression) o Join() o\n          PrintType(true) o\n          MapWrg(\n           PrintType(true) o Join() o PrintType(true)  o\n             MapLcl(\n               toGlobal(MapSeq(id)) o PrintType(true) o ReduceSeq(add, 0.0f) o PrintType(true) o MapSeq(mult) o PrintType(true) \n             ) o\n             PrintType(true) o Split(4) o PrintType(true)\n          ) o\n          PrintType(true) o Split(inputSize) o PrintType(true) $ Zip(left, right)\n      })"
 
-    val inputSize = 128
+    val inputSize = 4
     val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
     val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
 
@@ -94,21 +165,25 @@ class TestVisualization{
     val dotProductSimple = fun(ArrayTypeWSWC(Float, N),
       ArrayTypeWSWC(Float, N), (left, right) => {
         PrintType(true,true,expression) o Join() o
-          PrintType(true) o MapWrg(
+          PrintType(true) o
+          MapWrg(
            PrintType(true) o Join() o PrintType(true)  o
-             MapLcl(toGlobal(MapSeq(id)) o PrintType(true) o ReduceSeq(add, 0.0f) o PrintType(true) o MapSeq(mult)) o
+             MapLcl(
+               toGlobal(MapSeq(id)) o PrintType(true) o ReduceSeq(add, 0.0f) o PrintType(true) o MapSeq(mult) o PrintType(true)
+             ) o
              PrintType(true) o Split(4) o PrintType(true)
-        ) o
-        PrintType(true) o Split(inputSize) o PrintType(true) $ Zip(left, right)
+          ) o
+          PrintType(true) o Split(inputSize) o PrintType(true) $ Zip(left, right)
       })
 
-    val (output, runtime) = Execute(inputSize)[Array[Float]](dotProductSimple, leftInputData, rightInputData)
+    TypeChecker(dotProductSimple)
+    //val (output, runtime) = Execute(inputSize)[Array[Float]](dotProductSimple, leftInputData, rightInputData)
 
-    println("output.length = " + output.length)
-    println("output(0) = " + output(0))
-    println("runtime = " + runtime)
+    //println("output.length = " + output.length)
+   // println("output(0) = " + output(0))
+   // println("runtime = " + runtime)
 
-    assertEquals(dotProd(leftInputData, rightInputData), output.sum, 0.0)
+  //  assertEquals(dotProd(leftInputData, rightInputData), output.sum, 0.0)
 
   }
 
