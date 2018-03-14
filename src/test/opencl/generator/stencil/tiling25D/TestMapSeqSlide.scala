@@ -1,10 +1,8 @@
-package opencl.generator.stencil
+package opencl.generator.stencil.tiling25D
 
 import ir.ArrayTypeWSWC
-import opencl.generator.NDRange
-import rewriting.SimplifyAndFuse
 import ir.ast.{Get, Slide, Zip, fun, _}
-import lift.arithmetic.{?, SizeVar}
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.generator.stencil.acoustic.{BoundaryUtilities, RoomConstants, StencilUtilities}
 import opencl.ir._
@@ -12,8 +10,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
-
-import scala.collection.immutable
+import rewriting.SimplifyAndFuse
 
 object TestMapSeqSlide extends TestWithExecutor
 
