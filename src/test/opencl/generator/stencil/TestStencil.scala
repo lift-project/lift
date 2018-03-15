@@ -31,6 +31,32 @@ class TestStencil {
   val randomData = Seq.fill(1024)(Random.nextFloat()).toArray
 
   /* **********************************************************
+      VECTORIZATION
+   ***********************************************************/
+  @Test
+  def stencilVectorization(): Unit = {
+    val N = 18
+    val gold = \(ArrayType(Float, N),
+      input => Join() o MapGlb(MapSeq(toGlobal(id)) o ReduceSeq(add,0.0f)) o Slide(3,1) $ input
+    )
+
+    val vectorized = \(ArrayType(Float, N),
+      input => PrintType() o Join() o Map(asScalar() o Reduce(addF4, Value("0.0f", Float).vectorize(4))) o
+        Map(Join()) o Map(Map(asVector(4))) o Map(Slide(4,1)) o Slide(6,4) $ input
+    )
+
+    val vectorizedLowered = \(ArrayType(Float, N),
+      input => Join() o MapGlb(asScalar() o MapSeq(toGlobal(idF4)) o ReduceSeq(addF4, Value("0.0f", Float).vectorize(4))) o
+        Map(Join()) o Map(Map(asVector(4))) o Map(Slide(4,1)) o Slide(6,4) $ input
+    )
+
+    val input = Array.tabulate(N) { _ => Random.nextInt() % 20 + 20 * 1.0f }
+    val (outGold, _) = Execute(1,4,(false,false))[Array[Float]](gold, input)
+    val (outVect, _) = Execute(1,4,(false,false))[Array[Float]](vectorizedLowered, input)
+    assertArrayEquals(outGold, outVect, 0.0f)
+  }
+
+  /* **********************************************************
       SLIDE o PAD
    ***********************************************************/
   def testCombinationPadSlide(boundary: BoundaryFun,

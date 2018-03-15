@@ -41,7 +41,7 @@ package object ir {
 
   val iddouble = UserFun("iddouble", "x", "{ return x; }", Double, Double)
 
-  val idF4 = UserFun("id", "x", "{ return x; }", Float4, Float4)
+  val idF4 = UserFun("idF4", "x", "{ return x; }", Float4, Float4)
   
   val idFI = UserFun("id", "x", "{ return x; }", TupleType(Float, Int), TupleType(Float, Int))
 
@@ -52,6 +52,8 @@ package object ir {
 
   val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).
     setScalaFun( xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float] )
+
+  val addF4 = UserFun("addF4", Array("x", "y"), "{ return x+y; }", Seq(Float4, Float4), Float4)
 
   val addI = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Int, Int), Int).
     setScalaFun( xs => xs.head.asInstanceOf[Int] + xs(1).asInstanceOf[Int] )
