@@ -1,9 +1,10 @@
 package ir.printer
 
 import java.io.{File, PrintWriter, Writer}
-import scala.sys.process._
 
+import scala.sys.process._
 import ir.ast._
+import rewriting.utils.NumberExpression
 
 
 /**
@@ -11,16 +12,28 @@ import ir.ast._
   */
 object DotPrinter {
   def apply(name: String, f: Lambda): Unit = {
-    val folder = System.getProperty("user.home")
-    new DotPrinter(new PrintWriter(new File(s"$folder/$name.dot"))).print(f)
-    s"dot -Tpdf $folder/$name.dot -o $folder/$name.pdf".!
+    val home = System.getProperty("user.home")
+    this.apply(home, name, f)
+  }
+
+  def apply(path: String, name: String, f: Lambda): Unit = {
+    new DotPrinter(new PrintWriter(new File(s"$path/$name.dot"))).print(f)
+    s"dot -Tpdf $path/$name.dot -o $path/$name.pdf".!
+  }
+
+  def withNumbering(path: String, name: String, f: Lambda, compress : Boolean = true): Unit = {
+    val numbering = NumberExpression.breadthFirst(f)
+    new DotPrinter(new PrintWriter(new File(s"$path/$name.dot")), compress, false, false, numbering).print(f)
+    s"dot -Tpdf $path/$name.dot -o $path/$name.pdf".!
   }
 }
 
 class DotPrinter(w: Writer,
                  compressLambda : Boolean = true,
                  printAddressSpace : Boolean = false,
-                 printRef : Boolean = false) {
+                 printRef : Boolean = false,
+                 numbering : scala.collection.Map[Expr, Int] = scala.collection.Map()
+                ) {
 
   // keeps track of the visited node
   lazy val visited : collection.mutable.Map[Any, Int] = collection.mutable.HashMap()
@@ -48,6 +61,7 @@ class DotPrinter(w: Writer,
       case fp: FPattern => countParams(fp.f.body)
       case e: Expr => countParams(e)
     }
+
     printNodes(node)
     visited.clear() // start counting again to associate the right nodes with the right edges
     printEdges(node, "", "")
@@ -146,11 +160,17 @@ class DotPrinter(w: Writer,
       ":addrSpce("+e.addressSpace+")"
       else
         ""
+
+    val number = if (numbering.contains(e))
+      numbering(e).toString()
+    else
+      ""
+
     val ref = if (printRef)
       "@"+e.##
     else
       ""
-    writeln(getNodeId(e) + " [style=rounded,shape=box,label=<<b>" + e.getClass.getSimpleName + "</b>"+ ref+addrSpce +">]")
+    writeln(getNodeId(e) + " [style=rounded,shape=box,label=<<b>" + e.getClass.getSimpleName + "</b>"+ ref+addrSpce +"<BR/><i>" + number + "</i>>]")
   }
 
   def printNodes(node: IRNode): Unit = {
@@ -160,7 +180,6 @@ class DotPrinter(w: Writer,
     visited.put(node, visited.getOrElse(node, 0)+1)
 
     val nodeId = getNodeId(node)
-
 
     node match {
       case fc: FunCall =>
@@ -187,7 +206,11 @@ class DotPrinter(w: Writer,
         printNodes(fc.f)
 
       case v: Value =>
-        writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>("+v.value+")>]")
+        val number = if (numbering.contains(v))
+          numbering(v).toString()
+        else
+          ""
+        writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>("+v.value+")<BR/><i>" + number + "</i>>]")
       case p: Param =>
         writeNodeDef(p)
         //writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>>]")
@@ -236,6 +259,8 @@ class DotPrinter(w: Writer,
             printNodes(fp.f)
           case Split(chunkSize) =>
             writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>(" + chunkSize + ")>]")
+          case Slide(size, step) =>
+            writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>(" + size + ", " + step + ")>]")
           case Get(i) =>
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>("+i+")>]")
           case t: Tuple =>
@@ -248,7 +273,14 @@ class DotPrinter(w: Writer,
             writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
         }
       case uf: UserFun =>
-        writeln(nodeId+" [style=rounded,shape=box,label=<<b>UserFun</b>("+uf.name+")>]")
+        val number = numbering.find{
+          case (expr, _) => println(expr.getClass.getName); expr match {
+            case FunCall(u : UserFun, _*) if uf == u => true
+            case _ => false
+          }
+        }.map(_._2.toString).getOrElse("")
+        val print = if (compressLambda) "<BR/><i>" + number + "</i>" else ""
+        writeln(nodeId+" [style=rounded,shape=box,label=<<b>UserFun</b>("+uf.name+")" + print + "*>]")
       case  _ =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
     }
