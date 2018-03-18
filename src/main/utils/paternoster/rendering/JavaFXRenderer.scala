@@ -33,7 +33,9 @@ object JavaFXRenderer {
     * Adjusts the canvas to fit the visualisation, clears the canvas and then draws the picture.
     * @param primitives The primitives that will be drawn.
     * @param ctx The grahics context.
+    * @throws RuntimeException If the visualisation is bigger than the maximal displayable dimension in JavaFx
     */
+  @throws(classOf[RuntimeException])
   def drawPrimitives(primitives:Iterable[GraphicalPrimitive], ctx:Context):Unit ={
     var newContext = ctx  //adjustScaling(primitives,ctx)
     newContext = adjustCanvas(primitives,newContext)
@@ -47,33 +49,40 @@ object JavaFXRenderer {
     * The method checks if the visialisation fits on the canvas. If it does not fit then the canvas will be adjusted.
     * @param primitives The primitives of the visualisation.
     * @param ctx The graphics context.
-    * @return The
+    * @return The new Context.
+    * @throws RuntimeException If the visualisation is bigger than the maximal displayable dimension in JavaFx
     */
+  @throws(classOf[RuntimeException])
   def adjustCanvas(primitives:Iterable[GraphicalPrimitive],ctx:Context): Context ={
       var maxWidth=0.0
       var maxHeight=0.0
+      var accumulatedHeight = 0.0
       primitives.foreach(primitive=> primitive match {
       case BoxWithText(_,x,y,w,h) => {
         val width = x+w
         val height = y+h
+        accumulatedHeight+= height
         if(width > maxWidth) maxWidth=width
         if(height > maxHeight) maxHeight = height
       }
       case Box(x,y,w,h)=>  {
         val width = x+w
         val height = y+h
+        accumulatedHeight+= height
         if(width > maxWidth) maxWidth=width
         if(height > maxHeight) maxHeight = height
       }
       case CorneredClause(x,y,w,h)=>  {
         val width = x+w
         val height = y+h
+        accumulatedHeight+= height
         if(width > maxWidth) maxWidth=width
         if(height > maxHeight) maxHeight = height
       }
       case Rectangle(x,y,w,h)=> {
         val width = x+w
         val height = y+h
+        accumulatedHeight+= height
         if(width > maxWidth) maxWidth=width
         if(height > maxHeight) maxHeight = height
       }
@@ -82,19 +91,34 @@ object JavaFXRenderer {
         textObject.setFont(ctx.expressionFont)
         var textWidth = textObject.getLayoutBounds.getWidth / ctx.unitX
         var textHeight = textObject.getLayoutBounds.getHeight / ctx.unitY
+        accumulatedHeight+= textHeight
         if(textWidth > maxWidth) maxWidth=textWidth
         if(textHeight > maxHeight) maxHeight = textHeight
       }
       case default =>
     })
+    if(!(maxHeight*ctx.unitY > 16383 || maxWidth*ctx.unitX > 16383)){
+      if(maxHeight*ctx.unitY > TypeVisualiser.getMainPane().height){
+        TypeVisualiser.getMainPane().setCanvasHeight(maxHeight*ctx.unitY)
+      }
+      if(maxWidth*ctx.unitX > TypeVisualiser.getMainPane().width){
+        TypeVisualiser.getMainPane().setCanvasWidth(maxWidth*ctx.unitX)
+      }
+      Context(TypeVisualiser.getMainPane().getGraphicsContext(), ctx.unitX, ctx.unitY, ctx.smallX, ctx.smallY,ctx.numberFont,ctx.expressionFont,TypeVisualiser.getMainPane().canvas.getWidth,TypeVisualiser.getMainPane().canvas.getHeight)
+    }else{
+      ctx.gc.clearRect(0, 0, TypeVisualiser.getMainPane().canvas.getWidth, TypeVisualiser.getMainPane().canvas.getHeight)
+      ctx.gc.setFill(Color.WHITE)
 
-    if(maxHeight*ctx.unitY > TypeVisualiser.getMainPane().height){
-      TypeVisualiser.getMainPane().setCanvasHeight(maxHeight*ctx.unitY)
+      ctx.gc.setFont(new Font(ctx.expressionFont.getName,20))
+      var message = "The visualisation is too big to be displayed.\nYou can set variables and groupings normally.\nBut to view the visualsisation it must be exported as scalable vector graphics (SVG)."
+      var text = new Text(message)
+
+      ctx.gc.strokeText(message,
+        0,
+        0+text.getLayoutBounds.getHeight)
+      throw new RuntimeException("The visualisation can't be displayed.\nIt exceeds the maximal dimensions that are able to be displayed in a JavaFx Application.\n You may be able to save the graphics as vector graphic to view it.")
     }
-    if(maxWidth*ctx.unitX > TypeVisualiser.getMainPane().width){
-      TypeVisualiser.getMainPane().setCanvasWidth(maxWidth*ctx.unitX)
-    }
-    Context(TypeVisualiser.getMainPane().getGraphicsContext(), ctx.unitX, ctx.unitY, ctx.smallX, ctx.smallY,ctx.numberFont,ctx.expressionFont,TypeVisualiser.getMainPane().canvas.getWidth,TypeVisualiser.getMainPane().canvas.getHeight)
+
   }
 
 

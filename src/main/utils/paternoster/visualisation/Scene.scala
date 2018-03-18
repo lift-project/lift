@@ -18,7 +18,7 @@ object Scene {
   case class TupleNode(elements:Seq[Node]) extends Node
   case class VectorNode(element:Node, size: Int) extends Node
   sealed trait ArrayNode extends Node
-  case class MatrixNode(element: Node, columns:Int, rows:Int) extends ArrayNode
+  case class MatrixNode(element: Node, rows:Int, columns:Int) extends ArrayNode
   case class LinearArrayNode(element: Node, size:Int) extends ArrayNode
 
 
@@ -43,7 +43,7 @@ object Scene {
   private def nodeWidth(node: Node):Double = node match {
     case ScalarNode() => 5
     case TupleNode(elements) =>  2*CONTAINER_NODE_SPACING + elements.map(nodeWidth).sum + (2*MARGIN_TO_CHILDREN_X)+(elements.size-1 )*(SEPERATOR_WIDTH*4)//Add seperator width
-    case MatrixNode(elem, columns, _) => 2*CONTAINER_NODE_SPACING +(2*MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * columns
+    case MatrixNode(elem, _, columns) => 2*CONTAINER_NODE_SPACING +(2*MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * columns
     case LinearArrayNode(elem, size) => 2*CONTAINER_NODE_SPACING +(2*MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * size
     case VectorNode(elem, size) => 2*CONTAINER_NODE_SPACING +(2*MARGIN_TO_CHILDREN_X) + nodeWidth(elem) * size
   }
@@ -56,7 +56,7 @@ object Scene {
   private def nodeHeight(node: Node):Double = node match {
     case ScalarNode() => 5
     case TupleNode(elements) => 2*CONTAINER_NODE_SPACING + elements.map(nodeHeight).max + (2*MARGIN_TO_CHILDREN_Y)
-    case MatrixNode(elem, _, rows) => 2*CONTAINER_NODE_SPACING + (2*MARGIN_TO_CHILDREN_Y) + nodeHeight(elem) * rows
+    case MatrixNode(elem, rows, _ ) => 2*CONTAINER_NODE_SPACING + (2*MARGIN_TO_CHILDREN_Y) + nodeHeight(elem) * rows
     case LinearArrayNode(elem, size) => 2*CONTAINER_NODE_SPACING + (2*MARGIN_TO_CHILDREN_Y) +nodeHeight(elem)
     case VectorNode(elem, size) => 2*CONTAINER_NODE_SPACING + (2*MARGIN_TO_CHILDREN_Y) +nodeHeight(elem)
   }
@@ -139,7 +139,7 @@ object Scene {
 
       case 2 => {
         //2 dimensions
-        MatrixNode(inner,currentSizes.tail.head,currentSizes.head)
+        MatrixNode(inner, currentSizes.head, currentSizes.tail.head)
       }
       //any other - not supported yet!
       case n => throw new Exception(s"Unsupported rendering of $n-dimensional array level. Try another dimension grouping")
@@ -224,18 +224,18 @@ object Scene {
             //As a final results, flatten the sets and add the container box
             sets.flatten ++ Seq(DashedBox(0, 0, (size*elemWidth)+(MARGIN_TO_CHILDREN_X*2), elemHeight+(MARGIN_TO_CHILDREN_Y*2)))
         }
-        case MatrixNode(elementType, width, height) =>
+        case MatrixNode(elementType, rows, columns) =>
           val elemWidth =nodeWidth(elementType)
           val elemHeight = nodeHeight(elementType)
           //compute inner element primitives
           val elementPrims = drawType(elementType)
           //Compute the positions where the children will go
-          val positions = for(x <- 0 until width;
-                              y <- 0 until height) yield (x*elemWidth, y*elemHeight)
+          val positions = for(x <- 0 until columns;
+                              y <- 0 until rows) yield (x*elemWidth, y*elemHeight)
           //For each position, replicate the elementPrimitives and translate them to that place
           val sets = positions.map{case (x,y) => translateAll(elementPrims, x+MARGIN_TO_CHILDREN_X-0.5, y+MARGIN_TO_CHILDREN_Y-0.5)}
           //Flatten the sets and wrap in container box
-          sets.flatten ++ Seq(BoxWithText(width.toString+"x"+height.toString ,0, 0, (width*elemWidth)+(MARGIN_TO_CHILDREN_X*2), (height*elemHeight)+(MARGIN_TO_CHILDREN_Y*2)))
+          sets.flatten ++ Seq(BoxWithText(rows.toString+"x"+ columns.toString,0, 0, (columns*elemWidth)+(MARGIN_TO_CHILDREN_X*2), (rows*elemHeight)+(MARGIN_TO_CHILDREN_Y*2)))
         case LinearArrayNode(elementType, size) =>
           val elemWidth =nodeWidth(elementType)
           val elemHeight = nodeHeight(elementType)
