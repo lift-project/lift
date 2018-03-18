@@ -5,6 +5,8 @@ import javafx.scene.text.Text
 
 import org.jfree.graphics2d.svg.{SVGGraphics2D, SVGHints}
 import utils.paternoster.rendering.Graphics._
+import utils.paternoster.rendering.JavaFXRenderer.Context
+import utils.paternoster.visualisation.TypeVisualiser
 
 /**
   * Handles drawing of the primitives to the svg file.
@@ -31,6 +33,59 @@ object SVGRenderer {
     */
   def drawPrimitives(primitives:Iterable[GraphicalPrimitive], ctx:Context):Unit ={
     primitives.foreach(drawPrimitive(_, ctx))
+  }
+
+  /**
+    * The method gets the visialisation dimensions
+    * @param primitives The primitives of the visualisation.
+    * @param ctx The graphics context.
+    * @return A tuple of width and height of the visualisation.
+    *
+    */
+  def getDimensions(primitives:Iterable[GraphicalPrimitive],ctx:Context): (Double,Double) ={
+    var maxWidth=0.0
+    var maxHeight=0.0
+    var accumulatedHeight = 0.0
+    primitives.foreach(primitive=> primitive match {
+      case BoxWithText(_,x,y,w,h) => {
+        val width = x+w
+        val height = y+h
+        accumulatedHeight+= height
+        if(width > maxWidth) maxWidth=width
+        if(height > maxHeight) maxHeight = height
+      }
+      case Box(x,y,w,h)=>  {
+        val width = x+w
+        val height = y+h
+        accumulatedHeight+= height
+        if(width > maxWidth) maxWidth=width
+        if(height > maxHeight) maxHeight = height
+      }
+      case CorneredClause(x,y,w,h)=>  {
+        val width = x+w
+        val height = y+h
+        accumulatedHeight+= height
+        if(width > maxWidth) maxWidth=width
+        if(height > maxHeight) maxHeight = height
+      }
+      case Rectangle(x,y,w,h)=> {
+        val width = x+w
+        val height = y+h
+        accumulatedHeight+= height
+        if(width > maxWidth) maxWidth=width
+        if(height > maxHeight) maxHeight = height
+      }
+      case ExpressionSource(text,beginHighlight,endHighLight,x,y)=>{
+        var textWidth = ctx.gc.getFontMetrics(ctx.expressionFont).getStringBounds(text,ctx.gc).getWidth  / ctx.unitX
+        var textHeight = ctx.gc.getFontMetrics(ctx.expressionFont).getStringBounds(text,ctx.gc).getHeight / ctx.unitY
+        accumulatedHeight+= textHeight
+        if(textWidth > maxWidth) maxWidth=textWidth
+        if(textHeight > maxHeight) maxHeight = textHeight
+      }
+      case default =>
+    })
+
+  (maxWidth*ctx.unitX,accumulatedHeight*ctx.unitY)
   }
 
   /**

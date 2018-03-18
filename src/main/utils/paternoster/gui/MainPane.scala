@@ -41,9 +41,10 @@ class MainPane(val width:Int, val height:Int) extends Pane {
     * @param primitives The primitives that will be drawn.
     * @return The svg content.
     */
-  def renderToSvg(primitives:Iterable[GraphicalPrimitive]): String ={
-    var g2 = new SVGGraphics2D(canvas.getWidth.toInt,canvas.getHeight.toInt);
-    val context = SVGRenderer.Context(g2, unitX, unitY, smallX, smallY, getNumberFontAwt() , getExpressionFontAwt() ,width.toDouble,height.toDouble)
+  def renderToSvg(primitives:Iterable[GraphicalPrimitive],visualisationDimensions : (Double,Double)): String ={
+
+    var g2 = new SVGGraphics2D(visualisationDimensions._1.toInt*unitX.toInt,visualisationDimensions._2.toInt*unitY.toInt);
+    var context = SVGRenderer.Context(g2, unitX, unitY, smallX, smallY, getNumberFontAwt() , getExpressionFontAwt() ,width.toDouble,height.toDouble)
     SVGRenderer.drawPrimitives(primitives,context)
     var svgOuptut = g2.getSVGElement()
     svgOuptut
