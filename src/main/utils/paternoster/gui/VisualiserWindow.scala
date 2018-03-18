@@ -187,7 +187,12 @@ class VisualiserWindow extends Application {
           try{
             visualizer.draw(mainPane)
           }catch {
+            case rtx: RuntimeException =>{
+              scrollPane.setHvalue(0)
+              scrollPane.setVvalue(0)
+            } //showAlert(rtx.getMessage)
             case e: Exception => showAlert(e.getMessage)
+
           }
         }
       }
@@ -233,7 +238,12 @@ class VisualiserWindow extends Application {
               try{
                 visualizer.draw(mainPane)
               }catch {
+                case rtx: RuntimeException =>{
+                  scrollPane.setHvalue(0)
+                  scrollPane.setVvalue(0)
+                } //showAlert(rtx.getMessage)
                 case e: Exception => showAlert(e.getMessage)
+
               }
 
             }
@@ -251,10 +261,15 @@ class VisualiserWindow extends Application {
     try{
       visualizer.draw(mainPane)
     }catch {
+      case rtx: RuntimeException => {
+        scrollPane.setHvalue(0)
+        scrollPane.setVvalue(0)
+      }//showAlert(rtx.getMessage)
       case e : Exception =>{
         showAlert("Could not draw with the default value: \"" + visualizer.INITIAL_VAR_VALUE+"\".\nThe following error occured: \n"+e.getMessage)
         initSuccess = false;
       }
+
     }
 
 

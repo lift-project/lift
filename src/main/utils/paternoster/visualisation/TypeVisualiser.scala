@@ -147,6 +147,7 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
     * @throws Exception If the array-dimension is unsupported.
     */
   @throws(classOf[Exception])
+  @throws(classOf[RuntimeException])
   def draw(drawPane: MainPane): Unit = {
       drawPane.draw(renderNodes())
   }
@@ -473,7 +474,7 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
     */
   def saveAsSvg(file: File): Unit = {
     val mainPane = TypeVisualiser.getMainPane()
-    var svgString = mainPane.renderToSvg(renderNodes())
+    var svgString = mainPane.renderToSvg(renderNodes(),getVisualisationDimension())
     try {
       val out = new PrintWriter(file)
       try
@@ -512,6 +513,112 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
       fromIndex = endIndex + 1
     }
     return listBuffer.toList
+  }
+
+  def getVisualisationDimension(): (Double,Double) ={
+    try {
+      var nodeBuffer = new ListBuffer[Iterable[Graphics.GraphicalPrimitive]]
+
+      var firstType = true;
+      var yMargin = 1f;
+      var yMarginBetweenTypes = 5
+      var accHeight = 5d;
+      var maxWidth = 0.0d
+      var expressionBuffer = new ListBuffer[Graphics.ExpressionSource]
+
+      if (expressionSourceCode != "" && typeVisualizations.length > 0) {
+        var printTypeIndicies = getPrintTypeIndicies()
+        for (indicies <- printTypeIndicies) {
+          expressionBuffer += Graphics.ExpressionSource(expressionSourceCode, indicies._1, indicies._2, 0, 0)
+        }
+        if (printTypeIndicies.length != typeVisualizations.length) {
+          throw new IllegalArgumentException("The number of PrintType calls in the source code must match the number of displayed types.")
+        }
+      }
+      var expressionTexts = expressionBuffer.toList.reverse
+
+
+      for (tv <- typeVisualizations) {
+        val currentGrouping = tv.dimensionGrouping
+        var groupingWithValues = getGroupingWithValues(currentGrouping)
+        nodeBuffer += Scene.drawType(visualisation.Scene.typeNode(tv.argType, groupingWithValues))
+      }
+
+
+      var allAdjustedNodes = for (nodes <- nodeBuffer.toList) yield {
+
+        var firstBox = nodes.maxBy(gp => gp match {
+          case BoxWithText(text, bx, by, bwidth, bheight) => {
+            if(bwidth>maxWidth) maxWidth = bwidth
+            bwidth
+          }
+          case Rectangle(x, y, w, h) => {
+            if(w>maxWidth) maxWidth = w
+            w
+          }
+          case Box(x, y, w, h) => {
+            if(w>maxWidth) maxWidth = w
+            w
+          }
+          case CorneredClause(x, y, w, h) => {
+            if(w>maxWidth) maxWidth = w
+            w
+          }
+          case Seperator(x, y) => 0
+          case ExpressionSource(_, _, _, _, _) => 0
+          case DashedBox(_, _, w, _) => {
+            if(w>maxWidth) maxWidth = w
+            w
+          }
+        })
+
+
+        var adjustedNodes: Iterable[GraphicalPrimitive] = null
+
+        if (expressionTexts.size > 0) {
+          var currentExpressionText: Graphics.GraphicalPrimitive = expressionTexts.take(1).head;
+          expressionTexts = expressionTexts.drop(1)
+
+          var expressionText = currentExpressionText match {
+            case ExpressionSource(text, _, _, _, _) => text
+          }
+          val mainPane = TypeVisualiser.getMainPane()
+          var textHeight = mainPane.getStringHeight(expressionText, mainPane.getExpressionFontFx()).ceil + 1
+
+          currentExpressionText = Graphics.translate(currentExpressionText, 0, accHeight - 1)
+
+          if(expressionText.contains("\n")){
+            var lineHeight = mainPane.getStringHeight("T", mainPane.getExpressionFontFx()).ceil
+            accHeight+=lineHeight*2
+          }
+          accHeight += textHeight
+
+
+          adjustedNodes = Graphics.translateAll(nodes, 0, accHeight)
+
+          adjustedNodes = Seq(currentExpressionText) ++ adjustedNodes
+        } else {
+          adjustedNodes = Graphics.translateAll(nodes, 0, accHeight)
+        }
+
+
+        //add the current height to the accumulatedHeight variable.
+        firstBox match {
+          case BoxWithText(text, bx, by, bwidth, bheight) => accHeight += bheight + yMargin
+          case Rectangle(x, y, w, h) => accHeight += h
+          case Box(x, y, w, h) => accHeight += h
+          case CorneredClause(x, y, w, h) => accHeight += h
+          case DashedBox(_, _, w, _) => accHeight += w
+        }
+        firstType = false
+        accHeight += yMarginBetweenTypes
+        adjustedNodes
+      }
+
+      return (maxWidth,accHeight)
+    }catch{
+      case e : Exception => throw e
+    }
   }
 
   /**
