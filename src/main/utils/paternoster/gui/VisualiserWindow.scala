@@ -63,9 +63,14 @@ class VisualiserWindow extends Application {
     main.setPadding(new Insets(8, 8, 8, 8));
 
     val scrollPane = new ScrollPane()
-    scrollPane.setContent(mainPane)
+    scrollPane.setContent(main)
     scrollPane.setPrefViewportWidth(DEFAULT_WINDOW_WIDTH)
     scrollPane.setPrefViewportHeight(DEFAULT_WINDOW_HEIGHT)
+
+    val canvasScrollPane = new ScrollPane()
+    canvasScrollPane.setContent(mainPane)
+    canvasScrollPane.setPrefViewportWidth(DEFAULT_WINDOW_WIDTH)
+    canvasScrollPane.setPrefViewportHeight(DEFAULT_WINDOW_HEIGHT)
 
     //HBox top, display the expression here
     val top: VBox = new VBox
@@ -147,10 +152,10 @@ class VisualiserWindow extends Application {
 
     //Combine ui elements
     //top.getChildren.addAll(typeLabels.toList)
-    bottom.getChildren.addAll(scrollPane, buttonSave)
+    bottom.getChildren.addAll(canvasScrollPane, buttonSave)
     main.getChildren.addAll(top, middle, bottom)
 
-    var scene = new javafx.scene.Scene(main)
+    var scene = new javafx.scene.Scene(scrollPane)
 
 
     //Check if there are variables in the Type that need a value
@@ -188,8 +193,8 @@ class VisualiserWindow extends Application {
             visualizer.draw(mainPane)
           }catch {
             case rtx: RuntimeException =>{
-              scrollPane.setHvalue(0)
-              scrollPane.setVvalue(0)
+              canvasScrollPane.setHvalue(0)
+              canvasScrollPane.setVvalue(0)
             } //showAlert(rtx.getMessage)
             case e: Exception => showAlert(e.getMessage)
 
@@ -239,8 +244,8 @@ class VisualiserWindow extends Application {
                 visualizer.draw(mainPane)
               }catch {
                 case rtx: RuntimeException =>{
-                  scrollPane.setHvalue(0)
-                  scrollPane.setVvalue(0)
+                  canvasScrollPane.setHvalue(0)
+                  canvasScrollPane.setVvalue(0)
                 } //showAlert(rtx.getMessage)
                 case e: Exception => showAlert(e.getMessage)
 
@@ -262,8 +267,8 @@ class VisualiserWindow extends Application {
       visualizer.draw(mainPane)
     }catch {
       case rtx: RuntimeException => {
-        scrollPane.setHvalue(0)
-        scrollPane.setVvalue(0)
+        canvasScrollPane.setHvalue(0)
+        canvasScrollPane.setVvalue(0)
       }//showAlert(rtx.getMessage)
       case e : Exception =>{
         showAlert("Could not draw with the default value: \"" + visualizer.INITIAL_VAR_VALUE+"\".\nThe following error occured: \n"+e.getMessage)
