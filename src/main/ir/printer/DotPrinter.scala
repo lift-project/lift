@@ -207,10 +207,10 @@ class DotPrinter(w: Writer,
 
       case v: Value =>
         val number = if (numbering.contains(v))
-          numbering(v).toString()
+          "<BR/><i>" + numbering(v).toString() + "</i>"
         else
           ""
-        writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>("+v.value+")<BR/><i>" + number + "</i>>]")
+        writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>("+v.value+")" + number + ">]")
       case p: Param =>
         writeNodeDef(p)
         //writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>>]")
