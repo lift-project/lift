@@ -43,8 +43,8 @@ class TestImagePipelines {
 
     val pipeline = lambda(blury o blurx)
 
-    val f0 = PrintType() o Transpose() o blurx o Transpose() o // blurx
-      Map(Join() o Map(Reduce(add, 0.0f) o Map(id)) o Slide(3,1)) // blury
+    val f0 = PrintType() o Transpose() o blurx o Transpose() o // blury
+      Map(Join() o Map(Reduce(add, 0.0f) o Map(id)) o Slide(3,1)) // blurx
 
     val f1 = PrintType() o Transpose() o blurx o
       Transpose() o
@@ -139,6 +139,7 @@ class TestImagePipelines {
       )) o T o *(T) o S o *(S)
 
     // try vectorization
+    /*
     val g3 = P o TW o *(J) o J o *(TW) o
       MapGlb(1)(MapGlb(0)(
         MapSeq(
@@ -148,17 +149,18 @@ class TestImagePipelines {
           MapSeq(toPrivate(id)) o ReduceSeq(addF4, Value("0.0f", Float).vectorize(4)) //o MapSeq(f)
         )
       )) o T o *(T) o S o *(S)
+      */
 
-    println(Compile(lambda(g3)))
+    println(Compile(lambda(g2)))
     //TypeChecker(lambda(g3))
 
 
     val input = Array.tabulate(32, 32) { (i, j) => i * 32.0f + j }
     val (outG1, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(g1), input)
     val (outG2, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(g2), input)
-    val (outG3, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(g3), input)
+    //val (outG3, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(g3), input)
     assertArrayEquals(outG1, outG2, 0.1f)
-    assertArrayEquals(outG1, outG3, 0.1f)
+    //assertArrayEquals(outG1, outG3, 0.1f)
 
     //TypeChecker(lambda(f0))
     //TypeChecker(lambda(f1))
