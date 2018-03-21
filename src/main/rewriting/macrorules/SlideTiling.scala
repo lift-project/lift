@@ -1,6 +1,8 @@
 package rewriting.macrorules
 
 import ir.ast._
+import ir.printer.DotPrinter
+import lift.arithmetic.?
 import rewriting.Rewrite
 import rewriting.rules.{FusionRules, Rule, Rules}
 import rewriting.utils.Utils
@@ -17,6 +19,15 @@ object SlideTiling {
         val moved = Rewrite.applyRuleAt(tiled, EnablingRules.movingJoin, tiled)
         val fused = Rewrite.applyRuleAtId(moved, 1, FusionRules.mapFusion)
         fused
+    })
+
+  val tileStencils2 =
+    Rule("Map(f) o Slide(n,s) => Join() o Map(Map(f) o Slide(n,s)) o Slide(u,v)", {
+      case FunCall(Map(f), FunCall(Slide(n,s), arg)) => {
+        val u = ?        // tileSize
+        val v = u + n-s  // tileStep
+        Join() o Map(Map(f) o Slide(n, s)) o Slide(u, v) $ arg
+      }
     })
 
   val tileSlide2D =

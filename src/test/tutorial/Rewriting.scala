@@ -11,7 +11,7 @@ import org.junit.Test
 import org.junit.Assert._
 import rewriting.Rewrite
 import rewriting.macrorules.EnablingRules
-import rewriting.rules.{FusionRules, Rules}
+import rewriting.rules.{FusionRules, OpenCLRules, Rules}
 
 
 class Rewriting{
@@ -202,16 +202,62 @@ class Rewriting{
           Pad(1, 1, clamp) $ input
     )
 
-    DotPrinter("/home/bastian/presentations/ispass2018/slides/img", "expression2dot", expression2)
+    //DotPrinter("/home/bastian/presentations/ispass2018/slides/img", "expression2dot", expression2)
+
+    val expression31 = λ(
+      ArrayType(Float, N), input =>
+        Join() o
+          Map(Map(f) o Slide(3, 1)) o
+            Slide(u, v) o
+              Pad(1, 1, clamp) $ input
+    )
 
     val expression3 = λ(
       ArrayType(Float, N), input =>
         Join() o
-          Map(Map(f) o Slide(3, 1)) o
-          Slide(u, v) o
-          Pad(1, 1, clamp) $ input
+          Map(λ(tile =>
+            Map(f) o Slide(3, 1) $ tile)) o
+            Slide(u, v) o
+              Pad(1, 1, clamp) $ input
     )
 
+    val expression4 = λ(
+      ArrayType(Float, N), input =>
+        Join() o
+          MapWrg(λ(tile =>
+            MapLcl(f) o Slide(3, 1) $ tile)) o
+            Slide(u, v) o
+              Pad(1, 1, clamp) $ input
+    )
+
+    println(expression4)
+    val expression41 = Rewrite.applyRuleAtId(
+      expression3, 1, OpenCLRules.mapWrg)
+
+    val localMemoryJacobi = λ(
+    ArrayType(Float, SizeVar("N")),
+    A =>
+      Join() o MapWrg(
+        MapLcl(
+
+        toGlobal(MapSeq(id)) o
+          ReduceSeq(add, 0.0f)) o Slide(3,1) o
+            MapLcl(toLocal(id))) o
+
+        Slide(4,2) o
+        Pad(1,1,clamp) $ A
+  )
+
+    val f0 = Rewrite.applyRuleAtId(expression2, 1, Rules.slideTiling)
+    val f1 = Rewrite.applyRuleAtId(f0, 0, EnablingRules.movingJoin)
+    //DotPrinter.withNumbering("/home/bastian/", "tiled", expression3)
+
+    DotPrinter.withNumbering("/home/bastian/", "tiled", localMemoryJacobi)
+    /*
+    val tiled = Rewrite.applyRuleAt(funCall, Rules.slideTiling, slideCall)
+        val moved = Rewrite.applyRuleAt(tiled, EnablingRules.movingJoin, tiled)
+        val fused = Rewrite.applyRuleAtId(moved, 1, )
+        */
     println(expression1)
     println(expression2)
     println(expression3)
