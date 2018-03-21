@@ -93,16 +93,16 @@ object MemoryMappingRewrite {
   private[exploration] val group10 : FlagOption[Boolean] = parser.flag[Boolean](List("gr10", keyGroup10),
     s"Mapping: MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)( MapSeq(...) )))) (default: $defaultGroup10)")
 
-  private[exploration] val addIdForCurrentValueInReduce : FlagOption[Boolean] = parser.flag[Boolean](List("addIdForCurrentValueInReduce"),
+  private[exploration] val addIdForCurrentValueInReduce : FlagOption[Boolean] = parser.flag[Boolean](List(keyAddIdForCurrentValueInReduce),
     s"Enable local memory rule: addIdForCurrentValueInReduce (default: $defaultAddIdForCurrentValueInReduce)")
 
-  private[exploration] val addIdMapLcl : FlagOption[Boolean] = parser.flag[Boolean](List("addIdMapLcl"),
+  private[exploration] val addIdMapLcl : FlagOption[Boolean] = parser.flag[Boolean](List(keyAddIdMapLcl),
     s"Enable local memory rule: addIdMapLcl (default: $defaultAddIdMapLcl)")
 
-  private[exploration] val addIdMapWrg : FlagOption[Boolean] = parser.flag[Boolean](List("addIdMapWrg"),
+  private[exploration] val addIdMapWrg : FlagOption[Boolean] = parser.flag[Boolean](List(keyAddIdMapWrg),
     s"Enable local memory rule: addIdMapWrg (default: $defaultAddIdMapWrg)")
 
-  private[exploration] val addIdAfterReduce : FlagOption[Boolean] = parser.flag[Boolean](List("addIdAfterReduce"),
+  private[exploration] val addIdAfterReduce : FlagOption[Boolean] = parser.flag[Boolean](List(keyAddIdAfterReduce),
     s"Enable local memory rule: addIdAfterReduce (default: $defaultAddIdAfterReduce)")
 
   private var settings = Settings()
