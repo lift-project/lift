@@ -279,7 +279,7 @@ abstract sealed class View(val t: Type = UndefType) {
     this.t match {
       case ArrayType(_) =>
         ViewSlide(this, s, s.checkType(this.t, setType=false))
-      case other => throw new IllegalArgumentException("Can't group " + other)
+      case other => throw new IllegalArgumentException("Can't slide " + other)
     }
   }
 

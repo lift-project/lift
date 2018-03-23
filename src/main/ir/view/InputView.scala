@@ -77,7 +77,7 @@ object InputView {
       case asVector(n) => buildViewAsVector(n, argView)
       case _: asScalar => buildViewAsScalar(argView)
       case f: Filter => buildViewFilter(call, argView)
-      case g: Slide => buildViewGroup(g, call, argView)
+      case g: Slide => buildViewSlide(g, call, argView)
       case h: Head => buildViewHead(call, argView)
       case h: Tail => buildViewTail(call, argView)
       case uaa: UnsafeArrayAccess => buildViewUnsafeArrayAccess(uaa, call, argView)
@@ -101,7 +101,7 @@ object InputView {
     argView.get(n)
   }
 
-  private def buildViewGroup(g: Slide, call: FunCall, argView: View): View = {
+  private def buildViewSlide(g: Slide, call: FunCall, argView: View): View = {
     argView.slide(g)
   }
 

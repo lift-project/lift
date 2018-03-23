@@ -278,35 +278,4 @@ class TestStencil {
     )
     Compile(lambda)
   }
-
-  // todo move to Stencil3D.scala
-  /* **********************************************************
-      PARBOIL
-  ***********************************************************/
-  @Test def parboil(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
-    LongTestsEnabled()
-
-    //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
-    // segfaults
-    val stencil = fun(
-      ArrayType(ArrayType(ArrayType(Float, 512), 512), 64),
-      ArrayType(Float, 27),
-      (input, weights) => {
-        MapSeq(MapWrg(1)(MapWrg(0)( \(block =>
-          MapSeq(MapLcl(1)(MapLcl(0)( \(nbh =>
-            toGlobal(MapSeq(id)) o
-            ReduceSeqUnroll(add, 0.0f) o Join() o Join() $ nbh )))) o
-            Slide3D(3,1) $ block )))) o
-        Slide3D(34,32, 6,4, 3,1) o Pad3D(1, 1, 1, Pad.Boundary.Wrap) $ input
-      }
-    )
-
-    // testing
-    val input = Array.tabulate(64, 512, 512) { (i, j, k) => Random.nextFloat() }
-    val weights = Array.tabulate(27) { (i) => Random.nextFloat() }
-    val (output, runtime) = Execute(32, 4, 1, 256, 512, 1, (true, true))[Array[Float]](stencil, input, weights)
-    println("Runtime: " + runtime)
-    //println(output.mkString(","))
-  }
 }
