@@ -44,7 +44,8 @@ class Views{
       * We start with defining the high-level expression which solely expresses
       * *what* to compute
       */
-    val highLevel = λ(
+
+    val highLevel = fun(
       ArrayType(Float, N), input =>
         Map(Reduce(add, 0.0f)) o
           Slide(3,1) o
@@ -59,7 +60,8 @@ class Views{
       * Here, we want to process each neighborhood by a single thread indicated
       * by MapGlb
       */
-    val lowLevel = λ(
+
+    val lowLevel = fun(
       ArrayType(Float, N), input =>
         MapGlb(MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f)) o
           Slide(3,1) o
@@ -191,7 +193,8 @@ class Views{
       * We also specify that the reduction of the 9 neighborhood elements
       * shall be unrolled in the OpenCL code using ReduceSeqUnroll.
       */
-    val lowLevelExpression = λ(
+
+    val lowLevelExpression = fun(
       ArrayType(ArrayType(Float, M), N), input =>
 
       MapGlb(1)(MapGlb(0)(
