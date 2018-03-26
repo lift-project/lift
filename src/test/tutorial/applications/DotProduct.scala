@@ -10,7 +10,7 @@ import opencl.ir._
 import opencl.ir.pattern._
 
 /**
-  * Here is an example case of dot product.
+  * Here is an example test case of dot product.
   */
 
 object DotProduct extends TestWithExecutor
@@ -19,6 +19,7 @@ class DotProduct {
 
   val N = SizeVar("N")
 
+  // comparison calculation in scala
   def dotProductScala(left: Array[Float], right: Array[Float]): Float = {
     (left,right).zipped.map(_*_).sum
   }
@@ -26,6 +27,11 @@ class DotProduct {
   val inputSize = 1024
   val leftInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
   val rightInputData = Array.fill(inputSize)(util.Random.nextInt(5).toFloat)
+
+
+  /*
+   * original dot product
+   */
 
   @Test def simpleDotProduct(): Unit = {
 
@@ -47,6 +53,10 @@ class DotProduct {
 
   }
 
+  /*
+   * dot product utlising workgroups and local memory
+   */
+
   @Test def dotProductWithLocalAndWorkgroupMappings (): Unit = {
 
     val dotProductLift = fun(
@@ -63,6 +73,5 @@ class DotProduct {
     assertEquals(dotProductScala(leftInputData, rightInputData), output.sum, 0.0)
 
   }
-
 
 }
