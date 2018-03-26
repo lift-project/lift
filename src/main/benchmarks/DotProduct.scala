@@ -35,7 +35,8 @@ object DotProduct {
 
   val N = SizeVar("N")
 
-  val dotProductSimple = fun(ArrayTypeWSWC(Float, N),
+  val dotProductSimple = fun(
+    ArrayTypeWSWC(Float, N),
     ArrayTypeWSWC(Float, N), (left, right) => {
       Join() o MapWrg(
         Join() o  MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult)) o Split(4)

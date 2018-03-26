@@ -20,6 +20,7 @@ import scala.util.Random
 object StencilUtilities
 {
   /* some helper functions */
+
   def print1DArray[T](input: Array[T]) = {
     println(input.mkString(","))
   }
@@ -33,6 +34,34 @@ object StencilUtilities
       print2DArray(input(i))
       println()
     }
+  }
+
+  def scalaCompute1DStencil(data: Array[Float],
+                            size: Int, step: Int,
+                            left: Int, right: Int,
+                            weights: Array[Float],
+                            boundary: (Int, Int) => Int) = {
+    val leftPadding = Array.tabulate(left)(x => data(boundary((x + 1) * -1, data.length))).reverse
+    val rightPadding = Array.tabulate(right)(x => data(boundary(x + data.length, data.length)))
+    val paddedInput = leftPadding ++ data ++ rightPadding
+
+    val neighbourhoodArray = paddedInput.sliding(size, step).toArray
+
+    neighbourhoodArray.map(_.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2))
+
+  }
+
+  def scalaCompute1DStencilConstantBoundary(data: Array[Float],
+                                            size: Int, step: Int,
+                                            left: Int, right: Int,
+                                            boundaryValue: Float) = {
+    val leftPadding = Array.fill(left)(boundaryValue)
+    val rightPadding = Array.fill(right)(boundaryValue)
+    val paddedInput = leftPadding ++ data ++ rightPadding
+
+    val neighbourhoodArray = paddedInput.sliding(size, step).toArray
+
+    neighbourhoodArray.map(_.foldLeft(0.0f)((acc, p) => acc + p))
   }
 
 
@@ -72,7 +101,7 @@ class Stencils {
   {
 
     val randomData = Array.tabulate(128)(_.toFloat)
-    val gold = Utils.scalaCompute1DStencilConstantBoundary(randomData,3,1,1,1,0.0f)
+    val gold = StencilUtilities.scalaCompute1DStencilConstantBoundary(randomData,3,1,1,1,0.0f)
 
     val stencilLambda = fun(
       ArrayType(Float, SizeVar("N")),
@@ -95,7 +124,7 @@ class Stencils {
     val SCALABOUNDARY = Utils.scalaClamp
     val BOUNDARY = Pad.Boundary.Clamp
     val weights = Array(1, 2, 1).map(_.toFloat)
-    val gold = Utils.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)
+    val gold = StencilUtilities.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)
 
     val stencil = fun(
       ArrayType(Float, SizeVar("N")),

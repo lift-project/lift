@@ -1,16 +1,22 @@
 package tutorial.applications
 
 import ir.ArrayTypeWSWC
-import ir.ast.{Get, Transpose, Zip, fun}
+import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
-import opencl.executor.{Execute, TestWithExecutor, Utils}
+import opencl.ir.pattern._
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import org.junit.Assert.assertArrayEquals
 import org.junit.Test
 
 object MatrixUtensils
 {
+
+  def matrixVector(matrix: Array[Array[Float]], vector: Array[Float]): Array[Float] = {
+    matrix.map(
+      (row) => (row, vector).zipped.map(_ * _).sum
+    )
+  }
 
   def matrixMatrixMultiplyStandard(A: Array[Array[Float]], B: Array[Array[Float]]) :  Array[Array[Float]] =
   {
@@ -23,38 +29,58 @@ object MatrixUtensils
       throw new IllegalArgumentException
 
     def computeRow(row: Int): Unit = {
-      var col = 0
-      while(col < bCols) {
-        var i = 0;
-        var sum = 0.0f
-         while(i < aCols) {
-           sum += A(row)(i) * B(i)(col)
-           i += 1
+        for (col <- 0 until bCols)
+        {
+           var sum = 0.0f
+           for (i <- 0 until aCols)
+           {
+             sum += A(row)(i) * B(i)(col)
+           }
+
+           result(row)(col) = sum
+
         }
-
-        result(row)(col) = sum
-        col += 1
-
-      }
     }
 
-    (0 until aRows).par.foreach( computeRow )
+    (0 until aRows).foreach( computeRow )
 
     result
   }
 
 }
 
-object  MatrixMatrixMultiplication extends TestWithExecutor
+object MatrixMatrixMultiplication extends TestWithExecutor
 
 /**
-  * Here are some examples of matrix matrix multiplication
+  * Here are some examples of matrix multiplication
   */
 class MatrixMatrixMultiplication
 {
 
+  @Test def matrixVectorMultiplication(): Unit = {
 
-  @Test def matrixMatrixMultiplication2D(): Unit =
+    val inputSize = 4096
+    val matrix = Array.tabulate(inputSize, inputSize)((r,c) => 1.0f)
+    val vector = Array.fill(inputSize)(2.0f)
+
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+      ArrayTypeWSWC(Float, N),
+      (matrix, vector) => {
+        Join() o MapWrg(
+          MapLcl( fun( (r) => toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(vector, r) ) )
+        ) o Split(128) $ matrix
+      })
+
+    val (output, runtime) = Execute(inputSize * inputSize)[Array[Float]](f, matrix, vector)
+
+    assertArrayEquals(MatrixUtensils.matrixVector(matrix, vector), output, 0.0f)
+  }
+
+  @Test def matrixMatrixMultiplication(): Unit =
   {
 
     val N = SizeVar("N")
@@ -65,8 +91,8 @@ class MatrixMatrixMultiplication
     val Ksize = 128
     val Nsize = 256
 
-    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
+    val matrixA = Array.tabulate(Msize, Ksize)((r, c) => (r + c + 1).toFloat)
+    val matrixB = Array.tabulate(Ksize, Nsize)((r, c) => (r * c * 3).toFloat)
 
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
@@ -86,6 +112,5 @@ class MatrixMatrixMultiplication
     assertArrayEquals(gold, output, 0.0f)
 
   }
-
 
 }
