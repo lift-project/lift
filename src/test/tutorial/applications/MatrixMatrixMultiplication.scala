@@ -49,12 +49,12 @@ object MatrixUtensils
 
 }
 
-object MatrixMatrixMultiplication extends TestWithExecutor
+object MatrixMultiplication extends TestWithExecutor
 
 /**
   * Here are some examples of matrix multiplication
   */
-class MatrixMatrixMultiplication
+class MatrixMultiplication
 {
 
   @Test def matrixVectorMultiplication(): Unit = {
