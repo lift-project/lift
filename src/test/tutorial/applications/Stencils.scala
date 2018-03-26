@@ -14,7 +14,7 @@ import scala.util.Random
 
 /**
   * Stencil algorithms can be found in many fields including medical imaging, physical simulations and machine learning.
-  * Below are a few example tests that show how stencils can be programmed using LIFT.
+  * Below are a few example tests that show how stencils can be programmed using LIFT in 1, 2 and 3 dimensions.
   */
 
 object StencilUtilities
@@ -49,15 +49,15 @@ object StencilUtilities
     1.0f, 1.0f, 1.0f,
     0.0f, 1.0f, 0.0f)
 
-  val weightsMiddle3D = Array(
-    Array(Array(0.0f, 0.0f, 0.0f),
-      Array(0.0f, 0.0f, 0.0f),
-      Array(0.0f, 0.0f, 0.0f)),
+  val weights3D = Array(
     Array(Array(0.0f, 0.0f, 0.0f),
       Array(0.0f, 1.0f, 0.0f),
       Array(0.0f, 0.0f, 0.0f)),
+    Array(Array(0.0f, 1.0f, 0.0f),
+      Array(1.0f, 1.0f, 1.0f),
+      Array(0.0f, 1.0f, 0.0f)),
     Array(Array(0.0f, 0.0f, 0.0f),
-      Array(0.0f, 0.0f, 0.0f),
+      Array(0.0f, 1.0f, 0.0f),
       Array(0.0f, 0.0f, 0.0f))
   )
 
@@ -71,29 +71,20 @@ class Stencils {
   @Test def jacobi3Point1DStencil(): Unit =
   {
 
-    val randomData = Seq.fill(24)(Random.nextFloat()).toArray
-    val BOUNDARY = Pad.Boundary.Clamp
-    val weights = Array(1, 2, 1).map(_.toFloat)
+    val randomData = Array.tabulate(128)(_.toFloat)
     val gold = Utils.scalaCompute1DStencilConstantBoundary(randomData,3,1,1,1,0.0f)
 
-    val stencil = fun(
+    val stencilLambda = fun(
       ArrayType(Float, SizeVar("N")),
       (input) => {
-        MapGlb(
-          fun(neighbourhood => {
-            toGlobal(MapSeq(id)) o
-              ReduceSeq(fun((acc, value) => { sumUp.apply(acc,value)}),0.0f) $ input
-          })
-        ) o Slide(3, 1) o PadConstant(1, 1, 0.0f) $ input
+        toGlobal(MapGlb(id)) o Join() o MapGlb(ReduceSeq(add, 0.0f)) o
+          Slide(3, 1) o PadConstant(1, 1, 0.0f) $ input
       }
     )
 
-    val (output, _) = Execute(2,2)[Array[Float]](stencil, randomData)
+    val (output, _) = Execute(randomData.length)[Array[Float]](stencilLambda, randomData)
 
-    StencilUtilities.print1DArray(output)
-    StencilUtilities.print1DArray(gold)
-
-    assertArrayEquals(gold, output, 0.1f)
+    assertArrayEquals(gold, output, StencilUtilities.delta)
 
   }
 
@@ -130,14 +121,14 @@ class Stencils {
   @Test def jacobi5Point2DStencilWithWeights(): Unit =
   {
 
-    val stencilMatrix = Array.tabulate(6,6) { (i,j) => (j + 1).toFloat }
+    val stencilValues = Array.tabulate(6,6) { (i,j) => (j + 1).toFloat }
+
     val compareData = Array(4.0f,8.0f,12.0f,16.0f,20.0f,17.0f,
                             5.0f,10.0f,15.0f,20.0f,25.0f,23.0f,
                             5.0f,10.0f,15.0f,20.0f,25.0f,23.0f,
                             5.0f,10.0f,15.0f,20.0f,25.0f,23.0f,
                             5.0f,10.0f,15.0f,20.0f,25.0f,23.0f,
                             4.0f,8.0f,12.0f,16.0f,20.0f,17.0f)
-
 
     val stencilLambda = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
@@ -147,7 +138,6 @@ class Stencils {
           MapGlb(0)(fun(neighbours => {
             toGlobal(MapSeqUnroll(id)) o
               ReduceSeqUnroll(fun((acc, pair) => {
-                // Where does "acc" come from ? !!!!
                 val pixel = Get(pair, 0)
                 val weight = Get(pair, 1)
                 multAndSumUp.apply(acc, pixel, weight)
@@ -156,29 +146,49 @@ class Stencils {
         ) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) o PadConstant2D(1,1,0.0f) $ mat
       })
 
-    val (output, runtime) = Execute(stencilMatrix.length, stencilMatrix.length)[Array[Float]](stencilLambda, stencilMatrix, StencilUtilities.weights2D)
-
-    StencilUtilities.print1DArray(output)
-    StencilUtilities.print1DArray(compareData)
+    val (output, runtime) = Execute(stencilValues.length, stencilValues.length)[Array[Float]](stencilLambda, stencilValues, StencilUtilities.weights2D)
 
     assertArrayEquals(compareData, output, StencilUtilities.delta)
+
   }
 
   @Test def jacobi7Point3DStencilWithWeights(): Unit =
   {
 
+    val nx = 4
+    val ny = 6
+    val nz = 8
+
+    val stencilValues = Array.tabulate(nx,ny,nz) { (i,j,k) => (i + j + k + 1).toFloat }
+
+    val compareData = Array(28.0f,35.0f,42.0f,49.0f,
+                            56.0f,63.0f,35.0f,42.0f,
+                            49.0f,56.0f,63.0f,70.0f,
+                            42.0f,49.0f,56.0f,63.0f,
+                            70.0f,77.0f,49.0f,56.0f,
+                            63.0f,70.0f,77.0f,84.0f,
+                            35.0f,42.0f,49.0f,56.0f,
+                            63.0f,70.0f,42.0f,49.0f,
+                            56.0f,63.0f,70.0f,77.0f,
+                            49.0f,56.0f,63.0f,70.0f,
+                            77.0f,84.0f,56.0f,63.0f,
+                            70.0f,77.0f,84.0f,91.0f)
 
     val stencilLambda = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")), SizeVar("O")),
-      ArrayTypeWSWC(Float, StencilUtilities.slidesize*StencilUtilities.slidesize*StencilUtilities.slidesize),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
       (mat, weights) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(neighbours => {
           toGlobal(MapSeq(id)) o
             ReduceSeqUnroll(\((acc, next) =>
-              multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() $ neighbours, weights)
+              multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() $ neighbours, Join() o Join() $ weights)
         })))
         ) o Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat
       })
+
+    val (output, runtime) = Execute(2, 2, 2, nx, ny, nz, (true,true))[Array[Float]](stencilLambda, stencilValues, StencilUtilities.weights3D)
+
+    assertArrayEquals(compareData, output, StencilUtilities.delta)
 
   }
 

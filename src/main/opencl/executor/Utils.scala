@@ -210,17 +210,21 @@ object Utils {
     val paddedInput = leftPadding ++ data ++ rightPadding
 
     val neighbourhoodArray = paddedInput.sliding(size, step).toArray
+
     neighbourhoodArray.map(_.zip(weights).foldLeft(0.0f)((acc, p) => acc + p._1 * p._2))
+
   }
 
   def scalaCompute1DStencilConstantBoundary(data: Array[Float],
                                             size: Int, step: Int,
                                             left: Int, right: Int,
                                             boundaryValue: Float) = {
-    val padding = Array.fill(1)(boundaryValue)
-    val paddedInput = padding ++ data ++ padding
+    val leftPadding = Array.fill(left)(boundaryValue)
+    val rightPadding = Array.fill(right)(boundaryValue)
+    val paddedInput = leftPadding ++ data ++ rightPadding
 
     val neighbourhoodArray = paddedInput.sliding(size, step).toArray
+
     neighbourhoodArray.map(_.foldLeft(0.0f)((acc, p) => acc + p))
   }
 
