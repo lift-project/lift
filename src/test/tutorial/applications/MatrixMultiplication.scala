@@ -132,9 +132,9 @@ class MatrixMultiplication
 
     val (output, _) = Execute(Msize * Nsize)[Array[Float]](f, matrixA, matrixB.transpose)
 
-    val gold = MatrixUtensils.matrixMatrixMultiplyStandard(matrixA, matrixB).flatten // calculate our comparison array (and then flatten it)
+    val comparisonData = MatrixUtensils.matrixMatrixMultiplyStandard(matrixA, matrixB).flatten // calculate our comparison array (and then flatten it)
 
-    assertArrayEquals(gold, output, 0.0f)
+    assertArrayEquals(comparisonData, output, 0.0f)
 
   }
 

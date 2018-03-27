@@ -127,7 +127,7 @@ class Stencils {
   {
 
     val randomData = Array.tabulate(128)(_.toFloat)
-    val gold = StencilUtilities.scalaCompute1DStencilConstantBoundary(randomData,3,1,1,1,0.0f)
+    val comparisonData = StencilUtilities.scalaCompute1DStencilConstantBoundary(randomData,3,1,1,1,0.0f)
 
     val stencilLambda = fun(
       ArrayType(Float, SizeVar("N")),
@@ -139,7 +139,7 @@ class Stencils {
 
     val (output, _) = Execute(randomData.length)[Array[Float]](stencilLambda, randomData)
 
-    assertArrayEquals(gold, output, StencilUtilities.delta)
+    assertArrayEquals(comparisonData, output, StencilUtilities.delta)
 
   }
 
@@ -156,7 +156,7 @@ class Stencils {
     val SCALABOUNDARY = Utils.scalaClamp
     val BOUNDARY = Pad.Boundary.Clamp
     val weights = Array(1, 2, 1).map(_.toFloat)
-    val gold = StencilUtilities.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)
+    val comparisonData = StencilUtilities.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)
 
     val stencil = fun(
       ArrayType(Float, SizeVar("N")),
@@ -176,7 +176,7 @@ class Stencils {
 
     val (output, _) = Execute(randomData.length)[Array[Float]](stencil, randomData, weights)
 
-    assertArrayEquals(gold, output, 0.1f)
+    assertArrayEquals(comparisonData, output, 0.1f)
 
   }
 
