@@ -1,9 +1,9 @@
-package opencl.generator.stencil
+package opencl.generator.stencil.tiling25D
 
 import ir.ArrayTypeWSWC
 import ir.ast.{Get, Slide, Zip, fun, _}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, Compile}
+import opencl.executor.{Compile, Execute, Executor}
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
 import opencl.ir.pattern._
