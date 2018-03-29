@@ -390,6 +390,23 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
     execute(kernel, f, values: _*)(decodeType)
   }
+  
+  /**
+    * Given just a string: evaluate the string into a lambda and
+    * then call the function below
+    */
+  def apply[T](input: String, returnKernel: Boolean, values: Any*)(implicit decodeType: DecodeType[T]): ((T, Double), String) = {
+    apply(Eval(input), returnKernel, values: _*)(decodeType)
+  }
+
+  /**
+    * Given a lambda: compile it and then execute it
+    */
+  def apply[T](f: Lambda, returnKernel: Boolean, values: Any*)(implicit decodeType: DecodeType[T]): ((T, Double), String) = {
+    val kernel = compile(f, values:_*)
+
+    (execute(kernel, f, values: _*)(decodeType), kernel)
+  }
 
   /**
    * Given a lambda: compile it and then execute it <code>iterations</code> times

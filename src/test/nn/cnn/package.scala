@@ -3,7 +3,6 @@ package nn
 import java.nio.file.Files.exists
 import java.nio.file.Paths.get
 
-import nn.fc.FCDatasets
 import org.junit.Assert.assertEquals
 
 import scala.util.parsing.json.JSON
@@ -88,63 +87,67 @@ package object cnn {
           nBatchesRange = generateList(jWorkload("n_batches").asInstanceOf[Map[String, Double]]),
           nInputsRange = generateList(jWorkload("n_inputs").asInstanceOf[Map[String, Double]]),
           imageSizeRange = generateList(jWorkload("image_size").asInstanceOf[Map[String, Double]]),
-          nChannels = jWorkload("n_channels").asInstanceOf[Double].toInt,
+          inputChannelRange = generateList(jWorkload("input_channels").asInstanceOf[Map[String, Double]]),
 
           nKernelsRange = {
             val paramBlock = jWorkload("n_kernels").asInstanceOf[List[Map[String, Double]]]
-            List(generateList(paramBlock.head), generateList(paramBlock(1))
-            )},
+//            List(generateList(paramBlock.head), generateList(paramBlock(1))
+              List(generateList(paramBlock.head))},
           kernelSizeRange = {
             val paramBlock = jWorkload("kernel_size").asInstanceOf[List[Map[String, Double]]]
-            List(generateList(paramBlock.head), generateList(paramBlock(1))
-            )},
+//            List(generateList(paramBlock.head), generateList(paramBlock(1))
+              List(generateList(paramBlock.head))},
+          kernelStrideRange = {
+            val paramBlock = jWorkload("kernel_stride").asInstanceOf[List[Map[String, Double]]]
+//            List(generateList(paramBlock.head), generateList(paramBlock(1))
+              List(generateList(paramBlock.head))},
 
           neuronsRange = {
             val paramBlock = jWorkload("n_neurons").asInstanceOf[List[Map[String, Double]]]
-            List(generateList(paramBlock.head), generateList(paramBlock(1))
-            )},
+//            List(generateList(paramBlock.head), generateList(paramBlock(1))
+            List(generateList(paramBlock.head))},
 
 
           inputTileSizeRange = {
             val paramBlock = jOptParams("input_tile_size").asInstanceOf[List[Map[String, Any]]]
             List(
               (inputConfig, convLayerSizeConfig) =>
-                generateList(paramBlock.head, inputConfig, convLayerSizeConfig),
-              (inputConfig, convLayerSizeConfig) =>
-                generateList(paramBlock(1), inputConfig, convLayerSizeConfig))
+                generateList(paramBlock.head, inputConfig, convLayerSizeConfig))
+//              (inputConfig, convLayerSizeConfig) =>
+//                generateList(paramBlock(1), inputConfig, convLayerSizeConfig))
             },
           elsPerThreadRange = {
             val paramBlock = jOptParams("els_per_thread").asInstanceOf[List[Map[String, Any]]]
             List(
               (inputConfig, convLayerSizeConfig) =>
-                generateList(paramBlock.head, inputConfig, convLayerSizeConfig),
-              (inputConfig, convLayerSizeConfig) =>
-                generateList(paramBlock(1), inputConfig, convLayerSizeConfig)
+                generateList(paramBlock.head, inputConfig, convLayerSizeConfig)
+//              (inputConfig, convLayerSizeConfig) =>
+//                generateList(paramBlock(1), inputConfig, convLayerSizeConfig)
             )},
           kernelsPerGroupRange = {
             val paramBlock = jOptParams("kernels_per_group").asInstanceOf[List[Map[String, Any]]]
             List(
               (inputConfig, convLayerSizeConfig) =>
-                generateList(paramBlock.head, inputConfig, convLayerSizeConfig),
-              (inputConfig, convLayerSizeConfig) =>
-                generateList(paramBlock(1), inputConfig, convLayerSizeConfig)
+                generateList(paramBlock.head, inputConfig, convLayerSizeConfig)
+//              (inputConfig, convLayerSizeConfig) =>
+//                generateList(paramBlock(1), inputConfig, convLayerSizeConfig)
             )},
 
           multsPerThreadRange = {
             val paramBlock = jOptParams("mults_per_thread").asInstanceOf[List[Map[String, Any]]]
             List(
               (inputConfig, fcLayerSizeConfig) =>
-                generateList(paramBlock.head, inputConfig, fcLayerSizeConfig),
-              (inputConfig, fcLayerSizeConfig) =>
-                generateList(paramBlock(1), inputConfig, fcLayerSizeConfig)
+                generateList(paramBlock.head, inputConfig, fcLayerSizeConfig)
+//              (inputConfig, fcLayerSizeConfig) =>
+//                generateList(paramBlock(1), inputConfig, fcLayerSizeConfig)
             )},
           neuronsPerWrgRange = {
             val paramBlock = jOptParams("neurons_per_wrg").asInstanceOf[List[Map[String, Any]]]
             List(
               (inputConfig, fcLayerSizeConfig) =>
-                generateList(paramBlock.head, inputConfig, fcLayerSizeConfig),
-              (inputConfig, fcLayerSizeConfig) =>
-                generateList(paramBlock(1), inputConfig, fcLayerSizeConfig)
+                generateList(paramBlock.head, inputConfig, fcLayerSizeConfig)
+//              (inputConfig, fcLayerSizeConfig) =>
+//                generateList(paramBlock(1), inputConfig, fcLayerSizeConfig)
             )}
         )
     }
@@ -163,24 +166,31 @@ package object cnn {
 
     val cnnDir: String = nn.nnDir + "/cnn"
 
-    def getPathToInputs(inputSize: Int): String = {
-      {
-        val envPath = System.getenv("LIFT_NN_RESOURCES")
-        if (envPath != null) envPath else cnnDir
-      } + f"/experiment.cnn.inputs.$inputSize%d"
+    def getPathToInputs(nInputs: Int, inputSize: Int, inputChannels: Int, nKernels: Int, kernelSize: Int,
+                        kernelStride: Int): String = {
+//      {
+//        val envPath = System.getenv("LIFT_NN_RESOURCES")
+//        if (envPath != null) envPath else cnnDir
+//      } + f"/experiment.cnn.inputs.$inputSize%d"
+      f"/home/s1569687/microbenchmark/neural_net_inputs/input_lmdb_IN_$nInputs%d_IC_$inputChannels%d_IS_$inputSize%d_" +
+        f"KC_$nKernels%d_KSI_$kernelSize%d_KSTR_$kernelStride%d"
     }
-    def getPathToParams(nKernelsL1: Int, kernelSize: Int, imageSize: Int, nNeuronsL1: Int): String = {
-      {
-        val envPath = System.getenv("LIFT_NN_RESOURCES")
-        if (envPath != null) envPath else cnnDir
-      } + f"/experiment.cnn.$nKernelsL1%d.$kernelSize%d.$imageSize%d" + {
-        if (nNeuronsL1 != 256)
-          f".$nNeuronsL1%d"
-        else
-          ""
-      }
+    def getPathToParams(nKernels: Int, kernelSize: Int, kernelStride: Int, nInputs: Int, inputSize: Int,
+                        inputChannels: Int, nNeurons: Int): String = {
+//      {
+//        val envPath = System.getenv("LIFT_NN_RESOURCES")
+//        if (envPath != null) envPath else cnnDir
+//      } + f"/experiment.cnn.$nKernelsL1%d.$kernelSize%d.$inputSize%d" + {
+//        if (nNeuronsL1 != 256)
+//          f".$nNeuronsL1%d"
+//        else
+//          ""
+//      }
+      f"/home/s1569687/microbenchmark/neural_net_params/micro_IN_$nInputs%d_IC_$inputChannels%d_IS_$inputSize%d_" +
+        f"KC_$nKernels%d_KSI_$kernelSize%d_KSTR_$kernelStride%d"
     }
-    def getPathToResults(pathToParams: String): String = pathToParams + "/results_lift/"
+    def getPathToResults(pathToParams: String): String =
+      f"/home/s1569687/microbenchmark/neural_net_outputs/"
 
 
     def datasetsExist(pathToParams: String): Boolean = exists(get(pathToParams + "/wconv1.binary"))
@@ -222,10 +232,11 @@ package object cnn {
   case class ExperimentsSet(nBatchesRange: List[Int],
                             nInputsRange: List[Int],
                             imageSizeRange: List[Int],
-                            nChannels: Int,
+                            inputChannelRange: List[Int],
 
                             nKernelsRange: List[List[Int]],
                             kernelSizeRange: List[List[Int]],
+                            kernelStrideRange: List[List[Int]],
 
                             neuronsRange: List[List[Int]],
 

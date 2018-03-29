@@ -33,8 +33,7 @@ trait ConvCompanion {
                             //                            nKernels: Int,
                             override val inputShape: Shape,
                             //                            kernelSize: Int,
-                            dim: conv.Experiment.Config.Dimensions,
-                            kernelStride: Int)
+                            dim: conv.Experiment.Config.Dimensions)
     extends Layer.InitParameters(layerNo, inputShape)
 
 

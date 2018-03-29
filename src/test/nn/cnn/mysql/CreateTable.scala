@@ -6,6 +6,6 @@ package nn.cnn.mysql
 object CreateTable extends App {
   def apply() {
     nn.mysql.Connector.statement.execute(scala.io.Source.fromFile(
-      System.getProperty("user.dir") + "/../../src/test/nn/cnn/mysql/" + "create_table.sql").getLines.mkString(""))
+      System.getProperty("user.dir") + "/src/test/nn/cnn/mysql/" + "create_table.sql").getLines.mkString(""))
   }
 }

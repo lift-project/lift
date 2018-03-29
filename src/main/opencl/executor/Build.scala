@@ -6,7 +6,7 @@ object Build {
   }
 
   def apply(code: String, buildOptions: String): Kernel = {
-    Kernel.create(code, "KERNEL", "buildOptions").andPerform(_.build)
+    Kernel.create(code, "KERNEL", buildOptions).andPerform(_.build)
   }
 
   // small trick to return the first argument

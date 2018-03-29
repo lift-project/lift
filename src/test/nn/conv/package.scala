@@ -115,17 +115,19 @@ package object conv {
       Array(Array(4269f, 4269f+1, 4269f+2), Array(4350f, 4350f+1, 4350f+2), Array(4431f, 4431f+1, 4431f+2),
             Array(4512f, 4512f+1, 4512f+2), Array(4593f, 4593f+1, 4593f+2), Array(4674f, 4674f+1, 4674f+2)))))
 
-  def configToString(elsPerThread: Int, nKernels: Int, kernelsPerGroup: Int,
+  def configToString(inputSizePadded: Int, outputSizePadded: Int, elsPerThread: Int, nKernels: Int, kernelsPerGroup: Int,
                      kernelSize: Int, kernelStride: Int, inputTileSize: Int): String = {
-    f"elsPerThread=$elsPerThread%d, nKernels=$nKernels%d, kernelsPerGroup=$kernelsPerGroup%d\n" +
-      f"kernelSize=$kernelSize%d, kernelStride=$kernelStride%d, inputTileSize=$inputTileSize%d\n"
+    f"inputSizePadded=$inputSizePadded%d, outputSizePadded=$outputSizePadded%d, \n" +
+      f"inputTileSize=$inputTileSize%d, kernelSize=$kernelSize%d, kernelStride=$kernelStride%d, \n" +
+      f"elsPerThread=$elsPerThread%d, nKernels=$nKernels%d, kernelsPerGroup=$kernelsPerGroup%d\n"
   }
 
 
   object Experiment extends nn.Experiment {
     object Config {
       case class Dimensions(nKernels: Int,
-                            kernelSize: Int) extends Layer.Experiment.Config.Dimensions
+                            kernelSize: Int,
+                            kernelStride: Int) extends Layer.Experiment.Config.Dimensions
 
       case class OptimisationalParams(inputTileSize: Int,
                                       elsPerThread: Int,
@@ -138,23 +140,23 @@ package object conv {
 
     val convDir: String = nn.nnDir + "/conv"
 
-    def getPathToInputs(nKernelsL0: Int, kernelSize: Int, inputSize: Int): String = {
+    def getPathToInputs(nKernelsL0: Int, kernelSize: Int, kernelStride: Int, inputSize: Int): String = {
       {
         val envPath = System.getenv("LIFT_NN_RESOURCES")
         if (envPath != null) envPath else convDir
       } + f"/experiment.cnn.inputs.$inputSize%d"
     }
-    def getPathToParams(nKernelsL0: Int, kernelSize: Int, inputSize: Int): String = {
+    def getPathToParams(nKernelsL0: Int, kernelSize: Int, kernelStride: Int, inputSize: Int): String = {
       {
         val envPath = System.getenv("LIFT_NN_RESOURCES")
         if (envPath != null) envPath else convDir
-      } + f"/experiment.cnn.$nKernelsL0%d.$kernelSize%d.$inputSize%d"
+      } + f"/experiment.cnn.$nKernelsL0%d.$kernelSize%d.$kernelStride%d.$inputSize%d"
     }
     def datasetsExist(pathToParams: String): Boolean = exists(get(pathToParams + "/wconv1.binary"))
 
 
-    def loadDatasets(paramsPath: String,
-                     inputsPath: String = "", inputShape: Shape, outputShape: Shape, targetFilePrefix: String = "",
+    def loadDatasets(paramsPath: String, inputsPath: String = "", targetOutputsPath: String,
+                     inputShape: Shape, outputShape: Shape,
                      paramFileInfix: String, kernelSliding: SlidingWindowConfig): ConvDatasets = {
       new ConvDatasets(
         in = {
@@ -165,11 +167,8 @@ package object conv {
             PaddedArray(Array.empty)
         },
         targ = {
-          if (targetFilePrefix != "")
-          nn.loadBinary(paramsPath + "/" + targetFilePrefix + ".binary",
+          nn.loadBinary(targetOutputsPath,
             (inputShape.nBatches, inputShape.nInputs, kernelSliding.nChannels, outputShape.size, outputShape.size))
-          else
-            Array.empty
         },
         w = nn.loadBinary(paramsPath + "/w" + paramFileInfix + ".binary",
           (kernelSliding.nChannels, inputShape.nChannels, kernelSliding.size, kernelSliding.size)),

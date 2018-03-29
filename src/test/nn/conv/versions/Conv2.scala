@@ -3,6 +3,7 @@ package nn.conv.versions
 /**
   * Created by nm on 09/01/17.
   * Input channels are processed sequentially in each thread.
+  * ARM Mali GPU-optimised
   */
 
 import ir.TupleType
@@ -16,7 +17,7 @@ import opencl.ir.pattern._
   * The companion object that contains the Lift expressions, configuration preprocessing and
   * verification, and helper functions.
   */
-object Conv0 extends ConvCompanion {
+object Conv2 extends ConvCompanion {
   //  val kernel_xdim_SV = SizeVar("kernel_xdim_SV")
   //  val kernel_ydim_SV = SizeVar("kernel_ydim_SV")
   //  val input_xdim_SV = SizeVar("input_xdim_SV")
@@ -255,7 +256,7 @@ object Conv0 extends ConvCompanion {
   }
 
 
-  def apply(iP: InitParameters): Conv0 = {
+  def apply(iP: InitParameters): Conv2 = {
     /**
       * Class factory: verifies that an object can be created,
       * initializes variables, computes workgroup sizes.
@@ -330,11 +331,14 @@ object Conv0 extends ConvCompanion {
     localSize(locC) = scala.math.pow(
       (inputTiling.size - (kernelSliding.size - kernelSliding.stride)) / kernelSliding.stride, 2).toInt
 
+//    val maxWorkGroupSize = nn.maxWorkGroupSize
+    val maxWorkGroupSize = 256
+
     {
       val groupSize: Int = localSize(0) * localSize(1) * localSize(2)
-      if (groupSize > nn.maxWorkGroupSize)
+      if (groupSize > maxWorkGroupSize)
         throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
-          f"group size (==$groupSize%d) must be less or equal to maxWorkGroupSize (${nn.maxWorkGroupSize}%d).\n" +
+          f"group size (==$groupSize%d) must be less or equal to maxWorkGroupSize ($maxWorkGroupSize%d).\n" +
           f"Decrease nKernelsPerGroup or inputTileSize or increase elsPerThread (${iP.optParams.elsPerThread}%d)")
     }
 
@@ -345,7 +349,7 @@ object Conv0 extends ConvCompanion {
 
     /* Now that all parameters are calculated and verified, build the layer */
 
-    new Conv0(
+    new Conv2(
       iP.liftFPropGenerator(iP.activationFun, iP.inputShape, inputTiling,
         iP.dim.nKernels,kernelSliding, iP.optParams.kernelsPerGroup, iP.optParams.elsPerThread),
       iP.inputShape, outputShape,
@@ -400,7 +404,7 @@ object Conv0 extends ConvCompanion {
   * @param localSize
   * @param globalSize
   */
-case class Conv0(override val liftFProp: FunDecl,
+case class Conv2(override val liftFProp: FunDecl,
                  override val inputShape: Shape, override val outputShape: Shape,
                  override val inputTiling: SlidingWindowConfig, override val kernelSliding: SlidingWindowConfig,
                  override val elsPerThread: Int, override val kernelsPerGroup: Int,

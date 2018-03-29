@@ -26,6 +26,20 @@ cl::Kernel Kernel::build() const
   try {
     // build program for given device
     p.build(std::vector<cl::Device>(1, devPtr->clDevice()), buildOptions.c_str());
+//    VECTOR_CLASS<size_t> lengths;
+//    VECTOR_CLASS<char*> binaries;
+//
+//    p.getInfo<VECTOR_CLASS<size_t>>(CL_PROGRAM_BINARY_SIZES, &lengths);
+//    for(unsigned int i = 0;i<lengths.size();i++) {
+//        std::cout<<"Length: " << lengths[i] << std::endl;
+//        binaries.push_back((char*)malloc((lengths[i] + 1) * sizeof(char)));
+//        std::cout<<"Memory is indeed allocated. " << std::endl;
+//    }
+//    p.getInfo<VECTOR_CLASS<char*>>(CL_PROGRAM_BINARIES, &binaries);
+//
+//    for(auto program : binaries){
+//        std::cout<<"Program: " << program << std::endl;
+//    }
 
   } catch (cl::Error& err) {
     if (err.err() == CL_BUILD_PROGRAM_FAILURE) {

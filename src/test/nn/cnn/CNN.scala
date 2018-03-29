@@ -27,8 +27,11 @@ class CNN(val nConvLayers: Int,
       f"\nLayer $i%d (Conv):\n" + convLayer.configToString
     }}.mkString("") + {
     var i: Int = convLayers.length - 1
-    for (fcLayer <- fcLayers) yield {
-      i = i + 1
-      f"\nLayer $i%d (FC):\n" + fcLayer.configToString
-    }}.mkString("")
+    if (fcLayers.length > 0) {
+      for (fcLayer <- fcLayers) yield {
+        i = i + 1
+        f"\nLayer $i%d (FC):\n" + fcLayer.configToString
+      }
+    }.mkString("")
+  }
 }

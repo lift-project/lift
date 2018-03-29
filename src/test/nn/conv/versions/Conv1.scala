@@ -11,7 +11,7 @@ import ir.ast.debug.PrintType
 import lift.arithmetic.SizeVar
 import nn._
 import nn.conv.{Conv, ConvCompanion, ConvDatasets, SlidingWindowConfig}
-import opencl.executor.{Compile, Executor}
+import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
 
@@ -29,44 +29,50 @@ object Conv1 extends ConvCompanion {
     val n_batches_SV = SizeVar("n_batches")
 
   /* Sequential layer */
-  def Seq(activation_f: UserFun): FunDecl = λ(
+  def Seq(activation_f: UserFun, n_inputs: Int, input_xdim: Int, input_ydim: Int, in_channels: Int,
+         kernel_xdim: Int, kernel_ydim: Int, out_channels: Int): FunDecl = λ(
     // Lift K: y, x, i, o
     // Caffe K: o, i, y, x
 //    AT(AT(AT(AT(Float, out_channels_SV), in_channels_SV), kernel_xdim_SV), kernel_ydim_SV),
-    AT(AT(AT(AT(Float, kernel_xdim_SV), kernel_ydim_SV), in_channels_SV), out_channels_SV),
-    AT(Float, out_channels_SV),
+    AT(AT(AT(AT(Float, kernel_xdim), kernel_ydim), in_channels), out_channels),
+    AT(Float, out_channels),
     // Lift X: n, y, x, c
     // Caffe X: n, c, y, x
 //    AT(AT(AT(AT(Float, in_channels_SV), input_xdim_SV), input_ydim_SV), n_inputs_SV),
-    AT(AT(AT(AT(Float, input_xdim_SV), input_ydim_SV), in_channels_SV), n_inputs_SV),
+    AT(AT(AT(AT(Float, input_xdim), input_ydim), in_channels), n_inputs),
     (K, B, X) => { 
       // n, y, x, c -> n, c, y, x
       Map(TransposeW() o Map(TransposeW())) o
       MapSeq(λ((single_input) => {
         MapSeq(λ((pass_strip) => {
-          MapSeq(λ((pass_window) => { Join() o
-            MapSeq(λ((weighted_window_per_out_ch, b_per_out_ch) => { // Reduce weighted pass window separately for each output
-              MapSeq(toGlobal(activation_f)) o ReduceSeq(add, id(b_per_out_ch)) $ weighted_window_per_out_ch
-            })) o λ((weighted_window_across_out_chs) => Zip(weighted_window_across_out_chs, B)) o Transpose() o
-            MapSeq(λ((window_row, kernel_row) => { Join() o
-              MapSeq(λ((weighted_row_per_out_ch) => { // Reduce weighted pass window rows separately for each output
-                MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) $ weighted_row_per_out_ch
-              })) o Transpose() o
-              MapSeq(λ((x_el_in_chs, k_el_in_chs) => { Join() o
-                MapSeq(λ((k_el_out_ch) => { // Reduce input channels of each element separately for each output
-                  MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) o MapSeq(mult) $ Zip(x_el_in_chs, k_el_out_ch)
-                })) o Transpose() $ k_el_in_chs
-              })) $ Zip(window_row, kernel_row)
-            })) $ Zip(pass_window,
+          MapSeq(λ((pass_window) => {
+            Join() o
+            ReduceSeq(fun((acc, element) => {
+              val input_element = Get(element, 0)
+              val kernel_element = Get(element, 1)
+
+              Join() o
+                MapSeq(fun((out_channel) => {
+                  val acc_out_channel = Get(out_channel, 0)
+                  val kernel_out_channel = Get(out_channel, 1)
+
+                  ReduceSeq(add, acc_out_channel) o
+                    MapSeq(fun((x, w) =>
+                      mult(x, w)
+                    )) $ Zip(input_element, kernel_out_channel)
+
+                })) $ Zip(acc, kernel_element)
+            }), MapSeq(id) $ B
+            ) $ Zip(Join() $ pass_window,
             // o, i, y, x -> 
             // o, y, i, x -> 
             // o, y, x, i -> 
             // y, o, x, i -> 
-            // y, x, o, i ->            
-            // y, x, i, o
-            Map(Map(Transpose()) o Transpose()) o Transpose() o Map(Map(Transpose()) o Transpose()) $ K)
+            // y, x, o, i ->
+            // y * x, o, i
+            Join() o Map(/*Map(Transpose()) o */Transpose()) o Transpose() o Map(Map(Transpose()) o Transpose()) $ K)
           })) $ pass_strip
-        })) o Slide2D(kernel_ydim_SV, 1, kernel_xdim_SV, 1) $ single_input
+        })) o Slide2D(kernel_ydim, 1, kernel_xdim, 1) $ single_input
       })) o 
         // n, c, y, x ->
         // n, y, c, x ->
@@ -74,10 +80,36 @@ object Conv1 extends ConvCompanion {
       Map(Map(Transpose()) o Transpose()) $ X
     }
   )
+  
   def main(args: Array[String]): Unit = {
       Executor.loadLibrary()
-      Executor.init()
-      println(Compile(Seq(Linear)))
+      Executor.init(1, 0)
+//      println(Compile(Seq(Linear)))
+    val input_xdim = 227
+    val input_ydim = 227
+    val in_channels = 3
+    val n_inputs = 5
+    
+    val kernel_xdim = 11
+    val kernel_ydim = 11
+    val out_channels = 96
+    
+    val K = Array.fill[Array3D[Float]](out_channels)(
+      Array.fill[Array2D[Float]](in_channels)(
+        Array.fill[Array[Float]](kernel_ydim)(
+          Array.fill[Float](kernel_xdim)(1.0f)))) 
+    
+    val B = Array.fill[Float](out_channels)(1.0f)
+    
+    val X = Array.fill[Array3D[Float]](n_inputs)(
+      Array.fill[Array2D[Float]](in_channels)(
+        Array.fill[Array[Float]](input_ydim)(
+          Array.fill[Float](input_xdim)(1.0f))))
+    
+      val (outputsFlat: Array[Float], runtime) = Execute(1, 1)[Array[Float]](
+        Seq(Linear, n_inputs, input_xdim, input_ydim, in_channels,
+          kernel_xdim, kernel_ydim, out_channels), K, B, X)
+    println(outputsFlat)
   }
   val locA: Int = 0
   val locB: Int = 1
@@ -314,23 +346,24 @@ object Conv1 extends ConvCompanion {
 
   def apply(iP: InitParameters): Conv = {
     /**
-    5    * Class factory: verifies that an object can be created,
+      * Class factory: verifies that an object can be created,
       * initializes variables, computes workgroup sizes.
       */
 
     val exceptionMsgPrefix: String = "In the Conv layer with the following configuration:\n" +
-      conv.configToString(iP.optParams.elsPerThread, iP.dim.nKernels,
-        iP.optParams.kernelsPerGroup, iP.dim.kernelSize, iP.kernelStride, iP.optParams.inputTileSize)
+      conv.configToString(iP.inputShape.sizePadded, -1, iP.optParams.elsPerThread, iP.dim.nKernels,
+        iP.optParams.kernelsPerGroup, iP.dim.kernelSize, iP.dim.kernelStride, iP.optParams.inputTileSize)
 
     /* Tiles */
     val kernelSliding: SlidingWindowConfig = SlidingWindowConfig(
       size = iP.dim.kernelSize,
-      stride = iP.kernelStride,
+      stride = iP.dim.kernelStride,
       n = {
-        val n: Float = (iP.optParams.inputTileSize - (iP.dim.kernelSize - iP.kernelStride)).toFloat / iP.kernelStride
+        val n: Float = (iP.optParams.inputTileSize - (iP.dim.kernelSize - iP.dim.kernelStride)).toFloat /
+          iP.dim.kernelStride
         if (n % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
           f"input tiles (${iP.optParams.inputTileSize}%d) are not divisible by the chosen " +
-          f"kernelSize (${iP.dim.kernelSize}%d) and kernelStride (${iP.kernelStride}%d)")
+          f"kernelSize (${iP.dim.kernelSize}%d) and kernelStride (${iP.dim.kernelStride}%d)")
         n.toInt
       },
       nChannels = iP.dim.nKernels
@@ -466,7 +499,7 @@ case class Conv1(override val liftFProp: FunDecl,
     elsPerThread, kernelsPerGroup, localSize, globalSize) {
 
   val configToString: String =
-    nn.conv.configToString(elsPerThread, outputShape.nChannels,
+    nn.conv.configToString(inputShape.sizePadded, outputShape.sizePadded, elsPerThread, outputShape.nChannels,
       kernelsPerGroup, kernelSliding.size, kernelSliding.stride, inputTiling.size)
   var runtime: Double = 0
 
