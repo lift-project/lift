@@ -162,7 +162,7 @@ class DotPrinter(w: Writer,
         ""
 
     val number = if (numbering.contains(e))
-      numbering(e).toString()
+      "<BR/><i>" + numbering(e).toString() + "</i>"
     else
       ""
 
@@ -170,7 +170,7 @@ class DotPrinter(w: Writer,
       "@"+e.##
     else
       ""
-    writeln(getNodeId(e) + " [style=rounded,shape=box,label=<<b>" + e.getClass.getSimpleName + "</b>"+ ref+addrSpce +"<BR/><i>" + number + "</i>>]")
+    writeln(getNodeId(e) + " [style=rounded,shape=box,label=<<b>" + e.getClass.getSimpleName + "</b>"+ ref+addrSpce + number + ">]")
   }
 
   def printNodes(node: IRNode): Unit = {
@@ -210,7 +210,8 @@ class DotPrinter(w: Writer,
           numbering(v).toString()
         else
           ""
-        writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>("+v.value+")<BR/><i>" + number + "</i>>]")
+        writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>("+v.value+")<BR/>" +
+          (if (number != "") "<i>" + number + "</i>" else "") + ">]")
       case p: Param =>
         writeNodeDef(p)
         //writeln(nodeId + " [style=rounded,shape=box,label=<<b>" + node.getClass.getSimpleName + "</b>>]")
@@ -278,9 +279,9 @@ class DotPrinter(w: Writer,
             case FunCall(u : UserFun, _*) if uf == u => true
             case _ => false
           }
-        }.map(_._2.toString).getOrElse("")
-        val print = if (compressLambda) "<BR/><i>" + number + "</i>" else ""
-        writeln(nodeId+" [style=rounded,shape=box,label=<<b>UserFun</b>("+uf.name+")" + print + "*>]")
+        }.map(x => "<BR/><i>" + x._2.toString + "*</i>").getOrElse("")
+        val print = if (compressLambda) number else ""
+        writeln(nodeId+" [style=rounded,shape=box,label=<<b>UserFun</b>("+uf.name+")" + print + ">]")
       case  _ =>
         writeln(nodeId+" [style=rounded,shape=box,label=<<b>"+node.getClass.getSimpleName+"</b>>]")
     }
