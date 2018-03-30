@@ -55,7 +55,7 @@ class DotProduct {
     val (output, runtime) = Execute(inputSize)[Array[Float]](dotProductLift, leftInputData, rightInputData)
 
     assertEquals(dotProductScala(leftInputData, rightInputData), output.sum, 0.0)
-
+    DotPrinter("/home/bastian/development/lift", "expr", dotProductLift)
   }
 
   /*
@@ -110,7 +110,7 @@ class DotProduct {
 
     assertEquals(dotProductScala(leftInputData, rightInputData), output.sum, 0.0)
 
-    DotPrinter("./", "expr", dotProductLift)
+    DotPrinter("/home/bastian/development/lift", "expr", dotProductLift)
   }
 
 }

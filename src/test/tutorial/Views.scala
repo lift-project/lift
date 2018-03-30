@@ -213,15 +213,18 @@ class Views{
 
   @Test
   def arithExprSimpl(): Unit = {
+    // 1 + N - 1
     val example1 = Cst(1) + Var("N") - Cst(1)
-    println(example1)
+    //println(example1)
 
+    // N > 0 ? T : F
     val example2 = (SizeVar("N") ge Cst(0)) ?? Var("T") !! Var("F")
     println(example2)
 
+    // ((2*M) + 1) % M
     val M = Var("M")
     val example3 = ((2 * M) + 1) % M
-    println(example3)
+    //println(example3)
   }
 
 
