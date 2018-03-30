@@ -63,13 +63,20 @@ To configure the *Lift* project in the IDE perform the following steps:
 
      .. image:: images/IDEASBTModules.*
 
-  5. Click ``"Build -> Build Project"`` to build the *Lift* compiler:
+  6. Click ``"Run -> Edit Configurations"`` and then ``"Default -> JUnit"`` on the left pane of the dialog and add the following to ``"VM Options"`` on the right:
+       ```-Djava.library.path=$LIFT_ROOT/lib/Executor/build/" (with the proper path from your system)```
+
+     .. image:: images/IDEAVMOptions.*
+  
+    Alternatively, the ``Executor`` build directory can be added directly to your *LD_LIBRARY_PATH*. 
+
+  6. Click ``"Build -> Build Project"`` to build the *Lift* compiler:
 
      .. image:: images/IDEABuild.*
   
      This is the equivalent action to ``sbt build`` on the command line.
 
-  6. To run all unit tests unfold the project structure as shown in the picture:
+  7. To run all unit tests unfold the project structure as shown in the picture:
 
      .. image:: images/IDEAProjectScreen.*
 
