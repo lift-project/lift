@@ -56,6 +56,7 @@ class DotProduct {
 
     assertEquals(dotProductScala(leftInputData, rightInputData), output.sum, 0.0)
 
+    DotPrinter("./", "dotProductLift1", dotProductLift)
   }
 
   /*
@@ -81,6 +82,8 @@ class DotProduct {
 
     assertEquals(dotProductScala(leftInputData, rightInputData), output.sum, 0.0)
 
+
+    DotPrinter("./", "dotProductLift2", dotProductLift)
   }
 
   /*
@@ -110,7 +113,7 @@ class DotProduct {
 
     assertEquals(dotProductScala(leftInputData, rightInputData), output.sum, 0.0)
 
-    DotPrinter("./", "expr", dotProductLift)
+    DotPrinter("./", "dotProductLift3", dotProductLift)
   }
 
 }
