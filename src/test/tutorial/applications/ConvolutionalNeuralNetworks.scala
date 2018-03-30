@@ -17,7 +17,7 @@ object ConvolutionalNeuralNetworks extends TestWithExecutor
 
 class ConvolutionalNeuralNetworks
 {
-  @Test def simpleDotProduct(): Unit = {
+  @Test def CNN(): Unit = {
     val kernel_xdim_SV = SizeVar("kernel_xdim_SV")
     val kernel_ydim_SV = SizeVar("kernel_ydim_SV")
     val input_xdim_SV = SizeVar("input_xdim_SV")
@@ -53,6 +53,6 @@ class ConvolutionalNeuralNetworks
           })) $ pass_strip
         })) o Slide2D(kernel_h, 1, kernel_w, 1) $ single_input
       })) $ X
-    }
+    })
   }
 }
