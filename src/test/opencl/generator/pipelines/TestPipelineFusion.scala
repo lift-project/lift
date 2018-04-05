@@ -1,28 +1,20 @@
-package opencl.generator.stencil
+package opencl.generator.pipelines
 
 import ir._
-import ir.ast.Pad.BoundaryFun
 import ir.ast._
-import lift.arithmetic.{SizeVar, StartFromRange, Var}
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, _}
 import org.junit.Assert._
-import org.junit.Assume.assumeFalse
 import org.junit._
-import rewriting.Rewrite
-import rewriting.rules.{CopyRules, OpenCLRules}
-import rewriting.utils.NumberExpression
 
-import scala.util.Random
+object TestPipelineFusion extends TestWithExecutor
 
-
-object TestImagePipelines extends TestWithExecutor
-
-class TestImagePipelines {
+class TestPipelineFusion {
 
   @Test
-  def boxBlur(): Unit = {
+  def boxBlurPipelineFusion(): Unit = {
     val M = SizeVar("M")
     val N = SizeVar("N")
 
@@ -103,7 +95,6 @@ class TestImagePipelines {
     val p0 = P o T o *(J) o J o *(**(R) o ***(f) o *(S) o T o *(R) o **(f)) o T o *(S)
     val p1 = P o T o *(J) o J o *(*(*(R) o **(f) o (S)) o T o *((R) o *(f))) o T o *(S)
     val p2 = P o TransposeW() o *(J) o J o MapGlb(%(%(%(toGlobal(id)) o ReduceSeq(add, 0.0f)) o %(%(f)) o (S)) o T o %((%(toGlobal(id)) o ReduceSeq(add, 0.0f)) o %(f))) o T o *(S)
-    //println(Compile(lambda(p2)))
 
     // moving slide forward
     val f8 = P o T o *(J) o J o ***(R) o ****(f) o *(T) o **(T) o *(S) o **(R) o ***(f) o T o *(S)
@@ -138,47 +129,29 @@ class TestImagePipelines {
         )
       )) o T o *(T) o S o *(S)
 
-    // try vectorization
-    /*
-    val g3 = P o TW o *(J) o J o *(TW) o
-      MapGlb(1)(MapGlb(0)(
-        MapSeq(
-          MapSeq(toGlobal(id)) o ReduceSeq(add, 0.0f) //o MapSeq(f)
-        ) o Transpose() o // synchronization here!
-        MapSeq(
-          MapSeq(toPrivate(id)) o ReduceSeq(addF4, Value("0.0f", Float).vectorize(4)) //o MapSeq(f)
-        )
-      )) o T o *(T) o S o *(S)
-      */
-
-    println(Compile(lambda(g2)))
-    //TypeChecker(lambda(g3))
-
-
     val input = Array.tabulate(32, 32) { (i, j) => i * 32.0f + j }
     val (outG1, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(g1), input)
     val (outG2, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(g2), input)
-    //val (outG3, _) = Execute(1,1,32,32,(false,false))[Array[Float]](lambda(g3), input)
     assertArrayEquals(outG1, outG2, 0.1f)
-    //assertArrayEquals(outG1, outG3, 0.1f)
 
-    //TypeChecker(lambda(f0))
-    //TypeChecker(lambda(f1))
-    //TypeChecker(lambda(f2))
-    //TypeChecker(lambda(f3))
-    //TypeChecker(lambda(f4))
-    //TypeChecker(lambda(f5))
-    //TypeChecker(lambda(f6))
-    //TypeChecker(lambda(p0))
-    //TypeChecker(lambda(p1))
-    //TypeChecker(lambda(p2))
-    //TypeChecker(lambda(f8))
-    //TypeChecker(lambda(f9))
-    //TypeChecker(lambda(f10))
-    //TypeChecker(lambda(f11))
-    //TypeChecker(lambda(f12))
-    //TypeChecker(lambda(g0))
-    //TypeChecker(lambda(g1))
+    TypeChecker(lambda(f0))
+    TypeChecker(lambda(f1))
+    TypeChecker(lambda(f2))
+    TypeChecker(lambda(f3))
+    TypeChecker(lambda(f4))
+    TypeChecker(lambda(f5))
+    TypeChecker(lambda(f6))
+    TypeChecker(lambda(p0))
+    TypeChecker(lambda(p1))
+    TypeChecker(lambda(p2))
+    TypeChecker(lambda(f8))
+    TypeChecker(lambda(f9))
+    TypeChecker(lambda(f10))
+    TypeChecker(lambda(f11))
+    TypeChecker(lambda(f12))
+    TypeChecker(lambda(g0))
+    TypeChecker(lambda(g1))
+    TypeChecker(lambda(g2))
   }
 
 
