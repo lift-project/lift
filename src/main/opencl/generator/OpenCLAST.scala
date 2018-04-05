@@ -13,9 +13,14 @@ import scala.language.implicitConversions
 
 object OpenCLAST {
 
+
   case class RequiredWorkGroupSize(localSize: NDRange) extends AttributeT {
     override def print(): Doc = {
       s"__attribute((reqd_work_group_size(${localSize})))" <> line
+    }
+
+    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+      post(this)
     }
   }
 
@@ -45,6 +50,18 @@ object OpenCLAST {
                          attribute: Option[AttributeT] = None, kernel: Boolean =
                          false) extends
     FunctionT with IsKernel {
+
+    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+      if (!visitChildren(this))
+        return post(this)
+      post(OclFunction(name, ret, params.map(_.visitAndRebuild(visitChildren, post).asInstanceOf[ParamDeclT]),
+        body.visitAndRebuild(visitChildren, post).asInstanceOf[MutableBlock],
+        attribute match {
+          case Some(a) => Some(a.visitAndRebuild(visitChildren, post).asInstanceOf[AttributeT])
+          case None => None
+        }, kernel))
+    }
+
     override def print(): Doc = {
       val kdescrB = if (kernel) {
         text("kernel ")
@@ -93,6 +110,16 @@ object OpenCLAST {
                         length: Long = 0,
                         addressSpace: OpenCLAddressSpace = UndefAddressSpace)
     extends VarDeclT with CLAddressSpace {
+
+    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+      if (!visitChildren(this))
+        return post(this)
+      post(OclVarDecl(v.visitAndRebuild(visitChildren, post).asInstanceOf[GenericAST.CVar], t,
+        init match {
+          case Some(i) => Some(i.visitAndRebuild(visitChildren, post))
+          case None => None
+        }, length, addressSpace))
+    }
 
     override def print(): Doc = t match {
       case _: ArrayType =>
@@ -161,6 +188,11 @@ object OpenCLAST {
                           const: Boolean = false,
                           addressSpace: OpenCLAddressSpace = UndefAddressSpace)
     extends ParamDeclT with CLAddressSpace {
+
+    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+      post(this)
+    }
+
     override def print(): Doc = t match {
       case ArrayType(_) ⇒
         // Const restricted pointers to read-only global memory. See issue #2.
@@ -181,6 +213,16 @@ object OpenCLAST {
                      shift: ArithExpression,
                      addressSpace: OpenCLAddressSpace) extends LoadT
     with CLAddressSpace {
+
+    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+      if (!visitChildren(this))
+        return post(this)
+      post(OclLoad(v.visitAndRebuild(visitChildren, post).asInstanceOf[VarRef], t,
+        offset.visitAndRebuild(visitChildren,post).asInstanceOf[ArithExpression],
+        shift.visitAndRebuild(visitChildren,post).asInstanceOf[ArithExpression],
+        addressSpace))
+    }
+
     override def print(): Doc = {
       if (!UseCastsForVectors()) {
         s"vload${Type.getLength(t)}(" <>
@@ -207,6 +249,16 @@ object OpenCLAST {
                       offset: ArithExpression,
                       addressSpace: OpenCLAddressSpace) extends StoreT
     with CLAddressSpace {
+
+    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+      if (!visitChildren(this))
+        return post(this)
+      post(OclStore(v.visitAndRebuild(visitChildren, post).asInstanceOf[VarRef], t,
+        value.visitAndRebuild(visitChildren, post),
+        offset.visitAndRebuild(visitChildren,post).asInstanceOf[ArithExpression],
+        addressSpace))
+    }
+
     override def print(): Doc = {
       if (!UseCastsForVectors()) {
         s"vstore${Type.getLength(t)}(" <>
@@ -230,6 +282,12 @@ object OpenCLAST {
   case class OclPointerCast(v: VarRef, t: Type,
                             addressSpace: OpenCLAddressSpace) extends CastT with CLAddressSpace {
 
+    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+      if (!visitChildren(this))
+        return post(this)
+      post(OclPointerCast(v.visitAndRebuild(visitChildren, post).asInstanceOf[VarRef], t, addressSpace))
+    }
+
     override def print(): Doc = {
       "(" <> s"(${addressSpace} ${t}*)" <> Printer.toString(v.v.v) <> ")" <>
         (v.arrayIndex match {
@@ -245,6 +303,13 @@ object OpenCLAST {
 
 
   case class VectorLiteral(t: VectorType, vs: VarRef*) extends ExpressionT {
+
+    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+      if (!visitChildren(this))
+        return post(this)
+      post(VectorLiteral(t, vs.map(_.visitAndRebuild(visitChildren, post).asInstanceOf[VarRef]) : _*))
+    }
+
     override def print(): Doc = {
       s"(${t})(" <>
         intersperse(vs.map(_.print).toList) <>
@@ -258,15 +323,25 @@ object OpenCLAST {
     *
     * @param code Native code to insert
     */
-  case class OclCode(code: String) extends RawCodeT
+  case class OclCode(code: String) extends RawCodeT {
+    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+      post(this)
+    }
+  }
 
   case class OclExtension(content: String) extends StatementT with BlockMember {
+    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+      post(this)
+    }
     override def print(): Doc = {
       "#pragma OPENCL EXTENSION " <> content <> " : enable"
     }
   }
 
   case class OclBarrier(mem: OpenCLMemory) extends StatementT with BlockMember {
+    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+      post(this)
+    }
     override def print(): Doc = mem.addressSpace match {
       case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
       case LocalMemory  => "barrier(CLK_LOCAL_MEM_FENCE);"

@@ -1749,17 +1749,17 @@ class TestMapSeqSlide
           o PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(mat1, mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
     )
 
-    /*
-    //print n' compare
-    println(Compile(original3DStencil(slidesize,slidestep)))
-    println(Compile(lambda3D))
-    */
 
+    //print n' compare
+    //println(Compile(original3DStencil(slidesize,slidestep)))
+    println(Compile(lambda3D))
+
+/*
     val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original3DStencil(slidesize,slidestep),stencilarrpadded3D, stencilarrpadded3D)
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda3D,stencilarrpadded3D, stencilarrpadded3D)
 
     assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
-
+*/
   }
 
 }
