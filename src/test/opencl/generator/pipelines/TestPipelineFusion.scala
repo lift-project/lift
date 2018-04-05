@@ -153,6 +153,4 @@ class TestPipelineFusion {
     TypeChecker(lambda(g1))
     TypeChecker(lambda(g2))
   }
-
-
 }
