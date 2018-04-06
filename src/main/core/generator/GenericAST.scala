@@ -60,7 +60,16 @@ object GenericAST {
       z |> (preVisit(_, this)) |> (postVisit(_, this))
     }
 
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode
+
+    def visitAndRebuild(visitChildren: (AstNode) => Boolean = {_ => true}, pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      val newAstNode = pre(this)
+      if (!visitChildren(this))
+        return post(newAstNode)
+      newAstNode.visitAndRebuild(post)
+    }
+
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode
+
 
     def print(): Doc
   }
@@ -95,9 +104,7 @@ object GenericAST {
         (visitFun(_, this)) |>
         // visit the parameters
         (params.foldLeft(_) {
-          case (acc, node) => {
-            node.visit(acc)(visitFun)
-          }
+          case (acc, node) => node.visit(acc)(visitFun)
         }) |>
         // visit the body
         (body.visit(_)(visitFun)) |>
@@ -130,13 +137,11 @@ object GenericAST {
                       body: MutableBlockT, attribute: Option[AttributeT] = None)
     extends FunctionT {
 
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(Function(name, ret, params.map(_.visitAndRebuild(visitChildren, post).asInstanceOf[ParamDeclT]),
-        body.visitAndRebuild(visitChildren, post).asInstanceOf[MutableBlockT],
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(Function(name, ret, params.map(_.visitAndRebuild(post).asInstanceOf[ParamDeclT]),
+        body.visitAndRebuild(post).asInstanceOf[MutableBlockT],
         attribute match {
-          case Some(a) => Some(a.visitAndRebuild(visitChildren, post).asInstanceOf[AttributeT])
+          case Some(a) => Some(a.visitAndRebuild(post).asInstanceOf[AttributeT])
           case None => None
         }))
     }
@@ -157,7 +162,7 @@ object GenericAST {
   }
 
   case class CVar(v: lift.arithmetic.Var /*, t: Type*/) extends VarT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
       post(this)
     }
   }
@@ -201,12 +206,10 @@ object GenericAST {
                      init: Option[AstNode] = None,
                      length: Long = 0) extends VarDeclT {
 
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(VarDecl(v.visitAndRebuild(visitChildren, post).asInstanceOf[CVar], t,
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(VarDecl(v.visitAndRebuild(post).asInstanceOf[CVar], t,
         init match {
-          case Some(i) => Some(i.visitAndRebuild(visitChildren, post))
+          case Some(i) => Some(i.visitAndRebuild(post))
           case None => None
         }, length))
     }
@@ -240,7 +243,7 @@ object GenericAST {
 
   case class ParamDecl(name: String, t: Type,
                        const: Boolean = false) extends ParamDeclT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
         post(this)
     }
   }
@@ -268,9 +271,7 @@ object GenericAST {
       z |>
         (visitFun(_, this)) |>
         (content.foldLeft(_) {
-          case (acc, node) => {
-            node.visit(acc)(visitFun)
-          }
+          case (acc, node) => node.visit(acc)(visitFun)
         })
     }
 
@@ -290,10 +291,8 @@ object GenericAST {
   case class MutableBlock(override var content: Vector[AstNode with
     BlockMember] = Vector(), global: Boolean = false) extends MutableBlockT {
 
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(MutableBlock(content.map(_.visitAndRebuild(visitChildren, post).asInstanceOf[AstNode with BlockMember]),
+    def visitAndRebuild( post: (AstNode) => AstNode) : AstNode = {
+      post(MutableBlock(content.map(_.visitAndRebuild(post).asInstanceOf[AstNode with BlockMember]),
         global))
     }
 
@@ -334,13 +333,11 @@ object GenericAST {
                      cond: ExpressionStatement,
                      increment: ExpressionT,
                      body: MutableBlockT) extends ForLoopT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(ForLoop(init.visitAndRebuild(visitChildren, post).asInstanceOf[DeclarationT],
-                   cond.visitAndRebuild(visitChildren, post).asInstanceOf[ExpressionStatement],
-                   increment.visitAndRebuild(visitChildren, post).asInstanceOf[ExpressionT],
-                   body.visitAndRebuild(visitChildren, post).asInstanceOf[MutableBlockT]))
+    def visitAndRebuild( post: (AstNode) => AstNode) : AstNode = {
+      post(ForLoop(init.visitAndRebuild(post).asInstanceOf[DeclarationT],
+                   cond.visitAndRebuild(post).asInstanceOf[ExpressionStatement],
+                   increment.visitAndRebuild(post).asInstanceOf[ExpressionT],
+                   body.visitAndRebuild(post).asInstanceOf[MutableBlockT]))
     }
   }
 
@@ -365,11 +362,9 @@ object GenericAST {
 
   case class WhileLoop(loopPredicate: Predicate,
                        body: MutableBlockT) extends WhileLoopT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
       post(WhileLoop(loopPredicate,
-        body.visitAndRebuild(visitChildren, post).asInstanceOf[MutableBlockT]))
+        body.visitAndRebuild(post).asInstanceOf[MutableBlockT]))
     }
   }
 
@@ -402,12 +397,10 @@ object GenericAST {
   case class IfThenElse(cond: ExpressionT,
                         trueBody: MutableBlockT,
                         falseBody: MutableBlockT) extends IfThenElseT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(IfThenElse(cond.visitAndRebuild(visitChildren, post).asInstanceOf[ExpressionT],
-        trueBody.visitAndRebuild(visitChildren, post).asInstanceOf[MutableBlockT],
-        falseBody.visitAndRebuild(visitChildren, post).asInstanceOf[MutableBlockT]))
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(IfThenElse(cond.visitAndRebuild(post).asInstanceOf[ExpressionT],
+        trueBody.visitAndRebuild(post).asInstanceOf[MutableBlockT],
+        falseBody.visitAndRebuild(post).asInstanceOf[MutableBlockT]))
     }
   }
 
@@ -429,10 +422,8 @@ object GenericAST {
   }
 
   case class GOTO(nameVar: CVar) extends GOTOT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(GOTO(nameVar.visitAndRebuild(visitChildren, post).asInstanceOf[CVar]))
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(GOTO(nameVar.visitAndRebuild(post).asInstanceOf[CVar]))
     }
   }
 
@@ -454,10 +445,8 @@ object GenericAST {
   }
 
   case class Label(nameVar: CVar) extends LabelT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(Label(nameVar.visitAndRebuild(visitChildren, post).asInstanceOf[CVar]))
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(Label(nameVar.visitAndRebuild(post).asInstanceOf[CVar]))
     }
   }
 
@@ -469,7 +458,7 @@ object GenericAST {
   }
 
   case class Break() extends BreakT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
       post(this)
     }
   }
@@ -483,7 +472,7 @@ object GenericAST {
     override def print(): Doc = t match {
       case tt: TupleType ⇒
         val name = Type.name(tt)
-        spread(tt.elemsT.map(t ⇒ TypeDef(t).print).toList) <>
+        spread(tt.elemsT.map(t ⇒ TypeDef(t).print()).toList) <>
           s"#ifndef ${name}_DEFINED" </>
           s"#define ${name}_DEFINED" </>
           s"typedef struct __attribute__((aligned(${tt.alignment._1})))" <>
@@ -501,7 +490,7 @@ object GenericAST {
   }
 
   case class TypeDef(t: Type) extends TypeDefT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
       post(this)
     }
   }
@@ -513,14 +502,14 @@ object GenericAST {
     val t: Type
     val name: String
 
-    override def print() = t match {
+    override def print(): Doc = t match {
       case tt: TupleType ⇒ text(s"typedef ") <> Type.name(tt) <+> name <> ";"
-      case _             ⇒ Comment("NOTE: trying to print unprintable tuplealias").print
+      case _             ⇒ Comment("NOTE: trying to print unprintable tuplealias").print()
     }
   }
 
   case class TupleAlias(t: Type, name: String) extends TupleAliasT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
       post(this)
     }
   }
@@ -543,10 +532,8 @@ object GenericAST {
   }
 
   case class ExpressionStatement(e: ExpressionT) extends ExpressionStatementT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode): AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(ExpressionStatement(e.visitAndRebuild(visitChildren, post).asInstanceOf[ExpressionT]))
+    def visitAndRebuild(post: (AstNode) => AstNode): AstNode = {
+      post(ExpressionStatement(e.visitAndRebuild(post).asInstanceOf[ExpressionT]))
     }
   }
 
@@ -561,23 +548,19 @@ object GenericAST {
       z |>
         (visitFun(_, this)) |>
         (args.foldLeft(_) {
-          case (acc, node) => {
-            node.visit(acc)(visitFun)
-          }
+          case (acc, node) => node.visit(acc)(visitFun)
         })
     }
 
     override def print(): Doc = {
-      name <> "(" <> intersperse(args.map(_.print)) <> ")"
+      name <> "(" <> intersperse(args.map(_.print())) <> ")"
     }
   }
 
   case class FunctionCall(name: String,
                           args: List[GenericAST.AstNode]) extends FunctionCallT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(FunctionCall(name, args.map(_.visitAndRebuild(visitChildren, post))))
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(FunctionCall(name, args.map(_.visitAndRebuild(post))))
     }
   }
 
@@ -616,12 +599,10 @@ object GenericAST {
                     suffix: Option[String] = None,
                     arrayIndex: Option[ArithExpression] = None
                    ) extends VarRefT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(VarRef(v.visitAndRebuild(visitChildren, post).asInstanceOf[CVar], suffix,
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(VarRef(v.visitAndRebuild(post).asInstanceOf[CVar], suffix,
         arrayIndex match {
-          case Some(ai) => Some(ai.visitAndRebuild(visitChildren, post).asInstanceOf[ArithExpression])
+          case Some(ai) => Some(ai.visitAndRebuild(post).asInstanceOf[ArithExpression])
           case None => None
         }))
 
@@ -650,7 +631,7 @@ object GenericAST {
           "," <>
           v.print() <> ")"
       } else {
-        text(s"*( ((${t}*)") <>
+        text(s"*( (($t*)") <>
           v.print <>
           ") + " <>
           offset.print <>
@@ -662,11 +643,9 @@ object GenericAST {
   case class Load(v: VarRef,
                   t: Type,
                   offset: ArithExpression) extends LoadT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(Load(v.visitAndRebuild(visitChildren, post).asInstanceOf[VarRef], t,
-        offset.visitAndRebuild(visitChildren,post).asInstanceOf[ArithExpression]))
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(Load(v.visitAndRebuild(post).asInstanceOf[VarRef], t,
+        offset.visitAndRebuild(post).asInstanceOf[ArithExpression]))
     }
   }
 
@@ -693,7 +672,7 @@ object GenericAST {
           offset.print <> "," <>
           v.print() <> ")"
       } else {
-        s"*( ((${t}*)" <>
+        s"*( (($t*)" <>
           v.print <> ") + " <>
           offset.print <> ") = " <>
           value.print
@@ -705,12 +684,10 @@ object GenericAST {
                    t: Type,
                    value: AstNode,
                    offset: ArithExpression) extends StoreT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(Store(v.visitAndRebuild(visitChildren, post).asInstanceOf[VarRef],t,
-        value.visitAndRebuild(visitChildren,post),
-        offset.visitAndRebuild(visitChildren,post).asInstanceOf[ArithExpression]))
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(Store(v.visitAndRebuild(post).asInstanceOf[VarRef],t,
+        value.visitAndRebuild(post),
+        offset.visitAndRebuild(post).asInstanceOf[ArithExpression]))
     }
   }
 
@@ -735,11 +712,9 @@ object GenericAST {
 
   case class AssignmentExpression(to: AstNode, value: AstNode) extends
     AssignmentExpressionT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(AssignmentExpression(to.visitAndRebuild(visitChildren, post),
-        value.visitAndRebuild(visitChildren,post)))
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(AssignmentExpression(to.visitAndRebuild(post),
+        value.visitAndRebuild(post)))
     }
   }
 
@@ -753,7 +728,7 @@ object GenericAST {
   }
 
   case class ArithExpression(content: ArithExpr) extends ArithExpressionT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
       post(this)
     }
   }
@@ -802,11 +777,9 @@ object GenericAST {
   case class BinaryExpression(lhs: ExpressionT,
                               op: BinaryExpressionT.Operator.Operator, rhs: ExpressionT)
     extends BinaryExpressionT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(BinaryExpression(lhs.visitAndRebuild(visitChildren, post).asInstanceOf[ExpressionT], op,
-        rhs.visitAndRebuild(visitChildren, post).asInstanceOf[ExpressionT]))
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(BinaryExpression(lhs.visitAndRebuild(post).asInstanceOf[ExpressionT], op,
+        rhs.visitAndRebuild(post).asInstanceOf[ExpressionT]))
     }
   }
 
@@ -850,12 +823,10 @@ object GenericAST {
 
   case class TernaryExpression(cond: BinaryExpressionT, trueExpr: ExpressionT, falseExpr: ExpressionT)
     extends TernaryExpressionT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(TernaryExpression(cond.visitAndRebuild(visitChildren, post).asInstanceOf[BinaryExpressionT],
-        trueExpr.visitAndRebuild(visitChildren,post).asInstanceOf[ExpressionT],
-        falseExpr.visitAndRebuild(visitChildren,post).asInstanceOf[ExpressionT]))
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(TernaryExpression(cond.visitAndRebuild(post).asInstanceOf[BinaryExpressionT],
+        trueExpr.visitAndRebuild(post).asInstanceOf[ExpressionT],
+        falseExpr.visitAndRebuild(post).asInstanceOf[ExpressionT]))
     }
   }
 
@@ -881,19 +852,15 @@ object GenericAST {
     * TODO: Can we actually do this? What will break :D
     */
   case class Cast(v: VarRef, t: Type) extends CastT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(Cast(v.visitAndRebuild(visitChildren, post).asInstanceOf[VarRef],t))
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(Cast(v.visitAndRebuild(post).asInstanceOf[VarRef],t))
     }
   }
 
   case class PointerCast(v: VarRef, t: Type) extends CastT {
 
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(PointerCast(v.visitAndRebuild(visitChildren, post).asInstanceOf[VarRef],t))
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(PointerCast(v.visitAndRebuild(post).asInstanceOf[VarRef],t))
     }
 
     override def print(): Doc = {
@@ -920,25 +887,21 @@ object GenericAST {
       z |>
         (visitFun(_, this)) |>
         (args.foldLeft(_) {
-          case (acc, node) => {
-            node.visit(acc)(visitFun)
-          }
+          case (acc, node) => node.visit(acc)(visitFun)
         })
     }
 
     override def print(): Doc = {
       "(" <> Printer.toString(t) <> "){" <>
-        intersperse(args.map(_.print).toList) <>
+        intersperse(args.map(_.print()).toList) <>
         "}"
     }
   }
 
   case class StructConstructor(t: TupleType, args: Vector[AstNode]) extends
     StructConstructorT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
-      if (!visitChildren(this))
-        return post(this)
-      post(StructConstructor(t, args.map(_.visitAndRebuild(visitChildren, post))))
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
+      post(StructConstructor(t, args.map(_.visitAndRebuild(post))))
     }
   }
 
@@ -952,7 +915,7 @@ object GenericAST {
   }
 
   case class RawCode(code: String) extends RawCodeT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode): AstNode = {
+    def visitAndRebuild(post: (AstNode) => AstNode): AstNode = {
       post(this)
     }
   }
@@ -966,12 +929,12 @@ object GenericAST {
     override def print(): Doc = {
       // an alternative is << "//" <+> content >> but this might break if we
       // do any line length optimisations...
-      s"// ${content}"
+      s"// $content"
     }
   }
 
   case class Comment(content: String) extends CommentT {
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
       post(this)
     }
   }
@@ -983,7 +946,7 @@ object GenericAST {
   case class EmptyNode() extends AstNode with BlockMember {
     override def print(): Doc = empty
 
-    def visitAndRebuild(visitChildren: (AstNode) => Boolean, post: (AstNode) => AstNode) : AstNode = {
+    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
       post(this)
     }
   }
