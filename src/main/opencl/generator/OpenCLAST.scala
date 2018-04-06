@@ -1,11 +1,10 @@
 package opencl.generator
 
-import core.generator.{GenericAST, PrintContext}
+import core.generator.GenericAST
 import core.generator.GenericAST._
 import core.generator.PrettyPrinter._
-import lift.arithmetic.{ArithExpr, Predicate, Var}
 import lift.arithmetic.NotEvaluableToIntException._
-import ir.{ArrayType, TupleType, Type, VectorType}
+import ir.{ArrayType, Type, VectorType}
 import opencl.ir.{AddressSpaceCollection, GlobalMemory, IntPtr, LocalMemory, OpenCLAddressSpace, OpenCLMemory, PrivateMemory, UndefAddressSpace}
 import utils.Printer
 
@@ -19,8 +18,8 @@ object OpenCLAST {
       s"__attribute((reqd_work_group_size($localSize)))" <> line
     }
 
-    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
-      post(this)
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      this
     }
   }
 
@@ -51,13 +50,13 @@ object OpenCLAST {
                          false) extends
     FunctionT with IsKernel {
 
-    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
-      post(OclFunction(name, ret, params.map(_.visitAndRebuild(post).asInstanceOf[ParamDeclT]),
-        body.visitAndRebuild(post).asInstanceOf[MutableBlock],
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      OclFunction(name, ret, params.map(_.visitAndRebuild(pre, post).asInstanceOf[ParamDeclT]),
+        body.visitAndRebuild(pre, post).asInstanceOf[MutableBlock],
         attribute match {
-          case Some(a) => Some(a.visitAndRebuild(post).asInstanceOf[AttributeT])
+          case Some(a) => Some(a.visitAndRebuild(pre, post).asInstanceOf[AttributeT])
           case None => None
-        }, kernel))
+        }, kernel)
     }
 
     override def print(): Doc = {
@@ -109,12 +108,12 @@ object OpenCLAST {
                         addressSpace: OpenCLAddressSpace = UndefAddressSpace)
     extends VarDeclT with CLAddressSpace {
 
-    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
-      post(OclVarDecl(v.visitAndRebuild(post).asInstanceOf[GenericAST.CVar], t,
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      OclVarDecl(v.visitAndRebuild(pre, post).asInstanceOf[GenericAST.CVar], t,
         init match {
-          case Some(i) => Some(i.visitAndRebuild(post))
+          case Some(i) => Some(i.visitAndRebuild(pre, post))
           case None => None
-        }, length, addressSpace))
+        }, length, addressSpace)
     }
 
     override def print(): Doc = t match {
@@ -185,8 +184,8 @@ object OpenCLAST {
                           addressSpace: OpenCLAddressSpace = UndefAddressSpace)
     extends ParamDeclT with CLAddressSpace {
 
-    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
-      post(this)
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      this
     }
 
     override def print(): Doc = t match {
@@ -210,11 +209,11 @@ object OpenCLAST {
                      addressSpace: OpenCLAddressSpace) extends LoadT
     with CLAddressSpace {
 
-    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
-      post(OclLoad(v.visitAndRebuild(post).asInstanceOf[VarRef], t,
-        offset.visitAndRebuild(post).asInstanceOf[ArithExpression],
-        shift.visitAndRebuild(post).asInstanceOf[ArithExpression],
-        addressSpace))
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      OclLoad(v.visitAndRebuild(pre, post).asInstanceOf[VarRef], t,
+        offset.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
+        shift.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
+        addressSpace)
     }
 
     override def print(): Doc = {
@@ -244,11 +243,11 @@ object OpenCLAST {
                       addressSpace: OpenCLAddressSpace) extends StoreT
     with CLAddressSpace {
 
-    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
-      post(OclStore(v.visitAndRebuild(post).asInstanceOf[VarRef], t,
-        value.visitAndRebuild(post),
-        offset.visitAndRebuild(post).asInstanceOf[ArithExpression],
-        addressSpace))
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      OclStore(v.visitAndRebuild(pre, post).asInstanceOf[VarRef], t,
+        value.visitAndRebuild(pre, post),
+        offset.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
+        addressSpace)
     }
 
     override def print(): Doc = {
@@ -274,8 +273,8 @@ object OpenCLAST {
   case class OclPointerCast(v: VarRef, t: Type,
                             addressSpace: OpenCLAddressSpace) extends CastT with CLAddressSpace {
 
-    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
-      post(OclPointerCast(v.visitAndRebuild(post).asInstanceOf[VarRef], t, addressSpace))
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      OclPointerCast(v.visitAndRebuild(pre, post).asInstanceOf[VarRef], t, addressSpace)
     }
 
     override def print(): Doc = {
@@ -294,8 +293,8 @@ object OpenCLAST {
 
   case class VectorLiteral(t: VectorType, vs: VarRef*) extends ExpressionT {
 
-    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
-      post(VectorLiteral(t, vs.map(_.visitAndRebuild(post).asInstanceOf[VarRef]) : _*))
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      VectorLiteral(t, vs.map(_.visitAndRebuild(pre, post).asInstanceOf[VarRef]) : _*)
     }
 
     override def print(): Doc = {
@@ -312,14 +311,14 @@ object OpenCLAST {
     * @param code Native code to insert
     */
   case class OclCode(code: String) extends RawCodeT {
-    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
-      post(this)
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      this
     }
   }
 
   case class OclExtension(content: String) extends StatementT with BlockMember {
-    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
-      post(this)
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      this
     }
     override def print(): Doc = {
       "#pragma OPENCL EXTENSION " <> content <> " : enable"
@@ -327,8 +326,8 @@ object OpenCLAST {
   }
 
   case class OclBarrier(mem: OpenCLMemory) extends StatementT with BlockMember {
-    def visitAndRebuild(post: (AstNode) => AstNode) : AstNode = {
-      post(this)
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      this
     }
     override def print(): Doc = mem.addressSpace match {
       case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
