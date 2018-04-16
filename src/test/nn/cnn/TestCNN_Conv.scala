@@ -12,8 +12,8 @@ object TestCNN_Conv {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
-    Executor.init(/*avus*/1, 1)
-//    Executor.init(/*artemisa*/0, 0)
+//    Executor.init(/*avus*/1, 1)
+    Executor.init(/*artemisa*/0, 0)
     // TODO: reenable MySQL
 //    nn.cnn.mysql.CreateTable()
   }
@@ -67,7 +67,7 @@ class TestCNN_Conv {
   def TestConv(): Unit = {
     for (_ <- 0 until reruns)
       new TestCNN().Test(
-//        cnn.getConfigFromJSON("/home/nm/avus_remotes/lift/src/test/nn/cnn/cnn_experiments_march_12.json"))
-    cnn.getConfigFromJSON("/home/s1569687/lift/src/test/nn/cnn/cnn_experiments_march_12.json"))
+        cnn.getConfigFromJSON(System.getenv("LIFT_CNN_CONFIG_PATH") + "/cnn_experiments_march_12.json"))
+//    cnn.getConfigFromJSON("/home/s1569687/lift/src/test/nn/cnn/cnn_experiments_march_12.json"))
   }
 }

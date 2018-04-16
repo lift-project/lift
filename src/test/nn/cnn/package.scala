@@ -172,7 +172,10 @@ package object cnn {
 //        val envPath = System.getenv("LIFT_NN_RESOURCES")
 //        if (envPath != null) envPath else cnnDir
 //      } + f"/experiment.cnn.inputs.$inputSize%d"
-      f"/home/s1569687/microbenchmark/neural_net_inputs/input_lmdb_IN_$nInputs%d_IC_$inputChannels%d_IS_$inputSize%d_" +
+//      f"/home/s1569687/microbenchmark/neural_net_inputs/input_lmdb_IN_$nInputs%d_IC_$inputChannels%d_IS_$inputSize%d_" +
+//        f"KC_$nKernels%d_KSI_$kernelSize%d_KSTR_$kernelStride%d"
+      System.getenv("LIFT_NN_RESOURCES") + 
+        f"/neural_net_inputs/input_lmdb_IN_$nInputs%d_IC_$inputChannels%d_IS_$inputSize%d_" +
         f"KC_$nKernels%d_KSI_$kernelSize%d_KSTR_$kernelStride%d"
     }
     def getPathToParams(nKernels: Int, kernelSize: Int, kernelStride: Int, nInputs: Int, inputSize: Int,
@@ -186,11 +189,12 @@ package object cnn {
 //        else
 //          ""
 //      }
-      f"/home/s1569687/microbenchmark/neural_net_params/micro_IN_$nInputs%d_IC_$inputChannels%d_IS_$inputSize%d_" +
+      System.getenv("LIFT_NN_RESOURCES") + 
+        f"/neural_net_params/micro_IN_$nInputs%d_IC_$inputChannels%d_IS_$inputSize%d_" +
         f"KC_$nKernels%d_KSI_$kernelSize%d_KSTR_$kernelStride%d"
     }
     def getPathToResults(pathToParams: String): String =
-      f"/home/s1569687/microbenchmark/neural_net_outputs/"
+      System.getenv("LIFT_NN_RESOURCES") + f"/neural_net_outputs/"
 
 
     def datasetsExist(pathToParams: String): Boolean = exists(get(pathToParams + "/wconv1.binary"))

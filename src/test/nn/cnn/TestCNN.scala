@@ -41,8 +41,10 @@ class TestCNN {
   val precision: Float = 0.1f
   val codeVersion: Int = 23
   val reruns: Int = 1
-  val Conv = conv.versions.Conv2
-  type Conv = conv.versions.Conv2
+  val padData: Boolean = false
+  val changeDataLayout: Boolean = true
+  val Conv = conv.versions.Conv3
+  type Conv = conv.versions.Conv3
 
   //@Test
   def TestFC(): Unit = {
@@ -198,7 +200,8 @@ class TestCNN {
             optParams = convConfig.head.optParams,
             inputShape = Shape(nBatches = inputConfig.nBatches, nInputs = inputConfig.nInputs,
               size = inputConfig.imageSize, nChannels = inputConfig.nChannels),
-            dim = convConfig.head.dim)
+            dim = convConfig.head.dim,
+            padData = padData)
           currentLayer = 0
           aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
           aCNN.convLayers(0) = aCNN.layers(currentLayer).asInstanceOf[Conv]
@@ -374,7 +377,12 @@ class TestCNN {
                   case fd: FCDatasets => fd.biases.padded
                 },
                 layerData match {
-                  case cd: ConvDatasets => cd.inputs.padded
+                  case cd: ConvDatasets => {
+                    if (changeDataLayout)
+                      // (b, i, c, h, w) -> (b, i, h, w, c)
+                      cd.inputs.padded.map(batch => batch.map(input => input.transpose.map(
+                        input2 => input2.transpose)))
+                  }
                   case fd: FCDatasets => fd.inputs.padded
                 })
             layer.runtime = runtime

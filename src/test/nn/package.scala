@@ -1,17 +1,13 @@
-import java.io.{BufferedInputStream, FileInputStream}
-import java.nio.{ByteBuffer, ByteOrder}
 import java.nio.file.Files._
 import java.nio.file.Paths._
-import java.util.Calendar
 import java.nio.file.{Files, Paths}
+import java.nio.{ByteBuffer, ByteOrder}
+import java.util.Calendar
 
-import ir.{ArrayType, ScalarType}
+import ir.ArrayType
 import ir.ast.UserFun
 import opencl.executor.Executor
 import opencl.ir._
-
-import scala.reflect.io.Path
-import scala.util.parsing.json.JSON
 
 /**
   * Created by s1569687 on 28/02/17.
@@ -49,6 +45,7 @@ package object nn {
   type Array6D[T] = Array[Array[Array[Array[Array[Array[T]]]]]]
 
   def AT = ArrayType
+  type AT = ArrayType
 
 
   /* Variables */

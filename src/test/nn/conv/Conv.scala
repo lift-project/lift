@@ -5,25 +5,16 @@ package nn.conv
   */
 
 import ir.ast._
-import ir.ast.debug.PrintType
-import ir.{ArrayType, TupleType}
 import nn._
-import opencl.ir._
-import opencl.ir.pattern.{ReorderStride, _}
 
 trait ConvCompanion {
-  val locA: Int
-  val locB: Int
-  val locC: Int
-
-
   /* Parallel layer */
   def Par(activation_f: UserFun, input_shape: Shape, input_tiling: SlidingWindowConfig, n_kernels: Int,
           kernel_sliding: SlidingWindowConfig,
           kernels_per_group: Int, els_per_thread: Int): FunDecl
 
   case class InitParameters(override val layerNo: Int,
-                            liftFPropGenerator: (UserFun, Shape, SlidingWindowConfig, Int,
+                            liftFPropFactory: (UserFun, Shape, SlidingWindowConfig, Int,
                               SlidingWindowConfig, Int, Int) => FunDecl,
                             activationFun: UserFun,
                             optParams: conv.Experiment.Config.OptimisationalParams,
@@ -33,7 +24,8 @@ trait ConvCompanion {
                             //                            nKernels: Int,
                             override val inputShape: Shape,
                             //                            kernelSize: Int,
-                            dim: conv.Experiment.Config.Dimensions)
+                            dim: conv.Experiment.Config.Dimensions,
+                            padData: Boolean)
     extends Layer.InitParameters(layerNo, inputShape)
 
 

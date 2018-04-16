@@ -436,7 +436,7 @@ object Conv1 extends ConvCompanion {
     /* Now that all parameters are calculated and verified, build the layer */
 
     new Conv1(
-      iP.liftFPropGenerator(iP.activationFun, iP.inputShape, inputTiling,
+      iP.liftFPropFactory(iP.activationFun, iP.inputShape, inputTiling,
         iP.dim.nKernels,kernelSliding, iP.optParams.kernelsPerGroup, iP.optParams.elsPerThread),
       iP.inputShape, outputShape,
       inputTiling, kernelSliding,

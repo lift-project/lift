@@ -60,12 +60,93 @@ object Conv2 extends ConvCompanion {
   val locB: Int = 1//1
   val locC: Int = 2//2
 
+  val idF4Custom = UserFun("idF4", "x", "{ return x; }", Float4, Float4)
+
 
   /* Parallel layer */
   def Par(activation_f: UserFun, input_shape: Shape, input_tiling: SlidingWindowConfig, n_kernels: Int,
           kernel_sliding: SlidingWindowConfig,
           kernels_per_group: Int, els_per_thread: Int): FunDecl = {
 
+    /* Original */
+//    def Layer: FunDecl = λ(
+//      AT(AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size), input_shape.nChannels), n_kernels),
+//      AT(Float, n_kernels),
+//      AT(AT(AT(AT(AT(Float, input_shape.sizePadded), input_shape.sizePadded), input_shape.nChannels),
+//        input_shape.nInputs), input_shape.nBatches),
+//      (K, B, X) => {
+//        MapWrg(locC)(λ(AT(AT(AT(AT(AT(AT(AT(Float, input_shape.nChannels), kernel_sliding.size), kernel_sliding.size),
+//          /* TODO: enforce size checks */(input_tiling.size - (kernel_sliding.size - kernel_sliding.stride)) / kernel_sliding.size),
+//          (input_tiling.size - (kernel_sliding.size - kernel_sliding.stride)) / kernel_sliding.size),
+//          ((input_shape.sizePadded - (input_tiling.size - input_tiling.stride)) / input_tiling.size) *
+//            ((input_shape.sizePadded - (input_tiling.size - input_tiling.stride)) / input_tiling.size) *
+//            input_shape.nInputs), input_shape.nBatches),
+//          (inputs_batch) => {
+//            /*  (nImages, input_tiling.n, input_tiling.n, n_k_passes, n_k_windows, nKernels) ->
+//            *   (nImages, input_tiling.n, n_k_passes, input_tiling.n, n_k_windows, nKernels) ->
+//            *   (nImages, input_tiling.n, n_k_passes, input_tiling.n * n_k_windows, nKernels) ->
+//            *   (nImages, input_tiling.n * n_k_passes, input_tiling.n * n_k_windows, nKernels) ->
+//            *   (nImages, n_passes, n_windows, nKernels) ->
+//            *   (nImages, nKernels, n_passes, n_windows) -> */
+//            Map(/*input*/TransposeW() o Join() o Map(/*tile_row*/Map(TransposeW() o Join()) o TransposeW())) o
+//              Split(input_tiling.n) o Split(input_tiling.n) o
+//              /*  (nImages * input_tiling.n * input_tiling.n, nKernels, n_k_passes, n_k_windows) ->
+//               *  (nImages * input_tiling.n * input_tiling.n, n_k_passes, n_k_windows, nKernels) */
+//              λ(AT(AT(AT(AT(Float, kernel_sliding.n), kernel_sliding.n),
+//                n_kernels), input_shape.nInputs * input_tiling.n * input_tiling.n),
+//                (tiled_outputs) => Map(Map(TransposeW()) o TransposeW()) $ tiled_outputs) o
+//              MapWrg(locA)(λ((input_tile) => {
+//                /* (nKernels / kernels_per_group, kernels_per_group, n_k_passes, n_k_windows) ->
+//                *  (nKernels, n_k_passes, n_k_windows) */
+//                Join() o MapWrg(locB)(λ(TupleType(
+//                  AT(AT(AT(AT(Float, input_shape.nChannels), kernel_sliding.size), kernel_sliding.size), kernels_per_group),
+//                  AT(Float, kernels_per_group)),
+//                  (kernels_tile) => {
+//                    /* (kernels_per_group, n_k_passes*n_k_windows) ->
+//                     * (kernels_per_group, n_k_passes, n_k_windows) */
+//                    Map(Split(kernel_sliding.n)) o
+//                      /* (n_passes*n_windows, kernels_per_group) -> (kernels_per_group, n_k_passes*n_k_windows) */
+//                      TransposeW() o
+//                      MapLcl(locC)(λ((pass_window) => {
+//                        λ(AT(AT(Float, kernel_sliding.size), kernels_per_group), (partially_reduced_window) =>
+//                          // TODO: add if conditional to remove final reduce in case els_per_thread == kernel_size
+//                          ReduceWindowAndAddBias()(partially_reduced_window, /* biases */Get(kernels_tile, 1))) o
+//                          /* (kernel_sliding.size, kernels_per_group) -> (kernels_per_group, kernel_sliding.size) */
+//                          TransposeW() o
+//                          MapLcl(locB)(λ((window_row, kernels_row) => {
+//                            ReduceRow() o
+//                              // (kernels_per_group, kernel_sliding.size / els_per_thread)
+//                              Map(Join(/*tiles of elements*/)/* o
+//                        MapSeq(/* Dissolve one-element output of Reduce */Join())*/) o
+//                              Split(kernel_sliding.size / els_per_thread) o
+//                              MapLcl(locA)(ReduceAndWeighInputChannels()) o
+//                              /* (kernels_per_group, kernel_sliding.size / els_per_thread, els_per_thread, tuple of input_shape.nChannels) ->
+//                               * (kernels_per_group * kernel_sliding.size / els_per_thread, els_per_thread, tuple of input_shape.nChannels)*/
+//                              Join() o
+//                              /* (kernels_per_group, kernel_sliding.size, input_shape.nChannels) ->
+//                               * (kernels_per_group, kernel_sliding.size / els_per_thread, els_per_thread, tuple of input_shape.nChannels) */
+//                              Map(/* for each kernel in the tile */
+//                                λ((kernel_row) => Split(els_per_thread) $
+//                                  Zip(
+//                                    /*ReorderStride(els_per_thread) $ */window_row,
+//                                    /*ReorderStride(input_shape.nChannels) $ */kernel_row))) o
+//                              /* (kernel_sliding.size, input_shape.nChannels, kernels_per_group) ->
+//                               * (kernels_per_group, kernel_sliding.size, input_shape.nChannels) */
+//                              Transpose() o Map(Transpose()) $ kernels_row
+//                          })) $ Zip(pass_window, RestoreKernelShape() $ /* weights */ Get(kernels_tile, 0))
+//                      })) o toLocal(MapLcl(locC)(λ((pass_window) =>
+//                      MapLcl(locA)(λ((window_row) => {
+//                        MapLcl(locB)(MapSeq(id)) $ window_row
+//                      })) $ pass_window))) o
+//                      /* (n_passes, n_windows, n_rows) -> (n_passes*n_windows, n_rows) */
+//                      Join() $ input_tile
+//                  })) $ ReshapeTileAndLoadKernels()(K, B)
+//              })) $ inputs_batch
+//          })) o SlideX() $ X
+//      }
+//    )
+    
+    /* No local memory */
     def Layer: FunDecl = λ(
       AT(AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size), input_shape.nChannels), n_kernels),
       AT(Float, n_kernels),
@@ -131,10 +212,10 @@ object Conv2 extends ConvCompanion {
                                * (kernels_per_group, kernel_sliding.size, input_shape.nChannels) */
                               Transpose() o Map(Transpose()) $ kernels_row
                           })) $ Zip(pass_window, RestoreKernelShape() $ /* weights */ Get(kernels_tile, 0))
-                      })) o toLocal(MapLcl(locC)(λ((pass_window) =>
+                      })) o /*toLocal(MapLcl(locC)(λ((pass_window) =>
                       MapLcl(locA)(λ((window_row) => {
                         MapLcl(locB)(MapSeq(id)) $ window_row
-                      })) $ pass_window))) o
+                      })) $ pass_window))) o*/
                       /* (n_passes, n_windows, n_rows) -> (n_passes*n_windows, n_rows) */
                       Join() $ input_tile
                   })) $ ReshapeTileAndLoadKernels()(K, B)
@@ -202,6 +283,7 @@ object Conv2 extends ConvCompanion {
     /* Computes a weighted sum of all input channels of a batch of elements for one output channel.
      * Returns:
      * AT(Float, 1) */
+    /* original */
     def ReduceAndWeighInputChannels(): FunDecl =
       λ(AT(  TupleType(AT(Float, input_shape.nChannels), AT(Float, input_shape.nChannels)),   els_per_thread),
         (tile_of_els) => {
@@ -222,6 +304,29 @@ object Conv2 extends ConvCompanion {
                 Zip(Get(single_element, 0), Get(single_element, 1))
             )) $ tile_of_els
         })
+    
+    /* Vectorization */
+//    def ReduceAndWeighInputChannels(): FunDecl =
+//      λ(AT(  TupleType(AT(Float, input_shape.nChannels), AT(Float, input_shape.nChannels)),   els_per_thread),
+//        (tile_of_els) => {
+//          /* Compute a sum of the whole batch */
+//          MapSeq(toLocal(id)) o ReduceSeq(add, toPrivate(id) $ 0.0f) o Join() o
+//            /* Compute sums of each element separately */
+//            MapSeq(λ(TupleType(
+//              /*x_el_in_chs*/ AT(Float, input_shape.nChannels),
+//              /*k_el_in_chs*/ AT(Float, input_shape.nChannels)),
+//              (single_element) =>
+//                /*Join() o*/
+//                /*MapSeq(toGlobal(id)) o */ReduceSeq(add, toPrivate(id) $ 0.0f) o
+//                MapSeq(λ(TupleType(Float /*x_el_in_ch*/ , Float /*k_el_in_ch*/),
+//                  (el_in_ch) =>
+//                    dot(
+//                      toPrivate(idF4Custom) $ /*x_el_in_ch*/ Get(el_in_ch, 0),
+//                      toPrivate(idF4Custom) $ /*k_el_in_ch*/ Get(el_in_ch, 1)))) $
+//                /* Zip input channels of one element */
+//                Zip(asVector(4) $ Get(single_element, 0), asVector(4) $ Get(single_element, 1))
+//            )) $ tile_of_els
+//        })
 
     /* Reduces weighted pass window rows for each channel.
      * NB: Rows are already partially reduced by the factor of els_per_thread in ReduceAndWeighInputChannels()
@@ -305,7 +410,8 @@ object Conv2 extends ConvCompanion {
     // TODO: change to sizePadded = inputTiling.stride * inputTiling.n + (inputTiling.size - inputTiling.stride)
     // It's the same, but makes more sense
     iP.inputShape.sizePadded = inputTiling.size + inputTiling.stride * (inputTiling.n - 1)
-    iP.inputShape.sizePadded = iP.inputShape.sizePadded
+    if (iP.inputShape.sizePadded != iP.inputShape.size)
+      iP.inputShape.sizePadded = iP.inputShape.sizePadded
 
     val outputShape: Shape = { Shape(
       nBatches = iP.inputShape.nBatches,
@@ -350,7 +456,7 @@ object Conv2 extends ConvCompanion {
     /* Now that all parameters are calculated and verified, build the layer */
 
     new Conv2(
-      iP.liftFPropGenerator(iP.activationFun, iP.inputShape, inputTiling,
+      iP.liftFPropFactory(iP.activationFun, iP.inputShape, inputTiling,
         iP.dim.nKernels,kernelSliding, iP.optParams.kernelsPerGroup, iP.optParams.elsPerThread),
       iP.inputShape, outputShape,
       inputTiling, kernelSliding,

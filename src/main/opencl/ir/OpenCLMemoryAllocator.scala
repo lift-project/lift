@@ -47,10 +47,10 @@ package opencl.ir
  */
 
 import arithmetic.TypeVar
-import lift.arithmetic.{?, ArithExpr, Cst}
 import ir.Type.size_t
 import ir._
 import ir.ast._
+import lift.arithmetic.{?, ArithExpr}
 import opencl.ir.pattern._
 
 object OpenCLMemoryAllocator {
@@ -177,7 +177,7 @@ object OpenCLMemoryAllocator {
       case Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Slide(_, _) | Pad(_, _, _) |
            Head() | Tail() | Gather(_) | Scatter(_) | ArrayAccess(_) |
-           debug.PrintType(_) | debug.PrintComment(_) =>
+           debug.PrintType(_) | debug.PrintComment(_) | debug.AssertType(_, _) =>
         inMem
     }
   }
