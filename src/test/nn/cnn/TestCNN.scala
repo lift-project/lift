@@ -123,7 +123,15 @@ class TestCNN {
         nNeurons = fcDimensions.head.nNeurons)
 
 
-      if exists(get(pathToInputs + "/test_images_n" + _nInputs + ".binary"))
+      if {
+        if (exists(get(pathToInputs + "/test_images_n" + _nInputs + ".binary")))
+          true
+        else {
+          System.out.println(
+            f"No inputs provided for nInputs=${_nInputs}%d, imageSize=${_inputSize}%d, nChannels=${_inputChannels}%d")
+          false
+        }
+      }
       pathToResults = Experiment.getPathToResults(pathToParams)
       pathToLiftResults = pathToResults + "/lift_results"
       pathToTargetResults = pathToResults + f"/outputs_IN_${_nInputs}%d_IC_${_inputChannels}%d_IS_${_inputSize}%d_" +

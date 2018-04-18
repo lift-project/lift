@@ -7,10 +7,11 @@ package nn.conv.versions
   */
 
 import ir.ast._
-import ir.ast.debug.AssertType
+import ir.ast.debug.{AssertType, PrintType, PrintView}
 import ir.{ArrayTypeWSWC, TupleType}
 import nn.conv._
 import nn.{AT, _}
+import opencl.executor.Compile
 import opencl.ir._
 import opencl.ir.pattern._
 
@@ -47,7 +48,7 @@ object Conv3 extends ConvCompanion {
       (tiling.size - (sliding.size - sliding.stride)) / sliding.stride
     val nWindowsInTileCol = nWindowsInTileRow
     
-    val nTilesInWindow = inputShape.nChannels * sliding.size * sliding.size / seqElsPerThread
+    val nSeqTilesInWindow = inputShape.nChannels * sliding.size * sliding.size / seqElsPerThread
     
     val nWindowsInTile = nWindowsInTileRow * nWindowsInTileCol
     
@@ -58,16 +59,16 @@ object Conv3 extends ConvCompanion {
 
 //    val sliding_window_type: AT = AT(single_element_type, sliding.size * sliding.size)
     
-    val windowTileType: AT = AT(Float, seqElsPerThread)
-    val windowType: AT = AT(windowTileType, nTilesInWindow)
+    val windowSeqTileType: AT = AT(Float, seqElsPerThread)
+    val windowType: AT = AT(windowSeqTileType, nSeqTilesInWindow)
 
-    val nonTiledWindowType: AT = AT(Float, inputShape.nChannels * sliding.size * sliding.size)
+    val nonSeqTiledWindowType: AT = AT(Float, inputShape.nChannels * sliding.size * sliding.size)
     
-    val partReducedWindowType: AT = AT(Float, nTilesInWindow)
+    val partReducedWindowType: AT = AT(Float, 2304)//nSeqTilesInWindow)
     
 
     val xTileType: AT = AT(windowType, nWindowsInTile)
-    val partReducedXTileType: AT = AT(partReducedWindowType, nWindowsInTile)
+    val partReducedXTileType: AT = AT(partReducedWindowType, 1)//nWindowsInTile)
 
 
     val partReducedKernelGroupType: AT = AT(partReducedXTileType, nKernelsPerWrg)
@@ -91,54 +92,61 @@ object Conv3 extends ConvCompanion {
 
     /*********** F-prop lambda: convolution with partial reduction ***********/
     def Layer_partial: FunDecl = {
-      λ(
-        AT(AT(AT(AT(Float, sliding.size), sliding.size), inputShape.nChannels), nKernels), AT(Float, nKernels), xType,
+      λ(AT(AT(AT(AT(Float, sliding.size), sliding.size), inputShape.nChannels), nKernels), AT(Float, nKernels), xType,
         (K, B, X) => {
           /*** Layer BEGIN ***/
 
-          AssertType(partReducedXType, "Part reduced X type") o
-            MapWrg(1)(λ(xTileType, (tile) => {
-              /*** Tile BEGIN ***/
+          MapWrg(2)(λ(xType, (XUnwrapped) => {
+            AssertType(partReducedXType, "Part reduced X type") o
+              MapWrg(1)(λ(xTileType, (tile) => {
+                /*** Tile BEGIN ***/
 
-              AssertType(partReducedKernelsType, "Part reduced kernels type") o
-                MapWrg(0)(λ(paramsGroupType, (paramsGroup) => {
-                  /***** Params group BEGIN *****/
+                AssertType(partReducedKernelsType, "Part reduced kernels type") o
+                  MapWrg(0)(λ(paramsGroupType, (paramsGroup) => {
+                    /***** Params group BEGIN *****/
 
-                  AssertType(partReducedKernelGroupType, "Part reduced kernel group type") o
-                    MapLcl(1)(λ(paramsType, (params) => {
-                      /***** Params BEGIN *****/
+                    AssertType(partReducedKernelGroupType, "Part reduced kernel group type") o
+                      MapSeq(λ(paramsType, (params) => {
+                        /***** Params BEGIN *****/
 
-                      AssertType(partReducedXTileType, "Part reduced X tile type") o
-                        MapLcl(0)(λ(TupleType(windowType, partReducedWindowType), (windowAndAcc) =>
-                          /******* Sliding window BEGIN *******/
+                        AssertType(partReducedXTileType, "Part reduced X tile type") o
+                          MapSeq(λ(TupleType(windowType, partReducedWindowType), (windowAndAcc) =>
 
-                          AssertType(partReducedWindowType, "Part reduced window type") o
-                            MapSeq(λ(TupleType(windowTileType, windowTileType), (tileAndAccAndItsWeights) => {
-                              toGlobal(MapSeq(id)) o
-                                ReduceSeq(λ((acc, y) =>
-                                  /******* Reducing window tile BEGIN *******/
+                            /******* Sliding window BEGIN *******/
 
-                                  multAndSumUp.apply(acc, /* X */ Get(Get(y, 0), 0), /* weights */ Get(y, 1))),
-                                  toPrivate(id) $ /* accumulator */ Get(Get(tileAndAccAndItsWeights, 0), 1)) $
-                                tileAndAccAndItsWeights
+                            AssertType(partReducedWindowType, "Part reduced window type") o
+                              /* Remove the one-sized dimension introduced by Reduce */
+                              Join() o
+                              MapSeq(λ(TupleType(windowSeqTileType, windowSeqTileType, Float),
+                                (tileAndWeightsAndAcc) => {
+                                  toGlobal(MapSeq(id)) o
+                                    ReduceSeq(λ((acc, y) =>
 
-                              /******* Reducing window tile END *******/
-                            })) $ Zip(windowAndAcc, Get(params, weightsNoInTuple))
+                                      /********* Reducing window tile BEGIN *********/
 
-                          /******* Sliding window END *******/
-                        )) $ Zip(AssertType(xTileType) $ tile,
-                        Value("0.0f",
-                          ArrayTypeWSWC(ArrayTypeWSWC(Float, nTilesInWindow), nWindowsInTileRow * nWindowsInTileCol)))
+                                      multAndSumUp.apply(acc, /* X */ Get(y, 0), /* weights */ Get(y, 1))),
+                                      toPrivate(id) $ /* accumulator */ Get(tileAndWeightsAndAcc, 2)) $
+                                    Zip(Get(tileAndWeightsAndAcc, 0), Get(tileAndWeightsAndAcc, 1))
 
-                      /***** Params END *****/
-                    })) o AssertType(paramsGroupType, "Parameter group type") $ paramsGroup
+                                  /********* Reducing window tile END *********/
+                                })) $ Zip(Get(windowAndAcc, 0), Get(params, weightsNoInTuple), Get(windowAndAcc, 1))
 
-                  /***** Params group END *****/
-                })) o AssertType(allParamsType, "All parameters type after split") o
-                Split(nKernelsPerWrg) $ Zip(Map(TileAndCoalesce() o Join() o Map(Join())) $ K, B)
+                            /******* Sliding window END *******/
+                          )) $ Zip(AssertType(xTileType) $ tile, Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(Float, 2304), 1)))//partReducedXTileType))
 
-              /*** Tile END ***/
-            })) o SlideX() $ X
+                        /***** Params END *****/
+                      })) o AssertType(paramsGroupType, "Parameter group type") $ paramsGroup
+
+                    /***** Params group END *****/
+                  })) o AssertType(allParamsType, "All parameters type after split") o
+                  Split(nKernelsPerWrg) $ Zip(Map(TileAndCoalesce() o Join() o Map(Join())) $ K, B)
+
+                /*** Tile END ***/
+              })) o SlideX() $ XUnwrapped
+
+            // Wrap X into an array of 1
+            // TODO: Split(xType.size)
+          })) o Split(inputShape.nBatches) $ X
 
           /*** Layer END ***/
         })
@@ -147,24 +155,30 @@ object Conv3 extends ConvCompanion {
     /* Produces a tiled slided tiled version of X */
     def SlideX(): FunDecl = {
       λ(xType, (X) =>
-        AssertType(transformedXType, "SlideX output") o 
-          
-          /*Map(Join() o Map(Join() o Map(Map(
-            TileAndCoalesce() o  
-            Join() o Map(Join()))))) o Join() o*/
-          Map(Map(TiledSlidedND(2)(sliding.size, sliding.stride, tiling.stride))) o
+        AssertType(transformedXType, "SlideX output") o
+
+          // Tile and coalesce
+          Map(Map(TileAndCoalesce())) o
+          // Join tiles and channels
+          Map(Map(Join() o Join())) o
+          // Join tile rows
+          Map(Join()) o
+          // Join inputs and tile rows
+          Join() o Map(Join()) o
+          // Join batches and inputs
           Join() o
+          Map(Map(TiledSlidedND(2)(sliding.size, sliding.stride, tiling.stride))) o
 
           AssertType(xType, "SlideX input") $ X)
     }
 
     def Coalesce(): FunDecl =
-      λ(nonTiledWindowType, (windowNontiled) =>
-        Gather(ReorderWithStride(nTilesInWindow))
+      λ(nonSeqTiledWindowType, (windowNontiled) =>
+        Gather(ReorderWithStride(nSeqTilesInWindow))
           $ windowNontiled)
     
     def TileAndCoalesce(): FunDecl =
-      λ(nonTiledWindowType, (windowNontiled) =>
+      λ(nonSeqTiledWindowType, (windowNontiled) =>
         Split(seqElsPerThread) o Coalesce() $ windowNontiled)
 
     def Layer = Layer_partial

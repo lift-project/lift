@@ -12,7 +12,7 @@ case class AssertType(correctType: Type, name: String = "") extends
     } catch {
       case e: java.lang.AssertionError =>
         System.err.println("AssertType for \"" + name + "\" failed.\nTarget type:\n" + correctType + 
-          "\nCorrect type:\n" + actualType)
+          "\nActual type:\n" + actualType)
         throw e
     }
   })
