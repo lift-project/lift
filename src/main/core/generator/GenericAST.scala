@@ -65,8 +65,8 @@ object GenericAST {
       post(this)
     }
     /**
-      * Traverses the AST and rebuilt a new AST. Before entering a node, the pre function is called.
-      * Then the visitor is called recursively on every children and a new node is new AST node is instantiated if there are any children.
+      * Traverses the AST and rebuilds a new AST. Before entering a node, the pre function is called.
+      * Then the visitor is called recursively on every child and a new node is new AST node is instantiated if there are any children.
       * Finally, the post function is called on the node.
       * @param pre is called before visiting the children of this
       * @param post is called after visiting the children of this
