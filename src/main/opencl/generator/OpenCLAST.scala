@@ -21,6 +21,8 @@ object OpenCLAST {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
       this
     }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
   }
 
   /*
@@ -57,6 +59,15 @@ object OpenCLAST {
           case Some(a) => Some(a.visitAndRebuild(pre, post).asInstanceOf[AttributeT])
           case None => None
         }, kernel)
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      params.foreach(_.visit(pre,post))
+      body.visit(pre,post)
+      attribute match {
+          case Some(a) => a.visit(pre, post)
+          case None =>
+        }
     }
 
     override def print(): Doc = {
@@ -116,6 +127,14 @@ object OpenCLAST {
         }, length, addressSpace)
     }
 
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      v.visit(pre, post)
+      init match {
+        case Some(i) => i.visit(pre, post)
+        case None =>
+      }
+    }
+
     override def print(): Doc = t match {
       case _: ArrayType =>
         addressSpace match {
@@ -124,7 +143,7 @@ object OpenCLAST {
             stack(List.tabulate(length.toInt)(i ⇒ {
               Printer.toString(Type.getValueType(t)) <+> Printer.toString(v
                 .v) <> "_" <> Printer.toString(i) <> ";"
-            }))
+            }))  /*** unroll private memory ***/
 
           case LocalMemory if length != 0 =>
             val baseType = Type.getBaseType(t)
@@ -188,6 +207,8 @@ object OpenCLAST {
       this
     }
 
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+
     override def print(): Doc = t match {
       case ArrayType(_) ⇒
         // Const restricted pointers to read-only global memory. See issue #2.
@@ -214,6 +235,12 @@ object OpenCLAST {
         offset.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
         shift.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
         addressSpace)
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      v.visit(pre, post)
+      offset.visit(pre, post)
+      shift.visit(pre, post)
     }
 
     override def print(): Doc = {
@@ -250,6 +277,12 @@ object OpenCLAST {
         addressSpace)
     }
 
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      v.visit(pre, post)
+      value.visit(pre, post)
+      offset.visit(pre, post)
+    }
+
     override def print(): Doc = {
       if (!UseCastsForVectors()) {
         s"vstore${Type.getLength(t)}(" <>
@@ -277,6 +310,10 @@ object OpenCLAST {
       OclPointerCast(v.visitAndRebuild(pre, post).asInstanceOf[VarRef], t, addressSpace)
     }
 
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      v.visit(pre, post)
+    }
+
     override def print(): Doc = {
       "(" <> s"($addressSpace $t*)" <> Printer.toString(v.v.v) <> ")" <>
         (v.arrayIndex match {
@@ -297,6 +334,10 @@ object OpenCLAST {
       VectorLiteral(t, vs.map(_.visitAndRebuild(pre, post).asInstanceOf[VarRef]) : _*)
     }
 
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      vs.map(_.visit(pre, post))
+    }
+
     override def print(): Doc = {
       s"($t)(" <>
         intersperse(vs.map(_.print()).toList) <>
@@ -314,12 +355,18 @@ object OpenCLAST {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
       this
     }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+
   }
 
   case class OclExtension(content: String) extends StatementT with BlockMember {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
       this
     }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+
     override def print(): Doc = {
       "#pragma OPENCL EXTENSION " <> content <> " : enable"
     }
@@ -329,6 +376,9 @@ object OpenCLAST {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
       this
     }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+
     override def print(): Doc = mem.addressSpace match {
       case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
       case LocalMemory  => "barrier(CLK_LOCAL_MEM_FENCE);"
