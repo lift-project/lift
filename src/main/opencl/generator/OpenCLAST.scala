@@ -1,11 +1,10 @@
 package opencl.generator
 
-import core.generator.{GenericAST, PrintContext}
+import core.generator.GenericAST
 import core.generator.GenericAST._
 import core.generator.PrettyPrinter._
-import lift.arithmetic.{ArithExpr, Predicate, Var}
 import lift.arithmetic.NotEvaluableToIntException._
-import ir.{ArrayType, TupleType, Type, VectorType}
+import ir.{ArrayType, Type, VectorType}
 import opencl.ir.{AddressSpaceCollection, GlobalMemory, IntPtr, LocalMemory, OpenCLAddressSpace, OpenCLMemory, PrivateMemory, UndefAddressSpace}
 import utils.Printer
 
@@ -13,10 +12,17 @@ import scala.language.implicitConversions
 
 object OpenCLAST {
 
+
   case class RequiredWorkGroupSize(localSize: NDRange) extends AttributeT {
     override def print(): Doc = {
-      s"__attribute((reqd_work_group_size(${localSize})))" <> line
+      s"__attribute((reqd_work_group_size($localSize)))" <> line
     }
+
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      this
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
   }
 
   /*
@@ -45,6 +51,25 @@ object OpenCLAST {
                          attribute: Option[AttributeT] = None, kernel: Boolean =
                          false) extends
     FunctionT with IsKernel {
+
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      OclFunction(name, ret, params.map(_.visitAndRebuild(pre, post).asInstanceOf[ParamDeclT]),
+        body.visitAndRebuild(pre, post).asInstanceOf[MutableBlock],
+        attribute match {
+          case Some(a) => Some(a.visitAndRebuild(pre, post).asInstanceOf[AttributeT])
+          case None => None
+        }, kernel)
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      params.foreach(_.visit(pre,post))
+      body.visit(pre,post)
+      attribute match {
+          case Some(a) => a.visit(pre, post)
+          case None =>
+        }
+    }
+
     override def print(): Doc = {
       val kdescrB = if (kernel) {
         text("kernel ")
@@ -53,7 +78,7 @@ object OpenCLAST {
       }
 
       val attrB = if (attribute.isDefined) {
-        attribute.get.print
+        attribute.get.print()
       } else {
         empty
       }
@@ -64,7 +89,7 @@ object OpenCLAST {
         Printer.toString(ret)
       }
 
-      val defB = s" ${name}(" <> intersperse(params.map(_.print)) <> ")"
+      val defB = s" $name(" <> intersperse(params.map(_.print())) <> ")"
 
       val innerB = if (kernel) {
         bracket("{",
@@ -75,7 +100,7 @@ object OpenCLAST {
             body.print,
           "}")
       } else {
-        body.print
+        body.print()
       }
 
       kdescrB <> attrB <> typeB <> defB <> innerB
@@ -94,6 +119,22 @@ object OpenCLAST {
                         addressSpace: OpenCLAddressSpace = UndefAddressSpace)
     extends VarDeclT with CLAddressSpace {
 
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      OclVarDecl(v.visitAndRebuild(pre, post).asInstanceOf[GenericAST.CVar], t,
+        init match {
+          case Some(i) => Some(i.visitAndRebuild(pre, post))
+          case None => None
+        }, length, addressSpace)
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      v.visit(pre, post)
+      init match {
+        case Some(i) => i.visit(pre, post)
+        case None =>
+      }
+    }
+
     override def print(): Doc = t match {
       case _: ArrayType =>
         addressSpace match {
@@ -102,13 +143,13 @@ object OpenCLAST {
             stack(List.tabulate(length.toInt)(i ⇒ {
               Printer.toString(Type.getValueType(t)) <+> Printer.toString(v
                 .v) <> "_" <> Printer.toString(i) <> ";"
-            }))
+            }))  /*** unroll private memory ***/
 
           case LocalMemory if length != 0 =>
             val baseType = Type.getBaseType(t)
             val declaration =
-              s"${addressSpace} ${Printer.toString(baseType)} " +
-                s"${Printer.toString(v.v)}[${length}]"
+              s"$addressSpace ${Printer.toString(baseType)} " +
+                s"${Printer.toString(v.v)}[$length]"
 
             // Make sure the memory is correctly aligned when using pointer casts
             // for forcing vector loads on NVIDIA.
@@ -121,7 +162,7 @@ object OpenCLAST {
 
           case _ =>
             val baseType = Type.getBaseType(t)
-            (s"${addressSpace} ${Printer.toString(baseType)} " +
+            (s"$addressSpace ${Printer.toString(baseType)} " +
               s"*${Printer.toString(v.v)}") <>
               (init match {
                 case Some(i) ⇒ " = " <> i.print()
@@ -161,6 +202,13 @@ object OpenCLAST {
                           const: Boolean = false,
                           addressSpace: OpenCLAddressSpace = UndefAddressSpace)
     extends ParamDeclT with CLAddressSpace {
+
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      this
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+
     override def print(): Doc = t match {
       case ArrayType(_) ⇒
         // Const restricted pointers to read-only global memory. See issue #2.
@@ -181,6 +229,20 @@ object OpenCLAST {
                      shift: ArithExpression,
                      addressSpace: OpenCLAddressSpace) extends LoadT
     with CLAddressSpace {
+
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      OclLoad(v.visitAndRebuild(pre, post).asInstanceOf[VarRef], t,
+        offset.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
+        shift.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
+        addressSpace)
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      v.visit(pre, post)
+      offset.visit(pre, post)
+      shift.visit(pre, post)
+    }
+
     override def print(): Doc = {
       if (!UseCastsForVectors()) {
         s"vload${Type.getLength(t)}(" <>
@@ -191,7 +253,7 @@ object OpenCLAST {
           shift.print <>
           ")"
       } else {
-        s"*( ((${addressSpace} ${t}*)" <>
+        s"*( (($addressSpace $t*)" <>
           v.print <>
           s") + " <>
           offset.print <>
@@ -207,6 +269,20 @@ object OpenCLAST {
                       offset: ArithExpression,
                       addressSpace: OpenCLAddressSpace) extends StoreT
     with CLAddressSpace {
+
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      OclStore(v.visitAndRebuild(pre, post).asInstanceOf[VarRef], t,
+        value.visitAndRebuild(pre, post),
+        offset.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
+        addressSpace)
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      v.visit(pre, post)
+      value.visit(pre, post)
+      offset.visit(pre, post)
+    }
+
     override def print(): Doc = {
       if (!UseCastsForVectors()) {
         s"vstore${Type.getLength(t)}(" <>
@@ -217,7 +293,7 @@ object OpenCLAST {
           v.print <>
           ")"
       } else {
-        s"*( ((${addressSpace} ${t}*)" <>
+        s"*( (($addressSpace $t*)" <>
           v.print <>
           s") + " <>
           offset.print <>
@@ -230,8 +306,16 @@ object OpenCLAST {
   case class OclPointerCast(v: VarRef, t: Type,
                             addressSpace: OpenCLAddressSpace) extends CastT with CLAddressSpace {
 
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      OclPointerCast(v.visitAndRebuild(pre, post).asInstanceOf[VarRef], t, addressSpace)
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      v.visit(pre, post)
+    }
+
     override def print(): Doc = {
-      "(" <> s"(${addressSpace} ${t}*)" <> Printer.toString(v.v.v) <> ")" <>
+      "(" <> s"($addressSpace $t*)" <> Printer.toString(v.v.v) <> ")" <>
         (v.arrayIndex match {
           case None ⇒ empty
           case Some(ix)    ⇒ "[" <> ix.print <> "]"
@@ -245,9 +329,18 @@ object OpenCLAST {
 
 
   case class VectorLiteral(t: VectorType, vs: VarRef*) extends ExpressionT {
+
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      VectorLiteral(t, vs.map(_.visitAndRebuild(pre, post).asInstanceOf[VarRef]) : _*)
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      vs.map(_.visit(pre, post))
+    }
+
     override def print(): Doc = {
-      s"(${t})(" <>
-        intersperse(vs.map(_.print).toList) <>
+      s"($t)(" <>
+        intersperse(vs.map(_.print()).toList) <>
         ")"
     }
   }
@@ -258,15 +351,34 @@ object OpenCLAST {
     *
     * @param code Native code to insert
     */
-  case class OclCode(code: String) extends RawCodeT
+  case class OclCode(code: String) extends RawCodeT {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      this
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+
+  }
 
   case class OclExtension(content: String) extends StatementT with BlockMember {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      this
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+
     override def print(): Doc = {
       "#pragma OPENCL EXTENSION " <> content <> " : enable"
     }
   }
 
   case class OclBarrier(mem: OpenCLMemory) extends StatementT with BlockMember {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      this
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+
     override def print(): Doc = mem.addressSpace match {
       case GlobalMemory => "barrier(CLK_GLOBAL_MEM_FENCE);"
       case LocalMemory  => "barrier(CLK_LOCAL_MEM_FENCE);"
