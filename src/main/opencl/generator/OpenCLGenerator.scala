@@ -1671,17 +1671,14 @@ class OpenCLGenerator extends Generator {
               if Type.getValueType(at) == vt.scalarT
                 && (mem.addressSpace == GlobalMemory || mem.addressSpace == LocalMemory) =>
 
-              val offset = ViewPrinter.emit(view, replacementsWithFuns, mem.addressSpace) match {
-                case VarRef(_, _, idx) => ArithExpression(idx.get.content / vt
-                  .len)
+              val (offset, shift) = ViewPrinter.emit(view, replacementsWithFuns, mem.addressSpace) match {
+                case VarRef(_, _, idx) =>
+                  (ArithExpression(idx.get.content / vt.len), ArithExpression(idx.get.content % vt.len))
                 case x                 => throw new MatchError(s"Expected a VarRef but got $x.")
               }
 
-              OclLoad(VarRef(mem.variable), vt, offset, mem.addressSpace)
+              OclLoad(VarRef(mem.variable), vt, offset, shift, mem.addressSpace)
 
-            // originally an array of scalar values in private memory,
-            // but now a vector type
-            //  => emit (float2)(f1, f2) primitive
             case (at: ArrayType, vt: VectorType)
               if Type.getValueType(at) == vt.scalarT && (mem.addressSpace == PrivateMemory) =>
 

@@ -9,6 +9,105 @@ import play.api.libs.json._
 class TestParametersAndSettings {
 
   @Test
+  def generateCompleteDefaultConfigString(): Unit = {
+    val config = Settings.generateConfigString
+    println(config)
+    val json = Json.parse(config)
+    val validated = json.validate[Settings]
+    validated match {
+      case JsSuccess(settings, _) =>
+        assertEquals(Settings(), settings)
+      case _: JsError => fail()
+    }
+  }
+
+  @Test
+  def checkValidConfigGeneration(): Unit = {
+    val config = HighLevelRewriteSettings.generateConfigString
+    val json = Json.parse(config)
+    val validated = json.validate[Settings]
+    validated match {
+      case JsSuccess(settings, _) =>
+        assertEquals(Settings(), settings)
+      case _: JsError => fail()
+    }
+  }
+
+  @Test
+  def checkSingleValue(): Unit = {
+    val config = s"""
+      |{
+      |  "${HighLevelRewriteSettings.keyHighLevelRewrite}" : {
+      |    "${HighLevelRewriteSettings.keyExplorationDepth}" : ${HighLevelRewriteSettings.defaultExplorationDepth}
+      |  }
+      |}
+    """.stripMargin
+    val json = Json.parse(config)
+    val validated = json.validate[Settings]
+    validated match {
+      case JsSuccess(settings, _) =>
+        assertEquals(Settings(), settings)
+      case _: JsError => fail()
+    }
+  }
+
+  @Test
+  def checkParameterConstraint(): Unit = {
+    // value cannot be negative
+    val config = s"""
+      |{
+      |  "${HighLevelRewriteSettings.keyHighLevelRewrite}" : {
+      |    "${HighLevelRewriteSettings.keyExplorationDepth}" : -1
+      |  }
+      |}
+    """.stripMargin
+    val json = Json.parse(config)
+    val validated = json.validate[HighLevelRewriteSettings]
+    validated match {
+      case JsSuccess(settings, _) =>
+        fail()
+      case _: JsError => assertTrue(true)
+    }
+  }
+
+  @Test
+  def checkSetSingleValue(): Unit = {
+    val value = 42
+    val config = s"""
+      |{
+      |  "${HighLevelRewriteSettings.keyHighLevelRewrite}" : {
+      |    "${HighLevelRewriteSettings.keyExplorationDepth}" : $value
+      |  }
+      |}
+    """.stripMargin
+    val json = Json.parse(config)
+    val validated = json.validate[Settings]
+    validated match {
+      case JsSuccess(settings, _) =>
+        assertEquals(value, settings.highLevelRewriteSettings.explorationDepth)
+      case _: JsError => fail()
+    }
+  }
+
+  @Test
+  def typoDetection(): Unit = {
+    val config = s"""
+      |{
+      |  "${HighLevelRewriteSettings.keyHighLevelRewrite}" : {
+      |    "exploraton_depth" : 42
+      |  }
+      |}
+    """.stripMargin
+    val json = Json.parse(config)
+    val validated = json.validate[Settings]
+    validated match {
+      case JsSuccess(settings, _) =>
+        fail()
+      case _: JsError => assertTrue(true)
+    }
+  }
+
+  @Test
   def emptySettings(): Unit = {
 
     val string =
@@ -95,7 +194,7 @@ class TestParametersAndSettings {
     validated match {
       case JsSuccess(settings, _) =>
         assertEquals(1024, settings.searchParameters.minGlobalSize)
-        assertEquals(512, settings.searchParameters.defaultInputSize)
+        assertEquals(512, settings.searchParameters.inputSize)
       case _: JsError => fail()
     }
   }
