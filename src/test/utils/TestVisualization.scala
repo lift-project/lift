@@ -25,7 +25,7 @@ class TestVisualization{
         def M = Var("M")
         def N = Var("N")
       val expressionText = " PrintType(visual = true,render = true) o Join() o  PrintType(visual = true) o Map(Reduce(add, 0.0f))o PrintType(visual = true) o Split(M) o PrintType(visual = true)"
-        def expression =  PrintType(visual = true,render = true,expressionText) o Join() o  PrintType(visual = true) o Map(Reduce(add, 0.0f))o PrintType(visual = true) o Split(M) o PrintType(visual = true)
+        def expression =  PrintType(VisualOutput(render = true,expressionText)) o Join() o  PrintType(VisualOutput()) o Map(Reduce(add, 0.0f))o PrintType(VisualOutput()) o Split(M) o PrintType(VisualOutput())
 
                 val lambda = \(ArrayType(Float, N), input => expression $ input)
         TypeChecker(lambda)
@@ -39,7 +39,7 @@ class TestVisualization{
     val expressionText = "MapGlb(id) o PrintType(visual = true,render = true) o Join() o PrintType(visual = true) o Join() o PrintType(visual = true)"
     val lambda = fun(
       ArrayType(ArrayType(ArrayType(Float, N), M ), O),
-      input => MapGlb(id) o PrintType(visual = true,render = true,expressionText) o Join() o PrintType(visual = true) o Join() o PrintType(visual = true) $ input
+      input => MapGlb(id) o PrintType(VisualOutput(render = true,expressionText)) o Join() o PrintType(VisualOutput()) o Join() o PrintType(VisualOutput()) $ input
     )
     TypeChecker(lambda)
     //println(Compile(lambda))
@@ -53,7 +53,7 @@ class TestVisualization{
     val expressionText =" MapGlb(\\(tuple => id(tuple._0))) o PrintType(visual = true,render = true)"
     def lambda = fun(
       ArrayType(Float, N), input =>
-        MapGlb(\(tuple => id(tuple._0))) o PrintType(visual = true,render = true,expressionText) $ Zip(input, input)
+        MapGlb(\(tuple => id(tuple._0))) o PrintType(VisualOutput(render = true,expressionText)) $ Zip(input, input)
     )
 
     //TypeChecker(lambda)
@@ -68,7 +68,7 @@ class TestVisualization{
     val expressionText ="PrintType(visual = true,render = true) o MapGlb(toGlobal(idF4)) o PrintType(visual = true)  o asVector(4) o PrintType(visual = true)"
     def lambda = fun(
       ArrayType(Float, N), input =>
-        PrintType(visual = true,render = true,expressionText) o MapGlb(toGlobal(idF4)) o PrintType(visual = true)  o asVector(4) o PrintType(visual = true)  $ input
+        PrintType(VisualOutput(render = true,expressionText)) o MapGlb(toGlobal(idF4)) o PrintType(VisualOutput())  o asVector(4) o PrintType(VisualOutput())  $ input
     )
 
     TypeChecker(lambda)
@@ -84,7 +84,7 @@ class TestVisualization{
     val expression ="    def lambda = fun(\n      ArrayType(ArrayType(ArrayType(Float,4),4),4),\n      input => PrintType(visual = true,render = true,expression) $ input\n    )"
     def lambda = fun(
       ArrayType(TupleType(ArrayType(ArrayType(Float,4),4),ArrayType(ArrayType(Float,4),4)),2),
-      input => PrintType(visual = true,render = true,expression) $ input
+      input => PrintType(VisualOutput(render = true, expression)) $ input
     )
 
     //TypeChecker(lambda)
@@ -106,8 +106,8 @@ class TestVisualization{
     var expression = "ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar(\"M\")), SizeVar(\"N\")),\ninput => PrintType(true,true,expression) o Join() o PrintType(true) o\n         MapGlb(toGlobal(MapSeq(id)) o PrintType(true) o ReduceSeq(add, 0.0f)) o PrintType(true) o Transpose() o PrintType(true) $ input"
     val addArrayOfVectorsFun = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
-      input => PrintType(true,true,expression) o Join() o PrintType(true) o
-        MapGlb(toGlobal(MapSeq(id)) o PrintType(true) o ReduceSeq(add, 0.0f)) o PrintType(true) o Transpose() o PrintType(true) $ input
+      input => PrintType(VisualOutput(render = true,expression)) o Join() o PrintType(VisualOutput()) o
+        MapGlb(toGlobal(MapSeq(id)) o PrintType(VisualOutput()) o ReduceSeq(add, 0.0f)) o PrintType(VisualOutput()) o Transpose() o PrintType(VisualOutput()) $ input
     )
 
     val kernel = Compile(addArrayOfVectorsFun)
@@ -132,11 +132,11 @@ class TestVisualization{
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
       ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) => {
-        PrintType(true,true,expression) o MapGlb(fun( Arow =>
-          PrintType(true) o Join() o PrintType(true)  o MapSeq(fun( Bcol =>
-             toGlobal( MapSeq(id)) o PrintType(true) o ReduceSeq(add, 0.0f) o PrintType(true) o MapSeq(mult) o PrintType(true) $ Zip(Arow, Bcol)
-          )) o PrintType(true) o Transpose() $ B
-        )) o PrintType(true) $ A
+        PrintType(VisualOutput(render = true,expression)) o MapGlb(fun( Arow =>
+          PrintType(VisualOutput()) o Join() o PrintType(VisualOutput())  o MapSeq(fun( Bcol =>
+             toGlobal( MapSeq(id)) o PrintType(VisualOutput()) o ReduceSeq(add, 0.0f) o PrintType(VisualOutput()) o MapSeq(mult) o PrintType(VisualOutput()) $ Zip(Arow, Bcol)
+          )) o PrintType(VisualOutput()) o Transpose() $ B
+        )) o PrintType(VisualOutput()) $ A
       })
 
     val (output, _) = Execute(Msize * Nsize)[Array[Float]](f, matrixA, matrixB)
@@ -154,7 +154,7 @@ class TestVisualization{
     val N = Var("N")
     def lambda = fun(
       TupleType(ArrayType(ArrayType(TupleType(VectorType(Float,4),ArrayType(TupleType(Float,Float),2)),2),2),Float),
-      input => PrintType(visual = true,render = true) $ input
+      input => PrintType(VisualOutput(render = true)) $ input
     )
 
     //TypeChecker(lambda)
@@ -201,7 +201,7 @@ class TestVisualization{
                 )) o PrintType() $ Zip(aRows, bCols)
 
               // Tile the matrices
-            )) o PrintType(true,true) o Tile(tileSize)o PrintType() $ B
+            )) o PrintType(VisualOutput(render = true)) o Tile(tileSize)o PrintType() $ B
           )) o Tile(tileSize) $ A
       })
 
