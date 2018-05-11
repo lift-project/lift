@@ -176,7 +176,7 @@ object OpenCLMemoryAllocator {
 
       case Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Slide(_, _) | Pad(_, _, _) | PadConstant(_, _, _) |
-           Head() | Tail() | Gather(_) | Scatter(_) | ArrayAccess(_) | PrintType(_,_,_) | Id() =>
+           Head() | Tail() | Gather(_) | Scatter(_) | ArrayAccess(_) | PrintType(_) | Id() =>
         inMem
     }
   }

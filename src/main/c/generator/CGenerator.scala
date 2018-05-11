@@ -462,7 +462,7 @@ class CGenerator extends Generator {
         case l: Lambda => generateExpr(l.body, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
-             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PrintType(_,_,_) =>
+             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PrintType(_) =>
 
       }
       case v: Value => generateValue(v, block)
