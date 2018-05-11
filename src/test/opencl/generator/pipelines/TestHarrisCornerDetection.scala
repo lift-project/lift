@@ -1,4 +1,4 @@
-package opencl.generator.stencil
+package opencl.generator.pipelines
 
 import ir._
 import ir.ast._
