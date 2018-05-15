@@ -20,9 +20,9 @@ object TestStencilRodinia extends TestWithExecutor
 
 object HotSpotConstants {
 
-  val localDimX = 8
-  val localDimY = 8
-  val localDimZ = 4
+  val localDimX = 512
+  val localDimY = 512
+  val localDimZ = 8
 
   val t_chip = 0.0005f
   val chip_height = 0.016f
@@ -305,16 +305,18 @@ class TestStencilRodinia {
 
 
     val newLambda = SimplifyAndFuse(rodiniaHotSpot3D)
-    val source = Compile(newLambda, 32, 4, 2, 512, 512, 8, immutable.Map())
+    val source = Compile(newLambda)
+
+  println(source)
 
     val (output, runtime) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](source,newLambda, tempInput, powerInput, HotSpotConstants.ce,HotSpotConstants.cw,HotSpotConstants.cn,HotSpotConstants.cs,HotSpotConstants.ct,HotSpotConstants.cb,HotSpotConstants.cc,HotSpotConstants.stepDivCap)
 
     if(StencilUtilities.printOutput)
     {
-      StencilUtilities.printOriginalAndOutput3DSame(tempInput, output)
+      StencilUtilities.printOriginalAndOutput3D(tempInput, output)
     }
 
-//    assertArrayEquals(StencilDataArrays.compareDataHotspot3D, output, 0.1f)
+    assertArrayEquals(StencilDataArrays.compareDataHotspot3D, output, 0.3f)
 
   }
   @Ignore

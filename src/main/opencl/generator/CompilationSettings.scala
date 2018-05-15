@@ -39,6 +39,11 @@ object CSE {
   def apply(): Boolean = cse
 }
 
+object EmptyCode {
+  private val ec = System.getenv("LIFT_GENERATE_EMPTY_PATTERNS") != null
+  def apply() : Boolean = ec
+}
+
 object PerformBarrierElimination {
   private val barrierElimination = System.getenv("LIFT_NO_BARRIER_ELIM") == null
   def apply(): Boolean = barrierElimination

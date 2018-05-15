@@ -77,6 +77,18 @@ libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
 // https://mvnrepository.com/artifact/org.jfree/jfreesvg
 libraryDependencies += "org.jfree" % "jfreesvg" % "2.0"
 
+// Time utilities
+libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.16.0"
+
+lazy val profiler = RootProject(file("lib/Profiler"))
+
+lazy val root = (project in file(".")).aggregate(profiler).dependsOn(profiler)
+
+val paradiseVersion = "2.1.0"
+
+addCompilerPlugin("org.scalamacros" % "paradise" % paradiseVersion cross CrossVersion.full)
+
+
 scalacOptions in (Compile,doc) := Seq("-implicits", "-diagrams")
 
 // Build ArithExpr

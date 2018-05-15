@@ -31,6 +31,32 @@ class TestStencil {
   val randomData = Seq.fill(1024)(Random.nextFloat()).toArray
 
   /* **********************************************************
+      VECTORIZATION
+   ***********************************************************/
+  @Test
+  def stencilVectorization(): Unit = {
+    val N = 18
+    val gold = \(ArrayType(Float, N),
+      input => Join() o MapGlb(MapSeq(toGlobal(id)) o ReduceSeq(add,0.0f)) o Slide(3,1) $ input
+    )
+
+    val vectorized = \(ArrayType(Float, N),
+      input => PrintType() o Join() o Map(asScalar() o Reduce(addF4, Value("0.0f", Float).vectorize(4))) o
+        Map(Join()) o Map(Map(asVector(4))) o Map(Slide(4,1)) o Slide(6,4) $ input
+    )
+
+    val vectorizedLowered = \(ArrayType(Float, N),
+      input => Join() o MapGlb(asScalar() o MapSeq(toGlobal(idF4)) o ReduceSeq(addF4, Value("0.0f", Float).vectorize(4))) o
+        Map(Join()) o Map(Map(asVector(4))) o Map(Slide(4,1)) o Slide(6,4) $ input
+    )
+
+    val input = Array.tabulate(N) { _ => Random.nextInt() % 20 + 20 * 1.0f }
+    val (outGold, _) = Execute(1,4,(false,false))[Array[Float]](gold, input)
+    val (outVect, _) = Execute(1,4,(false,false))[Array[Float]](vectorizedLowered, input)
+    assertArrayEquals(outGold, outVect, 0.0f)
+  }
+
+  /* **********************************************************
       SLIDE o PAD
    ***********************************************************/
   def testCombinationPadSlide(boundary: BoundaryFun,
@@ -277,36 +303,5 @@ class TestStencil {
         MapSeq(MapSeq(id)) o Slide(3, 1) o MapSeq(id) $ input
     )
     Compile(lambda)
-  }
-
-  // todo move to Stencil3D.scala
-  /* **********************************************************
-      PARBOIL
-  ***********************************************************/
-  @Test def parboil(): Unit = {
-    assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
-    LongTestsEnabled()
-
-    //val hotspot = UserFun("hotspot", "tuple", "{ return tuple_0; }", TupleType(Float, ArrayType(ArrayType(Float, 3),3)), Float)
-    // segfaults
-    val stencil = fun(
-      ArrayType(ArrayType(ArrayType(Float, 512), 512), 64),
-      ArrayType(Float, 27),
-      (input, weights) => {
-        MapSeq(MapWrg(1)(MapWrg(0)( \(block =>
-          MapSeq(MapLcl(1)(MapLcl(0)( \(nbh =>
-            toGlobal(MapSeq(id)) o
-            ReduceSeqUnroll(add, 0.0f) o Join() o Join() $ nbh )))) o
-            Slide3D(3,1) $ block )))) o
-        Slide3D(34,32, 6,4, 3,1) o Pad3D(1, 1, 1, Pad.Boundary.Wrap) $ input
-      }
-    )
-
-    // testing
-    val input = Array.tabulate(64, 512, 512) { (i, j, k) => Random.nextFloat() }
-    val weights = Array.tabulate(27) { (i) => Random.nextFloat() }
-    val (output, runtime) = Execute(32, 4, 1, 256, 512, 1, (true, true))[Array[Float]](stencil, input, weights)
-    println("Runtime: " + runtime)
-    //println(output.mkString(","))
   }
 }

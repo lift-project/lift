@@ -5,7 +5,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
 import opencl.executor.{Build, Compile, Execute, TestWithExecutor}
-import opencl.generator.OpenCLAST.ArithExpression
+import core.generator.GenericAST.ArithExpression
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert.{assertEquals, _}

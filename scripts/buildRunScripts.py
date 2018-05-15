@@ -30,10 +30,12 @@ javaOptions = remove_colour_codes(subprocess.check_output(["sbt", "show javaOpti
 print(javaOptions)
 
 # Build a regex to match mainclasses and java options
-mcjoRegex = re.compile("\[info\] \* (.*)")
+mcjoRegex = re.compile("\[info\]\s+List\((.*)\)")
 
 # Extract the classes 
-mainClasses = mcjoRegex.findall(mainClasses)
+mainClassesSections = mcjoRegex.findall(mainClasses)
+mainClasses = [ x for x in [x.strip(" ") for x in sum([ x for x in [section.split(",") for section in mainClassesSections]],[])] if x != ""]
+
 print("Discovered mainClasses: ")
 for mc in mainClasses: 
 	print("\t - " + mc)
