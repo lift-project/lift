@@ -1011,4 +1011,18 @@ class TestMisc {
     val (output, _) = Execute(size)[Vector[(Int, Int, Int, Int)]](expr, input)
     assertEquals(input.toVector, output)
   }
+
+  @Test
+  def issue155(): Unit = {
+
+    val N = SizeVar("N")
+    val expr = fun(
+      ArrayTypeWSWC(Float, N),
+      u => toGlobal(MapSeq(id)) o ScanSeq(add, 0f) o MapSeq(id) $ u
+    )
+
+    val input : Array[Float] = Array.tabulate(128)(x => x)
+    val (output, _) = Execute(input.size)[Array[Float]](expr, input)
+    assertEquals(input.scan(0f)(_ + _).tail.toVector, output.toVector)
+  }
 }
