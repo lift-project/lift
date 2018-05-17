@@ -91,6 +91,7 @@ private class BuildDepthInfo() {
       case m: AbstractMap => buildDepthInfoMapCall(m, call, argInf)
       case f: FilterSeq => buildDepthInfoFilterCall(f, call, argInf)
       case r: AbstractPartRed => buildDepthInfoReduceCall(r, call, argInf)
+      case s: ScanSeq => buildDepthInfoScanCall(s, call, argInf)
       case sp: MapSeqSlide => buildDepthInfoMapSeqSlideCall(sp, call, argInf)
       case _ =>
 
@@ -168,7 +169,21 @@ private class BuildDepthInfo() {
     r.f.params(0).accessInf = l.l.head
     r.f.params(1).accessInf = l.l(1)(inf, readsPrivate, readsLocal || seenMapLcl)
 
-    buildDepthInfoReducePatternCall(r.f.body, call, Cst(0), r.loopVar, readsLocal, readsPrivate, l)
+    buildDepthInfoReducePatternCall(r.f.body, call, Cst(0), readsLocal, readsPrivate, l)
+
+    AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
+  }
+
+  private def buildDepthInfoScanCall(s: ScanSeq, call: FunCall,
+                                     l: AccessInfo): AccessInfo = {
+
+    val (readsLocal, readsPrivate) = containsLocalPrivate(call.args(1).mem)
+
+    val inf = getArrayAccessInf(call.args(1).t, s.loopVar)
+    s.f.params(0).accessInf = l.l.head
+    s.f.params(1).accessInf = l.l(1)(inf, readsPrivate, readsLocal || seenMapLcl)
+
+    buildDepthInfoReducePatternCall(s.f.body, call, Cst(0) /* unsure here */, readsLocal, readsPrivate, l)
 
     AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
   }
@@ -189,7 +204,6 @@ private class BuildDepthInfo() {
   }
 
   private def buildDepthInfoReducePatternCall(expr: Expr, call: FunCall, index: ArithExpr,
-                                              index2: ArithExpr,
                                               readsLocal: Boolean, readsPrivate: Boolean,
                                               l: AccessInfo
                                              ): Unit = {

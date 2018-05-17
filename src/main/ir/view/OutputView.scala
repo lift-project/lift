@@ -255,7 +255,7 @@ object OutputView {
   }
 
   private def buildViewScan(scan: ScanSeq, call:FunCall, writeView:View) : View = {
-    visitAndBuildViews(scan.f.body, scan.f.params.head.view)
+    visitAndBuildViews(scan.f.body, scan.f.params.head.view /* unsure here */)
     ViewMap(scan.f.params(1).outputView, scan.loopVar, call.args(1).t)
   }
 
