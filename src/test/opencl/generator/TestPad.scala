@@ -58,7 +58,7 @@ class TestPad {
     val bf = Pad.Boundary.Clamp
     val fct = fun(
       ArrayTypeWSWC(Float, SizeVar("N")),
-      (domain) => MapSeq(id) o Pad(1,1,bf) o MapSeq(id) o Pad(1,1,bf) $ domain
+      (domain) => PrintType() o MapSeq(id) o Pad(1,1,bf) o MapSeq(id) o Pad(1,1,bf) $ domain
     )
 
     val (output, _) = Execute(5,5)[Array[Float]](fct, input)

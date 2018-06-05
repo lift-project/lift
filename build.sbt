@@ -74,6 +74,9 @@ libraryDependencies += "org.clapper" %% "argot" % "1.0.3"
 libraryDependencies += "ch.qos.logback" %  "logback-classic" % "1.1.7"
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
 
+// https://mvnrepository.com/artifact/org.jfree/jfreesvg
+libraryDependencies += "org.jfree" % "jfreesvg" % "2.0"
+
 // Time utilities
 libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.16.0"
 
