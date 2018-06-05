@@ -353,6 +353,7 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
       }
       case v: VectorType => "V"
       case s: ScalarType => "S"
+      case _ => throw new NotImplementedError()
     }
   }
 
@@ -475,12 +476,11 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
   def saveAsSvg(file: File): Unit = {
     val mainPane = TypeVisualiser.getMainPane()
     var svgString = mainPane.renderToSvg(renderNodes(),getVisualisationDimension())
-    try {
-      val out = new PrintWriter(file)
-      try
-        out.println(svgString)
-      finally if (out != null) out.close()
-    }
+
+    val out = new PrintWriter(file)
+    try
+      out.println(svgString)
+    finally if (out != null) out.close()
   }
 
   /**
@@ -570,6 +570,7 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
             if(w>maxWidth) maxWidth = w
             w
           }
+          case _ => 0
         })
 
 
@@ -581,6 +582,7 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
 
           var expressionText = currentExpressionText match {
             case ExpressionSource(text, _, _, _, _) => text
+            case _ => throw new NotImplementedError()
           }
           val mainPane = TypeVisualiser.getMainPane()
           var textHeight = mainPane.getStringHeight(expressionText, mainPane.getExpressionFontFx()).ceil + 1
@@ -609,6 +611,7 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
           case Box(x, y, w, h) => accHeight += h
           case CorneredClause(x, y, w, h) => accHeight += h
           case DashedBox(_, _, w, _) => accHeight += w
+          case _ => throw new NotImplementedError()
         }
         firstType = false
         accHeight += yMarginBetweenTypes
@@ -668,6 +671,7 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
           case Seperator(x, y) => 0
           case ExpressionSource(_, _, _, _, _) => 0
           case DashedBox(_, _, w, _) => w
+          case _ => 0
         })
 
         var adjustedNodes: Iterable[GraphicalPrimitive] = null
@@ -678,6 +682,7 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
 
           var expressionText = currentExpressionText match {
             case ExpressionSource(text, _, _, _, _) => text
+            case _ => throw new NotImplementedError()
           }
           val mainPane = TypeVisualiser.getMainPane()
           var textHeight = mainPane.getStringHeight(expressionText, mainPane.getExpressionFontFx()).ceil + 1
@@ -706,6 +711,7 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
           case Box(x, y, w, h) => accHeight += h
           case CorneredClause(x, y, w, h) => accHeight += h
           case DashedBox(_, _, w, _) => accHeight += w
+          case _ => throw new NotImplementedError()
         }
         firstType = false
         accHeight += yMarginBetweenTypes

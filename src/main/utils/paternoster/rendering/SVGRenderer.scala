@@ -272,6 +272,8 @@ object SVGRenderer {
           (y*ctx.unitY + ctx.smallY).toInt,
           (w*ctx.unitX - 2*ctx.smallX).toInt,
           (h*ctx.unitY - 2*ctx.smallY).toInt)
+
+      case _ => throw new NotImplementedError()
     }
   }
 

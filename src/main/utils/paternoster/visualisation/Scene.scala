@@ -99,7 +99,7 @@ object Scene {
       //The ultimate non-array element contained in the nested array
       val bottomElement = bottomElementType(array)
       arrayTypeNode(array,bottomElement, dimensions)
-    case _: Lambda => throw new NotImplementedError("No support for drawing function types yet")
+    case _ => throw new NotImplementedError("No support for drawing function types yet")
   }
 
   /**
