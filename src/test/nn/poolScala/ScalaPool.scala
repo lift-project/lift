@@ -12,7 +12,7 @@ case class ScalaPool(inputShape: Shape = null, outputShape: Shape = null,
                      localSize: Array[Int] = null, globalSize: Array[Int] = null) extends Layer {
   val configToString: String = "Scala Pooling layer"
   var runtime: Double = 0
-  val liftFProp: FunDecl = null
+  val liftFProp: Array[FunDecl] = null
 
   var mlpInputlenL2: Int = 0
   var mlpInputlenL2NonVerified: Int = 0

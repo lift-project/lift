@@ -1,0 +1,67 @@
+{
+  "name": "VGG conv4_2, conv4_3, conv4_4",
+  "kernel_output_subfolder": "22",
+  "workload": {
+    "n_batches": {
+      "initial": 1
+    },
+    "n_inputs": {
+      "initial": 1
+    },
+    "image_size": {
+      "initial": 30
+    },
+    "input_channels": {
+      "initial": 512
+    },
+    "n_kernels": [
+      {"initial": 512}
+    ],
+    "kernel_size": [
+      {"initial": 3}
+    ],
+    "kernel_stride": [
+      {"initial": 1}
+    ],
+    "n_neurons": [
+      {"initial": 1}
+    ]
+  },
+  "optimisational_parameters": {
+    "input_tile_size": [
+      {
+        "start": "kernel_size",
+        "end": "image_size",
+        "step_add": 1
+      }
+    ],
+    "kernels_per_group": [
+      {
+        "initial": 1,
+        "start": 2,
+        "end": "n_kernels",
+        "step_add": 1
+      }
+    ],
+    "els_per_thread": [
+      {
+        "start": 1,
+        "end": 4608,
+        "step_add": 1
+      }
+    ],
+    "vector_len": [
+      {
+        "initial": 1
+      }
+    ],
+
+    "mults_per_thread": [
+      {"initial": 1}
+    ],
+    "neurons_per_wrg": [
+      {"initial": 1}
+    ]
+  }
+
+}

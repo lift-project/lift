@@ -1,8 +1,13 @@
 package nn
 
+import java.io.{BufferedWriter, File, FileOutputStream, OutputStreamWriter}
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files.exists
 import java.nio.file.Paths.get
+import java.util.Calendar
 
+import com.typesafe.scalalogging.Logger
+import nn.conv.Conv
 import org.junit.Assert.assertEquals
 
 import scala.util.parsing.json.JSON
@@ -43,6 +48,22 @@ package object cnn {
     generateList(configEvaluated)
   }
 
+  def generateListsOfInts(jWorkload: Map[String, Any], blockName: String): List[List[Int]] = {
+    val paramBlock = jWorkload(blockName).asInstanceOf[List[Map[String, Double]]]
+    //            List(generateList(paramBlock.head), generateList(paramBlock(1))
+    List(generateList(paramBlock.head))
+  }
+  
+  def generateListsOfFuns(jOptParams: Map[String, Any], blockName: String): List[
+    (cnn.Experiment.InputConfig, Layer.Experiment.Config.Dimensions) => List[Int]] = {
+    val paramBlock = jOptParams(blockName).asInstanceOf[List[Map[String, Any]]]
+    List(
+      (inputConfig, convLayerSizeConfig) =>
+        generateList(paramBlock.head, inputConfig, convLayerSizeConfig))
+    //              (inputConfig, convLayerSizeConfig) =>
+    //                generateList(paramBlock(1), inputConfig, convLayerSizeConfig))
+  }
+
   def generateList(config: Map[String, Any]): List[Int] = {
     val _config: Map[String, Int] = config.map{
       case (k, v: Double) => (k, v.toInt)
@@ -72,84 +93,45 @@ package object cnn {
   }
 
   def getConfigFromJSON(jsonFilePath: String): ExperimentsSet = {
+    val logger = Logger(this.getClass)
     val source = scala.io.Source.fromFile(jsonFilePath)
     val jsonString = source.getLines.mkString("\n")
     source.close()
     val jsonMap: Option[Any] = JSON.parseFull(jsonString)
+    
     jsonMap match {
-      case None => throw new java.lang.IllegalArgumentException()
+      case None => 
+        throw new java.lang.IllegalArgumentException()
       case Some(someJ) =>
         val j = someJ.asInstanceOf[Map[String, Any]]
+
+        logger.info("Processing JSON config file \"" + j("name").asInstanceOf[String] + "\"\n" +
+          "located in " + jsonFilePath)
+        
         val jWorkload = j("workload").asInstanceOf[Map[String, Any]]
         val jOptParams = j("optimisational_parameters").asInstanceOf[Map[String, Map[String, Double]]]
 
         ExperimentsSet(
+          kernelOutputSubfolder = j("kernel_output_subfolder").asInstanceOf[String],
           nBatchesRange = generateList(jWorkload("n_batches").asInstanceOf[Map[String, Double]]),
           nInputsRange = generateList(jWorkload("n_inputs").asInstanceOf[Map[String, Double]]),
           imageSizeRange = generateList(jWorkload("image_size").asInstanceOf[Map[String, Double]]),
           inputChannelRange = generateList(jWorkload("input_channels").asInstanceOf[Map[String, Double]]),
 
-          nKernelsRange = {
-            val paramBlock = jWorkload("n_kernels").asInstanceOf[List[Map[String, Double]]]
-//            List(generateList(paramBlock.head), generateList(paramBlock(1))
-              List(generateList(paramBlock.head))},
-          kernelSizeRange = {
-            val paramBlock = jWorkload("kernel_size").asInstanceOf[List[Map[String, Double]]]
-//            List(generateList(paramBlock.head), generateList(paramBlock(1))
-              List(generateList(paramBlock.head))},
-          kernelStrideRange = {
-            val paramBlock = jWorkload("kernel_stride").asInstanceOf[List[Map[String, Double]]]
-//            List(generateList(paramBlock.head), generateList(paramBlock(1))
-              List(generateList(paramBlock.head))},
+          nKernelsRange = generateListsOfInts(jWorkload, "n_kernels"),
+          kernelSizeRange = generateListsOfInts(jWorkload, "kernel_size"),
+          kernelStrideRange = generateListsOfInts(jWorkload, "kernel_stride"),
 
-          neuronsRange = {
-            val paramBlock = jWorkload("n_neurons").asInstanceOf[List[Map[String, Double]]]
-//            List(generateList(paramBlock.head), generateList(paramBlock(1))
-            List(generateList(paramBlock.head))},
+          neuronsRange = generateListsOfInts(jWorkload, "n_neurons"),
 
 
-          inputTileSizeRange = {
-            val paramBlock = jOptParams("input_tile_size").asInstanceOf[List[Map[String, Any]]]
-            List(
-              (inputConfig, convLayerSizeConfig) =>
-                generateList(paramBlock.head, inputConfig, convLayerSizeConfig))
-//              (inputConfig, convLayerSizeConfig) =>
-//                generateList(paramBlock(1), inputConfig, convLayerSizeConfig))
-            },
-          elsPerThreadRange = {
-            val paramBlock = jOptParams("els_per_thread").asInstanceOf[List[Map[String, Any]]]
-            List(
-              (inputConfig, convLayerSizeConfig) =>
-                generateList(paramBlock.head, inputConfig, convLayerSizeConfig)
-//              (inputConfig, convLayerSizeConfig) =>
-//                generateList(paramBlock(1), inputConfig, convLayerSizeConfig)
-            )},
-          kernelsPerGroupRange = {
-            val paramBlock = jOptParams("kernels_per_group").asInstanceOf[List[Map[String, Any]]]
-            List(
-              (inputConfig, convLayerSizeConfig) =>
-                generateList(paramBlock.head, inputConfig, convLayerSizeConfig)
-//              (inputConfig, convLayerSizeConfig) =>
-//                generateList(paramBlock(1), inputConfig, convLayerSizeConfig)
-            )},
+          inputTileSizeRange = generateListsOfFuns(jOptParams, "input_tile_size"),
+          elsPerThreadRange = generateListsOfFuns(jOptParams, "els_per_thread"),
+          kernelsPerGroupRange = generateListsOfFuns(jOptParams, "kernels_per_group"),
+          vectorLenRange = generateListsOfFuns(jOptParams, "vector_len"),
 
-          multsPerThreadRange = {
-            val paramBlock = jOptParams("mults_per_thread").asInstanceOf[List[Map[String, Any]]]
-            List(
-              (inputConfig, fcLayerSizeConfig) =>
-                generateList(paramBlock.head, inputConfig, fcLayerSizeConfig)
-//              (inputConfig, fcLayerSizeConfig) =>
-//                generateList(paramBlock(1), inputConfig, fcLayerSizeConfig)
-            )},
-          neuronsPerWrgRange = {
-            val paramBlock = jOptParams("neurons_per_wrg").asInstanceOf[List[Map[String, Any]]]
-            List(
-              (inputConfig, fcLayerSizeConfig) =>
-                generateList(paramBlock.head, inputConfig, fcLayerSizeConfig)
-//              (inputConfig, fcLayerSizeConfig) =>
-//                generateList(paramBlock(1), inputConfig, fcLayerSizeConfig)
-            )}
-        )
+          multsPerThreadRange = generateListsOfFuns(jOptParams, "mults_per_thread"),
+          neuronsPerWrgRange = generateListsOfFuns(jOptParams, "neurons_per_wrg"))
     }
   }
 
@@ -225,7 +207,89 @@ package object cnn {
           None
       }
 
+    }    
+  }
+
+  def saveKernelToFile(experimentNo: Int, testConfigFilename: String, layer: Layer, openclKernel: String, 
+                       twoKernels: Boolean, localSize: Array[Int], globalSize: Array[Int], kernelPath: String): Unit = {
+    val logger = Logger(this.getClass)
+    
+    /* Save the OpenCL code into text file */
+    val kernelFile = new File(kernelPath)
+
+    /* Make sure all directories in the path exist */
+    kernelFile.getParentFile.mkdirs()
+      
+    // UTF8 to solve the OpenCL compilation error "source file is not valid UTF-8"
+    val bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(kernelFile, false),
+      StandardCharsets.UTF_8))
+    // Insert workgroup dimensions and optimisational parameters
+    bw.write("//L0=" + localSize(0).toString + "\n")
+    bw.write("//L1=" + localSize(1).toString + "\n")
+    bw.write("//L2=" + localSize(2).toString + "\n")
+    bw.write("//G0=" + globalSize(0).toString + "\n")
+    bw.write("//G1=" + globalSize(1).toString + "\n")
+    bw.write("//G2=" + globalSize(2).toString + "\n")
+    layer match {
+      case cL: Conv => {
+        bw.write("//input_tile_size=" + cL.inputTiling.size + "\n")
+        bw.write("//kernels_per_group=" + cL.kernelsPerGroup + "\n")
+        bw.write("//els_per_thread=" + cL.elsPerThread + "\n")
+        bw.write("//coalesce=" + cL.coalesce + "\n")
+        bw.write("//unroll_reduce=" + cL.unrollReduce + "\n")
+        bw.write("//experiment_no=" + experimentNo + "\n")
+        bw.write("//test_config=" + testConfigFilename + "\n")
+      }
     }
+    bw.write("//Generated on " + 
+      new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Calendar.getInstance().getTime) + "\n")
+    // Insert offset handling
+    val openclKernelWithOffsets = {
+      if (!twoKernels)
+        openclKernel.replaceFirst(
+          raw"void KERNEL\(const global float\* restrict v__(\d+), " +
+            raw"const global float\* restrict v__(\d+), " +
+            raw"const global float\* restrict v__(\d+), " +
+            raw"global float\* v__(\d+)\)\{ \n" +
+            raw"\#ifndef WORKGROUP_GUARD\n" +
+            raw"\#define WORKGROUP_GUARD\n" +
+            raw"\#endif\n" +
+            raw"WORKGROUP_GUARD\n" +
+            raw"\{",
+          "void KERNEL(const global float* restrict v__$1, const global float* restrict v__$2, " +
+            "const global float* restrict v__$3, global float* v__$4, int const offsetX, int const offsetOut){\n" +
+            "#ifndef WORKGROUP_GUARD\n" +
+            "#define WORKGROUP_GUARD\n" +
+            "#endif\n" +
+            "WORKGROUP_GUARD\n" +
+            "{\n" +
+            "  /* Apply offsets */\n" +
+            "  v__$3 += offsetX;\n" +
+            "  v__$4 += offsetOut;")
+      else openclKernel.replaceFirst(
+        raw"void KERNEL\(const global float\* restrict v__(\d+), " +
+          raw"const global float\* restrict v__(\d+), " +
+          raw"global float\* v__(\d+)\)\{ \n" +
+          raw"\#ifndef WORKGROUP_GUARD\n" +
+          raw"\#define WORKGROUP_GUARD\n" +
+          raw"\#endif\n" +
+          raw"WORKGROUP_GUARD\n" +
+          raw"\{",
+        "void KERNEL(const global float* restrict v__$1, const global float* restrict v__$2, " +
+          "global float* v__$3, int const offsetX, int const offsetOut){\n" +
+          "#ifndef WORKGROUP_GUARD\n" +
+          "#define WORKGROUP_GUARD\n" +
+          "#endif\n" +
+          "WORKGROUP_GUARD\n" +
+          "{\n" +
+          "  /* Apply offsets */\n" +
+          "  v__$2 += offsetX;\n" +
+          "  v__$3 += offsetOut;")
+    }
+
+    bw.write(openclKernelWithOffsets)
+    bw.close()
+    logger.info(f"Saved the generated OpenCL kernel into $kernelPath%s")
   }
 
 
@@ -233,7 +297,8 @@ package object cnn {
                         convConfig: List[conv.Experiment.Config],
                         fcConfig: List[fc.Experiment.Config])
 
-  case class ExperimentsSet(nBatchesRange: List[Int],
+  case class ExperimentsSet(kernelOutputSubfolder: String,
+                            nBatchesRange: List[Int],
                             nInputsRange: List[Int],
                             imageSizeRange: List[Int],
                             inputChannelRange: List[Int],
@@ -249,6 +314,8 @@ package object cnn {
                             elsPerThreadRange: List[
                               (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
                             kernelsPerGroupRange: List[
+                              (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
+                            vectorLenRange: List[
                               (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
 
                             multsPerThreadRange: List[

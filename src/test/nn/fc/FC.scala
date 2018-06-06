@@ -25,7 +25,7 @@ import opencl.ir.pattern._
   * @param localSize
   * @param globalSize
   */
-case class FC(liftFProp: FunDecl,
+case class FC(liftFProp: Array[FunDecl],
               inputShape: Shape, outputShape: Shape, neuronShape: Shape,
               multsPerThread: Int, neuronsPerWrg: Int, inputTileSize: Int,
               localSize: Array[Int], globalSize: Array[Int]) extends Layer {
@@ -129,7 +129,7 @@ object FC {
   )
 
   case class InitParameters(override val layerNo: Int,
-                            liftFPropGenerator: (UserFun, Shape, Int, Shape, Tile) => FunDecl,
+                            liftFPropGenerator: (UserFun, Shape, Int, Shape, Tile) => Array[FunDecl],
                             activationFun: UserFun,
                             override val inputShape: Shape, neuronShape: Shape,
                             optParams: fc.Experiment.Config.OptimisationalParams) 

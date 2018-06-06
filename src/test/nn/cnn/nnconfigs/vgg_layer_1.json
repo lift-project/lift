@@ -1,5 +1,6 @@
 {
-  "name": "Convolutional kernel experiments",
+  "name": "VGG conv1_1",
+  "kernel_output_subfolder": "1",
   "workload": {
     "n_batches": {
       "initial": 1
@@ -8,13 +9,13 @@
       "initial": 1
     },
     "image_size": {
-      "initial": 58
+      "initial": 226
     },
     "input_channels": {
-      "initial": 256
+      "initial": 3
     },
     "n_kernels": [
-      {"initial": 256}
+      {"initial": 64}
     ],
     "kernel_size": [
       {"initial": 3}
@@ -44,10 +45,14 @@
     ],
     "els_per_thread": [
       {
-        "initial": 1,
-        "start": 2,
-        "end": "kernel_size",
+        "start": 1,
+        "end": 27,
         "step_add": 1
+      }
+    ],
+    "vector_len": [
+      {
+        "initial": 1
       }
     ],
 

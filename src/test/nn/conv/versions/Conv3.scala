@@ -6,14 +6,13 @@ package nn.conv.versions
   * ARM Mali GPU-optimised
   */
 
-import ir.ast._
-import ir.ast.debug.{AssertType, PrintType, PrintView}
-import ir.{ArrayTypeWSWC, TupleType}
+import ir.ast.debug.AssertType
+import ir.ast.{Zip, _}
+import ir.{TupleType, Type, VectorType}
 import nn.conv._
 import nn.{AT, _}
-import opencl.executor.Compile
-import opencl.ir._
 import opencl.ir.pattern._
+import opencl.ir.{add, _}
 
 /**
   * The companion object that contains the Lift expressions, configuration preprocessing and
@@ -30,122 +29,140 @@ object Conv3 extends ConvCompanion {
   //  val out_channels_SV = SizeVar("out_channels_SV")
   //  val n_inputs_SV = SizeVar("n_inputs_SV")
   //  val n_batches_SV = SizeVar("n_batches_SV")
-
-  val multAndSumUp = UserFun("multAndSumUp", Array("acc", "l", "r"),
-    "{ return acc + (l * r); }",
-    Seq(Float, Float, Float), Float)
   
   /************************** Parallel layer **************************/
-  def Par(activation_f: UserFun, inputShape: Shape, tiling: SlidingWindowConfig, nKernels: Int,
+  def Par(activationF: UserFun, inputShape: Shape, tiling: SlidingWindowConfig, nKernels: Int,
           sliding: SlidingWindowConfig,
-          nKernelsPerWrg: Int, seqElsPerThread: Int): FunDecl = {
+          nKernelsPerWrg: Int, seqElsPerThread: Int, vectorLen: Int,
+          coalesce: Boolean, unrollReduce: Boolean): Array[FunDecl] = {
+    /*********** UserFuns ***********/
+//    val dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
+//      "{ return acc + dot(l, r); }",
+//      Seq(Float, Float3, Float3), Float)
+    def Continue(): Lambda = λ((x) => x)
+    
+    def ReduceChoice(f: Lambda2, init: Expr) = 
+      if (unrollReduce) ReduceSeqUnroll(f, init) 
+      else ReduceSeq(f, init)
+      
     /*********** Constants ***********/
-    val nTilesInRow =
-      (inputShape.sizePadded - (tiling.size - tiling.stride)) / tiling.stride
+    val nTilesInRow = tiling.n //(inputShape.sizePadded - (tiling.size - tiling.stride)) / tiling.stride
     val nTilesInCol = nTilesInRow
+    val nTilesInInput = nTilesInCol * nTilesInRow
     
-    val nWindowsInTileRow =
-      (tiling.size - (sliding.size - sliding.stride)) / sliding.stride
+    val nWindowsInTileRow = sliding.n //(tiling.size - (sliding.size - sliding.stride)) / sliding.stride
     val nWindowsInTileCol = nWindowsInTileRow
+
+    val nWindowsInRow = nTilesInRow * nWindowsInTileRow // Output W
+    val nWindowsInCol = nTilesInCol * nWindowsInTileCol // Output Y 
     
-    val nSeqTilesInWindow = inputShape.nChannels * sliding.size * sliding.size / seqElsPerThread
+    val nElementsInWindow = sliding.size * sliding.size * inputShape.nChannels
     
-    val nWindowsInTile = nWindowsInTileRow * nWindowsInTileCol
+    val nSeqTilesInWindow = nElementsInWindow / seqElsPerThread
+
+    val nWindowsInTile = nWindowsInTileCol * nWindowsInTileRow
     
-    val nTilesTotal = nTilesInRow * nTilesInCol * inputShape.nInputs * inputShape.nBatches
+    val nTilesTotal = inputShape.nBatches * inputShape.nInputs * nTilesInInput 
+    
+    val nKernelGroups = nKernels / nKernelsPerWrg
 
     /*********** Types ***********/
-//    val single_element_type: AT = AT(Float, inputShape.nChannels)
-
-//    val sliding_window_type: AT = AT(single_element_type, sliding.size * sliding.size)
-    
-    val windowSeqTileType: AT = AT(Float, seqElsPerThread)
-    val windowType: AT = AT(windowSeqTileType, nSeqTilesInWindow)
-
-    val nonSeqTiledWindowType: AT = AT(Float, inputShape.nChannels * sliding.size * sliding.size)
-    
-    val partReducedWindowType: AT = AT(Float, 2304)//nSeqTilesInWindow)
-    
-
-    val xTileType: AT = AT(windowType, nWindowsInTile)
-    val partReducedXTileType: AT = AT(partReducedWindowType, 1)//nWindowsInTile)
-
-
-    val partReducedKernelGroupType: AT = AT(partReducedXTileType, nKernelsPerWrg)
-
-    val partReducedKernelsType: AT = AT(partReducedKernelGroupType, nKernels / nKernelsPerWrg)
-    
-    
-    val transformedXType: AT = AT(xTileType, nTilesTotal)
-    
-    val partReducedXType: AT = AT(partReducedKernelsType, nTilesTotal)
-    
-    val xType: AT = AT(AT(AT(AT(AT(Float, inputShape.nChannels), inputShape.sizePadded), inputShape.sizePadded),
+    val originalElementType: Float.type = Float
+    val originalFlatWindowType: AT = AT(originalElementType, nElementsInWindow)
+    val originalXType: AT = AT(AT(AT(AT(AT(originalElementType, inputShape.nChannels), inputShape.sizePadded), inputShape.sizePadded),
       inputShape.nInputs), inputShape.nBatches)
 
+    val elementType: Type = if (vectorLen == 1) Float else VectorType(Float, vectorLen)
+    val windowSeqTileType: AT = AT(elementType, seqElsPerThread)
+    val windowType: AT = AT(windowSeqTileType, nSeqTilesInWindow)
+    val xTileType: AT = AT(windowType, nWindowsInTile)
+    val xType: AT = AT(xTileType, nTilesTotal)
+
+    val flatWindowType: AT = AT(elementType, nElementsInWindow) 
+
+    val partReducedWindowType: AT = AT(elementType, nSeqTilesInWindow)
+    val partReducedOutChannelType: AT = AT(partReducedWindowType, nWindowsInTile)
+    val partReducedOutChannelGroupType: AT = AT(partReducedOutChannelType, nKernelsPerWrg)
+    val partReducedXTileType: AT = AT(partReducedOutChannelGroupType, nKernelGroups)
+    val partReducedXType: AT = AT(partReducedXTileType, nTilesTotal)
+    val flatPartReducedXType: AT = AT(elementType, nTilesTotal * nKernels * nWindowsInTile * nSeqTilesInWindow)
     
-    val paramsType: TupleType = TupleType(/* weights */windowType, /* bias */Float)
-    val weightsNoInTuple = 0
-    val biasNoInTuple = 1
-    val paramsGroupType: AT = AT(paramsType, nKernelsPerWrg)
-    val allParamsType: AT = AT(paramsGroupType, nKernels / nKernelsPerWrg)
+    val reducedWindowType: Float.type = Float
+    val reducedOutChannelType: AT = AT(reducedWindowType, nWindowsInTile)
+    val reducedXTileType: AT = AT(reducedOutChannelType, nKernels)
+    val reducedXType: AT = AT(reducedXTileType, nTilesTotal)
+
+    val resultType: AT = AT(AT(AT(AT(AT(Float,
+      nWindowsInRow), nWindowsInCol),
+      nKernels),
+      inputShape.nInputs), inputShape.nBatches)
+
+    val kernelWWindowType: AT = /* weights */windowType
+    val kernelWGroupType: AT = AT(kernelWWindowType, nKernelsPerWrg)
+    val kernelWType: AT = AT(kernelWGroupType, nKernelGroups)
+
+    val kernelBPerWindowType: Float.type = /* bias */Float
+    val kernelBGroupType: AT = AT(kernelBPerWindowType, nKernelsPerWrg)
+    val kernelBType: AT = AT(kernelBGroupType, nKernelGroups)
 
     /*********** F-prop lambda: convolution with partial reduction ***********/
-    def Layer_partial: FunDecl = {
-      λ(AT(AT(AT(AT(Float, sliding.size), sliding.size), inputShape.nChannels), nKernels), AT(Float, nKernels), xType,
-        (K, B, X) => {
+    def LayerPartial: FunDecl = {
+      λ(AT(AT(AT(AT(Float, inputShape.nChannels), sliding.size), sliding.size), nKernels), 
+        originalXType,
+        (K, X) => {
           /*** Layer BEGIN ***/
 
-          MapWrg(2)(λ(xType, (XUnwrapped) => {
+          MapWrg(2)(λ(originalXType, (XUnwrapped) => {
+            
             AssertType(partReducedXType, "Part reduced X type") o
-              MapWrg(1)(λ(xTileType, (tile) => {
+              MapWrg(1)(λ(xTileType, (XTile) => {
                 /*** Tile BEGIN ***/
 
-                AssertType(partReducedKernelsType, "Part reduced kernels type") o
-                  MapWrg(0)(λ(paramsGroupType, (paramsGroup) => {
-                    /***** Params group BEGIN *****/
+                AssertType(partReducedXTileType, "Part reduced X XTile type") o
+                  MapWrg(0)(λ(kernelWGroupType, (kernelWGroup) => {
+                    /***** Output channel group BEGIN *****/
 
-                    AssertType(partReducedKernelGroupType, "Part reduced kernel group type") o
-                      MapSeq(λ(paramsType, (params) => {
-                        /***** Params BEGIN *****/
+                    AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") o
+                      MapLcl(2)(λ(kernelWWindowType, (kernelWWindow) => {
+                        /***** Output channel BEGIN *****/
 
-                        AssertType(partReducedXTileType, "Part reduced X tile type") o
-                          MapSeq(λ(TupleType(windowType, partReducedWindowType), (windowAndAcc) =>
-
+                        AssertType(partReducedOutChannelType, "Part reduced X output channel type") o
+                          MapLcl(1)(λ(windowType, (window) =>
                             /******* Sliding window BEGIN *******/
 
                             AssertType(partReducedWindowType, "Part reduced window type") o
                               /* Remove the one-sized dimension introduced by Reduce */
                               Join() o
-                              MapSeq(λ(TupleType(windowSeqTileType, windowSeqTileType, Float),
-                                (tileAndWeightsAndAcc) => {
+                              MapLcl(0)(λ(TupleType(windowSeqTileType, windowSeqTileType),
+                                (SeqTileAndWeightsAndAcc) => {
                                   toGlobal(MapSeq(id)) o
-                                    ReduceSeq(λ((acc, y) =>
+                                    ReduceChoice(λ((acc, y) =>
 
                                       /********* Reducing window tile BEGIN *********/
 
-                                      multAndSumUp.apply(acc, /* X */ Get(y, 0), /* weights */ Get(y, 1))),
-                                      toPrivate(id) $ /* accumulator */ Get(tileAndWeightsAndAcc, 2)) $
-                                    Zip(Get(tileAndWeightsAndAcc, 0), Get(tileAndWeightsAndAcc, 1))
+                                      multAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))),
+//                                      add(acc, dot(/* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1)))),
+                                    toPrivate(id) $ Value("0.0f", Float)) $
+                                    Zip(Get(SeqTileAndWeightsAndAcc, 0), Get(SeqTileAndWeightsAndAcc, 1))
 
                                   /********* Reducing window tile END *********/
-                                })) $ Zip(Get(windowAndAcc, 0), Get(params, weightsNoInTuple), Get(windowAndAcc, 1))
+                              })) $ Zip(window, /*Get(kernelWWindow, weightsNoInTuple)*/kernelWWindow)
 
                             /******* Sliding window END *******/
-                          )) $ Zip(AssertType(xTileType) $ tile, Value("0.0f", ArrayTypeWSWC(ArrayTypeWSWC(Float, 2304), 1)))//partReducedXTileType))
+                          )) o AssertType(xTileType) $ XTile
 
-                        /***** Params END *****/
-                      })) o AssertType(paramsGroupType, "Parameter group type") $ paramsGroup
+                        /***** Output channel END *****/
+                      })) o AssertType(kernelWGroupType, "Kernel weights group type") $ kernelWGroup
 
-                    /***** Params group END *****/
-                  })) o AssertType(allParamsType, "All parameters type after split") o
-                  Split(nKernelsPerWrg) $ Zip(Map(TileAndCoalesce() o Join() o Map(Join())) $ K, B)
+                    /***** Output channel group END *****/
+                  })) o AssertType(kernelWType, "All kernel weights type after split") o
+                  Split(nKernelsPerWrg) o Map(TileAndCoalesce() o Join() o Map(Join())) $ K 
 
                 /*** Tile END ***/
               })) o SlideX() $ XUnwrapped
 
             // Wrap X into an array of 1
-            // TODO: Split(xType.size)
+            // TODO: Split(originalXType.size)
           })) o Split(inputShape.nBatches) $ X
 
           /*** Layer END ***/
@@ -154,9 +171,8 @@ object Conv3 extends ConvCompanion {
     
     /* Produces a tiled slided tiled version of X */
     def SlideX(): FunDecl = {
-      λ(xType, (X) =>
-        AssertType(transformedXType, "SlideX output") o
-
+      λ(originalXType, (X) =>
+        AssertType(xType, "SlideX output") o
           // Tile and coalesce
           Map(Map(TileAndCoalesce())) o
           // Join tiles and channels
@@ -169,21 +185,117 @@ object Conv3 extends ConvCompanion {
           Join() o
           Map(Map(TiledSlidedND(2)(sliding.size, sliding.stride, tiling.stride))) o
 
-          AssertType(xType, "SlideX input") $ X)
+          AssertType(originalXType, "SlideX input") $ X)
     }
 
     def Coalesce(): FunDecl =
-      λ(nonSeqTiledWindowType, (windowNontiled) =>
+      λ(flatWindowType, (window) =>
         Gather(ReorderWithStride(nSeqTilesInWindow))
-          $ windowNontiled)
+          $ window)
+
+    def Vectorise(): FunDecl =
+      λ(originalFlatWindowType, (window) =>
+        asVector(vectorLen) $ window)
     
     def TileAndCoalesce(): FunDecl =
-      λ(nonSeqTiledWindowType, (windowNontiled) =>
-        Split(seqElsPerThread) o Coalesce() $ windowNontiled)
+      λ(originalFlatWindowType, (window) =>
+        // Vectorise
+        {if (vectorLen != 1) Map(Vectorise()) else Continue()} o 
+          // Tile
+          Split(seqElsPerThread) o
+          // Coalesce
+          {if (coalesce) Coalesce() else Continue()}
+          
+          $ window)
 
-    def Layer = Layer_partial
+    
+    /*********** F-prop lambda: final part of the reduction ***********/
+    def LayerFinal: FunDecl = {
+      λ(AT(Float, nKernels), flatPartReducedXType,
+        (B, X) => {
+          /*** Layer BEGIN ***/
+ 
+            formatResults() o
+            MapWrg(1)(λ(partReducedXTileType, (XTile) => {
+              /*** Tile BEGIN ***/
 
-    Layer
+              AssertType(reducedXTileType, "Reduced kernels type") o Join() o 
+                MapWrg(0)(λ(TupleType(partReducedOutChannelGroupType, kernelBGroupType), (outputChannelGroup) => {
+                  /***** Output channel group BEGIN *****/
+
+                    MapLcl(1)(λ(TupleType(partReducedOutChannelType, kernelBPerWindowType), (outputChannel) => {
+                      /***** Output channel BEGIN *****/
+
+                      AssertType(reducedOutChannelType, "Reduced X output channel type") o
+                        /* Remove the one-sized dimension introduced by Reduce */
+                        Join() o
+                        MapLcl(0)(λ(partReducedWindowType, (window) =>
+                          /******* Sliding window BEGIN *******/
+
+                          /* Map before AssertType is needed because of the one-sized dimension introduced 
+                             by Reduce */
+                          Map(AssertType(reducedWindowType, "Reduced window type")) o
+                            MapSeq(toGlobal(id)) o
+                            ReduceChoice(add, toPrivate(id) o
+                              AssertType(kernelBPerWindowType, "Kernel bias per window type") $
+                              Get(outputChannel, 1)
+                            ) o AssertType(partReducedWindowType, "Part reduced X window type") $ window
+
+                          /******* Sliding window END *******/
+                        )) o AssertType(partReducedOutChannelType) $ Get(outputChannel, 0)
+
+                      /***** Output channel END *****/
+                    })) $ Zip(
+                    AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") $
+                      Get(outputChannelGroup, 0),
+                    AssertType(kernelBGroupType, "Bias group type") $ Get(outputChannelGroup, 1))
+
+                  /***** Output channel group END *****/
+                })) $ Zip(
+                AssertType(partReducedXTileType, "Part reduced X tile") $ XTile,
+                AssertType(kernelBType, "All kernel biases type after split") o Split(nKernelsPerWrg) $ B)
+
+              /*** Tile END ***/
+            })) o structurizeX() $ X
+
+          /*** Layer END ***/
+        })
+    }
+
+    /** structurizeX() converts the flat output of the previous kernel into 5D array **/
+    def structurizeX(): FunDecl =
+      λ(flatPartReducedXType, (X) =>
+        AssertType(partReducedXType, "Partially reduced X type") o
+          Split(nKernelGroups) o Split(nKernelsPerWrg) o Split(nWindowsInTile) o 
+          Split(nSeqTilesInWindow) $ X)
+    
+    def formatResults(): FunDecl =
+      λ(reducedXType, (reducedX) =>
+        AssertType(resultType, "Result type") o
+          // Flatten tiles
+          Map(/* Batch */
+            Map(/* Image */
+              Map(/* Output channel */
+                Join() o
+                  Map(/* Tile row */
+                    Map(/* Tile row */ Join()) o
+                      TransposeW())))) o
+          // Move nChannels up
+          Map(/* Batch */
+            Map(/* Image */
+              /* (tile rows, nChannels, tiles) -> (nChannels, tile rows, tiles) */
+              TransposeW() o
+                Map(/* Tile row */
+                  /* (tiles, nChannels) -> (nChannels, tiles) */
+                  TransposeW()))) o          
+          /* Batches */ Split(inputShape.nInputs) o
+          /* Inputs */ Split(nTilesInCol) o
+          /* Tile rows */ Split(nTilesInRow) o
+          /* Sliding window rows in tiles */
+          Map(Map(Split(nWindowsInTileRow))) o
+          AssertType(reducedXType, "Reduced X type") $ reducedX)
+
+    Array(LayerPartial, LayerFinal)
   }
 
 
@@ -193,12 +305,15 @@ object Conv3 extends ConvCompanion {
       * initializes variables, computes workgroup sizes.
       */
 
-    val exceptionMsgPrefix: String = "In the Conv layer with the following configuration:\n" +
+    val exceptionMsgPrefix: String = "[" + iP.testConfigFilename + "] " +
+      "In the Conv layer with the following configuration:\n" +
       conv.configToString(iP.inputShape.sizePadded, -1, iP.optParams.elsPerThread,
-        iP.dim.nKernels, iP.optParams.kernelsPerGroup, iP.dim.kernelSize, iP.dim.kernelStride, iP.optParams.inputTileSize)
+        iP.dim.nKernels, iP.optParams.kernelsPerGroup,  iP.optParams.vectorLen, 
+        iP.optParams.coalesce, iP.optParams.unrollReduce,
+        iP.dim.kernelSize, iP.dim.kernelStride, iP.optParams.inputTileSize)
 
     /* Tiles */
-    val kernelSliding: SlidingWindowConfig = SlidingWindowConfig(
+    val slider: SlidingWindowConfig = SlidingWindowConfig(
       size = iP.dim.kernelSize,
       stride = iP.dim.kernelStride,
       n = {
@@ -211,19 +326,20 @@ object Conv3 extends ConvCompanion {
       },
       nChannels = iP.dim.nKernels
     )
-    val inputTiling: SlidingWindowConfig = {
-      val stride: Int = iP.optParams.inputTileSize - (kernelSliding.size - kernelSliding.stride)
-      val trueN: Float = (iP.inputShape.size - iP.optParams.inputTileSize).toFloat / stride
-      if (!iP.padData && trueN % 1 != 0)
-        throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
-          f"image size (${iP.inputShape.size}%d) is not divisible by the chosen " +
-          f"input tile size (${iP.optParams.inputTileSize}%d) and corresponding tile stride ($stride%d)")
+    val tiler: SlidingWindowConfig = {
+      val stride: Int = iP.optParams.inputTileSize - (slider.size - slider.stride)
         
       SlidingWindowConfig(
         size = iP.optParams.inputTileSize,
         stride = stride,
-        // It's the same, but makes more sense
-        n = Math.ceil(trueN).toInt)
+        n = {
+          val n: Float =
+            (iP.inputShape.size - (iP.optParams.inputTileSize - stride)).toFloat / stride
+          if (n % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+            f"image size (${iP.inputShape.size}%d) is not divisible by the chosen " +
+            f"input tile size (${iP.optParams.inputTileSize}%d) and corresponding tile stride ($stride%d)")
+          n.toInt
+        })
     }
 
     /* Check parameters */
@@ -232,25 +348,37 @@ object Conv3 extends ConvCompanion {
         f"the number of kernels (${iP.dim.nKernels}%d) must be divisible by " +
         f"kernelsPerGroup (${iP.optParams.kernelsPerGroup}%d)")
 
-    if (kernelSliding.size % iP.optParams.elsPerThread != 0)
+    val window_size = slider.size * slider.size * iP.inputShape.nChannels
+    if (window_size % iP.optParams.elsPerThread != 0)
       throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
-        f"kernel size in all dimensions (=${kernelSliding.size}%d) must be divisible by elsPerThread " +
-        f"(${iP.optParams.elsPerThread}%d)")
+        f"window size (kernel size * kernel size * nChannels =${window_size}%d) " +
+        f"must be divisible by elsPerThread (${iP.optParams.elsPerThread}%d)")
+    
+    /* Memory requirements */
+    val nTilesTotal = iP.inputShape.nBatches.toLong * iP.inputShape.nInputs * tiler.n * tiler.n
+    val nWindowsInTile = slider.n.toLong * slider.n
+    val nSeqTilesInWindow = slider.size.toLong * slider.size * iP.inputShape.nChannels / iP.optParams.elsPerThread
+    val partReducedInputsSize = nTilesTotal.toLong * slider.nChannels * nWindowsInTile * nSeqTilesInWindow * 4
+    
+    val memoryLimit = 1500000000
+    if (partReducedInputsSize > memoryLimit)
+      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+        f"partReducedInputsSize (=$partReducedInputsSize%d) must be smaller than the memory limit ($memoryLimit%d)")
 
     /* Padding */
     // Calculate how much padding is required
     // It's the same, but makes more sense
     iP.inputShape.sizePadded = 
-      if (iP.padData) inputTiling.size + inputTiling.stride * inputTiling.n else iP.inputShape.size
+      if (iP.padData) tiler.size + tiler.stride * tiler.n else iP.inputShape.size
     iP.inputShape.sizePadded = iP.inputShape.sizePadded
 
     val outputShape: Shape = { Shape(
       nBatches = iP.inputShape.nBatches,
       nInputs = iP.inputShape.nInputs,
-      size = ((iP.inputShape.size - (kernelSliding.size - kernelSliding.stride)).toFloat / kernelSliding.stride).toInt,
+      size = ((iP.inputShape.size - (slider.size - slider.stride)).toFloat / slider.stride).toInt,
       sizePadded = {
-        val sizePadded: Float = (iP.inputShape.sizePadded - (kernelSliding.size - kernelSliding.stride)).toFloat /
-          kernelSliding.stride
+        val sizePadded: Float = (iP.inputShape.sizePadded - (slider.size - slider.stride)).toFloat /
+          slider.stride
         if (sizePadded % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
           "padded inputs are not divisible by the chosen kernelShape and kernelStride")
         sizePadded.toInt
@@ -259,14 +387,23 @@ object Conv3 extends ConvCompanion {
     }
 
     /* Parallelization parameters */
-    val localSize: Array[Int] = Array.fill[Int](3)(0)
+    val localSize: Array[Int] = Array.fill[Int](5)(0)
 
-    localSize(2) = (iP.optParams.kernelsPerGroup *
-      Math.ceil(kernelSliding.size.toFloat / iP.optParams.elsPerThread)).toInt
-    localSize(1) = kernelSliding.size
-    // TODO: make sure it is smaller than 64 (clinfo)
-    localSize(0) = scala.math.pow(
-      (inputTiling.size - (kernelSliding.size - kernelSliding.stride)) / kernelSliding.stride, 2).toInt
+//    localSize(2) = (iP.optParams.kernelsPerGroup *
+//      Math.ceil(slider.size.toFloat / iP.optParams.elsPerThread)).toInt
+//    localSize(1) = slider.size
+//    localSize(0) = scala.math.pow(
+//      (tiler.size - (slider.size - slider.stride)) / slider.stride, 2).toInt
+    
+    // First kernel
+    localSize(2) = iP.optParams.kernelsPerGroup
+    localSize(1) = /* nWindowsInTile */ slider.n * slider.n
+    localSize(0) = /* nSeqTilesInWindow */ iP.inputShape.nChannels * slider.size * slider.size / 
+      iP.optParams.elsPerThread
+    
+    // Second kernel
+    localSize(1 + 3) = iP.optParams.kernelsPerGroup
+    localSize(0 + 3) = /* nWindowsInTile */ slider.n * slider.n
 
 //    val maxWorkGroupSize = nn.maxWorkGroupSize
     val maxWorkGroupSize = 256
@@ -279,19 +416,31 @@ object Conv3 extends ConvCompanion {
           f"Decrease nKernelsPerGroup or inputTileSize or increase elsPerThread (${iP.optParams.elsPerThread}%d)")
     }
 
-    val globalSize: Array[Int] = Array.fill[Int](3)(0)
-    globalSize(2) = localSize(2) * iP.inputShape.nInputs * inputTiling.n * inputTiling.n// * iP.inputShape.nChannels
-    globalSize(1) = localSize(1) * Math.ceil(iP.dim.nKernels.toFloat / iP.optParams.kernelsPerGroup).toInt
-    globalSize(0) = localSize(0) * iP.inputShape.nBatches
+    val globalSize: Array[Int] = Array.fill[Int](5)(0)
+//    globalSize(2) = localSize(2) * iP.inputShape.nInputs * tiler.n * tiler.n// * iP.inputShape.nChannels
+//    globalSize(1) = localSize(1) * Math.ceil(iP.dim.nKernels.toFloat / iP.optParams.kernelsPerGroup).toInt
+//    globalSize(0) = localSize(0) * iP.inputShape.nBatches
+    // First kernel
+    globalSize(2) = 1 * localSize(2)
+    globalSize(1) = /* nTilesTotal */ tiler.n * tiler.n * iP.inputShape.nInputs * iP.inputShape.nBatches * 
+      localSize(1)
+    globalSize(0) = /* nKernelGroups */ (iP.dim.nKernels / iP.optParams.kernelsPerGroup) * localSize(0)
+    
+    // Second kernel
+    globalSize(1 + 3) = /* nTilesTotal */ tiler.n * tiler.n * iP.inputShape.nInputs * 
+      iP.inputShape.nBatches * localSize(1 + 3)
+    globalSize(0 + 3) = /* nKernelGroups */ (iP.dim.nKernels / iP.optParams.kernelsPerGroup) * localSize(0 + 3)
 
     /* Now that all parameters are calculated and verified, build the layer */
 
     new Conv3(
-      iP.liftFPropFactory(iP.activationFun, iP.inputShape, inputTiling,
-        iP.dim.nKernels, kernelSliding, iP.optParams.kernelsPerGroup, iP.optParams.elsPerThread),
+      iP.liftFPropFactory(iP.activationFun, iP.inputShape, tiler,
+        iP.dim.nKernels, slider, iP.optParams.kernelsPerGroup, iP.optParams.elsPerThread, iP.optParams.vectorLen,
+        iP.optParams.coalesce, iP.optParams.unrollReduce),
       iP.inputShape, outputShape,
-      inputTiling, kernelSliding,
+      tiler, slider,
       iP.optParams.elsPerThread, iP.optParams.kernelsPerGroup,
+      iP.optParams.vectorLen, iP.optParams.coalesce, iP.optParams.unrollReduce,
       localSize, globalSize)
   }
 
@@ -341,17 +490,23 @@ object Conv3 extends ConvCompanion {
   * @param localSize
   * @param globalSize
   */
-case class Conv3(override val liftFProp: FunDecl,
+case class Conv3(override val liftFProp: Array[FunDecl],
                  override val inputShape: Shape, override val outputShape: Shape,
                  override val inputTiling: SlidingWindowConfig, override val kernelSliding: SlidingWindowConfig,
                  override val elsPerThread: Int, override val kernelsPerGroup: Int,
+                 override val vectorLen: Int, override val coalesce: Boolean, override val unrollReduce: Boolean,
                  override val localSize: Array[Int], override val globalSize: Array[Int])
   extends Conv(liftFProp, inputShape, outputShape, inputTiling, kernelSliding,
-    elsPerThread, kernelsPerGroup, localSize, globalSize) {
+    elsPerThread, kernelsPerGroup, vectorLen, coalesce, unrollReduce, localSize, globalSize) {
   val configToString: String =
     nn.conv.configToString(inputShape.sizePadded, outputShape.sizePadded, elsPerThread, outputShape.nChannels,
-      kernelsPerGroup, kernelSliding.size, kernelSliding.stride, inputTiling.size)
+      kernelsPerGroup, vectorLen, coalesce, unrollReduce, kernelSliding.size, kernelSliding.stride, inputTiling.size)
   var runtime: Double = 0
+  val intermediateDataShape = (
+    inputShape.nBatches * inputShape.nInputs * inputTiling.n * inputTiling.n,
+    outputShape.nChannels / kernelsPerGroup,
+    kernelsPerGroup, kernelSliding.n * kernelSliding.n,
+    inputShape.nChannels * kernelSliding.size * kernelSliding.size / elsPerThread)
 
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {
     datasets.asInstanceOf[ConvDatasets].outputs.nonPadded =

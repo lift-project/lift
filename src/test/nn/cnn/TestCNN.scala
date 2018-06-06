@@ -1,7 +1,6 @@
 package nn.cnn
 
 import java.io._
-import java.nio.charset.StandardCharsets
 import java.nio.file.Files.{createDirectory, exists}
 import java.nio.file.Paths.get
 import java.util.{Calendar, Date}
@@ -79,11 +78,13 @@ class TestCNN {
 
 
   def Test(e: cnn.ExperimentsSet,
+           testConfigFilename: String = "",
            continueFrom: Experiment = null,
            abortAfter: Option[Int] = None): Unit = {
     // If rerunsAllowed == False, the experiment will not be rerun if result files from previous runs
     // are found. Otherwise, new results will be added with a datetime timestamp
     val rerunsAllowed: Boolean = true
+    val compileOnly: Boolean = System.getenv("LIFT_NN_MICROBENCHMARK_COMPILE_ONLY") != null
 
     var aCNN: CNN = null
     var data: NetDatasetsCollection = null
@@ -154,21 +155,25 @@ class TestCNN {
       if Experiment.datasetsExist(pathToParams)
 
       _inputTileSizeL0 <- e.inputTileSizeRange.head(inputConfig, convDimensions.head)
-//      _inputTileSizeL1 <- e.inputTileSizeRange(1)(inputConfig, convDimensions(1))
+      //      _inputTileSizeL1 <- e.inputTileSizeRange(1)(inputConfig, convDimensions(1))
       _elsPerThreadL0 <- e.elsPerThreadRange.head(inputConfig, convDimensions.head)
-//      _elsPerThreadL1 <- e.elsPerThreadRange(1)(inputConfig, convDimensions(1))
+      //      _elsPerThreadL1 <- e.elsPerThreadRange(1)(inputConfig, convDimensions(1))
       _kernelsPerGroupL0 <- e.kernelsPerGroupRange.head(inputConfig, convDimensions.head)
-//      _kernelsPerGroupL1 <- e.kernelsPerGroupRange(1)(inputConfig, convDimensions(1))
-       // Wrap conv parameters into an object
-       convConfig = List(
-         conv.Experiment.Config(
-           convDimensions.head, conv.Experiment.Config.OptimisationalParams(
-             inputTileSize = _inputTileSizeL0, elsPerThread = _elsPerThreadL0,
-             kernelsPerGroup = _kernelsPerGroupL0)))
-//         conv.Experiment.Config(
-//           convDimensions(1), conv.Experiment.Config.OptimisationalParams(
-//             inputTileSize = _inputTileSizeL1, elsPerThread = _elsPerThreadL1,
-//             kernelsPerGroup = _kernelsPerGroupL1)))
+      //      _kernelsPerGroupL1 <- e.kernelsPerGroupRange(1)(inputConfig, convDimensions(1))
+      _vectorLenL0 <- e.vectorLenRange.head(inputConfig, convDimensions.head)
+      coalesce <- List(false, true)
+      unrollReduce <- List(true) // TODO: explore again without unrolling
+      // Wrap conv parameters into an object
+      convConfig = List(
+        conv.Experiment.Config(
+          convDimensions.head, conv.Experiment.Config.OptimisationalParams(
+            inputTileSize = _inputTileSizeL0, elsPerThread = _elsPerThreadL0,
+            kernelsPerGroup = _kernelsPerGroupL0, vectorLen = _vectorLenL0,
+            coalesce = coalesce, unrollReduce = unrollReduce)))
+      //         conv.Experiment.Config(
+      //           convDimensions(1), conv.Experiment.Config.OptimisationalParams(
+      //             inputTileSize = _inputTileSizeL1, elsPerThread = _elsPerThreadL1,
+      //             kernelsPerGroup = _kernelsPerGroupL1)))
 
       _multsPerThreadL0 <- e.multsPerThreadRange.head(inputConfig, fcDimensions.head)
 //      _multsPerThreadL1 <- e.multsPerThreadRange(1)(inputConfig, fcDimensions(1))
@@ -204,76 +209,18 @@ class TestCNN {
             pathToResults = pathToResults)
 
           //noinspection ConvertibleToMethodValue
-          initParams = Conv.InitParameters(0, Conv.Par(_, _, _, _, _, _, _), nn.Linear, //nn.ReLU,
+          initParams = Conv.InitParameters(0, Conv.Par(_, _, _, _, _, _, _, _, _, _), nn.Linear, //nn.ReLU,
             optParams = convConfig.head.optParams,
             inputShape = Shape(nBatches = inputConfig.nBatches, nInputs = inputConfig.nInputs,
               size = inputConfig.imageSize, nChannels = inputConfig.nChannels),
             dim = convConfig.head.dim,
-            padData = padData)
+            padData = padData, testConfigFilename)
           currentLayer = 0
           aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
           aCNN.convLayers(0) = aCNN.layers(currentLayer).asInstanceOf[Conv]
 
-//          currentLayer = currentLayer + 1
-//          //noinspection ConvertibleToMethodValue
-//          initParams = Conv.InitParameters(1, Conv.Par(_, _, _, _, _, _, _), nn.ReLU,
-//            optParams = convConfig(1).optParams,
-//            inputShape = aCNN.convLayers(0).outputShape.copy(),
-//            dim = convConfig(1).dim, kernelStride)
-//          aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
-//          aCNN.convLayers(1) = aCNN.layers(currentLayer).asInstanceOf[Conv]
-
-
-          /* Pooling */
-//          val aPool: ScalaPool = ScalaPool()
-//          aPool.conv2SizeInOneDimension = inputConfig.imageSize - (convConfig(1).dim.kernelSize - kernelStride) * 2
-//          aPool.mlpInputlenL2NonVerified = convConfig(1).dim.nKernels * aPool.conv2SizeInOneDimension *
-//            aPool.conv2SizeInOneDimension
-//
-//          if (aPool.mlpInputlenL2NonVerified >= aPool.mlpInputLenLimit) {
-//            // Get minimum pool size
-//            aPool.poolSize = Math.ceil(aPool.mlpInputlenL2NonVerified.toFloat / aPool.mlpInputLenLimit).toInt
-//            // Find the pool size that is greater than the minimum pool size and that is a factor of inputlen
-//            while (aPool.conv2SizeInOneDimension % aPool.poolSize != 0)
-//              aPool.poolSize = aPool.poolSize + 1
-//            if (aPool.conv2SizeInOneDimension.toFloat % aPool.poolSize != 0)
-//              throw new java.lang.IllegalArgumentException()
-//            aPool.mlpInputlenL2 = (aPool.mlpInputlenL2NonVerified.toFloat / Math.pow(aPool.poolSize, 2)).toInt
-//            aPool.nChannels = convConfig(1).dim.nKernels
-//          }
-//          if (aPool.poolSize > 0) {
-//            currentLayer = currentLayer + 1
-//            aCNN.nPoolLayers = aCNN.nPoolLayers + 1
-//            aCNN.nLayers = aCNN.nLayers + 1
-//            aCNN.layers(currentLayer) = aPool
-//          }
-//          /* Pooling */
-//
-//          currentLayer = currentLayer + 1
-//          initParams = FC.InitParameters(2, FC.Par, nn.ReLU,
-//            inputShape = Shape(nBatches = 1, nInputs = inputConfig.nBatches * inputConfig.nInputs, size =
-//              {
-//                if (aCNN.nPoolLayers == 0)
-//                  aCNN.convLayers(1).outputShape.size * aCNN.convLayers(1).outputShape.size *
-//                    aCNN.convLayers(1).outputShape.nChannels
-//                else
-//                  aPool.mlpInputlenL2
-//              }),
-//            neuronShape = Shape(size = fcConfig.head.dim.nNeurons),
-//            optParams = fcConfig.head.optParams)
-//          aCNN.layers(currentLayer) = FC(initParams.asInstanceOf[FC.InitParameters])
-//          aCNN.fcLayers(0) = aCNN.layers(currentLayer).asInstanceOf[FC]
-//
-//          currentLayer = currentLayer + 1
-//          initParams = FC.InitParameters(3, FC.Par, nn.ReLU,
-//            inputShape = Shape(nBatches = 1, nInputs = inputConfig.nBatches * inputConfig.nInputs,
-//              size = fcConfig(1).dim.nNeurons),
-//            neuronShape = Shape(size = 10),
-//            optParams = fcConfig(1).optParams)
-//          aCNN.layers(currentLayer) = FC(initParams.asInstanceOf[FC.InitParameters])
-//          aCNN.fcLayers(1) = aCNN.layers(currentLayer).asInstanceOf[FC]
           /* ---------------------------- BUILD NETWORK (END) ---------------------------- */
-
+  
           /* ----------------------------- LOAD DATA (BEGIN) ----------------------------- */
           // Now that we know that layers can be built we the chosen parameters, load the data.
           // Load the data only if it wasn't loaded before for a similar experiment
@@ -290,7 +237,8 @@ class TestCNN {
                   outputShape = aCNN.convLayers(0).outputShape,
 //                  targetFilePrefix = "test_caffe_results_n" + inputConfig.nInputs,
                   paramFileInfix = "conv1",
-                  kernelSliding = aCNN.convLayers(0).kernelSliding)))
+                  kernelSliding = aCNN.convLayers(0).kernelSliding,
+                  generateDummies = compileOnly)))
 
 //                nn.conv.Experiment.loadDatasets(
 //                  paramsPath = pathToParams,
@@ -364,88 +312,140 @@ class TestCNN {
 
             /* Padding */
             layer match {
-              case cL: Conv => Conv.pad(layerData.asInstanceOf[ConvDatasets].inputs, cL.inputShape)
-              case fL: FC =>
+              case convLayer: Conv => Conv.pad(layerData.asInstanceOf[ConvDatasets].inputs, convLayer.inputShape)
+              case fcLayer: FC =>
                 val fcData: FCDatasets = layerData.asInstanceOf[FCDatasets]
-                FC.pad(fcData.inputs, fL.inputShape, fcData.weights, fcData.biases, fL.neuronShape)
+                FC.pad(fcData.inputs, fcLayer.inputShape, fcData.weights, fcData.biases, fcLayer.neuronShape)
             }
             
             /* Compile and execute */
-            val ((outputsFlat: Array[Float], runtime), openclKernel) =
-              Execute(
-                layer.localSize(0), layer.localSize(1), layer.localSize(2),
-                layer.globalSize(0), layer.globalSize(1), layer.globalSize(2), (true, true))[Array[Float]](
-                layer.liftFProp, /*returnKernel*/true,
-                layerData match {
-                  case cd: ConvDatasets => cd.weights
-                  case fd: FCDatasets => fd.weights.padded
-                },
-                layerData match {
-                  case cd: ConvDatasets => cd.biases
-                  case fd: FCDatasets => fd.biases.padded
-                },
-                layerData match {
-                  case cd: ConvDatasets => {
-                    if (changeDataLayout)
-                      // (b, i, c, h, w) -> (b, i, h, w, c)
-                      cd.inputs.padded.map(batch => batch.map(input => input.transpose.map(
-                        input2 => input2.transpose)))
-                  }
-                  case fd: FCDatasets => fd.inputs.padded
-                })
+            var outputsFlat: Array[Float] = null
+            var outputsFlat1: Array[Float] = null
+            var runtime: Double = 0.0f
+            var runtime1: Double = 0.0f
+            
+            layer match {
+              case convLayer: conv.versions.Conv3 =>
+                /* Two-kernel convolution */
+                                
+                // Kernel 1
+                val ((_outputsFlat1: Array[Float], _runtime1), openclKernel1) =
+                  Execute(
+                    layer.localSize(0), layer.localSize(1), layer.localSize(2),
+//                    2, 1, 128, 
+                    layer.globalSize(0), layer.globalSize(1), layer.globalSize(2), 
+//                    8, 11760, 128,
+                    (true, true))[Array[Float]](
+                    layer.liftFProp(0), compileOnly,
+//                    Array.fill(512)(Array.fill(3)(Array.fill(3)(Array.fill[Float](256)(0.0f)))),
+                    layerData match {
+                      case cd: ConvDatasets => {
+                        if (changeDataLayout)
+                        // (k, c, h, w) -> (k, h, w, c)
+                          cd.weights.map(
+                            kernel => kernel.transpose.map(
+                              row => row.transpose))
+                        else cd.weights
+
+                      }
+                      case fd: FCDatasets => fd.weights.padded
+                    },
+//                      Array.fill(1)(Array.fill(15)(Array.fill(30)(Array.fill(30)(Array.fill[Float](256)(0.0f))))))
+                    layerData match {
+                      case cd: ConvDatasets => {
+                        if (changeDataLayout)
+                        // (b, i, c, h, w) -> (b, i, h, w, c)
+                          cd.inputs.padded.map(
+                            batch => batch.map(
+                              input => input.transpose.map(
+                                row => row.transpose)))
+                        else cd.inputs.padded
+                      }
+                      case fd: FCDatasets => fd.inputs.padded
+                    })
+                
+                if (compileOnly) {
+                  outputsFlat1 = new Array[Float](
+                    /* nTilesTotal */ convLayer.inputTiling.n * convLayer.inputTiling.n *
+                      convLayer.inputShape.nInputs * convLayer.inputShape.nBatches *
+                      /* nKernels */convLayer.kernelSliding.nChannels *
+                      /* nWindowsInTile */convLayer.kernelSliding.n * convLayer.kernelSliding.n *
+                      /* nSeqTilesInWindow */convLayer.inputShape.nChannels * convLayer.kernelSliding.size *
+                      convLayer.kernelSliding.size / convLayer.elsPerThread)
+
+                  runtime1 = 0.0d
+                } else {
+                  outputsFlat1 = _outputsFlat1
+                  runtime1 = _runtime1
+                }
+                
+                // Kernel 2
+                val ((_outputsFlat2: Array[Float], runtime2), openclKernel2) =
+                  Execute(
+                    layer.localSize(0 + 3), layer.localSize(1 + 3),
+                    layer.globalSize(0 + 3), layer.globalSize(1 + 3), (true, true))[Array[Float]](
+                    layer.liftFProp(1), compileOnly,
+                    layerData match {
+                      case cd: ConvDatasets => cd.biases
+                      case fd: FCDatasets => fd.biases.padded
+                    },
+                    outputsFlat1)//nn.group(outputsFlat1, convLayer.intermediateDataShape))
+
+                outputsFlat = _outputsFlat2
+                runtime = runtime1 + runtime2
+
+                // TODO: print datetime into the kernel
+                saveKernelToFile(experimentNo, testConfigFilename, layer, openclKernel1, twoKernels = true,
+                  localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
+                  globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),                  
+                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" + 
+                    e.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_first.cl")
+                saveKernelToFile(experimentNo, testConfigFilename, layer, openclKernel2, twoKernels = true,
+                  localSize = Array(layer.localSize(3), layer.localSize(4), 1),
+                  globalSize = Array(layer.globalSize(3), layer.globalSize(4), 1),
+                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
+                    e.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_final.cl")
+                
+              case _ =>
+                /* One-kernel layer */
+                val ((outputsFlat: Array[Float], runtime), openclKernel) =
+//                val outputsFlat = null
+//                val runtime = 0.0d
+//                val openclKernel =
+                  Execute(
+                    layer.localSize(0), layer.localSize(1), layer.localSize(2),
+                    layer.globalSize(0), layer.globalSize(1), layer.globalSize(2), (true, true))[Array[Float]](
+                    layer.liftFProp(0), compileOnly,
+                    layerData match {
+                      case cd: ConvDatasets => cd.weights
+                      case fd: FCDatasets => fd.weights.padded
+                    },
+                    layerData match {
+                      case cd: ConvDatasets => cd.biases
+                      case fd: FCDatasets => fd.biases.padded
+                    },
+                    layerData match {
+                      case cd: ConvDatasets => {
+                        if (changeDataLayout)
+                        // (b, i, c, h, w) -> (b, i, h, w, c)
+                          cd.inputs.padded.map(batch => batch.map(input => input.transpose.map(
+                            input2 => input2.transpose)))
+                      }
+                      case fd: FCDatasets => fd.inputs.padded
+                    })
+                saveKernelToFile(experimentNo, testConfigFilename, layer, openclKernel, twoKernels = false,
+                  localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
+                  globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),
+                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
+                    e.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + ".cl")
+            }
+              
             layer.runtime = runtime
             logger.info(f"Layer $layerNo%d runtime: $runtime%1.5f ms")
 
-            /* Save the OpenCL code into text file */
-            val kernelFileName = "/home/s1569687/caffe_clblas/vcs_caffes/" +
-              "caffe-android-lift-clblas/microbenchmark_kernels/lift_generated_kernel" +
-              experimentNo.toString + ".cl"
-            val kernelFile= new File(kernelFileName)
-            // UTF8 to solve the OpenCL compilation error "source file is not valid UTF-8"
-            val bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(kernelFile, true), 
-              StandardCharsets.UTF_8))
-            // Insert workgroup dimensions and optimisational parameters
-            bw.write("//L0=" + layer.localSize(0).toString + "\n")
-            bw.write("//L1=" + layer.localSize(1).toString + "\n")
-            bw.write("//L2=" + layer.localSize(2).toString + "\n")
-            bw.write("//G0=" + layer.globalSize(0).toString + "\n")
-            bw.write("//G1=" + layer.globalSize(1).toString + "\n")
-            bw.write("//G2=" + layer.globalSize(2).toString + "\n")
-            layer match {
-              case cL: Conv => {
-                bw.write("//input_tile_size=" + cL.inputTiling.size + "\n")
-                bw.write("//kernels_per_group=" + cL.kernelsPerGroup + "\n")
-                bw.write("//els_per_thread=" + cL.elsPerThread + "\n")
-              }
-            }
-            // Insert offset handling
-            val openclKernelWithOffsets = openclKernel.replaceFirst(
-              raw"void KERNEL\(const global float\* restrict v__(\d+), " +
-                raw"const global float\* restrict v__(\d+), " +
-                raw"const global float\* restrict v__(\d+), " +
-                raw"global float\* v__(\d+)\)\{ \n" +
-                raw"\#ifndef WORKGROUP_GUARD\n" +
-                raw"\#define WORKGROUP_GUARD\n" +
-                raw"\#endif\n" +
-                raw"WORKGROUP_GUARD\n" +
-                raw"\{", 
-              "void KERNEL(const global float* restrict v__$1, const global float* restrict v__$2, const global float* " +
-                "restrict v__$3, global float* v__$4, int const offsetX, int const offsetOut){\n" +
-                "#ifndef WORKGROUP_GUARD\n" +
-                "#define WORKGROUP_GUARD\n" +
-                "#endif\n" +
-                "WORKGROUP_GUARD\n" +
-                "{\n" +
-                "  /* Apply offsets */\n" +
-                "  v__$3 += offsetX;\n" +
-                "  v__$4 += offsetOut;")
-            
-            bw.write(openclKernelWithOffsets)
-            bw.close()
-            logger.info(f"Saved the generated OpenCL kernel into $kernelFileName%s")
-
             /* Group and unpad */
-            layer.groupAndUnpad(outputsFlat, layerData)
+            if (!compileOnly)
+              layer.groupAndUnpad(outputsFlat, layerData)
           }
 
           /* Pass outputs to the next layer*/
@@ -486,51 +486,54 @@ class TestCNN {
         }
         logger.info("")
 
-        /* Check and save results */
-        var testFailed: Boolean = false
-        var testVerified: Boolean = true
+        if (!compileOnly) {
+          /* Check and save results */
+          var testFailed: Boolean = false
+          var testVerified: Boolean = true
 
 
-//        val a = data.layers(0).asInstanceOf[ConvDatasets].outputs.nonPadded
-//        val b = data.layers(0).asInstanceOf[ConvDatasets].targets
+          //        val a = data.layers(0).asInstanceOf[ConvDatasets].outputs.nonPadded
+          //        val b = data.layers(0).asInstanceOf[ConvDatasets].targets
           verifyOutputs(
-//          netOutputs = data.layers.last.asInstanceOf[FCDatasets].outputs.nonPadded,
-//          targetOutputs = data.layers.last.asInstanceOf[FCDatasets].targets,
-          netOutputs = data.layers(0).asInstanceOf[ConvDatasets].outputs.nonPadded,
-          targetOutputs = data.layers(0).asInstanceOf[ConvDatasets].targets,
-          precision) match {
-          case Some((ix, unmatchedTarget, wrongOutput)) =>
-            logger.info(ix.mkString(", ") + ": " + unmatchedTarget + " != " + wrongOutput)
-            testFailed = true
-          case None =>
+            //          netOutputs = data.layers.last.asInstanceOf[FCDatasets].outputs.nonPadded,
+            //          targetOutputs = data.layers.last.asInstanceOf[FCDatasets].targets,
+            netOutputs = data.layers(0).asInstanceOf[ConvDatasets].outputs.nonPadded,
+            targetOutputs = data.layers(0).asInstanceOf[ConvDatasets].targets,
+            precision) match {
+            case Some((ix, unmatchedTarget, wrongOutput)) =>
+              logger.info(ix.mkString(", ") + ": " + unmatchedTarget + " != " + wrongOutput)
+              testFailed = true
+            case None =>
             // Verification successful
-        }
+          }
 
-        if (!testFailed)
-          logger.info(f"SUCCESS. Processed ${aCNN.inputShape.nBatches * aCNN.inputShape.nInputs}%d inputs, " +
-            f"the results were equal to targets (precision=$precision%1.4f).")
-        else
-          if (!testVerified)
+          if (!testFailed)
+            logger.info(f"SUCCESS. Processed ${aCNN.inputShape.nBatches * aCNN.inputShape.nInputs}%d inputs, " +
+              f"the results were equal to targets (precision=$precision%1.4f).")
+          else if (!testVerified)
             logger.info(f"NOT VERIFIED. Processed ${aCNN.inputShape.nBatches * aCNN.inputShape.nInputs}%d inputs.")
           else
             throw new AssertionError
 
 
-        /* JSON */
-        if (aCNN.pathToResults != "" && ! testFailed)
-          recordInJSON(aCNN, now)
+          /* JSON */
+          if (aCNN.pathToResults != "" && !testFailed)
+            recordInJSON(aCNN, now)
 
-        /* SQL */
-        recordInSQL(aCNN, testRan = true, testFailed, testVerified, now)
+          /* SQL */
+          recordInSQL(aCNN, testRan = true, testFailed, testVerified, now)
+        } else {
+          logger.info(f"Kernels compiled. SKIPPING VERIFICATION.")          
+        }
         /* ---------------------------- RUN EXPERIMENT (END) ---------------------------- */
       } catch {
         case e: opencl.executor.Executor.ExecutorFailureException =>
-          val msg = "EXCEPTION: opencl.executor.Executor.ExecutorFailureException" + e.getMessage
+          val msg = "EXCEPTION: opencl.executor.Executor.ExecutorFailureException\n" + e.getMessage
           logger.warn(msg)
           recordFailureInSQL(msg, aCNN, now)
-          throw e
+//          throw e
         case e: opencl.executor.DeviceCapabilityException =>
-          val msg = "EXCEPTION: opencl.executor.DeviceCapabilityException" + e.getMessage
+          val msg = "EXCEPTION: opencl.executor.DeviceCapabilityException\n" + e.getMessage
           logger.warn(msg)
           recordFailureInSQL(msg, aCNN, now)
 //        case e: lift.arithmetic.NotEvaluableException =>

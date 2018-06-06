@@ -12,7 +12,7 @@ trait Layer {
 
   var runtime: Double
 
-  val liftFProp: FunDecl
+  val liftFProp: Array[FunDecl]
 
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit
 }

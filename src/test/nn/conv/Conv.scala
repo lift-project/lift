@@ -9,23 +9,19 @@ import nn._
 
 trait ConvCompanion {
   /* Parallel layer */
-  def Par(activation_f: UserFun, input_shape: Shape, input_tiling: SlidingWindowConfig, n_kernels: Int,
-          kernel_sliding: SlidingWindowConfig,
-          kernels_per_group: Int, els_per_thread: Int): FunDecl
+  def Par(activationF: UserFun, inputShape: Shape, inputTiling: SlidingWindowConfig, nKernels: Int,
+          kernelSliding: SlidingWindowConfig,
+          kernelsPerGroup: Int, elsPerThread: Int, vectorLen: Int, coalesce: Boolean, 
+          unrollReduce: Boolean): Array[FunDecl]
 
   case class InitParameters(override val layerNo: Int,
                             liftFPropFactory: (UserFun, Shape, SlidingWindowConfig, Int,
-                              SlidingWindowConfig, Int, Int) => FunDecl,
+                              SlidingWindowConfig, Int, Int, Int, Boolean, Boolean) => Array[FunDecl],
                             activationFun: UserFun,
                             optParams: conv.Experiment.Config.OptimisationalParams,
-                            //                            elsPerThread: Int,
-                            //                            kernelsPerGroup: Int,
-                            //                            inputTileSize: Int,
-                            //                            nKernels: Int,
                             override val inputShape: Shape,
-                            //                            kernelSize: Int,
                             dim: conv.Experiment.Config.Dimensions,
-                            padData: Boolean)
+                            padData: Boolean, testConfigFilename: String)
     extends Layer.InitParameters(layerNo, inputShape)
 
 
@@ -49,13 +45,16 @@ trait ConvCompanion {
   * @param kernelSliding
   * @param elsPerThread
   * @param kernelsPerGroup
+  * @param vectorLen
+  * @param coalesce
   * @param localSize
   * @param globalSize
   */
-abstract class Conv(val liftFProp: FunDecl,
+abstract class Conv(val liftFProp: Array[FunDecl],
                     val inputShape: Shape, val outputShape: Shape,
                     val inputTiling: SlidingWindowConfig, val kernelSliding: SlidingWindowConfig,
-                    val elsPerThread: Int, val kernelsPerGroup: Int,
+                    val elsPerThread: Int, val kernelsPerGroup: Int, val vectorLen: Int, 
+                    val coalesce: Boolean, val unrollReduce: Boolean,
                     val localSize: Array[Int], val globalSize: Array[Int]) extends Layer {
   val configToString: String
   var runtime: Double

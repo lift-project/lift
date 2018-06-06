@@ -233,6 +233,26 @@ package object nn {
         now.get(Calendar.MILLISECOND), n_inputs))
   }
 
+  def fill(v: Float, shape: Int): Array[Float] = {
+    Array.fill[Float](shape)(v)
+  }
+
+  def fill(v: Float, shape: (Int, Int)): Array2D[Float] = {
+    Array.fill[Array[Float]](shape._1)(fill(v, shape._2))
+  }
+
+  def fill(v: Float, shape: (Int, Int, Int)): Array3D[Float] = {
+    Array.fill[Array2D[Float]](shape._1)(fill(v, (shape._2, shape._3)))
+  }
+
+  def fill(v: Float, shape: (Int, Int, Int, Int)): Array4D[Float] = {
+    Array.fill[Array3D[Float]](shape._1)(fill(v, (shape._2, shape._3, shape._4)))
+  }
+
+  def fill(v: Float, shape: (Int, Int, Int, Int, Int)): Array5D[Float] = {
+    Array.fill[Array4D[Float]](shape._1)(fill(v, (shape._2, shape._3, shape._4, shape._5)))
+  }
+
   def group(arr1d: Array[Float], shape: (Int, Int)): Array2D[Float] = {
     val arr2d = Array.fill[Array[Float]](shape._1)(
       Array.fill[Float](shape._2)(0))

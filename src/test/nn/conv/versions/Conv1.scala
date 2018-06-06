@@ -30,7 +30,7 @@ object Conv1 extends ConvCompanion {
 
   /* Sequential layer */
   def Seq(activation_f: UserFun, n_inputs: Int, input_xdim: Int, input_ydim: Int, in_channels: Int,
-         kernel_xdim: Int, kernel_ydim: Int, out_channels: Int): FunDecl = λ(
+         kernel_xdim: Int, kernel_ydim: Int, out_channels: Int): Array[FunDecl] = Array(λ(
     // Lift K: y, x, i, o
     // Caffe K: o, i, y, x
 //    AT(AT(AT(AT(Float, out_channels_SV), in_channels_SV), kernel_xdim_SV), kernel_ydim_SV),
@@ -79,7 +79,7 @@ object Conv1 extends ConvCompanion {
         // n, y, x, c 
       Map(Map(Transpose()) o Transpose()) $ X
     }
-  )
+  ))
   
   def main(args: Array[String]): Unit = {
       Executor.loadLibrary()
@@ -108,7 +108,7 @@ object Conv1 extends ConvCompanion {
     
       val (outputsFlat: Array[Float], runtime) = Execute(1, 1)[Array[Float]](
         Seq(Linear, n_inputs, input_xdim, input_ydim, in_channels,
-          kernel_xdim, kernel_ydim, out_channels), K, B, X)
+          kernel_xdim, kernel_ydim, out_channels)(0), K, B, X)
     println(outputsFlat)
   }
   val locA: Int = 0
@@ -117,45 +117,46 @@ object Conv1 extends ConvCompanion {
 
 
   /* Parallel layer */
-  def Par(activation_f: UserFun, input_shape: Shape, input_tiling: SlidingWindowConfig, n_kernels: Int,
-          kernel_sliding: SlidingWindowConfig,
-          kernels_per_group: Int, els_per_thread: Int): FunDecl = {
-    val n_tiles_per_input: Int = input_tiling.n
-    val n_kwindows_per_tile: Int = kernel_sliding.n
+  def Par(activationF: UserFun, inputShape: Shape, tiling: SlidingWindowConfig, nKernels: Int,
+          sliding: SlidingWindowConfig,
+          kernelsPerGroup: Int, seqElsPerThread: Int, vectorLen: Int,
+          coalesce: Boolean, unrollReduce: Boolean): Array[FunDecl] = {
+    val n_tiles_per_input: Int = tiling.n
+    val n_kwindows_per_tile: Int = sliding.n
     val n_kwindows_per_input: Int =
-      ((input_shape.sizePadded - (kernel_sliding.size - kernel_sliding.stride)).toFloat /
-        kernel_sliding.stride).toInt
+      ((inputShape.sizePadded - (sliding.size - sliding.stride)).toFloat /
+        sliding.stride).toInt
     /* TODO: enforce size checks */
     def Layer: FunDecl = λ(
-      AT(AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size), input_shape.nChannels), n_kernels),
-      AT(Float, n_kernels),
-      AT(AT(AT(AT(AT(Float, input_shape.sizePadded), input_shape.sizePadded), input_shape.nChannels),
-        input_shape.nInputs), input_shape.nBatches),
+      AT(AT(AT(AT(Float, sliding.size), sliding.size), inputShape.nChannels), nKernels),
+      AT(Float, nKernels),
+      AT(AT(AT(AT(AT(Float, inputShape.sizePadded), inputShape.sizePadded), inputShape.nChannels),
+        inputShape.nInputs), inputShape.nBatches),
       (K, B, X) => {
 
         MapWrg(locC)(λ(AT(
-          TupleType(AT(AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size), n_kwindows_per_tile),
+          TupleType(AT(AT(AT(AT(Float, sliding.size), sliding.size), n_kwindows_per_tile),
             n_kwindows_per_tile),
-            AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size), n_kernels)),
-          input_shape.nChannels * n_tiles_per_input * n_tiles_per_input * input_shape.nInputs),
+            AT(AT(AT(Float, sliding.size), sliding.size), nKernels)),
+          inputShape.nChannels * n_tiles_per_input * n_tiles_per_input * inputShape.nInputs),
           (inputs_batch_and_K) => {
 
-            MapWrg(locB)(λ(AT(AT(AT(AT(AT(AT(AT(Float, input_shape.nChannels), kernels_per_group),
+            MapWrg(locB)(λ(AT(AT(AT(AT(AT(AT(AT(Float, inputShape.nChannels), kernelsPerGroup),
               n_kwindows_per_input), n_kwindows_per_input), n_tiles_per_input), n_tiles_per_input),
-              input_shape.nInputs),
+              inputShape.nInputs),
               (kGroup_inputs_tiles_tiles_kwins_kwins_ks_inChs) => {
-              MapWrg(locA)(λ(AT(AT(AT(AT(Float, input_shape.nChannels), kernels_per_group),
+              MapWrg(locA)(λ(AT(AT(AT(AT(Float, inputShape.nChannels), kernelsPerGroup),
                 n_kwindows_per_input), n_kwindows_per_input),
                 (tile_kwins_kwins_ks_inChs) => {
-                MapLcl(locC)(λ(AT(AT(Float, input_shape.nChannels), kernels_per_group),
+                MapLcl(locC)(λ(AT(AT(Float, inputShape.nChannels), kernelsPerGroup),
                   (kwin_ks_inChs_toWrap) => {
-                    MapLcl(locB)(λ(AT(AT(Float, input_shape.nChannels), kernels_per_group),
+                    MapLcl(locB)(λ(AT(AT(Float, inputShape.nChannels), kernelsPerGroup),
                       (kwin_ks_inChs) => { Join() o
-                      MapLcl(locA)(λ(AT(Float, input_shape.nChannels),
+                      MapLcl(locA)(λ(AT(Float, inputShape.nChannels),
                         (k_inChs) => {
                           ReduceSeq(add, 0.0f) $ k_inChs
                       })) $ kwin_ks_inChs
-                    })) o Split(kernels_per_group) $ kwin_ks_inChs_toWrap
+                    })) o Split(kernelsPerGroup) $ kwin_ks_inChs_toWrap
                 })) o Join() o Join() $ tile_kwins_kwins_ks_inChs
               })) o Join() o Join() $ kGroup_inputs_tiles_tiles_kwins_kwins_ks_inChs
             })) o
@@ -189,16 +190,16 @@ object Conv1 extends ConvCompanion {
              *   kernels_per_group, n_k_passes, n_k_windows) ->
              *  (n_kernel_groups, nInputs, nChannels, n_tiles_per_input, n_tiles_per_input,
              *   kernels_per_group, n_k_passes, n_k_windows) */
-              Map(Split(input_shape.nChannels) o Split(n_tiles_per_input) o Split(n_tiles_per_input)) o
+              Map(Split(inputShape.nChannels) o Split(n_tiles_per_input) o Split(n_tiles_per_input)) o
               //
-              MapWrg(locA)(λ(TupleType(AT(AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size),
+              MapWrg(locA)(λ(TupleType(AT(AT(AT(AT(Float, sliding.size), sliding.size),
                 n_kwindows_per_tile), n_kwindows_per_tile),
-                AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size), n_kernels)),
+                AT(AT(AT(Float, sliding.size), sliding.size), nKernels)),
                 (input_tile_and_K) => {
                   //
                   MapWrg(locB)(λ(TupleType(
-                    AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size),
-                      kernels_per_group), AT(Float, kernels_per_group)),
+                    AT(AT(AT(Float, sliding.size), sliding.size),
+                      kernelsPerGroup), AT(Float, kernelsPerGroup)),
                     (kernels_group) => {
                     /* (kernels_per_group, n_k_passes * n_k_windows) ->
                      * (kernels_per_group, n_k_passes, n_k_windows) */
@@ -207,7 +208,7 @@ object Conv1 extends ConvCompanion {
                        * (kernels_per_group, n_k_passes * n_k_windows) */
                       TransposeW() o
                       MapLcl(locC)(λ((pass_window) => {
-                        λ(AT(AT(Float, kernel_sliding.size), kernels_per_group), (partially_reduced_window) =>
+                        λ(AT(AT(Float, sliding.size), kernelsPerGroup), (partially_reduced_window) =>
                           // TODO: add if conditional to remove final reduce in case els_per_thread == kernel_size
                           ReduceWindowAndAddBias()(partially_reduced_window, /* biases */Get(kernels_group, 1))) o
                           /* (kernel_sliding.size, kernels_per_group) -> (kernels_per_group, kernel_sliding.size) */
@@ -217,7 +218,7 @@ object Conv1 extends ConvCompanion {
                               // (kernels_per_group, kernel_sliding.size / els_per_thread)
                               Map(Join(/*tiles of elements*/)/* o
                         MapSeq(/* Dissolve one-element output of Reduce */Join())*/) o
-                              Split(kernel_sliding.size / els_per_thread) o
+                              Split(sliding.size / seqElsPerThread) o
                               MapLcl(locA)(WeighElementSequence()) o
                               /* (kernels_per_group, kernel_sliding.size / els_per_thread, els_per_thread, tuple of input_shape.nChannels) ->
                                * (kernels_per_group * kernel_sliding.size / els_per_thread, els_per_thread, tuple of input_shape.nChannels)*/
@@ -225,7 +226,7 @@ object Conv1 extends ConvCompanion {
                               /* (kernels_per_group, kernel_sliding.size, input_shape.nChannels) ->
                                * (kernels_per_group, kernel_sliding.size / els_per_thread, els_per_thread, tuple of input_shape.nChannels) */
                               Map(/* for each kernel in the tile */
-                                λ((kernel_row) => Split(els_per_thread) $
+                                λ((kernel_row) => Split(seqElsPerThread) $
                                   Zip(
                                     /*ReorderStride(els_per_thread) $ */window_row,
                                     /*ReorderStride(input_shape.nChannels) $ */ PrintType("kernel_row") $ kernel_row))) o
@@ -251,10 +252,10 @@ object Conv1 extends ConvCompanion {
      * n_kwindows_per_tile), input_shape.nChannels),
      * n_tiles_per_input * n_tiles_per_input * input_shape.nInputs), input_shape.nBatches) */
     def SlideX(): FunDecl =
-      λ(AT(AT(AT(AT(AT(Float, input_shape.sizePadded), input_shape.sizePadded), input_shape.nChannels),
-        input_shape.nInputs), input_shape.nBatches), (X) =>
+      λ(AT(AT(AT(AT(AT(Float, inputShape.sizePadded), inputShape.sizePadded), inputShape.nChannels),
+        inputShape.nInputs), inputShape.nBatches), (X) =>
         PrintType("After SLIDE") o Map(Join() o Map(Transpose() o Map(Join() o
-          TiledSlidedND(2)(kernel_sliding.size, kernel_sliding.stride, input_tiling.stride)))) $ X)
+          TiledSlidedND(2)(sliding.size, sliding.stride, tiling.stride)))) $ X)
 
     /* Matches X and K based on input channels
      * Returns:
@@ -264,10 +265,10 @@ object Conv1 extends ConvCompanion {
      *    AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size), n_kernels)),
      * input_shape.nChannels * n_tiles_per_input * n_tiles_per_input * input_shape.nInputs), input_shape.nBatches) */
     def MatchXandK(): FunDecl =
-      λ(AT(AT(AT(AT(AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size), n_kwindows_per_tile),
-        n_kwindows_per_tile), input_shape.nChannels),
-        n_tiles_per_input * n_tiles_per_input * input_shape.nInputs), input_shape.nBatches),
-        AT(AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size), input_shape.nChannels), n_kernels),
+      λ(AT(AT(AT(AT(AT(AT(AT(Float, sliding.size), sliding.size), n_kwindows_per_tile),
+        n_kwindows_per_tile), inputShape.nChannels),
+        n_tiles_per_input * n_tiles_per_input * inputShape.nInputs), inputShape.nBatches),
+        AT(AT(AT(AT(Float, sliding.size), sliding.size), inputShape.nChannels), nKernels),
         (X, K) =>
         Map(Join() o Map(λ((tile_inChs_kwins_kwins_rows_els) => {
           Zip(tile_inChs_kwins_kwins_rows_els, Transpose() $ K)
@@ -280,10 +281,10 @@ object Conv1 extends ConvCompanion {
      *   /* biases */ AT(Float, kernels_per_group)),
      *   n_kernel_groups) */
     def ReshapeAndGroupKernels(): FunDecl =
-      λ(AT(AT(AT(Float, kernel_sliding.size), kernel_sliding.size), n_kernels),
+      λ(AT(AT(AT(Float, sliding.size), sliding.size), nKernels),
         //AT(AT(AT(AT(Float, n_kernels), input_shape.nChannels), kernel_sliding.size), kernel_sliding.size),
-        AT(Float, n_kernels), (kernels, biases) =>
-          Zip(Split(kernels_per_group) $ kernels, Split(kernels_per_group) $ biases))
+        AT(Float, nKernels), (kernels, biases) =>
+          Zip(Split(kernelsPerGroup) $ kernels, Split(kernelsPerGroup) $ biases))
 
     /* Reshapes the kernel back to the original shape, where output channels are the lowest dimension
      * of the tensor.
@@ -291,7 +292,7 @@ object Conv1 extends ConvCompanion {
      * Returns:
      * AT(AT(AT(AT(Float, kernels_per_group), input_shape.nChannels), kernel_sliding.size), kernel_sliding.size) */
     def RestoreKernelShape(): FunDecl =
-      λ(AT(AT(AT(AT(Float, input_shape.nChannels), kernel_sliding.size), kernel_sliding.size), kernels_per_group),
+      λ(AT(AT(AT(AT(Float, inputShape.nChannels), sliding.size), sliding.size), kernelsPerGroup),
         (kernels_tile) =>
           Map(Map(Transpose()) o Transpose()) o Transpose() $ kernels_tile)
 
@@ -299,7 +300,7 @@ object Conv1 extends ConvCompanion {
      * Returns:
      * AT(Float, 1) */
     def WeighElementSequence(): FunDecl =
-      λ(AT(TupleType(Float, Float), els_per_thread),
+      λ(AT(TupleType(Float, Float), seqElsPerThread),
         (tile_of_els) => {
           /* Compute a sum of the whole batch */
           MapSeq(toLocal(id)) o ReduceSeq(add, toPrivate(id) $ 0.0f) o
@@ -316,7 +317,7 @@ object Conv1 extends ConvCompanion {
      * Returns:
      * AT(Float, kernels_per_group) */
     def ReduceRow(): FunDecl =
-      λ(AT(AT(Float, kernel_sliding.size / els_per_thread), kernels_per_group),
+      λ(AT(AT(Float, sliding.size / seqElsPerThread), kernelsPerGroup),
         (weighted_row) => {
           Join() o MapLcl(locA)(λ((weighted_row_per_out_ch) => {
             MapSeq(toLocal(id)) o ReduceSeq(add, 0.0f) $ weighted_row_per_out_ch
@@ -327,20 +328,20 @@ object Conv1 extends ConvCompanion {
      * Returns:
      * AT(Float, kernels_per_group) */
     def ReduceWindowAndAddBias(): FunDecl =
-      λ(AT(AT(Float, kernel_sliding.size), kernels_per_group),
-        AT(Float, kernels_per_group),
+      λ(AT(AT(Float, sliding.size), kernelsPerGroup),
+        AT(Float, kernelsPerGroup),
         (partially_reduced_windows, biases) => {
           Join() o Join() o
             MapLcl(locB)(λ((reduced_rows_to_wrap, bias) => {
               MapLcl(locA)(λ((reduced_rows) => {
                 // Reduce weighted pass window separately for each output channel
-                MapSeq(toGlobal(activation_f)) o ReduceSeq(add, toPrivate(id) $ bias) $ reduced_rows
+                MapSeq(toGlobal(activationF)) o ReduceSeq(add, toPrivate(id) $ bias) $ reduced_rows
               })) o /* Wrap into an array of 1 element. This is to avoid race condition in MapLcl(a) by using 1 thread. */
-                Split(kernel_sliding.size) $ reduced_rows_to_wrap
+                Split(sliding.size) $ reduced_rows_to_wrap
             })) $ Zip(partially_reduced_windows, biases)
         })
 
-    Layer
+    Array(Layer)
   }
 
 
@@ -352,7 +353,9 @@ object Conv1 extends ConvCompanion {
 
     val exceptionMsgPrefix: String = "In the Conv layer with the following configuration:\n" +
       conv.configToString(iP.inputShape.sizePadded, -1, iP.optParams.elsPerThread, iP.dim.nKernels,
-        iP.optParams.kernelsPerGroup, iP.dim.kernelSize, iP.dim.kernelStride, iP.optParams.inputTileSize)
+        iP.optParams.kernelsPerGroup, iP.optParams.vectorLen, 
+        iP.optParams.coalesce, iP.optParams.unrollReduce,
+        iP.dim.kernelSize, iP.dim.kernelStride, iP.optParams.inputTileSize)
 
     /* Tiles */
     val kernelSliding: SlidingWindowConfig = SlidingWindowConfig(
@@ -437,10 +440,12 @@ object Conv1 extends ConvCompanion {
 
     new Conv1(
       iP.liftFPropFactory(iP.activationFun, iP.inputShape, inputTiling,
-        iP.dim.nKernels,kernelSliding, iP.optParams.kernelsPerGroup, iP.optParams.elsPerThread),
+        iP.dim.nKernels,kernelSliding, iP.optParams.kernelsPerGroup, iP.optParams.elsPerThread, iP.optParams.vectorLen,
+        iP.optParams.coalesce, iP.optParams.unrollReduce),
       iP.inputShape, outputShape,
       inputTiling, kernelSliding,
-      iP.optParams.elsPerThread, iP.optParams.kernelsPerGroup,
+      iP.optParams.elsPerThread, iP.optParams.kernelsPerGroup,  iP.optParams.vectorLen, 
+      iP.optParams.coalesce, iP.optParams.unrollReduce,
       localSize, globalSize)
   }
 
@@ -490,17 +495,18 @@ object Conv1 extends ConvCompanion {
   * @param localSize
   * @param globalSize
   */
-case class Conv1(override val liftFProp: FunDecl,
+case class Conv1(override val liftFProp: Array[FunDecl],
                  override val inputShape: Shape, override val outputShape: Shape,
                  override val inputTiling: SlidingWindowConfig, override val kernelSliding: SlidingWindowConfig,
                  override val elsPerThread: Int, override val kernelsPerGroup: Int,
+                 override val vectorLen: Int, override val coalesce: Boolean, override val unrollReduce: Boolean,
                  override val localSize: Array[Int], override val globalSize: Array[Int])
-  extends Conv (liftFProp, inputShape, outputShape, inputTiling, kernelSliding,
-    elsPerThread, kernelsPerGroup, localSize, globalSize) {
+  extends Conv(liftFProp, inputShape, outputShape, inputTiling, kernelSliding,
+    elsPerThread, kernelsPerGroup, vectorLen, coalesce, unrollReduce, localSize, globalSize) {
 
   val configToString: String =
     nn.conv.configToString(inputShape.sizePadded, outputShape.sizePadded, elsPerThread, outputShape.nChannels,
-      kernelsPerGroup, kernelSliding.size, kernelSliding.stride, inputTiling.size)
+      kernelsPerGroup, vectorLen, coalesce, unrollReduce, kernelSliding.size, kernelSliding.stride, inputTiling.size)
   var runtime: Double = 0
 
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {

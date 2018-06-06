@@ -12,8 +12,8 @@ object TestCNN_Conv {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
-//    Executor.init(/*avus*/1, 1)
-    Executor.init(/*artemisa*/0, 0)
+    Executor.init(/*avus*/1, 1)
+//    Executor.init(/*artemisa*/0, 0)
     // TODO: reenable MySQL
 //    nn.cnn.mysql.CreateTable()
   }
@@ -65,9 +65,22 @@ class TestCNN_Conv {
   //        abortAfter = Some(1))
   @Test
   def TestConv(): Unit = {
-    for (_ <- 0 until reruns)
-      new TestCNN().Test(
-        cnn.getConfigFromJSON(System.getenv("LIFT_CNN_CONFIG_PATH") + "/cnn_experiments_march_12.json"))
-//    cnn.getConfigFromJSON("/home/s1569687/lift/src/test/nn/cnn/cnn_experiments_march_12.json"))
+    val testConfigFilenames = Array(
+      "vgg_layer_1.json",
+      "vgg_layer_3.json")
+//      "vgg_layer_6.json",
+//      "vgg_layer_8.json",
+//      "vgg_layer_11.json",
+//      "vgg_layer_13_15_17.json",
+//      "vgg_layer_20.json",
+//      "vgg_layer_22_24_26.json",
+//      "vgg_layer_29_31_33_35.json")
+    for (_ <- 0 until reruns) {
+      for (testConfigFilename <- testConfigFilenames) 
+        new TestCNN().Test(
+          //        cnn.getConfigFromJSON(System.getenv("LIFT_CNN_CONFIG_PATH") + "/test_layer.json"))
+          cnn.getConfigFromJSON(System.getenv("LIFT_CNN_CONFIG_PATH") + "/" + testConfigFilename),
+            testConfigFilename)
+    }
   }
 }

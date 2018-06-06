@@ -378,10 +378,10 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
    * Given just a string: evaluate the string into a lambda and
    * then call the function below
    */
-  def apply[T](input: String, values: Any*)(implicit decodeType: DecodeType[T]): (T, Double) = {
-    apply(Eval(input), values: _*)(decodeType)
+  def apply[T](input: String, compileOnly: Boolean, values: Any*)(implicit decodeType: DecodeType[T]): ((T, Double), String) = {
+    apply(Eval(input), compileOnly, values: _*)(decodeType)
   }
-
+  
   /**
    * Given a lambda: compile it and then execute it
    */
@@ -390,22 +390,25 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
     execute(kernel, f, values: _*)(decodeType)
   }
-  
+
   /**
     * Given just a string: evaluate the string into a lambda and
     * then call the function below
     */
-  def apply[T](input: String, returnKernel: Boolean, values: Any*)(implicit decodeType: DecodeType[T]): ((T, Double), String) = {
-    apply(Eval(input), returnKernel, values: _*)(decodeType)
+  def apply[T](input: String, values: Any*)(implicit decodeType: DecodeType[T]): (T, Double) = {
+    apply(Eval(input), false, values: _*)(decodeType)._1
   }
 
   /**
     * Given a lambda: compile it and then execute it
     */
-  def apply[T](f: Lambda, returnKernel: Boolean, values: Any*)(implicit decodeType: DecodeType[T]): ((T, Double), String) = {
+  def apply[T](f: Lambda, compileOnly: Boolean, values: Any*)(implicit decodeType: DecodeType[T]): ((T, Double), String) = {
     val kernel = compile(f, values:_*)
 
-    (execute(kernel, f, values: _*)(decodeType), kernel)
+    if (!compileOnly)
+        (execute(kernel, f, values: _*)(decodeType), kernel)
+    else
+      ((Array(0.0f).asInstanceOf[T], 0.0f), kernel)
   }
 
   /**
@@ -519,7 +522,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   /**
    * Execute given source code, which was compiled for the given lambda, with the given runtime
    * values <code>iterations</code> times. If the kernel takes longer than <code>timeout</code> ms,
-   * it is executed only once. If <code>timeout</code> is <code>0.0</code> no check for the kernel
+   * it is executed only once. If <code>timeout</code> is <code>  0.0</code> no check for the kernel
    * runtime will be performed.
    *
    * Returns a pair consisting of the computed values as its first and an array of runtimes in the
@@ -726,16 +729,20 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
     val totalSizeOfLocal = localMemories.map(mem => ArithExpr.substitute(mem.mem.size, valueMap).evalLong).sum
 
     globalSizes.foreach(size => {
-      val maxMemAllocSize = Executor.getDeviceMaxMemAllocSize
+      // ARM Mali GPU G71
+      val maxMemAllocSize = 776849408//Executor.getDeviceMaxMemAllocSize
       if (size > maxMemAllocSize)
         throw new DeviceCapabilityException(s"Buffer size required ($size) cannot be larger than $maxMemAllocSize")
     })
 
-    val globalMemSize = Executor.getDeviceGlobalMemSize
+    // ARM Mali GPU G71
+//    val globalMemSize = Executor.getDeviceGlobalMemSize
+    val globalMemSize = 3107397632L
     if (totalSizeOfGlobal > globalMemSize)
       throw new DeviceCapabilityException(s"Global size required ($totalSizeOfGlobal) cannot be larger than $globalMemSize")
 
-    val localMemSize = Executor.getDeviceLocalMemSize
+//    val localMemSize = Executor.getDeviceLocalMemSize
+    val localMemSize = 32768
     if (totalSizeOfLocal > localMemSize)
       throw new DeviceCapabilityException(s"Local size required ($totalSizeOfLocal) cannot be larger than $localMemSize")
   }
