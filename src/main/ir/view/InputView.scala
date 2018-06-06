@@ -4,7 +4,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic.ArithExpr
 import opencl.ir.OpenCLMemoryCollection
-import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
+import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq}
 
 /**
  * A helper object for constructing views.
@@ -84,7 +84,8 @@ object InputView {
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case ArrayAccess(i) => argView.access(i)
-      case PrintType() | Scatter(_) | _: Tuple | Pad(_, _, _) => argView
+      case debug.PrintType(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
+           Scatter(_) | _: Tuple | Pad(_, _, _) => argView
       case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
     }
   }

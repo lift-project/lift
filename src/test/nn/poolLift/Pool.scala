@@ -4,7 +4,7 @@
 //  * Created by nm on 09/01/17.
 //  */
 //
-//import ir.ast.debug.PrintType
+//import ir.ast.debug.debug.PrintType
 //import ir.ast.{λ, _}
 //import ir.{ArrayType, TupleType}
 //import lift.arithmetic.SizeVar
@@ -67,12 +67,12 @@
 //                  } o Join() o
 //                  MapLcl(2)(λ(AT(Float, tile.els_per_thread), (tile_of_els) => {
 //                    MapSeq(toLocal(id)) o ReduceSeq(activation_f, id $ 0.0f) $ tile_of_els})) o
-//                  PrintType("maplcl(2)") o
+//                  debug.PrintType("maplcl(2)") o
 ///* (kernel_shape.s * kernel_shape.s) ->
 // * (kernel_shape.s * kernel_shape.s / tile.els_per_thread, tile.els_per_thread) */
 //                    Split(tile.els_per_thread) $ input_channel
-//                  })) o PrintType("maplcl(1)") o Transpose() o Join() $ pass_window
-//                })) o PrintType("maplcl(0)") o toLocal(MapLcl(0)(λ((pass_window) =>
+//                  })) o debug.PrintType("maplcl(1)") o Transpose() o Join() $ pass_window
+//                })) o debug.PrintType("maplcl(0)") o toLocal(MapLcl(0)(λ((pass_window) =>
 //                MapLcl(1)(λ((window_row) => {
 //                  MapSeq(MapSeq(id)) $ window_row
 //                })) $ pass_window))) o

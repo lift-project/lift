@@ -33,7 +33,7 @@ object OpenCLGenerator extends Generator {
     (new OpenCLGenerator).generate(f, localSize, globalSize, valueMap)
   }
 
-  def printTypes(expr: Expr): Unit = {
+  def PrintTypes(expr: Expr): Unit = {
     Expr.visit(expr, {
       case e@(call: FunCall) => println(e + "\n    " +
         e.t + " <- " + call.argsType + "\n")
@@ -41,7 +41,7 @@ object OpenCLGenerator extends Generator {
     }, (_: Expr) => {})
   }
 
-  def printTypes(lambda: Lambda): Unit = printTypes(lambda.body)
+  def PrintTypes(lambda: Lambda): Unit = PrintTypes(lambda.body)
 
   /**
     * Get memory objects allocated for given Lambda
@@ -195,7 +195,7 @@ class OpenCLGenerator extends Generator {
     if (Verbose()) {
 
       println("Types:")
-      OpenCLGenerator.printTypes(f.body)
+      OpenCLGenerator.PrintTypes(f.body)
 
       println("Memory:")
       printMemories(f.body)
@@ -500,7 +500,7 @@ class OpenCLGenerator extends Generator {
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) |
              ArrayAccess(_) | debug.PrintType(_) | debug.AssertType(_, _) =>
-        case _ => (block: Block) += OpenCLAST.Comment("__" + call.toString + "__")
+        case _ => (block: MutableBlock) += Comment("__" + call.toString + "__")
       }
       case v: Value             => generateValue(v, block)
       case _: Param             =>
@@ -509,12 +509,12 @@ class OpenCLGenerator extends Generator {
   }
 
   // === Debugging primitives ===
-  private def debugPrintComment(msg: String, block: Block): Unit = {
-    (block: Block) += OpenCLAST.Comment(msg)
+  private def debugPrintComment(msg: String, block: MutableBlock): Unit = {
+    (block: MutableBlock) += Comment(msg)
   }
 
   /* Prints the view as a comment in OpenCL kernel with newlines and tabs */
-  private def debugPrintView(dpv: debug.PrintView, call: FunCall, msg: String, block: Block): Unit = {
+  private def debugPrintView(dpv: debug.PrintView, call: FunCall, msg: String, block: MutableBlock): Unit = {
     val inlineView: String = call.args.head.view.toString
     var printedView: String = ""
     val commas = """,(.)(?<![\d|c=|s=])|\(|\)""".r.findAllIn(inlineView)
@@ -536,7 +536,7 @@ class OpenCLGenerator extends Generator {
       commas.next()
     }
     printedView += inlineView.substring(start, inlineView.length()) + ",\n" + "  " * level
-    (block: Block) += OpenCLAST.Comment(msg + ":\n" + printedView)
+    (block: MutableBlock) += Comment(msg + ":\n" + printedView)
 
     generate(dpv.f.body, block)
   }
