@@ -1,14 +1,16 @@
 package opencl.generator
 
+import core.generator.AstPrinter
 import ir._
 import ir.ast.{\, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor.Compile
-import opencl.generator.OpenCLAST.{ArithExpression, StructConstructor}
+import core.generator.GenericAST.{ArithExpression, StructConstructor}
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapLcl, MapSeq, MapWrg}
 import org.junit.Assert._
 import org.junit._
+import utils.Printer
 
 class TestOpenCLGenerator {
 
@@ -118,7 +120,7 @@ class TestOpenCLGenerator {
     val n = ArithExpression(42)
     val ty = TupleType(Int, Int)
     val node = StructConstructor(ty, Vector(n, n))
-    val code = OpenCLPrinter().apply(node)
+    val code = AstPrinter(node)()
 
     // Before 649c3b88a1f26133: "(Tuple2_int_int){4242}"
     assertEquals(s"(${Type.name(ty)}){42, 42}", code)
@@ -130,8 +132,8 @@ class TestOpenCLGenerator {
     val den = b + c
 
     assertEquals(
-      s"((${OpenCLPrinter.toString(num)})/(${OpenCLPrinter.toString(den)}))",
-      OpenCLPrinter.toString(num /^ den)
+      s"((${Printer.toString(num)})/(${Printer.toString(den)}))",
+      Printer.toString(num /^ den)
     )
   }
 }

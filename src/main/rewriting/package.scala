@@ -43,7 +43,10 @@ package object rewriting {
       gatherScatterId,
       scatterGatherId,
       removeEmptyMap,
-      Rules.transposeMapTransposeReorder
+      Rules.transposeMapTransposeReorder,
+      flattenZips,
+      removeDuplicateZipArg,
+      tupleInline
     )
 
   val reduceRules =

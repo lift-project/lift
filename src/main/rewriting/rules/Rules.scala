@@ -103,6 +103,14 @@ object Rules {
       Join() o Map(Map(f)) o Split(chunkSize) $ arg
   })
 
+  val splitJoinMapSeq: Rule = splitJoinMapSeq(?)
+
+  def splitJoinMapSeq(split: ArithExpr) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
+    case FunCall(MapSeq(f), arg) =>
+      val chunkSize = Utils.splitVariable(split, arg.t)
+      Join() o Map(MapSeq(f)) o Split(chunkSize) $ arg
+  })
+
   val joinSplit = Rule("Map(Map(f)) => Split(I) o Map(f) o Join()", {
     case call @ FunCall(Map(Lambda(Array(p), FunCall(Map(f), mapArg))), arg)
       if p == mapArg =>
@@ -116,6 +124,12 @@ object Rules {
   // Required for avoiding data races
   val splitJoinReduce = Rule("Reduce(f) $ data => Join() o Map(Reduce(f)) o Split(data.length)", {
     case FunCall(red: Reduce, init, arg) =>
+
+      val length = arg.t match { case ArrayTypeWS(_, n) => n }
+
+      Join() o Map(fun(x => red(init, x))) o Split(length) $ arg
+
+    case FunCall(red: ReduceSeq, init, arg) =>
 
       val length = arg.t match { case ArrayTypeWS(_, n) => n }
 

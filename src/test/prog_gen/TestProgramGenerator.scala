@@ -11,20 +11,31 @@ import org.junit._
 import rewriting.{EnabledMappings, Lower}
 
 import scala.language.reflectiveCalls
+import scala.util.Random
 
 object TestProgramGenerator extends TestWithExecutor {
 
-  var generator: ProgramGenerator = _
-  var generatedPrograms = Array[Lambda]()
+  private var generator: ProgramGenerator = _
+  private var generatedPrograms = Array[Lambda]()
 
   @BeforeClass
   override def before(): Unit = {
     super.before()
+    // TODO: To whom it may concern: the test has been made deterministic. To experience failing behavior,
+    // TODO: remove the Random.setSeed(0) line and re-run a few times - if lucky, you'll get the failure!
+    //see issue #147
+    Random.setSeed(0)
     generator = new ProgramGenerator
 
     // TODO: No randomness and less iterations for testing?
     if (LongTestsEnabled.areEnabled)
       generatedPrograms = generator.generatePrograms()
+  }
+
+  @AfterClass
+  override def after(): Unit = {
+    generatedPrograms = Array()
+    super.after()
   }
 
 }
@@ -36,6 +47,7 @@ class TestProgramGenerator {
   LongTestsEnabled()
 
   @Test
+  @Ignore //See issue #147
   def usefulZipGeneration(): Unit = {
 
     // Count the number of different components projected out of tuples

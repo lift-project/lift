@@ -30,8 +30,8 @@ def heat = UserFun("heat", Array("C", "S", "N", "E", "W", "B", "F"),
 
       val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
 
-      toGlobal(id) o toPrivate(λ(x =>
-        heat(x, n, s, e, w, f, b))) $ c
+      λ(x =>
+        heat(x, n, s, e, w, f, b)) $ c
 
     })))) o Slide3D(3, 1) $ input
   })

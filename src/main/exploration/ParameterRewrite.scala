@@ -5,10 +5,10 @@ import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.Logger
-import exploration.ParameterSearch.SubstitutionMap
+import exploration.ExpressionFilter.Status.Success
 import ir.ast.{Expr, FunCall, Lambda}
 import ir.{Type, TypeChecker}
-import lift.arithmetic.{ArithExpr, Cst}
+import lift.arithmetic.{ArithExpr, Cst, Var}
 import opencl.executor.Eval
 import opencl.generator.NDRange
 import opencl.ir.pattern._
@@ -16,7 +16,6 @@ import org.clapper.argot.ArgotConverters._
 import org.clapper.argot._
 import rewriting.InferNDRange
 import rewriting.utils.{DumpToFile, Utils}
-import ExpressionFilter.Status.Success
 
 import scala.collection.immutable.Map
 import scala.io.Source
@@ -155,7 +154,7 @@ object ParameterRewrite {
 
             TypeChecker(high_level_expr)
 
-            val all_substitution_tables: Seq[SubstitutionMap] = ParameterSearch(high_level_expr)
+            val all_substitution_tables: Seq[Map[Var, ArithExpr]] = ParameterSearch(high_level_expr)
             val substitutionCount = all_substitution_tables.size
             println(s"Found $substitutionCount valid parameter sets")
 
@@ -176,10 +175,11 @@ object ParameterRewrite {
 
               parList.foreach(low_level_filename => {
 
+                val low_level_hash = low_level_filename.split("/").last
+                val fullLowLevelFilename = parentFolder + "/" + low_level_filename
+
                 try {
 
-                  val low_level_hash = low_level_filename.split("/").last
-                  val fullLowLevelFilename = parentFolder + "/" + low_level_filename
                   val low_level_str = readFromFile(fullLowLevelFilename)
                   val low_level_factory = Eval.getMethod(low_level_str)
 
@@ -188,7 +188,7 @@ object ParameterRewrite {
                     all_substitution_tables.flatMap(st => {
 
                       print(s"\rLow-Level expression: ${lowLevelCounter.get()}/$lowLevelCount | Propagation ${propagationCounter.incrementAndGet()}/$propagationCount")
-                      val params = st.toSeq.sortBy(_._1.toString.substring(3).toInt).map(_._2)
+                      val params = st.toSeq.sortBy(_._1.id).map(_._2)
                       try {
                         val expr = low_level_factory(sizesForFilter ++ params)
                         TypeChecker(expr)
@@ -244,20 +244,20 @@ object ParameterRewrite {
                 } catch {
                   case t: Throwable =>
                     // Failed reading file or similar.
-                    logger.warn(t.toString)
+                    logger.warn(s"Caught at low level hash: $low_level_hash", t)
                 }
               })
               println(s"\nGenerated $kernelCounter kernels")
             }
           } catch {
             case t: Throwable =>
-              logger.warn(t.toString)
+              logger.warn(s"Caught for high-level hash: $high_level_hash", t)
           }
         }
       })
     } catch {
       case io: IOException =>
-        logger.error(io.toString)
+        logger.error("IOException", io)
       case e: ArgotUsageException =>
         println(e.message)
     }
@@ -279,7 +279,7 @@ object ParameterRewrite {
         }
       } catch {
         case t: Throwable =>
-          logger.warn(t.toString)
+          logger.warn(s"Saving to scala failed, $hash", t)
       }
     })
   }

@@ -74,8 +74,17 @@ libraryDependencies += "org.clapper" %% "argot" % "1.0.3"
 libraryDependencies += "ch.qos.logback" %  "logback-classic" % "1.1.7"
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
 
-// MySQL
-libraryDependencies += "mysql" % "mysql-connector-java" % "5.+"
+// Time utilities
+libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.16.0"
+
+lazy val profiler = RootProject(file("lib/Profiler"))
+
+lazy val root = (project in file(".")).aggregate(profiler).dependsOn(profiler)
+
+val paradiseVersion = "2.1.0"
+
+addCompilerPlugin("org.scalamacros" % "paradise" % paradiseVersion cross CrossVersion.full)
+
 
 scalacOptions in (Compile,doc) := Seq("-implicits", "-diagrams")
 

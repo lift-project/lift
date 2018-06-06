@@ -69,4 +69,37 @@ class TestUtils {
     val string = DumpToFile.dumpLambdaToString(f)
     Eval(string)
   }
+
+  @Test
+  def oneDFloatArrayDump(): Unit = {
+    val arr = Array(2.5f, 2.0f)
+    val string = DumpToFile.getStringForInputOutput(arr)
+
+    assertEquals("2.5 2.0", string)
+  }
+
+  @Test
+  def twoDFloatArrayDump(): Unit = {
+    val arr = Array(Array(2.5f, 2.0f), Array(2.0f, 1.5f))
+    val string = DumpToFile.getStringForInputOutput(arr)
+
+    assertEquals("2.5 2.0 2.0 1.5", string)
+  }
+
+  @Test
+  def oneDIntArrayDump(): Unit = {
+    val arr = Array(2, 5, 10, 4)
+    val string = DumpToFile.getStringForInputOutput(arr)
+
+    assertEquals("2 5 10 4", string)
+  }
+
+  @Test
+  def twoDIntArrayDump(): Unit = {
+    val arr = Array(Array(25, 20), Array(22, 15))
+    val string = DumpToFile.getStringForInputOutput(arr)
+
+    assertEquals("25 20 22 15", string)
+  }
+
 }

@@ -4,8 +4,6 @@ import arithmetic.TypeVar
 import ir._
 import ir.ast._
 import lift.arithmetic._
-import opencl.ir.pattern._
-
 
 private class MemoryAllocationException(msg: String)
   extends IllegalArgumentException(msg)
@@ -108,6 +106,11 @@ object OpenCLMemory {
     new OpenCLMemory(variable, size, addressSpace)
   }
 
+  def getAllMemories(memory: OpenCLMemory): Seq[OpenCLMemory] = memory match {
+    case OpenCLMemoryCollection(subMemories, _) => subMemories.flatMap(getAllMemories)
+    case _ => Seq(memory)
+  }
+
   def asOpenCLMemory(m: Memory): OpenCLMemory = {
     m match {
       case oclm: OpenCLMemory => oclm
@@ -124,6 +127,13 @@ object OpenCLMemory {
         coll.subMemories.exists(x => x.addressSpace == memType)
       case m: OpenCLMemory => m.addressSpace == memType
       case _ => false
+    }
+  }
+
+  def getAllMemoryVars(memory: Memory): Seq[Var] = {
+    memory match {
+      case OpenCLMemoryCollection(subMemories, _) => subMemories.flatMap(getAllMemoryVars)
+      case _ => Seq(memory.variable)
     }
   }
 

@@ -4,8 +4,8 @@ import benchmarks.{BlackScholes, DotProduct, MolecularDynamics}
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, TestWithExecutor}
-import opencl.generator.OpenCLAST.ArithExpression
+import opencl.executor.{Build, Compile, Execute, TestWithExecutor}
+import core.generator.GenericAST.ArithExpression
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert.{assertEquals, _}
@@ -323,7 +323,7 @@ class TestBenchmark {
   def mriQ(): Unit = {
     val phiMag = UserFun("phiMag",
                          Array("phiR", "phiI"),
-                         "{ return phiR * phiR + phiI * phiI }",
+                         "{ return phiR * phiR + phiI * phiI; }",
                          Seq(Float, Float),
                          Float)
 
@@ -376,8 +376,8 @@ class TestBenchmark {
         )) $ Zip(x, y, z, Qr, Qi)
     )
 
-    Compile(computePhiMag)
-    Compile(computeQ)
+    Build(Compile(computePhiMag))
+    Build(Compile(computeQ))
   }
 
   @Test
@@ -439,8 +439,8 @@ class TestBenchmark {
           ))
     )
 
-    Compile(computePhiMag)
-    Compile(computeQ)
+    Build(Compile(computePhiMag))
+    Build(Compile(computeQ))
   }
 
   @Test

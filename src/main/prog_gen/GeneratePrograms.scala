@@ -190,9 +190,7 @@ object GeneratePrograms {
 
       val filename = getTypeFilename(t)
 
-      val inputString = getInputString(input)
-
-      DumpToFile.dumpToFile(inputString, filename, generatedInputsDirectory)
+      DumpToFile.dumpInputOutputToFile(input, filename, generatedInputsDirectory)
     })
 
     logger.info(s"Inputs saved.")
@@ -223,30 +221,12 @@ object GeneratePrograms {
       .map(combinations => factory(vars ++ combinations))
       .filter(l => try { TypeChecker(l); true } catch { case _: Throwable => false} )
       .toSeq
-
   }
 
   private def getTypeFilename(t: Type): String = {
     t match {
       case ArrayTypeWS(elem, len) => len.toString + "_" + getTypeFilename(elem)
       case opencl.ir.Float => "float"
-      case _ => throw new NotImplementedError()
-    }
-  }
-
-  private def getInputString(a: Any): String = {
-    a match {
-      case f: Float =>
-        f.toString
-      case af: Array[Float] =>
-        af.mkString(" ")
-      case aaf: Array[Array[Float]] =>
-        aaf.flatten.mkString(" ")
-      case aaaf: Array[Array[Array[Float]]] =>
-        aaaf.flatten.flatten.mkString(" ")
-      case aaaaf: Array[Array[Array[Array[Float]]]] =>
-        aaaaf.flatten.flatten.flatten.mkString(" ")
-
       case _ => throw new NotImplementedError()
     }
   }

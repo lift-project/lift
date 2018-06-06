@@ -40,7 +40,7 @@ abstract class Expr extends IRNode {
 
   /**
    * The context keeps track where this expression is inside a bigger
-   * expression for checking (possible) constrains on nesting expression.
+   * expression for checking constrains on nesting expression.
    */
   var context: Context = _
 
@@ -308,19 +308,23 @@ object Expr {
    * @return The rebuild expression from `e` where `oldE` has be replaced with
    *         `newE`
    */
-  def replace(e: Expr, oldE: Expr, newE: Expr): Expr = {
-    if (e.eq(oldE)) {
+  def replace(e: Expr, oldE: Expr, newE: Expr): Expr =
+    replace(e, expr => if (expr eq oldE) newE else expr)
+
+  def replace(e: Expr, f: Expr => Expr): Expr = {
+    val newE = f(e)
+    if (!e.eq(newE)) {
       newE
     } else {
       e match {
         case call: FunCall =>
-          val newArgs = call.args.map((arg) => replace(arg, oldE, newE))
+          val newArgs = call.args.map((arg) => replace(arg, f))
 
           val newCall = call.f match {
 
             case fp: FPattern =>
               // Try to do the replacement in the lambda
-              val replaced = FunDecl.replace(fp.f, oldE, newE)
+              val replaced = FunDecl.replace(fp.f, f)
 
               // If replacement didn't occur return fp.f
               // else instantiate a new pattern with the updated lambda
@@ -330,7 +334,7 @@ object Expr {
                 fp.copy(replaced)
 
             case l: Lambda =>
-              FunDecl.replace(l, oldE, newE)
+              FunDecl.replace(l, f)
 
             case other => other
           }
@@ -355,48 +359,7 @@ object Expr {
    * @return A rewritten expression where the rewrite rule has been applied to
    *         all matching subexpressions
    */
-  def replace(e: Expr, oldE: Expr, rule: PartialFunction[Expr, Expr]): Expr = {
-    if (e.eq(oldE)) {
-      rule(e)
-    } else {
-      e match {
-        case call: FunCall =>
-          val newArgs = call.args.map((arg) => replace(arg, oldE, rule))
+  def replace(e: Expr, oldE: Expr, rule: PartialFunction[Expr, Expr]): Expr =
+    replace(e, expr => if (expr eq oldE) rule(expr) else expr)
 
-          val newCall = call.f match {
-            case fp: FPattern =>
-              // Try to do the replacement in the body
-              val replaced = replace(fp.f.body, oldE, rule)
-
-              // If replacement didn't occur return fp
-              // else instantiate a new pattern with the updated lambda
-              if (fp.f.body.eq(replaced))
-                fp
-              else
-                fp.copy(Lambda(fp.f.params, replaced))
-
-            case l: Lambda =>
-              // Try to do the replacement in the body
-              val replaced = replace(l.body, oldE, rule)
-
-              // If replacement didn't occur return l
-              // else instantiate the updated lambda
-              if (l.body.eq(replaced))
-                l
-              else
-                Lambda(l.params, replaced)
-
-            case other => other
-          }
-
-          if (!newCall.eq(call.f) || newArgs != call.args) {
-            // Instantiate a new FunCall if anything has changed
-            FunCall(newCall, newArgs: _*)
-          } else
-            e // Otherwise return the same FunCall object
-
-        case _ => e
-      }
-    }
-  }
 }

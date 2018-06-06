@@ -79,6 +79,8 @@ class AccessCounts(
 
   private val accessPatterns = AccessPatterns(lambda, localSize, globalSize, valueMap)
 
+  private val privateMemoriesForCounting = getReduceAndIteratePrivates
+
   count(lambda.body)
 
   override def toString: String = {
@@ -240,12 +242,17 @@ class AccessCounts(
           zipped.
           foreach((maybePattern, t, mem) => updateEntry(map, mem, maybePattern.get, t))
 
-      case _ =>
+      case (_, _, m) =>
 
         val vectorWidth = Type.getValueType(t) match {
           case VectorType(_, n) => n
           case _ => Cst(1)
         }
+
+        if (m.isInstanceOf[OpenCLMemory] &&
+          m.asInstanceOf[OpenCLMemory].addressSpace == PrivateMemory &&
+        !privateMemoriesForCounting.contains(m))
+          return
 
         val key = (memory, pattern, vectorWidth)
         val loadsSoFar = map(key)

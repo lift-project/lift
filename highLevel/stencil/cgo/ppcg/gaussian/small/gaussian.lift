@@ -48,12 +48,12 @@ val N = Cst(4096)
       val sse  = nbh.at(4).at(3)
       val ssee = nbh.at(4).at(4)
 
-      toGlobal(id) o toPrivate(λ(x =>
+      λ(x =>
         f(x, nnw, nn, nne, nnee,
           nww, nw, n, ne, nee,
           ww, w, c, e, ee,
           sww, sw, s, se, see,
-          ssww, ssw, ss, sse, ssee))) $ nnww
+          ssww, ssw, ss, sse, ssee)) $ nnww
 
     }))) o Slide2D(5, 1) $ input
   })

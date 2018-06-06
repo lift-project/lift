@@ -1,6 +1,6 @@
 package rewriting.rules
 
-import ir.{TupleType, VectorType}
+import ir.{TupleType, Type, VectorType}
 import ir.ast._
 import lift.arithmetic._
 import opencl.ir._
@@ -154,6 +154,10 @@ object OpenCLRules {
   val globalMemory = Rule("Map(f) => toGlobal(Map(f))", {
     case FunCall(f: AbstractMap, arg) =>
       toGlobal(f) $ arg
+    case FunCall(uf: UserFun, args@_*) =>
+      toGlobal(uf)(args:_*)
+    case FunCall(uf: VectorizeUserFun, args@_*) =>
+      toGlobal(uf)(args:_*)
   })
 
   /* OpenCL builtins */
@@ -203,24 +207,54 @@ object OpenCLRules {
   def vectorize(vectorWidth: ArithExpr): Rule =
     Rule("Map(uf) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
       case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArg))), arg)
-        if (p.head eq ufArg) && !ufArg.t.isInstanceOf[VectorType] && !ufArg.t.isInstanceOf[TupleType]
+        if (p.head eq ufArg) && isTypeSuitableForVectorisation(ufArg.t)
       =>
-        // TODO: force the width to be less than the array length
-        val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
-        asScalar() o Map(VectorizeUserFun(n, uf)) o asVector(n) $ arg
+        performVectorization(vectorWidth, uf, arg, identity)
     })
+
+
+  val vectorizeToAddressSpace: Rule = vectorizeToAddressSpace(?)
+
+  def vectorizeToAddressSpace(vectorWidth: ArithExpr): Rule =
+    Rule("Map(uf) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
+      case FunCall(Map(Lambda(p, FunCall(toGlobal(Lambda(Array(p2), FunCall(uf: UserFun, ufArg))), a))), arg)
+        if (p.head eq a) && p2.eq(ufArg) && isTypeSuitableForVectorisation(ufArg.t)
+      =>
+        performVectorization(vectorWidth, uf, arg, toGlobal)
+      case FunCall(Map(Lambda(p, FunCall(toLocal(Lambda(Array(p2), FunCall(uf: UserFun, ufArg))), a))), arg)
+        if (p.head eq a) && p2.eq(ufArg) && isTypeSuitableForVectorisation(ufArg.t)
+      =>
+        performVectorization(vectorWidth, uf, arg, toLocal)
+      case FunCall(Map(Lambda(p, FunCall(toPrivate(Lambda(Array(p2), FunCall(uf: UserFun, ufArg))), a))), arg)
+        if (p.head eq a) && p2.eq(ufArg) && isTypeSuitableForVectorisation(ufArg.t)
+      =>
+        performVectorization(vectorWidth, uf, arg, toPrivate)
+    })
+
+  private def isTypeSuitableForVectorisation(t: Type): Boolean =
+    !t.isInstanceOf[VectorType] && !t.isInstanceOf[TupleType]
+
+  private def performVectorization(
+    optionalWidth: ArithExpr, uf: UserFun, arg: Expr, optionalAddressSpace: Lambda => FunDecl) = {
+    val n = getWidthForVectorisation(optionalWidth)
+    asScalar() o Map(optionalAddressSpace(VectorizeUserFun(n, uf))) o asVector(n) $ arg
+  }
+
+  private def getWidthForVectorisation(vectorWidth: ArithExpr) = {
+    // TODO: force the width to be less than the array length
+    if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
+  }
 
   def vectorizeMapZip(vectorWidth: ArithExpr): Rule =
     Rule("Map(uf) $ Zip(a, b) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
       case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArgs@_*))), FunCall(Zip(_), zipArgs@_*))
-        if zipArgs.forall(arg => !arg.t.isInstanceOf[VectorType] && !arg.t.isInstanceOf[TupleType]) &&
+        if zipArgs.forall(arg => isTypeSuitableForVectorisation(arg.t)) &&
           ufArgs.forall({
             case FunCall(Get(_), x) if x == p.head => true
             case _ => false
           })
       =>
-        // TODO: force the width to be less than the array length
-        val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
+        val n = getWidthForVectorisation(vectorWidth)
         val newZipArgs = zipArgs.map(arg => asVector(n) $ arg)
         val newParam = Param()
         val newUfArgs = ufArgs.map({
@@ -235,9 +269,8 @@ object OpenCLRules {
   def partialReduceVectorize(vectorWidth: ArithExpr): Rule =
     Rule("PartRed(f) => Join() o Map(PartRed(f)) o Split()", {
       case FunCall(PartRed(Lambda(_, FunCall(uf:UserFun, _*))), init:Value, arg)
-        if !init.t.isInstanceOf[TupleType] && !init.t.isInstanceOf[VectorType] =>
-        // TODO: force the width to be less than the array length
-        val n = if (vectorWidth == ?) Var(RangeMul(2, 16, 2)) else vectorWidth
+        if isTypeSuitableForVectorisation(init.t) =>
+        val n = getWidthForVectorisation(vectorWidth)
         asScalar() o PartRed(VectorizeUserFun(n, uf), init.vectorize(n)) o asVector(n) $ arg
     })
 

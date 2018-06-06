@@ -3,7 +3,7 @@ package rewriting.macrorules
 import ir._
 import ir.ast._
 import lift.arithmetic.{?, ArithExpr}
-import opencl.ir.pattern.{MapSeq, ReduceSeq}
+import opencl.ir.pattern._
 import rewriting.Rewrite
 import rewriting.rules._
 import rewriting.utils.Utils
@@ -15,19 +15,28 @@ object MacroRules {
   private val mapMapPattern: PartialFunction[Expr, Unit] =
   { case FunCall(Map(Lambda(_, FunCall(map:Map, _))), _) if map.f.body.isConcrete => }
 
-  private def isUserFun(expr: Expr) = expr match {
+  private def isUserFunCall(expr: Expr): Boolean = expr match {
      case FunCall(_: UserFun, _*)  | FunCall(_: VectorizeUserFun, _*) => true
      case _ => false
   }
 
+  private def isUserFunCallOrWrappedWithMemorySpace(expr: Expr): Boolean = expr match {
+    case FunCall(toGlobal(Lambda(_, body)), _*) => isUserFunCallOrWrappedWithMemorySpace(body)
+    case FunCall(toLocal(Lambda(_, body)), _*) => isUserFunCallOrWrappedWithMemorySpace(body)
+    case FunCall(toPrivate(Lambda(_, body)), _*) => isUserFunCallOrWrappedWithMemorySpace(body)
+    case _ => isUserFunCall(expr)
+  }
+
   val userFunCompositionToPrivate = Rule("userFunCompositionToPrivate", {
-    case FunCall(uf: UserFun, args@_*)
-      if args.count(expr => isUserFun(expr) && OpenCLRules.privateMemory.isDefinedAt(expr)) > 0
+    case call@FunCall(uf, args@_*)
+      if isUserFunCallOrWrappedWithMemorySpace(call) &&
+        args.count(expr => isUserFunCall(expr) &&
+          OpenCLRules.privateMemory.isDefinedAt(expr)) > 0
     =>
 
       val newArgs =
         args.map(expr =>
-          if (isUserFun(expr) && OpenCLRules.privateMemory.isDefinedAt(expr))
+          if (isUserFunCall(expr) && OpenCLRules.privateMemory.isDefinedAt(expr))
             OpenCLRules.privateMemory.rewrite(expr)
           else
             expr
