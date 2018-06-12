@@ -51,25 +51,21 @@ object ParameterRewrite {
       s
   }
 
-  private[exploration] val defaultExploreNDRange = false
-  private[exploration] val defaultSampleNDRange = -1
-  private[exploration] val defaultDisableNDRangeInjection = false
-  private[exploration] val defaultSequential = false
-  private[exploration] val defaultGenerateScala = false
+  import ParameterRewriteSettings._
 
-  protected[exploration] val exploreNDRange = parser.flag[Boolean](List("e", "exploreNDRange"),
+  protected[exploration] val exploreNDRange = parser.flag[Boolean](List("e", keyExploreNDRange),
     s"Explore global and local sizes instead of inferring (default: $defaultExploreNDRange)")
 
-  protected[exploration] val sampleNDRange = parser.option[Int](List("sampleNDRange"), "n",
+  protected[exploration] val sampleNDRange = parser.option[Int](List(keySampleNDRange), "n",
     s"Randomly sample n combinations of global and local sizes (requires 'explore') (default: $defaultSampleNDRange)")
 
-  protected[exploration] val disableNDRangeInjection = parser.flag[Boolean](List("disableNDRangeInjection"),
+  protected[exploration] val disableNDRangeInjection = parser.flag[Boolean](List(keyDisableNDRangeInjection),
     s"Don't inject NDRanges while compiling the OpenCL Kernel (default: $defaultDisableNDRangeInjection)")
 
-  protected[exploration] val sequential = parser.flag[Boolean](List("s", "seq", "sequential"),
+  protected[exploration] val sequential = parser.flag[Boolean](List("s", "seq", keySequential),
     s"Don't execute in parallel (default: $defaultSequential)")
 
-  protected[exploration] val generateScala = parser.flag[Boolean](List("generate-scala"),
+  protected[exploration] val generateScala = parser.flag[Boolean](List(keyGenerateScala),
     s"Generate lambdas in Scala as well as in OpenCL (default: $defaultGenerateScala)")
 
 
@@ -228,7 +224,7 @@ object ParameterRewrite {
                           logger.warn(low_level_hash)
                           logger.warn(params.mkString("; "))
                           logger.warn(low_level_str)
-                          logger.warn(settings.searchParameters.defaultInputSize.toString)
+                          logger.warn(settings.searchParameters.inputSize.toString)
                           None
                       }
                     }).flatten
@@ -294,7 +290,7 @@ object ParameterRewrite {
     val vars = lambda.getVarsInParams()
 
     val actualSizes: Seq[ArithExpr] =
-      if (sizes.isEmpty) Seq.fill(vars.length)(settings.searchParameters.defaultInputSize)
+      if (sizes.isEmpty) Seq.fill(vars.length)(settings.searchParameters.inputSize)
       else sizes
 
     (vars, actualSizes).zipped.toMap

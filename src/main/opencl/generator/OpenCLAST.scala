@@ -175,10 +175,10 @@ object OpenCLAST {
     }
   }
 
-
   case class OclLoad(v: VarRef,
                      t: Type,
                      offset: ArithExpression,
+                     shift: ArithExpression,
                      addressSpace: OpenCLAddressSpace) extends LoadT
     with CLAddressSpace {
     override def print(): Doc = {
@@ -187,6 +187,8 @@ object OpenCLAST {
           offset.print <>
           "," <>
           v.print <>
+          " + " <>
+          shift.print <>
           ")"
       } else {
         s"*( ((${addressSpace} ${t}*)" <>
