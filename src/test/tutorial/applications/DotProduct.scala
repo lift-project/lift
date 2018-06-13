@@ -8,7 +8,8 @@ import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Ignore, Test}
+
 
 /**
   * Here is an example test case of dot product.
