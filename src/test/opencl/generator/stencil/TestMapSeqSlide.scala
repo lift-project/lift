@@ -1139,6 +1139,7 @@ class TestMapSeqSlide
     */
   }
 
+  @Ignore
   @Test
   def stencil3DJacobiMapSeqSlideWithPad(): Unit = {
 

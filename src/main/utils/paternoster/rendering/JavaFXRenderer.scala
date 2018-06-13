@@ -283,6 +283,8 @@ object JavaFXRenderer {
           y*ctx.unitY + ctx.smallY,
           w*ctx.unitX - 2*ctx.smallX,
           h*ctx.unitY - 2*ctx.smallY)
+
+      case _ => throw new NotImplementedError()
     }
   }
 

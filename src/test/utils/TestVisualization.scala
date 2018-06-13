@@ -1,18 +1,15 @@
 package utils;
 
-import benchmarks.DotProduct
-import c.executor.Compile
 import ir._
 import ir.ast.{PrintType, Split, _}
-import lift.arithmetic.{SizeVar, StartFromRange, Var}
-import opencl.executor.{Execute, Executor, TestWithExecutor, Utils}
+import lift.arithmetic.{SizeVar, Var}
+import opencl.executor._
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
 
-import scala.util.Random
 
 object TestVisualization extends TestWithExecutor
 
@@ -21,6 +18,7 @@ class TestVisualization{
   val input2D = Array.tabulate(4, 4) { (i, j) => i * 4.0f + j}
 
     @Test
+    @Ignore
     def psiPaperTestExpression(): Unit = {
         def M = Var("M")
         def N = Var("N")
@@ -32,6 +30,7 @@ class TestVisualization{
     }
 
   @Test
+  @Ignore
   def using3DArrays(): Unit = {
     val N = SizeVar("N")
     val M = SizeVar("M")
@@ -47,6 +46,7 @@ class TestVisualization{
 
 
   @Test
+  @Ignore
   def tupleType(): Unit = {
     val input = Array.tabulate(32){ i => i}
     val N = Var("N")
@@ -62,6 +62,7 @@ class TestVisualization{
   }
 
   @Test
+  @Ignore
   def vectorType(): Unit = {
     val input = Array.tabulate(32){ i => i}
     val N = Var("N")
@@ -78,6 +79,7 @@ class TestVisualization{
 
 
   @Test
+  @Ignore
   def ArrayOfMatrixes(): Unit = {
     val input = Array.tabulate(32){ i => i}
     val N = Var("N")
@@ -93,6 +95,7 @@ class TestVisualization{
   }
 
 
+  @Ignore
   @Test def addArrayOfVectors_EVALUATION(): Unit = {
     val inputSize = 4
     val numVectors = 6
@@ -115,7 +118,7 @@ class TestVisualization{
   }
 
 
-
+  @Ignore
   @Test def MATRIX_MATRIX_EVALUATION(): Unit = {
 
     val N = SizeVar("N")
@@ -147,7 +150,7 @@ class TestVisualization{
   }
 
 
-
+  @Ignore
   @Test
   def strongNesting_EVALUATION(): Unit = {
     val input = Array.tabulate(32){ i => i}
@@ -163,6 +166,7 @@ class TestVisualization{
   }
 
 
+  @Ignore
   @Test def tiledMatrixMultiply_MOTIVATION_TYPE_EXSAMPLE(): Unit = {
     assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
 
@@ -209,56 +213,7 @@ class TestVisualization{
     assertArrayEquals(gold, output, 0.0001f)
   }
 
-//Disabled. Causes compilation problems with too many printtypes. If the computer has much memory it can compile it.
-/*
-@Test def tiledMatrixMultiply_EXTREMELY_MANY_PRINTTYPES(): Unit = {
 
-  //but can export to svg
-  assumeFalse("Disabled on Apple OpenCL CPU.", Utils.isAppleCPU)
-
-  val N = SizeVar("N")
-  val M = SizeVar("M")
-  val K = SizeVar("K")
-
-  val mSize = 16
-  val kSize = 16
-  val nSize = 16
-  val matrixA = Array.tabulate(mSize, kSize)((r, c) => (((r * 3 + c * 2) % 10) + 1) * 1.0f)
-  val matrixB = Array.tabulate(kSize, nSize)((r, c) => (((r * 7 + c * 3) % 10) + 1) * 1.0f)
-
-  val tileSize = 4
-
-  val gold = Utils.matrixMatrixMultiply(matrixA, matrixB).flatten
-  val f = fun(
-  ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
-  ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
-  (A, B) => {
-  // Undo the tiling
-  PrintType() o Untile2D() o
-  PrintType() o MapWrg(0)(fun( aRows =>
-  PrintType() o MapWrg(1)(fun( bCols =>
-
-  // Reduce the partial results (matrices), so that the reduce is innermost
-  PrintType() o MapLcl(0)(PrintType() o Join() o PrintType() o  MapLcl(1)(toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) o Join()) o PrintType() o  Transpose())  o Transpose()  o PrintType() o
-
-  // Multiply all necessary combinations of tiles
-  PrintType() o MapSeq(fun( tiles =>
-  MapLcl(0)( fun(aTile =>
-  MapLcl(1)( fun( bTile =>
-  toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)  $ Zip(aTile, bTile)
-  )) $ Get(tiles, 1)
-  )) $ Get(tiles, 0)
-  )) o PrintType() $ Zip(aRows, bCols)
-
-  // Tile the matrices
-  )) o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true)o PrintType(visual = true) o Tile(tileSize)o PrintType() $ B
-  )) o Tile(tileSize) $ A
-})
-
-  val (output, _) = Execute(4, 4, mSize, nSize, (false, false))[Array[Float]](f, matrixA, matrixB.transpose)
-  assertArrayEquals(gold, output, 0.0001f)
-}
-*/
 }
 
 
