@@ -89,6 +89,7 @@ class DotProduct {
   /*
    * dot product utilising workgroups, local memory and iterate
    */
+  @Ignore
   @Test def dotProductWithLocalAndWorkgroupMappingsAndIterate(): Unit = {
 
     val dotProductLift = fun(
