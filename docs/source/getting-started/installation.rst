@@ -31,7 +31,7 @@ To create and use the *Lift* docker container follow these steps:
    To build the container image and giving it the name ``lift`` execute the following command from the *Lift* root directory.
    ::
 
-       docker build -t lift docker
+       docker build -t lift docker/lift/dev
 
 3. Run the *Lift* docker container
 
@@ -65,7 +65,7 @@ To create and use the *Lift* docker container with ``nvidia-docker`` follow thes
    To build the container image and giving it the name ``lift`` execute the following command from the *Lift* root directory.
    ::
 
-       docker build -t lift nvidia-docker
+       docker build -t lift docker/lift/dev
 
 3. Run the *Lift* docker container
 
