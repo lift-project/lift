@@ -18,7 +18,7 @@ import opencl.ir.{add, _}
   * The companion object that contains the Lift expressions, configuration preprocessing and
   * verification, and helper functions.
   */
-object Conv3 extends ConvCompanion {
+object Conv4 extends ConvCompanion {
   //  val kernel_xdim_SV = SizeVar("kernel_xdim_SV")
   //  val kernel_ydim_SV = SizeVar("kernel_ydim_SV")
   //  val input_xdim_SV = SizeVar("input_xdim_SV")
@@ -36,12 +36,53 @@ object Conv3 extends ConvCompanion {
           nKernelsPerWrg: Int, seqElsPerThread: Int, vectorLen: Int,
           coalesce: Boolean, unrollReduce: Boolean): Array[FunDecl] = {
     /*********** UserFuns ***********/
-//    val dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
-//      "{ return acc + dot(l, r); }",
-//      Seq(Float, Float3, Float3), Float)
+    val dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
+      "{ return acc + dot(l, r); }",
+      vectorLen match {
+        case 2 => Seq(Float, Float2, Float2)
+        case 3 => Seq(Float, Float3, Float3)
+        case 4 => Seq(Float, Float4, Float4)
+        case _ => throw new NotImplementedError("dotAndSumUp() does not support vectors of size " + vectorLen)
+      }, Float)
+
+    def vectoriseNonContiguous(vectorLen: Int) = {
+      vectorLen match {
+        case 2 => UserFun ("vectoriseNonContiguous", Array ("f0", "f1"),
+          "{ return (float2)(f0, f1); }", Seq (Float, Float), Float2)
+        case 3 => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2"),
+          "{ return (float3)(f0, f1, f2); }", Seq (Float, Float, Float), Float3)
+        case 4 => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2", "f3"),
+          "{ return (float4)(f0, f1, f2, f3); }", Seq (Float, Float, Float, Float), Float4)
+        case _ =>
+          throw new NotImplementedError("vectoriseNonContiguous() does not support vectors of size " + vectorLen)
+      }
+    }
+    
+    def ArrayToVector(): FunDecl = {
+      λ(AT(Float, vectorLen), (arr) => {
+        if (coalesce)
+          vectorLen match {
+            case 2 => vectoriseNonContiguous(vectorLen)(
+              ArrayAccess(0) $ arr,
+              ArrayAccess(1) $ arr)
+            case 3 => vectoriseNonContiguous(vectorLen)(
+              ArrayAccess(0) $ arr,
+              ArrayAccess(1) $ arr,
+              ArrayAccess(2) $ arr)
+            case 4 => vectoriseNonContiguous(vectorLen)(
+              ArrayAccess(0) $ arr,
+              ArrayAccess(1) $ arr,
+              ArrayAccess(2) $ arr,
+              ArrayAccess(3) $ arr)
+            case _ => throw new NotImplementedError("ArrayToVector() does not support size " + vectorLen)
+          }
+        else
+          asVector(vectorLen) $ arr
+      })}
+    
     def Continue(): Lambda = λ((x) => x)
     
-    def ReduceChoice(f: Lambda2, init: Expr) = 
+    def ReduceSeqMaybeUnroll(f: Lambda2, init: Expr) = 
       if (unrollReduce) ReduceSeqUnroll(f, init) 
       else ReduceSeq(f, init)
       
@@ -136,12 +177,17 @@ object Conv3 extends ConvCompanion {
                               MapLcl(0)(λ(TupleType(windowSeqTileType, windowSeqTileType),
                                 (SeqTileAndWeightsAndAcc) => {
                                   toGlobal(MapSeq(id)) o
-                                    ReduceChoice(λ((acc, y) =>
+                                    ReduceSeqMaybeUnroll(λ((acc, y) =>
 
                                       /********* Reducing window tile BEGIN *********/
-
-                                      multAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))),
-//                                      add(acc, dot(/* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1)))),
+                                    {
+                                      if (vectorLen == 1)
+                                        multAndSumUp(acc, ArrayToVector() $ /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
+                                      else
+                                        dotAndSumUp(acc,
+                                          ArrayToVector() $ /* X */ Get(y, 0),
+                                          ArrayToVector() $ /* kernelWWindow */ Get(y, 1)) // TODO: test this please
+                                    }),
                                     toPrivate(id) $ Value("0.0f", Float)) $
                                     Zip(Get(SeqTileAndWeightsAndAcc, 0), Get(SeqTileAndWeightsAndAcc, 1))
 
@@ -193,14 +239,33 @@ object Conv3 extends ConvCompanion {
         Gather(ReorderWithStride(nSeqTilesInWindow))
           $ window)
 
-    def Vectorise(): FunDecl =
-      λ(originalFlatWindowType, (window) =>
-        asVector(vectorLen) $ window)
+//    def Vectorise(): FunDecl =
+//      λ(originalFlatWindowType, (window) => {
+//        if (!coalesce) 
+//          asVector(vectorLen) $ window
+//        else
+//          Map(λ((futureVector) => {
+//              vectorLen match {
+//                case 2 => vectoriseNonContiguous(vectorLen)(
+//                  CheckedArrayAccess(0, 0.0f) $ futureVector,
+//                  CheckedArrayAccess(1, 0.0f) $ futureVector)
+//                case 3 => vectoriseNonContiguous(vectorLen)(
+//                  CheckedArrayAccess(0, 0.0f) $ futureVector,
+//                  CheckedArrayAccess(1, 0.0f) $ futureVector,
+//                  CheckedArrayAccess(2, 0.0f) $ futureVector)
+//                case 4 => vectoriseNonContiguous(vectorLen)(
+//                  CheckedArrayAccess(0, 0.0f) $ futureVector,
+//                  CheckedArrayAccess(1, 0.0f) $ futureVector,
+//                  CheckedArrayAccess(2, 0.0f) $ futureVector,
+//                  CheckedArrayAccess(3, 0.0f) $ futureVector)
+//                case _ => throw new NotImplementedError("Vectorise() does not support vectors of size " + vectorLen)
+//              }})) o Split(vectorLen) $ window
+//      })
     
     def TileAndCoalesce(): FunDecl =
       λ(originalFlatWindowType, (window) =>
-        // Vectorise
-        {if (vectorLen != 1) Map(Vectorise()) else Continue()} o 
+        // Prepare for vectorisation
+        {if (vectorLen != 1) Map(Split(vectorLen)) else Continue()} o 
           // Tile
           Split(seqElsPerThread) o
           // Coalesce
@@ -236,7 +301,7 @@ object Conv3 extends ConvCompanion {
                              by Reduce */
                           Map(AssertType(reducedWindowType, "Reduced window type")) o
                             MapSeq(toGlobal(id)) o
-                            ReduceChoice(add, toPrivate(id) o
+                            ReduceSeqMaybeUnroll(add, toPrivate(id) o
                               AssertType(kernelBPerWindowType, "Kernel bias per window type") $
                               Get(outputChannel, 1)
                             ) o AssertType(partReducedWindowType, "Part reduced X window type") $ window
@@ -490,7 +555,7 @@ object Conv3 extends ConvCompanion {
   * @param localSize
   * @param globalSize
   */
-case class Conv3(override val liftFProp: Array[FunDecl],
+case class Conv4(override val liftFProp: Array[FunDecl],
                  override val inputShape: Shape, override val outputShape: Shape,
                  override val inputTiling: SlidingWindowConfig, override val kernelSliding: SlidingWindowConfig,
                  override val elsPerThread: Int, override val kernelsPerGroup: Int,

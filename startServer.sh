@@ -4,7 +4,7 @@ set -x
 export LIFT_MYSQL_USERNAME=s1569687
 export LIFT_MYSQL_PASSWORD=alpine
 export LIFT_NN_RESOURCES=/home/s1569687/microbenchmark/
-export LIFT_CNN_CONFIG_PATH=/home/s1569687/lift/src/test/nn/cnn/nnconfigs/
+export LIFT_CNN_CONFIG_PATH=/home/s1569687/lift/src/test/nn/cnn/opt_params/
 export LIFT_NN_KERNELS_LOCATION=/home/s1569687/caffe_clblas/vcs_caffes/caffe-android-lift-clblas/microbenchmark_kernels/
 readonly servermode="${SERVERMODE}"
 REDIRECTOUTPUT=/dev/stdout

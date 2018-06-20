@@ -42,8 +42,8 @@ class TestCNN {
   val reruns: Int = 1
   val padData: Boolean = false
   val changeDataLayout: Boolean = true
-  val Conv = conv.versions.Conv3
-  type Conv = conv.versions.Conv3
+  val Conv = conv.versions.Conv4
+  type Conv = conv.versions.Conv4
 
   //@Test
   def TestFC(): Unit = {
@@ -77,7 +77,7 @@ class TestCNN {
   }
 
 
-  def Test(e: cnn.ExperimentsSet,
+  def Test(e: cnn.ExperimentalParams,
            testConfigFilename: String = "",
            continueFrom: Experiment = null,
            abortAfter: Option[Int] = None): Unit = {
@@ -325,7 +325,7 @@ class TestCNN {
             var runtime1: Double = 0.0f
             
             layer match {
-              case convLayer: conv.versions.Conv3 =>
+              case convLayer: conv.versions.Conv4 =>
                 /* Two-kernel convolution */
                                 
                 // Kernel 1

@@ -1,11 +1,10 @@
 import ir.ast._
-import ir.ast.debug.AssertType
-import ir.{ArrayType, ArrayTypeWSWC, TupleType}
+import ir.{ArrayType, ArrayTypeWSWC}
 import lift.arithmetic.SizeVar
-import nn.AT
 import opencl.executor.Compile
 import opencl.ir._
-import opencl.ir.pattern._
+import ast.dot
+import opencl.ir.pattern.{MapSeq, ReduceSeq, toGlobal}
 
 /**
   * Created by nm on 11/04/18.
@@ -39,13 +38,13 @@ object dontweAll {
 //
 //            /********* Reducing window tile END *********/
 //          })) $ Zip(window, w, acc))
-val N = SizeVar("N")
-  def Thing(): FunDecl =
-    fun(
-      ArrayTypeWSWC(Float, N),
-      x =>
-        Map(plusOne) o Let(y => Map(id) $ y) $ x
-    )
+//val N = SizeVar("N")
+//  def Thing(): FunDecl =
+//    fun(
+//      ArrayTypeWSWC(Float, N),
+//      x =>
+//        Map(plusOne) o Let(y => Map(id) $ y) $ x
+//    )
 //λ(
 //  AT(Float, 1),
 //  TupleType(
@@ -194,9 +193,73 @@ val N = SizeVar("N")
 //
 //        /*** Layer END ***/
 //      })
+
+  val N = SizeVar("N")
+  def Vectorisation_contiguous(): FunDecl =
+    fun(
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
+      (x, y) =>
+        toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, tuple) =>
+          add(acc, dot(Get(tuple, 0), Get(tuple, 1)))
+        ), 0.0f) $ Zip(asVector(4) $ x, asVector(4) $ y)
+    )
+  def Vectorisation_coalesced(): FunDecl =
+    fun(
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
+      (x, y) =>
+        toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, tuple) =>
+          add(acc, dot(Get(tuple, 0), Get(tuple, 1)))
+        ), 0.0f) $ Zip(asVector(4) o Gather(ReorderWithStride(4)) $ x, asVector(4) o Gather(ReorderWithStride(4)) $ y)
+    )
+  
+  def vectoriseNonContiguous(vectorLen: Int) = {
+    vectorLen match {
+      case 2 => UserFun ("vectoriseNonContiguous", Array ("f0", "f1"),
+        "{ return (float2)(f0, f1); }", Seq (Float, Float), Float2)
+      case 3 => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2"),
+        "{ return (float3)(f0, f1, f2); }", Seq (Float, Float, Float), Float3)
+      case 4 => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2", "f3"),
+        "{ return (float4)(f0, f1, f2, f3); }", Seq (Float, Float, Float, Float), Float4)
+      case _ =>
+        throw new NotImplementedError("vectoriseNonContiguous() does not support vectors of size " + vectorLen)
+    }
+  }
+  val vectorLen = 4
+
+  def ArrayToVector(): FunDecl = {
+    λ(ArrayTypeWSWC(Float, vectorLen), (arr) => {
+        vectorLen match {
+          case 2 => vectoriseNonContiguous(vectorLen)(
+            ArrayAccess(0) $ arr,
+            ArrayAccess(1) $ arr)
+          case 3 => vectoriseNonContiguous(vectorLen)(
+            ArrayAccess(0) $ arr,
+            ArrayAccess(1) $ arr,
+            ArrayAccess(2) $ arr)
+          case 4 => vectoriseNonContiguous(vectorLen)(
+            ArrayAccess(0) $ arr,
+            ArrayAccess(1) $ arr,
+            ArrayAccess(2) $ arr,
+            ArrayAccess(3) $ arr)
+          case _ => throw new NotImplementedError("ArrayToVector() does not support size " + vectorLen)
+        }
+    })}
+  
+  def Vectorisation_coalesced_correct(): FunDecl =
+    fun(
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
+      (x, y) =>
+        toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, tuple) =>
+          add(acc, dot(ArrayToVector() $ Get(tuple, 0), ArrayToVector() $ Get(tuple, 1)))
+        ), 0.0f) $ Zip(Split(vectorLen) o Gather(ReorderWithStride(4)) $ x, Split(vectorLen) o Gather(ReorderWithStride(4)) $ y)
+    )
     
   def main(args: Array[String]): Unit = {
-    println(Compile(Thing))
+    //    println(Compile(Thing))
+        println(Compile(Vectorisation_coalesced_correct))
   }
 
 }
