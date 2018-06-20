@@ -6,10 +6,12 @@ import java.nio.file.Files.exists
 import java.nio.file.Paths.get
 import java.util.Calendar
 
+import _root_.caffe.caffe.{NetParameter, V1LayerParameter}
 import com.typesafe.scalalogging.Logger
 import nn.conv.Conv
 import org.junit.Assert.assertEquals
 
+import scala.collection.mutable.ListBuffer
 import scala.util.parsing.json.JSON
 
 /**
@@ -92,7 +94,7 @@ package object cnn {
       mainList
   }
 
-  def getConfigFromJSON(jsonFilePath: String): ExperimentsSet = {
+  def getConfigFromJSON(jsonFilePath: String): ExperimentalParams = {
     val logger = Logger(this.getClass)
     val source = scala.io.Source.fromFile(jsonFilePath)
     val jsonString = source.getLines.mkString("\n")
@@ -111,7 +113,7 @@ package object cnn {
         val jWorkload = j("workload").asInstanceOf[Map[String, Any]]
         val jOptParams = j("optimisational_parameters").asInstanceOf[Map[String, Map[String, Double]]]
 
-        ExperimentsSet(
+        ExperimentalParams(
           kernelOutputSubfolder = j("kernel_output_subfolder").asInstanceOf[String],
           nBatchesRange = generateList(jWorkload("n_batches").asInstanceOf[Map[String, Double]]),
           nInputsRange = generateList(jWorkload("n_inputs").asInstanceOf[Map[String, Double]]),
@@ -133,6 +135,125 @@ package object cnn {
           multsPerThreadRange = generateListsOfFuns(jOptParams, "mults_per_thread"),
           neuronsPerWrgRange = generateListsOfFuns(jOptParams, "neurons_per_wrg"))
     }
+  }
+
+  
+  
+  def getConfigFromProto(protoFilePath: String): List[ExperimentalParams] = {
+    
+    val logger = Logger(this.getClass)
+    logger.info("Processing PROTO config file \"" + protoFilePath + "\"")
+    
+    var configs = new ListBuffer[String]()
+    
+    val netparam: NetParameter = nn.caffe.proto.config.load(protoFilePath)
+    
+//    if (netparam.layers.nonEmpty)
+    
+    def fillMissingParametersV1(layers: Seq[V1LayerParameter]): Seq[(V1LayerParameter, Int)] = {
+
+      val dataLayer = layers.find(layer => layer.`type`.get == V1LayerParameter.LayerType.DATA &&
+        (layer.include.isEmpty || layer.include.exists(_.phase match {
+          case Some(_root_.caffe.caffe.Phase.TEST) => true
+          case None => true
+          case _ => false
+        }))
+      ) match {
+        case Some(l) => l
+        case None => throw new java.util.NoSuchElementException("Cannot find a data layer in Caffe proto-file")
+      }
+
+      val processedLayers = scala.collection.mutable.Map[V1LayerParameter, Int]()
+
+      processedLayers += ((dataLayer, dataLayer.transformParam.get.cropSize.get))
+      for (layer <- layers) {
+        if (!processedLayers.contains(layer)) {
+
+          def computeImageSize(currentLayer: V1LayerParameter): Int = {
+            if (processedLayers.contains(layer))
+              processedLayers(layer)
+            else {
+
+              def getStride(stride: Seq[Int]): Int = if (stride.nonEmpty) stride.head else 1
+
+              val parent = netparam.layers.find(layer => currentLayer.bottom.contains(layer.name.get)).get
+              val currentLayerSize: Int = parent.`type`.get match {
+                case V1LayerParameter.LayerType.RELU => computeImageSize(parent)
+                case V1LayerParameter.LayerType.LRN => computeImageSize(parent)
+                case V1LayerParameter.LayerType.DATA => parent.transformParam.get.cropSize.get
+                case V1LayerParameter.LayerType.CONVOLUTION =>
+                  (computeImageSize(parent) -
+                    (parent.convolutionParam.get.kernelSize.head - getStride(parent.convolutionParam.get.stride)) +
+                    parent.convolutionParam.get.pad.head * 2) / getStride(parent.convolutionParam.get.stride)
+                case V1LayerParameter.LayerType.POOLING =>
+                  (computeImageSize(parent) -
+                    (parent.poolingParam.get.kernelSize.head - parent.poolingParam.get.stride.get) +
+                    parent.poolingParam.get.pad.getOrElse(0) * 2) / parent.poolingParam.get.stride.get
+                case V1LayerParameter.LayerType.INNER_PRODUCT =>
+                  parent.innerProductParam.get.numOutput.get
+                case V1LayerParameter.LayerType.CONCAT => computeImageSize(parent)
+                case V1LayerParameter.LayerType.DROPOUT => computeImageSize(parent)
+                case V1LayerParameter.LayerType.SOFTMAX => computeImageSize(parent)
+                case V1LayerParameter.LayerType.SOFTMAX_LOSS => computeImageSize(parent)
+                case V1LayerParameter.LayerType.ACCURACY => parent.accuracyParam.get.topK.get
+                case V1LayerParameter.LayerType.ELTWISE => computeImageSize(parent)
+                case _ =>
+                  parent.`type`.get.name match {
+                    case "BatchNorm" =>
+                      // I hope this works. Caffe does not seem to have a proper layer type for BatchNorm
+                      computeImageSize(parent)
+                    case "Scale" =>
+                      // I hope this works. Caffe does not seem to have a proper layer type for Scale
+                      computeImageSize(parent)
+
+                    case _ =>
+                      throw new java.lang.IllegalArgumentException("Cannot recognize a layer from the proto file (" +
+                        parent.`type`.get.name + ")")
+                  }
+              }
+              processedLayers += ((layer, currentLayerSize))
+
+              currentLayerSize
+            }
+          }
+
+          computeImageSize(layer)
+        }
+      }
+      layers.map(layer => (layer, processedLayers(layer)))
+      
+  
+
+      //    netparam.layers.zipWithIndex.filter(
+      //      _._1 == true
+      //    ).map{
+      //      case (layer: V1LayerParameter, i: Int) =>
+      //        ExperimentalParams(
+      //          kernelOutputSubfolder = i.toString(),
+      //          nBatchesRange = List(1), // TODO: generalise
+      //          nInputsRange = List(dataLayer.dataParam.get.batchSize.get),
+      //          imageSizeRange = List(dataLayer.transformParam.get.cropSize.get),
+      //          inputChannelRange = List(3), // TODO: generalise
+      //
+      //          nKernelsRange = List(),
+      //          kernelSizeRange = generateListsOfInts(jWorkload, "kernel_size"),
+      //          kernelStrideRange = generateListsOfInts(jWorkload, "kernel_stride"),
+      //
+      //          neuronsRange = generateListsOfInts(jWorkload, "n_neurons"),
+      //
+      //
+      //          inputTileSizeRange = generateListsOfFuns(jOptParams, "input_tile_size"),
+      //          elsPerThreadRange = generateListsOfFuns(jOptParams, "els_per_thread"),
+      //          kernelsPerGroupRange = generateListsOfFuns(jOptParams, "kernels_per_group"),
+      //          vectorLenRange = generateListsOfFuns(jOptParams, "vector_len"),
+      //
+      //          multsPerThreadRange = generateListsOfFuns(jOptParams, "mults_per_thread"),
+      //          neuronsPerWrgRange = generateListsOfFuns(jOptParams, "neurons_per_wrg"))}
+    }
+    
+    val layersWithSizes = fillMissingParametersV1(netparam.layers)
+    
+    return null
   }
 
   def configToString(nBatches: Int, nInputs: Int, imageSize: Int, nLayers: Int): String = {
@@ -297,30 +418,30 @@ package object cnn {
                         convConfig: List[conv.Experiment.Config],
                         fcConfig: List[fc.Experiment.Config])
 
-  case class ExperimentsSet(kernelOutputSubfolder: String,
-                            nBatchesRange: List[Int],
-                            nInputsRange: List[Int],
-                            imageSizeRange: List[Int],
-                            inputChannelRange: List[Int],
+  case class ExperimentalParams(kernelOutputSubfolder: String,
+                                nBatchesRange: List[Int],
+                                nInputsRange: List[Int],
+                                imageSizeRange: List[Int],
+                                inputChannelRange: List[Int],
 
-                            nKernelsRange: List[List[Int]],
-                            kernelSizeRange: List[List[Int]],
-                            kernelStrideRange: List[List[Int]],
+                                nKernelsRange: List[List[Int]],
+                                kernelSizeRange: List[List[Int]],
+                                kernelStrideRange: List[List[Int]],
 
-                            neuronsRange: List[List[Int]],
+                                neuronsRange: List[List[Int]],
 
-                            inputTileSizeRange: List[
+                                inputTileSizeRange: List[
                               (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
-                            elsPerThreadRange: List[
+                                elsPerThreadRange: List[
                               (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
-                            kernelsPerGroupRange: List[
+                                kernelsPerGroupRange: List[
                               (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
-                            vectorLenRange: List[
+                                vectorLenRange: List[
                               (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
 
-                            multsPerThreadRange: List[
+                                multsPerThreadRange: List[
                               (cnn.Experiment.InputConfig, fc.Experiment.Config.Dimensions) => List[Int]],
-                            neuronsPerWrgRange: List[
+                                neuronsPerWrgRange: List[
                               (cnn.Experiment.InputConfig, fc.Experiment.Config.Dimensions) => List[Int]])
 
 }

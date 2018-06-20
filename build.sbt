@@ -96,3 +96,11 @@ ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks
 // testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v", "-a")
 
 fork := true
+
+// Proto files location
+//PB.protoSources in Compile += sourceDirectory.value / "src/test/nn/caffe/proto/"
+
+// Generate protobufs
+PB.targets in Compile := Seq(
+  scalapb.gen() -> (sourceManaged in Compile).value
+)
