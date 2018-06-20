@@ -375,12 +375,12 @@ object Lower {
     val reduceSeqs = Rewrite.listAllPossibleRewrites(stepOne, CopyRules.addIdAfterReduce)
 
     val idsAfterAdded = reduceSeqs.foldLeft(stepOne)((lambda, pair) =>
-      Rewrite.applyRuleAt(lambda, pair._2, pair._1))
+      Rewrite.applyRuleAt(lambda, pair.expr, pair.rule))
 
     val values = Rewrite.listAllPossibleRewrites(idsAfterAdded, CopyRules.addIdValue)
 
     val valueIdsAdded = values.foldLeft(idsAfterAdded)((lambda, pair) =>
-      Rewrite.applyRuleAt(lambda, pair._2, pair._1))
+      Rewrite.applyRuleAt(lambda, pair.expr, pair.rule))
 
     valueIdsAdded
   }
