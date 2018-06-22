@@ -36,7 +36,7 @@ class TestCNN_Conv {
   //      new TestCNN().Test(
   //        cnn.getConfigFromJSON("/home/s1569687/lift/src/test/nn/cnn/cnn_experiments.json"),
   //        continueFrom = Experiment(
-  //          cnn.Experiment.InputConfig(
+  //          cnn.InputConfig(
   //            nBatches = 2,
   //            nInputs = 32,
   //            imageSize = 32,
