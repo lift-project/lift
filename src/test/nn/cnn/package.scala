@@ -2,16 +2,16 @@ package nn
 
 import java.io.{BufferedWriter, File, FileOutputStream, OutputStreamWriter}
 import java.nio.charset.StandardCharsets
-import java.nio.file.Files.exists
+import java.nio.file.Files.{createDirectory, exists}
 import java.nio.file.Paths.get
 import java.util.Calendar
 
-import _root_.caffe.caffe.{NetParameter, V1LayerParameter}
+import _root_.caffe.caffe.{LayerParameter, V1LayerParameter}
 import com.typesafe.scalalogging.Logger
+import nn.caffe.proto.Config
 import nn.conv.Conv
 import org.junit.Assert.assertEquals
 
-import scala.collection.mutable.ListBuffer
 import scala.util.parsing.json.JSON
 
 /**
@@ -29,7 +29,7 @@ package object cnn {
           v match {
             case "n_batches" => inputConfig.nBatches
             case "n_inputs" => inputConfig.nInputs
-            case "image_size" => inputConfig.imageSize
+            case "image_size" => inputConfig.inputSize
             case "input_channels" => inputConfig.nChannels
             case _ =>
               layerSizeConfig match {
@@ -94,7 +94,7 @@ package object cnn {
       mainList
   }
 
-  def getConfigFromJSON(jsonFilePath: String): ExperimentalParams = {
+  def getConfigFromJSON(jsonFilePath: String): ExperimentParams = {
     val logger = Logger(this.getClass)
     val source = scala.io.Source.fromFile(jsonFilePath)
     val jsonString = source.getLines.mkString("\n")
@@ -113,11 +113,12 @@ package object cnn {
         val jWorkload = j("workload").asInstanceOf[Map[String, Any]]
         val jOptParams = j("optimisational_parameters").asInstanceOf[Map[String, Map[String, Double]]]
 
-        ExperimentalParams(
+        ExperimentParams(
+          experimentName = j("name").asInstanceOf[String],
           kernelOutputSubfolder = j("kernel_output_subfolder").asInstanceOf[String],
           nBatchesRange = generateList(jWorkload("n_batches").asInstanceOf[Map[String, Double]]),
           nInputsRange = generateList(jWorkload("n_inputs").asInstanceOf[Map[String, Double]]),
-          imageSizeRange = generateList(jWorkload("image_size").asInstanceOf[Map[String, Double]]),
+          inputSizeRange = generateList(jWorkload("image_size").asInstanceOf[Map[String, Double]]),
           inputChannelRange = generateList(jWorkload("input_channels").asInstanceOf[Map[String, Double]]),
 
           nKernelsRange = generateListsOfInts(jWorkload, "n_kernels"),
@@ -139,170 +140,173 @@ package object cnn {
 
   
   
-  def getConfigFromProto(protoFilePath: String): List[ExperimentalParams] = {
+  def getConfigFromProto(protoFilePath: String): Seq[ExperimentParams] = {
     
     val logger = Logger(this.getClass)
     logger.info("Processing PROTO config file \"" + protoFilePath + "\"")
-    
-    var configs = new ListBuffer[String]()
-    
-    val netparam: NetParameter = nn.caffe.proto.config.load(protoFilePath)
-    
-//    if (netparam.layers.nonEmpty)
-    
-    def fillMissingParametersV1(layers: Seq[V1LayerParameter]): Seq[(V1LayerParameter, Int)] = {
+     
+    val config: nn.caffe.proto.Config = nn.caffe.proto.Config(protoFilePath)
 
-      val dataLayer = layers.find(layer => layer.`type`.get == V1LayerParameter.LayerType.DATA &&
-        (layer.include.isEmpty || layer.include.exists(_.phase match {
-          case Some(_root_.caffe.caffe.Phase.TEST) => true
-          case None => true
-          case _ => false
-        }))
-      ) match {
-        case Some(l) => l
-        case None => throw new java.util.NoSuchElementException("Cannot find a data layer in Caffe proto-file")
-      }
-
-      val processedLayers = scala.collection.mutable.Map[V1LayerParameter, Int]()
-
-      processedLayers += ((dataLayer, dataLayer.transformParam.get.cropSize.get))
-      for (layer <- layers) {
-        if (!processedLayers.contains(layer)) {
-
-          def computeImageSize(currentLayer: V1LayerParameter): Int = {
-            if (processedLayers.contains(layer))
-              processedLayers(layer)
-            else {
-
-              def getStride(stride: Seq[Int]): Int = if (stride.nonEmpty) stride.head else 1
-
-              val parent = netparam.layers.find(layer => currentLayer.bottom.contains(layer.name.get)).get
-              val currentLayerSize: Int = parent.`type`.get match {
-                case V1LayerParameter.LayerType.RELU => computeImageSize(parent)
-                case V1LayerParameter.LayerType.LRN => computeImageSize(parent)
-                case V1LayerParameter.LayerType.DATA => parent.transformParam.get.cropSize.get
-                case V1LayerParameter.LayerType.CONVOLUTION =>
-                  (computeImageSize(parent) -
-                    (parent.convolutionParam.get.kernelSize.head - getStride(parent.convolutionParam.get.stride)) +
-                    parent.convolutionParam.get.pad.head * 2) / getStride(parent.convolutionParam.get.stride)
-                case V1LayerParameter.LayerType.POOLING =>
-                  (computeImageSize(parent) -
-                    (parent.poolingParam.get.kernelSize.head - parent.poolingParam.get.stride.get) +
-                    parent.poolingParam.get.pad.getOrElse(0) * 2) / parent.poolingParam.get.stride.get
-                case V1LayerParameter.LayerType.INNER_PRODUCT =>
-                  parent.innerProductParam.get.numOutput.get
-                case V1LayerParameter.LayerType.CONCAT => computeImageSize(parent)
-                case V1LayerParameter.LayerType.DROPOUT => computeImageSize(parent)
-                case V1LayerParameter.LayerType.SOFTMAX => computeImageSize(parent)
-                case V1LayerParameter.LayerType.SOFTMAX_LOSS => computeImageSize(parent)
-                case V1LayerParameter.LayerType.ACCURACY => parent.accuracyParam.get.topK.get
-                case V1LayerParameter.LayerType.ELTWISE => computeImageSize(parent)
-                case _ =>
-                  parent.`type`.get.name match {
-                    case "BatchNorm" =>
-                      // I hope this works. Caffe does not seem to have a proper layer type for BatchNorm
-                      computeImageSize(parent)
-                    case "Scale" =>
-                      // I hope this works. Caffe does not seem to have a proper layer type for Scale
-                      computeImageSize(parent)
-
-                    case _ =>
-                      throw new java.lang.IllegalArgumentException("Cannot recognize a layer from the proto file (" +
-                        parent.`type`.get.name + ")")
-                  }
-              }
-              processedLayers += ((layer, currentLayerSize))
-
-              currentLayerSize
-            }
-          }
-
-          computeImageSize(layer)
+    {
+      config.version match {
+        case Config.Version.V1 => config.layersWithSizesV1.get
+        case Config.Version.NEW => config.layersWithSizesVNew.get}
+    }.zipWithIndex.filter(layerAndNo => {
+      layerAndNo._1._1 match {
+        case layerV1: V1LayerParameter =>
+          nn.caffe.proto.Config.getType(layerV1) == V1LayerParameter.LayerType.CONVOLUTION
+        case layerVNew: LayerParameter =>
+          nn.caffe.proto.Config.getType(layerVNew) == V1LayerParameter.LayerType.CONVOLUTION
+      }}).map{
+      case ((layer, inputSize), i) =>
+        val nInputs: Int = {
+          config.version match {
+            case Config.Version.V1 => config.dataLayerV1.get.dataParam
+            case Config.Version.NEW => config.dataLayerVNew.get.dataParam
+          }}.get.batchSize.get
+        
+        val experimentName: String = config.version match {
+          case Config.Version.V1 => layer.asInstanceOf[V1LayerParameter].name.get  
+          case Config.Version.NEW => layer.asInstanceOf[LayerParameter].name.get
         }
-      }
-      layers.map(layer => (layer, processedLayers(layer)))
-      
-  
+        
+        val paddedInputSize: Int = inputSize + 2 * {
+          config.version match {
+            case Config.Version.V1 => layer.asInstanceOf[V1LayerParameter].convolutionParam.get.pad.head
+            case Config.Version.NEW => layer.asInstanceOf[LayerParameter].convolutionParam.get.pad.head
+          }}
 
-      //    netparam.layers.zipWithIndex.filter(
-      //      _._1 == true
-      //    ).map{
-      //      case (layer: V1LayerParameter, i: Int) =>
-      //        ExperimentalParams(
-      //          kernelOutputSubfolder = i.toString(),
-      //          nBatchesRange = List(1), // TODO: generalise
-      //          nInputsRange = List(dataLayer.dataParam.get.batchSize.get),
-      //          imageSizeRange = List(dataLayer.transformParam.get.cropSize.get),
-      //          inputChannelRange = List(3), // TODO: generalise
-      //
-      //          nKernelsRange = List(),
-      //          kernelSizeRange = generateListsOfInts(jWorkload, "kernel_size"),
-      //          kernelStrideRange = generateListsOfInts(jWorkload, "kernel_stride"),
-      //
-      //          neuronsRange = generateListsOfInts(jWorkload, "n_neurons"),
-      //
-      //
-      //          inputTileSizeRange = generateListsOfFuns(jOptParams, "input_tile_size"),
-      //          elsPerThreadRange = generateListsOfFuns(jOptParams, "els_per_thread"),
-      //          kernelsPerGroupRange = generateListsOfFuns(jOptParams, "kernels_per_group"),
-      //          vectorLenRange = generateListsOfFuns(jOptParams, "vector_len"),
-      //
-      //          multsPerThreadRange = generateListsOfFuns(jOptParams, "mults_per_thread"),
-      //          neuronsPerWrgRange = generateListsOfFuns(jOptParams, "neurons_per_wrg"))}
+        val nKernels: Int = {
+          config.version match {
+            case Config.Version.V1 => layer.asInstanceOf[V1LayerParameter].convolutionParam.get.numOutput.get
+            case Config.Version.NEW => layer.asInstanceOf[LayerParameter].convolutionParam.get.numOutput.get
+          }}
+        
+        val kernelSize: Int = {
+          config.version match {
+            case Config.Version.V1 => layer.asInstanceOf[V1LayerParameter].convolutionParam.get.kernelSize.head
+            case Config.Version.NEW => layer.asInstanceOf[LayerParameter].convolutionParam.get.kernelSize.head
+          }}
+        
+        val kernelStride: Int = {
+          def getStride(stride: Seq[Int]): Int = if (stride.nonEmpty) stride.head else 1
+          config.version match {
+            case Config.Version.V1 => getStride(layer.asInstanceOf[V1LayerParameter].convolutionParam.get.stride)
+            case Config.Version.NEW => getStride(layer.asInstanceOf[LayerParameter].convolutionParam.get.stride)
+          }}
+        
+        ExperimentParams(
+          experimentName = experimentName,
+          kernelOutputSubfolder = i.toString,
+          nBatchesRange = List(1), // TODO: generalise
+          nInputsRange = List(nInputs),
+          inputSizeRange = List(paddedInputSize),
+          inputChannelRange = List(3), // TODO: generalise
+
+          nKernelsRange = List(List(nKernels)),
+          kernelSizeRange = List(List(kernelSize)),
+          kernelStrideRange = List(List(kernelStride)),
+
+          neuronsRange = List(List(1)),
+
+
+          inputTileSizeRange = List(
+            (in: cnn.Experiment.InputConfig, c: conv.Experiment.Config.Dimensions) => 
+              (c.kernelSize to in.inputSize by 1).toList),
+          
+          elsPerThreadRange = List(
+            (in: cnn.Experiment.InputConfig, c: conv.Experiment.Config.Dimensions) =>
+              (1 to (in.nChannels * c.kernelSize * c.kernelSize) by 1).toList),
+          
+          kernelsPerGroupRange = List(
+            (in: cnn.Experiment.InputConfig, c: conv.Experiment.Config.Dimensions) =>
+              (1 to c.nKernels by 1).toList),
+          
+          vectorLenRange = List(
+            (_: cnn.Experiment.InputConfig, _: conv.Experiment.Config.Dimensions) =>
+              List(1, 2, 4)),
+
+          multsPerThreadRange = List(
+            (_: cnn.Experiment.InputConfig, _: fc.Experiment.Config.Dimensions) =>
+              List(1)),
+          neuronsPerWrgRange = List(
+            (_: cnn.Experiment.InputConfig, _: fc.Experiment.Config.Dimensions) =>
+              List(1)))
     }
-    
-    val layersWithSizes = fillMissingParametersV1(netparam.layers)
-    
-    return null
   }
 
-  def configToString(nBatches: Int, nInputs: Int, imageSize: Int, nLayers: Int): String = {
-    f"nBatches=$nBatches%d, nInputs=$nInputs%d, imageSize=$imageSize%d, nLayers=$nLayers%d\n"
+  def configToString(iC: cnn.Experiment.InputConfig): String = {
+    f"nBatches=${iC.nBatches}%d, nInputs=${iC.nInputs}%d, imageSize=${iC.inputSize}%d\n"
   }
 
   object Experiment {
 
     case class InputConfig(nBatches: Int,
                            nInputs: Int,
-                           imageSize: Int,
+                           inputSize: Int,
                            nChannels: Int)
 
     val cnnDir: String = nn.nnDir + "/cnn"
+    val pathToResults: String = System.getenv("LIFT_NN_RESOURCES") + f"/neural_net_outputs/"
+    val pathToLiftResults = pathToResults + "/lift_results"
 
-    def getPathToInputs(nInputs: Int, inputSize: Int, inputChannels: Int, nKernels: Int, kernelSize: Int,
-                        kernelStride: Int): String = {
-//      {
-//        val envPath = System.getenv("LIFT_NN_RESOURCES")
-//        if (envPath != null) envPath else cnnDir
-//      } + f"/experiment.cnn.inputs.$inputSize%d"
-//      f"/home/s1569687/microbenchmark/neural_net_inputs/input_lmdb_IN_$nInputs%d_IC_$inputChannels%d_IS_$inputSize%d_" +
-//        f"KC_$nKernels%d_KSI_$kernelSize%d_KSTR_$kernelStride%d"
-      System.getenv("LIFT_NN_RESOURCES") + 
-        f"/neural_net_inputs/input_lmdb_IN_$nInputs%d_IC_$inputChannels%d_IS_$inputSize%d_" +
-        f"KC_$nKernels%d_KSI_$kernelSize%d_KSTR_$kernelStride%d"
-    }
-    def getPathToParams(nKernels: Int, kernelSize: Int, kernelStride: Int, nInputs: Int, inputSize: Int,
-                        inputChannels: Int, nNeurons: Int): String = {
-//      {
-//        val envPath = System.getenv("LIFT_NN_RESOURCES")
-//        if (envPath != null) envPath else cnnDir
-//      } + f"/experiment.cnn.$nKernelsL1%d.$kernelSize%d.$inputSize%d" + {
-//        if (nNeuronsL1 != 256)
-//          f".$nNeuronsL1%d"
-//        else
-//          ""
-//      }
-      System.getenv("LIFT_NN_RESOURCES") + 
-        f"/neural_net_params/micro_IN_$nInputs%d_IC_$inputChannels%d_IS_$inputSize%d_" +
-        f"KC_$nKernels%d_KSI_$kernelSize%d_KSTR_$kernelStride%d"
-    }
-    def getPathToResults(pathToParams: String): String =
-      System.getenv("LIFT_NN_RESOURCES") + f"/neural_net_outputs/"
+    
+    def pathToInputs(iC: cnn.Experiment.InputConfig, cD: conv.Experiment.Config.Dimensions): String =
+      System.getenv("LIFT_NN_RESOURCES") + f"/neural_net_inputs/input_lmdb_IN_${iC.nInputs}%d_IC_${iC.nChannels}%d_" +
+        f"IS_${iC.inputSize}%d_" +
+        f"KC_${cD.nKernels}%d_KSI_${cD.kernelSize}%d_KSTR_${cD.kernelStride}%d"
 
+    
+    def pathToParams(iC: cnn.Experiment.InputConfig, cD: conv.Experiment.Config.Dimensions): String =
+      System.getenv("LIFT_NN_RESOURCES") + f"/neural_net_params/micro_IN_${iC.nInputs}%d_IC_${iC.nChannels}%d_" +
+        f"IS_${iC.inputSize}%d_" +
+        f"KC_${cD.nKernels}%d_KSI_${cD.kernelSize}%d_KSTR_${cD.kernelStride}%d"
+    
+    
+    def pathToTargets(iC: cnn.Experiment.InputConfig, cD: conv.Experiment.Config.Dimensions): String = 
+      pathToResults + f"/outputs_IN_${iC.nInputs}%d_IC_${iC.nChannels}%d_IS_${iC.inputSize}%d_" +
+      f"KC_${cD.nKernels}%d_KSI_${cD.kernelSize}%d_KSTR_${cD.kernelStride}%d.binary"
+
+
+    def inputsExist(iC: cnn.Experiment.InputConfig, cD: conv.Experiment.Config.Dimensions,
+                    experimentName: String): Boolean =
+      if (exists(get(pathToInputs(iC, cD) + "/test_images_n" + iC.nInputs + ".binary")))
+        true
+      else {
+        System.out.println(
+          f"No inputs provided for $experimentName%s (nInputs=${iC.nInputs}%d, imageSize=${iC.inputSize}%d, " +
+            f"nChannels=${iC.nChannels}%d)")
+        false
+      }
+    
+    def targetsExist(iC: cnn.Experiment.InputConfig, cD: conv.Experiment.Config.Dimensions,
+                    experimentName: String): Boolean =
+      if (exists(get(Experiment.pathToTargets(iC, cD))))
+        true
+      else {
+        System.out.println(
+          f"No targets provided for $experimentName%s (nInputs=${iC.nInputs}%d, imageSize=${iC.inputSize}%d, " +
+            f"nChannels=${iC.nChannels}%d\nnKernels=${cD.nKernels}%s, kernelSize=${cD.kernelSize}%s, " +
+            f"kernelStride=${cD.kernelStride}%s)")
+        false
+      }
+    
+    
+    def isFirstRun(iC: cnn.Experiment.InputConfig) = {
+      if (!exists(get(pathToResults))) {
+        createDirectory(get(pathToResults))
+        true
+      } else {
+        new File(pathToResults).listFiles.toList.count {
+          file => file.getName.endsWith(f"_n${iC.nInputs}%d.csv")
+        } == 0 
+      }
+    } 
+    
 
     def datasetsExist(pathToParams: String): Boolean = exists(get(pathToParams + "/wconv1.binary"))
 
-
+    
     def verifyOutputs(netOutputs: Any, targetOutputs: Any, precision: Float):
     Option[(List[Int], Float, Float)] = {
       (netOutputs, targetOutputs) match {
@@ -327,8 +331,19 @@ package object cnn {
           }
           None
       }
-
-    }    
+    }
+    
+    def apply(benchmark: cnn.ExperimentParams,
+              iC: cnn.Experiment.InputConfig,
+              cD: conv.Experiment.Config.Dimensions,
+              fD: fc.Experiment.Config.Dimensions): List[Experiment] = {
+      for {
+        convConfig <- benchmark.convConfig(iC, cD)
+        fcConfig <- benchmark.fcConfig(iC, fD)
+      }
+        yield new Experiment(iC, convConfig, fcConfig,
+          pathToInputs(iC, cD), pathToParams(iC, cD), pathToTargets(iC, cD))
+    }
   }
 
   def saveKernelToFile(experimentNo: Int, testConfigFilename: String, layer: Layer, openclKernel: String, 
@@ -416,32 +431,121 @@ package object cnn {
 
   case class Experiment(inputConfig: cnn.Experiment.InputConfig,
                         convConfig: List[conv.Experiment.Config],
-                        fcConfig: List[fc.Experiment.Config])
+                        fcConfig: List[fc.Experiment.Config],
+                        pathToInputs: String,
+                        pathToParams: String,
+                        pathToTargets: String) {
+    
+    def loadData(aCNN: CNN, compileOnly: Boolean) = NetDatasetsCollection(
+      pathToParams = pathToParams,
+      nInputs = inputConfig.nInputs,
+      layers = Array[NetDatasets](
+        nn.conv.Experiment.loadDatasets(
+          paramsPath = pathToParams,
+          inputsPath = pathToInputs + "/test_images_n" + inputConfig.nInputs + ".binary",
+          targetOutputsPath = pathToTargets,
+          inputShape = aCNN.convLayers(0).inputShape,
+          outputShape = aCNN.convLayers(0).outputShape,
+          //                  targetFilePrefix = "test_caffe_results_n" + inputConfig.nInputs,
+          paramFileInfix = "conv1",
+          kernelSliding = aCNN.convLayers(0).kernelSliding,
+          generateDummies = compileOnly)))
+  }
 
-  case class ExperimentalParams(kernelOutputSubfolder: String,
-                                nBatchesRange: List[Int],
-                                nInputsRange: List[Int],
-                                imageSizeRange: List[Int],
-                                inputChannelRange: List[Int],
+  case class ExperimentParams(experimentName: String,
+                              kernelOutputSubfolder: String,
+                              nBatchesRange: List[Int],
+                              nInputsRange: List[Int],
+                              inputSizeRange: List[Int],
+                              inputChannelRange: List[Int],
 
-                                nKernelsRange: List[List[Int]],
-                                kernelSizeRange: List[List[Int]],
-                                kernelStrideRange: List[List[Int]],
+                              nKernelsRange: List[List[Int]],
+                              kernelSizeRange: List[List[Int]],
+                              kernelStrideRange: List[List[Int]],
 
-                                neuronsRange: List[List[Int]],
+                              neuronsRange: List[List[Int]],
 
-                                inputTileSizeRange: List[
+                              inputTileSizeRange: List[
                               (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
-                                elsPerThreadRange: List[
+                              elsPerThreadRange: List[
                               (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
-                                kernelsPerGroupRange: List[
+                              kernelsPerGroupRange: List[
                               (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
-                                vectorLenRange: List[
+                              vectorLenRange: List[
                               (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
 
-                                multsPerThreadRange: List[
+                              multsPerThreadRange: List[
                               (cnn.Experiment.InputConfig, fc.Experiment.Config.Dimensions) => List[Int]],
-                                neuronsPerWrgRange: List[
-                              (cnn.Experiment.InputConfig, fc.Experiment.Config.Dimensions) => List[Int]])
+                              neuronsPerWrgRange: List[
+                              (cnn.Experiment.InputConfig, fc.Experiment.Config.Dimensions) => List[Int]]) {
+    def inputConfigs: List[cnn.Experiment.InputConfig] = {
+      for {
+        nBatches <- nBatchesRange
+        inputSize <- inputSizeRange
+        inputChannels <- inputChannelRange
+        nInputs <- nInputsRange}
+      // Wrap input parameters into an object
+        yield cnn.Experiment.InputConfig(
+          nBatches = nBatches, nInputs = nInputs, inputSize = inputSize, nChannels = inputChannels)
+    }
+    
+    def convDimensions: List[List[conv.Experiment.Config.Dimensions]] = {
+      for {
+        nKernelsL0 <- nKernelsRange.head
+        //      _nKernelsL1 <- e.nKernelsRange(1)
+        kernelStrideL0 <- kernelStrideRange.head
+        kernelSizeL0 <- kernelSizeRange.head
+      //      _kernelSizeL1 <- e.kernelSizeRange(1)
+      }
+        yield List(conv.Experiment.Config.Dimensions(nKernelsL0, kernelSizeL0, kernelStrideL0))
+      //        conv.Experiment.Config.Dimensions(_nKernelsL1, _kernelSizeL1, /*TODO*/1)))
+    }
+    
+    def convConfig(iC: cnn.Experiment.InputConfig, cD: conv.Experiment.Config.Dimensions): 
+    List[List[nn.conv.Experiment.Config]] = {
+      for {
+        inputTileSize <- inputTileSizeRange.head(iC, cD)
+        //      _inputTileSizeL1 <- e.inputTileSizeRange(1)(inputConfig, convDimensions(1))
+        elsPerThread <- elsPerThreadRange.head(iC, cD)
+        //      _elsPerThreadL1 <- e.elsPerThreadRange(1)(inputConfig, convDimensions(1))
+        kernelsPerGroup <- kernelsPerGroupRange.head(iC, cD)
+        //      _kernelsPerGroupL1 <- e.kernelsPerGroupRange(1)(inputConfig, convDimensions(1))
+        vectorLen <- vectorLenRange.head(iC, cD)
+      
+        coalesce <- List(false, true)
+      
+        unrollReduce <- List(true) // TODO: explore again without unrolling
+      }
+      // Wrap conv parameters into an object
+        yield List(
+          conv.Experiment.Config(
+            cD, conv.Experiment.Config.OptimisationalParams(
+              inputTileSize = inputTileSize, elsPerThread = elsPerThread,
+              kernelsPerGroup = kernelsPerGroup, vectorLen = vectorLen,
+              coalesce = coalesce, unrollReduce = unrollReduce)))
+    }
 
+    def fcDimensions: List[List[fc.Experiment.Config.Dimensions]] = {
+      for {
+        nNeuronsL0 <- neuronsRange.head
+      //      _nNeuronsL1 <- e.neuronsRange(1)
+      }
+        yield List(fc.Experiment.Config.Dimensions(nNeuronsL0))
+      //        fc.Experiment.Config.Dimensions(_nNeuronsL1)))
+    }
+
+    def fcConfig(iC: cnn.Experiment.InputConfig, fD: fc.Experiment.Config.Dimensions):
+    List[List[fc.Experiment.Config]] = {
+      for {
+        _multsPerThreadL0 <- multsPerThreadRange.head(iC, fD)
+        //      _multsPerThreadL1 <- e.multsPerThreadRange(1)(inputConfig, fcDimensions(1))
+        _neuronsPerWrgL0 <- neuronsPerWrgRange.head(iC, fD)
+      //      _neuronsPerWrgL1 <- e.neuronsPerWrgRange(1)(inputConfig, fcDimensions(1))
+      }
+        yield List(
+          fc.Experiment.Config(
+            fD, fc.Experiment.Config.OptimisationalParams(
+              multsPerThread = _multsPerThreadL0, neuronsPerWrg = _neuronsPerWrgL0)))
+    }
+  }
 }
