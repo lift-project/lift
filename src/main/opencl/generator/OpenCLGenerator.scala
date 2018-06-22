@@ -427,9 +427,9 @@ class OpenCLGenerator extends Generator {
     generate(f.body, kernel.body)
 
     if (CSE())
-      CommonSubexpressionElimination(kernel.body)
-
-    kernel
+      kernel.copy(body = CommonSubexpressionElimination(kernel.body))
+    else
+      kernel
   }
 
 

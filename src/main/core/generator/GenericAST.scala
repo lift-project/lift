@@ -50,16 +50,9 @@ object GenericAST {
   * */
 
   sealed trait AstNode {
-    def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z,
-      this)
+    def visit[T](z: T)(fun: (T, AstNode) => T): T
 
-    def prePostVisit[T](z: T)(preVisit: (T, AstNode) ⇒ T, postVisit: (T,
-      AstNode) ⇒ T): T = {
-      z |> (preVisit(_, this)) |> (postVisit(_, this))
-    }
-
-
-    def visit(pre: (AstNode) => Unit, post: (AstNode) => Unit = { _ => } ) : Unit ={
+    def visit(pre: AstNode => Unit, post: AstNode => Unit = { _ => } ) : Unit ={
       pre(this)
       this._visit(pre,post)
       post(this)
@@ -72,18 +65,18 @@ object GenericAST {
       * @param post is called after visiting the children of this
       * @return the rebuilt node
      */
-    final def visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode = {n => n}) : AstNode = {
+    final def visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode = {n => n}) : AstNode = {
       post(pre(this)._visitAndRebuild(pre,post))
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit
+    protected def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit
     /**
       * This visitor should never be called directly but is for internal use only.
-      * It should be overriden by any subclasses.
+      * It should be overridden by any subclasses.
       * If a node has children, it should call visitAndRebuild on all the children and recreate a new instance of the node.
       * Otherwise, it should simply return this.
       */
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode
+    protected def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode
 
     def print(): Doc
   }
@@ -112,19 +105,18 @@ object GenericAST {
 
     def attribute: Option[AttributeT]
 
-      override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
         // visit the function object
-        (visitFun(_, this)) |>
+        (fun(_, this)) |>
         // visit the parameters
         (params.foldLeft(_) {
-          case (acc, node) => node.visit(acc)(visitFun)
+          case (acc, node) => node.visit(acc)(fun)
         }) |>
         // visit the body
-        (body.visit(_)(visitFun)) |>
-        // TODO: Does this attribute visitor actually work?
+        (body.visit(_)(fun)) |>
         (acc => attribute match {
-          case Some(a) => a.visit(acc)(visitFun)
+          case Some(a) => a.visit(acc)(fun)
           case None    => acc
         })
     }
@@ -151,7 +143,7 @@ object GenericAST {
                       body: MutableBlockT, attribute: Option[AttributeT] = None)
     extends FunctionT {
 
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       Function(name, ret, params.map(_.visitAndRebuild(pre, post).asInstanceOf[ParamDeclT]),
         body.visitAndRebuild(pre, post).asInstanceOf[MutableBlockT],
         attribute match {
@@ -160,8 +152,8 @@ object GenericAST {
         })
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      params.map(_.visit(pre, post))
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
+      params.foreach(_.visit(pre, post))
       body.visit(pre, post)
       attribute match {
         case Some(a) => a.visit(pre, post)
@@ -178,7 +170,7 @@ object GenericAST {
     val v: lift.arithmetic.Var
     //    val t: Type
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z, this)
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = fun(z, this)
 
     override def print(): Doc = {
       text(Printer.toString(v))
@@ -186,11 +178,11 @@ object GenericAST {
   }
 
   case class CVar(v: lift.arithmetic.Var /*, t: Type*/) extends VarT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       this
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {}
   }
 
   object CVar {
@@ -206,12 +198,12 @@ object GenericAST {
     val init: Option[AstNode]
     val length: Long
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
         // visit the VarDecl object
-        (visitFun(_, this)) |>
+        (fun(_, this)) |>
         // visit the initial value
-        (_z ⇒ init.map(visitFun(_z, _)).getOrElse(_z))
+        (_z ⇒ init.map(fun(_z, _)).getOrElse(_z))
     }
 
 
@@ -232,7 +224,7 @@ object GenericAST {
                      init: Option[AstNode] = None,
                      length: Long = 0) extends VarDeclT {
 
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       VarDecl(v.visitAndRebuild(pre, post).asInstanceOf[CVar], t,
         init match {
           case Some(i) => Some(i.visitAndRebuild(pre, post))
@@ -240,7 +232,7 @@ object GenericAST {
         }, length)
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       v.visit(pre, post)
       init match {
           case Some(i) => i.visit(pre, post)
@@ -260,6 +252,8 @@ object GenericAST {
     val t: Type
     val const: Boolean // = false
 
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = fun(z, this)
+
     override def print(): Doc = t match {
       case ArrayType(_) ⇒
         val (constS, restrict) = if (const) (text("const"), text("restrict"))
@@ -277,11 +271,11 @@ object GenericAST {
 
   case class ParamDecl(name: String, t: Type,
                        const: Boolean = false) extends ParamDeclT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
         this
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {}
   }
 
 
@@ -303,11 +297,11 @@ object GenericAST {
       content = content :+ node
     }
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
+        (fun(_, this)) |>
         (content.foldLeft(_) {
-          case (acc, node) => node.visit(acc)(visitFun)
+          case (acc, node) => node.visit(acc)(fun)
         })
     }
 
@@ -327,14 +321,15 @@ object GenericAST {
   case class MutableBlock(override var content: Vector[AstNode with
     BlockMember] = Vector(), global: Boolean = false) extends MutableBlockT {
 
-    def _visitAndRebuild(pre: (AstNode) => AstNode,  post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode,  post: AstNode => AstNode) : AstNode = {
       MutableBlock(content.map(_.visitAndRebuild(pre, post).asInstanceOf[AstNode with BlockMember]), global)
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      content.map(_.visit(pre, post))
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
+      content.foreach(_.visit(pre, post))
     }
 
+    // TODO: these functions are not mutabing the block ... which is quite a bit confusing for a class called "MutableBlock"
     /** Append a sub-node. Could be any node, including a sub-block.
       *
       * @param node The node to add to this block.
@@ -355,10 +350,13 @@ object GenericAST {
     val increment: ExpressionT
     val body: MutableBlockT
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this))
-
+        (fun(_, this)) |>
+        (init.visit(_)(fun)) |>
+        (cond.visit(_)(fun)) |>
+        (increment.visit(_)(fun)) |>
+        (body.visit(_)(fun))
     }
 
     override def print(): Doc = {
@@ -372,14 +370,14 @@ object GenericAST {
                      cond: ExpressionStatement,
                      increment: ExpressionT,
                      body: MutableBlockT) extends ForLoopT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode,  post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode,  post: AstNode => AstNode) : AstNode = {
       ForLoop(init.visitAndRebuild(pre, post).asInstanceOf[DeclarationT],
                    cond.visitAndRebuild(pre, post).asInstanceOf[ExpressionStatement],
                    increment.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
                    body.visitAndRebuild(pre, post).asInstanceOf[MutableBlockT])
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       init.visit(pre, post)
       cond.visit(pre, post)
       increment.visit(pre, post)
@@ -394,10 +392,10 @@ object GenericAST {
     val loopPredicate: Predicate
     val body: MutableBlockT
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
-        (visitFun(_, body))
+        (fun(_, this)) |>
+        (body.visit(_)(fun))
     }
 
     override def print(): Doc = {
@@ -408,12 +406,12 @@ object GenericAST {
 
   case class WhileLoop(loopPredicate: Predicate,
                        body: MutableBlockT) extends WhileLoopT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       WhileLoop(loopPredicate,
         body.visitAndRebuild(pre, post).asInstanceOf[MutableBlockT])
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       body.visit(pre, post)
     }
   }
@@ -426,12 +424,12 @@ object GenericAST {
     val trueBody: MutableBlockT
     val falseBody: MutableBlockT
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
-        (visitFun(_, cond)) |>
-        (visitFun(_, trueBody)) |>
-        (visitFun(_, falseBody))
+        (fun(_, this)) |>
+        (cond.visit(_)(fun)) |>
+        (trueBody.visit(_)(fun)) |>
+        (falseBody.visit(_)(fun))
     }
 
     override def print(): Doc = {
@@ -447,13 +445,13 @@ object GenericAST {
   case class IfThenElse(cond: ExpressionT,
                         trueBody: MutableBlockT,
                         falseBody: MutableBlockT) extends IfThenElseT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       IfThenElse(cond.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
         trueBody.visitAndRebuild(pre, post).asInstanceOf[MutableBlockT],
         falseBody.visitAndRebuild(pre, post).asInstanceOf[MutableBlockT])
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       cond.visit(pre, post)
       trueBody.visit(pre, post)
       falseBody.visit(pre, post)
@@ -466,10 +464,10 @@ object GenericAST {
   trait GOTOT extends StatementT {
     val nameVar: CVar
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
-        (visitFun(_, nameVar))
+        (fun(_, this)) |>
+        (nameVar.visit(_)(fun))
     }
 
     override def print(): Doc = {
@@ -478,11 +476,11 @@ object GenericAST {
   }
 
   case class GOTO(nameVar: CVar) extends GOTOT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       GOTO(nameVar.visitAndRebuild(pre, post).asInstanceOf[CVar])
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       nameVar.visit(pre, post)
     }
   }
@@ -493,10 +491,10 @@ object GenericAST {
   trait LabelT extends DeclarationT {
     val nameVar: CVar
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
-        (visitFun(_, nameVar))
+        (fun(_, this)) |>
+        (nameVar.visit(_)(fun))
     }
 
     override def print(): Doc = {
@@ -505,11 +503,11 @@ object GenericAST {
   }
 
   case class Label(nameVar: CVar) extends LabelT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       Label(nameVar.visitAndRebuild(pre, post).asInstanceOf[CVar])
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       nameVar.visit(pre, post)
     }
   }
@@ -519,14 +517,16 @@ object GenericAST {
     */
   trait BreakT extends StatementT {
     override def print(): Doc = "break;"
+
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = fun(z, this)
   }
 
   case class Break() extends BreakT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       this
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {}
   }
 
   /**
@@ -534,6 +534,8 @@ object GenericAST {
     */
   trait TypeDefT extends StatementT {
     val t: Type
+
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = fun(z, this)
 
     override def print(): Doc = t match {
       case tt: TupleType ⇒
@@ -556,11 +558,11 @@ object GenericAST {
   }
 
   case class TypeDef(t: Type) extends TypeDefT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       this
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {}
   }
 
   /**
@@ -570,6 +572,8 @@ object GenericAST {
     val t: Type
     val name: String
 
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = fun(z, this)
+
     override def print(): Doc = t match {
       case tt: TupleType ⇒ text(s"typedef ") <> Type.name(tt) <+> name <> ";"
       case _             ⇒ Comment("NOTE: trying to print unprintable tuplealias").print()
@@ -577,11 +581,11 @@ object GenericAST {
   }
 
   case class TupleAlias(t: Type, name: String) extends TupleAliasT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       this
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {}
   }
 
   /**
@@ -590,10 +594,10 @@ object GenericAST {
   trait ExpressionStatementT extends StatementT {
     val e: ExpressionT
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
-        (visitFun(_, e))
+        (fun(_, this)) |>
+        (e.visit(_)(fun))
     }
 
     override def print(): Doc = {
@@ -602,11 +606,11 @@ object GenericAST {
   }
 
   case class ExpressionStatement(e: ExpressionT) extends ExpressionStatementT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode = {
       ExpressionStatement(e.visitAndRebuild(pre, post).asInstanceOf[ExpressionT])
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       e.visit(pre, post)
     }
   }
@@ -618,11 +622,11 @@ object GenericAST {
     val name: String
     val args: List[AstNode]
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
+        (fun(_, this)) |>
         (args.foldLeft(_) {
-          case (acc, node) => node.visit(acc)(visitFun)
+          case (acc, node) => node.visit(acc)(fun)
         })
     }
 
@@ -633,12 +637,12 @@ object GenericAST {
 
   case class FunctionCall(name: String,
                           args: List[GenericAST.AstNode]) extends FunctionCallT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       FunctionCall(name, args.map(_.visitAndRebuild(pre, post)))
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      args.map(_.visit(pre, post))
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
+      args.foreach(_.visit(pre, post))
     }
   }
 
@@ -651,8 +655,11 @@ object GenericAST {
     val suffix: Option[String]
     val arrayIndex: Option[ArithExpression]
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
-      visitFun(z, this) |> (visitFun(_, v))
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
+      z |>
+        (fun(_, this)) |>
+        (v.visit(_)(fun)) |>
+        (z => arrayIndex.map(_.visit(z)(fun)).getOrElse(z))
     }
 
     override def print(): Doc = {
@@ -677,7 +684,7 @@ object GenericAST {
                     suffix: Option[String] = None,
                     arrayIndex: Option[ArithExpression] = None
                    ) extends VarRefT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       VarRef(v.visitAndRebuild(pre, post).asInstanceOf[CVar], suffix,
         arrayIndex match {
           case Some(ai) => Some(ai.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])
@@ -686,7 +693,7 @@ object GenericAST {
 
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       v.visit(pre, post)
       arrayIndex match {
           case Some(ai) => ai.visit(pre, post)
@@ -703,10 +710,10 @@ object GenericAST {
     val t: Type
     val offset: ArithExpression
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
-        (visitFun(_, v))
+        (fun(_, this)) |>
+        (v.visit(_)(fun))
     }
 
     override def print(): Doc = {
@@ -729,12 +736,12 @@ object GenericAST {
   case class Load(v: VarRef,
                   t: Type,
                   offset: ArithExpression) extends LoadT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       Load(v.visitAndRebuild(pre, post).asInstanceOf[VarRef], t,
         offset.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       v.visit(pre, post)
       offset.visit(pre, post)
     }
@@ -749,11 +756,11 @@ object GenericAST {
     val value: AstNode
     val offset: ArithExpression
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
-        (visitFun(_, v)) |>
-        (visitFun(_, value))
+        (fun(_, this)) |>
+        (v.visit(_)(fun)) |>
+        (value.visit(_)(fun))
     }
 
     override def print(): Doc = {
@@ -775,13 +782,13 @@ object GenericAST {
                    t: Type,
                    value: AstNode,
                    offset: ArithExpression) extends StoreT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       Store(v.visitAndRebuild(pre, post).asInstanceOf[VarRef],t,
         value.visitAndRebuild(pre, post),
         offset.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       v.visit(pre, post)
       value.visit(pre, post)
       offset.visit(pre, post)
@@ -795,11 +802,11 @@ object GenericAST {
     val to: AstNode
     val value: AstNode
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
-        (visitFun(_, to)) |>
-        (visitFun(_, value))
+        (fun(_, this)) |>
+        (to.visit(_)(fun)) |>
+        (value.visit(_)(fun))
     }
 
     override def print(): Doc = {
@@ -809,12 +816,12 @@ object GenericAST {
 
   case class AssignmentExpression(to: AstNode, value: AstNode) extends
     AssignmentExpressionT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       AssignmentExpression(to.visitAndRebuild(pre, post),
         value.visitAndRebuild(pre, post))
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       to.visit(pre, post)
       value.visit(pre,post)
     }
@@ -826,15 +833,17 @@ object GenericAST {
   trait ArithExpressionT extends ExpressionT {
     val content: ArithExpr
 
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = fun(z, this)
+
     override def print(): Doc = Printer.toString(content)
   }
 
   case class ArithExpression(content: ArithExpr) extends ArithExpressionT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       this
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {}
   }
 
   /**
@@ -845,11 +854,11 @@ object GenericAST {
     val rhs: ExpressionT
     val op: BinaryExpressionT.Operator.Operator
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
-        (visitFun(_, lhs)) |>
-        (visitFun(_, rhs))
+        (fun(_, this)) |>
+        (lhs.visit(_)(fun)) |>
+        (rhs.visit(_)(fun))
     }
 
     override def print(): Doc = {
@@ -881,12 +890,12 @@ object GenericAST {
   case class BinaryExpression(lhs: ExpressionT,
                               op: BinaryExpressionT.Operator.Operator, rhs: ExpressionT)
     extends BinaryExpressionT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       BinaryExpression(lhs.visitAndRebuild(pre, post).asInstanceOf[ExpressionT], op,
         rhs.visitAndRebuild(pre, post).asInstanceOf[ExpressionT])
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       lhs.visit(pre, post)
       rhs.visit(pre, post)
     }
@@ -915,12 +924,12 @@ object GenericAST {
     val trueExpr: ExpressionT
     val falseExpr: ExpressionT
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
-        (visitFun(_, cond)) |>
-        (visitFun(_, trueExpr)) |>
-        (visitFun(_, falseExpr))
+        (fun(_, this)) |>
+        (cond.visit(_)(fun)) |>
+        (trueExpr.visit(_)(fun)) |>
+        (falseExpr.visit(_)(fun))
     }
 
     def print(): Doc = {
@@ -932,13 +941,13 @@ object GenericAST {
 
   case class TernaryExpression(cond: BinaryExpressionT, trueExpr: ExpressionT, falseExpr: ExpressionT)
     extends TernaryExpressionT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       TernaryExpression(cond.visitAndRebuild(pre, post).asInstanceOf[BinaryExpressionT],
         trueExpr.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
         falseExpr.visitAndRebuild(pre, post).asInstanceOf[ExpressionT])
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       cond.visit(pre, post)
       trueExpr.visit(pre, post)
       falseExpr.visit(pre, post)
@@ -952,10 +961,10 @@ object GenericAST {
     val v: VarRef
     val t: Type
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
-        (visitFun(_, v))
+        (fun(_, this)) |>
+        (v.visit(_)(fun))
     }
 
     override def print(): Doc = {
@@ -967,22 +976,22 @@ object GenericAST {
     * TODO: Can we actually do this? What will break :D
     */
   case class Cast(v: VarRef, t: Type) extends CastT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       Cast(v.visitAndRebuild(pre, post).asInstanceOf[VarRef],t)
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       v.visit(pre, post)
     }
   }
 
   case class PointerCast(v: VarRef, t: Type) extends CastT {
 
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       PointerCast(v.visitAndRebuild(pre, post).asInstanceOf[VarRef],t)
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
       v.visit(pre, post)
     }
 
@@ -1006,11 +1015,11 @@ object GenericAST {
     val t: TupleType
     val args: Vector[AstNode]
 
-    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
-        (visitFun(_, this)) |>
+        (fun(_, this)) |>
         (args.foldLeft(_) {
-          case (acc, node) => node.visit(acc)(visitFun)
+          case (acc, node) => node.visit(acc)(fun)
         })
     }
 
@@ -1023,12 +1032,12 @@ object GenericAST {
 
   case class StructConstructor(t: TupleType, args: Vector[AstNode]) extends
     StructConstructorT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       StructConstructor(t, args.map(_.visitAndRebuild(pre, post)))
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      args.map(_.visit(pre, post))
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {
+      args.foreach(_.visit(pre, post))
     }
   }
 
@@ -1038,15 +1047,17 @@ object GenericAST {
   trait RawCodeT extends ExpressionT {
     val code: String
 
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = fun(z, this)
+
     override def print(): Doc = code
   }
 
   case class RawCode(code: String) extends RawCodeT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode = {
       this
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {}
   }
 
   /**
@@ -1054,6 +1065,8 @@ object GenericAST {
     */
   trait CommentT extends AstNode with BlockMember {
     val content: String
+
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = fun(z, this)
 
     override def print(): Doc = {
       // an alternative is << "//" <+> content >> but this might break if we
@@ -1063,11 +1076,11 @@ object GenericAST {
   }
 
   case class Comment(content: String) extends CommentT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       this
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {}
   }
 
   /**
@@ -1075,13 +1088,16 @@ object GenericAST {
     * don't want to print any code.
     */
   case class EmptyNode() extends AstNode with BlockMember {
+
+    override def visit[T](z: T)(fun: (T, AstNode) => T): T = fun(z, this)
+
     override def print(): Doc = empty
 
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode) : AstNode = {
       this
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+    def _visit(pre: AstNode => Unit, post: AstNode => Unit) : Unit = {}
   }
 
 }
