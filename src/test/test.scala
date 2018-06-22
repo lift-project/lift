@@ -259,7 +259,7 @@ object dontweAll {
     
   def main(args: Array[String]): Unit = {
     //    println(Compile(Thing))
-        println(Compile(Vectorisation_coalesced_correct))
+        println(Compile(Vectorisation_coalesced))
   }
 
 }

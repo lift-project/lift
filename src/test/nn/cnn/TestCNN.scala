@@ -77,7 +77,7 @@ class TestCNN {
   }
 
 
-  def Test(e: cnn.ExperimentalParams,
+  def Test(benchmark: cnn.ExperimentParams,
            testConfigFilename: String = "",
            continueFrom: Experiment = null,
            abortAfter: Option[Int] = None): Unit = {
@@ -94,173 +94,57 @@ class TestCNN {
     var currentLayer: Int = 0
     var experimentNo: Int = 0
     for {
-      _nBatches <- e.nBatchesRange
-      _inputSize <- e.imageSizeRange
-      _inputChannels <- e.inputChannelRange
+      e <- (for {
+        inputConfig <- benchmark.inputConfigs
+        convDimensions <- benchmark.convDimensions
+        fcDimensions <- benchmark.fcDimensions
 
-      _nKernelsL0 <- e.nKernelsRange.head
-//      _nKernelsL1 <- e.nKernelsRange(1)
-      _kernelStrideL0 <- e.kernelStrideRange.head
-      _kernelSizeL0 <- e.kernelSizeRange.head
-//      _kernelSizeL1 <- e.kernelSizeRange(1)
-      // Wrap kernel parameters into an object
-      convDimensions = List(
-        conv.Experiment.Config.Dimensions(_nKernelsL0, _kernelSizeL0, _kernelStrideL0))
-//        conv.Experiment.Config.Dimensions(_nKernelsL1, _kernelSizeL1, /*TODO*/1))
+        if cnn.Experiment.isFirstRun(inputConfig) || rerunsAllowed
 
-      _nNeuronsL0 <- e.neuronsRange.head
-//      _nNeuronsL1 <- e.neuronsRange(1)
-      fcDimensions = List(
-        fc.Experiment.Config.Dimensions(_nNeuronsL0))
-//        fc.Experiment.Config.Dimensions(_nNeuronsL1))
+        if cnn.Experiment.inputsExist(inputConfig, convDimensions.head, benchmark.experimentName)
 
-      _nInputs <- e.nInputsRange
-    
-      pathToInputs = Experiment.getPathToInputs(_nInputs, _inputSize, _inputChannels, _nKernelsL0, _kernelSizeL0,
-        _kernelStrideL0)
-      pathToParams = Experiment.getPathToParams(
-        nKernels = _nKernelsL0, kernelSize = _kernelSizeL0, kernelStride = _kernelStrideL0,
-        nInputs = _nInputs, inputSize = _inputSize, inputChannels = _inputChannels,
-        nNeurons = fcDimensions.head.nNeurons)
+        if cnn.Experiment.targetsExist(inputConfig, convDimensions.head, benchmark.experimentName)
 
-
-      if {
-        if (exists(get(pathToInputs + "/test_images_n" + _nInputs + ".binary")))
-          true
-        else {
-          System.out.println(
-            f"No inputs provided for nInputs=${_nInputs}%d, imageSize=${_inputSize}%d, nChannels=${_inputChannels}%d")
-          false
-        }
+        if Experiment.datasetsExist(Experiment.pathToParams(inputConfig, convDimensions.head))
       }
-      pathToResults = Experiment.getPathToResults(pathToParams)
-      pathToLiftResults = pathToResults + "/lift_results"
-      pathToTargetResults = pathToResults + f"/outputs_IN_${_nInputs}%d_IC_${_inputChannels}%d_IS_${_inputSize}%d_" +
-        f"KC_${_nKernelsL0}%d_KSI_${_kernelSizeL0}%d_KSTR_${_kernelStrideL0}%d.binary"
-      // Results dir doesn't exist (then create it) or it does, but reruns are allowed:
-      if rerunsAllowed || {if (!exists(get(pathToResults))) {
-        createDirectory(get(pathToResults))
-        true} else false}
-//      if exists(get(pathToParams + "/test_caffe_results_n" + _nInputs + ".binary"))
-      if exists(get(pathToTargetResults))
+        yield cnn.Experiment(benchmark, inputConfig, convDimensions.head, fcDimensions.head)).flatten
 
-      // Wrap input parameters into an object
-      inputConfig = cnn.Experiment.InputConfig(
-        nBatches = _nBatches, nInputs = _nInputs, imageSize = _inputSize, nChannels = _inputChannels)
 
-      // Results dir exists, but doesn't contain results of this experiment or it does, but reruns are allowed:
-      if rerunsAllowed || new File(pathToResults).listFiles.toList.count {
-        file => file.getName.endsWith("_n%d.csv".format(inputConfig.nInputs))} == 0
-      // Load datasets once for all experiments (across all multsPerThread and neuronsPerWrg)
-      if Experiment.datasetsExist(pathToParams)
-
-      _inputTileSizeL0 <- e.inputTileSizeRange.head(inputConfig, convDimensions.head)
-      //      _inputTileSizeL1 <- e.inputTileSizeRange(1)(inputConfig, convDimensions(1))
-      _elsPerThreadL0 <- e.elsPerThreadRange.head(inputConfig, convDimensions.head)
-      //      _elsPerThreadL1 <- e.elsPerThreadRange(1)(inputConfig, convDimensions(1))
-      _kernelsPerGroupL0 <- e.kernelsPerGroupRange.head(inputConfig, convDimensions.head)
-      //      _kernelsPerGroupL1 <- e.kernelsPerGroupRange(1)(inputConfig, convDimensions(1))
-      _vectorLenL0 <- e.vectorLenRange.head(inputConfig, convDimensions.head)
-      coalesce <- List(false, true)
-      unrollReduce <- List(true) // TODO: explore again without unrolling
-      // Wrap conv parameters into an object
-      convConfig = List(
-        conv.Experiment.Config(
-          convDimensions.head, conv.Experiment.Config.OptimisationalParams(
-            inputTileSize = _inputTileSizeL0, elsPerThread = _elsPerThreadL0,
-            kernelsPerGroup = _kernelsPerGroupL0, vectorLen = _vectorLenL0,
-            coalesce = coalesce, unrollReduce = unrollReduce)))
-      //         conv.Experiment.Config(
-      //           convDimensions(1), conv.Experiment.Config.OptimisationalParams(
-      //             inputTileSize = _inputTileSizeL1, elsPerThread = _elsPerThreadL1,
-      //             kernelsPerGroup = _kernelsPerGroupL1)))
-
-      _multsPerThreadL0 <- e.multsPerThreadRange.head(inputConfig, fcDimensions.head)
-//      _multsPerThreadL1 <- e.multsPerThreadRange(1)(inputConfig, fcDimensions(1))
-      _neuronsPerWrgL0 <- e.neuronsPerWrgRange.head(inputConfig, fcDimensions.head)
-//      _neuronsPerWrgL1 <- e.neuronsPerWrgRange(1)(inputConfig, fcDimensions(1))
-      // Wrap FC parameters into an object
-      fcConfig = List(
-        fc.Experiment.Config(
-          fcDimensions.head, fc.Experiment.Config.OptimisationalParams(
-            multsPerThread = _multsPerThreadL0, neuronsPerWrg = _neuronsPerWrgL0))
-//        fc.Experiment.Config(
-//          fcDimensions(1), fc.Experiment.Config.OptimisationalParams(
-//            multsPerThread = _multsPerThreadL1, neuronsPerWrg = _neuronsPerWrgL1))
-      )
-
-      if {
-        if (skip) {
-          // Skip experiments until the checkpoint is hit
-          if (continueFrom == cnn.Experiment(inputConfig, convConfig, fcConfig)) {
-            skip = false
-            true
-          } else false
-        } else true}
-
+      // If enabled, skip experiments until the one specified
+      if !skip || {
+        if (continueFrom == e) {
+          skip = false
+          true
+        } else false
+      }  
+    
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
         try {
-          /* ---------------------------- BUILD NETWORK (BEGIN) ---------------------------- */
+          /* ---------------------------- BUILD NETWORK ---------------------------- */
           now = Calendar.getInstance().getTime
           aCNN = new CNN(nConvLayers = 1, nFCLayers = 0, //14,
-            inputShape = Shape(nBatches = inputConfig.nBatches, nInputs = inputConfig.nInputs,
-              size = inputConfig.imageSize, nChannels = inputConfig.nChannels),
-            pathToResults = pathToResults)
-
+            inputShape = Shape(nBatches = e.inputConfig.nBatches, nInputs = e.inputConfig.nInputs,
+              size = e.inputConfig.inputSize, nChannels = e.inputConfig.nChannels),
+            pathToResults = Experiment.pathToResults)
+          
           //noinspection ConvertibleToMethodValue
           initParams = Conv.InitParameters(0, Conv.Par(_, _, _, _, _, _, _, _, _, _), nn.Linear, //nn.ReLU,
-            optParams = convConfig.head.optParams,
-            inputShape = Shape(nBatches = inputConfig.nBatches, nInputs = inputConfig.nInputs,
-              size = inputConfig.imageSize, nChannels = inputConfig.nChannels),
-            dim = convConfig.head.dim,
+            optParams = e.convConfig.head.optParams,
+            inputShape = Shape(nBatches = e.inputConfig.nBatches, nInputs = e.inputConfig.nInputs,
+              size = e.inputConfig.inputSize, nChannels = e.inputConfig.nChannels),
+            dim = e.convConfig.head.dim,
             padData = padData, testConfigFilename)
           currentLayer = 0
           aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
           aCNN.convLayers(0) = aCNN.layers(currentLayer).asInstanceOf[Conv]
-
-          /* ---------------------------- BUILD NETWORK (END) ---------------------------- */
   
           /* ----------------------------- LOAD DATA (BEGIN) ----------------------------- */
           // Now that we know that layers can be built we the chosen parameters, load the data.
           // Load the data only if it wasn't loaded before for a similar experiment
-          if (data == null || data.pathToParams != pathToParams || data.nInputs != inputConfig.nInputs)
-            data = NetDatasetsCollection(
-              pathToParams = pathToParams,
-              nInputs = inputConfig.nInputs,
-              layers = Array[NetDatasets](
-                nn.conv.Experiment.loadDatasets(
-                  paramsPath = pathToParams,
-                  inputsPath = pathToInputs + "/test_images_n" + inputConfig.nInputs + ".binary",
-                  targetOutputsPath = pathToTargetResults,
-                  inputShape = aCNN.convLayers(0).inputShape,
-                  outputShape = aCNN.convLayers(0).outputShape,
-//                  targetFilePrefix = "test_caffe_results_n" + inputConfig.nInputs,
-                  paramFileInfix = "conv1",
-                  kernelSliding = aCNN.convLayers(0).kernelSliding,
-                  generateDummies = compileOnly)))
+          if (data == null || data.pathToParams != e.pathToParams || data.nInputs != e.inputConfig.nInputs)
+            data = e.loadData(aCNN, compileOnly)
 
-//                nn.conv.Experiment.loadDatasets(
-//                  paramsPath = pathToParams,
-//                  targetOutputsPath = pathToTargetResults,
-//                  inputShape = aCNN.convLayers(1).inputShape,
-//                  outputShape = aCNN.convLayers(1).outputShape,
-//                  paramFileInfix = "conv2",
-//                  kernelSliding = aCNN.convLayers(1).kernelSliding),
-
-//                nn.fc.Experiment.loadDatasets(
-//                  paramsPath = pathToParams,
-//                  inputShape = aCNN.fcLayers(0).inputShape,
-//                  paramFileInfix = "mlp1",
-//                  neuronShape = aCNN.fcLayers(0).neuronShape),
-//
-//                nn.fc.Experiment.loadDatasets(
-//                  paramsPath = pathToParams,
-//                  inputShape = aCNN.fcLayers(1).inputShape,
-//                  //targetFilePrefix = "test_caffe_results_n" + inputConfig.nInputs,
-//                  paramFileInfix = "out",
-//                  neuronShape = aCNN.fcLayers(1).neuronShape)))
-          /* ----------------------------- LOAD DATA (END) ----------------------------- */
           true
         }
         catch {
@@ -399,12 +283,12 @@ class TestCNN {
                   localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
                   globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),                  
                   kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" + 
-                    e.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_first.cl")
+                    benchmark.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_first.cl")
                 saveKernelToFile(experimentNo, testConfigFilename, layer, openclKernel2, twoKernels = true,
                   localSize = Array(layer.localSize(3), layer.localSize(4), 1),
                   globalSize = Array(layer.globalSize(3), layer.globalSize(4), 1),
                   kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
-                    e.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_final.cl")
+                    benchmark.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_final.cl")
                 
               case _ =>
                 /* One-kernel layer */
@@ -437,7 +321,7 @@ class TestCNN {
                   localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
                   globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),
                   kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
-                    e.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + ".cl")
+                    benchmark.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + ".cl")
             }
               
             layer.runtime = runtime
