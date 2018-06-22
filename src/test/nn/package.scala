@@ -32,7 +32,7 @@ package object nn {
 
   case class NetDatasetsCollection(pathToParams: String,
                                    nInputs: Int,
-                                   layers: Array[NetDatasets])
+                                   perLayer: Array[NetDatasets])
 
   case class PaddedArray[T](var nonPadded: T) {
     var padded: T = _

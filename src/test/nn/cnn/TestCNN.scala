@@ -1,8 +1,6 @@
 package nn.cnn
 
 import java.io._
-import java.nio.file.Files.{createDirectory, exists}
-import java.nio.file.Paths.get
 import java.util.{Calendar, Date}
 
 import com.typesafe.scalalogging.Logger
@@ -94,7 +92,7 @@ class TestCNN {
     var currentLayer: Int = 0
     var experimentNo: Int = 0
     for {
-      e <- (for {
+      exp <- (for {
         inputConfig <- benchmark.inputConfigs
         convDimensions <- benchmark.convDimensions
         fcDimensions <- benchmark.fcDimensions
@@ -112,7 +110,7 @@ class TestCNN {
 
       // If enabled, skip experiments until the one specified
       if !skip || {
-        if (continueFrom == e) {
+        if (continueFrom == exp) {
           skip = false
           true
         } else false
@@ -121,29 +119,28 @@ class TestCNN {
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
         try {
-          /* ---------------------------- BUILD NETWORK ---------------------------- */
+          /* ---------------------------- BUILD THE NETWORK ---------------------------- */
           now = Calendar.getInstance().getTime
           aCNN = new CNN(nConvLayers = 1, nFCLayers = 0, //14,
-            inputShape = Shape(nBatches = e.inputConfig.nBatches, nInputs = e.inputConfig.nInputs,
-              size = e.inputConfig.inputSize, nChannels = e.inputConfig.nChannels),
-            pathToResults = Experiment.pathToResults)
+            inputConfig = exp.inputConfig, pathToResults = Experiment.pathToResults)
           
           //noinspection ConvertibleToMethodValue
           initParams = Conv.InitParameters(0, Conv.Par(_, _, _, _, _, _, _, _, _, _), nn.Linear, //nn.ReLU,
-            optParams = e.convConfig.head.optParams,
-            inputShape = Shape(nBatches = e.inputConfig.nBatches, nInputs = e.inputConfig.nInputs,
-              size = e.inputConfig.inputSize, nChannels = e.inputConfig.nChannels),
-            dim = e.convConfig.head.dim,
+            optParams = exp.convConfig.head.optParams,
+            inputShape = Shape(nBatches = exp.inputConfig.nBatches, nInputs = exp.inputConfig.nInputs,
+              size = exp.inputConfig.inputSize, nChannels = exp.inputConfig.nChannels),
+            dim = exp.convConfig.head.dim,
             padData = padData, testConfigFilename)
+          
           currentLayer = 0
           aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
           aCNN.convLayers(0) = aCNN.layers(currentLayer).asInstanceOf[Conv]
   
-          /* ----------------------------- LOAD DATA (BEGIN) ----------------------------- */
+          /* ----------------------------- LOAD DATA  ----------------------------- */
           // Now that we know that layers can be built we the chosen parameters, load the data.
           // Load the data only if it wasn't loaded before for a similar experiment
-          if (data == null || data.pathToParams != e.pathToParams || data.nInputs != e.inputConfig.nInputs)
-            data = e.loadData(aCNN, compileOnly)
+          if (data == null || data.pathToParams != exp.pathToParams || data.nInputs != exp.inputConfig.nInputs)
+            data = exp.loadData(aCNN, compileOnly)
 
           true
         }
@@ -151,8 +148,7 @@ class TestCNN {
           case e: java.lang.IllegalArgumentException =>
             logger.warn("-----------------------------------------------------------------")
             val msg = f"Layer $currentLayer%d: EXCEPTION: java.lang.IllegalArgumentException\n" +
-              cnn.configToString(aCNN.inputShape.nBatches, aCNN.inputShape.nInputs,
-                aCNN.inputShape.size, aCNN.nLayers) + e.getMessage
+              cnn.configToString(exp.inputConfig) + e.getMessage
             logger.warn(msg)
             recordFailureInSQL(msg, aCNN, initParams, now)
             logger.warn("SKIPPING EXPERIMENT.")
@@ -163,8 +159,8 @@ class TestCNN {
       }
     } {
       try {
-        /* ---------------------------- RUN EXPERIMENT (BEGIN) ---------------------------- */
-        // Now that we know that layers can be built and data can be loaded, run the experiment
+        /* ---------------------------- RUN THE EXPERIMENT (BEGIN) ---------------------------- */
+        // Now that we know that layers can be built and data is loaded, run the experiment
         logger.info("-----------------------------------------------------------------")
         System.out.println(f"Starting the experiment:\n" + aCNN.configToString)
 
@@ -172,18 +168,7 @@ class TestCNN {
 
         for (layerNo <- 0 until 1 /*aCNN.nLayers 14*/) {
           val layer: Layer = aCNN.layers(layerNo)
-          val layerData: NetDatasets = data.layers({
-            if (aCNN.nPoolLayers > 0)
-              layerNo match {
-                case 0 => 0
-                case 1 => 1
-                case 2 => 2
-                case 3 => 2
-                case 4 => 3
-              }
-            else
-              layerNo
-          })
+          val layerData: NetDatasets = data.perLayer(layerNo)
           breakable {
             layer match {
               case poolLayer: ScalaPool =>
@@ -337,7 +322,7 @@ class TestCNN {
             (layer, aCNN.layers(layerNo + 1)) match {
               case (_: Conv, _: FC) =>
                 // If the current layer is convolutional and the next one is fully connected
-                data.layers(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
+                data.perLayer(layerNo + 1).asInstanceOf[FCDatasets].inputs.nonPadded =
                   // (n_batches, n_inputs) -> (n_batches * n_inputs)
                   layerData.asInstanceOf[ConvDatasets].outputs.nonPadded.flatMap(batch => batch.map(
                     // (h, w, n_channels) -> (h * w * n_channels)
@@ -346,16 +331,16 @@ class TestCNN {
               case (_: Conv, poolLayer: ScalaPool) =>
                 poolLayer.inputs = layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
               case (poolLayer: ScalaPool, _: FC) =>
-                data.layers(/*no +1 on purpose */layerNo).asInstanceOf[FCDatasets].inputs.nonPadded =
+                data.perLayer(/*no +1 on purpose */layerNo).asInstanceOf[FCDatasets].inputs.nonPadded =
                   poolLayer.outputs.flatMap(batch => batch.map(
                     // (h, w, n_channels) -> (h * w * n_channels)
                     input => input.map(row => row.flatten).flatten
                 ))
               case (_: Conv, _: Conv) =>
-                data.layers(layerNo + 1).asInstanceOf[ConvDatasets].inputs.nonPadded =
+                data.perLayer(layerNo + 1).asInstanceOf[ConvDatasets].inputs.nonPadded =
                   layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
               case (_: FC, _: FC) =>
-                data.layers({
+                data.perLayer({
                   if (aCNN.nPoolLayers > 0)
                     layerNo
                   else
@@ -381,8 +366,8 @@ class TestCNN {
           verifyOutputs(
             //          netOutputs = data.layers.last.asInstanceOf[FCDatasets].outputs.nonPadded,
             //          targetOutputs = data.layers.last.asInstanceOf[FCDatasets].targets,
-            netOutputs = data.layers(0).asInstanceOf[ConvDatasets].outputs.nonPadded,
-            targetOutputs = data.layers(0).asInstanceOf[ConvDatasets].targets,
+            netOutputs = data.perLayer(0).asInstanceOf[ConvDatasets].outputs.nonPadded,
+            targetOutputs = data.perLayer(0).asInstanceOf[ConvDatasets].targets,
             precision) match {
             case Some((ix, unmatchedTarget, wrongOutput)) =>
               logger.info(ix.mkString(", ") + ": " + unmatchedTarget + " != " + wrongOutput)
@@ -392,10 +377,10 @@ class TestCNN {
           }
 
           if (!testFailed)
-            logger.info(f"SUCCESS. Processed ${aCNN.inputShape.nBatches * aCNN.inputShape.nInputs}%d inputs, " +
+            logger.info(f"SUCCESS. Processed ${aCNN.inputConfig.nBatches * aCNN.inputConfig.nInputs}%d inputs, " +
               f"the results were equal to targets (precision=$precision%1.4f).")
           else if (!testVerified)
-            logger.info(f"NOT VERIFIED. Processed ${aCNN.inputShape.nBatches * aCNN.inputShape.nInputs}%d inputs.")
+            logger.info(f"NOT VERIFIED. Processed ${aCNN.inputConfig.nBatches * aCNN.inputConfig.nInputs}%d inputs.")
           else
             throw new AssertionError
 
@@ -450,8 +435,8 @@ class TestCNN {
             f"mults_per_thread_l${iP.layerNo}%d, neurons_per_wrg_l${iP.layerNo}%d, "
       }
     } + "ran, abort_reason, code_version, datetime) VALUES (" +
-      "'" + nn.deviceName + "', " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
-      f"${aCNN.inputShape.size}%d, " + {
+      "'" + nn.deviceName + "', " + f"${aCNN.inputConfig.nBatches}%d, ${aCNN.inputConfig.nInputs}%d, " +
+      f"${aCNN.inputConfig.inputSize}%d, " + {
       iP match {
         case cIP: Conv.InitParameters =>
           f"${cIP.dim.nKernels}%d, ${cIP.dim.kernelSize}%d, ${cIP.dim.kernelStride}%d, " +
@@ -489,8 +474,8 @@ class TestCNN {
     }.mkString(", ") +
       ", ran, verified, success, abort_reason, code_version, datetime, pool_size, l1_out_len_original, " +
       "l1_out_len_new) VALUES (" +
-      "'" + nn.deviceName + "', " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
-      f"${aCNN.inputShape.size}%d, " + f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d, " + {
+      "'" + nn.deviceName + "', " + f"${aCNN.inputConfig.nBatches}%d, ${aCNN.inputConfig.nInputs}%d, " +
+      f"${aCNN.inputConfig.inputSize}%d, " + f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d, " + {
       for (layerNo <- aCNN.convLayers.indices) yield {
         val c: Conv = aCNN.layers(layerNo).asInstanceOf[Conv]
         f"${c.outputShape.nChannels}%d, ${c.kernelSliding.size}%d, ${c.kernelSliding.stride}%d, " +
@@ -538,7 +523,7 @@ class TestCNN {
 
   def recordInJSON(aCNN: CNN, runDate: Date): Unit = {
     var pw: PrintWriter = null
-    val file = new File(nn.resultsFilename(aCNN.pathToResults, aCNN.inputShape.nInputs))
+    val file = new File(nn.resultsFilename(aCNN.pathToResults, aCNN.inputConfig.nInputs))
     file.getParentFile.mkdirs()
     pw = new PrintWriter(file)
     /* Headers */
@@ -555,8 +540,8 @@ class TestCNN {
       for (layerNo <- 0 until aCNN.nLayers)
         yield f"runtime_l$layerNo%d"}.mkString(", ") + ", tag\n")
 
-    pw.write(nn.deviceName + ", " + f"${aCNN.inputShape.nBatches}%d, ${aCNN.inputShape.nInputs}%d, " +
-      f"${aCNN.inputShape.size}%d, " +
+    pw.write(nn.deviceName + ", " + f"${aCNN.inputConfig.nBatches}%d, ${aCNN.inputConfig.nInputs}%d, " +
+      f"${aCNN.inputConfig.inputSize}%d, " +
       f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d" + {
       for (layerNo <- aCNN.convLayers.indices) yield {
         val c: Conv = aCNN.layers(layerNo).asInstanceOf[Conv]

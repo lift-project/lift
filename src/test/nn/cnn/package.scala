@@ -20,7 +20,7 @@ import scala.util.parsing.json.JSON
 
 package object cnn {
 
-  def generateList(config: Map[String, Any], inputConfig: cnn.Experiment.InputConfig,
+  def generateList(config: Map[String, Any], inputConfig: cnn.InputConfig,
                    layerSizeConfig: Layer.Experiment.Config.Dimensions): List[Int] = {
     val configEvaluated: Map[String, Int] =
       config.map {
@@ -57,7 +57,7 @@ package object cnn {
   }
   
   def generateListsOfFuns(jOptParams: Map[String, Any], blockName: String): List[
-    (cnn.Experiment.InputConfig, Layer.Experiment.Config.Dimensions) => List[Int]] = {
+    (cnn.InputConfig, Layer.Experiment.Config.Dimensions) => List[Int]] = {
     val paramBlock = jOptParams(blockName).asInstanceOf[List[Map[String, Any]]]
     List(
       (inputConfig, convLayerSizeConfig) =>
@@ -211,64 +211,67 @@ package object cnn {
 
 
           inputTileSizeRange = List(
-            (in: cnn.Experiment.InputConfig, c: conv.Experiment.Config.Dimensions) => 
+            (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) => 
               (c.kernelSize to in.inputSize by 1).toList),
           
           elsPerThreadRange = List(
-            (in: cnn.Experiment.InputConfig, c: conv.Experiment.Config.Dimensions) =>
+            (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
               (1 to (in.nChannels * c.kernelSize * c.kernelSize) by 1).toList),
           
           kernelsPerGroupRange = List(
-            (in: cnn.Experiment.InputConfig, c: conv.Experiment.Config.Dimensions) =>
+            (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
               (1 to c.nKernels by 1).toList),
           
           vectorLenRange = List(
-            (_: cnn.Experiment.InputConfig, _: conv.Experiment.Config.Dimensions) =>
+            (_: cnn.InputConfig, _: conv.Experiment.Config.Dimensions) =>
               List(1, 2, 4)),
 
           multsPerThreadRange = List(
-            (_: cnn.Experiment.InputConfig, _: fc.Experiment.Config.Dimensions) =>
+            (_: cnn.InputConfig, _: fc.Experiment.Config.Dimensions) =>
               List(1)),
           neuronsPerWrgRange = List(
-            (_: cnn.Experiment.InputConfig, _: fc.Experiment.Config.Dimensions) =>
+            (_: cnn.InputConfig, _: fc.Experiment.Config.Dimensions) =>
               List(1)))
     }
   }
+  
 
-  def configToString(iC: cnn.Experiment.InputConfig): String = {
+  def configToString(iC: cnn.InputConfig): String = {
     f"nBatches=${iC.nBatches}%d, nInputs=${iC.nInputs}%d, imageSize=${iC.inputSize}%d\n"
   }
 
-  object Experiment {
+  
+  case class InputConfig(nBatches: Int,
+                         nInputs: Int,
+                         inputSize: Int,
+                         nChannels: Int)
+  
 
-    case class InputConfig(nBatches: Int,
-                           nInputs: Int,
-                           inputSize: Int,
-                           nChannels: Int)
+  object Experiment {
 
     val cnnDir: String = nn.nnDir + "/cnn"
     val pathToResults: String = System.getenv("LIFT_NN_RESOURCES") + f"/neural_net_outputs/"
     val pathToLiftResults = pathToResults + "/lift_results"
 
     
-    def pathToInputs(iC: cnn.Experiment.InputConfig, cD: conv.Experiment.Config.Dimensions): String =
+    def pathToInputs(iC: cnn.InputConfig, cD: conv.Experiment.Config.Dimensions): String =
       System.getenv("LIFT_NN_RESOURCES") + f"/neural_net_inputs/input_lmdb_IN_${iC.nInputs}%d_IC_${iC.nChannels}%d_" +
         f"IS_${iC.inputSize}%d_" +
         f"KC_${cD.nKernels}%d_KSI_${cD.kernelSize}%d_KSTR_${cD.kernelStride}%d"
 
     
-    def pathToParams(iC: cnn.Experiment.InputConfig, cD: conv.Experiment.Config.Dimensions): String =
+    def pathToParams(iC: cnn.InputConfig, cD: conv.Experiment.Config.Dimensions): String =
       System.getenv("LIFT_NN_RESOURCES") + f"/neural_net_params/micro_IN_${iC.nInputs}%d_IC_${iC.nChannels}%d_" +
         f"IS_${iC.inputSize}%d_" +
         f"KC_${cD.nKernels}%d_KSI_${cD.kernelSize}%d_KSTR_${cD.kernelStride}%d"
     
     
-    def pathToTargets(iC: cnn.Experiment.InputConfig, cD: conv.Experiment.Config.Dimensions): String = 
+    def pathToTargets(iC: cnn.InputConfig, cD: conv.Experiment.Config.Dimensions): String = 
       pathToResults + f"/outputs_IN_${iC.nInputs}%d_IC_${iC.nChannels}%d_IS_${iC.inputSize}%d_" +
       f"KC_${cD.nKernels}%d_KSI_${cD.kernelSize}%d_KSTR_${cD.kernelStride}%d.binary"
 
 
-    def inputsExist(iC: cnn.Experiment.InputConfig, cD: conv.Experiment.Config.Dimensions,
+    def inputsExist(iC: cnn.InputConfig, cD: conv.Experiment.Config.Dimensions,
                     experimentName: String): Boolean =
       if (exists(get(pathToInputs(iC, cD) + "/test_images_n" + iC.nInputs + ".binary")))
         true
@@ -279,7 +282,7 @@ package object cnn {
         false
       }
     
-    def targetsExist(iC: cnn.Experiment.InputConfig, cD: conv.Experiment.Config.Dimensions,
+    def targetsExist(iC: cnn.InputConfig, cD: conv.Experiment.Config.Dimensions,
                     experimentName: String): Boolean =
       if (exists(get(Experiment.pathToTargets(iC, cD))))
         true
@@ -292,7 +295,7 @@ package object cnn {
       }
     
     
-    def isFirstRun(iC: cnn.Experiment.InputConfig) = {
+    def isFirstRun(iC: cnn.InputConfig) = {
       if (!exists(get(pathToResults))) {
         createDirectory(get(pathToResults))
         true
@@ -334,7 +337,7 @@ package object cnn {
     }
     
     def apply(benchmark: cnn.ExperimentParams,
-              iC: cnn.Experiment.InputConfig,
+              iC: cnn.InputConfig,
               cD: conv.Experiment.Config.Dimensions,
               fD: fc.Experiment.Config.Dimensions): List[Experiment] = {
       for {
@@ -429,7 +432,7 @@ package object cnn {
   }
 
 
-  case class Experiment(inputConfig: cnn.Experiment.InputConfig,
+  case class Experiment(inputConfig: cnn.InputConfig,
                         convConfig: List[conv.Experiment.Config],
                         fcConfig: List[fc.Experiment.Config],
                         pathToInputs: String,
@@ -439,7 +442,7 @@ package object cnn {
     def loadData(aCNN: CNN, compileOnly: Boolean) = NetDatasetsCollection(
       pathToParams = pathToParams,
       nInputs = inputConfig.nInputs,
-      layers = Array[NetDatasets](
+      perLayer = Array[NetDatasets](
         nn.conv.Experiment.loadDatasets(
           paramsPath = pathToParams,
           inputsPath = pathToInputs + "/test_images_n" + inputConfig.nInputs + ".binary",
@@ -466,26 +469,26 @@ package object cnn {
                               neuronsRange: List[List[Int]],
 
                               inputTileSizeRange: List[
-                              (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
+                              (cnn.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
                               elsPerThreadRange: List[
-                              (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
+                              (cnn.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
                               kernelsPerGroupRange: List[
-                              (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
+                              (cnn.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
                               vectorLenRange: List[
-                              (cnn.Experiment.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
+                              (cnn.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
 
                               multsPerThreadRange: List[
-                              (cnn.Experiment.InputConfig, fc.Experiment.Config.Dimensions) => List[Int]],
+                              (cnn.InputConfig, fc.Experiment.Config.Dimensions) => List[Int]],
                               neuronsPerWrgRange: List[
-                              (cnn.Experiment.InputConfig, fc.Experiment.Config.Dimensions) => List[Int]]) {
-    def inputConfigs: List[cnn.Experiment.InputConfig] = {
+                              (cnn.InputConfig, fc.Experiment.Config.Dimensions) => List[Int]]) {
+    def inputConfigs: List[cnn.InputConfig] = {
       for {
         nBatches <- nBatchesRange
         inputSize <- inputSizeRange
         inputChannels <- inputChannelRange
         nInputs <- nInputsRange}
       // Wrap input parameters into an object
-        yield cnn.Experiment.InputConfig(
+        yield cnn.InputConfig(
           nBatches = nBatches, nInputs = nInputs, inputSize = inputSize, nChannels = inputChannels)
     }
     
@@ -501,7 +504,7 @@ package object cnn {
       //        conv.Experiment.Config.Dimensions(_nKernelsL1, _kernelSizeL1, /*TODO*/1)))
     }
     
-    def convConfig(iC: cnn.Experiment.InputConfig, cD: conv.Experiment.Config.Dimensions): 
+    def convConfig(iC: cnn.InputConfig, cD: conv.Experiment.Config.Dimensions): 
     List[List[nn.conv.Experiment.Config]] = {
       for {
         inputTileSize <- inputTileSizeRange.head(iC, cD)
@@ -534,7 +537,7 @@ package object cnn {
       //        fc.Experiment.Config.Dimensions(_nNeuronsL1)))
     }
 
-    def fcConfig(iC: cnn.Experiment.InputConfig, fD: fc.Experiment.Config.Dimensions):
+    def fcConfig(iC: cnn.InputConfig, fD: fc.Experiment.Config.Dimensions):
     List[List[fc.Experiment.Config]] = {
       for {
         _multsPerThreadL0 <- multsPerThreadRange.head(iC, fD)
