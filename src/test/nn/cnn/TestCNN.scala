@@ -13,6 +13,7 @@ import nn.poolScala.ScalaPool
 import opencl.executor.{Execute, Executor}
 import org.junit.{AfterClass, BeforeClass}
 
+import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks._
 
 /**
@@ -86,13 +87,23 @@ class TestCNN {
 
     var aCNN: CNN = null
     var data: NetDatasetsCollection = null
+    
     var initParams: Layer.InitParameters = null
+    val (checkAgainstInvalidParams: Boolean, invalidParams: nn.cnn.ExperimentParams.Invalid) = {
+      nn.cnn.ExperimentParams.Invalid.restore() match {
+        case Some(p) => (true, p)
+        case None => (false, nn.cnn.ExperimentParams.Invalid(combinations = new ArrayBuffer()))
+      }
+    }
+        
     var now: Date = null
     var skip: Boolean = continueFrom != null
     var currentLayer: Int = 0
     var experimentNo: Int = 0
     for {
+      // Construct an experiment with all parameters
       exp <- (for {
+        // Workload parameters
         inputConfig <- benchmark.inputConfigs
         convDimensions <- benchmark.convDimensions
         fcDimensions <- benchmark.fcDimensions
@@ -108,6 +119,7 @@ class TestCNN {
 
         if Experiment.datasetsExist(Experiment.pathToParams(inputConfig, convDimensions.head))
       }
+        // Optimisational parameters are traversed with cnn.Experiment
         yield cnn.Experiment(benchmark, inputConfig, convDimensions.head, fcDimensions.head)).flatten
 
 
@@ -117,7 +129,11 @@ class TestCNN {
           skip = false
           true
         } else false
-      }  
+      }
+    
+    // If there a backup of invalidParams was restored, ignore combinations found in the backup
+    if {checkAgainstInvalidParams && 
+      !invalidParams.combinations.contains((exp.inputConfig, exp.convConfigs.head, exp.fcConfigs.head))}
     
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
@@ -129,10 +145,10 @@ class TestCNN {
           
           //noinspection ConvertibleToMethodValue
           initParams = Conv.InitParameters(0, Conv.Par(_, _, _, _, _, _, _, _, _, _), nn.Linear, //nn.ReLU,
-            optParams = exp.convConfig.head.optParams,
+            optParams = exp.convConfigs.head.optParams,
             inputShape = Shape(nBatches = exp.inputConfig.nBatches, nInputs = exp.inputConfig.nInputs,
               size = exp.inputConfig.inputSize, nChannels = exp.inputConfig.nChannels),
-            dim = exp.convConfig.head.dim,
+            dim = exp.convConfigs.head.dim,
             padData = padData, testConfigFilename)
           
           currentLayer = 0
@@ -155,6 +171,8 @@ class TestCNN {
             logger.warn(msg)
             recordFailureInSQL(msg, aCNN, initParams, now)
             logger.warn("SKIPPING EXPERIMENT.")
+            logger.warn("Saving paramaters to avoid in the future.")
+            invalidParams.append((exp.inputConfig, exp.convConfigs.head, exp.fcConfigs.head))
 //            if (currentLayer != 0)
 //              throw e
             false

@@ -9,8 +9,9 @@ import java.util.Calendar
 import com.typesafe.scalalogging.Logger
 import nn.conv.Conv
 import org.junit.Assert.assertEquals
-import scala.sys.process._
 
+import scala.collection.mutable
+import scala.sys.process._
 import scala.util.parsing.json.JSON
 
 /**
@@ -94,7 +95,6 @@ package object cnn {
   }
 
   def getConfigFromJSON(jsonFilePath: String): ExperimentParams = {
-    val logger = Logger(this.getClass)
     val source = scala.io.Source.fromFile(jsonFilePath)
     val jsonString = source.getLines.mkString("\n")
     source.close()
@@ -106,7 +106,7 @@ package object cnn {
       case Some(someJ) =>
         val j = someJ.asInstanceOf[Map[String, Any]]
 
-        logger.info("Processing JSON config file \"" + j("name").asInstanceOf[String] + "\"\n" +
+        Logger(this.getClass).info("Processing JSON config file \"" + j("name").asInstanceOf[String] + "\"\n" +
           "located in " + jsonFilePath)
         
         val jWorkload = j("workload").asInstanceOf[Map[String, Any]]
@@ -187,7 +187,7 @@ package object cnn {
       else {
         System.out.println(
           f"No inputs provided for $experimentName%s (nInputs=${iC.nInputs}%d, imageSize=${iC.inputSize}%d, " +
-            f"nChannels=${iC.nChannels}%d) at $path%s")
+            f"nChannels=${iC.nChannels}%d) at:\n$path%s")
         false
       }
     }
@@ -379,8 +379,8 @@ package object cnn {
 
 
   case class Experiment(inputConfig: cnn.InputConfig,
-                        convConfig: List[conv.Experiment.Config],
-                        fcConfig: List[fc.Experiment.Config],
+                        convConfigs: List[conv.Experiment.Config],
+                        fcConfigs: List[fc.Experiment.Config],
                         pathToInputs: String,
                         pathToParams: String,
                         pathToTargets: String) {
@@ -416,6 +416,44 @@ package object cnn {
                                kernelStrideRange: List[List[Int]],
 
                                neuronsRange: List[List[Int]])
+    
+    object Invalid {
+      def restore(): Option[Invalid] = {        
+        val path: String = System.getenv("LIFT_NN_INVALID_PARAMS_PATH")
+        if (path != null && exists(get(path))) {
+          val ois = new ObjectInputStream(new FileInputStream(path))
+          val invalidParams = ois.readObject.asInstanceOf[Invalid]
+          ois.close
+          Logger(this.getClass).info("Restored invalid parameter combinations from $path%s")
+          Some(invalidParams)
+        }
+        else None
+      }
+    }
+        
+    @SerialVersionUID(1L)
+    case class Invalid(combinations: mutable.ArrayBuffer[
+      (cnn.InputConfig, nn.conv.Experiment.Config, nn.fc.Experiment.Config)]) extends Serializable {
+      
+      val savingPeriod: Int = 25
+      var appendsToSave: Int = savingPeriod
+
+      def append(comb: (cnn.InputConfig, nn.conv.Experiment.Config, nn.fc.Experiment.Config)): Unit = {
+        combinations += comb
+        appendsToSave -= 1
+
+        if (appendsToSave == 0) {
+          // Save
+          val path: String = System.getenv("LIFT_NN_INVALID_PARAMS_PATH")
+          if (path != null) {
+            val oos = new ObjectOutputStream(new FileOutputStream(path))
+            oos.writeObject(this)
+            oos.close()
+          }
+          appendsToSave = savingPeriod
+        }
+      }
+    }
   }
 
   case class ExperimentParams(experimentName: String,
