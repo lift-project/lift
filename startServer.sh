@@ -7,8 +7,9 @@ export LIFT_NN_CAFFE_HARNESS=/home/s1569687/caffe_clblas/vcs_caffes/deliverable/
 #export LIFT_CNN_CONFIG_PATH=/home/s1569687/lift/src/test/nn/cnn/opt_params/
 export LIFT_CNN_CONFIG_PATH=/home/s1569687/lift/src/test/nn/caffe/proto/
 export LIFT_NN_KERNELS_LOCATION=/home/s1569687/caffe_clblas/vcs_caffes/deliverable/microbenchmark_kernels/
-export LIFT_NN_GENERATE_FILES_CMD=/home/s1569687/caffe_clblas/vcs_caffes/deliverable/microbenchmark/microbenchmarking.sh /home/s1569687/caffe_clblas/vcs_caffes/deliverable/microbenchmark/neural_net_specs/%s build
+export LIFT_NN_GENERATE_FILES_CMD="/home/s1569687/caffe_clblas/vcs_caffes/deliverable/microbenchmark/microbenchmarking.sh /home/s1569687/caffe_clblas/vcs_caffes/deliverable/microbenchmark/neural_net_specs/%s build"
 #export LIFT_NN_MICROBENCHMARK_COMPILE_ONLY=yesplease
+export LIFT_NN_INVALID_PARAMS_PATH=/home/s1569687/lift/invalid_params.bin
 readonly servermode="${SERVERMODE}"
 REDIRECTOUTPUT=/dev/stdout
 if [[ -n $REDIRECT_OUTPUT ]]; then
