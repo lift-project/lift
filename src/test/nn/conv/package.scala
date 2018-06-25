@@ -147,13 +147,13 @@ package object conv {
 
     def getPathToInputs(nKernelsL0: Int, kernelSize: Int, kernelStride: Int, inputSize: Int): String = {
       {
-        val envPath = System.getenv("LIFT_NN_RESOURCES")
+        val envPath = System.getenv("LIFT_NN_CAFFE_HARNESS")
         if (envPath != null) envPath else convDir
       } + f"/experiment.cnn.inputs.$inputSize%d"
     }
     def getPathToParams(nKernelsL0: Int, kernelSize: Int, kernelStride: Int, inputSize: Int): String = {
       {
-        val envPath = System.getenv("LIFT_NN_RESOURCES")
+        val envPath = System.getenv("LIFT_NN_CAFFE_HARNESS")
         if (envPath != null) envPath else convDir
       } + f"/experiment.cnn.$nKernelsL0%d.$kernelSize%d.$kernelStride%d.$inputSize%d"
     }

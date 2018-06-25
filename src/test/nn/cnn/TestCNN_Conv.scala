@@ -12,8 +12,8 @@ object TestCNN_Conv {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
-//    Executor.init(/*avus*/1, 1)
-    Executor.init(/*artemisa*/0, 0)
+    Executor.init(/*avus*/1, 1)
+//    Executor.init(/*artemisa*/0, 0)
     // TODO: reenable MySQL
 //    nn.cnn.mysql.CreateTable()
   }
@@ -86,13 +86,15 @@ class TestCNN_Conv {
   @Test
   def TestConv(): Unit = {
     val protoFiles = List(
-      "/home/nm/avus_remotes/lift/src/test/nn/caffe/proto/VGG_ILSVRC_19_layers_deploy_1.prototxt")
+      System.getenv("LIFT_CNN_CONFIG_PATH") + "/" + "VGG_ILSVRC_19_layers_deploy_1.prototxt")
 //      "/home/nm/avus_remotes/lift/src/test/nn/caffe/proto/ResNet-101-deploy-5.prototxt")
     
       for (_ <- 0 until reruns) {
-        for (protoFile <- protoFiles)
-          for (config <- cnn.getConfigFromProto(protoFile))
+        for (protoFile <- protoFiles) {
+          val configs = nn.caffe.proto.Config.configToExperimentParams(protoFile) // For debugging purposes
+          for (config <- configs)
             new TestCNN().Test(config, protoFile)
+        }
       }
   }
 }

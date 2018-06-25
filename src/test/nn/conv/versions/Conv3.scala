@@ -305,7 +305,7 @@ object Conv3 extends ConvCompanion {
       * initializes variables, computes workgroup sizes.
       */
 
-    val exceptionMsgPrefix: String = "[" + iP.testConfigFilename + "] " +
+    val exceptionMsgPrefix: String = "[" + iP.testConfigFilename + "]\n" +
       "In the Conv layer with the following configuration:\n" +
       conv.configToString(iP.inputShape.sizePadded, -1, iP.optParams.elsPerThread,
         iP.dim.nKernels, iP.optParams.kernelsPerGroup,  iP.optParams.vectorLen, 

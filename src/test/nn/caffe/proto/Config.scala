@@ -1,7 +1,10 @@
 package nn.caffe.proto
 
 import _root_.caffe.caffe.{LayerParameter, NetParameter, V1LayerParameter}
+import com.typesafe.scalalogging.Logger
 import nn.caffe.proto.Config.{Version, getType}
+import nn.cnn.ExperimentParams
+import nn.{cnn, conv, fc}
 
 import scala.io.Source
 import scalapb.TextFormatError
@@ -164,7 +167,6 @@ case class Config(netParam: NetParameter) {
     }
     netParam.layer.map(layer => (layer, processedLayers(layer)))
   }
-  
 }
 
 /**
@@ -212,5 +214,101 @@ object Config {
     val V1, NEW = Value
   }
 
-  def apply(fileName: String): Config = new Config(load(fileName))
+  def configToExperimentParams(protoFilePath: String): Seq[ExperimentParams] = {
+
+    val logger = Logger(this.getClass)
+    logger.info("Processing PROTO config file \"" + protoFilePath + "\"")
+
+    val config: nn.caffe.proto.Config = new Config(load(protoFilePath))
+    
+    val experimentName: String = config.netParam.name.get
+
+    {
+      config.version match {
+        case Config.Version.V1 => config.layersWithSizesV1.get
+        case Config.Version.NEW => config.layersWithSizesVNew.get}
+    }.zipWithIndex.filter(layerAndNo => {
+      layerAndNo._1._1 match {
+        case layerV1: V1LayerParameter =>
+          nn.caffe.proto.Config.getType(layerV1) == V1LayerParameter.LayerType.CONVOLUTION
+        case layerVNew: LayerParameter =>
+          nn.caffe.proto.Config.getType(layerVNew) == V1LayerParameter.LayerType.CONVOLUTION
+      }}).map{
+      case ((layer, inputSize), i) =>
+        val nInputs: Int = {
+          config.version match {
+            case Config.Version.V1 => config.dataLayerV1.get.dataParam
+            case Config.Version.NEW => config.dataLayerVNew.get.dataParam
+          }}.get.batchSize.get
+
+        val layerName: String = config.version match {
+          case Config.Version.V1 => layer.asInstanceOf[V1LayerParameter].name.get
+          case Config.Version.NEW => layer.asInstanceOf[LayerParameter].name.get
+        }
+
+        val paddedInputSize: Int = inputSize + 2 * {
+          config.version match {
+            case Config.Version.V1 => layer.asInstanceOf[V1LayerParameter].convolutionParam.get.pad.head
+            case Config.Version.NEW => layer.asInstanceOf[LayerParameter].convolutionParam.get.pad.head
+          }}
+
+        val nKernels: Int = {
+          config.version match {
+            case Config.Version.V1 => layer.asInstanceOf[V1LayerParameter].convolutionParam.get.numOutput.get
+            case Config.Version.NEW => layer.asInstanceOf[LayerParameter].convolutionParam.get.numOutput.get
+          }}
+
+        val kernelSize: Int = {
+          config.version match {
+            case Config.Version.V1 => layer.asInstanceOf[V1LayerParameter].convolutionParam.get.kernelSize.head
+            case Config.Version.NEW => layer.asInstanceOf[LayerParameter].convolutionParam.get.kernelSize.head
+          }}
+
+        val kernelStride: Int = {
+          def getStride(stride: Seq[Int]): Int = if (stride.nonEmpty) stride.head else 1
+          config.version match {
+            case Config.Version.V1 => getStride(layer.asInstanceOf[V1LayerParameter].convolutionParam.get.stride)
+            case Config.Version.NEW => getStride(layer.asInstanceOf[LayerParameter].convolutionParam.get.stride)
+          }}
+
+        new ExperimentParams(
+          experimentName = experimentName,
+          kernelOutputSubfolder = i.toString,
+          layerName = layerName,
+          layerNo = i,
+
+          // TODO: generalise nBatches and channels
+          exactParams = Some(
+            ExperimentParams.Exact(
+              inputConfig = cnn.InputConfig(1, nInputs, paddedInputSize, 3),
+              convDimensions = conv.Experiment.Config.Dimensions(nKernels, kernelSize, kernelStride),
+              fcDimensions = fc.Experiment.Config.Dimensions(1))),
+
+          dim = None,
+
+
+          inputTileSizeRange = List(
+            (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
+              (c.kernelSize to in.inputSize by 1).toList),
+
+          elsPerThreadRange = List(
+            (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
+              (1 to (in.nChannels * c.kernelSize * c.kernelSize) by 1).toList),
+
+          kernelsPerGroupRange = List(
+            (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
+              (1 to c.nKernels by 1).toList),
+
+          vectorLenRange = List(
+            (_: cnn.InputConfig, _: conv.Experiment.Config.Dimensions) =>
+              List(2, 4)),
+
+          multsPerThreadRange = List(
+            (_: cnn.InputConfig, _: fc.Experiment.Config.Dimensions) =>
+              List(1)),
+          neuronsPerWrgRange = List(
+            (_: cnn.InputConfig, _: fc.Experiment.Config.Dimensions) =>
+              List(1)))
+    }
+  }
 }

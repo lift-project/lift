@@ -8,7 +8,7 @@ package nn.conv.versions
 
 import ir.ast.debug.AssertType
 import ir.ast.{Zip, _}
-import ir.{TupleType, Type, VectorType}
+import ir.{TupleType, Type}
 import nn.conv._
 import nn.{AT, _}
 import opencl.ir.pattern._
@@ -113,8 +113,9 @@ object Conv4 extends ConvCompanion {
     val originalXType: AT = AT(AT(AT(AT(AT(originalElementType, inputShape.nChannels), inputShape.sizePadded), inputShape.sizePadded),
       inputShape.nInputs), inputShape.nBatches)
 
-    val elementType: Type = if (vectorLen == 1) Float else VectorType(Float, vectorLen)
-    val windowSeqTileType: AT = AT(elementType, seqElsPerThread)
+//    val elementType: Type = if (vectorLen == 1) Float else VectorType(Float, vectorLen)
+    val elementType: Type = if (vectorLen == 1) Float else AT(Float, vectorLen)
+    val windowSeqTileType: AT = AT(elementType, seqElsPerThread / vectorLen)
     val windowType: AT = AT(windowSeqTileType, nSeqTilesInWindow)
     val xTileType: AT = AT(windowType, nWindowsInTile)
     val xType: AT = AT(xTileType, nTilesTotal)
@@ -370,7 +371,7 @@ object Conv4 extends ConvCompanion {
       * initializes variables, computes workgroup sizes.
       */
 
-    val exceptionMsgPrefix: String = "[" + iP.testConfigFilename + "] " +
+    val exceptionMsgPrefix: String = "[" + iP.testConfigFilename + "]\n" +
       "In the Conv layer with the following configuration:\n" +
       conv.configToString(iP.inputShape.sizePadded, -1, iP.optParams.elsPerThread,
         iP.dim.nKernels, iP.optParams.kernelsPerGroup,  iP.optParams.vectorLen, 
@@ -407,7 +408,7 @@ object Conv4 extends ConvCompanion {
         })
     }
 
-    /* Check parameters */
+    /* Check parameters */    
     if (iP.dim.nKernels % iP.optParams.kernelsPerGroup != 0)
       throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
         f"the number of kernels (${iP.dim.nKernels}%d) must be divisible by " +
@@ -418,6 +419,11 @@ object Conv4 extends ConvCompanion {
       throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
         f"window size (kernel size * kernel size * nChannels =${window_size}%d) " +
         f"must be divisible by elsPerThread (${iP.optParams.elsPerThread}%d)")
+    
+    if (iP.optParams.elsPerThread % iP.optParams.vectorLen != 0)
+      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+        f"elsPerThread (${iP.optParams.elsPerThread}%d) must be divisible by " +
+        f"vectorLen (${iP.optParams.vectorLen}%d)")
     
     /* Memory requirements */
     val nTilesTotal = iP.inputShape.nBatches.toLong * iP.inputShape.nInputs * tiler.n * tiler.n
