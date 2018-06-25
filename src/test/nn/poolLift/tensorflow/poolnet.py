@@ -85,9 +85,9 @@ class PoolNet:
         :param kernel_shape:
         :return:
         """
-        if os.environ["LIFT_NN_RESOURCES"] is None:
-            raise EnvironmentError("LIFT_NN_RESOURCES is not set!")
-        return os.path.join(os.environ["LIFT_NN_RESOURCES"],
+        if os.environ["LIFT_NN_CAFFE_HARNESS"] is None:
+            raise EnvironmentError("LIFT_NN_CAFFE_HARNESS is not set!")
+        return os.path.join(os.environ["LIFT_NN_CAFFE_HARNESS"],
                             "experiment.pool." + str(kernel_shape[0]) + "." + str(image_shape[0]))
 
     def fprop(self, n_batches, n_inputs):

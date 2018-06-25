@@ -38,7 +38,7 @@
 //
 //    def getPathToInputs(kernelShape: Shape, imageShape: Shape): String = {
 //      {
-//        val envPath = System.getenv("LIFT_NN_RESOURCES")
+//        val envPath = System.getenv("LIFT_NN_CAFFE_HARNESS")
 //        if (envPath != null) envPath else cnnDir
 //      } + f"/experiment.pool.${kernelShape.size}%d.${imageShape.size}%d"
 //    }

@@ -99,7 +99,10 @@ class TestCNN {
 
         if cnn.Experiment.isFirstRun(inputConfig) || rerunsAllowed
 
-        if cnn.Experiment.inputsExist(inputConfig, convDimensions.head, benchmark.experimentName)
+        if cnn.Experiment.inputsExist(inputConfig, convDimensions.head, benchmark.experimentName) || 
+          (// Try generating files and recheck
+            cnn.Experiment.generateFiles(benchmark) &&
+            cnn.Experiment.inputsExist(inputConfig, convDimensions.head, benchmark.experimentName))
 
         if cnn.Experiment.targetsExist(inputConfig, convDimensions.head, benchmark.experimentName)
 
@@ -387,7 +390,7 @@ class TestCNN {
 
           /* JSON */
           if (aCNN.pathToResults != "" && !testFailed)
-            recordInJSON(aCNN, now)
+            recordInCSV(aCNN, now)
 
           /* SQL */
           recordInSQL(aCNN, testRan = true, testFailed, testVerified, now)
@@ -521,7 +524,7 @@ class TestCNN {
   }
 
 
-  def recordInJSON(aCNN: CNN, runDate: Date): Unit = {
+  def recordInCSV(aCNN: CNN, runDate: Date): Unit = {
     var pw: PrintWriter = null
     val file = new File(nn.resultsFilename(aCNN.pathToResults, aCNN.inputConfig.nInputs))
     file.getParentFile.mkdirs()
