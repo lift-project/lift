@@ -14,21 +14,21 @@ case class Config(netParam: NetParameter) {
   var dataLayerV1: Option[V1LayerParameter] = None
   var dataLayerVNew: Option[LayerParameter] = None
 
-  val layersWithSizesV1: Option[Seq[(V1LayerParameter, Int)]] = {
+  val layersWithSizesV1: Option[Seq[(V1LayerParameter, (Int, Int))]] = {
     version match {
       case Version.V1 => Some(fillMissingParametersV1())
       case Version.NEW => None
     }
   }
   
-  val layersWithSizesVNew: Option[Seq[(LayerParameter, Int)]] = {
+  val layersWithSizesVNew: Option[Seq[(LayerParameter, (Int, Int))]] = {
     version match {
       case Version.V1 => None
       case Version.NEW => Some(fillMissingParametersVNew())
     }
   }
 
-  def fillMissingParametersV1(): Seq[(V1LayerParameter, Int)] = {
+  def fillMissingParametersV1(): Seq[(V1LayerParameter, (Int, Int))] = {
     dataLayerV1 = netParam.layers.find(layer => layer.`type`.get == V1LayerParameter.LayerType.DATA &&
       (layer.include.isEmpty || layer.include.exists(_.phase match {
         case Some(_root_.caffe.caffe.Phase.TEST) => true
@@ -40,65 +40,71 @@ case class Config(netParam: NetParameter) {
       case None => throw new java.util.NoSuchElementException("Cannot find a data layer in Caffe protofile")
     }
 
-    val processedLayers = scala.collection.mutable.Map[V1LayerParameter, Int]()
+    val processedLayers = scala.collection.mutable.Map[V1LayerParameter, (Int, Int)]()
 
-    processedLayers += ((dataLayerV1.get, dataLayerV1.get.transformParam.get.cropSize.get))
+    // TODO: get input channels from Caffe
+    processedLayers += ((dataLayerV1.get, (dataLayerV1.get.transformParam.get.cropSize.get, 3)))
     for (layer <- netParam.layers) {
       if (!processedLayers.contains(layer)) {
 
-        def computeImageSize(currentLayer: V1LayerParameter): Int = {
-          if (processedLayers.contains(layer))
-            processedLayers(layer)
+        def computeInputDimensions(currentLayer: V1LayerParameter): (Int, Int) = {
+          if (processedLayers.contains(currentLayer))
+            processedLayers(currentLayer)
           else {
-            val parent = netParam.layers.find(layer => currentLayer.bottom.contains(layer.name.get)).get
+            val parent = netParam.layers.find(l => currentLayer.bottom.contains(l.name.get)).get
 
-            val currentLayerSize: Int = getType(parent) match {
-              case V1LayerParameter.LayerType.RELU => computeImageSize(parent)
-              case V1LayerParameter.LayerType.LRN => computeImageSize(parent)
-              case V1LayerParameter.LayerType.DATA => parent.transformParam.get.cropSize.get
+            val currentLayerDimensions: (Int, Int) = getType(parent) match {
+              case V1LayerParameter.LayerType.RELU => computeInputDimensions(parent)
+              case V1LayerParameter.LayerType.LRN => computeInputDimensions(parent)
+              case V1LayerParameter.LayerType.DATA => 
+                (parent.transformParam.get.cropSize.get, 3) // TODO: get input channels from Caffe
 
               case V1LayerParameter.LayerType.CONVOLUTION =>
                 def getStride(stride: Seq[Int]): Int = if (stride.nonEmpty) stride.head else 1
 
-                (computeImageSize(parent) -
+                ((computeInputDimensions(parent)._1 -
                   (parent.convolutionParam.get.kernelSize.head - getStride(parent.convolutionParam.get.stride)) +
-                  parent.convolutionParam.get.pad.head * 2) / getStride(parent.convolutionParam.get.stride)
+                  parent.convolutionParam.get.pad.head * 2) / getStride(parent.convolutionParam.get.stride),
+                parent.convolutionParam.get.numOutput.get)
 
               case V1LayerParameter.LayerType.POOLING =>
-                (computeImageSize(parent) -
+                val parentDimensions: (Int, Int) = computeInputDimensions(parent)
+                ((parentDimensions._1 -
                   (parent.poolingParam.get.kernelSize.head - parent.poolingParam.get.stride.get) +
-                  parent.poolingParam.get.pad.getOrElse(0) * 2) / parent.poolingParam.get.stride.get
+                  parent.poolingParam.get.pad.getOrElse(0) * 2) / parent.poolingParam.get.stride.get,
+                  parentDimensions._2)
 
-              case V1LayerParameter.LayerType.INNER_PRODUCT => parent.innerProductParam.get.numOutput.get
-              case V1LayerParameter.LayerType.CONCAT => computeImageSize(parent)
-              case V1LayerParameter.LayerType.DROPOUT => computeImageSize(parent)
-              case V1LayerParameter.LayerType.SOFTMAX => computeImageSize(parent)
-              case V1LayerParameter.LayerType.SOFTMAX_LOSS => computeImageSize(parent)
-              case V1LayerParameter.LayerType.ACCURACY => parent.accuracyParam.get.topK.get
-              case V1LayerParameter.LayerType.ELTWISE => computeImageSize(parent)
+              case V1LayerParameter.LayerType.INNER_PRODUCT => 
+                (parent.innerProductParam.get.numOutput.get, 1) // TODO: verify
+              case V1LayerParameter.LayerType.CONCAT => computeInputDimensions(parent)
+              case V1LayerParameter.LayerType.DROPOUT => computeInputDimensions(parent)
+              case V1LayerParameter.LayerType.SOFTMAX => computeInputDimensions(parent)
+              case V1LayerParameter.LayerType.SOFTMAX_LOSS => computeInputDimensions(parent)
+              case V1LayerParameter.LayerType.ACCURACY => (parent.accuracyParam.get.topK.get, 1) // TODO: verify
+              case V1LayerParameter.LayerType.ELTWISE => computeInputDimensions(parent)
               case _ =>
                 parent.`type`.get.name match {
-                  case "BatchNorm" => computeImageSize(parent)
-                  case "Scale" => computeImageSize(parent)
+                  case "BatchNorm" => computeInputDimensions(parent)
+                  case "Scale" => computeInputDimensions(parent)
 
                   case _ =>
                     throw new java.lang.IllegalArgumentException("Cannot recognize a layer from the proto file (" +
                       parent.`type`.get.name + ")")
                 }
             }
-            processedLayers += ((layer, currentLayerSize))
+            processedLayers += ((currentLayer, currentLayerDimensions))
 
-            currentLayerSize
+            currentLayerDimensions
           }
         }
 
-        computeImageSize(layer)
+        computeInputDimensions(layer)
       }
     }
     netParam.layers.map(layer => (layer, processedLayers(layer)))
   }
 
-  def fillMissingParametersVNew(): Seq[(LayerParameter, Int)] = {
+  def fillMissingParametersVNew(): Seq[(LayerParameter, (Int, Int))] = {
     dataLayerVNew = netParam.layer.find(layer => getType(layer) == V1LayerParameter.LayerType.DATA &&
       (layer.include.isEmpty || layer.include.exists(_.phase match {
         case Some(_root_.caffe.caffe.Phase.TEST) => true
@@ -110,59 +116,65 @@ case class Config(netParam: NetParameter) {
       case None => throw new java.util.NoSuchElementException("Cannot find a data layer in Caffe protofile")
     }
 
-    val processedLayers = scala.collection.mutable.Map[LayerParameter, Int]()
+    val processedLayers = scala.collection.mutable.Map[LayerParameter, (Int, Int)]()
 
-    processedLayers += ((dataLayerVNew.get, dataLayerVNew.get.transformParam.get.cropSize.get))
+    // TODO: here and below see fillMissingParametersV1
+    processedLayers += ((dataLayerVNew.get, (dataLayerVNew.get.transformParam.get.cropSize.get, 1)))
     for (layer <- netParam.layer) {
       if (!processedLayers.contains(layer)) {
 
-        def computeImageSize(currentLayer: LayerParameter): Int = {
+        def computeInputDimensions(currentLayer: LayerParameter): (Int, Int) = {
           if (processedLayers.contains(layer))
             processedLayers(layer)
           else {
             val parent = netParam.layer.find(layer => currentLayer.bottom.contains(layer.name.get)).get
 
-            val currentLayerSize: Int = getType(parent) match {
-              case V1LayerParameter.LayerType.RELU => computeImageSize(parent)
-              case V1LayerParameter.LayerType.LRN => computeImageSize(parent)
-              case V1LayerParameter.LayerType.DATA => parent.transformParam.get.cropSize.get
+            val currentLayerDimensions: (Int, Int) = getType(parent) match {
+              case V1LayerParameter.LayerType.RELU => computeInputDimensions(parent)
+              case V1LayerParameter.LayerType.LRN => computeInputDimensions(parent)
+              case V1LayerParameter.LayerType.DATA => 
+                (parent.transformParam.get.cropSize.get, 3)
 
               case V1LayerParameter.LayerType.CONVOLUTION =>
                 def getStride(stride: Seq[Int]): Int = if (stride.nonEmpty) stride.head else 1
 
-                (computeImageSize(parent) -
+                ((computeInputDimensions(parent)._1 -
                   (parent.convolutionParam.get.kernelSize.head - getStride(parent.convolutionParam.get.stride)) +
-                  parent.convolutionParam.get.pad.head * 2) / getStride(parent.convolutionParam.get.stride)
+                  parent.convolutionParam.get.pad.head * 2) / getStride(parent.convolutionParam.get.stride),
+                  parent.convolutionParam.get.numOutput.get)
 
               case V1LayerParameter.LayerType.POOLING =>
-                (computeImageSize(parent) -
+                val parentDimensions: (Int, Int) = computeInputDimensions(parent)
+                ((parentDimensions._1 -
                   (parent.poolingParam.get.kernelSize.head - parent.poolingParam.get.stride.get) +
-                  parent.poolingParam.get.pad.getOrElse(0) * 2) / parent.poolingParam.get.stride.get
+                  parent.poolingParam.get.pad.getOrElse(0) * 2) / parent.poolingParam.get.stride.get,
+                  parentDimensions._2)
 
-              case V1LayerParameter.LayerType.INNER_PRODUCT => parent.innerProductParam.get.numOutput.get
-              case V1LayerParameter.LayerType.CONCAT => computeImageSize(parent)
-              case V1LayerParameter.LayerType.DROPOUT => computeImageSize(parent)
-              case V1LayerParameter.LayerType.SOFTMAX => computeImageSize(parent)
-              case V1LayerParameter.LayerType.SOFTMAX_LOSS => computeImageSize(parent)
-              case V1LayerParameter.LayerType.ACCURACY => parent.accuracyParam.get.topK.get
-              case V1LayerParameter.LayerType.ELTWISE => computeImageSize(parent)
+              case V1LayerParameter.LayerType.INNER_PRODUCT => 
+                (parent.innerProductParam.get.numOutput.get, 1)
+              case V1LayerParameter.LayerType.CONCAT => computeInputDimensions(parent)
+              case V1LayerParameter.LayerType.DROPOUT => computeInputDimensions(parent)
+              case V1LayerParameter.LayerType.SOFTMAX => computeInputDimensions(parent)
+              case V1LayerParameter.LayerType.SOFTMAX_LOSS => computeInputDimensions(parent)
+              case V1LayerParameter.LayerType.ACCURACY => (parent.accuracyParam.get.topK.get, 1)
+              case V1LayerParameter.LayerType.ELTWISE => computeInputDimensions(parent)
               case _ =>
                 parent.`type`.get match {
-                  case "BatchNorm" => computeImageSize(parent)
-                  case "Scale" => computeImageSize(parent)
+                  case "BatchNorm" => computeInputDimensions(parent)
+                  case "Scale" => computeInputDimensions(parent)
 
                   case _ =>
                     throw new java.lang.IllegalArgumentException("Cannot recognize a layer from the proto file (" +
                       parent.`type`.get + ")")
                 }
             }
-            processedLayers += ((layer, currentLayerSize))
+            processedLayers += ((layer, currentLayerDimensions))
 
-            currentLayerSize
+            currentLayerDimensions
           }
         }
 
-        computeImageSize(layer)
+        computeInputDimensions(layer)
       }
     }
     netParam.layer.map(layer => (layer, processedLayers(layer)))
@@ -234,7 +246,7 @@ object Config {
         case layerVNew: LayerParameter =>
           nn.caffe.proto.Config.getType(layerVNew) == V1LayerParameter.LayerType.CONVOLUTION
       }}).map{
-      case ((layer, inputSize), i) =>
+      case ((layer, inputDimensions), i) =>
         val nInputs: Int = {
           config.version match {
             case Config.Version.V1 => config.dataLayerV1.get.dataParam
@@ -246,7 +258,7 @@ object Config {
           case Config.Version.NEW => layer.asInstanceOf[LayerParameter].name.get
         }
 
-        val paddedInputSize: Int = inputSize + 2 * {
+        val paddedInputSize: Int = inputDimensions._1 + 2 * {
           config.version match {
             case Config.Version.V1 => layer.asInstanceOf[V1LayerParameter].convolutionParam.get.pad.head
             case Config.Version.NEW => layer.asInstanceOf[LayerParameter].convolutionParam.get.pad.head
@@ -280,12 +292,11 @@ object Config {
           // TODO: generalise nBatches and channels
           exactParams = Some(
             ExperimentParams.Exact(
-              inputConfig = cnn.InputConfig(1, nInputs, paddedInputSize, 3),
+              inputConfig = cnn.InputConfig(1, nInputs, paddedInputSize, inputDimensions._2),
               convDimensions = conv.Experiment.Config.Dimensions(nKernels, kernelSize, kernelStride),
               fcDimensions = fc.Experiment.Config.Dimensions(1))),
 
           dim = None,
-
 
           inputTileSizeRange = List(
             (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
@@ -298,17 +309,41 @@ object Config {
           kernelsPerGroupRange = List(
             (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
               (1 to c.nKernels by 1).toList),
-
-          vectorLenRange = List(
-            (_: cnn.InputConfig, _: conv.Experiment.Config.Dimensions) =>
-              List(2, 4)),
+          
+          coalesceRange = List(List(true, false)),
+          unrollReduceRange = List(List(true, false)),
+          vectorLenRange = List(List(1, 2, 4)),
 
           multsPerThreadRange = List(
             (_: cnn.InputConfig, _: fc.Experiment.Config.Dimensions) =>
               List(1)),
           neuronsPerWrgRange = List(
             (_: cnn.InputConfig, _: fc.Experiment.Config.Dimensions) =>
-              List(1)))
+              List(1))
+//          inputTileSizeRange = List(
+//            (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
+//              /*(c.kernelSize to in.inputSize by 1).toList*/List(4)),
+//
+//          elsPerThreadRange = List(
+//            (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
+//              /*(1 to (in.nChannels * c.kernelSize * c.kernelSize) by 1).toList*/List(576)),
+//
+//          kernelsPerGroupRange = List(
+//            (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
+//              /*(1 to c.nKernels by 1).toList*/List(64)),
+//
+//          coalesceRange = List(List(false)),
+//          unrollReduceRange = List(List(true)),
+//          vectorLenRange = List(List(4)),
+//
+//
+//          multsPerThreadRange = List(
+//            (_: cnn.InputConfig, _: fc.Experiment.Config.Dimensions) =>
+//              List(1)),
+//          neuronsPerWrgRange = List(
+//            (_: cnn.InputConfig, _: fc.Experiment.Config.Dimensions) =>
+//              List(1))
+        )
     }
   }
 }

@@ -13,7 +13,6 @@ import nn.poolScala.ScalaPool
 import opencl.executor.{Execute, Executor}
 import org.junit.{AfterClass, BeforeClass}
 
-import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks._
 
 /**
@@ -22,7 +21,7 @@ import scala.util.control.Breaks._
 object TestCNN {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
-//    println("Initialize the executor"
+    //    println("Initialize the executor"
     nn.cnn.mysql.CreateTable()
   }
 
@@ -49,34 +48,34 @@ class TestCNN {
     for (_ <- 0 to reruns)
       Test(
         cnn.getConfigFromJSON("/home/s1569687/lift/src/test/nn/cnn/cnn_experiments.json"))
-//        ExperimentsSet(nKernelsL1Range = List(2),
-//        kernelSizeRange = List(2),
-//        inputTileSizeRange = (kernelSize, _) => List(kernelSize),
-//        elsPerThreadL1Range = _ => List(1),
-//        kernelsPerGroupL1Range = _ => List(1),
-//        multsPerThreadRange = imageSize => List(1) ++ (2 to imageSize * imageSize by 2),
-//        //multsPerThreadRange = imageSize => List(16),
-//        neuronsPerWrgRange = fcSize => List(1) ++ (2 to fcSize by 2), nKernelsL0 = 2,
-//        imageSizeRange = List(8, 16, 32, 64, 128/*, 256, 512*/),
-//        neuronsL1Range = List(16, 32, 64, 128, 256, 512),
-//        kernelsPerGroupL0 = 2,
-//        nInputsRange = List(8, 16, 32, 64, 128/*, 256, 512, 1024, 2048, 2048*/)))
+    //        ExperimentsSet(nKernelsL1Range = List(2),
+    //        kernelSizeRange = List(2),
+    //        inputTileSizeRange = (kernelSize, _) => List(kernelSize),
+    //        elsPerThreadL1Range = _ => List(1),
+    //        kernelsPerGroupL1Range = _ => List(1),
+    //        multsPerThreadRange = imageSize => List(1) ++ (2 to imageSize * imageSize by 2),
+    //        //multsPerThreadRange = imageSize => List(16),
+    //        neuronsPerWrgRange = fcSize => List(1) ++ (2 to fcSize by 2), nKernelsL0 = 2,
+    //        imageSizeRange = List(8, 16, 32, 64, 128/*, 256, 512*/),
+    //        neuronsL1Range = List(16, 32, 64, 128, 256, 512),
+    //        kernelsPerGroupL0 = 2,
+    //        nInputsRange = List(8, 16, 32, 64, 128/*, 256, 512, 1024, 2048, 2048*/)))
 
-//        continueFrom = cnn.Experiment(
-//          nKernelsL1= 2,
-//          kernelSize= 2,
-//          inputTileSize= 2,
-//          elsPerThreadL1= 1,
-//          kernelsPerGroupL1= 1,
-//          multsPerThread= 38,
-//          neuronsPerWrg= 10,
-//          imageSize= 8,
-//          neuronsL1= 512,
-//          nInputs = 64))
+    //        continueFrom = cnn.Experiment(
+    //          nKernelsL1= 2,
+    //          kernelSize= 2,
+    //          inputTileSize= 2,
+    //          elsPerThreadL1= 1,
+    //          kernelsPerGroupL1= 1,
+    //          multsPerThread= 38,
+    //          neuronsPerWrg= 10,
+    //          imageSize= 8,
+    //          neuronsL1= 512,
+    //          nInputs = 64))
   }
 
 
-  def Test(benchmark: cnn.ExperimentParams,
+  def Test(layerExperimentParams: cnn.ExperimentParams,
            testConfigFilename: String = "",
            continueFrom: Experiment = null,
            abortAfter: Option[Int] = None): Unit = {
@@ -87,42 +86,43 @@ class TestCNN {
 
     var aCNN: CNN = null
     var data: NetDatasetsCollection = null
-    
+
     var initParams: Layer.InitParameters = null
-    val (checkAgainstInvalidParams: Boolean, invalidParams: nn.cnn.ExperimentParams.Invalid) = {
-      nn.cnn.ExperimentParams.Invalid.restore() match {
-        case Some(p) => (true, p)
-        case None => (false, nn.cnn.ExperimentParams.Invalid(combinations = new ArrayBuffer()))
-      }
-    }
-        
+//    val (checkAgainstInvalidParams: Boolean, invalidParams: nn.cnn.ExperimentParams.Invalid) = {
+//      nn.cnn.ExperimentParams.Invalid.restore() match {
+//        case Some(p) => (true, p)
+//        case None => (false, nn.cnn.ExperimentParams.Invalid(combinations = new ArrayBuffer()))
+//      }
+//    }
+
     var now: Date = null
     var skip: Boolean = continueFrom != null
     var currentLayer: Int = 0
     var experimentNo: Int = 0
     for {
-      // Construct an experiment with all parameters
-      exp <- (for {
-        // Workload parameters
-        inputConfig <- benchmark.inputConfigs
-        convDimensions <- benchmark.convDimensions
-        fcDimensions <- benchmark.fcDimensions
+    // Construct an experiment with all parameters
+      exp <- time((for {
+      // Workload parameters
+        inputConfig <- layerExperimentParams.inputConfigs
+        convDimensions <- layerExperimentParams.convDimensions
+        fcDimensions <- layerExperimentParams.fcDimensions
 
         if cnn.Experiment.isFirstRun(inputConfig) || rerunsAllowed
 
-        if cnn.Experiment.inputsExist(inputConfig, convDimensions.head, benchmark.experimentName) || 
+        if cnn.Experiment.inputsExist(inputConfig, convDimensions.head, layerExperimentParams.experimentName) ||
           (// Try generating files and recheck
-            cnn.Experiment.generateFiles(benchmark) &&
-            cnn.Experiment.inputsExist(inputConfig, convDimensions.head, benchmark.experimentName))
+            cnn.Experiment.generateFiles(layerExperimentParams) &&
+              cnn.Experiment.inputsExist(inputConfig, convDimensions.head, layerExperimentParams.experimentName))
 
-        if cnn.Experiment.targetsExist(inputConfig, convDimensions.head, benchmark.experimentName)
+        if cnn.Experiment.targetsExist(inputConfig, convDimensions.head, layerExperimentParams.experimentName)
 
         if Experiment.datasetsExist(Experiment.pathToParams(inputConfig, convDimensions.head))
       }
-        // Optimisational parameters are traversed with cnn.Experiment
-        yield cnn.Experiment(benchmark, inputConfig, convDimensions.head, fcDimensions.head)).flatten
+      // Optimisational parameters are traversed with cnn.Experiment
+        yield cnn.Experiment(layerExperimentParams, inputConfig, convDimensions.head, fcDimensions.head)).flatten, 
+        f"Creating experiments for layer ${layerExperimentParams.layerName}%s")
 
-
+      //if {benchmark.layerNo == 3} // Run a specific layer only
       // If enabled, skip experiments until the one specified
       if !skip || {
         if (continueFrom == exp) {
@@ -130,11 +130,11 @@ class TestCNN {
           true
         } else false
       }
-    
-    // If there a backup of invalidParams was restored, ignore combinations found in the backup
-    if {checkAgainstInvalidParams && 
-      !invalidParams.combinations.contains((exp.inputConfig, exp.convConfigs.head, exp.fcConfigs.head))}
-    
+
+      // If there a backup of invalidParams was restored, ignore combinations found in the backup
+//      if { !checkAgainstInvalidParams ||
+//        !invalidParams.combinations.contains((exp.inputConfig, exp.convConfigs.head, exp.fcConfigs.head))}
+
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
         try {
@@ -142,19 +142,19 @@ class TestCNN {
           now = Calendar.getInstance().getTime
           aCNN = new CNN(nConvLayers = 1, nFCLayers = 0, //14,
             inputConfig = exp.inputConfig, pathToResults = Experiment.pathToResults)
-          
+
           //noinspection ConvertibleToMethodValue
-          initParams = Conv.InitParameters(0, Conv.Par(_, _, _, _, _, _, _, _, _, _), nn.Linear, //nn.ReLU,
+          initParams = Conv.InitParameters(layerExperimentParams.layerNo, Conv.Par(_, _, _, _, _, _, _, _, _, _), nn.Linear, //nn.ReLU,
             optParams = exp.convConfigs.head.optParams,
             inputShape = Shape(nBatches = exp.inputConfig.nBatches, nInputs = exp.inputConfig.nInputs,
               size = exp.inputConfig.inputSize, nChannels = exp.inputConfig.nChannels),
             dim = exp.convConfigs.head.dim,
             padData = padData, testConfigFilename)
-          
+
           currentLayer = 0
           aCNN.layers(currentLayer) = Conv(initParams.asInstanceOf[Conv.InitParameters])
           aCNN.convLayers(0) = aCNN.layers(currentLayer).asInstanceOf[Conv]
-  
+
           /* ----------------------------- LOAD DATA  ----------------------------- */
           // Now that we know that layers can be built we the chosen parameters, load the data.
           // Load the data only if it wasn't loaded before for a similar experiment
@@ -171,10 +171,11 @@ class TestCNN {
             logger.warn(msg)
             recordFailureInSQL(msg, aCNN, initParams, now)
             logger.warn("SKIPPING EXPERIMENT.")
-            logger.warn("Saving paramaters to avoid in the future.")
-            invalidParams.append((exp.inputConfig, exp.convConfigs.head, exp.fcConfigs.head))
-//            if (currentLayer != 0)
-//              throw e
+//            logger.warn("Saving paramaters to avoid in the future.")
+//            nn.cnn.ExperimentParams.Invalid.append(
+//              invalidParams, (exp.inputConfig, exp.convConfigs.head, exp.fcConfigs.head))
+            //            if (currentLayer != 0)
+            //              throw e
             false
         }
       }
@@ -207,27 +208,27 @@ class TestCNN {
                 val fcData: FCDatasets = layerData.asInstanceOf[FCDatasets]
                 FC.pad(fcData.inputs, fcLayer.inputShape, fcData.weights, fcData.biases, fcLayer.neuronShape)
             }
-            
+
             /* Compile and execute */
             var outputsFlat: Array[Float] = null
             var outputsFlat1: Array[Float] = null
             var runtime: Double = 0.0f
             var runtime1: Double = 0.0f
-            
+
             layer match {
               case convLayer: conv.versions.Conv4 =>
                 /* Two-kernel convolution */
-                                
+
                 // Kernel 1
                 val ((_outputsFlat1: Array[Float], _runtime1), openclKernel1) =
                   Execute(
                     layer.localSize(0), layer.localSize(1), layer.localSize(2),
-//                    2, 1, 128, 
-                    layer.globalSize(0), layer.globalSize(1), layer.globalSize(2), 
-//                    8, 11760, 128,
+                    //                    2, 1, 128, 
+                    layer.globalSize(0), layer.globalSize(1), layer.globalSize(2),
+                    //                    8, 11760, 128,
                     (true, true))[Array[Float]](
                     layer.liftFProp(0), compileOnly,
-//                    Array.fill(512)(Array.fill(3)(Array.fill(3)(Array.fill[Float](256)(0.0f)))),
+                    //                    Array.fill(512)(Array.fill(3)(Array.fill(3)(Array.fill[Float](256)(0.0f)))),
                     layerData match {
                       case cd: ConvDatasets => {
                         if (changeDataLayout)
@@ -240,7 +241,7 @@ class TestCNN {
                       }
                       case fd: FCDatasets => fd.weights.padded
                     },
-//                      Array.fill(1)(Array.fill(15)(Array.fill(30)(Array.fill(30)(Array.fill[Float](256)(0.0f))))))
+                    //                      Array.fill(1)(Array.fill(15)(Array.fill(30)(Array.fill(30)(Array.fill[Float](256)(0.0f))))))
                     layerData match {
                       case cd: ConvDatasets => {
                         if (changeDataLayout)
@@ -253,7 +254,7 @@ class TestCNN {
                       }
                       case fd: FCDatasets => fd.inputs.padded
                     })
-                
+
                 if (compileOnly) {
                   outputsFlat1 = new Array[Float](
                     /* nTilesTotal */ convLayer.inputTiling.n * convLayer.inputTiling.n *
@@ -268,7 +269,7 @@ class TestCNN {
                   outputsFlat1 = _outputsFlat1
                   runtime1 = _runtime1
                 }
-                
+
                 // Kernel 2
                 val ((_outputsFlat2: Array[Float], runtime2), openclKernel2) =
                   Execute(
@@ -287,21 +288,21 @@ class TestCNN {
                 // TODO: print datetime into the kernel
                 saveKernelToFile(experimentNo, testConfigFilename, layer, openclKernel1, twoKernels = true,
                   localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
-                  globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),                  
-                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" + 
-                    benchmark.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_first.cl")
+                  globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),
+                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
+                    layerExperimentParams.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_first.cl")
                 saveKernelToFile(experimentNo, testConfigFilename, layer, openclKernel2, twoKernels = true,
                   localSize = Array(layer.localSize(3), layer.localSize(4), 1),
                   globalSize = Array(layer.globalSize(3), layer.globalSize(4), 1),
                   kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
-                    benchmark.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_final.cl")
-                
+                    layerExperimentParams.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_final.cl")
+
               case _ =>
                 /* One-kernel layer */
                 val ((outputsFlat: Array[Float], runtime), openclKernel) =
-//                val outputsFlat = null
-//                val runtime = 0.0d
-//                val openclKernel =
+                //                val outputsFlat = null
+                //                val runtime = 0.0d
+                //                val openclKernel =
                   Execute(
                     layer.localSize(0), layer.localSize(1), layer.localSize(2),
                     layer.globalSize(0), layer.globalSize(1), layer.globalSize(2), (true, true))[Array[Float]](
@@ -327,9 +328,9 @@ class TestCNN {
                   localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
                   globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),
                   kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
-                    benchmark.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + ".cl")
+                    layerExperimentParams.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + ".cl")
             }
-              
+
             layer.runtime = runtime
             logger.info(f"Layer $layerNo%d runtime: $runtime%1.5f ms")
 
@@ -356,7 +357,7 @@ class TestCNN {
                   poolLayer.outputs.flatMap(batch => batch.map(
                     // (h, w, n_channels) -> (h * w * n_channels)
                     input => input.map(row => row.flatten).flatten
-                ))
+                  ))
               case (_: Conv, _: Conv) =>
                 data.perLayer(layerNo + 1).asInstanceOf[ConvDatasets].inputs.nonPadded =
                   layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
@@ -413,7 +414,7 @@ class TestCNN {
           /* SQL */
           recordInSQL(aCNN, testRan = true, testFailed, testVerified, now)
         } else {
-          logger.info(f"Kernels compiled. SKIPPING VERIFICATION.")          
+          logger.info(f"Kernels compiled. SKIPPING VERIFICATION.")
         }
         /* ---------------------------- RUN EXPERIMENT (END) ---------------------------- */
       } catch {
@@ -421,15 +422,15 @@ class TestCNN {
           val msg = "EXCEPTION: opencl.executor.Executor.ExecutorFailureException\n" + e.getMessage
           logger.warn(msg)
           recordFailureInSQL(msg, aCNN, now)
-//          throw e
+        //          throw e
         case e: opencl.executor.DeviceCapabilityException =>
           val msg = "EXCEPTION: opencl.executor.DeviceCapabilityException\n" + e.getMessage
           logger.warn(msg)
           recordFailureInSQL(msg, aCNN, now)
-//        case e: lift.arithmetic.NotEvaluableException =>
-//          val msg = "EXCEPTION: lift.arithmetic.NotEvaluableException" + e.getMessage
-//          logger.warn(msg)
-//          recordFailureInSQL(msg, aCNN, now)
+        //        case e: lift.arithmetic.NotEvaluableException =>
+        //          val msg = "EXCEPTION: lift.arithmetic.NotEvaluableException" + e.getMessage
+        //          logger.warn(msg)
+        //          recordFailureInSQL(msg, aCNN, now)
       }
       experimentNo = experimentNo + 1
       abortAfter match {
@@ -538,7 +539,7 @@ class TestCNN {
       }%d);"
     println(cmd)
     // TODO: to reenable
-//    Connector.statement.execute(cmd)
+    //    Connector.statement.execute(cmd)
   }
 
 

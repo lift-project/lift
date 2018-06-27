@@ -36,7 +36,7 @@ object Conv4 extends ConvCompanion {
           nKernelsPerWrg: Int, seqElsPerThread: Int, vectorLen: Int,
           coalesce: Boolean, unrollReduce: Boolean): Array[FunDecl] = {
     /*********** UserFuns ***********/
-    val dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
+    def dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
       "{ return acc + dot(l, r); }",
       vectorLen match {
         case 2 => Seq(Float, Float2, Float2)
@@ -60,6 +60,7 @@ object Conv4 extends ConvCompanion {
     
     def ArrayToVector(): FunDecl = {
       λ(AT(Float, vectorLen), (arr) => {
+        ArrayAccess(0) $ {
         if (coalesce)
           vectorLen match {
             case 2 => vectoriseNonContiguous(vectorLen)(
@@ -78,7 +79,7 @@ object Conv4 extends ConvCompanion {
           }
         else
           asVector(vectorLen) $ arr
-      })}
+      }})}
     
     def Continue(): Lambda = λ((x) => x)
     
@@ -120,14 +121,15 @@ object Conv4 extends ConvCompanion {
     val xTileType: AT = AT(windowType, nWindowsInTile)
     val xType: AT = AT(xTileType, nTilesTotal)
 
-    val flatWindowType: AT = AT(elementType, nElementsInWindow) 
+    val flatWindowType: AT = AT(elementType, nElementsInWindow)
 
-    val partReducedWindowType: AT = AT(elementType, nSeqTilesInWindow)
+    val partReducedElementType: Float.type = Float
+    val partReducedWindowType: AT = AT(partReducedElementType, nSeqTilesInWindow)
     val partReducedOutChannelType: AT = AT(partReducedWindowType, nWindowsInTile)
     val partReducedOutChannelGroupType: AT = AT(partReducedOutChannelType, nKernelsPerWrg)
     val partReducedXTileType: AT = AT(partReducedOutChannelGroupType, nKernelGroups)
     val partReducedXType: AT = AT(partReducedXTileType, nTilesTotal)
-    val flatPartReducedXType: AT = AT(elementType, nTilesTotal * nKernels * nWindowsInTile * nSeqTilesInWindow)
+    val flatPartReducedXType: AT = AT(partReducedElementType, nTilesTotal * nKernels * nWindowsInTile * nSeqTilesInWindow)
     
     val reducedWindowType: Float.type = Float
     val reducedOutChannelType: AT = AT(reducedWindowType, nWindowsInTile)
@@ -178,19 +180,21 @@ object Conv4 extends ConvCompanion {
                               MapLcl(0)(λ(TupleType(windowSeqTileType, windowSeqTileType),
                                 (SeqTileAndWeightsAndAcc) => {
                                   toGlobal(MapSeq(id)) o
-                                    ReduceSeqMaybeUnroll(λ((acc, y) =>
+                                    ReduceSeqMaybeUnroll(
+                                      λ((acc, y) => {
 
-                                      /********* Reducing window tile BEGIN *********/
-                                    {
-                                      if (vectorLen == 1)
-                                        multAndSumUp(acc, ArrayToVector() $ /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
-                                      else
-                                        dotAndSumUp(acc,
-                                          ArrayToVector() $ /* X */ Get(y, 0),
-                                          ArrayToVector() $ /* kernelWWindow */ Get(y, 1)) // TODO: test this please
-                                    }),
-                                    toPrivate(id) $ Value("0.0f", Float)) $
-                                    Zip(Get(SeqTileAndWeightsAndAcc, 0), Get(SeqTileAndWeightsAndAcc, 1))
+                                        /********* Reducing window tile BEGIN *********/
+                                        if (vectorLen == 1)
+                                          multAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
+                                        else
+                                          dotAndSumUp(acc,
+                                            ArrayToVector() $ /* X */ Get(y, 0),
+                                            ArrayToVector() $ /* kernelWWindow */ Get(y, 1)) // TODO: test this please
+                                      }),
+                                      toPrivate(id) $ Value("0.0f", Float)) $
+                                    Zip(
+                                      AssertType(windowSeqTileType) $ Get(SeqTileAndWeightsAndAcc, 0),
+                                      AssertType(windowSeqTileType) $ Get(SeqTileAndWeightsAndAcc, 1))
 
                                   /********* Reducing window tile END *********/
                               })) $ Zip(window, /*Get(kernelWWindow, weightsNoInTuple)*/kernelWWindow)
@@ -371,9 +375,9 @@ object Conv4 extends ConvCompanion {
       * initializes variables, computes workgroup sizes.
       */
 
-    val exceptionMsgPrefix: String = "[" + iP.testConfigFilename + "]\n" +
+    val exceptionMsgPrefix: String = "[" + iP.testConfigFilename + ": layer " + iP.layerNo + "]\n" +
       "In the Conv layer with the following configuration:\n" +
-      conv.configToString(iP.inputShape.sizePadded, -1, iP.optParams.elsPerThread,
+      conv.configToString(iP.inputShape.size, -1, iP.optParams.elsPerThread,
         iP.dim.nKernels, iP.optParams.kernelsPerGroup,  iP.optParams.vectorLen, 
         iP.optParams.coalesce, iP.optParams.unrollReduce,
         iP.dim.kernelSize, iP.dim.kernelStride, iP.optParams.inputTileSize)
@@ -417,7 +421,7 @@ object Conv4 extends ConvCompanion {
     val window_size = slider.size * slider.size * iP.inputShape.nChannels
     if (window_size % iP.optParams.elsPerThread != 0)
       throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
-        f"window size (kernel size * kernel size * nChannels =${window_size}%d) " +
+        f"window size (kernel size * kernel size * nChannels = ${window_size}%d) " +
         f"must be divisible by elsPerThread (${iP.optParams.elsPerThread}%d)")
     
     if (iP.optParams.elsPerThread % iP.optParams.vectorLen != 0)
