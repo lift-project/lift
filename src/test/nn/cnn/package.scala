@@ -10,7 +10,6 @@ import com.typesafe.scalalogging.Logger
 import nn.conv.Conv
 import org.junit.Assert.assertEquals
 
-import scala.collection.mutable
 import scala.sys.process._
 import scala.util.parsing.json.JSON
 
@@ -19,6 +18,15 @@ import scala.util.parsing.json.JSON
   */
 
 package object cnn {
+
+  // For debugging
+  def time[R](block: => R, msg: String): R = {
+    val t0 = System.currentTimeMillis()
+    val result = block    // call-by-name
+    val t1 = System.currentTimeMillis()
+    println(msg + "\nElapsed time: " + (t1 - t0) + " ms")
+    result
+  }
 
   def generateList(config: Map[String, Any], inputConfig: cnn.InputConfig,
                    layerSizeConfig: Layer.Experiment.Config.Dimensions): List[Int] = {
@@ -131,15 +139,18 @@ package object cnn {
             kernelStrideRange = generateListsOfInts(jWorkload, "kernel_stride"),
 
             neuronsRange = generateListsOfInts(jWorkload, "n_neurons"))),
-
-
-          inputTileSizeRange = generateListsOfFuns(jOptParams, "input_tile_size"),
-          elsPerThreadRange = generateListsOfFuns(jOptParams, "els_per_thread"),
-          kernelsPerGroupRange = generateListsOfFuns(jOptParams, "kernels_per_group"),
-          vectorLenRange = generateListsOfFuns(jOptParams, "vector_len"),
-
-          multsPerThreadRange = generateListsOfFuns(jOptParams, "mults_per_thread"),
-          neuronsPerWrgRange = generateListsOfFuns(jOptParams, "neurons_per_wrg"))
+  
+  
+            inputTileSizeRange = generateListsOfFuns(jOptParams, "input_tile_size"),
+            elsPerThreadRange = generateListsOfFuns(jOptParams, "els_per_thread"),
+            kernelsPerGroupRange = generateListsOfFuns(jOptParams, "kernels_per_group"),
+          
+            vectorLenRange = List(List(1, 2, 4)), //TODO: generateListsOfFuns(jOptParams, "vector_len"),
+            coalesceRange = List(List(true, false)),
+            unrollReduceRange = List(List(true, false)),
+  
+            multsPerThreadRange = generateListsOfFuns(jOptParams, "mults_per_thread"),
+            neuronsPerWrgRange = generateListsOfFuns(jOptParams, "neurons_per_wrg"))
     }
   }
 
@@ -214,14 +225,14 @@ package object cnn {
         var pw: PrintWriter = null
         val file = new File(configPath)
         pw = new PrintWriter(file)
-        pw.write(f"${"NN"}%-30s, ${"LN"}%-10s, ${"LNO"}%3s, ${"IN"}%3s, ${"IC"}%3s, ${"IS"}%4s, " +
+        pw.write(f"${"NN"}%-30s, ${"LN"}%-10s, ${"LORD"}%4s, ${"IN"}%3s, ${"IC"}%3s, ${"IS"}%4s, " +
           f"${"KC"}%4s, ${"KSI"}%3s, ${"KSTR"}%2s\n")
-
+  
         {
           val iC: InputConfig = benchmark.exactParams.get.inputConfig
           val cD: nn.conv.Experiment.Config.Dimensions = benchmark.exactParams.get.convDimensions
 
-          pw.write(f"${benchmark.experimentName}%-30s, ${benchmark.layerName}%-10s, ${benchmark.layerNo}%3d, " +
+          pw.write(f"${benchmark.experimentName}%-30s, ${benchmark.layerName}%-10s, ${benchmark.layerNo}%4d, " +
             f"${iC.nInputs}%3d, ${iC.nChannels}%3d, ${iC.inputSize}%4d, " +
             f"${cD.nKernels}%4d, ${cD.kernelSize}%3d, ${cD.kernelStride}%2d\n")
         }
@@ -286,12 +297,14 @@ package object cnn {
               iC: cnn.InputConfig,
               cD: conv.Experiment.Config.Dimensions,
               fD: fc.Experiment.Config.Dimensions): List[Experiment] = {
+      val pI: String = pathToInputs(iC, cD)
+      val pP: String = pathToParams(iC, cD)
+      val pT: String = pathToTargets(iC, cD)
       for {
         convConfig <- benchmark.convConfig(iC, cD)
         fcConfig <- benchmark.fcConfig(iC, fD)
       }
-        yield new Experiment(iC, convConfig, fcConfig,
-          pathToInputs(iC, cD), pathToParams(iC, cD), pathToTargets(iC, cD))
+        yield new Experiment(iC, convConfig, fcConfig, pI, pP, pT)
     }
   }
 
@@ -320,6 +333,7 @@ package object cnn {
         bw.write("//input_tile_size=" + cL.inputTiling.size + "\n")
         bw.write("//kernels_per_group=" + cL.kernelsPerGroup + "\n")
         bw.write("//els_per_thread=" + cL.elsPerThread + "\n")
+        bw.write("//vector_len=" + cL.vectorLen + "\n")
         bw.write("//coalesce=" + cL.coalesce + "\n")
         bw.write("//unroll_reduce=" + cL.unrollReduce + "\n")
         bw.write("//experiment_no=" + experimentNo + "\n")
@@ -417,43 +431,46 @@ package object cnn {
 
                                neuronsRange: List[List[Int]])
     
-    object Invalid {
-      def restore(): Option[Invalid] = {        
-        val path: String = System.getenv("LIFT_NN_INVALID_PARAMS_PATH")
-        if (path != null && exists(get(path))) {
-          val ois = new ObjectInputStream(new FileInputStream(path))
-          val invalidParams = ois.readObject.asInstanceOf[Invalid]
-          ois.close
-          Logger(this.getClass).info("Restored invalid parameter combinations from $path%s")
-          Some(invalidParams)
-        }
-        else None
-      }
-    }
-        
-    @SerialVersionUID(1L)
-    case class Invalid(combinations: mutable.ArrayBuffer[
-      (cnn.InputConfig, nn.conv.Experiment.Config, nn.fc.Experiment.Config)]) extends Serializable {
-      
-      val savingPeriod: Int = 25
-      var appendsToSave: Int = savingPeriod
-
-      def append(comb: (cnn.InputConfig, nn.conv.Experiment.Config, nn.fc.Experiment.Config)): Unit = {
-        combinations += comb
-        appendsToSave -= 1
-
-        if (appendsToSave == 0) {
-          // Save
-          val path: String = System.getenv("LIFT_NN_INVALID_PARAMS_PATH")
-          if (path != null) {
-            val oos = new ObjectOutputStream(new FileOutputStream(path))
-            oos.writeObject(this)
-            oos.close()
-          }
-          appendsToSave = savingPeriod
-        }
-      }
-    }
+//    object Invalid {
+//      def restore(): Option[Invalid] = {        
+//        val path: String = System.getenv("LIFT_NN_INVALID_PARAMS_PATH")
+//        if (path != null && exists(get(path))) {
+//          val ois = new ObjectInputStream(new FileInputStream(path))
+//          val invalidParams = ois.readObject.asInstanceOf[Invalid]
+//          ois.close
+//          Logger(this.getClass).info("Restored invalid parameter combinations from $path%s")
+//          Some(invalidParams)
+//        }
+//        else None
+//      }
+//
+//      def append(i: Invalid, comb: (cnn.InputConfig, nn.conv.Experiment.Config, nn.fc.Experiment.Config)): Unit = {
+//        i.combinations += comb
+//        i.appendsToSave -= 1
+//
+//        if (i.appendsToSave == 0) {
+//          // Save
+//          val path: String = System.getenv("LIFT_NN_INVALID_PARAMS_PATH")
+//          if (path != null) {
+//            val oos = new ObjectOutputStream(new FileOutputStream(path))
+//            oos.writeObject(i)
+//            oos.flush()
+//            oos.close()
+//          }
+//          i.appendsToSave = i.savingPeriod
+//        }
+//      }
+//    }
+//        
+//    @SerialVersionUID(100L)
+//    case class Invalid(combinations: mutable.ArrayBuffer[
+//      (cnn.InputConfig, nn.conv.Experiment.Config, nn.fc.Experiment.Config)]) extends Serializable {
+//      
+//      val savingPeriod: Int = 50
+//      var appendsToSave: Int = savingPeriod
+//
+//
+//    }
   }
 
   case class ExperimentParams(experimentName: String,
@@ -473,8 +490,10 @@ package object cnn {
                               (cnn.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
                               kernelsPerGroupRange: List[
                               (cnn.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
-                              vectorLenRange: List[
-                              (cnn.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
+
+                              coalesceRange: List[List[Boolean]],
+                              unrollReduceRange: List[List[Boolean]],
+                              vectorLenRange: List[List[Int]],
 
                               multsPerThreadRange: List[
                               (cnn.InputConfig, fc.Experiment.Config.Dimensions) => List[Int]],
@@ -521,11 +540,11 @@ package object cnn {
         //      _elsPerThreadL1 <- e.elsPerThreadRange(1)(inputConfig, convDimensions(1))
         kernelsPerGroup <- kernelsPerGroupRange.head(iC, cD)
         //      _kernelsPerGroupL1 <- e.kernelsPerGroupRange(1)(inputConfig, convDimensions(1))
-        vectorLen <- vectorLenRange.head(iC, cD)
+        vectorLen <- vectorLenRange.head
       
-        coalesce <- List(false, true)
+        coalesce <- coalesceRange.head
       
-        unrollReduce <- List(true) // TODO: explore again without unrolling
+        unrollReduce <- unrollReduceRange.head
       }
       // Wrap conv parameters into an object
         yield List(

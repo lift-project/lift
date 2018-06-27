@@ -263,7 +263,7 @@ object Conv0 extends ConvCompanion {
       */
 
     val exceptionMsgPrefix: String = "In the Conv layer with the following configuration:\n" +
-      conv.configToString(iP.inputShape.sizePadded, -1, iP.optParams.elsPerThread,
+      conv.configToString(iP.inputShape.size, -1, iP.optParams.elsPerThread,
         iP.dim.nKernels, iP.optParams.kernelsPerGroup, iP.optParams.vectorLen, 
         iP.optParams.coalesce, iP.optParams.unrollReduce,
         iP.dim.kernelSize, iP.dim.kernelStride, iP.optParams.inputTileSize)
@@ -414,7 +414,7 @@ case class Conv0(override val liftFProp: Array[FunDecl],
   extends Conv(liftFProp, inputShape, outputShape, inputTiling, kernelSliding,
     elsPerThread, kernelsPerGroup, vectorLen, coalesce, unrollReduce, localSize, globalSize) {
   val configToString: String =
-    nn.conv.configToString(inputShape.sizePadded, outputShape.sizePadded, elsPerThread, outputShape.nChannels,
+    nn.conv.configToString(inputShape.size, outputShape.sizePadded, elsPerThread, outputShape.nChannels,
       kernelsPerGroup, vectorLen, coalesce, unrollReduce, kernelSliding.size, kernelSliding.stride, inputTiling.size)
   var runtime: Double = 0
 
