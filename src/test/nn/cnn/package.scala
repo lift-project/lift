@@ -28,8 +28,8 @@ package object cnn {
     result
   }
 
-  def generateList(config: Map[String, Any], inputConfig: cnn.InputConfig,
-                   layerSizeConfig: Layer.Experiment.Config.Dimensions): List[Int] = {
+  def generateVector(config: Map[String, Any], inputConfig: cnn.InputConfig,
+                  layerSizeConfig: Layer.Experiment.Config.Dimensions): Vector[Int] = {
     val configEvaluated: Map[String, Int] =
       config.map {
         case (key: String, v: Double) => (key, v.toInt)
@@ -55,51 +55,51 @@ package object cnn {
               }
           }
         }) }
-    generateList(configEvaluated)
+    generateVector(configEvaluated)
   }
 
-  def generateListsOfInts(jWorkload: Map[String, Any], blockName: String): List[List[Int]] = {
-    val paramBlock = jWorkload(blockName).asInstanceOf[List[Map[String, Double]]]
-    //            List(generateList(paramBlock.head), generateList(paramBlock(1))
-    List(generateList(paramBlock.head))
+  def generateVectorsOfInts(jWorkload: Map[String, Any], blockName: String): Vector[Vector[Int]] = {
+    val paramBlock = jWorkload(blockName).asInstanceOf[Vector[Map[String, Double]]]
+    //            Vector(generateVector(paramBlock.head), generateVector(paramBlock(1))
+    Vector(generateVector(paramBlock.head))
   }
   
-  def generateListsOfFuns(jOptParams: Map[String, Any], blockName: String): List[
-    (cnn.InputConfig, Layer.Experiment.Config.Dimensions) => List[Int]] = {
-    val paramBlock = jOptParams(blockName).asInstanceOf[List[Map[String, Any]]]
-    List(
+  def generateVectorsOfFuns(jOptParams: Map[String, Any], blockName: String): Vector[
+    (cnn.InputConfig, Layer.Experiment.Config.Dimensions) => Vector[Int]] = {
+    val paramBlock = jOptParams(blockName).asInstanceOf[Vector[Map[String, Any]]]
+    Vector(
       (inputConfig, convLayerSizeConfig) =>
-        generateList(paramBlock.head, inputConfig, convLayerSizeConfig))
+        generateVector(paramBlock.head, inputConfig, convLayerSizeConfig))
     //              (inputConfig, convLayerSizeConfig) =>
-    //                generateList(paramBlock(1), inputConfig, convLayerSizeConfig))
+    //                generateVector(paramBlock(1), inputConfig, convLayerSizeConfig))
   }
 
-  def generateList(config: Map[String, Any]): List[Int] = {
+  def generateVector(config: Map[String, Any]): Vector[Int] = {
     val _config: Map[String, Int] = config.map{
       case (k, v: Double) => (k, v.toInt)
       case (k, v: java.lang.Integer) => (k, v.toInt)
       case (k, v: Int) => (k, v)
     }
-    val mainList: List[Int] = {
+    val mainVector: Vector[Int] = {
       if (_config.contains("step_multiply")) {
         (0 to Math.floor(
           Math.log(_config("end").toFloat / _config("start")) /
-            Math.log(_config("step_multiply"))).toInt).toList.map(
-          p => (_config("start") * Math.pow(_config("step_multiply"), p)).toInt)
+            Math.log(_config("step_multiply"))).toInt).map(
+          p => (_config("start") * Math.pow(_config("step_multiply"), p)).toInt).toVector
       } else if (_config.contains("step_add")) {
         (0 to Math.floor((_config("end") - _config("start")).toFloat
-          / _config("step_add")).toInt).toList.map(
-          x => _config("start") + x * _config("step_add"))
+          / _config("step_add")).toInt).map(
+          x => _config("start") + x * _config("step_add")).toVector
       } else
         null
     }
     if (_config.contains("initial"))
-      if (mainList != null)
-        List(_config("initial").toInt) ++ mainList
+      if (mainVector != null)
+        Vector(_config("initial").toInt) ++ mainVector
       else
-        List(_config("initial").toInt)
+        Vector(_config("initial").toInt)
     else
-      mainList
+      mainVector
   }
 
   def getConfigFromJSON(jsonFilePath: String): ExperimentParams = {
@@ -121,7 +121,7 @@ package object cnn {
         val jOptParams = j("optimisational_parameters").asInstanceOf[Map[String, Map[String, Double]]]
 
         new ExperimentParams(
-          experimentName = j("name").asInstanceOf[String],
+          netName = j("name").asInstanceOf[String],
           kernelOutputSubfolder = j("kernel_output_subfolder").asInstanceOf[String],
           layerName = "", //TODO
           layerNo = 0, //TODO
@@ -129,28 +129,28 @@ package object cnn {
           exactParams = None,
           
           dim = Some(ExperimentParams.DimensionRanges(
-            nBatchesRange = generateList(jWorkload("n_batches").asInstanceOf[Map[String, Double]]),
-            nInputsRange = generateList(jWorkload("n_inputs").asInstanceOf[Map[String, Double]]),
-            inputSizeRange = generateList(jWorkload("image_size").asInstanceOf[Map[String, Double]]),
-            inputChannelRange = generateList(jWorkload("input_channels").asInstanceOf[Map[String, Double]]),
+            nBatchesRange = generateVector(jWorkload("n_batches").asInstanceOf[Map[String, Double]]),
+            nInputsRange = generateVector(jWorkload("n_inputs").asInstanceOf[Map[String, Double]]),
+            inputSizeRange = generateVector(jWorkload("image_size").asInstanceOf[Map[String, Double]]),
+            inputChannelRange = generateVector(jWorkload("input_channels").asInstanceOf[Map[String, Double]]),
 
-            nKernelsRange = generateListsOfInts(jWorkload, "n_kernels"),
-            kernelSizeRange = generateListsOfInts(jWorkload, "kernel_size"),
-            kernelStrideRange = generateListsOfInts(jWorkload, "kernel_stride"),
+            nKernelsRange = generateVectorsOfInts(jWorkload, "n_kernels"),
+            kernelSizeRange = generateVectorsOfInts(jWorkload, "kernel_size"),
+            kernelStrideRange = generateVectorsOfInts(jWorkload, "kernel_stride"),
 
-            neuronsRange = generateListsOfInts(jWorkload, "n_neurons"))),
+            neuronsRange = generateVectorsOfInts(jWorkload, "n_neurons"))),
   
   
-            inputTileSizeRange = generateListsOfFuns(jOptParams, "input_tile_size"),
-            elsPerThreadRange = generateListsOfFuns(jOptParams, "els_per_thread"),
-            kernelsPerGroupRange = generateListsOfFuns(jOptParams, "kernels_per_group"),
+            inputTileSizeRange = generateVectorsOfFuns(jOptParams, "input_tile_size"),
+            elsPerThreadRange = generateVectorsOfFuns(jOptParams, "els_per_thread"),
+            kernelsPerGroupRange = generateVectorsOfFuns(jOptParams, "kernels_per_group"),
           
-            vectorLenRange = List(List(1, 2, 4)), //TODO: generateListsOfFuns(jOptParams, "vector_len"),
-            coalesceRange = List(List(true, false)),
-            unrollReduceRange = List(List(true, false)),
+            vectorLenRange = Vector(Vector(1, 2, 4)), //TODO: generateVectorsOfFuns(jOptParams, "vector_len"),
+            coalesceRange = Vector(Vector(true, false)),
+            unrollReduceRange = Vector(Vector(true, false)),
   
-            multsPerThreadRange = generateListsOfFuns(jOptParams, "mults_per_thread"),
-            neuronsPerWrgRange = generateListsOfFuns(jOptParams, "neurons_per_wrg"))
+            multsPerThreadRange = generateVectorsOfFuns(jOptParams, "mults_per_thread"),
+            neuronsPerWrgRange = generateVectorsOfFuns(jOptParams, "neurons_per_wrg"))
     }
   }
 
@@ -218,8 +218,9 @@ package object cnn {
     def generateFiles(benchmark: ExperimentParams): Boolean = {
       if (System.getenv("LIFT_NN_GENERATE_FILES_CMD") != null) {
         
-        val configPath: String = System.getenv("LIFT_NN_CAFFE_HARNESS") + "/neural_net_specs/" + 
-          benchmark.layerName + ".csv"
+        val configFileName: String = benchmark.netName + "_" + benchmark.layerName + "_layer_no_" + 
+          benchmark.layerNo + ".csv"
+        val configPath: String = System.getenv("LIFT_NN_CAFFE_HARNESS") + "/neural_net_specs/" + configFileName
         Logger(this.getClass).info(f"Generating neural network files.\nCreating Caffe harness config in $configPath%s")
         // Generate the neural network configuration file
         var pw: PrintWriter = null
@@ -232,7 +233,7 @@ package object cnn {
           val iC: InputConfig = benchmark.exactParams.get.inputConfig
           val cD: nn.conv.Experiment.Config.Dimensions = benchmark.exactParams.get.convDimensions
 
-          pw.write(f"${benchmark.experimentName}%-30s, ${benchmark.layerName}%-10s, ${benchmark.layerNo}%4d, " +
+          pw.write(f"${benchmark.netName}%-30s, ${benchmark.layerName}%-10s, ${benchmark.layerNo}%4d, " +
             f"${iC.nInputs}%3d, ${iC.nChannels}%3d, ${iC.inputSize}%4d, " +
             f"${cD.nKernels}%4d, ${cD.kernelSize}%3d, ${cD.kernelStride}%2d\n")
         }
@@ -244,7 +245,7 @@ package object cnn {
         // FYI: example command:
         // ssh avus -x /home/s1569687/caffe_clblas/vcs_caffes/deliverable/microbenchmark/microbenchmarking.sh 
         //   /s1569687/caffe_clblas/vcs_caffes/deliverable/microbenchmark/neural_net_specs/%s build
-        val cmd: String = System.getenv("LIFT_NN_GENERATE_FILES_CMD").format(benchmark.layerName + ".csv")
+        val cmd: String = System.getenv("LIFT_NN_GENERATE_FILES_CMD").format(configFileName)
         Logger(this.getClass).info(f"Starting Caffe harness:\n> " + cmd)
         cmd.!
         true
@@ -257,7 +258,7 @@ package object cnn {
         createDirectory(get(pathToResults))
         true
       } else {
-        new File(pathToResults).listFiles.toList.count {
+        new File(pathToResults).listFiles.toVector.count {
           file => file.getName.endsWith(f"_n${iC.nInputs}%d.csv")
         } == 0 
       }
@@ -268,24 +269,24 @@ package object cnn {
 
     
     def verifyOutputs(netOutputs: Any, targetOutputs: Any, precision: Float):
-    Option[(List[Int], Float, Float)] = {
+    Option[(Vector[Int], Float, Float)] = {
       (netOutputs, targetOutputs) match {
         case (n: Array[Float], t: Array[Float]) =>
-          for ((netOutput, targetOutput, i) <- (n, t, 0 to t.length).zipped.toList) {
+          for ((netOutput, targetOutput, i) <- (n, t, 0 to t.length).zipped.toVector) {
             try {
               assertEquals("", targetOutput, netOutput, precision)
             }
             catch {
               case _: AssertionError =>
-                return Some(List(i), targetOutput, netOutput)
+                return Some(Vector(i), targetOutput, netOutput)
             }
           }
           None
         case (n: Array[_], t: Array[_]) =>
-          for ((netOutput, targetOutput, i) <- (n, t, t.indices).zipped.toList) {
+          for ((netOutput, targetOutput, i) <- (n, t, t.indices).zipped.toVector) {
             verifyOutputs(netOutput, targetOutput, precision) match {
               case Some((ix, unmatchedTarget, wrongResult)) =>
-                return Some(List(i) ++ ix, unmatchedTarget, wrongResult)
+                return Some(Vector(i) ++ ix, unmatchedTarget, wrongResult)
               case None =>
             }
           }
@@ -296,7 +297,7 @@ package object cnn {
     def apply(benchmark: cnn.ExperimentParams,
               iC: cnn.InputConfig,
               cD: conv.Experiment.Config.Dimensions,
-              fD: fc.Experiment.Config.Dimensions): List[Experiment] = {
+              fD: fc.Experiment.Config.Dimensions): Vector[Experiment] = {
       val pI: String = pathToInputs(iC, cD)
       val pP: String = pathToParams(iC, cD)
       val pT: String = pathToTargets(iC, cD)
@@ -304,7 +305,7 @@ package object cnn {
         convConfig <- benchmark.convConfig(iC, cD)
         fcConfig <- benchmark.fcConfig(iC, fD)
       }
-        yield new Experiment(iC, convConfig, fcConfig, pI, pP, pT)
+        yield new Experiment(benchmark.layerNo, iC, convConfig, fcConfig, pI, pP, pT)
     }
   }
 
@@ -368,12 +369,12 @@ package object cnn {
       else openclKernel.replaceFirst(
         raw"void KERNEL\(const global float\* restrict v__(\d+), " +
           raw"const global float\* restrict v__(\d+), " +
-          raw"global float\* v__(\d+)\)\{ \n" +
-          raw"\#ifndef WORKGROUP_GUARD\n" +
-          raw"\#define WORKGROUP_GUARD\n" +
-          raw"\#endif\n" +
-          raw"WORKGROUP_GUARD\n" +
-          raw"\{",
+          raw"global float\* v__(\d+)\)\{.*\n" +
+          raw".*\#ifndef WORKGROUP_GUARD\n" +
+          raw".*\#define WORKGROUP_GUARD\n" +
+          raw".*\#endif\n" +
+          raw".*WORKGROUP_GUARD\n" +
+          raw".*\{",
         "void KERNEL(const global float* restrict v__$1, const global float* restrict v__$2, " +
           "global float* v__$3, int const offsetX, int const offsetOut){\n" +
           "#ifndef WORKGROUP_GUARD\n" +
@@ -392,9 +393,10 @@ package object cnn {
   }
 
 
-  case class Experiment(inputConfig: cnn.InputConfig,
-                        convConfigs: List[conv.Experiment.Config],
-                        fcConfigs: List[fc.Experiment.Config],
+  case class Experiment(layerNo: Int,
+                        inputConfig: cnn.InputConfig,
+                        convConfigs: Vector[conv.Experiment.Config],
+                        fcConfigs: Vector[fc.Experiment.Config],
                         pathToInputs: String,
                         pathToParams: String,
                         pathToTargets: String) {
@@ -420,16 +422,16 @@ package object cnn {
                      convDimensions: conv.Experiment.Config.Dimensions,
                      fcDimensions: fc.Experiment.Config.Dimensions)
     
-    case class DimensionRanges(nBatchesRange: List[Int],
-                               nInputsRange: List[Int],
-                               inputSizeRange: List[Int],
-                               inputChannelRange: List[Int],
+    case class DimensionRanges(nBatchesRange: Vector[Int],
+                               nInputsRange: Vector[Int],
+                               inputSizeRange: Vector[Int],
+                               inputChannelRange: Vector[Int],
 
-                               nKernelsRange: List[List[Int]],
-                               kernelSizeRange: List[List[Int]],
-                               kernelStrideRange: List[List[Int]],
+                               nKernelsRange: Vector[Vector[Int]],
+                               kernelSizeRange: Vector[Vector[Int]],
+                               kernelStrideRange: Vector[Vector[Int]],
 
-                               neuronsRange: List[List[Int]])
+                               neuronsRange: Vector[Vector[Int]])
     
 //    object Invalid {
 //      def restore(): Option[Invalid] = {        
@@ -473,7 +475,7 @@ package object cnn {
 //    }
   }
 
-  case class ExperimentParams(experimentName: String,
+  case class ExperimentParams(netName: String,
                               kernelOutputSubfolder: String,
                               layerName: String,
                               layerNo: Int,
@@ -484,25 +486,25 @@ package object cnn {
                               // Ranges for exploring multiple workloads specified in JSON files
                               dim: Option[ExperimentParams.DimensionRanges],
 
-                              inputTileSizeRange: List[
-                              (cnn.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
-                              elsPerThreadRange: List[
-                              (cnn.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
-                              kernelsPerGroupRange: List[
-                              (cnn.InputConfig, conv.Experiment.Config.Dimensions) => List[Int]],
+                              inputTileSizeRange: Vector[
+                              (cnn.InputConfig, conv.Experiment.Config.Dimensions) => Vector[Int]],
+                              elsPerThreadRange: Vector[
+                              (cnn.InputConfig, conv.Experiment.Config.Dimensions) => Vector[Int]],
+                              kernelsPerGroupRange: Vector[
+                              (cnn.InputConfig, conv.Experiment.Config.Dimensions) => Vector[Int]],
 
-                              coalesceRange: List[List[Boolean]],
-                              unrollReduceRange: List[List[Boolean]],
-                              vectorLenRange: List[List[Int]],
+                              coalesceRange: Vector[Vector[Boolean]],
+                              unrollReduceRange: Vector[Vector[Boolean]],
+                              vectorLenRange: Vector[Vector[Int]],
 
-                              multsPerThreadRange: List[
-                              (cnn.InputConfig, fc.Experiment.Config.Dimensions) => List[Int]],
-                              neuronsPerWrgRange: List[
-                              (cnn.InputConfig, fc.Experiment.Config.Dimensions) => List[Int]]) {
+                              multsPerThreadRange: Vector[
+                              (cnn.InputConfig, fc.Experiment.Config.Dimensions) => Vector[Int]],
+                              neuronsPerWrgRange: Vector[
+                              (cnn.InputConfig, fc.Experiment.Config.Dimensions) => Vector[Int]]) {
     
-    def inputConfigs: List[cnn.InputConfig] = {
+    def inputConfigs: Vector[cnn.InputConfig] = {
       exactParams match {
-        case Some(params) => List(params.inputConfig)
+        case Some(params) => Vector(params.inputConfig)
         case None =>
           for {
             nBatches <- dim.get.nBatchesRange
@@ -515,9 +517,9 @@ package object cnn {
       }
     }
     
-    def convDimensions: List[List[conv.Experiment.Config.Dimensions]] = {
+    def convDimensions: Vector[Vector[conv.Experiment.Config.Dimensions]] = {
       exactParams match {
-        case Some(params) => List(List(params.convDimensions))
+        case Some(params) => Vector(Vector(params.convDimensions))
         case None =>
           for {
             nKernelsL0 <- dim.get.nKernelsRange.head
@@ -526,13 +528,13 @@ package object cnn {
             kernelSizeL0 <- dim.get.kernelSizeRange.head
           //      _kernelSizeL1 <- e.kernelSizeRange(1)
           }
-            yield List(conv.Experiment.Config.Dimensions(nKernelsL0, kernelSizeL0, kernelStrideL0))
+            yield Vector(conv.Experiment.Config.Dimensions(nKernelsL0, kernelSizeL0, kernelStrideL0))
         //        conv.Experiment.Config.Dimensions(_nKernelsL1, _kernelSizeL1, /*TODO*/1)))
       }
     }
     
-    def convConfig(iC: cnn.InputConfig, cD: conv.Experiment.Config.Dimensions): 
-    List[List[nn.conv.Experiment.Config]] = {
+    def convConfig(iC: cnn.InputConfig, cD: conv.Experiment.Config.Dimensions):
+    Vector[Vector[nn.conv.Experiment.Config]] = {
       for {
         inputTileSize <- inputTileSizeRange.head(iC, cD)
         //      _inputTileSizeL1 <- e.inputTileSizeRange(1)(inputConfig, convDimensions(1))
@@ -547,7 +549,7 @@ package object cnn {
         unrollReduce <- unrollReduceRange.head
       }
       // Wrap conv parameters into an object
-        yield List(
+        yield Vector(
           conv.Experiment.Config(
             cD, conv.Experiment.Config.OptimisationalParams(
               inputTileSize = inputTileSize, elsPerThread = elsPerThread,
@@ -555,28 +557,28 @@ package object cnn {
               coalesce = coalesce, unrollReduce = unrollReduce)))
     }
 
-    def fcDimensions: List[List[fc.Experiment.Config.Dimensions]] = {
+    def fcDimensions: Vector[Vector[fc.Experiment.Config.Dimensions]] = {
       exactParams match {
-        case Some(params) => List(List(params.fcDimensions))
+        case Some(params) => Vector(Vector(params.fcDimensions))
         case None =>
           for {
             nNeuronsL0 <- dim.get.neuronsRange.head
           //      _nNeuronsL1 <- e.neuronsRange(1)
           }
-            yield List(fc.Experiment.Config.Dimensions(nNeuronsL0))
+            yield Vector(fc.Experiment.Config.Dimensions(nNeuronsL0))
         //        fc.Experiment.Config.Dimensions(_nNeuronsL1)))
       }
     }
 
     def fcConfig(iC: cnn.InputConfig, fD: fc.Experiment.Config.Dimensions):
-    List[List[fc.Experiment.Config]] = {
+    Vector[Vector[fc.Experiment.Config]] = {
       for {
         _multsPerThreadL0 <- multsPerThreadRange.head(iC, fD)
         //      _multsPerThreadL1 <- e.multsPerThreadRange(1)(inputConfig, fcDimensions(1))
         _neuronsPerWrgL0 <- neuronsPerWrgRange.head(iC, fD)
       //      _neuronsPerWrgL1 <- e.neuronsPerWrgRange(1)(inputConfig, fcDimensions(1))
       }
-        yield List(
+        yield Vector(
           fc.Experiment.Config(
             fD, fc.Experiment.Config.OptimisationalParams(
               multsPerThread = _multsPerThreadL0, neuronsPerWrg = _neuronsPerWrgL0)))

@@ -7,6 +7,7 @@ import nn.cnn.ExperimentParams
 import nn.{cnn, conv, fc}
 
 import scala.io.Source
+import scala.util.matching.UnanchoredRegex
 import scalapb.TextFormatError
 
 case class Config(netParam: NetParameter) {
@@ -14,21 +15,21 @@ case class Config(netParam: NetParameter) {
   var dataLayerV1: Option[V1LayerParameter] = None
   var dataLayerVNew: Option[LayerParameter] = None
 
-  val layersWithSizesV1: Option[Seq[(V1LayerParameter, (Int, Int))]] = {
+  val layersWithSizesV1: Option[Vector[(V1LayerParameter, (Int, Int))]] = {
     version match {
       case Version.V1 => Some(fillMissingParametersV1())
       case Version.NEW => None
     }
   }
   
-  val layersWithSizesVNew: Option[Seq[(LayerParameter, (Int, Int))]] = {
+  val layersWithSizesVNew: Option[Vector[(LayerParameter, (Int, Int))]] = {
     version match {
       case Version.V1 => None
       case Version.NEW => Some(fillMissingParametersVNew())
     }
   }
 
-  def fillMissingParametersV1(): Seq[(V1LayerParameter, (Int, Int))] = {
+  def fillMissingParametersV1(): Vector[(V1LayerParameter, (Int, Int))] = {
     dataLayerV1 = netParam.layers.find(layer => layer.`type`.get == V1LayerParameter.LayerType.DATA &&
       (layer.include.isEmpty || layer.include.exists(_.phase match {
         case Some(_root_.caffe.caffe.Phase.TEST) => true
@@ -54,12 +55,12 @@ case class Config(netParam: NetParameter) {
             val parent = netParam.layers.find(l => currentLayer.bottom.contains(l.name.get)).get
 
             val currentLayerDimensions: (Int, Int) = getType(parent) match {
-              case V1LayerParameter.LayerType.RELU => computeInputDimensions(parent)
-              case V1LayerParameter.LayerType.LRN => computeInputDimensions(parent)
-              case V1LayerParameter.LayerType.DATA => 
+              case "ReLU" => computeInputDimensions(parent)
+              case "LRN" => computeInputDimensions(parent)
+              case "Data" => 
                 (parent.transformParam.get.cropSize.get, 3) // TODO: get input channels from Caffe
 
-              case V1LayerParameter.LayerType.CONVOLUTION =>
+              case "Convolution" =>
                 def getStride(stride: Seq[Int]): Int = if (stride.nonEmpty) stride.head else 1
 
                 ((computeInputDimensions(parent)._1 -
@@ -67,21 +68,20 @@ case class Config(netParam: NetParameter) {
                   parent.convolutionParam.get.pad.head * 2) / getStride(parent.convolutionParam.get.stride),
                 parent.convolutionParam.get.numOutput.get)
 
-              case V1LayerParameter.LayerType.POOLING =>
+              case "Pooling" =>
                 val parentDimensions: (Int, Int) = computeInputDimensions(parent)
                 ((parentDimensions._1 -
                   (parent.poolingParam.get.kernelSize.head - parent.poolingParam.get.stride.get) +
                   parent.poolingParam.get.pad.getOrElse(0) * 2) / parent.poolingParam.get.stride.get,
                   parentDimensions._2)
 
-              case V1LayerParameter.LayerType.INNER_PRODUCT => 
+              case "InnerProduct" => 
                 (parent.innerProductParam.get.numOutput.get, 1) // TODO: verify
-              case V1LayerParameter.LayerType.CONCAT => computeInputDimensions(parent)
-              case V1LayerParameter.LayerType.DROPOUT => computeInputDimensions(parent)
-              case V1LayerParameter.LayerType.SOFTMAX => computeInputDimensions(parent)
-              case V1LayerParameter.LayerType.SOFTMAX_LOSS => computeInputDimensions(parent)
-              case V1LayerParameter.LayerType.ACCURACY => (parent.accuracyParam.get.topK.get, 1) // TODO: verify
-              case V1LayerParameter.LayerType.ELTWISE => computeInputDimensions(parent)
+              case "Concat" => computeInputDimensions(parent)
+              case "Dropout" => computeInputDimensions(parent)
+              case "Softmax" => computeInputDimensions(parent)
+              case "Accuracy" => (parent.accuracyParam.get.topK.get, 1) // TODO: verify
+              case "Eltwise" => computeInputDimensions(parent)
               case _ =>
                 parent.`type`.get.name match {
                   case "BatchNorm" => computeInputDimensions(parent)
@@ -101,11 +101,11 @@ case class Config(netParam: NetParameter) {
         computeInputDimensions(layer)
       }
     }
-    netParam.layers.map(layer => (layer, processedLayers(layer)))
+    netParam.layers.map(layer => (layer, processedLayers(layer))).toVector
   }
 
-  def fillMissingParametersVNew(): Seq[(LayerParameter, (Int, Int))] = {
-    dataLayerVNew = netParam.layer.find(layer => getType(layer) == V1LayerParameter.LayerType.DATA &&
+  def fillMissingParametersVNew(): Vector[(LayerParameter, (Int, Int))] = {
+    dataLayerVNew = netParam.layer.find(layer => getType(layer) == "Data" &&
       (layer.include.isEmpty || layer.include.exists(_.phase match {
         case Some(_root_.caffe.caffe.Phase.TEST) => true
         case None => true
@@ -130,12 +130,12 @@ case class Config(netParam: NetParameter) {
             val parent = netParam.layer.find(layer => currentLayer.bottom.contains(layer.name.get)).get
 
             val currentLayerDimensions: (Int, Int) = getType(parent) match {
-              case V1LayerParameter.LayerType.RELU => computeInputDimensions(parent)
-              case V1LayerParameter.LayerType.LRN => computeInputDimensions(parent)
-              case V1LayerParameter.LayerType.DATA => 
+              case "ReLU" => computeInputDimensions(parent)
+              case "LRN" => computeInputDimensions(parent)
+              case "Data" => 
                 (parent.transformParam.get.cropSize.get, 3)
 
-              case V1LayerParameter.LayerType.CONVOLUTION =>
+              case "Convolution" =>
                 def getStride(stride: Seq[Int]): Int = if (stride.nonEmpty) stride.head else 1
 
                 ((computeInputDimensions(parent)._1 -
@@ -143,21 +143,20 @@ case class Config(netParam: NetParameter) {
                   parent.convolutionParam.get.pad.head * 2) / getStride(parent.convolutionParam.get.stride),
                   parent.convolutionParam.get.numOutput.get)
 
-              case V1LayerParameter.LayerType.POOLING =>
+              case "Pooling" =>
                 val parentDimensions: (Int, Int) = computeInputDimensions(parent)
                 ((parentDimensions._1 -
                   (parent.poolingParam.get.kernelSize.head - parent.poolingParam.get.stride.get) +
                   parent.poolingParam.get.pad.getOrElse(0) * 2) / parent.poolingParam.get.stride.get,
                   parentDimensions._2)
 
-              case V1LayerParameter.LayerType.INNER_PRODUCT => 
+              case "InnerProduct" => 
                 (parent.innerProductParam.get.numOutput.get, 1)
-              case V1LayerParameter.LayerType.CONCAT => computeInputDimensions(parent)
-              case V1LayerParameter.LayerType.DROPOUT => computeInputDimensions(parent)
-              case V1LayerParameter.LayerType.SOFTMAX => computeInputDimensions(parent)
-              case V1LayerParameter.LayerType.SOFTMAX_LOSS => computeInputDimensions(parent)
-              case V1LayerParameter.LayerType.ACCURACY => (parent.accuracyParam.get.topK.get, 1)
-              case V1LayerParameter.LayerType.ELTWISE => computeInputDimensions(parent)
+              case "Concat" => computeInputDimensions(parent)
+              case "Dropout" => computeInputDimensions(parent)
+              case "Softmax" => computeInputDimensions(parent)
+              case "Accuracy" => (parent.accuracyParam.get.topK.get, 1)
+              case "Eltwise" => computeInputDimensions(parent)
               case _ =>
                 parent.`type`.get match {
                   case "BatchNorm" => computeInputDimensions(parent)
@@ -178,7 +177,7 @@ case class Config(netParam: NetParameter) {
       }
     }
     netParam.layer.map(layer => (layer, processedLayers(layer)))
-  }
+  }.toVector
 }
 
 /**
@@ -207,18 +206,26 @@ object Config {
   // V1LayerParameter has a case class for each layer type. Newer LayerParameter stores layer type as string.
   // This type class matches the string to the respective case class of V1LayerParameter
   trait LayerParamType[T] {
-    def getType(layerparam: T): V1LayerParameter.LayerType  
+    val paramTypePattern: UnanchoredRegex = raw"Some\(([A-z]+?)Parameter\)".r.unanchored
+    def getType(layerparam: T): String
   }
   
   def getType[T](layerparam: T)(implicit lp: LayerParamType[T]) = lp.getType(layerparam)
   
   implicit val v1GetType: LayerParamType[V1LayerParameter] = new LayerParamType[V1LayerParameter] {
-    def getType(layerparam: V1LayerParameter): V1LayerParameter.LayerType = layerparam.`type`.get
+    def getType(layerparam: V1LayerParameter): String = 
+      // e.g. INNER_PRODUCT => InnerProduct 
+      layerparam.`type`.get.name.split('_').map(_.toLowerCase.capitalize).mkString("")
   }
   
   implicit val vGetType: LayerParamType[LayerParameter] = new LayerParamType[LayerParameter] {
-    def getType(layerparam: LayerParameter): V1LayerParameter.LayerType = 
-      V1LayerParameter.LayerType.values.find(_.name.toLowerCase() == layerparam.`type`.get.toLowerCase()).get
+    def getType(layerparam: LayerParameter): String = layerparam.`type`.get
+//    {
+//      layerparam.toString match {
+//        case paramTypePattern(paramType: String) => paramType
+//        case _ => "NOTRECOGNIZED"
+//      }
+//    }
   }
 
   object Version extends Enumeration {
@@ -226,14 +233,14 @@ object Config {
     val V1, NEW = Value
   }
 
-  def configToExperimentParams(protoFilePath: String): Seq[ExperimentParams] = {
+  def configToExperimentParams(protoFilePath: String): Vector[ExperimentParams] = {
 
     val logger = Logger(this.getClass)
     logger.info("Processing PROTO config file \"" + protoFilePath + "\"")
 
     val config: nn.caffe.proto.Config = new Config(load(protoFilePath))
     
-    val experimentName: String = config.netParam.name.get
+    val netName: String = config.netParam.name.get
 
     {
       config.version match {
@@ -242,9 +249,9 @@ object Config {
     }.zipWithIndex.filter(layerAndNo => {
       layerAndNo._1._1 match {
         case layerV1: V1LayerParameter =>
-          nn.caffe.proto.Config.getType(layerV1) == V1LayerParameter.LayerType.CONVOLUTION
+          nn.caffe.proto.Config.getType(layerV1) == "Convolution"
         case layerVNew: LayerParameter =>
-          nn.caffe.proto.Config.getType(layerVNew) == V1LayerParameter.LayerType.CONVOLUTION
+          nn.caffe.proto.Config.getType(layerVNew) == "Convolution"
       }}).map{
       case ((layer, inputDimensions), i) =>
         val nInputs: Int = {
@@ -284,7 +291,7 @@ object Config {
           }}
 
         new ExperimentParams(
-          experimentName = experimentName,
+          netName = netName,
           kernelOutputSubfolder = i.toString,
           layerName = layerName,
           layerNo = i,
@@ -298,51 +305,51 @@ object Config {
 
           dim = None,
 
-          inputTileSizeRange = List(
+          inputTileSizeRange = Vector(
             (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
-              (c.kernelSize to in.inputSize by 1).toList),
+              (c.kernelSize to in.inputSize by 1).toVector),
 
-          elsPerThreadRange = List(
+          elsPerThreadRange = Vector(
             (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
-              (1 to (in.nChannels * c.kernelSize * c.kernelSize) by 1).toList),
+              (1 to (in.nChannels * c.kernelSize * c.kernelSize) by 1).toVector),
 
-          kernelsPerGroupRange = List(
-            (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
-              (1 to c.nKernels by 1).toList),
-          
-          coalesceRange = List(List(true, false)),
-          unrollReduceRange = List(List(true, false)),
-          vectorLenRange = List(List(1, 2, 4)),
+          kernelsPerGroupRange = Vector(
+            (_: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
+              (1 to c.nKernels by 1).toVector),
 
-          multsPerThreadRange = List(
+          coalesceRange = Vector(Vector(true, false)),
+          unrollReduceRange = Vector(Vector(true, false)), //Vector(Vector(true, false)),
+          vectorLenRange = Vector(Vector(1, 4)), //Vector(Vector(1, 2, 4)),
+
+          multsPerThreadRange = Vector(
             (_: cnn.InputConfig, _: fc.Experiment.Config.Dimensions) =>
-              List(1)),
-          neuronsPerWrgRange = List(
+              Vector(1)),
+          neuronsPerWrgRange = Vector(
             (_: cnn.InputConfig, _: fc.Experiment.Config.Dimensions) =>
-              List(1))
-//          inputTileSizeRange = List(
+              Vector(1))
+//          inputTileSizeRange = Vector(
 //            (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
-//              /*(c.kernelSize to in.inputSize by 1).toList*/List(4)),
+//              /*(c.kernelSize to in.inputSize by 1).toVector*/Vector(3)),
 //
-//          elsPerThreadRange = List(
+//          elsPerThreadRange = Vector(
 //            (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
-//              /*(1 to (in.nChannels * c.kernelSize * c.kernelSize) by 1).toList*/List(576)),
+//              /*(1 to (in.nChannels * c.kernelSize * c.kernelSize) by 1).toVector*/Vector(6)),
 //
-//          kernelsPerGroupRange = List(
+//          kernelsPerGroupRange = Vector(
 //            (in: cnn.InputConfig, c: conv.Experiment.Config.Dimensions) =>
-//              /*(1 to c.nKernels by 1).toList*/List(64)),
+//              /*(1 to c.nKernels by 1).toVector*/Vector(1)),
 //
-//          coalesceRange = List(List(false)),
-//          unrollReduceRange = List(List(true)),
-//          vectorLenRange = List(List(4)),
+//          coalesceRange = Vector(Vector(true)),
+//          unrollReduceRange = Vector(Vector(true)),
+//          vectorLenRange = Vector(Vector(2)),
 //
 //
-//          multsPerThreadRange = List(
+//          multsPerThreadRange = Vector(
 //            (_: cnn.InputConfig, _: fc.Experiment.Config.Dimensions) =>
-//              List(1)),
-//          neuronsPerWrgRange = List(
+//              Vector(1)),
+//          neuronsPerWrgRange = Vector(
 //            (_: cnn.InputConfig, _: fc.Experiment.Config.Dimensions) =>
-//              List(1))
+//              Vector(1))
         )
     }
   }

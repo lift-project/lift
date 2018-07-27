@@ -33,37 +33,6 @@ object TestCNN_Conv {
 class TestCNN_Conv {
   val reruns: Int = 1
 
-  //      new TestCNN().Test(
-  //        cnn.getConfigFromJSON("/home/s1569687/lift/src/test/nn/cnn/cnn_experiments.json"),
-  //        continueFrom = Experiment(
-  //          cnn.InputConfig(
-  //            nBatches = 2,
-  //            nInputs = 32,
-  //            imageSize = 32,
-  //            nChannels = 1),
-  //          convConfig = List(
-  //            conv.Experiment.Config(
-  //              conv.Experiment.Config.Dimensions(nKernels = 16, kernelSize = 20),
-  //              conv.Experiment.Config.OptimisationalParams(inputTileSize = 20, elsPerThread = 20, kernelsPerGroup = 1)
-  //            ),
-  //            conv.Experiment.Config(
-  //              conv.Experiment.Config.Dimensions(nKernels = 8, kernelSize = 8),
-  //              conv.Experiment.Config.OptimisationalParams(inputTileSize = 8, elsPerThread = 1, kernelsPerGroup = 1)
-  //            )
-  //          ),
-  //          fcConfig = List(
-  //            fc.Experiment.Config(
-  //              fc.Experiment.Config.Dimensions(nNeurons = 16),
-  //              fc.Experiment.Config.OptimisationalParams(multsPerThread = 1, neuronsPerWrg = 1)
-  //            ),
-  //            fc.Experiment.Config(
-  //              fc.Experiment.Config.Dimensions(nNeurons = 10),
-  //              fc.Experiment.Config.OptimisationalParams(multsPerThread = 1, neuronsPerWrg = 1)
-  //            )
-  //          )
-  //        ),
-  //        abortAfter = Some(1))
-//  @Test
   def TestConvJSON(): Unit = {
     val testConfigFilenames = Array(
       //"vgg_layer_1.json",
@@ -85,15 +54,49 @@ class TestCNN_Conv {
   
   @Test
   def TestConv(): Unit = {
-    val protoFiles = List(
-      System.getenv("LIFT_CNN_CONFIG_PATH") + "/" + "VGG_ILSVRC_19_layers_deploy_1.prototxt")
-//      "/home/nm/avus_remotes/lift/src/test/nn/caffe/proto/ResNet-101-deploy-5.prototxt")
+    val protoFiles = Seq(
+//      System.getenv("LIFT_CNN_CONFIG_PATH") + "/" + "VGG_ILSVRC_19_layers_deploy_1.prototxt")
+      System.getenv("LIFT_CNN_CONFIG_PATH") + "/" + "/ResNet-101-deploy-5.prototxt")
     
       for (_ <- 0 until reruns) {
         for (protoFile <- protoFiles) {
           val configs = nn.caffe.proto.Config.configToExperimentParams(protoFile) // For debugging purposes
-          for (config <- configs)
+          for (config <- configs) {
+            
+  /*          val iC = InputConfig(nBatches = 1,
+              nInputs = 1,
+              inputSize = 226,
+              nChannels = 64)
+            val cD = conv.Experiment.Config.Dimensions(
+              nKernels = 64,
+              kernelSize = 3,
+              kernelStride = 1)
+*/
             new TestCNN().Test(config, protoFile)
+             /* new Experiment(
+                layerNo = 3,
+                inputConfig = iC,
+                convConfigs = Vector(
+                  conv.Experiment.Config(
+                    dim = cD,
+                    optParams = conv.Experiment.Config.OptimisationalParams(
+                      inputTileSize = 102,
+                      elsPerThread = 249,
+                      kernelsPerGroup = 54,
+                      vectorLen = 4,
+                      coalesce = false,
+                      unrollReduce = true
+                    ))),
+                fcConfigs = Vector(new fc.Experiment.Config(
+                  dim = fc.Experiment.Config.Dimensions(nNeurons = 1),
+                  optParams = fc.Experiment.Config.OptimisationalParams(
+                    multsPerThread = 1,
+                    neuronsPerWrg = 1
+                  ))),
+                pathToInputs = pathToInputs(iC, cD),
+                pathToParams = pathToParams(iC, cD),
+                pathToTargets = pathToTargets(iC, cD)))*/
+          }
         }
       }
   }

@@ -60,7 +60,7 @@ object Conv4 extends ConvCompanion {
     
     def ArrayToVector(): FunDecl = {
       λ(AT(Float, vectorLen), (arr) => {
-        ArrayAccess(0) $ {
+        /*ArrayAccess(0) $ */{
         if (coalesce)
           vectorLen match {
             case 2 => vectoriseNonContiguous(vectorLen)(
@@ -78,7 +78,7 @@ object Conv4 extends ConvCompanion {
             case _ => throw new NotImplementedError("ArrayToVector() does not support size " + vectorLen)
           }
         else
-          asVector(vectorLen) $ arr
+          ArrayAccess(0) o asVector(vectorLen) $ arr
       }})}
     
     def Continue(): Lambda = λ((x) => x)
@@ -189,7 +189,7 @@ object Conv4 extends ConvCompanion {
                                         else
                                           dotAndSumUp(acc,
                                             ArrayToVector() $ /* X */ Get(y, 0),
-                                            ArrayToVector() $ /* kernelWWindow */ Get(y, 1)) // TODO: test this please
+                                            ArrayToVector() $ /* kernelWWindow */ Get(y, 1))
                                       }),
                                       toPrivate(id) $ Value("0.0f", Float)) $
                                     Zip(
