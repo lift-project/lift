@@ -5,7 +5,7 @@ import java.util.{Calendar, Date}
 
 import com.typesafe.scalalogging.Logger
 import nn._
-import nn.cnn.Experiment.verifyOutputs
+import nn.cnn.Experiment.{pathToInputs, pathToParams, pathToTargets, verifyOutputs}
 import nn.conv.ConvDatasets
 import nn.fc.{FC, FCDatasets}
 import nn.mysql.Connector
@@ -48,18 +48,18 @@ class TestCNN {
     for (_ <- 0 to reruns)
       Test(
         cnn.getConfigFromJSON("/home/s1569687/lift/src/test/nn/cnn/cnn_experiments.json"))
-    //        ExperimentsSet(nKernelsL1Range = List(2),
-    //        kernelSizeRange = List(2),
-    //        inputTileSizeRange = (kernelSize, _) => List(kernelSize),
-    //        elsPerThreadL1Range = _ => List(1),
-    //        kernelsPerGroupL1Range = _ => List(1),
-    //        multsPerThreadRange = imageSize => List(1) ++ (2 to imageSize * imageSize by 2),
-    //        //multsPerThreadRange = imageSize => List(16),
-    //        neuronsPerWrgRange = fcSize => List(1) ++ (2 to fcSize by 2), nKernelsL0 = 2,
-    //        imageSizeRange = List(8, 16, 32, 64, 128/*, 256, 512*/),
-    //        neuronsL1Range = List(16, 32, 64, 128, 256, 512),
+    //        ExperimentsSet(nKernelsL1Range = Vector(2),
+    //        kernelSizeRange = Vector(2),
+    //        inputTileSizeRange = (kernelSize, _) => Vector(kernelSize),
+    //        elsPerThreadL1Range = _ => Vector(1),
+    //        kernelsPerGroupL1Range = _ => Vector(1),
+    //        multsPerThreadRange = imageSize => Vector(1) ++ (2 to imageSize * imageSize by 2),
+    //        //multsPerThreadRange = imageSize => Vector(16),
+    //        neuronsPerWrgRange = fcSize => Vector(1) ++ (2 to fcSize by 2), nKernelsL0 = 2,
+    //        imageSizeRange = Vector(8, 16, 32, 64, 128/*, 256, 512*/),
+    //        neuronsL1Range = Vector(16, 32, 64, 128, 256, 512),
     //        kernelsPerGroupL0 = 2,
-    //        nInputsRange = List(8, 16, 32, 64, 128/*, 256, 512, 1024, 2048, 2048*/)))
+    //        nInputsRange = Vector(8, 16, 32, 64, 128/*, 256, 512, 1024, 2048, 2048*/)))
 
     //        continueFrom = cnn.Experiment(
     //          nKernelsL1= 2,
@@ -75,7 +75,7 @@ class TestCNN {
   }
 
 
-  def Test(layerExperimentParams: cnn.ExperimentParams,
+  def Test(param: cnn.ExperimentParams,
            testConfigFilename: String = "",
            continueFrom: Experiment = null,
            abortAfter: Option[Int] = None): Unit = {
@@ -83,17 +83,11 @@ class TestCNN {
     // are found. Otherwise, new results will be added with a datetime timestamp
     val rerunsAllowed: Boolean = true
     val compileOnly: Boolean = System.getenv("LIFT_NN_MICROBENCHMARK_COMPILE_ONLY") != null
-
+    
     var aCNN: CNN = null
     var data: NetDatasetsCollection = null
 
     var initParams: Layer.InitParameters = null
-//    val (checkAgainstInvalidParams: Boolean, invalidParams: nn.cnn.ExperimentParams.Invalid) = {
-//      nn.cnn.ExperimentParams.Invalid.restore() match {
-//        case Some(p) => (true, p)
-//        case None => (false, nn.cnn.ExperimentParams.Invalid(combinations = new ArrayBuffer()))
-//      }
-//    }
 
     var now: Date = null
     var skip: Boolean = continueFrom != null
@@ -101,28 +95,61 @@ class TestCNN {
     var experimentNo: Int = 0
     for {
     // Construct an experiment with all parameters
-      exp <- time((for {
-      // Workload parameters
-        inputConfig <- layerExperimentParams.inputConfigs
-        convDimensions <- layerExperimentParams.convDimensions
-        fcDimensions <- layerExperimentParams.fcDimensions
 
-        if cnn.Experiment.isFirstRun(inputConfig) || rerunsAllowed
+    // Workload parameters
+      inputConfig <- param.inputConfigs
+      convDimensions <- param.convDimensions
+      fcDimensions <- param.fcDimensions
 
-        if cnn.Experiment.inputsExist(inputConfig, convDimensions.head, layerExperimentParams.experimentName) ||
-          (// Try generating files and recheck
-            cnn.Experiment.generateFiles(layerExperimentParams) &&
-              cnn.Experiment.inputsExist(inputConfig, convDimensions.head, layerExperimentParams.experimentName))
+      if {List(8, 11, 13, 20, 22, 29).contains(param.layerNo)} // Run specific layers only
 
-        if cnn.Experiment.targetsExist(inputConfig, convDimensions.head, layerExperimentParams.experimentName)
+      if cnn.Experiment.isFirstRun(inputConfig) || rerunsAllowed
 
-        if Experiment.datasetsExist(Experiment.pathToParams(inputConfig, convDimensions.head))
-      }
+      if cnn.Experiment.inputsExist(inputConfig, convDimensions.head, param.netName) ||
+        (// Try generating files and recheck
+          cnn.Experiment.generateFiles(param) &&
+            cnn.Experiment.inputsExist(inputConfig, convDimensions.head, param.netName))
+
+      if cnn.Experiment.targetsExist(inputConfig, convDimensions.head, param.netName)
+
+      if Experiment.datasetsExist(Experiment.pathToParams(inputConfig, convDimensions.head))
+
+      pI: String = pathToInputs(inputConfig, convDimensions.head)
+      pP: String = pathToParams(inputConfig, convDimensions.head)
+      pT: String = pathToTargets(inputConfig, convDimensions.head)
+      inputTileSize <- param.inputTileSizeRange.head(inputConfig, convDimensions.head)
+      //      _inputTileSizeL1 <- e.inputTileSizeRange(1)(inputConfig, convDimensions(1))
+      elsPerThread <- param.elsPerThreadRange.head(inputConfig, convDimensions.head)
+      //      _elsPerThreadL1 <- e.elsPerThreadRange(1)(inputConfig, convDimensions(1))
+      kernelsPerGroup <- param.kernelsPerGroupRange.head(inputConfig, convDimensions.head)
+      //      _kernelsPerGroupL1 <- e.kernelsPerGroupRange(1)(inputConfig, convDimensions(1))
+      vectorLen <- param.vectorLenRange.head
+
+      coalesce <- param.coalesceRange.head
+
+      unrollReduce <- param.unrollReduceRange.head
+      convConfig =
+      Vector(conv.Experiment.Config(
+        convDimensions.head, conv.Experiment.Config.OptimisationalParams(
+          inputTileSize = inputTileSize, elsPerThread = elsPerThread,
+          kernelsPerGroup = kernelsPerGroup, vectorLen = vectorLen,
+          coalesce = coalesce, unrollReduce = unrollReduce)))
+
+
+      _multsPerThreadL0 <- param.multsPerThreadRange.head(inputConfig, fcDimensions.head)
+      //      _multsPerThreadL1 <- e.multsPerThreadRange(1)(inputConfig, fcDimensions(1))
+      _neuronsPerWrgL0 <- param.neuronsPerWrgRange.head(inputConfig, fcDimensions.head)
+
+
+      fcConfig =
+      Vector(fc.Experiment.Config(
+        fcDimensions.head, fc.Experiment.Config.OptimisationalParams(
+          multsPerThread = _multsPerThreadL0, neuronsPerWrg = _neuronsPerWrgL0)))
       // Optimisational parameters are traversed with cnn.Experiment
-        yield cnn.Experiment(layerExperimentParams, inputConfig, convDimensions.head, fcDimensions.head)).flatten, 
-        f"Creating experiments for layer ${layerExperimentParams.layerName}%s")
+      //        exp <- cnn.Experiment(layerExperimentParams, inputConfig, convDimensions.head, fcDimensions.head)
+      exp = new Experiment(param.layerNo, inputConfig, convConfig, fcConfig, pI, pP, pT)
+      //f"Creating experiments for layer ${layerExperimentParams.layerName}%s")
 
-      //if {benchmark.layerNo == 3} // Run a specific layer only
       // If enabled, skip experiments until the one specified
       if !skip || {
         if (continueFrom == exp) {
@@ -130,10 +157,6 @@ class TestCNN {
           true
         } else false
       }
-
-      // If there a backup of invalidParams was restored, ignore combinations found in the backup
-//      if { !checkAgainstInvalidParams ||
-//        !invalidParams.combinations.contains((exp.inputConfig, exp.convConfigs.head, exp.fcConfigs.head))}
 
       // Check if CNN can be created with the selected parameters (e.g. if WrgGroupSize < maxWrgGroupSize)
       if {
@@ -144,7 +167,7 @@ class TestCNN {
             inputConfig = exp.inputConfig, pathToResults = Experiment.pathToResults)
 
           //noinspection ConvertibleToMethodValue
-          initParams = Conv.InitParameters(layerExperimentParams.layerNo, Conv.Par(_, _, _, _, _, _, _, _, _, _), nn.Linear, //nn.ReLU,
+          initParams = Conv.InitParameters(param.layerNo, Conv.Par(_, _, _, _, _, _, _, _, _, _), nn.Linear, //nn.ReLU,
             optParams = exp.convConfigs.head.optParams,
             inputShape = Shape(nBatches = exp.inputConfig.nBatches, nInputs = exp.inputConfig.nInputs,
               size = exp.inputConfig.inputSize, nChannels = exp.inputConfig.nChannels),
@@ -166,16 +189,11 @@ class TestCNN {
         catch {
           case e: java.lang.IllegalArgumentException =>
             logger.warn("-----------------------------------------------------------------")
-            val msg = f"Layer $currentLayer%d: EXCEPTION: java.lang.IllegalArgumentException\n" +
+            val msg = f"Layer ${param.layerNo}%d (experiment $experimentNo%d): EXCEPTION: java.lang.IllegalArgumentException\n" +
               cnn.configToString(exp.inputConfig) + e.getMessage
             logger.warn(msg)
             recordFailureInSQL(msg, aCNN, initParams, now)
             logger.warn("SKIPPING EXPERIMENT.")
-//            logger.warn("Saving paramaters to avoid in the future.")
-//            nn.cnn.ExperimentParams.Invalid.append(
-//              invalidParams, (exp.inputConfig, exp.convConfigs.head, exp.fcConfigs.head))
-            //            if (currentLayer != 0)
-            //              throw e
             false
         }
       }
@@ -184,7 +202,7 @@ class TestCNN {
         /* ---------------------------- RUN THE EXPERIMENT (BEGIN) ---------------------------- */
         // Now that we know that layers can be built and data is loaded, run the experiment
         logger.info("-----------------------------------------------------------------")
-        System.out.println(f"Starting the experiment:\n" + aCNN.configToString)
+        System.out.println(f"Starting the experiment:\n" + aCNN.configToString(param.layerNo))
 
         now = Calendar.getInstance().getTime
 
@@ -195,7 +213,7 @@ class TestCNN {
             layer match {
               case poolLayer: ScalaPool =>
                 poolLayer.run()
-                logger.info(f"Layer $layerNo%d (pooling) completed")
+                logger.info(f"Layer ${param.layerNo}%d (pooling) completed")
                 break
               case _ =>
             }
@@ -290,12 +308,12 @@ class TestCNN {
                   localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
                   globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),
                   kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
-                    layerExperimentParams.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_first.cl")
+                    param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_first.cl")
                 saveKernelToFile(experimentNo, testConfigFilename, layer, openclKernel2, twoKernels = true,
                   localSize = Array(layer.localSize(3), layer.localSize(4), 1),
                   globalSize = Array(layer.globalSize(3), layer.globalSize(4), 1),
                   kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
-                    layerExperimentParams.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_final.cl")
+                    param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_final.cl")
 
               case _ =>
                 /* One-kernel layer */
@@ -328,11 +346,11 @@ class TestCNN {
                   localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
                   globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),
                   kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
-                    layerExperimentParams.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + ".cl")
+                    param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + ".cl")
             }
 
             layer.runtime = runtime
-            logger.info(f"Layer $layerNo%d runtime: $runtime%1.5f ms")
+            logger.info(f"Layer ${param.layerNo}%d (experiment $experimentNo%d) runtime: $runtime%1.5f ms")
 
             /* Group and unpad */
             if (!compileOnly)

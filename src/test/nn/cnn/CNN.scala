@@ -20,11 +20,11 @@ class CNN(val nConvLayers: Int,
   val convLayers: Array[Conv] = new Array[Conv](nConvLayers)
   val fcLayers: Array[FC] = new Array[FC](nFCLayers)
 
-  def configToString: String = cnn.configToString(inputConfig) + {
+  def configToString(layerNo: Int): String = cnn.configToString(inputConfig) + {
     var i: Int = -1
     for (convLayer <- convLayers) yield {
       i = i + 1
-      f"\nLayer $i%d (Conv):\n" + convLayer.configToString
+      f"\nLayer ${layerNo}%d (Conv):\n" + convLayer.configToString
     }}.mkString("") + {
     var i: Int = convLayers.length - 1
     if (fcLayers.length > 0) {
