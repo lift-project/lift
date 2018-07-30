@@ -22,7 +22,13 @@ trait ConvCompanion {
                             override val inputShape: Shape,
                             dim: conv.Experiment.Config.Dimensions,
                             padData: Boolean, testConfigFilename: String)
-    extends Layer.InitParameters(layerNo, inputShape)
+    extends Layer.InitParameters(layerNo, inputShape) {
+    override def toString: String =
+      f"\nconv.InitParameters(layerNo = $layerNo%d, optParams = " + optParams.toString + "," +
+        f"\ninputShape = " + inputShape.toString +
+        f"\ndim = " + dim.toString + "," +
+        f"\npadData = $padData%b," +
+        f"\ntestConfigFilename = $testConfigFilename%s)"}
 
 
   def apply(iP: InitParameters): Conv
@@ -56,7 +62,6 @@ abstract class Conv(val liftFProp: Array[FunDecl],
                     val elsPerThread: Int, val kernelsPerGroup: Int, val vectorLen: Int, 
                     val coalesce: Boolean, val unrollReduce: Boolean,
                     val localSize: Array[Int], val globalSize: Array[Int]) extends Layer {
-  val configToString: String
   var runtime: Double
 
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit

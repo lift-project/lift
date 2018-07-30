@@ -368,7 +368,6 @@ object Conv4 extends ConvCompanion {
     Array(LayerPartial, LayerFinal)
   }
 
-
   def apply(iP: InitParameters): Conv4 = {
     /**
       * Class factory: verifies that an object can be created,
@@ -376,11 +375,11 @@ object Conv4 extends ConvCompanion {
       */
 
     val exceptionMsgPrefix: String = "[" + iP.testConfigFilename + ": layer " + iP.layerNo + "]\n" +
-      "In the Conv layer with the following configuration:\n" +
-      conv.configToString(iP.inputShape.size, -1, iP.optParams.elsPerThread,
-        iP.dim.nKernels, iP.optParams.kernelsPerGroup,  iP.optParams.vectorLen, 
-        iP.optParams.coalesce, iP.optParams.unrollReduce,
-        iP.dim.kernelSize, iP.dim.kernelStride, iP.optParams.inputTileSize)
+      "In the Conv layer with the following configuration:\n" + iP.toString + "\n"
+//      conv.configToString(iP.inputShape.size, -1, iP.optParams.elsPerThread,
+//        iP.dim.nKernels, iP.optParams.kernelsPerGroup,  iP.optParams.vectorLen, 
+//        iP.optParams.coalesce, iP.optParams.unrollReduce,
+//        iP.dim.kernelSize, iP.dim.kernelStride, iP.optParams.inputTileSize)
 
     /* Tiles */
     val slider: SlidingWindowConfig = SlidingWindowConfig(
@@ -573,11 +572,21 @@ case class Conv4(override val liftFProp: Array[FunDecl],
                  override val localSize: Array[Int], override val globalSize: Array[Int])
   extends Conv(liftFProp, inputShape, outputShape, inputTiling, kernelSliding,
     elsPerThread, kernelsPerGroup, vectorLen, coalesce, unrollReduce, localSize, globalSize) {
-  val configToString: String =
-    nn.conv.configToString(inputShape.sizePadded, outputShape.sizePadded, elsPerThread, outputShape.nChannels,
-      kernelsPerGroup, vectorLen, coalesce, unrollReduce, kernelSliding.size, kernelSliding.stride, inputTiling.size)
+
+  override def toString: String =
+    f"Conv4(inputShape = " + inputShape.toString + "," +
+      "\noutputShape = " + outputShape.toString + "," +
+      "\ninputTiling = " + inputTiling.toString + "," +
+      "\nkernelSliding = " + kernelSliding.toString + "," +
+      f"\nelsPerThread = $elsPerThread%d, kernelsPerGroup = $kernelsPerGroup%d, vectorLen = $vectorLen%d," +
+      f"\ncoalesce = $coalesce%b, unrollReduce = $unrollReduce%b," +
+      f"\nlocalSize = " + localSize.toString + ", globalSize = " + globalSize.toString + ")"
+  
+//  val configToString: String =
+//    nn.conv.configToString(inputShape.sizePadded, outputShape.sizePadded, elsPerThread, outputShape.nChannels,
+//      kernelsPerGroup, vectorLen, coalesce, unrollReduce, kernelSliding.size, kernelSliding.stride, inputTiling.size)
   var runtime: Double = 0
-  val intermediateDataShape = (
+  val intermediateDataShape: (Int, Int, Int, Int, Int) = (
     inputShape.nBatches * inputShape.nInputs * inputTiling.n * inputTiling.n,
     outputShape.nChannels / kernelsPerGroup,
     kernelsPerGroup, kernelSliding.n * kernelSliding.n,

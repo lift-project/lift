@@ -1,6 +1,6 @@
 import ir.ast._
 import ir.{ArrayType, Type}
-import opencl.executor.Execute
+import opencl.executor.Compile
 import opencl.ir._
 import opencl.ir.pattern._
 
@@ -108,8 +108,7 @@ object dontweAll {
   def BadKiddo(): FunDecl =
     fun(AT(Float, 10), AT(Float, 10), (window, kernelWWindow) =>
         MapSeq(λ((SeqTileAndWeightsAndAcc) => {
-//              toGlobal(fun(a => MapSeq(id) $ Get(a, 0))) $ SeqTileAndWeightsAndAcc
-            toGlobal(id) $ Get(SeqTileAndWeightsAndAcc, 0)
+            toGlobal(id) $ add(Get(SeqTileAndWeightsAndAcc, 0), Get(SeqTileAndWeightsAndAcc, 1))
 
           })) $ Zip(window, kernelWWindow))
     
@@ -120,7 +119,8 @@ object dontweAll {
     val input1 = Array.fill(10)(0.0f)//util.Random.nextFloat())
     val input2 = Array.fill(10)(0.0f)//util.Random.nextFloat())
     //        println(Compile(Problematic))
-    val (output, _) = Execute(1, 1)[Array[Float]](BadKiddo, input1, input2)
+//    val (output, _) = Execute(1, 1)[Array[Float]](BadKiddo, input1, input2)
+    println(Compile(BadKiddo))
   }
 
 }

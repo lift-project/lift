@@ -25,7 +25,10 @@ package object conv {
   case class SlidingWindowConfig(size: Int,
                                  stride: Int,
                                  n: Int,
-                                 nChannels: Int = 0)
+                                 nChannels: Int = 0) {
+    override def toString: String =
+      f"SlidingWindowConfig(" +
+        f"\nsize = $size%d, stride = $stride%d, n = $n%d, nChannels = $nChannels%d)"}
 
   class ConvDatasets(in: PaddedArray[Array5D[Float]] = PaddedArray(Array.empty),
                      out: PaddedArray[Array5D[Float]] = PaddedArray(Array.empty),
@@ -129,18 +132,30 @@ package object conv {
     object Config {
       case class Dimensions(nKernels: Int,
                             kernelSize: Int,
-                            kernelStride: Int) extends Layer.Experiment.Config.Dimensions
+                            kernelStride: Int) extends Layer.Experiment.Config.Dimensions {
+        override def toString: String = 
+          f"conv.Experiment.Config.Dimensions(" +
+            f"\nnKernels = $nKernels%d, kernelSize = $kernelSize%d, kernelStride = $kernelStride%d)"
+      }
 
       case class OptimisationalParams(inputTileSize: Int,
                                       elsPerThread: Int,
                                       kernelsPerGroup: Int,
                                       vectorLen: Int,
                                       coalesce: Boolean,
-                                      unrollReduce: Boolean)
+                                      unrollReduce: Boolean) {
+        override def toString: String =
+          f"conv.Experiment.Config.OptimisationalParams(" +
+            f"\ninputTileSize = $inputTileSize%d, elsPerThread = $elsPerThread%d, " +
+            f"kernelsPerGroup = $kernelsPerGroup%d," +
+            f"\nvectorLen = $vectorLen%d, coalesce = $coalesce%b, unrollReduce = $unrollReduce%b)"}
     }
 
     case class Config(dim: conv.Experiment.Config.Dimensions,
-                      optParams: conv.Experiment.Config.OptimisationalParams)
+                      optParams: conv.Experiment.Config.OptimisationalParams) {
+      override def toString: String =
+        f"conv.Experiment.Config(" +
+          f"\ndim = " + dim.toString + ",\noptParams = " + optParams.toString + ")"}
 
 
     val convDir: String = nn.nnDir + "/conv"

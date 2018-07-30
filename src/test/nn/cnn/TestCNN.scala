@@ -101,7 +101,7 @@ class TestCNN {
       convDimensions <- param.convDimensions
       fcDimensions <- param.fcDimensions
 
-      if {List(8, 11, 13, 20, 22, 29).contains(param.layerNo)} // Run specific layers only
+      //if {List(8, 11, 13, 20, 22, 29).contains(param.layerNo)} // Run specific layers only
 
       if cnn.Experiment.isFirstRun(inputConfig) || rerunsAllowed
 
@@ -307,12 +307,12 @@ class TestCNN {
                 saveKernelToFile(experimentNo, testConfigFilename, layer, openclKernel1, twoKernels = true,
                   localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
                   globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),
-                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
+                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" + param.netName + "/" +
                     param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_first.cl")
                 saveKernelToFile(experimentNo, testConfigFilename, layer, openclKernel2, twoKernels = true,
                   localSize = Array(layer.localSize(3), layer.localSize(4), 1),
                   globalSize = Array(layer.globalSize(3), layer.globalSize(4), 1),
-                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
+                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" + param.netName + "/" +
                     param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_final.cl")
 
               case _ =>
