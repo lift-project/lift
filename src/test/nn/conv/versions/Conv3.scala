@@ -498,7 +498,7 @@ case class Conv3(override val liftFProp: Array[FunDecl],
                  override val localSize: Array[Int], override val globalSize: Array[Int])
   extends Conv(liftFProp, inputShape, outputShape, inputTiling, kernelSliding,
     elsPerThread, kernelsPerGroup, vectorLen, coalesce, unrollReduce, localSize, globalSize) {
-  val configToString: String =
+  override def toString: String =
     nn.conv.configToString(inputShape.size, outputShape.sizePadded, elsPerThread, outputShape.nChannels,
       kernelsPerGroup, vectorLen, coalesce, unrollReduce, kernelSliding.size, kernelSliding.stride, inputTiling.size)
   var runtime: Double = 0

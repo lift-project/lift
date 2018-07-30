@@ -20,7 +20,11 @@ package object nn {
                    var sizePadded: Int = 0,
                    nChannels: Int = 0,
                    nInputs: Int = 0,
-                   nBatches: Int = 0)
+                   nBatches: Int = 0) {
+    override def toString: String =
+      f"Shape(" +
+        f"\nsize = $size%d, sizePadded = $sizePadded%d, nChannels = $nChannels%d," +
+        f"\nnInputs = $nInputs%d, nBatches = $nBatches%d)"}
 
   trait NetDatasets {
 //    var inputs: PaddedArray[_]

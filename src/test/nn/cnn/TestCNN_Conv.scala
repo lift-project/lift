@@ -62,19 +62,18 @@ class TestCNN_Conv {
         for (protoFile <- protoFiles) {
           val configs = nn.caffe.proto.Config.configToExperimentParams(protoFile) // For debugging purposes
           for (config <- configs) {
-            
-  /*          val iC = InputConfig(nBatches = 1,
-              nInputs = 1,
-              inputSize = 226,
-              nChannels = 64)
-            val cD = conv.Experiment.Config.Dimensions(
-              nKernels = 64,
-              kernelSize = 3,
-              kernelStride = 1)
-*/
-            new TestCNN().Test(config, protoFile)
-             /* new Experiment(
-                layerNo = 3,
+            new TestCNN().Test(config, protoFile/*, {
+              val iC = InputConfig(nBatches = 1,
+                nInputs = 1,
+                inputSize = 226,
+                nChannels = 64)
+              val cD = conv.Experiment.Config.Dimensions(
+                nKernels = 64,
+                kernelSize = 3,
+                kernelStride = 1)
+              
+              new Experiment(
+                layerNo = 1,
                 inputConfig = iC,
                 convConfigs = Vector(
                   conv.Experiment.Config(
@@ -93,9 +92,11 @@ class TestCNN_Conv {
                     multsPerThread = 1,
                     neuronsPerWrg = 1
                   ))),
-                pathToInputs = pathToInputs(iC, cD),
-                pathToParams = pathToParams(iC, cD),
-                pathToTargets = pathToTargets(iC, cD)))*/
+                pathToInputs = cnn.Experiment.pathToInputs(iC, cD),
+                pathToParams = cnn.Experiment.pathToParams(iC, cD),
+                pathToTargets = cnn.Experiment.pathToTargets(iC, cD))
+            }*/
+            )
           }
         }
       }

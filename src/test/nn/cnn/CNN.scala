@@ -24,7 +24,7 @@ class CNN(val nConvLayers: Int,
     var i: Int = -1
     for (convLayer <- convLayers) yield {
       i = i + 1
-      f"\nLayer ${layerNo}%d (Conv):\n" + convLayer.configToString
+      f"\nLayer ${layerNo}%d (Conv):\n" + convLayer.toString
     }}.mkString("") + {
     var i: Int = convLayers.length - 1
     if (fcLayers.length > 0) {
