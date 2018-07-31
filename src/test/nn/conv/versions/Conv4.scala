@@ -402,10 +402,17 @@ object Conv4 extends ConvCompanion {
         size = iP.optParams.inputTileSize,
         stride = stride,
         n = {
+          // Sometimes (e.g. for ResNet), layer configuration is such that the input cannot be evenly 
+          // divided by kernel size and stride. In this case, Caffe uses floor, i.e. pixels covered only 
+          // by non-fitting windows are discarded. 
+          val activeInputSize: Int =
+          (Math.floor((iP.inputShape.size - (iP.dim.kernelSize - iP.dim.kernelStride)).toFloat / iP.dim.kernelStride) *
+            iP.dim.kernelStride + (iP.dim.kernelSize - iP.dim.kernelStride)).toInt
           val n: Float =
-            (iP.inputShape.size - (iP.optParams.inputTileSize - stride)).toFloat / stride
+            (activeInputSize - (iP.optParams.inputTileSize - stride)).toFloat / stride
           if (n % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
-            f"image size (${iP.inputShape.size}%d) is not divisible by the chosen " +
+            f"active image size ($activeInputSize%d) (image portion covered by specified kernel size and stride) " +
+            f"is not divisible by the chosen " +
             f"input tile size (${iP.optParams.inputTileSize}%d) and corresponding tile stride ($stride%d)")
           n.toInt
         })
@@ -446,11 +453,14 @@ object Conv4 extends ConvCompanion {
       if (iP.padData) tiler.size + tiler.stride * tiler.n else iP.inputShape.size
     iP.inputShape.sizePadded = iP.inputShape.sizePadded
 
-    val outputShape: Shape = { Shape(
+    val outputShape: Shape = { 
+      val size = ((iP.inputShape.size - (slider.size - slider.stride)).toFloat / slider.stride).toInt
+      
+      Shape(
       nBatches = iP.inputShape.nBatches,
       nInputs = iP.inputShape.nInputs,
-      size = ((iP.inputShape.size - (slider.size - slider.stride)).toFloat / slider.stride).toInt,
-      sizePadded = {
+      size = size,
+      sizePadded = if (!iP.padData) size else {
         val sizePadded: Float = (iP.inputShape.sizePadded - (slider.size - slider.stride)).toFloat /
           slider.stride
         if (sizePadded % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
@@ -580,7 +590,7 @@ case class Conv4(override val liftFProp: Array[FunDecl],
       "\nkernelSliding = " + kernelSliding.toString + "," +
       f"\nelsPerThread = $elsPerThread%d, kernelsPerGroup = $kernelsPerGroup%d, vectorLen = $vectorLen%d," +
       f"\ncoalesce = $coalesce%b, unrollReduce = $unrollReduce%b," +
-      f"\nlocalSize = " + localSize.toString + ", globalSize = " + globalSize.toString + ")"
+      f"\nlocalSize = [" + localSize.mkString(", ") + "], globalSize = [" + globalSize.mkString(", ") + "])"
   
 //  val configToString: String =
 //    nn.conv.configToString(inputShape.sizePadded, outputShape.sizePadded, elsPerThread, outputShape.nChannels,

@@ -163,7 +163,10 @@ package object cnn {
   case class InputConfig(nBatches: Int,
                          nInputs: Int,
                          inputSize: Int,
-                         nChannels: Int)
+                         nChannels: Int) {
+  override def toString: String =
+    f"InputConfig(" +
+      f"\nnBatches = $nBatches%d, nInputs = $nInputs%d, inputSize = $inputSize%d, nChannels = $nChannels%d)"}
   
 
   object Experiment {
@@ -309,7 +312,8 @@ package object cnn {
     }
   }
 
-  def saveKernelToFile(experimentNo: Int, testConfigFilename: String, layer: Layer, openclKernel: String, 
+  def saveKernelToFile(experimentNo: Int, testConfigFilename: String, layer: Layer, layerName: String, 
+                       openclKernel: String, 
                        twoKernels: Boolean, localSize: Array[Int], globalSize: Array[Int], kernelPath: String): Unit = {
     val logger = Logger(this.getClass)
     
@@ -339,10 +343,12 @@ package object cnn {
         bw.write("//unroll_reduce=" + cL.unrollReduce + "\n")
         bw.write("//experiment_no=" + experimentNo + "\n")
         bw.write("//test_config=" + testConfigFilename + "\n")
+        bw.write("// Layer name: " + layerName + "\n")
+        bw.write("// Full configuration:\n//" + cL.toString.replace("\n", "\n//") + "\n")
       }
     }
     bw.write("//Generated on " + 
-      new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Calendar.getInstance().getTime) + "\n")
+      new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Calendar.getInstance().getTime) + "\n\n")
     // Insert offset handling
     val openclKernelWithOffsets = {
       if (!twoKernels)
@@ -480,6 +486,8 @@ package object cnn {
                               layerName: String,
                               layerNo: Int,
 
+                              // ExperimentParams must have either exactParams or dim not null
+                             
                               // Exact param combinations specified in prototxt files
                               exactParams: Option[ExperimentParams.Exact],
 
@@ -501,6 +509,27 @@ package object cnn {
                               (cnn.InputConfig, fc.Experiment.Config.Dimensions) => Vector[Int]],
                               neuronsPerWrgRange: Vector[
                               (cnn.InputConfig, fc.Experiment.Config.Dimensions) => Vector[Int]]) {
+    
+    def canEqual(a: Any) = a.isInstanceOf[ExperimentParams]
+    
+    override def equals(that: Any): Boolean = that match {
+      case that: ExperimentParams => that.canEqual(this) && this.hashCode == that.hashCode
+      case _ => false
+    }
+
+    override def hashCode: Int = {
+      val prime = 31
+      var result = 1
+      exactParams match {
+        case Some(p) =>
+          result = prime * result + p.inputConfig.hashCode
+          result = prime * result + p.convDimensions.hashCode
+          result = prime * result + p.fcDimensions.hashCode
+          result
+        case None => throw new NotImplementedError("ExperimentParams.hashCode() not implemented for ranges of " +
+          "parameters")
+      }
+    }
     
     def inputConfigs: Vector[cnn.InputConfig] = {
       exactParams match {
