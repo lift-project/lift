@@ -1,6 +1,6 @@
 package nn.cnn
 
-import nn.cnn
+import nn.{cnn, conv, fc}
 import opencl.executor.Executor
 import org.junit.{AfterClass, BeforeClass, Test}
 
@@ -61,17 +61,20 @@ class TestCNN_Conv {
       for (_ <- 0 until reruns) {
         for (protoFile <- protoFiles) {
           val configs = nn.caffe.proto.Config.configToExperimentParams(protoFile) // For debugging purposes
-          for (config <- configs) {
-            new TestCNN().Test(config, protoFile/*, {
-              val iC = InputConfig(nBatches = 1,
-                nInputs = 1,
-                inputSize = 226,
-                nChannels = 64)
-              val cD = conv.Experiment.Config.Dimensions(
-                nKernels = 64,
-                kernelSize = 3,
-                kernelStride = 1)
-              
+          println(configs.distinct.length + " layers to process")
+          for (config <- configs.distinct) {
+            new TestCNN().Test(config, protoFile, {
+              //              val iC = InputConfig(nBatches = 1,
+              //                nInputs = 1,
+              //                inputSize = 226,
+              //                nChannels = 64)
+              //              val cD = conv.Experiment.Config.Dimensions(
+              //                nKernels = 64,
+              //                kernelSize = 3,
+              //                kernelStride = 1)
+              val iC = configs.distinct.head.exactParams.get.inputConfig
+              val cD = configs.distinct.head.exactParams.get.convDimensions
+
               new Experiment(
                 layerNo = 1,
                 inputConfig = iC,
@@ -79,12 +82,12 @@ class TestCNN_Conv {
                   conv.Experiment.Config(
                     dim = cD,
                     optParams = conv.Experiment.Config.OptimisationalParams(
-                      inputTileSize = 102,
-                      elsPerThread = 249,
-                      kernelsPerGroup = 54,
-                      vectorLen = 4,
+                      inputTileSize = cD.kernelSize,
+                      elsPerThread = 7,
+                      kernelsPerGroup = 1,
+                      vectorLen = 1,
                       coalesce = false,
-                      unrollReduce = true
+                      unrollReduce = false
                     ))),
                 fcConfigs = Vector(new fc.Experiment.Config(
                   dim = fc.Experiment.Config.Dimensions(nNeurons = 1),
@@ -95,8 +98,8 @@ class TestCNN_Conv {
                 pathToInputs = cnn.Experiment.pathToInputs(iC, cD),
                 pathToParams = cnn.Experiment.pathToParams(iC, cD),
                 pathToTargets = cnn.Experiment.pathToTargets(iC, cD))
-            }*/
-            )
+            })
+            
           }
         }
       }
