@@ -2,6 +2,7 @@ package opencl.generator
 
 import ir.ArrayTypeWSWC
 import ir.ast._
+import ir.ast.debug.PrintTypeInConsole
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor, TestWithExecutor}
 import opencl.ir._
@@ -58,7 +59,7 @@ class TestPad {
     val bf = Pad.Boundary.Clamp
     val fct = fun(
       ArrayTypeWSWC(Float, SizeVar("N")),
-      (domain) => MapSeq(id) o Pad(1,1,bf) o MapSeq(id) o Pad(1,1,bf) $ domain
+      (domain) => PrintTypeInConsole() o MapSeq(id) o Pad(1,1,bf) o MapSeq(id) o Pad(1,1,bf) $ domain
     )
 
     val (output, _) = Execute(5,5)[Array[Float]](fct, input)

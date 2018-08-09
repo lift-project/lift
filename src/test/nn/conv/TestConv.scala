@@ -20,13 +20,13 @@ object TestConv {
     Executor.loadLibrary()
     println("Initialize the executor")
     Executor.init(/*monaco*/0, 0)
-    nn.conv.mysql.CreateTable()
+//    nn.conv.mysql.CreateTable()
   }
 
   @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
-    Connector.close()
+//    Connector.close()
   }
 }
 

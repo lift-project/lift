@@ -70,8 +70,9 @@ object OutputView {
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
-      case debug.PrintType(_) | debug.PrintComment(_) | debug.AssertType(_, _) | Get(_) | _: Tuple | Gather(_) | 
-           Filter() | Pad(_, _, _) =>
+      case debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
+           Get(_) | _: Tuple | Gather(_) |
+           Filter() | Pad(_, _, _) | PadConstant(_, _, _) | Id() =>
         writeView
       case dunno => throw new NotImplementedError(s"OutputView.scala: $dunno")
     }
@@ -255,7 +256,7 @@ object OutputView {
   }
 
   private def buildViewScan(scan: ScanSeq, call:FunCall, writeView:View) : View = {
-    visitAndBuildViews(scan.f.body, scan.f.params.head.view)
+    visitAndBuildViews(scan.f.body, scan.f.params.head.view /* unsure here */)
     ViewMap(scan.f.params(1).outputView, scan.loopVar, call.args(1).t)
   }
 

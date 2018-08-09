@@ -263,7 +263,7 @@ object Conv2 extends ConvCompanion {
                           MapSeq(MapSeq(toLocal(id))) $ kernels_seq_of_els
                         })) o Split(els_per_thread) o Join() $ kernels_row
                     })) $ kernels_tile
-                })) o debug.PrintType("After wrapping") o Split(kernel_sliding.size) o debug.PrintType("Before wrapping") o
+                })) o debug.PrintTypeInConsole("After wrapping") o Split(kernel_sliding.size) o debug.PrintTypeInConsole("Before wrapping") o
                 Transpose() $ kernels_tile_towrap
               })) o*/
             Split(kernelsPerGroup) o

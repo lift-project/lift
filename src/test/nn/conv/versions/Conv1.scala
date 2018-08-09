@@ -228,7 +228,7 @@ object Conv1 extends ConvCompanion {
                                 λ((kernel_row) => Split(seqElsPerThread) $
                                   Zip(
                                     /*ReorderStride(els_per_thread) $ */window_row,
-                                    /*ReorderStride(input_shape.nChannels) $ */ debug.PrintType("kernel_row") $ kernel_row))) o
+                                    /*ReorderStride(input_shape.nChannels) $ */ debug.PrintTypeInConsole("kernel_row") $ kernel_row))) o
                               /* (kernel_sliding.size, input_shape.nChannels, kernels_per_group) ->
                                * (kernels_per_group, kernel_sliding.size, input_shape.nChannels) */
                               Transpose() o Map(Transpose()) $ kernels_row
@@ -253,7 +253,7 @@ object Conv1 extends ConvCompanion {
     def SlideX(): FunDecl =
       λ(AT(AT(AT(AT(AT(Float, inputShape.sizePadded), inputShape.sizePadded), inputShape.nChannels),
         inputShape.nInputs), inputShape.nBatches), (X) =>
-        debug.PrintType("After SLIDE") o Map(Join() o Map(Transpose() o Map(Join() o
+        debug.PrintTypeInConsole("After SLIDE") o Map(Join() o Map(Transpose() o Map(Join() o
           TiledSlidedND(2)(sliding.size, sliding.stride, tiling.stride)))) $ X)
 
     /* Matches X and K based on input channels
@@ -308,7 +308,7 @@ object Conv1 extends ConvCompanion {
               (single_element) =>
                 // TODO: make sure mult doesn't save to global memory first
                 toPrivate(id) $ mult(Get(single_element, 0), Get(single_element, 1))
-            )) o debug.PrintType("tile_of_els") $ tile_of_els
+            )) o debug.PrintTypeInConsole("tile_of_els") $ tile_of_els
         })
 
     /* Reduces weighted pass window rows for each channel.

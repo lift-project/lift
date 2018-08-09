@@ -122,7 +122,7 @@ abstract class Expr extends IRNode {
    * @param f The function to apply to `this`.
    * @return `f.apply(this)`
    */
-  def :>>(f: FunDecl) = f.apply(this)
+  def :>>(f: FunDecl): Expr = f.apply(this)
 
   /**
    * (double reverse) Function application.
@@ -131,7 +131,7 @@ abstract class Expr extends IRNode {
    * @param f The function to apply to `this`.
    * @return `f.apply(this)`
    */
-  def <<:(f: FunDecl) = f.apply(this)
+  def <<:(f: FunDecl): Expr = f.apply(this)
 
   def at(i: ArithExpr): Expr = ArrayAccess(i) $ this
 
@@ -171,7 +171,7 @@ object Expr {
     post(expr)
   }
 
-  /**
+    /**
    * Returns an aggregated state computed by visiting the given expression
    * `expr` by recursively traversing it in a breadth-first manner
    * and calling the given `visitFun` on the visited sub expressions.

@@ -2,6 +2,7 @@ package rewriting.rules
 
 import ir._
 import ir.ast._
+import ir.ast.debug.PrintType
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
@@ -55,7 +56,7 @@ class TestFusion {
     val goldF = fun(
       ArrayTypeWSWC(Float, N),
       Float,
-      (input, a) => toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, newValue) => add(acc, add(newValue, a))), 0.0f) $ input
+      (input, a) => PrintType() o toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, newValue) => add(acc, add(newValue, a))), 0.0f) $ input
     )
 
     val f = fun(
@@ -79,7 +80,7 @@ class TestFusion {
   def ReduceSeqMapSeq(): Unit = {
     val goldF = fun(
       ArrayTypeWSWC(Float, N),
-      input => toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, newValue) => add(acc, plusOne(newValue))), 0.0f) $ input
+      input =>  toGlobal(MapSeq(id)) o ReduceSeq(fun((acc, newValue) => add(acc, plusOne(newValue))), 0.0f) $ input
     )
 
     val f = fun(
@@ -114,6 +115,7 @@ class TestFusion {
     val A = Array.tabulate(128)(i => i)
 
     val lambda = Rewrite.applyRuleUntilCannot(f, FusionRules.reduceSeqMapSeqFusion)
+
 
     val (gold, _) = Execute(1, 1)[Array[Float]](goldF, A)
 

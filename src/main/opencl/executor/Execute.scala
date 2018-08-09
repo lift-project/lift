@@ -761,19 +761,21 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
     globalSizes.foreach(size => {
       // ARM Mali GPU G71
-      val maxMemAllocSize = 776849408//Executor.getDeviceMaxMemAllocSize
+      val maxMemAllocSize = 776849408
+//      val maxMemAllocSize = Executor.getDeviceMaxMemAllocSize
       if (size > maxMemAllocSize)
         throw new DeviceCapabilityException(s"Buffer size required ($size) cannot be larger than $maxMemAllocSize")
     })
 
     // ARM Mali GPU G71
-//    val globalMemSize = Executor.getDeviceGlobalMemSize
     val globalMemSize = 3107397632L
+//    val globalMemSize = Executor.getDeviceGlobalMemSize
     if (totalSizeOfGlobal > globalMemSize)
       throw new DeviceCapabilityException(s"Global size required ($totalSizeOfGlobal) cannot be larger than $globalMemSize")
 
-//    val localMemSize = Executor.getDeviceLocalMemSize
+    // ARM Mali GPU G71
     val localMemSize = 32768
+//    val localMemSize = Executor.getDeviceLocalMemSize
     if (totalSizeOfLocal > localMemSize)
       throw new DeviceCapabilityException(s"Local size required ($totalSizeOfLocal) cannot be larger than $localMemSize")
   }

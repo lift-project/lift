@@ -550,7 +550,7 @@ class TestAcousticActualRoom {
           }),size,step)) o debug.PrintType() $ inp
 
           })
-        )) /*o debug.PrintType()*/ $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+        )) /*o debug.PrintTypeInConsole()*/ $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
       })
 
     val newLambda = SimplifyAndFuse(lambdaNeighMapSeqSlide)

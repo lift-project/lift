@@ -1,8 +1,10 @@
 package opencl.generator.stencil
 
 import ir.ArrayTypeWSWC
+import opencl.generator.NDRange
+import rewriting.SimplifyAndFuse
 import ir.ast.{Get, Slide, Zip, fun, _}
-import lift.arithmetic.SizeVar
+import lift.arithmetic.{?, SizeVar}
 import opencl.executor._
 import opencl.generator.stencil.acoustic.{BoundaryUtilities, RoomConstants, StencilUtilities}
 import opencl.ir._
@@ -10,7 +12,8 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
-import rewriting.SimplifyAndFuse
+
+import scala.collection.immutable
 
 object TestMapSeqSlide extends TestWithExecutor
 
@@ -669,7 +672,7 @@ class TestMapSeqSlide
               toGlobal(MapSeq(id)) o
                 ReduceSeqUnroll(\((acc, next) =>
                   multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() $ neighbours, weights)
-            }) /*o debug.PrintType()*/, a,b)) o  Transpose() o Map(Transpose()) $ x
+            }) /*o debug.PrintTypeInConsole()*/, a,b)) o  Transpose() o Map(Transpose()) $ x
         }))) o Slide2D(a,b)  $ input
     )
 
@@ -1136,6 +1139,7 @@ class TestMapSeqSlide
     */
   }
 
+  @Ignore
   @Test
   def stencil3DJacobiMapSeqSlideWithPad(): Unit = {
 
@@ -1294,7 +1298,7 @@ class TestMapSeqSlide
 
               //MapLcl(0)(MapLcl(1)( fun ( n => {
               MapSeqUnroll(MapSeqUnroll( fun ( n => {
-                //MapSeq(MapSeq(MapSeq(id))) o debug.PrintType() $ n
+                //MapSeq(MapSeq(MapSeq(id))) o debug.PrintTypeInConsole() $ n
 
                 val `tile[1][1][1]` = n.at(1).at(1).at(1)
 

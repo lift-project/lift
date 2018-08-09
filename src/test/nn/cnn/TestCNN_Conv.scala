@@ -54,6 +54,9 @@ class TestCNN_Conv {
   
   @Test
   def TestConv(): Unit = {
+    if (System.getenv("LIFT_CNN_CONFIG_PATH") == null)
+      return
+
     val protoFiles = Seq(
 //      System.getenv("LIFT_CNN_CONFIG_PATH") + "/" + "VGG_ILSVRC_19_layers_deploy_1.prototxt")
       System.getenv("LIFT_CNN_CONFIG_PATH") + "/" + "/ResNet-101-deploy-1.prototxt")

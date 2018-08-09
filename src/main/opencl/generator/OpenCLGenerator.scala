@@ -33,7 +33,7 @@ object OpenCLGenerator extends Generator {
     (new OpenCLGenerator).generate(f, localSize, globalSize, valueMap)
   }
 
-  def PrintTypes(expr: Expr): Unit = {
+  def printTypes(expr: Expr): Unit = {
     Expr.visit(expr, {
       case e@(call: FunCall) => println(e + "\n    " +
         e.t + " <- " + call.argsType + "\n")
@@ -41,7 +41,7 @@ object OpenCLGenerator extends Generator {
     }, (_: Expr) => {})
   }
 
-  def PrintTypes(lambda: Lambda): Unit = PrintTypes(lambda.body)
+  def printTypes(lambda: Lambda): Unit = printTypes(lambda.body)
 
   /**
     * Get memory objects allocated for given Lambda
@@ -195,7 +195,7 @@ class OpenCLGenerator extends Generator {
     if (Verbose()) {
 
       println("Types:")
-      OpenCLGenerator.PrintTypes(f.body)
+      OpenCLGenerator.printTypes(f.body)
 
       println("Memory:")
       printMemories(f.body)
@@ -490,16 +490,14 @@ class OpenCLGenerator extends Generator {
         case vec: VectorizeUserFun => generateUserFunCall(vec.vectorizedFunction, call, block)
         case u: UserFun            => generateUserFunCall(u, call, block)
 
-        case dpv @ debug.PrintView(msg, _) => debugPrintView(dpv, call, msg, block)
-        case fp: FPattern => generate(fp.f.body, block)
-        case l: Lambda => generate(l.body, block)
-        case ua: UnsafeArrayAccess => generateUnsafeArrayAccess(ua, call, block)
-        case ca: CheckedArrayAccess => generateCheckedArrayAccess(ca, call, block)
-        case debug.PrintComment(msg) => debugPrintComment(msg, block)
+        case fp: FPattern                 => generate(fp.f.body, block)
+        case l: Lambda                    => generate(l.body, block)
+        case ua: UnsafeArrayAccess        => generateUnsafeArrayAccess(ua, call, block)
+        case ca: CheckedArrayAccess       => generateCheckedArrayAccess(ca, call, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) |
-             ArrayAccess(_) | debug.PrintType(_) | debug.AssertType(_, _) =>
+             ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) =>
         case _ => (block: MutableBlock) += Comment("__" + call.toString + "__")
       }
       case v: Value             => generateValue(v, block)
@@ -1706,17 +1704,14 @@ class OpenCLGenerator extends Generator {
               if Type.getValueType(at) == vt.scalarT
                 && (mem.addressSpace == GlobalMemory || mem.addressSpace == LocalMemory) =>
 
-              val offset = ViewPrinter.emit(view, replacementsWithFuns, mem.addressSpace) match {
-                case VarRef(_, _, idx) => ArithExpression(idx.get.content / vt
-                  .len)
+              val (offset, shift) = ViewPrinter.emit(view, replacementsWithFuns, mem.addressSpace) match {
+                case VarRef(_, _, idx) =>
+                  (ArithExpression(idx.get.content / vt.len), ArithExpression(idx.get.content % vt.len))
                 case x                 => throw new MatchError(s"Expected a VarRef but got $x.")
               }
 
-              OclLoad(VarRef(mem.variable), vt, offset, mem.addressSpace)
+              OclLoad(VarRef(mem.variable), vt, offset, shift, mem.addressSpace)
 
-            // originally an array of scalar values in private memory,
-            // but now a vector type
-            //  => emit (float2)(f1, f2) primitive
             case (at: ArrayType, vt: VectorType)
               if Type.getValueType(at) == vt.scalarT && (mem.addressSpace == PrivateMemory) =>
 
