@@ -9,7 +9,7 @@ layer {
   }
   data_param {
     source: "examples/imagenet/ilsvrc12_val_lmdb_100"
-    batch_size: 5
+    batch_size: 1
     backend: LMDB
   }
 }

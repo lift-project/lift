@@ -8,7 +8,7 @@ layers {
     crop_size: 224
   }
   data_param {
-    source: "/data/local/ilsvrc12_val_lmdb_100"
+    source: "examples/imagenet/ilsvrc12_val_lmdb_100"
     batch_size: 1
     backend: LMDB
   }
