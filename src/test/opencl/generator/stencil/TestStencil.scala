@@ -3,6 +3,7 @@ package opencl.generator.stencil
 import ir._
 import ir.ast.Pad.BoundaryFun
 import ir.ast._
+import ir.ast.debug.PrintType
 import lift.arithmetic.{SizeVar, StartFromRange, Var}
 import opencl.executor._
 import opencl.ir._

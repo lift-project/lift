@@ -383,7 +383,7 @@ class TestAcousticActualRoom {
                 toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
                 toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
 
-        })))) o PrintType() $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+        })))) o debug.PrintType() $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
       })
 
     val newLambda = SimplifyAndFuse(lambdaNeighAt)
@@ -472,7 +472,7 @@ class TestAcousticActualRoom {
 
 
             }),size,step)) /*o Transpose() o Map(Transpose()) */ $ inp
-          }))) o PrintType() $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+          }))) o debug.PrintType() $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
       })
 
 
@@ -547,10 +547,10 @@ class TestAcousticActualRoom {
 
               toGlobal(id) $ `tile[1][1][1]`
 
-          }),size,step)) o PrintType() $ inp
+          }),size,step)) o debug.PrintType() $ inp
 
           })
-        )) /*o PrintType()*/ $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+        )) /*o debug.PrintType()*/ $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
       })
 
     val newLambda = SimplifyAndFuse(lambdaNeighMapSeqSlide)
