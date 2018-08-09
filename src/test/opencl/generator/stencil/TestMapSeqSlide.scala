@@ -1,8 +1,11 @@
 package opencl.generator.stencil
 
 import ir.ArrayTypeWSWC
+import ir.ast.debug.PrintType
+import opencl.generator.NDRange
+import rewriting.SimplifyAndFuse
 import ir.ast.{Get, Slide, Zip, fun, _}
-import lift.arithmetic.SizeVar
+import lift.arithmetic.{?, SizeVar}
 import opencl.executor._
 import opencl.generator.stencil.acoustic.{BoundaryUtilities, RoomConstants, StencilUtilities}
 import opencl.ir._
@@ -10,7 +13,8 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
-import rewriting.SimplifyAndFuse
+
+import scala.collection.immutable
 
 object TestMapSeqSlide extends TestWithExecutor
 
@@ -759,7 +763,7 @@ class TestMapSeqSlide
 
           }),a,b))  } o Transpose() o Map(Transpose()) $ x
 
-        ))) o debug.PrintType() /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide2D(a,b) $ mat)
+        ))) o PrintType() /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide2D(a,b) $ mat)
 
     def jacobi3DMapSeq(a : Int, b : Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
@@ -787,7 +791,7 @@ class TestMapSeqSlide
               toGlobal(id) $ stencil
 
             }))
-          ))) o debug.PrintType() o Slide3D(a,b) $ mat)
+          ))) o PrintType() o Slide3D(a,b) $ mat)
 
 
     val orgLambda = SimplifyAndFuse(jacobi3D(slidesize,slidestep))
@@ -955,7 +959,7 @@ class TestMapSeqSlide
 
             }),a,b))  } o Map(fun(m => Tuple(m.at(1),m.at(3),m.at(4),m.at(5),m.at(7))) o Join())   o Transpose() o Map(Transpose()) $ x
 
-          ))) o debug.PrintType() /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide2D(a,b) o Map(Transpose()) o Transpose() o Map(Transpose()) $ mat)
+          ))) o PrintType() /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */ o Slide2D(a,b) o Map(Transpose()) o Transpose() o Map(Transpose()) $ mat)
 
 
     val orgLambda = SimplifyAndFuse(jacobi3D(slidesize,slidestep))
@@ -1319,7 +1323,7 @@ class TestMapSeqSlide
               }))) o Map(Transpose()) o Transpose() o Map(Slide2D(a,b)) $ m
 
 
-            }),3,1)) o debug.PrintType()   } o Transpose() o Map(Transpose()) $ x
+            }),3,1)) o PrintType()   } o Transpose() o Map(Transpose()) $ x
 
           ))) /* o Map(Map(Transpose())) o Map(Map(Map(Transpose()))) */  o Slide2D(4,2) /*o Map(Transpose())*/ o Transpose() o Map(Transpose()) $ mat)
 
@@ -1357,7 +1361,7 @@ class TestMapSeqSlide
       (mat1, mat2) =>
         MapGlb(0)(fun(m => {
           toGlobal( tf_id )$ m.at(1)
-        })) o Slide(slidesize,slidestep) o debug.PrintType() $ Zip(mat1, mat2))
+        })) o Slide(slidesize,slidestep) o PrintType() $ Zip(mat1, mat2))
 
 
     val lambda1D = fun(
@@ -1368,7 +1372,7 @@ class TestMapSeqSlide
           toGlobal( tf_id ) $ m.at(1)
         }),slidesize,slidestep))}
 
-        o debug.PrintType() /*o Transpose() o Map(Transpose()) o*/$ Zip(mat1, mat2) /*Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)*/
+        o PrintType() /*o Transpose() o Map(Transpose()) o*/$ Zip(mat1, mat2) /*Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)*/
     )
 
     val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda1DOriginal,values,values2)
@@ -1409,7 +1413,7 @@ class TestMapSeqSlide
           toGlobal(addTuple) $ m.at(1)
         }),slidesize,slidestep))}
 
-        o debug.PrintType() $ Zip(mat1, mat2)
+        o PrintType() $ Zip(mat1, mat2)
     )
 
     val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original1DStencil(slidesize,slidestep),values,values2)
@@ -1467,7 +1471,7 @@ class TestMapSeqSlide
 
         }),slidesize,slidestep))}
 
-        o debug.PrintType() $ Zip(mat1, mat2)
+        o PrintType() $ Zip(mat1, mat2)
     )
 
     val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original1DStencil(slidesize,slidestep),values,values2)
@@ -1540,7 +1544,7 @@ class TestMapSeqSlide
             toGlobal(id) $ stencilP
 
           }),slidesize,slidestep)) o Transpose()  $ x
-        })) o debug.PrintType() o Slide(slidesize,slidestep) $ Zip2D(mat1, mat2)
+        })) o PrintType() o Slide(slidesize,slidestep) $ Zip2D(mat1, mat2)
     )
 
     val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original2DStencil(slidesize,slidestep),values,values2)
@@ -1623,7 +1627,7 @@ class TestMapSeqSlide
             toGlobal(id) $ stencil
 
           }),slidesize,slidestep)) o Transpose() o Map(Transpose()) } $ x )))
-          o debug.PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(mat1, mat2)
+          o PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(mat1, mat2)
     )
 
     //println(Compile(original3DStencil(slidesize,slidestep)))
@@ -1744,7 +1748,7 @@ class TestMapSeqSlide
                   toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
 
           }),slidesize,slidestep)) o Transpose() o Map(Transpose()) } $ x )))
-          o debug.PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(mat1, mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
+          o PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(mat1, mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
     )
 
     /*

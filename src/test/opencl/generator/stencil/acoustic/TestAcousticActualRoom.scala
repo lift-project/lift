@@ -2,6 +2,7 @@ package opencl.generator.stencil.acoustic
 
 import ir.ArrayTypeWSWC
 import ir.ast._
+import ir.ast.debug.PrintType
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
@@ -383,7 +384,7 @@ class TestAcousticActualRoom {
                 toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
                 toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
 
-        })))) o debug.PrintType() $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+        })))) o PrintType() $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
       })
 
     val newLambda = SimplifyAndFuse(lambdaNeighAt)
@@ -472,7 +473,7 @@ class TestAcousticActualRoom {
 
 
             }),size,step)) /*o Transpose() o Map(Transpose()) */ $ inp
-          }))) o debug.PrintType() $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+          }))) o PrintType() $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
       })
 
 
@@ -547,7 +548,7 @@ class TestAcousticActualRoom {
 
               toGlobal(id) $ `tile[1][1][1]`
 
-          }),size,step)) o debug.PrintType() $ inp
+          }),size,step)) o PrintType() $ inp
 
           })
         )) /*o debug.PrintType()*/ $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))

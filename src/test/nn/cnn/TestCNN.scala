@@ -1,3 +1,10 @@
+/*
+ * Some code lines here are disabled since they depend on the code that is only available in the "nn" branch and in a
+ * private fork of Lift.
+ * Disabled functionality mainly refers to testing and exploring the search space of optimisational parameters.
+ * Actual expressions for neural layers and associated initialization logic is still functional.
+ * For full functionality and code examples, contact Naums Mogers (naums.mogers@ed.ac.uk).
+ */
 package nn.cnn
 
 import java.io._
