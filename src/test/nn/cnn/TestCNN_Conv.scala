@@ -17,17 +17,17 @@ import org.junit.{AfterClass, BeforeClass, Test}
 
 object TestCNN_Conv {
   @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init(/*avus*/1, 1)
+//    Executor.loadLibrary()
+//    println("Initialize the executor")
+//    Executor.init(/*avus*/1, 1)
 //    Executor.init(/*artemisa*/0, 0)
     // TODO: reenable MySQL
 //    nn.cnn.mysql.CreateTable()
   }
 
   @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
+//    println("Shutdown the executor")
+//    Executor.shutdown()
 //    Connector.close()
   }
 
@@ -59,7 +59,7 @@ class TestCNN_Conv {
       }
   }
   
-  @Test
+  //@Test
   def TestConv(): Unit = {
     // This function is disabled as the Caffe package that is required for parsing the NN specifications currently only
     // resides in the "nn" branch.
