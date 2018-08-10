@@ -18,27 +18,34 @@ import nn.fc.{FC, FCDatasets}
 //import nn.mysql.Connector
 //import nn.poolScala.ScalaPool
 import opencl.executor.{Execute, Executor}
-import org.junit.{AfterClass, BeforeClass}
+import org.junit.{AfterClass, BeforeClass, Ignore}
 
 import scala.util.control.Breaks._
 
 /**
-  * Created by s1569687 on 01/03/17.
+  * TestCNN().test() is the main function for testing CNNs. It needs to be given experimental parameters
+  * to test, so a wrapper is needed. Since TestCNN() is meant to be generic for all CNN-related tests,
+  * testing of one-convolutional-layer network is driven by TestCNN_Conv().TestConv()
   */
+@Ignore
 object TestCNN {
   @BeforeClass def before(): Unit = {
-//    Executor.loadLibrary()
-    //    println("Initialize the executor"
+    Executor.loadLibrary()
+    println("Initialize the executor")
+    Executor.init()
+//     MySQL is disabled in this version
 //    nn.cnn.mysql.CreateTable()
   }
 
   @AfterClass def after(): Unit = {
-//    println("Shutdown the executor")
-//    Executor.shutdown()
+    println("Shutdown the executor")
+    Executor.shutdown()
+    // MySQL is disabled in this version
 //    Connector.close()
   }
 }
 
+@Ignore
 class TestCNN {
   private val logger = Logger(this.getClass)
 
@@ -50,39 +57,7 @@ class TestCNN {
   val Conv = conv.versions.Conv4
   type Conv = conv.versions.Conv4
 
-  //@Test
-  def TestFC(): Unit = {
-    for (_ <- 0 to reruns)
-      Test(
-        cnn.getConfigFromJSON("/home/s1569687/lift/src/test/nn/cnn/cnn_experiments.json"))
-    //        ExperimentsSet(nKernelsL1Range = Vector(2),
-    //        kernelSizeRange = Vector(2),
-    //        inputTileSizeRange = (kernelSize, _) => Vector(kernelSize),
-    //        elsPerThreadL1Range = _ => Vector(1),
-    //        kernelsPerGroupL1Range = _ => Vector(1),
-    //        multsPerThreadRange = imageSize => Vector(1) ++ (2 to imageSize * imageSize by 2),
-    //        //multsPerThreadRange = imageSize => Vector(16),
-    //        neuronsPerWrgRange = fcSize => Vector(1) ++ (2 to fcSize by 2), nKernelsL0 = 2,
-    //        imageSizeRange = Vector(8, 16, 32, 64, 128/*, 256, 512*/),
-    //        neuronsL1Range = Vector(16, 32, 64, 128, 256, 512),
-    //        kernelsPerGroupL0 = 2,
-    //        nInputsRange = Vector(8, 16, 32, 64, 128/*, 256, 512, 1024, 2048, 2048*/)))
-
-    //        continueFrom = cnn.Experiment(
-    //          nKernelsL1= 2,
-    //          kernelSize= 2,
-    //          inputTileSize= 2,
-    //          elsPerThreadL1= 1,
-    //          kernelsPerGroupL1= 1,
-    //          multsPerThread= 38,
-    //          neuronsPerWrg= 10,
-    //          imageSize= 8,
-    //          neuronsL1= 512,
-    //          nInputs = 64))
-  }
-
-
-  def Test(param: cnn.ExperimentParams,
+  def test(param: cnn.ExperimentParams,
            testConfigFilename: String = "",
            continueFrom: Experiment = null,
            abortAfter: Option[Int] = None): Unit = {
@@ -125,6 +100,8 @@ class TestCNN {
       pP: String = pathToParams(inputConfig, convDimensions.head)
       pT: String = pathToTargets(inputConfig, convDimensions.head)
       inputTileSize <- param.inputTileSizeRange.head(inputConfig, convDimensions.head)
+      // Here and below layer 1-related parameters are commented out. This needs to be generalized
+      // better for multilayer CNNs
       //      _inputTileSizeL1 <- e.inputTileSizeRange(1)(inputConfig, convDimensions(1))
       elsPerThread <- param.elsPerThreadRange.head(inputConfig, convDimensions.head)
       //      _elsPerThreadL1 <- e.elsPerThreadRange(1)(inputConfig, convDimensions(1))
@@ -153,7 +130,6 @@ class TestCNN {
         fcDimensions.head, fc.Experiment.Config.OptimisationalParams(
           multsPerThread = _multsPerThreadL0, neuronsPerWrg = _neuronsPerWrgL0)))
       // Optimisational parameters are traversed with cnn.Experiment
-      //        exp <- cnn.Experiment(layerExperimentParams, inputConfig, convDimensions.head, fcDimensions.head)
       exp = new Experiment(param.layerNo, inputConfig, convConfig, fcConfig, pI, pP, pT)
       //f"Creating experiments for layer ${layerExperimentParams.layerName}%s")
 
@@ -217,7 +193,7 @@ class TestCNN {
           val layer: Layer = aCNN.layers(layerNo)
           val layerData: NetDatasets = data.perLayer(layerNo)
           breakable {
-            // Pooling
+            // Pooling is disabled as work in progress
 //            layer match {
 //              case poolLayer: ScalaPool =>
 //                poolLayer.run()
@@ -246,16 +222,16 @@ class TestCNN {
                 /* Two-kernel convolution */
 
                 // Kernel 1
+                // Disabling returning the OpenCL kernel as String as it depended on a temporary
+                // hack of the Executor that allowed to get the kernel and run it without recompiling.
+                // This hack is disabled in this version.
 //                val ((_outputsFlat1: Array[Float], _runtime1), openclKernel1) =
                 val (_outputsFlat1: Array[Float], _runtime1) =
                   Execute(
                     layer.localSize(0), layer.localSize(1), layer.localSize(2),
-                    //                    2, 1, 128, 
                     layer.globalSize(0), layer.globalSize(1), layer.globalSize(2),
-                    //                    8, 11760, 128,
                     (true, true))[Array[Float]](
                     layer.liftFProp(0), compileOnly,
-                    //                    Array.fill(512)(Array.fill(3)(Array.fill(3)(Array.fill[Float](256)(0.0f)))),
                     layerData match {
                       case cd: ConvDatasets => {
                         if (changeDataLayout)
@@ -268,7 +244,6 @@ class TestCNN {
                       }
                       case fd: FCDatasets => fd.weights.padded
                     },
-                    //                      Array.fill(1)(Array.fill(15)(Array.fill(30)(Array.fill(30)(Array.fill[Float](256)(0.0f))))))
                     layerData match {
                       case cd: ConvDatasets => {
                         if (changeDataLayout)
@@ -298,6 +273,9 @@ class TestCNN {
                 }
 
                 // Kernel 2
+                // Disabling returning the OpenCL kernel as String as it depended on a temporary
+                // hack of the Executor that allowed to get the kernel and run it without recompiling.
+                // This hack is disabled in this version.
 //                val ((_outputsFlat2: Array[Float], runtime2), openclKernel2) =
                 val (_outputsFlat2: Array[Float], runtime2) =
                   Execute(
@@ -314,19 +292,19 @@ class TestCNN {
                 runtime = runtime1 + runtime2
 
                 // Disabling temporarily since getting the generated OpenCL kernel as a String and running it
-                // without recompilation needs to be implemented above
-//                saveKernelToFile(experimentNo, testConfigFilename, layer, param.layerName, openclKernel1,
-//                  twoKernels = true,
-//                  localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
-//                  globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),
-//                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" + param.netName + "/" +
-//                    param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_first.cl")
-//                saveKernelToFile(experimentNo, testConfigFilename, layer, param.layerName, openclKernel2,
-//                  twoKernels = true,
-//                  localSize = Array(layer.localSize(3), layer.localSize(4), 1),
-//                  globalSize = Array(layer.globalSize(3), layer.globalSize(4), 1),
-//                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" + param.netName + "/" +
-//                    param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_final.cl")
+                // without recompilation needs to be reimplemented above
+                /*saveKernelToFile(experimentNo, testConfigFilename, layer, param.layerName, openclKernel1,
+                  twoKernels = true,
+                  localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
+                  globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),
+                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" + param.netName + "/" +
+                    param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_first.cl")
+                saveKernelToFile(experimentNo, testConfigFilename, layer, param.layerName, openclKernel2,
+                  twoKernels = true,
+                  localSize = Array(layer.localSize(3), layer.localSize(4), 1),
+                  globalSize = Array(layer.globalSize(3), layer.globalSize(4), 1),
+                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" + param.netName + "/" +
+                    param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_final.cl")*/
 
               case _ =>
                 /* One-kernel layer */
@@ -353,13 +331,13 @@ class TestCNN {
                       }
                       case fd: FCDatasets => fd.inputs.padded
                     })
-                // Disabling temporarily (see a comment above)
-//                saveKernelToFile(experimentNo, testConfigFilename, layer, param.layerName, openclKernel,
-//                  twoKernels = false,
-//                  localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
-//                  globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),
-//                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
-//                    param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + ".cl")
+                // Disabling temporarily (see the comment above)
+                /*saveKernelToFile(experimentNo, testConfigFilename, layer, param.layerName, openclKernel,
+                  twoKernels = false,
+                  localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
+                  globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),
+                  kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" +
+                    param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + ".cl")*/
             }
 
             layer.runtime = runtime
@@ -381,6 +359,7 @@ class TestCNN {
                     // (h, w, n_channels) -> (h * w * n_channels)
                     input => input.map(row => row.flatten).flatten
                   ))
+                // Disabling pooling temporarily as work in progress
 //              case (_: Conv, poolLayer: ScalaPool) =>
 //                poolLayer.inputs = layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
 //              case (poolLayer: ScalaPool, _: FC) =>
@@ -414,11 +393,7 @@ class TestCNN {
           var testVerified: Boolean = true
 
 
-          //        val a = data.layers(0).asInstanceOf[ConvDatasets].outputs.nonPadded
-          //        val b = data.layers(0).asInstanceOf[ConvDatasets].targets
           verifyOutputs(
-            //          netOutputs = data.layers.last.asInstanceOf[FCDatasets].outputs.nonPadded,
-            //          targetOutputs = data.layers.last.asInstanceOf[FCDatasets].targets,
             netOutputs = data.perLayer(0).asInstanceOf[ConvDatasets].outputs.nonPadded,
             targetOutputs = data.perLayer(0).asInstanceOf[ConvDatasets].targets,
             precision) match {
@@ -474,33 +449,32 @@ class TestCNN {
   }
 
   def recordFailureInSQL(exceptionMsg: String, aCNN: CNN, iP: Layer.InitParameters, runDate: Date): Unit = {
-    // TODO: Reenable SQL
-    return
-//    Connector.statement.execute("INSERT INTO lift_results_cnn " +
-//      "(device_name, n_batches, n_inputs, image_size, " + {
-//      iP match {
-//        case _: Conv.InitParameters =>
-//          f"n_kernels_l${iP.layerNo}%d, kernel_size_l${iP.layerNo}%d, kernel_stride_l${iP.layerNo}%d, " +
-//            f"input_tile_size_l${iP.layerNo}%d, " +
-//            f"els_per_thread_l${iP.layerNo}%d, kernels_per_group_l${iP.layerNo}%d, "
-//        case _: FC.InitParameters =>
-//          f"input_len_l${iP.layerNo}%d_nonpadded, n_neurons_l${iP.layerNo}%d_nonpadded, " +
-//            f"mults_per_thread_l${iP.layerNo}%d, neurons_per_wrg_l${iP.layerNo}%d, "
-//      }
-//    } + "ran, abort_reason, code_version, datetime) VALUES (" +
-//      "'" + nn.deviceName + "', " + f"${aCNN.inputConfig.nBatches}%d, ${aCNN.inputConfig.nInputs}%d, " +
-//      f"${aCNN.inputConfig.inputSize}%d, " + {
-//      iP match {
-//        case cIP: Conv.InitParameters =>
-//          f"${cIP.dim.nKernels}%d, ${cIP.dim.kernelSize}%d, ${cIP.dim.kernelStride}%d, " +
-//            f"${cIP.optParams.inputTileSize}%d, ${cIP.optParams.elsPerThread}%d, " +
-//            f"${cIP.optParams.kernelsPerGroup}%d, "
-//        case fcIP: FC.InitParameters =>
-//          f"${fcIP.inputShape.size}%d, ${fcIP.neuronShape.size}%d, " +
-//            f"${fcIP.optParams.multsPerThread}%d, ${fcIP.optParams.neuronsPerWrg}%d, "
-//      }
-//    } + f"false, '" + exceptionMsg + f"', $codeVersion%d, " +
-//      f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s');")
+    // MySQL is disabled in this version
+    /*Connector.statement.execute("INSERT INTO lift_results_cnn " +
+      "(device_name, n_batches, n_inputs, image_size, " + {
+      iP match {
+        case _: Conv.InitParameters =>
+          f"n_kernels_l${iP.layerNo}%d, kernel_size_l${iP.layerNo}%d, kernel_stride_l${iP.layerNo}%d, " +
+            f"input_tile_size_l${iP.layerNo}%d, " +
+            f"els_per_thread_l${iP.layerNo}%d, kernels_per_group_l${iP.layerNo}%d, "
+        case _: FC.InitParameters =>
+          f"input_len_l${iP.layerNo}%d_nonpadded, n_neurons_l${iP.layerNo}%d_nonpadded, " +
+            f"mults_per_thread_l${iP.layerNo}%d, neurons_per_wrg_l${iP.layerNo}%d, "
+      }
+    } + "ran, abort_reason, code_version, datetime) VALUES (" +
+      "'" + nn.deviceName + "', " + f"${aCNN.inputConfig.nBatches}%d, ${aCNN.inputConfig.nInputs}%d, " +
+      f"${aCNN.inputConfig.inputSize}%d, " + {
+      iP match {
+        case cIP: Conv.InitParameters =>
+          f"${cIP.dim.nKernels}%d, ${cIP.dim.kernelSize}%d, ${cIP.dim.kernelStride}%d, " +
+            f"${cIP.optParams.inputTileSize}%d, ${cIP.optParams.elsPerThread}%d, " +
+            f"${cIP.optParams.kernelsPerGroup}%d, "
+        case fcIP: FC.InitParameters =>
+          f"${fcIP.inputShape.size}%d, ${fcIP.neuronShape.size}%d, " +
+            f"${fcIP.optParams.multsPerThread}%d, ${fcIP.optParams.neuronsPerWrg}%d, "
+      }
+    } + f"false, '" + exceptionMsg + f"', $codeVersion%d, " +
+      f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s');")*/
   }
 
   def recordFailureInSQL(exceptionMsg: String, aCNN: CNN, runDate: Date): Unit =
@@ -508,68 +482,67 @@ class TestCNN {
 
   def recordInSQL(aCNN: CNN, testRan: Boolean, testFailed: Boolean = false, testVerified: Boolean, runDate: Date,
                   exceptionMsg: String = ""): Unit = {
-    // TODO: Reenable SQL
-//    val cmd = "INSERT INTO lift_results_cnn " +
-//      "(device_name, n_batches, n_inputs, image_size, n_conv_layers, n_fc_layers, " + {
-//      for (layerNo <- aCNN.convLayers.indices)
-//        yield f"n_kernels_l$layerNo%d, kernel_size_l$layerNo%d, kernel_stride_l$layerNo%d, " +
-//          f"input_tile_size_l$layerNo%d, input_tile_stride_l$layerNo%d, " +
-//          f"els_per_thread_l$layerNo%d, kernels_per_group_l$layerNo%d"
-//    }.mkString(", ") + ", " + {
-//      for (layerNo <- aCNN.fcLayers.indices.map(i => i + aCNN.convLayers.length))
-//        yield f"input_len_l$layerNo%d_nonpadded, input_len_l$layerNo%d_padded, " +
-//          f"n_neurons_l$layerNo%d_nonpadded, n_neurons_l$layerNo%d_padded, " +
-//          f"mults_per_thread_l$layerNo%d, neurons_per_wrg_l$layerNo%d"
-//    }.mkString(", ") + ", " + {
-//      for (layerNo <- 0 until aCNN.nLayers - aCNN.nPoolLayers)
-//        yield f"runtime_l$layerNo%d"
-//    }.mkString(", ") +
-//      ", ran, verified, success, abort_reason, code_version, datetime, pool_size, l1_out_len_original, " +
-//      "l1_out_len_new) VALUES (" +
-//      "'" + nn.deviceName + "', " + f"${aCNN.inputConfig.nBatches}%d, ${aCNN.inputConfig.nInputs}%d, " +
-//      f"${aCNN.inputConfig.inputSize}%d, " + f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d, " + {
-//      for (layerNo <- aCNN.convLayers.indices) yield {
-//        val c: Conv = aCNN.layers(layerNo).asInstanceOf[Conv]
-//        f"${c.outputShape.nChannels}%d, ${c.kernelSliding.size}%d, ${c.kernelSliding.stride}%d, " +
-//          f"${c.inputTiling.size}%d, ${c.inputTiling.stride}%d, " +
-//          f"${c.elsPerThread}%d, ${c.kernelsPerGroup}%d"
-//      }
-//    }.mkString(", ") + ", " + {
-//      for (layerNo <- aCNN.fcLayers.indices) yield {
-//        val f: FC = aCNN.fcLayers(layerNo)
-//        f"${f.inputShape.size}%d, ${f.inputShape.sizePadded}%d, " +
-//          f"${f.neuronShape.size}%d, ${f.neuronShape.sizePadded}%d, " +
-//          f"${f.multsPerThread}%d, ${f.neuronsPerWrg}%d"
-//      }
-//    }.mkString(", ") + ", " + {
-//      for (layerNo <- 0 until aCNN.nLayers)
-//        yield {
-//          aCNN.layers(layerNo) match {
-//            case pl: ScalaPool => ""
-//            case _ => f"${aCNN.layers(layerNo).runtime}%1.5f, "
-//          }
-//        }
-//    }.mkString("") + f" $testRan%b, $testVerified%b, ${!testFailed}%b, '" + exceptionMsg.replaceAll("'", "''") + f"', $codeVersion%d, " +
-//      f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s'," +
-//      f"${
-//        if (aCNN.nPoolLayers > 0)
-//          aCNN.layers(2).asInstanceOf[ScalaPool].poolSize
-//        else
-//          0
-//      }%d, ${
-//        if (aCNN.nPoolLayers > 0)
-//          aCNN.layers(2).asInstanceOf[ScalaPool].mlpInputlenL2NonVerified
-//        else
-//          0
-//      }%d, ${
-//        if (aCNN.nPoolLayers > 0)
-//          aCNN.layers(2).asInstanceOf[ScalaPool].mlpInputlenL2
-//        else
-//          0
-//      }%d);"
-//    println(cmd)
-    // TODO: to reenable
-    //    Connector.statement.execute(cmd)
+    // MySQL is disabled in this version
+    /*val cmd = "INSERT INTO lift_results_cnn " +
+      "(device_name, n_batches, n_inputs, image_size, n_conv_layers, n_fc_layers, " + {
+      for (layerNo <- aCNN.convLayers.indices)
+        yield f"n_kernels_l$layerNo%d, kernel_size_l$layerNo%d, kernel_stride_l$layerNo%d, " +
+          f"input_tile_size_l$layerNo%d, input_tile_stride_l$layerNo%d, " +
+          f"els_per_thread_l$layerNo%d, kernels_per_group_l$layerNo%d"
+    }.mkString(", ") + ", " + {
+      for (layerNo <- aCNN.fcLayers.indices.map(i => i + aCNN.convLayers.length))
+        yield f"input_len_l$layerNo%d_nonpadded, input_len_l$layerNo%d_padded, " +
+          f"n_neurons_l$layerNo%d_nonpadded, n_neurons_l$layerNo%d_padded, " +
+          f"mults_per_thread_l$layerNo%d, neurons_per_wrg_l$layerNo%d"
+    }.mkString(", ") + ", " + {
+      for (layerNo <- 0 until aCNN.nLayers - aCNN.nPoolLayers)
+        yield f"runtime_l$layerNo%d"
+    }.mkString(", ") +
+      ", ran, verified, success, abort_reason, code_version, datetime, pool_size, l1_out_len_original, " +
+      "l1_out_len_new) VALUES (" +
+      "'" + nn.deviceName + "', " + f"${aCNN.inputConfig.nBatches}%d, ${aCNN.inputConfig.nInputs}%d, " +
+      f"${aCNN.inputConfig.inputSize}%d, " + f"${aCNN.nConvLayers}%d, ${aCNN.nFCLayers}%d, " + {
+      for (layerNo <- aCNN.convLayers.indices) yield {
+        val c: Conv = aCNN.layers(layerNo).asInstanceOf[Conv]
+        f"${c.outputShape.nChannels}%d, ${c.kernelSliding.size}%d, ${c.kernelSliding.stride}%d, " +
+          f"${c.inputTiling.size}%d, ${c.inputTiling.stride}%d, " +
+          f"${c.elsPerThread}%d, ${c.kernelsPerGroup}%d"
+      }
+    }.mkString(", ") + ", " + {
+      for (layerNo <- aCNN.fcLayers.indices) yield {
+        val f: FC = aCNN.fcLayers(layerNo)
+        f"${f.inputShape.size}%d, ${f.inputShape.sizePadded}%d, " +
+          f"${f.neuronShape.size}%d, ${f.neuronShape.sizePadded}%d, " +
+          f"${f.multsPerThread}%d, ${f.neuronsPerWrg}%d"
+      }
+    }.mkString(", ") + ", " + {
+      for (layerNo <- 0 until aCNN.nLayers)
+        yield {
+          aCNN.layers(layerNo) match {
+            case pl: ScalaPool => ""
+            case _ => f"${aCNN.layers(layerNo).runtime}%1.5f, "
+          }
+        }
+    }.mkString("") + f" $testRan%b, $testVerified%b, ${!testFailed}%b, '" + exceptionMsg.replaceAll("'", "''") + f"', $codeVersion%d, " +
+      f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s'," +
+      f"${
+        if (aCNN.nPoolLayers > 0)
+          aCNN.layers(2).asInstanceOf[ScalaPool].poolSize
+        else
+          0
+      }%d, ${
+        if (aCNN.nPoolLayers > 0)
+          aCNN.layers(2).asInstanceOf[ScalaPool].mlpInputlenL2NonVerified
+        else
+          0
+      }%d, ${
+        if (aCNN.nPoolLayers > 0)
+          aCNN.layers(2).asInstanceOf[ScalaPool].mlpInputlenL2
+        else
+          0
+      }%d);"
+    println(cmd)
+    Connector.statement.execute(cmd)*/
   }
 
 
