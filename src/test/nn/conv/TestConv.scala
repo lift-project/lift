@@ -17,15 +17,15 @@ import org.junit.Assert.assertEquals
   */
 object TestConv {
   @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
-    println("Initialize the executor")
-    Executor.init(/*monaco*/0, 0)
+//    Executor.loadLibrary()
+//    println("Initialize the executor")
+//    Executor.init(/*monaco*/0, 0)
 //    nn.conv.mysql.CreateTable()
   }
 
   @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
+//    println("Shutdown the executor")
+//    Executor.shutdown()
 //    Connector.close()
   }
 }
