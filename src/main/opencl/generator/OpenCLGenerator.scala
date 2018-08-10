@@ -512,10 +512,8 @@ class OpenCLGenerator extends Generator {
   private def debugPrintComment(msg: String, block: MutableBlock): Unit = {
     (block: MutableBlock) += Comment(msg)
   }
-
-  /* Prints the view as a comment in OpenCL kernel with newlines and tabs */
-  private def debugPrintView(dpv: debug.PrintView, call: FunCall, msg: String, block: MutableBlock): Unit = {
-    val inlineView: String = call.args.head.view.toString
+  
+  private def prettifyView(inlineView: String): String = {
     var printedView: String = ""
     val commas = """,(.)(?<![\d|c=|s=])|\(|\)""".r.findAllIn(inlineView)
     var level = 1
@@ -536,6 +534,14 @@ class OpenCLGenerator extends Generator {
       commas.next()
     }
     printedView += inlineView.substring(start, inlineView.length()) + ",\n" + "  " * level
+    
+    printedView
+  }
+
+  /* Prints the view as a comment in OpenCL kernel with newlines and tabs */
+  private def debugPrintView(dpv: debug.PrintView, call: FunCall, msg: String, block: MutableBlock): Unit = {
+    val printedView: String = prettifyView(call.args.head.view.toString)
+
     (block: MutableBlock) += Comment(msg + ":\n" + printedView)
 
     generate(dpv.f.body, block)
