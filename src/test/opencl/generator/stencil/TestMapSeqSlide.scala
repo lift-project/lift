@@ -1,6 +1,7 @@
 package opencl.generator.stencil
 
 import ir.ArrayTypeWSWC
+import ir.ast.debug.PrintType
 import opencl.generator.NDRange
 import rewriting.SimplifyAndFuse
 import ir.ast.{Get, Slide, Zip, fun, _}
@@ -672,7 +673,7 @@ class TestMapSeqSlide
               toGlobal(MapSeq(id)) o
                 ReduceSeqUnroll(\((acc, next) =>
                   multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() $ neighbours, weights)
-            }) /*o PrintType()*/, a,b)) o  Transpose() o Map(Transpose()) $ x
+            }) /*o debug.PrintType()*/, a,b)) o  Transpose() o Map(Transpose()) $ x
         }))) o Slide2D(a,b)  $ input
     )
 
@@ -1298,7 +1299,7 @@ class TestMapSeqSlide
 
               //MapLcl(0)(MapLcl(1)( fun ( n => {
               MapSeqUnroll(MapSeqUnroll( fun ( n => {
-                //MapSeq(MapSeq(MapSeq(id))) o PrintType() $ n
+                //MapSeq(MapSeq(MapSeq(id))) o debug.PrintType() $ n
 
                 val `tile[1][1][1]` = n.at(1).at(1).at(1)
 
