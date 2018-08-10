@@ -27,14 +27,14 @@ import scala.util.control.Breaks._
   */
 object TestCNN {
   @BeforeClass def before(): Unit = {
-    Executor.loadLibrary()
+//    Executor.loadLibrary()
     //    println("Initialize the executor"
 //    nn.cnn.mysql.CreateTable()
   }
 
   @AfterClass def after(): Unit = {
-    println("Shutdown the executor")
-    Executor.shutdown()
+//    println("Shutdown the executor")
+//    Executor.shutdown()
 //    Connector.close()
   }
 }
