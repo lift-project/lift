@@ -1,7 +1,8 @@
 cmake_minimum_required (VERSION 2.6)
 
 if (${WIN32})
-  message ("Build on Windows not (yet) supported.")
+    # /Gz flag forses the compiler to use _stdcall calling convention as required by Win32 API as opposed to the default _cdecl
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest /Gz /W4")
 endif (${WIN32})
 
 # set compiler and default options
@@ -67,7 +68,11 @@ set (SOURCES
 
 
 add_library (executor-jni ${SOURCES})
-target_link_libraries (executor-jni ${OPENCL_LIBRARIES} ${JAVA_JVM_LIBRARY} pthread)
+if (${WIN32})
+    target_link_libraries (executor-jni ${OPENCL_LIBRARIES} ${JAVA_JVM_LIBRARY})
+else (${WIN32})
+    target_link_libraries (executor-jni ${OPENCL_LIBRARIES} ${JAVA_JVM_LIBRARY} pthread)
+endif (${WIN32})
 
 install(TARGETS executor-jni DESTINATION lib)
 
