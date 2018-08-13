@@ -49,7 +49,11 @@ public class Executor {
             if (System.getProperty("os.name").toLowerCase().contains("mac")) {
                 NativeUtils.loadLibraryFromJar("/lib/libexecutor-jni.dylib");
             } else {
-                NativeUtils.loadLibraryFromJar("/lib/libexecutor-jni.so");
+                if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+                    NativeUtils.loadLibraryFromJar("/resources/lib/executor-jni.dll");
+                } else {
+                    NativeUtils.loadLibraryFromJar("/lib/libexecutor-jni.so");
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
