@@ -222,28 +222,28 @@ jstring Java_opencl_executor_Executor_getPlatformName(JNIEnv * env, jclass)
 jlong Java_opencl_executor_Executor_getDeviceLocalMemSize(JNIEnv *, jclass)
 {
   const auto value = getDeviceLocalMemSize();
-  ASSERT_MESSAGE(value <= std::numeric_limits<long>::max(), "JNI cast overflow");
+  ASSERT_MESSAGE(value <= (std::numeric_limits<long>::max)(), "JNI cast overflow");
   return static_cast<long>(value);
 }
 
 jlong Java_opencl_executor_Executor_getDeviceGlobalMemSize(JNIEnv *, jclass)
 {
   const auto value = getDeviceGlobalMemSize();
-  ASSERT_MESSAGE(value <= std::numeric_limits<long>::max(), "JNI cast overflow");
+  ASSERT_MESSAGE(value <= (std::numeric_limits<long>::max)(), "JNI cast overflow");
   return static_cast<long>(value);
 }
 
 jlong Java_opencl_executor_Executor_getDeviceMaxMemAllocSize(JNIEnv *, jclass)
 {
   const auto value = getDeviceMaxMemAllocSize();
-  ASSERT_MESSAGE(value <= std::numeric_limits<long>::max(), "JNI cast overflow");
+  ASSERT_MESSAGE(value <= (std::numeric_limits<long>::max)(), "JNI cast overflow");
   return static_cast<long>(value);
 }
 
 jlong Java_opencl_executor_Executor_getDeviceMaxWorkGroupSize(JNIEnv *, jclass)
 {
   const auto value = getDeviceMaxWorkGroupSize();
-  ASSERT_MESSAGE(value <= std::numeric_limits<long>::max(), "JNI cast overflow");
+  ASSERT_MESSAGE(value <= (std::numeric_limits<long>::max)(), "JNI cast overflow");
   return static_cast<long>(value);
 }
 
