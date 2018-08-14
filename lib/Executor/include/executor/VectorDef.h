@@ -45,8 +45,10 @@ Vector<T>::Vector()
     _deviceBuffers()
 {
   (void)registerVectorDeviceFunctions;
+#ifndef _WIN32
   LOG_DEBUG_INFO("Created new Vector object (", this, ") with ",
                  getDebugInfo());
+#endif
 }
 
 template <typename T>
