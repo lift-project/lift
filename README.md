@@ -4,7 +4,7 @@ This repository contains the work done for compiling Brainwave frontends into BA
 
 ### Setup ###
 
-1. Install `git`, `git-lfs` and the latest Java SDK
+1. Install `git`, `git-lfs`, `dot` and the latest Java SDK
 2. Clone the "lift" repository to a directory of you choice
 3. Install the `ArithExpr` dependency by running `./updateSubmodules.sh`
 4. Download & Install IDEA IntelliJ (http://www.jetbrains.com/idea/)
