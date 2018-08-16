@@ -2,7 +2,7 @@ package ir.ast
 
 import ir._
 import ir.interpreter.Interpreter.ValueMap
-import rewriting.{PotentialRewrite, Rewrite}
+import rewriting.Rewrite
 import rewriting.rules.{FissionRules, FusionRules, Rule}
 
 import scala.collection.mutable
@@ -30,10 +30,6 @@ abstract case class Lambda private[ast] (params: Array[Param],
                          setType: Boolean): Type = {
     TypeChecker.checkAndSetTypeForParams(params, argType, this)
     TypeChecker.check(body, setType)
-  }
-
-  def rewrite(ruleAt: PotentialRewrite) = {
-    Rewrite.applyRuleAt(this, ruleAt.expr, ruleAt.rule)
   }
 
   def rewrite(id: Int, rule: Rule): Lambda = {
