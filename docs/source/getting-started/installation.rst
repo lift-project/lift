@@ -14,8 +14,8 @@ Installation via Docker
 `Docker <https://www.docker.com/>`_ is a technology which allows to package software with all its dependencies into a *container*.
 
 We have bundled *Lift* an all of its dependencies inside such a container.
-The *Lift* container can be executed either directly via ``docker`` which does not allow the execution of *Lift* programs on GPUs.
-Alternatively, it is possible to use ``nvidia-docker`` which allows the execution of *Lift* programs on Nvidia GPUs from inside the docker container.
+The *Lift* container can be executed either directly via ``docker``, which does not allow the execution of *Lift* programs on GPUs,
+or via ``nvidia-docker``, which allows the execution of *Lift* programs on Nvidia GPUs from inside the docker container.
 
 Option A: Using plain ``docker``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
