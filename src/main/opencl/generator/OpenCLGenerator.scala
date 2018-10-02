@@ -254,10 +254,34 @@ class OpenCLGenerator extends Generator {
     // pass 3: generate the
     globalBlock += generateKernel(f)
 
-    val oclstring = AstPrinter(globalBlock)()
+    // unroll private memory in the AST
+    //TODO: Add functionality to loop over and check for multi-dimensional arrays - ie. call visit and rebuild node until nothing has changed from the last iteration)
+    // However, this should be done tangentially with structs! (if structs are being inlined)
+    val unrollBlock = UnrollValues.unrollPrivateMemoryArrayValues(globalBlock)
+
+    var inlineBlock = unrollBlock
+
+    // inline structs if requested
+//    if(InlineStructs())
+    {
+      try
+      {
+        //TODO: Add functionality to loop over and check for multi-level structs - ie. call visit and rebuild node until nothing has changed from the last iteration)
+        inlineBlock = UnrollValues.inlinePrivateMemoryStructValues(unrollBlock)
+      } catch {
+        case err : NotImplementedError => // we know about these errors and we want to not allow the user to inline structs
+          print(s"Warning: Cannot inline structs: ")
+          println(err.getMessage())
+          inlineBlock = unrollBlock
+        case err : Exception => // otherwise genuine issue, throw the exception again
+          throw(err)
+      }
+    }
+
+    val oclstring = AstPrinter(inlineBlock)()
 
     if(Verbose())
-      println(s"Generated AST: \n${globalBlock}")
+      println(s"Generated AST: \n${inlineBlock}")
 
     oclstring
   }
