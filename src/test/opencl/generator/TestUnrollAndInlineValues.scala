@@ -85,4 +85,40 @@ class TestUnrollAndInlineValues
 
   }
 
+  @Test
+  def testArrayOfStructs(): Unit =
+  {
+
+  }
+
+  @Test
+  def testArrayOfStructsOfStructs(): Unit =
+  {
+
+  }
+
+  @Test
+  def testArrayOfStructsOfArrays(): Unit =
+  {
+
+  }
+
+  @Test
+  def testStructOfArrays(): Unit =
+  {
+
+  }
+
+  @Test
+  def testStructOfArraysOfArrays(): Unit =
+  {
+
+  }
+
+  @Test
+  def testStructOfArraysOfStructs(): Unit =
+  {
+
+  }
+
 }

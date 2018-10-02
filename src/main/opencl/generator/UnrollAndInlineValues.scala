@@ -418,7 +418,7 @@ object UnrollValues {
                       arg match
                       {
                         case VarRef(v_b, s_b, ai_b) if ai_b.isEmpty =>
-                          var vr = getCorrectVarRef(v_b,s,ai,oclVarDeclMap)
+                          var vr = getCorrectVarRef(v_b,s_b,ai_b,oclVarDeclMap)
                           newargs = newargs :+ vr
                           case _ =>
                             newargs = newargs :+ arg
