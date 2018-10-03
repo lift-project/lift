@@ -3,7 +3,7 @@ package opencl.generator
 import core.generator.GenericAST
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BlockMember, CVar, ExpressionStatement, FunctionCall, IfThenElse, MutableBlock, StructConstructor, TernaryExpression, VarRef}
 import ir._
-import lift.arithmetic.Var
+import lift.arithmetic._
 import opencl.generator.OpenCLAST.{OclStore, OclVarDecl, VectorLiteral}
 import opencl.ir.PrivateMemory
 
@@ -317,7 +317,8 @@ object UnrollValues {
         )
         // return block with new vector
         MutableBlock(nodeVector, mb.global)
-      case ExpressionStatement(e) => e match {
+      case ExpressionStatement(e) => e match
+      {
         case AssignmentExpression(lhs, rhs) => (lhs, rhs) match {
           case (VarRef(v1, s1, ai1), VarRef(v2, s2, ai2)) =>
             if (oclVarDeclMap.contains(v1) && !oclVarDeclMap.contains(v2))
@@ -371,31 +372,73 @@ object UnrollValues {
             {
               ExpressionStatement(AssignmentExpression(VarRef(v1, s1, ai1), VarRef(v2, s2, ai2)))
             }
-          case (VarRef(v, s, ai), FunctionCall(f, args)) =>
+          case (VarRef(v, s, ai), rhs) =>
             var vr = VarRef(v, s, ai)
             if (oclVarDeclMap.contains(v))
             {
               val idxSuffix = getIndexSuffix(s.getOrElse(""))
               if (idxSuffix._1 < 0) {
-                throw new NotImplementedError("Assigning function return to unrolled tuple - cannot currently be handled!")
+//                throw new NotImplementedError("Assigning function return to unrolled tuple - cannot currently be handled!")
+
+                // determine how many "unrolled" values are in struct
+                val numTupleValues = oclVarDeclMap(v).length
+                // create new block
+                var nodeVector = Vector[AstNode with BlockMember]()
+                // set result of function to "tmp" variable
+                // first "reconstruct the tuple type from the OclDeclMap
+                var tupleTypes = List[Type]()
+                for(ocl <- oclVarDeclMap(v))
+                {
+                  tupleTypes = tupleTypes :+ ocl.t
+                }
+
+                var tmp = OclVarDecl(CVar(Var(v.v.name + "_tmp")), TupleType(tupleTypes: _*), None, 0, PrivateMemory)
+                nodeVector = nodeVector :+ tmp
+                nodeVector = nodeVector :+ ExpressionStatement(AssignmentExpression(tmp,rhs))
+                // loop over number of "unrolled values" and set the tmp values to these values
+                for(i <- 0 until numTupleValues)
+                {
+                  val ocl = oclVarDeclMap(v)(i)
+
+                  // VarRef( CVar, Suffix, Index )
+                  var suffix = None: Option[String]
+                  suffix = Some("_"+i)
+                  var idx = None: Option[ArithExpression]
+                  idx = Some(ArithExpression(Cst(i)))
+                  nodeVector = nodeVector :+ ExpressionStatement(AssignmentExpression(VarRef(ocl.v,suffix,idx),VarRef(tmp.v,suffix,None)))
+                }
+                MutableBlock(nodeVector)
+
               }
               else
               {
                 val ocl = oclVarDeclMap(v)(idxSuffix._1)
                 vr = VarRef(ocl.v, Some(idxSuffix._2), ai)
+                ExpressionStatement(AssignmentExpression(vr, rhs))
               }
             }
-            // update args list with new values of VarRefs
-            var lst = List[GenericAST.AstNode]()
-            for (arg <- args)
+            else
             {
-              arg match
-              {
-                case VarRef(v_b, s_b, ai_b) if ai_b.isEmpty =>
+                ExpressionStatement(AssignmentExpression(vr, rhs))
+            }
+
+
+          case _ => AssignmentExpression(lhs,rhs)
+        }
+        case _ => ExpressionStatement(e)
+      }
+      case FunctionCall(f,args) =>
+        // update args list with new values of VarRefs
+        var lst = List[GenericAST.AstNode]()
+        for (arg <- args)
+        {
+          arg match
+          {
+              case VarRef(v_b, s_b, ai_b) if ai_b.isEmpty =>
                   var vr = VarRef(v_b, s_b, ai_b)
                   if (oclVarDeclMap.contains(v_b))
                   {
-                    val idxSuffix = getIndexSuffix(s_b.getOrElse(throw new Exception("Unable to find index for " + v.v.name)))
+                    val idxSuffix = getIndexSuffix(s_b.getOrElse(throw new Exception("Unable to find index for " + v_b.v.name)))
                     if (idxSuffix._1 < 0) // This means there is no suffix attached - must use whole unrolled Tuple!
                     {
                       var newStruct: AstNode = recreateStruct(oclVarDeclMap(v_b), ai_b, oclTupleTypeMap(v_b))
@@ -411,52 +454,35 @@ object UnrollValues {
                   else {
                     lst = lst :+ vr
                   }
-                  case StructConstructor(t, args) =>
-                    var newargs = Vector[GenericAST.AstNode]()
-                    for (arg <- args)
-                    {
-                      arg match
-                      {
-                        case VarRef(v_b, s_b, ai_b) if ai_b.isEmpty =>
-                          var vr = getCorrectVarRef(v_b,s_b,ai_b,oclVarDeclMap)
-                          newargs = newargs :+ vr
-                          case _ =>
-                            newargs = newargs :+ arg
-                      }
-                    }
-                    lst = lst :+ StructConstructor(t, newargs)
-                    case an: AstNode => lst = lst :+ an
-              }
+             // case StructConstructor(t, args) => // should this be filled in ?!
+              case an: AstNode =>
+                lst = lst :+ an
             }
-            ExpressionStatement(AssignmentExpression(vr, FunctionCall(f, lst)))
-          case (VarRef(v, s, ai), TernaryExpression(cond, trueExpr, falseExpr)) =>
-            var vr = getCorrectVarRef(v,s,ai,oclVarDeclMap)
-            ExpressionStatement(AssignmentExpression(vr, TernaryExpression(cond, trueExpr, falseExpr)))
-          case (VarRef(v, s, ai), StructConstructor(t, args)) =>
-            var vrOrg = VarRef(v, s, ai)
-            if (oclVarDeclMap.contains(v)) {
-              var nodeVector = Vector[AstNode with BlockMember]()
-              // unroll them both
-              for(i <- 0 until args.length )
-              {
-                  val tupleList = oclVarDeclMap(v)
-                  val ocl = tupleList(i)
-                  vrOrg = VarRef(ocl.v, s, ai)
-                  nodeVector = nodeVector :+ ExpressionStatement(AssignmentExpression(vrOrg, args(i)))
-              }
-              MutableBlock(nodeVector,true)
-            }
-            else
-            {
-              ExpressionStatement(AssignmentExpression(vrOrg, StructConstructor(t, args)))
-            }
-          case _ => ExpressionStatement(e)
         }
-        case _ => ExpressionStatement(e)
-      }
+        FunctionCall(f, lst)
+      case StructConstructor(t, args) =>
+         var newargs = Vector[GenericAST.AstNode]()
+         for (arg <- args)
+         {
+            arg match
+            {
+              case VarRef(v_b, s_b, ai_b) if ai_b.isEmpty =>
+                var vr = getCorrectVarRef(v_b,s_b,ai_b,oclVarDeclMap)
+                newargs = newargs :+ vr
+              case _ =>
+                newargs = newargs :+ arg
+            }
+         }
+         StructConstructor(t, newargs)
       case VarRef(v, s, ai) =>
-        if (oclVarDeclMap.contains(v)) {
-          throw new Exception("Inlining struct memory unavailable for variable " + v.v.name + "!")
+        if (oclVarDeclMap.contains(v))
+        {
+          // get actual reference
+          val idxSuffix = getIndexSuffix(s.getOrElse(""))
+          //TODO: do we need an if check here? turns out yes
+//          if(idxSuffix )
+          val ocl = oclVarDeclMap(v)(idxSuffix._1)
+          VarRef(ocl.v, Some(idxSuffix._2), ai)
         }
         else VarRef(v, s, ai)
       case _ => n

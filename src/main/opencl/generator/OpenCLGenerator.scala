@@ -870,9 +870,9 @@ class OpenCLGenerator extends Generator {
   private def generateMapSeqSlideCall(sp: MapSeqSlide,
                                       call: FunCall,
                                       block: MutableBlock): Unit = {
-    (block: MutableBlock) += Comment("slideSeq_plus")
+    (block: MutableBlock) += Comment("mapSeqSlide")
     generateMapSeqSlideLoop(block, sp, call, generate(sp.f.body, _), sp.shouldUnroll)
-    (block: MutableBlock) += Comment("end slideSeq_plus")
+    (block: MutableBlock) += Comment("end mapSeqSlide")
   }
 
   // === ReduceWhile ===

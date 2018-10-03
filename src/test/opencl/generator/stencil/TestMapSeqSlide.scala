@@ -1380,7 +1380,7 @@ class TestMapSeqSlide
   }
 
   @Test
-  def addMiddle1DTuple2Test(): Unit = {
+  def add1DTupleTest(): Unit = {
 
     val size = 10
     val slidesize = 3
