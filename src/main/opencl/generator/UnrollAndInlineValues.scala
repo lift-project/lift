@@ -391,10 +391,10 @@ object UnrollValues {
                 {
                   tupleTypes = tupleTypes :+ ocl.t
                 }
-
-                var tmp = OclVarDecl(CVar(Var(v.v.name + "_tmp")), TupleType(tupleTypes: _*), None, 0, PrivateMemory)
+                var tmp_cvar = CVar(Var(v.v.name + "_tmp"))
+                var tmp = OclVarDecl(tmp_cvar, TupleType(tupleTypes: _*), None, 0, PrivateMemory)
                 nodeVector = nodeVector :+ tmp
-                nodeVector = nodeVector :+ ExpressionStatement(AssignmentExpression(tmp,rhs))
+                nodeVector = nodeVector :+ ExpressionStatement(AssignmentExpression(VarRef(tmp_cvar,Some(""),None),rhs))
                 // loop over number of "unrolled values" and set the tmp values to these values
                 for(i <- 0 until numTupleValues)
                 {
@@ -402,10 +402,10 @@ object UnrollValues {
 
                   // VarRef( CVar, Suffix, Index )
                   var suffix = None: Option[String]
-                  suffix = Some("_"+i)
+                  suffix = Some("._"+i)
                   var idx = None: Option[ArithExpression]
                   idx = Some(ArithExpression(Cst(i)))
-                  nodeVector = nodeVector :+ ExpressionStatement(AssignmentExpression(VarRef(ocl.v,suffix,idx),VarRef(tmp.v,suffix,None)))
+                  nodeVector = nodeVector :+ ExpressionStatement(AssignmentExpression(VarRef(ocl.v,Some(""),None),VarRef(tmp.v,suffix,None)))
                 }
                 MutableBlock(nodeVector)
 
