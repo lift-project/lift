@@ -259,10 +259,10 @@ class OpenCLGenerator extends Generator {
     // However, this should be done tangentially with structs! (if structs are being inlined)
     val unrollBlock = UnrollValues.unrollPrivateMemoryArrayValues(globalBlock)
 
-    var inlineBlock = globalBlock //unrollBlock
+    var inlineBlock = unrollBlock
 
     // inline structs if requested
-/*    if(InlineStructs())
+//    if(InlineStructs())
     {
       try
       {
@@ -277,7 +277,7 @@ class OpenCLGenerator extends Generator {
           throw(err)
       }
     }
-*/
+
     val oclstring = AstPrinter(inlineBlock)()
 
     if(Verbose())
