@@ -375,7 +375,9 @@ class TestSort {
       ArrayType(Int, N),
       InsertionSortSeq(int_compare) $ _
     )
-    
+
+    println(Compile(kernel))
+
     val (output, runtime) = Execute(1, 1)[Array[Int]](kernel, input)
     println(s"Runtime: $runtime")
     

@@ -114,7 +114,7 @@ object UnrollValues {
                 case PrivateMemory =>
                   ovd.t match
                   {
-                    case ArrayType(ty) =>
+              /*      case ArrayType(ty) =>
                       // loop over size of array and create new OclVarDecls for each "unrolled value"
                       oclVarDeclMap += (ovd.v -> Array[OclVarDecl]())
                       for (i <- 1 to ovd.length.toInt)
@@ -124,9 +124,21 @@ object UnrollValues {
                         nodeVector = nodeVector :+ oclVDtmp
                         // and add them to our "map" to reference later
                         oclVarDeclMap += (ovd.v -> (oclVarDeclMap(ovd.v) :+ oclVDtmp))
+                      }*/
+                    case ArrayTypeWSWC(t,s,c) =>
+                      // loop over size of array and create new OclVarDecls for each "unrolled value"
+                      oclVarDeclMap += (ovd.v -> Array[OclVarDecl]())
+                      val k = s.eval
+                      for (i <- 1 to c.eval)// Type.getLength(t).eval)
+                      {
+                        var oclVDtmp = OclVarDecl(CVar(Var(ovd.v.v.name + "_" + i)), Type.getBaseType(t), ovd.init, 0, PrivateMemory)
+                        // push them back in new vector
+                        nodeVector = nodeVector :+ oclVDtmp
+                        // and add them to our "map" to reference later
+                        oclVarDeclMap += (ovd.v -> (oclVarDeclMap(ovd.v) :+ oclVDtmp))
                       }
-                   /* case ArrayTypeWS => */ // TODO: Add functionality
-                   /* case ArrayTypeWSWC => */ // TODO: Add functionality
+
+                    /* case ArrayTypeWS => */ // TODO: Add functionality
                    /* case ArrayTypeWC => */ // TODO: Add functionality
                     case _ => nodeVector = nodeVector :+ ovd
                   }
@@ -269,6 +281,7 @@ object UnrollValues {
         else VarRef(v, s, ai)
       case _ => n
     }
+
     node.visitAndRebuild(preFunctionForUnrollingArrays, idPostFun)
   }
 
@@ -423,7 +436,7 @@ object UnrollValues {
             }
 
 
-          case _ => AssignmentExpression(lhs,rhs)
+          case _ => ExpressionStatement(AssignmentExpression(lhs,rhs))
         }
         case _ => ExpressionStatement(e)
       }
