@@ -104,8 +104,6 @@ abstract case class Lambda private[ast] (params: Array[Param],
     }
   }
 
-  def toShortString = this.body.toShortString
-
   def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
     val updatedMap =
