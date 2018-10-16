@@ -304,7 +304,7 @@ object UnrollValues {
                       oclVarDeclMap += (ovd.v -> Array[OclVarDecl]())
                       for (i <- 0 until tt.elemsT.length) {
                         val currElem = tt.elemsT(i)
-                        var oclVDtmp = OclVarDecl(CVar(Var(ovd.v.v.name + "_" + i)), tt.proj(i), ovd.init, 0, PrivateMemory)
+                        var oclVDtmp = OclVarDecl(CVar(Var(ovd.v.v.toString+"_" + i)), tt.proj(i), ovd.init, 0, PrivateMemory)
                         if(ovd.init != None)
                           {
                             throw new NotImplementedError("Trying to unroll initialised tuples - there is no method that can currently handle this!")
@@ -444,7 +444,7 @@ object UnrollValues {
                   var vr = VarRef(v_b, s_b, ai_b)
                   if (oclVarDeclMap.contains(v_b))
                   {
-                    val idxSuffix = getIndexSuffix(s_b.getOrElse(throw new Exception("Unable to find index for " + v_b.v.name)))
+                    val idxSuffix = getIndexSuffix(s_b.getOrElse(""))
                     if (idxSuffix._1 < 0) // This means there is no suffix attached - must use whole unrolled Tuple!
                     {
                       var newStruct: AstNode = recreateStruct(oclVarDeclMap(v_b), ai_b, oclTupleTypeMap(v_b))
