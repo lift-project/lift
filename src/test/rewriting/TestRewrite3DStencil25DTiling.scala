@@ -1,6 +1,6 @@
 package rewriting
 
-import ir.ArrayTypeWSWC
+import ir.{ArrayType, ArrayTypeWSWC}
 import ir.ast.{Slide2D, Slide3D, Transpose, fun, _}
 import lift.arithmetic.SizeVar
 import opencl.executor._
@@ -35,30 +35,55 @@ class TestRewrite3DStencil25DTiling
     val o = SizeVar("O")
 
 
+    def userFun(m: Param) = {
+      val `tile[1][1][1]` = m.at(1).at(1).at(1)
+      val `tile[0][1][1]` = m.at(0).at(1).at(1)
+      val `tile[1][0][1]` = m.at(1).at(0).at(1)
+      val `tile[1][1][0]` = m.at(1).at(1).at(0)
+      val `tile[1][1][2]` = m.at(1).at(1).at(2)
+      val `tile[1][2][1]` = m.at(1).at(2).at(1)
+      val `tile[2][1][1]` = m.at(2).at(1).at(1)
+
+      val stencil = toPrivate(fun(x => add(x, `tile[0][1][1]`))) o
+        toPrivate(fun(x => add(x, `tile[1][0][1]`))) o
+        toPrivate(fun(x => add(x, `tile[1][1][0]`))) o
+        toPrivate(fun(x => add(x, `tile[1][1][2]`))) o
+        toPrivate(fun(x => add(x, `tile[1][1][1]`))) o
+        toPrivate(fun(x => add(x, `tile[1][2][1]`))) $ `tile[2][1][1]`
+
+      toGlobal(id) $ stencil
+    }
+
     def jacobi3D(a: Int, b: Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
       (mat) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
 
-          val `tile[1][1][1]` = m.at(1).at(1).at(1)
-          val `tile[0][1][1]` = m.at(0).at(1).at(1)
-          val `tile[1][0][1]` = m.at(1).at(0).at(1)
-          val `tile[1][1][0]` = m.at(1).at(1).at(0)
-          val `tile[1][1][2]` = m.at(1).at(1).at(2)
-          val `tile[1][2][1]` = m.at(1).at(2).at(1)
-          val `tile[2][1][1]` = m.at(2).at(1).at(1)
-
-          val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
-            toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
-            toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
-            toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
-            toPrivate(fun(x => add(x,`tile[1][1][1]`))) o
-            toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
-
-          toGlobal(id) $ stencil
+          userFun(m)
 
         })))) o Slide3D(a,b) $ mat
       })
+
+    def jacobi3DHighLevel(a: Int, b: Int) = fun(
+      ArrayType(ArrayType(ArrayType(Float, o+2), n+2), m+2),
+      mat => {
+        Map(Map(Map(\(m => userFun(m))))) o
+          // Slide3D
+          Map(Map(Transpose()) o Transpose()) o
+          Slide(a, b) o Map(Map(Transpose()) o Slide(a, b) o Map(Slide(a, b))) $ mat
+      })
+
+    def jacobi3DmapseqslideHighLevel(a : Int, b : Int) = fun(
+      ArrayType(ArrayType(ArrayType(Float, o+2),n+2),m+2),
+      mat =>
+        Map(Map( \(x => {
+          MapSeqSlide( \(m => userFun(m)), a,b)
+        } o Transpose() o Map(Transpose()) $ x
+
+        ))) o
+          // Slide2D
+          Map(Transpose()) o Slide(a, b) o Map(Slide(a, b)) $ mat)
+
 
     def jacobi3Dmapseqslide(a : Int, b : Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2),n+2),m+2),
@@ -66,22 +91,7 @@ class TestRewrite3DStencil25DTiling
         MapGlb(1)(MapGlb(0)( fun (x => {
           toGlobal(MapSeqSlide(fun(m => {
 
-            val `tile[1][1][1]` = m.at(1).at(1).at(1)
-            val `tile[0][1][1]` = m.at(0).at(1).at(1)
-            val `tile[1][0][1]` = m.at(1).at(0).at(1)
-            val `tile[1][1][0]` = m.at(1).at(1).at(0)
-            val `tile[1][1][2]` = m.at(1).at(1).at(2)
-            val `tile[1][2][1]` = m.at(1).at(2).at(1)
-            val `tile[2][1][1]` = m.at(2).at(1).at(1)
-
-            val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
-              toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
-              toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
-              toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
-              toPrivate(fun(x => add(x,`tile[1][1][1]`))) o
-              toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
-
-            toGlobal(id) $ stencil
+            userFun(m)
 
           }),a,b))  } o Transpose() o Map(Transpose()) $ x
 
