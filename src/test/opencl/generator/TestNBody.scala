@@ -4,7 +4,7 @@ import benchmarks.NBody
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, TestWithExecutor, Utils}
+import opencl.executor.{Execute, TestWithExecutor, Utils}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -197,8 +197,6 @@ class TestNBody {
     val threadsY = tileY
 
     val function = NBody.nvidia
-
-    println(Compile(function))
 
     val (output, _) = Execute(tileX, tileY, threadsX, threadsY, (true, true))[Array[Float]](function, pos, vel, espSqr, deltaT)
     assertArrayEquals(gold, output, 0.0001f)

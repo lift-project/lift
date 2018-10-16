@@ -3,7 +3,7 @@ package opencl.generator
 import ir.ast.{Gather, Join, Split, Tuple, UserFun, Zip, fun, shiftRight}
 import ir.{ArrayTypeWSWC, TupleType}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Compile, Execute, TestWithExecutor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert.assertEquals
@@ -112,9 +112,7 @@ class TestDbQueries {
         )) o Split(4) $ left
       }
     )
-
-   println(Compile(query))
-
+    
     val (output, runtime) = Execute(n)[Vector[(Int, Int, Int)]](query, leftTable, rightTable)
     
     val gold = leftTable.map(row => (if (rightTable.exists(_._1 == row._1)) 0 else 1, row._1, row._2)).toVector

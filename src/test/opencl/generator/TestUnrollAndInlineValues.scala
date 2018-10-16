@@ -1,8 +1,12 @@
 package opencl.generator
 
+import ir.ArrayTypeWSWC
+import ir.ast.{Slide, fun}
 import opencl.executor.TestWithExecutor
-import org.junit._
+import opencl.ir._
+import opencl.ir.pattern.{MapGlb, toGlobal}
 import org.junit.Assert._
+import org.junit._
 
 
 object TestUnrollAndInlineValues extends TestWithExecutor
@@ -86,38 +90,54 @@ class TestUnrollAndInlineValues
   }
 
   @Test
-  def testArrayOfStructs(): Unit =
+  def testPrivateArrayOfStructs(): Unit =
   {
+      /* Arr[Tuple(float,int)] */
+
+    val n = 10
+
+    val lambda1DOriginal = fun(
+      (ArrayTypeWSWC(Float, n)),
+      (m) =>
+        MapGlb(0)(fun(m => {
+          toGlobal( tf_id )$ m.at(1)
+        })) o Slide(3,1) $ m)
+
 
   }
 
   @Test
-  def testArrayOfStructsOfStructs(): Unit =
+  def testPrivateArrayOfStructsOfStructs(): Unit =
   {
+    /* Arr[Tuple(float,Tuple(double,double))] */
 
   }
 
   @Test
-  def testArrayOfStructsOfArrays(): Unit =
+  def testPrivateArrayOfStructsOfPrivateArrays(): Unit =
   {
+    /* Arr[Tuple(int,Arr[float])] */
 
   }
 
   @Test
-  def testStructOfArrays(): Unit =
+  def testStructOfPrivateArrays(): Unit =
   {
+    /* Tuple(Arr[float],int) */
 
   }
 
   @Test
-  def testStructOfArraysOfArrays(): Unit =
+  def testStructOfPrivateArraysOfPrivateArrays(): Unit =
   {
+    /* Tuple(Arr[Arr[float]],int) */
 
   }
 
   @Test
-  def testStructOfArraysOfStructs(): Unit =
+  def testStructOfPrivateArraysOfStructs(): Unit =
   {
+    /* Tuple(Arr[Tuple(int,int)],float) */
 
   }
 

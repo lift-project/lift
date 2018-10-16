@@ -266,8 +266,6 @@ class TestAcousticStencilBoundaries {
         ) $ Zip((Join() $ (Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat1)), Join() $ mask1)
       })
 
-    println(Compile(lambdaNeigh))
-
     val (output, runtime) = Execute(stencilarr.length, stencilarr.length)[Array[Float]](lambdaNeigh, stencilarr, mask, StencilUtilities.weights)
 
     if (StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput2D(stencilarr, output, StencilUtilities.stencilSize)
@@ -672,7 +670,6 @@ class TestAcousticStencilBoundaries {
     {
       val newLambda = SimplifyAndFuse(lambdaNeigh)
       val source = Compile(newLambda)
-      println(source)
 
       // OutputKernelJSON(newLambda,"/home/reese/workspace/sandbox/")
       val (output, runtime) = Execute(8, 8, 8, 8, 8, 8, (true, true))[Array[Float]](source, newLambda, stencilarr3D, stencilarr3DCopy, stencilarr3D, mask3D, StencilUtilities.weights3D, StencilUtilities.weightsMiddle3D)
