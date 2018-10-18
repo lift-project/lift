@@ -128,9 +128,8 @@ class TestUnrollAndInlineValues
     /* Arr[Tuple(float,Tuple(int,int))] */
 
     val data = Array.tabulate(N) { (i) => (i + 1).toFloat }
-    val input1 = (data zip data)
-    val input2 = (data.map(_.toInt) zip data.map(_.toInt))
-    val compare = (data zip input2).toVector
+    val input = (data zip (data.map(_.toInt) zip data.map(_.toInt)))
+    val compare = (data zip (data.map(_.toInt) zip data.map(_.toInt))).toVector
 
     val lambda = fun(
       ArrayTypeWSWC(TupleType(Float,TupleType(Int,Int)), N),
@@ -139,8 +138,8 @@ class TestUnrollAndInlineValues
 
     println(Compile(lambda))
 
-    //val (output, _) = Execute(N,N)[Vector[(Float, Float)]](lambda, input)
-    //assertEquals(compare, output)
+    val (output, _) = Execute(N,N)[Vector[(Float, (Int,Int))]](lambda, input)
+    assertEquals(compare, output)
 
   }
 

@@ -1,9 +1,10 @@
 package opencl.generator
 
 import core.generator.GenericAST
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BlockMember, CVar, ExpressionStatement, FunctionCall, IfThenElse, MutableBlock, StructConstructor, TernaryExpression, VarRef}
+import core.generator.GenericAST._
+import core.generator.GenericAST.{AstNode, CVar}
 import ir._
-import lift.arithmetic._
+import lift.arithmetic.{Cst, Var}
 import opencl.generator.OpenCLAST.{OclStore, OclVarDecl, VectorLiteral}
 import opencl.ir.PrivateMemory
 
@@ -17,6 +18,11 @@ object UnrollValues {
 
   // anonymous identity function
   val idPostFun = (n: AstNode) => n
+
+  // map to keep track of the unrolled variables from private structs
+  var oclVarDeclMap = ListMap[CVar, Array[OclVarDecl]]()
+  // map to keep track of the tuple types of the unrolled tuples - if there is a better way feel free to implement it
+  var oclTupleTypeMap = ListMap[CVar, TupleType]()
 
   // until there is a better way: get first index from suffix and return the resulting suffix string
   def getIndexSuffix(str: String): (Int, String) = {
@@ -96,10 +102,51 @@ object UnrollValues {
     lst
   }
 
+
+  def areASTNodesEqual(node1 : AstNode, node2 : AstNode) : Boolean =
+  {
+
+    val compareAstNodes = (m : AstNode) => (m) match {
+      case (nb : Function) => this.equals(nb)
+      case (nb : CVar) => this.equals(nb)
+      case (nb : VarDecl) => this.equals(nb)
+      case (nb : ParamDecl) => this.equals(nb)
+      case (nb : ForLoop) => this.equals(nb)
+      case (nb : WhileLoop) => this.equals(nb)
+      case (nb : IfThenElse) => this.equals(nb)
+      case (nb : GOTO) => this.equals(nb)
+      case (nb : Label) => this.equals(nb)
+      case (nb : Break) => this.equals(nb)
+      case (nb : TypeDef) => this.equals(nb)
+      case (nb : TupleAlias) => this.equals(nb)
+      case (nb : ExpressionStatement) => this.equals(nb)
+      case (nb : FunctionCall) => this.equals(nb)
+      case (nb : VarRef) => this.equals(nb)
+      case (nb : Load) => this.equals(nb)
+      case (nb : Store) => this.equals(nb)
+      case (nb : AssignmentExpression) => this.equals(nb)
+      case (nb : ArithExpression) => this.equals(nb)
+      case (nb : BinaryExpression) => this.equals(nb)
+      case (nb : TernaryExpression) => this.equals(nb)
+      case (nb : Cast) => this.equals(nb)
+      case (nb : PointerCast) => this.equals(nb)
+      case (nb : StructConstructor) => this.equals(nb)
+      case (nb : RawCode) => this.equals(nb)
+      case (nb : Comment) => this.equals(nb)
+      case (nb : EmptyNode) => this.equals(nb)
+      case (nb : MutableBlock) => this.equals(nb)
+      case _ => false
+    }
+
+  false
+   // node1.visitAndRebuild(compareAstNodes(node2), idPostFun)
+
+  }
+
+
   def unrollPrivateMemoryArrayValues(node: AstNode): AstNode =
   {
     // map to keep track of the unrolled variables from private memory arrays
-    var oclVarDeclMap = ListMap[CVar, Array[OclVarDecl]]()
 
     val preFunctionForUnrollingArrays = (n: AstNode) => n match {
       case mb: MutableBlock =>
@@ -278,12 +325,9 @@ object UnrollValues {
     node.visitAndRebuild(preFunctionForUnrollingArrays, idPostFun)
   }
 
+
   def inlinePrivateMemoryStructValues(node: AstNode): AstNode =
   {
-    // map to keep track of the unrolled variables from private structs
-    var oclVarDeclMap = ListMap[CVar, Array[OclVarDecl]]()
-    // map to keep track of the tuple types of the unrolled tuples - if there is a better way feel free to implement it
-    var oclTupleTypeMap = ListMap[CVar, TupleType]()
 
     val preFunctionForUnrollingStructs = (n: AstNode) => n match {
       case mb: MutableBlock =>
@@ -408,7 +452,7 @@ object UnrollValues {
 
                   // VarRef( CVar, Suffix, Index )
                   var suffix = None: Option[String]
-                  suffix = Some("._"+i)
+                  suffix = Some("")//Some("._"+i)
                   var idx = None: Option[ArithExpression]
                   idx = Some(ArithExpression(Cst(i)))
                   nodeVector = nodeVector :+ ExpressionStatement(AssignmentExpression(VarRef(ocl.v,Some(""),None),VarRef(tmp.v,suffix,None)))
@@ -460,7 +504,6 @@ object UnrollValues {
                   else {
                     lst = lst :+ vr
                   }
-             // case StructConstructor(t, args) => // should this be filled in ?!
               case an: AstNode =>
                 lst = lst :+ an
             }
@@ -473,8 +516,27 @@ object UnrollValues {
             arg match
             {
               case VarRef(v_b, s_b, ai_b) if ai_b.isEmpty =>
-                var vr = getCorrectVarRef(v_b,s_b,ai_b,oclVarDeclMap)
-                newargs = newargs :+ vr
+
+                var vr = VarRef(v_b, s_b, ai_b)
+                if (oclVarDeclMap.contains(v_b))
+                {
+                  val idxSuffix = getIndexSuffix(s_b.getOrElse(""))
+                  if (idxSuffix._1 < 0) // This means there is no suffix attached - must use whole unrolled Tuple!
+                  {
+                    var newStruct: AstNode = recreateStruct(oclVarDeclMap(v_b), ai_b, oclTupleTypeMap(v_b))
+                    newargs = newargs :+ newStruct
+                  }
+                  else
+                  {
+                    val ocl = oclVarDeclMap(v_b)(idxSuffix._1)
+                    vr = VarRef(ocl.v, Some(idxSuffix._2), ai_b)
+                    newargs = newargs :+ vr
+                  }
+                }
+                else {
+                  newargs = newargs :+ vr
+                }
+
               case _ =>
                 newargs = newargs :+ arg
             }

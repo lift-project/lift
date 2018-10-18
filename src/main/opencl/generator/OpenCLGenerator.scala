@@ -266,8 +266,17 @@ class OpenCLGenerator extends Generator {
     {
       try
       {
-        //TODO: Add functionality to loop over and check for multi-level structs - ie. call visit and rebuild node until nothing has changed from the last iteration)
-        inlineBlock = UnrollValues.inlinePrivateMemoryStructValues(unrollBlock)
+
+        var currentBlock : AstNode = null
+
+//        while(currentBlock != inlineBlock )
+        for ( i <- 1 to 3)
+        {
+            currentBlock = inlineBlock
+            inlineBlock = UnrollValues.inlinePrivateMemoryStructValues(inlineBlock)
+        }
+
+
       } catch {
         case err : NotImplementedError => // we know about these errors and we want to not allow the user to inline structs
           print(s"Warning: Cannot inline structs: ")
