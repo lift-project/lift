@@ -269,8 +269,8 @@ class OpenCLGenerator extends Generator {
 
         var currentBlock : AstNode = null
 
-//        while(currentBlock != inlineBlock )
-        for ( i <- 1 to 3)
+        while(currentBlock != inlineBlock )
+  //      for ( i <- 1 to 3)
         {
             currentBlock = inlineBlock
             inlineBlock = UnrollValues.inlinePrivateMemoryStructValues(inlineBlock)
@@ -1920,7 +1920,7 @@ class OpenCLGenerator extends Generator {
 
   /**
     * Generating the suffix appended to emulate an array access in private memory
-    *
+      *
     * @param v    The variable to access
     * @param view The view describing the access
     * @return A string of the form '_index' where index is the computed
