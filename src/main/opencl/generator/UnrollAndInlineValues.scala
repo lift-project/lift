@@ -103,45 +103,6 @@ object UnrollValues {
   }
 
 
-  def areASTNodesEqual(node1 : AstNode, node2 : AstNode) : Boolean =
-  {
-
-    val compareAstNodes = (m : AstNode) => (m) match {
-      case (nb : Function) => this.equals(nb)
-      case (nb : CVar) => this.equals(nb)
-      case (nb : VarDecl) => this.equals(nb)
-      case (nb : ParamDecl) => this.equals(nb)
-      case (nb : ForLoop) => this.equals(nb)
-      case (nb : WhileLoop) => this.equals(nb)
-      case (nb : IfThenElse) => this.equals(nb)
-      case (nb : GOTO) => this.equals(nb)
-      case (nb : Label) => this.equals(nb)
-      case (nb : Break) => this.equals(nb)
-      case (nb : TypeDef) => this.equals(nb)
-      case (nb : TupleAlias) => this.equals(nb)
-      case (nb : ExpressionStatement) => this.equals(nb)
-      case (nb : FunctionCall) => this.equals(nb)
-      case (nb : VarRef) => this.equals(nb)
-      case (nb : Load) => this.equals(nb)
-      case (nb : Store) => this.equals(nb)
-      case (nb : AssignmentExpression) => this.equals(nb)
-      case (nb : ArithExpression) => this.equals(nb)
-      case (nb : BinaryExpression) => this.equals(nb)
-      case (nb : TernaryExpression) => this.equals(nb)
-      case (nb : Cast) => this.equals(nb)
-      case (nb : PointerCast) => this.equals(nb)
-      case (nb : StructConstructor) => this.equals(nb)
-      case (nb : RawCode) => this.equals(nb)
-      case (nb : Comment) => this.equals(nb)
-      case (nb : EmptyNode) => this.equals(nb)
-      case (nb : MutableBlock) => this.equals(nb)
-      case _ => false
-    }
-
-  false
-   // node1.visitAndRebuild(compareAstNodes(node2), idPostFun)
-
-  }
 
 
   def unrollPrivateMemoryArrayValues(node: AstNode): AstNode =

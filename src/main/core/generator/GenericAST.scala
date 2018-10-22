@@ -4,6 +4,7 @@ import ir.{ArrayType, TupleType, Type}
 import lift.arithmetic._
 import opencl.generator.UseCastsForVectors
 import PrettyPrinter._
+import core.generator.GenericAST.AstNode
 import utils.Printer
 
 import scala.language.implicitConversions
@@ -86,6 +87,47 @@ object GenericAST {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode
 
     def print(): Doc
+
+    /*
+    def compare(node1 : AstNode, node2 : AstNode) : Boolean =
+    {
+      // return equals on each type as well as on ALL parameters that require visiting
+      // ( see each case class for which )
+      (node1, node2) match {
+        case (mb Function, nb : Function) => mb.equals(nb) && compare(mb.body, nb.body)
+        case (nb : CVar) => this.equals(nb)
+        case (nb : VarDecl) => this.equals(nb)
+        case (nb : ParamDecl) => this.equals(nb)
+        case (nb : ForLoop) => this.equals(nb)
+        case (nb : WhileLoop) => this.equals(nb)
+        case (nb : IfThenElse) => this.equals(nb)
+        case (nb : GOTO) => this.equals(nb)
+        case (nb : Label) => this.equals(nb)
+        case (nb : Break) => this.equals(nb)
+        case (nb : TypeDef) => this.equals(nb)
+        case (nb : TupleAlias) => this.equals(nb)
+        case (nb : ExpressionStatement) => this.equals(nb)
+        case (nb : FunctionCall) => this.equals(nb)
+        case (nb : VarRef) => this.equals(nb)
+        case (nb : Load) => this.equals(nb)
+        case (nb : Store) => this.equals(nb)
+        case (nb : AssignmentExpression) => this.equals(nb)
+        case (nb : ArithExpression) => this.equals(nb)
+        case (nb : BinaryExpression) => this.equals(nb)
+        case (nb : TernaryExpression) => this.equals(nb)
+        case (nb : Cast) => this.equals(nb)
+        case (nb : PointerCast) => this.equals(nb)
+        case (nb : StructConstructor) => this.equals(nb)
+        case (nb : RawCode) => this.equals(nb)
+        case (nb : Comment) => this.equals(nb)
+        case (nb : EmptyNode) => this.equals(nb)
+        case (nb : MutableBlock) => this.equals(nb)
+        case _ => false
+      }
+
+    false
+    }
+*/
   }
 
   trait BlockMember
