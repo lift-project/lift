@@ -1,5 +1,7 @@
 package core.generator
 
+import javax.swing.ComponentInputMap
+
 import ir.{ArrayType, TupleType, Type}
 import lift.arithmetic._
 import opencl.generator.UseCastsForVectors
@@ -88,46 +90,51 @@ object GenericAST {
 
     def print(): Doc
 
-    /*
     def compare(node1 : AstNode, node2 : AstNode) : Boolean =
     {
+
+      // TODO: How to ensure this is updated if new nodes added?
+
       // return equals on each type as well as on ALL parameters that require visiting
       // ( see each case class for which )
       (node1, node2) match {
-        case (mb Function, nb : Function) => mb.equals(nb) && compare(mb.body, nb.body)
-        case (nb : CVar) => this.equals(nb)
-        case (nb : VarDecl) => this.equals(nb)
-        case (nb : ParamDecl) => this.equals(nb)
-        case (nb : ForLoop) => this.equals(nb)
-        case (nb : WhileLoop) => this.equals(nb)
-        case (nb : IfThenElse) => this.equals(nb)
-        case (nb : GOTO) => this.equals(nb)
-        case (nb : Label) => this.equals(nb)
-        case (nb : Break) => this.equals(nb)
-        case (nb : TypeDef) => this.equals(nb)
-        case (nb : TupleAlias) => this.equals(nb)
-        case (nb : ExpressionStatement) => this.equals(nb)
-        case (nb : FunctionCall) => this.equals(nb)
-        case (nb : VarRef) => this.equals(nb)
-        case (nb : Load) => this.equals(nb)
-        case (nb : Store) => this.equals(nb)
-        case (nb : AssignmentExpression) => this.equals(nb)
-        case (nb : ArithExpression) => this.equals(nb)
-        case (nb : BinaryExpression) => this.equals(nb)
-        case (nb : TernaryExpression) => this.equals(nb)
-        case (nb : Cast) => this.equals(nb)
-        case (nb : PointerCast) => this.equals(nb)
-        case (nb : StructConstructor) => this.equals(nb)
-        case (nb : RawCode) => this.equals(nb)
-        case (nb : Comment) => this.equals(nb)
-        case (nb : EmptyNode) => this.equals(nb)
-        case (nb : MutableBlock) => this.equals(nb)
+        case (mb : Function, nb : Function) =>
+          mb.equals(nb) && compare(mb.body, nb.body) && compare(mb.params,nb.params)
+        case (mb : CVar, nb : CVar) => mb.equals(nb)
+        case (mb : VarDecl, nb : VarDecl) => mb.equals(nb)
+        case (mb : ParamDecl, nb : ParamDecl) => mb.equals(nb)
+        case (mb : ForLoop, nb : ForLoop) =>
+          mb.equals(nb) && compare(mb.init, nb.init) && compare(mb.cond,nb.cond) && compare(mb.increment,nb.increment) && compare(mb.body, nb.body)
+        case (mb: WhileLoop, nb : WhileLoop) =>
+          mb.equals(nb) && compare(mb.loopPredicate,nb.loopPredicate) && compare(mb.body,nb.body)
+        case (mb: IfThenElse, nb : IfThenElse) =>
+          mb.equals(nb) && compare(mb.cond,nb.cond) && compare(mb.trueBody,nb.trueBody) && compare(mb.falseBody,nb.falseBody)
+        case (mb : GOTO, nb : GOTO) => mb.equals(nb)
+        case (mb : Label, nb : Label) => mb.equals(nb)
+        case (mb : Break, nb : Break) => mb.equals(nb)
+        case (mb : TypeDef, nb : TypeDef) => mb.equals(nb)
+        case (mb: TupleAlias, nb : TupleAlias) => mb.equals(nb)
+        case (mb : ExpressionStatement, nb : ExpressionStatement) => mb.equals(nb) && compare(mb.e,nb.e)
+        case (mb : FunctionCall,nb : FunctionCall) => mb.equals(nb) && compare(mb.args,nb.args)
+        case (mb : VarRef,nb : VarRef) => mb.equals(nb) && compare(mb.v,nb.v)
+        case (mb: Load,nb : Load) => mb.equals(nb) && compare(mb.v,nb.v) && compare(mb.offset,nb.offset)
+        case (mb: Store,nb : Store) => mb.equals(nb) && compare(mb.v,nb.v) && compare(mb.value,nb.value) && compare(mb.offset,nb.offset)
+        case (mb: AssignmentExpression,nb : AssignmentExpression) => mb.equals(nb) && compare(mb.to,nb.to) && compare(mb.value,nb.value)
+        case (mb: ArithExpression,nb : ArithExpression) => mb.equals(nb)
+        case (mb: BinaryExpression,nb : BinaryExpression) => mb.equals(nb) && compare(mb.lhs,nb.lhs)  && compare(mb.rhs, nb.rhs)
+        case (mb: TernaryExpression,nb : TernaryExpression) => mb.equals(nb) && compare(mb.cond,nb.cond) && compare(mb.trueExpr,nb.trueExpr) && compare(mb.falseExpr, nb.falseExpr)
+        case (mb: Cast,nb : Cast) => mb.equals(nb) && compare(mb.v,nb.v)
+        case (mb: PointerCast,nb : PointerCast) => mb.equals(nb) && compare(mb.v,nb.v)
+        case (mb: StructConstructor,nb : StructConstructor) => mb.equals(nb) && compare(mb.args,nb.args)
+        case (mb: RawCode,nb : RawCode) => mb.equals(nb)
+        case (mb: Comment,nb : Comment) => mb.equals(nb)
+        case (mb: EmptyNode,nb : EmptyNode) => mb.equals(nb)
+        case (mb: MutableBlock,nb : MutableBlock) => mb.equals(nb) &&compare(mb.content,nb.content)
         case _ => false
       }
 
     false
     }
-*/
   }
 
   trait BlockMember
