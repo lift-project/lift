@@ -1,7 +1,7 @@
 package rewriting.rules
 
 import ir._
-import ir.ast._
+import ir.ast.{Slide3D, _}
 import lift.arithmetic._
 import opencl.ir.pattern._
 import rewriting.utils.Utils
@@ -83,7 +83,8 @@ object Rules {
   /* Slide rules */
   val slideTiling: Rule = slideTiling(?)
 
-  def slideTiling(tileStep: ArithExpr) = Rule("Slide(n, s) => Join() o Map(Slide(n, s)) o Slide(u, v)", {
+  def slideTiling(tileStep: ArithExpr) = Rule("Slide(n, s) => Join() o Map(Slide(n, s)) o Slide(u, v)",
+    {
     case FunCall(Slide(n,s), arg) if
       tileStep == ? ||  // either we set it to valid value
       ArithExpr.isSmaller(s,tileStep).getOrElse(false) || // tile is bigger (valid)
@@ -93,6 +94,31 @@ object Rules {
       val overlap = n-s
       Join() o Map(Slide(n, s)) o Slide(step + overlap, step) $ arg
   })
+
+  val mapSeqSlide: Rule = mapSeqSlide(?)
+
+  /*
+    Map(Map(Map(fun(m => userFun(m))))) o Map(Map(Transpose()) o Transpose()) o
+          Slide(a, b) o Map(Map(Transpose()) o Slide(a, b) o Map(Slide(a, b))) =>
+    Map(Map( fun(x => {
+          MapSeqSlide( fun(m => jacobi(m)), a,b)
+        } o Transpose() o Map(Transpose()) $ x ))) o
+          Map(Transpose()) o Slide(a, b) o Map(Slide(a, b))
+   */
+  def mapSeqSlide(lambda : Lambda) = Rule("Map(fun(m => {})) o Slide(n,s) => MapSeqSlide(fun(m => {} )),n,s)",
+    {
+      case FunCall(Map(lambda), Slide(n,s),arg) =>
+
+        MapSeqSlide(lambda,n,s) $ arg
+    })
+
+  def mapSeqSlide2(lambda : Lambda) = Rule("Map(Map(Map(fun(m => {})))) o Slide3D(n,s) => Map(Map(MapSeqSlide(fun(m => {} )),n,s))) o Slide2D(n,s)",
+    {
+      case FunCall(Map(Map(lambda)), Slide3D(n,s),arg) =>
+
+        Map(Map(MapSeqSlide(lambda,n,s))) o Slide2D(n,s) $ arg
+    })
+
 
   /* Split-join rule */
   val splitJoin: Rule = splitJoin(?)
