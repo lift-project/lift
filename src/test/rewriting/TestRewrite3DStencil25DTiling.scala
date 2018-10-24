@@ -1,19 +1,41 @@
 package rewriting
 
-import ir.{ArrayType, ArrayTypeWSWC}
 import ir.ast.{Slide2D, Slide3D, Transpose, fun, _}
+import ir.{ArrayType, ArrayTypeWSWC}
 import lift.arithmetic.SizeVar
 import opencl.executor._
+import opencl.generator.stencil.MapSeqSlideHelpers
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, toPrivate, _}
 import org.junit.Assert._
 import org.junit._
+import rewriting.rules.Rules
+import rewriting.utils.NumberExpression
 
 object TestRewrite3DStencil25DTiling extends TestWithExecutor
 
 class TestRewrite3DStencil25DTiling
 {
+
+  val O = 2 + SizeVar("O")
+  val N = 2 + SizeVar("N")
+  val M = 2 + SizeVar("M")
+
+  def original1DStencil(size: Int, step: Int) = fun(
+    ArrayTypeWSWC(Float, N),
+    (input) =>
+     MapSeq(MapSeq(id)) o MapSeq(
+        fun(neighbours => {
+          toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbours
+        } )) o Slide(size,step) $ input
+  )
+
+  def stencil1D(a: Int ,b :Int) = fun(
+    ArrayTypeWSWC(Float, N),
+    (input) =>
+      toGlobal(MapSeqSlide(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
+  )
 
   def jacobi(m: Param) = {
     val `tile[1][1][1]` = m.at(1).at(1).at(1)
@@ -32,6 +54,26 @@ class TestRewrite3DStencil25DTiling
       toPrivate(fun(x => add(x, `tile[1][2][1]`))) $ `tile[2][1][1]`
 
     toGlobal(id) $ stencil
+  }
+
+  /** 1D **/
+  @Test
+  def reduceSlide1DTestSize3Step1(): Unit = {
+
+    val slidesize = 3
+    val slidestep = 1
+    val size = 100
+    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+    val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
+
+    //DotPrinter.withNumbering("/home/reese/scratch/","MSSrewrite",original1DStencil(3,1),true)
+    println(NumberExpression.breadthFirst(original1DStencil(3,1)).mkString("\n\n"))
+    val rewriteStencil1D = Rewrite.applyRuleAtId(original1DStencil(3,1),0,Rules.mapSeqSlide)
+    println(rewriteStencil1D)
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
+    assertArrayEquals(gold, output, 0.1f)
+
   }
 
   @Test
