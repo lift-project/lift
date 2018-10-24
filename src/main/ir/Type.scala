@@ -378,7 +378,6 @@ object Type {
       case st: ScalarType => st.name
       case vt: VectorType => vt.scalarT.name + vt.len.toString
       case tt: TupleType  => s"Tuple${tt.elemsT.length}_" + tt.elemsT.map(Type.name).reduce(_+"_"+_)
-      case at: ArrayType  => "Array_" + Type.name(at.elemT)
       case _ => throw new IllegalArgumentException
     }
   }

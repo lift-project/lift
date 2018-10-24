@@ -19,7 +19,7 @@ object UnrollValues {
   // anonymous identity function
   val idPostFun = (n: AstNode) => n
 
-  // map to keep track of the unrolled variables from private structs
+  // map to keep track of the unrolled variables from private arrays and structs
   var oclVarDeclMap = ListMap[CVar, Array[OclVarDecl]]()
   // map to keep track of the tuple types of the unrolled tuples - if there is a better way feel free to implement it
   var oclTupleTypeMap = ListMap[CVar, TupleType]()
@@ -62,7 +62,7 @@ object UnrollValues {
     var vr = VarRef(v, s, ai)
     if (oclVarDeclMap.contains(v))
     {
-      val idxSuffix = getIndexSuffix(s.getOrElse(throw new Exception("Unable to find index for " + v.v.name)))
+      val idxSuffix = getIndexSuffix(s.getOrElse(throw new Exception("Unable to find index for " + v.v.toString)))
       val ocl = oclVarDeclMap(v)(idxSuffix._1)
       vr = VarRef(ocl.v, Some(idxSuffix._2), ai)
     }
@@ -102,12 +102,8 @@ object UnrollValues {
     lst
   }
 
-
-
-
   def unrollPrivateMemoryArrayValues(node: AstNode): AstNode =
   {
-    // map to keep track of the unrolled variables from private memory arrays
 
     val preFunctionForUnrollingArrays = (n: AstNode) => n match {
       case mb: MutableBlock =>
@@ -129,7 +125,7 @@ object UnrollValues {
 
                           for (i <- 1 to ovd.length.toInt)// ovd.length.toInt)// Type.getLength(t).eval)
                           {
-                            var oclVDtmp = OclVarDecl(CVar(Var(ovd.v.v.name + "_" + i)), Type.getValueType(t)/*t*/, ovd.init, 0, PrivateMemory)
+                            var oclVDtmp = OclVarDecl(CVar(Var(ovd.v.v.toString + "_" + i)), Type.getValueType(t)/*t*/, ovd.init, 0, PrivateMemory)
                             // push them back in new vector
                             nodeVector = nodeVector :+ oclVDtmp
                             // and add them to our "map" to reference later
@@ -158,7 +154,7 @@ object UnrollValues {
           case (VarRef(v1, s1, ai1), VarRef(v2, s2, ai2)) =>
             if (oclVarDeclMap.contains(v1) && !oclVarDeclMap.contains(v2))
             {
-              val idxSuffix = getIndexSuffix(s1.getOrElse(throw new Exception("Unable to find index for " + v1.v.name)))
+              val idxSuffix = getIndexSuffix(s1.getOrElse(throw new Exception("Unable to find index for " + v1.v.toString)))
               // need to update the variable for v1, v2 stays the same
               val lhsOcl = oclVarDeclMap(v1)(idxSuffix._1)
               val lhs = VarRef(lhsOcl.v, Some(idxSuffix._2), ai1)
@@ -168,7 +164,7 @@ object UnrollValues {
             else if (oclVarDeclMap.contains(v2) && !oclVarDeclMap.contains(v1))
             {
               // need to update the variable for v2, v1 stays the same
-              val idxSuffix = getIndexSuffix(s2.getOrElse(throw new Exception("Unable to find index for " + v1.v.name)))
+              val idxSuffix = getIndexSuffix(s2.getOrElse(throw new Exception("Unable to find index for " + v1.v.toString)))
               val lhs = VarRef(v2, s2, ai2)
               val rhsOcl = oclVarDeclMap(v2)(idxSuffix._1)
               val rhs = VarRef(rhsOcl.v, s2, ai2)
@@ -176,10 +172,10 @@ object UnrollValues {
             }
             else if (oclVarDeclMap.contains(v1) && oclVarDeclMap.contains(v2))
             {
-              val idxSuffix1 = getIndexSuffix(s1.getOrElse(throw new Exception("Unable to find index for " + v1.v.name)))
+              val idxSuffix1 = getIndexSuffix(s1.getOrElse(throw new Exception("Unable to find index for " + v1.v.toString)))
               val lhsOcl = oclVarDeclMap(v1)(idxSuffix1._1)
               val lhs = VarRef(lhsOcl.v, Some(idxSuffix1._2), ai1)
-              val idxSuffix2 = getIndexSuffix(s2.getOrElse(throw new Exception("Unable to find index for " + v1.v.name)))
+              val idxSuffix2 = getIndexSuffix(s2.getOrElse(throw new Exception("Unable to find index for " + v1.v.toString)))
               val rhsOcl = oclVarDeclMap(v2)(idxSuffix2._1)
               val rhs = VarRef(rhsOcl.v, Some(idxSuffix2._2), ai2)
               ExpressionStatement(AssignmentExpression(lhs, rhs))
@@ -236,7 +232,7 @@ object UnrollValues {
         var vNew = v
         if (oclVarDeclMap.contains(vr.v))
         {
-          val idxSuffix = getIndexSuffix(vr.suffix.getOrElse(throw new Exception("Unable to find index for " + vr.v.v.name)))
+          val idxSuffix = getIndexSuffix(vr.suffix.getOrElse(throw new Exception("Unable to find index for " + vr.v.v.toString)))
           val ocl = oclVarDeclMap(vr.v)(idxSuffix._1)
           varRef = VarRef(ocl.v, Some(idxSuffix._2), vr.arrayIndex)
         }
@@ -255,7 +251,7 @@ object UnrollValues {
           case VarRef(v, s, ai) =>
             if (oclVarDeclMap.contains(v))
             {
-              val idxSuffix = getIndexSuffix(s.getOrElse(throw new Exception("Unable to find index for " + v.v.name)))
+              val idxSuffix = getIndexSuffix(s.getOrElse(throw new Exception("Unable to find index for " + v.v.toString)))
               val ocl = oclVarDeclMap(v)(idxSuffix._1)
               newCond = VarRef(ocl.v, Some(idxSuffix._2), ai)
             }
@@ -268,7 +264,7 @@ object UnrollValues {
           case VarRef(v, s, ai) =>
             if (oclVarDeclMap.contains(v))
             {
-              val idxSuffix = getIndexSuffix(s.getOrElse(throw new Exception("Unable to find index for " + v.v.name)))
+              val idxSuffix = getIndexSuffix(s.getOrElse(throw new Exception("Unable to find index for " + v.v.toString)))
               val ocl = oclVarDeclMap(v)(idxSuffix._1)
               init = Option(VarRef(ocl.v, Some(idxSuffix._2), ai))
             }
@@ -277,7 +273,7 @@ object UnrollValues {
         OclVarDecl(v,t,init,l,as)
       case VarRef(v, s, ai) =>
         if (oclVarDeclMap.contains(v)) {
-          throw new Exception("Unrolling private memory unavailable for variable " + v.v.name + "!")
+          throw new Exception("Unrolling private memory unavailable for variable " + v.v.toString + "!")
         }
         else VarRef(v, s, ai)
       case _ => n
@@ -402,7 +398,7 @@ object UnrollValues {
                 {
                   tupleTypes = tupleTypes :+ ocl.t
                 }
-                var tmp_cvar = CVar(Var(v.v.name + "_tmp"))
+                var tmp_cvar = CVar(Var(v.v.toString + "_tmp"))
                 var tmp = OclVarDecl(tmp_cvar, TupleType(tupleTypes: _*), None, 0, PrivateMemory)
                 nodeVector = nodeVector :+ tmp
                 nodeVector = nodeVector :+ ExpressionStatement(AssignmentExpression(VarRef(tmp_cvar,Some(""),None),rhs))

@@ -16,7 +16,11 @@ class TestUnrollAndInlineValues
 {
   val delta = 0.00001f
 
+  val M = 6
+
   val N = 4
+
+  val O = 8
 
   val tftii_id = UserFun("nestedtuple_id", "x", "return x;", TupleType(Float, TupleType(Int,Int)), TupleType(Float, TupleType(Int,Int)))
 
@@ -106,6 +110,10 @@ class TestUnrollAndInlineValues
   {
       /* Arr[Tuple(float,int)] */
 
+    // TODO: Add this to all tests!!! + replace flag in OpenCLGenerator
+    val ISflag = InlineStructs()
+    InlineStructs(true)
+
     val data = Array.tabulate(N) { (i) => (i + 1).toFloat }
     val input = (data zip data)
     val compare = (data zip data).toVector
@@ -119,6 +127,8 @@ class TestUnrollAndInlineValues
 
     val (output, _) = Execute(N,N)[Vector[(Float, Float)]](lambda, input)
     assertEquals(compare, output)
+
+    InlineStructs(ISflag)
 
   }
 
@@ -143,12 +153,77 @@ class TestUnrollAndInlineValues
 
   }
 
+  // TODO: finish this
+  @Test
+  def testUnrollPrivateArrayOfStructsOfStructsOfStructs(): Unit =
+  {
+    /* Arr[Tuple(float,Tuple(int,Tuple(float,float)))] */
+
+    val data = Array.tabulate(N) { (i) => (i + 1).toFloat }
+    val input = (data zip (data.map(_.toInt) zip data.map(_.toInt)))
+    val compare = (data zip (data.map(_.toInt) zip data.map(_.toInt))).toVector
+
+    val lambda = fun(
+      ArrayTypeWSWC(TupleType(Float,TupleType(Int,Int)), N),
+      (A) =>
+        toGlobal(MapSeq(tftii_id)) o toPrivate(MapSeq(tftii_id)) $ A)
+
+    println(Compile(lambda))
+
+    val (output, _) = Execute(N,N)[Vector[(Float, (Int,Int))]](lambda, input)
+    assertEquals(compare, output)
+
+  }
+
+  @Test
+  def testUnrollPrivateArraysOfPrivateArrays(): Unit =
+  {
+    /* Arr[Arr[float]]) */
+    val data = Array.tabulate(M,N) { (i,j) => (i + j + 1).toFloat }
+    val gold : Array[Float] = data.flatten
+
+
+    val lambda = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
+      (A) =>
+        toGlobal(MapSeq(MapSeq(id))) o toPrivate(MapSeq(MapSeq(id))) $ A)
+
+    println(Compile(lambda))
+
+    val (output, _) = Execute(2,2)[Array[Float]](lambda, data)
+    assertArrayEquals(gold, output,delta)
+
+  }
+
+  // TODO: finish this
+  @Test
+  def testUnrollPrivateArraysOfPrivateArraysOfPrivateArrays(): Unit =
+  {
+    /* Arr[Arr[Arr[float]]]) */
+    val data = Array.tabulate(M,N,O) { (i,j,k) => (i + j + k + 1).toFloat }
+    val gold : Array[Float] = data.flatten.flatten
+
+
+    val lambda = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O),N),M),
+      (A) =>
+        toGlobal(MapSeq(MapSeq(MapSeq(id)))) o toPrivate(MapSeq(MapSeq(MapSeq(id)))) $ A)
+
+    println(Compile(lambda))
+
+    val (output, _) = Execute(2,2)[Array[Float]](lambda, data)
+    assertArrayEquals(gold, output, delta)
+
+  }
+
+
+  // TODO: make an issue using result of this
   @Test
   def testUnrollPrivateArrayOfStructsOfPrivateArrays(): Unit =
   {
     /* Arr[Tuple(int,Arr[float])] */
 
-    val data = Array.tabulate(N) { (i) => (i + 1).toFloat }
+    val data = Array.tabulate(N) { (i) => (i + 1) }
     val data2D = Array.tabulate(N,N) { (i,j) => (i + j).toFloat }
     val input = (data zip data2D)
     val compare = (data zip data2D).toVector
@@ -157,53 +232,6 @@ class TestUnrollAndInlineValues
       ArrayTypeWSWC(TupleType(Int,ArrayTypeWSWC(Float, N)), N),
       (A) =>
         toGlobal(MapSeq(tfafN_id)) o toPrivate(MapSeq(tfafN_id)) $ A)
-
-    println(Compile(lambda))
-
-    //val (output, _) = Execute(N,N)[Vector[(Float, Float)]](lambda, input)
-    //assertEquals(compare, output)
-
-  }
-
-  @Test
-  def testUnrollStructOfPrivateArraysOfPrivateArrays(): Unit =
-  {
-    /* Tuple(Arr[Arr[float]],int) */
-    val data = Array.tabulate(N) { (i) => (i + 1).toFloat }
-    val data3D = Array.tabulate(N,N,N) { (i,j,k) => (i + j + k).toFloat }
-    val input = (data zip data3D)
-    val compare = (data zip data3D).toVector
-
-
-    val lambda = fun(
-      ArrayTypeWSWC(TupleType(Int,ArrayTypeWSWC(ArrayTypeWSWC(Float, N),N)),N),
-      (A) =>
-        toGlobal(MapSeq(tfafNN_id)) o toPrivate(MapSeq(tfafNN_id)) $ A)
-
-    println(Compile(lambda))
-
-    //val (output, _) = Execute(N,N)[Vector[(Float, Float)]](lambda, input)
-    //assertEquals(compare, output)
-
-  }
-
-  @Test
-  def testUnrollStructOfPrivateArraysOfStructs(): Unit =
-  {
-    /* Tuple(Arr[Tuple(int,int)],float) */
-
-    val data = Array.tabulate(N) { (i) => (i + 1) }
-    val dataF = Array.tabulate(N) { (i) => (i + 1).toFloat }
-    val tupleArr = ( data zip data )
-    val tupleArrFloat = ( tupleArr zip dataF )
-    val data3D = Array.tabulate(N,N,N) { (i,j,k) => (i + j + k).toFloat }
-    val input = (data zip data3D)
-    val compare = (data zip data3D).toVector
-
-    val lambda = fun(
-      ArrayTypeWSWC(TupleType(ArrayTypeWSWC(TupleType(Int,Int),N),Float),N),
-      (A) =>
-        toGlobal(MapSeq(tfatiif_id)) o toPrivate(MapSeq(tfatiif_id)) $ A)
 
     println(Compile(lambda))
 

@@ -253,16 +253,15 @@ class OpenCLGenerator extends Generator {
 
     // pass 3: generate the
     globalBlock += generateKernel(f)
+    val unrollBlock = UnrollValues.unrollPrivateMemoryArrayValues(globalBlock)
+    var inlineBlock = unrollBlock
 
     // unroll private memory in the AST
     //TODO: Add functionality to loop over and check for multi-dimensional arrays - ie. call visit and rebuild node until nothing has changed from the last iteration)
     // However, this should be done tangentially with structs! (if structs are being inlined)
-    val unrollBlock = UnrollValues.unrollPrivateMemoryArrayValues(globalBlock)
-
-    var inlineBlock = unrollBlock
 
     // inline structs if requested
-//    if(InlineStructs())
+   if(InlineStructs())
     {
       try
       {
@@ -270,10 +269,11 @@ class OpenCLGenerator extends Generator {
         var currentBlock : AstNode = null
 
         while(currentBlock != inlineBlock )
-  //      for ( i <- 1 to 3)
         {
             currentBlock = inlineBlock
             inlineBlock = UnrollValues.inlinePrivateMemoryStructValues(inlineBlock)
+  //            inlineBlock = UnrollValues.unrollPrivateMemoryArrayValues(inlineBlock)
+
         }
 
 
