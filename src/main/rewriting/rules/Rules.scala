@@ -96,19 +96,9 @@ object Rules {
   })
 
 
-  /*
-    Map(Map(Map(fun(m => userFun(m))))) o Map(Map(Transpose()) o Transpose()) o
-          Slide(a, b) o Map(Map(Transpose()) o Slide(a, b) o Map(Slide(a, b))) =>
-    Map(Map( fun(x => {
-          MapSeqSlide( fun(m => jacobi(m)), a,b)
-        } o Transpose() o Map(Transpose()) $ x ))) o
-          Map(Transpose()) o Slide(a, b) o Map(Slide(a, b))
-   */
   val mapSeqSlide = Rule("Map(fun(m => {})) o Slide(n,s) => MapSeqSlide(fun(m => {} )),n,s)",
     {
-        //case FunCall(Map(lambda), Slide(n,s),arg) =>
       case FunCall(MapSeq(lambda), FunCall(Slide(n,s), arg)) =>
-
         MapSeqSlide(lambda,n,s) $ arg
     })
 

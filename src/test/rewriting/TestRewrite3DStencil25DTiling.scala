@@ -10,6 +10,7 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, toPrivate, _}
 import org.junit.Assert._
 import org.junit._
+import rewriting.macrorules.MapSeqSlideRewrite
 import rewriting.rules.Rules
 import rewriting.utils.NumberExpression
 
@@ -25,7 +26,7 @@ class TestRewrite3DStencil25DTiling
   def original1DStencil(size: Int, step: Int) = fun(
     ArrayTypeWSWC(Float, N),
     (input) =>
-     MapSeq(MapSeq(id)) o MapSeq(
+      MapSeq(
         fun(neighbours => {
           toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbours
         } )) o Slide(size,step) $ input
@@ -35,6 +36,26 @@ class TestRewrite3DStencil25DTiling
     ArrayTypeWSWC(Float, N),
     (input) =>
       toGlobal(MapSeqSlide(MapSeqUnroll(id) o ReduceSeqUnroll(absAndSumUp,0.0f), a,b)) $ input
+  )
+
+  def original2DStencil(size: Int, step: Int) = fun(
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+    (input) => {
+      MapSeq(
+        MapSeq(fun(neighbours => {
+          toGlobal(MapSeqUnroll(id)) o
+            ReduceSeq(add, 0.0f) o Join() $ neighbours
+        }))
+      ) o Slide2D(size,step) $ input
+    })
+
+
+  def stencil2D(size: Int, step :Int) = fun(
+    ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+    (input) =>
+      Map(fun(x => {
+        toGlobal(MapSeqSlide(MapSeq(id) o ReduceSeq(add, 0.0f) o Join(), size, step)) o Transpose() $ x
+      })) o Slide(size,step)  $ input
   )
 
   def jacobi(m: Param) = {
@@ -58,7 +79,7 @@ class TestRewrite3DStencil25DTiling
 
   /** 1D **/
   @Test
-  def reduceSlide1DTestSize3Step1(): Unit = {
+  def test1DStencilRewrite(): Unit = {
 
     val slidesize = 3
     val slidestep = 1
@@ -67,11 +88,50 @@ class TestRewrite3DStencil25DTiling
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
     //DotPrinter.withNumbering("/home/reese/scratch/","MSSrewrite",original1DStencil(3,1),true)
-    println(NumberExpression.breadthFirst(original1DStencil(3,1)).mkString("\n\n"))
-    val rewriteStencil1D = Rewrite.applyRuleAtId(original1DStencil(3,1),0,Rules.mapSeqSlide)
+    println(NumberExpression.breadthFirst(original1DStencil(slidesize,slidestep)).mkString("\n\n"))
+    val rewriteStencil1D = Rewrite.applyRuleAtId(original1DStencil(slidesize,slidestep),0,Rules.mapSeqSlide)
     println(rewriteStencil1D)
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
+    assertArrayEquals(gold, output, 0.1f)
+
+  }
+
+  @Test
+  def test2DStencilRewrite(): Unit = {
+
+    val size = 8
+    val slidesize = 3
+    val slidestep = 1
+    val values = Array.tabulate(size,size) { (i,j) => (i*size + j + 1).toFloat }
+
+    val N = 2 + SizeVar("N")
+    val M = 2 + SizeVar("M")
+
+    def jacobi2DHighLevel(a: Int, b: Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+      mat => {
+        Map(Map(fun(m => jacobi(m)))) o
+          // Slide2D
+          Map(Transpose()) o Slide(a, b) o Map(Slide(a, b)) $ mat
+      })
+
+    def jacobi3DmapseqslideHighLevel(a : Int, b : Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
+      mat =>
+        Map( fun(x => {
+          MapSeqSlide( fun(m => jacobi(m)), a,b)
+        } o Transpose() o Map(Transpose()) $ x
+        )) o
+          // Slide1D
+          Slide(a, b)  $ mat)
+
+    println(NumberExpression.breadthFirst(original2DStencil(slidesize,slidestep)).mkString("\n\n"))
+    val rewriteStencil2D = Rewrite.applyRuleAtId(original2DStencil(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide2D)
+
+    val (output: Array[Float], _) = Execute(2,2)[Array[Float]](stencil2D(slidesize,slidestep), values)
+    val (gold: Array[Float], _) = Execute(2,2)[Array[Float]](original2DStencil(slidesize,slidestep), values)
+
     assertArrayEquals(gold, output, 0.1f)
 
   }
