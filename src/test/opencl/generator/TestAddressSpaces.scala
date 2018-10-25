@@ -176,8 +176,6 @@ class TestAddressSpaces {
         o Split(4) $ in
     )
 
-    println(Compile(f))
-
     val (output, _) = Execute(inputSize)[Array[Float]](f, input)
 
     assertArrayEquals(gold, output, 0.0f)
@@ -195,7 +193,6 @@ class TestAddressSpaces {
         o Split(128) $ in
     )
 
-    println( Compile(f))
     val (output, _) = Execute(inputSize)[Array[Float]](f, input)
 
     assertArrayEquals(gold: Array[Float], output, 0.0f)

@@ -217,27 +217,4 @@ class TestUnrollAndInlineValues
   }
 
 
-  // TODO: make an issue using result of this
-  @Test
-  def testUnrollPrivateArrayOfStructsOfPrivateArrays(): Unit =
-  {
-    /* Arr[Tuple(int,Arr[float])] */
-
-    val data = Array.tabulate(N) { (i) => (i + 1) }
-    val data2D = Array.tabulate(N,N) { (i,j) => (i + j).toFloat }
-    val input = (data zip data2D)
-    val compare = (data zip data2D).toVector
-
-    val lambda = fun(
-      ArrayTypeWSWC(TupleType(Int,ArrayTypeWSWC(Float, N)), N),
-      (A) =>
-        toGlobal(MapSeq(tfafN_id)) o toPrivate(MapSeq(tfafN_id)) $ A)
-
-    println(Compile(lambda))
-
-    //val (output, _) = Execute(N,N)[Vector[(Float, Float)]](lambda, input)
-    //assertEquals(compare, output)
-
-  }
-
 }

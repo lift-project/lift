@@ -1,12 +1,9 @@
 package core.generator
 
-import javax.swing.ComponentInputMap
-
+import core.generator.PrettyPrinter._
 import ir.{ArrayType, TupleType, Type}
 import lift.arithmetic._
 import opencl.generator.UseCastsForVectors
-import PrettyPrinter._
-import core.generator.GenericAST.AstNode
 import utils.Printer
 
 import scala.language.implicitConversions
@@ -90,6 +87,9 @@ object GenericAST {
 
     def print(): Doc
 
+    /**
+     * helper comparison for comparing two Option[AstNode]s
+     */
     def compareOption(mb : Option[AstNode], nb: Option[AstNode]): Boolean =
     {     val mbA = mb match {
             case Some(_) => true
@@ -105,13 +105,13 @@ object GenericAST {
           }
     }
 
+    /**
+      * comparison function for comparing two Option[AstNode]s
+      * NOTE: this function does not stay up to date automatically if a new ASTNode is added !!
+      */
     def compare(node1 : AstNode, node2 : AstNode) : Boolean =
     {
 
-      // TODO: How to ensure this is updated if new nodes added?
-
-      // return equals on each type as well as on ALL parameters that require visiting
-      // ( see each case class for which )
       (node1, node2) match {
         case (mb : Function, nb : Function) =>
           mb.equals(nb) && compareOption(mb.attribute,nb.attribute) && compare(mb.body, nb.body) && mb.params.length == nb.params.length && mb.params.zip(nb.params).map(t => t match { case (a,b) => compare(a,b) }).foldLeft(true)(_ && _)
