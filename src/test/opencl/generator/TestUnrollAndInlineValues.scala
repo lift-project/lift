@@ -1,7 +1,7 @@
 package opencl.generator
 
 import ir.ast._
-import ir.{ArrayType, ArrayTypeWSWC, TupleType}
+import ir.{ArrayTypeWSWC, TupleType}
 import opencl.executor.{Compile, Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -24,11 +24,7 @@ class TestUnrollAndInlineValues
 
   val tftii_id = UserFun("nestedtuple_id", "x", "return x;", TupleType(Float, TupleType(Int,Int)), TupleType(Float, TupleType(Int,Int)))
 
-  val tfafN_id = UserFun("tuplewitharray4_id", "x", "return x;", TupleType(Int, ArrayType(Float,N)), TupleType(Int,ArrayType(Float,N)))
-
-  val tfafNN_id = UserFun("tuplewitharray4x4_id", "x", "return x;", TupleType(Int,ArrayType(ArrayType(Float,N),N)), TupleType(Int,ArrayType(ArrayType(Float,N),N)))
-
-  val tfatiif_id = UserFun("tupleofarrayoftuple_id", "x", "return x;", TupleType(ArrayType(TupleType(Int,Int),N),Float),TupleType(ArrayType(TupleType(Int,Int),N),Float))
+  val tftitff_id = UserFun("nestednestedtuple_id", "x", "return x;", TupleType(Float, TupleType(Int,TupleType(Float,Float))), TupleType(Float, TupleType(Int,TupleType(Float,Float))))
 
   def runUnrolledIndexTest(inputString : String, returnIdx : Int, returnSuffix : String) : Unit =
   {
@@ -108,9 +104,8 @@ class TestUnrollAndInlineValues
   @Test
   def testUnrollPrivateArrayOfStructs(): Unit =
   {
-      /* Arr[Tuple(float,int)] */
+    /* Arr[Tuple(float,int)] */
 
-    // TODO: Add this to all tests!!! + replace flag in OpenCLGenerator
     val ISflag = InlineStructs()
     InlineStructs(true)
 
@@ -137,6 +132,9 @@ class TestUnrollAndInlineValues
   {
     /* Arr[Tuple(float,Tuple(int,int))] */
 
+    val ISflag = InlineStructs()
+    InlineStructs(true)
+
     val data = Array.tabulate(N) { (i) => (i + 1).toFloat }
     val input = (data zip (data.map(_.toInt) zip data.map(_.toInt)))
     val compare = (data zip (data.map(_.toInt) zip data.map(_.toInt))).toVector
@@ -148,37 +146,48 @@ class TestUnrollAndInlineValues
 
     println(Compile(lambda))
 
+
     val (output, _) = Execute(N,N)[Vector[(Float, (Int,Int))]](lambda, input)
     assertEquals(compare, output)
+
+
+    InlineStructs(ISflag)
 
   }
 
-  // TODO: finish this
   @Test
   def testUnrollPrivateArrayOfStructsOfStructsOfStructs(): Unit =
   {
+
     /* Arr[Tuple(float,Tuple(int,Tuple(float,float)))] */
 
+    val ISflag = InlineStructs()
+    InlineStructs(true)
+
     val data = Array.tabulate(N) { (i) => (i + 1).toFloat }
-    val input = (data zip (data.map(_.toInt) zip data.map(_.toInt)))
-    val compare = (data zip (data.map(_.toInt) zip data.map(_.toInt))).toVector
+    val input = (data zip (data.map(_.toInt) zip (data zip data)))
+    val compare = input.toVector
 
     val lambda = fun(
-      ArrayTypeWSWC(TupleType(Float,TupleType(Int,Int)), N),
+      ArrayTypeWSWC(TupleType(Float,TupleType(Int,TupleType(Float,Float))), N),
       (A) =>
-        toGlobal(MapSeq(tftii_id)) o toPrivate(MapSeq(tftii_id)) $ A)
+        toGlobal(MapSeq( tftitff_id )) o toPrivate(MapSeq( tftitff_id )) $ A)
 
     println(Compile(lambda))
 
-    val (output, _) = Execute(N,N)[Vector[(Float, (Int,Int))]](lambda, input)
+    val (output, _) = Execute(N,N)[Vector[(Float, (Int,(Float,Float)))]](lambda, input)
     assertEquals(compare, output)
+
+    InlineStructs(ISflag)
 
   }
 
   @Test
   def testUnrollPrivateArraysOfPrivateArrays(): Unit =
   {
+
     /* Arr[Arr[float]]) */
+
     val data = Array.tabulate(M,N) { (i,j) => (i + j + 1).toFloat }
     val gold : Array[Float] = data.flatten
 
@@ -195,14 +204,14 @@ class TestUnrollAndInlineValues
 
   }
 
-  // TODO: finish this
   @Test
   def testUnrollPrivateArraysOfPrivateArraysOfPrivateArrays(): Unit =
   {
+
     /* Arr[Arr[Arr[float]]]) */
+
     val data = Array.tabulate(M,N,O) { (i,j,k) => (i + j + k + 1).toFloat }
     val gold : Array[Float] = data.flatten.flatten
-
 
     val lambda = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O),N),M),
