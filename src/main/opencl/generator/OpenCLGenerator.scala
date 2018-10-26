@@ -271,7 +271,7 @@ class OpenCLGenerator extends Generator {
         }
 
       } catch {
-        case err : NotImplementedError => // we know about these errors and we want to not allow the user to inline structs
+        case err : NotImplementedError => // we know about these errors and we do not allow the user to inline structs in these cases
           print(s"Warning: Cannot inline structs: ")
           println(err.getMessage())
           inlineBlock = unrollBlock

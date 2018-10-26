@@ -2,7 +2,7 @@ package opencl.generator
 
 import ir.ast._
 import ir.{ArrayTypeWSWC, TupleType}
-import opencl.executor.{Compile, Execute, TestWithExecutor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
@@ -118,8 +118,6 @@ class TestUnrollAndInlineValues
       (A) =>
         toGlobal(MapSeq(tf_id)) o toPrivate(MapSeq(tf_id)) $ A)
 
-    println(Compile(lambda))
-
     val (output, _) = Execute(N,N)[Vector[(Float, Float)]](lambda, input)
     assertEquals(compare, output)
 
@@ -143,9 +141,6 @@ class TestUnrollAndInlineValues
       ArrayTypeWSWC(TupleType(Float,TupleType(Int,Int)), N),
       (A) =>
         toGlobal(MapSeq(tftii_id)) o toPrivate(MapSeq(tftii_id)) $ A)
-
-    println(Compile(lambda))
-
 
     val (output, _) = Execute(N,N)[Vector[(Float, (Int,Int))]](lambda, input)
     assertEquals(compare, output)
@@ -173,8 +168,6 @@ class TestUnrollAndInlineValues
       (A) =>
         toGlobal(MapSeq( tftitff_id )) o toPrivate(MapSeq( tftitff_id )) $ A)
 
-    println(Compile(lambda))
-
     val (output, _) = Execute(N,N)[Vector[(Float, (Int,(Float,Float)))]](lambda, input)
     assertEquals(compare, output)
 
@@ -197,8 +190,6 @@ class TestUnrollAndInlineValues
       (A) =>
         toGlobal(MapSeq(MapSeq(id))) o toPrivate(MapSeq(MapSeq(id))) $ A)
 
-    println(Compile(lambda))
-
     val (output, _) = Execute(2,2)[Array[Float]](lambda, data)
     assertArrayEquals(gold, output,delta)
 
@@ -217,8 +208,6 @@ class TestUnrollAndInlineValues
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O),N),M),
       (A) =>
         toGlobal(MapSeq(MapSeq(MapSeq(id)))) o toPrivate(MapSeq(MapSeq(MapSeq(id)))) $ A)
-
-    println(Compile(lambda))
 
     val (output, _) = Execute(2,2)[Array[Float]](lambda, data)
     assertArrayEquals(gold, output, delta)

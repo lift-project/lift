@@ -23,7 +23,7 @@ object UnrollValues {
   var oclVarDeclMap = ListMap[CVar, Array[OclVarDecl]]()
   // map to keep track of the tuple types of the unrolled tuples - if there is a better way feel free to implement it
   var oclTupleTypeMap = ListMap[CVar, TupleType]()
-  // map to keep track of tmp tuples
+  // map to keep track of "temporarily unrolled tuples" - we do this otherwise the pass will unroll forever
   var tmpTuple = Array[String]()
 
   // until there is a better way: get first index from suffix and return the resulting suffix string
@@ -46,11 +46,8 @@ object UnrollValues {
   def recreateStruct(arr: Array[OclVarDecl], ai: Option[ArithExpression], tt: TupleType): StructConstructor = {
     var varList = Vector[AstNode]()
     // loop over array of oclVarDecls
-    for (ocl <- arr) {
-      // pull out and create Vector of AstNodes (VarRefs)
-      //val tmp  = "._"+idx
-      //val vR = VarRef(v = ocl.v, suffix = Some(tmp), arrayIndex = None)
-      // idx = idx + 1
+    for (ocl <- arr)
+    {
       val vR = VarRef(v = ocl.v, arrayIndex = ai)
       varList = varList :+ vR
     }
@@ -308,8 +305,7 @@ object UnrollValues {
                     case PrivateMemory =>
                       if(!tmpTuple.contains(ovd.v.toString()))
                       {
-
-                           // loop over number of elements and create a new variable for each
+                        // loop over number of elements and create a new variable for each
                         oclVarDeclMap += (ovd.v -> Array[OclVarDecl]())
                         for (i <- 0 until tt.elemsT.length)
                         {
@@ -386,6 +382,7 @@ object UnrollValues {
               val idxSuffix = getIndexSuffix(s2.getOrElse(""))
               if( idxSuffix._1 < 0 )
               {
+                // TODO: we can actually do this
                 throw new NotImplementedError("Assigning unrolled tuple to a tuple - there is no method that can currently handle this!")
               }
               else
@@ -393,8 +390,8 @@ object UnrollValues {
                 val lhs = VarRef(v2, s2, ai2)
                 val rhsOcl = oclVarDeclMap(v2)(idxSuffix._1)
                 val rhs = VarRef(rhsOcl.v, s2, ai2)
+                ExpressionStatement(AssignmentExpression(lhs, rhs))
               }
-              ExpressionStatement(AssignmentExpression(lhs, rhs))
             }
             else if (oclVarDeclMap.contains(v1) && oclVarDeclMap.contains(v2)) {
 
@@ -420,7 +417,6 @@ object UnrollValues {
             {
               val idxSuffix = getIndexSuffix(s.getOrElse(""))
               if (idxSuffix._1 < 0) {
-//                throw new NotImplementedError("Assigning function return to unrolled tuple - cannot currently be handled!")
 
                 // determine how many "unrolled" values are in struct
                 val numTupleValues = oclVarDeclMap(v).length
@@ -438,24 +434,20 @@ object UnrollValues {
                 var tmp = OclVarDecl(tmp_cvar, tup, None, 0, PrivateMemory)
                 nodeVector = nodeVector :+ tmp
                 nodeVector = nodeVector :+ ExpressionStatement(AssignmentExpression(VarRef(tmp_cvar,Some(""),None),rhs))
-                // loop over number of "unrolled values" and set the tmp values to these values
-//                oclVarDeclMap += (tmp.v -> Array[OclVarDecl]())
-//                oclTupleTypeMap += (tmp.v -> tup)
 
+                // loop over number of "unrolled values" and set the tmp values to these values
                 for(i <- 0 until numTupleValues)
                 {
                   val ocl = oclVarDeclMap(v)(i)
-
-                  // VarRef( CVar, Suffix, Index )
                   var suffix = None: Option[String]
                   suffix = Some("._"+i)
                   var idx = None: Option[ArithExpression]
                   idx = Some(ArithExpression(Cst(i)))
-  //                oclVarDeclMap += (tmp.v -> (oclVarDeclMap(tmp.v) :+ ocl ))
                   nodeVector = nodeVector :+ ExpressionStatement(AssignmentExpression(VarRef(ocl.v,Some(""),None),VarRef(tmp.v,suffix,None)))
                 }
-                tmpTuple = tmpTuple :+ tmp_cvar.toString()
 
+                //ensure we don't try to unroll this tuple creation
+                tmpTuple = tmpTuple :+ tmp_cvar.toString()
                 MutableBlock(nodeVector)
 
               }
