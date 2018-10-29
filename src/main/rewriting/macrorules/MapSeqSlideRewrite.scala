@@ -1,6 +1,7 @@
 package rewriting.macrorules
 
 import ir.ast._
+import opencl.ir.pattern.{MapSeq, MapSeqSlide}
 import rewriting.Rewrite
 import rewriting.rules.{FusionRules, Rule, Rules}
 import rewriting.utils.Utils
@@ -11,12 +12,11 @@ object MapSeqSlideRewrite {
   val mapSeqSlide2D =
     Rule("Map(Map(fun(m => userFun(m)))) o Map(Transpose()) o Slide(n,s) o Map(Slide(n,s) =>"+
          "Map(MapSeqSlide(fun(m => userFun(m)))) o Slide(n,s)", {
-      case FunCall(Map(Lambda(Array(_), FunCall(Transpose(), _))),
-        FunCall(Slide(n1,s1),
-        FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), _))), arg)))
-          if n1 == n2 && s1 == s2 =>
-          val slideStep = Utils.validSlideStep(arg.t, n1-s1)
-          TiledSlidedND(2)(n1,s1,slideStep) $ arg
+      case FunCall(Map(Lambda(Array(_), FunCall(MapSeq(f), _))),
+      FunCall(Map(Lambda(Array(_), FunCall(Transpose(), _))),
+      FunCall(Slide(n,s),
+      FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), slideArg))), arg)))) =>
+          Map(MapSeqSlide(f,n,s)) $ arg
     })
 
   /*

@@ -1,6 +1,7 @@
 package rewriting
 
 import ir.ast.{Slide2D, Slide3D, Transpose, fun, _}
+import ir.printer.DotPrinter
 import ir.{ArrayType, ArrayTypeWSWC}
 import lift.arithmetic.SizeVar
 import opencl.executor._
@@ -58,7 +59,22 @@ class TestRewrite3DStencil25DTiling
       })) o Slide(size,step)  $ input
   )
 
-  def jacobi(m: Param) = {
+  def jacobi2D(m: Param) = {
+    val `tile[1][1]` = m.at(1).at(1)
+    val `tile[0][1]` = m.at(0).at(1)
+    val `tile[1][0]` = m.at(1).at(0)
+    val `tile[1][2]` = m.at(1).at(2)
+    val `tile[2][1]` = m.at(2).at(1)
+
+    val stencil = toPrivate(fun(x => add(x, `tile[1][1]`))) o
+      toPrivate(fun(x => add(x, `tile[0][1]`))) o
+      toPrivate(fun(x => add(x, `tile[1][0]`))) o
+      toPrivate(fun(x => add(x, `tile[1][2]`))) $ `tile[2][1]`
+
+    toGlobal(id) $ stencil
+  }
+
+  def jacobi3D(m: Param) = {
     val `tile[1][1][1]` = m.at(1).at(1).at(1)
     val `tile[0][1][1]` = m.at(0).at(1).at(1)
     val `tile[1][0][1]` = m.at(1).at(0).at(1)
@@ -108,30 +124,44 @@ class TestRewrite3DStencil25DTiling
     val N = 2 + SizeVar("N")
     val M = 2 + SizeVar("M")
 
+    def original2DStencil(size: Int, step: Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      (input) => {
+        MapSeq(
+          MapSeq(fun(m => {
+            jacobi2D(m)
+          }))) o Slide2D(size,step) $ input
+      })
+
     def jacobi2DHighLevel(a: Int, b: Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
-      mat => {
-        Map(Map(fun(m => jacobi(m)))) o
+      (mat) => {
+        MapSeq(MapSeq(fun(m => jacobi2D(m)))) o
           // Slide2D
           Map(Transpose()) o Slide(a, b) o Map(Slide(a, b)) $ mat
       })
 
-    def jacobi3DmapseqslideHighLevel(a : Int, b : Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), M),
-      mat =>
-        Map( fun(x => {
-          MapSeqSlide( fun(m => jacobi(m)), a,b)
-        } o Transpose() o Map(Transpose()) $ x
-        )) o
-          // Slide1D
-          Slide(a, b)  $ mat)
+    def jacobi2DMapSeqSlideHighLevel(size: Int, step :Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      (input) =>
+        MapSeq(fun(x => {
+          toGlobal(MapSeqSlide( (fun(m => jacobi2D(m))), size, step)) o  Transpose() /* o  Map(Transpose()) */ $ x
+        })) o Slide(size,step)   $ input
+    )
 
-    println(NumberExpression.breadthFirst(original2DStencil(slidesize,slidestep)).mkString("\n\n"))
-    val rewriteStencil2D = Rewrite.applyRuleAtId(original2DStencil(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide2D)
 
-    val (output: Array[Float], _) = Execute(2,2)[Array[Float]](stencil2D(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2)[Array[Float]](original2DStencil(slidesize,slidestep), values)
+        DotPrinter.withNumbering("/home/reese/scratch/","MSS2rewrite",jacobi2DHighLevel(slidesize,slidestep),true)
+        println(NumberExpression.breadthFirst(original2DStencil(slidesize,slidestep)).mkString("\n\n"))
+        val rewriteStencil2D = Rewrite.applyRuleAtId(original2DStencil(slidesize,slidestep),12,MapSeqSlideRewrite.mapSeqSlide2D)
+        println(rewriteStencil2D)
+    /*
+    */
 
+    val (original: Array[Float], _) = Execute(2,2)[Array[Float]](original2DStencil(slidesize,slidestep), values)
+    val (gold: Array[Float], _) = Execute(2,2)[Array[Float]](jacobi2DHighLevel(slidesize,slidestep), values)
+    val (output: Array[Float], _) = Execute(2,2)[Array[Float]](jacobi2DMapSeqSlideHighLevel(slidesize,slidestep), values)
+
+    assertArrayEquals(original, gold, 0.1f)
     assertArrayEquals(gold, output, 0.1f)
 
   }
@@ -157,18 +187,18 @@ class TestRewrite3DStencil25DTiling
 
 
 
-    def jacobi3D(a: Int, b: Int) = fun(
+    def jacobi3Dlambda(a: Int, b: Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
       (mat) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
-          jacobi(m)
+          jacobi3D(m)
         })))) o Slide3D(a,b) $ mat
       })
 
     def jacobi3DHighLevel(a: Int, b: Int) = fun(
       ArrayType(ArrayType(ArrayType(Float, o+2), n+2), m+2),
       mat => {
-        Map(Map(Map(fun(m => jacobi(m))))) o
+        Map(Map(Map(fun(m => jacobi3D(m))))) o
           // Slide3D
           Map(Map(Transpose()) o Transpose()) o
           Slide(a, b) o Map(Map(Transpose()) o Slide(a, b) o Map(Slide(a, b))) $ mat
@@ -178,7 +208,7 @@ class TestRewrite3DStencil25DTiling
       ArrayType(ArrayType(ArrayType(Float, o+2),n+2),m+2),
       mat =>
         Map(Map( fun(x => {
-          MapSeqSlide( fun(m => jacobi(m)), a,b)
+          MapSeqSlide( fun(m => jacobi3D(m)), a,b)
         } o Transpose() o Map(Transpose()) $ x
 
         ))) o
@@ -191,13 +221,13 @@ class TestRewrite3DStencil25DTiling
       (mat) =>
         MapGlb(1)(MapGlb(0)( fun (x => {
           toGlobal(MapSeqSlide(fun(m => {
-            jacobi(m)
+            jacobi3D(m)
           }),a,b))  } o Transpose() o Map(Transpose()) $ x
 
         ))) o Slide2D(a,b) $ mat)
 
 
-    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3D(slidesize,slidestep), stencilarrpadded3D)
+    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dlambda(slidesize,slidestep), stencilarrpadded3D)
     val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
 
     assertArrayEquals(output_MSS, output_org, StencilUtilities.stencilDelta)
@@ -224,11 +254,11 @@ class TestRewrite3DStencil25DTiling
     val o = SizeVar("O")
 
 
-    def jacobi3D(a: Int, b: Int) = fun(
+    def jacobi3Dlambda(a: Int, b: Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
       (mat) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
-          jacobi(m)
+          jacobi3D(m)
         })))) o Slide3D(a,b) $ mat
       })
 
@@ -237,7 +267,7 @@ class TestRewrite3DStencil25DTiling
       (mat) => mat)
 
 
-    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3D(slidesize,slidestep), stencilarrpadded3D)
+    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dlambda(slidesize,slidestep), stencilarrpadded3D)
     val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3DMapSeqSlideWithRule(slidesize,slidestep), stencilarrpadded3D)
 
     assertArrayEquals(output_MSS, output_org, StencilUtilities.stencilDelta)
@@ -267,11 +297,11 @@ class TestRewrite3DStencil25DTiling
     val Ny = localDimY
     val Nz = localDimZ
 
-    def jacobi3D(a: Int, b: Int) = fun(
+    def jacobi3Dlambda(a: Int, b: Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, Nx),Ny),Nz),
       (mat) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
-            jacobi(m)
+            jacobi3D(m)
         })))) o Slide3D(a,b) o PadConstant3D(1,1,1,0.0f) $ mat
       })
 
@@ -281,13 +311,13 @@ class TestRewrite3DStencil25DTiling
         Map(TransposeW()) o TransposeW() o Map(TransposeW()) o
           MapGlb(0)(MapGlb(1)( fun (x => {
             toGlobal(MapSeqSlide(fun(m => {
-              jacobi(m)
+              jacobi3D(m)
             }),a,b))  } o Transpose() o Map(Transpose()) $ x
           ))) o Slide2D(a,b) o Map(Transpose())  o Transpose() o Map(Transpose()) o PadConstant3D(1,1,1,0.0f) $ mat)
 
 
 
-    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3D(slidesize,slidestep), data)
+    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dlambda(slidesize,slidestep), data)
     val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3DMapSeqSlide(slidesize,slidestep), data)
 
 
@@ -318,11 +348,11 @@ class TestRewrite3DStencil25DTiling
     val Ny = localDimY
     val Nz = localDimZ
 
-    def jacobi3D(a: Int, b: Int) = fun(
+    def jacobi3Dlambda(a: Int, b: Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, Nx),Ny),Nz),
       (mat) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
-          jacobi(m)
+          jacobi3D(m)
         })))) o Slide3D(a,b) o PadConstant3D(1,1,1,0.0f) $ mat
       })
 
@@ -330,7 +360,7 @@ class TestRewrite3DStencil25DTiling
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, Nx),Ny),Nz),
       (mat) => mat)
 
-    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3D(slidesize,slidestep), data)
+    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dlambda(slidesize,slidestep), data)
     val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3DMapSeqSlideWithRewriteRule(slidesize,slidestep), data)
 
 
