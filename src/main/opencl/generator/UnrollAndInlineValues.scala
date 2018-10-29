@@ -23,13 +23,15 @@ object UnrollValues {
   var oclVarDeclMap = ListMap[CVar, Array[OclVarDecl]]()
   // map to keep track of the tuple types of the unrolled tuples - if there is a better way feel free to implement it
   var oclTupleTypeMap = ListMap[CVar, TupleType]()
-  // map to keep track of "temporarily unrolled tuples" - we do this otherwise the pass will unroll forever
-  var tmpTuple = Array[String]()
+  // map to keep track of "already temporarily unrolled tuples" - we do this otherwise the pass will unroll forever
+  var tempTuples = Array[String]()
 
   // until there is a better way: get first index from suffix and return the resulting suffix string
   def getIndexSuffix(str: String): (Int, String) = {
+
     val idx = str.split("_|\\.").filter(_.nonEmpty).lift(0).getOrElse("-1")
-    if (idx == "-1") // is there a nicer way to do this ?
+
+    if (idx == "-1")
     {
       (idx.toInt, "")
     }
@@ -37,7 +39,7 @@ object UnrollValues {
       var suffix = str.split("_", 2).filter(_.nonEmpty)(0).split(idx, 2).mkString
       if (suffix == ".") {
         suffix = "";
-      } // TODO: probably a nicer way to do this?
+      }
       (idx.toInt, suffix)
     }
   }
@@ -71,6 +73,7 @@ object UnrollValues {
     vr
   }
 
+  // recreate list of VarRefs
   def getVarRefList(args: List[GenericAST.AstNode],oclVarDeclMap: ListMap[CVar, Array[OclVarDecl]]) : List[GenericAST.AstNode] =
   {
     var lst = List[GenericAST.AstNode]()
@@ -103,6 +106,10 @@ object UnrollValues {
     }
     lst
   }
+
+/**
+  * pass to unroll private arrays
+  */
 
   def unrollPrivateMemoryArrayValues(node: AstNode): AstNode =
   {
@@ -149,6 +156,7 @@ object UnrollValues {
         )
         // return block with new vector values
         MutableBlock(nodeVector, mb.global)
+
       case ExpressionStatement(e) => e match
       {
         case AssignmentExpression(lhs, rhs) => (lhs, rhs) match
@@ -202,6 +210,7 @@ object UnrollValues {
         }
         case _ => ExpressionStatement(e)
       }
+
       case StructConstructor(t, args) =>
         var newargs = Vector[GenericAST.AstNode]()
         for (arg <- args) {
@@ -246,6 +255,7 @@ object UnrollValues {
           case _ => v
         }
         OclStore(varRef, t, vNew, offset, addressSpace)
+
       case IfThenElse(cond,tb,fb) =>
         var newCond = cond
         cond match
@@ -260,6 +270,7 @@ object UnrollValues {
           case _ =>
         }
         IfThenElse(newCond,tb,fb)
+
       case OclVarDecl(v,t,i,l,as) =>
         var init = i
         i.getOrElse("") match {
@@ -273,6 +284,7 @@ object UnrollValues {
           case _ =>
         }
         OclVarDecl(v,t,init,l,as)
+
       case VarRef(v, s, ai) =>
         if (oclVarDeclMap.contains(v)) {
           throw new Exception("Unrolling private memory unavailable for variable " + v.v.toString + "!")
@@ -284,7 +296,9 @@ object UnrollValues {
     node.visitAndRebuild(preFunctionForUnrollingArrays, idPostFun)
   }
 
-
+  /**
+    * pass to inline structs
+    */
   def inlinePrivateMemoryStructValues(node: AstNode): AstNode =
   {
 
@@ -303,7 +317,7 @@ object UnrollValues {
                   ovd.addressSpace match
                   {
                     case PrivateMemory =>
-                      if(!tmpTuple.contains(ovd.v.toString()))
+                      if(!tempTuples.contains(ovd.v.toString()))
                       {
                         // loop over number of elements and create a new variable for each
                         oclVarDeclMap += (ovd.v -> Array[OclVarDecl]())
@@ -329,11 +343,12 @@ object UnrollValues {
                 case _ => nodeVector = nodeVector :+ ovd
               }
             // otherwise just push back in new Vector
-            case an: AstNode => nodeVector = nodeVector :+ an // won't let me just use "_", please don't ask me to
+            case an: AstNode => nodeVector = nodeVector :+ an
           }
         )
         // return block with new vector
         MutableBlock(nodeVector, mb.global)
+
       case ExpressionStatement(e) => e match
       {
         case AssignmentExpression(lhs, rhs) => (lhs, rhs) match {
@@ -345,11 +360,10 @@ object UnrollValues {
               {
                 // In this situation, we are not supplied with a suffix, which we must suppose means that we are setting an unrolled tuple equal to another tuple
                 // pull out the separated tuple variable (LHS) and set them equal to the appropriate values in the RHS tuple
-                //throw new NotImplementedError("Assigning unrolled tuple to a tuple - there is no method that can currently handle this!")
-
-                // get a list of the VarDecls that v1 points to
 
                 var nodeVector = Vector[AstNode with BlockMember]()
+
+                // get a list of the VarDecls that v1 points to
                 val v1OclList = oclVarDeclMap(v1)
 
                 val numTupleValues = oclVarDeclMap(v1).length
@@ -358,8 +372,6 @@ object UnrollValues {
                 for(i <- 0 until numTupleValues)
                 {
                   val ocl = oclVarDeclMap(v1)(i)
-
-                  // VarRef( CVar, Suffix, Index )
                   var suffix = None: Option[String]
                   suffix = Some(s2.getOrElse("")+"._"+i)
                   nodeVector = nodeVector :+ ExpressionStatement(AssignmentExpression(VarRef(ocl.v,Some(""),None),VarRef(v2.v,suffix,None)))
@@ -382,8 +394,25 @@ object UnrollValues {
               val idxSuffix = getIndexSuffix(s2.getOrElse(""))
               if( idxSuffix._1 < 0 )
               {
-                // TODO: we can actually do this
-                throw new NotImplementedError("Assigning unrolled tuple to a tuple - there is no method that can currently handle this!")
+
+                var nodeVector = Vector[AstNode with BlockMember]()
+
+                // get a list of the VarDecls that v1 points to
+                val v1OclList = oclVarDeclMap(v2)
+
+                val numTupleValues = oclVarDeclMap(v2).length
+
+                // loop over and set each one to the variable + suffix added to s2 suffix
+                for(i <- 0 until numTupleValues)
+                {
+                  val ocl = oclVarDeclMap(v2)(i)
+                  var suffix = None: Option[String]
+                  suffix = Some(s1.getOrElse("")+"._"+i)
+                  nodeVector = nodeVector :+ ExpressionStatement(AssignmentExpression(VarRef(v1.v,suffix,None),VarRef(ocl.v,Some(""),None)))
+                }
+
+                MutableBlock(nodeVector)
+
               }
               else
               {
@@ -411,6 +440,7 @@ object UnrollValues {
             {
               ExpressionStatement(AssignmentExpression(VarRef(v1, s1, ai1), VarRef(v2, s2, ai2)))
             }
+
           case (VarRef(v, s, ai), rhs) =>
             var vr = VarRef(v, s, ai)
             if (oclVarDeclMap.contains(v))
@@ -447,7 +477,7 @@ object UnrollValues {
                 }
 
                 //ensure we don't try to unroll this tuple creation
-                tmpTuple = tmpTuple :+ tmp_cvar.toString()
+                tempTuples = tempTuples :+ tmp_cvar.toString()
                 MutableBlock(nodeVector)
 
               }
@@ -468,6 +498,7 @@ object UnrollValues {
         }
         case _ => ExpressionStatement(e)
       }
+
       case FunctionCall(f,args) =>
         // update args list with new values of VarRefs
         var lst = List[GenericAST.AstNode]()
@@ -500,6 +531,7 @@ object UnrollValues {
             }
         }
         FunctionCall(f, lst)
+
       case StructConstructor(t, args) =>
          var newargs = Vector[GenericAST.AstNode]()
          for (arg <- args)
@@ -533,13 +565,13 @@ object UnrollValues {
             }
          }
          StructConstructor(t, newargs)
+
       case VarRef(v, s, ai) =>
         if (oclVarDeclMap.contains(v))
         {
           // get actual reference
           val idxSuffix = getIndexSuffix(s.getOrElse(""))
-          //TODO: do we need an if check here? turns out yes
-//          if(idxSuffix )
+          if(idxSuffix._1 < 0 ) throw new Exception("Unknown reference to unrolled tuple!")
           val ocl = oclVarDeclMap(v)(idxSuffix._1)
           VarRef(ocl.v, Some(idxSuffix._2), ai)
         }

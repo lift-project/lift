@@ -8,11 +8,10 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 
-
 object TestUnrollAndInlineValues extends TestWithExecutor
 
-
 class TestUnrollAndInlineValues {
+
   val delta = 0.00001f
 
   val M = 6
