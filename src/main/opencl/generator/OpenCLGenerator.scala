@@ -1913,7 +1913,7 @@ class OpenCLGenerator extends Generator {
 
   /**
     * Generating the suffix appended to emulate an array access in private memory
-      *
+    *
     * @param v    The variable to access
     * @param view The view describing the access
     * @return A string of the form '_index' where index is the computed
