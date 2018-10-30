@@ -9,14 +9,28 @@ import rewriting.utils.Utils
 object MapSeqSlideRewrite {
 
 
-  val mapSeqSlide2D =
+  val mapSeqSlide2DSeq =
+
     Rule("Map(Map(fun(m => userFun(m)))) o Map(Transpose()) o Slide(n,s) o Map(Slide(n,s) =>"+
          "Map(MapSeqSlide(fun(m => userFun(m)))) o Slide(n,s)", {
       case FunCall(MapSeq(Lambda1(Array(_), FunCall(MapSeq(f), _))),
       FunCall(Map(Lambda(Array(_), FunCall(Transpose(), _))),
       FunCall(Slide(n,s),
       FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), slideArg))), arg)))) =>
-          MapSeq(MapSeqSlide(f,n,s)) $ arg
+        // TODO: add if n==n2 && s==s2
+          MapSeq(MapSeqSlide(f,n,s)) o Slide(n,s) $ arg
+
+    })
+
+  val mapSeqSlide2D =
+
+    Rule("Map(Map(fun(m => userFun(m)))) o Map(Transpose()) o Slide(n,s) o Map(Slide(n,s) =>"+
+      "Map(MapSeqSlide(fun(m => userFun(m)))) o Slide(n,s)", {
+      case FunCall(Map(Lambda(Array(_), FunCall(MapSeq(f), _))),
+      FunCall(Map(Lambda(Array(_), FunCall(Transpose(), _))),
+      FunCall(Slide(n,s),
+      FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), slideArg))), arg)))) =>
+        MapSeq(MapSeqSlide(f,n,s)) o Slide(n,s) $ arg
 
     })
 
@@ -29,7 +43,31 @@ object MapSeqSlideRewrite {
           Map(Transpose()) o Slide(a, b) o Map(Slide(a, b))
    */
 
+  // TODO: fix the parentheses here
+
+  val mapSeqSlide3DSeq =
+
+    Rule("Map(Map(Map(fun(m => userFun(m))))) o Map(Map(Transpose()) o Transpose()) o "+
+      "Slide(a, b) o Map(Map(Transpose()) o Slide(a, b) o Map(Slide(a, b))) =>"+
+      "Map(Map( fun(x => {"+
+      "MapSeqSlide( fun(m => jacobi(m)), a,b)"+
+      "} o Transpose() o Map(Transpose()) $ x ))) o"+
+      "Map(Transpose()) o Slide(a, b) o Map(Slide(a, b))", {
+      /*   {
+           case FunCall(MapSeq(lambda), FunCall(Slide(n,s), arg)) =>
+             MapSeqSlide(lambda,n,s) $ arg
+         })*/
+      case FunCall(MapSeq(Lambda1(Array(_), FunCall(MapSeq(Lambda1(Array(_), FunCall(MapSeq(f),_)))))),
+      FunCall(Map(Lambda(Array(_), FunCall(Map(Lambda(Array(_), FunCall(Transpose(),_))), FunCall(Transpose(),_)))),
+      FunCall(Slide(n,s),
+      FunCall(Map(Lambda(Array(_),FunCall(Map(Lambda(Array(_), FunCall(Transpose(),_))), FunCall(Slide(n2,s2), FunCall(Map(Lambda(Array(_), FunCall(Slide(n3,s3), _)))))))), arg)))) =>
+        // TODO: add if n==n2 && s==s2
+        Map(Map(MapSeqSlide(f,n,s))) o Slide(n,s) $ arg
+
+    })
+
   val mapSeqSlide3D =
+
      Rule("Map(Map(Map(fun(m => userFun(m))))) o Map(Map(Transpose()) o Transpose()) o "+
           "Slide(a, b) o Map(Map(Transpose()) o Slide(a, b) o Map(Slide(a, b))) =>"+
           "Map(Map( fun(x => {"+
@@ -40,12 +78,13 @@ object MapSeqSlideRewrite {
          case FunCall(MapSeq(lambda), FunCall(Slide(n,s), arg)) =>
            MapSeqSlide(lambda,n,s) $ arg
        })*/
-      case FunCall(Map(Lambda(Array(_), FunCall(Transpose(), _))),
-        FunCall(Slide(n1,s1),
-        FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), _))), arg)))
-          if n1 == n2 && s1 == s2 =>
-          val slideStep = Utils.validSlideStep(arg.t, n1-s1)
-          TiledSlidedND(2)(n1,s1,slideStep) $ arg
+      case FunCall(Map(Lambda(Array(_), FunCall(Map(Lambda(Array(_), FunCall(MapSeq(f),_)))))),
+           FunCall(Map(Lambda(Array(_), FunCall(Map(Lambda(Array(_), FunCall(Transpose(),_)))))),
+           FunCall(Slide(n,s),
+           FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), _))), arg)))) =>
+           // TODO: add if n==n2 && s==s2
+           Map(Map(MapSeqSlide(f,n,s))) o Slide(n,s) $ arg
+
     })
 
   /**
