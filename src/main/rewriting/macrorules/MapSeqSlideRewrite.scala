@@ -12,11 +12,12 @@ object MapSeqSlideRewrite {
   val mapSeqSlide2D =
     Rule("Map(Map(fun(m => userFun(m)))) o Map(Transpose()) o Slide(n,s) o Map(Slide(n,s) =>"+
          "Map(MapSeqSlide(fun(m => userFun(m)))) o Slide(n,s)", {
-      case FunCall(Map(Lambda(Array(_), FunCall(MapSeq(f), _))),
+      case FunCall(MapSeq(Lambda1(Array(_), FunCall(MapSeq(f), _))),
       FunCall(Map(Lambda(Array(_), FunCall(Transpose(), _))),
       FunCall(Slide(n,s),
       FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), slideArg))), arg)))) =>
-          Map(MapSeqSlide(f,n,s)) $ arg
+          MapSeq(MapSeqSlide(f,n,s)) $ arg
+
     })
 
   /*

@@ -103,10 +103,10 @@ class TestRewrite3DStencil25DTiling
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    //DotPrinter.withNumbering("/home/reese/scratch/","MSSrewrite",original1DStencil(3,1),true)
+    DotPrinter.withNumbering("/home/reese/scratch/","MSSrewrite",original1DStencil(3,1),true)
     println(NumberExpression.breadthFirst(original1DStencil(slidesize,slidestep)).mkString("\n\n"))
     val rewriteStencil1D = Rewrite.applyRuleAtId(original1DStencil(slidesize,slidestep),0,Rules.mapSeqSlide)
-    println(rewriteStencil1D)
+//    println(rewriteStencil1D)
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
     assertArrayEquals(gold, output, 0.1f)
@@ -145,15 +145,19 @@ class TestRewrite3DStencil25DTiling
       ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (input) =>
         MapSeq(fun(x => {
-          toGlobal(MapSeqSlide( (fun(m => jacobi2D(m))), size, step)) o  Transpose() /* o  Map(Transpose()) */ $ x
+          toGlobal(MapSeqSlide( (fun(m => jacobi2D(m))), size, step)) o  Transpose()  $ x
         })) o Slide(size,step)   $ input
     )
 
 
-        DotPrinter.withNumbering("/home/reese/scratch/","MSS2rewrite",jacobi2DHighLevel(slidesize,slidestep),true)
+    //    DotPrinter.withNumbering("/home/reese/scratch/","MSS2rewrite",jacobi2DHighLevel(slidesize,slidestep),true)
+    //    DotPrinter.withNumbering("/home/reese/scratch/","2DMapSeqSlide",jacobi2DMapSeqSlideHighLevel(slidesize,slidestep),true)
         println(NumberExpression.breadthFirst(original2DStencil(slidesize,slidestep)).mkString("\n\n"))
-        val rewriteStencil2D = Rewrite.applyRuleAtId(original2DStencil(slidesize,slidestep),12,MapSeqSlideRewrite.mapSeqSlide2D)
+        val rewriteStencil2D = Rewrite.applyRuleAtId(original2DStencil/*jacobi2DHighLevel*/(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide2D)
         println(rewriteStencil2D)
+
+//    Compile(rewriteStencil2D)
+
     /*
     */
 
