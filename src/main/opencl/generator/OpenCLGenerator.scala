@@ -263,11 +263,11 @@ class OpenCLGenerator extends Generator {
     {
       try
       {
-        var currentBlock : AstNode = null
-        while(currentBlock != inlineBlock )
+        var hasChanged = true
+        while(hasChanged )
         {
-            currentBlock = inlineBlock
-            inlineBlock = UnrollValues.inlinePrivateMemoryStructValues(inlineBlock)
+            val result = UnrollValues.inlinePrivateMemoryStructValues(inlineBlock)
+            hasChanged = UnrollValues.hasChanged
         }
 
       } catch {

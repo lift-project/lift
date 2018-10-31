@@ -16,6 +16,9 @@ import scala.collection.mutable._
 
 object UnrollValues {
 
+  // static variable set when a pass makes a change
+  var hasChanged : Boolean = false
+
   // anonymous identity function
   val idPostFun = (n: AstNode) => n
 
@@ -114,6 +117,8 @@ object UnrollValues {
   def unrollPrivateMemoryArrayValues(node: AstNode): AstNode =
   {
 
+    hasChanged = false
+
     val preFunctionForUnrollingArrays = (n: AstNode) => n match {
       case mb: MutableBlock =>
         // create new vector for our mb
@@ -129,18 +134,25 @@ object UnrollValues {
                   {
                     case ArrayTypeWSWC(t,s,c) =>
 
-                          // loop over size of array and create new OclVarDecls for each "unrolled value"
-                          oclVarDeclMap += (ovd.v -> Array[OclVarDecl]())
+                      if(!oclVarDeclMap.contains(ovd.v))
+                      {
+                        // loop over size of array and create new OclVarDecls for each "unrolled value"
+                        oclVarDeclMap += (ovd.v -> Array[OclVarDecl]())
 
-                          for (i <- 1 to ovd.length.toInt)// ovd.length.toInt)// Type.getLength(t).eval)
-                          {
-                            var oclVDtmp = OclVarDecl(CVar(Var(ovd.v.v.toString + "_" + i)), Type.getValueType(t)/*t*/, ovd.init, 0, PrivateMemory)
-                            // push them back in new vector
-                            nodeVector = nodeVector :+ oclVDtmp
-                            // and add them to our "map" to reference later
-                            oclVarDeclMap += (ovd.v -> (oclVarDeclMap(ovd.v) :+ oclVDtmp))
-                          }
-
+                        for (i <- 1 to ovd.length.toInt) // ovd.length.toInt)// Type.getLength(t).eval)
+                        {
+                          var oclVDtmp = OclVarDecl(CVar(Var(ovd.v.v.toString + "_" + i)), Type.getValueType(t) /*t*/ , ovd.init, 0, PrivateMemory)
+                          // push them back in new vector
+                          nodeVector = nodeVector :+ oclVDtmp
+                          // and add them to our "map" to reference later
+                          oclVarDeclMap += (ovd.v -> (oclVarDeclMap(ovd.v) :+ oclVDtmp))
+                        }
+                        hasChanged = true
+                      }
+                      else
+                      {
+                          nodeVector = nodeVector :+ ovd
+                      }
                     case ArrayTypeWS(t,s) =>
                       throw new Exception("Unable to handle ArrayTypeWS in Private Array Unrolling!")
                     case ArrayTypeWC(t,c) =>
@@ -302,6 +314,8 @@ object UnrollValues {
   def inlinePrivateMemoryStructValues(node: AstNode): AstNode =
   {
 
+    hasChanged = false
+
     val preFunctionForUnrollingStructs = (n: AstNode) => n match {
       case mb: MutableBlock =>
         // create new vector
@@ -317,8 +331,9 @@ object UnrollValues {
                   ovd.addressSpace match
                   {
                     case PrivateMemory =>
-                      if(!tempTuples.contains(ovd.v.toString()))
+                      if( !oclVarDeclMap.contains(ovd.v) && !tempTuples.contains(ovd.v.toString()) )
                       {
+                        hasChanged = true
                         // loop over number of elements and create a new variable for each
                         oclVarDeclMap += (ovd.v -> Array[OclVarDecl]())
                         for (i <- 0 until tt.elemsT.length)
@@ -378,7 +393,6 @@ object UnrollValues {
                 }
 
                 MutableBlock(nodeVector)
-
               }
               else
               {
@@ -493,7 +507,6 @@ object UnrollValues {
                 ExpressionStatement(AssignmentExpression(vr, rhs))
             }
 
-
           case _ => ExpressionStatement(AssignmentExpression(lhs,rhs))
         }
         case _ => ExpressionStatement(e)
@@ -522,6 +535,8 @@ object UnrollValues {
                       vr = VarRef(ocl.v, Some(idxSuffix._2), ai_b)
                       lst = lst :+ vr
                     }
+
+
                   }
                   else {
                     lst = lst :+ vr

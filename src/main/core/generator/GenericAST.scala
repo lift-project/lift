@@ -146,7 +146,6 @@ object GenericAST {
         case (mb: Comment,nb : Comment) => mb.equals(nb)
         case (mb: EmptyNode,nb : EmptyNode) => mb.equals(nb)
         case (mb: MutableBlock,nb : MutableBlock) => mb.equals(nb) && mb.content.length == nb.content.length && mb.content.zip(nb.content).map(t => t match { case (a,b) => compare(a,b) }).foldLeft(true)(_ && _)
-        case _ => false
       }
     }
 
