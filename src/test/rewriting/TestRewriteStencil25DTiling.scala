@@ -317,46 +317,6 @@ class TestRewriteStencil25DTiling
   }
 
   @Test
-  def stencil3DJacobiMSSComparisonsWithRewriteRule(): Unit = {
-
-    val localDimX = 10
-    val localDimY = 10
-    val localDimZ = 6
-
-    val slidesize = 3
-    val slidestep = 1
-
-    val data = StencilUtilities.createDataFloat3DInOrder(localDimX, localDimY, localDimZ)
-    val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
-    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPaddingInOrder(localDimX, localDimY, localDimZ)
-
-
-    val m = SizeVar("M")
-    val n = SizeVar("N")
-    val o = SizeVar("O")
-
-
-    def jacobi3Dlambda(a: Int, b: Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
-      (mat) => {
-        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
-          jacobi3D(m)
-        })))) o Slide3D(a,b) $ mat
-      })
-
-    def jacobi3DMapSeqSlideWithRule(a : Int, b : Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2),n+2),m+2),
-      (mat) => mat)
-
-
-    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dlambda(slidesize,slidestep), stencilarrpadded3D)
-    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3DMapSeqSlideWithRule(slidesize,slidestep), stencilarrpadded3D)
-
-    assertArrayEquals(output_MSS, output_org, StencilUtilities.stencilDelta)
-
-  }
-
-  @Test
   def stencil3DJacobiComparisonsCoalescedWithPadConstant(): Unit = {
 
     val localDimX = 8
@@ -397,57 +357,21 @@ class TestRewriteStencil25DTiling
             }),a,b))  } o Transpose() o Map(Transpose()) $ x
           ))) o Slide2D(a,b) o Map(Transpose())  o Transpose() o Map(Transpose()) o PadConstant3D(1,1,1,0.0f) $ mat)
 
+    val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3Dlambda(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSlideNDSeq)
+    //val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3DHighLevel(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSeq)
+    println(rewriteStencil3D)
+    println(jacobi3DMapSeqSlide(slidesize,slidestep))
 
 
     val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dlambda(slidesize,slidestep), data)
+    val (output_rewrite: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](rewriteStencil3D, data)
     val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3DMapSeqSlide(slidesize,slidestep), data)
 
 
     assertArrayEquals(output_MSS, output_org, StencilUtilities.stencilDelta)
+    assertArrayEquals(output_rewrite, output_org, StencilUtilities.stencilDelta)
 
   }
 
-  @Test
-  def stencil3DJacobiComparisonsCoalescedWithPadConstantWithRewriteRule(): Unit = {
-
-    val localDimX = 8
-    val localDimY = 6
-    val localDimZ = 4
-
-    val slidesize = 3
-    val slidestep = 1
-
-    val data = StencilUtilities.createDataFloat3DInOrder(localDimX, localDimY, localDimZ)
-    val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
-    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPaddingInOrder(localDimX, localDimY, localDimZ)
-    val stencilarrOther3D = stencilarrpadded3D.map(x => x.map(y => y.map(z => z * 2.0f)))
-
-    val m = SizeVar("M")
-    val n = SizeVar("N")
-    val o = SizeVar("O")
-
-    val Nx = localDimX
-    val Ny = localDimY
-    val Nz = localDimZ
-
-    def jacobi3Dlambda(a: Int, b: Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, Nx),Ny),Nz),
-      (mat) => {
-        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
-          jacobi3D(m)
-        })))) o Slide3D(a,b) o PadConstant3D(1,1,1,0.0f) $ mat
-      })
-
-    def jacobi3DMapSeqSlideWithRewriteRule(a : Int, b : Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, Nx),Ny),Nz),
-      (mat) => mat)
-
-    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dlambda(slidesize,slidestep), data)
-    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3DMapSeqSlideWithRewriteRule(slidesize,slidestep), data)
-
-
-    assertArrayEquals(output_MSS, output_org, StencilUtilities.stencilDelta)
-
-  }
 
 }
