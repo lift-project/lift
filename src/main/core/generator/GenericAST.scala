@@ -87,68 +87,6 @@ object GenericAST {
 
     def print(): Doc
 
-    /**
-     * helper comparison for comparing two Option[AstNode]s
-     */
-    def compareOption(mb : Option[AstNode], nb: Option[AstNode]): Boolean =
-    {     val mbA = mb match {
-            case Some(_) => true
-            case None => false
-          }
-          val nbA = nb match {
-            case Some(_) => true
-            case None => false
-          }
-          (mbA,nbA) match {
-            case (true,true) => compare(mb.get,nb.get)
-            case _ => false
-          }
-    }
-
-    /**
-      * comparison function for comparing two Option[AstNode]s
-      * NOTE: this function does not stay up to date automatically if a new ASTNode is added !!
-      */
-    def compare(node1 : AstNode, node2 : AstNode) : Boolean =
-    {
-
-      (node1, node2) match {
-        case (mb : Function, nb : Function) =>
-          mb.equals(nb) && compareOption(mb.attribute,nb.attribute) && compare(mb.body, nb.body) && mb.params.length == nb.params.length && mb.params.zip(nb.params).map(t => t match { case (a,b) => compare(a,b) }).foldLeft(true)(_ && _)
-        case (mb : CVar, nb : CVar) => mb.equals(nb)
-        case (mb : VarDecl, nb : VarDecl) =>
-          mb.equals(nb) && compareOption(mb.init,nb.init)
-        case (mb : ParamDecl, nb : ParamDecl) => mb.equals(nb)
-        case (mb : ForLoop, nb : ForLoop) =>
-          mb.equals(nb) && compare(mb.init, nb.init) && compare(mb.cond,nb.cond) && compare(mb.increment,nb.increment) && compare(mb.body, nb.body)
-        case (mb: WhileLoop, nb : WhileLoop) =>
-          mb.equals(nb) && compare(mb.loopPredicate,nb.loopPredicate) && compare(mb.body,nb.body)
-        case (mb: IfThenElse, nb : IfThenElse) =>
-          mb.equals(nb) && compare(mb.cond,nb.cond) && compare(mb.trueBody,nb.trueBody) && compare(mb.falseBody,nb.falseBody)
-        case (mb : GOTO, nb : GOTO) => mb.equals(nb)
-        case (mb : Label, nb : Label) => mb.equals(nb)
-        case (mb : Break, nb : Break) => mb.equals(nb)
-        case (mb : TypeDef, nb : TypeDef) => mb.equals(nb)
-        case (mb: TupleAlias, nb : TupleAlias) => mb.equals(nb)
-        case (mb : ExpressionStatement, nb : ExpressionStatement) => mb.equals(nb) && compare(mb.e,nb.e)
-        case (mb : FunctionCall,nb : FunctionCall) => mb.equals(nb) && mb.args.length == nb.args.length && mb.args.zip(nb.args).map(t => t match { case (a,b) => compare(a,b) }).foldLeft(true)(_ && _)
-        case (mb : VarRef,nb : VarRef) => mb.equals(nb) && compare(mb.v,nb.v) && compareOption(mb.arrayIndex, nb.arrayIndex)
-        case (mb: Load,nb : Load) => mb.equals(nb) && compare(mb.v,nb.v) && compare(mb.offset,nb.offset)
-        case (mb: Store,nb : Store) => mb.equals(nb) && compare(mb.v,nb.v) && compare(mb.value,nb.value) && compare(mb.offset,nb.offset)
-        case (mb: AssignmentExpression,nb : AssignmentExpression) => mb.equals(nb) && compare(mb.to,nb.to) && compare(mb.value,nb.value)
-        case (mb: ArithExpression,nb : ArithExpression) => mb.equals(nb)
-        case (mb: BinaryExpression,nb : BinaryExpression) => mb.equals(nb) && compare(mb.lhs,nb.lhs)  && compare(mb.rhs, nb.rhs)
-        case (mb: TernaryExpression,nb : TernaryExpression) => mb.equals(nb) && compare(mb.cond,nb.cond) && compare(mb.trueExpr,nb.trueExpr) && compare(mb.falseExpr, nb.falseExpr)
-        case (mb: Cast,nb : Cast) => mb.equals(nb) && compare(mb.v,nb.v)
-        case (mb: PointerCast,nb : PointerCast) => mb.equals(nb) && compare(mb.v,nb.v)
-        case (mb: StructConstructor,nb : StructConstructor) => mb.equals(nb) && mb.args.length == nb.args.length && mb.args.zip(nb.args).map(t => t match { case (a,b) => compare(a,b) }).foldLeft(true)(_ && _)
-        case (mb: RawCode,nb : RawCode) => mb.equals(nb)
-        case (mb: Comment,nb : Comment) => mb.equals(nb)
-        case (mb: EmptyNode,nb : EmptyNode) => mb.equals(nb)
-        case (mb: MutableBlock,nb : MutableBlock) => mb.equals(nb) && mb.content.length == nb.content.length && mb.content.zip(nb.content).map(t => t match { case (a,b) => compare(a,b) }).foldLeft(true)(_ && _)
-      }
-    }
-
   }
 
   trait BlockMember
