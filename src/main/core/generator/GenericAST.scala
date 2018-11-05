@@ -1,9 +1,9 @@
 package core.generator
 
-import core.generator.PrettyPrinter._
 import ir.{ArrayType, TupleType, Type}
 import lift.arithmetic._
 import opencl.generator.UseCastsForVectors
+import PrettyPrinter._
 import utils.Printer
 
 import scala.language.implicitConversions
@@ -86,7 +86,6 @@ object GenericAST {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode
 
     def print(): Doc
-
   }
 
   trait BlockMember
