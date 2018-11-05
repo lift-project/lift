@@ -16,7 +16,9 @@ object MapSeqSlideRewrite {
       FunCall(Slide(n,s),
       FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), slideArg))), arg)))) if ( n == n2 ) && ( s == s2 ) =>
         // TODO: add if n==n2 && s==s2
-          MapSeq(toGlobal(MapSeqSlide(f,n,s))) o Transpose() o Slide(n,s) $ arg
+          MapSeq(toGlobal(MapSeqSlide(f,n,s)) o Transpose()) o Slide(n,s) $ arg
+        // what it should be ...
+        // MapSeq(MapSeqSlide(f,n,s)) o Slide(n,s) $ arg
 
     })
 
@@ -28,7 +30,7 @@ object MapSeqSlideRewrite {
       FunCall(Map(Lambda(Array(_), FunCall(Transpose(), _))),
       FunCall(Slide(n,s),
       FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), slideArg))), arg)))) if ( n == n2 ) && ( s == s2 ) =>
-        MapSeq(MapSeqSlide(f,n,s)) o Slide(n,s) $ arg
+        Map(MapSeqSlide(f,n,s)) o Slide(n,s) $ arg
 
     })
 
@@ -71,7 +73,9 @@ object MapSeqSlideRewrite {
          FunCall(Slide(n,s),
          FunCall(Map(Lambda(_, FunCall(Slide(n1,s1), _))),
          FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Slide(n2,s2), _))), _))), arg)))))))  if ( n == n1 ) && ( s == s1 ) && ( n == n2 ) && ( s == s2 ) =>
-         MapSeq(MapSeq(MapSeqSlide(f,n,s))) o Slide2D(n,s) $ arg
+         MapSeq(MapSeq(toGlobal(MapSeqSlide(f,n,s)) o Transpose() o Map(Transpose()))) o Slide2D(n,s) $ arg
+         // what it should be ...
+         //MapSeq(MapSeq(MapSeqSlide(f,n,s))) o Slide2D(n,s) $ arg
   })
 
 

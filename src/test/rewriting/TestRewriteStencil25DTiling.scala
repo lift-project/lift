@@ -1,7 +1,6 @@
 package rewriting
 
 import ir.ast.{Slide2D, Slide3D, Transpose, fun, _}
-import ir.printer.DotPrinter
 import ir.{ArrayType, ArrayTypeWSWC}
 import lift.arithmetic.SizeVar
 import opencl.executor._
@@ -163,19 +162,19 @@ class TestRewriteStencil25DTiling
      */
 
     val rewriteStencil2D = Rewrite.applyRuleAtId(original2DStencil(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide2DSeq)
+
+    /*
     println(original2DStencil(slidesize,slidestep))
     println(rewriteStencil2D)
     println(jacobi2DMapSeqSlideHighLevel(slidesize,slidestep))
+    */
 
     val (output: Array[Float], _) = Execute(2,2)[Array[Float]](original2DStencil(slidesize,slidestep), values)
     val (gold: Array[Float], _) = Execute(2,2)[Array[Float]](jacobi2DMapSeqSlideHighLevel(slidesize,slidestep), values)
     val (rewrite_output: Array[Float], _) = Execute(2,2)[Array[Float]](rewriteStencil2D,values)
 
-   /*
-    */
-
     assertArrayEquals(output, gold, 0.1f)
-//    assertArrayEquals(output, rewrite_output, 0.1f)
+    assertArrayEquals(output, rewrite_output, 0.1f)
 
   }
 
@@ -294,14 +293,16 @@ class TestRewriteStencil25DTiling
 
         ))) o Slide2D(a,b) $ mat)
 
-        DotPrinter.withNumbering("/home/reese/scratch/","MSS3rewrite",jacobi3Dlambda(slidesize,slidestep),true)
-    //    DotPrinter.withNumbering("/home/reese/scratch/","3DMapSeqSlide",jacobi3DMapSeqSlideHighLevel(slidesize,slidestep),true)
+    /*
+    //DotPrinter.withNumbering("/home/reese/scratch/","MSS3rewrite",jacobi3Dlambda(slidesize,slidestep),true)
+    //DotPrinter.withNumbering("/home/reese/scratch/","3DMapSeqSlide",jacobi3DMapSeqSlideHighLevel(slidesize,slidestep),true)
     println(NumberExpression.breadthFirst(jacobi3Dlambda(slidesize,slidestep)).mkString("\n\n"))
+    */
 
     val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3Dlambda(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSlideNDSeq)
     //val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3DHighLevel(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSeq)
     println(rewriteStencil3D)
-
+    println(jacobi3DmapseqslideHighLevel(slidesize,slidestep))
 
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dlambda(slidesize,slidestep), stencilarrpadded3D)
     val (output_rewrite: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](rewriteStencil3D, stencilarrpadded3D)
