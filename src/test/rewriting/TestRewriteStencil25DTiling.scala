@@ -15,9 +15,9 @@ import rewriting.macrorules.MapSeqSlideRewrite
 import rewriting.rules.Rules
 import rewriting.utils.NumberExpression
 
-object TestRewrite3DStencil25DTiling extends TestWithExecutor
+object TestRewriteStencil25DTiling extends TestWithExecutor
 
-class TestRewrite3DStencil25DTiling
+class TestRewriteStencil25DTiling
 {
 
   val O = 2 + SizeVar("O")
@@ -103,15 +103,22 @@ class TestRewrite3DStencil25DTiling
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
+    /*
     DotPrinter.withNumbering("/home/reese/scratch/","MSSrewrite",original1DStencil(3,1),true)
     println(NumberExpression.breadthFirst(original1DStencil(slidesize,slidestep)).mkString("\n\n"))
-    val rewriteStencil1D = Rewrite.applyRuleAtId(original1DStencil(slidesize,slidestep),0,Rules.mapSeqSlide)
+    */
+
+    val rewriteStencil1D : Lambda1 = Rewrite.applyRuleAtId(original1DStencil(slidesize,slidestep),0,Rules.mapSeqSlide)
 //    println(rewriteStencil1D)
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
+    val (rewrite_output: Array[Float], _) = Execute(2, 2)[Array[Float]](rewriteStencil1D, values)
     assertArrayEquals(gold, output, 0.1f)
+    assertArrayEquals(rewrite_output, output, 0.1f)
 
   }
+
+  /** 2D **/
 
   @Test
   def test2DStencilRewriteSeq(): Unit = {
@@ -149,24 +156,26 @@ class TestRewrite3DStencil25DTiling
         })) o Slide(size,step)   $ input
     )
 
-
+    /*
     //    DotPrinter.withNumbering("/home/reese/scratch/","MSS2rewrite",jacobi2DHighLevel(slidesize,slidestep),true)
     //    DotPrinter.withNumbering("/home/reese/scratch/","2DMapSeqSlide",jacobi2DMapSeqSlideHighLevel(slidesize,slidestep),true)
         println(NumberExpression.breadthFirst(original2DStencil(slidesize,slidestep)).mkString("\n\n"))
-        val rewriteStencil2D = Rewrite.applyRuleAtId(original2DStencil/*jacobi2DHighLevel*/(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide2DSeq)
-        println(rewriteStencil2D)
+     */
 
-//    Compile(rewriteStencil2D)
+    val rewriteStencil2D = Rewrite.applyRuleAtId(original2DStencil(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide2DSeq)
+    println(original2DStencil(slidesize,slidestep))
+    println(rewriteStencil2D)
+    println(jacobi2DMapSeqSlideHighLevel(slidesize,slidestep))
 
-    /*
+    val (output: Array[Float], _) = Execute(2,2)[Array[Float]](original2DStencil(slidesize,slidestep), values)
+    val (gold: Array[Float], _) = Execute(2,2)[Array[Float]](jacobi2DMapSeqSlideHighLevel(slidesize,slidestep), values)
+    val (rewrite_output: Array[Float], _) = Execute(2,2)[Array[Float]](rewriteStencil2D,values)
+
+   /*
     */
 
-    val (original: Array[Float], _) = Execute(2,2)[Array[Float]](original2DStencil(slidesize,slidestep), values)
-    val (gold: Array[Float], _) = Execute(2,2)[Array[Float]](jacobi2DHighLevel(slidesize,slidestep), values)
-    val (output: Array[Float], _) = Execute(2,2)[Array[Float]](jacobi2DMapSeqSlideHighLevel(slidesize,slidestep), values)
-
-    assertArrayEquals(original, gold, 0.1f)
-    assertArrayEquals(gold, output, 0.1f)
+    assertArrayEquals(output, gold, 0.1f)
+//    assertArrayEquals(output, rewrite_output, 0.1f)
 
   }
 
@@ -247,7 +256,6 @@ class TestRewrite3DStencil25DTiling
     val o = SizeVar("O")
 
 
-
     def jacobi3Dlambda(a: Int, b: Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
       (mat) => {
@@ -290,17 +298,20 @@ class TestRewrite3DStencil25DTiling
     //    DotPrinter.withNumbering("/home/reese/scratch/","3DMapSeqSlide",jacobi3DMapSeqSlideHighLevel(slidesize,slidestep),true)
     println(NumberExpression.breadthFirst(jacobi3Dlambda(slidesize,slidestep)).mkString("\n\n"))
 
-    val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3Dlambda(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSeqSlideND)
+    val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3Dlambda(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSlideNDSeq)
     //val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3DHighLevel(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSeq)
     println(rewriteStencil3D)
 
 
-    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dlambda(slidesize,slidestep), stencilarrpadded3D)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dlambda(slidesize,slidestep), stencilarrpadded3D)
+    val (output_rewrite: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](rewriteStencil3D, stencilarrpadded3D)
+
+    /*
     val (output_HL: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3DHighLevel(slidesize,slidestep), stencilarrpadded3D)
     val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
+    */
 
-    assertArrayEquals(output_MSS, output_org, StencilUtilities.stencilDelta)
-    assertArrayEquals(output_HL, output_org, StencilUtilities.stencilDelta)
+    assertArrayEquals(output_rewrite, output, StencilUtilities.stencilDelta)
 
   }
 
