@@ -267,7 +267,7 @@ class TestRewrite3DStencil25DTiling
     def jacobi3DmapseqslideHighLevel(a : Int, b : Int) = fun(
       ArrayType(ArrayType(ArrayType(Float, o+2),n+2),m+2),
       mat =>
-        Map(Map( fun(x => {
+        MapSeq(MapSeq( fun(x => {
           MapSeqSlide( fun(m => jacobi3D(m)), a,b)
         } o Transpose() o Map(Transpose()) $ x
 
@@ -289,7 +289,9 @@ class TestRewrite3DStencil25DTiling
         DotPrinter.withNumbering("/home/reese/scratch/","MSS3rewrite",jacobi3Dlambda(slidesize,slidestep),true)
     //    DotPrinter.withNumbering("/home/reese/scratch/","3DMapSeqSlide",jacobi3DMapSeqSlideHighLevel(slidesize,slidestep),true)
     println(NumberExpression.breadthFirst(jacobi3Dlambda(slidesize,slidestep)).mkString("\n\n"))
-    val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3Dlambda/*jacobi3DHighLevel*/(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSeq)
+
+    val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3Dlambda(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSeqSlideND)
+    //val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3DHighLevel(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSeq)
     println(rewriteStencil3D)
 
 

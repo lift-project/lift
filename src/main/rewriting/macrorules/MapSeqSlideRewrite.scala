@@ -55,15 +55,31 @@ object MapSeqSlideRewrite {
            case FunCall(MapSeq(lambda), FunCall(Slide(n,s), arg)) =>
              MapSeqSlide(lambda,n,s) $ arg
          })*/
-      case FunCall(MapSeq(Lambda1(Array(_), FunCall(MapSeq(Lambda1(Array(_), FunCall(MapSeq(f),_)))))),
-      FunCall(Map(Lambda(Array(_), FunCall(Map(Lambda(Array(_), FunCall(Transpose(),_))), FunCall(Transpose(),_)))),
+      case FunCall(MapSeq(Lambda1(_, FunCall(MapSeq(Lambda1(_, FunCall(MapSeq(f),_))), _))),
+      FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Transpose(), _))), FunCall(Transpose(),_)))),
       FunCall(Slide(n,s),
       FunCall(Map(Lambda(Array(_),FunCall(Map(Lambda(Array(_), FunCall(Transpose(),_))),
-      FunCall(Slide(n2,s2), FunCall(Map(Lambda(Array(_), FunCall(Slide(n3,s3), _)))))))), arg)))) =>
+      FunCall(Slide(n2,s2), FunCall(Map(Lambda(Array(_), FunCall(Slide(n3,s3), _))),_),_)))), arg)))) =>
         // TODO: add if n==n2 && s==s2
         MapSeq(MapSeq(MapSeqSlide(f,n,s))) o Slide(n,s) $ arg
 
     })
+
+  val mapSeqSlide3DSeqSlideND =
+
+    Rule("Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Map(Transpose()))) o Slide(n,s) o Map(Slide(n,s)) o " +
+      "Map(Map(Slide(n,s)))",
+  {
+    case FunCall(MapSeq(Lambda1(_, FunCall(MapSeq(Lambda1(_, FunCall(MapSeq(f) , _))), _))),
+         FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Transpose(), _))), _))),
+         FunCall(Map(Lambda(_, FunCall(Transpose(), _))),
+         FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Transpose(), _))), _))), _))),
+         FunCall(Slide(n,s),
+         FunCall(Map(Lambda(_, FunCall(Slide(n1,s1), _))),
+         FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Slide(n2,s2), _))), _))), arg))))))) =>
+         MapSeq(MapSeq(MapSeqSlide(f,n,s))) o Slide(n,s) $ arg
+  })
+
 
   val mapSeqSlide3D =
 
