@@ -237,6 +237,71 @@ class TestRewriteStencil25DTiling
 
   }
 
+
+  @Test
+  def test2DStencilRewriteReplaceMaps(): Unit = {
+
+    val size = 8
+    val slidesize = 3
+    val slidestep = 1
+    val values = Array.tabulate(size,size) { (i,j) => (i*size + j + 1).toFloat }
+
+    val N = 2 + SizeVar("N")
+    val M = 2 + SizeVar("M")
+
+    def original2DStencil(size: Int, step: Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      (input) => {
+        Map(
+          Map(fun(m => {
+            jacobi2D(m)
+          }))) o Slide2D(size,step) $ input
+      })
+
+    def rewrite2DStencilCompare(size: Int, step :Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      (input) =>
+        MapGlb(0)(fun(x => {
+          toGlobal(MapSeqSlide( (fun(m => jacobi2D(m))), size, step)) o  Transpose()  $ x
+        })) o Slide(size,step)   $ input
+    )
+
+    /*
+    //    DotPrinter.withNumbering("/home/reese/scratch/","MSS2rewrite",jacobi2DHighLevel(slidesize,slidestep),true)
+    //    DotPrinter.withNumbering("/home/reese/scratch/","2DMapSeqSlide",jacobi2DMapSeqSlideHighLevel(slidesize,slidestep),true)
+        println(NumberExpression.breadthFirst(original2DStencil(slidesize,slidestep)).mkString("\n\n"))
+     */
+
+    // find id of first map
+    // turn first Map into MapGlb(0)
+    // find id of second Map
+    // turn second Map into MapSeq
+    // how to apply multiple rewrite rules
+    /*
+     @Test def applyRewritesInLift = {
+    val slideTiling = Rewrite.applyRuleAtId(simpleStencil, 1, Rules.slideTiling)
+    val promotedMap = Rewrite.applyRuleAtId(slideTiling, 0, EnablingRules.movingJoin)
+    val fusedMaps = Rewrite.applyRuleAtId(promotedMap, 1, FusionRules.mapFusion)
+     */
+
+    val rewriteStencil2D = Rewrite.applyRuleAtId(original2DStencil(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide2DSeq)
+
+    /*
+    println(original2DStencil(slidesize,slidestep))
+    println(rewriteStencil2D)
+    println(jacobi2DMapSeqSlideHighLevel(slidesize,slidestep))
+    */
+
+    val (output: Array[Float], _) = Execute(2,2)[Array[Float]](original2DStencil(slidesize,slidestep), values)
+    val (gold: Array[Float], _) = Execute(2,2)[Array[Float]](rewrite2DStencilCompare(slidesize,slidestep), values)
+    val (rewrite_output: Array[Float], _) = Execute(2,2)[Array[Float]](rewriteStencil2D,values)
+
+    assertArrayEquals(output, gold, 0.1f)
+    assertArrayEquals(output, rewrite_output, 0.1f)
+
+  }
+
+
   @Test
   def testStencil3DSeq(): Unit = {
 
