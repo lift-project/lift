@@ -82,7 +82,7 @@ object MapSeqSlideRewrite {
           "Map(Map(Slide(n,s))) => " +
           "Map(Map(MapSeqSlide(fun(m => userFun(m))))) o Slide2D(n,s)  ", {
 
-       case FunCall(Map(Lambda1(_, FunCall(Map(Lambda1(_, FunCall(MapSeq(f) , _))), _))),
+       case FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(MapSeq(f) , _))), _))),
        FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Transpose(), _))), _))),
        FunCall(Map(Lambda(_, FunCall(Transpose(), _))),
        FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Transpose(), _))), _))), _))),
