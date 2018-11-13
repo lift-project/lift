@@ -1,19 +1,17 @@
 package rewriting
-
 import ir.ast.debug.PrintType
-import ir.ast.{Slide2D, Slide3D, Transpose, fun, _}
-import ir.{ArrayType, ArrayTypeWSWC}
+import ir.ast._
+import ir.ArrayTypeWSWC
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.generator.stencil.MapSeqSlideHelpers
-import opencl.generator.stencil.acoustic.{BoundaryUtilities, RoomConstants, StencilUtilities}
+import opencl.generator.stencil.acoustic._
 import opencl.ir._
-import opencl.ir.pattern.{MapGlb, toPrivate, _}
+import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit._
 import rewriting.macrorules.MapSeqSlideRewrite
 import rewriting.rules.{OpenCLRules, Rules}
-import rewriting.utils.NumberExpression
 
 object TestRewriteStencil25DTiling extends TestWithExecutor
 
@@ -49,7 +47,6 @@ class TestRewriteStencil25DTiling
         }))
       ) o Slide2D(size,step) $ input
     })
-
 
   def stencil2D(size: Int, step :Int) = fun(
     ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
@@ -153,6 +150,7 @@ class TestRewriteStencil25DTiling
   }
 
   /** 1D **/
+
   @Test
   def test1DStencilRewriteSeq(): Unit = {
 
@@ -162,13 +160,7 @@ class TestRewriteStencil25DTiling
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    /*
-    DotPrinter.withNumbering("/home/reese/scratch/","MSSrewrite",original1DStencil(3,1),true)
-    println(NumberExpression.breadthFirst(original1DStencil(slidesize,slidestep)).mkString("\n\n"))
-    */
-
     val rewriteStencil1D : Lambda1 = Rewrite.applyRuleAtId(original1DStencil(slidesize,slidestep),0,Rules.mapSeqSlide)
-//    println(rewriteStencil1D)
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
     val (rewrite_output: Array[Float], _) = Execute(2, 2)[Array[Float]](rewriteStencil1D, values)
@@ -215,19 +207,7 @@ class TestRewriteStencil25DTiling
         })) o Slide(size,step)   $ input
     )
 
-    /*
-    //    DotPrinter.withNumbering("/home/reese/scratch/","MSS2rewrite",jacobi2DHighLevel(slidesize,slidestep),true)
-    //    DotPrinter.withNumbering("/home/reese/scratch/","2DMapSeqSlide",jacobi2DMapSeqSlideHighLevel(slidesize,slidestep),true)
-        println(NumberExpression.breadthFirst(original2DStencil(slidesize,slidestep)).mkString("\n\n"))
-     */
-
     val rewriteStencil2D = Rewrite.applyRuleAtId(original2DStencil(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide2DSeq)
-
-    /*
-    println(original2DStencil(slidesize,slidestep))
-    println(rewriteStencil2D)
-    println(jacobi2DMapSeqSlideHighLevel(slidesize,slidestep))
-    */
 
     val (output: Array[Float], _) = Execute(2,2)[Array[Float]](original2DStencil(slidesize,slidestep), values)
     val (gold: Array[Float], _) = Execute(2,2)[Array[Float]](jacobi2DMapSeqSlideHighLevel(slidesize,slidestep), values)
@@ -295,11 +275,9 @@ class TestRewriteStencil25DTiling
     val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
     val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPaddingInOrder(localDimX, localDimY, localDimZ)
 
-
     val m = SizeVar("M")
     val n = SizeVar("N")
     val o = SizeVar("O")
-
 
     def jacobi3Dlambda(a: Int, b: Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2), n+2), m+2),
@@ -307,27 +285,6 @@ class TestRewriteStencil25DTiling
         MapSeq(MapSeq(MapSeq(fun(m => jacobi3D(m))))) o
           Slide3D(a,b) $ mat
       })
-
-    def jacobi3DHighLevel(a: Int, b: Int) = fun(
-      ArrayType(ArrayType(ArrayType(Float, o+2), n+2), m+2),
-      (mat) => {
-        MapSeq(MapSeq(MapSeq(fun(m => jacobi3D(m))))) o
-          // Slide3D
-          Map(Map(Transpose()) o Transpose()) o
-          Slide(a, b) o Map(Map(Transpose()) o Slide(a, b) o Map(Slide(a, b))) $ mat
-      })
-
-    def jacobi3DmapseqslideHighLevel(a : Int, b : Int) = fun(
-      ArrayType(ArrayType(ArrayType(Float, o+2),n+2),m+2),
-      mat =>
-        MapSeq(MapSeq( fun(x => {
-          MapSeqSlide( fun(m => jacobi3D(m)), a,b)
-        } o Transpose() o Map(Transpose()) $ x
-
-        ))) o
-          // Slide2D
-          Map(Transpose()) o Slide(a, b) o Map(Slide(a, b)) $ mat)
-
 
     def jacobi3Dmapseqslide(a : Int, b : Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, o+2),n+2),m+2),
@@ -339,24 +296,10 @@ class TestRewriteStencil25DTiling
 
         ))) o Slide2D(a,b) $ mat)
 
-    /*
-    //DotPrinter.withNumbering("/home/reese/scratch/","MSS3rewrite",jacobi3Dlambda(slidesize,slidestep),true)
-    //DotPrinter.withNumbering("/home/reese/scratch/","3DMapSeqSlide",jacobi3DMapSeqSlideHighLevel(slidesize,slidestep),true)
-    println(NumberExpression.breadthFirst(jacobi3Dlambda(slidesize,slidestep)).mkString("\n\n"))
-    */
-
     val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3Dlambda(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSlideNDSeq)
-    //val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3DHighLevel(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSeq)
-    println(rewriteStencil3D)
-    println(jacobi3DmapseqslideHighLevel(slidesize,slidestep))
 
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dlambda(slidesize,slidestep), stencilarrpadded3D)
     val (output_rewrite: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](rewriteStencil3D, stencilarrpadded3D)
-
-    /*
-    val (output_HL: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3DHighLevel(slidesize,slidestep), stencilarrpadded3D)
-    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
-    */
 
     assertArrayEquals(output_rewrite, output, StencilUtilities.stencilDelta)
 
@@ -398,9 +341,6 @@ class TestRewriteStencil25DTiling
     )
 
     val rewriteStencil3D = Rewrite.applyRuleAtId(lambda3D(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSlideNDSeq)
-    //val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3DHighLevel(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSeq)
-    println(rewriteStencil3D)
-    println(lambda3DMSS(slidesize,slidestep))
 
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda3D(slidesize,slidestep),values,values2)
     val (output_mss: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda3DMSS,values,values2)
@@ -434,9 +374,7 @@ class TestRewriteStencil25DTiling
     val M = SizeVar("M") + 2
     val O = SizeVar("O") + 2
 
-    val arraySig0 = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, O), N), M)
-    val arraySig2 = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, O+2), N+2), M+2)
-
+    val arraySig = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, O+2), N+2), M+2)
 
     val getNumNeighbours = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ " +
       "int count = 6; if(i == (m-1) || i == 0){ count--; } if(j == (n-1) || j == 0){ count--; } if(k == (o-1) || k == 0){ count--; }return (float)count; }", Seq(Int,Int,Int,Int,Int,Int), Float)
@@ -449,7 +387,7 @@ class TestRewriteStencil25DTiling
         MapSeq(MapSeq(MapSeq(
           fun( m => {
             acoustic(m)
-          })))) o Slide3D(size, step) $ Zip3D(mat1,mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
+          })))) o Slide3D(size, step) $ Zip3D(mat1,mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
     )
 
     val lambda3DMSS = fun(
@@ -460,17 +398,13 @@ class TestRewriteStencil25DTiling
           toGlobal(MapSeqSlide(fun(m => {
             acoustic(m)
           }),slidesize,slidestep)) o Transpose() o Map(Transpose()) } $ x )))
-          o PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(mat1, mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
+          o PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(mat1, mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
     )
 
-    println(NumberExpression.breadthFirst(original3D(slidesize,slidestep)).mkString("\n\n"))
     val rewriteStencil3D = Rewrite.applyRuleAtId(original3D(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSlideNDSeq)
-    //val rewriteStencil3D = Rewrite.applyRuleAtId(jacobi3DHighLevel(slidesize,slidestep),0,MapSeqSlideRewrite.mapSeqSlide3DSeq)
-    println(original3D(slidesize,slidestep))
-    println(rewriteStencil3D)
 
     val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original3D(slidesize,slidestep),stencilarrpadded3D, stencilarrpadded3D)
-    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda3DMSS,stencilarrpadded3D, stencilarrpadded3D)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](rewriteStencil3D,stencilarrpadded3D, stencilarrpadded3D)
 
     assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
 
@@ -478,7 +412,6 @@ class TestRewriteStencil25DTiling
 
   @Test
   def test3DAcousticStencilRewriteReplaceMaps(): Unit = {
-
 
     val size = 12
     val slidesize = 3
@@ -535,6 +468,9 @@ class TestRewriteStencil25DTiling
     val secondMapRewriteStencil3D = Rewrite.applyRuleAtId(rewriteStencil3D,44,OpenCLRules.mapGlb(1))
 
     val thirdMapRewriteStencil3D = Rewrite.applyRuleAtId(secondMapRewriteStencil3D,0,OpenCLRules.mapGlb(0))
+
+    println(rewrite3DStencilCompare(3,1))
+    println(thirdMapRewriteStencil3D)
 
     val (gold: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](rewrite3DStencilCompare(slidesize,slidestep), values, values2)
     val (rewrite_output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](thirdMapRewriteStencil3D,values,values2)
