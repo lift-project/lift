@@ -12,6 +12,7 @@ import org.junit.Assert._
 import org.junit._
 import rewriting.macrorules.MapSeqSlideRewrite
 import rewriting.rules.{OpenCLRules, Rules}
+import rewriting.utils.NumberExpression
 
 object TestRewriteStencil25DTiling extends TestWithExecutor
 
@@ -417,15 +418,10 @@ class TestRewriteStencil25DTiling
     val slidesize = 3
     val slidestep = 1
 
-    val values = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size + k + 1).toFloat }
-    val values2 = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size*2 + k*.5 + 1).toFloat }
-
     val localDimX = 4
     val localDimY = 6
     val localDimZ = 4
 
-    val data = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
-    val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
     val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPaddingInOrder(localDimX, localDimY, localDimZ)
     val stencilarrOther3D = stencilarrpadded3D.map(x => x.map(y => y.map(z => z * 2.0f)))
 
@@ -439,41 +435,37 @@ class TestRewriteStencil25DTiling
       "int count = 6; if(i == (m-1) || i == 0){ count--; } if(j == (n-1) || j == 0){ count--; } if(k == (o-1) || k == 0){ count--; }return (float)count; }", Seq(Int,Int,Int,Int,Int,Int), Float)
 
     def original3DStencil(size: Int, step: Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O),N),M),
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O),N),M),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2),N+2),M+2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2),N+2),M+2),
       (mat1,mat2) =>
         Map(Map(Map(
           fun( m => {
             acoustic(m)
-          })))) o Slide3D(size, step) $ Zip3D(PadConstant3D(1,1,1,0.0f) $ mat1,PadConstant3D(1,1,1,0.0f) $ mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig0))
+          })))) o Slide3D(size, step) $ Zip3D( mat1, mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig0))
     )
 
     def rewrite3DStencilCompare(size: Int, step: Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2), N+2), M+2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2), N+2), M+2),
       (mat1, mat2) =>
 /*        Map(TransposeW()) o TransposeW() o Map(TransposeW()) o */
         MapGlb(0)(MapGlb(1)(fun(x => {
           toGlobal(MapSeqSlide(fun(m => {
             acoustic(m)
           }),slidesize,slidestep)) o Transpose() o Map(Transpose()) } $ x )))
-           o Slide2D(size,step) /* o Map(Transpose()) o Transpose() o Map(Transpose())*/ $ Zip3D(PadConstant3D(1,1,1,0.0f) $ mat1, PadConstant3D(1,1,1,0.0f) $ mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig0))
+           o Slide2D(size,step) /* o Map(Transpose()) o Transpose() o Map(Transpose())*/ $ Zip3D( mat1, mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig0))
     )
 
-
-    val firstMapRewriteStencil3D = Rewrite.applyRuleAtId(original3DStencil(slidesize,slidestep),63,OpenCLRules.mapSeq)
+    val firstMapRewriteStencil3D = Rewrite.applyRuleAtId(original3DStencil(slidesize,slidestep),49,OpenCLRules.mapSeq)
 
     val rewriteStencil3D = Rewrite.applyRuleAtId(firstMapRewriteStencil3D,0,MapSeqSlideRewrite.mapSeqSlide3DSlideND)
 
-    val secondMapRewriteStencil3D = Rewrite.applyRuleAtId(rewriteStencil3D,44,OpenCLRules.mapGlb(1))
+    val secondMapRewriteStencil3D = Rewrite.applyRuleAtId(rewriteStencil3D,30,OpenCLRules.mapGlb(1))
 
     val thirdMapRewriteStencil3D = Rewrite.applyRuleAtId(secondMapRewriteStencil3D,0,OpenCLRules.mapGlb(0))
 
-    println(rewrite3DStencilCompare(3,1))
-    println(thirdMapRewriteStencil3D)
-
-    val (gold: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](rewrite3DStencilCompare(slidesize,slidestep), values, values2)
-    val (rewrite_output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](thirdMapRewriteStencil3D,values,values2)
+    val (gold: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](rewrite3DStencilCompare(slidesize,slidestep), stencilarrpadded3D,stencilarrOther3D)
+    val (rewrite_output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](thirdMapRewriteStencil3D,stencilarrpadded3D,stencilarrOther3D)
 
     assertArrayEquals(rewrite_output, gold, 0.1f)
 
