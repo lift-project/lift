@@ -161,7 +161,7 @@ class TestRewriteStencil25DTiling
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
     val gold = values.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _))
 
-    val rewriteStencil1D : Lambda1 = Rewrite.applyRuleAtId(original1DStencil(slidesize,slidestep),0,Rules.mapSeqSlide)
+    val rewriteStencil1D : Lambda1 = Rewrite.applyRuleAtId(original1DStencil(slidesize,slidestep),0,Rules.mapSeqSlideSeq)
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](MapSeqSlideHelpers.stencil1D(slidesize, slidestep), values)
     val (rewrite_output: Array[Float], _) = Execute(2, 2)[Array[Float]](rewriteStencil1D, values)
