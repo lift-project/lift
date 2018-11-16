@@ -17,13 +17,14 @@ trait IRNode {
     this.visit( (n:IRNode) => {
       try {
         pre(n)
-        val prePost : IRNode => IRNode => Unit = { n:IRNode => pre(n); post }
-        this._visit(prePost)
       } catch {
         case iceu: IgnoreChildrenExceptionUnit =>
           post(n)
           throw iceu
       }
+
+      val f : IRNode => Unit = {(_:IRNode) => post(n)}
+      f
     } )
   }
 
