@@ -2,6 +2,7 @@ package host
 
 import host.loop_var_inference.LoopVarInference
 import host.memory_management.{InferHostMemoryAddressSpace, MemoryAllocator}
+import host.view.View
 import ir.{TypeChecker, UndefType}
 import ir.ast.{Expr, IRNode, Lambda}
 
@@ -24,7 +25,7 @@ object CompileHost {
     InferHostMemoryAddressSpace(final_lambda)
     LoopVarInference(final_lambda)
     val hostMemoryDeclaredInSignature = MemoryAllocator(final_lambda)
-    //View(final_lambda)
+    View(final_lambda)
 
 
     println("All done!")
