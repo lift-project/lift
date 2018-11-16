@@ -14,7 +14,7 @@ object CompileHost {
 
     lambda.visit( pre = {node:IRNode =>
       node match {
-        case e:Expr => assert( e.view != UndefType )
+        case e:Expr => assert( e.t != UndefType )
         case _ =>
       }
     })
