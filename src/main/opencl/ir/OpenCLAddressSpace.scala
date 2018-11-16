@@ -8,7 +8,7 @@ package opencl.ir
   * been inferred.
   *
   */
-sealed abstract class OpenCLAddressSpace {
+abstract class OpenCLAddressSpace {
   def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean
 }
 
