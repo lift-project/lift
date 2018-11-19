@@ -344,6 +344,10 @@ object GenericAST {
     def ::(node: AstNode with BlockMember): MutableBlock = this.copy(content = node +: content)
 
     def ++(nodes: Vector[AstNode with BlockMember]): MutableBlock = this.copy(content = content ++ nodes)
+
+    def :++(mb: Block) : MutableBlock = this.copy(content = content ++ mb.content )
+
+    def toBlock: Block = Block(content)
   }
 
   /*
