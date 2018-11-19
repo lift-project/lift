@@ -20,6 +20,14 @@ import scala.language.implicitConversions
 abstract case class Lambda private[ast] (params: Array[Param],
                                          body: Expr) extends FunDecl(params.length) {
 
+  override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode =
+    Lambda( params.map(_.visitAndRebuild(pre,post).asInstanceOf[Param]), body.visitAndRebuild(pre,post).asInstanceOf[Expr] )
+
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = {
+    body.visit(prePost)
+    params.map(_.visit(prePost))
+  }
+
   /**
    * Debug string representation
    */
