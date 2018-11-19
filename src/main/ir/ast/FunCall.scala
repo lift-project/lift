@@ -13,6 +13,14 @@ import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
   assert(f != null)
 
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = {
+    args.map(_.visit(prePost))
+    f.visit(prePost)
+  }
+
+  override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode =
+    FunCall(f.visitAndRebuild(pre,post).asInstanceOf[FunDecl], args.map(_.visitAndRebuild(pre,post).asInstanceOf[Expr]): _*)
+
 
   override def toString = {
     val fS = f.toString

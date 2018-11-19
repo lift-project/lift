@@ -597,6 +597,7 @@ object GenericAST {
     */
   trait ExpressionStatementT extends StatementT {
     val e: ExpressionT
+    val neglectSemiColon: Boolean
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -605,11 +606,11 @@ object GenericAST {
     }
 
     override def print(): Doc = {
-      e.print <> "; "
+      e.print <> (if(neglectSemiColon) "" else "; " )
     }
   }
 
-  case class ExpressionStatement(e: ExpressionT) extends ExpressionStatementT {
+  case class ExpressionStatement(e: ExpressionT, neglectSemiColon: Boolean = false) extends ExpressionStatementT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
       ExpressionStatement(e.visitAndRebuild(pre, post).asInstanceOf[ExpressionT])
     }

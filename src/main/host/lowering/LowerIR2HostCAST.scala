@@ -12,13 +12,13 @@ import scala.collection.mutable
 
 object LowerIR2HostCAST {
 
-  val boilerplate_code = RawCode(
+  val boilerplate_code = ExpressionStatement(RawCode(
     """
       |#include <bits/stdc++.h>
       |
       |using namespace std;
       |
-    """.stripMargin)
+    """.stripMargin), true )
 
   def generate(node:IRNode): Block = {
     //lots of pattern matching code
@@ -125,7 +125,7 @@ object LowerIR2HostCAST {
 
       ExpressionStatement(AssignmentExpression(VarRefPure(record._2._1),
         FunctionCall("reinterpret_cast", List(
-          FunctionCall("trans_alloc", List(BinaryExpression(ArithExpression(record._2._2), BinaryExpressionT.Operator.*,
+          FunctionCall("malloc", List(BinaryExpression(ArithExpression(record._2._2), BinaryExpressionT.Operator.*,
             FunctionCall("sizeof", List(Util.GetElementTypeFromPointer(record._2._1.t)))
           )))),
           List(record._2._1.t))
