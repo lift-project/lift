@@ -11,7 +11,7 @@ import sys.process._
 
 object CompileHost {
 
-  def apply(lambda: Lambda, path: String) ={
+  def apply(lambda: Lambda, path: String, file: String) ={
 
     val final_lambda = lambda.asInstanceOf[Lambda]
 
@@ -36,12 +36,12 @@ object CompileHost {
     val all_signature_cvars = tuple._2
 
     //create the directory if not exist
-    s"mkdir $path" !
+    s"mkdir -p $path" !
 
-    val sched_code = CASTPrinter(CAST,path+"/libmap.cpp")
+    val sched_code = CASTPrinter(CAST, path, file)
 
 
-    println("All done!")
+    println("Compilation done!")
   }
 
 

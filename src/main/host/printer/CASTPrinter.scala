@@ -12,11 +12,11 @@ object CASTPrinter {
 
   //val boilerplate_code = "boilerplate_before_outline_functions\n\n"
 
-  def apply(mb: Block, path_to_file:String): String ={
+  def apply(mb: Block, path: String, file: String): String ={
 
     val host_code: String = layoutS(mb.print())
 
-    new PrintWriter(path_to_file) { write(host_code); close}
+    new PrintWriter(path + "/" + file) { write(host_code); close}
 
     host_code
 

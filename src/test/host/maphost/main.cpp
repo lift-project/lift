@@ -1,4 +1,4 @@
-#include "libmap.cpp"
+#include <libmap.cpp>
 
 int main() {
 
