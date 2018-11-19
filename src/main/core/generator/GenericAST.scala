@@ -621,6 +621,7 @@ object GenericAST {
   trait FunctionCallT extends ExpressionT {
     val name: String
     val args: List[AstNode]
+    val template_types: List[CTypeT]
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -631,18 +632,19 @@ object GenericAST {
     }
 
     override def print(): Doc = {
-      name <> "(" <> intersperse(args.map(_.print())) <> ")"
+      name <> (if (template_types.size == 0) "" else "<" <> intersperse(template_types.map(_.print())) <> ">") <> "(" <> intersperse(args.map(_.print)) <> ")"
     }
   }
 
   case class FunctionCall(name: String,
-                          args: List[GenericAST.AstNode]) extends FunctionCallT {
+                          args: List[GenericAST.AstNode], val template_types: List[CTypeT]= List()) extends FunctionCallT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      FunctionCall(name, args.map(_.visitAndRebuild(pre, post)))
+      FunctionCall(name, args.map(_.visitAndRebuild(pre, post)), template_types.map(_.visitAndRebuild(pre,post).asInstanceOf[CTypeT]))
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      args.map(_.visit(pre, post))
+      args.foreach(_.visit(pre, post))
+      template_types.foreach(_.visit(pre,post))
     }
   }
 
@@ -1391,4 +1393,162 @@ object GenericAST {
 
   }
 
+  trait VarDeclPureT extends DeclarationT
+
+  case class VarDeclPure(v:CVarWithType, t:CTypeT, init: Option[AstNode] = None) extends VarDeclPureT {
+    override def print(): Doc = t.print() <> text(" ") <> v.print() <> init.map(text(" = ") <> _.print()).getOrElse(empty)  <> ";"
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+  }
+
+  trait ObjectDeclT extends DeclarationT{
+    val v: CVarWithType
+    val t: CTypeT
+    val args: List[AstNode]
+
+    override def print(): Doc = t.print() <> " " <> v.print() <> {
+      args.size match {
+        case 0 => ""
+        case _ => "(" <> intersperse(args.map(_.print)) <> ")"
+      }
+    } <> ";"
+  }
+
+
+  case class ObjectDecl(v:CVarWithType, t: CTypeT, args:List[AstNode]) extends ObjectDeclT{
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+  }
+
+  trait VarRefPureT extends UnaryExpressionT {
+    val v: CVarWithTypeT
+    //    val t: Type
+    val suffix: Option[String]
+    val arrayIndex: Option[ArithExpression]
+
+
+    override def print(): Doc = {
+
+      val accessD = arrayIndex match {
+        case None     ⇒ empty
+        case Some(ix) ⇒ "[" <> ix.print <> "]"
+      }
+
+      val suffixD = suffix match {
+        case None     ⇒ empty
+        case Some(sf) ⇒ text(sf)
+      }
+
+      v.print <> accessD <> suffixD
+
+    }
+  }
+
+
+  case class VarRefPure(v: CVarWithTypeT,
+                        //                    t: Type,
+                        suffix: Option[String] = None,
+                        arrayIndex: Option[ArithExpression] = None
+                       ) extends VarRefPureT {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode =
+      VarRefPure(
+        v.visitAndRebuild(pre, post).asInstanceOf[CVarWithTypeT],
+        suffix,
+        arrayIndex
+      )
+
+
+  }
+
+  trait UnaryOperatorT
+
+  case class UnaryExpression(op: String, operand: UnaryExpressionT) extends UnaryExpressionT {
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = operand.visit(pre, post)
+
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+    override def print(): Doc = "(" <> op <> operand.print() <> ")"
+  }
+
+
+  trait ForLoopImT extends StatementT {
+    val init: DeclarationT
+    val cond: ExpressionStatement
+    val increment: ExpressionT
+    val body: BlockT
+
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this))
+
+    }
+
+    override def print(): Doc = {
+      text("for (") <>
+        init.print <> cond.print <> increment.print <>
+        ")" <> body.print
+    }
+  }
+
+  case class ForLoopIm(init: DeclarationT,
+                       cond: ExpressionStatement,
+                       increment: ExpressionT,
+                       body: BlockT) extends ForLoopImT {
+    override def _visitAndRebuild(pre: (AstNode) => AstNode,  post: (AstNode) => AstNode) : AstNode = {
+      ForLoop(init.visitAndRebuild(pre, post).asInstanceOf[DeclarationT],
+        cond.visitAndRebuild(pre, post).asInstanceOf[ExpressionStatement],
+        increment.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
+        body.visitAndRebuild(pre, post).asInstanceOf[MutableBlockT])
+    }
+
+    override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      init.visit(pre, post)
+      cond.visit(pre, post)
+      increment.visit(pre, post)
+      body.visit(pre, post)
+    }
+  }
+
+  trait ParamDeclPureT extends DeclarationT {
+    val name: String
+    val t: CTypeT
+    val const: Boolean // = false
+
+    override def print(): Doc = {const match {case true => "const "; case _ => ""} } <> t.print() <> " " <> name
+
+  }
+
+
+  case class ParamDeclPure(name: String, t: CTypeT, const: Boolean = false) extends ParamDeclPureT{
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+
+  trait FunctionPureT extends DeclarationT {
+    def name: String
+
+    def ret: CTypeT
+
+    def params: List[ParamDeclPureT]
+
+    def body: BlockT
+
+    def attribute: Option[AttributeT]
+
+    override def print(): Doc = ret.print() <> " " <> name <> "(" <>
+      intersperse(params.map(_.print())) <> ")" <>
+      bracket("{", body.print(), "}")
+  }
+
+  case class FunctionPure(name: String, ret: CTypeT, params: List[ParamDeclPureT],
+                          body: BlockT, attribute: Option[AttributeT] = None) extends FunctionPureT {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+  }
 }

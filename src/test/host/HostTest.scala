@@ -1,6 +1,6 @@
 package host
 
-import host.ir_host.MapH
+import host.ir_host.MapHSeq
 import ir.ArrayType
 import ir.ast.fun
 import lift.arithmetic.SizeVar
@@ -18,7 +18,7 @@ class TestHost {
     val path = "/home/lu/Documents/Research/lift/src/test/host/maphost"
 
     val f = fun( ArrayType(Float, N),
-      in => MapH( incrementF ) $ in
+      in => MapHSeq( incrementF ) $ in
     )
 
     CompileHost(f, path)

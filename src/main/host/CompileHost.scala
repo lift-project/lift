@@ -2,9 +2,11 @@ package host
 
 import host.loop_var_inference.LoopVarInference
 import host.memory_management.{InferHostMemoryAddressSpace, MemoryAllocator}
+import host.printer.CASTPrinter
 import host.view.View
 import ir.{TypeChecker, UndefType}
 import ir.ast.{Expr, IRNode, Lambda}
+import lowering.LowerIR2HostCAST
 
 object CompileHost {
 
@@ -26,6 +28,13 @@ object CompileHost {
     LoopVarInference(final_lambda)
     val hostMemoryDeclaredInSignature = MemoryAllocator(final_lambda)
     View(final_lambda)
+
+    //val (CAST, all_signature_cvars) = LowerIR2HostCAST(final_lambda, hostMemoryDeclaredInSignature)
+    val tuple = LowerIR2HostCAST(final_lambda, hostMemoryDeclaredInSignature)
+    val CAST = tuple._1
+    val all_signature_cvars = tuple._2
+
+    val sched_code = CASTPrinter(CAST,path+"/libmap.cpp")
 
 
     println("All done!")
