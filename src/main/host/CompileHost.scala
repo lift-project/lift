@@ -7,6 +7,7 @@ import host.view.View
 import ir.{TypeChecker, UndefType}
 import ir.ast.{Expr, IRNode, Lambda}
 import lowering.LowerIR2HostCAST
+import sys.process._
 
 object CompileHost {
 
@@ -33,6 +34,9 @@ object CompileHost {
     val tuple = LowerIR2HostCAST(final_lambda, hostMemoryDeclaredInSignature)
     val CAST = tuple._1
     val all_signature_cvars = tuple._2
+
+    //create the directory if not exist
+    s"mkdir $path" !
 
     val sched_code = CASTPrinter(CAST,path+"/libmap.cpp")
 
