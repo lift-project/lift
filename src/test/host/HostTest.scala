@@ -7,7 +7,9 @@ import lift.arithmetic.SizeVar
 import org.junit.Test
 import org.junit.Assert._
 import opencl.ir.{Float, add, _}
+
 import sys.process._
+import scala.language.postfixOps
 
 class TestHost {
 

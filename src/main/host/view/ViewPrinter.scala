@@ -1,17 +1,17 @@
 package host.view
 
 
-import core.generator.GenericAST.{ArithExpression, ExpressionT, IntConstant, VarRef}
+import core.generator.GenericAST.{ArithExpression, ExpressionT, IntConstant, StringConstant, VarRef}
 import ir.view.{View, ViewAccess, ViewJoin, ViewMap, ViewMem, ViewSplit, ViewTuple, ViewTupleComponent, ViewZip}
 import lift.arithmetic.ArithExpr
 
 object ViewPrinter {
 
 
-  def generateArrayAccess(view: View,
+  def generateArrayAccess(the_view: View,
                           arrayAccessStack: List[ArithExpr],
                           tupleAccessStack: List[Int]): ExpressionT = {
-    view match {
+    the_view match {
 
       case ViewAccess(i, iv, _) =>
         generateArrayAccess(iv, i::arrayAccessStack, tupleAccessStack)
@@ -49,6 +49,8 @@ object ViewPrinter {
         IntConstant(0)
       case _:ViewMap =>
         IntConstant(0)
+
+      case _ => assert(false); StringConstant("Unreachable!")
 
     }
   }

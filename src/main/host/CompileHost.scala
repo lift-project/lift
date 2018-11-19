@@ -3,11 +3,13 @@ package host
 import host.loop_var_inference.LoopVarInference
 import host.memory_management.{InferHostMemoryAddressSpace, MemoryAllocator}
 import host.printer.CASTPrinter
-import host.view.View
+import host.view.Views
 import ir.{TypeChecker, UndefType}
 import ir.ast.{Expr, IRNode, Lambda}
 import lowering.LowerIR2HostCAST
+
 import sys.process._
+import scala.language.postfixOps
 
 object CompileHost {
 
@@ -28,7 +30,7 @@ object CompileHost {
     InferHostMemoryAddressSpace(final_lambda)
     LoopVarInference(final_lambda)
     val hostMemoryDeclaredInSignature = MemoryAllocator(final_lambda)
-    View(final_lambda)
+    Views(final_lambda)
 
     //val (CAST, all_signature_cvars) = LowerIR2HostCAST(final_lambda, hostMemoryDeclaredInSignature)
     val tuple = LowerIR2HostCAST(final_lambda, hostMemoryDeclaredInSignature)

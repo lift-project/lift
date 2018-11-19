@@ -55,9 +55,9 @@ object OutputView {
 
         args.foreach (
           arg => arg match {
+            //case _:Value =>
             case p:Param =>
               p.outputView = fc.outputView
-            case _:Value =>
             case fc_get@FunCall(_:Get, arg) =>
               fc_get.outputView = fc.outputView
             case _ => assert(false, "Some Type not implemented")

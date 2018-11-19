@@ -3,7 +3,7 @@ package host.view
 
 import ir.ast.{Lambda}
 
-object View {
+object Views {
 
   def apply(lambda: Lambda): Unit = {
 
