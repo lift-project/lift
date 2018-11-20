@@ -2,7 +2,7 @@ package host
 
 import host.ir_host.MapHSeq
 import ir.ArrayType
-import ir.ast.{Get, UserFun, Zip, fun}
+import ir.ast.{Get, Join, Split, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import org.junit.Test
 import org.junit.Assert._
@@ -105,6 +105,41 @@ class TestHost {
 
     val path = "/home/lu/Documents/Research/lift/src/test/host/03.split_join"
     val file = "libsplit_join.cpp"
+
+    val f = fun(
+      ArrayType(Float, N),
+      in => Join() o MapHSeq( MapHSeq(incrementF)  )  o Split(8) $ in
+    )
+
+    CompileHost(f, path, file)
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_map done!")
+
+  }
+
+  @Test
+  def test_map_zip_split_join(): Unit = {
+
+    val path = "/home/lu/Documents/Research/lift/src/test/host/04.map_zip_split_join"
+    val file = "libmap_zip_split_join.cpp"
+
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (left, right) => Join() o MapHSeq( MapHSeq( fun(y => add2.apply(Get(y,0), Get(y,1)) ) )  )  o Split(8) $ Zip(left, right)
+    )
+
+    CompileHost(f, path, file)
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_map done!")
 
   }
 
