@@ -62,7 +62,7 @@ class TestHost {
   @Test
   def test_map(): Unit = {
 
-    val path = "/home/lu/Documents/Research/lift/src/test/host/maphost"
+    val path = "/home/lu/Documents/Research/lift/src/test/host/01.maphost"
     val file = "libmap.cpp"
 
     val f = fun( ArrayType(Float, N),
@@ -82,7 +82,7 @@ class TestHost {
   @Test
   def test_zip(): Unit = {
 
-    val path = "/home/lu/Documents/Research/lift/src/test/host/zip"
+    val path = "/home/lu/Documents/Research/lift/src/test/host/02.zip"
     val file = "libzip.cpp"
 
     val f = fun(
@@ -100,5 +100,12 @@ class TestHost {
     println("Test case test_zip done!")
   }
 
+  @Test
+  def test_split_join(): Unit = {
+
+    val path = "/home/lu/Documents/Research/lift/src/test/host/03.split_join"
+    val file = "libsplit_join.cpp"
+
+  }
 
 }
