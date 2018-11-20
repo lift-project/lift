@@ -2,7 +2,7 @@ package host
 
 import host.ir_host.MapHSeq
 import ir.ArrayType
-import ir.ast.{Get, Join, Split, UserFun, Zip, fun}
+import ir.ast.{Get, Join, Split, Transpose, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import org.junit.Test
 import org.junit.Assert._
@@ -117,7 +117,7 @@ class TestHost {
     val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
     assertEquals(expected, actual)
 
-    println("Test case test_map done!")
+    println("Test case test_split_join done!")
 
   }
 
@@ -137,6 +137,27 @@ class TestHost {
 
     val actual : String = native_compile_and_run(path, file)
     val expected : String = "3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_map_zip_split_join done!")
+
+  }
+
+  @Test
+  def test_transpose(): Unit = {
+
+    val path = "/home/lu/Documents/Research/lift/src/test/host/05.transpose"
+    val file = "libtranspose.cpp"
+
+    val f = fun(
+      ArrayType(Float, N),
+      in => Join() o MapHSeq( MapHSeq(incrementF)  ) o Transpose() o Split(8) $ in
+    )
+
+    CompileHost(f, path, file)
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
     assertEquals(expected, actual)
 
     println("Test case test_map done!")
