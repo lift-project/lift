@@ -2,7 +2,7 @@ package host
 
 import host.ir_host.MapHSeq
 import ir.ArrayType
-import ir.ast.fun
+import ir.ast.{Get, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import org.junit.Test
 import org.junit.Assert._
@@ -14,7 +14,13 @@ import scala.language.postfixOps
 class TestHost {
 
   val N = SizeVar("N")
+
   val incrementF = fun(Float, x => add(Float).apply(1f, x))
+
+  val add2 = UserFun("add", Array("l", "r"),
+    "{ return (l + r); }",
+    Seq(Float, Float), Float)
+
 
   private def compile_native(path: String, file: String): Unit = {
 
@@ -67,7 +73,6 @@ class TestHost {
 
     val actual : String = native_compile_and_run(path, file)
     val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
-
     assertEquals(expected, actual)
 
     println("Test case test_map done!")
@@ -75,10 +80,24 @@ class TestHost {
   }
 
   @Test
-  def test_reduce(): Unit = {
+  def test_zip(): Unit = {
 
-    println("All done!")
-    assertEquals(2,0)
+    val path = "/home/lu/Documents/Research/lift/src/test/host/zip"
+    val file = "libzip.cpp"
+
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (left, right) => MapHSeq( fun(y => add2.apply(Get(y,0), Get(y,1)) ) ) $ Zip(left, right)
+    )
+
+    CompileHost(f, path, file)
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_zip done!")
   }
 
 

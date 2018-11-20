@@ -12,7 +12,7 @@ import scala.collection.mutable
 
 object MemoryAllocator {
 
-  val hostMemoryDeclaredInSignature = mutable.Map.empty[String, (CVarWithType, ArithExpr) ]
+  var hostMemoryDeclaredInSignature = mutable.Map.empty[String, (CVarWithType, ArithExpr) ]
 
   def alloc(node:IRNode): Unit = {
     node match {
@@ -69,6 +69,9 @@ object MemoryAllocator {
   }
 
   def apply(lambda: Lambda): Map[String, (CVarWithType, ArithExpr) ] = {
+
+    //reset hostMemoryDeclaredInSignature if run with multiple test cases
+    hostMemoryDeclaredInSignature = mutable.Map.empty[String, (CVarWithType, ArithExpr) ]
 
     //alloc params
     lambda.params.foreach(
