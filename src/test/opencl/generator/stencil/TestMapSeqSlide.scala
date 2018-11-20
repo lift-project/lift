@@ -1761,6 +1761,11 @@ class TestMapSeqSlide
 
   }
 
+  /**
+    *
+    * TODO: ensure is coalesced!
+    */
+
   @Test
   def roomCodeWith25DTilingPadConstant(): Unit = {
 
@@ -1795,8 +1800,8 @@ class TestMapSeqSlide
     val getCF = UserFun("getCF", Array("neigh", "cfB", "cfI"), "{ if(neigh < 6) { return cfB; } else{ return cfI;} }", Seq(Int,Float,Float), Float)
 
     def original3DStencil(size: Int, step: Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2),N+2),M+2),
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2),N+2),M+2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O),N),M),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O),N),M),
       (mat1,mat2) =>
         MapGlb(2)(MapGlb(1)(MapGlb(0)(
           fun( m => {
@@ -1833,7 +1838,8 @@ class TestMapSeqSlide
 
             toGlobal(id) $ ret
 
-          })))) o Slide3D(size, step) $ Zip3D(mat1,mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
+          })))
+        ) o Slide3D(size, step) $ Zip3D(PadConstant3D(1,1,1,0.0f) $ mat1,PadConstant3D(1,1,1,0.0f) $ mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
     )
 
     def lambda3D = fun(
@@ -1879,7 +1885,7 @@ class TestMapSeqSlide
           o PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(PadConstant3D(1,1,1,0.0f) $ mat1, PadConstant3D(1,1,1,0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
     )
 
-    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original3DStencil(slidesize,slidestep),stencilarrpadded3D, stencilarrpadded3D)
+    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original3DStencil(slidesize,slidestep),stencilarr3D, stencilarr3D)
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda3D,stencilarr3D, stencilarr3D)
 
     assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)

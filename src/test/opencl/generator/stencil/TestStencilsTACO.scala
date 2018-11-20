@@ -209,18 +209,18 @@ class TestStencilsTACO {
   def acoustic(m: Param) =
   {
 
-          val cf = toPrivate( fun(x => getCF(x,cf1(0), cf1(1))) ) $ Get(m,2)
-          val cf2 = toPrivate( fun(x => getCF(x,cf21(0), cf21(1))) ) $ Get(m,2)
+          val cf = toPrivate( fun(x => getCF(x,cf1(0), cf1(1))) ) $ Get(m.at(1).at(1).at(1),2)
+          val cf2 = toPrivate( fun(x => getCF(x,cf21(0), cf21(1))) ) $ Get(m.at(1).at(1).at(1),2)
           val maskedValStencil = l2
 
-          val `tile[1][1][1]` = Get(m,1).at(1).at(1).at(1)
+          val `tile[1][1][1]` = Get(m.at(1).at(1).at(1),1)
 
-          val `tile[0][1][1]` = Get(m,1).at(0).at(1).at(1)
-          val `tile[1][0][1]` = Get(m,1).at(1).at(0).at(1)
-          val `tile[1][1][0]` = Get(m,1).at(1).at(1).at(0)
-          val `tile[1][1][2]` = Get(m,1).at(1).at(1).at(2)
-          val `tile[1][2][1]` = Get(m,1).at(1).at(2).at(1)
-          val `tile[2][1][1]` = Get(m,1).at(2).at(1).at(1)
+          val `tile[0][1][1]` = Get(m.at(0).at(1).at(1),1)
+          val `tile[1][0][1]` = Get(m.at(1).at(0).at(1),1)
+          val `tile[1][1][0]` = Get(m.at(1).at(1).at(0),1)
+          val `tile[1][1][2]` = Get(m.at(1).at(1).at(2),1)
+          val `tile[1][2][1]` = Get(m.at(1).at(2).at(1),1)
+          val `tile[2][1][1]` = Get(m.at(2).at(1).at(1),1)
 
           val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
             toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
@@ -228,14 +228,18 @@ class TestStencilsTACO {
             toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
             toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
 
-          val valueMat1 = Get(m,0)
-          val valueMask = toPrivate(idIF) $ Get(m,2)
+          val valueMat1 = Get(m.at(1).at(1).at(1),0)
+          val valueMask = toPrivate(idIF) $ Get(m.at(1).at(1).at(1),2)
 
-          toGlobal(id) o toPrivate(fun( x => mult(x,cf))) o toPrivate(addTuple) $
-            Tuple(toPrivate(multTuple) $ Tuple(toPrivate(fun(x => subtract(2.0f,x))) o toPrivate(fun(x => mult(x,l2))) $ valueMask, `tile[1][1][1]`),
+          val save = toPrivate(fun( x => mult(x,`tile[1][1][1]`))) o toPrivate(fun(x => subtract(2.0f,x))) o toPrivate(fun(x => mult(x,RoomConstants.l2))) $ valueMask
+
+          val ret = toGlobal(id) o toPrivate(fun( x => mult(x,cf))) o toPrivate(addTuple) $
+            Tuple(save,
               toPrivate(subtractTuple) $ Tuple(
-                toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
-                toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
+              toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
+              toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
+
+          toGlobal(id) $ valueMask
   }
 
   def acousticMSS(m: Param) =
@@ -265,11 +269,12 @@ class TestStencilsTACO {
 
     val save = toPrivate(fun( x => mult(x,`tile[1][1][1]`))) o toPrivate(fun(x => subtract(2.0f,x))) o toPrivate(fun(x => mult(x,RoomConstants.l2))) $ valueMask
 
-    toGlobal(id) o toPrivate(fun( x => mult(x,cf))) o toPrivate(addTuple) $
+    val ret = toGlobal(id) o toPrivate(fun( x => mult(x,cf))) o toPrivate(addTuple) $
       Tuple(save,
         toPrivate(subtractTuple) $ Tuple(
           toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
           toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
+    toGlobal(id) $ valueMask
 
   }
 
@@ -300,30 +305,33 @@ class TestStencilsTACO {
   {
 
     val arraySigmno = ArrayType(ArrayType(ArrayType(Int, m), n), o)
+    val arraySigmno2 = ArrayType(ArrayType(ArrayType(Int, m+2), n+2), o+2)
     val arraySigonm = ArrayType(ArrayType(ArrayType(Int, o), n), m)
+    val arraySigonm2 = ArrayType(ArrayType(ArrayType(Int, o+2), n+2), m+2)
 
     val size = 3
     val step = 1
 
     val aStencil =
       fun(
-        ArrayType(ArrayType(ArrayType(Float, m), n), o),
-        ArrayType(ArrayType(ArrayType(Float, m), n), o),
+        ArrayType(ArrayType(ArrayType(Float, o), n), m),
+        ArrayType(ArrayType(ArrayType(Float, o), n), m),
         (mat1, mat2) => {
           MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
             acoustic(m)
           })))
-          ) $ Zip3D(mat1, Slide3D(size,step) o PadConstant3D(1,1,1,0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno))
+          /*) $ Zip3D(mat1, Slide3D(size,step) o PadConstant3D(1,1,1,0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigonm))*/ // this should work, but doesn't, etc
+          ) o Slide3D(size, step) $ Zip3D(PadConstant3D(1,1,1,0.0f) $ mat1,PadConstant3D(1,1,1,0.0f) $ mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySigonm2))
         })
 
     val aStencilMSS = fun(
       ArrayType(ArrayType(ArrayType(Float, o), n), m),
       ArrayType(ArrayType(ArrayType(Float, o), n), m),
       (mat1, mat2) => {
-        Map(TransposeW()) o TransposeW() o Map(TransposeW()) o
+/*        Map(TransposeW()) o TransposeW() o Map(TransposeW()) o*/
           MapGlb(0)(MapGlb(1)(fun (x => { toGlobal(MapSeqSlide(fun((m) => {
             acousticMSS(m)
-          }),size,step)) } o Transpose() o Map(Transpose()) $ x ))) o  Slide2D(size,step) o Map(Transpose())  o Transpose() o Map(Transpose()) $ Zip3D( PadConstant3D(1,1,1,0.0f) $ mat1, PadConstant3D(1,1,1,0.0f) $ mat2, PadConstant3D(1,1,1,0.0f) $ Array3DFromUserFunGenerator(getNumNeighbours, arraySigonm))
+          }),size,step)) } o Transpose() o Map(Transpose()) $ x ))) o  Slide2D(size,step) /* o Map(Transpose())  o Transpose() o Map(Transpose())*/ $ Zip3D( PadConstant3D(1,1,1,0.0f) $ mat1, PadConstant3D(1,1,1,0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigonm2))
       })
 
     val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](aStencil, data,data)
