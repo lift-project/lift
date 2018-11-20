@@ -105,6 +105,14 @@ object InputView {
 
       }
 
+      case fc@FunCall(_, arg) => {
+
+        generateInputView(arg)
+
+        fc.view = arg.view
+
+      }
+
       case _ =>
     }
   }

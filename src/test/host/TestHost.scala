@@ -2,7 +2,7 @@ package host
 
 import host.ir_host.MapHSeq
 import ir.ArrayType
-import ir.ast.{Get, Join, Split, Transpose, UserFun, Zip, fun}
+import ir.ast.{Get, Join, Split, Transpose, TransposeW, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import org.junit.Test
 import org.junit.Assert._
@@ -151,7 +151,7 @@ class TestHost {
 
     val f = fun(
       ArrayType(Float, N),
-      in => Join() o MapHSeq( MapHSeq(incrementF)  ) o Transpose() o Split(8) $ in
+      in => Join() o TransposeW() o MapHSeq( MapHSeq(incrementF)  ) o Transpose() o Split(8) $ in
     )
 
     CompileHost(f, path, file)

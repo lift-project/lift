@@ -1,10 +1,10 @@
 package host.view
 
 
-import ir.{ArrayType, ArrayTypeWSWC}
-import ir.ast.{AbstractMap, AbstractPartRed, Expr, FunCall, Get, IRNode, Join, Lambda, Param, Split, UserFun, Value, Zip}
+import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC}
+import ir.ast.{AbstractMap, AbstractPartRed, Expr, FunCall, Get, IRNode, Join, Lambda, Param, Split, TransposeW, UserFun, Value, Zip, transpose}
 import ir.view.{NoView, ViewMap, ViewMem}
-import lift.arithmetic.Cst
+import lift.arithmetic.{ArithExpr, Cst}
 import core.generator.PrettyPrinter._
 
 import scala.collection.mutable
@@ -49,6 +49,19 @@ object OutputView {
         arg.outputView = fc.outputView.split(n)
 
         generateOutputView(arg)
+      }
+
+      case fc@FunCall(TransposeW(), arg) => {
+
+        arg.outputView = fc.outputView
+        fc.t match {
+          case ArrayTypeWS(ArrayTypeWS(typ, m), n) => arg.outputView = fc.outputView.join(m).reorder(
+            (i: ArithExpr) => { transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(typ, n), m)) }).split(n)
+          case _ => assert(false, "Other types other than 2D array are not allowed for TransposeW()")
+        }
+
+        generateOutputView(arg)
+
       }
 
       case fc@FunCall(_:UserFun, args@_*) => {
