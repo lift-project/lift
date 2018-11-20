@@ -2,7 +2,7 @@ package host.view
 
 
 import core.generator.GenericAST.{ArithExpression, ExpressionT, IntConstant, StringConstant, VarRef}
-import ir.view.{View, ViewAccess, ViewJoin, ViewMap, ViewMem, ViewSplit, ViewTuple, ViewTupleComponent, ViewZip}
+import ir.view._
 import lift.arithmetic.ArithExpr
 
 object ViewPrinter {
@@ -44,6 +44,10 @@ object ViewPrinter {
 
       case ViewZip(iv, _) =>
         generateArrayAccess(iv, arrayAccessStack, tupleAccessStack)
+
+      case ViewReorder(reindexFun, iv, _) =>
+        val idx :: indices = arrayAccessStack
+        generateArrayAccess(iv, reindexFun(idx) :: indices, tupleAccessStack)
 
       case _:ViewJoin =>
         IntConstant(0)

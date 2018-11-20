@@ -3,7 +3,7 @@ package host.lowering
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ParamDeclPure, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRefPure, VoidType}
 import host.ir_host.MapHSeq
 import host.view.ViewPrinter
-import ir.ast.{AbstractMap, FunCall, IRNode, Join, Lambda, Split, UserFun, Value}
+import ir.ast.{AbstractMap, FunCall, IRNode, Join, Lambda, Split, Transpose, UserFun, Value}
 import lift.arithmetic.ArithExpr
 import opencl.generator.OpenCLAST.OclCode
 import opencl.ir.pattern.MapSeq
@@ -33,6 +33,8 @@ object LowerIR2HostCAST {
         generateNothing(fc)
       case fc@FunCall(Join(), _) =>
         generateNothing(fc)
+      case fc@FunCall(Transpose(), _) =>
+        generateNothing(fc)
       case fc@FunCall(_:UserFun,_*) =>
         generateUserFun(fc)
       case _ =>
@@ -53,7 +55,8 @@ object LowerIR2HostCAST {
 
     val arg_list : List[AstNode] = fc.args.map(a => a match {
       case v:Value => StringConstant(v.value)
-      case _ => ViewPrinter(a.view)
+      case _ =>
+        ViewPrinter(a.view)
     }).toList
     val out_offset = ViewPrinter(fc.outputView)
 

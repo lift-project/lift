@@ -112,6 +112,11 @@ object OutputView {
 
       }
 
+      case fc@FunCall(_, arg) => {
+        arg.outputView = fc.outputView
+        generateOutputView(arg)
+      }
+
       case _ =>
     }
   }
