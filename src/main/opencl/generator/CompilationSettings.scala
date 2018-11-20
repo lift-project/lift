@@ -17,6 +17,12 @@ object TreatWarningsAsErrors {
   def apply(warningAsErrors: Boolean): Unit = { this.warningAsErrors = warningAsErrors }
 }
 
+object InlineStructs {
+  private var inline_structs = System.getenv("INLINE_STRUCTS") != null
+  def apply(): Boolean = inline_structs
+  def apply(inline_structs: Boolean): Unit = { this.inline_structs = inline_structs }
+}
+
 object Verbose {
   private var verbose = System.getenv("LIFT_VERBOSE") != null
   def apply(): Boolean = verbose

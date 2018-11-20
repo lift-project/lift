@@ -254,10 +254,36 @@ class OpenCLGenerator extends Generator {
     // pass 3: generate the
     globalBlock += generateKernel(f)
 
-    val oclstring = AstPrinter(globalBlock)()
+    // unroll private memory in the AST
+    val unrollBlock = UnrollValues.unrollPrivateMemoryArrayValues(globalBlock)
+    var inlineBlock = unrollBlock
+
+    // inline structs if requested
+   if(InlineStructs())
+    {
+      try
+      {
+        var hasChanged = true
+        while(hasChanged )
+        {
+            val result = UnrollValues.inlinePrivateMemoryStructValues(inlineBlock)
+            hasChanged = UnrollValues.hasChanged
+        }
+
+      } catch {
+        case err : NotImplementedError => // we know about these errors and we do not allow the user to inline structs in these cases
+          print(s"Warning: Cannot inline structs: ")
+          println(err.getMessage())
+          inlineBlock = unrollBlock
+        case err : Exception => // otherwise genuine issue, throw the exception again
+          throw(err)
+      }
+    }
+
+    val oclstring = AstPrinter(inlineBlock)()
 
     if(Verbose())
-      println(s"Generated AST: \n${globalBlock}")
+      println(s"Generated AST: \n${inlineBlock}")
 
     oclstring
   }
@@ -846,9 +872,9 @@ class OpenCLGenerator extends Generator {
   private def generateMapSeqSlideCall(sp: MapSeqSlide,
                                       call: FunCall,
                                       block: MutableBlock): Unit = {
-    (block: MutableBlock) += Comment("slideSeq_plus")
+    (block: MutableBlock) += Comment("mapSeqSlide")
     generateMapSeqSlideLoop(block, sp, call, generate(sp.f.body, _), sp.shouldUnroll)
-    (block: MutableBlock) += Comment("end slideSeq_plus")
+    (block: MutableBlock) += Comment("end mapSeqSlide")
   }
 
   // === ReduceWhile ===
