@@ -1710,7 +1710,7 @@ class TestMapSeqSlide
           })))) o Slide3D(size, step) $ Zip3D(mat1,mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
     )
 
-    val lambda3D = fun(
+    def lambda3D = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2), N+2), M+2),
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2), N+2), M+2),
       (mat1, mat2) =>
@@ -1759,6 +1759,131 @@ class TestMapSeqSlide
 
     val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original3DStencil(slidesize,slidestep),stencilarrpadded3D, stencilarrpadded3D)
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda3D,stencilarrpadded3D, stencilarrpadded3D)
+
+    assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
+
+  }
+
+  @Test
+  def roomCodeWith25DTilingPadConstantNotWorking(): Unit = {
+
+    val size = 12
+    val slidesize = 3
+    val slidestep = 1
+
+    val values = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size + k + 1).toFloat }
+    val values2 = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size*2 + k*.5 + 1).toFloat }
+
+    val localDimX = 12
+    val localDimY = 10
+    val localDimZ = 8
+
+    val data = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
+
+    val stencilarr3D = StencilUtilities.createDataFloat3DInOrder(localDimX, localDimY, localDimZ)
+    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPaddingInOrder(localDimX, localDimY, localDimZ)
+    val stencilarrOther3D = stencilarrpadded3D.map(x => x.map(y => y.map(z => z * 2.0f)))
+
+    val N = SizeVar("N") + 2
+    val M = SizeVar("M") + 2
+    val O = SizeVar("O") + 2
+
+    val arraySig0 = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, O), N), M)
+    val arraySig2 = ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Int, O+2), N+2), M+2)
+
+
+    val getNumNeighbours = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ " +
+      "int count = 6; if(i == (m-1) || i == 0){ count--; } if(j == (n-1) || j == 0){ count--; } if(k == (o-1) || k == 0){ count--; }return (float)count; }", Seq(Int,Int,Int,Int,Int,Int), Float)
+
+    val getCF = UserFun("getCF", Array("neigh", "cfB", "cfI"), "{ if(neigh < 6) { return cfB; } else{ return cfI;} }", Seq(Int,Float,Float), Float)
+
+    def original3DStencil(size: Int, step: Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2),N+2),M+2),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2),N+2),M+2),
+      (mat1,mat2) =>
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(
+          fun( m => {
+
+            val cf = toPrivate( fun(x => getCF(x,RoomConstants.cf(0), RoomConstants.cf(1))) ) $ Get(m.at(1).at(1).at(1),2)
+            val cf2 = toPrivate( fun(x => getCF(x,RoomConstants.cf2(0), RoomConstants.cf2(1))) ) $ Get(m.at(1).at(1).at(1),2)
+            val maskedValStencil = RoomConstants.l2
+            val valueMat1 = Get(m.at(1).at(1).at(1),0)
+            val valueMask = toPrivate(BoundaryUtilities.idIF) $ Get(m.at(1).at(1).at(1),2)
+
+            val `tile[1][1][1]` = Get(m.at(1).at(1).at(1),1)
+
+            val `tile[0][1][1]` = Get(m.at(0).at(1).at(1),1)
+            val `tile[1][0][1]` = Get(m.at(1).at(0).at(1),1)
+            val `tile[1][1][0]` = Get(m.at(1).at(1).at(0),1)
+            val `tile[1][1][2]` = Get(m.at(1).at(1).at(2),1)
+            val `tile[1][2][1]` = Get(m.at(1).at(2).at(1),1)
+            val `tile[2][1][1]` = Get(m.at(2).at(1).at(1),1)
+
+            val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
+              toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+              toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
+
+            toGlobal(id) o toPrivate(fun( x => mult(x,cf))) o toPrivate(addTuple) $
+              Tuple(toPrivate(multTuple) $ Tuple(toPrivate(fun(x => subtract(2.0f,x))) o toPrivate(fun(x => mult(x,RoomConstants.l2))) $ valueMask, `tile[1][1][1]`),
+                toPrivate(subtractTuple) $ Tuple(
+                  toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
+                  toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
+
+          })))) o Slide3D(size, step) $ Zip3D(mat1,mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
+    )
+
+    def lambda3D = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
+      (mat1, mat2) =>
+        MapGlb(1)(MapGlb(0)(fun(x => {
+          toGlobal(MapSeqSlide(fun(m => {
+
+            val cf = toPrivate( fun(x => getCF(x,RoomConstants.cf(0), RoomConstants.cf(1))) ) $ Get(m.at(1).at(1).at(1),2)
+            val cf2 = toPrivate( fun(x => getCF(x,RoomConstants.cf2(0), RoomConstants.cf2(1))) ) $ Get(m.at(1).at(1).at(1),2)
+            val maskedValStencil = RoomConstants.l2
+            val valueMat1 = Get(m.at(1).at(1).at(1),0)
+            val valueMask = toPrivate(BoundaryUtilities.idIF) $ Get(m.at(1).at(1).at(1),2)
+
+            val `tile[1][1][1]` = Get(m.at(1).at(1).at(1),1)
+
+            val `tile[0][1][1]` = Get(m.at(0).at(1).at(1),1)
+            val `tile[1][0][1]` = Get(m.at(1).at(0).at(1),1)
+            val `tile[1][1][0]` = Get(m.at(1).at(1).at(0),1)
+            val `tile[1][1][2]` = Get(m.at(1).at(1).at(2),1)
+            val `tile[1][2][1]` = Get(m.at(1).at(2).at(1),1)
+            val `tile[2][1][1]` = Get(m.at(2).at(1).at(1),1)
+
+            val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
+              toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+              toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+              toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
+
+            val save = toPrivate(fun( x => mult(x,`tile[1][1][1]`))) o toPrivate(fun(x => subtract(2.0f,x))) o toPrivate(fun(x => mult(x,RoomConstants.l2))) $ valueMask
+
+            toGlobal(id) o toPrivate(fun( x => mult(x,cf))) o toPrivate(addTuple) $
+              Tuple(save,
+                toPrivate(subtractTuple) $ Tuple(
+                  toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
+                  toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
+
+          }),slidesize,slidestep)) o Transpose() o Map(Transpose()) } $ x )))
+          o PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(PadConstant3D(1,1,1,0.0f) $ mat1, PadConstant3D(1,1,1,0.0f) $ mat2,PadConstant3D(1,1,1,0.0f) $ Array3DFromUserFunGenerator(getNumNeighbours, arraySig0))
+    )
+
+    /*
+    //print n' compare
+    println(Compile(original3DStencil(slidesize,slidestep)))
+    println(Compile(lambda3D))
+    */
+
+    val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original3DStencil(slidesize,slidestep),stencilarrpadded3D, stencilarrpadded3D)
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda3D,stencilarr3D, stencilarr3D)
 
     assertArrayEquals(output, outputOrg, StencilUtilities.stencilDelta)
 
