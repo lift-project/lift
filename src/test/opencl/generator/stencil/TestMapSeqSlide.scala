@@ -2,10 +2,8 @@ package opencl.generator.stencil
 
 import ir.ArrayTypeWSWC
 import ir.ast.debug.PrintType
-import opencl.generator.NDRange
-import rewriting.SimplifyAndFuse
 import ir.ast.{Get, Slide, Zip, fun, _}
-import lift.arithmetic.{?, SizeVar}
+import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.generator.stencil.acoustic.{BoundaryUtilities, RoomConstants, StencilUtilities}
 import opencl.ir._
@@ -13,8 +11,7 @@ import opencl.ir.pattern._
 import org.junit.Assert._
 import org.junit.Assume.assumeFalse
 import org.junit._
-
-import scala.collection.immutable
+import rewriting.SimplifyAndFuse
 
 object TestMapSeqSlide extends TestWithExecutor
 
@@ -1765,7 +1762,7 @@ class TestMapSeqSlide
   }
 
   @Test
-  def roomCodeWith25DTilingPadConstantNotWorking(): Unit = {
+  def roomCodeWith25DTilingPadConstant(): Unit = {
 
     val size = 12
     val slidesize = 3
@@ -1774,9 +1771,9 @@ class TestMapSeqSlide
     val values = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size + k + 1).toFloat }
     val values2 = Array.tabulate(size,size,size) { (i,j,k) => (i*size*size + j*size*2 + k*.5 + 1).toFloat }
 
-    val localDimX = 12
-    val localDimY = 10
-    val localDimZ = 8
+    val localDimX = 6
+    val localDimY = 8
+    val localDimZ = 4
 
     val data = StencilUtilities.createDataFloat3D(localDimX, localDimY, localDimZ)
 
@@ -1826,11 +1823,15 @@ class TestMapSeqSlide
               toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
               toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
 
-            toGlobal(id) o toPrivate(fun( x => mult(x,cf))) o toPrivate(addTuple) $
-              Tuple(toPrivate(multTuple) $ Tuple(toPrivate(fun(x => subtract(2.0f,x))) o toPrivate(fun(x => mult(x,RoomConstants.l2))) $ valueMask, `tile[1][1][1]`),
+            val save = toPrivate(fun( x => mult(x,`tile[1][1][1]`))) o toPrivate(fun(x => subtract(2.0f,x))) o toPrivate(fun(x => mult(x,RoomConstants.l2))) $ valueMask
+
+            val ret = toGlobal(id) o toPrivate(fun( x => mult(x,cf))) o toPrivate(addTuple) $
+              Tuple(save,
                 toPrivate(subtractTuple) $ Tuple(
                   toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
                   toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
+
+            toGlobal(id) $ ret
 
           })))) o Slide3D(size, step) $ Zip3D(mat1,mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
     )
@@ -1866,21 +1867,17 @@ class TestMapSeqSlide
 
             val save = toPrivate(fun( x => mult(x,`tile[1][1][1]`))) o toPrivate(fun(x => subtract(2.0f,x))) o toPrivate(fun(x => mult(x,RoomConstants.l2))) $ valueMask
 
-            toGlobal(id) o toPrivate(fun( x => mult(x,cf))) o toPrivate(addTuple) $
+            val ret = toGlobal(id) o toPrivate(fun( x => mult(x,cf))) o toPrivate(addTuple) $
               Tuple(save,
                 toPrivate(subtractTuple) $ Tuple(
                   toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
                   toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
 
-          }),slidesize,slidestep)) o Transpose() o Map(Transpose()) } $ x )))
-          o PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(PadConstant3D(1,1,1,0.0f) $ mat1, PadConstant3D(1,1,1,0.0f) $ mat2,PadConstant3D(1,1,1,0.0f) $ Array3DFromUserFunGenerator(getNumNeighbours, arraySig0))
-    )
+            toGlobal(id) $ ret
 
-    /*
-    //print n' compare
-    println(Compile(original3DStencil(slidesize,slidestep)))
-    println(Compile(lambda3D))
-    */
+          }),slidesize,slidestep)) o Transpose() o Map(Transpose()) } $ x )))
+          o PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(PadConstant3D(1,1,1,0.0f) $ mat1, PadConstant3D(1,1,1,0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
+    )
 
     val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original3DStencil(slidesize,slidestep),stencilarrpadded3D, stencilarrpadded3D)
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](lambda3D,stencilarr3D, stencilarr3D)
