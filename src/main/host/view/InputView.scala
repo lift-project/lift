@@ -63,7 +63,11 @@ object InputView {
 
         generateInputView(arg)
         fc.t match{
-          case ArrayTypeWS(ArrayTypeWS(typ, m), n) => fc.view = arg.view.join(n).reorder( (i: ArithExpr) => { transpose(i, fc.t) }  ).split(m)
+          case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
+            //working
+            //fc.view = arg.view.join(n).reorder( (i: ArithExpr) => { transpose(i, fc.t) }  ).split(m)
+            //experimental
+            fc.view = arg.view.transpose(fc.t)
           case _ => assert(false, "Other types other than 2D array are not allowed for transpose")
         }
 

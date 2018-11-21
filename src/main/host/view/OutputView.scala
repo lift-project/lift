@@ -55,8 +55,11 @@ object OutputView {
 
         arg.outputView = fc.outputView
         fc.t match {
-          case ArrayTypeWS(ArrayTypeWS(typ, m), n) => arg.outputView = fc.outputView.join(m).reorder(
-            (i: ArithExpr) => { transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(typ, n), m)) }).split(n)
+          case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
+            //working
+            //arg.outputView = fc.outputView.join(m).reorder( (i: ArithExpr) => { transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(typ, n), m)) }).split(n)
+            //experimental
+            arg.outputView = fc.outputView.transpose(fc.t)
           case _ => assert(false, "Other types other than 2D array are not allowed for TransposeW()")
         }
 

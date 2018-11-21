@@ -49,6 +49,10 @@ object ViewPrinter {
         val idx :: indices = arrayAccessStack
         generateArrayAccess(iv, reindexFun(idx) :: indices, tupleAccessStack)
 
+      case ViewTranspose(iv, _) =>
+        val top :: second :: rest = arrayAccessStack
+        generateArrayAccess(iv, second::top::rest, tupleAccessStack)
+
       case ViewJoin(chunkSize, iv, _) =>
         val idx :: indices = arrayAccessStack
         val chunkIdx = idx / chunkSize

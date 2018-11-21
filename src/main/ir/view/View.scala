@@ -162,6 +162,15 @@ abstract sealed class View(val t: Type = UndefType) {
     }
   }
 
+  def transpose(t:Type) : View = {
+
+    this.t match {
+      case ArrayTypeWS(ArrayTypeWS(_,_),_) => ViewTranspose(this, t)
+      case _ => throw new IllegalArgumentException("PANIC: transpose expects an 2D array type")
+    }
+
+  }
+
   /**
    * Construct a view for joining the current view.
    *
@@ -367,6 +376,8 @@ case class ViewAccess(i: ArithExpr, iv: View, override val t: Type) extends View
  * @param t Type of the view.
  */
 case class ViewSplit(n: ArithExpr, iv: View, override val t: Type) extends View(t)
+
+case class ViewTranspose(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for joining another view.
