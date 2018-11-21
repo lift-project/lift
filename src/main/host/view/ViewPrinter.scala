@@ -2,6 +2,7 @@ package host.view
 
 
 import core.generator.GenericAST.{ArithExpression, ExpressionT, IntConstant, StringConstant, VarRef}
+import ir.{ArrayType, Size}
 import ir.view._
 import lift.arithmetic.ArithExpr
 
@@ -52,6 +53,16 @@ object ViewPrinter {
       case ViewTranspose(iv, _) =>
         val top :: second :: rest = arrayAccessStack
         generateArrayAccess(iv, second::top::rest, tupleAccessStack)
+
+      case ViewPad(iv, left, _, padFun, _) =>
+        val idx :: indices = arrayAccessStack
+        val currentIdx = idx - left
+        val length = iv.t.asInstanceOf[ArrayType with Size].size
+        val newIdx = if(ArithExpr.mightBeNegative(currentIdx) || ArithExpr.isSmaller(length -1, currentIdx.max).getOrElse(true))
+          padFun(currentIdx, length)
+        else
+          currentIdx
+        generateArrayAccess(iv, newIdx :: indices, tupleAccessStack)
 
       case ViewJoin(chunkSize, iv, _) =>
         val idx :: indices = arrayAccessStack

@@ -2,7 +2,7 @@ package host.view
 
 
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, TupleType}
-import ir.ast.{AbstractMap, AbstractPartRed, Expr, FunCall, Get, IRNode, Join, Lambda, Split, Transpose, UserFun, Value, Zip, transpose}
+import ir.ast.{AbstractMap, AbstractPartRed, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Split, Transpose, UserFun, Value, Zip, transpose}
 import ir.view._
 import lift.arithmetic.ArithExpr
 
@@ -70,6 +70,13 @@ object InputView {
             fc.view = arg.view.transpose(fc.t)
           case _ => assert(false, "Other types other than 2D array are not allowed for transpose")
         }
+
+      }
+
+      case fc@FunCall(Pad(left, right, boundaryFun), arg) => {
+
+        generateInputView(arg)
+        fc.view = arg.view.pad(left, right, boundaryFun)
 
       }
 

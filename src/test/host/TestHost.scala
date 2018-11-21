@@ -174,13 +174,16 @@ class TestHost {
 
     val f = fun(
       ArrayType(Float, N),
-      in =>  MapHSeq(incrementF) o Pad(1,1, WrapUnsafe)  $ in
+      in =>  MapHSeq(incrementF) o Pad(1, 1, WrapUnsafe)  $ in
     )
 
     CompileHost(f, path, file)
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
+    //notice that the output array expected is slightly larger than the input array
+    //as the padding only influence the size of the output array,
+    //not the input array
+    val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
     assertEquals(expected, actual)
 
     println("Test case test_pad done!")
