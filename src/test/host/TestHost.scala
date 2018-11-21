@@ -144,10 +144,10 @@ class TestHost {
   }
 
   @Test
-  def test_transpose(): Unit = {
+  def test_transpose_transposew(): Unit = {
 
-    val path = "/home/lu/Documents/Research/lift/src/test/host/05.transpose"
-    val file = "libtranspose.cpp"
+    val path = "/home/lu/Documents/Research/lift/src/test/host/05.transpose_transposew"
+    val file = "libtranspose_tranposew.cpp"
 
     val f = fun(
       ArrayType(Float, N),
