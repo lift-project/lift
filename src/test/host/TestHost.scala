@@ -2,7 +2,8 @@ package host
 
 import host.ir_host.MapHSeq
 import ir.ArrayType
-import ir.ast.{Get, Join, Split, Transpose, TransposeW, UserFun, Zip, fun}
+import ir.ast.{Get, Join, Pad, Split, Transpose, TransposeW, UserFun, Zip, fun}
+import ir.ast.Pad.Boundary.WrapUnsafe
 import lift.arithmetic.SizeVar
 import org.junit.Test
 import org.junit.Assert._
@@ -161,6 +162,28 @@ class TestHost {
     assertEquals(expected, actual)
 
     println("Test case test_map done!")
+
+  }
+
+
+  @Test
+  def test_pad(): Unit = {
+
+    val path = "/home/lu/Documents/Research/lift/src/test/host/06.pad"
+    val file = "libpad.cpp"
+
+    val f = fun(
+      ArrayType(Float, N),
+      in =>  MapHSeq(incrementF) o Pad(1,1, WrapUnsafe)  $ in
+    )
+
+    CompileHost(f, path, file)
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_pad done!")
 
   }
 
