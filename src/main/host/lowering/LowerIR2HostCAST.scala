@@ -3,7 +3,7 @@ package host.lowering
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ParamDeclPure, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRefPure, VoidType}
 import host.ir_host.MapHSeq
 import host.view.ViewPrinter
-import ir.ast.{AbstractMap, FunCall, IRNode, Join, Lambda, Split, Transpose, UserFun, Value}
+import ir.ast.{AbstractMap, FunCall, IRNode, Join, Lambda, Split, Transpose, TransposeW, UserFun, Value}
 import lift.arithmetic.ArithExpr
 import opencl.generator.OpenCLAST.OclCode
 import opencl.ir.pattern.MapSeq
@@ -34,6 +34,8 @@ object LowerIR2HostCAST {
       case fc@FunCall(Join(), _) =>
         generateNothing(fc)
       case fc@FunCall(Transpose(), _) =>
+        generateNothing(fc)
+      case fc@FunCall(TransposeW(), _) =>
         generateNothing(fc)
       case fc@FunCall(_:UserFun,_*) =>
         generateUserFun(fc)
