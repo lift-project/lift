@@ -9,7 +9,6 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeqSlide, toGlobal, toPrivate}
 import org.junit.Assert._
 import org.junit.Test
-import rewriting.SimplifyAndFuse
 
 object TestStencilsTACO extends TestWithExecutor
 
@@ -72,7 +71,9 @@ class TestStencilsTACO {
     val pInc = Get(m, 0)
     val pcSDC = toPrivate(fun(x => mult(x, stepDivCap))) $ pInc
 
-    fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp)) $ tInC
+//    fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp)) $ tInC
+
+    toGlobal(id) $ tInS
 
   }
 
@@ -114,7 +115,9 @@ class TestStencilsTACO {
     val pInc = Get(m.at(1).at(1).at(1), 0)
     val pcSDC = toPrivate(fun(x => mult(x, stepDivCap))) $ pInc
 
-    fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp)) $ tInC
+   // fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp)) $ tInC
+
+    toGlobal(id) $ tInS
 
   }
 
@@ -156,7 +159,7 @@ class TestStencilsTACO {
     val stencil = fun(
       ArrayType(ArrayType(ArrayType(Float, m), n), o),
       ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      (temp, power) => {
+       (temp, power) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun((m) => {
           rodinia(m)
         })))
@@ -164,15 +167,15 @@ class TestStencilsTACO {
       })
 
     val stencilMSS = fun(
-      ArrayType(ArrayType(ArrayType(Float, o), n), m),
-      ArrayType(ArrayType(ArrayType(Float, o), n), m),
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
       (temp, power) => {
         Map(TransposeW()) o TransposeW() o Map(TransposeW()) o
           MapGlb(0)(MapGlb(1)(fun(x => {
             toGlobal(MapSeqSlide(fun((m) => {
               rodiniaMSS(m)
             }), size, step))
-          } o Transpose() o Map(Transpose()) $ x))) o Slide2D(size, step) o Map(Transpose()) o Transpose() o Map(Transpose()) $ Zip3D(Pad3D(1, 1, 1, Pad.Boundary.Clamp) $ power, /*Slide3D(size,step) o */ Pad3D(1, 1, 1, Pad.Boundary.Clamp) $ temp)
+          } o Transpose() o Map(Transpose()) $ x))) o Slide2D(size, step)  o Map(Transpose())  o Transpose() o Map(Transpose())  $ Zip3D(Pad3D(1, 1, 1, Pad.Boundary.Clamp) $ power, /*Slide3D(size,step) o */ Pad3D(1, 1, 1, Pad.Boundary.Clamp) $ temp)
       })
 
     /*
@@ -183,7 +186,7 @@ class TestStencilsTACO {
     val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](stencil, data, data)
     val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](stencilMSS, data, data)
 
-    assertArrayEquals(output_MSS, output_org, delta)
+    assertArrayEquals(output_org, output_MSS, delta)
 
   }
 
@@ -313,27 +316,27 @@ class TestStencilsTACO {
 
     val aStencil =
       fun(
-        ArrayType(ArrayType(ArrayType(Float, o), n), m),
-        ArrayType(ArrayType(ArrayType(Float, o), n), m),
+        ArrayType(ArrayType(ArrayType(Float, m),n),o),
+        ArrayType(ArrayType(ArrayType(Float, m),n),o),
         (mat1, mat2) => {
           MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
             acoustic(m)
           })))
             /*) $ Zip3D(mat1, Slide3D(size,step) o PadConstant3D(1,1,1,0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigonm))*/
             // this should work, but doesn't, etc
-          ) o Slide3D(size, step) $ Zip3D(PadConstant3D(1, 1, 1, 0.0f) $ mat1, PadConstant3D(1, 1, 1, 0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigonm2))
+          ) o Slide3D(size, step) $ Zip3D(PadConstant3D(1, 1, 1, 0.0f) $ mat1, PadConstant3D(1, 1, 1, 0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno2))
         })
 
     val aStencilMSS = fun(
-      ArrayType(ArrayType(ArrayType(Float, o), n), m),
-      ArrayType(ArrayType(ArrayType(Float, o), n), m),
+      ArrayType(ArrayType(ArrayType(Float, m),n),o),
+      ArrayType(ArrayType(ArrayType(Float, m),n),o),
       (mat1, mat2) => {
         /*        Map(TransposeW()) o TransposeW() o Map(TransposeW()) o*/
         MapGlb(0)(MapGlb(1)(fun(x => {
           toGlobal(MapSeqSlide(fun((m) => {
             acousticMSS(m)
           }), size, step))
-        } o Transpose() o Map(Transpose()) $ x))) o Slide2D(size, step) /* o Map(Transpose())  o Transpose() o Map(Transpose())*/ $ Zip3D(PadConstant3D(1, 1, 1, 0.0f) $ mat1, PadConstant3D(1, 1, 1, 0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigonm2))
+        } o Transpose() o Map(Transpose()) $ x))) o Slide2D(size, step) /* o Map(Transpose())  o Transpose() o Map(Transpose())*/ $ Zip3D(PadConstant3D(1, 1, 1, 0.0f) $ mat1, PadConstant3D(1, 1, 1, 0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno2))
       })
     /*
     val mssLambda = SimplifyAndFuse(aStencilMSS)
@@ -378,6 +381,36 @@ class TestStencilsTACO {
       1.67f * C;""".stripMargin,
       Seq(Float, Float, Float, Float, Float, Float, Float), Float)
 
+    val lambda = λ(
+      ArrayType(ArrayType(ArrayType(Float, M), N), O),
+      input => {
+        Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+          Scatter(Shift(1)) o
+          Pad3D(1, 1, 1, Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
+
+            val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
+
+                      toGlobal(id) o toPrivate(λ(x =>
+                        jacobi(x, n, s, e, w, f, b))) $ c
+
+          })))) o Slide3D(3, 1) $ input
+      })
+
+    val kernel = Compile(lambda)
+    println(kernel)
+  }
+
+  @Test def heat3d: Unit = {
+    val M = 512
+    val N = 512
+    val O = 512
+
+    // [X-1][][] = F(ront) [X+1][][] = B(ack)
+    // [][X-1][] = N(orth) [][X+1][] = S(outh)
+    // [][][X-1] = W(est)  [][][X+1] = E(ast)
+
     def heat = UserFun("heat", Array("C", "S", "N", "E", "W", "B", "F"),
       """return 0.125f * (B - 2.0f * C + F) +
         |       0.125f * (S - 2.0f * C + N) +
@@ -397,9 +430,6 @@ class TestStencilsTACO {
 
             toGlobal(id) o toPrivate(λ(x =>
               heat(x, n, s, e, w, f, b))) $ c
-
-            //          toGlobal(id) o toPrivate(λ(x =>
-            //            jacobi(x, n, s, e, w, f, b))) $ c
 
           })))) o Slide3D(3, 1) $ input
       })
