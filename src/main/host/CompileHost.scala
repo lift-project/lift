@@ -40,7 +40,7 @@ object CompileHost {
     //create the directory if not exist
     s"mkdir -p $path" !
 
-    val sched_code = CASTPrinter(CAST, path, file)
+    val host_code = CASTPrinter(CAST, path, file)
 
 
     println("Compilation done!")

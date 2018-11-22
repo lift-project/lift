@@ -1,6 +1,6 @@
 package host.lowering
 
-import core.generator.GenericAST.{CArrayType, CHostArrayType, COclArrayType, CTypeT, FloatType, PointerType, VoidType}
+import core.generator.GenericAST.{CArrayType, CHostArrayType, COclArrayType, CTypeT, FloatType, IntegerType, PointerType, VoidType}
 import ir.Type
 
 
@@ -22,6 +22,7 @@ object Util {
     }
    }
    case opencl.ir.Float => FloatType()
+   case opencl.ir.Int => IntegerType()
    case _ => {
     assert(false)
     VoidType()

@@ -207,6 +207,12 @@ class TestHost {
 
     CompileHost(f, path, file)
 
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_pad done!")
+
   }
 
   /*
