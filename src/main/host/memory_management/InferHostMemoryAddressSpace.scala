@@ -1,7 +1,7 @@
 package host.memory_management
 
 import host.ir_host.CPUMainMemory
-import ir.ast.{Expr, FPattern, FunCall, FunDecl, IRNode, Lambda, Pattern, UserFun}
+import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FPattern, FunCall, FunDecl, IRNode, Lambda, Pattern, UserFun}
 import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
 
 object InferHostMemoryAddressSpace {
@@ -31,6 +31,7 @@ object InferHostMemoryAddressSpace {
       }
       case fc@FunCall(p:Pattern, args@_*) => {
         args.foreach(inferAddrSpace(_))
+        assert(args.head.addressSpace != UndefAddressSpace)
         args.foreach(a=>assert(a.addressSpace == args.head.addressSpace))
         fc.addressSpace = args.head.addressSpace
       }
@@ -59,6 +60,12 @@ object InferHostMemoryAddressSpace {
         fc.addressSpace = args.head.addressSpace
       }
       case FunCall(_:FunDecl, _) => assert(false)
+
+      //ad-hoc, just for understanding
+      case a3d:Array3DFromUserFunGenerator =>
+        a3d.addressSpace = CPUMainMemory
+      case a1d:ArrayFromUserFunGenerator =>
+        a1d.addressSpace = CPUMainMemory
 
       case _ =>
     }

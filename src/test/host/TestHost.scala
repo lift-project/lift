@@ -2,7 +2,7 @@ package host
 
 import host.ir_host.MapHSeq
 import ir.{ArrayType, ArrayTypeWSWC}
-import ir.ast.{Array3DFromUserFunGenerator, Get, Join, Pad, Split, Transpose, TransposeW, UserFun, Zip, fun}
+import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Pad, Split, Transpose, TransposeW, UserFun, Zip, fun}
 import ir.ast.Pad.Boundary.WrapUnsafe
 import lift.arithmetic.SizeVar
 import org.junit.Test
@@ -191,17 +191,37 @@ class TestHost {
   }
 
   @Test
+  def test_arrayFromUserFunGenerator(): Unit = {
+
+    val path = "/home/lu/Documents/Research/lift/src/test/host/07.arrayfromuserfungenerator"
+    val file = "libarrayfromuserfungenerator.cpp"
+
+    val at = ArrayTypeWSWC(Float, SizeVar("N"))
+    val idxF = UserFun("idxF", Array("i", "n"), "{ return i; }", Seq(Int, Int), Int)
+
+
+    val f = fun(
+      at,
+      input => MapHSeq(fun(y => add2.apply(Get(y,0), Get(y,1)))) $ Zip(input, ArrayFromUserFunGenerator(idxF, at))
+    )
+
+    CompileHost(f, path, file)
+
+  }
+
+  /*
+  @Test
   def test_array3dfromuserfungenerator (): Unit = {
 
-    val path = "/home/lu/Documents/Research/lift/src/test/host/07.array3dfromuserfungenerator"
+    val path = "/home/lu/Documents/Research/lift/src/test/host/08.array3dfromuserfungenerator"
     val file = "libarray3dfromuserfungenerator.cpp"
 
     val type3d = ArrayTypeWSWC( ArrayTypeWSWC( ArrayTypeWSWC(Float, 1), 2), 3)
     val userfun = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ return i+j+k; }", Seq(Int, Int, Int, Int, Int, Int), Int)
     val data = Array3DFromUserFunGenerator( userfun , type3d)
 
-    val f = fun( ArrayTypeWSWC(Float, 60),
-      in => MapHSeq(MapHSeq(MapHSeq(incrementF) ) )  $ Zip( Split(3) o Split(2) $ in, data)
+    val f = fun( ArrayTypeWSWC(Float, N),
+      _ => MapHSeq(MapHSeq(MapHSeq(incrementF) ) )  $ data
     )
 
     CompileHost(f, path, file)
@@ -213,5 +233,6 @@ class TestHost {
     println("Test case test_array3dfromuserfungenerator done!")
 
   }
+  */
 
 }

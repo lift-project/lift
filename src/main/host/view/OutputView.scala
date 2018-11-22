@@ -2,8 +2,8 @@ package host.view
 
 
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC}
-import ir.ast.{AbstractMap, AbstractPartRed, Expr, FunCall, Get, IRNode, Join, Lambda, Param, Split, TransposeW, UserFun, Value, Zip, transpose}
-import ir.view.{NoView, ViewMap, ViewMem}
+import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Param, Split, TransposeW, UserFun, Value, Zip, transpose}
+import ir.view._
 import lift.arithmetic.{ArithExpr, Cst}
 import core.generator.PrettyPrinter._
 
@@ -15,6 +15,9 @@ object OutputView {
     node match {
 
 
+      case a@ArrayFromUserFunGenerator(f, at) =>   a.outputView = ViewGeneratorUserFun(f, at)
+      case a@Array2DFromUserFunGenerator(f, at) => a.outputView = View2DGeneratorUserFun(f, at)
+      case a@Array3DFromUserFunGenerator(f, at) => a.outputView = View3DGeneratorUserFun(f, at)
 
       case fc@FunCall(_:Zip, args@_*) => {
 
@@ -154,7 +157,8 @@ object OutputView {
 
     lambda.visit(pre = {node:IRNode =>
       node match {
-        case e:Expr => assert( e.outputView != NoView )
+        case e:Expr =>
+          assert( e.outputView != NoView )
         case _ =>
       }
     })

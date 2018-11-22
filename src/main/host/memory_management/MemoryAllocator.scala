@@ -1,10 +1,10 @@
 package host.memory_management
 
 import core.generator.GenericAST.CVarWithType
-import host.ir_host.{HostMemory, HostMemoryCollection}
+import host.ir_host.{CPUNullMemory, HostMemory, HostMemoryCollection}
 import host.lowering.Util
 import ir.{Type, UnallocatedMemory}
-import ir.ast.{AbstractMap, Expr, FPattern, FunCall, FunDecl, IRNode, Lambda, UserFun, Value, Zip}
+import ir.ast.{AbstractMap, ArrayConstructors, Expr, FPattern, FunCall, FunDecl, IRNode, Lambda, UserFun, Value, Zip}
 import lift.arithmetic.{ArithExpr, ContinuousRange, Cst, Var}
 
 import scala.collection.mutable
@@ -16,6 +16,9 @@ object MemoryAllocator {
 
   def alloc(node:IRNode): Unit = {
     node match {
+
+      case ac:ArrayConstructors =>
+        ac.mem = CPUNullMemory
 
       case fc@FunCall(_:UserFun, args@_*) => {
         //link the arg to the correct param is already done in its upper level FPattern

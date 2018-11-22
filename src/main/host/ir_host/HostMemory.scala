@@ -1,8 +1,8 @@
 package host.ir_host
 
 import ir.Memory
-import lift.arithmetic.{ArithExpr, Var}
-import opencl.ir.{AddressSpaceCollection, OpenCLAddressSpace}
+import lift.arithmetic.{ArithExpr, Cst, Var}
+import opencl.ir.{AddressSpaceCollection, OpenCLAddressSpace, UndefAddressSpace}
 
 
 //Notice that we reuse OpenCLAddressSpace instead of invent new address space
@@ -24,4 +24,11 @@ object HostMemoryCollection {
     new HostMemoryCollection(mems.toArray, addressSpace)
   }
 }
+
+object CPUMainMemory extends HostAddressSpace {
+  override def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean = false
+}
+
+object CPUNullMemory
+  extends HostMemory(Var("NULL"), Cst(-1), UndefAddressSpace)
 

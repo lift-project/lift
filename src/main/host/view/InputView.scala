@@ -2,7 +2,7 @@ package host.view
 
 
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, TupleType}
-import ir.ast.{AbstractMap, AbstractPartRed, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Split, Transpose, UserFun, Value, Zip, transpose}
+import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Split, Transpose, UserFun, Value, Zip, transpose}
 import ir.view._
 import lift.arithmetic.ArithExpr
 
@@ -22,6 +22,11 @@ object InputView {
 
   def generateInputView(node: IRNode): Unit = {
     node match {
+
+
+      case a@ArrayFromUserFunGenerator(f, at) =>   a.view = ViewGeneratorUserFun(f, at)
+      case a@Array2DFromUserFunGenerator(f, at) => a.view = View2DGeneratorUserFun(f, at)
+      case a@Array3DFromUserFunGenerator(f, at) => a.view = View3DGeneratorUserFun(f, at)
 
 
       case fc@FunCall(_:Zip, args@_*) => {
