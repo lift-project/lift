@@ -62,10 +62,12 @@ object InferHostMemoryAddressSpace {
       case FunCall(_:FunDecl, _) => assert(false)
 
       //ad-hoc, just for understanding
-      case a3d:Array3DFromUserFunGenerator =>
-        a3d.addressSpace = CPUMainMemory
+      //maybe not too bad, in host code generator, the memory is always CPU,
+      //For GPU case, you pass to GPU generator, the memory will be correct as well.
       case a1d:ArrayFromUserFunGenerator =>
         a1d.addressSpace = CPUMainMemory
+      case a3d:Array3DFromUserFunGenerator =>
+        a3d.addressSpace = CPUMainMemory
 
       case _ =>
     }

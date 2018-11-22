@@ -1,8 +1,9 @@
 package host.view
 
 
+import core.generator.GenericAST
 import core.generator.GenericAST.{ArithExpression, ExpressionT, IntConstant, StringConstant, VarRef}
-import ir.{ArrayType, Size}
+import ir.{ArrayType, ArrayTypeWS, Size}
 import ir.view._
 import lift.arithmetic.ArithExpr
 
@@ -63,6 +64,19 @@ object ViewPrinter {
         else
           currentIdx
         generateArrayAccess(iv, newIdx :: indices, tupleAccessStack)
+
+
+      case ViewGeneratorUserFun(f, ArrayTypeWS(_, m)) =>
+        assert(arrayAccessStack.length == 1)
+        val i :: Nil = arrayAccessStack
+        GenericAST.FunctionCall(
+          f.name,
+          List(i, m).map(ArithExpression)
+            /*
+          List(i, m)
+            .map(ArithExpr.substitute(_, replacements))
+            .map(ArithExpression) */
+        )
 
       case ViewJoin(chunkSize, iv, _) =>
         val idx :: indices = arrayAccessStack
