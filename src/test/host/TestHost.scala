@@ -1,8 +1,8 @@
 package host
 
 import host.ir_host.MapHSeq
-import ir.ArrayType
-import ir.ast.{Get, Join, Pad, Split, Transpose, TransposeW, UserFun, Zip, fun}
+import ir.{ArrayType, ArrayTypeWSWC}
+import ir.ast.{Array3DFromUserFunGenerator, Get, Join, Pad, Split, Transpose, TransposeW, UserFun, Zip, fun}
 import ir.ast.Pad.Boundary.WrapUnsafe
 import lift.arithmetic.SizeVar
 import org.junit.Test
@@ -187,6 +187,30 @@ class TestHost {
     assertEquals(expected, actual)
 
     println("Test case test_pad done!")
+
+  }
+
+  @Test
+  def test_array3dfromuserfungenerator (): Unit = {
+
+    val path = "/home/lu/Documents/Research/lift/src/test/host/07.array3dfromuserfungenerator"
+    val file = "libarray3dfromuserfungenerator.cpp"
+
+    val type3d = ArrayTypeWSWC( ArrayTypeWSWC( ArrayTypeWSWC(Float, 1), 2), 3)
+    val userfun = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ return i+j+k; }", Seq(Int, Int, Int, Int, Int, Int), Int)
+    val data = Array3DFromUserFunGenerator( userfun , type3d)
+
+    val f = fun( ArrayTypeWSWC(Float, 60),
+      in => MapHSeq(MapHSeq(MapHSeq(incrementF) ) )  $ Zip( Split(3) o Split(2) $ in, data)
+    )
+
+    CompileHost(f, path, file)
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 1 1 1 1 1 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_array3dfromuserfungenerator done!")
 
   }
 
