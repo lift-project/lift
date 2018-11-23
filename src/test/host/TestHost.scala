@@ -215,30 +215,33 @@ class TestHost {
 
   }
 
-  /*
+
   @Test
   def test_array3dfromuserfungenerator (): Unit = {
 
     val path = "/home/lu/Documents/Research/lift/src/test/host/08.array3dfromuserfungenerator"
     val file = "libarray3dfromuserfungenerator.cpp"
 
-    val type3d = ArrayTypeWSWC( ArrayTypeWSWC( ArrayTypeWSWC(Float, 1), 2), 3)
-    val userfun = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ return i+j+k; }", Seq(Int, Int, Int, Int, Int, Int), Int)
-    val data = Array3DFromUserFunGenerator( userfun , type3d)
+    val M = SizeVar("M")
+    val O = SizeVar("O")
 
-    val f = fun( ArrayTypeWSWC(Float, N),
-      _ => MapHSeq(MapHSeq(MapHSeq(incrementF) ) )  $ data
+    val type3d = ArrayTypeWSWC( ArrayTypeWSWC( ArrayTypeWSWC(Float, O), M), N)
+    val idxF = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ return i+j+k; }", Seq(Int, Int, Int, Int, Int, Int), Int)
+
+    val f = fun(
+      type3d,
+      _ => Join() o MapHSeq( Join() o MapHSeq( MapHSeq(incrementF)))  $ Array3DFromUserFunGenerator(idxF, type3d)
     )
 
     CompileHost(f, path, file)
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "1 1 1 1 1 1 \n"
+    val expected : String = "1 2 3 2 3 4 \n"
     assertEquals(expected, actual)
 
     println("Test case test_array3dfromuserfungenerator done!")
 
   }
-  */
+
 
 }

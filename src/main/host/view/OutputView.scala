@@ -155,13 +155,13 @@ object OutputView {
 
     generateOutputView(lambda.body)
 
-    lambda.visit(pre = {node:IRNode =>
+    /*lambda.visit(pre = {node:IRNode =>
       node match {
         case e:Expr =>
           assert( e.outputView != NoView )
         case _ =>
       }
-    })
+    })*/
 
   }
 

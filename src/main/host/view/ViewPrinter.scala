@@ -78,6 +78,18 @@ object ViewPrinter {
             .map(ArithExpression) */
         )
 
+      case View3DGeneratorUserFun(f, ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(_, o), n), m)) =>
+        val i :: j :: k :: _ = arrayAccessStack
+        GenericAST.FunctionCall(
+          f.name,
+          List(i, j, k, m, n, o).map(ArithExpression)
+          /*
+          List(i, j, k, m, n, o)
+            .map(ArithExpr.substitute(_, replacements))
+            .map(ArithExpression)
+            */
+        )
+
       case ViewJoin(chunkSize, iv, _) =>
         val idx :: indices = arrayAccessStack
         val chunkIdx = idx / chunkSize
@@ -87,7 +99,7 @@ object ViewPrinter {
       case _:ViewMap =>
         IntConstant(0)
 
-      case _ => assert(false); StringConstant("Unreachable!")
+      case _ => assert(false, "Pattern may not be implemented in view printer"); StringConstant("Unreachable!")
 
     }
   }
