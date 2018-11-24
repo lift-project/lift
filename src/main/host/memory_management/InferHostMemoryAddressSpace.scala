@@ -1,6 +1,6 @@
 package host.memory_management
 
-import host.ir_host.CPUMainMemory
+import host.ir_host.CPUMainMemoryAddressSpace
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FPattern, FunCall, FunDecl, IRNode, Lambda, Pattern, UserFun}
 import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
 
@@ -65,9 +65,9 @@ object InferHostMemoryAddressSpace {
       //maybe not too bad, in host code generator, the memory is always CPU,
       //For GPU case, you pass to GPU generator, the memory will be correct as well.
       case a1d:ArrayFromUserFunGenerator =>
-        a1d.addressSpace = CPUMainMemory
+        a1d.addressSpace = CPUMainMemoryAddressSpace
       case a3d:Array3DFromUserFunGenerator =>
-        a3d.addressSpace = CPUMainMemory
+        a3d.addressSpace = CPUMainMemoryAddressSpace
 
       case _ =>
     }
@@ -81,7 +81,7 @@ object InferHostMemoryAddressSpace {
     } })
 
     //alloc for the starting params
-    lambda.params.foreach(_.addressSpace = CPUMainMemory)
+    lambda.params.foreach(_.addressSpace = CPUMainMemoryAddressSpace)
 
     inferAddrSpace(lambda.body)
 

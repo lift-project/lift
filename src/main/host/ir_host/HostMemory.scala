@@ -16,7 +16,7 @@ object HostMemory {
 }
 
 case class HostMemoryCollection(subMemories: Array[HostMemory], override val openCLAddressSpace: AddressSpaceCollection)
-  extends HostMemory(Var("Tuple"), subMemories.distinct.map(_.size).reduce(_+_), CPUMainMemory  )
+  extends HostMemory(Var("Tuple"), subMemories.distinct.map(_.size).reduce(_+_), CPUMainMemoryAddressSpace  )
 
 object HostMemoryCollection {
   def apply(mems: Seq[HostMemory]): HostMemoryCollection = {
