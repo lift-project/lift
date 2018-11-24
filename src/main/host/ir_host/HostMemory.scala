@@ -25,9 +25,6 @@ object HostMemoryCollection {
   }
 }
 
-object CPUMainMemory extends HostAddressSpace {
-  override def containsAddressSpace(openCLAddressSpace: OpenCLAddressSpace): Boolean = false
-}
 
 object CPUNullMemory
   extends HostMemory(Var("NULL"), Cst(-1), UndefAddressSpace)
