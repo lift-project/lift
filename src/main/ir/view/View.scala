@@ -529,6 +529,8 @@ case class ViewSize(iv: View) extends View(opencl.ir.Int)
  */
 object NoView extends View()
 
+object UnusedInExprOutputView extends View()
+
 object View {
 
   @scala.annotation.tailrec

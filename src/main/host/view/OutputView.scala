@@ -155,13 +155,28 @@ object OutputView {
 
     generateOutputView(lambda.body)
 
-    /*lambda.visit(pre = {node:IRNode =>
+    //If some params are not used in expression,
+    //set their outputView explicitly to avoid NoView assertion failure
+    val all_params = lambda.params.toSet
+    val used_params = mutable.Set.empty[Param]
+    lambda.body.visit( pre = {node : IRNode =>
+      node match {
+        case p:Param if all_params contains p => used_params += p
+        case _ =>
+      }
+    }
+    )
+    val used_params_immutable = used_params.toSet
+    val unused_params = all_params -- used_params_immutable
+    unused_params.foreach(p => p.outputView = UnusedInExprOutputView)
+
+    lambda.visit(pre = {node:IRNode =>
       node match {
         case e:Expr =>
           assert( e.outputView != NoView )
         case _ =>
       }
-    })*/
+    })
 
   }
 
