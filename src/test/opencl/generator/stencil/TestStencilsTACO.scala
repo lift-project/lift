@@ -1,6 +1,6 @@
 package opencl.generator.stencil
 
-import ir.ArrayType
+import ir.{ArrayType, ArrayTypeWSWC}
 import ir.ast.{Get, Pad, Pad3D, Slide3D, UserFun, Zip3D, fun, _}
 import lift.arithmetic.SizeVar
 import opencl.executor._
@@ -8,7 +8,8 @@ import opencl.generator.stencil.acoustic.{BoundaryUtilities, RoomConstants, Sten
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeqSlide, toGlobal, toPrivate}
 import org.junit.Assert._
-import org.junit.Test
+import org.junit._
+import rewriting.SimplifyAndFuse
 
 object TestStencilsTACO extends TestWithExecutor
 
@@ -121,7 +122,7 @@ class TestStencilsTACO {
 
   }
 
-
+  @Ignore
   @Test
   def originalHotSpot3D(): Unit = {
 
@@ -143,6 +144,7 @@ class TestStencilsTACO {
   /**
     * TODO fix this test!!
     */
+  @Ignore
   @Test
   def MSSHotSpot3D(): Unit = {
 
@@ -282,6 +284,7 @@ class TestStencilsTACO {
 
   }
 
+  @Ignore
   @Test
   def originalAcoustic3D(): Unit = {
 
@@ -303,6 +306,7 @@ class TestStencilsTACO {
 
   }
 
+  @Ignore
   @Test
   def MSSAcoustic3D(): Unit = {
 
@@ -366,42 +370,174 @@ class TestStencilsTACO {
     (N, S, W, E, F, B, C)
   }
 
-  @Test def j3d7pt: Unit = {
-    val M = 512
-    val N = 512
-    val O = 512
-
-    // [X-1][][] = F(ront) [X+1][][] = B(ack)
-    // [][X-1][] = N(orth) [][X+1][] = S(outh)
-    // [][][X-1] = W(est)  [][][X+1] = E(ast)
-    def jacobi = UserFun("jacobi", Array("C", "N", "S", "E", "W", "F", "B"),
-      """return 0.161f * E + 0.162f * W +
+  def jacobi7ptW = UserFun("jacobi", Array("C", "N", "S", "E", "W", "F", "B"),
+    """return 0.161f * E + 0.162f * W +
       0.163f * S + 0.164f * N +
       0.165f * B + 0.166f * F -
       1.67f * C;""".stripMargin,
-      Seq(Float, Float, Float, Float, Float, Float, Float), Float)
+    Seq(Float, Float, Float, Float, Float, Float, Float), Float)
 
-    val lambda = λ(
-      ArrayType(ArrayType(ArrayType(Float, M), N), O),
+  def jacobi7ptW_norm = UserFun("jacobi", Array("C", "N", "S", "E", "W", "F", "B"),
+ //   """return  B;""".stripMargin,
+    """return  2.0f*E + 3.0f*W + 5.7f*S + 6.3f*N + 1.2f*B +  3.4f*F - C;""".stripMargin,
+    Seq(Float, Float, Float, Float, Float, Float, Float), Float)
+
+  @Ignore
+  @Test def j3d7pt: Unit = {
+    /*
+    val M = 512
+    val N = 512
+    val O = 512
+    */
+
+    val lambda = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
       input => {
         Map(Map(Scatter(Shift(1)))) o
           Map(Scatter(Shift(1))) o
           Scatter(Shift(1)) o
           Pad3D(1, 1, 1, Pad.Boundary.Clamp) o
-          MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
 
             val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
 
-                      toGlobal(id) o toPrivate(λ(x =>
-                        jacobi(x, n, s, e, w, f, b))) $ c
+                      toGlobal(id) o toPrivate(fun(x =>
+                        jacobi7ptW(x, n, s, e, w, f, b))) $ c
 
           })))) o Slide3D(3, 1) $ input
       })
 
-    val kernel = Compile(lambda)
-    println(kernel)
   }
 
+  @Test
+  def j3d7ptMSS: Unit = {
+
+    val originalLambda = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      input => {
+        Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+          Scatter(Shift(1)) o
+          Pad3D(1, 1, 1, Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
+
+            val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
+
+           // toGlobal(id) $ f
+
+            toGlobal(id) o toPrivate(fun(x =>
+              jacobi7ptW_norm(x, n, s, e, w, f, b))) $ c
+
+        })))) o Slide3D(3, 1) $ input
+      })
+
+    val lambdaMSS = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      input => {
+        TransposeW() o Map(TransposeW()) o
+        Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+          Scatter(Shift(1)) o
+          Pad3D(1, 1, 1, Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(fun( x => {
+            toGlobal(MapSeqSlide(fun(nbh => {
+
+            val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
+
+          //    toGlobal(id) $ f
+
+            toGlobal(id) o toPrivate(fun(x =>
+             jacobi7ptW_norm(x, n, s, e, w, f, b))) $ c
+
+          }),3,1))} o Transpose() o Map(Transpose()) $ x))) o Slide2D(3, 1) o Map(Transpose()) o Transpose() $ input
+      })
+
+    val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](originalLambda, data)
+    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](lambdaMSS, data)
+
+    StencilUtilities.print1DArrayAs3DArray(output_org,localDimX,localDimY,localDimZ)
+    StencilUtilities.print1DArrayAs3DArray(output_MSS,localDimX,localDimY,localDimZ)
+
+    assertArrayEquals(output_org, output_MSS, delta)
+
+  }
+
+  @Ignore
+  @Test
+  def stencil3DJacobitest(): Unit = {
+
+    val localDimX = 10
+    val localDimY = 6
+    val localDimZ = 8
+
+    val slidesize = 3
+    val slidestep = 1
+
+    val data = StencilUtilities.createDataFloat3DInOrder(localDimX, localDimY, localDimZ)
+    val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
+    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPaddingInOrder(localDimX, localDimY, localDimZ)
+    val stencilarrOther3D = stencilarrpadded3D.map(x => x.map(y => y.map(z => z * 2.0f)))
+
+    def jacobi3D(a: Int, b: Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2), n+2), o+2),
+      (mat) => {
+        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
+
+          val `tile[1][1][1]` = m.at(1).at(1).at(1)
+          val `tile[0][1][1]` = m.at(0).at(1).at(1)
+          val `tile[1][0][1]` = m.at(1).at(0).at(1)
+          val `tile[1][1][0]` = m.at(1).at(1).at(0)
+          val `tile[1][1][2]` = m.at(1).at(1).at(2)
+          val `tile[1][2][1]` = m.at(1).at(2).at(1)
+          val `tile[2][1][1]` = m.at(2).at(1).at(1)
+
+          val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
+            toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+            toPrivate(fun(x => add(x,`tile[1][1][1]`))) o
+            toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
+
+          toGlobal(id) $ `tile[1][1][0]`//stencil
+
+        })))) o Slide3D(a,b) $ mat
+      })
+
+    def jacobi3Dmapseqslide(a : Int, b : Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2),n+2),o+2),
+      (mat) =>
+          TransposeW() o Map(TransposeW()) o
+          MapGlb(0)(MapGlb(1)( fun (x => {
+            toGlobal(MapSeqSlide(fun(m => {
+
+              val `tile[1][1][1]` = m.at(1).at(1).at(1)
+              val `tile[0][1][1]` = m.at(0).at(1).at(1)
+              val `tile[1][0][1]` = m.at(1).at(0).at(1)
+              val `tile[1][1][0]` = m.at(1).at(1).at(0)
+              val `tile[1][1][2]` = m.at(1).at(1).at(2)
+              val `tile[1][2][1]` = m.at(1).at(2).at(1)
+              val `tile[2][1][1]` = m.at(2).at(1).at(1)
+
+              val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
+                toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
+                toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
+                toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
+                toPrivate(fun(x => add(x,`tile[1][1][1]`))) o
+                toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
+
+              toGlobal(id) $ `tile[1][1][0]`//stencil
+
+
+            }),a,b))  } o Transpose() o Map(Transpose()) $ x
+          )))  o Slide2D(a,b) o Map(Transpose())  o Transpose() $ mat)
+
+    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3D(slidesize,slidestep), stencilarrpadded3D)
+    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
+
+    assertArrayEquals(output_MSS, output_org, StencilUtilities.stencilDelta)
+  }
+
+  @Ignore
   @Test def heat3d: Unit = {
     val M = 512
     val N = 512
@@ -417,18 +553,18 @@ class TestStencilsTACO {
         |       0.125f * (E - 2.0f * C + W) + C;""".stripMargin,
       Seq(Float, Float, Float, Float, Float, Float, Float), Float)
 
-    val lambda = λ(
+    val lambda = fun(
       ArrayType(ArrayType(ArrayType(Float, M), N), O),
       input => {
         Map(Map(Scatter(Shift(1)))) o
           Map(Scatter(Shift(1))) o
           Scatter(Shift(1)) o
           Pad3D(1, 1, 1, Pad.Boundary.Clamp) o
-          MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
 
             val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
 
-            toGlobal(id) o toPrivate(λ(x =>
+            toGlobal(id) o toPrivate(fun(x =>
               heat(x, n, s, e, w, f, b))) $ c
 
           })))) o Slide3D(3, 1) $ input
@@ -439,6 +575,7 @@ class TestStencilsTACO {
   }
 
 
+  @Ignore
   @Test def j3d13pt: Unit = {
     val M = 512
     val N = 512
@@ -454,14 +591,14 @@ class TestStencilsTACO {
         |       0.996f * C;""".stripMargin,
       Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
-    val lambda = λ(
+    val lambda = fun(
       ArrayType(ArrayType(ArrayType(Float, M), N), O),
       input => {
         Map(Map(Scatter(Shift(2)))) o
           Map(Scatter(Shift(2))) o
           Scatter(Shift(2)) o
           Pad3D(2, 2, 2, Pad.Boundary.Clamp) o
-          MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
 
             //              z     y     x
             val ee = nbh.at(2).at(2).at(4)
@@ -478,7 +615,7 @@ class TestStencilsTACO {
             val ff = nbh.at(0).at(2).at(2)
             val c = nbh.at(2).at(2).at(2)
 
-            toGlobal(id) o toPrivate(λ(x =>
+            toGlobal(id) o toPrivate(fun(x =>
               jacobi(x, e, w, ww, ss, s, n, nn, bb, b, f, ff, c))) $ ee
 
           })))) o Slide3D(5, 1) $ input
@@ -487,6 +624,8 @@ class TestStencilsTACO {
     val kernel = Compile(lambda)
     println(kernel)
   }
+
+  @Ignore
   @Test def poisson3d: Unit = {
     val M = 512
     val N = 512
@@ -503,14 +642,14 @@ class TestStencilsTACO {
       Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float,
         Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
-    val lambda = λ(
+    val lambda = fun(
       ArrayType(ArrayType(ArrayType(Float, M), N), O),
       input => {
         Map(Map(Scatter(Shift(1)))) o
           Map(Scatter(Shift(1))) o
           Scatter(Shift(1)) o
           Pad3D(1,1,1,Pad.Boundary.Clamp) o
-          MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
 
             //              z     y     x
             val c  = nbh.at(1).at(1).at(1)
@@ -534,7 +673,7 @@ class TestStencilsTACO {
             val se = nbh.at(1).at(2).at(2)
 
 
-            toGlobal(id) o toPrivate(λ(x =>
+            toGlobal(id) o toPrivate(fun(x =>
               poisson(x, n, s, e, w, f, b, fn, bn, fs, bs, fw, bw, nw, sw, fe, be, ne, se))) $ c
 
           })))) o Slide3D(3, 1) $ input
@@ -545,10 +684,7 @@ class TestStencilsTACO {
   }
 
 
-  /**
-   * TODO where is heat3d??
-   */
-
+  @Ignore
   @Test def j3d27pt: Unit = {
     val M = 512
     val N = 512
@@ -573,14 +709,14 @@ class TestStencilsTACO {
         Float, Float, Float, Float, Float, Float, Float, Float, Float,
         Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
-    val lambda = λ(
+    val lambda = fun(
       ArrayType(ArrayType(ArrayType(Float, M), N), O),
       input => {
         Map(Map(Scatter(Shift(1)))) o
           Map(Scatter(Shift(1))) o
           Scatter(Shift(1)) o
           Pad3D(1,1,1,Pad.Boundary.Clamp) o
-          MapGlb(2)(MapGlb(1)(MapGlb(0)(λ(nbh => {
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
 
             //              z     y     x
             val fnw = nbh.at(0).at(0).at(0)
@@ -613,7 +749,7 @@ class TestStencilsTACO {
             val bs  = nbh.at(2).at(2).at(1)
             val bse = nbh.at(2).at(2).at(2)
 
-            toGlobal(id) o toPrivate(λ(x =>
+            toGlobal(id) o toPrivate(fun(x =>
               jacobi(x, fn, fne, fw, f, fe, fsw, fs, fse,
                 nw, n, ne, w, c, e, sw, s, se,
                 bnw, bn, bne, bw, b, be, bsw, bs, bse))) $ fnw
