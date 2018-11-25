@@ -20,12 +20,13 @@ object CompileHost {
     final_lambda.params.foreach(p => assert(p.t != UndefType))
     TypeChecker(final_lambda)
 
-    lambda.visit( pre = {node:IRNode =>
-      node match {
-        case e:Expr => assert( e.t != UndefType )
-        case _ =>
-      }
-    })
+    lambda visit {
+       node: IRNode =>
+        node match {
+          case e: Expr => assert(e.t != UndefType)
+          case _ =>
+        }
+    }
 
     InferHostMemoryAddressSpace(final_lambda)
     LoopVarInference(final_lambda)
