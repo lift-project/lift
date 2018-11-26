@@ -1,5 +1,6 @@
 package opencl.generator.stencil
 
+import ir.ast.debug.PrintType
 import ir.{ArrayType, ArrayTypeWSWC}
 import ir.ast.{Get, Pad, Pad3D, Slide3D, UserFun, Zip3D, fun, _}
 import lift.arithmetic.SizeVar
@@ -25,8 +26,8 @@ class TestStencilsTACO {
   val o = SizeVar("O")
 
   val localDimX = 8
-  val localDimY = 6
-  val localDimZ = 4
+  val localDimY = 4
+  val localDimZ = 6
 
   val data = StencilUtilities.createDataFloat3DInOrder(localDimX, localDimY, localDimZ)
 
@@ -378,7 +379,7 @@ class TestStencilsTACO {
     Seq(Float, Float, Float, Float, Float, Float, Float), Float)
 
   def jacobi7ptW_norm = UserFun("jacobi", Array("C", "N", "S", "E", "W", "F", "B"),
- //   """return  B;""".stripMargin,
+  //  """return  F;""".stripMargin,
     """return  2.0f*E + 3.0f*W + 5.7f*S + 6.3f*N + 1.2f*B +  3.4f*F - C;""".stripMargin,
     Seq(Float, Float, Float, Float, Float, Float, Float), Float)
 
@@ -434,7 +435,7 @@ class TestStencilsTACO {
     val lambdaMSS = fun(
       ArrayType(ArrayType(ArrayType(Float, m), n), o),
       input => {
-        TransposeW() o Map(TransposeW()) o
+        TransposeW() o Map(TransposeW()) o TransposeW() o
         Map(Map(Scatter(Shift(1)))) o
           Map(Scatter(Shift(1))) o
           Scatter(Shift(1)) o
@@ -449,11 +450,14 @@ class TestStencilsTACO {
             toGlobal(id) o toPrivate(fun(x =>
              jacobi7ptW_norm(x, n, s, e, w, f, b))) $ c
 
-          }),3,1))} o Transpose() o Map(Transpose()) $ x))) o Slide2D(3, 1) o Map(Transpose()) o Transpose() $ input
+          }) ,3,1))} o Transpose() o Map(Transpose()) $ x))) o PrintType()o Transpose() o Slide2D(3, 1) o Map(Transpose()) o Transpose() $ input
       })
+    val kernel = Compile(lambdaMSS)
+      println(kernel)
 
     val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](originalLambda, data)
-    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](lambdaMSS, data)
+    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](kernel,lambdaMSS, data)
+//    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](lambdaMSS, data)
 
     StencilUtilities.print1DArrayAs3DArray(output_org,localDimX,localDimY,localDimZ)
     StencilUtilities.print1DArrayAs3DArray(output_MSS,localDimX,localDimY,localDimZ)

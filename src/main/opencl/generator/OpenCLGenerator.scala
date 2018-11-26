@@ -1327,7 +1327,6 @@ class OpenCLGenerator extends Generator {
     (block: MutableBlock) += varD
 
     var accesses: Array[Int] = Array.fill(nDim)(0) // cannot do a direct access-on-access because the ordering is wrong
-    println("accesses: "+accesses.mkString(" "))
 
     def getView(v: View, accesses: Array[Int]): View = {
       var viewReturn = v
@@ -1338,25 +1337,47 @@ class OpenCLGenerator extends Generator {
     }
 
     // initial window values are set
-    def setupInitialWindowVars(idx: Int, n: Int, accesses: Array[Int]): Unit = n match {
-      case 1 => for (j <- 0 to reuse.eval - 1) {
+    def setupInitialWindowVars(idx: Int, n: Int, accesses: Array[Int]): Unit = {
+     /* n match {
+      case 1 => for (j <- 0 to size.eval - 1) {
          accesses(n - 1) = j
-        println("accesses: "+n+" "+j+"::"+accesses.mkString(" "))
          val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
          val argViewi = getView(call.args.head.view, accesses.reverse)
          val loadi = generateLoadNode(argMem, argViewi.t, argViewi)
         (block: MutableBlock) += AssignmentExpression(VarRef(sSP.windowVar,
           suffix =
           Some(s"_${j + idx}")), loadi)
+        println("inital accesses( "+accesses.reverse.mkString(" ")+")")
+        println(sSP.windowVar.name+"_"+(j+idx))
       }
       case _ => for (i <- 0 to size.eval - 1) {
-        accesses(n - 1) = i; setupInitialWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses.reverse)
-        println("accesses: "+n+" "+i+"::"+accesses.mkString(" "))
-      }
+        accesses(n - 1) = i; setupInitialWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
+      }*/
+      var idx = 0
+      for(k <- 0 to n-1)
+        {
+          for(j <- 0 to size.eval-1)
+            {
+              for (i <- 0 to size.eval-1)
+                {
+                  accesses(0) = k
+                  accesses(1) = j
+                  accesses(2) = i
+                  val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
+                  val argViewi = getView(call.args.head.view, accesses)
+                  val loadi = generateLoadNode(argMem, argViewi.t, argViewi)
+                  (block: MutableBlock) += AssignmentExpression(VarRef(sSP.windowVar,
+                    suffix =
+                      Some(s"_${idx}")), loadi)
+                  println("inital accesses( "+accesses.mkString(" ")+")")
+                  println(sSP.windowVar.name+"_"+(idx))
+                  idx = idx + 1
+                }
+            }
+        }
     }
 
-    setupInitialWindowVars(0, nDim, accesses)
-    println("accesses: "+accesses.mkString(" "))
+    setupInitialWindowVars(0, nDim-1, accesses)
 
 
     // window values get updated at the start of the loop
@@ -1382,25 +1403,228 @@ class OpenCLGenerator extends Generator {
       viewReturn
     }
 
+    def updateWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = {
+      /*n match {
+      case 1 => for(j <- reuse.eval to size.eval-1) {
+        accesses(n-1) = j*/
+      var idx = nDim*nDim*2
+      for(j <- 0 to size.eval-1) {
+        for (i <- 0 to size.eval - 1) {
+          accesses(0) = nDim - 1
+          accesses(1) = j
+          accesses(2) = i
+          val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
+          val viewInc = getViewIncrement(call.args.head.view, indexVar, accesses)
+          val loadi = generateLoadNode(argMem, viewInc.t, viewInc)
+          innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix =
+            Some(s"_${idx}")), loadi)
+          println("update accesses( " + accesses.mkString(" ") + ")")
+          println(sSP.windowVar.name + "_" + idx)
+          idx = idx + 1
+        }
+      }
+    /*
+      }
+      case _ => for (i <- 0 to size.eval - 1) {
+        accesses(n - 1) = i
+        updateWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
+      }
+      */
+    }
+
+    updateWindowVars(0, nDim, accesses)
+    generateBody(innerBlock)
+
+    // window values are swapped at the end of the loop
+    def swapWindowVars(idx: Int, n: Int): Unit = n match {
+      case 1 => for (j <- 1 to reuse.eval) {
+        val newidx = j + idx + size.eval - reuse.eval - 1
+        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix =
+          Some(s"_${j + idx - 1}")), VarRef(sSP.windowVar, suffix =
+          Some(s"_${newidx}")))
+          println("swap: "+sSP.windowVar.name+"_"+(j+idx-1)+" = "+sSP.windowVar.name+"_"+newidx)
+      }
+      case _ => for (i <- 0 to size.eval - 1) {
+        swapWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1)
+      }
+    }
+
+//    swapWindowVars(0, nDim)
+
+    // ("C", "N", "S", "E", "W", "F", "B"),
+
+    //        v_v_window_35_14_10374, C
+    //        v_v_window_35_11_10371, N
+    //        v_v_window_35_17_10377, S
+    //        v_v_window_35_15_10375, E
+    //        v_v_window_35_13_10373, W
+    //        v_v_window_35_5_10365, F
+    //        v_v_window_35_23_10383 B
+
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${0}")), VarRef(sSP.windowVar, suffix = Some(s"_${9}")))
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${9}")), VarRef(sSP.windowVar, suffix = Some(s"_${18}")))
+
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${1}")), VarRef(sSP.windowVar, suffix = Some(s"_${10}")))
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${10}")), VarRef(sSP.windowVar, suffix = Some(s"_${19}")))
+
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${2}")), VarRef(sSP.windowVar, suffix = Some(s"_${11}")))
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${11}")), VarRef(sSP.windowVar, suffix = Some(s"_${20}")))
+
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${3}")), VarRef(sSP.windowVar, suffix = Some(s"_${12}")))
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${12}")), VarRef(sSP.windowVar, suffix = Some(s"_${21}")))
+
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${4}")), VarRef(sSP.windowVar, suffix = Some(s"_${13}")))
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${13}")), VarRef(sSP.windowVar, suffix = Some(s"_${22}")))
+
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${5}")), VarRef(sSP.windowVar, suffix = Some(s"_${14}")))
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${14}")), VarRef(sSP.windowVar, suffix = Some(s"_${23}")))
+
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${6}")), VarRef(sSP.windowVar, suffix = Some(s"_${15}")))
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${15}")), VarRef(sSP.windowVar, suffix = Some(s"_${24}")))
+
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${7}")), VarRef(sSP.windowVar, suffix = Some(s"_${16}")))
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${16}")), VarRef(sSP.windowVar, suffix = Some(s"_${25}")))
+
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${8}")), VarRef(sSP.windowVar, suffix = Some(s"_${17}")))
+    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${17}")), VarRef(sSP.windowVar, suffix = Some(s"_${26}")))
+
+
+
+    /*
+    // window values are swapped at the end of the loop
+    def swapWindowVars(idx: Int, n: Int): Unit = n match {
+      case 3 => for (j <- 1 to reuse.eval) {
+        val newidx = j + idx + size.eval - reuse.eval - 1
+        innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix =
+          Some(s"_${newidx}")), VarRef(sSP.windowVar, suffix =
+          Some(s"_${j+idx-1}")))
+        println(j+idx-1+" to: "+newidx)
+      }
+      case _ => for (i <- 0 to size.eval - 1) {
+        swapWindowVars(idx + i * math.pow(size.eval, n ).toInt, n + 1)
+      }
+    }
+
+    swapWindowVars(0, 1)*/
+
+  }
+  private def generateMapSeqSlideLoopOriginal(block: MutableBlock,
+                                      sSP: MapSeqSlide,
+                                      call: FunCall,
+                                      generateBody: (MutableBlock) => Unit,
+                                      needUnroll: Boolean = false): Unit = {
+    val indexVar = sSP.loopVar
+    val step = sSP.step
+    val size = sSP.size
+    val range: RangeAdd = indexVar.range.asInstanceOf[RangeAdd]
+    val init = ArithExpression(range.start)
+    val reuse = size - step
+    val stop = range match {
+      case ra: RangeAdd => ra.stop
+      case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
+    }
+
+    val cond = BinaryExpression(ArithExpression(indexVar), BinaryExpressionT
+      .Operator.<, ArithExpression(stop))
+
+    val vType = call.args.head.view.access(0).t
+
+
+    val nDim = ArrayType.getDimension(1, vType)
+
+    def getNType(v: View, n: Int): Type = n match {
+      case 1 => v.access(0).t
+      case _ => getNType(v.access(0), n - 1)
+    }
+
+    def getWindowSize(s: Int, n: Int): Int = n match {
+      case 1 => s
+      case _ => s * getWindowSize(s, n - 1)
+    }
+
+    val viewType = getNType(call.args.head.view, nDim)
+    val windowSize = getWindowSize(size.eval, nDim)
+
+    val v = Value(0.0f, ArrayTypeWSWC(viewType, windowSize))
+    varDecls = varDecls.updated(sSP.windowVar, v.t)
+    privateMems = privateMems :+ TypedOpenCLMemory(sSP.f.params(0).mem, sSP.f.params(0).t)
+    val varD = OpenCLAST.OclVarDecl(
+      v = CVar(sSP.windowVar),
+      t= v.t,
+      init = None,
+      length = windowSize,
+      addressSpace = PrivateMemory)
+    privateDecls += (sSP.windowVar -> varD)
+    (block: MutableBlock) += varD
+
+    var accesses: Array[Int] = Array.fill(nDim)(0) // cannot do a direct access-on-access because the ordering is wrong
+
+    def getView(v: View, accesses: Array[Int]): View = {
+      var viewReturn = v
+      for (i <- 0 to accesses.length - 1) {
+        viewReturn = viewReturn.access(accesses(i))
+      }
+      viewReturn
+    }
+
+    // initial window values are set
+    def setupInitialWindowVars(idx: Int, n: Int, accesses: Array[Int]): Unit = n match {
+      case 1 => for (j <- 0 to reuse.eval - 1) {
+        accesses(n - 1) = j
+        val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
+        val argViewi = getView(call.args.head.view, accesses.reverse)
+        val loadi = generateLoadNode(argMem, argViewi.t, argViewi)
+        (block: MutableBlock) += AssignmentExpression(VarRef(sSP.windowVar,
+          suffix =
+            Some(s"_${j + idx}")), loadi)
+        println("accesses( "+accesses.reverse.mkString(" ")+")")
+      }
+      case _ => for (i <- 0 to size.eval - 1) {
+        accesses(n - 1) = i; setupInitialWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
+      }
+    }
+
+    setupInitialWindowVars(0, nDim, accesses)
+
+    // window values get updated at the start of the loop
+    val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + 1))
+    val innerBlock = MutableBlock(Vector.empty)
+    (block: MutableBlock) += ForLoop(
+      OclVarDecl(v = indexVar, t = opencl.ir.Int, init = Some(init),
+        addressSpace = PrivateMemory), ExpressionStatement(cond), increment,
+      innerBlock)
+
+    def getViewIncrement(v: View, idx: Var, accesses: Array[Int]): View = {
+      var viewReturn = v
+      var idxToAdd: ArithExpr = 0
+      for (i <- 0 to accesses.length - 1) {
+        idxToAdd = if (i == 0) {
+          (idx * step.eval)
+        } else {
+          0
+        }
+        viewReturn = viewReturn.access(accesses(i) + idxToAdd)
+      }
+      viewReturn
+    }
+
     def updateWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = n match {
       case 1 => for(j <- reuse.eval to size.eval-1) {
         accesses(n-1) = j
-        println("accesses: "+n+" "+j+"::"+accesses.mkString(" "))
         val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
         val viewInc = getViewIncrement(call.args.head.view,indexVar,accesses.reverse)
         val loadi = generateLoadNode(argMem, viewInc.t, viewInc)
         innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix =
           Some(s"_${j + idx}")), loadi)
+        println("accesses( "+accesses.reverse.mkString(" ")+")")
       }
       case _ => for (i <- 0 to size.eval - 1) {
         accesses(n - 1) = i
-        println("accesses: "+n+" "+i+"::"+accesses.mkString(" "))
-        updateWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses.reverse)
+        updateWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
       }
     }
 
     updateWindowVars(0, nDim, accesses)
-    println("accesses: "+accesses.mkString(" "))
     generateBody(innerBlock)
 
     // window values are swapped at the end of the loop
@@ -1419,6 +1643,7 @@ class OpenCLGenerator extends Generator {
     swapWindowVars(0, nDim)
 
   }
+
 
   private def generateForLoop(block: MutableBlock,
                               array: Expr,
