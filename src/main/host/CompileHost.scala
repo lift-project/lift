@@ -21,8 +21,9 @@ object CompileHost {
     TypeChecker(final_lambda)
 
     lambda visit {
-       node: IRNode =>
-        node match {
+       //node: IRNode =>
+        //node match
+        {
           case e: Expr => assert(e.t != UndefType)
           case _ =>
         }

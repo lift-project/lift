@@ -4,10 +4,12 @@ import host.ir_host.MapHSeq
 import ir.{ArrayType, ArrayTypeWSWC}
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Pad, Split, Transpose, TransposeW, UserFun, Zip, fun}
 import ir.ast.Pad.Boundary.WrapUnsafe
+import opencl.ir.{Float, add, _}
 import lift.arithmetic.SizeVar
+
 import org.junit.Test
 import org.junit.Assert._
-import opencl.ir.{Float, add, _}
+//import org.scalatest.expect
 
 import sys.process._
 import scala.language.postfixOps
@@ -75,6 +77,7 @@ class TestHost {
     val actual : String = native_compile_and_run(path, file)
     val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
     assertEquals(expected, actual)
+    //expect(expected){actual}
 
     println("Test case test_map done!")
 
