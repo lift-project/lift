@@ -24,8 +24,8 @@ abstract case class Lambda private[ast] (params: Array[Param],
     Lambda( params.map(_.visitAndRebuild(pre,post).asInstanceOf[Param]), body.visitAndRebuild(pre,post).asInstanceOf[Expr] )
 
   override def _visit(prePost: IRNode => IRNode => Unit): Unit = {
-    body.visit(prePost)
-    params.map(_.visit(prePost))
+    body.visit_pp(prePost)
+    params.map(_.visit_pp(prePost))
   }
 
   /**

@@ -23,10 +23,10 @@ object CompileHost {
     lambda visit {
        //node: IRNode =>
         //node match
-        {
+        //{
           case e: Expr => assert(e.t != UndefType)
           case _ =>
-        }
+        //}
     }
 
     InferHostMemoryAddressSpace(final_lambda)

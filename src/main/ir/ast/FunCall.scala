@@ -14,8 +14,8 @@ case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
   assert(f != null)
 
   override def _visit(prePost: IRNode => IRNode => Unit): Unit = {
-    args.map(_.visit(prePost))
-    f.visit(prePost)
+    args.map(_.visit_pp(prePost))
+    f.visit_pp(prePost)
   }
 
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode =

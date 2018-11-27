@@ -7,7 +7,7 @@ case class MapHSeq(override val f: Lambda) extends AbstractMap(f, "MapH", PosVar
 {
 
   override def _visit(prePost: IRNode => IRNode => Unit): Unit = {
-    f.visit(prePost)
+    f.visit_pp(prePost)
   }
 
   override def copy(f: Lambda): Pattern = MapHSeq(f)

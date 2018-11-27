@@ -12,6 +12,6 @@ case class ArrayFromUserFunGenerator(f: UserFun,
     Array.tabulate(n)( i => f.eval(valueMap, i, n) )
   }
 
-  override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit(prePost)
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)
 
 }

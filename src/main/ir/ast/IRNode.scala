@@ -14,7 +14,7 @@ trait IRNode {
   final val gid = IDGenerator.get_id()
 
   final def visit(pre: IRNode => Unit = {n => }, post: IRNode => Unit = {n => }) : Unit = {
-    this.visit( (n:IRNode) => {
+    this.visit_pp((n:IRNode) => {
       try {
         pre(n)
       } catch {
@@ -30,7 +30,7 @@ trait IRNode {
 
   def _visit(prePost: IRNode => IRNode => Unit) : Unit = ()
 
-  final def visit(prePost: IRNode => IRNode => Unit) : Unit = {
+  final def visit_pp(prePost: IRNode => IRNode => Unit) : Unit = {
     try {
       val post: IRNode => Unit = prePost(this)
       this._visit(prePost)

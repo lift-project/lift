@@ -19,6 +19,6 @@ case class Array3DFromUserFunGenerator(f: UserFun,
     }
   }
 
-  override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit(prePost)
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)
 
 }

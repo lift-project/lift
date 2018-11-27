@@ -159,7 +159,7 @@ object OutputView {
     //set their outputView explicitly to avoid NoView assertion failure
     val all_params = lambda.params.toSet
     val used_params = mutable.Set.empty[Param]
-    lambda.body.visit( pre = {node : IRNode =>
+    lambda.body.visit( pre = { node : IRNode =>
       node match {
         case p:Param if all_params contains p => used_params += p
         case _ =>
