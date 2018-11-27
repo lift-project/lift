@@ -16,7 +16,8 @@ object TestStencilsTACO extends TestWithExecutor
 
 /**
   * Benchmarks used in TACO paper submission 2018
-  */
+  **/
+
 class TestStencilsTACO {
 
   val delta = 0.1f
@@ -73,9 +74,7 @@ class TestStencilsTACO {
     val pInc = Get(m, 0)
     val pcSDC = toPrivate(fun(x => mult(x, stepDivCap))) $ pInc
 
-//    fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp)) $ tInC
-
-    toGlobal(id) $ tInS
+    fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp)) $ tInC
 
   }
 
@@ -117,9 +116,7 @@ class TestStencilsTACO {
     val pInc = Get(m.at(1).at(1).at(1), 0)
     val pcSDC = toPrivate(fun(x => mult(x, stepDivCap))) $ pInc
 
-   // fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp)) $ tInC
-
-    toGlobal(id) $ tInS
+    fun(x => calculateHotspot(x, cc, tInN, cn, tInS, cs, tInE, ce, tInW, cw, tInT, ct, tInB, cb, stepDivCap, pInc, amb_temp)) $ tInC
 
   }
 
@@ -142,10 +139,6 @@ class TestStencilsTACO {
 
   }
 
-  /**
-    * TODO fix this test!!
-    */
-  @Ignore
   @Test
   def MSSHotSpot3D(): Unit = {
 
@@ -173,12 +166,12 @@ class TestStencilsTACO {
       ArrayType(ArrayType(ArrayType(Float, m), n), o),
       ArrayType(ArrayType(ArrayType(Float, m), n), o),
       (temp, power) => {
-        Map(TransposeW()) o TransposeW() o Map(TransposeW()) o
+          TransposeW() o Map(TransposeW()) o TransposeW() o
           MapGlb(0)(MapGlb(1)(fun(x => {
             toGlobal(MapSeqSlide(fun((m) => {
               rodiniaMSS(m)
             }), size, step))
-          } o Transpose() o Map(Transpose()) $ x))) o Slide2D(size, step)  o Map(Transpose())  o Transpose() o Map(Transpose())  $ Zip3D(Pad3D(1, 1, 1, Pad.Boundary.Clamp) $ power, /*Slide3D(size,step) o */ Pad3D(1, 1, 1, Pad.Boundary.Clamp) $ temp)
+          } o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() $ Zip3D(Pad3D(1, 1, 1, Pad.Boundary.Clamp) $ power, /*Slide3D(size,step) o */ Pad3D(1, 1, 1, Pad.Boundary.Clamp) $ temp)
       })
 
     /*
@@ -307,7 +300,6 @@ class TestStencilsTACO {
 
   }
 
-  @Ignore
   @Test
   def MSSAcoustic3D(): Unit = {
 
@@ -336,12 +328,12 @@ class TestStencilsTACO {
       ArrayType(ArrayType(ArrayType(Float, m),n),o),
       ArrayType(ArrayType(ArrayType(Float, m),n),o),
       (mat1, mat2) => {
-        /*        Map(TransposeW()) o TransposeW() o Map(TransposeW()) o*/
+        TransposeW() o Map(TransposeW()) o TransposeW() o
         MapGlb(0)(MapGlb(1)(fun(x => {
           toGlobal(MapSeqSlide(fun((m) => {
             acousticMSS(m)
           }), size, step))
-        } o Transpose() o Map(Transpose()) $ x))) o Slide2D(size, step) /* o Map(Transpose())  o Transpose() o Map(Transpose())*/ $ Zip3D(PadConstant3D(1, 1, 1, 0.0f) $ mat1, PadConstant3D(1, 1, 1, 0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno2))
+        } o Transpose() o Map(Transpose()) $ x)))  o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose()  $ Zip3D(PadConstant3D(1, 1, 1, 0.0f) $ mat1, PadConstant3D(1, 1, 1, 0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno2))
       })
     /*
     val mssLambda = SimplifyAndFuse(aStencilMSS)
@@ -378,11 +370,6 @@ class TestStencilsTACO {
       1.67f * C;""".stripMargin,
     Seq(Float, Float, Float, Float, Float, Float, Float), Float)
 
-  def jacobi7ptW_norm = UserFun("jacobi", Array("C", "N", "S", "E", "W", "F", "B"),
-  //  """return  F;""".stripMargin,
-    """return  2.0f*E + 3.0f*W + 5.7f*S + 6.3f*N + 1.2f*B +  3.4f*F - C;""".stripMargin,
-    Seq(Float, Float, Float, Float, Float, Float, Float), Float)
-
   @Ignore
   @Test def j3d7pt: Unit = {
     /*
@@ -390,6 +377,9 @@ class TestStencilsTACO {
     val N = 512
     val O = 512
     */
+
+    val size = 3
+    val step = 1
 
     val lambda = fun(
       ArrayType(ArrayType(ArrayType(Float, m), n), o),
@@ -405,13 +395,16 @@ class TestStencilsTACO {
                       toGlobal(id) o toPrivate(fun(x =>
                         jacobi7ptW(x, n, s, e, w, f, b))) $ c
 
-          })))) o Slide3D(3, 1) $ input
+          })))) o Slide3D(size, step) $ input
       })
 
   }
 
   @Test
   def j3d7ptMSS: Unit = {
+
+    val size = 3
+    val step = 1
 
     val originalLambda = fun(
       ArrayType(ArrayType(ArrayType(Float, m), n), o),
@@ -424,12 +417,10 @@ class TestStencilsTACO {
 
             val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
 
-           // toGlobal(id) $ f
-
             toGlobal(id) o toPrivate(fun(x =>
-              jacobi7ptW_norm(x, n, s, e, w, f, b))) $ c
+              jacobi7ptW(x, n, s, e, w, f, b))) $ c
 
-        })))) o Slide3D(3, 1) $ input
+        })))) o Slide3D(size,step) $ input
       })
 
     val lambdaMSS = fun(
@@ -445,101 +436,29 @@ class TestStencilsTACO {
 
             val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
 
-          //    toGlobal(id) $ f
-
             toGlobal(id) o toPrivate(fun(x =>
-             jacobi7ptW_norm(x, n, s, e, w, f, b))) $ c
+             jacobi7ptW(x, n, s, e, w, f, b))) $ c
 
-          }) ,3,1))} o Transpose() o Map(Transpose()) $ x))) o PrintType()o Transpose() o Slide2D(3, 1) o Map(Transpose()) o Transpose() $ input
+          }) ,size,step))} o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() $ input
       })
     val kernel = Compile(lambdaMSS)
       println(kernel)
 
     val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](originalLambda, data)
     val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](kernel,lambdaMSS, data)
-//    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](lambdaMSS, data)
 
-    StencilUtilities.print1DArrayAs3DArray(output_org,localDimX,localDimY,localDimZ)
-    StencilUtilities.print1DArrayAs3DArray(output_MSS,localDimX,localDimY,localDimZ)
+//    StencilUtilities.print1DArrayAs3DArray(output_org,localDimX,localDimY,localDimZ)
+//    StencilUtilities.print1DArrayAs3DArray(output_MSS,localDimX,localDimY,localDimZ)
 
     assertArrayEquals(output_org, output_MSS, delta)
 
   }
 
-  @Ignore
-  @Test
-  def stencil3DJacobitest(): Unit = {
-
-    val localDimX = 10
-    val localDimY = 6
-    val localDimZ = 8
-
-    val slidesize = 3
-    val slidestep = 1
-
-    val data = StencilUtilities.createDataFloat3DInOrder(localDimX, localDimY, localDimZ)
-    val stencilarr3D = data.map(x => x.map(y => y.map(z => Array(z))))
-    val stencilarrpadded3D = StencilUtilities.createDataFloat3DWithPaddingInOrder(localDimX, localDimY, localDimZ)
-    val stencilarrOther3D = stencilarrpadded3D.map(x => x.map(y => y.map(z => z * 2.0f)))
-
-    def jacobi3D(a: Int, b: Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2), n+2), o+2),
-      (mat) => {
-        MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
-
-          val `tile[1][1][1]` = m.at(1).at(1).at(1)
-          val `tile[0][1][1]` = m.at(0).at(1).at(1)
-          val `tile[1][0][1]` = m.at(1).at(0).at(1)
-          val `tile[1][1][0]` = m.at(1).at(1).at(0)
-          val `tile[1][1][2]` = m.at(1).at(1).at(2)
-          val `tile[1][2][1]` = m.at(1).at(2).at(1)
-          val `tile[2][1][1]` = m.at(2).at(1).at(1)
-
-          val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
-            toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
-            toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
-            toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
-            toPrivate(fun(x => add(x,`tile[1][1][1]`))) o
-            toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
-
-          toGlobal(id) $ `tile[1][1][0]`//stencil
-
-        })))) o Slide3D(a,b) $ mat
-      })
-
-    def jacobi3Dmapseqslide(a : Int, b : Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, m+2),n+2),o+2),
-      (mat) =>
-          TransposeW() o Map(TransposeW()) o
-          MapGlb(0)(MapGlb(1)( fun (x => {
-            toGlobal(MapSeqSlide(fun(m => {
-
-              val `tile[1][1][1]` = m.at(1).at(1).at(1)
-              val `tile[0][1][1]` = m.at(0).at(1).at(1)
-              val `tile[1][0][1]` = m.at(1).at(0).at(1)
-              val `tile[1][1][0]` = m.at(1).at(1).at(0)
-              val `tile[1][1][2]` = m.at(1).at(1).at(2)
-              val `tile[1][2][1]` = m.at(1).at(2).at(1)
-              val `tile[2][1][1]` = m.at(2).at(1).at(1)
-
-              val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
-                toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
-                toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
-                toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
-                toPrivate(fun(x => add(x,`tile[1][1][1]`))) o
-                toPrivate(fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
-
-              toGlobal(id) $ `tile[1][1][0]`//stencil
-
-
-            }),a,b))  } o Transpose() o Map(Transpose()) $ x
-          )))  o Slide2D(a,b) o Map(Transpose())  o Transpose() $ mat)
-
-    val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3D(slidesize,slidestep), stencilarrpadded3D)
-    val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dmapseqslide(slidesize,slidestep), stencilarrpadded3D)
-
-    assertArrayEquals(output_MSS, output_org, StencilUtilities.stencilDelta)
-  }
+  def heat = UserFun("heat", Array("C", "S", "N", "E", "W", "B", "F"),
+    """return 0.125f * (B - 2.0f * C + F) +
+      |       0.125f * (S - 2.0f * C + N) +
+      |       0.125f * (E - 2.0f * C + W) + C;""".stripMargin,
+    Seq(Float, Float, Float, Float, Float, Float, Float), Float)
 
   @Ignore
   @Test def heat3d: Unit = {
@@ -547,15 +466,13 @@ class TestStencilsTACO {
     val N = 512
     val O = 512
 
+    val size = 3
+    val step = 1
+
     // [X-1][][] = F(ront) [X+1][][] = B(ack)
     // [][X-1][] = N(orth) [][X+1][] = S(outh)
     // [][][X-1] = W(est)  [][][X+1] = E(ast)
 
-    def heat = UserFun("heat", Array("C", "S", "N", "E", "W", "B", "F"),
-      """return 0.125f * (B - 2.0f * C + F) +
-        |       0.125f * (S - 2.0f * C + N) +
-        |       0.125f * (E - 2.0f * C + W) + C;""".stripMargin,
-      Seq(Float, Float, Float, Float, Float, Float, Float), Float)
 
     val lambda = fun(
       ArrayType(ArrayType(ArrayType(Float, M), N), O),
@@ -571,13 +488,67 @@ class TestStencilsTACO {
             toGlobal(id) o toPrivate(fun(x =>
               heat(x, n, s, e, w, f, b))) $ c
 
-          })))) o Slide3D(3, 1) $ input
+          })))) o Slide3D(size, step) $ input
       })
 
-    val kernel = Compile(lambda)
-    println(kernel)
   }
 
+  @Test
+  def heat3dMSS: Unit = {
+
+    val size = 3
+    val step = 1
+
+    val originalLambda = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      input => {
+        Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+          Scatter(Shift(1)) o
+          Pad3D(1, 1, 1, Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
+
+            val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
+
+            toGlobal(id) o toPrivate(fun(x =>
+              heat(x, n, s, e, w, f, b))) $ c
+
+          })))) o Slide3D(size,step) $ input
+      })
+
+    val lambdaMSS = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      input => {
+        TransposeW() o Map(TransposeW()) o TransposeW() o
+          Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+          Scatter(Shift(1)) o
+          Pad3D(1, 1, 1, Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(fun( x => {
+            toGlobal(MapSeqSlide(fun(nbh => {
+
+              val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
+
+              toGlobal(id) o toPrivate(fun(x =>
+                heat(x, n, s, e, w, f, b))) $ c
+
+            }) ,size,step))} o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() $ input
+      })
+
+    val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](originalLambda, data)
+    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](lambdaMSS, data)
+
+
+    assertArrayEquals(output_org, output_MSS, delta)
+
+  }
+
+  def jacobi13 = UserFun("jacobi13", Array("EE", "E", "W", "WW", "SS", "S", "N", "NN", "BB", "B", "F", "FF", "C"),
+    """return 0.083f * EE + 0.083f * E + 0.083f * W + 0.083f * WW +
+      |       0.083f * SS + 0.083f * S + 0.083f * N + 0.083f * NN +
+      |       0.083f * BB + 0.083f * B + 0.083f * F + 0.083f * FF -
+      |       0.996f * C;""".stripMargin,
+    Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
   @Ignore
   @Test def j3d13pt: Unit = {
@@ -585,15 +556,6 @@ class TestStencilsTACO {
     val N = 512
     val O = 512
 
-    // [X-1][][] = F(ront) [X+1][][] = B(ack)
-    // [][X-1][] = N(orth) [][X+1][] = S(outh)
-    // [][][X-1] = W(est)  [][][X+1] = E(ast)
-    def jacobi = UserFun("jacobi", Array("EE", "E", "W", "WW", "SS", "S", "N", "NN", "BB", "B", "F", "FF", "C"),
-      """return 0.083f * EE + 0.083f * E + 0.083f * W + 0.083f * WW +
-        |       0.083f * SS + 0.083f * S + 0.083f * N + 0.083f * NN +
-        |       0.083f * BB + 0.083f * B + 0.083f * F + 0.083f * FF -
-        |       0.996f * C;""".stripMargin,
-      Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
     val lambda = fun(
       ArrayType(ArrayType(ArrayType(Float, M), N), O),
@@ -620,7 +582,7 @@ class TestStencilsTACO {
             val c = nbh.at(2).at(2).at(2)
 
             toGlobal(id) o toPrivate(fun(x =>
-              jacobi(x, e, w, ww, ss, s, n, nn, bb, b, f, ff, c))) $ ee
+              jacobi13(x, e, w, ww, ss, s, n, nn, bb, b, f, ff, c))) $ ee
 
           })))) o Slide3D(5, 1) $ input
       })
@@ -629,22 +591,101 @@ class TestStencilsTACO {
     println(kernel)
   }
 
+  /**
+    * TODO fix this test!
+    */
+  @Test
+  def jacobi13ptMSS: Unit = {
+
+    val size = 3
+    val step = 1
+
+    val originalLambda = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      input => {
+        Map(Map(Scatter(Shift(2)))) o
+          Map(Scatter(Shift(2))) o
+          Scatter(Shift(2)) o
+          Pad3D(2, 2, 2, Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
+
+            //              z     y     x
+            val ee = nbh.at(2).at(2).at(4)
+            val e = nbh.at(2).at(2).at(3)
+            val w = nbh.at(2).at(2).at(1)
+            val ww = nbh.at(2).at(2).at(0)
+            val ss = nbh.at(2).at(4).at(2)
+            val s = nbh.at(2).at(3).at(2)
+            val n = nbh.at(2).at(1).at(2)
+            val nn = nbh.at(2).at(0).at(2)
+            val bb = nbh.at(4).at(2).at(2)
+            val b = nbh.at(3).at(2).at(2)
+            val f = nbh.at(1).at(2).at(2)
+            val ff = nbh.at(0).at(2).at(2)
+            val c = nbh.at(2).at(2).at(2)
+
+            toGlobal(id) o toPrivate(fun(x =>
+              jacobi13(x, e, w, ww, ss, s, n, nn, bb, b, f, ff, c))) $ ee
+
+          })))) o Slide3D(5, 1) $ input
+      })
+
+
+    val lambdaMSS = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      input => {
+        TransposeW() o Map(TransposeW()) o TransposeW() o
+          Map(Map(Scatter(Shift(2)))) o
+          Map(Scatter(Shift(2))) o
+          Scatter(Shift(2)) o
+          Pad3D(2, 2, 2, Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(fun(x => {
+            toGlobal(MapSeqSlide(fun(nbh => {
+
+              //              z     y     x
+              val ee = nbh.at(2).at(2).at(4)
+              val e = nbh.at(2).at(2).at(3)
+              val w = nbh.at(2).at(2).at(1)
+              val ww = nbh.at(2).at(2).at(0)
+              val ss = nbh.at(2).at(4).at(2)
+              val s = nbh.at(2).at(3).at(2)
+              val n = nbh.at(2).at(1).at(2)
+              val nn = nbh.at(2).at(0).at(2)
+              val bb = nbh.at(4).at(2).at(2)
+              val b = nbh.at(3).at(2).at(2)
+              val f = nbh.at(1).at(2).at(2)
+              val ff = nbh.at(0).at(2).at(2)
+              val c = nbh.at(2).at(2).at(2)
+
+              toGlobal(id) o toPrivate(fun(x =>
+                jacobi13(x, e, w, ww, ss, s, n, nn, bb, b, f, ff, c))) $ ee
+
+            }), 5, 1))
+          } o Transpose() o Map(Transpose()) $ input))) o Transpose() o Slide2D(5, 1) o Map(Transpose()) o Transpose() $ input
+      })
+
+    val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](originalLambda, data)
+    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](lambdaMSS, data)
+
+    assertArrayEquals(output_org, output_MSS, delta)
+  }
+
+  def poisson = UserFun("jacobi", Array("C", "N", "S", "E", "W", "F", "B",
+    "FN", "BN", "FS", "BS", "FW", "BW", "NW", "SW", "FE", "BE", "NE", "SE"),
+    """return 2.666f * C - 0.166f * (F + B + N + S + E + W) -
+      |       0.0833f * (FN + BN + FS + BS + FW + BW +
+      |                  NW + SW + FE + BE + NE + SE);""".stripMargin,
+    Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float,
+      Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
+
   @Ignore
   @Test def poisson3d: Unit = {
     val M = 512
     val N = 512
     val O = 512
 
-    // [X-1][][] = F(ront) [X+1][][] = B(ack)
-    // [][X-1][] = N(orth) [][X+1][] = S(outh)
-    // [][][X-1] = W(est)  [][][X+1] = E(ast)
-    def poisson = UserFun("jacobi", Array("C", "N", "S", "E", "W", "F", "B",
-      "FN", "BN", "FS", "BS", "FW", "BW", "NW", "SW", "FE", "BE", "NE", "SE"),
-      """return 2.666f * C - 0.166f * (F + B + N + S + E + W) -
-        |       0.0833f * (FN + BN + FS + BS + FW + BW +
-        |                  NW + SW + FE + BE + NE + SE);""".stripMargin,
-      Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float,
-        Float, Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
+    val size = 3
+    val step = 1
 
     val lambda = fun(
       ArrayType(ArrayType(ArrayType(Float, M), N), O),
@@ -680,13 +721,114 @@ class TestStencilsTACO {
             toGlobal(id) o toPrivate(fun(x =>
               poisson(x, n, s, e, w, f, b, fn, bn, fs, bs, fw, bw, nw, sw, fe, be, ne, se))) $ c
 
-          })))) o Slide3D(3, 1) $ input
+          })))) o Slide3D(size, step) $ input
       })
 
-    val kernel = Compile(lambda)
-    println(kernel)
   }
 
+  @Test
+  def poisson3dMSS: Unit = {
+
+    val size = 3
+    val step = 1
+
+    val originalLambda = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      input => {
+        Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+          Scatter(Shift(1)) o
+          Pad3D(1,1,1,Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
+
+            //              z     y     x
+            val c  = nbh.at(1).at(1).at(1)
+            val n  = nbh.at(1).at(0).at(1)
+            val s  = nbh.at(1).at(2).at(1)
+            val e  = nbh.at(1).at(1).at(2)
+            val w  = nbh.at(1).at(1).at(0)
+            val f  = nbh.at(0).at(1).at(1)
+            val b  = nbh.at(2).at(1).at(1)
+            val fn = nbh.at(0).at(0).at(1)
+            val bn = nbh.at(2).at(0).at(1)
+            val fs = nbh.at(0).at(2).at(1)
+            val bs = nbh.at(2).at(2).at(1)
+            val fw = nbh.at(0).at(1).at(0)
+            val bw = nbh.at(2).at(1).at(0)
+            val nw = nbh.at(1).at(0).at(0)
+            val sw = nbh.at(1).at(2).at(0)
+            val fe = nbh.at(0).at(1).at(2)
+            val be = nbh.at(2).at(1).at(2)
+            val ne = nbh.at(1).at(0).at(2)
+            val se = nbh.at(1).at(2).at(2)
+
+
+            toGlobal(id) o toPrivate(fun(x =>
+              poisson(x, n, s, e, w, f, b, fn, bn, fs, bs, fw, bw, nw, sw, fe, be, ne, se))) $ c
+
+          })))) o Slide3D(size,step) $ input
+      })
+
+    val lambdaMSS = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      input => {
+        TransposeW() o Map(TransposeW()) o TransposeW() o
+          Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+          Scatter(Shift(1)) o
+          Pad3D(1, 1, 1, Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(fun( x => {
+            toGlobal(MapSeqSlide(fun(nbh => {
+              //              z     y     x
+              val c  = nbh.at(1).at(1).at(1)
+              val n  = nbh.at(1).at(0).at(1)
+              val s  = nbh.at(1).at(2).at(1)
+              val e  = nbh.at(1).at(1).at(2)
+              val w  = nbh.at(1).at(1).at(0)
+              val f  = nbh.at(0).at(1).at(1)
+              val b  = nbh.at(2).at(1).at(1)
+              val fn = nbh.at(0).at(0).at(1)
+              val bn = nbh.at(2).at(0).at(1)
+              val fs = nbh.at(0).at(2).at(1)
+              val bs = nbh.at(2).at(2).at(1)
+              val fw = nbh.at(0).at(1).at(0)
+              val bw = nbh.at(2).at(1).at(0)
+              val nw = nbh.at(1).at(0).at(0)
+              val sw = nbh.at(1).at(2).at(0)
+              val fe = nbh.at(0).at(1).at(2)
+              val be = nbh.at(2).at(1).at(2)
+              val ne = nbh.at(1).at(0).at(2)
+              val se = nbh.at(1).at(2).at(2)
+
+
+              toGlobal(id) o toPrivate(fun(x =>
+                poisson(x, n, s, e, w, f, b, fn, bn, fs, bs, fw, bw, nw, sw, fe, be, ne, se))) $ c
+
+            }) ,size,step))} o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() $ input
+      })
+
+    val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](originalLambda, data)
+    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](lambdaMSS, data)
+
+    assertArrayEquals(output_org, output_MSS, delta)
+
+  }
+
+  def jacobi27 = UserFun("jacobi27", Array("FNW", "FN", "FNE", "FW", "F", "FE", "FSW", "FS", "FSE",
+    "NW", "N", "NE", "W", "C", "E", "SW", "S", "SE",
+    "BNW", "BN", "BNE", "BW", "B", "BE", "BSW", "BS", "BSE"),
+    """return (0.5 * FNW + 0.7 * FN + 0.9 * FNE +
+      |        1.2 * FW + 1.5 * F + 1.2 * FE +
+      |        0.9 * FSW + 0.7 * FS + 0.5 * FSE +
+      |        0.51 * NW + 0.71 * N + 0.91 * NE +
+      |        1.21 * W + 1.51 * C + 1.21 * E +
+      |        0.91 * SW + 0.71 * S + 0.51 * SE +
+      |        0.52 * BNW + 0.72 * BN + 0.92 * BNE +
+      |        1.22 * BW + 1.52 * B + 1.22 * BE +
+      |        0.92 * BSW + 0.72 * BS + 0.52 * BSE) / 159;""".stripMargin,
+    Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float,
+      Float, Float, Float, Float, Float, Float, Float, Float, Float,
+      Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
   @Ignore
   @Test def j3d27pt: Unit = {
@@ -694,24 +836,12 @@ class TestStencilsTACO {
     val N = 512
     val O = 512
 
+    val size = 3
+    val step = 1
+
     // [X-1][][] = F(ront) [X+1][][] = B(ack)
     // [][X-1][] = N(orth) [][X+1][] = S(outh)
     // [][][X-1] = W(est)  [][][X+1] = E(ast)
-    def jacobi = UserFun("jacobi", Array("FNW", "FN", "FNE", "FW", "F", "FE", "FSW", "FS", "FSE",
-      "NW", "N", "NE", "W", "C", "E", "SW", "S", "SE",
-      "BNW", "BN", "BNE", "BW", "B", "BE", "BSW", "BS", "BSE"),
-      """return (0.5 * FNW + 0.7 * FN + 0.9 * FNE +
-        |        1.2 * FW + 1.5 * F + 1.2 * FE +
-        |        0.9 * FSW + 0.7 * FS + 0.5 * FSE +
-        |        0.51 * NW + 0.71 * N + 0.91 * NE +
-        |        1.21 * W + 1.51 * C + 1.21 * E +
-        |        0.91 * SW + 0.71 * S + 0.51 * SE +
-        |        0.52 * BNW + 0.72 * BN + 0.92 * BNE +
-        |        1.22 * BW + 1.52 * B + 1.22 * BE +
-        |        0.92 * BSW + 0.72 * BS + 0.52 * BSE) / 159;""".stripMargin,
-      Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float,
-        Float, Float, Float, Float, Float, Float, Float, Float, Float,
-        Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
     val lambda = fun(
       ArrayType(ArrayType(ArrayType(Float, M), N), O),
@@ -754,14 +884,124 @@ class TestStencilsTACO {
             val bse = nbh.at(2).at(2).at(2)
 
             toGlobal(id) o toPrivate(fun(x =>
-              jacobi(x, fn, fne, fw, f, fe, fsw, fs, fse,
+              jacobi27(x, fn, fne, fw, f, fe, fsw, fs, fse,
                 nw, n, ne, w, c, e, sw, s, se,
                 bnw, bn, bne, bw, b, be, bsw, bs, bse))) $ fnw
 
-          })))) o Slide3D(3, 1) $ input
+          })))) o Slide3D(size, step) $ input
       })
 
-    val kernel = Compile(lambda)
-    println(kernel)
+  }
+
+  @Test
+  def jacobi27MSS: Unit = {
+
+    val size = 3
+    val step = 1
+
+
+    val originalLambda = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      input => {
+        Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+          Scatter(Shift(1)) o
+          Pad3D(1,1,1,Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
+
+            //              z     y     x
+            val fnw = nbh.at(0).at(0).at(0)
+            val fn  = nbh.at(0).at(0).at(1)
+            val fne = nbh.at(0).at(0).at(2)
+            val fw  = nbh.at(0).at(1).at(0)
+            val f   = nbh.at(0).at(1).at(1)
+            val fe  = nbh.at(0).at(1).at(2)
+            val fsw = nbh.at(0).at(2).at(0)
+            val fs  = nbh.at(0).at(2).at(1)
+            val fse = nbh.at(0).at(2).at(2)
+
+            val nw  = nbh.at(1).at(0).at(0)
+            val n   = nbh.at(1).at(0).at(1)
+            val ne  = nbh.at(1).at(0).at(2)
+            val w   = nbh.at(1).at(1).at(0)
+            val c   = nbh.at(1).at(1).at(1)
+            val e   = nbh.at(1).at(1).at(2)
+            val sw  = nbh.at(1).at(2).at(0)
+            val s   = nbh.at(1).at(2).at(1)
+            val se  = nbh.at(1).at(2).at(2)
+
+            val bnw = nbh.at(2).at(0).at(0)
+            val bn  = nbh.at(2).at(0).at(1)
+            val bne = nbh.at(2).at(0).at(2)
+            val bw  = nbh.at(2).at(1).at(0)
+            val b   = nbh.at(2).at(1).at(1)
+            val be  = nbh.at(2).at(1).at(2)
+            val bsw = nbh.at(2).at(2).at(0)
+            val bs  = nbh.at(2).at(2).at(1)
+            val bse = nbh.at(2).at(2).at(2)
+
+            toGlobal(id) o toPrivate(fun(x =>
+              jacobi27(x, fn, fne, fw, f, fe, fsw, fs, fse,
+                nw, n, ne, w, c, e, sw, s, se,
+                bnw, bn, bne, bw, b, be, bsw, bs, bse))) $ fnw
+
+          })))) o Slide3D(size, step) $ input
+      })
+
+    val lambdaMSS = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      input => {
+        TransposeW() o Map(TransposeW()) o TransposeW() o
+          Map(Map(Scatter(Shift(1)))) o
+          Map(Scatter(Shift(1))) o
+          Scatter(Shift(1)) o
+          Pad3D(1, 1, 1, Pad.Boundary.Clamp) o
+          MapGlb(2)(MapGlb(1)(fun( x => {
+            toGlobal(MapSeqSlide(fun(nbh => {
+
+              //              z     y     x
+              val fnw = nbh.at(0).at(0).at(0)
+              val fn  = nbh.at(0).at(0).at(1)
+              val fne = nbh.at(0).at(0).at(2)
+              val fw  = nbh.at(0).at(1).at(0)
+              val f   = nbh.at(0).at(1).at(1)
+              val fe  = nbh.at(0).at(1).at(2)
+              val fsw = nbh.at(0).at(2).at(0)
+              val fs  = nbh.at(0).at(2).at(1)
+              val fse = nbh.at(0).at(2).at(2)
+
+              val nw  = nbh.at(1).at(0).at(0)
+              val n   = nbh.at(1).at(0).at(1)
+              val ne  = nbh.at(1).at(0).at(2)
+              val w   = nbh.at(1).at(1).at(0)
+              val c   = nbh.at(1).at(1).at(1)
+              val e   = nbh.at(1).at(1).at(2)
+              val sw  = nbh.at(1).at(2).at(0)
+              val s   = nbh.at(1).at(2).at(1)
+              val se  = nbh.at(1).at(2).at(2)
+
+              val bnw = nbh.at(2).at(0).at(0)
+              val bn  = nbh.at(2).at(0).at(1)
+              val bne = nbh.at(2).at(0).at(2)
+              val bw  = nbh.at(2).at(1).at(0)
+              val b   = nbh.at(2).at(1).at(1)
+              val be  = nbh.at(2).at(1).at(2)
+              val bsw = nbh.at(2).at(2).at(0)
+              val bs  = nbh.at(2).at(2).at(1)
+              val bse = nbh.at(2).at(2).at(2)
+
+              toGlobal(id) o toPrivate(fun(x =>
+                jacobi27(x, fn, fne, fw, f, fe, fsw, fs, fse,
+                  nw, n, ne, w, c, e, sw, s, se,
+                  bnw, bn, bne, bw, b, be, bsw, bs, bse))) $ fnw
+
+            }) ,size,step))} o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() $ input
+      })
+
+    val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](originalLambda, data)
+    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](lambdaMSS, data)
+
+    assertArrayEquals(output_org, output_MSS, delta)
+
   }
 }
