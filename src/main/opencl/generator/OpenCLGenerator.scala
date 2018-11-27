@@ -1404,9 +1404,16 @@ class OpenCLGenerator extends Generator {
     }
 
     def updateWindowVars(idx: Int, n: Int, accesses : Array[Int] ): Unit = {
-      /*n match {
+      /*
+      n match {
       case 1 => for(j <- reuse.eval to size.eval-1) {
-        accesses(n-1) = j*/
+        accesses(n-1) = j
+        }
+        case _ => for (i <- 0 to size.eval - 1) {
+          accesses(n - 1) = i
+          updateWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
+        }
+        */
       var idx = nDim*nDim*2
       for(j <- 0 to size.eval-1) {
         for (i <- 0 to size.eval - 1) {
@@ -1423,20 +1430,16 @@ class OpenCLGenerator extends Generator {
           idx = idx + 1
         }
       }
-    /*
-      }
-      case _ => for (i <- 0 to size.eval - 1) {
-        accesses(n - 1) = i
-        updateWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
-      }
-      */
     }
 
     updateWindowVars(0, nDim, accesses)
     generateBody(innerBlock)
 
     // window values are swapped at the end of the loop
-    def swapWindowVars(idx: Int, n: Int): Unit = n match {
+    def swapWindowVars(idx: Int, n: Int): Unit =
+    {
+      /*
+      n match {
       case 1 => for (j <- 1 to reuse.eval) {
         val newidx = j + idx + size.eval - reuse.eval - 1
         innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix =
@@ -1447,19 +1450,19 @@ class OpenCLGenerator extends Generator {
       case _ => for (i <- 0 to size.eval - 1) {
         swapWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1)
       }
+      */
+      // loop for dim*dim times:
+      // start at initial, set to dim*dim
+      // set dim*dim to dim*dim*2
+      for(i <- 0 until nDim*nDim)
+        {
+
+        }
+
     }
 
 //    swapWindowVars(0, nDim)
 
-    // ("C", "N", "S", "E", "W", "F", "B"),
-
-    //        v_v_window_35_14_10374, C
-    //        v_v_window_35_11_10371, N
-    //        v_v_window_35_17_10377, S
-    //        v_v_window_35_15_10375, E
-    //        v_v_window_35_13_10373, W
-    //        v_v_window_35_5_10365, F
-    //        v_v_window_35_23_10383 B
 
     innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${0}")), VarRef(sSP.windowVar, suffix = Some(s"_${9}")))
     innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${9}")), VarRef(sSP.windowVar, suffix = Some(s"_${18}")))
