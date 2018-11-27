@@ -135,24 +135,19 @@ object InputView {
 
   def apply(lambda: Lambda): Unit = {
 
-    lambda.visit(pre = {node:IRNode =>
-      node match {
+    lambda visit {
         case e:Expr => assert(e.view == NoView)
         case _ =>
-
-      }
-    })
+    }
 
     lambda.params.foreach( p => p.view = ViewMem(p.mem.variable, p.t) )
 
     generateInputView(lambda.body)
 
-    lambda.visit(pre = {node:IRNode =>
-      node match {
+    lambda.visit{
         case e:Expr if !e.isInstanceOf[Value] => assert( e.view != NoView )
         case _ =>
-      }
-    })
+    }
 
   }
 

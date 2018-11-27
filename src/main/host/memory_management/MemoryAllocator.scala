@@ -73,6 +73,11 @@ object MemoryAllocator {
 
   def apply(lambda: Lambda): Map[String, (CVarWithType, ArithExpr) ] = {
 
+    lambda visit {
+      case e:Expr if !e.isInstanceOf[Value] => assert(e.mem ==  UnallocatedMemory )
+      case _ =>
+    }
+
     //reset hostMemoryDeclaredInSignature if run with multiple test cases
     hostMemoryDeclaredInSignature = mutable.Map.empty[String, (CVarWithType, ArithExpr) ]
 
@@ -89,12 +94,10 @@ object MemoryAllocator {
     alloc(lambda.body)
 
     //assert that all memory has been allocated
-    lambda.visit(pre = {node: IRNode =>
-      node match {
+    lambda visit {
         case e:Expr if !e.isInstanceOf[Value] => assert(e.mem !=  UnallocatedMemory )
         case _ =>
       }
-    })
 
     hostMemoryDeclaredInSignature.toMap
 

@@ -7,10 +7,18 @@ import lift.arithmetic.{ContinuousRange, Cst, Var}
 
 object LoopVarInference {
   def apply(lambda : Lambda): Unit = {
-    new RangeAndCountsHost(lambda).execute()
+    //new RangeAndCountsHost(lambda).execute()
+    lambda visit {
+      case fc@FunCall(m: AbstractMap, _) =>
+        m.loopVar = Var(m.loopVar.name, ContinuousRange(Cst(0), Type.getLength(fc.args.head.t)))
+      case fc@FunCall(r: AbstractReduce, _*) =>
+        r.loopVar = Var(r.loopVar.name, ContinuousRange(Cst(0), Type.getLength(fc.args.head.t)))
+      case _ => ()
+    }
   }
 }
 
+/*
 class RangeAndCountsHost(lambda: Lambda) {
   def execute(): Unit = {
     lambda.visit(range_and_count_transfomation)
@@ -36,3 +44,4 @@ class RangeAndCountsHost(lambda: Lambda) {
       }
   }
 }
+*/

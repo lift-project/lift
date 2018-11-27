@@ -75,10 +75,10 @@ object InferHostMemoryAddressSpace {
 
   def apply(lambda: Lambda): Unit = {
     //assert that all memory space has not been inferred
-    lambda.visit(pre = {node : IRNode => node match {
+    lambda.visit{
       case e:Expr => assert( e.addressSpace == UndefAddressSpace )
       case _ =>
-    } })
+    }
 
     //alloc for the starting params
     lambda.params.foreach(_.addressSpace = CPUMainMemoryAddressSpace)
@@ -86,10 +86,10 @@ object InferHostMemoryAddressSpace {
     inferAddrSpace(lambda.body)
 
     //assert that all memory space has been inferred
-    lambda.visit(pre = {node : IRNode => node match {
+    lambda.visit{
       case e:Expr => assert( e.addressSpace != UndefAddressSpace )
       case _ =>
-    } })
+    }
   }
 
 

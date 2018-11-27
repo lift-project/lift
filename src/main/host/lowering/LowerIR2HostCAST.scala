@@ -145,12 +145,10 @@ object LowerIR2HostCAST {
 
     val all_userfunc = mutable.Set.empty[UserFun]
 
-    lambda.visit(pre = { node : IRNode =>
-      node match {
+    lambda visit {
         case uf:UserFun => all_userfunc += uf; ()
         case _ => ()
       }
-    })
 
     val all_user_decl = all_userfunc.map(createFunctionDefinition).toVector
 
