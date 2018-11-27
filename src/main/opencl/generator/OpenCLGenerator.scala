@@ -1354,7 +1354,7 @@ class OpenCLGenerator extends Generator {
         accesses(n - 1) = i; setupInitialWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
       }*/
       var idx = 0
-      for(k <- 0 to n-1)
+      for(k <- 0 to size.eval-2)
         {
           for(j <- 0 to size.eval-1)
             {
@@ -1414,7 +1414,7 @@ class OpenCLGenerator extends Generator {
           updateWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
         }
         */
-      var idx = nDim*nDim*2
+      var idx = size.eval*size.eval*(size.eval - 1)
       for(j <- 0 to size.eval-1) {
         for (i <- 0 to size.eval - 1) {
           accesses(0) = nDim - 1
@@ -1453,17 +1453,23 @@ class OpenCLGenerator extends Generator {
       */
       // loop for dim*dim times:
       // start at initial, set to dim*dim
-      // set dim*dim to dim*dim*2
-      for(i <- 0 until nDim*nDim)
+      // loop -> i = 2 to reuse
+      //  set dim*dim to dim*dim*i
+      for(i <- 0 until size.eval*size.eval)
         {
-
+            for( j <- 1 to reuse.eval)
+            {
+                innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${i+(j-1)*size.eval*size.eval}")), VarRef(sSP.windowVar, suffix = Some(s"_${i+j*size.eval*size.eval}")))
+            }
         }
-
     }
 
-//    swapWindowVars(0, nDim)
 
 
+    println("reuse: "+reuse.eval)
+    swapWindowVars(0, nDim)
+
+/*
     innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${0}")), VarRef(sSP.windowVar, suffix = Some(s"_${9}")))
     innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${9}")), VarRef(sSP.windowVar, suffix = Some(s"_${18}")))
 
@@ -1490,7 +1496,7 @@ class OpenCLGenerator extends Generator {
 
     innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${8}")), VarRef(sSP.windowVar, suffix = Some(s"_${17}")))
     innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${17}")), VarRef(sSP.windowVar, suffix = Some(s"_${26}")))
-
+*/
 
 
     /*
