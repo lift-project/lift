@@ -145,7 +145,7 @@ object LowerIR2HostCAST {
 
     val all_userfunc = mutable.Set.empty[UserFun]
 
-    lambda visit {
+    lambda visitBy {
         case uf:UserFun => all_userfunc += uf; ()
         case _ => ()
       }

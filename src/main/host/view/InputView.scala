@@ -135,7 +135,7 @@ object InputView {
 
   def apply(lambda: Lambda): Unit = {
 
-    lambda visit {
+    lambda visitBy {
         case e:Expr => assert(e.view == NoView)
         case _ =>
     }
@@ -144,7 +144,7 @@ object InputView {
 
     generateInputView(lambda.body)
 
-    lambda.visit{
+    lambda visitBy {
         case e:Expr if !e.isInstanceOf[Value] => assert( e.view != NoView )
         case _ =>
     }

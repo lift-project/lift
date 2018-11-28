@@ -13,7 +13,7 @@ class IgnoreChildrenException(val result: IRNode) extends Exception
 trait IRNode {
   final val gid = IDGenerator.get_id()
 
-  final def visit(pre: IRNode => Unit = {n => }, post: IRNode => Unit = {n => }) : Unit = {
+  final def visitBy(pre: IRNode => Unit = { n => }, post: IRNode => Unit = { n => }) : Unit = {
     this.visit_pp((n:IRNode) => {
       try {
         pre(n)

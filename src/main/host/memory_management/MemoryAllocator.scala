@@ -73,7 +73,7 @@ object MemoryAllocator {
 
   def apply(lambda: Lambda): Map[String, (CVarWithType, ArithExpr) ] = {
 
-    lambda visit {
+    lambda visitBy {
       case e:Expr if !e.isInstanceOf[Value] => assert(e.mem ==  UnallocatedMemory )
       case _ =>
     }
@@ -94,7 +94,7 @@ object MemoryAllocator {
     alloc(lambda.body)
 
     //assert that all memory has been allocated
-    lambda visit {
+    lambda visitBy {
         case e:Expr if !e.isInstanceOf[Value] => assert(e.mem !=  UnallocatedMemory )
         case _ =>
       }

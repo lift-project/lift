@@ -75,7 +75,7 @@ object InferHostMemoryAddressSpace {
 
   def apply(lambda: Lambda): Unit = {
     //assert that all memory space has not been inferred
-    lambda.visit{
+    lambda visitBy {
       case e:Expr => assert( e.addressSpace == UndefAddressSpace )
       case _ =>
     }
@@ -86,7 +86,7 @@ object InferHostMemoryAddressSpace {
     inferAddrSpace(lambda.body)
 
     //assert that all memory space has been inferred
-    lambda.visit{
+    lambda visitBy {
       case e:Expr => assert( e.addressSpace != UndefAddressSpace )
       case _ =>
     }

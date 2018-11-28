@@ -142,7 +142,7 @@ object OutputView {
 
   def apply(lambda: Lambda): Unit = {
 
-    lambda.visit{
+    lambda visitBy {
         case e:Expr => assert(e.outputView == NoView)
         case _ =>
     }
@@ -156,7 +156,7 @@ object OutputView {
     //set their outputView explicitly to avoid NoView assertion failure
     val all_params = lambda.params.toSet
     val used_params = mutable.Set.empty[Param]
-    lambda.body visit {
+    lambda.body visitBy {
         case p:Param if all_params contains p => used_params += p
         case _ =>
     }
@@ -164,7 +164,7 @@ object OutputView {
     val unused_params = all_params -- used_params_immutable
     unused_params.foreach(p => p.outputView = UnusedInExprOutputView)
 
-    lambda visit{
+    lambda visitBy {
         case e:Expr => assert( e.outputView != NoView )
         case _ =>
     }

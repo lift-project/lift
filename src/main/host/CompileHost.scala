@@ -20,7 +20,7 @@ object CompileHost {
     final_lambda.params.foreach(p => assert(p.t != UndefType))
     TypeChecker(final_lambda)
 
-    lambda visit {
+    lambda visitBy {
           case e: Expr => assert(e.t != UndefType)
           case _ =>
     }

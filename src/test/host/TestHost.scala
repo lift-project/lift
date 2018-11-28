@@ -1,12 +1,12 @@
 package host
 
 import host.ir_host.MapHSeq
-import ir.{ArrayType, ArrayTypeWSWC}
-import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Pad, Split, Transpose, TransposeW, UserFun, Zip, fun}
+import ir.{ArrayType, ArrayTypeWSWC, TupleType}
+import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Pad, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
 import ir.ast.Pad.Boundary.WrapUnsafe
 import opencl.ir.{Float, add, _}
 import lift.arithmetic.SizeVar
-
+import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import org.junit.Test
 import org.junit.Assert._
 //import org.scalatest.expect
@@ -244,6 +244,144 @@ class TestHost {
 
     println("Test case test_array3dfromuserfungenerator done!")
 
+  }
+
+  @Test
+  def test_fft (): Unit = {
+
+    val path = "/home/lu/Documents/Research/lift/src/test/host/09.fft"
+    val file = "libfft.cpp"
+
+    val p_pass1 = 2
+    val p_pass2 = 4
+    val N = 8
+    val LPrevIter = 1
+
+    def genReorderedTwiddleWithDFTUserFun(complexConjugate: Boolean = false): UserFun = {
+      val signString = if (complexConjugate) "" else "-"
+      UserFun("genTwiddleWithDFT",
+        Array("j", "k", "l", "LPrevIter", "pheight", "pwidth"),
+        "{ Tuple2_double_double twiddleWithDFT;\n" +
+          "\tdouble exponent = " + signString + "2.0 * (k * LPrevIter + j) * l / (pheight * LPrevIter);\n" +
+          "\ttwiddleWithDFT._0 = cospi(exponent);\n" +
+          "\ttwiddleWithDFT._1 = sinpi(exponent);\n" +
+          "\treturn twiddleWithDFT;}",
+        Seq(Int, Int, Int, Int, Int, Int),
+        TupleType(Double, Double)
+      )
+    }
+
+   val TypeOfB_pass2 =
+      ArrayTypeWSWC(
+        ArrayTypeWSWC(
+          ArrayTypeWSWC(TupleType(Double, Double), p_pass2),
+          p_pass2),
+        p_pass1)
+
+
+    val reorderedB_pass2 = Array3DFromUserFunGenerator(
+      genReorderedTwiddleWithDFTUserFun(), TypeOfB_pass2)
+
+    val TypeOfB_pass1 =
+      ArrayTypeWSWC(
+        ArrayTypeWSWC(
+          ArrayTypeWSWC(TupleType(Double, Double), p_pass1),
+          p_pass1),
+        LPrevIter)
+
+    val reorderedB_pass1 = Array3DFromUserFunGenerator(
+      genReorderedTwiddleWithDFTUserFun(), TypeOfB_pass1)
+
+    val complex_zero = (0.0, 0.0)
+
+    val complexId: UserFun = UserFun("cId",
+      Array("x"),
+      "{ return x; }",
+      Seq(TupleType(Double, Double)),
+      TupleType(Double, Double))
+
+    val complexMultAndSumUp: UserFun = UserFun("cMultAndSumUp",
+      Array("acc", "t"),
+      "{ Tuple2_double_double result;\n" +
+      "result._0 = acc._0 + ((t._0)._0*(t._1)._0 - (t._0)._1)*(t._1)._1);\n" +
+      "result._1 = acc._1 + ((t._0)._1*(t._1)._0 + (t._0)._0*(t._1)._1);\n" +
+      "return result; }",
+      Seq(TupleType(Double, Double), TupleType(TupleType(Double, Double), TupleType(Double, Double))),
+      TupleType(Double, Double))
+
+    val smallFFT =
+      \(ArrayTypeWSWC(TupleType(Double, Double), N),
+        (x) =>
+          //
+          //Second Pass
+          //
+          Join() o MapHSeq(Join() o TransposeW()) o Split(p_pass1) o MapGlb(fun((yChunkWithBrow) => {
+
+            val yChunk = yChunkWithBrow._0
+            val Brow = yChunkWithBrow._1
+            Join() o MapSeq(\((Bchunk) =>
+              toGlobal(MapSeq(complexId)) o ReduceSeq(complexMultAndSumUp, complex_zero)
+                $ Zip(yChunk, Bchunk)
+            )) $ Brow
+
+          })) $ Zip(Transpose() o Split(N/p_pass2) o
+            //
+            //First pass
+            //
+            //Bring chunks into order for the next pass.
+            Join() o MapHSeq(Join() o TransposeW()) o Split(LPrevIter) o MapGlb(\((yChunkWithBrow) => {
+
+            //Matrix multiplication of Butterfly matrix with accompanying chunk of input array.
+            val yChunk = yChunkWithBrow._0
+            val Brow = yChunkWithBrow._1
+            Join() o MapSeq(\((Bchunk) =>
+              toGlobal(MapSeq(complexId)) o ReduceSeq(complexMultAndSumUp, complex_zero)
+                $ Zip(yChunk, Bchunk)
+            )) $ Brow
+
+            //Assign Butterfly matrices to accompanying parts of the input array.
+          })) $ Zip(//Reorder chunks of the input vector to be in the order of their accompanying Butterfly matrices.
+            Transpose() o Split(N/p_pass1) $ x,
+            //Create an array of small Butterfly matrices.
+            Pad(0, (N/p_pass1) - 1, WrapUnsafe) $ reorderedB_pass1),
+
+            Pad(0, (N/p_pass2) - p_pass1, WrapUnsafe) $ reorderedB_pass2)
+      )
+
+    def arrayOfDoubleToArrayOfDoubleTuple(arr: Array[Double]): Array[(Double, Double)] = {
+      arr.grouped(2).map(x => (x(0), x(1))).toArray
+    }
+
+    val vector = Array.tabulate(N) { i => (1.0 * i, 1.0 * i) }
+
+
+    val DELTA: Double = 0.0000000001
+
+    val GOLD_FFT_8: Array[(Double, Double)] =
+      Array((28.00000000000000, 28.00000000000000),
+        (-13.65685424949238, 5.65685424949238),
+        (-8.00000000000000, -0.00000000000000),
+        (-5.65685424949238, -2.34314575050762),
+        (-4.00000000000000, -4.00000000000000),
+        (-2.34314575050762, -5.65685424949238),
+        (0.00000000000000, -8.00000000000000),
+        (5.65685424949238, -13.65685424949238))
+
+    val output = GOLD_FFT_8 /*arrayOfDoubleToArrayOfDoubleTuple(
+      Execute(32,32)[Array[Double]](smallFFT, vector)._1
+    )*/
+
+    assertTupleArrayEquals(GOLD_FFT_8, output, DELTA)
+
+
+  }
+
+  def assertTupleArrayEquals(expecteds: Array[(Double, Double)], actuals: Array[(Double, Double)],
+                             delta: Double = 0.0): Unit = {
+    val e = expecteds.flatMap(t => List(t._1, t._2))
+    val a = actuals.flatMap(t => List(t._1, t._2))
+
+    assertArrayEquals(e, a, delta)
   }
 
 
