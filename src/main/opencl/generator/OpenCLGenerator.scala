@@ -1326,7 +1326,13 @@ class OpenCLGenerator extends Generator {
     privateDecls += (sSP.windowVar -> varD)
     (block: MutableBlock) += varD
 
-    var accesses: Array[Int] = Array.fill(nDim)(0) // cannot do a direct access-on-access because the ordering is wrong
+    var accesses: Array[Int] = Array.fill(nDim)(0)
+
+    var eachWindow = 1 //  1 value for 1D or size for 2D or size*size for 3D
+    for(i <- 1 until nDim)
+    {
+      eachWindow = eachWindow * size.eval
+    }
 
     def getView(v: View, accesses: Array[Int]): View = {
       var viewReturn = v
@@ -1353,6 +1359,35 @@ class OpenCLGenerator extends Generator {
       case _ => for (i <- 0 to size.eval - 1) {
         accesses(n - 1) = i; setupInitialWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
       }*/
+
+      n match
+      {
+        case 1 =>
+          for(j <- 0 to size.eval-1)
+          {
+              accesses(nDim-1) = j
+              println("n = "+n+" "+accesses.mkString(","))
+              val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
+              val argViewi = getView(call.args.head.view, accesses)
+              val loadi = generateLoadNode(argMem, argViewi.t, argViewi)
+              (block: MutableBlock) += AssignmentExpression(VarRef(sSP.windowVar,
+              suffix =
+                Some(s"_${j + idx}")), loadi)
+              println("inital accesses( "+accesses.mkString(" ")+")")
+              val tmp = j+idx
+              println(sSP.windowVar.name+"_"+tmp)
+          }
+        case _ =>
+          for (i <- 0 to size.eval - 1)
+          {
+              val dimVal = ((nDim-1)-nDim%n)
+              accesses(dimVal) = i
+              setupInitialWindowVars( idx + i*math.pow(size.eval,dimVal).toInt,n-1,accesses)
+              println("n = "+n+" "+accesses.mkString(",") + " ... "+dimVal)
+          }
+
+      }
+      /*
       var idx = 0
       for(k <- 0 to size.eval-2)
         {
@@ -1374,10 +1409,10 @@ class OpenCLGenerator extends Generator {
                   idx = idx + 1
                 }
             }
-        }
+        } */
     }
 
-    setupInitialWindowVars(0, nDim-1, accesses)
+    setupInitialWindowVars(0, nDim, accesses)
 
 
     // window values get updated at the start of the loop
@@ -1414,10 +1449,11 @@ class OpenCLGenerator extends Generator {
           updateWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
         }
         */
-      var idx = size.eval*size.eval*(size.eval - 1)
+      var idx = size.eval*size.eval*(reuse.eval)
+      println("update idx: "+idx)
       for(j <- 0 to size.eval-1) {
         for (i <- 0 to size.eval - 1) {
-          accesses(0) = nDim - 1
+          accesses(0) = size.eval - 1
           accesses(1) = j
           accesses(2) = i
           val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
@@ -1455,6 +1491,8 @@ class OpenCLGenerator extends Generator {
       // start at initial, set to dim*dim
       // loop -> i = 2 to reuse
       //  set dim*dim to dim*dim*i
+
+
       for(i <- 0 until size.eval*size.eval)
         {
             for( j <- 1 to reuse.eval)
@@ -1464,40 +1502,8 @@ class OpenCLGenerator extends Generator {
         }
     }
 
-
-
     println("reuse: "+reuse.eval)
     swapWindowVars(0, nDim)
-
-/*
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${0}")), VarRef(sSP.windowVar, suffix = Some(s"_${9}")))
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${9}")), VarRef(sSP.windowVar, suffix = Some(s"_${18}")))
-
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${1}")), VarRef(sSP.windowVar, suffix = Some(s"_${10}")))
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${10}")), VarRef(sSP.windowVar, suffix = Some(s"_${19}")))
-
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${2}")), VarRef(sSP.windowVar, suffix = Some(s"_${11}")))
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${11}")), VarRef(sSP.windowVar, suffix = Some(s"_${20}")))
-
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${3}")), VarRef(sSP.windowVar, suffix = Some(s"_${12}")))
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${12}")), VarRef(sSP.windowVar, suffix = Some(s"_${21}")))
-
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${4}")), VarRef(sSP.windowVar, suffix = Some(s"_${13}")))
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${13}")), VarRef(sSP.windowVar, suffix = Some(s"_${22}")))
-
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${5}")), VarRef(sSP.windowVar, suffix = Some(s"_${14}")))
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${14}")), VarRef(sSP.windowVar, suffix = Some(s"_${23}")))
-
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${6}")), VarRef(sSP.windowVar, suffix = Some(s"_${15}")))
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${15}")), VarRef(sSP.windowVar, suffix = Some(s"_${24}")))
-
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${7}")), VarRef(sSP.windowVar, suffix = Some(s"_${16}")))
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${16}")), VarRef(sSP.windowVar, suffix = Some(s"_${25}")))
-
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${8}")), VarRef(sSP.windowVar, suffix = Some(s"_${17}")))
-    innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${17}")), VarRef(sSP.windowVar, suffix = Some(s"_${26}")))
-*/
-
 
     /*
     // window values are swapped at the end of the loop

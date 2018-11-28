@@ -623,9 +623,9 @@ class TestStencilsTACO {
             val ff = nbh.at(0).at(2).at(2)
             val c = nbh.at(2).at(2).at(2)
 
-            toGlobal(id) $ bb
-      //      toGlobal(id) o toPrivate(fun(x =>
-      //       jacobi13(x, e, w, ww, ss, s, n, nn, bb, b, f, ff, c))) $ ee
+       //     toGlobal(id) $ bb
+            toGlobal(id) o toPrivate(fun(x =>
+             jacobi13(x, e, w, ww, ss, s, n, nn, bb, b, f, ff, c))) $ ee
 
 
           })))) o Slide3D(5, 1) $ input
@@ -656,10 +656,10 @@ class TestStencilsTACO {
             val ff = nbh.at(0).at(2).at(2)
             val c = nbh.at(2).at(2).at(2)
 
-            toGlobal(id) $ bb
+       //     toGlobal(id) $ bb
 
-      //      toGlobal(id) o toPrivate(fun(x =>
-      //1        jacobi13(x, e, w, ww, ss, s, n, nn, bb, b, f, ff, c))) $ ee
+           toGlobal(id) o toPrivate(fun(x =>
+             jacobi13(x, e, w, ww, ss, s, n, nn, bb, b, f, ff, c))) $ ee
 
 
           }) ,5,1))} o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(5,1) o Map(Transpose()) o Transpose() $ input
