@@ -1344,29 +1344,12 @@ class OpenCLGenerator extends Generator {
 
     // initial window values are set
     def setupInitialWindowVars(idx: Int, n: Int, accesses: Array[Int]): Unit = {
-     /* n match {
-      case 1 => for (j <- 0 to size.eval - 1) {
-         accesses(n - 1) = j
-         val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
-         val argViewi = getView(call.args.head.view, accesses.reverse)
-         val loadi = generateLoadNode(argMem, argViewi.t, argViewi)
-        (block: MutableBlock) += AssignmentExpression(VarRef(sSP.windowVar,
-          suffix =
-          Some(s"_${j + idx}")), loadi)
-        println("inital accesses( "+accesses.reverse.mkString(" ")+")")
-        println(sSP.windowVar.name+"_"+(j+idx))
-      }
-      case _ => for (i <- 0 to size.eval - 1) {
-        accesses(n - 1) = i; setupInitialWindowVars(idx + i * math.pow(size.eval, n - 1).toInt, n - 1, accesses)
-      }*/
-
       n match
       {
         case 1 =>
           for(j <- 0 to size.eval-1)
           {
               accesses(nDim-1) = j
-              println("n = "+n+" "+accesses.mkString(","))
               val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
               val argViewi = getView(call.args.head.view, accesses)
               val loadi = generateLoadNode(argMem, argViewi.t, argViewi)
@@ -1380,40 +1363,14 @@ class OpenCLGenerator extends Generator {
         case _ =>
           for (i <- 0 to size.eval - 1)
           {
-              val dimVal = ((nDim-1)-nDim%n)
-              accesses(dimVal) = i
-              setupInitialWindowVars( idx + i*math.pow(size.eval,dimVal).toInt,n-1,accesses)
-              println("n = "+n+" "+accesses.mkString(",") + " ... "+dimVal)
+              accesses(nDim%n) = i
+              setupInitialWindowVars( idx + i*math.pow(size.eval,((nDim-1)-nDim%n)).toInt,n-1,accesses)
           }
 
       }
-      /*
-      var idx = 0
-      for(k <- 0 to size.eval-2)
-        {
-          for(j <- 0 to size.eval-1)
-            {
-              for (i <- 0 to size.eval-1)
-                {
-                  accesses(0) = k
-                  accesses(1) = j
-                  accesses(2) = i
-                  val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
-                  val argViewi = getView(call.args.head.view, accesses)
-                  val loadi = generateLoadNode(argMem, argViewi.t, argViewi)
-                  (block: MutableBlock) += AssignmentExpression(VarRef(sSP.windowVar,
-                    suffix =
-                      Some(s"_${idx}")), loadi)
-                  println("inital accesses( "+accesses.mkString(" ")+")")
-                  println(sSP.windowVar.name+"_"+(idx))
-                  idx = idx + 1
-                }
-            }
-        } */
     }
 
     setupInitialWindowVars(0, nDim, accesses)
-
 
     // window values get updated at the start of the loop
     val increment = AssignmentExpression(ArithExpression(indexVar), ArithExpression(indexVar + 1))
