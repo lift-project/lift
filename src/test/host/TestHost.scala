@@ -16,6 +16,7 @@ import scala.language.postfixOps
 
 class TestHost {
 
+  
   val N = SizeVar("N")
 
   val incrementF = fun(Float, x => add(Float).apply(1f, x))
@@ -246,71 +247,78 @@ class TestHost {
 
   }
 
+
+  /* Common facility for testing FFT */
+  //--------------------------------------------------------------------------------
+
+  val p_pass1 = 2
+  val p_pass2 = 4
+  val LPrevIter = 1
+  val N_fft = 8
+
+  def genReorderedTwiddleWithDFTUserFun(complexConjugate: Boolean = false): UserFun = {
+    val signString = if (complexConjugate) "" else "-"
+    UserFun("genTwiddleWithDFT",
+      Array("j", "k", "l", "LPrevIter", "pheight", "pwidth"),
+      "{ Tuple2_double_double twiddleWithDFT;\n" +
+        "\tdouble exponent = " + signString + "2.0 * (k * LPrevIter + j) * l / (pheight * LPrevIter);\n" +
+        "\ttwiddleWithDFT._0 = cospi(exponent);\n" +
+        "\ttwiddleWithDFT._1 = sinpi(exponent);\n" +
+        "\treturn twiddleWithDFT;}",
+      Seq(Int, Int, Int, Int, Int, Int),
+      TupleType(Double, Double)
+    )
+  }
+
+  val TypeOfB_pass2 =
+    ArrayTypeWSWC(
+      ArrayTypeWSWC(
+        ArrayTypeWSWC(TupleType(Double, Double), p_pass2),
+        p_pass2),
+      p_pass1)
+
+
+  val reorderedB_pass2 = Array3DFromUserFunGenerator(
+    genReorderedTwiddleWithDFTUserFun(), TypeOfB_pass2)
+
+  val TypeOfB_pass1 =
+    ArrayTypeWSWC(
+      ArrayTypeWSWC(
+        ArrayTypeWSWC(TupleType(Double, Double), p_pass1),
+        p_pass1),
+      LPrevIter)
+
+  val reorderedB_pass1 = Array3DFromUserFunGenerator(
+    genReorderedTwiddleWithDFTUserFun(), TypeOfB_pass1)
+
+  val complex_zero = (0.0, 0.0)
+
+  val complexId: UserFun = UserFun("cId",
+    Array("x"),
+    "{ return x; }",
+    Seq(TupleType(Double, Double)),
+    TupleType(Double, Double))
+
+  val complexMultAndSumUp: UserFun = UserFun("cMultAndSumUp",
+    Array("acc", "t"),
+    "{ Tuple2_double_double result;\n" +
+      "result._0 = acc._0 + ((t._0)._0*(t._1)._0 - (t._0)._1)*(t._1)._1);\n" +
+      "result._1 = acc._1 + ((t._0)._1*(t._1)._0 + (t._0)._0*(t._1)._1);\n" +
+      "return result; }",
+    Seq(TupleType(Double, Double), TupleType(TupleType(Double, Double), TupleType(Double, Double))),
+    TupleType(Double, Double))
+
+  //--------------------------------------------------------------------------------
+
   @Test
   def test_fft (): Unit = {
 
     val path = "/home/lu/Documents/Research/lift/src/test/host/09.fft"
     val file = "libfft.cpp"
 
-    val p_pass1 = 2
-    val p_pass2 = 4
-    val N = 8
-    val LPrevIter = 1
-
-    def genReorderedTwiddleWithDFTUserFun(complexConjugate: Boolean = false): UserFun = {
-      val signString = if (complexConjugate) "" else "-"
-      UserFun("genTwiddleWithDFT",
-        Array("j", "k", "l", "LPrevIter", "pheight", "pwidth"),
-        "{ Tuple2_double_double twiddleWithDFT;\n" +
-          "\tdouble exponent = " + signString + "2.0 * (k * LPrevIter + j) * l / (pheight * LPrevIter);\n" +
-          "\ttwiddleWithDFT._0 = cospi(exponent);\n" +
-          "\ttwiddleWithDFT._1 = sinpi(exponent);\n" +
-          "\treturn twiddleWithDFT;}",
-        Seq(Int, Int, Int, Int, Int, Int),
-        TupleType(Double, Double)
-      )
-    }
-
-   val TypeOfB_pass2 =
-      ArrayTypeWSWC(
-        ArrayTypeWSWC(
-          ArrayTypeWSWC(TupleType(Double, Double), p_pass2),
-          p_pass2),
-        p_pass1)
-
-
-    val reorderedB_pass2 = Array3DFromUserFunGenerator(
-      genReorderedTwiddleWithDFTUserFun(), TypeOfB_pass2)
-
-    val TypeOfB_pass1 =
-      ArrayTypeWSWC(
-        ArrayTypeWSWC(
-          ArrayTypeWSWC(TupleType(Double, Double), p_pass1),
-          p_pass1),
-        LPrevIter)
-
-    val reorderedB_pass1 = Array3DFromUserFunGenerator(
-      genReorderedTwiddleWithDFTUserFun(), TypeOfB_pass1)
-
-    val complex_zero = (0.0, 0.0)
-
-    val complexId: UserFun = UserFun("cId",
-      Array("x"),
-      "{ return x; }",
-      Seq(TupleType(Double, Double)),
-      TupleType(Double, Double))
-
-    val complexMultAndSumUp: UserFun = UserFun("cMultAndSumUp",
-      Array("acc", "t"),
-      "{ Tuple2_double_double result;\n" +
-      "result._0 = acc._0 + ((t._0)._0*(t._1)._0 - (t._0)._1)*(t._1)._1);\n" +
-      "result._1 = acc._1 + ((t._0)._1*(t._1)._0 + (t._0)._0*(t._1)._1);\n" +
-      "return result; }",
-      Seq(TupleType(Double, Double), TupleType(TupleType(Double, Double), TupleType(Double, Double))),
-      TupleType(Double, Double))
 
     val smallFFT =
-      \(ArrayTypeWSWC(TupleType(Double, Double), N),
+      \(ArrayTypeWSWC(TupleType(Double, Double), N_fft),
         (x) =>
           //
           //Second Pass
@@ -324,7 +332,7 @@ class TestHost {
                 $ Zip(yChunk, Bchunk)
             )) $ Brow
 
-          })) $ Zip(Transpose() o Split(N/p_pass2) o
+          })) $ Zip(Transpose() o Split(N_fft/p_pass2) o
             //
             //First pass
             //
@@ -341,18 +349,18 @@ class TestHost {
 
             //Assign Butterfly matrices to accompanying parts of the input array.
           })) $ Zip(//Reorder chunks of the input vector to be in the order of their accompanying Butterfly matrices.
-            Transpose() o Split(N/p_pass1) $ x,
+            Transpose() o Split(N_fft/p_pass1) $ x,
             //Create an array of small Butterfly matrices.
-            Pad(0, (N/p_pass1) - 1, WrapUnsafe) $ reorderedB_pass1),
+            Pad(0, (N_fft/p_pass1) - 1, WrapUnsafe) $ reorderedB_pass1),
 
-            Pad(0, (N/p_pass2) - p_pass1, WrapUnsafe) $ reorderedB_pass2)
+            Pad(0, (N_fft/p_pass2) - p_pass1, WrapUnsafe) $ reorderedB_pass2)
       )
 
     def arrayOfDoubleToArrayOfDoubleTuple(arr: Array[Double]): Array[(Double, Double)] = {
       arr.grouped(2).map(x => (x(0), x(1))).toArray
     }
 
-    val vector = Array.tabulate(N) { i => (1.0 * i, 1.0 * i) }
+    val vector = Array.tabulate(N_fft) { i => (1.0 * i, 1.0 * i) }
 
 
     val DELTA: Double = 0.0000000001
@@ -374,6 +382,34 @@ class TestHost {
     assertTupleArrayEquals(GOLD_FFT_8, output, DELTA)
 
 
+  }
+
+  @Test
+  def test_fft1(): Unit = {
+    val f =
+      \(ArrayTypeWSWC(TupleType(Double, Double), N_fft),
+        (x) =>
+      Transpose() o Split(N_fft/p_pass2) o
+            //
+            //First pass
+            //
+            //Bring chunks into order for the next pass.
+            MapHSeq(\((yChunkWithBrow) => {
+
+            //Matrix multiplication of Butterfly matrix with accompanying chunk of input array.
+            val yChunk = yChunkWithBrow._0
+            val Brow = yChunkWithBrow._1
+            Join() o MapHSeq(\((Bchunk) =>
+              ReduceSeq(complexMultAndSumUp, complex_zero)
+                $ Zip(yChunk, Bchunk)
+            )) $ Brow
+
+            //Assign Butterfly matrices to accompanying parts of the input array.
+          })) $ Zip(//Reorder chunks of the input vector to be in the order of their accompanying Butterfly matrices.
+            Transpose() o Split(N_fft/p_pass1) $ x,
+            //Create an array of small Butterfly matrices.
+            Pad(0, (N_fft/p_pass1) - 1, WrapUnsafe) $ reorderedB_pass1)
+      )
   }
 
   def assertTupleArrayEquals(expecteds: Array[(Double, Double)], actuals: Array[(Double, Double)],
