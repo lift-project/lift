@@ -28,6 +28,8 @@ object InputView {
       case a@Array2DFromUserFunGenerator(f, at) => a.view = View2DGeneratorUserFun(f, at)
       case a@Array3DFromUserFunGenerator(f, at) => a.view = View3DGeneratorUserFun(f, at)
 
+      case v: Value => v.view = ViewConstant(v, v.t)
+
 
       case fc@FunCall(_:Zip, args@_*) => {
 
@@ -109,6 +111,8 @@ object InputView {
 
       case fc@FunCall(r: AbstractPartRed, args@_*) => {
 
+        args.foreach(generateInputView(_))
+
         val input_view = getViewFromArgs(fc)
 
         r.f.params(0).view = input_view.get(0)
@@ -116,8 +120,10 @@ object InputView {
 
         generateInputView(r.f.body)
 
-        //TODO: not understand yet, according to the test run it seems we need to create a new view here
-        fc.view = ViewMem(fc.mem.variable, fc.t)
+        //No need to initialize a new view, as the view is the same as its inner view
+        //in map, the memory is augmented for its user function, thus in that case a new view is needed
+        //but it is not the case for reduce.
+        fc.view = r.f.body.view
 
       }
 
