@@ -4,7 +4,7 @@ import core.generator.GenericAST.CVarWithType
 import host.ir_host.{CPUNullMemory, HostMemory, HostMemoryCollection}
 import host.lowering.Util
 import ir.{Type, UnallocatedMemory}
-import ir.ast.{AbstractMap, ArrayConstructors, Expr, FPattern, FunCall, FunDecl, IRNode, Lambda, UserFun, Value, Zip}
+import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, Expr, FPattern, FunCall, FunDecl, IRNode, Lambda, UserFun, Value, Zip}
 import lift.arithmetic.{ArithExpr, ContinuousRange, Cst, Var}
 
 import scala.collection.mutable
@@ -28,6 +28,25 @@ object MemoryAllocator {
         fc.mem = HostMemory(Var(s"user_func_${fc.gid}", ContinuousRange(Cst(0), size)), size, fc.addressSpace )
 
         hostMemoryDeclaredInSignature +=  fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, Util.Array2Pointer( Util.IRType2CastType(fc.t), true ) ),  size )
+
+      }
+
+      case fc@FunCall(rd:AbstractPartRed, args@_*) => {
+
+        assert(args.length == 2)
+        val init = args(0)
+        val array = args(1)
+
+        alloc(array)
+        init.mem = CPUNullMemory
+
+        (rd.f.params zip args).foreach(pair => pair._1.mem = pair._2.mem)
+        alloc(rd.f.body)
+
+        fc.mem = rd.f.body.mem
+        //val size = Type.getAllocatedSize(fc.t)
+        //fc.mem = HostMemory(Var(s"reduce_${fc.gid}", ContinuousRange(Cst(0), size)), size, fc.addressSpace )
+        //PropagateMemForReduce(fc)
 
       }
 

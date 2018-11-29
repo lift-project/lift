@@ -16,7 +16,7 @@ import scala.language.postfixOps
 
 class TestHost {
 
-  
+
   val N = SizeVar("N")
 
   val incrementF = fun(Float, x => add(Float).apply(1f, x))
@@ -56,7 +56,7 @@ class TestHost {
 
     val status_code2 = (s"rm $path" + "/a.out") !
 
-    assert(status_code2 == 0, "Delete generated lib file error!")
+    assert(status_code2 == 0, "Delete generated binary error!")
 
     result
 
@@ -79,6 +79,26 @@ class TestHost {
     val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
     assertEquals(expected, actual)
     //expect(expected){actual}
+
+    println("Test case test_map done!")
+
+  }
+
+  @Test
+  def test_reduceseq(): Unit = {
+
+    val path = "/home/lu/Documents/Research/lift/src/test/host/09.maphost"
+    val file = "libreduceseq.cpp"
+
+    val f = fun( ArrayType(Float, N),
+      in => ReduceSeq( add, 1.0f ) $ in
+    )
+
+    CompileHost(f, path, file)
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "17 \n"
+    assertEquals(expected, actual)
 
     println("Test case test_map done!")
 
@@ -313,7 +333,7 @@ class TestHost {
   @Test
   def test_fft (): Unit = {
 
-    val path = "/home/lu/Documents/Research/lift/src/test/host/09.fft"
+    val path = "/home/lu/Documents/Research/lift/src/test/host/10.fft"
     val file = "libfft.cpp"
 
 
