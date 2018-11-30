@@ -1,10 +1,10 @@
 package host.lowering
 
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ParamDeclPure, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRefPure, VoidType}
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ParamDeclPure, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
 import host.ir_host.MapHSeq
 import host.view.ViewPrinter
 import ir.ast.{AbstractMap, AbstractPartRed, FunCall, IRNode, Join, Lambda, Split, Transpose, TransposeW, UserFun, Value}
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Cst}
 import opencl.generator.OpenCLAST.OclCode
 import opencl.ir.pattern.{MapSeq, ReduceSeq}
 
@@ -101,7 +101,7 @@ object LowerIR2HostCAST {
     val stop = rd.loopVar.range.max
 
     val indexVar =  CVarWithType(rd.loopVar.toString, IntegerType() )
-    val init = VarDeclPure( indexVar, indexVar.t, Some(IntConstant(0)) )
+    val init = VarDeclPure( indexVar, indexVar.t, Some(IntConstant(1)) )
     val cond = BinaryExpression(VarRefPure(indexVar), BinaryExpressionT.Operator.<=, ArithExpression(stop) )
     val increment = UnaryExpression("++", (indexVar) )
 
@@ -110,7 +110,17 @@ object LowerIR2HostCAST {
       case _ => assert(false, "Not implemented"); Comment("Not reachable")
     }
 
-    arg_block :+ comment :+ ForLoopIm( init, cond, increment, generate(rd.f.body) )
+    val assignment = {generate(rd.f.body).content(0) match {
+      case ExpressionStatement(x,_) => x
+      case y => assert(false,"Not implemented");null
+    } }.asInstanceOf[AssignmentExpression]
+
+    val funcall = assignment.value.asInstanceOf[FunctionCall]
+    val init_assignment = AssignmentExpression(assignment.to, FunctionCall(funcall.name, List(funcall.args(0), funcall.args(1).asInstanceOf[VarRef].copy(arrayIndex = Some(ArithExpression(Cst(0)))))) )
+    val inloop_assignment = AssignmentExpression(assignment.to, FunctionCall(funcall.name, List(assignment.to,funcall.args(1))))
+    val inloop_assignment_block = Block(Vector(ExpressionStatement(inloop_assignment)))
+
+    arg_block :+ comment :+ init_assignment :+ ForLoopIm( init, cond, increment, inloop_assignment_block )
 
   }
 
