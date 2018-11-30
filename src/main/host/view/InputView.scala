@@ -121,7 +121,7 @@ object InputView {
         generateInputView(r.f.body)
 
         //No need to initialize a new view, as the view is the same as its inner view
-        //in map, the memory is augmented for its user function, thus in that case a new view is needed
+        //In Map, the memory is augmented for its user function, thus in that case a new view is needed
         //but it is not the case for reduce.
         fc.view = r.f.body.view
 

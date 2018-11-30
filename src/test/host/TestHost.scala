@@ -1,6 +1,5 @@
 package host
 
-import host.ir_host.MapHSeq
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Pad, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
 import ir.ast.Pad.Boundary.WrapUnsafe
@@ -70,7 +69,7 @@ class TestHost {
     val file = "libmap.cpp"
 
     val f = fun( ArrayType(Float, N),
-      in => MapHSeq( incrementF ) $ in
+      in => MapSeq( incrementF ) $ in
     )
 
     CompileHost(f, path, file)
@@ -113,7 +112,7 @@ class TestHost {
     val f = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
-      (left, right) => MapHSeq( fun(y => add2.apply(Get(y,0), Get(y,1)) ) ) $ Zip(left, right)
+      (left, right) => MapSeq( fun(y => add2.apply(Get(y,0), Get(y,1)) ) ) $ Zip(left, right)
     )
 
     CompileHost(f, path, file)
@@ -133,7 +132,7 @@ class TestHost {
 
     val f = fun(
       ArrayType(Float, N),
-      in => Join() o MapHSeq( MapHSeq(incrementF)  )  o Split(8) $ in
+      in => Join() o MapSeq( MapSeq(incrementF)  )  o Split(8) $ in
     )
 
     CompileHost(f, path, file)
@@ -155,7 +154,7 @@ class TestHost {
     val f = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
-      (left, right) => Join() o MapHSeq( MapHSeq( fun(y => add2.apply(Get(y,0), Get(y,1)) ) )  )  o Split(8) $ Zip(left, right)
+      (left, right) => Join() o MapSeq( MapSeq( fun(y => add2.apply(Get(y,0), Get(y,1)) ) )  )  o Split(8) $ Zip(left, right)
     )
 
     CompileHost(f, path, file)
@@ -176,7 +175,7 @@ class TestHost {
 
     val f = fun(
       ArrayType(Float, N),
-      in => Join() o TransposeW() o MapHSeq( MapHSeq(incrementF)  ) o Transpose() o Split(8) $ in
+      in => Join() o TransposeW() o MapSeq( MapSeq(incrementF)  ) o Transpose() o Split(8) $ in
     )
 
     CompileHost(f, path, file)
@@ -198,7 +197,7 @@ class TestHost {
 
     val f = fun(
       ArrayType(Float, N),
-      in =>  MapHSeq(incrementF) o Pad(1, 1, WrapUnsafe)  $ in
+      in =>  MapSeq(incrementF) o Pad(1, 1, WrapUnsafe)  $ in
     )
 
     CompileHost(f, path, file)
@@ -226,7 +225,7 @@ class TestHost {
 
     val f = fun(
       at,
-      input => MapHSeq(fun(y => add2.apply(Get(y,0), Get(y,1)))) $ Zip(input, ArrayFromUserFunGenerator(idxF, at))
+      input => MapSeq(fun(y => add2.apply(Get(y,0), Get(y,1)))) $ Zip(input, ArrayFromUserFunGenerator(idxF, at))
     )
 
     CompileHost(f, path, file)
@@ -254,7 +253,7 @@ class TestHost {
 
     val f = fun(
       type3d,
-      _ => Join() o MapHSeq( Join() o MapHSeq( MapHSeq(incrementF)))  $ Array3DFromUserFunGenerator(idxF, type3d)
+      _ => Join() o MapSeq( Join() o MapSeq( MapSeq(incrementF)))  $ Array3DFromUserFunGenerator(idxF, type3d)
     )
 
     CompileHost(f, path, file)
@@ -343,7 +342,7 @@ class TestHost {
           //
           //Second Pass
           //
-          Join() o MapHSeq(Join() o TransposeW()) o Split(p_pass1) o MapGlb(fun((yChunkWithBrow) => {
+          Join() o MapSeq(Join() o TransposeW()) o Split(p_pass1) o MapGlb(fun((yChunkWithBrow) => {
 
             val yChunk = yChunkWithBrow._0
             val Brow = yChunkWithBrow._1
@@ -357,7 +356,7 @@ class TestHost {
             //First pass
             //
             //Bring chunks into order for the next pass.
-            Join() o MapHSeq(Join() o TransposeW()) o Split(LPrevIter) o MapGlb(\((yChunkWithBrow) => {
+            Join() o MapSeq(Join() o TransposeW()) o Split(LPrevIter) o MapGlb(\((yChunkWithBrow) => {
 
             //Matrix multiplication of Butterfly matrix with accompanying chunk of input array.
             val yChunk = yChunkWithBrow._0
@@ -414,12 +413,12 @@ class TestHost {
             //First pass
             //
             //Bring chunks into order for the next pass.
-            MapHSeq(\((yChunkWithBrow) => {
+            MapSeq(\((yChunkWithBrow) => {
 
             //Matrix multiplication of Butterfly matrix with accompanying chunk of input array.
             val yChunk = yChunkWithBrow._0
             val Brow = yChunkWithBrow._1
-            Join() o MapHSeq(\((Bchunk) =>
+            Join() o MapSeq(\((Bchunk) =>
               ReduceSeq(complexMultAndSumUp, complex_zero)
                 $ Zip(yChunk, Bchunk)
             )) $ Brow

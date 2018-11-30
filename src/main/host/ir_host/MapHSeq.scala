@@ -3,6 +3,7 @@ package host.ir_host
 import ir.ast.{AbstractMap, IRNode, Lambda, Pattern}
 import lift.arithmetic.{PosVar}
 
+/* Obsolete, as MapSeq can fulfill this purpose perfectly. */
 case class MapHSeq(override val f: Lambda) extends AbstractMap(f, "MapH", PosVar("i"))
 {
 
