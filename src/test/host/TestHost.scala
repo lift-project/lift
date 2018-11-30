@@ -87,7 +87,7 @@ class TestHost {
   @Test
   def test_reduceseq(): Unit = {
 
-    val path = "/home/lu/Documents/Research/lift/src/test/host/09.maphost"
+    val path = "/home/lu/Documents/Research/lift/src/test/host/09.reduceseq"
     val file = "libreduceseq.cpp"
 
     val f = fun( ArrayType(Float, N),
@@ -100,7 +100,7 @@ class TestHost {
     val expected : String = "17 \n"
     assertEquals(expected, actual)
 
-    println("Test case test_map done!")
+    println("Test case test_reduce done!")
 
   }
 

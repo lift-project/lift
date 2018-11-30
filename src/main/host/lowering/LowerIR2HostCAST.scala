@@ -1,6 +1,6 @@
 package host.lowering
 
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ParamDeclPure, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
 import host.ir_host.MapHSeq
 import host.view.ViewPrinter
 import ir.ast.{AbstractMap, AbstractPartRed, FunCall, IRNode, Join, Lambda, Split, Transpose, TransposeW, UserFun, Value}
@@ -161,15 +161,33 @@ object LowerIR2HostCAST {
 
     val memory_alloc_vector = hostMemoryDeclaredInSignature.map(record =>
 
+      /*
+      record._2._1.t match {
+        case _:PrimitiveTypeT => EmptyNode()
+        case _ => ExpressionStatement(AssignmentExpression(VarRefPure(record._2._1),
+            FunctionCall("reinterpret_cast", List(
+              FunctionCall("malloc", List(BinaryExpression(ArithExpression(record._2._2), BinaryExpressionT.Operator.*,
+                FunctionCall("sizeof", List(Util.GetElementTypeFromPointer(record._2._1.t)))
+              )))),
+              List(record._2._1.t))
+          ) )
+      } */
       ExpressionStatement(AssignmentExpression(VarRefPure(record._2._1),
-        FunctionCall("reinterpret_cast", List(
-          FunctionCall("malloc", List(BinaryExpression(ArithExpression(record._2._2), BinaryExpressionT.Operator.*,
-            FunctionCall("sizeof", List(Util.GetElementTypeFromPointer(record._2._1.t)))
-          )))),
-          List(record._2._1.t))
-      ) )
+            FunctionCall("reinterpret_cast", List(
+              FunctionCall("malloc", List(BinaryExpression(ArithExpression(record._2._2), BinaryExpressionT.Operator.*,
+                FunctionCall("sizeof", List(Util.GetElementTypeFromPointer(record._2._1.t)))
+              )))),
+              List(record._2._1.t))
+          ) )
+
     ).toVector
 
+    /*
+    val empty_node_filtered = memory_alloc_vector.filter({case EmptyNode() => false; case _ => true})
+    empty_node_filtered.length match {
+      case 0 => Block()
+      case _ => Comment("Allocate memory for output pointers") +: Block(empty_node_filtered, global = true)
+    }*/
     Comment("Allocate memory for output pointers") +: Block(memory_alloc_vector, global = true)
 
   }

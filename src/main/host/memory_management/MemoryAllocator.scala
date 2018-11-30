@@ -48,6 +48,9 @@ object MemoryAllocator {
         //fc.mem = HostMemory(Var(s"reduce_${fc.gid}", ContinuousRange(Cst(0), size)), size, fc.addressSpace )
         //PropagateMemForReduce(fc)
 
+        //correct type for user function, e.g., float => [float]_1
+        hostMemoryDeclaredInSignature += fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, Util.Array2Pointer( Util.IRType2CastType(fc.t), true ) ) , Type.getAllocatedSize(fc.t) )
+
       }
 
       case fc@FunCall(fp:FPattern, args@_*) => {
