@@ -448,6 +448,7 @@ class TestMapSeqSlide
     def stencil2Dat(a: Int, b :Int) = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       (input) =>
+        TransposeW() o
         MapGlb(0)(fun(x => {
 
           toGlobal(MapSeqSlide(fun(m => {
@@ -1711,6 +1712,7 @@ class TestMapSeqSlide
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2), N+2), M+2),
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2), N+2), M+2),
       (mat1, mat2) =>
+        TransposeW() o Map(TransposeW()) o TransposeW() o
         MapGlb(1)(MapGlb(0)(fun(x => {
           toGlobal(MapSeqSlide(fun(m => {
 
@@ -1745,7 +1747,7 @@ class TestMapSeqSlide
                   toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
 
           }),slidesize,slidestep)) o Transpose() o Map(Transpose()) } $ x )))
-          o PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(mat1, mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
+          o PrintType() o Transpose() o Slide2D(slidesize,slidestep) o Map(Transpose()) o Transpose()  $ Zip3D(mat1, mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
     )
 
     /*
@@ -1846,6 +1848,7 @@ class TestMapSeqSlide
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
       (mat1, mat2) =>
+        TransposeW() o Map(TransposeW()) o TransposeW() o
         MapGlb(1)(MapGlb(0)(fun(x => {
           toGlobal(MapSeqSlide(fun(m => {
 
@@ -1882,7 +1885,7 @@ class TestMapSeqSlide
             toGlobal(id) $ ret
 
           }),slidesize,slidestep)) o Transpose() o Map(Transpose()) } $ x )))
-          o PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(PadConstant3D(1,1,1,0.0f) $ mat1, PadConstant3D(1,1,1,0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
+          o PrintType() o Transpose() o Slide2D(slidesize,slidestep) o Map(Transpose()) o Transpose() $ Zip3D(PadConstant3D(1,1,1,0.0f) $ mat1, PadConstant3D(1,1,1,0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig2))
     )
 
     val (outputOrg: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original3DStencil(slidesize,slidestep),stencilarr3D, stencilarr3D)
