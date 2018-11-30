@@ -296,6 +296,8 @@ class TestStencilsTACO {
 
   }
 
+
+  // TODO fix this test!!
   @Ignore
   @Test
   def MSSAcoustic3D(): Unit = {
@@ -441,7 +443,7 @@ class TestStencilsTACO {
           }) ,size,step))} o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() $ input
       })
     val kernel = Compile(lambdaMSS)
-      println(kernel)
+    //println(kernel)
 
     val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](originalLambda, data)
     val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](kernel,lambdaMSS, data)
