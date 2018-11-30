@@ -23,6 +23,9 @@ object ViewPrinter {
         val newIdx = chunkIdx * chunksize + elemIdx
         generateArrayAccess(iv, newIdx::rest, tupleAccessStack)
 
+      case ViewConstant(value, _) =>
+        GenericAST.RawCode(value.value)
+
       case ViewMem(memVar, ty) =>
         tupleAccessStack.isEmpty match {
           case true => assert(arrayAccessStack.size == 1);VarRef(memVar, arrayIndex = Some( ArithExpression(arrayAccessStack.head) ))

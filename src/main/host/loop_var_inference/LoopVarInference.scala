@@ -12,7 +12,7 @@ object LoopVarInference {
       case fc@FunCall(m: AbstractMap, _) =>
         m.loopVar = Var(m.loopVar.name, ContinuousRange(Cst(0), Type.getLength(fc.args.head.t)))
       case fc@FunCall(r: AbstractReduce, _*) =>
-        r.loopVar = Var(r.loopVar.name, ContinuousRange(Cst(0), Type.getLength(fc.args.head.t)))
+        r.loopVar = Var(r.loopVar.name, ContinuousRange(Cst(0), Type.getLength(fc.args(1).t)))
       case _ => ()
     }
   }

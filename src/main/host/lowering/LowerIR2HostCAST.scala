@@ -29,7 +29,7 @@ object LowerIR2HostCAST {
         generate(lambda.body)
       case fc@FunCall(_:AbstractMap, _) =>
         generateAbstractMap(fc)
-      case fc@FunCall(_:AbstractPartRed, _) =>
+      case fc@FunCall(_:AbstractPartRed, _*) =>
         generateAbstractReduce(fc)
       case fc@FunCall(Split(_), _ ) =>
         generateNothing(fc)
@@ -97,10 +97,10 @@ object LowerIR2HostCAST {
 
     val arg_block = generate(fc.args.head)
 
-    val m = fc.f.asInstanceOf[AbstractPartRed]
-    val stop = m.loopVar.range.max
+    val rd = fc.f.asInstanceOf[AbstractPartRed]
+    val stop = rd.loopVar.range.max
 
-    val indexVar =  CVarWithType(m.loopVar.toString, IntegerType() )
+    val indexVar =  CVarWithType(rd.loopVar.toString, IntegerType() )
     val init = VarDeclPure( indexVar, indexVar.t, Some(IntConstant(0)) )
     val cond = BinaryExpression(VarRefPure(indexVar), BinaryExpressionT.Operator.<=, ArithExpression(stop) )
     val increment = UnaryExpression("++", (indexVar) )
@@ -110,7 +110,7 @@ object LowerIR2HostCAST {
       case _ => assert(false, "Not implemented"); Comment("Not reachable")
     }
 
-    arg_block :+ comment :+ ForLoopIm( init, cond, increment, generate(m.f.body) )
+    arg_block :+ comment :+ ForLoopIm( init, cond, increment, generate(rd.f.body) )
 
   }
 
