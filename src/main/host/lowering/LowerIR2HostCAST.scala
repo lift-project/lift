@@ -3,10 +3,10 @@ package host.lowering
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ParamDeclPure, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRefPure, VoidType}
 import host.ir_host.MapHSeq
 import host.view.ViewPrinter
-import ir.ast.{AbstractMap, FunCall, IRNode, Join, Lambda, Split, Transpose, TransposeW, UserFun, Value}
+import ir.ast.{AbstractMap, AbstractPartRed, FunCall, IRNode, Join, Lambda, Split, Transpose, TransposeW, UserFun, Value}
 import lift.arithmetic.ArithExpr
 import opencl.generator.OpenCLAST.OclCode
-import opencl.ir.pattern.MapSeq
+import opencl.ir.pattern.{MapSeq, ReduceSeq}
 
 import scala.collection.mutable
 
@@ -29,6 +29,8 @@ object LowerIR2HostCAST {
         generate(lambda.body)
       case fc@FunCall(_:AbstractMap, _) =>
         generateAbstractMap(fc)
+      case fc@FunCall(_:AbstractPartRed, _) =>
+        generateAbstractReduce(fc)
       case fc@FunCall(Split(_), _ ) =>
         generateNothing(fc)
       case fc@FunCall(Join(), _) =>
@@ -86,6 +88,27 @@ object LowerIR2HostCAST {
       case _ => assert(false, "Not implemented"); Comment("Not reachable")
     }
 
+
+    arg_block :+ comment :+ ForLoopIm( init, cond, increment, generate(m.f.body) )
+
+  }
+
+  def generateAbstractReduce(fc: FunCall) : Block = {
+
+    val arg_block = generate(fc.args.head)
+
+    val m = fc.f.asInstanceOf[AbstractPartRed]
+    val stop = m.loopVar.range.max
+
+    val indexVar =  CVarWithType(m.loopVar.toString, IntegerType() )
+    val init = VarDeclPure( indexVar, indexVar.t, Some(IntConstant(0)) )
+    val cond = BinaryExpression(VarRefPure(indexVar), BinaryExpressionT.Operator.<=, ArithExpression(stop) )
+    val increment = UnaryExpression("++", (indexVar) )
+
+    val comment = fc.f match {
+      case _:ReduceSeq => Comment("For each element reduced sequentially")
+      case _ => assert(false, "Not implemented"); Comment("Not reachable")
+    }
 
     arg_block :+ comment :+ ForLoopIm( init, cond, increment, generate(m.f.body) )
 

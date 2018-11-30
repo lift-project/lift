@@ -118,16 +118,26 @@ object OutputView {
 
       case fc@FunCall(r: AbstractPartRed, args@_*) => {
 
+        assert(args.length == 2)
+
         r.f.body.outputView = fc.outputView.access(Cst(0))
 
         generateOutputView(r.f.body)
 
-        assert(args.length == 2)
-        val acc = args.head
+        val acc = args(0)
+        val array = args(1)
+
+        acc.outputView = UnusedInExprOutputView
+        array.outputView = ViewMap(r.f.params(1).outputView, r.loopVar, array.t)
+
+        args.foreach(generateOutputView(_))
+
+
+        /*val acc = args.head
         acc.outputView = ViewMem(acc.mem.variable, acc.t)
         args(1).outputView = r.f.params.head.outputView
 
-        generateOutputView(args(1))
+        generateOutputView(args(1)) */
 
       }
 
