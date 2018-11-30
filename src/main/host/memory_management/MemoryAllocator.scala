@@ -24,7 +24,7 @@ object MemoryAllocator {
         //link the arg to the correct param is already done in its upper level FPattern
         args.foreach(alloc(_))
 
-        val size = Type.getAllocatedSize(fc.t)
+        val size = Type.getElementCount(fc.t)
         fc.mem = HostMemory(Var(s"user_func_${fc.gid}", ContinuousRange(Cst(0), size)), size, fc.addressSpace )
 
         hostMemoryDeclaredInSignature +=  fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, Util.Array2Pointer( Util.IRType2CastType(fc.t), true ) ),  size )
@@ -49,7 +49,7 @@ object MemoryAllocator {
         //PropagateMemForReduce(fc)
 
         //correct type for user function, e.g., float => [float]_1
-        hostMemoryDeclaredInSignature += fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, Util.Array2Pointer( Util.IRType2CastType(fc.t), true ) ) , Type.getAllocatedSize(fc.t) )
+        hostMemoryDeclaredInSignature += fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, Util.Array2Pointer( Util.IRType2CastType(fc.t), true ) ) , Type.getElementCount(fc.t) )
 
       }
 
@@ -66,7 +66,7 @@ object MemoryAllocator {
 
           case _:AbstractMap =>
             //here fc.t already have the augmented size information after map, so no need to manually calculate
-            hostMemoryDeclaredInSignature += fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, Util.Array2Pointer( Util.IRType2CastType(fc.t), true ) ) , Type.getAllocatedSize(fc.t) )
+            hostMemoryDeclaredInSignature += fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, Util.Array2Pointer( Util.IRType2CastType(fc.t), true ) ) , Type.getElementCount(fc.t) )
           case _ =>
         }
 
