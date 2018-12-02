@@ -297,8 +297,6 @@ class TestStencilsTACO {
   }
 
 
-  // TODO fix this test!!
-  @Ignore
   @Test
   def MSSAcoustic3D(): Unit = {
 
@@ -330,7 +328,7 @@ class TestStencilsTACO {
         TransposeW() o Map(TransposeW()) o TransposeW() o
         MapGlb(0)(MapGlb(1)(fun(x => {
           toGlobal(MapSeqSlide(fun((m) => {
-            acousticMSS(m)
+            acoustic(m)
           }), size, step))
         } o Transpose() o Map(Transpose()) $ x)))  o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose()  $ Zip3D(PadConstant3D(1, 1, 1, 0.0f) $ mat1, PadConstant3D(1, 1, 1, 0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno2))
       })

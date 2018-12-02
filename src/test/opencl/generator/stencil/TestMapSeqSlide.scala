@@ -414,7 +414,7 @@ class TestMapSeqSlide
   @Test
   def reduceSlide2DTest9WithAt(): Unit = {
 
-    val size = 14
+    val size = 7
     val slidesize = 3
     val slidestep = 1
     val values = Array.tabulate(size,size) { (i,j) => (i*size + j + 1).toFloat }
@@ -468,7 +468,7 @@ class TestMapSeqSlide
             toGlobal(id) $ stencil
 
           }), a,b)) o  Transpose() $ x
-        })) o Slide(a,b)  $ input
+        })) o Slide(a,b) o Transpose() $ input
     )
 
     val (output, runtimeNew: Double) = Execute(2,2)[Array[Float]](stencil2Dat(slidesize,slidestep), values)
@@ -1113,10 +1113,6 @@ class TestMapSeqSlide
 
    */
 
-    StencilUtilities.print3DArray(data)
-    println("X "+data.length)
-    println("Y "+data(0).length)
-    println("Z "+data(0)(0).length)
 
     val (output_org: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3D(slidesize,slidestep), data)
     val (output_MSS: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](jacobi3Dmapseqslide(slidesize,slidestep), data)
@@ -1129,13 +1125,6 @@ class TestMapSeqSlide
 
     assertArrayEquals(output_NoPC, output_org, StencilUtilities.stencilDelta)
 
-    /*
-    StencilUtilities.print1DArrayAs3DArray(output_org,Nx,Ny,Nz)
-    StencilUtilities.printOriginalAndOutput3DSame(dataUp,output_org)
-    println("*******************************")
-    StencilUtilities.print1DArray(output_org)
-    //StencilUtilities.print1DArrayAs3DArray(output_MSS,Nx,Ny,Nz)
-    */
   }
 
   @Ignore
@@ -1571,6 +1560,7 @@ class TestMapSeqSlide
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),O),
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),O),
       (mat1,mat2) =>
+        TransposeW() o Map(TransposeW()) o TransposeW() o
         MapGlb(2)(MapGlb(1)(MapGlb(0)(
           fun( m => {
 
@@ -1625,7 +1615,7 @@ class TestMapSeqSlide
             toGlobal(id) $ stencil
 
           }),slidesize,slidestep)) o Transpose() o Map(Transpose()) } $ x )))
-          o PrintType() o Slide2D(slidesize,slidestep)  $ Zip3D(mat1, mat2)
+          o Transpose() o Slide2D(slidesize,slidestep) o Map(Transpose()) o Transpose()  $ Zip3D(mat1, mat2)
     )
 
     //println(Compile(original3DStencil(slidesize,slidestep)))

@@ -1456,8 +1456,9 @@ class OpenCLGenerator extends Generator {
         {
             for( j <- 1 to reuse.eval)
             {
-                innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${i+(j-1)*reuseSize}")), VarRef(sSP.windowVar, suffix = Some(s"_${i+j*reuseSize}")))
-                println("reuse: "+i+j*reuseSize)
+                  val skip  = size.eval - reuse.eval - 1
+                  innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${i+(j-1)*reuseSize}")), VarRef(sSP.windowVar, suffix = Some(s"_${i+((skip+j)*reuseSize)}")))
+                println("skip: "+skip+" reuse: "+(i+skip+(j-1)*reuseSize)+"--->"+(i+skip+j*reuseSize))
             }
         }
     }
