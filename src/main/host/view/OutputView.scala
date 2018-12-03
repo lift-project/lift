@@ -15,11 +15,16 @@ object OutputView {
     node match {
 
 
-      case a@ArrayFromUserFunGenerator(f, at) =>   a.outputView = ViewGeneratorUserFun(f, at)
-      case a@Array2DFromUserFunGenerator(f, at) => a.outputView = View2DGeneratorUserFun(f, at)
-      case a@Array3DFromUserFunGenerator(f, at) => a.outputView = View3DGeneratorUserFun(f, at)
+      case a@ArrayFromUserFunGenerator(f, at) =>
+        a.outputView = ViewGeneratorUserFun(f, at)
+      case a@Array2DFromUserFunGenerator(f, at) =>
+        a.outputView = View2DGeneratorUserFun(f, at)
+      case a@Array3DFromUserFunGenerator(f, at) =>
+        a.outputView = View3DGeneratorUserFun(f, at)
 
       case fc@FunCall(_:Zip, args@_*) => {
+
+        assert(fc.outputView != NoView)
 
         val result = fc.outputView.unzip()
 
@@ -28,22 +33,39 @@ object OutputView {
           case _ =>
         })
 
+        args.foreach(a => assert(a.outputView != NoView))
+
         args.foreach(generateOutputView(_))
 
 
       }
 
       case fc@FunCall(Get(n), arg) => {
+
+        assert(fc.outputView != NoView)
+
         arg.outputView = fc.outputView
+
+        assert(arg.outputView != NoView)
+
         generateOutputView(arg)
       }
 
 
       case fc@FunCall(Split(n), arg) => {
+
+        assert(fc.outputView != NoView)
+
         arg.outputView = fc.outputView.join(n);
+
+        assert(arg.outputView != NoView)
+
         generateOutputView(arg)
       }
       case fc@FunCall(_:Join, arg) => {
+
+        assert(fc.outputView != NoView)
+
 
         val n = fc.argsType match {
           case ArrayType(ArrayTypeWSWC(_, s,c)) if s==c => s
@@ -51,10 +73,14 @@ object OutputView {
         }
         arg.outputView = fc.outputView.split(n)
 
+        assert(arg.outputView != NoView)
+
         generateOutputView(arg)
       }
 
       case fc@FunCall(TransposeW(), arg) => {
+
+        assert(fc.outputView != NoView)
 
         arg.outputView = fc.outputView
         fc.t match {
@@ -66,11 +92,15 @@ object OutputView {
           case _ => assert(false, "Other types other than 2D array are not allowed for TransposeW()")
         }
 
+        assert(arg.outputView != NoView)
+
         generateOutputView(arg)
 
       }
 
       case fc@FunCall(_:UserFun, args@_*) => {
+
+        assert(fc.outputView != NoView)
 
         args.foreach (
           arg => arg match {
@@ -82,6 +112,8 @@ object OutputView {
             case _ => assert(false, "Some Type not implemented")
           }
         )
+
+        args.foreach(a => assert(a.outputView != NoView))
 
         args.foreach(generateOutputView(_) )
 
@@ -102,7 +134,7 @@ object OutputView {
 
       case fc@FunCall(m:AbstractMap, arg) => {
 
-
+        assert(fc.outputView != NoView)
 
         //this line reflect the map semantic
         m.f.body.outputView = fc.outputView.access(m.loopVar)
@@ -111,12 +143,16 @@ object OutputView {
 
         arg.outputView = ViewMap(m.f.params.head.outputView, m.loopVar, arg.t)
 
+        assert(arg.outputView != NoView)
+
         generateOutputView(arg)
 
 
       }
 
       case fc@FunCall(r: AbstractPartRed, args@_*) => {
+
+        assert(fc.outputView != NoView)
 
         assert(args.length == 2)
 
@@ -130,6 +166,8 @@ object OutputView {
         acc.outputView = UnusedInExprOutputView
         array.outputView = ViewMap(r.f.params(1).outputView, r.loopVar, array.t)
 
+        args.foreach(a => assert(a.outputView != NoView))
+
         args.foreach(generateOutputView(_))
 
 
@@ -142,7 +180,13 @@ object OutputView {
       }
 
       case fc@FunCall(_, arg) => {
+
+        assert(fc.outputView != NoView)
+
         arg.outputView = fc.outputView
+
+        assert(arg.outputView != NoView)
+
         generateOutputView(arg)
       }
 

@@ -405,10 +405,13 @@ class TestHost {
 
   @Test
   def test_fft1(): Unit = {
+
+    val path = "/home/lu/Documents/Research/lift/src/test/host/10.fft"
+    val file = "libfft.cpp"
+
     val f =
       \(ArrayTypeWSWC(TupleType(Double, Double), N_fft),
         (x) =>
-      Transpose() o Split(N_fft/p_pass2) o
             //
             //First pass
             //
@@ -429,6 +432,9 @@ class TestHost {
             //Create an array of small Butterfly matrices.
             Pad(0, (N_fft/p_pass1) - 1, WrapUnsafe) $ reorderedB_pass1)
       )
+
+    CompileHost(f, path, file)
+
   }
 
   def assertTupleArrayEquals(expecteds: Array[(Double, Double)], actuals: Array[(Double, Double)],
