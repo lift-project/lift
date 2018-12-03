@@ -29,7 +29,9 @@ object OutputView {
         val result = fc.outputView.unzip()
 
         args.zipWithIndex.foreach({
-          case (arg: Param, id) if arg.outputView == NoView => arg.outputView = result.get(id)
+          //case (arg: Param, id) if arg.outputView == NoView =>
+          case (arg: Expr, id) if arg.outputView == NoView =>
+            arg.outputView = result.get(id)
           case _ =>
         })
 

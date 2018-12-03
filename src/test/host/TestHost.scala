@@ -125,6 +125,14 @@ class TestHost {
   }
 
   @Test
+  def test_reduceseq_zip(): Unit = {
+
+    val path = "/home/lu/Documents/Research/lift/src/test/host/12.reduceseq_zip"
+    val file = "libreduceseq_zip.cpp"
+
+  }
+
+  @Test
   def test_split_join(): Unit = {
 
     val path = "/home/lu/Documents/Research/lift/src/test/host/03.split_join"
@@ -327,6 +335,8 @@ class TestHost {
     Seq(TupleType(Double, Double), TupleType(TupleType(Double, Double), TupleType(Double, Double))),
     TupleType(Double, Double))
 
+
+  //Seq(TupleType(Double, Double), TupleType(TupleType(Double, Double), TupleType(Double, Double))),
   //--------------------------------------------------------------------------------
 
   @Test
@@ -406,7 +416,7 @@ class TestHost {
   @Test
   def test_fft1(): Unit = {
 
-    val path = "/home/lu/Documents/Research/lift/src/test/host/10.fft"
+    val path = "/home/lu/Documents/Research/lift/src/test/host/11.fft1"
     val file = "libfft.cpp"
 
     val f =
@@ -419,11 +429,10 @@ class TestHost {
             MapSeq(\((yChunkWithBrow) => {
 
             //Matrix multiplication of Butterfly matrix with accompanying chunk of input array.
-            val yChunk = yChunkWithBrow._0
-            val Brow = yChunkWithBrow._1
+            val yChunk = Get(yChunkWithBrow,0)
+            val Brow = Get(yChunkWithBrow,1)
             Join() o MapSeq(\((Bchunk) =>
-              ReduceSeq(complexMultAndSumUp, complex_zero)
-                $ Zip(yChunk, Bchunk)
+              ReduceSeq(complexMultAndSumUp, complex_zero) $ Zip(yChunk, Bchunk)
             )) $ Brow
 
             //Assign Butterfly matrices to accompanying parts of the input array.
