@@ -456,14 +456,14 @@ class TestRewriteStencil25DTiling
            o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() $ Zip3D( mat1, mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig0))
     )
 
+
     val firstMapRewriteStencil3D = Rewrite.applyRuleAtId(original3DStencil(slidesize,slidestep),49,OpenCLRules.mapSeq)
 
     val rewriteStencil3D = Rewrite.applyRuleAtId(firstMapRewriteStencil3D,0,MapSeqSlideRewrite.mapSeqSlide3DSlideND)
-    println(rewriteStencil3D)
 
-    val secondMapRewriteStencil3D = Rewrite.applyRuleAtId(rewriteStencil3D,30,OpenCLRules.mapGlb(1))
+    val secondMapRewriteStencil3D = Rewrite.applyRuleAtId(rewriteStencil3D,38,OpenCLRules.mapGlb(1))
 
-    val thirdMapRewriteStencil3D = Rewrite.applyRuleAtId(secondMapRewriteStencil3D,0,OpenCLRules.mapGlb(0))
+    val thirdMapRewriteStencil3D = Rewrite.applyRuleAtId(secondMapRewriteStencil3D,3,OpenCLRules.mapGlb(0))
 
     val (gold: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](rewrite3DStencilCompare(slidesize,slidestep), stencilarrpadded3D,stencilarrOther3D)
     val (rewrite_output: Array[Float], _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](thirdMapRewriteStencil3D,stencilarrpadded3D,stencilarrOther3D)

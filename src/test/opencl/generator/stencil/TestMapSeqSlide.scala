@@ -52,9 +52,10 @@ object MapSeqSlideHelpers
   def stencil2D(size: Int, step :Int) = fun(
     ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
     (input) =>
+      TransposeW() o
       MapGlb(0)(fun(x => {
         toGlobal(MapSeqSlide(MapSeq(id) o ReduceSeq(add, 0.0f) o Join(), size, step)) o Transpose() $ x
-      })) o Slide(size,step)  $ input
+      })) o Slide(size,step) o Transpose() $ input
   )
 
   def getMiddle2D(size: Int, step :Int) = fun(
@@ -88,7 +89,6 @@ object MapSeqSlideHelpers
           fun(x => add(x,`tile[1][2][1]`)) $ `tile[2][1][1]`
 
         toGlobal(id) $ stencil
-        //toGlobal(id) $ `tile[0][0][0]`
 
       }))))
         o Slide3D(a,b) $ mat)
@@ -97,6 +97,7 @@ object MapSeqSlideHelpers
   def stencil3D(a: Int ,b :Int) = fun(
     ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O), N), M),
     (input) =>
+      TransposeW() o Map(TransposeW()) o TransposeW() o
       MapGlb(1)(MapGlb(0)(fun(x => {
         toGlobal(MapSeqSlide(
           fun(m => {
@@ -119,9 +120,8 @@ object MapSeqSlideHelpers
               fun(x => add(x,`tile[1][2][1]`))) $ `tile[2][1][1]`
 
             toGlobal(id) $ stencil
-            //toGlobal(id) $ `tile[0][0][0]`
 
-          }), a,b)) o Transpose() o Map(Transpose()) $ x }))) o Slide2D(a,b)  $ input
+          }), a,b)) o Transpose() o Map(Transpose()) $ x }))) o Transpose() o Slide2D(a,b) o Map(Transpose()) o Transpose()  $ input
   )
 }
 
@@ -544,6 +544,7 @@ class TestMapSeqSlide
       ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
       ArrayTypeWSWC(Float, StencilUtilities.weightsArr.length),
       (input, weights) =>
+        TransposeW() o
         MapGlb(0)(fun(x => {
           val tmpSum = 0.0f
           toGlobal(MapSeqSlide(fun(neighbours => {
@@ -554,7 +555,7 @@ class TestMapSeqSlide
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights)
           }), a,b)) o  Transpose() $ x
-        })) o Slide(a,b)  $ input
+        })) o Slide(a,b) o Transpose()  $ input
     )
 
     val (output, _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](stencil2D(slidesize,slidestep), values, StencilUtilities.weightsArr)
