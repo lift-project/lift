@@ -1213,6 +1213,17 @@ object GenericAST {
 
   trait DoubleTypeT extends FloatingPointTypeT
 
+  case class DoubleType(name: String) extends DoubleTypeT {
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+
+  object DoubleType {
+    def apply() = new FloatType("double")
+  }
+
   trait PointerTypeT extends CTypeT
 
   case class PointerType(name: String, t: CTypeT) extends PointerTypeT {

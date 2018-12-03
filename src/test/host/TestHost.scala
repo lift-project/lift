@@ -24,6 +24,11 @@ class TestHost {
     "{ return (l + r); }",
     Seq(Float, Float), Float)
 
+  val add_complex = UserFun("add_complex", Array("l", "r"),
+    "{ return (l._1+r._1, l._2+r._2) }",
+    Seq(TupleType(Double,Double), TupleType(Double, Double)), TupleType(Double,Double)
+  )
+
 
   private def compile_native(path: String, file: String): Unit = {
 
@@ -129,6 +134,15 @@ class TestHost {
 
     val path = "/home/lu/Documents/Research/lift/src/test/host/12.reduceseq_zip"
     val file = "libreduceseq_zip.cpp"
+
+    val f = fun(
+      ArrayType(Double, N),
+      ArrayType(Double, N),
+      (left, right) => ReduceSeq( add_complex, (0.0,0.0) )  $ Zip(left, right)
+      //[(x,x)...] => [(x,x)]
+    )
+
+    CompileHost(f, path, file)
 
   }
 
