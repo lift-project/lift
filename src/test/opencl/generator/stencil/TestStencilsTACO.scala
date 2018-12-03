@@ -1,7 +1,6 @@
 package opencl.generator.stencil
 
-import ir.ast.debug.PrintType
-import ir.{ArrayType, ArrayTypeWSWC}
+import ir.ArrayType
 import ir.ast.{Get, Pad, Pad3D, Slide3D, UserFun, Zip3D, fun, _}
 import lift.arithmetic.SizeVar
 import opencl.executor._
@@ -10,7 +9,6 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeqSlide, toGlobal, toPrivate}
 import org.junit.Assert._
 import org.junit._
-import rewriting.SimplifyAndFuse
 
 object TestStencilsTACO extends TestWithExecutor
 
@@ -332,17 +330,11 @@ class TestStencilsTACO {
           }), size, step))
         } o Transpose() o Map(Transpose()) $ x)))  o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose()  $ Zip3D(PadConstant3D(1, 1, 1, 0.0f) $ mat1, PadConstant3D(1, 1, 1, 0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno2))
       })
-    /*
-    val mssLambda = SimplifyAndFuse(aStencilMSS)
-    val source = Compile(mssLambda)//, NDRange(32,4,2), NDRange(n,m,1))
-    println(source)
-*/
+
     val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](aStencil, data, data)
     val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](aStencilMSS, data, data)
 
     assertArrayEquals(output_MSS, output_org, delta)
-//    StencilUtilities.print1DArrayAs3DArray(output_org,localDimX,localDimY,localDimZ)
-//    StencilUtilities.print1DArrayAs3DArray(output_MSS,localDimX,localDimY,localDimZ)
 
   }
 
@@ -843,6 +835,46 @@ class TestStencilsTACO {
       Float, Float, Float, Float, Float, Float, Float, Float, Float,
       Float, Float, Float, Float, Float, Float, Float, Float, Float), Float)
 
+  def calculate27ptStencil(nbh: Param) =
+  {
+    //              z     y     x
+    val fnw = nbh.at(0).at(0).at(0)
+    val fn  = nbh.at(0).at(0).at(1)
+    val fne = nbh.at(0).at(0).at(2)
+    val fw  = nbh.at(0).at(1).at(0)
+    val f   = nbh.at(0).at(1).at(1)
+    val fe  = nbh.at(0).at(1).at(2)
+    val fsw = nbh.at(0).at(2).at(0)
+    val fs  = nbh.at(0).at(2).at(1)
+    val fse = nbh.at(0).at(2).at(2)
+
+    val nw  = nbh.at(1).at(0).at(0)
+    val n   = nbh.at(1).at(0).at(1)
+    val ne  = nbh.at(1).at(0).at(2)
+    val w   = nbh.at(1).at(1).at(0)
+    val c   = nbh.at(1).at(1).at(1)
+    val e   = nbh.at(1).at(1).at(2)
+    val sw  = nbh.at(1).at(2).at(0)
+    val s   = nbh.at(1).at(2).at(1)
+    val se  = nbh.at(1).at(2).at(2)
+
+    val bnw = nbh.at(2).at(0).at(0)
+    val bn  = nbh.at(2).at(0).at(1)
+    val bne = nbh.at(2).at(0).at(2)
+    val bw  = nbh.at(2).at(1).at(0)
+    val b   = nbh.at(2).at(1).at(1)
+    val be  = nbh.at(2).at(1).at(2)
+    val bsw = nbh.at(2).at(2).at(0)
+    val bs  = nbh.at(2).at(2).at(1)
+    val bse = nbh.at(2).at(2).at(2)
+
+    toGlobal(id) o toPrivate(fun(x =>
+      jacobi27(x, fn, fne, fw, f, fe, fsw, fs, fse,
+        nw, n, ne, w, c, e, sw, s, se,
+        bnw, bn, bne, bw, b, be, bsw, bs, bse))) $ fnw
+
+  }
+
   @Ignore
   @Test def j3d27pt: Unit = {
     val M = 512
@@ -865,41 +897,7 @@ class TestStencilsTACO {
           Pad3D(1,1,1,Pad.Boundary.Clamp) o
           MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
 
-            //              z     y     x
-            val fnw = nbh.at(0).at(0).at(0)
-            val fn  = nbh.at(0).at(0).at(1)
-            val fne = nbh.at(0).at(0).at(2)
-            val fw  = nbh.at(0).at(1).at(0)
-            val f   = nbh.at(0).at(1).at(1)
-            val fe  = nbh.at(0).at(1).at(2)
-            val fsw = nbh.at(0).at(2).at(0)
-            val fs  = nbh.at(0).at(2).at(1)
-            val fse = nbh.at(0).at(2).at(2)
-
-            val nw  = nbh.at(1).at(0).at(0)
-            val n   = nbh.at(1).at(0).at(1)
-            val ne  = nbh.at(1).at(0).at(2)
-            val w   = nbh.at(1).at(1).at(0)
-            val c   = nbh.at(1).at(1).at(1)
-            val e   = nbh.at(1).at(1).at(2)
-            val sw  = nbh.at(1).at(2).at(0)
-            val s   = nbh.at(1).at(2).at(1)
-            val se  = nbh.at(1).at(2).at(2)
-
-            val bnw = nbh.at(2).at(0).at(0)
-            val bn  = nbh.at(2).at(0).at(1)
-            val bne = nbh.at(2).at(0).at(2)
-            val bw  = nbh.at(2).at(1).at(0)
-            val b   = nbh.at(2).at(1).at(1)
-            val be  = nbh.at(2).at(1).at(2)
-            val bsw = nbh.at(2).at(2).at(0)
-            val bs  = nbh.at(2).at(2).at(1)
-            val bse = nbh.at(2).at(2).at(2)
-
-            toGlobal(id) o toPrivate(fun(x =>
-              jacobi27(x, fn, fne, fw, f, fe, fsw, fs, fse,
-                nw, n, ne, w, c, e, sw, s, se,
-                bnw, bn, bne, bw, b, be, bsw, bs, bse))) $ fnw
+            calculate27ptStencil(nbh)
 
           })))) o Slide3D(size, step) $ input
       })
@@ -922,41 +920,7 @@ class TestStencilsTACO {
           Pad3D(1,1,1,Pad.Boundary.Clamp) o
           MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
 
-            //              z     y     x
-            val fnw = nbh.at(0).at(0).at(0)
-            val fn  = nbh.at(0).at(0).at(1)
-            val fne = nbh.at(0).at(0).at(2)
-            val fw  = nbh.at(0).at(1).at(0)
-            val f   = nbh.at(0).at(1).at(1)
-            val fe  = nbh.at(0).at(1).at(2)
-            val fsw = nbh.at(0).at(2).at(0)
-            val fs  = nbh.at(0).at(2).at(1)
-            val fse = nbh.at(0).at(2).at(2)
-
-            val nw  = nbh.at(1).at(0).at(0)
-            val n   = nbh.at(1).at(0).at(1)
-            val ne  = nbh.at(1).at(0).at(2)
-            val w   = nbh.at(1).at(1).at(0)
-            val c   = nbh.at(1).at(1).at(1)
-            val e   = nbh.at(1).at(1).at(2)
-            val sw  = nbh.at(1).at(2).at(0)
-            val s   = nbh.at(1).at(2).at(1)
-            val se  = nbh.at(1).at(2).at(2)
-
-            val bnw = nbh.at(2).at(0).at(0)
-            val bn  = nbh.at(2).at(0).at(1)
-            val bne = nbh.at(2).at(0).at(2)
-            val bw  = nbh.at(2).at(1).at(0)
-            val b   = nbh.at(2).at(1).at(1)
-            val be  = nbh.at(2).at(1).at(2)
-            val bsw = nbh.at(2).at(2).at(0)
-            val bs  = nbh.at(2).at(2).at(1)
-            val bse = nbh.at(2).at(2).at(2)
-
-            toGlobal(id) o toPrivate(fun(x =>
-              jacobi27(x, fn, fne, fw, f, fe, fsw, fs, fse,
-                nw, n, ne, w, c, e, sw, s, se,
-                bnw, bn, bne, bw, b, be, bsw, bs, bse))) $ fnw
+            calculate27ptStencil(nbh)
 
           })))) o Slide3D(size, step) $ input
       })
@@ -972,41 +936,7 @@ class TestStencilsTACO {
           MapGlb(2)(MapGlb(1)(fun( x => {
             toGlobal(MapSeqSlide(fun(nbh => {
 
-              //              z     y     x
-              val fnw = nbh.at(0).at(0).at(0)
-              val fn  = nbh.at(0).at(0).at(1)
-              val fne = nbh.at(0).at(0).at(2)
-              val fw  = nbh.at(0).at(1).at(0)
-              val f   = nbh.at(0).at(1).at(1)
-              val fe  = nbh.at(0).at(1).at(2)
-              val fsw = nbh.at(0).at(2).at(0)
-              val fs  = nbh.at(0).at(2).at(1)
-              val fse = nbh.at(0).at(2).at(2)
-
-              val nw  = nbh.at(1).at(0).at(0)
-              val n   = nbh.at(1).at(0).at(1)
-              val ne  = nbh.at(1).at(0).at(2)
-              val w   = nbh.at(1).at(1).at(0)
-              val c   = nbh.at(1).at(1).at(1)
-              val e   = nbh.at(1).at(1).at(2)
-              val sw  = nbh.at(1).at(2).at(0)
-              val s   = nbh.at(1).at(2).at(1)
-              val se  = nbh.at(1).at(2).at(2)
-
-              val bnw = nbh.at(2).at(0).at(0)
-              val bn  = nbh.at(2).at(0).at(1)
-              val bne = nbh.at(2).at(0).at(2)
-              val bw  = nbh.at(2).at(1).at(0)
-              val b   = nbh.at(2).at(1).at(1)
-              val be  = nbh.at(2).at(1).at(2)
-              val bsw = nbh.at(2).at(2).at(0)
-              val bs  = nbh.at(2).at(2).at(1)
-              val bse = nbh.at(2).at(2).at(2)
-
-              toGlobal(id) o toPrivate(fun(x =>
-                jacobi27(x, fn, fne, fw, f, fe, fsw, fs, fse,
-                  nw, n, ne, w, c, e, sw, s, se,
-                  bnw, bn, bne, bw, b, be, bsw, bs, bse))) $ fnw
+              calculate27ptStencil(nbh)
 
             }) ,size,step))} o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() $ input
       })
@@ -1015,8 +945,78 @@ class TestStencilsTACO {
     val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](lambdaMSS, data)
 
     assertArrayEquals(output_org, output_MSS, delta)
-    //StencilUtilities.print1DArrayAs3DArray(output_org,localDimX,localDimY,localDimZ)
-    //StencilUtilities.print1DArrayAs3DArray(output_MSS,localDimX,localDimY,localDimZ)
+
+  }
+
+  def leggy13pt = UserFun("leggy13pt", Array("C","N","E","S","W","T","B","NN","EE","SS","WW","TT","BB"),
+    """return (0.5 * C + 0.7 * N + 0.9 * E +
+      |        1.2 * S + 1.5 * W + 1.2 * T +
+      |        0.9 * B + 0.7 * NN + 0.5 * EE +
+      |        0.51 * SS + 0.71 * WW + 0.91 * TT +
+      |        1.21 * BB) / 20.0f;""".stripMargin,
+    Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float,
+      Float, Float, Float, Float), Float)
+
+  def calculateLeggy13ptStencil(nbh: Param) =
+  {
+    //              z     y     x
+    val c   = nbh.at(2).at(2).at(2)
+
+    val n   = nbh.at(2).at(1).at(2)
+    val nn   = nbh.at(2).at(0).at(2)
+
+    val w   = nbh.at(2).at(2).at(1)
+    val ww   = nbh.at(2).at(2).at(0)
+
+    val e   = nbh.at(2).at(2).at(3)
+    val ee   = nbh.at(2).at(2).at(4)
+
+    val s   = nbh.at(2).at(3).at(2)
+    val ss   = nbh.at(2).at(4).at(2)
+
+    val b   = nbh.at(1).at(2).at(2)
+    val bb   = nbh.at(0).at(2).at(2)
+
+    val t   = nbh.at(3).at(2).at(2)
+    val tt   = nbh.at(4).at(2).at(2)
+
+    toGlobal(id) o toPrivate(fun(x =>
+      jacobi27(n,e,s,w,t,b,nn,ee,ss,ww,tt,bb))) $ c
+
+  }
+
+  @Test
+  def jacobiMSSLeggy: Unit = {
+
+    val size = 5
+    val step = 1
+
+    val originalLambda = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      input => {
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
+
+            calculateLeggy13ptStencil(nbh)
+
+          })))) o Slide3D(size, step) o PadConstant3D(2,2,2,0.0f)  $ input
+      })
+
+    val lambdaMSS = fun(
+      ArrayType(ArrayType(ArrayType(Float, m), n), o),
+      input => {
+        TransposeW() o Map(TransposeW()) o TransposeW() o
+          MapGlb(2)(MapGlb(1)(fun( x => {
+            toGlobal(MapSeqSlide(fun(nbh => {
+
+              calculateLeggy13ptStencil(nbh)
+
+            }) ,size,step))} o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() o PadConstant3D(2,2,2,0.0f) $ input
+      })
+
+    val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](originalLambda, data)
+    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](lambdaMSS, data)
+
+    assertArrayEquals(output_org, output_MSS, delta)
 
   }
 }
