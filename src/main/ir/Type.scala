@@ -252,7 +252,7 @@ object ArrayType {
     if (ae != ? & ae.sign != Sign.Positive)
     // TODO: turn this back into an error (eventually)
     //throw new TypeException("Length must be provably positive! (len="+len+")")
- //     println(s"Warning: $s must be provably positive! (len=$ae)")
+      println(s"Warning: $s must be provably positive! (len=$ae)")
 
     if (ae.isEvaluable) {
       val length = ae.evalDouble
@@ -378,8 +378,8 @@ object Type {
       case st: ScalarType => st.name
       case vt: VectorType => vt.scalarT.name + vt.len.toString
       case tt: TupleType  => s"Tuple${tt.elemsT.length}_" + tt.elemsT.map(Type.name).reduce(_+"_"+_)
+      case at: ArrayType  => "Array_" + Type.name(at.elemT)
       case _ => throw new IllegalArgumentException
-      // adding case: at: ArrayType results in issue #158
     }
   }
 

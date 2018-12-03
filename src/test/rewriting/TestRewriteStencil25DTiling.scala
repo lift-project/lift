@@ -1,7 +1,6 @@
 package rewriting
-import ir.ast.debug.PrintType
-import ir.ast._
 import ir.ArrayTypeWSWC
+import ir.ast._
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.generator.stencil.MapSeqSlideHelpers
@@ -12,7 +11,6 @@ import org.junit.Assert._
 import org.junit._
 import rewriting.macrorules.MapSeqSlideRewrite
 import rewriting.rules.{OpenCLRules, Rules}
-import rewriting.utils.NumberExpression
 
 object TestRewriteStencil25DTiling extends TestWithExecutor
 
@@ -349,7 +347,7 @@ class TestRewriteStencil25DTiling
     val (output_rewrite: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](rewriteStencil3D,values,values2)
 
     assertArrayEquals(output_mss, output, StencilUtilities.stencilDelta)
-    assertArrayEquals(output_rewrite, output, StencilUtilities.stencilDelta)
+    assertArrayEquals(output_rewrite, output_mss, StencilUtilities.stencilDelta)
 
   }
 
@@ -450,17 +448,18 @@ class TestRewriteStencil25DTiling
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2), N+2), M+2),
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, O+2), N+2), M+2),
       (mat1, mat2) =>
-/*        Map(TransposeW()) o TransposeW() o Map(TransposeW()) o */
+       Map(TransposeW()) o TransposeW() o Map(TransposeW()) o
         MapGlb(0)(MapGlb(1)(fun(x => {
           toGlobal(MapSeqSlide(fun(m => {
             acoustic(m)
           }),slidesize,slidestep)) o Transpose() o Map(Transpose()) } $ x )))
-           o Slide2D(size,step) /* o Map(Transpose()) o Transpose() o Map(Transpose())*/ $ Zip3D( mat1, mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig0))
+           o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() $ Zip3D( mat1, mat2,Array3DFromUserFunGenerator(getNumNeighbours, arraySig0))
     )
 
     val firstMapRewriteStencil3D = Rewrite.applyRuleAtId(original3DStencil(slidesize,slidestep),49,OpenCLRules.mapSeq)
 
     val rewriteStencil3D = Rewrite.applyRuleAtId(firstMapRewriteStencil3D,0,MapSeqSlideRewrite.mapSeqSlide3DSlideND)
+    println(rewriteStencil3D)
 
     val secondMapRewriteStencil3D = Rewrite.applyRuleAtId(rewriteStencil3D,30,OpenCLRules.mapGlb(1))
 
