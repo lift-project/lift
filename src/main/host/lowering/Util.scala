@@ -25,7 +25,7 @@ object Util {
    case opencl.ir.Float => FloatType()
    case opencl.ir.Int => IntegerType()
    case ir.TupleType(args@_*) =>
-     ClassOrStructType("tuple_"+args.mkString("_"))
+     ClassOrStructType("std::tuple" + args.mkString("<", ",", ">"))
    case _ => {
     assert(false, "Unimplemented type converstion from IR type to CAST type")
     VoidType()

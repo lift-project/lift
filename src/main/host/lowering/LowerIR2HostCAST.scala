@@ -117,8 +117,11 @@ object LowerIR2HostCAST {
     } }.asInstanceOf[AssignmentExpression]
 
     val funcall = assignment.value.asInstanceOf[FunctionCall]
-    val init_assignment = AssignmentExpression(assignment.to, FunctionCall(funcall.name, List(funcall.args(0), funcall.args(1).asInstanceOf[VarRef].copy(arrayIndex = Some(ArithExpression(Cst(0)))))) )
-    val inloop_assignment = AssignmentExpression(assignment.to, FunctionCall(funcall.name, List(assignment.to,funcall.args(1))))
+    val init_value = funcall.args(0)
+    val tuple_args = funcall.args.tail
+    val tuple_args_for_first_iter = tuple_args.map({case VarRef(v,suffix,_) => VarRef(v,suffix, Some(ArithExpression(Cst(0))))})
+    val init_assignment = AssignmentExpression(assignment.to, FunctionCall(funcall.name, init_value :: tuple_args_for_first_iter) )
+    val inloop_assignment = AssignmentExpression(assignment.to, FunctionCall(funcall.name, assignment.to :: tuple_args))
     val inloop_assignment_block = Block(Vector(ExpressionStatement(inloop_assignment)))
 
     arg_block :+ comment :+ init_assignment :+ ForLoopIm( init, cond, increment, inloop_assignment_block )

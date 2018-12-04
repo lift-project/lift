@@ -126,7 +126,7 @@ class TestHost {
   }
 
   val add_complex = UserFun("add_complex", Array("init", "l", "r"),
-    "{ return (init._0+l, init._1+r) }",
+    "{ return {std::get<0>(init)+l, std::get<1>(init)+r}; }",
     Seq(TupleType(Double,Double), Double, Double), TupleType(Double,Double)
   )
 
@@ -139,10 +139,16 @@ class TestHost {
     val f = fun(
       ArrayType(Double, N),
       ArrayType(Double, N),
-      (left, right) => ReduceSeq( fun((init, aValueInArray)=>add_complex.apply(init, Get(aValueInArray,0), Get(aValueInArray, 1))), (0.0,0.0) )  $ Zip(left, right)
+      (left, right) => ReduceSeq( fun((init, aValueInArray)=>add_complex.apply(init, Get(aValueInArray,0), Get(aValueInArray, 1))), (1.0,2.0) )  $ Zip(left, right)
     )
 
     CompileHost(f, path, file)
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "17 34 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_zip done!")
 
   }
 
@@ -456,7 +462,7 @@ class TestHost {
             Pad(0, (N_fft/p_pass1) - 1, WrapUnsafe) $ reorderedB_pass1)
       )
 
-    CompileHost(f, path, file)
+    //CompileHost(f, path, file)
 
   }
 
