@@ -266,7 +266,7 @@ class OpenCLGenerator extends Generator {
         var hasChanged = true
         while(hasChanged )
         {
-            val result = UnrollValues.inlinePrivateMemoryStructValues(inlineBlock)
+            inlineBlock = UnrollValues.inlinePrivateMemoryStructValues(inlineBlock)
             hasChanged = UnrollValues.hasChanged
         }
 
