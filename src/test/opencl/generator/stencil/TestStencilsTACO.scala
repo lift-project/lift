@@ -584,10 +584,6 @@ class TestStencilsTACO {
     println(kernel)
   }
 
-  /**
-    * TODO fix this test!
-    */
-//  @Ignore
   @Test
   def jacobi13ptMSS: Unit = {
 
@@ -948,75 +944,4 @@ class TestStencilsTACO {
 
   }
 
-  def leggy13pt = UserFun("leggy13pt", Array("C","N","E","S","W","T","B","NN","EE","SS","WW","TT","BB"),
-    """return (0.5 * C + 0.7 * N + 0.9 * E +
-      |        1.2 * S + 1.5 * W + 1.2 * T +
-      |        0.9 * B + 0.7 * NN + 0.5 * EE +
-      |        0.51 * SS + 0.71 * WW + 0.91 * TT +
-      |        1.21 * BB) / 20.0f;""".stripMargin,
-    Seq(Float, Float, Float, Float, Float, Float, Float, Float, Float,
-      Float, Float, Float, Float), Float)
-
-  def calculateLeggy13ptStencil(nbh: Param) =
-  {
-    //              z     y     x
-    val c   = nbh.at(2).at(2).at(2)
-
-    val n   = nbh.at(2).at(1).at(2)
-    val nn   = nbh.at(2).at(0).at(2)
-
-    val w   = nbh.at(2).at(2).at(1)
-    val ww   = nbh.at(2).at(2).at(0)
-
-    val e   = nbh.at(2).at(2).at(3)
-    val ee   = nbh.at(2).at(2).at(4)
-
-    val s   = nbh.at(2).at(3).at(2)
-    val ss   = nbh.at(2).at(4).at(2)
-
-    val b   = nbh.at(1).at(2).at(2)
-    val bb   = nbh.at(0).at(2).at(2)
-
-    val t   = nbh.at(3).at(2).at(2)
-    val tt   = nbh.at(4).at(2).at(2)
-
-    toGlobal(id) o toPrivate(fun(x =>
-      jacobi27(n,e,s,w,t,b,nn,ee,ss,ww,tt,bb))) $ c
-
-  }
-
-  @Test
-  def jacobiMSSLeggy: Unit = {
-
-    val size = 5
-    val step = 1
-
-    val originalLambda = fun(
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      input => {
-          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(nbh => {
-
-            calculateLeggy13ptStencil(nbh)
-
-          })))) o Slide3D(size, step) o PadConstant3D(2,2,2,0.0f)  $ input
-      })
-
-    val lambdaMSS = fun(
-      ArrayType(ArrayType(ArrayType(Float, m), n), o),
-      input => {
-        TransposeW() o Map(TransposeW()) o TransposeW() o
-          MapGlb(2)(MapGlb(1)(fun( x => {
-            toGlobal(MapSeqSlide(fun(nbh => {
-
-              calculateLeggy13ptStencil(nbh)
-
-            }) ,size,step))} o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() o PadConstant3D(2,2,2,0.0f) $ input
-      })
-
-    val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](originalLambda, data)
-    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](lambdaMSS, data)
-
-    assertArrayEquals(output_org, output_MSS, delta)
-
-  }
 }
