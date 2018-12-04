@@ -365,12 +365,12 @@ package object cnn {
           raw"void KERNEL\(const global float\* restrict v__(\d+), " +
             raw"const global float\* restrict v__(\d+), " +
             raw"const global float\* restrict v__(\d+), " +
-            raw"global float\* v__(\d+)\)\{ \n" +
-            raw"\#ifndef WORKGROUP_GUARD\n" +
-            raw"\#define WORKGROUP_GUARD\n" +
-            raw"\#endif\n" +
-            raw"WORKGROUP_GUARD\n" +
-            raw"\{",
+            raw"global float\* v__(\d+)\)\{.*\n" +
+            raw".*\#ifndef WORKGROUP_GUARD\n" +
+            raw".*\#define WORKGROUP_GUARD\n" +
+            raw".*\#endif\n" +
+            raw".*WORKGROUP_GUARD\n" +
+            raw".*\{",
           "void KERNEL(const global float* restrict v__$1, const global float* restrict v__$2, " +
             "const global float* restrict v__$3, global float* v__$4, int const offsetX, int const offsetOut){\n" +
             "#ifndef WORKGROUP_GUARD\n" +

@@ -352,7 +352,7 @@ class TestCNN {
                   localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
                   globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),
                   kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" + param.netName + "/" +
-                    param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_first.cl")
+                    param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + ".cl")
             }
 
             layer.runtime = runtime
