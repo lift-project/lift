@@ -8,6 +8,9 @@ import ir.ast._
 import nn._
 
 trait ConvCompanion {
+
+  val expectDataShapeWHC: Boolean
+
   /* Parallel layer */
   def Par(activationF: UserFun, inputShape: Shape, inputTiling: SlidingWindowConfig, nKernels: Int,
           kernelSliding: SlidingWindowConfig,
@@ -29,6 +32,10 @@ trait ConvCompanion {
         f"\ndim = " + dim.toString + "," +
         f"\npadData = $padData%b," +
         f"\ntestConfigFilename = $testConfigFilename%s)"}
+
+
+  def exceptionMsgPrefix(iP: InitParameters): String = "In the Conv layer with the following configuration:\n" +
+    conv.configToString(iP.inputShape, Shape(), nn.conv.Experiment.Config(iP.dim, iP.optParams))
 
 
   def apply(iP: InitParameters): Conv
@@ -63,6 +70,20 @@ abstract class Conv(val liftFProp: Array[FunDecl],
                     val coalesce: Boolean, val unrollReduce: Boolean,
                     val localSize: Array[Int], val globalSize: Array[Int]) extends Layer {
   var runtime: Double
+
+  override def toString: String =
+    conv.configToString(inputShape, outputShape, nn.conv.Experiment.Config(
+      conv.Experiment.Config.Dimensions(
+        nKernels = kernelSliding.nChannels,
+        kernelSize = kernelSliding.size,
+        kernelStride = kernelSliding.stride),
+      conv.Experiment.Config.OptimisationalParams(
+        inputTileSize = inputTiling.size,
+        elsPerThread = elsPerThread,
+        kernelsPerGroup = kernelsPerGroup,
+        vectorLen = vectorLen,
+        coalesce = coalesce,
+        unrollReduce = unrollReduce)))
 
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit
 }

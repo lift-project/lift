@@ -36,5 +36,5 @@ configure
 echo "Build executor"
 build
 
-mkdir ./target/scala-2.11/classes/lib
+mkdir -p ./target/scala-2.11/classes/lib
 cp ./src/main/resources/lib/libexecutor-jni.so ./target/scala-2.11/classes/lib/

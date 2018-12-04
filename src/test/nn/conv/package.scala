@@ -118,13 +118,11 @@ package object conv {
       Array(Array(4269f, 4269f+1, 4269f+2), Array(4350f, 4350f+1, 4350f+2), Array(4431f, 4431f+1, 4431f+2),
             Array(4512f, 4512f+1, 4512f+2), Array(4593f, 4593f+1, 4593f+2), Array(4674f, 4674f+1, 4674f+2)))))
 
-  def configToString(inputSize: Int, outputSizePadded: Int, elsPerThread: Int, nKernels: Int, 
-                     kernelsPerGroup: Int, vectorLen: Int, coalesce: Boolean, unrollReduce: Boolean,
-                     kernelSize: Int, kernelStride: Int, inputTileSize: Int): String = {
-    f"inputSize=$inputSize%d, outputSizePadded=$outputSizePadded%d, \n" +
-      f"inputTileSize=$inputTileSize%d, kernelSize=$kernelSize%d, kernelStride=$kernelStride%d, \n" +
-      f"elsPerThread=$elsPerThread%d, nKernels=$nKernels%d, kernelsPerGroup=$kernelsPerGroup%d, \n" +
-      f"vectorLen=$vectorLen%d, coalesce=$coalesce%b, unrollReduce=$unrollReduce%b\n"
+  def configToString(inputShape: Shape, outputShape: Shape,
+                     convConfig: nn.conv.Experiment.Config): String = {
+    f"inputShape=" + inputShape.toString() + "\n\n" +
+      f"outputShape=" + outputShape.toString() + "\n\n" +
+      f"convConfig=" + convConfig.toString() + "\n"
   }
 
 

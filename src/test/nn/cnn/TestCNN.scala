@@ -39,9 +39,8 @@ class TestCNN {
   val codeVersion: Int = 23
   val reruns: Int = 1
   val padData: Boolean = false
-  val changeDataLayout: Boolean = true
-  val Conv = conv.versions.Conv4
-  type Conv = conv.versions.Conv4
+  val Conv = conv.versions.Conv2
+  type Conv = conv.versions.Conv2
 
   //@Test
   def TestFC(): Unit = {
@@ -101,13 +100,15 @@ class TestCNN {
       convDimensions <- param.convDimensions
       fcDimensions <- param.fcDimensions
 
-      if {List(1).contains(param.layerNo)} // Run specific layers only
+//      if {List(6).contains(param.layerNo)} // Run specific layers only
 
       if cnn.Experiment.isFirstRun(inputConfig) || rerunsAllowed
 
+      configFilename = cnn.Experiment.generateConfigs(param)
+
       if cnn.Experiment.inputsExist(inputConfig, convDimensions.head, param.netName) ||
         (// Try generating files and recheck
-          cnn.Experiment.generateFiles(param) &&
+          cnn.Experiment.generateFiles(configFilename) &&
             cnn.Experiment.inputsExist(inputConfig, convDimensions.head, param.netName))
 
       if cnn.Experiment.targetsExist(inputConfig, convDimensions.head, param.netName)
@@ -151,6 +152,7 @@ class TestCNN {
       //f"Creating experiments for layer ${layerExperimentParams.layerName}%s")
 
       // If enabled, skip experiments until the one specified
+
       if !skip || {
         if (continueFrom == exp) {
           skip = false
@@ -249,7 +251,7 @@ class TestCNN {
                     //                    Array.fill(512)(Array.fill(3)(Array.fill(3)(Array.fill[Float](256)(0.0f)))),
                     layerData match {
                       case cd: ConvDatasets => {
-                        if (changeDataLayout)
+                        if (Conv.expectDataShapeWHC)
                         // (k, c, h, w) -> (k, h, w, c)
                           cd.weights.map(
                             kernel => kernel.transpose.map(
@@ -262,7 +264,7 @@ class TestCNN {
                     //                      Array.fill(1)(Array.fill(15)(Array.fill(30)(Array.fill(30)(Array.fill[Float](256)(0.0f))))))
                     layerData match {
                       case cd: ConvDatasets => {
-                        if (changeDataLayout)
+                        if (Conv.expectDataShapeWHC)
                         // (b, i, c, h, w) -> (b, i, h, w, c)
                           cd.inputs.padded.map(
                             batch => batch.map(
@@ -275,12 +277,12 @@ class TestCNN {
 
                 if (compileOnly) {
                   outputsFlat1 = new Array[Float](
-                    /* nTilesTotal */ convLayer.inputTiling.n * convLayer.inputTiling.n *
+                    /* nTilesTotal */ (convLayer.inputTiling.n.toLong * convLayer.inputTiling.n *
                       convLayer.inputShape.nInputs * convLayer.inputShape.nBatches *
                       /* nKernels */convLayer.kernelSliding.nChannels *
                       /* nWindowsInTile */convLayer.kernelSliding.n * convLayer.kernelSliding.n *
                       /* nSeqTilesInWindow */convLayer.inputShape.nChannels * convLayer.kernelSliding.size *
-                      convLayer.kernelSliding.size / convLayer.elsPerThread)
+                      convLayer.kernelSliding.size / convLayer.elsPerThread).toInt)
 
                   runtime1 = 0.0d
                 } else {
@@ -304,13 +306,13 @@ class TestCNN {
                 runtime = runtime1 + runtime2
 
                 // TODO: print datetime into the kernel
-                saveKernelToFile(experimentNo, testConfigFilename, layer, param.layerName, openclKernel1, 
+                saveKernelToFile(experimentNo, testConfigFilename, layer, param.layerName, openclKernel1,
                   twoKernels = true,
                   localSize = Array(layer.localSize(0), layer.localSize(1), layer.localSize(2)),
                   globalSize = Array(layer.globalSize(0), layer.globalSize(1), layer.globalSize(2)),
                   kernelPath = System.getenv("LIFT_NN_KERNELS_LOCATION") + "/" + param.netName + "/" +
                     param.kernelOutputSubfolder + "/lift_generated_kernel" + experimentNo.toString + "_first.cl")
-                saveKernelToFile(experimentNo, testConfigFilename, layer, param.layerName, openclKernel2, 
+                saveKernelToFile(experimentNo, testConfigFilename, layer, param.layerName, openclKernel2,
                   twoKernels = true,
                   localSize = Array(layer.localSize(3), layer.localSize(4), 1),
                   globalSize = Array(layer.globalSize(3), layer.globalSize(4), 1),
@@ -337,10 +339,11 @@ class TestCNN {
                     },
                     layerData match {
                       case cd: ConvDatasets => {
-                        if (changeDataLayout)
+                        if (Conv.expectDataShapeWHC)
                         // (b, i, c, h, w) -> (b, i, h, w, c)
                           cd.inputs.padded.map(batch => batch.map(input => input.transpose.map(
                             input2 => input2.transpose)))
+                        else cd.inputs.padded
                       }
                       case fd: FCDatasets => fd.inputs.padded
                     })

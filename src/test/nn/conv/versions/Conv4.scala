@@ -19,6 +19,7 @@ import opencl.ir.{add, _}
   * verification, and helper functions.
   */
 object Conv4 extends ConvCompanion {
+  val expectDataShapeWHC = true
   //  val kernel_xdim_SV = SizeVar("kernel_xdim_SV")
   //  val kernel_ydim_SV = SizeVar("kernel_ydim_SV")
   //  val input_xdim_SV = SizeVar("input_xdim_SV")
@@ -374,12 +375,6 @@ object Conv4 extends ConvCompanion {
       * initializes variables, computes workgroup sizes.
       */
 
-    val exceptionMsgPrefix: String = "[" + iP.testConfigFilename + ": layer " + iP.layerNo + "]\n" +
-      "In the Conv layer with the following configuration:\n" + iP.toString + "\n"
-//      conv.configToString(iP.inputShape.size, -1, iP.optParams.elsPerThread,
-//        iP.dim.nKernels, iP.optParams.kernelsPerGroup,  iP.optParams.vectorLen, 
-//        iP.optParams.coalesce, iP.optParams.unrollReduce,
-//        iP.dim.kernelSize, iP.dim.kernelStride, iP.optParams.inputTileSize)
 
     /* Tiles */
     val slider: SlidingWindowConfig = SlidingWindowConfig(
@@ -388,7 +383,7 @@ object Conv4 extends ConvCompanion {
       n = {
         val n: Float = 
           (iP.optParams.inputTileSize - (iP.dim.kernelSize - iP.dim.kernelStride)).toFloat / iP.dim.kernelStride
-        if (n % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+        if (n % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix(iP) +
           f"input tiles (${iP.optParams.inputTileSize}%d) are not divisible by the chosen " +
           f"kernelSize (${iP.dim.kernelSize}%d) and kernelStride (${iP.dim.kernelStride}%d)")
         n.toInt
@@ -410,7 +405,7 @@ object Conv4 extends ConvCompanion {
             iP.dim.kernelStride + (iP.dim.kernelSize - iP.dim.kernelStride)).toInt
           val n: Float =
             (activeInputSize - (iP.optParams.inputTileSize - stride)).toFloat / stride
-          if (n % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+          if (n % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix(iP) +
             f"active image size ($activeInputSize%d) (image portion covered by specified kernel size and stride) " +
             f"is not divisible by the chosen " +
             f"input tile size (${iP.optParams.inputTileSize}%d) and corresponding tile stride ($stride%d)")
@@ -420,18 +415,18 @@ object Conv4 extends ConvCompanion {
 
     /* Check parameters */    
     if (iP.dim.nKernels % iP.optParams.kernelsPerGroup != 0)
-      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix(iP) +
         f"the number of kernels (${iP.dim.nKernels}%d) must be divisible by " +
         f"kernelsPerGroup (${iP.optParams.kernelsPerGroup}%d)")
 
     val window_size = slider.size * slider.size * iP.inputShape.nChannels
     if (window_size % iP.optParams.elsPerThread != 0)
-      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix(iP) +
         f"window size (kernel size * kernel size * nChannels = ${window_size}%d) " +
         f"must be divisible by elsPerThread (${iP.optParams.elsPerThread}%d)")
     
     if (iP.optParams.elsPerThread % iP.optParams.vectorLen != 0)
-      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix(iP) +
         f"elsPerThread (${iP.optParams.elsPerThread}%d) must be divisible by " +
         f"vectorLen (${iP.optParams.vectorLen}%d)")
     
@@ -443,7 +438,7 @@ object Conv4 extends ConvCompanion {
     
     val memoryLimit = 1500000000
     if (partReducedInputsSize > memoryLimit)
-      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix(iP) +
         f"partReducedInputsSize (=$partReducedInputsSize%d) must be smaller than the memory limit ($memoryLimit%d)")
 
     /* Padding */
@@ -463,7 +458,7 @@ object Conv4 extends ConvCompanion {
       sizePadded = if (!iP.padData) size else {
         val sizePadded: Float = (iP.inputShape.sizePadded - (slider.size - slider.stride)).toFloat /
           slider.stride
-        if (sizePadded % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+        if (sizePadded % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix(iP) +
           "padded inputs are not divisible by the chosen kernelShape and kernelStride")
         sizePadded.toInt
       },
@@ -495,7 +490,7 @@ object Conv4 extends ConvCompanion {
     {
       val groupSize: Int = localSize(0) * localSize(1) * localSize(2)
       if (groupSize > maxWorkGroupSize)
-        throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+        throw new java.lang.IllegalArgumentException(exceptionMsgPrefix(iP) +
           f"group size (==$groupSize%d) must be less or equal to maxWorkGroupSize ($maxWorkGroupSize%d).\n" +
           f"Decrease nKernelsPerGroup or inputTileSize or increase elsPerThread (${iP.optParams.elsPerThread}%d)")
     }

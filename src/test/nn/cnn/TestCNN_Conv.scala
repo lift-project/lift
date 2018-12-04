@@ -59,7 +59,8 @@ class TestCNN_Conv {
 
     val protoFiles = Seq(
 //      System.getenv("LIFT_CNN_CONFIG_PATH") + "/" + "VGG_ILSVRC_19_layers_deploy_1.prototxt")
-      System.getenv("LIFT_CNN_CONFIG_PATH") + "/" + "/ResNet-101-deploy-1.prototxt")
+//      System.getenv("LIFT_CNN_CONFIG_PATH") + "/" + "/ResNet-101-deploy-1.prototxt")
+      System.getenv("LIFT_CNN_CONFIG_PATH") + "/" + "/GoogleNet.prototxt")
     
       for (_ <- 0 until reruns) {
         for (protoFile <- protoFiles) {
@@ -71,34 +72,35 @@ class TestCNN_Conv {
           
           for (config <- configs.distinct) {
             new TestCNN().Test(config, protoFile)//, {
-//              //              val iC = InputConfig(nBatches = 1,
-//              //                nInputs = 1,
-//              //                inputSize = 226,
-//              //                nChannels = 64)
-//              //              val cD = conv.Experiment.Config.Dimensions(
-//              //                nKernels = 64,
-//              //                kernelSize = 3,
-//              //                kernelStride = 1)
-//              val iC = configs.distinct.head.exactParams.get.inputConfig
-//              val cD = configs.distinct.head.exactParams.get.convDimensions
+//              val iC = InputConfig(nBatches = 1,
+//                nInputs = 50,
+//                inputSize = 55,
+//                nChannels = 64)
+//              val cD = nn.conv.Experiment.Config.Dimensions(
+//                nKernels = 64,
+//                kernelSize = 1,
+//                kernelStride = 1)
+//              val oP = nn.conv.Experiment.Config.OptimisationalParams(
+//                inputTileSize = 1,
+//                elsPerThread = 2,
+//                kernelsPerGroup = 1,
+//                vectorLen = 1,
+//                coalesce = true,
+//                unrollReduce = true
+//              )
+////              val iC = configs.distinct.head.exactParams.get.inputConfig
+////              val cD = configs.distinct.head.exactParams.get.convDimensions
 //
 //              new Experiment(
-//                layerNo = 1,
+//                layerNo = 6,
 //                inputConfig = iC,
 //                convConfigs = Vector(
-//                  conv.Experiment.Config(
+//                  nn.conv.Experiment.Config(
 //                    dim = cD,
-//                    optParams = conv.Experiment.Config.OptimisationalParams(
-//                      inputTileSize = cD.kernelSize,
-//                      elsPerThread = 7,
-//                      kernelsPerGroup = 1,
-//                      vectorLen = 1,
-//                      coalesce = false,
-//                      unrollReduce = false
-//                    ))),
-//                fcConfigs = Vector(new fc.Experiment.Config(
-//                  dim = fc.Experiment.Config.Dimensions(nNeurons = 1),
-//                  optParams = fc.Experiment.Config.OptimisationalParams(
+//                    optParams = oP)),
+//                fcConfigs = Vector(new nn.fc.Experiment.Config(
+//                  dim = nn.fc.Experiment.Config.Dimensions(nNeurons = 1),
+//                  optParams = nn.fc.Experiment.Config.OptimisationalParams(
 //                    multsPerThread = 1,
 //                    neuronsPerWrg = 1
 //                  ))),

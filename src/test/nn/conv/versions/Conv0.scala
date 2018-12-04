@@ -17,6 +17,7 @@ import opencl.ir.pattern._
   * verification, and helper functions.
   */
 object Conv0 extends ConvCompanion {
+  val expectDataShapeWHC = false
   //  val kernel_xdim_SV = SizeVar("kernel_xdim_SV")
   //  val kernel_ydim_SV = SizeVar("kernel_ydim_SV")
   //  val input_xdim_SV = SizeVar("input_xdim_SV")
@@ -262,19 +263,13 @@ object Conv0 extends ConvCompanion {
       * initializes variables, computes workgroup sizes.
       */
 
-    val exceptionMsgPrefix: String = "In the Conv layer with the following configuration:\n" +
-      conv.configToString(iP.inputShape.size, -1, iP.optParams.elsPerThread,
-        iP.dim.nKernels, iP.optParams.kernelsPerGroup, iP.optParams.vectorLen, 
-        iP.optParams.coalesce, iP.optParams.unrollReduce,
-        iP.dim.kernelSize, iP.dim.kernelStride, iP.optParams.inputTileSize)
-
     /* Tiles */
     val kernelSliding: SlidingWindowConfig = SlidingWindowConfig(
       size = iP.dim.kernelSize,
       stride = iP.dim.kernelStride,
       n = {
         val n: Float = (iP.optParams.inputTileSize - (iP.dim.kernelSize - iP.dim.kernelStride)).toFloat / iP.dim.kernelStride
-        if (n % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+        if (n % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix(iP) +
           f"input tiles (${iP.optParams.inputTileSize}%d) are not divisible by the chosen " +
           f"kernelSize (${iP.dim.kernelSize}%d) and kernelStride (${iP.dim.kernelStride}%d)")
         n.toInt
@@ -293,12 +288,12 @@ object Conv0 extends ConvCompanion {
 
     /* Check parameters */
     if (iP.dim.nKernels % iP.optParams.kernelsPerGroup != 0)
-      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix(iP) +
         f"the number of kernels (${iP.dim.nKernels}%d) must be divisible by " +
         f"kernelsPerGroup (${iP.optParams.kernelsPerGroup}%d)")
 
     if (kernelSliding.size % iP.optParams.elsPerThread != 0)
-      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+      throw new java.lang.IllegalArgumentException(exceptionMsgPrefix(iP) +
         f"kernel size in all dimensions (=${kernelSliding.size}%d) must be divisible by elsPerThread " +
         f"(${iP.optParams.elsPerThread}%d)")
 
@@ -316,7 +311,7 @@ object Conv0 extends ConvCompanion {
       sizePadded = {
         val sizePadded: Float = (iP.inputShape.sizePadded - (kernelSliding.size - kernelSliding.stride)).toFloat /
           kernelSliding.stride
-        if (sizePadded % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+        if (sizePadded % 1 != 0) throw new java.lang.IllegalArgumentException(exceptionMsgPrefix(iP) +
           "padded inputs are not divisible by the chosen kernelShape and kernelStride")
         sizePadded.toInt
       },
@@ -336,7 +331,7 @@ object Conv0 extends ConvCompanion {
     {
       val groupSize: Int = localSize(0) * localSize(1) * localSize(2)
       if (groupSize > nn.maxWorkGroupSize)
-        throw new java.lang.IllegalArgumentException(exceptionMsgPrefix +
+        throw new java.lang.IllegalArgumentException(exceptionMsgPrefix(iP) +
           f"group size (==$groupSize%d) must be less or equal to maxWorkGroupSize (${nn.maxWorkGroupSize}%d).\n" +
           f"Decrease nKernelsPerGroup or inputTileSize or increase elsPerThread (${iP.optParams.elsPerThread}%d)")
     }
@@ -413,9 +408,7 @@ case class Conv0(override val liftFProp: Array[FunDecl],
                  override val localSize: Array[Int], override val globalSize: Array[Int])
   extends Conv(liftFProp, inputShape, outputShape, inputTiling, kernelSliding,
     elsPerThread, kernelsPerGroup, vectorLen, coalesce, unrollReduce, localSize, globalSize) {
-  override def toString: String =
-    nn.conv.configToString(inputShape.size, outputShape.sizePadded, elsPerThread, outputShape.nChannels,
-      kernelsPerGroup, vectorLen, coalesce, unrollReduce, kernelSliding.size, kernelSliding.stride, inputTiling.size)
+
   var runtime: Double = 0
 
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {

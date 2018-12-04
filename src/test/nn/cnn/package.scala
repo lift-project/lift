@@ -217,46 +217,55 @@ package object cnn {
             f"kernelStride=${cD.kernelStride}%s)")
         false
       }
-    
-    def generateFiles(benchmark: ExperimentParams): Boolean = {
-      if (System.getenv("LIFT_NN_GENERATE_FILES_CMD") != null) {
-        
-        val configFileName: String = benchmark.netName + "_" + benchmark.layerName + "_layer_no_" + 
-          benchmark.layerNo + ".csv"
-        val configPath: String = System.getenv("LIFT_NN_CAFFE_HARNESS") + "/neural_net_specs/" + configFileName
-        Logger(this.getClass).info(f"Generating neural network files.\nCreating Caffe harness config in $configPath%s")
-        // Generate the neural network configuration file
-        var pw: PrintWriter = null
-        val file = new File(configPath)
-        pw = new PrintWriter(file)
-        pw.write(f"${"NN"}%-30s, ${"LN"}%-10s, ${"LORD"}%4s, ${"IN"}%3s, ${"IC"}%3s, ${"IS"}%4s, " +
-          f"${"KC"}%4s, ${"KSI"}%3s, ${"KSTR"}%2s\n")
-  
-        {
-          val iC: InputConfig = benchmark.exactParams.get.inputConfig
-          val cD: nn.conv.Experiment.Config.Dimensions = benchmark.exactParams.get.convDimensions
 
-          pw.write(f"${benchmark.netName}%-30s, ${benchmark.layerName}%-10s, ${benchmark.layerNo}%4d, " +
-            f"${iC.nInputs}%3d, ${iC.nChannels}%3d, ${iC.inputSize}%4d, " +
-            f"${cD.nKernels}%4d, ${cD.kernelSize}%3d, ${cD.kernelStride}%2d\n")
-        }
-        
-        pw.write("\n")
-        pw.close()
-        
+    def generateConfigs(benchmark: ExperimentParams): String = {
+      val configFileName: String = benchmark.netName + "_" +
+        benchmark.layerName.replace("/", "_").replace("\\", "_") +
+        "_layer_no_" + benchmark.layerNo + ".csv"
+      val configPath: String = System.getenv("LIFT_NN_CAFFE_HARNESS") + "/neural_net_specs/" + configFileName
+      Logger(this.getClass).info(f"Generating neural network files.\nCreating Caffe harness config in $configPath%s")
+      // Generate the neural network configuration file
+      var pw: PrintWriter = null
+
+      val file = new File(configPath)
+
+      /* Make sure all directories in the path exist */
+      file.getParentFile.mkdirs()
+
+      pw = new PrintWriter(file)
+      pw.write(f"${"NN"}%-30s, ${"LN"}%-10s, ${"LORD"}%4s, ${"IN"}%3s, ${"IC"}%3s, ${"IS"}%4s, " +
+        f"${"KC"}%4s, ${"KSI"}%3s, ${"KSTR"}%2s\n")
+
+      {
+        val iC: InputConfig = benchmark.exactParams.get.inputConfig
+        val cD: nn.conv.Experiment.Config.Dimensions = benchmark.exactParams.get.convDimensions
+
+        pw.write(f"${benchmark.netName}%-30s, ${benchmark.layerName}%-10s, ${benchmark.layerNo}%4d, " +
+          f"${iC.nInputs}%3d, ${iC.nChannels}%3d, ${iC.inputSize}%4d, " +
+          f"${cD.nKernels}%4d, ${cD.kernelSize}%3d, ${cD.kernelStride}%2d\n")
+      }
+
+      pw.write("\n")
+      pw.close()
+
+      configFileName
+    }
+
+    def generateFiles(configFileName: String): Boolean = {
+      if (System.getenv("LIFT_NN_GENERATE_FILES_CMD") != null) {
         // Generate neural network files
         // FYI: example command:
-        // ssh avus -x /home/s1569687/caffe_clblas/vcs_caffes/deliverable/microbenchmark/microbenchmarking.sh 
+        // ssh avus -x /home/s1569687/caffe_clblas/vcs_caffes/deliverable/microbenchmark/microbenchmarking.sh
         //   /s1569687/caffe_clblas/vcs_caffes/deliverable/microbenchmark/neural_net_specs/%s build
         val cmd: String = System.getenv("LIFT_NN_GENERATE_FILES_CMD").format(configFileName)
         Logger(this.getClass).info(f"Starting Caffe harness:\n> " + cmd)
         cmd.!
-        true
-      } else false
+        true }
+      else false
     }
-    
-    
-    def isFirstRun(iC: cnn.InputConfig) = {
+
+
+  def isFirstRun(iC: cnn.InputConfig) = {
       if (!exists(get(pathToResults))) {
         createDirectory(get(pathToResults))
         true

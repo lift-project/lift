@@ -15,7 +15,7 @@ REDIRECTOUTPUT=/dev/stdout
 if [[ -n $REDIRECT_OUTPUT ]]; then
 	REDIRECTOUTPUT=$REDIRECT_OUTPUT
 fi
-if [[ -n $COMPILEONLY ]]; then
+if [[ "$COMPILEONLY" -ne "yes" ]]; then
     export LIFT_NN_MICROBENCHMARK_COMPILE_ONLY=$COMPILEONLY
 fi
 if [ "$servermode" != "standalone" ]

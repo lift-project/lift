@@ -105,42 +105,60 @@ case class Config(netParam: NetParameter) {
   }
 
   def fillMissingParametersVNew(): Vector[(LayerParameter, (Int, Int))] = {
-    dataLayerVNew = netParam.layer.find(layer => getType(layer) == "Data" &&
-      (layer.include.isEmpty || layer.include.exists(_.phase match {
-        case Some(_root_.caffe.caffe.Phase.TEST) => true
-        case None => true
-        case _ => false
-      }))
-    ) match {
-      case Some(l) => Some(l)
-      case None => throw new java.util.NoSuchElementException("Cannot find a data layer in Caffe protofile")
+
+    var skippedLayers = Set[LayerParameter]()
+    val processedLayers = {
+      val processedLayers = scala.collection.mutable.Map[LayerParameter, (Int, Int)]()
+
+      val layers = netParam.layer.filter(layer => getType(layer) == "Data" &&
+        (layer.include.isEmpty || layer.include.exists(_.phase match {
+          case Some(_root_.caffe.caffe.Phase.TEST) => {
+            dataLayerVNew = Some(layer)
+            true
+          }
+          case Some(_root_.caffe.caffe.Phase.TRAIN) => {
+            skippedLayers += layer
+            true
+          }
+          case None => true
+          case _ => false
+        }))
+      )
+      if (layers.isEmpty)
+        throw new java.util.NoSuchElementException("Cannot find a data layer in Caffe protofile")
+
+      for (layer <- layers) {
+        processedLayers += ((layer, (layer.transformParam.get.cropSize.get, 1)))
+      }
+
+      processedLayers
     }
 
-    val processedLayers = scala.collection.mutable.Map[LayerParameter, (Int, Int)]()
 
-    // TODO: here and below see fillMissingParametersV1
-    processedLayers += ((dataLayerVNew.get, (dataLayerVNew.get.transformParam.get.cropSize.get, 1)))
     for (layer <- netParam.layer) {
-      if (!processedLayers.contains(layer)) {
+      if (!processedLayers.contains(layer) && !skippedLayers.contains(layer)) {
 
         def computeInputDimensions(currentLayer: LayerParameter): (Int, Int) = {
           if (processedLayers.contains(layer))
             processedLayers(layer)
           else {
-            val parent = netParam.layer.find(layer => currentLayer.bottom.contains(layer.name.get)).get
+            val parent = netParam.layer.find(layer => currentLayer.bottom.contains(layer.name.get) &&
+              !skippedLayers.contains(layer)).get
 
             val currentLayerDimensions: (Int, Int) = getType(parent) match {
               case "ReLU" => computeInputDimensions(parent)
               case "LRN" => computeInputDimensions(parent)
-              case "Data" => 
+              case "Data" =>
                 (parent.transformParam.get.cropSize.get, 3)
 
               case "Convolution" =>
-                def getStride(stride: Seq[Int]): Int = if (stride.nonEmpty) stride.head else 1
+                val pad = if (parent.convolutionParam.get.pad.nonEmpty) parent.convolutionParam.get.pad.head
+                else 1
+                val stride = if (parent.convolutionParam.get.stride.nonEmpty) parent.convolutionParam.get.stride.head
+                else 1
 
                 ((computeInputDimensions(parent)._1 -
-                  (parent.convolutionParam.get.kernelSize.head - getStride(parent.convolutionParam.get.stride)) +
-                  parent.convolutionParam.get.pad.head * 2) / getStride(parent.convolutionParam.get.stride),
+                  (parent.convolutionParam.get.kernelSize.head - stride) + pad * 2) / stride,
                   parent.convolutionParam.get.numOutput.get)
 
               case "Pooling" =>
@@ -266,9 +284,10 @@ object Config {
         }
 
         val paddedInputSize: Int = inputDimensions._1 + 2 * {
+          def getPad(pad: Seq[Int]): Int = if (pad.nonEmpty) pad.head else 0
           config.version match {
-            case Config.Version.V1 => layer.asInstanceOf[V1LayerParameter].convolutionParam.get.pad.head
-            case Config.Version.NEW => layer.asInstanceOf[LayerParameter].convolutionParam.get.pad.head
+            case Config.Version.V1 => getPad(layer.asInstanceOf[V1LayerParameter].convolutionParam.get.pad)
+            case Config.Version.NEW => getPad(layer.asInstanceOf[LayerParameter].convolutionParam.get.pad)
           }}
 
         val nKernels: Int = {

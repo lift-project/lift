@@ -1,2 +1,2 @@
-ssh avus "cd /home/s1569687/lift && $1 REDIRECT_OUTPUT=$2 $3 screen -S lift_server -d -m /home/s1569687/lift/startServer.sh" 
+ssh avus "cd /home/s1569687/lift && COMPILEONLY=yes REDIRECT_OUTPUT=/dev/pts/6 SERVERMODE=$1 screen -S lift_server -d -m /home/s1569687/lift/startServer.sh"
 sleep 1
