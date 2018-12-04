@@ -24,10 +24,6 @@ class TestHost {
     "{ return (l + r); }",
     Seq(Float, Float), Float)
 
-  val add_complex = UserFun("add_complex", Array("l", "r"),
-    "{ return (l._1+r._1, l._2+r._2) }",
-    Seq(TupleType(Double,Double), TupleType(Double, Double)), TupleType(Double,Double)
-  )
 
 
   private def compile_native(path: String, file: String): Unit = {
@@ -129,6 +125,11 @@ class TestHost {
     println("Test case test_zip done!")
   }
 
+  val add_complex = UserFun("add_complex", Array("init", "l", "r"),
+    "{ return (init._0+l, init._1+r) }",
+    Seq(TupleType(Double,Double), Double, Double), TupleType(Double,Double)
+  )
+
   @Test
   def test_reduceseq_zip(): Unit = {
 
@@ -138,8 +139,7 @@ class TestHost {
     val f = fun(
       ArrayType(Double, N),
       ArrayType(Double, N),
-      (left, right) => ReduceSeq( add_complex, (0.0,0.0) )  $ Zip(left, right)
-      //[(x,x)...] => [(x,x)]
+      (left, right) => ReduceSeq( fun((init, aValueInArray)=>add_complex.apply(init, Get(aValueInArray,0), Get(aValueInArray, 1))), (0.0,0.0) )  $ Zip(left, right)
     )
 
     CompileHost(f, path, file)
