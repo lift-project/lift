@@ -9,6 +9,7 @@ import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeqSlide, toGlobal, toPrivate}
 import org.junit.Assert._
 import org.junit._
+import rewriting.SimplifyAndFuse
 
 object TestStencilsTACO extends TestWithExecutor
 
@@ -177,10 +178,21 @@ class TestStencilsTACO {
     val source = Compile(mssLambda)//, NDRange(32,4,2), NDRange(n,m,1))
     println(source)
 */
-    val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](stencil, data, data)
-    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](stencilMSS, data, data)
 
-    assertArrayEquals(output_org, output_MSS, delta)
+    val lambda = SimplifyAndFuse(stencil)
+    val sourceOrg = Compile(lambda)//, NDRange(32,4,2), NDRange(n,m,1))
+    println(sourceOrg)
+
+    val mssLambda = SimplifyAndFuse(stencilMSS)
+    val sourceMSS = Compile(mssLambda)//, NDRange(32,4,2), NDRange(n,m,1))
+    println(sourceMSS)
+
+
+ //   val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](stencil, data, data)
+ //   val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](stencilMSS, data, data)
+
+ //   assertArrayEquals(output_org, output_MSS, delta)
+
    // StencilUtilities.print1DArrayAs3DArray(output_org,localDimX,localDimY,localDimZ)
     // StencilUtilities.print1DArrayAs3DArray(output_MSS,localDimX,localDimY,localDimZ)
 
@@ -314,8 +326,8 @@ class TestStencilsTACO {
           MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
             acoustic(m)
           })))
-            /*) $ Zip3D(mat1, Slide3D(size,step) o PadConstant3D(1,1,1,0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigonm))*/
             // this should work, but doesn't, etc
+            /*) $ Zip3D(mat1, Slide3D(size,step) o PadConstant3D(1,1,1,0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigonm))*/
           ) o Slide3D(size, step) $ Zip3D(PadConstant3D(1, 1, 1, 0.0f) $ mat1, PadConstant3D(1, 1, 1, 0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno2))
         })
 
@@ -611,10 +623,8 @@ class TestStencilsTACO {
             val ff = nbh.at(0).at(2).at(2)
             val c = nbh.at(2).at(2).at(2)
 
-       //     toGlobal(id) $ bb
             toGlobal(id) o toPrivate(fun(x =>
              jacobi13(x, e, w, ww, ss, s, n, nn, bb, b, f, ff, c))) $ ee
-
 
           })))) o Slide3D(5, 1) $ input
       })
@@ -644,11 +654,8 @@ class TestStencilsTACO {
             val ff = nbh.at(0).at(2).at(2)
             val c = nbh.at(2).at(2).at(2)
 
-       //     toGlobal(id) $ bb
-
            toGlobal(id) o toPrivate(fun(x =>
              jacobi13(x, e, w, ww, ss, s, n, nn, bb, b, f, ff, c))) $ ee
-
 
           }) ,5,1))} o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(5,1) o Map(Transpose()) o Transpose() $ input
     })
@@ -659,7 +666,6 @@ class TestStencilsTACO {
 
   val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](kernel,originalLambda, data)
   val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](kernelMSS,lambdaMSS, data)
-
 
   StencilUtilities.print1DArray(output_org)
 
