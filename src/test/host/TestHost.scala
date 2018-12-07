@@ -1,7 +1,7 @@
 package host
 
-import ir.{ArrayType, ArrayTypeWSWC, TupleType}
-import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Pad, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
+import ir.{ArrayType, ArrayTypeWSWC, ScalarType, TupleType}
+import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
 import ir.ast.Pad.Boundary.WrapUnsafe
 import opencl.ir.{Float, add, _}
 import lift.arithmetic.SizeVar
@@ -472,6 +472,53 @@ class TestHost {
     val a = actuals.flatMap(t => List(t._1, t._2))
 
     assertArrayEquals(e, a, delta)
+  }
+
+  import scala.reflect.runtime._
+  import scala.tools.reflect.ToolBox
+
+  @Test
+  def test_eval(): Unit = {
+
+    val mirror = universe.runtimeMirror(getClass.getClassLoader)
+    val tb = mirror.mkToolBox()
+    val code = """def add(ty: ScalarType, name: String = "add"): UserFun =
+      UserFun(name, Array("x", "y"), "return x + y;", Seq(ty, ty), ty);
+
+      val incrementF = fun(Float, x => add(Float).apply(1f, x));
+
+     val N = SizeVar("N");
+
+    fun( ArrayType(Float, N),
+      in => MapSeq( incrementF ) $ in
+    )
+
+               """
+    val tree = tb.parse(s"""
+                         |import arithmetic._
+                         |import lift.arithmetic._
+                         |import ir._
+                         |import ir.ast._
+                         |import opencl.ir._
+                         |import opencl.ir.pattern._
+                         |import opencl.ir.ast._
+                         |$code
+                       """.stripMargin)
+    val f = tb.eval(tree).asInstanceOf[Lambda]
+
+    val path = "/home/lu/Documents/Research/lift/src/test/host/01.maphost"
+    val file = "libmap.cpp"
+
+
+    CompileHost(f, path, file)
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
+    assertEquals(expected, actual)
+
+    println("Done")
+
+
   }
 
 
