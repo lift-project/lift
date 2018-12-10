@@ -448,7 +448,7 @@ class TestStencilsTACO {
           Map(Scatter(Shift(1))) o
           Scatter(Shift(1)) o
           Pad3D(1, 1, 1, Pad.Boundary.Clamp) o
-          MapGlb(2)(MapGlb(1)(fun( x => {
+          MapGlb(0)(MapGlb(1)(fun( x => {
             toGlobal(MapSeqSlide(fun(nbh => {
 
             val (n, s, w, e, f, b, c) = vonNeumann7pt(nbh)
@@ -458,6 +458,8 @@ class TestStencilsTACO {
 
           }) ,size,step))} o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() $ input
       })
+    val original = Compile(originalLambda)
+    println(original)
     val kernel = Compile(lambdaMSS)
     println(kernel)
 
