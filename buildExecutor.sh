@@ -19,8 +19,7 @@ function configure() {
   check_command "g++"
 
   mkdir -p lib/Executor/build
-  #(cd lib/Executor/build && cmake -DCMAKE_INSTALL_PREFIX=$DIR/src/main/resources -DCMAKE_BUILD_TYPE=Debug ..)
-  (cd lib/Executor/build && cmake -DCMAKE_INSTALL_PREFIX=$DIR/src/main/resources -DCMAKE_BUILD_TYPE=Release ..)
+  (cd lib/Executor/build && cmake -DCMAKE_INSTALL_PREFIX=$DIR/src/main/resources ..)
 }
 
 function build() {
@@ -35,6 +34,3 @@ configure
 
 echo "Build executor"
 build
-
-mkdir -p ./target/scala-2.11/classes/lib
-cp ./src/main/resources/lib/libexecutor-jni.so ./target/scala-2.11/classes/lib/

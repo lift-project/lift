@@ -15,15 +15,15 @@ import opencl.ir.pattern._
 /**
   * Case class for storing the layer configuration.
   * Configuration is to be preprocessed and verified by the companion object below.
-  * @param liftFProp
-  * @param inputShape
-  * @param outputShape
-  * @param neuronShape
-  * @param multsPerThread
-  * @param neuronsPerWrg
-  * @param inputTileSize
-  * @param localSize
-  * @param globalSize
+  * @param liftFProp        an activation function (e.g. Linear, ReLU, etc)
+  * @param inputShape       configuration of input data
+  * @param outputShape      configuration of output data
+  * @param neuronShape      configuration of the layer (number of neurons, channels, etc)
+  * @param multsPerThread   the number of input elements (pixels) to process (weigh) sequentially within a thread
+  * @param neuronsPerWrg    the number of neurons to process within a single workgroup
+  * @param inputTileSize    the size of the square input tiles in one dimension
+  * @param localSize        number of work items in respective dimensions of work groups
+  * @param globalSize       number of work items in respective dimension of the global space
   */
 case class FC(liftFProp: Array[FunDecl],
               inputShape: Shape, outputShape: Shape, neuronShape: Shape,

@@ -412,7 +412,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   def apply[T](input: String, compileOnly: Boolean, values: Any*)(implicit decodeType: DecodeType[T]): ((T, Double), String) = {
     apply(Eval(input), compileOnly, values: _*)(decodeType)
   }
-  
+
   /**
    * Given a lambda: compile it and then execute it
    */
@@ -553,7 +553,7 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
   /**
    * Execute given source code, which was compiled for the given lambda, with the given runtime
    * values <code>iterations</code> times. If the kernel takes longer than <code>timeout</code> ms,
-   * it is executed only once. If <code>timeout</code> is <code>  0.0</code> no check for the kernel
+   * it is executed only once. If <code>timeout</code> is <code>0.0</code> no check for the kernel
    * runtime will be performed.
    *
    * Returns a pair consisting of the computed values as its first and an array of runtimes in the
@@ -761,21 +761,21 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
 
     globalSizes.foreach(size => {
       // ARM Mali GPU G71
-      val maxMemAllocSize = 776849408
-//      val maxMemAllocSize = Executor.getDeviceMaxMemAllocSize
+//      val maxMemAllocSize = 776849408
+    val maxMemAllocSize = Executor.getDeviceMaxMemAllocSize
       if (size > maxMemAllocSize)
         throw new DeviceCapabilityException(s"Buffer size required ($size) cannot be larger than $maxMemAllocSize")
     })
 
     // ARM Mali GPU G71
-    val globalMemSize = 3107397632L
-//    val globalMemSize = Executor.getDeviceGlobalMemSize
+    //    val globalMemSize = 3107397632L
+    val globalMemSize = Executor.getDeviceGlobalMemSize
     if (totalSizeOfGlobal > globalMemSize)
       throw new DeviceCapabilityException(s"Global size required ($totalSizeOfGlobal) cannot be larger than $globalMemSize")
 
     // ARM Mali GPU G71
-    val localMemSize = 32768
-//    val localMemSize = Executor.getDeviceLocalMemSize
+//    val localMemSize = 32768
+    val localMemSize = Executor.getDeviceLocalMemSize
     if (totalSizeOfLocal > localMemSize)
       throw new DeviceCapabilityException(s"Local size required ($totalSizeOfLocal) cannot be larger than $localMemSize")
   }

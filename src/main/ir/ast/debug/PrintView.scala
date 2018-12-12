@@ -6,7 +6,9 @@ import ir.interpreter.Interpreter._
 
 /**
   * A pattern for debugging Lift code.
-  * TODO
+  * PrintView adds a comment into the OpenCL kernel with the optional message and 
+  * a string representation of the View at the point in expression where PrintView
+  * is inserted.
   */
 case class PrintView(msg: String = "", f: Lambda) extends Pattern(arity = f.arity)
                                                     with FPattern {

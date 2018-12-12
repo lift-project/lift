@@ -1,3 +1,10 @@
+/*
+ * Some code lines here are disabled since they depend on the code that is only available in the "nn" branch and in a
+ * private fork of Lift.
+ * Disabled functionality mainly refers to testing and exploring the search space of optimisational parameters.
+ * Actual expressions for neural layers and associated initialization logic is still functional.
+ * For full functionality and code examples, contact Naums Mogers (naums.mogers@ed.ac.uk).
+ */
 package nn.cnn
 
 import java.io._
@@ -8,30 +15,37 @@ import nn._
 import nn.cnn.Experiment.{pathToInputs, pathToParams, pathToTargets, verifyOutputs}
 import nn.conv.ConvDatasets
 import nn.fc.{FC, FCDatasets}
-import nn.mysql.Connector
-import nn.poolScala.ScalaPool
+//import nn.mysql.Connector
+//import nn.poolScala.ScalaPool
 import opencl.executor.{Execute, Executor}
-import org.junit.{AfterClass, BeforeClass}
+import org.junit.{AfterClass, BeforeClass, Ignore}
 
 import scala.util.control.Breaks._
 
 /**
-  * Created by s1569687 on 01/03/17.
+  * TestCNN().test() is the main function for testing CNNs. It needs to be given experimental parameters
+  * to test, so a wrapper is needed. Since TestCNN() is meant to be generic for all CNN-related tests,
+  * testing of one-convolutional-layer network is driven by TestCNN_Conv().TestConv()
   */
+@Ignore
 object TestCNN {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
-    //    println("Initialize the executor"
-    nn.cnn.mysql.CreateTable()
+    println("Initialize the executor")
+    Executor.init()
+//     MySQL is disabled in this version
+//    nn.cnn.mysql.CreateTable()
   }
 
   @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
-    Connector.close()
+    // MySQL is disabled in this version
+//    Connector.close()
   }
 }
 
+@Ignore
 class TestCNN {
   private val logger = Logger(this.getClass)
 
@@ -39,42 +53,43 @@ class TestCNN {
   val codeVersion: Int = 23
   val reruns: Int = 1
   val padData: Boolean = false
-  val Conv = conv.versions.Conv2
-  type Conv = conv.versions.Conv2
+  val changeDataLayout: Boolean = true
+  val Conv = conv.versions.Conv4
+  type Conv = conv.versions.Conv4
 
   //@Test
   def TestFC(): Unit = {
     for (_ <- 0 to reruns)
-      Test(
+      test(
         cnn.getConfigFromJSON("/home/s1569687/lift/src/test/nn/cnn/cnn_experiments.json"))
-    //        ExperimentsSet(nKernelsL1Range = Vector(2),
-    //        kernelSizeRange = Vector(2),
-    //        inputTileSizeRange = (kernelSize, _) => Vector(kernelSize),
-    //        elsPerThreadL1Range = _ => Vector(1),
-    //        kernelsPerGroupL1Range = _ => Vector(1),
-    //        multsPerThreadRange = imageSize => Vector(1) ++ (2 to imageSize * imageSize by 2),
-    //        //multsPerThreadRange = imageSize => Vector(16),
-    //        neuronsPerWrgRange = fcSize => Vector(1) ++ (2 to fcSize by 2), nKernelsL0 = 2,
-    //        imageSizeRange = Vector(8, 16, 32, 64, 128/*, 256, 512*/),
-    //        neuronsL1Range = Vector(16, 32, 64, 128, 256, 512),
-    //        kernelsPerGroupL0 = 2,
-    //        nInputsRange = Vector(8, 16, 32, 64, 128/*, 256, 512, 1024, 2048, 2048*/)))
+//        ExperimentsSet(nKernelsL1Range = List(2),
+//        kernelSizeRange = List(2),
+//        inputTileSizeRange = (kernelSize, _) => List(kernelSize),
+//        elsPerThreadL1Range = _ => List(1),
+//        kernelsPerGroupL1Range = _ => List(1),
+//        multsPerThreadRange = imageSize => List(1) ++ (2 to imageSize * imageSize by 2),
+//        //multsPerThreadRange = imageSize => List(16),
+//        neuronsPerWrgRange = fcSize => List(1) ++ (2 to fcSize by 2), nKernelsL0 = 2,
+//        imageSizeRange = List(8, 16, 32, 64, 128/*, 256, 512*/),
+//        neuronsL1Range = List(16, 32, 64, 128, 256, 512),
+//        kernelsPerGroupL0 = 2,
+//        nInputsRange = List(8, 16, 32, 64, 128/*, 256, 512, 1024, 2048, 2048*/)))
 
-    //        continueFrom = cnn.Experiment(
-    //          nKernelsL1= 2,
-    //          kernelSize= 2,
-    //          inputTileSize= 2,
-    //          elsPerThreadL1= 1,
-    //          kernelsPerGroupL1= 1,
-    //          multsPerThread= 38,
-    //          neuronsPerWrg= 10,
-    //          imageSize= 8,
-    //          neuronsL1= 512,
-    //          nInputs = 64))
+//        continueFrom = cnn.Experiment(
+//          nKernelsL1= 2,
+//          kernelSize= 2,
+//          inputTileSize= 2,
+//          elsPerThreadL1= 1,
+//          kernelsPerGroupL1= 1,
+//          multsPerThread= 38,
+//          neuronsPerWrg= 10,
+//          imageSize= 8,
+//          neuronsL1= 512,
+//          nInputs = 64))
   }
 
 
-  def Test(param: cnn.ExperimentParams,
+  def test(param: cnn.ExperimentParams,
            testConfigFilename: String = "",
            continueFrom: Experiment = null,
            abortAfter: Option[Int] = None): Unit = {
@@ -119,6 +134,8 @@ class TestCNN {
       pP: String = pathToParams(inputConfig, convDimensions.head)
       pT: String = pathToTargets(inputConfig, convDimensions.head)
       inputTileSize <- param.inputTileSizeRange.head(inputConfig, convDimensions.head)
+      // Here and below layer 1-related parameters are commented out. This needs to be generalized
+      // better for multilayer CNNs
       //      _inputTileSizeL1 <- e.inputTileSizeRange(1)(inputConfig, convDimensions(1))
       elsPerThread <- param.elsPerThreadRange.head(inputConfig, convDimensions.head)
       //      _elsPerThreadL1 <- e.elsPerThreadRange(1)(inputConfig, convDimensions(1))
@@ -212,13 +229,14 @@ class TestCNN {
           val layer: Layer = aCNN.layers(layerNo)
           val layerData: NetDatasets = data.perLayer(layerNo)
           breakable {
-            layer match {
-              case poolLayer: ScalaPool =>
-                poolLayer.run()
-                logger.info(f"Layer ${param.layerNo}%d (pooling) completed")
-                break
-              case _ =>
-            }
+            // Pooling is disabled as work in progress
+//            layer match {
+//              case poolLayer: ScalaPool =>
+//                poolLayer.run()
+//                logger.info(f"Layer ${param.layerNo}%d (pooling) completed")
+//                break
+//              case _ =>
+//            }
 
 
             /* Padding */
@@ -243,12 +261,9 @@ class TestCNN {
                 val ((_outputsFlat1: Array[Float], _runtime1), openclKernel1) =
                   Execute(
                     layer.localSize(0), layer.localSize(1), layer.localSize(2),
-                    //                    2, 1, 128, 
                     layer.globalSize(0), layer.globalSize(1), layer.globalSize(2),
-                    //                    8, 11760, 128,
                     (true, true))[Array[Float]](
                     layer.liftFProp(0), compileOnly,
-                    //                    Array.fill(512)(Array.fill(3)(Array.fill(3)(Array.fill[Float](256)(0.0f)))),
                     layerData match {
                       case cd: ConvDatasets => {
                         if (Conv.expectDataShapeWHC)
@@ -261,7 +276,6 @@ class TestCNN {
                       }
                       case fd: FCDatasets => fd.weights.padded
                     },
-                    //                      Array.fill(1)(Array.fill(15)(Array.fill(30)(Array.fill(30)(Array.fill[Float](256)(0.0f))))))
                     layerData match {
                       case cd: ConvDatasets => {
                         if (Conv.expectDataShapeWHC)
@@ -322,9 +336,7 @@ class TestCNN {
               case _ =>
                 /* One-kernel layer */
                 val ((outputsFlat: Array[Float], runtime), openclKernel) =
-                //                val outputsFlat = null
-                //                val runtime = 0.0d
-                //                val openclKernel =
+//                val (outputsFlat: Array[Float], runtime)=
                   Execute(
                     layer.localSize(0), layer.localSize(1), layer.localSize(2),
                     layer.globalSize(0), layer.globalSize(1), layer.globalSize(2), (true, true))[Array[Float]](
@@ -374,14 +386,15 @@ class TestCNN {
                     // (h, w, n_channels) -> (h * w * n_channels)
                     input => input.map(row => row.flatten).flatten
                   ))
-              case (_: Conv, poolLayer: ScalaPool) =>
-                poolLayer.inputs = layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
-              case (poolLayer: ScalaPool, _: FC) =>
-                data.perLayer(/*no +1 on purpose */layerNo).asInstanceOf[FCDatasets].inputs.nonPadded =
-                  poolLayer.outputs.flatMap(batch => batch.map(
-                    // (h, w, n_channels) -> (h * w * n_channels)
-                    input => input.map(row => row.flatten).flatten
-                  ))
+                // Disabling pooling temporarily as work in progress
+//              case (_: Conv, poolLayer: ScalaPool) =>
+//                poolLayer.inputs = layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
+//              case (poolLayer: ScalaPool, _: FC) =>
+//                data.perLayer(/*no +1 on purpose */layerNo).asInstanceOf[FCDatasets].inputs.nonPadded =
+//                  poolLayer.outputs.flatMap(batch => batch.map(
+//                    // (h, w, n_channels) -> (h * w * n_channels)
+//                    input => input.map(row => row.flatten).flatten
+//                  ))
               case (_: Conv, _: Conv) =>
                 data.perLayer(layerNo + 1).asInstanceOf[ConvDatasets].inputs.nonPadded =
                   layerData.asInstanceOf[ConvDatasets].outputs.nonPadded
@@ -407,11 +420,7 @@ class TestCNN {
           var testVerified: Boolean = true
 
 
-          //        val a = data.layers(0).asInstanceOf[ConvDatasets].outputs.nonPadded
-          //        val b = data.layers(0).asInstanceOf[ConvDatasets].targets
           verifyOutputs(
-            //          netOutputs = data.layers.last.asInstanceOf[FCDatasets].outputs.nonPadded,
-            //          targetOutputs = data.layers.last.asInstanceOf[FCDatasets].targets,
             netOutputs = data.perLayer(0).asInstanceOf[ConvDatasets].outputs.nonPadded,
             targetOutputs = data.perLayer(0).asInstanceOf[ConvDatasets].targets,
             precision) match {
@@ -467,9 +476,8 @@ class TestCNN {
   }
 
   def recordFailureInSQL(exceptionMsg: String, aCNN: CNN, iP: Layer.InitParameters, runDate: Date): Unit = {
-    // TODO: Reenable SQL
-    return
-    Connector.statement.execute("INSERT INTO lift_results_cnn " +
+    // MySQL is disabled in this version
+    /*Connector.statement.execute("INSERT INTO lift_results_cnn " +
       "(device_name, n_batches, n_inputs, image_size, " + {
       iP match {
         case _: Conv.InitParameters =>
@@ -493,7 +501,7 @@ class TestCNN {
             f"${fcIP.optParams.multsPerThread}%d, ${fcIP.optParams.neuronsPerWrg}%d, "
       }
     } + f"false, '" + exceptionMsg + f"', $codeVersion%d, " +
-      f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s');")
+      f"'${new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(runDate)}%s');")*/
   }
 
   def recordFailureInSQL(exceptionMsg: String, aCNN: CNN, runDate: Date): Unit =
@@ -501,9 +509,8 @@ class TestCNN {
 
   def recordInSQL(aCNN: CNN, testRan: Boolean, testFailed: Boolean = false, testVerified: Boolean, runDate: Date,
                   exceptionMsg: String = ""): Unit = {
-    // TODO: Reenable SQL
-    return
-    val cmd = "INSERT INTO lift_results_cnn " +
+    // MySQL is disabled in this version
+    /*val cmd = "INSERT INTO lift_results_cnn " +
       "(device_name, n_batches, n_inputs, image_size, n_conv_layers, n_fc_layers, " + {
       for (layerNo <- aCNN.convLayers.indices)
         yield f"n_kernels_l$layerNo%d, kernel_size_l$layerNo%d, kernel_stride_l$layerNo%d, " +
@@ -562,8 +569,7 @@ class TestCNN {
           0
       }%d);"
     println(cmd)
-    // TODO: to reenable
-    //    Connector.statement.execute(cmd)
+    Connector.statement.execute(cmd)*/
   }
 
 

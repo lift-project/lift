@@ -107,7 +107,7 @@ object TiledSlidedND {
 
   def apply(dim: Int)(size: ArithExpr, step: ArithExpr, tileStep: ArithExpr): Lambda = {
     val tileSize = (size - step) + tileStep
-    /*undoTiling(dim) o*/
+    undoTiling(dim) o
       GenerateIR.wrapInMaps(SlideND(dim)(size,step), dim) o
         SlideND(dim)(tileSize, tileStep)
   }

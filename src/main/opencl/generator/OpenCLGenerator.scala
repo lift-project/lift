@@ -254,10 +254,36 @@ class OpenCLGenerator extends Generator {
     // pass 3: generate the
     globalBlock += generateKernel(f)
 
-    val oclstring = AstPrinter(globalBlock)()
+    // unroll private memory in the AST
+    val unrollBlock = UnrollValues.unrollPrivateMemoryArrayValues(globalBlock)
+    var inlineBlock = unrollBlock
+
+    // inline structs if requested
+   if(InlineStructs())
+    {
+      try
+      {
+        var hasChanged = true
+        while(hasChanged )
+        {
+            val result = UnrollValues.inlinePrivateMemoryStructValues(inlineBlock)
+            hasChanged = UnrollValues.hasChanged
+        }
+
+      } catch {
+        case err : NotImplementedError => // we know about these errors and we do not allow the user to inline structs in these cases
+          print(s"Warning: Cannot inline structs: ")
+          println(err.getMessage())
+          inlineBlock = unrollBlock
+        case err : Exception => // otherwise genuine issue, throw the exception again
+          throw(err)
+      }
+    }
+
+    val oclstring = AstPrinter(inlineBlock)()
 
     if(Verbose())
-      println(s"Generated AST: \n${globalBlock}")
+      println(s"Generated AST: \n${inlineBlock}")
 
     oclstring
   }
@@ -490,15 +516,17 @@ class OpenCLGenerator extends Generator {
         case vec: VectorizeUserFun => generateUserFunCall(vec.vectorizedFunction, call, block)
         case u: UserFun            => generateUserFunCall(u, call, block)
 
+        case dpv @ debug.PrintView(msg, _) => debugPrintView(dpv, call, msg, block)
         case fp: FPattern                 => generate(fp.f.body, block)
         case l: Lambda                    => generate(l.body, block)
         case ua: UnsafeArrayAccess        => generateUnsafeArrayAccess(ua, call, block)
         case ca: CheckedArrayAccess       => generateCheckedArrayAccess(ca, call, block)
+        case debug.PrintComment(msg)      => debugPrintComment(msg, block)
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
-             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) |
+             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
              ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) =>
-        case _ => (block: MutableBlock) += Comment("__" + call.toString + "__")
+        case _                            => (block: MutableBlock) += Comment("__" + call.toString + "__")
       }
       case v: Value             => generateValue(v, block)
       case _: Param             =>
@@ -510,10 +538,8 @@ class OpenCLGenerator extends Generator {
   private def debugPrintComment(msg: String, block: MutableBlock): Unit = {
     (block: MutableBlock) += Comment(msg)
   }
-
-  /* Prints the view as a comment in OpenCL kernel with newlines and tabs */
-  private def debugPrintView(dpv: debug.PrintView, call: FunCall, msg: String, block: MutableBlock): Unit = {
-    val inlineView: String = call.args.head.view.toString
+  
+  private def prettifyView(inlineView: String): String = {
     var printedView: String = ""
     val commas = """,(.)(?<![\d|c=|s=])|\(|\)""".r.findAllIn(inlineView)
     var level = 1
@@ -534,6 +560,14 @@ class OpenCLGenerator extends Generator {
       commas.next()
     }
     printedView += inlineView.substring(start, inlineView.length()) + ",\n" + "  " * level
+    
+    printedView
+  }
+
+  /* Prints the view as a comment in OpenCL kernel with newlines and tabs */
+  private def debugPrintView(dpv: debug.PrintView, call: FunCall, msg: String, block: MutableBlock): Unit = {
+    val printedView: String = prettifyView(call.args.head.view.toString)
+
     (block: MutableBlock) += Comment(msg + ":\n" + printedView)
 
     generate(dpv.f.body, block)
@@ -838,9 +872,9 @@ class OpenCLGenerator extends Generator {
   private def generateMapSeqSlideCall(sp: MapSeqSlide,
                                       call: FunCall,
                                       block: MutableBlock): Unit = {
-    (block: MutableBlock) += Comment("slideSeq_plus")
+    (block: MutableBlock) += Comment("mapSeqSlide")
     generateMapSeqSlideLoop(block, sp, call, generate(sp.f.body, _), sp.shouldUnroll)
-    (block: MutableBlock) += Comment("end slideSeq_plus")
+    (block: MutableBlock) += Comment("end mapSeqSlide")
   }
 
   // === ReduceWhile ===

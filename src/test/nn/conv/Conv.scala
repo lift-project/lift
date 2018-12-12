@@ -7,6 +7,10 @@ package nn.conv
 import ir.ast._
 import nn._
 
+/**
+  * The companion object that contains the Lift expressions, configuration preprocessing and
+  * verification, and helper functions.
+  */
 trait ConvCompanion {
 
   val expectDataShapeWHC: Boolean
@@ -52,16 +56,17 @@ trait ConvCompanion {
 /**
   * Case class for storing the layer configuration.
   * Configuration is to be preprocessed and verified by the companion object below.
-  * @param liftFProp
-  * @param inputShape
-  * @param outputShape* @param inputTiling
-  * @param kernelSliding
-  * @param elsPerThread
-  * @param kernelsPerGroup
-  * @param vectorLen
-  * @param coalesce
-  * @param localSize
-  * @param globalSize
+  * @param liftFProp        an activation function (e.g. Linear, ReLU, etc)
+  * @param inputShape       configuration of input data
+  * @param outputShape      configuration of output data
+  * @param inputTiling      configuration of input data overlapping tiling (tile, size, stride, etc)
+  * @param kernelSliding    configuration of convolutional kernel sliding (tile, size, stride, etc)
+  * @param elsPerThread     the number of input elements (pixels) to process (weigh) sequentially within a thread
+  * @param kernelsPerGroup  the number of convolutional kernels (features) to process within a workgroup
+  * @param vectorLen        the length of vectors that input data and weights are split into for memory accesses and computations
+  * @param coalesce         switch to enable coalesced memory accesses
+  * @param localSize        number of work items in respective dimensions of work groups
+  * @param globalSize       number of work items in respective dimension of the global space
   */
 abstract class Conv(val liftFProp: Array[FunDecl],
                     val inputShape: Shape, val outputShape: Shape,

@@ -1,59 +1,66 @@
+/*
+ * Some code lines here are disabled since they depend on the code that is only available in the "nn" branch and in a
+ * private fork of Lift.
+ * Disabled functionality mainly refers to testing and exploring the search space of optimisational parameters.
+ * Actual expressions for neural layers and associated initialization logic is still functional.
+ * For full functionality and code examples, contact Naums Mogers (naums.mogers@ed.ac.uk).
+ */
 package nn.cnn
 
 import nn.cnn
 import opencl.executor.Executor
-import org.junit.{AfterClass, BeforeClass, Test}
+import org.junit.{AfterClass, BeforeClass, Test, Ignore}
 
 /**
   * Created by s1569687 on 8/17/17.
   */
 
+@Ignore
 object TestCNN_Conv {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
-    Executor.init(/*avus*/1, 1)
-//    Executor.init(/*artemisa*/0, 0)
-    // TODO: reenable MySQL
+//    Executor.init(/*avus*/1, 1)
+    Executor.init(0, 0)
+//     MySQL is disabled in this version
 //    nn.cnn.mysql.CreateTable()
   }
 
   @AfterClass def after(): Unit = {
     println("Shutdown the executor")
     Executor.shutdown()
+    //     MySQL is disabled in this version
 //    Connector.close()
   }
 
   def main(args: Array[String]): Unit = {
     // For running from the command line
-    (new TestCNN_Conv).TestConv()
+    (new TestCNN_Conv).testConv()
   }
 }
 
+@Ignore
 class TestCNN_Conv {
   val reruns: Int = 1
 
-  def TestConvJSON(): Unit = {
+  def testConvUsingJSON(): Unit = {
     val testConfigFilenames = Array(
       //"vgg_layer_1.json",
             "vgg_layer_3.json")
-      //      "vgg_layer_6.json",
-      //      "vgg_layer_8.json",
-      //      "vgg_layer_11.json",
-      //      "vgg_layer_13_15_17.json",
-      //      "vgg_layer_20.json",
-      //      "vgg_layer_22_24_26.json",
-      //      "vgg_layer_29_31_33_35.json")
       for (_ <- 0 until reruns) {
         for (testConfigFilename <- testConfigFilenames)
-          new TestCNN().Test(
+          new TestCNN().test(
             cnn.getConfigFromJSON(System.getenv("LIFT_CNN_CONFIG_PATH") + "/" + testConfigFilename),
             testConfigFilename)
       }
   }
-  
+
+  // The test below is disabled due to a missing dependency (Caffe configuration file parsing) that currently
+  // resides in a separate fork
   @Test
-  def TestConv(): Unit = {
+  def testConv(): Unit = {
+    // This function is disabled as the Caffe package that is required for parsing the NN specifications currently only
+    // resides in the "nn" branch.
     if (System.getenv("LIFT_CNN_CONFIG_PATH") == null)
       return
 
@@ -69,9 +76,9 @@ class TestCNN_Conv {
           for (config <- configs.distinct)
             print(config.layerNo + ", ")
           println()
-          
+
           for (config <- configs.distinct) {
-            new TestCNN().Test(config, protoFile)//, {
+            new TestCNN().test(config, protoFile)//, {
 //              val iC = InputConfig(nBatches = 1,
 //                nInputs = 50,
 //                inputSize = 55,
