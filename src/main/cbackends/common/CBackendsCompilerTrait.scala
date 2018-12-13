@@ -1,5 +1,6 @@
 package cbackends.common
 
+import cbackends.common.loop_var_inference.LoopVarInference
 import cbackends.common.memory_management.InferHostMemoryAddressSpace
 import core.generator.GenericAST.{Block, CVarWithType}
 import ir.{TypeChecker, UndefType}
@@ -25,13 +26,20 @@ trait CBackendsCompilerTrait {
   }
   def memorySpaceInference(lambda:Lambda) : Unit = {
 
-    println("3. infer memory space")
+    println("3. common infer memory space")
 
     InferHostMemoryAddressSpace(lambda)
 
   }
+
+  def loopVarInference(lambda:Lambda) : Unit = {
+
+    println("4. common infer loop var in trait")
+
+    LoopVarInference(lambda)
+
+  }
   /*
-  def loopVarInference(lambda:Lambda) : Unit
   def memoryAlloc(lambda:Lambda) : Unit
   def inputView(lambda:Lambda) : Unit
   def outputView(lambda:Lambda) : Unit
@@ -45,6 +53,7 @@ trait CBackendsCompilerTrait {
 
     typeCheck(lambda)
     memorySpaceInference(lambda)
+    loopVarInference(lambda)
 
     println("n.compiler done")
 
