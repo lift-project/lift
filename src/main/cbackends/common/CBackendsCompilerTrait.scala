@@ -39,8 +39,11 @@ trait CBackendsCompilerTrait {
     LoopVarInference(lambda)
 
   }
+
+  def memoryAlloc(lambda:Lambda) : Unit = {
+
+  }
   /*
-  def memoryAlloc(lambda:Lambda) : Unit
   def inputView(lambda:Lambda) : Unit
   def outputView(lambda:Lambda) : Unit
   def lowerIR2CAST() : (Block, List[CVarWithType])
@@ -54,6 +57,7 @@ trait CBackendsCompilerTrait {
     typeCheck(lambda)
     memorySpaceInference(lambda)
     loopVarInference(lambda)
+    memoryAlloc(lambda)
 
     println("n.compiler done")
 
