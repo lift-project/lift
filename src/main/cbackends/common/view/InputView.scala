@@ -1,0 +1,159 @@
+package cbackends.common.view
+
+import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, TupleType}
+import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Split, Transpose, UserFun, Value, Zip, transpose}
+import ir.view._
+import lift.arithmetic.ArithExpr
+
+object InputView {
+
+  private def getViewFromArgs(fc: FunCall): View = {
+    if (fc.args.isEmpty) {
+      assert(false)
+      NoView
+    } else if (fc.args.length == 1) {
+      fc.args.head.view
+    } else {
+      val input_views = fc.args.map(_.view)
+      ViewTuple(input_views, TupleType(input_views.map(_.t): _*))
+    }
+  }
+
+  def generateInputView(node: IRNode): Unit = {
+    node match {
+
+
+      case a@ArrayFromUserFunGenerator(f, at) =>   a.view = ViewGeneratorUserFun(f, at)
+      case a@Array2DFromUserFunGenerator(f, at) => a.view = View2DGeneratorUserFun(f, at)
+      case a@Array3DFromUserFunGenerator(f, at) => a.view = View3DGeneratorUserFun(f, at)
+
+      case v: Value => v.view = ViewConstant(v, v.t)
+
+
+      case fc@FunCall(_:Zip, args@_*) => {
+
+        args.foreach(generateInputView(_) )
+
+        //val input_views = args.map(_.view)
+        //fc.view = ViewTuple(input_views, TupleType(input_views.map(_.t): _*)).zip()
+
+        val input_view = getViewFromArgs(fc)
+        fc.view = input_view.zip()
+
+      }
+
+      case fc@FunCall(Get(n), arg) => {
+
+        generateInputView(arg)
+
+        fc.view = arg.view.get(n)
+
+      }
+
+
+      case fc@FunCall(Split(n), arg) => {
+        generateInputView(arg);
+        fc.view = arg.view.split(n) }
+      case fc@FunCall(_:Join, arg) => {
+
+        generateInputView(arg)
+
+        val n = fc.argsType match {
+          case ArrayType(ArrayTypeWSWC(_, s,c)) if s==c => s
+          case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + fc.argsType)
+        }
+        fc.view = arg.view.join(n)
+      }
+
+      case fc@FunCall(_:Transpose, arg) => {
+
+        generateInputView(arg)
+        fc.t match{
+          case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
+            //working
+            //fc.view = arg.view.join(n).reorder( (i: ArithExpr) => { transpose(i, fc.t) }  ).split(m)
+            //experimental
+            fc.view = arg.view.transpose(fc.t)
+          case _ => assert(false, "Other types other than 2D array are not allowed for transpose")
+        }
+
+      }
+
+      case fc@FunCall(Pad(left, right, boundaryFun), arg) => {
+
+        generateInputView(arg)
+        fc.view = arg.view.pad(left, right, boundaryFun)
+
+      }
+
+      case fc@FunCall(_:UserFun, args@_*) => {
+
+        args.foreach(generateInputView(_))
+
+        fc.view = ViewMem(fc.mem.variable, fc.t)
+
+      }
+
+      case fc@FunCall(m:AbstractMap, arg) => {
+
+        generateInputView(arg)
+
+        //this line reflect the map semantic
+        m.f.params.head.view = arg.view.access(m.loopVar)
+
+        generateInputView(m.f.body)
+
+        //Take the courage to use the simplest solution seen so far, keep in mind that this might break
+        fc.view = ViewMap(m.f.body.view, m.loopVar, fc.t)
+
+      }
+
+      case fc@FunCall(r: AbstractPartRed, args@_*) => {
+
+        args.foreach(generateInputView(_))
+
+        val input_view = getViewFromArgs(fc)
+
+        r.f.params(0).view = input_view.get(0)
+        r.f.params(1).view = input_view.get(1).access(r.loopVar)
+
+        generateInputView(r.f.body)
+
+        //No need to initialize a new view, as the view is the same as its inner view
+        //In Map, the memory is augmented for its user function, thus in that case a new view is needed
+        //but it is not the case for reduce.
+        fc.view = r.f.body.view
+
+      }
+
+      case fc@FunCall(_, arg) => {
+
+        generateInputView(arg)
+
+        fc.view = arg.view
+
+      }
+
+      case _ =>
+    }
+  }
+
+  def apply(lambda: Lambda): Unit = {
+
+    lambda visitBy {
+        case e:Expr => assert(e.view == NoView)
+        case _ =>
+    }
+
+    lambda.params.foreach( p => p.view = ViewMem(p.mem.variable, p.t) )
+
+    generateInputView(lambda.body)
+
+    lambda visitBy {
+        case e:Expr if !e.isInstanceOf[Value] => assert( e.view != NoView )
+        case _ =>
+    }
+
+  }
+
+}
