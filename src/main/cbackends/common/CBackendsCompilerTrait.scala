@@ -46,9 +46,7 @@ trait CBackendsCompilerTrait {
 
     println("5. common memory alloc in trait")
 
-    MemoryAllocator.pre_check(lambda)
     MemoryAllocator(lambda)
-    MemoryAllocator.post_check(lambda)
 
   }
 

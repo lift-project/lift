@@ -97,6 +97,7 @@ object MemoryAllocator {
   def apply(lambda: Lambda): Unit = {
 
 
+    pre_check(lambda)
 
     //alloc params
     lambda.params.foreach(
@@ -109,6 +110,8 @@ object MemoryAllocator {
     )
 
     alloc(lambda.body)
+
+    post_check(lambda)
 
   }
 

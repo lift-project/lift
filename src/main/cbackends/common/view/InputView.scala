@@ -138,21 +138,38 @@ object InputView {
     }
   }
 
-  def apply(lambda: Lambda): Unit = {
+  def pre_check(lambda: Lambda) : Unit = {
+    lambda visitBy {
+      case e: Expr => assert(e.view == NoView)
+      case _ =>
+    }
+  }
+
+  def post_check(lambda: Lambda) : Unit = {
 
     lambda visitBy {
-        case e:Expr => assert(e.view == NoView)
-        case _ =>
+      case e:Expr if !e.isInstanceOf[Value] => assert( e.view != NoView )
+      case _ =>
     }
+
+  }
+
+  def init_params(lambda: Lambda) : Unit = {
 
     lambda.params.foreach( p => p.view = ViewMem(p.mem.variable, p.t) )
 
+  }
+
+  def apply(lambda: Lambda): Unit = {
+
+    pre_check(lambda)
+
+    init_params(lambda)
+
     generateInputView(lambda.body)
 
-    lambda visitBy {
-        case e:Expr if !e.isInstanceOf[Value] => assert( e.view != NoView )
-        case _ =>
-    }
+    post_check(lambda)
+
 
   }
 
