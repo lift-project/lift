@@ -5,23 +5,28 @@ import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3
 import ir.view._
 import lift.arithmetic.{ArithExpr, Cst}
 import core.generator.PrettyPrinter._
+import cbackends.common.utils.output_view.OutputView.{pre_check,post_check,init_params}
 
-import scala.collection.mutable
 
 object OutputView {
 
-  def generateOutputView(node: IRNode): Unit = {
+  def generateOutputView(node: Option[IRNode], cont: Option[IRNode] => Option[IRNode]) : Option[IRNode] = {
     node match {
 
+      case None => None
 
-      case a@ArrayFromUserFunGenerator(f, at) =>
-        a.outputView = ViewGeneratorUserFun(f, at)
-      case a@Array2DFromUserFunGenerator(f, at) =>
-        a.outputView = View2DGeneratorUserFun(f, at)
-      case a@Array3DFromUserFunGenerator(f, at) =>
-        a.outputView = View3DGeneratorUserFun(f, at)
+      //In the composable pattern matching, all match has to be explicit, even though they do nothing
+      case Some(_:Value) => None
+      case Some(_:Param) => None
 
-      case fc@FunCall(_:Zip, args@_*) => {
+      case Some(a@ArrayFromUserFunGenerator(f, at) ) =>
+        a.outputView = ViewGeneratorUserFun(f, at); None
+      case Some(a@Array2DFromUserFunGenerator(f, at))  =>
+        a.outputView = View2DGeneratorUserFun(f, at); None
+      case Some(a@Array3DFromUserFunGenerator(f, at) ) =>
+        a.outputView = View3DGeneratorUserFun(f, at); None
+
+      case Some(fc@FunCall(_:Zip, args@_*) ) => {
 
         assert(fc.outputView != NoView)
 
@@ -36,12 +41,13 @@ object OutputView {
 
         args.foreach(a => assert(a.outputView != NoView))
 
-        args.foreach(generateOutputView(_))
+        args.foreach(a => cont( Some(a)))
 
+        None
 
       }
 
-      case fc@FunCall(Get(n), arg) => {
+      case Some(fc@FunCall(Get(n), arg) ) => {
 
         assert(fc.outputView != NoView)
 
@@ -49,11 +55,13 @@ object OutputView {
 
         assert(arg.outputView != NoView)
 
-        generateOutputView(arg)
+        cont(Some(arg))
+
+        None
       }
 
 
-      case fc@FunCall(Split(n), arg) => {
+      case Some(fc@FunCall(Split(n), arg) ) => {
 
         assert(fc.outputView != NoView)
 
@@ -61,9 +69,11 @@ object OutputView {
 
         assert(arg.outputView != NoView)
 
-        generateOutputView(arg)
+        cont(Some(arg))
+
+        None
       }
-      case fc@FunCall(_:Join, arg) => {
+      case Some(fc@FunCall(_:Join, arg) ) => {
 
         assert(fc.outputView != NoView)
 
@@ -76,10 +86,12 @@ object OutputView {
 
         assert(arg.outputView != NoView)
 
-        generateOutputView(arg)
+        cont( Some(arg) )
+
+        None
       }
 
-      case fc@FunCall(TransposeW(), arg) => {
+      case Some(fc@FunCall(TransposeW(), arg) ) => {
 
         assert(fc.outputView != NoView)
 
@@ -95,11 +107,13 @@ object OutputView {
 
         assert(arg.outputView != NoView)
 
-        generateOutputView(arg)
+        cont( Some(arg) )
+
+        None
 
       }
 
-      case fc@FunCall(_:UserFun, args@_*) => {
+      case Some(fc@FunCall(_:UserFun, args@_*) ) => {
 
         assert(fc.outputView != NoView)
 
@@ -116,7 +130,7 @@ object OutputView {
 
         args.foreach(a => assert(a.outputView != NoView))
 
-        args.foreach(generateOutputView(_) )
+        args.foreach(a => cont(Some(a) ) )
 
         /*
         //You could write test code directly here to see the offset
@@ -130,28 +144,31 @@ object OutputView {
         println("input done")
         */
 
+        None
 
       }
 
-      case fc@FunCall(m:AbstractMap, arg) => {
+      case Some(fc@FunCall(m:AbstractMap, arg) ) => {
 
         assert(fc.outputView != NoView)
 
         //this line reflect the map semantic
         m.f.body.outputView = fc.outputView.access(m.loopVar)
 
-        generateOutputView(m.f.body)
+        cont(Some(m.f.body) )
 
         arg.outputView = ViewMap(m.f.params.head.outputView, m.loopVar, arg.t)
 
         assert(arg.outputView != NoView)
 
-        generateOutputView(arg)
+        cont(Some(arg) )
+
+        None
 
 
       }
 
-      case fc@FunCall(r: AbstractPartRed, args@_*) => {
+      case Some(fc@FunCall(r: AbstractPartRed, args@_*) ) => {
 
         assert(fc.outputView != NoView)
 
@@ -159,7 +176,7 @@ object OutputView {
 
         r.f.body.outputView = fc.outputView.access(Cst(0))
 
-        generateOutputView(r.f.body)
+        cont( Some(r.f.body) )
 
         val acc = args(0)
         val array = args(1)
@@ -169,7 +186,7 @@ object OutputView {
 
         args.foreach(a => assert(a.outputView != NoView))
 
-        args.foreach(generateOutputView(_))
+        args.foreach(a => cont( Some(a) ))
 
 
         /*val acc = args.head
@@ -178,8 +195,11 @@ object OutputView {
 
         generateOutputView(args(1)) */
 
+        None
+
       }
 
+        /*
       case fc@FunCall(_, arg) => {
 
         assert(fc.outputView != NoView)
@@ -190,39 +210,28 @@ object OutputView {
 
         generateOutputView(arg)
       }
+      */
 
-      case _ =>
+      case Some(_) => node
     }
+  }
+
+  def default_generateOutputView(in: Option[IRNode]) : Option[IRNode] = {
+    val partial_binded = generateOutputView(_:Option[IRNode], default_generateOutputView)
+    val composed = partial_binded andThen cbackends.common.utils.pattern_matching.Error.error[IRNode] _
+    composed(in)
   }
 
   def apply(lambda: Lambda): Unit = {
 
-    lambda visitBy {
-        case e:Expr => assert(e.outputView == NoView)
-        case _ =>
-    }
+    pre_check(lambda)
 
-    //first set the body's output view, then propagate to someone inside.
-    lambda.body.outputView = ViewMem(lambda.body.mem.variable, lambda.body.t)
+    init_params(lambda)
 
-    generateOutputView(lambda.body)
+    default_generateOutputView( Some(lambda.body) )
 
-    //If some params are not used in expression,
-    //set their outputView explicitly to avoid NoView assertion failure
-    val all_params = lambda.params.toSet
-    val used_params = mutable.Set.empty[Param]
-    lambda.body visitBy {
-        case p:Param if all_params contains p => used_params += p
-        case _ =>
-    }
-    val used_params_immutable = used_params.toSet
-    val unused_params = all_params -- used_params_immutable
-    unused_params.foreach(p => p.outputView = UnusedInExprOutputView)
+    post_check(lambda)
 
-    lambda visitBy {
-        case e:Expr => assert( e.outputView != NoView )
-        case _ =>
-    }
 
   }
 

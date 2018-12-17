@@ -4,7 +4,7 @@ import cbackends.common.loop_var_inference.LoopVarInference
 import cbackends.common.memory_management.InferHostMemoryAddressSpace
 import core.generator.GenericAST.{Block, CVarWithType}
 import cbackends.common.memory_management.MemoryAllocator
-import cbackends.common.view.InputView
+import cbackends.common.view.{InputView, OutputView}
 import ir.{TypeChecker, UndefType}
 import ir.ast.{Expr, Lambda}
 
@@ -57,8 +57,15 @@ trait CBackendsCompilerTrait {
     InputView(lambda)
 
   }
+
+  def outputView(lambda:Lambda) : Unit = {
+
+    println("7. common output view in trait")
+
+    OutputView(lambda)
+
+  }
   /*
-  def outputView(lambda:Lambda) : Unit
   def lowerIR2CAST() : (Block, List[CVarWithType])
   def castPrinter(mb: Block, path: String, file: String) : Unit */
 
@@ -72,6 +79,7 @@ trait CBackendsCompilerTrait {
     loopVarInference(lambda)
     memoryAlloc(lambda)
     inputView(lambda)
+    outputView(lambda)
 
     println("n.compiler done")
 
