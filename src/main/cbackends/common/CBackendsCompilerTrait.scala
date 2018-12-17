@@ -3,6 +3,7 @@ package cbackends.common
 import cbackends.common.common_cast.CbackendCAST.SourceFile
 import cbackends.common.loop_var_inference.LoopVarInference
 import cbackends.common.memory_management.{FinalMemoryAllocationAnalysis, InferHostMemoryAddressSpace, MemoryAllocator}
+import cbackends.common.printer.CASTPrinter
 import core.generator.GenericAST.{Block, CVarWithType}
 import cbackends.common.view.{InputView, OutputView}
 import ir.{TypeChecker, UndefType}
@@ -79,8 +80,13 @@ trait CBackendsCompilerTrait {
                    memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)],
                    path: String,
                    files: List[String]
-                  ) : List[SourceFile] /*
-  def castPrinter(mb: Block, path: String, file: String) : Unit */
+                  ) : List[SourceFile]
+
+  final def castPrinter(files : List[SourceFile]) : Unit = {
+
+    CASTPrinter(files)
+
+  }
 
   //compile a lambda
   def !(lambda: Lambda, path: String, files: List[String]): Unit = {
@@ -96,6 +102,8 @@ trait CBackendsCompilerTrait {
     outputView(lambda)
 
     val listOfSourceFiles = lowerIR2CAST(lambda, finalMemoryAllocated, path, files)
+
+    castPrinter(listOfSourceFiles)
 
     println("n.compiler done")
 
