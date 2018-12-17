@@ -1,7 +1,7 @@
 package cbackends.common.view
 
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, TupleType}
-import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Split, Transpose, UserFun, Value, Zip, transpose}
+import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Split, Transpose, UserFun, Value, Zip, transpose}
 import ir.view._
 import lift.arithmetic.ArithExpr
 
@@ -19,20 +19,24 @@ object InputView {
     }
   }
 
-  def generateInputView(node: IRNode): Unit = {
+  def generateInputView(node: Option[IRNode], cont: Option[IRNode] => Option[IRNode]): Option[IRNode] = {
     node match {
 
-
-      case a@ArrayFromUserFunGenerator(f, at) =>   a.view = ViewGeneratorUserFun(f, at)
-      case a@Array2DFromUserFunGenerator(f, at) => a.view = View2DGeneratorUserFun(f, at)
-      case a@Array3DFromUserFunGenerator(f, at) => a.view = View3DGeneratorUserFun(f, at)
-
-      case v: Value => v.view = ViewConstant(v, v.t)
+      case None => None
 
 
-      case fc@FunCall(_:Zip, args@_*) => {
+      case Some(a@ArrayFromUserFunGenerator(f, at) ) =>   a.view = ViewGeneratorUserFun(f, at); None
+      case Some(a@Array2DFromUserFunGenerator(f, at) ) => a.view = View2DGeneratorUserFun(f, at); None
+      case Some(a@Array3DFromUserFunGenerator(f, at) ) => a.view = View3DGeneratorUserFun(f, at); None
 
-        args.foreach(generateInputView(_) )
+      case Some(v: Value) => v.view = ViewConstant(v, v.t); None
+      //In the composable pattern matching, all match has to be explicit, even though they do nothing
+      case Some(_: Param) => None
+
+
+      case Some(fc@FunCall(_:Zip, args@_*)) => {
+
+        args.foreach( a => cont( Some(a)  ) )
 
         //val input_views = args.map(_.view)
         //fc.view = ViewTuple(input_views, TupleType(input_views.map(_.t): _*)).zip()
@@ -40,34 +44,43 @@ object InputView {
         val input_view = getViewFromArgs(fc)
         fc.view = input_view.zip()
 
+        None
+
       }
 
-      case fc@FunCall(Get(n), arg) => {
+      case Some(fc@FunCall(Get(n), arg) ) => {
 
-        generateInputView(arg)
+        cont( Some(arg) )
 
         fc.view = arg.view.get(n)
 
+        None
+
       }
 
 
-      case fc@FunCall(Split(n), arg) => {
-        generateInputView(arg);
-        fc.view = arg.view.split(n) }
-      case fc@FunCall(_:Join, arg) => {
+      case Some(fc@FunCall(Split(n), arg) ) => {
+        cont( Some(arg) )
+        fc.view = arg.view.split(n)
 
-        generateInputView(arg)
+        None
+      }
+      case Some(fc@FunCall(_:Join, arg) ) => {
+
+        cont( Some(arg) )
 
         val n = fc.argsType match {
           case ArrayType(ArrayTypeWSWC(_, s,c)) if s==c => s
           case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + fc.argsType)
         }
         fc.view = arg.view.join(n)
+
+        None
       }
 
-      case fc@FunCall(_:Transpose, arg) => {
+      case Some(fc@FunCall(_:Transpose, arg) ) => {
 
-        generateInputView(arg)
+        cont( Some(arg) )
         fc.t match{
           case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
             //working
@@ -77,64 +90,76 @@ object InputView {
           case _ => assert(false, "Other types other than 2D array are not allowed for transpose")
         }
 
+        None
+
       }
 
-      case fc@FunCall(Pad(left, right, boundaryFun), arg) => {
+      case Some(fc@FunCall(Pad(left, right, boundaryFun), arg) ) => {
 
-        generateInputView(arg)
+        cont( Some(arg) )
         fc.view = arg.view.pad(left, right, boundaryFun)
 
+        None
+
       }
 
-      case fc@FunCall(_:UserFun, args@_*) => {
+      case Some(fc@FunCall(_:UserFun, args@_*) ) => {
 
-        args.foreach(generateInputView(_))
+        args.foreach( a => cont( Some(a) ))
 
         fc.view = ViewMem(fc.mem.variable, fc.t)
 
+        None
+
       }
 
-      case fc@FunCall(m:AbstractMap, arg) => {
+      case Some(fc@FunCall(m:AbstractMap, arg) ) => {
 
-        generateInputView(arg)
+        cont( Some(arg) )
 
         //this line reflect the map semantic
         m.f.params.head.view = arg.view.access(m.loopVar)
 
-        generateInputView(m.f.body)
+        cont( Some(m.f.body) )
 
         //Take the courage to use the simplest solution seen so far, keep in mind that this might break
         fc.view = ViewMap(m.f.body.view, m.loopVar, fc.t)
 
+        None
+
       }
 
-      case fc@FunCall(r: AbstractPartRed, args@_*) => {
+      case Some(fc@FunCall(r: AbstractPartRed, args@_*) )  => {
 
-        args.foreach(generateInputView(_))
+        args.foreach( a => cont( Some(a) ))
 
         val input_view = getViewFromArgs(fc)
 
         r.f.params(0).view = input_view.get(0)
         r.f.params(1).view = input_view.get(1).access(r.loopVar)
 
-        generateInputView(r.f.body)
+        cont( Some(r.f.body) )
 
         //No need to initialize a new view, as the view is the same as its inner view
         //In Map, the memory is augmented for its user function, thus in that case a new view is needed
         //but it is not the case for reduce.
         fc.view = r.f.body.view
 
+        None
+
       }
 
-      case fc@FunCall(_, arg) => {
+      case Some(fc@FunCall(_, arg) ) => {
 
-        generateInputView(arg)
+        cont( Some(arg) )
 
         fc.view = arg.view
 
+        None
+
       }
 
-      case _ =>
+      case Some(_) => node
     }
   }
 
@@ -160,13 +185,19 @@ object InputView {
 
   }
 
+  def default_generateInputView(in: Option[IRNode]) : Option[IRNode] = {
+    val partial_binded = generateInputView(_:Option[IRNode], default_generateInputView)
+    val composed = partial_binded andThen cbackends.common.utils.pattern_matching.Error.error[IRNode] _
+    composed(in)
+  }
+
   def apply(lambda: Lambda): Unit = {
 
     pre_check(lambda)
 
     init_params(lambda)
 
-    generateInputView(lambda.body)
+    default_generateInputView(Some(lambda.body) )
 
     post_check(lambda)
 
