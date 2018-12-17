@@ -1,7 +1,9 @@
 package cbackends.sdh
 
 import cbackends.common.CBackendsCompilerTrait
+import cbackends.common.common_cast.CbackendCAST.SourceFile
 import cbackends.common.loop_var_inference.LoopVarInference
+import cbackends.host.lowering.LowerIR2HostCAST
 import core.generator.GenericAST
 import core.generator.GenericAST.{Block, CVarWithType}
 import ir.ast.Lambda
@@ -36,12 +38,18 @@ object SDHCompiler extends CBackendsCompilerTrait{
 
   }
 
-  override def lowerIR2CAST(lambda: Lambda, memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]): GenericAST.Block = {
+
+  override def lowerIR2CAST(lambda: Lambda,
+                            memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)],
+                            path: String,
+                            files: List[String]
+                           ): List[SourceFile] = {
 
     //lowerIR2CASTSched()
     //lowerIR2CASTWorker()
 
-    Block()
+    //should be deleted, just here to make host compiler run
+    List(new SourceFile(path, files(0), LowerIR2HostCAST(lambda, memoryDeclaredInSignature) ) )
 
   }
 

@@ -1,5 +1,6 @@
 package cbackends.common
 
+import cbackends.common.common_cast.CbackendCAST.SourceFile
 import cbackends.common.loop_var_inference.LoopVarInference
 import cbackends.common.memory_management.{FinalMemoryAllocationAnalysis, InferHostMemoryAddressSpace, MemoryAllocator}
 import core.generator.GenericAST.{Block, CVarWithType}
@@ -74,11 +75,15 @@ trait CBackendsCompilerTrait {
 
   }
 
-  def lowerIR2CAST(lambda: Lambda, memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]) : Block /*
+  def lowerIR2CAST(lambda: Lambda,
+                   memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)],
+                   path: String,
+                   files: List[String]
+                  ) : List[SourceFile] /*
   def castPrinter(mb: Block, path: String, file: String) : Unit */
 
   //compile a lambda
-  def !(lambda: Lambda, path: String, file: String): Unit = {
+  def !(lambda: Lambda, path: String, files: List[String]): Unit = {
 
     println("1.compiler called")
 
@@ -89,6 +94,8 @@ trait CBackendsCompilerTrait {
     val finalMemoryAllocated = finalMemoryAllocationAnalysis(lambda)
     inputView(lambda)
     outputView(lambda)
+
+    val listOfSourceFiles = lowerIR2CAST(lambda, finalMemoryAllocated, path, files)
 
     println("n.compiler done")
 

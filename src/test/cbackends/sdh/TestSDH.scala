@@ -60,7 +60,8 @@ class TestSDH {
   def test_vec_add_multi_tile(): Unit = {
 
     val path = "/home/lu/Documents/Research/lift/src/test/sdh/3.vector_add_multi_tile"
-    val file = "libvec_add_multi_tile.cpp"
+    val sched_file = "libvec_add_multi_tile.cpp"
+    val worker_file = "vec_add_multi_tile_worker.cpp"
 
 
     val add2 = UserFun("add", Array("l", "r"),
@@ -78,7 +79,7 @@ class TestSDH {
 
     )
 
-    SDHCompiler ! (f, path, file)
+    SDHCompiler ! (f, path, List(sched_file, worker_file))
 
   }
 

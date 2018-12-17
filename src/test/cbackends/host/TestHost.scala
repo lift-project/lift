@@ -73,7 +73,7 @@ class TestHost {
       in => MapSeq( incrementF ) $ in
     )
 
-    HostCompiler ! (f, path, file)
+    HostCompiler ! (f, path, List(file) )
 
     //val actual : String = native_compile_and_run(path, file)
     //val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
