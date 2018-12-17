@@ -1,7 +1,7 @@
 package cbackends.sdh.view
 
 import cbackends.sdh.sdh_ir.{MapGPESync, TMKernel, ToGPE, ToLCP}
-import cbackends.common.view.InputView.{pre_check, post_check, init_params}
+import cbackends.common.utils.input_view.InputView.{pre_check,post_check,init_params}
 import ir.ast.{FunCall, IRNode, Lambda}
 
 object InputView {

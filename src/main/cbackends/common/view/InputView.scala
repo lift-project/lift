@@ -3,7 +3,7 @@ package cbackends.common.view
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, TupleType}
 import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Split, Transpose, UserFun, Value, Zip, transpose}
 import ir.view._
-import lift.arithmetic.ArithExpr
+import cbackends.common.utils.input_view.InputView.{pre_check,post_check,init_params}
 
 object InputView {
 
@@ -37,9 +37,6 @@ object InputView {
       case Some(fc@FunCall(_:Zip, args@_*)) => {
 
         args.foreach( a => cont( Some(a)  ) )
-
-        //val input_views = args.map(_.view)
-        //fc.view = ViewTuple(input_views, TupleType(input_views.map(_.t): _*)).zip()
 
         val input_view = getViewFromArgs(fc)
         fc.view = input_view.zip()
@@ -149,42 +146,10 @@ object InputView {
 
       }
 
-        /*
-      case Some(fc@FunCall(_, arg) ) => {
-
-        cont( Some(arg) )
-
-        fc.view = arg.view
-
-        None
-
-      } */
-
       case Some(_) => node
     }
   }
 
-  def pre_check(lambda: Lambda) : Unit = {
-    lambda visitBy {
-      case e: Expr => assert(e.view == NoView)
-      case _ =>
-    }
-  }
-
-  def post_check(lambda: Lambda) : Unit = {
-
-    lambda visitBy {
-      case e:Expr if !e.isInstanceOf[Value] => assert( e.view != NoView )
-      case _ =>
-    }
-
-  }
-
-  def init_params(lambda: Lambda) : Unit = {
-
-    lambda.params.foreach( p => p.view = ViewMem(p.mem.variable, p.t) )
-
-  }
 
   def default_generateInputView(in: Option[IRNode]) : Option[IRNode] = {
     val partial_binded = generateInputView(_:Option[IRNode], default_generateInputView)
