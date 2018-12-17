@@ -1,12 +1,12 @@
 package cbackends.common
 
 import cbackends.common.loop_var_inference.LoopVarInference
-import cbackends.common.memory_management.InferHostMemoryAddressSpace
+import cbackends.common.memory_management.{FinalMemoryAllocationAnalysis, InferHostMemoryAddressSpace, MemoryAllocator}
 import core.generator.GenericAST.{Block, CVarWithType}
-import cbackends.common.memory_management.MemoryAllocator
 import cbackends.common.view.{InputView, OutputView}
 import ir.{TypeChecker, UndefType}
 import ir.ast.{Expr, Lambda}
+import lift.arithmetic.ArithExpr
 
 trait CBackendsCompilerTrait {
 
@@ -50,9 +50,17 @@ trait CBackendsCompilerTrait {
 
   }
 
+  def finalMemoryAllocationAnalysis(lambda: Lambda) : Map[String, (CVarWithType, ArithExpr) ] = {
+
+    println("6. common final memory allocation analaysis in trait")
+
+    FinalMemoryAllocationAnalysis(lambda)
+
+  }
+
   def inputView(lambda:Lambda) : Unit = {
 
-    println("6. common input view in trait")
+    println("7. common input view in trait")
 
     InputView(lambda)
 
@@ -60,13 +68,13 @@ trait CBackendsCompilerTrait {
 
   def outputView(lambda:Lambda) : Unit = {
 
-    println("7. common output view in trait")
+    println("8. common output view in trait")
 
     OutputView(lambda)
 
   }
-  /*
-  def lowerIR2CAST() : (Block, List[CVarWithType])
+
+  def lowerIR2CAST(lambda: Lambda, memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]) : Block /*
   def castPrinter(mb: Block, path: String, file: String) : Unit */
 
   //compile a lambda
@@ -78,6 +86,7 @@ trait CBackendsCompilerTrait {
     memorySpaceInference(lambda)
     loopVarInference(lambda)
     memoryAlloc(lambda)
+    val finalMemoryAllocated = finalMemoryAllocationAnalysis(lambda)
     inputView(lambda)
     outputView(lambda)
 
