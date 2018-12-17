@@ -1,0 +1,277 @@
+package cbackends.sdh.lowering
+
+
+import core.generator.GenericAST._
+import ir.ArrayTypeWSWC
+import ir.ast.{Expr, FunCall, Get, IRNode, Join, Lambda, Split, UserFun, Value}
+import opencl.generator.OpenCLAST.OclCode
+
+import scala.collection.mutable
+import lift.arithmetic.ArithExpr
+import opencl.ir.pattern.MapSeq
+import cbackends.sdh.sdh_ir._
+import cbackends.common.utils.type_lowering.TypeLowering
+import cbackends.common.view.{CollectAllLoopVars, ViewPrinter}
+
+object LowerIR2KernelCAST {
+
+  val boilerplate_code = RawCode(
+    """
+      |#include <stdio.h>
+      |#include <stdlib.h>
+      |#include <sys/types.h>
+      |#include <sys/stat.h>
+      |#include <unistd.h>
+      |#include <fcntl.h>
+      |#include <sys/mman.h>
+      |#include <stdint.h>
+      |#include <string.h>
+      |
+      |#include "util.hpp"
+      |
+    """.stripMargin)
+
+
+  private def generate(node:IRNode): Block = {
+    //lots of pattern matching code
+    node match {
+      case lambda@Lambda(_,_) =>
+        generate(lambda.body)
+      case fc@FunCall(_:MapTM, _) =>
+        generateMapTM(fc)
+      case fc@FunCall(_:MapTile, _) =>
+        generateMapTile(fc)
+      case fc@FunCall(_:MapGPE, _) =>
+        generateMapGPE(fc)
+      case fc@FunCall(_:MapGPESync, _) =>
+        generateSync(fc)
+      case fc@FunCall(_:TMKernel, _) =>
+        generateTMKernel(fc)
+      case fc@FunCall(_:MapSeq, _) =>
+        generateMapSeq(fc)
+      case fc@FunCall(_:UserFun,_*) =>
+        generateUserFun(fc)
+      case fc@FunCall(_:Get, _) =>
+        generateNothing(fc)
+      case fc@FunCall(Split(_), _ ) =>
+        generateNothing(fc)
+      case fc@FunCall(Join(), _) =>
+        generateNothing(fc)
+      case _ =>
+        Block()
+    }
+
+  }
+
+  def generateNothing(fc: FunCall) : Block = {
+
+    generate(fc.args.head)
+
+  }
+
+  def generateTMKernel(fc: FunCall) : Block = {
+
+    val arg_block = generate(fc.args.head)
+    val tm = fc.f.asInstanceOf[TMKernel]
+    val inner_code = generate(tm.f.body)
+
+    arg_block :++ inner_code
+
+  }
+
+  def generatePopParameterAndTMKernelCode(fc: FunCall) : Block = {
+
+    val arg_block = generate(fc.args.head)
+
+    val tm = fc.f.asInstanceOf[TMKernel]
+
+    //push argument to queue
+
+    //(1) collect loop variables in the view system
+    if (tm.signature_parameters.isEmpty) {
+      val input_view_chain = tm.f.params.head.view
+      val output_view_chain = tm.f.body.outputView
+      val input_view_loop_variables = CollectAllLoopVars(input_view_chain)
+      val output_view_loop_variables = CollectAllLoopVars(output_view_chain)
+      val all_view_loop_variables = input_view_loop_variables ++ output_view_loop_variables
+
+      tm.signature_parameters = all_view_loop_variables.toVector
+    }
+    assert(!tm.signature_parameters.isEmpty)
+
+    //(2) generate the declarations of those kernel parameters
+    val param_decls = tm.signature_parameters.map( p => VarDeclPure(p, p.t, init = Some(
+      FunctionCall("reinterpret_cast", List(FunctionCall("GPEQ_POP", List())), List(p.t) )
+    )) )
+    val param_decl_code = Block(param_decls, global = true)
+
+    //(3) generate inner code
+    val inner_code = generate(tm.f.body)
+
+    arg_block :++ param_decl_code  :++ inner_code
+
+  }
+
+  def generateSync(fc: FunCall) : Block = {
+
+    val arg_block = generate(fc.args.head)
+
+    val body = FunctionCall("LCPQ_PUSH", List(IntConstant(1)))
+
+    arg_block :+ Comment("Sync to LCP") :+ body
+
+  }
+
+
+  private def generateMapGPE(fc: FunCall) : Block = {
+
+    val arg_block = generate(fc.args.head)
+
+    val m = fc.f.asInstanceOf[MapGPE]
+    val body_block = generate(m.f)
+
+    val body_block_no_brackets = body_block.copy(global = true)
+
+    val gpe_id_cvar = CVarWithType(m.loopVar.toString, IntegerType())
+    val pop_gpe_id = VarDeclPure(gpe_id_cvar, gpe_id_cvar.t, init = Some( FunctionCall("GPEQ_POP", List()) ))
+
+    (arg_block :+ Comment("For each GPE. TODO: check if you can get this by API call instead of push and pop") :+ pop_gpe_id) :++ body_block_no_brackets
+  }
+
+  private def generateMapTM(fc:FunCall) : Block = {
+
+    val arg_block = generate(fc.args.head)
+
+    val m = fc.f.asInstanceOf[MapTM]
+    val indexVar =  CVarWithType(m.loopVar.toString, IntegerType())
+
+    val stop = m.loopVar.range.max
+
+    val init = VarDeclPure( indexVar, indexVar.t, Some(IntConstant(0)) )
+    val cond = BinaryExpression(VarRefPure(indexVar), BinaryExpressionT.Operator.<=, ArithExpression(stop) )
+    val increment = UnaryExpression("++", (indexVar) )
+
+    arg_block :+ Comment("For each transmuter") :+ ForLoopIm(init, cond, increment, generate(m.f.body))
+
+  }
+
+  private def generateMapTile(fc: FunCall) : Block = {
+
+    val arg_block = generate(fc.args.head)
+
+    val m = fc.f.asInstanceOf[MapTile]
+    val indexVar =  CVarWithType(m.loopVar.toString, IntegerType())
+    arg_block :+ Comment("For each tile") :+ VarDeclPure( indexVar , indexVar.t, Some(FunctionCall("GPE_TILE_ID", List())) ) :++ generate(m.f.body)
+  }
+
+  private def generateMapSeq(fc: FunCall) : Block = {
+
+    val argBlock = generate(fc.args.head)
+
+    val mapseq = fc.f.asInstanceOf[MapSeq]
+
+    val size = getArrayWSWCSize(fc.args.head)
+
+    val indexVar = mapseq.loopVar
+    val start = Some(ArithExpression(indexVar.range.min))
+    val stop = ArithExpression(size)
+    val indexCVar = CVarWithType(indexVar.toString, IntegerType())
+    val init = VarDeclPure( indexCVar, indexCVar.t, start )
+    val increment = AssignmentExpression(VarRefPure(indexCVar), BinaryExpression(ArithExpression(indexVar), BinaryExpressionT.Operator.+ ,IntConstant(1) ) )
+    val cond = BinaryExpression(ArithExpression(indexVar), BinaryExpressionT.Operator.<, stop)
+    val forloop = ForLoopIm(init, cond, increment, generate(mapseq.f))
+
+
+    argBlock :+ Comment("For each element processed sequentially") :+ Block(Vector(forloop), global = true)
+
+
+  }
+
+  private def generateUserFun(fc: FunCall) : Block = {
+
+    //val argBlock = generate(fc.args(0))
+    val mutableArgBlock = MutableBlock()
+    fc.args.foreach(mutableArgBlock :++ generate(_))
+    val argBlock = mutableArgBlock.toBlock
+
+    //should emit a global function decl
+    val uf = fc.f.asInstanceOf[UserFun]
+
+    val arg_list : List[AstNode] = fc.args.map(a => a match {
+      case v:Value => StringConstant(v.value)
+      case _ => ViewPrinter(a.view)
+    }).toList
+    val out_offset = ViewPrinter(fc.outputView)
+
+    val userfunc_apply = AssignmentExpression( out_offset , FunctionCall(uf.name, arg_list) )
+
+    argBlock :+ userfunc_apply
+
+  }
+
+
+  private def createFunctionDefinition(uf: UserFun): FunctionPure = {
+
+    FunctionPure(
+      name = uf.name,
+      ret = TypeLowering.IRType2CastType(uf.outT),
+      params = (uf.inTs, uf.paramNames).
+        zipped.map((t, n) => ParamDeclPure(n, TypeLowering.IRType2CastType(t))).toList,
+      body = Block( Vector( OclCode(uf.body) ), global = true))
+  }
+
+  private def generateUserFunDecl(lambda: Lambda) : Block = {
+
+    val all_userfunc = mutable.Set.empty[UserFun]
+
+    lambda visitBy {
+        case uf:UserFun => all_userfunc += uf; ()
+        case _ => ()
+      }
+
+    val all_user_decl = all_userfunc.map(createFunctionDefinition).toVector
+
+    Block(all_user_decl, global = true)
+
+
+  }
+
+  def generatePopTopLevelParameters(all_signature_cvars: List[CVarWithType]) : Block = {
+
+    Block(
+      Comment("Pop input, output pointers and sizes") +:
+        all_signature_cvars.toVector.map(
+          p => VarDeclPure(p, p.t, init = Some(
+            p.t match {
+              case _:PointerType => FunctionCall("reinterpret_cast", List(FunctionCall("GPEQ_POP", List())), List(p.t) )
+              case _ => FunctionCall("GPEQ_POP", List())
+            }
+          ))
+        )
+      , global=true )
+  }
+
+  def apply(lambda: Lambda, all_signature_cvars: List[CVarWithType]) : Block = {
+
+    val userfun_decl_code = generateUserFunDecl(lambda)
+
+    val pop_top_level_parameters = generatePopTopLevelParameters(all_signature_cvars)
+
+    val core_body_code = generate(lambda)
+
+    Block( Vector(boilerplate_code, userfun_decl_code, FunctionPure("main", IntegerType(), List(), pop_top_level_parameters :++ core_body_code ) ), global = true)
+
+  }
+
+
+
+  def getArrayWSWCSize(expr:Expr): ArithExpr = {
+
+    expr.t match {
+      case ArrayTypeWSWC(_, _, s) => s
+      case _ => throw new Exception("Only wswc supported")
+    }
+  }
+
+
+}

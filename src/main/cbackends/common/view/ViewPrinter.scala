@@ -30,13 +30,6 @@ object ViewPrinter {
           case true => assert(arrayAccessStack.size == 1);VarRef(memVar, arrayIndex = Some( ArithExpression(arrayAccessStack.head) ))
           case false => assert(false, "Not implement"); IntConstant(0)
         }
-      /*
-      assert(tupleAccessStack.isEmpty)
-
-      if(arrayAccessStack.isEmpty)
-        VarRef(memVar, arrayIndex=Some(ArithExpression(0)))
-      else
-      */
 
       case ViewTupleComponent(i, iv, _) =>
         val newTupleAccessStack = i :: tupleAccessStack

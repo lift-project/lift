@@ -2,11 +2,10 @@ package cbackends.sdh
 
 import cbackends.common.CBackendsCompilerTrait
 import cbackends.common.common_cast.CbackendCAST.SourceFile
-import cbackends.common.loop_var_inference.LoopVarInference
-import cbackends.host.lowering.LowerIR2HostCAST
-import core.generator.GenericAST
-import core.generator.GenericAST.{Block, CVarWithType}
-import ir.ast.Lambda
+import cbackends.sdh.lowering.{LowerIR2KernelCAST, LowerIR2SchedCAST}
+import cbackends.sdh.sdh_ir.MapTM
+import core.generator.GenericAST.CVarWithType
+import ir.ast.{FunCall, IRNode, Lambda}
 import lift.arithmetic.ArithExpr
 
 object SDHCompiler extends CBackendsCompilerTrait{
@@ -45,11 +44,29 @@ object SDHCompiler extends CBackendsCompilerTrait{
                             files: List[String]
                            ): List[SourceFile] = {
 
-    //lowerIR2CASTSched()
-    //lowerIR2CASTWorker()
+    val tuple = LowerIR2SchedCAST(lambda, memoryDeclaredInSignature)
+    val CAST = tuple._1
+    val all_signature_cvars = tuple._2
 
-    //should be deleted, just here to make host compiler run
-    List(new SourceFile(path, files(0), LowerIR2HostCAST(lambda, memoryDeclaredInSignature) ) )
+    //kernel code generator
+    //find kernel
+    var kernel_lambda : Lambda = null
+    var kernel_lambda_count = 0
+    lambda visitBy {
+      case FunCall(m:MapTM, _) =>
+        kernel_lambda = Lambda.FunDefToLambda(m);
+        //kernel_lambda = Lambda.FunDefToLambda(f);
+        kernel_lambda_count += 1
+      case _ =>
+    }
+    assert( kernel_lambda != null )
+    assert( kernel_lambda_count == 1 )
+
+    val CAST_kernel = LowerIR2KernelCAST(kernel_lambda, all_signature_cvars)
+
+    assert(files.length == 2)
+    List(new SourceFile(path, files(0), CAST ), new SourceFile(path, files(1), CAST_kernel) )
+
 
   }
 

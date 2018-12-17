@@ -15,16 +15,22 @@ object FinalMemoryAllocationAnalysis {
   def analyze(node:IRNode): Unit = {
     node match {
 
-      case fc@FunCall(_:UserFun, _*) =>
+      case fc@FunCall(_:UserFun, args@_*) =>
+        args.foreach(analyze(_))
         hostMemoryDeclaredInSignature +=  fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ),  Type.getElementCount(fc.t) )
 
-      case fc@FunCall(_:AbstractPartRed, _*) =>
+      case fc@FunCall(_:AbstractPartRed, args@_*) =>
+        args.foreach(analyze(_))
         //correct type for user function, e.g., float => [float]_1
         hostMemoryDeclaredInSignature += fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ) , Type.getElementCount(fc.t) )
 
-      case fc@FunCall(_:AbstractMap, _*) =>
+      case fc@FunCall(_:AbstractMap, args@_*) =>
+        args.foreach(analyze(_))
         //here fc.t already have the augmented size information after map, so no need to manually calculate
         hostMemoryDeclaredInSignature += fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ) , Type.getElementCount(fc.t) )
+
+      case fc@FunCall(_, args@_*) =>
+        args.foreach(analyze(_))
 
       case _ =>
 
@@ -36,7 +42,7 @@ object FinalMemoryAllocationAnalysis {
     //reset hostMemoryDeclaredInSignature if run with multiple test cases
     hostMemoryDeclaredInSignature = mutable.Map.empty[String, (CVarWithType, ArithExpr)]
 
-    analyze(lambda)
+    analyze(lambda.body)
 
     hostMemoryDeclaredInSignature.toMap
 
