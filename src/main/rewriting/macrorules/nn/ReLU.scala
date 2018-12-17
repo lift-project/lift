@@ -5,6 +5,9 @@ import ir.ast.{FunDecl, Map, UserFun, λ}
 import lift.arithmetic.SizeVar
 import opencl.ir.{Float, id}
 
+/**
+  * Expression for the Linear Rectifying Unit activation function, which is often expressed as a separate layer
+  */
 object ReLU {
 
   val ReLUFun: UserFun = UserFun("ReLU", "x", "{ return(max(0.0f, x)); }", Float, Float)
