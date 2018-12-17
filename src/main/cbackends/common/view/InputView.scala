@@ -149,6 +149,7 @@ object InputView {
 
       }
 
+        /*
       case Some(fc@FunCall(_, arg) ) => {
 
         cont( Some(arg) )
@@ -157,7 +158,7 @@ object InputView {
 
         None
 
-      }
+      } */
 
       case Some(_) => node
     }

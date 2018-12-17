@@ -20,12 +20,8 @@ object SDHCompiler extends CBackendsCompilerTrait{
 
     println("6. overrided input view by sdh called")
 
-    /*
-    val sdh_input_view = cbackends.common.view.InputView.pre_check _ andThen
-      cbackends.common.view.InputView.generateInputView _ andThen
-      cbackends.sdh.view.InputView.generateInputView _ andThen
-      cbackends.common.view.InputView.post_check _
-      */
+    cbackends.sdh.view.InputView(lambda)
+
 
   }
 
