@@ -199,8 +199,8 @@ object OutputView {
 
       }
 
-        /*
-      case fc@FunCall(_, arg) => {
+
+      case Some(fc@FunCall(_, arg)) => {
 
         assert(fc.outputView != NoView)
 
@@ -208,9 +208,10 @@ object OutputView {
 
         assert(arg.outputView != NoView)
 
-        generateOutputView(arg)
+        cont( Some(arg) )
+
+        None
       }
-      */
 
       case Some(_) => node
     }

@@ -146,6 +146,16 @@ object InputView {
 
       }
 
+      case Some(fc@FunCall(_, arg) ) => {
+
+        cont( Some(arg) )
+
+        fc.view = arg.view
+
+        None
+
+      }
+
       case Some(_) => node
     }
   }
