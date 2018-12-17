@@ -37,7 +37,7 @@ object OutputView {
 
   }
 
-  def init_params(lambda: Lambda) : Unit = {
+  def init_body(lambda: Lambda) : Unit = {
 
     //first set the body's output view, then propagate to someone inside.
     lambda.body.outputView = ViewMem(lambda.body.mem.variable, lambda.body.t)

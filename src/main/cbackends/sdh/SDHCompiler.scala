@@ -25,4 +25,13 @@ object SDHCompiler extends CBackendsCompilerTrait{
 
   }
 
+  override def outputView(lambda: Lambda): Unit = {
+
+    println("6. overrided output view by sdh called")
+
+    cbackends.sdh.view.OutputView(lambda)
+
+
+  }
+
 }

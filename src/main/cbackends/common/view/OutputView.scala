@@ -5,7 +5,7 @@ import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3
 import ir.view._
 import lift.arithmetic.{ArithExpr, Cst}
 import core.generator.PrettyPrinter._
-import cbackends.common.utils.output_view.OutputView.{pre_check,post_check,init_params}
+import cbackends.common.utils.output_view.OutputView.{pre_check,post_check,init_body}
 
 
 object OutputView {
@@ -226,7 +226,7 @@ object OutputView {
 
     pre_check(lambda)
 
-    init_params(lambda)
+    init_body(lambda)
 
     default_generateOutputView( Some(lambda.body) )
 
