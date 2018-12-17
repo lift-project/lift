@@ -1,14 +1,14 @@
 package ir.ast.onnx
 
 import ir._
-import ir.ast.{Expr, Lambda, Param, Pattern, fun}
+import ir.ast.{Expr, Pattern}
 import ir.interpreter.Interpreter.ValueMap
 import lift.arithmetic.ArithExpr
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 
 /**
-  * ONNX Lift IR: Conv pattern.
+  * ONNX Lift IR: Conv operator.
   * Corresponds to ONNX (v1.3.0)->Conv.
   * See https://github.com/onnx/onnx/blob/master/docs/Operators.md
   *
@@ -52,17 +52,10 @@ abstract class AbstractConv(n: Int,
 
   def computeOutType(iN: ArithExpr, kCGroupSize: ArithExpr, spatialDimIT: Type, spatialDimWT: Type): Type = {
 
-    def buildArrayType(lengths: List[ArithExpr], elemT: Type): ArrayType with Size with Capacity = {
-      lengths match {
-        case l :: Nil => ArrayTypeWSWC(elemT, l)
-        case l :: rest => ArrayTypeWSWC(buildArrayType(rest, elemT), l)
-      }
-    }
-
     // For the shape formula, see Relationship 14 in
     // http://deeplearning.net/software/theano/tutorial/conv_arithmetic.html
     ArrayTypeWSWC(ArrayTypeWSWC(
-      buildArrayType(lengths = Type.getLengths(spatialDimIT).zip(
+      Type.buildArrayType(lengths = Type.getLengths(spatialDimIT).zip(
         Type.getLengths(spatialDimWT)).toList.zip(pads).zip(dilations).zip(strides).map({
         case ((((i, k), p), d), s) =>
           // Here we assume the parameters are such that the division doesn't have a remainder
@@ -72,9 +65,8 @@ abstract class AbstractConv(n: Int,
   }
 
 
-  override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
+  override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
-
     throw new NotImplementedException()
   }
 }

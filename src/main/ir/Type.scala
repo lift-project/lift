@@ -639,6 +639,21 @@ object Type {
   }
 
   /**
+    * Returns an array type for the given list of lengths.
+    * A reverse function for getLengths(t: Type)
+    *
+    * @param lengths the list of lengths in respective dimensions
+    * @param elemT base type for the new array type
+    * @return an array type with the number of dimensions equal to that of the list of lengths
+    */
+  def buildArrayType(lengths: Seq[ArithExpr], elemT: Type): ArrayType with Size with Capacity = {
+    lengths match {
+      case l :: Nil => ArrayTypeWSWC(elemT, l)
+      case l :: rest => ArrayTypeWSWC(buildArrayType(rest, elemT), l)
+    }
+  }
+
+  /**
    * TODO: document (christophe?)
    */
   def reify(t1: Type, t2: Type): immutable.Map[TypeVar, ArithExpr] = {
