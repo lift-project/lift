@@ -12,7 +12,13 @@ import opencl.ir.{Float, add, _}
 
 class TestMPI {
 
-  val common_path = "/home/lu/Documents/Research/lift/src/test/cbackends/mpi"
+  //TODO: Quick & dirty workaround to the problem of different folders for different developers. A better way is needed.
+  val common_path = {
+    if (System.getProperty("user.name").equals("eduardo")) {
+      "/home/eduardo/lift_bueno/lift/src/test/cbackends/mpi" }
+    else {
+    "/home/lu/Documents/Research/lift/src/test/cbackends/mpi" }
+  }
   private val N = SizeVar("N")
 
   val incrementF = fun(Float, x => add(Float).apply(1f, x))
