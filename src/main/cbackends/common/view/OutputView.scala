@@ -1,11 +1,11 @@
 package cbackends.common.view
 
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC}
-import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Param, Split, TransposeW, UserFun, Value, Zip, transpose}
+import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
 import ir.view._
 import lift.arithmetic.{ArithExpr, Cst}
 import core.generator.PrettyPrinter._
-import cbackends.common.utils.output_view.OutputView.{pre_check,post_check,init_body}
+import cbackends.common.utils.output_view.OutputView.{init_body, post_check, pre_check}
 
 
 object OutputView {
@@ -200,7 +200,8 @@ object OutputView {
       }
 
 
-      case Some(fc@FunCall(_, arg)) => {
+
+      case Some(fc@FunCall(_:Transpose|_:Pad, arg)) => {
 
         assert(fc.outputView != NoView)
 

@@ -13,6 +13,7 @@ import org.junit.Test
 
 class TestSDH {
 
+  val common_path = "/home/lu/Documents/Research/lift/src/test/cbackends/sdh"
 
   private def incrementF = fun(Float, x => add(Float).apply(1f, x))
 
@@ -59,9 +60,9 @@ class TestSDH {
   @Test
   def test_vec_add_multi_tile(): Unit = {
 
-    val path = "/home/lu/Documents/Research/lift/src/test/sdh/3.vector_add_multi_tile"
-    val sched_file = "libvec_add_multi_tile.cpp"
-    val worker_file = "vec_add_multi_tile_worker.cpp"
+    val path = s"$common_path/1.vector_add_multi_tile"
+    val sched_file = "lib_sched.cpp"
+    val worker_file = "test_worker.cpp"
 
 
     val add2 = UserFun("add", Array("l", "r"),

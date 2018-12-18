@@ -1,9 +1,9 @@
 package cbackends.common.view
 
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, TupleType}
-import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Split, Transpose, UserFun, Value, Zip, transpose}
+import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
 import ir.view._
-import cbackends.common.utils.input_view.InputView.{pre_check,post_check,init_params}
+import cbackends.common.utils.input_view.InputView.{init_params, post_check, pre_check}
 
 object InputView {
 
@@ -146,7 +146,8 @@ object InputView {
 
       }
 
-      case Some(fc@FunCall(_, arg) ) => {
+
+      case Some(fc@FunCall(_:TransposeW, arg) ) => {
 
         cont( Some(arg) )
 
