@@ -162,12 +162,6 @@ object InputView {
 
 
   def default_generateInputView(in: IRNode) : IRNode = {
-    //val partial_binded = generateInputView(_:Option[IRNode], default_generateInputView)
-    //val composed = partial_binded andThen cbackends.common.utils.pattern_matching.Error.error[IRNode] _
-    //composed(in)
-
-    //val partial_binded = new PartialFunction[IRNode, IRNode] with IsDefinedAt[IRNode] { def apply(x: IRNode) = generateInputView(x, default_generateInputView) }
-    //partial_binded(in)
 
     generateInputView(in, default_generateInputView)
 
