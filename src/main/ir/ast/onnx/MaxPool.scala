@@ -8,13 +8,26 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 
 /**
-
+  * ONNX Lift IR: MaxPool operator.
+  * Corresponds to ONNX (v1.3.0)->MaxPool.
+  * See https://github.com/onnx/onnx/blob/master/docs/Operators.md
+  *
+  * Note the difference between pads and padShape: the pad is the input parameter that specifies the number of pixels
+  * to add at the beginning and the end of the corresponding axes. The shape is following:
+  * [x1_begin, x2_begin, ..., x1_end, x2_end, ...]
+  * padShape is inferred from pads and autoPad and has the shape [x1_total_pad, x2_total_pad, ..., xn_total_pad].
+  *
+  * @param autoPad (see ONNX spec)
+  * @param kernelShape (see ONNX spec)
+  * @param pads (see ONNX spec)
+  * @param storageOrder (see ONNX spec)
+  * @param strides (see ONNX spec)
   */
 case class MaxPool(autoPad: String,
-                   kernelShape: List[Int],
-                   private val pads: List[Int],
-                   storageOrder: Int,
-                   strides: List[Int]) extends Pattern(arity = 1) {
+                   kernelShape: List[ArithExpr],
+                   private val pads: List[ArithExpr],
+                   storageOrder: ArithExpr,
+                   strides: List[ArithExpr]) extends Pattern(arity = 1) {
   // PadShape will be determined inside checkType based on input shape, autoPad and pads
   var padShape: Option[List[ArithExpr]] = None
 
@@ -34,7 +47,7 @@ case class MaxPool(autoPad: String,
           case "NOTSET" =>
             // Explicit padding
             padShape = Some(dimIndices.map(i =>
-              Cst(pads(i) + pads(dimensionality + i))))
+              pads(i) + pads(dimensionality + i)))
 
             dimIndices.map(i =>
               FloorFunction((spatialInputDims(i) + padShape.get(i) - kernelShape(i)) / strides(i) + 1))
@@ -76,13 +89,22 @@ case class MaxPool(autoPad: String,
 
 object MaxPool {
   /**
-
+    * Creates an instance of onnx.MaxPool.
+    * This function checks the parameters and assigns default values.
+    *
+    * @param autoPad (see ONNX spec)
+    * @param kernelShape (see ONNX spec)
+    * @param pads (see ONNX spec)
+    * @param storageOrder (see ONNX spec)
+    * @param strides (see ONNX spec)
+    *
+    * @return A lambda returning an instance of the onnx.MaxPool pattern.
     */
   def apply(autoPad: String = "NOTSET",
-            kernelShape: List[Int],
-            pads: Option[List[Int]],
-            storageOrder: Int = 0,
-            strides: List[Int])(args : Expr*): Expr = {
+            kernelShape: List[ArithExpr],
+            pads: Option[List[ArithExpr]],
+            storageOrder: ArithExpr = 0,
+            strides: List[ArithExpr])(args : Expr*): Expr = {
     val dimensionality = strides.length
     assert(autoPad == "NOTSET" || autoPad == "SAME_UPPER" || autoPad == "SAME_LOWER" || autoPad == "VALID")
     assert(kernelShape.length == dimensionality)
@@ -95,6 +117,6 @@ object MaxPool {
       case None =>
     }
 
-    MaxPool(autoPad, kernelShape, pads.getOrElse(List.fill(dimensionality)(0)), storageOrder, strides)(args: _*)
+    MaxPool(autoPad, kernelShape, pads.getOrElse(List.fill(dimensionality)(Cst(0))), storageOrder, strides)(args:_*)
   }
 }

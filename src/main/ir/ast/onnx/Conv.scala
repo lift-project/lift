@@ -3,7 +3,7 @@ package ir.ast.onnx
 import ir._
 import ir.ast.{Expr, Pattern}
 import ir.interpreter.Interpreter.ValueMap
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Cst}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 
@@ -24,11 +24,11 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
   */
 abstract class AbstractConv(n: Int,
                             autoPad: String,
-                            dilations: List[Int],
-                            group: Int,
-                            kernelShape: List[Int],
-                            pads: List[Int],
-                            strides: List[Int]) extends Pattern(arity = n) {
+                            dilations: List[ArithExpr],
+                            group: ArithExpr,
+                            kernelShape: List[ArithExpr],
+                            pads: List[ArithExpr],
+                            strides: List[ArithExpr]) extends Pattern(arity = n) {
 
   /**
     * Verifies the dimension sizes and the base type of the convolutional kernel weights.
@@ -75,11 +75,11 @@ abstract class AbstractConv(n: Int,
 
 
 case class ConvWithoutBias private(autoPad: String,
-                                   dilations: List[Int],
-                                   group: Int,
-                                   kernelShape: List[Int],
-                                   pads: List[Int],
-                                   strides: List[Int])
+                                   dilations: List[ArithExpr],
+                                   group: ArithExpr,
+                                   kernelShape: List[ArithExpr],
+                                   pads: List[ArithExpr],
+                                   strides: List[ArithExpr])
   extends AbstractConv(2, autoPad, dilations, group, kernelShape, pads, strides) {
 
   override def checkType(argType: Type,
@@ -100,11 +100,11 @@ case class ConvWithoutBias private(autoPad: String,
 
 
 case class ConvWithBias private(autoPad: String,
-                                dilations: List[Int],
-                                group: Int,
-                                kernelShape: List[Int],
-                                pads: List[Int],
-                                strides: List[Int])
+                                dilations: List[ArithExpr],
+                                group: ArithExpr,
+                                kernelShape: List[ArithExpr],
+                                pads: List[ArithExpr],
+                                strides: List[ArithExpr])
   extends AbstractConv(3, autoPad, dilations, group, kernelShape, pads, strides) {
 
   override def checkType(argType: Type,
@@ -128,7 +128,7 @@ case class ConvWithBias private(autoPad: String,
 
 object Conv {
   /**
-    * Create a lambda producing an instance of either onnx.ConvWithoutBias, or onnx.ConvWithBias pattern.
+    * Creates an instance of either onnx.ConvWithoutBias, or onnx.ConvWithBias pattern.
     * This function infers the number of arrays which the onnx.AbstractConv pattern
     * is applied on; it also checks the parameters and assigns default values.
     *
@@ -142,11 +142,11 @@ object Conv {
     * @return A lambda returning an instance of the onnx.AbstractConv pattern.
     */
   def apply(autoPad: String = "NOTSET",
-            dilations: Option[List[Int]],
-            group: Int = 1,
-            kernelShape: List[Int],
-            pads: Option[List[Int]],
-            strides: List[Int])(args : Expr*): Expr = {
+            dilations: Option[List[ArithExpr]],
+            group: ArithExpr = Cst(1),
+            kernelShape: List[ArithExpr],
+            pads: Option[List[ArithExpr]],
+            strides: List[ArithExpr])(args : Expr*): Expr = {
 
     val dimensionality = strides.length
 
