@@ -26,7 +26,7 @@ abstract class AbstractConv(n: Int,
                             autoPad: String,
                             dilations: List[Int],
                             group: Int,
-                            kernelShape: Option[List[Int]],
+                            kernelShape: List[Int],
                             pads: List[Int],
                             strides: List[Int]) extends Pattern(arity = n) {
 
@@ -35,32 +35,34 @@ abstract class AbstractConv(n: Int,
     *
     * @param kCGroupSize is the size of groups output channels are divided into
     * @param iC is the number of input channels
-    * @param spatialDimIT is the nested type of spatial dimensions of the inputs
-    * @param spatialDimWT is the nested type of spatial dimensions of the weights
+    * @param spatialInputDimsT is the nested type of spatial dimensions of the inputs
+    * @param spatialWeightDimsT is the nested type of spatial dimensions of the weights
     * @return
     */
-  def verifyWType(kCGroupSize: ArithExpr, iC: ArithExpr, spatialDimIT: Type, spatialDimWT: Type): Boolean = {
+  def verifyWType(kCGroupSize: ArithExpr, iC: ArithExpr, spatialInputDimsT: Type, spatialWeightDimsT: Type): Boolean = {
     // Check base types
-    Type.getBaseType(spatialDimWT) == Type.getBaseType(spatialDimIT) &&
+    Type.getBaseType(spatialWeightDimsT) == Type.getBaseType(spatialInputDimsT) &&
+      // Check dimensionality
+      Type.getLengths(spatialInputDimsT).length == Type.getLengths(spatialWeightDimsT).length &&
       // Check kernel channels
       kCGroupSize * group == iC &&
       // Check actual kernel spatial dimensions shape if corresponding parameter is specified
       (kernelShape.isEmpty ||
-        Type.getLengths(spatialDimWT).zip(kernelShape.get).forall(sizePair => sizePair._1.eval == sizePair._2))
+        Type.getLengths(spatialWeightDimsT).zip(kernelShape).forall(sizePair => sizePair._1.eval == sizePair._2))
   }
 
 
-  def computeOutType(iN: ArithExpr, kCGroupSize: ArithExpr, spatialDimIT: Type, spatialDimWT: Type): Type = {
+  def computeOutType(iN: ArithExpr, kCGroupSize: ArithExpr, spatialInputDimsT: Type, spatialWeightDimsT: Type): Type = {
 
     // For the shape formula, see Relationship 14 in
     // http://deeplearning.net/software/theano/tutorial/conv_arithmetic.html
     ArrayTypeWSWC(ArrayTypeWSWC(
-      Type.buildArrayType(lengths = Type.getLengths(spatialDimIT).zip(
-        Type.getLengths(spatialDimWT)).toList.zip(pads).zip(dilations).zip(strides).map({
+      Type.buildArrayType(lengths = Type.getLengths(spatialInputDimsT).zip(
+        Type.getLengths(spatialWeightDimsT)).toList.zip(pads).zip(dilations).zip(strides).map({
         case ((((i, k), p), d), s) =>
           // Here we assume the parameters are such that the division doesn't have a remainder
           ((i + (2 * p) - k - (k - 1) * (d - 1)) / s) + 1
-      }), elemT = Type.getBaseType(spatialDimIT)), kCGroupSize), iN)
+      }), elemT = Type.getBaseType(spatialInputDimsT)), kCGroupSize), iN)
 
   }
 
@@ -75,7 +77,7 @@ abstract class AbstractConv(n: Int,
 case class ConvWithoutBias private(autoPad: String,
                                    dilations: List[Int],
                                    group: Int,
-                                   kernelShape: Option[List[Int]],
+                                   kernelShape: List[Int],
                                    pads: List[Int],
                                    strides: List[Int])
   extends AbstractConv(2, autoPad, dilations, group, kernelShape, pads, strides) {
@@ -85,11 +87,11 @@ case class ConvWithoutBias private(autoPad: String,
     argType match {
       // X, W and B
       case TupleType(
-      xT@ArrayTypeWS(ArrayTypeWS(ArrayType(spatialDimIT), iC), iN),
-      wT@ArrayTypeWS(ArrayTypeWS(ArrayType(spatialDimWT), kCGroupSize), wM))
-        if verifyWType(kCGroupSize, iC, spatialDimIT, spatialDimWT) =>
+      xT@ArrayTypeWS(ArrayTypeWS(ArrayType(spatialInputDimsT), iC), iN),
+      wT@ArrayTypeWS(ArrayTypeWS(ArrayType(spatialWeightDimsT), kCGroupSize), wM))
+        if verifyWType(kCGroupSize, iC, spatialInputDimsT, spatialWeightDimsT) =>
 
-        computeOutType(iN, kCGroupSize, spatialDimIT, spatialDimWT)
+        computeOutType(iN, kCGroupSize, spatialInputDimsT, spatialWeightDimsT)
 
       case _ => throw TypeException(f"Expected X and W types as per ONNX specification. Got $argType")
     }
@@ -100,7 +102,7 @@ case class ConvWithoutBias private(autoPad: String,
 case class ConvWithBias private(autoPad: String,
                                 dilations: List[Int],
                                 group: Int,
-                                kernelShape: Option[List[Int]],
+                                kernelShape: List[Int],
                                 pads: List[Int],
                                 strides: List[Int])
   extends AbstractConv(3, autoPad, dilations, group, kernelShape, pads, strides) {
@@ -110,13 +112,13 @@ case class ConvWithBias private(autoPad: String,
     argType match {
       // X, W and B
       case TupleType(
-      xT@ArrayTypeWS(ArrayTypeWS(ArrayType(spatialDimIT), iC), iN),
-      wT@ArrayTypeWS(ArrayTypeWS(ArrayType(spatialDimWT), kCGroupSize), wM),
+      xT@ArrayTypeWS(ArrayTypeWS(ArrayType(spatialInputDimsT), iC), iN),
+      wT@ArrayTypeWS(ArrayTypeWS(ArrayType(spatialWeightDimsT), kCGroupSize), wM),
       bT@ArrayTypeWS(spatialDimBT, bM))
-        if verifyWType(kCGroupSize, iC, spatialDimIT, spatialDimWT) && wM == bM &&
-          Type.getBaseType(spatialDimIT) == Type.getBaseType(spatialDimBT)=>
+        if verifyWType(kCGroupSize, iC, spatialInputDimsT, spatialWeightDimsT) && wM == bM &&
+          Type.getBaseType(spatialInputDimsT) == Type.getBaseType(spatialDimBT)=>
 
-        computeOutType(iN, kCGroupSize, spatialDimIT, spatialDimWT)
+        computeOutType(iN, kCGroupSize, spatialInputDimsT, spatialWeightDimsT)
 
       case _ => throw TypeException(f"Expected X, W and B types as per ONNX specification. Got $argType")
     }
@@ -142,27 +144,31 @@ object Conv {
   def apply(autoPad: String = "NOTSET",
             dilations: Option[List[Int]],
             group: Int = 1,
-            kernelShape: Option[List[Int]],
+            kernelShape: List[Int],
             pads: Option[List[Int]],
             strides: List[Int])(args : Expr*): Expr = {
+
+    val dimensionality = strides.length
+
+    assert(autoPad == "NOTSET" || autoPad == "SAME_UPPER" || autoPad == "SAME_LOWER" || autoPad == "VALID")
     assert(args.length == 2 || args.length == 3)
 
     args.length match {
       case 2 =>
         ConvWithoutBias(
           autoPad,
-          dilations.getOrElse(strides.map(_ => 0)),
+          dilations.getOrElse(List.fill(dimensionality)(0)),
           group,
           kernelShape,
-          pads.getOrElse(strides.map(_ => 0)),
+          pads.getOrElse(List.fill(dimensionality)(0)),
           strides)(args: _*)
       case 3 =>
         ConvWithBias(
           autoPad,
-          dilations.getOrElse(strides.map(_ => 0)),
+          dilations.getOrElse(List.fill(dimensionality)(0)),
           group,
           kernelShape,
-          pads.getOrElse(strides.map(_ => 0)),
+          pads.getOrElse(List.fill(dimensionality)(0)),
           strides)(args: _*)
     }
   }
