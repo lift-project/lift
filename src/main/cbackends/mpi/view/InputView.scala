@@ -2,31 +2,37 @@ package cbackends.mpi.view
 
 import cbackends.mpi.mpi_ir.BcastMPI
 import ir.ast.{FunCall, IRNode, Lambda}
-import cbackends.common.utils.input_view.InputView.{pre_check,post_check,init_params}
+import cbackends.common.utils.input_view.InputView.{init_params, post_check, pre_check}
+import cbackends.common.utils.pattern_matching.IsDefinedAt
 
 object InputView {
 
-  def generateInputView(node: Option[IRNode] , cont: Option[IRNode] => Option[IRNode] ) : Option[IRNode] = {
+  def generateInputView(node: IRNode , cont: IRNode => IRNode ) : IRNode = {
     node match {
 
-      case None => None
 
-      case Some(fc@FunCall(_:BcastMPI, arg) ) => {
-        cont( Some(arg) )
+      case fc@FunCall(_:BcastMPI, arg)  => {
+        cont( arg )
         fc.view = arg.view
-        None
+        fc
       }
 
-      case Some(_) => node
 
     }
   }
 
-  def composed_generateInputView(in: Option[IRNode]) : Option[IRNode] = {
+  def composed_generateInputView(in: IRNode) : IRNode = {
 
+    /*
     val partial_binded_common = cbackends.common.view.InputView.generateInputView(_:Option[IRNode], composed_generateInputView)
     val partial_binded_mpi = cbackends.mpi.view.InputView.generateInputView(_:Option[IRNode], composed_generateInputView)
     val composed = partial_binded_common andThen partial_binded_mpi andThen cbackends.common.utils.pattern_matching.Error.error[IRNode] _
+    composed(in)*/
+    val partial_binded_common = new PartialFunction[IRNode, IRNode] with IsDefinedAt[IRNode]
+    { def apply(x: IRNode) = cbackends.common.view.InputView.generateInputView(x, composed_generateInputView) }
+    val partial_binded_sdh = new PartialFunction[IRNode,IRNode] with IsDefinedAt[IRNode]
+    { def apply(x: IRNode) = cbackends.mpi.view.InputView.generateInputView(x, composed_generateInputView) }
+    val composed = partial_binded_common orElse partial_binded_sdh
     composed(in)
 
   }
@@ -38,7 +44,7 @@ object InputView {
 
     init_params(lambda)
 
-    composed_generateInputView(Some(lambda.body) )
+    composed_generateInputView( lambda.body )
 
     post_check(lambda)
 

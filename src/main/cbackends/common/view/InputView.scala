@@ -4,6 +4,7 @@ import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, TupleType}
 import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
 import ir.view._
 import cbackends.common.utils.input_view.InputView.{init_params, post_check, pre_check}
+import cbackends.common.utils.pattern_matching.IsDefinedAt
 
 object InputView {
 
@@ -19,52 +20,51 @@ object InputView {
     }
   }
 
-  def generateInputView(node: Option[IRNode], cont: Option[IRNode] => Option[IRNode]): Option[IRNode] = {
+  def generateInputView(node: IRNode, cont: IRNode => IRNode): IRNode = {
     node match {
 
-      case None => None
 
 
-      case Some(a@ArrayFromUserFunGenerator(f, at) ) =>   a.view = ViewGeneratorUserFun(f, at); None
-      case Some(a@Array2DFromUserFunGenerator(f, at) ) => a.view = View2DGeneratorUserFun(f, at); None
-      case Some(a@Array3DFromUserFunGenerator(f, at) ) => a.view = View3DGeneratorUserFun(f, at); None
+      case a@ArrayFromUserFunGenerator(f, at)  =>   a.view = ViewGeneratorUserFun(f, at); a
+      case a@Array2DFromUserFunGenerator(f, at)  => a.view = View2DGeneratorUserFun(f, at); a
+      case a@Array3DFromUserFunGenerator(f, at)  => a.view = View3DGeneratorUserFun(f, at); a
 
-      case Some(v: Value) => v.view = ViewConstant(v, v.t); None
+      case v: Value => v.view = ViewConstant(v, v.t); v
       //In the composable pattern matching, all match has to be explicit, even though they do nothing
-      case Some(_: Param) => None
+      case p: Param => p
 
 
-      case Some(fc@FunCall(_:Zip, args@_*)) => {
+      case fc@FunCall(_:Zip, args@_*) => {
 
-        args.foreach( a => cont( Some(a)  ) )
+        args.foreach( a => cont( a  ) )
 
         val input_view = getViewFromArgs(fc)
         fc.view = input_view.zip()
 
-        None
+        fc
 
       }
 
-      case Some(fc@FunCall(Get(n), arg) ) => {
+      case fc@FunCall(Get(n), arg)  => {
 
-        cont( Some(arg) )
+        cont( arg )
 
         fc.view = arg.view.get(n)
 
-        None
+        fc
 
       }
 
 
-      case Some(fc@FunCall(Split(n), arg) ) => {
-        cont( Some(arg) )
+      case fc@FunCall(Split(n), arg)  => {
+        cont( arg )
         fc.view = arg.view.split(n)
 
-        None
+        fc
       }
-      case Some(fc@FunCall(_:Join, arg) ) => {
+      case fc@FunCall(_:Join, arg)  => {
 
-        cont( Some(arg) )
+        cont( arg )
 
         val n = fc.argsType match {
           case ArrayType(ArrayTypeWSWC(_, s,c)) if s==c => s
@@ -72,12 +72,12 @@ object InputView {
         }
         fc.view = arg.view.join(n)
 
-        None
+        fc
       }
 
-      case Some(fc@FunCall(_:Transpose, arg) ) => {
+      case fc@FunCall(_:Transpose, arg)  => {
 
-        cont( Some(arg) )
+        cont( arg )
         fc.t match{
           case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
             //working
@@ -87,85 +87,90 @@ object InputView {
           case _ => assert(false, "Other types other than 2D array are not allowed for transpose")
         }
 
-        None
+        fc
 
       }
 
-      case Some(fc@FunCall(Pad(left, right, boundaryFun), arg) ) => {
+      case fc@FunCall(Pad(left, right, boundaryFun), arg)  => {
 
-        cont( Some(arg) )
+        cont( arg )
         fc.view = arg.view.pad(left, right, boundaryFun)
 
-        None
+        fc
 
       }
 
-      case Some(fc@FunCall(_:UserFun, args@_*) ) => {
+      case fc@FunCall(_:UserFun, args@_*)  => {
 
-        args.foreach( a => cont( Some(a) ))
+        args.foreach( a => cont( a ))
 
         fc.view = ViewMem(fc.mem.variable, fc.t)
 
-        None
+        fc
 
       }
 
-      case Some(fc@FunCall(m:AbstractMap, arg) ) => {
+      case fc@FunCall(m:AbstractMap, arg)  => {
 
-        cont( Some(arg) )
+        cont( arg )
 
         //this line reflect the map semantic
         m.f.params.head.view = arg.view.access(m.loopVar)
 
-        cont( Some(m.f.body) )
+        cont( m.f.body)
 
         //Take the courage to use the simplest solution seen so far, keep in mind that this might break
         fc.view = ViewMap(m.f.body.view, m.loopVar, fc.t)
 
-        None
+        fc
 
       }
 
-      case Some(fc@FunCall(r: AbstractPartRed, args@_*) )  => {
+      case fc@FunCall(r: AbstractPartRed, args@_*)   => {
 
-        args.foreach( a => cont( Some(a) ))
+        args.foreach( a => cont( a ))
 
         val input_view = getViewFromArgs(fc)
 
         r.f.params(0).view = input_view.get(0)
         r.f.params(1).view = input_view.get(1).access(r.loopVar)
 
-        cont( Some(r.f.body) )
+        cont( r.f.body )
 
         //No need to initialize a new view, as the view is the same as its inner view
         //In Map, the memory is augmented for its user function, thus in that case a new view is needed
         //but it is not the case for reduce.
         fc.view = r.f.body.view
 
-        None
+        fc
 
       }
 
 
-      case Some(fc@FunCall(_:TransposeW, arg) ) => {
+      case fc@FunCall(_:TransposeW, arg)  => {
 
-        cont( Some(arg) )
+        cont( arg )
 
         fc.view = arg.view
 
-        None
+        fc
 
       }
 
-      case Some(_) => node
     }
   }
 
 
-  def default_generateInputView(in: Option[IRNode]) : Option[IRNode] = {
-    val partial_binded = generateInputView(_:Option[IRNode], default_generateInputView)
-    val composed = partial_binded andThen cbackends.common.utils.pattern_matching.Error.error[IRNode] _
-    composed(in)
+  def default_generateInputView(in: IRNode) : IRNode = {
+    //val partial_binded = generateInputView(_:Option[IRNode], default_generateInputView)
+    //val composed = partial_binded andThen cbackends.common.utils.pattern_matching.Error.error[IRNode] _
+    //composed(in)
+
+    //val partial_binded = new PartialFunction[IRNode, IRNode] with IsDefinedAt[IRNode] { def apply(x: IRNode) = generateInputView(x, default_generateInputView) }
+    //partial_binded(in)
+
+    generateInputView(in, default_generateInputView)
+
   }
 
   def apply(lambda: Lambda): Unit = {
@@ -174,7 +179,7 @@ object InputView {
 
     init_params(lambda)
 
-    default_generateInputView(Some(lambda.body) )
+    default_generateInputView( lambda.body )
 
     post_check(lambda)
 
