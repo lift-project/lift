@@ -10,23 +10,21 @@ import cbackends.common.utils.output_view.OutputView.{init_body, post_check, pre
 
 object OutputView {
 
-  def generateOutputView(node: Option[IRNode], cont: Option[IRNode] => Option[IRNode]) : Option[IRNode] = {
+  def generateOutputView(node: IRNode, cont: IRNode => IRNode) : IRNode = {
     node match {
 
-      case None => None
-
       //In the composable pattern matching, all match has to be explicit, even though they do nothing
-      case Some(_:Value) => None
-      case Some(_:Param) => None
+      case v:Value => v
+      case p:Param => p
 
-      case Some(a@ArrayFromUserFunGenerator(f, at) ) =>
-        a.outputView = ViewGeneratorUserFun(f, at); None
-      case Some(a@Array2DFromUserFunGenerator(f, at))  =>
-        a.outputView = View2DGeneratorUserFun(f, at); None
-      case Some(a@Array3DFromUserFunGenerator(f, at) ) =>
-        a.outputView = View3DGeneratorUserFun(f, at); None
+      case a@ArrayFromUserFunGenerator(f, at)  =>
+        a.outputView = ViewGeneratorUserFun(f, at); a
+      case a@Array2DFromUserFunGenerator(f, at)  =>
+        a.outputView = View2DGeneratorUserFun(f, at); a
+      case a@Array3DFromUserFunGenerator(f, at)  =>
+        a.outputView = View3DGeneratorUserFun(f, at); a
 
-      case Some(fc@FunCall(_:Zip, args@_*) ) => {
+      case fc@FunCall(_:Zip, args@_*)  => {
 
         assert(fc.outputView != NoView)
 
@@ -41,13 +39,13 @@ object OutputView {
 
         args.foreach(a => assert(a.outputView != NoView))
 
-        args.foreach(a => cont( Some(a)))
+        args.foreach(cont(_))
 
-        None
+        fc
 
       }
 
-      case Some(fc@FunCall(Get(n), arg) ) => {
+      case fc@FunCall(Get(n), arg)  => {
 
         assert(fc.outputView != NoView)
 
@@ -55,13 +53,13 @@ object OutputView {
 
         assert(arg.outputView != NoView)
 
-        cont(Some(arg))
+        cont(arg)
 
-        None
+        fc
       }
 
 
-      case Some(fc@FunCall(Split(n), arg) ) => {
+      case fc@FunCall(Split(n), arg)  => {
 
         assert(fc.outputView != NoView)
 
@@ -69,11 +67,11 @@ object OutputView {
 
         assert(arg.outputView != NoView)
 
-        cont(Some(arg))
+        cont(arg)
 
-        None
+        fc
       }
-      case Some(fc@FunCall(_:Join, arg) ) => {
+      case fc@FunCall(_:Join, arg)  => {
 
         assert(fc.outputView != NoView)
 
@@ -86,12 +84,12 @@ object OutputView {
 
         assert(arg.outputView != NoView)
 
-        cont( Some(arg) )
+        cont( arg )
 
-        None
+        fc
       }
 
-      case Some(fc@FunCall(TransposeW(), arg) ) => {
+      case fc@FunCall(TransposeW(), arg) => {
 
         assert(fc.outputView != NoView)
 
@@ -107,13 +105,13 @@ object OutputView {
 
         assert(arg.outputView != NoView)
 
-        cont( Some(arg) )
+        cont( arg )
 
-        None
+        fc
 
       }
 
-      case Some(fc@FunCall(_:UserFun, args@_*) ) => {
+      case fc@FunCall(_:UserFun, args@_*)  => {
 
         assert(fc.outputView != NoView)
 
@@ -130,7 +128,7 @@ object OutputView {
 
         args.foreach(a => assert(a.outputView != NoView))
 
-        args.foreach(a => cont(Some(a) ) )
+        args.foreach( cont(_) )
 
         /*
         //You could write test code directly here to see the offset
@@ -144,31 +142,31 @@ object OutputView {
         println("input done")
         */
 
-        None
+        fc
 
       }
 
-      case Some(fc@FunCall(m:AbstractMap, arg) ) => {
+      case fc@FunCall(m:AbstractMap, arg) => {
 
         assert(fc.outputView != NoView)
 
         //this line reflect the map semantic
         m.f.body.outputView = fc.outputView.access(m.loopVar)
 
-        cont(Some(m.f.body) )
+        cont(m.f.body)
 
         arg.outputView = ViewMap(m.f.params.head.outputView, m.loopVar, arg.t)
 
         assert(arg.outputView != NoView)
 
-        cont(Some(arg) )
+        cont(arg)
 
-        None
+        fc
 
 
       }
 
-      case Some(fc@FunCall(r: AbstractPartRed, args@_*) ) => {
+      case fc@FunCall(r: AbstractPartRed, args@_*) => {
 
         assert(fc.outputView != NoView)
 
@@ -176,7 +174,7 @@ object OutputView {
 
         r.f.body.outputView = fc.outputView.access(Cst(0))
 
-        cont( Some(r.f.body) )
+        cont( r.f.body )
 
         val acc = args(0)
         val array = args(1)
@@ -186,7 +184,7 @@ object OutputView {
 
         args.foreach(a => assert(a.outputView != NoView))
 
-        args.foreach(a => cont( Some(a) ))
+        args.foreach( cont(_) )
 
 
         /*val acc = args.head
@@ -195,13 +193,13 @@ object OutputView {
 
         generateOutputView(args(1)) */
 
-        None
+        fc
 
       }
 
 
 
-      case Some(fc@FunCall(_:Transpose|_:Pad, arg)) => {
+      case fc@FunCall(_:Transpose|_:Pad, arg) => {
 
         assert(fc.outputView != NoView)
 
@@ -209,19 +207,16 @@ object OutputView {
 
         assert(arg.outputView != NoView)
 
-        cont( Some(arg) )
+        cont( arg )
 
-        None
+        fc
       }
 
-      case Some(_) => node
     }
   }
 
-  def default_generateOutputView(in: Option[IRNode]) : Option[IRNode] = {
-    val partial_binded = generateOutputView(_:Option[IRNode], default_generateOutputView)
-    val composed = partial_binded andThen cbackends.common.utils.pattern_matching.Error.error[IRNode] _
-    composed(in)
+  def default_generateOutputView(in: IRNode) : IRNode = {
+    generateOutputView(in, default_generateOutputView)
   }
 
   def apply(lambda: Lambda): Unit = {
@@ -230,7 +225,7 @@ object OutputView {
 
     init_body(lambda)
 
-    default_generateOutputView( Some(lambda.body) )
+    default_generateOutputView( lambda.body )
 
     post_check(lambda)
 

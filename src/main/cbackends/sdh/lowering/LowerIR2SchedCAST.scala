@@ -8,6 +8,7 @@ import lift.arithmetic.ArithExpr
 import opencl.ir.pattern.MapSeq
 import cbackends.sdh.sdh_ir._
 import cbackends.common.view.CollectAllLoopVars
+import ir.printer.DotPrinter
 
 
 object LowerIR2SchedCAST {
@@ -237,6 +238,9 @@ object LowerIR2SchedCAST {
   }
 
   def apply(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]) : (Block, List[CVarWithType]) = {
+
+    //DotPrinter("whole",lambda)
+    DotPrinter.withNumbering("/home/lu/Downloads","sched_num",lambda)
 
     val memory_alloc_code = generateMemAlloc(hostMemoryDeclaredInSignature)
 

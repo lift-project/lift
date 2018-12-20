@@ -36,7 +36,7 @@ object InputView {
 
       case fc@FunCall(_:Zip, args@_*) => {
 
-        args.foreach( a => cont( a  ) )
+        args.foreach( cont(_) )
 
         val input_view = getViewFromArgs(fc)
         fc.view = input_view.zip()
@@ -102,7 +102,7 @@ object InputView {
 
       case fc@FunCall(_:UserFun, args@_*)  => {
 
-        args.foreach( a => cont( a ))
+        args.foreach( cont(_))
 
         fc.view = ViewMem(fc.mem.variable, fc.t)
 
@@ -128,7 +128,7 @@ object InputView {
 
       case fc@FunCall(r: AbstractPartRed, args@_*)   => {
 
-        args.foreach( a => cont( a ))
+        args.foreach( cont(_) )
 
         val input_view = getViewFromArgs(fc)
 

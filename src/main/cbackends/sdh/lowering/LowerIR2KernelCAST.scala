@@ -12,6 +12,7 @@ import opencl.ir.pattern.MapSeq
 import cbackends.sdh.sdh_ir._
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.common.view.{CollectAllLoopVars, ViewPrinter}
+import ir.printer.DotPrinter
 
 object LowerIR2KernelCAST {
 
@@ -252,6 +253,9 @@ object LowerIR2KernelCAST {
   }
 
   def apply(lambda: Lambda, all_signature_cvars: List[CVarWithType]) : Block = {
+
+    //DotPrinter("worker",lambda)
+    DotPrinter.withNumbering("/home/lu/Downloads","worker_num",lambda)
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 
