@@ -142,10 +142,10 @@ object Conv {
     * @return A lambda returning an instance of the onnx.AbstractConv pattern.
     */
   def apply(autoPad: String = "NOTSET",
-            dilations: Option[List[ArithExpr]],
+            dilations: Option[List[ArithExpr]] = None,
             group: ArithExpr = Cst(1),
             kernelShape: List[ArithExpr],
-            pads: Option[List[ArithExpr]],
+            pads: Option[List[ArithExpr]] = None,
             strides: List[ArithExpr])(args : Expr*): Expr = {
 
     val dimensionality = strides.length

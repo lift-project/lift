@@ -33,7 +33,7 @@ package object onnx {
       }
 
 
-      if (shape1.equals(shape2)) Option(shape1)
+      if (shape1.equals(shape2)) Some(shape1)
       else None
     }
   }

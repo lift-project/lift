@@ -1,7 +1,7 @@
 package ir.ast.onnx
 
 import ir._
-import ir.ast.{Expr, Pattern}
+import ir.ast.{Expr, Lambda1, Pattern, fun}
 import ir.interpreter.Interpreter.ValueMap
 import lift.arithmetic.{ArithExpr, CeilingFunction, Cst, FloorFunction}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
@@ -102,13 +102,12 @@ object MaxPool {
     */
   def apply(autoPad: String = "NOTSET",
             kernelShape: List[ArithExpr],
-            pads: Option[List[ArithExpr]],
+            pads: Option[List[ArithExpr]] = None,
             storageOrder: ArithExpr = 0,
-            strides: List[ArithExpr])(args : Expr*): Expr = {
+            strides: List[ArithExpr]): Lambda1 = {
     val dimensionality = strides.length
     assert(autoPad == "NOTSET" || autoPad == "SAME_UPPER" || autoPad == "SAME_LOWER" || autoPad == "VALID")
     assert(kernelShape.length == dimensionality)
-    assert(args.length == 1)
 
     pads match {
       case Some(padList) =>
@@ -117,6 +116,7 @@ object MaxPool {
       case None =>
     }
 
-    MaxPool(autoPad, kernelShape, pads.getOrElse(List.fill(dimensionality)(Cst(0))), storageOrder, strides)(args:_*)
+    fun(x => MaxPool(autoPad, kernelShape, pads.getOrElse(List.fill(dimensionality)(Cst(0))),
+      storageOrder, strides)(x))
   }
 }

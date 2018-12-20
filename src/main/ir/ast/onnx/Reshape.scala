@@ -1,6 +1,6 @@
 package ir.ast.onnx
 
-import ir.ast.{Expr, Pattern}
+import ir.ast.{Expr, Lambda1, Pattern, fun}
 import ir.interpreter.Interpreter.ValueMap
 import ir.{ArrayType, TupleType, Type, TypeException}
 import lift.arithmetic.{ArithExpr, Cst}
@@ -19,7 +19,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
   *
   * @param shape The list of lengths of the new shape. One length can be unknown and indicated with (-1). See ONNX spec.
   */
-case class Reshape(shape: List[ArithExpr]) extends Pattern(arity = 1) {
+class Reshape private(val shape: List[ArithExpr]) extends Pattern(arity = 1) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -72,12 +72,12 @@ object Reshape {
   /**
     * Creates an instance of onnx.Reshape.
     *
-    * @param shape The list of lengths of the new shape. One length can be unknown and indicated with (-1). See ONNX spec.
+    * @param shape The list of lengths of the new shape. One length can be unknown and indicated with (-1).
+    *              See ONNX spec.
     */
-  def apply(shape: List[ArithExpr])(args : Expr*): Expr = {
-    assert(args.length == 1)
+  def apply(shape: List[ArithExpr]): Lambda1 = {
     // Check that there is no more than one unknown dimension size
     assert(shape.map(s => if (s == Cst(-1)) 1 else 0).sum <= 1)
-    new Reshape(shape)(args:_*)
+    fun(x => new Reshape(shape)(x))
   }
 }
