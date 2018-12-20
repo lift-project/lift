@@ -240,7 +240,7 @@ object LowerIR2SchedCAST {
   def apply(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]) : (Block, List[CVarWithType]) = {
 
     //DotPrinter("whole",lambda)
-    DotPrinter.withNumbering("/home/lu/Downloads","sched_num",lambda)
+    //DotPrinter.withNumbering("/home/lu/Downloads","sched_num",lambda)
 
     val memory_alloc_code = generateMemAlloc(hostMemoryDeclaredInSignature)
 

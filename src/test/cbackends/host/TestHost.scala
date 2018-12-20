@@ -521,6 +521,31 @@ class TestHost {
 
   }
 
+  @Test
+  def test_matrix_mul(): Unit = {
+
+    val path = s"$common_path/13.matrixmul"
+    val file = "libmatrixmul.cpp"
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      (A, B) => {
+        MapSeq(fun( Arow =>
+          Join() o  MapSeq(fun( Bcol =>
+            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
+          )) $ B
+        )) $ A
+      })
+
+    HostCompiler ! (f, path, List(file) )
+
+  }
+
 
 
 }

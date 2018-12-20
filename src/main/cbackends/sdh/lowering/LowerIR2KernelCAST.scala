@@ -255,7 +255,7 @@ object LowerIR2KernelCAST {
   def apply(lambda: Lambda, all_signature_cvars: List[CVarWithType]) : Block = {
 
     //DotPrinter("worker",lambda)
-    DotPrinter.withNumbering("/home/lu/Downloads","worker_num",lambda)
+    //DotPrinter.withNumbering("/home/lu/Downloads","worker_num",lambda)
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 

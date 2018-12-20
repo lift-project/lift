@@ -3,11 +3,10 @@ package cbackends.sdh
 
 //combine general IR and backend IR by multiple imports
 import cbackends.sdh.sdh_ir._
-import ir.ArrayType
+import ir.{ArrayType, ArrayTypeWSWC}
 import ir.ast.{Get, Join, Split, UserFun, Zip, fun}
-
 import lift.arithmetic.SizeVar
-import opencl.ir.pattern.MapSeq
+import opencl.ir.pattern.{MapSeq, ReduceSeq}
 import opencl.ir.{Float, add, _}
 import org.junit.Test
 
@@ -81,6 +80,30 @@ class TestSDH {
     )
 
     SDHCompiler ! (f, path, List(sched_file, worker_file))
+
+  }
+
+  @Test
+  def test_matrix_mul_multi_tile(): Unit = {
+
+    val path = s"$common_path/1.vector_add_multi_tile"
+    val sched_file = "lib_sched.cpp"
+    val worker_file = "test_worker.cpp"
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      (A, B) => {
+        MapSeq(fun( Arow =>
+          Join() o  MapSeq(fun( Bcol =>
+             ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
+          )) $ B
+        )) $ A
+      })
 
   }
 
