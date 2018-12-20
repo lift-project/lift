@@ -19,7 +19,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
   *
   * @param shape The list of lengths of the new shape. One length can be unknown and indicated with (-1). See ONNX spec.
   */
-case class Reshape(shape: List[ArithExpr]) extends Pattern(arity = 2) {
+case class Reshape(shape: List[ArithExpr]) extends Pattern(arity = 1) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -39,7 +39,10 @@ case class Reshape(shape: List[ArithExpr]) extends Pattern(arity = 2) {
           // The shape is contains unknown lengths (-1) that need to be inferred based on the other lengths
           val sumOfKnownNewLengths: ArithExpr = shape.reduceLeft((x, y) => if (x != Cst(-1)) x * y else x)
           // Make sure the array size is divisible by the sum of the known lengths
-          assert(sum(oldShape) % sumOfKnownNewLengths == Cst(0))
+          if (sum(oldShape) % sumOfKnownNewLengths != Cst(0))
+            throw TypeException(f"Expected the array size to be divisible by the sum of the known lengths of " +
+              f"the new shape")
+
           val missingNewLength: ArithExpr = sum(oldShape) / sumOfKnownNewLengths
           val newShape = shape.map(s => if (s == Cst(-1)) missingNewLength else s)
 
@@ -47,7 +50,9 @@ case class Reshape(shape: List[ArithExpr]) extends Pattern(arity = 2) {
 
         } else {
           // The shape is known
-          assert(sum(oldShape) == sum(shape))
+          if (sum(oldShape) != sum(shape))
+            throw TypeException(f"Expected the array size to be divisible by the size of the new shape")
+
           Type.buildArrayType(shape, Type.getBaseType(argType))
         }
 
