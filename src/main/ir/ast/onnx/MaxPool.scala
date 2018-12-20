@@ -112,7 +112,7 @@ object MaxPool {
     pads match {
       case Some(padList) =>
         assert(autoPad == "NOTSET" || autoPad == "VALID")
-        assert(padList.length * 2 == dimensionality)
+        assert(padList.length == dimensionality * 2)
       case None =>
     }
 
