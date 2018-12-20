@@ -2,6 +2,8 @@ package cbackends.common.utils.output_view
 
 import ir.ast.{Expr, Lambda, Param}
 import ir.view.{NoView, UnusedInExprOutputView, ViewMem}
+import cbackends.common.utils.common_view.GenerateViewForRawInOut.generateViewForRawInOut
+import lift.arithmetic.Cst
 
 import scala.collection.mutable
 
@@ -40,7 +42,9 @@ object OutputView {
   def init_body(lambda: Lambda) : Unit = {
 
     //first set the body's output view, then propagate to someone inside.
-    lambda.body.outputView = ViewMem(lambda.body.mem.variable, lambda.body.t)
+    //lambda.body.outputView = ViewMem(lambda.body.mem.variable, lambda.body.t)
+
+    lambda.body.outputView = generateViewForRawInOut(lambda.body, lambda.body.t, Cst(1))
 
   }
 
