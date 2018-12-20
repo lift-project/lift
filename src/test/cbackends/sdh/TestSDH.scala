@@ -98,11 +98,11 @@ class TestSDH {
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
       (A, B) => {
-        MapSeq(fun( Arow =>
+        ToLCP() o MapSeq(fun( Arow =>
           Join() o  MapSeq(fun( Bcol =>
              ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
           )) $ B
-        )) $ A
+        )) o ToGPE() $ A
       })
 
   }
