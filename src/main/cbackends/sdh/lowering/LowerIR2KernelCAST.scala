@@ -3,7 +3,7 @@ package cbackends.sdh.lowering
 
 import core.generator.GenericAST._
 import ir.ArrayTypeWSWC
-import ir.ast.{Expr, FunCall, Get, IRNode, Join, Lambda, Split, UserFun, Value}
+import ir.ast.{AbstractPartRed, Expr, FunCall, Get, IRNode, Join, Lambda, Split, UserFun, Value}
 import opencl.generator.OpenCLAST.OclCode
 
 import scala.collection.mutable
@@ -12,6 +12,7 @@ import opencl.ir.pattern.MapSeq
 import cbackends.sdh.sdh_ir._
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.common.view.{CollectAllLoopVars, ViewPrinter}
+import cbackends.host.lowering.LowerIR2HostCAST.generateAbstractReduce
 import ir.printer.DotPrinter
 
 object LowerIR2KernelCAST {
@@ -50,6 +51,8 @@ object LowerIR2KernelCAST {
         generateTMKernel(fc)
       case fc@FunCall(_:MapSeq, _) =>
         generateMapSeq(fc)
+      case fc@FunCall(_:AbstractPartRed, _*) =>
+        generateAbstractReduce(fc)
       case fc@FunCall(_:UserFun,_*) =>
         generateUserFun(fc)
       case fc@FunCall(_:Get, _) =>
