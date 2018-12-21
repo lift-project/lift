@@ -86,7 +86,7 @@ class TestSDH {
   @Test
   def test_matrix_mul_multi_tile(): Unit = {
 
-    val path = s"$common_path/1.vector_add_multi_tile"
+    val path = s"$common_path/2.matrix_mul_multi_tile"
     val sched_file = "lib_sched.cpp"
     val worker_file = "test_worker.cpp"
 
@@ -97,13 +97,21 @@ class TestSDH {
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
-      (A, B) => {
-        ToLCP() o MapSeq(fun( Arow =>
-          Join() o  MapSeq(fun( Bcol =>
-             ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
-          )) $ B
-        )) o ToGPE() $ A
-      })
+      (A, B) =>
+        ToLCP() o Join() o
+          MapTM(
+            Join() o MapTile(
+                      Join() o MapGPE( TMKernel(
+                        MapSeq(
+                          fun( Arow => Join() o
+                               MapSeq( fun( Bcol => ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol) ) ) $ B )
+                          )
+                                    ) ) o Split(2)
+                 ) o Split(8)
+               ) o Split(16) o ToGPE() $ A
+      )
+
+    SDHCompiler ! (f, path, List(sched_file, worker_file))
 
   }
 
