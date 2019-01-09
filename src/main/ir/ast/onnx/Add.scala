@@ -10,6 +10,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
   * Corresponds to ONNX (v1.3.0)->Add.
   * See https://github.com/onnx/onnx/blob/master/docs/Operators.md
   */
+/*
 case class Add() extends Pattern(arity = 2) with Broadcastable {
 
   override def checkType(argType: Type,
@@ -34,3 +35,4 @@ case class Add() extends Pattern(arity = 2) with Broadcastable {
   }
 
 }
+*/

@@ -6,8 +6,9 @@ import lift.arithmetic.ArithExpr
 import opencl.ir._
 import org.junit._
 
-
+/*
 class testONNXOperators {
+
 
   @Test
   def minst(): Unit = {
@@ -171,4 +172,4 @@ class testONNXOperators {
           Parameter194))
 
   }
-}
+}*/

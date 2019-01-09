@@ -278,6 +278,13 @@ object ArrayType {
     ArrayTypeWSWC(elemT, sizeAndCapacity)
   }
 
+  def apply(elemT: Type, sizes: List[ArithExpr]) : ArrayType with Size with Capacity = {
+    sizes match {
+      case head::Nil => ArrayTypeWSWC(elemT, head)
+      case head::tails => ArrayTypeWSWC( apply(elemT, tails), head )
+    }
+  }
+
 }
 
 

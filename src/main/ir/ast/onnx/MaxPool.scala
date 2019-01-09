@@ -23,6 +23,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
   * @param storageOrder (see ONNX spec)
   * @param strides (see ONNX spec)
   */
+/*
 case class MaxPool(autoPad: String,
                    kernelShape: List[ArithExpr],
                    private val pads: List[ArithExpr],
@@ -120,3 +121,4 @@ object MaxPool {
       storageOrder, strides)(x))
   }
 }
+*/
