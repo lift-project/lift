@@ -87,8 +87,8 @@ class TestSDH {
   def test_matrix_mul_multi_tile(): Unit = {
 
     val path = s"$common_path/2.matrix_mul_multi_tile"
-    val sched_file = "lib_sched.cpp"
-    val worker_file = "test_worker.cpp"
+    val sched_file = "test_lift_matrixmul_sched_lib.cpp"
+    val worker_file = "test_lift_matrixmul_kernel.cpp"
 
     val N = SizeVar("N")
     val M = SizeVar("M")
