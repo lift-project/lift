@@ -24,13 +24,13 @@ int main(int argc, char *argv[]) {
     fill(input1, input1+size, 1);
     fill(input2, input2+size, 2);
 
-    cout << "[ SIZE = ] "<< size << endl;
+    cout << "[ SIZE = ] " << size << endl;
     cout << "input1[] = {" ;
     copy(input1, input1+size, ostream_iterator<float>(cout, " ") );
-    cout << "}\n" << endl;
+    cout << "}" << endl;
     cout << "input2[] = {" ;
     copy(input2, input2+size, ostream_iterator<float>(cout, " ") );
-    cout << "}\n" << endl;
+    cout << "}" << endl;
 
 
     /*LCP_PRINTF("input[] = {");
