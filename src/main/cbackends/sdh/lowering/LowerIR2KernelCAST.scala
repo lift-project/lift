@@ -28,6 +28,9 @@ object LowerIR2KernelCAST {
       |#include <sys/mman.h>
       |#include <stdint.h>
       |#include <string.h>
+      |#include <bits/stdc++.h>
+      |
+      |using namespace std;
       |
       |#include "util.hpp"
       |

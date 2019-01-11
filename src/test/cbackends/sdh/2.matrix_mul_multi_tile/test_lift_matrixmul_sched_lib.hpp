@@ -55,18 +55,18 @@ void* trans_alloc(unsigned int size){
  }
 
     ; 
-void execute(float * v_initial_param_1_18, float * v_initial_param_2_19, float * & v_user_func_54_22, int v_K_3, int v_M_2, int v_N_1){
+void execute(float * v_initial_param_1_18, float * v_initial_param_2_19, float * & v_user_func_59_22, int v_K_3, int v_M_2, int v_N_1){
     // Allocate memory for output pointers
-    v_user_func_54_22 = reinterpret_cast<float *>(trans_alloc(((v_M_2 * v_N_1) * sizeof(float)))); 
+    v_user_func_59_22 = reinterpret_cast<float *>(trans_alloc(((v_M_2 * v_N_1) * sizeof(float)))); 
     // Push all pointers and sizes to GPEs
-    for (int tile_loop_cvar_129 = 0;(tile_loop_cvar_129 < 1); (++tile_loop_cvar_129)){
-        for (int gpe_loop_cvar_129 = 0;(gpe_loop_cvar_129 < 4); (++gpe_loop_cvar_129)){
-            GPEQ_PUSH(gpe_loop_cvar_129, reinterpret_cast<uint32_t>(v_initial_param_1_18)); 
-            GPEQ_PUSH(gpe_loop_cvar_129, reinterpret_cast<uint32_t>(v_initial_param_2_19)); 
-            GPEQ_PUSH(gpe_loop_cvar_129, reinterpret_cast<uint32_t>(v_user_func_54_22)); 
-            GPEQ_PUSH(gpe_loop_cvar_129, v_K_3); 
-            GPEQ_PUSH(gpe_loop_cvar_129, v_M_2); 
-            GPEQ_PUSH(gpe_loop_cvar_129, v_N_1); 
+    for (int tile_loop_cvar_136 = 0;(tile_loop_cvar_136 < 1); (++tile_loop_cvar_136)){
+        for (int gpe_loop_cvar_136 = 0;(gpe_loop_cvar_136 < 4); (++gpe_loop_cvar_136)){
+            GPEQ_PUSH(gpe_loop_cvar_136, reinterpret_cast<uint32_t>(v_initial_param_1_18)); 
+            GPEQ_PUSH(gpe_loop_cvar_136, reinterpret_cast<uint32_t>(v_initial_param_2_19)); 
+            GPEQ_PUSH(gpe_loop_cvar_136, reinterpret_cast<uint32_t>(v_user_func_59_22)); 
+            GPEQ_PUSH(gpe_loop_cvar_136, v_K_3); 
+            GPEQ_PUSH(gpe_loop_cvar_136, v_M_2); 
+            GPEQ_PUSH(gpe_loop_cvar_136, v_N_1); 
         }
     }
     // ToGPE
@@ -83,6 +83,10 @@ void execute(float * v_initial_param_1_18, float * v_initial_param_2_19, float *
                 {
                     
                 }
+            }
+            // Sync all GPEs
+            for (int i_96 = 0;(i_96 < 4); (++i_96)){
+                LCPQ_POP(i_96); 
             }
         }
         {

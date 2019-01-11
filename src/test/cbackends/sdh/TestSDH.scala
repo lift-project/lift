@@ -101,7 +101,7 @@ class TestSDH {
         ToLCP() o Join() o
           MapTM(
             Join() o MapTile(
-                      Join() o MapGPE( TMKernel(
+                      Join() o MapGPESync() o MapGPE( TMKernel(
                         MapSeq(
                           fun( Arow => Join() o
                                MapSeq( fun( Bcol => ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol) ) ) $ B )
