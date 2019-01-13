@@ -7,7 +7,7 @@ using namespace std;
 /* Control pannel */
 
 #define K 3
-#define M 8
+#define M 2
 #define N 4
 /* ------------------------------------------------------------ */
 
@@ -22,13 +22,14 @@ int main(int argc, char *argv[]) {
     float* inputB = reinterpret_cast<float*>(trans_alloc(sizeB*sizeof(float)));
     float* output = nullptr;
 
-    fill(inputA, inputA+size, 1);
-    fill(inputB, inputB+size, 2);
+    fill(inputA, inputA+sizeA, 1);
+    fill(inputB, inputB+sizeB, 2);
 
-    cout << "[ SIZE = ] " << size << endl;
+    cout << "[ SIZE_A = ] " << sizeA << endl;
     cout << "inputA[] = {" ;
     copy(inputA, inputA+sizeA, ostream_iterator<float>(cout, " ") );
     cout << "}" << endl;
+    cout << "[ SIZE_B = ] " << sizeB << endl;
     cout << "inputB[] = {" ;
     copy(inputB, inputB+sizeB, ostream_iterator<float>(cout, " ") );
     cout << "}" << endl;
@@ -45,7 +46,7 @@ int main(int argc, char *argv[]) {
 
     // Print the result.
     LCP_PRINTF("output[] = {");
-    for(int i = 0; i < size; ++i) {
+    for(int i = 0; i < sizeC; ++i) {
         printf("%f ", output[i]);
     }
     printf("}\n");

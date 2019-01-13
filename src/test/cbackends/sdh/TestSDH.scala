@@ -126,7 +126,7 @@ class TestSDH {
             MapGPESync() o MapGPE( TMKernel(
               fun(Bcol => ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)  $ Zip(Arow, Bcol) )
             )) $ B )
-          ) ) o Split(8) o ToGPE() $ A
+          ) ) o Split(2) o ToGPE() $ A
     )
 
     SDHCompiler ! (f, path, List(sched_file, worker_file))
