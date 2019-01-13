@@ -94,7 +94,8 @@ class TestSDH {
     val M = SizeVar("M")
     val K = SizeVar("K")
 
-    val f = fun(
+    //only split on A, which is wrong, as it leads to one extra loop on B anyway, thus each thread produce more elements as expected
+    /*val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
       (A, B) =>
@@ -109,7 +110,24 @@ class TestSDH {
                                     ) ) o Split(2)
                  ) o Split(8)
                ) o Split(16) o ToGPE() $ A
-      )
+      )*/
+
+    //now the improved version:
+    // * MapTM is only a preparation step for A
+    // * MapTile map over A
+    // * MapGPE map over B
+    // * then only a reduce is needed in the kernel, which is executed by each GPE.
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      (A, B) =>
+        ToLCP() o Join() o MapTM(
+          Join() o MapTile( fun(Arow =>
+            MapGPESync() o MapGPE( TMKernel(
+              fun(Bcol => ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)  $ Zip(Arow, Bcol) )
+            )) $ B )
+          ) ) o Split(8) o ToGPE() $ A
+    )
 
     SDHCompiler ! (f, path, List(sched_file, worker_file))
 

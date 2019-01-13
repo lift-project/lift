@@ -6,30 +6,31 @@ using namespace std;
 /* ------------------------------------------------------------ */
 /* Control pannel */
 
-#define SIZE 16
-#define K 4
-#define M 4
+#define K 3
+#define M 8
 #define N 4
 /* ------------------------------------------------------------ */
 
 int main(int argc, char *argv[]) {
 
-    int const size = SIZE;
+    int const sizeA = M*K;
+    int const sizeB = N*K;
+    int const sizeC = M*N;
     
 
-    float* input1 = reinterpret_cast<float*>(trans_alloc(size*sizeof(float)));
-    float* input2 = reinterpret_cast<float*>(trans_alloc(size*sizeof(float)));
+    float* inputA = reinterpret_cast<float*>(trans_alloc(sizeA*sizeof(float)));
+    float* inputB = reinterpret_cast<float*>(trans_alloc(sizeB*sizeof(float)));
     float* output = nullptr;
 
-    fill(input1, input1+size, 1);
-    fill(input2, input2+size, 2);
+    fill(inputA, inputA+size, 1);
+    fill(inputB, inputB+size, 2);
 
     cout << "[ SIZE = ] " << size << endl;
-    cout << "input1[] = {" ;
-    copy(input1, input1+size, ostream_iterator<float>(cout, " ") );
+    cout << "inputA[] = {" ;
+    copy(inputA, inputA+sizeA, ostream_iterator<float>(cout, " ") );
     cout << "}" << endl;
-    cout << "input2[] = {" ;
-    copy(input2, input2+size, ostream_iterator<float>(cout, " ") );
+    cout << "inputB[] = {" ;
+    copy(inputB, inputB+sizeB, ostream_iterator<float>(cout, " ") );
     cout << "}" << endl;
 
 
@@ -40,7 +41,7 @@ int main(int argc, char *argv[]) {
     */
 
     //calling the code generated
-    execute(input1, input2, output, K, M, N);
+    execute(inputA, inputB, output, K, M, N);
 
     // Print the result.
     LCP_PRINTF("output[] = {");
