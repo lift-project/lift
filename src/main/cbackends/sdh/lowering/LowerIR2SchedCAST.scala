@@ -134,7 +134,7 @@ object LowerIR2SchedCAST {
     }
     //For MapTM, needs to sync all LCPs
     val sync_all_lcps = m match {
-      case _:MapTM => Block(Vector(FunctionCall("barrier_wait", List(StringConstant("NUM_TILES"))) ) )
+      //case _:MapTM => Block(Vector(FunctionCall("barrier_wait", List(StringConstant("NUM_TILES"))) ) )
       case _ => Block()
     }
 

@@ -90,7 +90,7 @@ void execute(float * v_initial_param_1_14, float * v_initial_param_2_15, float *
             }
         }
         {
-            barrier_wait(NUM_TILES); 
+            
         }
     }
     // ToLCP
