@@ -258,7 +258,7 @@ object LowerIR2SchedCAST {
 
     val param_list = all_signature_cvars_for_execute.map(cv => ParamDeclPure(cv.name, cv.t))
 
-    val tile_loop_cvar = CVarWithType(s"tile_loop_cvar_${lambda.gid}", IntegerType())
+    //val tile_loop_cvar = CVarWithType(s"tile_loop_cvar_${lambda.gid}", IntegerType())
     val gpe_loop_cvar = CVarWithType(s"gpe_loop_cvar_${lambda.gid}", IntegerType())
     val push_top_level_parameters = all_signature_cvars.map(v =>
       ExpressionStatement(FunctionCall("GPEQ_PUSH",
@@ -269,20 +269,16 @@ object LowerIR2SchedCAST {
         }
       ))).toVector
     //the double nested loop counts are only related to hardware configuration, not related to workload size
-    val double_nested_forloop = ForLoopIm(
-      VarDeclPure( tile_loop_cvar, tile_loop_cvar.t, Some(IntConstant(0) ) ),
-      BinaryExpression(VarRefPure(tile_loop_cvar), BinaryExpressionT.Operator.<, IntConstant(num_of_tiles)),
-      UnaryExpression("++", VarRefPure(tile_loop_cvar)),
-      Block(Vector(ForLoopIm(
+    val push_forloop = ForLoopIm(
         VarDeclPure( gpe_loop_cvar, gpe_loop_cvar.t, Some(IntConstant(0) ) ),
         BinaryExpression(VarRefPure(gpe_loop_cvar), BinaryExpressionT.Operator.<, IntConstant(tile_size)),
         UnaryExpression("++", VarRefPure(gpe_loop_cvar)),
         Block(push_top_level_parameters)
-      )))
-    )
-    val double_nested_forloop_comment = Comment("Push all pointers and sizes to GPEs")
+      )
 
-    ( Block(Vector(boilerplate_code, FunctionPure("execute",VoidType(), param_list, (memory_alloc_code :+ double_nested_forloop_comment :+ double_nested_forloop ) :++ core_body_code ) ), global = true ), all_signature_cvars )
+    val push_forloop_comment = Comment("Push all pointers and sizes to GPEs")
+
+    ( Block(Vector(boilerplate_code, FunctionPure("execute",VoidType(), param_list, (memory_alloc_code :+ push_forloop_comment :+ push_forloop ) :++ core_body_code ) ), global = true ), all_signature_cvars )
 
   }
 

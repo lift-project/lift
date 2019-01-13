@@ -59,7 +59,7 @@ class TestSDH {
   @Test
   def test_vec_add_multi_tile(): Unit = {
 
-    val path = s"$common_path/1.vector_add_multi_tile"
+    val path = s"$common_path/01.vector_add_multi_tile"
     val sched_file = "lib_sched.cpp"
     val worker_file = "test_worker.cpp"
 
@@ -84,9 +84,12 @@ class TestSDH {
   }
 
   @Test
-  def test_matrix_mul_multi_tile(): Unit = {
+  def test_matrix_mul_multi_tile_naive(): Unit = {
 
-    val path = s"$common_path/2.matrix_mul_multi_tile"
+    //Naive version: the matrix shape has to be 2 x C and C x 4,
+    //               to match the 2 tiles and 4 GPEs in a tile
+
+    val path = s"$common_path/02.matrix_mul_multi_tile_naive"
     val sched_file = "test_lift_matrixmul_sched_lib.hpp"
     val worker_file = "test_lift_matrixmul_kernel.cpp"
 
@@ -132,5 +135,34 @@ class TestSDH {
     SDHCompiler ! (f, path, List(sched_file, worker_file))
 
   }
+
+  @Test
+  def test_matrix_mul_multi_tile_multiples_of_4_for_B(): Unit = {
+
+    val path = s"$common_path/03.matrix_mul_multi_tile_multiples_of_4_for_B"
+    val sched_file = "test_lift_matrixmul_sched_lib.hpp"
+    val worker_file = "test_lift_matrixmul_kernel.cpp"
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      (A, B) =>
+        ToLCP() o Join() o MapTM(
+          Join() o MapTile( fun( Arow =>
+            MapGPESync() o Join() o MapSeq( MapGPE( TMKernel(
+              fun(Bcol => ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)  $ Zip(Arow, Bcol) )
+            )) ) o Split(4) $ B )
+          ) ) o Split(2) o ToGPE() $ A
+    )
+
+    SDHCompiler ! (f, path, List(sched_file, worker_file))
+
+  }
+
+
 
 }
