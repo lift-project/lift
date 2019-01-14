@@ -3,7 +3,7 @@ package cbackends.sdh.lowering
 
 import cbackends.common.utils.type_lowering.TypeLowering
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, ParamDeclPure, PointerType, RawCode, RefType, StringConstant, Uint32_t, UnaryExpression, VarDeclPure, VarRefPure, VoidType}
-import ir.ast.{FunCall, IRNode, Join, Lambda, Split}
+import ir.ast.{AbstractMap, FunCall, IRNode, Join, Lambda, Split}
 import lift.arithmetic.ArithExpr
 import opencl.ir.pattern.MapSeq
 import cbackends.sdh.sdh_ir._
@@ -92,6 +92,8 @@ object LowerIR2SchedCAST {
         generateMapTile(fc)
       case fc@FunCall(_:AbstractSDHMap, _) =>
         generateSDHMap(fc)
+      case fc@FunCall(_:MapSeq, _) =>
+        generateAbstractMap(fc)
       case fc@FunCall(_:TMKernel, _) =>
         generateNothing(fc)
       case fc@FunCall(Split(_), _ ) =>
@@ -148,6 +150,29 @@ object LowerIR2SchedCAST {
 
 
     arg_block :+ comment :+ ForLoopIm(init, cond, increment, push_gpe_loop_var :+ generate(m.f.body) :+ sync_all_lcps)
+
+  }
+
+  def generateAbstractMap(fc: FunCall) : Block = {
+
+    val arg_block = generate(fc.args.head)
+
+    val m = fc.f.asInstanceOf[AbstractMap]
+    val stop = m.loopVar.range.max
+
+    val indexVar =  CVarWithType(m.loopVar.toString, IntegerType() )
+    val init = VarDeclPure( indexVar, indexVar.t, Some(IntConstant(0)) )
+    val cond = BinaryExpression(VarRefPure(indexVar), BinaryExpressionT.Operator.<=, ArithExpression(stop) )
+    val increment = UnaryExpression("++", (indexVar) )
+
+
+    val comment = fc.f match {
+      case _:MapSeq => Comment("For each element processed sequentially")
+      case _ => assert(false, "Not implemented"); Comment("Not reachable")
+    }
+
+
+    arg_block :+ comment :+ ForLoopIm( init, cond, increment, generate(m.f.body) )
 
   }
 
