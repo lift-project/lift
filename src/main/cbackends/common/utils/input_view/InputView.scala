@@ -8,6 +8,13 @@ import cbackends.common.utils.common_view.GenerateViewForRawInOut.generateViewFo
 object InputView {
 
   def pre_check(lambda: Lambda) : Unit = {
+
+    lambda visitBy {
+      case e: Expr => e.view = NoView
+      case _ =>
+    }
+
+
     lambda visitBy {
       case e: Expr => assert(e.view == NoView)
       case _ =>

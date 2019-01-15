@@ -3,11 +3,14 @@ package cbackends.host
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
-import lift.arithmetic.SizeVar
+import lift.arithmetic.{Cst, SizeVar}
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import opencl.ir.{Float, add, _}
 import org.junit.Assert._
 import org.junit.Test
+import rewriting.Rewrite
+import rewriting.rules.Rules
+import rewriting.utils.NumberPrinter
 //import org.scalatest.expect
 
 import scala.language.postfixOps
@@ -549,6 +552,47 @@ class TestHost {
     assertEquals(expected, actual)
 
     println("Done")
+
+  }
+
+  @Test
+  def test_rewrite_rule_hello_world(): Unit = {
+
+    val path = s"$common_path/14.rewrite_rule_hello_world"
+    val file = "librewrite_rule_hello_world.cpp"
+
+
+    val f = fun( ArrayType(Float, N),
+      in => MapSeq( incrementF ) $ in
+    )
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
+    assertEquals(expected, actual)
+
+    //----------------------------------------------------------------------
+    //Now rewrite
+
+    val f2 = fun( ArrayType(Float, N),
+      in => MapSeq( incrementF ) $ in
+    )
+
+    //used to find which id to rewrite
+    println(NumberPrinter(f2))
+
+    //val g = if (Rules.splitJoinMapSeq.rewrite.isDefinedAt(f.body) ) Rules.splitJoinMapSeq(Cst(4)).rewrite(f.body) else f
+    val g = if (Rules.splitJoinMapSeq.rewrite.isDefinedAt(f2.body) ) Rewrite.applyRuleAt(f2, f2.body, Rules.splitJoinMapSeq(Cst(4))) else f2
+
+
+    HostCompiler ! (g, path, List(file) )
+    val actual_rewrite : String = native_compile_and_run(path, file)
+
+    assertEquals(expected, actual_rewrite)
+
+
+    println("Test case test_map done!")
 
   }
 

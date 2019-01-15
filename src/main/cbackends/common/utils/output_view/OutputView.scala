@@ -12,6 +12,11 @@ object OutputView {
   def pre_check(lambda: Lambda) : Unit = {
 
     lambda visitBy {
+      case e:Expr => e.outputView = NoView
+      case _ =>
+    }
+
+    lambda visitBy {
       case e:Expr => assert(e.outputView == NoView)
       case _ =>
     }

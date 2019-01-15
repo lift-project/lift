@@ -108,7 +108,7 @@ object Rules {
   def splitJoinMapSeq(split: ArithExpr) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
     case FunCall(MapSeq(f), arg) =>
       val chunkSize = Utils.splitVariable(split, arg.t)
-      Join() o Map(MapSeq(f)) o Split(chunkSize) $ arg
+      Join() o MapSeq(MapSeq(f)) o Split(chunkSize) $ arg
   })
 
   val joinSplit = Rule("Map(Map(f)) => Split(I) o Map(f) o Join()", {

@@ -78,6 +78,11 @@ object MemoryAllocator {
   def pre_check(lambda: Lambda) : Unit = {
 
     lambda visitBy {
+      case e:Expr if !e.isInstanceOf[Value] => e.mem =  UnallocatedMemory
+      case _ =>
+    }
+
+    lambda visitBy {
       case e:Expr if !e.isInstanceOf[Value] => assert(e.mem ==  UnallocatedMemory )
       case _ =>
     }

@@ -74,9 +74,18 @@ object InferHostMemoryAddressSpace {
   }
 
   def apply(lambda: Lambda): Unit = {
+    //reset the address space, in case we rewrite some expression that is already compiled,
+    //and get some weird side effects.
+    lambda visitBy {
+      case e:Expr => e.addressSpace = UndefAddressSpace
+      case _ =>
+    }
+
+
     //assert that all memory space has not been inferred
     lambda visitBy {
-      case e:Expr => assert( e.addressSpace == UndefAddressSpace )
+      case e:Expr =>
+        assert( e.addressSpace == UndefAddressSpace )
       case _ =>
     }
 
