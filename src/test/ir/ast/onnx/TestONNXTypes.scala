@@ -28,7 +28,7 @@ class TestONNXTypes {
         |
       """.stripMargin
 
-    val expr = Source.fromFile("/tmp/lu_lift_expr_from_onnx.txt").getLines.mkString
+    val expr = Source.fromFile("/home/lu/Documents/Research/lift/src/test/ir/ast/onnx/lift_expr_for_onnx_model/lu_lift_expr_from_onnx.txt").getLines.mkString
 
     val code = prologue + expr
 
