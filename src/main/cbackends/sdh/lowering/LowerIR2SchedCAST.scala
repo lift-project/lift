@@ -124,7 +124,7 @@ object LowerIR2SchedCAST {
     val arg_block = generate(fc.args.head)
 
     val m = fc.f.asInstanceOf[MapGPE]
-    val stop = m.loopVar.range.max
+    val stop = m.loopVar.range.max + 1
 
     //two levels of loops should be generated
     // 1) for loop for each batch of size 4
@@ -163,11 +163,11 @@ object LowerIR2SchedCAST {
     val arg_block = generate(fc.args.head)
 
     val m = fc.f.asInstanceOf[AbstractSDHMap]
-    val stop = m.loopVar.range.max
+    val stop = m.loopVar.range.max + 1
 
     val indexVar =  CVarWithType(m.loopVar.toString, IntegerType() )
     val init = VarDeclPure( indexVar, indexVar.t, Some(IntConstant(0)) )
-    val cond = BinaryExpression(VarRefPure(indexVar), BinaryExpressionT.Operator.<=, ArithExpression(stop) )
+    val cond = BinaryExpression(VarRefPure(indexVar), BinaryExpressionT.Operator.<, ArithExpression(stop) )
     val increment = UnaryExpression("++", (indexVar) )
 
     //For MapGPE, needs to push gpe_id, as the for loop for gpe_id does not exist in worker code

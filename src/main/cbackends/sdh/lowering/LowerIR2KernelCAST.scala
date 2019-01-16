@@ -135,7 +135,7 @@ object LowerIR2KernelCAST {
     val arg_block = generate(fc.args.head)
 
     val m = fc.f.asInstanceOf[MapGPE]
-    val stop = m.loopVar.range.max
+    val stop = m.loopVar.range.max + 1
 
     val indexVar1 =  CVarWithType("v_gpe_batch_" + IDGenerator.get_id(), IntegerType() )
     val init1 = VarDeclPure( indexVar1, indexVar1.t, Some(IntConstant(0)) )
@@ -162,10 +162,10 @@ object LowerIR2KernelCAST {
     val m = fc.f.asInstanceOf[MapTM]
     val indexVar =  CVarWithType(m.loopVar.toString, IntegerType())
 
-    val stop = m.loopVar.range.max
+    val stop = m.loopVar.range.max + 1
 
     val init = VarDeclPure( indexVar, indexVar.t, Some(IntConstant(0)) )
-    val cond = BinaryExpression(VarRefPure(indexVar), BinaryExpressionT.Operator.<=, ArithExpression(stop) )
+    val cond = BinaryExpression(VarRefPure(indexVar), BinaryExpressionT.Operator.<, ArithExpression(stop) )
     val increment = UnaryExpression("++", (indexVar) )
 
     arg_block :+ Comment("For each transmuter") :+ ForLoopIm(init, cond, increment, generate(m.f.body))

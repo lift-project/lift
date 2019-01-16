@@ -27,11 +27,11 @@ int main(){
     int v_M_2 = GPEQ_POP();
     int v_N_1 = GPEQ_POP();
     // For each transmuter
-    for (int v_i_10 = 0;(v_i_10 <= (-1 + ((v_M_2)/(2)))); (++v_i_10)){
+    for (int v_i_10 = 0;(v_i_10 < ((v_M_2)/(2))); (++v_i_10)){
         // For each tile
         int v_i_11 = GPE_TILE_ID();
         {
-            for (int v_gpe_batch_108 = 0;(v_gpe_batch_108 < ((-1 + v_N_1) / 4)); (++v_gpe_batch_108)){
+            for (int v_gpe_batch_108 = 0;(v_gpe_batch_108 < (v_N_1 / 4)); (++v_gpe_batch_108)){
                 int v_i_12 = GPEQ_POP();
                 {
                     // For each element reduced sequentially
