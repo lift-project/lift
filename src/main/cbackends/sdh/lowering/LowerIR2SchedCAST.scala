@@ -130,7 +130,7 @@ object LowerIR2SchedCAST {
     // 1) for loop for each batch of size 4
     val indexVar1 =  CVarWithType(m.loopVar.toString, IntegerType() )
     val init1 = VarDeclPure( indexVar1, indexVar1.t, Some(IntConstant(0)) )
-    val cond1 = BinaryExpression(VarRefPure(indexVar1), BinaryExpressionT.Operator.<=, ArithExpression(stop) )
+    val cond1 = BinaryExpression(VarRefPure(indexVar1), BinaryExpressionT.Operator.<=, ArithExpression(stop/m.num_hw_elements) )
     val increment1 = UnaryExpression("++", (indexVar1) )
     // 2a) for loop for push each virtual id
     val indexVar2a =  CVarWithType(m.loopVar.toString, IntegerType() )
