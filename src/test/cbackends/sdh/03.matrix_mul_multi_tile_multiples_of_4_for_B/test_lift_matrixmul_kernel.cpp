@@ -31,7 +31,7 @@ int main(){
         // For each tile
         int v_i_11 = GPE_TILE_ID();
         {
-            for (int v_gpe_batch_108 = 0;(v_gpe_batch_108 <= ((-1 + v_N_1) / 4)); (++v_gpe_batch_108)){
+            for (int v_gpe_batch_108 = 0;(v_gpe_batch_108 < ((-1 + v_N_1) / 4)); (++v_gpe_batch_108)){
                 int v_i_12 = GPEQ_POP();
                 {
                     // For each element reduced sequentially

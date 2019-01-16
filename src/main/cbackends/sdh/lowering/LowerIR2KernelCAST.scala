@@ -139,7 +139,7 @@ object LowerIR2KernelCAST {
 
     val indexVar1 =  CVarWithType("v_gpe_batch_" + IDGenerator.get_id(), IntegerType() )
     val init1 = VarDeclPure( indexVar1, indexVar1.t, Some(IntConstant(0)) )
-    val cond1 = BinaryExpression(VarRefPure(indexVar1), BinaryExpressionT.Operator.<=, ArithExpression(stop/m.num_hw_elements) )
+    val cond1 = BinaryExpression(VarRefPure(indexVar1), BinaryExpressionT.Operator.<, ArithExpression(stop/m.num_hw_elements) )
     val increment1 = UnaryExpression("++", (indexVar1) )
 
     val body_block = generate(m.f)
