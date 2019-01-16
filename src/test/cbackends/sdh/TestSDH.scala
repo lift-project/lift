@@ -153,9 +153,9 @@ class TestSDH {
       (A, B) =>
         ToLCP() o Join() o MapTM(
           Join() o MapTile( fun( Arow =>
-            Join() o MapSeq( MapGPE( TMKernel(
+              MapGPE( TMKernel(
               fun(Bcol => ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)  $ Zip(Arow, Bcol) )
-            )) ) o Split(4) $ B )
+            )) $ B )
           ) ) o Split(2) o ToGPE() $ A
     )
 

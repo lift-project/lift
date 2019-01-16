@@ -3,7 +3,7 @@ package cbackends.sdh.lowering
 
 import core.generator.GenericAST._
 import ir.ArrayTypeWSWC
-import ir.ast.{AbstractPartRed, Expr, FunCall, Get, IRNode, Join, Lambda, Split, UserFun, Value}
+import ir.ast.{AbstractPartRed, Expr, FunCall, Get, IDGenerator, IRNode, Join, Lambda, Split, UserFun, Value}
 import opencl.generator.OpenCLAST.OclCode
 
 import scala.collection.mutable
@@ -135,14 +135,24 @@ object LowerIR2KernelCAST {
     val arg_block = generate(fc.args.head)
 
     val m = fc.f.asInstanceOf[MapGPE]
-    val body_block = generate(m.f)
+    val stop = m.loopVar.range.max
 
-    val body_block_no_brackets = body_block.copy(global = true)
+    val indexVar1 =  CVarWithType("v_gpe_batch_" + IDGenerator.get_id(), IntegerType() )
+    val init1 = VarDeclPure( indexVar1, indexVar1.t, Some(IntConstant(0)) )
+    val cond1 = BinaryExpression(VarRefPure(indexVar1), BinaryExpressionT.Operator.<=, ArithExpression(stop/m.num_hw_elements) )
+    val increment1 = UnaryExpression("++", (indexVar1) )
+
+    val body_block = generate(m.f)
+    //val body_block_no_brackets = body_block.copy(global = true)
 
     val gpe_id_cvar = CVarWithType(m.loopVar.toString, IntegerType())
     val pop_gpe_id = VarDeclPure(gpe_id_cvar, gpe_id_cvar.t, init = Some( FunctionCall("GPEQ_POP", List()) ))
 
-    (arg_block :+ Comment("For each GPE. TODO: check if you can get this by API call instead of push and pop") :+ pop_gpe_id) :++ body_block_no_brackets
+    val push_finish_signal = FunctionCall("LCPQ_PUSH", List(IntConstant(1)))
+
+    arg_block :+ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(pop_gpe_id, body_block , push_finish_signal))   )))
+
+    //(arg_block :+ Comment("For each GPE. TODO: check if you can get this by API call instead of push and pop") :+ pop_gpe_id) :++ body_block_no_brackets
   }
 
   private def generateMapTM(fc:FunCall) : Block = {

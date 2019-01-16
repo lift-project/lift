@@ -3,7 +3,7 @@ package cbackends.sdh.lowering
 
 import cbackends.common.utils.type_lowering.TypeLowering
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, ParamDeclPure, PointerType, RawCode, RefType, StringConstant, Uint32_t, UnaryExpression, VarDeclPure, VarRefPure, VoidType}
-import ir.ast.{AbstractMap, FunCall, IRNode, Join, Lambda, Split}
+import ir.ast.{AbstractMap, FunCall, IDGenerator, IRNode, Join, Lambda, Split}
 import lift.arithmetic.ArithExpr
 import opencl.ir.pattern.MapSeq
 import cbackends.sdh.sdh_ir._
@@ -128,23 +128,27 @@ object LowerIR2SchedCAST {
 
     //two levels of loops should be generated
     // 1) for loop for each batch of size 4
-    val indexVar1 =  CVarWithType(m.loopVar.toString, IntegerType() )
+    val indexVar1 =  CVarWithType("v_gpe_batch_" + IDGenerator.get_id(), IntegerType() )
     val init1 = VarDeclPure( indexVar1, indexVar1.t, Some(IntConstant(0)) )
     val cond1 = BinaryExpression(VarRefPure(indexVar1), BinaryExpressionT.Operator.<=, ArithExpression(stop/m.num_hw_elements) )
     val increment1 = UnaryExpression("++", (indexVar1) )
     // 2a) for loop for push each virtual id
-    val indexVar2a =  CVarWithType(m.loopVar.toString, IntegerType() )
+    val indexVar2a =  CVarWithType("v_gpe_" + IDGenerator.get_id(), IntegerType() )
     val init2a = VarDeclPure( indexVar2a, indexVar2a.t, Some(IntConstant(0)) )
-    val cond2a = BinaryExpression(VarRefPure(indexVar2a), BinaryExpressionT.Operator.<=, ArithExpression(stop) )
+    val cond2a = BinaryExpression(VarRefPure(indexVar2a), BinaryExpressionT.Operator.<, ArithExpression(m.num_hw_elements) )
     val increment2a = UnaryExpression("++", (indexVar2a) )
     // 2a) for loop for push each virtual id
-    val indexVar2b =  CVarWithType(m.loopVar.toString, IntegerType() )
+    val indexVar2b =  CVarWithType("v_gpe_" + IDGenerator.get_id(), IntegerType() )
     val init2b = VarDeclPure( indexVar2b, indexVar2b.t, Some(IntConstant(0)) )
-    val cond2b = BinaryExpression(VarRefPure(indexVar2b), BinaryExpressionT.Operator.<=, ArithExpression(stop) )
+    val cond2b = BinaryExpression(VarRefPure(indexVar2b), BinaryExpressionT.Operator.<, ArithExpression(m.num_hw_elements) )
     val increment2b = UnaryExpression("++", (indexVar2b) )
 
-    val push_virtual_thread_id = null
-    val pop_finish_signal = null
+    val push_virtual_thread_id = Block(Vector(ExpressionStatement(FunctionCall("GPEQ_PUSH",
+      List(VarRefPure(indexVar2a),
+        BinaryExpression(VarRefPure(indexVar2a), BinaryExpressionT.Operator.+,
+          BinaryExpression(ArithExpression(m.num_hw_elements),BinaryExpressionT.Operator.*,VarRefPure(indexVar1)) )
+      )))) )
+    val pop_finish_signal = Block(Vector(FunctionCall("LCPQ_POP", List(VarRefPure(indexVar2b))) ) )
 
     val innerloopA = ForLoopIm(init2a, cond2a, increment2a, push_virtual_thread_id)
     val innerloopB = ForLoopIm(init2b, cond2b, increment2b, pop_finish_signal)

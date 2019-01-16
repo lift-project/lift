@@ -55,39 +55,33 @@ void* trans_alloc(unsigned int size){
  }
 
     ; 
-void execute(float * v_initial_param_1_16, float * v_initial_param_2_17, float * & v_user_func_58_20, int v_K_3, int v_M_2, int v_N_1){
+void execute(float * v_initial_param_1_14, float * v_initial_param_2_15, float * & v_user_func_52_18, int v_K_3, int v_M_2, int v_N_1){
     // Allocate memory for output pointers
-    v_user_func_58_20 = reinterpret_cast<float *>(trans_alloc(((v_M_2 * v_N_1) * sizeof(float)))); 
+    v_user_func_52_18 = reinterpret_cast<float *>(trans_alloc(((v_M_2 * v_N_1) * sizeof(float)))); 
     // Push all pointers and sizes to GPEs
-    for (int gpe_loop_cvar_126 = 0;(gpe_loop_cvar_126 < 4); (++gpe_loop_cvar_126)){
-        GPEQ_PUSH(gpe_loop_cvar_126, reinterpret_cast<uint32_t>(v_initial_param_1_16)); 
-        GPEQ_PUSH(gpe_loop_cvar_126, reinterpret_cast<uint32_t>(v_initial_param_2_17)); 
-        GPEQ_PUSH(gpe_loop_cvar_126, reinterpret_cast<uint32_t>(v_user_func_58_20)); 
-        GPEQ_PUSH(gpe_loop_cvar_126, v_K_3); 
-        GPEQ_PUSH(gpe_loop_cvar_126, v_M_2); 
-        GPEQ_PUSH(gpe_loop_cvar_126, v_N_1); 
+    for (int gpe_loop_cvar_101 = 0;(gpe_loop_cvar_101 < 4); (++gpe_loop_cvar_101)){
+        GPEQ_PUSH(gpe_loop_cvar_101, reinterpret_cast<uint32_t>(v_initial_param_1_14)); 
+        GPEQ_PUSH(gpe_loop_cvar_101, reinterpret_cast<uint32_t>(v_initial_param_2_15)); 
+        GPEQ_PUSH(gpe_loop_cvar_101, reinterpret_cast<uint32_t>(v_user_func_52_18)); 
+        GPEQ_PUSH(gpe_loop_cvar_101, v_K_3); 
+        GPEQ_PUSH(gpe_loop_cvar_101, v_M_2); 
+        GPEQ_PUSH(gpe_loop_cvar_101, v_N_1); 
     }
     // ToGPE
     CACHE_FLUSH(); 
     // For each transmuter chip
-    for (int v_i_11 = 0;(v_i_11 <= (-1 + ((v_M_2)/(2)))); (++v_i_11)){
+    for (int v_i_10 = 0;(v_i_10 <= (-1 + ((v_M_2)/(2)))); (++v_i_10)){
         {
-            // For each element processed sequentially
-            for (int v_i_13 = 0;(v_i_13 <= (-1 + ((v_N_1)/(4)))); (++v_i_13)){
-                // For each GPE
-                for (int v_i_14 = 0;(v_i_14 <= 3); (++v_i_14)){
-                    GPEQ_PUSH(v_i_14, v_i_14); 
-                    {
-                        
-                    }
-                    {
-                        
-                    }
+            for (int v_gpe_batch_102 = 0;(v_gpe_batch_102 <= ((-1 + v_N_1) / 4)); (++v_gpe_batch_102)){
+                for (int v_gpe_103 = 0;(v_gpe_103 < 4); (++v_gpe_103)){
+                    GPEQ_PUSH(v_gpe_103, (v_gpe_103 + (4 * v_gpe_batch_102))); 
                 }
-            }
-            // Sync all GPEs
-            for (int i_93 = 0;(i_93 < 4); (++i_93)){
-                LCPQ_POP(i_93); 
+                {
+                    
+                }
+                for (int v_gpe_104 = 0;(v_gpe_104 < 4); (++v_gpe_104)){
+                    LCPQ_POP(v_gpe_104); 
+                }
             }
         }
         {
