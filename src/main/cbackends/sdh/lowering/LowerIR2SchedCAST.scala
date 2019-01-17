@@ -113,9 +113,27 @@ object LowerIR2SchedCAST {
 
     val arg_block = generate(fc.args.head)
 
-    val m = fc.f.asInstanceOf[AbstractSDHMap]
 
-    arg_block :++ generate(m.f.body)
+    val m = fc.f.asInstanceOf[AbstractSDHMap]
+    val stop = m.loopVar.range.max + 1
+
+    val indexVar1 =  CVarWithType("v_tile_batch_" + IDGenerator.get_id(), IntegerType() )
+    val init1 = VarDeclPure( indexVar1, indexVar1.t, Some(IntConstant(0)) )
+    val cond1 = BinaryExpression(VarRefPure(indexVar1), BinaryExpressionT.Operator.<=, ArithExpression(stop/m.num_hw_elements) )
+    val increment1 = UnaryExpression("++", (indexVar1) )
+
+    val new_tile_id_cvar = CVarWithType("v_virtual_tile_id_" + IDGenerator.get_id(), IntegerType())
+    val old_tile_id = FunctionCall("LCP_TILE_ID", List())
+    val new_tile_id_cast = BinaryExpression(old_tile_id, BinaryExpressionT.Operator.+,
+      BinaryExpression(VarRefPure(indexVar1), BinaryExpressionT.Operator.*, ArithExpression(m.num_hw_elements) )
+    )
+    val new_tile_id_assignment = VarDeclPure( new_tile_id_cvar, new_tile_id_cvar.t, Some(new_tile_id_cast) )
+    val body =  generate(m.f.body)
+    val cond = BinaryExpression(VarRefPure(new_tile_id_cvar), BinaryExpressionT.Operator.<, ArithExpression(stop))
+    val body_guard = Block(Vector(new_tile_id_assignment, IfThenElseIm(cond, body, Block()) ) )
+    val forloop = Block(Vector(ForLoopIm(init1, cond1, increment1, body_guard) ))
+
+    arg_block :++ forloop
 
   }
 
@@ -160,7 +178,7 @@ object LowerIR2SchedCAST {
     val innerloopA = ForLoopIm(init2a, cond2a, increment2a, push_virtual_thread_id)
     val innerloopB = ForLoopIm(init2b, cond2b, increment2b, pop_finish_signal)
 
-    Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(innerloopA, generate(m.f.body), innerloopB)) ) ) )
+    arg_block :++ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(innerloopA, generate(m.f.body), innerloopB)) ) ) )
 
   }
 
