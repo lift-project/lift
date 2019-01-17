@@ -3,7 +3,7 @@ package cbackends.sdh
 import cbackends.common.CBackendsCompilerTrait
 import cbackends.common.common_cast.CbackendCAST.SourceFile
 import cbackends.sdh.lowering.{LowerIR2KernelCAST, LowerIR2SchedCAST}
-import cbackends.sdh.sdh_ir.MapTM
+import cbackends.sdh.sdh_ir.{MapTM, MapTile}
 import core.generator.GenericAST.CVarWithType
 import ir.ast.{FunCall, IRNode, Lambda}
 import lift.arithmetic.ArithExpr
@@ -53,7 +53,7 @@ object SDHCompiler extends CBackendsCompilerTrait{
     var kernel_lambda : Lambda = null
     var kernel_lambda_count = 0
     lambda visitBy {
-      case FunCall(m:MapTM, _) =>
+      case FunCall(m:MapTile, _) =>
         kernel_lambda = Lambda.FunDefToLambda(m);
         //kernel_lambda = Lambda.FunDefToLambda(f);
         kernel_lambda_count += 1

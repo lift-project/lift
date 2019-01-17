@@ -163,6 +163,32 @@ class TestSDH {
 
   }
 
+  @Test
+  def test_matrix_mul_multi_tile_arbitrary_num_rows_for_A(): Unit = {
+
+    val path = s"$common_path/03.matrix_mul_multi_tile_multiples_of_4_for_B"
+    val sched_file = "test_lift_matrixmul_sched_lib.hpp"
+    val worker_file = "test_lift_matrixmul_kernel.cpp"
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      (A, B) =>
+        ToLCP() o MapTile( fun( Arow =>
+            MapGPE( TMKernel(
+              fun(Bcol => ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)  $ Zip(Arow, Bcol) )
+            )) $ B )
+          )  o ToGPE() $ A
+    )
+
+    SDHCompiler ! (f, path, List(sched_file, worker_file))
+
+  }
+
 
 
 }
