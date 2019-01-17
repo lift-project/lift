@@ -2,7 +2,7 @@ package cbackends.sdh.lowering
 
 
 import cbackends.common.utils.type_lowering.TypeLowering
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, ParamDeclPure, PointerType, RawCode, RefType, StringConstant, Uint32_t, UnaryExpression, VarDeclPure, VarRefPure, VoidType}
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IfThenElseIm, IntConstant, IntegerType, ParamDeclPure, PointerType, RawCode, RefType, StringConstant, Uint32_t, UnaryExpression, VarDeclPure, VarRefPure, VoidType}
 import ir.ast.{AbstractMap, FunCall, IDGenerator, IRNode, Join, Lambda, Split}
 import lift.arithmetic.ArithExpr
 import opencl.ir.pattern.MapSeq
@@ -143,14 +143,15 @@ object LowerIR2SchedCAST {
     val cond2b = BinaryExpression(VarRefPure(indexVar2b), BinaryExpressionT.Operator.<, ArithExpression(m.num_hw_elements) )
     val increment2b = UnaryExpression("++", (indexVar2b) )
 
+    val virtual_id = BinaryExpression(VarRefPure(indexVar2a), BinaryExpressionT.Operator.+,
+        BinaryExpression(ArithExpression(m.num_hw_elements),BinaryExpressionT.Operator.*,VarRefPure(indexVar1)) )
     val push_virtual_thread_id = Block(Vector(ExpressionStatement(FunctionCall("GPEQ_PUSH",
-      List(VarRefPure(indexVar2a),
-        BinaryExpression(VarRefPure(indexVar2a), BinaryExpressionT.Operator.+,
-          BinaryExpression(ArithExpression(m.num_hw_elements),BinaryExpressionT.Operator.*,VarRefPure(indexVar1)) )
+      List(VarRefPure(indexVar2a), virtual_id
       )))) )
+    val push_guard = Block(Vector(IfThenElseIm(BinaryExpression(virtual_id, BinaryExpressionT.Operator.<, ArithExpression(stop)), push_virtual_thread_id, Block()) ))
     val pop_finish_signal = Block(Vector(FunctionCall("LCPQ_POP", List(VarRefPure(indexVar2b))) ) )
 
-    val innerloopA = ForLoopIm(init2a, cond2a, increment2a, push_virtual_thread_id)
+    val innerloopA = ForLoopIm(init2a, cond2a, increment2a, push_guard)
     val innerloopB = ForLoopIm(init2b, cond2b, increment2b, pop_finish_signal)
 
     Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(innerloopA, generate(m.f.body), innerloopB)) ) ) )

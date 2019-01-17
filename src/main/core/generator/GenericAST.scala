@@ -426,6 +426,48 @@ object GenericAST {
     }
   }
 
+  trait IfThenElseImT extends StatementT {
+    val cond: ExpressionT
+    val trueBody: BlockT
+    val falseBody: BlockT
+
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (visitFun(_, cond)) |>
+        (visitFun(_, trueBody)) |>
+        (visitFun(_, falseBody))
+    }
+
+    override def print(): Doc = {
+      text("if (") <> cond.print <> ")" <> trueBody.print <>
+        (if (falseBody != Block()) {
+          text(" else ") <> falseBody.print()
+        } else {
+          empty
+        })
+    }
+  }
+
+  case class IfThenElseIm(cond: ExpressionT, trueBody: BlockT, falseBody: BlockT) extends IfThenElseImT {
+
+
+    override def _visitAndRebuild(pre: (AstNode) => AstNode,  post: (AstNode) => AstNode) : AstNode = {
+      IfThenElseIm(cond.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
+        trueBody.visitAndRebuild(pre, post).asInstanceOf[BlockT],
+        falseBody.visitAndRebuild(pre, post).asInstanceOf[BlockT])
+    }
+
+    override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      cond.visit(pre, post)
+      trueBody.visit(pre, post)
+      falseBody.visit(pre, post)
+    }
+
+
+  }
+
+
   /*
   An If-then-else sequence
    */
