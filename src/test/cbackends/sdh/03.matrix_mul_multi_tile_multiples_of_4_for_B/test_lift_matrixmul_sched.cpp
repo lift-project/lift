@@ -10,7 +10,8 @@ using namespace std;
 #define M 2
 /* #define N 4 */
 /* #define N 8 */
-#define N 12
+/* #define N 12 */
+#define N 4
 /* ------------------------------------------------------------ */
 
 int main(int argc, char *argv[]) {

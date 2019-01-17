@@ -143,16 +143,22 @@ object LowerIR2SchedCAST {
     val cond2b = BinaryExpression(VarRefPure(indexVar2b), BinaryExpressionT.Operator.<, ArithExpression(m.num_hw_elements) )
     val increment2b = UnaryExpression("++", (indexVar2b) )
 
-    val virtual_id = BinaryExpression(VarRefPure(indexVar2a), BinaryExpressionT.Operator.+,
+    val virtual_id_a = BinaryExpression(VarRefPure(indexVar2a), BinaryExpressionT.Operator.+,
         BinaryExpression(ArithExpression(m.num_hw_elements),BinaryExpressionT.Operator.*,VarRefPure(indexVar1)) )
     val push_virtual_thread_id = Block(Vector(ExpressionStatement(FunctionCall("GPEQ_PUSH",
-      List(VarRefPure(indexVar2a), virtual_id
+      List(VarRefPure(indexVar2a), virtual_id_a
       )))) )
-    val push_guard = Block(Vector(IfThenElseIm(BinaryExpression(virtual_id, BinaryExpressionT.Operator.<, ArithExpression(stop)), push_virtual_thread_id, Block()) ))
-    val pop_finish_signal = Block(Vector(FunctionCall("LCPQ_POP", List(VarRefPure(indexVar2b))) ) )
+    //val cond_a = BinaryExpression(virtual_id_a, BinaryExpressionT.Operator.<, ArithExpression(stop))
+    //val push_guard = Block(Vector(IfThenElseIm( cond_a, push_virtual_thread_id, Block()) ))
 
-    val innerloopA = ForLoopIm(init2a, cond2a, increment2a, push_guard)
-    val innerloopB = ForLoopIm(init2b, cond2b, increment2b, pop_finish_signal)
+    val virtual_id_b = BinaryExpression(VarRefPure(indexVar2b), BinaryExpressionT.Operator.+,
+      BinaryExpression(ArithExpression(m.num_hw_elements),BinaryExpressionT.Operator.*,VarRefPure(indexVar1)) )
+    val cond_b = BinaryExpression(virtual_id_b, BinaryExpressionT.Operator.<, ArithExpression(stop))
+    val pop_finish_signal = Block(Vector(FunctionCall("LCPQ_POP", List(VarRefPure(indexVar2b))) ) )
+    val pop_guard = Block(Vector(IfThenElseIm(cond_b, pop_finish_signal, Block())))
+
+    val innerloopA = ForLoopIm(init2a, cond2a, increment2a, push_virtual_thread_id)
+    val innerloopB = ForLoopIm(init2b, cond2b, increment2b, pop_guard)
 
     Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(innerloopA, generate(m.f.body), innerloopB)) ) ) )
 

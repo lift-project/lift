@@ -33,14 +33,16 @@ int main(){
         {
             for (int v_gpe_batch_108 = 0;(v_gpe_batch_108 < (v_N_1 / 4)); (++v_gpe_batch_108)){
                 int v_i_12 = GPEQ_POP();
-                {
-                    // For each element reduced sequentially
-                    v_user_func_52_18[(v_i_12 + (2 * v_N_1 * v_i_10) + (v_N_1 * v_i_11))] = multAndSumUp(0.0f, v_initial_param_1_14[0], v_initial_param_2_15[0]); 
-                    for (int v_i_13 = 1;(v_i_13 <= (-1 + v_K_3)); (++v_i_13)){
-                        v_user_func_52_18[(v_i_12 + (2 * v_N_1 * v_i_10) + (v_N_1 * v_i_11))] = multAndSumUp(v_user_func_52_18[(v_i_12 + (2 * v_N_1 * v_i_10) + (v_N_1 * v_i_11))], v_initial_param_1_14[(v_i_13 + (2 * v_K_3 * v_i_10) + (v_K_3 * v_i_11))], v_initial_param_2_15[(v_i_13 + (v_K_3 * v_i_12))]); 
+                if ((v_i_12 < v_N_1)){
+                    {
+                        // For each element reduced sequentially
+                        v_user_func_52_18[(v_i_12 + (2 * v_N_1 * v_i_10) + (v_N_1 * v_i_11))] = multAndSumUp(0.0f, v_initial_param_1_14[0], v_initial_param_2_15[0]); 
+                        for (int v_i_13 = 1;(v_i_13 <= (-1 + v_K_3)); (++v_i_13)){
+                            v_user_func_52_18[(v_i_12 + (2 * v_N_1 * v_i_10) + (v_N_1 * v_i_11))] = multAndSumUp(v_user_func_52_18[(v_i_12 + (2 * v_N_1 * v_i_10) + (v_N_1 * v_i_11))], v_initial_param_1_14[(v_i_13 + (2 * v_K_3 * v_i_10) + (v_K_3 * v_i_11))], v_initial_param_2_15[(v_i_13 + (v_K_3 * v_i_12))]); 
+                        }
                     }
+                    LCPQ_PUSH(1); 
                 }
-                LCPQ_PUSH(1); 
             }
         }
     }

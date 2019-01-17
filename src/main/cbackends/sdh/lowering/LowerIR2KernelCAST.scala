@@ -150,7 +150,11 @@ object LowerIR2KernelCAST {
 
     val push_finish_signal = FunctionCall("LCPQ_PUSH", List(IntConstant(1)))
 
-    arg_block :+ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(pop_gpe_id, body_block , push_finish_signal))   )))
+    val cond = BinaryExpression(VarRefPure(gpe_id_cvar), BinaryExpressionT.Operator.<, ArithExpression(stop))
+    val body_and_pop_guard = IfThenElseIm(cond, Block(Vector(body_block, push_finish_signal)), Block())
+
+    arg_block :+ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(pop_gpe_id, body_and_pop_guard))   )))
+    //arg_block :+ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(pop_gpe_id, body_block , push_finish_signal))   )))
 
     //(arg_block :+ Comment("For each GPE. TODO: check if you can get this by API call instead of push and pop") :+ pop_gpe_id) :++ body_block_no_brackets
   }
