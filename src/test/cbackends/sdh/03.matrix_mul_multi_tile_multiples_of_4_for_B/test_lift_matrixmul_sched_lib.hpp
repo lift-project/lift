@@ -72,7 +72,7 @@ void execute(float * v_initial_param_1_14, float * v_initial_param_2_15, float *
     // For each transmuter chip
     for (int v_i_10 = 0;(v_i_10 < ((v_M_2)/(2))); (++v_i_10)){
         {
-            for (int v_gpe_batch_102 = 0;(v_gpe_batch_102 < (v_N_1 / 4)); (++v_gpe_batch_102)){
+            for (int v_gpe_batch_102 = 0;(v_gpe_batch_102 <= (v_N_1 / 4)); (++v_gpe_batch_102)){
                 for (int v_gpe_103 = 0;(v_gpe_103 < 4); (++v_gpe_103)){
                     GPEQ_PUSH(v_gpe_103, (v_gpe_103 + (4 * v_gpe_batch_102))); 
                 }
@@ -80,9 +80,7 @@ void execute(float * v_initial_param_1_14, float * v_initial_param_2_15, float *
                     
                 }
                 for (int v_gpe_104 = 0;(v_gpe_104 < 4); (++v_gpe_104)){
-                    if (((v_gpe_104 + (4 * v_gpe_batch_102)) < v_N_1)){
-                        LCPQ_POP(v_gpe_104); 
-                    }
+                    LCPQ_POP(v_gpe_104); 
                 }
             }
         }

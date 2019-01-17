@@ -130,7 +130,7 @@ object LowerIR2SchedCAST {
     // 1) for loop for each batch of size 4
     val indexVar1 =  CVarWithType("v_gpe_batch_" + IDGenerator.get_id(), IntegerType() )
     val init1 = VarDeclPure( indexVar1, indexVar1.t, Some(IntConstant(0)) )
-    val cond1 = BinaryExpression(VarRefPure(indexVar1), BinaryExpressionT.Operator.<, ArithExpression(stop/m.num_hw_elements) )
+    val cond1 = BinaryExpression(VarRefPure(indexVar1), BinaryExpressionT.Operator.<=, ArithExpression(stop/m.num_hw_elements) )
     val increment1 = UnaryExpression("++", (indexVar1) )
     // 2a) for loop for push each virtual id
     val indexVar2a =  CVarWithType("v_gpe_" + IDGenerator.get_id(), IntegerType() )
@@ -151,14 +151,14 @@ object LowerIR2SchedCAST {
     //val cond_a = BinaryExpression(virtual_id_a, BinaryExpressionT.Operator.<, ArithExpression(stop))
     //val push_guard = Block(Vector(IfThenElseIm( cond_a, push_virtual_thread_id, Block()) ))
 
-    val virtual_id_b = BinaryExpression(VarRefPure(indexVar2b), BinaryExpressionT.Operator.+,
-      BinaryExpression(ArithExpression(m.num_hw_elements),BinaryExpressionT.Operator.*,VarRefPure(indexVar1)) )
-    val cond_b = BinaryExpression(virtual_id_b, BinaryExpressionT.Operator.<, ArithExpression(stop))
+    //val virtual_id_b = BinaryExpression(VarRefPure(indexVar2b), BinaryExpressionT.Operator.+,
+    //  BinaryExpression(ArithExpression(m.num_hw_elements),BinaryExpressionT.Operator.*,VarRefPure(indexVar1)) )
+    //val cond_b = BinaryExpression(virtual_id_b, BinaryExpressionT.Operator.<, ArithExpression(stop))
     val pop_finish_signal = Block(Vector(FunctionCall("LCPQ_POP", List(VarRefPure(indexVar2b))) ) )
-    val pop_guard = Block(Vector(IfThenElseIm(cond_b, pop_finish_signal, Block())))
+    //val pop_guard = Block(Vector(IfThenElseIm(cond_b, pop_finish_signal, Block())))
 
     val innerloopA = ForLoopIm(init2a, cond2a, increment2a, push_virtual_thread_id)
-    val innerloopB = ForLoopIm(init2b, cond2b, increment2b, pop_guard)
+    val innerloopB = ForLoopIm(init2b, cond2b, increment2b, pop_finish_signal)
 
     Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(innerloopA, generate(m.f.body), innerloopB)) ) ) )
 

@@ -139,7 +139,7 @@ object LowerIR2KernelCAST {
 
     val indexVar1 =  CVarWithType("v_gpe_batch_" + IDGenerator.get_id(), IntegerType() )
     val init1 = VarDeclPure( indexVar1, indexVar1.t, Some(IntConstant(0)) )
-    val cond1 = BinaryExpression(VarRefPure(indexVar1), BinaryExpressionT.Operator.<, ArithExpression(stop/m.num_hw_elements) )
+    val cond1 = BinaryExpression(VarRefPure(indexVar1), BinaryExpressionT.Operator.<=, ArithExpression(stop/m.num_hw_elements) )
     val increment1 = UnaryExpression("++", (indexVar1) )
 
     val body_block = generate(m.f)
@@ -151,9 +151,10 @@ object LowerIR2KernelCAST {
     val push_finish_signal = FunctionCall("LCPQ_PUSH", List(IntConstant(1)))
 
     val cond = BinaryExpression(VarRefPure(gpe_id_cvar), BinaryExpressionT.Operator.<, ArithExpression(stop))
-    val body_and_pop_guard = IfThenElseIm(cond, Block(Vector(body_block, push_finish_signal)), Block())
+    //val body_and_pop_guard = IfThenElseIm(cond, Block(Vector(body_block, push_finish_signal)), Block())
+    val body_and_pop_guard = IfThenElseIm(cond, Block(Vector(body_block)), Block())
 
-    arg_block :+ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(pop_gpe_id, body_and_pop_guard))   )))
+    arg_block :+ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(pop_gpe_id, body_and_pop_guard, push_finish_signal))   )))
     //arg_block :+ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(pop_gpe_id, body_block , push_finish_signal))   )))
 
     //(arg_block :+ Comment("For each GPE. TODO: check if you can get this by API call instead of push and pop") :+ pop_gpe_id) :++ body_block_no_brackets
