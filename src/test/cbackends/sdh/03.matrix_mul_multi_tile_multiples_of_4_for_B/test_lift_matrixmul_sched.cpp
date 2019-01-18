@@ -7,7 +7,7 @@ using namespace std;
 /* Control pannel */
 
 #define K 3
-#define M 2
+#define M 4
 /* #define N 4 */
 /* #define N 8 */
 /* #define N 12 */
@@ -36,6 +36,8 @@ int main(int argc, char *argv[]) {
     cout << "inputB[] = {" ;
     copy(inputB, inputB+sizeB, ostream_iterator<float>(cout, " ") );
     cout << "}" << endl;
+
+    cout<<"LCP_TILE_ID = "<<LCP_TILE_ID()<<endl;
 
 
     /*LCP_PRINTF("input[] = {");
