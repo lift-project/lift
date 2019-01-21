@@ -2,6 +2,7 @@ package cbackends.onnx
 
 import cbackends.common.CBackendsCompilerTrait
 import cbackends.common.common_cast.CbackendCAST.SourceFile
+import cbackends.onnx.lowering.LoweringONNXIR2LiftIR
 import core.generator.GenericAST.{Block, CVarWithType}
 import ir.ast.Lambda
 import lift.arithmetic.ArithExpr
@@ -19,7 +20,9 @@ object ONNXCompiler extends CBackendsCompilerTrait{
   }
 
   //compile a lambda
-  override def !(lambda: Lambda, path: String, files: List[String]): Unit = {
+  override def !(onnx_ir: Lambda, path: String, files: List[String]): Unit = {
+
+    val lift_ir = LoweringONNXIR2LiftIR(onnx_ir)
 
     /*
     println("1.traditional compiler process")
