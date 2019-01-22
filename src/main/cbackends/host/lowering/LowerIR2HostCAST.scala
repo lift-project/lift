@@ -97,7 +97,7 @@ object LowerIR2HostCAST {
 
   def generateAbstractReduce(fc: FunCall) : Block = {
 
-    val arg_block = generate(fc.args.head)
+    val arg_block = generate(fc.args(1))
 
     val rd = fc.f.asInstanceOf[AbstractPartRed]
     val stop = rd.loopVar.range.max
@@ -112,10 +112,13 @@ object LowerIR2HostCAST {
       case _ => assert(false, "Not implemented"); Comment("Not reachable")
     }
 
-    val assignment = {generate(rd.f.body).content(0) match {
-      case ExpressionStatement(x,_) => x
-      case y => assert(false,"Not implemented");null
-    } }.asInstanceOf[AssignmentExpression]
+    val test = generate(rd.f.body)
+    val test1 = test.content(0)
+    val assignment = {
+      generate(rd.f.body).content(0) match {
+        case ExpressionStatement(x,_) => x
+        case y => assert(false,"Not implemented");null
+      } }.asInstanceOf[AssignmentExpression]
 
     val funcall = assignment.value.asInstanceOf[FunctionCall]
     val init_value = funcall.args(0)

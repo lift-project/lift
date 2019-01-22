@@ -91,8 +91,11 @@ object ViewPrinter {
         val elemIdx = idx % chunkSize
         generateArrayAccess(iv, chunkIdx :: elemIdx :: indices, tupleAccessStack)
 
-      case _:ViewMap =>
-        IntConstant(0)
+      case ViewMap(iv, itVar, _) =>
+        val idx :: indices = arrayAccessStack
+        val newV = iv.replaced(itVar, idx)
+        generateArrayAccess(newV, indices, tupleAccessStack)
+
 
       case _ => assert(false, "Pattern may not be implemented in view printer"); StringConstant("Unreachable!")
 
