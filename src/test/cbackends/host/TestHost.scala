@@ -596,6 +596,28 @@ class TestHost {
 
   }
 
+  @Test
+  def test_reduce_3d_matrix(): Unit = {
+
+    val path = s"$common_path/15.reduce_3d_matrix"
+    val file = "libreduce_3d_matrix.cpp"
+
+    val array3d = ArrayType( ArrayType(ArrayType(Float, N), N), N)
+
+    val f = fun(
+      array3d,
+      //I really want this, as it make it the shape right as early as possible
+      //Join() o ReduceSeq(add,0.0f) o MapSeq(Join() o ReduceSeq(add, 0.0f)) o MapSeq(MapSeq(Join() o ReduceSeq(add, 0.0f) )) $ _
+      ReduceSeq(add,0.0f) o Join() o MapSeq( ReduceSeq(add, 0.0f)) o MapSeq(Join() o MapSeq( ReduceSeq(add, 0.0f) )) $ _
+    )
+
+    HostCompiler ! (f, path, List(file))
+
+    println("Test case test_reduce_3d_matrix done!")
+
+
+  }
+
 
 
 }
