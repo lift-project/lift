@@ -1,11 +1,13 @@
 package cbackends.common.view
 
+import cbackends.common.common_ir.CPUNullMemory
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC}
 import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
 import ir.view._
 import lift.arithmetic.{ArithExpr, Cst}
 import core.generator.PrettyPrinter._
 import cbackends.common.utils.output_view.OutputView.{init_body, post_check, pre_check}
+import host.ir_host.HostMemory
 
 
 object OutputView {
@@ -119,9 +121,15 @@ object OutputView {
           arg => arg match {
             //case _:Value =>
             case p:Param =>
-              p.outputView = fc.outputView
+              //p.outputView = fc.outputView
+              p.mem match {
+                case _:HostMemory => p.outputView = ViewMem(arg.mem.variable, arg.t)
+                case CPUNullMemory =>
+                case _ => assert(false)
+              }
             case fc_get@FunCall(_:Get, arg) =>
-              fc_get.outputView = fc.outputView
+              //fc_get.outputView = fc.outputView
+              fc_get.outputView = ViewMem(fc.mem.variable, fc.t)
             case _ => assert(false, "Some Type not implemented")
           }
         )
@@ -180,6 +188,8 @@ object OutputView {
         val array = args(1)
 
         acc.outputView = UnusedInExprOutputView
+        //may need a case hanlder in the future, if the inner part is already an array, you may need to generate a split
+        //currently it is only a float, so just use the array's t is OK.
         array.outputView = ViewMap(r.f.params(1).outputView, r.loopVar, array.t)
 
         args.foreach(a => assert(a.outputView != NoView))

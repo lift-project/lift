@@ -608,7 +608,14 @@ class TestHost {
       array3d,
       //I really want this, as it make it the shape right as early as possible
       //Join() o ReduceSeq(add,0.0f) o MapSeq(Join() o ReduceSeq(add, 0.0f)) o MapSeq(MapSeq(Join() o ReduceSeq(add, 0.0f) )) $ _
-      ReduceSeq(add,0.0f) o Join() o MapSeq( ReduceSeq(add, 0.0f)) o MapSeq(Join() o MapSeq( ReduceSeq(add, 0.0f) )) $ _
+
+      //current good version
+      //RduceSeq(add,0.0f) o Join() o MapSeq( ReduceSeq(add, 0.0f)) o MapSeq(Join() o MapSeq( ReduceSeq(add, 0.0f) )) $ _
+
+      //debug version
+        MapSeq( ReduceSeq(add, 0.0f) ) o MapSeq(Join() o MapSeq( ReduceSeq(add, 0.0f) )) $ _
+        //simpler version
+         // MapSeq(Join() o MapSeq( ReduceSeq(add, 0.0f) )) $ _
     )
 
     HostCompiler ! (f, path, List(file))
