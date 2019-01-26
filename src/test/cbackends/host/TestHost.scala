@@ -604,21 +604,26 @@ class TestHost {
 
     val array3d = ArrayType( ArrayType(ArrayType(Float, N), N), N)
 
+    //I really want this, as it make it the shape right as early as possible
+    //Join() o ReduceSeq(add,0.0f) o MapSeq(Join() o ReduceSeq(add, 0.0f)) o MapSeq(MapSeq(Join() o ReduceSeq(add, 0.0f) )) $ _
+
+    //debug version
+    // MapSeq( ReduceSeq(add, 0.0f) ) o MapSeq(Join() o MapSeq( ReduceSeq(add, 0.0f) )) $ _
+    //simpler version
+    // MapSeq(Join() o MapSeq( ReduceSeq(add, 0.0f) )) $ _
+
     val f = fun(
       array3d,
-      //I really want this, as it make it the shape right as early as possible
-      //Join() o ReduceSeq(add,0.0f) o MapSeq(Join() o ReduceSeq(add, 0.0f)) o MapSeq(MapSeq(Join() o ReduceSeq(add, 0.0f) )) $ _
+      //RduceSeq(add,0.0f) o Join() o
+       ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, 0.0f)) o MapSeq(Join() o MapSeq( ReduceSeq(add, 0.0f) )) $ _
 
-      //current good version
-      //RduceSeq(add,0.0f) o Join() o MapSeq( ReduceSeq(add, 0.0f)) o MapSeq(Join() o MapSeq( ReduceSeq(add, 0.0f) )) $ _
-
-      //debug version
-        MapSeq( ReduceSeq(add, 0.0f) ) o MapSeq(Join() o MapSeq( ReduceSeq(add, 0.0f) )) $ _
-        //simpler version
-         // MapSeq(Join() o MapSeq( ReduceSeq(add, 0.0f) )) $ _
     )
 
     HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "64 \n"
+    assertEquals(expected, actual)
 
     println("Test case test_reduce_3d_matrix done!")
 
