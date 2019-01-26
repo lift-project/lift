@@ -1,6 +1,7 @@
 package cbackends.common.view
 
 import cbackends.common.common_ir.CPUNullMemory
+import cbackends.common.utils.common_view.GenerateViewForRawInOut
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC}
 import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
 import ir.view._
@@ -163,7 +164,12 @@ object OutputView {
 
         cont(m.f.body)
 
-        arg.outputView = ViewMap(m.f.params.head.outputView, m.loopVar, arg.t)
+        //arg.outputView = ViewMap(m.f.params.head.outputView, m.loopVar, arg.t)
+        arg.outputView = m.f.params.head.outputView match {
+          //case ViewMem(v, _) => ViewMem(v, arg.t)
+          case ViewMem(v, _) => GenerateViewForRawInOut.generateViewForRawInOut(arg, arg.t, Cst(1))
+          case x => x
+        }
 
         assert(arg.outputView != NoView)
 
@@ -190,7 +196,12 @@ object OutputView {
         acc.outputView = UnusedInExprOutputView
         //may need a case hanlder in the future, if the inner part is already an array, you may need to generate a split
         //currently it is only a float, so just use the array's t is OK.
-        array.outputView = ViewMap(r.f.params(1).outputView, r.loopVar, array.t)
+        //array.outputView = ViewMap(r.f.params(1).outputView, r.loopVar, array.t)
+        array.outputView = r.f.params(1).outputView  match {
+          //case ViewMem(v, _) => ViewMem(v, array.t)
+          case ViewMem(v, _) => GenerateViewForRawInOut.generateViewForRawInOut(array, array.t, Cst(1))
+          case x => x
+        }
 
         args.foreach(a => assert(a.outputView != NoView))
 
