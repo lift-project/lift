@@ -143,12 +143,12 @@ object LowerIR2HostCAST {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 
-    val memory_alloc_code = generateMemAlloc(hostMemoryDeclaredInSignature)
-
     val ins_cvars = lambda.params.map(p => CVarWithType(p.mem.variable.toString,TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(p.t), flatType = true ) ))
     //val out_cvar = CVarWithType(lambda.body.mem.variable.toString, TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(lambda.body.t), flatType = true) )
     val out_cvar_in_execute = CVarWithType(lambda.body.mem.variable.toString, RefType(TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(lambda.body.t), flatType = true) ) )
     val sizes_cvars = lambda.params.flatMap(p => ArithExpr.collectVars(p.mem.size)).map(p => CVarWithType(p.toString, IntegerType())).distinct
+
+    val memory_alloc_code = generateMemAlloc(hostMemoryDeclaredInSignature, out_cvar_in_execute)
 
     //val all_signature_cvars = ( (ins_cvars :+ out_cvar ) ++ sizes_cvars ).toList
     val all_signature_cvars_for_execute = ( (ins_cvars :+ out_cvar_in_execute ) ++ sizes_cvars ).toList
@@ -165,10 +165,10 @@ object LowerIR2HostCAST {
 
   }
 
-  def generateMemAlloc(hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]) : Block = {
+  def generateMemAlloc(hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)], out_cvar_in_execute: CVarWithType) : Block = {
 
 
-    val memory_alloc_vector = hostMemoryDeclaredInSignature.map(record =>
+    val memory_alloc_vector = hostMemoryDeclaredInSignature.map(record => {
 
       /*
       record._2._1.t match {
@@ -181,14 +181,22 @@ object LowerIR2HostCAST {
               List(record._2._1.t))
           ) )
       } */
-      ExpressionStatement(AssignmentExpression(VarRefPure(record._2._1),
-            FunctionCall("reinterpret_cast", List(
-              FunctionCall("malloc", List(BinaryExpression(ArithExpression(record._2._2), BinaryExpressionT.Operator.*,
-                FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(record._2._1.t)))
-              )))),
-              List(record._2._1.t))
-          ) )
 
+      val rhs = FunctionCall("reinterpret_cast", List(
+          FunctionCall("malloc", List(BinaryExpression(ArithExpression(record._2._2), BinaryExpressionT.Operator.*,
+            FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(record._2._1.t)))
+          )))),
+          List(record._2._1.t))
+
+      val out_name = out_cvar_in_execute.name
+
+      record._2._1.name match {
+        case `out_name` => ExpressionStatement(AssignmentExpression(VarRefPure(record._2._1), rhs ) )
+        case _ => val cvar = record._2._1
+          VarDeclPure(cvar, cvar.t, Some(rhs))
+      }
+
+}
     ).toVector
 
     /*
