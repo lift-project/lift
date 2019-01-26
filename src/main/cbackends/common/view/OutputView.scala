@@ -120,7 +120,7 @@ object OutputView {
 
         args.foreach (
           arg => arg match {
-            //case _:Value =>
+            case v:Value => v.outputView = UnusedInExprOutputView
             case p:Param =>
               //p.outputView = fc.outputView
               p.mem match {
