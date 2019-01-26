@@ -1,6 +1,6 @@
 package cbackends.common.utils.common_view
 
-import ir.{ArrayType, ArrayTypeWS, Type}
+import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, Type}
 import ir.ast.{Expr, Param}
 import ir.view.{View, ViewMem}
 import lift.arithmetic.ArithExpr
@@ -15,7 +15,7 @@ object GenerateViewForRawInOut {
       case et:ArrayType =>
         val ArrayTypeWS(_, n) = et
         generateViewForRawInOut(p, et, size * s).split(n)
-      case _ => ViewMem(p.mem.variable, ArrayTypeWS(typ.elemT, size * s) )
+      case _ => ViewMem(p.mem.variable, ArrayTypeWSWC(typ.elemT, size * s) )
     }
 
   }

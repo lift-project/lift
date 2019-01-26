@@ -1,6 +1,6 @@
 package cbackends.common.memory_management
 
-import host.ir_host.CPUMainMemoryAddressSpace
+import cbackends.common.common_ir.CPUMainMemoryAddressSpace
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FPattern, FunCall, FunDecl, IRNode, Lambda, Pattern, UserFun}
 import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
 

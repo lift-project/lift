@@ -2,12 +2,13 @@ package cbackends.host.lowering
 
 import cbackends.common.utils.type_lowering.TypeLowering
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
-import host.ir_host.MapHSeq
-import host.view.ViewPrinter
-import ir.ast.{AbstractMap, AbstractPartRed, FunCall, IRNode, Join, Lambda, Split, Transpose, TransposeW, UserFun, Value}
+//import host_obsolete.ir_host.MapHSeq
+//import host_obsolete.view.ViewPrinter
+import ir.ast.{AbstractMap, AbstractPartRed, FunCall, IRNode, Join, Lambda, Slide, Split, Transpose, TransposeW, UserFun, Value}
 import lift.arithmetic.{ArithExpr, Cst}
 import opencl.generator.OpenCLAST.OclCode
 import opencl.ir.pattern.{MapSeq, ReduceSeq}
+import cbackends.common.view.ViewPrinter
 
 import scala.collection.mutable
 
@@ -35,6 +36,8 @@ object LowerIR2HostCAST {
       case fc@FunCall(Split(_), _ ) =>
         generateNothing(fc)
       case fc@FunCall(Join(), _) =>
+        generateNothing(fc)
+      case fc@FunCall(Slide(_,_), _ ) =>
         generateNothing(fc)
       case fc@FunCall(Transpose(), _) =>
         generateNothing(fc)
@@ -86,7 +89,7 @@ object LowerIR2HostCAST {
 
     val comment = fc.f match {
       case _:MapSeq => Comment("For each element processed sequentially")
-      case _:MapHSeq => Comment("For each element processed sequentially")
+      //case _:MapHSeq => Comment("For each element processed sequentially")
       case _ => assert(false, "Not implemented"); Comment("Not reachable")
     }
 

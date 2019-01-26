@@ -1,7 +1,7 @@
 package cbackends.common.view
 
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, TupleType}
-import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
+import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
 import ir.view._
 import cbackends.common.utils.input_view.InputView.{init_params, post_check, pre_check}
 import cbackends.common.utils.pattern_matching.IsDefinedAt
@@ -155,6 +155,14 @@ object InputView {
 
         fc
 
+      }
+
+      case fc@FunCall(s:Slide, arg) => {
+        cont( arg )
+
+        fc.view = arg.view.slide(s)
+
+        fc
       }
 
     }

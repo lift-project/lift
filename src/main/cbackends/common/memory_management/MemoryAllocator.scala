@@ -1,8 +1,7 @@
 package cbackends.common.memory_management
 
 import core.generator.GenericAST.CVarWithType
-import host.ir_host.{CPUNullMemory, HostMemory, HostMemoryCollection}
-import host.lowering.Util
+import cbackends.common.common_ir.{CPUNullMemory, HostMemory, HostMemoryCollection}
 import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, Expr, FPattern, FunCall, FunDecl, IRNode, Lambda, UserFun, Value, Zip}
 import ir.{Type, UnallocatedMemory}
 import lift.arithmetic.{ArithExpr, ContinuousRange, Cst, Var}

@@ -3,12 +3,12 @@ package cbackends.common.view
 import cbackends.common.common_ir.CPUNullMemory
 import cbackends.common.utils.common_view.GenerateViewForRawInOut
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC}
-import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
+import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
 import ir.view._
 import lift.arithmetic.{ArithExpr, Cst}
 import core.generator.PrettyPrinter._
 import cbackends.common.utils.output_view.OutputView.{init_body, post_check, pre_check}
-import host.ir_host.HostMemory
+import cbackends.common.common_ir.HostMemory
 
 
 object OutputView {
@@ -220,7 +220,7 @@ object OutputView {
 
 
 
-      case fc@FunCall(_:Transpose|_:Pad, arg) => {
+      case fc@FunCall(_:Transpose|_:Pad|_:Slide, arg) => {
 
         assert(fc.outputView != NoView)
 
@@ -232,6 +232,15 @@ object OutputView {
 
         fc
       }
+/*
+      case fc@FunCall(_:Slide, arg) => {
+
+        arg.outputView = fc.outputView
+
+        cont( arg )
+
+        fc
+      }*/
 
     }
   }

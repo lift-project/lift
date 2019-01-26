@@ -1,7 +1,7 @@
 package cbackends.host
 
 import ir.ast.Pad.Boundary.WrapUnsafe
-import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
+import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{Cst, SizeVar}
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
@@ -628,6 +628,23 @@ class TestHost {
     println("Test case test_reduce_3d_matrix done!")
 
 
+  }
+
+  @Test
+  def test_slide(): Unit = {
+
+    val path = s"$common_path/16.slide"
+    val file = "libreduce_3d_matrix.cpp"
+
+    val f = fun(
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(Float, N),
+      in => MapSeq( MapSeq(incrementF) ) o Slide(3,1) $ in
+    )
+
+    HostCompiler ! (f, path, List(file))
+
+    println("Test case test_slide done!")
   }
 
 
