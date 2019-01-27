@@ -631,10 +631,10 @@ class TestHost {
   }
 
   @Test
-  def test_slide(): Unit = {
+  def test_slide_hello(): Unit = {
 
-    val path = s"$common_path/16.slide"
-    val file = "libreduce_3d_matrix.cpp"
+    val path = s"$common_path/16.slide_hello"
+    val file = "libslide_hello.cpp"
 
     val f = fun(
       //ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
@@ -642,9 +642,36 @@ class TestHost {
       in => MapSeq( MapSeq(incrementF) ) o Slide(3,1) $ in
     )
 
+    ("mkdir -p " + s"$path" ) !!
+
     HostCompiler ! (f, path, List(file))
 
-    println("Test case test_slide done!")
+    ("rm -rf " + s"$path" ) !!
+
+    println("Test case test_slide_hello done!")
+  }
+
+  @Test
+  def test_slide_meaningful(): Unit = {
+
+    val path = s"$common_path/17.slide_meaningful"
+    val file = "libslide_meaningful.cpp"
+
+    val f = fun(
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(Float, N),
+      in => MapSeq( ReduceSeq(add, 0.0f) ) o Slide(3,1) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "3 3 3 3 3 3 3 3 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
   }
 
 
