@@ -1,7 +1,7 @@
 package cbackends.host
 
 import ir.ast.Pad.Boundary.WrapUnsafe
-import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
+import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Slide2D, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{Cst, SizeVar}
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
@@ -674,6 +674,30 @@ class TestHost {
     println("Test case test_slide_hello done!")
   }
 
+  @Test
+  def test_slide2d(): Unit = {
+
+    val path = s"$common_path/18.slide2d"
+    val file = "libslide2d.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      in => MapSeq( Join() o MapSeq(
+        ReduceSeq(add, 0.0f)  o
+        Join() o MapSeq( ReduceSeq(add, 0.0f) ) )
+      ) o Slide2D(3,1) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "3 3 3 3 3 3 3 3 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide2d done!")
+  }
 
 
 }

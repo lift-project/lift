@@ -89,6 +89,7 @@ object LowerIR2HostCAST {
 
     val comment = fc.f match {
       case _:MapSeq => Comment("For each element processed sequentially")
+      case _:ir.ast.Map => Comment("For each element processed lazily and sequentially")
       //case _:MapHSeq => Comment("For each element processed sequentially")
       case _ => assert(false, "Not implemented"); Comment("Not reachable")
     }
