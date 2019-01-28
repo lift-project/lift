@@ -259,7 +259,24 @@ class OpenCLGenerator extends Generator {
     var inlineBlock = unrollBlock
 
     // inline structs if requested
-   if(InlineStructs())
+    if(InlineStructs())
+    {
+      try
+      {
+        //TODO: Add functionality to loop over and check for multi-level structs - ie. call visit and rebuild node until nothing has changed from the last iteration)
+        inlineBlock = UnrollValues.inlinePrivateMemoryStructValues(unrollBlock)
+      } catch {
+        case err : NotImplementedError => // we know about these errors and we want to not allow the user to inline structs
+          print(s"Warning: Cannot inline structs: ")
+          println(err.getMessage())
+          inlineBlock = unrollBlock
+        case err : Exception => // otherwise genuine issue, throw the exception again
+          throw(err)
+      }
+    }
+
+  /*
+  if(InlineStructs())
     {
       try
       {
@@ -279,6 +296,7 @@ class OpenCLGenerator extends Generator {
           throw(err)
       }
     }
+    */
 
     val oclstring = AstPrinter(inlineBlock)()
 

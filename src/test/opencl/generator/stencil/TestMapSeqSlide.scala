@@ -558,6 +558,8 @@ class TestMapSeqSlide
         })) o Slide(a,b) o Transpose()  $ input
     )
 
+    println(Compile(stencil2D(3,1)))
+
     val (output, _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](stencil2D(slidesize,slidestep), values, StencilUtilities.weightsArr)
     val (gold, _) = Execute(2,2,2,2,2,2,(true,true))[Array[Float]](original2DWeightStencil(slidesize,slidestep), values, StencilUtilities.weightsArr)
 
