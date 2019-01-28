@@ -449,6 +449,8 @@ case class ViewFilter(iv: View, ids: View, override val t: Type) extends View(t)
  */
 case class ViewMap(iv: View, itVar: ArithExpr, override val t: Type) extends View(t)
 
+case class ViewMapSeq(iv: View, itVar: ArithExpr, override val t: Type) extends View(t)
+
 /**
  * A view for accessing a tuple component.
  *

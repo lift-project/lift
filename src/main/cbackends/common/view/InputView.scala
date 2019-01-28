@@ -5,6 +5,7 @@ import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3
 import ir.view._
 import cbackends.common.utils.input_view.InputView.{init_params, post_check, pre_check}
 import cbackends.common.utils.pattern_matching.IsDefinedAt
+import opencl.ir.pattern.MapSeq
 
 object InputView {
 
@@ -105,6 +106,37 @@ object InputView {
         args.foreach( cont(_))
 
         fc.view = ViewMem(fc.mem.variable, fc.t)
+
+        fc
+
+      }
+
+      case fc@FunCall(m:MapSeq, arg)  => {
+
+        cont( arg )
+
+        //this line reflect the map semantic
+        m.f.params.head.view = arg.view.access(m.loopVar)
+
+        cont( m.f.body)
+
+        fc.view = ViewMapSeq(m.f.body.view, m.loopVar, fc.t)
+
+        fc
+
+      }
+
+      case fc@FunCall(m:ir.ast.Map, arg)  => {
+
+        cont( arg )
+
+        //this line reflect the map semantic
+        m.f.params.head.view = arg.view.access(m.loopVar)
+
+        cont( m.f.body)
+
+        //fc.view = m.f.body.view
+        fc.view = ViewMap(m.f.body.view, m.loopVar, fc.t)
 
         fc
 

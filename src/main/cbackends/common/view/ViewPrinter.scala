@@ -91,6 +91,11 @@ object ViewPrinter {
         val elemIdx = idx % chunkSize
         generateArrayAccess(iv, chunkIdx :: elemIdx :: indices, tupleAccessStack)
 
+      case ViewMapSeq(iv, itVar, _ ) =>
+        val idx :: indices = arrayAccessStack
+        generateArrayAccess(iv, indices, tupleAccessStack)
+
+
       case ViewMap(iv, itVar, _) =>
         val idx :: indices = arrayAccessStack
         val newV = iv.replaced(itVar, idx)
