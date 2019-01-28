@@ -119,7 +119,7 @@ object InputView {
         //this line reflect the map semantic
         m.f.params.head.view = arg.view.access(m.loopVar)
 
-        cont( m.f.body)
+        cont( m.f.body )
 
         fc.view = ViewMapSeq(m.f.body.view, m.loopVar, fc.t)
 

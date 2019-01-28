@@ -109,6 +109,34 @@ object LowerIR2HostCAST {
     val stop = rd.loopVar.range.max
 
     val indexVar =  CVarWithType(rd.loopVar.toString, IntegerType() )
+    val init = VarDeclPure( indexVar, indexVar.t, Some(IntConstant(0)) )
+    val cond = BinaryExpression(VarRefPure(indexVar), BinaryExpressionT.Operator.<=, ArithExpression(stop) )
+    val increment = UnaryExpression("++", (indexVar) )
+
+    val comment = fc.f match {
+      case _:ReduceSeq => Comment("For each element reduced sequentially")
+      case _ => assert(false, "Not implemented"); Comment("Not reachable")
+    }
+
+    val assignment = {
+      generate(rd.f.body).content(0) match {
+        case ExpressionStatement(x,_) => x
+        case y => assert(false,"Not implemented");null
+      } }.asInstanceOf[AssignmentExpression]
+
+    val funcall = assignment.value.asInstanceOf[FunctionCall]
+    val init_value = funcall.args(0)
+
+    val init_assignment = AssignmentExpression(assignment.to, init_value)
+
+    val tuple_args = funcall.args.tail
+    val inloop_assignment = AssignmentExpression(assignment.to, FunctionCall(funcall.name, assignment.to :: tuple_args))
+    val inloop_assignment_block = Block(Vector(ExpressionStatement(inloop_assignment)))
+
+    arg_block :+ comment :+ init_assignment :+ ForLoopIm( init, cond, increment, inloop_assignment_block )
+
+    /*
+    val indexVar =  CVarWithType(rd.loopVar.toString, IntegerType() )
     val init = VarDeclPure( indexVar, indexVar.t, Some(IntConstant(1)) )
     val cond = BinaryExpression(VarRefPure(indexVar), BinaryExpressionT.Operator.<=, ArithExpression(stop) )
     val increment = UnaryExpression("++", (indexVar) )
@@ -135,7 +163,7 @@ object LowerIR2HostCAST {
     val inloop_assignment_block = Block(Vector(ExpressionStatement(inloop_assignment)))
 
     arg_block :+ comment :+ init_assignment :+ ForLoopIm( init, cond, increment, inloop_assignment_block )
-
+    */
   }
 
 

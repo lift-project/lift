@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
 
 	int const N = 10;
 	int const output_N = (4 + (-4 * N) + (int)pow((float)N, 2));
-	vector<float> in(N,1.0f);
+	vector<float> in(N*N,1.0f);
 	float *out = nullptr;
 
 	execute(in.data(), out, N);
