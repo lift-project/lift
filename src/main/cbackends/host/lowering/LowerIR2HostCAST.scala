@@ -29,6 +29,8 @@ object LowerIR2HostCAST {
         generate(lambda.body)
       case fc@FunCall(lambda@Lambda(_,_), _) =>
         generate(lambda.body)
+      case fc@FunCall(_:ir.ast.Map, _) =>
+        generateNothing(fc)
       case fc@FunCall(_:AbstractMap, _) =>
         generateAbstractMap(fc)
       case fc@FunCall(_:AbstractPartRed, _*) =>

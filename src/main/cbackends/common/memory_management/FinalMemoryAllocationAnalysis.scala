@@ -19,13 +19,21 @@ object FinalMemoryAllocationAnalysis {
         args.foreach(analyze(_))
         hostMemoryDeclaredInSignature +=  fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ),  Type.getElementCount(fc.t) )
 
-      case fc@FunCall(_:AbstractPartRed, args@_*) =>
+      case fc@FunCall(r:AbstractPartRed, args@_*) =>
         args.foreach(analyze(_))
+        analyze(r.f.body)
         //correct type for user function, e.g., float => [float]_1
         hostMemoryDeclaredInSignature += fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ) , Type.getElementCount(fc.t) )
 
-      case fc@FunCall(_:AbstractMap, args@_*) =>
+      case fc@FunCall(m:ir.ast.Map, args@_*) =>
+        // no memory correction for Map, which is a lazy struct
+        // no need to traverse into Map, also because it is a lazy struct, no memory alloc can happen, thus no need for correction
         args.foreach(analyze(_))
+        //analyze(m.f.body)
+
+      case fc@FunCall(m:AbstractMap, args@_*) =>
+        args.foreach(analyze(_))
+        analyze(m.f.body)
         //here fc.t already have the augmented size information after map, so no need to manually calculate
         hostMemoryDeclaredInSignature += fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ) , Type.getElementCount(fc.t) )
 

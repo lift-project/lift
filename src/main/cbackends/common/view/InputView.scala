@@ -5,6 +5,7 @@ import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3
 import ir.view._
 import cbackends.common.utils.input_view.InputView.{init_params, post_check, pre_check}
 import cbackends.common.utils.pattern_matching.IsDefinedAt
+import lift.arithmetic.ArithExpr
 import opencl.ir.pattern.MapSeq
 
 object InputView {
@@ -82,9 +83,9 @@ object InputView {
         fc.t match{
           case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
             //working
-            //fc.view = arg.view.join(n).reorder( (i: ArithExpr) => { transpose(i, fc.t) }  ).split(m)
+            fc.view = arg.view.join(n).reorder( (i: ArithExpr) => { transpose(i, fc.t) }  ).split(m)
             //experimental
-            fc.view = arg.view.transpose(fc.t)
+            //fc.view = arg.view.transpose(fc.t)
           case _ => assert(false, "Other types other than 2D array are not allowed for transpose")
         }
 
