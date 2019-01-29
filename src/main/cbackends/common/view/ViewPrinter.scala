@@ -89,7 +89,8 @@ object ViewPrinter {
         val idx :: indices = arrayAccessStack
         val chunkIdx = idx / chunkSize
         val elemIdx = idx % chunkSize
-        generateArrayAccess(iv, chunkIdx :: elemIdx :: indices, tupleAccessStack)
+        //generateArrayAccess(iv, chunkIdx :: elemIdx :: indices, tupleAccessStack)
+        generateArrayAccess(iv,  elemIdx :: chunkIdx ::indices, tupleAccessStack)
 
       case ViewMapSeq(iv, itVar, _ ) =>
         val idx :: indices = arrayAccessStack
