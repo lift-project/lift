@@ -692,9 +692,9 @@ class TestHost {
 
     HostCompiler ! (f, path, List(file))
 
-    //val actual : String = native_compile_and_run(path, file)
-    //val expected : String = "9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 \n"
-    //assertEquals(expected, actual)
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 \n"
+    assertEquals(expected, actual)
 
     println("Test case test_slide2d done!")
   }

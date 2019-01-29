@@ -129,7 +129,9 @@ object InputView {
                 case _:ScalarType => fc.view = ViewMem(v, fc.t)
                 case _:ArrayType => fc.view = GenerateViewForRawInOut.generateViewForRawInOut(fc, fc.t, Cst(1))
               }
+            case _ => fc.view = ViewMap(m.f.body.view, m.loopVar, fc.t)
           }
+          case _ => fc.view = ViewMap(m.f.body.view, m.loopVar, fc.t)
         }
 
         fc
@@ -187,7 +189,7 @@ object InputView {
             case ViewMem(v, t) =>
               t match {
                   //if it is a scalar, fc.t will be []_1, just works as in map
-                case _:ScalarType => fc.view = ViewMem(v, fc.t)
+                case _:ScalarType | _:TupleType => fc.view = ViewMem(v, fc.t)
                 case _:ArrayType => fc.view = GenerateViewForRawInOut.generateViewForRawInOut(fc, fc.t, Cst(1))
               }
           }
