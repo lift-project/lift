@@ -699,31 +699,28 @@ class TestHost {
     println("Test case test_slide2d done!")
   }
 
-  /*
-  @Test
-  def test_viewmapseq_viewjoin(): Unit = {
 
-    val path = s"$common_path/19.viewmap_viewjoin"
-    val file = "libviewmap_viewjoin.cpp"
+  @Test
+  def test_viewmapseq(): Unit = {
+
+    val path = s"$common_path/19.viewmap"
+    val file = "libviewmap.cpp"
 
     val f = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N), N),
-      in => MapSeq( Join() o MapSeq(
-        ReduceSeq(add, 0.0f) o
-          Join() o MapSeq( ReduceSeq(add, 0.0f) ) )
-      ) $ in
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      in => MapSeq(  MapSeq( id ) ) o MapSeq( MapSeq( id )) $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
 
     HostCompiler ! (f, path, List(file))
 
-    //val actual : String = native_compile_and_run(path, file)
-    //val expected : String = "3 3 3 3 3 3 3 3 \n"
-    //assertEquals(expected, actual)
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 1 1 1 1 1 1 1 1 \n"
+    assertEquals(expected, actual)
 
     println("Test case test_slide2d done!")
-  }*/
+  }
 
 
 }

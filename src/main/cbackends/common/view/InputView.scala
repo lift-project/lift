@@ -1,11 +1,12 @@
 package cbackends.common.view
 
-import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, TupleType}
+import cbackends.common.utils.common_view.GenerateViewForRawInOut
+import ir._
 import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
 import ir.view._
 import cbackends.common.utils.input_view.InputView.{init_params, post_check, pre_check}
 import cbackends.common.utils.pattern_matching.IsDefinedAt
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Cst}
 import opencl.ir.pattern.MapSeq
 
 object InputView {
@@ -104,7 +105,7 @@ object InputView {
 
       case fc@FunCall(_:UserFun, args@_*)  => {
 
-        args.foreach( cont(_))
+        args.foreach( cont(_) )
 
         fc.view = ViewMem(fc.mem.variable, fc.t)
 
@@ -121,7 +122,15 @@ object InputView {
 
         cont( m.f.body )
 
-        fc.view = ViewMapSeq(m.f.body.view, m.loopVar, fc.t)
+        fc.isConcrete match {
+          case true => m.f.body.view match {
+            case ViewMem(v, t) =>
+              t match {
+                case _:ScalarType => fc.view = ViewMem(v, fc.t)
+                case _:ArrayType => fc.view = GenerateViewForRawInOut.generateViewForRawInOut(fc, fc.t, Cst(1))
+              }
+          }
+        }
 
         fc
 
