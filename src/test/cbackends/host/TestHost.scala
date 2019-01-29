@@ -722,5 +722,26 @@ class TestHost {
     println("Test case test_slide2d done!")
   }
 
+  @Test
+  def test_viewreduceseq(): Unit = {
+
+    val path = s"$common_path/20.viewreduceseq"
+    val file = "libviewreduce.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      in =>  ReduceSeq( add, 0.0f ) o Join() o MapSeq( ReduceSeq( add, 0.0f )) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "9 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_viewreduce done!")
+  }
 
 }

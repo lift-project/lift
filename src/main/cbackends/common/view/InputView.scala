@@ -152,6 +152,7 @@ object InputView {
 
       }
 
+        /*
       case fc@FunCall(m:AbstractMap, arg)  => {
 
         cont( arg )
@@ -166,7 +167,7 @@ object InputView {
 
         fc
 
-      }
+      }*/
 
       case fc@FunCall(r: AbstractPartRed, args@_*)   => {
 
@@ -179,10 +180,18 @@ object InputView {
 
         cont( r.f.body )
 
-        //No need to initialize a new view, as the view is the same as its inner view
-        //In Map, the memory is augmented for its user function, thus in that case a new view is needed
-        //but it is not the case for reduce.
         fc.view = r.f.body.view
+
+        fc.isConcrete match {
+          case true => r.f.body.view match {
+            case ViewMem(v, t) =>
+              t match {
+                  //if it is a scalar, fc.t will be []_1, just works as in map
+                case _:ScalarType => fc.view = ViewMem(v, fc.t)
+                case _:ArrayType => fc.view = GenerateViewForRawInOut.generateViewForRawInOut(fc, fc.t, Cst(1))
+              }
+          }
+        }
 
         fc
 
