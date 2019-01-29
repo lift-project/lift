@@ -362,15 +362,15 @@ class HighLevelRewrite(
 
     allRulesAt.foreach(ruleAt => {
       try {
-        val applied = Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1)
+        val applied = Rewrite.applyRuleAt(lambda, ruleAt.expr, ruleAt.rule)
 
         TypeChecker(applied)
 
-        rewritten = rewritten :+ (applied, rulesSoFar :+ ruleAt._1)
+        rewritten = rewritten :+ (applied, rulesSoFar :+ ruleAt.rule)
 
       } catch {
         case _: Throwable =>
-          logger.warn(s"Applying ${ruleAt._1} to\n$lambda\nafter ${rulesSoFar.mkString(", ")} failed.")
+          logger.warn(s"Applying ${ruleAt.rule} to\n$lambda\nafter ${rulesSoFar.mkString(", ")} failed.")
           failures += 1
       }
     })

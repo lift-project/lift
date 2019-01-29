@@ -65,7 +65,7 @@ class TestSimplification {
 
     TypeChecker(f)
 
-    val applyAt = Rewrite.listAllPossibleRewrites(f, SimplificationRules.splitJoinId).head._2
+    val applyAt = Rewrite.listAllPossibleRewrites(f, SimplificationRules.splitJoinId).head.expr
 
     val rewritten = Rewrite.applyRuleAt(f, applyAt, SimplificationRules.splitJoinId)
     TypeChecker(rewritten)
