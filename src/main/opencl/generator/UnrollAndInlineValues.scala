@@ -131,21 +131,30 @@ object UnrollValues {
                 case PrivateMemory =>
                   ovd.t match
                   {
-                    case ArrayType(ty) =>
-                      // loop over size of array and create new OclVarDecls for each "unrolled value"
-                      oclVarDeclMap += (ovd.v -> Array[OclVarDecl]())
-                      for (i <- 1 to ovd.length.toInt)
+		   case ArrayTypeWSWC(t,s,c) =>
+
+              		    //  if(!oclVarDeclMap.contains(ovd.v))
                       {
-                        var oclVDtmp = OclVarDecl(CVar(Var(ovd.v.v.name + "_" + i)), ty, ovd.init, 0, PrivateMemory)
-                        // push them back in new vector
-                        nodeVector = nodeVector :+ oclVDtmp
-                        // and add them to our "map" to reference later
-                        oclVarDeclMap += (ovd.v -> (oclVarDeclMap(ovd.v) :+ oclVDtmp))
-                      }
-		      hasChanged = true
-                   /* case ArrayTypeWS => */ // TODO: Add functionality
-                   /* case ArrayTypeWSWC => */ // TODO: Add functionality
-                   /* case ArrayTypeWC => */ // TODO: Add functionality
+                        // loop over size of array and create new OclVarDecls for each "unrolled value"
+                        oclVarDeclMap += (ovd.v -> Array[OclVarDecl]())
+                          for (i <- 1 to ovd.length.toInt)
+                          {
+                            var oclVDtmp = OclVarDecl(CVar(Var(ovd.v.v.toString + "_" + i)), Type.getValueType(t), ovd.init, 0, PrivateMemory)
+                            // push them back in new vector
+                            nodeVector = nodeVector :+ oclVDtmp
+                           // and add them to our "map" to reference later
+                            oclVarDeclMap += (ovd.v -> (oclVarDeclMap(ovd.v) :+ oclVDtmp))
+                          }
+                          hasChanged = true
+		                    }
+		                  /*else
+                      {
+                        nodeVector = nodeVector :+ ovd
+                      } */		
+                    case ArrayTypeWS(t,s) =>
+                      throw new Exception("Unable to handle ArrayTypeWS in Private Array Unrolling!")
+                    case ArrayTypeWC(t,c) =>
+                      throw new Exception("Unable to handle ArrayTypeWC in Private Array Unrolling!")
                     case _ => nodeVector = nodeVector :+ ovd
 
                   }
