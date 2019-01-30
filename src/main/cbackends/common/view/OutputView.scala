@@ -66,7 +66,10 @@ object OutputView {
 
         assert(fc.outputView != NoView)
 
-        arg.outputView = fc.outputView.join(n);
+        fc.isConcrete match {
+          case true => arg.outputView = fc.outputView.join(n)
+          case false => arg.outputView = UnusedInExprOutputView
+        }
 
         assert(arg.outputView != NoView)
 
@@ -170,7 +173,7 @@ object OutputView {
 
         //arg.outputView = ViewMap(m.f.params.head.outputView, m.loopVar, arg.t)
         fc.isConcrete match {
-          case false => m.f.params.head.outputView = UnusedInExprOutputView
+          case false => arg.outputView = UnusedInExprOutputView
           case true =>
             arg.outputView = m.f.params.head.outputView match {
             //case ViewMem(v, _) => ViewMem(v, arg.t)
