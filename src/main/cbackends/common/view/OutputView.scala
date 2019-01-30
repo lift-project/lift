@@ -159,16 +159,24 @@ object OutputView {
 
         assert(fc.outputView != NoView)
 
-        //this line reflect the map semantic
-        m.f.body.outputView = fc.outputView.access(m.loopVar)
+        fc.isConcrete match {
+            //stop updating output view if not concrete
+          case false => m.f.body.outputView = UnusedInExprOutputView
+            //this line reflect the map semantic
+          case true =>  m.f.body.outputView = fc.outputView.access(m.loopVar)
+        }
 
         cont(m.f.body)
 
         //arg.outputView = ViewMap(m.f.params.head.outputView, m.loopVar, arg.t)
-        arg.outputView = m.f.params.head.outputView match {
-          //case ViewMem(v, _) => ViewMem(v, arg.t)
-          case ViewMem(v, _) => GenerateViewForRawInOut.generateViewForRawInOut(arg, arg.t, Cst(1))
-          case x => x
+        fc.isConcrete match {
+          case false => m.f.params.head.outputView = UnusedInExprOutputView
+          case true =>
+            arg.outputView = m.f.params.head.outputView match {
+            //case ViewMem(v, _) => ViewMem(v, arg.t)
+            case ViewMem(v, _) => GenerateViewForRawInOut.generateViewForRawInOut(arg, arg.t, Cst(1))
+            case x => x
+          }
         }
 
         assert(arg.outputView != NoView)
@@ -186,7 +194,11 @@ object OutputView {
 
         assert(args.length == 2)
 
-        r.f.body.outputView = fc.outputView.access(Cst(0))
+        fc.isConcrete match {
+          //stop updating output view if not concrete
+          case false => r.f.body.outputView = UnusedInExprOutputView
+          case true => r.f.body.outputView = fc.outputView.access(Cst(0))
+        }
 
         cont( r.f.body )
 
@@ -194,13 +206,18 @@ object OutputView {
         val array = args(1)
 
         acc.outputView = UnusedInExprOutputView
-        //may need a case hanlder in the future, if the inner part is already an array, you may need to generate a split
-        //currently it is only a float, so just use the array's t is OK.
-        //array.outputView = ViewMap(r.f.params(1).outputView, r.loopVar, array.t)
-        array.outputView = r.f.params(1).outputView  match {
-          //case ViewMem(v, _) => ViewMem(v, array.t)
-          case ViewMem(v, _) => GenerateViewForRawInOut.generateViewForRawInOut(array, array.t, Cst(1))
-          case x => x
+
+        fc.isConcrete match {
+          case false => r.f.params.head.outputView = UnusedInExprOutputView
+          case true =>
+            //may need a case hanlder in the future, if the inner part is already an array, you may need to generate a split
+            //currently it is only a float, so just use the array's t is OK.
+            //array.outputView = ViewMap(r.f.params(1).outputView, r.loopVar, array.t)
+            array.outputView = r.f.params(1).outputView match {
+              //case ViewMem(v, _) => ViewMem(v, array.t)
+              case ViewMem(v, _) => GenerateViewForRawInOut.generateViewForRawInOut(array, array.t, Cst(1))
+              case x => x
+            }
         }
 
         args.foreach(a => assert(a.outputView != NoView))
@@ -224,7 +241,8 @@ object OutputView {
 
         assert(fc.outputView != NoView)
 
-        arg.outputView = fc.outputView
+        //arg.outputView = fc.outputView
+        arg.outputView = UnusedInExprOutputView
 
         assert(arg.outputView != NoView)
 

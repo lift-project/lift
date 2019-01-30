@@ -667,6 +667,16 @@ class TestHost {
 
     HostCompiler ! (f, path, List(file))
 
+    /*
+    import opencl.executor.Compile
+    val gpu_f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => MapGlb( toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) ) o Slide(3,1) $ in
+    )
+    Compile(gpu_f)
+    */
+
+
     val actual : String = native_compile_and_run(path, file)
     val expected : String = "3 3 3 3 3 3 3 3 \n"
     assertEquals(expected, actual)
