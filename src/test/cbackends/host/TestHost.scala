@@ -700,14 +700,45 @@ class TestHost {
   }
 
   @Test
-  def test_slide3d(): Unit = {
+  def test_slide3d_inner_part(): Unit = {
 
-    val path = s"$common_path/21.slide3d"
+    val path = s"$common_path/21.slide3d_inner_part"
     val file = "libslide3d.cpp"
 
+    /*
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N),
       in => MapSeq( MapSeq( Join() o MapSeq(
+        ReduceSeq(add, 0.0f)  o Join() o MapSeq( ReduceSeq(add, 0.0f) )  o MapSeq( Join() o MapSeq( ReduceSeq( add, 0.0f ) ))
+      ) ) ) o Slide3D(3,1) $ in
+    )*/
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N),
+      in => ReduceSeq(add, 0.0f)  o Join() o MapSeq( ReduceSeq(add, 0.0f) )  o MapSeq( Join() o MapSeq( ReduceSeq( add, 0.0f ) )) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "27 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide2d done!")
+  }
+
+  @Test
+  def test_slide3d(): Unit = {
+
+    val path = s"$common_path/22.slide3d"
+    val file = "libslide3d.cpp"
+
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N),
+      in => MapSeq(  MapSeq( Join() o MapSeq(
         ReduceSeq(add, 0.0f)  o Join() o MapSeq( ReduceSeq(add, 0.0f) )  o MapSeq( Join() o MapSeq( ReduceSeq( add, 0.0f ) ))
       ) ) ) o Slide3D(3,1) $ in
     )
@@ -717,7 +748,7 @@ class TestHost {
     HostCompiler ! (f, path, List(file))
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "27 27 27 27 27 27 27 27 \n"
+    val expected : String = "27 \n"
     assertEquals(expected, actual)
 
     println("Test case test_slide2d done!")
@@ -767,6 +798,6 @@ class TestHost {
     println("Test case test_viewreduce done!")
   }
 
-  //next folder id: 22
+  //next folder id: 23
 
 }
