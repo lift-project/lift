@@ -2,7 +2,8 @@ package cbackends.onnx
 
 import cbackends.common.CBackendsCompilerTrait
 import cbackends.common.common_cast.CbackendCAST.SourceFile
-import cbackends.onnx.lowering.LoweringONNXIR2LiftIR
+import cbackends.host.HostCompiler
+import cbackends.onnx.lowering.LoweringONNXIR2LiftHostIR
 import core.generator.GenericAST.{Block, CVarWithType}
 import ir.ast.Lambda
 import lift.arithmetic.ArithExpr
@@ -22,7 +23,11 @@ object ONNXCompiler extends CBackendsCompilerTrait{
   //compile a lambda
   override def !(onnx_ir: Lambda, path: String, files: List[String]): Unit = {
 
-    val lift_ir = LoweringONNXIR2LiftIR(onnx_ir)
+    assert(files.length == 2)
+
+    val lift_host_ir = LoweringONNXIR2LiftHostIR(onnx_ir)
+
+    HostCompiler ! (lift_host_ir, path, List(files(0)) )
 
     /*
     println("1.traditional compiler process")

@@ -24,7 +24,8 @@ object InputView {
   def post_check(lambda: Lambda) : Unit = {
 
     lambda visitBy {
-      case e:Expr if !e.isInstanceOf[Value] => assert( e.view != NoView )
+      case e:Expr if !e.isInstanceOf[Value] =>
+        assert( e.view != NoView )
       case _ =>
     }
 

@@ -218,6 +218,25 @@ object InputView {
         fc
       }
 
+
+      case fc@FunCall(l:Lambda, args@_*) => {
+
+        args.foreach( cont(_) )
+
+        (l.params zip args).foreach(pair => pair._1.view = pair._2.view)
+
+        cont( l.body )
+
+        fc.view = l.body.view
+
+        fc
+
+      }
+
+      case x:Expr =>
+        assert(false)
+        x
+
     }
   }
 

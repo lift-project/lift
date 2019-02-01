@@ -12,6 +12,7 @@ import org.junit.Test
 import scala.reflect.runtime._
 import scala.tools.reflect.ToolBox
 import scala.io.Source
+import scala.sys.process._
 
 class TestONNX {
 
@@ -21,9 +22,11 @@ class TestONNX {
   def test_conv(): Unit = {
 
     val path = s"$common_path/01.conv"
-    val file = "libmap.cpp"
+    val host_file = "libconv3d_host.cpp"
+    val gpu_file = "libconv3d_gpu.cpp"
 
-    //either define a f, or eval a file and get f
+    ("mkdir -p " + s"$path" ) !!
+
 
     /*
     val prologue =
@@ -48,10 +51,9 @@ class TestONNX {
     val f = tb.eval(tree).asInstanceOf[Lambda]
     */
 
-
-
     val f = fun(
-      ArrayType(Float,List(Cst(1),Cst(3),Cst(20),Cst(20))),
+      //ArrayType(Float,List(Cst(1),Cst(3),Cst(20),Cst(20))),
+      ArrayType(Float,List(Cst(19),Cst(20),Cst(20))),
       ArrayType(Float,List(Cst(5),Cst(3),Cst(4),Cst(4))),
       (X,W) => {
         ConvWithoutBias(
@@ -65,7 +67,7 @@ class TestONNX {
       }
     )
 
-    ONNXCompiler ! (f, path, List(file))
+    ONNXCompiler ! (f, path, List(host_file, gpu_file))
 
     println("cool")
 

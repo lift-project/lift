@@ -263,6 +263,38 @@ object OutputView {
         fc
       }*/
 
+
+
+      case fc@FunCall(l:Lambda, args@_*) => {
+
+
+        fc.isConcrete match {
+          //stop updating output view if not concrete
+          case false => l.body.outputView = UnusedInExprOutputView
+          //this line reflect the map semantic
+          case true =>  l.body.outputView = fc.outputView
+        }
+
+        cont(l.body)
+
+        //arg.outputView = ViewMap(m.f.params.head.outputView, m.loopVar, arg.t)
+        fc.isConcrete match {
+          case false => args.foreach( _.outputView = UnusedInExprOutputView )
+          case true => (args zip l.params).foreach { case Tuple2(arg, param) =>
+            arg.outputView = param.outputView match {
+              //case ViewMem(v, _) => ViewMem(v, arg.t)
+              case ViewMem(v, _) => GenerateViewForRawInOut.generateViewForRawInOut(arg, arg.t, Cst(1))
+              case x => x
+            }
+          }
+        }
+
+
+        args.foreach( cont(_) )
+
+        fc
+
+      }
     }
   }
 

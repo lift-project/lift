@@ -60,12 +60,25 @@ object MemoryAllocator {
 
       }
 
+      case fc@FunCall(l:Lambda, args@_*) => {
+
+        args.foreach( alloc(_) )
+
+        (l.params zip args).foreach(pair => pair._1.mem = pair._2.mem)
+        alloc(l.body)
+
+        fc.mem = l.body.mem
+      }
+
+        //for Slide etc.
       case fc@FunCall(_:FunDecl, arg) => {
         alloc(arg)
         fc.mem = arg.mem
       }
 
-      case _:FunCall => assert(false)
+
+      case x:Expr if x.mem == UnallocatedMemory =>
+        assert(false)
 
       case _ =>
 
@@ -92,7 +105,8 @@ object MemoryAllocator {
 
     //assert that all memory has been allocated
     lambda visitBy {
-      case e:Expr if !e.isInstanceOf[Value] => assert(e.mem !=  UnallocatedMemory )
+      case e:Expr if !e.isInstanceOf[Value] =>
+        assert(e.mem !=  UnallocatedMemory )
       case _ =>
     }
 
