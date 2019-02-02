@@ -242,6 +242,10 @@ class TestStencilsTACO {
   @Test
   def MSSAcoustic3D(): Unit = {
 
+    val m = 512
+    val n = 512
+    val o = 128
+
     val ISflag = InlineStructs()
     InlineStructs(true)
 
@@ -255,28 +259,28 @@ class TestStencilsTACO {
 
     val aStencil =
       fun(
-        ArrayType(ArrayType(ArrayType(Float, m),n),o),
-        ArrayType(ArrayType(ArrayType(Float, m),n),o),
+        ArrayType(ArrayType(ArrayType(Float, m+2),n+2),o+2),
+        ArrayType(ArrayType(ArrayType(Float, m+2),n+2),o+2),
         (mat1, mat2) => {
           MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
             acoustic(m)
           })))
             // this should work, but doesn't, etc
             /*) $ Zip3D(mat1, Slide3D(size,step) o PadConstant3D(1,1,1,0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigonm))*/
-          ) o Slide3D(size, step) $ Zip3D(PadConstant3D(1, 1, 1, 0.0f) $ mat1, PadConstant3D(1, 1, 1, 0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno2))
+          ) o Slide3D(size, step) $ Zip3D( mat1, mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno2))
         })
 
 
     val aStencilMSS = fun(
-      ArrayType(ArrayType(ArrayType(Float, m),n),o),
-      ArrayType(ArrayType(ArrayType(Float, m),n),o),
+      ArrayType(ArrayType(ArrayType(Float, m+2),n+2),o+2),
+      ArrayType(ArrayType(ArrayType(Float, m+2),n+2),o+2),
       (mat1, mat2) => {
         TransposeW() o Map(TransposeW()) o TransposeW() o
           MapGlb(0)(MapGlb(1)(fun(x => {
             toGlobal(MapSeqSlide(fun((m) => {
               acoustic(m)
             }), size, step))
-          } o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() $ Zip3D(PadConstant3D(1, 1, 1, 0.0f) $ mat1, PadConstant3D(1, 1, 1, 0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno2))
+          } o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() $ Zip3D(mat1, mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno2))
       })
 
     val lambda = SimplifyAndFuse(aStencil)
@@ -288,16 +292,16 @@ class TestStencilsTACO {
     val orgFile = outputdir+"acoustic-original-"+m+"-"+"n"+"-"+o+ext
     val mssFile = outputdir+"acoustic-MSS-"+m+"-"+"n"+"-"+o+ext
 
-    if(printToFile)
+   // if(printToFile)
     {
       new PrintWriter(orgFile) { try {write(source)} finally {close} }
       new PrintWriter(mssFile) { try {write(sourceMSS)} finally {close} }
     }
 
-    val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](aStencil, data, data)
-    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](aStencilMSS, data, data)
+//    val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](aStencil, data, data)
+//    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](aStencilMSS, data, data)
 
-    assertArrayEquals(output_MSS, output_org, delta)
+//    assertArrayEquals(output_MSS, output_org, delta)
 
     InlineStructs(ISflag)
 
