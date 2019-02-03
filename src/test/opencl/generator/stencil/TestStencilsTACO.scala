@@ -307,6 +307,104 @@ class TestStencilsTACO {
 
   }
 
+  def acousticcgo(m: Param) = {
+
+    val cf = toPrivate(fun(x => getCF(x, cf1(0), cf1(1)))) $ Get(m.at(1).at(1).at(1), 2)
+    val cf2 = toPrivate(fun(x => getCF(x, cf21(0), cf21(1)))) $ Get(m.at(1).at(1).at(1), 2)
+    val maskedValStencil = l2
+
+    val `tile[1][1][1]` = Get(m.at(1).at(1).at(1), 1)
+
+    val `tile[0][1][1]` = Get(m.at(0).at(1).at(1), 1)
+    val `tile[1][0][1]` = Get(m.at(1).at(0).at(1), 1)
+    val `tile[1][1][0]` = Get(m.at(1).at(1).at(0), 1)
+    val `tile[1][1][2]` = Get(m.at(1).at(1).at(2), 1)
+    val `tile[1][2][1]` = Get(m.at(1).at(2).at(1), 1)
+    val `tile[2][1][1]` = Get(m.at(2).at(1).at(1), 1)
+
+    val stencil = toPrivate(fun(x => add(x, `tile[0][1][1]`))) o
+      toPrivate(fun(x => add(x, `tile[1][0][1]`))) o
+      toPrivate(fun(x => add(x, `tile[1][1][0]`))) o
+      toPrivate(fun(x => add(x, `tile[1][1][2]`))) o
+      toPrivate(fun(x => add(x, `tile[1][2][1]`))) $ `tile[2][1][1]`
+
+    val valueMat1 = Get(m.at(1).at(1).at(1), 0)
+    val valueMask = toPrivate(idIF) $ Get(m.at(1).at(1).at(1), 2)
+
+    toGlobal(id) o toPrivate(fun(x => mult(x, cf))) o toPrivate(addTuple) $
+      Tuple(toPrivate(fun(x => mult(x, `tile[1][1][1]`))) o toPrivate(fun(x => subtract(2.0f, x))) o toPrivate(fun(x => mult(x, RoomConstants.l2))) $ valueMask,
+        toPrivate(subtractTuple) $ Tuple(
+          toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
+          toPrivate(fun(x => mult(x, cf2))) $ valueMat1))
+
+  }
+
+  @Test
+  def MSSAcoustic3DCGO(): Unit = {
+
+    val ISflag = InlineStructs()
+    InlineStructs(true)
+
+    val arraySigmno = ArrayType(ArrayType(ArrayType(Int, m), n), o)
+    val arraySigmno2 = ArrayType(ArrayType(ArrayType(Int, m + 2), n + 2), o + 2)
+    val arraySigonm = ArrayType(ArrayType(ArrayType(Int, o), n), m)
+    val arraySigonm2 = ArrayType(ArrayType(ArrayType(Int, o + 2), n + 2), m + 2)
+
+    val size = 3
+    val step = 1
+
+    val aStencil =
+      fun(
+        ArrayType(ArrayType(ArrayType(Float, m+2),n+2),o+2),
+        ArrayType(ArrayType(ArrayType(Float, m+2),n+2),o+2),
+        (mat1, mat2) => {
+          MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(m => {
+            acousticcgo(m)
+          })))
+            // this should work, but doesn't, etc
+            /*) $ Zip3D(mat1, Slide3D(size,step) o PadConstant3D(1,1,1,0.0f) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigonm))*/
+          ) o Slide3D(size, step) $ Zip3D( mat1, mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno2))
+        })
+
+
+    val aStencilMSS = fun(
+      ArrayType(ArrayType(ArrayType(Float, m+2),n+2),o+2),
+      ArrayType(ArrayType(ArrayType(Float, m+2),n+2),o+2),
+      (mat1, mat2) => {
+        TransposeW() o Map(TransposeW()) o TransposeW() o
+          MapGlb(0)(MapGlb(1)(fun(x => {
+            toGlobal(MapSeqSlide(fun((m) => {
+              acousticcgo(m)
+            }), size, step))
+          } o Transpose() o Map(Transpose()) $ x))) o Transpose() o Slide2D(size,step) o Map(Transpose()) o Transpose() $ Zip3D(mat1, mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySigmno2))
+      })
+
+    val lambda = SimplifyAndFuse(aStencil)
+    val source = Compile(lambda)//, NDRange(32,4,2), NDRange(n,m,1))
+
+    val mssLambda = SimplifyAndFuse(aStencilMSS)
+    val sourceMSS = Compile(mssLambda)//, NDRange(32,4,2), NDRange(n,m,1))
+
+    val orgFile = outputdir+"acoustic-original-"+m+"-"+"n"+"-"+o+ext
+    val mssFile = outputdir+"acoustic-MSS-"+m+"-"+"n"+"-"+o+ext
+
+    // if(printToFile)
+    {
+      new PrintWriter(orgFile) { try {write(source)} finally {close} }
+      new PrintWriter(mssFile) { try {write(sourceMSS)} finally {close} }
+    }
+
+    //    val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](aStencil, data, data)
+    //    val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](aStencilMSS, data, data)
+
+    //    assertArrayEquals(output_MSS, output_org, delta)
+
+    InlineStructs(ISflag)
+
+  }
+
+
+
   /**
     * PPCG
     **/
