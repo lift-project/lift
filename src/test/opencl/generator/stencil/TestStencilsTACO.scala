@@ -1527,5 +1527,4 @@ class TestStencilsTACO {
 
   }
 
-
 }

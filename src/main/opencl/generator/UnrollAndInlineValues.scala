@@ -132,9 +132,6 @@ object UnrollValues {
                   ovd.t match
                   {
 		   case ArrayTypeWSWC(t,s,c) =>
-
-              		    //  if(!oclVarDeclMap.contains(ovd.v))
-                      {
                         // loop over size of array and create new OclVarDecls for each "unrolled value"
                         oclVarDeclMap += (ovd.v -> Array[OclVarDecl]())
                           for (i <- 1 to ovd.length.toInt)
@@ -146,11 +143,6 @@ object UnrollValues {
                             oclVarDeclMap += (ovd.v -> (oclVarDeclMap(ovd.v) :+ oclVDtmp))
                           }
                           hasChanged = true
-		                    }
-		                  /*else
-                      {
-                        nodeVector = nodeVector :+ ovd
-                      } */		
                     case ArrayTypeWS(t,s) =>
                       throw new Exception("Unable to handle ArrayTypeWS in Private Array Unrolling!")
                     case ArrayTypeWC(t,c) =>
