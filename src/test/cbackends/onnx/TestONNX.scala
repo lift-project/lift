@@ -53,7 +53,8 @@ class TestONNX {
 
     val f = fun(
       //ArrayType(Float,List(Cst(1),Cst(3),Cst(20),Cst(20))),
-      ArrayType(Float,List(Cst(19),Cst(20),Cst(20))),
+      //ArrayType(Float,List(Cst(19),Cst(20),Cst(20))),
+      ArrayType(Float,List(Cst(5),Cst(5),Cst(5))),
       ArrayType(Float,List(Cst(5),Cst(3),Cst(4),Cst(4))),
       (X,W) => {
         ConvWithoutBias(
@@ -68,6 +69,8 @@ class TestONNX {
     )
 
     ONNXCompiler ! (f, path, List(host_file, gpu_file))
+    "27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27"
+
 
     println("cool")
 

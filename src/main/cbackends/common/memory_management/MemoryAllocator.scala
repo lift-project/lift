@@ -2,7 +2,7 @@ package cbackends.common.memory_management
 
 import core.generator.GenericAST.CVarWithType
 import cbackends.common.common_ir.{CPUNullMemory, HostMemory, HostMemoryCollection}
-import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, Expr, FPattern, FunCall, FunDecl, IRNode, Lambda, UserFun, Value, Zip}
+import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, Expr, FPattern, FunCall, FunDecl, Get, IRNode, Join, Lambda, Pad, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip}
 import ir.{Type, UnallocatedMemory}
 import lift.arithmetic.{ArithExpr, ContinuousRange, Cst, Var}
 
@@ -13,6 +13,9 @@ object MemoryAllocator {
 
   def alloc(node:IRNode): Unit = {
     node match {
+
+      case v:Value =>
+        v.mem = CPUNullMemory
 
       case ac:ArrayConstructors =>
         ac.mem = CPUNullMemory
@@ -71,7 +74,7 @@ object MemoryAllocator {
       }
 
         //for Slide etc.
-      case fc@FunCall(_:FunDecl, arg) => {
+      case fc@FunCall(_:Join|_:Slide|_:Zip|_:Get|_:Split|_:Join|_:Transpose|_:TransposeW|_:Pad, arg) => {
         alloc(arg)
         fc.mem = arg.mem
       }
