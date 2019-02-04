@@ -1,7 +1,7 @@
 package cbackends.common.memory_management
 
 import core.generator.GenericAST.CVarWithType
-import ir.ast.{AbstractMap, AbstractPartRed, FunCall, IRNode, Lambda, UserFun}
+import ir.ast.{AbstractMap, AbstractPartRed, FunCall, IRNode, Join, Lambda, Slide, UserFun}
 import lift.arithmetic.ArithExpr
 import cbackends.common.utils.type_lowering.TypeLowering
 import ir.Type
@@ -37,8 +37,15 @@ object FinalMemoryAllocationAnalysis {
         //here fc.t already have the augmented size information after map, so no need to manually calculate
         hostMemoryDeclaredInSignature += fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ) , Type.getElementCount(fc.t) )
 
-      case fc@FunCall(_, args@_*) =>
+      case fc@FunCall(l:Lambda, args@_*) =>
         args.foreach(analyze(_))
+        analyze(l.body)
+
+      case fc@FunCall(_:Join|_:Slide, args@_*) =>
+        args.foreach(analyze(_))
+
+      case fc@FunCall(_, args@_*) =>
+        assert(false)
 
       case _ =>
 
