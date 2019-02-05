@@ -14,6 +14,8 @@ import scala.tools.reflect.ToolBox
 import scala.io.Source
 import scala.sys.process._
 
+import cbackends.common.executor.Executor.native_compile_and_run
+
 class TestONNX {
 
   val common_path = "/home/lu/Documents/Research/lift/src/test/cbackends/onnx"
@@ -69,7 +71,12 @@ class TestONNX {
     )
 
     ONNXCompiler ! (f, path, List(host_file, gpu_file))
-    "27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27"
+
+    val actual : String = native_compile_and_run(path, host_file)
+    val expected : String = "27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 \n"
+    assertEquals(expected, actual)
+
+
 
 
     println("cool")
