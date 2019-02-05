@@ -776,4 +776,34 @@ class TestHost {
 
   //next folder id: 23
 
+  @Test
+  def test_conv3d_atom(): Unit = {
+
+    val path = s"$common_path/23.conv3d_atom"
+    val file = "libconv3d_atom.cpp"
+
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 6), 6), 6),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 6), 6), 6),
+      (in, weights) =>
+        ReduceSeq(add, 0.0f)  o Join() o
+        MapSeq( ReduceSeq(add, 0.0f) )  o
+        MapSeq( Join() o MapSeq( ReduceSeq( add, 0.0f ) ) ) o
+        Split(6) o Split(6) o
+          MapSeq( fun(y => mult.apply(Get(y,0), Get(y,1))))
+          $ Zip( Join() o Join() $ in, Join() o Join() $ weights)
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "432 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide2d done!")
+  }
+
 }

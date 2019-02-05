@@ -180,7 +180,7 @@ object OutputView {
             arg.outputView = m.f.params.head.outputView match {
             //case ViewMem(v, _) => ViewMem(v, arg.t)
             case ViewMem(v, _) => GenerateViewForRawInOut.generateViewForRawInOut(arg, arg.t, Cst(1))
-            case x => x
+            case outputView => outputView.split(m.loopVar.range.max+1)
           }
         }
 
