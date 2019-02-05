@@ -221,7 +221,7 @@ object OutputView {
             array.outputView = r.f.params(1).outputView match {
               //case ViewMem(v, _) => ViewMem(v, array.t)
               case ViewMem(v, _) => GenerateViewForRawInOut.generateViewForRawInOut(array, array.t, Cst(1))
-              case x => x
+              case outputView => outputView.split(Cst(1))
             }
         }
 
