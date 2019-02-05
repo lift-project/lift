@@ -66,10 +66,12 @@ object OutputView {
 
         assert(fc.outputView != NoView)
 
+        arg.outputView = fc.outputView.join(n)
+        /*
         fc.isConcrete match {
           case true => arg.outputView = fc.outputView.join(n)
           case false => arg.outputView = UnusedInExprOutputView
-        }
+        }*/
 
         assert(arg.outputView != NoView)
 
@@ -244,8 +246,8 @@ object OutputView {
 
         assert(fc.outputView != NoView)
 
-        //arg.outputView = fc.outputView
-        arg.outputView = UnusedInExprOutputView
+        arg.outputView = fc.outputView
+        //arg.outputView = UnusedInExprOutputView
 
         assert(arg.outputView != NoView)
 
