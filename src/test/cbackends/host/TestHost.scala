@@ -774,8 +774,6 @@ class TestHost {
     println("Test case test_viewreduce done!")
   }
 
-  //next folder id: 23
-
   @Test
   def test_conv3d_atom(): Unit = {
 
@@ -801,6 +799,40 @@ class TestHost {
 
     val actual : String = native_compile_and_run(path, file)
     val expected : String = "432 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide2d done!")
+  }
+
+  @Test
+  def test_conv3d(): Unit = {
+
+    val path = s"$common_path/24.conv3d"
+    val file = "libconv3d.cpp"
+
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 8), 8), 8),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 6), 6), 6),
+      (in, weights) => MapSeq(  MapSeq( Join() o MapSeq(
+
+        fun(cube =>
+
+          ReduceSeq(add, 0.0f) o
+          MapSeq( fun(y => mult.apply(Get(y,0), Get(y,1))))
+            $ Zip( Join() o Join() $ cube, Join() o Join() $ weights)
+
+        )
+
+      ) ) ) o Slide3D(6,1) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 \n"
     assertEquals(expected, actual)
 
     println("Test case test_slide2d done!")
