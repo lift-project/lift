@@ -819,7 +819,7 @@ class TestHost {
         fun(cube =>
 
           ReduceSeq(add, 0.0f) o
-          MapSeq( fun(y => mult.apply(Get(y,0), Get(y,1))))
+          MapSeq( fun(y => mult.apply(Get(y,0), Get(y,1))) )
             $ Zip( Join() o Join() $ cube, Join() o Join() $ weights)
 
         )

@@ -179,8 +179,16 @@ object OutputView {
           case true =>
             arg.outputView = m.f.params.head.outputView match {
             //case ViewMem(v, _) => ViewMem(v, arg.t)
-            case ViewMem(v, _) => GenerateViewForRawInOut.generateViewForRawInOut(arg, arg.t, Cst(1))
-            case outputView => outputView.split(m.loopVar.range.max+1)
+            case ViewMem(v, _) =>
+              GenerateViewForRawInOut.generateViewForRawInOut(arg, arg.t, Cst(1))
+            case outputView =>
+              val t = fc.argsType
+              val chunksize  = t match {
+                case ArrayType(ArrayTypeWSWC(_, s,c)) if s==c => s
+                case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + fc.argsType)
+              }
+              //outputView.split(chunksize)
+              ViewSplit(chunksize, outputView, t)
           }
         }
 
@@ -220,8 +228,15 @@ object OutputView {
             //array.outputView = ViewMap(r.f.params(1).outputView, r.loopVar, array.t)
             array.outputView = r.f.params(1).outputView match {
               //case ViewMem(v, _) => ViewMem(v, array.t)
-              case ViewMem(v, _) => GenerateViewForRawInOut.generateViewForRawInOut(array, array.t, Cst(1))
-              case outputView => outputView.split(Cst(1))
+              case ViewMem(v, _) =>
+                GenerateViewForRawInOut.generateViewForRawInOut(array, array.t, Cst(1))
+              case outputView =>
+                val t = fc.argsType
+                val chunksize = t match {
+                  case ArrayType(ArrayTypeWSWC(_, s,c)) if s==c => s
+                  case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + fc.argsType)
+                }
+                outputView.split(chunksize)
             }
         }
 

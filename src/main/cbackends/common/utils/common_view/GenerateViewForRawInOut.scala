@@ -15,7 +15,8 @@ object GenerateViewForRawInOut {
       case et:ArrayType =>
         val ArrayTypeWS(_, n) = et
         generateViewForRawInOut(p, et, size * s).split(n)
-      case _ => ViewMem(p.mem.variable, ArrayTypeWSWC(typ.elemT, size * s) )
+      case _ =>
+        ViewMem(p.mem.variable, ArrayTypeWSWC(typ.elemT, size * s) )
     }
 
   }
