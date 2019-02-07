@@ -1,0 +1,1147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="BuildServerSettings">
+    <option name="LOGIN" value="naummo" />
+    <option name="SERVER_URL" value="http://localhost:8111" />
+    <option name="REMEMBER_ME" value="true" />
+    <option name="USE_IDEA_PROXY_SETTINGS" value="false" />
+    <option name="INSPECTIONS_BUILD_TYPE_IDS" />
+    <option name="DUPLICATES_BUILD_TYPE_IDS" />
+    <option name="COVERAGE_SETTINGS" />
+    <option name="TEST_STATUS_ENABLED" value="true" />
+    <option name="TEST_STATUS_SHOW_SUCCESSFUL" value="true" />
+    <option name="POSTPONE_SUITABLE_CONFIGURATIONS_SEARCH" value="false" />
+    <option name="ARTIFACTS_BUILD_TYPE_IDS" />
+    <option name="PERFORM_COMMIT_IF_SUCCESSFUL" value="true" />
+    <option name="PERFORM_COMMIT_IF_NO_NEW_FAILED_TESTS" value="false" />
+    <option name="REQUEST_CONFIRMATON" value="false" />
+    <option name="PRE_TESTED_COMMIT" value="true" />
+    <option name="FILTER_BY_STATUS" value="false" />
+    <option name="FILTER_MARKED_AS_FIXED" value="false" />
+    <option name="SHOW_CLOSE_PROMPT" value="true" />
+    <option name="TOOL_WINDOW_SELECTED_CONTENT_INDEX" value="1" />
+    <option name="FILTER_BY_CURRENT_PROJECT" value="false" />
+    <SELECTED_PROJECT id="project2" />
+    <SELECTED_TYPE id="bt2" />
+    <treeState key="responsibilities">
+      <selectedPath>
+        <pathElement>
+          <option name="myNodeId" value="helperText" />
+          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.LinkedTextDescriptor" />
+        </pathElement>
+      </selectedPath>
+    </treeState>
+    <treeState key="changes">
+      <expandedPath>
+        <pathElement>
+          <option name="myNodeId" value="1" />
+          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.ChangesGroupDescriptor" />
+        </pathElement>
+      </expandedPath>
+      <selectedPath>
+        <pathElement>
+          <option name="myNodeId" value="1" />
+          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.ChangesGroupDescriptor" />
+        </pathElement>
+        <pathElement>
+          <option name="myNodeId" value="11" />
+          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.VcsModificationDescriptor" />
+        </pathElement>
+      </selectedPath>
+    </treeState>
+    <treeState key="selectConfigurations.run">
+      <expandedPath>
+        <pathElement>
+          <option name="myNodeId" value="project2" />
+          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.ProjectDescriptor" />
+        </pathElement>
+      </expandedPath>
+      <selectedPath>
+        <pathElement>
+          <option name="myNodeId" value="project2" />
+          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.ProjectDescriptor" />
+        </pathElement>
+        <pathElement>
+          <option name="myNodeId" value="bt2" />
+          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.BuildTypeDescriptor" />
+        </pathElement>
+      </selectedPath>
+    </treeState>
+    <treeState key="project">
+      <expandedPath>
+        <pathElement>
+          <option name="myNodeId" value="project2" />
+          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.ProjectDescriptor" />
+        </pathElement>
+      </expandedPath>
+      <selectedPath>
+        <pathElement>
+          <option name="myNodeId" value="project2" />
+          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.ProjectDescriptor" />
+        </pathElement>
+        <pathElement>
+          <option name="myNodeId" value="bt2" />
+          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.BuildTypeDescriptor" />
+        </pathElement>
+      </selectedPath>
+    </treeState>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="bd5a70aa-774d-4f1b-9c6e-8b8217cb33ea" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/src/test/analysis/TestAccessCounts.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/analysis/TestAccessCounts.scala" afterDir="false" />
+    </list>
+    <ignored path="$USER_HOME$/target/" />
+    <ignored path="$USER_HOME$/project/project/target/" />
+    <ignored path="$USER_HOME$/project/target/" />
+    <ignored path="$USER_HOME$/lib/Profiler/target/" />
+    <ignored path="$USER_HOME$/lib/Profiler/project/project/target/" />
+    <ignored path="$USER_HOME$/lib/Profiler/project/target/" />
+    <ignored path="$PROJECT_DIR$/lib/Profiler/project/project/target/" />
+    <ignored path="$PROJECT_DIR$/lib/Profiler/target/" />
+    <ignored path="$PROJECT_DIR$/lib/Profiler/project/target/" />
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ExportTestResults" exportFormat="Xml" outputFolder="$USER_HOME$" openResultsInEditor="true" userTempatePath="" />
+  <component name="ExternalProjectsData">
+    <projectState path="$USER_HOME$">
+      <ProjectState />
+    </projectState>
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="ExternalProjectsManager">
+    <system id="SBT">
+      <state>
+        <projects_view />
+      </state>
+    </system>
+  </component>
+  <component name="FavoritesManager">
+    <favorites_list name="Lift" />
+  </component>
+  <component name="FileEditorManager">
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/test/analysis/TestAccessCounts.scala">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="247">
+              <caret line="13" column="2" selection-start-line="13" selection-start-column="2" selection-end-line="13" selection-end-column="2" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="jar://$USER_HOME$/.ivy2/cache/org.scala-lang/scala-library/srcs/scala-library-2.11.8-sources.jar!/scala/PartialFunction.scala">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="195">
+              <caret line="252" selection-start-line="252" selection-end-line="252" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/src/main/rewriting/rules/CopyRules.scala">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="515">
+              <caret line="65" lean-forward="true" selection-start-line="65" selection-end-line="65" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/main/core/generator/GenericAST.scala">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-857">
+              <caret line="607" column="13" selection-start-line="607" selection-start-column="13" selection-end-line="607" selection-end-column="13" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Package Object" />
+      </list>
+    </option>
+  </component>
+  <component name="FindInProjectRecents">
+    <findStrings>
+      <find>Floor(</find>
+      <find>FloorFunc</find>
+      <find>1 to d</find>
+      <find>base</find>
+      <find>TypeExcept</find>
+      <find>Int</find>
+      <find>ass</find>
+      <find>assert</find>
+      <find>asser</find>
+      <find>ReduceSeq(</find>
+      <find>Parameter88</find>
+      <find>Parameter193</find>
+      <find>apply</find>
+      <find>Reshape</find>
+      <find>Parameter193_reshape1</find>
+      <find>fun</find>
+      <find>Conv</find>
+      <find>Plus30_Output_0</find>
+      <find>val</find>
+      <find>Relu()</find>
+      <find>$</find>
+      <find>Parameter194</find>
+      <find>lu/Doc</find>
+      <find>lu</find>
+      <find>&quot;/home/lu/Documents/Research/lift&quot;</find>
+      <find>Type {</find>
+      <find>&quot;/home/lu/Documents/Research/lift</find>
+      <find>TestONNx</find>
+      <find>locationHint</find>
+      <find>sub</find>
+    </findStrings>
+    <replaceStrings>
+      <replace>=</replace>
+      <replace>exceptionMsgPrefix(iP)</replace>
+      <replace>ArrayType</replace>
+      <replace>spatialWeightDimsT</replace>
+      <replace>ArithExpr</replace>
+      <replace>def</replace>
+      <replace>System.getProperty(&quot;user.dir&quot;</replace>
+      <replace>System.getProperty(&quot;user.dir&quot;) + &quot;</replace>
+    </replaceStrings>
+  </component>
+  <component name="Git.Settings">
+    <option name="ROOT_SYNC" value="DONT_SYNC" />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
+  </component>
+  <component name="IdeDocumentHistory">
+    <option name="CHANGED_PATHS">
+      <list>
+        <option value="$USER_HOME$/src/test/nn/conv/package.scala" />
+        <option value="$USER_HOME$/src/test/nn/conv/Conv.scala" />
+        <option value="$USER_HOME$/src/test/nn/conv/versions/Conv2.scala" />
+        <option value="$USER_HOME$/src/test/nn/conv/versions/Conv0.scala" />
+        <option value="$USER_HOME$/src/test/nn/conv/versions/Conv3.scala" />
+        <option value="$USER_HOME$/src/test/nn/conv/versions/Conv1.scala" />
+        <option value="$USER_HOME$/src/test/nn/cnn/package.scala" />
+        <option value="$USER_HOME$/src/main/opencl/executor/Execute.scala" />
+        <option value="$USER_HOME$/src/test/nn/cnn/TestCNN.scala" />
+        <option value="$USER_HOME$/src/test/nn/cnn/TestCNN_Conv.scala" />
+        <option value="$USER_HOME$/src/test/nn/conv/TestConv.scala" />
+        <option value="$USER_HOME$/src/main/opencl/ir/pattern/ReduceSeq.scala" />
+        <option value="$USER_HOME$/src/main/rewriting/macrorules/nn/FC.scala" />
+        <option value="$USER_HOME$/src/main/rewriting/macrorules/nn/Pool.scala" />
+        <option value="$USER_HOME$/src/test/nn/conv/versions/Conv4.scala" />
+        <option value="$USER_HOME$/src/test/nn/fc/FC.scala" />
+        <option value="$USER_HOME$/src/main/rewriting/macrorules/nn/ReLU.scala" />
+        <option value="$USER_HOME$/src/main/rewriting/macrorules/nn/FCfirst.scala" />
+        <option value="$USER_HOME$/src/main/rewriting/macrorules/nn/FC_ND.scala" />
+        <option value="$USER_HOME$/src/main/ir/Type.scala" />
+        <option value="$USER_HOME$/src/main/ir/ast/onnx/Add.scala" />
+        <option value="$USER_HOME$/src/main/ir/view/OutputView.scala" />
+        <option value="$USER_HOME$/src/main/ir/ast/onnx/Broadcastable.scala" />
+        <option value="$USER_HOME$/src/main/ir/ast/onnx/Relu.scala" />
+        <option value="$USER_HOME$/src/main/ir/ast/onnx/MatMul.scala" />
+        <option value="$USER_HOME$/src/test/ir/ast/onnx/testONNX.scala" />
+        <option value="$USER_HOME$/src/main/ir/ast/onnx/package.scala" />
+        <option value="$USER_HOME$/src/main/ir/ast/onnx/Reshape.scala" />
+        <option value="$USER_HOME$/src/main/ir/ast/onnx/MaxPool.scala" />
+        <option value="$USER_HOME$/src/test/ir/ast/onnx/testONNXOperators.scala" />
+        <option value="$USER_HOME$/src/test/cbackends/mpi/TestMPI.scala" />
+        <option value="$USER_HOME$/src/test/cbackends/sdh/TestSDH.scala" />
+        <option value="$USER_HOME$/src/test/host/TestHost.scala" />
+        <option value="$USER_HOME$/src/main/ir/ast/onnx/Conv.scala" />
+        <option value="$USER_HOME$/src/test/ir/ast/onnx/TestONNXTypes.scala" />
+        <option value="$USER_HOME$/src/test/cbackends/host/TestHost.scala" />
+        <option value="$USER_HOME$/all_tests.tmp" />
+        <option value="$USER_HOME$/log.xml" />
+        <option value="$USER_HOME$/.gitmodules" />
+        <option value="$USER_HOME$/src/test/analysis/TestAccessCounts.scala" />
+        <option value="$PROJECT_DIR$/src/test/analysis/TestAccessCounts.scala" />
+      </list>
+    </option>
+  </component>
+  <component name="LogFilters">
+    <option name="FILTER_ERRORS" value="false" />
+    <option name="FILTER_WARNINGS" value="false" />
+    <option name="FILTER_INFO" value="false" />
+    <option name="FILTER_DEBUG" value="false" />
+    <option name="CUSTOM_FILTER" />
+  </component>
+  <component name="ProjectFrameBounds" extendedState="6">
+    <option name="x" value="1267" />
+    <option name="y" value="475" />
+    <option name="width" value="1853" />
+    <option name="height" value="1173" />
+  </component>
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectView">
+    <navigator proportions="" version="1">
+      <foldersAlwaysOnTop value="true" />
+    </navigator>
+    <panes>
+      <pane id="ProjectPane">
+        <subPane>
+          <expand>
+            <path>
+              <item name="Lift" type="b2602c69:ProjectViewProjectNode" />
+              <item name="lift" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="Lift" type="b2602c69:ProjectViewProjectNode" />
+              <item name="lift" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="Lift" type="b2602c69:ProjectViewProjectNode" />
+              <item name="lift" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="test" type="462c0819:PsiDirectoryNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
+      <pane id="Scope" />
+      <pane id="PackagesPane" />
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="Git.Branch.Popup.ShowAllRemotes" value="true" />
+    <property name="SearchEverywhereHistoryKey" value="testhost&#9;null&#9;null&#10;testsdh&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/cbackends/sdh/TestSDH.scala&#10;TestSDH&#9;null&#9;null&#10;lib_sched.cpp&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/cbackends/sdh/1.vector_add_multi_tile/lib_sched.cpp&#10;testmpi&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/cbackends/mpi/TestMPI.scala&#10;TestHost&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/cbackends/host/TestHost.scala&#10;testCNN&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/nn/cnn/TestCNN.scala" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="aspect.path.notification.shown" value="true" />
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1549568526911" />
+    <property name="last_opened_file_path" value="/usr/bin/git" />
+    <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
+    <property name="nodejs_npm_path_reset_for_default_project" value="true" />
+    <property name="nodejs_package_manager_path" value="npm" />
+    <property name="project.structure.last.edited" value="Modules" />
+    <property name="project.structure.proportion" value="0.15" />
+    <property name="project.structure.side.proportion" value="0.20114942" />
+    <property name="settings.editor.selected.configurable" value="reference.settingsdialog.IDE.editor.colors" />
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyClassDialog.RECENTS_KEY">
+      <recent name="ir.ast.onnx" />
+      <recent name="rewriting.macrorules.nn" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$USER_HOME$/src/main/ir/ast/onnx" />
+    </key>
+  </component>
+  <component name="RunDashboard">
+    <option name="ruleStates">
+      <list>
+        <RuleState>
+          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+        </RuleState>
+        <RuleState>
+          <option name="name" value="StatusDashboardGroupingRule" />
+        </RuleState>
+      </list>
+    </option>
+  </component>
+  <component name="RunManager" selected="JUnit.All in Lift">
+    <configuration name="All in Lift" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true" show_console_on_std_err="true" show_console_on_std_out="true">
+      <output_file path="/tmp/avus.log" is_save="true" />
+      <log_file checked="false" alias="/tmp/avus.log" path="/tmp/avus.log" skipped="false" />
+      <module name="Lift" />
+      <option name="PACKAGE_NAME" value="" />
+      <option name="MAIN_CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="TEST_OBJECT" value="package" />
+      <option name="VM_PARAMETERS" value="-ea -Djava.library.path=$USER_HOME$/lib/Executor/build/" />
+      <option name="PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <method v="2">
+        <option name="MakeProject" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="TestDecoder" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="Lift" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="opencl.executor.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="opencl.executor" />
+      <option name="MAIN_CLASS_NAME" value="opencl.executor.TestDecoder" />
+      <option name="METHOD_NAME" value="" />
+      <option name="TEST_OBJECT" value="class" />
+      <option name="VM_PARAMETERS" value="-ea -Djava.library.path=$USER_HOME$/lib/Executor/build/" />
+      <option name="PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="TestHost.test_split_join" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="Lift" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="host.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="host" />
+      <option name="MAIN_CLASS_NAME" value="host.TestHost" />
+      <option name="METHOD_NAME" value="test_split_join" />
+      <option name="TEST_OBJECT" value="method" />
+      <option name="VM_PARAMETERS" value="-ea -Djava.library.path=$USER_HOME$/lib/Executor/build/" />
+      <option name="PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="TestONNXTypes" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="Lift" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="ir.ast.onnx.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="ir.ast.onnx" />
+      <option name="MAIN_CLASS_NAME" value="ir.ast.onnx.TestONNXTypes" />
+      <option name="METHOD_NAME" value="" />
+      <option name="TEST_OBJECT" value="class" />
+      <option name="VM_PARAMETERS" value="-ea -Djava.library.path=$USER_HOME$/lib/Executor/build/" />
+      <option name="PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Views and 1 more" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="Lift" />
+      <option name="PACKAGE_NAME" value="" />
+      <option name="MAIN_CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="TEST_OBJECT" value="pattern" />
+      <option name="VM_PARAMETERS" value="-ea -Djava.library.path=$USER_HOME$/lib/Executor/build/" />
+      <option name="PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" />
+      <patterns>
+        <pattern testClass="tutorial.Views" />
+        <pattern testClass="tutorial.applications.DotProduct" />
+      </patterns>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="JUnit" factoryName="JUnit">
+      <option name="MAIN_CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="TEST_OBJECT" value="class" />
+      <option name="VM_PARAMETERS" value="-ea -Djava.library.path=$USER_HOME$/lib/Executor/build/" />
+      <option name="PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="Remote">
+      <option name="USE_SOCKET_TRANSPORT" value="false" />
+      <option name="SERVER_MODE" value="false" />
+      <option name="SHMEM_ADDRESS" />
+      <option name="HOST" />
+      <option name="PORT" />
+      <option name="AUTO_RESTART" value="false" />
+      <method v="2" />
+    </configuration>
+    <configuration name="avus_remote" type="Remote" show_console_on_std_err="true" show_console_on_std_out="true">
+      <output_file path="/tmp/logs/avus_remote.log" is_save="true" />
+      <log_file checked="false" alias="/tmp/logs/avus_remote.log" path="/tmp/logs/avus_remote.log" skipped="false" />
+      <module name="Lift" />
+      <option name="USE_SOCKET_TRANSPORT" value="true" />
+      <option name="SERVER_MODE" value="false" />
+      <option name="SHMEM_ADDRESS" />
+      <option name="HOST" value="avus" />
+      <option name="PORT" value="8000" />
+      <option name="AUTO_RESTART" value="false" />
+      <RunnerSettings RunnerId="Debug">
+        <option name="DEBUG_PORT" value="8000" />
+        <option name="LOCAL" value="false" />
+      </RunnerSettings>
+      <method v="2" />
+    </configuration>
+    <configuration name="avus_server" type="Remote">
+      <option name="USE_SOCKET_TRANSPORT" value="true" />
+      <option name="SERVER_MODE" value="true" />
+      <option name="SHMEM_ADDRESS" />
+      <option name="HOST" />
+      <option name="PORT" value="8000" />
+      <option name="AUTO_RESTART" value="false" />
+      <RunnerSettings RunnerId="Debug">
+        <option name="DEBUG_PORT" value="8000" />
+        <option name="LOCAL" value="false" />
+      </RunnerSettings>
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Twisted Trial">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Unittests">
+      <module name="Lift" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="JUnit.All in Lift" />
+      <item itemvalue="JUnit.TestDecoder" />
+      <item itemvalue="JUnit.TestHost.test_split_join" />
+      <item itemvalue="JUnit.TestONNXTypes" />
+      <item itemvalue="JUnit.Views and 1 more" />
+      <item itemvalue="Remote.avus_remote" />
+      <item itemvalue="Remote.avus_server" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="JUnit.Views and 1 more" />
+        <item itemvalue="JUnit.TestONNXTypes" />
+        <item itemvalue="JUnit.TestHost.test_split_join" />
+        <item itemvalue="JUnit.TestDecoder" />
+        <item itemvalue="JUnit.All in Lift" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SbtLocalSettings">
+    <option name="availableProjects">
+      <map>
+        <entry>
+          <key>
+            <ExternalProjectPojo>
+              <option name="name" value="Lift" />
+              <option name="path" value="$PROJECT_DIR$" />
+            </ExternalProjectPojo>
+          </key>
+          <value>
+            <list>
+              <ExternalProjectPojo>
+                <option name="name" value="root [file:/home/nm/avus_remotes/lift/]" />
+                <option name="path" value="$PROJECT_DIR$" />
+              </ExternalProjectPojo>
+              <ExternalProjectPojo>
+                <option name="name" value="profiler [file:/home/nm/avus_remotes/lift/lib/Profiler/]" />
+                <option name="path" value="$PROJECT_DIR$/lib/Profiler" />
+              </ExternalProjectPojo>
+              <ExternalProjectPojo>
+                <option name="name" value="Lift-build" />
+                <option name="path" value="$PROJECT_DIR$/project" />
+              </ExternalProjectPojo>
+              <ExternalProjectPojo>
+                <option name="name" value="Profiler-build" />
+                <option name="path" value="$PROJECT_DIR$/lib/Profiler/project" />
+              </ExternalProjectPojo>
+            </list>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="modificationStamps">
+      <map>
+        <entry key="$PROJECT_DIR$/build.sbt" value="1621507628" />
+        <entry key="$PROJECT_DIR$/project/build.properties" value="1198701921" />
+        <entry key="$PROJECT_DIR$/project/plugins.sbt" value="3012093598" />
+        <entry key="$PROJECT_DIR$/project/scalapb.sbt" value="2236711139" />
+        <entry key="$USER_HOME$/build.sbt" value="1621507628" />
+        <entry key="$USER_HOME$/project/build.properties" value="1198701921" />
+        <entry key="$USER_HOME$/project/plugins.sbt" value="3012093598" />
+        <entry key="$USER_HOME$/project/scalapb.sbt" value="2236711139" />
+      </map>
+    </option>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration>$USER_HOME$/.subversion</configuration>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="bd5a70aa-774d-4f1b-9c6e-8b8217cb33ea" name="Default Changelist" comment="" />
+      <created>1543931295543</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1543931295543</updated>
+      <workItem from="1543931297681" duration="11004000" />
+      <workItem from="1544629793080" duration="205000" />
+      <workItem from="1544630044427" duration="76157000" />
+      <workItem from="1548851737301" duration="1710000" />
+      <workItem from="1548853499920" duration="284000" />
+      <workItem from="1548853948733" duration="3525000" />
+      <workItem from="1548858396188" duration="1000000" />
+      <workItem from="1548859435301" duration="653000" />
+      <workItem from="1548860175496" duration="447000" />
+      <workItem from="1548860659323" duration="8631000" />
+      <workItem from="1548946225397" duration="534000" />
+      <workItem from="1549029738219" duration="50000" />
+      <workItem from="1549029816115" duration="88000" />
+      <workItem from="1549029952232" duration="4372000" />
+      <workItem from="1549034355695" duration="6714000" />
+      <workItem from="1549539329511" duration="15831000" />
+    </task>
+    <task id="LOCAL-00001" summary="Added the ONNX-&gt;Conv primitive">
+      <created>1544809256866</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1544809256866</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Added a high-level expression for the ReLU layer">
+      <created>1545056429299</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1545056429299</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Added expressions for the first fully connected layer in a CNN">
+      <created>1545064521669</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1545064521669</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Type: added array constructor from the list of lengths. ONNX: added the Broadcastable trait for operators that support broadcasting and the Add operator.">
+      <created>1545070433344</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1545070433344</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Fixed a bug with PrintTypeInConsole">
+      <created>1545070859574</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1545070859574</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Added MaxPool and Relu operators. Moved Broadcastable to the package object. Refactored Conv cosmetically.">
+      <created>1545233753485</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1545233753485</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Added the Reshape operator. Replaced all Ints with ArithExpr. Fixed a few typos.">
+      <created>1545245502375</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1545245502375</updated>
+    </task>
+    <task id="LOCAL-00008" summary="Added the ONNX-&gt;MatMul operator. Fixed a few buygs in Reshape">
+      <created>1545318874322</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1545318874322</updated>
+    </task>
+    <task id="LOCAL-00009" summary="Added an example of ONNX DSL operator composition. Fixed a few operator AST nodes-related bugs.">
+      <created>1545325708571</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1545325708571</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Fixed bugs in the tests and MaxPool operator.">
+      <created>1545326859075</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1545326859075</updated>
+    </task>
+    <task id="LOCAL-00011" summary="Generalised paths">
+      <created>1545329735056</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1545329735056</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Merge branch 'host_code_gen_fft' into host_code_gen_fft_nn&#10;&#10;# Conflicts:&#10;#&#9;src/test/host/TestHost.scala">
+      <created>1549033953560</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1549033953560</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Merge branch 'host_code_gen_fft' into host_code_gen_fft_nn&#10;&#10;# Conflicts:&#10;#&#9;src/test/host/TestHost.scala">
+      <created>1549540086006</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1549540086007</updated>
+    </task>
+    <task id="LOCAL-00014" summary="text">
+      <created>1549552282587</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1549552282587</updated>
+    </task>
+    <task id="LOCAL-00015" summary="text">
+      <created>1549553575705</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1549553575705</updated>
+    </task>
+    <task id="LOCAL-00016" summary="empty commit">
+      <created>1549553705908</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1549553705908</updated>
+    </task>
+    <task id="LOCAL-00017" summary="empty commit">
+      <created>1549553972546</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1549553972546</updated>
+    </task>
+    <task id="LOCAL-00018" summary="empty commit">
+      <created>1549554017345</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1549554017345</updated>
+    </task>
+    <task id="LOCAL-00019" summary="empty commit">
+      <created>1549563825452</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1549563825452</updated>
+    </task>
+    <task id="LOCAL-00020" summary="empty commit">
+      <created>1549564256960</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1549564256960</updated>
+    </task>
+    <task id="LOCAL-00021" summary="empty commit">
+      <created>1549564281241</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1549564281241</updated>
+    </task>
+    <task id="LOCAL-00022" summary="empty commit">
+      <created>1549566336504</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1549566336504</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
+    <servers />
+  </component>
+  <component name="TestHistory">
+    <history-entry file="TestDecoder - 2019.01.30 at 13h 37m 08s.xml">
+      <configuration name="TestDecoder" configurationId="JUnit" />
+    </history-entry>
+    <history-entry file="TestDecoder - 2019.01.30 at 13h 43m 08s.xml">
+      <configuration name="TestDecoder" configurationId="JUnit" />
+    </history-entry>
+    <history-entry file="TestDecoder - 2019.01.30 at 13h 43m 15s.xml">
+      <configuration name="TestDecoder" configurationId="JUnit" />
+    </history-entry>
+    <history-entry file="TestDecoder - 2019.01.30 at 14h 04m 24s.xml">
+      <configuration name="TestDecoder" configurationId="JUnit" />
+    </history-entry>
+    <history-entry file="TestONNXTypes - 2019.01.30 at 14h 22m 16s.xml">
+      <configuration name="TestONNXTypes" configurationId="JUnit" />
+    </history-entry>
+    <history-entry file="Views_and_1_more - 2019.01.30 at 14h 21m 51s.xml">
+      <configuration name="Views and 1 more" configurationId="JUnit" />
+    </history-entry>
+    <history-entry file="All_in_Lift - 2019.01.30 at 14h 46m 49s.xml">
+      <configuration name="All in Lift" configurationId="JUnit" />
+    </history-entry>
+    <history-entry file="All_in_Lift - 2019.01.30 at 15h 08m 38s.xml">
+      <configuration name="All in Lift" configurationId="JUnit" />
+    </history-entry>
+    <history-entry file="All_in_Lift - 2019.01.30 at 15h 15m 06s.xml">
+      <configuration name="All in Lift" configurationId="JUnit" />
+    </history-entry>
+    <history-entry file="All_in_Lift - 2019.01.30 at 15h 29m 46s.xml">
+      <configuration name="All in Lift" configurationId="JUnit" />
+    </history-entry>
+  </component>
+  <component name="TimeTrackingManager">
+    <option name="totallyTimeSpent" value="135216000" />
+  </component>
+  <component name="TodoView">
+    <todo-panel id="selected-file">
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
+    <todo-panel id="all">
+      <are-packages-shown value="true" />
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="1267" y="475" width="1853" height="1173" extended-state="6" />
+    <editor active="true" />
+    <layout>
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.1615938" />
+      <window_info id="Structure" order="1" weight="0.25" />
+      <window_info id="Designer" order="2" />
+      <window_info id="Image Layers" order="3" />
+      <window_info id="UI Designer" order="4" />
+      <window_info id="Capture Tool" order="5" />
+      <window_info id="Favorites" order="6" side_tool="true" />
+      <window_info id="Nl-Palette" order="7" />
+      <window_info anchor="bottom" id="Messages" weight="0.3298279" />
+      <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Find" order="1" weight="0.3298279" />
+      <window_info anchor="bottom" id="Run" order="2" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="bottom" id="Terminal" order="7" weight="0.3298279" />
+      <window_info anchor="bottom" id="Event Log" order="8" sideWeight="0.5008301" side_tool="true" weight="0.32919848" />
+      <window_info anchor="bottom" id="Version Control" order="9" weight="0.3298279" />
+      <window_info anchor="bottom" id="TeamCity" order="10" sideWeight="0.4991699" weight="0.41300192" />
+      <window_info anchor="bottom" id="Build" order="11" />
+      <window_info anchor="bottom" id="sbt-shell-toolwindow" order="12" />
+      <window_info anchor="bottom" id="Docker" order="13" show_stripe_button="false" />
+      <window_info anchor="bottom" id="Database Changes" order="14" />
+      <window_info anchor="right" id="Commander" order="0" weight="0.4" />
+      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
+      <window_info anchor="right" id="Palette" order="3" />
+      <window_info anchor="right" id="Properties" order="4" />
+      <window_info anchor="right" id="Capture Analysis" order="5" />
+      <window_info anchor="right" id="SBT" order="6" />
+      <window_info anchor="right" id="Data View" order="7" />
+      <window_info anchor="right" id="Maven Projects" order="8" />
+      <window_info anchor="right" id="Database" order="9" />
+      <window_info anchor="right" id="Palette&#9;" order="10" />
+      <window_info anchor="right" id="Theme Preview" order="11" />
+      <window_info anchor="right" id="Maven" order="12" />
+      <window_info anchor="right" id="sbt" order="13" />
+      <window_info anchor="right" id="SciView" order="14" />
+    </layout>
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="1" />
+  </component>
+  <component name="Vcs.Log.History.Properties">
+    <option name="COLUMN_ORDER">
+      <list>
+        <option value="0" />
+        <option value="2" />
+        <option value="3" />
+        <option value="1" />
+      </list>
+    </option>
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="RECENTLY_FILTERED_USER_GROUPS">
+                <collection />
+              </option>
+              <option name="RECENTLY_FILTERED_BRANCH_GROUPS">
+                <collection />
+              </option>
+              <option name="COLUMN_ORDER">
+                <list>
+                  <option value="0" />
+                  <option value="1" />
+                  <option value="2" />
+                  <option value="3" />
+                </list>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="RECENT_FILTERS">
+      <map>
+        <entry key="Branch">
+          <value>
+            <list />
+          </value>
+        </entry>
+        <entry key="User">
+          <value>
+            <list />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
+    <option name="CHECK_NEW_TODO" value="false" />
+    <ignored-roots>
+      <path value="$USER_HOME$" />
+      <path value="$USER_HOME$/lib/ArithExpr" />
+    </ignored-roots>
+    <MESSAGE value="Added the ONNX-&gt;Conv primitive" />
+    <MESSAGE value="Added a high-level expression for the ReLU layer" />
+    <MESSAGE value="Added expressions for the first fully connected layer in a CNN" />
+    <MESSAGE value="Type: added array constructor from the list of lengths. ONNX: added the Broadcastable trait for operators that support broadcasting and the Add operator." />
+    <MESSAGE value="Fixed a bug with PrintTypeInConsole" />
+    <MESSAGE value="Added MaxPool and Relu operators. Moved Broadcastable to the package object. Refactored Conv cosmetically." />
+    <MESSAGE value="Added the Reshape operator. Replaced all Ints with ArithExpr. Fixed a few typos." />
+    <MESSAGE value="Added the ONNX-&gt;MatMul operator. Fixed a few buygs in Reshape" />
+    <MESSAGE value="Added an example of ONNX DSL operator composition. Fixed a few operator AST nodes-related bugs." />
+    <MESSAGE value="Fixed bugs in the tests and MaxPool operator." />
+    <MESSAGE value="Generalised paths" />
+    <MESSAGE value="Merge branch 'host_code_gen_fft' into host_code_gen_fft_nn&#10;&#10;# Conflicts:&#10;#&#9;src/test/host/TestHost.scala" />
+    <MESSAGE value="text" />
+    <MESSAGE value="empty commit" />
+    <option name="LAST_COMMIT_MESSAGE" value="empty commit" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <breakpoint type="java-exception">
+          <properties class="java.lang.IllegalArgumentException" package="java.lang" />
+          <option name="timeStamp" value="28" />
+        </breakpoint>
+        <breakpoint type="java-exception">
+          <properties class="opencl.executor.IllegalKernelArgument" package="opencl.executor" />
+          <option name="timeStamp" value="29" />
+        </breakpoint>
+        <breakpoint type="java-exception">
+          <properties class="java.lang.NullPointerException" package="java.lang" />
+          <option name="timeStamp" value="30" />
+        </breakpoint>
+        <breakpoint type="java-exception">
+          <properties class="java.lang.IllegalArgumentException" package="java.lang" />
+          <option name="timeStamp" value="33" />
+        </breakpoint>
+        <breakpoint type="java-exception">
+          <properties class="java.lang.AssertionError" package="java.lang" />
+          <option name="timeStamp" value="34" />
+        </breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="antWorkspaceConfiguration">
+    <option name="IS_AUTOSCROLL_TO_SOURCE" value="false" />
+    <option name="FILTER_TARGETS" value="false" />
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/package.scala" />
+    <entry file="file://$USER_HOME$/src/test/opencl/generator/matrixVector/TestMatrixVector.scala" />
+    <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/Reshape.scala" />
+    <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/MatMul.scala" />
+    <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/Relu.scala" />
+    <entry file="file://$USER_HOME$/src/test/arithmetic/TestArith.scala" />
+    <entry file="file://$USER_HOME$/src/test/ir/ast/TestExpr.scala" />
+    <entry file="file://$USER_HOME$/src/test/ir/ast/TestLambda.scala" />
+    <entry file="file://$USER_HOME$/src/test/utils/TestOutputKernelJSON.scala" />
+    <entry file="file://$USER_HOME$/src/main/core/generator/GenericAST.scala" />
+    <entry file="file://$USER_HOME$/src/main/ir/ast/Expr.scala" />
+    <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/MaxPool.scala" />
+    <entry file="file://$USER_HOME$/src/test/ir/ast/onnx/testONNXOperators.scala" />
+    <entry file="file://$USER_HOME$/src/main/cbackends/common/CBackendsCompilerTrait.scala" />
+    <entry file="file://$USER_HOME$/src/main/ir/ast/Lambda.scala" />
+    <entry file="file://$USER_HOME$/src/main/opencl/ir/package.scala" />
+    <entry file="file://$USER_HOME$/src/test/opencl/generator/TestMisc.scala" />
+    <entry file="file://$USER_HOME$/src/test/cbackends/sdh/1.vector_add_multi_tile/lib_sched.cpp" />
+    <entry file="file://$USER_HOME$/target/scala-2.11/src_managed/main/caffe/caffe/AccuracyParameter.scala" />
+    <entry file="file://$USER_HOME$/src/test/host/TestHost.scala" />
+    <entry file="file://$USER_HOME$/src/test/cbackends/sdh/TestSDH.scala" />
+    <entry file="file://$USER_HOME$/src/main/ir/ast/Decl.scala" />
+    <entry file="file://$USER_HOME$/src/test/cbackends/mpi/TestMPI.scala" />
+    <entry file="file://$USER_HOME$/src/main/cbackends/common/view/OutputView.scala" />
+    <entry file="file://$USER_HOME$/src/test/ir/ast/onnx/TestONNXTypes.scala" />
+    <entry file="jar://$USER_HOME$/.ivy2/cache/org.scala-lang/scala-library/srcs/scala-library-2.11.8-sources.jar!/scala/Predef.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="3588">
+          <caret line="169" column="6" selection-start-line="169" selection-start-column="6" selection-end-line="169" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/src/main/benchmarks/Benchmark.scala" />
+    <entry file="file://$USER_HOME$/src/main/cbackends/onnx/lowering/LoweringONNXIR2LiftIR.scala" />
+    <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/Conv.scala" />
+    <entry file="file://$USER_HOME$/src/test/opencl/executor/TestDecoder.scala" />
+    <entry file="file://$USER_HOME$/src/main/opencl/executor/Executor.java" />
+    <entry file="file://$USER_HOME$/src/main/ir/Type.scala" />
+    <entry file="file://$USER_HOME$/src/main/utils/NativeUtils.java" />
+    <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/Add.scala" />
+    <entry file="file://$USER_HOME$/all_tests.tmp" />
+    <entry file="file://$USER_HOME$/src/test/cbackends/host/TestHost.scala" />
+    <entry file="file://$USER_HOME$/Test Results - All_in_Lift.xml" />
+    <entry file="file://$USER_HOME$/log.txt" />
+    <entry file="file://$USER_HOME$/log.xml" />
+    <entry file="jar://$USER_HOME$/bin/jdk1.8.0_191/src.zip!/java/lang/UNIXProcess.java" />
+    <entry file="file://$USER_HOME$/.gitmodules" />
+    <entry file="file://$USER_HOME$/updateSubmodules.sh" />
+    <entry file="jar://$USER_HOME$/bin/jdk1.8.0_191/src.zip!/java/io/FileInputStream.java" />
+    <entry file="file://$USER_HOME$/src/test/analysis/TestAccessCounts.scala" />
+    <entry file="file://$PROJECT_DIR$/lib/ArithExpr/src/main/lift/arithmetic/simplifier/SimplifyMod.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="230">
+          <caret line="154" column="31" selection-start-line="154" selection-start-column="31" selection-end-line="154" selection-end-column="31" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/core/generator/GenericAST.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-857">
+          <caret line="607" column="13" selection-start-line="607" selection-start-column="13" selection-end-line="607" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/opencl/generator/UnrollAndInlineValues.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="400">
+          <caret line="179" column="12" selection-start-line="179" selection-start-column="12" selection-end-line="179" selection-end-column="12" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/test/opencl/generator/TestUnrollAndInlineValues.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="224">
+          <caret line="12" column="6" selection-start-line="12" selection-start-column="6" selection-end-line="12" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/test/analysis/TestAccessCounts.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="247">
+          <caret line="13" column="2" selection-start-line="13" selection-start-column="2" selection-end-line="13" selection-end-column="2" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="jar://$USER_HOME$/.ivy2/cache/org.scala-lang/scala-library/srcs/scala-library-2.11.8-sources.jar!/scala/PartialFunction.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="195">
+          <caret line="252" selection-start-line="252" selection-end-line="252" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/rewriting/rules/CopyRules.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="515">
+          <caret line="65" lean-forward="true" selection-start-line="65" selection-end-line="65" />
+        </state>
+      </provider>
+    </entry>
+  </component>
+  <component name="masterDetails">
+    <states>
+      <state key="ArtifactsStructureConfigurable.UI">
+        <settings>
+          <artifact-editor />
+          <last-edited>liftJar</last-edited>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.20114942" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+      <state key="FacetStructureConfigurable.UI">
+        <settings>
+          <last-edited>No facets are configured</last-edited>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+      <state key="GlobalLibrariesConfigurable.UI">
+        <settings>
+          <last-edited>Python 3.5.2 (~/anaconda3/envs/tensorflow/bin/python) interpreter library</last-edited>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+      <state key="JdkListConfigurable.UI">
+        <settings>
+          <last-edited>1.8</last-edited>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+      <state key="ModuleStructureConfigurable.UI">
+        <settings>
+          <last-edited>Lift</last-edited>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.20114942" />
+                <option value="0.6" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+      <state key="ProjectLibrariesConfigurable.UI">
+        <settings>
+          <last-edited>sbt: ch.qos.logback:logback-classic:1.1.7:jar</last-edited>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.20114942" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+    </states>
+  </component>
+</project>
