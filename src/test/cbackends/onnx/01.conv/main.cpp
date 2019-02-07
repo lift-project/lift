@@ -6,9 +6,9 @@ using namespace std;
 int main(int argc, char *argv[])
 {
 
-	int const N = 5;
+	int const N = 8;
 	int const output_N = 3;
-	int const feature_size=3;
+	int const feature_size=6;
 	vector<float> in(N*N*N,1.0f), weights(feature_size*feature_size*feature_size, 2.0f);
 	float *out = nullptr;
 

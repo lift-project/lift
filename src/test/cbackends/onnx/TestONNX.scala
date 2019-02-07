@@ -56,8 +56,10 @@ class TestONNX {
     val f = fun(
       //ArrayType(Float,List(Cst(1),Cst(3),Cst(20),Cst(20))),
       //ArrayType(Float,List(Cst(19),Cst(20),Cst(20))),
-      ArrayType(Float,List(Cst(5),Cst(5),Cst(5))),
-      ArrayType(Float,List(Cst(5),Cst(3),Cst(4),Cst(4))),
+      //ArrayType(Float,List(Cst(5),Cst(5),Cst(5))),
+      //ArrayType(Float,List(Cst(5),Cst(3),Cst(4),Cst(4))),
+      ArrayType(Float,List(Cst(8),Cst(8),Cst(8))),
+      ArrayType(Float,List(Cst(6),Cst(6),Cst(6))),
       (X,W) => {
         ConvWithoutBias(
           auto_pad = "NOTSET",
@@ -73,7 +75,7 @@ class TestONNX {
     ONNXCompiler ! (f, path, List(host_file, gpu_file))
 
     val actual : String = native_compile_and_run(path, host_file)
-    val expected : String = "27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 27 \n"
+    val expected : String = "432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 432 \n"
     assertEquals(expected, actual)
 
 
