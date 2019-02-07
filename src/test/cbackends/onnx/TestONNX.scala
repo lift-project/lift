@@ -65,7 +65,7 @@ class TestONNX {
           auto_pad = "NOTSET",
           dilations = List(0,0),
           group = 1,
-          kernel_shape = List(3,4,4),
+          kernel_shape = List(6,6,6),
           pads = List(1,1),
           strides = List(1,1)
         ) (X,W)
