@@ -23,6 +23,7 @@
     <option name="FILTER_BY_CURRENT_PROJECT" value="false" />
     <SELECTED_PROJECT id="project2" />
     <SELECTED_TYPE id="bt2" />
+    <SELECTED_DEBUG_TYPE id="bt3" />
     <treeState key="responsibilities">
       <selectedPath>
         <pathElement>
@@ -85,9 +86,29 @@
         </pathElement>
       </selectedPath>
     </treeState>
+    <treeState key="selectConfigurations.debug">
+      <expandedPath>
+        <pathElement>
+          <option name="myNodeId" value="project2" />
+          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.ProjectDescriptor" />
+        </pathElement>
+      </expandedPath>
+      <selectedPath>
+        <pathElement>
+          <option name="myNodeId" value="project2" />
+          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.ProjectDescriptor" />
+        </pathElement>
+        <pathElement>
+          <option name="myNodeId" value="bt3" />
+          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.BuildTypeDescriptor" />
+        </pathElement>
+      </selectedPath>
+    </treeState>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="bd5a70aa-774d-4f1b-9c6e-8b8217cb33ea" name="Default Changelist" comment="">
+    <list default="true" id="bd5a70aa-774d-4f1b-9c6e-8b8217cb33ea" name="Default Changelist" comment="empty commit">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/test/analysis/TestAccessCounts.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/analysis/TestAccessCounts.scala" afterDir="false" />
     </list>
     <ignored path="$USER_HOME$/target/" />
@@ -144,11 +165,20 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/rewriting/rules/CopyRules.scala">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="515">
-              <caret line="65" lean-forward="true" selection-start-line="65" selection-end-line="65" />
+            <state relative-caret-position="187">
+              <caret line="80" column="30" selection-start-line="80" selection-start-column="30" selection-end-line="80" selection-end-column="30" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/src/main/opencl/executor/Execute.scala">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="210">
+              <caret line="346" column="67" selection-start-line="346" selection-start-column="67" selection-end-line="346" selection-end-column="67" />
             </state>
           </provider>
         </entry>
@@ -156,8 +186,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/core/generator/GenericAST.scala">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-857">
-              <caret line="607" column="13" selection-start-line="607" selection-start-column="13" selection-end-line="607" selection-end-column="13" />
+            <state relative-caret-position="224">
+              <caret line="654" column="13" selection-start-line="654" selection-start-column="13" selection-end-line="654" selection-end-column="13" />
             </state>
           </provider>
         </entry>
@@ -268,6 +298,7 @@
         <option value="$USER_HOME$/.gitmodules" />
         <option value="$USER_HOME$/src/test/analysis/TestAccessCounts.scala" />
         <option value="$PROJECT_DIR$/src/test/analysis/TestAccessCounts.scala" />
+        <option value="$PROJECT_DIR$/src/main/opencl/executor/Execute.scala" />
       </list>
     </option>
   </component>
@@ -321,7 +352,7 @@
     <property name="SearchEverywhereHistoryKey" value="testhost&#9;null&#9;null&#10;testsdh&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/cbackends/sdh/TestSDH.scala&#10;TestSDH&#9;null&#9;null&#10;lib_sched.cpp&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/cbackends/sdh/1.vector_add_multi_tile/lib_sched.cpp&#10;testmpi&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/cbackends/mpi/TestMPI.scala&#10;TestHost&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/cbackends/host/TestHost.scala&#10;testCNN&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/nn/cnn/TestCNN.scala" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="aspect.path.notification.shown" value="true" />
-    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1549568526911" />
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1549573675576" />
     <property name="last_opened_file_path" value="/usr/bin/git" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
@@ -353,33 +384,12 @@
     </option>
   </component>
   <component name="RunManager" selected="JUnit.All in Lift">
-    <configuration name="All in Lift" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true" show_console_on_std_err="true" show_console_on_std_out="true">
-      <output_file path="/tmp/avus.log" is_save="true" />
-      <log_file checked="false" alias="/tmp/avus.log" path="/tmp/avus.log" skipped="false" />
+    <configuration name="All in Lift" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
       <module name="Lift" />
       <option name="PACKAGE_NAME" value="" />
       <option name="MAIN_CLASS_NAME" value="" />
       <option name="METHOD_NAME" value="" />
       <option name="TEST_OBJECT" value="package" />
-      <option name="VM_PARAMETERS" value="-ea -Djava.library.path=$USER_HOME$/lib/Executor/build/" />
-      <option name="PARAMETERS" value="" />
-      <option name="WORKING_DIRECTORY" value="" />
-      <method v="2">
-        <option name="MakeProject" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="TestDecoder" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
-      <module name="Lift" />
-      <extension name="coverage">
-        <pattern>
-          <option name="PATTERN" value="opencl.executor.*" />
-          <option name="ENABLED" value="true" />
-        </pattern>
-      </extension>
-      <option name="PACKAGE_NAME" value="opencl.executor" />
-      <option name="MAIN_CLASS_NAME" value="opencl.executor.TestDecoder" />
-      <option name="METHOD_NAME" value="" />
-      <option name="TEST_OBJECT" value="class" />
       <option name="VM_PARAMETERS" value="-ea -Djava.library.path=$USER_HOME$/lib/Executor/build/" />
       <option name="PARAMETERS" value="" />
       <option name="WORKING_DIRECTORY" />
@@ -522,21 +532,19 @@
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="JUnit.All in Lift" />
-      <item itemvalue="JUnit.TestDecoder" />
       <item itemvalue="JUnit.TestHost.test_split_join" />
       <item itemvalue="JUnit.TestONNXTypes" />
       <item itemvalue="JUnit.Views and 1 more" />
       <item itemvalue="Remote.avus_remote" />
       <item itemvalue="Remote.avus_server" />
+      <item itemvalue="JUnit.All in Lift" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="JUnit.All in Lift" />
         <item itemvalue="JUnit.Views and 1 more" />
         <item itemvalue="JUnit.TestONNXTypes" />
         <item itemvalue="JUnit.TestHost.test_split_join" />
-        <item itemvalue="JUnit.TestDecoder" />
-        <item itemvalue="JUnit.All in Lift" />
       </list>
     </recent_temporary>
   </component>
@@ -611,7 +619,7 @@
       <workItem from="1549029816115" duration="88000" />
       <workItem from="1549029952232" duration="4372000" />
       <workItem from="1549034355695" duration="6714000" />
-      <workItem from="1549539329511" duration="15831000" />
+      <workItem from="1549539329511" duration="21086000" />
     </task>
     <task id="LOCAL-00001" summary="Added the ONNX-&gt;Conv primitive">
       <created>1544809256866</created>
@@ -767,7 +775,14 @@
       <option name="project" value="LOCAL" />
       <updated>1549566336504</updated>
     </task>
-    <option name="localTasksCounter" value="23" />
+    <task id="LOCAL-00023" summary="empty commit">
+      <created>1549573381499</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1549573381499</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
     <servers />
   </component>
   <component name="TestHistory">
@@ -803,7 +818,7 @@
     </history-entry>
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="135216000" />
+    <option name="totallyTimeSpent" value="140471000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -816,7 +831,6 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="1267" y="475" width="1853" height="1173" extended-state="6" />
-    <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.1615938" />
       <window_info id="Structure" order="1" weight="0.25" />
@@ -830,14 +844,14 @@
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" weight="0.3298279" />
       <window_info anchor="bottom" id="Run" order="2" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.39961758" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" />
       <window_info anchor="bottom" id="Terminal" order="7" weight="0.3298279" />
       <window_info anchor="bottom" id="Event Log" order="8" sideWeight="0.5008301" side_tool="true" weight="0.32919848" />
       <window_info anchor="bottom" id="Version Control" order="9" weight="0.3298279" />
-      <window_info anchor="bottom" id="TeamCity" order="10" sideWeight="0.4991699" weight="0.41300192" />
+      <window_info active="true" anchor="bottom" id="TeamCity" order="10" sideWeight="0.4991699" visible="true" weight="0.41300192" />
       <window_info anchor="bottom" id="Build" order="11" />
       <window_info anchor="bottom" id="sbt-shell-toolwindow" order="12" />
       <window_info anchor="bottom" id="Docker" order="13" show_stripe_button="false" />
@@ -958,6 +972,12 @@
           <properties class="java.lang.AssertionError" package="java.lang" />
           <option name="timeStamp" value="34" />
         </breakpoint>
+        <line-breakpoint enabled="true" type="scala-line">
+          <url>file://$PROJECT_DIR$/src/main/opencl/executor/Execute.scala</url>
+          <line>345</line>
+          <properties />
+          <option name="timeStamp" value="35" />
+        </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
   </component>
@@ -966,7 +986,6 @@
     <option name="FILTER_TARGETS" value="false" />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/package.scala" />
     <entry file="file://$USER_HOME$/src/test/opencl/generator/matrixVector/TestMatrixVector.scala" />
     <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/Reshape.scala" />
     <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/MatMul.scala" />
@@ -1025,8 +1044,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/core/generator/GenericAST.scala">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-857">
-          <caret line="607" column="13" selection-start-line="607" selection-start-column="13" selection-end-line="607" selection-end-column="13" />
+        <state relative-caret-position="224">
+          <caret line="654" column="13" selection-start-line="654" selection-start-column="13" selection-end-line="654" selection-end-column="13" />
         </state>
       </provider>
     </entry>
@@ -1060,8 +1079,15 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/rewriting/rules/CopyRules.scala">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="515">
-          <caret line="65" lean-forward="true" selection-start-line="65" selection-end-line="65" />
+        <state relative-caret-position="187">
+          <caret line="80" column="30" selection-start-line="80" selection-start-column="30" selection-end-line="80" selection-end-column="30" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/opencl/executor/Execute.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="210">
+          <caret line="346" column="67" selection-start-line="346" selection-start-column="67" selection-end-line="346" selection-end-column="67" />
         </state>
       </provider>
     </entry>

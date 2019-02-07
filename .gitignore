@@ -10,7 +10,6 @@ src/main/resources/lib/libexecutor-jni.*
 .kernels
 *.out
 *.log
-*.iml
 *.html
 *.pyc
 *.swp
