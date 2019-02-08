@@ -873,4 +873,30 @@ class TestHost {
     println("Test case test_slide2d done!")
   }
 
+  @Test
+  def test_pool(): Unit = {
+
+    val path = s"$common_path/26.pool"
+    val file = "libpool.cpp"
+
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 8), 8), 8),
+      in => MapSeq( MapSeq( Join() o MapSeq(
+        fun(y => ReduceSeq(add_and_divide(6*6*8), 0.0f) o Join() o Join() $ y )
+      ) ) ) o Slide3D(6,1,6,1,8,1) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    //6*6*8*2 = 576
+    val expected : String = "576 576 576 576 576 576 576 576 576 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide2d done!")
+  }
+
 }
