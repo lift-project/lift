@@ -99,12 +99,13 @@ class TestONNX {
 
 
     val f = fun(
-      ArrayType(Float,List(Cst(1),Cst(5),Cst(19),Cst(19))),
+      //ArrayType(Float,List(Cst(1),Cst(5),Cst(19),Cst(19))),
+      ArrayType(Float,List(Cst(8),Cst(8),Cst(8))),
       (Y)=> {
         AveragePool(
           auto_pad = "NOTSET",
           count_include_pad = 0,
-          kernel_shape = List(5,6,6),
+          kernel_shape = List(6,6,8),
           pads = List(0,0,2,2,2,2),
           strides = List(1,1)
         ) (Y)}
@@ -113,7 +114,7 @@ class TestONNX {
     ONNXCompiler ! (f, path, List(host_file, gpu_file))
 
     val actual : String = native_compile_and_run(path, host_file)
-    val expected : String = "576 576 576 576 576 576 576 576 576 \n"
+    val expected : String = "2 2 2 2 2 2 2 2 2 \n"
     assertEquals(expected, actual)
 
 
