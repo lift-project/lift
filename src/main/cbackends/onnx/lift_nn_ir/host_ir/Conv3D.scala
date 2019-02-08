@@ -9,7 +9,7 @@ import opencl.ir.{Float, add, _}
 
 object Conv3D {
 
-  def apply(input:Param, weights:Param) : Expr = {
+  def apply(input:Expr, weights:Expr) : Expr = {
     //def apply() : FunDecl = {
 
     //val N = SizeVar("N")

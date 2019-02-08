@@ -10,19 +10,18 @@ import opencl.ir.id
 object LoweringONNXIR2LiftHostIR {
 
 
-  def tranform(node: IRNode) : IRNode = {
+  def transform(expr: Expr) : Expr = {
 
-    node match {
-      case Lambda(params,body) =>
-        Lambda(params, tranform(body).asInstanceOf[Expr] )
+    expr match {
       case fc @ FunCall(c:ConvWithoutBias, args@_*) =>
         //assert(c.kernel_shape.length == 3)
         //FunCall(Conv3D(), args:_* )
         //FunCall(Conv3D(), args(0) )
         //transform_conv_without_bias(fc)
-        Conv3D(fc.args(0).asInstanceOf[Param], fc.args(1).asInstanceOf[Param])
+        assert(args.length == 2)
+        Conv3D(transform(fc.args(0)), transform(fc.args(1) ))
       case fc @ FunCall(p:AveragePool, arg) =>
-        Pool3D(arg.asInstanceOf[Param])
+        Pool3D(transform(arg))
       case x =>
         x
     }
@@ -37,7 +36,7 @@ object LoweringONNXIR2LiftHostIR {
 
   def apply(lambda: Lambda): Lambda = {
 
-    tranform(lambda).asInstanceOf[Lambda]
+    Lambda(lambda.params, transform(lambda.body) )
 
   }
 

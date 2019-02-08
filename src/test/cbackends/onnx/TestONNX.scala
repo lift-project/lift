@@ -64,7 +64,7 @@ class TestONNX {
           auto_pad = "NOTSET",
           dilations = List(0,0),
           group = 1,
-          kernel_shape = List(6,6,6),
+          kernel_shape = List(6,6,8),
           pads = List(1,1),
           strides = List(1,1)
         ) (X,W)
@@ -126,6 +126,53 @@ class TestONNX {
 
   }
 
+  @Test
+  def test_conv_pool_network(): Unit = {
+
+    val path = s"$common_path/03.conv_pool_network"
+    val host_file = "libconv_pool_network_host.cpp"
+    val gpu_file = "libconv_pool_network_gpu.cpp"
+
+    ("mkdir -p " + s"$path" ) !!
+
+
+    val f = fun(
+      ArrayType(Float,List(Cst(8),Cst(8),Cst(8))),
+      ArrayType(Float,List(Cst(6),Cst(6),Cst(8))),
+      (X,W) => {
+        AveragePool(
+          auto_pad = "NOTSET",
+          count_include_pad = 0,
+          kernel_shape = List(2,2,1),
+          pads = List(0,0,0,0,0,0),
+          strides = List(1,1)
+        ) (
+          ConvWithoutBias (
+            auto_pad = "NOTSET",
+            dilations = List(0,0),
+            group = 1,
+            kernel_shape = List(6,6,8),
+            pads = List(0,0),
+            strides = List(1,1)
+          ) (X,W)
+        )
+      }
+    )
+
+    ONNXCompiler ! (f, path, List(host_file, gpu_file))
+
+    val actual : String = native_compile_and_run(path, host_file)
+    val expected : String = "2 2 2 2 2 2 2 2 2 \n"
+    assertEquals(expected, actual)
+
+
+
+
+    println("cool")
+
+
+
+  }
 
 
 }

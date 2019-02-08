@@ -7,7 +7,7 @@ import opencl.ir.{Float, add, dividedBy, _}
 
 object Pool3D {
 
-  def apply(in: Param) : Expr = {
+  def apply(in: Expr) : Expr = {
 
     val counts = 6 * 6 * 8
 
