@@ -19,19 +19,15 @@ object LoweringONNXIR2LiftHostIR {
         //FunCall(Conv3D(), args(0) )
         //transform_conv_without_bias(fc)
         assert(args.length == 2)
-        Conv3D(transform(fc.args(0)), transform(fc.args(1) ))
+        Conv3D(fc, transform(fc.args(0)), transform(fc.args(1) ))
       case fc @ FunCall(p:AveragePool, arg) =>
-        Pool3D(transform(arg))
+        Pool3D(fc, transform(arg))
       case x =>
         x
     }
 
   }
 
-  def transform_conv_without_bias(fc : FunCall) : Expr = {
-
-    Conv3D(fc.args(0).asInstanceOf[Param], fc.args(1).asInstanceOf[Param])
-  }
 
 
   def apply(lambda: Lambda): Lambda = {

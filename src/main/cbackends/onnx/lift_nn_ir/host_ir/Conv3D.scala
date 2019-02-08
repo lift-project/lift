@@ -9,7 +9,7 @@ import opencl.ir.{Float, add, _}
 
 object Conv3D {
 
-  def apply(input:Expr, weights:Expr) : Expr = {
+  def apply(fc: FunCall, input:Expr, weights:Expr) : Expr = {
     //def apply() : FunDecl = {
 
     //val N = SizeVar("N")
@@ -53,7 +53,7 @@ object Conv3D {
 
         )
 
-      ) ) ) o Slide3D(feature_x_size, step, feature_y_size, step, feature_z_size, step) $ input
+      ) ) ) o Slide3D(feature_z_size, step, feature_y_size, step, feature_x_size, step) $ input
     //) ) ) o Slide3D(6,step) $ input
     /*
     )

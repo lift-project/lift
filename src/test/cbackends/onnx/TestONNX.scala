@@ -106,7 +106,7 @@ class TestONNX {
           auto_pad = "NOTSET",
           count_include_pad = 0,
           kernel_shape = List(6,6,8),
-          pads = List(0,0,2,2,2,2),
+          pads = List(0,0,0,0,0,0),
           strides = List(1,1)
         ) (Y)}
     )
@@ -145,7 +145,7 @@ class TestONNX {
           count_include_pad = 0,
           kernel_shape = List(2,2,1),
           pads = List(0,0,0,0,0,0),
-          strides = List(1,1)
+          strides = List(1,1,1)
         ) (
           ConvWithoutBias (
             auto_pad = "NOTSET",
@@ -153,7 +153,7 @@ class TestONNX {
             group = 1,
             kernel_shape = List(6,6,8),
             pads = List(0,0),
-            strides = List(1,1)
+            strides = List(1,1,1)
           ) (X,W)
         )
       }
