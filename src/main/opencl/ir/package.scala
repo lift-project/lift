@@ -2,6 +2,7 @@ package opencl
 
 import _root_.ir.{ScalarType, TupleType, Type}
 import _root_.ir.ast.{UserFun, Value}
+import lift.arithmetic.ArithExpr
 
 import scala.language.implicitConversions
 
@@ -100,6 +101,8 @@ package object ir {
                          "return x; }",
                          Seq(TupleType(Float, Float), TupleType(Float, Float)),
                          TupleType(Float, Float))
+
+  def dividedBy(divisor: ArithExpr) = UserFun("divide_by", "x", "return x/"+divisor.toString()+";", Float, Float)
   
   // Logical
   

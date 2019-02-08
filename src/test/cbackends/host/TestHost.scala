@@ -5,7 +5,7 @@ import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{Cst, SizeVar}
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
-import opencl.ir.{Float, add, _}
+import opencl.ir.{Float, add, dividedBy,  _}
 import org.junit.Assert._
 import org.junit.Test
 import rewriting.Rewrite
@@ -879,11 +879,13 @@ class TestHost {
     val path = s"$common_path/26.pool"
     val file = "libpool.cpp"
 
+    val counts = 6 * 6 * 8
 
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 8), 8), 8),
-      in => MapSeq( MapSeq( Join() o MapSeq(
-        fun(y => ReduceSeq(add_and_divide(6*6*8), 0.0f) o Join() o Join() $ y )
+      in => MapSeq( MapSeq ( dividedBy(counts) )) o
+        Join() o MapSeq( MapSeq( Join() o MapSeq(
+        fun(y => ReduceSeq(add, 0.0f) o Join() o Join() $ y )
       ) ) ) o Slide3D(6,1,6,1,8,1) $ in
     )
 
@@ -893,7 +895,7 @@ class TestHost {
 
     val actual : String = native_compile_and_run(path, file)
     //6*6*8*2 = 576
-    val expected : String = "576 576 576 576 576 576 576 576 576 \n"
+    val expected : String = "2 2 2 2 2 2 2 2 2 \n"
     assertEquals(expected, actual)
 
     println("Test case test_slide2d done!")
