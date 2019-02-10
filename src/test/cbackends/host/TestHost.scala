@@ -964,6 +964,49 @@ class TestHost {
     println("Test case test_slide2d done!")
   }
 
-  //cont: 29
+  @Test
+  def test_conv_pool() : Unit = {
+
+
+    val path = s"$common_path/29.conv_pool"
+    val file = "libconv_pool.cpp"
+
+    val counts = 8 * 6 * 6
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 10), 10), 10),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 3), 3), 3),
+      (in, weights) =>
+        //pool
+        MapSeq( MapSeq ( dividedBy(counts) )) o
+        Join() o MapSeq( MapSeq( Join() o MapSeq(
+        fun(y => ReduceSeq(add, 0.0f) o Join() o Join() $ y )
+      ) ) ) o Slide3D_R(8,1,6,1,6,1) o
+        //conv
+        MapSeq(  MapSeq( Join() o MapSeq(
+
+        fun(cube =>
+
+          ReduceSeq(add, 0.0f) o
+            MapSeq( fun(y => mult.apply(Get(y,0), Get(y,1))) )
+            $ Zip( Join() o Join() $ cube, Join() o Join() $ weights)
+
+        )
+
+      ) ) ) o Slide3D_R(3,1,3,1,3,1) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    //6*6*8*2 = 576
+    val expected : String = "2 2 2 2 2 2 2 2 2 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide2d done!")
+
+  }
 
 }

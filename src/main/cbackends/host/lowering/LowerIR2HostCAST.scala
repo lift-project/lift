@@ -68,7 +68,12 @@ object LowerIR2HostCAST {
       case _ =>
         ViewPrinter(a.view)
     }).toList
+
+    println("only for break point")
+
     val out_offset = ViewPrinter(fc.outputView)
+
+    println("only for break point")
 
     val userfunc_apply = AssignmentExpression( out_offset , FunctionCall(uf.name, arg_list) )
 
