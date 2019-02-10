@@ -1,11 +1,11 @@
 package cbackends.host
 
 import ir.ast.Pad.Boundary.WrapUnsafe
-import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
+import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{Cst, SizeVar}
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
-import opencl.ir.{Float, add, dividedBy,  _}
+import opencl.ir.{Float, add, dividedBy, _}
 import org.junit.Assert._
 import org.junit.Test
 import rewriting.Rewrite
@@ -874,6 +874,41 @@ class TestHost {
   }
 
   @Test
+  def test_conv3d_slide3D_R_diff(): Unit = {
+
+    val path = s"$common_path/27.conv3d_slide3D_R_diff"
+    val file = "libconv3d_slide3D_R_diff.cpp"
+
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 8), 8), 8),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 6), 6), 8),
+      (in, weights) => MapSeq(  MapSeq( Join() o MapSeq(
+
+        fun(cube =>
+
+          ReduceSeq(add, 0.0f) o
+            MapSeq( fun(y => mult.apply(Get(y,0), Get(y,1))) )
+            $ Zip( Join() o Join() $ cube, Join() o Join() $ weights)
+
+        )
+
+      ) ) ) o Slide3D_R(8,1,6,1,6,1) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    //6*6*8*2 = 576
+    val expected : String = "576 576 576 576 576 576 576 576 576 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide2d done!")
+  }
+
+  @Test
   def test_pool(): Unit = {
 
     val path = s"$common_path/26.pool"
@@ -900,5 +935,35 @@ class TestHost {
 
     println("Test case test_slide2d done!")
   }
+
+  @Test
+  def test_pool_r(): Unit = {
+
+    val path = s"$common_path/28.pool"
+    val file = "libpool_r.cpp"
+
+    val counts = 8 * 6 * 6
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 8), 8), 8),
+      in => MapSeq( MapSeq ( dividedBy(counts) )) o
+        Join() o MapSeq( MapSeq( Join() o MapSeq(
+        fun(y => ReduceSeq(add, 0.0f) o Join() o Join() $ y )
+      ) ) ) o Slide3D_R(8,1,6,1,6,1) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    //6*6*8*2 = 576
+    val expected : String = "2 2 2 2 2 2 2 2 2 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide2d done!")
+  }
+
+  //cont: 29
 
 }
