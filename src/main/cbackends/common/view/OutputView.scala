@@ -125,12 +125,15 @@ object OutputView {
 
         args.foreach (
           arg => arg match {
-            case v:Value => v.outputView = UnusedInExprOutputView
+            case v:Value =>
+              v.outputView = UnusedInExprOutputView
             case p:Param =>
               //p.outputView = fc.outputView
               p.mem match {
-                case _:HostMemory => p.outputView = ViewMem(arg.mem.variable, arg.t)
                 case CPUNullMemory =>
+                  p.outputView = UnusedInExprOutputView
+                case _:HostMemory =>
+                  p.outputView = ViewMem(arg.mem.variable, arg.t)
                 case _ => assert(false)
               }
             case fc_get@FunCall(_:Get, arg) =>
@@ -164,18 +167,23 @@ object OutputView {
 
         assert(fc.outputView != NoView)
 
-        fc.isConcrete match {
+        /*fc.isConcrete match {
             //stop updating output view if not concrete
-          case false => m.f.body.outputView = UnusedInExprOutputView
+          case false =>
+            m.f.body.outputView = UnusedInExprOutputView
             //this line reflect the map semantic
-          case true =>  m.f.body.outputView = fc.outputView.access(m.loopVar)
-        }
+          case true =>
+            m.f.body.outputView = fc.outputView.access(m.loopVar)
+        }*/
+        m.f.body.outputView = fc.outputView.access(m.loopVar)
 
         cont(m.f.body)
 
+        /*
         //arg.outputView = ViewMap(m.f.params.head.outputView, m.loopVar, arg.t)
         fc.isConcrete match {
-          case false => arg.outputView = UnusedInExprOutputView
+          case false =>
+            arg.outputView = UnusedInExprOutputView
           case true =>
             arg.outputView = m.f.params.head.outputView match {
             //case ViewMem(v, _) => ViewMem(v, arg.t)
@@ -190,6 +198,19 @@ object OutputView {
               //outputView.split(chunksize)
               ViewSplit(chunksize, outputView, t)
           }
+        }*/
+        arg.outputView = m.f.params.head.outputView match {
+          //case ViewMem(v, _) => ViewMem(v, arg.t)
+          case ViewMem(v, _) =>
+            GenerateViewForRawInOut.generateViewForRawInOut(arg, arg.t, Cst(1))
+          case outputView =>
+            val t = fc.argsType
+            val chunksize  = t match {
+              case ArrayType(ArrayTypeWSWC(_, s,c)) if s==c => s
+              case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + fc.argsType)
+            }
+            //outputView.split(chunksize)
+            ViewSplit(chunksize, outputView, t)
         }
 
         assert(arg.outputView != NoView)
@@ -207,11 +228,13 @@ object OutputView {
 
         assert(args.length == 2)
 
-        fc.isConcrete match {
+        /*fc.isConcrete match {
           //stop updating output view if not concrete
-          case false => r.f.body.outputView = UnusedInExprOutputView
+          case false =>
+            r.f.body.outputView = UnusedInExprOutputView
           case true => r.f.body.outputView = fc.outputView.access(Cst(0))
-        }
+        }*/
+        r.f.body.outputView = fc.outputView.access(Cst(0))
 
         cont( r.f.body )
 
@@ -220,8 +243,10 @@ object OutputView {
 
         acc.outputView = UnusedInExprOutputView
 
+        /*
         fc.isConcrete match {
-          case false => r.f.params.head.outputView = UnusedInExprOutputView
+          case false =>
+            r.f.params.head.outputView = UnusedInExprOutputView
           case true =>
             //may need a case hanlder in the future, if the inner part is already an array, you may need to generate a split
             //currently it is only a float, so just use the array's t is OK.
@@ -238,6 +263,18 @@ object OutputView {
                 }
                 outputView.split(chunksize)
             }
+        } */
+        array.outputView = r.f.params(1).outputView match {
+          //case ViewMem(v, _) => ViewMem(v, array.t)
+          case ViewMem(v, _) =>
+            GenerateViewForRawInOut.generateViewForRawInOut(array, array.t, Cst(1))
+          case outputView =>
+            val t = fc.argsType
+            val chunksize = t match {
+              case ArrayType(ArrayTypeWSWC(_, s,c)) if s==c => s
+              case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + fc.argsType)
+            }
+            outputView.split(chunksize)
         }
 
         args.foreach(a => assert(a.outputView != NoView))
@@ -255,9 +292,26 @@ object OutputView {
 
       }
 
+      case fc@FunCall(_:Slide, arg) => {
+
+        assert(fc.outputView != NoView)
+
+        arg.outputView = fc.outputView match {
+          case vs:ViewSplit =>
+            vs.iv
+          case _ =>
+            fc.outputView
+        }
+
+        assert(arg.outputView != NoView)
+
+        cont( arg )
+
+        fc
+      }
 
 
-      case fc@FunCall(_:Transpose|_:Pad|_:Slide, arg) => {
+      case fc@FunCall(_:Transpose|_:Pad, arg) => {
 
         assert(fc.outputView != NoView)
 
@@ -287,7 +341,8 @@ object OutputView {
 
         fc.isConcrete match {
           //stop updating output view if not concrete
-          case false => l.body.outputView = UnusedInExprOutputView
+          case false =>
+            l.body.outputView = UnusedInExprOutputView
           //this line reflect the map semantic
           case true =>  l.body.outputView = fc.outputView
         }
@@ -296,7 +351,8 @@ object OutputView {
 
         //arg.outputView = ViewMap(m.f.params.head.outputView, m.loopVar, arg.t)
         fc.isConcrete match {
-          case false => args.foreach( _.outputView = UnusedInExprOutputView )
+          case false =>
+            args.foreach( _.outputView = UnusedInExprOutputView )
           case true => (args zip l.params).foreach { case Tuple2(arg, param) =>
             arg.outputView = param.outputView match {
               //case ViewMem(v, _) => ViewMem(v, arg.t)

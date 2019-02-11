@@ -1009,4 +1009,37 @@ class TestHost {
 
   }
 
+  @Test
+  def test_concrete_non_concrete(): Unit = {
+
+    val path = s"$common_path/30.concrete_non_concrete"
+    val file = "libconcrete_non_concrete.cpp"
+
+    val f = fun(
+      //ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      ArrayTypeWSWC(Float, N),
+      in => Join() o MapSeq( ReduceSeq(add, 0.0f) ) o Slide(3,1) o MapSeq(incrementF) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    /*
+    import opencl.executor.Compile
+    val gpu_f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => MapGlb( toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) ) o Slide(3,1) $ in
+    )
+    Compile(gpu_f)
+    */
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "6 6 6 6 6 6 6 6 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
 }

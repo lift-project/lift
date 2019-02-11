@@ -248,13 +248,22 @@ object LowerIR2HostCAST {
 
   }
 
+
   private def generateUserFunDecl(lambda: Lambda) : Block = {
 
     val all_userfunc = mutable.Set.empty[UserFun]
+    val all_userfunc_names = mutable.Set.empty[String]
 
     lambda visitBy {
-        case uf:UserFun => all_userfunc += uf; ()
-        case _ => ()
+      case uf:UserFun =>
+        all_userfunc_names.contains(uf.name) match {
+          case false =>
+            all_userfunc += uf
+            all_userfunc_names += uf.name
+            ()
+          case true => ()
+        }
+      case _ => ()
       }
 
     val all_user_decl = all_userfunc.map(createFunctionDefinition).toVector
