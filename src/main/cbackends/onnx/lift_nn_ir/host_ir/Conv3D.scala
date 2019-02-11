@@ -1,7 +1,7 @@
 package cbackends.onnx.lift_nn_ir.host_ir
 
 import ir.{ArrayTypeWSWC, ast}
-import ir.ast.{Expr, FunCall, FunDecl, Get, Join, Lambda, Param, Slide3D, SlideND, Zip, fun}
+import ir.ast.{Expr, FunCall, FunDecl, Get, Join, Lambda, Param, Slide3D, Slide3D_R, SlideND, Zip, fun}
 import lift.arithmetic.SizeVar
 import opencl.ir.pattern
 import opencl.ir.pattern.{MapSeq, ReduceSeq}
@@ -9,7 +9,7 @@ import opencl.ir.{Float, add, _}
 
 object Conv3D {
 
-  def apply(input:Param, weights:Param) : Expr = {
+  def apply(fc: FunCall, input:Expr, weights:Expr) : Expr = {
     //def apply() : FunDecl = {
 
     //val N = SizeVar("N")
@@ -53,7 +53,7 @@ object Conv3D {
 
         )
 
-      ) ) ) o Slide3D(feature_x_size, step, feature_y_size, step, feature_z_size, step) $ input
+      ) ) ) o Slide3D_R(feature_z_size, step, feature_y_size, step, feature_x_size, step) $ input
     //) ) ) o Slide3D(6,step) $ input
     /*
     )

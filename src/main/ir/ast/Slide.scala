@@ -88,6 +88,16 @@ object Slide3D {
   }
 }
 
+/* Pass the dimension from high to low */
+object Slide3D_R{
+  def apply(sizeZ: ArithExpr, stepZ: ArithExpr,
+            sizeY: ArithExpr, stepY: ArithExpr,
+            sizeX: ArithExpr, stepX: ArithExpr): Lambda = {
+    Slide3D(sizeX, stepX, sizeY, stepY, sizeZ, stepZ)
+  }
+
+}
+
 object SlideND {
 
   def apply(dim: Int)(size: ArithExpr, step: ArithExpr): Lambda = {
