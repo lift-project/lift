@@ -95,6 +95,8 @@ object ViewPrinter {
       case ViewMapSeq(iv, itVar, _ ) =>
         val idx :: indices = arrayAccessStack
         generateArrayAccess(iv, indices, tupleAccessStack)
+        //val newV = iv.replaced(itVar, idx)
+        //generateArrayAccess(newV, indices, tupleAccessStack)
 
 
       case ViewMap(iv, itVar, _) =>

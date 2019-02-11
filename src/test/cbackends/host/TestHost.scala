@@ -23,6 +23,9 @@ class TestHost {
   val common_path = "/home/lu/Documents/Research/lift/src/test/cbackends/host"
 
   val N = SizeVar("N")
+  val M = SizeVar("M")
+  val O = SizeVar("O")
+  val K = SizeVar("K")
 
   val incrementF = fun(Float, x => add(Float).apply(1f, x))
 
@@ -242,8 +245,6 @@ class TestHost {
     val path = s"$common_path/08.array3dfromuserfungenerator"
     val file = "libarray3dfromuserfungenerator.cpp"
 
-    val M = SizeVar("M")
-    val O = SizeVar("O")
 
     val type3d = ArrayTypeWSWC( ArrayTypeWSWC( ArrayTypeWSWC(Float, O), M), N)
     val idxF = UserFun("idxF", Array("i", "j", "k", "m", "n", "o"), "{ return i+j+k; }", Seq(Int, Int, Int, Int, Int, Int), Int)
@@ -496,9 +497,6 @@ class TestHost {
     val path = s"$common_path/13.matrixmul"
     val file = "libmatrixmul.cpp"
 
-    val N = SizeVar("N")
-    val M = SizeVar("M")
-    val K = SizeVar("K")
 
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
@@ -1041,5 +1039,73 @@ class TestHost {
 
     println("Test case test_slide_hello done!")
   }
+
+  @Test
+  def test_concrete_non2d_concrete(): Unit = {
+
+    val path = s"$common_path/31.concrete_non2d_concrete"
+    val file = "libconcrete_non2d_concrete.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N),
+      in => MapSeq( MapSeq(
+        Join() o MapSeq( ReduceSeq(add, 0.0f) )
+      ) ) o Slide2D(3,1) o MapSeq(MapSeq(incrementF)) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    /*
+    import opencl.executor.Compile
+    val gpu_f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => MapGlb( toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) ) o Slide(3,1) $ in
+    )
+    Compile(gpu_f)
+    */
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "18 18 18 18 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
+  @Test
+  def test_concrete_nonTranspose_concrete(): Unit = {
+
+    val path = s"$common_path/32.concrete_nonTranspose_concrete"
+    val file = "libconcrete_nonTranspose_concrete.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      in => MapSeq(MapSeq(incrementF)) o Transpose() o MapSeq(MapSeq(incrementF)) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    /*
+    import opencl.executor.Compile
+    val gpu_f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => MapGlb( toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) ) o Slide(3,1) $ in
+    )
+    Compile(gpu_f)
+    */
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "2 2 2 2 2 2 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
+
 
 }

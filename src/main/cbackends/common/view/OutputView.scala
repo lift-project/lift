@@ -314,7 +314,32 @@ object OutputView {
       }
 
 
-      case fc@FunCall(_:Transpose|_:Pad, arg) => {
+      case fc@FunCall(_:Transpose, arg) => {
+
+        assert(fc.outputView != NoView)
+
+
+        /*
+        arg.t match{
+          case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
+            //working
+            arg.outputView= fc.outputView.join(n).reorder( (i: ArithExpr) => { transpose(i, arg.t) }  ).split(m)
+          //experimental
+          //fc.view = arg.view.transpose(fc.t)
+          case _ => assert(false, "Other types other than 2D array are not allowed for transpose")
+        }*/
+
+        arg.outputView = fc.outputView
+
+        assert(arg.outputView != NoView)
+
+        cont( arg )
+
+        fc
+      }
+
+
+      case fc@FunCall(_:Pad, arg) => {
 
         assert(fc.outputView != NoView)
 
