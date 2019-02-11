@@ -21,11 +21,14 @@ object OutputView {
       case p:Param => p
 
       case a@ArrayFromUserFunGenerator(f, at)  =>
-        a.outputView = ViewGeneratorUserFun(f, at); a
+        //a.outputView = ViewGeneratorUserFun(f, at); a
+        a.outputView = GenerateViewForRawInOut.generateViewForRawInOut(a, a.t, Cst(1)); a
       case a@Array2DFromUserFunGenerator(f, at)  =>
-        a.outputView = View2DGeneratorUserFun(f, at); a
+        //a.outputView = View2DGeneratorUserFun(f, at); a
+        a.outputView = GenerateViewForRawInOut.generateViewForRawInOut(a, a.t, Cst(1)); a
       case a@Array3DFromUserFunGenerator(f, at)  =>
-        a.outputView = View3DGeneratorUserFun(f, at); a
+        //a.outputView = View3DGeneratorUserFun(f, at); a
+        a.outputView = GenerateViewForRawInOut.generateViewForRawInOut(a, a.t, Cst(1)); a
 
       case fc@FunCall(_:Zip, args@_*)  => {
 

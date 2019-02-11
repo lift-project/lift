@@ -18,7 +18,11 @@ object MemoryAllocator {
         v.mem = CPUNullMemory
 
       case ac:ArrayConstructors =>
-        ac.mem = CPUNullMemory
+        //ac.mem = CPUNullMemory
+        val size = Type.getAllocatedSize(ac.t)
+        //allocate memory in IR, but not included in hostMemory, so that no mem allocation code is emitted for param,
+        //but the IR analysis can still be done.
+        ac.mem = HostMemory(Var(s"array_constructor_${ac.gid}", ContinuousRange(Cst(0), size)), size, ac.addressSpace )
 
       case fc@FunCall(_:UserFun, args@_*) => {
         //link the arg to the correct param is already done in its upper level FPattern
