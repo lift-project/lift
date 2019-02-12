@@ -29,6 +29,7 @@ class TestGlobal {
   val K = SizeVar("K")
 
   val incrementF = fun(Float, x => add(Float).apply(1f, x))
+  val incrementF2 = fun(Float, x => add(Float).apply(2f, x))
 
   val add2 = UserFun("add", Array("l", "r"),
     "{ return (l + r); }",
@@ -51,7 +52,7 @@ class TestGlobal {
 
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "2 2 2 2 2 2 \n"
+    val expected : String = "3 3 3 3 3 3 \n"
     assertEquals(expected, actual)
 
     println("Test case test_slide_hello done!")
