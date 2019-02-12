@@ -20,7 +20,7 @@ import cbackends.common.executor.Executor.{native_compile_and_run}
 
 class TestHost {
 
-  val common_path = "/home/lu/Documents/Research/lift/src/test/cbackends/host"
+  val common_path = System.getProperty("user.dir") + "/src/test/cbackends/host"
 
   val N = SizeVar("N")
 
