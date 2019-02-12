@@ -22,39 +22,39 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="sbt: ch.qos.logback:logback-classic:1.1.7:jar" level="project" />
-    <orderEntry type="library" name="sbt: org.jfree:jfreesvg:2.0:jar" level="project" />
-    <orderEntry type="library" name="sbt: joda-time:joda-time:2.9.7:jar" level="project" />
-    <orderEntry type="library" name="sbt: com.github.nscala-time:nscala-time_2.11:2.16.0:jar" level="project" />
-    <orderEntry type="module" module-name="Profiler" exported="" />
-    <orderEntry type="library" name="sbt: ch.qos.logback:logback-core:1.1.7:jar" level="project" />
-    <orderEntry type="library" name="sbt: com.fasterxml.jackson.core:jackson-annotations:2.3.2:jar" level="project" />
-    <orderEntry type="library" name="sbt: com.fasterxml.jackson.core:jackson-core:2.3.2:jar" level="project" />
-    <orderEntry type="library" name="sbt: com.fasterxml.jackson.core:jackson-databind:2.3.2:jar" level="project" />
-    <orderEntry type="library" scope="TEST" name="sbt: com.novocode:junit-interface:0.11:jar" level="project" />
-    <orderEntry type="library" name="sbt: com.typesafe:config:1.2.1:jar" level="project" />
-    <orderEntry type="library" name="sbt: com.typesafe.play:play-datacommons_2.11:2.3.10:jar" level="project" />
-    <orderEntry type="library" name="sbt: com.typesafe.play:play-functional_2.11:2.3.10:jar" level="project" />
-    <orderEntry type="library" name="sbt: com.typesafe.play:play-iteratees_2.11:2.3.10:jar" level="project" />
-    <orderEntry type="library" name="sbt: com.typesafe.play:play-json_2.11:2.3.10:jar" level="project" />
-    <orderEntry type="library" name="sbt: com.typesafe.scala-logging:scala-logging_2.11:3.4.0:jar" level="project" />
-    <orderEntry type="library" name="sbt: commons-cli:commons-cli:1.3.1:jar" level="project" />
-    <orderEntry type="library" name="sbt: jline:jline:2.12.1:jar" level="project" />
-    <orderEntry type="library" name="sbt: junit:junit:4.11:jar" level="project" />
-    <orderEntry type="library" name="sbt: org.clapper:argot_2.11:1.0.3:jar" level="project" />
-    <orderEntry type="library" name="sbt: org.clapper:grizzled-scala_2.11:1.2:jar" level="project" />
-    <orderEntry type="library" name="sbt: org.hamcrest:hamcrest-core:1.3:jar" level="project" />
-    <orderEntry type="library" name="sbt: org.joda:joda-convert:1.6:jar" level="project" />
-    <orderEntry type="library" name="sbt: org.scala-lang:scala-compiler:2.11.8:jar" level="project" />
-    <orderEntry type="library" name="sbt: org.scala-lang:scala-library:2.11.8:jar" level="project" />
-    <orderEntry type="library" name="sbt: org.scala-lang:scala-reflect:2.11.8:jar" level="project" />
-    <orderEntry type="library" name="sbt: org.scala-lang.modules:scala-async_2.11:0.9.1:jar" level="project" />
-    <orderEntry type="library" name="sbt: org.scala-lang.modules:scala-parser-combinators_2.11:1.0.4:jar" level="project" />
-    <orderEntry type="library" name="sbt: org.scala-lang.modules:scala-xml_2.11:1.0.4:jar" level="project" />
-    <orderEntry type="library" scope="TEST" name="sbt: org.scala-sbt:test-interface:1.0:jar" level="project" />
-    <orderEntry type="library" name="sbt: org.scala-stm:scala-stm_2.11:0.7:jar" level="project" />
-    <orderEntry type="library" scope="TEST" name="sbt: org.scalacheck:scalacheck_2.11:1.13.0:jar" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="sbt: org.scoverage:scalac-scoverage-plugin_2.11:1.0.4:jar" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="sbt: org.scoverage:scalac-scoverage-runtime_2.11:1.0.4:jar" level="project" />
     <orderEntry type="library" name="sbt: org.slf4j:slf4j-api:1.7.21:jar" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="sbt: org.scoverage:scalac-scoverage-runtime_2.11:1.0.4:jar" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="sbt: org.scoverage:scalac-scoverage-plugin_2.11:1.0.4:jar" level="project" />
+    <orderEntry type="library" scope="TEST" name="sbt: org.scalacheck:scalacheck_2.11:1.13.0:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.scala-stm:scala-stm_2.11:0.7:jar" level="project" />
+    <orderEntry type="library" scope="TEST" name="sbt: org.scala-sbt:test-interface:1.0:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.scala-lang.modules:scala-xml_2.11:1.0.4:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.scala-lang.modules:scala-parser-combinators_2.11:1.0.4:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.scala-lang.modules:scala-async_2.11:0.9.1:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.scala-lang:scala-reflect:2.11.8:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.scala-lang:scala-library:2.11.8:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.scala-lang:scala-compiler:2.11.8:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.joda:joda-convert:1.6:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.hamcrest:hamcrest-core:1.3:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.clapper:grizzled-scala_2.11:1.2:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.clapper:argot_2.11:1.0.3:jar" level="project" />
+    <orderEntry type="library" name="sbt: junit:junit:4.11:jar" level="project" />
+    <orderEntry type="library" name="sbt: jline:jline:2.12.1:jar" level="project" />
+    <orderEntry type="library" name="sbt: commons-cli:commons-cli:1.3.1:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.typesafe.scala-logging:scala-logging_2.11:3.4.0:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.typesafe.play:play-json_2.11:2.3.10:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.typesafe.play:play-iteratees_2.11:2.3.10:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.typesafe.play:play-functional_2.11:2.3.10:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.typesafe.play:play-datacommons_2.11:2.3.10:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.typesafe:config:1.2.1:jar" level="project" />
+    <orderEntry type="library" scope="TEST" name="sbt: com.novocode:junit-interface:0.11:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.fasterxml.jackson.core:jackson-databind:2.3.2:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.fasterxml.jackson.core:jackson-core:2.3.2:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.fasterxml.jackson.core:jackson-annotations:2.3.2:jar" level="project" />
+    <orderEntry type="library" name="sbt: ch.qos.logback:logback-core:1.1.7:jar" level="project" />
+    <orderEntry type="module" module-name="Profiler" exported="" />
+    <orderEntry type="library" name="sbt: com.github.nscala-time:nscala-time_2.11:2.16.0:jar" level="project" />
+    <orderEntry type="library" name="sbt: joda-time:joda-time:2.9.7:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.jfree:jfreesvg:2.0:jar" level="project" />
   </component>
 </module>

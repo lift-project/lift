@@ -19,7 +19,7 @@
     <option name="FILTER_BY_STATUS" value="false" />
     <option name="FILTER_MARKED_AS_FIXED" value="false" />
     <option name="SHOW_CLOSE_PROMPT" value="true" />
-    <option name="TOOL_WINDOW_SELECTED_CONTENT_INDEX" value="1" />
+    <option name="TOOL_WINDOW_SELECTED_CONTENT_INDEX" value="0" />
     <option name="FILTER_BY_CURRENT_PROJECT" value="false" />
     <SELECTED_PROJECT id="project2" />
     <SELECTED_TYPE id="bt2" />
@@ -33,20 +33,10 @@
       </selectedPath>
     </treeState>
     <treeState key="changes">
-      <expandedPath>
-        <pathElement>
-          <option name="myNodeId" value="1" />
-          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.ChangesGroupDescriptor" />
-        </pathElement>
-      </expandedPath>
       <selectedPath>
         <pathElement>
           <option name="myNodeId" value="1" />
           <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.ChangesGroupDescriptor" />
-        </pathElement>
-        <pathElement>
-          <option name="myNodeId" value="11" />
-          <option name="myNodeType" value="jetbrains.buildServer.tree.descriptors.VcsModificationDescriptor" />
         </pathElement>
       </selectedPath>
     </treeState>
@@ -107,9 +97,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="bd5a70aa-774d-4f1b-9c6e-8b8217cb33ea" name="Default Changelist" comment="empty commit">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules/Lift.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules/Lift.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules/Profiler.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules/Profiler.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/analysis/TestAccessCounts.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/analysis/TestAccessCounts.scala" afterDir="false" />
     </list>
     <ignored path="$USER_HOME$/target/" />
     <ignored path="$USER_HOME$/project/project/target/" />
@@ -148,46 +138,64 @@
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/test/analysis/TestAccessCounts.scala">
+        <entry file="file://$PROJECT_DIR$/src/test/nn/conv/versions/Conv0.scala">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="247">
-              <caret line="13" column="2" selection-start-line="13" selection-start-column="2" selection-end-line="13" selection-end-column="2" />
+            <state relative-caret-position="177">
+              <caret line="180" column="33" selection-start-line="180" selection-start-column="29" selection-end-line="180" selection-end-column="33" />
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="jar://$USER_HOME$/.ivy2/cache/org.scala-lang/scala-library/srcs/scala-library-2.11.8-sources.jar!/scala/PartialFunction.scala">
+        <entry file="file://$PROJECT_DIR$/src/test/nn/conv/versions/Conv2.scala">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="195">
-              <caret line="252" selection-start-line="252" selection-end-line="252" />
+            <state relative-caret-position="-14">
+              <caret line="24" column="35" selection-start-line="24" selection-start-column="35" selection-end-line="24" selection-end-column="35" />
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/main/rewriting/rules/CopyRules.scala">
+        <entry file="file://$PROJECT_DIR$/src/test/nn/conv/TestConv.scala">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="187">
-              <caret line="80" column="30" selection-start-line="80" selection-start-column="30" selection-end-line="80" selection-end-column="30" />
+            <state relative-caret-position="268">
+              <caret line="57" column="52" selection-start-line="57" selection-start-column="52" selection-end-line="57" selection-end-column="52" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/main/opencl/executor/Execute.scala">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="192">
+              <caret line="216" column="14" selection-start-line="216" selection-start-column="14" selection-end-line="216" selection-end-column="14" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="jar://$USER_HOME$/bin/jdk1.8.0_191/jre/lib/rt.jar!/sun/security/provider/PolicyFile.class">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="407">
+              <caret line="247" lean-forward="true" selection-start-line="247" selection-end-line="247" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/test/rewriting/TestRewriteNbody.scala">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="224">
+              <caret line="62" column="6" selection-start-line="62" selection-start-column="6" selection-end-line="62" selection-end-column="6" />
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/src/main/opencl/executor/Execute.scala">
+        <entry file="file://$PROJECT_DIR$/src/test/nn/conv/package.scala">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="210">
-              <caret line="346" column="67" selection-start-line="346" selection-start-column="67" selection-end-line="346" selection-end-column="67" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/main/core/generator/GenericAST.scala">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="224">
-              <caret line="654" column="13" selection-start-line="654" selection-start-column="13" selection-end-line="654" selection-end-column="13" />
+            <state relative-caret-position="332">
+              <caret line="105" column="27" lean-forward="true" selection-start-line="105" selection-start-column="27" selection-end-line="105" selection-end-column="27" />
             </state>
           </provider>
         </entry>
@@ -203,22 +211,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>Floor(</find>
-      <find>FloorFunc</find>
-      <find>1 to d</find>
-      <find>base</find>
-      <find>TypeExcept</find>
-      <find>Int</find>
-      <find>ass</find>
-      <find>assert</find>
-      <find>asser</find>
-      <find>ReduceSeq(</find>
-      <find>Parameter88</find>
-      <find>Parameter193</find>
-      <find>apply</find>
-      <find>Reshape</find>
-      <find>Parameter193_reshape1</find>
-      <find>fun</find>
       <find>Conv</find>
       <find>Plus30_Output_0</find>
       <find>val</find>
@@ -233,6 +225,22 @@
       <find>TestONNx</find>
       <find>locationHint</find>
       <find>sub</find>
+      <find>seq</find>
+      <find>Seq(</find>
+      <find>def Seq</find>
+      <find>n_batches_SV</find>
+      <find>Assert</find>
+      <find>Execute(</find>
+      <find>v_input_ydim_SV_3</find>
+      <find>3</find>
+      <find>3;</find>
+      <find>v__228</find>
+      <find>Allocated</find>
+      <find>variable v__213</find>
+      <find>variable v__217</find>
+      <find>variable v__222</find>
+      <find>variable v__224</find>
+      <find>sanity chec</find>
     </findStrings>
     <replaceStrings>
       <replace>=</replace>
@@ -299,6 +307,9 @@
         <option value="$USER_HOME$/src/test/analysis/TestAccessCounts.scala" />
         <option value="$PROJECT_DIR$/src/test/analysis/TestAccessCounts.scala" />
         <option value="$PROJECT_DIR$/src/main/opencl/executor/Execute.scala" />
+        <option value="$PROJECT_DIR$/src/test/nn/conv/package.scala" />
+        <option value="$PROJECT_DIR$/src/test/nn/conv/versions/Conv2.scala" />
+        <option value="$PROJECT_DIR$/src/test/nn/conv/TestConv.scala" />
       </list>
     </option>
   </component>
@@ -321,6 +332,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="PackagesPane" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -339,12 +351,35 @@
               <item name="src" type="462c0819:PsiDirectoryNode" />
               <item name="test" type="462c0819:PsiDirectoryNode" />
             </path>
+            <path>
+              <item name="Lift" type="b2602c69:ProjectViewProjectNode" />
+              <item name="lift" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="test" type="462c0819:PsiDirectoryNode" />
+              <item name="nn" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="Lift" type="b2602c69:ProjectViewProjectNode" />
+              <item name="lift" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="test" type="462c0819:PsiDirectoryNode" />
+              <item name="nn" type="462c0819:PsiDirectoryNode" />
+              <item name="conv" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="Lift" type="b2602c69:ProjectViewProjectNode" />
+              <item name="lift" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="test" type="462c0819:PsiDirectoryNode" />
+              <item name="nn" type="462c0819:PsiDirectoryNode" />
+              <item name="conv" type="462c0819:PsiDirectoryNode" />
+              <item name="versions" type="462c0819:PsiDirectoryNode" />
+            </path>
           </expand>
           <select />
         </subPane>
       </pane>
       <pane id="Scope" />
-      <pane id="PackagesPane" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -352,7 +387,7 @@
     <property name="SearchEverywhereHistoryKey" value="testhost&#9;null&#9;null&#10;testsdh&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/cbackends/sdh/TestSDH.scala&#10;TestSDH&#9;null&#9;null&#10;lib_sched.cpp&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/cbackends/sdh/1.vector_add_multi_tile/lib_sched.cpp&#10;testmpi&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/cbackends/mpi/TestMPI.scala&#10;TestHost&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/cbackends/host/TestHost.scala&#10;testCNN&#9;FILE&#9;file:///home/nm/avus_remotes/lift/src/test/nn/cnn/TestCNN.scala" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="aspect.path.notification.shown" value="true" />
-    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1549573675576" />
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1549975986905" />
     <property name="last_opened_file_path" value="/usr/bin/git" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
@@ -383,7 +418,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="JUnit.All in Lift">
+  <component name="RunManager" selected="JUnit.TestConv.Sanity_Conv">
     <configuration name="All in Lift" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
       <module name="Lift" />
       <option name="PACKAGE_NAME" value="" />
@@ -393,6 +428,28 @@
       <option name="VM_PARAMETERS" value="-ea -Djava.library.path=$USER_HOME$/lib/Executor/build/" />
       <option name="PARAMETERS" value="" />
       <option name="WORKING_DIRECTORY" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="TestConv.Sanity_Conv" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="Lift" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="nn.conv.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="nn.conv" />
+      <option name="MAIN_CLASS_NAME" value="nn.conv.TestConv" />
+      <option name="METHOD_NAME" value="Sanity_Conv" />
+      <option name="TEST_OBJECT" value="method" />
+      <option name="VM_PARAMETERS" value="-ea -Djava.library.path=$USER_HOME$/lib/Executor/build/" />
+      <option name="PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <envs>
+        <env name="LIFT_VERBOSE" value="1" />
+      </envs>
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -535,12 +592,14 @@
       <item itemvalue="JUnit.TestHost.test_split_join" />
       <item itemvalue="JUnit.TestONNXTypes" />
       <item itemvalue="JUnit.Views and 1 more" />
+      <item itemvalue="JUnit.All in Lift" />
+      <item itemvalue="JUnit.TestConv.Sanity_Conv" />
       <item itemvalue="Remote.avus_remote" />
       <item itemvalue="Remote.avus_server" />
-      <item itemvalue="JUnit.All in Lift" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="JUnit.TestConv.Sanity_Conv" />
         <item itemvalue="JUnit.All in Lift" />
         <item itemvalue="JUnit.Views and 1 more" />
         <item itemvalue="JUnit.TestONNXTypes" />
@@ -620,6 +679,7 @@
       <workItem from="1549029952232" duration="4372000" />
       <workItem from="1549034355695" duration="6714000" />
       <workItem from="1549539329511" duration="21086000" />
+      <workItem from="1549902019375" duration="6485000" />
     </task>
     <task id="LOCAL-00001" summary="Added the ONNX-&gt;Conv primitive">
       <created>1544809256866</created>
@@ -782,25 +842,17 @@
       <option name="project" value="LOCAL" />
       <updated>1549573381499</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="Reenabled sequential convolution test">
+      <created>1549975739650</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1549975739650</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="TestHistory">
-    <history-entry file="TestDecoder - 2019.01.30 at 13h 37m 08s.xml">
-      <configuration name="TestDecoder" configurationId="JUnit" />
-    </history-entry>
-    <history-entry file="TestDecoder - 2019.01.30 at 13h 43m 08s.xml">
-      <configuration name="TestDecoder" configurationId="JUnit" />
-    </history-entry>
-    <history-entry file="TestDecoder - 2019.01.30 at 13h 43m 15s.xml">
-      <configuration name="TestDecoder" configurationId="JUnit" />
-    </history-entry>
-    <history-entry file="TestDecoder - 2019.01.30 at 14h 04m 24s.xml">
-      <configuration name="TestDecoder" configurationId="JUnit" />
-    </history-entry>
-    <history-entry file="TestONNXTypes - 2019.01.30 at 14h 22m 16s.xml">
-      <configuration name="TestONNXTypes" configurationId="JUnit" />
-    </history-entry>
     <history-entry file="Views_and_1_more - 2019.01.30 at 14h 21m 51s.xml">
       <configuration name="Views and 1 more" configurationId="JUnit" />
     </history-entry>
@@ -816,9 +868,24 @@
     <history-entry file="All_in_Lift - 2019.01.30 at 15h 29m 46s.xml">
       <configuration name="All in Lift" configurationId="JUnit" />
     </history-entry>
+    <history-entry file="TestConv_Sanity_Conv - 2019.02.11 at 16h 51m 35s.xml">
+      <configuration name="TestConv.Sanity_Conv" configurationId="JUnit" />
+    </history-entry>
+    <history-entry file="TestConv_Sanity_Conv - 2019.02.11 at 16h 53m 06s.xml">
+      <configuration name="TestConv.Sanity_Conv" configurationId="JUnit" />
+    </history-entry>
+    <history-entry file="TestConv_Sanity_Conv - 2019.02.11 at 16h 55m 33s.xml">
+      <configuration name="TestConv.Sanity_Conv" configurationId="JUnit" />
+    </history-entry>
+    <history-entry file="TestConv_Sanity_Conv - 2019.02.11 at 16h 55m 43s.xml">
+      <configuration name="TestConv.Sanity_Conv" configurationId="JUnit" />
+    </history-entry>
+    <history-entry file="TestConv_Sanity_Conv - 2019.02.11 at 16h 56m 38s.xml">
+      <configuration name="TestConv.Sanity_Conv" configurationId="JUnit" />
+    </history-entry>
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="140471000" />
+    <option name="totallyTimeSpent" value="146956000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -832,7 +899,7 @@
   <component name="ToolWindowManager">
     <frame x="1267" y="475" width="1853" height="1173" extended-state="6" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.1615938" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.16325401" />
       <window_info id="Structure" order="1" weight="0.25" />
       <window_info id="Designer" order="2" />
       <window_info id="Image Layers" order="3" />
@@ -840,22 +907,22 @@
       <window_info id="Capture Tool" order="5" />
       <window_info id="Favorites" order="6" side_tool="true" />
       <window_info id="Nl-Palette" order="7" />
-      <window_info anchor="bottom" id="Messages" weight="0.3298279" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" weight="0.3298279" />
-      <window_info anchor="bottom" id="Run" order="2" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.3871893" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.39961758" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" />
       <window_info anchor="bottom" id="Terminal" order="7" weight="0.3298279" />
       <window_info anchor="bottom" id="Event Log" order="8" sideWeight="0.5008301" side_tool="true" weight="0.32919848" />
-      <window_info anchor="bottom" id="Version Control" order="9" weight="0.3298279" />
-      <window_info active="true" anchor="bottom" id="TeamCity" order="10" sideWeight="0.4991699" visible="true" weight="0.41300192" />
+      <window_info active="true" anchor="bottom" id="Version Control" order="9" visible="true" weight="0.3298279" />
+      <window_info anchor="bottom" id="TeamCity" order="10" sideWeight="0.4991699" weight="0.25908223" />
       <window_info anchor="bottom" id="Build" order="11" />
       <window_info anchor="bottom" id="sbt-shell-toolwindow" order="12" />
       <window_info anchor="bottom" id="Docker" order="13" show_stripe_button="false" />
       <window_info anchor="bottom" id="Database Changes" order="14" />
+      <window_info anchor="bottom" id="Messages" order="15" weight="0.3298279" />
       <window_info anchor="right" id="Commander" order="0" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -947,7 +1014,8 @@
     <MESSAGE value="Merge branch 'host_code_gen_fft' into host_code_gen_fft_nn&#10;&#10;# Conflicts:&#10;#&#9;src/test/host/TestHost.scala" />
     <MESSAGE value="text" />
     <MESSAGE value="empty commit" />
-    <option name="LAST_COMMIT_MESSAGE" value="empty commit" />
+    <MESSAGE value="Reenabled sequential convolution test" />
+    <option name="LAST_COMMIT_MESSAGE" value="Reenabled sequential convolution test" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -972,6 +1040,10 @@
           <properties class="java.lang.AssertionError" package="java.lang" />
           <option name="timeStamp" value="34" />
         </breakpoint>
+        <breakpoint enabled="true" type="java-exception">
+          <properties class="java.lang.IllegalArgumentException" package="java.lang" />
+          <option name="timeStamp" value="36" />
+        </breakpoint>
         <line-breakpoint enabled="true" type="scala-line">
           <url>file://$PROJECT_DIR$/src/main/opencl/executor/Execute.scala</url>
           <line>345</line>
@@ -985,16 +1057,16 @@
     <option name="IS_AUTOSCROLL_TO_SOURCE" value="false" />
     <option name="FILTER_TARGETS" value="false" />
   </component>
+  <component name="debuggerHistoryManager">
+    <expressions id="watch">
+      <expression>
+        <expression-string>v.getClass</expression-string>
+        <language-id>Scala</language-id>
+        <evaluation-mode>EXPRESSION</evaluation-mode>
+      </expression>
+    </expressions>
+  </component>
   <component name="editorHistoryManager">
-    <entry file="file://$USER_HOME$/src/test/opencl/generator/matrixVector/TestMatrixVector.scala" />
-    <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/Reshape.scala" />
-    <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/MatMul.scala" />
-    <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/Relu.scala" />
-    <entry file="file://$USER_HOME$/src/test/arithmetic/TestArith.scala" />
-    <entry file="file://$USER_HOME$/src/test/ir/ast/TestExpr.scala" />
-    <entry file="file://$USER_HOME$/src/test/ir/ast/TestLambda.scala" />
-    <entry file="file://$USER_HOME$/src/test/utils/TestOutputKernelJSON.scala" />
-    <entry file="file://$USER_HOME$/src/main/core/generator/GenericAST.scala" />
     <entry file="file://$USER_HOME$/src/main/ir/ast/Expr.scala" />
     <entry file="file://$USER_HOME$/src/main/ir/ast/onnx/MaxPool.scala" />
     <entry file="file://$USER_HOME$/src/test/ir/ast/onnx/testONNXOperators.scala" />
@@ -1042,52 +1114,103 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/core/generator/GenericAST.scala">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="224">
-          <caret line="654" column="13" selection-start-line="654" selection-start-column="13" selection-end-line="654" selection-end-column="13" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/opencl/generator/UnrollAndInlineValues.scala">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="400">
-          <caret line="179" column="12" selection-start-line="179" selection-start-column="12" selection-end-line="179" selection-end-column="12" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/test/opencl/generator/TestUnrollAndInlineValues.scala">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="224">
-          <caret line="12" column="6" selection-start-line="12" selection-start-column="6" selection-end-line="12" selection-end-column="6" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/opencl/generator/UnrollAndInlineValues.scala" />
+    <entry file="file://$PROJECT_DIR$/src/test/opencl/generator/TestUnrollAndInlineValues.scala" />
     <entry file="file://$PROJECT_DIR$/src/test/analysis/TestAccessCounts.scala">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="247">
-          <caret line="13" column="2" selection-start-line="13" selection-start-column="2" selection-end-line="13" selection-end-column="2" />
+        <state relative-caret-position="299">
+          <caret line="13" selection-start-line="13" selection-end-line="13" />
         </state>
       </provider>
     </entry>
     <entry file="jar://$USER_HOME$/.ivy2/cache/org.scala-lang/scala-library/srcs/scala-library-2.11.8-sources.jar!/scala/PartialFunction.scala">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="195">
+        <state relative-caret-position="5796">
           <caret line="252" selection-start-line="252" selection-end-line="252" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/rewriting/rules/CopyRules.scala">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="187">
+        <state relative-caret-position="1840">
           <caret line="80" column="30" selection-start-line="80" selection-start-column="30" selection-end-line="80" selection-end-column="30" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/core/generator/GenericAST.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="15042">
+          <caret line="654" column="13" selection-start-line="654" selection-start-column="13" selection-end-line="654" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/test/nn/conv/versions/Conv0.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="177">
+          <caret line="180" column="33" selection-start-line="180" selection-start-column="29" selection-end-line="180" selection-end-column="33" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/test/nn/conv/versions/Conv1.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="315">
+          <caret line="24" column="47" lean-forward="true" selection-start-line="24" selection-start-column="47" selection-end-line="24" selection-end-column="47" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/test/rewriting/TestRewriteNbody.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="224">
+          <caret line="62" column="6" selection-start-line="62" selection-start-column="6" selection-end-line="62" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="jar://$USER_HOME$/bin/jdk1.8.0_191/jre/lib/rt.jar!/sun/security/provider/PolicyFile.class">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="407">
+          <caret line="247" lean-forward="true" selection-start-line="247" selection-end-line="247" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="jar://$USER_HOME$/.ivy2/cache/junit/junit/srcs/junit-4.11-sources.jar!/org/junit/internal/runners/model/ReflectiveCallable.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="299">
+          <caret line="13" selection-start-line="13" selection-end-line="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="jar://$USER_HOME$/bin/jdk1.8.0_191/jre/lib/rt.jar!/sun/security/util/PolicyUtil.class">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="200">
+          <caret line="41" selection-start-line="41" selection-end-line="41" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/opencl/executor/Execute.scala">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="210">
-          <caret line="346" column="67" selection-start-line="346" selection-start-column="67" selection-end-line="346" selection-end-column="67" />
+        <state relative-caret-position="192">
+          <caret line="216" column="14" selection-start-line="216" selection-start-column="14" selection-end-line="216" selection-end-column="14" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/test/nn/conv/versions/Conv2.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-14">
+          <caret line="24" column="35" selection-start-line="24" selection-start-column="35" selection-end-line="24" selection-end-column="35" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/test/nn/conv/TestConv.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="268">
+          <caret line="57" column="52" selection-start-line="57" selection-start-column="52" selection-end-line="57" selection-end-column="52" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/test/nn/conv/package.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="332">
+          <caret line="105" column="27" lean-forward="true" selection-start-line="105" selection-start-column="27" selection-end-line="105" selection-end-column="27" />
         </state>
       </provider>
     </entry>
