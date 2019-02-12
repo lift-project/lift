@@ -1090,28 +1090,6 @@ class TestHost {
 
   */
 
-  @Test
-  def test_cpu_func(): Unit = {
-
-    val path = s"$common_path/33.concrete_nonTranspose_concrete"
-    val file = "libconcrete_nonTranspose_concrete.cpp"
-
-    val f = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
-      in => CPUFunc( MapSeq(MapSeq(incrementF))  ) o CPUFunc( MapSeq(MapSeq(incrementF)) ) $ in
-    )
-
-    ("mkdir -p " + s"$path" ) !!
-
-    HostCompiler ! (f, path, List(file))
-
-
-    val actual : String = native_compile_and_run(path, file)
-    val expected : String = "2 2 2 2 2 2 \n"
-    assertEquals(expected, actual)
-
-    println("Test case test_slide_hello done!")
-  }
 
 
 }

@@ -21,4 +21,29 @@ object HostCompiler extends CBackendsCompilerTrait {
     List(new SourceFile(path, files(0), LowerIR2HostCAST(lambda, memoryDeclaredInSignature) ) )
   }
 
+  def lowerIR2CAST(lambda: Lambda,
+                   memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]
+                  ) : Block = {
+
+    LowerIR2HostCAST(lambda, memoryDeclaredInSignature)
+  }
+
+
+  //compile a lambda
+  def !(lambda: Lambda): Block = {
+
+    println("1.compiler called")
+
+    typeCheck(lambda)
+    memorySpaceInference(lambda)
+    loopVarInference(lambda)
+    memoryAlloc(lambda)
+    val finalMemoryAllocated = finalMemoryAllocationAnalysis(lambda)
+    inputView(lambda)
+    outputView(lambda)
+
+    lowerIR2CAST(lambda, finalMemoryAllocated)
+
+  }
+
 }

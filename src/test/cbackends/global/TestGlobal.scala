@@ -21,7 +21,7 @@ import cbackends.common.executor.Executor.{native_compile_and_run}
 
 class TestGlobal {
 
-  val common_path = "/home/lu/Documents/Research/lift/src/test/cbackends/host"
+  val common_path = "/home/lu/Documents/Research/lift/src/test/cbackends/global"
 
   val N = SizeVar("N")
   val M = SizeVar("M")
@@ -37,8 +37,8 @@ class TestGlobal {
   @Test
   def test_cpu_func(): Unit = {
 
-    val path = s"$common_path/33.concrete_nonTranspose_concrete"
-    val file = "libconcrete_nonTranspose_concrete.cpp"
+    val path = s"$common_path/01.cpufunc"
+    val file = "libcpufunc.cpp"
 
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
