@@ -30,7 +30,7 @@ object HostCompiler extends CBackendsCompilerTrait {
 
 
   //compile a lambda
-  def !(lambda: Lambda): Block = {
+  def !!(lambda: Lambda): Block = {
 
     println("1.compiler called")
 
