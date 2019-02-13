@@ -3,6 +3,7 @@ package cbackends.global
 import cbackends.common.CBackendsCompilerTrait
 import cbackends.common.common_cast.CbackendCAST.SourceFile
 import cbackends.global.transformation.cast_transformation.cpu_outline_transformation.OutlineTargetAnalysis
+import cbackends.global.transformation.empty_kernel_structure.EmptyKernelStructure
 import cbackends.global.transformation.funcall2closure.FunCall2Closure
 import cbackends.host.HostCompiler
 import cbackends.host.lowering.LowerIR2HostCAST
@@ -18,10 +19,17 @@ object GlobalCompiler{
 
     assert(files.length == 1, "There should be exactly one file name passed")
 
-    val all_cpufunc_outline_targets = OutlineTargetAnalysis(lambda)
-    val final_cpufundefs = all_cpufunc_outline_targets.map(FunCall2Closure.apply _)   //map( HostCompiler.!! _ ) //.map(OutlineTransformation)
 
-    //castPrinter(List(  new SourceFile(path, file(0), final_cpufundefs :: HostCompiler ! ( empty_cpu_func(lambda) ) )) )
+    HostCompiler.typeCheck(lambda)
+
+    val all_cpufunc_outline_targets = OutlineTargetAnalysis(lambda)
+    //val final_cpufundefs = all_cpufunc_outline_targets.map(FunCall2Closure.apply _)   //map( HostCompiler.!! _ ) //.map(OutlineTransformation)
+    val final_cpufundefs = all_cpufunc_outline_targets.map( HostCompiler.!! _ )
+
+    val emptified_lambda = EmptyKernelStructure(lambda)
+    val top_cast = HostCompiler !! emptified_lambda
+
+    HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(final_cpufundefs.toVector) :: top_cast  )) )
 
     println("hello")
 
