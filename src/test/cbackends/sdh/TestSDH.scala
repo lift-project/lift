@@ -12,7 +12,7 @@ import org.junit.Test
 
 class TestSDH {
 
-  val common_path = "/home/lu/Documents/Research/lift/src/test/cbackends/sdh"
+  val common_path = System.getProperty("user.dir") + "/src/test/cbackends/sdh"
 
   private def incrementF = fun(Float, x => add(Float).apply(1f, x))
 
@@ -24,7 +24,7 @@ class TestSDH {
   @Test
   def test_vec_scale(): Unit = {
 
-    val path = "/home/lu/Documents/Research/lift/src/test/sdh/1.vector_scale"
+    val path = System.getProperty("user.dir") + "/src/test/sdh/1.vector_scale"
 
     val f = fun(
       ArrayType(Float, N),
@@ -37,7 +37,7 @@ class TestSDH {
   @Test
   def test_vec_add(): Unit = {
 
-    val path = "/home/lu/Documents/Research/lift/src/test/sdh/2.vector_add"
+    val path = System.getProperty("user.dir") + "/src/test/sdh/2.vector_add"
 
 
     val add2 = UserFun("add", Array("l", "r"),

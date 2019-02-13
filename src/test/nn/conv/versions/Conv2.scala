@@ -6,8 +6,9 @@ package nn.conv.versions
   * ARM Mali GPU-optimised
   */
 
-import ir.TupleType
+import ir.{ArrayType, TupleType}
 import ir.ast._
+import lift.arithmetic.SizeVar
 import nn._
 import nn.conv.{Conv, ConvCompanion, ConvDatasets, SlidingWindowConfig}
 import opencl.ir._
@@ -18,19 +19,17 @@ import opencl.ir.pattern._
   * verification, and helper functions.
   */
 object Conv2 extends ConvCompanion {
-  //  val kernel_xdim_SV = SizeVar("kernel_xdim_SV")
-  //  val kernel_ydim_SV = SizeVar("kernel_ydim_SV")
-  //  val input_xdim_SV = SizeVar("input_xdim_SV")
-  //  val input_ydim_SV = SizeVar("input_ydim_SV")
-  //  val layer_idim_SV = SizeVar("layer_idim_SV")
-  //  val layer_odim_SV = SizeVar("layer_odim_SV")
-  //  val in_channels_SV = SizeVar("in_channels_SV")
-  //  val out_channels_SV = SizeVar("out_channels_SV")
-  //  val n_inputs_SV = SizeVar("n_inputs_SV")
-  //  val n_batches_SV = SizeVar("n_batches_SV")
+    val kernel_xdim_SV = SizeVar("kernel_xdim_SV")
+    val kernel_ydim_SV = SizeVar("kernel_ydim_SV")
+    val input_xdim_SV = SizeVar("input_xdim_SV")
+    val input_ydim_SV = SizeVar("input_ydim_SV")
+    val in_channels_SV = SizeVar("in_channels_SV")
+    val out_channels_SV = SizeVar("out_channels_SV")
+    val n_inputs_SV = SizeVar("n_inputs_SV")
+    val n_batches_SV = SizeVar("n_batches_SV")
 
   /* Sequential layer */
-  /*def Seq(kernel_h: Int, kernel_w: Int, activation_f: UserFun): FunDecl = λ(
+  def Seq(kernel_h: Int, kernel_w: Int, activation_f: UserFun): FunDecl = λ(
     ArrayType(ArrayType(ArrayType(ArrayType(Float, out_channels_SV), in_channels_SV), kernel_w), kernel_h),
     ArrayType(Float, out_channels_SV),
     ArrayType(ArrayType(ArrayType(ArrayType(Float, in_channels_SV), input_xdim_SV), input_ydim_SV), n_inputs_SV),
@@ -55,7 +54,7 @@ object Conv2 extends ConvCompanion {
         })) o Slide2D(kernel_h, 1, kernel_w, 1) $ single_input
       })) $ X
     }
-  )*/
+  )
   val locA: Int = 0//0
   val locB: Int = 1//1
   val locC: Int = 2//2
