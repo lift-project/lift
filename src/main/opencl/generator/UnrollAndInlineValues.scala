@@ -33,7 +33,7 @@ object UnrollValues {
   def getIndexSuffix(str: String): (Int, String) = {
 
     val idx = str.split("_|\\.").filter(_.nonEmpty).lift(0).getOrElse("-1")
-    if (idx == "-1") // is there a nicer way to do this ?
+    if (idx == "-1")
     {
       (idx.toInt, "")
     }
@@ -41,7 +41,7 @@ object UnrollValues {
       var suffix = str.split("_", 2).filter(_.nonEmpty)(0).split(idx, 2).mkString
       if (suffix == ".") {
         suffix = "";
-      } // TODO: probably a nicer way to do this?
+      }
       (idx.toInt, suffix)
     }
   }
@@ -348,7 +348,7 @@ object UnrollValues {
                 case _ => nodeVector = nodeVector :+ ovd
               }
             // otherwise just push back in new Vector
-            case an: AstNode => nodeVector = nodeVector :+ an // won't let me just use "_", please don't ask me to
+            case an: AstNode => nodeVector = nodeVector :+ an
           }
         )
         // return block with new vector

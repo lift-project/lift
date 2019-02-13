@@ -259,8 +259,7 @@ class OpenCLGenerator extends Generator {
     var inlineBlock = unrollBlock
 
     // inline structs if requested
-
-  if(InlineStructs())
+    if(InlineStructs())
     {
       try
       {
