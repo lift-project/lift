@@ -17,7 +17,7 @@ import cbackends.common.executor.Executor.native_compile_and_run
 
 class TestONNX {
 
-  val common_path = "/home/lu/Documents/Research/lift/src/test/cbackends/onnx"
+  val common_path = System.getProperty("user.dir") + "/src/test/cbackends/onnx"
 
   @Test
   def test_conv(): Unit = {
@@ -41,7 +41,7 @@ class TestONNX {
         |
       """.stripMargin
 
-    val expr = Source.fromFile("/home/lu/Documents/Research/lift/src/test/ir/ast/onnx/lift_expr_for_onnx_model/lu_lift_expr_from_onnx.txt").getLines.mkString
+    val expr = Source.fromFile(System.getProperty("user.dir") + "/src/test/ir/ast/onnx/lift_expr_for_onnx_model/lu_lift_expr_from_onnx.txt").getLines.mkString
 
     val code = prologue + expr
 

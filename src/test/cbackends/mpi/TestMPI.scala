@@ -17,7 +17,7 @@ class TestMPI {
     if (System.getProperty("user.name").equals("eduardo")) {
       "/home/eduardo/lift_bueno/lift/src/test/cbackends/mpi" }
     else {
-    "/home/lu/Documents/Research/lift/src/test/cbackends/mpi" }
+      System.getProperty("user.dir") + "/src/test/cbackends/mpi" }
   }
   private val N = SizeVar("N")
 
