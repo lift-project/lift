@@ -1,6 +1,7 @@
 package cbackends.global
 
 import cbackends.host.host_ir.CPUFunc
+import cbackends.onnx.lift_nn_ir.host_ir.Pool3D
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
@@ -57,4 +58,100 @@ class TestGlobal {
 
     println("Test case test_slide_hello done!")
   }
+
+  @Test
+  def test_pool(): Unit = {
+
+    val path = s"$common_path/02.pool"
+    val file = "libpool.cpp"
+
+    val pool_lambda = MapSeq( MapSeq ( dividedBy(2) )) o
+        Join() o MapSeq( MapSeq( Join() o MapSeq(
+        fun( y =>
+          ReduceSeq(add, 0.0f) o
+            Join() o Join() $ y )
+      ) ) ) o Slide3D_R(3,1,3,1,3,1)
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N) ,
+      in => CPUFunc( pool_lambda  )  $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "27 27 27 27 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
+
+  @Test
+  def test_pool_pool(): Unit = {
+
+    val path = s"$common_path/03.pool_pool"
+    val file = "libpool_pool.cpp"
+
+    val pool_lambda1 = MapSeq( MapSeq ( MapSeq( dividedBy(2) ) )) o
+      MapSeq( MapSeq( Join() o MapSeq(
+      fun( y =>
+        ReduceSeq(add, 0.0f) o
+          Join() o Join() $ y )
+    ) ) ) o Slide3D_R(3,1,3,1,3,1)
+
+    //TODO: in the future you can find a way to reuse kernel
+    //currently, since the funcName in Lambda is mutable,
+    //thus one has to use multiple lambdas even though they are the same
+    val pool_lambda2 = MapSeq( MapSeq ( MapSeq( dividedBy(2) ) )) o
+      MapSeq( MapSeq( Join() o MapSeq(
+        fun( y =>
+          ReduceSeq(add, 0.0f) o
+            Join() o Join() $ y )
+      ) ) ) o Slide3D_R(3,1,3,1,3,1)
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, N), N), N) ,
+      in => CPUFunc( pool_lambda1 ) o CPUFunc( pool_lambda2  )  $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "364.5 364.5 364.5 364.5 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
+  @Test
+  def test_binary_cpu_func(): Unit = {
+
+    val path = s"$common_path/04.binary_cpu_func"
+    val file = "libbinary_cpu_func.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
+      (in1, in2) => CPUFunc( fun( (i1,i2) => MapSeq(incrementF) $ i1 ) ).apply( in1, in2)
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "3 3 3 3 3 3 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
 }
