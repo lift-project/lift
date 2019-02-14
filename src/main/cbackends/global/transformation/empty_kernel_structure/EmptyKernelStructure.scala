@@ -8,7 +8,7 @@ object EmptyKernelStructure {
 
   def apply(lambda: Lambda) : Lambda = {
     val lowered = lambda visitAndRebuild  {
-      case FunCall(cf:CPUFunc, arg) => FunCall(CPUFunCall(cf.funcName), arg)
+      case FunCall(cf:CPUFunc, arg) => FunCall(CPUFunCall(cf.funcName, cf.f.params), arg)
       case x => x
     }
 

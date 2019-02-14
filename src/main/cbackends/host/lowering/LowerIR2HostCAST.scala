@@ -64,7 +64,11 @@ object LowerIR2HostCAST {
 
     val cfc = fc.f.asInstanceOf[CPUFunCall]
 
-    val fc_block = FunctionCall(cfc.funcName, List())
+    val input_arg = CVarWithType(fc.args.head.mem.variable.toString, TypeLowering.IRType2CastType(fc.args.head.t) )
+    val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
+    val sizes = cfc.params.flatMap(p => ArithExpr.collectVars(p.mem.size)).map(p => CVarWithType(p.toString, IntegerType())).distinct
+
+    val fc_block = FunctionCall(cfc.funcName, input_arg :: (output_arg :: sizes.toList ) )
 
     arg_block :+ fc_block
 

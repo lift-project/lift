@@ -18,7 +18,7 @@ import scala.language.implicitConversions
  * @param body The body of the lambda expression.
  */
 abstract case class Lambda private[ast] (params: Array[Param],
-                                         body: Expr, var funcName: String = "default_name") extends FunDecl(params.length) {
+                                         body: Expr, var funcName: String = "execute") extends FunDecl(params.length) {
 
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode =
     Lambda( params.map(_.visitAndRebuild(pre,post).asInstanceOf[Param]), body.visitAndRebuild(pre,post).asInstanceOf[Expr] )

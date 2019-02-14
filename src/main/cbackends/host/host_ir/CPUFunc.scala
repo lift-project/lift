@@ -1,6 +1,6 @@
 package cbackends.host.host_ir
 
-import ir.ast.{FPattern, IDGenerator, IRNode, Lambda, Pattern}
+import ir.ast.{FPattern, IDGenerator, IRNode, Lambda, Param, Pattern}
 import ir.interpreter.Interpreter.ValueMap
 import ir.{Type, TypeChecker}
 
@@ -24,7 +24,7 @@ case class CPUFunc(override val f: Lambda, val funcName: String = "execute_" + I
   }
 }
 
-case class CPUFunCall(funcName : String) extends Pattern(arity = 1) {
+case class CPUFunCall(funcName : String, params: Array[Param]) extends Pattern(arity = 1) {
 
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = this
   override def checkType(argType: Type, setType: Boolean): Type = argType
