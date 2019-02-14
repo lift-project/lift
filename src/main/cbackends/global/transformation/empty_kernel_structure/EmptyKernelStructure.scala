@@ -1,6 +1,6 @@
 package cbackends.global.transformation.empty_kernel_structure
 
-import cbackends.global.global_ir.CPUFunCall
+import cbackends.host.host_ir.CPUFunCall
 import cbackends.host.host_ir.{CPUFunCall, CPUFunc}
 import ir.ast.{FunCall, Lambda}
 

@@ -2,6 +2,7 @@ package cbackends.common.memory_management
 
 import core.generator.GenericAST.CVarWithType
 import cbackends.common.common_ir.{CPUNullMemory, HostMemory, HostMemoryCollection}
+import cbackends.host.host_ir.CPUFunCall
 import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, Expr, FPattern, FunCall, FunDecl, Get, IRNode, Join, Lambda, Pad, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip}
 import ir.{Type, UnallocatedMemory}
 import lift.arithmetic.{ArithExpr, ContinuousRange, Cst, Var}
@@ -24,7 +25,7 @@ object MemoryAllocator {
         //but the IR analysis can still be done.
         ac.mem = HostMemory(Var(s"array_constructor_${ac.gid}", ContinuousRange(Cst(0), size)), size, ac.addressSpace )
 
-      case fc@FunCall(_:UserFun, args@_*) => {
+      case fc@FunCall(_:UserFun|_:CPUFunCall, args@_*) => {
         //link the arg to the correct param is already done in its upper level FPattern
         args.foreach(alloc(_))
 

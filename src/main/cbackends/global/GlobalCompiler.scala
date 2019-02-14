@@ -29,7 +29,7 @@ object GlobalCompiler{
     val emptified_lambda = EmptyKernelStructure(lambda)
     val top_cast = HostCompiler !! emptified_lambda
 
-    HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(final_cpufundefs.toVector) :: top_cast  )) )
+    HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(final_cpufundefs.toVector, global = true) :: top_cast  )) )
 
     println("hello")
 

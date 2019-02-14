@@ -1,6 +1,7 @@
 package cbackends.host.lowering
 
 import cbackends.common.utils.type_lowering.TypeLowering
+import cbackends.host.host_ir.CPUFunCall
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
 //import host_obsolete.ir_host.MapHSeq
 //import host_obsolete.view.ViewPrinter
@@ -47,9 +48,26 @@ object LowerIR2HostCAST {
         generateNothing(fc)
       case fc@FunCall(_:UserFun,_*) =>
         generateUserFun(fc)
+      case fc@FunCall(_:CPUFunCall,_) =>
+        generateCPUFunCall(fc)
       case _ =>
         Block()
     }
+
+  }
+
+
+  private def generateCPUFunCall(fc: FunCall) : Block = {
+    //parameter sequnence convention: first input pointers, then output pointers, then sizes
+
+    val arg_block = generate(fc.args.head)
+
+    val cfc = fc.f.asInstanceOf[CPUFunCall]
+
+    val fc_block = FunctionCall(cfc.funcName, List())
+
+    arg_block :+ fc_block
+
 
   }
 
