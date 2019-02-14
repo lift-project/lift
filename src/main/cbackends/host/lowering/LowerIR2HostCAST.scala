@@ -26,9 +26,9 @@ object LowerIR2HostCAST {
   def generate(node:IRNode): Block = {
     //lots of pattern matching code
     node match {
-      case lambda@Lambda(_,_) =>
+      case lambda@Lambda(_,_,_) =>
         generate(lambda.body)
-      case fc@FunCall(lambda@Lambda(_,_), _) =>
+      case fc@FunCall(lambda@Lambda(_,_,_), _) =>
         generate(lambda.body)
       case fc@FunCall(_:ir.ast.Map, _) =>
         generateNothing(fc)
@@ -216,6 +216,33 @@ object LowerIR2HostCAST {
 
     //( Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true ), all_signature_cvars )
     Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true )
+
+
+
+
+  }
+
+
+  def apply_no_header(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]) : Block = {
+
+    val userfun_decl_code = generateUserFunDecl(lambda)
+
+    val ins_cvars = lambda.params.map(p => CVarWithType(p.mem.variable.toString,TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(p.t), flatType = true ) ))
+    //val out_cvar = CVarWithType(lambda.body.mem.variable.toString, TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(lambda.body.t), flatType = true) )
+    val out_cvar_in_execute = CVarWithType(lambda.body.mem.variable.toString, RefType(TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(lambda.body.t), flatType = true) ) )
+    val sizes_cvars = lambda.params.flatMap(p => ArithExpr.collectVars(p.mem.size)).map(p => CVarWithType(p.toString, IntegerType())).distinct
+
+    val memory_alloc_code = generateMemAlloc(hostMemoryDeclaredInSignature, out_cvar_in_execute)
+
+    //val all_signature_cvars = ( (ins_cvars :+ out_cvar ) ++ sizes_cvars ).toList
+    val all_signature_cvars_for_execute = ( (ins_cvars :+ out_cvar_in_execute ) ++ sizes_cvars ).toList
+
+    val param_list = all_signature_cvars_for_execute.map(cv => ParamDeclPure(cv.name, cv.t))
+
+    val core_body_code = generate(lambda)
+
+    //( Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true ), all_signature_cvars )
+    Block(Vector( userfun_decl_code, FunctionPure(lambda.funcName,VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true )
 
 
 

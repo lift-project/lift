@@ -10,7 +10,7 @@ object OutlineTargetAnalysis {
     val online_targests = scala.collection.mutable.ListBuffer.empty[Lambda]
 
     lambda visitBy {
-      case cf@FunCall(c:CPUFunc, _*) => online_targests += c.f
+      case cf@FunCall(c:CPUFunc, _*) => c.f.funcName = c.funcName; online_targests += c.f
       case _ =>
     }
 

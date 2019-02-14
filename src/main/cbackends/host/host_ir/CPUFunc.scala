@@ -1,12 +1,12 @@
 package cbackends.host.host_ir
 
-import ir.ast.{FPattern, IRNode, Lambda, Pattern}
+import ir.ast.{FPattern, IDGenerator, IRNode, Lambda, Pattern}
 import ir.interpreter.Interpreter.ValueMap
 import ir.{Type, TypeChecker}
 
-case class CPUFunc(override val f: Lambda) extends Pattern(arity = 1) with FPattern {
+case class CPUFunc(override val f: Lambda, val funcName: String = "execute_" + IDGenerator.get_id()) extends Pattern(arity = 1) with FPattern {
 
-  override def copy(f: Lambda): Pattern = CPUFunc(f)
+  override def copy(f: Lambda): Pattern = CPUFunc(f, funcName)
 
 
   override def checkType(argType: Type,

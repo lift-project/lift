@@ -42,7 +42,7 @@ object HostCompiler extends CBackendsCompilerTrait {
     inputView(lambda)
     outputView(lambda)
 
-    lowerIR2CAST(lambda, finalMemoryAllocated)
+    LowerIR2HostCAST.apply_no_header(lambda, finalMemoryAllocated)
 
   }
 
