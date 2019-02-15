@@ -136,7 +136,7 @@ class TestONNX {
 
     val f = fun(
       ArrayType(Float,List(Cst(8),Cst(8),Cst(8))),
-      ArrayType(Float,List(Cst(6),Cst(6),Cst(8))),
+      ArrayType(Float,List(Cst(8),Cst(6),Cst(6))),
       (X,W) => {
         AveragePool(
           auto_pad = "NOTSET",
@@ -148,7 +148,7 @@ class TestONNX {
           onnx.Conv(
             autoPad = "NOTSET",
             group = 1,
-            kernelShape = List(6,6,8),
+            kernelShape = List(8,6,6),
             pads = Some(List(0,0)),
             strides = List(1,1,1)
           ) (X,W)
