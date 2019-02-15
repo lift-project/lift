@@ -30,7 +30,7 @@ object GlobalCompiler{
 
     val all_oclfunc_outline_targets = OclOutlineTargetAnalysis(lambda)
     //val final_cpufundefs = all_cpufunc_outline_targets.map(FunCall2Closure.apply _)   //map( HostCompiler.!! _ ) //.map(OutlineTransformation)
-    val oclfundefs = all_oclfunc_outline_targets.map( HostCompiler.!! _ )
+    val oclfundefs = all_oclfunc_outline_targets.map( opencl.executor.Compile.!! _ )
     val final_oclfundefs = UniqueUserFunc(oclfundefs)
 
 

@@ -33,6 +33,12 @@ object OpenCLGenerator extends Generator {
     (new OpenCLGenerator).generate(f, localSize, globalSize, valueMap)
   }
 
+  def !! (f: Lambda, localSize: NDRange, globalSize: NDRange,
+               valueMap: immutable.Map[ArithExpr, ArithExpr]) : MutableBlock = {
+
+    (new OpenCLGenerator) !! (f, localSize, globalSize, valueMap)
+  }
+
   def printTypes(expr: Expr): Unit = {
     Expr.visit(expr, {
       case e@(call: FunCall) => println(e + "\n    " +
@@ -260,6 +266,91 @@ class OpenCLGenerator extends Generator {
       println(s"Generated AST: \n${globalBlock}")
 
     oclstring
+  }
+
+  def !! (f: Lambda, localSize: NDRange, globalSize: NDRange,
+    valueMap: collection.Map[ArithExpr, ArithExpr]): MutableBlock = {
+
+
+    this.localSize = localSize
+
+    if (f.body.t == UndefType)
+      throw new OpenCLGeneratorException("Lambda has to be type-checked to generate code")
+
+    InferOpenCLAddressSpace(f)
+    RangesAndCounts(f, localSize, globalSize, valueMap)
+    allocateMemory(f)
+
+    ShouldUnroll(f)
+
+    if (PerformBarrierElimination())
+      BarrierElimination(f)
+
+    checkLambdaIsLegal(f)
+
+    if (Verbose()) {
+
+      println("Types:")
+      OpenCLGenerator.printTypes(f.body)
+
+      println("Memory:")
+      printMemories(f.body)
+
+      println("Allocated Memory:")
+      val (inputs, outputs, globalTmps, localTmps) = CollectTypedOpenCLMemory(f, includePrivate = true)
+      println(" inputs:")
+      inputs.foreach(println(_))
+      println(" outputs:")
+      outputs.foreach(println(_))
+      println(" global tmps:")
+      globalTmps.foreach(println(_))
+      println(" local tmps:")
+      localTmps.foreach(println(_))
+      println()
+    }
+
+    View(f)
+
+    val globalBlock = MutableBlock(Vector.empty, global = true)
+
+    val containsDouble = Expr.visitWithState(false)(f.body, {
+      case (expr, state) =>
+        // A `Double` may be hidden in a TupleType. We need to visit the type
+        // of each expression
+        var found = false
+        Type.visit(expr.t, t => if (t == Double) found = true, _ => ())
+        found || state
+    })
+
+    if (containsDouble) {
+      globalBlock += OclExtension("cl_khr_fp64")
+    }
+
+    val tupleTypes = Expr.visitWithState(Set[TupleType]())(f.body, (expr, typeList) => {
+      expr match {
+        case FunCall(uf: UserFun, _*)           => typeList ++ uf.tupleTypes
+        case FunCall(vec: VectorizeUserFun, _*) => typeList ++ vec.vectorizedFunction.tupleTypes
+        case _                                  =>
+          expr.t match {
+            case t: TupleType if t.elemsT.forall(t => {
+              var containsArray = false
+              Type.visit(t, x => containsArray ||= x.isInstanceOf[ArrayType], _ => Unit)
+              !containsArray
+            })     => typeList + t
+            case _ => typeList
+          }
+      }
+    })
+
+    tupleTypes.foreach(globalBlock += TypeDef(_))
+
+    // pass 2: find and generate user and group functions
+    generateUserFunctions(f.body).foreach(globalBlock += _)
+
+    // pass 3: generate the
+    globalBlock += generateKernel(f)
+
+    globalBlock
   }
 
   // TODO: Gather(_)/Transpose() without read and Scatter(_)/TransposeW() without write

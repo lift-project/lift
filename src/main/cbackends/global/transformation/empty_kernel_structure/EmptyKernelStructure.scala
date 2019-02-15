@@ -1,6 +1,6 @@
 package cbackends.global.transformation.empty_kernel_structure
 
-import cbackends.host.host_ir.{CPUFunCall, CPUFunCall2, CPUFunc, CPUFunc2}
+import cbackends.host.host_ir._
 import ir.ast.{FunCall, Lambda}
 
 object EmptyKernelStructure {
@@ -13,6 +13,10 @@ object EmptyKernelStructure {
         new_funcall
       case fc@FunCall(cf:CPUFunc2, args@_*) =>
         val new_funcall = FunCall(CPUFunCall2(cf.funcName, cf.f.params), args:_*)
+        new_funcall.t = fc.t
+        new_funcall
+      case fc@FunCall(cf:OclFunc, args@_*) =>
+        val new_funcall = FunCall(OclFunCall(cf.funcName, cf.f.params), args:_*)
         new_funcall.t = fc.t
         new_funcall
       case x => x

@@ -254,8 +254,8 @@ class TestGlobal {
     val file = "libcpufunc.cpp"
 
     val f = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
-      in => OclFunc( MapSeq(MapSeq(incrementF))  ) o OclFunc( MapSeq(MapSeq(incrementF)) ) $ in
+      ArrayTypeWSWC(Float, N),
+      in => OclFunc( MapGlb( toGlobal(id) o incrementF )  )  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
