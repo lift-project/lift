@@ -154,4 +154,96 @@ class TestGlobal {
     println("Test case test_slide_hello done!")
   }
 
+  @Test
+  def test_conv(): Unit = {
+
+    val path = s"$common_path/05.conv"
+    val file = "libconv.cpp"
+
+    val conv_lambda = fun(
+      (in, weights) =>
+        MapSeq(  MapSeq( Join() o MapSeq(
+
+          fun(cube =>
+
+            ReduceSeq(add, 0.0f) o
+              MapSeq( fun(y => mult.apply(Get(y,0), Get(y,1))) )
+              $ Zip( Join() o Join() $ cube, Join() o Join() $ weights)
+
+          )
+
+        ) ) ) o Slide3D_R(3,1,3,1,3,1) $ in
+
+    )
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 8), 8), 8) ,
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 3), 3), 3) ,
+      (in, weights) =>
+          CPUFunc2( conv_lambda  ).apply(in, weights)
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
+  @Test
+  def test_conv_pool(): Unit = {
+
+    val path = s"$common_path/06.conv"
+    val file = "libconv_pool.cpp"
+
+    val pool_lambda = MapSeq( MapSeq ( MapSeq( dividedBy(2) ) )) o
+      MapSeq( MapSeq( Join() o MapSeq(
+        fun( y =>
+          ReduceSeq(add, 0.0f) o
+            Join() o Join() $ y )
+      ) ) ) o Slide3D_R(3,1,3,1,3,1)
+
+    val conv_lambda = fun(
+      (in, weights) =>
+        MapSeq(  MapSeq( Join() o MapSeq(
+
+          fun(cube =>
+
+            ReduceSeq(add, 0.0f) o
+              MapSeq( fun(y => mult.apply(Get(y,0), Get(y,1))) )
+              $ Zip( Join() o Join() $ cube, Join() o Join() $ weights)
+
+          )
+
+        ) ) ) o Slide3D_R(3,1,3,1,3,1) $ in
+
+    )
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 8), 8), 8) ,
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 3), 3), 3) ,
+      (in, weights) =>
+        //CPUFunc2( pool_lambda ) o
+        //CPUFunc( pool_lambda ) o
+        CPUFunc2( conv_lambda  ).apply(in, weights)
+      //conv_lambda.apply(in, weights)
+
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
 }
