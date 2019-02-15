@@ -1,7 +1,7 @@
 package cbackends.host.lowering
 
 import cbackends.common.utils.type_lowering.TypeLowering
-import cbackends.host.host_ir.CPUFunCall
+import cbackends.host.host_ir.{CPUFunCall, CPUFunCall2}
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
 //import host_obsolete.ir_host.MapHSeq
 //import host_obsolete.view.ViewPrinter
@@ -50,12 +50,31 @@ object LowerIR2HostCAST {
         generateUserFun(fc)
       case fc@FunCall(_:CPUFunCall,_) =>
         generateCPUFunCall(fc)
+      case fc@FunCall(_:CPUFunCall2, _*) =>
+        generateCPUFunCall2(fc)
       case _ =>
         Block()
     }
 
   }
 
+  private def generateCPUFunCall2(fc: FunCall) : Block = {
+    //parameter sequnence convention: first input pointers, then output pointers, then sizes
+
+    val arg_blocks = fc.args.map(generate(_) )
+
+    val cfc = fc.f.asInstanceOf[CPUFunCall2]
+
+    val input_args = fc.args.map( arg => CVarWithType(arg.mem.variable.toString, TypeLowering.IRType2CastType(arg.t) ) ).toList
+    val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
+    val sizes = cfc.params.flatMap(p => ArithExpr.collectVars(p.mem.size)).map(p => CVarWithType(p.toString, IntegerType())).distinct
+
+    val fc_cast = FunctionCall(cfc.funcName, input_args ::: (output_arg :: sizes.toList ) )
+
+    Block(arg_blocks.toVector, global = true) :++ Block( Vector(fc_cast), global = true)
+
+
+  }
 
   private def generateCPUFunCall(fc: FunCall) : Block = {
     //parameter sequnence convention: first input pointers, then output pointers, then sizes

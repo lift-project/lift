@@ -34,7 +34,7 @@ object HostCompiler extends CBackendsCompilerTrait {
 
     println("1.compiler called")
 
-    typeCheck(lambda)
+    //typeCheck(lambda)
     memorySpaceInference(lambda)
     loopVarInference(lambda)
     memoryAlloc(lambda)

@@ -1,6 +1,6 @@
 package cbackends.global.transformation.cast_transformation.cpu_outline_transformation
 
-import cbackends.host.host_ir.CPUFunc
+import cbackends.host.host_ir.{CPUFunc, CPUFunc2}
 import ir.ast.{FunCall, Lambda}
 
 object OutlineTargetAnalysis {
@@ -11,6 +11,7 @@ object OutlineTargetAnalysis {
 
     lambda visitBy {
       case cf@FunCall(c:CPUFunc, _*) => c.f.funcName = c.funcName; online_targests += c.f
+      case cf@FunCall(c:CPUFunc2, _*) => c.f.funcName = c.funcName; online_targests += c.f
       case _ =>
     }
 

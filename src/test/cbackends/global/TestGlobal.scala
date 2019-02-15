@@ -1,6 +1,6 @@
 package cbackends.global
 
-import cbackends.host.host_ir.CPUFunc
+import cbackends.host.host_ir.{CPUFunc, CPUFunc2}
 import cbackends.onnx.lift_nn_ir.host_ir.Pool3D
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
@@ -138,8 +138,8 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-      ArrayTypeWSWC(Float, N),
-      (in1, in2) => CPUFunc( fun( (i1,i2) => MapSeq(incrementF) $ i1 ) ).apply( in1, in2)
+      ArrayTypeWSWC(Float, M),
+      (in1, in2) => CPUFunc2( fun( (i1,i2) => MapSeq(incrementF) $ i1 ) ).apply( in1, in2)
     )
 
     ("mkdir -p " + s"$path" ) !!
