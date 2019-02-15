@@ -1,6 +1,6 @@
 package cbackends.global
 
-import cbackends.host.host_ir.{CPUFunc, CPUFunc2}
+import cbackends.host.host_ir.{CPUFunc, CPUFunc2, OclFunc}
 import cbackends.onnx.lift_nn_ir.host_ir.Pool3D
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
@@ -245,4 +245,29 @@ class TestGlobal {
 
     println("Test case test_slide_hello done!")
   }
+
+
+  @Test
+  def test_gpu_func(): Unit = {
+
+    val path = s"$common_path/01.cpufunc"
+    val file = "libcpufunc.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
+      in => OclFunc( MapSeq(MapSeq(incrementF))  ) o OclFunc( MapSeq(MapSeq(incrementF)) ) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "3 3 3 3 3 3 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
 }

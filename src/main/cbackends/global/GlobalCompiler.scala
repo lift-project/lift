@@ -2,7 +2,7 @@ package cbackends.global
 
 import cbackends.common.CBackendsCompilerTrait
 import cbackends.common.common_cast.CbackendCAST.SourceFile
-import cbackends.global.transformation.cast_transformation.cpu_outline_transformation.OutlineTargetAnalysis
+import cbackends.global.transformation.cast_transformation.cpu_outline_transformation.{CPUOutlineTargetAnalysis, OclOutlineTargetAnalysis }
 import cbackends.global.transformation.empty_kernel_structure.EmptyKernelStructure
 import cbackends.global.transformation.funcall2closure.FunCall2Closure
 import cbackends.global.transformation.unique_user_func.UniqueUserFunc
@@ -23,10 +23,16 @@ object GlobalCompiler{
 
     HostCompiler.typeCheck(lambda)
 
-    val all_cpufunc_outline_targets = OutlineTargetAnalysis(lambda)
+    val all_cpufunc_outline_targets = CPUOutlineTargetAnalysis(lambda)
     //val final_cpufundefs = all_cpufunc_outline_targets.map(FunCall2Closure.apply _)   //map( HostCompiler.!! _ ) //.map(OutlineTransformation)
     val cpufundefs = all_cpufunc_outline_targets.map( HostCompiler.!! _ )
     val final_cpufundefs = UniqueUserFunc(cpufundefs)
+
+    val all_oclfunc_outline_targets = OclOutlineTargetAnalysis(lambda)
+    //val final_cpufundefs = all_cpufunc_outline_targets.map(FunCall2Closure.apply _)   //map( HostCompiler.!! _ ) //.map(OutlineTransformation)
+    val oclfundefs = all_oclfunc_outline_targets.map( HostCompiler.!! _ )
+    val final_oclfundefs = UniqueUserFunc(oclfundefs)
+
 
     val emptified_lambda = EmptyKernelStructure(lambda)
     val top_cast = HostCompiler !! emptified_lambda
