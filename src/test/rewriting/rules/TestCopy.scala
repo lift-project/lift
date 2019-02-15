@@ -25,7 +25,7 @@ class TestCopy {
     )
 
     val e = f match {
-      case Lambda(_, FunCall(Map(Lambda(_, c)), _)) => c
+      case Lambda(_, FunCall(Map(Lambda(_, c, _)), _), _) => c
     }
 
     val value = Rewrite.applyRuleAt(f, e, CopyRules.addCopy)
@@ -40,7 +40,7 @@ class TestCopy {
     )
 
     val e = f match {
-      case Lambda(_, c@FunCall(_, _)) => c
+      case Lambda(_, c@FunCall(_, _), _) => c
     }
 
     println(Rewrite.applyRuleAt(f, e, CopyRules.addCopy))
@@ -54,7 +54,7 @@ class TestCopy {
     )
 
     val e = f match {
-      case Lambda(_, c@FunCall(_, _)) => c
+      case Lambda(_, c@FunCall(_, _), _) => c
     }
 
     println(Rewrite.applyRuleAt(f, e, CopyRules.addCopy))
