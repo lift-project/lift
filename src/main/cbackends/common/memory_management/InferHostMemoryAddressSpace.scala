@@ -36,7 +36,7 @@ object InferHostMemoryAddressSpace {
         fc.addressSpace = args.head.addressSpace
       }
 
-      case fc@FunCall(Lambda(params, body), args@_*) => {
+      case fc@FunCall(Lambda(params, body, _), args@_*) => {
         args.foreach(inferAddrSpace(_))
 
         (params zip args).foreach(pair => pair._1.addressSpace = pair._2.addressSpace)

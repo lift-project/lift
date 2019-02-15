@@ -10,7 +10,7 @@ object FissionRules {
   // More restricted than necessary. Could pull out any arg.
   val extractFromMap = Rule("Map(x => f(x, g(...))) $ in => " +
   "(y => Map(x => f(x, y)) $ in) o g(...)", {
-    case call@FunCall(Map(Lambda(Array(p), FunCall(_, arg))) , _)
+    case call@FunCall(Map(Lambda(Array(p), FunCall(_, arg), _)) , _)
       if !arg.contains({ case y if y eq p => })
     =>
       val newParam = Param()
@@ -22,7 +22,7 @@ object FissionRules {
 
       newExpr
 
-    case call@FunCall(Map(Lambda(Array(p), FunCall(_, _, arg))), _)
+    case call@FunCall(Map(Lambda(Array(p), FunCall(_, _, arg), _)), _)
       if !arg.contains({ case y if y eq p => })
     =>
       val newParam = Param()
@@ -36,27 +36,27 @@ object FissionRules {
   })
 
   val mapFission = Rule("Map(f o g) => Map(f) o Map(g)", {
-    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(fun2, p2@_*)))), arg)
+    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(fun2, p2@_*)), _)), arg)
       if !fun1.isInstanceOf[FPattern] ||
         !fun1.asInstanceOf[FPattern].f.body.contains({ case a if a eq p1.head => })
     =>
       Map(fun1) o Map(Lambda(p1, fun2(p2:_*))) $ arg
 
-    case FunCall(Map(Lambda(p1, FunCall(r: AbstractPartRed, init, FunCall(fun2, p2)))), arg)
+    case FunCall(Map(Lambda(p1, FunCall(r: AbstractPartRed, init, FunCall(fun2, p2)), _)), arg)
       if !r.f.body.contains({ case a if a eq p1.head => }) &&
         !init.contains({ case a if a eq p1.head => })
     =>
 
       Map(fun((x) => r(init, x))) o Map(Lambda(p1, fun2(p2))) $ arg
 
-    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(r: AbstractPartRed, init, p2)))), arg)
+    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(r: AbstractPartRed, init, p2)), _)), arg)
       if !fun1.isInstanceOf[FPattern] ||
         !fun1.asInstanceOf[FPattern].f.body.contains({ case a if a eq p1.head => })
     =>
       Map(fun1) o Map(Lambda(p1, r(init, p2))) $ arg
 
     case FunCall(Map(Lambda(p1, FunCall(r1: AbstractPartRed, init1,
-    FunCall(r2: AbstractPartRed, init2, p2)))), arg)
+    FunCall(r2: AbstractPartRed, init2, p2)), _)), arg)
       if !r1.f.body.contains({ case a if a eq p1.head => }) &&
         !init1.contains({ case a if a eq p1.head => })
     =>
@@ -64,7 +64,7 @@ object FissionRules {
   })
 
   val mapFissionCreateZip = Rule("Map(x => f(x, g(...)) => Map(f) $ Zip(..., Map(g)  )", {
-    case FunCall(Map(Lambda(p1, FunCall(fun1, call@FunCall(fun2, p2)))), arg)
+    case FunCall(Map(Lambda(p1, FunCall(fun1, call@FunCall(fun2, p2)), _)), arg)
       if fun1.isInstanceOf[FPattern] &&
         fun1.asInstanceOf[FPattern].f.body.contains({ case a if a eq p1.head => }) &&
       call.contains({ case a if a eq p1.head => }) && !arg.contains({ case FunCall(Zip(_), _*) => })
@@ -89,7 +89,7 @@ object FissionRules {
 
     // TODO: Which behaviour should this rule have? Tests assume arg is used several times.
     // TODO: Original rule assumes x is used in f. Now assumes x is used in f & g.
-    case FunCall(Map(Lambda(p1, FunCall(r: AbstractPartRed, init, FunCall(fun2, p2)))), arg)
+    case FunCall(Map(Lambda(p1, FunCall(r: AbstractPartRed, init, FunCall(fun2, p2)), _)), arg)
       if r.f.body.contains({ case a if a eq p1.head => }) ||
         init.contains({ case a if a eq p1.head => })
     =>
@@ -110,7 +110,7 @@ object FissionRules {
       Map(Lambda(Array(newParam), r.copy(newLambda)(newInit, get1))) $
         Zip(arg, Map(Lambda(p1, fun2(p2))) $ arg)
 
-    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(r: AbstractPartRed, init, p2)))), arg)
+    case FunCall(Map(Lambda(p1, FunCall(fun1, FunCall(r: AbstractPartRed, init, p2)), _)), arg)
       if fun1.isInstanceOf[FPattern] &&
         fun1.asInstanceOf[FPattern].f.body.contains({ case a if a eq p1.head => })
     =>
@@ -133,7 +133,7 @@ object FissionRules {
         Zip(arg, Map(Lambda(p1, r.copy(r.f)(init, p2))) $ arg)
 
     case FunCall(Map(Lambda(p1, FunCall(r1: AbstractPartRed, init1,
-    FunCall(r2: AbstractPartRed, init2, p2)))), arg)
+    FunCall(r2: AbstractPartRed, init2, p2)), _)), arg)
       if r1.f.body.contains({ case a if a eq p1.head => }) ||
         init1.contains({ case a if a eq p1.head => })
     =>
@@ -157,7 +157,7 @@ object FissionRules {
 
   val mapFissionWithZipInside = Rule("Map(fun(x => ... Zip(..., f $ x, ...))) " +
                                "Map(fun(y => ... Zip(..., y, ...))) o Map(f)", {
-    case FunCall(Map(Lambda(lambdaParam, body)), arg)
+    case FunCall(Map(Lambda(lambdaParam, body, _)), arg)
       if Expr.visitWithState(0)(body, (e, count) => {
         e match {
           case FunCall(Zip(_), args@_*)
@@ -196,14 +196,14 @@ object FissionRules {
   val mapFissionWithZipOutside = Rule("Map(fun(x => ...o f $ Get(x, i))) $ Zip(..., y, ...) " +
     "Map(fun(z => ... $ Get(z, i)) $ Zip(..., Map(f) $ y, ...)", {
     case FunCall(Map(Lambda(lambdaParam,
-    c@FunCall(_, arg)
+    c@FunCall(_, arg), _
     )), FunCall(Zip(_), zipArgs@_*))
       if isMapFissionWithZipOutsideValid(lambdaParam, arg)
     =>
       applyMapFissionWithZipOutside(c, arg, zipArgs)
 
     case FunCall(Map(Lambda(lambdaParam,
-    c@FunCall(_: AbstractPartRed, _, arg@FunCall(_, FunCall(Get(_), _)))
+    c@FunCall(_: AbstractPartRed, _, arg@FunCall(_, FunCall(Get(_), _))), _
     )), FunCall(Zip(_), zipArgs@_*))
       if isMapFissionWithZipOutsideValid(lambdaParam, arg)
     =>

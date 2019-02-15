@@ -30,7 +30,7 @@ object FusionRules {
 
   val mapFusion = Rule("Map(f) o Map(g) => Map(f o g)", {
 
-    case FunCall(Map(l1@Lambda(p1, f)), FunCall(Map(l2@Lambda(p2, g)), arg)) =>
+    case FunCall(Map(l1@Lambda(p1, f, _)), FunCall(Map(l2@Lambda(p2, g, _)), arg)) =>
       val paramUsedMultipleTimes =
         Expr.visitWithState(0)(f, (e, c) => {
           e match {
@@ -62,8 +62,8 @@ object FusionRules {
         MapSeq(newLambda) $ arg
       }
 
-    case FunCall(Map(Lambda(p1, f1)),
-    call@FunCall(Lambda(_, FunCall(Map(Lambda(_, f2)), _)), _)) =>
+    case FunCall(Map(Lambda(p1, f1, _)),
+    call@FunCall(Lambda(_, FunCall(Map(Lambda(_, f2, _)), _), _), _)) =>
 
       val newBody = Expr.replace(f1, p1.head, f2)
 
@@ -72,7 +72,7 @@ object FusionRules {
 
   val mapFusionWithZip =
     Rule("Map(fun(x => f $ arg )) $ Zip( ..., Map(g) , ...)", {
-      case FunCall(Map(Lambda(p, call@FunCall(_, args@ _* ))), FunCall(Zip(_), zipArgs@_*))
+      case FunCall(Map(Lambda(p, call@FunCall(_, args@ _* ), _)), FunCall(Zip(_), zipArgs@_*))
         if args.last.contains({
           case FunCall(Get(n), a)
             if (a eq p.head) && n == zipArgs.indexWhere({
@@ -118,7 +118,7 @@ object FusionRules {
     })
 
   val fuseZipTuple = Rule("fuseZipTuple", {
-    case FunCall(Lambda(Array(p), body), FunCall(Tuple(n), tupleArgs@_*))
+    case FunCall(Lambda(Array(p), body, _), FunCall(Tuple(n), tupleArgs@_*))
       if getZipForZipTupleFusion(body, n, p).isDefined
     =>
 

@@ -78,9 +78,9 @@ object LowerIR2SchedCAST {
   def generate(node:IRNode): Block = {
     //lots of pattern matching code
     node match {
-      case lambda@Lambda(_,_) =>
+      case lambda@Lambda(_,_,_) =>
         generate(lambda.body)
-      case FunCall(lambda@Lambda(_,_), _) =>
+      case FunCall(lambda@Lambda(_,_,_), _) =>
         generate(lambda.body)
       case fc@FunCall(ToGPE(), _) =>
         generateCacheFlush(fc)
