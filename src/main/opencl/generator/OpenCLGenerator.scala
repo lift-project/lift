@@ -1292,6 +1292,7 @@ class OpenCLGenerator extends Generator {
       case ra: RangeAdd => ra.stop
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
     }
+    // for indexing (3)(2)(1)(0)
     // ordering expected 2D: x y
     // ordering expected 3D: x y z
     // ordering expected 4D: w x y z  (ETC)
