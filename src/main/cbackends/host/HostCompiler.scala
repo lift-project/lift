@@ -30,11 +30,11 @@ object HostCompiler extends CBackendsCompilerTrait {
 
 
   //compile a lambda
-  def !(lambda: Lambda): Block = {
+  def !!(lambda: Lambda): Block = {
 
     println("1.compiler called")
 
-    typeCheck(lambda)
+    //typeCheck(lambda)
     memorySpaceInference(lambda)
     loopVarInference(lambda)
     memoryAlloc(lambda)
@@ -42,7 +42,7 @@ object HostCompiler extends CBackendsCompilerTrait {
     inputView(lambda)
     outputView(lambda)
 
-    lowerIR2CAST(lambda, finalMemoryAllocated)
+    LowerIR2HostCAST.apply_no_header(lambda, finalMemoryAllocated)
 
   }
 

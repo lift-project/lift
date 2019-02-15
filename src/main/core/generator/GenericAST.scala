@@ -1188,7 +1188,7 @@ object GenericAST {
     def :++(mb: Block) : Block = this.copy(content = content ++ mb.content )
 
     override def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode =
-      Block(content.map(_.visitAndRebuild(pre,post).asInstanceOf[AstNode with BlockMember]))
+      Block(content.map(_.visitAndRebuild(pre,post).asInstanceOf[AstNode with BlockMember]), global = this.global)
   }
 
   trait AccessPropertyT extends AstNode {
