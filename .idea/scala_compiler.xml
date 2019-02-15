@@ -3,6 +3,7 @@
   <component name="ScalaCompilerConfiguration">
     <profile name="sbt 1" modules="lift_9919" />
     <profile name="sbt 2" modules="Lift">
+      <option name="postfixOps" value="true" />
       <option name="deprecationWarnings" value="true" />
       <option name="uncheckedWarnings" value="true" />
       <option name="featureWarnings" value="true" />
