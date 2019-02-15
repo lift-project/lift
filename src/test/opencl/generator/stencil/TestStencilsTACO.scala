@@ -161,11 +161,9 @@ class TestStencilsTACO {
 
     val lambda = SimplifyAndFuse(stencil)
     val source = Compile(lambda)//, NDRange(32,4,2), NDRange(n,m,1))
-    println(source)
 
     val mssLambda = SimplifyAndFuse(stencilMSS)
     val sourceMSS = Compile(mssLambda)//, NDRange(32,4,2), NDRange(n,m,1))
-    println(sourceMSS)
 
     val orgFile = outputdir+"hotspot3D-original-"+m+"-"+"n"+"-"+o+ext
     val mssFile = outputdir+"hotspot3D-MSS-"+m+"-"+"n"+"-"+o+ext
@@ -499,10 +497,8 @@ class TestStencilsTACO {
       })
 
     val source = Compile(originalLambda)
-    println(source)
 
     val sourceMSS = Compile(lambdaMSS)
-    println(sourceMSS)
 
     val orgFile = outputdir+"heat3d-original-"+m+"-"+"n"+"-"+o+ext
     val mssFile = outputdir+"heat3d-MSS-"+m+"-"+"n"+"-"+o+ext

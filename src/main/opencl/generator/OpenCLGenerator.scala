@@ -1292,6 +1292,10 @@ class OpenCLGenerator extends Generator {
       case ra: RangeAdd => ra.stop
       case _ => throw new OpenCLGeneratorException("Cannot handle range for ForLoop: " + range)
     }
+    // ordering expected 2D: x y
+    // ordering expected 3D: x y z
+    // ordering expected 4D: w x y z  (ETC)
+
 
     val cond = BinaryExpression(ArithExpression(indexVar), BinaryExpressionT
       .Operator.<, ArithExpression(stop))
@@ -1411,7 +1415,7 @@ class OpenCLGenerator extends Generator {
       n match
       {
         case `nDim` =>
-          for(j <- reuse.eval until size.eval) // TODO this part *might not* work
+          for(j <- reuse.eval until size.eval)
           {
             accesses(math.abs(nDim-n)) = j
             val newIdx = getIndexFromAccessPoints(accesses)
@@ -1430,9 +1434,6 @@ class OpenCLGenerator extends Generator {
           }
       }
     }
-
-    /* ACCESS DIMS:(0)(1)(2) */
-    /*             (Z)(X)(Y) */
 
     accesses = Array.fill(nDim)(0)
 
