@@ -198,7 +198,7 @@ class TestGlobal {
   @Test
   def test_conv_pool(): Unit = {
 
-    val path = s"$common_path/06.conv"
+    val path = s"$common_path/06.conv_pool"
     val file = "libconv_pool.cpp"
 
     val pool_lambda = MapSeq( MapSeq ( MapSeq( dividedBy(2) ) )) o
@@ -229,8 +229,7 @@ class TestGlobal {
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 3), 3), 3) ,
       (in, weights) =>
         //CPUFunc2( pool_lambda ) o
-        //CPUFunc( pool_lambda ) o
-        CPUFunc2( conv_lambda  ).apply(in, weights)
+        CPUFunc( pool_lambda ) o CPUFunc2( conv_lambda  ) apply (in, weights)
       //conv_lambda.apply(in, weights)
 
     )
@@ -241,7 +240,7 @@ class TestGlobal {
 
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 54 \n"
+    val expected : String = "729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 729 \n"
     assertEquals(expected, actual)
 
     println("Test case test_slide_hello done!")
