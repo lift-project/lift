@@ -22,7 +22,7 @@ object LowerIR2MPICAST {
     //lots of pattern matching code
     node match {
 
-      case lambda@Lambda(_,_) =>
+      case lambda@Lambda(_,_,_) =>
         generate(lambda.body)
 
       case fc@FunCall(_:BcastMPI, _) =>

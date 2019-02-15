@@ -15,8 +15,8 @@ object EnablingRules {
       case FunCall(t,
             FunCall(Map(Lambda(p1,
               FunCall(Map(Lambda(p2,
-                FunCall(f, a2))
-              ), a1))
+                FunCall(f, a2),_)
+              ), a1),_)
             ), arg))
         if (p1.head eq a1)
           && (p2.head eq a2)
@@ -35,8 +35,8 @@ object EnablingRules {
               FunCall(Map(Lambda(p1,
                 innerMapCall@FunCall(Map(Lambda(p2,
                   FunCall(_, a2)
-                )), a1)
-              )), _))
+                ,_)), a1)
+              ,_)), _))
         if Utils.getIndexForPatternInCallChain(a1, { case e if e eq p1.head => } ) != -1
         && Utils.getIndexForPatternInCallChain(a2, { case e if e eq p2.head => } ) != -1
         && Utils.isTranspose(t)
@@ -61,9 +61,9 @@ object EnablingRules {
   val mapTransposeTransposeMapTranspose =
     Rule("Map(... o Transpose()) o Transpose() o Map(Transpose() o ...)) => " +
          "Map(...) o Transpose() o Map(Transpose()) o Transpose() o Map(...)", {
-      case funCall@FunCall(Map(Lambda(param1, firstBody)),
+      case funCall@FunCall(Map(Lambda(param1, firstBody,_)),
       FunCall(t2,
-      secondMap@FunCall(Map(Lambda(param2, FunCall(t3, a2))), _)))
+      secondMap@FunCall(Map(Lambda(param2, FunCall(t3, a2),_)), _)))
         if Utils.getIndexForPatternInCallChain(a2, { case e if e eq param2.head => }) != -1
           && Utils.getIndexForPatternInCallChain(firstBody,
               { case FunCall(t, a) if Utils.isTranspose(t) && (a eq param1.head) => }) != -1
@@ -94,7 +94,7 @@ object EnablingRules {
    */
   val transposeMapSplit =
     Rule("transposeMapSplit", {
-      case funCall@FunCall(t, FunCall(Map(Lambda(p, FunCall(Split(_), a))), _))
+      case funCall@FunCall(t, FunCall(Map(Lambda(p, FunCall(Split(_), a),_)), _))
         if Utils.isTranspose(t)
       =>
 
@@ -112,7 +112,7 @@ object EnablingRules {
    */
   val mapSplitTranspose =
     Rule("mapSplitTranspose", {
-      case funCall@FunCall(Map(Lambda(param, body)), FunCall(t, _))
+      case funCall@FunCall(Map(Lambda(param, body,_)), FunCall(t, _))
         if Utils.getIndexForPatternInCallChain(body,
             { case FunCall(Split(_), arg) if arg eq param.head => }) != -1
           && Utils.isTranspose(t)

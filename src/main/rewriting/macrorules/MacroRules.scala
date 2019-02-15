@@ -13,7 +13,7 @@ object MacroRules {
   import rewriting.utils.Utils.{mapPattern, reducePattern, splitPattern, concretePattern}
 
   private val mapMapPattern: PartialFunction[Expr, Unit] =
-  { case FunCall(Map(Lambda(_, FunCall(map:Map, _))), _) if map.f.body.isConcrete => }
+  { case FunCall(Map(Lambda(_, FunCall(map:Map, _), _)), _) if map.f.body.isConcrete => }
 
   private def isUserFunCall(expr: Expr): Boolean = expr match {
      case FunCall(_: UserFun, _*)  | FunCall(_: VectorizeUserFun, _*) => true
@@ -21,9 +21,9 @@ object MacroRules {
   }
 
   private def isUserFunCallOrWrappedWithMemorySpace(expr: Expr): Boolean = expr match {
-    case FunCall(toGlobal(Lambda(_, body)), _*) => isUserFunCallOrWrappedWithMemorySpace(body)
-    case FunCall(toLocal(Lambda(_, body)), _*) => isUserFunCallOrWrappedWithMemorySpace(body)
-    case FunCall(toPrivate(Lambda(_, body)), _*) => isUserFunCallOrWrappedWithMemorySpace(body)
+    case FunCall(toGlobal(Lambda(_, body, _)), _*) => isUserFunCallOrWrappedWithMemorySpace(body)
+    case FunCall(toLocal(Lambda(_, body, _)), _*) => isUserFunCallOrWrappedWithMemorySpace(body)
+    case FunCall(toPrivate(Lambda(_, body, _)), _*) => isUserFunCallOrWrappedWithMemorySpace(body)
     case _ => isUserFunCall(expr)
   }
 
@@ -57,7 +57,7 @@ object MacroRules {
    */
   val mapFissionAtPosition: Int => Rule = position =>
     Rule("Map(... o ... o ...) => Map(... o ...) o Map(...)", {
-      case funCall @ FunCall(Map(Lambda(_, body:FunCall)), _)
+      case funCall @ FunCall(Map(Lambda(_, body:FunCall, _)), _)
         if Utils.getIndexForPatternInCallChain(body,
         { case e if e eq Utils.getFinalArg(body) => }) - 1 > position
       =>
@@ -236,7 +236,7 @@ object MacroRules {
    *  Map(Reduce) interchange, fissions as appropriate, automatically chooses the rule to apply
    */
   val moveReduceOutOneLevel = Rule("Map( ... Reduce(f) ...) => Map(...) o Reduce( Map(f)) o Map(...)", {
-    case call@FunCall(Map(Lambda(_, innerCall: FunCall)), arg)
+    case call@FunCall(Map(Lambda(_, innerCall: FunCall, _)), arg)
       if Utils.getIndexForPatternInCallChain(innerCall, reducePattern) != -1
     =>
 
@@ -250,7 +250,7 @@ object MacroRules {
       val pattern: PartialFunction[Expr, Unit] =
         { case FunCall(Reduce(_), _,
                FunCall(Join(),
-               FunCall(Map(Lambda(_, FunCall(PartRed(_), _, _))), _))) => }
+               FunCall(Map(Lambda(_, FunCall(PartRed(_), _, _), _)), _))) => }
 
       val patternId = Utils.getIndexForPatternInCallChain(innerCall, pattern)
 
@@ -303,7 +303,7 @@ object MacroRules {
    * and automatically chooses the rule to apply
    */
   val mapMapInterchange = Rule("Map( ... Map(f) ...) => Map(...) o Map(Map(f)) o Map(...)", {
-    case call@FunCall(Map(Lambda(_, innerCall: FunCall)), _)
+    case call@FunCall(Map(Lambda(_, innerCall: FunCall, _)), _)
       if Utils.getIndexForPatternInCallChain(innerCall, mapPattern) != -1
     =>
 
@@ -359,7 +359,7 @@ object MacroRules {
    */
   val interchange =
     Rule("interchange first concrete Map or Reduce", {
-      case call@FunCall(Map(Lambda(_, body)), _)
+      case call@FunCall(Map(Lambda(_, body, _)), _)
         if mapMapInterchange.isDefinedAt(call) || moveReduceOutOneLevel.isDefinedAt(call)
       =>
         val firstConcrete = Utils.getExprForPatternInCallChain(body, concretePattern).get

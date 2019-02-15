@@ -93,7 +93,7 @@ object Lower {
     val applyHere =
       Expr.visitLeftToRight(Seq[Expr]())(lambda.body, {
 
-        case (FunCall(ReduceSeq(Lambda(_, b)), acc, _), exprSet)
+        case (FunCall(ReduceSeq(Lambda(_, b,_)), acc, _), exprSet)
           if acc.t.isInstanceOf[TupleType] =>
 
           val maybeApplies =
@@ -317,7 +317,7 @@ object Lower {
     val lastWrite = getLastWrite(lambda).get
 
     val lastMap = Utils.findExpressionForPattern(lambda,
-      { case FunCall(ir.ast.AbstractMap(Lambda(_, body)), _) if {
+      { case FunCall(ir.ast.AbstractMap(Lambda(_, body,_)), _) if {
         body.contains({ case x if x eq lastWrite => }) &&
           !body.contains({ case FunCall(ir.ast.AbstractMap(_), _) => })
       } => }: PartialFunction[Expr, Unit] )

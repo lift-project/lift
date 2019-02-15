@@ -19,7 +19,7 @@ class TestExpr {
     val lambda: Lambda = fun(x => Map(id) $ x)
 
     val userFunCall = lambda match {
-      case Lambda(_, FunCall(Map(l), _*)) => l.body
+      case Lambda(_, FunCall(Map(l), _*), _) => l.body
     }
 
     val replacementFunCall = FunCall(plusOne, Param())
@@ -39,7 +39,7 @@ class TestExpr {
     val lambda: Lambda = fun(x => MapGlb(1)(id) $ x)
 
     val userFunCall = lambda match {
-      case Lambda(_, FunCall(MapGlb(_, l), _*)) => l.body
+      case Lambda(_, FunCall(MapGlb(_, l), _*), _) => l.body
     }
 
     val replacementFunCall = FunCall(plusOne, Param())
@@ -61,7 +61,7 @@ class TestExpr {
     val lambda: Lambda = fun(x => Reduce(add, 0.0f) $ x)
 
     val userFunCall = lambda match {
-      case Lambda(_, FunCall(Reduce(l), _*)) => l.body
+      case Lambda(_, FunCall(Reduce(l), _*), _) => l.body
     }
 
     val replacementFunCall = FunCall(mult, Param(), Param())
@@ -81,7 +81,7 @@ class TestExpr {
     val lambda: Lambda = fun(x => MapGlb(id) $ x)
 
     val arg = lambda match {
-      case Lambda(_, FunCall(_, a)) => a
+      case Lambda(_, FunCall(_, a), _) => a
     }
 
     val replacementArg = Param()
@@ -101,7 +101,7 @@ class TestExpr {
     val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
 
     val (firstFun, call) = lambda match {
-      case Lambda(_, FunCall(f, c)) => (f, c)
+      case Lambda(_, FunCall(f, c), _) => (f, c)
     }
 
     val replacementFunCall = FunCall(Map(plusOne), Param())
@@ -122,7 +122,7 @@ class TestExpr {
     val lambda: Lambda = fun(x => MapSeq(id) o MapSeq(id) $ x)
 
     val call = lambda match {
-      case Lambda(_, FunCall(_, c)) => c
+      case Lambda(_, FunCall(_, c), _) => c
     }
 
     val result = Expr.replace(lambda.body, call, call)
@@ -135,7 +135,7 @@ class TestExpr {
     val lambda: Lambda = fun(x => MapGlb(id) $ x)
 
     val arg = lambda match {
-      case Lambda(_, FunCall(_, a)) => a
+      case Lambda(_, FunCall(_, a), _) => a
     }
 
     val result = Expr.replace(lambda.body, arg, arg)
