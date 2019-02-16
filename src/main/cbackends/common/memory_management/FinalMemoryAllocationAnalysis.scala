@@ -4,7 +4,7 @@ import core.generator.GenericAST.CVarWithType
 import ir.ast.{AbstractMap, AbstractPartRed, FunCall, Get, IRNode, Join, Lambda, Pad, Slide, Split, Transpose, TransposeW, UserFun, Zip}
 import lift.arithmetic.ArithExpr
 import cbackends.common.utils.type_lowering.TypeLowering
-import cbackends.host.host_ir.{CPUFunCall, CPUFunCall2}
+import cbackends.host.host_ir.{CPUFunCall, CPUFunCall2, OclFunCall}
 import ir.Type
 
 import scala.collection.mutable
@@ -16,7 +16,7 @@ object FinalMemoryAllocationAnalysis {
   def analyze(node:IRNode): Unit = {
     node match {
 
-      case fc@FunCall(_:UserFun|_:CPUFunCall|_:CPUFunCall2, args@_*) =>
+      case fc@FunCall(_:UserFun|_:CPUFunCall|_:CPUFunCall2|_:OclFunCall, args@_*) =>
         args.foreach(analyze(_))
         hostMemoryDeclaredInSignature +=  fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ),  Type.getElementCount(fc.t) )
 
