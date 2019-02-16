@@ -250,8 +250,8 @@ class TestGlobal {
   @Test
   def test_gpu_func(): Unit = {
 
-    val path = s"$common_path/01.cpufunc"
-    val file = "libcpufunc.cpp"
+    val path = s"$common_path/07.gpufunc"
+    val file = "libgpufunc.cpp"
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
