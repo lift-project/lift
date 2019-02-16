@@ -9,7 +9,7 @@ object Executor {
     val full_path_file = path + "/" + file
     val target = path + "/" + "a.out"
 
-    val status_code = s"g++ $full_path_file -I$path -o $target" !
+    val status_code = s"g++ $full_path_file -I$path -o $target -std=c++11" !
 
     assert(status_code == 0, "Native Compilation error!")
 

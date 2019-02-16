@@ -10,7 +10,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
   * Corresponds to ONNX (v1.3.0)->Add.
   * See https://github.com/onnx/onnx/blob/master/docs/Operators.md
   */
-/*
+
 case class Add() extends Pattern(arity = 2) with Broadcastable {
 
   override def checkType(argType: Type,
@@ -22,7 +22,7 @@ case class Add() extends Pattern(arity = 2) with Broadcastable {
     argType match {
       case TupleType(typeA: ArrayType, typeB: ArrayType) =>
         tryBroadcastingShapes(typeA, typeB) match {
-          case Some(shape) => Type.buildArrayType(shape, Type.getBaseType(typeA))
+          case Some(shape) => ArrayType(Type.getBaseType(typeA), shape.toList)
           case None => throw typeException
         }
       case _ => throw typeException
@@ -35,4 +35,3 @@ case class Add() extends Pattern(arity = 2) with Broadcastable {
   }
 
 }
-*/

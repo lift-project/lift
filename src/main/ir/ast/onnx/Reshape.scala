@@ -19,7 +19,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
   *
   * @param shape The list of lengths of the new shape. One length can be unknown and indicated with (-1). See ONNX spec.
   */
-/*
+
 class Reshape private(val shape: List[ArithExpr]) extends Pattern(arity = 1) {
 
   override def checkType(argType: Type,
@@ -47,14 +47,14 @@ class Reshape private(val shape: List[ArithExpr]) extends Pattern(arity = 1) {
           val missingNewLength: ArithExpr = sum(oldShape) / sumOfKnownNewLengths
           val newShape = shape.map(s => if (s == Cst(-1)) missingNewLength else s)
 
-          Type.buildArrayType(newShape, Type.getBaseType(argType))
+          ArrayType(Type.getBaseType(argType), newShape)
 
         } else {
           // The shape is known
           if (sum(oldShape) != sum(shape))
             throw TypeException(f"Expected the array size to be divisible by the size of the new shape")
 
-          Type.buildArrayType(shape, Type.getBaseType(argType))
+          ArrayType(Type.getBaseType(argType), shape)
         }
 
       case _ => throw TypeException(f"Expected the argument to be an array. Got $argType")
@@ -82,4 +82,3 @@ object Reshape {
     fun(x => new Reshape(shape)(x))
   }
 }
-*/

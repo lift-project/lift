@@ -22,7 +22,7 @@ import cbackends.common.executor.Executor.{native_compile_and_run}
 
 class TestGlobal {
 
-  val common_path = "/home/lu/Documents/Research/lift/src/test/cbackends/global"
+  val common_path = System.getProperty("user.dir") + "/src/test/cbackends/global"
 
   val N = SizeVar("N")
   val M = SizeVar("M")

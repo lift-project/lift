@@ -10,7 +10,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
   * Corresponds to ONNX (v1.3.0)->MatMul.
   * See https://github.com/onnx/onnx/blob/master/docs/Operators.md
   */
-/*
+
 case class MatMul() extends Pattern(arity = 2) {
 
   override def checkType(argType: Type,
@@ -22,7 +22,7 @@ case class MatMul() extends Pattern(arity = 2) {
         val aShape = Type.getLengths(aT)
         val bShape = Type.getLengths(bT)
 
-        val outputShape = (aShape.length, bShape.length) match {
+        val outputShape = ((aShape.length, bShape.length) match {
           case (aLen, bLen) if aLen >= 2 && bLen >= 2 =>
             // Ensure A width == B height
             if (aShape.last != bShape(bShape.length - 2))
@@ -39,9 +39,9 @@ case class MatMul() extends Pattern(arity = 2) {
 
           case (aLen, bLen) =>
             throw TypeException(f"Unexpected A and B lengths ($aLen, $bLen).")
-        }
+        }).toList
 
-        Type.buildArrayType(outputShape, Type.getBaseType(aT))
+        ArrayType(Type.getBaseType(aT), outputShape)
 
 
       case _ => throw TypeException(f"Expected the argument to be a tuple of matrices (with equal base types) " +
@@ -55,5 +55,3 @@ case class MatMul() extends Pattern(arity = 2) {
   }
 
 }
-
-*/
