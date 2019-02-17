@@ -695,6 +695,41 @@ object GenericAST {
     }
   }
 
+  trait MethodInvocationT extends ExpressionT {
+    //val object_name:String
+    val object_name:ExpressionT
+    val method_name:String
+    val args: List[GenericAST.AstNode]
+    val isPointer: Boolean
+
+    override def print(): Doc = {
+      object_name.print() <>
+        (if(isPointer) "->" else ".") <>
+        ( method_name ++ "(")  <>
+        intersperse(args.map(_.print)) <> ")"
+    }
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = {
+      object_name.visit(pre,post)
+      args.map(_.visit(pre,post))
+    }
+
+  }
+
+  //case class MethodInvocation(object_name:String,
+  case class MethodInvocation(object_name:ExpressionT,
+                              method_name:String,
+                              args: List[GenericAST.AstNode],
+                              isPointer: Boolean = false) extends MethodInvocationT
+  {
+    override def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode =
+      MethodInvocation(
+        object_name.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
+        method_name,
+        args.map(_.visitAndRebuild(pre,post)),
+        isPointer)
+
+  }
+
   /**
     * A reference to a declared variable
     */
