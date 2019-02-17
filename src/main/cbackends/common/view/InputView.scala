@@ -6,7 +6,7 @@ import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3
 import ir.view._
 import cbackends.common.utils.input_view.InputView.{init_params, post_check, pre_check}
 import cbackends.common.utils.pattern_matching.IsDefinedAt
-import cbackends.host.host_ir.{CPUFunCall, CPUFunCall2, OclFunCall}
+import cbackends.host.host_ir._
 import lift.arithmetic.{ArithExpr, Cst}
 import opencl.ir.pattern.MapSeq
 
@@ -104,7 +104,7 @@ object InputView {
 
       }
 
-      case fc@FunCall(_:UserFun|_:CPUFunCall|_:CPUFunCall2|_:OclFunCall, args@_*)  => {
+      case fc@FunCall(_:UserFun|_:CPUFunCall|_:CPUFunCall2|_:OclFunCall|_:ToGPU|_:ToHost, args@_*)  => {
 
         args.foreach( cont(_) )
 

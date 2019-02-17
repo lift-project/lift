@@ -1,9 +1,10 @@
 package cbackends.host.lowering
 
+import cbackends.common.common_ir.CPUMainMemoryAddressSpace
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir.{CPUFunCall, CPUFunCall2, OclFunCall}
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
-import opencl.ir.OpenCLAddressSpace
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
+import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
 //import host_obsolete.ir_host.MapHSeq
 //import host_obsolete.view.ViewPrinter
 import ir.ast.{AbstractMap, AbstractPartRed, FunCall, IRNode, Join, Lambda, Slide, Split, Transpose, TransposeW, UserFun, Value}
@@ -297,36 +298,41 @@ object LowerIR2HostCAST {
   def generateMemAlloc(hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)], out_cvar_in_execute: CVarWithType) : Block = {
 
 
-    val memory_alloc_vector = hostMemoryDeclaredInSignature.map(record => {
+    val memory_alloc_vector =
+      hostMemoryDeclaredInSignature.map(
+        record => {
 
-      /*
-      record._2._1.t match {
-        case _:PrimitiveTypeT => EmptyNode()
-        case _ => ExpressionStatement(AssignmentExpression(VarRefPure(record._2._1),
-            FunctionCall("reinterpret_cast", List(
+          if(record._2._3 == CPUMainMemoryAddressSpace  ) {
+            val rhs = FunctionCall("reinterpret_cast", List(
               FunctionCall("malloc", List(BinaryExpression(ArithExpression(record._2._2), BinaryExpressionT.Operator.*,
-                FunctionCall("sizeof", List(Util.GetElementTypeFromPointer(record._2._1.t)))
+                FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(record._2._1.t)))
               )))),
               List(record._2._1.t))
-          ) )
-      } */
+            val out_name = out_cvar_in_execute.name
+            record._2._1.name match {
+              case `out_name` => ExpressionStatement(AssignmentExpression(VarRefPure(record._2._1), rhs))
+              case _ => val cvar = record._2._1
+                VarDeclPure(cvar, cvar.t, Some(rhs))
+            }
+          } else if (record._2._3 == GlobalMemory ) {
 
-      val rhs = FunctionCall("reinterpret_cast", List(
-          FunctionCall("malloc", List(BinaryExpression(ArithExpression(record._2._2), BinaryExpressionT.Operator.*,
-            FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(record._2._1.t)))
-          )))),
-          List(record._2._1.t))
+            val cvar = CVarWithType(record._2._1.name, ClassOrStructType("cl::Buffer"))
+            ObjectDecl(cvar, cvar.t,
+              List(
+                StringConstant("context"),
+                StringConstant("CL_MEM_READ_WRITE"),
+                BinaryExpression(ArithExpression(record._2._2), BinaryExpressionT.Operator.*,
+                  FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(record._2._1.t))) )
+              )
+            )
 
-      val out_name = out_cvar_in_execute.name
 
-      record._2._1.name match {
-        case `out_name` => ExpressionStatement(AssignmentExpression(VarRefPure(record._2._1), rhs ) )
-        case _ => val cvar = record._2._1
-          VarDeclPure(cvar, cvar.t, Some(rhs))
-      }
+          } else {
+            assert(false, "New mem address not implemented in final memory alloc CAST generation")
+            ExpressionStatement(RawCode("dummy"))
+          }
 
-}
-    ).toVector
+                  } ).toVector
 
     /*
     val empty_node_filtered = memory_alloc_vector.filter({case EmptyNode() => false; case _ => true})
