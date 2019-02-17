@@ -2,10 +2,11 @@ package cbackends.common.memory_management
 
 import core.generator.GenericAST.CVarWithType
 import cbackends.common.common_ir.{CPUNullMemory, HostMemory, HostMemoryCollection}
-import cbackends.host.host_ir.{CPUFunCall, CPUFunCall2, OclFunCall}
+import cbackends.host.host_ir._
 import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, Expr, FPattern, FunCall, FunDecl, Get, IRNode, Join, Lambda, Pad, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip}
 import ir.{Type, UnallocatedMemory}
 import lift.arithmetic.{ArithExpr, ContinuousRange, Cst, Var}
+import opencl.ir.OpenCLMemory
 
 import scala.collection.mutable
 
@@ -25,7 +26,13 @@ object MemoryAllocator {
         //but the IR analysis can still be done.
         ac.mem = HostMemory(Var(s"array_constructor_${ac.gid}", ContinuousRange(Cst(0), size)), size, ac.addressSpace )
 
-      case fc@FunCall(_:UserFun|_:CPUFunCall|_:CPUFunCall2|_:OclFunCall, args@_*) => {
+      case fc@FunCall(_:ToGPU|_:OclFunCall, arg) =>
+        alloc(arg)
+
+        val size = Type.getElementCount(fc.t)
+        fc.mem = OpenCLMemory(Var(s"user_func_${fc.gid}", ContinuousRange(Cst(0), size)), size, fc.addressSpace )
+
+      case fc@FunCall(_:UserFun|_:CPUFunCall|_:CPUFunCall2|_:ToHost, args@_*) => {
         //link the arg to the correct param is already done in its upper level FPattern
         args.foreach(alloc(_))
 

@@ -9,6 +9,7 @@ import opencl.ir.pattern.MapSeq
 import cbackends.sdh.sdh_ir._
 import cbackends.common.view.CollectAllLoopVars
 import ir.printer.DotPrinter
+import opencl.ir.OpenCLAddressSpace
 
 
 object LowerIR2SchedCAST {
@@ -310,7 +311,7 @@ object LowerIR2SchedCAST {
 
   }
 
-  def generateMemAlloc(hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]) : Block = {
+  def generateMemAlloc(hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]) : Block = {
 
 
     val memory_alloc_vector = hostMemoryDeclaredInSignature.map(record =>
@@ -328,7 +329,7 @@ object LowerIR2SchedCAST {
 
   }
 
-  def apply(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]) : (Block, List[CVarWithType]) = {
+  def apply(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]) : (Block, List[CVarWithType]) = {
 
     //DotPrinter("whole",lambda)
     //DotPrinter.withNumbering("/home/lu/Downloads","sched_num",lambda)

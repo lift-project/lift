@@ -4,27 +4,38 @@ import core.generator.GenericAST.CVarWithType
 import ir.ast.{AbstractMap, AbstractPartRed, FunCall, Get, IRNode, Join, Lambda, Pad, Slide, Split, Transpose, TransposeW, UserFun, Zip}
 import lift.arithmetic.ArithExpr
 import cbackends.common.utils.type_lowering.TypeLowering
-import cbackends.host.host_ir.{CPUFunCall, CPUFunCall2, OclFunCall}
+import cbackends.host.host_ir._
 import ir.Type
+import opencl.ir.OpenCLAddressSpace
 
 import scala.collection.mutable
 
 object FinalMemoryAllocationAnalysis {
 
-  var hostMemoryDeclaredInSignature = mutable.Map.empty[String, (CVarWithType, ArithExpr) ]
+  var hostMemoryDeclaredInSignature = mutable.Map.empty[String, (CVarWithType, ArithExpr, OpenCLAddressSpace) ]
 
   def analyze(node:IRNode): Unit = {
     node match {
 
-      case fc@FunCall(_:UserFun|_:CPUFunCall|_:CPUFunCall2|_:OclFunCall, args@_*) =>
+      case fc@FunCall(_:UserFun|_:CPUFunCall|_:CPUFunCall2|_:OclFunCall|_:ToGPU|_:ToHost, args@_*) =>
         args.foreach(analyze(_))
-        hostMemoryDeclaredInSignature +=  fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ),  Type.getElementCount(fc.t) )
+        hostMemoryDeclaredInSignature +=
+          fc.mem.variable.toString -> (
+            CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ),
+            Type.getElementCount(fc.t),
+            fc.addressSpace
+          )
 
       case fc@FunCall(r:AbstractPartRed, args@_*) =>
         args.foreach(analyze(_))
         analyze(r.f.body)
         //correct type for user function, e.g., float => [float]_1
-        hostMemoryDeclaredInSignature += fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ) , Type.getElementCount(fc.t) )
+        hostMemoryDeclaredInSignature +=
+          fc.mem.variable.toString -> (
+            CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ) ,
+            Type.getElementCount(fc.t),
+            fc.addressSpace
+          )
 
       case fc@FunCall(m:ir.ast.Map, args@_*) =>
         // no memory correction for Map, which is a lazy struct
@@ -36,7 +47,12 @@ object FinalMemoryAllocationAnalysis {
         args.foreach(analyze(_))
         analyze(m.f.body)
         //here fc.t already have the augmented size information after map, so no need to manually calculate
-        hostMemoryDeclaredInSignature += fc.mem.variable.toString -> (CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ) , Type.getElementCount(fc.t) )
+        hostMemoryDeclaredInSignature +=
+          fc.mem.variable.toString -> (
+            CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ) ,
+            Type.getElementCount(fc.t),
+            fc.addressSpace
+          )
 
       case fc@FunCall(l:Lambda, args@_*) =>
         args.foreach(analyze(_))
@@ -53,10 +69,10 @@ object FinalMemoryAllocationAnalysis {
     }
   }
 
-  def apply(lambda: Lambda): Map[String, (CVarWithType, ArithExpr) ] = {
+  def apply(lambda: Lambda): Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace) ] = {
 
     //reset hostMemoryDeclaredInSignature if run with multiple test cases
-    hostMemoryDeclaredInSignature = mutable.Map.empty[String, (CVarWithType, ArithExpr)]
+    hostMemoryDeclaredInSignature = mutable.Map.empty[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]
 
     analyze(lambda.body)
 

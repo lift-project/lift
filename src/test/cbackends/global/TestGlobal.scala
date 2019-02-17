@@ -1,6 +1,6 @@
 package cbackends.global
 
-import cbackends.host.host_ir.{CPUFunc, CPUFunc2, OclFunc}
+import cbackends.host.host_ir._
 import cbackends.onnx.lift_nn_ir.host_ir.Pool3D
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
@@ -255,7 +255,7 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-      in => OclFunc( MapGlb( toGlobal(id) o incrementF )  )  $ in
+      in => ToHost() o OclFunc( MapGlb( toGlobal(id) o incrementF )  ) o ToGPU()  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!

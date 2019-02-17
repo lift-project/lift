@@ -3,6 +3,7 @@ package cbackends.host.lowering
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir.{CPUFunCall, CPUFunCall2, OclFunCall}
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
+import opencl.ir.OpenCLAddressSpace
 //import host_obsolete.ir_host.MapHSeq
 //import host_obsolete.view.ViewPrinter
 import ir.ast.{AbstractMap, AbstractPartRed, FunCall, IRNode, Join, Lambda, Slide, Split, Transpose, TransposeW, UserFun, Value}
@@ -240,7 +241,7 @@ object LowerIR2HostCAST {
 
   }
 
-  def apply(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]) : Block = {
+  def apply(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]) : Block = {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 
@@ -267,7 +268,7 @@ object LowerIR2HostCAST {
   }
 
 
-  def apply_no_header(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]) : Block = {
+  def apply_no_header(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]) : Block = {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 
@@ -293,7 +294,7 @@ object LowerIR2HostCAST {
 
   }
 
-  def generateMemAlloc(hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)], out_cvar_in_execute: CVarWithType) : Block = {
+  def generateMemAlloc(hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)], out_cvar_in_execute: CVarWithType) : Block = {
 
 
     val memory_alloc_vector = hostMemoryDeclaredInSignature.map(record => {
