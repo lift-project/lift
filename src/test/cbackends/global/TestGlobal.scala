@@ -255,7 +255,7 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-        in => ToHost() o OclFunc( MapGlb( id )  ) o ToGPU()  $ in
+        in => ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -264,7 +264,7 @@ class TestGlobal {
 
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "1 1 \n"
+    val expected : String = "2 2 \n"
     assertEquals(expected, actual)
 
     println("Test case test_slide_hello done!")
@@ -279,7 +279,7 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-      in => ToHost() o OclFunc( MapGlb( id )  ) o OclFunc( MapGlb( id )  ) o ToGPU()  $ in
+      in => ToHost() o OclFunc( MapGlb( incrementF )  ) o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -288,10 +288,34 @@ class TestGlobal {
 
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "1 1 \n"
+    val expected : String = "3 3 \n"
     assertEquals(expected, actual)
 
     println("Test case test_slide_hello done!")
   }
+
+  @Test
+  def test_cpu_gpu_func_multi(): Unit = {
+
+    val path = s"$common_path/09.cpu_gpu_func_multi"
+    val file = "libcpu_gpu_func_multi.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU() o CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "5 5 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
 
 }

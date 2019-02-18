@@ -36,7 +36,7 @@ object Executor {
 
     assert(status_code2 == 0, "Delete generated binary error!")
 
-    //val status_code3 = (s"rm $path" + "/kernel_*.cl") !
+    //val status_code3 = (s"rm $path" + raw"""/kernel_*.cl""".r) !
 
     result
 
