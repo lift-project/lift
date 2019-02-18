@@ -47,7 +47,7 @@ object GlobalCompiler{
     val final_oclfundefs = oclfundefs
 
     //val ocl_kernel_file_names = OclKernelFileNameAnalysis(emptified_lambda)
-    val (global_val_decl_cast, global_val_init_cast) = GenerateOclGlobalFacility(emptified_lambda, new_old_mapping)
+    val (global_val_decl_cast, global_val_init_cast) = GenerateOclGlobalFacility(emptified_lambda, new_old_mapping, path)
     val top_cast = HostCompiler !! emptified_lambda
 
     HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code, LowerIR2HostCAST.ocl_boilerplate_code), global = true) :+ global_val_decl_cast :+ global_val_init_cast :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
