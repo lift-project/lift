@@ -8,7 +8,7 @@ import ir.ast.{Expr, FunCall, Lambda}
 
 object GenerateOclGlobalFacility {
 
-  def generate(expr: Expr, global_decl_cast: Block, global_init_cast: Block): (Block, Block) = {
+  def generate(expr: Expr, new_old_mapping: Map[FunCall, FunCall], global_decl_cast: Block, global_init_cast: Block): (Block, Block) = {
 
     expr match {
 
@@ -28,7 +28,7 @@ object GenerateOclGlobalFacility {
         ))
 
         //construct global init
-        val kernel_string_init = AssignmentExpression(kernel_string_cvar, FunctionCall("readFile", List(StringConstant('"' + "kernel_" + fc.gid + ".cl" + '"'))))
+        val kernel_string_init = AssignmentExpression(kernel_string_cvar, FunctionCall("readFile", List(StringConstant('"' + "kernel_" + new_old_mapping(fc).gid + ".cl" + '"'))))
         val kernel_source_init = AssignmentExpression(kernel_source_cvar, FunctionCall("cl::Program::Sources", List(IntConstant(1),
           FunctionCall("std::make_pair", List(
             MethodInvocation(kernel_string_cvar, "c_str", List()),
@@ -55,16 +55,16 @@ object GenerateOclGlobalFacility {
 
         (global_decl_cast :++ global_decl_for_this_call, global_init_cast :++ global_init_for_this_call)
 
-      case FunCall(_:ToHost|_:ToGPU, arg) => generate(arg, global_decl_cast, global_init_cast)
+      case FunCall(_:ToHost|_:ToGPU, arg) => generate(arg, new_old_mapping, global_decl_cast, global_init_cast)
       case _ => assert(false, "Some other patterns appear in host expression but not implemented, please implement."); (Block(), Block())
     }
   }
 
 
-  def apply(lambda: Lambda) : (Block, Block) = {
+  def apply(lambda: Lambda, new_old_mapping: Map[FunCall, FunCall]) : (Block, Block) = {
 
 
-    val (global_decl_cast, global_init_cast) = generate(lambda.body, Block(global = true), Block(global=true))
+    val (global_decl_cast, global_init_cast) = generate(lambda.body, new_old_mapping, Block(global = true), Block(global=true))
 
     val global_init_biolerplates = RawCode(
       """

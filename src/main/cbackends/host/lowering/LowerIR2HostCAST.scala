@@ -116,7 +116,7 @@ object LowerIR2HostCAST {
             StringConstant("CL_TRUE"),
             IntConstant(0),
             BinaryExpression(ArithExpression(Type.getElementCount(in_arg.t)), BinaryExpressionT.Operator.*,
-              FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(in.t))) ),
+              FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromArray(in.t))) ),
             VarRefPure(in),
             StringConstant("NULL"),
             UnaryExpression("&", VarRefPure(eventCVar))
@@ -130,7 +130,7 @@ object LowerIR2HostCAST {
             StringConstant("CL_TRUE"),
             IntConstant(0),
             BinaryExpression(ArithExpression(Type.getElementCount(in_arg.t)), BinaryExpressionT.Operator.*,
-              FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(in.t))) ),
+              FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromArray(in.t))) ),
             VarRefPure(out),
             StringConstant("NULL"),
             UnaryExpression("&", VarRefPure(eventCVar))
