@@ -2,6 +2,7 @@ package cbackends.global
 
 import cbackends.common.CBackendsCompilerTrait
 import cbackends.common.common_cast.CbackendCAST.SourceFile
+import cbackends.global.analysis.OclKernelFileNameAnalysis
 import cbackends.global.lowering.GenerateOclGlobalFacility
 import cbackends.global.transformation.cast_transformation.cpu_outline_transformation.{CPUOutlineTargetAnalysis, OclOutlineTargetAnalysis}
 import cbackends.global.transformation.empty_kernel_structure.EmptyKernelStructure
@@ -30,21 +31,26 @@ object GlobalCompiler{
 
     val emptified_lambda = EmptyKernelStructure(lambda)
 
-    //-----------------------------------------------------------------//
-    //DO ALL TRANSFORMATION ABOVE, FROM HERE, NO TRANSFORMATION ALLOWED
-    //-----------------------------------------------------------------//
+    //-----------------------------------------------------------------------//
+    //DO ALL IR TRANSFORMATION ABOVE, FROM HERE, NO IR TRANSFORMATION ALLOWED
+    //But CAST transformation are OK below
+    //-----------------------------------------------------------------------//
+
 
     val cpufundefs = all_cpufunc_outline_targets.map( HostCompiler.!! _ )
     val final_cpufundefs = UniqueUserFunc(cpufundefs)
 
-    //TODO: need a way to specify the file name, but can do later at CAST printer, here only CAST returned, good!
     val oclfundefs = all_oclfunc_outline_targets.map( opencl.executor.Compile.!! _ )
     val final_oclfundefs = UniqueUserFunc(oclfundefs)
 
+    val ocl_kernel_file_names = OclKernelFileNameAnalysis(emptified_lambda)
     val (global_val_decl_cast, global_val_init_cast) = GenerateOclGlobalFacility(emptified_lambda)
     val top_cast = HostCompiler !! emptified_lambda
 
     HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code), global = true) :+ global_val_decl_cast :+ global_val_init_cast :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
+
+    val ocl_source_files = (final_oclfundefs zip ocl_kernel_file_names).map{ case (block, filename) => new SourceFile(path,filename,block) }
+    HostCompiler.castPrinter(ocl_source_files)
 
     println("hello")
 
