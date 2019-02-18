@@ -4,7 +4,7 @@ import java.util.function.BinaryOperator
 
 import cbackends.host.host_ir.{OclFunCall, ToGPU, ToHost}
 import core.generator.GenericAST.{AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, ClassOrStructType, FunctionCall, FunctionPure, IfThenElseIm, IntConstant, MethodInvocation, RawCode, StringConstant, VarDeclPure, VoidType}
-import ir.ast.{Expr, FunCall, Lambda}
+import ir.ast.{Expr, FunCall, Lambda, Param, Value}
 
 object GenerateOclGlobalFacility {
 
@@ -13,6 +13,13 @@ object GenerateOclGlobalFacility {
     expr match {
 
       case fc@FunCall(_: OclFunCall, args@_*) =>
+
+        val globals_for_args = args.map( generate(_, path, global_decl_cast, global_init_cast) ).toList
+        val (global_decl_for_args,global_init_for_args) = ( (Block(), Block()) /: globals_for_args) {
+          (tuple1: Tuple2[Block, Block], tuple2: Tuple2[Block,Block]) => (tuple1._1 :++ tuple2._1, tuple1._2 :++ tuple2._2)
+        }
+
+
         //construct global declaration
         val kernel_string_cvar = CVarWithType("kernel_string_" + fc.gid, ClassOrStructType("std::string"))
         val kernel_string_decl = VarDeclPure(kernel_string_cvar, kernel_string_cvar.t)
@@ -53,9 +60,12 @@ object GenerateOclGlobalFacility {
           kernel_string_init, kernel_source_init, kernel_program_init, kernel_build_statement, kernel_init
         ))
 
-        (global_decl_cast :++ global_decl_for_this_call, global_init_cast :++ global_init_for_this_call)
+        (global_decl_cast :++ global_decl_for_args :++ global_decl_for_this_call, global_init_cast :++ global_init_for_args :++ global_init_for_this_call)
 
-      case FunCall(_:ToHost|_:ToGPU, arg) => generate(arg, path, global_decl_cast, global_init_cast)
+      case FunCall(_:ToHost|_:ToGPU, arg) =>
+        generate(arg, path, global_decl_cast, global_init_cast)
+      case _:Param|_:Value =>
+        (Block(global=true), Block(global=true))
       case _ => assert(false, "Some other patterns appear in host expression but not implemented, please implement."); (Block(), Block())
     }
   }

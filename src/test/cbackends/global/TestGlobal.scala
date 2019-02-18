@@ -274,8 +274,8 @@ class TestGlobal {
   @Test
   def test_gpu_func_multi(): Unit = {
 
-    val path = s"$common_path/07.gpufunc"
-    val file = "libgpufunc.cpp"
+    val path = s"$common_path/08.gpufunc_multi"
+    val file = "libgpufunc_multi.cpp"
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
