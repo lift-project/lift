@@ -347,7 +347,7 @@ object GenericAST {
 
     def :++(mb: Block) : MutableBlock = this.copy(content = content ++ mb.content )
 
-    def toBlock: Block = Block(content)
+    def toBlock: Block = Block(content, global = this.global)
   }
 
   /*

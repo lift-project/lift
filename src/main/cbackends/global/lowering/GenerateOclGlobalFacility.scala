@@ -38,11 +38,11 @@ object GenerateOclGlobalFacility {
         val kernel_program_init = AssignmentExpression(kernel_program_cvar, FunctionCall("cl::Program", List( StringConstant("context") , kernel_source_cvar)))
         val kernel_build_statement = IfThenElseIm(
           BinaryExpression(
-            MethodInvocation(kernel_program_cvar, "build", List(StringConstant("{ context }"))),
+            MethodInvocation(kernel_program_cvar, "build", List(StringConstant("{ device }"))),
             BinaryExpressionT.Operator.!=,
             StringConstant("CL_SUCCESS")
           ),
-          Block(Vector(RawCode("std::cerr<<"+'"'+"kernel build error"+'"'+"std::endl; exit(1);"))),
+          Block(Vector(RawCode("std::cerr<<"+'"'+"kernel build error"+'"'+"<<std::endl; exit(1);"))),
           Block()
         )
         val kernel_init = AssignmentExpression(
@@ -66,7 +66,37 @@ object GenerateOclGlobalFacility {
 
     val (global_decl_cast, global_init_cast) = generate(lambda.body, Block(global = true), Block(global=true))
 
-    val global_init_function = Block(Vector(FunctionPure("lift_init", VoidType(), List(), global_init_cast) ), global = true)
+    val global_init_biolerplates = RawCode(
+      """
+        |	cl::Platform::get(&allPlatforms);
+        | if (allPlatforms.size() == 0) {
+        | std::cout << " No platforms found. Check OpenCL installation!" << std::endl;
+        | exit(1);
+        | }
+        |
+        | platform = allPlatforms[platformId];
+        |
+        | platform.getDevices(CL_DEVICE_TYPE_ALL, &allDevices);
+        | if (allDevices.size() == 0) {
+        | std::cout << " No devices found. Check OpenCL installation!" << std::endl;
+        | exit(1);
+        | }
+        |
+        | device = allDevices[deviceId];
+        |
+        | std::cout << "Using platform: " << platform.getInfo<CL_PLATFORM_NAME>() << std::endl;
+        | std::cout << "Using device: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
+        |
+        | // create context
+        | cl::Context tmp_context({ device });
+        | context = std::move(tmp_context);
+        |
+        | // create queue
+        | cl::CommandQueue tmp_queue(context, device, CL_QUEUE_PROFILING_ENABLE);
+        | lift_queue = std::move(tmp_queue);
+      """.stripMargin )
+
+    val global_init_function = Block(Vector(FunctionPure("lift_init", VoidType(), List(), global_init_biolerplates +: global_init_cast) ), global = true)
 
     val global_decl_boilerplates = RawCode(
       """
@@ -78,7 +108,7 @@ object GenerateOclGlobalFacility {
         | std::vector<cl::Device> allDevices;
         | cl::Device device;
         | cl::Context context;
-        | cl::CommandQueue queue;
+        | cl::CommandQueue lift_queue;
 
       """.stripMargin)
     val global_decl_final = global_decl_boilerplates +: global_decl_cast

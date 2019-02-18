@@ -26,6 +26,32 @@ object LowerIR2HostCAST {
       |
     """.stripMargin), true )
 
+  val ocl_boilerplate_code = ExpressionStatement(RawCode(
+    """
+      |#include <iostream>
+      |#include <CL/cl.hpp>
+      |#include <fstream>
+      |
+      |std::string readFile(const char *filename){
+      |
+      |  std::ifstream in(filename, std::ios::in);
+      |
+      |  if (in.fail())
+      |  {
+      |  std::cerr << "Error reading file " << filename << std::endl;
+      |  exit(1); }
+      |
+      |  std::string contents;
+      |  in.seekg(0, std::ios::end);
+      |  contents.resize(in.tellg());
+      |  in.seekg(0, std::ios::beg);
+      |  in.read(&contents[0], contents.size());
+      |  in.close();
+      |  return contents;
+      |  }
+      |
+    """.stripMargin), true )
+
   def generate(node:IRNode): Block = {
     //lots of pattern matching code
     node match {
@@ -83,7 +109,7 @@ object LowerIR2HostCAST {
     val enqueue_cast =
       fc.f match {
         case _:ToGPU => ExpressionStatement(MethodInvocation(
-          StringConstant("queue"),
+          StringConstant("lift_queue"),
           "enqueueWriteBuffer",
           List(
             VarRefPure(out),
@@ -97,7 +123,7 @@ object LowerIR2HostCAST {
           )
         ) )
         case _:ToHost => ExpressionStatement(MethodInvocation(
-          StringConstant("queue"),
+          StringConstant("lift_queue"),
           "enqueueReadBuffer",
           List(
             VarRefPure(in),
@@ -140,13 +166,13 @@ object LowerIR2HostCAST {
     //  rebuild kernel cvar
     val kernel_cvar = CVarWithType("kernel_" + fc.gid, ClassOrStructType("cl::Kernel"))
 
-    val set_all_args = (all_args zip arg_id).map{ case (cvar:CVarWithType, id:Int) => MethodInvocation(kernel_cvar, "setArg", List(IntConstant(id), cvar)) }
+    val set_all_args = (all_args zip arg_id).map{ case (cvar:CVarWithType, id:Int) => ExpressionStatement(MethodInvocation(kernel_cvar, "setArg", List(IntConstant(id), cvar))) }
 
     //(2) enqueue kernel
     val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
     val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
     val enqueue_cast = ExpressionStatement(MethodInvocation(
-      StringConstant("queue"),
+      StringConstant("lift_queue"),
       "enqueueNDRangeKernel",
       List(
         kernel_cvar,

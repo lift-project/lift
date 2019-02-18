@@ -40,16 +40,19 @@ object GlobalCompiler{
     val cpufundefs = all_cpufunc_outline_targets.map( HostCompiler.!! _ )
     val final_cpufundefs = UniqueUserFunc(cpufundefs)
 
-    val oclfundefs = all_oclfunc_outline_targets.map( opencl.executor.Compile.!! _ )
-    val final_oclfundefs = UniqueUserFunc(oclfundefs)
+    val oclfundefs = all_oclfunc_outline_targets.map {
+      case (filename:String, lambdax:Lambda) =>  (filename , ( opencl.executor.Compile.!!(lambdax) ) )
+    }
+    //val final_oclfundefs = UniqueUserFunc(oclfundefs)
+    val final_oclfundefs = oclfundefs
 
-    val ocl_kernel_file_names = OclKernelFileNameAnalysis(emptified_lambda)
+    //val ocl_kernel_file_names = OclKernelFileNameAnalysis(emptified_lambda)
     val (global_val_decl_cast, global_val_init_cast) = GenerateOclGlobalFacility(emptified_lambda)
     val top_cast = HostCompiler !! emptified_lambda
 
-    HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code), global = true) :+ global_val_decl_cast :+ global_val_init_cast :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
+    HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code, LowerIR2HostCAST.ocl_boilerplate_code), global = true) :+ global_val_decl_cast :+ global_val_init_cast :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
 
-    val ocl_source_files = (final_oclfundefs zip ocl_kernel_file_names).map{ case (block, filename) => new SourceFile(path,filename,block) }
+    val ocl_source_files = final_oclfundefs.map{ case (fileName,block) => new SourceFile(path,fileName,block) }.toList
     HostCompiler.castPrinter(ocl_source_files)
 
     println("hello")

@@ -3,6 +3,8 @@ package cbackends.global.transformation.cast_transformation.cpu_outline_transfor
 import cbackends.host.host_ir.{CPUFunc, CPUFunc2, OclFunc}
 import ir.ast.{FunCall, Lambda}
 
+import scala.collection.mutable
+
 object CPUOutlineTargetAnalysis {
 
   def apply (lambda: Lambda) : List[Lambda] = {
@@ -24,16 +26,17 @@ object CPUOutlineTargetAnalysis {
 
 object OclOutlineTargetAnalysis {
 
-  def apply (lambda: Lambda) : List[Lambda] = {
+  def apply (lambda: Lambda) : Map[String, Lambda] = {
 
-    val online_targests = scala.collection.mutable.ListBuffer.empty[Lambda]
+    //val online_targests = scala.collection.mutable.ListBuffer.empty[Lambda]
+    val online_targests = mutable.Map.empty[String,Lambda]
 
     lambda visitBy {
-      case cf@FunCall(c:OclFunc, _*) => c.f.funcName = c.funcName; online_targests += c.f
+      case cf@FunCall(c:OclFunc, _*) => c.f.funcName = c.funcName; online_targests += ("kernel_"+cf.gid+".cl") -> c.f
       case _ =>
     }
 
-    online_targests.toList
+    online_targests.toMap
 
   }
 
