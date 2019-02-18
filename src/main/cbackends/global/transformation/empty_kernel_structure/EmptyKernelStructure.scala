@@ -7,9 +7,8 @@ import scala.collection.mutable
 
 object EmptyKernelStructure {
 
-  val new_old_mapping = mutable.Map.empty[FunCall, FunCall]
 
-  def apply(lambda: Lambda) : (Lambda, Map[FunCall, FunCall]) = {
+  def apply(lambda: Lambda) : Lambda = {
     val lowered = lambda visitAndRebuild  (pre = {
       case fc@FunCall(cf:CPUFunc, arg) =>
         val new_funcall = FunCall(CPUFunCall(cf.funcName, cf.f.params), arg )
@@ -22,12 +21,12 @@ object EmptyKernelStructure {
       case fc@FunCall(cf:OclFunc, args@_*) =>
         val new_funcall = FunCall(OclFunCall(cf.funcName, cf.f.params), args:_*)
         new_funcall.t = fc.t
-        new_old_mapping += new_funcall -> fc
+        new_funcall.gid = fc.gid
         new_funcall
       case x => x
     } )
 
-    (lowered.asInstanceOf[Lambda], new_old_mapping.toMap)
+    lowered.asInstanceOf[Lambda]
   }
 
 }

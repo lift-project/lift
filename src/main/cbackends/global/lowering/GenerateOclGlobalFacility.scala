@@ -8,7 +8,7 @@ import ir.ast.{Expr, FunCall, Lambda}
 
 object GenerateOclGlobalFacility {
 
-  def generate(expr: Expr, new_old_mapping: Map[FunCall, FunCall], path: String, global_decl_cast: Block, global_init_cast: Block): (Block, Block) = {
+  def generate(expr: Expr, path: String, global_decl_cast: Block, global_init_cast: Block): (Block, Block) = {
 
     expr match {
 
@@ -28,7 +28,7 @@ object GenerateOclGlobalFacility {
         ))
 
         //construct global init
-        val kernel_string_init = AssignmentExpression(kernel_string_cvar, FunctionCall("readFile", List(StringConstant('"' + path + "/"+ "kernel_" + new_old_mapping(fc).gid + ".cl" + '"'))))
+        val kernel_string_init = AssignmentExpression(kernel_string_cvar, FunctionCall("readFile", List(StringConstant('"' + path + "/"+ "kernel_" + fc.gid + ".cl" + '"'))))
         val kernel_source_init = AssignmentExpression(kernel_source_cvar, FunctionCall("cl::Program::Sources", List(IntConstant(1),
           FunctionCall("std::make_pair", List(
             MethodInvocation(kernel_string_cvar, "c_str", List()),
@@ -55,16 +55,16 @@ object GenerateOclGlobalFacility {
 
         (global_decl_cast :++ global_decl_for_this_call, global_init_cast :++ global_init_for_this_call)
 
-      case FunCall(_:ToHost|_:ToGPU, arg) => generate(arg, new_old_mapping, path, global_decl_cast, global_init_cast)
+      case FunCall(_:ToHost|_:ToGPU, arg) => generate(arg, path, global_decl_cast, global_init_cast)
       case _ => assert(false, "Some other patterns appear in host expression but not implemented, please implement."); (Block(), Block())
     }
   }
 
 
-  def apply(lambda: Lambda, new_old_mapping: Map[FunCall, FunCall], path: String) : (Block, Block) = {
+  def apply(lambda: Lambda, path: String) : (Block, Block) = {
 
 
-    val (global_decl_cast, global_init_cast) = generate(lambda.body, new_old_mapping, path, Block(global = true), Block(global=true))
+    val (global_decl_cast, global_init_cast) = generate(lambda.body, path, Block(global = true), Block(global=true))
 
     val global_init_biolerplates = RawCode(
       """

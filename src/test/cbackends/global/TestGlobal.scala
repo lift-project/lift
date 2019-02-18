@@ -255,8 +255,31 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-      //in => ToHost() o OclFunc( MapGlb( toGlobal(id) o incrementF )  ) o OclFunc( MapGlb( toGlobal(id) o incrementF )  ) o ToGPU()  $ in
         in => ToHost() o OclFunc( MapGlb( id )  ) o ToGPU()  $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 1 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
+
+  @Test
+  def test_gpu_func_multi(): Unit = {
+
+    val path = s"$common_path/07.gpufunc"
+    val file = "libgpufunc.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => ToHost() o OclFunc( MapGlb( id )  ) o OclFunc( MapGlb( id )  ) o ToGPU()  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
