@@ -44,7 +44,7 @@ object GlobalCompiler{
     val (global_val_decl_cast, global_val_init_cast) = GenerateOclGlobalFacility(emptified_lambda)
     val top_cast = HostCompiler !! emptified_lambda
 
-    HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code), global = true) :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
+    HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code), global = true) :+ global_val_decl_cast :+ global_val_init_cast :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
 
     println("hello")
 

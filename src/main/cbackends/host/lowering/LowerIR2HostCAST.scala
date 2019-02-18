@@ -2,8 +2,9 @@ package cbackends.host.lowering
 
 import cbackends.common.common_ir.CPUMainMemoryAddressSpace
 import cbackends.common.utils.type_lowering.TypeLowering
-import cbackends.host.host_ir.{CPUFunCall, CPUFunCall2, OclFunCall}
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
+import cbackends.host.host_ir._
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
+import ir.Type
 import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
 //import host_obsolete.ir_host.MapHSeq
 //import host_obsolete.view.ViewPrinter
@@ -56,6 +57,10 @@ object LowerIR2HostCAST {
         generateCPUFunCall2(fc)
       case fc@FunCall(_:OclFunCall, _*) =>
         generateOclFunCall(fc)
+      case fc@FunCall(_:ToHost, _*) =>
+        generateDataTransfer(fc)
+      case fc@FunCall(_:ToGPU, _*) =>
+        generateDataTransfer(fc)
       case _ =>
         Block()
     }
@@ -63,20 +68,100 @@ object LowerIR2HostCAST {
   }
 
 
+  private def generateDataTransfer(fc: FunCall) : Block = {
+    //parameter sequnence convention: first input pointers, then output pointers, then sizes
+
+    val arg_block = generate(fc.args.head)
+
+    val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
+    val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
+
+    val in_arg = fc.args.head
+    val in = CVarWithType(in_arg.mem.variable.toString, TypeLowering.IRType2CastType(in_arg.t))
+    val out = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
+
+    val enqueue_cast =
+      fc.f match {
+        case _:ToGPU => ExpressionStatement(MethodInvocation(
+          StringConstant("queue"),
+          "enqueueWriteBuffer",
+          List(
+            VarRefPure(out),
+            StringConstant("CL_TRUE"),
+            IntConstant(0),
+            BinaryExpression(ArithExpression(Type.getElementCount(in_arg.t)), BinaryExpressionT.Operator.*,
+              FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(in.t))) ),
+            VarRefPure(in),
+            StringConstant("NULL"),
+            UnaryExpression("&", VarRefPure(eventCVar))
+          )
+        ) )
+        case _:ToHost => ExpressionStatement(MethodInvocation(
+          StringConstant("queue"),
+          "enqueueReadBuffer",
+          List(
+            VarRefPure(in),
+            StringConstant("CL_TRUE"),
+            IntConstant(0),
+            BinaryExpression(ArithExpression(Type.getElementCount(in_arg.t)), BinaryExpressionT.Operator.*,
+              FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(in.t))) ),
+            VarRefPure(out),
+            StringConstant("NULL"),
+            UnaryExpression("&", VarRefPure(eventCVar))
+          )
+        ) )
+      }
+
+    val block_for_this_call = Block(Vector(eventDecl, enqueue_cast), global = true)
+
+    arg_block :++ block_for_this_call
+
+
+  }
+
+
+
   private def generateOclFunCall(fc: FunCall) : Block = {
     //parameter sequnence convention: first input pointers, then output pointers, then sizes
 
     val arg_blocks = fc.args.map(generate(_) )
 
-    val cfc = fc.f.asInstanceOf[CPUFunCall2]
+    val cfc = fc.f.asInstanceOf[OclFunCall]
+
+
+    //(1) set arg
 
     val input_args = fc.args.map( arg => CVarWithType(arg.mem.variable.toString, TypeLowering.IRType2CastType(arg.t) ) ).toList
     val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
     val sizes = cfc.params.flatMap(p => ArithExpr.collectVars(p.mem.size)).map(p => CVarWithType(p.toString, IntegerType())).distinct
+    val all_args = (input_args :+ output_arg) ++ sizes
+    val arg_id = (0 until all_args.length).toList
 
-    val fc_cast = FunctionCall(cfc.funcName, input_args ::: (output_arg :: sizes.toList ) )
+    //  rebuild kernel cvar
+    val kernel_cvar = CVarWithType("kernel_" + fc.gid, ClassOrStructType("cl::Kernel"))
 
-    Block(arg_blocks.toVector, global = true) :++ Block( Vector(fc_cast), global = true)
+    val set_all_args = (all_args zip arg_id).map{ case (cvar:CVarWithType, id:Int) => MethodInvocation(kernel_cvar, "setArg", List(IntConstant(id), cvar)) }
+
+    //(2) enqueue kernel
+    val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
+    val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
+    val enqueue_cast = ExpressionStatement(MethodInvocation(
+      StringConstant("queue"),
+      "enqueueNDRangeKernel",
+      List(
+        kernel_cvar,
+        StringConstant("cl::NullRange"),
+        StringConstant("cl::NDRange(1,1,1)"),
+        StringConstant("cl::NDRange(1,1,1)"),
+        StringConstant("NULL"),
+        UnaryExpression("&", VarRefPure(eventCVar))
+      )
+    ) )
+
+    val block_for_this_call = set_all_args :+ eventDecl :+ enqueue_cast
+
+
+    Block(arg_blocks.toVector, global = true) :++ Block( block_for_this_call.asInstanceOf[List[AstNode with BlockMember]].toVector, global = true)
 
 
   }

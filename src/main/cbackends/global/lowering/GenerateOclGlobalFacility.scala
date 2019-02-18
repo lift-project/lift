@@ -2,7 +2,7 @@ package cbackends.global.lowering
 
 import java.util.function.BinaryOperator
 
-import cbackends.host.host_ir.OclFunCall
+import cbackends.host.host_ir.{OclFunCall, ToGPU, ToHost}
 import core.generator.GenericAST.{AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, ClassOrStructType, FunctionCall, FunctionPure, IfThenElseIm, IntConstant, MethodInvocation, RawCode, StringConstant, VarDeclPure, VoidType}
 import ir.ast.{Expr, FunCall, Lambda}
 
@@ -55,7 +55,8 @@ object GenerateOclGlobalFacility {
 
         (global_decl_cast :++ global_decl_for_this_call, global_init_cast :++ global_init_for_this_call)
 
-      case _ => (global_decl_cast, global_init_cast)
+      case FunCall(_:ToHost|_:ToGPU, arg) => generate(arg, global_decl_cast, global_init_cast)
+      case _ => assert(false, "Some other patterns appear in host expression but not implemented, please implement."); (Block(), Block())
     }
   }
 
@@ -63,9 +64,9 @@ object GenerateOclGlobalFacility {
   def apply(lambda: Lambda) : (Block, Block) = {
 
 
-    val (global_decl_cast, global_init_cast) = generate(lambda.body, Block(), Block())
+    val (global_decl_cast, global_init_cast) = generate(lambda.body, Block(global = true), Block(global=true))
 
-    val global_init_function = Block(Vector(FunctionPure("lift_init", VoidType(), List(), global_init_cast) ), global = false)
+    val global_init_function = Block(Vector(FunctionPure("lift_init", VoidType(), List(), global_init_cast) ), global = true)
 
     val global_decl_boilerplates = RawCode(
       """
