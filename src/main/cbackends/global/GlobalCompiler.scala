@@ -7,6 +7,7 @@ import cbackends.global.lowering.GenerateOclGlobalFacility
 import cbackends.global.transformation.cast_transformation.cpu_outline_transformation.{CPUOutlineTargetAnalysis, OclOutlineTargetAnalysis}
 import cbackends.global.transformation.empty_kernel_structure.EmptyKernelStructure
 import cbackends.global.transformation.funcall2closure.FunCall2Closure
+import cbackends.global.transformation.purify.Purify
 import cbackends.global.transformation.unique_user_func.UniqueUserFunc
 import cbackends.host.HostCompiler
 import cbackends.host.lowering.LowerIR2HostCAST
@@ -49,7 +50,10 @@ object GlobalCompiler{
       }
       case _ => {
 
-        val oclfundefs = all_oclfunc_outline_targets.map {
+        val all_oclfunc_outline_targets_purified = all_oclfunc_outline_targets.map{
+          case (filename:String, lambdax:Lambda) => (filename, Purify(lambdax) )
+        }
+        val oclfundefs = all_oclfunc_outline_targets_purified.map {
           case (filename:String, lambdax:Lambda) =>  (filename , ( opencl.executor.Compile.!!(lambdax) ) )
         }
         //val final_oclfundefs = UniqueUserFunc(oclfundefs)
