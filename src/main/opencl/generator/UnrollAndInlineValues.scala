@@ -33,7 +33,6 @@ object UnrollValues {
   def getIndexSuffix(str: String): (Int, String) = {
 
     val idx = str.split("_|\\.").filter(_.nonEmpty).lift(0).getOrElse("-1")
-
     if (idx == "-1")
     {
       (idx.toInt, "")
@@ -63,7 +62,7 @@ object UnrollValues {
   def getCorrectVarRef(v: CVar,
                        s: Option[String] ,
                        ai: Option[ArithExpression],
-                      oclVarDeclMap: ListMap[CVar, Array[OclVarDecl]]
+                       oclVarDeclMap: ListMap[CVar, Array[OclVarDecl]]
                       ): VarRef =
   {
     var vr = VarRef(v, s, ai)
@@ -110,9 +109,9 @@ object UnrollValues {
     lst
   }
 
-/**
-  * pass to unroll private arrays
-  */
+  /**
+    * pass to unroll private arrays
+    */
 
   def unrollPrivateMemoryArrayValues(node: AstNode): AstNode =
   {
@@ -132,27 +131,18 @@ object UnrollValues {
                 case PrivateMemory =>
                   ovd.t match
                   {
-                    case ArrayTypeWSWC(t,s,c) =>
-
-                      if(!oclVarDeclMap.contains(ovd.v))
-                      {
+		   case ArrayTypeWSWC(t,s,c) =>
                         // loop over size of array and create new OclVarDecls for each "unrolled value"
                         oclVarDeclMap += (ovd.v -> Array[OclVarDecl]())
-
-                        for (i <- 1 to ovd.length.toInt) // ovd.length.toInt)// Type.getLength(t).eval)
-                        {
-                          var oclVDtmp = OclVarDecl(CVar(Var(ovd.v.v.toString + "_" + i)), Type.getValueType(t) /*t*/ , ovd.init, 0, PrivateMemory)
-                          // push them back in new vector
-                          nodeVector = nodeVector :+ oclVDtmp
-                          // and add them to our "map" to reference later
-                          oclVarDeclMap += (ovd.v -> (oclVarDeclMap(ovd.v) :+ oclVDtmp))
-                        }
-                        hasChanged = true
-                      }
-                      else
-                      {
-                          nodeVector = nodeVector :+ ovd
-                      }
+                          for (i <- 1 to ovd.length.toInt)
+                          {
+                            var oclVDtmp = OclVarDecl(CVar(Var(ovd.v.v.toString + "_" + i)), Type.getValueType(t), ovd.init, 0, PrivateMemory)
+                            // push them back in new vector
+                            nodeVector = nodeVector :+ oclVDtmp
+                           // and add them to our "map" to reference later
+                            oclVarDeclMap += (ovd.v -> (oclVarDeclMap(ovd.v) :+ oclVDtmp))
+                          }
+                          hasChanged = true
                     case ArrayTypeWS(t,s) =>
                       throw new Exception("Unable to handle ArrayTypeWS in Private Array Unrolling!")
                     case ArrayTypeWC(t,c) =>
@@ -342,7 +332,7 @@ object UnrollValues {
                           var oclVDtmp = OclVarDecl(CVar(Var(ovd.v.v.toString+"_" + i)), tt.proj(i), ovd.init, 0, PrivateMemory)
                           if(ovd.init != None)
                           {
-                              throw new NotImplementedError("Trying to unroll initialised tuples - there is no method that can currently handle this!")
+                            throw new NotImplementedError("Trying to unroll initialised tuples - there is no method that can currently handle this!")
                           }
                           // and push them back in new vector
                           nodeVector = nodeVector :+ oclVDtmp
@@ -504,7 +494,7 @@ object UnrollValues {
             }
             else
             {
-                ExpressionStatement(AssignmentExpression(vr, rhs))
+              ExpressionStatement(AssignmentExpression(vr, rhs))
             }
 
           case _ => ExpressionStatement(AssignmentExpression(lhs,rhs))
@@ -519,67 +509,67 @@ object UnrollValues {
         {
           arg match
           {
-              case VarRef(v_b, s_b, ai_b) if ai_b.isEmpty =>
-                  var vr = VarRef(v_b, s_b, ai_b)
-                  if (oclVarDeclMap.contains(v_b))
-                  {
-                    val idxSuffix = getIndexSuffix(s_b.getOrElse(""))
-                    if (idxSuffix._1 < 0) // This means there is no suffix attached - must use whole unrolled Tuple!
-                    {
-                      var newStruct: AstNode = recreateStruct(oclVarDeclMap(v_b), ai_b, oclTupleTypeMap(v_b))
-                      lst = lst :+ newStruct
-                    }
-                    else
-                    {
-                      val ocl = oclVarDeclMap(v_b)(idxSuffix._1)
-                      vr = VarRef(ocl.v, Some(idxSuffix._2), ai_b)
-                      lst = lst :+ vr
-                    }
+            case VarRef(v_b, s_b, ai_b) if ai_b.isEmpty =>
+              var vr = VarRef(v_b, s_b, ai_b)
+              if (oclVarDeclMap.contains(v_b))
+              {
+                val idxSuffix = getIndexSuffix(s_b.getOrElse(""))
+                if (idxSuffix._1 < 0) // This means there is no suffix attached - must use whole unrolled Tuple!
+                {
+                  var newStruct: AstNode = recreateStruct(oclVarDeclMap(v_b), ai_b, oclTupleTypeMap(v_b))
+                  lst = lst :+ newStruct
+                }
+                else
+                {
+                  val ocl = oclVarDeclMap(v_b)(idxSuffix._1)
+                  vr = VarRef(ocl.v, Some(idxSuffix._2), ai_b)
+                  lst = lst :+ vr
+                }
 
 
-                  }
-                  else {
-                    lst = lst :+ vr
-                  }
-              case an: AstNode =>
-                lst = lst :+ an
-            }
+              }
+              else {
+                lst = lst :+ vr
+              }
+            case an: AstNode =>
+              lst = lst :+ an
+          }
         }
         FunctionCall(f, lst)
 
       case StructConstructor(t, args) =>
-         var newargs = Vector[GenericAST.AstNode]()
-         for (arg <- args)
-         {
-            arg match
-            {
-              case VarRef(v_b, s_b, ai_b) if ai_b.isEmpty =>
+        var newargs = Vector[GenericAST.AstNode]()
+        for (arg <- args)
+        {
+          arg match
+          {
+            case VarRef(v_b, s_b, ai_b) if ai_b.isEmpty =>
 
-                var vr = VarRef(v_b, s_b, ai_b)
-                if (oclVarDeclMap.contains(v_b))
+              var vr = VarRef(v_b, s_b, ai_b)
+              if (oclVarDeclMap.contains(v_b))
+              {
+                val idxSuffix = getIndexSuffix(s_b.getOrElse(""))
+                if (idxSuffix._1 < 0) // This means there is no suffix attached - must use whole unrolled Tuple!
                 {
-                  val idxSuffix = getIndexSuffix(s_b.getOrElse(""))
-                  if (idxSuffix._1 < 0) // This means there is no suffix attached - must use whole unrolled Tuple!
-                  {
-                    var newStruct: AstNode = recreateStruct(oclVarDeclMap(v_b), ai_b, oclTupleTypeMap(v_b))
-                    newargs = newargs :+ newStruct
-                  }
-                  else
-                  {
-                    val ocl = oclVarDeclMap(v_b)(idxSuffix._1)
-                    vr = VarRef(ocl.v, Some(idxSuffix._2), ai_b)
-                    newargs = newargs :+ vr
-                  }
+                  var newStruct: AstNode = recreateStruct(oclVarDeclMap(v_b), ai_b, oclTupleTypeMap(v_b))
+                  newargs = newargs :+ newStruct
                 }
-                else {
+                else
+                {
+                  val ocl = oclVarDeclMap(v_b)(idxSuffix._1)
+                  vr = VarRef(ocl.v, Some(idxSuffix._2), ai_b)
                   newargs = newargs :+ vr
                 }
+              }
+              else {
+                newargs = newargs :+ vr
+              }
 
-              case _ =>
-                newargs = newargs :+ arg
-            }
-         }
-         StructConstructor(t, newargs)
+            case _ =>
+              newargs = newargs :+ arg
+          }
+        }
+        StructConstructor(t, newargs)
 
       case VarRef(v, s, ai) =>
         if (oclVarDeclMap.contains(v))
@@ -604,4 +594,5 @@ class UnrollValues
 {
 
 }
+
 
