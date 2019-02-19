@@ -318,5 +318,28 @@ class TestGlobal {
     println("Test case test_slide_hello done!")
   }
 
+  @Test
+  def test_cpu_gpu_func_multi_interleaved(): Unit = {
+
+    val path = s"$common_path/10.cpu_gpu_func_multi_interleaved"
+    val file = "libcpu_gpu_func_multi_interleaved.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU() o
+        CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "5 5 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
 
 }
