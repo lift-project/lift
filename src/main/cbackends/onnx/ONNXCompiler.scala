@@ -2,6 +2,7 @@ package cbackends.onnx
 
 import cbackends.common.CBackendsCompilerTrait
 import cbackends.common.common_cast.CbackendCAST.SourceFile
+import cbackends.global.GlobalCompiler
 import cbackends.host.HostCompiler
 import cbackends.onnx.lowering.LoweringONNXIR2LiftHostIR
 import core.generator.GenericAST.{Block, CVarWithType}
@@ -28,7 +29,7 @@ object ONNXCompiler extends CBackendsCompilerTrait{
 
     val lift_host_ir = LoweringONNXIR2LiftHostIR(onnx_ir)
 
-    HostCompiler ! (lift_host_ir, path, List(files(0)) )
+    GlobalCompiler ! (lift_host_ir, path, List(files(0)) )
 
     /*
     println("1.traditional compiler process")
