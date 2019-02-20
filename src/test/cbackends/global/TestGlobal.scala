@@ -350,7 +350,10 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-      in => ToHost(gpu_timer = true) o OclFunc( MapGlb( incrementF ), gpu_timer = true  ) o ToGPU(gpu_timer = true)  $ in
+      in => CPUFunc( MapSeq(incrementF), cpu_timer = true ) o
+        ToHost(cpu_timer = true, gpu_timer = true) o
+        OclFunc( MapGlb( incrementF ), cpu_timer = true,  gpu_timer = true  ) o
+        ToGPU(gpu_timer = true)  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -359,7 +362,7 @@ class TestGlobal {
 
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "2 2 \n"
+    val expected : String = "3 3 \n"
     assertEquals(expected, actual)
 
     println("Test case test_slide_hello done!")

@@ -40,7 +40,8 @@ case class CPUFunCall(funcName : String, params: Array[Param]) extends Pattern(a
 */
 
 //accept arbitrary parameters.
-case class CPUFunc(override val f: Lambda, val funcName: String = "execute_" + IDGenerator.get_id()) extends Pattern(arity = f.params.length) with FPattern {
+case class CPUFunc(override val f: Lambda, val funcName: String = "execute_" + IDGenerator.get_id(), override val cpu_timer: Boolean = false)
+  extends Pattern(arity = f.params.length) with FPattern with CPUMeasurable {
 
   override def copy(f: Lambda): Pattern = CPUFunc(f, funcName)
 
