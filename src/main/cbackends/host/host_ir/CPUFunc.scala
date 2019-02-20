@@ -5,6 +5,7 @@ import ir.interpreter.Interpreter.ValueMap
 import ir.{TupleType, Type, TypeChecker}
 
 
+/*
 case class CPUFunc(override val f: Lambda, val funcName: String = "execute_" + IDGenerator.get_id()) extends Pattern(arity = 1) with FPattern {
 
   override def copy(f: Lambda): Pattern = CPUFunc(f, funcName)
@@ -36,12 +37,12 @@ case class CPUFunCall(funcName : String, params: Array[Param]) extends Pattern(a
   override def eval(valueMap: ValueMap, args: Any*): Any = this
 
 }
-
+*/
 
 //accept arbitrary parameters.
-case class CPUFunc2(override val f: Lambda, val funcName: String = "execute_" + IDGenerator.get_id()) extends Pattern(arity = f.params.length) with FPattern {
+case class CPUFunc(override val f: Lambda, val funcName: String = "execute_" + IDGenerator.get_id()) extends Pattern(arity = f.params.length) with FPattern {
 
-  override def copy(f: Lambda): Pattern = CPUFunc2(f, funcName)
+  override def copy(f: Lambda): Pattern = CPUFunc(f, funcName)
 
 
   override def checkType(argType: Type,
@@ -63,7 +64,7 @@ case class CPUFunc2(override val f: Lambda, val funcName: String = "execute_" + 
     }
   }
 }
-case class CPUFunCall2(funcName : String, params: Array[Param]) extends Pattern(arity = 2) {
+case class CPUFunCall(funcName : String, params: Array[Param]) extends Pattern(arity = 2) {
 
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = this
   override def checkType(argType: Type, setType: Boolean): Type = {

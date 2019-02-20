@@ -139,7 +139,7 @@ class TestGlobal {
     val f = fun(
       ArrayTypeWSWC(Float, N),
       ArrayTypeWSWC(Float, M),
-      (in1, in2) => CPUFunc2( fun( (i1,i2) => MapSeq(incrementF) $ i1 ) ).apply( in1, in2)
+      (in1, in2) => CPUFunc( fun( (i1,i2) => MapSeq(incrementF) $ i1 ) ).apply( in1, in2)
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -180,7 +180,7 @@ class TestGlobal {
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 8), 8), 8) ,
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 3), 3), 3) ,
       (in, weights) =>
-          CPUFunc2( conv_lambda  ).apply(in, weights)
+          CPUFunc( conv_lambda  ).apply(in, weights)
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -229,7 +229,7 @@ class TestGlobal {
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 3), 3), 3) ,
       (in, weights) =>
         //CPUFunc2( pool_lambda ) o
-        CPUFunc( pool_lambda ) o CPUFunc2( conv_lambda  ) apply (in, weights)
+        CPUFunc( pool_lambda ) o CPUFunc( conv_lambda  ) apply (in, weights)
       //conv_lambda.apply(in, weights)
 
     )

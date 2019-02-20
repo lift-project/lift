@@ -77,10 +77,10 @@ object LowerIR2HostCAST {
         generateNothing(fc)
       case fc@FunCall(_:UserFun,_*) =>
         generateUserFun(fc)
-      case fc@FunCall(_:CPUFunCall,_) =>
+      /*case fc@FunCall(_:CPUFunCall,_) =>
+        generateCPUFunCall(fc)*/
+      case fc@FunCall(_:CPUFunCall, _*) =>
         generateCPUFunCall(fc)
-      case fc@FunCall(_:CPUFunCall2, _*) =>
-        generateCPUFunCall2(fc)
       case fc@FunCall(_:OclFunCall, _*) =>
         generateOclFunCall(fc)
       case fc@FunCall(_:ToHost, _*) =>
@@ -203,12 +203,12 @@ object LowerIR2HostCAST {
 
   }
 
-  private def generateCPUFunCall2(fc: FunCall) : Block = {
+  private def generateCPUFunCall(fc: FunCall) : Block = {
     //parameter sequnence convention: first input pointers, then output pointers, then sizes
 
     val arg_blocks = fc.args.map(generate(_) )
 
-    val cfc = fc.f.asInstanceOf[CPUFunCall2]
+    val cfc = fc.f.asInstanceOf[CPUFunCall]
 
     val input_args = fc.args.map( arg => CVarWithType(arg.mem.variable.toString, TypeLowering.IRType2CastType(arg.t) ) ).toList
     val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
@@ -221,6 +221,7 @@ object LowerIR2HostCAST {
 
   }
 
+  /*
   private def generateCPUFunCall(fc: FunCall) : Block = {
     //parameter sequnence convention: first input pointers, then output pointers, then sizes
 
@@ -238,6 +239,7 @@ object LowerIR2HostCAST {
 
 
   }
+  */
 
   private def generateUserFun(fc: FunCall) : Block = {
 

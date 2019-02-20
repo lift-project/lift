@@ -123,6 +123,7 @@ object OutputView {
 
       }
 
+        /*
       case fc@FunCall(_:CPUFunCall, arg) => {
 
         arg.outputView = ViewMem(arg.mem.variable, arg.t)
@@ -130,9 +131,9 @@ object OutputView {
         cont( arg )
 
         fc
-      }
+      }*/
 
-      case fc@FunCall(_:CPUFunCall2|_:OclFunCall|_:ToGPU|_:ToHost, args@_*) => {
+      case fc@FunCall(_:CPUFunCall|_:OclFunCall|_:ToGPU|_:ToHost, args@_*) => {
 
         args.foreach( arg => arg.outputView = ViewMem(arg.mem.variable, arg.t) )
 

@@ -17,7 +17,7 @@ object FinalMemoryAllocationAnalysis {
   def analyze(node:IRNode): Unit = {
     node match {
 
-      case fc@FunCall(_:UserFun|_:CPUFunCall|_:CPUFunCall2|_:OclFunCall|_:ToGPU|_:ToHost, args@_*) =>
+      case fc@FunCall(_:UserFun|_:CPUFunCall|_:OclFunCall|_:ToGPU|_:ToHost, args@_*) =>
         args.foreach(analyze(_))
         hostMemoryDeclaredInSignature +=
           fc.mem.variable.toString -> (

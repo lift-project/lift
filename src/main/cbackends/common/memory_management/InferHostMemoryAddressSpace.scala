@@ -25,7 +25,7 @@ object InferHostMemoryAddressSpace {
         args.foreach(inferAddrSpace(_))
         fc.addressSpace = GlobalMemory
 
-      case fc@FunCall(_:CPUFunCall|_:CPUFunCall2, args@_*) =>
+      case fc@FunCall(_:CPUFunCall, args@_*) =>
         args.foreach(inferAddrSpace(_))
         fc.addressSpace = CPUMainMemoryAddressSpace
 

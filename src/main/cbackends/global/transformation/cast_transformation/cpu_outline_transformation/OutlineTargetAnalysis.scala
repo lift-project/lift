@@ -1,6 +1,6 @@
 package cbackends.global.transformation.cast_transformation.cpu_outline_transformation
 
-import cbackends.host.host_ir.{CPUFunc, CPUFunc2, OclFunc}
+import cbackends.host.host_ir.{CPUFunc, OclFunc}
 import ir.ast.{FunCall, Lambda}
 
 import scala.collection.mutable
@@ -13,7 +13,7 @@ object CPUOutlineTargetAnalysis {
 
     lambda visitBy {
       case cf@FunCall(c:CPUFunc, _*) => c.f.funcName = c.funcName; online_targests += c.f
-      case cf@FunCall(c:CPUFunc2, _*) => c.f.funcName = c.funcName; online_targests += c.f
+      //case cf@FunCall(c:CPUFunc2, _*) => c.f.funcName = c.funcName; online_targests += c.f
       case _ =>
     }
 

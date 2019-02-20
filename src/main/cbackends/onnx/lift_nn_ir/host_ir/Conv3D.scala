@@ -1,6 +1,6 @@
 package cbackends.onnx.lift_nn_ir.host_ir
 
-import cbackends.host.host_ir.CPUFunc2
+import cbackends.host.host_ir.CPUFunc
 import ir.{ArrayTypeWSWC, ast}
 import ir.ast.{Expr, FunCall, FunDecl, Get, Join, Lambda, Param, Slide3D, Slide3D_R, SlideND, Zip, fun}
 import lift.arithmetic.SizeVar
@@ -44,7 +44,7 @@ object Conv3D {
     //val feature_z_size = 6
     val step = 1
 
-    CPUFunc2( fun( (input, weights) => MapSeq(  MapSeq( Join() o MapSeq(
+    CPUFunc( fun( (input, weights) => MapSeq(  MapSeq( Join() o MapSeq(
 
         fun( cube =>
 

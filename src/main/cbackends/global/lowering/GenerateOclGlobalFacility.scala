@@ -63,9 +63,9 @@ object GenerateOclGlobalFacility {
 
         (global_decl_cast :++ global_decl_for_args :++ global_decl_for_this_call, global_init_cast :++ global_init_for_args :++ global_init_for_this_call)
 
-      case FunCall(_:ToHost|_:ToGPU|_:CPUFunCall, arg) =>
+      case FunCall(_:ToHost|_:ToGPU, arg) =>
         generate(arg, path, global_decl_cast, global_init_cast)
-      case FunCall(_:CPUFunCall2, args@_*) => {
+      case FunCall(_:CPUFunCall, args@_*) => {
         val globals_for_args = args.map(generate(_, path, Block(global = true), Block(global = true))).toList
         val (global_decl_for_args, global_init_for_args) = ((Block(global = true), Block(global = true)) /: globals_for_args) {
           (tuple1: Tuple2[Block, Block], tuple2: Tuple2[Block, Block]) => (tuple1._1 :++ tuple2._1, tuple1._2 :++ tuple2._2)
