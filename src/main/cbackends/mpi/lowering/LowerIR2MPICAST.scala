@@ -6,6 +6,7 @@ import core.generator.GenericAST.{ArithExpression, Block, CVarWithType, Expressi
 import ir.Type
 import ir.ast.{FunCall, IRNode, Lambda}
 import lift.arithmetic.ArithExpr
+import opencl.ir.OpenCLAddressSpace
 
 object LowerIR2MPICAST {
 
@@ -46,7 +47,7 @@ object LowerIR2MPICAST {
 
   }
 
-  def apply(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]) : Block = {
+  def apply(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]) : Block = {
 
 
     val core_body_code = generate(lambda)

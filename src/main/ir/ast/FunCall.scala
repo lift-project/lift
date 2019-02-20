@@ -21,6 +21,7 @@ case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = {
     val new_fc = FunCall(f.visitAndRebuild(pre, post).asInstanceOf[FunDecl], args.map(_.visitAndRebuild(pre, post).asInstanceOf[Expr]): _*)
     new_fc.t = this.t
+    new_fc.gid = this.gid
     new_fc
   }
 

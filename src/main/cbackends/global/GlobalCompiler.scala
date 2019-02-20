@@ -2,9 +2,12 @@ package cbackends.global
 
 import cbackends.common.CBackendsCompilerTrait
 import cbackends.common.common_cast.CbackendCAST.SourceFile
-import cbackends.global.transformation.cast_transformation.cpu_outline_transformation.OutlineTargetAnalysis
+import cbackends.global.analysis.OclKernelFileNameAnalysis
+import cbackends.global.lowering.GenerateOclGlobalFacility
+import cbackends.global.transformation.cast_transformation.cpu_outline_transformation.{CPUOutlineTargetAnalysis, OclOutlineTargetAnalysis}
 import cbackends.global.transformation.empty_kernel_structure.EmptyKernelStructure
 import cbackends.global.transformation.funcall2closure.FunCall2Closure
+import cbackends.global.transformation.purify.Purify
 import cbackends.global.transformation.unique_user_func.UniqueUserFunc
 import cbackends.host.HostCompiler
 import cbackends.host.lowering.LowerIR2HostCAST
@@ -23,15 +26,50 @@ object GlobalCompiler{
 
     HostCompiler.typeCheck(lambda)
 
-    val all_cpufunc_outline_targets = OutlineTargetAnalysis(lambda)
-    //val final_cpufundefs = all_cpufunc_outline_targets.map(FunCall2Closure.apply _)   //map( HostCompiler.!! _ ) //.map(OutlineTransformation)
+    val all_cpufunc_outline_targets = CPUOutlineTargetAnalysis(lambda)
+
+    val all_oclfunc_outline_targets = OclOutlineTargetAnalysis(lambda)
+
+    val emptified_lambda = EmptyKernelStructure(lambda)
+
+    //-----------------------------------------------------------------------//
+    //DO ALL IR TRANSFORMATION ABOVE, FROM HERE, NO IR TRANSFORMATION ALLOWED
+    //But CAST transformation are OK below
+    //-----------------------------------------------------------------------//
+
     val cpufundefs = all_cpufunc_outline_targets.map( HostCompiler.!! _ )
     val final_cpufundefs = UniqueUserFunc(cpufundefs)
 
-    val emptified_lambda = EmptyKernelStructure(lambda)
-    val top_cast = HostCompiler !! emptified_lambda
+    all_oclfunc_outline_targets.size match {
+      //CPU only
+      case 0 => {
 
-    HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code), global = true) :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
+        val top_cast = HostCompiler !! emptified_lambda
+        HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code), global = true)  :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
+
+      }
+      case _ => {
+
+        val all_oclfunc_outline_targets_purified = all_oclfunc_outline_targets.map{
+          case (filename:String, lambdax:Lambda) => (filename, Purify(lambdax) )
+        }
+        val oclfundefs = all_oclfunc_outline_targets_purified.map {
+          case (filename:String, lambdax:Lambda) =>  (filename , ( opencl.executor.Compile.!!(lambdax) ) )
+        }
+        //val final_oclfundefs = UniqueUserFunc(oclfundefs)
+        val final_oclfundefs = oclfundefs
+
+        //val ocl_kernel_file_names = OclKernelFileNameAnalysis(emptified_lambda)
+        val (global_val_decl_cast, global_val_init_cast) = GenerateOclGlobalFacility(emptified_lambda, path)
+        val top_cast = HostCompiler !! emptified_lambda
+
+        HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code, LowerIR2HostCAST.ocl_boilerplate_code), global = true) :+ global_val_decl_cast :+ global_val_init_cast :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
+
+        val ocl_source_files = final_oclfundefs.map{ case (fileName,block) => new SourceFile(path,fileName,block) }.toList
+        HostCompiler.castPrinter(ocl_source_files)
+      }
+    }
+
 
     println("hello")
 

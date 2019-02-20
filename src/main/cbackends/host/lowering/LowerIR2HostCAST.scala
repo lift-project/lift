@@ -1,8 +1,11 @@
 package cbackends.host.lowering
 
+import cbackends.common.common_ir.CPUMainMemoryAddressSpace
 import cbackends.common.utils.type_lowering.TypeLowering
-import cbackends.host.host_ir.{CPUFunCall, CPUFunCall2}
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MutableBlock, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
+import cbackends.host.host_ir._
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
+import ir.Type
+import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
 //import host_obsolete.ir_host.MapHSeq
 //import host_obsolete.view.ViewPrinter
 import ir.ast.{AbstractMap, AbstractPartRed, FunCall, IRNode, Join, Lambda, Slide, Split, Transpose, TransposeW, UserFun, Value}
@@ -20,6 +23,32 @@ object LowerIR2HostCAST {
       |#include <bits/stdc++.h>
       |
       |using namespace std;
+      |
+    """.stripMargin), true )
+
+  val ocl_boilerplate_code = ExpressionStatement(RawCode(
+    """
+      |#include <iostream>
+      |#include <CL/cl.hpp>
+      |#include <fstream>
+      |
+      |std::string readFile(const char *filename){
+      |
+      |  std::ifstream in(filename, std::ios::in);
+      |
+      |  if (in.fail())
+      |  {
+      |  std::cerr << "Error reading file " << filename << std::endl;
+      |  exit(1); }
+      |
+      |  std::string contents;
+      |  in.seekg(0, std::ios::end);
+      |  contents.resize(in.tellg());
+      |  in.seekg(0, std::ios::beg);
+      |  in.read(&contents[0], contents.size());
+      |  in.close();
+      |  return contents;
+      |  }
       |
     """.stripMargin), true )
 
@@ -48,22 +77,138 @@ object LowerIR2HostCAST {
         generateNothing(fc)
       case fc@FunCall(_:UserFun,_*) =>
         generateUserFun(fc)
-      case fc@FunCall(_:CPUFunCall,_) =>
+      /*case fc@FunCall(_:CPUFunCall,_) =>
+        generateCPUFunCall(fc)*/
+      case fc@FunCall(_:CPUFunCall, _*) =>
         generateCPUFunCall(fc)
-      case fc@FunCall(_:CPUFunCall2, _*) =>
-        generateCPUFunCall2(fc)
+      case fc@FunCall(_:OclFunCall, _*) =>
+        generateOclFunCall(fc)
+      case fc@FunCall(_:ToHost, _*) =>
+        generateDataTransfer(fc)
+      case fc@FunCall(_:ToGPU, _*) =>
+        generateDataTransfer(fc)
       case _ =>
         Block()
     }
 
   }
 
-  private def generateCPUFunCall2(fc: FunCall) : Block = {
+
+  private def generateDataTransfer(fc: FunCall) : Block = {
+    //parameter sequnence convention: first input pointers, then output pointers, then sizes
+
+    val arg_block = generate(fc.args.head)
+
+    val measurable = fc.f.asInstanceOf[Measurable]
+
+    val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
+    val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
+
+    val in_arg = fc.args.head
+    val in = CVarWithType(in_arg.mem.variable.toString, TypeLowering.IRType2CastType(in_arg.t))
+    val out = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
+
+    val enqueue_cast =
+      fc.f match {
+        case _:ToGPU => ExpressionStatement(MethodInvocation(
+          StringConstant("lift_queue"),
+          "enqueueWriteBuffer",
+          List(
+            VarRefPure(out),
+            StringConstant("CL_TRUE"),
+            IntConstant(0),
+            BinaryExpression(ArithExpression(Type.getElementCount(in_arg.t)), BinaryExpressionT.Operator.*,
+              FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromArray(in.t))) ),
+            VarRefPure(in),
+            StringConstant("NULL"),
+            if(measurable.gpu_timer) UnaryExpression("&", VarRefPure(eventCVar)) else StringConstant("NULL")
+          )
+        ) )
+        case _:ToHost => ExpressionStatement(MethodInvocation(
+          StringConstant("lift_queue"),
+          "enqueueReadBuffer",
+          List(
+            VarRefPure(in),
+            StringConstant("CL_TRUE"),
+            IntConstant(0),
+            BinaryExpression(ArithExpression(Type.getElementCount(in_arg.t)), BinaryExpressionT.Operator.*,
+              FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromArray(in.t))) ),
+            VarRefPure(out),
+            StringConstant("NULL"),
+            if(measurable.gpu_timer) UnaryExpression("&", VarRefPure(eventCVar)) else StringConstant("NULL")
+          )
+        ) )
+      }
+
+    val block_for_this_call = measurable.gpu_timer match {
+
+      case true => Block(Vector(eventDecl, enqueue_cast), global = true)
+      case false => Block(Vector(enqueue_cast), global = true)
+
+    }
+
+    arg_block :++ block_for_this_call
+
+
+  }
+
+
+
+  private def generateOclFunCall(fc: FunCall) : Block = {
     //parameter sequnence convention: first input pointers, then output pointers, then sizes
 
     val arg_blocks = fc.args.map(generate(_) )
 
-    val cfc = fc.f.asInstanceOf[CPUFunCall2]
+    val cfc = fc.f.asInstanceOf[OclFunCall]
+    val measurable = fc.f.asInstanceOf[Measurable]
+
+
+    //(1) set arg
+
+    val input_args = fc.args.map( arg => CVarWithType(arg.mem.variable.toString, TypeLowering.IRType2CastType(arg.t) ) ).toList
+    val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
+    val sizes = cfc.params.flatMap(p => ArithExpr.collectVars(p.mem.size)).map(p => CVarWithType(p.toString, IntegerType())).distinct
+    val all_args = (input_args :+ output_arg) ++ sizes
+    val arg_id = (0 until all_args.length).toList
+
+    //  rebuild kernel cvar
+    val kernel_cvar = CVarWithType("kernel_" + fc.gid, ClassOrStructType("cl::Kernel"))
+
+    val set_all_args = (all_args zip arg_id).map{ case (cvar:CVarWithType, id:Int) => ExpressionStatement(MethodInvocation(kernel_cvar, "setArg", List(IntConstant(id), cvar))) }
+
+    //(2) enqueue kernel
+    val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
+    val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
+    val enqueue_cast = ExpressionStatement(MethodInvocation(
+      StringConstant("lift_queue"),
+      "enqueueNDRangeKernel",
+      List(
+        kernel_cvar,
+        StringConstant("cl::NullRange"),
+        StringConstant("cl::NDRange(1,1,1)"),
+        StringConstant("cl::NDRange(1,1,1)"),
+        StringConstant("NULL"),
+        if(measurable.gpu_timer) UnaryExpression("&", VarRefPure(eventCVar)) else StringConstant("NULL")
+      )
+    ) )
+
+    val block_for_this_call = measurable.gpu_timer match {
+      case true => set_all_args :+ eventDecl :+ enqueue_cast
+      case false => set_all_args :+ enqueue_cast
+    }
+
+
+    Block(arg_blocks.toVector, global = true) :++ Block( block_for_this_call.asInstanceOf[List[AstNode with BlockMember]].toVector, global = true)
+
+
+  }
+
+  private def generateCPUFunCall(fc: FunCall) : Block = {
+    //parameter sequnence convention: first input pointers, then output pointers, then sizes
+
+    val arg_blocks = fc.args.map(generate(_) )
+
+    val cfc = fc.f.asInstanceOf[CPUFunCall]
 
     val input_args = fc.args.map( arg => CVarWithType(arg.mem.variable.toString, TypeLowering.IRType2CastType(arg.t) ) ).toList
     val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
@@ -76,6 +221,7 @@ object LowerIR2HostCAST {
 
   }
 
+  /*
   private def generateCPUFunCall(fc: FunCall) : Block = {
     //parameter sequnence convention: first input pointers, then output pointers, then sizes
 
@@ -93,6 +239,7 @@ object LowerIR2HostCAST {
 
 
   }
+  */
 
   private def generateUserFun(fc: FunCall) : Block = {
 
@@ -219,7 +366,7 @@ object LowerIR2HostCAST {
 
   }
 
-  def apply(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]) : Block = {
+  def apply(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]) : Block = {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 
@@ -246,7 +393,7 @@ object LowerIR2HostCAST {
   }
 
 
-  def apply_no_header(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)]) : Block = {
+  def apply_no_header(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]) : Block = {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 
@@ -272,39 +419,44 @@ object LowerIR2HostCAST {
 
   }
 
-  def generateMemAlloc(hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)], out_cvar_in_execute: CVarWithType) : Block = {
+  def generateMemAlloc(hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)], out_cvar_in_execute: CVarWithType) : Block = {
 
 
-    val memory_alloc_vector = hostMemoryDeclaredInSignature.map(record => {
+    val memory_alloc_vector =
+      hostMemoryDeclaredInSignature.map(
+        record => {
 
-      /*
-      record._2._1.t match {
-        case _:PrimitiveTypeT => EmptyNode()
-        case _ => ExpressionStatement(AssignmentExpression(VarRefPure(record._2._1),
-            FunctionCall("reinterpret_cast", List(
+          if(record._2._3 == CPUMainMemoryAddressSpace  ) {
+            val rhs = FunctionCall("reinterpret_cast", List(
               FunctionCall("malloc", List(BinaryExpression(ArithExpression(record._2._2), BinaryExpressionT.Operator.*,
-                FunctionCall("sizeof", List(Util.GetElementTypeFromPointer(record._2._1.t)))
+                FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(record._2._1.t)))
               )))),
               List(record._2._1.t))
-          ) )
-      } */
+            val out_name = out_cvar_in_execute.name
+            record._2._1.name match {
+              case `out_name` => ExpressionStatement(AssignmentExpression(VarRefPure(record._2._1), rhs))
+              case _ => val cvar = record._2._1
+                VarDeclPure(cvar, cvar.t, Some(rhs))
+            }
+          } else if (record._2._3 == GlobalMemory ) {
 
-      val rhs = FunctionCall("reinterpret_cast", List(
-          FunctionCall("malloc", List(BinaryExpression(ArithExpression(record._2._2), BinaryExpressionT.Operator.*,
-            FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(record._2._1.t)))
-          )))),
-          List(record._2._1.t))
+            val cvar = CVarWithType(record._2._1.name, ClassOrStructType("cl::Buffer"))
+            ObjectDecl(cvar, cvar.t,
+              List(
+                StringConstant("context"),
+                StringConstant("CL_MEM_READ_WRITE"),
+                BinaryExpression(ArithExpression(record._2._2), BinaryExpressionT.Operator.*,
+                  FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(record._2._1.t))) )
+              )
+            )
 
-      val out_name = out_cvar_in_execute.name
 
-      record._2._1.name match {
-        case `out_name` => ExpressionStatement(AssignmentExpression(VarRefPure(record._2._1), rhs ) )
-        case _ => val cvar = record._2._1
-          VarDeclPure(cvar, cvar.t, Some(rhs))
-      }
+          } else {
+            assert(false, "New mem address not implemented in final memory alloc CAST generation")
+            ExpressionStatement(RawCode("dummy"))
+          }
 
-}
-    ).toVector
+                  } ).toVector
 
     /*
     val empty_node_filtered = memory_alloc_vector.filter({case EmptyNode() => false; case _ => true})

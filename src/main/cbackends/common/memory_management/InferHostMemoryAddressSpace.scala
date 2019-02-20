@@ -1,14 +1,33 @@
 package cbackends.common.memory_management
 
 import cbackends.common.common_ir.CPUMainMemoryAddressSpace
+import cbackends.host.host_ir._
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FPattern, FunCall, FunDecl, IRNode, Lambda, Pattern, UserFun}
-import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
+import opencl.ir.{GlobalMemory, OpenCLAddressSpace, UndefAddressSpace}
 
 object InferHostMemoryAddressSpace {
 
   private def inferAddrSpace(node: IRNode): Unit = {
     node match {
       //case fc@FunCall(_:UserFun,_*) => inferAddrSpaceUserFunc(fc)
+
+      case fc@FunCall(_:ToGPU, arg) =>
+        inferAddrSpace(arg)
+        assert(arg.addressSpace == CPUMainMemoryAddressSpace)
+        fc.addressSpace = GlobalMemory
+
+      case fc@FunCall(_:ToHost, arg) =>
+        inferAddrSpace(arg)
+        assert(arg.addressSpace == GlobalMemory)
+        fc.addressSpace = CPUMainMemoryAddressSpace
+
+      case fc@FunCall(_:OclFunCall, args@_*) =>
+        args.foreach(inferAddrSpace(_))
+        fc.addressSpace = GlobalMemory
+
+      case fc@FunCall(_:CPUFunCall, args@_*) =>
+        args.foreach(inferAddrSpace(_))
+        fc.addressSpace = CPUMainMemoryAddressSpace
 
       case fc@FunCall(fp:FPattern, args@_*) => {
         args.foreach(inferAddrSpace(_))

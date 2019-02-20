@@ -347,7 +347,7 @@ object GenericAST {
 
     def :++(mb: Block) : MutableBlock = this.copy(content = content ++ mb.content )
 
-    def toBlock: Block = Block(content)
+    def toBlock: Block = Block(content, global = this.global)
   }
 
   /*
@@ -693,6 +693,41 @@ object GenericAST {
       args.foreach(_.visit(pre, post))
       template_types.foreach(_.visit(pre,post))
     }
+  }
+
+  trait MethodInvocationT extends ExpressionT {
+    //val object_name:String
+    val object_name:ExpressionT
+    val method_name:String
+    val args: List[GenericAST.AstNode]
+    val isPointer: Boolean
+
+    override def print(): Doc = {
+      object_name.print() <>
+        (if(isPointer) "->" else ".") <>
+        ( method_name ++ "(")  <>
+        intersperse(args.map(_.print)) <> ")"
+    }
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = {
+      object_name.visit(pre,post)
+      args.map(_.visit(pre,post))
+    }
+
+  }
+
+  //case class MethodInvocation(object_name:String,
+  case class MethodInvocation(object_name:ExpressionT,
+                              method_name:String,
+                              args: List[GenericAST.AstNode],
+                              isPointer: Boolean = false) extends MethodInvocationT
+  {
+    override def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode =
+      MethodInvocation(
+        object_name.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
+        method_name,
+        args.map(_.visitAndRebuild(pre,post)),
+        isPointer)
+
   }
 
   /**
@@ -1185,7 +1220,7 @@ object GenericAST {
 
     def ++:(mb: MutableBlock) : Block = this.copy(content = mb.content ++ content)
 
-    def :++(mb: Block) : Block = this.copy(content = content ++ mb.content )
+    def :++(mb: Block) : Block = this.copy(content = content ++ mb.content, global = true )
 
     override def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode =
       Block(content.map(_.visitAndRebuild(pre,post).asInstanceOf[AstNode with BlockMember]), global = this.global)

@@ -1,9 +1,11 @@
 package cbackends.global.transformation.cast_transformation.cpu_outline_transformation
 
-import cbackends.host.host_ir.{CPUFunc, CPUFunc2}
+import cbackends.host.host_ir.{CPUFunc, OclFunc}
 import ir.ast.{FunCall, Lambda}
 
-object OutlineTargetAnalysis {
+import scala.collection.mutable
+
+object CPUOutlineTargetAnalysis {
 
   def apply (lambda: Lambda) : List[Lambda] = {
 
@@ -11,11 +13,30 @@ object OutlineTargetAnalysis {
 
     lambda visitBy {
       case cf@FunCall(c:CPUFunc, _*) => c.f.funcName = c.funcName; online_targests += c.f
-      case cf@FunCall(c:CPUFunc2, _*) => c.f.funcName = c.funcName; online_targests += c.f
+      //case cf@FunCall(c:CPUFunc2, _*) => c.f.funcName = c.funcName; online_targests += c.f
       case _ =>
     }
 
     online_targests.toList
+
+  }
+
+}
+
+
+object OclOutlineTargetAnalysis {
+
+  def apply (lambda: Lambda) : Map[String, Lambda] = {
+
+    //val online_targests = scala.collection.mutable.ListBuffer.empty[Lambda]
+    val online_targests = mutable.Map.empty[String,Lambda]
+
+    lambda visitBy {
+      case cf@FunCall(c:OclFunc, _*) => c.f.funcName = c.funcName; online_targests += ("kernel_"+cf.gid+".cl") -> c.f
+      case _ =>
+    }
+
+    online_targests.toMap
 
   }
 

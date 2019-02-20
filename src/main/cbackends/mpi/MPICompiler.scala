@@ -6,6 +6,7 @@ import cbackends.mpi.lowering.LowerIR2MPICAST
 import core.generator.GenericAST.CVarWithType
 import ir.ast.Lambda
 import lift.arithmetic.ArithExpr
+import opencl.ir.OpenCLAddressSpace
 
 
 object MPICompiler extends CBackendsCompilerTrait {
@@ -28,7 +29,7 @@ object MPICompiler extends CBackendsCompilerTrait {
   }
 
   override def lowerIR2CAST(lambda: Lambda,
-                            memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)],
+                            memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)],
                             path: String,
                             files: List[String]
                            ): List[SourceFile] = {

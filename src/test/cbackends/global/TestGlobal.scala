@@ -1,6 +1,6 @@
 package cbackends.global
 
-import cbackends.host.host_ir.{CPUFunc, CPUFunc2}
+import cbackends.host.host_ir._
 import cbackends.onnx.lift_nn_ir.host_ir.Pool3D
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
@@ -139,7 +139,7 @@ class TestGlobal {
     val f = fun(
       ArrayTypeWSWC(Float, N),
       ArrayTypeWSWC(Float, M),
-      (in1, in2) => CPUFunc2( fun( (i1,i2) => MapSeq(incrementF) $ i1 ) ).apply( in1, in2)
+      (in1, in2) => CPUFunc( fun( (i1,i2) => MapSeq(incrementF) $ i1 ) ).apply( in1, in2)
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -180,7 +180,7 @@ class TestGlobal {
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 8), 8), 8) ,
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 3), 3), 3) ,
       (in, weights) =>
-          CPUFunc2( conv_lambda  ).apply(in, weights)
+          CPUFunc( conv_lambda  ).apply(in, weights)
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -229,7 +229,7 @@ class TestGlobal {
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, 3), 3), 3) ,
       (in, weights) =>
         //CPUFunc2( pool_lambda ) o
-        CPUFunc( pool_lambda ) o CPUFunc2( conv_lambda  ) apply (in, weights)
+        CPUFunc( pool_lambda ) o CPUFunc( conv_lambda  ) apply (in, weights)
       //conv_lambda.apply(in, weights)
 
     )
@@ -245,4 +245,127 @@ class TestGlobal {
 
     println("Test case test_slide_hello done!")
   }
+
+
+  @Test
+  def test_gpu_func(): Unit = {
+
+    val path = s"$common_path/07.gpufunc"
+    val file = "libgpufunc.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+        in => ToHost(gpu_timer = true) o OclFunc( MapGlb( incrementF )  ) o ToGPU(gpu_timer = true)  $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "2 2 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
+
+  @Test
+  def test_gpu_func_multi(): Unit = {
+
+    val path = s"$common_path/08.gpufunc_multi"
+    val file = "libgpufunc_multi.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => ToHost() o OclFunc( MapGlb( incrementF )  ) o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "3 3 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
+  @Test
+  def test_cpu_gpu_func_multi(): Unit = {
+
+    val path = s"$common_path/09.cpu_gpu_func_multi"
+    val file = "libcpu_gpu_func_multi.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => CPUFunc( MapSeq(incrementF) ) o CPUFunc( MapSeq(incrementF) ) o
+        ToHost() o OclFunc( MapGlb( incrementF )  )  o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "5 5 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
+  @Test
+  def test_cpu_gpu_func_multi_interleaved(): Unit = {
+
+    val path = s"$common_path/10.cpu_gpu_func_multi_interleaved"
+    val file = "libcpu_gpu_func_multi_interleaved.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU() o
+        CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "5 5 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
+  @Test
+  def test_gpu_func_enable_gpu_timer(): Unit = {
+
+    val path = s"$common_path/11.gpufunc_enable_gpu_timer"
+    val file = "libgpufunc_enable_gpu_timer.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => CPUFunc( MapSeq(incrementF), cpu_timer = true ) o
+        ToHost(cpu_timer = true, gpu_timer = true) o
+        OclFunc( MapGlb( incrementF ), cpu_timer = true,  gpu_timer = true  ) o
+        ToGPU(gpu_timer = true)  $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "3 3 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
 }

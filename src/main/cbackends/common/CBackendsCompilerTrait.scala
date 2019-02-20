@@ -9,6 +9,7 @@ import cbackends.common.view.{InputView, OutputView}
 import ir.{TypeChecker, UndefType}
 import ir.ast.{Expr, Lambda}
 import lift.arithmetic.ArithExpr
+import opencl.ir.OpenCLAddressSpace
 
 trait CBackendsCompilerTrait {
 
@@ -52,7 +53,7 @@ trait CBackendsCompilerTrait {
 
   }
 
-  def finalMemoryAllocationAnalysis(lambda: Lambda) : Map[String, (CVarWithType, ArithExpr) ] = {
+  def finalMemoryAllocationAnalysis(lambda: Lambda) : Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace) ] = {
 
     println("6. common final memory allocation analaysis in trait")
 
@@ -77,7 +78,7 @@ trait CBackendsCompilerTrait {
   }
 
   def lowerIR2CAST(lambda: Lambda,
-                   memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)],
+                   memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)],
                    path: String,
                    files: List[String]
                   ) : List[SourceFile]

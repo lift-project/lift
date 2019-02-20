@@ -9,7 +9,7 @@ object Executor {
     val full_path_file = path + "/" + file
     val target = path + "/" + "a.out"
 
-    val status_code = s"g++ $full_path_file -I$path -o $target -std=c++11" !
+    val status_code = s"g++ $full_path_file -I$path -o $target -std=c++11 -lOpenCL" !
 
     assert(status_code == 0, "Native Compilation error!")
 
@@ -35,6 +35,8 @@ object Executor {
     val status_code2 = (s"rm $path" + "/a.out") !
 
     assert(status_code2 == 0, "Delete generated binary error!")
+
+    //val status_code3 = (s"rm $path" + raw"""/kernel_*.cl""".r) !
 
     result
 

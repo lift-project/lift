@@ -9,7 +9,7 @@ import lift.arithmetic.{ArithExpr, Cst}
 import core.generator.PrettyPrinter._
 import cbackends.common.utils.output_view.OutputView.{init_body, post_check, pre_check}
 import cbackends.common.common_ir.HostMemory
-import cbackends.host.host_ir.{CPUFunCall, CPUFunCall2}
+import cbackends.host.host_ir._
 
 
 object OutputView {
@@ -123,6 +123,7 @@ object OutputView {
 
       }
 
+        /*
       case fc@FunCall(_:CPUFunCall, arg) => {
 
         arg.outputView = ViewMem(arg.mem.variable, arg.t)
@@ -130,9 +131,9 @@ object OutputView {
         cont( arg )
 
         fc
-      }
+      }*/
 
-      case fc@FunCall(_:CPUFunCall2, args@_*) => {
+      case fc@FunCall(_:CPUFunCall|_:OclFunCall|_:ToGPU|_:ToHost, args@_*) => {
 
         args.foreach( arg => arg.outputView = ViewMem(arg.mem.variable, arg.t) )
 

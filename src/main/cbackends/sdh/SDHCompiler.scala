@@ -7,6 +7,7 @@ import cbackends.sdh.sdh_ir.{MapTM, MapTile}
 import core.generator.GenericAST.CVarWithType
 import ir.ast.{FunCall, IRNode, Lambda}
 import lift.arithmetic.ArithExpr
+import opencl.ir.OpenCLAddressSpace
 
 object SDHCompiler extends CBackendsCompilerTrait{
 
@@ -39,7 +40,7 @@ object SDHCompiler extends CBackendsCompilerTrait{
 
 
   override def lowerIR2CAST(lambda: Lambda,
-                            memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr)],
+                            memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)],
                             path: String,
                             files: List[String]
                            ): List[SourceFile] = {

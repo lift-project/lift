@@ -59,11 +59,12 @@ class TestONNX {
       ArrayType(Float,List(Cst(8),Cst(8),Cst(8))),
       ArrayType(Float,List(Cst(8),Cst(6),Cst(6))),
       (X,W) => {
-        onnx.Conv(
-          autoPad = "NOTSET",
+        ConvWithoutBias(
+          auto_pad = "NOTSET",
+          dilations = List(0,0),
           group = 1,
-          kernelShape = List(8,6,6),
-          pads = Some(List(1, 1)),
+          kernel_shape = List(8,6,6),
+          pads = List(1,1),
           strides = List(1,1)
         ) (X,W)
       }
@@ -141,7 +142,7 @@ class TestONNX {
         AveragePool(
           auto_pad = "NOTSET",
           count_include_pad = 0,
-          kernel_shape = List(2,2,1),
+          kernel_shape = List(1,2,2),
           pads = List(0,0,0,0,0,0),
           strides = List(1,1,1)
         ) (
@@ -156,16 +157,16 @@ class TestONNX {
       }
     )
 
-//    ONNXCompiler ! (f, path, List(host_file, gpu_file))
-//
-//    val actual : String = native_compile_and_run(path, host_file)
-//    val expected : String = "2 2 2 2 2 2 2 2 2 \n"
-//    assertEquals(expected, actual)
-//
-//
-//
-//
-//    println("cool")
+    ONNXCompiler ! (f, path, List(host_file, gpu_file))
+
+    val actual : String = native_compile_and_run(path, host_file)
+    val expected : String = "576 576 576 576 \n"
+    assertEquals(expected, actual)
+
+
+
+
+    println("cool")
 
 
 
