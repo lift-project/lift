@@ -59,12 +59,10 @@ class TestONNX {
       ArrayType(Float,List(Cst(8),Cst(8),Cst(8))),
       ArrayType(Float,List(Cst(8),Cst(6),Cst(6))),
       (X,W) => {
-        ConvWithoutBias(
-          auto_pad = "NOTSET",
-          dilations = List(0,0),
+        onnx.Conv(
           group = 1,
-          kernel_shape = List(8,6,6),
-          pads = List(1,1),
+          kernelShape = List(8,6,6),
+          pads = Some(List(1,1)),
           strides = List(1,1)
         ) (X,W)
       }
