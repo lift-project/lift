@@ -255,7 +255,7 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-        in => ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
+        in => ToHost(gpu_timer = true) o OclFunc( MapGlb( incrementF )  ) o ToGPU(gpu_timer = true)  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -337,6 +337,29 @@ class TestGlobal {
 
     val actual : String = native_compile_and_run(path, file)
     val expected : String = "5 5 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
+  @Test
+  def test_gpu_func_enable_gpu_timer(): Unit = {
+
+    val path = s"$common_path/11.gpufunc_enable_gpu_timer"
+    val file = "libgpufunc_enable_gpu_timer.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => ToHost(gpu_timer = true) o OclFunc( MapGlb( incrementF ), gpu_timer = true  ) o ToGPU(gpu_timer = true)  $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "2 2 \n"
     assertEquals(expected, actual)
 
     println("Test case test_slide_hello done!")

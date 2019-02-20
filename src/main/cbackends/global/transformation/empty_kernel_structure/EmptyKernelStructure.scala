@@ -19,7 +19,7 @@ object EmptyKernelStructure {
         new_funcall.t = fc.t
         new_funcall
       case fc@FunCall(cf:OclFunc, args@_*) =>
-        val new_funcall = FunCall(OclFunCall(cf.funcName, cf.f.params), args:_*)
+        val new_funcall = FunCall(OclFunCall(cf.funcName, cf.f.params, cf.cpu_timer, cf.gpu_timer), args:_*)
         new_funcall.t = fc.t
         new_funcall.gid = fc.gid
         new_funcall

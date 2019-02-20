@@ -6,7 +6,10 @@ import ir.{TupleType, Type, TypeChecker}
 
 
 //accept arbitrary parameters.
-case class OclFunc(override val f: Lambda, val funcName: String = "execute_" + IDGenerator.get_id()) extends Pattern(arity = f.params.length) with FPattern {
+case class OclFunc(override val f: Lambda, val funcName: String = "execute_" + IDGenerator.get_id(),
+                   override val cpu_timer: Boolean = false,
+                   override val gpu_timer: Boolean = false)
+  extends Pattern(arity = f.params.length) with FPattern with Measurable {
 
   override def copy(f: Lambda): Pattern = OclFunc(f, funcName)
 
@@ -30,7 +33,8 @@ case class OclFunc(override val f: Lambda, val funcName: String = "execute_" + I
     }
   }
 }
-case class OclFunCall(funcName : String, params: Array[Param]) extends Pattern(arity = 2) {
+case class OclFunCall(funcName : String, params: Array[Param], override val cpu_timer: Boolean = false, override val gpu_timer: Boolean = false)
+  extends Pattern(arity = 2) with Measurable {
 
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = this
   override def checkType(argType: Type, setType: Boolean): Type = {

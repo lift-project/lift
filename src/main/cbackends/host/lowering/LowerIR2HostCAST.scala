@@ -99,6 +99,8 @@ object LowerIR2HostCAST {
 
     val arg_block = generate(fc.args.head)
 
+    val measurable = fc.f.asInstanceOf[Measurable]
+
     val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
     val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
 
@@ -119,7 +121,7 @@ object LowerIR2HostCAST {
               FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromArray(in.t))) ),
             VarRefPure(in),
             StringConstant("NULL"),
-            UnaryExpression("&", VarRefPure(eventCVar))
+            if(measurable.gpu_timer) UnaryExpression("&", VarRefPure(eventCVar)) else StringConstant("NULL")
           )
         ) )
         case _:ToHost => ExpressionStatement(MethodInvocation(
@@ -133,12 +135,17 @@ object LowerIR2HostCAST {
               FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromArray(in.t))) ),
             VarRefPure(out),
             StringConstant("NULL"),
-            UnaryExpression("&", VarRefPure(eventCVar))
+            if(measurable.gpu_timer) UnaryExpression("&", VarRefPure(eventCVar)) else StringConstant("NULL")
           )
         ) )
       }
 
-    val block_for_this_call = Block(Vector(eventDecl, enqueue_cast), global = true)
+    val block_for_this_call = measurable.gpu_timer match {
+
+      case true => Block(Vector(eventDecl, enqueue_cast), global = true)
+      case false => Block(Vector(enqueue_cast), global = true)
+
+    }
 
     arg_block :++ block_for_this_call
 
@@ -153,6 +160,7 @@ object LowerIR2HostCAST {
     val arg_blocks = fc.args.map(generate(_) )
 
     val cfc = fc.f.asInstanceOf[OclFunCall]
+    val measurable = fc.f.asInstanceOf[Measurable]
 
 
     //(1) set arg
@@ -180,11 +188,14 @@ object LowerIR2HostCAST {
         StringConstant("cl::NDRange(1,1,1)"),
         StringConstant("cl::NDRange(1,1,1)"),
         StringConstant("NULL"),
-        UnaryExpression("&", VarRefPure(eventCVar))
+        if(measurable.gpu_timer) UnaryExpression("&", VarRefPure(eventCVar)) else StringConstant("NULL")
       )
     ) )
 
-    val block_for_this_call = set_all_args :+ eventDecl :+ enqueue_cast
+    val block_for_this_call = measurable.gpu_timer match {
+      case true => set_all_args :+ eventDecl :+ enqueue_cast
+      case false => set_all_args :+ enqueue_cast
+    }
 
 
     Block(arg_blocks.toVector, global = true) :++ Block( block_for_this_call.asInstanceOf[List[AstNode with BlockMember]].toVector, global = true)

@@ -9,7 +9,7 @@ object ToGPU {
 
 }
 
-case class ToGPU() extends FunDecl(arity = 1) {
+case class ToGPU(cpu_timer: Boolean = false, gpu_timer: Boolean = false) extends FunDecl(arity = 1) with Measurable {
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = this
   override def checkType(argType: Type, setType: Boolean): Type = argType
 }

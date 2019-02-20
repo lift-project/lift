@@ -9,7 +9,7 @@ object ToHost {
 
 }
 
-case class ToHost() extends FunDecl(arity = 1) {
+case class ToHost(cpu_timer: Boolean = false, gpu_timer: Boolean = false) extends FunDecl(arity = 1) with Measurable {
 
 
   override def checkType(argType: Type, setType: Boolean): Type = argType
