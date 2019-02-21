@@ -12,7 +12,7 @@ import cbackends.global.transformation.unique_user_func.UniqueUserFunc
 import cbackends.host.HostCompiler
 import cbackends.host.lowering.LowerIR2HostCAST
 import core.generator.GenericAST
-import core.generator.GenericAST.{Block, CVarWithType, FunctionCall, FunctionPure, RawCode, VoidType}
+import core.generator.GenericAST.{Block, CVarWithType, ExpressionStatement, FunctionCall, FunctionPure, RawCode, StringConstant, VoidType}
 import ir.ast.{FunCall, Lambda}
 import lift.arithmetic.ArithExpr
 
@@ -66,7 +66,8 @@ object GlobalCompiler{
         val clock_printing_stmt = GenerateCLockPrintingStmt(emptified_lambda)
         val final_global_var_decl = global_val_decl_cast :++ global_clock_decl
 
-        val clock_printing_function = FunctionPure("print_clock", VoidType(), List(), clock_printing_stmt)
+        val print_csv_header = ExpressionStatement(StringConstant("std::cout<<"+'"'+ "func_name, cpu_time_ms, gpu_time_ms, diff_percentage"+'"'+"<<std::endl" ) )
+        val clock_printing_function = FunctionPure("print_clock", VoidType(), List(), print_csv_header +: clock_printing_stmt)
         val post_execute_hook = FunctionPure("post_execute", VoidType(), List(), Block( Vector(
           if(global_clock_decl.content.length > 0 ) FunctionCall("print_clock", List() ) else RawCode("")
         ), global = true

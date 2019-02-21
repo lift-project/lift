@@ -143,9 +143,9 @@ object LowerIR2HostCAST {
       }
 
 
-    val cpu_start_clock_cvar = CVarWithType("cpu_clock_start_"+fc.gid, ClassOrStructType("auto"))
+    val cpu_start_clock_cvar = CVarWithType("cpu_clock_start_"+fc.gid, ClassOrStructType("std::chrono::milliseconds"))
     val cpu_start_clock = AssignmentExpression(cpu_start_clock_cvar, cpu_clock )
-    val cpu_end_clock_cvar = CVarWithType("cpu_clock_end_"+fc.gid, ClassOrStructType("auto"))
+    val cpu_end_clock_cvar = CVarWithType("cpu_clock_end_"+fc.gid, ClassOrStructType("std::chrono::milliseconds"))
     val cpu_end_clock = AssignmentExpression(cpu_end_clock_cvar, cpu_clock )
 
     /*val block_for_this_call = measurable.gpu_timer match {
@@ -211,10 +211,10 @@ object LowerIR2HostCAST {
       case false => set_all_args :+ enqueue_cast
     }*/
 
-    val cpu_start_clock_cvar = CVarWithType("cpu_clock_start_"+fc.gid, ClassOrStructType("auto"))
+    val cpu_start_clock_cvar = CVarWithType("cpu_clock_start_"+fc.gid, ClassOrStructType("std::chrono::milliseconds"))
     //val cpu_start_clock = VarDeclPure(cpu_start_clock_cvar, cpu_start_clock_cvar.t, Some(cpu_clock) )
     val cpu_start_clock = ExpressionStatement(AssignmentExpression(cpu_start_clock_cvar, cpu_clock ) )
-    val cpu_end_clock_cvar = CVarWithType("cpu_clock_end_"+fc.gid, ClassOrStructType("auto"))
+    val cpu_end_clock_cvar = CVarWithType("cpu_clock_end_"+fc.gid, ClassOrStructType("std::chrono::milliseconds"))
     //val cpu_end_clock = VarDeclPure(cpu_end_clock_cvar, cpu_end_clock_cvar.t, Some(cpu_clock) )
     val cpu_end_clock = ExpressionStatement(AssignmentExpression(cpu_end_clock_cvar, cpu_clock ) )
 
@@ -242,9 +242,9 @@ object LowerIR2HostCAST {
     val fc_cast = FunctionCall(cfc.funcName, input_args ::: (output_arg :: sizes.toList ) )
 
 
-    val cpu_start_clock_cvar = CVarWithType("cpu_clock_start_"+fc.gid, ClassOrStructType("auto"))
+    val cpu_start_clock_cvar = CVarWithType("cpu_clock_start_"+fc.gid, ClassOrStructType("std::chrono::milliseconds"))
     val cpu_start_clock = AssignmentExpression(cpu_start_clock_cvar, cpu_clock )
-    val cpu_end_clock_cvar = CVarWithType("cpu_clock_end_"+fc.gid, ClassOrStructType("auto"))
+    val cpu_end_clock_cvar = CVarWithType("cpu_clock_end_"+fc.gid, ClassOrStructType("std::chrono::milliseconds"))
     val cpu_end_clock = AssignmentExpression(cpu_end_clock_cvar, cpu_clock )
 
     Block(arg_blocks.toVector, global = true) :++ Block( Vector(
