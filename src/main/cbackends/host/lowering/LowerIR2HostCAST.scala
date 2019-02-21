@@ -428,7 +428,7 @@ object LowerIR2HostCAST {
   }
 
 
-  def apply_no_header(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]) : Block = {
+  def apply_no_header(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)], generatePostExecuteHook: Boolean = false) : Block = {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 
@@ -444,7 +444,7 @@ object LowerIR2HostCAST {
 
     val param_list = all_signature_cvars_for_execute.map(cv => ParamDeclPure(cv.name, cv.t))
 
-    val core_body_code = generate(lambda)
+    val core_body_code = generate(lambda) :+ (if(generatePostExecuteHook) FunctionCall("post_execute", List()) else RawCode("") )
 
     //( Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true ), all_signature_cvars )
     Block(Vector( userfun_decl_code, FunctionPure(lambda.funcName,VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true )
