@@ -4,5 +4,5 @@
 
 
 [submodule "lib/DNNRewriter"]
-	path = lib/DNNRewriter
+	path = lib/DNNOptimiser
 	url = git@bitbucket.org:naummo/dnnrewriter.git
