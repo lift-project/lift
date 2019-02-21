@@ -3,3 +3,6 @@
   url = git@github.com:lift-project/arithexpr.git
 
 
+[submodule "lib/DNNRewriter"]
+	path = lib/DNNRewriter
+	url = git@bitbucket.org:naummo/dnnrewriter.git
