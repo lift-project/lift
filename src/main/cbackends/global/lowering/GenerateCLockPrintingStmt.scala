@@ -1,14 +1,26 @@
 package cbackends.global.lowering
 
-import cbackends.host.host_ir.{CPUFunCall, OclFunCall, ToGPU, ToHost}
-import core.generator.GenericAST.Block
+import cbackends.host.host_ir._
+import core.generator.GenericAST.{Block, RawCode}
 import ir.ast.{Expr, FunCall, Lambda, Param, Value}
 
 object GenerateCLockPrintingStmt {
 
   def generate(expr: Expr, block: Block) : Block = {
     expr match {
-      case fc@FunCall(_: ToHost | _: ToGPU, arg) => Block()
+      case fc@FunCall(_: ToHost | _: ToGPU, arg) =>
+
+        val measurable = fc.f.asInstanceOf[Measurable]
+
+        /*
+        (measurable.cpu_timer, measurable.gpu_timer) match {
+          case (true, true) =>
+          case (true, false) =>
+          case (false, true) =>
+          case (false, false) =>
+        }*/
+        Block()
+
       case fc@FunCall(c: CPUFunCall, args@_*) =>Block()
       case fc@FunCall(o: OclFunCall, args@_*) =>
         Block()
