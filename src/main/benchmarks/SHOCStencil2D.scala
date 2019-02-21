@@ -6,7 +6,8 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
 
-class SHOCStencil2D(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("SHOCStencil2D", Seq(8194, 8194), f, 0.01f) {
+@deprecated("Uses an old benchmark infrastructure", "")
+class SHOCStencil2D(override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark("SHOCStencil2D", Seq(8194, 8194), f, 0.01f) {
 
   override def generateInputs(): Seq[Any] = {
     val shocHaloSize = 1

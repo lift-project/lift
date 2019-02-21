@@ -8,8 +8,9 @@ import opencl.ir._
 import opencl.ir.pattern._
 import org.clapper.argot.ArgotConverters._
 
+@deprecated("Uses an old benchmark infrastructure", "")
 class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
-  extends Benchmark("Matrix Multiplication", Seq(1024, 1024, 1024), f, 0.1f, Array(16, 16, 1)) {
+  extends DeprecatedBenchmark("Matrix Multiplication", Seq(1024, 1024, 1024), f, 0.1f, Array(16, 16, 1)) {
 
   val tileX = parser.option[Long](List("x", "tileX"), "size",
     "Tile size in the M and N dimension")

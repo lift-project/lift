@@ -7,7 +7,8 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
 
-class MolecularDynamics(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Molecular Dynamics (md)", Seq(1024, 128), f, 0.1f) {
+@deprecated("Uses an old benchmark infrastructure", "")
+class MolecularDynamics(override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark("Molecular Dynamics (md)", Seq(1024, 128), f, 0.1f) {
   var scalaInput: Array[(Float, Float, Float, Float)] = Array()
 
   override def runScala(inputs: Any*): Array[Float] = {

@@ -6,7 +6,8 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
 
-class NBody(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("N-Body", Seq(1024), f, 0.1f) {
+@deprecated("Uses an old benchmark infrastructure", "")
+class NBody(override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark("N-Body", Seq(1024), f, 0.1f) {
   var scalaInput: Array[(Float, Float, Float, Float, Float, Float, Float)] = Array()
 
   override def runScala(inputs: Any*): Array[Float] = {

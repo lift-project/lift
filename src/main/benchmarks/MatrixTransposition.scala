@@ -7,8 +7,9 @@ import opencl.ir._
 import org.clapper.argot.ArgotConverters._
 import opencl.ir.pattern._
 
+@deprecated("Uses an old benchmark infrastructure", "")
 class MatrixTransposition (override val f: Seq[(String, Array[Lambda])])
-  extends Benchmark("Matrix Transposition", Seq(1024, 1024), f, 0.0f, Array(16, 16, 1)) {
+  extends DeprecatedBenchmark("Matrix Transposition", Seq(1024, 1024), f, 0.0f, Array(16, 16, 1)) {
 
   val defaultTileSize = 16
 

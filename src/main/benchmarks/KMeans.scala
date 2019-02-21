@@ -6,7 +6,8 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
 
-class KMeans(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Kmeans", Seq(1024, 34, 5), f, 0.1f) {
+@deprecated("Uses an old benchmark infrastructure", "")
+class KMeans(override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark("Kmeans", Seq(1024, 34, 5), f, 0.1f) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     val points = inputs(0).asInstanceOf[Array[Array[Float]]]

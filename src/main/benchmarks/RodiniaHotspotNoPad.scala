@@ -6,7 +6,8 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
 
-class RodiniaHotspotNoPad(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("RodiniaHotspotNoPad", Seq(8192, 8192), f, 0.01f) {
+@deprecated("Uses an old benchmark infrastructure", "")
+class RodiniaHotspotNoPad(override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark("RodiniaHotspotNoPad", Seq(8192, 8192), f, 0.01f) {
 
   override def generateInputs(): Seq[Any] = {
     val inputSize = 8192

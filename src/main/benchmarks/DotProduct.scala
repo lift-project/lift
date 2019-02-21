@@ -7,10 +7,11 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
 
+@deprecated("Uses an old benchmark infrastructure", "")
 class DotProduct(override val name: String,
                  override val defaultInputSizes: Seq[Int],
                  override val delta: Float,
-                 override val f: Seq[(String, Array[Lambda])]) extends Benchmark(name, defaultInputSizes, f, delta) {
+                 override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark(name, defaultInputSizes, f, delta) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     Array((inputs(0).asInstanceOf[Array[Float]], inputs(1).asInstanceOf[Array[Float]]).zipped.map(_*_).sum)

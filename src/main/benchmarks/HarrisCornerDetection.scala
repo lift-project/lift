@@ -7,7 +7,8 @@ import opencl.ir._
 import opencl.ir.pattern._
 import opencl.executor.Utils
 
-class HarrisCornerDetection(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("HarrisCornerDetection", Seq(1536, 2560), f, 0.01f) {
+@deprecated("Uses an old benchmark infrastructure", "")
+class HarrisCornerDetection(override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark("HarrisCornerDetection", Seq(1536, 2560), f, 0.01f) {
 
   // same as Halide SIGGRAPH 16
   override def generateInputs(): Seq[Any] = {

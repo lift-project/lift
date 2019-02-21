@@ -6,7 +6,8 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
 
-class BlackScholes(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Black-Scholes", Seq(4096), f, 0.01f) {
+@deprecated("Uses an old benchmark infrastructure", "")
+class BlackScholes(override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark("Black-Scholes", Seq(4096), f, 0.01f) {
   override def runScala(inputs: Any*): Array[Float] = {
     BlackScholes.runScala(inputs(0).asInstanceOf[Array[Float]])
   }
