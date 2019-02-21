@@ -3,7 +3,7 @@ package cbackends.global
 import cbackends.common.CBackendsCompilerTrait
 import cbackends.common.common_cast.CbackendCAST.SourceFile
 import cbackends.global.analysis.OclKernelFileNameAnalysis
-import cbackends.global.lowering.GenerateOclGlobalFacility
+import cbackends.global.lowering.{GenerateGlobalClockDecl, GenerateOclGlobalFacility}
 import cbackends.global.transformation.cast_transformation.cpu_outline_transformation.{CPUOutlineTargetAnalysis, OclOutlineTargetAnalysis}
 import cbackends.global.transformation.empty_kernel_structure.EmptyKernelStructure
 import cbackends.global.transformation.funcall2closure.FunCall2Closure
@@ -61,9 +61,11 @@ object GlobalCompiler{
 
         //val ocl_kernel_file_names = OclKernelFileNameAnalysis(emptified_lambda)
         val (global_val_decl_cast, global_val_init_cast) = GenerateOclGlobalFacility(emptified_lambda, path)
+        val global_clock_decl = GenerateGlobalClockDecl(emptified_lambda)
+        val final_global_var_decl = global_val_decl_cast :++ global_clock_decl
         val top_cast = HostCompiler !! emptified_lambda
 
-        HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code, LowerIR2HostCAST.ocl_boilerplate_code), global = true) :+ global_val_decl_cast :+ global_val_init_cast :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
+        HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code, LowerIR2HostCAST.ocl_boilerplate_code), global = true) :+ final_global_var_decl :+ global_val_init_cast :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
 
         val ocl_source_files = final_oclfundefs.map{ case (fileName,block) => new SourceFile(path,fileName,block) }.toList
         HostCompiler.castPrinter(ocl_source_files)

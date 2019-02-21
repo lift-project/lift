@@ -52,6 +52,8 @@ object LowerIR2HostCAST {
       |
     """.stripMargin), true )
 
+  val cpu_clock = StringConstant("std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())")
+
   def generate(node:IRNode): Block = {
     //lots of pattern matching code
     node match {
@@ -102,7 +104,7 @@ object LowerIR2HostCAST {
     val measurable = fc.f.asInstanceOf[Measurable]
 
     val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
-    val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
+    //val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
 
     val in_arg = fc.args.head
     val in = CVarWithType(in_arg.mem.variable.toString, TypeLowering.IRType2CastType(in_arg.t))
@@ -140,12 +142,23 @@ object LowerIR2HostCAST {
         ) )
       }
 
-    val block_for_this_call = measurable.gpu_timer match {
+
+    val cpu_start_clock_cvar = CVarWithType("cpu_clock_start_"+fc.gid, ClassOrStructType("auto"))
+    val cpu_start_clock = AssignmentExpression(cpu_start_clock_cvar, cpu_clock )
+    val cpu_end_clock_cvar = CVarWithType("cpu_clock_end_"+fc.gid, ClassOrStructType("auto"))
+    val cpu_end_clock = AssignmentExpression(cpu_end_clock_cvar, cpu_clock )
+
+    /*val block_for_this_call = measurable.gpu_timer match {
 
       case true => Block(Vector(eventDecl, enqueue_cast), global = true)
       case false => Block(Vector(enqueue_cast), global = true)
 
-    }
+    }*/
+    val block_for_this_call = Block(Vector(
+      (if(measurable.cpu_timer) cpu_start_clock else RawCode("") ) ,
+      enqueue_cast,
+      (if(measurable.cpu_timer) cpu_end_clock else RawCode(""))
+      ), global = true)
 
     arg_block :++ block_for_this_call
 
@@ -174,11 +187,11 @@ object LowerIR2HostCAST {
     //  rebuild kernel cvar
     val kernel_cvar = CVarWithType("kernel_" + fc.gid, ClassOrStructType("cl::Kernel"))
 
-    val set_all_args = (all_args zip arg_id).map{ case (cvar:CVarWithType, id:Int) => ExpressionStatement(MethodInvocation(kernel_cvar, "setArg", List(IntConstant(id), cvar))) }
+    val set_all_args : List[ AstNode with BlockMember ]= (all_args zip arg_id).map{ case (cvar:CVarWithType, id:Int) => ExpressionStatement(MethodInvocation(kernel_cvar, "setArg", List(IntConstant(id), cvar))) }
 
     //(2) enqueue kernel
     val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
-    val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
+    //val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
     val enqueue_cast = ExpressionStatement(MethodInvocation(
       StringConstant("lift_queue"),
       "enqueueNDRangeKernel",
@@ -192,10 +205,21 @@ object LowerIR2HostCAST {
       )
     ) )
 
+    /*
     val block_for_this_call = measurable.gpu_timer match {
       case true => set_all_args :+ eventDecl :+ enqueue_cast
       case false => set_all_args :+ enqueue_cast
-    }
+    }*/
+
+    val cpu_start_clock_cvar = CVarWithType("cpu_clock_start_"+fc.gid, ClassOrStructType("auto"))
+    //val cpu_start_clock = VarDeclPure(cpu_start_clock_cvar, cpu_start_clock_cvar.t, Some(cpu_clock) )
+    val cpu_start_clock = ExpressionStatement(AssignmentExpression(cpu_start_clock_cvar, cpu_clock ) )
+    val cpu_end_clock_cvar = CVarWithType("cpu_clock_end_"+fc.gid, ClassOrStructType("auto"))
+    //val cpu_end_clock = VarDeclPure(cpu_end_clock_cvar, cpu_end_clock_cvar.t, Some(cpu_clock) )
+    val cpu_end_clock = ExpressionStatement(AssignmentExpression(cpu_end_clock_cvar, cpu_clock ) )
+
+    val block_for_this_call = (set_all_args :+ (if(measurable.cpu_timer) cpu_start_clock else RawCode("") ) ) :+
+      enqueue_cast :+ (if(measurable.cpu_timer) cpu_end_clock else RawCode(""))
 
 
     Block(arg_blocks.toVector, global = true) :++ Block( block_for_this_call.asInstanceOf[List[AstNode with BlockMember]].toVector, global = true)
@@ -206,9 +230,10 @@ object LowerIR2HostCAST {
   private def generateCPUFunCall(fc: FunCall) : Block = {
     //parameter sequnence convention: first input pointers, then output pointers, then sizes
 
-    val arg_blocks = fc.args.map(generate(_) )
+    val arg_blocks = fc.args.map( generate(_) )
 
     val cfc = fc.f.asInstanceOf[CPUFunCall]
+    val measurable = fc.f.asInstanceOf[CPUMeasurable]
 
     val input_args = fc.args.map( arg => CVarWithType(arg.mem.variable.toString, TypeLowering.IRType2CastType(arg.t) ) ).toList
     val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
@@ -216,7 +241,17 @@ object LowerIR2HostCAST {
 
     val fc_cast = FunctionCall(cfc.funcName, input_args ::: (output_arg :: sizes.toList ) )
 
-    Block(arg_blocks.toVector, global = true) :++ Block( Vector(fc_cast), global = true)
+
+    val cpu_start_clock_cvar = CVarWithType("cpu_clock_start_"+fc.gid, ClassOrStructType("auto"))
+    val cpu_start_clock = AssignmentExpression(cpu_start_clock_cvar, cpu_clock )
+    val cpu_end_clock_cvar = CVarWithType("cpu_clock_end_"+fc.gid, ClassOrStructType("auto"))
+    val cpu_end_clock = AssignmentExpression(cpu_end_clock_cvar, cpu_clock )
+
+    Block(arg_blocks.toVector, global = true) :++ Block( Vector(
+      (if(measurable.cpu_timer) cpu_start_clock else RawCode("") ),
+      fc_cast,
+      (if(measurable.cpu_timer) cpu_end_clock else RawCode("") )
+    ), global = true)
 
 
   }

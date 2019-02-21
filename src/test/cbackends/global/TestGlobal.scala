@@ -353,7 +353,7 @@ class TestGlobal {
       in => CPUFunc( MapSeq(incrementF), cpu_timer = true ) o
         ToHost(cpu_timer = true, gpu_timer = true) o
         OclFunc( MapGlb( incrementF ), cpu_timer = true,  gpu_timer = true  ) o
-        ToGPU(gpu_timer = true)  $ in
+        ToGPU(cpu_timer = true, gpu_timer = true)  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
