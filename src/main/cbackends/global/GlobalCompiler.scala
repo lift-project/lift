@@ -66,13 +66,46 @@ object GlobalCompiler{
         val clock_printing_stmt = GenerateCLockPrintingStmt(emptified_lambda)
         val final_global_var_decl = global_val_decl_cast :++ global_clock_decl
 
-        val print_csv_header = ExpressionStatement(StringConstant("std::cout<<"+'"'+ "func_name, cpu_time_ms, gpu_time_ms, diff_percentage"+'"'+"<<std::endl" ) )
+        val print_csv_header = ExpressionStatement(StringConstant("std::cerr<<"+'"'+ "func_name, cpu_time_ms, gpu_time_ms, diff_percentage"+'"'+"<<std::endl" ) )
+        val clock_printing_boilerplates = RawCode(
+          """
+            |double cpu_time_in_ms( std::chrono::milliseconds start, std::chrono::milliseconds finish ){
+            | return (finish - start).count();
+            |}
+            |
+            |double gpu_time_in_ms( cl::Event event ){
+            |
+            |  cl_ulong start;
+            |  cl_ulong end;
+            |  cl_int err;
+            |
+            |  event.wait();
+            |
+            |  err = clGetEventProfilingInfo(event(), CL_PROFILING_COMMAND_START,
+            |                                sizeof(start), &start, NULL);
+            |  assert(err == CL_SUCCESS);
+            |
+            |  err = clGetEventProfilingInfo(event(), CL_PROFILING_COMMAND_END,
+            |                                sizeof(end), &end, NULL);
+            |  assert(err == CL_SUCCESS);
+            |
+            |  return ((double)(end - start)) * 1.0e-6;
+            |}
+            |
+            |double diff_percent(double lhs, double rhs) {
+            |  if(std::min(lhs,rhs)==0)
+            |    return -1;
+            |  else
+            |    return std::abs(lhs-rhs)/std::min(lhs,rhs);
+            |}
+            |
+          """.stripMargin )
         val clock_printing_function = FunctionPure("print_clock", VoidType(), List(), print_csv_header +: clock_printing_stmt)
         val post_execute_hook = FunctionPure("post_execute", VoidType(), List(), Block( Vector(
           if(global_clock_decl.content.length > 0 ) FunctionCall("print_clock", List() ) else RawCode("")
         ), global = true
         ))
-        val final_global_func_decl = global_val_init_cast :+ clock_printing_function :+ post_execute_hook
+        val final_global_func_decl = global_val_init_cast :+ clock_printing_boilerplates :+ clock_printing_function :+ post_execute_hook
 
         val top_cast = HostCompiler !! (emptified_lambda, true)
 

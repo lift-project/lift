@@ -54,6 +54,8 @@ object LowerIR2HostCAST {
 
   val cpu_clock = StringConstant("std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())")
 
+  val sync = RawCode("assert(lift_queue.finish() == CL_SUCCESS)")
+
   def generate(node:IRNode): Block = {
     //lots of pattern matching code
     node match {
@@ -157,6 +159,7 @@ object LowerIR2HostCAST {
     val block_for_this_call = Block(Vector(
       (if(measurable.cpu_timer) cpu_start_clock else RawCode("") ) ,
       enqueue_cast,
+      (if(measurable.cpu_timer || measurable.gpu_timer) sync else RawCode("")),
       (if(measurable.cpu_timer) cpu_end_clock else RawCode(""))
       ), global = true)
 
@@ -219,7 +222,9 @@ object LowerIR2HostCAST {
     val cpu_end_clock = ExpressionStatement(AssignmentExpression(cpu_end_clock_cvar, cpu_clock ) )
 
     val block_for_this_call = (set_all_args :+ (if(measurable.cpu_timer) cpu_start_clock else RawCode("") ) ) :+
-      enqueue_cast :+ (if(measurable.cpu_timer) cpu_end_clock else RawCode(""))
+      enqueue_cast :+
+      ExpressionStatement(if(measurable.cpu_timer || measurable.gpu_timer) sync else RawCode("")) :+
+      (if(measurable.cpu_timer) cpu_end_clock else RawCode(""))
 
 
     Block(arg_blocks.toVector, global = true) :++ Block( block_for_this_call.asInstanceOf[List[AstNode with BlockMember]].toVector, global = true)
