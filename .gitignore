@@ -14,3 +14,4 @@ src/main/resources/lib/libexecutor-jni.*
 *.pyc
 *.swp
 *.DS_Store
+*.iml
