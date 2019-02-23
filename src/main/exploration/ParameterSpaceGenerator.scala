@@ -1,29 +1,28 @@
 package exploration
 
 object ParameterSpaceGenerator {
-  //  def apply(params: Seq[Parameter[Any]]): _ = {
-  def main(args: Array[String]): Unit = {
-    val p1 = Parameter("width", 1 to 4)
-    val p2 = Parameter("height", 2 to 5)
-    val p3 = Parameter("memory", Seq(true, false))
-    val r1 = ValidationRule[Int, Int](p1, p2, (p1val: Int, p2val: Int) => p1val <= p2val)
-    val r2 = ValidationRule[Int, Int, Boolean](p1, p2, p3,
-      (p1val: Int, p2val: Int, p3val: Boolean) =>
-        if (p3val) p1val == p2val else p1val != p2val)
-
-    val rules = ValidationRules(Seq(r1, r2))
-    //    println(rules)
-
-    val space = apply(Seq(p1, p2, p3), rules)
-    println(space)
-    space.foreach{(combination) =>
-      combination.foreach{(value) =>
-        print(value + " ")
-      }
-      println()
-    }
-    println()
-  }
+//  def main(args: Array[String]): Unit = {
+//    val p1 = Parameter("width", 1 to 4)
+//    val p2 = Parameter("height", 2 to 5)
+//    val p3 = Parameter("memory", Seq(true, false))
+//    val r1 = ValidationRule[Int, Int](p1, p2, (p1val: Int, p2val: Int) => p1val <= p2val)
+//    val r2 = ValidationRule[Int, Int, Boolean](p1, p2, p3,
+//      (p1val: Int, p2val: Int, p3val: Boolean) =>
+//        if (p3val) p1val == p2val else p1val != p2val)
+//
+//    val rules = ValidationRules(Seq(r1, r2))
+//    //    println(rules)
+//
+//    val space = apply(Seq(p1, p2, p3), rules)
+//    println(space)
+//    space.foreach{(combination) =>
+//      combination.foreach{(value) =>
+//        print(value + " ")
+//      }
+//      println()
+//    }
+//    println()
+//  }
 
   def apply(params: Seq[Parameter[Any]], validationRules: ValidationRules): Stream[Seq[Any]] = {
     combineParameters(Map[Parameter[Any], Int](), Stream.empty, params.head, params.tail, validationRules)
