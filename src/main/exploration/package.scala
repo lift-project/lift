@@ -1,5 +1,7 @@
 package object exploration {
-  case class Parameter[+T](name: String, range: Seq[T])
+  class Parameter[+T](val name: String,
+                      val shortName: String,
+                      val range: Seq[T])
 
   trait ValidationRule {
     val params: Seq[Parameter[Any]]
