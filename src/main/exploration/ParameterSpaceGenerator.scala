@@ -1,99 +1,237 @@
 package exploration
 
 object ParameterSpaceGenerator {
-//  def main(args: Array[String]): Unit = {
-//    val p1 = Parameter("width", 1 to 4)
-//    val p2 = Parameter("height", 2 to 5)
-//    val p3 = Parameter("memory", Seq(true, false))
-//    val r1 = ValidationRule[Int, Int](p1, p2, (p1val: Int, p2val: Int) => p1val <= p2val)
-//    val r2 = ValidationRule[Int, Int, Boolean](p1, p2, p3,
-//      (p1val: Int, p2val: Int, p3val: Boolean) =>
-//        if (p3val) p1val == p2val else p1val != p2val)
-//
-//    val rules = ValidationRules(Seq(r1, r2))
-//    //    println(rules)
-//
-//    val space = apply(Seq(p1, p2, p3), rules)
-//    println(space)
-//    space.foreach{(combination) =>
-//      combination.foreach{(value) =>
-//        print(value + " ")
-//      }
-//      println()
-//    }
-//    println()
-//  }
 
-  def apply(params: Seq[Parameter[Any]], validationRules: ValidationRules): Stream[Seq[Any]] = {
-    combineParameters(Map[Parameter[Any], Int](), Stream.empty, params.head, params.tail, validationRules)
+  /**
+    * Combination counter
+    * @param total total number of combinations processed so far
+    * @param skip number of combinations to skip in generating
+    * @param limit number of combinations to generate
+    */
+  private case class CombinationCounter(var total: Int, skip: Option[Int], limit: Option[Int])
+
+  /**
+    * Parameter space constructor that generates all valid parameter value combinations
+    * recursively in a depth-first search. Parameters skipFirstNCombinations and maxCombinations
+    * can be used to only generate a subset of the parameter space. The parameter space size can be
+    * acquired without generating combination using the flag countOnly.
+    *
+    * @param parameters unique parameters defining the space
+    * @param validationRules the rules declaring what parameter value combinations are valid
+    * @param countOnly a flag specifying whether we should just generate combinations or just count all
+    *                  possible combinations without using memory
+    * @param skipFirstNCombinations a number of combinations to skip. Ignored if countOnly is set
+    * @param maxCombinations a maximum number of combinations to generate. Ignored if countOnly is set
+    * @return the parameter space with a generated set of combinations and the number of generated combinations, or
+    *         no combinations and the number of all possible combinations if countOnly is set
+    */
+  def apply(parameters: Seq[Parameter[Any]],
+            validationRules: ValidationRules,
+            countOnly: Boolean,
+            skipFirstNCombinations: Option[Int],
+            maxCombinations: Option[Int]): ParameterSpace = {
+    val counter = CombinationCounter(0, skipFirstNCombinations, maxCombinations)
+    val emptyCombination = Vector[Any]()
+    val emptyParamsInCombination = Map[Parameter[Any], Int]()
+
+    val combinations = combineParameters(
+      emptyParamsInCombination,
+      emptyCombination,
+      parameters.head,
+      filterRange(
+        parameters.head,
+        emptyCombination,
+        emptyParamsInCombination + (parameters.head -> 0),
+        validationRules),
+      parameters.tail,
+      validationRules,
+      counter,
+      countOnly)
+
+    ParameterSpace(parameters, validationRules, combinations,
+      counter.total - {if (countOnly) 0 else counter.skip.getOrElse(0)})
   }
 
-  def combineParameters(paramsInCombination: Map[Parameter[Any], Int], combination: Seq[Any],
-                        currentParam: Parameter[Any], remainingParams: Seq[Parameter[Any]],
-                        validationRules: ValidationRules): Stream[Seq[Any]] = {
-    val updatedParamsInCombination = paramsInCombination + (currentParam -> paramsInCombination.size)
+  /**
+    * Recursive parameter combinator. Traverses a tree of parameter values in a depth-first search
+    */
+  private def combineParameters(paramsInCombination: Map[Parameter[Any], Int],
+                                combination: Vector[Any],
+                                currentParam: Parameter[Any],
+                                remainingCurrentParamValues: Vector[Any],
+                                remainingParams: Seq[Parameter[Any]],
+                                validationRules: ValidationRules,
+                                counter: CombinationCounter,
+                                countOnly: Boolean): Vector[Vector[Any]] = {
+    def combineWithNextValueOfCurrentParam(currentParamValuesTail: Vector[Any]): Vector[Vector[Any]] =
+      combineParameters(
+        // The next value of this parameter is not yet in combination, so for the next iteration the list
+        // of parameters in combination is the same
+        paramsInCombination = paramsInCombination,
+        combination = combination, // Same incomplete combination
+        currentParam = currentParam, // Same parameter, more values to processes
+        remainingCurrentParamValues = currentParamValuesTail, // Remaining values to process
+        remainingParams = remainingParams, // No more parameters to process
+        validationRules, counter, countOnly)
 
     remainingParams match {
       case Nil =>
-        finishCombinations(combination,
-          filterRange(currentParam, combination, updatedParamsInCombination, validationRules))
+        remainingCurrentParamValues match {
+          case IndexedSeq() =>
+            // No more values to process for this parameter
+            Vector.empty
+
+          case currentValue +: currentParamValuesTail =>
+            /* More values, but no more parameters to process*/
+            // Generate combinations using the next value of the current (and last) parameter in the combination
+            finishCombinationAndProcessNextValue(
+              paramsInCombination,
+              combination,
+              currentParam,
+              currentValue,
+              currentParamValuesTail,
+              combineWithNextValueOfCurrentParam,
+              validationRules, counter, countOnly)
+        }
 
       case nextParam :: remainingParamsTail =>
-        filterRange(currentParam, combination, updatedParamsInCombination, validationRules).
-          foldLeft(Stream[Seq[Any]]())(
-            /* Build combinations using lazily verified values */
-            (combinationCollection, value) => {
+        remainingCurrentParamValues match {
+          case IndexedSeq() =>
+            // No more values to process for this parameter
+            Vector.empty
 
-              /* Generate combinations using the current value and the yet unprocessed parameters */
-              val partialCombinationCollection = combineParameters(
-                updatedParamsInCombination,
-                combination :+ value,
-                nextParam,
-                remainingParamsTail,
-                validationRules)
-
-              /* Merge combinations produced using previous values of the current parameter and the ones we just
-                 generated */
-              combinationCollection match {
-                case Stream.Empty => partialCombinationCollection
-                case _ => combinationCollection ++ partialCombinationCollection
-              }
-            })
-    }
-  }
-
-  def finishCombinations(combination: Seq[Any], remainingParamValues: Stream[Any]): Stream[Seq[Any]] = {
-    remainingParamValues match {
-      case Stream.Empty => Stream.empty
-      case value #:: rest =>
-        val nextCombination = finishCombinations(combination, rest)
-        nextCombination match {
-          case Stream.Empty => Stream(combination :+ value)
-          case _ => Stream(combination :+ value) ++ nextCombination
+          case currentValue +: currentParamValuesTail =>
+            /* More values and parameters to process */
+            // Depth-first search: with the current value added to the combination, generate all combinations using
+            // the remaining parameters, then generate combinations using the next value of the current parameter in
+            // the combination
+            finishCombinationAndProcessNextValueAndParameters(
+              paramsInCombination,
+              combination,
+              currentParam,
+              currentValue,
+              currentParamValuesTail,
+              nextParam,
+              remainingParamsTail,
+              combineWithNextValueOfCurrentParam,
+              validationRules, counter, countOnly)
         }
     }
   }
 
-  def filterRange(param: Parameter[Any], combination: Seq[Any], paramsInCombination: Map[Parameter[Any], Int],
-                  validationRules: ValidationRules): Stream[Any] = {
-    param.range.toStream.filter(value =>
+  /**
+    * Helper function for generating an actual combination at tree leaves, when no parameters are left to explore
+    */
+  private def finishCombinationAndProcessNextValue(paramsInCombination: Map[Parameter[Any], Int],
+                                                   combination: Vector[Any],
+                                                   currentParam: Parameter[Any],
+                                                   currentValue: Any,
+                                                   currentParamValuesTail: Vector[Any],
+                                                   combineWithNextValueOfCurrentParam: Vector[Any] => Vector[Vector[Any]],
+                                                   validationRules: ValidationRules,
+                                                   counter: CombinationCounter,
+                                                   countOnly: Boolean): Vector[Vector[Any]] = {
+    if (!countOnly) {
+      if (counter.limit.isEmpty || counter.total < (counter.limit.get + counter.skip.getOrElse(0))) {
+        counter.total += 1
+        if (counter.skip.isEmpty || counter.total > counter.skip.get) {
+          // Finish the combination and generate the next combination
+          Vector(combination :+ currentValue) ++
+            combineWithNextValueOfCurrentParam(currentParamValuesTail)
+        } else {
+          // Skip combination
+          combineWithNextValueOfCurrentParam(currentParamValuesTail)
+        }
+      } else // Reached the limit of combinations that we are allowed to generate. Stop
+        Vector.empty
+    } else {
+      // Do not create a combination, just continue counting
+      counter.total += 1
+      combineWithNextValueOfCurrentParam(currentParamValuesTail)
+    }
+  }
+
+  /**
+    * Helper function for updating an accumulated combination while traversing the tree, i.e. when more parameters are
+    * yet to be processed
+    */
+  private def finishCombinationAndProcessNextValueAndParameters(paramsInCombination: Map[Parameter[Any], Int],
+                                                                combination: Vector[Any],
+                                                                currentParam: Parameter[Any],
+                                                                currentValue: Any,
+                                                                currentParamValuesTail: Vector[Any],
+                                                                nextParam: Parameter[Any],
+                                                                remainingParamsTail: Seq[Parameter[Any]],
+                                                                combineWithNextValueOfCurrentParam: Vector[Any] => Vector[Vector[Any]],
+                                                                validationRules: ValidationRules,
+                                                                counter: CombinationCounter,
+                                                                countOnly: Boolean): Vector[Vector[Any]] = {
+    // The combination now contains current parameter value, so add it to the list of params in combination
+    val updatedParamsInCombination = paramsInCombination + (currentParam -> paramsInCombination.size)
+    // Update combination
+    val updatedCombination = combination :+ currentValue
+
+    if (!countOnly) {
+      if (counter.limit.isEmpty || counter.total < (counter.limit.get + counter.skip.getOrElse(0))) {
+        // Current value, other parameter
+        combineParameters(
+          paramsInCombination = updatedParamsInCombination,
+          combination = updatedCombination,
+          currentParam = nextParam, // Same parameter, more values to processes
+          remainingCurrentParamValues = // All the filtered values of the next parameter
+            filterRange(nextParam, updatedCombination,
+              updatedParamsInCombination + (nextParam -> updatedParamsInCombination.size),
+              validationRules),
+          remainingParams = remainingParamsTail, // Remaining parameters to process
+          validationRules, counter, countOnly) ++
+          // Next value, same parameter
+          combineWithNextValueOfCurrentParam(currentParamValuesTail)
+      } else // Reached the limit of combinations that we are allowed to generate. Stop
+        Vector.empty
+
+    } else {
+      // Do not create a combination, just continue counting
+      combineParameters(
+        paramsInCombination = updatedParamsInCombination,
+        combination = updatedCombination,
+        currentParam = nextParam, // Same parameter, more values to processes
+        remainingCurrentParamValues = // All the filtered values of the next parameter
+          filterRange(nextParam, updatedCombination,
+            updatedParamsInCombination + (nextParam -> updatedParamsInCombination.size),
+            validationRules),
+        remainingParams = remainingParamsTail, // Remaining parameters to process
+        validationRules, counter, countOnly) ++ combineWithNextValueOfCurrentParam(currentParamValuesTail)
+    }
+  }
+
+  /**
+    * A helper function to filter a range of parameters based on the validation rules that can be
+    * applied at this point. A rule can be applied only if all parameters it refers to have been
+    * processed already (i.e. if their values are in the accumulated combination)
+    */
+  private def filterRange(param: Parameter[Any],
+                          combination: Vector[Any],
+                          paramsInCombination: Map[Parameter[Any], Int],
+                          validationRules: ValidationRules): Vector[Any] = {
+    param.range.toVector.filter(value =>
       /* Verify that the current value complies with the validation rules */
-      validationRules.rulesPerParam(param) match {
-        case Nil =>
-          // No rules to check, so no errors found
-          true
-        case paramRules@_ =>
-          paramRules.forall(rule => {
-            val updatedCombination = combination :+ value
-            // Check whether we have processed all the parameters that this rule refers to
-            if (!rule.params.forall(p => paramsInCombination.contains(p))) {
-              true // Rule cannot be applied, so no errors found
-            } else {
-              // Get values of the corresponding parameters using the order that we keep in
-              // the updatedParamsInCombination
-              val referredValues: Seq[Any] = rule.params.map(param =>
-                updatedCombination(paramsInCombination(param)))
-              rule.isValid(referredValues)
-            }})})
+      !validationRules.rulesPerParam.contains(param) ||   // No rules to check, so no errors found
+        (validationRules.rulesPerParam(param) match {
+          case Nil =>
+            // No rules to check, so no errors found
+            true
+          case paramRules@_ =>
+            paramRules.forall(rule => {
+              val updatedCombination = combination :+ value
+              // Check whether we have processed all the parameters that this rule refers to
+              if (!rule.params.forall(p => paramsInCombination.contains(p))) {
+                true // Rule cannot be applied, so no errors found
+              } else {
+                // Get values of the corresponding parameters using the order that we keep in
+                // the updatedParamsInCombination
+                val referredValues: Vector[Any] = rule.params.toVector.map(param =>
+                  updatedCombination(paramsInCombination(param)))
+                rule.isValid(referredValues)
+              }})}))
   }
 }

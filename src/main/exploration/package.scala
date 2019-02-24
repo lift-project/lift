@@ -4,10 +4,15 @@ package object exploration {
   trait ValidationRule {
     val params: Seq[Parameter[Any]]
 
+    val name: String
+    val comment: String
+
     def isValid(values: Seq[Any]): Boolean
   }
 
-  case class ValidationRule1D[T0 <: Any](param0: Parameter[T0],
+  case class ValidationRule1D[T0 <: Any](name: String,
+                                         comment: String,
+                                         param0: Parameter[T0],
                                          condition: (T0) => Boolean)
     extends ValidationRule {
     val params: Seq[Parameter[Any]] = Seq(param0)
@@ -15,7 +20,9 @@ package object exploration {
     def isValid(values: Seq[Any]): Boolean = condition(values(0).asInstanceOf[T0])
   }
 
-  case class ValidationRule2D[T0 <: Any, T1 <: Any](param0: Parameter[T0],
+  case class ValidationRule2D[T0 <: Any, T1 <: Any](name: String,
+                                                    comment: String,
+                                                    param0: Parameter[T0],
                                                     param1: Parameter[T1],
                                                     condition: (T0, T1) => Boolean)
     extends ValidationRule {
@@ -26,7 +33,9 @@ package object exploration {
 
   }
 
-  case class ValidationRule3D[T0 <: Any, T1 <: Any, T2 <: Any](param0: Parameter[T0],
+  case class ValidationRule3D[T0 <: Any, T1 <: Any, T2 <: Any](name: String,
+                                                               comment: String,
+                                                               param0: Parameter[T0],
                                                                param1: Parameter[T1],
                                                                param2: Parameter[T2],
                                                                condition: (T0, T1, T2) => Boolean)
@@ -38,17 +47,20 @@ package object exploration {
   }
 
   object ValidationRule {
-    def apply[T0 <: Any](param0: Parameter[T0],
-                  condition: (T0) => Boolean): ValidationRule1D[T0] =
-      ValidationRule1D(param0, condition)
+    def apply[T0 <: Any](name: String, comment: String,
+                         param0: Parameter[T0],
+                         condition: (T0) => Boolean): ValidationRule1D[T0] =
+      ValidationRule1D(name, comment, param0, condition)
 
-    def apply[T0 <: Any, T1 <: Any](param0: Parameter[T0], param1: Parameter[T1],
-                      condition: (T0, T1) => Boolean): ValidationRule2D[T0, T1] =
-      ValidationRule2D(param0, param1, condition)
+    def apply[T0 <: Any, T1 <: Any](name: String, comment: String,
+                                    param0: Parameter[T0], param1: Parameter[T1],
+                                    condition: (T0, T1) => Boolean): ValidationRule2D[T0, T1] =
+      ValidationRule2D(name, comment, param0, param1, condition)
 
-    def apply[T0 <: Any, T1 <: Any, T2 <: Any](param0: Parameter[T0], param1: Parameter[T1], param2: Parameter[T2],
-                          condition: (T0, T1, T2) => Boolean): ValidationRule3D[T0, T1, T2] =
-      ValidationRule3D(param0, param1, param2, condition)
+    def apply[T0 <: Any, T1 <: Any, T2 <: Any](name: String, comment: String,
+                                               param0: Parameter[T0], param1: Parameter[T1], param2: Parameter[T2],
+                                               condition: (T0, T1, T2) => Boolean): ValidationRule3D[T0, T1, T2] =
+      ValidationRule3D(name, comment, param0, param1, param2, condition)
   }
 
   /**
@@ -83,13 +95,13 @@ package object exploration {
         case Nil => Map.empty[Parameter[Any], Seq[ValidationRule]]
         case rule :: rest => rule match {
 
-          case r@ValidationRule1D(param0, _) =>
+          case r@ValidationRule1D(_, _, param0, _) =>
             updateMap(populate(rest), param0, r)
 
-          case r@ValidationRule2D(param0, param1, _) =>
+          case r@ValidationRule2D(_, _, param0, param1, _) =>
             updateMap(updateMap(populate(rest), param0, r), param1, r)
 
-          case r@ValidationRule3D(param0, param1, param2, _) =>
+          case r@ValidationRule3D(_, _, param0, param1, param2, _) =>
             updateMap(updateMap(updateMap(populate(rest), param0, r), param1, r), param2, r)
 
           case _ => throw new IllegalArgumentException("Unexpected rule type")
