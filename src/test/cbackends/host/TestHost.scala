@@ -1,7 +1,7 @@
 package cbackends.host
 
 import ir.ast.Pad.Boundary.WrapUnsafe
-import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
+import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{Cst, SizeVar}
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
@@ -1094,6 +1094,37 @@ class TestHost {
 
   */
 
+  @Test
+  def test_iterate(): Unit = {
+
+    val path = s"$common_path/31.iterate"
+    val file = "libiterate.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => Iterate(6)(  MapSeq(incrementF) ) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    /*
+    import opencl.executor.Compile
+    val gpu_f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => MapGlb( toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) ) o Slide(3,1) $ in
+    )
+    Compile(gpu_f)
+    */
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "6 6 6 6 6 6 6 6 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_iterate done!")
+  }
 
 
 }

@@ -1,7 +1,7 @@
 package cbackends.common.memory_management
 
 import core.generator.GenericAST.CVarWithType
-import ir.ast.{AbstractMap, AbstractPartRed, FunCall, Get, IRNode, Join, Lambda, Pad, Slide, Split, Transpose, TransposeW, UserFun, Zip}
+import ir.ast.{AbstractMap, AbstractPartRed, FunCall, Get, IRNode, Iterate, Join, Lambda, Pad, Slide, Split, Transpose, TransposeW, UserFun, Zip}
 import lift.arithmetic.ArithExpr
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir._
@@ -53,6 +53,11 @@ object FinalMemoryAllocationAnalysis {
             Type.getElementCount(fc.t),
             fc.addressSpace
           )
+
+
+      case fc@FunCall(i:Iterate, args@_*) =>
+        args.foreach(analyze(_))
+        analyze(i.f.body)
 
       case fc@FunCall(l:Lambda, args@_*) =>
         args.foreach(analyze(_))
