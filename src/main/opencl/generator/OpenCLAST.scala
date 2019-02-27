@@ -62,10 +62,10 @@ object OpenCLAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      params.foreach(_.visit(pre,post))
-      body.visit(pre,post)
+      params.foreach(_.visitBy(pre,post))
+      body.visitBy(pre,post)
       attribute match {
-          case Some(a) => a.visit(pre, post)
+          case Some(a) => a.visitBy(pre, post)
           case None =>
         }
     }
@@ -128,9 +128,9 @@ object OpenCLAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
+      v.visitBy(pre, post)
       init match {
-        case Some(i) => i.visit(pre, post)
+        case Some(i) => i.visitBy(pre, post)
         case None =>
       }
     }
@@ -238,9 +238,9 @@ object OpenCLAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
-      offset.visit(pre, post)
-      shift.visit(pre, post)
+      v.visitBy(pre, post)
+      offset.visitBy(pre, post)
+      shift.visitBy(pre, post)
     }
 
     override def print(): Doc = {
@@ -278,9 +278,9 @@ object OpenCLAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
-      value.visit(pre, post)
-      offset.visit(pre, post)
+      v.visitBy(pre, post)
+      value.visitBy(pre, post)
+      offset.visitBy(pre, post)
     }
 
     override def print(): Doc = {
@@ -311,7 +311,7 @@ object OpenCLAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
+      v.visitBy(pre, post)
     }
 
     override def print(): Doc = {
@@ -335,7 +335,7 @@ object OpenCLAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      vs.map(_.visit(pre, post))
+      vs.map(_.visitBy(pre, post))
     }
 
     override def print(): Doc = {

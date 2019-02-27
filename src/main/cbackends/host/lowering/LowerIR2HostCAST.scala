@@ -3,7 +3,7 @@ package cbackends.host.lowering
 import cbackends.common.common_ir.CPUMainMemoryAddressSpace
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir._
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IfThenElifIm, IfThenElseIm, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
 import ir.Type
 import ir.ast.Iterate
 import opencl.ir.pattern.{MapGlb, MapWrg}
@@ -103,29 +103,87 @@ object LowerIR2HostCAST {
 
   private def generateIterate(fc: FunCall) : Block = {
 
-    val kernel_type = fc.f match {
+    val arg_block = generate(fc.args.head)
+
+    val i = fc.f.asInstanceOf[Iterate]
+    val i_cvar = CVarWithType(i.loopVar.toString, IntegerType())
+
+
+    val kernel_type = i.f match {
       case l:Lambda => l.body match {
-        case fc2: FunCall => fc.f match {
-          case _:MapGlb | _:MapWrg => "GPU"
-          case _ => "CPU"
+        case fc2:FunCall => fc2.f match {
+          case _:OclFunCall => "GPU"
+          case _:CPUFunCall => "CPU"
+          case _ => assert(false, "Not implemented"); "Invalid"
         }
         case _ => assert(false, "Not implemented"); "Invalid"
       }
       case _ => assert(false, "Not implemented"); "Invalid"
     }
 
-    val loop_body = kernel_type match {
+    val body = generate(i.f.body)
+    //assume that Iterate always contain either CPUFunCall or OclFunCall,
+    //thus you can extract the function call
+    var funcall_tmp : FunctionCall = null
+    body visitBy {
+      case ExpressionStatement(fc@FunctionCall(_,_,_),_) => funcall_tmp = fc
+      case _ =>
+    }
+    val funcall = funcall_tmp
+    assert(funcall != null, "Can not find funcall in Iterate")
+    val in :: out :: size :: Nil = funcall.args
+
+    //assume Iterate is a unary function, thus you know the funcall only have one input and one output
+
+    val cast_for_this_call = kernel_type match {
       case "CPU" =>
         val buffer1_cvar = CVarWithType("cpu_buffer1", TypeLowering.Array2Pointer( TypeLowering.IRType2CastType( fc.args.head.t), true ) )
         val buffer2_cvar = CVarWithType("cpu_buffer2", TypeLowering.Array2Pointer( TypeLowering.IRType2CastType( fc.args.head.t), true ) )
-        val buffer1_decl = VarDeclPure(buffer1_cvar, buffer1_cvar.t)
-        val buffer2_decl = VarDeclPure(buffer2_cvar, buffer2_cvar.t)
-        Block()
+        val buffer1_decl = VarDeclPure(buffer1_cvar, buffer1_cvar.t, Some(FunctionCall("reinterpret_cast", List(
+              FunctionCall("malloc", List(BinaryExpression(ArithExpression(Type.getElementCount(fc.args.head.t)), BinaryExpressionT.Operator.*,
+                FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(buffer1_cvar.t)))
+              )))), List(buffer1_cvar.t)) ) )
+        val buffer2_decl = VarDeclPure(buffer2_cvar, buffer2_cvar.t, Some(FunctionCall("reinterpret_cast", List(
+              FunctionCall("malloc", List(BinaryExpression(ArithExpression(Type.getElementCount(fc.args.head.t)), BinaryExpressionT.Operator.*,
+                FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(buffer2_cvar.t)))
+              )))), List(buffer2_cvar.t)) ) )
+
+
+        val cond_1 = BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.==, IntConstant(0))
+        val cond_2 = BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.==, ArithExpression(i.loopVar.range.max) )
+        val cond_3 = BinaryExpression(BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.%,  IntConstant(2)),
+          BinaryExpressionT.Operator.==, IntConstant(1) )
+        val cond_4 = BinaryExpression(BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.%,  IntConstant(2)),
+          BinaryExpressionT.Operator.==, IntConstant(0) )
+
+        val funcall_1 = Block(Vector(funcall.copy( args = List(in, VarRefPure(buffer1_cvar), size) ) ) )
+        val funcall_2 = Block(Vector(
+          IfThenElseIm(
+            cond_4,
+            Block( Vector(funcall.copy( args = List(VarRefPure(buffer1_cvar), out, size) ) ) ),
+            Block( Vector(funcall.copy( args = List(VarRefPure(buffer2_cvar), out, size) ) ) )
+          )
+        ) )
+        val funcall_3 = Block(Vector( funcall.copy( args = List(VarRefPure(buffer1_cvar), VarRefPure(buffer2_cvar), size) ) ) )
+        val funcall_4 = Block(Vector( funcall.copy( args = List(VarRefPure(buffer2_cvar), VarRefPure(buffer1_cvar), size) ) ) )
+
+
+        val if_else = Block(Vector(IfThenElifIm(List(cond_1, cond_2, cond_3, cond_4), List(funcall_1, funcall_2, funcall_3, funcall_4), Block() ) ) )
+
+        val init = VarDeclPure( i_cvar, i_cvar.t, Some(IntConstant(0)) )
+        val cond = BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.<=, ArithExpression(i.loopVar.range.max) )
+        val increment = UnaryExpression("++", (i_cvar) )
+        val forloop = ForLoopIm(init,cond,increment,if_else)
+
+        Block(Vector(buffer1_decl, buffer2_decl, forloop), global = true)
+
       case "GPU" =>
         Block()
     }
 
-    Block()
+    //Block()
+
+    arg_block :++ cast_for_this_call
 
 
   }

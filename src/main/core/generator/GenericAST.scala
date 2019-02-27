@@ -59,7 +59,7 @@ object GenericAST {
     }
 
 
-    def visit(pre: (AstNode) => Unit, post: (AstNode) => Unit = { _ => } ) : Unit ={
+    def visitBy(pre: (AstNode) => Unit, post: (AstNode) => Unit = { _ => } ) : Unit ={
       pre(this)
       this._visit(pre,post)
       post(this)
@@ -161,10 +161,10 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      params.map(_.visit(pre, post))
-      body.visit(pre, post)
+      params.map(_.visitBy(pre, post))
+      body.visitBy(pre, post)
       attribute match {
-        case Some(a) => a.visit(pre, post)
+        case Some(a) => a.visitBy(pre, post)
         case None =>
       }
 
@@ -241,9 +241,9 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
+      v.visitBy(pre, post)
       init match {
-          case Some(i) => i.visit(pre, post)
+          case Some(i) => i.visitBy(pre, post)
           case None =>
         }
     }
@@ -332,7 +332,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      content.map(_.visit(pre, post))
+      content.map(_.visitBy(pre, post))
     }
 
     /** Append a sub-node. Could be any node, including a sub-block.
@@ -388,10 +388,10 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      init.visit(pre, post)
-      cond.visit(pre, post)
-      increment.visit(pre, post)
-      body.visit(pre, post)
+      init.visitBy(pre, post)
+      cond.visitBy(pre, post)
+      increment.visitBy(pre, post)
+      body.visitBy(pre, post)
     }
   }
 
@@ -422,7 +422,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      body.visit(pre, post)
+      body.visitBy(pre, post)
     }
   }
 
@@ -459,9 +459,61 @@ object GenericAST {
     }
 
     override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      cond.visit(pre, post)
-      trueBody.visit(pre, post)
-      falseBody.visit(pre, post)
+      cond.visitBy(pre, post)
+      trueBody.visitBy(pre, post)
+      falseBody.visitBy(pre, post)
+    }
+
+
+  }
+
+
+  trait IfThenElifImT extends StatementT {
+
+    val conds: List[ExpressionT]
+    val trueBodys: List[BlockT]
+    val falseBody: BlockT
+
+
+    override def print(): Doc = {
+      /*
+      text("if (") <> cond.print <> ")" <> trueBody.print <>
+        (if (falseBody != Block()) {
+          text(" else ") <> falseBody.print()
+        } else {
+          empty
+        })*/
+
+      val elif_conds = conds.drop(1)
+      val elif_trueBodys = trueBodys.drop(1)
+      val zipped = elif_conds zip elif_trueBodys
+      val docs = zipped.map{ case (cond, body) => text("else if ( ") <> cond.print <> text(" )") <> body.print }
+      val final_docs = (text("") /: docs ) ( </> )
+
+      text("if (") <> conds(0).print <> ")" <> trueBodys(0).print </> final_docs <>
+        (if (falseBody != Block()) {
+          text(" else ") <> falseBody.print()
+        } else {
+          empty
+        })
+    }
+
+  }
+
+
+  case class IfThenElifIm(conds: List[ExpressionT], trueBodys: List[BlockT], falseBody: BlockT) extends IfThenElifImT {
+
+
+    override def _visitAndRebuild(pre: (AstNode) => AstNode,  post: (AstNode) => AstNode) : AstNode = {
+      IfThenElifIm(conds.map(_.visitAndRebuild(pre, post).asInstanceOf[ExpressionT]),
+        trueBodys.map(_.visitAndRebuild(pre, post).asInstanceOf[BlockT]),
+        falseBody.visitAndRebuild(pre, post).asInstanceOf[BlockT])
+    }
+
+    override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      conds.foreach(_.visitBy(pre, post))
+      trueBodys.foreach(_.visitBy(pre, post))
+      falseBody.visitBy(pre, post)
     }
 
 
@@ -504,9 +556,9 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      cond.visit(pre, post)
-      trueBody.visit(pre, post)
-      falseBody.visit(pre, post)
+      cond.visitBy(pre, post)
+      trueBody.visitBy(pre, post)
+      falseBody.visitBy(pre, post)
     }
   }
 
@@ -533,7 +585,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      nameVar.visit(pre, post)
+      nameVar.visitBy(pre, post)
     }
   }
 
@@ -560,7 +612,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      nameVar.visit(pre, post)
+      nameVar.visitBy(pre, post)
     }
   }
 
@@ -658,7 +710,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      e.visit(pre, post)
+      e.visitBy(pre, post)
     }
   }
 
@@ -690,8 +742,8 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      args.foreach(_.visit(pre, post))
-      template_types.foreach(_.visit(pre,post))
+      args.foreach(_.visitBy(pre, post))
+      template_types.foreach(_.visitBy(pre,post))
     }
   }
 
@@ -709,8 +761,8 @@ object GenericAST {
         intersperse(args.map(_.print)) <> ")"
     }
     override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = {
-      object_name.visit(pre,post)
-      args.map(_.visit(pre,post))
+      object_name.visitBy(pre,post)
+      args.map(_.visitBy(pre,post))
     }
 
   }
@@ -775,9 +827,9 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
+      v.visitBy(pre, post)
       arrayIndex match {
-          case Some(ai) => ai.visit(pre, post)
+          case Some(ai) => ai.visitBy(pre, post)
           case None =>
         }
     }
@@ -823,8 +875,8 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
-      offset.visit(pre, post)
+      v.visitBy(pre, post)
+      offset.visitBy(pre, post)
     }
   }
 
@@ -870,9 +922,9 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
-      value.visit(pre, post)
-      offset.visit(pre, post)
+      v.visitBy(pre, post)
+      value.visitBy(pre, post)
+      offset.visitBy(pre, post)
     }
   }
 
@@ -903,8 +955,8 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      to.visit(pre, post)
-      value.visit(pre,post)
+      to.visitBy(pre, post)
+      value.visitBy(pre,post)
     }
   }
 
@@ -975,8 +1027,8 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      lhs.visit(pre, post)
-      rhs.visit(pre, post)
+      lhs.visitBy(pre, post)
+      rhs.visitBy(pre, post)
     }
   }
 
@@ -1027,9 +1079,9 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      cond.visit(pre, post)
-      trueExpr.visit(pre, post)
-      falseExpr.visit(pre, post)
+      cond.visitBy(pre, post)
+      trueExpr.visitBy(pre, post)
+      falseExpr.visitBy(pre, post)
     }
   }
 
@@ -1060,7 +1112,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
+      v.visitBy(pre, post)
     }
   }
 
@@ -1071,7 +1123,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
+      v.visitBy(pre, post)
     }
 
     override def print(): Doc = {
@@ -1116,7 +1168,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      args.map(_.visit(pre, post))
+      args.map(_.visitBy(pre, post))
     }
   }
 
@@ -1189,7 +1241,7 @@ object GenericAST {
 
     def ++(nodes: Vector[AstNode with BlockMember]): BlockT
 
-    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = content.map(_.visit(pre,post))
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = content.map(_.visitBy(pre,post))
 
 
     override def print(): Doc = {
@@ -1366,7 +1418,7 @@ object GenericAST {
   trait OutlineMarkT extends MarkT
 
   case class OutlineMark(outline_struct: Block) extends OutlineMarkT {
-    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = outline_struct.visit(pre, post)
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = outline_struct.visitBy(pre, post)
     override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
 
     override def print(): Doc = outline_struct.print()
@@ -1560,7 +1612,7 @@ object GenericAST {
 
   case class UnaryExpression(op: String, operand: UnaryExpressionT) extends UnaryExpressionT {
 
-    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = operand.visit(pre, post)
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = operand.visitBy(pre, post)
 
     override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
 
@@ -1599,10 +1651,10 @@ object GenericAST {
     }
 
     override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      init.visit(pre, post)
-      cond.visit(pre, post)
-      increment.visit(pre, post)
-      body.visit(pre, post)
+      init.visitBy(pre, post)
+      cond.visitBy(pre, post)
+      increment.visitBy(pre, post)
+      body.visitBy(pre, post)
     }
   }
 
