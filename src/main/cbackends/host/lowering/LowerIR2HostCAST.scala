@@ -5,6 +5,7 @@ import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir._
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
 import ir.Type
+import ir.ast.Iterate
 import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
 //import host_obsolete.ir_host.MapHSeq
 //import host_obsolete.view.ViewPrinter
@@ -91,12 +92,17 @@ object LowerIR2HostCAST {
         generateDataTransfer(fc)
       case fc@FunCall(_:ToGPU, _*) =>
         generateDataTransfer(fc)
+      case fc@FunCall(_:Iterate, _) =>
+        generateIterate(fc)
       case _ =>
         Block()
     }
 
   }
 
+  private def generateIterate(fc: FunCall) : Block = {
+
+  }
 
   private def generateDataTransfer(fc: FunCall) : Block = {
     //parameter sequnence convention: first input pointers, then output pointers, then sizes
