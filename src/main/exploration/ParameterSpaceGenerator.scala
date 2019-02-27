@@ -17,6 +17,10 @@ object ParameterSpaceGenerator {
     * acquired without generating combination using the flag countOnly.
     *
     * @param parameters unique parameters defining the space
+    * @param boundingParams a set of unique parameters (and corresponding values) that need no exploring, but might be
+    *                       referred to by the validation rules. One example is in optimising neural nets: when
+    *                       exploring optimisational parameters, the bounding parameters are the network
+    *                       configuration parameters.
     * @param validationRules the rules declaring what parameter value combinations are valid
     * @param countOnly a flag specifying whether we should just generate combinations or just count all
     *                  possible combinations without using memory
@@ -26,6 +30,7 @@ object ParameterSpaceGenerator {
     *         no combinations and the number of all possible combinations if countOnly is set
     */
   def apply(parameters: Seq[Parameter[Any]],
+            boundingParams: Option[Map[Parameter[Any], Any]],
             validationRules: ValidationRules,
             countOnly: Boolean,
             skipFirstNCombinations: Option[Int],
@@ -42,8 +47,9 @@ object ParameterSpaceGenerator {
         parameters.head,
         emptyCombination,
         emptyParamsInCombination + (parameters.head -> 0),
-        validationRules),
+        boundingParams, validationRules),
       parameters.tail,
+      boundingParams,
       validationRules,
       counter,
       countOnly)
@@ -60,6 +66,7 @@ object ParameterSpaceGenerator {
                                 currentParam: Parameter[Any],
                                 remainingCurrentParamValues: Vector[Any],
                                 remainingParams: Seq[Parameter[Any]],
+                                boundingParams: Option[Map[Parameter[Any], Any]],
                                 validationRules: ValidationRules,
                                 counter: CombinationCounter,
                                 countOnly: Boolean): Vector[Vector[Any]] = {
@@ -72,7 +79,7 @@ object ParameterSpaceGenerator {
         currentParam = currentParam, // Same parameter, more values to processes
         remainingCurrentParamValues = currentParamValuesTail, // Remaining values to process
         remainingParams = remainingParams, // No more parameters to process
-        validationRules, counter, countOnly)
+        boundingParams, validationRules, counter, countOnly)
 
     remainingParams match {
       case Nil =>
@@ -114,7 +121,7 @@ object ParameterSpaceGenerator {
               nextParam,
               remainingParamsTail,
               combineWithNextValueOfCurrentParam,
-              validationRules, counter, countOnly)
+              boundingParams, validationRules, counter, countOnly)
         }
     }
   }
@@ -163,6 +170,7 @@ object ParameterSpaceGenerator {
                                                                 nextParam: Parameter[Any],
                                                                 remainingParamsTail: Seq[Parameter[Any]],
                                                                 combineWithNextValueOfCurrentParam: Vector[Any] => Vector[Vector[Any]],
+                                                                boundingParams: Option[Map[Parameter[Any], Any]],
                                                                 validationRules: ValidationRules,
                                                                 counter: CombinationCounter,
                                                                 countOnly: Boolean): Vector[Vector[Any]] = {
@@ -181,9 +189,9 @@ object ParameterSpaceGenerator {
           remainingCurrentParamValues = // All the filtered values of the next parameter
             filterRange(nextParam, updatedCombination,
               updatedParamsInCombination + (nextParam -> updatedParamsInCombination.size),
-              validationRules),
+              boundingParams, validationRules),
           remainingParams = remainingParamsTail, // Remaining parameters to process
-          validationRules, counter, countOnly) ++
+          boundingParams, validationRules, counter, countOnly) ++
           // Next value, same parameter
           combineWithNextValueOfCurrentParam(currentParamValuesTail)
       } else // Reached the limit of combinations that we are allowed to generate. Stop
@@ -198,20 +206,22 @@ object ParameterSpaceGenerator {
         remainingCurrentParamValues = // All the filtered values of the next parameter
           filterRange(nextParam, updatedCombination,
             updatedParamsInCombination + (nextParam -> updatedParamsInCombination.size),
-            validationRules),
+            boundingParams, validationRules),
         remainingParams = remainingParamsTail, // Remaining parameters to process
-        validationRules, counter, countOnly) ++ combineWithNextValueOfCurrentParam(currentParamValuesTail)
+        boundingParams, validationRules, counter, countOnly) ++ combineWithNextValueOfCurrentParam(currentParamValuesTail)
     }
   }
 
   /**
     * A helper function to filter a range of parameters based on the validation rules that can be
-    * applied at this point. A rule can be applied only if all parameters it refers to have been
-    * processed already (i.e. if their values are in the accumulated combination)
+    * applied at this point. A rule can be applied only if all parameters it refers to either have been
+    * processed already (i.e. if their values are in the accumulated combination), or are one of the
+    * bounding parameters.
     */
   private def filterRange(param: Parameter[Any],
                           combination: Vector[Any],
                           paramsInCombination: Map[Parameter[Any], Int],
+                          boundingParams: Option[Map[Parameter[Any], Any]],
                           validationRules: ValidationRules): Vector[Any] = {
     param.range.toVector.filter(value =>
       /* Verify that the current value complies with the validation rules */
@@ -223,14 +233,27 @@ object ParameterSpaceGenerator {
           case paramRules@_ =>
             paramRules.forall(rule => {
               val updatedCombination = combination :+ value
-              // Check whether we have processed all the parameters that this rule refers to
-              if (!rule.params.forall(p => paramsInCombination.contains(p))) {
+              // Check whether we either have processed all the parameters that this rule refers to, or have them
+              // as bounding parameters
+              if (!rule.params.forall(p => {
+                paramsInCombination.contains(p) || (boundingParams match {
+                  case Some(bParams) => bParams.contains(p)
+                  case None => false})
+              })) {
                 true // Rule cannot be applied, so no errors found
               } else {
                 // Get values of the corresponding parameters using the order that we keep in
                 // the updatedParamsInCombination
                 val referredValues: Vector[Any] = rule.params.toVector.map(param =>
-                  updatedCombination(paramsInCombination(param)))
+                {
+                  if (paramsInCombination.contains(param)) updatedCombination(paramsInCombination(param))
+                  else {
+                    val e = new IllegalArgumentException("The parameter the rule refers to neither has been " +
+                      "processed, nor is one of the bounding parameters. This should have been caught earlier.")
+                    boundingParams match {
+                      case Some(bParams) => if (bParams.contains(param)) bParams(param) else throw e
+                      case None => throw e
+                    }}})
                 rule.isValid(referredValues)
               }})}))
   }
