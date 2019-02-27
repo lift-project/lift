@@ -6,6 +6,7 @@ import cbackends.host.host_ir._
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
 import ir.Type
 import ir.ast.Iterate
+import opencl.ir.pattern.{MapGlb, MapWrg}
 import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
 //import host_obsolete.ir_host.MapHSeq
 //import host_obsolete.view.ViewPrinter
@@ -101,6 +102,31 @@ object LowerIR2HostCAST {
   }
 
   private def generateIterate(fc: FunCall) : Block = {
+
+    val kernel_type = fc.f match {
+      case l:Lambda => l.body match {
+        case fc2: FunCall => fc.f match {
+          case _:MapGlb | _:MapWrg => "GPU"
+          case _ => "CPU"
+        }
+        case _ => assert(false, "Not implemented"); "Invalid"
+      }
+      case _ => assert(false, "Not implemented"); "Invalid"
+    }
+
+    val loop_body = kernel_type match {
+      case "CPU" =>
+        val buffer1_cvar = CVarWithType("cpu_buffer1", TypeLowering.Array2Pointer( TypeLowering.IRType2CastType( fc.args.head.t), true ) )
+        val buffer2_cvar = CVarWithType("cpu_buffer2", TypeLowering.Array2Pointer( TypeLowering.IRType2CastType( fc.args.head.t), true ) )
+        val buffer1_decl = VarDeclPure(buffer1_cvar, buffer1_cvar.t)
+        val buffer2_decl = VarDeclPure(buffer2_cvar, buffer2_cvar.t)
+        Block()
+      case "GPU" =>
+        Block()
+    }
+
+    Block()
+
 
   }
 

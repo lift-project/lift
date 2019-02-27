@@ -3,7 +3,7 @@ package cbackends.global
 import cbackends.host.host_ir._
 import cbackends.onnx.lift_nn_ir.host_ir.Pool3D
 import ir.ast.Pad.Boundary.WrapUnsafe
-import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
+import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{Cst, SizeVar}
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
@@ -371,5 +371,31 @@ class TestGlobal {
 
     println("Test case test_slide_hello done!")
   }
+
+
+  @Test
+  def test_iterate(): Unit = {
+
+    val path = s"$common_path/12.iterate"
+    val file = "libiterate.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => Iterate(6)(  CPUFunc( MapSeq(incrementF) ) ) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "5 5 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
+
 
 }

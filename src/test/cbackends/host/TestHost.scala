@@ -1094,6 +1094,7 @@ class TestHost {
 
   */
 
+  /*
   @Test
   def test_iterate(): Unit = {
 
@@ -1125,6 +1126,6 @@ class TestHost {
 
     println("Test case test_iterate done!")
   }
-
+  */
 
 }
