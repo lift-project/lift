@@ -197,6 +197,12 @@ case class Iterate(n: ArithExpr, f: Lambda, var loopVar : Var = PosVar("i"), vPt
         )
     }
   }
+
+
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)
+
+  override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode =
+    Iterate(n, f.visitAndRebuild(pre,post).asInstanceOf[Lambda], loopVar, vPtrIn, vPtrOut )
 }
 
 object Iterate {
