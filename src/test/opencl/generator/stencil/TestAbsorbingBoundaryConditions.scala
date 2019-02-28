@@ -77,17 +77,18 @@ class TestAbsorbingBoundaryConditions
     def stencil1D(a: Int, b: Int) = fun(
       ArrayTypeWSWC(Float,N),
       (input) => {
-        MapGlb(0)(fun(tup => {
+        MapGlb(0)(fun(neighbourhood => {
 
-          val neighbourhood = Get(tup,0)
+          val main = toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+          val boundaryL = toGlobal(id) $ input.at(0)
+          val boundaryR = toGlobal(id) $ input.at(N-1)
 
-          val main = toGlobal(MapSeqUnroll(id)) o ReduceSeqUnroll(absAndSumUp, 0.0f) $ neighbourhood
-          val boundaryL = toGlobal(id) $ Get(tup,1) // toGlobal(id) $ neighbourhood.at(0).at(0)
-          val boundaryR = input.at(N-1)
+          val returnValue =  toPrivate(fun(x => mult(x,main))) o
+            toPrivate(fun(x => add(x,boundaryL))) $ boundaryR
 
-          boundaryL
+          main //returnValue
 
-          })) $ Zip( Slide(a,b) o PadConstant(1,1,0.0f) $ input, ArrayFromUserFunGenerator(0,ArrayTypeWSWC(Float,size+2)), ArrayFromValue(input.at(N-1),ArrayTypeWSWC(Float,size+2)))
+          })) o Slide(a,b) o PadConstant(1,1,0.0f) $ input // Zip( , 0.0f) // ArrayFromUserFunGenerator(0,ArrayTypeWSWC(Float,size+2)), ArrayFromValue(input.at(N-1),ArrayTypeWSWC(Float,size+2)))
       }
     )
 
