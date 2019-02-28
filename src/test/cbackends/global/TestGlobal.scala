@@ -365,7 +365,7 @@ class TestGlobal {
     //the result is too large array, thus hard to enumerate
     //and test, ignore now.
 
-    //val actual : String = native_compile_and_run(path, file)
+    val actual : String = native_compile_and_run(path, file)
     //val expected : String = "3 3 \n"
     //assertEquals(expected, actual)
 
