@@ -8,7 +8,7 @@ package exploration
   * @param combinations generated combinations
   * @param numberOfCombinations the number of combinations stored (might be a subset of all possible combinations)
   */
-case class ParameterSpace(parameters: Seq[Parameter[Any]],
-                          validationRules: ValidationRules,
-                          combinations: Seq[Seq[Any]],
-                          numberOfCombinations: Int)
+class ParameterSpace(val parameters: Seq[IndependentParameter[Any]],
+                     val validationRules: ValidationRules,
+                     val combinations: Seq[Seq[Any]],
+                     val numberOfCombinations: Int)

@@ -1,10 +1,14 @@
 package object exploration {
-  class Parameter[+T](val name: String,
-                      val shortName: String,
-                      val range: Seq[T])
+  trait Parameter {
+    val name: String
+  }
+
+  class IndependentParameter[+T](val name: String,
+                                 val shortName: String,
+                                 val range: Seq[T]) extends Parameter
 
   trait ValidationRule {
-    val params: Seq[Parameter[Any]]
+    val params: Seq[Parameter]
 
     val name: String
     val comment: String
@@ -14,21 +18,21 @@ package object exploration {
 
   case class ValidationRule1D[T0 <: Any](name: String,
                                          comment: String,
-                                         param0: Parameter[T0],
+                                         param0: Parameter,
                                          condition: (T0) => Boolean)
     extends ValidationRule {
-    val params: Seq[Parameter[Any]] = Seq(param0)
+    val params: Seq[Parameter] = Seq(param0)
 
     def isValid(values: Seq[Any]): Boolean = condition(values(0).asInstanceOf[T0])
   }
 
   case class ValidationRule2D[T0 <: Any, T1 <: Any](name: String,
                                                     comment: String,
-                                                    param0: Parameter[T0],
-                                                    param1: Parameter[T1],
+                                                    param0: Parameter,
+                                                    param1: Parameter,
                                                     condition: (T0, T1) => Boolean)
     extends ValidationRule {
-    val params: Seq[Parameter[Any]] = Seq(param0, param1)
+    val params: Seq[Parameter] = Seq(param0, param1)
 
     def isValid(values: Seq[Any]): Boolean =
       condition(values(0).asInstanceOf[T0], values(1).asInstanceOf[T1])
@@ -37,12 +41,12 @@ package object exploration {
 
   case class ValidationRule3D[T0 <: Any, T1 <: Any, T2 <: Any](name: String,
                                                                comment: String,
-                                                               param0: Parameter[T0],
-                                                               param1: Parameter[T1],
-                                                               param2: Parameter[T2],
+                                                               param0: Parameter,
+                                                               param1: Parameter,
+                                                               param2: Parameter,
                                                                condition: (T0, T1, T2) => Boolean)
     extends ValidationRule {
-    val params: Seq[Parameter[Any]] = Seq(param0, param1, param2)
+    val params: Seq[Parameter] = Seq(param0, param1, param2)
 
     def isValid(values: Seq[Any]): Boolean =
       condition(values(0).asInstanceOf[T0], values(1).asInstanceOf[T1], values(2).asInstanceOf[T2])
@@ -50,17 +54,17 @@ package object exploration {
 
   object ValidationRule {
     def apply[T0 <: Any](name: String, comment: String,
-                         param0: Parameter[T0],
+                         param0: Parameter,
                          condition: (T0) => Boolean): ValidationRule1D[T0] =
       ValidationRule1D(name, comment, param0, condition)
 
     def apply[T0 <: Any, T1 <: Any](name: String, comment: String,
-                                    param0: Parameter[T0], param1: Parameter[T1],
+                                    param0: Parameter, param1: Parameter,
                                     condition: (T0, T1) => Boolean): ValidationRule2D[T0, T1] =
       ValidationRule2D(name, comment, param0, param1, condition)
 
     def apply[T0 <: Any, T1 <: Any, T2 <: Any](name: String, comment: String,
-                                               param0: Parameter[T0], param1: Parameter[T1], param2: Parameter[T2],
+                                               param0: Parameter, param1: Parameter, param2: Parameter,
                                                condition: (T0, T1, T2) => Boolean): ValidationRule3D[T0, T1, T2] =
       ValidationRule3D(name, comment, param0, param1, param2, condition)
   }
@@ -73,7 +77,7 @@ package object exploration {
     * @param rulesPerParam A map of parameters to corresponding rules
     */
   case class ValidationRules(rules: Seq[ValidationRule],
-                             rulesPerParam: Map[Parameter[Any], Seq[ValidationRule]])
+                             rulesPerParam: Map[Parameter, Seq[ValidationRule]])
 
   object ValidationRules {
     def apply(rules: Seq[ValidationRule]): ValidationRules =
@@ -82,11 +86,11 @@ package object exploration {
     /**
       * Populates the parameter-rules map recursively
       */
-    def populate(rulesToTraverse: Seq[ValidationRule]): Map[Parameter[Any], Seq[ValidationRule]] = {
+    def populate(rulesToTraverse: Seq[ValidationRule]): Map[Parameter, Seq[ValidationRule]] = {
 
-      def updateMap(paramRules: Map[Parameter[Any], Seq[ValidationRule]],
-                    param: Parameter[Any],
-                    rule: ValidationRule): Map[Parameter[Any], Seq[ValidationRule]] = {
+      def updateMap(paramRules: Map[Parameter, Seq[ValidationRule]],
+                    param: Parameter,
+                    rule: ValidationRule): Map[Parameter, Seq[ValidationRule]] = {
         if (paramRules.isEmpty || !paramRules.contains(param))
           paramRules + (param -> Seq(rule))
         else
@@ -94,7 +98,7 @@ package object exploration {
       }
 
       rulesToTraverse match {
-        case Nil => Map.empty[Parameter[Any], Seq[ValidationRule]]
+        case Nil => Map.empty[Parameter, Seq[ValidationRule]]
         case rule :: rest => rule match {
 
           case r@ValidationRule1D(_, _, param0, _) =>
