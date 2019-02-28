@@ -4,7 +4,7 @@ import java.util.function.BinaryOperator
 
 import cbackends.host.host_ir._
 import core.generator.GenericAST.{AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, ClassOrStructType, FunctionCall, FunctionPure, IfThenElseIm, IntConstant, MethodInvocation, RawCode, StringConstant, VarDeclPure, VoidType}
-import ir.ast.{Expr, FunCall, Lambda, Param, Value}
+import ir.ast.{Expr, FunCall, Iterate, Lambda, Param, Value}
 
 object GenerateOclGlobalFacility {
 
@@ -65,6 +65,11 @@ object GenerateOclGlobalFacility {
 
       case FunCall(_:ToHost|_:ToGPU, arg) =>
         generate(arg, path, global_decl_cast, global_init_cast)
+      case FunCall(i:Iterate, arg) =>
+        val (arg_decl, arg_init) = generate(arg, path, Block(global = true), Block(global = true))
+        val (body_decl, body_init) = generate(i.f.body, path, Block(global = true), Block(global = true))
+        (arg_decl :++ body_decl :++ global_decl_cast, arg_init :++ body_init :++ global_init_cast)
+
       case FunCall(_:CPUFunCall, args@_*) => {
         val globals_for_args = args.map(generate(_, path, Block(global = true), Block(global = true))).toList
         /*val (global_decl_for_args, global_init_for_args) = ((Block(global = true), Block(global = true)) /: globals_for_args) {

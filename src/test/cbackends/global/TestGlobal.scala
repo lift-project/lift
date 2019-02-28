@@ -396,6 +396,28 @@ class TestGlobal {
     println("Test case test_slide_hello done!")
   }
 
+  @Test
+  def test_iterate_gpu(): Unit = {
+
+    val path = s"$common_path/13.iterate_gpu"
+    val file = "libiterate.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => ToHost() o Iterate(6)(  OclFunc( MapGlb(incrementF) ) ) o ToGPU() $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    GlobalCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "6 6 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
 
 
 }

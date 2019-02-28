@@ -8,6 +8,8 @@ import ir.Type
 import ir.ast.Iterate
 import opencl.ir.pattern.{MapGlb, MapWrg}
 import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
+
+import scala.collection.mutable.ArrayBuffer
 //import host_obsolete.ir_host.MapHSeq
 //import host_obsolete.view.ViewPrinter
 import ir.ast.{AbstractMap, AbstractPartRed, FunCall, IRNode, Join, Lambda, Slide, Split, Transpose, TransposeW, UserFun, Value}
@@ -122,21 +124,34 @@ object LowerIR2HostCAST {
     }
 
     val body = generate(i.f.body)
-    //assume that Iterate always contain either CPUFunCall or OclFunCall,
-    //thus you can extract the function call
-    var funcall_tmp : FunctionCall = null
-    body visitBy {
-      case ExpressionStatement(fc@FunctionCall(_,_,_),_) => funcall_tmp = fc
-      case _ =>
-    }
-    val funcall = funcall_tmp
-    assert(funcall != null, "Can not find funcall in Iterate")
-    val in :: out :: size :: Nil = funcall.args
 
-    //assume Iterate is a unary function, thus you know the funcall only have one input and one output
+    val cond_1 = BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.==, IntConstant(0))
+    val cond_2 = BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.==, ArithExpression(i.loopVar.range.max) )
+    val cond_3 = BinaryExpression(BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.%,  IntConstant(2)),
+      BinaryExpressionT.Operator.==, IntConstant(1) )
+    val cond_4 = BinaryExpression(BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.%,  IntConstant(2)),
+      BinaryExpressionT.Operator.==, IntConstant(0) )
+
+    val init = VarDeclPure( i_cvar, i_cvar.t, Some(IntConstant(0)) )
+    val cond = BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.<=, ArithExpression(i.loopVar.range.max) )
+    val increment = UnaryExpression("++", (i_cvar) )
 
     val cast_for_this_call = kernel_type match {
       case "CPU" =>
+
+        //assume that Iterate always contain either CPUFunCall or OclFunCall,
+        //thus you can extract the function call
+        var funcall_tmp : FunctionCall = null
+        body visitBy {
+          case ExpressionStatement(fc@FunctionCall(_,_,_),_) => funcall_tmp = fc
+          case _ =>
+        }
+        assert(funcall_tmp != null, "Can not find funcall in Iterate")
+        val funcall = funcall_tmp
+        val in :: out :: size :: Nil = funcall.args
+
+        //assume Iterate is a unary function, thus you know the funcall only have one input and one output
+
         val buffer1_cvar = CVarWithType("cpu_buffer1", TypeLowering.Array2Pointer( TypeLowering.IRType2CastType( fc.args.head.t), true ) )
         val buffer2_cvar = CVarWithType("cpu_buffer2", TypeLowering.Array2Pointer( TypeLowering.IRType2CastType( fc.args.head.t), true ) )
         val buffer1_decl = VarDeclPure(buffer1_cvar, buffer1_cvar.t, Some(FunctionCall("reinterpret_cast", List(
@@ -147,14 +162,6 @@ object LowerIR2HostCAST {
               FunctionCall("malloc", List(BinaryExpression(ArithExpression(Type.getElementCount(fc.args.head.t)), BinaryExpressionT.Operator.*,
                 FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(buffer2_cvar.t)))
               )))), List(buffer2_cvar.t)) ) )
-
-
-        val cond_1 = BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.==, IntConstant(0))
-        val cond_2 = BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.==, ArithExpression(i.loopVar.range.max) )
-        val cond_3 = BinaryExpression(BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.%,  IntConstant(2)),
-          BinaryExpressionT.Operator.==, IntConstant(1) )
-        val cond_4 = BinaryExpression(BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.%,  IntConstant(2)),
-          BinaryExpressionT.Operator.==, IntConstant(0) )
 
         val funcall_1 = Block(Vector(funcall.copy( args = List(in, VarRefPure(buffer1_cvar), size) ) ) )
         val funcall_2 = Block(Vector(
@@ -170,15 +177,78 @@ object LowerIR2HostCAST {
 
         val if_else = Block(Vector(IfThenElifIm(List(cond_1, cond_2, cond_3, cond_4), List(funcall_1, funcall_2, funcall_3, funcall_4), Block() ) ) )
 
-        val init = VarDeclPure( i_cvar, i_cvar.t, Some(IntConstant(0)) )
-        val cond = BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.<=, ArithExpression(i.loopVar.range.max) )
-        val increment = UnaryExpression("++", (i_cvar) )
         val forloop = ForLoopIm(init,cond,increment,if_else)
 
         Block(Vector(buffer1_decl, buffer2_decl, forloop), global = true)
 
       case "GPU" =>
-        Block()
+
+        var funcall_tmp : MethodInvocation = null
+        body visitBy {
+          case ExpressionStatement(fc@MethodInvocation(_,"enqueueNDRangeKernel",_,_),_) => funcall_tmp = fc
+          case _ =>
+        }
+        assert(funcall_tmp != null, "Can not find funcall in Iterate")
+        val funcall = funcall_tmp
+
+        val arg_list : ArrayBuffer[MethodInvocation] = ArrayBuffer.empty[MethodInvocation]
+        body visitBy {
+          case ExpressionStatement(fc@MethodInvocation(_,"setArg",_,_),_) => arg_list += fc
+          case _ =>
+        }
+        val args = arg_list.toList
+        val args_sorted = args.sortWith {
+          (arg1, arg2) => {
+            val MethodInvocation(_, _, IntConstant(order1) :: _ , _) = arg1
+            val MethodInvocation(_, _, IntConstant(order2) :: _ , _) = arg2
+            order1 < order2
+          }
+        }
+        val in_setarg :: out_setarg :: size_setarg :: Nil = args_sorted
+        val MethodInvocation(_,_, _ :: in :: Nil, _) = in_setarg
+        val MethodInvocation(_,_, _ :: out :: Nil, _) = out_setarg
+        val MethodInvocation(_,_, _ :: size :: Nil, _) = size_setarg
+
+        val buffer1_cvar = CVarWithType("gpu_buffer1", ClassOrStructType("cl::Buffer"))
+        val buffer2_cvar = CVarWithType("gpu_buffer2", ClassOrStructType("cl::Buffer"))
+        val buffer1_decl = ObjectDecl(buffer1_cvar, buffer1_cvar.t,
+          List(
+            StringConstant("context"),
+            StringConstant("CL_MEM_READ_WRITE"),
+            BinaryExpression(ArithExpression(Type.getElementCount(fc.args.head.t)), BinaryExpressionT.Operator.*,
+              FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(  TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(fc.args.head.t))  ))) )
+          )
+        )
+        val buffer2_decl = ObjectDecl(buffer2_cvar, buffer2_cvar.t,
+          List(
+            StringConstant("context"),
+            StringConstant("CL_MEM_READ_WRITE"),
+            BinaryExpression(ArithExpression(Type.getElementCount(fc.args.head.t)), BinaryExpressionT.Operator.*,
+              FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(TypeLowering.GetElementTypeFromPointer(  TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(fc.args.head.t))  )))) )
+          )
+        )
+
+        val setArg1_buffer1 = out_setarg.copy(args = List(IntConstant(1), VarRefPure(buffer1_cvar)))
+        val funcall_1 = Block(Vector(in_setarg, setArg1_buffer1, size_setarg, funcall) )
+        val setArg0_buffer1 = out_setarg.copy(args = List(IntConstant(0), VarRefPure(buffer1_cvar)))
+        val setArg0_buffer2 = out_setarg.copy(args = List(IntConstant(0), VarRefPure(buffer2_cvar)))
+        val last_iter_in_arg =
+          IfThenElseIm(
+            cond_4,
+            Block(Vector(setArg0_buffer1)),
+            Block(Vector(setArg0_buffer2))
+          )
+        val funcall_2 = Block(Vector( last_iter_in_arg, out_setarg, size_setarg, funcall) )
+        val setArg1_buffer2 = out_setarg.copy(args = List(IntConstant(1), VarRefPure(buffer2_cvar)))
+        val funcall_3 = Block(Vector(setArg0_buffer1, setArg1_buffer2, size_setarg, funcall) )
+        val funcall_4 = Block(Vector(setArg0_buffer2, setArg1_buffer1, size_setarg, funcall) )
+
+        val if_else = Block(Vector(IfThenElifIm(List(cond_1, cond_2, cond_3, cond_4), List(funcall_1, funcall_2, funcall_3, funcall_4), Block() ) ) )
+
+        val forloop = ForLoopIm(init,cond,increment,if_else)
+
+        Block(Vector(buffer1_decl, buffer2_decl, forloop), global = true)
+
     }
 
     //Block()

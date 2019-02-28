@@ -2,7 +2,7 @@ package cbackends.global.lowering
 
 import cbackends.host.host_ir._
 import core.generator.GenericAST.{Block, CVarWithType, ClassOrStructType, RawCode, VarDeclPure}
-import ir.ast.{Expr, FunCall, Lambda, Param, Value}
+import ir.ast.{Expr, FunCall, Iterate, Lambda, Param, Value}
 
 object GenerateGlobalClockDecl {
 
@@ -60,6 +60,12 @@ object GenerateGlobalClockDecl {
           generate(_, Block(global = true) ) ).toList
 
         ( ( block_for_this_call /: all_arg_blocks ) ( _ :++ _) ) :++ block
+
+      case fc@FunCall(i:Iterate, arg) =>
+        val arg_block = generate(arg, Block(global = true))
+        val body_block = generate(i.f.body, Block(global = true))
+
+        arg_block :++ body_block :++ block
 
 
       case _:Param|_:Value =>

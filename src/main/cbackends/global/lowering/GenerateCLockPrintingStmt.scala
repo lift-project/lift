@@ -2,7 +2,7 @@ package cbackends.global.lowering
 
 import cbackends.host.host_ir._
 import core.generator.GenericAST.{AssignmentExpression, Block, CVarWithType, ClassOrStructType, DoubleType, ExpressionStatement, FunctionCall, RawCode, StringConstant, VarDeclPure, VarRefPure}
-import ir.ast.{Expr, FunCall, Lambda, Param, Value}
+import ir.ast.{Expr, FunCall, Iterate, Lambda, Param, Value}
 
 object GenerateCLockPrintingStmt {
 
@@ -194,6 +194,14 @@ object GenerateCLockPrintingStmt {
         }
 
         ( (block :++ print_for_this_call ) /: arg_blocks) (_ :++ _)
+
+
+      case fc@FunCall(i:Iterate, arg) =>
+        val arg_block = generate(arg, Block(global = true))
+        val body_block = generate(i.f.body, Block(global = true))
+
+        arg_block :++ body_block :++ block
+
 
       case _: Param | _: Value =>
         block
