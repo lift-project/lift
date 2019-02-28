@@ -1,7 +1,7 @@
 package cbackends.host
 
 import ir.ast.Pad.Boundary.WrapUnsafe
-import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
+import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{Cst, SizeVar}
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
@@ -1127,5 +1127,35 @@ class TestHost {
     println("Test case test_iterate done!")
   }
   */
+
+  val tuple_in_tuple_out = UserFun("tuple_in_tuple_out", Array("l", "r"),
+    "{ return {l+1, r+1}; }",
+    Seq(Float, Float), TupleType(Float,Float)
+  )
+
+  @Test
+  def test_zip_unzip(): Unit = {
+
+    val path = s"$common_path/31.iterate_zip"
+    val file = "libiterate_zip.cpp"
+
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (left, right) =>  Unzip() o MapSeq( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) $ Zip(left, right)
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "6 6 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
 
 }
