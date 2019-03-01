@@ -9,15 +9,15 @@ object CPUOutlineTargetAnalysis {
 
   def apply (lambda: Lambda) : List[Lambda] = {
 
-    val online_targests = scala.collection.mutable.ListBuffer.empty[Lambda]
+    val online_targets = scala.collection.mutable.ListBuffer.empty[Lambda]
 
     lambda visitBy {
-      case cf@FunCall(c:CPUFunc, _*) => c.f.funcName = c.funcName; online_targests += c.f
-      //case cf@FunCall(c:CPUFunc2, _*) => c.f.funcName = c.funcName; online_targests += c.f
+      case cf@FunCall(c:CPUFunc, _*) => c.f.funcName = c.funcName; online_targets += c.f
+      //case cf@FunCall(c:CPUFunc2, _*) => c.f.funcName = c.funcName; online_targets += c.f
       case _ =>
     }
 
-    online_targests.toList
+    online_targets.toList
 
   }
 
