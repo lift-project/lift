@@ -1,14 +1,12 @@
-package cbackends.onnx.lift_nn_ir.host_ir
+package patterns.nn.conv
 
 import cbackends.host.host_ir.CPUFunc
-import ir.{ArrayTypeWSWC, ast}
-import ir.ast.{Expr, FunCall, FunDecl, Get, Join, Lambda, Param, Slide3D, Slide3D_R, SlideND, Zip, fun}
-import lift.arithmetic.SizeVar
-import opencl.ir.pattern
+import ir.ArrayTypeWSWC
+import ir.ast.{Expr, FunCall, Get, Join, Slide3D_R, Zip, fun}
 import opencl.ir.pattern.{MapSeq, ReduceSeq}
-import opencl.ir.{Float, add, _}
+import opencl.ir.{add, mult, _}
 
-object Conv3D {
+object ConvCPU3D {
 
   def apply(fc: FunCall, input:Expr, weights:Expr) : Expr = {
     //def apply() : FunDecl = {

@@ -1,7 +1,6 @@
 package cbackends.global
 
 import cbackends.host.host_ir._
-import cbackends.onnx.lift_nn_ir.host_ir.Pool3D
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
@@ -10,6 +9,7 @@ import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import opencl.ir.{Float, add, dividedBy, _}
 import org.junit.Assert._
 import org.junit.Test
+import patterns.nn.pool.PoolCPU3D
 import rewriting.Rewrite
 import rewriting.rules.Rules
 import rewriting.utils.NumberPrinter

@@ -1,11 +1,11 @@
 package cbackends.onnx.lowering
 
 //import ir.ast.nnet.Conv
-import cbackends.onnx.lift_nn_ir.Conv
-import cbackends.onnx.lift_nn_ir.host_ir.{Conv3D, Pool3D}
 import ir.ast.onnx.{AveragePool, ConvWithoutBias}
 import ir.ast.{Expr, FunCall, FunDecl, IRNode, Lambda, Param}
 import opencl.ir.id
+import patterns.nn.conv.ConvCPU3D
+import patterns.nn.pool.PoolCPU3D
 
 object LoweringONNXIR2LiftHostIR {
 
@@ -19,9 +19,9 @@ object LoweringONNXIR2LiftHostIR {
         //FunCall(Conv3D(), args(0) )
         //transform_conv_without_bias(fc)
         assert(args.length == 2)
-        Conv3D(fc, transform(fc.args(0)), transform(fc.args(1) ))
+        ConvCPU3D(fc, transform(fc.args(0)), transform(fc.args(1) ))
       case fc @ FunCall(p:AveragePool, arg) =>
-        Pool3D(fc, transform(arg))
+        PoolCPU3D(fc, transform(arg))
       case x =>
         x
     }

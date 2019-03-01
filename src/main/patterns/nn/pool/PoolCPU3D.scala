@@ -1,13 +1,12 @@
-package cbackends.onnx.lift_nn_ir.host_ir
+package patterns.nn.pool
 
 import cbackends.host.host_ir.CPUFunc
 import ir.ast.onnx.AveragePool
-import ir.ast.{Expr, FunCall, Join, Param, Slide3D, Slide3D_R, fun}
-import lift.arithmetic.Cst
+import ir.ast.{Expr, FunCall, Join, Slide3D_R, fun}
 import opencl.ir.pattern.{MapSeq, ReduceSeq}
-import opencl.ir.{Float, add, dividedBy, _}
+import opencl.ir.{add, dividedBy, _}
 
-object Pool3D {
+object PoolCPU3D {
 
   def apply(fc: FunCall, in: Expr) : Expr = {
 
