@@ -79,18 +79,21 @@ class TestAbsorbingBoundaryConditions
       (input) => {
         MapGlb(0)(fun(neighbourhood => {
 
-          val main = toPrivate(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
-          val boundaryL = toPrivate(id) $ input.at(0)
+//          val main = toPrivate(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+          val main = PrintType()  o toPrivate(MapSeqUnroll(id)) o /* toPrivate(id) o*/ ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+          val stencil = main.at(0)
+          val boundaryL = PrintType() o toPrivate(id) $ input.at(0)
           val boundaryR = toPrivate(id) $ input.at(N-1)
 
-          val returnValue =  toGlobal(id) o toPrivate(fun(x => mult(x,main))) o
+          val returnValue =  toGlobal(id) o toPrivate(fun(x => mult(x,stencil))) o
             toPrivate(fun(x => add(x,boundaryL))) $ boundaryR
 
-          returnValue
+           returnValue
 
           })) o Slide(a,b) o PadConstant(1,1,0.0f) $ input // Zip( , 0.0f) // ArrayFromUserFunGenerator(0,ArrayTypeWSWC(Float,size+2)), ArrayFromValue(input.at(N-1),ArrayTypeWSWC(Float,size+2)))
       }
     )
+    println(Compile(stencil1D(3,1)))
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values)
 
