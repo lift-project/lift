@@ -9,6 +9,7 @@ import opencl.generator.stencil.acoustic.{AcousticComparisonArrays, BoundaryUtil
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit._
+import org.junit.Assert._
 import rewriting.SimplifyAndFuse
 
 import scala.language.implicitConversions
@@ -60,9 +61,9 @@ class TestAbsorbingBoundaryConditions
 {
 
   /** 1D **/
-  // do stencil, then update boundary points
+  // do stencil, access just boundary points
   @Test
-  def joinMainStencilAndBoundary(): Unit = {
+  def joinMainStencilAndBoundary1D(): Unit = {
 
     val slidesize = 3
     val slidestep = 1
@@ -71,6 +72,13 @@ class TestAbsorbingBoundaryConditions
 
     val nBpts = 2 // number of boundary points
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+    val bL = values(0)
+    val bR = values(size-1)
+    val bAdded = bL + bR
+    val padValue = 0
+    val padLR = Array.fill(1)(padValue.toFloat)
+    val paddedValues = padLR ++ Array.tabulate(size) { (i) => (i + 1).toFloat } ++ padLR
+    val gold = paddedValues.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _)).map(z => z*bAdded)
 
     val idxF = UserFun("idxF", Array("i", "n"), "{ return i; }", Seq(Int, Int), Int)
 
@@ -93,13 +101,15 @@ class TestAbsorbingBoundaryConditions
           })) o Slide(a,b) o PadConstant(1,1,0.0f) $ input // Zip( , 0.0f) // ArrayFromUserFunGenerator(0,ArrayTypeWSWC(Float,size+2)), ArrayFromValue(input.at(N-1),ArrayTypeWSWC(Float,size+2)))
       }
     )
-    println(Compile(stencil1D(3,1)))
+//    println(Compile(stencil1D(3,1)))
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values)
 
-    StencilUtilities.print1DArray(values)
-    StencilUtilities.print1DArray(output)
-//    assertArrayEquals(gold, output, 0.1f)
+//    StencilUtilities.print1DArray(values)
+//    StencilUtilities.print1DArray(gold)
+//    StencilUtilities.print1DArray(output)
+
+    assertArrayEquals(gold, output, 0.1f)
 
   }
 
