@@ -28,15 +28,15 @@ object OclOutlineTargetAnalysis {
 
   def apply (lambda: Lambda) : Map[String, Lambda] = {
 
-    //val online_targests = scala.collection.mutable.ListBuffer.empty[Lambda]
-    val online_targests = mutable.Map.empty[String,Lambda]
+    //val online_targets = scala.collection.mutable.ListBuffer.empty[Lambda]
+    val online_targets = mutable.Map.empty[String,Lambda]
 
     lambda visitBy {
-      case cf@FunCall(c:OclFunc, _*) => c.f.funcName = c.funcName; online_targests += ("kernel_"+cf.gid+".cl") -> c.f
+      case cf@FunCall(c:OclFunc, _*) => c.f.funcName = c.funcName; online_targets += ("kernel_"+cf.gid+".cl") -> c.f
       case _ =>
     }
 
-    online_targests.toMap
+    online_targets.toMap
 
   }
 
