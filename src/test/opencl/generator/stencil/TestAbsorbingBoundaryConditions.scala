@@ -5,12 +5,11 @@ import ir.ast._
 import ir.ast.debug.PrintType
 import lift.arithmetic.SizeVar
 import opencl.executor._
-import opencl.generator.stencil.acoustic.{AcousticComparisonArrays, BoundaryUtilities, RoomConstants, StencilUtilities}
+import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
 import opencl.ir.pattern._
-import org.junit._
 import org.junit.Assert._
-import rewriting.SimplifyAndFuse
+import org.junit._
 
 import scala.language.implicitConversions
 
@@ -141,15 +140,25 @@ class TestAbsorbingBoundaryConditions
 
     val idxF = UserFun("idxF", Array("i", "n"), "{ return i; }", Seq(Int, Int), Int)
 
+    val stencilLambda = fun(
+      ArrayType(Float, SizeVar("N")),
+      (input) => {
+        toGlobal(MapGlb(id)) o Join() o MapGlb(ReduceSeq(add, 0.0f)) o
+          Slide(3, 1) o PadConstant(1, 1, 0.0f) $ input
+      }
+    )
+
     def stencil1D(a: Int, b: Int) = fun(
       ArrayTypeWSWC(Float,N),
       (input) => {
-        MapGlb(0)(fun(tup => {
+        PrintType() o
+         MapGlb(0)(fun(tup => {
 
           val neighbourhood = Get(tup,1)
           val t = Get(tup,0)
 
-          val main = toPrivate(MapSeqUnroll(id)) o /* toPrivate(id) o*/ ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+          //val main = toPrivate(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+          val main = /* Join() o  PadConstant(1,1,0.0f) o */ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
           val stencil = main.at(0)
           val boundaryL = toPrivate(fun(x => mult(x,constL))) $ input.at(0)
           val boundaryR = toPrivate(fun(x => mult(x,constR))) $ input.at(N-1)
@@ -159,10 +168,12 @@ class TestAbsorbingBoundaryConditions
           // somehow try to form Array(Array(boundaryL),Array(stencil),Array(boundaryR)) -- BUT this needs to be done outside of the Map itself!
           // // otherwise will end up with something like Array(Array(boundaryL, value calculated from stencil 1, boundaryR), Array(boundaryL, value calculated from stencil 2, boundaryR)....)
 
-          //toGlobal(MapSeqUnroll(id)) o Join() $ Value(0.0f,ArrayTypeWSWC(ArrayTypeWSWC(Float, 1),1)) // this works but doesn't do anything useful
-          toGlobal(MapSeqUnroll(id)) o Join() $ Value(ArrayTypeWSWC(ArrayTypeWSWC(Float, 1),1)) // this works but doesn't do anything useful
+          // toGlobal(MapSeqUnroll(id)) o Join() $ Value(0.0f,ArrayTypeWSWC(ArrayTypeWSWC(Float, 1),1)) // this works but doesn't do anything useful
+          // PadConstant(1,0,0.0f) o toGlobal(MapSeqUnroll(id))  $ main  // this does something unexpected!
+           toGlobal(MapSeqUnroll(id))  $ main
 
         })) $ Zip(input, Slide(a,b) o PadConstant(1,1,0.0f) $ input) // Zip( , 0.0f) // ArrayFromUserFunGenerator(0,ArrayTypeWSWC(Float,size+2)), ArrayFromValue(input.at(N-1),ArrayTypeWSWC(Float,size+2)))
+
       }
     )
     println(Compile(stencil1D(3,1)))
@@ -174,6 +185,158 @@ class TestAbsorbingBoundaryConditions
     StencilUtilities.print1DArray(output)
 
 //    assertArrayEquals(gold, output, 0.1f)
+
+  }
+
+  // does not work as expected
+  @Test
+  def padOutside(): Unit = {
+
+    val slidesize = 3
+    val slidestep = 1
+    val size = 10
+    val N = SizeVar("N")
+
+    val nBpts = 2 // number of boundary points
+    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+
+    def stencil1D(a: Int, b: Int) = fun(
+      ArrayTypeWSWC(Float,N),
+      (input) => {
+        PadConstant(2,2,0.0f) o
+          MapGlb(0)(fun(neighbourhood => {
+            toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+          })) o Slide(a,b) o PadConstant(1,1,0.0f) $ input
+      }
+    )
+    println(Compile(stencil1D(3,1)))
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values)
+
+    StencilUtilities.print1DArray(values)
+    StencilUtilities.print1DArray(output)
+
+  }
+
+  // does not work as expected
+  @Test
+  def padConstantBetween(): Unit = {
+
+    val slidesize = 3
+    val slidestep = 1
+    val size = 10
+    val N = SizeVar("N")
+
+    val nBpts = 2 // number of boundary points
+    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+
+    def stencil1D(a: Int, b: Int) = fun(
+      ArrayTypeWSWC(Float,N),
+      (input) => {
+          MapGlb(0)(fun(neighbourhood => {
+            toGlobal(MapSeqUnroll(id)) o PadConstant(1,1,0.0f) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+          })) o Slide(a,b) o PadConstant(1,1,0.0f) $ input
+      }
+    )
+    println(Compile(stencil1D(3,1)))
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values)
+
+    StencilUtilities.print1DArray(values)
+    StencilUtilities.print1DArray(output)
+
+  }
+
+  // works, but does not do anything useful
+  @Test
+  def returnShell(): Unit = {
+
+    val slidesize = 3
+    val slidestep = 1
+    val size = 10
+    val N = SizeVar("N")
+
+    val nBpts = 2 // number of boundary points
+    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+
+    def stencil1D(a: Int, b: Int) = fun(
+      ArrayTypeWSWC(Float,N),
+      (input) => {
+        MapGlb(0)(fun(neighbourhood => {
+          toGlobal(MapSeqUnroll(id)) o Join() $ Value(0.0f,ArrayTypeWSWC(ArrayTypeWSWC(Float, 1),1))
+        }))  $ input
+      }
+    )
+    println(Compile(stencil1D(3,1)))
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values)
+
+    StencilUtilities.print1DArray(values)
+    StencilUtilities.print1DArray(output)
+
+  }
+
+
+  @Test
+  def stencilPlayground(): Unit = {
+
+    val slidesize = 3
+    val slidestep = 1
+    val size = 10
+    val N = SizeVar("N")
+
+    val nBpts = 2 // number of boundary points
+    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+    val bL = values(0)
+    val bR = values(size-1)
+    val bAdded = bL + bR
+    val padValue = 0
+    val padLR = Array.fill(1)(padValue.toFloat)
+    val paddedValues = padLR ++ Array.tabulate(size) { (i) => (i + 1).toFloat } ++ padLR
+    val gold = paddedValues.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _)).map(z => z*bAdded)
+
+    val constL = 2.0f
+    val constR = 3.0f
+
+    val idxF = UserFun("idxF", Array("i", "n"), "{ return i; }", Seq(Int, Int), Int)
+
+    val stencilLambda = fun(
+      ArrayType(Float, SizeVar("N")),
+      (input) => {
+        PadConstant(1,1,0.0f) o toGlobal(MapGlb(id)) o Join() o MapGlb(ReduceSeq(absAndSumUp, 0.0f)) o
+          Slide(3, 1) o PadConstant(1, 1, 0.0f) $ input
+      }
+    )
+
+    def stencil1D(a: Int, b: Int) = fun(
+      ArrayTypeWSWC(Float,N),
+      (input) => {
+        PrintType() o
+          MapGlb(0)(fun(neighbourhood => {
+
+            //val main = toPrivate(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+            val main = /* Join() o  PadConstant(1,1,0.0f) o */  PrintType() o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+            val stencil = main.at(0)
+
+            // toGlobal(MapSeqUnroll(id)) o Join() $ Value(0.0f,ArrayTypeWSWC(ArrayTypeWSWC(Float, 1),1)) // this works but doesn't do anything useful
+            // PadConstant(1,0,0.0f) o toGlobal(MapSeqUnroll(id))  $ main  // this does something unexpected!
+            toGlobal(MapSeqUnroll(id))  $ main
+
+          })) o  Slide(a,b) o PadConstant(1,1,0.0f) $ input // Zip( , 0.0f) // ArrayFromUserFunGenerator(0,ArrayTypeWSWC(Float,size+2)), ArrayFromValue(input.at(N-1),ArrayTypeWSWC(Float,size+2)))
+
+      }
+    )
+    // println(Compile(stencil1D(3,1)))
+  println(Compile(stencilLambda))
+
+   // val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(3,1), values)
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencilLambda, values)
+
+    StencilUtilities.print1DArray(values)
+    StencilUtilities.print1DArray(gold)
+    StencilUtilities.print1DArray(output)
+
+    //    assertArrayEquals(gold, output, 0.1f)
 
   }
 
