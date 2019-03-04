@@ -1,5 +1,5 @@
 import lift.arithmetic._
-import rewriting.rules.{Rule, Rules}
+import rewriting.rules.{NeuralNetRules, Rule, Rules}
 import rewriting.rules.Rules._
 import rewriting.rules.IterateRules._
 import rewriting.rules.OpenCLRules._
@@ -172,6 +172,11 @@ package object rewriting {
       reorderBothSidesWithStride(stride),
       partialReduceReorder(stride),
       partialReduceSplitJoin(split)
+    )
+
+    val onnxLoweringRules = Seq(
+      NeuralNetRules.ONNXLoweringRules.convWithoutBiasAsCPUFunc,
+      NeuralNetRules.ONNXLoweringRules.averagePoolAsCPUFunc
     )
 
   }
