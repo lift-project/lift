@@ -1,105 +1,96 @@
+import lift.arithmetic.Var
+
 package object exploration {
-  trait Parameter {
-    val name: String
-  }
-
-  class IndependentParameter[+T](val name: String,
-                                 val shortName: String,
-                                 val range: Seq[T]) extends Parameter
-
   trait ValidationRule {
-    val params: Seq[Parameter]
+    val params: Seq[Var]
 
     val name: String
     val comment: String
 
-    def isValid(values: Seq[Any]): Boolean
+    def isValid(values: Seq[Int]): Boolean
   }
 
-  case class ValidationRule1D[T0 <: Any](name: String,
-                                         comment: String,
-                                         param0: Parameter,
-                                         condition: (T0) => Boolean)
+  case class ValidationRule1D(name: String,
+                              comment: String,
+                              param0: Var,
+                              condition: (Int) => Boolean)
     extends ValidationRule {
-    val params: Seq[Parameter] = Seq(param0)
+    val params: Seq[Var] = Seq(param0)
 
-    def isValid(values: Seq[Any]): Boolean = condition(values(0).asInstanceOf[T0])
+    def isValid(values: Seq[Int]): Boolean = condition(values: _*)
   }
 
-  case class ValidationRule2D[T0 <: Any, T1 <: Any](name: String,
-                                                    comment: String,
-                                                    param0: Parameter,
-                                                    param1: Parameter,
-                                                    condition: (T0, T1) => Boolean)
+  case class ValidationRule2D(name: String,
+                              comment: String,
+                              param0: Var,
+                              param1: Var,
+                              condition: (Int, Int) => Boolean)
     extends ValidationRule {
-    val params: Seq[Parameter] = Seq(param0, param1)
+    val params: Seq[Var] = Seq(param0, param1)
 
-    def isValid(values: Seq[Any]): Boolean =
-      condition(values(0).asInstanceOf[T0], values(1).asInstanceOf[T1])
+    def isValid(values: Seq[Int]): Boolean = condition(values: _*)
 
   }
 
-  case class ValidationRule3D[T0 <: Any, T1 <: Any, T2 <: Any](name: String,
-                                                               comment: String,
-                                                               param0: Parameter,
-                                                               param1: Parameter,
-                                                               param2: Parameter,
-                                                               condition: (T0, T1, T2) => Boolean)
+  case class ValidationRule3D(name: String,
+                              comment: String,
+                              param0: Var,
+                              param1: Var,
+                              param2: Var,
+                              condition: (Int, Int, Int) => Boolean)
     extends ValidationRule {
-    val params: Seq[Parameter] = Seq(param0, param1, param2)
+    val params: Seq[Var] = Seq(param0, param1, param2)
 
-    def isValid(values: Seq[Any]): Boolean =
-      condition(values(0).asInstanceOf[T0], values(1).asInstanceOf[T1], values(2).asInstanceOf[T2])
+    def isValid(values: Seq[Int]): Boolean = condition(values: _*)
   }
 
   object ValidationRule {
-    def apply[T0 <: Any](name: String, comment: String,
-                         param0: Parameter,
-                         condition: (T0) => Boolean): ValidationRule1D[T0] =
+    def apply(name: String, comment: String,
+              param0: Var,
+              condition: (Int) => Boolean): ValidationRule1D =
       ValidationRule1D(name, comment, param0, condition)
 
-    def apply[T0 <: Any, T1 <: Any](name: String, comment: String,
-                                    param0: Parameter, param1: Parameter,
-                                    condition: (T0, T1) => Boolean): ValidationRule2D[T0, T1] =
+    def apply(name: String, comment: String,
+              param0: Var, param1: Var,
+              condition: (Int, Int) => Boolean): ValidationRule2D =
       ValidationRule2D(name, comment, param0, param1, condition)
 
-    def apply[T0 <: Any, T1 <: Any, T2 <: Any](name: String, comment: String,
-                                               param0: Parameter, param1: Parameter, param2: Parameter,
-                                               condition: (T0, T1, T2) => Boolean): ValidationRule3D[T0, T1, T2] =
+    def apply(name: String, comment: String,
+              param0: Var, param1: Var, param2: Var,
+              condition: (Int, Int, Int) => Boolean): ValidationRule3D =
       ValidationRule3D(name, comment, param0, param1, param2, condition)
   }
 
   /**
     * ValidationRules contains the list of rules and a map of parameters, where with each parameter we associate
-    * a list of rules that apply to the parameter. Same rule might be referenced my multiple such lists.
+    * a list of rules that apply to the parameters. Same rule might be referenced my multiple such lists.
     *
     * @param rules List of unique rules
     * @param rulesPerParam A map of parameters to corresponding rules
     */
-  case class ValidationRules(rules: Seq[ValidationRule],
-                             rulesPerParam: Map[Parameter, Seq[ValidationRule]])
+  case class ValidationRules(rules: Vector[ValidationRule],
+                             rulesPerParam: Map[Var, List[ValidationRule]])
 
   object ValidationRules {
-    def apply(rules: Seq[ValidationRule]): ValidationRules =
+    def apply(rules: Vector[ValidationRule]): ValidationRules =
       new ValidationRules(rules, populate(rules))
 
     /**
-      * Populates the parameter-rules map recursively
+      * Populates the parameter rules map recursively
       */
-    def populate(rulesToTraverse: Seq[ValidationRule]): Map[Parameter, Seq[ValidationRule]] = {
+    def populate(rulesToTraverse: Vector[ValidationRule]): Map[Var, List[ValidationRule]] = {
 
-      def updateMap(paramRules: Map[Parameter, Seq[ValidationRule]],
-                    param: Parameter,
-                    rule: ValidationRule): Map[Parameter, Seq[ValidationRule]] = {
-        if (paramRules.isEmpty || !paramRules.contains(param))
-          paramRules + (param -> Seq(rule))
+      def updateMap(paramRules: Map[Var, List[ValidationRule]],
+                    param: Var,
+                    rule: ValidationRule): Map[Var, List[ValidationRule]] = {
+        if (paramRules.isEmpty || !paramRules.keySet.exists(p => p.name == param.name))
+          paramRules + (param -> List(rule))
         else
           paramRules + (param -> (rule +: paramRules(param)))
       }
 
       rulesToTraverse match {
-        case Nil => Map.empty[Parameter, Seq[ValidationRule]]
-        case rule :: rest => rule match {
+        case rule +: rest => rule match {
 
           case r@ValidationRule1D(_, _, param0, _) =>
             updateMap(populate(rest), param0, r)
@@ -112,6 +103,7 @@ package object exploration {
 
           case _ => throw new IllegalArgumentException("Unexpected rule type")
         }
+        case IndexedSeq() => Map.empty[Var, List[ValidationRule]]
       }
     }
   }

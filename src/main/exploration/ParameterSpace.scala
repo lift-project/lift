@@ -1,5 +1,8 @@
 package exploration
 
+import ir.ast.Expr
+import lift.arithmetic.{Cst, Var}
+
 /**
   * All information defining parameter space
   *
@@ -8,7 +11,6 @@ package exploration
   * @param combinations generated combinations
   * @param numberOfCombinations the number of combinations stored (might be a subset of all possible combinations)
   */
-class ParameterSpace(val parameters: Seq[IndependentParameter[Any]],
-                     val validationRules: ValidationRules,
-                     val combinations: Seq[Seq[Any]],
-                     val numberOfCombinations: Int)
+class ParameterSpace(val parameters: Vector[Var],
+                     val validationRules: ValidationRules) {
+}
