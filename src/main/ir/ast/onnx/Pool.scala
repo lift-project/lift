@@ -6,7 +6,7 @@ import ir.interpreter.Interpreter.ValueMap
 import lift.arithmetic.{ArithExpr, CeilingFunction, Cst, FloorFunction}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
-abstract class Pool(override val arity: Int) extends Pattern(arity) {
+abstract class Pool(override val arity: Int) extends Pattern(arity) with ONNXPattern {
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
     throw new NotImplementedException()

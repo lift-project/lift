@@ -4,6 +4,8 @@ import ir.{ArrayType, Type}
 import lift.arithmetic.{ArithExpr, Cst}
 
 package object onnx {
+  trait ONNXPattern
+
   trait Broadcastable {
     def tryBroadcastingShapes(typeA: ArrayType, typeB: ArrayType): Option[Seq[ArithExpr]] = {
       val (shape1, shape2) = {

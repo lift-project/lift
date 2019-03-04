@@ -20,7 +20,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
   * @param shape The list of lengths of the new shape. One length can be unknown and indicated with (-1). See ONNX spec.
   */
 
-class Reshape private(val shape: List[ArithExpr]) extends Pattern(arity = 1) {
+class Reshape private(val shape: List[ArithExpr]) extends Pattern(arity = 1) with ONNXPattern {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

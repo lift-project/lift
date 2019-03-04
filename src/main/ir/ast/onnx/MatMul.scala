@@ -11,7 +11,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
   * See https://github.com/onnx/onnx/blob/master/docs/Operators.md
   */
 
-case class MatMul() extends Pattern(arity = 2) {
+case class MatMul() extends Pattern(arity = 2) with ONNXPattern {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
