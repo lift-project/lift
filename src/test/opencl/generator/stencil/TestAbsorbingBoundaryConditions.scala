@@ -203,7 +203,36 @@ class TestAbsorbingBoundaryConditions
     def stencil1D(a: Int, b: Int) = fun(
       ArrayTypeWSWC(Float,N),
       (input) => {
-        PadConstant(2,2,0.0f) o
+        PadConstant(2,2,1.0f) o
+          MapGlb(0)(fun(neighbourhood => {
+            toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+          })) o Slide(a,b) o PadConstant(1,1,0.0f) $ input
+      }
+    )
+    println(Compile(stencil1D(3,1)))
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values)
+
+    StencilUtilities.print1DArray(values)
+    StencilUtilities.print1DArray(output)
+
+  }
+
+  @Test
+  def padOutside2(): Unit = {
+
+    val slidesize = 3
+    val slidestep = 1
+    val size = 10
+    val N = SizeVar("N")
+
+    val nBpts = 2 // number of boundary points
+    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+
+    def stencil1D(a: Int, b: Int) = fun(
+      ArrayTypeWSWC(Float,N),
+      (input) => {
+        toGlobal(MapSeq(id)) o PadConstant(2,2,4.2f) o Join() o
           MapGlb(0)(fun(neighbourhood => {
             toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
           })) o Slide(a,b) o PadConstant(1,1,0.0f) $ input
@@ -263,7 +292,7 @@ class TestAbsorbingBoundaryConditions
       ArrayTypeWSWC(Float,N),
       (input) => {
         MapGlb(0)(fun(neighbourhood => {
-          toGlobal(MapSeqUnroll(id)) o Join() $ Value(0.0f,ArrayTypeWSWC(ArrayTypeWSWC(Float, 1),1))
+          toGlobal(MapSeqUnroll(id)) o Join() $ Value(1.0f,ArrayTypeWSWC(ArrayTypeWSWC(Float, 1),1))
         }))  $ input
       }
     )
