@@ -4,11 +4,11 @@ import cbackends.common.CBackendsCompilerTrait
 import cbackends.common.common_cast.CbackendCAST.SourceFile
 import cbackends.global.GlobalCompiler
 import cbackends.host.HostCompiler
-import cbackends.onnx.lowering.LoweringONNXIR2LiftHostIR
 import core.generator.GenericAST.{Block, CVarWithType}
 import ir.ast.Lambda
 import lift.arithmetic.ArithExpr
 import opencl.ir.OpenCLAddressSpace
+import rewriting.LowerONNXIR
 
 object ONNXCompiler extends CBackendsCompilerTrait{
 
@@ -27,7 +27,7 @@ object ONNXCompiler extends CBackendsCompilerTrait{
 
     assert(files.length == 2)
 
-    val lift_host_ir = LoweringONNXIR2LiftHostIR(onnx_ir)
+    val lift_host_ir = LowerONNXIR(onnx_ir)
 
     GlobalCompiler ! (lift_host_ir, path, List(files(0)) )
 
