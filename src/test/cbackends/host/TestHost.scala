@@ -1157,5 +1157,32 @@ class TestHost {
     println("Test case test_slide_hello done!")
   }
 
+  @Test
+  def test_iterate_zip_opencl(): Unit = {
+
+    val path = s"$common_path/14.iterate_zip"
+    val file = "libiterate_zip.cpp"
+
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      //(left, right) => Iterate(6)( CPUFunc( Unzip() o MapSeq( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) ) ) $ Zip(left, right)
+      (left, right) =>  MapGlb( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) )  $ Zip(left, right)
+    )
+
+
+    import opencl.executor.Compile
+    Compile(f)
+
+
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "6 6 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
 
 }

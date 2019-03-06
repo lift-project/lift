@@ -3,8 +3,8 @@ package cbackends.host.lowering
 import cbackends.common.common_ir.CPUMainMemoryAddressSpace
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir._
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IfThenElifIm, IfThenElseIm, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
-import ir.Type
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IfThenElifIm, IfThenElseIm, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, TypeDef, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
+import ir.{TupleType, Type}
 import ir.ast.Iterate
 import opencl.ir.pattern.{MapGlb, MapWrg}
 import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
@@ -570,6 +570,8 @@ object LowerIR2HostCAST {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 
+    val tuple_decl_code = generateTupleDecl(lambda)
+
     val ins_cvars = lambda.params.map(p => CVarWithType(p.mem.variable.toString,TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(p.t), flatType = true ) ))
     //val out_cvar = CVarWithType(lambda.body.mem.variable.toString, TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(lambda.body.t), flatType = true) )
     val out_cvar_in_execute = CVarWithType(lambda.body.mem.variable.toString, RefType(TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(lambda.body.t), flatType = true) ) )
@@ -585,7 +587,7 @@ object LowerIR2HostCAST {
     val core_body_code = generate(lambda)
 
     //( Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true ), all_signature_cvars )
-    Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true )
+    Block(Vector(boilerplate_code, tuple_decl_code :++ userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true )
 
 
 
@@ -596,6 +598,8 @@ object LowerIR2HostCAST {
   def apply_no_header(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)], generatePostExecuteHook: Boolean = false) : Block = {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
+
+    val tuple_decl_code = generateTupleDecl(lambda)
 
     val ins_cvars = lambda.params.map(p => CVarWithType(p.mem.variable.toString,TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(p.t), flatType = true ) ))
     //val out_cvar = CVarWithType(lambda.body.mem.variable.toString, TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(lambda.body.t), flatType = true) )
@@ -612,7 +616,7 @@ object LowerIR2HostCAST {
     val core_body_code = generate(lambda) :+ (if(generatePostExecuteHook) FunctionCall("post_execute", List()) else RawCode("") )
 
     //( Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true ), all_signature_cvars )
-    Block(Vector( userfun_decl_code, FunctionPure(lambda.funcName,VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true )
+    Block(Vector( tuple_decl_code :++ userfun_decl_code, FunctionPure(lambda.funcName,VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true )
 
 
 
@@ -701,6 +705,19 @@ object LowerIR2HostCAST {
       params = (uf.inTs, uf.paramNames).
         zipped.map((t, n) => ParamDeclPure(n, TypeLowering.IRType2CastType(t))).toList,
       body = Block( Vector( OclCode(uf.body) ), global = true))
+  }
+
+  private def generateTupleDecl(lambda: Lambda) : Block = {
+
+    val mutable_result = mutable.Set.empty[TupleType]
+    lambda visitBy {
+      case FunCall(uf: UserFun, _*) => mutable_result ++= uf.tupleTypes
+      case _ =>
+    }
+    val result = mutable_result.toSet
+
+    Block(result.map(TypeDef(_)).toVector, global = true)
+
   }
 
 

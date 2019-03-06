@@ -435,7 +435,8 @@ class TestGlobal {
     val f = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
-      (left, right) => Iterate(6)( CPUFunc( Unzip() o MapSeq( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) ) ) $ Zip(left, right)
+      //(left, right) => Iterate(6)( CPUFunc( Unzip() o MapSeq( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) ) ) $ Zip(left, right)
+      (left, right) => Iterate(6)( CPUFunc( MapSeq( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) ) ) $ Zip(left, right)
     )
 
     ("mkdir -p " + s"$path" ) !!
