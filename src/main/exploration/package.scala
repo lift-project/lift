@@ -1,13 +1,14 @@
 import lift.arithmetic.Var
+import utils.GraphSort
 
 package object exploration {
   trait ValidationRule {
-    val params: Seq[Var]
+    val params: Vector[Var]
 
     val name: String
     val comment: String
 
-    def isValid(values: Seq[Int]): Boolean
+    def isValid(values: Vector[Int]): Boolean
   }
 
   case class ValidationRule1D(name: String,
@@ -15,9 +16,9 @@ package object exploration {
                               param0: Var,
                               condition: (Int) => Boolean)
     extends ValidationRule {
-    val params: Seq[Var] = Seq(param0)
+    val params: Vector[Var] = Vector(param0)
 
-    def isValid(values: Seq[Int]): Boolean = condition(values: _*)
+    def isValid(values: Vector[Int]): Boolean = condition(values: _*)
   }
 
   case class ValidationRule2D(name: String,
@@ -26,9 +27,9 @@ package object exploration {
                               param1: Var,
                               condition: (Int, Int) => Boolean)
     extends ValidationRule {
-    val params: Seq[Var] = Seq(param0, param1)
+    val params: Vector[Var] = Vector(param0, param1)
 
-    def isValid(values: Seq[Int]): Boolean = condition(values: _*)
+    def isValid(values: Vector[Int]): Boolean = condition(values: _*)
 
   }
 
@@ -39,9 +40,9 @@ package object exploration {
                               param2: Var,
                               condition: (Int, Int, Int) => Boolean)
     extends ValidationRule {
-    val params: Seq[Var] = Seq(param0, param1, param2)
+    val params: Vector[Var] = Vector(param0, param1, param2)
 
-    def isValid(values: Seq[Int]): Boolean = condition(values: _*)
+    def isValid(values: Vector[Int]): Boolean = condition(values: _*)
   }
 
   object ValidationRule {
@@ -64,16 +65,36 @@ package object exploration {
   /**
     * ValidationRules contains the list of rules and a map of parameters, where with each parameter we associate
     * a list of rules that apply to the parameters. Same rule might be referenced my multiple such lists.
+    * The list of rules is sorted by the number of parameters they reference
     *
     * @param rules List of unique rules
     * @param rulesPerParam A map of parameters to corresponding rules
     */
-  case class ValidationRules(rules: Vector[ValidationRule],
-                             rulesPerParam: Map[Var, List[ValidationRule]])
+  class ValidationRules(val rules: Vector[ValidationRule],
+                        val rulesPerParam: Map[Var, List[ValidationRule]]) {
+    /**
+      * The list of params sorted by complexity of validation. The complexity of a parameter P is defined in terms
+      * of the number of other parameters that P is validated against, both directly through its immediate validation
+      * rules and through the validation rules of the parameters in its immediate validation rules.
+      */
+    lazy val validatedParamsSortedByComplexity: List[Var] = GraphSort.topologicalSort(
+      vertices = rulesPerParam.keysIterator.toVector,
+      edges = rulesPerParam.flatMap(pair => {
+        val param = pair._1
+        val paramRules = pair._2
+
+        paramRules.flatMap(paramRule =>
+          paramRule.params.map(paramRuleParam =>
+            (/*child param*/param, /*parent param*/paramRuleParam)))}).toArray)
+
+  }
 
   object ValidationRules {
-    def apply(rules: Vector[ValidationRule]): ValidationRules =
-      new ValidationRules(rules, populate(rules))
+    def apply(rules: Vector[ValidationRule]): ValidationRules = {
+      val sortedRules = rules.sortWith((rule1, rule2) => rule1.params.length <= rule2.params.length)
+
+      new ValidationRules(sortedRules, populate(sortedRules))
+    }
 
     /**
       * Populates the parameter rules map recursively
