@@ -12,20 +12,21 @@ object ConvStencil3D {
   def AT = ArrayType // alias
   type AT = ArrayType // alias
 
-  case class LayerConfig(// Input config
-                         nInputs: ArithExpr,
-                         inputWidthHeight: ArithExpr,
-                         inputChannels: ArithExpr,
-                         // Layer-specific config
-                         kernelWidthHeight: ArithExpr,
-                         kernelChannels: ArithExpr,
-                         kernelStride: ArithExpr)
+  case class LayerConfig[T <: ArithExpr](// Input config
+                                         nInputs: T,
+                                         inputWidthHeight: T,
+                                         inputChannels: T,
+                                         // Layer-specific config
+                                         kernelWidthHeight: T,
+                                         kernelChannels: T,
+                                         kernelStride: T,
+                                         padWidthHeight: T) // TODO: handle padding
 
   object LayerConfig {
     /**
       * Generates layer configuration based on the ONNX AST node and input data
       */
-    def apply(onnxNode: ir.ast.onnx.Conv, input: Expr): LayerConfig = {
+    def apply(onnxNode: ir.ast.onnx.Conv, input: Expr): LayerConfig[ArithExpr] = {
       val ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(Float, inputChannels), inputWidthHeight), _), nInputs) =
         input.t
 
@@ -34,10 +35,16 @@ object ConvStencil3D {
         onnxNode.kernelShape(ir.ast.onnx.Conv.firstSpatialDimension),
         onnxNode.kernelShape.head,
         /* all strides should be the same, hence one value suffices here */
-        onnxNode.strides(0))
+        onnxNode.strides(0),
+        /* all pads should be the same, hence one value suffices here */
+        onnxNode.pads(0))
     }
   }
 
+  /**
+    * During lowering, the expression for the Conv layer is created using default variables for OptParams without
+    * ranges. During parameter space exploration, they are replaced with constants (Cst()).
+    */
   case class OptParams[T <: ArithExpr](tileWidthHeight: T = Var("tileWidthHeight"),
                                        tileStride: T = Var("tileStride"),
 
@@ -49,7 +56,7 @@ object ConvStencil3D {
                                        unrollReduce: Boolean = false)
 
   /************************** Parallel layer **************************/
-  private def factory(activationF: UserFun, layerConfig: LayerConfig, optParams: OptParams[ArithExpr],
+  private def factory(activationF: UserFun, layerConfig: LayerConfig[ArithExpr], optParams: OptParams[ArithExpr],
                       input: Expr, weights: Expr, biases: Expr): (FunDecl, FunDecl) = {
     /*********** UserFuns ***********/
     val vectorisableMultAndSumUp = UserFun("vectorisableMultAndSumUp", Array("acc", "l", "r"),
@@ -387,7 +394,7 @@ object ConvStencil3D {
   /**
     * Produces a convolution expression without an activation function
     */
-  def apply(layerConfig: LayerConfig, optParams: OptParams[ArithExpr],
+  def apply(layerConfig: LayerConfig[ArithExpr], optParams: OptParams[ArithExpr],
             input: Expr, weights: Expr, biases: Expr): Expr = {
     apply(id, layerConfig, optParams, input, weights, biases)
   }
@@ -396,7 +403,7 @@ object ConvStencil3D {
   /**
     * Produces a convolution expression with an activation function
     */
-  def apply(activationF: UserFun, layerConfig: LayerConfig, optParams: OptParams[ArithExpr],
+  def apply(activationF: UserFun, layerConfig: LayerConfig[ArithExpr], optParams: OptParams[ArithExpr],
             input: Expr, weights: Expr, biases: Expr): Expr = {
 
     val (layerPartial: FunDecl, layerFinal: FunDecl) =
