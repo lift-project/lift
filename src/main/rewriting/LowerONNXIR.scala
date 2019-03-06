@@ -6,7 +6,7 @@ import rewriting.Rewrite.applyRuleAt
 import rewriting.rules.Rule
 import rewriting.utils.NumberExpression
 
-object LoweringONNXIR2LiftHostIR {
+object LowerONNXIR {
 
   case class AppliedRule(rule: Rule, position: Int)
   case class RuleApplication(expr: Expr, appliedRule: AppliedRule)
@@ -70,14 +70,10 @@ object LoweringONNXIR2LiftHostIR {
   }
 
 
-  def apply(lambda: Lambda, loweringRules: List[Rule]): List[Lambda] = {
-    // Find the nodes
+  def apply(lambda: Lambda, loweringRules: List[Rule]): List[(Expr, List[AppliedRule])] = {
+    // Find the nodes to lower
     val onnxNodes: List[Expr] = findONNXNodes(lambda.body)
-    // Map the expression with numeric IDs
-    val exprMap: collection.Map[Expr, Int] = NumberExpression.depthFirst(lambda.body)
 
-    val loweredExprs = lower(lambda.body, onnxNodes, loweringRules, List())
-
-    //    val tunableNodes: List[List[Expr]] = loweredExprs.map(expr => Utils.findTunableNodes(Lambda(lambda.params, expr)))
+    lower(lambda.body, onnxNodes, loweringRules, List())
   }
 }
