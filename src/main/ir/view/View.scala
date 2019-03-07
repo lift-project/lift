@@ -359,6 +359,14 @@ case class ViewConstant(value: Value, override val t: Type) extends View(t)
  */
 case class ViewMem(v: Var, override val t: Type) extends View(t)
 
+case class ViewMemScalar(override val t: Type) extends View(t)
+
+/**
+  * A variant of ViewMem that contain a inner view,
+  * in case the type allow inner structure, like tuples
+  * */
+case class ViewMemWithInnerView(v: Var, iv: View, override val t: Type) extends View(t)
+
 /**
  * A view for accessing another view at position `i`.
  *

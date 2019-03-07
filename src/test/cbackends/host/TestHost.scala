@@ -1158,22 +1158,30 @@ class TestHost {
   }
 
   @Test
-  def test_iterate_zip_opencl(): Unit = {
+  def test_array_tuple(): Unit = {
 
     val path = s"$common_path/14.iterate_zip"
     val file = "libiterate_zip.cpp"
 
+    /*
     val f = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
       //(left, right) => Iterate(6)( CPUFunc( Unzip() o MapSeq( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) ) ) $ Zip(left, right)
       (left, right) =>  MapGlb( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) )  $ Zip(left, right)
     )
+    */
+
+    val f = fun(
+      ArrayType(TupleType(Float, Float), N),
+      MapSeq( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) $ _
+    )
 
 
-    import opencl.executor.Compile
-    Compile(f)
+    //import opencl.executor.Compile
+    //Compile(f)
 
+    HostCompiler ! (f, path, List(file))
 
 
 
