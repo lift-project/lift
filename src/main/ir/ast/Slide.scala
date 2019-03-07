@@ -115,11 +115,13 @@ object TiledSlidedND {
     else GenerateIR.applyInEveryDimUntilDim(Join(), dim) o GenerateIR.interleaveDimensionsReverse(dim)
   }
 
-  def apply(dim: Int)(size: ArithExpr, step: ArithExpr, tileStep: ArithExpr): Lambda = {
+  def apply(dim: Int)(size: ArithExpr, step: ArithExpr, tileStep: ArithExpr, enableUndoTiling: Boolean = true): Lambda = {
     val tileSize = (size - step) + tileStep
-    undoTiling(dim) o
+    val tiledLambda =
       GenerateIR.wrapInMaps(SlideND(dim)(size,step), dim) o
         SlideND(dim)(tileSize, tileStep)
+    if (enableUndoTiling) undoTiling(dim) o tiledLambda
+    else tiledLambda
   }
 }
 

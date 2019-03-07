@@ -102,7 +102,7 @@ package object exploration {
     }
 
     /**
-      * Populates the parameter rules map recursively
+      * Populates the constraint map recursively
       */
     def populate(rulesToTraverse: Vector[ParamConstraint]): Map[Var, List[ParamConstraint]] = {
 
