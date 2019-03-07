@@ -190,6 +190,78 @@ object ConvStencil3D {
     val kernelBGroupType: AT = AT(kernelBPerWindowType, optParams.nKernelsPerWrg)
     val kernelBType: AT = AT(kernelBGroupType, nKernelGroups)
 
+    /****** Helper functions ******/
+
+    /* Produces a tiled slided tiled version of X */
+    def SlideX(): FunDecl = {
+      λ(originalXType, (X) =>
+        AssertType(xType, "SlideX output") o
+          // Tile and coalesce
+          Map(Map(TileAndCoalesce())) o
+          // Join tiles and channels
+          Map(Map(Join() o Join())) o
+          // Join tile rows
+          Map(Join()) o
+          // Join inputs and tile rows
+          Join() o Map(Join()) o
+          // Join batches and inputs
+          Join() o
+          Map(Map(TiledSlidedND(2)(layerConfig.kernelWidthHeight, layerConfig.kernelStride, optParams.tileStride))) o
+
+          AssertType(originalXType, "SlideX input") $ X)
+    }
+
+    def Coalesce(): FunDecl =
+      λ(flatWindowType, (window) =>
+        Gather(ReorderWithStride(nSeqTilesInWindow))
+          $ window)
+
+    def TileAndCoalesce(): FunDecl =
+      λ(originalFlatWindowType, (window) =>
+        // Prepare for vectorisation
+        //        {if (optParams.vectorLen != 1) Map(Split(optParams.vectorLen)) else Continue()} o
+        Map(Split(optParams.vectorLen)) o
+          // Tile
+          Split(optParams.seqOpsPerThread) o
+          // Coalesce
+          {if (optParams.coalesce) Coalesce() else Continue()}
+
+          $ window)
+
+
+    /** structuriseX() converts the flat output of the previous kernel into 5D array **/
+    def structuriseX(): FunDecl =
+      λ(flatPartReducedXType, (X) =>
+        AssertType(partReducedXType, "Partially reduced X type") o
+          Split(nKernelGroups) o Split(optParams.nKernelsPerWrg) o Split(nWindowsInTile) o
+          Split(nSeqTilesInWindow) $ X)
+
+    def formatResults(): FunDecl =
+      λ(reducedXType, (reducedX) =>
+        AssertType(resultType, "Result type") o
+          // Flatten tiles
+          Map(/* Batch */
+            Map(/* Image */
+              Map(/* Output channel */
+                Join() o
+                  Map(/* Tile row */
+                    Map(/* Tile row */ Join()) o
+                      TransposeW())))) o
+          // Move nChannels up
+          Map(/* Batch */
+            Map(/* Image */
+              /* (tile rows, nChannels, tiles) -> (nChannels, tile rows, tiles) */
+              TransposeW() o
+                Map(/* Tile row */
+                  /* (tiles, nChannels) -> (nChannels, tiles) */
+                  TransposeW()))) o
+          /* Batches */ Split(layerConfig.nInputs) o
+          /* Inputs */ Split(nTilesInCol) o
+          /* Tile rows */ Split(nTilesInRow) o
+          /* Sliding window rows in tiles */
+          Map(Map(Split(nWindowsInTileRow))) o
+          AssertType(reducedXType, "Reduced X type") $ reducedX)
+
     /*********** F-prop lambda: convolution with partial reduction ***********/
     val layerPartial: FunDecl = {
       λ(AT(AT(AT(AT(Float, layerConfig.inputChannels),
@@ -265,43 +337,6 @@ object ConvStencil3D {
         })
     }
 
-    /* Produces a tiled slided tiled version of X */
-    def SlideX(): FunDecl = {
-      λ(originalXType, (X) =>
-        AssertType(xType, "SlideX output") o
-          // Tile and coalesce
-          Map(Map(TileAndCoalesce())) o
-          // Join tiles and channels
-          Map(Map(Join() o Join())) o
-          // Join tile rows
-          Map(Join()) o
-          // Join inputs and tile rows
-          Join() o Map(Join()) o
-          // Join batches and inputs
-          Join() o
-          Map(Map(TiledSlidedND(2)(layerConfig.kernelWidthHeight, layerConfig.kernelStride, optParams.tileStride))) o
-
-          AssertType(originalXType, "SlideX input") $ X)
-    }
-
-    def Coalesce(): FunDecl =
-      λ(flatWindowType, (window) =>
-        Gather(ReorderWithStride(nSeqTilesInWindow))
-          $ window)
-
-    def TileAndCoalesce(): FunDecl =
-      λ(originalFlatWindowType, (window) =>
-        // Prepare for vectorisation
-//        {if (optParams.vectorLen != 1) Map(Split(optParams.vectorLen)) else Continue()} o
-        Map(Split(optParams.vectorLen)) o
-          // Tile
-          Split(optParams.seqOpsPerThread) o
-          // Coalesce
-          {if (optParams.coalesce) Coalesce() else Continue()}
-
-          $ window)
-
-
     /*********** F-prop lambda: final part of the reduction ***********/
     val layerFinal: FunDecl = {
       λ(AT(Float, layerConfig.kernelChannels), flatPartReducedXType,
@@ -354,39 +389,6 @@ object ConvStencil3D {
           /*** Layer END ***/
         })
     }
-
-    /** structuriseX() converts the flat output of the previous kernel into 5D array **/
-    def structuriseX(): FunDecl =
-      λ(flatPartReducedXType, (X) =>
-        AssertType(partReducedXType, "Partially reduced X type") o
-          Split(nKernelGroups) o Split(optParams.nKernelsPerWrg) o Split(nWindowsInTile) o
-          Split(nSeqTilesInWindow) $ X)
-
-    def formatResults(): FunDecl =
-      λ(reducedXType, (reducedX) =>
-        AssertType(resultType, "Result type") o
-          // Flatten tiles
-          Map(/* Batch */
-            Map(/* Image */
-              Map(/* Output channel */
-                Join() o
-                  Map(/* Tile row */
-                    Map(/* Tile row */ Join()) o
-                      TransposeW())))) o
-          // Move nChannels up
-          Map(/* Batch */
-            Map(/* Image */
-              /* (tile rows, nChannels, tiles) -> (nChannels, tile rows, tiles) */
-              TransposeW() o
-                Map(/* Tile row */
-                  /* (tiles, nChannels) -> (nChannels, tiles) */
-                  TransposeW()))) o
-          /* Batches */ Split(layerConfig.nInputs) o
-          /* Inputs */ Split(nTilesInCol) o
-          /* Tile rows */ Split(nTilesInRow) o
-          /* Sliding window rows in tiles */
-          Map(Map(Split(nWindowsInTileRow))) o
-          AssertType(reducedXType, "Reduced X type") $ reducedX)
 
     (layerPartial, layerFinal)
   }

@@ -12,13 +12,13 @@ object GraphSort {
   /**
     * NB: edges can have duplicates
     */
-  def topologicalSort[T](vertices: Vector[T], edges: Array[(T, T)]): List[T] = {
+  def topologicalSort(vertices: Vector[Int], edges: Array[(Int, Int)]): List[Int] = {
     val adjacency: Array[Array[Boolean]] = Array.fill(vertices.length, vertices.length)(false)
 
     for (edge <- edges) adjacency(edge._1/*from*/)(edge._2/*to*/) = true
-    var result = ListBuffer[T]()
-    var unsortedVertices: Set[T] = vertices.toSet
-    var verticesWithoutDependencies: Set[T] = Set()
+    var result = ListBuffer[Int]()
+    var unsortedVertices: Set[Int] = vertices.toSet
+    var verticesWithoutDependencies: Set[Int] = Set()
 
     while (unsortedVertices.nonEmpty) {
       verticesWithoutDependencies = Set()
@@ -36,7 +36,7 @@ object GraphSort {
     result.toList
   }
 
-  def hasDependency[T](vertexIdx: T, unsortedVertices: Set[T], adjacency: Array[Array[Boolean]]): Boolean = {
+  def hasDependency(vertexIdx: Int, unsortedVertices: Set[Int], adjacency: Array[Array[Boolean]]): Boolean = {
     for (v <- unsortedVertices) {
       if (adjacency(vertexIdx)(v)) return true
     }

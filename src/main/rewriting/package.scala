@@ -173,12 +173,12 @@ package object rewriting {
       partialReduceReorder(stride),
       partialReduceSplitJoin(split)
     )
-
-    val onnxLoweringRules = Seq(
-      NeuralNetRules.ONNXLoweringRules.convWithoutBiasAsCPUFunc,
-      NeuralNetRules.ONNXLoweringRules.averagePoolAsCPUFunc
-    )
-
   }
+
+  val onnxLoweringRules = Seq(
+    //      NeuralNetRules.ONNXLoweringRules.convWithoutBiasAsCPUFunc,
+    NeuralNetRules.ONNXLoweringRules.convWithBiasAsStencil//,
+    //      NeuralNetRules.ONNXLoweringRules.averagePoolAsCPUFunc
+  )
 
 }

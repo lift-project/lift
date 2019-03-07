@@ -23,13 +23,13 @@ object ONNXCompiler extends CBackendsCompilerTrait{
   }
 
   //compile a lambda
-  override def !(onnx_ir: Lambda, path: String, files: List[String]): Unit = {
+  override def !(onnxIR: Lambda, path: String, files: List[String]): Unit = {
 
     assert(files.length == 2)
 
-    val lift_host_ir = LowerONNXIR(onnx_ir)
+    val lift_host_ir = LowerONNXIR(lambda = onnxIR, loweringRules = rewriting.onnxLoweringRules.toList)
 
-    GlobalCompiler ! (lift_host_ir, path, List(files(0)) )
+    GlobalCompiler ! (Lambda(onnxIR.params, lift_host_ir.head._1), path, List(files(0)) )
 
     /*
     println("1.traditional compiler process")

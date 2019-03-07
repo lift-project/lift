@@ -9,10 +9,10 @@ import scala.util.Random
   * All information defining parameter space
   *
   * @param parameters unique parameters defining the space
-  * @param validationRules the rules declaring what parameter value combinations are valid
+  * @param constraints the rules declaring what parameter value combinations are valid
   */
 class ParameterSpace(val parameters: Vector[Var],
-                     val validationRules: ValidationRules) {
+                     val constraints: ParamConstraints) {
 
   /** The order of parameter value generation is following: first process the parameters that are not referred to by
     * any validation rule, then the remaining parameters in their order of validation complexity as
@@ -21,26 +21,28 @@ class ParameterSpace(val parameters: Vector[Var],
   def getNextRandomPoint(random: Random): Vector[Cst] = {
 
     val parametersWithoutValidation: Vector[Var] = parameters.filter(p =>
-      !validationRules.validatedParamsSortedByComplexity.contains(p))
+      !constraints.validatedParamsSortedByComplexity.contains(p))
 
     // Generate values for parameters that need no validation
     val partialCombination: List[Int] = parametersWithoutValidation.map(param =>
       ParameterSpace.getRandomValueInRange(param, random)).toList
 
     // Generate values for parameters that need validation
-    validationRules.validatedParamsSortedByComplexity.foldLeft((partialCombination, Map[Var, Int]()))(
+    constraints.validatedParamsSortedByComplexity.foldLeft((partialCombination, Map[Var, Int]()))(
       (state, currentParam) => {
         val combinationInProgress: List[Int] = state._1
         val paramsInCombination = state._2
 
         // Generate a random value for current parameter
-        val valueAlreadyGenerated: Map[Int, Boolean] =
-          RangeValueGenerator.generateAllValues(currentParam.range).map(valueInRange => valueInRange -> false).toMap
+        val valueAlreadyGenerated: collection.mutable.Map[Int, Boolean] =
+          collection.mutable.Map(
+            RangeValueGenerator.generateAllValues(currentParam.range).map(valueInRange =>
+              valueInRange -> false): _*)
 
         // TODO: refactor with a more functional approach
         var validValueGenerated: Boolean = false
         var uniqueValuesGenerated: Int = 0
-        var generatedValue: Int = null
+        var generatedValue: Int = 0
 
         while (!validValueGenerated && uniqueValuesGenerated < valueAlreadyGenerated.size) {
           generatedValue = ParameterSpace.getRandomValueInRange(currentParam, random)
@@ -49,7 +51,7 @@ class ParameterSpace(val parameters: Vector[Var],
             valueAlreadyGenerated(generatedValue) = true
             uniqueValuesGenerated += 1
 
-            if (validationRules.rulesPerParam(currentParam).forall(rule => {
+            if (constraints.constraintsPerParam(currentParam).forall(rule => {
               // Make sure all the values required by this rule have been generated. If this is not so, something has
               // gone wrong with parameter sorting.
               rule.params.foreach(ruleParam =>
