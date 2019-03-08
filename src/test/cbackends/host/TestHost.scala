@@ -1160,8 +1160,8 @@ class TestHost {
   @Test
   def test_array_tuple(): Unit = {
 
-    val path = s"$common_path/14.iterate_zip"
-    val file = "libiterate_zip.cpp"
+    val path = s"$common_path/32.array_tuple"
+    val file = "libarray_tuple.cpp"
 
     /*
     val f = fun(
@@ -1177,6 +1177,7 @@ class TestHost {
       MapSeq( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) $ _
     )
 
+    ("mkdir -p " + s"$path" ) !!
 
     //import opencl.executor.Compile
     //Compile(f)

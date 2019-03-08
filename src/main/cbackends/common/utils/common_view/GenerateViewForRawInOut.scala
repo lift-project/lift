@@ -7,7 +7,7 @@ import lift.arithmetic.{ArithExpr, Cst}
 
 object GenerateViewForRawInOut {
 
-  def generateViewForRawInOut(p: Expr, t: Type, size: ArithExpr) : View  = {
+  def generateViewForRawInOut(p: Expr, t: Type, size: ArithExpr, id : Int = 0, outputViewConstruct : Boolean = false) : View  = {
 
 
     /*
@@ -30,13 +30,22 @@ object GenerateViewForRawInOut {
             generateViewForRawInOut(p, et, size * s).split(n)
 
           case tt@TupleType(elemsT@_*) =>
-            val tuple_views = elemsT.map( generateViewForRawInOut(p, _, Cst(1)) )
-            ViewMemWithInnerView(p.mem.variable,
-              ViewTuple(
-                tuple_views,
-                tt
-              ),
-              ArrayTypeWSWC(typ.elemT, size * s) )
+            outputViewConstruct match {
+              case false =>
+                val ids = (0 until elemsT.length)
+                val tuple_views = (ids zip elemsT).map{
+                  case (id, elemT) => generateViewForRawInOut(p, elemT, Cst(1), id)
+                }
+                ViewMemWithInnerView(p.mem.variable,
+                  ViewTuple(
+                    tuple_views,
+                    tt
+                  ),
+                  ArrayTypeWSWC(typ.elemT, size * s) )
+
+              case true => ViewMem(p.mem.variable, ArrayTypeWSWC(typ.elemT, size * s) )
+
+            }
 
           case _ =>
             ViewMem(p.mem.variable, ArrayTypeWSWC(typ.elemT, size * s) )
@@ -44,7 +53,7 @@ object GenerateViewForRawInOut {
         }
 
       case st:ScalarType =>
-        ViewMemScalar(st)
+        ViewMemScalar(Cst(id),st)
 
     }
 
