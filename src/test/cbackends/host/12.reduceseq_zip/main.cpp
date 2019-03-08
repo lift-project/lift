@@ -6,13 +6,13 @@ int main() {
 
 	vector<double> x(size,1), y(size,2);
 
-	std::tuple<double,double> *z = nullptr;
+	Tuple2_double_double *z = nullptr;
 
 	execute(x.data(), y.data(), z, size);
 
 	assert(z!=nullptr);
 
-	cout<<std::get<0>(z[0])<<" "<<std::get<1>(z[0])<<" ";
+	cout<<z[0]._0<<" "<<z[0]._1<<" ";
 	cout<<endl;
 
 	return 0;

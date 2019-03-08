@@ -98,7 +98,7 @@ class TestHost {
   }
 
   val add_complex = UserFun("add_complex", Array("init", "l", "r"),
-    "{ return {std::get<0>(init)+l, std::get<1>(init)+r}; }",
+    "{ return {init._0+l, init._1+r}; }",
     Seq(TupleType(Double,Double), Double, Double), TupleType(Double,Double)
   )
 
@@ -1133,6 +1133,7 @@ class TestHost {
     Seq(Float, Float), TupleType(Float,Float)
   )
 
+  /*
   @Test
   def test_zip_unzip(): Unit = {
 
@@ -1155,7 +1156,7 @@ class TestHost {
     assertEquals(expected, actual)
 
     println("Test case test_slide_hello done!")
-  }
+  }*/
 
   @Test
   def test_array_tuple(): Unit = {
