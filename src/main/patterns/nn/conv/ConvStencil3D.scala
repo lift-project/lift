@@ -313,7 +313,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig[ArithExpr],
                       }))/* o AssertType(kernelWGroupType, "Kernel weights group type") */$ kernelWGroup
 
                     /***** Output channel group END *****/
-                  })) //o AssertType(kernelWType, "All kernel weights type after split") o
+                  })) o //o AssertType(kernelWType, "All kernel weights type after split") o
                   Split(tuneParams.nKernelsPerWrg) o Map(TileAndCoalesce() o Join() o Map(Join())) $ K
 
                 /*** Tile END ***/
