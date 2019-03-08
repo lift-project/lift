@@ -665,6 +665,34 @@ object GenericAST {
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
   }
 
+  trait TypeDefHostT extends StatementT {
+    val t: Type
+
+    override def print(): Doc = t match {
+      case tt: TupleType ⇒
+        val name = Type.name(tt)
+        spread(tt.elemsT.map(t ⇒ TypeDef(t).print()).toList) <>
+          s"typedef struct" <>
+          bracket("{",
+            stack(
+              tt.elemsT.zipWithIndex.map({ case (ty, i) ⇒
+                Type.name(ty) <> " _" <> i.toString <> ";"
+              }).toList
+            ),
+            s"} $name;") <> line
+      case _  => Comment(s"NOTE: trying to print unprintable " +
+        s"type: ${Printer.toString(t)}").print <> line
+    }
+  }
+
+  case class TypeDefHost(t: Type) extends TypeDefHostT {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      this
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+  }
+
   /**
     * ??? Tuple aliases?
     */

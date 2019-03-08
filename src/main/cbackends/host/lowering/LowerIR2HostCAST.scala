@@ -3,7 +3,7 @@ package cbackends.host.lowering
 import cbackends.common.common_ir.CPUMainMemoryAddressSpace
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir._
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IfThenElifIm, IfThenElseIm, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, TypeDef, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IfThenElifIm, IfThenElseIm, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, TypeDef, TypeDefHost, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
 import ir.{TupleType, Type}
 import ir.ast.Iterate
 import opencl.ir.pattern.{MapGlb, MapWrg}
@@ -716,7 +716,7 @@ object LowerIR2HostCAST {
     }
     val result = mutable_result.toSet
 
-    Block(result.map(TypeDef(_)).toVector, global = true)
+    Block(result.map(TypeDefHost(_)).toVector, global = true)
 
   }
 

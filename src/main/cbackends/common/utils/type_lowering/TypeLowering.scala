@@ -24,8 +24,9 @@ object TypeLowering {
    case opencl.ir.Double => DoubleType()
    case opencl.ir.Float => FloatType()
    case opencl.ir.Int => IntegerType()
-   case ir.TupleType(args@_*) =>
-     ClassOrStructType("std::tuple" + args.mkString("<", ",", ">"))
+   case tt@ir.TupleType(args@_*) =>
+     //ClassOrStructType("std::tuple" + args.mkString("<", ",", ">"))
+     ClassOrStructType(Type.name(tt))
    case _ => {
     assert(false, "Unimplemented type converstion from IR type to CAST type")
     VoidType()

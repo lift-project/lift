@@ -1177,17 +1177,22 @@ class TestHost {
       MapSeq( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) $ _
     )
 
+    val f_gpu = fun(
+      ArrayType(TupleType(Float, Float), N),
+      MapGlb( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) $ _
+    )
+
     ("mkdir -p " + s"$path" ) !!
 
     //import opencl.executor.Compile
-    //Compile(f)
+    //val res = Compile(f_gpu)
 
     HostCompiler ! (f, path, List(file))
 
 
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "6 6 \n"
+    val expected : String = "2, 3, 4, 5\n"
     assertEquals(expected, actual)
 
     println("Test case test_slide_hello done!")
