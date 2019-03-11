@@ -44,21 +44,7 @@ object ScalaPrinter {
     }
   }
 
-  def apply(arithExpr: ArithExpr): String = {
-    arithExpr match {
-      case Cst(c) => s"Cst($c)"
-      case IntDiv(a, b) => s"( ${apply(a)} /^ ${apply(b)} )"
-      case Sum(terms) => s"( ${terms.map(apply).mkString(" + ")} )"
-      case Prod(factors) => s"( ${factors.map(apply).mkString(" * ")} )"
-      case Mod(dividend, divisor) => s"( ${apply(dividend)} % ${apply(divisor)} )"
-      case Log(b, x) => s"Log(${apply(b)},${apply(x)})"
-      case Pow(b, ex) => s"Pow(${apply(b)}, ${apply(ex)})"
-      case v: Var => v.toString
-
-      case _ =>
-        throw new NotImplementedError(s"$arithExpr of class ${arithExpr.getClass}")
-    }
-  }
+  def apply(arithExpr: ArithExpr): String = ArithExpr.printToScalaString(arithExpr)
 
   def apply(t: Type): String = {
     t match {
@@ -67,10 +53,9 @@ object ScalaPrinter {
       case opencl.ir.Double => "Double"
       case opencl.ir.Bool => "Bool"
       case TupleType(tt@_*) => s"TupleType(${tt.map(apply).mkString(", ")})"
-      case VectorType(elemT, len) => s"VectorType(${apply(elemT)}, ${ArithExpr.printToScalaString(len)})"
-      case ArrayTypeWSWC(elemT, s, c) if s == c => s"ArrayType(${apply(elemT)}, ${ArithExpr.printToScalaString(s)})"
-      case ArrayTypeWSWC(elemT, s, c) => s"ArrayTypeWSWC(${apply(elemT)}, ${ArithExpr.printToScalaString(s)}, " +
-        s"${ArithExpr.printToScalaString(c)})"
+      case VectorType(elemT, len) => s"VectorType(${apply(elemT)}, ${apply(len)})"
+      case ArrayTypeWSWC(elemT, s, c) if s == c => s"ArrayType(${apply(elemT)}, ${apply(s)})"
+      case ArrayTypeWSWC(elemT, s, c) => s"ArrayTypeWSWC(${apply(elemT)}, ${apply(s)}, ${apply(c)})"
 
       case NoType =>
         throw new NotPrintableExpression(s"Can not print NoType")
