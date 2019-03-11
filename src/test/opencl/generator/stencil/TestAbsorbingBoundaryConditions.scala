@@ -204,6 +204,7 @@ class TestAbsorbingBoundaryConditions
       ArrayTypeWSWC(Float,N),
       (input) => {
         toGlobal(MapGlb(0)(id)) o PadConstant(2,2,4.2f) o Join() o
+        PadConstant(2,2,1.0f) o
           MapGlb(0)(fun(neighbourhood => {
             toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
           })) o Slide(a,b) o PadConstant(1,1,0.0f) $ input
@@ -263,7 +264,7 @@ class TestAbsorbingBoundaryConditions
       ArrayTypeWSWC(Float,N),
       (input) => {
         MapGlb(0)(fun(neighbourhood => {
-          toGlobal(MapSeqUnroll(id)) o Join() $ Value(0.0f,ArrayTypeWSWC(ArrayTypeWSWC(Float, 1),1))
+          toGlobal(MapSeqUnroll(id)) o Join() $ Value(1.0f,ArrayTypeWSWC(ArrayTypeWSWC(Float, 1),1))
         }))  $ input
       }
     )
