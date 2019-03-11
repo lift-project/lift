@@ -437,8 +437,8 @@ class OpenCLGenerator extends Generator {
     f.params.foreach(_.mem.readOnly = true)
 
     // array of all unique vars (like N, iterSize, etc. )
-    val allVars = Kernel.memory.map(_.mem.size.varList)
-      .filter(_.nonEmpty).flatten.distinct
+    val allVars = (Kernel.memory.map(_.mem.size.varList)
+      .filter(_.nonEmpty).flatten ++ Kernel.memory.flatMap(_.t.varList)).distinct
     // partition into iteration variables and all others variables
     val (iterateVars, vars) = allVars.partition(_.name == Iterate.varName)
 
