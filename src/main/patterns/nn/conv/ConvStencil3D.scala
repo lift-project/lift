@@ -100,13 +100,13 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig[ArithExpr],
 
     val nElementsInWindow = layerConfig.kernelWidthHeight * layerConfig.kernelWidthHeight * layerConfig.inputChannels
 
-    val nSeqTilesInWindow = nElementsInWindow / tuneParams.seqOpsPerThread
+    val nSeqTilesInWindow = nElementsInWindow /^ tuneParams.seqOpsPerThread
 
     val nWindowsInTile = nWindowsInTileCol * nWindowsInTileRow
 
     val nTilesTotal = layerConfig.nInputs * nTilesInInput
 
-    val nKernelGroups = layerConfig.kernelChannels / tuneParams.nKernelsPerWrg
+    val nKernelGroups = layerConfig.kernelChannels /^ tuneParams.nKernelsPerWrg
 
     /*********** Types ***********/
     val originalElementType: Float.type = Float

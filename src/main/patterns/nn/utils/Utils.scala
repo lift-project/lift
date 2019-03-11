@@ -11,5 +11,5 @@ object Utils {
     * @return
     */
   def slidingOutputSize(areaSize: ArithExpr, sliderSize: ArithExpr, sliderStride: ArithExpr): ArithExpr =
-    (areaSize - (sliderSize - sliderStride)) / sliderStride
+    (areaSize - (sliderSize - sliderStride)) /^ sliderStride
 }
