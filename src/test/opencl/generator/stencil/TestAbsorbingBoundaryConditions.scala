@@ -188,7 +188,7 @@ class TestAbsorbingBoundaryConditions
 
   }
 
-  // does not work as expected
+
   @Test
   def padOutside(): Unit = {
 
@@ -203,7 +203,7 @@ class TestAbsorbingBoundaryConditions
     def stencil1D(a: Int, b: Int) = fun(
       ArrayTypeWSWC(Float,N),
       (input) => {
-        PadConstant(2,2,0.0f) o
+        toGlobal(MapGlb(0)(id)) o PadConstant(2,2,4.2f) o Join() o
           MapGlb(0)(fun(neighbourhood => {
             toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
           })) o Slide(a,b) o PadConstant(1,1,0.0f) $ input
