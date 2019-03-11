@@ -67,9 +67,10 @@ object ScalaPrinter {
       case opencl.ir.Double => "Double"
       case opencl.ir.Bool => "Bool"
       case TupleType(tt@_*) => s"TupleType(${tt.map(apply).mkString(", ")})"
-      case VectorType(elemT, len) => s"VectorType(${apply(elemT)}, $len)"
-      case ArrayTypeWSWC(elemT, s, c) if s == c => s"ArrayType(${apply(elemT)}, $s)"
-      case ArrayTypeWSWC(elemT, s, c) => s"ArrayTypeWSWC(${apply(elemT)}, $s, $c)"
+      case VectorType(elemT, len) => s"VectorType(${apply(elemT)}, ${ArithExpr.printToScalaString(len)})"
+      case ArrayTypeWSWC(elemT, s, c) if s == c => s"ArrayType(${apply(elemT)}, ${ArithExpr.printToScalaString(s)})"
+      case ArrayTypeWSWC(elemT, s, c) => s"ArrayTypeWSWC(${apply(elemT)}, ${ArithExpr.printToScalaString(s)}, " +
+        s"${ArithExpr.printToScalaString(c)})"
 
       case NoType =>
         throw new NotPrintableExpression(s"Can not print NoType")
