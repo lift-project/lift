@@ -388,16 +388,19 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig[ArithExpr],
 object ConvStencil3D {
   val kernelWidthHeightTmp = Var("kernelWidthHeight")
   val kernelStrideTmp = Var("kernelStride")
-  case class ConvStencil3DLayerConfig[T <: ArithExpr](// Input config
-                                                      nInputs: T = Var("nInputs"),
-                                                      inputWidthHeight: T = Var("inputWidthHeight"),
-                                                      inputChannels: T = Var("inputChannels"),
-                                                      // Layer-specific config
-                                                      kernelWidthHeight: T = kernelWidthHeightTmp,
-                                                      kernelChannels: T = Var("kernelChannels"),
-                                                      kernelStride: T = kernelStrideTmp,
-                                                      padWidthHeight: T = Var("padWidthHeight")) // TODO: handle padding
-    extends LayerConfig
+  class ConvStencil3DLayerConfig[T <: ArithExpr](// Input config
+                                                 val nInputs: T = Var("nInputs"),
+                                                 val inputWidthHeight: T = Var("inputWidthHeight"),
+                                                 val inputChannels: T = Var("inputChannels"),
+                                                 // Layer-specific config
+                                                 val kernelWidthHeight: T = kernelWidthHeightTmp,
+                                                 val kernelChannels: T = Var("kernelChannels"),
+                                                 val kernelStride: T = kernelStrideTmp,
+                                                 val padWidthHeight: T = Var("padWidthHeight")) extends LayerConfig[T]{
+    // TODO: handle padding
+    val paramVector: Vector[T] = Vector(nInputs, inputWidthHeight, inputChannels, kernelWidthHeight, kernelChannels,
+      kernelStride, padWidthHeight)
+  }
 
   object ConvStencil3DLayerConfig {
     /**
@@ -423,16 +426,17 @@ object ConvStencil3D {
     * ranges. During parameter space exploration, they are replaced with constants (Cst()).
     */
   val tileStrideTmp = Var("tileStride")
-  case class ConvStencil3DTuneParams[T <: ArithExpr](tileWidthHeight: T = (kernelWidthHeightTmp - kernelStrideTmp) + tileStrideTmp,
-                                                     tileStride: T = tileStrideTmp,
+  class ConvStencil3DTuneParams[T <: ArithExpr](val tileWidthHeight: T = (kernelWidthHeightTmp - kernelStrideTmp) + tileStrideTmp,
+                                                val tileStride: T = tileStrideTmp,
 
-                                                     vectorLen: T = Var("vectorLen"),
-                                                     nKernelsPerWrg: T = Var("nKernelsPerWrg"),
-                                                     seqOpsPerThread: T = Var("seqOpsPerThread"),
+                                                val vectorLen: T = Var("vectorLen"),
+                                                val nKernelsPerWrg: T = Var("nKernelsPerWrg"),
+                                                val seqOpsPerThread: T = Var("seqOpsPerThread"),
 
-                                                     coalesce: Boolean = false,
-                                                     unrollReduce: Boolean = false)
-    extends LayerTuneParams
+                                                val coalesce: Boolean = false,
+                                                val unrollReduce: Boolean = false) extends LayerTuneParams[T]{
+    val paramVector: Vector[T] = Vector(tileWidthHeight, tileStride, vectorLen, nKernelsPerWrg, seqOpsPerThread)
+  }
   /**
     * Produces a convolution expression without an activation function
     */
