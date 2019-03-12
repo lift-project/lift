@@ -1,7 +1,7 @@
 package exploration
 
-import lift.arithmetic.{Cst, Var}
 import _root_.utils.RangeValueGenerator
+import lift.arithmetic.{Cst, Var}
 
 import scala.util.Random
 
@@ -14,81 +14,97 @@ import scala.util.Random
 class ParameterSpace(val parameters: Vector[Var],
                      val constraints: ParamConstraints) {
 
-  /** The order of parameter value generation is following: first process the parameters that are not referred to by
-    * any validation rule, then the remaining parameters in their order of validation complexity as
-    * defined in ValidationRules
+  /** Gets the next random point (a combination of values of all parameters) that satisfies all constraints
     */
-  def getNextRandomPoint(random: Random): Vector[Cst] = {
+  def getNextRandomPoint(random: Random): Vector[Cst] = pickParamValues(
+    constraints.paramsSortedByValidationComplexity,
+    List[Int](),
+    Map[Var, Int](),
+    random) match {
+    case Some(combination) =>
+      parameters.
+        map(param => constraints.paramsSortedByValidationComplexity.indexOf(param)).
+        // Restore original sorting before returning values
+        map(sortedParamIdx => combination(sortedParamIdx)).
+        map(intVal => Cst(intVal))
+    case None =>
+      throw new IllegalArgumentException(f"Could not generate a value for parameter space $this")
+  }
 
-    val parametersWithoutValidation: Vector[Var] = parameters.filter(p =>
-      !constraints.validatedParamsSortedByComplexity.contains(p))
 
-    // Generate values for parameters that need no validation
-    val partialCombination: List[Int] = parametersWithoutValidation.map(param =>
-      ParameterSpace.getRandomValueInRange(param, random)).toList
+  /**
+    * Randomly picks parameter value for the first parameter in params that satisfies all the constraints with
+    * respect to the values of the parameters in partialCombination. Uses recursive backtracking to pick values that
+    * allow for successful validation of remaining parameters in params.
+    * @param params List of parameters whose values still need generating
+    * @param partialCombination List of values that are already generated
+    * @param paramsInCombination A map associating processed parameters with their values in partialCombination
+    * @param random Random generator
+    * @return A combination or None if no combination satisfies the constraints
+    */
+  def pickParamValues(params: List[Var],
+                      partialCombination: List[Int],
+                      paramsInCombination: Map[Var, Int],
+                      random: Random): Option[List[Int]] = params match {
+    case Nil =>
+      // No parameters to process -> the combination is completed
+      Some(partialCombination)
 
-    // Generate values for parameters that need validation
-    constraints.validatedParamsSortedByComplexity.foldLeft((partialCombination, Map[Var, Int]()))(
-      (state, currentParam) => {
-        val combinationInProgress: List[Int] = state._1
-        val paramsInCombination = state._2
+    case param :: remainingParams =>
+      // Generate a random value for the current parameter
+      val generatedValues: collection.mutable.Set[Int] = collection.mutable.Set()
+      val rangeSize = RangeValueGenerator.rangeSize(param.range)
 
-        // Generate a random value for current parameter
-        val valueAlreadyGenerated: collection.mutable.Map[Int, Boolean] =
-          collection.mutable.Map(
-            RangeValueGenerator.generateAllValues(currentParam.range).map(valueInRange =>
-              valueInRange -> false): _*)
+      // In addition to the stopping condition below, the loop will exit upon return of a valid combination
+      while (generatedValues.size < rangeSize) {
+        val newValue = ParameterSpace.getRandomValueInRange(param, random)
+        // This might generated infinite loop if incorrect range is passed to the random generator
+        if (!generatedValues.contains(newValue)) {
+          // The value has not been evaluated before. Let's check it against the constraints
+          generatedValues.add(newValue)
 
-        // TODO: refactor with a more functional approach
-        var validValueGenerated: Boolean = false
-        var uniqueValuesGenerated: Int = 0
-        var generatedValue: Int = 0
+          // If there are constraints, check them. Otherwise, just try completing the combination
+          if (!constraints.constraintsPerParam.contains(param) ||
+            constraints.constraintsPerParam(param).forall(constraint => {
+              // Make sure all the values required by this constraint have been generated. If this is not so,
+              // something has gone wrong with parameter sorting.
+              constraint.params.foreach(constraintParam =>
+                if (!paramsInCombination.contains(constraintParam) && constraintParam != param)
+                  throw new IllegalStateException(
+                    s"The parameter ${constraintParam.name} referenced by the constraint " +
+                    s"$constraint is not in the partially generated combination which should have been ensured by " +
+                    s"sorting the parameters by validation complexity. Check the parameter sorting algorithm in " +
+                    s"Constraints."))
 
-        while (!validValueGenerated && uniqueValuesGenerated < valueAlreadyGenerated.size) {
-          generatedValue = ParameterSpace.getRandomValueInRange(currentParam, random)
-          if (!valueAlreadyGenerated(generatedValue)) {
-            // The value has not been tried before. Let's check it against the validation rules
-            valueAlreadyGenerated(generatedValue) = true
-            uniqueValuesGenerated += 1
-
-            if (constraints.constraintsPerParam(currentParam).forall(rule => {
-              // Make sure all the values required by this rule have been generated. If this is not so, something has
-              // gone wrong with parameter sorting.
-              rule.params.foreach(ruleParam =>
-                if (!paramsInCombination.contains(ruleParam))
-                  throw new IllegalStateException(s"The parameter $ruleParam referenced by the rule $rule is not in the " +
-                    s"partially generated combination which should have been ensured by sorting the parameters by " +
-                    s"validation complexity. Check the parameter sorting algorithm in ValidationRules."))
-
-              // Check that the rule is valid with the values generated previously or now
-              rule.isValid(rule.params.map(ruleParam =>
-                if (ruleParam.name == currentParam.name) // Generated now
-                  generatedValue
-                else // Generated previously
-                  combinationInProgress(paramsInCombination(ruleParam))))
+              // Check that the constraint is valid with the values generated previously or now
+              constraint.isValid(constraint.params.map(constraintParam =>
+                if (constraintParam == param) // Current param
+                  newValue
+                else // One of the process params
+                  partialCombination(paramsInCombination(constraintParam))))
             })) {
-              // The attempted value has passed the checks. On the next while condition check, we'll exit the loop
-              validValueGenerated = true
+            // Pass on the updated combination and try to generate the rest of the values
+            pickParamValues(
+              remainingParams,
+              partialCombination :+ newValue, // new value
+              paramsInCombination + (param -> partialCombination.length), // new index
+              random) match {
+              case Some(finalCombination) => return Some(finalCombination)
+              case None =>
+              // We couldn't find values for the remaining parameters using the current value for the current parameter
+              // Try another value in the next iteration of the loop
             }
           }
         }
-
-
-        if (!validValueGenerated) {
-          throw new IllegalArgumentException(
-            f"Could not generate a value for parameter $currentParam -- all unique values in range" +
-              f" were generated in random order and failed the checks against validation rules")
-        } else {
-          // Return the updated state
-          (combinationInProgress :+ generatedValue, // new value
-            paramsInCombination + (currentParam -> combinationInProgress.length)) // new index
-        }})
-  }._1.map(intValue => Cst(intValue)).toVector
+      }
+      // If we haven't return by this point, no value passed checks
+      None
+  }
 }
 
 object ParameterSpace {
   def getRandomValueInRange(param: Var, random: Random): Int = {
-    val randomIndexInRange = random.nextInt(param.range.max.evalInt)
+    val randomIndexInRange = random.nextInt(RangeValueGenerator.rangeSize(param.range))
 
     RangeValueGenerator.generateSingleValue(param.range, randomIndexInRange)
   }
