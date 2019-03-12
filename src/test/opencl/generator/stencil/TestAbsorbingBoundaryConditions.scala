@@ -221,15 +221,15 @@ class TestAbsorbingBoundaryConditions
 
   // does not work as expected
   @Test
-  def padConstantBetween(): Unit = {
+  def Issue159(): Unit = {
 
     val slidesize = 3
     val slidestep = 1
     val size = 10
     val N = SizeVar("N")
 
-    val nBpts = 2 // number of boundary points
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+    val gold = Array(0.0f,3.0f,0.0f,0.0f,6.0f,0.0f,0.0f,9.0f,0.0f,0.0f,12.0f,0.0f,0.0f,15.0f,0.0f,0.0f,18.0f,0.0f,0.0f,21.0f,0.0f,0.0f,24.0f,0.0f,0.0f,27.0f,0.0f)
 
     def stencil1D(a: Int, b: Int) = fun(
       ArrayTypeWSWC(Float,N),
@@ -239,12 +239,14 @@ class TestAbsorbingBoundaryConditions
           })) o Slide(a,b) o PadConstant(1,1,0.0f) $ input
       }
     )
-    println(Compile(stencil1D(3,1)))
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values)
 
     StencilUtilities.print1DArray(values)
     StencilUtilities.print1DArray(output)
+    StencilUtilities.print1DArray(gold)
+
+    assertArrayEquals(gold, output, 0.1f)
 
   }
 
