@@ -70,35 +70,37 @@ package object exploration {
     * @param constraints List of unique constraints
     * @param constraintsPerParam A map of parameters to corresponding rules
     */
-  class ParamConstraints(val constraints: Vector[ParamConstraint],
+  class ParamConstraints(parameters: Vector[Var],
+                         val constraints: Vector[ParamConstraint],
                          val constraintsPerParam: Map[Var, List[ParamConstraint]]) {
     /**
       * The list of params sorted by complexity of validation. The complexity of a parameter P is defined in terms
       * of the number of other parameters that P is validated against, both directly through its immediate validation
       * rules and through the constraints of the parameters in its immediate constraints.
       */
-    lazy val validatedParamsSortedByComplexity: List[Var] = {
-      val paramsToValidate = constraintsPerParam.keySet.toVector
+    lazy val paramsSortedByValidationComplexity: List[Var] = {
+//      val paramsToValidate = constraintsPerParam.keySet.toVector
 
       GraphSort.topologicalSort(
-        vertices = paramsToValidate.indices.toVector,
-        edges = constraintsPerParam.flatMap(pair => {
+        vertices = parameters.indices.toVector,
+        edges = constraintsPerParam.map(pair => {
           val param = pair._1
           val paramRules = pair._2
 
-          paramRules.flatMap(paramRule =>
-            paramRule.params.map(paramRuleParam =>
-              (/*child param*/paramsToValidate.indexOf(param),
-                /*parent param*/paramsToValidate.indexOf(paramRuleParam))))}).toArray).
-        map(paramIdx => paramsToValidate(paramIdx))
+          val edges = paramRules.flatMap(paramRule =>
+            paramRule.params.filter(_ != param).map(paramRuleParam =>
+              (/*child param*/parameters.indexOf(param),
+                /*parent param*/parameters.indexOf(paramRuleParam))))
+          edges}).flatten.toArray).
+        map(paramIdx => parameters(paramIdx))
     }
   }
 
   object ParamConstraints {
-    def apply(rules: Vector[ParamConstraint]): ParamConstraints = {
+    def apply(parameters: Vector[Var], rules: Vector[ParamConstraint]): ParamConstraints = {
       val sortedRules = rules.sortWith((rule1, rule2) => rule1.params.length <= rule2.params.length)
 
-      new ParamConstraints(sortedRules, populate(sortedRules))
+      new ParamConstraints(parameters, sortedRules, populate(sortedRules))
     }
 
     /**
@@ -106,13 +108,13 @@ package object exploration {
       */
     def populate(rulesToTraverse: Vector[ParamConstraint]): Map[Var, List[ParamConstraint]] = {
 
-      def updateMap(paramRules: Map[Var, List[ParamConstraint]],
+      def updateMap(paramConstraints: Map[Var, List[ParamConstraint]],
                     param: Var,
                     rule: ParamConstraint): Map[Var, List[ParamConstraint]] = {
-        if (paramRules.isEmpty || !paramRules.keySet.exists(p => p.name == param.name))
-          paramRules + (param -> List(rule))
+        if (paramConstraints.isEmpty || !paramConstraints.keySet.exists(p => p.name == param.name))
+          paramConstraints + (param -> List(rule))
         else
-          paramRules + (param -> (rule +: paramRules(param)))
+          paramConstraints + (param -> (rule +: paramConstraints(param)))
       }
 
       rulesToTraverse match {
@@ -121,11 +123,11 @@ package object exploration {
           case r@ParamConstraint1D(_, _, param0, _) =>
             updateMap(populate(rest), param0, r)
 
-          case r@ParamConstraint2D(_, _, param0, param1, _) =>
-            updateMap(updateMap(populate(rest), param0, r), param1, r)
+          case r@ParamConstraint2D(_, _, param0, _, _) =>
+            updateMap(populate(rest), param0, r)
 
-          case r@ParamConstraint3D(_, _, param0, param1, param2, _) =>
-            updateMap(updateMap(updateMap(populate(rest), param0, r), param1, r), param2, r)
+          case r@ParamConstraint3D(_, _, param0, _, _, _) =>
+            updateMap(populate(rest), param0, r)
 
           case _ => throw new IllegalArgumentException("Unexpected rule type")
         }
