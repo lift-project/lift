@@ -24,7 +24,7 @@ object NeuralNetRules {
       case call @ FunCall(onnxNode: ConvWithBias, args@ _*) if args.length == 3 =>
       FunCall(ConvStencil3D(
         layerConfig = ConvStencil3D.ConvStencil3DLayerConfig(onnxNode, args.head),
-        tuneParams = ConvStencil3D.ConvStencil3DTuneParams())(0), args: _*) // TODO: this throws away the final part of the expression
+        tuneParams = new ConvStencil3D.ConvStencil3DTuneParams())(0), args: _*) // TODO: this throws away the final part of the expression
     })
 
 
