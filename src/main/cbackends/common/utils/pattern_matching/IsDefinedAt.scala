@@ -10,7 +10,8 @@ trait IsDefinedAt[T] {
         apply(x)
         true
       } catch {
-        case _: Exception => false
+        case _: Exception =>
+          false
       }
 
     }

@@ -3,7 +3,7 @@ package cbackends.common.memory_management
 import core.generator.GenericAST.CVarWithType
 import cbackends.common.common_ir.{CPUNullMemory, HostMemory, HostMemoryCollection}
 import cbackends.host.host_ir._
-import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, Expr, FPattern, FunCall, FunDecl, Get, IRNode, Join, Lambda, Pad, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip}
+import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, Expr, FPattern, FunCall, FunDecl, Get, IRNode, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip}
 import ir.{Type, UnallocatedMemory}
 import lift.arithmetic.{ArithExpr, ContinuousRange, Cst, Var}
 import opencl.ir.OpenCLMemory
@@ -13,11 +13,14 @@ import scala.collection.mutable
 
 object MemoryAllocator {
 
-  def alloc(node:IRNode): Unit = {
+  def alloc(node:IRNode, cont: IRNode => IRNode): IRNode = {
     node match {
 
+      case p:Param =>
+        p
+
       case v:Value =>
-        v.mem = CPUNullMemory
+        v.mem = CPUNullMemory; v
 
       case ac:ArrayConstructors =>
         //ac.mem = CPUNullMemory
@@ -25,19 +28,22 @@ object MemoryAllocator {
         //allocate memory in IR, but not included in hostMemory, so that no mem allocation code is emitted for param,
         //but the IR analysis can still be done.
         ac.mem = HostMemory(Var(s"array_constructor_${ac.gid}", ContinuousRange(Cst(0), size)), size, ac.addressSpace )
+        ac
 
       case fc@FunCall(_:ToGPU|_:OclFunCall, arg) =>
-        alloc(arg)
+        cont(arg)
 
         val size = Type.getElementCount(fc.t)
         fc.mem = OpenCLMemory(Var(s"user_func_${fc.gid}", ContinuousRange(Cst(0), size)), size, fc.addressSpace )
+        fc
 
       case fc@FunCall(_:UserFun|_:CPUFunCall|_:ToHost, args@_*) => {
         //link the arg to the correct param is already done in its upper level FPattern
-        args.foreach(alloc(_))
+        args.foreach(cont(_))
 
         val size = Type.getElementCount(fc.t)
         fc.mem = HostMemory(Var(s"user_func_${fc.gid}", ContinuousRange(Cst(0), size)), size, fc.addressSpace )
+        fc
 
       }
 
@@ -47,55 +53,65 @@ object MemoryAllocator {
         val init = args(0)
         val array = args(1)
 
-        alloc(array)
+        cont(array)
         init.mem = CPUNullMemory
 
         (rd.f.params zip args).foreach(pair => pair._1.mem = pair._2.mem)
-        alloc(rd.f.body)
+        cont(rd.f.body)
 
         fc.mem = rd.f.body.mem
+        fc
 
       }
 
       case fc@FunCall(fp:FPattern, args@_*) => {
 
-        args.foreach( alloc(_) )
+        args.foreach( cont(_) )
 
         (fp.f.params zip args).foreach(pair => pair._1.mem = pair._2.mem)
-        alloc(fp.f.body)
+        cont(fp.f.body)
 
         fc.mem = fp.f.body.mem
+
+        fc
 
       }
       case fc@FunCall(_:Zip, args@_*) => {
 
-        args.foreach(alloc(_))
+        args.foreach(cont(_))
 
         fc.mem = HostMemoryCollection( args.map(_.mem.asInstanceOf[HostMemory]) )
+
+        fc
 
       }
 
       case fc@FunCall(l:Lambda, args@_*) => {
 
-        args.foreach( alloc(_) )
+        args.foreach( cont(_) )
 
         (l.params zip args).foreach(pair => pair._1.mem = pair._2.mem)
-        alloc(l.body)
+        cont(l.body)
 
         fc.mem = l.body.mem
+
+        fc
       }
 
         //for Slide etc.
       case fc@FunCall(_:Join|_:Slide|_:Zip|_:Get|_:Split|_:Join|_:Transpose|_:TransposeW|_:Pad, arg) => {
-        alloc(arg)
+        cont(arg)
         fc.mem = arg.mem
+
+        fc
       }
 
 
-      case x:Expr if x.mem == UnallocatedMemory =>
+      /*case x:Expr if x.mem == UnallocatedMemory =>
         assert(false)
+        x*/
 
-      case _ =>
+      //case _ =>
 
 
 
@@ -127,10 +143,8 @@ object MemoryAllocator {
 
   }
 
-  def apply(lambda: Lambda): Unit = {
 
-
-    pre_check(lambda)
+  def init_params(lambda: Lambda) : Unit = {
 
     //alloc params
     lambda.params.foreach(
@@ -141,8 +155,20 @@ object MemoryAllocator {
         p.mem = HostMemory(Var(s"initial_param_${p.gid}", ContinuousRange(Cst(0), size)), size, p.addressSpace )
       }
     )
+  }
 
-    alloc(lambda.body)
+  def default_alloc(in: IRNode) : IRNode = {
+    alloc(in, default_alloc)
+  }
+
+  def apply(lambda: Lambda): Unit = {
+
+
+    pre_check(lambda)
+
+    init_params(lambda)
+
+    default_alloc(lambda.body)
 
     post_check(lambda)
 
