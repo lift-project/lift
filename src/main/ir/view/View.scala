@@ -6,6 +6,7 @@ import ir.Type.size_t
 import ir.ast._
 import ir._
 import lift.arithmetic._
+import opencl.generator.OpenCLGenerator
 //import opencl.generator.OpenCLAST
 //import opencl.generator.OpenCLAST.{ArithExpression, Expression, VarRef}
 import opencl.ir.{AddressSpaceCollection, Int, OpenCLAddressSpace, PrivateMemory, UndefAddressSpace}
@@ -126,6 +127,7 @@ abstract sealed class View(val t: Type = UndefType) {
       case ViewSlide(iv, slide, ty) => ViewSlide(iv.replaced(subst), slide, ty)
       case ViewPad(iv, left, right, padFun, ty) => ViewPad(iv.replaced(subst), left, right, padFun, ty)
       case ViewPadConstant(iv, left, right, constant, ty) => ViewPadConstant(iv.replaced(subst), left, right, constant, ty)
+      case ViewPadFunction(iv, left, right, fun, ty) => ViewPadFunction(iv.replaced(subst), left, right, fun, ty)
       case ViewSize(iv) => ViewSize(iv.replaced(subst))
       case ViewHead(iv, ty) => ViewHead(iv.replaced(subst), ty)
       case ViewTail(iv, ty) => ViewTail(iv.replaced(subst), ty)
@@ -295,6 +297,14 @@ abstract sealed class View(val t: Type = UndefType) {
     this.t match {
       case ArrayTypeWS(elemT, len) =>
         ViewPadConstant(this, left, right, constant, ArrayTypeWSWC(elemT, len + left + right))
+      case other => throw new IllegalArgumentException("Can't pad constant " + other)
+    }
+  }
+
+  def padFunction(left: Int, right: Int, fun: (ArithExpr, ArithExpr) => Expr): View = {
+    this.t match {
+      case ArrayTypeWS(elemT, len) =>
+        ViewPadFunction(this, left, right, fun, ArrayTypeWSWC(elemT, len + left + right))
       case other => throw new IllegalArgumentException("Can't pad constant " + other)
     }
   }
@@ -503,6 +513,9 @@ case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
   */
 case class ViewPadConstant(iv: View, left: Int, right: Int, constant: Value,
                    override val t: Type) extends View(t)
+
+case class ViewPadFunction(iv: View, left: Int, right: Int, fun: (ArithExpr, ArithExpr) => Expr,
+                           override val t: Type) extends View(t)
 
 /**
  * A view for fetching the size of an array assuming that it can't be known
@@ -734,6 +747,25 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
             BinaryExpression(ArithExpression(currentIdx), >=, ArithExpression(originalSize))
           ),
           GenericAST.RawCode(constant.value),
+          emitView(iv, currentIdx :: indices, tupleAccessStack)
+        )
+
+      case ViewPadFunction(iv, left, _, fun, _) =>
+        val idx :: indices = arrayAccessStack
+        val currentIdx = idx - left
+        val originalSize = iv.t match {
+          case ArrayTypeWS(_, size) => size
+        }
+        import GenericAST.BinaryExpressionT.Operator._
+        TernaryExpression(
+          BinaryExpression(
+            BinaryExpression(ArithExpression(currentIdx), <, ArithExpression(0)),
+            ||,
+            BinaryExpression(ArithExpression(currentIdx), >=, ArithExpression(originalSize))
+          ),
+          (new OpenCLGenerator).generateExpr(
+            fun.apply(idx,originalSize)
+          ),
           emitView(iv, currentIdx :: indices, tupleAccessStack)
         )
 

@@ -85,6 +85,7 @@ object InputView {
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case PadConstant(left, right, value) => buildViewPadConstant(left, right, value, argView)
+      case PadFunction(left, right, fun) => buildViewPadFunction(left, right, fun, argView)
       case ArrayAccess(i) => argView.access(i)
       case debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
            Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => argView
@@ -317,5 +318,9 @@ object InputView {
 
   private def buildViewPadConstant(left: Int, right: Int, constant: Value, argView: View): View = {
     argView.padConstant(left, right, constant)
+  }
+
+  private def buildViewPadFunction(left: Int, right: Int, fun: (ArithExpr, ArithExpr) => Expr, argView: View): View = {
+    argView.padFunction(left, right, fun)
   }
 }

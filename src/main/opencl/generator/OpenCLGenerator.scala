@@ -458,9 +458,19 @@ class OpenCLGenerator extends Generator {
     kernel
   }
 
+  def generateExpr(expr: Expr): ExpressionT = {
+    val b = new MutableBlock()
+    generate(expr, b)
+    b match {
+      case MutableBlock(Vector(x), _) => x match {
+        case e: ExpressionT => e
+      }
+    }
+  }
+
 
   private def generate(expr: Expr, block: MutableBlock): Unit = {
-    assert(expr.t != UndefType)
+    //assert(expr.t != UndefType)
 
     expr match {
       case f: FunCall => f.args.foreach(generate(_, block))
