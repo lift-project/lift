@@ -33,6 +33,7 @@ object ScalaPrinter {
       case mapSeqSlide: MapSeqSlide => s"MapSeqSlide(${apply(mapSeqSlide.f)})"
       case reduce: Reduce => s"Reduce(${apply(reduce.f)})"
       case reduce: PartRed => s"PartRed(${apply(reduce.f)})"
+      case slide: Slide => s"Slide(${apply(slide.size)}, ${apply(slide.step)})"
       case toGlobal: toGlobal => s"toGlobal(${apply(toGlobal.f)})"
       case toLocal: toLocal => s"toLocal(${apply(toLocal.f)})"
       case toPrivate: toPrivate => s"toPrivate(${apply(toPrivate.f)})"
