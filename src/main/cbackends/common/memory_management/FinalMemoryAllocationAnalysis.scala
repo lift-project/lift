@@ -5,6 +5,7 @@ import ir.ast.{AbstractMap, AbstractPartRed, Array3DFromUserFunGenerator, ArrayF
 import lift.arithmetic.ArithExpr
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir._
+import cbackends.sdh.sdh_ir.{TMKernel, ToGPE, ToLCP}
 import ir.Type
 import opencl.ir.OpenCLAddressSpace
 
@@ -19,7 +20,7 @@ object FinalMemoryAllocationAnalysis {
 
       case _:Param | _:ArrayFromUserFunGenerator | _:Array3DFromUserFunGenerator => Map.empty
 
-      case fc@FunCall(_:UserFun|_:CPUFunCall|_:OclFunCall|_:ToGPU|_:ToHost, args@_*) =>
+      case fc@FunCall(_:UserFun | _:CPUFunCall | _:OclFunCall | _:ToGPU | _:ToHost | _:ToLCP | _:ToGPE | _:TMKernel, args@_*) =>
         val args_map = args.map(analyze(_)).reduce( _ ++ _ )
         args_map + (
           fc.mem.variable.toString -> (

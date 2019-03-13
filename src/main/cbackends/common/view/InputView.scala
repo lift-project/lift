@@ -128,7 +128,23 @@ object InputView {
 
       }
 
-      case fc@FunCall(m:MapSeq, arg)  => {
+      case fc@FunCall(m:ir.ast.Map, arg)  => {
+
+        cont( arg )
+
+        //this line reflect the map semantic
+        m.f.params.head.view = arg.view.access(m.loopVar)
+
+        cont( m.f.body)
+
+        //fc.view = m.f.body.view
+        fc.view = ViewMap(m.f.body.view, m.loopVar, fc.t)
+
+        fc
+
+      }
+
+      case fc@FunCall(m:AbstractMap, arg)  => {
 
         cont( arg )
 
@@ -153,21 +169,6 @@ object InputView {
 
       }
 
-      case fc@FunCall(m:ir.ast.Map, arg)  => {
-
-        cont( arg )
-
-        //this line reflect the map semantic
-        m.f.params.head.view = arg.view.access(m.loopVar)
-
-        cont( m.f.body)
-
-        //fc.view = m.f.body.view
-        fc.view = ViewMap(m.f.body.view, m.loopVar, fc.t)
-
-        fc
-
-      }
 
         /*
       case fc@FunCall(m:AbstractMap, arg)  => {
@@ -248,9 +249,9 @@ object InputView {
 
       }
 
-      case x:Expr =>
+      /*case x:Expr =>
         assert(false)
-        x
+        x */
 
     }
   }
