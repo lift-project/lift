@@ -32,7 +32,7 @@ object FinalMemoryAllocationAnalysis {
         val args_map = args.map(analyze(_)).reduce( _ ++ _ )
         val args_body_map = args_map ++ analyze(r.f.body)
         //correct type for user function, e.g., float => [float]_1
-        args_body_map + (
+         args_body_map + (
           fc.mem.variable.toString -> (
             CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ) ,
             Type.getElementCount(fc.t),
@@ -71,7 +71,7 @@ object FinalMemoryAllocationAnalysis {
         //args.foreach(analyze(_))
         //analyze(i.f.body)
         val args_map = args.map(analyze(_)).reduce( _ ++ _ )
-        args_map ++ analyze(i.f.body)
+       args_map ++ analyze(i.f.body)
 
       case fc@FunCall(l:Lambda, args@_*) =>
         //args.foreach(analyze(_))

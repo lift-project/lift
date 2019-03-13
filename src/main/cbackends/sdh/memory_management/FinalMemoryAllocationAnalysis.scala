@@ -1,20 +1,23 @@
 package cbackends.sdh.memory_management
 
 
+import cbackends.sdh.sdh_ir.{ToGPE, ToLCP}
 import core.generator.GenericAST.CVarWithType
-import ir.ast.{IRNode, Lambda}
+import ir.ast.{FunCall, IRNode, Lambda}
 import lift.arithmetic.ArithExpr
 import opencl.ir.OpenCLAddressSpace
 
-import scala.collection.mutable
 
 /*
 object FinalMemoryAllocationAnalysis {
 
-  var hostMemoryDeclaredInSignature = mutable.Map.empty[String, (CVarWithType, ArithExpr, OpenCLAddressSpace) ]
 
-  def analyze(node:IRNode): Unit = {
+  def analyze(node:IRNode) : (IRNode, Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]) = {
     node match {
+
+      case fc@FunCall(_:ToLCP | _:ToGPE, arg) =>
+
+        (node, Map.empty)
 
 
     }
@@ -22,12 +25,9 @@ object FinalMemoryAllocationAnalysis {
 
   def apply(lambda: Lambda): Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace) ] = {
 
-    //reset hostMemoryDeclaredInSignature if run with multiple test cases
-    hostMemoryDeclaredInSignature = mutable.Map.empty[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]
 
     analyze(lambda.body)
 
-    hostMemoryDeclaredInSignature.toMap
 
   }
 
