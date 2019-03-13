@@ -11,10 +11,6 @@ import opencl.ir.OpenCLAddressSpace
 
 object SDHCompiler extends CBackendsCompilerTrait{
 
-  override def memoryAlloc(lambda: Lambda): Unit = {
-
-    cbackends.sdh.memory_management.MemoryAllocator(lambda)
-  }
 
   override def loopVarInference(lambda: Lambda): Unit = {
 
@@ -24,6 +20,19 @@ object SDHCompiler extends CBackendsCompilerTrait{
     sdh_loopvar_inference(lambda)
 
   }
+
+  override def memoryAlloc(lambda: Lambda): Unit = {
+
+    cbackends.sdh.memory_management.MemoryAllocator(lambda)
+  }
+
+  /*
+  override def finalMemoryAllocationAnalysis(lambda: Lambda): Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)] = {
+
+    cbackends.sdh.memory_management.FinalMemoryAllocationAnalysis(lambda)
+
+  }
+  */
 
   override def inputView(lambda: Lambda): Unit = {
 
