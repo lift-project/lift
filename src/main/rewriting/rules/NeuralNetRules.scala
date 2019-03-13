@@ -23,7 +23,8 @@ object NeuralNetRules {
     val convWithBiasAsStencil = Rule("ConvWithBias => <ConvStencil3D expression>", {
       case call @ FunCall(onnxNode: ConvWithBias, args@ _*) if args.length == 3 =>
       FunCall(ConvStencil3D(
-        layerConfig = ConvStencil3D.ConvStencil3DLayerConfig(onnxNode, args.head),
+//        layerConfig = ConvStencil3D.ConvStencil3DLayerConfig(onnxNode, args.head),
+        layerConfig = new ConvStencil3D.ConvStencil3DLayerConfig(),
         tuneParams = new ConvStencil3D.ConvStencil3DTuneParams())(0), args: _*) // TODO: this throws away the final part of the expression
     })
 

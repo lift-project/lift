@@ -11,8 +11,9 @@ import patterns.nn.{LayerConfig, LayerExpression, LayerTuneParams}
 import patterns.nn.utils.Utils.slidingOutputSize
 
 
-class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig[ArithExpr],
-                    tuneParams: ConvStencil3DTuneParams[ArithExpr])
+class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
+(layerConfig: ConvStencil3DLayerConfig[ConfigType],
+ tuneParams: ConvStencil3DTuneParams[TuneParamType])
   extends LayerExpression(layerConfig, tuneParams) {
 
   def AT = ArrayType // alias
@@ -26,53 +27,53 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig[ArithExpr],
       "{ return acc + (l * r); }",
       Seq(Float, Float, Float), Float)
 
-    @Deprecated
-    def dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
-      "{ return acc + dot(l, r); }",
-      tuneParams.vectorLen match {
-        case Cst(2) => Seq(Float, Float2, Float2)
-        case Cst(3) => Seq(Float, Float3, Float3)
-        case Cst(4) => Seq(Float, Float4, Float4)
-        case _ => throw new NotImplementedError("dotAndSumUp() does not support vectors of size " + tuneParams.vectorLen)
-      }, Float)
-
-    @Deprecated
-    def vectoriseNonContiguous(vectorLen: ArithExpr) = {
-      vectorLen match {
-        case Cst(2) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1"),
-          "{ return (float2)(f0, f1); }", Seq (Float, Float), Float2)
-        case Cst(3) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2"),
-          "{ return (float3)(f0, f1, f2); }", Seq (Float, Float, Float), Float3)
-        case Cst(4) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2", "f3"),
-          "{ return (float4)(f0, f1, f2, f3); }", Seq (Float, Float, Float, Float), Float4)
-        case _ =>
-          throw new NotImplementedError("vectoriseNonContiguous() does not support vectors of size " + vectorLen)
-      }
-    }
-
-    @Deprecated
-    def ArrayToVector(): FunDecl = {
-      λ(AT(Float, tuneParams.vectorLen), (arr) => {
-        /*ArrayAccess(0) $ */{
-          if (tuneParams.coalesce)
-            tuneParams.vectorLen match {
-              case Cst(2) => vectoriseNonContiguous(tuneParams.vectorLen)(
-                ArrayAccess(0) $ arr,
-                ArrayAccess(1) $ arr)
-              case Cst(3) => vectoriseNonContiguous(tuneParams.vectorLen)(
-                ArrayAccess(0) $ arr,
-                ArrayAccess(1) $ arr,
-                ArrayAccess(2) $ arr)
-              case Cst(4) => vectoriseNonContiguous(tuneParams.vectorLen)(
-                ArrayAccess(0) $ arr,
-                ArrayAccess(1) $ arr,
-                ArrayAccess(2) $ arr,
-                ArrayAccess(3) $ arr)
-              case _ => throw new NotImplementedError("ArrayToVector() does not support size " + tuneParams.vectorLen)
-            }
-          else
-            ArrayAccess(0) o asVector(tuneParams.vectorLen) $ arr
-        }})}
+//    @Deprecated
+//    def dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
+//      "{ return acc + dot(l, r); }",
+//      tuneParams.vectorLen match {
+//        case Cst(2) => Seq(Float, Float2, Float2)
+//        case Cst(3) => Seq(Float, Float3, Float3)
+//        case Cst(4) => Seq(Float, Float4, Float4)
+//        case _ => throw new NotImplementedError("dotAndSumUp() does not support vectors of size " + tuneParams.vectorLen)
+//      }, Float)
+//
+//    @Deprecated
+//    def vectoriseNonContiguous(vectorLen: ArithExpr) = {
+//      vectorLen match {
+//        case Cst(2) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1"),
+//          "{ return (float2)(f0, f1); }", Seq (Float, Float), Float2)
+//        case Cst(3) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2"),
+//          "{ return (float3)(f0, f1, f2); }", Seq (Float, Float, Float), Float3)
+//        case Cst(4) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2", "f3"),
+//          "{ return (float4)(f0, f1, f2, f3); }", Seq (Float, Float, Float, Float), Float4)
+//        case _ =>
+//          throw new NotImplementedError("vectoriseNonContiguous() does not support vectors of size " + vectorLen)
+//      }
+//    }
+//
+//    @Deprecated
+//    def ArrayToVector(): FunDecl = {
+//      λ(AT(Float, tuneParams.vectorLen), (arr) => {
+//        /*ArrayAccess(0) $ */{
+//          if (tuneParams.coalesce)
+//            tuneParams.vectorLen match {
+//              case Cst(2) => vectoriseNonContiguous(tuneParams.vectorLen)(
+//                ArrayAccess(0) $ arr,
+//                ArrayAccess(1) $ arr)
+//              case Cst(3) => vectoriseNonContiguous(tuneParams.vectorLen)(
+//                ArrayAccess(0) $ arr,
+//                ArrayAccess(1) $ arr,
+//                ArrayAccess(2) $ arr)
+//              case Cst(4) => vectoriseNonContiguous(tuneParams.vectorLen)(
+//                ArrayAccess(0) $ arr,
+//                ArrayAccess(1) $ arr,
+//                ArrayAccess(2) $ arr,
+//                ArrayAccess(3) $ arr)
+//              case _ => throw new NotImplementedError("ArrayToVector() does not support size " + tuneParams.vectorLen)
+//            }
+//          else
+//            ArrayAccess(0) o asVector(tuneParams.vectorLen) $ arr
+//        }})}
 
     def Continue(): Lambda = λ((x) => x)
 
@@ -81,16 +82,20 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig[ArithExpr],
       else ReduceSeq(f, init)
 
     /*********** Constants ***********/
+//    val tileWidthHeight = (layerConfig.kernelWidthHeight - layerConfig.kernelStride) + tuneParams.tileStride
+    val tileWidthHeight = tuneParams.tileWidthHeight
+    val tileStride = tileWidthHeight - (layerConfig.kernelWidthHeight - layerConfig.kernelStride)
+//    val tileStride = tuneParams.tileStride
     val nTilesInRow = slidingOutputSize(
       layerConfig.inputWidthHeight,
-      tuneParams.tileWidthHeight,
-      tuneParams.tileStride)
+      tileWidthHeight,
+      tileStride)
 
     val nTilesInCol = nTilesInRow
     val nTilesInInput = nTilesInCol * nTilesInRow
 
     val nWindowsInTileRow = slidingOutputSize(
-      tuneParams.tileWidthHeight,
+      tileWidthHeight,
       layerConfig.kernelWidthHeight,
       layerConfig.kernelStride)
     val nWindowsInTileCol = nWindowsInTileRow
@@ -130,21 +135,21 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig[ArithExpr],
       layerConfig.kernelWidthHeight),
       layerConfig.kernelWidthHeight),
       slidingOutputSize(
-        tuneParams.tileWidthHeight,
+        tileWidthHeight,
         layerConfig.kernelWidthHeight,
         layerConfig.kernelStride)),
       slidingOutputSize(
-        tuneParams.tileWidthHeight,
+        tileWidthHeight,
         layerConfig.kernelWidthHeight,
         layerConfig.kernelStride)),
       slidingOutputSize(
         layerConfig.inputWidthHeight,
-        tuneParams.tileWidthHeight,
-        tuneParams.tileStride)),
+        tileWidthHeight,
+        tileStride)),
       slidingOutputSize(
         layerConfig.inputWidthHeight,
-        tuneParams.tileWidthHeight,
-        tuneParams.tileStride)),
+        tileWidthHeight,
+        tileStride)),
       layerConfig.nInputs),
       1)
 
@@ -194,7 +199,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig[ArithExpr],
           // Join batches and inputs
           Join() o
 //          AssertType(slidedXType, "tiledSlideND type") o
-          Map(Map(TiledSlidedND(2)(layerConfig.kernelWidthHeight, layerConfig.kernelStride, tuneParams.tileStride,
+          Map(Map(TiledSlidedND(2)(layerConfig.kernelWidthHeight, layerConfig.kernelStride, tileStride,
           enableUndoTiling = false))) //o
 //          AssertType(originalXType, "SlideX input")
       $ X)
@@ -396,30 +401,30 @@ object ConvStencil3D {
                                                  val kernelWidthHeight: T = kernelWidthHeightTmp,
                                                  val kernelChannels: T = Var("kernelChannels"),
                                                  val kernelStride: T = kernelStrideTmp,
-                                                 val padWidthHeight: T = Var("padWidthHeight")) extends LayerConfig[T]{
+                                                 val padWidthHeight: T = Var("padWidthHeight")) extends LayerConfig[T] {
     // TODO: handle padding
     val paramVector: Vector[T] = Vector(nInputs, inputWidthHeight, inputChannels, kernelWidthHeight, kernelChannels,
       kernelStride, padWidthHeight)
   }
 
-  object ConvStencil3DLayerConfig {
-    /**
-      * Generates layer configuration based on the ONNX AST node and input data
-      */
-    def apply(onnxNode: ir.ast.onnx.Conv, input: Expr): ConvStencil3DLayerConfig[ArithExpr] = {
-      val ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(Float, inputChannels), inputWidthHeight), _), nInputs) =
-        input.t
-
-      new ConvStencil3DLayerConfig(nInputs, inputWidthHeight, inputChannels,
-        /* kernel should be square, hence one value suffices here */
-        onnxNode.kernelShape(ir.ast.onnx.Conv.firstSpatialDimension),
-        onnxNode.kernelShape.head,
-        /* all strides should be the same, hence one value suffices here */
-        onnxNode.strides(0),
-        /* all pads should be the same, hence one value suffices here */
-        onnxNode.pads(0))
-    }
-  }
+//  object ConvStencil3DLayerConfig {
+//    /**
+//      * Generates layer configuration based on the ONNX AST node and input data
+//      */
+//    def apply(onnxNode: ir.ast.onnx.Conv, input: Expr): ConvStencil3DLayerConfig = {
+//      val ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(Float, inputChannels), inputWidthHeight), _), nInputs) =
+//        input.t
+//
+//      new ConvStencil3DLayerConfig(nInputs, inputWidthHeight, inputChannels,
+//        /* kernel should be square, hence one value suffices here */
+//        onnxNode.kernelShape(ir.ast.onnx.Conv.firstSpatialDimension),
+//        onnxNode.kernelShape.head,
+//        /* all strides should be the same, hence one value suffices here */
+//        onnxNode.strides(0),
+//        /* all pads should be the same, hence one value suffices here */
+//        onnxNode.pads(0))
+//    }
+//  }
 
   /**
     * During lowering, the expression for the Conv layer is created using default variables for OptParams without
@@ -434,7 +439,7 @@ object ConvStencil3D {
                                                 val seqOpsPerThread: T = Var("seqOpsPerThread"),
 
                                                 val coalesce: Boolean = false,
-                                                val unrollReduce: Boolean = false) extends LayerTuneParams[T]{
+                                                val unrollReduce: Boolean = false) extends LayerTuneParams[T] {
     val paramVector: Vector[T] = Vector(tileWidthHeight, tileStride, vectorLen, nKernelsPerWrg, seqOpsPerThread)
   }
   /**
