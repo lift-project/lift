@@ -76,6 +76,14 @@ object LowerIR2SchedCAST {
       |
     """.stripMargin)
 
+
+  val wait_for_branch_predictor_cycle = RawCode(
+    """
+      |__asm__ __volatile__ (
+      |"dmb\n\t"
+      |);
+    """.stripMargin)
+
   def generate(node:IRNode): Block = {
     //lots of pattern matching code
     node match {
@@ -173,7 +181,7 @@ object LowerIR2SchedCAST {
     //val virtual_id_b = BinaryExpression(VarRefPure(indexVar2b), BinaryExpressionT.Operator.+,
     //  BinaryExpression(ArithExpression(m.num_hw_elements),BinaryExpressionT.Operator.*,VarRefPure(indexVar1)) )
     //val cond_b = BinaryExpression(virtual_id_b, BinaryExpressionT.Operator.<, ArithExpression(stop))
-    val pop_finish_signal = Block(Vector(FunctionCall("LCPQ_POP", List(VarRefPure(indexVar2b))) ) )
+    val pop_finish_signal = Block(Vector(wait_for_branch_predictor_cycle, FunctionCall("LCPQ_POP", List(VarRefPure(indexVar2b))) ) )
     //val pop_guard = Block(Vector(IfThenElseIm(cond_b, pop_finish_signal, Block())))
 
     val innerloopA = ForLoopIm(init2a, cond2a, increment2a, push_virtual_thread_id)
