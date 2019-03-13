@@ -20,7 +20,7 @@ object FinalMemoryAllocationAnalysis {
 
       case _:Param | _:ArrayFromUserFunGenerator | _:Array3DFromUserFunGenerator => Map.empty
 
-      case fc@FunCall(_:UserFun | _:CPUFunCall | _:OclFunCall | _:ToGPU | _:ToHost | _:ToLCP | _:ToGPE | _:TMKernel, args@_*) =>
+      case fc@FunCall(_:UserFun | _:CPUFunCall | _:OclFunCall | _:ToGPU | _:ToHost |  _:TMKernel, args@_*) =>
         val args_map = args.map(analyze(_)).reduce( _ ++ _ )
         args_map + (
           fc.mem.variable.toString -> (
@@ -40,7 +40,7 @@ object FinalMemoryAllocationAnalysis {
             fc.addressSpace
           ) )
 
-      case fc@FunCall(m:ir.ast.Map, args@_*) =>
+      case FunCall(_:ir.ast.Map, args@_*) =>
         // no memory correction for Map, which is a lazy struct
         // no need to traverse into Map, also because it is a lazy struct, no memory alloc can happen, thus no need for correction
         // args.foreach(analyze(_))
@@ -80,7 +80,7 @@ object FinalMemoryAllocationAnalysis {
         val args_map = args.map(analyze(_)).reduce( _ ++ _ )
         args_map ++ analyze(l.body)
 
-      case fc@FunCall(_:Join|_:Slide|_:Zip|_:Get|_:Split|_:Join|_:Transpose|_:TransposeW|_:Pad, args@_*) =>
+      case fc@FunCall(_:Join|_:Slide|_:Zip|_:Get|_:Split|_:Join|_:Transpose|_:TransposeW|_:Pad |_:ToLCP | _:ToGPE, args@_*) =>
         //args.foreach(analyze(_))
         args.map(analyze(_)).reduce( _ ++ _ )
 
