@@ -2,6 +2,7 @@ package rewriting.utils
 
 import ir._
 import ir.ast._
+import ir.ast.debug.AssertType
 import lift.arithmetic._
 import opencl.generator.NotPrintableExpression
 import opencl.ir.ast.OpenCLBuiltInFun
@@ -10,7 +11,13 @@ import opencl.ir.pattern._
 object ScalaPrinter {
   def apply(expr: Expr): String = {
     expr match {
-      case funCall: FunCall => s"FunCall(${apply(funCall.f)}, ${funCall.args.map(apply).mkString(", ")})"
+      case funCall: FunCall => funCall.f match {
+        case AssertType(_, _) =>
+        // Skip AssertType and just print its argument
+          apply(funCall.args.head)
+        case _ =>
+          s"FunCall(${apply(funCall.f)}, ${funCall.args.map(apply).mkString(", ")})"
+      }
       case value: Value => s"""Value("${value.value}", ${apply(value.t)})"""
       case param: Param => "p_" + param.hashCode()
       case _ => expr.toString
