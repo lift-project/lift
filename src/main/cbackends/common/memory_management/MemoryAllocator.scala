@@ -30,8 +30,8 @@ object MemoryAllocator {
         ac.mem = HostMemory(Var(s"array_constructor_${ac.gid}", ContinuousRange(Cst(0), size)), size, ac.addressSpace )
         ac
 
-      case fc@FunCall(_:ToGPU|_:OclFunCall, arg) =>
-        cont(arg)
+      case fc@FunCall(_:ToGPU|_:OclFunCall, args@_*) =>
+        args.foreach(cont(_))
 
         val size = Type.getElementCount(fc.t)
         fc.mem = OpenCLMemory(Var(s"user_func_${fc.gid}", ContinuousRange(Cst(0), size)), size, fc.addressSpace )
