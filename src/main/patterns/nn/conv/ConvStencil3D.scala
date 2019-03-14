@@ -187,7 +187,7 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
     /* Produces a tiled slided tiled version of X */
     def SlideX(): FunDecl = {
       λ(originalXType, (X) =>
-//          AssertType(xType, "SlideX output") o
+          AssertType(xType, "SlideX output") o
           // Tile and coalesce
           Map(Map(TileAndCoalesce())) o
           // Join tiles and channels
@@ -198,10 +198,10 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
           Join() o Map(Join()) o
           // Join batches and inputs
           Join() o
-//          AssertType(slidedXType, "tiledSlideND type") o
+          AssertType(slidedXType, "tiledSlideND type") o
           Map(Map(TiledSlidedND(2)(layerConfig.kernelWidthHeight, layerConfig.kernelStride, tileStride,
-          enableUndoTiling = false))) //o
-//          AssertType(originalXType, "SlideX input")
+          enableUndoTiling = false))) o
+          AssertType(originalXType, "SlideX input")
       $ X)
     }
 
@@ -227,13 +227,13 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
     /** structuriseX() converts the flat output of the previous kernel into 5D array **/
     def structuriseX(): FunDecl =
       λ(flatPartReducedXType, (X) =>
-        //AssertType(partReducedXType, "Partially reduced X type") o
+        AssertType(partReducedXType, "Partially reduced X type") o
           Split(nKernelGroups) o Split(tuneParams.nKernelsPerWrg) o Split(nWindowsInTile) o
           Split(nSeqTilesInWindow) $ X)
 
     def formatResults(): FunDecl =
       λ(reducedXType, (reducedX) =>
-        //AssertType(resultType, "Result type") o
+        AssertType(resultType, "Result type") o
           // Flatten tiles
           Map(/* Batch */
             Map(/* Image */
@@ -254,8 +254,8 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
           /* Inputs */ Split(nTilesInCol) o
           /* Tile rows */ Split(nTilesInRow) o
           /* Sliding window rows in tiles */
-          Map(Map(Split(nWindowsInTileRow))) /*o
-          AssertType(reducedXType, "Reduced X type")*/ $ reducedX)
+          Map(Map(Split(nWindowsInTileRow))) o
+          AssertType(reducedXType, "Reduced X type") $ reducedX)
 
     /*********** F-prop lambda: convolution with partial reduction ***********/
     val layerPartial: Lambda = {
@@ -269,23 +269,23 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
 
           MapWrg(2)(λ(originalXType, (XUnwrapped) => {
 
-//            AssertType(partReducedXType, "Part reduced X type") o
+            AssertType(partReducedXType, "Part reduced X type") o
               MapWrg(1)(λ(xTileType, (XTile) => {
                 /*** Tile BEGIN ***/
 
-//                AssertType(partReducedXTileType, "Part reduced X XTile type") o
+                AssertType(partReducedXTileType, "Part reduced X XTile type") o
                   MapWrg(0)(λ(kernelWGroupType, (kernelWGroup) => {
                     /***** Output channel group BEGIN *****/
 
-//                    AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") o
+                    AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") o
                       MapLcl(2)(λ(kernelWWindowType, (kernelWWindow) => {
                         /***** Output channel BEGIN *****/
 
-//                        AssertType(partReducedOutChannelType, "Part reduced X output channel type") o
+                        AssertType(partReducedOutChannelType, "Part reduced X output channel type") o
                           MapLcl(1)(λ(windowType, (window) =>
                             /******* Sliding window BEGIN *******/
 
-//                            AssertType(partReducedWindowType, "Part reduced window type") o
+                            AssertType(partReducedWindowType, "Part reduced window type") o
                               /* Remove the one-sized dimension introduced by Reduce */
                               Join() o
                               MapLcl(0)(λ(TupleType(windowSeqTileType, windowSeqTileType),
@@ -305,20 +305,20 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
                                       }),
                                       toPrivate(id) $ Value("0.0f", Float)) $
                                     Zip(
-                                      /*AssertType(windowSeqTileType) $ */ Get(SeqTileAndWeightsAndAcc, 0),
-                                      /*AssertType(windowSeqTileType) $ */Get(SeqTileAndWeightsAndAcc, 1))
+                                      AssertType(windowSeqTileType) $  Get(SeqTileAndWeightsAndAcc, 0),
+                                      AssertType(windowSeqTileType) $ Get(SeqTileAndWeightsAndAcc, 1))
 
                                   /********* Reducing window tile END *********/
                                 })) $ Zip(window, /*Get(kernelWWindow, weightsNoInTuple)*/kernelWWindow)
 
                             /******* Sliding window END *******/
-                          ))/* o AssertType(xTileType) */$ XTile
+                          )) o AssertType(xTileType) $ XTile
 
                         /***** Output channel END *****/
-                      }))/* o AssertType(kernelWGroupType, "Kernel weights group type") */$ kernelWGroup
+                      })) o AssertType(kernelWGroupType, "Kernel weights group type") $ kernelWGroup
 
                     /***** Output channel group END *****/
-                  })) o //o AssertType(kernelWType, "All kernel weights type after split") o
+                  })) o AssertType(kernelWType, "All kernel weights type after split") o
                   Split(tuneParams.nKernelsPerWrg) o Map(TileAndCoalesce() o Join() o Map(Join())) $ K
 
                 /*** Tile END ***/
@@ -342,7 +342,7 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
             MapWrg(1)(λ(partReducedXTileType, (XTile) => {
               /*** Tile BEGIN ***/
 
-//              AssertType(reducedXTileType, "Reduced kernels type") o
+              AssertType(reducedXTileType, "Reduced kernels type") o
                 Join() o
                 MapWrg(0)(λ(TupleType(partReducedOutChannelGroupType, kernelBGroupType), (outputChannelGroup) => {
                   /***** Output channel group BEGIN *****/
@@ -350,7 +350,7 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
                   MapLcl(1)(λ(TupleType(partReducedOutChannelType, kernelBPerWindowType), (outputChannel) => {
                     /***** Output channel BEGIN *****/
 
-//                    AssertType(reducedOutChannelType, "Reduced X output channel type") o
+                    AssertType(reducedOutChannelType, "Reduced X output channel type") o
                       /* Remove the one-sized dimension introduced by Reduce */
                       Join() o
                       MapLcl(0)(λ(partReducedWindowType, (window) =>
@@ -358,26 +358,26 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
 
                         /* Map before AssertType is needed because of the one-sized dimension introduced
                            by Reduce */
-//                        Map(AssertType(reducedWindowType, "Reduced window type")) o
+                        Map(AssertType(reducedWindowType, "Reduced window type")) o
                           MapSeq(toGlobal(id)) o
-                          ReduceSeqMaybeUnroll(add, toPrivate(id) /*o
-                            AssertType(kernelBPerWindowType, "Kernel bias per window type") */$
+                          ReduceSeqMaybeUnroll(add, toPrivate(id) o
+                            AssertType(kernelBPerWindowType, "Kernel bias per window type") $
                             Get(outputChannel, 1)
-                          ) /*o AssertType(partReducedWindowType, "Part reduced X window type") */$ window
+                          ) o AssertType(partReducedWindowType, "Part reduced X window type") $ window
 
                         /******* Sliding window END *******/
-                      )) /*o AssertType(partReducedOutChannelType) */$ Get(outputChannel, 0)
+                      )) o AssertType(partReducedOutChannelType) $ Get(outputChannel, 0)
 
                     /***** Output channel END *****/
                   })) $ Zip(
-                   /* AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") $*/
+                    AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") $
                       Get(outputChannelGroup, 0),
-                    /*AssertType(kernelBGroupType, "Bias group type") $*/ Get(outputChannelGroup, 1))
+                    AssertType(kernelBGroupType, "Bias group type") $ Get(outputChannelGroup, 1))
 
                   /***** Output channel group END *****/
                 })) $ Zip(
-                /*AssertType(partReducedXTileType, "Part reduced X tile") $ */XTile,
-                /*AssertType(kernelBType, "All kernel biases type after split") o*/ Split(tuneParams.nKernelsPerWrg) $ B)
+                AssertType(partReducedXTileType, "Part reduced X tile") $ XTile,
+                AssertType(kernelBType, "All kernel biases type after split") o Split(tuneParams.nKernelsPerWrg) $ B)
 
               /*** Tile END ***/
             })) o structuriseX() $ X
