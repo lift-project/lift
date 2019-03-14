@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, floor}
 import ir._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
@@ -23,8 +23,8 @@ case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) {
         //if (((n - (size - step)) % step) != Cst(0)) throw new TypeException(argType, "slide args not as")
         val innerSize = size
         val innerCapacity = size
-        val outerSize = (s - (size - step)) / step
-        val outerCapacity = (c - (size - step)) / step
+        val outerSize = floor((s - (size - step)) /^ step)
+        val outerCapacity = floor((c - (size - step)) /^ step)
         ArrayTypeWSWC(ArrayTypeWSWC(et, innerSize, innerCapacity), outerSize, outerCapacity)
       case _ => throw new TypeException(argType, "ArrayType", this)
     }

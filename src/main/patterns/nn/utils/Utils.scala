@@ -1,6 +1,6 @@
 package patterns.nn.utils
 
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, floor}
 
 object Utils {
   /**
@@ -11,5 +11,5 @@ object Utils {
     * @return
     */
   def slidingOutputSize(areaSize: ArithExpr, sliderSize: ArithExpr, sliderStride: ArithExpr): ArithExpr =
-    (areaSize - (sliderSize - sliderStride)) /^ sliderStride
+    floor((areaSize - (sliderSize - sliderStride)) /^ sliderStride)
 }
