@@ -5,12 +5,15 @@ import ir.ast._
 import lift.arithmetic._
 import opencl.executor.Compile
 import core.generator.GenericAST._
+import opencl.generator.OpenCLGenerator
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapSeq, toGlobal}
 import org.junit.Assert._
 import org.junit.Test
 
 class ViewTest {
+
+  implicit val generator = new OpenCLGenerator
 
   @Test
   def testUserFuns(): Unit = {

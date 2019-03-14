@@ -127,7 +127,7 @@ abstract sealed class View(val t: Type = UndefType) {
       case ViewSlide(iv, slide, ty) => ViewSlide(iv.replaced(subst), slide, ty)
       case ViewPad(iv, left, right, padFun, ty) => ViewPad(iv.replaced(subst), left, right, padFun, ty)
       case ViewPadConstant(iv, left, right, constant, ty) => ViewPadConstant(iv.replaced(subst), left, right, constant, ty)
-      case ViewPadFunction(iv, left, right, fun, ty) => ViewPadFunction(iv.replaced(subst), left, right, fun, ty)
+      case ViewPadFunction(iv, left, right, i, n, body, ty) => ViewPadFunction(iv.replaced(subst), left, right, i, n, body, ty)
       case ViewSize(iv) => ViewSize(iv.replaced(subst))
       case ViewHead(iv, ty) => ViewHead(iv.replaced(subst), ty)
       case ViewTail(iv, ty) => ViewTail(iv.replaced(subst), ty)
@@ -301,10 +301,10 @@ abstract sealed class View(val t: Type = UndefType) {
     }
   }
 
-  def padFunction(left: Int, right: Int, fun: (ArithExpr, ArithExpr) => Expr): View = {
+  def padFunction(left: Int, right: Int, i: Var, n: Var, body: Expr): View = {
     this.t match {
       case ArrayTypeWS(elemT, len) =>
-        ViewPadFunction(this, left, right, fun, ArrayTypeWSWC(elemT, len + left + right))
+        ViewPadFunction(this, left, right, i, n, body, ArrayTypeWSWC(elemT, len + left + right))
       case other => throw new IllegalArgumentException("Can't pad constant " + other)
     }
   }
@@ -514,7 +514,7 @@ case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
 case class ViewPadConstant(iv: View, left: Int, right: Int, constant: Value,
                    override val t: Type) extends View(t)
 
-case class ViewPadFunction(iv: View, left: Int, right: Int, fun: (ArithExpr, ArithExpr) => Expr,
+case class ViewPadFunction(iv: View, left: Int, right: Int, i: Var, n: Var, body: Expr,
                            override val t: Type) extends View(t)
 
 /**
@@ -647,7 +647,8 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
     */
   private def emitView(sv: View,
                        arrayAccessStack: List[ArithExpr],
-                       tupleAccessStack: List[Int]): ExpressionT = {
+                       tupleAccessStack: List[Int])
+                      (implicit generator: OpenCLGenerator): ExpressionT = {
     sv match {
       case ViewMem(memVar, ty) =>
         assert(tupleAccessStack.isEmpty)
@@ -750,21 +751,25 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
           emitView(iv, currentIdx :: indices, tupleAccessStack)
         )
 
-      case ViewPadFunction(iv, left, _, fun, _) =>
+      case ViewPadFunction(iv, left, _, i, n, body, _) =>
         val idx :: indices = arrayAccessStack
         val currentIdx = idx - left
         val originalSize = iv.t match {
           case ArrayTypeWS(_, size) => size
         }
         import GenericAST.BinaryExpressionT.Operator._
+
+        val expr = body // TODO: replace `idx' for `i' and `originalSize' for `n' in `body'
+          //fun.apply(idx, originalSize)
+
         TernaryExpression(
           BinaryExpression(
             BinaryExpression(ArithExpression(currentIdx), <, ArithExpression(0)),
             ||,
             BinaryExpression(ArithExpression(currentIdx), >=, ArithExpression(originalSize))
           ),
-          (new OpenCLGenerator).generateExpr(
-            fun.apply(idx,originalSize)
+          generator.generateExpr(
+            expr
           ),
           emitView(iv, currentIdx :: indices, tupleAccessStack)
         )
@@ -982,7 +987,7 @@ object ViewPrinter {
     view: View,
     replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map(),
     addressSpace: OpenCLAddressSpace = UndefAddressSpace
-  ): ExpressionT = {
+  )(implicit generator: OpenCLGenerator): ExpressionT = {
     val vp = new ViewPrinter(replacements, addressSpace)
     assert(!view.t.isInstanceOf[ArrayType])
     vp.emitView(view.replaced(replacements), List(), List())

@@ -176,8 +176,13 @@ object OpenCLMemoryAllocator {
 
       case debug.PrintView(_, f) => allocLambda(f, numGlb, numLcl, numPvt, inMem)
 
+      case PadFunction(_, _, _, _, body) =>
+//        alloc(body, numGlb, numLcl, numPvt)
+        // TODO: how to tell `body' to write into the memory of the following pattern? ...
+        inMem
+
       case Split(_) | Join() | asVector(_) | asScalar() |
-           Transpose() | Unzip() | TransposeW() | Slide(_, _) | Pad(_, _, _) | PadConstant(_, _, _) | PadFunction(_, _, _) |
+           Transpose() | Unzip() | TransposeW() | Slide(_, _) | Pad(_, _, _) | PadConstant(_, _, _) |
            Head() | Tail() | Gather(_) | Scatter(_) | ArrayAccess(_) |
            debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) | Id() =>
         inMem

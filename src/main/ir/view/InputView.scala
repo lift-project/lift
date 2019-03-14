@@ -2,7 +2,7 @@ package ir.view
 
 import ir._
 import ir.ast._
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Var}
 import opencl.ir.OpenCLMemoryCollection
 import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
 
@@ -85,7 +85,7 @@ object InputView {
       case fp: FPattern => buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case PadConstant(left, right, value) => buildViewPadConstant(left, right, value, argView)
-      case PadFunction(left, right, fun) => buildViewPadFunction(left, right, fun, argView)
+      case PadFunction(left, right, i, n, body) => buildViewPadFunction(left, right, i, n, body, argView)
       case ArrayAccess(i) => argView.access(i)
       case debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
            Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => argView
@@ -320,7 +320,8 @@ object InputView {
     argView.padConstant(left, right, constant)
   }
 
-  private def buildViewPadFunction(left: Int, right: Int, fun: (ArithExpr, ArithExpr) => Expr, argView: View): View = {
-    argView.padFunction(left, right, fun)
+  private def buildViewPadFunction(left: Int, right: Int, i: Var, n: Var, body: Expr, argView: View): View = {
+    visitAndBuildViews(body)
+    argView.padFunction(left, right, i, n, body)
   }
 }

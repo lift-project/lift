@@ -235,7 +235,7 @@ class TestAbsorbingBoundaryConditions
     def stencil1D(a: Int, b: Int) = fun(
       ArrayTypeWSWC(Float,N),
       (input) => {
-        toGlobal(MapGlb(0)(id)) o PadFunction(1,1, (i, n) => input.at(i)) o Join() o
+        toGlobal(MapGlb(0)(id)) o PadFunction(1, 1, (i, n) => id $ input.at(i)) o Join() o
           PadConstant(2,2,1.0f) o
           MapGlb(0)(fun(neighbourhood => {
             toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood

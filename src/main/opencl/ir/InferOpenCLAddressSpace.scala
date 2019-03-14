@@ -50,7 +50,7 @@ object InferOpenCLAddressSpace {
 
       case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
            asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
-           Pad(_,_,_) | PadConstant(_, _, _) | PadFunction(_, _, _) | Tuple(_) | Slide(_,_) | Head() | Tail() | debug.PrintType(_) |
+           Pad(_,_,_) | PadConstant(_, _, _) | Tuple(_) | Slide(_,_) | Head() | Tail() | debug.PrintType(_) |
            debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
            UnsafeArrayAccess(_) | CheckedArrayAccess(_) | ArrayAccess(_) | Id() =>
 
@@ -73,6 +73,11 @@ object InferOpenCLAddressSpace {
 
       case l: Lambda => setAddressSpaceLambda(l, writeTo, addressSpaces)
       case fp: FPattern => setAddressSpaceLambda(fp.f, writeTo, addressSpaces)
+
+      // TODO: DOES ANY OF THIS MAKES ANY SENSE????
+      case PadFunction(_, _, _, _, body) =>
+        setAddressSpace(body, writeTo)
+        setAddressSpaceDefault(addressSpaces)
 
       case VectorizeUserFun(_, _) | UserFun(_, _, _, _, _) =>
         inferAddressSpace(writeTo, addressSpaces)
