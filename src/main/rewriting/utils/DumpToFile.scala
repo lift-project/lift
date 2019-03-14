@@ -114,7 +114,7 @@ object DumpToFile {
       "val " + newName + " = Var(\"" + param.name + "\", " + replacedRange + ")"
     })
 
-    declStrings.mkString("\n") + "\n\n" + replaceVariableNames(fullString, withIndex)
+    /*declStrings.mkString("\n") + "\n\n" + */replaceVariableNames(fullString, withIndex)
   }
 
   /**
