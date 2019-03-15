@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import lift.arithmetic.{ArithExpr, floor}
+import lift.arithmetic.{ArithExpr, Cst, floor}
 import ir._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
@@ -20,11 +20,16 @@ case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) {
     argType match {
       case ArrayTypeWSWC(et,s,c) if s == c =>
         // todo check that the sliding window always ends at the last element of the input
-        //if (((n - (size - step)) % step) != Cst(0)) throw new TypeException(argType, "slide args not as")
+//        if (((s - (size - step)) % step) != Cst(0))
+//          throw TypeException(s"Dimensions of slide are not divisible: (($s - ($size - $step)) % $step) = " +
+//            s"${(s - (size - step)) % step}")
+//        if (((c - (size - step)) % step) != Cst(0))
+//          throw TypeException(s"Dimensions of slide are not divisible: (($c - ($size - $step)) % $step) = " +
+//            s"${(c - (size - step)) % step}")
         val innerSize = size
         val innerCapacity = size
-        val outerSize = floor((s - (size - step)) /^ step)
-        val outerCapacity = floor((c - (size - step)) /^ step)
+        val outerSize = (s - (size - step)) /^ step // TODO: make sure that these are divisible
+        val outerCapacity = (c - (size - step)) /^ step  // TODO: make sure that these are divisible
         ArrayTypeWSWC(ArrayTypeWSWC(et, innerSize, innerCapacity), outerSize, outerCapacity)
       case _ => throw new TypeException(argType, "ArrayType", this)
     }
