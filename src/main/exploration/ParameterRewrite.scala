@@ -150,7 +150,7 @@ object ParameterRewrite {
 
             TypeChecker(high_level_expr)
 
-            val all_substitution_tables: Seq[Map[Var, ArithExpr]] = ParameterSearch(high_level_expr)
+            val all_substitution_tables: Seq[Map[Var, ArithExpr]] = SplitSlideSearch(high_level_expr)
             val substitutionCount = all_substitution_tables.size
             println(s"Found $substitutionCount valid parameter sets")
 
