@@ -3,7 +3,7 @@ package cbackends.global.lowering
 import java.util.function.BinaryOperator
 
 import cbackends.host.host_ir._
-import core.generator.GenericAST.{AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, ClassOrStructType, FunctionCall, FunctionPure, IfThenElseIm, IntConstant, MethodInvocation, RawCode, StringConstant, VarDeclPure, VoidType}
+import core.generator.GenericAST.{AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, ClassOrStructType, FunctionCall, FunctionPure, IfThenElseIm, IntConstant, MethodInvocation, RawCode, StringConstant, TupleExpr, VarDeclPure, VoidType}
 import ir.ast.{Expr, FunCall, Iterate, Lambda, Param, Value}
 
 object GenerateOclGlobalFacility {
@@ -36,9 +36,9 @@ object GenerateOclGlobalFacility {
         ))
 
         //construct global init
-        val kernel_string_init = AssignmentExpression(kernel_string_cvar, FunctionCall("readFile", List(StringConstant('"' + path + "/"+ "kernel_" + fc.gid + ".cl" + '"'))))
+        val kernel_string_init = AssignmentExpression(kernel_string_cvar, FunctionCall("readFile", List(StringConstant('"' + "kernel_" + fc.gid + ".cl" + '"'))))
         val kernel_source_init = AssignmentExpression(kernel_source_cvar, FunctionCall("cl::Program::Sources", List(IntConstant(1),
-          FunctionCall("std::make_pair", List(
+          TupleExpr( List(
             MethodInvocation(kernel_string_cvar, "c_str", List()),
             MethodInvocation(kernel_string_cvar, "length", List())
           ))

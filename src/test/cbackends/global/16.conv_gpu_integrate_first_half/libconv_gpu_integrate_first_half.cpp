@@ -95,15 +95,15 @@ void lift_init(){
  cl::CommandQueue tmp_queue(context, device, CL_QUEUE_PROFILING_ENABLE);
  lift_queue = std::move(tmp_queue);
       ; 
-    kernel_string_363 = readFile("/home/lu/Documents/Research/lift/src/test/cbackends/global/16.conv_gpu_integrate_first_half/kernel_363.cl"); 
-    kernel_source_363 = cl::Program::Sources(1, std::make_pair(kernel_string_363.c_str(), kernel_string_363.length())); 
+    kernel_string_363 = readFile("kernel_363.cl"); 
+    kernel_source_363 = cl::Program::Sources(1, {kernel_string_363.c_str(), kernel_string_363.length()}); 
     kernel_program_363 = cl::Program(context, kernel_source_363); 
     if ((kernel_program_363.build({ device }) != CL_SUCCESS)){
         std::cerr<<"kernel build error"<<std::endl; exit(1);; 
     }
     kernel_363 = cl::Kernel(kernel_program_363, "KERNEL"); 
-    kernel_string_364 = readFile("/home/lu/Documents/Research/lift/src/test/cbackends/global/16.conv_gpu_integrate_first_half/kernel_364.cl"); 
-    kernel_source_364 = cl::Program::Sources(1, std::make_pair(kernel_string_364.c_str(), kernel_string_364.length())); 
+    kernel_string_364 = readFile("kernel_364.cl"); 
+    kernel_source_364 = cl::Program::Sources(1, {kernel_string_364.c_str(), kernel_string_364.length()}); 
     kernel_program_364 = cl::Program(context, kernel_source_364); 
     if ((kernel_program_364.build({ device }) != CL_SUCCESS)){
         std::cerr<<"kernel build error"<<std::endl; exit(1);; 

@@ -99,6 +99,8 @@ int main( int argc, char** argv ) {
 	float (&out)[n_inputs_SV][out_channels_SV][input_ydim_SV - (kernel_ydim_SV - 1)][input_xdim_SV - (kernel_xdim_SV - 1)] = *reinterpret_cast<float (*)[n_inputs_SV][out_channels_SV][input_ydim_SV - (kernel_ydim_SV - 1)][input_xdim_SV - (kernel_xdim_SV - 1)]>(out1);
 
 
+#include "./golden.c"
+	/*
     float gold[n_inputs_SV][out_channels_SV][input_ydim_SV - (kernel_ydim_SV - 1)][input_xdim_SV - (kernel_xdim_SV - 1)] =
       {
         {
@@ -145,7 +147,7 @@ int main( int argc, char** argv ) {
             {2975, 3056, 3137, 3218, 3299, 3380},
             {3623, 3704, 3785, 3866, 3947, 4028},
             {4271, 4352, 4433, 4514, 4595, 4676}}}};
-
+*/
 
     // Verify the result
     bool result=true;

@@ -810,6 +810,28 @@ object GenericAST {
 
   }
 
+
+  trait TupleExprT extends ExpressionT {
+
+    val args: List[AstNode]
+
+    override def print(): Doc = {
+     "{" <> intersperse(args.map(_.print)) <> "}"
+    }
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = {
+      args.map(_.visitBy(pre,post))
+    }
+
+  }
+
+  case class TupleExpr( args: List[GenericAST.AstNode] ) extends TupleExprT {
+
+    override def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode =
+      TupleExpr( args.map(_.visitAndRebuild(pre,post)) )
+
+  }
+
   /**
     * A reference to a declared variable
     */
