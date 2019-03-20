@@ -535,7 +535,7 @@ class TestGlobal {
   }
 
   @Test
-  def test_conv_gpu_integrate_first_half(): Unit = {
+  def test_conv_gpu_integrate(): Unit = {
 
     val path = s"$common_path/16.conv_gpu_integrate_first_half"
     val file = "libconv_gpu_integrate_first_half.cpp"
@@ -597,7 +597,7 @@ class TestGlobal {
   }
 
   @Test
-  def test_conv_gpu_integrate_first_half_substited(): Unit = {
+  def test_conv_gpu_integrate_substited(): Unit = {
 
     val path = s"$common_path/16.conv_gpu_integrate_first_half"
     val file = "libconv_gpu_integrate_first_half.cpp"
@@ -619,6 +619,49 @@ class TestGlobal {
       //input, 1*2*8*8*2
       //ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_inputWidthHeight_3), v_inputWidthHeight_3), v_nInputs_4), 1),
       (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2).apply( ToGPU() $ p_b , OclFunc(gpu_fun).apply(ToGPU() $ p_k, ToGPU() $ p_x))
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    //import opencl.executor.Compile
+    //val opencl_string = Compile(gpu_fun2)
+    GlobalCompiler ! (whole_fun, path, List(file))
+
+    //import java.io.PrintWriter
+    //new PrintWriter("/home/lu/Documents/Research/research_original_data/YearlyData/2019/002.ONNX/3.c++_example/1.NaumsExample/3.v3/kernel.cl") { write(opencl_string); close }
+
+
+    //val actual : String = native_compile_and_run(path, file)
+    // val expected : String = "6 6 \n"
+    // assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
+
+
+  @Test
+  def test_conv_gpu_integrate_substited_profiling(): Unit = {
+
+    val path = s"$common_path/17.conv_gpu_integrate_substitued_profiling"
+    val file = "libconv_gpu_integrate_substitued_profiling.cpp"
+
+    val id = UserFun("id", Array("x"), """|{ return x; }""".stripMargin, Seq(Float), Float)
+    val vectorisableMultAndSumUp = UserFun("vectorisableMultAndSumUp", Array("acc", "l", "r"), """|{ return acc + (l * r); }""".stripMargin, Seq(Float, Float, Float), Float)
+    val gpu_fun = fun(ArrayType(ArrayType(ArrayType(ArrayType(Float, Cst(2)), Cst(3)), Cst(3)), Cst(3)), ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(Float, Cst(2)), Cst(8)), Cst(8)), Cst(2)), Cst(1)),(p_0, p_1) => FunCall(Join(), FunCall(Join(), FunCall(Join(), FunCall(Join(), FunCall(Join(), FunCall(MapWrg(2)(fun((p_2) => FunCall(MapWrg(1)(fun((p_3) => FunCall(MapWrg(0)(fun((p_4) => FunCall(MapLcl(2)(fun((p_5) => FunCall(MapLcl(1)(fun((p_6) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_7) => FunCall(toGlobal(fun((p_8) => FunCall(MapSeq(fun((p_9) => FunCall(id, p_9))), p_8))), FunCall(ReduceSeq(fun((p_10, p_11) => FunCall(vectorisableMultAndSumUp, p_10, FunCall(Get(0), p_11), FunCall(Get(1), p_11)))), FunCall(toPrivate(fun((p_12) => FunCall(id, p_12))), Value("0.0f", Float)), FunCall(Zip(2), FunCall(Get(0), p_7), FunCall(Get(1), p_7)))))), FunCall(Zip(2), p_6, p_5))))), p_3))), p_4))), FunCall(Split(Cst(1)), FunCall(Map(fun((p_13) => FunCall(Split(Cst(1)), FunCall(Join(), FunCall(Map(fun((p_14) => FunCall(Join(), p_14))), p_13))))), p_0))))), FunCall(Map(fun((p_15) => FunCall(Map(fun((p_16) => FunCall(Split(Cst(1)), p_16))), p_15))), FunCall(Map(fun((p_17) => FunCall(Map(fun((p_18) => FunCall(Join(), FunCall(Join(), p_18)))), p_17))), FunCall(Map(fun((p_19) => FunCall(Join(), p_19))), FunCall(Join(), FunCall(Map(fun((p_20) => FunCall(Join(), p_20))), FunCall(Join(), FunCall(Map(fun((p_21) => FunCall(Map(fun((p_22) => FunCall(Map(fun((p_23) => FunCall(Map(fun((p_24) => FunCall(Map(fun((p_25) => FunCall(Transpose(), p_25))), FunCall(Slide(Cst(3), Cst(1)), FunCall(Map(fun((p_26) => FunCall(Slide(Cst(3), Cst(1)), p_26))), p_24))))), p_23))), FunCall(Map(fun((p_27) => FunCall(Transpose(), p_27))), FunCall(Slide(Cst(8), Cst(6)), FunCall(Map(fun((p_28) => FunCall(Slide(Cst(8), Cst(6)), p_28))), p_22)))))), p_21))), p_2)))))))))), FunCall(Split(Cst(1)), p_1))))))))
+
+    val add = UserFun("add", Array("x", "y"), """|{ return x+y; }""".stripMargin, Seq(Float, Float), Float)
+    val gpu_fun2 = fun(ArrayType(Float, Cst(3)), ArrayType(Float, Cst(3888)),(p_0, p_1) => FunCall(Map(fun((p_2) => FunCall(Map(fun((p_3) => FunCall(Map(fun((p_4) => FunCall(Join(), FunCall(Map(fun((p_5) => FunCall(Map(fun((p_6) => FunCall(Join(), p_6))), FunCall(TransposeW(), p_5)))), p_4)))), p_3))), p_2))), FunCall(Map(fun((p_7) => FunCall(Map(fun((p_8) => FunCall(TransposeW(), FunCall(Map(fun((p_9) => FunCall(TransposeW(), p_9))), p_8)))), p_7))), FunCall(Split(Cst(2)), FunCall(Split(Cst(1)), FunCall(Split(Cst(1)), FunCall(Map(fun((p_10) => FunCall(Map(fun((p_11) => FunCall(Split(Cst(6)), p_11))), p_10))), FunCall(MapWrg(1)(fun((p_12) => FunCall(Join(), FunCall(MapWrg(0)(fun((p_13) => FunCall(MapLcl(1)(fun((p_14) => FunCall(Join(), FunCall(MapLcl(0)(fun((p_15) => FunCall(Map(fun((p_16) => p_16)), FunCall(MapSeq(fun((p_17) => FunCall(toGlobal(fun((p_18) => FunCall(id, p_18))), p_17))), FunCall(ReduceSeq(fun((p_19, p_20) => FunCall(add, p_19, p_20))), FunCall(toPrivate(fun((p_21) => FunCall(id, p_21))), FunCall(Get(1), p_14)), p_15))))), FunCall(Get(0), p_14))))), FunCall(Zip(2), FunCall(Get(0), p_13), FunCall(Get(1), p_13))))), FunCall(Zip(2), p_12, FunCall(Split(Cst(1)), p_0)))))), FunCall(Split(Cst(3)), FunCall(Split(Cst(1)), FunCall(Split(Cst(36)), FunCall(Split(Cst(18)), p_1))))))))))))
+
+    val whole_fun = fun(
+      //kernel, 3*3*3*2
+      gpu_fun.params(0).t,
+      gpu_fun2.params(0).t,
+      gpu_fun.params(1).t,
+
+      //ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_kernelWidthHeight_1), v_kernelWidthHeight_1), v_kernelChannels_2),
+      //input, 1*2*8*8*2
+      //ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_inputWidthHeight_3), v_inputWidthHeight_3), v_nInputs_4), 1),
+      (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, cpu_timer = true, gpu_timer = true).apply( ToGPU() $ p_b , OclFunc(gpu_fun, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_x))
     )
 
     ("mkdir -p " + s"$path" ) !!
