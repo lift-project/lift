@@ -7,6 +7,7 @@ import cbackends.global.lowering.{GenerateCLockPrintingStmt, GenerateGlobalClock
 import cbackends.global.transformation.cast_transformation.cpu_outline_transformation.{CPUOutlineTargetAnalysis, OclOutlineTargetAnalysis}
 import cbackends.global.transformation.empty_kernel_structure.EmptyKernelStructure
 import cbackends.global.transformation.funcall2closure.FunCall2Closure
+import cbackends.global.transformation.ocl_memory_gen.OclMemoryGen
 import cbackends.global.transformation.purify.Purify
 import cbackends.global.transformation.unique_user_func.UniqueUserFunc
 import cbackends.host.HostCompiler
@@ -56,6 +57,9 @@ object GlobalCompiler{
         val oclfundefs = all_oclfunc_outline_targets_purified.map {
           case (filename:String, lambdax:Lambda) =>  (filename , ( opencl.executor.Compile.!!(lambdax) ) )
         }
+
+        OclMemoryGen(lambda)
+
         //val final_oclfundefs = UniqueUserFunc(oclfundefs)
         val final_oclfundefs = oclfundefs
 
