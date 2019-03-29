@@ -257,7 +257,7 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-        in => ToHost(gpu_timer = true) o OclFunc( MapGlb( incrementF )  ) o ToGPU(gpu_timer = true)  $ in
+        in => ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
