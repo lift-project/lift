@@ -9,7 +9,7 @@ import lift.arithmetic.{Cst, SizeVar}
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import opencl.ir.{Float, add, dividedBy, _}
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Ignore, Test}
 import rewriting.Rewrite
 import rewriting.rules.Rules
 import rewriting.utils.NumberPrinter
@@ -19,6 +19,7 @@ import scala.language.postfixOps
 import scala.sys.process._
 
 import cbackends.common.executor.Executor.{native_compile_and_run}
+
 
 class TestGlobal {
 
@@ -247,6 +248,7 @@ class TestGlobal {
   }
 
 
+  @Ignore("not ready yet")
   @Test
   def test_gpu_func(): Unit = {
 
@@ -271,6 +273,7 @@ class TestGlobal {
   }
 
 
+  @Ignore("not ready yet")
   @Test
   def test_gpu_func_multi(): Unit = {
 
@@ -294,6 +297,7 @@ class TestGlobal {
     println("Test case test_slide_hello done!")
   }
 
+  @Ignore("not ready yet")
   @Test
   def test_cpu_gpu_func_multi(): Unit = {
 
@@ -318,6 +322,7 @@ class TestGlobal {
     println("Test case test_slide_hello done!")
   }
 
+  @Ignore("not ready yet")
   @Test
   def test_cpu_gpu_func_multi_interleaved(): Unit = {
 
@@ -342,6 +347,7 @@ class TestGlobal {
     println("Test case test_slide_hello done!")
   }
 
+  @Ignore("not ready yet")
   @Test
   def test_gpu_func_enable_gpu_timer(): Unit = {
 
@@ -396,6 +402,7 @@ class TestGlobal {
     println("Test case test_slide_hello done!")
   }
 
+  @Ignore("not ready yet")
   @Test
   def test_iterate_gpu(): Unit = {
 
@@ -426,6 +433,7 @@ class TestGlobal {
   )
 
 
+  @Ignore("not ready yet")
   @Test
   def test_iterate_zip_array_tuples(): Unit = {
 
@@ -449,6 +457,7 @@ class TestGlobal {
     println("Test case test_slide_hello done!")
   }
 
+  @Ignore("not ready yet")
   @Test
   def test_iterate_zip_two_arrays(): Unit = {
 

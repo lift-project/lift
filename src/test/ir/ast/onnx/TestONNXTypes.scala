@@ -4,7 +4,7 @@ import ir.ArrayType
 import ir.ast.{Lambda, fun}
 import lift.arithmetic.Cst
 import opencl.ir.Float
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 import scala.reflect.runtime._
 import scala.tools.reflect.ToolBox
@@ -12,6 +12,7 @@ import scala.io.Source
 
 class TestONNXTypes {
 
+  @Ignore("not ready yet")
   @Test
   def test_Conv() : Unit = {
 
