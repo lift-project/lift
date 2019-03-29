@@ -40,20 +40,10 @@ int deviceId = 0;
  cl::CommandQueue lift_queue;
 
       ; 
-std::string kernel_string_363;
-cl::Program::Sources kernel_source_363;
-cl::Program kernel_program_363;
-cl::Kernel kernel_363;
-std::string kernel_string_364;
-cl::Program::Sources kernel_source_364;
-cl::Program kernel_program_364;
-cl::Kernel kernel_364;
-; 
-; 
-; 
-; 
-; 
-; 
+std::string kernel_string_605188;
+cl::Program::Sources kernel_source_605188;
+cl::Program kernel_program_605188;
+cl::Kernel kernel_605188;
 ; 
 ; 
 ; 
@@ -95,20 +85,13 @@ void lift_init(){
  cl::CommandQueue tmp_queue(context, device, CL_QUEUE_PROFILING_ENABLE);
  lift_queue = std::move(tmp_queue);
       ; 
-    kernel_string_363 = readFile("kernel_363.cl"); 
-    kernel_source_363 = cl::Program::Sources(1, {kernel_string_363.c_str(), kernel_string_363.length()}); 
-    kernel_program_363 = cl::Program(context, kernel_source_363); 
-    if ((kernel_program_363.build({ device }) != CL_SUCCESS)){
+    kernel_string_605188 = readFile("kernel_605188.cl"); 
+    kernel_source_605188 = cl::Program::Sources(1, {kernel_string_605188.c_str(), kernel_string_605188.length()}); 
+    kernel_program_605188 = cl::Program(context, kernel_source_605188); 
+    if ((kernel_program_605188.build({ device }) != CL_SUCCESS)){
         std::cerr<<"kernel build error"<<std::endl; exit(1);; 
     }
-    kernel_363 = cl::Kernel(kernel_program_363, "KERNEL"); 
-    kernel_string_364 = readFile("kernel_364.cl"); 
-    kernel_source_364 = cl::Program::Sources(1, {kernel_string_364.c_str(), kernel_string_364.length()}); 
-    kernel_program_364 = cl::Program(context, kernel_source_364); 
-    if ((kernel_program_364.build({ device }) != CL_SUCCESS)){
-        std::cerr<<"kernel build error"<<std::endl; exit(1);; 
-    }
-    kernel_364 = cl::Kernel(kernel_program_364, "KERNEL"); 
+    kernel_605188 = cl::Kernel(kernel_program_605188, "KERNEL"); 
 }
 
 double cpu_time_in_ms( std::chrono::milliseconds start, std::chrono::milliseconds finish ){
@@ -149,45 +132,35 @@ void post_execute(){
     print_clock(); 
 }
 
-// 150: kernel
-// 151: bias
-// 152: input
-void execute(float * v_initial_param_349_150, float * v_initial_param_350_151, float * v_initial_param_351_152, float * & v_user_func_365_158){
+
+void execute(float * v_initial_param_605179_204756, float * v_initial_param_605180_204757, float * & v_user_func_605189_204761, int v_inputChannels_204154, int v_kernelChannels_204156, int v_kernelWidthHeight_204155, int v_nInputs_204158, int v_inputWidthHeight_204157){
     // Allocate memory for output pointers
-    cl::Buffer v_user_func_356_153(context, CL_MEM_READ_WRITE, (3 * sizeof(float)));
-    cl::Buffer v_user_func_363_156(context, CL_MEM_READ_WRITE, (3888 * sizeof(float)));
-    cl::Buffer v_user_func_364_157(context, CL_MEM_READ_WRITE, (216 * sizeof(float)));
-    v_user_func_365_158 = reinterpret_cast<float *>(malloc((216 * sizeof(float)))); 
-    cl::Buffer v_user_func_362_155(context, CL_MEM_READ_WRITE, (256 * sizeof(float)));
-    cl::Buffer v_user_func_360_154(context, CL_MEM_READ_WRITE, (54 * sizeof(float)));
+    cl::Buffer v_user_func_605185_204758(context, CL_MEM_READ_WRITE, ((v_inputChannels_204154 * v_kernelChannels_204156 * (int)pow((float)v_kernelWidthHeight_204155, 2)) * sizeof(float)));
+    cl::Buffer v_user_func_605187_204759(context, CL_MEM_READ_WRITE, ((v_inputChannels_204154 * v_nInputs_204158 * (int)pow((float)v_inputWidthHeight_204157, 2)) * sizeof(float)));
+    cl::Buffer v_user_func_605188_204760(context, CL_MEM_READ_WRITE, (((v_inputChannels_204154 * v_kernelChannels_204156 * v_nInputs_204158 * (int)pow((float)((v_inputWidthHeight_204157 + v_kernelStride_204160 + (-1 * v_kernelWidthHeight_204155)) / v_tileStride_204159), 2) * (int)pow((float)v_kernelWidthHeight_204155, 2) * (int)pow((float)(v_tileStride_204159 / v_kernelStride_204160), 2))/(v_seqOpsPerThread_204161)) * sizeof(float)));
+    v_user_func_605189_204761 = reinterpret_cast<float *>(malloc((((v_inputChannels_204154 * v_kernelChannels_204156 * v_nInputs_204158 * (int)pow((float)((v_inputWidthHeight_204157 + v_kernelStride_204160 + (-1 * v_kernelWidthHeight_204155)) / v_tileStride_204159), 2) * (int)pow((float)v_kernelWidthHeight_204155, 2) * (int)pow((float)(v_tileStride_204159 / v_kernelStride_204160), 2))/(v_seqOpsPerThread_204161)) * sizeof(float)))); 
     ; 
-    lift_queue.enqueueWriteBuffer(v_user_func_356_153, CL_TRUE, 0, (3 * sizeof(float)), v_initial_param_350_151, NULL, NULL); 
+    lift_queue.enqueueWriteBuffer(v_user_func_605185_204758, CL_TRUE, 0, ((v_inputChannels_204154 * v_kernelChannels_204156 * (int)pow((float)v_kernelWidthHeight_204155, 2)) * sizeof(float)), v_initial_param_605179_204756, NULL, NULL); 
     ; 
     ; 
     ; 
-    lift_queue.enqueueWriteBuffer(v_user_func_360_154, CL_TRUE, 0, (54 * sizeof(float)), v_initial_param_349_150, NULL, NULL); 
+    lift_queue.enqueueWriteBuffer(v_user_func_605187_204759, CL_TRUE, 0, ((v_inputChannels_204154 * v_nInputs_204158 * (int)pow((float)v_inputWidthHeight_204157, 2)) * sizeof(float)), v_initial_param_605180_204757, NULL, NULL); 
     ; 
     ; 
-    ; 
-    lift_queue.enqueueWriteBuffer(v_user_func_362_155, CL_TRUE, 0, (256 * sizeof(float)), v_initial_param_351_152, NULL, NULL); 
-    ; 
-    ; 
-    kernel_363.setArg(0, v_user_func_360_154); 
-    kernel_363.setArg(1, v_user_func_362_155); 
-    kernel_363.setArg(2, v_user_func_363_156); 
+    kernel_605188.setArg(0, v_user_func_605185_204758); 
+    kernel_605188.setArg(1, v_user_func_605187_204759); 
+    kernel_605188.setArg(2, v_user_func_605188_204760); 
+    kernel_605188.setArg(3, v_inputChannels_204154); 
+    kernel_605188.setArg(4, v_kernelChannels_204156); 
+    kernel_605188.setArg(5, v_kernelWidthHeight_204155); 
+    kernel_605188.setArg(6, v_nInputs_204158); 
+    kernel_605188.setArg(7, v_inputWidthHeight_204157); 
     
-    lift_queue.enqueueNDRangeKernel(kernel_363, cl::NullRange, cl::NDRange(1,1,1), cl::NDRange(1,1,1), NULL, NULL); 
-    ; 
-    
-    kernel_364.setArg(0, v_user_func_356_153); 
-    kernel_364.setArg(1, v_user_func_363_156); 
-    kernel_364.setArg(2, v_user_func_364_157); 
-    
-    lift_queue.enqueueNDRangeKernel(kernel_364, cl::NullRange, cl::NDRange(1,1,1), cl::NDRange(1,1,1), NULL, NULL); 
+    lift_queue.enqueueNDRangeKernel(kernel_605188, cl::NullRange, cl::NDRange(1,1,1), cl::NDRange(1,1,1), NULL, NULL); 
     ; 
     
     ; 
-    lift_queue.enqueueReadBuffer(v_user_func_364_157, CL_TRUE, 0, (216 * sizeof(float)), v_user_func_365_158, NULL, NULL); 
+    lift_queue.enqueueReadBuffer(v_user_func_605188_204760, CL_TRUE, 0, (((v_inputChannels_204154 * v_kernelChannels_204156 * v_nInputs_204158 * (int)pow((float)((v_inputWidthHeight_204157 + v_kernelStride_204160 + (-1 * v_kernelWidthHeight_204155)) / v_tileStride_204159), 2) * (int)pow((float)v_kernelWidthHeight_204155, 2) * (int)pow((float)(v_tileStride_204159 / v_kernelStride_204160), 2))/(v_seqOpsPerThread_204161)) * sizeof(float)), v_user_func_605189_204761, NULL, NULL); 
     ; 
     ; 
     post_execute(); 
