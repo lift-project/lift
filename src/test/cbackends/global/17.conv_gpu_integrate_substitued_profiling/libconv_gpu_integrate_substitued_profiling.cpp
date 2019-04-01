@@ -40,23 +40,23 @@ int deviceId = 0;
  cl::CommandQueue lift_queue;
 
       ; 
-std::string kernel_string_605844;
-cl::Program::Sources kernel_source_605844;
-cl::Program kernel_program_605844;
-cl::Kernel kernel_605844;
-std::string kernel_string_605845;
-cl::Program::Sources kernel_source_605845;
-cl::Program kernel_program_605845;
-cl::Kernel kernel_605845;
-std::chrono::milliseconds cpu_clock_start_605845;
-std::chrono::milliseconds cpu_clock_end_605845;
-cl::Event event_605845;
+std::string kernel_string_1970;
+cl::Program::Sources kernel_source_1970;
+cl::Program kernel_program_1970;
+cl::Kernel kernel_1970;
+std::string kernel_string_1971;
+cl::Program::Sources kernel_source_1971;
+cl::Program kernel_program_1971;
+cl::Kernel kernel_1971;
+std::chrono::milliseconds cpu_clock_start_1971;
+std::chrono::milliseconds cpu_clock_end_1971;
+cl::Event event_1971;
 ; 
 ; 
 ; 
-std::chrono::milliseconds cpu_clock_start_605844;
-std::chrono::milliseconds cpu_clock_end_605844;
-cl::Event event_605844;
+std::chrono::milliseconds cpu_clock_start_1970;
+std::chrono::milliseconds cpu_clock_end_1970;
+cl::Event event_1970;
 ; 
 ; 
 ; 
@@ -95,20 +95,20 @@ void lift_init(){
  cl::CommandQueue tmp_queue(context, device, CL_QUEUE_PROFILING_ENABLE);
  lift_queue = std::move(tmp_queue);
       ; 
-    kernel_string_605844 = readFile("kernel_605844.cl"); 
-    kernel_source_605844 = cl::Program::Sources(1, {kernel_string_605844.c_str(), kernel_string_605844.length()}); 
-    kernel_program_605844 = cl::Program(context, kernel_source_605844); 
-    if ((kernel_program_605844.build({ device }) != CL_SUCCESS)){
+    kernel_string_1970 = readFile("kernel_1970.cl"); 
+    kernel_source_1970 = cl::Program::Sources(1, {kernel_string_1970.c_str(), kernel_string_1970.length()}); 
+    kernel_program_1970 = cl::Program(context, kernel_source_1970); 
+    if ((kernel_program_1970.build({ device }) != CL_SUCCESS)){
         std::cerr<<"kernel build error"<<std::endl; exit(1);; 
     }
-    kernel_605844 = cl::Kernel(kernel_program_605844, "KERNEL"); 
-    kernel_string_605845 = readFile("kernel_605845.cl"); 
-    kernel_source_605845 = cl::Program::Sources(1, {kernel_string_605845.c_str(), kernel_string_605845.length()}); 
-    kernel_program_605845 = cl::Program(context, kernel_source_605845); 
-    if ((kernel_program_605845.build({ device }) != CL_SUCCESS)){
+    kernel_1970 = cl::Kernel(kernel_program_1970, "KERNEL"); 
+    kernel_string_1971 = readFile("kernel_1971.cl"); 
+    kernel_source_1971 = cl::Program::Sources(1, {kernel_string_1971.c_str(), kernel_string_1971.length()}); 
+    kernel_program_1971 = cl::Program(context, kernel_source_1971); 
+    if ((kernel_program_1971.build({ device }) != CL_SUCCESS)){
         std::cerr<<"kernel build error"<<std::endl; exit(1);; 
     }
-    kernel_605845 = cl::Kernel(kernel_program_605845, "KERNEL"); 
+    kernel_1971 = cl::Kernel(kernel_program_1971, "KERNEL"); 
 }
 
 double cpu_time_in_ms( std::chrono::milliseconds start, std::chrono::milliseconds finish ){
@@ -145,16 +145,16 @@ double diff_percent(double lhs, double rhs) {
 void print_clock(){
     std::cerr<<"func_name, cpu_time_ms, gpu_time_ms, diff_percentage"<<std::endl; 
     {
-        double cpu_time_ms = cpu_time_in_ms(cpu_clock_start_605845, cpu_clock_end_605845);
-        double gpu_time_ms = gpu_time_in_ms(event_605845);
+        double cpu_time_ms = cpu_time_in_ms(cpu_clock_start_1971, cpu_clock_end_1971);
+        double gpu_time_ms = gpu_time_in_ms(event_1971);
         double diff_pc = diff_percent(cpu_time_ms, gpu_time_ms);
-        std::cerr<<"OclFunCall_605845"<<","<<cpu_time_ms<<","<<gpu_time_ms<<","<<diff_pc<<std::endl; 
+        std::cerr<<"OclFunCall_1971"<<","<<cpu_time_ms<<","<<gpu_time_ms<<","<<diff_pc<<std::endl; 
     }
     {
-        double cpu_time_ms = cpu_time_in_ms(cpu_clock_start_605844, cpu_clock_end_605844);
-        double gpu_time_ms = gpu_time_in_ms(event_605844);
+        double cpu_time_ms = cpu_time_in_ms(cpu_clock_start_1970, cpu_clock_end_1970);
+        double gpu_time_ms = gpu_time_in_ms(event_1970);
         double diff_pc = diff_percent(cpu_time_ms, gpu_time_ms);
-        std::cerr<<"OclFunCall_605844"<<","<<cpu_time_ms<<","<<gpu_time_ms<<","<<diff_pc<<std::endl; 
+        std::cerr<<"OclFunCall_1970"<<","<<cpu_time_ms<<","<<gpu_time_ms<<","<<diff_pc<<std::endl; 
     }
 }
 void post_execute(){
@@ -162,42 +162,42 @@ void post_execute(){
 }
 
 
-void execute(float * v_initial_param_605830_204992, float * v_initial_param_605831_204993, float * v_initial_param_605832_204994, float * & v_user_func_605846_205000){
+void execute(float * v_initial_param_1956_1815, float * v_initial_param_1957_1816, float * v_initial_param_1958_1817, float * & v_user_func_1972_1823){
     // Allocate memory for output pointers
-    cl::Buffer v_user_func_605845_204999(context, CL_MEM_READ_WRITE, (216 * sizeof(float)));
-    cl::Buffer v_user_func_605843_204997(context, CL_MEM_READ_WRITE, (256 * sizeof(float)));
-    cl::Buffer v_user_func_605841_204996(context, CL_MEM_READ_WRITE, (54 * sizeof(float)));
-    cl::Buffer v_user_func_605837_204995(context, CL_MEM_READ_WRITE, (3 * sizeof(float)));
-    v_user_func_605846_205000 = reinterpret_cast<float *>(malloc((216 * sizeof(float)))); 
-    cl::Buffer v_user_func_605844_204998(context, CL_MEM_READ_WRITE, (3888 * sizeof(float)));
+    cl::Buffer v_user_func_1969_1820(context, CL_MEM_READ_WRITE, (256 * sizeof(float)));
+    cl::Buffer v_user_func_1970_1821(context, CL_MEM_READ_WRITE, (3888 * sizeof(float)));
+    cl::Buffer v_user_func_1967_1819(context, CL_MEM_READ_WRITE, (54 * sizeof(float)));
+    cl::Buffer v_user_func_1963_1818(context, CL_MEM_READ_WRITE, (3 * sizeof(float)));
+    v_user_func_1972_1823 = reinterpret_cast<float *>(malloc((216 * sizeof(float)))); 
+    cl::Buffer v_user_func_1971_1822(context, CL_MEM_READ_WRITE, (216 * sizeof(float)));
     ; 
-    lift_queue.enqueueWriteBuffer(v_user_func_605837_204995, CL_TRUE, 0, (3 * sizeof(float)), v_initial_param_605831_204993, NULL, NULL); 
-    ; 
-    ; 
-    ; 
-    lift_queue.enqueueWriteBuffer(v_user_func_605841_204996, CL_TRUE, 0, (54 * sizeof(float)), v_initial_param_605830_204992, NULL, NULL); 
+    lift_queue.enqueueWriteBuffer(v_user_func_1963_1818, CL_TRUE, 0, (3 * sizeof(float)), v_initial_param_1957_1816, NULL, NULL); 
     ; 
     ; 
     ; 
-    lift_queue.enqueueWriteBuffer(v_user_func_605843_204997, CL_TRUE, 0, (256 * sizeof(float)), v_initial_param_605832_204994, NULL, NULL); 
+    lift_queue.enqueueWriteBuffer(v_user_func_1967_1819, CL_TRUE, 0, (54 * sizeof(float)), v_initial_param_1956_1815, NULL, NULL); 
     ; 
     ; 
-    kernel_605844.setArg(0, v_user_func_605841_204996); 
-    kernel_605844.setArg(1, v_user_func_605843_204997); 
-    kernel_605844.setArg(2, v_user_func_605844_204998); 
-    cpu_clock_start_605844 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()); 
-    lift_queue.enqueueNDRangeKernel(kernel_605844, cl::NullRange, cl::NDRange(1,1,1), cl::NDRange(1,1,1), NULL, (&event_605844)); 
+    ; 
+    lift_queue.enqueueWriteBuffer(v_user_func_1969_1820, CL_TRUE, 0, (256 * sizeof(float)), v_initial_param_1958_1817, NULL, NULL); 
+    ; 
+    ; 
+    kernel_1970.setArg(0, v_user_func_1967_1819); 
+    kernel_1970.setArg(1, v_user_func_1969_1820); 
+    kernel_1970.setArg(2, v_user_func_1970_1821); 
+    cpu_clock_start_1970 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()); 
+    lift_queue.enqueueNDRangeKernel(kernel_1970, cl::NullRange, cl::NDRange(1,1,1), cl::NDRange(1,1,1), NULL, (&event_1970)); 
     assert(lift_queue.finish() == CL_SUCCESS); 
-    cpu_clock_end_605844 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()); 
-    kernel_605845.setArg(0, v_user_func_605837_204995); 
-    kernel_605845.setArg(1, v_user_func_605844_204998); 
-    kernel_605845.setArg(2, v_user_func_605845_204999); 
-    cpu_clock_start_605845 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()); 
-    lift_queue.enqueueNDRangeKernel(kernel_605845, cl::NullRange, cl::NDRange(1,1,1), cl::NDRange(1,1,1), NULL, (&event_605845)); 
+    cpu_clock_end_1970 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()); 
+    kernel_1971.setArg(0, v_user_func_1963_1818); 
+    kernel_1971.setArg(1, v_user_func_1970_1821); 
+    kernel_1971.setArg(2, v_user_func_1971_1822); 
+    cpu_clock_start_1971 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()); 
+    lift_queue.enqueueNDRangeKernel(kernel_1971, cl::NullRange, cl::NDRange(1,1,1), cl::NDRange(1,1,1), NULL, (&event_1971)); 
     assert(lift_queue.finish() == CL_SUCCESS); 
-    cpu_clock_end_605845 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()); 
+    cpu_clock_end_1971 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()); 
     ; 
-    lift_queue.enqueueReadBuffer(v_user_func_605845_204999, CL_TRUE, 0, (216 * sizeof(float)), v_user_func_605846_205000, NULL, NULL); 
+    lift_queue.enqueueReadBuffer(v_user_func_1971_1822, CL_TRUE, 0, (216 * sizeof(float)), v_user_func_1972_1823, NULL, NULL); 
     ; 
     ; 
     post_execute(); 
