@@ -47,12 +47,18 @@ case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) {
     case _ => false
   }
 
-  override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
-    assert(args.length == arity)
-    args.head match {
-      case a: Vector[_] => throw new NotImplementedException()
-    }
+  override def eval(valueMap: ValueMap, args: Any*): Array[Any] = {
+    throw new NotImplementedException()
   }
+
+  def eval(arg: Array[Array[Float]]): Array[Array[Array[Float]]] =
+    arg.sliding(size.evalInt, step.evalInt).toArray
+
+  def eval(arg: Array[Array[Array[Float]]]): Array[Array[Array[Array[Float]]]] =
+    arg.sliding(size.evalInt, step.evalInt).toArray
+
+
+
 
   /**
    * Define hash based on the ID to identify unique instances in associative containers.

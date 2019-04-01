@@ -388,6 +388,64 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
 
     (layerPartial, layerFinal)
   }
+
+  def eval(K: Array[Array[Array[Array[Float]]]],
+           B: Array[Float],
+           X: Array[Array[Array[Array[Array[Float]]]]],
+           v: scala.collection.immutable.Map[Var, Cst]): Array[Array[Array[Array[Array[Float]]]]] = {
+
+    // Check values
+    assert(layerConfig.paramVector.forall(param => v.contains(param)))
+    assert(tuneParams.paramVector.forall(param => v.contains(param)))
+
+    // Check shapes
+    assert(utils.shape4d(K).equals(List(
+      v(layerConfig.kernelChannels).evalInt,
+      v(layerConfig.kernelWidthHeight).evalInt,
+      v(layerConfig.kernelWidthHeight).evalInt,
+      v(layerConfig.inputChannels).evalInt)))
+
+    assert(utils.shape1d(B).equals(List(
+      v(layerConfig.kernelChannels).evalInt)))
+
+    assert(utils.shape5d(X).equals(List(
+      1,
+      v(layerConfig.nInputs).evalInt,
+      v(layerConfig.inputWidthHeight).evalInt,
+      v(layerConfig.inputWidthHeight).evalInt,
+      v(layerConfig.inputChannels).evalInt)))
+
+    X.map(batch => batch.map(input => {
+      val slidedRows: Array[Array[Array[Array[Float]]]] = Slide(
+        v(layerConfig.kernelWidthHeight).evalInt,
+        v(layerConfig.kernelStride).evalInt).
+        eval(input)
+      val slidedRowsShape = utils.shape4d(slidedRows)
+
+      val inputSlidedIn2D: Array[Array[Array[Array[Array[Float]]]]] = slidedRows.map(
+        rowOfWindows => rowOfWindows.map(columnOfWindows =>
+          Slide(
+            v(layerConfig.kernelWidthHeight).evalInt,
+            v(layerConfig.kernelStride).evalInt).
+            eval(columnOfWindows)).transpose)
+      val inputSlidedIn2Dshape = utils.shape5d(inputSlidedIn2D)
+
+      K.zip(B).map {
+        case (kernelW, kernelB) =>
+          inputSlidedIn2D.map(slideRow =>
+            slideRow.map(slideWindow => {
+              val reducedWindow: Float = slideWindow.zip(kernelW).map {
+                case (slideWindowRow, kernelRow) => slideWindowRow.zip(kernelRow).map {
+                  case (slideWindowElement, kernelElement) => slideWindowElement.zip(kernelElement).map {
+                    case (slideWindowElementChannelValue, kernelElementChannelValue) =>
+                      slideWindowElementChannelValue * kernelElementChannelValue
+                  }.sum // reduce elements
+                }.sum // reduce rows
+              }.sum // reduce windows
+
+              reducedWindow + kernelB
+            }))}}))
+  }
 }
 
 object ConvStencil3D {
