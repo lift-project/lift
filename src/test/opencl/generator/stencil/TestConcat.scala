@@ -1,18 +1,18 @@
 package opencl.generator.stencil
 
 import ir.ArrayTypeWSWC
-import ir.ast.{UserFun, Zip, fun}
+import ir.ast.{ConcatFunction, UserFun, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor._
-import opencl.ir.pattern._
-import org.junit._
 import opencl.ir._
+import opencl.ir.pattern._
 import org.junit.Assert._
+import org.junit._
 
-object TestFred extends TestWithExecutor
+object TestConcat extends TestWithExecutor
 
 
-class TestFred
+class TestConcat
 {
 
   /** 1D **/
@@ -32,7 +32,7 @@ class TestFred
     val fred = fun(
       ArrayTypeWSWC(Float, SizeVar("N")),
       (input) =>
-       Fred(MapSeq(mult2) $ input, MapSeq(add3) $ input)
+       ConcatFunction(MapSeq(mult2) $ input, MapSeq(add3) $ input)
     )
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](fred,input)

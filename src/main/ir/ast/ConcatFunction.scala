@@ -4,21 +4,21 @@ import ir._
 import ir.interpreter.Interpreter.ValueMap
 
 /**
- * Fred pattern.
+ * ConcatFunction pattern.
  * Code for this pattern can be generated.
  *
  * The fred pattern has the following high-level semantics:
- *   <code>Fred(2)( [x,,1,,, ..., x,,n,,], [y,,1,,, ..., y,,n,,] )
+ *   <code>ConcatFunction(2)( [x,,1,,, ..., x,,n,,], [y,,1,,, ..., y,,n,,] )
  *      = [ (x,,1,,, y,,1,,), ..., (x,,n,,, y,,n,,) ]</code>
  * The definitions for `n > 2` are accordingly.
  *
  * The fred pattern has the following type:
- *   `Fred(2) : [a],,i,, -> [b],,i,, -> [a x b],,i,,`
+ *   `ConcatFunction(2) : [a],,i,, -> [b],,i,, -> [a x b],,i,,`
  * The definitions for `n > 2` are accordingly.
  *
  * @param n The number of arrays which are combined. Must be >= 2.
  */
-case class Fred(n : Int) extends Pattern(arity = n) {
+case class ConcatFunction(n : Int) extends Pattern(arity = n) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -47,6 +47,7 @@ case class Fred(n : Int) extends Pattern(arity = n) {
         // check x and y have same element types
         // return array (element type, sum of length of x and y)
         // check all element types in tuples are arrays and have same element type
+
       case _ => throw new TypeException(argType, "TupleType", this)
     }
   }
@@ -56,7 +57,7 @@ case class Fred(n : Int) extends Pattern(arity = n) {
   }
 }
 
-object Fred {
+object ConcatFunction {
   /**
    * Create an instance of the fred pattern.
    * This function infers the number of arrays which are combined with the fred
@@ -67,7 +68,7 @@ object Fred {
    */
   def apply(args : Expr*) : Expr = {
     assert(args.length >= 2)
-    Fred(args.length)(args:_*)
+    ConcatFunction(args.length)(args:_*)
   }
 
 }
