@@ -240,6 +240,8 @@ class TestStencilsTACO {
   @Test
   def MSSAcoustic3D(): Unit = {
 
+    LongTestsEnabled()
+
     val ISflag = InlineStructs()
     InlineStructs(true)
 
@@ -297,6 +299,8 @@ class TestStencilsTACO {
 
   @Test
   def MSSAcoustic3DCGO(): Unit = {
+
+    LongTestsEnabled()
 
     val ISflag = InlineStructs()
     InlineStructs(true)
