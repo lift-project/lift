@@ -22,24 +22,40 @@ object GraphSort {
 
     while (unsortedVertices.nonEmpty) {
       verticesWithoutDependencies = Set()
+      var vertexWithLeastDependencies: Option[Int] = None
+      var minDependencies: Int = Int.MaxValue
+
       for (vertexIdx <- unsortedVertices) {
-        if (!hasDependency(vertexIdx, unsortedVertices, adjacency)) {
+        val vertexDependencyCount = countDependencies(vertexIdx, unsortedVertices, adjacency)
+
+        if (vertexDependencyCount < minDependencies) {
+          vertexWithLeastDependencies = Some(vertexIdx)
+          minDependencies = vertexDependencyCount
+        }
+
+        if (vertexDependencyCount == 0) {
           verticesWithoutDependencies += vertexIdx
           result += vertices(vertexIdx)
         }
       }
-      if (verticesWithoutDependencies.isEmpty)
-        throw new IllegalArgumentException("The graph has cycles")
-      else
-        unsortedVertices = unsortedVertices.diff(verticesWithoutDependencies)
+      if (verticesWithoutDependencies.isEmpty) {
+        // The graph has cycles. Return the vertex with least dependencies
+        vertexWithLeastDependencies match {
+          case Some(vertexIdx) =>
+            verticesWithoutDependencies += vertexIdx
+            result += vertices(vertexIdx)
+
+          case None =>
+            throw new IllegalArgumentException("No unsorted vertices left")
+        }
+      }
+
+      unsortedVertices = unsortedVertices.diff(verticesWithoutDependencies)
     }
     result.toList
   }
 
-  def hasDependency(vertexIdx: Int, unsortedVertices: Set[Int], adjacency: Array[Array[Boolean]]): Boolean = {
-    for (v <- unsortedVertices) {
-      if (adjacency(vertexIdx)(v)) return true
-    }
-    false
-  }
+  def countDependencies(vertexIdx: Int, unsortedVertices: Set[Int], adjacency: Array[Array[Boolean]]): Int =
+    unsortedVertices.count(v => adjacency(vertexIdx)(v))
+
 }
