@@ -10,8 +10,16 @@ package object nn {
   abstract class LayerConfig[+T <: ArithExpr] extends LayerParams[T]
   abstract class LayerTuneParams[+T <: ArithExpr] extends LayerParams[T]
 
-  abstract class LayerExpression[
-  T1 <: LayerConfig[ArithExpr],
-  T2 <: LayerTuneParams[ArithExpr]](layerConfig: T1,
-                                    tuneParams: T2)
+  trait LayerExpressionFactory {
+    // TODO: generalize types
+    def apply(layerConfig: ConvStencil3DLayerConfig,
+              tuneParams: ConvStencil3DTuneParams): Seq[Lambda]
+  }
+
+  type Array2D[T] = Array[Array[T]]
+  type Array3D[T] = Array[Array[Array[T]]]
+  type Array4D[T] = Array[Array[Array[Array[T]]]]
+  type Array5D[T] = Array[Array[Array[Array[Array[T]]]]]
+  type Array6D[T] = Array[Array[Array[Array[Array[Array[T]]]]]]
+  type Array7D[T] = Array[Array[Array[Array[Array[Array[Array[T]]]]]]]
 }

@@ -11,6 +11,7 @@ import lift.arithmetic.SizeVar
 import nn._
 import opencl.ir._
 import opencl.ir.pattern._
+import patterns.nn._
 
 /**
   * Case class for storing the layer configuration.

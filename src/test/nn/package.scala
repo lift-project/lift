@@ -8,6 +8,7 @@ import ir.ArrayType
 import ir.ast.UserFun
 import opencl.executor.Executor
 import opencl.ir._
+import patterns.nn._
 
 /**
   * Created by s1569687 on 28/02/17.
@@ -41,12 +42,6 @@ package object nn {
   case class PaddedArray[T](var nonPadded: T) {
     var padded: T = _
   }
-
-  type Array2D[T] = Array[Array[T]]
-  type Array3D[T] = Array[Array[Array[T]]]
-  type Array4D[T] = Array[Array[Array[Array[T]]]]
-  type Array5D[T] = Array[Array[Array[Array[Array[T]]]]]
-  type Array6D[T] = Array[Array[Array[Array[Array[Array[T]]]]]]
 
   def AT = ArrayType
   type AT = ArrayType
@@ -301,6 +296,22 @@ package object nn {
         j * shape._3 * shape._4 * shape._5 + k * shape._4 * shape._5 + l * shape._5 + m)
     }
     arr5d
+  }
+
+  def group(arr1d: Array[Float], shape: (Int, Int, Int, Int, Int, Int)): Array6D[Float] = {
+    val arr6d = Array.fill[Array5D[Float]](shape._1)(
+      Array.fill[Array4D[Float]](shape._2)(
+      Array.fill[Array3D[Float]](shape._3)(
+        Array.fill[Array2D[Float]](shape._4)(
+          Array.fill[Array[Float]](shape._5)(
+            Array.fill[Float](shape._6)(0))))))
+    for (i <- 0 until shape._1; j <- 0 until shape._2; k <- 0 until shape._3;
+         l <- 0 until shape._4; m <- 0 until shape._5; n <- 0 until shape._6) {
+      arr6d(i)(j)(k)(l)(m)(n) = arr1d(i * shape._2 * shape._3 * shape._4 * shape._5 * shape._6 +
+        j * shape._3 * shape._4 * shape._5 * shape._6 + k * shape._4 * shape._5 * shape._6 +
+        l * shape._5 * shape._6 + m * shape._6 + n)
+    }
+    arr6d
   }
 
   trait Experiment

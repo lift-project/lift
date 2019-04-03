@@ -13,6 +13,7 @@ import nn.conv.{Conv, ConvCompanion, ConvDatasets, SlidingWindowConfig}
 import opencl.executor.{Execute, Executor}
 import opencl.ir._
 import opencl.ir.pattern._
+import patterns.nn.{Array2D, Array3D, Array4D, Array5D}
 
 object Conv1 extends ConvCompanion {
 

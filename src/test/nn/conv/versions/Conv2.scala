@@ -13,6 +13,7 @@ import nn._
 import nn.conv.{Conv, ConvCompanion, ConvDatasets, SlidingWindowConfig}
 import opencl.ir._
 import opencl.ir.pattern._
+import patterns.nn.{Array2D, Array3D, Array4D, Array5D}
 
 /**
   * The companion object that contains the Lift expressions, configuration preprocessing and
