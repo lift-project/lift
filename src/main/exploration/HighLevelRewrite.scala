@@ -109,7 +109,7 @@ object HighLevelRewrite {
       else
         fullFilename
 
-      val lambda = ParameterRewrite.readLambdaFromFile(fullFilename)
+      val lambda = SplitSlideRewrite.readLambdaFromFile(fullFilename)
 
       val dumpThese = if (settings.onlyLower)
         Seq((lambda, Seq()))

@@ -153,7 +153,7 @@ object MemoryMappingRewrite {
 
         try {
 
-          val lambda = ParameterRewrite.readLambdaFromFile(filename)
+          val lambda = SplitSlideRewrite.readLambdaFromFile(filename)
           val lowered = lowerLambda(lambda, enabledMappings, config.unrollReduce, topFolder)
 
           lowered.foreach(dumpToFile(topFolder, hash, _))
