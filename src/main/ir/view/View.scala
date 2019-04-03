@@ -134,6 +134,14 @@ abstract sealed class View(val t: Type = UndefType) {
     }
   }
 
+  def offset(offset: ArithExpr) : View = {
+    t match {
+      case ArrayTypeWSWC(et,s,c) => ViewOffset(offset, this, ArrayTypeWSWC(et,s-offset,c-offset))
+      case _ => throw new IllegalArgumentException("PANIC: access expects an array type, found "+t)
+    }
+  }
+
+
   /**
    * Construct a new view for accessing the current view at position `idx`.
    *
@@ -350,6 +358,7 @@ case class ViewConstant(value: Value, override val t: Type) extends View(t)
  */
 case class ViewMem(v: Var, override val t: Type) extends View(t)
 
+case class ViewOffset(offset : ArithExpr, iv : View, override val t : Type) extends View(t)
 /**
  * A view for accessing another view at position `i`.
  *
@@ -639,6 +648,11 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
       case ViewMem(memVar, ty) =>
         assert(tupleAccessStack.isEmpty)
         GenerateAccess(memVar, ty, arrayAccessStack, tupleAccessStack)
+
+      case ViewOffset(offset, iv, t) =>
+        // increment read / write access by offset
+        val idx :: indices  = arrayAccessStack
+        emitView(iv,(idx + offset):: indices,tupleAccessStack)
 
       case ViewAccess(i, iv, _) =>
         emitView(iv, i :: arrayAccessStack, tupleAccessStack)

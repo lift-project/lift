@@ -26,9 +26,18 @@ case class ConcatFunction(n : Int) extends Pattern(arity = n) {
       case tt: TupleType =>
         if (tt.elemsT.length != n) throw new NumberOfArgumentsException
 
-        if (! tt.elemsT.forall( t => t.isInstanceOf[ArrayType]) ) {
-          throw TypeException("")
-        }
+        val arrayTypes = tt.elemsT.map( t => t match {
+          case at @ ArrayTypeWSWC(_,_,_) => at
+          case _ => throw TypeException("All input types must be arrays!")
+        })
+        val elemType = arrayTypes.head.elemT
+        if (! arrayTypes.forall( at => at.elemT == elemType  ))
+          throw TypeException("Elements are not of the same type!")
+
+        val sizeAndCapacity = arrayTypes.tail.foldLeft( (arrayTypes.head.size,arrayTypes.head.capacity)) ((acc,at) =>  (acc._1+at.size,acc._2+at.capacity))
+
+        ArrayTypeWSWC(elemType,sizeAndCapacity._1,sizeAndCapacity._2)
+
 
 //        tt.elemsT.foldLeft(Set())( (set, t) => {
 //          if (!set.contains(t)) {
@@ -39,7 +48,6 @@ case class ConcatFunction(n : Int) extends Pattern(arity = n) {
      //   } )
 
 
-        ???
 
         // 4 checks ( input is tuple -don't ask why)
         // check x is array

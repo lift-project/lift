@@ -47,10 +47,10 @@ package opencl.ir
  */
 
 import arithmetic.TypeVar
-import lift.arithmetic.{?, ArithExpr, Cst}
 import ir.Type.size_t
 import ir._
 import ir.ast._
+import lift.arithmetic.{?, ArithExpr}
 import opencl.ir.pattern._
 
 object OpenCLMemoryAllocator {
@@ -160,6 +160,8 @@ object OpenCLMemoryAllocator {
       case s: AbstractSearch => allocSearch(s, call, numGlb, numLcl, numPvt, inMem)
 
       case it: Iterate => allocIterate(it, call, numGlb, numLcl, numPvt, inMem)
+
+      case cc: ConcatFunction => allocConcat(cc, call, numGlb, numLcl, numPvt, inMem)
 
       case scan: ScanSeq => allocScanSeq(scan, call, numGlb, numLcl, numPvt, inMem)
 
@@ -475,6 +477,15 @@ object OpenCLMemoryAllocator {
     // Recurse to allocate memory for the function(s) inside
     it.f.params(0).mem = inMem
     alloc(it.f.body, numGlb, numLcl, numPvt)
+  }
+
+  private def allocConcat(cc: ConcatFunction, call: FunCall,
+                           numGlb: Allocator,
+                           numLcl: Allocator,
+                           numPvt: Allocator,
+                           inMem: OpenCLMemory): OpenCLMemory = {
+
+    inMem
   }
 
   private def allocScanSeq(scan: ScanSeq,

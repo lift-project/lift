@@ -87,7 +87,7 @@ object InputView {
       case PadConstant(left, right, value) => buildViewPadConstant(left, right, value, argView)
       case ArrayAccess(i) => argView.access(i)
       case debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
-           Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => argView
+           Scatter(_) | _: Tuple | Pad(_, _, _) | Id() | ConcatFunction(_) => argView
       case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
     }
   }

@@ -48,7 +48,7 @@ object InferOpenCLAddressSpace {
 
     call.f match {
 
-      case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
+      case ConcatFunction(_) | Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
            asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
            Pad(_,_,_) | PadConstant(_, _, _) | Tuple(_) | Slide(_,_) | Head() | Tail() | debug.PrintType(_) |
            debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |

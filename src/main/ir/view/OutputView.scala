@@ -66,6 +66,7 @@ object OutputView {
       case _: Unzip => writeView.zip()
       case l: Lambda => buildViewLambda(l, call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
+//      case cc: ConcatFunction => buildViewConcat() // add exc
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
@@ -137,6 +138,22 @@ object OutputView {
     })
 
     result
+  }
+
+  private def buildViewConcat(call: FunCall, writeView: View): View = {
+
+    var accCapacity : ArithExpr = Cst(0)
+
+    call.args.foreach({
+      case (arg) if arg.outputView == NoView => arg.outputView = writeView.offset(accCapacity)
+        accCapacity = accCapacity +
+          (arg.t match{
+          case ArrayTypeWSWC(_,_,c) => c
+        })
+      case _ => throw new IllegalArgumentException("PANIC: No output view required!")
+    })
+
+    writeView
   }
 
   private def getAccessDepth(accessInfo: AccessInfo, memory: Memory) = {
