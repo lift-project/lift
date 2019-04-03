@@ -31,7 +31,7 @@ object HostCompiler extends CBackendsCompilerTrait {
 
 
   //compile a lambda
-  def !!(lambda: Lambda): Block = {
+  def !!(lambda: Lambda, generatePostExecuteHook: Boolean = false): Block = {
 
     println("1.compiler called")
 
@@ -43,7 +43,7 @@ object HostCompiler extends CBackendsCompilerTrait {
     inputView(lambda)
     outputView(lambda)
 
-    LowerIR2HostCAST.apply_no_header(lambda, finalMemoryAllocated)
+    LowerIR2HostCAST.apply_no_header(lambda, finalMemoryAllocated, generatePostExecuteHook)
 
   }
 

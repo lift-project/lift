@@ -49,7 +49,7 @@ object OutputView {
     //first set the body's output view, then propagate to someone inside.
     //lambda.body.outputView = ViewMem(lambda.body.mem.variable, lambda.body.t)
 
-    lambda.body.outputView = generateViewForRawInOut(lambda.body, lambda.body.t, Cst(1))
+    lambda.body.outputView = generateViewForRawInOut(lambda.body, lambda.body.t, Cst(1), outputViewConstruct = true)
 
   }
 

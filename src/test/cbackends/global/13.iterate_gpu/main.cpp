@@ -1,18 +1,19 @@
 #include <bits/stdc++.h>
-#include "./libconcrete_non2d_concrete.cpp"
+#include "./libiterate.cpp"
 
 using namespace std;
 
 int main(int argc, char *argv[])
 {
+	lift_init();
 
-	int const N = 4;
-	vector<float> in(N*N,1.0f);
+	int const N = 2;
+	vector<float> in(N,1.0f);
 	float *out = nullptr;
 
 	execute(in.data(), out, N);
 
-	copy(out,out+(N-2)*(N-2), ostream_iterator<float>(cout, " "));
+	copy(out,out+N, ostream_iterator<float>(cout, " "));
 	std::cout << std::endl;
 	
 	return 0;

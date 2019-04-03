@@ -1,14 +1,20 @@
 package cbackends.host.host_ir
 
+import core.generator.GenericAST.CTypeT
 import ir.ast.{FPattern, IDGenerator, IRNode, Lambda, Param, Pattern}
 import ir.interpreter.Interpreter.ValueMap
 import ir.{TupleType, Type, TypeChecker}
+import lift.arithmetic.ArithExpr
+
+import scala.collection.mutable
 
 
 //accept arbitrary parameters.
 case class OclFunc(override val f: Lambda, val funcName: String = "execute_" + IDGenerator.get_id(),
                    override val cpu_timer: Boolean = false,
-                   override val gpu_timer: Boolean = false)
+                   override val gpu_timer: Boolean = false,
+                                                   //var name, type, size, temp or not, in or out.
+                   val memories: mutable.ListBuffer[(String, CTypeT, ArithExpr, Boolean, String )] = mutable.ListBuffer.empty)
   extends Pattern(arity = f.params.length) with FPattern with Measurable {
 
   override def copy(f: Lambda): Pattern = OclFunc(f, funcName)

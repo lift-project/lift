@@ -3,9 +3,13 @@ package cbackends.host.lowering
 import cbackends.common.common_ir.CPUMainMemoryAddressSpace
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir._
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
-import ir.Type
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IfThenElifIm, IfThenElseIm, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, TypeDef, TypeDefHost, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
+import ir.{TupleType, Type}
+import ir.ast.Iterate
+import opencl.ir.pattern.{MapGlb, MapWrg}
 import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
+
+import scala.collection.mutable.ArrayBuffer
 //import host_obsolete.ir_host.MapHSeq
 //import host_obsolete.view.ViewPrinter
 import ir.ast.{AbstractMap, AbstractPartRed, FunCall, IRNode, Join, Lambda, Slide, Split, Transpose, TransposeW, UserFun, Value}
@@ -29,7 +33,7 @@ object LowerIR2HostCAST {
   val ocl_boilerplate_code = ExpressionStatement(RawCode(
     """
       |#include <iostream>
-      |#include <CL/cl.hpp>
+      |#include <CL/cl2.hpp>
       |#include <fstream>
       |
       |std::string readFile(const char *filename){
@@ -51,6 +55,10 @@ object LowerIR2HostCAST {
       |  }
       |
     """.stripMargin), true )
+
+  val cpu_clock = StringConstant("std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())")
+
+  val sync = RawCode("assert(lift_queue.finish() == CL_SUCCESS)")
 
   def generate(node:IRNode): Block = {
     //lots of pattern matching code
@@ -87,12 +95,168 @@ object LowerIR2HostCAST {
         generateDataTransfer(fc)
       case fc@FunCall(_:ToGPU, _*) =>
         generateDataTransfer(fc)
+      case fc@FunCall(_:Iterate, _) =>
+        generateIterate(fc)
       case _ =>
         Block()
     }
 
   }
 
+  private def generateIterate(fc: FunCall) : Block = {
+
+    val arg_block = generate(fc.args.head)
+
+    val i = fc.f.asInstanceOf[Iterate]
+    val i_cvar = CVarWithType(i.loopVar.toString, IntegerType())
+
+
+    val kernel_type = i.f match {
+      case l:Lambda => l.body match {
+        case fc2:FunCall => fc2.f match {
+          case _:OclFunCall => "GPU"
+          case _:CPUFunCall => "CPU"
+          case _ => assert(false, "Not implemented"); "Invalid"
+        }
+        case _ => assert(false, "Not implemented"); "Invalid"
+      }
+      case _ => assert(false, "Not implemented"); "Invalid"
+    }
+
+    val body = generate(i.f.body)
+
+    val cond_1 = BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.==, IntConstant(0))
+    val cond_2 = BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.==, ArithExpression(i.loopVar.range.max) )
+    val cond_3 = BinaryExpression(BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.%,  IntConstant(2)),
+      BinaryExpressionT.Operator.==, IntConstant(1) )
+    val cond_4 = BinaryExpression(BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.%,  IntConstant(2)),
+      BinaryExpressionT.Operator.==, IntConstant(0) )
+
+    val init = VarDeclPure( i_cvar, i_cvar.t, Some(IntConstant(0)) )
+    val cond = BinaryExpression(VarRefPure(i_cvar), BinaryExpressionT.Operator.<=, ArithExpression(i.loopVar.range.max) )
+    val increment = UnaryExpression("++", (i_cvar) )
+
+    val cast_for_this_call = kernel_type match {
+      case "CPU" =>
+
+        //assume that Iterate always contain either CPUFunCall or OclFunCall,
+        //thus you can extract the function call
+        var funcall_tmp : FunctionCall = null
+        body visitBy {
+          case ExpressionStatement(fc@FunctionCall(_,_,_),_) => funcall_tmp = fc
+          case _ =>
+        }
+        assert(funcall_tmp != null, "Can not find funcall in Iterate")
+        val funcall = funcall_tmp
+        val in :: out :: size :: Nil = funcall.args
+
+        //assume Iterate is a unary function, thus you know the funcall only have one input and one output
+
+        val buffer1_cvar = CVarWithType("cpu_buffer1", TypeLowering.Array2Pointer( TypeLowering.IRType2CastType( fc.args.head.t), true ) )
+        val buffer2_cvar = CVarWithType("cpu_buffer2", TypeLowering.Array2Pointer( TypeLowering.IRType2CastType( fc.args.head.t), true ) )
+        val buffer1_decl = VarDeclPure(buffer1_cvar, buffer1_cvar.t, Some(FunctionCall("reinterpret_cast", List(
+              FunctionCall("malloc", List(BinaryExpression(ArithExpression(Type.getElementCount(fc.args.head.t)), BinaryExpressionT.Operator.*,
+                FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(buffer1_cvar.t)))
+              )))), List(buffer1_cvar.t)) ) )
+        val buffer2_decl = VarDeclPure(buffer2_cvar, buffer2_cvar.t, Some(FunctionCall("reinterpret_cast", List(
+              FunctionCall("malloc", List(BinaryExpression(ArithExpression(Type.getElementCount(fc.args.head.t)), BinaryExpressionT.Operator.*,
+                FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(buffer2_cvar.t)))
+              )))), List(buffer2_cvar.t)) ) )
+
+        val funcall_1 = Block(Vector(funcall.copy( args = List(in, VarRefPure(buffer1_cvar), size) ) ) )
+        val funcall_2 = Block(Vector(
+          IfThenElseIm(
+            cond_4,
+            Block( Vector(funcall.copy( args = List(VarRefPure(buffer1_cvar), out, size) ) ) ),
+            Block( Vector(funcall.copy( args = List(VarRefPure(buffer2_cvar), out, size) ) ) )
+          )
+        ) )
+        val funcall_3 = Block(Vector( funcall.copy( args = List(VarRefPure(buffer1_cvar), VarRefPure(buffer2_cvar), size) ) ) )
+        val funcall_4 = Block(Vector( funcall.copy( args = List(VarRefPure(buffer2_cvar), VarRefPure(buffer1_cvar), size) ) ) )
+
+
+        val if_else = Block(Vector(IfThenElifIm(List(cond_1, cond_2, cond_3, cond_4), List(funcall_1, funcall_2, funcall_3, funcall_4), Block() ) ) )
+
+        val forloop = ForLoopIm(init,cond,increment,if_else)
+
+        Block(Vector(buffer1_decl, buffer2_decl, forloop), global = true)
+
+      case "GPU" =>
+
+        var funcall_tmp : MethodInvocation = null
+        body visitBy {
+          case ExpressionStatement(fc@MethodInvocation(_,"enqueueNDRangeKernel",_,_),_) => funcall_tmp = fc
+          case _ =>
+        }
+        assert(funcall_tmp != null, "Can not find funcall in Iterate")
+        val funcall = funcall_tmp
+
+        val arg_list : ArrayBuffer[MethodInvocation] = ArrayBuffer.empty[MethodInvocation]
+        body visitBy {
+          case ExpressionStatement(fc@MethodInvocation(_,"setArg",_,_),_) => arg_list += fc
+          case _ =>
+        }
+        val args = arg_list.toList
+        val args_sorted = args.sortWith {
+          (arg1, arg2) => {
+            val MethodInvocation(_, _, IntConstant(order1) :: _ , _) = arg1
+            val MethodInvocation(_, _, IntConstant(order2) :: _ , _) = arg2
+            order1 < order2
+          }
+        }
+        val in_setarg :: out_setarg :: size_setarg :: Nil = args_sorted
+        val MethodInvocation(_,_, _ :: in :: Nil, _) = in_setarg
+        val MethodInvocation(_,_, _ :: out :: Nil, _) = out_setarg
+        val MethodInvocation(_,_, _ :: size :: Nil, _) = size_setarg
+
+        val buffer1_cvar = CVarWithType("gpu_buffer1", ClassOrStructType("cl::Buffer"))
+        val buffer2_cvar = CVarWithType("gpu_buffer2", ClassOrStructType("cl::Buffer"))
+        val buffer1_decl = ObjectDecl(buffer1_cvar, buffer1_cvar.t,
+          List(
+            StringConstant("context"),
+            StringConstant("CL_MEM_READ_WRITE"),
+            BinaryExpression(ArithExpression(Type.getElementCount(fc.args.head.t)), BinaryExpressionT.Operator.*,
+              FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(  TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(fc.args.head.t))  ))) )
+          )
+        )
+        val buffer2_decl = ObjectDecl(buffer2_cvar, buffer2_cvar.t,
+          List(
+            StringConstant("context"),
+            StringConstant("CL_MEM_READ_WRITE"),
+            BinaryExpression(ArithExpression(Type.getElementCount(fc.args.head.t)), BinaryExpressionT.Operator.*,
+              FunctionCall("sizeof", List(TypeLowering.GetElementTypeFromPointer(TypeLowering.GetElementTypeFromPointer(  TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(fc.args.head.t))  )))) )
+          )
+        )
+
+        val setArg1_buffer1 = out_setarg.copy(args = List(IntConstant(1), VarRefPure(buffer1_cvar)))
+        val funcall_1 = Block(Vector(in_setarg, setArg1_buffer1, size_setarg, funcall) )
+        val setArg0_buffer1 = out_setarg.copy(args = List(IntConstant(0), VarRefPure(buffer1_cvar)))
+        val setArg0_buffer2 = out_setarg.copy(args = List(IntConstant(0), VarRefPure(buffer2_cvar)))
+        val last_iter_in_arg =
+          IfThenElseIm(
+            cond_4,
+            Block(Vector(setArg0_buffer1)),
+            Block(Vector(setArg0_buffer2))
+          )
+        val funcall_2 = Block(Vector( last_iter_in_arg, out_setarg, size_setarg, funcall) )
+        val setArg1_buffer2 = out_setarg.copy(args = List(IntConstant(1), VarRefPure(buffer2_cvar)))
+        val funcall_3 = Block(Vector(setArg0_buffer1, setArg1_buffer2, size_setarg, funcall) )
+        val funcall_4 = Block(Vector(setArg0_buffer2, setArg1_buffer1, size_setarg, funcall) )
+
+        val if_else = Block(Vector(IfThenElifIm(List(cond_1, cond_2, cond_3, cond_4), List(funcall_1, funcall_2, funcall_3, funcall_4), Block() ) ) )
+
+        val forloop = ForLoopIm(init,cond,increment,if_else)
+
+        Block(Vector(buffer1_decl, buffer2_decl, forloop), global = true)
+
+    }
+
+    //Block()
+
+    arg_block :++ cast_for_this_call
+
+
+  }
 
   private def generateDataTransfer(fc: FunCall) : Block = {
     //parameter sequnence convention: first input pointers, then output pointers, then sizes
@@ -102,7 +266,7 @@ object LowerIR2HostCAST {
     val measurable = fc.f.asInstanceOf[Measurable]
 
     val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
-    val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
+    //val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
 
     val in_arg = fc.args.head
     val in = CVarWithType(in_arg.mem.variable.toString, TypeLowering.IRType2CastType(in_arg.t))
@@ -140,12 +304,24 @@ object LowerIR2HostCAST {
         ) )
       }
 
-    val block_for_this_call = measurable.gpu_timer match {
+
+    val cpu_start_clock_cvar = CVarWithType("cpu_clock_start_"+fc.gid, ClassOrStructType("std::chrono::milliseconds"))
+    val cpu_start_clock = AssignmentExpression(cpu_start_clock_cvar, cpu_clock )
+    val cpu_end_clock_cvar = CVarWithType("cpu_clock_end_"+fc.gid, ClassOrStructType("std::chrono::milliseconds"))
+    val cpu_end_clock = AssignmentExpression(cpu_end_clock_cvar, cpu_clock )
+
+    /*val block_for_this_call = measurable.gpu_timer match {
 
       case true => Block(Vector(eventDecl, enqueue_cast), global = true)
       case false => Block(Vector(enqueue_cast), global = true)
 
-    }
+    }*/
+    val block_for_this_call = Block(Vector(
+      (if(measurable.cpu_timer) cpu_start_clock else RawCode("") ) ,
+      enqueue_cast,
+      (if(measurable.cpu_timer || measurable.gpu_timer) sync else RawCode("")),
+      (if(measurable.cpu_timer) cpu_end_clock else RawCode(""))
+      ), global = true)
 
     arg_block :++ block_for_this_call
 
@@ -174,11 +350,11 @@ object LowerIR2HostCAST {
     //  rebuild kernel cvar
     val kernel_cvar = CVarWithType("kernel_" + fc.gid, ClassOrStructType("cl::Kernel"))
 
-    val set_all_args = (all_args zip arg_id).map{ case (cvar:CVarWithType, id:Int) => ExpressionStatement(MethodInvocation(kernel_cvar, "setArg", List(IntConstant(id), cvar))) }
+    val set_all_args : List[ AstNode with BlockMember ]= (all_args zip arg_id).map{ case (cvar:CVarWithType, id:Int) => ExpressionStatement(MethodInvocation(kernel_cvar, "setArg", List(IntConstant(id), cvar))) }
 
     //(2) enqueue kernel
     val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
-    val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
+    //val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
     val enqueue_cast = ExpressionStatement(MethodInvocation(
       StringConstant("lift_queue"),
       "enqueueNDRangeKernel",
@@ -192,10 +368,23 @@ object LowerIR2HostCAST {
       )
     ) )
 
+    /*
     val block_for_this_call = measurable.gpu_timer match {
       case true => set_all_args :+ eventDecl :+ enqueue_cast
       case false => set_all_args :+ enqueue_cast
-    }
+    }*/
+
+    val cpu_start_clock_cvar = CVarWithType("cpu_clock_start_"+fc.gid, ClassOrStructType("std::chrono::milliseconds"))
+    //val cpu_start_clock = VarDeclPure(cpu_start_clock_cvar, cpu_start_clock_cvar.t, Some(cpu_clock) )
+    val cpu_start_clock = ExpressionStatement(AssignmentExpression(cpu_start_clock_cvar, cpu_clock ) )
+    val cpu_end_clock_cvar = CVarWithType("cpu_clock_end_"+fc.gid, ClassOrStructType("std::chrono::milliseconds"))
+    //val cpu_end_clock = VarDeclPure(cpu_end_clock_cvar, cpu_end_clock_cvar.t, Some(cpu_clock) )
+    val cpu_end_clock = ExpressionStatement(AssignmentExpression(cpu_end_clock_cvar, cpu_clock ) )
+
+    val block_for_this_call = (set_all_args :+ (if(measurable.cpu_timer) cpu_start_clock else RawCode("") ) ) :+
+      enqueue_cast :+
+      ExpressionStatement(if(measurable.cpu_timer || measurable.gpu_timer) sync else RawCode("")) :+
+      (if(measurable.cpu_timer) cpu_end_clock else RawCode(""))
 
 
     Block(arg_blocks.toVector, global = true) :++ Block( block_for_this_call.asInstanceOf[List[AstNode with BlockMember]].toVector, global = true)
@@ -206,9 +395,10 @@ object LowerIR2HostCAST {
   private def generateCPUFunCall(fc: FunCall) : Block = {
     //parameter sequnence convention: first input pointers, then output pointers, then sizes
 
-    val arg_blocks = fc.args.map(generate(_) )
+    val arg_blocks = fc.args.map( generate(_) )
 
     val cfc = fc.f.asInstanceOf[CPUFunCall]
+    val measurable = fc.f.asInstanceOf[CPUMeasurable]
 
     val input_args = fc.args.map( arg => CVarWithType(arg.mem.variable.toString, TypeLowering.IRType2CastType(arg.t) ) ).toList
     val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
@@ -216,7 +406,17 @@ object LowerIR2HostCAST {
 
     val fc_cast = FunctionCall(cfc.funcName, input_args ::: (output_arg :: sizes.toList ) )
 
-    Block(arg_blocks.toVector, global = true) :++ Block( Vector(fc_cast), global = true)
+
+    val cpu_start_clock_cvar = CVarWithType("cpu_clock_start_"+fc.gid, ClassOrStructType("std::chrono::milliseconds"))
+    val cpu_start_clock = AssignmentExpression(cpu_start_clock_cvar, cpu_clock )
+    val cpu_end_clock_cvar = CVarWithType("cpu_clock_end_"+fc.gid, ClassOrStructType("std::chrono::milliseconds"))
+    val cpu_end_clock = AssignmentExpression(cpu_end_clock_cvar, cpu_clock )
+
+    Block(arg_blocks.toVector, global = true) :++ Block( Vector(
+      (if(measurable.cpu_timer) cpu_start_clock else RawCode("") ),
+      fc_cast,
+      (if(measurable.cpu_timer) cpu_end_clock else RawCode("") )
+    ), global = true)
 
 
   }
@@ -370,6 +570,8 @@ object LowerIR2HostCAST {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 
+    val tuple_decl_code = generateTupleDecl(lambda)
+
     val ins_cvars = lambda.params.map(p => CVarWithType(p.mem.variable.toString,TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(p.t), flatType = true ) ))
     //val out_cvar = CVarWithType(lambda.body.mem.variable.toString, TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(lambda.body.t), flatType = true) )
     val out_cvar_in_execute = CVarWithType(lambda.body.mem.variable.toString, RefType(TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(lambda.body.t), flatType = true) ) )
@@ -385,7 +587,7 @@ object LowerIR2HostCAST {
     val core_body_code = generate(lambda)
 
     //( Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true ), all_signature_cvars )
-    Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true )
+    Block(Vector(boilerplate_code, tuple_decl_code :++ userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true )
 
 
 
@@ -393,9 +595,11 @@ object LowerIR2HostCAST {
   }
 
 
-  def apply_no_header(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]) : Block = {
+  def apply_no_header(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)], generatePostExecuteHook: Boolean = false) : Block = {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
+
+    val tuple_decl_code = generateTupleDecl(lambda)
 
     val ins_cvars = lambda.params.map(p => CVarWithType(p.mem.variable.toString,TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(p.t), flatType = true ) ))
     //val out_cvar = CVarWithType(lambda.body.mem.variable.toString, TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(lambda.body.t), flatType = true) )
@@ -409,10 +613,10 @@ object LowerIR2HostCAST {
 
     val param_list = all_signature_cvars_for_execute.map(cv => ParamDeclPure(cv.name, cv.t))
 
-    val core_body_code = generate(lambda)
+    val core_body_code = generate(lambda) :+ (if(generatePostExecuteHook) FunctionCall("post_execute", List()) else RawCode("") )
 
     //( Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true ), all_signature_cvars )
-    Block(Vector( userfun_decl_code, FunctionPure(lambda.funcName,VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true )
+    Block(Vector( tuple_decl_code :++ userfun_decl_code, FunctionPure(lambda.funcName,VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true )
 
 
 
@@ -501,6 +705,19 @@ object LowerIR2HostCAST {
       params = (uf.inTs, uf.paramNames).
         zipped.map((t, n) => ParamDeclPure(n, TypeLowering.IRType2CastType(t))).toList,
       body = Block( Vector( OclCode(uf.body) ), global = true))
+  }
+
+  private def generateTupleDecl(lambda: Lambda) : Block = {
+
+    val mutable_result = mutable.Set.empty[TupleType]
+    lambda visitBy {
+      case FunCall(uf: UserFun, _*) => mutable_result ++= uf.tupleTypes
+      case _ =>
+    }
+    val result = mutable_result.toSet
+
+    Block(result.map(TypeDefHost(_)).toVector, global = true)
+
   }
 
 

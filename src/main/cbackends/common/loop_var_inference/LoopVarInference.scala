@@ -1,7 +1,7 @@
 package cbackends.common.loop_var_inference
 
 import ir.Type
-import ir.ast.{AbstractMap, AbstractReduce, FunCall, IRNode, Lambda}
+import ir.ast.{AbstractMap, AbstractReduce, FunCall, IRNode, Iterate, Lambda}
 import lift.arithmetic.{ContinuousRange, Cst, Var}
 import opencl.ir.pattern.MapGlb
 
@@ -18,6 +18,8 @@ object LoopVarInference extends Function1[Lambda, Lambda] {
       case fc@FunCall(r: AbstractReduce, _*) =>
         //second argument is the array, the first one is init value, so use second arg for length information
         r.loopVar = Var(r.loopVar.name, ContinuousRange(Cst(0), Type.getLength(fc.args(1).t)))
+      case fc@FunCall(i: Iterate, _*) =>
+        i.loopVar = Var(i.loopVar.name, ContinuousRange(Cst(0), i.n))
       case _ => ()
     }
 

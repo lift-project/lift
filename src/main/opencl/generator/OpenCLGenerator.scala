@@ -347,8 +347,9 @@ class OpenCLGenerator extends Generator {
     // pass 2: find and generate user and group functions
     generateUserFunctions(f.body).foreach(globalBlock += _)
 
-    // pass 3: generate the
-    globalBlock += generateKernel(f)
+    // pass 3: generate the cast, use variant 2, to have the strong ordering guarantee for parameter list,
+    //         so that host code generator can generate the same order for calling
+    globalBlock += generateKernel2(f)
 
     globalBlock
   }
@@ -437,8 +438,8 @@ class OpenCLGenerator extends Generator {
     f.params.foreach(_.mem.readOnly = true)
 
     // array of all unique vars (like N, iterSize, etc. )
-    val allVars = Kernel.memory.map(_.mem.size.varList)
-      .filter(_.nonEmpty).flatten.distinct
+    val allVars = (Kernel.memory.map(_.mem.size.varList)
+      .filter(_.nonEmpty).flatten ++ Kernel.memory.flatMap(_.t.varList)).distinct
     // partition into iteration variables and all others variables
     val (iterateVars, vars) = allVars.partition(_.name == Iterate.varName)
 
@@ -466,6 +467,112 @@ class OpenCLGenerator extends Generator {
         ).toList ++
           // size parameters
           vars.sortBy(_.name).map(x => ParamDecl(x.toString, Int)),
+      body = MutableBlock(Vector.empty),
+      attribute = attribute,
+      kernel = true
+    )
+
+    // print out allocated memory sizes
+    val varMap = iterateVars.map(v => (v, ArithExpr.asCst(v.range.max))).toMap
+    Kernel.memory.foreach(mem => {
+      val m = mem.mem
+      if (Verbose()) {
+        println("Allocated " + ArithExpr.substitute(m.size, varMap.toMap) +
+          " bytes for variable " + Printer.toString(m.variable) +
+          " in " + m.addressSpace + " memory")
+      }
+    })
+
+    kernel.body += Comment("Static local memory")
+    Kernel.staticLocalMemory.foreach(x =>
+      kernel.body +=
+        OclVarDecl(x.mem.variable, x.t,
+          addressSpace = x.mem.addressSpace,
+          length = (x.mem.size /^ Type.getMaxAllocatedSize(Type.getBaseType(x.t))).eval))
+
+    kernel.body += Comment("Typed Value memory")
+    typedValueMems.foreach(x =>
+      kernel.body +=
+        OclVarDecl(x.mem.variable,
+          Type.getValueType(x.t),
+          addressSpace = x.mem.addressSpace))
+
+    kernel.body += Comment("Private Memory")
+    privateMems.foreach(x => {
+
+      val length =
+        (x.mem.size /^ Type.getMaxAllocatedSize(Type.getValueType(x.t))).enforceSimplification
+
+      if (!length.isEvaluable)
+        throw new IllegalKernel("Private memory length has to be" +
+          s" evaluable, but found $length")
+
+      val decl = OclVarDecl(x.mem.variable, x.t,
+        addressSpace = x.mem.addressSpace,
+        length = length.eval)
+
+      privateDecls += x.mem.variable -> decl
+
+      kernel.body += decl
+    })
+
+    generate(f.body, kernel.body)
+
+    if (CSE())
+      CommonSubexpressionElimination(kernel.body)
+
+    kernel
+  }
+
+  //a variant of generateKernel2: the parameter list generated is sorted globally by name in alphabetic order across array pointers and sizes.
+  @Profile("OpenCL generator")
+  private def generateKernel2(f: Lambda): DeclarationT = {
+
+    val someMemories = OpenCLGenerator.getDifferentMemories(f)
+
+    val typedValueMems = someMemories._1
+    this.privateMems = someMemories._2
+    this.varDecls = someMemories._3
+
+    val memories = OpenCLGenerator.getMemories(f)
+
+    Kernel.memory = memories._2
+    Kernel.staticLocalMemory = memories._1
+
+    f.params.foreach(_.mem.readOnly = true)
+
+    // array of all unique vars (like N, iterSize, etc. )
+    val allVars = (Kernel.memory.map(_.mem.size.varList)
+      .filter(_.nonEmpty).flatten ++ Kernel.memory.flatMap(_.t.varList)).distinct
+    // partition into iteration variables and all others variables
+    val (iterateVars, vars) = allVars.partition(_.name == Iterate.varName)
+
+    val attribute =
+      if (localSize.forall(_.isEvaluable) &&
+        f.body.contains({ case FunCall(MapWrg(_, _), _) => }))
+        Some(RequiredWorkGroupSize(localSize))
+      else None
+
+    val params = Kernel.memory.map(x =>
+      OclParamDecl(
+        name = x.mem.variable.toString,
+        t = x.t match { // Only de-vectorise arrays
+          case vt: VectorType => vt
+          case t              => Type.devectorize(t)
+        },
+        const = x.mem.readOnly,
+        addressSpace = x.mem.addressSpace
+      )
+    ).toList.sortBy(_.name) ++
+      // size parameters
+      vars.sortBy(_.name).map(x => ParamDecl(x.toString, Int))
+
+
+    // Create the actual kernel function
+    val kernel = OpenCLAST.OclFunction(
+      name = "KERNEL",
+      ret = UndefType, // = void
+      params = params,
       body = MutableBlock(Vector.empty),
       attribute = attribute,
       kernel = true

@@ -24,7 +24,8 @@ trait CBackendsCompilerTrait {
     TypeChecker(lambda)
 
     lambda visitBy {
-      case e: Expr => assert(e.t != UndefType)
+      case e: Expr =>
+        assert(e.t != UndefType)
       case _ =>
     }
 

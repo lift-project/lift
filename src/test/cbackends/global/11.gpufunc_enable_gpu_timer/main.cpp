@@ -8,14 +8,14 @@ int main(int argc, char *argv[])
 
 	lift_init();
 
-	int const N = 2;
+	int const N = 2000000;
 	vector<float> in(N,1.0f);
 	float *out = nullptr;
 
 	execute(in.data(), out, N);
 
-	copy(out,out+N, ostream_iterator<float>(cout, " "));
-	std::cout << std::endl;
+	//copy(out,out+N, ostream_iterator<float>(cout, " "));
+	//std::cout << std::endl;
 	
 	return 0;
 }

@@ -15,7 +15,7 @@ object EmptyKernelStructure {
         new_funcall.t = fc.t
         new_funcall*/
       case fc@FunCall(cf:CPUFunc, args@_*) =>
-        val new_funcall = FunCall(CPUFunCall(cf.funcName, cf.f.params), args:_*)
+        val new_funcall = FunCall(CPUFunCall(cf.funcName, cf.f.params, cf.cpu_timer), args:_*)
         new_funcall.t = fc.t
         new_funcall
       case fc@FunCall(cf:OclFunc, args@_*) =>

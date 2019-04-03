@@ -2,7 +2,7 @@ package cbackends.common.view
 
 import cbackends.common.utils.common_view.GenerateViewForRawInOut
 import ir._
-import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
+import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Iterate, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
 import ir.view._
 import cbackends.common.utils.input_view.InputView.{init_params, post_check, pre_check}
 import cbackends.common.utils.pattern_matching.IsDefinedAt
@@ -114,26 +114,15 @@ object InputView {
 
       }
 
-      case fc@FunCall(m:MapSeq, arg)  => {
+      case fc@FunCall(i:Iterate, arg) => {
 
-        cont( arg )
+        cont(arg)
 
-        //this line reflect the map semantic
-        m.f.params.head.view = arg.view.access(m.loopVar)
+        i.f.params.head.view = arg.view
 
-        cont( m.f.body )
+        cont( i.f.body )
 
-        fc.isConcrete match {
-          case true => m.f.body.view match {
-            case ViewMem(v, t) =>
-              t match {
-                case _:ScalarType => fc.view = ViewMem(v, fc.t)
-                case _:ArrayType => fc.view = GenerateViewForRawInOut.generateViewForRawInOut(fc, fc.t, Cst(1))
-              }
-            case _ => fc.view = ViewMap(m.f.body.view, m.loopVar, fc.t)
-          }
-          case _ => fc.view = ViewMap(m.f.body.view, m.loopVar, fc.t)
-        }
+        fc.view = i.f.body.view
 
         fc
 
@@ -154,6 +143,32 @@ object InputView {
         fc
 
       }
+
+      case fc@FunCall(m:AbstractMap, arg)  => {
+
+        cont( arg )
+
+        //this line reflect the map semantic
+        m.f.params.head.view = arg.view.access(m.loopVar)
+
+        cont( m.f.body )
+
+        fc.isConcrete match {
+          case true => m.f.body.view match {
+            case ViewMem(v, t) =>
+              t match {
+                case _:ScalarType | _:TupleType => fc.view = ViewMem(v, fc.t)
+                case _:ArrayType => fc.view = GenerateViewForRawInOut.generateViewForRawInOut(fc, fc.t, Cst(1))
+              }
+            case _ => fc.view = ViewMap(m.f.body.view, m.loopVar, fc.t)
+          }
+          case _ => fc.view = ViewMap(m.f.body.view, m.loopVar, fc.t)
+        }
+
+        fc
+
+      }
+
 
         /*
       case fc@FunCall(m:AbstractMap, arg)  => {
@@ -234,9 +249,9 @@ object InputView {
 
       }
 
-      case x:Expr =>
+      /*case x:Expr =>
         assert(false)
-        x
+        x */
 
     }
   }

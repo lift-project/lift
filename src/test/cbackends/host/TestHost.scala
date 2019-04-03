@@ -1,7 +1,7 @@
 package cbackends.host
 
 import ir.ast.Pad.Boundary.WrapUnsafe
-import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, UserFun, Zip, \, fun}
+import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{Cst, SizeVar}
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
@@ -98,7 +98,7 @@ class TestHost {
   }
 
   val add_complex = UserFun("add_complex", Array("init", "l", "r"),
-    "{ return {std::get<0>(init)+l, std::get<1>(init)+r}; }",
+    "{ return {init._0+l, init._1+r}; }",
     Seq(TupleType(Double,Double), Double, Double), TupleType(Double,Double)
   )
 
@@ -1094,6 +1094,110 @@ class TestHost {
 
   */
 
+  /*
+  @Test
+  def test_iterate(): Unit = {
+
+    val path = s"$common_path/31.iterate"
+    val file = "libiterate.cpp"
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => Iterate(6)(  MapSeq(incrementF) ) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    /*
+    import opencl.executor.Compile
+    val gpu_f = fun(
+      ArrayTypeWSWC(Float, N),
+      in => MapGlb( toGlobal(MapSeq(id)) o ReduceSeq(add, 0.0f) ) o Slide(3,1) $ in
+    )
+    Compile(gpu_f)
+    */
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "6 6 6 6 6 6 6 6 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_iterate done!")
+  }
+  */
+
+  val tuple_in_tuple_out = UserFun("tuple_in_tuple_out", Array("l", "r"),
+    "{ return {l+1, r+1}; }",
+    Seq(Float, Float), TupleType(Float,Float)
+  )
+
+  /*
+  @Test
+  def test_zip_unzip(): Unit = {
+
+    val path = s"$common_path/31.iterate_zip"
+    val file = "libiterate_zip.cpp"
+
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (left, right) =>  Unzip() o MapSeq( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) $ Zip(left, right)
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "6 6 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }*/
+
+  @Test
+  def test_array_tuple(): Unit = {
+
+    val path = s"$common_path/32.array_tuple"
+    val file = "libarray_tuple.cpp"
+
+    /*
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      //(left, right) => Iterate(6)( CPUFunc( Unzip() o MapSeq( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) ) ) $ Zip(left, right)
+      (left, right) =>  MapGlb( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) )  $ Zip(left, right)
+    )
+    */
+
+    val f = fun(
+      ArrayType(TupleType(Float, Float), N),
+      MapSeq( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) $ _
+    )
+
+    val f_gpu = fun(
+      ArrayType(TupleType(Float, Float), N),
+      MapGlb( fun(y => tuple_in_tuple_out.apply(Get(y,0), Get(y,1)) ) ) $ _
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    //import opencl.executor.Compile
+    //val res = Compile(f_gpu)
+
+    HostCompiler ! (f, path, List(file))
+
+
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "2, 3, 4, 5\n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide_hello done!")
+  }
 
 
 }
