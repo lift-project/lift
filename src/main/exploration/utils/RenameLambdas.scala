@@ -3,7 +3,7 @@ package exploration.utils
 import java.io.FileWriter
 import java.nio.file.{Files, Paths}
 
-import exploration.{HighLevelRewrite, ParameterRewrite}
+import exploration.{HighLevelRewrite, SplitSlideRewrite}
 import rewriting.utils.{DumpToFile, Utils}
 
 import scala.io.Source
@@ -31,7 +31,7 @@ object RenameLambdas {
         val fullFilename = top + location
 
         if (Files.exists(Paths.get(fullFilename))) {
-          val lambda = HighLevelRewrite.finishRewriting(ParameterRewrite.readLambdaFromFile(fullFilename))
+          val lambda = HighLevelRewrite.finishRewriting(SplitSlideRewrite.readLambdaFromFile(fullFilename))
 
           val stringRep = DumpToFile.dumpLambdaToString(lambda)
           val sha256 = DumpToFile.Sha256Hash(stringRep)

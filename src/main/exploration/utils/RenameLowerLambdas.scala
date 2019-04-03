@@ -3,7 +3,7 @@ package exploration.utils
 import java.io.FileWriter
 
 import lift.arithmetic.{ArithExpr, Var}
-import exploration.ParameterRewrite
+import exploration.SplitSlideRewrite
 import opencl.executor.Eval
 import rewriting.utils.{DumpToFile, Utils}
 
@@ -38,7 +38,7 @@ object RenameLowerLambdas {
 
         try {
 
-          val factory = Eval.getMethod(ParameterRewrite.readFromFile(location).replace("id,", "idfloat,"))
+          val factory = Eval.getMethod(SplitSlideRewrite.readFromFile(location).replace("id,", "idfloat,"))
 
           val lambda = factory(Array[ArithExpr](Var("M"), Var("K"), Var("N"), Var(), Var(), Var(), Var(), Var(), Var(), Var(), Var()))
 
