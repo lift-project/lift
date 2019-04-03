@@ -1,75 +1,33 @@
 package exploration
 
-import lift.arithmetic.Var
+import lift.arithmetic.{ArithExpr, Cst, Var}
 import _root_.utils.GraphSort
 
-trait ParamConstraint {
-  val params: Vector[Var]
+class ParamConstraint(val name: String,
+                      val comment: String,
+                      val params: Vector[Var],
+                      val lhs: ArithExpr,
+                      val rhs: ArithExpr,
+                      val predicate: (ArithExpr, ArithExpr) => Boolean) {
+//  val params: Vector[Var] = Vector(param0)
 
-  val name: String
-  val comment: String
+  def isValid(values: Vector[Cst]): Boolean = {
+    val substitutionTable: Map[Var, Cst] = params.zip(values).toMap
 
-  def isValid(values: Vector[Int]): Boolean
-}
+    val lhsWithValues = lhs.visitAndRebuild(ParameterRewrite.substituteVars(_, substitutionTable))
+    val rhsWithValues = rhs.visitAndRebuild(ParameterRewrite.substituteVars(_, substitutionTable))
 
-case class ParamConstraint1D(name: String,
-                             comment: String,
-                             param0: Var,
-                             condition: (Int) => Boolean)
-  extends ParamConstraint {
-  val params: Vector[Var] = Vector(param0)
-
-  def isValid(values: Vector[Int]): Boolean = condition(values(0))
-}
-
-case class ParamConstraint2D(name: String,
-                             comment: String,
-                             param0: Var,
-                             param1: Var,
-                             condition: (Int, Int) => Boolean)
-  extends ParamConstraint {
-  val params: Vector[Var] = Vector(param0, param1)
-
-  def isValid(values: Vector[Int]): Boolean = condition(values(0), values(1))
-
-}
-
-case class ParamConstraint3D(name: String,
-                             comment: String,
-                             param0: Var,
-                             param1: Var,
-                             param2: Var,
-                             condition: (Int, Int, Int) => Boolean)
-  extends ParamConstraint {
-  val params: Vector[Var] = Vector(param0, param1, param2)
-
-  def isValid(values: Vector[Int]): Boolean = condition(values(0), values(1), values(2))
-}
-
-object ParamConstraint {
-  def apply(name: String, comment: String,
-            param0: Var,
-            condition: (Int) => Boolean): ParamConstraint1D =
-    ParamConstraint1D(name, comment, param0, condition)
-
-  def apply(name: String, comment: String,
-            param0: Var, param1: Var,
-            condition: (Int, Int) => Boolean): ParamConstraint2D =
-    ParamConstraint2D(name, comment, param0, param1, condition)
-
-  def apply(name: String, comment: String,
-            param0: Var, param1: Var, param2: Var,
-            condition: (Int, Int, Int) => Boolean): ParamConstraint3D =
-    ParamConstraint3D(name, comment, param0, param1, param2, condition)
+    predicate(lhsWithValues, rhsWithValues)
+  }
 }
 
 /**
-  * ParamConstraints contains the list of rules and a map of parameters, where with each parameter we associate
-  * a list of rules that apply to the parameters. Same rule might be referenced my multiple such lists.
-  * The list of rules is sorted by the number of parameters they reference
+  * ParamConstraints contains the list of constraints and a map of parameters, where with each parameter we associate
+  * a list of constraints that apply to the parameters. Same constraints might be referenced my multiple such lists.
+  * The list of constraints is sorted by the number of parameters they reference
   *
   * @param constraints List of unique constraints
-  * @param constraintsPerParam A map of parameters to corresponding rules
+  * @param constraintsPerParam A map of parameters to corresponding constraints
   */
 class ParamConstraints(parameters: Vector[Var],
                        val constraints: Vector[ParamConstraint],
@@ -77,7 +35,7 @@ class ParamConstraints(parameters: Vector[Var],
   /**
     * The list of params sorted by complexity of validation. The complexity of a parameter P is defined in terms
     * of the number of other parameters that P is validated against, both directly through its immediate validation
-    * rules and through the constraints of the parameters in its immediate constraints.
+    * constraints and through the constraints of the parameters in its immediate constraints.
     */
   lazy val paramsSortedByValidationComplexity: List[Var] = {
     //      val paramsToValidate = constraintsPerParam.keySet.toVector
@@ -86,53 +44,70 @@ class ParamConstraints(parameters: Vector[Var],
       vertices = parameters.indices.toVector,
       edges = constraintsPerParam.map(pair => {
         val param = pair._1
-        val paramRules = pair._2
+        val paramConstraints = pair._2
 
-        val edges = paramRules.flatMap(paramRule =>
-          paramRule.params.filter(_ != param).map(paramRuleParam =>
-            (/*child param*/parameters.indexOf(param),
-              /*parent param*/parameters.indexOf(paramRuleParam))))
+        val edges = paramConstraints.flatMap(paramConstraint =>
+          paramConstraint.params.filter(_ != param).map(paramConstraintParam => {
+
+            if (parameters.indexOf(param) == -1)
+              throw new IllegalArgumentException(
+                s"Parameter ${param.toString} is not in the list ${parameters.map(_.toString).mkString(", ")}")
+
+            if (parameters.indexOf(paramConstraintParam) == -1)
+              throw new IllegalArgumentException(
+                s"Parameter ${paramConstraintParam.toString} is not in the list ${parameters.map(_.toString).mkString(", ")}")
+
+            ( /*child param*/ parameters.indexOf(param),
+              /*parent param*/ parameters.indexOf(paramConstraintParam))
+          }))
         edges}).flatten.toArray).
       map(paramIdx => parameters(paramIdx))
   }
+
+  /**
+    * An independent parameter of a constraint is one for which we do not have to check the constraint validity.
+    * This is done so as to not have circular dependencies when picking random values for parameters.
+    * We choose an independent parameter based on how complex is the validation of each of the parameters of
+    * the constraint (i.e. how many constraints are imposed on them).
+    */
+//  def independentParamOfConstraint(constraint: ParamConstraint): Option[Var] =
+//    if (constraint.params.length > 1) Some(constraint.params.minBy(paramsSortedByValidationComplexity.indexOf(_)))
+//    // If the rule has only one parameter, then it is considered dependent (e.g. p0 % 2 == 0), i.e. we can't skip
+//    // checking this constraint for this parameter
+//    else None
 }
 
 object ParamConstraints {
-  def apply(parameters: Vector[Var], rules: Vector[ParamConstraint]): ParamConstraints = {
-    val sortedRules = rules.sortWith((rule1, rule2) => rule1.params.length <= rule2.params.length)
+  def apply(parameters: Vector[Var], constraints: Vector[ParamConstraint]): ParamConstraints = {
+    val sortedConstraints = constraints.sortWith((constraint1, constraint2) =>
+      constraint1.params.length <= constraint2.params.length)
 
-    new ParamConstraints(parameters, sortedRules, populate(sortedRules))
+    new ParamConstraints(parameters, sortedConstraints, findConstraintsPerParams(sortedConstraints))
   }
 
   /**
     * Populates the constraint map recursively
     */
-  def populate(rulesToTraverse: Vector[ParamConstraint]): Map[Var, List[ParamConstraint]] = {
+  def findConstraintsPerParams(constraintsToTraverse: Vector[ParamConstraint]): Map[Var, List[ParamConstraint]] = {
 
     def updateMap(paramConstraints: Map[Var, List[ParamConstraint]],
                   param: Var,
-                  rule: ParamConstraint): Map[Var, List[ParamConstraint]] = {
+                  constraint: ParamConstraint): Map[Var, List[ParamConstraint]] = {
       if (paramConstraints.isEmpty || !paramConstraints.keySet.exists(p => p.name == param.name))
-        paramConstraints + (param -> List(rule))
+        paramConstraints + (param -> List(constraint))
       else
-        paramConstraints + (param -> (rule +: paramConstraints(param)))
+        paramConstraints + (param -> (constraint +: paramConstraints(param)))
     }
 
-    rulesToTraverse match {
-      case rule +: rest => rule match {
+    constraintsToTraverse match {
+      case constraint +: rest =>
+        constraint.params.foldLeft(findConstraintsPerParams(rest)) {
+          case (constraintMap: Map[Var, List[ParamConstraint]], param: Var) =>
+            updateMap(constraintMap, param, constraint)
+        }
 
-        case r@ParamConstraint1D(_, _, param0, _) =>
-          updateMap(populate(rest), param0, r)
-
-        case r@ParamConstraint2D(_, _, param0, _, _) =>
-          updateMap(populate(rest), param0, r)
-
-        case r@ParamConstraint3D(_, _, param0, _, _, _) =>
-          updateMap(populate(rest), param0, r)
-
-        case _ => throw new IllegalArgumentException("Unexpected rule type")
-      }
-      case IndexedSeq() => Map.empty[Var, List[ParamConstraint]]
+      case IndexedSeq() =>
+        Map.empty[Var, List[ParamConstraint]]
     }
   }
 }
