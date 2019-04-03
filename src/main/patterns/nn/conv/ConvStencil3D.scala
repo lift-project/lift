@@ -1,7 +1,7 @@
 package patterns.nn.conv
 
 import ir.ast.debug.AssertType
-import ir.ast.{Expr, FunDecl, Gather, Get, Join, Lambda, Lambda2, Map, ReorderWithStride, Slide, Split, TiledSlidedND, TransposeW, UserFun, Value, Zip, λ}
+import ir.ast.{ArrayAccess, Expr, FunDecl, Gather, Get, Join, Lambda, Lambda2, Map, ReorderWithStride, Slide, Split, TiledSlidedND, TransposeW, UserFun, Value, Zip, asVector, λ}
 import ir.{ArrayType, TupleType, Type}
 import lift.arithmetic.{ArithExpr, Cst, Var}
 import opencl.ir._
@@ -32,57 +32,52 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
   /** ************************ Parallel layer **************************/
   def apply(activationF: UserFun): Seq[Lambda] = {
     /** ********* UserFuns ***********/
-    val vectorisableMultAndSumUp = UserFun("vectorisableMultAndSumUp", Array("acc", "l", "r"),
-      "{ return acc + (l * r); }",
-      Seq(Float, Float, Float), Float)
-
-    //    @Deprecated
-    //    def dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
-    //      "{ return acc + dot(l, r); }",
-    //      tuneParams.vectorLen match {
-    //        case Cst(2) => Seq(Float, Float2, Float2)
-    //        case Cst(3) => Seq(Float, Float3, Float3)
-    //        case Cst(4) => Seq(Float, Float4, Float4)
-    //        case _ => throw new NotImplementedError("dotAndSumUp() does not support vectors of size " + tuneParams.vectorLen)
-    //      }, Float)
+      def dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
+        "{ return acc + dot(l, r); }", Seq(Float, Float, Float), Float)
+//        tuneParams.vectorLen match {
+//          case Cst(2) => Seq(Float, Float2, Float2)
+//          case Cst(3) => Seq(Float, Float3, Float3)
+//          case Cst(4) => Seq(Float, Float4, Float4)
+//          case _ => throw new NotImplementedError("dotAndSumUp() does not support vectors of size " + tuneParams.vectorLen)
+//        }, Float)
     //
-    //    @Deprecated
-    //    def vectoriseNonContiguous(vectorLen: ArithExpr) = {
-    //      vectorLen match {
-    //        case Cst(2) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1"),
-    //          "{ return (float2)(f0, f1); }", Seq (Float, Float), Float2)
-    //        case Cst(3) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2"),
-    //          "{ return (float3)(f0, f1, f2); }", Seq (Float, Float, Float), Float3)
-    //        case Cst(4) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2", "f3"),
-    //          "{ return (float4)(f0, f1, f2, f3); }", Seq (Float, Float, Float, Float), Float4)
-    //        case _ =>
-    //          throw new NotImplementedError("vectoriseNonContiguous() does not support vectors of size " + vectorLen)
-    //      }
-    //    }
-    //
-    //    @Deprecated
-    //    def ArrayToVector(): FunDecl = {
-    //      λ(AT(Float, tuneParams.vectorLen), (arr) => {
-    //        /*ArrayAccess(0) $ */{
-    //          if (tuneParams.coalesce)
-    //            tuneParams.vectorLen match {
-    //              case Cst(2) => vectoriseNonContiguous(tuneParams.vectorLen)(
-    //                ArrayAccess(0) $ arr,
-    //                ArrayAccess(1) $ arr)
-    //              case Cst(3) => vectoriseNonContiguous(tuneParams.vectorLen)(
-    //                ArrayAccess(0) $ arr,
-    //                ArrayAccess(1) $ arr,
-    //                ArrayAccess(2) $ arr)
-    //              case Cst(4) => vectoriseNonContiguous(tuneParams.vectorLen)(
-    //                ArrayAccess(0) $ arr,
-    //                ArrayAccess(1) $ arr,
-    //                ArrayAccess(2) $ arr,
-    //                ArrayAccess(3) $ arr)
-    //              case _ => throw new NotImplementedError("ArrayToVector() does not support size " + tuneParams.vectorLen)
-    //            }
-    //          else
-    //            ArrayAccess(0) o asVector(tuneParams.vectorLen) $ arr
-    //        }})}
+//        @Deprecated
+//        def vectoriseNonContiguous(vectorLen: ArithExpr) = {
+//          vectorLen match {
+//            case Cst(2) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1"),
+//              "{ return (float2)(f0, f1); }", Seq (Float, Float), Float2)
+//            case Cst(3) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2"),
+//              "{ return (float3)(f0, f1, f2); }", Seq (Float, Float, Float), Float3)
+//            case Cst(4) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2", "f3"),
+//              "{ return (float4)(f0, f1, f2, f3); }", Seq (Float, Float, Float, Float), Float4)
+//            case _ =>
+//              throw new NotImplementedError("vectoriseNonContiguous() does not support vectors of size " + vectorLen)
+//          }
+//        }
+//
+//        @Deprecated
+//        def ArrayToVector(): FunDecl = {
+//          λ(AT(Float, tuneParams.vectorLen), (arr) => {
+//            /*ArrayAccess(0) $ */{
+//              if (tuneParams.coalesce)
+//                tuneParams.vectorLen match {
+//                  case Cst(2) => vectoriseNonContiguous(tuneParams.vectorLen)(
+//                    ArrayAccess(0) $ arr,
+//                    ArrayAccess(1) $ arr)
+//                  case Cst(3) => vectoriseNonContiguous(tuneParams.vectorLen)(
+//                    ArrayAccess(0) $ arr,
+//                    ArrayAccess(1) $ arr,
+//                    ArrayAccess(2) $ arr)
+//                  case Cst(4) => vectoriseNonContiguous(tuneParams.vectorLen)(
+//                    ArrayAccess(0) $ arr,
+//                    ArrayAccess(1) $ arr,
+//                    ArrayAccess(2) $ arr,
+//                    ArrayAccess(3) $ arr)
+//                  case _ => throw new NotImplementedError("ArrayToVector() does not support size " + tuneParams.vectorLen)
+//                }
+//              else
+//                ArrayAccess(0) o asVector(tuneParams.vectorLen) $ arr
+//            }})}
 
     def Continue(): Lambda = λ((x) => x)
 
@@ -309,17 +304,17 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                               MapLcl(0)(λ(TupleType(windowSeqTileType, windowSeqTileType),
                                 (SeqTileAndWeightsAndAcc) => {
                                   toGlobal(MapSeq(id)) o
-                                    ReduceSeqMaybeUnroll(
+                                    /*ReduceSeqMaybeUnroll*/ReduceSeq(
                                       λ((acc, y) => {
 
                                         /** ******* Reducing window tile BEGIN *********/
-                                        //                                        if (tuneParams.vectorLen == 1)
-                                        //                                          multAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
-                                        //                                        else
-                                        //                                          dotAndSumUp(acc,
-                                        //                                            ArrayToVector() $ /* X */ Get(y, 0),
-                                        //                                            ArrayToVector() $ /* kernelWWindow */ Get(y, 1))
-                                        vectorisableMultAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
+  //                                        if (tuneParams.vectorLen == 1)
+  //                                          multAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
+  //                                        else
+  //                                          dotAndSumUp(acc,
+  //                                            ArrayToVector() $ /* X */ Get(y, 0),
+  //                                            ArrayToVector() $ /* kernelWWindow */ Get(y, 1))
+                                        dotAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
                                       }),
                                       toPrivate(id) $ Value("0.0f", Float)) $
                                     Zip(

@@ -477,7 +477,6 @@ class TestConvStencil3D {
     ).map(Cst(_))
 
     test1stLAgainstScalaVersion(layerConfig, tuneParams)
-    println("done")
   }
 
   @Test
@@ -504,7 +503,6 @@ class TestConvStencil3D {
     ).map(Cst(_))
 
     testBothLsAndScalaAgainstScalaVersion(layerConfig, tuneParams)
-    println("done")
   }
 
   @Test
@@ -531,7 +529,6 @@ class TestConvStencil3D {
     ).map(Cst(_))
 
     testBothLsAgainstScalaVersion(layerConfig, tuneParams)
-    println("done")
   }
 }
 

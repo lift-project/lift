@@ -1,7 +1,8 @@
 package rewriting.rules
 
-import ir.ast.FunCall
+import ir.ast.{FunCall, Get, Lambda, UserFun, Zip, asVector, λ}
 import ir.ast.onnx.{AveragePool, ConvWithBias, ConvWithoutBias}
+import opencl.ir.pattern.ReduceSeq
 import patterns.nn.conv.{ConvCPU3D, ConvStencil3D}
 import patterns.nn.pool.PoolCPU3D
 
@@ -31,9 +32,24 @@ object NeuralNetRules {
 
     /** Pooling **/
     val averagePoolAsCPUFunc = Rule("AveragePool => <PoolCPU3D expression>", {
-      case call @ FunCall(_: AveragePool, args@ _*) if args.length == 1 =>
+      case call @ FunCall(_: AveragePool, args @ _*) if args.length == 1 =>
 
         PoolCPU3D(call, call.args.head)
+    })
+  }
+
+  object StencilRules {
+    val vectorise4 = Rule("ReduceSeq(dotAndSumUp) $ Zip(a0, a1) => " +
+      "ReduceSeq(dotAndSumUpF4) $ Zip(asVector(a0), asVector(a1))", {
+      case FunCall(ReduceSeq(Lambda(_, FunCall(uf: UserFun, _*), _)), reduceInit, FunCall(_: Zip, zipArgs @ _*))
+        if uf.name == "dotAndSumUp" =>
+
+        val vectorisedZipArgs = zipArgs.map(arg => asVector(4) $ arg)
+
+        val vectorisedUserFun = UserFun("dotAndSumUp_float4", Array("acc", "l", "r"), "{ return acc + dot(l, r); }",
+          Seq(opencl.ir.Float, opencl.ir.Float4, opencl.ir.Float4), opencl.ir.Float)
+
+        ReduceSeq(λ((acc, y) => vectorisedUserFun(acc, Get(y, 0), Get(y, 1))), reduceInit) $ Zip(vectorisedZipArgs: _*)
     })
   }
 }

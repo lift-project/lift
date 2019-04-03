@@ -703,7 +703,7 @@ class TestGlobal {
     //val id = 0
 
     import opencl.executor.Eval
-    import exploration.ParameterRewrite.readFromFile
+    import exploration.SplitSlideRewrite.readFromFile
 
     for {id <- 0 until 1000} {
 
