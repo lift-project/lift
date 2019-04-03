@@ -1,79 +1,88 @@
 package patterns.nn.conv
 
-import ir.{ArrayType, ArrayTypeWS, TupleType, Type}
 import ir.ast.debug.AssertType
-import ir.ast.{ArrayAccess, Expr, FunDecl, Gather, Get, Join, Lambda, Lambda2, Map, Pattern, ReorderWithStride, Split, TiledSlidedND, TransposeW, UserFun, Value, Zip, asVector, λ}
+import ir.ast.{Expr, FunDecl, Gather, Get, Join, Lambda, Lambda2, Map, ReorderWithStride, Slide, Split, TiledSlidedND, TransposeW, UserFun, Value, Zip, λ}
+import ir.{ArrayType, TupleType, Type}
 import lift.arithmetic.{ArithExpr, Cst, Var}
 import opencl.ir._
 import opencl.ir.pattern._
 import patterns.nn.conv.ConvStencil3D.{ConvStencil3DLayerConfig, ConvStencil3DTuneParams}
-import patterns.nn.{LayerConfig, LayerExpression, LayerTuneParams}
 import patterns.nn.utils.Utils.slidingOutputSize
+import patterns.nn._
+import _root_.utils._
 
 
-class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
-(layerConfig: ConvStencil3DLayerConfig[ConfigType],
- tuneParams: ConvStencil3DTuneParams[TuneParamType])
+class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
+                    tuneParams: ConvStencil3DTuneParams)
   extends LayerExpression(layerConfig, tuneParams) {
 
   def AT = ArrayType // alias
   type AT = ArrayType // alias
 
+  /* Exported types and sizes */
+  var tileStride: Option[ArithExpr] = None
+  var nWindowsInTileRow: Option[ArithExpr] = None
+  var nTilesInRow: Option[ArithExpr] = None
 
-  /************************** Parallel layer **************************/
-  def apply(activationF: UserFun): (Lambda, Lambda) = {
-    /*********** UserFuns ***********/
+  var partReducedXType: Option[AT] = None
+  var reducedXType: Option[AT] = None
+  var resultType: Option[AT] = None
+
+
+  /** ************************ Parallel layer **************************/
+  def apply(activationF: UserFun): Seq[Lambda] = {
+    /** ********* UserFuns ***********/
     val vectorisableMultAndSumUp = UserFun("vectorisableMultAndSumUp", Array("acc", "l", "r"),
       "{ return acc + (l * r); }",
       Seq(Float, Float, Float), Float)
 
-//    @Deprecated
-//    def dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
-//      "{ return acc + dot(l, r); }",
-//      tuneParams.vectorLen match {
-//        case Cst(2) => Seq(Float, Float2, Float2)
-//        case Cst(3) => Seq(Float, Float3, Float3)
-//        case Cst(4) => Seq(Float, Float4, Float4)
-//        case _ => throw new NotImplementedError("dotAndSumUp() does not support vectors of size " + tuneParams.vectorLen)
-//      }, Float)
-//
-//    @Deprecated
-//    def vectoriseNonContiguous(vectorLen: ArithExpr) = {
-//      vectorLen match {
-//        case Cst(2) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1"),
-//          "{ return (float2)(f0, f1); }", Seq (Float, Float), Float2)
-//        case Cst(3) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2"),
-//          "{ return (float3)(f0, f1, f2); }", Seq (Float, Float, Float), Float3)
-//        case Cst(4) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2", "f3"),
-//          "{ return (float4)(f0, f1, f2, f3); }", Seq (Float, Float, Float, Float), Float4)
-//        case _ =>
-//          throw new NotImplementedError("vectoriseNonContiguous() does not support vectors of size " + vectorLen)
-//      }
-//    }
-//
-//    @Deprecated
-//    def ArrayToVector(): FunDecl = {
-//      λ(AT(Float, tuneParams.vectorLen), (arr) => {
-//        /*ArrayAccess(0) $ */{
-//          if (tuneParams.coalesce)
-//            tuneParams.vectorLen match {
-//              case Cst(2) => vectoriseNonContiguous(tuneParams.vectorLen)(
-//                ArrayAccess(0) $ arr,
-//                ArrayAccess(1) $ arr)
-//              case Cst(3) => vectoriseNonContiguous(tuneParams.vectorLen)(
-//                ArrayAccess(0) $ arr,
-//                ArrayAccess(1) $ arr,
-//                ArrayAccess(2) $ arr)
-//              case Cst(4) => vectoriseNonContiguous(tuneParams.vectorLen)(
-//                ArrayAccess(0) $ arr,
-//                ArrayAccess(1) $ arr,
-//                ArrayAccess(2) $ arr,
-//                ArrayAccess(3) $ arr)
-//              case _ => throw new NotImplementedError("ArrayToVector() does not support size " + tuneParams.vectorLen)
-//            }
-//          else
-//            ArrayAccess(0) o asVector(tuneParams.vectorLen) $ arr
-//        }})}
+    //    @Deprecated
+    //    def dotAndSumUp = UserFun("dotAndSumUp", Array("acc", "l", "r"),
+    //      "{ return acc + dot(l, r); }",
+    //      tuneParams.vectorLen match {
+    //        case Cst(2) => Seq(Float, Float2, Float2)
+    //        case Cst(3) => Seq(Float, Float3, Float3)
+    //        case Cst(4) => Seq(Float, Float4, Float4)
+    //        case _ => throw new NotImplementedError("dotAndSumUp() does not support vectors of size " + tuneParams.vectorLen)
+    //      }, Float)
+    //
+    //    @Deprecated
+    //    def vectoriseNonContiguous(vectorLen: ArithExpr) = {
+    //      vectorLen match {
+    //        case Cst(2) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1"),
+    //          "{ return (float2)(f0, f1); }", Seq (Float, Float), Float2)
+    //        case Cst(3) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2"),
+    //          "{ return (float3)(f0, f1, f2); }", Seq (Float, Float, Float), Float3)
+    //        case Cst(4) => UserFun ("vectoriseNonContiguous", Array ("f0", "f1", "f2", "f3"),
+    //          "{ return (float4)(f0, f1, f2, f3); }", Seq (Float, Float, Float, Float), Float4)
+    //        case _ =>
+    //          throw new NotImplementedError("vectoriseNonContiguous() does not support vectors of size " + vectorLen)
+    //      }
+    //    }
+    //
+    //    @Deprecated
+    //    def ArrayToVector(): FunDecl = {
+    //      λ(AT(Float, tuneParams.vectorLen), (arr) => {
+    //        /*ArrayAccess(0) $ */{
+    //          if (tuneParams.coalesce)
+    //            tuneParams.vectorLen match {
+    //              case Cst(2) => vectoriseNonContiguous(tuneParams.vectorLen)(
+    //                ArrayAccess(0) $ arr,
+    //                ArrayAccess(1) $ arr)
+    //              case Cst(3) => vectoriseNonContiguous(tuneParams.vectorLen)(
+    //                ArrayAccess(0) $ arr,
+    //                ArrayAccess(1) $ arr,
+    //                ArrayAccess(2) $ arr)
+    //              case Cst(4) => vectoriseNonContiguous(tuneParams.vectorLen)(
+    //                ArrayAccess(0) $ arr,
+    //                ArrayAccess(1) $ arr,
+    //                ArrayAccess(2) $ arr,
+    //                ArrayAccess(3) $ arr)
+    //              case _ => throw new NotImplementedError("ArrayToVector() does not support size " + tuneParams.vectorLen)
+    //            }
+    //          else
+    //            ArrayAccess(0) o asVector(tuneParams.vectorLen) $ arr
+    //        }})}
 
     def Continue(): Lambda = λ((x) => x)
 
@@ -81,56 +90,59 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
       if (tuneParams.unrollReduce) ReduceSeqUnroll(f, init)
       else ReduceSeq(f, init)
 
-    /*********** Constants ***********/
-//    val tileWidthHeight = (layerConfig.kernelWidthHeight - layerConfig.kernelStride) + tuneParams.tileStride
+    /** ********* Constants ***********/
+    //    val tileWidthHeight = (layerConfig.kernelWidthHeight - layerConfig.kernelStride) + tuneParams.tileStride
     val tileWidthHeight = tuneParams.tileWidthHeight
-    val tileStride = tileWidthHeight - (layerConfig.kernelWidthHeight - layerConfig.kernelStride)
-//    val tileStride = tuneParams.tileStride
-    val nTilesInRow = slidingOutputSize(
+    tileStride = Some(tileWidthHeight - (layerConfig.kernelWidthHeight - layerConfig.kernelStride))
+    //    val tileStride = tuneParams.tileStride
+    nTilesInRow = Some(slidingOutputSize(
       layerConfig.inputWidthHeight,
       tileWidthHeight,
-      tileStride)
+      tileStride.get))
 
-    val nTilesInCol = nTilesInRow
-    val nTilesInInput = nTilesInCol * nTilesInRow
+    val nTilesInCol = nTilesInRow.get
+    val nTilesInInput = nTilesInCol * nTilesInRow.get
 
-    val nWindowsInTileRow = slidingOutputSize(
+    nWindowsInTileRow = Some(slidingOutputSize(
       tileWidthHeight,
       layerConfig.kernelWidthHeight,
-      layerConfig.kernelStride)
-    val nWindowsInTileCol = nWindowsInTileRow
+      layerConfig.kernelStride))
+    val nWindowsInTileCol = nWindowsInTileRow.get
 
-    val nWindowsInRow = nTilesInRow * nWindowsInTileRow // Output W
+    val nWindowsInRow = nTilesInRow.get * nWindowsInTileRow.get // Output W
     val nWindowsInCol = nTilesInCol * nWindowsInTileCol // Output Y
 
     val nElementsInWindow = layerConfig.kernelWidthHeight * layerConfig.kernelWidthHeight * layerConfig.inputChannels
 
     val nSeqTilesInWindow = nElementsInWindow /^ tuneParams.seqOpsPerThread
 
-    val nWindowsInTile = nWindowsInTileCol * nWindowsInTileRow
+    val nWindowsInTile = nWindowsInTileCol * nWindowsInTileRow.get
 
     val nTilesTotal = layerConfig.nInputs * nTilesInInput
 
     val nKernelGroups = layerConfig.kernelChannels /^ tuneParams.nKernelsPerWrg
 
-    /*********** Types ***********/
+    val flatPartReducedXSize = nTilesTotal * layerConfig.kernelChannels * nWindowsInTile * nSeqTilesInWindow
+
+    /** ********* Types ***********/
     val originalElementType: Float.type = Float
     val originalFlatWindowType: AT = AT(originalElementType, nElementsInWindow)
-    val originalXType: AT = AT(AT(AT(AT(AT(originalElementType,
+    val originalXType: AT = AT(AT(AT(AT(originalElementType,
       layerConfig.inputChannels),
       layerConfig.inputWidthHeight),
       layerConfig.inputWidthHeight),
-      layerConfig.nInputs), 1 /*TODO: get rid of the input batch dimension*/)
+      layerConfig.nInputs)
 
-//    val elementType: Type = if (tuneParams.vectorLen == 1) Float else AT(Float, tuneParams.vectorLen)
+    //    val elementType: Type = if (tuneParams.vectorLen == 1) Float else AT(Float, tuneParams.vectorLen)
     val elementType: Type = Float //if (vectorLen == 1) Float else  AT(Float, tuneParams.vectorLen)
-    val windowSeqTileType: AT = AT(elementType, tuneParams.seqOpsPerThread)// / tuneParams.vectorLen)
+    val windowSeqTileType: AT = AT(elementType, tuneParams.seqOpsPerThread)
+    // / tuneParams.vectorLen)
     val windowType: AT = AT(windowSeqTileType, nSeqTilesInWindow)
     val xTileType: AT = AT(windowType, nWindowsInTile)
     val xType: AT = AT(xTileType, nTilesTotal)
 
 
-    val slidedXType: AT = AT(AT(AT(AT(AT(AT(AT(AT(AT(originalElementType,
+    val slidedXType: AT = AT(AT(AT(AT(AT(AT(AT(AT(originalElementType,
       layerConfig.inputChannels),
       layerConfig.kernelWidthHeight),
       layerConfig.kernelWidthHeight),
@@ -145,13 +157,12 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
       slidingOutputSize(
         layerConfig.inputWidthHeight,
         tileWidthHeight,
-        tileStride)),
+        tileStride.get)),
       slidingOutputSize(
         layerConfig.inputWidthHeight,
         tileWidthHeight,
-        tileStride)),
-      layerConfig.nInputs),
-      1)
+        tileStride.get)),
+      layerConfig.nInputs)
 
     val flatWindowType: AT = AT(elementType, nElementsInWindow)
 
@@ -160,34 +171,37 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
     val partReducedOutChannelType: AT = AT(partReducedWindowType, nWindowsInTile)
     val partReducedOutChannelGroupType: AT = AT(partReducedOutChannelType, tuneParams.nKernelsPerWrg)
     val partReducedXTileType: AT = AT(partReducedOutChannelGroupType, nKernelGroups)
-    val partReducedXType: AT = AT(partReducedXTileType, nTilesTotal)
-    val flatPartReducedXType: AT = AT(partReducedElementType,
-      nTilesTotal * layerConfig.kernelChannels * nWindowsInTile * nSeqTilesInWindow)
+    partReducedXType = Some(AT(partReducedXTileType, nTilesTotal))
+    val flatPartReducedXType: AT = AT(partReducedElementType, flatPartReducedXSize)
 
     val reducedWindowType: Float.type = Float
     val reducedOutChannelType: AT = AT(reducedWindowType, nWindowsInTile)
     val reducedXTileType: AT = AT(reducedOutChannelType, layerConfig.kernelChannels)
-    val reducedXType: AT = AT(reducedXTileType, nTilesTotal)
+    reducedXType = Some(AT(reducedXTileType, nTilesTotal))
+    //    layerConfig.nInputs * nTilesInRow * nTilesInCol
+    //    layerConfig.nInputs * nTilesInCol, nTilesInRow
+    //    layerConfig.nInputs, nTilesInCol, nTilesInRow
+    //    1, layerConfig.nInputs, nTilesInCol, nTilesInRow
 
-    val resultType: AT = AT(AT(AT(AT(AT(Float,
+    resultType = Some(AT(AT(AT(AT(Float,
       nWindowsInRow), nWindowsInCol),
       layerConfig.kernelChannels),
-      layerConfig.nInputs), 1 /*TODO: get rid of the input batch dimension*/)
+      layerConfig.nInputs))
 
-    val kernelWWindowType: AT = /* weights */windowType
+    val kernelWWindowType: AT = /* weights */ windowType
     val kernelWGroupType: AT = AT(kernelWWindowType, tuneParams.nKernelsPerWrg)
     val kernelWType: AT = AT(kernelWGroupType, nKernelGroups)
 
-    val kernelBPerWindowType: Float.type = /* bias */Float
+    val kernelBPerWindowType: Float.type = /* bias */ Float
     val kernelBGroupType: AT = AT(kernelBPerWindowType, tuneParams.nKernelsPerWrg)
     val kernelBType: AT = AT(kernelBGroupType, nKernelGroups)
 
-    /****** Helper functions ******/
+    /** **** Helper functions ******/
 
     /* Produces a tiled slided tiled version of X */
     def SlideX(): FunDecl = {
       λ(originalXType, (X) =>
-          AssertType(xType, "SlideX output") o
+        AssertType(xType, "SlideX output") o
           // Tile and coalesce
           Map(Map(TileAndCoalesce())) o
           // Join tiles and channels
@@ -196,13 +210,11 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
           Map(Join()) o
           // Join inputs and tile rows
           Join() o Map(Join()) o
-          // Join batches and inputs
-          Join() o
           AssertType(slidedXType, "tiledSlideND type") o
-          Map(Map(TiledSlidedND(2)(layerConfig.kernelWidthHeight, layerConfig.kernelStride, tileStride,
-          enableUndoTiling = false))) o
+          Map(TiledSlidedND(2)(layerConfig.kernelWidthHeight, layerConfig.kernelStride, tileStride.get,
+            enableUndoTiling = false)) o
           AssertType(originalXType, "SlideX input")
-      $ X)
+          $ X)
     }
 
     def Coalesce(): FunDecl =
@@ -215,11 +227,13 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
         // Prepare for vectorisation
         //        {if (tuneParams.vectorLen != 1) Map(Split(tuneParams.vectorLen)) else Continue()} o
         Continue() o
-        //Map(Split(tuneParams.vectorLen)) o
+          //Map(Split(tuneParams.vectorLen)) o
           // Tile
           Split(tuneParams.seqOpsPerThread) o
           // Coalesce
-          {if (tuneParams.coalesce) Coalesce() else Continue()}
+          {
+            if (tuneParams.coalesce) Coalesce() else Continue()
+          }
 
           $ window)
 
@@ -227,37 +241,41 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
     /** structuriseX() converts the flat output of the previous kernel into 5D array **/
     def structuriseX(): FunDecl =
       λ(flatPartReducedXType, (X) =>
-        AssertType(partReducedXType, "Partially reduced X type") o
           Split(nKernelGroups) o Split(tuneParams.nKernelsPerWrg) o Split(nWindowsInTile) o
           Split(nSeqTilesInWindow) $ X)
 
     def formatResults(): FunDecl =
-      λ(reducedXType, (reducedX) =>
-        AssertType(resultType, "Result type") o
+      λ(reducedXType.get, (reducedX) =>
+        AssertType(resultType.get, "Result type") o
           // Flatten tiles
-          Map(/* Batch */
             Map(/* Image */
               Map(/* Output channel */
                 Join() o
                   Map(/* Tile row */
                     Map(/* Tile row */ Join()) o
-                      TransposeW())))) o
+                      TransposeW()))) o
           // Move nChannels up
-          Map(/* Batch */
             Map(/* Image */
               /* (tile rows, nChannels, tiles) -> (nChannels, tile rows, tiles) */
               TransposeW() o
                 Map(/* Tile row */
                   /* (tiles, nChannels) -> (nChannels, tiles) */
-                  TransposeW()))) o
-          /* Batches */ Split(layerConfig.nInputs) o
+                  TransposeW())) o
           /* Inputs */ Split(nTilesInCol) o
-          /* Tile rows */ Split(nTilesInRow) o
+          AssertType(AT(AT(AT(AT(AT(Float,
+            tileStride.get / layerConfig.kernelStride),
+            tileStride.get / layerConfig.kernelStride),
+            layerConfig.kernelChannels),
+            nTilesInRow.get),
+            layerConfig.nInputs * nTilesInCol),
+            "Split reduced X type (temp check)") o
+          /* Tile rows */ Split(nTilesInRow.get) o
           /* Sliding window rows in tiles */
-          Map(Map(Split(nWindowsInTileRow))) o
-          AssertType(reducedXType, "Reduced X type") $ reducedX)
+          //          PrintType() o
+          Map(Map(Split(nWindowsInTileRow.get))) o
+          AssertType(reducedXType.get, "Reduced X type") $ reducedX)
 
-    /*********** F-prop lambda: convolution with partial reduction ***********/
+    /** ********* F-prop lambda: convolution with partial reduction ***********/
     val layerPartial: Lambda = {
       λ(AT(AT(AT(AT(Float, layerConfig.inputChannels),
         layerConfig.kernelWidthHeight),
@@ -265,25 +283,25 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
         layerConfig.kernelChannels),
         originalXType,
         (K, X) => {
-          /*** Layer BEGIN ***/
-
-          MapWrg(2)(λ(originalXType, (XUnwrapped) => {
-
-            AssertType(partReducedXType, "Part reduced X type") o
+          /** * Layer BEGIN ***/
+          AssertType(partReducedXType.get, "Part reduced X type") o
+            Join() o
+            MapWrg(2)(λ(originalXType, (XUnwrapped) => {
               MapWrg(1)(λ(xTileType, (XTile) => {
-                /*** Tile BEGIN ***/
+                /** * Tile BEGIN ***/
 
                 AssertType(partReducedXTileType, "Part reduced X XTile type") o
                   MapWrg(0)(λ(kernelWGroupType, (kernelWGroup) => {
-                    /***** Output channel group BEGIN *****/
+                    /** *** Output channel group BEGIN *****/
 
                     AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") o
                       MapLcl(2)(λ(kernelWWindowType, (kernelWWindow) => {
-                        /***** Output channel BEGIN *****/
+                        /** *** Output channel BEGIN *****/
 
                         AssertType(partReducedOutChannelType, "Part reduced X output channel type") o
                           MapLcl(1)(λ(windowType, (window) =>
-                            /******* Sliding window BEGIN *******/
+
+                            /** ***** Sliding window BEGIN *******/
 
                             AssertType(partReducedWindowType, "Part reduced window type") o
                               /* Remove the one-sized dimension introduced by Reduce */
@@ -294,67 +312,67 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
                                     ReduceSeqMaybeUnroll(
                                       λ((acc, y) => {
 
-                                        /********* Reducing window tile BEGIN *********/
-//                                        if (tuneParams.vectorLen == 1)
-//                                          multAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
-//                                        else
-//                                          dotAndSumUp(acc,
-//                                            ArrayToVector() $ /* X */ Get(y, 0),
-//                                            ArrayToVector() $ /* kernelWWindow */ Get(y, 1))
+                                        /** ******* Reducing window tile BEGIN *********/
+                                        //                                        if (tuneParams.vectorLen == 1)
+                                        //                                          multAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
+                                        //                                        else
+                                        //                                          dotAndSumUp(acc,
+                                        //                                            ArrayToVector() $ /* X */ Get(y, 0),
+                                        //                                            ArrayToVector() $ /* kernelWWindow */ Get(y, 1))
                                         vectorisableMultAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
                                       }),
                                       toPrivate(id) $ Value("0.0f", Float)) $
                                     Zip(
-                                      AssertType(windowSeqTileType) $  Get(SeqTileAndWeightsAndAcc, 0),
+                                      AssertType(windowSeqTileType) $ Get(SeqTileAndWeightsAndAcc, 0),
                                       AssertType(windowSeqTileType) $ Get(SeqTileAndWeightsAndAcc, 1))
 
-                                  /********* Reducing window tile END *********/
-                                })) $ Zip(window, /*Get(kernelWWindow, weightsNoInTuple)*/kernelWWindow)
+                                  /** ******* Reducing window tile END *********/
+                                })) $ Zip(window, /*Get(kernelWWindow, weightsNoInTuple)*/ kernelWWindow)
 
-                            /******* Sliding window END *******/
+                            /** ***** Sliding window END *******/
                           )) o AssertType(xTileType) $ XTile
 
-                        /***** Output channel END *****/
+                        /** *** Output channel END *****/
                       })) o AssertType(kernelWGroupType, "Kernel weights group type") $ kernelWGroup
 
-                    /***** Output channel group END *****/
+                    /** *** Output channel group END *****/
                   })) o AssertType(kernelWType, "All kernel weights type after split") o
                   Split(tuneParams.nKernelsPerWrg) o Map(TileAndCoalesce() o Join() o Map(Join())) $ K
 
-                /*** Tile END ***/
+                /** * Tile END ***/
               })) o SlideX() $ XUnwrapped
 
             // Wrap X into an array of 1
-            // TODO: Split(originalXType.size)
-          })) o Split(1 /*TODO: get rid of the input batch dimension*/) $ X
+          })) o Split(layerConfig.nInputs) $ X
 
-          /*** Layer END ***/
+          /** * Layer END ***/
         })
     }
 
-    /*********** F-prop lambda: final part of the reduction ***********/
+    /** ********* F-prop lambda: final part of the reduction ***********/
     val layerFinal: Lambda = {
-      λ(AT(Float, layerConfig.kernelChannels), flatPartReducedXType,
+      λ(AT(Float, layerConfig.kernelChannels), /*flatPartReducedXType*/ partReducedXType.get,
         (B, X) => {
-          /*** Layer BEGIN ***/
+          /** * Layer BEGIN ***/
 
           formatResults() o
             MapWrg(1)(λ(partReducedXTileType, (XTile) => {
-              /*** Tile BEGIN ***/
+              /** * Tile BEGIN ***/
 
               AssertType(reducedXTileType, "Reduced kernels type") o
                 Join() o
                 MapWrg(0)(λ(TupleType(partReducedOutChannelGroupType, kernelBGroupType), (outputChannelGroup) => {
-                  /***** Output channel group BEGIN *****/
+                  /** *** Output channel group BEGIN *****/
 
                   MapLcl(1)(λ(TupleType(partReducedOutChannelType, kernelBPerWindowType), (outputChannel) => {
-                    /***** Output channel BEGIN *****/
+                    /** *** Output channel BEGIN *****/
 
                     AssertType(reducedOutChannelType, "Reduced X output channel type") o
                       /* Remove the one-sized dimension introduced by Reduce */
                       Join() o
                       MapLcl(0)(λ(partReducedWindowType, (window) =>
-                        /******* Sliding window BEGIN *******/
+
+                        /** ***** Sliding window BEGIN *******/
 
                         /* Map before AssertType is needed because of the one-sized dimension introduced
                            by Reduce */
@@ -365,70 +383,70 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
                             Get(outputChannel, 1)
                           ) o AssertType(partReducedWindowType, "Part reduced X window type") $ window
 
-                        /******* Sliding window END *******/
+                        /** ***** Sliding window END *******/
                       )) o AssertType(partReducedOutChannelType) $ Get(outputChannel, 0)
 
-                    /***** Output channel END *****/
+                    /** *** Output channel END *****/
                   })) $ Zip(
                     AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") $
                       Get(outputChannelGroup, 0),
                     AssertType(kernelBGroupType, "Bias group type") $ Get(outputChannelGroup, 1))
 
-                  /***** Output channel group END *****/
+                  /** *** Output channel group END *****/
                 })) $ Zip(
                 AssertType(partReducedXTileType, "Part reduced X tile") $ XTile,
                 AssertType(kernelBType, "All kernel biases type after split") o Split(tuneParams.nKernelsPerWrg) $ B)
 
-              /*** Tile END ***/
-            })) o structuriseX() $ X
+              /** * Tile END ***/
+            })) o AssertType(partReducedXType.get, "Partially reduced X type") /*o structuriseX()*/ $
+            X
 
-          /*** Layer END ***/
+          /** * Layer END ***/
         })
     }
 
-    (layerPartial, layerFinal)
+    Seq(layerPartial, layerFinal)
   }
 
-  def eval(K: Array[Array[Array[Array[Float]]]],
+  def eval(K: Array4D[Float],
            B: Array[Float],
-           X: Array[Array[Array[Array[Array[Float]]]]],
-           v: scala.collection.immutable.Map[Var, Cst]): Array[Array[Array[Array[Array[Float]]]]] = {
+           X: Array4D[Float],
+           v: scala.collection.immutable.Map[Var, Cst]): Array4D[Float] = {
 
-    // Check values
+    // Check parameter values
     assert(layerConfig.paramVector.forall(param => v.contains(param)))
     assert(tuneParams.paramVector.forall(param => v.contains(param)))
 
     // Check shapes
-    assert(utils.shape4d(K).equals(List(
+    assert(shape4d(K).equals(List(
       v(layerConfig.kernelChannels).evalInt,
       v(layerConfig.kernelWidthHeight).evalInt,
       v(layerConfig.kernelWidthHeight).evalInt,
       v(layerConfig.inputChannels).evalInt)))
 
-    assert(utils.shape1d(B).equals(List(
+    assert(shape1d(B).equals(List(
       v(layerConfig.kernelChannels).evalInt)))
 
-    assert(utils.shape5d(X).equals(List(
-      1,
+    assert(shape4d(X).equals(List(
       v(layerConfig.nInputs).evalInt,
       v(layerConfig.inputWidthHeight).evalInt,
       v(layerConfig.inputWidthHeight).evalInt,
       v(layerConfig.inputChannels).evalInt)))
 
-    X.map(batch => batch.map(input => {
-      val slidedRows: Array[Array[Array[Array[Float]]]] = Slide(
+    X.map(input => {
+      val slidedRows: Array4D[Float] = Slide(
         v(layerConfig.kernelWidthHeight).evalInt,
         v(layerConfig.kernelStride).evalInt).
         eval(input)
-      val slidedRowsShape = utils.shape4d(slidedRows)
+      val slidedRowsShape = shape4d(slidedRows)
 
-      val inputSlidedIn2D: Array[Array[Array[Array[Array[Float]]]]] = slidedRows.map(
+      val inputSlidedIn2D: Array5D[Float] = slidedRows.map(
         rowOfWindows => rowOfWindows.map(columnOfWindows =>
           Slide(
             v(layerConfig.kernelWidthHeight).evalInt,
             v(layerConfig.kernelStride).evalInt).
             eval(columnOfWindows)).transpose)
-      val inputSlidedIn2Dshape = utils.shape5d(inputSlidedIn2D)
+      val inputSlidedIn2Dshape = shape5d(inputSlidedIn2D)
 
       K.zip(B).map {
         case (kernelW, kernelB) =>
@@ -444,80 +462,123 @@ class ConvStencil3D[ConfigType <: ArithExpr, TuneParamType <: ArithExpr]
               }.sum // reduce windows
 
               reducedWindow + kernelB
-            }))}}))
+            }))
+      }
+    })
+  }
+
+  def evalFinalLambda(B: Array[Float],
+                      firstLambdaOutput: Array5D[Float],
+                      v: scala.collection.immutable.Map[Var, Cst]): Array4D[Float] = {
+
+    // Check parameter values
+    assert(layerConfig.paramVector.forall(param => v.contains(param)))
+    assert(tuneParams.paramVector.forall(param => v.contains(param)))
+
+    val partReducedXTypeLengths: Seq[Int] = Type.getLengths(
+      Type.substitute(partReducedXType.get,
+        v.asInstanceOf[scala.collection.immutable.Map[ArithExpr, ArithExpr]])).dropRight(1).map(_.evalInt)
+
+    val reducedXTypeLengths: Seq[Int] = Type.getLengths(
+      Type.substitute(reducedXType.get,
+        v.asInstanceOf[scala.collection.immutable.Map[ArithExpr, ArithExpr]])).dropRight(1).map(_.evalInt)
+
+    val resultTypeLengths: Seq[Int] = Type.getLengths(
+      Type.substitute(resultType.get,
+        v.asInstanceOf[scala.collection.immutable.Map[ArithExpr, ArithExpr]])).dropRight(1).map(_.evalInt)
+
+    val nWindowsInTileRowInt: Int = ArithExpr.substitute(nWindowsInTileRow.get, v.toMap).evalInt
+    val nTilesInRowInt: Int = ArithExpr.substitute(nTilesInRow.get, v.toMap).evalInt
+
+
+    // Check shapes
+    assert(shape1d(B).equals(List(
+      v(layerConfig.kernelChannels).evalInt)))
+
+    assert(shape5d(firstLambdaOutput).equals(partReducedXTypeLengths))
+
+    val nonformattedResult = firstLambdaOutput.map(XTile =>
+      XTile.zip({
+        val t = B.sliding(v(tuneParams.nKernelsPerWrg).evalInt, v(tuneParams.nKernelsPerWrg).evalInt).toArray
+        t
+      }).map(
+        outputChannelGroup =>
+          outputChannelGroup._1.zip(outputChannelGroup._2).map(outputChannel => {
+            outputChannel._1.map(window =>
+              window.foldLeft(outputChannel._2)(_ + _)
+            )})).flatten
+    )
+
+    // Check shapes
+    assert(shape3d(nonformattedResult).equals(reducedXTypeLengths))
+
+    // Format results
+    val intermediateResult: Array6D[Float] =
+      nonformattedResult.map(_.map(_.sliding(
+        nWindowsInTileRowInt, nWindowsInTileRowInt).toArray)).
+        sliding(nTilesInRowInt, nTilesInRowInt).toArray.
+        sliding(nTilesInRowInt, nTilesInRowInt).toArray
+
+    // Move nChannels up
+    val intermediateResult2: Array6D[Float] =
+      intermediateResult.map(_.map(_.transpose).transpose)
+
+    // Flatten tiles
+    val result: Array4D[Float] =
+      intermediateResult2.map(_.map(_.map(_.transpose.map(_.flatten)).flatten))
+
+    assert(shape4d(result).equals(resultTypeLengths))
+
+    result
   }
 }
 
-object ConvStencil3D {
+object ConvStencil3D extends LayerExpressionFactory {
   val kernelWidthHeightTmp = Var("kernelWidthHeight")
   val kernelStrideTmp = Var("kernelStride")
-  class ConvStencil3DLayerConfig[T <: ArithExpr](// Input config
-                                                 val nInputs: T = Var("nInputs"),
-                                                 val inputWidthHeight: T = Var("inputWidthHeight"),
-                                                 val inputChannels: T = Var("inputChannels"),
-                                                 // Layer-specific config
-                                                 val kernelWidthHeight: T = kernelWidthHeightTmp,
-                                                 val kernelChannels: T = Var("kernelChannels"),
-                                                 val kernelStride: T = kernelStrideTmp,
-                                                 val padWidthHeight: T = Var("padWidthHeight")) extends LayerConfig[T] {
+  class ConvStencil3DLayerConfig(// Input config
+                                 val nInputs: Var = Var("nInputs"),
+                                 val inputWidthHeight: Var = Var("inputWidthHeight"),
+                                 val inputChannels: Var = Var("inputChannels"),
+                                 // Layer-specific config
+                                 val kernelWidthHeight: Var = kernelWidthHeightTmp,
+                                 val kernelChannels: Var = Var("kernelChannels"),
+                                 val kernelStride: Var = kernelStrideTmp,
+                                 val padWidthHeight: Var = Var("padWidthHeight")) extends LayerConfig {
     // TODO: handle padding
-    val paramVector: Vector[T] = Vector(nInputs, inputWidthHeight, inputChannels, kernelWidthHeight, kernelChannels,
+    val paramVector: Vector[Var] = Vector(nInputs, inputWidthHeight, inputChannels, kernelWidthHeight, kernelChannels,
       kernelStride, padWidthHeight)
   }
-
-//  object ConvStencil3DLayerConfig {
-//    /**
-//      * Generates layer configuration based on the ONNX AST node and input data
-//      */
-//    def apply(onnxNode: ir.ast.onnx.Conv, input: Expr): ConvStencil3DLayerConfig = {
-//      val ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(Float, inputChannels), inputWidthHeight), _), nInputs) =
-//        input.t
-//
-//      new ConvStencil3DLayerConfig(nInputs, inputWidthHeight, inputChannels,
-//        /* kernel should be square, hence one value suffices here */
-//        onnxNode.kernelShape(ir.ast.onnx.Conv.firstSpatialDimension),
-//        onnxNode.kernelShape.head,
-//        /* all strides should be the same, hence one value suffices here */
-//        onnxNode.strides(0),
-//        /* all pads should be the same, hence one value suffices here */
-//        onnxNode.pads(0))
-//    }
-//  }
 
   /**
     * During lowering, the expression for the Conv layer is created using default variables for OptParams without
     * ranges. During parameter space exploration, they are replaced with constants (Cst()).
     */
-  val tileStrideTmp = Var("tileStride")
-  class ConvStencil3DTuneParams[T <: ArithExpr](val tileWidthHeight: T = (kernelWidthHeightTmp - kernelStrideTmp) + tileStrideTmp,
-                                                val tileStride: T = tileStrideTmp,
+//  val tileStrideTmp = Var("tileStride")
+  class ConvStencil3DTuneParams(val tileWidthHeight: Var = Var("tileWidthHeight"),//(kernelWidthHeightTmp - kernelStrideTmp) + tileStrideTmp,
+//                                val tileStride: Var = Var("tileStride"),
 
-                                                val vectorLen: T = Var("vectorLen"),
-                                                val nKernelsPerWrg: T = Var("nKernelsPerWrg"),
-                                                val seqOpsPerThread: T = Var("seqOpsPerThread"),
+                                val vectorLen: Var = Var("vectorLen"),
+                                val nKernelsPerWrg: Var = Var("nKernelsPerWrg"),
+                                val seqOpsPerThread: Var = Var("seqOpsPerThread"),
 
-                                                val coalesce: Boolean = false,
-                                                val unrollReduce: Boolean = false) extends LayerTuneParams[T] {
-    val paramVector: Vector[T] = Vector(tileWidthHeight, tileStride, vectorLen, nKernelsPerWrg, seqOpsPerThread)
+                                val coalesce: Boolean = false,
+                                val unrollReduce: Boolean = false) extends LayerTuneParams {
+        val paramVector: Vector[Var] = Vector(tileWidthHeight, vectorLen, nKernelsPerWrg, seqOpsPerThread)
   }
   /**
     * Produces a convolution expression without an activation function
     */
-  def apply(layerConfig: ConvStencil3DLayerConfig[ArithExpr],
-            tuneParams: ConvStencil3DTuneParams[ArithExpr]): Seq[FunDecl] = {
+  def apply(layerConfig: ConvStencil3DLayerConfig,
+            tuneParams: ConvStencil3DTuneParams): Seq[Lambda] =
     apply(id, layerConfig, tuneParams)
-  }
 
 
   /**
     * Produces a convolution expression with an activation function
     */
   def apply(activationF: UserFun,
-            layerConfig: ConvStencil3DLayerConfig[ArithExpr],
-            tuneParams: ConvStencil3DTuneParams[ArithExpr]): Seq[FunDecl] = {
-
-    val (layerPartial, layerFinal) = new ConvStencil3D(layerConfig, tuneParams)(activationF)
-
-    Seq(layerPartial, layerFinal)
-  }
+            layerConfig: ConvStencil3DLayerConfig,
+            tuneParams: ConvStencil3DTuneParams): Seq[Lambda] =
+    new ConvStencil3D(layerConfig, tuneParams)(activationF)
 }

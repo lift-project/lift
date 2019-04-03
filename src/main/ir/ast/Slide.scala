@@ -28,8 +28,8 @@ case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) {
 //            s"${(c - (size - step)) % step}")
         val innerSize = size
         val innerCapacity = size
-        val outerSize = (s - (size - step)) /^ step // TODO: make sure that these are divisible
-        val outerCapacity = (c - (size - step)) /^ step  // TODO: make sure that these are divisible
+        val outerSize = (s - (size - step)) / step // TODO: make sure that these are divisible
+        val outerCapacity = (c - (size - step)) / step  // TODO: make sure that these are divisible
         ArrayTypeWSWC(ArrayTypeWSWC(et, innerSize, innerCapacity), outerSize, outerCapacity)
       case _ => throw new TypeException(argType, "ArrayType", this)
     }

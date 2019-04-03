@@ -1,14 +1,18 @@
 package patterns
 
-import ir.ast.Expr
-import lift.arithmetic.ArithExpr
+import ir.ast.{FunDecl, Lambda}
+import lift.arithmetic.Var
+import patterns.nn.conv.ConvStencil3D.{ConvStencil3DLayerConfig, ConvStencil3DTuneParams}
 
 package object nn {
-  trait LayerParams[+T <: ArithExpr] {
-    val paramVector: Vector[T]
+  trait LayerParams {
+    val paramVector: Vector[Var]
   }
-  abstract class LayerConfig[+T <: ArithExpr] extends LayerParams[T]
-  abstract class LayerTuneParams[+T <: ArithExpr] extends LayerParams[T]
+  abstract class LayerConfig extends LayerParams
+  abstract class LayerTuneParams extends LayerParams
+
+  abstract class LayerExpression(layerConfig: LayerConfig,
+                                 tuneParams: LayerTuneParams)
 
   trait LayerExpressionFactory {
     // TODO: generalize types
