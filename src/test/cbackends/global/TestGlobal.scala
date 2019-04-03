@@ -701,40 +701,47 @@ class TestGlobal {
     val common_file_name1 = lambda_path + "ConvStencil3DConcreteLambda_0_"
     val common_file_name2 = lambda_path  + "ConvStencil3DConcreteLambda2_0_"
 
-    val id = 0
-
-    val file1 = common_file_name1 + id + ".scala"
-    val file2 = common_file_name2 + id + ".scala"
+    //val id = 0
 
     import opencl.executor.Eval
     import exploration.ParameterRewrite.readFromFile
 
+    for {id <- 0 until 1000} {
 
-    val gpu_fun: Lambda = Eval(readFromFile(file1))
-    val gpu_fun2: Lambda = Eval(readFromFile(file2))
-
-
-    val whole_fun = fun(
-      gpu_fun.params(0).t,
-      gpu_fun2.params(0).t,
-      gpu_fun.params(1).t,
-
-      //(p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, cpu_timer = true, gpu_timer = true).apply( ToGPU() $ p_b ,
-         //OclFunc(Join() o Join() o Join() o Join() o Join() o gpu_fun, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_x))
-      (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2).apply( ToGPU() $ p_b ,
-      OclFunc(Join() o Join() o Join() o Join() o Join() o gpu_fun).apply(ToGPU() $ p_k, ToGPU() $ p_x))
-    )
+      val file1 = common_file_name1 + id + ".scala"
+      val file2 = common_file_name2 + id + ".scala"
 
 
-    //("mkdir -p " + s"$path" ) !!
 
-    //("mkdir -p " + s"$generated_c_path" ) !!
+      val gpu_fun: Lambda = Eval(readFromFile(file1))
+      val gpu_fun2: Lambda = Eval(readFromFile(file2))
 
-    val path_with_config = generated_c_path + id
-    ("mkdir -p " + s"$path_with_config" ) !!
-    val file_with_config = "libhost.cpp"
 
-    GlobalCompiler ! (whole_fun, path_with_config, List(file_with_config))
+      val whole_fun = fun(
+        gpu_fun.params(0).t,
+        gpu_fun2.params(0).t,
+        gpu_fun.params(1).t,
+
+        //(p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, cpu_timer = true, gpu_timer = true).apply( ToGPU() $ p_b ,
+        //OclFunc(Join() o Join() o Join() o Join() o Join() o gpu_fun, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_x))
+        (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, gpu_timer = true).apply(ToGPU() $ p_b,
+          OclFunc(/*Join() o Join() o Join() o Join() o */ Join() o gpu_fun, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_x))
+      )
+
+
+      //("mkdir -p " + s"$path" ) !!
+
+      //("mkdir -p " + s"$generated_c_path" ) !!
+
+      val path_with_config = generated_c_path + id
+      ("mkdir -p " + s"$path_with_config") !!
+      val file_with_config = "libhost.cpp"
+
+      println("[Log]: compiling for "+path_with_config)
+
+      GlobalCompiler ! (whole_fun, path_with_config, List(file_with_config))
+
+    }
 
 
     println("Test done!")

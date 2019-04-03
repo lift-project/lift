@@ -33,7 +33,7 @@ object LowerIR2HostCAST {
   val ocl_boilerplate_code = ExpressionStatement(RawCode(
     """
       |#include <iostream>
-      |#include <CL/cl.hpp>
+      |#include <CL/cl2.hpp>
       |#include <fstream>
       |
       |std::string readFile(const char *filename){
