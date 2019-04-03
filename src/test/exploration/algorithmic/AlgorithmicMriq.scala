@@ -4,6 +4,7 @@ import exploration.HighLevelRewrite
 import ir._
 import ir.ast._
 import lift.arithmetic._
+import lift.arithmetic.simplifier.SimplifyPow
 import opencl.executor.LongTestsEnabled
 import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
@@ -62,7 +63,7 @@ class AlgorithmicMriq {
 
   @Test
   def partialReduceWithReorder(): Unit = {
-    val partialReduceWithReorderGold = fun(ArrayType(Float, X), ArrayType(Float, X), ArrayType(Float, X), ArrayType(TupleType(Float, Float, Float, Float), K),(p_0, p_1, p_2, p_3) => FunCall(Map(fun((p_4) => FunCall(Reduce(fun((p_5, p_6) => FunCall(reduceFun, p_5, p_6))), Value("{ 0.0f, 0.0f}", TupleType(Float, Float)), FunCall(Join(), FunCall(Map(fun((p_7) => FunCall(PartRed(fun((p_8, p_9) => FunCall(reduceFun, p_8, p_9))), Value("{ 0.0f, 0.0f}", TupleType(Float, Float)), p_7))), FunCall(Split( K * Pow(v__2, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__2)), FunCall(Scatter(ReorderWithStride(v__2)), FunCall(Join(), FunCall(Map(fun((p_10) => FunCall(Map(fun((p_11) => FunCall(mapFun, FunCall(Get(0), p_4), FunCall(Get(1), p_4), FunCall(Get(2), p_4), FunCall(Get(0), p_11), FunCall(Get(1), p_11), FunCall(Get(2), p_11), FunCall(Get(3), p_11)))), p_10))), FunCall(Split( K * Pow(v__2, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__2)), p_3)))))))))))), FunCall(Zip(3), p_0, p_1, p_2)))
+    val partialReduceWithReorderGold = fun(ArrayType(Float, X), ArrayType(Float, X), ArrayType(Float, X), ArrayType(TupleType(Float, Float, Float, Float), K),(p_0, p_1, p_2, p_3) => FunCall(Map(fun((p_4) => FunCall(Reduce(fun((p_5, p_6) => FunCall(reduceFun, p_5, p_6))), Value("{ 0.0f, 0.0f}", TupleType(Float, Float)), FunCall(Join(), FunCall(Map(fun((p_7) => FunCall(PartRed(fun((p_8, p_9) => FunCall(reduceFun, p_8, p_9))), Value("{ 0.0f, 0.0f}", TupleType(Float, Float)), p_7))), FunCall(Split( K * SimplifyPow(v__2, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__2)), FunCall(Scatter(ReorderWithStride(v__2)), FunCall(Join(), FunCall(Map(fun((p_10) => FunCall(Map(fun((p_11) => FunCall(mapFun, FunCall(Get(0), p_4), FunCall(Get(1), p_4), FunCall(Get(2), p_4), FunCall(Get(0), p_11), FunCall(Get(1), p_11), FunCall(Get(2), p_11), FunCall(Get(3), p_11)))), p_10))), FunCall(Split( K * SimplifyPow(v__2, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__2)), p_3)))))))))))), FunCall(Zip(3), p_0, p_1, p_2)))
 
     checkExists(partialReduceWithReorderGold, rewrittenLambdas)
     checkDistance(partialReduceWithReorderGold)

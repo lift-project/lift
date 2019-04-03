@@ -3,6 +3,7 @@ package exploration.mapping
 import exploration.MemoryMappingRewrite
 import ir._
 import ir.ast._
+import lift.arithmetic.simplifier.SimplifyPow
 import lift.arithmetic.{Cst, Pow}
 import opencl.executor.LongTestsEnabled
 import opencl.ir._
@@ -136,7 +137,7 @@ class MappingNbody {
               FunCall(Map(fun((p_8) =>
                 FunCall(PartRed(fun((p_9, p_10) =>
                   FunCall(VectorizeUserFun(Cst(4),add), p_9, p_10))), Value("0.0f", VectorType(Float, 4)), p_8))),
-                FunCall(Split( N * Pow(v__1, Cst(-1) )),
+                FunCall(Split( N * SimplifyPow(v__1, Cst(-1) )),
                   FunCall(Gather(ReorderWithStride(v__1)),
                     FunCall(Scatter(ReorderWithStride(v__1)),
                       FunCall(Join(),
@@ -144,7 +145,7 @@ class MappingNbody {
                           FunCall(Map(fun((p_12) =>
                             FunCall(calcAcc,
                               FunCall(Get(0), p_4), p_12, p_3, p_2))), p_11))),
-                          FunCall(Split( N * Pow(v__1, Cst(-1)) ),
+                          FunCall(Split( N * SimplifyPow(v__1, Cst(-1)) ),
                             FunCall(Gather(ReorderWithStride(v__1)), p_0))))))))))))),
         FunCall(Zip(2), p_0, p_1)))
 
@@ -171,7 +172,7 @@ class MappingNbody {
                           FunCall(calcAcc, p_15, p_16, p_17, p_18))),
                           FunCall(Get(0), p_4), p_14, p_3, p_2)))),
                       FunCall(idfloat4, Value("0.0f", VectorType(Float, 4))), p_10)))),
-                  FunCall(Split( N * Pow(v__1, Cst(-1)) ),
+                  FunCall(Split( N * SimplifyPow(v__1, Cst(-1)) ),
                     FunCall(Gather(ReorderWithStride(v__1)), p_0))))))))),
         FunCall(Zip(2), p_0, p_1)))
 

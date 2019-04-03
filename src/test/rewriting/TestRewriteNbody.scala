@@ -1,7 +1,7 @@
 package rewriting
 
 import benchmarks.NBody
-import exploration.{ExpressionFilter, ParameterRewrite}
+import exploration.{ExpressionFilter, SplitSlideRewrite}
 import ir._
 import ir.ast._
 import lift.arithmetic.ArithExpr
@@ -64,7 +64,7 @@ class TestRewriteNbody {
     assertArrayEquals(gold, output, 0.001f)
 
     val replacementFilter = collection.immutable.Map[ArithExpr, ArithExpr](N -> 16384)
-    val x = ParameterRewrite.replaceInputTypes(f27, replacementFilter)
+    val x = SplitSlideRewrite.replaceInputTypes(f27, replacementFilter)
     assertEquals(ExpressionFilter.Status.Success, ExpressionFilter(x, InferNDRange(x)))
  }
 
@@ -90,7 +90,7 @@ class TestRewriteNbody {
     assertArrayEquals(gold, output, 0.001f)
 
     val replacementFilter = collection.immutable.Map[ArithExpr, ArithExpr](N -> 16384)
-    val x = ParameterRewrite.replaceInputTypes(l4, replacementFilter)
+    val x = SplitSlideRewrite.replaceInputTypes(l4, replacementFilter)
     assertEquals(ExpressionFilter.Status.Success, ExpressionFilter(x, InferNDRange(x)))
  }
 
