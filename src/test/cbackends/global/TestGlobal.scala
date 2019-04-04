@@ -706,7 +706,8 @@ class TestGlobal {
     import opencl.executor.Eval
     import exploration.ParameterRewrite.readFromFile
 
-    for {id <- 0 until 1000} {
+    //for {id <- 0 until 1000} {
+    for {id <- 0 until 1} {
 
       val file1 = common_file_name1 + id + ".scala"
       val file2 = common_file_name2 + id + ".scala"
@@ -717,16 +718,27 @@ class TestGlobal {
       val gpu_fun2: Lambda = Eval(readFromFile(file2))
 
 
+
       val whole_fun = fun(
         gpu_fun.params(0).t,
         gpu_fun2.params(0).t,
         gpu_fun.params(1).t,
 
-        //(p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, cpu_timer = true, gpu_timer = true).apply( ToGPU() $ p_b ,
-        //OclFunc(Join() o Join() o Join() o Join() o Join() o gpu_fun, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_x))
         (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
-          OclFunc(/*Join() o Join() o Join() o Join() o */ Join() o gpu_fun, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_x))
+          OclFunc(/*Join() o Join() o Join() o Join() o */ Join() o gpu_fun, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
+                        // TODO: remove 5th map because we removed batches
+           OclFunc( MapSeq(MapSeq(MapSeq(MapSeq(MapSeq(opencl.ir.id))))) o Map(Map(PadConstant2D(2,2,2,2, Value(1,
+             ArrayTypeWSWC(Float, Type.getLengths(gpu_fun.params(1).t)(3)))) ) ), gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x))
       )
+
+      /*
+      val whole_fun = fun(
+        gpu_fun.params(1).t,
+
+        (p_x) => ToHost() o
+            OclFunc( MapSeq(MapSeq(MapSeq(MapSeq(MapSeq(opencl.ir.id))))) o Map(Map(PadConstant2D(2,2,2,2, Value(1,
+              ArrayTypeWSWC(Float, Type.getLengths(gpu_fun.params(1).t)(3)))) ) ), gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x
+      )*/
 
 
       //("mkdir -p " + s"$path" ) !!
