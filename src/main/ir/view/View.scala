@@ -113,6 +113,7 @@ abstract sealed class View(val t: Type = UndefType) {
         else this
       case ViewMap(iv, itVar, ty) => ViewMap(iv.replaced(subst), itVar, ty)
       case ViewAccess(i, iv, ty) => ViewAccess(ArithExpr.substitute(i, subst), iv.replaced(subst), ty)
+      case ViewArrayWrapper(iv, ty) => ViewArrayWrapper(iv.replaced(subst), ty)
       case ViewZip(iv, ty) => ViewZip(iv.replaced(subst), ty)
       case ViewUnzip(iv, ty) => ViewUnzip(iv.replaced(subst), ty)
       case ViewSplit(n, iv, ty) => ViewSplit(ArithExpr.substitute(n, subst), iv.replaced(subst), ty)
@@ -358,6 +359,14 @@ case class ViewMem(v: Var, override val t: Type) extends View(t)
  * @param t Type of the view.
  */
 case class ViewAccess(i: ArithExpr, iv: View, override val t: Type) extends View(t)
+
+/**
+  * wrapping another view in an array of size 1
+  *
+  * @param iv View to access.
+  * @param t Type of the view.
+  */
+case class ViewArrayWrapper(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for splitting another view.
@@ -642,6 +651,11 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
 
       case ViewAccess(i, iv, _) =>
         emitView(iv, i :: arrayAccessStack, tupleAccessStack)
+
+      case ViewArrayWrapper(iv, ty) =>
+        val idx :: indices = arrayAccessStack
+       // assert(idx == Cst(0))
+        emitView(iv,indices,tupleAccessStack)
 
       case ViewMap(iv, itVar, _) =>
         val idx :: indices = arrayAccessStack
