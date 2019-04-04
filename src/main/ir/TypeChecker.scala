@@ -1,6 +1,6 @@
 package ir
 
-import ir.ast.{Expr, FunCall, IRNode, Lambda, Param}
+import ir.ast.{ArrayFromExpr, Expr, FunCall, IRNode, Lambda, Param}
 import lift.arithmetic.Var
 import opencl.generator.TreatWarningsAsErrors
 
@@ -51,6 +51,10 @@ object TypeChecker {
         // 2. check return type of function with the given arguments type
         call.f.checkType(argType, setType)
 
+      case ArrayFromExpr(e) =>
+        val et = check(e, setType)
+        expr.t = ArrayTypeWSWC(et, 1, 1)
+        expr.t
       case _ => expr.t
     }
 

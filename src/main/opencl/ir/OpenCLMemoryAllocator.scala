@@ -89,6 +89,7 @@ object OpenCLMemoryAllocator {
     numPvt: Allocator = (_, x) => x): OpenCLMemory = {
 
     val result = expr match {
+      case ArrayFromExpr(e) => alloc(e, numGlb, numLcl, numPvt)
       case _: ArrayConstructors => OpenCLNullMemory // an array constructor is not backed by memory
 
       case v: Value => allocValue(v)

@@ -33,6 +33,8 @@ object InputView {
       case Array2DFromUserFunGenerator(f, at) => View2DGeneratorUserFun(f, at)
       case Array3DFromUserFunGenerator(f, at) => View3DGeneratorUserFun(f, at)
 
+      case ArrayFromExpr(e) => ViewArrayWrapper(visitAndBuildViews(e),expr.t)
+
       case call: FunCall => buildViewFunCall(call)
     }
     expr.view = result
