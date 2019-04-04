@@ -724,8 +724,8 @@ class TestGlobal {
 
         //(p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, cpu_timer = true, gpu_timer = true).apply( ToGPU() $ p_b ,
         //OclFunc(Join() o Join() o Join() o Join() o Join() o gpu_fun, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_x))
-        (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, gpu_timer = true).apply(ToGPU() $ p_b,
-          OclFunc(/*Join() o Join() o Join() o Join() o */ Join() o gpu_fun, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_x))
+        (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
+          OclFunc(/*Join() o Join() o Join() o Join() o */ Join() o gpu_fun, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_x))
       )
 
 

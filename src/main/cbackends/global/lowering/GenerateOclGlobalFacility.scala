@@ -98,7 +98,7 @@ object GenerateOclGlobalFacility {
       """
         |	cl::Platform::get(&allPlatforms);
         | if (allPlatforms.size() == 0) {
-        | std::cout << " No platforms found. Check OpenCL installation!" << std::endl;
+        | std::cerr << " No platforms found. Check OpenCL installation!" << std::endl;
         | exit(1);
         | }
         |
