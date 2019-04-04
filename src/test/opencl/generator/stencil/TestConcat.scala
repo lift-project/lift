@@ -122,6 +122,74 @@ class TestConcat
   }
 */
 
+  @Test
+  def boundaryTest1D(): Unit = {
+
+    val slidesize = 3
+    val slidestep = 1
+    val size = 10
+    val N = SizeVar("N")
+
+    val constL = 2.0f
+    val constR = 3.0f
+
+    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }.map(x => Array(x))
+    val gold = values
+
+    // HACK
+    def stencil1D(a: Int, b: Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float,1),N),
+      (input) => {
+
+            toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ input.at(0), MapSeq(id) $ input.at(N-1))
+
+      })
+
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values)
+
+    // sanity check
+    StencilUtilities.print2DArray(values)
+    StencilUtilities.print2DArray(gold)
+    StencilUtilities.print1DArray(output)
+
+//    assertArrayEquals(gold, output, 0.1f)
+
+  }
+
+
+  @Test
+  def boundaryTest2D(): Unit = {
+
+    val size = 12
+    val slidesize = 3
+    val slidestep = 1
+
+    val values = Array.tabulate(size,size) { (i,j) => (i*size + j + 1).toFloat }
+    val gold = values
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    def original2DStencil(size: Int, step: Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
+      (input) => {
+
+
+            toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ input.at(0), MapSeq(id) $ input.at(N-1))
+
+      })
+
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original2DStencil(slidesize,slidestep),values)
+
+    StencilUtilities.print2DArray(values)
+    StencilUtilities.print2DArray(gold)
+    StencilUtilities.print1DArray(output)
+
+//    assertArrayEquals(output, gold, StencilUtilities.stencilDelta)
+
+  }
+
   // calculate main stencil from one array
   // concat together with original boundary points
   @Test
