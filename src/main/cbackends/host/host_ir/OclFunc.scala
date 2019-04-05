@@ -5,19 +5,22 @@ import ir.ast.{FPattern, IDGenerator, IRNode, Lambda, Param, Pattern}
 import ir.interpreter.Interpreter.ValueMap
 import ir.{TupleType, Type, TypeChecker}
 import lift.arithmetic.ArithExpr
+import opencl.generator.NDRange
 
 import scala.collection.mutable
 
 
 //accept arbitrary parameters.
-case class OclFunc(override val f: Lambda, val funcName: String = "execute_" + IDGenerator.get_id(),
+case class OclFunc(override val f: Lambda,
+                   val ndranges: (NDRange, NDRange) = (NDRange(1,1,1), NDRange(1,1,1)),
+                   val funcName: String = "execute_" + IDGenerator.get_id(),
                    override val cpu_timer: Boolean = false,
                    override val gpu_timer: Boolean = false,
                                                    //var name, type, size, temp or not, in or out.
                    val memories: mutable.ListBuffer[(String, CTypeT, ArithExpr, Boolean, String )] = mutable.ListBuffer.empty)
   extends Pattern(arity = f.params.length) with FPattern with Measurable {
 
-  override def copy(f: Lambda): Pattern = OclFunc(f, funcName)
+  override def copy(f: Lambda): Pattern = OclFunc(f, ndranges, funcName)
 
 
   override def checkType(argType: Type,
@@ -39,7 +42,9 @@ case class OclFunc(override val f: Lambda, val funcName: String = "execute_" + I
     }
   }
 }
-case class OclFunCall(funcName : String, params: Array[Param], override val cpu_timer: Boolean = false, override val gpu_timer: Boolean = false)
+case class OclFunCall(funcName : String, params: Array[Param],
+                      val ndranges: (NDRange, NDRange) = (NDRange(1,1,1), NDRange(1,1,1)),
+                      override val cpu_timer: Boolean = false, override val gpu_timer: Boolean = false)
   extends Pattern(arity = 2) with Measurable {
 
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = this

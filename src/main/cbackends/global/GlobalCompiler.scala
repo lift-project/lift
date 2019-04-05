@@ -52,10 +52,10 @@ object GlobalCompiler{
       case _ => {
 
         val all_oclfunc_outline_targets_purified = all_oclfunc_outline_targets.map{
-          case (filename:String, lambdax:Lambda) => (filename, Purify(lambdax) )
+          case (filename:String, localSize, globalSize, lambdax:Lambda) => (filename, localSize, globalSize, Purify(lambdax) )
         }
         val oclfundefs = all_oclfunc_outline_targets_purified.map {
-          case (filename:String, lambdax:Lambda) =>  (filename , ( opencl.executor.Compile.!!(lambdax) ) )
+          case (filename:String, localSize, globalSize, lambdax:Lambda) =>  (filename , ( opencl.executor.Compile.!!(lambdax, localSize, globalSize) ) )
         }
 
         OclMemoryGen(lambda)
@@ -70,7 +70,7 @@ object GlobalCompiler{
         val clock_printing_stmt = GenerateCLockPrintingStmt(emptified_lambda)
         val final_global_var_decl = global_val_decl_cast :++ global_clock_decl
 
-        val print_csv_header = ExpressionStatement(StringConstant("std::cerr<<"+'"'+ "func_name, cpu_time_ms, gpu_time_ms, diff_percentage"+'"'+"<<std::endl" ) )
+        val print_csv_header = ExpressionStatement(StringConstant("std::cout<<"+'"'+ "func_name, cpu_time_ms, gpu_time_ms, diff_percentage"+'"'+"<<std::endl" ) )
         val clock_printing_boilerplates = RawCode(
           """
             |double cpu_time_in_ms( std::chrono::milliseconds start, std::chrono::milliseconds finish ){

@@ -2,6 +2,7 @@ package cbackends.global.transformation.cast_transformation.cpu_outline_transfor
 
 import cbackends.host.host_ir.{CPUFunc, OclFunc}
 import ir.ast.{FunCall, Lambda}
+import opencl.generator.NDRange
 
 import scala.collection.mutable
 
@@ -9,15 +10,15 @@ object CPUOutlineTargetAnalysis {
 
   def apply (lambda: Lambda) : List[Lambda] = {
 
-    val online_targets = scala.collection.mutable.ListBuffer.empty[Lambda]
+    val online_targests = scala.collection.mutable.ListBuffer.empty[Lambda]
 
     lambda visitBy {
-      case cf@FunCall(c:CPUFunc, _*) => c.f.funcName = c.funcName; online_targets += c.f
-      //case cf@FunCall(c:CPUFunc2, _*) => c.f.funcName = c.funcName; online_targets += c.f
+      case cf@FunCall(c:CPUFunc, _*) => c.f.funcName = c.funcName; online_targests += c.f
+      //case cf@FunCall(c:CPUFunc2, _*) => c.f.funcName = c.funcName; online_targests += c.f
       case _ =>
     }
 
-    online_targets.toList
+    online_targests.toList
 
   }
 
@@ -26,17 +27,18 @@ object CPUOutlineTargetAnalysis {
 
 object OclOutlineTargetAnalysis {
 
-  def apply (lambda: Lambda) : Map[String, Lambda] = {
+  def apply (lambda: Lambda) : List[Tuple4[String,NDRange, NDRange, Lambda]] = {
 
-    //val online_targets = scala.collection.mutable.ListBuffer.empty[Lambda]
-    val online_targets = mutable.Map.empty[String,Lambda]
+    //val online_targests = scala.collection.mutable.ListBuffer.empty[Lambda]
+    val online_targests = mutable.ListBuffer.empty[Tuple4[String,NDRange, NDRange, Lambda]]
 
     lambda visitBy {
-      case cf@FunCall(c:OclFunc, _*) => c.f.funcName = c.funcName; online_targets += ("kernel_"+cf.gid+".cl") -> c.f
+      case cf@FunCall(c:OclFunc, _*) => c.f.funcName = c.funcName;
+        online_targests += Tuple4("kernel_"+cf.gid+".cl", c.ndranges._1, c.ndranges._2, c.f )
       case _ =>
     }
 
-    online_targets.toMap
+    online_targests.toList
 
   }
 

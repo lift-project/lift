@@ -7,7 +7,7 @@ import ir.ast.{Expr, FunCall, Iterate, Lambda, Param, Value}
 object GenerateCLockPrintingStmt {
 
 
-  val print_stmt_prefix = "std::cerr"
+  val print_stmt_prefix = "std::cout"
   val print_stmt_suffix = "std::endl"
   val sep = "<<"
   val double_quote = '"'
