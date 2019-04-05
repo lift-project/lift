@@ -23,6 +23,23 @@ case class PadConstant(left: Int, right: Int, constant: Value)
       case _: Vector[_] => throw new NotImplementedException()
     }
   }
+
+  def eval2d(arg: Array[Array[Array[Array[Float]]]], padLength: Int): Array[Array[Array[Array[Float]]]] = {
+
+    val argPadded = Array.fill(
+      arg.length,
+      arg.head.length + 2 * padLength,
+      arg.head.head.length + 2 * padLength,
+      arg.head.head.head.length)(0.0f)
+
+    for {i <- 0 until arg.length}
+      for {j <- 0 until arg.head.length}
+        for {k <- 0 until arg.head.head.length}
+          for {l <- 0 until arg.head.head.head.length}
+            argPadded(i)(j + padLength)(k + padLength)(l) = arg(i)(j)(k)(l)
+
+    argPadded
+  }
 }
 
 object PadConstant2D {
