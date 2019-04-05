@@ -6,6 +6,8 @@ import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{Cst, SizeVar}
+import opencl.executor.Compile
+import opencl.generator.NDRange
 import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
 import opencl.ir.{Float, add, dividedBy, _}
 import org.junit.Assert._
@@ -698,6 +700,7 @@ class TestGlobal {
     val generated_c_path = "/home/lu/Documents/Research/Experiments/Cases19/generated_c_files/"
 
 
+    val common_file_name0 = lambda_path  + "ConvStencil3DPaddingLambda_0_"
     val common_file_name1 = lambda_path + "ConvStencil3DConcreteLambda_0_"
     val common_file_name2 = lambda_path  + "ConvStencil3DConcreteLambda2_0_"
 
@@ -707,37 +710,42 @@ class TestGlobal {
     import exploration.ParameterRewrite.readFromFile
 
     //for {id <- 0 until 1000} {
-    for {id <- 0 until 1} {
+    for {id <- 10 until 11} {
 
+      val file0 = common_file_name0 + id + ".scala"
       val file1 = common_file_name1 + id + ".scala"
       val file2 = common_file_name2 + id + ".scala"
 
 
 
-      val gpu_fun: Lambda = Eval(readFromFile(file1))
-      val gpu_fun2: Lambda = Eval(readFromFile(file2))
+      //ndrange is in the reversed order of c++ enqueneNDRange
+      val (ndranges0: (/*local*/NDRange, /*global*/NDRange), gpu_fun0: Lambda) = Eval.eval(readFromFile(file0)).
+        asInstanceOf[((NDRange, NDRange), Lambda)]
+      val (ndranges1: (/*local*/NDRange, /*global*/NDRange), gpu_fun1: Lambda) = Eval.eval(readFromFile(file1)).
+        asInstanceOf[((NDRange, NDRange), Lambda)]
+      val (ndranges2: (/*local*/NDRange, /*global*/NDRange), gpu_fun2: Lambda) = Eval.eval(readFromFile(file2)).
+        asInstanceOf[((NDRange, NDRange), Lambda)]
 
 
-
+      //Compile(gpu_fun0, ndranges0._1, ndranges0._2)
       val whole_fun = fun(
-        gpu_fun.params(0).t,
+        gpu_fun1.params(0).t,
         gpu_fun2.params(0).t,
-        gpu_fun.params(1).t,
+        gpu_fun0.params(0).t,
 
         (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
-          OclFunc(/*Join() o Join() o Join() o Join() o */ Join() o gpu_fun, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
+          OclFunc( gpu_fun1, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
                         // TODO: remove 5th map because we removed batches
-           OclFunc( MapSeq(MapSeq(MapSeq(MapSeq(MapSeq(opencl.ir.id))))) o Map(Map(PadConstant2D(2,2,2,2, Value(1,
-             ArrayTypeWSWC(Float, Type.getLengths(gpu_fun.params(1).t)(3)))) ) ), gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x))
+           OclFunc( gpu_fun0, gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x))
       )
+
 
       /*
       val whole_fun = fun(
-        gpu_fun.params(1).t,
+        gpu_fun0.params(0).t,
 
         (p_x) => ToHost() o
-            OclFunc( MapSeq(MapSeq(MapSeq(MapSeq(MapSeq(opencl.ir.id))))) o Map(Map(PadConstant2D(2,2,2,2, Value(1,
-              ArrayTypeWSWC(Float, Type.getLengths(gpu_fun.params(1).t)(3)))) ) ), gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x
+            OclFunc( gpu_fun0 , gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x
       )*/
 
 

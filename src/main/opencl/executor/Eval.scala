@@ -32,6 +32,7 @@ object Eval {
                            |import opencl.ir._
                            |import opencl.ir.pattern._
                            |import opencl.ir.ast._
+                           |import opencl.generator.NDRange
                            |$code
                          """.stripMargin)
     tb.eval(tree)

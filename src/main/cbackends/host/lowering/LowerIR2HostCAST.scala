@@ -319,7 +319,8 @@ object LowerIR2HostCAST {
     val block_for_this_call = Block(Vector(
       (if(measurable.cpu_timer) cpu_start_clock else RawCode("") ) ,
       enqueue_cast,
-      (if(measurable.cpu_timer || measurable.gpu_timer) sync else RawCode("")),
+      //(if(measurable.cpu_timer || measurable.gpu_timer) sync else RawCode("")),
+      sync,
       (if(measurable.cpu_timer) cpu_end_clock else RawCode(""))
       ), global = true)
 
