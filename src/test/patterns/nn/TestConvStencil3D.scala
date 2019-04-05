@@ -1,6 +1,7 @@
 package patterns.nn
 
 import exploration.ParameterRewrite
+import exploration.ParameterRewrite.substituteVars
 import ir.Type
 import lift.arithmetic.{ArithExpr, Cst, Var}
 import opencl.executor.{Compile, Execute, Executor}
@@ -123,7 +124,7 @@ class TestConvStencil3D {
     3,//kernelWidthHeight = Var("kernelWidthHeight", RangeAdd(1, 16, 1)),
     3,//kernelChannels = Var("kernelChannels", RangeMul(1, 2048, mul = 2)),
     1,//kernelStride = Var("kernelStride", RangeAdd(1, 4, 1)),
-    0//padWidthHeight = Var("padWidthHeight", RangeAdd(0, 1, 1)))
+    0//padFunc = Var("padWidthHeight", RangeAdd(0, 1, 1)))
   ).map(Cst(_))
 
   val tuneParamVars = new ConvStencil3DTuneParams()
@@ -131,7 +132,8 @@ class TestConvStencil3D {
     8,//val tileWidthHeight: Var = Var("tileWidthHeight"),//(kernelWidthHeightTmp - kernelStrideTmp) + tileStrideTmp,
     1,//val vectorLen: Var = Var("vectorLen"),
     1,//val nKernelsPerWrg: Var = Var("nKernelsPerWrg"),
-    1//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
+    1,//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
+    0//padOpt
     //val coalesce: Boolean = false,
     //val unrollReduce: Boolean = false)
   ).map(Cst(_))
@@ -142,8 +144,11 @@ class TestConvStencil3D {
 
   @Test
   def testScalaConvSanityCheck(): Unit = {
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars)
+    val lambdas = factory.apply(id)
+
     val result: Array[Array[Array[Array[Float]]]] =
-      new ConvStencil3D(layerConfigVars, tuneParamVars).eval(example_K, example_B,
+      factory.eval(example_K, example_B,
         example_X, substitutionTableExample)
 
     //[n_inputs_SV][out_channels_SV][input_ydim_SV - (kernel_ydim_SV - 1)][input_xdim_SV - (kernel_xdim_SV - 1)]
@@ -167,8 +172,7 @@ class TestConvStencil3D {
     val concreteLambda2 = ParameterRewrite(lambdas(1), substitutionTableExample)
 
     val partReducedXTypeLengths: Seq[Int] = Type.getLengths(
-      Type.substitute(factory.partReducedXType.get,
-        substitutionTableExample.asInstanceOf[Map[ArithExpr, ArithExpr]])).dropRight(1).map(_.evalInt)
+      Type.substitute(factory.partReducedXType.get, substitutionTableExample.toMap)).dropRight(1).map(_.evalInt)
 
     val (output1, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda1, example_K, example_X)
     val (output2, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda2, example_B,
@@ -176,7 +180,7 @@ class TestConvStencil3D {
         partReducedXTypeLengths(3), partReducedXTypeLengths(4))))
 
     val outputWidthHeight = slidingOutputSize(
-      substitutionTableExample(layerConfigVars.inputWidthHeight),
+      substituteVars(factory.paddedInputWidthHeight.get, substitutionTableExample),
       substitutionTableExample(layerConfigVars.kernelWidthHeight),
       substitutionTableExample(layerConfigVars.kernelStride)).evalInt
 
@@ -217,7 +221,7 @@ class TestConvStencil3D {
     val result = factory.evalFinalLambda(example_B, output1ND, substitutionTableExample)
 
     val outputWidthHeight = slidingOutputSize(
-      substitutionTableExample(layerConfigVars.inputWidthHeight),
+      substituteVars(factory.paddedInputWidthHeight.get, substitutionTableExample),
       substitutionTableExample(layerConfigVars.kernelWidthHeight),
       substitutionTableExample(layerConfigVars.kernelStride)).evalInt
 
@@ -253,8 +257,8 @@ class TestConvStencil3D {
       substitutionTable(layerConfigVars.kernelChannels).evalInt)(_ => Random.nextFloat())
     val X: Array4D[Float] = Array.tabulate(
       substitutionTable(layerConfigVars.nInputs).evalInt,
-      substitutionTable(layerConfigVars.inputWidthHeight).evalInt,
-      substitutionTable(layerConfigVars.inputWidthHeight).evalInt,
+      substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
+      substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
       substitutionTable(layerConfigVars.inputChannels).evalInt)((_, _, _, _) => Random.nextFloat())
 
 
@@ -278,7 +282,7 @@ class TestConvStencil3D {
       substitutionTable(layerConfigVars.kernelWidthHeight),
       substitutionTable(layerConfigVars.kernelStride)).evalInt *
       slidingOutputSize(
-        substitutionTable(layerConfigVars.inputWidthHeight),
+        substituteVars(factory.paddedInputWidthHeight.get, substitutionTable),
         substitutionTable(tuneParamVars.tileWidthHeight),
         substitutionTable(tuneParamVars.tileWidthHeight) -
           (substitutionTable(layerConfigVars.kernelWidthHeight) -
@@ -288,7 +292,7 @@ class TestConvStencil3D {
 //      substitutionTable(layerConfigVars.kernelChannels).evalInt,
 //      outputWidthHeight, outputWidthHeight))
 
-    val gold = new ConvStencil3D(layerConfigVars, tuneParamVars).eval(K, B, X, substitutionTable)
+    val gold = factory.eval(K, B, X, substitutionTable)
 
     for {(input, inputIdx) <- result.zip(gold).zipWithIndex
          (kernelChannel, kernelIdx) <- input._1.zip(input._2).zipWithIndex
@@ -322,8 +326,8 @@ class TestConvStencil3D {
       substitutionTable(layerConfigVars.kernelChannels).evalInt)(_ => Random.nextFloat())
     val X: Array[Array[Array[Array[Float]]]] = Array.tabulate(
       substitutionTable(layerConfigVars.nInputs).evalInt,
-      substitutionTable(layerConfigVars.inputWidthHeight).evalInt,
-      substitutionTable(layerConfigVars.inputWidthHeight).evalInt,
+      substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
+      substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
       substitutionTable(layerConfigVars.inputChannels).evalInt)((_, _, _, _) => Random.nextFloat())
 
 
@@ -347,7 +351,7 @@ class TestConvStencil3D {
       substitutionTable(layerConfigVars.kernelWidthHeight),
       substitutionTable(layerConfigVars.kernelStride)).evalInt *
       slidingOutputSize(
-        substitutionTable(layerConfigVars.inputWidthHeight),
+        substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
         substitutionTable(tuneParamVars.tileWidthHeight),
         substitutionTable(tuneParamVars.tileWidthHeight) -
           (substitutionTable(layerConfigVars.kernelWidthHeight) -
@@ -357,7 +361,7 @@ class TestConvStencil3D {
       substitutionTable(layerConfigVars.kernelChannels).evalInt,
       outputWidthHeight, outputWidthHeight))
 
-    val gold = new ConvStencil3D(layerConfigVars, tuneParamVars).eval(K, B, X, substitutionTable)
+    val gold = factory.eval(K, B, X, substitutionTable)
 
     for {(input, inputIdx) <- result.zip(gold).zipWithIndex
          (kernelChannel, kernelIdx) <- input._1.zip(input._2).zipWithIndex
@@ -391,8 +395,8 @@ class TestConvStencil3D {
       substitutionTable(layerConfigVars.kernelChannels).evalInt)(_ => Random.nextFloat())
     val X: Array[Array[Array[Array[Float]]]] = Array.tabulate(
       substitutionTable(layerConfigVars.nInputs).evalInt,
-      substitutionTable(layerConfigVars.inputWidthHeight).evalInt,
-      substitutionTable(layerConfigVars.inputWidthHeight).evalInt,
+      substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
+      substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
       substitutionTable(layerConfigVars.inputChannels).evalInt)((_, _, _, _) => Random.nextFloat())
 
 
@@ -416,7 +420,7 @@ class TestConvStencil3D {
       substitutionTable(layerConfigVars.kernelWidthHeight),
       substitutionTable(layerConfigVars.kernelStride)).evalInt *
       slidingOutputSize(
-        substitutionTable(layerConfigVars.inputWidthHeight),
+        substituteVars(factory.paddedInputWidthHeight.get, substitutionTable),
         substitutionTable(tuneParamVars.tileWidthHeight),
         substitutionTable(tuneParamVars.tileWidthHeight) -
           (substitutionTable(layerConfigVars.kernelWidthHeight) -
@@ -428,7 +432,7 @@ class TestConvStencil3D {
 
     val scalaResult = factory.evalFinalLambda(B, output1ND, substitutionTable)
 
-    val gold = new ConvStencil3D(layerConfigVars, tuneParamVars).eval(K, B, X, substitutionTable)
+    val gold = factory.eval(K, B, X, substitutionTable)
 
     // compare against lift+scala
     for {(input, inputIdx) <- liftResult.zip(scalaResult).zipWithIndex
@@ -459,20 +463,21 @@ class TestConvStencil3D {
     val layerConfig: List[Cst] = List(
       /* The biggest VGG layer conv1_2 */
       1,//nInputs = Var("nInputs", RangeMul(1, 256, mul = 2)),
-      226,//inputWidthHeight = Var("inputWidthHeight", RangeAdd(2, 224, step = 2)),
+      224,//inputWidthHeight = Var("inputWidthHeight", RangeAdd(2, 224, step = 2)),
       64,//inputChannels = Var("inputChannels", RangeMul(1, 2048, 2)),
       3,//kernelWidthHeight = Var("kernelWidthHeight", RangeAdd(1, 16, 1)),
       64,//kernelChannels = Var("kernelChannels", RangeMul(1, 2048, mul = 2)),
       3,//kernelStride = Var("kernelStride", RangeAdd(1, 4, 1)),
-      0//padWidthHeight = Var("padWidthHeight", RangeAdd(0, 1, 1)))
+      2//padFunc = Var("padFunc", RangeAdd(0, 1, 1)))
     ).map(Cst(_))
 
     val tuneParams: List[Cst] = List(
       226,//val tileWidthHeight: Var = Var("tileWidthHeight"),//(kernelWidthHeightTmp - kernelStrideTmp) + tileStrideTmp,
       1,//val vectorLen: Var = Var("vectorLen"),
       8,//val nKernelsPerWrg: Var = Var("nKernelsPerWrg"),
-      32//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
-      //val coalesce: Boolean = false,
+      32,//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
+      0//padOpt
+      // val coalesce: Boolean = false,
       //val unrollReduce: Boolean = false)
     ).map(Cst(_))
 
@@ -485,20 +490,21 @@ class TestConvStencil3D {
     val layerConfig: List[Cst] = List(
       /* The biggest VGG layer conv1_2 */
       1,//nInputs = Var("nInputs", RangeMul(1, 256, mul = 2)),
-      226,//inputWidthHeight = Var("inputWidthHeight", RangeAdd(2, 224, step = 2)),
+      224,//inputWidthHeight = Var("inputWidthHeight", RangeAdd(2, 224, step = 2)),
       64,//inputChannels = Var("inputChannels", RangeMul(1, 2048, 2)),
       3,//kernelWidthHeight = Var("kernelWidthHeight", RangeAdd(1, 16, 1)),
       64,//kernelChannels = Var("kernelChannels", RangeMul(1, 2048, mul = 2)),
       3,//kernelStride = Var("kernelStride", RangeAdd(1, 4, 1)),
-      0//padWidthHeight = Var("padWidthHeight", RangeAdd(0, 1, 1)))
+      2//padFunc = Var("padFunc", RangeAdd(0, 1, 1)))
     ).map(Cst(_))
 
     val tuneParams: List[Cst] = List(
       226,//val tileWidthHeight: Var = Var("tileWidthHeight"),//(kernelWidthHeightTmp - kernelStrideTmp) + tileStrideTmp,
       1,//val vectorLen: Var = Var("vectorLen"),
       8,//val nKernelsPerWrg: Var = Var("nKernelsPerWrg"),
-      32//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
-      //val coalesce: Boolean = false,
+      32,//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
+      0//padOpt
+      // val coalesce: Boolean = false,
       //val unrollReduce: Boolean = false)
     ).map(Cst(_))
 
@@ -511,20 +517,21 @@ class TestConvStencil3D {
     val layerConfig: List[Cst] = List(
       /* The biggest VGG layer conv1_2 */
       1,//nInputs = Var("nInputs", RangeMul(1, 256, mul = 2)),
-      226,//inputWidthHeight = Var("inputWidthHeight", RangeAdd(2, 224, step = 2)),
+      224,//inputWidthHeight = Var("inputWidthHeight", RangeAdd(2, 224, step = 2)),
       64,//inputChannels = Var("inputChannels", RangeMul(1, 2048, 2)),
       3,//kernelWidthHeight = Var("kernelWidthHeight", RangeAdd(1, 16, 1)),
       64,//kernelChannels = Var("kernelChannels", RangeMul(1, 2048, mul = 2)),
       3,//kernelStride = Var("kernelStride", RangeAdd(1, 4, 1)),
-      0//padWidthHeight = Var("padWidthHeight", RangeAdd(0, 1, 1)))
+      2//padFunc = Var("padFunc", RangeAdd(0, 1, 1)))
     ).map(Cst(_))
 
     val tuneParams: List[Cst] = List(
       226,//val tileWidthHeight: Var = Var("tileWidthHeight"),//(kernelWidthHeightTmp - kernelStrideTmp) + tileStrideTmp,
       1,//val vectorLen: Var = Var("vectorLen"),
       8,//val nKernelsPerWrg: Var = Var("nKernelsPerWrg"),
-      32//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
-      //val coalesce: Boolean = false,
+      32,//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
+      0//padOpt
+      // val coalesce: Boolean = false,
       //val unrollReduce: Boolean = false)
     ).map(Cst(_))
 
