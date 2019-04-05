@@ -38,24 +38,6 @@ case class ConcatFunction(n : Int) extends Pattern(arity = n) {
 
         ArrayTypeWSWC(elemType,sizeAndCapacity._1,sizeAndCapacity._2)
 
-
-//        tt.elemsT.foldLeft(Set())( (set, t) => {
-//          if (!set.contains(t)) {
-  //          if(set.empty()){}
-            // check if empty
-            // if not add it
-    //      }
-     //   } )
-
-
-
-        // 4 checks ( input is tuple -don't ask why)
-        // check x is array
-        // check y is array
-        // check x and y have same element types
-        // return array (element type, sum of length of x and y)
-        // check all element types in tuples are arrays and have same element type
-
       case _ => throw new TypeException(argType, "TupleType", this)
     }
   }

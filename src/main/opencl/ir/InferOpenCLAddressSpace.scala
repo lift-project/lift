@@ -49,7 +49,15 @@ object InferOpenCLAddressSpace {
 
     call.f match {
 
-      case ConcatFunction(_) | Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
+      case ConcatFunction(_) =>
+        setAddressSpaceDefault(addressSpaces) match {
+          case AddressSpaceCollection(ab) =>
+            ab.foreach(f => assert(f==ab.head))
+            ab.head
+        }
+
+
+      case  Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
            asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
            Pad(_,_,_) | PadConstant(_, _, _) | Tuple(_) | Slide(_,_) | Head() | Tail() | debug.PrintType(_) |
            debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |

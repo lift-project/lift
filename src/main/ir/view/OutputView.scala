@@ -66,7 +66,7 @@ object OutputView {
       case _: Unzip => writeView.zip()
       case l: Lambda => buildViewLambda(l, call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
-//      case cc: ConcatFunction => buildViewConcat() // add exc
+      case cc: ConcatFunction => buildViewConcat(call, writeView) // add exc
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>

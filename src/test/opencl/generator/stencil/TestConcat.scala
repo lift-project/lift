@@ -1,7 +1,7 @@
 package opencl.generator.stencil
 
 import ir.ArrayTypeWSWC
-import ir.ast.{ConcatFunction, Get, PadConstant, Slide, UserFun, Zip, fun}
+import ir.ast.{ArrayFromExpr, ConcatFunction, Get, PadConstant, Slide, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.generator.stencil.acoustic.StencilUtilities
@@ -68,10 +68,13 @@ class TestConcat
     val concatlike = fun(
       ArrayTypeWSWC(Float, SizeVar("N")),
       (input) =>
-       ConcatFunction(MapSeq(mult2) $ input, MapSeq(add3) $ input)
+       //toGlobal(MapSeq(id)) $
+         //toGlobal(ConcatFunction(2))(MapSeq(mult2) $ input, MapSeq(add3) $ input)
+      ConcatFunction(2)( MapSeq(mult2) $ input, MapSeq(add3) $ input)
     )
+   println(Compile(concatlike))
 
-    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concatlike,input)
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concatlike, input)
     assertArrayEquals(gold, output, TestConcatHelpers.delta)
 
   }
@@ -133,27 +136,20 @@ class TestConcat
     val constL = 2.0f
     val constR = 3.0f
 
-    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }.map(x => Array(x))
-    val gold = values
+    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+    val gold = Array(1.0f,10.0f)
 
-    // HACK
-    def stencil1D(a: Int, b: Int) = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC(Float,1),N),
+    def boundary = fun(
+      ArrayTypeWSWC(Float,N),
       (input) => {
 
-            toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ input.at(0), MapSeq(id) $ input.at(N-1))
+            toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ ArrayFromExpr(input.at(0)), MapSeq(id) $ ArrayFromExpr(input.at(N-1)))
 
       })
 
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](boundary, values)
 
-    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values)
-
-    // sanity check
-    StencilUtilities.print2DArray(values)
-    StencilUtilities.print2DArray(gold)
-    StencilUtilities.print1DArray(output)
-
-//    assertArrayEquals(gold, output, 0.1f)
+    assertArrayEquals(gold, output, 0.1f)
 
   }
 
