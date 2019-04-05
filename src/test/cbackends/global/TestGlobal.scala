@@ -733,10 +733,9 @@ class TestGlobal {
         gpu_fun2.params(0).t,
         gpu_fun0.params(0).t,
 
-        (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
-          OclFunc( gpu_fun1, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
-                        // TODO: remove 5th map because we removed batches
-           OclFunc( gpu_fun0, gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x))
+        (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, ndranges2, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
+          OclFunc( gpu_fun1, ndranges1, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
+           OclFunc( gpu_fun0, ndranges0, gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x))
       )
 
 

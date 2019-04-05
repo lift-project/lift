@@ -62,11 +62,11 @@ object Compile {
     kernel
   }
 
-  def !!(f: Lambda) : Block = {
+  def !!(f: Lambda, localSize: NDRange = NDRange(1,1,1), globalSize : NDRange = NDRange(1,1,1) ) : Block = {
 
     val res:MutableBlock = OpenCLGenerator !! (f,
-      NDRange(?, ?, ?),
-      NDRange(?, ?, ?), immutable.Map())
+      localSize,
+      globalSize, immutable.Map())
 
     res.toBlock
 

@@ -6,6 +6,7 @@ import cbackends.host.host_ir._
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IfThenElifIm, IfThenElseIm, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, TypeDef, TypeDefHost, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
 import ir.{TupleType, Type}
 import ir.ast.Iterate
+import opencl.generator.NDRange
 import opencl.ir.pattern.{MapGlb, MapWrg}
 import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
 
@@ -353,6 +354,9 @@ object LowerIR2HostCAST {
 
     val set_all_args : List[ AstNode with BlockMember ]= (all_args zip arg_id).map{ case (cvar:CVarWithType, id:Int) => ExpressionStatement(MethodInvocation(kernel_cvar, "setArg", List(IntConstant(id), cvar))) }
 
+    val local_thread_setting : NDRange = cfc.ndranges._1
+    val global_thread_setting : NDRange = cfc.ndranges._2
+
     //(2) enqueue kernel
     val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
     //val eventDecl = VarDeclPure( eventCVar, eventCVar.t  )
@@ -362,8 +366,8 @@ object LowerIR2HostCAST {
       List(
         kernel_cvar,
         StringConstant("cl::NullRange"),
-        StringConstant("cl::NDRange(1,1,1)"),
-        StringConstant("cl::NDRange(1,1,1)"),
+        StringConstant("cl::NDRange("+global_thread_setting.toString+")"), //global
+        StringConstant("cl::NDRange("+local_thread_setting.toString+")"), //local
         StringConstant("NULL"),
         if(measurable.gpu_timer) UnaryExpression("&", VarRefPure(eventCVar)) else StringConstant("NULL")
       )

@@ -52,10 +52,10 @@ object GlobalCompiler{
       case _ => {
 
         val all_oclfunc_outline_targets_purified = all_oclfunc_outline_targets.map{
-          case (filename:String, lambdax:Lambda) => (filename, Purify(lambdax) )
+          case (filename:String, localSize, globalSize, lambdax:Lambda) => (filename, localSize, globalSize, Purify(lambdax) )
         }
         val oclfundefs = all_oclfunc_outline_targets_purified.map {
-          case (filename:String, lambdax:Lambda) =>  (filename , ( opencl.executor.Compile.!!(lambdax) ) )
+          case (filename:String, localSize, globalSize, lambdax:Lambda) =>  (filename , ( opencl.executor.Compile.!!(lambdax, localSize, globalSize) ) )
         }
 
         OclMemoryGen(lambda)
