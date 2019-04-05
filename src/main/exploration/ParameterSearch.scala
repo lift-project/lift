@@ -1,5 +1,6 @@
 package exploration
 
+import exploration.ParamConstraints.{lessThanOrEqual, greaterThanOrEqual}
 import ir.ast._
 import ir.{ArrayType, Size, TypeChecker}
 import lift.arithmetic.NotEvaluableException.NotEvaluable
@@ -49,8 +50,7 @@ object ParameterSearch {
                 params = allVars.toVector,
                 lhs = condition,
                 rhs = Cst(0),
-                predicate = (lhs: ArithExpr, rhs: ArithExpr) =>
-                  lhs == rhs
+                predicate = (lhs: ArithExpr, rhs: ArithExpr) => lhs == rhs
               ))
           }
         }
@@ -97,21 +97,16 @@ object ParameterSearch {
           constraints.append(new ParamConstraint(
             name = s"sliderWindowSize_${slide.gid}",
             comment = s"In Slide (gid=${slide.gid}), the argument size should be equal or bigger to that of the " +
-              s"sliding window. (argType.size = ${argType.size} >= windowSize = $windowSize)",
+              s"sliding window. ((argType.size = ${argType.size}) >= (windowSize = $windowSize))",
             params = (argSizeVars ++ windowSizeVars).distinct.toVector,
             lhs = argType.size,
             rhs = windowSize,
-            predicate = (lhs: ArithExpr, rhs: ArithExpr) => {
-              rhs == lhs ||
-                (ArithExpr.isSmaller(rhs, lhs) match {
-              case Some(isSmaller) => isSmaller
-              case None => throw NotEvaluable
-            })}
+            predicate = (lhs: ArithExpr, rhs: ArithExpr) => greaterThanOrEqual(lhs, rhs)
           ))
         }
 
         // TODO: other FunCalls
-      // TODO: add Reoder handling
+      // TODO: add Reorder handling
       case _ =>
     }, _ => Unit)
 

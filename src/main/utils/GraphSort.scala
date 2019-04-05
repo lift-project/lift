@@ -12,7 +12,8 @@ object GraphSort {
   /**
     * NB: edges can have duplicates
     */
-  def topologicalSort(vertices: Vector[Int], edges: Array[(Int, Int)]): List[Int] = {
+  def topologicalSort(vertices: Vector[Int], edges: Array[(Int, Int)],
+                      circularDependenciesAllowed: Boolean = false): List[Int] = {
     val adjacency: Array[Array[Boolean]] = Array.fill(vertices.length, vertices.length)(false)
 
     for (edge <- edges) adjacency(edge._1/*from*/)(edge._2/*to*/) = true
@@ -42,8 +43,12 @@ object GraphSort {
         // The graph has cycles. Return the vertex with least dependencies
         vertexWithLeastDependencies match {
           case Some(vertexIdx) =>
-            verticesWithoutDependencies += vertexIdx
-            result += vertices(vertexIdx)
+            if (circularDependenciesAllowed) {
+              verticesWithoutDependencies += vertexIdx
+              result += vertices(vertexIdx)
+            } else
+              throw new IllegalArgumentException(f"Circular dependencies are not allowed. Detected a dependency " +
+                f"${unsortedVertices.mkString("(", ", ", ")")}")
 
           case None =>
             throw new IllegalArgumentException("No unsorted vertices left")

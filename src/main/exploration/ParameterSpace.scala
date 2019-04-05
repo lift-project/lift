@@ -1,12 +1,13 @@
 package exploration
 
 import _root_.utils.RangeValueGenerator
-import lift.arithmetic.{Cst, Var}
+import lift.arithmetic.{ArithExpr, Cst, Var}
 
 import scala.util.Random
 import scala.collection.immutable.ListMap
 import ParameterRewrite.substituteVars
 import com.typesafe.scalalogging.Logger
+import exploration.ParamConstraints.lessThanOrEqual
 
 /**
   * All information defining parameter space
@@ -21,6 +22,8 @@ class ParameterSpace(val parameters: Vector[Var],
 
   var constraintCounters: collection.mutable.Map[ParamConstraint, Int] = collection.mutable.Map(
     constraints.constraints.map(constraint => constraint -> 0): _*)
+  var constraintsChecked: collection.mutable.Map[ParamConstraint, Boolean] = collection.mutable.Map(
+    constraints.constraints.map(constraint => constraint -> false): _*)
 
   /**
     * Gets the next random point (a combination of values of all parameters) that satisfies all constraints
@@ -34,10 +37,10 @@ class ParameterSpace(val parameters: Vector[Var],
       constraints.paramsSortedByValidationComplexity.indexOf(v1) <=
         constraints.paramsSortedByValidationComplexity.indexOf(v2)).toList
 
-    pickParamValues(sortedParamsOfThisSpace,
-      independentValues.values.toList,
-      independentValues.keys.toList.zipWithIndex.map { case (p, i) => p -> i }.toMap,
-      random, substitutionTable = independentValues) match {
+    constraintsChecked = collection.mutable.Map(
+      constraints.constraints.map(constraint => constraint -> false): _*)
+
+    pickParamValues(sortedParamsOfThisSpace, independentValues, random) match {
 
       case Some(combination) =>
         val result = parameters.
@@ -70,26 +73,39 @@ class ParameterSpace(val parameters: Vector[Var],
     * @param random Random generator
     * @return A combination or None if no combination satisfies the constraints
     */
-  def pickParamValues(params: List[Var],
-                      partialCombination: List[Cst],
-                      paramsInCombination: Map[Var, Int],
-                      random: Random,
-                      substitutionTable: Map[Var, Cst]): Option[List[Cst]] = params match {
+  private def pickParamValues(params: List[Var],
+                      generatedParams: ListMap[Var, Cst],
+                      //                      partialCombination: List[Cst],
+                      //                      paramsInCombination: Map[Var, Int],
+                              random: Random): Option[List[Cst]] = params match {
     case Nil =>
       // No parameters to process -> the combination is completed
-//      println("-----------------------------DONE-----------------------------")
-//      println("constraintCounter: ")
-//      println(constraintCounters.map(pair => pair._1.name + " = " + pair._2.toString).mkString("\n"))
-      Some(partialCombination)
+      if (constraintsChecked.filter(_._2 == false).forall(constraint => {
+//        println(f"Checking constraint ${constraint._1.name}")
+        constraint._1.isValid(generatedParams)
+      })) {
+//        println("-----------------------------DONE-----------------------------")
+//        println("constraintCounter: ")
+//        println(constraintCounters.map(pair => pair._1.name + " = " + pair._2.toString).mkString("\n"))
+
+        Some(generatedParams.values.toList)
+      }
+      else {
+//        println(f"(none with chosen combination based on constraints that no dependent parameters refer to)")
+//        println("constraintCounter: ")
+//        println(constraintCounters.toList.sortBy(_._1.name).map(pair => pair._1.name + " = " + pair._2.toString).mkString("\n"))
+        None
+      }
 
     case param :: remainingParams =>
+
       // Generate a random value for the current parameter
       val generatedValues: collection.mutable.Set[Cst] = collection.mutable.Set()
-      val rangeSize = RangeValueGenerator.rangeSize(param.range.visitAndRebuild(substituteVars(_, substitutionTable)))
+      val rangeSize = RangeValueGenerator.rangeSize(param.range.visitAndRebuild(substituteVars(_, generatedParams)))
 
       // In addition to the stopping condition below, the loop will exit upon return of a valid combination
       while (generatedValues.size < rangeSize) {
-        val newValue = ParameterSpace.getRandomValueInRange(param, random, substitutionTable)
+        val newValue = ParameterSpace.getRandomValueInRange(param, random, generatedParams)
         // This might generated infinite loop if incorrect range is passed to the random generator
         if (!generatedValues.contains(newValue)) {
           // The value has not been evaluated before. Let's check it against the constraints
@@ -99,15 +115,15 @@ class ParameterSpace(val parameters: Vector[Var],
           // If there are constraints, check them. Otherwise, just try completing the combination
           // Make sure all the values required by this constraint have been generated. If this is not so,
           // something has gone wrong with parameter sorting.
-          if (!constraints.constraintsPerParam.contains(param) ||
-            constraints.constraintsPerParam(param).
+          if (!constraints.constraintsPerParam.contains(param) || {
+            val p = constraints.constraintsPerParam(param).
               // Only consider constraints which refer to the parameters whose values we have already generated
               filter(constraint =>
               constraint.params.forall(constraintParam => constraintParam == param ||
-                paramsInCombination.contains(constraintParam))).
-              forall(constraint => {
+                generatedParams.contains(constraintParam)))
+              p.forall(constraint => {
                 constraint.params.foreach(constraintParam =>
-                  if (!paramsInCombination.contains(constraintParam) && constraintParam != param)
+                  if (!generatedParams.contains(constraintParam) && constraintParam != param)
                     throw new IllegalStateException(
                       s"The parameter ${constraintParam.name} referenced by the constraint " +
                         s"$constraint is not in the partially generated combination which should have been ensured by " +
@@ -115,24 +131,25 @@ class ParameterSpace(val parameters: Vector[Var],
                         s"Constraints."))
 
                 // Check that the constraint is valid with the values generated previously or now
-                val t = constraint.isValid(constraint.params.map(constraintParam =>
-                  if (constraintParam == param) // Current param
-                    newValue
-                  else // One of the process params
-                    partialCombination(paramsInCombination(constraintParam))))
+                val t = constraint.isValid(generatedParams + (param -> newValue))
+//                  constraint.params.map(constraintParam =>
+//                  if (constraintParam == param) // Current param
+//                    newValue
+//                  else // One of the process params
+//                    partialCombination(paramsInCombination(constraintParam)))
+
+                constraintsChecked(constraint) = true
 
                 if (!t)
                   constraintCounters(constraint) += 1
                 t
-              })) {
-//            println((paramsInCombination + (param -> partialCombination.length)).toSeq.sortBy(_._2))
-//            println(partialCombination :+ newValue)
+              })}) {
+//            println(generatedParams)
             // Pass on the updated combination and try to generate the rest of the values
             pickParamValues(
               remainingParams,
-              partialCombination :+ newValue, // new value
-              paramsInCombination + (param -> partialCombination.length), // new index
-              random, substitutionTable) match {
+              generatedParams + (param -> newValue),
+              random) match {
               case Some(finalCombination) => return Some(finalCombination)
               case None =>
               // We couldn't find values for the remaining parameters using the current value for the current parameter
@@ -141,10 +158,10 @@ class ParameterSpace(val parameters: Vector[Var],
           }
         }
       }
-      // If we haven't return by this point, no value passed checks
-//      println("(none)")
+      // If we haven't returned by this point, no value passed checks
+//      println(f"(none on param ${param.name})")
 //      println("constraintCounter: ")
-//      println(constraintCounters.map(pair => pair._1.name + " = " + pair._2.toString).mkString("\n"))
+//      println(constraintCounters.toList.sortBy(_._1.name).map(pair => pair._1.name + " = " + pair._2.toString).mkString("\n"))
       None
   }
 }
@@ -157,4 +174,38 @@ object ParameterSpace {
 
     RangeValueGenerator.generateSingleValue(loweredRange, randomIndexInRange)
   }
+
+
+  def rangeBasedConstraints(params: Vector[Var]): Vector[ParamConstraint] = params.flatMap(param => {
+    val minVars = ArithExpr.collectVars(param.range.min)
+
+    val minConstraints: Vector[ParamConstraint] = if (minVars.nonEmpty)
+      Vector(new ParamConstraint(
+        s"minValueOf${param.name}",
+        f"Based on range of ${param.name} (${param.range}), the parameter value should be no less than " +
+          f"${param.range.min}",
+        param +: minVars.toVector,
+        lhs = param.range.min,
+        rhs = param,
+        predicate = (lhs: ArithExpr, rhs: ArithExpr) => lessThanOrEqual(lhs, rhs)
+      ))
+    else Vector()
+
+    val maxVars = ArithExpr.collectVars(param.range.max)
+
+    val maxConstraints: Vector[ParamConstraint] = if (maxVars.nonEmpty)
+      Vector(new ParamConstraint(
+        s"maxValueOf${param.name}",
+        f"Based on range of ${param.name} (${param.range}), the parameter value should be no greater than " +
+          f"${param.range.max}",
+        param +: maxVars.toVector,
+        lhs = param,
+        rhs = param.range.max,
+        predicate = (lhs: ArithExpr, rhs: ArithExpr) => lessThanOrEqual(lhs, rhs)
+      ))
+    else Vector()
+
+
+    minConstraints ++ maxConstraints
+  })
 }
