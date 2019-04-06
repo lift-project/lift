@@ -695,8 +695,9 @@ class TestGlobal {
   def batch_code_generate_for_cases_paper(): Unit = {
 
     //val path = s"$common_path/99.cases_paper"
-    val lambda_path = "/home/lu/Documents/Research/Experiments/Cases19/generated_files/"
-    val generated_c_path = "/home/lu/Documents/Research/Experiments/Cases19/generated_c_files/"
+    val lambda_path = System.getProperty("user.dir") + "/../../../generated_files/"
+    val generated_c_path = "/home/nm/cases/cases19experiments/generated_c_files/"
+//    val generated_c_path = "/home/lu/Documents/Research/Experiments/Cases19/generated_c_files/"
 
 
     val common_file_name0 = lambda_path  + "ConvStencil3DPaddingLambda_0_"
@@ -709,7 +710,7 @@ class TestGlobal {
     import exploration.SplitSlideRewrite.readFromFile
 
     //for {id <- 0 until 1000} {
-    for {id <- 0 until 1} {
+    for {id <- 0 until 2} {
 
       val file0 = common_file_name0 + id + ".scala"
       val file1 = common_file_name1 + id + ".scala"
@@ -727,7 +728,7 @@ class TestGlobal {
 
 
       //Compile(gpu_fun0, ndranges0._1, ndranges0._2)
-      /*
+
       val whole_fun = fun(
         gpu_fun1.params(0).t,
         gpu_fun2.params(0).t,
@@ -736,16 +737,16 @@ class TestGlobal {
         (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, ndranges2, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
           OclFunc( gpu_fun1, ndranges1, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
            OclFunc( gpu_fun0, ndranges0, gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x))
-      )*/
-
-
-
-      val whole_fun = fun(
-        gpu_fun0.params(0).t,
-
-        (p_x) => ToHost() o
-            OclFunc( gpu_fun0 , ndranges0, gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x
       )
+
+
+
+//      val whole_fun = fun(
+//        gpu_fun0.params(0).t,
+//
+//        (p_x) => ToHost() o
+//            OclFunc( gpu_fun0 , ndranges0, gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x
+//      )
 
 
       //("mkdir -p " + s"$path" ) !!
