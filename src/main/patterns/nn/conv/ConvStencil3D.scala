@@ -92,10 +92,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
       else ReduceSeq(f, init)
 
     /*********** Constants ***********/
-    paddedInputWidthHeight = {
-      val t = Some(layerConfig.inputWidthHeight + 2 * layerConfig.padFunc + 2 * tuneParams.padOpt)
-    t
-    }
+    paddedInputWidthHeight = Some(layerConfig.inputWidthHeight + 2 * layerConfig.padFunc + 2 * tuneParams.padOpt)
 
     tileStride = Some(tuneParams.tileWidthHeight - (layerConfig.kernelWidthHeight - layerConfig.kernelStride))
     //    val tileStride = tuneParams.tileStride
