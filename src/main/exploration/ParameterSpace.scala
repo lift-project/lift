@@ -77,50 +77,56 @@ class ParameterSpace(val parameters: Vector[Var],
                       generatedParams: ListMap[Var, Cst],
                       //                      partialCombination: List[Cst],
                       //                      paramsInCombination: Map[Var, Int],
-                              random: Random): Option[List[Cst]] = params match {
-    case Nil =>
-      // No parameters to process -> the combination is completed
-      if (constraintsChecked.filter(_._2 == false).forall(constraint => {
-//        println(f"Checking constraint ${constraint._1.name}")
-        constraint._1.isValid(generatedParams)
-      })) {
-//        println("-----------------------------DONE-----------------------------")
-//        println("constraintCounter: ")
-//        println(constraintCounters.map(pair => pair._1.name + " = " + pair._2.toString).mkString("\n"))
+                              random: Random): Option[List[Cst]] = {
+    val verbose: Boolean = false
+    params match {
+      case Nil =>
+        // No parameters to process -> the combination is completed
+        if (constraintsChecked.filter(_._2 == false).forall(constraint => {
+          if (verbose) println(f"Checking constraint ${constraint._1.name}")
+          constraint._1.isValid(generatedParams)
+        })) {
+          if (verbose) {
+            println("-----------------------------DONE-----------------------------")
+            println("constraintCounter: ")
+            println(constraintCounters.map(pair => pair._1.name + " = " + pair._2.toString).mkString("\n"))
+          }
 
-        Some(generatedParams.values.toList)
-      }
-      else {
-//        println(f"(none with chosen combination based on constraints that no dependent parameters refer to)")
-//        println("constraintCounter: ")
-//        println(constraintCounters.toList.sortBy(_._1.name).map(pair => pair._1.name + " = " + pair._2.toString).mkString("\n"))
-        None
-      }
+          Some(generatedParams.values.toList)
+        }
+        else {
+          if (verbose) {
+            println(f"(none with chosen combination based on constraints that no dependent parameters refer to)")
+            println("constraintCounter: ")
+            println(constraintCounters.toList.sortBy(_._1.name).map(pair => pair._1.name + " = " + pair._2.toString).mkString("\n"))
+          }
+          None
+        }
 
-    case param :: remainingParams =>
+      case param :: remainingParams =>
 
-      // Generate a random value for the current parameter
-      val generatedValues: collection.mutable.Set[Cst] = collection.mutable.Set()
-      val rangeSize = RangeValueGenerator.rangeSize(param.range.visitAndRebuild(substituteVars(_, generatedParams)))
+        // Generate a random value for the current parameter
+        val generatedValues: collection.mutable.Set[Cst] = collection.mutable.Set()
+        val rangeSize = RangeValueGenerator.rangeSize(param.range.visitAndRebuild(substituteVars(_, generatedParams)))
 
-      // In addition to the stopping condition below, the loop will exit upon return of a valid combination
-      while (generatedValues.size < rangeSize) {
-        val newValue = ParameterSpace.getRandomValueInRange(param, random, generatedParams)
-        // This might generated infinite loop if incorrect range is passed to the random generator
-        if (!generatedValues.contains(newValue)) {
-          // The value has not been evaluated before. Let's check it against the constraints
-          generatedValues.add(newValue)
+        // In addition to the stopping condition below, the loop will exit upon return of a valid combination
+        while (generatedValues.size < rangeSize) {
+          val newValue = ParameterSpace.getRandomValueInRange(param, random, generatedParams)
+          // This might generated infinite loop if incorrect range is passed to the random generator
+          if (!generatedValues.contains(newValue)) {
+            // The value has not been evaluated before. Let's check it against the constraints
+            generatedValues.add(newValue)
 
-//          println(s"Picking a value for ${param.name}: ${newValue.c}")
-          // If there are constraints, check them. Otherwise, just try completing the combination
-          // Make sure all the values required by this constraint have been generated. If this is not so,
-          // something has gone wrong with parameter sorting.
-          if (!constraints.constraintsPerParam.contains(param) || {
-            val p = constraints.constraintsPerParam(param).
-              // Only consider constraints which refer to the parameters whose values we have already generated
-              filter(constraint =>
-              constraint.params.forall(constraintParam => constraintParam == param ||
-                generatedParams.contains(constraintParam)))
+            //          println(s"Picking a value for ${param.name}: ${newValue.c}")
+            // If there are constraints, check them. Otherwise, just try completing the combination
+            // Make sure all the values required by this constraint have been generated. If this is not so,
+            // something has gone wrong with parameter sorting.
+            if (!constraints.constraintsPerParam.contains(param) || {
+              val p = constraints.constraintsPerParam(param).
+                // Only consider constraints which refer to the parameters whose values we have already generated
+                filter(constraint =>
+                constraint.params.forall(constraintParam => constraintParam == param ||
+                  generatedParams.contains(constraintParam)))
               p.forall(constraint => {
                 constraint.params.foreach(constraintParam =>
                   if (!generatedParams.contains(constraintParam) && constraintParam != param)
@@ -132,11 +138,11 @@ class ParameterSpace(val parameters: Vector[Var],
 
                 // Check that the constraint is valid with the values generated previously or now
                 val t = constraint.isValid(generatedParams + (param -> newValue))
-//                  constraint.params.map(constraintParam =>
-//                  if (constraintParam == param) // Current param
-//                    newValue
-//                  else // One of the process params
-//                    partialCombination(paramsInCombination(constraintParam)))
+                //                  constraint.params.map(constraintParam =>
+                //                  if (constraintParam == param) // Current param
+                //                    newValue
+                //                  else // One of the process params
+                //                    partialCombination(paramsInCombination(constraintParam)))
 
                 constraintsChecked(constraint) = true
 
@@ -144,25 +150,28 @@ class ParameterSpace(val parameters: Vector[Var],
                   constraintCounters(constraint) += 1
                 t
               })}) {
-//            println(generatedParams)
-            // Pass on the updated combination and try to generate the rest of the values
-            pickParamValues(
-              remainingParams,
-              generatedParams + (param -> newValue),
-              random) match {
-              case Some(finalCombination) => return Some(finalCombination)
-              case None =>
-              // We couldn't find values for the remaining parameters using the current value for the current parameter
-              // Try another value in the next iteration of the loop
+              if (verbose) println(generatedParams)
+              // Pass on the updated combination and try to generate the rest of the values
+              pickParamValues(
+                remainingParams,
+                generatedParams + (param -> newValue),
+                random) match {
+                case Some(finalCombination) => return Some(finalCombination)
+                case None =>
+                // We couldn't find values for the remaining parameters using the current value for the current parameter
+                // Try another value in the next iteration of the loop
+              }
             }
           }
         }
-      }
-      // If we haven't returned by this point, no value passed checks
-//      println(f"(none on param ${param.name})")
-//      println("constraintCounter: ")
-//      println(constraintCounters.toList.sortBy(_._1.name).map(pair => pair._1.name + " = " + pair._2.toString).mkString("\n"))
-      None
+        // If we haven't returned by this point, no value passed checks
+        if (verbose) {
+          println(f"(none on param ${param.name})")
+          println("constraintCounter: ")
+          println(constraintCounters.toList.sortBy(_._1.name).map(pair => pair._1.name + " = " + pair._2.toString).mkString("\n"))
+        }
+        None
+    }
   }
 }
 
