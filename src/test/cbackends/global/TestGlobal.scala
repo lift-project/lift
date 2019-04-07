@@ -710,7 +710,7 @@ class TestGlobal {
     import exploration.SplitSlideRewrite.readFromFile
 
     //for {id <- 0 until 1000} {
-    for {id <- 0 until 2} {
+    for {id <- 0 until 100} {
 
       val file0 = common_file_name0 + id + ".scala"
       val file1 = common_file_name1 + id + ".scala"
