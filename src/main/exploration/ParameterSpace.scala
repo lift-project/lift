@@ -8,6 +8,7 @@ import scala.collection.immutable.ListMap
 import ParameterRewrite.substituteVars
 import com.typesafe.scalalogging.Logger
 import exploration.ParamConstraints.lessThanOrEqual
+import exploration.ParameterSpace.EmptySpace
 
 import scala.collection.mutable
 
@@ -70,9 +71,8 @@ class ParameterSpace(val parameters: Vector[Var],
         result
       case None =>
         println(timer.map(pair => pair._1 -> pair._2.toFloat / 1000000).mkString("\n"))
-        logger.error(s"Could not generate a value for parameter space $parameters with the chosen independent " +
+        throw EmptySpace(f"Could not generate a value for parameter space $parameters with the chosen independent " +
           s"parameter values")
-        throw new IllegalArgumentException(f"Could not generate a value for parameter space $parameters")
     }
 
     // TODO
@@ -207,6 +207,10 @@ class ParameterSpace(val parameters: Vector[Var],
 }
 
 object ParameterSpace {
+  final case class EmptySpace(val message: String = "",
+                              private val cause: Throwable = None.orNull)
+    extends Exception(message, cause)
+
   def getRandomValueInRange(param: Var, random: Random, loweredRange: lift.arithmetic.Range, rangeSize: Int): Cst = {
     val randomIndexInRange = random.nextInt(rangeSize)
 

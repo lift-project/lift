@@ -705,12 +705,9 @@ class TestGlobal {
     val common_file_name2 = lambda_path  + "ConvStencil3DConcreteLambda1_"
     val common_file_name3 = lambda_path  + "ConvStencil3DDepaddingLambda_"
 
-    //val id = 0
-
     import opencl.executor.Eval
     import exploration.SplitSlideRewrite.readFromFile
 
-    //for {id <- 0 until 1000} {
     for {layerConfigId <- 0 until 1} {
       for {tuningId <- 0 until 2} {
 
