@@ -14,13 +14,26 @@ class ParamConstraint(val name: String,
 //  val params: Vector[Var] = Vector(param0)
 
   def isValid(substitutionTable: Map[Var, Cst]): Boolean = {
-//    val substitutionTable: Map[Var, Cst] = params.zip(values).toMap
+    val reducedSubstitutionTable = substitutionTable.filter(pair => params.contains(pair._1))
 
-    val lhsWithValues = lhs.visitAndRebuild(ParameterRewrite.substituteVars(_, substitutionTable))
-    val rhsWithValues = rhs.visitAndRebuild(ParameterRewrite.substituteVars(_, substitutionTable))
+    val lhsWithValues = lhs.visitAndRebuild(ParameterRewrite.substituteVars(_, reducedSubstitutionTable))
+    val rhsWithValues = rhs.visitAndRebuild(ParameterRewrite.substituteVars(_, reducedSubstitutionTable))
 
     val t = predicate(lhsWithValues, rhsWithValues)
     t
+  }
+
+  def lower(substitutionTable: Map[Var, Cst]): ParamConstraint = {
+    val reducedSubstitutionTable = substitutionTable.filter(pair => params.contains(pair._1))
+
+    new ParamConstraint(
+      name = name,
+      comment = comment,
+      params = params,
+      lhs = lhs.visitAndRebuild(ParameterRewrite.substituteVars(_, reducedSubstitutionTable)),
+      rhs = rhs.visitAndRebuild(ParameterRewrite.substituteVars(_, reducedSubstitutionTable)),
+      predicate = predicate
+    )
   }
 }
 
@@ -144,5 +157,16 @@ object ParamConstraints {
             /*parent param*/ parameters.indexOf(paramConstraintParam))
         }))
       edges}).flatten.toArray
+
+
+  def removeDuplicateConstraints(constraints: Vector[ParamConstraint]) =
+  constraints.foldLeft(Vector[ParamConstraint]()) {
+    case (acc, newConstraint) =>
+      if (acc.exists(oldConstraint =>
+        oldConstraint.lhs == newConstraint.lhs && oldConstraint.rhs == newConstraint.rhs))
+        acc
+      else
+        acc :+ newConstraint
+  }
 
 }
