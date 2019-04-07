@@ -24,19 +24,19 @@ case class PadConstant(left: Int, right: Int, constant: Value)
     }
   }
 
-  def eval2d(arg: Array[Array[Array[Array[Float]]]], padLength: Int): Array[Array[Array[Array[Float]]]] = {
+  def eval2d(arg: Array[Array[Array[Array[Float]]]], padFunc: Int, padOpt: Int): Array[Array[Array[Array[Float]]]] = {
 
     val argPadded = Array.fill(
       arg.length,
-      arg.head.length + 2 * padLength,
-      arg.head.head.length + 2 * padLength,
+      arg.head.length + 2 * padFunc + 2 * padOpt,
+      arg.head.head.length + 2 * padFunc + 2 * padOpt,
       arg.head.head.head.length)(0.0f)
 
     for {i <- arg.indices}
       for {j <- arg.head.indices}
         for {k <- arg.head.head.indices}
           for {l <- arg.head.head.head.indices}
-            argPadded(i)(j)(k)(l) = arg(i)(j)(k)(l)
+            argPadded(i)(j + padFunc)(k + padFunc)(l) = arg(i)(j)(k)(l)
 
     argPadded
   }

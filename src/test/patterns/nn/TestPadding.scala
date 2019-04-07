@@ -81,9 +81,11 @@ class TestPadding {
 
 
     val padFactory = new patterns.nn.pad.PadConv(layerConfigVars, tuneParamVars, factory,
-      layerConfigVars.inputWidthHeight, nonpaddedXType,
-      substitutionTable(layerConfigVars.padFunc) + substitutionTable(tuneParamVars.padOpt),
-      paddedXType)
+      originalSize = layerConfigVars.inputWidthHeight,
+      originalType = nonpaddedXType,
+      padFunc = substitutionTable(layerConfigVars.padFunc),
+      padOpt = substitutionTable(tuneParamVars.padOpt),
+      newType = paddedXType)
 
     val paddingLambda = ParameterRewrite(padFactory(), substitutionTable)
 
@@ -101,8 +103,8 @@ class TestPadding {
 
 
     val gold = PadConstant(0, 0, Value("0", opencl.ir.Float)).eval2d(X,
-      substitutionTable(layerConfigVars.padFunc).evalInt +
-        substitutionTable(tuneParamVars.padOpt).evalInt)
+      padFunc = substitutionTable(layerConfigVars.padFunc).evalInt,
+      padOpt = substitutionTable(tuneParamVars.padOpt).evalInt)
 
 
     for {(input, inputIdx) <- liftResult.zip(gold).zipWithIndex
