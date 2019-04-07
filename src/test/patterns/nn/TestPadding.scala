@@ -1,19 +1,22 @@
 package patterns.nn
 
 import exploration.ParameterRewrite
-import exploration.ParameterRewrite.substituteVars
+import ir.{ArrayType, Type}
 import ir.ast.{PadConstant, Value}
-import lift.arithmetic.{ArithExpr, Cst, Var}
+import lift.arithmetic.{Cst, Var}
 import opencl.executor.{Execute, Executor}
+import opencl.ir.{Float, id}
 import org.junit.Assert.assertEquals
 import org.junit.{BeforeClass, Test}
 import patterns.nn.conv.ConvStencil3D
 import patterns.nn.conv.ConvStencil3D.{ConvStencil3DLayerConfig, ConvStencil3DTuneParams}
-import opencl.ir.id
+import patterns.nn.utils.Utils.slidingOutputSize
 
 import scala.util.Random
 
 class TestPadding {
+  def AT = ArrayType // alias
+  type AT = ArrayType // alias
 
   val layerConfigVars = new ConvStencil3DLayerConfig()
   val tuneParamVars = new ConvStencil3DTuneParams()
@@ -50,25 +53,45 @@ class TestPadding {
       (layerConfigVars.paramVector.filter(_.isInstanceOf[Var]).zip(layerConfig) ++
         tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParams)).toMap
 
-    val paddedInputWidthHeight = ArithExpr.substitute(factory.paddedInputWidthHeight.get, substitutionTable.toMap)
+
+    /* Non-padded X */
+    val nonpaddedInputWidthHeight = substitutionTable(layerConfigVars.inputWidthHeight)
+
+    val nonpaddedXType = AT(AT(AT(AT(Float,
+      layerConfigVars.inputChannels),
+      nonpaddedInputWidthHeight),
+      nonpaddedInputWidthHeight),
+      layerConfigVars.nInputs)
 
     val X: Array[Array[Array[Array[Float]]]] = Array.tabulate(
       substitutionTable(layerConfigVars.nInputs).evalInt,
-      substitutionTable(layerConfigVars.inputWidthHeight).evalInt,
-      substitutionTable(layerConfigVars.inputWidthHeight).evalInt,
+      nonpaddedInputWidthHeight.evalInt,
+      nonpaddedInputWidthHeight.evalInt,
       substitutionTable(layerConfigVars.inputChannels).evalInt)((_, _, _, _) => Random.nextFloat())
 
-    val padFactory = new patterns.nn.pad.PadConv(layerConfigVars, tuneParamVars, factory,
-      layerConfigVars.inputWidthHeight,
-      substitutionTable(layerConfigVars.padFunc) + substitutionTable(tuneParamVars.padOpt))
+    /* Padded X */
+    val paddedInputWidthHeight = nonpaddedInputWidthHeight + Cst(2) * substitutionTable(layerConfigVars.padFunc) +
+      Cst(2) * substitutionTable(tuneParamVars.padOpt)
 
-    val paddingLambda = ParameterRewrite(padFactory(),
-      substitutionTable)
+    val paddedXType = AT(AT(AT(AT(Float,
+      layerConfigVars.inputChannels),
+      paddedInputWidthHeight),
+      paddedInputWidthHeight),
+      layerConfigVars.nInputs)
+
+
+    val padFactory = new patterns.nn.pad.PadConv(layerConfigVars, tuneParamVars, factory,
+      layerConfigVars.inputWidthHeight, nonpaddedXType,
+      substitutionTable(layerConfigVars.padFunc) + substitutionTable(tuneParamVars.padOpt),
+      paddedXType)
+
+    val paddingLambda = ParameterRewrite(padFactory(), substitutionTable)
 
     val paddingLambdaNDRanges = padFactory.paddingLambdaNDRanges(substitutionTable)
 
 
-    val (output, _) = Execute(paddingLambdaNDRanges._1, paddingLambdaNDRanges._2, (false, false))[Array[Float]](paddingLambda, X)
+    val (output, _) = Execute(paddingLambdaNDRanges._1, paddingLambdaNDRanges._2, (false, false))[Array[Float]](
+      paddingLambda, X)
 
     val liftResult = nn.group(output,
       (substitutionTable(layerConfigVars.nInputs).evalInt,
@@ -126,19 +149,44 @@ class TestPadding {
       (layerConfigVars.paramVector.filter(_.isInstanceOf[Var]).zip(layerConfig) ++
         tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParams)).toMap
 
-    val paddedInputWidthHeight = ArithExpr.substitute(factory.paddedInputWidthHeight.get, substitutionTable.toMap)
 
-    val nonPaddedX: Array[Array[Array[Array[Float]]]] = Array.tabulate(
-      substitutionTable(layerConfigVars.nInputs).evalInt,
-      substitutionTable(layerConfigVars.inputWidthHeight).evalInt + 2 * substitutionTable(layerConfigVars.padFunc).evalInt,
-      substitutionTable(layerConfigVars.inputWidthHeight).evalInt + 2 * substitutionTable(layerConfigVars.padFunc).evalInt,
-      substitutionTable(layerConfigVars.inputChannels).evalInt)((_, _, _, _) => Random.nextFloat())
+    /* Non-padded X */
+    val paddedOutputWidthHeight = slidingOutputSize(
+        substitutionTable(layerConfigVars.inputWidthHeight) + 2 * substitutionTable(layerConfigVars.padFunc) +
+          2 * substitutionTable(tuneParamVars.padOpt),
+        substitutionTable(layerConfigVars.kernelChannels),
+        substitutionTable(layerConfigVars.kernelStride))
 
-    val paddedX = PadConstant(0, 0, Value("0", opencl.ir.Float)).eval2d(nonPaddedX,
-      substitutionTable(tuneParamVars.padOpt).evalInt)
 
-    val depadFactory = new patterns.nn.pad.PadConv(layerConfigVars, tuneParamVars, factory, paddedInputWidthHeight,
-      Cst(-1) * substitutionTable(tuneParamVars.padOpt))
+    val paddedYType = AT(AT(AT(AT(Float,
+      paddedOutputWidthHeight),
+      paddedOutputWidthHeight),
+      substitutionTable(layerConfigVars.kernelChannels)),
+      substitutionTable(layerConfigVars.nInputs))
+
+    val paddedYTypeLengths = Type.getLengths(paddedYType).dropRight(1).map(_.evalInt)
+
+    val paddedY: Array[Array[Array[Array[Float]]]] = Array.tabulate(
+      paddedYTypeLengths(0), paddedYTypeLengths(1), paddedYTypeLengths(2), paddedYTypeLengths(3))(
+      (_, _, _, _) => Random.nextFloat())
+
+    /* Padded X */
+    val depaddedOutputWidthHeight = slidingOutputSize(
+      substitutionTable(layerConfigVars.inputWidthHeight) + 2 * substitutionTable(layerConfigVars.padFunc),
+      substitutionTable(layerConfigVars.kernelChannels),
+      substitutionTable(layerConfigVars.kernelStride))
+
+    val depadSize = (paddedOutputWidthHeight - depaddedOutputWidthHeight) /^ 2
+
+    val depaddedYType = AT(AT(AT(AT(Float,
+      depaddedOutputWidthHeight),
+      depaddedOutputWidthHeight),
+      substitutionTable(layerConfigVars.kernelChannels)),
+      substitutionTable(layerConfigVars.nInputs))
+
+    val depadFactory = new patterns.nn.pad.DepadConv(layerConfigVars, tuneParamVars, factory,
+      originalSize = paddedOutputWidthHeight, originalType = paddedYType,
+      depadSize = depadSize, newType = depaddedYType)
 
     val depaddingLambda = ParameterRewrite(depadFactory(), substitutionTable)
 
@@ -146,17 +194,17 @@ class TestPadding {
 
 
     val (output, _) = Execute(depaddingLambdaNDRanges._1, depaddingLambdaNDRanges._2, (false, false))[Array[Float]](
-      depaddingLambda, paddedX)
+      depaddingLambda, paddedY)
 
     val liftResult = nn.group(output,
       (substitutionTable(layerConfigVars.nInputs).evalInt,
-        substitutionTable(layerConfigVars.inputWidthHeight).evalInt + 2 * substitutionTable(layerConfigVars.padFunc).evalInt,
-        substitutionTable(layerConfigVars.inputWidthHeight).evalInt + 2 * substitutionTable(layerConfigVars.padFunc).evalInt,
+        depaddedOutputWidthHeight.evalInt,
+        depaddedOutputWidthHeight.evalInt,
         substitutionTable(layerConfigVars.inputChannels).evalInt))
 
 
-    val gold = PadConstant(0, 0, Value("0", opencl.ir.Float)).evalDepad2d(paddedX,
-      (-1) * substitutionTable(tuneParamVars.padOpt).evalInt)
+    val gold = PadConstant(0, 0, Value("0", opencl.ir.Float)).evalDepad2d(paddedY,
+      substitutionTable(tuneParamVars.padOpt).evalInt)
 
 
     for {(input, inputIdx) <- liftResult.zip(gold).zipWithIndex
