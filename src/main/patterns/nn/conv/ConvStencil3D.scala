@@ -26,6 +26,8 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
   var nTilesInRow: Option[ArithExpr] = None
   var nSeqTilesInWindow: Option[ArithExpr] = None
   var nWindowsInTile: Option[ArithExpr] = None
+  var nWindowsInRow: Option[ArithExpr] = None
+  var nWindowsInCol: Option[ArithExpr] = None
   var nKernelGroups: Option[ArithExpr] = None
   var nTilesTotal: Option[ArithExpr] = None
 
@@ -110,8 +112,8 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
       layerConfig.kernelStride)) // 4 // 144/3 = 38
     val nWindowsInTileCol = nWindowsInTileRow.get
 
-    val nWindowsInRow = nTilesInRow.get * nWindowsInTileRow.get // Output W
-    val nWindowsInCol = nTilesInCol * nWindowsInTileCol // Output Y
+    nWindowsInRow = Some(nTilesInRow.get * nWindowsInTileRow.get) // Output W
+    nWindowsInCol = Some(nTilesInCol * nWindowsInTileCol) // Output Y
 
     val nElementsInWindow = layerConfig.kernelWidthHeight * layerConfig.kernelWidthHeight * layerConfig.inputChannels // 576 // 576
 
@@ -185,7 +187,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
     //    1, layerConfig.nInputs, nTilesInCol, nTilesInRow
 
     resultType = Some(AT(AT(AT(AT(Float,
-      nWindowsInRow), nWindowsInCol),
+      nWindowsInRow.get), nWindowsInCol.get),
       layerConfig.kernelChannels),
       layerConfig.nInputs))
 
