@@ -1,7 +1,6 @@
 package cbackends.global
 
 import cbackends.host.host_ir._
-import cbackends.onnx.lift_nn_ir.host_ir.Pool3D
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
@@ -700,67 +699,72 @@ class TestGlobal {
     val generated_c_path = "/home/lu/Documents/Research/Experiments/Cases19/generated_c_files/"
 
 
-    val common_file_name0 = lambda_path  + "ConvStencil3DPaddingLambda_0_"
-    val common_file_name1 = lambda_path + "ConvStencil3DConcreteLambda_0_"
-    val common_file_name2 = lambda_path  + "ConvStencil3DConcreteLambda2_0_"
-
-    //val id = 0
+    val common_file_name0 = lambda_path  + "ConvStencil3DPaddingLambda_"
+    val common_file_name1 = lambda_path + "ConvStencil3DConcreteLambda0_"
+    val common_file_name2 = lambda_path  + "ConvStencil3DConcreteLambda1_"
+    val common_file_name3 = lambda_path  + "ConvStencil3DDepaddingLambda_"
 
     import opencl.executor.Eval
     import exploration.ParameterRewrite.readFromFile
 
-    //for {id <- 0 until 1000} {
-    for {id <- 0 until 1} {
+    for {layerConfigId <- 0 until 1} {
+      for {tuningId <- 0 until 82} {
 
-      val file0 = common_file_name0 + id + ".scala"
-      val file1 = common_file_name1 + id + ".scala"
-      val file2 = common_file_name2 + id + ".scala"
-
-
-
-      //ndrange is in the reversed order of c++ enqueneNDRange
-      val (ndranges0: (/*local*/NDRange, /*global*/NDRange), gpu_fun0: Lambda) = Eval.eval(readFromFile(file0)).
-        asInstanceOf[((NDRange, NDRange), Lambda)]
-      val (ndranges1: (/*local*/NDRange, /*global*/NDRange), gpu_fun1: Lambda) = Eval.eval(readFromFile(file1)).
-        asInstanceOf[((NDRange, NDRange), Lambda)]
-      val (ndranges2: (/*local*/NDRange, /*global*/NDRange), gpu_fun2: Lambda) = Eval.eval(readFromFile(file2)).
-        asInstanceOf[((NDRange, NDRange), Lambda)]
-
-
-      //Compile(gpu_fun0, ndranges0._1, ndranges0._2)
-      /*
-      val whole_fun = fun(
-        gpu_fun1.params(0).t,
-        gpu_fun2.params(0).t,
-        gpu_fun0.params(0).t,
-
-        (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, ndranges2, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
-          OclFunc( gpu_fun1, ndranges1, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
-           OclFunc( gpu_fun0, ndranges0, gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x))
-      )*/
+        val file0 = common_file_name0 + layerConfigId + "_" + tuningId + ".scala"
+        val file1 = common_file_name1 + layerConfigId + "_" + tuningId + ".scala"
+        val file2 = common_file_name2 + layerConfigId + "_" + tuningId + ".scala"
+        val file3 = common_file_name3 + layerConfigId + "_" + tuningId + ".scala"
 
 
 
-      val whole_fun = fun(
-        gpu_fun0.params(0).t,
+        //ndrange is in the reversed order of c++ enqueneNDRange
+        val (ndranges0: (/*local*/NDRange, /*global*/NDRange), gpu_fun0: Lambda) = Eval.eval(readFromFile(file0)).
+          asInstanceOf[((NDRange, NDRange), Lambda)]
+        val (ndranges1: (/*local*/NDRange, /*global*/NDRange), gpu_fun1: Lambda) = Eval.eval(readFromFile(file1)).
+          asInstanceOf[((NDRange, NDRange), Lambda)]
+        val (ndranges2: (/*local*/NDRange, /*global*/NDRange), gpu_fun2: Lambda) = Eval.eval(readFromFile(file2)).
+          asInstanceOf[((NDRange, NDRange), Lambda)]
+        val (ndranges3: (/*local*/NDRange, /*global*/NDRange), gpu_fun3: Lambda) = Eval.eval(readFromFile(file3)).
+          asInstanceOf[((NDRange, NDRange), Lambda)]
 
-        (p_x) => ToHost() o
-            OclFunc( gpu_fun0 , ndranges0, gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x
-      )
+
+        //Compile(gpu_fun0, ndranges0._1, ndranges0._2)
+
+        val whole_fun = fun(
+          gpu_fun1.params(0).t,
+          gpu_fun2.params(0).t,
+          gpu_fun0.params(0).t,
+
+          (p_k, p_b, p_x) => ToHost() $
+            OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
+              OclFunc(gpu_fun2, ndranges2, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
+                OclFunc( gpu_fun1, ndranges1, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
+                  OclFunc( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x)))
+        )
 
 
-      //("mkdir -p " + s"$path" ) !!
 
-      //("mkdir -p " + s"$generated_c_path" ) !!
+        //      val whole_fun = fun(
+        //        gpu_fun0.params(0).t,
+        //
+        //        (p_x) => ToHost() o
+        //            OclFunc( gpu_fun0 , ndranges0, gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x
+        //      )
 
-      val path_with_config = generated_c_path + id
-      ("mkdir -p " + s"$path_with_config") !!
-      val file_with_config = "libhost.cpp"
 
-      println("[Log]: compiling for "+path_with_config)
+        //("mkdir -p " + s"$path" ) !!
 
-      GlobalCompiler ! (whole_fun, path_with_config, List(file_with_config))
+        //("mkdir -p " + s"$generated_c_path" ) !!
 
+        val path_with_config = generated_c_path + layerConfigId + "/" + tuningId
+        ("mkdir -p " + s"$path_with_config") !!
+        val file_with_config = "libhost.cpp"
+
+        println("[Log]: compiling for "+path_with_config)
+
+        GlobalCompiler ! (whole_fun, path_with_config, List(file_with_config))
+
+      }
     }
 
 

@@ -11,7 +11,7 @@ object GenerateCLockPrintingStmt {
   val print_stmt_suffix = "std::endl"
   val sep = "<<"
   val double_quote = '"'
-  val comma = double_quote+","+double_quote
+  val comma = double_quote+", "+double_quote
   val empty_value = "-1"
 
   def generate(expr: Expr, block: Block) : Block = {
