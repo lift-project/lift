@@ -282,7 +282,7 @@ object OpenCLRules {
   })
 
   val reduceSeqUnroll = Rule("ReduceSeq(f) => ReduceSeqUnroll(f)", {
-    case FunCall(ReduceSeq(f), init, arg) =>
+    case FunCall(r@ReduceSeq(f), init, arg) if (!r.isInstanceOf[ReduceSeqUnroll]) =>
       ReduceSeqUnroll(f, init) $ arg
   })
 }
