@@ -105,6 +105,30 @@ object ParameterSearch {
           ))
         }
 
+//      case FunCall(slide@Slide(windowSize, step), args@_*) if (args.head.t match {
+//        case _: ArrayType with Size => true
+//        case _ => false
+//      }) =>
+      case FunCall(asVector(vectorLen), args @ _*) if (args.head.t match {
+        case _: ArrayType with Size => true
+        case _ => false
+      }) =>
+
+        val argType: ArrayType with Size = args.head.t match {
+          case at: ArrayType with Size => at
+          case _ => throw new IllegalArgumentException()
+        }
+
+        constraints.append(new ParamConstraint(
+          name = s"vectorisableBy${vectorLen}Argument",
+          comment = s"The argument to asVector(${vectorLen}) must be a multiple of ${vectorLen}",
+          params = (ArithExpr.collectVars(argType.size).sortBy(_.id) ++
+            ArithExpr.collectVars(vectorLen).sortBy(_.id)).toVector,
+          lhs = argType.size % vectorLen,
+          rhs = Cst(0),
+          predicate = (lhs: ArithExpr, rhs: ArithExpr) => lhs == rhs
+        ))
+
         // TODO: other FunCalls
       // TODO: add Reorder handling
       case _ =>

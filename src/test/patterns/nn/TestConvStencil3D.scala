@@ -172,7 +172,7 @@ class TestConvStencil3D {
     val concreteLambda2 = ParameterRewrite(lambdas(1), substitutionTableExample)
 
     val partReducedXTypeLengths: Seq[Int] = Type.getLengths(
-      Type.substitute(factory.partReducedXType.get, substitutionTableExample.toMap)).dropRight(1).map(_.evalInt)
+      Type.substitute(factory.partReducedXType, substitutionTableExample.toMap)).dropRight(1).map(_.evalInt)
 
     val (output1, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda1, example_K, example_X)
     val (output2, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda2, example_B,
@@ -180,7 +180,7 @@ class TestConvStencil3D {
         partReducedXTypeLengths(3), partReducedXTypeLengths(4))))
 
     val outputWidthHeight = slidingOutputSize(
-      substituteVars(factory.paddedInputWidthHeight.get, substitutionTableExample),
+      substituteVars(factory.paddedInputWidthHeight, substitutionTableExample),
       substitutionTableExample(layerConfigVars.kernelWidthHeight),
       substitutionTableExample(layerConfigVars.kernelStride)).evalInt
 
@@ -209,7 +209,7 @@ class TestConvStencil3D {
     val concreteLambda2 = ParameterRewrite(lambdas(1), substitutionTableExample)
 
     val partReducedXTypeLengths: Seq[Int] = Type.getLengths(
-      Type.substitute(factory.partReducedXType.get,
+      Type.substitute(factory.partReducedXType,
         substitutionTableExample.asInstanceOf[Map[ArithExpr, ArithExpr]])).dropRight(1).map(_.evalInt)
 
     val (output1, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda1, example_K, example_X)
@@ -221,7 +221,7 @@ class TestConvStencil3D {
     val result = factory.evalFinalLambda(example_B, output1ND, substitutionTableExample)
 
     val outputWidthHeight = slidingOutputSize(
-      substituteVars(factory.paddedInputWidthHeight.get, substitutionTableExample),
+      substituteVars(factory.paddedInputWidthHeight, substitutionTableExample),
       substitutionTableExample(layerConfigVars.kernelWidthHeight),
       substitutionTableExample(layerConfigVars.kernelStride)).evalInt
 
@@ -257,8 +257,8 @@ class TestConvStencil3D {
       substitutionTable(layerConfigVars.kernelChannels).evalInt)(_ => Random.nextFloat())
     val X: Array4D[Float] = Array.tabulate(
       substitutionTable(layerConfigVars.nInputs).evalInt,
-      substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
-      substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
+      substituteVars(factory.paddedInputWidthHeight, substitutionTable).evalInt,
+      substituteVars(factory.paddedInputWidthHeight, substitutionTable).evalInt,
       substitutionTable(layerConfigVars.inputChannels).evalInt)((_, _, _, _) => Random.nextFloat())
 
 
@@ -266,7 +266,7 @@ class TestConvStencil3D {
 //    val concreteLambda2 = ParameterRewrite(lambdas(1), substitutionTable)
 
     val partReducedXTypeLengths: Seq[Int] = Type.getLengths(
-      Type.substitute(factory.partReducedXType.get,
+      Type.substitute(factory.partReducedXType,
         substitutionTable.asInstanceOf[Map[ArithExpr, ArithExpr]])).dropRight(1).map(_.evalInt)
 
     val kernel1 = Compile(concreteLambda1)
@@ -282,7 +282,7 @@ class TestConvStencil3D {
       substitutionTable(layerConfigVars.kernelWidthHeight),
       substitutionTable(layerConfigVars.kernelStride)).evalInt *
       slidingOutputSize(
-        substituteVars(factory.paddedInputWidthHeight.get, substitutionTable),
+        substituteVars(factory.paddedInputWidthHeight, substitutionTable),
         substitutionTable(tuneParamVars.tileWidthHeight),
         substitutionTable(tuneParamVars.tileWidthHeight) -
           (substitutionTable(layerConfigVars.kernelWidthHeight) -
@@ -326,8 +326,8 @@ class TestConvStencil3D {
       substitutionTable(layerConfigVars.kernelChannels).evalInt)(_ => Random.nextFloat())
     val X: Array[Array[Array[Array[Float]]]] = Array.tabulate(
       substitutionTable(layerConfigVars.nInputs).evalInt,
-      substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
-      substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
+      substituteVars(factory.paddedInputWidthHeight, substitutionTable).evalInt,
+      substituteVars(factory.paddedInputWidthHeight, substitutionTable).evalInt,
       substitutionTable(layerConfigVars.inputChannels).evalInt)((_, _, _, _) => Random.nextFloat())
 
 
@@ -335,7 +335,7 @@ class TestConvStencil3D {
     val concreteLambda2 = ParameterRewrite(lambdas(1), substitutionTable)
 
     val partReducedXTypeLengths: Seq[Int] = Type.getLengths(
-      Type.substitute(factory.partReducedXType.get,
+      Type.substitute(factory.partReducedXType,
         substitutionTable.asInstanceOf[Map[ArithExpr, ArithExpr]])).dropRight(1).map(_.evalInt)
 
     val kernel1 = Compile(concreteLambda1)
@@ -351,7 +351,7 @@ class TestConvStencil3D {
       substitutionTable(layerConfigVars.kernelWidthHeight),
       substitutionTable(layerConfigVars.kernelStride)).evalInt *
       slidingOutputSize(
-        substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
+        substituteVars(factory.paddedInputWidthHeight, substitutionTable).evalInt,
         substitutionTable(tuneParamVars.tileWidthHeight),
         substitutionTable(tuneParamVars.tileWidthHeight) -
           (substitutionTable(layerConfigVars.kernelWidthHeight) -
@@ -395,8 +395,8 @@ class TestConvStencil3D {
       substitutionTable(layerConfigVars.kernelChannels).evalInt)(_ => Random.nextFloat())
     val X: Array[Array[Array[Array[Float]]]] = Array.tabulate(
       substitutionTable(layerConfigVars.nInputs).evalInt,
-      substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
-      substituteVars(factory.paddedInputWidthHeight.get, substitutionTable).evalInt,
+      substituteVars(factory.paddedInputWidthHeight, substitutionTable).evalInt,
+      substituteVars(factory.paddedInputWidthHeight, substitutionTable).evalInt,
       substitutionTable(layerConfigVars.inputChannels).evalInt)((_, _, _, _) => Random.nextFloat())
 
 
@@ -404,7 +404,7 @@ class TestConvStencil3D {
     val concreteLambda2 = ParameterRewrite(lambdas(1), substitutionTable)
 
     val partReducedXTypeLengths: Seq[Int] = Type.getLengths(
-      Type.substitute(factory.partReducedXType.get,
+      Type.substitute(factory.partReducedXType,
         substitutionTable.asInstanceOf[Map[ArithExpr, ArithExpr]])).dropRight(1).map(_.evalInt)
 
     val kernel1 = Compile(concreteLambda1)
@@ -420,7 +420,7 @@ class TestConvStencil3D {
       substitutionTable(layerConfigVars.kernelWidthHeight),
       substitutionTable(layerConfigVars.kernelStride)).evalInt *
       slidingOutputSize(
-        substituteVars(factory.paddedInputWidthHeight.get, substitutionTable),
+        substituteVars(factory.paddedInputWidthHeight, substitutionTable),
         substitutionTable(tuneParamVars.tileWidthHeight),
         substitutionTable(tuneParamVars.tileWidthHeight) -
           (substitutionTable(layerConfigVars.kernelWidthHeight) -
