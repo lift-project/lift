@@ -485,7 +485,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
 
     val nonformattedResult = firstLambdaOutput.map(XTile =>
       XTile.zip({
-        val t = B.sliding(v(tuneParams.nKernelsPerWrg).evalInt, v(tuneParams.nKernelsPerWrg).evalInt).toArray
+        val t = B.iterator.sliding(v(tuneParams.nKernelsPerWrg).evalInt, v(tuneParams.nKernelsPerWrg).evalInt).withPartial(false).toArray.map(_.toArray)
         t
       }).map(
         outputChannelGroup =>
@@ -500,8 +500,8 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
 
     // Format results
     val intermediateResult: Array6D[Float] =
-      nonformattedResult.map(_.map(_.sliding(
-        nWindowsInTileRowInt, nWindowsInTileRowInt).toArray)).
+      nonformattedResult.map(_.map(_.iterator.sliding(
+        nWindowsInTileRowInt, nWindowsInTileRowInt).withPartial(false).toArray.map(_.toArray))).
         sliding(nTilesInRowInt, nTilesInRowInt).toArray.
         sliding(nTilesInRowInt, nTilesInRowInt).toArray
 

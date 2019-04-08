@@ -37,7 +37,7 @@ class DepadConv(layerConfig: ConvStencil3DLayerConfig,
       })
   }
 
-  def paddingLambdaNDRanges(substitutionTable: Map[Var, Cst]): ( /* Local */ NDRange, /* Global */ NDRange) = {
+  def depaddingLambdaNDRanges(substitutionTable: Map[Var, Cst]): ( /* Local */ NDRange, /* Global */ NDRange) = {
     val newInputWidthHeight = ArithExpr.substitute(
       originalSize - 2 * depadSize, substitutionTable.toMap)
     (

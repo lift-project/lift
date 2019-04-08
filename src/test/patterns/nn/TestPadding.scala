@@ -95,7 +95,7 @@ class TestPadding {
     val (output, _) = Execute(paddingLambdaNDRanges._1, paddingLambdaNDRanges._2, (false, false))[Array[Float]](
       paddingLambda, X)
 
-    val liftResult = nn.group(output,
+    val liftResult = patterns.nn.group(output,
       (substitutionTable(layerConfigVars.nInputs).evalInt,
         paddedInputWidthHeight.evalInt,
         paddedInputWidthHeight.evalInt,
@@ -192,13 +192,13 @@ class TestPadding {
 
     val depaddingLambda = ParameterRewrite(depadFactory(), substitutionTable)
 
-    val depaddingLambdaNDRanges = depadFactory.paddingLambdaNDRanges(substitutionTable)
+    val depaddingLambdaNDRanges = depadFactory.depaddingLambdaNDRanges(substitutionTable)
 
 
     val (output, _) = Execute(depaddingLambdaNDRanges._1, depaddingLambdaNDRanges._2, (false, false))[Array[Float]](
       depaddingLambda, paddedY)
 
-    val liftResult = nn.group(output,
+    val liftResult = patterns.nn.group(output,
       (substitutionTable(layerConfigVars.nInputs).evalInt,
         depaddedOutputWidthHeight.evalInt,
         depaddedOutputWidthHeight.evalInt,

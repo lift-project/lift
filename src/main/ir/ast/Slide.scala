@@ -52,10 +52,10 @@ case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) {
   }
 
   def eval(arg: Array[Array[Float]]): Array[Array[Array[Float]]] =
-    arg.sliding(size.evalInt, step.evalInt).toArray
+    arg.iterator.sliding(size.evalInt, step.evalInt).withPartial(false).map(_.toArray).toArray
 
   def eval(arg: Array[Array[Array[Float]]]): Array[Array[Array[Array[Float]]]] =
-    arg.sliding(size.evalInt, step.evalInt).toArray
+    arg.iterator.sliding(size.evalInt, step.evalInt).withPartial(false).map(_.toArray).toArray
 
 
 

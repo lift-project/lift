@@ -21,6 +21,8 @@ import scala.collection.mutable
 class ParameterSpace(val parameters: Vector[Var],
                      val constraints: ParamConstraints) {
 
+  val verbose: Boolean = false
+
   var timer: mutable.Map[String, Long] = mutable.Map()
 
   def time[R](cmd: String, block: => R): R = {
@@ -99,7 +101,6 @@ class ParameterSpace(val parameters: Vector[Var],
                               //                      partialCombination: List[Cst],
                               //                      paramsInCombination: Map[Var, Int],
                               random: Random): Option[List[Cst]] = {
-    val verbose: Boolean = false
     params match {
       case Nil =>
         // No parameters to process -> the combination is completed

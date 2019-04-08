@@ -421,7 +421,7 @@ case class Conv0(override val liftFProp: Array[FunDecl],
 
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {
     datasets.asInstanceOf[ConvDatasets].outputs.nonPadded =
-      nn.group(outputsFlat, (outputShape.nBatches, outputShape.nInputs,
+      patterns.nn.group(outputsFlat, (outputShape.nBatches, outputShape.nInputs,
         outputShape.nChannels, outputShape.sizePadded, outputShape.sizePadded)).map(
         batch => batch.map(
           input => input.map(

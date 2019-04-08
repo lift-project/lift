@@ -176,28 +176,17 @@ class TestConvStencil3D {
 
     val (output1, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda1, example_K, example_X)
     val (output2, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda2, example_B,
-      nn.group(output1, (partReducedXTypeLengths(0), partReducedXTypeLengths(1), partReducedXTypeLengths(2),
+      patterns.nn.group(output1, (partReducedXTypeLengths(0), partReducedXTypeLengths(1), partReducedXTypeLengths(2),
         partReducedXTypeLengths(3), partReducedXTypeLengths(4))))
 
-    val outputWidthHeight = slidingOutputSize(
-      substituteVars(factory.paddedInputWidthHeight, substitutionTableExample),
-      substitutionTableExample(layerConfigVars.kernelWidthHeight),
-      substitutionTableExample(layerConfigVars.kernelStride)).evalInt
-
-    val result = nn.group(output2, (substitutionTableExample(layerConfigVars.nInputs).evalInt,
-      substitutionTableExample(layerConfigVars.kernelChannels).evalInt,
-      outputWidthHeight, outputWidthHeight))
-
-    for {(input, inputIdx) <- result.zip(goldExample).zipWithIndex
-         (kernelChannel, kernelIdx) <- input._1.zip(input._2).zipWithIndex
-         (row, rowIdx) <- kernelChannel._1.zip(kernelChannel._2).zipWithIndex
-         (el, elIdx) <- row._1.zip(row._2).zipWithIndex}
-      assertEquals(
-        f"result($inputIdx)($kernelIdx)($rowIdx)($elIdx) != " +
-          f"gold($inputIdx)($kernelIdx)($rowIdx)($elIdx)",
-        el._1, el._2, 0)
+    validateResults(
+      factory,
+      layerConfigVars,
+      tuneParamVars,
+      substitutionTableExample,
+      output2,
+      goldExample)
   }
-
 
 
   @Test
@@ -214,7 +203,7 @@ class TestConvStencil3D {
 
     val (output1, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda1, example_K, example_X)
 
-    val output1ND: Array5D[Float] = nn.group(output1,
+    val output1ND: Array5D[Float] = patterns.nn.group(output1,
       (partReducedXTypeLengths(0), partReducedXTypeLengths(1), partReducedXTypeLengths(2),
       partReducedXTypeLengths(3), partReducedXTypeLengths(4)))
 
@@ -247,19 +236,21 @@ class TestConvStencil3D {
       (layerConfigVars.paramVector.filter(_.isInstanceOf[Var]).zip(layerConfig) ++
         tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParams)).toMap
 
+    val (k, b, x) = patterns.nn.conv.generateTestData(factory, layerConfigVars, substitutionTable,
+      substituteVars(factory.paddedInputWidthHeight, substitutionTable).evalInt)
 
-    val K: Array4D[Float] = Array.tabulate(
-      substitutionTable(layerConfigVars.kernelChannels).evalInt,
-      substitutionTable(layerConfigVars.kernelWidthHeight).evalInt,
-      substitutionTable(layerConfigVars.kernelWidthHeight).evalInt,
-      substitutionTable(layerConfigVars.inputChannels).evalInt)((_, _, _, _) => Random.nextFloat())
-    val B: Array[Float] = Array.tabulate(
-      substitutionTable(layerConfigVars.kernelChannels).evalInt)(_ => Random.nextFloat())
-    val X: Array4D[Float] = Array.tabulate(
-      substitutionTable(layerConfigVars.nInputs).evalInt,
-      substituteVars(factory.paddedInputWidthHeight, substitutionTable).evalInt,
-      substituteVars(factory.paddedInputWidthHeight, substitutionTable).evalInt,
-      substitutionTable(layerConfigVars.inputChannels).evalInt)((_, _, _, _) => Random.nextFloat())
+//    val K: Array4D[Float] = Array.tabulate(
+//      substitutionTable(layerConfigVars.kernelChannels).evalInt,
+//      substitutionTable(layerConfigVars.kernelWidthHeight).evalInt,
+//      substitutionTable(layerConfigVars.kernelWidthHeight).evalInt,
+//      substitutionTable(layerConfigVars.inputChannels).evalInt)((_, _, _, _) => Random.nextFloat())
+//    val B: Array[Float] = Array.tabulate(
+//      substitutionTable(layerConfigVars.kernelChannels).evalInt)(_ => Random.nextFloat())
+//    val X: Array4D[Float] = Array.tabulate(
+//      substitutionTable(layerConfigVars.nInputs).evalInt,
+//      substituteVars(factory.paddedInputWidthHeight, substitutionTable).evalInt,
+//      substituteVars(factory.paddedInputWidthHeight, substitutionTable).evalInt,
+//      substitutionTable(layerConfigVars.inputChannels).evalInt)((_, _, _, _) => Random.nextFloat())
 
 
     val concreteLambda1 = ParameterRewrite(lambdas.head, substitutionTable)
@@ -270,12 +261,12 @@ class TestConvStencil3D {
         substitutionTable.asInstanceOf[Map[ArithExpr, ArithExpr]])).dropRight(1).map(_.evalInt)
 
     val kernel1 = Compile(concreteLambda1)
-    val (output1, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda1, K, X)
+    val (output1, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda1, k, x)
 
-    val output1ND = nn.group(output1, (partReducedXTypeLengths(0), partReducedXTypeLengths(1), partReducedXTypeLengths(2),
+    val output1ND = patterns.nn.group(output1, (partReducedXTypeLengths(0), partReducedXTypeLengths(1), partReducedXTypeLengths(2),
       partReducedXTypeLengths(3), partReducedXTypeLengths(4)))
 
-    val result = factory.evalFinalLambda(B, output1ND, substitutionTable)
+    val result = factory.evalFinalLambda(b, output1ND, substitutionTable)
 
     val outputWidthHeight = slidingOutputSize(
       substitutionTable(tuneParamVars.tileWidthHeight),
@@ -288,11 +279,11 @@ class TestConvStencil3D {
           (substitutionTable(layerConfigVars.kernelWidthHeight) -
             substitutionTable(layerConfigVars.kernelStride))).evalInt
 
-//    val result = nn.group(output2, (substitutionTable(layerConfigVars.nInputs).evalInt,
+//    val result = patterns.nn.group(output2, (substitutionTable(layerConfigVars.nInputs).evalInt,
 //      substitutionTable(layerConfigVars.kernelChannels).evalInt,
 //      outputWidthHeight, outputWidthHeight))
 
-    val gold = factory.eval(K, B, X, substitutionTable)
+    val gold = factory.eval(k, b, x, substitutionTable)
 
     for {(input, inputIdx) <- result.zip(gold).zipWithIndex
          (kernelChannel, kernelIdx) <- input._1.zip(input._2).zipWithIndex
@@ -341,7 +332,7 @@ class TestConvStencil3D {
     val kernel1 = Compile(concreteLambda1)
     val (output1, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda1, K, X)
 
-    val output1ND = nn.group(output1, (partReducedXTypeLengths(0), partReducedXTypeLengths(1), partReducedXTypeLengths(2),
+    val output1ND = patterns.nn.group(output1, (partReducedXTypeLengths(0), partReducedXTypeLengths(1), partReducedXTypeLengths(2),
       partReducedXTypeLengths(3), partReducedXTypeLengths(4)))
     val kernel2 = Compile(concreteLambda2)
     val (output2, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda2, B, output1ND)
@@ -357,20 +348,17 @@ class TestConvStencil3D {
           (substitutionTable(layerConfigVars.kernelWidthHeight) -
             substitutionTable(layerConfigVars.kernelStride))).evalInt
 
-    val result = nn.group(output2, (substitutionTable(layerConfigVars.nInputs).evalInt,
-      substitutionTable(layerConfigVars.kernelChannels).evalInt,
-      outputWidthHeight, outputWidthHeight))
 
     val gold = factory.eval(K, B, X, substitutionTable)
 
-    for {(input, inputIdx) <- result.zip(gold).zipWithIndex
-         (kernelChannel, kernelIdx) <- input._1.zip(input._2).zipWithIndex
-         (row, rowIdx) <- kernelChannel._1.zip(kernelChannel._2).zipWithIndex
-         (el, elIdx) <- row._1.zip(row._2).zipWithIndex}
-      assertEquals(
-        f"result($inputIdx)($kernelIdx)($rowIdx)($elIdx) != " +
-          f"gold($inputIdx)($kernelIdx)($rowIdx)($elIdx)",
-        el._1, el._2, 5)
+    validateResults(
+      factory,
+      layerConfigVars,
+      tuneParamVars,
+      substitutionTable,
+      output2,
+      gold)
+
     println("done")
   }
 
@@ -410,49 +398,32 @@ class TestConvStencil3D {
     val kernel1 = Compile(concreteLambda1)
     val (output1, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda1, K, X)
 
-    val output1ND = nn.group(output1, (partReducedXTypeLengths(0), partReducedXTypeLengths(1), partReducedXTypeLengths(2),
+    val output1ND = patterns.nn.group(output1, (partReducedXTypeLengths(0), partReducedXTypeLengths(1), partReducedXTypeLengths(2),
       partReducedXTypeLengths(3), partReducedXTypeLengths(4)))
     val kernel2 = Compile(concreteLambda2)
     val (output2, _) = Execute(1, 1, 1, 32, 32, 32, (false, false))[Array[Float]](concreteLambda2, B, output1ND)
 
-    val outputWidthHeight = slidingOutputSize(
-      substitutionTable(tuneParamVars.tileWidthHeight),
-      substitutionTable(layerConfigVars.kernelWidthHeight),
-      substitutionTable(layerConfigVars.kernelStride)).evalInt *
-      slidingOutputSize(
-        substituteVars(factory.paddedInputWidthHeight, substitutionTable),
-        substitutionTable(tuneParamVars.tileWidthHeight),
-        substitutionTable(tuneParamVars.tileWidthHeight) -
-          (substitutionTable(layerConfigVars.kernelWidthHeight) -
-            substitutionTable(layerConfigVars.kernelStride))).evalInt
-
-    val liftResult = nn.group(output2, (substitutionTable(layerConfigVars.nInputs).evalInt,
-      substitutionTable(layerConfigVars.kernelChannels).evalInt,
-      outputWidthHeight, outputWidthHeight))
-
-    val scalaResult = factory.evalFinalLambda(B, output1ND, substitutionTable)
 
     val gold = factory.eval(K, B, X, substitutionTable)
 
-    // compare against lift+scala
-    for {(input, inputIdx) <- liftResult.zip(scalaResult).zipWithIndex
-         (kernelChannel, kernelIdx) <- input._1.zip(input._2).zipWithIndex
-         (row, rowIdx) <- kernelChannel._1.zip(kernelChannel._2).zipWithIndex
-         (el, elIdx) <- row._1.zip(row._2).zipWithIndex}
-      assertEquals(
-        f"liftResult($inputIdx)($kernelIdx)($rowIdx)($elIdx) != " +
-          f"scalaResult($inputIdx)($kernelIdx)($rowIdx)($elIdx)",
-        el._1, el._2, 0.01)
+    val scalaResult = factory.evalFinalLambda(B, output1ND, substitutionTable)
 
-    // Compare against full scala conv
-    for {(input, inputIdx) <- liftResult.zip(gold).zipWithIndex
-         (kernelChannel, kernelIdx) <- input._1.zip(input._2).zipWithIndex
-         (row, rowIdx) <- kernelChannel._1.zip(kernelChannel._2).zipWithIndex
-         (el, elIdx) <- row._1.zip(row._2).zipWithIndex}
-      assertEquals(
-        f"liftResult($inputIdx)($kernelIdx)($rowIdx)($elIdx) != " +
-          f"gold($inputIdx)($kernelIdx)($rowIdx)($elIdx)",
-        el._1, el._2, 0.01)
+    validateResults(
+      factory,
+      layerConfigVars,
+      tuneParamVars,
+      substitutionTable,
+      output2,
+      scalaResult)
+
+    validateResults(
+      factory,
+      layerConfigVars,
+      tuneParamVars,
+      substitutionTable,
+      output2,
+      gold)
+
     println("done")
   }
 

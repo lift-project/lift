@@ -45,15 +45,15 @@ case class PadConstant(left: Int, right: Int, constant: Value)
 
     val argPadded = Array.fill(
       arg.length,
-      arg.head.length - 2 * depadLength,
+      arg.head.length,
       arg.head.head.length - 2 * depadLength,
-      arg.head.head.head.length)(0.0f)
+      arg.head.head.head.length  - 2 * depadLength)(0.0f)
 
     for {i <- argPadded.indices}
       for {j <- argPadded.head.indices}
         for {k <- argPadded.head.head.indices}
           for {l <- argPadded.head.head.head.indices}
-            argPadded(i)(j)(k)(l) = arg(i)(j + depadLength)(k + depadLength)(l)
+            argPadded(i)(j)(k)(l) = arg(i)(j)(k)(l)
 
     argPadded
   }

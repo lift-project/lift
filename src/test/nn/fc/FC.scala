@@ -37,7 +37,7 @@ case class FC(liftFProp: Array[FunDecl],
    */
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {
     datasets.asInstanceOf[FCDatasets].outputs.nonPadded =
-      nn.group(outputsFlat, (outputShape.nInputs, outputShape.sizePadded)).map(
+      patterns.nn.group(outputsFlat, (outputShape.nInputs, outputShape.sizePadded)).map(
         input => input.slice(0, outputShape.size))
   }
 }
