@@ -71,6 +71,10 @@ class ParameterSpace(val parameters: Vector[Var],
         result
       case None =>
         println(timer.map(pair => pair._1 -> pair._2.toFloat / 1000000).mkString("\n"))
+        if (verbose) {
+          println("constraintCounter: ")
+          println(constraintCounters.map(pair => pair._1.name + " = " + pair._2.toString).mkString("\n"))
+        }
         throw EmptySpace(f"Could not generate a value for parameter space $parameters with the chosen independent " +
           s"parameter values")
     }
@@ -204,6 +208,8 @@ class ParameterSpace(val parameters: Vector[Var],
         None
     }
   }
+
+  def validatePoints(values: Map[Var, Cst]): Boolean = constraints.constraints.forall(_.isValid(values))
 }
 
 object ParameterSpace {

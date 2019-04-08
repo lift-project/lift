@@ -695,7 +695,7 @@ class TestGlobal {
   def batch_code_generate_for_cases_paper(): Unit = {
 
     //val path = s"$common_path/99.cases_paper"
-    val lambda_path = System.getProperty("user.dir") + "/../../../generated_files_07.04.2019_18.32.47/"
+    val lambda_path = System.getProperty("user.dir") + "/../../../generated_files_08.04.2019_13.49.18_first_7_layers_10_points/"
     val generated_c_path = "/home/nm/cases/cases19experiments/generated_c_files/"
 //    val generated_c_path = "/home/lu/Documents/Research/Experiments/Cases19/generated_c_files/"
 
@@ -708,8 +708,8 @@ class TestGlobal {
     import opencl.executor.Eval
     import exploration.SplitSlideRewrite.readFromFile
 
-    for {layerConfigId <- 0 until 1} {
-      for {tuningId <- 0 until 82} {
+    for {layerConfigId <- 0 until 7} {
+      for {tuningId <- 0 until 10} {
 
         val file0 = common_file_name0 + layerConfigId + "_" + tuningId + ".scala"
         val file1 = common_file_name1 + layerConfigId + "_" + tuningId + ".scala"

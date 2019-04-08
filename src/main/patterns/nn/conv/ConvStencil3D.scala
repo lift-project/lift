@@ -27,27 +27,27 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
   val nTilesInRow = slidingOutputSize(
     paddedInputWidthHeight,
     tuneParams.tileWidthHeight,
-    tileStride) // 19 // 228/12 = 19
+    tileStride) // 30 / 3 = 10
 
   val nTilesInCol = nTilesInRow
-  val nTilesInInput = nTilesInCol * nTilesInRow // 361 // 361
+  val nTilesInInput = nTilesInCol * nTilesInRow // 100
 
   val nWindowsInTileRow = slidingOutputSize(
     tuneParams.tileWidthHeight,
     layerConfig.kernelWidthHeight,
-    layerConfig.kernelStride) // 4 // 144/3 = 38
+    layerConfig.kernelStride) // 1
   val nWindowsInTileCol = nWindowsInTileRow
 
   val nWindowsInRow = nTilesInRow * nWindowsInTileRow // Output W
   val nWindowsInCol = nTilesInCol * nWindowsInTileCol // Output Y
 
-  val nElementsInWindow = layerConfig.kernelWidthHeight * layerConfig.kernelWidthHeight * layerConfig.inputChannels // 576 // 576
+  val nElementsInWindow = layerConfig.kernelWidthHeight * layerConfig.kernelWidthHeight * layerConfig.inputChannels // 256 * 9 = 2304
 
-  val nSeqTilesInWindow = nElementsInWindow /^ tuneParams.seqOpsPerThread // 576 / 288 = 2 // 576 / 288 =2
+  val nSeqTilesInWindow = nElementsInWindow /^ tuneParams.seqOpsPerThread // 2304 / 2304 = 1
 
-  val nWindowsInTile = nWindowsInTileCol * nWindowsInTileRow // 16 // 1444
+  val nWindowsInTile = nWindowsInTileCol * nWindowsInTileRow // 1
 
-  val nTilesTotal = layerConfig.nInputs * nTilesInInput // 361 // 361
+  val nTilesTotal = layerConfig.nInputs * nTilesInInput // 100
 
   val nKernelGroups = layerConfig.kernelChannels /^ tuneParams.nKernelsPerWrg
 
@@ -97,10 +97,10 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
 
   val partReducedElementType: Float.type = Float
   val partReducedWindowType: AT = AT(partReducedElementType, nSeqTilesInWindow)
-  val partReducedOutChannelType: AT = AT(partReducedWindowType, nWindowsInTile)
-  val partReducedOutChannelGroupType: AT = AT(partReducedOutChannelType, tuneParams.nKernelsPerWrg)
-  val partReducedXTileType: AT = AT(partReducedOutChannelGroupType, nKernelGroups)
-  val partReducedXType = AT(partReducedXTileType, nTilesTotal)
+  val partReducedOutChannelType: AT = AT(partReducedWindowType, nWindowsInTile) // loc 0
+  val partReducedOutChannelGroupType: AT = AT(partReducedOutChannelType, tuneParams.nKernelsPerWrg) // loc 1
+  val partReducedXTileType: AT = AT(partReducedOutChannelGroupType, nKernelGroups) // group 0
+  val partReducedXType = AT(partReducedXTileType, nTilesTotal) // group 1
   val flatPartReducedXType: AT = AT(partReducedElementType, flatPartReducedXSize)
 
   val reducedWindowType: Float.type = Float
@@ -365,8 +365,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                         Map(AssertType(reducedWindowType, "Reduced window type")) o
                           MapSeq(toGlobal(id)) o
                           ReduceSeqMaybeUnroll(add, toPrivate(id) o
-                            AssertType(kernelBPerWindowType, "Kernel bias per window type") $
-                            Get(outputChannel, 1)
+                            AssertType(kernelBPerWindowType, "Kernel bias per window type") $ Get(outputChannel, 1)
                           ) o AssertType(partReducedWindowType, "Part reduced X window type") $ window
 
                         /** ***** Sliding window END *******/
