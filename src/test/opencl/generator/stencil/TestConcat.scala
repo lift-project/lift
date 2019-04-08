@@ -1,7 +1,7 @@
 package opencl.generator.stencil
 
 import ir.ArrayTypeWSWC
-import ir.ast.{ArrayFromExpr, ConcatFunction, Get, PadConstant, Slide, UserFun, Zip, fun}
+import ir.ast.{ArrayFromExpr, ConcatFunction, Get, PadConstant, Slide, Transpose, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.generator.stencil.acoustic.StencilUtilities
@@ -28,7 +28,7 @@ class TestConcat
   def zipTwoArraysMapSeq1D(): Unit = {
 
     val input = Array.fill[Float](2)(1.0f)
-    val gold = Array(2.0f,2.0f,4.0f,4.0f)
+    val gold = Array(2.0f,4.0f,2.0f,4.0f)
 
     val mult2 = UserFun("mult2", "x", "{ return x*2; }", Float, Float)
     val add3 = UserFun("add3", Array("x"), "{ return x+3; }", Seq(Float), Float)
@@ -36,19 +36,14 @@ class TestConcat
     val ziplike = fun(
       ArrayTypeWSWC(Float, SizeVar("N")),
       (input) =>
-         toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ input, MapSeq(id) $ input)
+         toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(mult2) $ input, MapSeq(add3) $ input)
     )
 
-    println(Compile(ziplike))
+//    println(Compile(ziplike))
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](ziplike,input)
 
-    StencilUtilities.print1DArray(input)
-    StencilUtilities.print1DArray(gold)
-    StencilUtilities.print1DArray(output)
-
-
-//    assertArrayEquals(gold, output, TestConcatHelpers.delta)
+    assertArrayEquals(gold, output, TestConcatHelpers.delta)
 
   }
 
@@ -105,26 +100,6 @@ class TestConcat
 
   }
 
-
-  // edge case - NO
-  /*
-  @Test
-  def combineOneArrayMapSeq1D(): Unit = {
-
-    val input = Array.fill[Float](2)(1.0f)
-
-    val concatlike = fun(
-      ArrayTypeWSWC(Float, SizeVar("N")),
-      (input) =>
-        ConcatFunction(MapSeq(id) $ input)
-    )
-
-    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concatlike,input)
-    assertArrayEquals(input, output, TestConcatHelpers.delta)
-
-  }
-*/
-
   @Test
   def boundaryTest1D(): Unit = {
 
@@ -153,16 +128,17 @@ class TestConcat
 
   }
 
-
   @Test
-  def boundaryTest2D(): Unit = {
+  def boundaryTest2DRow(): Unit = {
 
+    val localSizeX = 6
+    val localSizeY = 8
     val size = 12
     val slidesize = 3
     val slidestep = 1
 
-    val values = Array.tabulate(size,size) { (i,j) => (i*size + j + 1).toFloat }
-    val gold = values
+    val values = Array.tabulate(localSizeX,localSizeY) { (i,j) => (i*size + j + 1).toFloat }
+    val gold = Array(1.0f,61.0f,2.0f,62.0f,3.0f,63.0f,4.0f,64.0f,5.0f,65.0f,6.0f,66.0f,7.0f,67.0f,8.0f,68.0f)
 
     val N = SizeVar("N")
     val M = SizeVar("M")
@@ -171,20 +147,100 @@ class TestConcat
       ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
       (input) => {
 
-
-            toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ input.at(0), MapSeq(id) $ input.at(N-1))
+            toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ input.at(0), MapSeq(id) $ input.at(M-1))
 
       })
 
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original2DStencil(slidesize,slidestep),values)
 
     StencilUtilities.print2DArray(values)
-    StencilUtilities.print2DArray(gold)
+    println("")
+    StencilUtilities.print1DArray(gold)
+    println("")
     StencilUtilities.print1DArray(output)
 
-//    assertArrayEquals(output, gold, StencilUtilities.stencilDelta)
+    assertArrayEquals(output, gold, StencilUtilities.stencilDelta)
 
   }
+
+  @Test
+  def boundaryTest2DColumnWeird(): Unit = {
+
+    val localSizeX = 6
+    val localSizeY = 8
+    val size = 12
+
+    val values = Array.tabulate(localSizeX,localSizeY) { (i,j) => (i*size + j + 1).toFloat }
+    val gold = Array(1.0f,8.0f,13.0f,20.0f,25.0f,32.0f,37.0f,44.0f,49.0f,56.0f,61.0f,68.0f)
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    def original2DStencil() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
+      (input) => {
+
+        val inputT = Transpose()  $ input
+
+        toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ inputT.at(0), MapSeq(id) $ inputT.at(N-1))
+
+     //   toGlobal(MapSeq(MapSeq(id))) $ inputT
+
+      })
+
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original2DStencil,values)
+
+    print(values.map(_.mkString(" ")).mkString("\n"))
+    println("")
+    StencilUtilities.print2DArray(values)
+    println("")
+    StencilUtilities.print1DArray(gold)
+    println("")
+    StencilUtilities.print1DArray(output)
+
+    assertArrayEquals(output, gold, StencilUtilities.stencilDelta)
+
+  }
+
+  @Test
+  def boundaryTest2DRowAgainEvenWeirder(): Unit = {
+
+    val localSizeX = 6
+    val localSizeY = 8
+    val size = 12
+
+    val values = Array.tabulate(localSizeX,localSizeY) { (i,j) => (i*size + j + 1).toFloat }
+    val gold = Array(1.0f,61.0f,2.0f,62.0f,3.0f,63.0f,4.0f,64.0f,5.0f,65.0f,6.0f,66.0f,7.0f,67.0f,8.0f,68.0f)
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    def original2DStencil() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
+      (input) => {
+
+        val inputT = Transpose() o Transpose() $ input
+
+        toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ inputT.at(0), MapSeq(id) $ inputT.at(M-1))
+
+        //   toGlobal(MapSeq(MapSeq(id))) $ inputT
+
+      })
+
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original2DStencil,values)
+
+    print(values.map(_.mkString(" ")).mkString("\n"))
+    println("")
+    StencilUtilities.print2DArray(values)
+    println("")
+    StencilUtilities.print1DArray(gold)
+    println("")
+    StencilUtilities.print1DArray(output)
+
+    assertArrayEquals(output, gold, StencilUtilities.stencilDelta)
+
+  }
+
 
   // calculate main stencil from one array
   // concat together with original boundary points
