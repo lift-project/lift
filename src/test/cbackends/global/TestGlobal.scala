@@ -695,8 +695,8 @@ class TestGlobal {
   def batch_code_generate_for_cases_paper(): Unit = {
 
     //val path = s"$common_path/99.cases_paper"
-    val lambda_path = System.getProperty("user.dir") + "/../../../generated_files_08.04.2019_13.49.18_first_7_layers_10_points/"
-    val generated_c_path = "/home/nm/cases/cases19experiments/generated_c_files/"
+    val lambda_path = System.getenv("LAMBDA_PATH")// System.getProperty("user.dir") + "/../../../generated_files_08.04.2019_13.49.18_first_7_layers_10_points/"
+    val generated_c_path = System.getenv("GENERATED_C_PATH")//"/home/nm/cases/cases19experiments/generated_c_files/"
 //    val generated_c_path = "/home/lu/Documents/Research/Experiments/Cases19/generated_c_files/"
 
 
