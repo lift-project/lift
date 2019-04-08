@@ -128,7 +128,7 @@ package object nn {
       assertEquals(
         f"result($inputIdx)($kernelIdx)($rowIdx)($elIdx) != " +
           f"gold($inputIdx)($kernelIdx)($rowIdx)($elIdx)",
-        el._1, el._2, 0.001)
+        el._1, el._2, 0.1)
     }
   }
 }
