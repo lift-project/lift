@@ -1,7 +1,7 @@
 package patterns.nn.conv
 
 import ir.ast.debug.AssertType
-import ir.ast.{ArrayAccess, Expr, FunDecl, Gather, Get, Join, Lambda, Lambda2, Map, ReorderWithStride, Slide, Split, TiledSlidedND, TransposeW, UserFun, Value, Zip, asVector, λ}
+import ir.ast.{ArrayAccess, Expr, FunDecl, Gather, Get, Join, Lambda, Lambda2, Let, Map, ReorderWithStride, Slide, Split, TiledSlidedND, Transpose, TransposeW, UserFun, Value, Zip, asVector, λ}
 import ir.{ArrayType, TupleType, Type}
 import lift.arithmetic.{ArithExpr, Cst, Var}
 import opencl.ir._
@@ -271,67 +271,52 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
         (K, X) => {
           /** * Layer BEGIN ***/
           AssertType(partReducedXType, "Part reduced X type") o
-            Join() o
-            MapWrg(2)(λ(originalXType, (XUnwrapped) => {
-              MapWrg(1)(λ(xTileType, (XTile) => {
-                /** * Tile BEGIN ***/
+            MapWrg(1)(λ(xTileType, (XTile) => {
+              /** * Tile BEGIN ***/
 
-                AssertType(partReducedXTileType, "Part reduced X XTile type") o
-                  MapWrg(0)(λ(kernelWGroupType, (kernelWGroup) => {
-                    /** *** Output channel group BEGIN *****/
+              AssertType(partReducedXTileType, "Part reduced X XTile type") o
+                MapWrg(0)(λ(kernelWGroupType, (kernelWGroup) => {
+                  /** *** Output channel group BEGIN *****/
 
-                    AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") o
-      TransposeW() o
-                      MapLcl(1)(λ(windowType, (window) =>
+                  AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") o
+                    TransposeW() o
+                    MapLcl(1)(λ(windowType, (window) =>
+                      TransposeW() o
 
-                        /** ***** Sliding window BEGIN *******/
-//                        AssertType(partReducedOutChannelType, "Part reduced X output channel type") o // TODO
-                      MapLcl(2)(λ(kernelWWindowType, (kernelWWindow) =>
-                        /** *** Output channel BEGIN *****/
+                        MapLcl(0)(λ((partialWindowAndPartialKernels) => {
 
+//                          val partialWindow = MapSeq(toPrivate(id)) $ Get(partialWindowAndPartialKernels, 0)
 
-                            AssertType(partReducedWindowType, "Part reduced window type") o
-                              /* Remove the one-sized dimension introduced by Reduce */
-                              Join() o
-                              MapLcl(0)(λ(TupleType(windowSeqTileType, windowSeqTileType),
-                                (SeqTileAndWeightsAndAcc) => {
-                                  toGlobal(MapSeq(id)) o
-                                    /*ReduceSeqMaybeUnroll*/ ReduceSeq(
+                          Let(partialWindow => {
+
+                            val partialKernels = Get(partialWindowAndPartialKernels, 1)
+
+                            Join() o
+                              MapSeq(λ((partialKernel) =>
+                                MapSeq(toGlobal(id)) o
+                                  ReduceSeq(
                                     λ((acc, y) => {
-
-                                      /** ******* Reducing window tile BEGIN *********/
-                                      //                                        if (tuneParams.vectorLen == 1)
-                                      //                                          multAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
-                                      //                                        else
-                                      //                                          dotAndSumUp(acc,
-                                      //                                            ArrayToVector() $ /* X */ Get(y, 0),
-                                      //                                            ArrayToVector() $ /* kernelWWindow */ Get(y, 1))
-                                      dotAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
+                                      dotAndSumUp(acc, /* X */ Get(y, 0), /* kernelW */ Get(y, 1))
                                     }),
                                     toPrivate(id) $ Value("0.0f", Float)) $
-                                    Zip(
-                                      AssertType(windowSeqTileType) $ Get(SeqTileAndWeightsAndAcc, 0),
-                                      AssertType(windowSeqTileType) $ Get(SeqTileAndWeightsAndAcc, 1))
 
-                                  /** ******* Reducing window tile END *********/
-                                })) $ Zip(window, /*Get(kernelWWindow, weightsNoInTuple)*/ kernelWWindow)
+                                  Zip(partialWindow, partialKernel)
+                              )) $ partialKernels
 
-                            /** *** Output channel END *****/
-                          )) o AssertType(kernelWGroupType, "Kernel weights group type") $ kernelWGroup
-
-                        /** ***** Sliding window END *******/
-                      )) o AssertType(xTileType) $ XTile
+                          })  o MapSeq(toPrivate(id)) $ Get(partialWindowAndPartialKernels, 0)
 
 
-                    /** *** Output channel group END *****/
-                  })) o AssertType(kernelWType, "All kernel weights type after split") o
-                  Split(tuneParams.nKernelsPerWrg) o Map(TileAndCoalesce() o Join() o Map(Join())) $ K
 
-                /** * Tile END ***/
-              })) o SlideX() $ XUnwrapped
+                        })) $ Zip(window, Transpose() $ kernelWGroup)
+                    ))/* o Map(Split(nWindowsPerKernels))*/ $ XTile
 
-            // Wrap X into an array of 1
-          })) o Split(layerConfig.nInputs) $ X
+                  /** *** Output channel group END *****/
+                })) o AssertType(kernelWType, "All kernel weights type after split") o
+                Split(tuneParams.nKernelsPerWrg) o Map(TileAndCoalesce() o Join() o Map(Join())) $ K
+
+              /** * Tile END ***/
+            })) o SlideX() $ X
+
 
           /** * Layer END ***/
         })
