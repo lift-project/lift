@@ -293,7 +293,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                               /* Remove the one-sized dimension introduced by Reduce */
                               Join() o
                               MapLcl(0)(λ(TupleType(windowSeqTileType, windowSeqTileType),
-                                (SeqTileAndWeightsAndAcc) => {
+                                (seqTileAndWeights) => {
                                   toGlobal(MapSeq(id)) o
                                     /*ReduceSeqMaybeUnroll*/ReduceSeq(
                                       λ((acc, y) => {
@@ -309,8 +309,8 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                                       }),
                                       toPrivate(id) $ Value("0.0f", Float)) $
                                     Zip(
-                                      AssertType(windowSeqTileType) $ Get(SeqTileAndWeightsAndAcc, 0),
-                                      AssertType(windowSeqTileType) $ Get(SeqTileAndWeightsAndAcc, 1))
+                                      AssertType(windowSeqTileType) $ Get(seqTileAndWeights, 0),
+                                      AssertType(windowSeqTileType) $ Get(seqTileAndWeights, 1))
 
                                   /** ******* Reducing window tile END *********/
                                 })) $ Zip(window, /*Get(kernelWWindow, weightsNoInTuple)*/ kernelWWindow)
