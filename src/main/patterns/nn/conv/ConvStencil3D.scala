@@ -281,45 +281,47 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                     /** *** Output channel group BEGIN *****/
 
                     AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") o
-                      MapLcl(2)(λ(kernelWWindowType, (kernelWWindow) => {
+      TransposeW() o
+                      MapLcl(1)(λ(windowType, (window) =>
+
+                        /** ***** Sliding window BEGIN *******/
+//                        AssertType(partReducedOutChannelType, "Part reduced X output channel type") o // TODO
+                      MapLcl(2)(λ(kernelWWindowType, (kernelWWindow) =>
                         /** *** Output channel BEGIN *****/
 
-                        AssertType(partReducedOutChannelType, "Part reduced X output channel type") o
-                          MapLcl(1)(λ(windowType, (window) =>
-
-                            /** ***** Sliding window BEGIN *******/
 
                             AssertType(partReducedWindowType, "Part reduced window type") o
                               /* Remove the one-sized dimension introduced by Reduce */
                               Join() o
                               MapLcl(0)(λ(TupleType(windowSeqTileType, windowSeqTileType),
-                                (seqTileAndWeights) => {
+                                (SeqTileAndWeightsAndAcc) => {
                                   toGlobal(MapSeq(id)) o
-                                    /*ReduceSeqMaybeUnroll*/ReduceSeq(
-                                      λ((acc, y) => {
+                                    /*ReduceSeqMaybeUnroll*/ ReduceSeq(
+                                    λ((acc, y) => {
 
-                                        /** ******* Reducing window tile BEGIN *********/
-  //                                        if (tuneParams.vectorLen == 1)
-  //                                          multAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
-  //                                        else
-  //                                          dotAndSumUp(acc,
-  //                                            ArrayToVector() $ /* X */ Get(y, 0),
-  //                                            ArrayToVector() $ /* kernelWWindow */ Get(y, 1))
-                                        dotAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
-                                      }),
-                                      toPrivate(id) $ Value("0.0f", Float)) $
+                                      /** ******* Reducing window tile BEGIN *********/
+                                      //                                        if (tuneParams.vectorLen == 1)
+                                      //                                          multAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
+                                      //                                        else
+                                      //                                          dotAndSumUp(acc,
+                                      //                                            ArrayToVector() $ /* X */ Get(y, 0),
+                                      //                                            ArrayToVector() $ /* kernelWWindow */ Get(y, 1))
+                                      dotAndSumUp(acc, /* X */ Get(y, 0), /* kernelWWindow */ Get(y, 1))
+                                    }),
+                                    toPrivate(id) $ Value("0.0f", Float)) $
                                     Zip(
-                                      AssertType(windowSeqTileType) $ Get(seqTileAndWeights, 0),
-                                      AssertType(windowSeqTileType) $ Get(seqTileAndWeights, 1))
+                                      AssertType(windowSeqTileType) $ Get(SeqTileAndWeightsAndAcc, 0),
+                                      AssertType(windowSeqTileType) $ Get(SeqTileAndWeightsAndAcc, 1))
 
                                   /** ******* Reducing window tile END *********/
                                 })) $ Zip(window, /*Get(kernelWWindow, weightsNoInTuple)*/ kernelWWindow)
 
-                            /** ***** Sliding window END *******/
-                          )) o AssertType(xTileType) $ XTile
+                            /** *** Output channel END *****/
+                          )) o AssertType(kernelWGroupType, "Kernel weights group type") $ kernelWGroup
 
-                        /** *** Output channel END *****/
-                      })) o AssertType(kernelWGroupType, "Kernel weights group type") $ kernelWGroup
+                        /** ***** Sliding window END *******/
+                      )) o AssertType(xTileType) $ XTile
+
 
                     /** *** Output channel group END *****/
                   })) o AssertType(kernelWType, "All kernel weights type after split") o
