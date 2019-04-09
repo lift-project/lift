@@ -1200,4 +1200,40 @@ class TestHost {
   }
 
 
+  @Test
+  def test_conv2d_for_cases_paper(): Unit = {
+
+    val path = s"$common_path/33.conv2d_for_cases_paper"
+    val file = "libconv2d.cpp"
+
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 8), 8),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 6), 6),
+      (in, weights) =>   MapSeq( Join() o MapSeq(
+
+        fun(square =>
+
+          ReduceSeq(add, 0.0f) o
+            MapSeq( fun(y => mult.apply(Get(y,0), Get(y,1))) )
+            $ Zip( Join() $ square, Join() $ weights)
+
+        )
+
+      ) )  o Slide2D(6,1) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    //6*6*8*2 = 576
+    val expected : String = "72 72 72 72 72 72 72 72 72 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide2d done!")
+  }
+
+
 }
