@@ -368,7 +368,6 @@ case class ViewOffset(offset : ArithExpr, iv : View, override val t : Type) exte
  * @param t Type of the view.
  */
 case class ViewAccess(i: ArithExpr, iv: View, override val t: Type) extends View(t)
-
 /**
   * wrapping another view in an array of size 1
   *
@@ -667,9 +666,10 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         emitView(iv, i :: arrayAccessStack, tupleAccessStack)
 
       case ViewArrayWrapper(iv, ty) =>
-        val idx :: indices = arrayAccessStack
-       // assert(idx == Cst(0))
-        emitView(iv,indices,tupleAccessStack)
+            val idx :: indices = arrayAccessStack
+           // assert(idx == Cst(0))
+            emitView(iv,indices,tupleAccessStack)
+
 
       case ViewMap(iv, itVar, _) =>
         val idx :: indices = arrayAccessStack

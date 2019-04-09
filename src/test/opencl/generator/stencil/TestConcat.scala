@@ -1,7 +1,7 @@
 package opencl.generator.stencil
 
 import ir.ArrayTypeWSWC
-import ir.ast.{ArrayFromExpr, ConcatFunction, Get, PadConstant, Slide, Transpose, UserFun, Zip, fun}
+import ir.ast.{ArrayAccess, ArrayFromExpr, ConcatFunction, Get, PadConstant, Slide, Transpose, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.generator.stencil.acoustic.StencilUtilities
@@ -153,6 +153,39 @@ class TestConcat
 
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original2DStencil(slidesize,slidestep),values)
 
+    assertArrayEquals(output, gold, StencilUtilities.stencilDelta)
+
+  }
+
+  @Test
+  def boundaryTest2DColumnWorkaround(): Unit = {
+
+    val localSizeX = 6
+    val localSizeY = 8
+    val size = 12
+
+    val values = Array.tabulate(localSizeX,localSizeY) { (i,j) => (i*size + j + 1).toFloat }
+    val gold = Array(1.0f,8.0f,13.0f,20.0f,25.0f,32.0f,37.0f,44.0f,49.0f,56.0f,61.0f,68.0f)
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    def original2DStencil() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
+      (input) => {
+
+        val inputT = Transpose()  $ input
+
+        toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ inputT.at(0), MapSeq(id) o ArrayAccess(N-1) o toGlobal(MapSeq(MapSeq(id))) $ inputT)
+
+      })
+
+    println(Compile(original2DStencil))
+
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original2DStencil,values)
+
+    print(values.map(_.mkString(" ")).mkString("\n"))
+    println("")
     StencilUtilities.print2DArray(values)
     println("")
     StencilUtilities.print1DArray(gold)
@@ -182,11 +215,12 @@ class TestConcat
 
         val inputT = Transpose()  $ input
 
-        toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ inputT.at(0), MapSeq(id) $ inputT.at(N-1))
-
-     //   toGlobal(MapSeq(MapSeq(id))) $ inputT
+        MapSeq(id) $ inputT.at(N-1)
+        //toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ inputT.at(0), MapSeq(id) $ inputT.at(N-1))
 
       })
+
+    println(Compile(original2DStencil))
 
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original2DStencil,values)
 
@@ -223,7 +257,7 @@ class TestConcat
 
         toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ inputT.at(0), MapSeq(id) $ inputT.at(M-1))
 
-        //   toGlobal(MapSeq(MapSeq(id))) $ inputT
+        // toGlobal(MapSeq(MapSeq(id))) $ inputT
 
       })
 
@@ -240,7 +274,6 @@ class TestConcat
     assertArrayEquals(output, gold, StencilUtilities.stencilDelta)
 
   }
-
 
   // calculate main stencil from one array
   // concat together with original boundary points
