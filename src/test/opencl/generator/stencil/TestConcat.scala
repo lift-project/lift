@@ -275,6 +275,64 @@ class TestConcat
 
   }
 
+  // ideally use concat
+  @Test
+  def boundaryTest1DTwoPoints(): Unit = {
+
+    val slidesize = 3
+    val slidestep = 1
+    val size = 10
+    val N = SizeVar("N")
+
+    val constL = 2.0f
+    val constR = 3.0f
+
+    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+    val gold = Array(1.0f,2.0f,9.0f,10.0f)
+
+    def boundary = fun(
+      ArrayTypeWSWC(Float,N),
+      (input) => {
+
+        toGlobal(MapSeq(tf4_id)) $ Zip(MapSeq(id) $ ArrayFromExpr(input.at(0)),MapSeq(id) $ ArrayFromExpr(input.at(1)), MapSeq(id) $ ArrayFromExpr(input.at(N-2)),MapSeq(id) $ ArrayFromExpr(input.at(N-1)))
+
+      })
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](boundary, values)
+
+    assertArrayEquals(gold, output, 0.1f)
+
+  }
+
+  @Test
+  def boundaryTest2DRowTwoRows(): Unit = {
+
+    val localSizeX = 6
+    val localSizeY = 8
+    val size = 12
+    val slidesize = 3
+    val slidestep = 1
+
+    val values = Array.tabulate(localSizeX,localSizeY) { (i,j) => (i*size + j + 1).toFloat }
+    val gold = Array(1.0f,13.0f,49.0f,61.0f,2.0f,14.0f,50.0f,62.0f,3.0f,15.0f,51.0f,63.0f,4.0f,16.0f,52.0f,64.0f,5.0f,17.0f,53.0f,65.0f,6.0f,18.0f,54.0f,66.0f,7.0f,19.0f,55.0f,67.0f,8.0f,20.0f,56.0f,68.0f)
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    def original2DStencil(size: Int, step: Int) = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
+      (input) => {
+
+        toGlobal(MapSeq(tf4_id)) $ Zip(MapSeq(id) $ input.at(0), MapSeq(id) $ input.at(1), MapSeq(id) $ input.at(M-2),MapSeq(id) $ input.at(M-1))
+
+      })
+
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](original2DStencil(slidesize,slidestep),values)
+
+    assertArrayEquals(output, gold, StencilUtilities.stencilDelta)
+
+  }
+
   // calculate main stencil from one array
   // concat together with original boundary points
   @Test
@@ -305,35 +363,32 @@ class TestConcat
     def stencil1D(a: Int, b: Int) = fun(
       ArrayTypeWSWC(Float,N),
       (input) => {
-        ConcatFunction(
-          toGlobal(id) o toPrivate(fun(x => mult(x,constL)))  $ input.at(0), // this needs to be an array!
+        //ConcatFunction(
+         // ArrayFromExpr(toGlobal(id) o toPrivate(fun(x => mult(x,constL)))  $ input.at(0)), // this needs to be an array!
           MapGlb(0)(fun(tup => {
 
             val neighbourhood = Get(tup,1)
             val t = Get(tup,0)
 
-            //val main = toPrivate(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
-
             toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
 
-          })) $ Zip(input, Slide(a,b) o PadConstant(1,1,0.0f) $ input),
-          toPrivate(fun(x => mult(x,constR))) $ input.at(N-1)) // this needs to be an array!
+          })) $ Zip(input, Slide(a,b) o PadConstant(1,1,0.0f) $ input)
+        // , ArrayFromExpr(toPrivate(fun(x => mult(x,constR))) $ input.at(N-1))) // this needs to be an array!
       }
     )
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values)
 
-    /*
     // sanity check
     StencilUtilities.print1DArray(values)
     StencilUtilities.print1DArray(gold)
     StencilUtilities.print1DArray(output)
+    /*
     */
 
     assertArrayEquals(gold, output, 0.1f)
 
   }
-
 
   // calculate main stencil from one array
   // concat together with original boundary points multiplied by corresponding values in another array
@@ -344,6 +399,7 @@ class TestConcat
     val slidesize = 3
     val slidestep = 1
     val size = 10
+    val bPts = 3 // boundary points
     val N = SizeVar("N") // number of values in original array (+ pad constant)
     val M = SizeVar("M") // size of boundary ( 3 ) --> need to be able to loop over 3 separately
 
@@ -351,6 +407,9 @@ class TestConcat
     val constR = 3.0f
 
     val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+    val boundaryValues = Array.tabulate(bPts) { (i) => (i * 3).toFloat }
+    StencilUtilities.print1DArray(boundaryValues)
+
     val bL = values(0)
     val bR = values(size-1)
     val bAdded = bL + bR
@@ -368,8 +427,8 @@ class TestConcat
       ArrayTypeWSWC(Float,N),
       ArrayTypeWSWC(Float,M),
       (input,boundaryA) => {
-        ConcatFunction(
-          toGlobal(id) o toPrivate(fun(x => mult(x,constL))) $ input.at(0),
+//        ConcatFunction(
+//          toGlobal(MapSeqUnroll(id)) o toPrivate(fun(x => mult(x,input.at(0)))) $ boundaryA,
           MapGlb(0)(fun(tup => {
 
             val neighbourhood = Get(tup,1)
@@ -379,19 +438,19 @@ class TestConcat
 
             toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
 
-          })) $ Zip(input, Slide(a,b) o PadConstant(1,1,0.0f) $ input),
-          toPrivate(fun(x => mult(x,constR))) $ input.at(N-1))
+          })) $ boundaryA //Zip(input, Slide(a,b) o PadConstant(1,1,0.0f) $ input)
+ //         ,toPrivate(fun(x => mult(x,constR))) $ input.at(N-1))
       }
     )
 
-    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values)
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values, boundaryValues)
 
     /*
     // sanity check
     StencilUtilities.print1DArray(values)
     StencilUtilities.print1DArray(gold)
-    StencilUtilities.print1DArray(output)
     */
+    StencilUtilities.print1DArray(output)
 
     assertArrayEquals(gold, output, 0.1f)
 

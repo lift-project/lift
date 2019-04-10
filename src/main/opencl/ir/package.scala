@@ -30,6 +30,7 @@ package object ir {
 
   val t_id = UserFun("tuple_id", "x", "return x;", TupleType(Int, Int), TupleType(Int, Int))
   val tf_id = UserFun("tuple_id", "x", "return x;", TupleType(Float, Float), TupleType(Float, Float))
+  val tf4_id = UserFun("tuple4_id", "x", "return x;", TupleType(Float,Float,Float, Float), TupleType(Float, Float,Float,Float))
   val i_id = UserFun("int_id", "x", "return x;", Int, Int)
   val int_add = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int)
 
