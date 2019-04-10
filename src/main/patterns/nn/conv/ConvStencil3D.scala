@@ -1,8 +1,8 @@
 package patterns.nn.conv
 
 import ir.ast.debug.AssertType
-import ir.ast.{ArrayAccess, Expr, FunDecl, Gather, Get, Join, Lambda, Lambda2, Let, Map, ReorderWithStride, Slide, Split, TiledSlidedND, Transpose, TransposeW, UserFun, Value, Zip, asVector, λ}
-import ir.{ArrayType, TupleType, Type}
+import ir.ast.{ArrayAccess, Expr, FunDecl, Gather, Get, Join, Lambda, Lambda2, Let, Map, ReorderWithStride, RewritingGuidePost, Slide, Split, TiledSlidedND, Transpose, TransposeW, UserFun, Value, Zip, asVector, λ}
+import ir.{ArrayType, ArrayTypeWSWC, TupleType, Type}
 import lift.arithmetic.{ArithExpr, Cst, Var}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -287,27 +287,66 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
 
 //                          val partialWindow = MapSeq(toPrivate(id)) $ Get(partialWindowAndPartialKernels, 0)
 
-                          Let(partialWindow => {
+                          {
+                            def processPartialWindowsAndPartialKernels(switch: Boolean): Expr = {
 
-                            val partialKernels = Get(partialWindowAndPartialKernels, 1)
+                              if (switch) {
+                                // AT(float, nKernelsPerWrg)
+                                Let(partialWindow => {
 
-                            Join() o
-                              MapSeq(λ((partialKernel) =>
-                                MapSeq(toGlobal(id)) o
-                                  ReduceSeq(
-                                    λ((acc, y) => {
-                                      dotAndSumUp(acc, /* X */ Get(y, 0), /* kernelW */ Get(y, 1))
-                                    }),
-                                    toPrivate(id) $ Value("0.0f", Float)) $
+                                  val partialKernels = Get(partialWindowAndPartialKernels, 1)
 
-                                  Zip(partialWindow, partialKernel)
-                              )) $ partialKernels
+                                  Join() o
+                                    MapSeq(λ((partialKernel) =>
+                                      MapSeq(toGlobal(id)) o
+                                        ReduceSeq(
+                                          λ((acc, y) => {
+                                            RewritingGuidePost("dotAndSumUpToVectorise") $
+                                              dotAndSumUp(acc, /* X */ Get(y, 0), /* kernelW */ Get(y, 1))
+                                          }),
+                                          toPrivate(id) $ Value("0.0f", Float)) $ Zip(partialWindow, partialKernel)
+                                    )) $ partialKernels
 
-                          })  o MapSeq(toPrivate(id)) $ Get(partialWindowAndPartialKernels, 0)
+                                }) o MapSeq(toPrivate(RewritingGuidePost("idToVectorise") o id)) $
+                                  Get(partialWindowAndPartialKernels, 0)
+
+                              } else {
+
+                                val partialKernels = Get(partialWindowAndPartialKernels, 1)
+
+                                MapSeq(toGlobal(id)) o Join() o
+                                  ReduceSeq(λ((acc, tupleOfSingleWindowValueAndArrayOfSingleKernelValue) => {
+
+                                    Let(singleWindowValue => {
+
+                                      val arrayOfSingleKernelValue = Get(tupleOfSingleWindowValueAndArrayOfSingleKernelValue, 1)
+
+                                      MapSeq(λ((accAndSingleKernelValue) => {
+                                        val accSingleValue = Get(accAndSingleKernelValue, 0)
+                                        val singleKernelValue = Get(accAndSingleKernelValue, 1)
+
+                                        RewritingGuidePost("vectorisableDotAndSumUp") $
+                                        dotAndSumUp(accSingleValue, /* X */ singleWindowValue, /* kernelW */ singleKernelValue)
+                                      }
+                                      )) $ Zip(acc, arrayOfSingleKernelValue)
+                                    }) o toPrivate(RewritingGuidePost("vectorisableId") o id) $
+                                      Get(tupleOfSingleWindowValueAndArrayOfSingleKernelValue, 0)
+                                  }),
+                                    MapSeq(toPrivate(id)) $ Value("0.0f", ArrayTypeWSWC(Float, tuneParams.nKernelsPerWrg))
+
+                                  ) $ Zip(
+                                  Get(partialWindowAndPartialKernels, 0),
+                                  Transpose() $ partialKernels)
+                              }
+                            }
+
+                            processPartialWindowsAndPartialKernels(false)
+                          }
 
 
-
-                        })) $ Zip(window, Transpose() $ kernelWGroup)
+                        })) $ Zip(
+                        Map(RewritingGuidePost("potentialAsVector")) $ window,
+                        Map(Map(RewritingGuidePost("potentialAsVector"))) o Transpose() $ kernelWGroup)
                     ))/* o Map(Split(nWindowsPerKernels))*/ $ XTile
 
                   /** *** Output channel group END *****/

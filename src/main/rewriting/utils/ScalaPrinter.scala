@@ -12,7 +12,7 @@ object ScalaPrinter {
   def apply(expr: Expr): String = {
     expr match {
       case funCall: FunCall => funCall.f match {
-        case AssertType(_, _) | PrintType(_) =>
+        case AssertType(_, _) | PrintType(_) | RewritingGuidePost(_) =>
           // Skip these primitives and just print their arguments
           apply(funCall.args.head)
         case _ =>

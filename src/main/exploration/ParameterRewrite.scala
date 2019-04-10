@@ -2,7 +2,7 @@ package exploration
 
 import ir.{Type, TypeChecker}
 import ir.ast.debug.AssertType
-import ir.ast.{Expr, FPattern, FunCall, FunDecl, Lambda, Param, Slide, Split}
+import ir.ast.{Expr, FPattern, FunCall, FunDecl, Lambda, Param, Slide, Split, Value}
 import lift.arithmetic.{ArithExpr, Cst, Var}
 
 object ParameterRewrite {
@@ -43,6 +43,10 @@ object ParameterRewrite {
             case f => f
           }, newArgs: _*)
         }
+
+        case Value(value, typ) =>
+          Value(value, Type.substitute(typ, substitutionTable.toMap))
+
         case other => other
     }
 

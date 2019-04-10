@@ -1,6 +1,6 @@
 package rewriting.rules
 
-import ir.ast.{Expr, FunCall, FunDecl, Get, Lambda, Lambda1, Let, UserFun, Value, Zip, asVector, λ}
+import ir.ast.{Expr, FunCall, FunDecl, Get, Lambda, Lambda1, Let, RewritingGuidePost, UserFun, Value, Zip, asVector, λ}
 import ir.ast.onnx.{AveragePool, ConvWithBias, ConvWithoutBias}
 import opencl.ir.Float4
 import opencl.ir.pattern.{MapLcl, MapSeq, ReduceSeq, toPrivate}
@@ -41,42 +41,53 @@ object NeuralNetRules {
   }
 
   object StencilRules {
-    val vectorise4Funs = Rule("" , {
-      case FunCall(uf: UserFun, ufArgs@_*) if uf.name == "dotAndSumUp" =>
+    val vectorise4Marker = Rule("", {
+      case FunCall(RewritingGuidePost("potentialAsVector"), arg) => asVector(4) $ arg
+    })
+
+    val vectorise4Id = Rule("", {
+      case FunCall(RewritingGuidePost("vectorisableId"), FunCall(uf: UserFun, ufArg))
+        if uf.name == "id" =>
+        UserFun("idF4", "x", "{ return x; }", Float4, Float4) $ ufArg
+    })
+
+    val vectorise4DotAndSumUp = Rule("", {
+      case FunCall(RewritingGuidePost("vectorisableDotAndSumUp"), FunCall(uf: UserFun, ufArgs@ _*))
+        if uf.name == "dotAndSumUp" =>
 
         FunCall(UserFun("dotAndSumUp_float4", Array("acc", "l", "r"), "{ return acc + dot(l, r); }",
           Seq(opencl.ir.Float, opencl.ir.Float4, opencl.ir.Float4), opencl.ir.Float), ufArgs: _*)
-
-
-      case FunCall(MapSeq(Lambda1(_, FunCall(toPrivate(Lambda(_, FunCall(uf: UserFun, _), _)), _))),
-      mapSeqArg @ FunCall(_: Get, _)) if uf.name == "id" =>
-
-        val idF4 = UserFun("idF4", "x", "{ return x; }", Float4, Float4)
-
-        MapSeq(toPrivate(idF4)) $ mapSeqArg
     })
 
     val vectorise4 = Rule("", {
-      case FunCall(mapLcl0Call @ MapLcl(0, mapLcl0Body @ Lambda1(_, FunCall(_: Let, letArgs))), FunCall(_: Zip, zipArgs @ _*))
-      if Rewrite.listAllPossibleRewrites(mapLcl0Call, vectorise4Funs).nonEmpty =>
-        val vectorisedZipArg0 = ir.ast.Map(asVector(4)) $ zipArgs(0)
-        val vectorisedZipArg1 = ir.ast.Map(ir.ast.Map(asVector(4))) $ zipArgs(1)
+      case FunCall(callBody, FunCall(_: Zip, zipArgs@_*))
+        if zipArgs.forall(zipArg => Rewrite.listAllPossibleRewrites(zipArg, vectorise4Marker).nonEmpty) =>
 
-        val vectorisedZip = Zip(vectorisedZipArg0, vectorisedZipArg1)
+        val vectorisedZipArgs = zipArgs.map(zipArg => {
+          val rewrites = Rewrite.listAllPossibleRewrites(zipArg, vectorise4Marker)
+          rewrites.foldLeft(zipArg) {
+            case (rewrittenExpr: Expr, potentialRewrite: PotentialRewrite) =>
+              val replacement = potentialRewrite.rule.rewrite(potentialRewrite.expr)
 
-//        val vectorisedMapLcl0Call = mapLcl0Call $ vectorisedZip
+              Expr.replace(rewrittenExpr, potentialRewrite.expr, replacement)
+          }
+        })
 
-        val userFunRewrites = Rewrite.listAllPossibleRewrites(mapLcl0Call, vectorise4Funs)
+        val vectorisedCallBody = Seq(
+          vectorise4Marker,
+          vectorise4Id,
+          vectorise4DotAndSumUp).foldLeft[Lambda](callBody) {
+          case (rewrittenLambda: Lambda, rule: Rule) =>
+            val rewrites = Rewrite.listAllPossibleRewrites(rewrittenLambda, rule)
+            rewrites.foldLeft[Lambda](rewrittenLambda) {
+              case (partRewrittenLambda: Lambda, potentialRewrite: PotentialRewrite) =>
+                val replacement = potentialRewrite.rule.rewrite(potentialRewrite.expr)
 
-        val rewrittenMapLcl0Body = userFunRewrites.foldLeft[Lambda](mapLcl0Body) {
-          case (rewrittenLambda: Lambda, potentialRewrite: PotentialRewrite) =>
-            val replacement = potentialRewrite.rule.rewrite(potentialRewrite.expr)
-
-            Lambda(rewrittenLambda.params, Expr.replace(rewrittenLambda.body, potentialRewrite.expr, replacement))
+                Lambda(partRewrittenLambda.params, Expr.replace(partRewrittenLambda.body, potentialRewrite.expr, replacement))
+            }
         }
 
-        MapLcl(0)(rewrittenMapLcl0Body) $ vectorisedZip
+        FunCall(vectorisedCallBody, Zip(vectorisedZipArgs: _*))
     })
-
   }
 }
