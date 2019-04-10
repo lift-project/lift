@@ -7,6 +7,7 @@ import lift.arithmetic._
 import opencl.generator.NotPrintableExpression
 import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 object ScalaPrinter {
   def apply(expr: Expr): String = {
@@ -21,6 +22,13 @@ object ScalaPrinter {
       case value: Value => s"""Value("${value.value}", ${apply(value.t)})"""
       case param: Param => "p_" + param.hashCode()
       case _ => expr.toString
+    }
+  }
+
+  def apply(idxFun: IndexFunction): String = {
+    idxFun match {
+      case ReorderWithStride(s) => f"ReorderWithStride(${apply(s)})"
+      case x => throw new NotImplementedError(s"$x")
     }
   }
 
@@ -47,8 +55,12 @@ object ScalaPrinter {
       case bsearch: BSearch => s"BSearch(${apply(bsearch.f)})"
       case lsearch: LSearch => s"LSearch(${apply(lsearch.f)})"
       case vec: VectorizeUserFun => s"VectorizeUserFun(${apply(vec.n)},${vec.userFun})"
+      case Join() => s"Join()"
       case Split(n) => s"Split(${apply(n)})"
-      case _ => funDecl.toString
+      case Gather(idxFun) => s"Gather(${apply(idxFun)})"
+      case Scatter(idxFun) => s"Scatter(${apply(idxFun)})"
+//      case uf: UserFun => apply(uf)
+      case x => x.toString//throw new NotImplementedError(s"$x") // it's not ideal. we fix it later (c) Christophe
     }
   }
 

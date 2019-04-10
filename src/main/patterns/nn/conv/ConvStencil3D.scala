@@ -47,6 +47,8 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
 
   val nWindowsInTile = nWindowsInTileCol * nWindowsInTileRow // 1
 
+//  val nWindowGroupsInTile = nWindowsInTile /^ tuneParams.nWindowsPerThread
+
   val nTilesTotal = layerConfig.nInputs * nTilesInInput // 100
 
   val nKernelGroups = layerConfig.kernelChannels /^ tuneParams.nKernelsPerWrg
@@ -69,6 +71,9 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
   val windowType: AT = AT(windowSeqTileType, nSeqTilesInWindow)
   val xTileType: AT = AT(windowType, nWindowsInTile)
   val xType: AT = AT(xTileType, nTilesTotal)
+
+//  val windowGroupType = AT(windowType, tuneParams.nWindowsPerThread)
+//  val groupedXTileType: AT = AT(windowGroupType, nWindowGroupsInTile)
 
 
   val slidedXType: AT = AT(AT(AT(AT(AT(AT(AT(AT(originalElementType,
@@ -218,7 +223,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
           Split(tuneParams.seqOpsPerThread) o
           // Coalesce
           {
-            if (tuneParams.coalesce) Coalesce() else Continue()
+            if (true/*tuneParams.coalesce*/) Coalesce() else Continue()
           }
 
           $ window)
@@ -262,6 +267,164 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
           AssertType(reducedXType, "Reduced X type") $ reducedX)
 
     /** ********* F-prop lambda: convolution with partial reduction ***********/
+
+
+
+//    val layerPartialWithInputReusage: Lambda = {
+//      λ(AT(AT(AT(AT(Float, layerConfig.inputChannels),
+//        layerConfig.kernelWidthHeight),
+//        layerConfig.kernelWidthHeight),
+//        layerConfig.kernelChannels),
+//        originalXType,
+//        (K, X) => {
+//          /** * Layer BEGIN ***/
+//          AssertType(partReducedXType, "Part reduced X type") o
+//            MapWrg(1)(λ(xTileType, (XTile) => {
+//              /** * Tile BEGIN ***/
+//
+//              AssertType(partReducedXTileType, "Part reduced X XTile type") o
+//                MapWrg(0)(λ(kernelWGroupType, (kernelWGroup) => {
+//                  /** *** Output channel group BEGIN *****/
+//
+//                  AssertType(AT(AT(AT(AT(Float,
+//                    nSeqTilesInWindow),
+//                    tuneParams.nWindowsPerThread),
+//                    nWindowGroupsInTile),
+//                    tuneParams.nKernelsPerThread),
+//                    "") o
+//                    TransposeW() o
+//                    MapLcl(1)(λ(windowGroupType, (windowGroup) =>
+//
+//                      AssertType(AT(AT(AT(Float,
+//                        nSeqTilesInWindow),
+//                        tuneParams.nWindowsPerThread),
+//                        tuneParams.nKernelsPerThread),
+//                        "") o
+//                        Map(TransposeW()) o TransposeW() o
+//                        MapLcl(0)(λ((partialWindowsAndPartialKernels) => {
+//
+//
+//                          def processPartialWindowsAndPartialKernels(switch: Boolean): Expr = {
+//
+//                            if (switch) {
+//                              // AT(float, nKernelsPerWrg)
+//                              //                                Let(partialWindow => {
+//                              //
+//                              //                                  val partialKernels = Get(partialWindowAndPartialKernels, 1)
+//                              //
+//                              //                                  Join() o
+//                              //                                    MapSeq(λ((partialKernel) =>
+//                              //                                      MapSeq(toGlobal(id)) o
+//                              //                                        ReduceSeq(
+//                              //                                          λ((acc, y) => {
+//                              //                                            RewritingGuidePost("dotAndSumUpToVectorise") $
+//                              //                                              dotAndSumUp(acc, /* X */ Get(y, 0), /* kernelW */ Get(y, 1))
+//                              //                                          }),
+//                              //                                          toPrivate(id) $ Value("0.0f", Float)) $ Zip(partialWindow, partialKernel)
+//                              //                                    )) $ partialKernels
+//                              //
+//                              //                                }) o MapSeq(toPrivate(RewritingGuidePost("idToVectorise") o id)) $
+//                              //                                  Get(partialWindowAndPartialKernels, 0)
+//                              Let(partialWindows => {
+//
+//                                Let(partialKernels => {
+//                                  //
+//                                  TransposeW() o
+//                                    MapSeq(λ((partialWindow) =>
+//
+//                                      AssertType(AT(Float, tuneParams.nKernelsPerThread),
+//                                        "Seqtiles reduced to one element each, one for each kernel in kernel group") o
+//
+//                                        Join() o
+//                                        MapSeq(λ((partialKernel) =>
+//                                          MapSeq(toGlobal(id)) o
+//                                            ReduceSeq(
+//                                              λ((acc, y) => {
+//                                                RewritingGuidePost("dotAndSumUpToVectorise") $
+//                                                  dotAndSumUp(acc, /* X */ Get(y, 0), /* kernelW */ Get(y, 1))
+//                                              }),
+//                                              toPrivate(id) $ Value("0.0f", Float)) $
+//
+//                                            Zip(partialWindow, partialKernel)
+//                                        )) $ partialKernels
+//                                    )) $ partialWindows
+//
+//                                }) o MapSeq(MapSeq(toPrivate(RewritingGuidePost("idToVectorise") o id))) $
+//                                  Get(partialWindowsAndPartialKernels, 1)
+//                              }) o MapSeq(MapSeq(toPrivate(RewritingGuidePost("idToVectorise") o id))) $
+//                                Get(partialWindowsAndPartialKernels, 0)
+//
+//                            } else {
+//
+//                              val partialWindows = Get(partialWindowsAndPartialKernels, 0)
+//                              val partialKernels = Get(partialWindowsAndPartialKernels, 1)
+//
+//                              MapSeq()
+//
+//
+//                              val partialKernels = Get(partialWindowAndPartialKernels, 1)
+//
+//                              MapSeq(toGlobal(id)) o Join() o
+//                                ReduceSeq(λ((acc, tupleOfSingleWindowValueAndArrayOfSingleKernelValue) => {
+//
+//                                  Let(singleWindowValue => {
+//
+//                                    val arrayOfSingleKernelValue = Get(tupleOfSingleWindowValueAndArrayOfSingleKernelValue, 1)
+//
+//                                    MapSeq(λ((accAndSingleKernelValue) => {
+//                                      val accSingleValue = Get(accAndSingleKernelValue, 0)
+//                                      val singleKernelValue = Get(accAndSingleKernelValue, 1)
+//
+//                                      RewritingGuidePost("vectorisableDotAndSumUp") $
+//                                        dotAndSumUp(accSingleValue, /* X */ singleWindowValue, /* kernelW */ singleKernelValue)
+//                                    }
+//                                    )) $ Zip(acc, arrayOfSingleKernelValue)
+//                                  }) o toPrivate(RewritingGuidePost("vectorisableId") o id) $
+//                                    Get(tupleOfSingleWindowValueAndArrayOfSingleKernelValue, 0)
+//                                }),
+//                                  MapSeq(toPrivate(id)) $ Value("0.0f", ArrayTypeWSWC(Float, tuneParams.nKernelsPerThread))
+//
+//                                ) $ Zip(
+//                                Get(partialWindowAndPartialKernels, 0),
+//                                Transpose() $ partialKernels)
+//                            }
+//                          }
+//
+//                          AssertType(AT(AT(Float, tuneParams.nWindowsPerThread), tuneParams.nKernelsPerThread),
+//                            "Seqtiles reduced to one element each, one for each kernel in kernel group and " +
+//                              "for each sliding window in window group") $
+//                            //
+//                            processPartialWindowsAndPartialKernels(false)
+//
+//                        })) o AssertType(TupleType(
+//                        AT(AT(AT(Float, tuneParams.seqOpsPerThread), tuneParams.nWindowsPerThread), nSeqTilesInWindow),
+//                        AT(AT(AT(Float, tuneParams.seqOpsPerThread), tuneParams.nKernelsPerThread), nSeqTilesInWindow)),
+//                        "Tuple of arrays of seqtiles for nWindowsPerThread and nKernelsPerThread") $
+//                        Zip(
+//                          Map(RewritingGuidePost("potentialAsVector")) o Transpose() $ windowGroup,
+//                          Map(Map(RewritingGuidePost("potentialAsVector"))) o Transpose() $ kernelWGroup)
+//
+//                    )) o AssertType(groupedXTileType, "Grouped X tile") o
+//                    Split(tuneParams.nWindowsPerThread) $ XTile
+//
+//                  /** *** Output channel group END *****/
+//                })) o AssertType(kernelWType, "All kernel weights type after split") o
+//                Split(tuneParams.nKernelsPerThread) o Map(TileAndCoalesce() o Join() o Map(Join())) $ K
+//
+//              /** * Tile END ***/
+//            })) o SlideX() $ X
+//
+//
+//          /** * Layer END ***/
+//        })
+//    }
+
+
+
+
+
+
+
     val layerPartial: Lambda = {
       λ(AT(AT(AT(AT(Float, layerConfig.inputChannels),
         layerConfig.kernelWidthHeight),
@@ -345,6 +508,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
 
 
                         })) $ Zip(
+                        //AT(AT(Float, tuneParams.seqOpsPerThread), nSeqTilesInWindow)
                         Map(RewritingGuidePost("potentialAsVector")) $ window,
                         Map(Map(RewritingGuidePost("potentialAsVector"))) o Transpose() $ kernelWGroup)
                     ))/* o Map(Split(nWindowsPerKernels))*/ $ XTile
@@ -569,18 +733,21 @@ object ConvStencil3D extends LayerExpressionFactory {
     * ranges. During parameter space exploration, they are replaced with constants (Cst()).
     */
 //  val tileStrideTmp = Var("tileStride")
-  class ConvStencil3DTuneParams(val tileWidthHeight: Var = Var("tileWidthHeight"),//(kernelWidthHeightTmp - kernelStrideTmp) + tileStrideTmp,
-//                                val tileStride: Var = Var("tileStride"),
+  class ConvStencil3DTuneParams(val tileWidthHeight: Var = Var("tileWidthHeight"), //(kernelWidthHeightTmp - kernelStrideTmp) + tileStrideTmp,
+                                //                                val tileStride: Var = Var("tileStride"),
 
                                 val vectorLen: Var = Var("vectorLen"),
                                 val nKernelsPerWrg: Var = Var("nKernelsPerWrg"),
+                                //                                val nWindowsPerThread: Var = Var("nWindowsPerThread"),
+
                                 val seqOpsPerThread: Var = Var("seqOpsPerThread"),
 
                                 val padOpt: Var = Var("padOpt"),
 
                                 val coalesce: Boolean = false,
                                 val unrollReduce: Boolean = false) extends LayerTuneParams {
-        val paramVector: Vector[Var] = Vector(tileWidthHeight, vectorLen, nKernelsPerWrg, seqOpsPerThread, padOpt)
+        val paramVector: Vector[Var] = Vector(
+          tileWidthHeight, vectorLen, nKernelsPerWrg, /*nWindowsPerThread, */seqOpsPerThread, padOpt)
   }
   /**
     * Produces a convolution expression without an activation function

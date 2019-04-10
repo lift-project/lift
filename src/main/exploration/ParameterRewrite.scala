@@ -2,7 +2,7 @@ package exploration
 
 import ir.{Type, TypeChecker}
 import ir.ast.debug.AssertType
-import ir.ast.{Expr, FPattern, FunCall, FunDecl, Lambda, Param, Slide, Split, Value}
+import ir.ast.{Expr, FPattern, FunCall, FunDecl, Gather, Lambda, Param, ReorderWithStride, Scatter, Slide, Split, Value}
 import lift.arithmetic.{ArithExpr, Cst, Var}
 
 object ParameterRewrite {
@@ -31,6 +31,12 @@ object ParameterRewrite {
 
             case AssertType(expectedType, name) =>
               AssertType(Type.substitute(expectedType, substitutionTable.asInstanceOf[Map[ArithExpr, ArithExpr]]), name)
+
+            case Gather(ReorderWithStride(step)) =>
+              Gather(ReorderWithStride(substituteVars(step, substitutionTable)))
+
+            case Scatter(ReorderWithStride(step)) =>
+              Scatter(ReorderWithStride(substituteVars(step, substitutionTable)))
 
             case fp: FPattern =>
               val replaced = FunDecl.replace(fp.f, substitute)
