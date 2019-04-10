@@ -464,13 +464,13 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                                       MapSeq(toGlobal(id)) o
                                         ReduceSeq(
                                           λ((acc, y) => {
-                                            RewritingGuidePost("dotAndSumUpToVectorise") $
+                                            RewritingGuidePost("vectorisableDotAndSumUp") $
                                               dotAndSumUp(acc, /* X */ Get(y, 0), /* kernelW */ Get(y, 1))
                                           }),
                                           toPrivate(id) $ Value("0.0f", Float)) $ Zip(partialWindow, partialKernel)
                                     )) $ partialKernels
 
-                                }) o MapSeq(toPrivate(RewritingGuidePost("idToVectorise") o id)) $
+                                }) o MapSeq(toPrivate(RewritingGuidePost("vectorisableId") o id)) $
                                   Get(partialWindowAndPartialKernels, 0)
 
                               } else {
@@ -503,7 +503,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                               }
                             }
 
-                            processPartialWindowsAndPartialKernels(false)
+                            processPartialWindowsAndPartialKernels(true)
                           }
 
 
