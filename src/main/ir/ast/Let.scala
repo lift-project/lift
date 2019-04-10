@@ -19,4 +19,6 @@ object Let {
     val param = Param(UndefType)
     new Let(Array(param), f(param))
   }
+
+  def unapply(arg: Let): Option[(Lambda)] = Some(arg)
 }

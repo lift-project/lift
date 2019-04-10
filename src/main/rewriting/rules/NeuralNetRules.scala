@@ -1,10 +1,12 @@
 package rewriting.rules
 
-import ir.ast.{FunCall, Get, Lambda, UserFun, Zip, asVector, λ}
+import ir.ast.{Expr, FunCall, FunDecl, Get, Lambda, Lambda1, Let, UserFun, Value, Zip, asVector, λ}
 import ir.ast.onnx.{AveragePool, ConvWithBias, ConvWithoutBias}
-import opencl.ir.pattern.ReduceSeq
+import opencl.ir.Float4
+import opencl.ir.pattern.{MapLcl, MapSeq, ReduceSeq, toPrivate}
 import patterns.nn.conv.{ConvCPU3D, ConvStencil3D}
 import patterns.nn.pool.PoolCPU3D
+import rewriting.{PotentialRewrite, Rewrite}
 
 /**
   * Neural Network-specific rewriting rules
@@ -39,17 +41,42 @@ object NeuralNetRules {
   }
 
   object StencilRules {
-    val vectorise4 = Rule("ReduceSeq(dotAndSumUp) $ Zip(a0, a1) => " +
-      "ReduceSeq(dotAndSumUpF4) $ Zip(asVector(a0), asVector(a1))", {
-      case FunCall(ReduceSeq(Lambda(_, FunCall(uf: UserFun, _*), _)), reduceInit, FunCall(_: Zip, zipArgs @ _*))
-        if uf.name == "dotAndSumUp" =>
+    val vectorise4Funs = Rule("" , {
+      case FunCall(uf: UserFun, ufArgs@_*) if uf.name == "dotAndSumUp" =>
 
-        val vectorisedZipArgs = zipArgs.map(arg => asVector(4) $ arg)
+        FunCall(UserFun("dotAndSumUp_float4", Array("acc", "l", "r"), "{ return acc + dot(l, r); }",
+          Seq(opencl.ir.Float, opencl.ir.Float4, opencl.ir.Float4), opencl.ir.Float), ufArgs: _*)
 
-        val vectorisedUserFun = UserFun("dotAndSumUp_float4", Array("acc", "l", "r"), "{ return acc + dot(l, r); }",
-          Seq(opencl.ir.Float, opencl.ir.Float4, opencl.ir.Float4), opencl.ir.Float)
 
-        ReduceSeq(λ((acc, y) => vectorisedUserFun(acc, Get(y, 0), Get(y, 1))), reduceInit) $ Zip(vectorisedZipArgs: _*)
+      case FunCall(MapSeq(Lambda1(_, FunCall(toPrivate(Lambda(_, FunCall(uf: UserFun, _), _)), _))),
+      mapSeqArg @ FunCall(_: Get, _)) if uf.name == "id" =>
+
+        val idF4 = UserFun("idF4", "x", "{ return x; }", Float4, Float4)
+
+        MapSeq(toPrivate(idF4)) $ mapSeqArg
     })
+
+    val vectorise4 = Rule("", {
+      case FunCall(mapLcl0Call @ MapLcl(0, mapLcl0Body @ Lambda1(_, FunCall(_: Let, letArgs))), FunCall(_: Zip, zipArgs @ _*))
+      if Rewrite.listAllPossibleRewrites(mapLcl0Call, vectorise4Funs).nonEmpty =>
+        val vectorisedZipArg0 = ir.ast.Map(asVector(4)) $ zipArgs(0)
+        val vectorisedZipArg1 = ir.ast.Map(ir.ast.Map(asVector(4))) $ zipArgs(1)
+
+        val vectorisedZip = Zip(vectorisedZipArg0, vectorisedZipArg1)
+
+//        val vectorisedMapLcl0Call = mapLcl0Call $ vectorisedZip
+
+        val userFunRewrites = Rewrite.listAllPossibleRewrites(mapLcl0Call, vectorise4Funs)
+
+        val rewrittenMapLcl0Body = userFunRewrites.foldLeft[Lambda](mapLcl0Body) {
+          case (rewrittenLambda: Lambda, potentialRewrite: PotentialRewrite) =>
+            val replacement = potentialRewrite.rule.rewrite(potentialRewrite.expr)
+
+            Lambda(rewrittenLambda.params, Expr.replace(rewrittenLambda.body, potentialRewrite.expr, replacement))
+        }
+
+        MapLcl(0)(rewrittenMapLcl0Body) $ vectorisedZip
+    })
+
   }
 }
