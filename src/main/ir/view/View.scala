@@ -117,6 +117,7 @@ abstract sealed class View(val t: Type = UndefType) {
       case ViewUnzip(iv, ty) => ViewUnzip(iv.replaced(subst), ty)
       case ViewSplit(n, iv, ty) => ViewSplit(ArithExpr.substitute(n, subst), iv.replaced(subst), ty)
       case ViewJoin(n, iv, ty) => ViewJoin(ArithExpr.substitute(n, subst), iv.replaced(subst), ty)
+      case ViewTranspose(iv, ty) => ViewTranspose(iv.replaced(subst), ty)
       case ViewReorder(f, iv, ty) => ViewReorder(f, iv.replaced(subst), ty)
       case ViewAsVector(n, iv, ty) => ViewAsVector(n, iv.replaced(subst), ty)
       case ViewAsScalar(iv, n, ty) => ViewAsScalar(iv.replaced(subst), n, ty)
@@ -174,6 +175,14 @@ abstract sealed class View(val t: Type = UndefType) {
       case ArrayTypeWS(ArrayTypeWS(elemT, n), m) =>
         ViewJoin(chunkSize, this, ArrayTypeWSWC(elemT, n * m))
       case _ => throw new IllegalArgumentException("PANIC: join expects a 2D array type with size, found "+this.t.toString)
+    }
+  }
+
+  def transpose(): View = {
+    this.t match {
+      case ArrayTypeWS(ArrayTypeWS(elemT,n),m) =>
+        ViewTranspose(this,ArrayTypeWS(ArrayTypeWS(elemT,m),n))
+      case _ => throw new IllegalArgumentException("PANIC: transpose expects a 2D array type with size, found "+this.t.toString)
     }
   }
 
@@ -377,6 +386,8 @@ case class ViewSplit(n: ArithExpr, iv: View, override val t: Type) extends View(
  */
 case class ViewJoin(n: ArithExpr, iv: View, override val t: Type) extends View(t)
 
+case class ViewTranspose(iv: View, override val t: Type) extends View(t)
+
 /**
  * A view for zipping a number of views.
  *
@@ -536,6 +547,7 @@ object View {
       case ViewMap(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewSplit(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewJoin(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewTranspose(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewReorder(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewFilter(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewZip(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
@@ -658,6 +670,10 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         val chunkIdx = idx / chunkSize
         val elemIdx = idx % chunkSize
         emitView(iv, chunkIdx :: elemIdx :: indices, tupleAccessStack)
+
+      case ViewTranspose(iv,_) =>
+        val idx0 :: idx1 :: indices = arrayAccessStack
+        emitView(iv,idx1 :: idx0 :: indices, tupleAccessStack)
 
       case ViewReorder(reindexFun, iv, _) =>
         val idx :: indices = arrayAccessStack

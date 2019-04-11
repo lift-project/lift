@@ -309,10 +309,7 @@ object OutputView {
   private def buildViewTransposeW(tw: TransposeW, call: FunCall, writeView: View): View = {
     call.t match {
       case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
-        writeView.
-          join(m).
-          reorder((i:ArithExpr) => { transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(typ, n), m)) }).
-          split(n)
+        writeView.transpose
       case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
         throw new TypeException(call.t, "Array", call.f)
     }

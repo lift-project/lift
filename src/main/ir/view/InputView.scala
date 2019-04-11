@@ -267,9 +267,7 @@ object InputView {
   private def buildViewTranspose(t: Transpose, call: FunCall, argView: View): View = {
     call.t match {
       case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
-        argView.
-          join(n).
-          reorder((i: ArithExpr) => { transpose(i, call.t) }).split(m)
+        argView.transpose()
       case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) =>
         throw new TypeException(call.t, "Array", call.f)
     }
