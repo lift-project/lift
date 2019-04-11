@@ -162,10 +162,9 @@ class TestConcat
 
     val localSizeX = 6
     val localSizeY = 8
-    val size = 12
 
-    val values = Array.tabulate(localSizeX,localSizeY) { (i,j) => (i*size + j + 1).toFloat }
-    val gold = Array(1.0f,8.0f,13.0f,20.0f,25.0f,32.0f,37.0f,44.0f,49.0f,56.0f,61.0f,68.0f)
+    var values = Array.tabulate(localSizeX,localSizeY) { (i,j) => (i*localSizeY + j + 1).toFloat }
+    val gold = Array(8.0f,16.0f,24.0f,32.0f,40.0f,48.0f)
 
     val N = SizeVar("N")
     val M = SizeVar("M")
@@ -174,9 +173,10 @@ class TestConcat
       ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
       (input) => {
 
-        val inputT = Transpose()  $ input
+//        val inputT = Transpose()  $ input
 
-        toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ inputT.at(0), MapSeq(id) o ArrayAccess(N-1) o toGlobal(MapSeq(MapSeq(id))) $ inputT)
+        toGlobal(MapSeq(id)) o ArrayAccess(N-1) o toGlobal(MapSeq(MapSeq(id))) o Transpose() $ input
+        //toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ inputT.at(0), MapSeq(id) o ArrayAccess(N-1) o toGlobal(MapSeq(MapSeq(id))) $ inputT)
 
       })
 
@@ -201,10 +201,9 @@ class TestConcat
 
     val localSizeX = 6
     val localSizeY = 8
-    val size = 12
 
-    val values = Array.tabulate(localSizeX,localSizeY) { (i,j) => (i*size + j + 1).toFloat }
-    val gold = Array(1.0f,8.0f,13.0f,20.0f,25.0f,32.0f,37.0f,44.0f,49.0f,56.0f,61.0f,68.0f)
+    val values = Array.tabulate(localSizeX,localSizeY) { (i,j) => (i*localSizeY+ j + 1).toFloat }
+    val gold = Array(8.0f,16.0f,24.0f,32.0f,40.0f,48.0f)
 
     val N = SizeVar("N")
     val M = SizeVar("M")
@@ -213,9 +212,9 @@ class TestConcat
       ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
       (input) => {
 
-        val inputT = Transpose()  $ input
+//        val inputT = Transpose()  $ input
 
-        MapSeq(id) $ inputT.at(N-1)
+        MapSeq(id) o ArrayAccess(N-1) o Transpose() $ input//.at(N-1)
         //toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ inputT.at(0), MapSeq(id) $ inputT.at(N-1))
 
       })
