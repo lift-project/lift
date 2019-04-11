@@ -4,13 +4,12 @@ import benchmarks.MatrixTransposition
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, Executor, TestWithExecutor, Utils}
+import opencl.executor.{Compile, Execute, TestWithExecutor, Utils}
+import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
 import opencl.ir.pattern._
 import org.junit.Assert._
-import org.junit.{AfterClass, BeforeClass, Test}
-
-import scala.util.Random
+import org.junit.Test
 
 object TestTranspose extends TestWithExecutor
 
@@ -365,6 +364,108 @@ class TestTranspose {
     val (output, _) = Execute(Nsize,Nsize)[Array[Float]](f, gold)
 
     assertArrayEquals(gold, output, 0.0f)
+  }
+
+  // The following tests are for Issue #160, where the use of Transpose in conjunction with ArrayAccess is proving problematic
+
+  @Test
+  def boundaryTest2DColumnBroken(): Unit =
+  {
+
+    val localSizeX = 6
+    val localSizeY = 8
+
+    val values = Array.tabulate(localSizeX,localSizeY) { (i,j) => (i*localSizeY+ j + 1).toFloat }
+    val gold = Array(8.0f,16.0f,24.0f,32.0f,40.0f,48.0f)
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    def getColumnBoundary() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
+      (input) => {
+
+        MapSeq(id) o ArrayAccess(N-1) o Transpose() $ input
+
+      })
+
+    println(Compile(getColumnBoundary()))
+
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](getColumnBoundary,values)
+
+    StencilUtilities.print2DArray(values)
+    println("")
+    StencilUtilities.print1DArray(gold)
+    println("")
+    StencilUtilities.print1DArray(output)
+
+    assertArrayEquals(output, gold, StencilUtilities.stencilDelta)
+
+  }
+
+  @Test
+  def boundaryTest2DColumnWorkaround(): Unit = {
+
+    val localSizeX = 6
+    val localSizeY = 8
+
+    var values = Array.tabulate(localSizeX,localSizeY) { (i,j) => (i*localSizeY + j + 1).toFloat }
+    val gold = Array(8.0f,16.0f,24.0f,32.0f,40.0f,48.0f)
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    def getColumnBoundary() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
+      (input) => {
+
+        toGlobal(MapSeq(id)) o ArrayAccess(N-1) o toGlobal(MapSeq(MapSeq(id))) o Transpose() $ input
+
+      })
+
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](getColumnBoundary,values)
+
+    StencilUtilities.print2DArray(values)
+    println("")
+    StencilUtilities.print1DArray(gold)
+    println("")
+    StencilUtilities.print1DArray(output)
+
+    assertArrayEquals(output, gold, StencilUtilities.stencilDelta)
+
+  }
+
+  @Test
+  def boundaryTest2DRowAlsoBroken(): Unit = {
+
+    val localSizeX = 6
+    val localSizeY = 8
+    val size = 12
+
+    val values = Array.tabulate(localSizeX,localSizeY) { (i,j) => (i*size + j + 1).toFloat }
+    val gold = Array(61.0f,62.0f,63.0f,64.0f,65.0f,66.0f,67.0f,68.0f)
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+
+    def getRowBoundary() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N),M),
+      (input) => {
+
+        toGlobal(MapSeq(id)) o ArrayAccess(M-1) o Transpose() o Transpose() $ input
+
+      })
+
+    val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](getRowBoundary,values)
+
+    StencilUtilities.print2DArray(values)
+    println("")
+    StencilUtilities.print1DArray(gold)
+    println("")
+    StencilUtilities.print1DArray(output)
+
+    assertArrayEquals(output, gold, StencilUtilities.stencilDelta)
+
   }
 
 }
