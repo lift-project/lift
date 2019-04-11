@@ -4,7 +4,7 @@ import benchmarks.MatrixTransposition
 import ir._
 import ir.ast._
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, TestWithExecutor, Utils}
+import opencl.executor.{Compile, Execute, TestWithExecutor, Utils}
 import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
 import opencl.ir.pattern._
@@ -388,6 +388,8 @@ class TestTranspose {
         MapSeq(id) o ArrayAccess(N-1) o Transpose() $ input
 
       })
+
+    println(Compile(getColumnBoundary()))
 
     val (output: Array[Float], _) = Execute(2,2,2,2,2,2, (true,true))[Array[Float]](getColumnBoundary,values)
 
