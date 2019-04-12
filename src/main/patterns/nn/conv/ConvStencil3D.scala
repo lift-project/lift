@@ -503,7 +503,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                               }
                             }
 
-                            processPartialWindowsAndPartialKernels(true)
+                            processPartialWindowsAndPartialKernels(false)
                           }
 
 

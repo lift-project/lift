@@ -709,7 +709,7 @@ class TestGlobal {
     import exploration.SplitSlideRewrite.readFromFile
 
     for {layerConfigId <- 1 until 2} {
-      for {tuningId <- 0 until 10} {
+      for {tuningId <- 0 until 1000} {
 
         val file0 = common_file_name0 + layerConfigId + "_" + tuningId + ".scala"
         val file1 = common_file_name1 + layerConfigId + "_" + tuningId + ".scala"
