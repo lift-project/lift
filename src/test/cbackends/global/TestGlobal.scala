@@ -708,8 +708,14 @@ class TestGlobal {
     import opencl.executor.Eval
     import exploration.SplitSlideRewrite.readFromFile
 
-    for {layerConfigId <- 1 until 2} {
-      for {tuningId <- 0 until 1000} {
+    val totalTuningPoints = 1000
+    val tuningPointBatchSize = 200
+    val nLayers = 13
+
+    for {tuningPointBatch <- 0 until totalTuningPoints / tuningPointBatchSize}
+      for {layerConfigId <- 0 until nLayers} {
+        for {tuningId <- (tuningPointBatch * tuningPointBatchSize) until ((tuningPointBatch + 1) * tuningPointBatchSize)} {//000..200, 200..400, 400..600, 600..800, 800..1000
+        //for {tuningId <- 317 until 1000} {
 
         val file0 = common_file_name0 + layerConfigId + "_" + tuningId + ".scala"
         val file1 = common_file_name1 + layerConfigId + "_" + tuningId + ".scala"
