@@ -695,13 +695,11 @@ class OpenCLGenerator extends Generator {
         case ca: CheckedArrayAccess       => generateCheckedArrayAccess(ca, call, block)
         case debug.PrintComment(msg)      => debugPrintComment(msg, block)
 
-        case RewritingGuidePost(name)     => throw new OpenCLGeneratorException(
-          s"Rewriting guide post '$name' cannot be compiled -- it should have been rewritten away")
-
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
-             ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) =>
+             ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) |
+             RewritingGuidePost(_) =>
         case _                            => (block: MutableBlock) += Comment("__" + call.toString + "__")
       }
       case v: Value             => generateValue(v, block)
