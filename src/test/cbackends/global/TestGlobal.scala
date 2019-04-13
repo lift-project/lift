@@ -694,6 +694,8 @@ class TestGlobal {
   @Test
   def batch_code_generate_for_cases_paper(): Unit = {
 
+    val null_local_ranges = false
+
     //val path = s"$common_path/99.cases_paper"
     val lambda_path = System.getenv("LAMBDA_PATH") + "/"// System.getProperty("user.dir") + "/../../../generated_files_08.04.2019_13.49.18_first_7_layers_10_points/"
     val generated_c_path = System.getenv("GENERATED_C_PATH") + "/"//"/home/nm/cases/cases19experiments/generated_c_files/"
@@ -744,8 +746,10 @@ class TestGlobal {
 
           (p_k, p_b, p_x) => ToHost() $
             OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
-              OclFunc(gpu_fun2, ndranges2, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
-                OclFunc( gpu_fun1, ndranges1, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
+              OclFunc(gpu_fun2, (if (null_local_ranges) null else ndranges2._1, ndranges2._2)/*ndranges2*/,
+                cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
+                OclFunc( gpu_fun1, (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges1*/,
+                  cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
                   OclFunc( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x)))
         )
 

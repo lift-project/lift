@@ -548,7 +548,7 @@ class OpenCLGenerator extends Generator {
     val (iterateVars, vars) = allVars.partition(_.name == Iterate.varName)
 
     val attribute =
-      if (localSize.forall(_.isEvaluable) &&
+      if (localSize != null && localSize.forall(_.isEvaluable) &&
         f.body.contains({ case FunCall(MapWrg(_, _), _) => }))
         Some(RequiredWorkGroupSize(localSize))
       else None

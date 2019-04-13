@@ -367,7 +367,9 @@ object LowerIR2HostCAST {
         kernel_cvar,
         StringConstant("cl::NullRange"),
         StringConstant("cl::NDRange("+global_thread_setting.toString+")"), //global
-        StringConstant("cl::NDRange("+local_thread_setting.toString+")"), //local
+        StringConstant(
+          if (local_thread_setting != null) "cl::NDRange("+local_thread_setting.toString+")"
+          else "cl::NullRange"), //local
         StringConstant("NULL"),
         if(measurable.gpu_timer) UnaryExpression("&", VarRefPure(eventCVar)) else StringConstant("NULL")
       )
