@@ -21,7 +21,7 @@ class DepadConv(layerConfig: ConvStencil3DLayerConfig,
 //  val paddedInputWidthHeight = substituteVars(factory.paddedInputWidthHeight.get, substitutionTable)
 
   def apply(): Lambda = {
-    val newInputWidthHeight = originalSize - 2 * depadSize
+    val newInputWidthHeight = originalSize - depadSize
 
     λ(originalType,
       X => {
@@ -31,7 +31,7 @@ class DepadConv(layerConfig: ConvStencil3DLayerConfig,
           MapGlb(2)(MapGlb(1)(MapGlb(0)(opencl.ir.id))) o ir.ast.Map(Join()) o
           //
           ir.ast.Map(ir.ast.Map(
-            PadConstant2D(0, (-2 * depadSize).evalInt, 0, (-2 * depadSize).evalInt,
+            PadConstant2D(0, (-1 * depadSize).evalInt, 0, (-1 * depadSize).evalInt,
               Value("0", opencl.ir.Float))))  o
           AssertType(originalType, "Nonpadded X type") $ X
       })

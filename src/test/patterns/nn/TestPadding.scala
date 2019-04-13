@@ -178,7 +178,7 @@ class TestPadding {
       substitutionTable(layerConfigVars.kernelChannels),
       substitutionTable(layerConfigVars.kernelStride))
 
-    val depadSize = (paddedOutputWidthHeight - depaddedOutputWidthHeight) /^ 2
+    val depadSize = paddedOutputWidthHeight - depaddedOutputWidthHeight
 
     val depaddedYType = AT(AT(AT(AT(Float,
       depaddedOutputWidthHeight),
