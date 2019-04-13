@@ -420,9 +420,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
 //    }
 
 
-
-
-
+    val useGlobalMaps: Boolean = System.getenv("USE_GLOBAL_MAPS") != null && System.getenv("USE_GLOBAL_MAPS").toLowerCase == "true"
 
 
     val layerPartial: Lambda = {
@@ -434,19 +432,23 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
         (K, X) => {
           /** * Layer BEGIN ***/
           AssertType(partReducedXType, "Part reduced X type") o
-            MapWrg(1)(λ(xTileType, (XTile) => {
+          {val map0 = if (!useGlobalMaps) MapWrg(1) else MapGlb(2)
+            map0(λ(xTileType, (XTile) => {
               /** * Tile BEGIN ***/
 
               AssertType(partReducedXTileType, "Part reduced X XTile type") o
-                MapWrg(0)(λ(kernelWGroupType, (kernelWGroup) => {
+                {val map1 = if (!useGlobalMaps) MapWrg(0) else MapGlb(1)
+                  map1(λ(kernelWGroupType, (kernelWGroup) => {
                   /** *** Output channel group BEGIN *****/
 
                   AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") o
                     TransposeW() o
-                    MapLcl(1)(λ(windowType, (window) =>
+                    {val map2 = if (!useGlobalMaps) MapLcl(1) else MapSeq
+                      map2(λ(windowType, (window) =>
                       TransposeW() o
 
-                        MapLcl(0)(λ((partialWindowAndPartialKernels) => {
+                        {val map3 = if (!useGlobalMaps) MapLcl(0) else MapGlb(0)
+                          map3(λ((partialWindowAndPartialKernels) => {
 
 //                          val partialWindow = MapSeq(toPrivate(id)) $ Get(partialWindowAndPartialKernels, 0)
 
@@ -507,18 +509,18 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                           }
 
 
-                        })) $ Zip(
+                        }))} $ Zip(
                         //AT(AT(Float, tuneParams.seqOpsPerThread), nSeqTilesInWindow)
                         Map(RewritingGuidePost("potentialAsVector")) $ window,
                         Map(Map(RewritingGuidePost("potentialAsVector"))) o Transpose() $ kernelWGroup)
-                    ))/* o Map(Split(nWindowsPerKernels))*/ $ XTile
+                    ))}/* o Map(Split(nWindowsPerKernels))*/ $ XTile
 
                   /** *** Output channel group END *****/
-                })) o AssertType(kernelWType, "All kernel weights type after split") o
+                }))} o AssertType(kernelWType, "All kernel weights type after split") o
                 Split(tuneParams.nKernelsPerWrg) o Map(TileAndCoalesce() o Join() o Map(Join())) $ K
 
               /** * Tile END ***/
-            })) o SlideX() $ X
+            }))} o SlideX() $ X
 
 
           /** * Layer END ***/
@@ -532,21 +534,25 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
           /** * Layer BEGIN ***/
 
           formatResults() o
-            MapWrg(1)(λ(partReducedXTileType, (XTile) => {
+            {val map0 = if (!useGlobalMaps) MapWrg(1) else MapGlb(2)
+              map0(λ(partReducedXTileType, (XTile) => {
               /** * Tile BEGIN ***/
 
               AssertType(reducedXTileType, "Reduced kernels type") o
                 Join() o
-                MapWrg(0)(λ(TupleType(partReducedOutChannelGroupType, kernelBGroupType), (outputChannelGroup) => {
+                {val map1 = if (!useGlobalMaps) MapWrg(0) else MapGlb(1)
+                  map1(λ(TupleType(partReducedOutChannelGroupType, kernelBGroupType), (outputChannelGroup) => {
                   /** *** Output channel group BEGIN *****/
 
-                  MapLcl(1)(λ(TupleType(partReducedOutChannelType, kernelBPerWindowType), (outputChannel) => {
+                    {val map2 = if (!useGlobalMaps) MapLcl(1) else MapSeq
+                      map2(λ(TupleType(partReducedOutChannelType, kernelBPerWindowType), (outputChannel) => {
                     /** *** Output channel BEGIN *****/
 
                     AssertType(reducedOutChannelType, "Reduced X output channel type") o
                       /* Remove the one-sized dimension introduced by Reduce */
                       Join() o
-                      MapLcl(0)(λ(partReducedWindowType, (window) =>
+                      {val map3 = if (!useGlobalMaps) MapLcl(0) else MapGlb(0)
+                        map3(λ(partReducedWindowType, (window) =>
 
                         /** ***** Sliding window BEGIN *******/
 
@@ -559,21 +565,21 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                           ) o AssertType(partReducedWindowType, "Part reduced X window type") $ window
 
                         /** ***** Sliding window END *******/
-                      )) o AssertType(partReducedOutChannelType) $ Get(outputChannel, 0)
+                      ))} o AssertType(partReducedOutChannelType) $ Get(outputChannel, 0)
 
                     /** *** Output channel END *****/
-                  })) $ Zip(
+                  }))} $ Zip(
                     AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") $
                       Get(outputChannelGroup, 0),
                     AssertType(kernelBGroupType, "Bias group type") $ Get(outputChannelGroup, 1))
 
                   /** *** Output channel group END *****/
-                })) $ Zip(
+                }))} $ Zip(
                 AssertType(partReducedXTileType, "Part reduced X tile") $ XTile,
                 AssertType(kernelBType, "All kernel biases type after split") o Split(tuneParams.nKernelsPerWrg) $ B)
 
               /** * Tile END ***/
-            })) o AssertType(partReducedXType, "Partially reduced X type") /*o structuriseX()*/ $
+            }))} o AssertType(partReducedXType, "Partially reduced X type") /*o structuriseX()*/ $
             X
 
           /** * Layer END ***/
