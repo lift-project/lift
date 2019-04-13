@@ -20,7 +20,7 @@
 //  type AT = ArrayType // alias
 //
 //  /*********** Constants ***********/
-//  val paddedInputWidthHeight = layerConfig.inputWidthHeight + 2 * layerConfig.padFunc + 2 * tuneParams.padOpt
+//  val paddedInputWidthHeight = layerConfig.inputWidthHeight + 2 * layerConfig.padFunc + tuneParams.padOptTotal
 //
 //  val tileStride = tuneParams.tileWidthHeight - (layerConfig.kernelWidthHeight - layerConfig.kernelStride)
 //  //    val tileStride = tuneParams.tileStride

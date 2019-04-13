@@ -41,7 +41,7 @@ class TestPadding {
       1,//val vectorLen: Var = Var("vectorLen"),
       1,//val nKernelsPerWrg: Var = Var("nKernelsPerWrg"),
       288,//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
-      169//padOpt
+      169//padOptTotal
       // val coalesce: Boolean = false,
       //val unrollReduce: Boolean = false)
     ).map(Cst(_))
@@ -71,7 +71,7 @@ class TestPadding {
 
     /* Padded X */
     val paddedInputWidthHeight = nonpaddedInputWidthHeight + Cst(2) * substitutionTable(layerConfigVars.padFunc) +
-      Cst(2) * substitutionTable(tuneParamVars.padOpt)
+      substitutionTable(tuneParamVars.padOptTotal)
 
     val paddedXType = AT(AT(AT(AT(Float,
       layerConfigVars.inputChannels),
@@ -84,7 +84,7 @@ class TestPadding {
       originalSize = layerConfigVars.inputWidthHeight,
       originalType = nonpaddedXType,
       padFunc = substitutionTable(layerConfigVars.padFunc),
-      padOpt = substitutionTable(tuneParamVars.padOpt),
+      padOptTotal = substitutionTable(tuneParamVars.padOptTotal),
       newType = paddedXType)
 
     val paddingLambda = ParameterRewrite(padFactory(), substitutionTable)
@@ -104,7 +104,7 @@ class TestPadding {
 
     val gold = PadConstant(0, 0, Value("0", opencl.ir.Float)).eval2d(X,
       padFunc = substitutionTable(layerConfigVars.padFunc).evalInt,
-      padOpt = substitutionTable(tuneParamVars.padOpt).evalInt)
+      padOptTotal = substitutionTable(tuneParamVars.padOptTotal).evalInt)
 
 
     for {(input, inputIdx) <- liftResult.zip(gold).zipWithIndex
@@ -139,7 +139,7 @@ class TestPadding {
       1,//val vectorLen: Var = Var("vectorLen"),
       1,//val nKernelsPerWrg: Var = Var("nKernelsPerWrg"),
       288,//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
-      169//padOpt
+      169//padOptTotal
       // val coalesce: Boolean = false,
       //val unrollReduce: Boolean = false)
     ).map(Cst(_))
@@ -155,7 +155,7 @@ class TestPadding {
     /* Non-padded X */
     val paddedOutputWidthHeight = slidingOutputSize(
         substitutionTable(layerConfigVars.inputWidthHeight) + 2 * substitutionTable(layerConfigVars.padFunc) +
-          2 * substitutionTable(tuneParamVars.padOpt),
+          substitutionTable(tuneParamVars.padOptTotal),
         substitutionTable(layerConfigVars.kernelChannels),
         substitutionTable(layerConfigVars.kernelStride))
 
@@ -206,7 +206,7 @@ class TestPadding {
 
 
     val gold = PadConstant(0, 0, Value("0", opencl.ir.Float)).evalDepad2d(paddedY,
-      substitutionTable(tuneParamVars.padOpt).evalInt)
+      substitutionTable(tuneParamVars.padOptTotal).evalInt)
 
 
     for {(input, inputIdx) <- liftResult.zip(gold).zipWithIndex

@@ -15,7 +15,7 @@ class PadConv(layerConfig: ConvStencil3DLayerConfig,
               originalSize: ArithExpr,
               originalType: Type,
               padFunc: ArithExpr,
-              padOpt: ArithExpr,
+              padOptTotal: ArithExpr,
               newType: Type) {
   def AT = ArrayType // alias
   type AT = ArrayType // alias
@@ -23,7 +23,7 @@ class PadConv(layerConfig: ConvStencil3DLayerConfig,
 //  val paddedInputWidthHeight = substituteVars(factory.paddedInputWidthHeight.get, substitutionTable)
 
   def apply(): Lambda = {
-    val newInputWidthHeight = originalSize + 2 * padFunc + 2 * padOpt
+    val newInputWidthHeight = originalSize + 2 * padFunc + padOptTotal
 
     λ(originalType,
       X => {
@@ -35,9 +35,9 @@ class PadConv(layerConfig: ConvStencil3DLayerConfig,
           ir.ast.Map(
             PadConstant2D(
               top = padFunc.evalInt,
-              bottom = padFunc.evalInt + 2 * padOpt.evalInt,
+              bottom = padFunc.evalInt + padOptTotal.evalInt,
               left = padFunc.evalInt,
-              right = padFunc.evalInt + 2 * padOpt.evalInt,
+              right = padFunc.evalInt + padOptTotal.evalInt,
               Value("0",
                 ArrayTypeWSWC(opencl.ir.Float, layerConfig.inputChannels))
 
@@ -48,7 +48,7 @@ class PadConv(layerConfig: ConvStencil3DLayerConfig,
 
   def paddingLambdaNDRanges(substitutionTable: Map[Var, Cst]): ( /* Local */ NDRange, /* Global */ NDRange) = {
     val newInputWidthHeight = ArithExpr.substitute(
-      originalSize + 2 * padFunc + 2 * padOpt, substitutionTable.toMap)
+      originalSize + 2 * padFunc + padOptTotal, substitutionTable.toMap)
     (
       /* Local */ NDRange(1, 1, 1),
       /* Global */ NDRange(

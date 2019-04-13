@@ -20,7 +20,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
   type AT = ArrayType // alias
 
   /*********** Constants ***********/
-  val paddedInputWidthHeight = layerConfig.inputWidthHeight + 2 * layerConfig.padFunc + 2 * tuneParams.padOpt
+  val paddedInputWidthHeight = layerConfig.inputWidthHeight + 2 * layerConfig.padFunc + tuneParams.padOptTotal
 
   val tileStride = tuneParams.tileWidthHeight - (layerConfig.kernelWidthHeight - layerConfig.kernelStride)
   //    val tileStride = tuneParams.tileStride
@@ -748,12 +748,12 @@ object ConvStencil3D extends LayerExpressionFactory {
 
                                 val seqOpsPerThread: Var = Var("seqOpsPerThread"),
 
-                                val padOpt: Var = Var("padOpt"),
+                                val padOptTotal: Var = Var("padOptTotal"),
 
                                 val coalesce: Boolean = false,
                                 val unrollReduce: Boolean = false) extends LayerTuneParams {
         val paramVector: Vector[Var] = Vector(
-          tileWidthHeight, vectorLen, nKernelsPerWrg, /*nWindowsPerThread, */seqOpsPerThread, padOpt)
+          tileWidthHeight, vectorLen, nKernelsPerWrg, /*nWindowsPerThread, */seqOpsPerThread, padOptTotal)
   }
   /**
     * Produces a convolution expression without an activation function

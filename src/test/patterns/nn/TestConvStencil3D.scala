@@ -133,7 +133,7 @@ class TestConvStencil3D {
     1,//val vectorLen: Var = Var("vectorLen"),
     1,//val nKernelsPerWrg: Var = Var("nKernelsPerWrg"),
     1,//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
-    0//padOpt
+    0//padOptTotal
     //val coalesce: Boolean = false,
     //val unrollReduce: Boolean = false)
   ).map(Cst(_))
@@ -447,7 +447,7 @@ class TestConvStencil3D {
       1,//val vectorLen: Var = Var("vectorLen"),
       8,//val nKernelsPerWrg: Var = Var("nKernelsPerWrg"),
       32,//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
-      0//padOpt
+      0//padOptTotal
       // val coalesce: Boolean = false,
       //val unrollReduce: Boolean = false)
     ).map(Cst(_))
@@ -474,7 +474,7 @@ class TestConvStencil3D {
       1,//val vectorLen: Var = Var("vectorLen"),
       8,//val nKernelsPerWrg: Var = Var("nKernelsPerWrg"),
       32,//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
-      0//padOpt
+      0//padOptTotal
       // val coalesce: Boolean = false,
       //val unrollReduce: Boolean = false)
     ).map(Cst(_))
@@ -501,7 +501,7 @@ class TestConvStencil3D {
       1,//val vectorLen: Var = Var("vectorLen"),
       8,//val nKernelsPerWrg: Var = Var("nKernelsPerWrg"),
       32,//val seqOpsPerThread: Var = Var("seqOpsPerThread"),
-      0//padOpt
+      0//padOptTotal
       // val coalesce: Boolean = false,
       //val unrollReduce: Boolean = false)
     ).map(Cst(_))
