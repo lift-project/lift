@@ -210,7 +210,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
 
     def Coalesce(): FunDecl =
       λ(flatWindowType, (window) =>
-        Gather(ReorderWithStride(nSeqTilesInWindow))
+        RewritingGuidePost("coalescing") /*Gather(ReorderWithStride(nSeqTilesInWindow))*/
           $ window)
 
     def TileAndCoalesce(): FunDecl =
@@ -223,7 +223,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
           Split(tuneParams.seqOpsPerThread) o
           // Coalesce
           {
-            if (true/*tuneParams.coalesce*/) Coalesce() else Continue()
+            if (false/*tuneParams.coalesce*/) Coalesce() else Continue()
           }
 
           $ window)
@@ -511,8 +511,8 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
 
                         }))} $ Zip(
                         //AT(AT(Float, tuneParams.seqOpsPerThread), nSeqTilesInWindow)
-                        Map(RewritingGuidePost("potentialAsVector")) $ window,
-                        Map(Map(RewritingGuidePost("potentialAsVector"))) o Transpose() $ kernelWGroup)
+                        Map(RewritingGuidePost("coalescing")) o Map(RewritingGuidePost("potentialAsVector")) $ window,
+                        Map(Map(RewritingGuidePost("coalescing"))) o Map(Map(RewritingGuidePost("potentialAsVector"))) o Transpose() $ kernelWGroup)
                     ))}/* o Map(Split(nWindowsPerKernels))*/ $ XTile
 
                   /** *** Output channel group END *****/

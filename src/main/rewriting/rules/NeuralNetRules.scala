@@ -1,7 +1,8 @@
 package rewriting.rules
 
-import ir.ast.{Expr, FunCall, FunDecl, Get, Lambda, Lambda1, Let, RewritingGuidePost, UserFun, Value, Zip, asVector, λ}
+import ir.ast.{Expr, FunCall, FunDecl, Gather, Get, Lambda, Lambda1, Let, ReorderWithStride, RewritingGuidePost, UserFun, Value, Zip, asVector, λ}
 import ir.ast.onnx.{AveragePool, ConvWithBias, ConvWithoutBias}
+import lift.arithmetic.ArithExpr
 import opencl.ir.Float4
 import opencl.ir.pattern.{MapLcl, MapSeq, ReduceSeq, toPrivate}
 import patterns.nn.conv.{ConvCPU3D, ConvStencil3D}
@@ -88,6 +89,11 @@ object NeuralNetRules {
         }
 
         FunCall(vectorisedCallBody, Zip(vectorisedZipArgs: _*))
+    })
+
+    def coalesce(stride: ArithExpr) = Rule("GuidePost(coalescing) => Gather(ReorderWithStride(s))", {
+      case FunCall(RewritingGuidePost("coalescing"), arg) =>
+        FunCall(Gather(ReorderWithStride(stride)), arg)
     })
   }
 }
