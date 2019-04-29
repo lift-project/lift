@@ -63,9 +63,9 @@ class TestConcat
     val concatlike = fun(
       ArrayTypeWSWC(Float, SizeVar("N")),
       (input) =>
-       //toGlobal(MapSeq(id)) $
-         //toGlobal(ConcatFunction(2))(MapSeq(mult2) $ input, MapSeq(add3) $ input)
-      ConcatFunction(2)( MapSeq(mult2) $ input, MapSeq(add3) $ input)
+       toGlobal(MapSeq(id)) $
+         toGlobal(ConcatFunction(2))(MapSeq(mult2) $ input, MapSeq(add3) $ input)
+    //  ConcatFunction(2)( MapSeq(mult2) $ input, MapSeq(add3) $ input)
     )
    println(Compile(concatlike))
 
@@ -92,7 +92,7 @@ class TestConcat
     val concatlike = fun(
       ArrayTypeWSWC(Float, SizeVar("N")),
       (input) =>
-        ConcatFunction(MapSeq(mult2) $ input, MapSeq(add3) $ input, MapSeq(subtract1) $ input)
+        ConcatFunction(toGlobal(MapSeq(id)) $ (MapSeq(mult2) $ input, MapSeq(add3) $ input, MapSeq(subtract1) $ input))
     )
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concatlike,input)
@@ -362,8 +362,8 @@ class TestConcat
     def stencil1D(a: Int, b: Int) = fun(
       ArrayTypeWSWC(Float,N),
       (input) => {
-        //ConcatFunction(
-         // ArrayFromExpr(toGlobal(id) o toPrivate(fun(x => mult(x,constL)))  $ input.at(0)), // this needs to be an array!
+        ConcatFunction(
+          ArrayFromExpr(toGlobal(id) o toPrivate(fun(x => mult(x,constL)))  $ input.at(0)), // this needs to be an array!
           MapGlb(0)(fun(tup => {
 
             val neighbourhood = Get(tup,1)
@@ -372,7 +372,7 @@ class TestConcat
             toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
 
           })) $ Zip(input, Slide(a,b) o PadConstant(1,1,0.0f) $ input)
-        // , ArrayFromExpr(toPrivate(fun(x => mult(x,constR))) $ input.at(N-1))) // this needs to be an array!
+        , ArrayFromExpr(toPrivate(fun(x => mult(x,constR))) $ input.at(N-1))) // this needs to be an array!
       }
     )
 
