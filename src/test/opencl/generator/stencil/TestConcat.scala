@@ -64,7 +64,7 @@ class TestConcat
       ArrayTypeWSWC(Float, SizeVar("N")),
       (input) =>
        toGlobal(MapSeq(id)) $
-         toGlobal(ConcatFunction(2))(MapSeq(mult2) $ input, MapSeq(add3) $ input)
+         ConcatFunction(2)(MapSeq(mult2) $ input, MapSeq(add3) $ input)
     //  ConcatFunction(2)( MapSeq(mult2) $ input, MapSeq(add3) $ input)
     )
    println(Compile(concatlike))
@@ -454,6 +454,13 @@ class TestConcat
     assertArrayEquals(gold, output, 0.1f)
 
   }
+
+  /**
+   *  TODO:
+    *  Concat(point1, point2, point3...etc, main stencil, point n-3,point n-2,point n-1) is not really
+    *  a sustainable model
+    *  How do we want to compose these?
+    ***/
 
 }
 

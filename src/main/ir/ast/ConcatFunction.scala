@@ -7,12 +7,12 @@ import ir.interpreter.Interpreter.ValueMap
  * ConcatFunction pattern.
  * Code for this pattern can be generated.
  *
- * The fred pattern has the following high-level semantics:
+ * The concat pattern has the following high-level semantics:
  *   <code>ConcatFunction(2)( [x,,1,,, ..., x,,n,,], [y,,1,,, ..., y,,n,,] )
  *      = [ (x,,1,,, y,,1,,), ..., (x,,n,,, y,,n,,) ]</code>
  * The definitions for `n > 2` are accordingly.
  *
- * The fred pattern has the following type:
+ * The concat pattern has the following type:
  *   `ConcatFunction(2) : [a],,i,, -> [b],,i,, -> [a x b],,i,,`
  * The definitions for `n > 2` are accordingly.
  *
@@ -49,12 +49,12 @@ case class ConcatFunction(n : Int) extends Pattern(arity = n) {
 
 object ConcatFunction {
   /**
-   * Create an instance of the fred pattern.
-   * This function infers the number of arrays which are combined with the fred
+   * Create an instance of the concat pattern.
+   * This function infers the number of arrays which are combined with the concat
    * pattern.
    *
-   * @param args The arrays to be combined with the fred pattern.
-   * @return An instance of the fred pattern combining the arrays given by `args`
+   * @param args The arrays to be combined with the concat pattern.
+   * @return An instance of the concat pattern combining the arrays given by `args`
    */
   def apply(args : Expr*) : Expr = {
     assert(args.length >= 2)
