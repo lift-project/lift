@@ -2,9 +2,9 @@ package ir.view
 
 import ir._
 import ir.ast._
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Cst}
 import opencl.ir.OpenCLMemoryCollection
-import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
+import opencl.ir.pattern._
 
 /**
  * A helper object for constructing views.
@@ -48,7 +48,16 @@ object InputView {
     } else if (call.args.length == 1) {
       visitAndBuildViews(call.args.head)
     } else {
-      View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
+      call.f match{
+        case ConcatFunction(_) =>
+          // build new array access view
+          // case class ViewOffset(offset : ArithExpr, iv : View, override val t : Type) extends View(t)
+          //ViewOffset(call.args.map((expr: Expr) => visitAndBuildViews(expr)))
+//          View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
+        // buildViewFunCall(call) // causes infinite loop
+        View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable) // getting NoView ghosts
+        case _ => View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
+      }
     }
   }
 
@@ -88,8 +97,10 @@ object InputView {
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case PadConstant(left, right, value) => buildViewPadConstant(left, right, value, argView)
       case ArrayAccess(i) => argView.access(i)
+      case cc: ConcatFunction => buildViewConcat(call,argView)
       case debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
-           Scatter(_) | _: Tuple | Pad(_, _, _) | Id() | ConcatFunction(_) => argView
+           Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => // | ConcatFunction(_) =>
+        argView
       case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
     }
   }
@@ -235,6 +246,23 @@ object InputView {
 
   private def buildViewUnzip(call: FunCall, argView: View): View = {
     argView.unzip()
+  }
+
+  private def buildViewConcat(call: FunCall, argView: View): View = {
+
+    var accCapacity : ArithExpr = Cst(0)
+
+    /*
+    call.args.foreach({
+      case (arg) if arg.outputView == NoView => arg.outputView = argView.offset(accCapacity)
+        accCapacity = accCapacity +
+          (arg.t match{
+            case ArrayTypeWSWC(_,_,c) => c
+          })
+      case _ => throw new IllegalArgumentException("PANIC: No input view required!")
+    })
+*/
+    argView.offset(accCapacity)
   }
 
   private def buildViewFilter(call: FunCall, argView: View): View = {
