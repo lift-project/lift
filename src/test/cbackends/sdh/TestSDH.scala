@@ -10,6 +10,9 @@ import opencl.ir.pattern.{MapSeq, ReduceSeq}
 import opencl.ir.{Float, add, _}
 import org.junit.Test
 
+
+import scala.sys.process._
+
 class TestSDH {
 
   val common_path = System.getProperty("user.dir") + "/src/test/cbackends/sdh"
@@ -186,6 +189,53 @@ class TestSDH {
     )
 
     SDHCompiler ! (f, path, List(sched_file, worker_file))
+
+    (s"$path/sdh_demo.sh" ) !
+
+    //( "gedit " + s"$path/$sched_file #&"  ) !
+    //val process = Process( "gedit " + s"$path/$sched_file #&" ).lines
+
+    //( "gedit " + s"$path/$sched_file #&; " +  s" gedit $path/$worker_file"  ) !!
+    //( s" gedit $path/$worker_file"  ) !!
+
+    /*
+    val thread = new Thread {
+        override def run {
+            // your custom behavior here
+          ( "gedit " + s"$path/$sched_file"  ) !!
+        }
+    }
+    thread.start
+
+
+    Thread.sleep(50)
+    */
+
+
+    println("done")
+  }
+
+  @Test
+  def test_numpy_sum(): Unit = {
+
+    val path = s"$common_path/05.numpy_sum"
+    val sched_file = "test_lift_numpy_sum_sched_lib.hpp"
+    val worker_file = "test_lift_numpy_sum_kernel.cpp"
+
+    val N = SizeVar("N")
+
+    /*
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      A =>
+        ToLCP() o MapTile( fun( Arow =>
+          MapGPE( TMKernel(
+            fun(Bcol => ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)  $ Zip(Arow, Bcol) )
+          )) $ B )
+        )  o ToGPE() $ A
+    )*/
+
+    //SDHCompiler ! (f, path, List(sched_file, worker_file))
 
     println("done")
 
