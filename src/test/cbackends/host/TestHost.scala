@@ -1235,5 +1235,32 @@ class TestHost {
     println("Test case test_slide2d done!")
   }
 
+  @Test
+  def test_parallel_partial_reduce_then_sequential_reduce(): Unit = {
+
+    val path = s"$common_path/34.parallel_partial_reduce_then_sequential_reduce"
+    val file = "libpartial_reduce.cpp"
+
+    val array = ArrayType(Float, N)
+
+
+    val f = fun(
+      array,
+      ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, 0.0f) ) o Split(4) $ _
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "16 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_reduce_3d_matrix done!")
+
+
+  }
+
 
 }
