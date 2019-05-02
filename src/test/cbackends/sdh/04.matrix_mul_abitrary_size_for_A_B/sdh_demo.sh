@@ -11,4 +11,4 @@ my_path="/home/lu/Documents/Research/lift/src/test/cbackends/sdh/04.matrix_mul_a
 
 gedit $my_path/test_lift_matrixmul_sched_lib.hpp &
 
-gedit $my_path/test_lift_matrixmul_kernel.cpp
+gedit --new-window $my_path/test_lift_matrixmul_kernel.cpp
