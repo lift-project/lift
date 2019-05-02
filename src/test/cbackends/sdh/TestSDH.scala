@@ -167,7 +167,7 @@ class TestSDH {
   }
 
   @Test
-  def test_matrix_mul_multi_tile_arbitrary_num_rows_for_A(): Unit = {
+  def test_matrix_mul_sdh_demo(): Unit = {
 
     val path = s"$common_path/04.matrix_mul_abitrary_size_for_A_B"
     val sched_file = "test_lift_matrixmul_sched_lib.hpp"

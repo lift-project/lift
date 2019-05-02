@@ -4,7 +4,7 @@ import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{Cst, SizeVar}
-import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
+import opencl.ir.pattern._
 import opencl.ir.{Float, add, dividedBy, _}
 import org.junit.Assert._
 import org.junit.Test
@@ -1261,6 +1261,35 @@ class TestHost {
 
 
   }
+
+
+  /*
+  @Test
+  def test_scanseq(): Unit = {
+
+    val path = s"$common_path/35.scanseq"
+    val file = "libscan.cpp"
+
+    val array = ArrayType(Float, N)
+
+
+    val f = fun(
+      array,
+      ScanSeq(add, 0.0f) $ _
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "16 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_reduce_3d_matrix done!")
+
+
+  } */
 
 
 }
