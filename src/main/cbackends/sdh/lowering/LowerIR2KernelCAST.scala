@@ -10,7 +10,7 @@ import scala.collection.mutable
 import lift.arithmetic.ArithExpr
 import opencl.ir.pattern.MapSeq
 import cbackends.sdh.sdh_ir._
-import cbackends.sdh.lowering.LowerIR2SchedCAST.wait_for_branch_predictor_cycle
+import cbackends.sdh.lowering.LowerIR2SchedCAST.wait_for_branch_predictor_cycle2
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.common.view.{CollectAllLoopVars, ViewPrinter}
 import cbackends.host.lowering.LowerIR2HostCAST.generateAbstractReduce
@@ -155,7 +155,7 @@ object LowerIR2KernelCAST {
     //val body_and_pop_guard = IfThenElseIm(cond, Block(Vector(body_block, push_finish_signal)), Block())
     val body_and_pop_guard = IfThenElseIm(cond, Block(Vector(body_block)), Block())
 
-    arg_block :+ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(wait_for_branch_predictor_cycle, pop_gpe_id, body_and_pop_guard, push_finish_signal))   )))
+    arg_block :+ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(wait_for_branch_predictor_cycle2, pop_gpe_id, body_and_pop_guard, push_finish_signal))   )))
     //arg_block :+ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(pop_gpe_id, body_block , push_finish_signal))   )))
 
     //(arg_block :+ Comment("For each GPE. TODO: check if you can get this by API call instead of push and pop") :+ pop_gpe_id) :++ body_block_no_brackets

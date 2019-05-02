@@ -192,28 +192,33 @@ class TestSDH {
 
     (s"$path/sdh_demo.sh" ) !
 
-    //( "gedit " + s"$path/$sched_file #&"  ) !
-    //val process = Process( "gedit " + s"$path/$sched_file #&" ).lines
-
-    //( "gedit " + s"$path/$sched_file #&; " +  s" gedit $path/$worker_file"  ) !!
-    //( s" gedit $path/$worker_file"  ) !!
-
-    /*
-    val thread = new Thread {
-        override def run {
-            // your custom behavior here
-          ( "gedit " + s"$path/$sched_file"  ) !!
-        }
-    }
-    thread.start
-
-
-    Thread.sleep(50)
-    */
-
-
     println("done")
   }
+
+
+
+
+
+
+
+  //( "gedit " + s"$path/$sched_file #&"  ) !
+  //val process = Process( "gedit " + s"$path/$sched_file #&" ).lines
+
+  //( "gedit " + s"$path/$sched_file #&; " +  s" gedit $path/$worker_file"  ) !!
+  //( s" gedit $path/$worker_file"  ) !!
+
+  /*
+  val thread = new Thread {
+      override def run {
+          // your custom behavior here
+        ( "gedit " + s"$path/$sched_file"  ) !!
+      }
+  }
+  thread.start
+
+
+  Thread.sleep(50)
+  */
 
   @Test
   def test_numpy_sum(): Unit = {

@@ -20,29 +20,28 @@ float multAndSumUp(float acc, float l, float r){
 }
 int main(){
     // Pop input, output pointers and sizes
-    float * v_initial_param_627106_215190 = reinterpret_cast<float *>(GPEQ_POP());
-    float * v_initial_param_627107_215191 = reinterpret_cast<float *>(GPEQ_POP());
-    float * v_user_func_627123_215703 = reinterpret_cast<float *>(GPEQ_POP());
-    int v_K_215180 = GPEQ_POP();
-    int v_M_215179 = GPEQ_POP();
-    int v_N_215178 = GPEQ_POP();
-    for (int v_tile_batch_627181 = 0;(v_tile_batch_627181 <= 1); (++v_tile_batch_627181)){
-        int v_virtual_tile_id_627182 = (GPE_TILE_ID() + (v_tile_batch_627181 * 2));
-        int v_i_215187 = v_virtual_tile_id_627182;
-        if ((v_virtual_tile_id_627182 < 2)){
+    float * v_initial_param_1_14 = reinterpret_cast<float *>(GPEQ_POP());
+    float * v_initial_param_2_15 = reinterpret_cast<float *>(GPEQ_POP());
+    float * v_user_func_52_528 = reinterpret_cast<float *>(GPEQ_POP());
+    int v_M_2 = GPEQ_POP();
+    int v_K_3 = GPEQ_POP();
+    int v_N_1 = GPEQ_POP();
+    for (int v_tile_batch_110 = 0;(v_tile_batch_110 <= 1); (++v_tile_batch_110)){
+        int v_virtual_tile_id_111 = (GPE_TILE_ID() + (v_tile_batch_110 * 2));
+        int v_i_11 = v_virtual_tile_id_111;
+        if ((v_virtual_tile_id_111 < 2)){
             {
-                for (int v_gpe_batch_627183 = 0;(v_gpe_batch_627183 <= (v_N_215178 / 4)); (++v_gpe_batch_627183)){
+                for (int v_gpe_batch_112 = 0;(v_gpe_batch_112 <= (v_N_1 / 4)); (++v_gpe_batch_112)){
                     
-__asm__ __volatile__ (
-"dmb\n\t"
-);
-    ; 
-                    int v_i_215188 = GPEQ_POP();
-                    if ((v_i_215188 < v_N_215178)){
+                    __asm__ __volatile__ (
+                    "dmb\n\t"
+                    ); 
+                    int v_i_12 = GPEQ_POP();
+                    if ((v_i_12 < v_N_1)){
                         // For each element reduced sequentially
-                        v_user_func_627123_215703[(v_i_215188 + (2 * v_N_215178 * v_i_215186) + (v_N_215178 * v_i_215187))] = 0.0f; 
-                        for (int v_i_215189 = 0;(v_i_215189 <= (-1 + v_K_215180)); (++v_i_215189)){
-                            v_user_func_627123_215703[(v_i_215188 + (2 * v_N_215178 * v_i_215186) + (v_N_215178 * v_i_215187))] = multAndSumUp(v_user_func_627123_215703[(v_i_215188 + (2 * v_N_215178 * v_i_215186) + (v_N_215178 * v_i_215187))], v_initial_param_627106_215190[(v_i_215189 + (2 * v_K_215180 * v_i_215186) + (v_K_215180 * v_i_215187))], v_initial_param_627107_215191[(v_i_215189 + (v_K_215180 * v_i_215188))]); 
+                        v_user_func_52_528[(v_i_12 + (2 * v_N_1 * v_i_10) + (v_N_1 * v_i_11))] = 0.0f; 
+                        for (int v_i_13 = 0;(v_i_13 <= (-1 + v_K_3)); (++v_i_13)){
+                            v_user_func_52_528[(v_i_12 + (2 * v_N_1 * v_i_10) + (v_N_1 * v_i_11))] = multAndSumUp(v_user_func_52_528[(v_i_12 + (2 * v_N_1 * v_i_10) + (v_N_1 * v_i_11))], v_initial_param_1_14[(v_i_13 + (2 * v_K_3 * v_i_10) + (v_K_3 * v_i_11))], v_initial_param_2_15[(v_i_13 + (v_K_3 * v_i_12))]); 
                         }
                     }
                     LCPQ_PUSH(1); 

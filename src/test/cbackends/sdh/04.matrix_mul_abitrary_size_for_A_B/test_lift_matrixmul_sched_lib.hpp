@@ -17,44 +17,44 @@ using namespace std;
 #define VEC_START_ADDR SHARED_SPACE_START_ADDR
 
 void* trans_alloc(unsigned int size){
- static unsigned int current_pos = 0;
- void *memory_allocated = reinterpret_cast<void*>(VEC_START_ADDR + current_pos);
- current_pos += size;
- return memory_allocated;
- }
+    static unsigned int current_pos = 0;
+    void *memory_allocated = reinterpret_cast<void*>(VEC_START_ADDR + current_pos);
+    current_pos += size;
+    return memory_allocated;
+}
 
- char *syncSpmStartAddr = (char *)SYNC_SPM_START_ADDR;
- void barrier_wait(unsigned n) {
- // Create pointers to a global cv, mutex and a barrier.
- pthread_cond_t *condPtr = (pthread_cond_t *)(syncSpmStartAddr);
- pthread_barrier_t *barrierPtr = (pthread_barrier_t *)(condPtr + 1);
- pthread_mutex_t *mutexPtr = (pthread_mutex_t *)(barrierPtr + 1);
- // Start is used by LCP[0] with the condition variable to signal other cores to "go".
- bool *start = (bool *)(mutexPtr + 1);
- // TODO_SDH_10_31_18: creating a new barrier object for every instance: not a very clean/scalable approach.
- syncSpmStartAddr += sizeof(pthread_cond_t) + sizeof(pthread_barrier_t) + sizeof(pthread_mutex_t) + sizeof(uint32_t);
- if(LCP_TILE_ID() == 0) {
- // Initialize the barrier with the number of participants.
- pthread_barrier_init(barrierPtr, nullptr, n);
- // Signal "go" and broadcast to all cores waiting.
- STORE_BYTE(start, 1);
- // LCP_PRINTF("--> Signaling all cores to start -->\n");
- pthread_cond_broadcast(condPtr);
- } else {
- // Need to grab a lock before sleeping with a cv.
- pthread_mutex_lock(mutexPtr);
- while(*start == 0) {
- // Release the lock and sleep until signaled.
- pthread_cond_wait(condPtr, mutexPtr);
- }
- // Unlock and wait on barrier until GPEs are done.
- pthread_mutex_unlock(mutexPtr);
- }
+char *syncSpmStartAddr = (char *)SYNC_SPM_START_ADDR;
 
- pthread_barrier_wait(barrierPtr);
- }
+void barrier_wait(unsigned n) {
+    // Create pointers to a global cv, mutex and a barrier.
+    pthread_cond_t *condPtr = (pthread_cond_t *)(syncSpmStartAddr);
+    pthread_barrier_t *barrierPtr = (pthread_barrier_t *)(condPtr + 1);
+    pthread_mutex_t *mutexPtr = (pthread_mutex_t *)(barrierPtr + 1);
+    // Start is used by LCP[0] with the condition variable to signal other cores to "go".
+    bool *start = (bool *)(mutexPtr + 1);
+    // TODO_SDH_10_31_18: creating a new barrier object for every instance: not a very clean/scalable approach.
+    syncSpmStartAddr += sizeof(pthread_cond_t) + sizeof(pthread_barrier_t) + sizeof(pthread_mutex_t) + sizeof(uint32_t);
+    if(LCP_TILE_ID() == 0) {
+       // Initialize the barrier with the number of participants.
+       pthread_barrier_init(barrierPtr, nullptr, n);
+       // Signal "go" and broadcast to all cores waiting.
+       STORE_BYTE(start, 1);
+       // LCP_PRINTF("--> Signaling all cores to start -->\n");
+       pthread_cond_broadcast(condPtr);
+    } else {
+       // Need to grab a lock before sleeping with a cv.
+       pthread_mutex_lock(mutexPtr);
+       while(*start == 0) {
+           // Release the lock and sleep until signaled.
+           pthread_cond_wait(condPtr, mutexPtr);
+       }
+    // Unlock and wait on barrier until GPEs are done.
+    pthread_mutex_unlock(mutexPtr);
+    }
 
-    ; 
+    pthread_barrier_wait(barrierPtr);
+}
+; 
 void execute(float * v_initial_param_1_12, float * v_initial_param_2_13, float * & v_user_func_46_78, int v_M_2, int v_K_3, int v_N_1){
     // Allocate memory for output pointers
     v_user_func_46_78 = reinterpret_cast<float *>(trans_alloc(((v_N_1 * v_M_2) * sizeof(float)))); 
@@ -80,10 +80,9 @@ void execute(float * v_initial_param_1_12, float * v_initial_param_2_13, float *
             }
             for (int v_gpe_83 = 0;(v_gpe_83 < 4); (++v_gpe_83)){
                 
-__asm__ __volatile__ (
-"dmb\n\t"
-);
-    ; 
+                __asm__ __volatile__ (
+                "dmb\n\t"
+                ); 
                 LCPQ_POP(v_gpe_83); 
             }
         }

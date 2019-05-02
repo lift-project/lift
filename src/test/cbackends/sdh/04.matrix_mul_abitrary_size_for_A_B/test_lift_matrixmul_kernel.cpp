@@ -33,10 +33,9 @@ int main(){
             {
                 for (int v_gpe_batch_89 = 0;(v_gpe_batch_89 <= (v_N_1 / 4)); (++v_gpe_batch_89)){
                     
-__asm__ __volatile__ (
-"dmb\n\t"
-);
-    ; 
+                    __asm__ __volatile__ (
+                    "dmb\n\t"
+                    ); 
                     int v_i_10 = GPEQ_POP();
                     if ((v_i_10 < v_N_1)){
                         // For each element reduced sequentially
