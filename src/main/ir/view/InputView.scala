@@ -2,7 +2,7 @@ package ir.view
 
 import ir._
 import ir.ast._
-import lift.arithmetic.{ArithExpr, Cst}
+import lift.arithmetic.ArithExpr
 import opencl.ir.OpenCLMemoryCollection
 import opencl.ir.pattern._
 
@@ -49,13 +49,13 @@ object InputView {
       visitAndBuildViews(call.args.head)
     } else {
       call.f match{
-        case ConcatFunction(_) =>
+//        case ConcatFunction(_) =>
           // build new array access view
           // case class ViewOffset(offset : ArithExpr, iv : View, override val t : Type) extends View(t)
           //ViewOffset(call.args.map((expr: Expr) => visitAndBuildViews(expr)))
 //          View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
         // buildViewFunCall(call) // causes infinite loop
-        View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable) // getting NoView ghosts
+//        View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable) // getting NoView ghosts
         case _ => View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
       }
     }
@@ -249,20 +249,8 @@ object InputView {
   }
 
   private def buildViewConcat(call: FunCall, argView: View): View = {
-
-    var accCapacity : ArithExpr = Cst(0)
-
-    /*
-    call.args.foreach({
-      case (arg) if arg.outputView == NoView => arg.outputView = argView.offset(accCapacity)
-        accCapacity = accCapacity +
-          (arg.t match{
-            case ArrayTypeWSWC(_,_,c) => c
-          })
-      case _ => throw new IllegalArgumentException("PANIC: No input view required!")
-    })
-*/
-    argView.offset(accCapacity)
+//    argView.concat()
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
 
   private def buildViewFilter(call: FunCall, argView: View): View = {

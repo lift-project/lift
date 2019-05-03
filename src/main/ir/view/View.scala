@@ -115,6 +115,7 @@ abstract sealed class View(val t: Type = UndefType) {
       case ViewAccess(i, iv, ty) => ViewAccess(ArithExpr.substitute(i, subst), iv.replaced(subst), ty)
       case ViewArrayWrapper(iv, ty) => ViewArrayWrapper(iv.replaced(subst), ty)
       case ViewZip(iv, ty) => ViewZip(iv.replaced(subst), ty)
+      case ViewConcat(iv, ty) => ViewConcat(iv.replaced(subst), ty)
       case ViewUnzip(iv, ty) => ViewUnzip(iv.replaced(subst), ty)
       case ViewSplit(n, iv, ty) => ViewSplit(ArithExpr.substitute(n, subst), iv.replaced(subst), ty)
       case ViewJoin(n, iv, ty) => ViewJoin(ArithExpr.substitute(n, subst), iv.replaced(subst), ty)
@@ -132,7 +133,8 @@ abstract sealed class View(val t: Type = UndefType) {
       case ViewHead(iv, ty) => ViewHead(iv.replaced(subst), ty)
       case ViewTail(iv, ty) => ViewTail(iv.replaced(subst), ty)
       case _: View2DGeneratorUserFun | _: View3DGeneratorUserFun | _: ViewGenerator | _: ViewGeneratorUserFun |
-           _: ViewConstant | NoView => this
+           _: ViewConstant | NoView =>
+        this
     }
   }
 
@@ -281,6 +283,16 @@ abstract sealed class View(val t: Type = UndefType) {
 
   }
 
+  def concat(): View = {
+    t match {
+      case tt: TupleType =>
+        val newT = ConcatFunction.computeOutType(tt)
+        ViewConcat(this, newT)
+      case other => throw new IllegalArgumentException("Can't concat " + other)
+    }
+
+  }
+
   /**
    * Construct a view for unzipping the current view. The current view has to be an
    * array of tuples.
@@ -412,6 +424,8 @@ case class ViewTranspose(iv: View, override val t: Type) extends View(t)
  * @param t Type of the view.
  */
 case class ViewZip(iv: View, override val t: Type) extends View(t)
+
+case class ViewConcat(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for unzipping another view
@@ -726,6 +740,30 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
 
       case ViewUnzip(iv, _) =>
         emitView(iv, arrayAccessStack, tupleAccessStack)
+
+      case ViewConcat(iv, _) =>
+        val i :: idx = arrayAccessStack
+        val ivs = iv match {
+          case vt: ViewTuple => vt.ivs
+        }
+
+        var offset = i
+        def getSubview(): View = {
+          for (sv <- ivs) {
+            sv.t match {
+              case ArrayTypeWSWC(_, s, _) =>
+                println("s: "+s+" offset: "+offset)
+                if (ArithExpr.isSmaller(offset, s).get)
+                  return sv
+                else offset = offset - s
+            }
+          }
+          ???
+        }
+
+        val subView = getSubview()
+
+        emitView(subView, offset :: idx, tupleAccessStack)
 
       case ViewTuple(ivs, _) =>
         val i :: newTAS = tupleAccessStack

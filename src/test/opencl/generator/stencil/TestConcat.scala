@@ -70,7 +70,14 @@ class TestConcat
    println(Compile(concatlike))
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concatlike, input)
+
+    StencilUtilities.print1DArray(input)
+    StencilUtilities.print1DArray(gold)
+    StencilUtilities.print1DArray(output)
+
+
     assertArrayEquals(gold, output, TestConcatHelpers.delta)
+
 
   }
 

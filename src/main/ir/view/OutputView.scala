@@ -84,6 +84,11 @@ object OutputView {
           visitAndBuildViews(arg, View.initialiseNewView(arg.t, arg.inputDepth, arg.mem.variable)))
 
         ViewTuple(res, call.argsType)
+      case ConcatFunction(_) =>
+        val res = call.args.map(arg =>
+          visitAndBuildViews(arg, View.initialiseNewView(arg.t, arg.inputDepth, arg.mem.variable)))
+        //visitAndBuildViews(call.args(1), result)
+        ViewTuple(res, call.argsType)
       case _: AbstractPartRed =>
         val acc = call.args.head
         visitAndBuildViews(acc, View.initialiseNewView(acc.t, acc.inputDepth, acc.mem.variable))
@@ -152,8 +157,9 @@ object OutputView {
         })
       case _ => throw new IllegalArgumentException("PANIC: No output view required!")
     })
-
-    writeView
+   // println(writeView)
+//    writeView
+    View.initialiseNewView(call.t, call.outputDepth, call.mem.variable)
   }
 
   private def getAccessDepth(accessInfo: AccessInfo, memory: Memory) = {
@@ -279,6 +285,7 @@ object OutputView {
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {
     visitAndBuildViews(l.body, writeView)
     // TODO: Not sure about this
+    //l.body.outputView = writeView
     l.params.head.outputView
   }
   

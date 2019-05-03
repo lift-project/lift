@@ -26,17 +26,7 @@ case class ConcatFunction(n : Int) extends Pattern(arity = n) {
       case tt: TupleType =>
         if (tt.elemsT.length != n) throw new NumberOfArgumentsException
 
-        val arrayTypes = tt.elemsT.map( t => t match {
-          case at @ ArrayTypeWSWC(_,_,_) => at
-          case _ => throw TypeException("All input types must be arrays!")
-        })
-        val elemType = arrayTypes.head.elemT
-        if (! arrayTypes.forall( at => at.elemT == elemType  ))
-          throw TypeException("Elements are not of the same type!")
-
-        val sizeAndCapacity = arrayTypes.tail.foldLeft( (arrayTypes.head.size,arrayTypes.head.capacity)) ((acc,at) =>  (acc._1+at.size,acc._2+at.capacity))
-
-        ArrayTypeWSWC(elemType,sizeAndCapacity._1,sizeAndCapacity._2)
+       ConcatFunction.computeOutType(tt)
 
       case _ => throw new TypeException(argType, "TupleType", this)
     }
@@ -45,6 +35,9 @@ case class ConcatFunction(n : Int) extends Pattern(arity = n) {
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
       ???
   }
+
+
+
 }
 
 object ConcatFunction {
@@ -59,6 +52,22 @@ object ConcatFunction {
   def apply(args : Expr*) : Expr = {
     assert(args.length >= 2)
     ConcatFunction(args.length)(args:_*)
+  }
+
+  def computeOutType(tt: TupleType): ArrayType = {
+
+    val arrayTypes = tt.elemsT.map( t => t match {
+      case at @ ArrayTypeWSWC(_,_,_) => at
+      case _ => throw TypeException("All input types must be arrays!")
+    })
+    val elemType = arrayTypes.head.elemT
+    if (! arrayTypes.forall( at => at.elemT == elemType  ))
+      throw TypeException("Elements are not of the same type!")
+
+    val sizeAndCapacity = arrayTypes.tail.foldLeft( (arrayTypes.head.size,arrayTypes.head.capacity)) ((acc,at) =>  (acc._1+at.size,acc._2+at.capacity))
+
+    ArrayTypeWSWC(elemType,sizeAndCapacity._1,sizeAndCapacity._2)
+
   }
 
 }

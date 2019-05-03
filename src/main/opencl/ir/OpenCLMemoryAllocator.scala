@@ -50,7 +50,7 @@ import arithmetic.TypeVar
 import ir.Type.size_t
 import ir._
 import ir.ast._
-import lift.arithmetic.{?, ArithExpr}
+import lift.arithmetic.{?, ArithExpr, Cst}
 import opencl.ir.pattern._
 
 object OpenCLMemoryAllocator {
@@ -484,9 +484,25 @@ object OpenCLMemoryAllocator {
                            numGlb: Allocator,
                            numLcl: Allocator,
                            numPvt: Allocator,
-                           inMem: OpenCLMemory): OpenCLMemory = {
+                           memOfArgs: OpenCLMemory): OpenCLMemory = {
 
-    inMem
+    // dig into collection and match on arguments and replace already allocated memory
+    memOfArgs match {
+      case ocml: OpenCLMemoryCollection =>
+        // check all address spaces are the same (private, local, global) -- skip for now
+        val addressSpace = ocml.subMemories.head.addressSpace
+        // get the size of each allocation and sum up to get overall allocation size
+        val totalSize = ocml.subMemories.foldLeft[ArithExpr](Cst(0))((s,oo) => oo.size + s )
+        // allocate new memory object with new size
+        val outputMemory = OpenCLMemory.allocMemory(totalSize,addressSpace)
+        // then replace in arguments old allocated objects with new ones
+        call.args.zipWithIndex.foreach {
+          case (arg, i) => Expr.visit(arg, e =>
+            if (e.mem == ocml.subMemories(i)) e.mem = outputMemory
+          , (_: Expr) => _)
+        }
+        outputMemory
+    }
   }
 
   private def allocScanSeq(scan: ScanSeq,

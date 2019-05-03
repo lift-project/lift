@@ -461,7 +461,10 @@ class OpenCLGenerator extends Generator {
 
   private def generate(expr: Expr, block: MutableBlock): Unit = {
     assert(expr.t != UndefType)
+   // assert(expr.view != NoView)
+   // assert(expr.outputView != NoView,expr.toString())
 
+    // here new views are being created ??
     expr match {
       case f: FunCall => f.args.foreach(generate(_, block))
       case _          =>
