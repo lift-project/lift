@@ -6,7 +6,7 @@ import lift.arithmetic.{Cst, Var}
 import opencl.executor.Executor
 import org.junit.Assert.assertEquals
 import patterns.nn.conv.ConvStencil3D
-import patterns.nn.conv.ConvStencil3D.{ConvStencil3DLayerConfig, ConvStencil3DTuneParams}
+import patterns.nn.conv.ConvStencil3D.{ConvStencil3DLayerConfig, ConvStencil3DRewriteParams, ConvStencil3DTuneParams}
 import patterns.nn.utils.Utils.slidingOutputSize
 
 package object nn {
@@ -15,14 +15,17 @@ package object nn {
   }
   abstract class LayerConfig extends LayerParams
   abstract class LayerTuneParams extends LayerParams
+  abstract class LayerRewriteParams extends LayerParams
 
   abstract class LayerExpression(layerConfig: LayerConfig,
-                                 tuneParams: LayerTuneParams)
+                                 tuneParams: LayerTuneParams,
+                                 rewriteParams: ConvStencil3DRewriteParams)
 
   trait LayerExpressionFactory {
     // TODO: generalize types
     def apply(layerConfig: ConvStencil3DLayerConfig,
-              tuneParams: ConvStencil3DTuneParams): Seq[Lambda]
+              tuneParams: ConvStencil3DTuneParams,
+              rewriteParams: ConvStencil3DRewriteParams): Seq[Lambda]
   }
 
   type Array2D[T] = Array[Array[T]]

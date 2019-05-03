@@ -9,7 +9,7 @@ import opencl.ir.{Float, id}
 import org.junit.Assert.assertEquals
 import org.junit.{BeforeClass, Test}
 import patterns.nn.conv.ConvStencil3D
-import patterns.nn.conv.ConvStencil3D.{ConvStencil3DLayerConfig, ConvStencil3DTuneParams}
+import patterns.nn.conv.ConvStencil3D.{ConvStencil3DLayerConfig, ConvStencil3DRewriteParams, ConvStencil3DTuneParams}
 import patterns.nn.utils.Utils.slidingOutputSize
 
 import scala.util.Random
@@ -20,6 +20,7 @@ class TestPadding {
 
   val layerConfigVars = new ConvStencil3DLayerConfig()
   val tuneParamVars = new ConvStencil3DTuneParams()
+  val rewriteParamVars = new ConvStencil3DRewriteParams()
 
   @Test
   def testPadding(): Unit = {
@@ -46,12 +47,17 @@ class TestPadding {
       //val unrollReduce: Boolean = false)
     ).map(Cst(_))
 
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars)
+    val rewriteParams: List[Cst] = List(
+      Cst(1)
+    )
+
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars)
     factory.apply(id)
 
     val substitutionTable: Map[Var, Cst] =
       (layerConfigVars.paramVector.filter(_.isInstanceOf[Var]).zip(layerConfig) ++
-        tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParams)).toMap
+        tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParams) ++
+        rewriteParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(rewriteParams)).toMap
 
 
     /* Non-padded X */
@@ -144,12 +150,17 @@ class TestPadding {
       //val unrollReduce: Boolean = false)
     ).map(Cst(_))
 
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars)
+    val rewriteParams: List[Cst] = List(
+      Cst(1)
+    )
+
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars)
     factory.apply(id)
 
     val substitutionTable: Map[Var, Cst] =
       (layerConfigVars.paramVector.filter(_.isInstanceOf[Var]).zip(layerConfig) ++
-        tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParams)).toMap
+        tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParams) ++
+        rewriteParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(rewriteParams)).toMap
 
 
     /* Non-padded X */

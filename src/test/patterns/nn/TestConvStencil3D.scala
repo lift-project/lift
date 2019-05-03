@@ -9,7 +9,7 @@ import opencl.ir.id
 import org.junit.Assert.assertEquals
 import org.junit.{BeforeClass, Test}
 import patterns.nn.conv.ConvStencil3D
-import patterns.nn.conv.ConvStencil3D.{ConvStencil3DLayerConfig, ConvStencil3DTuneParams}
+import patterns.nn.conv.ConvStencil3D.{ConvStencil3DLayerConfig, ConvStencil3DRewriteParams, ConvStencil3DTuneParams}
 import patterns.nn.utils.Utils.slidingOutputSize
 
 import scala.util.Random
@@ -138,13 +138,19 @@ class TestConvStencil3D {
     //val unrollReduce: Boolean = false)
   ).map(Cst(_))
 
+  val rewriteParamVars = new ConvStencil3DRewriteParams()
+  val rewriteParamVarsExamples: List[Cst] = List(
+    Cst(1)
+  )
+
   val substitutionTableExample: Map[Var, Cst] =
     (layerConfigVars.paramVector.filter(_.isInstanceOf[Var]).zip(layerConfigExample) ++
-      tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParamsExample)).toMap
+      tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParamsExample) ++
+      rewriteParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(rewriteParamVarsExamples)).toMap
 
   @Test
   def testScalaConvSanityCheck(): Unit = {
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars)
     val lambdas = factory.apply(id)
 
     val result: Array[Array[Array[Array[Float]]]] =
@@ -165,7 +171,7 @@ class TestConvStencil3D {
 
   @Test
   def testBothLsSanityCheck(): Unit = {
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars)
     val lambdas = factory.apply(id)
 
     val concreteLambda1 = ParameterRewrite(lambdas.head, substitutionTableExample)
@@ -191,7 +197,7 @@ class TestConvStencil3D {
 
   @Test
   def test1stLSanityCheck(): Unit = {
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars)
     val lambdas = factory.apply(id)
 
     val concreteLambda1 = ParameterRewrite(lambdas.head, substitutionTableExample)
@@ -226,15 +232,16 @@ class TestConvStencil3D {
 
 
 
-  def test1stLAgainstScalaVersion(layerConfig: List[Cst], tuneParams: List[Cst]): Unit = {
+  def test1stLAgainstScalaVersion(layerConfig: List[Cst], tuneParams: List[Cst], rewriteParams: List[Cst]): Unit = {
     Random.setSeed(0)
 
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars)
     val lambdas = factory.apply(id)
 
     val substitutionTable: Map[Var, Cst] =
       (layerConfigVars.paramVector.filter(_.isInstanceOf[Var]).zip(layerConfig) ++
-        tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParams)).toMap
+        tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParams) ++
+        rewriteParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(rewriteParams)).toMap
 
     val (k, b, x) = patterns.nn.conv.generateTestData(factory, layerConfigVars, substitutionTable,
       substituteVars(factory.paddedInputWidthHeight, substitutionTable).evalInt)
@@ -297,15 +304,16 @@ class TestConvStencil3D {
   }
 
 
-  def testBothLsAgainstScalaVersion(layerConfig: List[Cst], tuneParams: List[Cst]): Unit = {
+  def testBothLsAgainstScalaVersion(layerConfig: List[Cst], tuneParams: List[Cst], rewriteParams: List[Cst]): Unit = {
     Random.setSeed(0)
 
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars)
     val lambdas = factory.apply(id)
 
     val substitutionTable: Map[Var, Cst] =
       (layerConfigVars.paramVector.filter(_.isInstanceOf[Var]).zip(layerConfig) ++
-        tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParams)).toMap
+        tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParams) ++
+        rewriteParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(rewriteParams)).toMap
 
 
     val K: Array[Array[Array[Array[Float]]]] = Array.tabulate(
@@ -363,15 +371,17 @@ class TestConvStencil3D {
   }
 
 
-  def testBothLsAndScalaAgainstScalaVersion(layerConfig: List[Cst], tuneParams: List[Cst]): Unit = {
+  def testBothLsAndScalaAgainstScalaVersion(layerConfig: List[Cst], tuneParams: List[Cst], rewriteParams: List[Cst]):
+  Unit = {
     Random.setSeed(0)
 
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars)
     val lambdas = factory.apply(id)
 
     val substitutionTable: Map[Var, Cst] =
       (layerConfigVars.paramVector.filter(_.isInstanceOf[Var]).zip(layerConfig) ++
-        tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParams)).toMap
+        tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParams) ++
+        rewriteParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(rewriteParams)).toMap
 
 
     val K: Array[Array[Array[Array[Float]]]] = Array.tabulate(
@@ -452,7 +462,11 @@ class TestConvStencil3D {
       //val unrollReduce: Boolean = false)
     ).map(Cst(_))
 
-    test1stLAgainstScalaVersion(layerConfig, tuneParams)
+    val rewriteParams: List[Cst] = List(
+      Cst(1)
+    )
+
+    test1stLAgainstScalaVersion(layerConfig, tuneParams, rewriteParams)
   }
 
   @Test
@@ -479,7 +493,11 @@ class TestConvStencil3D {
       //val unrollReduce: Boolean = false)
     ).map(Cst(_))
 
-    testBothLsAndScalaAgainstScalaVersion(layerConfig, tuneParams)
+    val rewriteParams: List[Cst] = List(
+      Cst(1)
+    )
+
+    testBothLsAndScalaAgainstScalaVersion(layerConfig, tuneParams, rewriteParams)
   }
 
   @Test
@@ -506,7 +524,11 @@ class TestConvStencil3D {
       //val unrollReduce: Boolean = false)
     ).map(Cst(_))
 
-    testBothLsAgainstScalaVersion(layerConfig, tuneParams)
+    val rewriteParams: List[Cst] = List(
+      Cst(1)
+    )
+
+    testBothLsAgainstScalaVersion(layerConfig, tuneParams, rewriteParams)
   }
 }
 
