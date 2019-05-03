@@ -1,10 +1,13 @@
 package rewriting.rules
 
-import ir.ast.{Expr, FunCall, FunDecl, Gather, Get, Lambda, Lambda1, Let, ReorderWithStride, RewritingGuidePost, UserFun, Value, Zip, asVector, λ}
+import ir.{ArrayType, ArrayTypeWSWC}
+import ir.ast.debug.AssertType
+import ir.ast.{Expr, FunCall, FunDecl, Gather, Get, Lambda, Lambda1, Let, ReorderWithStride, RewritingGuidePost, Split, UserFun, Value, Zip, asVector, λ}
 import ir.ast.onnx.{AveragePool, ConvWithBias, ConvWithoutBias}
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Cst}
 import opencl.ir.Float4
 import opencl.ir.pattern.{MapLcl, MapSeq, ReduceSeq, toPrivate}
+import patterns.nn.conv
 import patterns.nn.conv.{ConvCPU3D, ConvStencil3D}
 import patterns.nn.pool.PoolCPU3D
 import rewriting.{PotentialRewrite, Rewrite}
@@ -29,7 +32,8 @@ object NeuralNetRules {
       FunCall(ConvStencil3D(
 //        layerConfig = ConvStencil3D.ConvStencil3DLayerConfig(onnxNode, args.head),
         layerConfig = new ConvStencil3D.ConvStencil3DLayerConfig(),
-        tuneParams = new ConvStencil3D.ConvStencil3DTuneParams())(0), args: _*) // TODO: this throws away the final part of the expression
+        tuneParams = new ConvStencil3D.ConvStencil3DTuneParams(),
+        rewriteParams = new conv.ConvStencil3D.ConvStencil3DRewriteParams())(0), args: _*) // TODO: this throws away the final part of the expression
     })
 
 
@@ -44,6 +48,17 @@ object NeuralNetRules {
   object StencilRules {
     val vectorise4Marker = Rule("", {
       case FunCall(RewritingGuidePost("potentialAsVector"), arg) => asVector(4) $ arg
+    })
+
+    val vectorise4Chunks = Rule("", {
+      case FunCall(RewritingGuidePost("chunkOfVectors"), FunCall(Split(s), arg)) =>
+        Split(s /^ Cst(4)) $ arg
+    })
+
+    val vectorise4AssertType = Rule("", {
+      case FunCall(RewritingGuidePost("windowType"),
+      FunCall(AssertType(ArrayTypeWSWC(ArrayTypeWSWC(elemT, s1, c1), s2, c2), msg), arg)) =>
+        AssertType(ArrayTypeWSWC(ArrayTypeWSWC(Float4, s1 /^ Cst(4), c1  /^ Cst(4)), s2, c2), msg) $ arg
     })
 
     val vectorise4Id = Rule("", {
@@ -65,12 +80,19 @@ object NeuralNetRules {
         if zipArgs.forall(zipArg => Rewrite.listAllPossibleRewrites(zipArg, vectorise4Marker).nonEmpty) =>
 
         val vectorisedZipArgs = zipArgs.map(zipArg => {
-          val rewrites = Rewrite.listAllPossibleRewrites(zipArg, vectorise4Marker)
-          rewrites.foldLeft(zipArg) {
-            case (rewrittenExpr: Expr, potentialRewrite: PotentialRewrite) =>
-              val replacement = potentialRewrite.rule.rewrite(potentialRewrite.expr)
+          Seq(
+            vectorise4Marker,
+            vectorise4Chunks,
+            vectorise4AssertType).foldLeft[Expr](zipArg) {
+            case (rewrittenExpr: Expr, rule: Rule) =>
+              val rewrites = Rewrite.listAllPossibleRewrites(rewrittenExpr, rule)
 
-              Expr.replace(rewrittenExpr, potentialRewrite.expr, replacement)
+              rewrites.foldLeft(rewrittenExpr) {
+                case (rewrittenExpr: Expr, potentialRewrite: PotentialRewrite) =>
+                  val replacement = potentialRewrite.rule.rewrite(potentialRewrite.expr)
+
+                  Expr.replace(rewrittenExpr, potentialRewrite.expr, replacement)
+              }
           }
         })
 
