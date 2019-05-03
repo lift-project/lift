@@ -148,7 +148,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
       λ(originalXType, (X) =>
         AssertType(xType, "SlideX output") o
           // Tile and coalesce
-          Map(Map(TileAndCoalesce())) o
+//          Map(Map(TileAndCoalesce())) o
           // Join tiles and channels
           Map(Map(Join() o Join())) o
           // Join tile rows
@@ -162,24 +162,17 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
           $ X)
     }
 
-    def Coalesce(): FunDecl =
-      λ(flatWindowType, (window) =>
-        RewritingGuidePost("coalescing") /*Gather(ReorderWithStride(nSeqTilesInWindow))*/
-          $ window)
-
-    def TileAndCoalesce(): FunDecl =
+    def vectoriseCoalesceAndSplit(): FunDecl =
       λ(originalFlatWindowType, (window) =>
-        // Prepare for vectorisation
-        //        {if (tuneParams.vectorLen != 1) Map(Split(tuneParams.vectorLen)) else Continue()} o
-        Continue() o
-          //Map(Split(tuneParams.vectorLen)) o
-          // Tile
-          Split(tuneParams.seqOpsPerThread) o
+        RewritingGuidePost("windowType") o AssertType(windowType, "vectoriseCoalesceAndSplit() result type") o
+        // Split into chunks
+          RewritingGuidePost("chunkOfVectors") o Split(chunkSize) o
           // Coalesce
           {
-            if (false/*tuneParams.coalesce*/) Coalesce() else Continue()
-          }
-
+            if (true/*tuneParams.coalesce*/) RewritingGuidePost("coalescing") else continue()
+          } o
+          // Vectorise
+          RewritingGuidePost("potentialAsVector")
           $ window)
 
 
@@ -463,13 +456,13 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
 
                         }))} $ Zip(
                         //AT(AT(Float, tuneParams.seqOpsPerThread), nSeqTilesInWindow)
-                        Map(RewritingGuidePost("coalescing")) o Map(RewritingGuidePost("potentialAsVector")) $ window,
-                        Map(Map(RewritingGuidePost("coalescing"))) o Map(Map(RewritingGuidePost("potentialAsVector"))) o Transpose() $ kernelWGroup)
+                        vectoriseCoalesceAndSplit() $ window,
+                        Transpose() o Map(vectoriseCoalesceAndSplit()) $ kernelWGroup)
                     ))}/* o Map(Split(nWindowsPerKernels))*/ $ XTile
 
                   /** *** Output channel group END *****/
                 }))} o AssertType(kernelWType, "All kernel weights type after split") o
-                Split(tuneParams.nKernelsPerWrg) o Map(TileAndCoalesce() o Join() o Map(Join())) $ K
+                Split(tuneParams.nKernelsPerWrg) o Map(/*TileAndCoalesce() o */Join() o Map(Join())) $ K
 
               /** * Tile END ***/
             }))} o SlideX() $ X
