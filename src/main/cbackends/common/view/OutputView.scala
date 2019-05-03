@@ -10,6 +10,7 @@ import core.generator.PrettyPrinter._
 import cbackends.common.utils.output_view.OutputView.{init_body, post_check, pre_check}
 import cbackends.common.common_ir.HostMemory
 import cbackends.host.host_ir._
+import opencl.ir.pattern.ScanSeq
 
 
 object OutputView {
@@ -325,6 +326,45 @@ object OutputView {
         generateOutputView(args(1)) */
 
         fc
+
+      }
+
+
+      case fc@FunCall(s:ScanSeq, args@_*) => {
+
+        assert(fc.outputView != NoView)
+
+        assert(args.length == 2)
+
+        s.f.body.outputView = fc.outputView.access(s.loopVar)
+
+        cont(s.f.body)
+
+        val acc = args(0)
+        val array = args(1)
+
+        acc.outputView = UnusedInExprOutputView
+
+        array.outputView = s.f.params(1).outputView match {
+          //case ViewMem(v, _) => ViewMem(v, arg.t)
+          case ViewMem(v, _) =>
+            GenerateViewForRawInOut.generateViewForRawInOut(array, array.t, Cst(1))
+          case outputView =>
+            val t = fc.argsType
+            val chunksize  = t match {
+              case ArrayType(ArrayTypeWSWC(_, s,c)) if s==c => s
+              case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + fc.argsType)
+            }
+            //outputView.split(chunksize)
+            ViewSplit(chunksize, outputView, t)
+        }
+
+        args.foreach(a => assert(a.outputView != NoView))
+
+        args.foreach( cont(_) )
+
+        fc
+
 
       }
 

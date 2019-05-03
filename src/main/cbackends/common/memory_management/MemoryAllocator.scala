@@ -7,6 +7,7 @@ import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, Expr, FPattern, 
 import ir.{Type, UnallocatedMemory}
 import lift.arithmetic.{ArithExpr, ContinuousRange, Cst, Var}
 import opencl.ir.OpenCLMemory
+import opencl.ir.pattern.ScanSeq
 
 import scala.collection.mutable
 
@@ -60,6 +61,23 @@ object MemoryAllocator {
         cont(rd.f.body)
 
         fc.mem = rd.f.body.mem
+        fc
+
+      }
+
+      case fc@FunCall(s:ScanSeq, args@_*) => {
+
+        assert(args.length == 2)
+        val init = args(0)
+        val array = args(1)
+
+        cont(array)
+        init.mem = CPUNullMemory
+
+        (s.f.params zip args).foreach(pair => pair._1.mem = pair._2.mem)
+        cont(s.f.body)
+
+        fc.mem = s.f.body.mem
         fc
 
       }

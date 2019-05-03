@@ -1263,7 +1263,7 @@ class TestHost {
   }
 
 
-  /*
+
   @Test
   def test_scanseq(): Unit = {
 
@@ -1289,7 +1289,7 @@ class TestHost {
     println("Test case test_reduce_3d_matrix done!")
 
 
-  } */
+  }
 
 
 }

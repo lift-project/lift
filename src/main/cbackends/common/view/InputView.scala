@@ -8,7 +8,7 @@ import cbackends.common.utils.input_view.InputView.{init_params, post_check, pre
 import cbackends.common.utils.pattern_matching.IsDefinedAt
 import cbackends.host.host_ir._
 import lift.arithmetic.{ArithExpr, Cst}
-import opencl.ir.pattern.MapSeq
+import opencl.ir.pattern.{MapSeq, ScanSeq}
 
 object InputView {
 
@@ -214,6 +214,42 @@ object InputView {
         fc
 
       }
+
+      case fc@FunCall(s: ScanSeq, args@_*)   => {
+
+        //scan.f.params(0).view = argView.get(0)
+        //scan.f.params(1).view = argView.get(1).access(scan.loopVar)
+
+        //visitAndBuildViews(scan.f.body)
+
+        //View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
+
+        args.foreach( cont(_) )
+
+        val input_view = getViewFromArgs(fc)
+
+        s.f.params(0).view = input_view.get(0)
+        s.f.params(1).view = input_view.get(1).access(s.loopVar)
+
+        cont( s.f.body )
+
+        fc.view = s.f.body.view
+
+        fc.isConcrete match {
+          case true => s.f.body.view match {
+            case ViewMem(v, t) =>
+              t match {
+                //if it is a scalar, fc.t will be []_1, then you only need to allocate a new ViewMem of size 1
+                case _:ScalarType | _:TupleType => fc.view = ViewMem(v, fc.t)
+                case _:ArrayType => fc.view = GenerateViewForRawInOut.generateViewForRawInOut(fc, fc.t, Cst(1))
+              }
+          }
+        }
+
+        fc
+
+      }
+
 
 
       case fc@FunCall(_:TransposeW, arg)  => {

@@ -8,6 +8,7 @@ import cbackends.host.host_ir._
 import cbackends.sdh.sdh_ir.{TMKernel, ToGPE, ToLCP}
 import ir.Type
 import opencl.ir.OpenCLAddressSpace
+import opencl.ir.pattern.ScanSeq
 
 import scala.collection.mutable
 
@@ -34,6 +35,18 @@ object FinalMemoryAllocationAnalysis {
         val args_body_map = args_map ++ analyze(r.f.body)
         //correct type for user function, e.g., float => [float]_1
          args_body_map + (
+          fc.mem.variable.toString -> (
+            CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ) ,
+            Type.getElementCount(fc.t),
+            fc.addressSpace
+          ) )
+
+
+      case fc@FunCall(s:ScanSeq, args@_*) =>
+        val args_map = args.map(analyze(_)).reduce( _ ++ _ )
+        val args_body_map = args_map ++ analyze(s.f.body)
+        //correct type for user function, e.g., float => [float]_1
+        args_body_map + (
           fc.mem.variable.toString -> (
             CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ) ,
             Type.getElementCount(fc.t),
