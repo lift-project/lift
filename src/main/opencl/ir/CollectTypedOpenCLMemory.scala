@@ -63,6 +63,7 @@ private class CollectTypedOpenCLMemory(val lambda: Lambda, val includePrivate: B
     expr match {
       case v: Value => collectValueOrUserFunMemory(v)
       case _: Param => Seq()
+      case a: ArrayFromExpr => collectIntermediateMemories(a.e)
       case _: ArrayConstructors => Seq()
       case call: FunCall => collectFunCall(call)
     }

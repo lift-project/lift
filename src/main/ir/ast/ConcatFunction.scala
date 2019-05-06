@@ -68,7 +68,7 @@ object ConcatFunction {
     }
     val elemType = arrayTypes.head.elemT
     if (! arrayTypes.forall( at => at.elemT == elemType  ))
-      throw TypeException("Elements are not of the same type!")
+      throw TypeException(s"Elements are not of the same type ($arrayTypes)!")
 
     val sizeAndCapacity = arrayTypes.tail.foldLeft( (arrayTypes.head.size,arrayTypes.head.capacity)) ((acc,at) =>  (acc._1+at.size,acc._2+at.capacity))
 

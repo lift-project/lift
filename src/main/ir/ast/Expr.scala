@@ -167,6 +167,7 @@ object Expr {
           case l: Lambda =>    visit(l.body, pre, post)
           case _ =>
         }
+      case ArrayFromExpr(e) => visit(e, pre, post)
       case _ =>
     }
     post(expr)
@@ -209,6 +210,9 @@ object Expr {
           case l: Lambda =>     visitWithState(newResult)(l.body, visitFun)
           case _ => newResult
         }
+
+      case ArrayFromExpr(e) => visitWithState(result)(e, visitFun, visitArgs)
+
       case _ => result
     }
   }
@@ -235,6 +239,7 @@ object Expr {
             visitLeftToRight(x)(arg, visitFun)
           }) else newResult
 
+      case ArrayFromExpr(e) => visitLeftToRight(z)(e, visitFun, visitArgs)
 
       case _ => visitFun(expr, z)
     }
@@ -259,6 +264,8 @@ object Expr {
         }
 
         visitFun(expr, newResult)
+
+      case ArrayFromExpr(e) => visitRightToLeft(z)(e, visitFun)
 
       case _ => visitFun(expr, z)
     }
@@ -295,6 +302,7 @@ object Expr {
         call.args.foldRight(newResult)((arg, x) => {
           visitWithStateDepthFirst(x)(arg, visitFun)
         })
+      case ArrayFromExpr(e) => visitWithStateDepthFirst(result)(e, visitFun)
       case _ => result
     }
   }
@@ -345,6 +353,8 @@ object Expr {
             FunCall(newCall, newArgs: _*)
           } else
             e // Otherwise return the same FunCall object
+
+        case ArrayFromExpr(e) => replace(e, f)
 
         case _ => e
       }

@@ -534,6 +534,7 @@ class OpenCLGenerator extends Generator {
       }
       case v: Value             => generateValue(v, block)
       case _: Param             =>
+      case ArrayFromExpr(e)     => generate(e, block)
       case _: ArrayConstructors =>
     }
   }

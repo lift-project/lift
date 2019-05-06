@@ -19,6 +19,7 @@ object TestConcatHelpers
 
 }
 
+//noinspection ScalaUnnecessaryParentheses
 class TestConcat
 {
 
@@ -99,7 +100,7 @@ class TestConcat
     val concatlike = fun(
       ArrayTypeWSWC(Float, SizeVar("N")),
       (input) =>
-        ConcatFunction(toGlobal(MapSeq(id)) $ (MapSeq(mult2) $ input, MapSeq(add3) $ input, MapSeq(subtract1) $ input))
+        toGlobal(ConcatFunction(3))(MapSeq(mult2) $ input, MapSeq(add3) $ input, MapSeq(subtract1) $ input)
     )
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concatlike,input)
@@ -369,19 +370,25 @@ class TestConcat
     def stencil1D(a: Int, b: Int) = fun(
       ArrayTypeWSWC(Float,N),
       (input) => {
-        ConcatFunction(
-          ArrayFromExpr(toGlobal(id) o toPrivate(fun(x => mult(x,constL)))  $ input.at(0)), // this needs to be an array!
-          MapGlb(0)(fun(tup => {
+        ConcatFunction(3)(
+          // 1
+          toGlobal(MapSeq(id)) $ ArrayFromExpr(toPrivate(mult)(input.at(0), constL)),
+          // 2
+          toGlobal(MapSeq(id)) o MapGlb(0)(fun(tup => {
 
             val neighbourhood = Get(tup,1)
             val t = Get(tup,0)
 
-            toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+            ArrayAccess(0) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
 
-          })) $ Zip(input, Slide(a,b) o PadConstant(1,1,0.0f) $ input)
-        , ArrayFromExpr(toPrivate(fun(x => mult(x,constR))) $ input.at(N-1))) // this needs to be an array!
+          })) $ Zip(input, Slide(a,b) o PadConstant(1,1,0.0f) $ input),
+          // 3
+          toGlobal(MapSeq(id)) $ ArrayFromExpr(toPrivate(mult)(input.at(N-1),constR))
+        )
       }
     )
+
+    println( Compile(stencil1D(slidesize, slidestep)) )
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values)
 
