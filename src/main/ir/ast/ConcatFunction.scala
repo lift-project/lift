@@ -3,6 +3,8 @@ package ir.ast
 import ir._
 import ir.interpreter.Interpreter.ValueMap
 
+import scala.collection.immutable
+
 /**
  * ConcatFunction pattern.
  * Code for this pattern can be generated.
@@ -19,6 +21,10 @@ import ir.interpreter.Interpreter.ValueMap
  * @param n The number of arrays which are combined. Must be >= 2.
  */
 case class ConcatFunction(n : Int) extends Pattern(arity = n) {
+
+  // first component: memory to be replaced
+  // second component: memory to replace the first component with
+  var replacementMap: immutable.Map[Memory, Memory] = null
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -56,10 +62,10 @@ object ConcatFunction {
 
   def computeOutType(tt: TupleType): ArrayType = {
 
-    val arrayTypes = tt.elemsT.map( t => t match {
-      case at @ ArrayTypeWSWC(_,_,_) => at
+    val arrayTypes = tt.elemsT.map {
+      case at@ArrayTypeWSWC(_, _, _) => at
       case _ => throw TypeException("All input types must be arrays!")
-    })
+    }
     val elemType = arrayTypes.head.elemT
     if (! arrayTypes.forall( at => at.elemT == elemType  ))
       throw TypeException("Elements are not of the same type!")

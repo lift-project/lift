@@ -346,6 +346,7 @@ class OpenCLGenerator extends Generator {
 
   def allocateMemory(f: Lambda): Unit = {
     OpenCLMemoryAllocator(f)
+    RemoveRedundantMemory(f)
     Kernel.memory = CollectTypedOpenCLMemory.asFlatSequence(f)
   }
 

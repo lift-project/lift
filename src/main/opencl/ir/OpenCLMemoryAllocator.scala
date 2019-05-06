@@ -53,6 +53,27 @@ import ir.ast._
 import lift.arithmetic.{?, ArithExpr, Cst}
 import opencl.ir.pattern._
 
+import scala.collection.mutable
+
+object RemoveRedundantMemory {
+  def apply(f: Lambda): Unit = {
+    // 1. collect all redundant memory
+    var replacementMap = mutable.Map[Memory, Memory]()
+    Expr.visit(f.body, {
+      case call: FunCall => call.f match {
+        case c: ConcatFunction => replacementMap ++= c.replacementMap
+        case _ =>
+      }
+      case _ =>
+    }, (_: Expr) => _)
+
+    // 2. apply all replacements
+    Expr.visit(f.body, e =>
+      if (replacementMap.isDefinedAt(e.mem)) e.mem = replacementMap(e.mem)
+    , (_: Expr) => _)
+  }
+}
+
 object OpenCLMemoryAllocator {
   /** (baseSize, innerSize) => totalSize */
   type Allocator = (ArithExpr, ArithExpr) => ArithExpr
@@ -495,12 +516,10 @@ object OpenCLMemoryAllocator {
         val totalSize = ocml.subMemories.foldLeft[ArithExpr](Cst(0))((s,oo) => oo.size + s )
         // allocate new memory object with new size
         val outputMemory = OpenCLMemory.allocMemory(totalSize,addressSpace)
-        // then replace in arguments old allocated objects with new ones
-        call.args.zipWithIndex.foreach {
-          case (arg, i) => Expr.visit(arg, e =>
-            if (e.mem == ocml.subMemories(i)) e.mem = outputMemory
-          , (_: Expr) => _)
-        }
+        // then remember to replace in arguments old allocated objects with new ones
+        // this is done in RemoveRedundantMemory
+        cc.replacementMap =
+          ocml.subMemories.map(toBeReplaced => toBeReplaced -> outputMemory).toMap
         outputMemory
     }
   }
