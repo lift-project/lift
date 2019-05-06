@@ -63,8 +63,8 @@ class TestConcat
     val concatlike = fun(
       ArrayTypeWSWC(Float, SizeVar("N")),
       (input) =>
-       toGlobal(MapSeq(id)) $
-         ConcatFunction(2)(MapSeq(mult2) $ input, MapSeq(add3) $ input)
+       //toGlobal(MapSeq(id)) $
+         toGlobal(ConcatFunction(2))(MapSeq(mult2) $ input, MapSeq(add3) $ input)
     //  ConcatFunction(2)( MapSeq(mult2) $ input, MapSeq(add3) $ input)
     )
    println(Compile(concatlike))

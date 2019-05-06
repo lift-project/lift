@@ -132,6 +132,7 @@ abstract sealed class View(val t: Type = UndefType) {
       case ViewSize(iv) => ViewSize(iv.replaced(subst))
       case ViewHead(iv, ty) => ViewHead(iv.replaced(subst), ty)
       case ViewTail(iv, ty) => ViewTail(iv.replaced(subst), ty)
+      case ViewOffset(offset, iv, ty) => ViewOffset(offset, iv.replaced(subst), ty)
       case _: View2DGeneratorUserFun | _: View3DGeneratorUserFun | _: ViewGenerator | _: ViewGeneratorUserFun |
            _: ViewConstant | NoView =>
         this
