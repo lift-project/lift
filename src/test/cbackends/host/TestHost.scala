@@ -512,7 +512,7 @@ class TestHost {
     HostCompiler ! (f, path, List(file) )
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "8 8 8 8 \n"
+    val expected : String = "8 8 8 8 8 8 \n"
     assertEquals(expected, actual)
 
     println("Done")
@@ -1275,7 +1275,7 @@ class TestHost {
 
     val f = fun(
       array,
-      ScanSeq(add, 0.0f) $ _
+      ScanSeq(add, 1.1f) $ _
     )
 
     (s"mkdir -p $path") !
@@ -1283,7 +1283,7 @@ class TestHost {
     HostCompiler ! (f, path, List(file))
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "16 \n"
+    val expected : String = "2.1 3.1 4.1 5.1 6.1 7.1 8.1 9.1 10.1 11.1 12.1 13.1 14.1 15.1 16.1 17.1 \n"
     assertEquals(expected, actual)
 
     println("Test case test_reduce_3d_matrix done!")
