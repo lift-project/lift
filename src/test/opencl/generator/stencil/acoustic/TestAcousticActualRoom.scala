@@ -369,7 +369,7 @@ class TestAcousticActualRoom {
           val `tile[1][2][1]` = Get(m,1).at(1).at(2).at(1)
           val `tile[2][1][1]` = Get(m,1).at(2).at(1).at(1)
 
-          val stencil = PrintType() o toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
+          val stencil =  toPrivate(fun(x => add(x,`tile[0][1][1]`))) o
             toPrivate(fun(x => add(x,`tile[1][0][1]`))) o
             toPrivate(fun(x => add(x,`tile[1][1][0]`))) o
             toPrivate(fun(x => add(x,`tile[1][1][2]`))) o
@@ -384,7 +384,7 @@ class TestAcousticActualRoom {
                 toPrivate(fun(x => mult(x, maskedValStencil))) $ stencil,
                 toPrivate(fun(x => mult(x,cf2))) $ valueMat1))
 
-        })))) $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+        })))) o PrintType() $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
       })
 
     val newLambda = SimplifyAndFuse(lambdaNeighAt)

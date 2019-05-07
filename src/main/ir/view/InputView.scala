@@ -48,16 +48,7 @@ object InputView {
     } else if (call.args.length == 1) {
       visitAndBuildViews(call.args.head)
     } else {
-      call.f match{
-//        case ConcatFunction(_) =>
-          // build new array access view
-          // case class ViewOffset(offset : ArithExpr, iv : View, override val t : Type) extends View(t)
-          //ViewOffset(call.args.map((expr: Expr) => visitAndBuildViews(expr)))
-//          View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
-        // buildViewFunCall(call) // causes infinite loop
-//        View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable) // getting NoView ghosts
-        case _ => View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
-      }
+        View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
     }
   }
 
@@ -99,7 +90,7 @@ object InputView {
       case ArrayAccess(i) => argView.access(i)
       case cc: ConcatFunction => buildViewConcat(call,argView)
       case debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
-           Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => // | ConcatFunction(_) =>
+           Scatter(_) | _: Tuple | Pad(_, _, _) | Id() =>
         argView
       case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
     }

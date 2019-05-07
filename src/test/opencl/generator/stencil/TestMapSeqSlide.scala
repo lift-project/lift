@@ -1356,7 +1356,7 @@ class TestMapSeqSlide
       (ArrayTypeWSWC(Float, n)),
       (mat1, mat2) =>
         MapGlb(0)(fun(m => {
-          toGlobal( tf_id ) o PrintType() $ m.at(1)
+          toGlobal( tf_id )$ m.at(1)
         })) o Slide(slidesize,slidestep) o PrintType() $ Zip(mat1, mat2))
 
 
