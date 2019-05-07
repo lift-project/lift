@@ -610,7 +610,11 @@ class TestHost {
 
     HostCompiler ! (f, path, List(file))
 
-    ("rm -rf " + s"$path" ) !!
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "2 3 4 3 4 5 4 5 6 5 6 7 6 7 8 7 8 9 8 9 10 9 10 11"
+    assertEquals(expected, actual)
+
+    //("rm -rf " + s"$path" ) !!
 
     println("Test case test_slide_hello done!")
   }
