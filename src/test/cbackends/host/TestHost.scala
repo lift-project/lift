@@ -33,6 +33,9 @@ class TestHost {
     "{ return (l + r); }",
     Seq(Float, Float), Float)
 
+  val diff2 = UserFun("diff2", Array("l", "r"),
+    "{ return (r - l); }",
+    Seq(Float, Float), Float)
 
 
 
@@ -1288,6 +1291,33 @@ class TestHost {
 
     val actual : String = native_compile_and_run(path, file)
     val expected : String = "2.1 3.1 4.1 5.1 6.1 7.1 8.1 9.1 10.1 11.1 12.1 13.1 14.1 15.1 16.1 17.1 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_reduce_3d_matrix done!")
+
+
+  }
+
+  @Test
+  def test_numpy_diff(): Unit = {
+
+    val path = s"$common_path/36.numpy_diff"
+    val file = "libnumpy_diff.cpp"
+
+    val array = ArrayType(Float, N)
+
+
+    val f = fun(
+      array,
+      MapSeq( ReduceSeq(diff2, 0.0f) ) o Slide(2,1) $ _
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 2 3 -7 \n"
     assertEquals(expected, actual)
 
     println("Test case test_reduce_3d_matrix done!")
