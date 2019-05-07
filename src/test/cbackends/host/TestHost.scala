@@ -37,6 +37,15 @@ class TestHost {
     "{ return (r - l); }",
     Seq(Float, Float), Float)
 
+  val cross_calc1 = UserFun("cross_calc", Array("a1","a2","a3","b1", "b2", "b3"),
+    "{ return a2 * b3 – a3 * b2;}",
+    Seq(Float, Float, Float, Float, Float, Float), Float )
+  val cross_calc2 = UserFun("cross_calc", Array("a1","a2","a3","b1", "b2", "b3"),
+    "{ return a1 * b3 – a3 * b1;}",
+    Seq(Float, Float, Float, Float, Float, Float), Float )
+  val cross_calc3 = UserFun("cross_calc", Array("a1","a2","a3","b1", "b2", "b3"),
+    "{ return a2 * b3 – a3 * b2;}",
+    Seq(Float, Float, Float, Float, Float, Float), Float )
 
 
   @Test
@@ -1310,6 +1319,44 @@ class TestHost {
     val f = fun(
       array,
       MapSeq( ReduceSeq(diff2, 0.0f) ) o Slide(2,1) $ _
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 2 3 -7 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_reduce_3d_matrix done!")
+
+
+  }
+
+
+  @Test
+  def test_numpy_cross_prod(): Unit = {
+
+    val path = s"$common_path/37.cross_prod"
+    val file = "libcross_prod.cpp"
+
+    val array = ArrayType(TupleType(Float, Float, Float) , N)
+
+
+    val f = fun(
+      array,
+      array,
+      (A,B) => MapSeq(  fun( y =>
+        cross_calc1.apply(
+          Get(Get(y,0),0),
+          Get(Get(y,0),1),
+          Get(Get(y,0),2),
+          Get(Get(y,1),0),
+          Get(Get(y,1),1),
+          Get(Get(y,1),2)
+        ) )
+      )  $ Zip(A,B)
     )
 
     (s"mkdir -p $path") !
