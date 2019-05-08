@@ -50,7 +50,31 @@ object GenerateOclGlobalFacility {
             BinaryExpressionT.Operator.!=,
             StringConstant("CL_SUCCESS")
           ),
-          Block(Vector(RawCode("std::cerr<<"+'"'+"kernel build error"+'"'+"<<std::endl; exit(1);"))),
+          Block(Vector(
+            StringConstant("std::cerr << \"kernel build error\" << std::endl"),
+            StringConstant("char* log"),
+            StringConstant("size_t logsize"),
+            FunctionCall("assert", List(
+              BinaryExpression(
+              FunctionCall("clGetProgramBuildInfo", List(
+                MethodInvocation(kernel_program_cvar, "get", List()),
+                StringConstant("device.get()"), StringConstant("CL_PROGRAM_BUILD_LOG"),
+                StringConstant("0"), StringConstant("NULL"), StringConstant("&logsize"))),
+                BinaryExpressionT.Operator.==,
+                StringConstant("CL_SUCCESS"))
+            )),
+            StringConstant("log = (char*)malloc(sizeof(char) * logsize)"),
+            FunctionCall("assert", List(
+              BinaryExpression(
+                FunctionCall("clGetProgramBuildInfo", List(
+                  MethodInvocation(kernel_program_cvar, "get", List()),
+                  StringConstant("device.get()"), StringConstant("CL_PROGRAM_BUILD_LOG"),
+                  StringConstant("logsize"), StringConstant("log"), StringConstant("NULL"))),
+                BinaryExpressionT.Operator.==,
+                StringConstant("CL_SUCCESS"))
+            )),
+            StringConstant("std::cout << log << std::endl"),
+            StringConstant("exit(1)"))),
           Block()
         )
         val kernel_init = AssignmentExpression(
