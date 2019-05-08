@@ -239,7 +239,7 @@ object OutputView {
         arg.outputView = m.f.params.head.outputView match {
           //case ViewMem(v, _) => ViewMem(v, arg.t)
           case ViewMem(v, _) =>
-            GenerateViewForRawInOut.generateViewForRawInOut(arg, arg.t, Cst(1))
+            GenerateViewForRawInOut.generateViewForRawInOut(arg, arg.t, Cst(1), outputViewConstruct = true)
           case outputView =>
             val t = fc.argsType
             val chunksize  = t match {

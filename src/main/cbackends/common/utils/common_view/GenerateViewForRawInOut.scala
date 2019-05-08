@@ -34,7 +34,8 @@ object GenerateViewForRawInOut {
               case false =>
                 val ids = (0 until elemsT.length)
                 val tuple_views = (ids zip elemsT).map{
-                  case (id, elemT) => generateViewForRawInOut(p, elemT, Cst(1), id)
+                  case (id, elemT) =>
+                    generateViewForRawInOut(p, elemT, Cst(1), id)
                 }
                 ViewMemWithInnerView(p.mem.variable,
                   ViewTuple(
