@@ -7,7 +7,7 @@ import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode
 import ir.{TupleType, Type}
 import ir.ast.Iterate
 import opencl.generator.NDRange
-import opencl.ir.pattern.{MapGlb, MapWrg}
+import opencl.ir.pattern.{MapGlb, MapWrg, ScanSeq}
 import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
 
 import scala.collection.mutable.ArrayBuffer
@@ -98,9 +98,60 @@ object LowerIR2HostCAST {
         generateDataTransfer(fc)
       case fc@FunCall(_:Iterate, _) =>
         generateIterate(fc)
+      case fc@FunCall(_:ScanSeq, _*) =>
+        generateScanSeq(fc)
       case _ =>
         Block()
     }
+
+  }
+
+  private def generateScanSeq(fc: FunCall) : Block = {
+
+    val arg_block = generate(fc.args(1))
+
+    val scan = fc.f.asInstanceOf[ScanSeq]
+    val stop = scan.loopVar.range.max
+
+    val indexVar =  CVarWithType(scan.loopVar.toString, IntegerType() )
+    val init = VarDeclPure( indexVar, indexVar.t, Some(IntConstant(0)) )
+    val cond = BinaryExpression(VarRefPure(indexVar), BinaryExpressionT.Operator.<=, ArithExpression(stop) )
+    val increment = UnaryExpression("++", (indexVar) )
+
+
+    val comment = fc.f match {
+      case _:ScanSeq => Comment("For each element scanned sequentially")
+      case _ => assert(false, "Not implemented"); Comment("Not reachable")
+    }
+
+    val assignment = {
+      generate(scan.f.body).content(0) match {
+        case ExpressionStatement(x,_) => x
+        case y => assert(false,"Not implemented");null
+      } }.asInstanceOf[AssignmentExpression]
+
+    val userfuncall = assignment.value.asInstanceOf[FunctionCall]
+    val init_value = userfuncall.args(0)
+
+    val accumulator = CVarWithType("scan_acc_"+fc.gid, TypeLowering.GetElementTypeFromPointer(TypeLowering.Array2Pointer(TypeLowering.IRType2CastType(fc.t)) )  )
+    //val init_assignment = AssignmentExpression(VarRefPure(accumulator), init_value)
+    val init_assignment = VarDeclPure(accumulator, accumulator.t, Some(init_value) )
+
+    val input_array = assignment.value.asInstanceOf[FunctionCall].args(1)
+    val acc_assignment = AssignmentExpression(VarRefPure(accumulator), FunctionCall(userfuncall.name, List(VarRefPure(accumulator), input_array ) ) )
+    val array_elem_update =AssignmentExpression(assignment.to, VarRefPure(accumulator))
+
+    arg_block :+ comment :+ init_assignment :+ ForLoopIm( init, cond, increment, Block(Vector(acc_assignment, array_elem_update)) )
+
+/*
+    val tuple_args = funcall.args.tail
+    val inloop_assignment = AssignmentExpression(assignment.to, FunctionCall(funcall.name, assignment.to :: tuple_args))
+    val inloop_assignment_block = Block(Vector(ExpressionStatement(inloop_assignment)))
+
+    arg_block :+ comment :+ init_assignment :+ ForLoopIm( init, cond, increment, inloop_assignment_block )
+    */
+
+    //Block()
 
   }
 

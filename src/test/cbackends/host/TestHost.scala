@@ -4,7 +4,7 @@ import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{Cst, SizeVar}
-import opencl.ir.pattern.{MapGlb, MapSeq, ReduceSeq, toGlobal}
+import opencl.ir.pattern._
 import opencl.ir.{Float, add, dividedBy, _}
 import org.junit.Assert._
 import org.junit.Test
@@ -33,7 +33,19 @@ class TestHost {
     "{ return (l + r); }",
     Seq(Float, Float), Float)
 
+  val diff2 = UserFun("diff2", Array("l", "r"),
+    "{ return (r - l); }",
+    Seq(Float, Float), Float)
 
+  val cross_calc1 = UserFun("cross_calc", Array("a1","a2","a3","b1", "b2", "b3"),
+    "{ return a2 * b3 – a3 * b2;}",
+    Seq(Float, Float, Float, Float, Float, Float), Float )
+  val cross_calc2 = UserFun("cross_calc", Array("a1","a2","a3","b1", "b2", "b3"),
+    "{ return a1 * b3 – a3 * b1;}",
+    Seq(Float, Float, Float, Float, Float, Float), Float )
+  val cross_calc3 = UserFun("cross_calc", Array("a1","a2","a3","b1", "b2", "b3"),
+    "{ return a2 * b3 – a3 * b2;}",
+    Seq(Float, Float, Float, Float, Float, Float), Float )
 
 
   @Test
@@ -512,7 +524,7 @@ class TestHost {
     HostCompiler ! (f, path, List(file) )
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "8 8 8 8 \n"
+    val expected : String = "8 8 8 8 8 8 \n"
     assertEquals(expected, actual)
 
     println("Done")
@@ -610,7 +622,11 @@ class TestHost {
 
     HostCompiler ! (f, path, List(file))
 
-    ("rm -rf " + s"$path" ) !!
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "2 3 4 3 4 5 4 5 6 5 6 7 6 7 8 7 8 9 8 9 10 9 10 11 \n"
+    assertEquals(expected, actual)
+
+    //("rm -rf " + s"$path" ) !!
 
     println("Test case test_slide_hello done!")
   }
@@ -1197,6 +1213,163 @@ class TestHost {
     assertEquals(expected, actual)
 
     println("Test case test_slide_hello done!")
+  }
+
+
+  @Test
+  def test_conv2d_for_cases_paper(): Unit = {
+
+    val path = s"$common_path/33.conv2d_for_cases_paper"
+    val file = "libconv2d.cpp"
+
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 8), 8),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, 6), 6),
+      (in, weights) =>   MapSeq( Join() o MapSeq(
+
+        fun(square =>
+
+          ReduceSeq(add, 0.0f) o
+            MapSeq( fun(y => mult.apply(Get(y,0), Get(y,1))) )
+            $ Zip( Join() $ square, Join() $ weights)
+
+        )
+
+      ) )  o Slide2D(6,1) $ in
+    )
+
+    ("mkdir -p " + s"$path" ) !!
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    //6*6*8*2 = 576
+    val expected : String = "72 72 72 72 72 72 72 72 72 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_slide2d done!")
+  }
+
+  @Test
+  def test_parallel_partial_reduce_then_sequential_reduce(): Unit = {
+
+    val path = s"$common_path/34.parallel_partial_reduce_then_sequential_reduce"
+    val file = "libpartial_reduce.cpp"
+
+    val array = ArrayType(Float, N)
+
+
+    val f = fun(
+      array,
+      ReduceSeq(add, 0.0f) o Join() o MapSeq( ReduceSeq(add, 0.0f) ) o Split(4) $ _
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "16 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_reduce_3d_matrix done!")
+
+
+  }
+
+
+
+  @Test
+  def test_scanseq(): Unit = {
+
+    val path = s"$common_path/35.scanseq"
+    val file = "libscan.cpp"
+
+    val array = ArrayType(Float, N)
+
+
+    val f = fun(
+      array,
+      ScanSeq(add, 1.1f) $ _
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "2.1 3.1 4.1 5.1 6.1 7.1 8.1 9.1 10.1 11.1 12.1 13.1 14.1 15.1 16.1 17.1 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_reduce_3d_matrix done!")
+
+
+  }
+
+  @Test
+  def test_numpy_diff(): Unit = {
+
+    val path = s"$common_path/36.numpy_diff"
+    val file = "libnumpy_diff.cpp"
+
+    val array = ArrayType(Float, N)
+
+
+    val f = fun(
+      array,
+      MapSeq( ReduceSeq(diff2, 0.0f) ) o Slide(2,1) $ _
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 2 3 -7 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_reduce_3d_matrix done!")
+
+
+  }
+
+
+  @Test
+  def test_numpy_cross_prod(): Unit = {
+
+    val path = s"$common_path/37.cross_prod"
+    val file = "libcross_prod.cpp"
+
+    val array = ArrayType(TupleType(Float, Float, Float) , N)
+
+
+    val f = fun(
+      array,
+      array,
+      (A,B) => MapSeq(  fun( y =>
+        cross_calc1.apply(
+          Get(Get(y,0),0),
+          Get(Get(y,0),1),
+          Get(Get(y,0),2),
+          Get(Get(y,1),0),
+          Get(Get(y,1),1),
+          Get(Get(y,1),2)
+        ) )
+      )  $ Zip(A,B)
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 2 3 -7 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_reduce_3d_matrix done!")
+
+
   }
 
 
