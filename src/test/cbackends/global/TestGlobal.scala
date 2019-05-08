@@ -710,9 +710,10 @@ class TestGlobal {
     import opencl.executor.Eval
     import exploration.SplitSlideRewrite.readFromFile
 
-    val totalTuningPoints = 1000 //2000
-    val tuningPointBatchSize = 200 //200
+    val totalTuningPoints = 1 //2000
+    val tuningPointBatchSize = 1//200
     val nLayers = 13
+    val fuseLambdas: Boolean = true
 
     for {tuningPointBatch <- 0 until totalTuningPoints / tuningPointBatchSize}
 //    for {tuningPointBatch <- List(0)}
@@ -746,13 +747,22 @@ class TestGlobal {
           gpu_fun2.params(0).t,
           gpu_fun0.params(0).t,
 
-          (p_k, p_b, p_x) => ToHost() $
-            OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
-              OclFunc(gpu_fun2, (if (null_local_ranges) null else ndranges2._1, ndranges2._2)/*ndranges2*/,
-                cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
-                OclFunc( gpu_fun1, (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges1*/,
-                  cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
-                  OclFunc( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x)))
+          if (!fuseLambdas)
+            (p_k, p_b, p_x) => ToHost() $
+              OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
+                OclFunc(gpu_fun2, (if (null_local_ranges) null else ndranges2._1, ndranges2._2)/*ndranges2*/,
+                  cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
+                  OclFunc( gpu_fun1, (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges1*/,
+                    cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
+                    OclFunc( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x)))
+          else
+            (p_k, p_b, p_x) => ToHost() $
+              OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
+                OclFunc(
+                  fun((k, b, x) => gpu_fun2(b, gpu_fun1(k, x))),
+                  (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges2*/,
+                  cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_b,
+                    OclFunc( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x))
         )
 
 
