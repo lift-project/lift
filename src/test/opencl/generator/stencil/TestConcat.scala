@@ -385,6 +385,36 @@ class TestConcat
 
   }
 
+
+  @Test
+  def joinMainStencilAndBoundaryUpdateBoundaryAfter(): Unit  = {
+
+    val M = SizeVar("M")
+
+    def stencil1D(a: Int, b: Int) = fun(
+      ArrayTypeWSWC(Float,TestConcatHelpers.N),
+      ArrayTypeWSWC(Float,M),
+      (input,boundaryA) => {
+        //
+        Concat(3)(
+          toGlobal( PrintType() o MapSeq(id)) $ ArrayFromExpr(toPrivate(mult)(input.at(0),boundaryA.at(0)))),
+          Join() o MapSeq(fun(tup => {
+            val neighbourhood = Get(tup,1)
+            toGlobal( MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+          })) $ Zip(input, Slide(3,1) o PadConstant(1,1,0.0f) $ input),
+          toGlobal( PrintType() o MapSeq(id)) $ ArrayFromExpr(toPrivate(mult)(input.at(TestConcatHelpers.N-1),TestConcatHelpers.constR))
+      }
+    )
+
+  }
+
+  // add iterative example
+
+  // add separate kernel example
+
+  // add 2D example
+
+
   // calculate main stencil from one array
   // concat together with original boundary points multiplied by corresponding values in another array
   @Ignore // for now
@@ -453,9 +483,14 @@ class TestConcat
 
   /**
    *  TODO:
-    *  Concat(point1, point2, point3...etc, main stencil, point n-3,point n-2,point n-1) is not really
+    *  - Concat(point1, point2, point3...etc, main stencil, point n-3,point n-2,point n-1) is not really
     *  a sustainable model
     *  How do we want to compose these?
+    *
+    *  - 2D, 3D ...
+    *
+    *  - Composability dimension wise, but also "data wise"
+    *
     ***/
 
 }
