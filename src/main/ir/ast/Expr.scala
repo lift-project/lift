@@ -83,7 +83,7 @@ abstract class Expr extends IRNode {
         case call: FunCall =>
           call.f match {
             case _: UserFun | _: VectorizeUserFun => true
-            case _: ConcatFunction => true // TODO: not sure if that is a good idea ... but hey ;-)
+            case _: Concat => true // TODO: not sure if that is a good idea ... but hey ;-)
             case _ => b
           }
         case _ => b

@@ -66,7 +66,7 @@ object OutputView {
       case _: Unzip => writeView.zip()
       case l: Lambda => buildViewLambda(l, call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
-      case cc: ConcatFunction => buildViewConcat(call, View.initialiseNewView(call.t, call.inputDepth, call.mem.variable))
+      case cc: Concat => buildViewConcat(call, View.initialiseNewView(call.t, call.inputDepth, call.mem.variable))
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
@@ -84,7 +84,7 @@ object OutputView {
           visitAndBuildViews(arg, View.initialiseNewView(arg.t, arg.inputDepth, arg.mem.variable)))
 
         ViewTuple(res, call.argsType)
-      case ConcatFunction(_) =>
+      case Concat(_) =>
         // recurse into arguments by passing the modified output view along
         val res = call.args.map(arg => visitAndBuildViews(arg, arg.outputView))
         ViewTuple(res, call.argsType)

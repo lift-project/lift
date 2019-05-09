@@ -2,7 +2,7 @@ package opencl.generator.stencil
 
 import ir.ArrayTypeWSWC
 import ir.ast.debug.PrintType
-import ir.ast.{ArrayAccess, ArrayFromExpr, ConcatFunction, Get, Join, PadConstant, Slide, Transpose, UserFun, Zip, fun}
+import ir.ast.{ArrayAccess, ArrayFromExpr, Concat, Get, Join, PadConstant, Slide, Transpose, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.generator.stencil.acoustic.StencilUtilities
@@ -81,7 +81,7 @@ class TestConcat
     val concatlike = fun(
       ArrayTypeWSWC(Float, SizeVar("N")),
       (input) =>
-         toGlobal(ConcatFunction(2))(MapSeq(mult2) $ input, MapSeq(add3) $ input)
+         toGlobal(Concat(2))(MapSeq(mult2) $ input, MapSeq(add3) $ input)
     )
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concatlike, input)
@@ -112,7 +112,7 @@ class TestConcat
     val concatlike = fun(
       ArrayTypeWSWC(Float, SizeVar("N")),
       (input) =>
-        toGlobal(ConcatFunction(3))(MapSeq(mult2) $ input, MapSeq(add3) $ input, MapSeq(subtract1) $ input)
+        toGlobal(Concat(3))(MapSeq(mult2) $ input, MapSeq(add3) $ input, MapSeq(subtract1) $ input)
     )
 
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concatlike,input)
@@ -272,7 +272,7 @@ class TestConcat
     def concatValues() = fun(
       ArrayTypeWSWC(Float, TestConcatHelpers.N),
       (input) => {
-        ConcatFunction(2)(
+        Concat(2)(
           // 1
           toGlobal(MapSeq(id)) $ ArrayFromExpr(toPrivate(mult)(input.at(0),TestConcatHelpers.constL)),
           // 3
@@ -295,7 +295,7 @@ class TestConcat
     def concatArrayAndValue() = fun(
       ArrayTypeWSWC(Float,TestConcatHelpers.N),
       (input) => {
-        ConcatFunction(2)(
+        Concat(2)(
           toGlobal(MapSeq(id)) $ input,
           toGlobal(MapSeq(id)) $ ArrayFromExpr(toPrivate(mult)(input.at(TestConcatHelpers.N-1),TestConcatHelpers.constR))
         )
@@ -317,7 +317,7 @@ class TestConcat
     def stencil1DConcat() = fun(
       ArrayTypeWSWC(Float,TestConcatHelpers.N),
       (input) => {
-        ConcatFunction(2)(
+        Concat(2)(
           fun(nbr => {
             toGlobal(PrintType() o Join() o MapSeq(MapSeqUnroll(id) o ReduceSeq(absAndSumUp,0.0f))) $ nbr
           }) o Slide(3,1) o PadConstant(1,1,0.0f) $ input,
@@ -341,7 +341,7 @@ class TestConcat
    def stencil1DConcatTuple() = fun(
      ArrayTypeWSWC(Float,TestConcatHelpers.N),
      (input) => {
-      ConcatFunction(2)( Join() o
+      Concat(2)( Join() o
          MapSeq(fun(tup => {
            val neighbourhood = Get(tup,1)
            toGlobal( MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
@@ -368,7 +368,7 @@ class TestConcat
     def stencil1DConcatTuple() = fun(
       ArrayTypeWSWC(Float,TestConcatHelpers.N),
       (input) => {
-        ConcatFunction(3)(
+        Concat(3)(
           toGlobal( PrintType() o MapSeq(id)) $ ArrayFromExpr(toPrivate(mult)(input.at(0),TestConcatHelpers.constL)),
           Join() o MapSeq(fun(tup => {
             val neighbourhood = Get(tup,1)

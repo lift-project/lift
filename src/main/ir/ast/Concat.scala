@@ -20,7 +20,7 @@ import scala.collection.immutable
  *
  * @param n The number of arrays which are combined. Must be >= 2.
  */
-case class ConcatFunction(n : Int) extends Pattern(arity = n) {
+case class Concat(n : Int) extends Pattern(arity = n) {
 
   // first component: memory to be replaced
   // second component: memory to replace the first component with
@@ -32,21 +32,23 @@ case class ConcatFunction(n : Int) extends Pattern(arity = n) {
       case tt: TupleType =>
         if (tt.elemsT.length != n) throw new NumberOfArgumentsException
 
-       ConcatFunction.computeOutType(tt)
+       Concat.computeOutType(tt)
 
       case _ => throw new TypeException(argType, "TupleType", this)
     }
   }
 
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
-      ???
+    // TODO: should this be something else?
+    ???
+//    assert(args.length == arity)
   }
 
 
 
 }
 
-object ConcatFunction {
+object Concat {
   /**
    * Create an instance of the concat pattern.
    * This function infers the number of arrays which are combined with the concat
@@ -57,7 +59,7 @@ object ConcatFunction {
    */
   def apply(args : Expr*) : Expr = {
     assert(args.length >= 2)
-    ConcatFunction(args.length)(args:_*)
+    Concat(args.length)(args:_*)
   }
 
   def computeOutType(tt: TupleType): ArrayType = {

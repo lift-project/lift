@@ -287,7 +287,7 @@ abstract sealed class View(val t: Type = UndefType) {
   def concat(): View = {
     t match {
       case tt: TupleType =>
-        val newT = ConcatFunction.computeOutType(tt)
+        val newT = Concat.computeOutType(tt)
         ViewConcat(this, newT)
       case other => throw new IllegalArgumentException("Can't concat " + other)
     }

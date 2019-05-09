@@ -49,7 +49,7 @@ object InferOpenCLAddressSpace {
 
     call.f match {
 
-      case ConcatFunction(_) =>
+      case Concat(_) =>
         setAddressSpaceDefault(addressSpaces) match {
           case AddressSpaceCollection(ab) =>
             ab.foreach(f => assert(f==ab.head))

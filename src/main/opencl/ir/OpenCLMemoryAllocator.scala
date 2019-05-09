@@ -61,7 +61,7 @@ object RemoveRedundantMemory {
     var replacementMap = mutable.Map[Memory, Memory]()
     Expr.visit(f.body, {
       case call: FunCall => call.f match {
-        case c: ConcatFunction => replacementMap ++= c.replacementMap
+        case c: Concat => replacementMap ++= c.replacementMap
         case _ =>
       }
       case _ =>
@@ -183,7 +183,7 @@ object OpenCLMemoryAllocator {
 
       case it: Iterate => allocIterate(it, call, numGlb, numLcl, numPvt, inMem)
 
-      case cc: ConcatFunction => allocConcat(cc, call, numGlb, numLcl, numPvt, inMem)
+      case cc: Concat => allocConcat(cc, call, numGlb, numLcl, numPvt, inMem)
 
       case scan: ScanSeq => allocScanSeq(scan, call, numGlb, numLcl, numPvt, inMem)
 
@@ -501,11 +501,11 @@ object OpenCLMemoryAllocator {
     alloc(it.f.body, numGlb, numLcl, numPvt)
   }
 
-  private def allocConcat(cc: ConcatFunction, call: FunCall,
-                           numGlb: Allocator,
-                           numLcl: Allocator,
-                           numPvt: Allocator,
-                           memOfArgs: OpenCLMemory): OpenCLMemory = {
+  private def allocConcat(cc: Concat, call: FunCall,
+                          numGlb: Allocator,
+                          numLcl: Allocator,
+                          numPvt: Allocator,
+                          memOfArgs: OpenCLMemory): OpenCLMemory = {
 
     // dig into collection and match on arguments and replace already allocated memory
     memOfArgs match {
