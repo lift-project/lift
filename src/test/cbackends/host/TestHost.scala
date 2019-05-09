@@ -47,7 +47,7 @@ class TestHost {
     "{ return a2 * b3 - a3 * b2;}",
     Seq(Float, Float, Float, Float, Float, Float), Float )
   val cross_calc = UserFun("cross_calc", Array("a1","a2","a3","b1", "b2", "b3"),
-    "{ return {a2 * b3 - a3 * b2, a1 * b3 - a3 * b1, a2 * b3 - a3 * b2 };}",
+    "{ return {a2 * b3 - a3 * b2, a1 * b3 - a3 * b1, a1 * b2 - a2 * b1 };}",
     Seq(Float, Float, Float, Float, Float, Float), TupleType(Float,Float,Float) )
 
   val tuple_in_tuple_out = UserFun("tuple_in_tuple_out", Array("l", "r"),
@@ -1367,7 +1367,7 @@ class TestHost {
     HostCompiler ! (f, path, List(file))
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "1 2 3 -7 \n"
+    val expected : String = "-3 7 11 -9 -18 -9 \n"
     assertEquals(expected, actual)
 
     println("Test case test_reduce_3d_matrix done!")
