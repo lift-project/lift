@@ -38,15 +38,22 @@ class TestHost {
     Seq(Float, Float), Float)
 
   val cross_calc1 = UserFun("cross_calc", Array("a1","a2","a3","b1", "b2", "b3"),
-    "{ return a2 * b3 – a3 * b2;}",
+    "{ return a2 * b3 - a3 * b2;}",
     Seq(Float, Float, Float, Float, Float, Float), Float )
   val cross_calc2 = UserFun("cross_calc", Array("a1","a2","a3","b1", "b2", "b3"),
-    "{ return a1 * b3 – a3 * b1;}",
+    "{ return a1 * b3 - a3 * b1;}",
     Seq(Float, Float, Float, Float, Float, Float), Float )
   val cross_calc3 = UserFun("cross_calc", Array("a1","a2","a3","b1", "b2", "b3"),
-    "{ return a2 * b3 – a3 * b2;}",
+    "{ return a2 * b3 - a3 * b2;}",
     Seq(Float, Float, Float, Float, Float, Float), Float )
+  val cross_calc = UserFun("cross_calc", Array("a1","a2","a3","b1", "b2", "b3"),
+    "{ return {a2 * b3 - a3 * b2, a1 * b3 - a3 * b1, a2 * b3 - a3 * b2 };}",
+    Seq(Float, Float, Float, Float, Float, Float), TupleType(Float,Float,Float) )
 
+  val tuple_in_tuple_out = UserFun("tuple_in_tuple_out", Array("l", "r"),
+    "{ return {l+1, r+1}; }",
+    Seq(Float, Float), TupleType(Float,Float)
+  )
 
   @Test
   def test_map(): Unit = {
@@ -1144,10 +1151,6 @@ class TestHost {
   }
   */
 
-  val tuple_in_tuple_out = UserFun("tuple_in_tuple_out", Array("l", "r"),
-    "{ return {l+1, r+1}; }",
-    Seq(Float, Float), TupleType(Float,Float)
-  )
 
   /*
   @Test
@@ -1348,7 +1351,7 @@ class TestHost {
       array,
       array,
       (A,B) => MapSeq(  fun( y =>
-        cross_calc1.apply(
+        cross_calc.apply(
           Get(Get(y,0),0),
           Get(Get(y,0),1),
           Get(Get(y,0),2),

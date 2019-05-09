@@ -767,7 +767,8 @@ object LowerIR2HostCAST {
 
     val mutable_result = mutable.Set.empty[TupleType]
     lambda visitBy {
-      case FunCall(uf: UserFun, _*) => mutable_result ++= uf.tupleTypes
+      case FunCall(uf: UserFun, _*) =>
+        mutable_result ++= uf.tupleTypes
       case _ =>
     }
     val result = mutable_result.toSet
