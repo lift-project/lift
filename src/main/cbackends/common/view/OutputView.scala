@@ -3,7 +3,7 @@ package cbackends.common.view
 import cbackends.common.common_ir.CPUNullMemory
 import cbackends.common.utils.common_view.GenerateViewForRawInOut
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC}
-import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Iterate, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
+import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Iterate, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
 import ir.view._
 import lift.arithmetic.{ArithExpr, Cst}
 import core.generator.PrettyPrinter._
@@ -53,7 +53,7 @@ object OutputView {
 
       }
 
-      case fc@FunCall(Get(n), arg)  => {
+      case fc@FunCall(Get(_)|ArrayAccess(_), arg)  => {
 
         assert(fc.outputView != NoView)
 
