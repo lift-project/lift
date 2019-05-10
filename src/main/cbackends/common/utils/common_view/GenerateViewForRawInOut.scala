@@ -62,4 +62,23 @@ object GenerateViewForRawInOut {
 
 }
 
+  def generateViewForRawInOut2(p: Expr, t: Type, size: ArithExpr) : View  = {
+
+    t match {
+      case typ@ArrayTypeWS(elemT,s) =>
+        elemT match {
+          case et:ArrayType =>
+            val ArrayTypeWS(_, n) = et
+            generateViewForRawInOut2(p, et, size * s).split(n)
+
+          case _ =>
+            ViewMem(p.mem.variable, ArrayTypeWSWC(typ.elemT, size * s) )
+
+        }
+
+
+    }
+
+  }
+
 }

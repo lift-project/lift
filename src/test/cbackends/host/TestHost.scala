@@ -56,7 +56,7 @@ class TestHost {
   )
 
   val trapz = UserFun("trapz", Array("x1", "x2", "y1", "y2"),
-    "{ return (x2-x1)*(y2-y1)/2.0f; }",
+    "{ return (x2-x1)*(y2+y1)/2.0f; }",
     Seq(Float, Float, Float, Float), Float
   )
 
@@ -1397,8 +1397,8 @@ class TestHost {
       (A,B) => MapSeq(
                   fun( (z) => trapz.apply(
                     Get( ArrayAccess(0) $ z, 0),
-                    Get( ArrayAccess(0) $ z, 1),
                     Get( ArrayAccess(1) $ z, 0),
+                    Get( ArrayAccess(0) $ z, 1),
                     Get( ArrayAccess(1) $ z, 1) )
                   )
                ) o Slide(2,1) $ Zip(A,B)
@@ -1409,7 +1409,7 @@ class TestHost {
     HostCompiler ! (f, path, List(file))
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "-3 7 11 -9 -18 -9 \n"
+    val expected : String = "4.5 5.5 \n"
     assertEquals(expected, actual)
 
     println("Test case test_reduce_3d_matrix done!")
