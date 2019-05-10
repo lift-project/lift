@@ -1,7 +1,7 @@
 package cbackends.host
 
 import ir.ast.Pad.Boundary.WrapUnsafe
-import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
+import ir.ast.{Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{Cst, SizeVar}
 import opencl.ir.pattern._
@@ -54,6 +54,12 @@ class TestHost {
     "{ return {l+1, r+1}; }",
     Seq(Float, Float), TupleType(Float,Float)
   )
+
+  val trapz = UserFun("trapz", Array("x1", "x2", "y1", "y2"),
+    "{ return (x2-x1)*(y2-y1)/2.0f; }",
+    Seq(Float, Float, Float, Float), Float
+  )
+
 
   @Test
   def test_map(): Unit = {
@@ -1360,6 +1366,42 @@ class TestHost {
           Get(Get(y,1),2)
         ) )
       )  $ Zip(A,B)
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file))
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "-3 7 11 -9 -18 -9 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_reduce_3d_matrix done!")
+
+
+  }
+
+
+  @Test
+  def test_numpy_trapz(): Unit = {
+
+    val path = s"$common_path/38.trapz"
+    val file = "libtrapz.cpp"
+
+    val array = ArrayType(Float, N)
+
+
+    val f = fun(
+      array,
+      array,
+      (A,B) => MapSeq(
+                  fun( (z) => trapz.apply(
+                    Get( ArrayAccess(0) $ z, 0),
+                    Get( ArrayAccess(0) $ z, 1),
+                    Get( ArrayAccess(1) $ z, 0),
+                    Get( ArrayAccess(1) $ z, 1) )
+                  )
+               ) o Slide(2,1) $ Zip(A,B)
     )
 
     (s"mkdir -p $path") !
