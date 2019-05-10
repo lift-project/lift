@@ -27,8 +27,10 @@ object ViewPrinter {
 
       case ViewMem(memVar, ty) =>
         tupleAccessStack.isEmpty match {
-          case true => assert(arrayAccessStack.size == 1);VarRef(memVar, arrayIndex = Some( ArithExpression(arrayAccessStack.head) ))
-          case false => assert(false, "Not implement"); IntConstant(0)
+          case true =>
+            assert(arrayAccessStack.size == 1);VarRef(memVar, arrayIndex = Some( ArithExpression(arrayAccessStack.head) ))
+          case false =>
+            assert(false, "Not implement"); IntConstant(0)
         }
 
       case ViewMemWithInnerView(memVar, iv, ty) =>
