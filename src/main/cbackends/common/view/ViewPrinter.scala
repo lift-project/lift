@@ -11,28 +11,39 @@ object ViewPrinter {
 
   def generateArrayAccess(the_view: View,
                           arrayAccessStack: List[ArithExpr],
-                          tupleAccessStack: List[Int], varRefStack: List[VarRef]): ExpressionT = {
+                          tupleAccessStack: List[Int]): ExpressionT = {
     the_view match {
 
       case ViewAccess(i, iv, _) =>
-        generateArrayAccess(iv, i::arrayAccessStack, tupleAccessStack, varRefStack)
+        generateArrayAccess(iv, i::arrayAccessStack, tupleAccessStack)
 
       case ViewSplit(chunksize, iv, _) =>
         val chunkIdx :: elemIdx :: rest = arrayAccessStack
         val newIdx = chunkIdx * chunksize + elemIdx
-        generateArrayAccess(iv, newIdx::rest, tupleAccessStack, varRefStack)
+        generateArrayAccess(iv, newIdx::rest, tupleAccessStack)
 
       case ViewConstant(value, _) =>
         GenericAST.RawCode(value.value)
 
-      case ViewMem(memVar, ty) =>
+      case current_view@ViewMem(memVar, ty) =>
         tupleAccessStack.isEmpty match {
           case true =>
             assert(arrayAccessStack.size == 1);VarRef(memVar, arrayIndex = Some( ArithExpression(arrayAccessStack.head) ))
           case false =>
-            assert(false, "Not implement"); IntConstant(0)
+            //assert(false, "Not implement"); IntConstant(0)
+            val tuple_id :: rest = tupleAccessStack
+            val array_access_var = generateArrayAccess(current_view, arrayAccessStack  , rest ).asInstanceOf[VarRef]
+
+            array_access_var.suffix match {
+              case None =>
+                VarRef(  array_access_var.v, Some("._" + tuple_id), array_access_var.arrayIndex )
+              case Some(existed_suffix) =>
+                VarRef(  array_access_var.v, Some(existed_suffix + "._" + tuple_id), array_access_var.arrayIndex )
+            }
+
         }
 
+        /*
       case ViewMemWithInnerView(memVar, iv, ty) =>
         tupleAccessStack.isEmpty match {
           case false => assert(tupleAccessStack.size == 1);
@@ -44,25 +55,25 @@ object ViewPrinter {
         assert(varRefStack.length == 1)
         val varRef :: Nil = varRefStack
         VarRef(varRef.v, Some("._"+i) ,varRef.arrayIndex)
-
+*/
       case ViewTupleComponent(i, iv, _) =>
         val newTupleAccessStack = i :: tupleAccessStack
-        generateArrayAccess(iv, arrayAccessStack, newTupleAccessStack, varRefStack)
+        generateArrayAccess(iv, arrayAccessStack, newTupleAccessStack)
 
       case ViewTuple(ivs, _) =>
         val i :: newTupleAccssStack = tupleAccessStack
-        generateArrayAccess(ivs(i), arrayAccessStack, newTupleAccssStack, varRefStack)
+        generateArrayAccess(ivs(i), arrayAccessStack, newTupleAccssStack)
 
       case ViewZip(iv, _) =>
-        generateArrayAccess(iv, arrayAccessStack, tupleAccessStack, varRefStack)
+        generateArrayAccess(iv, arrayAccessStack, tupleAccessStack)
 
       case ViewReorder(reindexFun, iv, _) =>
         val idx :: indices = arrayAccessStack
-        generateArrayAccess(iv, reindexFun(idx) :: indices, tupleAccessStack, varRefStack)
+        generateArrayAccess(iv, reindexFun(idx) :: indices, tupleAccessStack)
 
       case ViewTranspose(iv, _) =>
         val top :: second :: rest = arrayAccessStack
-        generateArrayAccess(iv, second::top::rest, tupleAccessStack, varRefStack)
+        generateArrayAccess(iv, second::top::rest, tupleAccessStack)
 
       case ViewPad(iv, left, _, padFun, _) =>
         val idx :: indices = arrayAccessStack
@@ -72,7 +83,7 @@ object ViewPrinter {
           padFun(currentIdx, length)
         else
           currentIdx
-        generateArrayAccess(iv, newIdx :: indices, tupleAccessStack, varRefStack)
+        generateArrayAccess(iv, newIdx :: indices, tupleAccessStack)
 
 
       case ViewGeneratorUserFun(f, ArrayTypeWS(_, m)) =>
@@ -103,12 +114,12 @@ object ViewPrinter {
         val idx :: indices = arrayAccessStack
         val chunkIdx = idx / chunkSize
         val elemIdx = idx % chunkSize
-        generateArrayAccess(iv, chunkIdx :: elemIdx :: indices, tupleAccessStack, varRefStack)
+        generateArrayAccess(iv, chunkIdx :: elemIdx :: indices, tupleAccessStack)
         //generateArrayAccess(iv,  elemIdx :: chunkIdx ::indices, tupleAccessStack)
 
       case ViewMapSeq(iv, itVar, _ ) =>
         val idx :: indices = arrayAccessStack
-        generateArrayAccess(iv, indices, tupleAccessStack, varRefStack)
+        generateArrayAccess(iv, indices, tupleAccessStack)
         //val newV = iv.replaced(itVar, idx)
         //generateArrayAccess(newV, indices, tupleAccessStack)
 
@@ -116,12 +127,12 @@ object ViewPrinter {
       case ViewMap(iv, itVar, _) =>
         val idx :: indices = arrayAccessStack
         val newV = iv.replaced(itVar, idx)
-        generateArrayAccess(newV, indices, tupleAccessStack, varRefStack)
+        generateArrayAccess(newV, indices, tupleAccessStack)
 
       case ViewSlide(iv, slide, _) =>
         val chunkIdx :: elemIdx :: indices = arrayAccessStack
         val newIdx = chunkIdx * slide.step + elemIdx
-        generateArrayAccess(iv, newIdx :: indices, tupleAccessStack, varRefStack)
+        generateArrayAccess(iv, newIdx :: indices, tupleAccessStack)
 
       case _ =>
         assert(false, "Pattern may not be implemented in view printer"); StringConstant("Unreachable!")
@@ -131,7 +142,7 @@ object ViewPrinter {
 
   def apply(view: View) : ExpressionT = {
 
-    generateArrayAccess(view, List(), List(), List())
+    generateArrayAccess(view, List(), List())
 
   }
 
