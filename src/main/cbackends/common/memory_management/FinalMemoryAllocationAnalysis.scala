@@ -7,7 +7,7 @@ import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir._
 import cbackends.sdh.sdh_ir.{TMKernel, ToGPE, ToLCP}
 import ir.Type
-import opencl.ir.OpenCLAddressSpace
+import opencl.ir.{CollectTypedOpenCLMemory, OpenCLAddressSpace}
 import opencl.ir.pattern.ScanSeq
 
 import scala.collection.mutable
@@ -21,14 +21,34 @@ object FinalMemoryAllocationAnalysis {
 
       case _:Param | _:ArrayFromUserFunGenerator | _:Array3DFromUserFunGenerator => Map.empty
 
-      case fc@FunCall(_:UserFun | _:CPUFunCall | _:OclFunCall | _:ToGPU | _:ToHost |  _:TMKernel, args@_*) =>
+      case fc@FunCall(_:UserFun | _:CPUFunContainer | _:OclFunContainer | _:ToGPU | _:ToHost | _:TMKernel, args@_*) =>
         val args_map = args.map(analyze(_)).reduce( _ ++ _ )
-        args_map + (
+        val mem_of_args_input_and_output = args_map + (
           fc.mem.variable.toString -> (
             CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ),
             Type.getElementCount(fc.t),
             fc.addressSpace
           ) )
+        fc match {
+          case FunCall(_:CPUFunContainer | _:OclFunContainer, _*) =>
+
+            val intermediate_global_buffers = CollectTypedOpenCLMemory({fc.f match {
+              case c: CPUFunContainer => c.cpuFun
+              case c: OclFunContainer => c.oclFun
+              case _ => throw new IllegalArgumentException
+            }}.f)._3.sortBy(_.mem.variable.name)
+
+            val intermediate_global_mem = intermediate_global_buffers.map(buf =>
+              buf.mem.variable.toString -> (
+                CVarWithType(buf.mem.variable.toString,
+                  TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(buf.t), true ) ),
+                Type.getElementCount(buf.t),
+                buf.mem.addressSpace))
+
+            mem_of_args_input_and_output ++ intermediate_global_mem
+          case _ =>
+            mem_of_args_input_and_output
+        }
 
       case fc@FunCall(r:AbstractPartRed, args@_*) =>
         val args_map = args.map(analyze(_)).reduce( _ ++ _ )

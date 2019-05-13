@@ -1,11 +1,9 @@
-package cbackends.global.transformation.empty_kernel_structure
+package cbackends.global.transformation.host_ir_mapper
 
 import cbackends.host.host_ir._
 import ir.ast.{FunCall, Lambda}
 
-import scala.collection.mutable
-
-object EmptyKernelStructure {
+object HostIRMapper {
 
 
   def apply(lambda: Lambda) : Lambda = {
@@ -15,11 +13,11 @@ object EmptyKernelStructure {
         new_funcall.t = fc.t
         new_funcall*/
       case fc@FunCall(cf:CPUFunc, args@_*) =>
-        val new_funcall = FunCall(CPUFunCall(cf.funcName, cf.f.params, cf.cpu_timer), args:_*)
+        val new_funcall = FunCall(CPUFunContainer(cf), args:_*)
         new_funcall.t = fc.t
         new_funcall
       case fc@FunCall(cf:OclFunc, args@_*) =>
-        val new_funcall = FunCall(OclFunCall(cf.funcName, cf.f.params, cf.ndranges, cf.cpu_timer, cf.gpu_timer), args:_*)
+        val new_funcall = FunCall(OclFunContainer(cf), args:_*)
         new_funcall.t = fc.t
         new_funcall.gid = fc.gid
         new_funcall

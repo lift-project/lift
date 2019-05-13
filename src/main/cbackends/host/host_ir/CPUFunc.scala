@@ -65,13 +65,12 @@ case class CPUFunc(override val f: Lambda, val funcName: String = "execute_" + I
     }
   }
 }
-case class CPUFunCall(funcName : String, params: Array[Param], override val cpu_timer: Boolean = false)
-  extends Pattern(arity = 2) with CPUMeasurable
-{
+
+case class CPUFunContainer(cpuFun: CPUFunc) extends Pattern(arity = 2) {
 
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = this
   override def checkType(argType: Type, setType: Boolean): Type = {
-    assert(false, "CPUFunCall* never do type check")
+    assert(false, "CPUFunContainer* never do type check")
     argType
   }
 

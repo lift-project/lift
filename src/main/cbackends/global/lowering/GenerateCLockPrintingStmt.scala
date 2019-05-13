@@ -89,10 +89,10 @@ object GenerateCLockPrintingStmt {
 
       generate(arg, print_for_this_call :++ block)
 
-      case fc@FunCall(c: CPUFunCall, args@_*) =>
+      case fc@FunCall(c: CPUFunContainer, args@_*) =>
         val arg_blocks = args.map(generate(_, Block(global = true))).toList
 
-        val measurable = c.asInstanceOf[CPUMeasurable]
+        val measurable = c.cpuFun.asInstanceOf[CPUMeasurable]
 
         //1) func name
         val func_name = "CPUFunCall_" + fc.gid
@@ -123,10 +123,10 @@ object GenerateCLockPrintingStmt {
 
         ( (block :++ print_for_this_call) /: arg_blocks) (_ :++ _)
 
-      case fc@FunCall(o: OclFunCall, args@_*) =>
+      case fc@FunCall(o: OclFunContainer, args@_*) =>
         val arg_blocks = args.map(generate(_, Block(global = true))).toList
 
-        val measurable = o.asInstanceOf[Measurable]
+        val measurable = o.oclFun.asInstanceOf[Measurable]
 
 
         //1) func name
