@@ -12,10 +12,10 @@ import cbackends.global.transformation.purify.Purify
 import cbackends.global.transformation.unique_user_func.UniqueUserFunc
 import cbackends.host.HostCompiler
 import cbackends.host.lowering.LowerIR2HostCAST
-import core.generator.GenericAST
-import core.generator.GenericAST.{Block, CVarWithType, ExpressionStatement, FunctionCall, FunctionPure, RawCode, StringConstant, VoidType}
-import ir.ast.{FunCall, Lambda}
-import lift.arithmetic.ArithExpr
+import core.generator.GenericAST.{Block, ExpressionStatement, FunctionCall, FunctionPure, RawCode, StringConstant, VoidType}
+import ir.ast.Lambda
+import opencl.ir.{CollectTypedOpenCLMemory, TypedOpenCLMemory}
+
 import scala.collection.immutable
 
 object GlobalCompiler{
@@ -32,8 +32,6 @@ object GlobalCompiler{
 
     val all_oclfunc_outline_targets = OclOutlineTargetAnalysis(lambda)
 
-    val lambdaWithWrappedHostIRNodes = HostIRMapper(lambda)
-
     //-----------------------------------------------------------------------//
     //DO ALL IR TRANSFORMATION ABOVE, FROM HERE, NO IR TRANSFORMATION ALLOWED
     //But CAST transformation are OK below
@@ -45,6 +43,8 @@ object GlobalCompiler{
     all_oclfunc_outline_targets.size match {
       //CPU only
       case 0 => {
+
+        val lambdaWithWrappedHostIRNodes = HostIRMapper(lambda, Map.empty)
 
         val top_cast = HostCompiler !! lambdaWithWrappedHostIRNodes
         HostCompiler.castPrinter(List(
@@ -58,12 +58,20 @@ object GlobalCompiler{
         val all_oclfunc_outline_targets_purified = all_oclfunc_outline_targets.map{
           case (filename:String, localSize, globalSize, lambdax:Lambda) => (filename, localSize, globalSize, Purify(lambdax) )
         }
-        val oclFuns: immutable.List[(String, Block/*, Seq[TypedOpenCLMemory]*/, String)] =
+        val oclFuns: immutable.List[(String, Block, Lambda, Seq[TypedOpenCLMemory])] =
           all_oclfunc_outline_targets_purified.map {
             case (filename: String, localSize, globalSize, lambdax: Lambda) =>
+
               val block = opencl.executor.Compile.!!(lambdax, localSize, globalSize)
-              (filename, block, lambdax.funcName)
+
+              val intermediateGlobalMem = CollectTypedOpenCLMemory(lambdax)._3
+
+              (filename, block, lambdax, intermediateGlobalMem)
           }
+
+        val lambdaWithWrappedHostIRNodes = HostIRMapper(lambda, oclFuns.map {
+          case (_, _, lambdax, intermediateGlobalMem) => lambdax -> intermediateGlobalMem
+        }.toMap)
 
         OclMemoryGen(lambda)
 
@@ -123,7 +131,7 @@ object GlobalCompiler{
         HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code, LowerIR2HostCAST.ocl_boilerplate_code), global = true) :+ final_global_var_decl :+ final_global_func_decl :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
 
         val ocl_source_files = final_oclFuns.map{
-          case (fileName, block, /*_, */_) => new SourceFile(path,fileName,block)
+          case (fileName, block, _, _) => new SourceFile(path, fileName, block)
         }
 
         HostCompiler.castPrinter(ocl_source_files)

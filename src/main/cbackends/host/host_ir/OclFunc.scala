@@ -6,6 +6,7 @@ import ir.interpreter.Interpreter.ValueMap
 import ir.{TupleType, Type, TypeChecker}
 import lift.arithmetic.ArithExpr
 import opencl.generator.NDRange
+import opencl.ir.TypedOpenCLMemory
 
 import scala.collection.mutable
 
@@ -43,7 +44,7 @@ case class OclFunc(override val f: Lambda,
   }
 }
 
-case class OclFunContainer(oclFun: OclFunc) extends Pattern(arity = 2) {
+case class OclFunContainer(oclFun: OclFunc, intermediateGlobalMem: Seq[TypedOpenCLMemory]) extends Pattern(arity = 2) {
 
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = this
   override def checkType(argType: Type, setType: Boolean): Type = {

@@ -3,6 +3,7 @@ package cbackends.host.host_ir
 import ir.ast.{FPattern, IDGenerator, IRNode, Lambda, Param, Pattern}
 import ir.interpreter.Interpreter.ValueMap
 import ir.{TupleType, Type, TypeChecker}
+import opencl.ir.TypedOpenCLMemory
 
 
 /*
@@ -66,7 +67,7 @@ case class CPUFunc(override val f: Lambda, val funcName: String = "execute_" + I
   }
 }
 
-case class CPUFunContainer(cpuFun: CPUFunc) extends Pattern(arity = 2) {
+case class CPUFunContainer(cpuFun: CPUFunc, intermediateGlobalMem: Seq[TypedOpenCLMemory]) extends Pattern(arity = 2) {
 
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = this
   override def checkType(argType: Type, setType: Boolean): Type = {
