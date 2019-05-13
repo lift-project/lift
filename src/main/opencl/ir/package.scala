@@ -51,6 +51,9 @@ package object ir {
   val absAndSumUp = UserFun("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }",
                             Seq(Float, Float), Float)
 
+  val subtractUp = UserFun("subtractUp", Array("acc", "x"), "{ return acc - x; }",
+    Seq(Float, Float), Float)
+
   val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).
     setScalaFun( xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float] )
 

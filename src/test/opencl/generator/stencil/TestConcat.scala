@@ -391,20 +391,110 @@ class TestConcat
 
     val M = SizeVar("M")
 
-    def stencil1D(a: Int, b: Int) = fun(
+    val boundary = Array(2.0f, 3.0f, 4.0f)
+
+    val padL = Array(boundary(0) * TestConcatHelpers.constL*TestConcatHelpers.values(0))
+    val padR = Array(boundary(boundary.length-1)* TestConcatHelpers.constR*TestConcatHelpers.values(TestConcatHelpers.values.length-1))
+    val gold =  padL ++ TestConcatHelpers.paddedValues.sliding(3,1).toArray.map(x => x.reduceLeft(_ + _)) ++ padR
+
+
+    def stencil1DConcatBoundaryExtra() = fun(
       ArrayTypeWSWC(Float,TestConcatHelpers.N),
       ArrayTypeWSWC(Float,M),
       (input,boundaryA) => {
-        //
         Concat(3)(
-          toGlobal( PrintType() o MapSeq(id)) $ ArrayFromExpr(toPrivate(mult)(input.at(0),boundaryA.at(0)))),
+          toGlobal( PrintType() o MapSeq(id)) $ ArrayFromExpr(toPrivate(fun(x => mult(x, boundaryA.at(0)))) o toPrivate(fun(x => mult(x, TestConcatHelpers.constL))) $ input.at(0)),
           Join() o MapSeq(fun(tup => {
             val neighbourhood = Get(tup,1)
             toGlobal( MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
           })) $ Zip(input, Slide(3,1) o PadConstant(1,1,0.0f) $ input),
-          toGlobal( PrintType() o MapSeq(id)) $ ArrayFromExpr(toPrivate(mult)(input.at(TestConcatHelpers.N-1),TestConcatHelpers.constR))
+          toGlobal( PrintType() o MapSeq(id)) $ ArrayFromExpr(toPrivate(fun(x => mult(x,boundaryA.at(M-1)))) o toPrivate(fun(x => mult(x,TestConcatHelpers.constR))) $ input.at(TestConcatHelpers.N-1)))
       }
     )
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1DConcatBoundaryExtra(), TestConcatHelpers.values,boundary)
+
+    assertArrayEquals(gold, output, TestConcatHelpers.delta)
+
+  }
+
+  @Test
+  def testingGround() : Unit =
+  {
+
+    val M = SizeVar("M")
+
+    val boundary = Array(2.0f, 3.0f, 4.0f)
+
+     def stencil1DConcatBoundaryExtra() = fun(
+      ArrayTypeWSWC(Float,TestConcatHelpers.N),
+      ArrayTypeWSWC(Float,M),
+      (input,boundaryA) => {
+
+          // this does not work:
+          val reduction = PrintType() o ArrayAccess(0) o  ReduceSeq(absAndSumUp,0.0f)  $ boundaryA // produces float
+          val reduction_plus = PrintType() o toGlobal(fun(x => add(x, input.at(0)))) $ reduction // produces float
+          val output = ArrayFromExpr(reduction_plus)
+          toGlobal(MapSeq(id)) o PrintType() $ output
+
+          // this works:
+          toGlobal(MapSeq(id)) o MapSeqUnroll(fun(x => add(x,input.at(0)))) o ReduceSeq(absAndSumUp,0.0f) $ boundaryA
+
+//          toGlobal( PrintType() o MapSeq(id)) $ ArrayFromExpr(toPrivate(fun(x => mult(x,boundaryA.at(M-1)))) o toPrivate(fun(x => mult(x,TestConcatHelpers.constR))) $ input.at(TestConcatHelpers.N-1)))
+
+      }
+    )
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1DConcatBoundaryExtra(), TestConcatHelpers.values,boundary)
+
+    StencilUtilities.print1DArray(TestConcatHelpers.values)
+    StencilUtilities.print1DArray(output)
+
+  }
+
+  // first mult boundary value by constant
+  // then loop over boundary A/B and mult by another constant and subtract from boundary value
+  @Test
+  def joinMainStencilAndIterateOverBoundaryAfter(): Unit  = {
+
+    val M = SizeVar("M")
+
+    val boundaryA = Array(2.0f, 3.0f, 4.0f)
+    val boundaryB = Array(2.5f, 3.5f, 4.5f)
+
+    //
+    val padL = Array(boundaryA(0) * TestConcatHelpers.constL*TestConcatHelpers.values(0))
+    val padR = Array(boundaryB(boundaryB.length-1)* TestConcatHelpers.constR*TestConcatHelpers.values(TestConcatHelpers.values.length-1))
+    val gold =  padL ++ TestConcatHelpers.paddedValues.sliding(3,1).toArray.map(x => x.reduceLeft(_ + _)) ++ padR
+
+
+    def stencil1DConcatBoundaryExtra() = fun(
+      ArrayTypeWSWC(Float,TestConcatHelpers.N),
+      ArrayTypeWSWC(Float,M),
+      ArrayTypeWSWC(Float,M),
+      (input,boundaryA,boundaryB) => {
+        Concat(3)(
+//          toGlobal( MapSeq(id)) o PrintType() o MapSeq(fun(x => add(x, input.at(0)))) $ boundaryA,
+
+{          val inp0 = toPrivate(fun(x => (mult(TestConcatHelpers.constL,x)))) $ input.at(0)
+
+          toGlobal(MapSeq(id)) o MapSeqUnroll(id) o ReduceSeq(subtractUp,0.0f) $ boundaryA},
+          Join() o MapSeq(fun(tup => {
+            val neighbourhood = Get(tup,1)
+            toGlobal( MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+          })) $ Zip(input, Slide(3,1) o PadConstant(1,1,0.0f) $ input),
+//          toGlobal( PrintType() o MapSeq(id)) $ ArrayFromExpr(toPrivate(fun(x => mult(x,boundaryA.at(M-1)))) o toPrivate(fun(x => mult(x,TestConcatHelpers.constR))) $ input.at(TestConcatHelpers.N-1))
+          toGlobal(MapSeq(id)) o MapSeqUnroll(fun(x => add(x,input.at(TestConcatHelpers.N-1)))) o ReduceSeq(absAndSumUp,0.0f) $ boundaryB
+        )
+      }
+    )
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1DConcatBoundaryExtra(), TestConcatHelpers.values,boundaryA,boundaryB)
+
+    StencilUtilities.print1DArray(TestConcatHelpers.values)
+    StencilUtilities.print1DArray(output)
+
+//    assertArrayEquals(gold, output, TestConcatHelpers.delta)
 
   }
 
