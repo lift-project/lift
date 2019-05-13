@@ -14,7 +14,8 @@ object HostCompiler extends CBackendsCompilerTrait {
   override def lowerIR2CAST(lambda: Lambda,
                             memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)],
                             path: String,
-                            files: List[String]
+                            files: List[String],
+                            func_name: String
                            ): List[SourceFile] = {
 
     assert(files.length == 1, "There should be exactly one file name passed")

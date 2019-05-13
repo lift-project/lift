@@ -55,7 +55,8 @@ object SDHCompiler extends CBackendsCompilerTrait{
   override def lowerIR2CAST(lambda: Lambda,
                             memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)],
                             path: String,
-                            files: List[String]
+                            files: List[String],
+                            func_name: String
                            ): List[SourceFile] = {
 
     val tuple = LowerIR2SchedCAST(lambda, memoryDeclaredInSignature)
