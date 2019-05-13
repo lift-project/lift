@@ -15,7 +15,8 @@ object ONNXCompiler extends CBackendsCompilerTrait{
   override def lowerIR2CAST(lambda: Lambda,
                             memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)],
                             path: String,
-                            files: List[String]
+                            files: List[String],
+                            func_name: String = "execute"
                            ): List[SourceFile] = {
 
     List(new SourceFile(path, files(0), Block() ) )
@@ -23,7 +24,7 @@ object ONNXCompiler extends CBackendsCompilerTrait{
   }
 
   //compile a lambda
-  override def !(onnxIR: Lambda, path: String, files: List[String]): Unit = {
+  override def !(onnxIR: Lambda, path: String, files: List[String], func_name: String): Unit = {
 
     assert(files.length == 2)
 

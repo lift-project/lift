@@ -2,7 +2,7 @@ package cbackends.common.view
 
 import cbackends.common.utils.common_view.GenerateViewForRawInOut
 import ir._
-import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Iterate, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
+import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Iterate, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
 import ir.view._
 import cbackends.common.utils.input_view.InputView.{init_params, post_check, pre_check}
 import cbackends.common.utils.pattern_matching.IsDefinedAt
@@ -54,6 +54,16 @@ object InputView {
         cont( arg )
 
         fc.view = arg.view.get(n)
+
+        fc
+
+      }
+
+      case fc@FunCall(ArrayAccess(n), arg)  => {
+
+        cont( arg )
+
+        fc.view = arg.view.access(n)
 
         fc
 

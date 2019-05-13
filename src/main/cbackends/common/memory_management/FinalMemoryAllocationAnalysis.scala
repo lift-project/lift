@@ -1,7 +1,7 @@
 package cbackends.common.memory_management
 
 import core.generator.GenericAST.CVarWithType
-import ir.ast.{AbstractMap, AbstractPartRed, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, FunCall, Get, IRNode, Iterate, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Zip}
+import ir.ast.{AbstractMap, AbstractPartRed, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, FunCall, Get, IRNode, Iterate, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Zip}
 import lift.arithmetic.ArithExpr
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir._
@@ -107,7 +107,7 @@ object FinalMemoryAllocationAnalysis {
         val args_map = args.map(analyze(_)).reduce( _ ++ _ )
         args_map ++ analyze(l.body)
 
-      case fc@FunCall(_:Join|_:Slide|_:Zip|_:Get|_:Split|_:Join|_:Transpose|_:TransposeW|_:Pad |_:ToLCP | _:ToGPE, args@_*) =>
+      case fc@FunCall(_:Join|_:Slide|_:Zip|_:Get|_:Split|_:Join|_:Transpose|_:TransposeW|_:Pad |_:ToLCP | _:ToGPE | _:ArrayAccess, args@_*) =>
         //args.foreach(analyze(_))
         args.map(analyze(_)).reduce( _ ++ _ )
 

@@ -14,19 +14,21 @@ object HostCompiler extends CBackendsCompilerTrait {
   override def lowerIR2CAST(lambda: Lambda,
                             memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)],
                             path: String,
-                            files: List[String]
+                            files: List[String],
+                            func_name: String
                            ): List[SourceFile] = {
 
     assert(files.length == 1, "There should be exactly one file name passed")
 
-    List(new SourceFile(path, files(0), LowerIR2HostCAST(lambda, memoryDeclaredInSignature) ) )
+    List(new SourceFile(path, files(0), LowerIR2HostCAST(lambda, memoryDeclaredInSignature, func_name) ) )
   }
 
   def lowerIR2CAST(lambda: Lambda,
-                   memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]
+                   memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)],
+                   func_name: String
                   ) : Block = {
 
-    LowerIR2HostCAST(lambda, memoryDeclaredInSignature)
+    LowerIR2HostCAST(lambda, memoryDeclaredInSignature, func_name)
   }
 
 

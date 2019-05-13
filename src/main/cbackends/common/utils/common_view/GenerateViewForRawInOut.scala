@@ -34,7 +34,8 @@ object GenerateViewForRawInOut {
               case false =>
                 val ids = (0 until elemsT.length)
                 val tuple_views = (ids zip elemsT).map{
-                  case (id, elemT) => generateViewForRawInOut(p, elemT, Cst(1), id)
+                  case (id, elemT) =>
+                    generateViewForRawInOut(p, elemT, Cst(1), id)
                 }
                 ViewMemWithInnerView(p.mem.variable,
                   ViewTuple(
@@ -60,5 +61,24 @@ object GenerateViewForRawInOut {
 
 
 }
+
+  def generateViewForRawInOut2(p: Expr, t: Type, size: ArithExpr) : View  = {
+
+    t match {
+      case typ@ArrayTypeWS(elemT,s) =>
+        elemT match {
+          case et:ArrayType =>
+            val ArrayTypeWS(_, n) = et
+            generateViewForRawInOut2(p, et, size * s).split(n)
+
+          case _ =>
+            ViewMem(p.mem.variable, ArrayTypeWSWC(typ.elemT, size * s) )
+
+        }
+
+
+    }
+
+  }
 
 }

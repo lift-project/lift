@@ -22,7 +22,8 @@ object LoopVarInference extends Function1[Lambda, Lambda] {
         s.loopVar = Var(s.loopVar.name, ContinuousRange(Cst(0), Type.getLength(fc.args(1).t)))
       case fc@FunCall(i: Iterate, _*) =>
         i.loopVar = Var(i.loopVar.name, ContinuousRange(Cst(0), i.n))
-      case _ => ()
+      case _ =>
+        ()
     }
 
     lambda

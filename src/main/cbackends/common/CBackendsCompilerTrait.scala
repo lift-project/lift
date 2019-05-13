@@ -81,7 +81,8 @@ trait CBackendsCompilerTrait {
   def lowerIR2CAST(lambda: Lambda,
                    memoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)],
                    path: String,
-                   files: List[String]
+                   files: List[String],
+                   func_name: String
                   ) : List[SourceFile]
 
   final def castPrinter(files : List[SourceFile]) : Unit = {
@@ -91,7 +92,7 @@ trait CBackendsCompilerTrait {
   }
 
   //compile a lambda
-  def !(lambda: Lambda, path: String, files: List[String]): Unit = {
+  def !(lambda: Lambda, path: String, files: List[String], func_name : String = "execute"): Unit = {
 
     println("1.compiler called")
 
@@ -103,7 +104,7 @@ trait CBackendsCompilerTrait {
     inputView(lambda)
     outputView(lambda)
 
-    val listOfSourceFiles = lowerIR2CAST(lambda, finalMemoryAllocated, path, files)
+    val listOfSourceFiles = lowerIR2CAST(lambda, finalMemoryAllocated, path, files, func_name)
 
     castPrinter(listOfSourceFiles)
 

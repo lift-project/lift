@@ -3,7 +3,7 @@ package cbackends.common.memory_management
 import core.generator.GenericAST.CVarWithType
 import cbackends.common.common_ir.{CPUNullMemory, HostMemory, HostMemoryCollection}
 import cbackends.host.host_ir._
-import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, Expr, FPattern, FunCall, FunDecl, Get, IRNode, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip}
+import ir.ast.{AbstractMap, AbstractPartRed, ArrayAccess, ArrayConstructors, Expr, FPattern, FunCall, FunDecl, Get, IRNode, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip}
 import ir.{Type, UnallocatedMemory}
 import lift.arithmetic.{ArithExpr, ContinuousRange, Cst, Var}
 import opencl.ir.OpenCLMemory
@@ -117,7 +117,7 @@ object MemoryAllocator {
       }
 
         //for Slide etc.
-      case fc@FunCall(_:Join|_:Slide|_:Zip|_:Get|_:Split|_:Join|_:Transpose|_:TransposeW|_:Pad, arg) => {
+      case fc@FunCall(_:Join|_:Slide|_:Zip|_:Get|_:Split|_:Join|_:Transpose|_:TransposeW|_:Pad|_:ArrayAccess, arg) => {
         cont(arg)
         fc.mem = arg.mem
 

@@ -3,7 +3,7 @@ package cbackends.common.utils.input_view
 import ir.ast.{Expr, Lambda, Value}
 import ir.view.{NoView}
 import lift.arithmetic.Cst
-import cbackends.common.utils.common_view.GenerateViewForRawInOut.generateViewForRawInOut
+import cbackends.common.utils.common_view.GenerateViewForRawInOut.generateViewForRawInOut2
 
 object InputView {
 
@@ -36,7 +36,7 @@ object InputView {
 
     //lambda.params.foreach( p => p.view = ViewMem(p.mem.variable, p.t) )
 
-    lambda.params.foreach( p => p.view = generateViewForRawInOut(p, p.t, Cst(1)) )
+    lambda.params.foreach( p => p.view = generateViewForRawInOut2(p, p.t, Cst(1)) )
 
   }
 
