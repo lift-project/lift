@@ -694,7 +694,6 @@ class TestGlobal {
   @Test
   def batch_code_generate_for_cases_paper(): Unit = {
 
-    val null_local_ranges = false
 
     //val path = s"$common_path/99.cases_paper"
     val lambda_path = System.getenv("LAMBDA_PATH") + "/"// System.getProperty("user.dir") + "/../../../generated_files_08.04.2019_13.49.18_first_7_layers_10_points/"
@@ -714,6 +713,7 @@ class TestGlobal {
     val tuningPointBatchSize = 1//200
     val nLayers = 13
     val fuseLambdas: Boolean = true
+    val null_local_ranges: Boolean = false
 
     for {tuningPointBatch <- 0 until totalTuningPoints / tuningPointBatchSize}
 //    for {tuningPointBatch <- List(0)}

@@ -288,9 +288,6 @@ class OpenCLGenerator extends Generator {
 
     checkLambdaIsLegal(f)
 
-    val (inputs, outputs, intermediateMemory, localTmps) = CollectTypedOpenCLMemory(f, includePrivate = true)
-//    val globalTmps = intermediateMemory.filter(typedMem => typedMem.mem.addressSpace.isInstanceOf[GlobalMemory.type])
-
     if (Verbose()) {
 
       println("Types:")
@@ -300,7 +297,7 @@ class OpenCLGenerator extends Generator {
       printMemories(f.body)
 
       println("Allocated Memory:")
-      val (inputs, outputs, globalTmps, localTmps) = CollectTypedOpenCLMemory(f, includePrivate = true)
+      val (inputs, outputs, intermediateMemory, localTmps) = CollectTypedOpenCLMemory(f, includePrivate = true)
       println(" inputs:")
       inputs.foreach(println(_))
       println(" outputs:")
@@ -590,7 +587,6 @@ class OpenCLGenerator extends Generator {
         case ua: UnsafeArrayAccess        => generateUnsafeArrayAccess(ua, call, block)
         case ca: CheckedArrayAccess       => generateCheckedArrayAccess(ca, call, block)
         case debug.PrintComment(msg)      => debugPrintComment(msg, block)
-
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |

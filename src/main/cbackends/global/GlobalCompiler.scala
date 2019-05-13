@@ -58,16 +58,15 @@ object GlobalCompiler{
         val all_oclfunc_outline_targets_purified = all_oclfunc_outline_targets.map{
           case (filename:String, localSize, globalSize, lambdax:Lambda) => (filename, localSize, globalSize, Purify(lambdax) )
         }
-        val oclFuns: immutable.List[(String, Block, Lambda, Seq[TypedOpenCLMemory])] =
-          all_oclfunc_outline_targets_purified.map {
-            case (filename: String, localSize, globalSize, lambdax: Lambda) =>
+        val oclFuns = all_oclfunc_outline_targets_purified.map {
+          case (filename: String, localSize, globalSize, lambdax: Lambda) =>
 
-              val block = opencl.executor.Compile.!!(lambdax, localSize, globalSize)
+            val block = opencl.executor.Compile.!!(lambdax, localSize, globalSize)
 
-              val intermediateGlobalMem = CollectTypedOpenCLMemory(lambdax)._3
+            val intermediateGlobalMem = CollectTypedOpenCLMemory(lambdax)._3
 
-              (filename, block, lambdax, intermediateGlobalMem)
-          }
+            (filename, block, lambdax, intermediateGlobalMem)
+        }
 
         val lambdaWithWrappedHostIRNodes = HostIRMapper(lambda, oclFuns.map {
           case (_, _, lambdax, intermediateGlobalMem) => lambdax -> intermediateGlobalMem
