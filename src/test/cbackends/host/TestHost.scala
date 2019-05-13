@@ -1421,6 +1421,11 @@ class TestHost {
     "{ return sin(x); }",
     Seq(Float), Float)
 
+
+  val cos = UserFun("cos_uf", Array("x"),
+    "{ return cos(x); }",
+    Seq(Float), Float)
+
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
@@ -1428,16 +1433,22 @@ class TestHost {
 
     val func_names = List("sin", "cos")
 
-    val files = func_names.map("lib" + _ + ".cpp")
+    //val files = func_names.map("lib" + _ + ".cpp")
 
     val array = ArrayType(Float, N)
 
     val sin_f = fun( array, MapSeq( sin ) $ _ )
+    val cos_f = fun( array, MapSeq( cos ) $ _ )
 
+    val all_funcs = List(sin_f, cos_f)
 
     (s"mkdir -p $path") !
 
-    HostCompiler ! (sin_f, path, List(files(0)))
+    (func_names zip all_funcs).foreach {
+      case (func_name, func) => HostCompiler ! (func, path, List("lib" + func_name + ".cpp"), func_name)
+    }
+
+    //HostCompiler ! (sin_f, path, List(files(0)), func_names(0))
 
     println("Done")
 

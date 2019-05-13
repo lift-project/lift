@@ -29,6 +29,7 @@ object LowerIR2HostCAST {
       |
       |using namespace std;
       |
+      |namespace lift {
     """.stripMargin), true )
 
   val ocl_boilerplate_code = ExpressionStatement(RawCode(
@@ -622,7 +623,7 @@ object LowerIR2HostCAST {
 
   }
 
-  def apply(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]) : Block = {
+  def apply(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)], func_name: String) : Block = {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 
@@ -643,7 +644,7 @@ object LowerIR2HostCAST {
     val core_body_code = generate(lambda)
 
     //( Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true ), all_signature_cvars )
-    Block(Vector(boilerplate_code, tuple_decl_code :++ userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true )
+    Block(Vector(boilerplate_code, tuple_decl_code :++ userfun_decl_code, FunctionPure(func_name,VoidType(), param_list, memory_alloc_code  :++ core_body_code ), RawCode("}") ), global = true )
 
 
 

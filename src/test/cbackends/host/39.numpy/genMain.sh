@@ -12,6 +12,7 @@ set -o pipefail
 cat ./lift_numpy.hpp
 
 g++ ./sin.cpp -I . && ./a.out && rm a.out
+g++ ./cos.cpp -I . && ./a.out && rm a.out
 
 
 
