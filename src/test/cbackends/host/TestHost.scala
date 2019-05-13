@@ -1417,5 +1417,31 @@ class TestHost {
 
   }
 
+  val sin = UserFun("sin_uf", Array("x"),
+    "{ return sin(x); }",
+    Seq(Float), Float)
+
+  @Test
+  def test_generate_all_numpy_functions(): Unit = {
+
+    val path = s"$common_path/39.numpy/lift_numpy"
+
+    val func_names = List("sin", "cos")
+
+    val files = func_names.map("lib" + _ + ".cpp")
+
+    val array = ArrayType(Float, N)
+
+    val sin_f = fun( array, MapSeq( sin ) $ _ )
+
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (sin_f, path, List(files(0)))
+
+    println("Done")
+
+  }
+
 
 }
