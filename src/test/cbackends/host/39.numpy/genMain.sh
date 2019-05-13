@@ -11,7 +11,7 @@ set -o pipefail
 
 cat ./lift_numpy.hpp
 
-g++ ./main.cpp -I . && ./a.out && rm a.out
+g++ ./sin.cpp -I . && ./a.out && rm a.out
 
 
 
