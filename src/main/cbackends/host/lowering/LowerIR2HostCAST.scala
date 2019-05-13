@@ -30,7 +30,7 @@ object LowerIR2HostCAST {
       |using namespace std;
       |
       |namespace lift {
-    """.stripMargin), true )
+    """.stripMargin), true)
 
   val ocl_boilerplate_code = ExpressionStatement(RawCode(
     """
@@ -675,7 +675,9 @@ object LowerIR2HostCAST {
   }
 
 
-  def apply_no_header(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)], generatePostExecuteHook: Boolean = false) : Block = {
+  def apply_no_header(lambda: Lambda,
+                      hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)],
+                      generatePostExecuteHook: Boolean = false) : Block = {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 
@@ -791,7 +793,8 @@ object LowerIR2HostCAST {
 
     val mutable_result = mutable.Set.empty[TupleType]
     lambda visitBy {
-      case FunCall(uf: UserFun, _*) => mutable_result ++= uf.tupleTypes
+      case FunCall(uf: UserFun, _*) =>
+        mutable_result ++= uf.tupleTypes
       case _ =>
     }
     val result = mutable_result.toSet
