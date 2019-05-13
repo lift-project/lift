@@ -8,7 +8,7 @@ import ir.{TupleType, Type}
 import ir.ast.Iterate
 import opencl.generator.NDRange
 import opencl.ir.pattern.{MapGlb, MapWrg, ScanSeq}
-import opencl.ir.{CollectTypedOpenCLMemory, GlobalMemory, OpenCLAddressSpace}
+import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
 
 import scala.collection.mutable.ArrayBuffer
 //import host_obsolete.ir_host.MapHSeq
