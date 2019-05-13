@@ -134,7 +134,7 @@ object OutputView {
         fc
       }*/
 
-      case fc@FunCall(_:CPUFunCall|_:OclFunCall|_:ToGPU|_:ToHost, args@_*) => {
+      case fc@FunCall(_:CPUFunContainer | _:OclFunContainer | _:ToGPU | _:ToHost, args@_*) => {
 
         args.foreach( arg => arg.outputView = ViewMem(arg.mem.variable, arg.t) )
 

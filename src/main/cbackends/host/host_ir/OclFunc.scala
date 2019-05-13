@@ -42,14 +42,12 @@ case class OclFunc(override val f: Lambda,
     }
   }
 }
-case class OclFunCall(funcName : String, params: Array[Param],
-                      val ndranges: (NDRange, NDRange) = (NDRange(1,1,1), NDRange(1,1,1)),
-                      override val cpu_timer: Boolean = false, override val gpu_timer: Boolean = false)
-  extends Pattern(arity = 2) with Measurable {
+
+case class OclFunContainer(oclFun: OclFunc) extends Pattern(arity = 2) {
 
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = this
   override def checkType(argType: Type, setType: Boolean): Type = {
-    assert(false, "OclFunCall* never do type check")
+    assert(false, "OclFunContainer* never do type check")
     argType
   }
 
