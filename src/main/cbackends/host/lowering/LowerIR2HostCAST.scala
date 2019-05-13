@@ -389,8 +389,8 @@ object LowerIR2HostCAST {
 
     val arg_blocks = fc.args.map(generate(_) )
 
-    val oclFun = fc.f.asInstanceOf[OclFunContainer].oclFun
-    val measurable = oclFun.asInstanceOf[Measurable]
+    val oclFunContainer = fc.f.asInstanceOf[OclFunContainer]
+    val measurable = oclFunContainer.oclFun.asInstanceOf[Measurable]
 
 
     //(1) set arg
@@ -400,10 +400,12 @@ object LowerIR2HostCAST {
 
     val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
 
-    val intermediate_global_buffer_args = CollectTypedOpenCLMemory(oclFun.f)._3.sortBy(_.mem.variable.name).
+    val intermediate_global_buffer_args = oclFunContainer.intermediateGlobalMem.
       map(typedMem => CVarWithType(typedMem.mem.variable.toString, TypeLowering.IRType2CastType(typedMem.t)))
 
-    val sizes = oclFun.f.params.flatMap(p => ArithExpr.collectVars(p.mem.size)).map(p => CVarWithType(p.toString, IntegerType())).distinct
+    val sizes = oclFunContainer.oclFun.f.params.flatMap(p =>
+      ArithExpr.collectVars(p.mem.size)).map(p =>
+      CVarWithType(p.toString, IntegerType())).distinct
     val all_args = ((input_args :+ output_arg) ++ intermediate_global_buffer_args) ++ sizes
     val arg_id = (0 until all_args.length).toList
 
@@ -415,8 +417,8 @@ object LowerIR2HostCAST {
         ExpressionStatement(MethodInvocation(kernel_cvar, "setArg", List(IntConstant(id), cvar)))
     }
 
-    val local_thread_setting : NDRange = oclFun.ndranges._1
-    val global_thread_setting : NDRange = oclFun.ndranges._2
+    val local_thread_setting : NDRange = oclFunContainer.oclFun.ndranges._1
+    val global_thread_setting : NDRange = oclFunContainer.oclFun.ndranges._2
 
     //(2) enqueue kernel
     val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
@@ -465,19 +467,21 @@ object LowerIR2HostCAST {
 
     val arg_blocks = fc.args.map( generate(_) )
 
-    val cpuFun = fc.f.asInstanceOf[CPUFunContainer].cpuFun
-    val measurable = fc.f.asInstanceOf[CPUMeasurable]
+    val cpuFunContainer = fc.f.asInstanceOf[CPUFunContainer]
+    val measurable = cpuFunContainer.cpuFun.asInstanceOf[CPUMeasurable]
 
     val input_args = fc.args.map( arg => CVarWithType(arg.mem.variable.toString, TypeLowering.IRType2CastType(arg.t) ) ).toList
 
     val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
 
-    val intermediate_global_buffer_args = CollectTypedOpenCLMemory(cpuFun.f)._3.sortBy(_.mem.variable.name).
+    val intermediate_global_buffer_args = cpuFunContainer.intermediateGlobalMem.
       map(typedMem => CVarWithType(typedMem.mem.variable.toString, TypeLowering.IRType2CastType(typedMem.t))).toList
 
-    val sizes = cpuFun.f.params.flatMap(p => ArithExpr.collectVars(p.mem.size)).map(p => CVarWithType(p.toString, IntegerType())).distinct
+    val sizes = cpuFunContainer.cpuFun.f.params.flatMap(p =>
+      ArithExpr.collectVars(p.mem.size)).map(p =>
+      CVarWithType(p.toString, IntegerType())).distinct
 
-    val fc_cast = FunctionCall(cpuFun.funcName,
+    val fc_cast = FunctionCall(cpuFunContainer.cpuFun.funcName,
       input_args ::: output_arg :: (intermediate_global_buffer_args ::: sizes.toList ) )
 
 
