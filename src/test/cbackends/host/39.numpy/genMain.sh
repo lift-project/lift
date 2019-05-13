@@ -13,6 +13,8 @@ cat ./lift_numpy.hpp
 
 g++ ./sin.cpp -I . && ./a.out && rm a.out
 g++ ./cos.cpp -I . && ./a.out && rm a.out
+g++ ./tan.cpp -I . && ./a.out && rm a.out
+g++ ./arcsin.cpp -I . && ./a.out && rm a.out
 
 
 
