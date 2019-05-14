@@ -11,6 +11,7 @@
 #include <lift_numpy/libsinh.cpp>
 #include <lift_numpy/libaround.cpp>
 #include <lift_numpy/libdeg2rad.cpp>
+#include <lift_numpy/libround_.cpp>
 #include <lift_numpy/libarccosh.cpp>
 #include <lift_numpy/libarctan2.cpp>
 #include <lift_numpy/libsin.cpp>

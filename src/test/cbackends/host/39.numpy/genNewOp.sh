@@ -7,17 +7,31 @@ set -o pipefail
 # Activate debug
 # set -x
 
-sed 's/sinh/'"$1"'/g' sinh.cpp > $1.cpp
-echo "change data please ..."
-sleep(1)
-nvim $1.cpp
+if [ -f $1.cpp ]; then
+	echo "already generated, neglect"
+	sleep 1
+else
+	sed 's/sinh/'"$1"'/g' sinh.cpp > $1.cpp
+	echo "change data please ..."
+	sleep 1
+	nvim $1.cpp
+fi
 
-sed 's/sinh/'"$1"'/g' ./numpy/sinh.py > ./numpy/$1.py
-chomod +x ./numpy/$1.py
-echo "change to the same data please ..."
-sleep(1)
-nvim ./numpy/$1.py
+if [ -f $1.py ]; then
+	echo "already generated, neglect"
+	sleep 1
+else
+	sed 's/sinh/'"$1"'/g' ./numpy/sinh.py > ./numpy/$1.py
+	chmod +x ./numpy/$1.py
+	echo "change to the same data please ..."
+	sleep 1
+	nvim ./numpy/$1.py
+fi
 
 echo "add compilation commands please ..."
-sleep(1)
+sleep 1
 nvim genMain.sh
+
+echo "now executing ..."
+sleep 1
+./genMain.sh
