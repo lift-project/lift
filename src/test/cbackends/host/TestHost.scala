@@ -1433,12 +1433,21 @@ class TestHost {
     "{ return asin(x); }",
     Seq(Float), Float)
 
+  val arccos = UserFun("arccos_uf", Array("x"),
+    "{ return acos(x); }",
+    Seq(Float), Float)
+
+  val arctan = UserFun("arctan_uf", Array("x"),
+    "{ return atan(x); }",
+    Seq(Float), Float)
+
+
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
     val path = s"$common_path/39.numpy/lift_numpy"
 
-    val func_names = List("sin", "cos", "tan", "arcsin")
+    val func_names = List("sin", "cos", "tan", "arcsin", "arccos", "arctan")
 
     //val files = func_names.map("lib" + _ + ".cpp")
 
@@ -1448,8 +1457,10 @@ class TestHost {
     val cos_f = fun( array, MapSeq( cos ) $ _ )
     val tan_f = fun( array, MapSeq( tan ) $ _ )
     val arcsin_f = fun( array, MapSeq( arcsin ) $ _ )
+    val arccos_f = fun( array, MapSeq( arccos ) $ _ )
+    val arctan_f = fun( array, MapSeq( arctan ) $ _ )
 
-    val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f)
+    val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f)
 
     (s"mkdir -p $path") !
 
