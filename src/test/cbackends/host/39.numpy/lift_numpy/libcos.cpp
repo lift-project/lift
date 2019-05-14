@@ -1,19 +1,41 @@
 
+
+
 #include <bits/stdc++.h>
 
 using namespace std;
 
 namespace lift {
     
+
+
+#ifndef COS_UF_H
+#define COS_UF_H
+
+
+; 
 float cos_uf(float x){
-    { return cos(x); }; 
+    
+    
+    { return cos(x); }
+    
+    ; 
 }
-void cos(float * v_initial_param_69_18, float * & v_user_func_71_19, int v_N_0){
+
+
+
+#endif
+; 
+void cos(float * v_initial_param_1120_206, float * & v_user_func_1122_207, int v_N_190){
     // Allocate memory for output pointers
-    v_user_func_71_19 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_1122_207 = reinterpret_cast<float *>(malloc((v_N_190 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_17 = 0;(v_i_17 <= (-1 + v_N_0)); (++v_i_17)){
-        v_user_func_71_19[v_i_17] = cos_uf(v_initial_param_69_18[v_i_17]); 
+    for (int v_i_205 = 0;(v_i_205 <= (-1 + v_N_190)); (++v_i_205)){
+        v_user_func_1122_207[v_i_205] = cos_uf(v_initial_param_1120_206[v_i_205]); 
     }
 }
-}; 
+
+
+}
+
+; 
