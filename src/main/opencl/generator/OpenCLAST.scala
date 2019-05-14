@@ -351,7 +351,7 @@ object OpenCLAST {
     *
     * @param code Native code to insert
     */
-  case class OclCode(code: String) extends RawCodeT {
+  case class OclCode(code: String, pre1: String = "", pre2: String ="", post1: String ="", post2: String = "") extends RawCodeT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
       this
     }

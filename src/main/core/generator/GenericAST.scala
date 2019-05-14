@@ -1227,11 +1227,15 @@ object GenericAST {
     */
   trait RawCodeT extends ExpressionT {
     val code: String
+    val pre1: String
+    val pre2: String
+    val post1: String
+    val post2: String
 
-    override def print(): Doc = code
+    override def print(): Doc = pre1 </> pre2 </> code </> post1 </> post2
   }
 
-  case class RawCode(code: String) extends RawCodeT {
+  case class RawCode(code: String = "", pre1: String = "", pre2: String ="", post1: String ="", post2: String = "") extends RawCodeT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
       this
     }

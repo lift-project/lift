@@ -9,7 +9,7 @@ int main() {
 
 	Tuple3_float_float_float *z = nullptr;
 
-	execute(x.data(), y.data(), z, size);
+	lift::execute(x.data(), y.data(), z, size);
 
 	assert(z!=nullptr);
 

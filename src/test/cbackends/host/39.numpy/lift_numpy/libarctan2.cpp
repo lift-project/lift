@@ -8,12 +8,12 @@ namespace lift {
 float div_uf(float x, float y){
     { return (x)/(y); }; 
 }
-#ifndef ARCTAN_UF_H
-#define ARCTAN_UF_H
+#ifndef ARCTAN_UF_H ;
+#define ARCTAN_UF_H ;
 float arctan_uf(float x){
     { return atan(x); }; 
 }
-#endif
+#endif ;
 void arctan2(float * v_initial_param_104_34, float * v_initial_param_105_35, float * & v_user_func_107_38, int v_N_0){
     // Allocate memory for output pointers
     float * v_user_func_115_37 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float))));

@@ -10,6 +10,7 @@ import opencl.generator.NDRange
 import opencl.ir.pattern.{MapGlb, MapWrg, ScanSeq}
 import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
 
+
 import scala.collection.mutable.ArrayBuffer
 //import host_obsolete.ir_host.MapHSeq
 //import host_obsolete.view.ViewPrinter
@@ -747,9 +748,14 @@ object LowerIR2HostCAST {
       case _ => ()
       }
 
-    val all_user_decl = all_userfunc.map(createFunctionDefinition).toVector
+    val all_user_decl = all_userfunc.map(createFunctionDefinition)
+    val all_user_decl_with_incl_guard: Vector[Block] = all_user_decl.toVector.map(
+      //Block(Vector(RawCode(pre1 = "#ifndef GRANDPARENT_H", pre2 = "#define GRANDPARENT_H", code = " "), _, RawCode("#endif") ), global = true)
+       func => Block( Vector(RawCode(pre1 = s"#ifndef ${func.name.toUpperCase}_H", pre2 = s"#define ${func.name.toUpperCase}_H"), func, RawCode(post1 = "#endif")) ,  global = true)
 
-    Block(all_user_decl, global = true)
+    )
+
+    Block(all_user_decl_with_incl_guard, global = true)
 
 
   }
