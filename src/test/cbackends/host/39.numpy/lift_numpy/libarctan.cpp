@@ -26,12 +26,12 @@ float arctan_uf(float x){
 
 #endif
 ; 
-void arctan(float * v_initial_param_1148_218, float * & v_user_func_1150_219, int v_N_190){
+void arctan(float * v_initial_param_98_31, float * & v_user_func_100_32, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_1150_219 = reinterpret_cast<float *>(malloc((v_N_190 * sizeof(float)))); 
+    v_user_func_100_32 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_217 = 0;(v_i_217 <= (-1 + v_N_190)); (++v_i_217)){
-        v_user_func_1150_219[v_i_217] = arctan_uf(v_initial_param_1148_218[v_i_217]); 
+    for (int v_i_30 = 0;(v_i_30 <= (-1 + v_N_0)); (++v_i_30)){
+        v_user_func_100_32[v_i_30] = arctan_uf(v_initial_param_98_31[v_i_30]); 
     }
 }
 

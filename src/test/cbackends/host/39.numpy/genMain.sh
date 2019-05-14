@@ -17,8 +17,11 @@ g++ ./tan.cpp -I . && ./a.out && rm a.out
 g++ ./arcsin.cpp -I . && ./a.out && rm a.out
 g++ ./arccos.cpp -I . && ./a.out && rm a.out
 g++ ./arctan.cpp -I . && ./a.out && rm a.out
+g++ ./hypot.cpp -I . && ./a.out && rm a.out
 g++ ./arctan2.cpp -I . && ./a.out && rm a.out
 
+
+rm a.out
 
 
 
