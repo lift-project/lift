@@ -1487,7 +1487,7 @@ class TestHost {
     Seq(Float), Float)
 
   val around = UserFun("round_uf", Array("x"),
-    "{ return ceil(x); }",
+    "return ( ((int) ceil(x)) % 2 == 0 ? ceil(x) : ceil(x) -1) ;",
     Seq(Float), Float)
 
   @Test

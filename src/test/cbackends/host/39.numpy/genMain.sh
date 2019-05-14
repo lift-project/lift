@@ -25,12 +25,14 @@ cat ./lift_numpy.hpp
 # g++ ./deg2rad.cpp -I . && ./a.out && rm a.out
 # g++ ./rad2deg.cpp -I . && ./a.out && rm a.out
 
-g++ ./sinh.cpp -I . && ./a.out && rm a.out
-g++ ./cosh.cpp -I . && ./a.out && rm a.out
-g++ ./tanh.cpp -I . && ./a.out && rm a.out
-g++ ./arcsinh.cpp -I . && ./a.out && rm a.out
-g++ ./arccosh.cpp -I . && ./a.out && rm a.out
-g++ ./arctanh.cpp -I . && ./a.out && rm a.out
+# g++ ./sinh.cpp -I . && ./a.out && rm a.out
+# g++ ./cosh.cpp -I . && ./a.out && rm a.out
+# g++ ./tanh.cpp -I . && ./a.out && rm a.out
+# g++ ./arcsinh.cpp -I . && ./a.out && rm a.out
+# g++ ./arccosh.cpp -I . && ./a.out && rm a.out
+# g++ ./arctanh.cpp -I . && ./a.out && rm a.out
+
+g++ ./around.cpp -I . && ./a.out && rm a.out
 
 
 if [ -z a.out ]; then rm a.out; fi

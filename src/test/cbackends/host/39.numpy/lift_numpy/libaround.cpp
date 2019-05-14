@@ -17,7 +17,7 @@ namespace lift {
 float round_uf(float x){
     
     
-    { return ceil(x); }
+    return ( ((int) ceil(x)) % 2 == 0 ? ceil(x) : ceil(x) -1) ;
     
     ; 
 }
