@@ -18,10 +18,14 @@ object TestConcatHelpers
 
   val delta = 0.01f
 
+  val boundaryA = Array(2.0f, 3.0f, 4.0f)
+  val boundaryB = Array(2.5f, 3.5f, 4.5f)
+
   val slidesize = 3
   val slidestep = 1
   val localSizeX = 6
   val localSizeY = 8
+  val M = SizeVar("M")
   val N = SizeVar("N")
 
   val constL = 2.0f
@@ -30,11 +34,16 @@ object TestConcatHelpers
   val size = 10
 
   val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+  val largeValues = Array.tabulate(size) { (i) => ((i + 1) * 10).toFloat }
   val padValue = 0
   val padLR = Array.fill(1)(padValue.toFloat)
   val padValueL = values(0)
   val padValueR = values(values.length-1)
   val paddedValues = padLR ++ Array.tabulate(size) { (i) => (i + 1).toFloat } ++ padLR
+
+  val padLBoundary = boundaryA.map(x => (TestConcatHelpers.constL*TestConcatHelpers.largeValues(0)) - x)
+  val padRBoundary = boundaryB.map(x => (TestConcatHelpers.constR*TestConcatHelpers.largeValues(TestConcatHelpers.largeValues.length-1)) - x)
+  val paddedLargeValues = Array(0.0f) ++ TestConcatHelpers.largeValues ++ Array(0.0f)
 
 }
 
@@ -452,124 +461,143 @@ class TestConcat
 
   }
 
+  def stencil1DConcatBoundaryExtra() = fun(
+    ArrayTypeWSWC(Float,TestConcatHelpers.N),
+    ArrayTypeWSWC(Float,TestConcatHelpers.M),
+    ArrayTypeWSWC(Float,TestConcatHelpers.M),
+    (input,boundaryA,boundaryB) => {
+      Concat(3)(
+        {
+          val inp0 = toPrivate(fun(x => (mult(TestConcatHelpers.constL,x)))) $ input.at(0)
+          toGlobal(MapSeq(id)) o PrintType() o MapSeqUnroll(id) o ReduceSeq(subtractUp,inp0) $ boundaryA
+        },
+        Join() o MapSeq(fun(tup => {
+          val neighbourhood = Get(tup,1)
+          toGlobal( MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+        })) $ Zip(input, Slide(3,1) o PadConstant(1,1,0.0f) $ input),
+        {
+          val inpN = toPrivate(fun(x => (mult(TestConcatHelpers.constR,x)))) $ input.at(TestConcatHelpers.N-1)
+          toGlobal(MapSeq(id)) o MapSeqUnroll(id) o ReduceSeq(subtractUp,inpN) $ boundaryB
+        }
+      )
+    }
+  )
+
   // first mult boundary value by constant
-  // then loop over boundary A/B and mult by another constant and subtract from boundary value
+  // then loop over boundary A/B and subtract from boundary value
   @Test
   def joinMainStencilAndIterateOverBoundaryAfter(): Unit  = {
 
-    val M = SizeVar("M")
-
-    val boundaryA = Array(2.0f, 3.0f, 4.0f)
-    val boundaryB = Array(2.5f, 3.5f, 4.5f)
-
-    //
-    val padL = Array(boundaryA(0) * TestConcatHelpers.constL*TestConcatHelpers.values(0))
-    val padR = Array(boundaryB(boundaryB.length-1)* TestConcatHelpers.constR*TestConcatHelpers.values(TestConcatHelpers.values.length-1))
-    val gold =  padL ++ TestConcatHelpers.paddedValues.sliding(3,1).toArray.map(x => x.reduceLeft(_ + _)) ++ padR
-
+    val gold =  TestConcatHelpers.padLBoundary ++ TestConcatHelpers.paddedLargeValues.sliding(3,1).toArray.map(x => x.reduceLeft(_ + _)) ++ TestConcatHelpers.padRBoundary
 
     def stencil1DConcatBoundaryExtra() = fun(
       ArrayTypeWSWC(Float,TestConcatHelpers.N),
-      ArrayTypeWSWC(Float,M),
-      ArrayTypeWSWC(Float,M),
+      ArrayTypeWSWC(Float,TestConcatHelpers.M),
+      ArrayTypeWSWC(Float,TestConcatHelpers.M),
       (input,boundaryA,boundaryB) => {
         Concat(3)(
-//          toGlobal( MapSeq(id)) o PrintType() o MapSeq(fun(x => add(x, input.at(0)))) $ boundaryA,
-
-{          val inp0 = toPrivate(fun(x => (mult(TestConcatHelpers.constL,x)))) $ input.at(0)
-
-          toGlobal(MapSeq(id)) o MapSeqUnroll(id) o ReduceSeq(subtractUp,0.0f) $ boundaryA},
+          {
+            val inp0 = toPrivate(fun(x => (mult(TestConcatHelpers.constL,x)))) $ input.at(0)
+            toGlobal(MapSeq(id)) o PrintType() o MapSeqUnroll(id) o ReduceSeq(subtractUp,inp0) $ boundaryA
+          },
           Join() o MapSeq(fun(tup => {
             val neighbourhood = Get(tup,1)
             toGlobal( MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
           })) $ Zip(input, Slide(3,1) o PadConstant(1,1,0.0f) $ input),
-//          toGlobal( PrintType() o MapSeq(id)) $ ArrayFromExpr(toPrivate(fun(x => mult(x,boundaryA.at(M-1)))) o toPrivate(fun(x => mult(x,TestConcatHelpers.constR))) $ input.at(TestConcatHelpers.N-1))
-          toGlobal(MapSeq(id)) o MapSeqUnroll(fun(x => add(x,input.at(TestConcatHelpers.N-1)))) o ReduceSeq(absAndSumUp,0.0f) $ boundaryB
+          {
+            val inpN = toPrivate(fun(x => (mult(TestConcatHelpers.constR,x)))) $ input.at(TestConcatHelpers.N-1)
+            toGlobal(MapSeq(id)) o MapSeqUnroll(id) o ReduceSeq(subtractUp,inpN) $ boundaryB
+          }
         )
       }
     )
 
-    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1DConcatBoundaryExtra(), TestConcatHelpers.values,boundaryA,boundaryB)
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1DConcatBoundaryExtra(), TestConcatHelpers.largeValues,TestConcatHelpers.boundaryA,TestConcatHelpers.boundaryB)
 
-    StencilUtilities.print1DArray(TestConcatHelpers.values)
-    StencilUtilities.print1DArray(output)
-
-//    assertArrayEquals(gold, output, TestConcatHelpers.delta)
+     assertArrayEquals(gold, output, TestConcatHelpers.delta)
 
   }
 
-  // add iterative example
+  def getIteratedGold(num_iterations : Int, padLeft : Array[Float], padRight : Array[Float], values : Array[Float]): Array[Float] =
+  {
+    val padLBoundary = padLeft.map(x => (TestConcatHelpers.constL*values(0)) - x)
+    val padRBoundary = padRight.map(x => (TestConcatHelpers.constR*values(values.length-1)) - x)
+    val paddedLargeValues = Array(0.0f) ++ values ++ Array(0.0f)
+
+    var outputValues = paddedLargeValues
+
+    StencilUtilities.print1DArray(outputValues)
+
+    for(i <- 1 to num_iterations)
+    {
+
+      val updatedPadL = padLBoundary.reduceLeft( (x,y) => x - outputValues(0)*TestConcatHelpers.constL )
+      val updatedPadR = padRBoundary.reduceLeft( (x,y) => x - outputValues(outputValues.length-1)*TestConcatHelpers.constR)
+
+      outputValues =  Array(updatedPadL) ++ outputValues.sliding(3,1).toArray.map(x => x.reduceLeft(_ + _)) ++ Array(updatedPadR)
+
+      StencilUtilities.print1DArray(outputValues)
+
+    }
+
+    outputValues
+
+  }
+
+  // add outer iterative example
+  @Test
+  def iterateOverMainStencilJoinedWithIterateOverBoundary(): Unit  = {
+
+    val num_iterations = 5
+
+    var input = TestConcatHelpers.paddedLargeValues
+
+ //   StencilUtilities.print1DArray(input)
+
+    val gold = getIteratedGold(num_iterations,TestConcatHelpers.boundaryA,TestConcatHelpers.boundaryB,TestConcatHelpers.largeValues)
+
+    def stencil1DConcatBoundaryExtra() = fun(
+      ArrayTypeWSWC(Float,TestConcatHelpers.N),
+      ArrayTypeWSWC(Float,TestConcatHelpers.M),
+      ArrayTypeWSWC(Float,TestConcatHelpers.M),
+      (input,boundaryA,boundaryB) => {
+        Concat(3)(
+          {
+            val inp0 = toPrivate(fun(x => (mult(TestConcatHelpers.constL,x)))) $ input.at(0)
+            toGlobal(MapSeq(id)) o PrintType() o MapSeqUnroll(id) o ReduceSeq(subtractUp,inp0) $ boundaryA
+          },
+          Join() o MapSeq(fun(tup => {
+            val neighbourhood = Get(tup,1)
+            toGlobal( MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
+          })) $ Zip(input, Slide(3,1) /* o PadConstant(1,1,0.0f) */ $ input),
+          {
+            val inpN = toPrivate(fun(x => (mult(TestConcatHelpers.constR,x)))) $ input.at(TestConcatHelpers.N-1)
+            toGlobal(MapSeq(id)) o MapSeqUnroll(id) o ReduceSeq(subtractUp,inpN) $ boundaryB
+          }
+        )
+      }
+    )
+
+    for (i <- 1 to num_iterations) {
+
+      val (output, _) = Execute(2,2)[Array[Float]](stencil1DConcatBoundaryExtra(), input,TestConcatHelpers.boundaryA,TestConcatHelpers.boundaryB)
+
+      input = output
+      StencilUtilities.print1DArray(input)
+
+    }
+
+//    StencilUtilities.print1DArray(input)
+//    StencilUtilities.print1DArray(gold)
+
+    assertArrayEquals(gold, input, TestConcatHelpers.delta)
+
+  }
 
   // add separate kernel example
 
   // add 2D example
 
-
-  // calculate main stencil from one array
-  // concat together with original boundary points multiplied by corresponding values in another array
-  @Ignore // for now
-  @Test
-  def joinMainStencilAndOtherArrayTimesOriginalBoundary1D(): Unit = {
-
-    val slidesize = 3
-    val slidestep = 1
-    val size = 10
-    val bPts = 3 // boundary points
-    val N = SizeVar("N") // number of values in original array (+ pad constant)
-    val M = SizeVar("M") // size of boundary ( 3 ) --> need to be able to loop over 3 separately
-
-    val constL = 2.0f
-    val constR = 3.0f
-
-    val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
-    val boundaryValues = Array.tabulate(bPts) { (i) => (i * 3).toFloat }
-    StencilUtilities.print1DArray(boundaryValues)
-
-    val bL = values(0)
-    val bR = values(size-1)
-    val bAdded = bL + bR
-    val padValue = 0
-    val padLR = Array.fill(1)(padValue.toFloat)
-    val padValueL = values(0)
-    val padValueR = values(values.length-1)
-    val padL = Array.fill(1)(padValueL.toFloat * constL)
-    val padR = Array.fill(1)(padValueR.toFloat * constR)
-    val paddedValues = padLR ++ Array.tabulate(size) { (i) => (i + 1).toFloat } ++ padLR
-    val gold =  padL ++ paddedValues.sliding(slidesize,slidestep).toArray.map(x => x.reduceLeft(_ + _)).map(z => z*bAdded) ++ padR
-
-
-    def stencil1D(a: Int, b: Int) = fun(
-      ArrayTypeWSWC(Float,TestConcatHelpers.N),
-      ArrayTypeWSWC(Float,M),
-      (input,boundaryA) => {
-//        ConcatFunction(
-//          toGlobal(MapSeqUnroll(id)) o toPrivate(fun(x => mult(x,input.at(0)))) $ boundaryA,
-          MapGlb(0)(fun(tup => {
-
-            val neighbourhood = Get(tup,1)
-            val t = Get(tup,0)
-
-            //val main = toPrivate(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
-
-            toGlobal(MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
-
-          })) $ boundaryA //Zip(input, Slide(a,b) o PadConstant(1,1,0.0f) $ input)
- //         ,toPrivate(fun(x => mult(x,constR))) $ input.at(N-1))
-      }
-    )
-
-    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1D(slidesize, slidestep), values, boundaryValues)
-
-    /*
-    // sanity check
-    StencilUtilities.print1DArray(values)
-    StencilUtilities.print1DArray(gold)
-    */
-    StencilUtilities.print1DArray(output)
-
-    assertArrayEquals(gold, output, 0.1f)
-
-  }
 
   /**
    *  TODO:
