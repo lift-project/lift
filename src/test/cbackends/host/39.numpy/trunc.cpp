@@ -7,7 +7,7 @@ using namespace std;
 int main(int argc, char *argv[])
 {
 
-	vector<float> x {2.1, 2.9, -2.1, -2.9};
+	vector<float> x {2.3,3,8,5.5,-2.3,-3.8,-5.5};
 	float *r = nullptr;
 	const int size = x.size();
 
