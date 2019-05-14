@@ -26,12 +26,12 @@ float cos_uf(float x){
 
 #endif
 ; 
-void cos(float * v_initial_param_74_23, float * & v_user_func_76_24, int v_N_0){
+void cos(float * v_initial_param_78_27, float * & v_user_func_80_28, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_76_24 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_80_28 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_22 = 0;(v_i_22 <= (-1 + v_N_0)); (++v_i_22)){
-        v_user_func_76_24[v_i_22] = cos_uf(v_initial_param_74_23[v_i_22]); 
+    for (int v_i_26 = 0;(v_i_26 <= (-1 + v_N_0)); (++v_i_26)){
+        v_user_func_80_28[v_i_26] = cos_uf(v_initial_param_78_27[v_i_26]); 
     }
 }
 

@@ -1470,6 +1470,21 @@ class TestHost {
     "{ return cosh(x); }",
     Seq(Float), Float)
 
+  val tanh = UserFun("tanh_uf", Array("x"),
+    "{ return tanh(x); }",
+    Seq(Float), Float)
+
+  val arcsinh = UserFun("arcsinh_uf", Array("x"),
+    "{ return asinh(x); }",
+    Seq(Float), Float)
+
+  val arccosh = UserFun("arccosh_uf", Array("x"),
+    "{ return acosh(x); }",
+    Seq(Float), Float)
+
+  val arctanh = UserFun("arctanh_uf", Array("x"),
+    "{ return atanh(x); }",
+    Seq(Float), Float)
 
   @Test
   def test_generate_all_numpy_functions(): Unit = {
@@ -1477,7 +1492,7 @@ class TestHost {
     val path = s"$common_path/39.numpy/lift_numpy"
 
     val func_names = List("sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
-                          "sinh", "cosh" )
+                          "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh")
 
     //val files = func_names.map("lib" + _ + ".cpp")
 
@@ -1499,9 +1514,13 @@ class TestHost {
 
     val sinh_f = fun( array, MapSeq(sinh) $ _ )
     val cosh_f = fun( array, MapSeq(cosh) $ _ )
+    val tanh_f = fun( array, MapSeq(tanh) $ _ )
+    val arcsinh_f = fun( array, MapSeq(arcsinh) $ _ )
+    val arccosh_f = fun( array, MapSeq(arccosh) $ _ )
+    val arctanh_f = fun( array, MapSeq(arctanh) $ _ )
 
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
-                         sinh_f, cosh_f
+                         sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f
     )
 
     (s"mkdir -p $path") !
