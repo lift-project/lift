@@ -1449,13 +1449,24 @@ class TestHost {
     "{ return sqrt((x*x)+(y*y)); }",
     Seq(Float, Float), Float)
 
+  //Degree = radian * 180/π
+  //radian = degree * π/180
+
+  val degrees = UserFun("r2d_uf", Array("x"),
+    "{ return x*180/M_PI; }",
+    Seq(Float), Float)
+
+  val radians = UserFun("d2r_uf", Array("x"),
+    "{ return x*M_PI/180; }",
+    Seq(Float), Float)
+
 
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
     val path = s"$common_path/39.numpy/lift_numpy"
 
-    val func_names = List("sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2")
+    val func_names = List("sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians")
 
     //val files = func_names.map("lib" + _ + ".cpp")
 
@@ -1469,8 +1480,10 @@ class TestHost {
     val arctan_f = fun( array, MapSeq( arctan ) $ _ )
     val hypot_f = fun( array, array, MapSeq( fun( y => hypot.apply(Get(y,0), Get(y,1)) )  ) $ Zip(_,_) )
     val arctan2_f = fun( array, array, MapSeq( arctan ) o MapSeq( fun( y => div.apply(Get(y,0), Get(y,1)) )  ) $ Zip(_,_) )
+    val degrees_f = fun( array, MapSeq( degrees ) $ _ )
+    val radians_f = fun( array, MapSeq( radians ) $ _ )
 
-    val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f)
+    val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f)
 
     (s"mkdir -p $path") !
 

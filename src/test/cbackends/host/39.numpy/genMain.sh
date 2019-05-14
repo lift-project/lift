@@ -19,9 +19,11 @@ g++ ./arccos.cpp -I . && ./a.out && rm a.out
 g++ ./arctan.cpp -I . && ./a.out && rm a.out
 g++ ./hypot.cpp -I . && ./a.out && rm a.out
 g++ ./arctan2.cpp -I . && ./a.out && rm a.out
+g++ ./degrees.cpp -I . && ./a.out && rm a.out
+g++ ./radians.cpp -I . && ./a.out && rm a.out
 
 
-rm a.out
+if [ -z a.out ]; then rm a.out; fi
 
 
 
