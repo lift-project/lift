@@ -26,12 +26,12 @@ float r2d_uf(float x){
 
 #endif
 ; 
-void rad2deg(float * v_initial_param_150_63, float * & v_user_func_152_64, int v_N_0){
+void rad2deg(float * v_initial_param_151_64, float * & v_user_func_153_65, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_152_64 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_153_65 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_62 = 0;(v_i_62 <= (-1 + v_N_0)); (++v_i_62)){
-        v_user_func_152_64[v_i_62] = r2d_uf(v_initial_param_150_63[v_i_62]); 
+    for (int v_i_63 = 0;(v_i_63 <= (-1 + v_N_0)); (++v_i_63)){
+        v_user_func_153_65[v_i_63] = r2d_uf(v_initial_param_151_64[v_i_63]); 
     }
 }
 

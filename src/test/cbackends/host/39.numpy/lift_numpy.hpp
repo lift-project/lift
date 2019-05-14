@@ -1,6 +1,7 @@
 #include <lift_numpy/libtanh.cpp>
 #include <lift_numpy/librad2deg.cpp>
 #include <lift_numpy/libarcsin.cpp>
+#include <lift_numpy/libround.cpp>
 #include <lift_numpy/libdegrees.cpp>
 #include <lift_numpy/libhypot.cpp>
 #include <lift_numpy/libarcsinh.cpp>
