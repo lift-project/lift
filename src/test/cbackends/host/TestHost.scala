@@ -1466,7 +1466,7 @@ class TestHost {
 
     val path = s"$common_path/39.numpy/lift_numpy"
 
-    val func_names = List("sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians")
+    val func_names = List("sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg")
 
     //val files = func_names.map("lib" + _ + ".cpp")
 
@@ -1482,8 +1482,11 @@ class TestHost {
     val arctan2_f = fun( array, array, MapSeq( arctan ) o MapSeq( fun( y => div.apply(Get(y,0), Get(y,1)) )  ) $ Zip(_,_) )
     val degrees_f = fun( array, MapSeq( degrees ) $ _ )
     val radians_f = fun( array, MapSeq( radians ) $ _ )
+    //val unwrap_f
+    val deg2rad_f = radians_f
+    val rad2deg_f = degrees_f
 
-    val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f)
+    val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f)
 
     (s"mkdir -p $path") !
 

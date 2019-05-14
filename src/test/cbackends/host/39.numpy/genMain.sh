@@ -22,6 +22,9 @@ g++ ./arctan2.cpp -I . && ./a.out && rm a.out
 g++ ./degrees.cpp -I . && ./a.out && rm a.out
 g++ ./radians.cpp -I . && ./a.out && rm a.out
 
+g++ ./deg2rad.cpp -I . && ./a.out && rm a.out
+g++ ./rad2deg.cpp -I . && ./a.out && rm a.out
+
 
 if [ -z a.out ]; then rm a.out; fi
 
