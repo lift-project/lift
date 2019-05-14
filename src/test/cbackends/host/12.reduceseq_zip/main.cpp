@@ -8,7 +8,7 @@ int main() {
 
 	Tuple2_double_double *z = nullptr;
 
-	execute(x.data(), y.data(), z, size);
+	lift::execute(x.data(), y.data(), z, size);
 
 	assert(z!=nullptr);
 
