@@ -16,5 +16,6 @@
 #include <lift_numpy/libarctan2.cpp>
 #include <lift_numpy/libsin.cpp>
 #include <lift_numpy/libarctan.cpp>
+#include <lift_numpy/librint.cpp>
 #include <lift_numpy/libtan.cpp>
 #include <lift_numpy/libarccos.cpp>

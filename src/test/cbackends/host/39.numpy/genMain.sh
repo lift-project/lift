@@ -34,6 +34,7 @@ cat ./lift_numpy.hpp
 
 g++ ./around.cpp -I . && ./a.out && rm a.out
 g++ ./round_.cpp -I . && ./a.out && rm a.out
+g++ ./rint.cpp -I . && ./a.out && rm a.out
 
 
 if [ -z a.out ]; then rm a.out; fi

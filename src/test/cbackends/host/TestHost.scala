@@ -1490,6 +1490,10 @@ class TestHost {
     "return ( ((int) ceil(x)) % 2 == 0 ? ceil(x) : ceil(x) -1) ;",
     Seq(Float), Float)
 
+  val rint = UserFun("rint_uf", Array("x"),
+    "return round(x) ;",
+    Seq(Float), Float)
+
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
@@ -1497,7 +1501,7 @@ class TestHost {
 
     val func_names = List("sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
       "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",
-      "around", "round_")
+      "around", "round_", "rint")
 
     //val files = func_names.map("lib" + _ + ".cpp")
 
@@ -1526,10 +1530,11 @@ class TestHost {
 
     val around_f = fun( array, MapSeq(around) $ _ )
     val round__f = around_f
+    val rint_f = fun( array, MapSeq(rint) $ _ )
 
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
-      around_f, round__f
+      around_f, round__f, rint_f
     )
 
     (s"mkdir -p $path") !
