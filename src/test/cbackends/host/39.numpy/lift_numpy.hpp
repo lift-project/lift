@@ -9,13 +9,17 @@
 #include <lift_numpy/libradians.cpp>
 #include <lift_numpy/libarctanh.cpp>
 #include <lift_numpy/libsinh.cpp>
+#include <lift_numpy/libfloor.cpp>
 #include <lift_numpy/libaround.cpp>
 #include <lift_numpy/libdeg2rad.cpp>
 #include <lift_numpy/libfix.cpp>
 #include <lift_numpy/libround_.cpp>
+#include <lift_numpy/libtrunk.cpp>
 #include <lift_numpy/libarccosh.cpp>
 #include <lift_numpy/libarctan2.cpp>
+#include <lift_numpy/libceil.cpp>
 #include <lift_numpy/libsin.cpp>
+#include <lift_numpy/libtrunc.cpp>
 #include <lift_numpy/libarctan.cpp>
 #include <lift_numpy/librint.cpp>
 #include <lift_numpy/libtan.cpp>

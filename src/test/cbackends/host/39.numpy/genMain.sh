@@ -32,10 +32,13 @@ cat ./lift_numpy.hpp
 # g++ ./arccosh.cpp -I . && ./a.out && rm a.out
 # g++ ./arctanh.cpp -I . && ./a.out && rm a.out
 
-g++ ./around.cpp -I . && ./a.out && rm a.out
-g++ ./round_.cpp -I . && ./a.out && rm a.out
-g++ ./rint.cpp -I . && ./a.out && rm a.out
+# g++ ./around.cpp -I . && ./a.out && rm a.out
+# g++ ./round_.cpp -I . && ./a.out && rm a.out
+# g++ ./rint.cpp -I . && ./a.out && rm a.out
 g++ ./fix.cpp -I . && ./a.out && rm a.out
+# g++ ./floor.cpp -I . && ./a.out && rm a.out
+# g++ ./ceil.cpp -I . && ./a.out && rm a.out
+# g++ ./trunc.cpp -I . && ./a.out && rm a.out
 
 
 if [ -z a.out ]; then rm a.out; fi

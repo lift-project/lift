@@ -26,12 +26,12 @@ float rint_uf(float x){
 
 #endif
 ; 
-void rint(float * v_initial_param_216_93, float * & v_user_func_218_94, int v_N_0){
+void rint(float * v_initial_param_219_96, float * & v_user_func_221_97, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_218_94 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_221_97 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_92 = 0;(v_i_92 <= (-1 + v_N_0)); (++v_i_92)){
-        v_user_func_218_94[v_i_92] = rint_uf(v_initial_param_216_93[v_i_92]); 
+    for (int v_i_95 = 0;(v_i_95 <= (-1 + v_N_0)); (++v_i_95)){
+        v_user_func_221_97[v_i_95] = rint_uf(v_initial_param_219_96[v_i_95]); 
     }
 }
 

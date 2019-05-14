@@ -3,7 +3,7 @@
 import numpy as np
 
 
-y = np.fix([2.3,3,8,5.5,-2.3,-3.8,-5.5]) 
+y = np.ceil([2.1, 2.9, -2.1, -2.9]) 
 
 z = list(map(str, y) )
 

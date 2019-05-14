@@ -11,7 +11,7 @@ if [ -f $1.cpp ]; then
 	echo "already generated, neglect"
 	sleep 1
 else
-	sed 's/sinh/'"$1"'/g' sinh.cpp > $1.cpp
+	sed 's/fix/'"$1"'/g' fix.cpp > $1.cpp
 	echo "change data please ..."
 	sleep 1
 	nvim $1.cpp
@@ -21,7 +21,7 @@ if [ -f $1.py ]; then
 	echo "already generated, neglect"
 	sleep 1
 else
-	sed 's/sinh/'"$1"'/g' ./numpy/sinh.py > ./numpy/$1.py
+	sed 's/fix/'"$1"'/g' ./numpy/fix.py > ./numpy/$1.py
 	chmod +x ./numpy/$1.py
 	echo "change to the same data please ..."
 	sleep 1
