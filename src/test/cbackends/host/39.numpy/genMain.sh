@@ -26,6 +26,7 @@ cat ./lift_numpy.hpp
 # g++ ./rad2deg.cpp -I . && ./a.out && rm a.out
 
 g++ ./sinh.cpp -I . && ./a.out && rm a.out
+g++ ./cosh.cpp -I . && ./a.out && rm a.out
 
 
 if [ -z a.out ]; then rm a.out; fi

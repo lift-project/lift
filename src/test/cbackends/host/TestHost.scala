@@ -1466,13 +1466,18 @@ class TestHost {
     Seq(Float), Float)
 
 
+  val cosh = UserFun("cosh_uf", Array("x"),
+    "{ return cosh(x); }",
+    Seq(Float), Float)
+
+
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
     val path = s"$common_path/39.numpy/lift_numpy"
 
     val func_names = List("sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
-                          "sinh" )
+                          "sinh", "cosh" )
 
     //val files = func_names.map("lib" + _ + ".cpp")
 
@@ -1493,9 +1498,10 @@ class TestHost {
     val rad2deg_f = degrees_f
 
     val sinh_f = fun( array, MapSeq(sinh) $ _ )
+    val cosh_f = fun( array, MapSeq(cosh) $ _ )
 
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
-                         sinh_f
+                         sinh_f, cosh_f
     )
 
     (s"mkdir -p $path") !

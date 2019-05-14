@@ -2,6 +2,7 @@
 #include <lift_numpy/libarcsin.cpp>
 #include <lift_numpy/libdegrees.cpp>
 #include <lift_numpy/libhypot.cpp>
+#include <lift_numpy/libcosh.cpp>
 #include <lift_numpy/libcos.cpp>
 #include <lift_numpy/libradians.cpp>
 #include <lift_numpy/libsinh.cpp>
