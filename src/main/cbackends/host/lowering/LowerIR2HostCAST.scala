@@ -30,7 +30,6 @@ object LowerIR2HostCAST {
       |
       |using namespace std;
       |
-      |//namespace lift {
     """.stripMargin), true )
 
   val ocl_boilerplate_code = ExpressionStatement(RawCode(
@@ -57,7 +56,7 @@ object LowerIR2HostCAST {
       |  return contents;
       |  }
       |
-    """.stripMargin), true )
+    """.stripMargin), true)
 
   val cpu_clock = StringConstant("std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())")
 
@@ -386,29 +385,41 @@ object LowerIR2HostCAST {
 
 
   private def generateOclFunCall(fc: FunCall) : Block = {
-    //parameter sequnence convention: first input pointers, then output pointers, then sizes
+    // parameter sequence convention: first input pointers, then output pointers,
+    // then intermediate global buffers, then sizes
 
     val arg_blocks = fc.args.map(generate(_) )
 
     val cfc = fc.f.asInstanceOf[OclFunCall]
-    val measurable = fc.f.asInstanceOf[Measurable]
+    val measurable = cfc.oclFun.asInstanceOf[Measurable]
 
 
     //(1) set arg
 
     val input_args = fc.args.map( arg => CVarWithType(arg.mem.variable.toString, TypeLowering.IRType2CastType(arg.t) ) ).toList
+    // Ordering of the intermediate buffers below mirrors that in OpenCL generator
+
     val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
-    val sizes = cfc.params.flatMap(p => ArithExpr.collectVars(p.mem.size)).map(p => CVarWithType(p.toString, IntegerType())).distinct
-    val all_args = (input_args :+ output_arg) ++ sizes
+
+    val intermediate_global_buffer_args = cfc.intermediateGlobalMem.
+      map(typedMem => CVarWithType(typedMem.mem.variable.toString, TypeLowering.IRType2CastType(typedMem.t)))
+
+    val sizes = cfc.oclFun.f.params.flatMap(p =>
+      ArithExpr.collectVars(p.mem.size)).map(p =>
+      CVarWithType(p.toString, IntegerType())).distinct
+    val all_args = ((input_args :+ output_arg) ++ intermediate_global_buffer_args) ++ sizes
     val arg_id = (0 until all_args.length).toList
 
     //  rebuild kernel cvar
     val kernel_cvar = CVarWithType("kernel_" + fc.gid, ClassOrStructType("cl::Kernel"))
 
-    val set_all_args : List[ AstNode with BlockMember ]= (all_args zip arg_id).map{ case (cvar:CVarWithType, id:Int) => ExpressionStatement(MethodInvocation(kernel_cvar, "setArg", List(IntConstant(id), cvar))) }
+    val set_all_args : List[ AstNode with BlockMember ] = (all_args zip arg_id).map{
+      case (cvar:CVarWithType, id:Int) =>
+        ExpressionStatement(MethodInvocation(kernel_cvar, "setArg", List(IntConstant(id), cvar)))
+    }
 
-    val local_thread_setting : NDRange = cfc.ndranges._1
-    val global_thread_setting : NDRange = cfc.ndranges._2
+    val local_thread_setting : NDRange = cfc.oclFun.ndranges._1
+    val global_thread_setting : NDRange = cfc.oclFun.ndranges._2
 
     //(2) enqueue kernel
     val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
@@ -420,7 +431,9 @@ object LowerIR2HostCAST {
         kernel_cvar,
         StringConstant("cl::NullRange"),
         StringConstant("cl::NDRange("+global_thread_setting.toString+")"), //global
-        StringConstant("cl::NDRange("+local_thread_setting.toString+")"), //local
+        StringConstant(
+          if (local_thread_setting != null) "cl::NDRange("+local_thread_setting.toString+")"
+          else "cl::NullRange"), //local
         StringConstant("NULL"),
         if(measurable.gpu_timer) UnaryExpression("&", VarRefPure(eventCVar)) else StringConstant("NULL")
       )
@@ -451,18 +464,26 @@ object LowerIR2HostCAST {
   }
 
   private def generateCPUFunCall(fc: FunCall) : Block = {
-    //parameter sequnence convention: first input pointers, then output pointers, then sizes
+    //parameter sequence convention: first input pointers, then output pointers, then sizes
 
     val arg_blocks = fc.args.map( generate(_) )
 
     val cfc = fc.f.asInstanceOf[CPUFunCall]
-    val measurable = fc.f.asInstanceOf[CPUMeasurable]
+    val measurable = cfc.cpuFun.asInstanceOf[CPUMeasurable]
 
     val input_args = fc.args.map( arg => CVarWithType(arg.mem.variable.toString, TypeLowering.IRType2CastType(arg.t) ) ).toList
-    val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
-    val sizes = cfc.params.flatMap(p => ArithExpr.collectVars(p.mem.size)).map(p => CVarWithType(p.toString, IntegerType())).distinct
 
-    val fc_cast = FunctionCall(cfc.funcName, input_args ::: (output_arg :: sizes.toList ) )
+    val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
+
+    val intermediate_global_buffer_args = cfc.intermediateGlobalMem.
+      map(typedMem => CVarWithType(typedMem.mem.variable.toString, TypeLowering.IRType2CastType(typedMem.t))).toList
+
+    val sizes = cfc.cpuFun.f.params.flatMap(p =>
+      ArithExpr.collectVars(p.mem.size)).map(p =>
+      CVarWithType(p.toString, IntegerType())).distinct
+
+    val fc_cast = FunctionCall(cfc.cpuFun.funcName,
+      input_args ::: output_arg :: (intermediate_global_buffer_args ::: sizes.toList ) )
 
 
     val cpu_start_clock_cvar = CVarWithType("cpu_clock_start_"+fc.gid, ClassOrStructType("std::chrono::milliseconds"))
@@ -645,15 +666,18 @@ object LowerIR2HostCAST {
     val core_body_code = generate(lambda)
 
     //( Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true ), all_signature_cvars )
-    Block(Vector(boilerplate_code, tuple_decl_code :++ userfun_decl_code, FunctionPure(func_name,VoidType(), param_list, memory_alloc_code  :++ core_body_code ), RawCode("}") ), global = true )
-
-
-
+    Block(Vector(
+      boilerplate_code,
+      tuple_decl_code :++ userfun_decl_code,
+      FunctionPure(func_name,VoidType(), param_list, memory_alloc_code  :++ core_body_code ), RawCode("}")
+    ), global = true )
 
   }
 
 
-  def apply_no_header(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)], generatePostExecuteHook: Boolean = false) : Block = {
+  def apply_no_header(lambda: Lambda,
+                      hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)],
+                      generatePostExecuteHook: Boolean = false) : Block = {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 
@@ -680,6 +704,7 @@ object LowerIR2HostCAST {
 
 
   }
+
 
   def generateMemAlloc(hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)], out_cvar_in_execute: CVarWithType) : Block = {
 

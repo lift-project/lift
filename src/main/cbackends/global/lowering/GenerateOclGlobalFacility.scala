@@ -50,7 +50,31 @@ object GenerateOclGlobalFacility {
             BinaryExpressionT.Operator.!=,
             StringConstant("CL_SUCCESS")
           ),
-          Block(Vector(RawCode("std::cerr<<"+'"'+"kernel build error"+'"'+"<<std::endl; exit(1);"))),
+          Block(Vector(
+            StringConstant("std::cerr << \"kernel build error\" << std::endl"),
+            StringConstant("char* log"),
+            StringConstant("size_t logsize"),
+            FunctionCall("assert", List(
+              BinaryExpression(
+              FunctionCall("clGetProgramBuildInfo", List(
+                MethodInvocation(kernel_program_cvar, "get", List()),
+                StringConstant("device.get()"), StringConstant("CL_PROGRAM_BUILD_LOG"),
+                StringConstant("0"), StringConstant("NULL"), StringConstant("&logsize"))),
+                BinaryExpressionT.Operator.==,
+                StringConstant("CL_SUCCESS"))
+            )),
+            StringConstant("log = (char*)malloc(sizeof(char) * logsize)"),
+            FunctionCall("assert", List(
+              BinaryExpression(
+                FunctionCall("clGetProgramBuildInfo", List(
+                  MethodInvocation(kernel_program_cvar, "get", List()),
+                  StringConstant("device.get()"), StringConstant("CL_PROGRAM_BUILD_LOG"),
+                  StringConstant("logsize"), StringConstant("log"), StringConstant("NULL"))),
+                BinaryExpressionT.Operator.==,
+                StringConstant("CL_SUCCESS"))
+            )),
+            StringConstant("std::cout << log << std::endl"),
+            StringConstant("exit(1)"))),
           Block()
         )
         val kernel_init = AssignmentExpression(
@@ -94,7 +118,7 @@ object GenerateOclGlobalFacility {
 
     val (global_decl_cast, global_init_cast) = generate(lambda.body, path, Block(global = true), Block(global=true))
 
-    val global_init_biolerplates = RawCode(
+    val global_init_boilerplates = RawCode(
       """
         |	cl::Platform::get(&allPlatforms);
         | if (allPlatforms.size() == 0) {
@@ -124,7 +148,7 @@ object GenerateOclGlobalFacility {
         | lift_queue = std::move(tmp_queue);
       """.stripMargin )
 
-    val global_init_function = Block(Vector(FunctionPure("lift_init", VoidType(), List(), global_init_biolerplates +: global_init_cast) ), global = true)
+    val global_init_function = Block(Vector(FunctionPure("lift_init", VoidType(), List(), global_init_boilerplates +: global_init_cast) ), global = true)
 
     val global_decl_boilerplates = RawCode(
       """

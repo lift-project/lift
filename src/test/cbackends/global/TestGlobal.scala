@@ -258,7 +258,7 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-        in => ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
+        in => ToHost() o OclFun( MapGlb( incrementF )  ) o ToGPU()  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -283,7 +283,7 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-      in => ToHost() o OclFunc( MapGlb( incrementF )  ) o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
+      in => ToHost() o OclFun( MapGlb( incrementF )  ) o OclFun( MapGlb( incrementF )  ) o ToGPU()  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -308,7 +308,7 @@ class TestGlobal {
     val f = fun(
       ArrayTypeWSWC(Float, N),
       in => CPUFunc( MapSeq(incrementF) ) o CPUFunc( MapSeq(incrementF) ) o
-        ToHost() o OclFunc( MapGlb( incrementF )  )  o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
+        ToHost() o OclFun( MapGlb( incrementF )  )  o OclFun( MapGlb( incrementF )  ) o ToGPU()  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -332,8 +332,8 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-      in => CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU() o
-        CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
+      in => CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFun( MapGlb( incrementF )  ) o ToGPU() o
+        CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFun( MapGlb( incrementF )  ) o ToGPU()  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -359,7 +359,7 @@ class TestGlobal {
       ArrayTypeWSWC(Float, N),
       in => CPUFunc( MapSeq(incrementF), cpu_timer = true ) o
         ToHost(cpu_timer = true, gpu_timer = true) o
-        OclFunc( MapGlb( incrementF ), cpu_timer = true,  gpu_timer = true  ) o
+        OclFun( MapGlb( incrementF ), cpu_timer = true,  gpu_timer = true  ) o
         ToGPU(cpu_timer = true, gpu_timer = true)  $ in
     )
 
@@ -412,7 +412,7 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-      in => ToHost() o Iterate(6)(  OclFunc( MapGlb(incrementF) ) ) o ToGPU() $ in
+      in => ToHost() o Iterate(6)(  OclFun( MapGlb(incrementF) ) ) o ToGPU() $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -586,7 +586,7 @@ class TestGlobal {
       ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_kernelWidthHeight_1), v_kernelWidthHeight_1), v_kernelChannels_2),
       //input, 1*2*8*8*2
       ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_inputWidthHeight_3), v_inputWidthHeight_3), v_nInputs_4), 1),
-      (p_0, p_1) => ToHost() $ OclFunc(gpu_fun).apply(ToGPU() $ p_0, ToGPU() $ p_1)
+      (p_0, p_1) => ToHost() $ OclFun(gpu_fun).apply(ToGPU() $ p_0, ToGPU() $ p_1)
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -628,7 +628,7 @@ class TestGlobal {
       //ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_kernelWidthHeight_1), v_kernelWidthHeight_1), v_kernelChannels_2),
       //input, 1*2*8*8*2
       //ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_inputWidthHeight_3), v_inputWidthHeight_3), v_nInputs_4), 1),
-      (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2).apply( ToGPU() $ p_b , OclFunc(gpu_fun).apply(ToGPU() $ p_k, ToGPU() $ p_x))
+      (p_k, p_b, p_x) => ToHost() $ OclFun(gpu_fun2).apply( ToGPU() $ p_b , OclFun(gpu_fun).apply(ToGPU() $ p_k, ToGPU() $ p_x))
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -671,7 +671,7 @@ class TestGlobal {
       //ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_kernelWidthHeight_1), v_kernelWidthHeight_1), v_kernelChannels_2),
       //input, 1*2*8*8*2
       //ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_inputWidthHeight_3), v_inputWidthHeight_3), v_nInputs_4), 1),
-      (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, cpu_timer = true, gpu_timer = true).apply( ToGPU() $ p_b , OclFunc(gpu_fun, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_x))
+      (p_k, p_b, p_x) => ToHost() $ OclFun(gpu_fun2, cpu_timer = true, gpu_timer = true).apply( ToGPU() $ p_b , OclFun(gpu_fun, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_x))
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -694,9 +694,11 @@ class TestGlobal {
   @Test
   def batch_code_generate_for_cases_paper(): Unit = {
 
+
     //val path = s"$common_path/99.cases_paper"
-    val lambda_path = "/home/lu/Documents/Research/Experiments/Cases19/generated_files/"
-    val generated_c_path = "/home/lu/Documents/Research/Experiments/Cases19/generated_c_files/"
+    val lambda_path = System.getenv("LAMBDA_PATH") + "/"// System.getProperty("user.dir") + "/../../../generated_files_08.04.2019_13.49.18_first_7_layers_10_points/"
+    val generated_c_path = System.getenv("GENERATED_C_PATH") + "/"//"/home/nm/cases/cases19experiments/generated_c_files/"
+//    val generated_c_path = "/home/lu/Documents/Research/Experiments/Cases19/generated_c_files/"
 
 
     val common_file_name0 = lambda_path  + "ConvStencil3DPaddingLambda_"
@@ -707,8 +709,18 @@ class TestGlobal {
     import opencl.executor.Eval
     import exploration.ParameterRewrite.readFromFile
 
-    for {layerConfigId <- /*0 until 1*/List(2)} {
-      for {tuningId <- /*0 until 82*/List(0)} {
+    val totalTuningPoints = 1 //2000
+    val tuningPointBatchSize = 1//200
+    val nLayers = 13
+    val fuseLambdas: Boolean = true
+    val null_local_ranges: Boolean = false
+
+    for {tuningPointBatch <- 0 until totalTuningPoints / tuningPointBatchSize}
+//    for {tuningPointBatch <- List(0)}
+//      for {layerConfigId <- 0 until nLayers} {
+      for {layerConfigId <- List(2)} {
+        for {tuningId <- (tuningPointBatch * tuningPointBatchSize) until ((tuningPointBatch + 1) * tuningPointBatchSize)} {//000..200, 200..400, 400..600, 600..800, 800..1000
+        //for {tuningId <- 317 until 1000} {
 
         val file0 = common_file_name0 + layerConfigId + "_" + tuningId + ".scala"
         val file1 = common_file_name1 + layerConfigId + "_" + tuningId + ".scala"
@@ -735,11 +747,22 @@ class TestGlobal {
           gpu_fun2.params(0).t,
           gpu_fun0.params(0).t,
 
-          (p_k, p_b, p_x) => ToHost() $
-            OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
-              OclFunc(gpu_fun2, ndranges2, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
-                OclFunc( gpu_fun1, ndranges1, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
-                  OclFunc( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x)))
+          if (!fuseLambdas)
+            (p_k, p_b, p_x) => ToHost() $
+              OclFun(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
+                OclFun(gpu_fun2, (if (null_local_ranges) null else ndranges2._1, ndranges2._2)/*ndranges2*/,
+                  cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
+                  OclFun( gpu_fun1, (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges1*/,
+                    cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
+                    OclFun( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x)))
+          else
+            (p_k, p_b, p_x) => ToHost() $
+              OclFun(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
+                OclFun(
+                  fun((k, b, x) => gpu_fun2(b, gpu_fun1(k, x))),
+                  (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges2*/,
+                  cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_b,
+                    OclFun( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x))
         )
 
 

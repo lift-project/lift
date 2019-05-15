@@ -7,7 +7,7 @@ import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir._
 import cbackends.sdh.sdh_ir.{TMKernel, ToGPE, ToLCP}
 import ir.Type
-import opencl.ir.OpenCLAddressSpace
+import opencl.ir.{CollectTypedOpenCLMemory, OpenCLAddressSpace}
 import opencl.ir.pattern.ScanSeq
 
 import scala.collection.mutable
@@ -21,14 +21,28 @@ object FinalMemoryAllocationAnalysis {
 
       case _:Param | _:ArrayFromUserFunGenerator | _:Array3DFromUserFunGenerator => Map.empty
 
-      case fc@FunCall(_:UserFun | _:CPUFunCall | _:OclFunCall | _:ToGPU | _:ToHost |  _:TMKernel, args@_*) =>
+      case fc@FunCall(_:UserFun | _:CPUFunCall | _:OclFunCall | _:ToGPU | _:ToHost | _:TMKernel, args@_*) =>
         val args_map = args.map(analyze(_)).reduce( _ ++ _ )
-        args_map + (
+        val mem_of_args_input_and_output = args_map + (
           fc.mem.variable.toString -> (
             CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ),
             Type.getElementCount(fc.t),
             fc.addressSpace
           ) )
+
+          val intermediate_global_mem: Seq[(String, (CVarWithType, ArithExpr, OpenCLAddressSpace))] = (fc.f match {
+            case cfc: CPUFunCall => cfc.intermediateGlobalMem
+            case ofc: OclFunCall => ofc.intermediateGlobalMem
+            case _ => Seq()
+          }).map(buf =>
+            buf.mem.variable.toString -> (
+              CVarWithType(buf.mem.variable.toString,
+                TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(buf.t), true ) ),
+              Type.getElementCount(buf.t),
+              buf.mem.addressSpace))
+
+          mem_of_args_input_and_output ++ intermediate_global_mem
+
 
       case fc@FunCall(r:AbstractPartRed, args@_*) =>
         val args_map = args.map(analyze(_)).reduce( _ ++ _ )

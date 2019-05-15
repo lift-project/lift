@@ -26,7 +26,7 @@ object GenerateGlobalClockDecl {
 
       case fc @ FunCall(c:CPUFunCall, args@_*) =>
 
-        val measurable = c.asInstanceOf[CPUMeasurable]
+        val measurable = c.cpuFun.asInstanceOf[CPUMeasurable]
 
         val cvar_cpu_start = CVarWithType("cpu_clock_start_"+fc.gid , ClassOrStructType("std::chrono::milliseconds"))
         val cvar_cpu_end = CVarWithType("cpu_clock_end_"+fc.gid , ClassOrStructType("std::chrono::milliseconds"))
@@ -43,7 +43,7 @@ object GenerateGlobalClockDecl {
 
       case fc @ FunCall(o:OclFunCall, args@_*) =>
 
-        val measurable = o.asInstanceOf[Measurable]
+        val measurable = o.oclFun.asInstanceOf[Measurable]
 
         val cvar_cpu_start = CVarWithType("cpu_clock_start_"+fc.gid , ClassOrStructType("std::chrono::milliseconds"))
         val cvar_cpu_end = CVarWithType("cpu_clock_end_"+fc.gid , ClassOrStructType("std::chrono::milliseconds"))

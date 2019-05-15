@@ -114,7 +114,7 @@ object InputView {
 
       }
 
-      case fc@FunCall(_:UserFun|_:CPUFunCall|_:OclFunCall|_:ToGPU|_:ToHost, args@_*)  => {
+      case fc@FunCall(_:UserFun | _:CPUFunCall | _:OclFunCall | _:ToGPU | _:ToHost, args@_*)  => {
 
         args.foreach( cont(_) )
 

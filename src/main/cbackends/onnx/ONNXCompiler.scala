@@ -4,11 +4,11 @@ import cbackends.common.CBackendsCompilerTrait
 import cbackends.common.common_cast.CbackendCAST.SourceFile
 import cbackends.global.GlobalCompiler
 import cbackends.host.HostCompiler
-import cbackends.onnx.lowering.LoweringONNXIR2LiftHostIR
 import core.generator.GenericAST.{Block, CVarWithType}
 import ir.ast.Lambda
 import lift.arithmetic.ArithExpr
 import opencl.ir.OpenCLAddressSpace
+import rewriting.LowerONNXIR
 
 object ONNXCompiler extends CBackendsCompilerTrait{
 
@@ -24,13 +24,13 @@ object ONNXCompiler extends CBackendsCompilerTrait{
   }
 
   //compile a lambda
-  override def !(onnx_ir: Lambda, path: String, files: List[String], func_name: String): Unit = {
+  override def !(onnxIR: Lambda, path: String, files: List[String], func_name: String): Unit = {
 
     assert(files.length == 2)
 
-    val lift_host_ir = LoweringONNXIR2LiftHostIR(onnx_ir)
+    val lift_host_ir = LowerONNXIR(lambda = onnxIR, loweringRules = List()/*TODO: merge from host_code_gen_fft_nn: rewriting.onnxLoweringRules.toList*/)
 
-    GlobalCompiler ! (lift_host_ir, path, List(files(0)) )
+    GlobalCompiler ! (Lambda(onnxIR.params, lift_host_ir.head._1), path, List(files(0)) )
 
     /*
     println("1.traditional compiler process")

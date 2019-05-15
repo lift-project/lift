@@ -12,10 +12,11 @@ import cbackends.global.transformation.purify.Purify
 import cbackends.global.transformation.unique_user_func.UniqueUserFunc
 import cbackends.host.HostCompiler
 import cbackends.host.lowering.LowerIR2HostCAST
-import core.generator.GenericAST
-import core.generator.GenericAST.{Block, CVarWithType, ExpressionStatement, FunctionCall, FunctionPure, RawCode, StringConstant, VoidType}
-import ir.ast.{FunCall, Lambda}
-import lift.arithmetic.ArithExpr
+import core.generator.GenericAST.{Block, ExpressionStatement, FunctionCall, FunctionPure, RawCode, StringConstant, VoidType}
+import ir.ast.Lambda
+import opencl.ir.{CollectTypedOpenCLMemory, TypedOpenCLMemory}
+
+import scala.collection.immutable
 
 object GlobalCompiler{
 
@@ -31,8 +32,6 @@ object GlobalCompiler{
 
     val all_oclfunc_outline_targets = OclOutlineTargetAnalysis(lambda)
 
-    val emptified_lambda = EmptyKernelStructure(lambda)
-
     //-----------------------------------------------------------------------//
     //DO ALL IR TRANSFORMATION ABOVE, FROM HERE, NO IR TRANSFORMATION ALLOWED
     //But CAST transformation are OK below
@@ -45,8 +44,13 @@ object GlobalCompiler{
       //CPU only
       case 0 => {
 
-        val top_cast = HostCompiler !! emptified_lambda
-        HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code), global = true)  :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
+        val lambdaWithWrappedHostIRNodes = EmptyKernelStructure(lambda, Map.empty)
+
+        val top_cast = HostCompiler !! lambdaWithWrappedHostIRNodes
+        HostCompiler.castPrinter(List(
+          new SourceFile(path, files(0),
+            Block(Vector(LowerIR2HostCAST.boilerplate_code), global = true) :+
+              ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
 
       }
       case _ => {
@@ -54,20 +58,30 @@ object GlobalCompiler{
         val all_oclfunc_outline_targets_purified = all_oclfunc_outline_targets.map{
           case (filename:String, localSize, globalSize, lambdax:Lambda) => (filename, localSize, globalSize, Purify(lambdax) )
         }
-        val oclfundefs = all_oclfunc_outline_targets_purified.map {
-          case (filename:String, localSize, globalSize, lambdax:Lambda) =>  (filename , ( opencl.executor.Compile.!!(lambdax, localSize, globalSize) ) )
+        val oclFuns = all_oclfunc_outline_targets_purified.map {
+          case (filename: String, localSize, globalSize, lambdax: Lambda) =>
+
+            val block = opencl.executor.Compile.!!(lambdax, localSize, globalSize)
+
+            val intermediateGlobalMem = CollectTypedOpenCLMemory(lambdax)._3
+
+            (filename, block, lambdax, intermediateGlobalMem)
         }
+
+        val lambdaWithWrappedHostIRNodes = EmptyKernelStructure(lambda, oclFuns.map {
+          case (_, _, lambdax, intermediateGlobalMem) => lambdax -> intermediateGlobalMem
+        }.toMap)
 
         OclMemoryGen(lambda)
 
-        //val final_oclfundefs = UniqueUserFunc(oclfundefs)
-        val final_oclfundefs = oclfundefs
+        //val final_oclFuns = UniqueUserFunc(oclFuns)
+        val final_oclFuns = oclFuns
 
-        //val ocl_kernel_file_names = OclKernelFileNameAnalysis(emptified_lambda)
-        val (global_val_decl_cast, global_val_init_cast) = GenerateOclGlobalFacility(emptified_lambda, path)
+        //val ocl_kernel_file_names = OclKernelFileNameAnalysis(lambdaWithWrappedHostIRNodes)
+        val (global_val_decl_cast, global_val_init_cast) = GenerateOclGlobalFacility(lambdaWithWrappedHostIRNodes, path)
 
-        val global_clock_decl = GenerateGlobalClockDecl(emptified_lambda)
-        val clock_printing_stmt = GenerateCLockPrintingStmt(emptified_lambda)
+        val global_clock_decl = GenerateGlobalClockDecl(lambdaWithWrappedHostIRNodes)
+        val clock_printing_stmt = GenerateCLockPrintingStmt(lambdaWithWrappedHostIRNodes)
         val final_global_var_decl = global_val_decl_cast :++ global_clock_decl
 
         val print_csv_header = ExpressionStatement(StringConstant("std::cout<<"+'"'+ "func_name, cpu_time_ms, gpu_time_ms, diff_percentage"+'"'+"<<std::endl" ) )
@@ -111,12 +125,17 @@ object GlobalCompiler{
         ))
         val final_global_func_decl = global_val_init_cast :+ clock_printing_boilerplates :+ clock_printing_function :+ post_execute_hook
 
-        val top_cast = HostCompiler !! (emptified_lambda, true)
+        val top_cast = HostCompiler !! (lambdaWithWrappedHostIRNodes, generatePostExecuteHook = true)
 
         HostCompiler.castPrinter(List(  new SourceFile(path, files(0), Block(Vector(LowerIR2HostCAST.boilerplate_code, LowerIR2HostCAST.ocl_boilerplate_code), global = true) :+ final_global_var_decl :+ final_global_func_decl :+ ( Block( final_cpufundefs.toVector, global = true) :: top_cast  )) ) )
 
-        val ocl_source_files = final_oclfundefs.map{ case (fileName,block) => new SourceFile(path,fileName,block) }.toList
+        val ocl_source_files = final_oclFuns.map{
+          case (fileName, block, _, _) => new SourceFile(path, fileName, block)
+        }
+
         HostCompiler.castPrinter(ocl_source_files)
+
+        ocl_source_files.foreach(file => println("Saved a kernel in " + file.path + "/" + file.file))
       }
     }
 
