@@ -21,7 +21,7 @@ object FinalMemoryAllocationAnalysis {
 
       case _:Param | _:ArrayFromUserFunGenerator | _:Array3DFromUserFunGenerator => Map.empty
 
-      case fc@FunCall(_:UserFun | _:CPUFunContainer | _:OclFunContainer | _:ToGPU | _:ToHost | _:TMKernel, args@_*) =>
+      case fc@FunCall(_:UserFun | _:CPUFunCall | _:OclFunCall | _:ToGPU | _:ToHost | _:TMKernel, args@_*) =>
         val args_map = args.map(analyze(_)).reduce( _ ++ _ )
         val mem_of_args_input_and_output = args_map + (
           fc.mem.variable.toString -> (
@@ -31,8 +31,8 @@ object FinalMemoryAllocationAnalysis {
           ) )
 
           val intermediate_global_mem: Seq[(String, (CVarWithType, ArithExpr, OpenCLAddressSpace))] = (fc.f match {
-            case cfc: CPUFunContainer => cfc.intermediateGlobalMem
-            case ofc: OclFunContainer => ofc.intermediateGlobalMem
+            case cfc: CPUFunCall => cfc.intermediateGlobalMem
+            case ofc: OclFunCall => ofc.intermediateGlobalMem
             case _ => Seq()
           }).map(buf =>
             buf.mem.variable.toString -> (

@@ -33,6 +33,7 @@ class TestHost {
     "{ return (l + r); }",
     Seq(Float, Float), Float)
 
+
   val diff2 = UserFun("diff2", Array("l", "r"),
     "{ return (r - l); }",
     Seq(Float, Float), Float)
@@ -47,7 +48,7 @@ class TestHost {
     "{ return a2 * b3 - a3 * b2;}",
     Seq(Float, Float, Float, Float, Float, Float), Float )
   val cross_calc = UserFun("cross_calc", Array("a1","a2","a3","b1", "b2", "b3"),
-    "{ return {a2 * b3 - a3 * b2, a1 * b3 - a3 * b1, a1 * b2 - a2 * b1 };}",
+    "{ return {a2 * b3 - a3 * b2, a3 * b1 - a1 * b3, a1 * b2 - a2 * b1 };}",
     Seq(Float, Float, Float, Float, Float, Float), TupleType(Float,Float,Float) )
 
   val tuple_in_tuple_out = UserFun("tuple_in_tuple_out", Array("l", "r"),
@@ -1421,26 +1422,192 @@ class TestHost {
     "{ return sin(x); }",
     Seq(Float), Float)
 
-
   val cos = UserFun("cos_uf", Array("x"),
     "{ return cos(x); }",
     Seq(Float), Float)
+
+  val tan = UserFun("tan_uf", Array("x"),
+    "{ return tan(x); }",
+    Seq(Float), Float)
+
+  val arcsin = UserFun("arcsin_uf", Array("x"),
+    "{ return asin(x); }",
+    Seq(Float), Float)
+
+  val arccos = UserFun("arccos_uf", Array("x"),
+    "{ return acos(x); }",
+    Seq(Float), Float)
+
+  val arctan = UserFun("arctan_uf", Array("x"),
+    "{ return atan(x); }",
+    Seq(Float), Float)
+
+  val div = UserFun("div_uf", Array("x", "y"),
+    "{ return (x)/(y); }",
+    Seq(Float, Float), Float)
+
+  val hypot = UserFun("hypot_uf", Array("x", "y"),
+    "{ return sqrt((x*x)+(y*y)); }",
+    Seq(Float, Float), Float)
+
+  //Degree = radian * 180/π
+  //radian = degree * π/180
+
+  val degrees = UserFun("r2d_uf", Array("x"),
+    "{ return x*180/M_PI; }",
+    Seq(Float), Float)
+
+  val radians = UserFun("d2r_uf", Array("x"),
+    "{ return x*M_PI/180; }",
+    Seq(Float), Float)
+
+
+  val sinh = UserFun("sinh_uf", Array("x"),
+    "{ return sinh(x); }",
+    Seq(Float), Float)
+
+
+  val cosh = UserFun("cosh_uf", Array("x"),
+    "{ return cosh(x); }",
+    Seq(Float), Float)
+
+  val tanh = UserFun("tanh_uf", Array("x"),
+    "{ return tanh(x); }",
+    Seq(Float), Float)
+
+  val arcsinh = UserFun("arcsinh_uf", Array("x"),
+    "{ return asinh(x); }",
+    Seq(Float), Float)
+
+  val arccosh = UserFun("arccosh_uf", Array("x"),
+    "{ return acosh(x); }",
+    Seq(Float), Float)
+
+  val arctanh = UserFun("arctanh_uf", Array("x"),
+    "{ return atanh(x); }",
+    Seq(Float), Float)
+
+  val around = UserFun("round_uf", Array("x"),
+    "return ( ((int) ceil(x)) % 2 == 0 ? ceil(x) : ceil(x) -1) ;",
+    Seq(Float), Float)
+
+  val rint = UserFun("rint_uf", Array("x"),
+    "return round(x) ;",
+    Seq(Float), Float)
+
+  val fix = UserFun("fix_uf", Array("x"),
+    "return trunc(x) ;",
+    Seq(Float), Float)
+
+  val floor = UserFun("floor_uf", Array("x"),
+    "return floor(x);",
+    Seq(Float), Float)
+
+  val ceil = UserFun("ceil_uf", Array("x"),
+    "return ceil(x);",
+    Seq(Float), Float)
+
+  val trunc = UserFun("trunc_uf", Array("x"),
+    "return trunc(x);",
+    Seq(Float), Float)
+
+  val prod2 = UserFun("prod2_uf", Array("l", "r"),
+    "{ return (l * r); }",
+    Seq(Float, Float), Float)
+
+  val gradient2 = UserFun("grad2_uf", Array("l", "r"),
+    "{ return (l - r)/2.0f; }",
+    Seq(Float, Float), Float)
+
 
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
     val path = s"$common_path/39.numpy/lift_numpy"
 
-    val func_names = List("sin", "cos")
+    val func_names = List("sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
+      "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",
+      "around", "round_", "rint", "fix", "floor", "ceil", "trunc",
+      "prod", "sum", "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient", "cross", "trapz"
+    )
 
     //val files = func_names.map("lib" + _ + ".cpp")
 
     val array = ArrayType(Float, N)
+    val array_t = ArrayType(TupleType(Float, Float, Float) , N)
 
     val sin_f = fun( array, MapSeq( sin ) $ _ )
     val cos_f = fun( array, MapSeq( cos ) $ _ )
+    val tan_f = fun( array, MapSeq( tan ) $ _ )
+    val arcsin_f = fun( array, MapSeq( arcsin ) $ _ )
+    val arccos_f = fun( array, MapSeq( arccos ) $ _ )
+    val arctan_f = fun( array, MapSeq( arctan ) $ _ )
+    val hypot_f = fun( array, array, MapSeq( fun( y => hypot.apply(Get(y,0), Get(y,1)) )  ) $ Zip(_,_) )
+    val arctan2_f = fun( array, array, MapSeq( arctan ) o MapSeq( fun( y => div.apply(Get(y,0), Get(y,1)) )  ) $ Zip(_,_) )
+    val degrees_f = fun( array, MapSeq( degrees ) $ _ )
+    val radians_f = fun( array, MapSeq( radians ) $ _ )
+    //val unwrap_f
+    val deg2rad_f = radians_f
+    val rad2deg_f = degrees_f
 
-    val all_funcs = List(sin_f, cos_f)
+    val sinh_f = fun( array, MapSeq(sinh) $ _ )
+    val cosh_f = fun( array, MapSeq(cosh) $ _ )
+    val tanh_f = fun( array, MapSeq(tanh) $ _ )
+    val arcsinh_f = fun( array, MapSeq(arcsinh) $ _ )
+    val arccosh_f = fun( array, MapSeq(arccosh) $ _ )
+    val arctanh_f = fun( array, MapSeq(arctanh) $ _ )
+
+    val around_f = fun( array, MapSeq(around) $ _ )
+    val round__f = around_f
+    val rint_f = fun( array, MapSeq(rint) $ _ )
+    val fix_f = fun( array, MapSeq(fix) $ _ )
+    val floor_f = fun( array, MapSeq(floor) $ _ )
+    val ceil_f = fun( array, MapSeq(ceil) $ _ )
+    val trunc_f = fun( array, MapSeq(trunc) $ _ )
+
+    val prod_f = fun( array, ReduceSeq(prod2, 1.0f) $ _ )
+    val sum_f = fun( array, ReduceSeq(add2, 0.0f) $ _ )
+    //can filter nan at python level, for prod, nan -> 1, for sum, nan -> 0
+    val nanprod_f = prod_f
+    val nansum_f = sum_f
+    val cumprod_f = fun( array, ScanSeq(prod2, 1.0f) $ _ )
+    val cumsum_f = fun( array, ScanSeq(add2, 0.0f) $ _ )
+    val nancumprod_f = cumprod_f
+    val nancumsum_f = cumsum_f
+    val diff_f = fun( array, MapSeq( ReduceSeq(diff2, 0.0f) ) o Slide(2,1) $ _ )
+    //the array concantenation can be done at python level
+    val ediff1d_f = diff_f
+    //the first element and the last element should be set manually
+    //out[0] = in[0]
+    //out[last] = in[last] - in[last - 1]
+    val gradient_f = fun(array, MapSeq(  fun(arr => gradient2.apply(ArrayAccess(2) $ arr, ArrayAccess(0) $ arr ) ) ) o Slide(3,1) $ _)
+    val cross_f = fun( array_t, array_t,
+      (A,B) => MapSeq(  fun( y =>
+        cross_calc.apply(
+          Get(Get(y,0),0),
+          Get(Get(y,0),1),
+          Get(Get(y,0),2),
+          Get(Get(y,1),0),
+          Get(Get(y,1),1),
+          Get(Get(y,1),2)
+        ) )
+      )  $ Zip(A,B)
+    )
+    val trapz_f = fun( array, array, (A,B) => ReduceSeq(add2, 0.0f) o MapSeq(
+        fun( (z) => trapz.apply(
+          Get( ArrayAccess(0) $ z, 0),
+          Get( ArrayAccess(1) $ z, 0),
+          Get( ArrayAccess(0) $ z, 1),
+          Get( ArrayAccess(1) $ z, 1) )
+        )
+      ) o Slide(2,1) $ Zip(A,B)
+    )
+
+    val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
+      sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
+      around_f, round__f, rint_f, fix_f, floor_f, ceil_f, trunc_f,
+      prod_f, sum_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f, cross_f, trapz_f
+    )
 
     (s"mkdir -p $path") !
 

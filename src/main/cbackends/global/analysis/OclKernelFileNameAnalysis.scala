@@ -1,13 +1,13 @@
 package cbackends.global.analysis
 
-import cbackends.host.host_ir.{OclFunContainer, ToGPU, ToHost}
+import cbackends.host.host_ir.{OclFunCall, ToGPU, ToHost}
 import ir.ast.{Expr, FunCall, Lambda, Param, Value}
 
 object OclKernelFileNameAnalysis {
 
   def extract(res: List[String], expr: Expr) : List[String] = {
     expr match {
-      case fc@FunCall(_: OclFunContainer, args@_*) =>
+      case fc@FunCall(_: OclFunCall, args@_*) =>
         val new_res = (res /: args)(extract _)
         new_res :+ ("kernel_"+fc.gid+".cl")
       case FunCall(_:ToHost|_:ToGPU, arg) =>

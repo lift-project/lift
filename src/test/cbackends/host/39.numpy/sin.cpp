@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 	{
 		/* std::cout << abs( golden_data[i] - y[i] ) << std::endl; */
 		if( abs( golden_data[i] - y[i] ) > tol ){
-			std::cout << "Computed results does not match the golden data !!!" << std::endl;
+			std::cout << "[sin]: Computed results does not match the golden data !!!" << std::endl;
 			exit(1);
 		}
 	}

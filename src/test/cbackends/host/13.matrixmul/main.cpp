@@ -8,7 +8,7 @@ int main() {
 
 	float *z = nullptr;
 
-	execute(x.data(), y.data(), z,  M, K, N);
+	lift::execute(x.data(), y.data(), z,  M, K, N);
 
 	assert(z!=nullptr);
 

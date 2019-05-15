@@ -10,6 +10,7 @@ import opencl.generator.NDRange
 import opencl.ir.pattern.{MapGlb, MapWrg, ScanSeq}
 import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
 
+
 import scala.collection.mutable.ArrayBuffer
 //import host_obsolete.ir_host.MapHSeq
 //import host_obsolete.view.ViewPrinter
@@ -29,8 +30,7 @@ object LowerIR2HostCAST {
       |
       |using namespace std;
       |
-      |namespace lift {
-    """.stripMargin), true)
+    """.stripMargin), true )
 
   val ocl_boilerplate_code = ExpressionStatement(RawCode(
     """
@@ -89,7 +89,7 @@ object LowerIR2HostCAST {
         generateUserFun(fc)
       /*case fc@FunCall(_:CPUFunCall,_) =>
         generateCPUFunCall(fc)*/
-      case fc@FunCall(_:CPUFunContainer, _*) =>
+      case fc@FunCall(_:CPUFunCall, _*) =>
         generateCPUFunCall(fc)
       case fc@FunCall(_:OclFunCall, _*) =>
         generateOclFunCall(fc)
@@ -168,7 +168,7 @@ object LowerIR2HostCAST {
       case l:Lambda => l.body match {
         case fc2:FunCall => fc2.f match {
           case _:OclFunCall => "GPU"
-          case _:CPUFunContainer => "CPU"
+          case _:CPUFunCall => "CPU"
           case _ => assert(false, "Not implemented"); "Invalid"
         }
         case _ => assert(false, "Not implemented"); "Invalid"
@@ -390,8 +390,8 @@ object LowerIR2HostCAST {
 
     val arg_blocks = fc.args.map(generate(_) )
 
-    val oclFunContainer = fc.f.asInstanceOf[OclFunCall]
-    val measurable = oclFunContainer.oclFun.asInstanceOf[Measurable]
+    val cfc = fc.f.asInstanceOf[OclFunCall]
+    val measurable = cfc.oclFun.asInstanceOf[Measurable]
 
 
     //(1) set arg
@@ -401,10 +401,10 @@ object LowerIR2HostCAST {
 
     val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
 
-    val intermediate_global_buffer_args = oclFunContainer.intermediateGlobalMem.
+    val intermediate_global_buffer_args = cfc.intermediateGlobalMem.
       map(typedMem => CVarWithType(typedMem.mem.variable.toString, TypeLowering.IRType2CastType(typedMem.t)))
 
-    val sizes = oclFunContainer.oclFun.f.params.flatMap(p =>
+    val sizes = cfc.oclFun.f.params.flatMap(p =>
       ArithExpr.collectVars(p.mem.size)).map(p =>
       CVarWithType(p.toString, IntegerType())).distinct
     val all_args = ((input_args :+ output_arg) ++ intermediate_global_buffer_args) ++ sizes
@@ -418,8 +418,8 @@ object LowerIR2HostCAST {
         ExpressionStatement(MethodInvocation(kernel_cvar, "setArg", List(IntConstant(id), cvar)))
     }
 
-    val local_thread_setting : NDRange = oclFunContainer.oclFun.ndranges._1
-    val global_thread_setting : NDRange = oclFunContainer.oclFun.ndranges._2
+    val local_thread_setting : NDRange = cfc.oclFun.ndranges._1
+    val global_thread_setting : NDRange = cfc.oclFun.ndranges._2
 
     //(2) enqueue kernel
     val eventCVar = CVarWithType("event_"+fc.gid, ClassOrStructType("cl::Event"))
@@ -468,21 +468,21 @@ object LowerIR2HostCAST {
 
     val arg_blocks = fc.args.map( generate(_) )
 
-    val cpuFunContainer = fc.f.asInstanceOf[CPUFunContainer]
-    val measurable = cpuFunContainer.cpuFun.asInstanceOf[CPUMeasurable]
+    val cfc = fc.f.asInstanceOf[CPUFunCall]
+    val measurable = cfc.cpuFun.asInstanceOf[CPUMeasurable]
 
     val input_args = fc.args.map( arg => CVarWithType(arg.mem.variable.toString, TypeLowering.IRType2CastType(arg.t) ) ).toList
 
     val output_arg = CVarWithType(fc.mem.variable.toString, TypeLowering.IRType2CastType(fc.t))
 
-    val intermediate_global_buffer_args = cpuFunContainer.intermediateGlobalMem.
+    val intermediate_global_buffer_args = cfc.intermediateGlobalMem.
       map(typedMem => CVarWithType(typedMem.mem.variable.toString, TypeLowering.IRType2CastType(typedMem.t))).toList
 
-    val sizes = cpuFunContainer.cpuFun.f.params.flatMap(p =>
+    val sizes = cfc.cpuFun.f.params.flatMap(p =>
       ArithExpr.collectVars(p.mem.size)).map(p =>
       CVarWithType(p.toString, IntegerType())).distinct
 
-    val fc_cast = FunctionCall(cpuFunContainer.cpuFun.funcName,
+    val fc_cast = FunctionCall(cfc.cpuFun.funcName,
       input_args ::: output_arg :: (intermediate_global_buffer_args ::: sizes.toList ) )
 
 
@@ -698,10 +698,11 @@ object LowerIR2HostCAST {
     val core_body_code = generate(lambda) :+ (if(generatePostExecuteHook) FunctionCall("post_execute", List()) else RawCode("") )
 
     //( Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true ), all_signature_cvars )
-    Block(Vector(
-      tuple_decl_code :++ userfun_decl_code,
-      FunctionPure(lambda.funcName,VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ),
-      global = true )
+    Block(Vector( RawCode("namespace lift {"), tuple_decl_code :++ userfun_decl_code, FunctionPure(lambda.funcName,VoidType(), param_list, memory_alloc_code  :++ core_body_code ), RawCode("}")  ), global = true )
+
+
+
+
   }
 
 
@@ -772,9 +773,14 @@ object LowerIR2HostCAST {
       case _ => ()
       }
 
-    val all_user_decl = all_userfunc.map(createFunctionDefinition).toVector
+    val all_user_decl = all_userfunc.map(createFunctionDefinition)
+    val all_user_decl_with_incl_guard: Vector[Block] = all_user_decl.toVector.map(
+      //Block(Vector(RawCode(pre1 = "#ifndef GRANDPARENT_H", pre2 = "#define GRANDPARENT_H", code = " "), _, RawCode("#endif") ), global = true)
+       func => Block( Vector(RawCode(pre1 = s"#ifndef ${func.name.toUpperCase}_H", pre2 = s"#define ${func.name.toUpperCase}_H"), func, RawCode(post1 = "#endif", post2 = " ")) ,  global = true)
 
-    Block(all_user_decl, global = true)
+    )
+
+    Block(all_user_decl_with_incl_guard, global = true)
 
 
   }
@@ -799,7 +805,20 @@ object LowerIR2HostCAST {
     }
     val result = mutable_result.toSet
 
-    Block(result.map(TypeDefHost(_)).toVector, global = true)
+    val all_tuple_decl = result.map(TypeDefHost(_)).toVector
+    val all_tuple_decl_with_incl_guard = all_tuple_decl.map(
+      td => Block( Vector(RawCode(pre1 = s"#ifndef ${Type.name(td.t).toUpperCase}_H", pre2 = s"#define ${Type.name(td.t).toUpperCase}_H"), td, RawCode(post1 = "#endif", post2 = " ")) , global = true)
+    )
+
+    Block(all_tuple_decl_with_incl_guard, global = true)
+
+
+    /*
+    val all_user_decl_with_incl_guard: Vector[Block] = all_user_decl.toVector.map(
+      //Block(Vector(RawCode(pre1 = "#ifndef GRANDPARENT_H", pre2 = "#define GRANDPARENT_H", code = " "), _, RawCode("#endif") ), global = true)
+      func => Block( Vector(RawCode(pre1 = s"#ifndef ${func.name.toUpperCase}_H", pre2 = s"#define ${func.name.toUpperCase}_H"), func, RawCode(post1 = "#endif")) ,  global = true)
+
+    )*/
 
   }
 

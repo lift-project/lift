@@ -6,9 +6,9 @@ int main() {
 
 	vector<double> x(size,1), y(size,2);
 
-	Tuple2_double_double *z = nullptr;
+	lift::Tuple2_double_double *z = nullptr;
 
-	execute(x.data(), y.data(), z, size);
+	lift::execute(x.data(), y.data(), z, size);
 
 	assert(z!=nullptr);
 

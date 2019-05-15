@@ -134,7 +134,7 @@ object OutputView {
         fc
       }*/
 
-      case fc@FunCall(_:CPUFunContainer | _:OclFunContainer | _:ToGPU | _:ToHost, args@_*) => {
+      case fc@FunCall(_:CPUFunCall | _:OclFunCall | _:ToGPU | _:ToHost, args@_*) => {
 
         args.foreach( arg => arg.outputView = ViewMem(arg.mem.variable, arg.t) )
 
@@ -160,7 +160,7 @@ object OutputView {
                   p.outputView = ViewMem(arg.mem.variable, arg.t)
                 case _ => assert(false)
               }
-            case fc_get@FunCall(_:Get, arg) =>
+            case fc_get@FunCall(_:Get|_:ArrayAccess, arg) =>
               //fc_get.outputView = fc.outputView
               fc_get.outputView = ViewMem(fc.mem.variable, fc.t)
             case _ => assert(false, "Some Type not implemented")

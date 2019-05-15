@@ -4,12 +4,12 @@ int main() {
 
 	const int size = 2;
 
-	vector<Tuple3_float_float_float> x{  {3,5,4},{1,2,3} };
-	vector<Tuple3_float_float_float> y{  {2,7,5},{7,5,3} };
+	vector<lift::Tuple3_float_float_float> x{  {3,5,4},{1,2,3} };
+	vector<lift::Tuple3_float_float_float> y{  {2,7,5},{7,5,3} };
 
-	Tuple3_float_float_float *z = nullptr;
+	lift::Tuple3_float_float_float *z = nullptr;
 
-	execute(x.data(), y.data(), z, size);
+	lift::execute(x.data(), y.data(), z, size);
 
 	assert(z!=nullptr);
 

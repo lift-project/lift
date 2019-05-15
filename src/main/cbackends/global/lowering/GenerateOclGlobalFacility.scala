@@ -12,7 +12,7 @@ object GenerateOclGlobalFacility {
 
     expr match {
 
-      case fc@FunCall(_: OclFunContainer, args@_*) =>
+      case fc@FunCall(_: OclFunCall, args@_*) =>
 
         //val globals_for_args = args.map( generate(_, path, global_decl_cast, global_init_cast) ).toList
         val globals_for_args = args.map( generate(_, path, Block(global = true), Block(global = true)) ).toList
@@ -94,7 +94,7 @@ object GenerateOclGlobalFacility {
         val (body_decl, body_init) = generate(i.f.body, path, Block(global = true), Block(global = true))
         (arg_decl :++ body_decl :++ global_decl_cast, arg_init :++ body_init :++ global_init_cast)
 
-      case FunCall(_:CPUFunContainer, args@_*) => {
+      case FunCall(_:CPUFunCall, args@_*) => {
         val globals_for_args = args.map(generate(_, path, Block(global = true), Block(global = true))).toList
         /*val (global_decl_for_args, global_init_for_args) = ((Block(global = true), Block(global = true)) /: globals_for_args) {
           (tuple1: Tuple2[Block, Block], tuple2: Tuple2[Block, Block]) => (tuple1._1 :++ tuple2._1, tuple1._2 :++ tuple2._2)

@@ -4,11 +4,11 @@ int main() {
 
 	const int size = 2;
 
-	vector<Tuple2_float_float> x{  {1,2},{3,4} };
+	vector<lift::Tuple2_float_float> x{  {1,2},{3,4} };
 
-	Tuple2_float_float *z = nullptr;
+	lift::Tuple2_float_float *z = nullptr;
 
-	execute(x.data(), z, size);
+	lift::execute(x.data(), z, size);
 
 	assert(z!=nullptr);
 
