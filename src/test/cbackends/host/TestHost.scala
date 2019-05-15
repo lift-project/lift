@@ -1523,7 +1523,7 @@ class TestHost {
     val func_names = List("sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
       "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",
       "around", "round_", "rint", "fix", "floor", "ceil", "trunc",
-      "prod", "sum"
+      "prod", "sum", "nanprod", "nansum"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
@@ -1561,11 +1561,14 @@ class TestHost {
 
     val prod_f = fun( array, ReduceSeq(prod2, 1.0f) $ _ )
     val sum_f = fun( array, ReduceSeq(add2, 0.0f) $ _ )
+    //can filter nan at python level, for prod, nan -> 1, for sum, nan -> 0
+    val nanprod_f = prod_f
+    val nansum_f = sum_f
 
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
       around_f, round__f, rint_f, fix_f, floor_f, ceil_f, trunc_f,
-      prod_f, sum_f
+      prod_f, sum_f, nanprod_f, nansum_f
     )
 
     (s"mkdir -p $path") !
