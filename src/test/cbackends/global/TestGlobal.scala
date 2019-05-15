@@ -707,8 +707,8 @@ class TestGlobal {
     import opencl.executor.Eval
     import exploration.ParameterRewrite.readFromFile
 
-    for {layerConfigId <- 0 until 1} {
-      for {tuningId <- 0 until 82} {
+    for {layerConfigId <- /*0 until 1*/List(2)} {
+      for {tuningId <- /*0 until 82*/List(0)} {
 
         val file0 = common_file_name0 + layerConfigId + "_" + tuningId + ".scala"
         val file1 = common_file_name1 + layerConfigId + "_" + tuningId + ".scala"

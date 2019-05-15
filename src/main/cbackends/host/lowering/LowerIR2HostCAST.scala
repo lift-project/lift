@@ -30,7 +30,7 @@ object LowerIR2HostCAST {
       |
       |using namespace std;
       |
-      |namespace lift {
+      |//namespace lift {
     """.stripMargin), true )
 
   val ocl_boilerplate_code = ExpressionStatement(RawCode(
@@ -674,7 +674,7 @@ object LowerIR2HostCAST {
     val core_body_code = generate(lambda) :+ (if(generatePostExecuteHook) FunctionCall("post_execute", List()) else RawCode("") )
 
     //( Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true ), all_signature_cvars )
-    Block(Vector( tuple_decl_code :++ userfun_decl_code, FunctionPure(lambda.funcName,VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true )
+    Block(Vector( RawCode("namespace lift {"), tuple_decl_code :++ userfun_decl_code, FunctionPure(lambda.funcName,VoidType(), param_list, memory_alloc_code  :++ core_body_code ), RawCode("}")  ), global = true )
 
 
 
