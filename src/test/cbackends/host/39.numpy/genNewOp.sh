@@ -11,7 +11,7 @@ set -o pipefail
 # 	echo "already generated, neglect"
 # 	sleep 1
 # else
-	sed 's/fix/'"$1"'/g' fix.cpp > $1.cpp
+	sed 's/prod/'"$1"'/g' prod.cpp > $1.cpp
 	echo "change data please ..."
 	sleep 1
 	nvim "+normal 10G26|" $1.cpp
@@ -21,7 +21,7 @@ set -o pipefail
 # 	echo "already generated, neglect"
 # 	sleep 1
 # else
-	sed 's/fix/'"$1"'/g' ./numpy/fix.py > ./numpy/$1.py
+	sed 's/prod/'"$1"'/g' ./numpy/prod.py > ./numpy/$1.py
 	chmod +x ./numpy/$1.py
 	echo "change to the same data please ..."
 	sleep 1

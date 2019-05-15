@@ -41,7 +41,8 @@ cat ./lift_numpy.hpp
 # g++ ./trunc.cpp -I . && ./a.out && rm a.out
 
 
-g++ ./prod.cpp -I . && ./a.out && rm a.out
+# g++ ./prod.cpp -I . && ./a.out && rm a.out
+g++ ./sum.cpp -I . && ./a.out && rm a.out
 
 
 if [ -z a.out ]; then rm a.out; fi

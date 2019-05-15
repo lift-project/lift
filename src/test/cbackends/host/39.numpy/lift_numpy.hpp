@@ -24,4 +24,5 @@
 #include <lift_numpy/libarctan.cpp>
 #include <lift_numpy/librint.cpp>
 #include <lift_numpy/libtan.cpp>
+#include <lift_numpy/libsum.cpp>
 #include <lift_numpy/libarccos.cpp>

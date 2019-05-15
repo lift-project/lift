@@ -13,12 +13,12 @@ float tanh_uf(float x){
 }
 
 #endif; 
-void tanh(float * v_initial_param_185_79, float * & v_user_func_187_80, int v_N_0){
+void tanh(float * v_initial_param_185_80, float * & v_user_func_187_81, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_187_80 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_187_81 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_78 = 0;(v_i_78 <= (-1 + v_N_0)); (++v_i_78)){
-        v_user_func_187_80[v_i_78] = tanh_uf(v_initial_param_185_79[v_i_78]); 
+    for (int v_i_79 = 0;(v_i_79 <= (-1 + v_N_0)); (++v_i_79)){
+        v_user_func_187_81[v_i_79] = tanh_uf(v_initial_param_185_80[v_i_79]); 
     }
 }
 }; 
