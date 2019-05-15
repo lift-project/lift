@@ -23,17 +23,17 @@ float arctan_uf(float x){
 
 #endif
  ; 
-void arctan2(float * v_initial_param_135_62, float * v_initial_param_136_63, float * & v_user_func_138_66, int v_N_0){
+void arctan2(float * v_initial_param_135_64, float * v_initial_param_136_65, float * & v_user_func_138_68, int v_N_0){
     // Allocate memory for output pointers
-    float * v_user_func_146_65 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float))));
-    v_user_func_138_66 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    float * v_user_func_146_67 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float))));
+    v_user_func_138_68 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_61 = 0;(v_i_61 <= (-1 + v_N_0)); (++v_i_61)){
-        v_user_func_146_65[v_i_61] = div_uf(v_initial_param_135_62[v_i_61], v_initial_param_136_63[v_i_61]); 
+    for (int v_i_63 = 0;(v_i_63 <= (-1 + v_N_0)); (++v_i_63)){
+        v_user_func_146_67[v_i_63] = div_uf(v_initial_param_135_64[v_i_63], v_initial_param_136_65[v_i_63]); 
     }
     // For each element processed sequentially
-    for (int v_i_60 = 0;(v_i_60 <= (-1 + v_N_0)); (++v_i_60)){
-        v_user_func_138_66[v_i_60] = arctan_uf(v_user_func_146_65[v_i_60]); 
+    for (int v_i_62 = 0;(v_i_62 <= (-1 + v_N_0)); (++v_i_62)){
+        v_user_func_138_68[v_i_62] = arctan_uf(v_user_func_146_67[v_i_62]); 
     }
 }
 }; 

@@ -36,3 +36,4 @@
 #include <lift_numpy/libtan.cpp>
 #include <lift_numpy/libsum.cpp>
 #include <lift_numpy/libarccos.cpp>
+#include <lift_numpy/libtrapz.cpp>

@@ -14,12 +14,12 @@ float arctan_uf(float x){
 
 #endif
  ; 
-void arctan(float * v_initial_param_114_53, float * & v_user_func_116_54, int v_N_0){
+void arctan(float * v_initial_param_114_55, float * & v_user_func_116_56, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_116_54 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_116_56 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_52 = 0;(v_i_52 <= (-1 + v_N_0)); (++v_i_52)){
-        v_user_func_116_54[v_i_52] = arctan_uf(v_initial_param_114_53[v_i_52]); 
+    for (int v_i_54 = 0;(v_i_54 <= (-1 + v_N_0)); (++v_i_54)){
+        v_user_func_116_56[v_i_54] = arctan_uf(v_initial_param_114_55[v_i_54]); 
     }
 }
 }; 

@@ -52,7 +52,8 @@ cat ./lift_numpy.hpp
 # g++ ./diff.cpp -I . && ./a.out && rm a.out
 # g++ ./ediff1d.cpp -I . && ./a.out && rm a.out
 # g++ ./gradient.cpp -I . && ./a.out && rm a.out
-g++ ./cross.cpp -I . && ./a.out && rm a.out
+# g++ ./cross.cpp -I . && ./a.out && rm a.out
+g++ ./trapz.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi

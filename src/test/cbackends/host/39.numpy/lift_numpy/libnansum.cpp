@@ -14,13 +14,13 @@ float add(float l, float r){
 
 #endif
  ; 
-void nansum(float * v_initial_param_268_128, float * & v_user_func_271_129, int v_N_0){
+void nansum(float * v_initial_param_268_130, float * & v_user_func_271_131, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_271_129 = reinterpret_cast<float *>(malloc((1 * sizeof(float)))); 
+    v_user_func_271_131 = reinterpret_cast<float *>(malloc((1 * sizeof(float)))); 
     // For each element reduced sequentially
-    v_user_func_271_129[0] = 0.0f; 
-    for (int v_i_127 = 0;(v_i_127 <= (-1 + v_N_0)); (++v_i_127)){
-        v_user_func_271_129[0] = add(v_user_func_271_129[0], v_initial_param_268_128[v_i_127]); 
+    v_user_func_271_131[0] = 0.0f; 
+    for (int v_i_129 = 0;(v_i_129 <= (-1 + v_N_0)); (++v_i_129)){
+        v_user_func_271_131[0] = add(v_user_func_271_131[0], v_initial_param_268_130[v_i_129]); 
     }
 }
 }; 
