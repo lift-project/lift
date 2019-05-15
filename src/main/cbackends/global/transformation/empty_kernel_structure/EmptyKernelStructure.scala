@@ -1,10 +1,10 @@
-package cbackends.global.transformation.host_ir_mapper
+package cbackends.global.transformation.empty_kernel_structure
 
 import cbackends.host.host_ir._
 import ir.ast.{FunCall, Lambda}
 import opencl.ir.TypedOpenCLMemory
 
-object HostIRMapper {
+object EmptyKernelStructure {
 
 
   def apply(lambda: Lambda, intermediateGlobalMemMap: Map[Lambda, Seq[TypedOpenCLMemory]]) : Lambda = {

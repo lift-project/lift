@@ -91,7 +91,7 @@ object LowerIR2HostCAST {
         generateCPUFunCall(fc)*/
       case fc@FunCall(_:CPUFunContainer, _*) =>
         generateCPUFunCall(fc)
-      case fc@FunCall(_:OclFunContainer, _*) =>
+      case fc@FunCall(_:OclFunCall, _*) =>
         generateOclFunCall(fc)
       case fc@FunCall(_:ToHost, _*) =>
         generateDataTransfer(fc)
@@ -167,7 +167,7 @@ object LowerIR2HostCAST {
     val kernel_type = i.f match {
       case l:Lambda => l.body match {
         case fc2:FunCall => fc2.f match {
-          case _:OclFunContainer => "GPU"
+          case _:OclFunCall => "GPU"
           case _:CPUFunContainer => "CPU"
           case _ => assert(false, "Not implemented"); "Invalid"
         }
@@ -390,7 +390,7 @@ object LowerIR2HostCAST {
 
     val arg_blocks = fc.args.map(generate(_) )
 
-    val oclFunContainer = fc.f.asInstanceOf[OclFunContainer]
+    val oclFunContainer = fc.f.asInstanceOf[OclFunCall]
     val measurable = oclFunContainer.oclFun.asInstanceOf[Measurable]
 
 

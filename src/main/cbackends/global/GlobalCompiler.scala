@@ -5,7 +5,7 @@ import cbackends.common.common_cast.CbackendCAST.SourceFile
 import cbackends.global.analysis.OclKernelFileNameAnalysis
 import cbackends.global.lowering.{GenerateCLockPrintingStmt, GenerateGlobalClockDecl, GenerateOclGlobalFacility}
 import cbackends.global.transformation.cast_transformation.cpu_outline_transformation.{CPUOutlineTargetAnalysis, OclOutlineTargetAnalysis}
-import cbackends.global.transformation.host_ir_mapper.HostIRMapper
+import cbackends.global.transformation.empty_kernel_structure.EmptyKernelStructure
 import cbackends.global.transformation.funcall2closure.FunCall2Closure
 import cbackends.global.transformation.ocl_memory_gen.OclMemoryGen
 import cbackends.global.transformation.purify.Purify
@@ -44,7 +44,7 @@ object GlobalCompiler{
       //CPU only
       case 0 => {
 
-        val lambdaWithWrappedHostIRNodes = HostIRMapper(lambda, Map.empty)
+        val lambdaWithWrappedHostIRNodes = EmptyKernelStructure(lambda, Map.empty)
 
         val top_cast = HostCompiler !! lambdaWithWrappedHostIRNodes
         HostCompiler.castPrinter(List(
@@ -68,7 +68,7 @@ object GlobalCompiler{
             (filename, block, lambdax, intermediateGlobalMem)
         }
 
-        val lambdaWithWrappedHostIRNodes = HostIRMapper(lambda, oclFuns.map {
+        val lambdaWithWrappedHostIRNodes = EmptyKernelStructure(lambda, oclFuns.map {
           case (_, _, lambdax, intermediateGlobalMem) => lambdax -> intermediateGlobalMem
         }.toMap)
 
