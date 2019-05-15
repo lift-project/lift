@@ -44,10 +44,14 @@ cat ./lift_numpy.hpp
 # g++ ./prod.cpp -I . && ./a.out && rm a.out
 # g++ ./sum.cpp -I . && ./a.out && rm a.out
 # g++ ./nanprod.cpp -I . && ./a.out && rm a.out
-g++ ./nansum.cpp -I . && ./a.out && rm a.out
+# g++ ./nansum.cpp -I . && ./a.out && rm a.out
+# g++ ./cumprod.cpp -I . && ./a.out && rm a.out
+# g++ ./cumsum.cpp -I . && ./a.out && rm a.out
+# g++ ./nancumprod.cpp -I . && ./a.out && rm a.out
+g++ ./nancumsum.cpp -I . && ./a.out && rm a.out
 
 
-if [ -z a.out ]; then rm a.out; fi
+if [ -f a.out ]; then rm a.out; fi
 
 
 

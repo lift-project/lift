@@ -6,12 +6,15 @@
 #include <lift_numpy/libhypot.cpp>
 #include <lift_numpy/libarcsinh.cpp>
 #include <lift_numpy/libcosh.cpp>
+#include <lift_numpy/libnancumsum.cpp>
 #include <lift_numpy/libprod.cpp>
+#include <lift_numpy/libcumsum.cpp>
 #include <lift_numpy/libcos.cpp>
 #include <lift_numpy/libradians.cpp>
 #include <lift_numpy/libarctanh.cpp>
 #include <lift_numpy/libsinh.cpp>
 #include <lift_numpy/libfloor.cpp>
+#include <lift_numpy/libcumprod.cpp>
 #include <lift_numpy/libnansum.cpp>
 #include <lift_numpy/libaround.cpp>
 #include <lift_numpy/libdeg2rad.cpp>
@@ -20,6 +23,7 @@
 #include <lift_numpy/libtrunk.cpp>
 #include <lift_numpy/libarccosh.cpp>
 #include <lift_numpy/libarctan2.cpp>
+#include <lift_numpy/libnancumprod.cpp>
 #include <lift_numpy/libceil.cpp>
 #include <lift_numpy/libsin.cpp>
 #include <lift_numpy/libtrunc.cpp>

@@ -1523,7 +1523,7 @@ class TestHost {
     val func_names = List("sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
       "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",
       "around", "round_", "rint", "fix", "floor", "ceil", "trunc",
-      "prod", "sum", "nanprod", "nansum"
+      "prod", "sum", "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
@@ -1564,11 +1564,15 @@ class TestHost {
     //can filter nan at python level, for prod, nan -> 1, for sum, nan -> 0
     val nanprod_f = prod_f
     val nansum_f = sum_f
+    val cumprod_f = fun( array, ScanSeq(prod2, 1.0f) $ _ )
+    val cumsum_f = fun( array, ScanSeq(add2, 0.0f) $ _ )
+    val nancumprod_f = cumprod_f
+    val nancumsum_f = cumsum_f
 
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
       around_f, round__f, rint_f, fix_f, floor_f, ceil_f, trunc_f,
-      prod_f, sum_f, nanprod_f, nansum_f
+      prod_f, sum_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f
     )
 
     (s"mkdir -p $path") !

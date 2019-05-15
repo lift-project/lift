@@ -13,12 +13,12 @@ float cosh_uf(float x){
 }
 
 #endif; 
-void cosh(float * v_initial_param_178_77, float * & v_user_func_180_78, int v_N_0){
+void cosh(float * v_initial_param_178_79, float * & v_user_func_180_80, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_180_78 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_180_80 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_76 = 0;(v_i_76 <= (-1 + v_N_0)); (++v_i_76)){
-        v_user_func_180_78[v_i_76] = cosh_uf(v_initial_param_178_77[v_i_76]); 
+    for (int v_i_78 = 0;(v_i_78 <= (-1 + v_N_0)); (++v_i_78)){
+        v_user_func_180_80[v_i_78] = cosh_uf(v_initial_param_178_79[v_i_78]); 
     }
 }
 }; 
