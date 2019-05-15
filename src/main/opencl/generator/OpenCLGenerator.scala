@@ -304,9 +304,9 @@ class OpenCLGenerator extends Generator {
       inputs.foreach(println(_))
       println(" outputs:")
       outputs.foreach(println(_))
-      println(" intermediate tmps:")
+      println(" global intermediate tmps:")
       intermediateMemory.foreach(println(_))
-      println(" local tmps:")
+      println(" local intermediate tmps:")
       localTmps.foreach(println(_))
       println()
     }
