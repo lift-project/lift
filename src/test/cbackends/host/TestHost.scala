@@ -48,7 +48,7 @@ class TestHost {
     "{ return a2 * b3 - a3 * b2;}",
     Seq(Float, Float, Float, Float, Float, Float), Float )
   val cross_calc = UserFun("cross_calc", Array("a1","a2","a3","b1", "b2", "b3"),
-    "{ return {a2 * b3 - a3 * b2, a1 * b3 - a3 * b1, a1 * b2 - a2 * b1 };}",
+    "{ return {a2 * b3 - a3 * b2, a3 * b1 - a1 * b3, a1 * b2 - a2 * b1 };}",
     Seq(Float, Float, Float, Float, Float, Float), TupleType(Float,Float,Float) )
 
   val tuple_in_tuple_out = UserFun("tuple_in_tuple_out", Array("l", "r"),
@@ -1519,6 +1519,7 @@ class TestHost {
     "{ return (l - r)/2.0f; }",
     Seq(Float, Float), Float)
 
+
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
@@ -1527,12 +1528,13 @@ class TestHost {
     val func_names = List("sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
       "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",
       "around", "round_", "rint", "fix", "floor", "ceil", "trunc",
-      "prod", "sum", "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient"
+      "prod", "sum", "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient", "cross"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
 
     val array = ArrayType(Float, N)
+    val array_t = ArrayType(TupleType(Float, Float, Float) , N)
 
     val sin_f = fun( array, MapSeq( sin ) $ _ )
     val cos_f = fun( array, MapSeq( cos ) $ _ )
@@ -1579,11 +1581,23 @@ class TestHost {
     //out[0] = in[0]
     //out[last] = in[last] - in[last - 1]
     val gradient_f = fun(array, MapSeq(  fun(arr => gradient2.apply(ArrayAccess(2) $ arr, ArrayAccess(0) $ arr ) ) ) o Slide(3,1) $ _)
+    val cross_f = fun( array_t, array_t,
+      (A,B) => MapSeq(  fun( y =>
+        cross_calc.apply(
+          Get(Get(y,0),0),
+          Get(Get(y,0),1),
+          Get(Get(y,0),2),
+          Get(Get(y,1),0),
+          Get(Get(y,1),1),
+          Get(Get(y,1),2)
+        ) )
+      )  $ Zip(A,B)
+    )
 
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
       around_f, round__f, rint_f, fix_f, floor_f, ceil_f, trunc_f,
-      prod_f, sum_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f
+      prod_f, sum_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f, cross_f
     )
 
     (s"mkdir -p $path") !

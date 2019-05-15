@@ -751,7 +751,7 @@ object LowerIR2HostCAST {
     val all_user_decl = all_userfunc.map(createFunctionDefinition)
     val all_user_decl_with_incl_guard: Vector[Block] = all_user_decl.toVector.map(
       //Block(Vector(RawCode(pre1 = "#ifndef GRANDPARENT_H", pre2 = "#define GRANDPARENT_H", code = " "), _, RawCode("#endif") ), global = true)
-       func => Block( Vector(RawCode(pre1 = s"#ifndef ${func.name.toUpperCase}_H", pre2 = s"#define ${func.name.toUpperCase}_H"), func, RawCode(post1 = "#endif")) ,  global = true)
+       func => Block( Vector(RawCode(pre1 = s"#ifndef ${func.name.toUpperCase}_H", pre2 = s"#define ${func.name.toUpperCase}_H"), func, RawCode(post1 = "#endif", post2 = " ")) ,  global = true)
 
     )
 
@@ -780,7 +780,20 @@ object LowerIR2HostCAST {
     }
     val result = mutable_result.toSet
 
-    Block(result.map(TypeDefHost(_)).toVector, global = true)
+    val all_tuple_decl = result.map(TypeDefHost(_)).toVector
+    val all_tuple_decl_with_incl_guard = all_tuple_decl.map(
+      td => Block( Vector(RawCode(pre1 = s"#ifndef ${Type.name(td.t).toUpperCase}_H", pre2 = s"#define ${Type.name(td.t).toUpperCase}_H"), td, RawCode(post1 = "#endif", post2 = " ")) , global = true)
+    )
+
+    Block(all_tuple_decl_with_incl_guard, global = true)
+
+
+    /*
+    val all_user_decl_with_incl_guard: Vector[Block] = all_user_decl.toVector.map(
+      //Block(Vector(RawCode(pre1 = "#ifndef GRANDPARENT_H", pre2 = "#define GRANDPARENT_H", code = " "), _, RawCode("#endif") ), global = true)
+      func => Block( Vector(RawCode(pre1 = s"#ifndef ${func.name.toUpperCase}_H", pre2 = s"#define ${func.name.toUpperCase}_H"), func, RawCode(post1 = "#endif")) ,  global = true)
+
+    )*/
 
   }
 
