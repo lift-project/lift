@@ -1511,8 +1511,12 @@ class TestHost {
     "return trunc(x);",
     Seq(Float), Float)
 
-  val prod2 = UserFun("prod2", Array("l", "r"),
+  val prod2 = UserFun("prod2_uf", Array("l", "r"),
     "{ return (l * r); }",
+    Seq(Float, Float), Float)
+
+  val gradient2 = UserFun("grad2_uf", Array("l", "r"),
+    "{ return (l - r)/2.0f; }",
     Seq(Float, Float), Float)
 
   @Test
@@ -1523,7 +1527,7 @@ class TestHost {
     val func_names = List("sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
       "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",
       "around", "round_", "rint", "fix", "floor", "ceil", "trunc",
-      "prod", "sum", "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d"
+      "prod", "sum", "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
@@ -1571,11 +1575,15 @@ class TestHost {
     val diff_f = fun( array, MapSeq( ReduceSeq(diff2, 0.0f) ) o Slide(2,1) $ _ )
     //the array concantenation can be done at python level
     val ediff1d_f = diff_f
+    //the first element and the last element should be set manually
+    //out[0] = in[0]
+    //out[last] = in[last] - in[last - 1]
+    val gradient_f = fun(array, MapSeq(  fun(arr => gradient2.apply(ArrayAccess(2) $ arr, ArrayAccess(0) $ arr ) ) ) o Slide(3,1) $ _)
 
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
       around_f, round__f, rint_f, fix_f, floor_f, ceil_f, trunc_f,
-      prod_f, sum_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f
+      prod_f, sum_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f
     )
 
     (s"mkdir -p $path") !

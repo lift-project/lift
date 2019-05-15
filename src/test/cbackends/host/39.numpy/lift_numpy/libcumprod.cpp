@@ -5,22 +5,22 @@ using namespace std;
 
 namespace lift {
     
-#ifndef PROD2_H
-#define PROD2_H
+#ifndef PROD2_UF_H
+#define PROD2_UF_H
 ; 
-float prod2(float l, float r){
+float prod2_uf(float l, float r){
     { return (l * r); }; 
 }
 
 #endif; 
-void cumprod(float * v_initial_param_279_129, float * & v_user_func_282_130, int v_N_0){
+void cumprod(float * v_initial_param_280_130, float * & v_user_func_283_131, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_282_130 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_283_131 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element scanned sequentially
-    float scan_acc_289 = 1.0f;
-    for (int v_i_128 = 0;(v_i_128 <= (-1 + v_N_0)); (++v_i_128)){
-        scan_acc_289 = prod2(scan_acc_289, v_initial_param_279_129[v_i_128]); 
-        v_user_func_282_130[v_i_128] = scan_acc_289; 
+    float scan_acc_290 = 1.0f;
+    for (int v_i_129 = 0;(v_i_129 <= (-1 + v_N_0)); (++v_i_129)){
+        scan_acc_290 = prod2_uf(scan_acc_290, v_initial_param_280_130[v_i_129]); 
+        v_user_func_283_131[v_i_129] = scan_acc_290; 
     }
 }
 }; 

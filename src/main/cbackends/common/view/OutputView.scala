@@ -160,7 +160,7 @@ object OutputView {
                   p.outputView = ViewMem(arg.mem.variable, arg.t)
                 case _ => assert(false)
               }
-            case fc_get@FunCall(_:Get, arg) =>
+            case fc_get@FunCall(_:Get|_:ArrayAccess, arg) =>
               //fc_get.outputView = fc.outputView
               fc_get.outputView = ViewMem(fc.mem.variable, fc.t)
             case _ => assert(false, "Some Type not implemented")
