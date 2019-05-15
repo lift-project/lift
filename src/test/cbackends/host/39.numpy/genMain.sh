@@ -48,7 +48,8 @@ cat ./lift_numpy.hpp
 # g++ ./cumprod.cpp -I . && ./a.out && rm a.out
 # g++ ./cumsum.cpp -I . && ./a.out && rm a.out
 # g++ ./nancumprod.cpp -I . && ./a.out && rm a.out
-g++ ./nancumsum.cpp -I . && ./a.out && rm a.out
+# g++ ./nancumsum.cpp -I . && ./a.out && rm a.out
+g++ ./diff.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi
