@@ -1222,6 +1222,17 @@ object GenericAST {
     }
   }
 
+
+  def vl (l: String, r: Doc): Doc = l match {
+    case "" => r
+    case _ => l </> r
+  }
+
+  def vr (l: Doc, r: String): Doc = r match {
+    case "" => l
+    case _ => l </> r
+  }
+
   /**
     * Snippets of raw code that we might want to embed in our program
     */
@@ -1232,7 +1243,7 @@ object GenericAST {
     val post1: String
     val post2: String
 
-    override def print(): Doc = pre1 </> pre2 </> code </> post1 </> post2
+    override def print(): Doc = vr( vr( vl(pre1, vl(pre2, code) ),  post1 ), post2)
   }
 
   case class RawCode(code: String = "", pre1: String = "", pre2: String ="", post1: String ="", post2: String = "") extends RawCodeT {

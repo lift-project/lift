@@ -5,6 +5,7 @@
 #include <lift_numpy/libhypot.cpp>
 #include <lift_numpy/libarcsinh.cpp>
 #include <lift_numpy/libcosh.cpp>
+#include <lift_numpy/libprod.cpp>
 #include <lift_numpy/libcos.cpp>
 #include <lift_numpy/libradians.cpp>
 #include <lift_numpy/libarctanh.cpp>

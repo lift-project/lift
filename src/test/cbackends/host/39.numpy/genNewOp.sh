@@ -14,7 +14,7 @@ set -o pipefail
 	sed 's/fix/'"$1"'/g' fix.cpp > $1.cpp
 	echo "change data please ..."
 	sleep 1
-	nvim $1.cpp
+	nvim "+normal 10G26|" $1.cpp
 # fi
 
 # if [ -f $1.py ]; then
@@ -25,7 +25,7 @@ set -o pipefail
 	chmod +x ./numpy/$1.py
 	echo "change to the same data please ..."
 	sleep 1
-	nvim ./numpy/$1.py
+	nvim "+normal 6G14|" ./numpy/$1.py
 # fi
 
 echo "add compilation commands please ..."
