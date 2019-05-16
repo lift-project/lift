@@ -1575,6 +1575,10 @@ class TestHost {
     "return x* pow(2,y) ;",
     Seq(Float, Float), Float)
 
+  val nextafter = UserFun("nextafter_uf", Array("x", "y"),
+    "return x<y? x+ std::numeric_limits<float>::epsilon() : (x>y? x - std::numeric_limits<float>::epsilon() : x)   ;",
+    Seq(Float, Float), Float)
+
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
@@ -1586,7 +1590,7 @@ class TestHost {
       "prod", "sum", "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient", "cross", "trapz",
       "lift_exp", "expm1", "exp2", "lift_log", "lift_log10", "lift_log2", "log1p", "logaddexp", "logaddexp2",
       "sinc",
-      "signbit", "copysign", "lift_frexp", "ldexp"
+      "signbit", "copysign", "lift_frexp", "ldexp", "nextafter"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
@@ -1670,6 +1674,7 @@ class TestHost {
     val log1p_f = fun( array, MapSeq(log1p) $ _ )
     val logaddexp_f = fun( array, array, (A,B) => MapSeq( fun(y => logaddexp.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
     val logaddexp2_f = fun( array, array, (A,B) => MapSeq( fun(y => logaddexp2.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
+    val nextafter_f = fun( array, array, (A,B) => MapSeq( fun(y => nextafter.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
 
     //TODO: i0, can not find its math def
     val sinc_f = fun( array, MapSeq(sinc) $ _ )
@@ -1685,7 +1690,7 @@ class TestHost {
       prod_f, sum_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f, cross_f, trapz_f,
       exp_f, expm1_f, exp2_f, log_f, log10_f, log2_f, log1p_f, logaddexp_f, logaddexp2_f,
       sinc_f,
-      signbit_f, copysign_f, frexp_f, ldexp_f
+      signbit_f, copysign_f, frexp_f, ldexp_f, nextafter_f
     )
 
     (s"mkdir -p $path") !
