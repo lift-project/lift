@@ -99,3 +99,5 @@ ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks
 testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v", "-a")
 
 fork := true
+
+javaOptions += "-Xmx1G"
