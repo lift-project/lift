@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 	float *y = nullptr;
 	const int size = 5;
 
-	lift::sin(x.data(),y,size);
+	lift::lift_sin(x.data(),y,size);
 	/* lift::cos(x.data(),y,5); */
 
 	copy(y, y+size, ostream_iterator<float>(cout, " "));

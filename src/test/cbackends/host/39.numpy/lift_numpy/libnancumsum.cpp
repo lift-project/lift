@@ -14,14 +14,14 @@ float add(float l, float r){
 
 #endif
  ; 
-void nancumsum(float * v_initial_param_301_151, float * & v_user_func_304_152, int v_N_0){
+void nancumsum(float * v_initial_param_302_152, float * & v_user_func_305_153, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_304_152 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_305_153 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element scanned sequentially
-    float scan_acc_311 = 0.0f;
-    for (int v_i_150 = 0;(v_i_150 <= (-1 + v_N_0)); (++v_i_150)){
-        scan_acc_311 = add(scan_acc_311, v_initial_param_301_151[v_i_150]); 
-        v_user_func_304_152[v_i_150] = scan_acc_311; 
+    float scan_acc_312 = 0.0f;
+    for (int v_i_151 = 0;(v_i_151 <= (-1 + v_N_0)); (++v_i_151)){
+        scan_acc_312 = add(scan_acc_312, v_initial_param_302_152[v_i_151]); 
+        v_user_func_305_153[v_i_151] = scan_acc_312; 
     }
 }
 }; 

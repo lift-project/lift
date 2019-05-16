@@ -11,7 +11,7 @@ set -o pipefail
 
 cat ./lift_numpy.hpp
 
-# g++ ./sin.cpp -I . && ./a.out && rm a.out
+g++ ./sin.cpp -I . && ./a.out && rm a.out
 # g++ ./cos.cpp -I . && ./a.out && rm a.out
 # g++ ./tan.cpp -I . && ./a.out && rm a.out
 # g++ ./arcsin.cpp -I . && ./a.out && rm a.out
@@ -63,7 +63,9 @@ cat ./lift_numpy.hpp
 # g++ ./log2.cpp -I . && ./a.out && rm a.out
 # g++ ./log1p.cpp -I . && ./a.out && rm a.out
 # g++ ./logaddexp.cpp -I . && ./a.out && rm a.out
-g++ ./logaddexp2.cpp -I . && ./a.out && rm a.out
+# g++ ./logaddexp2.cpp -I . && ./a.out && rm a.out
+
+g++ ./sinc.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi
