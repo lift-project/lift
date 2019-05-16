@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef HYPOT_UF_H
 #define HYPOT_UF_H
 ; 

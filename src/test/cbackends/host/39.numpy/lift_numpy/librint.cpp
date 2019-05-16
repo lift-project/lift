@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef RINT_UF_H
 #define RINT_UF_H
 ; 

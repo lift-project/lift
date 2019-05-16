@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef ROUND_UF_H
 #define ROUND_UF_H
 ; 

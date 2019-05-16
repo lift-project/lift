@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef COSH_UF_H
 #define COSH_UF_H
 ; 

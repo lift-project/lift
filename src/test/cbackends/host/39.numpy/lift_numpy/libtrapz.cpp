@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef TRAPZ_H
 #define TRAPZ_H
 ; 

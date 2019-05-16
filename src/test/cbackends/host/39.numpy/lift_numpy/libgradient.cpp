@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef GRAD2_UF_H
 #define GRAD2_UF_H
 ; 

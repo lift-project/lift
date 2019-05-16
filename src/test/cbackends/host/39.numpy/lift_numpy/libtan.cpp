@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef TAN_UF_H
 #define TAN_UF_H
 ; 

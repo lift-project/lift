@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef CEIL_UF_H
 #define CEIL_UF_H
 ; 

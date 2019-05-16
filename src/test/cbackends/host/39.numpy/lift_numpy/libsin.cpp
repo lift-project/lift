@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef SIN_UF_H
 #define SIN_UF_H
 ; 

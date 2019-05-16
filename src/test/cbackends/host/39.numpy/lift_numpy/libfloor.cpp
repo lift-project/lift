@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef FLOOR_UF_H
 #define FLOOR_UF_H
 ; 

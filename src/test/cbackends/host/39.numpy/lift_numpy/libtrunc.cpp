@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef TRUNC_UF_H
 #define TRUNC_UF_H
 ; 

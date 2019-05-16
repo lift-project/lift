@@ -668,6 +668,7 @@ object LowerIR2HostCAST {
     //( Block(Vector(boilerplate_code, userfun_decl_code, FunctionPure("execute",VoidType(), param_list, memory_alloc_code  :++ core_body_code ) ), global = true ), all_signature_cvars )
     Block(Vector(
       boilerplate_code,
+      RawCode("namespace lift {"),
       tuple_decl_code :++ userfun_decl_code,
       FunctionPure(func_name,VoidType(), param_list, memory_alloc_code  :++ core_body_code ), RawCode("}")
     ), global = true )

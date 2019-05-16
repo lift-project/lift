@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef PROD2_UF_H
 #define PROD2_UF_H
 ; 

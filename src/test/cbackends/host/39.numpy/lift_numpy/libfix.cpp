@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef FIX_UF_H
 #define FIX_UF_H
 ; 

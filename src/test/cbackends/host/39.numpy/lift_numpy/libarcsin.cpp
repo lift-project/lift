@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef ARCSIN_UF_H
 #define ARCSIN_UF_H
 ; 

@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef ARCCOS_UF_H
 #define ARCCOS_UF_H
 ; 

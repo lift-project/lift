@@ -3,8 +3,8 @@
 
 using namespace std;
 
-namespace lift {
     
+namespace lift {; 
 #ifndef TUPLE3_FLOAT_FLOAT_FLOAT_H
 #define TUPLE3_FLOAT_FLOAT_FLOAT_H
 ; 
