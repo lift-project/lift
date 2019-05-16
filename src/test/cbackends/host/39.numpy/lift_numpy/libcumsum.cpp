@@ -14,14 +14,14 @@ float add(float l, float r){
 
 #endif
  ; 
-void cumsum(float * v_initial_param_295_139, float * & v_user_func_298_140, int v_N_0){
+void cumsum(float * v_initial_param_296_140, float * & v_user_func_299_141, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_298_140 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_299_141 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element scanned sequentially
-    float scan_acc_305 = 0.0f;
-    for (int v_i_138 = 0;(v_i_138 <= (-1 + v_N_0)); (++v_i_138)){
-        scan_acc_305 = add(scan_acc_305, v_initial_param_295_139[v_i_138]); 
-        v_user_func_298_140[v_i_138] = scan_acc_305; 
+    float scan_acc_306 = 0.0f;
+    for (int v_i_139 = 0;(v_i_139 <= (-1 + v_N_0)); (++v_i_139)){
+        scan_acc_306 = add(scan_acc_306, v_initial_param_296_140[v_i_139]); 
+        v_user_func_299_141[v_i_139] = scan_acc_306; 
     }
 }
 }; 

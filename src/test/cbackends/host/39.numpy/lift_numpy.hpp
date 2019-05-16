@@ -17,6 +17,7 @@
 #include <lift_numpy/libradians.cpp>
 #include <lift_numpy/libarctanh.cpp>
 #include <lift_numpy/libsinh.cpp>
+#include <lift_numpy/liblift_log.cpp>
 #include <lift_numpy/libcross.cpp>
 #include <lift_numpy/libfloor.cpp>
 #include <lift_numpy/libcumprod.cpp>
