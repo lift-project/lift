@@ -74,7 +74,9 @@ cat ./lift_numpy.hpp
 # g++ ./nextafter.cpp -I . && ./a.out && rm a.out
 
 # g++ ./add.cpp -I . && ./a.out && rm a.out
-g++ ./reciprocal.cpp -I . && ./a.out && rm a.out
+# g++ ./reciprocal.cpp -I . && ./a.out && rm a.out
+# g++ ./positive.cpp -I . && ./a.out && rm a.out
+g++ ./negative.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi

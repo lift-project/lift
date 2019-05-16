@@ -40,8 +40,10 @@
 #include <lift_numpy/libarccosh.cpp>
 #include <lift_numpy/libarctan2.cpp>
 #include <lift_numpy/libnancumprod.cpp>
+#include <lift_numpy/libnegative.cpp>
 #include <lift_numpy/liblift_sin.cpp>
 #include <lift_numpy/liblift_log2.cpp>
+#include <lift_numpy/libpositive.cpp>
 #include <lift_numpy/liblift_log10.cpp>
 #include <lift_numpy/libediff1d.cpp>
 #include <lift_numpy/libceil.cpp>
