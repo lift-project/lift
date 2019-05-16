@@ -1,6 +1,7 @@
 #include <lift_numpy/libtanh.cpp>
 #include <lift_numpy/libnanprod.cpp>
 #include <lift_numpy/librad2deg.cpp>
+#include <lift_numpy/libreciprocal.cpp>
 #include <lift_numpy/libgradient.cpp>
 #include <lift_numpy/libarcsin.cpp>
 #include <lift_numpy/liblift_frexp.cpp>
