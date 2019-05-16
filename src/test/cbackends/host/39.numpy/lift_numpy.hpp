@@ -30,6 +30,7 @@
 #include <lift_numpy/libfix.cpp>
 #include <lift_numpy/libnextafter.cpp>
 #include <lift_numpy/libround_.cpp>
+#include <lift_numpy/libadd.cpp>
 #include <lift_numpy/libcopysign.cpp>
 #include <lift_numpy/liblogaddexp.cpp>
 #include <lift_numpy/liblog1p.cpp>

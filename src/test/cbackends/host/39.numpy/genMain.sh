@@ -71,7 +71,9 @@ cat ./lift_numpy.hpp
 # g++ ./copysign.cpp -I . && ./a.out && rm a.out
 # g++ ./frexp.cpp -I . && ./a.out && rm a.out
 # g++ ./ldexp.cpp -I . && ./a.out && rm a.out
-g++ ./nextafter.cpp -I . && ./a.out && rm a.out
+# g++ ./nextafter.cpp -I . && ./a.out && rm a.out
+
+g++ ./add.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi
