@@ -1567,6 +1567,10 @@ class TestHost {
     "return y<0? x*(-1):x ;",
     Seq(Float, Float), Float)
 
+  val frexp = UserFun("frexp_uf", Array("x"),
+    "int exp; return {frexp(x,&exp), exp} ;",
+    Seq(Float), TupleType(Float, Float) )
+
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
@@ -1578,7 +1582,7 @@ class TestHost {
       "prod", "sum", "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient", "cross", "trapz",
       "lift_exp", "expm1", "exp2", "lift_log", "lift_log10", "lift_log2", "log1p", "logaddexp", "logaddexp2",
       "sinc",
-      "signbit", "copysign"
+      "signbit", "copysign", "lift_frexp"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
@@ -1668,6 +1672,7 @@ class TestHost {
 
     val signbit_f = fun( array, MapSeq(signbit) $ _ )
     val copysign_f = fun( array, array, (A,B) => MapSeq( fun(y => copysign.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
+    val frexp_f = fun( array, MapSeq(frexp) $ _ )
 
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
@@ -1675,7 +1680,7 @@ class TestHost {
       prod_f, sum_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f, cross_f, trapz_f,
       exp_f, expm1_f, exp2_f, log_f, log10_f, log2_f, log1p_f, logaddexp_f, logaddexp2_f,
       sinc_f,
-      signbit_f, copysign_f
+      signbit_f, copysign_f, frexp_f
     )
 
     (s"mkdir -p $path") !
