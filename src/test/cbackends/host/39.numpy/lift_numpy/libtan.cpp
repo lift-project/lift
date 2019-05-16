@@ -14,12 +14,12 @@ float tan_uf(float x){
 
 #endif
  ; 
-void tan(float * v_initial_param_95_48, float * & v_user_func_97_49, int v_N_0){
+void tan(float * v_initial_param_96_49, float * & v_user_func_98_50, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_97_49 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_98_50 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_47 = 0;(v_i_47 <= (-1 + v_N_0)); (++v_i_47)){
-        v_user_func_97_49[v_i_47] = tan_uf(v_initial_param_95_48[v_i_47]); 
+    for (int v_i_48 = 0;(v_i_48 <= (-1 + v_N_0)); (++v_i_48)){
+        v_user_func_98_50[v_i_48] = tan_uf(v_initial_param_96_49[v_i_48]); 
     }
 }
 }; 

@@ -56,7 +56,8 @@ cat ./lift_numpy.hpp
 # g++ ./trapz.cpp -I . && ./a.out && rm a.out
 
 # g++ ./exp.cpp -I . && ./a.out && rm a.out
-g++ ./expm1.cpp -I . && ./a.out && rm a.out
+# g++ ./expm1.cpp -I . && ./a.out && rm a.out
+g++ ./exp2.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi

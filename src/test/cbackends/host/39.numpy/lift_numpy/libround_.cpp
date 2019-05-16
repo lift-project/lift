@@ -14,12 +14,12 @@ float round_uf(float x){
 
 #endif
  ; 
-void round_(float * v_initial_param_216_105, float * & v_user_func_218_106, int v_N_0){
+void round_(float * v_initial_param_217_106, float * & v_user_func_219_107, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_218_106 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_219_107 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_104 = 0;(v_i_104 <= (-1 + v_N_0)); (++v_i_104)){
-        v_user_func_218_106[v_i_104] = round_uf(v_initial_param_216_105[v_i_104]); 
+    for (int v_i_105 = 0;(v_i_105 <= (-1 + v_N_0)); (++v_i_105)){
+        v_user_func_219_107[v_i_105] = round_uf(v_initial_param_217_106[v_i_105]); 
     }
 }
 }; 
