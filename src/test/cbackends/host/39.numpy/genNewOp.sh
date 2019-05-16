@@ -30,7 +30,7 @@ set -o pipefail
 
 echo "add compilation commands please ..."
 sleep 1
-nvim genMain.sh
+nvim "+normal G7k" genMain.sh
 
 echo "now executing ..."
 sleep 1
