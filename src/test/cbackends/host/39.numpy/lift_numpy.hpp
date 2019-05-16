@@ -4,11 +4,11 @@
 #include <lift_numpy/libgradient.cpp>
 #include <lift_numpy/libarcsin.cpp>
 #include <lift_numpy/libdegrees.cpp>
+#include <lift_numpy/liblift_exp.cpp>
 #include <lift_numpy/libhypot.cpp>
 #include <lift_numpy/libarcsinh.cpp>
 #include <lift_numpy/libcosh.cpp>
 #include <lift_numpy/libnancumsum.cpp>
-#include <lift_numpy/libexp.cpp>
 #include <lift_numpy/libprod.cpp>
 #include <lift_numpy/libcumsum.cpp>
 #include <lift_numpy/libcos.cpp>
@@ -25,6 +25,7 @@
 #include <lift_numpy/libfix.cpp>
 #include <lift_numpy/libround_.cpp>
 #include <lift_numpy/libtrunk.cpp>
+#include <lift_numpy/libexpm1.cpp>
 #include <lift_numpy/libarccosh.cpp>
 #include <lift_numpy/libarctan2.cpp>
 #include <lift_numpy/libnancumprod.cpp>
