@@ -69,7 +69,8 @@ cat ./lift_numpy.hpp
 
 # g++ ./signbit.cpp -I . && ./a.out && rm a.out
 # g++ ./copysign.cpp -I . && ./a.out && rm a.out
-g++ ./frexp.cpp -I . && ./a.out && rm a.out
+# g++ ./frexp.cpp -I . && ./a.out && rm a.out
+g++ ./ldexp.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi
