@@ -1539,6 +1539,10 @@ class TestHost {
     "return log10(x) ;",
     Seq(Float), Float)
 
+  val log2 = UserFun("log2_uf", Array("x"),
+    "return log2(x) ;",
+    Seq(Float), Float)
+
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
@@ -1548,7 +1552,7 @@ class TestHost {
       "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",
       "around", "round_", "rint", "fix", "floor", "ceil", "trunc",
       "prod", "sum", "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient", "cross", "trapz",
-      "lift_exp", "expm1", "exp2", "lift_log", "lift_log10"
+      "lift_exp", "expm1", "exp2", "lift_log", "lift_log10", "lift_log2"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
@@ -1628,12 +1632,13 @@ class TestHost {
     val exp2_f = fun( array, MapSeq(exp2) $ _ )
     val log_f = fun( array, MapSeq(log) $ _ )
     val log10_f = fun( array, MapSeq(log10) $ _ )
+    val log2_f = fun( array, MapSeq(log2) $ _ )
 
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
       around_f, round__f, rint_f, fix_f, floor_f, ceil_f, trunc_f,
       prod_f, sum_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f, cross_f, trapz_f,
-      exp_f, expm1_f, exp2_f, log_f, log10_f
+      exp_f, expm1_f, exp2_f, log_f, log10_f, log2_f
     )
 
     (s"mkdir -p $path") !
