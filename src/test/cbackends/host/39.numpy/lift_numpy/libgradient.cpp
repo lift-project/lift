@@ -14,12 +14,12 @@ float grad2_uf(float l, float r){
 
 #endif
  ; 
-void gradient(float * v_initial_param_1612_341, float * & v_user_func_1618_342, int v_N_190){
+void gradient(float * v_initial_param_324_154, float * & v_user_func_330_155, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_1618_342 = reinterpret_cast<float *>(malloc(((-2 + v_N_190) * sizeof(float)))); 
+    v_user_func_330_155 = reinterpret_cast<float *>(malloc(((-2 + v_N_0) * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_340 = 0;(v_i_340 <= (-3 + v_N_190)); (++v_i_340)){
-        v_user_func_1618_342[v_i_340] = grad2_uf(v_initial_param_1612_341[(2 + v_i_340)], v_initial_param_1612_341[v_i_340]); 
+    for (int v_i_153 = 0;(v_i_153 <= (-3 + v_N_0)); (++v_i_153)){
+        v_user_func_330_155[v_i_153] = grad2_uf(v_initial_param_324_154[(2 + v_i_153)], v_initial_param_324_154[v_i_153]); 
     }
 }
 }; 

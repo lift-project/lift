@@ -14,12 +14,12 @@ float arctanh_uf(float x){
 
 #endif
  ; 
-void arctanh(float * v_initial_param_1496_285, float * & v_user_func_1498_286, int v_N_190){
+void arctanh(float * v_initial_param_208_98, float * & v_user_func_210_99, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_1498_286 = reinterpret_cast<float *>(malloc((v_N_190 * sizeof(float)))); 
+    v_user_func_210_99 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_284 = 0;(v_i_284 <= (-1 + v_N_190)); (++v_i_284)){
-        v_user_func_1498_286[v_i_284] = arctanh_uf(v_initial_param_1496_285[v_i_284]); 
+    for (int v_i_97 = 0;(v_i_97 <= (-1 + v_N_0)); (++v_i_97)){
+        v_user_func_210_99[v_i_97] = arctanh_uf(v_initial_param_208_98[v_i_97]); 
     }
 }
 }; 

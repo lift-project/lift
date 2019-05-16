@@ -14,12 +14,12 @@ float arcsin_uf(float x){
 
 #endif
  ; 
-void arcsin(float * v_initial_param_1389_237, float * & v_user_func_1391_238, int v_N_190){
+void arcsin(float * v_initial_param_101_50, float * & v_user_func_103_51, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_1391_238 = reinterpret_cast<float *>(malloc((v_N_190 * sizeof(float)))); 
+    v_user_func_103_51 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_236 = 0;(v_i_236 <= (-1 + v_N_190)); (++v_i_236)){
-        v_user_func_1391_238[v_i_236] = arcsin_uf(v_initial_param_1389_237[v_i_236]); 
+    for (int v_i_49 = 0;(v_i_49 <= (-1 + v_N_0)); (++v_i_49)){
+        v_user_func_103_51[v_i_49] = arcsin_uf(v_initial_param_101_50[v_i_49]); 
     }
 }
 }; 

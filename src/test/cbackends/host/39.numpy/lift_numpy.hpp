@@ -8,6 +8,7 @@
 #include <lift_numpy/libarcsinh.cpp>
 #include <lift_numpy/libcosh.cpp>
 #include <lift_numpy/libnancumsum.cpp>
+#include <lift_numpy/libexp.cpp>
 #include <lift_numpy/libprod.cpp>
 #include <lift_numpy/libcumsum.cpp>
 #include <lift_numpy/libcos.cpp>

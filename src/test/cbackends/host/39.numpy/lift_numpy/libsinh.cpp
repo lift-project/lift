@@ -14,12 +14,12 @@ float sinh_uf(float x){
 
 #endif
  ; 
-void sinh(float * v_initial_param_1461_270, float * & v_user_func_1463_271, int v_N_190){
+void sinh(float * v_initial_param_173_83, float * & v_user_func_175_84, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_1463_271 = reinterpret_cast<float *>(malloc((v_N_190 * sizeof(float)))); 
+    v_user_func_175_84 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_269 = 0;(v_i_269 <= (-1 + v_N_190)); (++v_i_269)){
-        v_user_func_1463_271[v_i_269] = sinh_uf(v_initial_param_1461_270[v_i_269]); 
+    for (int v_i_82 = 0;(v_i_82 <= (-1 + v_N_0)); (++v_i_82)){
+        v_user_func_175_84[v_i_82] = sinh_uf(v_initial_param_173_83[v_i_82]); 
     }
 }
 }; 

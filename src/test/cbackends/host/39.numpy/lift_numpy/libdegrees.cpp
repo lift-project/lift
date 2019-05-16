@@ -14,12 +14,12 @@ float r2d_uf(float x){
 
 #endif
  ; 
-void degrees(float * v_initial_param_1447_258, float * & v_user_func_1449_259, int v_N_190){
+void degrees(float * v_initial_param_159_71, float * & v_user_func_161_72, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_1449_259 = reinterpret_cast<float *>(malloc((v_N_190 * sizeof(float)))); 
+    v_user_func_161_72 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_257 = 0;(v_i_257 <= (-1 + v_N_190)); (++v_i_257)){
-        v_user_func_1449_259[v_i_257] = r2d_uf(v_initial_param_1447_258[v_i_257]); 
+    for (int v_i_70 = 0;(v_i_70 <= (-1 + v_N_0)); (++v_i_70)){
+        v_user_func_161_72[v_i_70] = r2d_uf(v_initial_param_159_71[v_i_70]); 
     }
 }
 }; 
