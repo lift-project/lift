@@ -28,6 +28,7 @@
 #include <lift_numpy/libdeg2rad.cpp>
 #include <lift_numpy/libfix.cpp>
 #include <lift_numpy/libround_.cpp>
+#include <lift_numpy/libcopysign.cpp>
 #include <lift_numpy/liblogaddexp.cpp>
 #include <lift_numpy/liblog1p.cpp>
 #include <lift_numpy/libtrunk.cpp>
