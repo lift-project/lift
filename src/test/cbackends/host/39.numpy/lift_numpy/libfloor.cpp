@@ -14,12 +14,12 @@ float floor_uf(float x){
 
 #endif
  ; 
-void floor(float * v_initial_param_243_120, float * & v_user_func_245_121, int v_N_0){
+void floor(float * v_initial_param_244_121, float * & v_user_func_246_122, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_245_121 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_246_122 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_119 = 0;(v_i_119 <= (-1 + v_N_0)); (++v_i_119)){
-        v_user_func_245_121[v_i_119] = floor_uf(v_initial_param_243_120[v_i_119]); 
+    for (int v_i_120 = 0;(v_i_120 <= (-1 + v_N_0)); (++v_i_120)){
+        v_user_func_246_122[v_i_120] = floor_uf(v_initial_param_244_121[v_i_120]); 
     }
 }
 }; 

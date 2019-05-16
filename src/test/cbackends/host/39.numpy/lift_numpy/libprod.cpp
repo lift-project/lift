@@ -14,13 +14,13 @@ float prod2_uf(float l, float r){
 
 #endif
  ; 
-void prod(float * v_initial_param_264_129, float * & v_user_func_267_130, int v_N_0){
+void prod(float * v_initial_param_265_130, float * & v_user_func_268_131, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_267_130 = reinterpret_cast<float *>(malloc((1 * sizeof(float)))); 
+    v_user_func_268_131 = reinterpret_cast<float *>(malloc((1 * sizeof(float)))); 
     // For each element reduced sequentially
-    v_user_func_267_130[0] = 1.0f; 
-    for (int v_i_128 = 0;(v_i_128 <= (-1 + v_N_0)); (++v_i_128)){
-        v_user_func_267_130[0] = prod2_uf(v_user_func_267_130[0], v_initial_param_264_129[v_i_128]); 
+    v_user_func_268_131[0] = 1.0f; 
+    for (int v_i_129 = 0;(v_i_129 <= (-1 + v_N_0)); (++v_i_129)){
+        v_user_func_268_131[0] = prod2_uf(v_user_func_268_131[0], v_initial_param_265_130[v_i_129]); 
     }
 }
 }; 
