@@ -1685,7 +1685,7 @@ class TestHost {
       prod_f, sum_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f, cross_f, trapz_f,
       exp_f, expm1_f, exp2_f, log_f, log10_f, log2_f, log1p_f, logaddexp_f, logaddexp2_f,
       sinc_f,
-      signbit_f, copysign_f, frexp_f
+      signbit_f, copysign_f, frexp_f, ldexp_f
     )
 
     (s"mkdir -p $path") !
