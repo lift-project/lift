@@ -31,6 +31,7 @@
 #include <lift_numpy/libarccosh.cpp>
 #include <lift_numpy/libarctan2.cpp>
 #include <lift_numpy/libnancumprod.cpp>
+#include <lift_numpy/liblift_log10.cpp>
 #include <lift_numpy/libediff1d.cpp>
 #include <lift_numpy/libceil.cpp>
 #include <lift_numpy/libsin.cpp>
