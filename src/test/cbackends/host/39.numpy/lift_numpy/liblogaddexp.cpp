@@ -14,12 +14,12 @@ float logaddexp_uf(float x1, float x2){
 
 #endif
  ; 
-void logaddexp(float * v_initial_param_480_199, float * v_initial_param_481_200, float * & v_user_func_487_202, int v_N_0){
+void logaddexp(float * v_initial_param_481_200, float * v_initial_param_482_201, float * & v_user_func_488_203, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_487_202 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_488_203 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_198 = 0;(v_i_198 <= (-1 + v_N_0)); (++v_i_198)){
-        v_user_func_487_202[v_i_198] = logaddexp_uf(v_initial_param_480_199[v_i_198], v_initial_param_481_200[v_i_198]); 
+    for (int v_i_199 = 0;(v_i_199 <= (-1 + v_N_0)); (++v_i_199)){
+        v_user_func_488_203[v_i_199] = logaddexp_uf(v_initial_param_481_200[v_i_199], v_initial_param_482_201[v_i_199]); 
     }
 }
 }; 

@@ -24,6 +24,7 @@
 #include <lift_numpy/libcumprod.cpp>
 #include <lift_numpy/libnansum.cpp>
 #include <lift_numpy/libaround.cpp>
+#include <lift_numpy/libsignbit.cpp>
 #include <lift_numpy/libdeg2rad.cpp>
 #include <lift_numpy/libfix.cpp>
 #include <lift_numpy/libround_.cpp>
