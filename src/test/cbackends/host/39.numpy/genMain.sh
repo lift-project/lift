@@ -60,7 +60,8 @@ cat ./lift_numpy.hpp
 # g++ ./exp2.cpp -I . && ./a.out && rm a.out
 # g++ ./log.cpp -I . && ./a.out && rm a.out
 # g++ ./log10.cpp -I . && ./a.out && rm a.out
-g++ ./log2.cpp -I . && ./a.out && rm a.out
+# g++ ./log2.cpp -I . && ./a.out && rm a.out
+g++ ./log1p.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi

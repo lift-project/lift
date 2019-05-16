@@ -14,12 +14,12 @@ float exp2_uf(float x){
 
 #endif
  ; 
-void exp2(float * v_initial_param_441_180, float * & v_user_func_443_181, int v_N_0){
+void exp2(float * v_initial_param_442_181, float * & v_user_func_444_182, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_443_181 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_444_182 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_179 = 0;(v_i_179 <= (-1 + v_N_0)); (++v_i_179)){
-        v_user_func_443_181[v_i_179] = exp2_uf(v_initial_param_441_180[v_i_179]); 
+    for (int v_i_180 = 0;(v_i_180 <= (-1 + v_N_0)); (++v_i_180)){
+        v_user_func_444_182[v_i_180] = exp2_uf(v_initial_param_442_181[v_i_180]); 
     }
 }
 }; 
