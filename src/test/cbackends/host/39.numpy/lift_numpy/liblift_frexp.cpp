@@ -27,12 +27,12 @@ Tuple2_float_float frexp_uf(float x){
 
 #endif
  ; 
-void lift_frexp(float * v_initial_param_563_235, Tuple2_float_float * & v_user_func_565_236, int v_N_0){
+void lift_frexp(float * v_initial_param_564_236, Tuple2_float_float * & v_user_func_566_237, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_565_236 = reinterpret_cast<Tuple2_float_float *>(malloc((v_N_0 * sizeof(Tuple2_float_float)))); 
+    v_user_func_566_237 = reinterpret_cast<Tuple2_float_float *>(malloc((v_N_0 * sizeof(Tuple2_float_float)))); 
     // For each element processed sequentially
-    for (int v_i_234 = 0;(v_i_234 <= (-1 + v_N_0)); (++v_i_234)){
-        v_user_func_565_236[v_i_234] = frexp_uf(v_initial_param_563_235[v_i_234]); 
+    for (int v_i_235 = 0;(v_i_235 <= (-1 + v_N_0)); (++v_i_235)){
+        v_user_func_566_237[v_i_235] = frexp_uf(v_initial_param_564_236[v_i_235]); 
     }
 }
 }; 

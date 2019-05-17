@@ -84,7 +84,8 @@ cat ./lift_numpy.hpp
 # g++ ./floor_divide.cpp -I . && ./a.out && rm a.out
 # g++ ./float_power.cpp -I . && ./a.out && rm a.out
 # g++ ./fmod.cpp -I . && ./a.out && rm a.out
-g++ ./mod.cpp -I . && ./a.out && rm a.out
+# g++ ./mod.cpp -I . && ./a.out && rm a.out
+g++ ./modf.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi
