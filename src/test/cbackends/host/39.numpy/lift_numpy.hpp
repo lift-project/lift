@@ -16,6 +16,7 @@
 #include <lift_numpy/libpower.cpp>
 #include <lift_numpy/libnancumsum.cpp>
 #include <lift_numpy/liblogaddexp2.cpp>
+#include <lift_numpy/liblift_floor.cpp>
 #include <lift_numpy/libprod.cpp>
 #include <lift_numpy/libcumsum.cpp>
 #include <lift_numpy/libcos.cpp>
@@ -27,7 +28,6 @@
 #include <lift_numpy/liblift_log.cpp>
 #include <lift_numpy/libmod.cpp>
 #include <lift_numpy/libcross.cpp>
-#include <lift_numpy/libfloor.cpp>
 #include <lift_numpy/libcumprod.cpp>
 #include <lift_numpy/libnansum.cpp>
 #include <lift_numpy/libaround.cpp>
@@ -54,6 +54,7 @@
 #include <lift_numpy/libpositive.cpp>
 #include <lift_numpy/liblift_log10.cpp>
 #include <lift_numpy/libediff1d.cpp>
+#include <lift_numpy/liblift_remainder.cpp>
 #include <lift_numpy/libceil.cpp>
 #include <lift_numpy/libtrunc.cpp>
 #include <lift_numpy/libarctan.cpp>

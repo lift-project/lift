@@ -14,12 +14,12 @@ float fmod_uf(float x, float y){
 
 #endif
  ; 
-void mod(float * v_initial_param_690_303, float * v_initial_param_691_304, float * & v_user_func_697_306, int v_N_0){
+void mod(float * v_initial_param_691_304, float * v_initial_param_692_305, float * & v_user_func_698_307, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_697_306 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_698_307 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_302 = 0;(v_i_302 <= (-1 + v_N_0)); (++v_i_302)){
-        v_user_func_697_306[v_i_302] = fmod_uf(v_initial_param_690_303[v_i_302], v_initial_param_691_304[v_i_302]); 
+    for (int v_i_303 = 0;(v_i_303 <= (-1 + v_N_0)); (++v_i_303)){
+        v_user_func_698_307[v_i_303] = fmod_uf(v_initial_param_691_304[v_i_303], v_initial_param_692_305[v_i_303]); 
     }
 }
 }; 
