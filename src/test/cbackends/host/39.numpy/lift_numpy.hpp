@@ -22,6 +22,7 @@
 #include <lift_numpy/libradians.cpp>
 #include <lift_numpy/libarctanh.cpp>
 #include <lift_numpy/libsinh.cpp>
+#include <lift_numpy/libfloat_power.cpp>
 #include <lift_numpy/liblift_log.cpp>
 #include <lift_numpy/libcross.cpp>
 #include <lift_numpy/libfloor.cpp>
@@ -39,6 +40,7 @@
 #include <lift_numpy/libsubtract.cpp>
 #include <lift_numpy/liblogaddexp.cpp>
 #include <lift_numpy/liblog1p.cpp>
+#include <lift_numpy/libfmod.cpp>
 #include <lift_numpy/libtrunk.cpp>
 #include <lift_numpy/libexpm1.cpp>
 #include <lift_numpy/libarccosh.cpp>

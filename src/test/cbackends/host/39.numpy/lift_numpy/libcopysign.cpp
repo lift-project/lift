@@ -14,12 +14,12 @@ float copysign_uf(float x, float y){
 
 #endif
  ; 
-void copysign(float * v_initial_param_548_229, float * v_initial_param_549_230, float * & v_user_func_555_232, int v_N_0){
+void copysign(float * v_initial_param_549_230, float * v_initial_param_550_231, float * & v_user_func_556_233, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_555_232 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_556_233 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_228 = 0;(v_i_228 <= (-1 + v_N_0)); (++v_i_228)){
-        v_user_func_555_232[v_i_228] = copysign_uf(v_initial_param_548_229[v_i_228], v_initial_param_549_230[v_i_228]); 
+    for (int v_i_229 = 0;(v_i_229 <= (-1 + v_N_0)); (++v_i_229)){
+        v_user_func_556_233[v_i_229] = copysign_uf(v_initial_param_549_230[v_i_229], v_initial_param_550_231[v_i_229]); 
     }
 }
 }; 
