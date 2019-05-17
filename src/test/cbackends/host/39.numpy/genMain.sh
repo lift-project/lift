@@ -79,7 +79,8 @@ cat ./lift_numpy.hpp
 # g++ ./negative.cpp -I . && ./a.out && rm a.out
 # g++ ./multiply.cpp -I . && ./a.out && rm a.out
 # g++ ./divide.cpp -I . && ./a.out && rm a.out
-g++ ./power.cpp -I . && ./a.out && rm a.out
+# g++ ./subtract.cpp -I . && ./a.out && rm a.out
+g++ ./true_divide.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi

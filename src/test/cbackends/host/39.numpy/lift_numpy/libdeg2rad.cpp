@@ -14,12 +14,12 @@ float d2r_uf(float x){
 
 #endif
  ; 
-void deg2rad(float * v_initial_param_185_98, float * & v_user_func_187_99, int v_N_0){
+void deg2rad(float * v_initial_param_186_99, float * & v_user_func_188_100, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_187_99 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_188_100 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_97 = 0;(v_i_97 <= (-1 + v_N_0)); (++v_i_97)){
-        v_user_func_187_99[v_i_97] = d2r_uf(v_initial_param_185_98[v_i_97]); 
+    for (int v_i_98 = 0;(v_i_98 <= (-1 + v_N_0)); (++v_i_98)){
+        v_user_func_188_100[v_i_98] = d2r_uf(v_initial_param_186_99[v_i_98]); 
     }
 }
 }; 
