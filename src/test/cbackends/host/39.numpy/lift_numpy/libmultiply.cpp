@@ -14,12 +14,12 @@ float multiply_uf(float x, float y){
 
 #endif
  ; 
-void multiply(float * v_initial_param_614_257, float * v_initial_param_615_258, float * & v_user_func_621_260, int v_N_0){
+void multiply(float * v_initial_param_615_258, float * v_initial_param_616_259, float * & v_user_func_622_261, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_621_260 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_622_261 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_256 = 0;(v_i_256 <= (-1 + v_N_0)); (++v_i_256)){
-        v_user_func_621_260[v_i_256] = multiply_uf(v_initial_param_614_257[v_i_256], v_initial_param_615_258[v_i_256]); 
+    for (int v_i_257 = 0;(v_i_257 <= (-1 + v_N_0)); (++v_i_257)){
+        v_user_func_622_261[v_i_257] = multiply_uf(v_initial_param_615_258[v_i_257], v_initial_param_616_259[v_i_257]); 
     }
 }
 }; 

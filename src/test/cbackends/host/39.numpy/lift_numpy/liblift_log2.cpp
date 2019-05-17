@@ -14,12 +14,12 @@ float log2_uf(float x){
 
 #endif
  ; 
-void lift_log2(float * v_initial_param_474_203, float * & v_user_func_476_204, int v_N_0){
+void lift_log2(float * v_initial_param_475_204, float * & v_user_func_477_205, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_476_204 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_477_205 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_202 = 0;(v_i_202 <= (-1 + v_N_0)); (++v_i_202)){
-        v_user_func_476_204[v_i_202] = log2_uf(v_initial_param_474_203[v_i_202]); 
+    for (int v_i_203 = 0;(v_i_203 <= (-1 + v_N_0)); (++v_i_203)){
+        v_user_func_477_205[v_i_203] = log2_uf(v_initial_param_475_204[v_i_203]); 
     }
 }
 }; 

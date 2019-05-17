@@ -14,13 +14,13 @@ float add(float l, float r){
 
 #endif
  ; 
-void sum(float * v_initial_param_286_144, float * & v_user_func_289_145, int v_N_0){
+void sum(float * v_initial_param_287_145, float * & v_user_func_290_146, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_289_145 = reinterpret_cast<float *>(malloc((1 * sizeof(float)))); 
+    v_user_func_290_146 = reinterpret_cast<float *>(malloc((1 * sizeof(float)))); 
     // For each element reduced sequentially
-    v_user_func_289_145[0] = 0.0f; 
-    for (int v_i_143 = 0;(v_i_143 <= (-1 + v_N_0)); (++v_i_143)){
-        v_user_func_289_145[0] = add(v_user_func_289_145[0], v_initial_param_286_144[v_i_143]); 
+    v_user_func_290_146[0] = 0.0f; 
+    for (int v_i_144 = 0;(v_i_144 <= (-1 + v_N_0)); (++v_i_144)){
+        v_user_func_290_146[0] = add(v_user_func_290_146[0], v_initial_param_287_145[v_i_144]); 
     }
 }
 }; 
