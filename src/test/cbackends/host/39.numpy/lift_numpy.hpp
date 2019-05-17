@@ -11,6 +11,7 @@
 #include <lift_numpy/libhypot.cpp>
 #include <lift_numpy/libarcsinh.cpp>
 #include <lift_numpy/libcosh.cpp>
+#include <lift_numpy/libpower.cpp>
 #include <lift_numpy/libnancumsum.cpp>
 #include <lift_numpy/liblogaddexp2.cpp>
 #include <lift_numpy/libprod.cpp>

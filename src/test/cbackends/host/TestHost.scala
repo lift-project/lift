@@ -1595,6 +1595,10 @@ class TestHost {
     "return x / y;",
     Seq(Float, Float), Float)
 
+  val power = UserFun("power_uf", Array("x", "y"),
+    "return pow(x, y);",
+    Seq(Float, Float), Float)
+
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
@@ -1607,7 +1611,7 @@ class TestHost {
       "lift_exp", "expm1", "exp2", "lift_log", "lift_log10", "lift_log2", "log1p", "logaddexp", "logaddexp2",
       "sinc",
       "signbit", "copysign", "lift_frexp", "ldexp", "nextafter",
-      "add", "reciprocal", "positive", "negative", "multiply", "divide"
+      "add", "reciprocal", "positive", "negative", "multiply", "divide", "power"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
@@ -1710,6 +1714,7 @@ class TestHost {
     //for different dimensionality, maybe handled at python level
     val multiply_f = fun( array, array, (A,B) => MapSeq( fun(y => multiply.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
     val divide_f = fun( array, array, (A,B) => MapSeq( fun(y => divide.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
+    val power_f = fun( array, array, (A,B) => MapSeq( fun(y => power.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
 
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
@@ -1718,7 +1723,7 @@ class TestHost {
       exp_f, expm1_f, exp2_f, log_f, log10_f, log2_f, log1p_f, logaddexp_f, logaddexp2_f,
       sinc_f,
       signbit_f, copysign_f, frexp_f, ldexp_f, nextafter_f,
-      add_f, reciprocal_f, positive_f, negative_f, multiply_f, divide_f
+      add_f, reciprocal_f, positive_f, negative_f, multiply_f, divide_f, power_f
     )
 
     (s"mkdir -p $path") !

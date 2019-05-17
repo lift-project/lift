@@ -14,12 +14,12 @@ float hypot_uf(float x, float y){
 
 #endif
  ; 
-void hypot(float * v_initial_param_140_79, float * v_initial_param_141_80, float * & v_user_func_147_82, int v_N_0){
+void hypot(float * v_initial_param_141_80, float * v_initial_param_142_81, float * & v_user_func_148_83, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_147_82 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_148_83 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_78 = 0;(v_i_78 <= (-1 + v_N_0)); (++v_i_78)){
-        v_user_func_147_82[v_i_78] = hypot_uf(v_initial_param_140_79[v_i_78], v_initial_param_141_80[v_i_78]); 
+    for (int v_i_79 = 0;(v_i_79 <= (-1 + v_N_0)); (++v_i_79)){
+        v_user_func_148_83[v_i_79] = hypot_uf(v_initial_param_141_80[v_i_79], v_initial_param_142_81[v_i_79]); 
     }
 }
 }; 
