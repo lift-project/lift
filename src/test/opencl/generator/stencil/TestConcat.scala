@@ -720,9 +720,45 @@ class TestConcat
 
   }
 
-  // add 2D halo around 3D cube
   @Test
-  def concatTwoMatricesOn3DCube(): Unit = {
+  def concatTwoLinesOnXFaceMatrix() : Unit = {
+
+   val input = Array(Array(1.0f,2.0f,3.0f),Array(4.0f,5.0f,6.0f),Array(7.0f,8.0f,9.0f))
+   val gold = Array(Array(2.0f,4.0f,6.0f,4.0f,5.0f,6.0f),Array(8.0f,10.0f,12.0f,7.0f,8.0f,9.0f),Array(14.0f,16.0f,18.0f,10.0f,11.0f,12.0f)).flatten
+
+   val sideA = Array(Array(1.3f,2.3f,3.3f))
+   val sideB = Array(Array(1.7f,2.7f,3.7f))
+
+
+   def concat2D() = fun(
+     ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), SizeVar("N")),
+     ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), 1),
+     (input,sideA) =>
+       MapGlb(0)(
+         fun(zInp => {
+           val inp = Get(zInp,0)
+           val side = Get(zInp,1)
+           toGlobal(Concat(2))(MapSeq(id) $ inp, MapSeq(id) $ side )
+         } ))  $ Zip(input,sideA)
+   )
+
+   val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2D, input)
+
+   StencilUtilities.print2DArray(input)
+   StencilUtilities.print1DArray(gold)
+   StencilUtilities.print1DArrayAs2DArray(gold,input(0).length*2)
+   StencilUtilities.print1DArray(output)
+   StencilUtilities.print1DArrayAs2DArray(output,input(0).length*2)
+
+   assertArrayEquals(gold, output, TestConcatHelpers.delta)
+
+ }
+
+  // add 2D halo around 3D cube
+  // ( does not work yet !!)
+  // then add ones for YFace and ZFace
+  @Test
+  def concatTwoMatricesOnXFace3DCube(): Unit = {
 
     // main cube
     val input3D = Array(Array(Array(1.0f,2.0f,3.0f), Array(4.0f,5.0f,6.0f),Array(7.0f,8.0f,9.0f)),
