@@ -14,12 +14,12 @@ float negative_uf(float x){
 
 #endif
  ; 
-void negative(float * v_initial_param_610_257, float * & v_user_func_612_258, int v_N_0){
+void negative(float * v_initial_param_611_258, float * & v_user_func_613_259, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_612_258 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_613_259 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_256 = 0;(v_i_256 <= (-1 + v_N_0)); (++v_i_256)){
-        v_user_func_612_258[v_i_256] = negative_uf(v_initial_param_610_257[v_i_256]); 
+    for (int v_i_257 = 0;(v_i_257 <= (-1 + v_N_0)); (++v_i_257)){
+        v_user_func_613_259[v_i_257] = negative_uf(v_initial_param_611_258[v_i_257]); 
     }
 }
 }; 

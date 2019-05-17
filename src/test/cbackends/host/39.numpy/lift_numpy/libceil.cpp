@@ -14,12 +14,12 @@ float ceil_uf(float x){
 
 #endif
  ; 
-void ceil(float * v_initial_param_263_138, float * & v_user_func_265_139, int v_N_0){
+void ceil(float * v_initial_param_264_139, float * & v_user_func_266_140, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_265_139 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_266_140 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_137 = 0;(v_i_137 <= (-1 + v_N_0)); (++v_i_137)){
-        v_user_func_265_139[v_i_137] = ceil_uf(v_initial_param_263_138[v_i_137]); 
+    for (int v_i_138 = 0;(v_i_138 <= (-1 + v_N_0)); (++v_i_138)){
+        v_user_func_266_140[v_i_138] = ceil_uf(v_initial_param_264_139[v_i_138]); 
     }
 }
 }; 

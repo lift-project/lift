@@ -14,12 +14,12 @@ float arccos_uf(float x){
 
 #endif
  ; 
-void arccos(float * v_initial_param_128_75, float * & v_user_func_130_76, int v_N_0){
+void arccos(float * v_initial_param_129_76, float * & v_user_func_131_77, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_130_76 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_131_77 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_74 = 0;(v_i_74 <= (-1 + v_N_0)); (++v_i_74)){
-        v_user_func_130_76[v_i_74] = arccos_uf(v_initial_param_128_75[v_i_74]); 
+    for (int v_i_75 = 0;(v_i_75 <= (-1 + v_N_0)); (++v_i_75)){
+        v_user_func_131_77[v_i_75] = arccos_uf(v_initial_param_129_76[v_i_75]); 
     }
 }
 }; 
