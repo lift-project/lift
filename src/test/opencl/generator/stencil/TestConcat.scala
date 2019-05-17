@@ -2,7 +2,7 @@ package opencl.generator.stencil
 
 import ir.ArrayTypeWSWC
 import ir.ast.debug.PrintType
-import ir.ast.{ArrayAccess, ArrayFromExpr, Concat, Get, Join, PadConstant, Slide, Transpose, UserFun, Zip, fun}
+import ir.ast.{ArrayAccess, ArrayFromExpr, Concat, Get, Join, PadConstant, Slide, Transpose, TransposeW, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.generator.stencil.acoustic.StencilUtilities
@@ -427,39 +427,6 @@ class TestConcat
 
   }
 
-  @Test
-  def testingGround() : Unit =
-  {
-
-    val M = SizeVar("M")
-
-    val boundary = Array(2.0f, 3.0f, 4.0f)
-
-     def stencil1DConcatBoundaryExtra() = fun(
-      ArrayTypeWSWC(Float,TestConcatHelpers.N),
-      ArrayTypeWSWC(Float,M),
-      (input,boundaryA) => {
-
-          // this does not work:
-          val reduction = PrintType() o ArrayAccess(0) o  ReduceSeq(absAndSumUp,0.0f)  $ boundaryA // produces float
-          val reduction_plus = PrintType() o toGlobal(fun(x => add(x, input.at(0)))) $ reduction // produces float
-          val output = ArrayFromExpr(reduction_plus)
-          toGlobal(MapSeq(id)) o PrintType() $ output
-
-          // this works:
-          toGlobal(MapSeq(id)) o MapSeqUnroll(fun(x => add(x,input.at(0)))) o ReduceSeq(absAndSumUp,0.0f) $ boundaryA
-
-//          toGlobal( PrintType() o MapSeq(id)) $ ArrayFromExpr(toPrivate(fun(x => mult(x,boundaryA.at(M-1)))) o toPrivate(fun(x => mult(x,TestConcatHelpers.constR))) $ input.at(TestConcatHelpers.N-1)))
-
-      }
-    )
-
-    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](stencil1DConcatBoundaryExtra(), TestConcatHelpers.values,boundary)
-
-    StencilUtilities.print1DArray(TestConcatHelpers.values)
-    StencilUtilities.print1DArray(output)
-
-  }
 
   def stencil1DConcatBoundaryExtra() = fun(
     ArrayTypeWSWC(Float,TestConcatHelpers.N),
@@ -520,23 +487,26 @@ class TestConcat
 
   def getIteratedGold(num_iterations : Int, padLeft : Array[Float], padRight : Array[Float], values : Array[Float]): Array[Float] =
   {
-    val padLBoundary = padLeft.map(x => (TestConcatHelpers.constL*values(0)) - x)
-    val padRBoundary = padRight.map(x => (TestConcatHelpers.constR*values(values.length-1)) - x)
+    val padLBoundary = Array(2.0f, 3.0f, 4.0f)
+    val padRBoundary = Array(2.5f, 3.5f, 4.5f)
     val paddedLargeValues = Array(0.0f) ++ values ++ Array(0.0f)
 
     var outputValues = paddedLargeValues
 
+    println("gold def start: ")
     StencilUtilities.print1DArray(outputValues)
 
     for(i <- 1 to num_iterations)
     {
+      val leftVal = TestConcatHelpers.constL*outputValues(0)
+      val rightVal = TestConcatHelpers.constR*outputValues(outputValues.length-1)
 
-      val updatedPadL = padLBoundary.reduceLeft( (x,y) => x - outputValues(0)*TestConcatHelpers.constL )
-      val updatedPadR = padRBoundary.reduceLeft( (x,y) => x - outputValues(outputValues.length-1)*TestConcatHelpers.constR)
+      val updatedPadL = padLBoundary.foldLeft(leftVal)( (acc,y) => acc - y )
+      val updatedPadR = padRBoundary.foldLeft(rightVal)( (acc,y) => acc - y )
 
-      outputValues =  Array(updatedPadL) ++ outputValues.sliding(3,1).toArray.map(x => x.reduceLeft(_ + _)) ++ Array(updatedPadR)
+      outputValues =  outputValues.sliding(3,1).toArray.map(x => x.reduceLeft(_ + _))
 
-      StencilUtilities.print1DArray(outputValues)
+      outputValues =  Array(updatedPadL) ++ outputValues ++ Array(updatedPadR)
 
     }
 
@@ -550,28 +520,28 @@ class TestConcat
 
     val num_iterations = 5
 
-    var input = TestConcatHelpers.paddedLargeValues
-
- //   StencilUtilities.print1DArray(input)
+    var inputPadded = TestConcatHelpers.paddedLargeValues
+    var input = TestConcatHelpers.largeValues
 
     val gold = getIteratedGold(num_iterations,TestConcatHelpers.boundaryA,TestConcatHelpers.boundaryB,TestConcatHelpers.largeValues)
 
     def stencil1DConcatBoundaryExtra() = fun(
       ArrayTypeWSWC(Float,TestConcatHelpers.N),
+      ArrayTypeWSWC(Float,TestConcatHelpers.N - 2),
       ArrayTypeWSWC(Float,TestConcatHelpers.M),
       ArrayTypeWSWC(Float,TestConcatHelpers.M),
-      (input,boundaryA,boundaryB) => {
+      (inputPadded,input,boundaryA,boundaryB) => {
         Concat(3)(
           {
-            val inp0 = toPrivate(fun(x => (mult(TestConcatHelpers.constL,x)))) $ input.at(0)
+            val inp0 = toPrivate(fun(x => (mult(TestConcatHelpers.constL,x)))) $ inputPadded.at(0)
             toGlobal(MapSeq(id)) o PrintType() o MapSeqUnroll(id) o ReduceSeq(subtractUp,inp0) $ boundaryA
           },
           Join() o MapSeq(fun(tup => {
             val neighbourhood = Get(tup,1)
-            toGlobal( MapSeqUnroll(id)) o ReduceSeq(absAndSumUp,0.0f) $ neighbourhood
-          })) $ Zip(input, Slide(3,1) /* o PadConstant(1,1,0.0f) */ $ input),
+            toGlobal( MapSeqUnroll(id)) o ReduceSeq(sumUp,0.0f) $ neighbourhood
+          })) $ Zip(input, Slide(3,1) /* o PadConstant(1,1,0.0f) */ $ inputPadded),
           {
-            val inpN = toPrivate(fun(x => (mult(TestConcatHelpers.constR,x)))) $ input.at(TestConcatHelpers.N-1)
+            val inpN = toPrivate(fun(x => (mult(TestConcatHelpers.constR,x)))) $ inputPadded.at(TestConcatHelpers.N-1)
             toGlobal(MapSeq(id)) o MapSeqUnroll(id) o ReduceSeq(subtractUp,inpN) $ boundaryB
           }
         )
@@ -580,24 +550,231 @@ class TestConcat
 
     for (i <- 1 to num_iterations) {
 
-      val (output, _) = Execute(2,2)[Array[Float]](stencil1DConcatBoundaryExtra(), input,TestConcatHelpers.boundaryA,TestConcatHelpers.boundaryB)
+      val (output, _) = Execute(2,2)[Array[Float]](stencil1DConcatBoundaryExtra(), inputPadded,input,TestConcatHelpers.boundaryA,TestConcatHelpers.boundaryB)
 
-      input = output
-      StencilUtilities.print1DArray(input)
+      inputPadded = output
 
     }
 
-//    StencilUtilities.print1DArray(input)
-//    StencilUtilities.print1DArray(gold)
+    assertArrayEquals(gold, inputPadded, TestConcatHelpers.delta)
 
-    assertArrayEquals(gold, input, TestConcatHelpers.delta)
+  }
+ /*
+    def stencil1DConcatBoundaryExtra() = fun(
+      ArrayTypeWSWC(Float,TestConcatHelpers.N),
+      ArrayTypeWSWC(Float,M),
+      (input,boundaryA) => {
+
+        // this does not work:
+        val reduction = PrintType() o ArrayAccess(0) o  ReduceSeq(absAndSumUp,0.0f)  $ boundaryA // produces float
+        val reduction_plus = PrintType() o toGlobal(fun(x => add(x, input.at(0)))) $ reduction // produces float
+        val output = ArrayFromExpr(reduction_plus)
+        toGlobal(MapSeq(id)) o PrintType() $ output
+
+        // this works:
+        toGlobal(MapSeq(id)) o MapSeqUnroll(fun(x => add(x,input.at(0)))) o ReduceSeq(absAndSumUp,0.0f) $ boundaryA
+
+        //          toGlobal( PrintType() o MapSeq(id)) $ ArrayFromExpr(toPrivate(fun(x => mult(x,boundaryA.at(M-1)))) o toPrivate(fun(x => mult(x,TestConcatHelpers.constR))) $ input.at(TestConcatHelpers.N-1)))
+
+      }
+    )
+   */
+
+  @Test
+  def testingGround() : Unit =
+  {
+
+    val M = SizeVar("M")
+
+    val input = Array(Array(1.0f,2.0f,3.0f),Array(4.0f,5.0f,6.0f),Array(7.0f,8.0f,9.0f))
+    val gold = Array(Array(1.0f,2.0f,3.0f,1.0f,2.0f,3.0f),Array(4.0f,5.0f,6.0f,4.0f,5.0f,6.0f),Array(7.0f,8.0f,9.0f,7.0f,8.0f,9.0f))
+
+    def transposeandun() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), SizeVar("N")),
+      (input) => {
+        TransposeW() o toGlobal(MapSeq(MapSeq(id))) o Transpose() $ input
+      }
+    )
+
+    def concattransposeandun() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), SizeVar("N")),
+      (input) => {
+
+
+        // toGlobal(TransposeW() o Concat(2))(/*TransposeW() o */MapSeq(MapSeq(id)) o Transpose() $ input, /*TransposeW() o */MapSeq(MapSeq(id)) o Transpose() $ input )
+       // toGlobal(/*Transpose() o*/ Concat(2))(MapSeq(MapSeq(id)) /* o Transpose() */ $ input, MapSeq(MapSeq(id)) /* o Transpose() */ $ input )
+        toGlobal(/*Transpose() o*/ Concat(2))(MapSeq(MapSeq(id)) /* o Transpose() */ $ input, MapSeq(MapSeq(id)) /* o Transpose() */ $ input )
+
+        //TransposeW() o toGlobal(MapSeq(MapSeq(id))) o Transpose() $ input
+
+      }
+    )
+
+    def modifiedconcat() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), SizeVar("N")),
+      (input) =>
+        MapGlb(0)(
+          fun(inp => {
+            //toGlobal(MapSeq(id)) $ inp
+            toGlobal(/*Transpose() o*/ Concat(2))(MapSeq(id) /* o Transpose() */ $ inp, MapSeq(id) /* o Transpose() */ $ inp )
+          } ))  $ input
+    )
+
+    println(Compile(modifiedconcat()))
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](transposeandun, input)
+    val (outputC : Array[Float], _) = Execute(2, 2)[Array[Float]](modifiedconcat(), input)
+
+    StencilUtilities.print1DArrayAs2DArray(input.flatten,input(0).length)
+    StencilUtilities.print1DArray(input.flatten)
+    StencilUtilities.print2DArray(input)
+    println("*******Output**********")
+    StencilUtilities.print1DArrayAs2DArray(output,input(0).length)
+    StencilUtilities.print1DArray(output)
+    println("*******Concat**********")
+    StencilUtilities.print1DArrayAs2DArray(outputC,input(0).length*2)
+    StencilUtilities.print1DArray(outputC)
+    println("********Gold*********")
+    StencilUtilities.print1DArrayAs2DArray(gold.flatten,input(0).length*2)
+    StencilUtilities.print1DArray(gold.flatten)
+
 
   }
 
-  // add separate kernel example
-
   // add 2D example
+  @Test
+  def concatTwoMatricesMapGlb2D(): Unit = {
 
+    val input = Array(Array(1.0f,2.0f,3.0f),Array(4.0f,5.0f,6.0f),Array(7.0f,8.0f,9.0f))
+    val gold = Array(Array(2.0f,4.0f,6.0f,4.0f,5.0f,6.0f),Array(8.0f,10.0f,12.0f,7.0f,8.0f,9.0f),Array(14.0f,16.0f,18.0f,10.0f,11.0f,12.0f)).flatten
+
+    // mapseq over array of 1s and multiply by 2
+    // mapseq over array of 1s and add 3
+    // concat the results
+
+    val mult2 = UserFun("mult2", "x", "{ return x*2; }", Float, Float)
+    val add3 = UserFun("add3", Array("x"), "{ return x+3; }", Seq(Float), Float)
+
+    def concat2D() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), SizeVar("N")),
+      (input) =>
+        MapGlb(0)(
+          fun(inp => {
+            toGlobal(Concat(2))(MapSeq(mult2) $ inp, MapSeq(add3) $ inp )
+          } ))  $ input
+    )
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2D, input)
+
+    StencilUtilities.print2DArray(input)
+    StencilUtilities.print1DArray(gold)
+    StencilUtilities.print1DArrayAs2DArray(gold,input(0).length*2)
+    StencilUtilities.print1DArray(output)
+    StencilUtilities.print1DArrayAs2DArray(output,input(0).length*2)
+
+    assertArrayEquals(gold, output, TestConcatHelpers.delta)
+
+  }
+
+  // add 3D example
+  @Test
+  def concatTwoCubesMapGlb3D(): Unit = {
+
+    val input3D = Array(Array(Array(1.0f,2.0f,3.0f), Array(4.0f,5.0f,6.0f),Array(7.0f,8.0f,9.0f)),
+      Array(Array(10.0f,11.0f,12.0f),Array(13.0f,14.0f,15.0f),Array(16.0f,17.0f,18.0f)),
+      Array(Array(19.0f,20.0f,21.0f),Array(22.0f,23.0f,24.0f),Array(25.0f,26.0f,27.0f)))
+
+    val gold3D = Array(Array(Array(2.0f,4.0f,6.0f,4.0f,5.0f,6.0f),Array(8.0f,10.0f,12.0f,7.0f,8.0f,9.0f), Array(14.0f,16.0f,18.0f,10.0f,11.0f,12.0f)),
+      Array(Array(20.0f,22.0f,24.0f,13.0f,14.0f,15.0f),Array(26.0f,28.0f,30.0f,16.0f,17.0f,18.0f),Array(32.0f,34.0f,36.0f,19.0f,20.0f,21.0f)),
+      Array(Array(38.0f,40.0f,42.0f,22.0f,23.0f,24.0f),Array(44.0f,46.0f,48.0f,25.0f,26.0f,27.0f),Array(50.0f,52.0f,54.0f,28.0f,29.0f,30.0f))).flatten.flatten
+
+    // mapseq over array of 1s and multiply by 2
+    // mapseq over array of 1s and add 3
+    // concat the results
+
+    val mult2 = UserFun("mult2", "x", "{ return x*2; }", Float, Float)
+    val add3 = UserFun("add3", Array("x"), "{ return x+3; }", Seq(Float), Float)
+
+    def concat3D() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), SizeVar("N")), SizeVar("O")),
+      (input) =>
+        MapGlb(1)(MapGlb(0)(
+          fun(inp => {
+            toGlobal(Concat(2))(MapSeq(mult2) $ inp, MapSeq(add3) $ inp )
+          } ))) $ input
+    )
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concat3D, input3D)
+
+
+    println("*******Input**********")
+    StencilUtilities.print3DArray(input3D)
+    println("*******Gold**********")
+    StencilUtilities.print1DArray(gold3D)
+    StencilUtilities.print1DArrayAs3DArray(gold3D,input3D(0)(0).length*2,input3D(0).length,input3D.length)
+    println("*******Output**********")
+    StencilUtilities.print1DArray(output)
+    StencilUtilities.print1DArrayAs3DArray(output,input3D(0)(0).length*2,input3D(0).length,input3D.length)
+
+    assertArrayEquals(gold3D, output, TestConcatHelpers.delta)
+
+  }
+
+  // add 2D halo around 3D cube
+  @Test
+  def concatTwoMatricesOn3DCube(): Unit = {
+
+    // main cube
+    val input3D = Array(Array(Array(1.0f,2.0f,3.0f), Array(4.0f,5.0f,6.0f),Array(7.0f,8.0f,9.0f)),
+      Array(Array(10.0f,11.0f,12.0f),Array(13.0f,14.0f,15.0f),Array(16.0f,17.0f,18.0f)),
+      Array(Array(19.0f,20.0f,21.0f),Array(22.0f,23.0f,24.0f),Array(25.0f,26.0f,27.0f)))
+
+
+    // matrices to concat on
+    val sideA = Array(Array(1.3f,2.3f,3.3f),Array(4.3f,5.3f,6.3f),Array(7.3f,8.3f,9.3f))
+    val sideB = Array(Array(1.7f,2.7f,3.7f),Array(4.7f,5.7f,6.7f),Array(7.7f,8.7f,9.7f))
+
+
+
+    // result cube
+    val gold3D = Array(Array(Array(2.0f,4.0f,6.0f,4.0f,5.0f,6.0f),Array(8.0f,10.0f,12.0f,7.0f,8.0f,9.0f), Array(14.0f,16.0f,18.0f,10.0f,11.0f,12.0f)),
+      Array(Array(20.0f,22.0f,24.0f,13.0f,14.0f,15.0f),Array(26.0f,28.0f,30.0f,16.0f,17.0f,18.0f),Array(32.0f,34.0f,36.0f,19.0f,20.0f,21.0f)),
+      Array(Array(38.0f,40.0f,42.0f,22.0f,23.0f,24.0f),Array(44.0f,46.0f,48.0f,25.0f,26.0f,27.0f),Array(50.0f,52.0f,54.0f,28.0f,29.0f,30.0f))).flatten.flatten
+
+    // mapseq over array of 1s and multiply by 2
+    // mapseq over array of 1s and add 3
+    // concat the results
+
+    val mult2 = UserFun("mult2", "x", "{ return x*2; }", Float, Float)
+    val add3 = UserFun("add3", Array("x"), "{ return x+3; }", Seq(Float), Float)
+
+    def concat3D() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), SizeVar("N")), SizeVar("O")),
+      (input) =>
+        MapGlb(1)(MapGlb(0)(
+          fun(inp => {
+            toGlobal(Concat(2))(MapSeq(mult2) $ inp, MapSeq(add3) $ inp )
+          } ))) $ input
+    )
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concat3D, input3D)
+
+
+    println("*******Input**********")
+    StencilUtilities.print3DArray(input3D)
+    println("*******Gold**********")
+    StencilUtilities.print1DArray(gold3D)
+    StencilUtilities.print1DArrayAs3DArray(gold3D,input3D(0)(0).length*2,input3D(0).length,input3D.length)
+    println("*******Output**********")
+    StencilUtilities.print1DArray(output)
+    StencilUtilities.print1DArrayAs3DArray(output,input3D(0)(0).length*2,input3D(0).length,input3D.length)
+
+    assertArrayEquals(gold3D, output, TestConcatHelpers.delta)
+
+  }
+
+
+  // add separate kernel example
 
   /**
    *  TODO:

@@ -51,6 +51,9 @@ package object ir {
   val absAndSumUp = UserFun("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }",
                             Seq(Float, Float), Float)
 
+  val sumUp = UserFun("sumUp", Array("acc", "x"), "{ return acc + x; }",
+    Seq(Float, Float), Float)
+
   val subtractUp = UserFun("subtractUp", Array("acc", "x"), "{ return acc - x; }",
     Seq(Float, Float), Float)
 
