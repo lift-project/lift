@@ -35,6 +35,7 @@
 #include <lift_numpy/libdeg2rad.cpp>
 #include <lift_numpy/libfix.cpp>
 #include <lift_numpy/libtrue_divide.cpp>
+#include <lift_numpy/libdivmod.cpp>
 #include <lift_numpy/libnextafter.cpp>
 #include <lift_numpy/libround_.cpp>
 #include <lift_numpy/libadd.cpp>

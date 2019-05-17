@@ -14,12 +14,12 @@ float trunc_uf(float x){
 
 #endif
  ; 
-void trunc(float * v_initial_param_274_145, float * & v_user_func_276_146, int v_N_0){
+void trunc(float * v_initial_param_275_146, float * & v_user_func_277_147, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_276_146 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_277_147 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_144 = 0;(v_i_144 <= (-1 + v_N_0)); (++v_i_144)){
-        v_user_func_276_146[v_i_144] = trunc_uf(v_initial_param_274_145[v_i_144]); 
+    for (int v_i_145 = 0;(v_i_145 <= (-1 + v_N_0)); (++v_i_145)){
+        v_user_func_277_147[v_i_145] = trunc_uf(v_initial_param_275_146[v_i_145]); 
     }
 }
 }; 
