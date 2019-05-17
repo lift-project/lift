@@ -24,6 +24,7 @@
 #include <lift_numpy/libsinh.cpp>
 #include <lift_numpy/libfloat_power.cpp>
 #include <lift_numpy/liblift_log.cpp>
+#include <lift_numpy/libmod.cpp>
 #include <lift_numpy/libcross.cpp>
 #include <lift_numpy/libfloor.cpp>
 #include <lift_numpy/libcumprod.cpp>
