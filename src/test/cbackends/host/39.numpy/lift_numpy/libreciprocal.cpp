@@ -14,12 +14,12 @@ float reciprocal_uf(float x){
 
 #endif
  ; 
-void reciprocal(float * v_initial_param_601_256, float * & v_user_func_603_257, int v_N_0){
+void reciprocal(float * v_initial_param_602_257, float * & v_user_func_604_258, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_603_257 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_604_258 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_255 = 0;(v_i_255 <= (-1 + v_N_0)); (++v_i_255)){
-        v_user_func_603_257[v_i_255] = reciprocal_uf(v_initial_param_601_256[v_i_255]); 
+    for (int v_i_256 = 0;(v_i_256 <= (-1 + v_N_0)); (++v_i_256)){
+        v_user_func_604_258[v_i_256] = reciprocal_uf(v_initial_param_602_257[v_i_256]); 
     }
 }
 }; 

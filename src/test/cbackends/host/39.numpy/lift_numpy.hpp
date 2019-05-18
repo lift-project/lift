@@ -12,6 +12,7 @@
 #include <lift_numpy/libhypot.cpp>
 #include <lift_numpy/libarcsinh.cpp>
 #include <lift_numpy/libcosh.cpp>
+#include <lift_numpy/libangle_radian.cpp>
 #include <lift_numpy/libfloor_divide.cpp>
 #include <lift_numpy/libpower.cpp>
 #include <lift_numpy/libnancumsum.cpp>

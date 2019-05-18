@@ -87,7 +87,9 @@ cat ./lift_numpy.hpp
 # g++ ./mod.cpp -I . && ./a.out && rm a.out
 # g++ ./modf.cpp -I . && ./a.out && rm a.out
 # g++ ./remainder.cpp -I . && ./a.out && rm a.out
-g++ ./divmod.cpp -I . && ./a.out && rm a.out
+# g++ ./divmod.cpp -I . && ./a.out && rm a.out
+
+g++ ./angle_radian.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi

@@ -1625,6 +1625,10 @@ class TestHost {
     "return {int(x/y), x>=0? x - floor(x/y)*y : x - round(x/y)*y};",
     Seq(Float, Float), TupleType(Float, Float) )
 
+  val angle_radian = UserFun("angle_randian_uf", Array("x", "y"),
+    "{ return atan2(y,x); }",
+    Seq(Float, Float), Float)
+
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
@@ -1639,13 +1643,16 @@ class TestHost {
       "signbit", "copysign", "lift_frexp", "ldexp", "nextafter",
 
       "add", "reciprocal", "positive", "negative", "multiply", "divide", "power", "subtract", "true_divide", "floor_divide", "float_power",
-      "fmod", "mod", "modf", "lift_remainder", "divmod"
+      "fmod", "mod", "modf", "lift_remainder", "divmod",
+
+      "angle_radian"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
 
     val array = ArrayType(Float, N)
-    val array_t = ArrayType(TupleType(Float, Float, Float) , N)
+    val array_t2 = ArrayType(TupleType(Float, Float) , N)
+    val array_t3 = ArrayType(TupleType(Float, Float, Float) , N)
 
     val sin_f = fun( array, MapSeq( sin ) $ _ )
     val cos_f = fun( array, MapSeq( cos ) $ _ )
@@ -1692,7 +1699,7 @@ class TestHost {
     //out[0] = in[0]
     //out[last] = in[last] - in[last - 1]
     val gradient_f = fun(array, MapSeq(  fun(arr => gradient2.apply(ArrayAccess(2) $ arr, ArrayAccess(0) $ arr ) ) ) o Slide(3,1) $ _)
-    val cross_f = fun( array_t, array_t,
+    val cross_f = fun( array_t3, array_t3,
       (A,B) => MapSeq(  fun( y =>
         cross_calc.apply(
           Get(Get(y,0),0),
@@ -1753,6 +1760,9 @@ class TestHost {
     val remainder_f = fun( array, array, (A,B) => MapSeq( fun(y => remainder.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
     val divmod_f = fun( array, array, (A,B) => MapSeq( fun(y => divmod.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
 
+    val angle_radian_f = fun(array_t2, MapSeq( fun(y => angle_radian.apply(Get(y,0), Get(y,1))) ) $ _ )
+    //val angle_degree_f = fun(array_t, )
+
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
       around_f, round__f, rint_f, fix_f, floor_f, ceil_f, trunc_f,
@@ -1762,7 +1772,9 @@ class TestHost {
       signbit_f, copysign_f, frexp_f, ldexp_f, nextafter_f,
 
       add_f, reciprocal_f, positive_f, negative_f, multiply_f, divide_f, power_f, subtract_f, true_divide, floor_divide, float_power_f,
-      fmod_f, mod_f, modf_f, remainder_f, divmod_f
+      fmod_f, mod_f, modf_f, remainder_f, divmod_f,
+
+      angle_radian_f
     )
 
     (s"mkdir -p $path") !
