@@ -65,8 +65,10 @@
 #include <lift_numpy/libtan.cpp>
 #include <lift_numpy/libsum.cpp>
 #include <lift_numpy/libarccos.cpp>
+#include <lift_numpy/libreal.cpp>
 #include <lift_numpy/libdivide.cpp>
 #include <lift_numpy/libmultiply.cpp>
 #include <lift_numpy/libldexp.cpp>
 #include <lift_numpy/libtrapz.cpp>
+#include <lift_numpy/libimag.cpp>
 #include <lift_numpy/libsinc.cpp>

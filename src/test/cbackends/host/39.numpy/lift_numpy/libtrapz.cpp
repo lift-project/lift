@@ -23,18 +23,18 @@ float add(float l, float r){
 
 #endif
  ; 
-void trapz(float * v_initial_param_402_192, float * v_initial_param_403_193, float * & v_user_func_406_196, int v_N_0){
+void trapz(float * v_initial_param_404_194, float * v_initial_param_405_195, float * & v_user_func_408_198, int v_N_0){
     // Allocate memory for output pointers
-    float * v_user_func_430_195 = reinterpret_cast<float *>(malloc(((-1 + v_N_0) * sizeof(float))));
-    v_user_func_406_196 = reinterpret_cast<float *>(malloc((1 * sizeof(float)))); 
+    float * v_user_func_432_197 = reinterpret_cast<float *>(malloc(((-1 + v_N_0) * sizeof(float))));
+    v_user_func_408_198 = reinterpret_cast<float *>(malloc((1 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_191 = 0;(v_i_191 <= (-2 + v_N_0)); (++v_i_191)){
-        v_user_func_430_195[v_i_191] = trapz(v_initial_param_402_192[v_i_191], v_initial_param_402_192[(1 + v_i_191)], v_initial_param_403_193[v_i_191], v_initial_param_403_193[(1 + v_i_191)]); 
+    for (int v_i_193 = 0;(v_i_193 <= (-2 + v_N_0)); (++v_i_193)){
+        v_user_func_432_197[v_i_193] = trapz(v_initial_param_404_194[v_i_193], v_initial_param_404_194[(1 + v_i_193)], v_initial_param_405_195[v_i_193], v_initial_param_405_195[(1 + v_i_193)]); 
     }
     // For each element reduced sequentially
-    v_user_func_406_196[0] = 0.0f; 
-    for (int v_i_190 = 0;(v_i_190 <= (-2 + v_N_0)); (++v_i_190)){
-        v_user_func_406_196[0] = add(v_user_func_406_196[0], v_user_func_430_195[v_i_190]); 
+    v_user_func_408_198[0] = 0.0f; 
+    for (int v_i_192 = 0;(v_i_192 <= (-2 + v_N_0)); (++v_i_192)){
+        v_user_func_408_198[0] = add(v_user_func_408_198[0], v_user_func_432_197[v_i_192]); 
     }
 }
 }; 
