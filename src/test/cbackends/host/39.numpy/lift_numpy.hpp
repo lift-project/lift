@@ -19,6 +19,7 @@
 #include <lift_numpy/libnancumsum.cpp>
 #include <lift_numpy/liblogaddexp2.cpp>
 #include <lift_numpy/liblift_floor.cpp>
+#include <lift_numpy/libconvolve.cpp>
 #include <lift_numpy/libprod.cpp>
 #include <lift_numpy/libcumsum.cpp>
 #include <lift_numpy/libcos.cpp>

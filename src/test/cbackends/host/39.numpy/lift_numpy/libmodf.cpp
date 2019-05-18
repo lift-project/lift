@@ -27,12 +27,12 @@ Tuple2_float_float modf_uf(float x){
 
 #endif
  ; 
-void modf(float * v_initial_param_711_315, Tuple2_float_float * & v_user_func_713_316, int v_N_0){
+void modf(float * v_initial_param_711_317, Tuple2_float_float * & v_user_func_713_318, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_713_316 = reinterpret_cast<Tuple2_float_float *>(malloc((v_N_0 * sizeof(Tuple2_float_float)))); 
+    v_user_func_713_318 = reinterpret_cast<Tuple2_float_float *>(malloc((v_N_0 * sizeof(Tuple2_float_float)))); 
     // For each element processed sequentially
-    for (int v_i_314 = 0;(v_i_314 <= (-1 + v_N_0)); (++v_i_314)){
-        v_user_func_713_316[v_i_314] = modf_uf(v_initial_param_711_315[v_i_314]); 
+    for (int v_i_316 = 0;(v_i_316 <= (-1 + v_N_0)); (++v_i_316)){
+        v_user_func_713_318[v_i_316] = modf_uf(v_initial_param_711_317[v_i_316]); 
     }
 }
 }; 
