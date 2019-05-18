@@ -14,12 +14,12 @@ float remainder_uf(float x, float y){
 
 #endif
  ; 
-void lift_remainder(float * v_initial_param_717_317, float * v_initial_param_718_318, float * & v_user_func_724_320, int v_N_0){
+void lift_remainder(float * v_initial_param_718_318, float * v_initial_param_719_319, float * & v_user_func_725_321, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_724_320 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_725_321 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_316 = 0;(v_i_316 <= (-1 + v_N_0)); (++v_i_316)){
-        v_user_func_724_320[v_i_316] = remainder_uf(v_initial_param_717_317[v_i_316], v_initial_param_718_318[v_i_316]); 
+    for (int v_i_317 = 0;(v_i_317 <= (-1 + v_N_0)); (++v_i_317)){
+        v_user_func_725_321[v_i_317] = remainder_uf(v_initial_param_718_318[v_i_317], v_initial_param_719_319[v_i_317]); 
     }
 }
 }; 

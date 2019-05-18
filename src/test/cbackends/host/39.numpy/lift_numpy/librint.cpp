@@ -14,12 +14,12 @@ float rint_uf(float x){
 
 #endif
  ; 
-void rint(float * v_initial_param_251_138, float * & v_user_func_253_139, int v_N_0){
+void rint(float * v_initial_param_252_139, float * & v_user_func_254_140, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_253_139 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_254_140 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_137 = 0;(v_i_137 <= (-1 + v_N_0)); (++v_i_137)){
-        v_user_func_253_139[v_i_137] = rint_uf(v_initial_param_251_138[v_i_137]); 
+    for (int v_i_138 = 0;(v_i_138 <= (-1 + v_N_0)); (++v_i_138)){
+        v_user_func_254_140[v_i_138] = rint_uf(v_initial_param_252_139[v_i_138]); 
     }
 }
 }; 

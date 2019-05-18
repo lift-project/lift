@@ -57,6 +57,7 @@
 #include <lift_numpy/libpositive.cpp>
 #include <lift_numpy/liblift_log10.cpp>
 #include <lift_numpy/libediff1d.cpp>
+#include <lift_numpy/libconj.cpp>
 #include <lift_numpy/liblift_remainder.cpp>
 #include <lift_numpy/libceil.cpp>
 #include <lift_numpy/libtrunc.cpp>

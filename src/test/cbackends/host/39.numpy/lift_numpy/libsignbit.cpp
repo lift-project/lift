@@ -14,12 +14,12 @@ float signbit_uf(float x){
 
 #endif
  ; 
-void signbit(float * v_initial_param_549_234, float * & v_user_func_551_235, int v_N_0){
+void signbit(float * v_initial_param_550_235, float * & v_user_func_552_236, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_551_235 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_552_236 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_233 = 0;(v_i_233 <= (-1 + v_N_0)); (++v_i_233)){
-        v_user_func_551_235[v_i_233] = signbit_uf(v_initial_param_549_234[v_i_233]); 
+    for (int v_i_234 = 0;(v_i_234 <= (-1 + v_N_0)); (++v_i_234)){
+        v_user_func_552_236[v_i_234] = signbit_uf(v_initial_param_550_235[v_i_234]); 
     }
 }
 }; 

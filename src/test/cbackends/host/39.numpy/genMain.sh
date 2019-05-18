@@ -92,7 +92,8 @@ cat ./lift_numpy.hpp
 # g++ ./angle_radian.cpp -I . && ./a.out && rm a.out
 # g++ ./angle_degree.cpp -I . && ./a.out && rm a.out
 # g++ ./real.cpp -I . && ./a.out && rm a.out
-g++ ./imag.cpp -I . && ./a.out && rm a.out
+# g++ ./imag.cpp -I . && ./a.out && rm a.out
+g++ ./conj.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi

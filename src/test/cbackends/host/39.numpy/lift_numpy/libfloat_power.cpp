@@ -14,12 +14,12 @@ float power_uf(float x, float y){
 
 #endif
  ; 
-void float_power(float * v_initial_param_654_299, float * v_initial_param_655_300, float * & v_user_func_661_302, int v_N_0){
+void float_power(float * v_initial_param_655_300, float * v_initial_param_656_301, float * & v_user_func_662_303, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_661_302 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_662_303 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_298 = 0;(v_i_298 <= (-1 + v_N_0)); (++v_i_298)){
-        v_user_func_661_302[v_i_298] = power_uf(v_initial_param_654_299[v_i_298], v_initial_param_655_300[v_i_298]); 
+    for (int v_i_299 = 0;(v_i_299 <= (-1 + v_N_0)); (++v_i_299)){
+        v_user_func_662_303[v_i_299] = power_uf(v_initial_param_655_300[v_i_299], v_initial_param_656_301[v_i_299]); 
     }
 }
 }; 
