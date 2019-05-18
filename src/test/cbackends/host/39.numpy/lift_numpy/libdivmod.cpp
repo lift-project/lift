@@ -27,12 +27,12 @@ Tuple2_float_float divmod_uf(float x, float y){
 
 #endif
  ; 
-void divmod(float * v_initial_param_728_319, float * v_initial_param_729_320, Tuple2_float_float * & v_user_func_735_322, int v_N_0){
+void divmod(float * v_initial_param_729_320, float * v_initial_param_730_321, Tuple2_float_float * & v_user_func_736_323, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_735_322 = reinterpret_cast<Tuple2_float_float *>(malloc((v_N_0 * sizeof(Tuple2_float_float)))); 
+    v_user_func_736_323 = reinterpret_cast<Tuple2_float_float *>(malloc((v_N_0 * sizeof(Tuple2_float_float)))); 
     // For each element processed sequentially
-    for (int v_i_318 = 0;(v_i_318 <= (-1 + v_N_0)); (++v_i_318)){
-        v_user_func_735_322[v_i_318] = divmod_uf(v_initial_param_728_319[v_i_318], v_initial_param_729_320[v_i_318]); 
+    for (int v_i_319 = 0;(v_i_319 <= (-1 + v_N_0)); (++v_i_319)){
+        v_user_func_736_323[v_i_319] = divmod_uf(v_initial_param_729_320[v_i_319], v_initial_param_730_321[v_i_319]); 
     }
 }
 }; 

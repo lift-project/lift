@@ -1629,6 +1629,10 @@ class TestHost {
     "{ return atan2(y,x); }",
     Seq(Float, Float), Float)
 
+  val angle_degree = UserFun("angle_degree_uf", Array("x", "y"),
+    "{ return atan2(y,x) * 180 / M_PI; }",
+    Seq(Float, Float), Float)
+
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
@@ -1645,7 +1649,7 @@ class TestHost {
       "add", "reciprocal", "positive", "negative", "multiply", "divide", "power", "subtract", "true_divide", "floor_divide", "float_power",
       "fmod", "mod", "modf", "lift_remainder", "divmod",
 
-      "angle_radian"
+      "angle_radian", "angle_degree"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
@@ -1761,7 +1765,7 @@ class TestHost {
     val divmod_f = fun( array, array, (A,B) => MapSeq( fun(y => divmod.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
 
     val angle_radian_f = fun(array_t2, MapSeq( fun(y => angle_radian.apply(Get(y,0), Get(y,1))) ) $ _ )
-    //val angle_degree_f = fun(array_t, )
+    val angle_degree_f = fun(array_t2, MapSeq( fun(y => angle_degree.apply(Get(y,0), Get(y,1))) ) $ _ )
 
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
@@ -1774,7 +1778,7 @@ class TestHost {
       add_f, reciprocal_f, positive_f, negative_f, multiply_f, divide_f, power_f, subtract_f, true_divide, floor_divide, float_power_f,
       fmod_f, mod_f, modf_f, remainder_f, divmod_f,
 
-      angle_radian_f
+      angle_radian_f, angle_degree_f
     )
 
     (s"mkdir -p $path") !

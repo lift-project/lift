@@ -14,12 +14,12 @@ float fix_uf(float x){
 
 #endif
  ; 
-void fix(float * v_initial_param_255_138, float * & v_user_func_257_139, int v_N_0){
+void fix(float * v_initial_param_256_139, float * & v_user_func_258_140, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_257_139 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_258_140 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_137 = 0;(v_i_137 <= (-1 + v_N_0)); (++v_i_137)){
-        v_user_func_257_139[v_i_137] = fix_uf(v_initial_param_255_138[v_i_137]); 
+    for (int v_i_138 = 0;(v_i_138 <= (-1 + v_N_0)); (++v_i_138)){
+        v_user_func_258_140[v_i_138] = fix_uf(v_initial_param_256_139[v_i_138]); 
     }
 }
 }; 
