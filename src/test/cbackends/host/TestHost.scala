@@ -1645,6 +1645,36 @@ class TestHost {
     "{ return {x, (-1.0f)*y}; }",
     Seq(Float, Float), TupleType(Float, Float) )
 
+  val sqrt = UserFun("sqrt_uf", Array("x"),
+    "{ return sqrt(x); }",
+    Seq(Float), Float)
+
+  val cbrt = UserFun("cbrt_uf", Array("x"),
+    "{ return cbrt(x); }",
+    Seq(Float), Float)
+
+  val square = UserFun("square_uf", Array("x"),
+    "{ return x*x; }",
+    Seq(Float), Float)
+
+  val absolute = UserFun("absolute_uf", Array("x"),
+    "{ return abs(x); }",
+    Seq(Float), Float)
+
+  val fabs = UserFun("fabs_uf", Array("x"),
+    "{ return abs(x); }",
+    Seq(Float), Float)
+
+  val sign = UserFun("sign_uf", Array("x"),
+    "{ return x>=0?1:-1; }",
+    Seq(Float), Float)
+
+  //val heaviside
+
+  val maximum = UserFun("maximum_uf", Array("x", "y"),
+    "{ return x>=0?1:-1; }",
+    Seq(Float), Float)
+
   @Test
   def test_generate_all_numpy_functions(): Unit = {
 
@@ -1663,7 +1693,8 @@ class TestHost {
 
       "angle_radian", "angle_degree", "real", "imag", "conj",
 
-      "convolve"
+      "convolve", //"clip"
+      "sqrt"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
@@ -1790,6 +1821,10 @@ class TestHost {
     // assume M is already reversed, later may be doable in Lift
     val convolve_f = fun(array_m, array, (A, M) =>
       MapSeq( fun( y =>  ReduceSeq( fun( (acc, y) => multAndSumUp(acc, Get(y,0), Get(y,1)) ), 0.0f) $ Zip(y, M) ) ) o Slide(N,1) $ A)
+    //two things: do we have a filter pattern? can we pass a scalar to the top level lambda instead of arrays?
+    //val clip_f = fun(array, O, K,   )
+    val sqrt_f = fun( array, MapSeq(sqrt) $ _ )
+    val cbrt_f = fun( array, MapSeq(cbrt) $ _ )
 
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
@@ -1804,7 +1839,8 @@ class TestHost {
 
       angle_radian_f, angle_degree_f, real_f, imag_f, conj_f,
 
-      convolve_f
+      convolve_f, //clip_f,
+      sqrt_f, cbrt_f
     )
 
     (s"mkdir -p $path") !
