@@ -14,12 +14,12 @@ float id(float x){
 
 #endif
  ; 
-void positive(float * v_initial_param_624_275, float * & v_user_func_626_276, int v_N_0){
+void positive(float * v_initial_param_624_277, float * & v_user_func_626_278, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_626_276 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_626_278 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_274 = 0;(v_i_274 <= (-1 + v_N_0)); (++v_i_274)){
-        v_user_func_626_276[v_i_274] = id(v_initial_param_624_275[v_i_274]); 
+    for (int v_i_276 = 0;(v_i_276 <= (-1 + v_N_0)); (++v_i_276)){
+        v_user_func_626_278[v_i_276] = id(v_initial_param_624_277[v_i_276]); 
     }
 }
 }; 

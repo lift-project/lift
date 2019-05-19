@@ -14,14 +14,14 @@ float prod2_uf(float l, float r){
 
 #endif
  ; 
-void cumprod(float * v_initial_param_322_177, float * & v_user_func_325_178, int v_N_0){
+void cumprod(float * v_initial_param_322_179, float * & v_user_func_325_180, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_325_178 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_325_180 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element scanned sequentially
     float scan_acc_332 = 1.0f;
-    for (int v_i_176 = 0;(v_i_176 <= (-1 + v_N_0)); (++v_i_176)){
-        scan_acc_332 = prod2_uf(scan_acc_332, v_initial_param_322_177[v_i_176]); 
-        v_user_func_325_178[v_i_176] = scan_acc_332; 
+    for (int v_i_178 = 0;(v_i_178 <= (-1 + v_N_0)); (++v_i_178)){
+        scan_acc_332 = prod2_uf(scan_acc_332, v_initial_param_322_179[v_i_178]); 
+        v_user_func_325_180[v_i_178] = scan_acc_332; 
     }
 }
 }; 

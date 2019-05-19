@@ -14,12 +14,12 @@ float sinc_uf(float x){
 
 #endif
  ; 
-void sinc(float * v_initial_param_554_243, float * & v_user_func_556_244, int v_N_0){
+void sinc(float * v_initial_param_554_245, float * & v_user_func_556_246, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_556_244 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_556_246 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_242 = 0;(v_i_242 <= (-1 + v_N_0)); (++v_i_242)){
-        v_user_func_556_244[v_i_242] = sinc_uf(v_initial_param_554_243[v_i_242]); 
+    for (int v_i_244 = 0;(v_i_244 <= (-1 + v_N_0)); (++v_i_244)){
+        v_user_func_556_246[v_i_244] = sinc_uf(v_initial_param_554_245[v_i_244]); 
     }
 }
 }; 

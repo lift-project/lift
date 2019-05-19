@@ -29,12 +29,12 @@ Tuple3_float_float_float cross_calc(float a1, float a2, float a3, float b1, floa
 
 #endif
  ; 
-void cross(Tuple3_float_float_float * v_initial_param_382_200, Tuple3_float_float_float * v_initial_param_383_201, Tuple3_float_float_float * & v_user_func_409_203, int v_N_0){
+void cross(Tuple3_float_float_float * v_initial_param_382_202, Tuple3_float_float_float * v_initial_param_383_203, Tuple3_float_float_float * & v_user_func_409_205, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_409_203 = reinterpret_cast<Tuple3_float_float_float *>(malloc((v_N_0 * sizeof(Tuple3_float_float_float)))); 
+    v_user_func_409_205 = reinterpret_cast<Tuple3_float_float_float *>(malloc((v_N_0 * sizeof(Tuple3_float_float_float)))); 
     // For each element processed sequentially
-    for (int v_i_199 = 0;(v_i_199 <= (-1 + v_N_0)); (++v_i_199)){
-        v_user_func_409_203[v_i_199] = cross_calc(v_initial_param_382_200[v_i_199]._0, v_initial_param_382_200[v_i_199]._1, v_initial_param_382_200[v_i_199]._2, v_initial_param_383_201[v_i_199]._0, v_initial_param_383_201[v_i_199]._1, v_initial_param_383_201[v_i_199]._2); 
+    for (int v_i_201 = 0;(v_i_201 <= (-1 + v_N_0)); (++v_i_201)){
+        v_user_func_409_205[v_i_201] = cross_calc(v_initial_param_382_202[v_i_201]._0, v_initial_param_382_202[v_i_201]._1, v_initial_param_382_202[v_i_201]._2, v_initial_param_383_203[v_i_201]._0, v_initial_param_383_203[v_i_201]._1, v_initial_param_383_203[v_i_201]._2); 
     }
 }
 }; 

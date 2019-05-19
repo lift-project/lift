@@ -14,12 +14,12 @@ float ldexp_uf(float x, float y){
 
 #endif
  ; 
-void ldexp(float * v_initial_param_589_257, float * v_initial_param_590_258, float * & v_user_func_596_260, int v_N_0){
+void ldexp(float * v_initial_param_589_259, float * v_initial_param_590_260, float * & v_user_func_596_262, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_596_260 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_596_262 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_256 = 0;(v_i_256 <= (-1 + v_N_0)); (++v_i_256)){
-        v_user_func_596_260[v_i_256] = ldexp_uf(v_initial_param_589_257[v_i_256], v_initial_param_590_258[v_i_256]); 
+    for (int v_i_258 = 0;(v_i_258 <= (-1 + v_N_0)); (++v_i_258)){
+        v_user_func_596_262[v_i_258] = ldexp_uf(v_initial_param_589_259[v_i_258], v_initial_param_590_260[v_i_258]); 
     }
 }
 }; 

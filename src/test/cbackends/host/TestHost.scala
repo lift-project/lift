@@ -1694,6 +1694,9 @@ class TestHost {
   //real_if_close
 
   //reduce pattern
+  //it is a bit hard to handle cases that is not within bounds,
+  // because using map or reduce, it is hard to get access to the concept of the first element or the last element
+  // if that is the case, maybe switch to numpy implementation instead.
   val interp = UserFun("interp_uf", Array("acc", "x", "x1", "y1", "x2", "y2"),
     "if (x >= x1 && x <= x2) {auto a = (y1-y2)/(x1-x2); auto b = y1 - a*x1; return acc + a*x + b;} else return acc + 0.0f;",
     Seq(Float, Float, Float, Float, Float, Float), Float)
@@ -1705,7 +1708,7 @@ class TestHost {
     val path = s"$common_path/39.numpy/lift_numpy"
 
     val func_names = List(
-      /* "lift_sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
+      "lift_sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
       "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",
       "around", "round_", "rint", "fix", "lift_floor", "ceil", "trunc",
       "prod", "sum", "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient", "cross", "trapz",
@@ -1719,7 +1722,7 @@ class TestHost {
       "angle_radian", "angle_degree", "real", "imag", "conj",
 
       "convolve", //"clip"
-      "sqrt", "cbrt", "square", "absolute", "fabs", "sign", "maximum", "minimum", "fmax", "fmin",*/ "interp"
+      "sqrt", "cbrt", "square", "absolute", "fabs", "sign", "maximum", "minimum", "fmax", "fmin", "interp"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
@@ -1874,7 +1877,7 @@ class TestHost {
     )
 
     val all_funcs = List(
-      /*sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
+      sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
       around_f, round__f, rint_f, fix_f, floor_f, ceil_f, trunc_f,
       prod_f, sum_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f, cross_f, trapz_f,
@@ -1888,7 +1891,7 @@ class TestHost {
       angle_radian_f, angle_degree_f, real_f, imag_f, conj_f,
 
       convolve_f, //clip_f,
-      sqrt_f, cbrt_f, square_f, absolute_f, fabs_f, sign_f, maximum_f, minimum_f, fmax_f, fmin_f,*/ interp_f
+      sqrt_f, cbrt_f, square_f, absolute_f, fabs_f, sign_f, maximum_f, minimum_f, fmax_f, fmin_f, interp_f
     )
 
     (s"mkdir -p $path") !
