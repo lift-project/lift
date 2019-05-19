@@ -71,6 +71,7 @@
 #include <lift_numpy/liblift_remainder.cpp>
 #include <lift_numpy/libceil.cpp>
 #include <lift_numpy/libtrunc.cpp>
+#include <lift_numpy/libinterp.cpp>
 #include <lift_numpy/libarctan.cpp>
 #include <lift_numpy/librint.cpp>
 #include <lift_numpy/libminimum.cpp>

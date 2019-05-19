@@ -105,7 +105,8 @@ cat ./lift_numpy.hpp
 # g++ ./maximum.cpp -I . && ./a.out && rm a.out
 # g++ ./minimum.cpp -I . && ./a.out && rm a.out
 # g++ ./fmax.cpp -I . && ./a.out && rm a.out
-g++ ./fmin.cpp -I . && ./a.out && rm a.out
+# g++ ./fmin.cpp -I . && ./a.out && rm a.out
+g++ ./interp.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi

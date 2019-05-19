@@ -1694,9 +1694,9 @@ class TestHost {
   //real_if_close
 
   //reduce pattern
-  val interp = UserFun("interp_uf", Array("x", "x1", "y1", "x2", "y2"),
-    "if (x >= x1 && x <= x2) {float a = (y1-y2)/(x1-x2); float b = y1 - a*x1; return a*x + b;} else return 0.0f;",
-    Seq(Float, Float, Float, Float, Float), Float)
+  val interp = UserFun("interp_uf", Array("acc", "x", "x1", "y1", "x2", "y2"),
+    "if (x >= x1 && x <= x2) {auto a = (y1-y2)/(x1-x2); auto b = y1 - a*x1; return acc + a*x + b;} else return acc + 0.0f;",
+    Seq(Float, Float, Float, Float, Float, Float), Float)
 
 
   @Test
@@ -1704,7 +1704,8 @@ class TestHost {
 
     val path = s"$common_path/39.numpy/lift_numpy"
 
-    val func_names = List("lift_sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
+    val func_names = List(
+      /* "lift_sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
       "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",
       "around", "round_", "rint", "fix", "lift_floor", "ceil", "trunc",
       "prod", "sum", "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient", "cross", "trapz",
@@ -1718,7 +1719,7 @@ class TestHost {
       "angle_radian", "angle_degree", "real", "imag", "conj",
 
       "convolve", //"clip"
-      "sqrt", "cbrt", "square", "absolute", "fabs", "sign", "maximum", "minimum", "fmax", "fmin"
+      "sqrt", "cbrt", "square", "absolute", "fabs", "sign", "maximum", "minimum", "fmax", "fmin",*/ "interp"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
@@ -1857,8 +1858,23 @@ class TestHost {
     val minimum_f = fun( array, array, MapSeq(fun(y => minimum.apply(Get(y,0), Get(y,1)))) $ Zip(_,_) )
     val fmax_f = fun( array, array, MapSeq(fun(y => fmax.apply(Get(y,0), Get(y,1)))) $ Zip(_,_) )
     val fmin_f = fun( array, array, MapSeq(fun(y => fmin.apply(Get(y,0), Get(y,1)))) $ Zip(_,_) )
+    val interp_f = fun(array, array_m, array_m, (I, X, Y) =>
+      MapSeq( fun(ix =>
+         ReduceSeq( fun( (acc, y) =>
+           interp.apply(
+             acc,
+             ix,
+             Get(ArrayAccess(0) $ y, 0),
+             Get(ArrayAccess(0) $ y, 1),
+             Get(ArrayAccess(1) $ y, 0),
+             Get(ArrayAccess(1) $ y, 1)
+           )
+         ), 0.0f) o Slide(2,1) $ Zip(X,Y)
+      ) ) $ I
+    )
 
-    val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
+    val all_funcs = List(
+      /*sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
       around_f, round__f, rint_f, fix_f, floor_f, ceil_f, trunc_f,
       prod_f, sum_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f, cross_f, trapz_f,
@@ -1872,7 +1888,7 @@ class TestHost {
       angle_radian_f, angle_degree_f, real_f, imag_f, conj_f,
 
       convolve_f, //clip_f,
-      sqrt_f, cbrt_f, square_f, absolute_f, fabs_f, sign_f, maximum_f, minimum_f, fmax_f, fmin_f
+      sqrt_f, cbrt_f, square_f, absolute_f, fabs_f, sign_f, maximum_f, minimum_f, fmax_f, fmin_f,*/ interp_f
     )
 
     (s"mkdir -p $path") !
