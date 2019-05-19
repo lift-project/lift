@@ -1672,8 +1672,32 @@ class TestHost {
   //val heaviside
 
   val maximum = UserFun("maximum_uf", Array("x", "y"),
-    "{ return x>=0?1:-1; }",
-    Seq(Float), Float)
+    "{ return max(x,y); }",
+    Seq(Float, Float), Float)
+
+  val minimum = UserFun("minimum_uf", Array("x", "y"),
+    "{ return min(x,y); }",
+    Seq(Float, Float), Float)
+
+  val fmax = UserFun("fmax_uf", Array("x", "y"),
+    "{ return max(x,y); }",
+    Seq(Float, Float), Float)
+
+  val fmin = UserFun("fmin_uf", Array("x", "y"),
+    "{ return min(x,y); }",
+    Seq(Float, Float), Float)
+
+  //Not do it, because C++ don't have a NaN reprensentation
+  //val nan_to_num
+
+  //Not do it, because the output shape is run-time data dependent
+  //real_if_close
+
+  //reduce pattern
+  val interp = UserFun("interp_uf", Array("x", "x1", "y1", "x2", "y2"),
+    "if (x >= x1 && x <= x2) {float a = (y1-y2)/(x1-x2); float b = y1 - a*x1; return a*x + b;} else return 0.0f;",
+    Seq(Float, Float), Float)
+
 
   @Test
   def test_generate_all_numpy_functions(): Unit = {
