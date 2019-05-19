@@ -1696,7 +1696,7 @@ class TestHost {
   //reduce pattern
   val interp = UserFun("interp_uf", Array("x", "x1", "y1", "x2", "y2"),
     "if (x >= x1 && x <= x2) {float a = (y1-y2)/(x1-x2); float b = y1 - a*x1; return a*x + b;} else return 0.0f;",
-    Seq(Float, Float), Float)
+    Seq(Float, Float, Float, Float, Float), Float)
 
 
   @Test
@@ -1718,7 +1718,7 @@ class TestHost {
       "angle_radian", "angle_degree", "real", "imag", "conj",
 
       "convolve", //"clip"
-      "sqrt"
+      "sqrt", "cbrt", "square", "absolute", "fabs", "sign", "maximum", "minimum", "fmax", "fmin"
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
@@ -1849,6 +1849,14 @@ class TestHost {
     //val clip_f = fun(array, O, K,   )
     val sqrt_f = fun( array, MapSeq(sqrt) $ _ )
     val cbrt_f = fun( array, MapSeq(cbrt) $ _ )
+    val square_f = fun( array, MapSeq(square) $ _ )
+    val absolute_f = fun( array, MapSeq(absolute) $ _ )
+    val fabs_f = absolute_f
+    val sign_f = fun( array, MapSeq(sign) $ _ )
+    val maximum_f = fun( array, array, MapSeq(fun(y => maximum.apply(Get(y,0), Get(y,1)))) $ Zip(_,_) )
+    val minimum_f = fun( array, array, MapSeq(fun(y => minimum.apply(Get(y,0), Get(y,1)))) $ Zip(_,_) )
+    val fmax_f = fun( array, array, MapSeq(fun(y => fmax.apply(Get(y,0), Get(y,1)))) $ Zip(_,_) )
+    val fmin_f = fun( array, array, MapSeq(fun(y => fmin.apply(Get(y,0), Get(y,1)))) $ Zip(_,_) )
 
     val all_funcs = List(sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
@@ -1864,7 +1872,7 @@ class TestHost {
       angle_radian_f, angle_degree_f, real_f, imag_f, conj_f,
 
       convolve_f, //clip_f,
-      sqrt_f, cbrt_f
+      sqrt_f, cbrt_f, square_f, absolute_f, fabs_f, sign_f, maximum_f, minimum_f, fmax_f, fmin_f
     )
 
     (s"mkdir -p $path") !

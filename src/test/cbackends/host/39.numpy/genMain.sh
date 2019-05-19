@@ -95,7 +95,17 @@ cat ./lift_numpy.hpp
 # g++ ./imag.cpp -I . && ./a.out && rm a.out
 # g++ ./conj.cpp -I . && ./a.out && rm a.out
 
-g++ ./convolve.cpp -I . && ./a.out && rm a.out
+# g++ ./convolve.cpp -I . && ./a.out && rm a.out
+# g++ ./sqrt.cpp -I . && ./a.out && rm a.out
+# g++ ./cbrt.cpp -I . && ./a.out && rm a.out
+# g++ ./square.cpp -I . && ./a.out && rm a.out
+# g++ ./absolute.cpp -I . && ./a.out && rm a.out
+# g++ ./fabs.cpp -I . && ./a.out && rm a.out
+# g++ ./sign.cpp -I . && ./a.out && rm a.out
+# g++ ./maximum.cpp -I . && ./a.out && rm a.out
+# g++ ./minimum.cpp -I . && ./a.out && rm a.out
+# g++ ./fmax.cpp -I . && ./a.out && rm a.out
+g++ ./fmin.cpp -I . && ./a.out && rm a.out
 
 
 if [ -f a.out ]; then rm a.out; fi

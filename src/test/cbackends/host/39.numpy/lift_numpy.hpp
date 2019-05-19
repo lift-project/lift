@@ -1,4 +1,5 @@
 #include <lift_numpy/libtanh.cpp>
+#include <lift_numpy/libfmax.cpp>
 #include <lift_numpy/libmodf.cpp>
 #include <lift_numpy/libnanprod.cpp>
 #include <lift_numpy/librad2deg.cpp>
@@ -26,6 +27,7 @@
 #include <lift_numpy/libdiff.cpp>
 #include <lift_numpy/libradians.cpp>
 #include <lift_numpy/libarctanh.cpp>
+#include <lift_numpy/libsqrt.cpp>
 #include <lift_numpy/libsinh.cpp>
 #include <lift_numpy/libfloat_power.cpp>
 #include <lift_numpy/liblift_log.cpp>
@@ -45,18 +47,25 @@
 #include <lift_numpy/libcopysign.cpp>
 #include <lift_numpy/libsubtract.cpp>
 #include <lift_numpy/liblogaddexp.cpp>
+#include <lift_numpy/libabsolute.cpp>
 #include <lift_numpy/liblog1p.cpp>
+#include <lift_numpy/libcbrt.cpp>
 #include <lift_numpy/libfmod.cpp>
 #include <lift_numpy/libtrunk.cpp>
 #include <lift_numpy/libexpm1.cpp>
 #include <lift_numpy/libarccosh.cpp>
 #include <lift_numpy/libarctan2.cpp>
+#include <lift_numpy/libfmin.cpp>
+#include <lift_numpy/libsign.cpp>
 #include <lift_numpy/libnancumprod.cpp>
 #include <lift_numpy/libnegative.cpp>
 #include <lift_numpy/liblift_sin.cpp>
 #include <lift_numpy/liblift_log2.cpp>
 #include <lift_numpy/libpositive.cpp>
+#include <lift_numpy/libsquare.cpp>
 #include <lift_numpy/liblift_log10.cpp>
+#include <lift_numpy/libmaximum.cpp>
+#include <lift_numpy/libfabs.cpp>
 #include <lift_numpy/libediff1d.cpp>
 #include <lift_numpy/libconj.cpp>
 #include <lift_numpy/liblift_remainder.cpp>
@@ -64,6 +73,7 @@
 #include <lift_numpy/libtrunc.cpp>
 #include <lift_numpy/libarctan.cpp>
 #include <lift_numpy/librint.cpp>
+#include <lift_numpy/libminimum.cpp>
 #include <lift_numpy/libtan.cpp>
 #include <lift_numpy/libsum.cpp>
 #include <lift_numpy/libarccos.cpp>
