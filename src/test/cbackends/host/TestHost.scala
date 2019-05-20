@@ -1711,7 +1711,7 @@ class TestHost {
       "lift_sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
       "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",
       "around", "round_", "rint", "fix", "lift_floor", "ceil", "trunc",
-      "prod", "sum", "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient", "cross", "trapz",
+      "prod", "sum", "sum_axis_0",  "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient", "cross", "trapz",
       "lift_exp", "expm1", "exp2", "lift_log", "lift_log10", "lift_log2", "log1p", "logaddexp", "logaddexp2",
       "sinc",
       "signbit", "copysign", "lift_frexp", "ldexp", "nextafter",
@@ -1729,6 +1729,7 @@ class TestHost {
 
     val array = ArrayType(Float, N)
     val array_m = ArrayType(Float, M)
+    val array_2d = ArrayType(ArrayType(Float, N), M)
     val array_t2 = ArrayType(TupleType(Float, Float) , N)
     val array_t3 = ArrayType(TupleType(Float, Float, Float) , N)
 
@@ -1763,6 +1764,7 @@ class TestHost {
 
     val prod_f = fun( array, ReduceSeq(prod2, 1.0f) $ _ )
     val sum_f = fun( array, ReduceSeq(add2, 0.0f) $ _ )
+    val sum_axis_0_f = fun( array_2d, MapSeq(ReduceSeq(add2, 0.0f)) o Transpose() $ _ )
     //can filter nan at python level, for prod, nan -> 1, for sum, nan -> 0
     val nanprod_f = prod_f
     val nansum_f = sum_f
@@ -1880,7 +1882,7 @@ class TestHost {
       sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
       around_f, round__f, rint_f, fix_f, floor_f, ceil_f, trunc_f,
-      prod_f, sum_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f, cross_f, trapz_f,
+      prod_f, sum_f, sum_axis_0_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f, cross_f, trapz_f,
       exp_f, expm1_f, exp2_f, log_f, log10_f, log2_f, log1p_f, logaddexp_f, logaddexp2_f,
       sinc_f,
       signbit_f, copysign_f, frexp_f, ldexp_f, nextafter_f,

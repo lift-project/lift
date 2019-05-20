@@ -14,15 +14,15 @@ float diff2(float l, float r){
 
 #endif
  ; 
-void diff(float * v_initial_param_346_192, float * & v_user_func_349_193, int v_N_0){
+void diff(float * v_initial_param_365_206, float * & v_user_func_368_207, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_349_193 = reinterpret_cast<float *>(malloc(((-1 + v_N_0) * sizeof(float)))); 
+    v_user_func_368_207 = reinterpret_cast<float *>(malloc(((-1 + v_N_0) * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_190 = 0;(v_i_190 <= (-2 + v_N_0)); (++v_i_190)){
+    for (int v_i_204 = 0;(v_i_204 <= (-2 + v_N_0)); (++v_i_204)){
         // For each element reduced sequentially
-        v_user_func_349_193[v_i_190] = 0.0f; 
-        for (int v_i_191 = 0;(v_i_191 <= 1); (++v_i_191)){
-            v_user_func_349_193[v_i_190] = diff2(v_user_func_349_193[v_i_190], v_initial_param_346_192[(v_i_190 + v_i_191)]); 
+        v_user_func_368_207[v_i_204] = 0.0f; 
+        for (int v_i_205 = 0;(v_i_205 <= 1); (++v_i_205)){
+            v_user_func_368_207[v_i_204] = diff2(v_user_func_368_207[v_i_204], v_initial_param_365_206[(v_i_204 + v_i_205)]); 
         }
     }
 }

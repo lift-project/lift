@@ -14,12 +14,12 @@ float nextafter_uf(float x, float y){
 
 #endif
  ; 
-void nextafter(float * v_initial_param_540_264, float * v_initial_param_541_265, float * & v_user_func_547_267, int v_N_0){
+void nextafter(float * v_initial_param_559_278, float * v_initial_param_560_279, float * & v_user_func_566_281, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_547_267 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_566_281 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_263 = 0;(v_i_263 <= (-1 + v_N_0)); (++v_i_263)){
-        v_user_func_547_267[v_i_263] = nextafter_uf(v_initial_param_540_264[v_i_263], v_initial_param_541_265[v_i_263]); 
+    for (int v_i_277 = 0;(v_i_277 <= (-1 + v_N_0)); (++v_i_277)){
+        v_user_func_566_281[v_i_277] = nextafter_uf(v_initial_param_559_278[v_i_277], v_initial_param_560_279[v_i_277]); 
     }
 }
 }; 

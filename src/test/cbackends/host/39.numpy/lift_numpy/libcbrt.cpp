@@ -14,12 +14,12 @@ float cbrt_uf(float x){
 
 #endif
  ; 
-void cbrt(float * v_initial_param_848_365, float * & v_user_func_850_366, int v_N_0){
+void cbrt(float * v_initial_param_867_379, float * & v_user_func_869_380, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_850_366 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_869_380 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_364 = 0;(v_i_364 <= (-1 + v_N_0)); (++v_i_364)){
-        v_user_func_850_366[v_i_364] = cbrt_uf(v_initial_param_848_365[v_i_364]); 
+    for (int v_i_378 = 0;(v_i_378 <= (-1 + v_N_0)); (++v_i_378)){
+        v_user_func_869_380[v_i_378] = cbrt_uf(v_initial_param_867_379[v_i_378]); 
     }
 }
 }; 

@@ -14,12 +14,12 @@ float floor_div_uf(float x, float y){
 
 #endif
  ; 
-void floor_divide(float * v_initial_param_694_308, float * v_initial_param_695_309, float * & v_user_func_701_311, int v_N_0){
+void floor_divide(float * v_initial_param_713_322, float * v_initial_param_714_323, float * & v_user_func_720_325, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_701_311 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_720_325 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_307 = 0;(v_i_307 <= (-1 + v_N_0)); (++v_i_307)){
-        v_user_func_701_311[v_i_307] = floor_div_uf(v_initial_param_694_308[v_i_307], v_initial_param_695_309[v_i_307]); 
+    for (int v_i_321 = 0;(v_i_321 <= (-1 + v_N_0)); (++v_i_321)){
+        v_user_func_720_325[v_i_321] = floor_div_uf(v_initial_param_713_322[v_i_321], v_initial_param_714_323[v_i_321]); 
     }
 }
 }; 

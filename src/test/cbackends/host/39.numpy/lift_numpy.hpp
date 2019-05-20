@@ -84,4 +84,5 @@
 #include <lift_numpy/libldexp.cpp>
 #include <lift_numpy/libtrapz.cpp>
 #include <lift_numpy/libimag.cpp>
+#include <lift_numpy/libsum_axis_0.cpp>
 #include <lift_numpy/libsinc.cpp>

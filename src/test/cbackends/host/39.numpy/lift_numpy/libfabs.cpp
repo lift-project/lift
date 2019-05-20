@@ -14,12 +14,12 @@ float absolute_uf(float x){
 
 #endif
  ; 
-void fabs(float * v_initial_param_862_374, float * & v_user_func_864_375, int v_N_0){
+void fabs(float * v_initial_param_881_388, float * & v_user_func_883_389, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_864_375 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_883_389 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_373 = 0;(v_i_373 <= (-1 + v_N_0)); (++v_i_373)){
-        v_user_func_864_375[v_i_373] = absolute_uf(v_initial_param_862_374[v_i_373]); 
+    for (int v_i_387 = 0;(v_i_387 <= (-1 + v_N_0)); (++v_i_387)){
+        v_user_func_883_389[v_i_387] = absolute_uf(v_initial_param_881_388[v_i_387]); 
     }
 }
 }; 
