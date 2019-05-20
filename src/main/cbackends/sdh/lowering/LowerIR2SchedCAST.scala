@@ -2,7 +2,7 @@ package cbackends.sdh.lowering
 
 
 import cbackends.common.utils.type_lowering.TypeLowering
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, ClassOrStructType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IfThenElseIm, IntConstant, IntegerType, ParamDeclPure, PointerType, RawCode, RefType, StringConstant, Uint32_t, UnaryExpression, VarDeclPure, VarRefPure, VoidType}
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, ClassOrStructType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IfThenElseIm, IntConstant, IntegerType, ParamDeclPure, PointerType, RawCode, RefType, StringConstant, Uint32_t, Uintptr_t, UnaryExpression, VarDeclPure, VarRefPure, VoidType}
 import ir.ast.{AbstractMap, FunCall, IDGenerator, IRNode, Join, Lambda, Split}
 import lift.arithmetic.ArithExpr
 import opencl.ir.pattern.MapSeq
@@ -359,7 +359,10 @@ object LowerIR2SchedCAST {
     //DotPrinter("whole",lambda)
     //DotPrinter.withNumbering("/home/lu/Downloads","sched_num",lambda)
 
-    val memory_alloc_code = generateMemAlloc(hostMemoryDeclaredInSignature)
+    val memory_alloc_code = isFakeTM match {
+      case true => Block(global = true)
+      case false => generateMemAlloc(hostMemoryDeclaredInSignature)
+    }
 
     val core_body_code = generate(lambda)
 
@@ -381,7 +384,12 @@ object LowerIR2SchedCAST {
       ExpressionStatement(FunctionCall("GPEQ_PUSH",
         v.t match {
           //here t is guaranteed to be a flat type
-          case p:PointerType => List(VarRefPure(gpe_loop_cvar), FunctionCall("reinterpret_cast", List(VarRefPure(v)), List(Uint32_t()))    )
+          case p:PointerType => List(VarRefPure(gpe_loop_cvar), FunctionCall("reinterpret_cast", List(VarRefPure(v)), List(
+            isFakeTM match {
+              case true => Uintptr_t()
+              case false => Uint32_t()
+            }
+          ))    )
           case _ => List(VarRefPure(gpe_loop_cvar), VarRefPure(v))
         }
       ))).toVector

@@ -1397,6 +1397,15 @@ object GenericAST {
     def apply() = new Uint32_t(name="uint32_t")
   }
 
+  trait Uintptr_T extends IntegerTypeT
+  case class Uintptr_t(name:String) extends Uintptr_T {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+  object Uintptr_t {
+    def apply() = new Uint32_t(name="uintptr_t")
+  }
+
   trait FloatingPointTypeT extends NumericTypeT
 
   trait FloatTypeT extends FloatingPointTypeT

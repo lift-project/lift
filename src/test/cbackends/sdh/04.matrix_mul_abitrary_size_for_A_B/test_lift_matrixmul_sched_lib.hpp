@@ -9,13 +9,11 @@ using namespace std;
 
     ; 
 void lift_matrixmul_sched(float * v_initial_param_1_12, float * v_initial_param_2_13, float * & v_user_func_46_78, int v_M_2, int v_K_3, int v_N_1){
-    // Allocate memory for output pointers
-    v_user_func_46_78 = reinterpret_cast<float *>(trans_alloc(((v_N_1 * v_M_2) * sizeof(float)))); 
     // Push all pointers and sizes to GPEs
     for (int gpe_loop_cvar_78 = 0;(gpe_loop_cvar_78 < 4); (++gpe_loop_cvar_78)){
-        GPEQ_PUSH(gpe_loop_cvar_78, reinterpret_cast<uint32_t>(v_initial_param_1_12)); 
-        GPEQ_PUSH(gpe_loop_cvar_78, reinterpret_cast<uint32_t>(v_initial_param_2_13)); 
-        GPEQ_PUSH(gpe_loop_cvar_78, reinterpret_cast<uint32_t>(v_user_func_46_78)); 
+        GPEQ_PUSH(gpe_loop_cvar_78, reinterpret_cast<uintptr_t>(v_initial_param_1_12)); 
+        GPEQ_PUSH(gpe_loop_cvar_78, reinterpret_cast<uintptr_t>(v_initial_param_2_13)); 
+        GPEQ_PUSH(gpe_loop_cvar_78, reinterpret_cast<uintptr_t>(v_user_func_46_78)); 
         GPEQ_PUSH(gpe_loop_cvar_78, v_M_2); 
         GPEQ_PUSH(gpe_loop_cvar_78, v_K_3); 
         GPEQ_PUSH(gpe_loop_cvar_78, v_N_1); 
