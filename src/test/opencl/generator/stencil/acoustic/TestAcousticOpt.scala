@@ -2,6 +2,7 @@ package opencl.generator.stencil.acoustic
 
 import ir.ArrayTypeWSWC
 import ir.ast._
+import ir.ast.debug.PrintType
 import lift.arithmetic.SizeVar
 import opencl.executor.{Compile, DeviceCapabilityException, Execute, _}
 import opencl.ir._
@@ -304,7 +305,7 @@ class TestAcousticOpt {
                       fun(x => mult(x, constantOriginal(0))) $ stencil )
 
         })))
-        ) $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)
+        ) o PrintType() $ Zip3D(mat1, Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2)
       })
 
     val source = Compile(lambdaNeighAt)

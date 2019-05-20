@@ -2,7 +2,7 @@ package opencl.generator.stencil
 
 import ir.ArrayTypeWSWC
 import ir.ast.debug.PrintType
-import ir.ast.{ArrayAccess, ArrayFromExpr, Concat, Get, Join, PadConstant, Slide, Transpose, TransposeW, UserFun, Zip, fun}
+import ir.ast.{ArrayAccess, ArrayFromExpr, Concat, Get, Join, PadConstant, Slide, Transpose, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.generator.stencil.acoustic.StencilUtilities
@@ -584,60 +584,50 @@ class TestConcat
   def testingGround() : Unit =
   {
 
-    val M = SizeVar("M")
+    val input = Array(Array(1.0f,2.0f,3.0f,4.0f),Array(5.0f,6.0f,7.0f,8.0f),Array(9.0f,10.0f,11.0f,12.0f))
+    val gold = Array(Array(2.0f,4.0f,6.0f,4.0f,5.0f,6.0f),Array(8.0f,10.0f,12.0f,7.0f,8.0f,9.0f),Array(14.0f,16.0f,18.0f,10.0f,11.0f,12.0f)).flatten
 
-    val input = Array(Array(1.0f,2.0f,3.0f),Array(4.0f,5.0f,6.0f),Array(7.0f,8.0f,9.0f))
-    val gold = Array(Array(1.0f,2.0f,3.0f,1.0f,2.0f,3.0f),Array(4.0f,5.0f,6.0f,4.0f,5.0f,6.0f),Array(7.0f,8.0f,9.0f,7.0f,8.0f,9.0f))
+    val sideA = Array(Array(1.3f,2.3f,3.3f))
+    val sideB = Array(Array(1.7f,2.7f,3.7f,4.7f))
+    val sideC = Array(Array(21.2f,34.1f,67.1f,48.5f,89.9f))
 
-    def transposeandun() = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), SizeVar("N")),
-      (input) => {
-        TransposeW() o toGlobal(MapSeq(MapSeq(id))) o Transpose() $ input
-      }
+    def concat2DTransposedX() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.M),TestConcatHelpers.N),
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.N), 1),
+      (input,sideA) =>
+        Transpose() o
+          MapGlb(0)(
+            fun(zInp => {
+              val inp = Get(zInp,0)
+              val side = Get(zInp,1)
+              toGlobal(Concat(2))(MapSeq(id) /* o Transpose() */ $ ArrayFromExpr(inp), MapSeq(id) $ side )
+            } )) o PrintType() $ Zip( input,Transpose() $ sideA)
     )
 
-    def concattransposeandun() = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), SizeVar("N")),
-      (input) => {
+    def concat2DTransposedY() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.M),TestConcatHelpers.N),
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.M), 1),
+      (input,sideB) =>
+          toGlobal(Concat(2))(MapSeq(MapSeq(id)) o PrintType() $ input, MapSeq(MapSeq(id)) o PrintType() $ sideB))
 
 
-        // toGlobal(TransposeW() o Concat(2))(/*TransposeW() o */MapSeq(MapSeq(id)) o Transpose() $ input, /*TransposeW() o */MapSeq(MapSeq(id)) o Transpose() $ input )
-       // toGlobal(/*Transpose() o*/ Concat(2))(MapSeq(MapSeq(id)) /* o Transpose() */ $ input, MapSeq(MapSeq(id)) /* o Transpose() */ $ input )
-        toGlobal(/*Transpose() o*/ Concat(2))(MapSeq(MapSeq(id)) /* o Transpose() */ $ input, MapSeq(MapSeq(id)) /* o Transpose() */ $ input )
+    val (outputX : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2DTransposedX(), input,sideA)
+    val (outputY : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2DTransposedY(), input,sideB)
+//    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](original2DStencilzip(3,1), input)
+//    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](original1DStencil(3,1), input.flatten)
+//    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](original2DStencil(3,1), input)
+//    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2D, input)
 
-        //TransposeW() o toGlobal(MapSeq(MapSeq(id))) o Transpose() $ input
-
-      }
-    )
-
-    def modifiedconcat() = fun(
-      ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), SizeVar("N")),
-      (input) =>
-        MapGlb(0)(
-          fun(inp => {
-            //toGlobal(MapSeq(id)) $ inp
-            toGlobal(/*Transpose() o*/ Concat(2))(MapSeq(id) /* o Transpose() */ $ inp, MapSeq(id) /* o Transpose() */ $ inp )
-          } ))  $ input
-    )
-
-    println(Compile(modifiedconcat()))
-
-    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](transposeandun, input)
-    val (outputC : Array[Float], _) = Execute(2, 2)[Array[Float]](modifiedconcat(), input)
-
-    StencilUtilities.print1DArrayAs2DArray(input.flatten,input(0).length)
-    StencilUtilities.print1DArray(input.flatten)
     StencilUtilities.print2DArray(input)
-    println("*******Output**********")
-    StencilUtilities.print1DArrayAs2DArray(output,input(0).length)
-    StencilUtilities.print1DArray(output)
-    println("*******Concat**********")
-    StencilUtilities.print1DArrayAs2DArray(outputC,input(0).length*2)
-    StencilUtilities.print1DArray(outputC)
-    println("********Gold*********")
-    StencilUtilities.print1DArrayAs2DArray(gold.flatten,input(0).length*2)
-    StencilUtilities.print1DArray(gold.flatten)
+    println("**********************")
+    StencilUtilities.print1DArrayAs2DArray(outputX,input.length+2)
+    StencilUtilities.print1DArrayAs2DArray(outputY,input.length+1)
+    println("**********************")
 
+    StencilUtilities.print1DArray(gold)
+    StencilUtilities.print1DArrayAs2DArray(gold,input(0).length*2)
+
+    assertArrayEquals(gold, outputX, TestConcatHelpers.delta)
 
   }
 
@@ -731,14 +721,14 @@ class TestConcat
 
 
    def concat2D() = fun(
-     ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), SizeVar("N")),
-     ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), 1),
+     ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.N),TestConcatHelpers.M),
+     ArrayTypeWSWC(ArrayTypeWSWC( Float, 1), TestConcatHelpers.M),
      (input,sideA) =>
        MapGlb(0)(
          fun(zInp => {
            val inp = Get(zInp,0)
            val side = Get(zInp,1)
-           toGlobal(Concat(2))(MapSeq(id) $ inp, MapSeq(id) $ side )
+           toGlobal(Concat(2))(MapSeqUnroll(id) o PrintType() $ inp, MapSeq(id) $ side )
          } ))  $ Zip(input,sideA)
    )
 
