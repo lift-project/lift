@@ -1355,8 +1355,15 @@ object GenericAST {
 
   trait PrimitiveTypeT extends CTypeT
   trait ReferenceTypeT extends CTypeT
-  trait ClassOrStructTypeT extends CTypeT
-  case class ClassOrStructType(name:String) extends ClassOrStructTypeT {
+  trait ClassOrStructTypeT extends CTypeT {
+    val name: String
+    val template_types: List[CTypeT]
+
+    override def print(): Doc = {
+      name <> (if (template_types.size == 0) "" else "<" <> intersperse(template_types.map(_.print())) <> ">")
+    }
+  }
+  case class ClassOrStructType(name:String, val template_types: List[CTypeT]= List() ) extends ClassOrStructTypeT {
     override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
     override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
   }

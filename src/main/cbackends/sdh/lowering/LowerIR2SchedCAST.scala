@@ -2,7 +2,7 @@ package cbackends.sdh.lowering
 
 
 import cbackends.common.utils.type_lowering.TypeLowering
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IfThenElseIm, IntConstant, IntegerType, ParamDeclPure, PointerType, RawCode, RefType, StringConstant, Uint32_t, UnaryExpression, VarDeclPure, VarRefPure, VoidType}
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, ClassOrStructType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IfThenElseIm, IntConstant, IntegerType, ParamDeclPure, PointerType, RawCode, RefType, StringConstant, Uint32_t, UnaryExpression, VarDeclPure, VarRefPure, VoidType}
 import ir.ast.{AbstractMap, FunCall, IDGenerator, IRNode, Join, Lambda, Split}
 import lift.arithmetic.ArithExpr
 import opencl.ir.pattern.MapSeq
@@ -10,14 +10,17 @@ import cbackends.sdh.sdh_ir._
 import cbackends.common.view.CollectAllLoopVars
 import ir.printer.DotPrinter
 import opencl.ir.OpenCLAddressSpace
+import cbackends.sdh.lowering.LowerIR2KernelCAST.{boilerplate_code, boilerplate_code_faketm}
 
 
 object LowerIR2SchedCAST {
 
+  val isFakeTM : Boolean = true
+
   val num_of_tiles = 1
   val tile_size = 4
 
-  val boilerplate_code = RawCode(
+  /* val boilerplate_code = RawCode(
     """
       |#include <stdio.h>
       |#include <stdlib.h>
@@ -75,7 +78,7 @@ object LowerIR2SchedCAST {
       |    pthread_barrier_wait(barrierPtr);
       |}
       |""".stripMargin)
-
+  */
 
   val wait_for_branch_predictor_cycle = RawCode(
     """
@@ -186,7 +189,13 @@ object LowerIR2SchedCAST {
     //val virtual_id_b = BinaryExpression(VarRefPure(indexVar2b), BinaryExpressionT.Operator.+,
     //  BinaryExpression(ArithExpression(m.num_hw_elements),BinaryExpressionT.Operator.*,VarRefPure(indexVar1)) )
     //val cond_b = BinaryExpression(virtual_id_b, BinaryExpressionT.Operator.<, ArithExpression(stop))
-    val pop_finish_signal = Block(Vector(wait_for_branch_predictor_cycle, FunctionCall("LCPQ_POP", List(VarRefPure(indexVar2b))) ) )
+
+    val wait_for_branch_predictor_cycle_final = isFakeTM match {
+      case true => RawCode("")
+      case false => wait_for_branch_predictor_cycle2
+    }
+
+    val pop_finish_signal = Block(Vector(wait_for_branch_predictor_cycle_final, FunctionCall("LCPQ_POP", List(VarRefPure(indexVar2b))) ) )
     //val pop_guard = Block(Vector(IfThenElseIm(cond_b, pop_finish_signal, Block())))
 
     val innerloopA = ForLoopIm(init2a, cond2a, increment2a, push_virtual_thread_id)
@@ -342,7 +351,10 @@ object LowerIR2SchedCAST {
 
   }
 
-  def apply(lambda: Lambda, hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)]) : (Block, List[CVarWithType]) = {
+  def apply(lambda: Lambda,
+            hostMemoryDeclaredInSignature: Map[String, (CVarWithType, ArithExpr, OpenCLAddressSpace)],
+            func_name : String = "main"
+           ) : (Block, List[CVarWithType]) = {
 
     //DotPrinter("whole",lambda)
     //DotPrinter.withNumbering("/home/lu/Downloads","sched_num",lambda)
@@ -383,7 +395,23 @@ object LowerIR2SchedCAST {
 
     val push_forloop_comment = Comment("Push all pointers and sizes to GPEs")
 
-    ( Block(Vector(boilerplate_code, FunctionPure("execute",VoidType(), param_list, (memory_alloc_code :+ push_forloop_comment :+ push_forloop ) :++ core_body_code ) ), global = true ), all_signature_cvars )
+    val boilerplate_code_final = isFakeTM match {
+      case true => boilerplate_code_faketm
+      case false => boilerplate_code
+    }
+
+    val func_name_final = isFakeTM match {
+      case true => "lift_" + func_name + "_sched"
+      case false => "main"
+    }
+
+    val func_return_type = isFakeTM match {
+      case true => VoidType()
+      case false => IntegerType()
+    }
+
+
+    ( Block(Vector(boilerplate_code_final, FunctionPure(func_name_final,func_return_type, param_list, (memory_alloc_code :+ push_forloop_comment :+ push_forloop ) :++ core_body_code ) ), global = true ), all_signature_cvars )
 
   }
 

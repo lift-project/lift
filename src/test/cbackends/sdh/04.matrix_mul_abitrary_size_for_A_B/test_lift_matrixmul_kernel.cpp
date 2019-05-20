@@ -1,24 +1,17 @@
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <stdint.h>
-#include <string.h>
-#include <bits/stdc++.h>
 
 using namespace std;
 
-#include "util.hpp"
+#include <math.h>
+#include <iostream>
+
+#include "TMRevere.hpp"
 
     ; 
 float multAndSumUp(float acc, float l, float r){
     { return acc + (l * r); }; 
 }
-int main(){
+void lift_matrixmul_kernel(int argc, vector<TMData *> argv){
     // Pop input, output pointers and sizes
     float * v_initial_param_1_12 = reinterpret_cast<float *>(GPEQ_POP());
     float * v_initial_param_2_13 = reinterpret_cast<float *>(GPEQ_POP());
@@ -32,10 +25,7 @@ int main(){
         if ((v_virtual_tile_id_88 < v_M_2)){
             {
                 for (int v_gpe_batch_89 = 0;(v_gpe_batch_89 <= (v_N_1 / 4)); (++v_gpe_batch_89)){
-                    
-                    __asm__ __volatile__ (
-                    "dmb\n\t"
-                    ); 
+                    ; 
                     int v_i_10 = GPEQ_POP();
                     if ((v_i_10 < v_N_1)){
                         // For each element reduced sequentially

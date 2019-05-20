@@ -59,7 +59,7 @@ object SDHCompiler extends CBackendsCompilerTrait{
                             func_name: String
                            ): List[SourceFile] = {
 
-    val tuple = LowerIR2SchedCAST(lambda, memoryDeclaredInSignature)
+    val tuple = LowerIR2SchedCAST(lambda, memoryDeclaredInSignature, func_name)
     val CAST = tuple._1
     val all_signature_cvars = tuple._2
 
@@ -77,7 +77,7 @@ object SDHCompiler extends CBackendsCompilerTrait{
     assert( kernel_lambda != null )
     assert( kernel_lambda_count == 1 )
 
-    val CAST_kernel = LowerIR2KernelCAST(kernel_lambda, all_signature_cvars)
+    val CAST_kernel = LowerIR2KernelCAST(kernel_lambda, all_signature_cvars, func_name)
 
     assert(files.length == 2)
     List(new SourceFile(path, files(0), CAST ), new SourceFile(path, files(1), CAST_kernel) )

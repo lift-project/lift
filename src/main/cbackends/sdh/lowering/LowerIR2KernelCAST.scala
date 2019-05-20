@@ -18,8 +18,24 @@ import ir.printer.DotPrinter
 
 object LowerIR2KernelCAST {
 
+  val isFakeTM : Boolean = true
+
+  val boilerplate_code_faketm = RawCode(
+    """
+      |
+      |using namespace std;
+      |
+      |#include <math.h>
+      |#include <iostream>
+      |
+      |#include "TMRevere.hpp"
+      |
+    """.stripMargin
+  )
+
   val boilerplate_code = RawCode(
     """
+      |
       |#include <stdio.h>
       |#include <stdlib.h>
       |#include <sys/types.h>
@@ -155,7 +171,12 @@ object LowerIR2KernelCAST {
     //val body_and_pop_guard = IfThenElseIm(cond, Block(Vector(body_block, push_finish_signal)), Block())
     val body_and_pop_guard = IfThenElseIm(cond, Block(Vector(body_block)), Block())
 
-    arg_block :+ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(wait_for_branch_predictor_cycle2, pop_gpe_id, body_and_pop_guard, push_finish_signal))   )))
+    val wait_for_branch_predictor_cycle_final = isFakeTM match {
+      case true => RawCode("")
+      case false => wait_for_branch_predictor_cycle2
+    }
+
+    arg_block :+ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(wait_for_branch_predictor_cycle_final, pop_gpe_id, body_and_pop_guard, push_finish_signal))   )))
     //arg_block :+ Block(Vector(ForLoopIm(init1, cond1, increment1, Block(Vector(pop_gpe_id, body_block , push_finish_signal))   )))
 
     //(arg_block :+ Comment("For each GPE. TODO: check if you can get this by API call instead of push and pop") :+ pop_gpe_id) :++ body_block_no_brackets
@@ -305,7 +326,7 @@ object LowerIR2KernelCAST {
       , global=true )
   }
 
-  def apply(lambda: Lambda, all_signature_cvars: List[CVarWithType]) : Block = {
+  def apply(lambda: Lambda, all_signature_cvars: List[CVarWithType], func_name: String = "main") : Block = {
 
     //DotPrinter("worker",lambda)
     //DotPrinter.withNumbering("/home/lu/Downloads","worker_num",lambda)
@@ -316,7 +337,27 @@ object LowerIR2KernelCAST {
 
     val core_body_code = generate(lambda)
 
-    Block( Vector(boilerplate_code, userfun_decl_code, FunctionPure("main", IntegerType(), List(), pop_top_level_parameters :++ core_body_code ) ), global = true)
+    val boilerplate_code_final = isFakeTM match {
+      case true => boilerplate_code_faketm
+      case false => boilerplate_code
+    }
+
+    val func_name_final = isFakeTM match {
+      case true => "lift_" + func_name + "_kernel"
+      case false => "main"
+    }
+
+    val func_return_type = isFakeTM match {
+      case true => VoidType()
+      case false => IntegerType()
+    }
+
+    val arg_list = isFakeTM match {
+      case true => List(ParamDeclPure("argc", IntegerType()), ParamDeclPure("argv", ClassOrStructType("vector", List(PointerType(ClassOrStructType("TMData"))))))
+      case false => List()
+    }
+
+    Block( Vector(boilerplate_code_final, userfun_decl_code, FunctionPure(func_name_final, func_return_type, arg_list, pop_top_level_parameters :++ core_body_code ) ), global = true)
 
   }
 

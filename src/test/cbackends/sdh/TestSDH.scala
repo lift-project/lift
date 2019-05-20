@@ -188,7 +188,7 @@ class TestSDH {
           )  o ToGPE() $ A
     )
 
-    SDHCompiler ! (f, path, List(sched_file, worker_file))
+    SDHCompiler ! (f, path, List(sched_file, worker_file), "matrixmul")
 
     (s"$path/sdh_demo.sh" ) !
 
