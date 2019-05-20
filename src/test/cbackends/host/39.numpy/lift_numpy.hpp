@@ -8,6 +8,7 @@
 #include <lift_numpy/libarcsin.cpp>
 #include <lift_numpy/liblift_frexp.cpp>
 #include <lift_numpy/libdegrees.cpp>
+#include <lift_numpy/libsum_axis_1.cpp>
 #include <lift_numpy/libangle_degree.cpp>
 #include <lift_numpy/libexp2.cpp>
 #include <lift_numpy/liblift_exp.cpp>

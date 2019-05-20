@@ -14,12 +14,12 @@ float sign_uf(float x){
 
 #endif
  ; 
-void sign(float * v_initial_param_888_391, float * & v_user_func_890_392, int v_N_0){
+void sign(float * v_initial_param_901_397, float * & v_user_func_903_398, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_890_392 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_903_398 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_390 = 0;(v_i_390 <= (-1 + v_N_0)); (++v_i_390)){
-        v_user_func_890_392[v_i_390] = sign_uf(v_initial_param_888_391[v_i_390]); 
+    for (int v_i_396 = 0;(v_i_396 <= (-1 + v_N_0)); (++v_i_396)){
+        v_user_func_903_398[v_i_396] = sign_uf(v_initial_param_901_397[v_i_396]); 
     }
 }
 }; 

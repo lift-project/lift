@@ -43,7 +43,8 @@ cat ./lift_numpy.hpp
 
 # g++ ./prod.cpp -I . && ./a.out && rm a.out
 # g++ ./sum.cpp -I . && ./a.out && rm a.out
-g++ ./sum_axis_0.cpp -I . && ./a.out && rm a.out
+# g++ ./sum_axis_0.cpp -I . && ./a.out && rm a.out
+g++ ./sum_axis_1.cpp -I . && ./a.out && rm a.out
 # g++ ./nanprod.cpp -I . && ./a.out && rm a.out
 # g++ ./nansum.cpp -I . && ./a.out && rm a.out
 # g++ ./cumprod.cpp -I . && ./a.out && rm a.out

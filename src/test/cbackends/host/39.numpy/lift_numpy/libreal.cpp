@@ -14,12 +14,12 @@ float real_uf(float x, float y){
 
 #endif
  ; 
-void real(Tuple2_float_float * v_initial_param_798_361, float * & v_user_func_804_362, int v_N_0){
+void real(Tuple2_float_float * v_initial_param_811_367, float * & v_user_func_817_368, int v_N_0){
     // Allocate memory for output pointers
-    v_user_func_804_362 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
+    v_user_func_817_368 = reinterpret_cast<float *>(malloc((v_N_0 * sizeof(float)))); 
     // For each element processed sequentially
-    for (int v_i_360 = 0;(v_i_360 <= (-1 + v_N_0)); (++v_i_360)){
-        v_user_func_804_362[v_i_360] = real_uf(v_initial_param_798_361[v_i_360]._0, v_initial_param_798_361[v_i_360]._1); 
+    for (int v_i_366 = 0;(v_i_366 <= (-1 + v_N_0)); (++v_i_366)){
+        v_user_func_817_368[v_i_366] = real_uf(v_initial_param_811_367[v_i_366]._0, v_initial_param_811_367[v_i_366]._1); 
     }
 }
 }; 
