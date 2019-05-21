@@ -666,6 +666,43 @@ class TestConcat
 
   }
 
+  // add 2D asym example
+  // TODO: this
+  @Ignore
+  @Test
+  def concatTwoMatricesMapGlb2DAsym(): Unit = {
+
+    val input = Array(Array(1.0f,2.0f,3.0f),Array(4.0f,5.0f,6.0f),Array(7.0f,8.0f,9.0f))
+    val gold = Array(Array(2.0f,4.0f,6.0f,4.0f,5.0f,6.0f),Array(8.0f,10.0f,12.0f,7.0f,8.0f,9.0f),Array(14.0f,16.0f,18.0f,10.0f,11.0f,12.0f)).flatten
+
+    // mapseq over array of 1s and multiply by 2
+    // mapseq over array of 1s and add 3
+    // concat the results
+
+    val mult2 = UserFun("mult2", "x", "{ return x*2; }", Float, Float)
+    val add3 = UserFun("add3", Array("x"), "{ return x+3; }", Seq(Float), Float)
+
+    def concat2D() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, SizeVar("M")), SizeVar("N")),
+      (input) =>
+        MapGlb(0)(
+          fun(inp => {
+            toGlobal(Concat(2))(MapSeq(mult2) $ inp, MapSeq(add3) $ inp )
+          } ))  $ input
+    )
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2D, input)
+
+    StencilUtilities.print2DArray(input)
+    StencilUtilities.print1DArray(gold)
+    StencilUtilities.print1DArrayAs2DArray(gold,input(0).length*2)
+    StencilUtilities.print1DArray(output)
+    StencilUtilities.print1DArrayAs2DArray(output,input(0).length*2)
+
+    assertArrayEquals(gold, output, TestConcatHelpers.delta)
+
+  }
+
   // add 3D example
   @Test
   def concatTwoCubesMapGlb3D(): Unit = {
@@ -710,43 +747,116 @@ class TestConcat
 
   }
 
+
   @Test
-  def concatTwoLinesOnXFaceMatrix() : Unit = {
+  def concatTwoLinesOnFaceMatrix() : Unit = {
 
-   val input = Array(Array(1.0f,2.0f,3.0f),Array(4.0f,5.0f,6.0f),Array(7.0f,8.0f,9.0f))
-   val gold = Array(Array(2.0f,4.0f,6.0f,4.0f,5.0f,6.0f),Array(8.0f,10.0f,12.0f,7.0f,8.0f,9.0f),Array(14.0f,16.0f,18.0f,10.0f,11.0f,12.0f)).flatten
+    val input = Array(Array(1.0f,2.0f,3.0f,4.0f),Array(5.0f,6.0f,7.0f,8.0f),Array(9.0f,10.0f,11.0f,12.0f))
+    val input2 = Array(Array(1.0f,1.0f,1.0f,2.0f,3.0f,4.0f),Array(1.0f,1.0f,5.0f,6.0f,7.0f,8.0f),Array(1.0f,1.0f,9.0f,10.0f,11.0f,12.0f))
+    val gold = Array(Array(2.0f,4.0f,6.0f,4.0f,5.0f,6.0f),Array(8.0f,10.0f,12.0f,7.0f,8.0f,9.0f),Array(14.0f,16.0f,18.0f,10.0f,11.0f,12.0f)).flatten
 
-   val sideA = Array(Array(1.3f,2.3f,3.3f))
-   val sideB = Array(Array(1.7f,2.7f,3.7f))
+    val sideA = Array(Array(1.3f,2.3f,3.3f))
+    val sideB = Array(Array(1.7f,2.7f,3.7f,4.7f))
+    val sideC = Array(Array(14.5f,21.2f,34.1f,67.1f,48.5f,89.9f))
+
+    def concat2DTransposedX() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.M),TestConcatHelpers.N),
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.N), 1),
+      (input,sideA) =>
+        Transpose() o
+          MapGlb(0)(
+            fun(zInp => {
+              val inp = Get(zInp,0)
+              val side = Get(zInp,1)
+              toGlobal(Concat(2))(MapSeq(id) /* o Transpose() */ $ ArrayFromExpr(inp), MapSeq(id) $ side )
+            } )) o PrintType() $ Zip( input,Transpose() $ sideA)
+    )
+
+    def concat2DTransposedY() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.M),TestConcatHelpers.N),
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.M), 1),
+      (input,sideB) =>
+        toGlobal(Concat(2))(MapSeq(MapSeq(id)) o PrintType() $ input, MapSeq(MapSeq(id)) o PrintType() $ sideB))
+
+    def concat2DTransposeXYtmp() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.M),TestConcatHelpers.N),
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.N), 1),
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.M+1), 1),
+      (input,sideA,sideC) =>
+        toGlobal(Concat(2))(
+          MapSeq(MapSeq(id)) o PrintType() $ sideC,
+          Concat(2)(MapSeq(MapSeq(id)) $ sideA,MapSeq(MapSeq(id)) o Transpose() $ input, MapSeq(MapSeq(id)) $ sideA ),
+/*         Transpose() o MapSeq(
+            fun(zInp => {
+              val inp = Get(zInp,0)
+              val side = Get(zInp,1)
+              toGlobal(Concat(2))( MapSeq(id) $ side, MapSeq(id) /* o Transpose() */ $ ArrayFromExpr(inp), MapSeq(id) $ side )
+            } )) o PrintType() $ Zip( input,Transpose() $ sideA),*/
+            MapSeq(MapSeq(id)) o PrintType() $ input,
+            /*MapSeq(MapSeq(id)) o PrintType() $ input,*/
+          MapSeq(MapSeq(id)) o PrintType() $ sideC))
 
 
-   def concat2D() = fun(
-     ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.N),TestConcatHelpers.M),
-     ArrayTypeWSWC(ArrayTypeWSWC( Float, 1), TestConcatHelpers.M),
-     (input,sideA) =>
-       MapGlb(0)(
-         fun(zInp => {
-           val inp = Get(zInp,0)
-           val side = Get(zInp,1)
-           toGlobal(Concat(2))(MapSeqUnroll(id) o PrintType() $ inp, MapSeq(id) $ side )
-         } ))  $ Zip(input,sideA)
-   )
+    // this works:
+    def concat2DTransposeXYNoTop() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.M),TestConcatHelpers.N),
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.N), 1),
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.M+2), 1),
+      (input,sideA,sideC) =>
+        toGlobal(Concat(2))(
+         // PrintType() o MapSeq(MapSeq(id)) $ sideC,
+                    MapGlb(0)(
+                      fun(zInp => {
+                        val inp = Get(zInp,0)
+                        val side = Get(zInp,1)
+                        toGlobal(Concat(3))( MapSeq(id) $ side, MapSeq(id) /* o Transpose() */ $ ArrayFromExpr(inp), MapSeq(id) $ side )
+                      } )) o PrintType() $ Zip( input,Transpose() $ sideA),
+//          MapSeq(MapSeq(id)) o PrintType() $ input,
+          MapSeq(MapSeq(id)) o PrintType() $ sideC))
 
-   val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2D, input)
+    // ***** THIS IS BROKEN *****
+    def concat2DTransposeXYNoBottom() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.M),TestConcatHelpers.N),
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.N), 1),
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.M+2), 1),
+      (input,sideA,sideC) =>
+        toGlobal(Concat(2))(
+          PrintType() o MapSeq(MapSeq(id)) $ sideC,
+          MapGlb(0)(
+            fun(zInp => {
+              val inp = Get(zInp,0)
+              val side = Get(zInp,1)
+              toGlobal(Concat(3))( MapSeq(id) $ side, MapSeq(id) /* o Transpose() */ $ ArrayFromExpr(inp), MapSeq(id) $ side )
+            } )) o PrintType() $ Zip( input,Transpose() $ sideA)))//,
 
-   StencilUtilities.print2DArray(input)
-   StencilUtilities.print1DArray(gold)
-   StencilUtilities.print1DArrayAs2DArray(gold,input(0).length*2)
-   StencilUtilities.print1DArray(output)
-   StencilUtilities.print1DArrayAs2DArray(output,input(0).length*2)
 
-   assertArrayEquals(gold, output, TestConcatHelpers.delta)
+    val (outputX : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2DTransposedX(), input,sideA)
+    val (outputY : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2DTransposedY(), input,sideB)
+    val (outputXYnoTop : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2DTransposeXYNoTop(), input,sideA,sideC)
+    val (outputXYnoBottom : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2DTransposeXYNoBottom(), input,sideA,sideC)
+
+    println(input.length)
+    println("**********************")
+    StencilUtilities.print2DArray(input)
+    println("**********************")
+    StencilUtilities.print1DArrayAs2DArray(outputX,input(0).length+1)
+    StencilUtilities.print1DArrayAs2DArray(outputY,input(0).length)
+    StencilUtilities.print1DArrayAs2DArray(outputXYnoTop,input(0).length+2)
+    StencilUtilities.print1DArrayAs2DArray(outputXYnoBottom,input(0).length+2)
+    println("**********************")
+
+    StencilUtilities.print1DArray(gold)
+    StencilUtilities.print1DArrayAs2DArray(gold,input(0).length*2)
+
+    assertArrayEquals(gold, outputX, TestConcatHelpers.delta)
+
 
  }
 
   // add 2D halo around 3D cube
   // ( does not work yet !!)
   // then add ones for YFace and ZFace
+  @Ignore
   @Test
   def concatTwoMatricesOnXFace3DCube(): Unit = {
 
