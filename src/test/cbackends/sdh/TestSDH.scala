@@ -505,7 +505,7 @@ class TestSDH {
     val path = s"$common_path/05.lift_numpy"
 
     val func_names = List(
-      "lift_sin" , "cos", "tan"/*, "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
+      "lift_sin" , "cos", "tan", "arcsin", "arccos", "arctan" /*, "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
       "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",
       "around", "round_", "rint", "fix", "lift_floor", "ceil", "trunc",
       "prod", "sum", "sum_axis_0", "sum_axis_1",  "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient", "cross", "trapz",
@@ -536,9 +536,12 @@ class TestSDH {
     val cos_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(cos)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
     //val tan_f = fun( array, MapSeq( tan ) $ _ )
     val tan_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(cos)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
-    val arcsin_f = fun( array, MapSeq( arcsin ) $ _ )
-    val arccos_f = fun( array, MapSeq( arccos ) $ _ )
-    val arctan_f = fun( array, MapSeq( arctan ) $ _ )
+    //val arcsin_f = fun( array, MapSeq( arcsin ) $ _ )
+    val arcsin_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(arcsin)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
+    //val arccos_f = fun( array, MapSeq( arccos ) $ _ )
+    val arccos_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(arccos)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
+    //val arctan_f = fun( array, MapSeq( arctan ) $ _ )
+    val arctan_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(arctan)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
     val hypot_f = fun( array, array, MapSeq( fun( y => hypot.apply(Get(y,0), Get(y,1)) )  ) $ Zip(_,_) )
     val arctan2_f = fun( array, array, MapSeq( arctan ) o MapSeq( fun( y => div.apply(Get(y,0), Get(y,1)) )  ) $ Zip(_,_) )
     val degrees_f = fun( array, MapSeq( degrees ) $ _ )
@@ -682,7 +685,7 @@ class TestSDH {
     )
 
     val all_funcs = List(
-      sin_f, cos_f, tan_f /*, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
+      sin_f, cos_f, tan_f , arcsin_f, arccos_f, arctan_f/*, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
       around_f, round__f, rint_f, fix_f, floor_f, ceil_f, trunc_f,
       prod_f, sum_f, sum_axis_0_f, sum_axis_1_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f, cross_f, trapz_f,
