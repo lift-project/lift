@@ -535,7 +535,7 @@ class TestSDH {
     //val cos_f = fun( array, MapSeq( cos ) $ _ )
     val cos_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(cos)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
     //val tan_f = fun( array, MapSeq( tan ) $ _ )
-    val tan_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(cos)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
+    val tan_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(tan)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
     //val arcsin_f = fun( array, MapSeq( arcsin ) $ _ )
     val arcsin_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(arcsin)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
     //val arccos_f = fun( array, MapSeq( arccos ) $ _ )
