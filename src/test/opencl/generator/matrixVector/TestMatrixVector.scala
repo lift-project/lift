@@ -3,7 +3,7 @@ package opencl.generator.matrixVector
 import benchmarks.MatrixVector
 import ir._
 import ir.ast._
-import lift.arithmetic.{ArithExpr, Log, SizeVar}
+import lift.arithmetic._
 import opencl.executor._
 import opencl.generator.AllocateLocalMemoryStatically
 import opencl.ir._

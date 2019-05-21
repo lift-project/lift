@@ -1,3 +1,3 @@
 resolvers += Classpaths.sbtPluginReleases
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.0.4")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.1")

@@ -7,8 +7,8 @@ import opencl.executor.Decoder.DecodeTypes.DecodeType
 import opencl.executor.Executor.ExecutorFailureException
 import opencl.executor._
 import opencl.generator.Verbose
-import org.clapper.argot.ArgotConverters._
-import org.clapper.argot._
+import _root_.utils.CommandLineParser
+import scopt.OParser
 
 import scala.collection.immutable
 import scala.reflect.ClassTag
@@ -86,20 +86,9 @@ abstract class Benchmark[T: ClassTag](val name: String,
 
   /* Size information for the benchmark */
   def inputSizes(): Seq[Int] = {
-    if (size.value.length == defaultInputSizes.length) size.value else defaultInputSizes
+    if (cmdArgs.get.size.length == defaultInputSizes.length) cmdArgs.get.size else defaultInputSizes
   }
 
-  protected def localSize: Array[Int] = {
-    val localSizes = defaultLocalSizes.clone()
-    localSizeOpt.value.copyToArray(localSizes)
-    localSizes
-  }
-
-  protected def globalSize: Array[Int] = {
-    val globalSizes = Array(inputSizes().product, 1, 1)
-    globalSizeOpt.value.copyToArray(globalSizes)
-    globalSizes
-  }
 
   /*
     Inheritable functions for printing runtime information - such as git stuff
@@ -109,13 +98,13 @@ abstract class Benchmark[T: ClassTag](val name: String,
   def printBenchmarkHeader(configuration: BenchmarkConfiguration,
                            variants: Seq[(Int, String, Array[Lambda])]) : Unit = {
         val commit = "git rev-parse HEAD".!!.trim
-        val branch = "git rev-parse --abbrev-ref HEAD".!!.trim
+        val branch = "git rev-parse abbrev-ref HEAD".!!.trim
         val date = "date".!!.trim
         val dce = System.getenv("LIFT_DCE") != null
         val cse = System.getenv("LIFT_CSE") != null
 
-    //    if (csvFileName.value.isDefined)
-    //      printCSVFile(csvFileName.value.get, kernel, commit, branch, date, dce, cse)
+    //    if (csvFileName.isDefined)
+    //      printCSVFile(csvFileName.get, kernel, commit, branch, date, dce, cse)
 
         println(date)
         println("Benchmark: " + name + ", variant(s): " +
@@ -125,10 +114,10 @@ abstract class Benchmark[T: ClassTag](val name: String,
         println("Common Subexpression Extraction: " + cse)
         println("Total trials: " + configuration.trials)
         println("Checking results: " + configuration.checkResult)
-        println("Global sizes: " + globalSize.mkString(", "))
-        println("Local sizes: " + localSize.mkString(", "))
-        println("Inject local: " + injectLocal.value.getOrElse(false))
-        println("Inject global: " + injectGroup.value.getOrElse(false))
+        println("Global sizes: " + cmdArgs.get.globalSize.mkString(", "))
+        println("Local sizes: " + cmdArgs.get.localSize.mkString(", "))
+        println("Inject local: " + cmdArgs.get.injectLocal)
+        println("Inject global: " + cmdArgs.get.injectGroup)
         println("Platform: " + Executor.getPlatformName)
         println("Device: " + Executor.getDeviceName)
         printParams()
@@ -214,13 +203,13 @@ abstract class Benchmark[T: ClassTag](val name: String,
   /*
     Run a benchmark instance - i.e. a specific variant of a benchmark
     Usually this will only be called once (e.g. with variantOpt set), but it may be called for multiple variants
-    (e.g. with --all or --variantRegex), hence it should not set state.
+    (e.g. with all or variantRegex), hence it should not set state.
   */
   def runBenchmarkInstance(variant: Int, name: String, lambdas: Array[Lambda],
                            inputs: Array[Any], expectedResult: SRes,
                            configuration: BenchmarkConfiguration) : InstanceStatistic = {
-    val kernel = if (loadKernel.value.isDefined)
-      loadKernel.value.get.replaceAll("(.*?/)*", "")
+    val kernel = if (cmdArgs.get.loadKernel.isDefined)
+      cmdArgs.get.loadKernel.get.replaceAll("(.*?/)*", "")
     else "generated"
 
     lambdas.length match {
@@ -251,9 +240,9 @@ abstract class Benchmark[T: ClassTag](val name: String,
                       variant: Int,
                       name: String,
                       configuration: BenchmarkConfiguration) : String = {
-    val kernelSource = if (loadKernel.value.isDefined || loadAll.value.getOrElse(false)) {
-      val kFileName = if (loadKernel.value.isDefined) {
-        loadKernel.value.get
+    val kernelSource = if (cmdArgs.get.loadKernel.isDefined || cmdArgs.get.loadAll) {
+      val kFileName = if (cmdArgs.get.loadKernel.isDefined) {
+        cmdArgs.get.loadKernel.get
       } else {
         s".kernels/${name}.kernel"
       }
@@ -262,25 +251,25 @@ abstract class Benchmark[T: ClassTag](val name: String,
       val KS = (configuration.injectLocal, configuration.injectGroup) match {
         case (true, false) => Compile(
           lambda,
-          localSize(0),
-          localSize(1),
-          localSize(2)
+          cmdArgs.get.localSize(0),
+          cmdArgs.get.localSize(1),
+          cmdArgs.get.localSize(2)
         )
         case (true, true) => Compile(
           lambda,
-          localSize(0),
-          localSize(1),
-          localSize(2),
-          globalSize(0),
-          globalSize(1),
-          globalSize(2),
+          cmdArgs.get.localSize(0),
+          cmdArgs.get.localSize(1),
+          cmdArgs.get.localSize(2),
+          cmdArgs.get.globalSize(0),
+          cmdArgs.get.globalSize(1),
+          cmdArgs.get.globalSize(2),
           immutable.Map()
         )
         case _ => Compile(lambda)
       }
 
       // if we want to save the compilation result, do it
-      if (saveAll.value.getOrElse(false)) {
+      if (cmdArgs.get.saveAll) {
         rewriting.utils.DumpToFile.dumpToFile(KS, s"${name}.kernel", ".kernels")
       }
       KS
@@ -303,12 +292,12 @@ abstract class Benchmark[T: ClassTag](val name: String,
     var kernelSource = getKernelSource(lambda, variant, name, configuration)
 
     val (unprocessed_output, runtimes : Array[Double]) = Execute(
-      localSize(0),
-      localSize(1),
-      localSize(2),
-      globalSize(0),
-      globalSize(1),
-      globalSize(2),
+      cmdArgs.get.localSize(0),
+      cmdArgs.get.localSize(1),
+      cmdArgs.get.localSize(2),
+      cmdArgs.get.globalSize(0),
+      cmdArgs.get.globalSize(1),
+      cmdArgs.get.globalSize(2),
       (configuration.injectLocal, configuration.injectGroup)
     ).benchmark[T](configuration.trials, configuration.timeout, kernelSource, lambda, inputs: _*)
 
@@ -376,7 +365,7 @@ abstract class Benchmark[T: ClassTag](val name: String,
         Actually run the lambdas - inlined from the old "runOpenCL" function
        */
       var realInputs = inputs
-      val realGlobalSizes = globalSize
+      val realGlobalSizes = cmdArgs.get.globalSize
       var totalRuntime = 0.0
       var finalOutput: Array[T] = Array.ofDim[T](1)
 
@@ -384,18 +373,18 @@ abstract class Benchmark[T: ClassTag](val name: String,
         if(i == 0)
           kernels(j) = Utils.compile(lambdas(j),
             realInputs,
-            localSize(0),
-            localSize(1),
-            localSize(2),
+            cmdArgs.get.localSize(0),
+            cmdArgs.get.localSize(1),
+            cmdArgs.get.localSize(2),
             realGlobalSizes(0),
             realGlobalSizes(1),
             realGlobalSizes(2),
             (configuration.injectLocal, configuration.injectGroup))
 
         val (kOutput, kRuntime) = Execute(
-          localSize(0),
-          localSize(1),
-          localSize(2),
+          cmdArgs.get.localSize(0),
+          cmdArgs.get.localSize(1),
+          cmdArgs.get.localSize(2),
           realGlobalSizes(0),
           realGlobalSizes(1),
           realGlobalSizes(2),
@@ -441,12 +430,13 @@ abstract class Benchmark[T: ClassTag](val name: String,
   def run(args: Array[String]) : Unit = {
     try {
       println("Parsing arguments.")
-      parser.parse(args)
+
+      cmdArgs = Some(CommandLineParser(parser, args, Config()))
 
       println("Loading Executor.")
       Executor.loadLibrary()
-      Executor.init(platform.value.getOrElse(0), device.value.getOrElse(0))
-      Verbose(verbose.value.getOrElse(false))
+      Executor.init(cmdArgs.get.platform, cmdArgs.get.device)
+      Verbose(cmdArgs.get.verbose)
 
       val gitHash = "git rev-parse HEAD".!!.trim()
       val nowString = java.time.LocalDateTime.now().toString()
@@ -454,13 +444,13 @@ abstract class Benchmark[T: ClassTag](val name: String,
       println("Initialising Configuration.")
       // initialise a configuration object that we can pass around cheaply
       val configuration = new BenchmarkConfiguration (
-        checkResult = checkResultOpt.value.getOrElse(false),
-        printResult = printResultOpt.value.getOrElse(false),
-        trials = trialsOpt.value.getOrElse(10),
-        timeout = if (timeoutOpt.value.isDefined) timeoutOpt.value.get.toDouble else Double.MaxValue,
-        injectLocal = injectLocal.value.getOrElse(false),
-        injectGroup = injectGroup.value.getOrElse(false),
-        experimentID = experimentIDOpt.value.getOrElse(gitHash + "-" + nowString)
+        checkResult = cmdArgs.get.checkResult,
+        printResult = cmdArgs.get.printResult,
+        trials = cmdArgs.get.trials,
+        timeout = if (cmdArgs.get.timeout.isDefined) cmdArgs.get.timeout.get.toDouble else Double.MaxValue,
+        injectLocal = cmdArgs.get.injectLocal,
+        injectGroup = cmdArgs.get.injectGroup,
+        experimentID = cmdArgs.get.experimentID.getOrElse(gitHash + "-" + nowString)
       )
 
       println("Generating Inputs.")
@@ -477,10 +467,10 @@ abstract class Benchmark[T: ClassTag](val name: String,
       //  - all - which should select all variants (priority 1)
       //  - variantRegex - which should select variants with names matching a regex (priority 2)
       //  - variant - which selects a specific variant (numerically)
-      if (!all.value.getOrElse(false)) { // all not defined
-        if (variantRegex.value != None) { // a regex is defined
-          val VariantPattern = variantRegex.value.getOrElse(".*").r
-          val nr = negateRegex.value.getOrElse(false)
+      if (!cmdArgs.get.all) { // all not defined
+        if (cmdArgs.get.variantRegex != None) { // a regex is defined
+          val VariantPattern = cmdArgs.get.variantRegex.r
+          val nr = cmdArgs.get.negateRegex
           variants = variants.filter { case (variant, name, lambdas) =>
             name match {
               case VariantPattern() => !nr
@@ -488,7 +478,7 @@ abstract class Benchmark[T: ClassTag](val name: String,
             }
           }
         } else { // use the variantOpt
-          variants = Seq(variants(variantOpt.value.getOrElse(0)))
+          variants = Seq(variants(cmdArgs.get.variant))
         }
       }
 
@@ -504,8 +494,8 @@ abstract class Benchmark[T: ClassTag](val name: String,
         val preProcessedInputs = preProcessInputs(variant, name, inputs).toArray
         val instanceResult = runBenchmarkInstance(variant, name, newLambdas, preProcessedInputs, scalaResult, configuration)
         println(s"Results for ${variant}/${name}")
-//        println(s"  -- time (ms): ${time}")
-//        println(s"  -- correctness: ${correctness}")
+//        println(s"   time (ms): ${time}")
+//        println(s"   correctness: ${correctness}")
 
         // print out an SQL statement for the instance, inserting the results
         println("INSTANCE SQL: " + buildInstanceSQLHeader() +
@@ -524,7 +514,6 @@ abstract class Benchmark[T: ClassTag](val name: String,
       Executor.shutdown()
 
     } catch {
-      case e: ArgotUsageException => println(e.message)
       case x: ExecutorFailureException => x.printStackTrace()//; printMedianAndBandwidth(0,0)
     }
   }
@@ -532,17 +521,17 @@ abstract class Benchmark[T: ClassTag](val name: String,
   private final def getScalaResult(inputs: Seq[Any], configuration: BenchmarkConfiguration) : SRes = {
     val scalaRes = runScala(inputs)
     if (configuration.checkResult) {
-      if (loadOutput.value.isEmpty) {
+      if (cmdArgs.get.loadOutput.isEmpty) {
 
-        if (saveOutput.value.isDefined) {
-          val oos = new ObjectOutputStream(new FileOutputStream(saveOutput.value.get))
+        if (cmdArgs.get.saveOutput.isDefined) {
+          val oos = new ObjectOutputStream(new FileOutputStream(cmdArgs.get.saveOutput.get))
           oos.writeObject(scalaRes)
           oos.close()
         }
 
         scalaRes
       } else {
-        val ois = new ObjectInputStream(new FileInputStream(loadOutput.value.get))
+        val ois = new ObjectInputStream(new FileInputStream(cmdArgs.get.loadOutput.get))
         val readResult = ois.readObject()
         ois.close()
         readResult.asInstanceOf[SRes]
@@ -608,99 +597,122 @@ abstract class Benchmark[T: ClassTag](val name: String,
   // Configuration options etc for the command line interface
     ===================================================================================================================
    */
+  case class Config(trials: Int = 10,
+                    platform: Int = 0,
+                    device: Int = 0,
+                    saveOutput: Option[String] = None,
+                    loadOutput: Option[String] = None,
+                    localSize: Array[Int] = defaultLocalSizes,
+                    globalSize: Array[Int] = Array(inputSizes().product, 1, 1),
+                    loadKernel: Option[String] = None,
+                    saveAll: Boolean = false,
+                    loadAll: Boolean = false,
+                    csvFileName: Option[String] = None,
+                    size: List[Int] = null,
+                    verbose: Boolean = false,
+                    variant: Int = 0,
+                    variantRegex: String = ".*",
+                    negateRegex: Boolean = false,
+                    all: Boolean = false,
+                    timeout: Option[Int] = None,
+                    checkResult: Boolean = false,
+                    printResult: Boolean = false,
+                    injectLocal: Boolean = false,
+                    injectGroup: Boolean = false,
+                    experimentID: Option[String] = None,
+                    input: File = null)
 
-  val parser = new ArgotParser(name)
+  val builder = OParser.builder[Config]
+  var cmdArgs: Option[Config] = None
+  val parser = {
+    import builder._
+    OParser.sequence(
+      programName("Benchmark"),
+      opt[Int]('i', "trials").text("Total iterations (Default: 10)")
+        .action((arg, c) => c.copy(trials = arg)),
 
-  val trialsOpt = parser.option[Int](List("i", "trials"), "n",
-    "Total trials (Default: 10)")
+      opt[Int]('p', "platform").text("Id of the OpenCL platform to use (Default: 0)")
+        .action((arg, c) => c.copy(platform = arg)),
 
-  val platform = parser.option[Int](List("p", "platform"), "platId",
-    "Id of the OpenCL platform to use (Default: 0)")
+      opt[Int]('d', "device").text("Id of the OpenCL device to use (Default: 0)")
+        .action((arg, c) => c.copy(device = arg)),
 
-  val device = parser.option[Int](List("d", "device"), "devId",
-    "Id of the OpenCL device to use (Default: 0)")
+      opt[String]("saveOutput").text("Save the gold result of the computation to a file")
+        .action((arg, c) => c.copy(saveOutput = Some(arg))),
 
-  val saveOutput = parser.option[String](List("saveOutput"), "filename",
-    "Save the gold result of the computation to a file")
+      opt[String]("loadOutput").text("Load the gold result of the computation from a file. Takes precedence over saveOutput")
+        .action((arg, c) => c.copy(loadOutput = Some(arg))),
 
-  val loadOutput = parser.option[String](List("loadOutput"), "filename",
-    "Load the gold result of the computation from a file. Takes precedence over saveOutput")
+      opt[Seq[Int]]('l', "localSize").text("Local size(s) to use " +
+        "(Defaults: " + defaultLocalSizes.mkString(", ") + ")")
+        .action((arg, c) => c.copy(localSize = arg.toArray))
+        .minOccurs(3).maxOccurs(3),
 
-  val localSizeOpt = parser.multiOption[Int](List("l", "localSize"), "lclSize",
-    "Local size(s) to use (Defaults: " + defaultLocalSizes.mkString(", ") + ")")
+      opt[Seq[Int]]('g', "globalSize").text("Global size(s) to use")
+        .action((arg, c) => c.copy(globalSize = arg.toArray))
+        .minOccurs(3).maxOccurs(3),
 
-  val globalSizeOpt = parser.multiOption[Int](List("g", "globalSize"), "glbSize",
-    "Global size(s) to use")
+      opt[String]("loadKernel").text("Load an OpenCL kernel source file")
+        .action((arg, c) => c.copy(loadKernel = Some(arg))),
 
-  val loadKernel = parser.option[String](List("loadKernel"), "filename",
-    "Load an OpenCL kernel source file")
+      // TODO: Implement kernel saving/loading functionality.
+      opt[Unit]("save-kernels").text("Save all kernels.")
+        .action((_, c) => c.copy(saveAll = true)),
 
-  // TODO: Implement kernel saving/loading functionality.
-  val saveAll = parser.flag[Boolean](List("save-kernels"),
-    "Save all kernels.")
+      opt[Unit]("load-kernels").text("Load kernel for execution previously generated using -save-kernels")
+        .action((_, c) => c.copy(loadAll = true)),
 
-  val loadAll = parser.flag[Boolean](List("load-kernels"),
-    "Load kernel for execution previously generated using --save-kernels")
+      opt[String]("csvFileName").abbr("csv").text("If specified, results are stored in .csv file with given name")
+        .action((arg, c) => c.copy(csvFileName = Some(arg))),
 
-  val csvFileName = parser.option[String](List("csv"), "csvFileName",
-    "If specified, results are stored in .csv file with given name")
+      opt[Seq[Int]]('s', "inputSize").text("Size of the input to use, expecting ${defaultInputSizes.length}%d sizes.")
+        .required()
+        .action((arg, c) => c.copy(size = arg.toList))
+        .minOccurs(defaultInputSizes.length).maxOccurs(defaultInputSizes.length),
 
-  val size = parser.multiOption[Int](List("s", "size"), "inputSize",
-    "Size of the input to use, expecting " + defaultInputSizes.length + " sizes.")
+      opt[Unit]('v', "verbose").text("Print allocated memory and source code")
+        .action((_, c) => c.copy(verbose = true)),
 
-  val verbose = parser.flag[Boolean](List("v", "verbose"),
-    "Print allocated memory and source code")
+      opt[Int]("variant").abbr("var").text("Which of the following variants to run (Default: 0):\n" +
+        f.zipWithIndex.map(x => x._2 + " = " + x._1._1).mkString("\n"))
+        .action((arg, c) => c.copy(variant = arg)),
 
-  val variantOpt = parser.option[Int](List("variant"), "var",
-    "Which of the following variants to run (Default: 0):\n" + f.zipWithIndex.map(x => x._2 + " = " + x._1._1).mkString("\n"))
+      opt[String]("variant-regex").abbr("var-regex").text("Which variant(s) to run, based on a regular expression")
+        .action((arg, c) => c.copy(variantRegex = arg)),
 
-  val variantRegex = parser.option[String](List("variant-regex"), "var-regex",
-    "Which variant(s) to run, based on a regular expression")
+      opt[Unit]("negate-regex").abbr("nr").text("Negate the regular expression matching variants, " +
+        "i.e. only select variants which do not match the regex")
+        .action((_, c) => c.copy(negateRegex = true)),
 
-  val negateRegex = parser.flag[Boolean](List("negate-regex", "nr"),
-    "Negate the regular expression matching variants, i.e. only select variants which do not match the regex")
+      opt[Unit]('a', "all").text("Run all variants, takes precedence over the variant option.")
+        .action((_, c) => c.copy(all = true)),
 
-  val all = parser.flag[Boolean](List("a", "all"),
-    "Run all variants, takes precedence over the variant option.")
+      opt[Int]('t', "timeout").text("If the kernel execution is longer than time, ignore any remaining trials.")
+        .action((arg, c) => c.copy(timeout = Some(arg))),
 
-  val timeoutOpt = parser.option[Int](List("t", "timeout"), "time",
-    "If the kernel execution is longer than time, ignore any remaining trials.")
+      opt[Unit]('c', "check").text("Check the result")
+        .action((_, c) => c.copy(checkResult = true)),
 
-  val checkResultOpt = parser.flag[Boolean](List("c", "check"),
-    "Check the result")
+      opt[Unit]("print").text("Print the result")
+        .action((_, c) => c.copy(printResult = true)),
 
-  val printResultOpt = parser.flag[Boolean](List("print"),
-    "Print the result")
+      opt[Unit]("inject").abbr("il").text("Inject the local size into the kernel as a constant, " +
+        "possibly replacing some for loops with if statements.")
+        .action((_, c) => c.copy(injectLocal = true)),
 
-  val injectLocal = parser.flag[Boolean](List("il", "inject"),
-    "Inject the local size into the kernel as a constant, " +
-      "possibly replacing some for loops with if statements.")
+      opt[Unit]("injectGroup").abbr("ig").text("Inject the number of groups into the kernel as a constant, " +
+        "possibly replacing some for loops with if statements.")
+        .action((_, c) => c.copy(injectGroup = true)),
 
-  val injectGroup = parser.flag[Boolean](List("ig", "injectGroup"),
-    "Inject the number of groups into the kernel as a constant, " +
-      "possibly replacing some for loops with if statements.")
+      opt[String]("experimentId").abbr("eid").text("A unique ID for this experiement for reporting data")
+        .action((arg, c) => c.copy(experimentID = Some(arg))),
 
-  val experimentIDOpt = parser.option[String](List("eid", "experimentId"), "experimentId",
-    "A unique ID for this experiement for reporting data")
+      opt[File]("input").text("Input files to read")
+        .required()
+        .action((arg, c) => c.copy(input = arg))
+        .validate(f => if (f.exists) success else failure("File \"" + f.getName + "\" does not exist")),
 
-  val help = parser.flag[Boolean](List("h", "help"),
-    "Show this message.") {
-    (sValue, opt) =>
-      parser.usage()
-      sValue
-  }
-
-  val input = parser.multiParameter[File]("input",
-    "Input files to read. If not " +
-      "specified, generate randomly",
-    optional = true) {
-    (s, opt) =>
-
-      val file = new File(s)
-      if (! file.exists)
-        parser.usage("Input file \"" + s + "\" does not exist")
-
-      file
-  }
+      help("help").text("Show this message.")
+    )}
 
 }
