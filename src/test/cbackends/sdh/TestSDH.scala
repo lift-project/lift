@@ -505,7 +505,7 @@ class TestSDH {
     val path = s"$common_path/05.lift_numpy"
 
     val func_names = List(
-      "lift_sin", "cos", "tan", "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
+      "lift_sin" , "cos", "tan"/*, "arcsin", "arccos", "arctan", "hypot", "arctan2", "degrees", "radians", "deg2rad", "rad2deg",
       "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",
       "around", "round_", "rint", "fix", "lift_floor", "ceil", "trunc",
       "prod", "sum", "sum_axis_0", "sum_axis_1",  "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient", "cross", "trapz",
@@ -519,7 +519,7 @@ class TestSDH {
       "angle_radian", "angle_degree", "real", "imag", "conj",
 
       "convolve", //"clip"
-      "sqrt", "cbrt", "square", "absolute", "fabs", "sign", "maximum", "minimum", "fmax", "fmin", "interp"
+      "sqrt", "cbrt", "square", "absolute", "fabs", "sign", "maximum", "minimum", "fmax", "fmin", "interp" */
     )
 
     //val files = func_names.map("lib" + _ + ".cpp")
@@ -530,9 +530,12 @@ class TestSDH {
     val array_t2 = ArrayType(TupleType(Float, Float) , N)
     val array_t3 = ArrayType(TupleType(Float, Float, Float) , N)
 
-    val sin_f = fun( array, MapSeq( sin ) $ _ )
-    val cos_f = fun( array, MapSeq( cos ) $ _ )
-    val tan_f = fun( array, MapSeq( tan ) $ _ )
+    //val sin_f = fun( array, MapSeq( sin ) $ _ )
+    val sin_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(sin)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
+    //val cos_f = fun( array, MapSeq( cos ) $ _ )
+    val cos_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(cos)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
+    //val tan_f = fun( array, MapSeq( tan ) $ _ )
+    val tan_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(cos)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
     val arcsin_f = fun( array, MapSeq( arcsin ) $ _ )
     val arccos_f = fun( array, MapSeq( arccos ) $ _ )
     val arctan_f = fun( array, MapSeq( arctan ) $ _ )
@@ -679,7 +682,7 @@ class TestSDH {
     )
 
     val all_funcs = List(
-      sin_f, cos_f, tan_f, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
+      sin_f, cos_f, tan_f /*, arcsin_f, arccos_f, arctan_f, hypot_f, arctan2_f, degrees_f, radians_f, deg2rad_f, rad2deg_f,
       sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
       around_f, round__f, rint_f, fix_f, floor_f, ceil_f, trunc_f,
       prod_f, sum_f, sum_axis_0_f, sum_axis_1_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f, cross_f, trapz_f,
@@ -693,7 +696,7 @@ class TestSDH {
       angle_radian_f, angle_degree_f, real_f, imag_f, conj_f,
 
       convolve_f, //clip_f,
-      sqrt_f, cbrt_f, square_f, absolute_f, fabs_f, sign_f, maximum_f, minimum_f, fmax_f, fmin_f, interp_f
+      sqrt_f, cbrt_f, square_f, absolute_f, fabs_f, sign_f, maximum_f, minimum_f, fmax_f, fmin_f, interp_f */
     )
 
     (s"mkdir -p $path") !
@@ -701,7 +704,7 @@ class TestSDH {
     (func_names zip all_funcs).foreach {
       case (func_name, func) => SDHCompiler ! (func, path,
         List( "test_lift_" + func_name + "_sched_lib.hpp" ,
-              "test_lib_" + func_name + "_kernel.cpp"), func_name)
+              "test_lift_" + func_name + "_kernel.cpp"), func_name)
     }
 
 

@@ -1911,5 +1911,51 @@ class TestHost {
 
   }
 
+  @Test
+  def test_split_on_variable(): Unit = {
+
+    val path = s"$common_path/40.split_on_variable"
+    val file = "libsplit_on_variable.cpp"
+
+    val f = fun( ArrayType(Float, N),
+      //in => MapSeq( incrementF ) $ in
+      in => MapSeq( MapSeq( incrementF ) ) o Split(N/2) $ in
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_map done!")
+
+  }
+
+  @Test
+  def test_temp(): Unit = {
+
+    val path = s"$common_path/40.split_on_variable"
+    val file = "libsplit_on_variable.cpp"
+
+    val f = fun( ArrayType(Float, N),
+      //in => MapSeq( incrementF ) $ in
+      in => MapSeq( Join() o MapSeq( MapSeq(incrementF) ) o Split(2) ) o Split(8) $ in
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_map done!")
+
+  }
+
 
 }
