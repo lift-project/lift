@@ -44,20 +44,6 @@ object FinalMemoryAllocationAnalysis {
           mem_of_args_input_and_output ++ intermediate_global_mem
 
 
-          val intermediate_global_mem: Seq[(String, (CVarWithType, ArithExpr, OpenCLAddressSpace))] = (fc.f match {
-            case cfc: CPUFunContainer => cfc.intermediateGlobalMem
-            case ofc: OclFunContainer => ofc.intermediateGlobalMem
-            case _ => Seq()
-          }).map(buf =>
-            buf.mem.variable.toString -> (
-              CVarWithType(buf.mem.variable.toString,
-                TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(buf.t), true ) ),
-              Type.getElementCount(buf.t),
-              buf.mem.addressSpace))
-
-          mem_of_args_input_and_output ++ intermediate_global_mem
-
-
       case fc@FunCall(r:AbstractPartRed, args@_*) =>
         val args_map = args.map(analyze(_)).reduce( _ ++ _ )
         val args_body_map = args_map ++ analyze(r.f.body)
