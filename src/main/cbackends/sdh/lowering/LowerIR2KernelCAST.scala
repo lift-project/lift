@@ -2,7 +2,7 @@ package cbackends.sdh.lowering
 
 
 import core.generator.GenericAST._
-import ir.ArrayTypeWSWC
+import ir.{ArrayTypeWSWC, TupleType, Type}
 import ir.ast.{AbstractPartRed, Expr, FunCall, Get, IDGenerator, IRNode, Join, Lambda, Split, UserFun, Value}
 import opencl.generator.OpenCLAST.OclCode
 
@@ -304,9 +304,17 @@ object LowerIR2KernelCAST {
         case _ => ()
       }
 
-    val all_user_decl = all_userfunc.map(createFunctionDefinition).toVector
+    val all_user_decl = all_userfunc.map(createFunctionDefinition)
 
-    Block(all_user_decl, global = true)
+    val all_user_decl_with_incl_guard: Vector[Block] = all_user_decl.toVector.map(
+      //Block(Vector(RawCode(pre1 = "#ifndef GRANDPARENT_H", pre2 = "#define GRANDPARENT_H", code = " "), _, RawCode("#endif") ), global = true)
+      func => Block( Vector(RawCode(pre1 = s"#ifndef ${func.name.toUpperCase}_H", pre2 = s"#define ${func.name.toUpperCase}_H"), func, RawCode(post1 = "#endif", post2 = " ")) ,  global = true)
+
+    )
+
+    Block(all_user_decl_with_incl_guard, global = true)
+
+    //Block(all_user_decl, global = true)
 
 
   }
@@ -333,6 +341,8 @@ object LowerIR2KernelCAST {
 
     val userfun_decl_code = generateUserFunDecl(lambda)
 
+    val tuple_decl_code = generateTupleDecl(lambda)
+
     val pop_top_level_parameters = generatePopTopLevelParameters(all_signature_cvars)
 
     val core_body_code = generate(lambda)
@@ -357,7 +367,7 @@ object LowerIR2KernelCAST {
       case false => List()
     }
 
-    Block( Vector(boilerplate_code_final, userfun_decl_code, FunctionPure(func_name_final, func_return_type, arg_list, pop_top_level_parameters :++ core_body_code ) ), global = true)
+    Block( Vector(boilerplate_code_final, tuple_decl_code, userfun_decl_code, FunctionPure(func_name_final, func_return_type, arg_list, pop_top_level_parameters :++ core_body_code ) ), global = true)
 
   }
 
@@ -369,6 +379,33 @@ object LowerIR2KernelCAST {
       case ArrayTypeWSWC(_, _, s) => s
       case _ => throw new Exception("Only wswc supported")
     }
+  }
+
+  private def generateTupleDecl(lambda: Lambda) : Block = {
+
+    val mutable_result = mutable.Set.empty[TupleType]
+    lambda visitBy {
+      case FunCall(uf: UserFun, _*) =>
+        mutable_result ++= uf.tupleTypes
+      case _ =>
+    }
+    val result = mutable_result.toSet
+
+    val all_tuple_decl = result.map(TypeDefHost(_)).toVector
+    val all_tuple_decl_with_incl_guard = all_tuple_decl.map(
+      td => Block( Vector(RawCode(pre1 = s"#ifndef ${Type.name(td.t).toUpperCase}_H", pre2 = s"#define ${Type.name(td.t).toUpperCase}_H"), td, RawCode(post1 = "#endif", post2 = " ")) , global = true)
+    )
+
+    Block(all_tuple_decl_with_incl_guard, global = true)
+
+
+    /*
+    val all_user_decl_with_incl_guard: Vector[Block] = all_user_decl.toVector.map(
+      //Block(Vector(RawCode(pre1 = "#ifndef GRANDPARENT_H", pre2 = "#define GRANDPARENT_H", code = " "), _, RawCode("#endif") ), global = true)
+      func => Block( Vector(RawCode(pre1 = s"#ifndef ${func.name.toUpperCase}_H", pre2 = s"#define ${func.name.toUpperCase}_H"), func, RawCode(post1 = "#endif")) ,  global = true)
+
+    )*/
+
   }
 
 

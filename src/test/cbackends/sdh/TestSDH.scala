@@ -454,11 +454,11 @@ class TestSDH {
     Seq(Double), Double)
 
   val absolute = UserFun("absolute_uf", Array("x"),
-    "{ return abs(x); }",
+    "{ return x>=0? x : x * (-1.0); }",
     Seq(Double), Double)
 
   val fabs = UserFun("fabs_uf", Array("x"),
-    "{ return abs(x); }",
+    "{ return x>=0? x : x * (-1.0); }",
     Seq(Double), Double)
 
   val sign = UserFun("sign_uf", Array("x"),
@@ -515,10 +515,10 @@ class TestSDH {
       "prod", "sum", "sum_axis_0", "sum_axis_1",  "nanprod", "nansum", "cumprod", "cumsum", "nancumprod", "nancumsum", "diff", "ediff1d", "gradient", "cross", "trapz",
       */"lift_exp", "expm1", "exp2", "lift_log", "lift_log10", "lift_log2", "log1p",/* "logaddexp", "logaddexp2",*/
       "sinc",
-      "signbit",/* "copysign",*/ "lift_frexp"/*, "ldexp", "nextafter",
+      "signbit"/*, "copysign", "lift_frexp", "ldexp", "nextafter",
 
       "add"*/, "reciprocal", "positive", "negative"/*, "multiply", "divide", "power", "subtract", "true_divide", "floor_divide", "float_power",
-      "fmod", "mod"*/, "modf"/*, "lift_remainder", "divmod",
+      "fmod", "mod", "modf", "lift_remainder", "divmod",
 
       "angle_radian", "angle_degree", "real", "imag", "conj",
 
@@ -650,8 +650,9 @@ class TestSDH {
     //val signbit_f = fun( array, MapSeq(signbit) $ _ )
     val signbit_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(signbit)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
     val copysign_f = fun( array, array, (A,B) => MapSeq( fun(y => copysign.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
-    //val frexp_f = fun( array, MapSeq(frexp) $ _ )
-    val frexp_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(frexp)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
+    //uf return tuple, not simple map
+    val frexp_f = fun( array, MapSeq(frexp) $ _ )
+    //val frexp_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(frexp)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
     val ldexp_f = fun( array, array, (A,B) => MapSeq( fun(y => ldexp.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
     //TODO: can not find its math def
     //val spacing_f =
@@ -673,8 +674,8 @@ class TestSDH {
     val float_power_f = power_f
     val fmod_f = fun( array, array, (A,B) => MapSeq( fun(y => fmod.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
     val mod_f = fmod_f
-    //val modf_f = fun( array, MapSeq(modf) $ _ )
-    val modf_f = fun( array, ToLCP() o MapTile( Join() o MapGPE( TMKernel(MapSeq(modf)) ) o Split(2) ) o Split(8) o ToGPE() $ _ )
+    //return tuple, not simple map
+    val modf_f = fun( array, MapSeq(modf) $ _ )
     val remainder_f = fun( array, array, (A,B) => MapSeq( fun(y => remainder.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
     val divmod_f = fun( array, array, (A,B) => MapSeq( fun(y => divmod.apply(Get(y, 0), Get(y,1))) ) $ Zip(A,B) )
 
@@ -723,15 +724,15 @@ class TestSDH {
 
     val all_funcs = List(
       sin_f, cos_f, tan_f , arcsin_f, arccos_f, arctan_f/*, hypot_f, arctan2_f*/, degrees_f, radians_f, deg2rad_f, rad2deg_f,
-      sinh_f, cosh_f, tanh_f, arcsinh_f, arccos_f, arctanh_f,
+      sinh_f, cosh_f, tanh_f, arcsinh_f, arccosh_f, arctanh_f,
       around_f, round__f, rint_f, fix_f, floor_f, ceil_f, trunc_f,/*
       prod_f, sum_f, sum_axis_0_f, sum_axis_1_f, nanprod_f, nansum_f, cumprod_f, cumsum_f, nancumprod_f, nancumsum_f, diff_f, ediff1d_f, gradient_f, cross_f, trapz_f,
       */exp_f, expm1_f, exp2_f, log_f, log10_f, log2_f, log1p_f,/* logaddexp_f, logaddexp2_f, */
       sinc_f,
-      signbit_f,/* copysign_f, */ frexp_f/*, ldexp_f, nextafter_f,
+      signbit_f,/* copysign_f, frexp_f, ldexp_f, nextafter_f,
 
-      add_f*/, reciprocal_f, positive_f, negative_f/*, multiply_f, divide_f, power_f, subtract_f, true_divide, floor_divide, float_power_f,
-      fmod_f, mod_f*/, modf_f/*, remainder_f, divmod_f,
+      add_f,*/ reciprocal_f, positive_f, negative_f/*, multiply_f, divide_f, power_f, subtract_f, true_divide, floor_divide, float_power_f,
+      fmod_f, mod_f, modf_f, remainder_f, divmod_f,
 
       angle_radian_f, angle_degree_f, real_f, imag_f, conj_f,
 
