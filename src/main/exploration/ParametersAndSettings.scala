@@ -65,10 +65,10 @@ object LocalMemoryRulesSettings {
                           configAddIdMapWrg: Option[Boolean],
                           configAddIdAfterReduce: Option[Boolean]
                         ) = LocalMemoryRulesSettings(
-    getValue(cmdArgs.get.addIdForCurrentValueInReduce, configAddIdAfterReduce, defaultAddIdForCurrentValueInReduce),
-    getValue(cmdArgs.get.addIdMapLcl, configAddIdMapLcl, defaultAddIdMapLcl),
-    getValue(cmdArgs.get.addIdMapWrg, configAddIdMapWrg, defaultAddIdMapWrg),
-    getValue(cmdArgs.get.addIdAfterReduce, configAddIdAfterReduce, defaultAddIdAfterReduce))
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.addIdForCurrentValueInReduce) else None, configAddIdAfterReduce, defaultAddIdForCurrentValueInReduce),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.addIdMapLcl) else None, configAddIdMapLcl, defaultAddIdMapLcl),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.addIdMapWrg) else None, configAddIdMapWrg, defaultAddIdMapWrg),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.addIdAfterReduce) else None, configAddIdAfterReduce, defaultAddIdAfterReduce))
 }
 
 case class ParameterRewriteSettings(
@@ -124,11 +124,11 @@ object ParameterRewriteSettings {
                           configSequential: Option[Boolean],
                           configGenerateScala: Option[Boolean]
                         ) = ParameterRewriteSettings(
-    getValue(cmdArgs.get.exploreNDRange, configExploreNDRange, defaultExploreNDRange),
-    getValue(cmdArgs.get.sampleNDRange, configSampleNDRange, defaultSampleNDRange),
-    getValue(cmdArgs.get.disableNDRangeInjection, configDisableNDRangeInjection, defaultDisableNDRangeInjection),
-    getValue(cmdArgs.get.sequential, configSequential, defaultSequential),
-    getValue(cmdArgs.get.generateScala, configGenerateScala, defaultGenerateScala))
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.exploreNDRange) else None, configExploreNDRange, defaultExploreNDRange),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.sampleNDRange) else None, configSampleNDRange, defaultSampleNDRange),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.disableNDRangeInjection) else None, configDisableNDRangeInjection, defaultDisableNDRangeInjection),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.sequential) else None, configSequential, defaultSequential),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.generateScala) else None, configGenerateScala, defaultGenerateScala))
 }
 
 case class MemoryMappingRewriteSettings(
@@ -224,19 +224,19 @@ object MemoryMappingRewriteSettings {
                           configGroup01: Option[Boolean],
                           configGroup10: Option[Boolean]
                         ) = MemoryMappingRewriteSettings(
-    getValue(cmdArgs.get.vectorize, configVectorize, defaultVectorize),
-    getValue(cmdArgs.get.vectorWidth, configVectorWidth, defaultVectorWidth),
-    getValue(cmdArgs.get.sequential, configSequential, defaultSequential),
-    getValue(cmdArgs.get.loadBalancing, configLoadBalancing, defaultLoadBalancing),
-    getValue(cmdArgs.get.unrollReduce, configUnrollReduce, defaultUnrollReduce),
-    getValue(cmdArgs.get.global0, configGlobal0, defaultGlobal0),
-    getValue(cmdArgs.get.global01, configGlobal01, defaultGlobal01),
-    getValue(cmdArgs.get.global10, configGlobal10, defaultGlobal10),
-    getValue(cmdArgs.get.global012, configGlobal012, defaultGlobal012),
-    getValue(cmdArgs.get.global210, configGlobal210, defaultGlobal210),
-    getValue(cmdArgs.get.group0, configGroup0, defaultGroup0),
-    getValue(cmdArgs.get.group01, configGroup01, defaultGroup01),
-    getValue(cmdArgs.get.group10, configGroup10, defaultGroup10))
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.vectorize) else None, configVectorize, defaultVectorize),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.vectorWidth) else None, configVectorWidth, defaultVectorWidth),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.sequential) else None, configSequential, defaultSequential),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.loadBalancing) else None, configLoadBalancing, defaultLoadBalancing),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.unrollReduce) else None, configUnrollReduce, defaultUnrollReduce),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.global0) else None, configGlobal0, defaultGlobal0),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.global01) else None, configGlobal01, defaultGlobal01),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.global10) else None, configGlobal10, defaultGlobal10),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.global012) else None, configGlobal012, defaultGlobal012),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.global210) else None, configGlobal210, defaultGlobal210),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.group0) else None, configGroup0, defaultGroup0),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.group01) else None, configGroup01, defaultGroup01),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.group10) else None, configGroup10, defaultGroup10))
 }
 
 
@@ -309,14 +309,14 @@ object HighLevelRewriteSettings {
                           configRuleCollection: Option[String]
                         ) = HighLevelRewriteSettings(
     // priority: 1) command-line args; 2) config-file; 3) default values
-    getValue(cmdArgs.get.explorationDepth, configExplorationDepth, defaultExplorationDepth),
-    getValue(cmdArgs.get.depthFilter, configDepthFilter, defaultDepthFilter),
-    getValue(cmdArgs.get.distanceFilter, configDistanceFilter, defaultDistanceFilter),
-    getValue(cmdArgs.get.ruleRepetition, configRuleRepetition, defaultRuleRepetition),
-    getValue(cmdArgs.get.vectorWidth, configVectorWidth, defaultVectorWidth),
-    getValue(cmdArgs.get.sequential, configSequential, defaultSequential),
-    getValue(cmdArgs.get.onlyLower, configOnlyLower, defaultOnlyLower),
-    getValue(cmdArgs.get.ruleCollection, configRuleCollection, defaultRuleCollection))
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.explorationDepth) else None, configExplorationDepth, defaultExplorationDepth),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.depthFilter) else None, configDepthFilter, defaultDepthFilter),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.distanceFilter) else None, configDistanceFilter, defaultDistanceFilter),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.ruleRepetition) else None, configRuleRepetition, defaultRuleRepetition),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.vectorWidth) else None, configVectorWidth, defaultVectorWidth),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.sequential) else None, configSequential, defaultSequential),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.onlyLower) else None, configOnlyLower, defaultOnlyLower),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.ruleCollection) else None, configRuleCollection, defaultRuleCollection))
 }
 
 object SearchParameters {
