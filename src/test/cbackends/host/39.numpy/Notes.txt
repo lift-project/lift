@@ -1,0 +1,4 @@
++ around: this has a bit complicated rule,
+          for 0.5, 1.5, rounds to even number,
+	  for others, it is like round to the nearest decimal
+	  which can be odd.

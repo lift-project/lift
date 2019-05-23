@@ -9,7 +9,7 @@ namespace lift {;
 #define SIGN_UF_H
 ; 
 float sign_uf(float x){
-    { return x>=0?1:-1; }; 
+    { return x==0? 0: ( x< 0 ? -1 : 1 ); }; 
 }
 
 #endif

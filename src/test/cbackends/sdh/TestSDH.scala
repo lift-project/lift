@@ -462,7 +462,7 @@ class TestSDH {
     Seq(Double), Double)
 
   val sign = UserFun("sign_uf", Array("x"),
-    "{ return x>=0?1:-1; }",
+    "{ return x==0? 0: ( x< 0 ? -1 : 1 ); }",
     Seq(Double), Double)
 
   //val heaviside
