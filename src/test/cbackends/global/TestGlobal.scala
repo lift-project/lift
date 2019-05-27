@@ -534,7 +534,8 @@ class TestGlobal {
     //GlobalCompiler ! (f, path, List(file))
 
     import java.io.PrintWriter
-    new PrintWriter("/home/lu/Documents/Research/research_original_data/YearlyData/2019/002.ONNX/3.c++_example/1.NaumsExample/3.v3/kernel.cl") { write(opencl_string); close }
+    val dir = "." //"/home/lu/Documents/Research/research_original_data/YearlyData/2019/002.ONNX/3.c++_example/1.NaumsExample/3.v3/"
+    new PrintWriter(dir + "kernel.cl") { write(opencl_string); close }
 
 
     //val actual : String = native_compile_and_run(path, file)
@@ -691,6 +692,7 @@ class TestGlobal {
     println("Test case test_slide_hello done!")
   }
 
+  @Ignore // TODO: refactor for regression testing (e.g. provide the lambdas to compile)
   @Test
   def batch_code_generate_for_cases_paper(): Unit = {
 
@@ -712,7 +714,7 @@ class TestGlobal {
     val totalTuningPoints = 1 //2000
     val tuningPointBatchSize = 1//200
     val nLayers = 13
-    val fuseLambdas: Boolean = true
+    val fuseLambdas: Boolean = false
     val null_local_ranges: Boolean = false
 
     for {tuningPointBatch <- 0 until totalTuningPoints / tuningPointBatchSize}
