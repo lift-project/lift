@@ -7,7 +7,7 @@ import lift.arithmetic.{ArithExpr, Cst, Var}
 import opencl.executor.{Compile, Execute, Executor}
 import opencl.ir.id
 import org.junit.Assert.assertEquals
-import org.junit.{BeforeClass, Test}
+import org.junit.{BeforeClass, Ignore, Test}
 import patterns.nn.conv.ConvStencil3D
 import patterns.nn.conv.ConvStencil3D.{ConvStencil3DLayerConfig, ConvStencil3DRewriteParams, ConvStencil3DTuneParams}
 import patterns.nn.utils.Utils.slidingOutputSize
@@ -148,6 +148,7 @@ class TestConvStencil3D {
       tuneParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(tuneParamsExample) ++
       rewriteParamVars.paramVector.filter(_.isInstanceOf[Var]).zip(rewriteParamVarsExamples)).toMap
 
+  @Ignore
   @Test
   def testScalaConvSanityCheck(): Unit = {
     val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars)
@@ -169,6 +170,7 @@ class TestConvStencil3D {
   }
 
 
+  @Ignore
   @Test
   def testBothLsSanityCheck(): Unit = {
     val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars)
@@ -195,6 +197,7 @@ class TestConvStencil3D {
   }
 
 
+  @Ignore
   @Test
   def test1stLSanityCheck(): Unit = {
     val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars)
@@ -438,6 +441,7 @@ class TestConvStencil3D {
   }
 
 
+  @Ignore
   @Test
   def test1stLOnBiggerExample(): Unit = {
     // TODO: this is a long test (20 seconds on integrated Intel GPU, worth reducing it or moving to the long tests)
@@ -469,6 +473,7 @@ class TestConvStencil3D {
     test1stLAgainstScalaVersion(layerConfig, tuneParams, rewriteParams)
   }
 
+  @Ignore
   @Test
   def testBothLsAndScalaOnBiggerExample(): Unit = {
     // TODO: this is a long test (20 seconds on integrated Intel GPU, worth reducing it or moving to the long tests)
@@ -500,6 +505,7 @@ class TestConvStencil3D {
     testBothLsAndScalaAgainstScalaVersion(layerConfig, tuneParams, rewriteParams)
   }
 
+  @Ignore
   @Test
   def testBothLsOnBiggerExample(): Unit = {
     // TODO: this is a long test (20 seconds on integrated Intel GPU, worth reducing it or moving to the long tests)
