@@ -19,12 +19,12 @@ object PoolCPU3D {
     val steps = p.strides
     assert(steps.length == 3)
 
-    CPUFunc( MapSeq( MapSeq ( dividedBy(counts) )) o
+    CPUFunc( MapSeq(MapSeq( MapSeq ( dividedBy(counts) )) o
         Join() o MapSeq( MapSeq( Join() o MapSeq(
         fun( y =>
           ReduceSeq(add, 0.0f) o
             Join() o Join() $ y )
-      ) ) ) o Slide3D_R(kernel_shape(0),steps(0),kernel_shape(1),steps(1),kernel_shape(2),steps(2)) ) $ in
+      ) ) ) o Slide3D_R(kernel_shape(0),steps(0),kernel_shape(1),steps(1),kernel_shape(2),steps(2)) )) $ in
   }
 
 }

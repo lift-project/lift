@@ -176,9 +176,9 @@ package object rewriting {
   }
 
   val onnxLoweringRules = Seq(
-    //      NeuralNetRules.ONNXLoweringRules.convWithoutBiasAsCPUFunc,
-    NeuralNetRules.ONNXLoweringRules.convWithBiasAsStencil//,
-    //      NeuralNetRules.ONNXLoweringRules.averagePoolAsCPUFunc
+    NeuralNetRules.ONNXLoweringRules.convWithoutBiasAsCPUFunc,
+    NeuralNetRules.ONNXLoweringRules.convWithBiasAsStencil,
+    NeuralNetRules.ONNXLoweringRules.averagePoolAsCPUFunc
   )
 
 }

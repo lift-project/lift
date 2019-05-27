@@ -48,7 +48,9 @@ abstract class Conv(arity: Int,
       kCGroupSize * group == iC &&
       // Check actual kernel spatial dimensions shape if corresponding parameter is specified
       (kernelShape.isEmpty ||
-        Type.getLengths(spatialWeightDimsT).zip(kernelShape).forall(sizePair => sizePair._1.eval == sizePair._2))
+        Type.getLengths(spatialWeightDimsT).dropRight(1).zip(
+          kernelShape.slice(Conv.firstSpatialDimension, kernelShape.length)).
+          forall(sizePair => sizePair._1.eval == sizePair._2.eval))
   }
 
 
@@ -88,8 +90,8 @@ case class ConvWithoutBias private(override val autoPad: String,
     argType match {
       // X, W and B
       case TupleType(
-      xT@ArrayTypeWS(ArrayTypeWS(ArrayType(spatialInputDimsT), iC), iN),
-      wT@ArrayTypeWS(ArrayTypeWS(ArrayType(spatialWeightDimsT), kCGroupSize), wM))
+      xT@ArrayTypeWS(ArrayTypeWS(spatialInputDimsT, iC), iN),
+      wT@ArrayTypeWS(ArrayTypeWS(spatialWeightDimsT, kCGroupSize), wM))
         if verifyWType(kCGroupSize, iC, spatialInputDimsT, spatialWeightDimsT) =>
 
         computeOutType(iN, kCGroupSize, spatialInputDimsT, spatialWeightDimsT)
