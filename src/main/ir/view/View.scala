@@ -47,8 +47,9 @@ case class AccessVar(array: Var, idx: ArithExpr, r: Range = RangeUnknown, overri
  * Variable storing a casted pointer.
  * `CastedPointer(v, type, offset)` generates the following C code: `((type*)(v + offset))`
  */
-case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpace: OpenCLAddressSpace)
-  extends ExtensibleVar("") {
+case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpace: OpenCLAddressSpace,
+                         override val fixedId: Option[Long] = None)
+  extends ExtensibleVar("", RangeUnknown, fixedId) {
 
   override def copy(r: Range): CastedPointer = {
     CastedPointer(ptr.copy(ptr.range), ty, offset, addressSpace)
@@ -77,7 +78,8 @@ case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpa
  *
  * array[SizeIndex()]  ==  array.size
  */
-case class SizeIndex() extends ExtensibleVar("SIZE", RangeUnknown, None) {
+case class SizeIndex(override val fixedId: Option[Long] = None)
+  extends ExtensibleVar("SIZE", RangeUnknown, fixedId) {
   override def copy(r: Range) = SizeIndex()
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = f(SizeIndex())
@@ -841,7 +843,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
           case at: ArrayType =>
             val idx :: indices = arrayAccessStack
             idx match {
-              case SizeIndex() => getSize(acc, at)
+              case _: SizeIndex => getSize(acc, at)
               case _ =>
                 val newAcc = getElementAt(acc, at, idx, tupleAccessStack)
                 generate(newAcc, at.elemT, indices, tupleAccessStack)
