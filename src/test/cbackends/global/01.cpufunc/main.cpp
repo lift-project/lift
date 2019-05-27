@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 	vector<float> in(N*M,1.0f);
 	float *out = nullptr;
 
-	execute(in.data(), out, M, N);
+	lift::execute(in.data(), out, M, N);
 
 	copy(out,out+N*M, ostream_iterator<float>(cout, " "));
 	std::cout << std::endl;

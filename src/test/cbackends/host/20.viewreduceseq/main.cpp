@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 	vector<float> in(N*N,1.0f);
 	float *out = nullptr;
 
-	execute(in.data(), out, N);
+	lift::execute(in.data(), out, N);
 
 	copy(out,out+1, ostream_iterator<float>(cout, " "));
 	std::cout << std::endl;

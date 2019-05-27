@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 
         /* std::cout << "output size = " << (-8 + (-6 * (int)pow((float)N, 2)) + (12 * N) + (int)pow((float)N, 3)) << std::endl; */
 
-	execute(in.data(), weights.data(), out);
+	lift::execute(in.data(), weights.data(), out);
 
 	copy(out,out+output_N*output_N*1, ostream_iterator<float>(cout, " "));
 	std::cout << std::endl;
