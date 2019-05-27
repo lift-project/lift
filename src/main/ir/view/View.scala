@@ -34,6 +34,8 @@ case class AccessVar(array: Var, idx: ArithExpr, r: Range = RangeUnknown, overri
 
   override def copy(r: Range): AccessVar = AccessVar(array.copy(array.range), idx, r, Some(id))
 
+  override def cloneSimplified() = new AccessVar(array, idx, r, fixedId) with SimplifiedExpr
+
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(AccessVar(
       array.visitAndRebuild(f).asInstanceOf[Var],
@@ -54,6 +56,8 @@ case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpa
   override def copy(r: Range): CastedPointer = {
     CastedPointer(ptr.copy(ptr.range), ty, offset, addressSpace)
   }
+
+  override def cloneSimplified() = new CastedPointer(ptr, ty, offset, addressSpace, fixedId) with SimplifiedExpr
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(CastedPointer(
@@ -81,6 +85,8 @@ case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpa
 case class SizeIndex(override val fixedId: Option[Long] = None)
   extends ExtensibleVar("SIZE", RangeUnknown, fixedId) {
   override def copy(r: Range) = SizeIndex()
+
+  override def cloneSimplified() = new SizeIndex(fixedId) with SimplifiedExpr
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = f(SizeIndex())
 }

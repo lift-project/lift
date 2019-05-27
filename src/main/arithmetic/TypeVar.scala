@@ -8,8 +8,10 @@ import scala.collection.{immutable, mutable}
 import scala.language.implicitConversions
 
 /** a special variable that should only be used for defining function type*/
-class TypeVar protected[arithmetic](range : Range, fixedId: Option[Long] = None) extends ExtensibleVar("", range, fixedId) {
+class TypeVar private(range : Range, fixedId: Option[Long] = None) extends ExtensibleVar("", range, fixedId) {
   override def copy(r: Range) = new TypeVar(r, Some(id))
+
+  override def cloneSimplified() = new TypeVar(range, fixedId) with SimplifiedExpr
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(new TypeVar(range.visitAndRebuild(f), Some(id)))
