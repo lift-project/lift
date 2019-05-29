@@ -714,7 +714,7 @@ class TestGlobal {
     val totalTuningPoints = 1 //2000
     val tuningPointBatchSize = 1//200
     val nLayers = 13
-    val fuseLambdas: Boolean = false
+    val fuseLambdas: Boolean = true
     val null_local_ranges: Boolean = false
 
     for {tuningPointBatch <- 0 until totalTuningPoints / tuningPointBatchSize}
@@ -724,79 +724,76 @@ class TestGlobal {
         for {tuningId <- (tuningPointBatch * tuningPointBatchSize) until ((tuningPointBatch + 1) * tuningPointBatchSize)} {//000..200, 200..400, 400..600, 600..800, 800..1000
         //for {tuningId <- 317 until 1000} {
 
-        val file0 = common_file_name0 + layerConfigId + "_" + tuningId + ".scala"
-        val file1 = common_file_name1 + layerConfigId + "_" + tuningId + ".scala"
-        val file2 = common_file_name2 + layerConfigId + "_" + tuningId + ".scala"
-        val file3 = common_file_name3 + layerConfigId + "_" + tuningId + ".scala"
+          val file0 = common_file_name0 + layerConfigId + "_" + tuningId + ".scala"
+          val file1 = common_file_name1 + layerConfigId + "_" + tuningId + ".scala"
+          val file2 = common_file_name2 + layerConfigId + "_" + tuningId + ".scala"
+          val file3 = common_file_name3 + layerConfigId + "_" + tuningId + ".scala"
 
 
 
-        //ndrange is in the reversed order of c++ enqueneNDRange
-        val (ndranges0: (/*local*/NDRange, /*global*/NDRange), gpu_fun0: Lambda) = Eval.eval(readFromFile(file0)).
-          asInstanceOf[((NDRange, NDRange), Lambda)]
-        val (ndranges1: (/*local*/NDRange, /*global*/NDRange), gpu_fun1: Lambda) = Eval.eval(readFromFile(file1)).
-          asInstanceOf[((NDRange, NDRange), Lambda)]
-        val (ndranges2: (/*local*/NDRange, /*global*/NDRange), gpu_fun2: Lambda) = Eval.eval(readFromFile(file2)).
-          asInstanceOf[((NDRange, NDRange), Lambda)]
-        val (ndranges3: (/*local*/NDRange, /*global*/NDRange), gpu_fun3: Lambda) = Eval.eval(readFromFile(file3)).
-          asInstanceOf[((NDRange, NDRange), Lambda)]
+          //ndrange is in the reversed order of c++ enqueneNDRange
+          val (ndranges0: (/*local*/NDRange, /*global*/NDRange), gpu_fun0: Lambda) = Eval.eval(readFromFile(file0)).
+            asInstanceOf[((NDRange, NDRange), Lambda)]
+          val (ndranges1: (/*local*/NDRange, /*global*/NDRange), gpu_fun1: Lambda) = Eval.eval(readFromFile(file1)).
+            asInstanceOf[((NDRange, NDRange), Lambda)]
+          val (ndranges2: (/*local*/NDRange, /*global*/NDRange), gpu_fun2: Lambda) =
+            if (fuseLambdas) /*dummy*/ Eval.eval(readFromFile(file1)).asInstanceOf[((NDRange, NDRange), Lambda)]
+            else Eval.eval(readFromFile(file2)).asInstanceOf[((NDRange, NDRange), Lambda)]
+          val (ndranges3: (/*local*/NDRange, /*global*/NDRange), gpu_fun3: Lambda) = Eval.eval(readFromFile(file3)).
+            asInstanceOf[((NDRange, NDRange), Lambda)]
 
 
-        //Compile(gpu_fun0, ndranges0._1, ndranges0._2)
+          //Compile(gpu_fun0, ndranges0._1, ndranges0._2)
 
-        val whole_fun = fun(
-          gpu_fun1.params(0).t,
-          gpu_fun2.params(0).t,
-          gpu_fun0.params(0).t,
+          val whole_fun = fun(
+            gpu_fun1.params(0).t,
+            if (fuseLambdas) gpu_fun1.params(1).t else gpu_fun2.params(0).t,
+            gpu_fun0.params(0).t,
 
-          if (!fuseLambdas)
-            (p_k, p_b, p_x) => ToHost() $
-              OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
-                OclFunc(gpu_fun2, (if (null_local_ranges) null else ndranges2._1, ndranges2._2)/*ndranges2*/,
-                  cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
-                  OclFunc( gpu_fun1, (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges1*/,
-                    cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
-                    OclFunc( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x)))
-          else
-            (p_k, p_b, p_x) => ToHost() $
-              OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
-                OclFunc(
-                  fun((k, b, x) => gpu_fun2(b, gpu_fun1(k, x))),
-                  (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges2*/,
-                  cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_b,
+            if (!fuseLambdas)
+              (p_k, p_b, p_x) => ToHost() $
+                OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
+                  OclFunc(gpu_fun2, (if (null_local_ranges) null else ndranges2._1, ndranges2._2)/*ndranges2*/,
+                    cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
+                    OclFunc( gpu_fun1, (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges1*/,
+                      cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
+                      OclFunc( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x)))
+            else
+//              (p_k, p_b, p_x) => ToHost() $
+//                OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
+//                  OclFunc(
+//                    fun((k, b, x) => gpu_fun2(b, gpu_fun1(k, x))),
+//                    (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges2*/,
+//                    cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_b,
+//                    OclFunc( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x))
+              (p_k, p_b, p_x) => ToHost() $
+                OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
+                  OclFunc(
+                    fun((k, b, x) => gpu_fun1(k, b, x)),
+                    (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges2*/,
+                    cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_b,
                     OclFunc( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x))
-        )
+          )
 
 
+          //("mkdir -p " + s"$path" ) !!
 
-        //      val whole_fun = fun(
-        //        gpu_fun0.params(0).t,
-        //
-        //        (p_x) => ToHost() o
-        //            OclFunc( gpu_fun0 , ndranges0, gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x
-        //      )
+          //("mkdir -p " + s"$generated_c_path" ) !!
 
+          val path_with_config = generated_c_path + layerConfigId + "/" + tuningId
+          ("mkdir -p " + s"$path_with_config") !!
+          val file_with_config = "libhost.cpp"
 
-        //("mkdir -p " + s"$path" ) !!
+          println("[Log]: compiling for "+path_with_config)
 
-        //("mkdir -p " + s"$generated_c_path" ) !!
+          GlobalCompiler ! (whole_fun, path_with_config, List(file_with_config))
 
-        val path_with_config = generated_c_path + layerConfigId + "/" + tuningId
-        ("mkdir -p " + s"$path_with_config") !!
-        val file_with_config = "libhost.cpp"
-
-        println("[Log]: compiling for "+path_with_config)
-
-        GlobalCompiler ! (whole_fun, path_with_config, List(file_with_config))
-
+        }
       }
-    }
 
 
     println("Test done!")
 
   }
-
-
 
 }
