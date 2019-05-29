@@ -113,7 +113,6 @@ class TestRewriteNbody {
     assertArrayEquals(gold, output, 0.001f)
   }
 
-  @Ignore // TODO: fix the bug before merging to master
   @Test
   def partialReduceWithReorderNoRace(): Unit = {
 

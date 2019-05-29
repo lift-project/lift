@@ -47,6 +47,7 @@ class TestMPI {
   }*/
 
 
+  @Ignore
   @Test
   def test_mpi_bcast(): Unit = {
 
