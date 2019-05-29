@@ -34,7 +34,7 @@ class TestMatrixVector {
 
     val f = factory(Seq[ArithExpr](M,N, 128))
 
-    println(ScalaPrinter(f))
+    println(ScalaPrinter()(f))
 
     Compile(f, 128,1,1,128*4096,1,1,scala.collection.immutable.Map[ArithExpr,ArithExpr](M -> 4096, N -> 4096))
   }
@@ -57,7 +57,7 @@ class TestMatrixVector {
     val N = SizeVar("N")
 
     val f = factory(Seq[ArithExpr](M,N, 128))
-    println(ScalaPrinter(f))
+    println(ScalaPrinter()(f))
 
     Compile(f, 128,1,1,128*4096,1,1,scala.collection.immutable.Map[ArithExpr,ArithExpr](M -> 4096, N -> 4096))
   }

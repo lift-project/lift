@@ -32,7 +32,7 @@ class SequencesForMacroRules {
     val g = Rewrite.applyRuleAtId(f0, 0, ReuseRules.tileMapMap)
 
     assertEquals(TypeChecker(g), TypeChecker(f4))
-    assertEquals(dumpLambdaToString(g), dumpLambdaToString(f4))
+    assertEquals(dumpLambdaToString(g, printNonFixedVarIds = false), dumpLambdaToString(f4, printNonFixedVarIds = false))
   }
 
   @Test
@@ -52,7 +52,7 @@ class SequencesForMacroRules {
     val g = Rewrite.applyRuleAtId(f0, 0, ReuseRules.apply1DRegisterBlocking)
 
     assertEquals(TypeChecker(g), TypeChecker(f3))
-    assertEquals(dumpLambdaToString(g), dumpLambdaToString(f3))
+    assertEquals(dumpLambdaToString(g, printNonFixedVarIds = false), dumpLambdaToString(f3, printNonFixedVarIds = false))
   }
 
   @Test
@@ -75,6 +75,6 @@ class SequencesForMacroRules {
     val g = Rewrite.applyRuleAtId(f0, 0, ReuseRules.apply2DRegisterBlockingNoReorder)
 
     assertEquals(TypeChecker(g), TypeChecker(f5))
-    assertEquals(dumpLambdaToString(g), dumpLambdaToString(f5))
+    assertEquals(dumpLambdaToString(g, printNonFixedVarIds = false), dumpLambdaToString(f5, printNonFixedVarIds = false))
   }
 }

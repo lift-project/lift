@@ -9,7 +9,7 @@ import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
-object ScalaPrinter {
+case class ScalaPrinter(printNonFixedVarIds: Boolean = true) {
   def apply(expr: Expr): String = {
     expr match {
       case funCall: FunCall => funCall.f match {
@@ -64,7 +64,7 @@ object ScalaPrinter {
     }
   }
 
-  def apply(arithExpr: ArithExpr): String = ArithExpr.printToScalaString(arithExpr)
+  def apply(arithExpr: ArithExpr): String = ArithExpr.printToScalaString(arithExpr, printNonFixedVarIds)
 
   def apply(t: Type): String = {
     t match {
