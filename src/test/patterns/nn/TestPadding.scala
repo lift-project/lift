@@ -4,10 +4,10 @@ import exploration.ParameterRewrite
 import ir.{ArrayType, Type}
 import ir.ast.{PadConstant, Value}
 import lift.arithmetic.{Cst, Var}
-import opencl.executor.{Execute, Executor}
+import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir.{Float, id}
 import org.junit.Assert.assertEquals
-import org.junit.{BeforeClass, Test}
+import org.junit.{Test}
 import patterns.nn.conv.ConvStencil3D
 import patterns.nn.conv.ConvStencil3D.{ConvStencil3DLayerConfig, ConvStencil3DRewriteParams, ConvStencil3DTuneParams}
 import patterns.nn.utils.Utils.slidingOutputSize
@@ -232,10 +232,4 @@ class TestPadding {
   }
 }
 
-object TestPadding {
-  @BeforeClass
-  def before(): Unit = {
-    Executor.loadAndInit()
-    Random.setSeed(0)
-  }
-}
+object TestPadding extends TestWithExecutor
