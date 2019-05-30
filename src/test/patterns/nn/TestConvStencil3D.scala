@@ -4,10 +4,10 @@ import exploration.ParameterRewrite
 import exploration.ParameterRewrite.substituteVars
 import ir.Type
 import lift.arithmetic.{ArithExpr, Cst, Var}
-import opencl.executor.{Compile, Execute, Executor}
+import opencl.executor.{Compile, Execute, TestWithExecutor}
 import opencl.ir.id
 import org.junit.Assert.assertEquals
-import org.junit.{BeforeClass, Ignore, Test}
+import org.junit.{Ignore, Test}
 import patterns.nn.conv.ConvStencil3D
 import patterns.nn.conv.ConvStencil3D.{ConvStencil3DLayerConfig, ConvStencil3DRewriteParams, ConvStencil3DTuneParams}
 import patterns.nn.utils.Utils.slidingOutputSize
@@ -538,9 +538,4 @@ class TestConvStencil3D {
   }
 }
 
-object TestConvStencil3D {
-  @BeforeClass
-  def before(): Unit = {
-    Executor.loadAndInit()
-  }
-}
+object TestConvStencil3D extends TestWithExecutor
