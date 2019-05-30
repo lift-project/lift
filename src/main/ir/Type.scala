@@ -250,7 +250,7 @@ case class ArrayType(elemT: Type) extends Type {
 object ArrayType {
   def checkSizeOrCapacity(s: String, ae: ArithExpr) : Unit = {
     // TODO: remove the need to check for unknown (but this is used currently in a few places)
-    if (ae != ? & ae.sign != Sign.Positive)
+//    if (ae != ? & ae.sign != Sign.Positive)
     // TODO: turn this back into an error (eventually)
     //throw new TypeException("Length must be provably positive! (len="+len+")")
 //      println(s"Warning: $s must be provably positive! (len=$ae)")
