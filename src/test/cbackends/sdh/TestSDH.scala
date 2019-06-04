@@ -801,6 +801,34 @@ class TestSDH {
 
   }
 
+  @Test
+  def test_paralell_reduce(): Unit = {
+
+    val path = s"$common_path/06.parallel_reduce"
+    val sched_file = "test_lift_par_reduce_sched_lib.hpp"
+    val worker_file = "test_lift_par_reduce_kernel.cpp"
+
+    val N = SizeVar("N")
+
+    val f = fun(
+      ArrayTypeWSWC(Float, N),
+      /*(A, B) =>
+        ToLCP() o MapTile( fun( Arow =>
+          MapGPE( TMKernel(
+            fun(Bcol => ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)  $ Zip(Arow, Bcol) )
+          )) $ B )
+        )  o ToGPE() $ A */
+
+      MapTile( MapGPE(TMKernel(fun( ReduceSeq(add2) $ _ ) ) ) )  o Split(2) o Split(4) o Split(2) o ToGPE() $ _
+    )
+
+    SDHCompiler ! (f, path, List(sched_file, worker_file), "matrixmul")
+
+    (s"$path/sdh_demo.sh" ) !
+
+    println("done")
+  }
+
 
 
 }
