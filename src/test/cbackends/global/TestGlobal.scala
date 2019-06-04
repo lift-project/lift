@@ -1,5 +1,7 @@
 package cbackends.global
 
+import java.io.{PrintWriter, StringWriter}
+
 import cbackends.host.host_ir._
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
@@ -721,8 +723,8 @@ class TestGlobal {
     val nLayers = 13
     val fuseLambdas: Boolean = true
     val null_local_ranges: Boolean = false
-    val continueFromLayer = 1
-    val continueFromTunePoint = 158
+    val continueFromLayer = 0
+    val continueFromTunePoint = 0
 
     for {tuningPointBatch <- 0 until totalTuningPoints / tuningPointBatchSize}
       for {layerConfigId <- List(0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)} {
@@ -797,7 +799,8 @@ class TestGlobal {
                 case e: StackOverflowError =>
                   println("[Log]: ERROR: could not compile for " + path_with_config + " due to a StackOverflow")
                   val sw = new StringWriter
-                  println(e.getMessage)
+                  e.printStackTrace(new PrintWriter(sw))
+                  println(sw.toString)
               }
             }
           }
