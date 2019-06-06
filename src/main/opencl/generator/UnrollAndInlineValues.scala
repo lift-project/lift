@@ -159,7 +159,7 @@ object UnrollValues {
         // return block with new vector values
         MutableBlock(nodeVector, mb.global)
 
-      case ExpressionStatement(e) => e match
+      case ExpressionStatement(e, _) => e match
       {
         case AssignmentExpression(lhs, rhs) => (lhs, rhs) match
         {
@@ -196,7 +196,7 @@ object UnrollValues {
             {
               ExpressionStatement(AssignmentExpression(VarRef(v1, s1, ai1), VarRef(v2, s2, ai2)))
             }
-          case (VarRef(v, s, ai), FunctionCall(f, args)) =>
+          case (VarRef(v, s, ai), FunctionCall(f, args, _)) =>
             val vr = getCorrectVarRef(v,s,ai,oclVarDeclMap)
             // update args list with new values of VarRefs
             val lst = getVarRefList(args,oclVarDeclMap)
@@ -251,7 +251,7 @@ object UnrollValues {
         }
         v match
         {
-          case FunctionCall(f,args) =>
+          case FunctionCall(f, args, _) =>
             val lst = getVarRefList(args,oclVarDeclMap)
             vNew = FunctionCall(f, lst)
           case _ => v
@@ -354,7 +354,7 @@ object UnrollValues {
         // return block with new vector
         MutableBlock(nodeVector, mb.global)
 
-      case ExpressionStatement(e) => e match
+      case ExpressionStatement(e, _) => e match
       {
         case AssignmentExpression(lhs, rhs) => (lhs, rhs) match {
           case (VarRef(v1, s1, ai1), VarRef(v2, s2, ai2)) =>
@@ -502,7 +502,7 @@ object UnrollValues {
         case _ => ExpressionStatement(e)
       }
 
-      case FunctionCall(f,args) =>
+      case FunctionCall(f, args, _) =>
         // update args list with new values of VarRefs
         var lst = List[GenericAST.AstNode]()
         for (arg <- args)
@@ -587,11 +587,6 @@ object UnrollValues {
     node.visitAndRebuild(preFunctionForUnrollingStructs, idPostFun)
 
   }
-
-}
-
-class UnrollValues
-{
 
 }
 
