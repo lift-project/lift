@@ -125,7 +125,6 @@ object MapSeqSlideHelpers
   )
 }
 
-@Ignore
 class TestMapSeqSlide
 {
 
