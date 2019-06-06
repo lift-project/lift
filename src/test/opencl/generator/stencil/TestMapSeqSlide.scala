@@ -1634,6 +1634,8 @@ class TestMapSeqSlide
   @Test
   def roomCodeWith25DTilingWorking(): Unit = {
 
+    LongTestsEnabled()
+
     val size = 12
     val slidesize = 3
     val slidestep = 1
@@ -1763,6 +1765,8 @@ class TestMapSeqSlide
 
   @Test
   def roomCodeWith25DTilingPadConstant(): Unit = {
+
+    LongTestsEnabled()
 
     val size = 12
     val slidesize = 3
