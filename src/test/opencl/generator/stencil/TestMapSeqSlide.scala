@@ -588,6 +588,7 @@ class TestMapSeqSlide
 
   }
 
+  @Ignore
   @Test
   def reduceSlide3DTest7PointWithAtSize5Step3(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
