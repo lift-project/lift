@@ -14,7 +14,6 @@ import rewriting.rules.{OpenCLRules, Rules}
 
 object TestRewriteStencil25DTiling extends TestWithExecutor
 
-@Ignore
 class TestRewriteStencil25DTiling
 {
 
