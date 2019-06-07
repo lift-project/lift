@@ -20,6 +20,7 @@ object TestStencilsTACO extends TestWithExecutor
   * Benchmarks used in TACO paper submission 2019
   **/
 
+@Ignore
 class TestStencilsTACO {
 
   val outputdir = "/home/reese/workspace/taco_kernels/raw_files/"
