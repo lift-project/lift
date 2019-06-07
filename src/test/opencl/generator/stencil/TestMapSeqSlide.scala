@@ -593,6 +593,8 @@ class TestMapSeqSlide
   def reduceSlide3DTest7PointWithAtSize5Step3(): Unit = {
     assumeFalse("Disabled on Apple OpenCL Platform.", Utils.isApplePlatform)
 
+    LongTestsEnabled()
+
     val size = 10
     val slidesize = 5
     val slidestep = 3
@@ -607,6 +609,8 @@ class TestMapSeqSlide
 
   @Test
   def reduceSlide3DTest7PointWithAtSize5Step5(): Unit = {
+
+    LongTestsEnabled()
 
     val size = 15
     val slidesize = 5
@@ -816,6 +820,8 @@ class TestMapSeqSlide
 
   @Test
   def stencil3DJacobiComparisonsCoalesced(): Unit = {
+
+    LongTestsEnabled()
 
     val localDimX = 10
     val localDimY = 6
