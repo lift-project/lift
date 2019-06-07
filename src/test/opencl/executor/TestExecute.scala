@@ -265,7 +265,6 @@ class TestExecute {
     assertEquals(inputA.sum + inputB._2, floatSum, 0.0001f)
   }
 
-  @Ignore
   @Test
   def allocateMoreThan2GB(): Unit = {
     val size = 268435456 // 2^28
