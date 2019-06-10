@@ -811,20 +811,15 @@ class TestSDH {
     val N = SizeVar("N")
 
     val f = fun(
-      ArrayTypeWSWC(Float, N),
-      /*(A, B) =>
-        ToLCP() o MapTile( fun( Arow =>
-          MapGPE( TMKernel(
-            fun(Bcol => ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)  $ Zip(Arow, Bcol) )
-          )) $ B )
-        )  o ToGPE() $ A */
-
-      MapTile( MapGPE(TMKernel(fun( ReduceSeq(add2) $ _ ) ) ) )  o Split(2) o Split(4) o Split(2) o ToGPE() $ _
+      ArrayTypeWSWC(Double, N),
+      LCPSingle(ReduceSeq(add2, 0.0)) /*o ToLCP() o Join() o Join() o
+        MapTile( MapGPE(TMKernel(fun( ReduceSeq(add2, 0.0) $ _ ) ) ) )  o
+        Split(4) o Split(N/8) o ToGPE() */ $ _
     )
 
-    SDHCompiler ! (f, path, List(sched_file, worker_file), "matrixmul")
+    (s"mkdir -p $path") !
 
-    (s"$path/sdh_demo.sh" ) !
+    SDHCompiler ! (f, path, List(sched_file, worker_file), "matrixmul")
 
     println("done")
   }

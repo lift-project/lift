@@ -1,7 +1,7 @@
 package cbackends.host
 
 import ir.ast.Pad.Boundary.WrapUnsafe
-import ir.ast.{Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
+import ir.ast.{Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, PadConstant, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
 import lift.arithmetic.{Cst, SizeVar}
 import opencl.ir.pattern._
@@ -1951,6 +1951,29 @@ class TestHost {
 
     val actual : String = native_compile_and_run(path, file)
     val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_map done!")
+
+  }
+
+  @Test
+  def test_par_reduce(): Unit = {
+
+    val path = s"$common_path/41.parallel_reduce"
+    val file = "libpar_reduce.cpp"
+
+    val f = fun( ArrayType(Float, N),
+      //in => MapSeq( incrementF ) $ in
+      in => ReduceSeq(add2, 0.0f)  o Join() o Join() o MapSeq(MapSeq( ReduceSeq(add2, 0.0f) ) ) o Split(4) o Split(N/8) $ in
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "32 \n"
     assertEquals(expected, actual)
 
     println("Test case test_map done!")
