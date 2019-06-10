@@ -1,6 +1,6 @@
 package exploration
 
-import lift.arithmetic.{ArithExpr, Cst, Var}
+import lift.arithmetic.{ArithExpr, Cst, SimplifiedExpr, Var}
 import _root_.utils.GraphSort
 import exploration.ParamConstraints.sortConstraints
 import lift.arithmetic.NotEvaluableException.NotEvaluable
@@ -10,7 +10,7 @@ class ParamConstraint(val name: String,
                       val params: Vector[Var],
                       val lhs: ArithExpr,
                       val rhs: ArithExpr,
-                      val predicate: (ArithExpr, ArithExpr) => Boolean) {
+                      val predicate: (ArithExpr with SimplifiedExpr, ArithExpr with SimplifiedExpr) => Boolean) {
 //  val params: Vector[Var] = Vector(param0)
 
   def isValid(substitutionTable: Map[Var, Cst]): Boolean = {

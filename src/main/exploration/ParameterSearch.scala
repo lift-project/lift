@@ -1,10 +1,9 @@
 package exploration
 
-import exploration.ParamConstraints.{lessThanOrEqual, greaterThanOrEqual}
+import exploration.ParamConstraints.greaterThanOrEqual
 import ir.ast._
 import ir.{ArrayType, Size, TypeChecker}
-import lift.arithmetic.NotEvaluableException.NotEvaluable
-import lift.arithmetic.{ArithExpr, Cst, Var}
+import lift.arithmetic.{ArithExpr, Cst, SimplifiedExpr, Var}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -50,7 +49,7 @@ object ParameterSearch {
                 params = allVars.toVector,
                 lhs = condition,
                 rhs = Cst(0),
-                predicate = (lhs: ArithExpr, rhs: ArithExpr) => lhs == rhs
+                predicate = (lhs: ArithExpr with SimplifiedExpr, rhs: ArithExpr with SimplifiedExpr) => lhs == rhs
               ))
           }
         }
