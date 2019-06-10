@@ -2,7 +2,7 @@ name := "Lift"
 
 version := "1.0"
 
-scalaVersion := "2.12.0"
+scalaVersion := "2.11.8"
 
 // Check Java version
 initialize := {
@@ -50,13 +50,14 @@ scalaSource in Test <<= baseDirectory(_ / "src/test")
 javaSource in Test <<= baseDirectory(_ / "src/test")
 
 // Scala libraries
-libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.12.0"
-libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.12.0"
-libraryDependencies += "org.scala-lang" % "scala-library" % "2.12.0"
+libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.11.8"
+libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.11.8"
+libraryDependencies += "org.scala-lang" % "scala-library" % "2.11.8"
 libraryDependencies += "com.typesafe.play" %% "play-json" % "2.7.3"
+
 libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
 
-libraryDependencies += "org.scala-lang.modules" % "scala-xml_2.12" % "1.0.4"
+libraryDependencies += "org.scala-lang.modules" % "scala-xml_2.11" % "1.0.4"
 
 libraryDependencies += "jline" % "jline" % "2.12.1"
 
