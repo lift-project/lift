@@ -5,7 +5,7 @@ import ir.ast.{AbstractMap, AbstractPartRed, Array3DFromUserFunGenerator, ArrayA
 import lift.arithmetic.ArithExpr
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir._
-import cbackends.sdh.sdh_ir.{TMKernel, ToGPE, ToLCP}
+import cbackends.sdh.sdh_ir.{LCPSingle, TMKernel, ToGPE, ToLCP}
 import ir.Type
 import opencl.ir.{CollectTypedOpenCLMemory, OpenCLAddressSpace}
 import opencl.ir.pattern.ScanSeq
@@ -100,6 +100,12 @@ object FinalMemoryAllocationAnalysis {
         //analyze(i.f.body)
         val args_map = args.map(analyze(_)).reduce( _ ++ _ )
        args_map ++ analyze(i.f.body)
+
+      case fc@FunCall(l:LCPSingle, args@_*) =>
+        //args.foreach(analyze(_))
+        //analyze(i.f.body)
+        val args_map = args.map(analyze(_)).reduce( _ ++ _ )
+        args_map ++ analyze(l.f.body)
 
       case fc@FunCall(l:Lambda, args@_*) =>
         //args.foreach(analyze(_))

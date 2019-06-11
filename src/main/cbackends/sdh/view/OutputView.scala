@@ -1,7 +1,7 @@
 package cbackends.sdh.view
 
 
-import cbackends.sdh.sdh_ir.{MapGPESync, TMKernel, ToGPE, ToLCP}
+import cbackends.sdh.sdh_ir._
 import ir.ast.{FunCall, IRNode, Lambda}
 import cbackends.common.utils.output_view.OutputView.{init_body, post_check, pre_check}
 import cbackends.common.utils.pattern_matching.IsDefinedAt
@@ -13,12 +13,13 @@ object OutputView {
     node match {
 
 
-      case fc@FunCall(_:ToGPE, arg)  => {
+      case fc@FunCall(_:ToGPE|_:ToLCP|_:MapGPESync, arg)  => {
         arg.outputView = fc.outputView;
         cont( arg )
 
         fc
       }
+        /*
       case fc@FunCall(_:ToLCP, arg)  => {
         arg.outputView = fc.outputView ;
         cont( arg )
@@ -33,11 +34,23 @@ object OutputView {
         cont( arg )
 
         fc
-      }
+      }*/
       case fc@FunCall(tm:TMKernel, arg)  => {
 
         tm.f.body.outputView = fc.outputView
         cont( tm.f.body )
+
+        arg.outputView = fc.outputView
+        cont( arg )
+
+        fc
+
+      }
+
+      case fc@FunCall(l:LCPSingle, arg)  => {
+
+        l.f.body.outputView = fc.outputView
+        cont( l.f.body )
 
         arg.outputView = fc.outputView
         cont( arg )

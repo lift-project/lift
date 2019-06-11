@@ -1,6 +1,6 @@
 package cbackends.sdh.view
 
-import cbackends.sdh.sdh_ir.{MapGPESync, TMKernel, ToGPE, ToLCP}
+import cbackends.sdh.sdh_ir._
 import cbackends.common.utils.input_view.InputView.{init_params, post_check, pre_check}
 import cbackends.common.utils.pattern_matching.IsDefinedAt
 import ir.ast.{FunCall, IRNode, Lambda}
@@ -10,27 +10,28 @@ object InputView {
   def generateInputView(node: IRNode , cont: IRNode => IRNode ) : IRNode = {
     node match {
 
-      case fc@FunCall(_:ToGPE, arg)  => {
-        cont( arg )
-        fc.view = arg.view
-        fc
-      }
-      case fc@FunCall(_:ToLCP, arg)  => {
+      case fc@FunCall(_:ToGPE|_:ToLCP|_:MapGPESync, arg)  => {
         cont( arg )
         fc.view = arg.view
         fc
       }
 
-      case fc@FunCall(_:MapGPESync, arg)  => {
-        cont( arg )
-        fc.view = arg.view
-        fc
-      }
       case fc@FunCall(tm:TMKernel, arg)  => {
         cont( arg)
 
         tm.f.params.head.view = arg.view
         cont( tm.f.body )
+
+        fc.view = arg.view
+
+        fc
+      }
+
+      case fc@FunCall(l:LCPSingle, arg)  => {
+        cont( arg)
+
+        l.f.params.head.view = arg.view
+        cont( l.f.body )
 
         fc.view = arg.view
 
