@@ -1,5 +1,6 @@
 package cbackends.common.utils.pattern_matching
 
+import ir.TypeException
 
 
 trait IsDefinedAt[T] {
@@ -10,7 +11,9 @@ trait IsDefinedAt[T] {
         apply(x)
         true
       } catch {
-        case _: Exception =>
+        case t: ir.TypeException =>
+          throw t
+        case _: scala.MatchError =>
           false
       }
 

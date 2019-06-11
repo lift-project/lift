@@ -116,6 +116,8 @@ object LowerIR2SchedCAST {
         generateAbstractMap(fc)
       case fc@FunCall(_:TMKernel, _) =>
         generateNothing(fc)
+      case fc@FunCall(_:LCPSingle, _) =>
+        generateLCPSingle(fc)
       case fc@FunCall(Split(_), _ ) =>
         generateNothing(fc)
       case fc@FunCall(Join(), _) =>
@@ -324,6 +326,27 @@ object LowerIR2SchedCAST {
     }
 
     arg_block :+ comment :+ flush_cast
+
+  }
+
+  def generateLCPSingle(fc: FunCall) : Block = {
+
+
+    val arg_block = generate(fc.args.head)
+
+    val l = fc.f.asInstanceOf[LCPSingle]
+
+    val comment = Comment("LCPSingle")
+
+    val body = generate(l.f.body)
+
+    val core_cast = IfThenElseIm(
+      BinaryExpression( FunctionCall("LCP_TILE_ID", List()), BinaryExpressionT.Operator.==, IntConstant(0) ),
+      body,
+      Block(global = true)
+    )
+
+    arg_block :+ comment :+ core_cast
 
   }
 

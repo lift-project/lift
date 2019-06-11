@@ -812,9 +812,9 @@ class TestSDH {
 
     val f = fun(
       ArrayTypeWSWC(Double, N),
-      LCPSingle(ReduceSeq(add2, 0.0)) /*o ToLCP() o Join() o Join() o
+      LCPSingle(ReduceSeq(add2, 0.0)) o ToLCP() o Join() o Join() o
         MapTile( MapGPE(TMKernel(fun( ReduceSeq(add2, 0.0) $ _ ) ) ) )  o
-        Split(4) o Split(N/8) o ToGPE() */ $ _
+        Split(4) o Split(N/8) o ToGPE()  $ _
     )
 
     (s"mkdir -p $path") !
