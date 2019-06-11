@@ -3,6 +3,7 @@ package exploration.mapping
 import exploration.MemoryMappingRewrite
 import ir._
 import ir.ast._
+import lift.arithmetic.simplifier.SimplifyPow
 import lift.arithmetic.{Cst, Pow}
 import opencl.executor.LongTestsEnabled
 import opencl.ir._
@@ -46,7 +47,7 @@ class MappingGemv {
                           FunCall(Get(0), p_19),
                           FunCall(Get(1), p_19))))),
                       FunCall(idfloat, Value("0.0f", Float)), p_15)))),
-                  FunCall(Split( M * Pow(v__2, Cst(-1) )),
+                  FunCall(Split( M * SimplifyPow(v__2, Cst(-1) )),
                     FunCall(Gather(ReorderWithStride(v__2)),
                       FunCall(Zip(2), p_1,
                         FunCall(Get(0), p_5))))))))))),

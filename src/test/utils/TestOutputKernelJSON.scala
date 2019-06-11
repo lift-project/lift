@@ -38,7 +38,18 @@ class TestOutputKernelJSON {
   @Test
   def testLambdaWithAllTypesOfParameters(): Unit =
   {
-    val compareJson = "{\"parameters\" : {\"float* v__111\" : \"(32+(4*v_M_1*v_N_0*v_O_2)+(8*v_M_1*v_N_0)+(8*v_M_1*v_O_2)+(8*v_N_0*v_O_2)+(16*v_M_1)+(16*v_N_0)+(16*v_O_2))\", \"float* v__112\" : \"(32+(4*v_M_1*v_N_0*v_O_2)+(8*v_M_1*v_N_0)+(8*v_M_1*v_O_2)+(8*v_N_0*v_O_2)+(16*v_M_1)+(16*v_N_0)+(16*v_O_2))\", \"float* v__113\" : \"108\", \"float* v__114\" : \"108\", \"float v__115\" : \"4\"}, \"outputs\" : {\"float* v__167\" : \"(4*v_M_1*v_N_0*v_O_2)\"}, \"temporary buffers\" : {\"float* v__137\" : \"(108*v_M_1*v_N_0*v_O_2)\", \"float* v__154\" : \"(108*v_M_1*v_N_0*v_O_2)\", \"float* v__122\" : \"(108*v_M_1*v_N_0*v_O_2)\"}, \"sizes\" : {\"int v_M_1\" : \"4\", \"int v_N_0\" : \"4\", \"int v_O_2\" : \"4\"}}"
+    val compareJson = "{\"parameters\" : {" +
+      "\"float* v__111\" : \"(32+(4*v_N_0*v_M_1*v_O_2)+(8*v_N_0*v_M_1)+(8*v_N_0*v_O_2)+(8*v_M_1*v_O_2)+(16*v_N_0)+(16*v_M_1)+(16*v_O_2))\", " +
+      "\"float* v__112\" : \"(32+(4*v_N_0*v_M_1*v_O_2)+(8*v_N_0*v_M_1)+(8*v_N_0*v_O_2)+(8*v_M_1*v_O_2)+(16*v_N_0)+(16*v_M_1)+(16*v_O_2))\", " +
+      "\"float* v__113\" : \"108\", " +
+      "\"float* v__114\" : \"108\", " +
+      "\"float v__115\" : \"4\"}, " +
+      "\"outputs\" : {\"float* v__167\" : \"(4*v_N_0*v_M_1*v_O_2)\"}, " +
+      "\"temporary buffers\" : {" +
+      "\"float* v__137\" : \"(108*v_N_0*v_M_1*v_O_2)\", " +
+      "\"float* v__154\" : \"(108*v_N_0*v_M_1*v_O_2)\", " +
+      "\"float* v__122\" : \"(108*v_N_0*v_M_1*v_O_2)\"}, " +
+      "\"sizes\" : {\"int v_M_1\" : \"4\", \"int v_N_0\" : \"4\", \"int v_O_2\" : \"4\"}}"
 
     val n = 2 + SizeVar("N")
     val m = 2 + SizeVar("M")
