@@ -41,7 +41,9 @@ scalacOptions ++= Seq("-Xmax-classfile-name", "100", "-unchecked", "-deprecation
 // Executor path
 javaOptions ++= Seq(
   "-Djava.library.path=" + baseDirectory(_ / "src/main/resources/lib/").value, 
-  "-Xmx4G")
+  "-Xmx4G", // Heap space increase from 2G to 4G due to intermittently failing tests allocateMoreThan2GB and allocateMoreThanMaxIntForInput
+  "-Xss2m" // Stack space increase from 2G to 4G due to frequent StackOverflow in compiling pattern matching. Started happening after ArithExpr upgrade for CASES19
+)
 
 // Main sources
 scalaSource in Compile <<= baseDirectory(_ / "src/main")
