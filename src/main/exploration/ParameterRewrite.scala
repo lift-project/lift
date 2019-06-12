@@ -12,10 +12,10 @@ import lift.arithmetic.{ArithExpr, Cst, Var}
 import opencl.executor.Eval
 import opencl.generator.NDRange
 import opencl.ir.pattern._
-import org.clapper.argot.ArgotConverters._
-import org.clapper.argot._
 import rewriting.InferNDRange
 import rewriting.utils.{DumpToFile, Utils}
+import scopt.OParser
+import _root_.utils.CommandLineParser
 
 import scala.collection.immutable.Map
 import scala.io.Source
@@ -32,51 +32,49 @@ object ParameterRewrite {
 
   private var topFolder = ""
 
-  private val parser = new ArgotParser("ParameterRewrite")
-
-  parser.flag[Boolean](List("h", "help"),
-    "Show this message.") {
-    (sValue, _) =>
-      parser.usage()
-      sValue
-  }
-
-  private val input = parser.parameter[String]("input",
-    "Input file containing the lambda to use for rewriting",
-    optional = false) {
-    (s, _) =>
-      val file = new File(s)
-      if (!file.exists)
-        parser.usage("Input file \"" + s + "\" does not exist")
-      s
-  }
-
   import ParameterRewriteSettings._
 
-  protected[exploration] val exploreNDRange = parser.flag[Boolean](List("e", keyExploreNDRange),
-    s"Explore global and local sizes instead of inferring (default: $defaultExploreNDRange)")
+  case class Config(input: File = null,
+                    exploreNDRange: Boolean = defaultExploreNDRange,
+                    sampleNDRange: Int = defaultSampleNDRange,
+                    disableNDRangeInjection: Boolean = defaultDisableNDRangeInjection,
+                    sequential: Boolean = defaultSequential,
+                    generateScala: Boolean = defaultGenerateScala,
+                    settingsFile: File = null)
+  val builder = OParser.builder[Config]
+  var cmdArgs: Option[Config] = None
+  val parser = {
+    import builder._
+    OParser.sequence(
+      programName("ParameterRewrite"),
+      opt[File]("input").text("Input files to read").required()
+        .validate(f => if (f.exists) success else failure("File \"" + f.getName + "\" does not exist"))
+        .action((arg, c) => c.copy(input = arg)),
 
-  protected[exploration] val sampleNDRange = parser.option[Int](List(keySampleNDRange), "n",
-    s"Randomly sample n combinations of global and local sizes (requires 'explore') (default: $defaultSampleNDRange)")
+      opt[Unit]('e', keyExploreNDRange).text(
+        s"Explore global and local sizes instead of inferring (default: $defaultExploreNDRange)")
+        .action((_, c) => c.copy(exploreNDRange = true)),
 
-  protected[exploration] val disableNDRangeInjection = parser.flag[Boolean](List(keyDisableNDRangeInjection),
-    s"Don't inject NDRanges while compiling the OpenCL Kernel (default: $defaultDisableNDRangeInjection)")
+      opt[Int]('n', keySampleNDRange).text(s"Randomly sample n combinations of global and local sizes " +
+        s"(requires 'explore') (default: $defaultSampleNDRange)")
+        .action((arg, c) => c.copy(sampleNDRange = arg)),
 
-  protected[exploration] val sequential = parser.flag[Boolean](List("s", "seq", keySequential),
-    s"Don't execute in parallel (default: $defaultSequential)")
+      opt[Unit](keyDisableNDRangeInjection).text(
+        s"Don't inject NDRanges while compiling the OpenCL Kernel (default: $defaultDisableNDRangeInjection)")
+        .action((_, c) => c.copy(disableNDRangeInjection = true)),
 
-  protected[exploration] val generateScala = parser.flag[Boolean](List(keyGenerateScala),
-    s"Generate lambdas in Scala as well as in OpenCL (default: $defaultGenerateScala)")
+      opt[Unit]('s', keySequential).text(s"Don't execute in parallel (default: $defaultSequential)")
+        .action((_, c) => c.copy(sequential = true)),
 
+      opt[Unit](keyGenerateScala).text(s"Generate lambdas in Scala as well as in OpenCL (default: $defaultGenerateScala)")
+        .action((_, c) => c.copy(generateScala = true)),
 
-  private val settingsFile = parser.option[String](List("f", "file"), "name",
-    "The settings file to use."
-  ) {
-    (s, _) =>
-      val file = new File(s)
-      if (!file.exists)
-        parser.usage(s"Settings file $file doesn't exist.")
-      s
+      opt[File]('f', "file").text("The settings file to use.").required()
+        .validate(f => if (f.exists) success else failure("File \"" + f.getName + "\" does not exist"))
+        .action((arg, c) => c.copy(settingsFile = arg)),
+
+      help("help").text("Show this message.")
+    )
   }
 
   private[exploration] var settings = Settings()
@@ -87,14 +85,14 @@ object ParameterRewrite {
 
     try {
 
-      parser.parse(args)
-      settings = ParseSettings(settingsFile.value)
+      cmdArgs = Some(CommandLineParser(parser, args, Config()))
+      settings = ParseSettings(Some(cmdArgs.get.settingsFile.getName))
       val config = settings.parameterRewriteSettings
       if (!config.exploreNDRange && config.sampleNDRange > 0)
         throw new RuntimeException("'sample' is defined without enabling 'explore'")
 
       logger.info(s"Arguments: ${args.mkString(" ")}")
-      val inputArgument = input.value.get
+      val inputArgument = cmdArgs.get.input.getName
 
       topFolder = Paths.get(inputArgument).toString
 
@@ -254,8 +252,6 @@ object ParameterRewrite {
     } catch {
       case io: IOException =>
         logger.error("IOException", io)
-      case e: ArgotUsageException =>
-        println(e.message)
     }
   }
 

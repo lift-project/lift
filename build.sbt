@@ -53,7 +53,9 @@ javaSource in Test <<= baseDirectory(_ / "src/test")
 libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.11.8"
 libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.11.8"
 libraryDependencies += "org.scala-lang" % "scala-library" % "2.11.8"
-libraryDependencies += "com.typesafe.play" %% "play-json" % "2.3.10"
+libraryDependencies += "com.typesafe.play" %% "play-json" % "2.7.3"
+
+libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
 
 libraryDependencies += "org.scala-lang.modules" % "scala-xml_2.11" % "1.0.4"
 
@@ -64,15 +66,17 @@ libraryDependencies += "junit" % "junit" % "4.11"
 libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test"
 
 // ScalaCheck
-libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.13.0" % "test"
+libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.14.0" % "test"
 
 // TODO: Pick one for argument parsing
-libraryDependencies += "commons-cli" % "commons-cli" % "1.3.1"
-libraryDependencies += "org.clapper" %% "argot" % "1.0.3"
+libraryDependencies += "commons-cli" % "commons-cli" % "1.4"
+// Argot is abandoned and does not support Scala 2.12.0
+//libraryDependencies += "org.clapper" %% "argot" % "1.0.3"
+libraryDependencies += "com.github.scopt" %% "scopt" % "4.0.0-RC2"
 
 // Logging
 libraryDependencies += "ch.qos.logback" %  "logback-classic" % "1.1.7"
-libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
 
 // https://mvnrepository.com/artifact/org.jfree/jfreesvg
 libraryDependencies += "org.jfree" % "jfreesvg" % "2.0"
@@ -94,7 +98,7 @@ scalacOptions in (Compile,doc) := Seq("-implicits", "-diagrams")
 // Build ArithExpr
 unmanagedSourceDirectories in Compile += baseDirectory.value / "lib/ArithExpr/src/main/"
 
-ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*;.*arithmetic.*;.*testing.*"
+scoverage.ScoverageKeys.coverageExcludedPackages := "<empty>;benchmarks.*;.*Test.*;junit.*;.*interop.*;.*arithmetic.*;.*testing.*"
 
 testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v", "-a")
 

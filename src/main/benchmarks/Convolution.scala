@@ -7,7 +7,8 @@ import opencl.ir._
 import opencl.ir.pattern._
 import opencl.executor.Utils
 
-class Convolution(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Convolution", Seq(4096, 4096), f, 0.01f) {
+@deprecated("Uses an old benchmark infrastructure", "")
+class Convolution(override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark("Convolution", Seq(4096, 4096), f, 0.01f) {
 
   // change in singleton object as well!
   val inputSize = 4096

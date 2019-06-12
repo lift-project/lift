@@ -6,10 +6,11 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
 
+@deprecated("Uses an old benchmark infrastructure", "")
 class VectorScaling(override val name: String,
                     override val defaultInputSizes: Seq[Int],
                     override val delta: Float,
-                    override val f: Seq[(String, Array[Lambda])]) extends Benchmark(name, defaultInputSizes, f, delta) {
+                    override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark(name, defaultInputSizes, f, delta) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     inputs(0).asInstanceOf[Array[Float]].map(_ * inputs(1).asInstanceOf[Float])
