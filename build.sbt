@@ -39,7 +39,9 @@ compileExecutor := {
 scalacOptions ++= Seq("-Xmax-classfile-name", "100", "-unchecked", "-deprecation", "-feature")
 
 // Executor path
-javaOptions += "-Djava.library.path=" + baseDirectory(_ / "src/main/resources/lib/").value
+javaOptions ++= Seq(
+  "-Djava.library.path=" + baseDirectory(_ / "src/main/resources/lib/").value, 
+  "-Xmx4G")
 
 // Main sources
 scalaSource in Compile <<= baseDirectory(_ / "src/main")
