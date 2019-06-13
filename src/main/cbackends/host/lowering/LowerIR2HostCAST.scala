@@ -73,8 +73,8 @@ object LowerIR2HostCAST {
         generateNothing(fc)
       case fc@FunCall(_:AbstractMap, _) =>
         generateAbstractMap(fc)
-      case fc@FunCall(_:AbstractPartRed, _*) =>
-        generateAbstractReduce(fc)
+      case fc@FunCall(_:ReduceSeq, _*) =>
+        generateReduceSeq(fc)
       case fc@FunCall(Split(_), _ ) =>
         generateNothing(fc)
       case fc@FunCall(Join(), _) =>
@@ -573,11 +573,11 @@ object LowerIR2HostCAST {
 
   }
 
-  def generateAbstractReduce(fc: FunCall) : Block = {
+  def generateReduceSeq(fc: FunCall) : Block = {
 
     val arg_block = generate(fc.args(1))
 
-    val rd = fc.f.asInstanceOf[AbstractPartRed]
+    val rd = fc.f.asInstanceOf[ReduceSeq]
     val stop = rd.loopVar.range.max
 
     val indexVar =  CVarWithType(rd.loopVar.toString, IntegerType() )

@@ -5,9 +5,10 @@ import cbackends.common.utils.type_lowering.TypeLowering
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, BinaryExpression, BinaryExpressionT, Block, CVarWithType, ClassOrStructType, Comment, ExpressionStatement, ForLoopIm, FunctionCall, FunctionPure, IfThenElseIm, IntConstant, IntegerType, ParamDeclPure, PointerType, RawCode, RefType, StringConstant, Uint32_t, Uintptr_t, UnaryExpression, VarDeclPure, VarRefPure, VoidType}
 import ir.ast.{AbstractMap, FunCall, IDGenerator, IRNode, Join, Lambda, Split}
 import lift.arithmetic.ArithExpr
-import opencl.ir.pattern.MapSeq
+import opencl.ir.pattern.{MapSeq, ReduceSeq}
 import cbackends.sdh.sdh_ir._
 import cbackends.common.view.CollectAllLoopVars
+import cbackends.host.lowering.LowerIR2HostCAST.generateReduceSeq
 import ir.printer.DotPrinter
 import opencl.ir.OpenCLAddressSpace
 import cbackends.sdh.lowering.LowerIR2KernelCAST.{boilerplate_code, boilerplate_code_faketm}
@@ -122,6 +123,8 @@ object LowerIR2SchedCAST {
         generateNothing(fc)
       case fc@FunCall(Join(), _) =>
         generateNothing(fc)
+      case fc@FunCall(_:ReduceSeq, _*) =>
+        generateReduceSeq(fc)
       case _ =>
         Block()
     }
@@ -343,7 +346,7 @@ object LowerIR2SchedCAST {
     val core_cast = IfThenElseIm(
       BinaryExpression( FunctionCall("LCP_TILE_ID", List()), BinaryExpressionT.Operator.==, IntConstant(0) ),
       body,
-      Block(global = true)
+      Block()
     )
 
     arg_block :+ comment :+ core_cast

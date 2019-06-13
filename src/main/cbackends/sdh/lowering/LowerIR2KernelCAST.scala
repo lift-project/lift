@@ -13,7 +13,7 @@ import cbackends.sdh.sdh_ir._
 import cbackends.sdh.lowering.LowerIR2SchedCAST.wait_for_branch_predictor_cycle2
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.common.view.{CollectAllLoopVars, ViewPrinter}
-import cbackends.host.lowering.LowerIR2HostCAST.generateAbstractReduce
+import cbackends.host.lowering.LowerIR2HostCAST.generateReduceSeq
 import ir.printer.DotPrinter
 
 object LowerIR2KernelCAST {
@@ -72,7 +72,7 @@ object LowerIR2KernelCAST {
       case fc@FunCall(_:MapSeq, _) =>
         generateMapSeq(fc)
       case fc@FunCall(_:AbstractPartRed, _*) =>
-        generateAbstractReduce(fc)
+        generateReduceSeq(fc)
       case fc@FunCall(_:UserFun,_*) =>
         generateUserFun(fc)
       case fc@FunCall(_:Get, _) =>

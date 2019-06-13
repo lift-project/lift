@@ -40,7 +40,7 @@ object OutputView {
         tm.f.body.outputView = fc.outputView
         cont( tm.f.body )
 
-        arg.outputView = fc.outputView
+        arg.outputView = tm.f.params.head.outputView
         cont( arg )
 
         fc
@@ -52,7 +52,7 @@ object OutputView {
         l.f.body.outputView = fc.outputView
         cont( l.f.body )
 
-        arg.outputView = fc.outputView
+        arg.outputView = l.f.params.head.outputView
         cont( arg )
 
         fc
