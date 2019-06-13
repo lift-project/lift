@@ -6,13 +6,16 @@ import ir.interpreter.Interpreter.ValueMap
 import lift.arithmetic.ArithExpr
 
 
+
+// implement a view construct that perform this: res = [startIdx, endIdx) of the outmost dimension
 case class Slice(startIdx: ArithExpr, endIdx: ArithExpr) extends Pattern(arity = 1) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
       case at: ArrayType with Size with Capacity =>
-        ArrayTypeWSWC(ArrayTypeWSWC(at.elemT, chunkSize, chunkSize), at.size /^ chunkSize, at.capacity /^ chunkSize)
+        val chunkSize = endIdx - startIdx
+        ArrayTypeWSWC(at.elemT, chunkSize, chunkSize)
 
       case _ => throw new TypeException(argType, "ArrayType", this)
     }
@@ -23,7 +26,9 @@ case class Slice(startIdx: ArithExpr, endIdx: ArithExpr) extends Pattern(arity =
     assert(args.length == arity)
 
     args.head match {
-      case v: Vector[_] => v.grouped(chunkSize.eval).toVector
+      case v: Vector[_] =>
+        val chunkSize = endIdx - startIdx
+        v.grouped(chunkSize.eval).toVector
     }
   }
 }

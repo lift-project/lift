@@ -1,5 +1,6 @@
 package cbackends.host
 
+import cbackends.common.common_ir.Slice
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, PadConstant, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
@@ -1980,5 +1981,26 @@ class TestHost {
 
   }
 
+  @Test
+  def test_slice(): Unit = {
+
+    val path = s"$common_path/42.slice"
+    val file = "libslice.cpp"
+
+    val f = fun( ArrayType(Float, N),
+      in => MapSeq( incrementF ) o Slice(3,N) $ in
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "32 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_map done!")
+
+  }
 
 }
