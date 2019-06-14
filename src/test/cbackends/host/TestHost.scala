@@ -1,6 +1,6 @@
 package cbackends.host
 
-import cbackends.common.common_ir.Slice
+import cbackends.common.common_ir.{Concat, Slice}
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, PadConstant, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
@@ -2009,9 +2009,12 @@ class TestHost {
     val path = s"$common_path/43.concat"
     val file = "libconcat.cpp"
 
-    val f = fun( ArrayType(Float, N),
+    val f = fun(
+      ArrayType(Float, N),
       ArrayType(Float, M),
-      MapSeq(incrementF) $ Concat(_,_)
+      //The args in Concat must contain at least one operator,
+      //as Concat is an output view construct, thus there must be at least one operator to produce output
+      (in1, in2) => Concat( MapSeq(id) $ in1, MapSeq(id) $ in2)
     )
 
     (s"mkdir -p $path") !
@@ -2019,7 +2022,7 @@ class TestHost {
     HostCompiler ! (f, path, List(file) )
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 \n"
+    val expected : String = "1 1 1 2 2 2 2 2 \n"
     assertEquals(expected, actual)
 
     println("Test case test_map done!")

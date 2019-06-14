@@ -1,6 +1,6 @@
 package cbackends.host.lowering
 
-import cbackends.common.common_ir.CPUMainMemoryAddressSpace
+import cbackends.common.common_ir.{CPUMainMemoryAddressSpace, Concat}
 import cbackends.common.utils.type_lowering.TypeLowering
 import cbackends.host.host_ir._
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, Block, BlockMember, CVarWithType, ClassOrStructType, Comment, EmptyNode, ExpressionStatement, FloatType, ForLoopIm, FunctionCall, FunctionPure, IfThenElifIm, IfThenElseIm, IntConstant, IntegerType, MethodInvocation, MutableBlock, ObjectDecl, ParamDeclPure, PrimitiveTypeT, RawCode, RefType, StringConstant, TypeDef, TypeDefHost, UnaryExpression, VarDeclPure, VarRef, VarRefPure, VoidType}
@@ -9,7 +9,6 @@ import ir.ast.Iterate
 import opencl.generator.NDRange
 import opencl.ir.pattern.{MapGlb, MapWrg, ScanSeq}
 import opencl.ir.{GlobalMemory, OpenCLAddressSpace}
-
 
 import scala.collection.mutable.ArrayBuffer
 //import host_obsolete.ir_host.MapHSeq
@@ -80,6 +79,8 @@ object LowerIR2HostCAST {
       case fc@FunCall(Join(), _) =>
         generateNothing(fc)
       case fc@FunCall(Slide(_,_), _ ) =>
+        generateNothing(fc)
+      case fc@FunCall(_:Concat, _* ) =>
         generateNothing(fc)
       case fc@FunCall(Transpose(), _) =>
         generateNothing(fc)
@@ -641,7 +642,7 @@ object LowerIR2HostCAST {
 
   def generateNothing(fc: FunCall) : Block = {
 
-    generate(fc.args.head)
+    Block(fc.args.map( generate(_) ).toVector, global = true )
 
   }
 

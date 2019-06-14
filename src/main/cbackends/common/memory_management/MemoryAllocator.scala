@@ -1,7 +1,7 @@
 package cbackends.common.memory_management
 
 import core.generator.GenericAST.CVarWithType
-import cbackends.common.common_ir.{CPUNullMemory, HostMemory, HostMemoryCollection, Slice}
+import cbackends.common.common_ir._
 import cbackends.host.host_ir._
 import ir.ast.{AbstractMap, AbstractPartRed, ArrayAccess, ArrayConstructors, Expr, FPattern, FunCall, FunDecl, Get, IRNode, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip}
 import ir.{Type, UnallocatedMemory}
@@ -38,7 +38,7 @@ object MemoryAllocator {
         fc.mem = OpenCLMemory(Var(s"user_func_${fc.gid}", ContinuousRange(Cst(0), size)), size, fc.addressSpace )
         fc
 
-      case fc@FunCall(_:UserFun | _:CPUFunCall | _:ToHost, args@_*) => {
+      case fc@FunCall(_:UserFun | _:CPUFunCall | _:ToHost | _:Concat, args@_*) => {
         //link the arg to the correct param is already done in its upper level FPattern
         args.foreach(cont(_))
 
@@ -123,6 +123,7 @@ object MemoryAllocator {
 
         fc
       }
+
 
 
       /*case x:Expr if x.mem == UnallocatedMemory =>
