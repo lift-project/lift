@@ -2003,4 +2003,27 @@ class TestHost {
 
   }
 
+  @Test
+  def test_concat(): Unit = {
+
+    val path = s"$common_path/43.concat"
+    val file = "libconcat.cpp"
+
+    val f = fun( ArrayType(Float, N),
+      ArrayType(Float, M),
+      MapSeq(incrementF) $ Concat(_,_)
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_map done!")
+
+  }
+
 }
