@@ -2040,7 +2040,33 @@ class TestHost {
       ArrayType(Float, M),
       //The args in Concat must contain at least one operator,
       //as Concat is an output view construct, thus there must be at least one operator to produce output
+      //TODO: if MapSeq(id) o MapSeq(id) $ in, the memory allocator will yield wrong final code
       (in1, in2) => MapSeq(incrementF) $ Concat( MapSeq(id) $ in1, MapSeq(id) $ in2)
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "2 2 2 3 3 3 3 3 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_map done!")
+
+  }
+
+  @Test
+  def test_concat_slice(): Unit = {
+
+    val path = s"$common_path/44.concat_slice"
+    val file = "libconcat_slice.cpp"
+
+    val f = fun(
+      ArrayType(Float, N),
+      //The args in Concat must contain at least one operator,
+      //as Concat is an output view construct, thus there must be at least one operator to produce output
+      in => MapSeq(incrementF) $ Concat( MapSeq(incrementF) o Slice(0,3) $ in, MapSeq(incrementF) o Slice(3, N) $ in)
     )
 
     (s"mkdir -p $path") !
