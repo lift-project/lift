@@ -2029,4 +2029,30 @@ class TestHost {
 
   }
 
+  @Test
+  def test_concat_more(): Unit = {
+
+    val path = s"$common_path/43.concat"
+    val file = "libconcat.cpp"
+
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, M),
+      //The args in Concat must contain at least one operator,
+      //as Concat is an output view construct, thus there must be at least one operator to produce output
+      (in1, in2) => MapSeq(incrementF) $ Concat( MapSeq(id) $ in1, MapSeq(id) $ in2)
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "2 2 2 3 3 3 3 3 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_map done!")
+
+  }
+
 }

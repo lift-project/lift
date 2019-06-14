@@ -642,7 +642,7 @@ object LowerIR2HostCAST {
 
   def generateNothing(fc: FunCall) : Block = {
 
-    Block(fc.args.map( generate(_) ).toVector, global = true )
+    Block(fc.args.map( generate(_) ).toVector )
 
   }
 
