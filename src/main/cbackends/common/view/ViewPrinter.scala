@@ -134,6 +134,13 @@ object ViewPrinter {
         val newIdx = chunkIdx * slide.step + elemIdx
         generateArrayAccess(iv, newIdx :: indices, tupleAccessStack)
 
+      case ViewSlice(iv, slice, _) =>
+        assert( arrayAccessStack.length > 0 )
+        val oldIdx :: indices = arrayAccessStack
+        val newIdx = oldIdx + slice.startIdx
+        generateArrayAccess(iv, newIdx :: indices, tupleAccessStack)
+
+
       case _ =>
         assert(false, "Pattern may not be implemented in view printer"); StringConstant("Unreachable!")
 

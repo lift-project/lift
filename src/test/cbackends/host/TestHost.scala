@@ -1996,7 +1996,7 @@ class TestHost {
     HostCompiler ! (f, path, List(file) )
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "32 \n"
+    val expected : String = "2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 \n"
     assertEquals(expected, actual)
 
     println("Test case test_map done!")

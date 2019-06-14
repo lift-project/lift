@@ -1,5 +1,6 @@
 package ir.view
 
+import cbackends.common.common_ir.Slice
 import core.generator.GenericAST
 import core.generator.GenericAST._
 import ir.Type.size_t
@@ -292,6 +293,14 @@ abstract sealed class View(val t: Type = UndefType) {
     }
   }
 
+  def slice(s: Slice): View = {
+    this.t match {
+      case ArrayType(_) =>
+        ViewSlice(this, s, s.checkType(this.t, setType=false))
+      case other => throw new IllegalArgumentException("Can't slide" + other)
+    }
+  }
+
   def pad(left: Int, right: Int, boundary: Pad.BoundaryFun): View = {
     this.t match {
       case ArrayTypeWS(elemT, len) =>
@@ -484,6 +493,15 @@ case class ViewTuple(ivs: Seq[View], override val t: Type) extends View(t)
  * @param t Type of the view.
  */
 case class ViewSlide(iv: View, slide: Slide, override val t: Type) extends View(t)
+
+/**
+  *  A view for slicing.
+  *
+  * @param iv View to Slide.
+  * @param slice The slice function to use.
+  * @param t Type of the view.
+  */
+case class ViewSlice(iv: View, slice: Slice, override val t: Type) extends View(t)
 
 /**
  * Get the head of a view.

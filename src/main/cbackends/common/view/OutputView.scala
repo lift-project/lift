@@ -1,6 +1,6 @@
 package cbackends.common.view
 
-import cbackends.common.common_ir.CPUNullMemory
+import cbackends.common.common_ir.{CPUNullMemory, HostMemory, Slice}
 import cbackends.common.utils.common_view.GenerateViewForRawInOut
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC}
 import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Iterate, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
@@ -8,7 +8,6 @@ import ir.view._
 import lift.arithmetic.{ArithExpr, Cst}
 import core.generator.PrettyPrinter._
 import cbackends.common.utils.output_view.OutputView.{init_body, post_check, pre_check}
-import cbackends.common.common_ir.HostMemory
 import cbackends.host.host_ir._
 import opencl.ir.pattern.ScanSeq
 
@@ -436,6 +435,19 @@ object OutputView {
       }*/
 
 
+      case fc@FunCall(_:Slice, arg) => {
+
+        assert(fc.outputView != NoView)
+
+        arg.outputView = fc.outputView
+        //arg.outputView = UnusedInExprOutputView
+
+        assert(arg.outputView != NoView)
+
+        cont( arg )
+
+        fc
+      }
 
       case fc@FunCall(l:Lambda, args@_*) => {
 
