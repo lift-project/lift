@@ -29,6 +29,9 @@ class TestHost {
   val K = SizeVar("K")
 
   val incrementF = fun(Float, x => add(Float).apply(1f, x))
+  val incrementF2 = fun(Float, x => add(Float).apply(1f, x))
+  val incrementF3 = fun(Float, x => add(Float).apply(1f, x))
+  val incrementF4 = fun(Float, x => add(Float).apply(1f, x))
 
   val add2 = UserFun("add", Array("l", "r"),
     "{ return (l + r); }",
@@ -2066,7 +2069,7 @@ class TestHost {
       ArrayType(Float, N),
       //The args in Concat must contain at least one operator,
       //as Concat is an output view construct, thus there must be at least one operator to produce output
-      in => MapSeq(incrementF) $ Concat( MapSeq(incrementF) o Slice(0,3) $ in, MapSeq(incrementF) o Slice(3, N) $ in)
+      in => MapSeq(incrementF3) $ Concat( MapSeq(incrementF2) o Slice(0,3) $ in, MapSeq(incrementF) o Slice(3, N) $ in)
     )
 
     (s"mkdir -p $path") !
@@ -2074,7 +2077,7 @@ class TestHost {
     HostCompiler ! (f, path, List(file) )
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "2 2 2 3 3 3 3 3 \n"
+    val expected : String = "3 3 3 3 3 3 3 3 \n"
     assertEquals(expected, actual)
 
     println("Test case test_map done!")
