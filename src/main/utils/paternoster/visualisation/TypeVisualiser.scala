@@ -427,7 +427,7 @@ class TypeVisualiser(argTypes: List[Type], expressionSource: String = "") {
     var values = getVariables()
     val arithExpVisiterFunc = (ae: ArithExpr) => {
       ae match {
-        case v: Var if (values.contains(v.name)) => ArithExpr.LongToCst(Int.int2long(values.get(v.name).get))
+        case v: Var if (values.contains(v.name)) => ArithExpr.longToCst(Int.int2long(values.get(v.name).get))
         case an: Any => an
       }
     }

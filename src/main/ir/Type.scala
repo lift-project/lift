@@ -203,7 +203,8 @@ case class ArrayType(elemT: Type) extends Type {
 
   /** Structural equality */
   override def equals(other: Any): Boolean = {
-    def getSizeAndCapacity(at: ArrayType): (Option[ArithExpr], Option[ArithExpr]) = at match {
+    def getSizeAndCapacity(at: ArrayType):
+    (Option[ArithExpr with SimplifiedExpr], Option[ArithExpr with SimplifiedExpr]) = at match {
       case sc: Size with Capacity => (Some(sc.size), Some(sc.capacity))
       case s: Size => (Some(s.size), None)
       case c: Capacity => (None, Some(c.capacity))
