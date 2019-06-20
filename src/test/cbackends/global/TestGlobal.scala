@@ -718,16 +718,16 @@ class TestGlobal {
     import opencl.executor.Eval
     import exploration.SplitSlideRewrite.readFromFile
 
-    val totalTuningPoints = 1000
-    val tuningPointBatchSize = 200
+    val totalTuningPoints = 5000
+    val tuningPointBatchSize = 500
     val nLayers = 13
     val fuseLambdas: Boolean = true
     val null_local_ranges: Boolean = false
     val continueFromLayer = 0
     val continueFromTunePoint = 0
 
-    for {tuningPointBatch <- 0 until totalTuningPoints / tuningPointBatchSize}
-      for {layerConfigId <- List(0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)} {
+    for {tuningPointBatch <- 0 until (totalTuningPoints / tuningPointBatchSize)}
+      for {layerConfigId <- 0 until nLayers} {
         if (layerConfigId >= continueFromLayer) {
           for {tuningId <- (tuningPointBatch * tuningPointBatchSize) until ((tuningPointBatch + 1) * tuningPointBatchSize)} {//000..200, 200..400, 400..600, 600..800, 800..1000
             if (tuningId >= continueFromTunePoint || layerConfigId > continueFromLayer) {
