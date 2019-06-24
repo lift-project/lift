@@ -1967,9 +1967,11 @@ class TestHost {
     val path = s"$common_path/41.parallel_reduce"
     val file = "libpar_reduce.cpp"
 
+    //pure parallel reduce requires the size can be divided by 8, in the current expression
+
     val f = fun( ArrayType(Float, N),
       //in => MapSeq( incrementF ) $ in
-      in => ReduceSeq(add2, 0.0f)  o Join() o Join() o MapSeq(MapSeq( ReduceSeq(add2, 0.0f) ) ) o Split(4) o Split(N/8) $ in
+      in => ReduceSeq(add2, 0.0f) o Join() o Join() o MapSeq(MapSeq( ReduceSeq(add2, 0.0f) ) ) o Split(4) o Split(N/8) $ in
     )
 
     (s"mkdir -p $path") !
@@ -2078,6 +2080,34 @@ class TestHost {
 
     val actual : String = native_compile_and_run(path, file)
     val expected : String = "3 3 3 3 3 3 3 3 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_map done!")
+
+  }
+
+  @Test
+  def test_par_reduce_general_version(): Unit = {
+
+    val path = s"$common_path/45.parallel_reduce_general_version"
+    val file = "libpar_reduce_general.cpp"
+
+    //pure parallel reduce requires the size can be divided by 8, in the current expression
+    //also remove the sequential reduce, as there will be a sequential reduce at the end anyway,
+    //so removed here, which allocate slightly more memory, but one less loop generated.
+    val par_reduce = Join() o Join() o MapSeq(MapSeq( ReduceSeq(add2, 0.0f) ) ) o Split(4) o Split(N/8)
+
+    val f = fun( ArrayType(Float, N),
+      //in => MapSeq( incrementF ) $ in
+      in => ReduceSeq(add2, 0.0f) $ Concat( ReduceSeq(add2, 0.0f) o Slice(N - N % 8, N) $ in , par_reduce o Slice(0, N - N % 8) $ in )
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "32 \n"
     assertEquals(expected, actual)
 
     println("Test case test_map done!")
