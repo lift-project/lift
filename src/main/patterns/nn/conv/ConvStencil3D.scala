@@ -332,10 +332,10 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
       λ(kernelWGroupType, xTileType,
         (kernelWGroup, XTile) => {
           AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") o
-            TransposeW() o
+            TransposeW() o Join() o
             {val map2 = if (!useGlobalMaps) MapLcl(1) else MapSeq
               map2(λ(flatWindowGroupType, (windowGroup) =>
-                TransposeW() o
+                Map(TransposeW()) o TransposeW() o
 
                   {val map3 = if (!useGlobalMaps) MapLcl(0) else MapGlb(0)
                     map3(λ((partialWindowsAndPartialKernels) => {
@@ -343,8 +343,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                       /* Use less private memory by storing one input value at a time */
                       val partialWindows = Get(partialWindowsAndPartialKernels, 0)
                       val partialKernels = Get(partialWindowsAndPartialKernels, 1)
-
-                      MapSeq(toLocal /*toGlobal*/(id)) o Join() o Join() o
+                      MapSeq(MapSeq(toLocal /*toGlobal*/(id))) o Join() o
                         ReduceSeq(λ((acc, elementwiseTupleOfWindowAndKernelGroups) => {
 
                           // Preload partial windows and kernels into private memory before the computations
