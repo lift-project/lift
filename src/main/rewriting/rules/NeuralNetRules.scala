@@ -77,7 +77,7 @@ object NeuralNetRules {
           Seq(opencl.ir.Float, opencl.ir.Float4, opencl.ir.Float4), opencl.ir.Float), ufArgs: _*)
     })
 
-    val vectorise4 = Rule("", {
+    val vectorise4 = Rule("vectorise4", {
       case FunCall(callBody, FunCall(_: Zip, zipArgs@_*))
         if zipArgs.forall(zipArg => Rewrite.listAllPossibleRewrites(zipArg, vectorise4Marker).nonEmpty) =>
 
