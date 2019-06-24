@@ -34,7 +34,8 @@ object NeuralNetRules {
         layerConfig = new ConvStencil3D.ConvStencil3DLayerConfig(),
         tuneParams = new ConvStencil3D.ConvStencil3DTuneParams(),
         rewriteParams = new conv.ConvStencil3D.ConvStencil3DRewriteParams(),
-        fuseLambdas = false /* TODO: handle lambda fusion*/)(0), args: _*) // TODO: this throws away the final part of the expression
+        fuseLambdas = false /* TODO: handle lambda fusion*/,
+        shareKernels = false)(0), args: _*) // TODO: this throws away the final part of the expression
     })
 
 

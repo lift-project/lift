@@ -26,7 +26,7 @@ package object nn {
     def apply(layerConfig: ConvStencil3DLayerConfig,
               tuneParams: ConvStencil3DTuneParams,
               rewriteParams: ConvStencil3DRewriteParams,
-              fuseLambdas: Boolean): Seq[Lambda]
+              fuseLambdas: Boolean, shareKernels: Boolean): Seq[Lambda]
   }
 
   type Array2D[T] = Array[Array[T]]

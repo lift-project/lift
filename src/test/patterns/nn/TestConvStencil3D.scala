@@ -151,7 +151,7 @@ class TestConvStencil3D {
   @Ignore
   @Test
   def testScalaConvSanityCheck(): Unit = {
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false, false)
     val lambdas = factory.apply(id)
 
     val result: Array[Array[Array[Array[Float]]]] =
@@ -173,7 +173,7 @@ class TestConvStencil3D {
   @Ignore
   @Test
   def testBothLsSanityCheck(): Unit = {
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false, false)
     val lambdas = factory.apply(id)
 
     val concreteLambda1 = ParameterRewrite(lambdas.head, substitutionTableExample)
@@ -200,7 +200,7 @@ class TestConvStencil3D {
   @Ignore
   @Test
   def test1stLSanityCheck(): Unit = {
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false, false)
     val lambdas = factory.apply(id)
 
     val concreteLambda1 = ParameterRewrite(lambdas.head, substitutionTableExample)
@@ -238,7 +238,7 @@ class TestConvStencil3D {
   def test1stLAgainstScalaVersion(layerConfig: List[Cst], tuneParams: List[Cst], rewriteParams: List[Cst]): Unit = {
     Random.setSeed(0)
 
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false, false)
     val lambdas = factory.apply(id)
 
     val substitutionTable: Map[Var, Cst] =
@@ -310,7 +310,7 @@ class TestConvStencil3D {
   def testBothLsAgainstScalaVersion(layerConfig: List[Cst], tuneParams: List[Cst], rewriteParams: List[Cst]): Unit = {
     Random.setSeed(0)
 
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false, false)
     val lambdas = factory.apply(id)
 
     val substitutionTable: Map[Var, Cst] =
@@ -378,7 +378,7 @@ class TestConvStencil3D {
   Unit = {
     Random.setSeed(0)
 
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false, false)
     val lambdas = factory.apply(id)
 
     val substitutionTable: Map[Var, Cst] =

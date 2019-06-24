@@ -15,7 +15,8 @@ import patterns.nn.utils.Utils.slidingOutputSize
 class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                     tuneParams: ConvStencil3DTuneParams,
                     rewriteParams: ConvStencil3DRewriteParams,
-                    fuseLambdas: Boolean)
+                    fuseLambdas: Boolean,
+                    shareKernels: Boolean)
   extends LayerExpression(layerConfig, tuneParams, rewriteParams) {
 
   def AT = ArrayType // alias
@@ -51,7 +52,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
 
   val nWindowsInTile = nWindowsInTileCol * nWindowsInTileRow
 
-  //  val nWindowGroupsInTile = nWindowsInTile /^ tuneParams.nWindowsPerThread
+  val nWindowGroupsInTile = nWindowsInTile /^ tuneParams.nWindowsPerThread
 
   val nTilesTotal = layerConfig.nInputs * nTilesInInput
 
@@ -73,7 +74,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
   val xTileType: AT = AT(flatWindowType, nWindowsInTile)
   val xType: AT = AT(xTileType, nTilesTotal)
 
-  //  val windowGroupType = AT(windowType, tuneParams.nWindowsPerThread)
+  val flatWindowGroupType = AT(flatWindowType, tuneParams.nWindowsPerThread)
   //  val groupedXTileType: AT = AT(windowGroupType, nWindowGroupsInTile)
 
 
@@ -326,6 +327,62 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
         })
 
 
+    /* Share not just input windows among kernels, but also kernels among input windows */
+    val layerPartialSingleWorkgroupWithKernelShareLambda: Lambda =
+      λ(kernelWGroupType, xTileType,
+        (kernelWGroup, XTile) => {
+          AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") o
+            TransposeW() o
+            {val map2 = if (!useGlobalMaps) MapLcl(1) else MapSeq
+              map2(λ(flatWindowGroupType, (windowGroup) =>
+                TransposeW() o
+
+                  {val map3 = if (!useGlobalMaps) MapLcl(0) else MapGlb(0)
+                    map3(λ((partialWindowsAndPartialKernels) => {
+
+                      /* Use less private memory by storing one input value at a time */
+                      val partialWindows = Get(partialWindowsAndPartialKernels, 0)
+                      val partialKernels = Get(partialWindowsAndPartialKernels, 1)
+
+                      MapSeq(toLocal /*toGlobal*/(id)) o Join() o Join() o
+                        ReduceSeq(λ((acc, elementwiseTupleOfWindowAndKernelGroups) => {
+
+                          // Preload partial windows and kernels into private memory before the computations
+                          Let(elementAcrossWindowGroup => {
+                            Let(elementAcrossKernelGroup => {
+
+                              MapSeq(λ((accAndSingleWindowValue) => {
+                                MapSeq(λ((accAndSingleKernelValue) => {
+
+                                  val singleAccValue = Get(accAndSingleKernelValue, 0)
+                                  val singleWindowValue = Get(accAndSingleWindowValue, 1)
+                                  val singleKernelValue = Get(accAndSingleKernelValue, 1)
+
+                                  RewritingGuidePost("vectorisableDotAndSumUp") $
+                                    dotAndSumUp(singleAccValue, /* X */ singleWindowValue, /* kernelW */ singleKernelValue)
+
+                                })) $ Zip(Get(accAndSingleWindowValue, 0), elementAcrossKernelGroup)
+                              })) $ Zip(acc, elementAcrossWindowGroup)
+
+                            }) o MapSeq(toPrivate(RewritingGuidePost("vectorisableId") o id)) $
+                              Get(elementwiseTupleOfWindowAndKernelGroups, 1)
+                          }) o MapSeq(toPrivate(RewritingGuidePost("vectorisableId") o id)) $
+                            Get(elementwiseTupleOfWindowAndKernelGroups, 0)
+                        }),
+                          MapSeq(MapSeq(toPrivate(id))) $ Value("0.0f",
+                            ArrayTypeWSWC(ArrayTypeWSWC(Float, tuneParams.nKernelsPerWrg), tuneParams.nWindowsPerThread))
+
+                        ) $ Zip(
+                        Transpose() $ partialWindows,
+                        Transpose() $ partialKernels)
+
+                      }))} $ Zip(
+                  Transpose() o Map(vectoriseCoalesceAndSplit()) $ windowGroup,
+                  Transpose() o Map(vectoriseCoalesceAndSplit()) $ kernelWGroup)
+              ))} o Split(tuneParams.nWindowsPerThread) $ XTile
+        })
+
+
 
     val layerPartial: Lambda = {
       λ(AT(AT(AT(AT(Float, layerConfig.inputChannels),
@@ -346,7 +403,8 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                     map1(λ(kernelWGroupType, (kernelWGroup) => {
                       /** *** Output channel group BEGIN *****/
 
-                        layerPartialSingleWorkgroupLambda.apply(kernelWGroup, XTile)
+                      {if (shareKernels) layerPartialSingleWorkgroupWithKernelShareLambda
+                      else layerPartialSingleWorkgroupLambda}.apply(kernelWGroup, XTile)
 
                       /** *** Output channel group END *****/
                     }))} o AssertType(kernelWType, "All kernel weights type after split") o
@@ -417,7 +475,8 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                       layerFinalSingleWorkgroupLambda.apply(
                         AssertType(kernelBGroupType, "Bias group type") $ Get(outputChannelGroup, 1),
                         AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") $
-                          layerPartialSingleWorkgroupLambda.apply(Get(outputChannelGroup, 0), XTile))
+                          {if (shareKernels) layerPartialSingleWorkgroupWithKernelShareLambda
+                          else layerPartialSingleWorkgroupLambda}.apply(Get(outputChannelGroup, 0), XTile))
 
                       /** *** Output channel group END *****/
                     }))} $ Zip(
@@ -589,13 +648,14 @@ object ConvStencil3D extends LayerExpressionFactory {
   class ConvStencil3DTuneParams(val tileWidthHeight: Var = Var("tileWidthHeight"),
                                 val nKernelsPerWrg: Var = Var("nKernelsPerWrg"),
                                 val seqOpsPerThread: Var = Var("seqOpsPerThread"),
+                                val nWindowsPerThread: Var = Var("nWindowsPerThread"),
 
                                 val padOptTotal: Var = Var("padOptTotal"),
 
                                 val coalesce: Boolean = false,
                                 val unrollReduce: Boolean = false) extends LayerTuneParams {
     val paramVector: Vector[Var] = Vector(
-      tileWidthHeight, /*vectorLen, */nKernelsPerWrg, /*nWindowsPerThread, */seqOpsPerThread, padOptTotal)
+      tileWidthHeight, nKernelsPerWrg, seqOpsPerThread, nWindowsPerThread, padOptTotal)
   }
 
 
@@ -608,8 +668,8 @@ object ConvStencil3D extends LayerExpressionFactory {
   def apply(layerConfig: ConvStencil3DLayerConfig,
             tuneParams: ConvStencil3DTuneParams,
             rewriteParams: ConvStencil3DRewriteParams,
-            fuseLambdas: Boolean): Seq[Lambda] =
-    apply(id, layerConfig, tuneParams, rewriteParams, fuseLambdas)
+            fuseLambdas: Boolean, shareKernels: Boolean): Seq[Lambda] =
+    apply(id, layerConfig, tuneParams, rewriteParams, fuseLambdas, shareKernels)
 
 
   /**
@@ -619,6 +679,6 @@ object ConvStencil3D extends LayerExpressionFactory {
             layerConfig: ConvStencil3DLayerConfig,
             tuneParams: ConvStencil3DTuneParams,
             rewriteParams: ConvStencil3DRewriteParams,
-            fuseLambdas: Boolean): Seq[Lambda] =
-    new ConvStencil3D(layerConfig, tuneParams, rewriteParams, fuseLambdas)(activationF)
+            fuseLambdas: Boolean, shareKernels: Boolean): Seq[Lambda] =
+    new ConvStencil3D(layerConfig, tuneParams, rewriteParams, fuseLambdas, shareKernels)(activationF)
 }

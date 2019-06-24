@@ -51,7 +51,7 @@ class TestPadding {
       Cst(1)
     )
 
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false, false)
     factory.apply(id)
 
     val substitutionTable: Map[Var, Cst] =
@@ -154,7 +154,7 @@ class TestPadding {
       Cst(1)
     )
 
-    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false)
+    val factory = new ConvStencil3D(layerConfigVars, tuneParamVars, rewriteParamVars, false, false)
     factory.apply(id)
 
     val substitutionTable: Map[Var, Cst] =
