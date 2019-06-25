@@ -64,7 +64,7 @@ class TestProgramGenerator {
   @Test
   def noUselessMaps(): Unit = {
     assertTrue(generatedPrograms.forall(!_.body.contains({
-      case FunCall(Map(Lambda(Array(p), b)), _)
+      case FunCall(Map(Lambda(Array(p), b, _)), _)
         if !b.contains({ case p1: Param if p1 == p => }) =>
     })))
   }
@@ -101,7 +101,7 @@ class TestProgramGenerator {
   @Test
   def mapGeneration(): Unit =
     assertTrue(generator.LambdaList.exists({
-      case Lambda(_, FunCall(Map(_), _)) => true
+      case Lambda(_, FunCall(Map(_), _), _) => true
       case _ => false
     }))
 

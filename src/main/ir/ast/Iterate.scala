@@ -29,7 +29,7 @@ import scala.collection._
  * @param vPtrIn the variable representing the pointer for reading the input
  * @param vPtrOut the variable representing the pointer for writing the output
  */
-case class Iterate(n: ArithExpr, f: Lambda, vPtrIn: Var = Var("inPtr"), vPtrOut: Var = Var("outPtr")) extends Pattern(arity = 1)
+case class Iterate(n: ArithExpr, f: Lambda, var loopVar : Var = PosVar("i"), vPtrIn: Var = Var("inPtr"), vPtrOut: Var = Var("outPtr")) extends Pattern(arity = 1)
                                                      with FPattern {
   var iterationCount: ArithExpr = ?
 
@@ -197,6 +197,12 @@ case class Iterate(n: ArithExpr, f: Lambda, vPtrIn: Var = Var("inPtr"), vPtrOut:
         )
     }
   }
+
+
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)
+
+  override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode =
+    Iterate(n, f.visitAndRebuild(pre,post).asInstanceOf[Lambda], loopVar, vPtrIn, vPtrOut )
 }
 
 object Iterate {

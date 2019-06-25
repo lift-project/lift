@@ -7,6 +7,8 @@ case class MapSeq(override val f: Lambda1) extends AbstractMap(f, "MapSeq",
   PosVar("i")) {
   override def copy(f: Lambda): Pattern = MapSeq(f)
   var shouldUnroll = false
+
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)
 }
 
 class MapSeqUnroll(override val f: Lambda1) extends MapSeq(f) {

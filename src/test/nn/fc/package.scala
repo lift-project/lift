@@ -1,5 +1,7 @@
 package nn
 
+import patterns.nn._
+
 /**
   * Created by nm on 08/02/17.
   * Things pertaining to TestMLP tests.

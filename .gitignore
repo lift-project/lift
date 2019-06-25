@@ -1,3 +1,4 @@
+.idea
 apart.conf
 skelcl.conf
 project/project/
@@ -6,13 +7,12 @@ target/
 scripts/compiled_scripts/
 lib/Executor/build
 src/main/resources/lib/libexecutor-jni.*
-.idea/
 .tags
 .kernels
 *.out
 *.log
-*.iml
 *.html
 *.pyc
 *.swp
 *.DS_Store
+*.iml

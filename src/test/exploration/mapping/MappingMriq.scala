@@ -3,6 +3,7 @@ package exploration.mapping
 import exploration.MemoryMappingRewrite
 import ir._
 import ir.ast._
+import lift.arithmetic.simplifier.SimplifyPow
 import lift.arithmetic.{Cst, Pow}
 import opencl.executor.LongTestsEnabled
 import opencl.ir._
@@ -129,7 +130,7 @@ class MappingMriq {
                     FunCall(Get(1), p_10),
                     FunCall(Get(2), p_10),
                     FunCall(Get(3), p_10)))), p_7)))),
-              FunCall(Split( K * Pow(v__2, Cst(-1)) ),
+              FunCall(Split( K * SimplifyPow(v__2, Cst(-1)) ),
                 FunCall(Gather(ReorderWithStride(v__2)), p_3))))))),
         FunCall(Zip(3), p_0, p_1, p_2)))
 
@@ -161,7 +162,7 @@ class MappingMriq {
                           FunCall(Get(2), p_14),
                           FunCall(Get(3), p_14))))),
                       FunCall(idTuple2_float_float, Value("{ 0.0f, 0.0f}", TupleType(Float, Float))), p_10)))),
-                  FunCall(Split( K * Pow(v__2, Cst(-1)) ),
+                  FunCall(Split( K * SimplifyPow(v__2, Cst(-1)) ),
                     FunCall(Gather(ReorderWithStride(v__2)), p_3))))))))),
         FunCall(Zip(3), p_0, p_1, p_2)))
 

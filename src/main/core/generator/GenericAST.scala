@@ -59,7 +59,7 @@ object GenericAST {
     }
 
 
-    def visit(pre: (AstNode) => Unit, post: (AstNode) => Unit = { _ => } ) : Unit ={
+    def visitBy(pre: (AstNode) => Unit, post: (AstNode) => Unit = { _ => } ) : Unit ={
       pre(this)
       this._visit(pre,post)
       post(this)
@@ -161,10 +161,10 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      params.map(_.visit(pre, post))
-      body.visit(pre, post)
+      params.map(_.visitBy(pre, post))
+      body.visitBy(pre, post)
       attribute match {
-        case Some(a) => a.visit(pre, post)
+        case Some(a) => a.visitBy(pre, post)
         case None =>
       }
 
@@ -241,9 +241,9 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
+      v.visitBy(pre, post)
       init match {
-          case Some(i) => i.visit(pre, post)
+          case Some(i) => i.visitBy(pre, post)
           case None =>
         }
     }
@@ -332,7 +332,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      content.map(_.visit(pre, post))
+      content.map(_.visitBy(pre, post))
     }
 
     /** Append a sub-node. Could be any node, including a sub-block.
@@ -344,6 +344,10 @@ object GenericAST {
     def ::(node: AstNode with BlockMember): MutableBlock = this.copy(content = node +: content)
 
     def ++(nodes: Vector[AstNode with BlockMember]): MutableBlock = this.copy(content = content ++ nodes)
+
+    def :++(mb: Block) : MutableBlock = this.copy(content = content ++ mb.content )
+
+    def toBlock: Block = Block(content, global = this.global)
   }
 
   /*
@@ -384,10 +388,10 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      init.visit(pre, post)
-      cond.visit(pre, post)
-      increment.visit(pre, post)
-      body.visit(pre, post)
+      init.visitBy(pre, post)
+      cond.visitBy(pre, post)
+      increment.visitBy(pre, post)
+      body.visitBy(pre, post)
     }
   }
 
@@ -418,9 +422,103 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      body.visit(pre, post)
+      body.visitBy(pre, post)
     }
   }
+
+  trait IfThenElseImT extends StatementT {
+    val cond: ExpressionT
+    val trueBody: BlockT
+    val falseBody: BlockT
+
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (visitFun(_, cond)) |>
+        (visitFun(_, trueBody)) |>
+        (visitFun(_, falseBody))
+    }
+
+    override def print(): Doc = {
+      text("if (") <> cond.print <> ")" <> trueBody.print <>
+        (if (falseBody != Block()) {
+          text(" else ") <> falseBody.print()
+        } else {
+          empty
+        })
+    }
+  }
+
+  case class IfThenElseIm(cond: ExpressionT, trueBody: BlockT, falseBody: BlockT) extends IfThenElseImT {
+
+
+    override def _visitAndRebuild(pre: (AstNode) => AstNode,  post: (AstNode) => AstNode) : AstNode = {
+      IfThenElseIm(cond.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
+        trueBody.visitAndRebuild(pre, post).asInstanceOf[BlockT],
+        falseBody.visitAndRebuild(pre, post).asInstanceOf[BlockT])
+    }
+
+    override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      cond.visitBy(pre, post)
+      trueBody.visitBy(pre, post)
+      falseBody.visitBy(pre, post)
+    }
+
+
+  }
+
+
+  trait IfThenElifImT extends StatementT {
+
+    val conds: List[ExpressionT]
+    val trueBodys: List[BlockT]
+    val falseBody: BlockT
+
+
+    override def print(): Doc = {
+      /*
+      text("if (") <> cond.print <> ")" <> trueBody.print <>
+        (if (falseBody != Block()) {
+          text(" else ") <> falseBody.print()
+        } else {
+          empty
+        })*/
+
+      val elif_conds = conds.drop(1)
+      val elif_trueBodys = trueBodys.drop(1)
+      val zipped = elif_conds zip elif_trueBodys
+      val docs = zipped.map{ case (cond, body) => text("else if ( ") <> cond.print <> text(" )") <> body.print }
+      val final_docs = (text("") /: docs ) ( </> )
+
+      text("if (") <> conds(0).print <> ")" <> trueBodys(0).print </> final_docs <>
+        (if (falseBody != Block()) {
+          text(" else ") <> falseBody.print()
+        } else {
+          empty
+        })
+    }
+
+  }
+
+
+  case class IfThenElifIm(conds: List[ExpressionT], trueBodys: List[BlockT], falseBody: BlockT) extends IfThenElifImT {
+
+
+    override def _visitAndRebuild(pre: (AstNode) => AstNode,  post: (AstNode) => AstNode) : AstNode = {
+      IfThenElifIm(conds.map(_.visitAndRebuild(pre, post).asInstanceOf[ExpressionT]),
+        trueBodys.map(_.visitAndRebuild(pre, post).asInstanceOf[BlockT]),
+        falseBody.visitAndRebuild(pre, post).asInstanceOf[BlockT])
+    }
+
+    override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      conds.foreach(_.visitBy(pre, post))
+      trueBodys.foreach(_.visitBy(pre, post))
+      falseBody.visitBy(pre, post)
+    }
+
+
+  }
+
 
   /*
   An If-then-else sequence
@@ -458,9 +556,9 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      cond.visit(pre, post)
-      trueBody.visit(pre, post)
-      falseBody.visit(pre, post)
+      cond.visitBy(pre, post)
+      trueBody.visitBy(pre, post)
+      falseBody.visitBy(pre, post)
     }
   }
 
@@ -487,7 +585,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      nameVar.visit(pre, post)
+      nameVar.visitBy(pre, post)
     }
   }
 
@@ -514,7 +612,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      nameVar.visit(pre, post)
+      nameVar.visitBy(pre, post)
     }
   }
 
@@ -567,6 +665,34 @@ object GenericAST {
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
   }
 
+  trait TypeDefHostT extends StatementT {
+    val t: Type
+
+    override def print(): Doc = t match {
+      case tt: TupleType ⇒
+        val name = Type.name(tt)
+        spread(tt.elemsT.map(t ⇒ TypeDef(t).print()).toList) <>
+          s"typedef struct" <>
+          bracket("{",
+            stack(
+              tt.elemsT.zipWithIndex.map({ case (ty, i) ⇒
+                Type.name(ty) <> " _" <> i.toString <> ";"
+              }).toList
+            ),
+            s"} $name;") <> line
+      case _  => Comment(s"NOTE: trying to print unprintable " +
+        s"type: ${Printer.toString(t)}").print <> line
+    }
+  }
+
+  case class TypeDefHost(t: Type) extends TypeDefHostT {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      this
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+  }
+
   /**
     * ??? Tuple aliases?
     */
@@ -593,6 +719,7 @@ object GenericAST {
     */
   trait ExpressionStatementT extends StatementT {
     val e: ExpressionT
+    val neglectSemiColon: Boolean
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -601,17 +728,17 @@ object GenericAST {
     }
 
     override def print(): Doc = {
-      e.print <> "; "
+      e.print <> (if(neglectSemiColon) "" else "; " )
     }
   }
 
-  case class ExpressionStatement(e: ExpressionT) extends ExpressionStatementT {
+  case class ExpressionStatement(e: ExpressionT, neglectSemiColon: Boolean = false) extends ExpressionStatementT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
       ExpressionStatement(e.visitAndRebuild(pre, post).asInstanceOf[ExpressionT])
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      e.visit(pre, post)
+      e.visitBy(pre, post)
     }
   }
 
@@ -621,6 +748,7 @@ object GenericAST {
   trait FunctionCallT extends ExpressionT {
     val name: String
     val args: List[AstNode]
+    val template_types: List[CTypeT]
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -631,19 +759,77 @@ object GenericAST {
     }
 
     override def print(): Doc = {
-      name <> "(" <> intersperse(args.map(_.print())) <> ")"
+      name <> (if (template_types.size == 0) "" else "<" <> intersperse(template_types.map(_.print())) <> ">") <> "(" <> intersperse(args.map(_.print)) <> ")"
     }
   }
 
   case class FunctionCall(name: String,
-                          args: List[GenericAST.AstNode]) extends FunctionCallT {
+                          args: List[GenericAST.AstNode], val template_types: List[CTypeT]= List()) extends FunctionCallT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      FunctionCall(name, args.map(_.visitAndRebuild(pre, post)))
+      FunctionCall(name, args.map(_.visitAndRebuild(pre, post)), template_types.map(_.visitAndRebuild(pre,post).asInstanceOf[CTypeT]))
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      args.map(_.visit(pre, post))
+      args.foreach(_.visitBy(pre, post))
+      template_types.foreach(_.visitBy(pre,post))
     }
+  }
+
+  trait MethodInvocationT extends ExpressionT {
+    //val object_name:String
+    val object_name:ExpressionT
+    val method_name:String
+    val args: List[GenericAST.AstNode]
+    val isPointer: Boolean
+
+    override def print(): Doc = {
+      object_name.print() <>
+        (if(isPointer) "->" else ".") <>
+        ( method_name ++ "(")  <>
+        intersperse(args.map(_.print)) <> ")"
+    }
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = {
+      object_name.visitBy(pre,post)
+      args.map(_.visitBy(pre,post))
+    }
+
+  }
+
+  //case class MethodInvocation(object_name:String,
+  case class MethodInvocation(object_name:ExpressionT,
+                              method_name:String,
+                              args: List[GenericAST.AstNode],
+                              isPointer: Boolean = false) extends MethodInvocationT
+  {
+    override def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode =
+      MethodInvocation(
+        object_name.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
+        method_name,
+        args.map(_.visitAndRebuild(pre,post)),
+        isPointer)
+
+  }
+
+
+  trait TupleExprT extends ExpressionT {
+
+    val args: List[AstNode]
+
+    override def print(): Doc = {
+     "{" <> intersperse(args.map(_.print)) <> "}"
+    }
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = {
+      args.map(_.visitBy(pre,post))
+    }
+
+  }
+
+  case class TupleExpr( args: List[GenericAST.AstNode] ) extends TupleExprT {
+
+    override def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode =
+      TupleExpr( args.map(_.visitAndRebuild(pre,post)) )
+
   }
 
   /**
@@ -691,9 +877,9 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
+      v.visitBy(pre, post)
       arrayIndex match {
-          case Some(ai) => ai.visit(pre, post)
+          case Some(ai) => ai.visitBy(pre, post)
           case None =>
         }
     }
@@ -739,8 +925,8 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
-      offset.visit(pre, post)
+      v.visitBy(pre, post)
+      offset.visitBy(pre, post)
     }
   }
 
@@ -786,9 +972,9 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
-      value.visit(pre, post)
-      offset.visit(pre, post)
+      v.visitBy(pre, post)
+      value.visitBy(pre, post)
+      offset.visitBy(pre, post)
     }
   }
 
@@ -819,8 +1005,8 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      to.visit(pre, post)
-      value.visit(pre,post)
+      to.visitBy(pre, post)
+      value.visitBy(pre,post)
     }
   }
 
@@ -891,8 +1077,8 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      lhs.visit(pre, post)
-      rhs.visit(pre, post)
+      lhs.visitBy(pre, post)
+      rhs.visitBy(pre, post)
     }
   }
 
@@ -943,9 +1129,9 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      cond.visit(pre, post)
-      trueExpr.visit(pre, post)
-      falseExpr.visit(pre, post)
+      cond.visitBy(pre, post)
+      trueExpr.visitBy(pre, post)
+      falseExpr.visitBy(pre, post)
     }
   }
 
@@ -976,7 +1162,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
+      v.visitBy(pre, post)
     }
   }
 
@@ -987,7 +1173,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
+      v.visitBy(pre, post)
     }
 
     override def print(): Doc = {
@@ -1032,7 +1218,7 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      args.map(_.visit(pre, post))
+      args.map(_.visitBy(pre, post))
     }
   }
 
@@ -1088,4 +1274,476 @@ object GenericAST {
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
   }
 
+  /**
+    * The following are extensions for host code generator
+    */
+
+  trait UnaryExpressionT extends ExpressionT
+
+  trait BlockT extends StatementT {
+    // TODO: How do we handle default values when they're vals?
+    val content: Vector[AstNode with BlockMember] // = Vector.empty
+    val global: Boolean // = false
+
+    def :+(node: AstNode with BlockMember): BlockT
+
+    def ::(node: AstNode with BlockMember): BlockT
+
+    def ++(nodes: Vector[AstNode with BlockMember]): BlockT
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = content.map(_.visitBy(pre,post))
+
+
+    override def print(): Doc = {
+      // pre-calculate our inner block
+      val innerBlock = intersperse(content.map(_.print()).toList,
+        Line())
+      // if we're global, bracket it, otherwise, don't
+      if (global) {
+        innerBlock
+      } else {
+        bracket("{", innerBlock, "}")
+      }
+    }
+  }
+
+  case class Block(override val content: Vector[AstNode with
+    BlockMember] = Vector(), global: Boolean = false) extends BlockT {
+    /** Append a sub-node. Could be any node, including a sub-block.
+      *
+      * @param node The node to add to this block.
+      */
+    def :+(node: AstNode with BlockMember): Block = this.copy(content = content :+ node)
+
+    def +:(node: AstNode with BlockMember): Block = this.copy(content = node +: content)
+    def ::(node: AstNode with BlockMember): Block = this.copy(content = node +: content)
+
+    def ++(nodes: Vector[AstNode with BlockMember]): Block = this.copy(content = content ++ nodes)
+
+    def ++:(mb: MutableBlock) : Block = this.copy(content = mb.content ++ content)
+
+    def :++(mb: Block) : Block = this.copy(content = content ++ mb.content, global = true )
+
+    override def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode =
+      Block(content.map(_.visitAndRebuild(pre,post).asInstanceOf[AstNode with BlockMember]), global = this.global)
+  }
+
+  trait AccessPropertyT extends AstNode {
+    val name:String
+    override def print(): Doc = name
+  }
+
+  trait CTypeT extends AstNode {
+    val name: String
+    override def print(): Doc = text(name)
+  }
+
+  trait PrimitiveTypeT extends CTypeT
+  trait ReferenceTypeT extends CTypeT
+  trait ClassOrStructTypeT extends CTypeT
+  case class ClassOrStructType(name:String) extends ClassOrStructTypeT {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+  trait VoidTypeT extends PrimitiveTypeT
+  case class VoidType(name:String) extends VoidTypeT {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+  object VoidType {
+    def apply() = new VoidType("void")
+  }
+
+
+  trait NumericTypeT extends PrimitiveTypeT
+  trait IntegerTypeT extends NumericTypeT
+  case class IntegerType(name:String) extends IntegerTypeT {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+  object IntegerType {
+    def apply() = new IntegerType(name="int")
+  }
+
+  //used by SDH push and pop cast
+  trait Uint32_t_T extends IntegerTypeT
+  case class Uint32_t(name:String) extends Uint32_t_T {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+  object Uint32_t {
+    def apply() = new Uint32_t(name="uint32_t")
+  }
+
+  trait FloatingPointTypeT extends NumericTypeT
+
+  trait FloatTypeT extends FloatingPointTypeT
+
+  case class FloatType(name: String) extends FloatTypeT {
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+
+  object FloatType {
+    def apply() = new FloatType("float")
+  }
+
+  trait DoubleTypeT extends FloatingPointTypeT
+
+  case class DoubleType(name: String) extends DoubleTypeT {
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+
+  object DoubleType {
+    def apply() = new FloatType("double")
+  }
+
+  trait PointerTypeT extends CTypeT
+
+  case class PointerType(name: String, t: CTypeT) extends PointerTypeT {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+    override def print(): Doc = t.print() <> text(" " ++ name)
+  }
+
+  object PointerType {
+    def apply(bodyType: CTypeT) = new PointerType("*", bodyType)
+  }
+
+  trait RefTypeT extends CTypeT
+
+  case class RefType(name: String, t: CTypeT) extends RefTypeT {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+    override def print(): Doc = t.print() <> text(" " ++ name)
+  }
+
+  object RefType {
+    def apply(bodyType: CTypeT) = new RefType("&", bodyType)
+  }
+
+
+  trait CArrayTypeT extends CTypeT
+
+  case class CArrayType(name: String, elem_t: CTypeT) extends CArrayTypeT{
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+  }
+
+  trait CHostArrayTypeT extends CArrayTypeT {
+    val name: String
+    val elem_t: CTypeT
+
+    override def print(): Doc = elem_t.print() <> "*"
+  }
+
+  case class CHostArrayType(name: String, elem_t: CTypeT) extends CHostArrayTypeT{
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+
+  trait COclArrayTypeT extends CArrayTypeT {
+    val name: String
+    val elem_t: CTypeT
+
+    override def print(): Doc = "cl::Buffer"
+  }
+
+  case class COclArrayType(name: String, elem_t: CTypeT) extends COclArrayTypeT{
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+
+
+  trait MarkT extends AstNode with BlockMember
+
+  trait OutlineMarkT extends MarkT
+
+  case class OutlineMark(outline_struct: Block) extends OutlineMarkT {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = outline_struct.visitBy(pre, post)
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+    override def print(): Doc = outline_struct.print()
+  }
+
+  trait ValueT extends ExpressionT
+
+  trait StringConstantT extends ValueT {
+    val value: String
+
+    override def print(): Doc = value
+  }
+
+  case class StringConstant(value: String) extends StringConstantT{
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+  }
+
+  trait IntConstantT extends ValueT {
+    val value: Int
+
+    override def print(): Doc = value.toString()
+  }
+
+  case class IntConstant(value: Int) extends IntConstantT{
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+  }
+
+
+  trait CVarWithTypeT extends DeclarationT with UnaryExpressionT {
+    val name: String
+    val t: CTypeT
+    override def print(): Doc = text(name)
+  }
+
+  case class CVarWithType(name:String, t: CTypeT) extends CVarWithTypeT {
+    override def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode =
+      CVarWithType(
+        name,
+        t.visitAndRebuild(pre, post).asInstanceOf[CTypeT]
+      )
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+
+  }
+
+  trait HostAccessPropertyT extends AccessPropertyT
+
+  case class HOST_MEM_READ_ONLY(name: String = "HOST_MEM_READ_ONLY") extends HostAccessPropertyT {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+
+  case class HOST_MEM_WRITE_ONLY(name: String = "HOST_MEM_WRITE_ONLY") extends HostAccessPropertyT {
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+
+  case class HOST_MEM_READ_WRITE(name: String = "HOST_MEM_READ_WRITE") extends HostAccessPropertyT {
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+
+  trait DeviceAccessPropertyT extends AccessPropertyT
+
+  case class DEVICE_MEM_READ_ONLY(name: String = "CL_MEM_READ_ONLY") extends DeviceAccessPropertyT {
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+
+  case class DEVICE_MEM_WRITE_ONLY(name: String = "CL_MEM_WRITE_ONLY") extends DeviceAccessPropertyT {
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+
+  case class DEVICE_MEM_READ_WRITE(name: String = "CL_MEM_READ_WRITE") extends DeviceAccessPropertyT {
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+
+  trait NativeVarT extends CVarWithTypeT {
+    val size: ArithExpr
+  }
+
+  trait HostBufferT extends NativeVarT {
+    val access: HostAccessPropertyT
+  }
+
+  case class HostBuffer(name: String, t: CTypeT, size: ArithExpr, access: HostAccessPropertyT) extends HostBufferT {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+    override def print(): Doc = name
+  }
+
+  trait OclBufferT extends NativeVarT {
+    val access: DeviceAccessPropertyT
+  }
+
+  case class OclBuffer(name: String, t: CTypeT, size: ArithExpr, access: DeviceAccessPropertyT) extends OclBufferT {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+    override def print(): Doc = name
+  }
+
+  trait UnknownBufferT extends CVarWithTypeT
+
+  case class UnknownBuffer(name: String, t: CTypeT = VoidType()) extends UnknownBufferT{
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+  }
+
+  trait VarDeclPureT extends DeclarationT
+
+  case class VarDeclPure(v:CVarWithType, t:CTypeT, init: Option[AstNode] = None) extends VarDeclPureT {
+    override def print(): Doc = t.print() <> text(" ") <> v.print() <> init.map(text(" = ") <> _.print()).getOrElse(empty)  <> ";"
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+  }
+
+  trait ObjectDeclT extends DeclarationT{
+    val v: CVarWithType
+    val t: CTypeT
+    val args: List[AstNode]
+
+    override def print(): Doc = t.print() <> " " <> v.print() <> {
+      args.size match {
+        case 0 => ""
+        case _ => "(" <> intersperse(args.map(_.print)) <> ")"
+      }
+    } <> ";"
+  }
+
+
+  case class ObjectDecl(v:CVarWithType, t: CTypeT, args:List[AstNode]) extends ObjectDeclT{
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+  }
+
+  trait VarRefPureT extends UnaryExpressionT {
+    val v: CVarWithTypeT
+    //    val t: Type
+    val suffix: Option[String]
+    val arrayIndex: Option[ArithExpression]
+
+
+    override def print(): Doc = {
+
+      val accessD = arrayIndex match {
+        case None     ⇒ empty
+        case Some(ix) ⇒ "[" <> ix.print <> "]"
+      }
+
+      val suffixD = suffix match {
+        case None     ⇒ empty
+        case Some(sf) ⇒ text(sf)
+      }
+
+      v.print <> accessD <> suffixD
+
+    }
+  }
+
+
+  case class VarRefPure(v: CVarWithTypeT,
+                        //                    t: Type,
+                        suffix: Option[String] = None,
+                        arrayIndex: Option[ArithExpression] = None
+                       ) extends VarRefPureT {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode =
+      VarRefPure(
+        v.visitAndRebuild(pre, post).asInstanceOf[CVarWithTypeT],
+        suffix,
+        arrayIndex
+      )
+
+
+  }
+
+  trait UnaryOperatorT
+
+  case class UnaryExpression(op: String, operand: UnaryExpressionT) extends UnaryExpressionT {
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = operand.visitBy(pre, post)
+
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+    override def print(): Doc = "(" <> op <> operand.print() <> ")"
+  }
+
+
+  trait ForLoopImT extends StatementT {
+    val init: DeclarationT
+    val cond: ExpressionStatement
+    val increment: ExpressionT
+    val body: BlockT
+
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this))
+
+    }
+
+    override def print(): Doc = {
+      text("for (") <>
+        init.print <> cond.print <> increment.print <>
+        ")" <> body.print
+    }
+  }
+
+  case class ForLoopIm(init: DeclarationT,
+                       cond: ExpressionStatement,
+                       increment: ExpressionT,
+                       body: BlockT) extends ForLoopImT {
+    override def _visitAndRebuild(pre: (AstNode) => AstNode,  post: (AstNode) => AstNode) : AstNode = {
+      ForLoop(init.visitAndRebuild(pre, post).asInstanceOf[DeclarationT],
+        cond.visitAndRebuild(pre, post).asInstanceOf[ExpressionStatement],
+        increment.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
+        body.visitAndRebuild(pre, post).asInstanceOf[MutableBlockT])
+    }
+
+    override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      init.visitBy(pre, post)
+      cond.visitBy(pre, post)
+      increment.visitBy(pre, post)
+      body.visitBy(pre, post)
+    }
+  }
+
+  trait ParamDeclPureT extends DeclarationT {
+    val name: String
+    val t: CTypeT
+    val const: Boolean // = false
+
+    override def print(): Doc = {const match {case true => "const "; case _ => ""} } <> t.print() <> " " <> name
+
+  }
+
+
+  case class ParamDeclPure(name: String, t: CTypeT, const: Boolean = false) extends ParamDeclPureT{
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+  }
+
+  trait FunctionPureT extends DeclarationT {
+    def name: String
+
+    def ret: CTypeT
+
+    def params: List[ParamDeclPureT]
+
+    def body: BlockT
+
+    def attribute: Option[AttributeT]
+
+    override def print(): Doc = ret.print() <> " " <> name <> "(" <>
+      intersperse(params.map(_.print())) <> ")" <>
+      bracket("{", body.print(), "}")
+  }
+
+  case class FunctionPure(name: String, ret: CTypeT, params: List[ParamDeclPureT],
+                          body: BlockT, attribute: Option[AttributeT] = None) extends FunctionPureT {
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = ()
+    override def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+  }
 }

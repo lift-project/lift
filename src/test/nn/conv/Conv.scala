@@ -5,7 +5,8 @@ package nn.conv
   */
 
 import ir.ast._
-import nn._
+import nn.{Layer, _}
+import patterns.nn.Array5D
 
 /**
   * The companion object that contains the Lift expressions, configuration preprocessing and

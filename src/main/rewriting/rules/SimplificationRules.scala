@@ -56,7 +56,7 @@ object SimplificationRules {
 
   // Zip(a, b, a) => Zip(a, b)
   val removeDuplicateZipArg = Rule("removeDuplicateZipArgument", {
-    case FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), args@_*))
+    case FunCall(Map(Lambda(Array(p), body, _)), FunCall(Zip(_), args@_*))
       if args.distinct.size < args.size && !(p eq body) &&
         // p only used in get
         !body.contains({
@@ -96,7 +96,7 @@ object SimplificationRules {
 
   // Zip(Zip(a, b), Zip(c, d), e) => Zip(a, b, c, d, e)
   val flattenZips = Rule("flattenZips", {
-    case FunCall(Map(Lambda(Array(p), body)), FunCall(Zip(_), zipArgs@_*))
+    case FunCall(Map(Lambda(Array(p), body, _)), FunCall(Zip(_), zipArgs@_*))
       if zipArgs.exists({
         case FunCall(Zip(_), _*) => true
         case _ => false
@@ -175,7 +175,7 @@ object SimplificationRules {
   })
 
   val lambdaInline = Rule("lambdaInline", {
-    case FunCall(Lambda(Array(x), b), p)
+    case FunCall(Lambda(Array(x), b, _), p)
       if !p.isConcrete(true) &&
         Utils.getFinalArg(p).isInstanceOf[Param] =>
 
@@ -190,7 +190,7 @@ object SimplificationRules {
   })
 
   val lambdaInlineParam = Rule("lambdaInlineParam", {
-    case FunCall(Lambda(Array(x), b), p: Param) =>
+    case FunCall(Lambda(Array(x), b, _), p: Param) =>
 
       val finalArg = Utils.getFinalArg(p)
       val inlined = Expr.replace(b, x, p)
@@ -203,7 +203,7 @@ object SimplificationRules {
   })
 
   val tupleInline = Rule("tupleInline", {
-    case FunCall(Lambda(params, body), args@_*)
+    case FunCall(Lambda(params, body,_), args@_*)
       if {
         val id = args.indexWhere({
           case FunCall(Tuple(_), _*) => true
@@ -253,9 +253,9 @@ object SimplificationRules {
 
   val dropId = Rule("Id() => Epsilon()", {
     case FunCall(Id(), arg) => arg
-    case FunCall(Map(Lambda(Array(_), FunCall(Id(), _))), arg) => arg
+    case FunCall(Map(Lambda(Array(_), FunCall(Id(), _), _)), arg) => arg
     case FunCall(Map(Lambda(Array(_), FunCall(
-    Map(Lambda(Array(_), FunCall(Id(), _))), _))), arg) => arg
+    Map(Lambda(Array(_), FunCall(Id(), _), _)), _), _)), arg) => arg
   })
 
 }

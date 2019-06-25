@@ -145,7 +145,7 @@ class TestSlide {
   }
 
   @Test def slideWithBiggerGap(): Unit = {
-    val data = Array(0,1,2,3,4,5,6,7,8,9,10).map(_.toFloat)
+    val data = Array(0,1,2,3,4,5,6,7,8,9,10,11).map(_.toFloat)
     val gold = data.sliding(2,4).toArray.flatten
     val (output: Array[Float], runtime: Double) = createGroups1D(createSimple1DGroupLambda(2,4), data)
     println(output.mkString(","))

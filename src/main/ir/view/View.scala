@@ -29,10 +29,12 @@ private class IllegalView(err: String)
  * @param array variable referencing the array
  * @param idx index to access in the array
  */
-case class AccessVar(array: Var, idx: ArithExpr, r: Range = RangeUnknown, fixedId: Option[Long] = None)
+case class AccessVar(array: Var, idx: ArithExpr, r: Range = RangeUnknown, override val fixedId: Option[Long] = None)
   extends ExtensibleVar("", r, fixedId) {
 
   override def copy(r: Range): AccessVar = AccessVar(array.copy(array.range), idx, r, Some(id))
+
+  override def cloneSimplified() = new AccessVar(array, idx, r, Some(id)) with SimplifiedExpr
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(AccessVar(
@@ -47,12 +49,15 @@ case class AccessVar(array: Var, idx: ArithExpr, r: Range = RangeUnknown, fixedI
  * Variable storing a casted pointer.
  * `CastedPointer(v, type, offset)` generates the following C code: `((type*)(v + offset))`
  */
-case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpace: OpenCLAddressSpace)
-  extends ExtensibleVar("") {
+case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpace: OpenCLAddressSpace,
+                         override val fixedId: Option[Long] = None)
+  extends ExtensibleVar("", RangeUnknown, fixedId) {
 
   override def copy(r: Range): CastedPointer = {
     CastedPointer(ptr.copy(ptr.range), ty, offset, addressSpace)
   }
+
+  override def cloneSimplified() = new CastedPointer(ptr, ty, offset, addressSpace, Some(id)) with SimplifiedExpr
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(CastedPointer(
@@ -77,8 +82,11 @@ case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpa
  *
  * array[SizeIndex()]  ==  array.size
  */
-case class SizeIndex() extends ExtensibleVar("SIZE", RangeUnknown, None) {
+case class SizeIndex(override val fixedId: Option[Long] = None)
+  extends ExtensibleVar("SIZE", RangeUnknown, fixedId) {
   override def copy(r: Range) = SizeIndex()
+
+  override def cloneSimplified() = new SizeIndex(Some(id)) with SimplifiedExpr
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = f(SizeIndex())
 }
@@ -160,6 +168,15 @@ abstract sealed class View(val t: Type = UndefType) {
         ArrayTypeWSWC(ArrayTypeWSWC(elemT, chunkSize), n /^ chunkSize))
       case _ => throw new IllegalArgumentException("PANIC: split expects an array type")
     }
+  }
+
+  def transpose(t:Type) : View = {
+
+    this.t match {
+      case ArrayTypeWS(ArrayTypeWS(_,_),_) => ViewTranspose(this, t)
+      case _ => throw new IllegalArgumentException("PANIC: transpose expects an 2D array type")
+    }
+
   }
 
   /**
@@ -350,6 +367,14 @@ case class ViewConstant(value: Value, override val t: Type) extends View(t)
  */
 case class ViewMem(v: Var, override val t: Type) extends View(t)
 
+case class ViewMemScalar(i: ArithExpr, override val t: Type) extends View(t)
+
+/**
+  * A variant of ViewMem that contain a inner view,
+  * in case the type allow inner structure, like tuples
+  * */
+case class ViewMemWithInnerView(v: Var, iv: View, override val t: Type) extends View(t)
+
 /**
  * A view for accessing another view at position `i`.
  *
@@ -367,6 +392,8 @@ case class ViewAccess(i: ArithExpr, iv: View, override val t: Type) extends View
  * @param t Type of the view.
  */
 case class ViewSplit(n: ArithExpr, iv: View, override val t: Type) extends View(t)
+
+case class ViewTranspose(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for joining another view.
@@ -437,6 +464,8 @@ case class ViewFilter(iv: View, ids: View, override val t: Type) extends View(t)
  * @param t Type of the view
  */
 case class ViewMap(iv: View, itVar: ArithExpr, override val t: Type) extends View(t)
+
+case class ViewMapSeq(iv: View, itVar: ArithExpr, override val t: Type) extends View(t)
 
 /**
  * A view for accessing a tuple component.
@@ -517,6 +546,8 @@ case class ViewSize(iv: View) extends View(opencl.ir.Int)
  * Placeholder for a view that is not yet created.
  */
 object NoView extends View()
+
+object UnusedInExprOutputView extends View()
 
 object View {
 
@@ -818,7 +849,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
           case at: ArrayType =>
             val idx :: indices = arrayAccessStack
             idx match {
-              case SizeIndex() => getSize(acc, at)
+              case _: SizeIndex => getSize(acc, at)
               case _ =>
                 val newAcc = getElementAt(acc, at, idx, tupleAccessStack)
                 generate(newAcc, at.elemT, indices, tupleAccessStack)

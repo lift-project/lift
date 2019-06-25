@@ -48,6 +48,9 @@ object InferOpenCLAddressSpace {
 
     call.f match {
 
+      case RewritingGuidePost(_) =>
+        setAddressSpaceDefault(addressSpaces)
+
       case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
            asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
            Pad(_,_,_) | PadConstant(_, _, _) | Tuple(_) | Slide(_,_) | Head() | Tail() | debug.PrintType(_) |

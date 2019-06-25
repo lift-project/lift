@@ -6,22 +6,23 @@ import java.nio.file.Paths.get
 import java.util.Calendar
 
 import com.typesafe.scalalogging.Logger
-import nn.conv.versions.{Conv1, Conv3, Conv4}
+import nn.conv.versions.{Conv1, Conv2, Conv3, Conv4}
 import nn.{PaddedArray, Shape}
+import opencl.executor.Compile
 //import nn.mysql.Connector
 import opencl.executor.{Execute, Executor}
 import org.junit.{AfterClass, BeforeClass, Test, Ignore}
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertArrayEquals
 
 /**
   * Created by s1569687 on 01/03/17.
   */
-@Ignore
+//@Ignore
 object TestConv {
   @BeforeClass def before(): Unit = {
     Executor.loadLibrary()
     println("Initialize the executor")
-    Executor.init(/*monaco*/0, 0)
+    Executor.init(0, 0)
     // MySQL is disabled in this version
 //    nn.conv.mysql.CreateTable()
   }
@@ -43,24 +44,26 @@ class TestConv {
   val codeVersion: Int = 1
 
   // The tests below are temporarily deprecated since they were not fixed to comply with new changes
-  /*@Test
+  @Test
   def Sanity_Conv(): Unit = {
-    val (lift_result: Array[Float], runtime) = Execute(1,1)(
-      Conv1.Seq(2, 3, nn.Linear), input_K, input_b, input_X)
+    val (lift_result: Array[Float], runtime) = Execute(1,1)[Array[Float]](
+      Conv2.Seq(3, 3, nn.Linear), input_K, input_b, input_X(0))
 
     logger.info(f"\n1. Convolution sanity check.\nRuntime: $runtime%1.5f ms")
 
-    val lift_result3d = nn.group(lift_result, (gold.length, gold.head.length, gold.head.head.length))
+    val lift_result3d = patterns.nn.group(lift_result, (gold.length, gold.head.length, gold.head.head.length))
     for ((gold2d, lift_result2d) <- gold zip lift_result3d) {
       logger.info(lift_result2d.flatten.mkString(", "))
       logger.info(gold2d.flatten.mkString(", "))
-      /*for ((gold1d, lift_result1d) <- gold2d zip lift_result2d) {
-        assertArrayEquals(gold1d, lift_result1d, precision)
-      }*/
+//      for ((gold1d, lift_result1d) <- gold2d zip lift_result2d) {
+//        assertArrayEquals(gold1d, lift_result1d, precision)
+//      }
     }
+
+    println(Compile(Conv2.Seq(3, 3, nn.Linear)))
   }
 
-  @Test
+  /*@Test
   def Sanity_CNN_Par(): Unit = {
     /** Build an array of experimental parameters filtering out the experiments that where
       * already run or for which the data was not provided; load data for all experiments

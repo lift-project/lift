@@ -203,7 +203,8 @@ case class ArrayType(elemT: Type) extends Type {
 
   /** Structural equality */
   override def equals(other: Any): Boolean = {
-    def getSizeAndCapacity(at: ArrayType): (Option[ArithExpr], Option[ArithExpr]) = at match {
+    def getSizeAndCapacity(at: ArrayType):
+    (Option[ArithExpr with SimplifiedExpr], Option[ArithExpr with SimplifiedExpr]) = at match {
       case sc: Size with Capacity => (Some(sc.size), Some(sc.capacity))
       case s: Size => (Some(s.size), None)
       case c: Capacity => (None, Some(c.capacity))
@@ -249,10 +250,10 @@ case class ArrayType(elemT: Type) extends Type {
 object ArrayType {
   def checkSizeOrCapacity(s: String, ae: ArithExpr) : Unit = {
     // TODO: remove the need to check for unknown (but this is used currently in a few places)
-    if (ae != ? & ae.sign != Sign.Positive)
+//    if (ae != ? & ae.sign != Sign.Positive)
     // TODO: turn this back into an error (eventually)
     //throw new TypeException("Length must be provably positive! (len="+len+")")
-      println(s"Warning: $s must be provably positive! (len=$ae)")
+//      println(s"Warning: $s must be provably positive! (len=$ae)")
 
     if (ae.isEvaluable) {
       val length = ae.evalDouble
@@ -276,6 +277,13 @@ object ArrayType {
 
   def apply(elemT: Type, sizeAndCapacity: ArithExpr) : ArrayType with Size with Capacity = {
     ArrayTypeWSWC(elemT, sizeAndCapacity)
+  }
+
+  def apply(elemT: Type, sizes: List[ArithExpr]) : ArrayType with Size with Capacity = {
+    sizes match {
+      case head::Nil => ArrayTypeWSWC(elemT, head)
+      case head::tails => ArrayTypeWSWC( apply(elemT, tails), head )
+    }
   }
 
 }
@@ -378,8 +386,8 @@ object Type {
       case st: ScalarType => st.name
       case vt: VectorType => vt.scalarT.name + vt.len.toString
       case tt: TupleType  => s"Tuple${tt.elemsT.length}_" + tt.elemsT.map(Type.name).reduce(_+"_"+_)
+      case at: ArrayType  => "Array_" + Type.name(at.elemT)
       case _ => throw new IllegalArgumentException
-      // adding case: at: ArrayType results in issue #158
     }
   }
 

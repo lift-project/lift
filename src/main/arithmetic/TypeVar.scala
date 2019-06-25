@@ -11,6 +11,8 @@ import scala.language.implicitConversions
 class TypeVar private(range : Range, fixedId: Option[Long] = None) extends ExtensibleVar("", range, fixedId) {
   override def copy(r: Range) = new TypeVar(r, Some(id))
 
+  override def cloneSimplified() = new TypeVar(range, Some(id)) with SimplifiedExpr
+
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(new TypeVar(range.visitAndRebuild(f), Some(id)))
 

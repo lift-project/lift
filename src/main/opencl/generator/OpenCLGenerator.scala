@@ -33,6 +33,12 @@ object OpenCLGenerator extends Generator {
     (new OpenCLGenerator).generate(f, localSize, globalSize, valueMap)
   }
 
+  def !! (f: Lambda, localSize: NDRange, globalSize: NDRange,
+               valueMap: immutable.Map[ArithExpr, ArithExpr]) : MutableBlock = {
+
+    (new OpenCLGenerator) !! (f, localSize, globalSize, valueMap)
+  }
+
   def printTypes(expr: Expr): Unit = {
     Expr.visit(expr, {
       case e@(call: FunCall) => println(e + "\n    " +
@@ -288,6 +294,93 @@ class OpenCLGenerator extends Generator {
     oclstring
   }
 
+  def !! (f: Lambda, localSize: NDRange, globalSize: NDRange,
+    valueMap: collection.Map[ArithExpr, ArithExpr]): MutableBlock = {
+
+
+    this.localSize = localSize
+
+    if (f.body.t == UndefType)
+      throw new OpenCLGeneratorException("Lambda has to be type-checked to generate code")
+
+    InferOpenCLAddressSpace(f)
+    RangesAndCounts(f, localSize, globalSize, valueMap)
+    allocateMemory(f)
+
+    ShouldUnroll(f)
+
+    if (PerformBarrierElimination())
+      BarrierElimination(f)
+
+    checkLambdaIsLegal(f)
+
+    val (inputs, outputs, intermediateMemory, localTmps) = CollectTypedOpenCLMemory(f, includePrivate = true)
+//    val globalTmps = intermediateMemory.filter(typedMem => typedMem.mem.addressSpace.isInstanceOf[GlobalMemory.type])
+
+    if (Verbose()) {
+
+      println("Types:")
+      OpenCLGenerator.printTypes(f.body)
+
+      println("Memory:")
+      printMemories(f.body)
+
+      println("Allocated Memory:")
+      println(" inputs:")
+      inputs.foreach(println(_))
+      println(" outputs:")
+      outputs.foreach(println(_))
+      println(" global intermediate tmps:")
+      intermediateMemory.foreach(println(_))
+      println(" local intermediate tmps:")
+      localTmps.foreach(println(_))
+      println()
+    }
+
+    View(f)
+
+    val globalBlock = MutableBlock(Vector.empty, global = true)
+
+    val containsDouble = Expr.visitWithState(false)(f.body, {
+      case (expr, state) =>
+        // A `Double` may be hidden in a TupleType. We need to visit the type
+        // of each expression
+        var found = false
+        Type.visit(expr.t, t => if (t == Double) found = true, _ => ())
+        found || state
+    })
+
+    if (containsDouble) {
+      globalBlock += OclExtension("cl_khr_fp64")
+    }
+
+    val tupleTypes = Expr.visitWithState(Set[TupleType]())(f.body, (expr, typeList) => {
+      expr match {
+        case FunCall(uf: UserFun, _*)           => typeList ++ uf.tupleTypes
+        case FunCall(vec: VectorizeUserFun, _*) => typeList ++ vec.vectorizedFunction.tupleTypes
+        case _                                  =>
+          expr.t match {
+            case t: TupleType if t.elemsT.forall(t => {
+              var containsArray = false
+              Type.visit(t, x => containsArray ||= x.isInstanceOf[ArrayType], _ => Unit)
+              !containsArray
+            })     => typeList + t
+            case _ => typeList
+          }
+      }
+    })
+
+    tupleTypes.foreach(globalBlock += TypeDef(_))
+
+    // pass 2: find and generate user and group functions
+    generateUserFunctions(f.body).foreach(globalBlock += _)
+
+    // pass 3: generate the cast
+    globalBlock += generateKernel(f)
+
+    globalBlock
+  }
+
   // TODO: Gather(_)/Transpose() without read and Scatter(_)/TransposeW() without write
   private def checkLambdaIsLegal(lambda: Lambda): Unit = {
     CheckBarriersAndLoops(lambda)
@@ -305,11 +398,11 @@ class OpenCLGenerator extends Generator {
         throw new IllegalKernel(s"Illegal use of $call without MapWrg($dim)")
       case call@FunCall(toLocal(_), _) if !call.context.inMapWrg.reduce(_ || _) =>
         throw new IllegalKernel(s"Illegal use of local memory, without using MapWrg $call")
-      case call@FunCall(Map(Lambda(_, expr)), _*) if expr.isConcrete            =>
+      case call@FunCall(Map(Lambda(_, expr,_)), _*) if expr.isConcrete            =>
         throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
-      case call@FunCall(Reduce(Lambda(_, expr)), _, _) if expr.isConcrete       =>
+      case call@FunCall(Reduce(Lambda(_, expr,_)), _, _) if expr.isConcrete       =>
         throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
-      case call@FunCall(PartRed(Lambda(_, expr)), _, _) if expr.isConcrete      =>
+      case call@FunCall(PartRed(Lambda(_, expr,_)), _, _) if expr.isConcrete      =>
         throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
       case call@FunCall(Id(), _)                                                =>
         throw new IllegalKernel(s"Illegal use of Id where it won't generate a copy in $call")
@@ -372,8 +465,7 @@ class OpenCLGenerator extends Generator {
     f.params.foreach(_.mem.readOnly = true)
 
     // array of all unique vars (like N, iterSize, etc. )
-    val allVars = Kernel.memory.map(_.mem.size.varList)
-      .filter(_.nonEmpty).flatten.distinct
+    val allVars = Kernel.memory.map(_.mem.size.varList).filter(_.nonEmpty).flatten.distinct
     // partition into iteration variables and all others variables
     val (iterateVars, vars) = allVars.partition(_.name == Iterate.varName)
 
@@ -522,10 +614,12 @@ class OpenCLGenerator extends Generator {
         case ua: UnsafeArrayAccess        => generateUnsafeArrayAccess(ua, call, block)
         case ca: CheckedArrayAccess       => generateCheckedArrayAccess(ca, call, block)
         case debug.PrintComment(msg)      => debugPrintComment(msg, block)
+
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
-             ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) =>
+             ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) |
+             RewritingGuidePost(_) =>
         case _                            => (block: MutableBlock) += Comment("__" + call.toString + "__")
       }
       case v: Value             => generateValue(v, block)

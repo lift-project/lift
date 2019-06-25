@@ -27,11 +27,13 @@ object Eval {
     val tree = tb.parse(s"""
                            |import arithmetic._
                            |import lift.arithmetic._
+                           |import lift.arithmetic.simplifier._
                            |import ir._
                            |import ir.ast._
                            |import opencl.ir._
                            |import opencl.ir.pattern._
                            |import opencl.ir.ast._
+                           |import opencl.generator.NDRange
                            |$code
                          """.stripMargin)
     tb.eval(tree)

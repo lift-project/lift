@@ -11,6 +11,7 @@ import lift.arithmetic.SizeVar
 import nn._
 import opencl.ir._
 import opencl.ir.pattern._
+import patterns.nn._
 
 /**
   * Case class for storing the layer configuration.
@@ -36,7 +37,7 @@ case class FC(liftFProp: Array[FunDecl],
    */
   def groupAndUnpad(outputsFlat: Array[Float], datasets: NetDatasets): Unit = {
     datasets.asInstanceOf[FCDatasets].outputs.nonPadded =
-      nn.group(outputsFlat, (outputShape.nInputs, outputShape.sizePadded)).map(
+      patterns.nn.group(outputsFlat, (outputShape.nInputs, outputShape.sizePadded)).map(
         input => input.slice(0, outputShape.size))
   }
 }

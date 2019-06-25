@@ -87,12 +87,12 @@ class SaveOpenCL(
     val substitutionMap = tuple._2
     val ranges = tuple._3
 
-    if (ParameterRewrite.settings.parameterRewriteSettings.exploreNDRange)
+    if (SplitSlideRewrite.settings.parameterRewriteSettings.exploreNDRange)
       ranges match { case (l, g) => local = l; global = g }
     else
       InferNDRange(lambda) match { case (l, g) => local = l; global = g }
 
-    val code = if (ParameterRewrite.settings.parameterRewriteSettings.disableNDRangeInjection)
+    val code = if (SplitSlideRewrite.settings.parameterRewriteSettings.disableNDRangeInjection)
       Compile(lambda)
     else
       Compile(lambda, local, global)
@@ -121,7 +121,7 @@ class SaveOpenCL(
     var hash = lowLevelHash + "_" + tuple._2.mkString("_")
 
     // TODO: Also differentiate between injecting ranges on and off
-    if (ParameterRewrite.settings.parameterRewriteSettings.exploreNDRange)
+    if (SplitSlideRewrite.settings.parameterRewriteSettings.exploreNDRange)
       hash += "_" + rangeStrings._1 + "_" + rangeStrings._2
 
     val filename = hash + ".cl"

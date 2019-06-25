@@ -18,7 +18,15 @@ import scala.language.implicitConversions
  * @param body The body of the lambda expression.
  */
 abstract case class Lambda private[ast] (params: Array[Param],
-                                         body: Expr) extends FunDecl(params.length) {
+                                         body: Expr, var funcName: String = "execute") extends FunDecl(params.length) {
+
+  override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode =
+    Lambda( params.map(_.visitAndRebuild(pre,post).asInstanceOf[Param]), body.visitAndRebuild(pre,post).asInstanceOf[Expr] )
+
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = {
+    body.visit_pp(prePost)
+    params.map(_.visit_pp(prePost))
+  }
 
   /**
    * Debug string representation
@@ -119,7 +127,7 @@ object Lambda {
   def apply(params: Array[Param],
             body: Expr): Lambda = {
     body match {
-      case FunCall(funDecl, FunCall(Lambda(lambdaParams,lambdaBody), args@_*))
+      case FunCall(funDecl, FunCall(Lambda(lambdaParams,lambdaBody, _), args@_*))
         if lambdaParams.length == params.length && (lambdaParams, args).zipped.forall((a, b) => a eq b)
       =>
 
@@ -140,7 +148,7 @@ object Lambda {
   implicit def FunDefToLambda(f: FunDecl): Lambda = {
     val params = Array.fill(f.arity)(Param(UndefType))
     f match {
-      case lambda@Lambda(ps, _)
+      case lambda@Lambda(ps, _, _)
         if ps.length == params.length => lambda
       case _ => Lambda(params, f(params: _*))
     }
@@ -189,7 +197,7 @@ object Lambda {
 
   private def getDeclaredParams(lambda: Lambda) = {
     Expr.visitWithState(Set[Param]())(lambda.body, {
-      case (FunCall(Lambda(params, _), _*), set) => set ++ params
+      case (FunCall(Lambda(params, _, _), _*), set) => set ++ params
       case (FunCall(fp: FPattern, _*), set) => set ++ fp.f.params
       case (_, set) => set
     }) ++ lambda.params
@@ -234,7 +242,7 @@ object Lambda1 {
     assert(f.arity >= 1)
     if (f.arity == 1) {
       f match {
-        case Lambda(params, body) =>
+        case Lambda(params, body, _) =>
           // Don't wrap unnecessarily
           new Lambda1(params, body)
         case _ => fun(f(_))
@@ -272,7 +280,7 @@ object Lambda2 {
     assert(f.arity == 2)
     f match {
       // Don't wrap unnecessarily
-      case Lambda(params, body) => new Lambda2(params, body)
+      case Lambda(params, body, _) => new Lambda2(params, body)
       case _ => fun(f(_, _))
     }
   }

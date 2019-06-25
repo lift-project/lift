@@ -137,7 +137,7 @@ class GettingStarted {
   /***********************************************************************/
     *
     * During exploration, we transform a high-level expression by
-    * applying rewrite rules of the form
+    * applying rewrite rules of the from
     *
     *   lhs == rhs
     *

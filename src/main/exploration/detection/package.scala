@@ -4,6 +4,7 @@ import ir._
 import ir.ast._
 import ir.view.{NoView, View, ViewMem}
 import lift.arithmetic._
+import lift.arithmetic.simplifier.SimplifyPow
 import opencl.generator.{NDRange, RangesAndCounts}
 import opencl.ir._
 import opencl.ir.pattern._
@@ -117,7 +118,7 @@ package object detection {
                           FunCall(Get(0), p_13),
                           FunCall(Get(1), p_13))))),
                       FunCall(idfloat, Value("0.0f", Float)), p_11))),
-                    FunCall(Split( M * Pow(Cst(128), Cst(-1)) ),
+                    FunCall(Split( M * SimplifyPow(Cst(128), Cst(-1)) ),
                       FunCall(Gather(ReorderWithStride(128)),
                         FunCall(Zip(2), p_1,
                           FunCall(Get(0), p_5))))))))))),
@@ -491,7 +492,7 @@ package object detection {
                       FunCall(add,
                         FunCall(Get(1), p_10),
                         FunCall(Get(1), p_11))))), Value("{ 0.0f, 0.0f }", TupleType(Float, Float)), p_9))),
-                  FunCall(Split( K * Pow(v__2, Cst(-1)) ),
+                  FunCall(Split( K * SimplifyPow(v__2, Cst(-1)) ),
                     FunCall(Gather(ReorderWithStride(v__2)),
                       FunCall(Scatter(ReorderWithStride(v__2)),
                         FunCall(Join(),
@@ -504,7 +505,7 @@ package object detection {
                                 FunCall(mult,
                                   FunCall(Get(2), p_13),
                                   FunCall(Get(1), p_13))))), p_12))),
-                            FunCall(Split( K * Pow(v__2, Cst(-1)) ),
+                            FunCall(Split( K * SimplifyPow(v__2, Cst(-1)) ),
                               FunCall(Gather(ReorderWithStride(v__2)),
                                 FunCall(Zip(3),
                                   FunCall(Get(0), p_5), p_2,

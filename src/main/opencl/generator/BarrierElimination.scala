@@ -118,7 +118,7 @@ class BarrierElimination(lambda: Lambda) {
     expr match {
       case call: FunCall =>
         call.f match {
-          case Lambda(_, body) => getCallsAtLevel(body) ++ call.args.reverse.flatMap(getCallsAtLevel)
+          case Lambda(_, body,_) => getCallsAtLevel(body) ++ call.args.reverse.flatMap(getCallsAtLevel)
           case r:AbstractPartRed => call +: getCallsAtLevel(call.args(1))
           case _ => call +: call.args.reverse.flatMap(getCallsAtLevel)
         }
@@ -285,7 +285,7 @@ class BarrierElimination(lambda: Lambda) {
 
   private def argumentToPossibleSharing(call: FunCall): Boolean = {
     Expr.visitWithState(false)(lambda.body, {
-      case (FunCall(Lambda(params, FunCall(_, nestedArgs@_*)), args@_*), _ )
+      case (FunCall(Lambda(params, FunCall(_, nestedArgs@_*),_), args@_*), _ )
         if args.exists(arg => arg.contains({ case c if c eq call => } )) && !params.sameElements(nestedArgs)=>
         true
       case (_, state) => state
@@ -299,7 +299,7 @@ class BarrierElimination(lambda: Lambda) {
     call.f match {
       case m: AbstractMap =>
         m.f match {
-          case Lambda(params, FunCall(_, args @ _*))
+          case Lambda(params, FunCall(_, args @ _*),_)
             if !params.sameElements(args) =>
 
             !Expr.visitWithState(false)(args.head, (e, b) =>

@@ -176,6 +176,8 @@ object OpenCLMemoryAllocator {
 
       case debug.PrintView(_, f) => allocLambda(f, numGlb, numLcl, numPvt, inMem)
 
+      case RewritingGuidePost(_) => inMem
+
       case Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Slide(_, _) | Pad(_, _, _) | PadConstant(_, _, _) |
            Head() | Tail() | Gather(_) | Scatter(_) | ArrayAccess(_) |
