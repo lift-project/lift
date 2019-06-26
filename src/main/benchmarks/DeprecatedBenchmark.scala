@@ -52,98 +52,6 @@ abstract class DeprecatedBenchmark(val name: String,
                     experimentID: Option[String] = None,
                     input: File = null)
 
-  //  val builder = OParser.builder[Config]
-  //  val parser = {
-  //    import builder._
-  //    OParser.sequence(
-  //      programName("Benchmark"),
-  //      opt[Int]('i', "trials").text("Total trials (Default: 10)")
-  //        .action((arg, c) => c.copy(trials = arg)),
-  //
-  //      opt[Int]('p', "platform").text("Id of the OpenCL platform to use (Default: 0)")
-  //        .action((arg, c) => c.copy(platform = arg)),
-  //
-  //      opt[Int]('d', "device").text("Id of the OpenCL device to use (Default: 0)")
-  //        .action((arg, c) => c.copy(device = arg)),
-  //
-  //      opt[String]("saveOutput").text("Save the gold result of the computation to a file")
-  //        .action((arg, c) => c.copy(saveOutput = Some(arg))),
-  //
-  //      opt[String]("loadOutput").text("Load the gold result of the computation from a file. Takes precedence over saveOutput")
-  //        .action((arg, c) => c.copy(loadOutput = Some(arg))),
-  //
-  //      opt[Seq[Int]]('l', "localSize").text("Local size(s) to use " +
-  //        "(Defaults: " + defaultLocalSizes.mkString(", ") + ")")
-  //        .action((arg, c) => c.copy(localSize = arg.toArray))
-  //        .minOccurs(3).maxOccurs(3),
-  //
-  //      opt[Seq[Int]]('g', "globalSize").text("Global size(s) to use")
-  //        .action((arg, c) => c.copy(globalSize = arg.toArray))
-  //        .minOccurs(3).maxOccurs(3),
-  //
-  //      opt[String]("loadKernel").text("Load an OpenCL kernel source file")
-  //        .action((arg, c) => c.copy(loadKernel = Some(arg))),
-  //
-  //      // TODO: Implement kernel saving/loading functionality.
-  //      opt[Unit]("save-kernels").text("Save all kernels.")
-  //        .action((_, c) => c.copy(saveAll = true)),
-  //
-  //      opt[Unit]("load-kernels").text("Load kernel for execution previously generated using -save-kernels")
-  //        .action((_, c) => c.copy(loadAll = true)),
-  //
-  //      opt[String]("csvFileName").abbr("csv").text("If specified, results are stored in .csv file with given name")
-  //        .action((arg, c) => c.copy(csvFileName = Some(arg))),
-  //
-  //      opt[Seq[Int]]('s', "inputSize").text("Size of the input to use, expecting ${defaultInputSizes.length}%d sizes.")
-  //        .required()
-  //        .action((arg, c) => c.copy(size = arg.toList))
-  //        .minOccurs(defaultInputSizes.length).maxOccurs(defaultInputSizes.length),
-  //
-  //      opt[Unit]('v', "verbose").text("Print allocated memory and source code")
-  //        .action((_, c) => c.copy(verbose = true)),
-  //
-  //      opt[Int]("variant").abbr("var").text("Which of the following variants to run (Default: 0):\n" +
-  //        f.zipWithIndex.map(x => x._2 + " = " + x._1._1).mkString("\n"))
-  //        .action((arg, c) => c.copy(variant = arg)),
-  //
-  //      opt[String]("variant-regex").abbr("var-regex").text("Which variant(s) to run, based on a regular expression")
-  //        .action((arg, c) => c.copy(variantRegex = arg)),
-  //
-  //      opt[Unit]("negate-regex").abbr("nr").text("Negate the regular expression matching variants, " +
-  //        "i.e. only select variants which do not match the regex")
-  //        .action((_, c) => c.copy(negateRegex = true)),
-  //
-  //      opt[Unit]('a', "all").text("Run all variants, takes precedence over the variant option.")
-  //        .action((_, c) => c.copy(all = true)),
-  //
-  //      opt[Int]('t', "timeout").text("If the kernel execution is longer than time, ignore any remaining trials.")
-  //        .action((arg, c) => c.copy(timeout = Some(arg))),
-  //
-  //      opt[Unit]('c', "check").text("Check the result")
-  //        .action((_, c) => c.copy(checkResult = true)),
-  //
-  //      opt[Unit]("print").text("Print the result")
-  //        .action((_, c) => c.copy(printResult = true)),
-  //
-  //      opt[Unit]("inject").abbr("il").text("Inject the local size into the kernel as a constant, " +
-  //        "possibly replacing some for loops with if statements.")
-  //        .action((_, c) => c.copy(injectLocal = true)),
-  //
-  //      opt[Unit]("injectGroup").abbr("ig").text("Inject the number of groups into the kernel as a constant, " +
-  //        "possibly replacing some for loops with if statements.")
-  //        .action((_, c) => c.copy(injectGroup = true)),
-  //
-  //      opt[String]("experimentId").abbr("eid").text("A unique ID for this experiement for reporting data")
-  //        .action((arg, c) => c.copy(experimentID = Some(arg))),
-  //
-  //      opt[File]("input").text("Input files to read")
-  //        .required()
-  //        .action((arg, c) => c.copy(input = arg))
-  //        .validate(f => if (f.exists) success else failure("File \"" + f.getName + "\" does not exist")),
-  //
-  //      help("help").text("Show this message.")
-  //    )}
-
   var cmdArgs = Config()
   val parser = new scopt.OptionParser[Unit]("DeprecatedBenchmark") {
     override val errorOnUnknownArgument = false
@@ -515,7 +423,6 @@ abstract class DeprecatedBenchmark(val name: String,
     val fw = new FileWriter("result.txt")
     try {
       fw.write(output.map(_.toInt).mkString("\n"))
-      //fw.write(output.mkString("\n"))
     } finally fw.close()
   }
 
@@ -539,7 +446,6 @@ abstract class DeprecatedBenchmark(val name: String,
 
   def run(args: Array[String]): Unit = {
     try {
-      //      cmdArgs = Some(CommandLineParser(parser, args, Config()))
       if (!parser.parse(args))
         throw new IllegalArgumentException("Wrong command line arguments passed")
 
