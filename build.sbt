@@ -39,7 +39,10 @@ compileExecutor := {
 scalacOptions ++= Seq("-Xmax-classfile-name", "100", "-unchecked", "-deprecation", "-feature")
 
 // Executor path
-javaOptions += "-Djava.library.path=" + baseDirectory(_ / "src/main/resources/lib/").value
+javaOptions ++= Seq(
+  "-Djava.library.path=" + baseDirectory(_ / "src/main/resources/lib/").value,
+  "-Xss4m" // Stack space increase from 1mb to 4mb due to frequent StackOverflow in compiling pattern matching. Started happening after ArithExpr upgrade for CASES19
+)
 
 // Main sources
 scalaSource in Compile <<= baseDirectory(_ / "src/main")
