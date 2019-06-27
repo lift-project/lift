@@ -31,6 +31,7 @@ object InferOpenCLAddressSpace {
 
     val result = expr match {
       case Value(_, _) => PrivateMemory
+      case ArrayFromExpr(e)=> setAddressSpace(e, writeTo)
       case _: ArrayConstructors => UndefAddressSpace
       case vp: VectorParam => vp.p.addressSpace
       case p: Param => p.addressSpace
@@ -51,7 +52,15 @@ object InferOpenCLAddressSpace {
       case RewritingGuidePost(_) =>
         setAddressSpaceDefault(addressSpaces)
 
-      case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
+      case Concat(_) =>
+        setAddressSpaceDefault(addressSpaces) match {
+          case AddressSpaceCollection(ab) =>
+            ab.foreach(f => assert(f==ab.head))
+            ab.head
+        }
+
+
+      case  Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
            asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
            Pad(_,_,_) | PadConstant(_, _, _) | Tuple(_) | Slide(_,_) | Head() | Tail() | debug.PrintType(_) |
            debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |

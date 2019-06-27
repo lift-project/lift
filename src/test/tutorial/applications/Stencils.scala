@@ -13,7 +13,7 @@ import org.junit._
 import scala.util.Random
 
 
-object StencilUtilities
+object StencilTutorialUtilities
 {
   /* some helper print functions */
 
@@ -127,7 +127,7 @@ class Stencils {
   {
 
     val randomData = Array.tabulate(128)(_.toFloat)
-    val comparisonData = StencilUtilities.scalaCompute1DStencilConstantBoundary(randomData,3,1,1,1,0.0f)
+    val comparisonData = StencilTutorialUtilities.scalaCompute1DStencilConstantBoundary(randomData,3,1,1,1,0.0f)
 
     val stencilLambda = fun(
       ArrayType(Float, SizeVar("N")),
@@ -139,7 +139,7 @@ class Stencils {
 
     val (output, _) = Execute(randomData.length)[Array[Float]](stencilLambda, randomData)
 
-    assertArrayEquals(comparisonData, output, StencilUtilities.delta)
+    assertArrayEquals(comparisonData, output, StencilTutorialUtilities.delta)
 
   }
 
@@ -156,7 +156,7 @@ class Stencils {
     val SCALABOUNDARY = Utils.scalaClamp
     val BOUNDARY = Pad.Boundary.Clamp
     val weights = Array(1, 2, 1).map(_.toFloat)
-    val comparisonData = StencilUtilities.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)
+    val comparisonData = StencilTutorialUtilities.scalaCompute1DStencil(randomData, 3, 1, 1, 1, weights, SCALABOUNDARY)
 
     val stencil = fun(
       ArrayType(Float, SizeVar("N")),
@@ -199,7 +199,7 @@ class Stencils {
 
     val stencilLambda = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")),
-      ArrayTypeWSWC(Float, StencilUtilities.weights2D.length),
+      ArrayTypeWSWC(Float, StencilTutorialUtilities.weights2D.length),
       (mat, weights) => {
         MapGlb(1)(
           MapGlb(0)(fun(neighbours => {
@@ -210,12 +210,12 @@ class Stencils {
                 multAndSumUp.apply(acc, pixel, weight)
               }), 0.0f) $ Zip(Join() $ neighbours, weights) // here 2D weights passed in must be flattened first
           }))
-        ) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) o PadConstant2D(1,1,0.0f) $ mat
+        ) o Slide2D(StencilTutorialUtilities.slidesize, StencilTutorialUtilities.slidestep) o PadConstant2D(1,1,0.0f) $ mat
       })
 
-    val (output, runtime) = Execute(stencilValues.length, stencilValues.length)[Array[Float]](stencilLambda, stencilValues, StencilUtilities.weights2D)
+    val (output, runtime) = Execute(stencilValues.length, stencilValues.length)[Array[Float]](stencilLambda, stencilValues, StencilTutorialUtilities.weights2D)
 
-    assertArrayEquals(compareData, output, StencilUtilities.delta)
+    assertArrayEquals(compareData, output, StencilTutorialUtilities.delta)
 
   }
 
@@ -244,20 +244,20 @@ class Stencils {
 
     val stencilLambda = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, SizeVar("M")), SizeVar("N")), SizeVar("O")),
-      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilUtilities.weights3D(0)(0).length), StencilUtilities.weights3D(0).length), StencilUtilities.weights3D.length),
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, StencilTutorialUtilities.weights3D(0)(0).length), StencilTutorialUtilities.weights3D(0).length), StencilTutorialUtilities.weights3D.length),
       (mat, weights) => {
         MapGlb(2)(MapGlb(1)(MapGlb(0)(fun(neighbours => {
           toGlobal(MapSeq(id)) o
             ReduceSeqUnroll(\((acc, next) =>
               multAndSumUp(acc, next._0, next._1)), 0.0f) $ Zip(Join() o Join() $ neighbours, Join() o Join() $ weights)
         })))
-        ) o Slide3D(StencilUtilities.slidesize, StencilUtilities.slidestep) o PadConstant3D(1,1,1,0.0f) $ mat
+        ) o Slide3D(StencilTutorialUtilities.slidesize, StencilTutorialUtilities.slidestep) o PadConstant3D(1,1,1,0.0f) $ mat
       })
 
 
-    val (output, runtime) = Execute(2, 2, 2, nx, ny, nz, (true,true))[Array[Float]](stencilLambda, stencilValues, StencilUtilities.weights3D)
+    val (output, runtime) = Execute(2, 2, 2, nx, ny, nz, (true,true))[Array[Float]](stencilLambda, stencilValues, StencilTutorialUtilities.weights3D)
 
-    assertArrayEquals(compareData, output, StencilUtilities.delta)
+    assertArrayEquals(compareData, output, StencilTutorialUtilities.delta)
 
   }
 

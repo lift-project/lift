@@ -1,14 +1,15 @@
 package opencl.generator
 
 import ir.ArrayTypeWSWC
-import ir.ast.{Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromGenerator, ArrayFromUserFunGenerator, ArrayFromValue, Split, UserFun, Zip, fun}
+import ir.ast.{Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromExpr, ArrayFromGenerator, ArrayFromUserFunGenerator, ArrayFromValue, Split, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
-import opencl.executor.{Execute, TestWithExecutor}
+import opencl.executor.{Compile, Execute, TestWithExecutor}
 import core.generator.GenericAST.ArithExpression
 import opencl.ir.pattern.{MapGlb, MapSeq, toGlobal}
 import opencl.ir.{Float, FloatToValue, Int, IntToValue, add, id}
 import org.junit.Assert.assertArrayEquals
 import org.junit.Test
+import opencl.ir._
 
 object ArrayGenerators extends TestWithExecutor
 
@@ -149,4 +150,31 @@ class ArrayGenerators {
 
     assertArrayEquals(gold, output)
   }
+
+  @Test
+  def arrayFromExpressionsOneExpr1D(): Unit = {
+
+      val size = 10
+      val N = SizeVar("N")
+
+      val values = Array.tabulate(size) { (i) => (i + 1).toFloat }
+      val gold = values
+
+      def exprTest = fun(
+        ArrayTypeWSWC(Float,N),
+        (input) => {
+
+          toGlobal(MapSeq(tf_id)) $ Zip(MapSeq(id) $ ArrayFromExpr(input.at(0)), MapSeq(id) $ ArrayFromExpr(input.at(N-1)))
+
+        })
+
+      println(Compile(exprTest))
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](exprTest, values)
+    //  val (output, _) = Execute(2,2)[Vector[(Float, Float)]](exprTest, values)
+
+      //    assertArrayEquals(gold, output, 0.1f)
+
+  }
+
 }

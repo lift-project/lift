@@ -439,6 +439,7 @@ class OpenCLGenerator extends Generator {
 
   def allocateMemory(f: Lambda): Unit = {
     OpenCLMemoryAllocator(f)
+    RemoveRedundantMemory(f)
     Kernel.memory = CollectTypedOpenCLMemory.asFlatSequence(f)
   }
 
@@ -553,7 +554,10 @@ class OpenCLGenerator extends Generator {
 
   private def generate(expr: Expr, block: MutableBlock): Unit = {
     assert(expr.t != UndefType)
+   // assert(expr.view != NoView)
+   // assert(expr.outputView != NoView,expr.toString())
 
+    // here new views are being created ??
     expr match {
       case f: FunCall => f.args.foreach(generate(_, block))
       case _          =>
@@ -616,7 +620,7 @@ class OpenCLGenerator extends Generator {
         case debug.PrintComment(msg)      => debugPrintComment(msg, block)
 
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
-             Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
+             Split(_) | Join() | Slide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
              ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) |
              RewritingGuidePost(_) =>
@@ -624,6 +628,7 @@ class OpenCLGenerator extends Generator {
       }
       case v: Value             => generateValue(v, block)
       case _: Param             =>
+      case ArrayFromExpr(e)     => generate(e, block)
       case _: ArrayConstructors =>
     }
   }
