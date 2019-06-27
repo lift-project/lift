@@ -36,6 +36,15 @@ class TestHost {
   val add2 = UserFun("add", Array("l", "r"),
     "{ return (l + r); }",
     Seq(Float, Float), Float)
+  val add2_2 = UserFun("add", Array("l", "r"),
+    "{ return (l + r); }",
+    Seq(Float, Float), Float)
+  val add2_3 = UserFun("add", Array("l", "r"),
+    "{ return (l + r); }",
+    Seq(Float, Float), Float)
+  val add2_4 = UserFun("add", Array("l", "r"),
+    "{ return (l + r); }",
+    Seq(Float, Float), Float)
 
 
   val diff2 = UserFun("diff2", Array("l", "r"),
@@ -2087,7 +2096,39 @@ class TestHost {
   }
 
   @Test
-  def test_par_reduce_general_version(): Unit = {
+  def test_par_reduce_general_version_one_split(): Unit = {
+
+    val path = s"$common_path/45.parallel_reduce_general_version"
+    val file = "libpar_reduce_general.cpp"
+
+    //the length of the parallel part
+    //val par_part_len = N - N % 8
+    val par_part_len = 8 * (N / 8)
+
+    //pure parallel reduce requires the size can be divided by 8, in the current expression
+    //also remove the sequential reduce, as there will be a sequential reduce at the end anyway,
+    //so removed here, which allocate slightly more memory, but one less loop generated.
+    val par_reduce = Join() o MapSeq( ReduceSeq(add2, 0.0f) ) o Split( par_part_len/8 )
+
+    val f = fun( ArrayType(Float, N),
+      //in => MapSeq( incrementF ) $ in
+      in => ReduceSeq(add2_3, 0.0f) $ Concat( ReduceSeq(add2_2, 0.0f) o Slice(par_part_len, N) $ in , par_reduce o Slice(0, par_part_len) $ in )
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "7 \n13 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_map done!")
+
+  }
+
+  @Test
+  def test_par_reduce_general_version_two_splits(): Unit = {
 
     val path = s"$common_path/45.parallel_reduce_general_version"
     val file = "libpar_reduce_general.cpp"
@@ -2099,7 +2140,7 @@ class TestHost {
 
     val f = fun( ArrayType(Float, N),
       //in => MapSeq( incrementF ) $ in
-      in => ReduceSeq(add2, 0.0f) $ Concat( ReduceSeq(add2, 0.0f) o Slice(N - N % 8, N) $ in , par_reduce o Slice(0, N - N % 8) $ in )
+      in => ReduceSeq(add2_3, 0.0f) $ Concat( ReduceSeq(add2_2, 0.0f) o Slice(N - N % 8, N) $ in , par_reduce o Slice(0, N - N % 8) $ in )
     )
 
     (s"mkdir -p $path") !
