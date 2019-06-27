@@ -444,8 +444,6 @@ case class ViewTranspose(iv: View, override val t: Type) extends View(t)
  */
 case class ViewJoin(n: ArithExpr, iv: View, override val t: Type) extends View(t)
 
-case class ViewTranspose(iv: View, override val t: Type) extends View(t)
-
 /**
  * A view for zipping a number of views.
  *
