@@ -2111,7 +2111,6 @@ class TestHost {
     val par_reduce = Join() o MapSeq( ReduceSeq(add2, 0.0f) ) o Split( par_part_len/8 )
 
     val f = fun( ArrayType(Float, N),
-      //in => MapSeq( incrementF ) $ in
       in => ReduceSeq(add2_3, 0.0f) $ Concat( ReduceSeq(add2_2, 0.0f) o Slice(par_part_len, N) $ in , par_reduce o Slice(0, par_part_len) $ in )
     )
 
@@ -2141,8 +2140,59 @@ class TestHost {
     val par_reduce = Join() o Join() o MapSeq(MapSeq( ReduceSeq(add2, 0.0f) ) ) o Split(4) o Split(par_part_len/8)
 
     val f = fun( ArrayType(Float, N),
-      //in => MapSeq( incrementF ) $ in
       in => ReduceSeq(add2_3, 0.0f) $ Concat( ReduceSeq(add2_2, 0.0f) o Slice(par_part_len, N) $ in , par_reduce o Slice(0, par_part_len) $ in )
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "7 \n13 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_map done!")
+
+  }
+
+
+  @Test
+  def test_sequential_conv_naums_version(): Unit = {
+
+    val path = s"$common_path/46.sequential_conv_naums_version"
+    val file = "libsequential_conv_naums_version.cpp"
+
+    val kernel_h = 4
+    val kernel_w = 5
+    val activation_f = UserFun ( "sigmoid", Array("x"),  "1 / ( 1+exp(-x*alpha))", Seq(Float), Float  )
+
+    val input_xdim = 9
+    val input_ydim = 10
+    val in_channels = 3
+
+    val out_channels = 10
+
+    val f = fun(
+      ArrayType( ArrayType( ArrayType( ArrayType(Float, kernel_w), kernel_h ), in_channels  ), out_channels ),
+      ArrayType( Float, out_channels ),
+      ArrayType( ArrayType( ArrayType( Float, input_xdim ), input_ydim  ), in_channels ),
+      //(K, B, X) => MapSeq( fun( x => MapSeq(activation_f) o ReduceSeq(add2, 0.0f) $ Zip( Join() o Join() o Slide() $ x, Join() o Join() $ K ) )  ) $ X
+      //(K, B, X) =>  MapSeq( fun( x => MapSeq( fun( k => Join() o Join() o MapSeq(fun( x1 => MapSeq(fun( x2 => ReduceSeq(activation_f o add2, 0.0f) $ Zip(Join() o Join() $ k, Join() o Join() $ x2)  ) ) $ x1 ) ) o Slide2D() $ x  ) ) $ K ) ) $ X
+      (KK, B, X) =>
+        //TODO: do the transpose and then reduce
+
+        //this produce out_channels number of output
+        MapSeq( fun( K =>
+          //this produce three 2D matrix, as there are three channels
+           MapSeq(
+            //this produce a 2D matrix with the convoltion result
+            fun (
+              (xx,k) =>
+                MapSeq( MapSeq( fun( x => ReduceSeq( activation_f o add2, 0.0f) $ Zip(Join() o Join() $ x, Join() o Join() $ k)  ) ) ) o Slide() $ xx
+                )
+                     ) $ Zip(X, K)
+         )
+        ) $ KK
     )
 
     (s"mkdir -p $path") !
