@@ -5,6 +5,7 @@ int main() {
 	const int size = 16;
 
 	vector<float> x(size,0);
+	iota(x.begin(), x.end(), 0);
 
 	float *y = nullptr;
 

@@ -214,7 +214,9 @@ class TestHost {
 
     val f = fun(
       ArrayType(Float, N),
-      in => Join() o TransposeW() o MapSeq( MapSeq(incrementF)  ) o Transpose() o Split(8) $ in
+      //in => Join() o TransposeW() o MapSeq( MapSeq(incrementF)  ) o Transpose() o Split(8) $ in
+      //in =>  MapSeq( MapSeq(incrementF)  ) o Split(8) $ in
+      in =>  MapSeq( MapSeq(incrementF)  ) o Transpose() o Split(8) $ in
     )
 
     HostCompiler ! (f, path, List(file) )
@@ -2172,6 +2174,7 @@ class TestHost {
 
     val out_channels = 10
 
+    /*
     val f = fun(
       ArrayType( ArrayType( ArrayType( ArrayType(Float, kernel_w), kernel_h ), in_channels  ), out_channels ),
       ArrayType( Float, out_channels ),
@@ -2202,6 +2205,7 @@ class TestHost {
     val actual : String = native_compile_and_run(path, file)
     val expected : String = "7 \n13 \n"
     assertEquals(expected, actual)
+    */
 
     println("Test case test_map done!")
 

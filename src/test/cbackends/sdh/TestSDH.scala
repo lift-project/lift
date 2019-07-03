@@ -197,6 +197,36 @@ class TestSDH {
     println("done")
   }
 
+
+  @Test
+  def test_matrix_mul_with_transpose_on_B(): Unit = {
+
+    val path = s"$common_path/04.matrix_mul_abitrary_size_for_A_B"
+    val sched_file = "test_lift_matrixmul_sched_lib.hpp"
+    val worker_file = "test_lift_matrixmul_kernel.cpp"
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      (A, B) =>
+        ToLCP() o MapTile( fun( Arow =>
+          MapGPE( TMKernel(
+            fun(Bcol => ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)  $ Zip(Arow, Bcol) )
+          )) o Transpose() $ B )
+        )  o ToGPE() $ A
+    )
+
+    SDHCompiler ! (f, path, List(sched_file, worker_file), "matrixmul")
+
+    (s"$path/sdh_demo.sh" ) !
+
+    println("done")
+  }
+
   val add2 = UserFun("add", Array("l", "r"),
     "{ return (l + r); }",
     Seq(Double, Double), Double)
@@ -825,5 +855,27 @@ class TestSDH {
   }
 
 
+  @Test
+  def test_vec_scale(): Unit = {
+
+    val path = s"$common_path/07.parallel_reduce"
+    val sched_file = "test_lift_vec_scale_sched_lib.hpp"
+    val worker_file = "test_lift_vec_scale_kernel.cpp"
+
+    val N = SizeVar("N")
+
+    val f = fun(
+      ArrayTypeWSWC(Double, N),
+      LCPSingle(ReduceSeq(add2, 0.0)) o ToLCP() o Join() o Join() o
+        MapTile( MapGPE(TMKernel(fun( ReduceSeq(add2, 0.0) $ _ ) ) ) )  o
+        Split(4) o Split(N/8) o ToGPE()  $ _
+    )
+
+    (s"mkdir -p $path") !
+
+    SDHCompiler ! (f, path, List(sched_file, worker_file), "matrixmul")
+
+    println("done")
+  }
 
 }
