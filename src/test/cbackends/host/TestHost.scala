@@ -222,7 +222,7 @@ class TestHost {
     HostCompiler ! (f, path, List(file) )
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
+    val expected : String = "1 9 2 10 3 11 4 12 5 13 6 14 7 15 8 16 \n"
     assertEquals(expected, actual)
 
     println("Test case test_map done!")
@@ -554,6 +554,78 @@ class TestHost {
 
     val actual : String = native_compile_and_run(path, file)
     val expected : String = "8 8 8 8 8 8 \n"
+    assertEquals(expected, actual)
+
+    println("Done")
+
+  }
+
+
+  @Test
+  def test_matrix_mul_transpose_on_B(): Unit = {
+
+    val path = s"$common_path/13.matrixmul_transpose_on_B"
+    val file = "libmatrixmul.cpp"
+
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
+      (A, B) => {
+        MapSeq(fun( Arow =>
+          Join() o  MapSeq(fun( Bcol =>
+            ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f) $ Zip(Arow, Bcol)
+          )) o Transpose() $ B
+        )) $ A
+      })
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "5 6 7 8 17 22 27 32 29 38 47 56 \n"
+    assertEquals(expected, actual)
+
+    println("Done")
+
+  }
+
+
+  @Test
+  def test_matrix_mul_transpose_on_B_tunable_schedule(): Unit = {
+
+    val path = s"$common_path/13.matrixmul_transpose_on_B"
+    val file = "libmatrixmul.cpp"
+
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
+      (A, B) => {
+
+        MapSeq(
+          fun( aa =>
+          MapSeq( fun( bb =>
+
+            MapSeq( fun( a=> MapSeq(
+              fun( b => ReduceSeq( fun( (acc, y )  => multAndSumUp.apply(acc, Get(y,0), Get(y,1)) ) , 0.0f ) $ Zip(a,b) )
+            ) $ bb ) ) $ aa
+
+          )
+
+          ) o Split(N/4) $ B )
+
+        ) o Split(M/2) $ A
+
+      })
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "5 6 7 8 17 22 27 32 29 38 47 56 \n"
     assertEquals(expected, actual)
 
     println("Done")

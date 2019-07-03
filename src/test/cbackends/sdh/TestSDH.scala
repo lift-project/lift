@@ -211,7 +211,7 @@ class TestSDH {
 
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
-      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), N),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
       (A, B) =>
         ToLCP() o MapTile( fun( Arow =>
           MapGPE( TMKernel(
@@ -222,7 +222,7 @@ class TestSDH {
 
     SDHCompiler ! (f, path, List(sched_file, worker_file), "matrixmul")
 
-    (s"$path/sdh_demo.sh" ) !
+    //(s"$path/sdh_demo.sh" ) !
 
     println("done")
   }
