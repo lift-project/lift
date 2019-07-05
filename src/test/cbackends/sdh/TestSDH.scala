@@ -4,7 +4,7 @@ package cbackends.sdh
 //combine general IR and backend IR by multiple imports
 import cbackends.sdh.sdh_ir._
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
-import ir.ast.{ArrayAccess, Get, Join, Slide, Split, Transpose, UserFun, Zip, fun}
+import ir.ast.{ArrayAccess, Get, Join, Slide, Split, Transpose, TransposeW, UserFun, Zip, fun}
 import lift.arithmetic.SizeVar
 import opencl.ir.pattern.{MapSeq, ReduceSeq, ScanSeq}
 import opencl.ir.{Float, add, _}
@@ -219,6 +219,57 @@ class TestSDH {
           )) o Transpose() $ B )
         )  o ToGPE() $ A
     )
+
+    SDHCompiler ! (f, path, List(sched_file, worker_file), "matrixmul")
+
+    //(s"$path/sdh_demo.sh" ) !
+
+    println("done")
+  }
+
+  @Test
+  def test_matrix_mul_with_transpose_on_B_change_granularity(): Unit = {
+
+    val path = s"$common_path/04.matrix_mul_with_transpose_on_B_change_granularity"
+    val sched_file = "test_lift_matrixmul_sched_lib.hpp"
+    val worker_file = "test_lift_matrixmul_kernel.cpp"
+
+    val N = SizeVar("N")
+    val M = SizeVar("M")
+    val K = SizeVar("K")
+
+    val f = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
+      ArrayTypeWSWC(ArrayTypeWSWC(Float, N), K),
+      /*(A, B) =>
+        ToLCP() o MapTile( fun( Arow =>
+          MapGPE( TMKernel(
+            fun(Bcol => ReduceSeq(fun((acc, y) => multAndSumUp.apply(acc, Get(y, 0), Get(y, 1))), 0.0f)  $ Zip(Arow, Bcol) )
+          )) o Transpose() $ B )
+        )  o ToGPE() $ A */
+
+      (A, B) => {
+
+      ToLCP() o MapTile(
+        fun( aa =>
+          TransposeW() o MapGPE( TMKernel( fun( bb =>
+
+            MapSeq( fun( a=>
+              MapSeq( fun( b =>
+                ReduceSeq( fun( (acc, y )  => multAndSumUp.apply(acc, Get(y,0), Get(y,1)) ) , 0.0f ) $ Zip(a,b) )
+              ) $ bb )
+            ) $ aa
+
+          ) )
+
+          ) o Split(N/8) o Transpose() $ B )
+
+      ) o Split(M/2) o ToGPE() $ A
+
+    }
+    )
+
+    (s"mkdir -p $path") !
 
     SDHCompiler ! (f, path, List(sched_file, worker_file), "matrixmul")
 

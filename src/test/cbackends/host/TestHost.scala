@@ -12,6 +12,7 @@ import org.junit.Test
 import rewriting.Rewrite
 import rewriting.rules.Rules
 import rewriting.utils.NumberPrinter
+import ir.ast.Map
 //import org.scalatest.expect
 
 import scala.language.postfixOps
@@ -595,9 +596,10 @@ class TestHost {
   @Test
   def test_matrix_mul_transpose_on_B_tunable_schedule(): Unit = {
 
-    val path = s"$common_path/13.matrixmul_transpose_on_B"
+    val path = s"$common_path/13.matrixmul_transpose_on_B_change_granularity"
     val file = "libmatrixmul.cpp"
 
+    //Split factor is the tunable parameters
 
     val f = fun(
       ArrayTypeWSWC(ArrayTypeWSWC(Float, K), M),
@@ -606,15 +608,17 @@ class TestHost {
 
         MapSeq(
           fun( aa =>
-          MapSeq( fun( bb =>
+            TransposeW() o MapSeq( fun( bb =>
 
-            MapSeq( fun( a=> MapSeq(
-              fun( b => ReduceSeq( fun( (acc, y )  => multAndSumUp.apply(acc, Get(y,0), Get(y,1)) ) , 0.0f ) $ Zip(a,b) )
-            ) $ bb ) ) $ aa
+              MapSeq( fun( a=>
+                MapSeq( fun( b =>
+                  ReduceSeq( fun( (acc, y )  => multAndSumUp.apply(acc, Get(y,0), Get(y,1)) ) , 0.0f ) $ Zip(a,b) )
+                       ) $ bb )
+                     ) $ aa
 
           )
 
-          ) o Split(N/4) $ B )
+          ) o Split(N/8) o Transpose() $ B )
 
         ) o Split(M/2) $ A
 
@@ -625,7 +629,7 @@ class TestHost {
     HostCompiler ! (f, path, List(file) )
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "5 6 7 8 17 22 27 32 29 38 47 56 \n"
+    val expected : String = "43 46 49 52 55 58 61 64 124 136 148 160 172 184 196 208 205 226 247 268 289 310 331 352 286 316 346 376 406 436 466 496 \n"
     assertEquals(expected, actual)
 
     println("Done")
@@ -2278,6 +2282,49 @@ class TestHost {
     val expected : String = "7 \n13 \n"
     assertEquals(expected, actual)
     */
+
+    println("Test case test_map done!")
+
+  }
+
+  @Test
+  def test_general_transpose(): Unit = {
+
+    val path = s"$common_path/47.general_transpose"
+    val file = "libgeneral_transpose.cpp"
+
+
+    //2D
+    /*
+    val f = fun(
+      ArrayType( ArrayType(Float, N), M),
+      MapSeq(MapSeq(id)) o Transpose() $ _
+    )
+    */
+
+    //3D: transpose outer two dimensions
+    /*
+    val f = fun(
+
+      ArrayType( ArrayType( ArrayType(Float, K), N), M),
+      MapSeq(MapSeq(MapSeq(id))) o Transpose() $ _
+    )
+    */
+
+    //3D: transpose inner two dimensions
+    val f = fun(
+      ArrayType( ArrayType( ArrayType(Float, K), N), M),
+      MapSeq(MapSeq(MapSeq(id))) o Map( Transpose() ) $ _
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "7 \n13 \n"
+    assertEquals(expected, actual)
+
 
     println("Test case test_map done!")
 
