@@ -2250,7 +2250,7 @@ class TestHost {
 
     val out_channels = 10
 
-    /*
+
     val f = fun(
       ArrayType( ArrayType( ArrayType( ArrayType(Float, kernel_w), kernel_h ), in_channels  ), out_channels ),
       ArrayType( Float, out_channels ),
@@ -2258,18 +2258,24 @@ class TestHost {
       //(K, B, X) => MapSeq( fun( x => MapSeq(activation_f) o ReduceSeq(add2, 0.0f) $ Zip( Join() o Join() o Slide() $ x, Join() o Join() $ K ) )  ) $ X
       //(K, B, X) =>  MapSeq( fun( x => MapSeq( fun( k => Join() o Join() o MapSeq(fun( x1 => MapSeq(fun( x2 => ReduceSeq(activation_f o add2, 0.0f) $ Zip(Join() o Join() $ k, Join() o Join() $ x2)  ) ) $ x1 ) ) o Slide2D() $ x  ) ) $ K ) ) $ X
       (KK, B, X) =>
-        //TODO: do the transpose and then reduce
 
         //this produce out_channels number of output
         MapSeq( fun( K =>
-          //this produce three 2D matrix, as there are three channels
+
+          //
+
+          //this produce one 2D matrix after reduction
+          MapSeq( Join() o  MapSeq(ReduceSeq(add2, 0.0f)) o Transpose() ) o Transpose() o
+
+          //this produce a 3D matrix, or THREE 2D matricies, as there are three channels
            MapSeq(
-            //this produce a 2D matrix with the convoltion result
+            //this produce a 2D matrix with the convolution result
             fun (
               (xx,k) =>
-                MapSeq( MapSeq( fun( x => ReduceSeq( activation_f o add2, 0.0f) $ Zip(Join() o Join() $ x, Join() o Join() $ k)  ) ) ) o Slide() $ xx
+                MapSeq( Join() o MapSeq( fun( x => ReduceSeq( add2,0.0f) o MapSeq( multiply )
+                  $ Zip( Join() $ x,  Join() $ k)  ) ) ) o Slide2D(kernel_h, 1, kernel_w, 1) $ xx
                 )
-                     ) $ Zip(X, K)
+                  ) $ Zip(X, K)
          )
         ) $ KK
     )
@@ -2281,7 +2287,7 @@ class TestHost {
     val actual : String = native_compile_and_run(path, file)
     val expected : String = "7 \n13 \n"
     assertEquals(expected, actual)
-    */
+
 
     println("Test case test_map done!")
 
@@ -2312,10 +2318,17 @@ class TestHost {
     */
 
     //3D: transpose inner two dimensions
-    val f = fun(
+    /* val f = fun(
       ArrayType( ArrayType( ArrayType(Float, K), N), M),
       //MapSeq(MapSeq(MapSeq(id))) o Map( Transpose() ) $ _
       MapSeq(  MapSeq(MapSeq(id)) o Transpose() )  $ _
+    ) */
+
+    //3D: transpose the outmost and innermost dimensions
+    val f = fun(
+      ArrayType( ArrayType( ArrayType(Float, K), N), M),
+      //MapSeq(MapSeq(MapSeq(id))) o Map( Transpose() ) $ _
+      MapSeq(  MapSeq(MapSeq(id)) o Transpose() ) o Transpose()  $ _
     )
 
     (s"mkdir -p $path") !
@@ -2323,7 +2336,8 @@ class TestHost {
     HostCompiler ! (f, path, List(file) )
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11, 12, 16, 20, 13, 17, 21, 14, 18, 22, 15, 19, 23, \n"
+    //val expected : String = "0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11, 12, 16, 20, 13, 17, 21, 14, 18, 22, 15, 19, 23, \n"
+    val expected : String = "0, 8, 16, 1, 9, 17, 2, 10, 18, 3, 11, 19, 4, 12, 20, 5, 13, 21, 6, 14, 22, 7, 15, 23, \n"
     assertEquals(expected, actual)
 
 
