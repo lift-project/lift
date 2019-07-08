@@ -2314,7 +2314,8 @@ class TestHost {
     //3D: transpose inner two dimensions
     val f = fun(
       ArrayType( ArrayType( ArrayType(Float, K), N), M),
-      MapSeq(MapSeq(MapSeq(id))) o Map( Transpose() ) $ _
+      //MapSeq(MapSeq(MapSeq(id))) o Map( Transpose() ) $ _
+      MapSeq(  MapSeq(MapSeq(id)) o Transpose() )  $ _
     )
 
     (s"mkdir -p $path") !
@@ -2322,7 +2323,7 @@ class TestHost {
     HostCompiler ! (f, path, List(file) )
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "7 \n13 \n"
+    val expected : String = "0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11, 12, 16, 20, 13, 17, 21, 14, 18, 22, 15, 19, 23, \n"
     assertEquals(expected, actual)
 
 
