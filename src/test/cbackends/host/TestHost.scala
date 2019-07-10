@@ -2259,25 +2259,32 @@ class TestHost {
       //(K, B, X) =>  MapSeq( fun( x => MapSeq( fun( k => Join() o Join() o MapSeq(fun( x1 => MapSeq(fun( x2 => ReduceSeq(activation_f o add2, 0.0f) $ Zip(Join() o Join() $ k, Join() o Join() $ x2)  ) ) $ x1 ) ) o Slide2D() $ x  ) ) $ K ) ) $ X
       (KK, B, X) =>
 
-        //this produce out_channels number of output
-        MapSeq( fun( K =>
+        //this produce out_channels 2D matrices, as the final output
+        MapSeq( fun( (O, b) =>
+          //this produce a 2D matrix
+          MapSeq(activation_f) o MapSeq( fun( o => add2.apply(o, b)  )  ) o Join() $ O ) ) $
 
-          //
+        Zip(
 
-          //this produce one 2D matrix after reduction
-          MapSeq( Join() o  MapSeq(ReduceSeq(add2, 0.0f)) o Transpose() ) o Transpose() o
+             //this produce out_channels number of 2D matrices
+             MapSeq( fun( K =>
 
-          //this produce a 3D matrix, or THREE 2D matricies, as there are three channels
-           MapSeq(
-            //this produce a 2D matrix with the convolution result
-            fun (
-              (xx,k) =>
-                MapSeq( Join() o MapSeq( fun( x => ReduceSeq( add2,0.0f) o MapSeq( multiply )
-                  $ Zip( Join() $ x,  Join() $ k)  ) ) ) o Slide2D(kernel_h, 1, kernel_w, 1) $ xx
-                )
-                  ) $ Zip(X, K)
+               //this produce one 2D matrix after reduction
+               MapSeq( Join() o  MapSeq(ReduceSeq(add2, 0.0f)) o Transpose() ) o Transpose() o
+
+               //this produce a 3D matrix, or out_channels 2D matricies, as there are three channels
+                MapSeq(
+                 //this produce a 2D matrix with the convolution result
+                 fun (
+                   (xx,k) =>
+                     MapSeq( Join() o MapSeq( fun( x => ReduceSeq( add2,0.0f) o MapSeq( multiply )
+                       $ Zip( Join() $ x,  Join() $ k)  ) ) ) o Slide2D(kernel_h, 1, kernel_w, 1) $ xx
+                     )
+                       ) $ Zip(X, K)
          )
         ) $ KK
+
+          , B)
     )
 
     (s"mkdir -p $path") !
