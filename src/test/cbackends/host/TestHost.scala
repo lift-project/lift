@@ -2244,8 +2244,8 @@ class TestHost {
     val kernel_w = 5
     val activation_f = UserFun ( "sigmoid", Array("x"),  "1 / ( 1+exp(-x*alpha))", Seq(Float), Float  )
 
-    val input_xdim = 9
-    val input_ydim = 10
+    val input_xdim = 13
+    val input_ydim = 9
     val in_channels = 3
 
     val out_channels = 10
@@ -2262,7 +2262,7 @@ class TestHost {
         //this produce out_channels 2D matrices, as the final output
         MapSeq( fun( (O, b) =>
           //this produce a 2D matrix
-          MapSeq(activation_f) o MapSeq( fun( o => add2.apply(o, b)  )  ) o Join() $ O ) ) $
+         MapSeq( MapSeq(activation_f) ) o MapSeq( MapSeq( fun( o => add2.apply(o, b)  ) )  )  $ O ) ) $
 
         Zip(
 
