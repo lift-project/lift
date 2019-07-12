@@ -143,6 +143,30 @@ class TestHost {
   )
 
   @Test
+  def test_zip2(): Unit = {
+
+    val path = s"$common_path/02.zip/02.output_view_propagation"
+    val file = "libzip.cpp"
+
+    val f = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (left, right) => MapSeq( fun(y => add2.apply(Get(y,0), Get(y,1)) ) ) $ Zip(  MapSeq(incrementF) $ left ,
+        MapSeq(incrementF2) $ right)
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 \n"
+    assertEquals(expected, actual)
+
+    println("Test case test_zip done!")
+  }
+
+  @Test
   def test_reduceseq_zip(): Unit = {
 
     val path = s"$common_path/12.reduceseq_zip"

@@ -135,7 +135,8 @@ object OutputView {
 
       case fc@FunCall(_:CPUFunCall | _:OclFunCall | _:ToGPU | _:ToHost, args@_*) => {
 
-        args.foreach( arg => arg.outputView = ViewMem(arg.mem.variable, arg.t) )
+        //args.foreach( arg => arg.outputView = ViewMem(arg.mem.variable, arg.t) )
+        args.foreach( arg => arg.outputView = GenerateViewForRawInOut.generateViewForRawInOut(arg, arg.t, Cst(1)) )
 
         args.foreach( cont(_) )
 
@@ -162,6 +163,7 @@ object OutputView {
             case fc_get@FunCall(_:Get|_:ArrayAccess, arg) =>
               //fc_get.outputView = fc.outputView
               fc_get.outputView = ViewMem(fc.mem.variable, fc.t)
+              //fc_get.outputView = GenerateViewForRawInOut.generateViewForRawInOut(fc, fc.t, Cst(1))
             case _ => assert(false, "Some Type not implemented")
           }
         )
