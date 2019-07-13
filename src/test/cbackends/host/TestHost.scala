@@ -151,8 +151,11 @@ class TestHost {
     val f = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
-      (left, right) => MapSeq( fun(y => add2.apply(Get(y,0), Get(y,1)) ) ) $ Zip(  MapSeq(incrementF) $ left ,
-        MapSeq(incrementF2) $ right)
+      (left, right) => MapSeq( fun(y => add2.apply(Get(y,0), Get(y,1)) ) ) $
+        Zip(
+          MapSeq(incrementF) $ left ,
+          MapSeq(incrementF2) $ right
+        )
     )
 
     (s"mkdir -p $path") !
