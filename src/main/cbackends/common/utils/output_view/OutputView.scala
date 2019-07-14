@@ -1,7 +1,7 @@
 package cbackends.common.utils.output_view
 
 import ir.ast.{Expr, Lambda, Param}
-import ir.view.{NoView, UnusedInExprOutputView, ViewMem}
+import ir.view.{NoView, UnusedInExprOutputView, ViewMem, ViewNull}
 import cbackends.common.utils.common_view.GenerateViewForRawInOut.generateViewForRawInOut2
 import lift.arithmetic.Cst
 
@@ -38,7 +38,13 @@ object OutputView {
     unused_params.foreach(p => p.outputView = UnusedInExprOutputView)
 
     lambda visitBy {
-      case e:Expr => assert( e.outputView != NoView )
+      case e:Expr =>
+        assert( e.outputView != NoView )
+        //ViewNull should not occur in the outputView after pass
+        e.outputView match {
+          case ViewNull() => assert(false)
+          case _ =>
+        }
       case _ =>
     }
 

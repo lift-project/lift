@@ -119,7 +119,7 @@ class TestHost {
   @Test
   def test_zip(): Unit = {
 
-    val path = s"$common_path/02.zip"
+    val path = s"$common_path/02.zip/01.zip_hello"
     val file = "libzip.cpp"
 
     val f = fun(
@@ -163,7 +163,7 @@ class TestHost {
     HostCompiler ! (f, path, List(file) )
 
     val actual : String = native_compile_and_run(path, file)
-    val expected : String = "3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 \n"
+    val expected : String = "5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 \n"
     assertEquals(expected, actual)
 
     println("Test case test_zip done!")

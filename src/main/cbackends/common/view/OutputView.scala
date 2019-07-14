@@ -6,6 +6,8 @@ import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, Type}
 import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Iterate, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
 import ir.view._
 import lift.arithmetic.{ArithExpr, Cst}
+
+import scala.annotation.tailrec
 //import core.generator.PrettyPrinter._
 import cbackends.common.utils.output_view.OutputView.{init_body, post_check, pre_check}
 import cbackends.host.host_ir._
@@ -35,7 +37,9 @@ object OutputView {
 
         assert(fc.outputView != NoView)
 
+        /*
         val result = fc.outputView.unzip()
+
 
         args.zipWithIndex.foreach({
           //case (arg: Param, id) if arg.outputView == NoView =>
@@ -43,6 +47,21 @@ object OutputView {
             arg.outputView = result.get(id)
           case _ =>
         })
+
+        */
+
+        args.foreach( {
+
+          case p:Param =>
+            p.outputView = UnusedInExprOutputView
+          case expr: Expr if expr.isConcrete =>
+            expr.outputView = GenerateViewForRawInOut.generateViewForRawInOut2(expr, expr.t, Cst(1))
+          case expr: Expr if !expr.isConcrete =>
+            //if expr is not concrete, there is no need to print the output index, thus how to set it does not matter
+            expr.outputView = UnusedInExprOutputView
+
+          }
+        )
 
         args.foreach(a => assert(a.outputView != NoView))
 
@@ -52,11 +71,49 @@ object OutputView {
 
       }
 
-      case fc@FunCall(Get(_)|ArrayAccess(_), arg)  => {
+      case fc@FunCall(ArrayAccess(_), arg) => {
 
         assert(fc.outputView != NoView)
 
         arg.outputView = fc.outputView
+
+        assert(arg.outputView != NoView)
+
+        cont(arg)
+
+        fc
+      }
+
+      case fc@FunCall(Get(id), arg)  => {
+
+        assert(fc.outputView != NoView)
+
+        //arg.outputView = fc.outputView
+
+        val new_view_seq : Seq[View] = arg.outputView match {
+          // if NoView, then it is first time output view update
+          case `NoView`  =>
+            //if it is larger than 0, create holes, then itself
+            val num_of_holes = id
+            createHoles(Seq(), num_of_holes) :+ fc.outputView
+          case _ => {
+            val old_view_seq = arg.outputView.asInstanceOf[ViewTuple].ivs
+            val num_of_holes = id - old_view_seq.size
+            num_of_holes match {
+                //if smaller than size, fill holes
+              case _ if id <= 0  =>
+                 constructViewSeqWithHoleFilled( old_view_seq, id, fc.outputView)
+
+                //if larger than size, extend it and create holes if necessary
+              case _  => {
+                createHoles(old_view_seq, num_of_holes) :+ fc.outputView
+              }
+            }
+          }
+        }
+
+        arg.outputView = ViewTuple(new_view_seq, arg.t)
+
 
         assert(arg.outputView != NoView)
 
@@ -162,7 +219,7 @@ object OutputView {
               }
             case fc_get@FunCall(_:Get|_:ArrayAccess, arg) =>
               //fc_get.outputView = fc.outputView
-              fc_get.outputView = ViewMem(fc.mem.variable, fc.t)
+              fc_get.outputView = ViewMem(fc_get.mem.variable, fc_get.t)
               //fc_get.outputView = GenerateViewForRawInOut.generateViewForRawInOut(fc, fc.t, Cst(1))
             case _ => assert(false, "Some Type not implemented")
           }
@@ -239,8 +296,10 @@ object OutputView {
         }*/
         arg.outputView = m.f.params.head.outputView match {
           //case ViewMem(v, _) => ViewMem(v, arg.t)
-          case ViewMem(v, _) =>
+          case ViewMem(_, _) =>
             GenerateViewForRawInOut.generateViewForRawInOut2(arg, arg.t, Cst(1))
+          case ViewTuple(views, _) =>
+            ViewTuple(views, arg.t)
           case outputView =>
             val t = fc.argsType
             val chunksize  = t match {
@@ -521,6 +580,28 @@ object OutputView {
     post_check(lambda)
 
 
+  }
+
+  @tailrec
+  def createHoles( acc : Seq[View], num_to_create: Int) : Seq[View] = {
+
+    //if num_to_create is less than 0, the calculation for num_to_create may be wrong
+    assert(num_to_create >= 0)
+
+    num_to_create match {
+      case _ if num_to_create == 0 =>
+        acc
+      case _ =>
+        createHoles(acc :+ ViewNull(), num_to_create - 1)
+    }
+  }
+
+  def constructViewSeqWithHoleFilled(views: Seq[View], i: Int, view: View) : Seq[View] = {
+
+    views(i) match {
+      case ViewNull() => assert(false); Seq(ViewNull())
+      case _ => (views.take(i) :+ view) ++ views.drop(views.size - 1 - i)
+    }
   }
 
 }

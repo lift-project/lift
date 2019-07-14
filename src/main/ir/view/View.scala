@@ -552,6 +552,9 @@ case class ViewPadConstant(iv: View, left: Int, right: Int, constant: Value,
 case class ViewSize(iv: View) extends View(opencl.ir.Int)
 
 
+case class ViewNull() extends View(opencl.ir.Int)
+
+
 /**
  * Placeholder for a view that is not yet created.
  */
