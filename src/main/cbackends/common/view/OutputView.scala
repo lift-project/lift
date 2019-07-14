@@ -89,7 +89,7 @@ object OutputView {
         assert(fc.outputView != NoView)
 
         //arg.outputView = fc.outputView
-
+        /*
         val new_view_seq : Seq[View] = arg.outputView match {
           // if NoView, then it is first time output view update
           case `NoView`  =>
@@ -101,7 +101,7 @@ object OutputView {
             val num_of_holes = id - old_view_seq.size
             num_of_holes match {
                 //if smaller than size, fill holes
-              case _ if id <= 0  =>
+              case _ if num_of_holes <= 0  =>
                  constructViewSeqWithHoleFilled( old_view_seq, id, fc.outputView)
 
                 //if larger than size, extend it and create holes if necessary
@@ -110,9 +110,9 @@ object OutputView {
               }
             }
           }
-        }
+        }*/
 
-        arg.outputView = ViewTuple(new_view_seq, arg.t)
+        arg.outputView = ViewTuple(Seq(), arg.t)
 
 
         assert(arg.outputView != NoView)
@@ -149,7 +149,18 @@ object OutputView {
           case ArrayType(ArrayTypeWSWC(_, s,c)) if s==c => s
           case _ => throw new IllegalArgumentException("PANIC, expected 2D array, found " + fc.argsType)
         }
-        arg.outputView = fc.outputView.split(n)
+
+        arg.outputView = fc.outputView match {
+
+            //if fc.outputView is UnusedInExprOutputView,
+            //then we don't care its output view, thus we don't care arg's outputView as well
+            //can set it as UnusedInExprOutputView as a chain reaction.
+          case `UnusedInExprOutputView` =>
+            UnusedInExprOutputView
+          case _ =>
+            fc.outputView.split(n)
+
+        }
 
         assert(arg.outputView != NoView)
 
@@ -368,7 +379,9 @@ object OutputView {
             //if it is ViewTuple, you know there is a Zip not far away ahead, Zip will reset the output view,
             //thus here how to set it is not important
           case ViewTuple(_,_) =>
-            assert(array.asInstanceOf[FunCall].f.isInstanceOf[Zip])
+            //this assertion is not necessary, as there might be slide before Zip, so you can not enumerate them all
+            //even if you can, manual enumeration is not necessary
+            //assert(array.asInstanceOf[FunCall].f.isInstanceOf[Zip])
             UnusedInExprOutputView
           case outputView =>
             val t = fc.argsType
