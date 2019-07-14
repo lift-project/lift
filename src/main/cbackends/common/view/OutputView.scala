@@ -365,6 +365,11 @@ object OutputView {
           //case ViewMem(v, _) => ViewMem(v, array.t)
           case ViewMem(v, _) =>
             GenerateViewForRawInOut.generateViewForRawInOut(array, array.t, Cst(1))
+            //if it is ViewTuple, you know there is a Zip not far away ahead, Zip will reset the output view,
+            //thus here how to set it is not important
+          case ViewTuple(_,_) =>
+            assert(array.asInstanceOf[FunCall].f.isInstanceOf[Zip])
+            UnusedInExprOutputView
           case outputView =>
             val t = fc.argsType
             val chunksize = t match {
