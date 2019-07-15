@@ -2269,7 +2269,7 @@ class TestHost {
 
     val kernel_h = 4
     val kernel_w = 5
-    val activation_f = UserFun ( "sigmoid", Array("x"),  "1 / ( 1+exp(-x*alpha))", Seq(Float), Float  )
+    val activation_f = UserFun ( "sigmoid", Array("x"),  "return 1 / ( 1+exp(-x))", Seq(Float), Float  )
 
     val input_xdim = 13
     val input_ydim = 9
