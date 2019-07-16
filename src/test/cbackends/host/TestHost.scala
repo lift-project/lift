@@ -2328,6 +2328,11 @@ class TestHost {
   }
 
   @Test
+  def test_transpose_golden_data_for_conv(): Unit = {
+
+  }
+
+  @Test
   def test_general_transpose(): Unit = {
 
     val path = s"$common_path/47.general_transpose"
