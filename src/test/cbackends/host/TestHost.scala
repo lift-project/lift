@@ -2267,15 +2267,22 @@ class TestHost {
     val path = s"$common_path/46.sequential_conv_naums_version"
     val file = "libsequential_conv_naums_version.cpp"
 
-    val kernel_h = 4
-    val kernel_w = 5
     val activation_f = UserFun ( "sigmoid", Array("x"),  "return 1 / ( 1+exp(-x))", Seq(Float), Float  )
 
+    /* val kernel_h = 4
+    val kernel_w = 5
     val input_xdim = 13
     val input_ydim = 9
     val in_channels = 3
+    val out_channels = 10 */
 
-    val out_channels = 10
+    val kernel_h = SizeVar("kernel_h")
+    val kernel_w = SizeVar("kernel_w")
+    val input_xdim = SizeVar("input_xdim")
+    val input_ydim = SizeVar("input_ydim")
+    val in_channels = SizeVar("in_channels")
+    val out_channels = SizeVar("out_channels")
+
 
 
     val f = fun(
