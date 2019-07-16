@@ -2289,7 +2289,7 @@ class TestHost {
         //this produce out_channels 2D matrices, as the final output
         MapSeq( fun( (O, b) =>
           //this produce a 2D matrix
-         MapSeq( MapSeq(activation_f) ) o MapSeq( MapSeq( fun( o => add2.apply(o, b)  ) )  )  $ O ) ) $
+         MapSeq( MapSeq(id) ) o MapSeq( MapSeq( fun( o => add2.apply(o, b)  ) )  )  $ O ) ) $
 
         Zip(
 

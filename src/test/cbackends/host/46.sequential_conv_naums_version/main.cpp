@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 	vector<float> B{
 		0.0f, 1.0f, 2.0f
 	};
-	assert(N.size() == B_size);
+	assert(B.size() == B_size);
 	vector<float> X{
 		0.0f, 0.0f,   1.0f, 1.0f,   2.0f, 2.0f,   3.0f, 3.0f,
 		4.0f, 4.0f,   5.0f, 5.0f,   6.0f, 6.0f,  7.0f, 7.0f,
@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
 
 	float *out = nullptr;
 
-	lift::execute(K.data(), B.data(), X.data(), out);
+	/* lift::execute(K.data(), B.data(), X.data(), out); */
 
 	/* copy(out,out+output_N*output_N*output_N, ostream_iterator<float>(cout, " ")); */
 	/* std::cout << std::endl; */
