@@ -2337,6 +2337,43 @@ class TestHost {
   @Test
   def test_transpose_golden_data_for_conv(): Unit = {
 
+    val kernel_h = SizeVar("kernel_h")
+    val kernel_w = SizeVar("kernel_w")
+    val input_xdim = SizeVar("input_xdim")
+    val input_ydim = SizeVar("input_ydim")
+    val in_channels = SizeVar("in_channels")
+    val out_channels = SizeVar("out_channels")
+
+    val path1 = s"$common_path/46.sequential_conv_naums_version/golden_data_prepare/X_transpose"
+    val file = "libtranspose.cpp"
+
+    val f = fun(
+      ArrayType( ArrayType( ArrayType( Float, in_channels ), input_xdim  ), input_ydim ),
+      (X) => MapSeq(MapSeq(MapSeq(id))) o Transpose() o Map(  Transpose() ) $ X
+    )
+
+    (s"mkdir -p $path1") !
+
+    HostCompiler ! (f, path1, List(file) )
+
+    val path2 = s"$common_path/46.sequential_conv_naums_version/golden_data_prepare/K_transpose"
+
+    val f2 = fun(
+      ArrayType(ArrayType(ArrayType(ArrayType(Float, out_channels), in_channels), kernel_w), kernel_h),
+
+      (K) => MapSeq(MapSeq(MapSeq(MapSeq(id)))) o
+        //transpose in_channels in place
+                      Map( Transpose() o Map( Transpose() ) ) o
+        //transpose out_channels in place
+        Transpose() o Map( Transpose() o Map( Transpose() ) )  $ K
+
+    )
+
+    HostCompiler ! (f2, path2, List(file) )
+
+    println("done")
+
+
   }
 
   @Test

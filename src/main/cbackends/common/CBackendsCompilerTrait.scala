@@ -96,6 +96,10 @@ trait CBackendsCompilerTrait {
 
     println("1.compiler called")
 
+
+    import scala.sys.process._
+    (s"mkdir -p $path") !
+
     typeCheck(lambda)
     memorySpaceInference(lambda)
     loopVarInference(lambda)
