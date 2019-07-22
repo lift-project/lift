@@ -2,6 +2,7 @@ package rewriting.rules
 
 import ir._
 import ir.ast._
+import ir.ast.debug.PrintType
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, TestWithExecutor}
 import opencl.ir._

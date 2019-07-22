@@ -2,6 +2,7 @@ package opencl.generator
 
 import ir.ArrayTypeWSWC
 import ir.ast._
+import ir.ast.debug.PrintType
 import lift.arithmetic.SizeVar
 import opencl.executor.{Execute, Executor, TestWithExecutor}
 import opencl.ir._

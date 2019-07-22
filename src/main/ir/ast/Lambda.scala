@@ -2,7 +2,10 @@ package ir.ast
 
 import ir._
 import ir.interpreter.Interpreter.ValueMap
+import rewriting.Rewrite
+import rewriting.rules.{FissionRules, FusionRules, Rule}
 
+import scala.collection.mutable
 import scala.language.implicitConversions
 
 /**
@@ -28,6 +31,25 @@ abstract case class Lambda private[ast] (params: Array[Param],
     TypeChecker.checkAndSetTypeForParams(params, argType, this)
     TypeChecker.check(body, setType)
   }
+
+  def rewrite(id: Int, rule: Rule): Lambda = {
+    Rewrite.applyRuleAtId(this, id, rule)
+  }
+
+  def rewrite(rule: Rule, expr: Expr): Lambda = {
+    Rewrite.applyRuleAt(this, expr, rule)
+  }
+
+  def rewrite(tuple: (Rule, Expr)): Lambda = {
+    rewrite(tuple._1, tuple._2)
+  }
+
+  def rewriteUntilCannot(rule: Rule): Lambda = {
+    Rewrite.applyRuleUntilCannot(this, rule)
+  }
+
+  def fuseMaps = rewriteUntilCannot(FusionRules.mapFusion)
+  def fissionMaps = rewriteUntilCannot(FissionRules.mapFission)
 
   override def apply(args : Expr*) : Expr = {
     assert (args.length == arity)
@@ -81,7 +103,6 @@ abstract case class Lambda private[ast] (params: Array[Param],
       case ByDeclarationOrder => params.flatMap(_.t.varList).distinct
     }
   }
-
 
   def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
@@ -425,7 +446,6 @@ class Lambda9(override val params: Array[Param], override val body: Expr) extend
   }
 }
 
-
 class Lambda10(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
   assert(params.length == 10)
 
@@ -463,6 +483,266 @@ class Lambda10(override val params: Array[Param], override val body: Expr) exten
 
   def apply(arg: Expr): Lambda9 = {
     fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8) => super.apply(arg, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8) )
+  }
+}
+
+class Lambda11(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
+  assert(params.length == 11)
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr): Lambda1 = {
+    fun( (tmp0) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, tmp0) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr): Lambda2 = {
+    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, tmp0, tmp1) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr): Lambda3 = {
+    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, tmp0, tmp1, tmp2) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr): Lambda4 = {
+    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, tmp0, tmp1, tmp2, tmp3) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr): Lambda5 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, tmp0, tmp1, tmp2, tmp3, tmp4) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Lambda6 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) => super.apply(arg0, arg1, arg2, arg3, arg4, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda7 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) => super.apply(arg0, arg1, arg2, arg3, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda8 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7) => super.apply(arg0, arg1, arg2, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr): Lambda9 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8) => super.apply(arg0, arg1, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8) )
+  }
+
+  def apply(arg: Expr): Lambda10 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9) => super.apply(arg, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9) )
+  }
+}
+
+class Lambda12(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
+  assert(params.length == 12)
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr, arg10: Expr): Lambda1 = {
+    fun( (tmp0) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, tmp0) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr): Lambda2 = {
+    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, tmp0, tmp1) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr): Lambda3 = {
+    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, tmp0, tmp1, tmp2) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr): Lambda4 = {
+    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, tmp0, tmp1, tmp2, tmp3) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr): Lambda5 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, tmp0, tmp1, tmp2, tmp3, tmp4) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr): Lambda6 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Lambda7 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) => super.apply(arg0, arg1, arg2, arg3, arg4, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda8 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7) => super.apply(arg0, arg1, arg2, arg3, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda9 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8) => super.apply(arg0, arg1, arg2, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr): Lambda10 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9) => super.apply(arg0, arg1, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9) )
+  }
+
+  def apply(arg0: Expr): Lambda11 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10) => super.apply(arg0, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10) )
+  }
+}
+
+class Lambda13(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
+  assert(params.length == 13)
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr, arg10: Expr, arg11: Expr): Lambda1 = {
+    fun( (tmp0) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, tmp0) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr, arg10: Expr): Lambda2 = {
+    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, tmp0, tmp1) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr): Lambda3 = {
+    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, tmp0, tmp1, tmp2) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr): Lambda4 = {
+    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, tmp0, tmp1, tmp2, tmp3) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr): Lambda5 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, tmp0, tmp1, tmp2, tmp3, tmp4) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr): Lambda6 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr): Lambda7 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Lambda8 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7) => super.apply(arg0, arg1, arg2, arg3, arg4, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda9 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8) => super.apply(arg0, arg1, arg2, arg3, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda10 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9) => super.apply(arg0, arg1, arg2, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr): Lambda11 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10) => super.apply(arg0, arg1, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10) )
+  }
+
+  def apply(arg0: Expr): Lambda12 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11) => super.apply(arg0, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11) )
+  }
+}
+
+class Lambda14(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
+  assert(params.length == 14)
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr, arg10: Expr, arg11: Expr, arg12: Expr): Lambda1 = {
+    fun( (tmp0) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, tmp0) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr, arg10: Expr, arg11: Expr): Lambda2 = {
+    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, tmp0, tmp1) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr, arg10: Expr): Lambda3 = {
+    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, tmp0, tmp1, tmp2) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr): Lambda4 = {
+    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, tmp0, tmp1, tmp2, tmp3) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr): Lambda5 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, tmp0, tmp1, tmp2, tmp3, tmp4) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr): Lambda6 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr): Lambda7 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr): Lambda8 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Lambda9 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8) => super.apply(arg0, arg1, arg2, arg3, arg4, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda10 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9) => super.apply(arg0, arg1, arg2, arg3, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda11 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10) => super.apply(arg0, arg1, arg2, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr): Lambda12 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11) => super.apply(arg0, arg1, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11) )
+  }
+
+  def apply(arg0: Expr): Lambda13 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11, tmp12) => super.apply(arg0, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11, tmp12) )
+  }
+}
+
+class Lambda15(override val params: Array[Param], override val body: Expr) extends Lambda(params, body) {
+  assert(params.length == 15)
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr, arg10: Expr, arg11: Expr, arg12: Expr, arg13: Expr): Lambda1 = {
+    fun( (tmp0) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, tmp0) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr, arg10: Expr, arg11: Expr, arg12: Expr): Lambda2 = {
+    fun( (tmp0, tmp1) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, tmp0, tmp1) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr, arg10: Expr, arg11: Expr): Lambda3 = {
+    fun( (tmp0, tmp1, tmp2) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, tmp0, tmp1, tmp2) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr, arg10: Expr): Lambda4 = {
+    fun( (tmp0, tmp1, tmp2, tmp3) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, tmp0, tmp1, tmp2, tmp3) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr, arg9: Expr): Lambda5 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, tmp0, tmp1, tmp2, tmp3, tmp4) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr, arg8: Expr): Lambda6 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr, arg7: Expr): Lambda7 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr, arg6: Expr): Lambda8 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, arg6, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr, arg5: Expr): Lambda9 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8) => super.apply(arg0, arg1, arg2, arg3, arg4, arg5, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr, arg4: Expr): Lambda10 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9) => super.apply(arg0, arg1, arg2, arg3, arg4, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr, arg3: Expr): Lambda11 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10) => super.apply(arg0, arg1, arg2, arg3, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr, arg2: Expr): Lambda12 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11) => super.apply(arg0, arg1, arg2, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11) )
+  }
+
+  def apply(arg0: Expr, arg1: Expr): Lambda13 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11, tmp12) => super.apply(arg0, arg1, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11, tmp12) )
+  }
+
+  def apply(arg0: Expr): Lambda14 = {
+    fun( (tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11, tmp12, tmp13) => super.apply(arg0, tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11, tmp12, tmp13) )
   }
 }
 
@@ -519,6 +799,31 @@ trait funDef {
     new Lambda10(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9)))
   }
 
+  def apply(f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda11 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda11(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9), params(10)))
+  }
+
+  def apply(f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda12 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda12(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9), params(10), params(11)))
+  }
+
+  def apply(f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda13 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda13(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9), params(10), params(11), params(12)))
+  }
+
+  def apply(f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda14 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda14(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9), params(10), params(11), params(12), params(13)))
+  }
+
+  def apply(f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda15 = {
+    val params = Array(Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType), Param(UndefType))
+    new Lambda15(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9), params(10), params(11), params(12), params(13), params(14)))
+  }
+
   def apply(t: Type, f: (Param) => Expr): Lambda1 = {
     val params = Array(Param(t))
     new Lambda1(params, f(params(0)))
@@ -567,6 +872,31 @@ trait funDef {
   def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, t9:Type, t10:Type, f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda10 = {
     val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8), Param(t9), Param(t10))
     new Lambda10(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9)))
+  }
+
+  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, t9:Type, t10:Type, t11:Type, f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda11 = {
+    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8), Param(t9), Param(t10), Param(t11))
+    new Lambda11(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9), params(10)))
+  }
+
+  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, t9:Type, t10:Type, t11:Type, t12:Type, f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda12 = {
+    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8), Param(t9), Param(t10), Param(t11), Param(t12))
+    new Lambda12(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9), params(10), params(11)))
+  }
+
+  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, t9:Type, t10:Type, t11:Type, t12:Type, t13: Type, f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda13 = {
+    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8), Param(t9), Param(t10), Param(t11), Param(t12), Param(t13))
+    new Lambda13(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9), params(10), params(11), params(12)))
+  }
+
+  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, t9:Type, t10:Type, t11:Type, t12:Type, t13: Type, t14: Type, f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda14 = {
+    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8), Param(t9), Param(t10), Param(t11), Param(t12), Param(t13), Param(t14))
+    new Lambda14(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9), params(10), params(11), params(12), params(13)))
+  }
+
+  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, t9:Type, t10:Type, t11:Type, t12:Type, t13: Type, t14: Type, t15: Type, f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda15 = {
+    val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8), Param(t9), Param(t10), Param(t11), Param(t12), Param(t13), Param(t14), Param(t15))
+    new Lambda15(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9), params(10), params(11), params(12), params(13), params(14)))
   }
 }
 

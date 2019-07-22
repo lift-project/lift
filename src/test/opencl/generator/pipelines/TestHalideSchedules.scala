@@ -2,6 +2,7 @@ package opencl.generator.pipelines
 
 import ir._
 import ir.ast._
+import ir.ast.debug.PrintType
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._

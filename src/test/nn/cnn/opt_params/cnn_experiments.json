@@ -1,0 +1,73 @@
+{
+  "name": "Convolutional kernel experiments",
+  "workload": {
+    "n_batches": {
+      "initial": 2
+    },
+    "n_inputs": {
+      "start": 32,
+      "end": 128,
+      "step_add": 16
+    },
+    "image_size": {
+      "start": 32,
+      "end": 256,
+      "step_add": 16
+    },
+    "n_channels": 1,
+    "n_kernels": [
+      {"initial": 16},
+      {"start": 8,
+       "end": 128,
+       "step_add": 8}
+    ],
+    "kernel_size": [
+      {"initial": 20},
+      {"start": 4,
+       "end": 64,
+       "step_multiply": 2}
+    ],
+    "n_neurons": [
+      {"initial": 16},
+      {"initial": 10}
+    ]
+  },
+  "optimisational_parameters": {
+    "input_tile_size": [
+      {"initial": "kernel_size"},
+      {
+        "start": "kernel_size",
+        "end": "image_size",
+        "step_add": 1
+      }
+    ],
+    "kernels_per_group": [
+      {"initial": 1},
+      {
+        "initial": 1,
+        "start": 2,
+        "end": "n_kernels",
+        "step_add": 1
+      }
+    ],
+    "els_per_thread": [
+      {"initial": "kernel_size"},
+      {
+        "initial": 1,
+        "start": 2,
+        "end": "kernel_size",
+        "step_add": 1
+      }
+    ],
+
+    "mults_per_thread": [
+      {"initial": 1},
+      {"initial": 1}
+    ],
+    "neurons_per_wrg": [
+      {"initial": 1},
+      {"initial": 1}
+    ]
+  }
+
+}

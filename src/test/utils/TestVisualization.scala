@@ -1,7 +1,8 @@
 package utils;
 
 import ir._
-import ir.ast.{PrintType, Split, _}
+import ir.ast.debug.{PrintType, VisualOutput}
+import ir.ast.{Split, _}
 import lift.arithmetic.{SizeVar, Var}
 import opencl.executor._
 import opencl.ir._

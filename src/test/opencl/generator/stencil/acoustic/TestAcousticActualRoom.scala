@@ -2,6 +2,7 @@ package opencl.generator.stencil.acoustic
 
 import ir.ArrayTypeWSWC
 import ir.ast._
+import ir.ast.debug.PrintType
 import lift.arithmetic.SizeVar
 import opencl.executor._
 import opencl.ir._
@@ -550,7 +551,7 @@ class TestAcousticActualRoom {
           }),size,step)) o PrintType() $ inp
 
           })
-        )) /*o PrintType()*/ $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
+        )) /*o debug.PrintType()*/ $  Zip2D( mat1, Map(Map(Transpose())) o Map(Map(Map(Transpose()))) o Slide2D(StencilUtilities.slidesize, StencilUtilities.slidestep) $ mat2, Array3DFromUserFunGenerator(getNumNeighbours, arraySig))
       })
 
     val newLambda = SimplifyAndFuse(lambdaNeighMapSeqSlide)

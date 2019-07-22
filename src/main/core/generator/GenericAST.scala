@@ -353,6 +353,7 @@ object GenericAST {
     override def visit[T](z: T)(fun: (T, AstNode) => T): T = {
       z |>
         (fun(_, this)) |>
+        // Visit internal expressions of a for loop
         (init.visit(_)(fun)) |>
         (cond.visit(_)(fun)) |>
         (increment.visit(_)(fun)) |>

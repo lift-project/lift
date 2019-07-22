@@ -161,7 +161,7 @@ class Views{
     )
 
 
-    DotPrinter("/tmp", "expr", lowLevelUnrolled)
+    DotPrinter(System.getProperty("java.io.tmpdir"), "expr", lowLevelUnrolled)
   }
 
   @Test

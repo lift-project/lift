@@ -1,6 +1,7 @@
-package ir.ast
+package ir.ast.debug
 
 import ir.Type
+import ir.ast.Pattern
 import ir.interpreter.Interpreter._
 import utils.paternoster.visualisation.TypeVisualiser
 

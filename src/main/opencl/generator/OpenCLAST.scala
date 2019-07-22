@@ -141,12 +141,6 @@ object OpenCLAST {
     override def print(): Doc = t match {
       case _: ArrayType =>
         addressSpace match {
-          case PrivateMemory =>
-            if (length > scala.Int.MaxValue) throw NotEvaluableToInt
-            stack(List.tabulate(length.toInt)(i ⇒ {
-              Printer.toString(Type.getValueType(t)) <+> Printer.toString(v
-                .v) <> "_" <> Printer.toString(i) <> ";"
-            }))  /*** unroll private memory ***/
 
           case LocalMemory if length != 0 =>
             val baseType = Type.getBaseType(t)

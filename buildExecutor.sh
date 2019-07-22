@@ -32,5 +32,5 @@ function build() {
 echo "Configure Executor"
 configure
 
-echo "Build executor"
+echo "Build Executor"
 build

@@ -194,7 +194,7 @@ object MemoryMappingRewrite {
 
           val rewrites = Rewrite.listAllPossibleRewrites(lambdaWithReduceSeq, OpenCLRules.reduceSeqUnroll)
           rewrites.foldLeft(lambdaWithReduceSeq)((expr, pair) =>
-            Rewrite.applyRuleAt(expr, pair._2, pair._1))
+            Rewrite.applyRuleAt(expr, pair.expr, pair.rule))
         })
 
         unrolledReduces ++ loadBalancedExpressions
@@ -273,7 +273,7 @@ object MemoryMappingRewrite {
       val locations =
         Rewrite.listAllPossibleRewritesForRules(lambda, Seq(OpenCLRules.mapAtomWrg, OpenCLRules.mapAtomLcl))
 
-      val withLoadBalancing = locations.map(pair => Rewrite.applyRuleAt(lambda, pair._2, pair._1))
+      val withLoadBalancing = locations.map(pair => Rewrite.applyRuleAt(lambda, pair.expr, pair.rule))
       withLoadBalancing :+ lambda
     } catch {
       case _: Throwable =>

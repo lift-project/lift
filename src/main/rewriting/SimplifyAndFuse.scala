@@ -104,11 +104,11 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
         if (rewrites.nonEmpty) {
 
           val bestTry = rewrites.map(ruleAt => {
-            val replacement = ruleAt._1.rewrite(ruleAt._2)
-            val applyRuleAtId = FunDecl.replace(applyHere, ruleAt._2, replacement)
+            val replacement = ruleAt.rule.rewrite(ruleAt.expr)
+            val applyRuleAtId = FunDecl.replace(applyHere, ruleAt.expr, replacement)
 
             //noinspection SideEffectsInMonadicTransformation
-            seen = ruleAt._2 :: seen
+            seen = ruleAt.expr :: seen
 
             val expr = Utils.getExprForPatternInCallChain(replacement,
               { case e if EnablingRules.transposeMapSplit.isDefinedAt(e) => }).get
@@ -132,16 +132,16 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
     } else {
       val ruleAt = allRulesAt.head
 
-      val applied = Rewrite.applyRuleAt(fused, ruleAt._2, ruleAt._1)
+      val applied = Rewrite.applyRuleAt(fused, ruleAt.expr, ruleAt.rule)
 
       simplify(applied, maxDepth-1)
     }
   }
 
-  private def listAndFilterSplitTransposeRewrites(l: Lambda): Seq[(Rule, Expr)] = {
+  private def listAndFilterSplitTransposeRewrites(l: Lambda): Seq[PotentialRewrite] = {
     Rewrite
       .listAllPossibleRewrites(l, Rules.splitTranspose)
-      .filter(ruleAt => !ruleAt._2.isInstanceOf[Param] && !seen.contains(ruleAt._2))
+      .filter(ruleAt => !ruleAt.expr.isInstanceOf[Param] && !seen.contains(ruleAt.expr))
   }
 
 
@@ -195,8 +195,8 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
     var allRulesAt = Rewrite.listAllPossibleRewritesForRules(lambda, enablingRules)
 
     allRulesAt = allRulesAt.filter(p =>
-      if (p._1 == EnablingRules.transposeMapSplit) {
-        val applyHere = p._2
+      if (p.rule == EnablingRules.transposeMapSplit) {
+        val applyHere = p.expr
         !cantUndo.exists(_ eq applyHere)
       } else {
         true
@@ -205,9 +205,9 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
 
     val rewritten = allRulesAt.map(ruleAt =>
       if (fuseReduceMapImmediately)
-        fuseAll(Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1))
+        fuseAll(Rewrite.applyRuleAt(lambda, ruleAt.expr, ruleAt.rule))
       else
-        Rewrite.applyRuleAt(lambda, ruleAt._2, ruleAt._1))
+        Rewrite.applyRuleAt(lambda, ruleAt.expr, ruleAt.rule))
 
 
     var rulesToEnable = simplificationRules
@@ -218,6 +218,6 @@ class SimplifyAndFuse(val maxTime: Long, val fuseReduceMapImmediately: Boolean =
     val numPossibleSimplifications =
       rewritten.map(Rewrite.listAllPossibleRewritesForRules(_, rulesToEnable).length)
 
-    (rewritten,  numPossibleSimplifications, allRulesAt.map(_._1 +: rules)).zipped.toSeq
+    (rewritten,  numPossibleSimplifications, allRulesAt.map(_.rule +: rules)).zipped.toSeq
   }
 }
