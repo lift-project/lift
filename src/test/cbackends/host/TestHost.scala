@@ -2379,7 +2379,7 @@ class TestHost {
   @Test
   def test_general_transpose(): Unit = {
 
-    val path = s"$common_path/47.general_transpose"
+    val path = s"$common_path/47.general_transpose/1.map"
     val file = "libgeneral_transpose.cpp"
 
 
@@ -2421,6 +2421,31 @@ class TestHost {
     val actual : String = native_compile_and_run(path, file)
     //val expected : String = "0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11, 12, 16, 20, 13, 17, 21, 14, 18, 22, 15, 19, 23, \n"
     val expected : String = "0, 8, 16, 1, 9, 17, 2, 10, 18, 3, 11, 19, 4, 12, 20, 5, 13, 21, 6, 14, 22, 7, 15, 23, \n"
+    assertEquals(expected, actual)
+
+
+    println("Test case test_map done!")
+
+  }
+
+  @Test
+  def test_general_transpose2(): Unit = {
+
+    val path = s"$common_path/47.general_transpose/2.reduce"
+    val file = "libgeneral_transpose.cpp"
+
+    val f = fun(
+      ArrayType( ArrayType( ArrayType(Float, K), N), M),
+      //MapSeq(MapSeq(MapSeq(id))) o Map( Transpose() ) $ _
+      MapSeq( Join() o MapSeq(ReduceSeq(add2, 0.0f)) o Transpose() ) o Transpose()  $ _
+    )
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (f, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "24, 27, 30, 33, 36, 39, 42, 45, \n"
     assertEquals(expected, actual)
 
 
