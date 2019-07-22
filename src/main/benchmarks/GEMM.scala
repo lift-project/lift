@@ -6,25 +6,168 @@ import ir.ast._
 import opencl.executor.Utils
 import opencl.ir._
 import opencl.ir.pattern._
-import org.clapper.argot.ArgotConverters._
 
+@deprecated("Uses an old benchmark infrastructure", "")
 class GEMM (override val f: Seq[(String, Array[Lambda])])
-  extends Benchmark("Matrix Multiplication", Seq(1024, 1024, 1024), f, 0.1f, Array(16, 16, 1)) {
+  extends DeprecatedBenchmark("Matrix Multiplication", Seq(1024, 1024, 1024), f, 0.1f, Array(16, 16, 1)) {
+  // Parser options
+//  case class GEMMConfig(trials: Int = 10,
+//                        platform: Int = 0,
+//                        device: Int = 0,
+//                        saveOutput: Option[String] = None,
+//                        loadOutput: Option[String] = None,
+//                        localSize: Array[Int] = defaultLocalSizes,
+//                        globalSize: Array[Int] = Array(inputSizes().product, 1, 1),
+//                        loadKernel: Option[String] = None,
+//                        saveAll: Boolean = false,
+//                        loadAll: Boolean = false,
+//                        csvFileName: Option[String] = None,
+//                        size: List[Int] = null,
+//                        verbose: Boolean = false,
+//                        variant: Int = 0,
+//                        variantRegex: String = ".*",
+//                        negateRegex: Boolean = false,
+//                        all: Boolean = false,
+//                        timeout: Option[Int] = None,
+//                        checkResult: Boolean = false,
+//                        printResult: Boolean = false,
+//                        injectLocal: Boolean = false,
+//                        injectGroup: Boolean = false,
+//                        experimentID: Option[String] = None,
+//                        input: File = null,
+//                        tileX: Long = 0,
+//                        tileY: Long = 0,
+//                        registerBlockM: Long = 0,
+//                        registerBlockN: Long = 0)
+//
+//  val gemmBuilder: OParserBuilder[GEMMConfig] = OParser.builder[GEMMConfig]
+//  var gemmCmdArgs: Option[GEMMConfig] = None
+//  val gemmParser = {
+//    import gemmBuilder._
+//    OParser.sequence(
+//      programName("Benchmark"),
+//      opt[Int]('i', "trials").text("Total trials (Default: 10)")
+//        .foreach(arg => c =c.copy(trials = arg)),
+//
+//      opt[Int]('p', "platform").text("Id of the OpenCL platform to use (Default: 0)")
+//        .foreach(arg => c =c.copy(platform = arg)),
+//
+//      opt[Int]('d', "device").text("Id of the OpenCL device to use (Default: 0)")
+//        .foreach(arg => c =c.copy(device = arg)),
+//
+//      opt[String]("saveOutput").text("Save the gold result of the computation to a file")
+//        .foreach(arg => c =c.copy(saveOutput = Some(arg))),
+//
+//      opt[String]("loadOutput").text("Load the gold result of the computation from a file. Takes precedence over saveOutput")
+//        .foreach(arg => c =c.copy(loadOutput = Some(arg))),
+//
+//      opt[Seq[Int]]('l', "localSize").text("Local size(s) to use " +
+//        "(Defaults: " + defaultLocalSizes.mkString(", ") + ")")
+//        .foreach(arg => c =c.copy(localSize = arg.toArray))
+//        .minOccurs(3).maxOccurs(3),
+//
+//      opt[Seq[Int]]('g', "globalSize").text("Global size(s) to use")
+//        .foreach(arg => c =c.copy(globalSize = arg.toArray))
+//        .minOccurs(3).maxOccurs(3),
+//
+//      opt[String]("loadKernel").text("Load an OpenCL kernel source file")
+//        .foreach(arg => c =c.copy(loadKernel = Some(arg))),
+//
+//      // TODO: Implement kernel saving/loading functionality.
+//      opt[Unit]("save-kernels").text("Save all kernels.")
+//        .action((_, c) => c.copy(saveAll = true)),
+//
+//      opt[Unit]("load-kernels").text("Load kernel for execution previously generated using -save-kernels")
+//        .action((_, c) => c.copy(loadAll = true)),
+//
+//      opt[String]("csvFileName").abbr("csv").text("If specified, results are stored in .csv file with given name")
+//        .foreach(arg => c =c.copy(csvFileName = Some(arg))),
+//
+//      opt[Seq[Int]]('s', "inputSize").text("Size of the input to use, expecting ${defaultInputSizes.length}%d sizes.")
+//        .required()
+//        .foreach(arg => c =c.copy(size = arg.toList))
+//        .minOccurs(defaultInputSizes.length).maxOccurs(defaultInputSizes.length),
+//
+//      opt[Unit]('v', "verbose").text("Print allocated memory and source code")
+//        .action((_, c) => c.copy(verbose = true)),
+//
+//      opt[Int]("variant").abbr("var").text("Which of the following variants to run (Default: 0):\n" +
+//        f.zipWithIndex.map(x => x._2 + " = " + x._1._1).mkString("\n"))
+//        .foreach(arg => c =c.copy(variant = arg)),
+//
+//      opt[String]("variant-regex").abbr("var-regex").text("Which variant(s) to run, based on a regular expression")
+//        .foreach(arg => c =c.copy(variantRegex = arg)),
+//
+//      opt[Unit]("negate-regex").abbr("nr").text("Negate the regular expression matching variants, " +
+//        "i.e. only select variants which do not match the regex")
+//        .action((_, c) => c.copy(negateRegex = true)),
+//
+//      opt[Unit]('a', "all").text("Run all variants, takes precedence over the variant option.")
+//        .action((_, c) => c.copy(all = true)),
+//
+//      opt[Int]('t', "timeout").text("If the kernel execution is longer than time, ignore any remaining trials.")
+//        .foreach(arg => c =c.copy(timeout = Some(arg))),
+//
+//      opt[Unit]('c', "check").text("Check the result")
+//        .action((_, c) => c.copy(checkResult = true)),
+//
+//      opt[Unit]("print").text("Print the result")
+//        .action((_, c) => c.copy(printResult = true)),
+//
+//      opt[Unit]("inject").abbr("il").text("Inject the local size into the kernel as a constant, " +
+//        "possibly replacing some for loops with if statements.")
+//        .action((_, c) => c.copy(injectLocal = true)),
+//
+//      opt[Unit]("injectGroup").abbr("ig").text("Inject the number of groups into the kernel as a constant, " +
+//        "possibly replacing some for loops with if statements.")
+//        .action((_, c) => c.copy(injectGroup = true)),
+//
+//      opt[String]("experimentId").abbr("eid").text("A unique ID for this experiement for reporting data")
+//        .foreach(arg => c =c.copy(experimentID = Some(arg))),
+//
+//      opt[File]("input").text("Input files to read")
+//        .required()
+//        .foreach(arg => c =c.copy(input = arg))
+//        .validate(f => if (f.exists) success else failure("File \"" + f.getName + "\" does not exist")),
+//
+//      opt[Int]('x', "tileX").text("Tile size in the M and N dimension").required()
+//        .foreach(arg => c =c.copy(tileX = arg)),
+//
+//      opt[Int]('y', "tileY").text("Tile size in the K dimension").required()
+//        .foreach(arg => c =c.copy(tileY = arg)),
+//
+//      opt[Int]("blockM").abbr("bm").text("Register blocking factor in M dimension").required()
+//        .foreach(arg => c =c.copy(registerBlockM = arg)),
+//
+//      opt[Int]("blockN").abbr("bn").text("Register blocking factor in N dimension").required()
+//        .foreach(arg => c =c.copy(registerBlockN = arg)),
+//
+//      help("help").text("Show this message.")
+//    )}
 
-  val tileX = parser.option[Long](List("x", "tileX"), "size",
-    "Tile size in the M and N dimension")
+  case class GEMMConfig(tileX: Option[Long] = None,
+                        tileY: Option[Long] = None,
+                        registerBlockM: Option[Long] = None,
+                        registerBlockN: Option[Long] = None)
 
-  val tileY = parser.option[Long](List("y", "tileY"), "size",
-    "Tile size in the K dimension")
 
-  val registerBlockM = parser.option[Long](List("bm", "blockM"), "size",
-   "Register blocking factor in M dimension")
+    var gemmCmdArgs = GEMMConfig()
+    val gemmParser = new scopt.OptionParser[Unit]("GEMM") {
+      override val errorOnUnknownArgument = false
 
-  val registerBlockN = parser.option[Long](List("bn", "blockN"), "size",
-    "Register blocking factor in N dimension")
+      opt[Long]('x', "tileX").text("Tile size in the M and N dimension").required()
+        .foreach(arg => gemmCmdArgs = gemmCmdArgs.copy(tileX = Some(arg)))
 
-  val vectorWidth = parser.option[Long](List("vw", "vectorWidth"), "width",
-    "Vector width for loading values")
+      opt[Long]('y', "tileY").text("Tile size in the K dimension").required()
+        .foreach(arg => gemmCmdArgs = gemmCmdArgs.copy(tileY = Some(arg)))
+
+      opt[Long]("blockM").abbr("bm").text("Register blocking factor in M dimension").required()
+        .foreach(arg => gemmCmdArgs = gemmCmdArgs.copy(registerBlockM = Some(arg)))
+
+      opt[Long]("blockN").abbr("bn").text("Register blocking factor in N dimension").required()
+        .foreach(arg => gemmCmdArgs = gemmCmdArgs.copy(registerBlockN = Some(arg)))
+    }
+
 
   override def runScala(inputs: Any*): Array[Float] = {
     var A = inputs(0).asInstanceOf[Array[Array[Float]]]
@@ -33,7 +176,7 @@ class GEMM (override val f: Seq[(String, Array[Lambda])])
     val alpha = inputs(3).asInstanceOf[Float]
     val beta = inputs(4).asInstanceOf[Float]
 
-    val variant = variantOpt.value.getOrElse(0)
+    val variant = cmdArgs.variant
     if (variant != 0)
       A = A.transpose
 
@@ -58,19 +201,20 @@ class GEMM (override val f: Seq[(String, Array[Lambda])])
 
   override def globalSize: Array[Int] = {
     val globalSizes = Array(inputSizes().head, inputSizes()(1), 1)
-    globalSizeOpt.value.copyToArray(globalSizes)
+    cmdArgs.globalSize.copyToArray(globalSizes)
     globalSizes
   }
 
   override protected def beforeBenchmark(): Unit = {
-    f(1)._2(0) = GEMM.tiledAndBlockedBInnermost(Cst(tileX.value.getOrElse(16)),
-      Cst(tileX.value.getOrElse(16)), Cst(tileY.value.getOrElse(8)), Cst(registerBlockN.value.getOrElse(4)),
-      Cst(registerBlockM.value.getOrElse(4)))
+    val temp = f(1)._2
+    temp(0) = GEMM.tiledAndBlockedBInnermost(Cst(gemmCmdArgs.tileX.getOrElse(16)),
+      Cst(gemmCmdArgs.tileX.getOrElse(16)), Cst(gemmCmdArgs.tileY.getOrElse(8)), Cst(gemmCmdArgs.registerBlockN.getOrElse(4)),
+      Cst(gemmCmdArgs.registerBlockM.getOrElse(4)))
   }
 
   override protected def printParams(): Unit = {
-    println("Tile size: " + tileX.value.getOrElse(16) + " " + tileY.value.getOrElse(8))
-    println("Work per thread: " +registerBlockN.value.getOrElse(4) + " " + registerBlockM.value.getOrElse(4))
+    println("Tile size: " + gemmCmdArgs.tileX.getOrElse(16) + " " + gemmCmdArgs.tileY.getOrElse(8))
+    println("Work per thread: " + gemmCmdArgs.registerBlockN.getOrElse(4) + " " + gemmCmdArgs.registerBlockM.getOrElse(4))
   }
 
   override protected def printResults(time: Double): Unit = {
@@ -581,6 +725,10 @@ object GEMM {
 
 
   def main(args: Array[String]): Unit = {
-    GEMM().run(args)
+    val gemm = GEMM()
+    if (!gemm.gemmParser.parse(args))
+      throw new IllegalArgumentException("Wrong command line arguments passed")
+
+    gemm.run(args)
   }
 }

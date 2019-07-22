@@ -8,7 +8,8 @@ import opencl.ir._
 import opencl.ir.pattern._
 import opencl.executor.Utils
 
-class Stencil2D(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Stencil2D", Seq(1024, 1024), f, 0.01f) {
+@deprecated("Uses an old benchmark infrastructure", "")
+class Stencil2D(override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark("Stencil2D", Seq(1024, 1024), f, 0.01f) {
 
 
   override def runScala(inputs: Any*): Array[Float] = {

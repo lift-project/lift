@@ -6,31 +6,42 @@ import ir.ast._
 import opencl.executor.Utils
 import opencl.ir._
 import opencl.ir.pattern._
-import org.clapper.argot.ArgotConverters._
 
+@deprecated("Uses an old benchmark infrastructure", "")
 class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
-  extends Benchmark("Matrix Multiplication", Seq(1024, 1024, 1024), f, 0.1f, Array(16, 16, 1)) {
+  extends DeprecatedBenchmark("Matrix Multiplication", Seq(1024, 1024, 1024), f, 0.1f, Array(16, 16, 1)) {
 
-  val tileX = parser.option[Long](List("x", "tileX"), "size",
-    "Tile size in the M and N dimension")
+  case class MatMulConfig(tileX: Option[Long] = None,
+                          tileY: Option[Long] = None,
+                          registerBlockM: Option[Long] = None,
+                          registerBlockN: Option[Long] = None,
+                          vectorWidth: Option[Long] = None)
 
-  val tileY = parser.option[Long](List("y", "tileY"), "size",
-    "Tile size in the K dimension")
+  var matMulCmdArgs = MatMulConfig()
+  val matMulParser = new scopt.OptionParser[Unit]("MatrixMultiplication") {
+    override val errorOnUnknownArgument = false
 
-  val registerBlockM = parser.option[Long](List("bm", "blockM"), "size",
-   "Register blocking factor in M dimension")
+    opt[Long]('x', "tileX").text("Tile size in the M and N dimension").required()
+      .foreach(arg => matMulCmdArgs = matMulCmdArgs.copy(tileX = Some(arg)))
 
-  val registerBlockN = parser.option[Long](List("bn", "blockN"), "size",
-    "Register blocking factor in N dimension")
+    opt[Long]('y', "tileY").text("Tile size in the K dimension").required()
+      .foreach(arg => matMulCmdArgs = matMulCmdArgs.copy(tileY = Some(arg)))
 
-  val vectorWidth = parser.option[Long](List("vw", "vectorWidth"), "width",
-    "Vector width for loading values")
+    opt[Long]("blockM").abbr("bm").text("Register blocking factor in M dimension").required()
+      .foreach(arg => matMulCmdArgs = matMulCmdArgs.copy(registerBlockM = Some(arg)))
+
+    opt[Long]("blockN").abbr("bn").text("Register blocking factor in N dimension").required()
+      .foreach(arg => matMulCmdArgs = matMulCmdArgs.copy(registerBlockN = Some(arg)))
+
+    opt[Long]("vectorWidth").abbr("vw").text("Vector width for loading values")
+      .foreach(arg => matMulCmdArgs = matMulCmdArgs.copy(vectorWidth = Some(arg)))
+  }
 
   override def runScala(inputs: Any*): Array[Float] = {
     var A = inputs(0).asInstanceOf[Array[Array[Float]]]
     val B = inputs(1).asInstanceOf[Array[Array[Float]]]
 
-    val variant = variantOpt.value.getOrElse(0)
+    val variant = cmdArgs.variant
     if (variant == 3 || variant == 4)
       A = A.transpose
 
@@ -54,25 +65,29 @@ class MatrixMultiplication (override val f: Seq[(String, Array[Lambda])])
 
   override def globalSize: Array[Int] = {
     val globalSizes = Array(inputSizes()(0), inputSizes()(1), 1)
-    globalSizeOpt.value.copyToArray(globalSizes)
+    cmdArgs.globalSize.copyToArray(globalSizes)
     globalSizes
   }
 
   override protected def beforeBenchmark(): Unit = {
-    f(1)._2(0) = MatrixMultiplication.tiled(Cst(tileX.value.getOrElse(16)))
-    f(2)._2(0) = MatrixMultiplication.moreWorkPerThread(Cst(tileX.value.getOrElse(16)),
-      Cst(registerBlockM.value.getOrElse(4)))
-    f(3)._2(0) = MatrixMultiplication.tiledAndBlockedBInnermost(Cst(tileX.value.getOrElse(16)),
-      Cst(tileX.value.getOrElse(16)), Cst(tileY.value.getOrElse(8)), Cst(registerBlockN.value.getOrElse(4)),
-      Cst(registerBlockM.value.getOrElse(4)))
-    f(4)._2(0) = MatrixMultiplication.vectorLoads(Cst(tileX.value.getOrElse(16)),
-      Cst(tileX.value.getOrElse(16)), Cst(tileY.value.getOrElse(8)), Cst(registerBlockN.value.getOrElse(4)),
-      Cst(registerBlockM.value.getOrElse(4)), Cst(vectorWidth.value.getOrElse(4)))
+    val temp = f(1)._2
+    temp(0) = MatrixMultiplication.tiled(Cst(matMulCmdArgs.tileX.getOrElse(16)))
+    val temp2 = f(2)._2
+    temp2(0) = MatrixMultiplication.moreWorkPerThread(Cst(matMulCmdArgs.tileX.getOrElse(16)),
+      Cst(matMulCmdArgs.registerBlockM.getOrElse(4)))
+    val temp3 = f(3)._2
+    temp3(0) = MatrixMultiplication.tiledAndBlockedBInnermost(Cst(matMulCmdArgs.tileX.getOrElse(16)),
+      Cst(matMulCmdArgs.tileX.getOrElse(16)), Cst(matMulCmdArgs.tileY.getOrElse(8)), Cst(matMulCmdArgs.registerBlockN.getOrElse(4)),
+      Cst(matMulCmdArgs.registerBlockM.getOrElse(4)))
+    val temp4 = f(4)._2
+    temp4(0) = MatrixMultiplication.vectorLoads(Cst(matMulCmdArgs.tileX.getOrElse(16)),
+      Cst(matMulCmdArgs.tileX.getOrElse(16)), Cst(matMulCmdArgs.tileY.getOrElse(8)), Cst(matMulCmdArgs.registerBlockN.getOrElse(4)),
+      Cst(matMulCmdArgs.registerBlockM.getOrElse(4)), Cst(matMulCmdArgs.vectorWidth.getOrElse(4)))
   }
 
   override protected def printParams(): Unit = {
-    println("Tile size: " + tileX.value.getOrElse(16) + " " + tileY.value.getOrElse(8))
-    println("Work per thread: " +registerBlockN.value.getOrElse(4) + " " + registerBlockM.value.getOrElse(4))
+    println("Tile size: " + matMulCmdArgs.tileX.getOrElse(16) + " " + matMulCmdArgs.tileY.getOrElse(8))
+    println("Work per thread: " + matMulCmdArgs.registerBlockN.getOrElse(4) + " " + matMulCmdArgs.registerBlockM.getOrElse(4))
   }
 
   override protected def printResults(time: Double): Unit = {

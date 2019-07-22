@@ -65,10 +65,10 @@ object LocalMemoryRulesSettings {
                           configAddIdMapWrg: Option[Boolean],
                           configAddIdAfterReduce: Option[Boolean]
                         ) = LocalMemoryRulesSettings(
-    getValue(addIdForCurrentValueInReduce, configAddIdAfterReduce, defaultAddIdForCurrentValueInReduce),
-    getValue(addIdMapLcl, configAddIdMapLcl, defaultAddIdMapLcl),
-    getValue(addIdMapWrg, configAddIdMapWrg, defaultAddIdMapWrg),
-    getValue(addIdAfterReduce, configAddIdAfterReduce, defaultAddIdAfterReduce))
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.addIdForCurrentValueInReduce) else None, configAddIdAfterReduce, defaultAddIdForCurrentValueInReduce),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.addIdMapLcl) else None, configAddIdMapLcl, defaultAddIdMapLcl),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.addIdMapWrg) else None, configAddIdMapWrg, defaultAddIdMapWrg),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.addIdAfterReduce) else None, configAddIdAfterReduce, defaultAddIdAfterReduce))
 }
 
 case class ParameterRewriteSettings(
@@ -124,11 +124,11 @@ object ParameterRewriteSettings {
                           configSequential: Option[Boolean],
                           configGenerateScala: Option[Boolean]
                         ) = ParameterRewriteSettings(
-    getValue(exploreNDRange, configExploreNDRange, defaultExploreNDRange),
-    getValue(sampleNDRange, configSampleNDRange, defaultSampleNDRange),
-    getValue(disableNDRangeInjection, configDisableNDRangeInjection, defaultDisableNDRangeInjection),
-    getValue(sequential, configSequential, defaultSequential),
-    getValue(generateScala, configGenerateScala, defaultGenerateScala))
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.exploreNDRange) else None, configExploreNDRange, defaultExploreNDRange),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.sampleNDRange) else None, configSampleNDRange, defaultSampleNDRange),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.disableNDRangeInjection) else None, configDisableNDRangeInjection, defaultDisableNDRangeInjection),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.sequential) else None, configSequential, defaultSequential),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.generateScala) else None, configGenerateScala, defaultGenerateScala))
 }
 
 case class MemoryMappingRewriteSettings(
@@ -224,19 +224,19 @@ object MemoryMappingRewriteSettings {
                           configGroup01: Option[Boolean],
                           configGroup10: Option[Boolean]
                         ) = MemoryMappingRewriteSettings(
-    getValue(vectorize, configVectorize, defaultVectorize),
-    getValue(vectorWidth, configVectorWidth, defaultVectorWidth),
-    getValue(sequential, configSequential, defaultSequential),
-    getValue(loadBalancing, configLoadBalancing, defaultLoadBalancing),
-    getValue(unrollReduce, configUnrollReduce, defaultUnrollReduce),
-    getValue(global0, configGlobal0, defaultGlobal0),
-    getValue(global01, configGlobal01, defaultGlobal01),
-    getValue(global10, configGlobal10, defaultGlobal10),
-    getValue(global012, configGlobal012, defaultGlobal012),
-    getValue(global210, configGlobal210, defaultGlobal210),
-    getValue(group0, configGroup0, defaultGroup0),
-    getValue(group01, configGroup01, defaultGroup01),
-    getValue(group10, configGroup10, defaultGroup10))
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.vectorize) else None, configVectorize, defaultVectorize),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.vectorWidth) else None, configVectorWidth, defaultVectorWidth),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.sequential) else None, configSequential, defaultSequential),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.loadBalancing) else None, configLoadBalancing, defaultLoadBalancing),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.unrollReduce) else None, configUnrollReduce, defaultUnrollReduce),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.global0) else None, configGlobal0, defaultGlobal0),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.global01) else None, configGlobal01, defaultGlobal01),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.global10) else None, configGlobal10, defaultGlobal10),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.global012) else None, configGlobal012, defaultGlobal012),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.global210) else None, configGlobal210, defaultGlobal210),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.group0) else None, configGroup0, defaultGroup0),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.group01) else None, configGroup01, defaultGroup01),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.group10) else None, configGroup10, defaultGroup10))
 }
 
 
@@ -309,14 +309,14 @@ object HighLevelRewriteSettings {
                           configRuleCollection: Option[String]
                         ) = HighLevelRewriteSettings(
     // priority: 1) command-line args; 2) config-file; 3) default values
-    getValue(explorationDepth, configExplorationDepth, defaultExplorationDepth),
-    getValue(depthFilter, configDepthFilter, defaultDepthFilter),
-    getValue(distanceFilter, configDistanceFilter, defaultDistanceFilter),
-    getValue(ruleRepetition, configRuleRepetition, defaultRuleRepetition),
-    getValue(vectorWidth, configVectorWidth, defaultVectorWidth),
-    getValue(sequential, configSequential, defaultSequential),
-    getValue(onlyLower, configOnlyLower, defaultOnlyLower),
-    getValue(ruleCollection, configRuleCollection, defaultRuleCollection))
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.explorationDepth) else None, configExplorationDepth, defaultExplorationDepth),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.depthFilter) else None, configDepthFilter, defaultDepthFilter),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.distanceFilter) else None, configDistanceFilter, defaultDistanceFilter),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.ruleRepetition) else None, configRuleRepetition, defaultRuleRepetition),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.vectorWidth) else None, configVectorWidth, defaultVectorWidth),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.sequential) else None, configSequential, defaultSequential),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.onlyLower) else None, configOnlyLower, defaultOnlyLower),
+    getValue(if (cmdArgs.isDefined) Some(cmdArgs.get.ruleCollection) else None, configRuleCollection, defaultRuleCollection))
 }
 
 object SearchParameters {
@@ -582,7 +582,7 @@ object ParseSettings {
             settings
           case e: JsError =>
             logger.error("Failed parsing settings " +
-              e.recoverTotal(e => JsError.toFlatJson(e)))
+              e.recoverTotal(e => JsError.toJson(e)))
             sys.exit(1)
         }
 

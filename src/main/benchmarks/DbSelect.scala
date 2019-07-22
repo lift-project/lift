@@ -7,7 +7,7 @@ import opencl.ir.pattern._
 import lift.arithmetic.SizeVar
 
 class DbSelect(override val f: Seq[(String, Array[Lambda])])
-      extends Benchmark2[Vector[(Int, Int, Int)]]("SELECT", Seq(4096), f, _ == _) {
+      extends Benchmark[Vector[(Int, Int, Int)]]("SELECT", Seq(4096), f, _ == _) {
   
   override def runScala(inputs: Seq[Any]): Vector[(Int, Int, Int)] = {
     val colA = inputs(0).asInstanceOf[Array[Int]]
