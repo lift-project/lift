@@ -132,7 +132,9 @@ kernel_h, kernel_w, in_channels, out_channels, input_xdim, input_ydim);
 	copy(out,out+O_size, ostream_iterator<float>(cout, " "));
 	std::cout << std::endl;
 
-	for(auto i = 0; i< O_size; ++i) assert(out[i] == O_golden[i]);
+	for(auto i = 0; i< O_size; ++i) 
+		if(out[i] != O_golden[i]) 
+		{ std::cout << "out["<<i<<"] != O_golden["<<i<<"]"  << std::endl; exit(1);}
 
 	return 0;
 }
