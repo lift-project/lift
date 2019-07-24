@@ -174,8 +174,8 @@ class TestStencilsTACO {
       new PrintWriter(mssFile) { try {write(sourceMSS)} finally {close} }
     }
 
-     val (output_org: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](stencil, data, data)
-     val (output_MSS: Array[Float], _) = Execute(2, 2, 2, 2, 2, 2, (true, true))[Array[Float]](stencilMSS, data, data)
+     val (output_org: Array[Float], _) = Execute(2, 2)[Array[Float]](stencil, data, data)
+     val (output_MSS: Array[Float], _) = Execute(2, 2)[Array[Float]](stencilMSS, data, data)
 
      assertArrayEquals(output_org, output_MSS, delta)
 
