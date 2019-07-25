@@ -170,8 +170,8 @@ object LowerIR2HostCAST {
     val kernel_type = i.f match {
       case l:Lambda => l.body match {
         case fc2:FunCall => fc2.f match {
-          case _:OclFunContainer => "GPU"
-          case _:CPUFunContainer => "CPU"
+          case _:OclFunCall => "GPU"
+          case _:CPUFunCall => "CPU"
           case _ => assert(false, "Not implemented"); "Invalid"
         }
         case _ => assert(false, "Not implemented"); "Invalid"
