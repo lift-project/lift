@@ -654,6 +654,8 @@ class TestConcat
           } ))  $ input
     )
 
+    //println(Compile(concat2D()))
+
     val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2D, input)
 
     StencilUtilities.print2DArray(input)
@@ -687,7 +689,7 @@ class TestConcat
       (input) =>
         MapGlb(0)(
           fun(inp => {
-            toGlobal(Concat(2))(MapSeq(mult2) $ inp, MapSeq(add3) $ inp )
+            toGlobal(Concat(3))(MapSeq(mult2) $ inp, MapSeq(add3) $ inp, MapSeq(mult2) $ inp )
           } ))  $ input
     )
 
@@ -700,6 +702,45 @@ class TestConcat
     StencilUtilities.print1DArrayAs2DArray(output,input(0).length*2)
 
     assertArrayEquals(gold, output, TestConcatHelpers.delta)
+
+  }
+
+
+  // add 2D example
+  @Test
+  def concatThreeFrom2DMatrix(): Unit = {
+
+    val size = 6
+    val input = Array.tabulate(size,size) { (i,j) => (i + j + 1).toFloat }
+//    val gold = Array(Array(2.0f,4.0f,6.0f,4.0f,5.0f,6.0f),Array(8.0f,10.0f,12.0f,7.0f,8.0f,9.0f),Array(14.0f,16.0f,18.0f,10.0f,11.0f,12.0f)).flatten
+
+    // mapseq over array of 1s and multiply by 2
+    // mapseq over array of 1s and add 3
+    // concat the results
+
+    val mult2 = UserFun("mult2", "x", "{ return x*2; }", Float, Float)
+    val add3 = UserFun("add3", Array("x"), "{ return x+3; }", Seq(Float), Float)
+
+    def concat2D() = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC( Float, TestConcatHelpers.N), TestConcatHelpers.N),
+      (input) =>
+        MapGlb(0)(
+          fun(inp => {
+            toGlobal(Concat(3))(MapSeq(mult2) $ ArrayFromExpr(inp.at(0)), MapSeq(add3) $ inp, MapSeq(mult2) $ ArrayFromExpr(inp.at(TestConcatHelpers.N-1)))
+          } ))  $ input
+    )
+
+    //println(Compile(concat2D()))
+
+    val (output : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2D, input)
+
+    StencilUtilities.print2DArray(input)
+    println("******************************")
+    StencilUtilities.print1DArray(output)
+    println("******************************")
+    StencilUtilities.print1DArrayAs2DArray(output,input(0).length*2)
+
+//    assertArrayEquals(gold, output, TestConcatHelpers.delta)
 
   }
 
@@ -807,9 +848,9 @@ class TestConcat
          // PrintType() o MapSeq(MapSeq(id)) $ sideC,
                     MapGlb(0)(
                       fun(zInp => {
-                        val inp = Get(zInp,0)
+                        val row = Get(zInp,0)
                         val side = Get(zInp,1)
-                        toGlobal(Concat(3))( MapSeq(id) $ side, MapSeq(id) /* o Transpose() */ $ ArrayFromExpr(inp), MapSeq(id) $ side )
+                        toGlobal(Concat(3))( MapSeq(id) $ side, MapSeq(id) /* o Transpose() */ $ ArrayFromExpr(row), MapSeq(id) $ side )
                       } )) o PrintType() $ Zip( input,Transpose() $ sideA),
 //          MapSeq(MapSeq(id)) o PrintType() $ input,
           MapSeq(MapSeq(id)) o PrintType() $ sideC))
@@ -829,6 +870,8 @@ class TestConcat
               toGlobal(Concat(3))( MapSeq(id) $ side, MapSeq(id) /* o Transpose() */ $ ArrayFromExpr(inp), MapSeq(id) $ side )
             } )) o PrintType() $ Zip( input,Transpose() $ sideA)))//,
 
+    //println(Compile(concat2DTransposeXYNoTop()))
+    //println(Compile(concat2DTransposeXYNoBottom()))
 
     val (outputX : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2DTransposedX(), input,sideA)
     val (outputY : Array[Float], _) = Execute(2, 2)[Array[Float]](concat2DTransposedY(), input,sideB)
