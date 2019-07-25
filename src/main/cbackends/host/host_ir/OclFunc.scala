@@ -12,16 +12,16 @@ import scala.collection.mutable
 
 
 //accept arbitrary parameters.
-case class OclFun(override val f: Lambda,
-                  val ndranges: (NDRange, NDRange) = (NDRange(1,1,1), NDRange(1,1,1)),
-                  val funcName: String = "execute_" + IDGenerator.get_id(),
-                  override val cpu_timer: Boolean = false,
-                  override val gpu_timer: Boolean = false,
-                  //var name, type, size, temp or not, in or out.
-                  val memories: mutable.ListBuffer[(String, CTypeT, ArithExpr, Boolean, String )] = mutable.ListBuffer.empty)
+case class OclFunc(override val f: Lambda,
+                   val ndranges: (NDRange, NDRange) = (NDRange(1,1,1), NDRange(1,1,1)),
+                   val funcName: String = "execute_" + IDGenerator.get_id(),
+                   override val cpu_timer: Boolean = false,
+                   override val gpu_timer: Boolean = false,
+                   //var name, type, size, temp or not, in or out.
+                   val memories: mutable.ListBuffer[(String, CTypeT, ArithExpr, Boolean, String )] = mutable.ListBuffer.empty)
   extends Pattern(arity = f.params.length) with FPattern with Measurable {
 
-  override def copy(f: Lambda): Pattern = OclFun(f, ndranges, funcName)
+  override def copy(f: Lambda): Pattern = OclFunc(f, ndranges, funcName)
 
 
   override def checkType(argType: Type,
@@ -44,7 +44,7 @@ case class OclFun(override val f: Lambda,
   }
 }
 
-case class OclFunCall(oclFun: OclFun, intermediateGlobalMem: Seq[TypedOpenCLMemory]) extends Pattern(arity = 2) {
+case class OpaqueOclFunc(oclFun: OclFunc, intermediateGlobalMem: Seq[TypedOpenCLMemory]) extends Pattern(arity = 2) {
 
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = this
   override def checkType(argType: Type, setType: Boolean): Type = {

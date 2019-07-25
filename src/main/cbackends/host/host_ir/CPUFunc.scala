@@ -67,7 +67,7 @@ case class CPUFunc(override val f: Lambda, val funcName: String = "execute_" + I
   }
 }
 
-case class CPUFunCall(cpuFun: CPUFunc, intermediateGlobalMem: Seq[TypedOpenCLMemory]) extends Pattern(arity = 2) {
+case class OpaqueCPUFunc(cpuFun: CPUFunc, intermediateGlobalMem: Seq[TypedOpenCLMemory]) extends Pattern(arity = 2) {
 
   override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = this
   override def checkType(argType: Type, setType: Boolean): Type = {

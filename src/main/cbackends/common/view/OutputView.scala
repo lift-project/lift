@@ -201,7 +201,7 @@ object OutputView {
         fc
       }*/
 
-      case fc@FunCall(_:CPUFunCall | _:OclFunCall | _:ToGPU | _:ToHost, args@_*) => {
+      case fc@FunCall(_:OpaqueCPUFunc | _:OpaqueOclFunc | _:ToGPU | _:ToHost, args@_*) => {
 
         //args.foreach( arg => arg.outputView = ViewMem(arg.mem.variable, arg.t) )
         args.foreach( arg => arg.outputView = GenerateViewForRawInOut.generateViewForRawInOut(arg, arg.t, Cst(1)) )

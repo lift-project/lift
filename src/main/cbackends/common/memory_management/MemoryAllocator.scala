@@ -31,14 +31,14 @@ object MemoryAllocator {
         ac.mem = HostMemory(Var(s"array_constructor_${ac.gid}", ContinuousRange(Cst(0), size)), size, ac.addressSpace )
         ac
 
-      case fc@FunCall(_:ToGPU|_:OclFunCall, args@_*) =>
+      case fc@FunCall(_:ToGPU|_:OpaqueOclFunc, args@_*) =>
         args.foreach(cont(_))
 
         val size = Type.getElementCount(fc.t)
         fc.mem = OpenCLMemory(Var(s"user_func_${fc.gid}", ContinuousRange(Cst(0), size)), size, fc.addressSpace )
         fc
 
-      case fc@FunCall(_:UserFun | _:CPUFunCall | _:ToHost | _:Concat, args@_*) => {
+      case fc@FunCall(_:UserFun | _:OpaqueCPUFunc | _:ToHost | _:Concat, args@_*) => {
         //link the arg to the correct param is already done in its upper level FPattern
         args.foreach(cont(_))
 

@@ -1,6 +1,6 @@
 package cbackends.global.transformation.ocl_memory_gen
 
-import cbackends.host.host_ir.OclFun
+import cbackends.host.host_ir.OclFunc
 import ir.ast.{Expr, FunCall, Lambda, Value}
 
 object OclMemoryGen {

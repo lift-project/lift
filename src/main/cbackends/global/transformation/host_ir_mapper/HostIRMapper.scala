@@ -14,11 +14,11 @@ object EmptyKernelStructure {
         new_funcall.t = fc.t
         new_funcall*/
       case fc@FunCall(cf:CPUFunc, args@_*) =>
-        val new_funcall = FunCall(CPUFunCall(cf, intermediateGlobalMemMap.getOrElse(cf.f, Seq())), args:_*)
+        val new_funcall = FunCall(OpaqueCPUFunc(cf, intermediateGlobalMemMap.getOrElse(cf.f, Seq())), args:_*)
         new_funcall.t = fc.t
         new_funcall
-      case fc@FunCall(of:OclFun, args@_*) =>
-        val new_funcall = FunCall(OclFunCall(of, intermediateGlobalMemMap.getOrElse(of.f, Seq())), args:_*)
+      case fc@FunCall(of:OclFunc, args@_*) =>
+        val new_funcall = FunCall(OpaqueOclFunc(of, intermediateGlobalMemMap.getOrElse(of.f, Seq())), args:_*)
         new_funcall.t = fc.t
         new_funcall.gid = fc.gid
         new_funcall

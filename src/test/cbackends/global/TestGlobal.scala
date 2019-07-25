@@ -261,7 +261,7 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-        in => ToHost() o OclFun( MapGlb( incrementF )  ) o ToGPU()  $ in
+        in => ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -286,7 +286,7 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-      in => ToHost() o OclFun( MapGlb( incrementF )  ) o OclFun( MapGlb( incrementF )  ) o ToGPU()  $ in
+      in => ToHost() o OclFunc( MapGlb( incrementF )  ) o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -311,7 +311,7 @@ class TestGlobal {
     val f = fun(
       ArrayTypeWSWC(Float, N),
       in => CPUFunc( MapSeq(incrementF) ) o CPUFunc( MapSeq(incrementF) ) o
-        ToHost() o OclFun( MapGlb( incrementF )  )  o OclFun( MapGlb( incrementF )  ) o ToGPU()  $ in
+        ToHost() o OclFunc( MapGlb( incrementF )  )  o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -335,8 +335,8 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-      in => CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFun( MapGlb( incrementF )  ) o ToGPU() o
-        CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFun( MapGlb( incrementF )  ) o ToGPU()  $ in
+      in => CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU() o
+        CPUFunc( MapSeq(incrementF) ) o ToHost() o OclFunc( MapGlb( incrementF )  ) o ToGPU()  $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -362,7 +362,7 @@ class TestGlobal {
       ArrayTypeWSWC(Float, N),
       in => CPUFunc( MapSeq(incrementF), cpu_timer = true ) o
         ToHost(cpu_timer = true, gpu_timer = true) o
-        OclFun( MapGlb( incrementF ), cpu_timer = true,  gpu_timer = true  ) o
+        OclFunc( MapGlb( incrementF ), cpu_timer = true,  gpu_timer = true  ) o
         ToGPU(cpu_timer = true, gpu_timer = true)  $ in
     )
 
@@ -415,7 +415,7 @@ class TestGlobal {
 
     val f = fun(
       ArrayTypeWSWC(Float, N),
-      in => ToHost() o Iterate(6)(  OclFun( MapGlb(incrementF) ) ) o ToGPU() $ in
+      in => ToHost() o Iterate(6)(  OclFunc( MapGlb(incrementF) ) ) o ToGPU() $ in
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -594,7 +594,7 @@ class TestGlobal {
       ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_kernelWidthHeight_1), v_kernelWidthHeight_1), v_kernelChannels_2),
       //input, 1*2*8*8*2
       ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_inputWidthHeight_3), v_inputWidthHeight_3), v_nInputs_4), 1),
-      (p_0, p_1) => ToHost() $ OclFun(gpu_fun).apply(ToGPU() $ p_0, ToGPU() $ p_1)
+      (p_0, p_1) => ToHost() $ OclFunc(gpu_fun).apply(ToGPU() $ p_0, ToGPU() $ p_1)
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -636,7 +636,7 @@ class TestGlobal {
       //ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_kernelWidthHeight_1), v_kernelWidthHeight_1), v_kernelChannels_2),
       //input, 1*2*8*8*2
       //ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_inputWidthHeight_3), v_inputWidthHeight_3), v_nInputs_4), 1),
-      (p_k, p_b, p_x) => ToHost() $ OclFun(gpu_fun2).apply( ToGPU() $ p_b , OclFun(gpu_fun).apply(ToGPU() $ p_k, ToGPU() $ p_x))
+      (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2).apply( ToGPU() $ p_b , OclFunc(gpu_fun).apply(ToGPU() $ p_k, ToGPU() $ p_x))
     )
 
     ("mkdir -p " + s"$path" ) !!
@@ -679,7 +679,7 @@ class TestGlobal {
       //ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_kernelWidthHeight_1), v_kernelWidthHeight_1), v_kernelChannels_2),
       //input, 1*2*8*8*2
       //ArrayType(ArrayType(ArrayType(ArrayType(ArrayType(Float, v_inputChannels_0), v_inputWidthHeight_3), v_inputWidthHeight_3), v_nInputs_4), 1),
-      (p_k, p_b, p_x) => ToHost() $ OclFun(gpu_fun2, cpu_timer = true, gpu_timer = true).apply( ToGPU() $ p_b , OclFun(gpu_fun, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_x))
+      (p_k, p_b, p_x) => ToHost() $ OclFunc(gpu_fun2, cpu_timer = true, gpu_timer = true).apply( ToGPU() $ p_b , OclFunc(gpu_fun, cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_x))
     )
 
     ("mkdir -p " + s"$path" ) !!

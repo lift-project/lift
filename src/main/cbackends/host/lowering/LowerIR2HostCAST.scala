@@ -90,9 +90,9 @@ object LowerIR2HostCAST {
         generateUserFun(fc)
       /*case fc@FunCall(_:CPUFunCall,_) =>
         generateCPUFunCall(fc)*/
-      case fc@FunCall(_:CPUFunCall, _*) =>
+      case fc@FunCall(_:OpaqueCPUFunc, _*) =>
         generateCPUFunCall(fc)
-      case fc@FunCall(_:OclFunCall, _*) =>
+      case fc@FunCall(_:OpaqueOclFunc, _*) =>
         generateOclFunCall(fc)
       case fc@FunCall(_:ToHost, _*) =>
         generateDataTransfer(fc)
@@ -170,8 +170,8 @@ object LowerIR2HostCAST {
     val kernel_type = i.f match {
       case l:Lambda => l.body match {
         case fc2:FunCall => fc2.f match {
-          case _:OclFunCall => "GPU"
-          case _:CPUFunCall => "CPU"
+          case _:OpaqueOclFunc => "GPU"
+          case _:OpaqueCPUFunc => "CPU"
           case _ => assert(false, "Not implemented"); "Invalid"
         }
         case _ => assert(false, "Not implemented"); "Invalid"
@@ -393,7 +393,7 @@ object LowerIR2HostCAST {
 
     val arg_blocks = fc.args.map(generate(_) )
 
-    val cfc = fc.f.asInstanceOf[OclFunCall]
+    val cfc = fc.f.asInstanceOf[OpaqueOclFunc]
     val measurable = cfc.oclFun.asInstanceOf[Measurable]
 
 
@@ -471,7 +471,7 @@ object LowerIR2HostCAST {
 
     val arg_blocks = fc.args.map( generate(_) )
 
-    val cfc = fc.f.asInstanceOf[CPUFunCall]
+    val cfc = fc.f.asInstanceOf[OpaqueCPUFunc]
     val measurable = cfc.cpuFun.asInstanceOf[CPUMeasurable]
 
     val input_args = fc.args.map( arg => CVarWithType(arg.mem.variable.toString, TypeLowering.IRType2CastType(arg.t) ) ).toList
