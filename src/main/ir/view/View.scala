@@ -211,7 +211,7 @@ abstract sealed class View(val t: Type = UndefType) {
   def transpose(): View = {
     this.t match {
       case ArrayTypeWS(ArrayTypeWS(elemT,n),m) =>
-        ViewTranspose(this,ArrayTypeWS(ArrayTypeWS(elemT,m),n))
+        ViewTranspose(this,ArrayTypeWSWC(ArrayTypeWSWC(elemT,m),n))
       case _ => throw new IllegalArgumentException("PANIC: transpose expects a 2D array type with size, found "+this.t.toString)
     }
   }
