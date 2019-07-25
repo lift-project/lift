@@ -47,7 +47,6 @@ object TestConcatHelpers
 
 }
 
-//noinspection ScalaUnnecessaryParentheses
 class TestConcat
 {
 
@@ -394,7 +393,6 @@ class TestConcat
 
   }
 
-
   @Test
   def joinMainStencilAndBoundaryUpdateBoundaryAfter(): Unit  = {
 
@@ -452,6 +450,7 @@ class TestConcat
 
   // first mult boundary value by constant
   // then loop over boundary A/B and subtract from boundary value
+  @Ignore
   @Test
   def joinMainStencilAndIterateOverBoundaryAfter(): Unit  = {
 
@@ -580,6 +579,7 @@ class TestConcat
     )
    */
 
+  @Ignore
   @Test
   def testingGround() : Unit =
   {
@@ -789,6 +789,7 @@ class TestConcat
   }
 
 
+  @Ignore
   @Test
   def concatTwoLinesOnFaceMatrix() : Unit = {
 
