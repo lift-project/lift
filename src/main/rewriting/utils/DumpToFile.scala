@@ -56,7 +56,7 @@ object DumpToFile {
     true
   }
 
-  private def dumpLambdaToStringWithoutDecls(lambda: Lambda): String = {
+  private def dumpLambdaToStringWithoutDecls(lambda: Lambda, printNonFixedVarIds: Boolean = true): String = {
     val userFuns = Expr.visitWithState(Set[UserFun]())(lambda.body, (expr, state) => {
       expr match {
         case FunCall(uf: UserFun, _*) if !uf.isInstanceOf[OpenCLBuiltInFun] => state + uf
@@ -65,10 +65,10 @@ object DumpToFile {
       }
     })
 
-    val userFunString = userFuns.map(ScalaPrinter(_)).mkString("\n") + "\n"
+    val userFunString = userFuns.map(ScalaPrinter(printNonFixedVarIds)(_)).mkString("\n") + "\n"
 
-    val types = lambda.params.map(p => ScalaPrinter(p.t)).mkString(", ")
-    val expr = ScalaPrinter(lambda)
+    val types = lambda.params.map(p => ScalaPrinter(printNonFixedVarIds)(p.t)).mkString(", ")
+    val expr = ScalaPrinter(printNonFixedVarIds)(lambda)
     val fullString = expr.substring(0, 4) + types + "," + expr.substring(4)
 
     val param = """p_\d+""".r
@@ -89,7 +89,7 @@ object DumpToFile {
    * @param lambda The lambda to dump to a string
    * @return
    */
-  def dumpLambdaToString(lambda: Lambda): String = {
+  def dumpLambdaToString(lambda: Lambda, printNonFixedVarIds: Boolean = true): String = {
     TypeChecker(lambda)
 
     val inputVars = lambda.getVarsInParams(ordering = ByDeclarationOrder)
@@ -100,7 +100,7 @@ object DumpToFile {
         .collect({ case Some(c) => c.varList })
         .flatten.filterNot(x => inputVars contains x).distinct
 
-    val fullString = dumpLambdaToStringWithoutDecls(lambda)
+    val fullString = dumpLambdaToStringWithoutDecls(lambda, printNonFixedVarIds)
     val allVars = inputVars.distinct ++ tunableVars
     val orderedVars = allVars.toList
     val withIndex = orderedVars.map(x => x.toString).zipWithIndex
@@ -114,7 +114,7 @@ object DumpToFile {
       "val " + newName + " = Var(\"" + param.name + "\", " + replacedRange + ")"
     })
 
-    declStrings.mkString("\n") + "\n\n" + replaceVariableNames(fullString, withIndex)
+    /*declStrings.mkString("\n") + "\n\n" + */replaceVariableNames(fullString, withIndex)
   }
 
   /**
@@ -126,8 +126,8 @@ object DumpToFile {
    * @param lambda The lambda to dump to a method declaration
    * @return
    */
-  def dumpLambdaToMethod(lambda: Lambda): String = {
-    val fullString =  dumpLambdaToStringWithoutDecls(lambda)
+  def dumpLambdaToMethod(lambda: Lambda, printNonFixedVarIds: Boolean = true): String = {
+    val fullString =  dumpLambdaToStringWithoutDecls(lambda, printNonFixedVarIds)
 
     val variables = findVariables(fullString)
 

@@ -4,6 +4,7 @@ import exploration.HighLevelRewrite
 import ir._
 import ir.ast._
 import lift.arithmetic._
+import lift.arithmetic.simplifier.SimplifyPow
 import opencl.executor.LongTestsEnabled
 import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
@@ -77,7 +78,7 @@ class AlgorithmicNbody {
 
   @Test
   def partialReduceWithReorder(): Unit = {
-    val partialReduceWithReorderGold = fun(ArrayType(VectorType(Float, 4), N), ArrayType(VectorType(Float, 4), N), Float, Float,(p_0, p_1, p_2, p_3) => FunCall(Map(fun((p_4) => FunCall(Map(fun((p_5) => FunCall(update, FunCall(Get(0), p_4), FunCall(Get(1), p_4), p_3, p_5))), FunCall(Reduce(fun((p_6, p_7) => FunCall(VectorizeUserFun(Cst(4),add), p_6, p_7))), Value("0.0f", VectorType(Float, 4)), FunCall(Join(), FunCall(Map(fun((p_8) => FunCall(PartRed(fun((p_9, p_10) => FunCall(VectorizeUserFun(Cst(4),add), p_9, p_10))), Value("0.0f", VectorType(Float, 4)), p_8))), FunCall(Split( N * Pow(v__1, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__1)), FunCall(Scatter(ReorderWithStride(v__1)), FunCall(Join(), FunCall(Map(fun((p_11) => FunCall(Map(fun((p_12) => FunCall(calcAcc, FunCall(Get(0), p_4), p_12, p_3, p_2))), p_11))), FunCall(Split( N * Pow(v__1, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__1)), p_0))))))))))))), FunCall(Zip(2), p_0, p_1)))
+    val partialReduceWithReorderGold = fun(ArrayType(VectorType(Float, 4), N), ArrayType(VectorType(Float, 4), N), Float, Float,(p_0, p_1, p_2, p_3) => FunCall(Map(fun((p_4) => FunCall(Map(fun((p_5) => FunCall(update, FunCall(Get(0), p_4), FunCall(Get(1), p_4), p_3, p_5))), FunCall(Reduce(fun((p_6, p_7) => FunCall(VectorizeUserFun(Cst(4),add), p_6, p_7))), Value("0.0f", VectorType(Float, 4)), FunCall(Join(), FunCall(Map(fun((p_8) => FunCall(PartRed(fun((p_9, p_10) => FunCall(VectorizeUserFun(Cst(4),add), p_9, p_10))), Value("0.0f", VectorType(Float, 4)), p_8))), FunCall(Split( N * SimplifyPow(v__1, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__1)), FunCall(Scatter(ReorderWithStride(v__1)), FunCall(Join(), FunCall(Map(fun((p_11) => FunCall(Map(fun((p_12) => FunCall(calcAcc, FunCall(Get(0), p_4), p_12, p_3, p_2))), p_11))), FunCall(Split( N * SimplifyPow(v__1, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__1)), p_0))))))))))))), FunCall(Zip(2), p_0, p_1)))
 
     checkExists(partialReduceWithReorderGold, rewrittenLambdas)
     checkDistance(partialReduceWithReorderGold)

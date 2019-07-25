@@ -153,7 +153,7 @@ object ExpressionFilter {
       }
 
       // in case of global-local size exploration, we already checked these before
-      if (!ParameterRewrite.settings.parameterRewriteSettings.exploreNDRange)
+      if (!SplitSlideRewrite.settings.parameterRewriteSettings.exploreNDRange)
         filterNDRanges(ranges, searchParameters)
       else
         Success

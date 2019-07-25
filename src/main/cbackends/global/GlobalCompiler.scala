@@ -5,7 +5,7 @@ import cbackends.common.common_cast.CbackendCAST.SourceFile
 import cbackends.global.analysis.OclKernelFileNameAnalysis
 import cbackends.global.lowering.{GenerateCLockPrintingStmt, GenerateGlobalClockDecl, GenerateOclGlobalFacility}
 import cbackends.global.transformation.cast_transformation.cpu_outline_transformation.{CPUOutlineTargetAnalysis, OclOutlineTargetAnalysis}
-import cbackends.global.transformation.empty_kernel_structure.EmptyKernelStructure
+import cbackends.global.transformation.host_ir_mapper.HostIRMapper
 import cbackends.global.transformation.funcall2closure.FunCall2Closure
 import cbackends.global.transformation.ocl_memory_gen.OclMemoryGen
 import cbackends.global.transformation.purify.Purify

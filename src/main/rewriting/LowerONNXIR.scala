@@ -1,5 +1,6 @@
 package rewriting
 
+import ir.ast.onnx.ONNXPattern
 import ir.ast.{Expr, FunCall, Lambda}
 import rewriting.Rewrite.applyRuleAt
 import rewriting.rules.Rule
@@ -18,8 +19,7 @@ object LowerONNXIR {
   def findONNXNodes(expr: Expr): List[Expr] = {
     Expr.visitWithStateDepthFirst(List[Expr]())(expr, (e, onnxNodes) => {
       e match {
-          // TODO: merge from host_code_gen_fft_nn
-//        case FunCall(_: ONNXPattern, _) => onnxNodes :+ e
+        case FunCall(_: ONNXPattern, _*) => onnxNodes :+ e
         case _ => onnxNodes
       }})}
 

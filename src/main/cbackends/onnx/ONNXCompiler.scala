@@ -28,7 +28,7 @@ object ONNXCompiler extends CBackendsCompilerTrait{
 
     assert(files.length == 2)
 
-    val lift_host_ir = LowerONNXIR(lambda = onnxIR, loweringRules = List()/*TODO: merge from host_code_gen_fft_nn: rewriting.onnxLoweringRules.toList*/)
+    val lift_host_ir = LowerONNXIR(lambda = onnxIR, loweringRules = rewriting.onnxLoweringRules.toList)
 
     GlobalCompiler ! (Lambda(onnxIR.params, lift_host_ir.head._1), path, List(files(0)) )
 

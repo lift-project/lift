@@ -35,6 +35,8 @@ case class AccessVar(array: Var, idx: ArithExpr, r: Range = RangeUnknown, overri
 
   override def copy(r: Range): AccessVar = AccessVar(array.copy(array.range), idx, r, Some(id))
 
+  override def cloneSimplified() = new AccessVar(array, idx, r, Some(id)) with SimplifiedExpr
+
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(AccessVar(
       array.visitAndRebuild(f).asInstanceOf[Var],
@@ -48,12 +50,15 @@ case class AccessVar(array: Var, idx: ArithExpr, r: Range = RangeUnknown, overri
  * Variable storing a casted pointer.
  * `CastedPointer(v, type, offset)` generates the following C code: `((type*)(v + offset))`
  */
-case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpace: OpenCLAddressSpace)
-  extends ExtensibleVar("") {
+case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpace: OpenCLAddressSpace,
+                         override val fixedId: Option[Long] = None)
+  extends ExtensibleVar("", RangeUnknown, fixedId) {
 
   override def copy(r: Range): CastedPointer = {
     CastedPointer(ptr.copy(ptr.range), ty, offset, addressSpace)
   }
+
+  override def cloneSimplified() = new CastedPointer(ptr, ty, offset, addressSpace, Some(id)) with SimplifiedExpr
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(CastedPointer(
@@ -78,8 +83,11 @@ case class CastedPointer(ptr: Var, ty: ScalarType, offset: ArithExpr, addressSpa
  *
  * array[SizeIndex()]  ==  array.size
  */
-case class SizeIndex() extends ExtensibleVar("SIZE", RangeUnknown, None) {
+case class SizeIndex(override val fixedId: Option[Long] = None)
+  extends ExtensibleVar("SIZE", RangeUnknown, fixedId) {
   override def copy(r: Range) = SizeIndex()
+
+  override def cloneSimplified() = new SizeIndex(Some(id)) with SimplifiedExpr
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = f(SizeIndex())
 }
@@ -114,10 +122,13 @@ abstract sealed class View(val t: Type = UndefType) {
         else this
       case ViewMap(iv, itVar, ty) => ViewMap(iv.replaced(subst), itVar, ty)
       case ViewAccess(i, iv, ty) => ViewAccess(ArithExpr.substitute(i, subst), iv.replaced(subst), ty)
+      case ViewArrayWrapper(iv, ty) => ViewArrayWrapper(iv.replaced(subst), ty)
       case ViewZip(iv, ty) => ViewZip(iv.replaced(subst), ty)
+      case ViewConcat(iv, ty) => ViewConcat(iv.replaced(subst), ty)
       case ViewUnzip(iv, ty) => ViewUnzip(iv.replaced(subst), ty)
       case ViewSplit(n, iv, ty) => ViewSplit(ArithExpr.substitute(n, subst), iv.replaced(subst), ty)
       case ViewJoin(n, iv, ty) => ViewJoin(ArithExpr.substitute(n, subst), iv.replaced(subst), ty)
+      case ViewTranspose(iv, ty) => ViewTranspose(iv.replaced(subst), ty)
       case ViewReorder(f, iv, ty) => ViewReorder(f, iv.replaced(subst), ty)
       case ViewAsVector(n, iv, ty) => ViewAsVector(n, iv.replaced(subst), ty)
       case ViewAsScalar(iv, n, ty) => ViewAsScalar(iv.replaced(subst), n, ty)
@@ -130,10 +141,20 @@ abstract sealed class View(val t: Type = UndefType) {
       case ViewSize(iv) => ViewSize(iv.replaced(subst))
       case ViewHead(iv, ty) => ViewHead(iv.replaced(subst), ty)
       case ViewTail(iv, ty) => ViewTail(iv.replaced(subst), ty)
+      case ViewOffset(offset, iv, ty) => ViewOffset(offset, iv.replaced(subst), ty)
       case _: View2DGeneratorUserFun | _: View3DGeneratorUserFun | _: ViewGenerator | _: ViewGeneratorUserFun |
-           _: ViewConstant | NoView => this
+           _: ViewConstant | NoView =>
+        this
     }
   }
+
+  def offset(offset: ArithExpr) : View = {
+    t match {
+      case ArrayTypeWSWC(et,s,c) => ViewOffset(offset, this, ArrayTypeWSWC(et,s-offset,c-offset))
+      case _ => throw new IllegalArgumentException("PANIC: access expects an array type, found "+t)
+    }
+  }
+
 
   /**
    * Construct a new view for accessing the current view at position `idx`.
@@ -184,6 +205,14 @@ abstract sealed class View(val t: Type = UndefType) {
       case ArrayTypeWS(ArrayTypeWS(elemT, n), m) =>
         ViewJoin(chunkSize, this, ArrayTypeWSWC(elemT, n * m))
       case _ => throw new IllegalArgumentException("PANIC: join expects a 2D array type with size, found "+this.t.toString)
+    }
+  }
+
+  def transpose(): View = {
+    this.t match {
+      case ArrayTypeWS(ArrayTypeWS(elemT,n),m) =>
+        ViewTranspose(this,ArrayTypeWS(ArrayTypeWS(elemT,m),n))
+      case _ => throw new IllegalArgumentException("PANIC: transpose expects a 2D array type with size, found "+this.t.toString)
     }
   }
 
@@ -269,6 +298,16 @@ abstract sealed class View(val t: Type = UndefType) {
         val newT = Zip.computeOutType(tt)
         ViewZip(this, newT)
       case other => throw new IllegalArgumentException("Can't zip " + other)
+    }
+
+  }
+
+  def concat(): View = {
+    t match {
+      case tt: TupleType =>
+        val newT = Concat.computeOutType(tt)
+        ViewConcat(this, newT)
+      case other => throw new IllegalArgumentException("Can't concat " + other)
     }
 
   }
@@ -376,6 +415,8 @@ case class ViewMemScalar(i: ArithExpr, override val t: Type) extends View(t)
   * */
 case class ViewMemWithInnerView(v: Var, iv: View, override val t: Type) extends View(t)
 
+case class ViewOffset(offset : ArithExpr, iv : View, override val t : Type) extends View(t)
+
 /**
  * A view for accessing another view at position `i`.
  *
@@ -384,6 +425,13 @@ case class ViewMemWithInnerView(v: Var, iv: View, override val t: Type) extends 
  * @param t Type of the view.
  */
 case class ViewAccess(i: ArithExpr, iv: View, override val t: Type) extends View(t)
+/**
+  * wrapping another view in an array of size 1
+  *
+  * @param iv View to access.
+  * @param t Type of the view.
+  */
+case class ViewArrayWrapper(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for splitting another view.
@@ -412,6 +460,8 @@ case class ViewJoin(n: ArithExpr, iv: View, override val t: Type) extends View(t
  * @param t Type of the view.
  */
 case class ViewZip(iv: View, override val t: Type) extends View(t)
+
+case class ViewConcat(iv: View, override val t: Type) extends View(t)
 
 /**
  * A view for unzipping another view
@@ -580,6 +630,7 @@ object View {
       case ViewMap(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewSplit(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewJoin(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewTranspose(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewReorder(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewFilter(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewZip(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
@@ -684,8 +735,19 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         assert(tupleAccessStack.isEmpty)
         GenerateAccess(memVar, ty, arrayAccessStack, tupleAccessStack)
 
+      case ViewOffset(offset, iv, t) =>
+        // increment read / write access by offset
+        val idx :: indices  = arrayAccessStack
+        emitView(iv,(idx + offset):: indices,tupleAccessStack)
+
       case ViewAccess(i, iv, _) =>
         emitView(iv, i :: arrayAccessStack, tupleAccessStack)
+
+      case ViewArrayWrapper(iv, ty) =>
+            val idx :: indices = arrayAccessStack
+           // assert(idx == Cst(0))
+            emitView(iv,indices,tupleAccessStack)
+
 
       case ViewMap(iv, itVar, _) =>
         val idx :: indices = arrayAccessStack
@@ -702,6 +764,10 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         val chunkIdx = idx / chunkSize
         val elemIdx = idx % chunkSize
         emitView(iv, chunkIdx :: elemIdx :: indices, tupleAccessStack)
+
+      case ViewTranspose(iv,_) =>
+        val idx0 :: idx1 :: indices = arrayAccessStack
+        emitView(iv,idx1 :: idx0 :: indices, tupleAccessStack)
 
       case ViewReorder(reindexFun, iv, _) =>
         val idx :: indices = arrayAccessStack
@@ -726,6 +792,30 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
 
       case ViewUnzip(iv, _) =>
         emitView(iv, arrayAccessStack, tupleAccessStack)
+
+      case ViewConcat(iv, _) =>
+        val i :: idx = arrayAccessStack
+        val ivs = iv match {
+          case vt: ViewTuple => vt.ivs
+        }
+
+        var offset = i
+        def getSubview(): View = {
+          for (sv <- ivs) {
+            sv.t match {
+              case ArrayTypeWSWC(_, s, _) =>
+                println("s: "+s+" offset: "+offset)
+                if (ArithExpr.isSmaller(offset, s).get)
+                  return sv
+                else offset = offset - s
+            }
+          }
+          ???
+        }
+
+        val subView = getSubview()
+
+        emitView(subView, offset :: idx, tupleAccessStack)
 
       case ViewTuple(ivs, _) =>
         val i :: newTAS = tupleAccessStack
@@ -862,7 +952,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
           case at: ArrayType =>
             val idx :: indices = arrayAccessStack
             idx match {
-              case SizeIndex() => getSize(acc, at)
+              case _: SizeIndex => getSize(acc, at)
               case _ =>
                 val newAcc = getElementAt(acc, at, idx, tupleAccessStack)
                 generate(newAcc, at.elemT, indices, tupleAccessStack)

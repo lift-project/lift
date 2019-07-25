@@ -24,7 +24,7 @@ object GenerateGlobalClockDecl {
           (if(measurable.gpu_timer) VarDeclPure(cvar_gpu_event, cvar_gpu_event.t) else RawCode("") )
         ), global = true) :++ block )
 
-      case fc @ FunCall(c:CPUFunCall, args@_*) =>
+      case fc @ FunCall(c:CPUFunContainer, args@_*) =>
 
         val measurable = c.cpuFun.asInstanceOf[CPUMeasurable]
 
@@ -41,7 +41,7 @@ object GenerateGlobalClockDecl {
 
         ( ( block_for_this_call /: all_arg_blocks) ( _ :++ _) ) :++ block
 
-      case fc @ FunCall(o:OclFunCall, args@_*) =>
+      case fc @ FunCall(o:OclFunContainer, args@_*) =>
 
         val measurable = o.oclFun.asInstanceOf[Measurable]
 

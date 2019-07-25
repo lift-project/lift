@@ -22,13 +22,13 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
   * @param pads (see ONNX spec)
   * @param strides (see ONNX spec)
   */
-abstract class AbstractConv(arity: Int,
-                            autoPad: String,
-                            dilations: List[ArithExpr],
-                            group: ArithExpr,
-                            kernelShape: List[ArithExpr],
-                            pads: List[ArithExpr],
-                            strides: List[ArithExpr]) extends Pattern(arity = arity) {
+abstract class Conv(arity: Int,
+                    val autoPad: String,
+                    val dilations: List[ArithExpr],
+                    val group: ArithExpr,
+                    val kernelShape: List[ArithExpr],
+                    val pads: List[ArithExpr],
+                    val strides: List[ArithExpr]) extends Pattern(arity = arity) with ONNXPattern {
 
   /**
     * Verifies the dimension sizes and the base type of the convolutional kernel weights.
@@ -48,7 +48,9 @@ abstract class AbstractConv(arity: Int,
       kCGroupSize * group == iC &&
       // Check actual kernel spatial dimensions shape if corresponding parameter is specified
       (kernelShape.isEmpty ||
-        Type.getLengths(spatialWeightDimsT).zip(kernelShape).forall(sizePair => sizePair._1.eval == sizePair._2))
+        Type.getLengths(spatialWeightDimsT).dropRight(1).zip(
+          kernelShape.slice(Conv.firstSpatialDimension, kernelShape.length)).
+          forall(sizePair => sizePair._1.eval == sizePair._2.eval))
   }
 
 
@@ -75,21 +77,21 @@ abstract class AbstractConv(arity: Int,
 }
 
 
-case class ConvWithoutBias private(autoPad: String,
-                                   dilations: List[ArithExpr],
-                                   group: ArithExpr,
-                                   kernelShape: List[ArithExpr],
-                                   pads: List[ArithExpr],
-                                   strides: List[ArithExpr])
-  extends AbstractConv(2, autoPad, dilations, group, kernelShape, pads, strides) {
+case class ConvWithoutBias private(override val autoPad: String,
+                                   override val dilations: List[ArithExpr],
+                                   override val group: ArithExpr,
+                                   override val kernelShape: List[ArithExpr],
+                                   override val pads: List[ArithExpr],
+                                   override val strides: List[ArithExpr])
+  extends Conv(2, autoPad, dilations, group, kernelShape, pads, strides) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
       // X, W and B
       case TupleType(
-      xT@ArrayTypeWS(ArrayTypeWS(ArrayType(spatialInputDimsT), iC), iN),
-      wT@ArrayTypeWS(ArrayTypeWS(ArrayType(spatialWeightDimsT), kCGroupSize), wM))
+      xT@ArrayTypeWS(ArrayTypeWS(spatialInputDimsT, iC), iN),
+      wT@ArrayTypeWS(ArrayTypeWS(spatialWeightDimsT, kCGroupSize), wM))
         if verifyWType(kCGroupSize, iC, spatialInputDimsT, spatialWeightDimsT) =>
 
         computeOutType(iN, kCGroupSize, spatialInputDimsT, spatialWeightDimsT)
@@ -100,13 +102,13 @@ case class ConvWithoutBias private(autoPad: String,
 }
 
 
-case class ConvWithBias private(autoPad: String,
-                                dilations: List[ArithExpr],
-                                group: ArithExpr,
-                                kernelShape: List[ArithExpr],
-                                pads: List[ArithExpr],
-                                strides: List[ArithExpr])
-  extends AbstractConv(3, autoPad, dilations, group, kernelShape, pads, strides) {
+case class ConvWithBias private(override val autoPad: String,
+                                override val dilations: List[ArithExpr],
+                                override val group: ArithExpr,
+                                override val kernelShape: List[ArithExpr],
+                                override val pads: List[ArithExpr],
+                                override val strides: List[ArithExpr])
+  extends Conv(3, autoPad, dilations, group, kernelShape, pads, strides) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -128,6 +130,9 @@ case class ConvWithBias private(autoPad: String,
 
 
 object Conv {
+  // The kernel shape is expected to be [FILTER_OUT_CHANNEL, FILTER_IN_CHANNEL, FILTER_SPATIAL, FILTER_SPATIAL ...].
+  final val firstSpatialDimension: Int = 2
+
   /**
     * Creates an instance of either onnx.ConvWithoutBias, or onnx.ConvWithBias pattern.
     * This function infers the number of arrays which the onnx.AbstractConv pattern
@@ -153,6 +158,13 @@ object Conv {
 
     assert(autoPad == "NOTSET" || autoPad == "SAME_UPPER" || autoPad == "SAME_LOWER" || autoPad == "VALID")
     assert(args.length == 2 || args.length == 3)
+    // Make sure the kernels are square in their spatial dimensions
+    // (due to a limited support of convolution by the existing Lift expressions)
+    assert(kernelShape.nonEmpty && kernelShape.slice(firstSpatialDimension, kernelShape.length).forall(size =>
+      size == kernelShape(2)))
+    // Make sure all strides are the same
+    // (due to a limited support of convolution by the existing Lift expressions)
+    assert(strides.nonEmpty && strides.forall(stride => stride == strides(0)))
 
     args.length match {
       case 2 =>

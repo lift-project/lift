@@ -1,5 +1,7 @@
 package cbackends.global
 
+import java.io.{PrintWriter, StringWriter}
+
 import cbackends.host.host_ir._
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
@@ -92,6 +94,7 @@ class TestGlobal {
   }
 
 
+  @Ignore
   @Test
   def test_pool_pool(): Unit = {
 
@@ -491,6 +494,10 @@ class TestGlobal {
   import opencl.ir._
   import opencl.ir.pattern._
   import opencl.ir.ast._
+
+  @Ignore
+  // TODO: this test depends on the fix (39717df815f6e1f95029a95c3f895f9443d2db5d) to the OpenCLGenerator that
+  //  breaks older tests (TestReduce.issue_31). Until a better solution is found, this test is disabled
   @Test
   def test_conv_gpu(): Unit = {
 
@@ -534,7 +541,8 @@ class TestGlobal {
     //GlobalCompiler ! (f, path, List(file))
 
     import java.io.PrintWriter
-    new PrintWriter("/home/lu/Documents/Research/research_original_data/YearlyData/2019/002.ONNX/3.c++_example/1.NaumsExample/3.v3/kernel.cl") { write(opencl_string); close }
+    val dir = "." //"/home/lu/Documents/Research/research_original_data/YearlyData/2019/002.ONNX/3.c++_example/1.NaumsExample/3.v3/"
+    new PrintWriter(dir + "kernel.cl") { write(opencl_string); close }
 
 
     //val actual : String = native_compile_and_run(path, file)
@@ -691,6 +699,7 @@ class TestGlobal {
     println("Test case test_slide_hello done!")
   }
 
+  @Ignore // TODO: refactor for regression testing (e.g. provide the lambdas to compile)
   @Test
   def batch_code_generate_for_cases_paper(): Unit = {
 
@@ -707,94 +716,101 @@ class TestGlobal {
     val common_file_name3 = lambda_path  + "ConvStencil3DDepaddingLambda_"
 
     import opencl.executor.Eval
-    import exploration.ParameterRewrite.readFromFile
+    import exploration.SplitSlideRewrite.readFromFile
 
-    val totalTuningPoints = 1 //2000
-    val tuningPointBatchSize = 1//200
+    val totalTuningPoints = 5000
+    val tuningPointBatchSize = 500
     val nLayers = 13
     val fuseLambdas: Boolean = true
     val null_local_ranges: Boolean = false
+    val continueFromLayer = 0
+    val continueFromTunePoint = 0
 
-    for {tuningPointBatch <- 0 until totalTuningPoints / tuningPointBatchSize}
-//    for {tuningPointBatch <- List(0)}
-//      for {layerConfigId <- 0 until nLayers} {
-      for {layerConfigId <- List(2)} {
-        for {tuningId <- (tuningPointBatch * tuningPointBatchSize) until ((tuningPointBatch + 1) * tuningPointBatchSize)} {//000..200, 200..400, 400..600, 600..800, 800..1000
-        //for {tuningId <- 317 until 1000} {
-
-        val file0 = common_file_name0 + layerConfigId + "_" + tuningId + ".scala"
-        val file1 = common_file_name1 + layerConfigId + "_" + tuningId + ".scala"
-        val file2 = common_file_name2 + layerConfigId + "_" + tuningId + ".scala"
-        val file3 = common_file_name3 + layerConfigId + "_" + tuningId + ".scala"
-
-
-
-        //ndrange is in the reversed order of c++ enqueneNDRange
-        val (ndranges0: (/*local*/NDRange, /*global*/NDRange), gpu_fun0: Lambda) = Eval.eval(readFromFile(file0)).
-          asInstanceOf[((NDRange, NDRange), Lambda)]
-        val (ndranges1: (/*local*/NDRange, /*global*/NDRange), gpu_fun1: Lambda) = Eval.eval(readFromFile(file1)).
-          asInstanceOf[((NDRange, NDRange), Lambda)]
-        val (ndranges2: (/*local*/NDRange, /*global*/NDRange), gpu_fun2: Lambda) = Eval.eval(readFromFile(file2)).
-          asInstanceOf[((NDRange, NDRange), Lambda)]
-        val (ndranges3: (/*local*/NDRange, /*global*/NDRange), gpu_fun3: Lambda) = Eval.eval(readFromFile(file3)).
-          asInstanceOf[((NDRange, NDRange), Lambda)]
-
-
-        //Compile(gpu_fun0, ndranges0._1, ndranges0._2)
-
-        val whole_fun = fun(
-          gpu_fun1.params(0).t,
-          gpu_fun2.params(0).t,
-          gpu_fun0.params(0).t,
-
-          if (!fuseLambdas)
-            (p_k, p_b, p_x) => ToHost() $
-              OclFun(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
-                OclFun(gpu_fun2, (if (null_local_ranges) null else ndranges2._1, ndranges2._2)/*ndranges2*/,
-                  cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
-                  OclFun( gpu_fun1, (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges1*/,
-                    cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
-                    OclFun( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x)))
-          else
-            (p_k, p_b, p_x) => ToHost() $
-              OclFun(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
-                OclFun(
-                  fun((k, b, x) => gpu_fun2(b, gpu_fun1(k, x))),
-                  (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges2*/,
-                  cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_b,
-                    OclFun( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x))
-        )
+    for {tuningPointBatch <- 0 until (totalTuningPoints / tuningPointBatchSize)}
+      for {layerConfigId <- 0 until nLayers} {
+//      for {layerConfigId <- List(1)} {
+        if (layerConfigId >= continueFromLayer) {
+          for {tuningId <- (tuningPointBatch * tuningPointBatchSize) until ((tuningPointBatch + 1) * tuningPointBatchSize)} {//000..200, 200..400, 400..600, 600..800, 800..1000
+            if (tuningId >= continueFromTunePoint || layerConfigId > continueFromLayer) {
+              val file0 = common_file_name0 + layerConfigId + "_" + tuningId + ".scala"
+              val file1 = common_file_name1 + layerConfigId + "_" + tuningId + ".scala"
+              val file2 = common_file_name2 + layerConfigId + "_" + tuningId + ".scala"
+              val file3 = common_file_name3 + layerConfigId + "_" + tuningId + ".scala"
 
 
 
-        //      val whole_fun = fun(
-        //        gpu_fun0.params(0).t,
-        //
-        //        (p_x) => ToHost() o
-        //            OclFunc( gpu_fun0 , ndranges0, gpu_timer = true, cpu_timer = true) o ToGPU() $ p_x
-        //      )
+              //ndrange is in the reversed order of c++ enqueneNDRange
+              val (ndranges0: (/*local*/NDRange, /*global*/NDRange), gpu_fun0: Lambda) = Eval.eval(readFromFile(file0)).
+                asInstanceOf[((NDRange, NDRange), Lambda)]
+              val (ndranges1: (/*local*/NDRange, /*global*/NDRange), gpu_fun1: Lambda) = Eval.eval(readFromFile(file1)).
+                asInstanceOf[((NDRange, NDRange), Lambda)]
+              val (ndranges2: (/*local*/NDRange, /*global*/NDRange), gpu_fun2: Lambda) =
+                if (fuseLambdas) /*dummy*/ Eval.eval(readFromFile(file1)).asInstanceOf[((NDRange, NDRange), Lambda)]
+                else Eval.eval(readFromFile(file2)).asInstanceOf[((NDRange, NDRange), Lambda)]
+              val (ndranges3: (/*local*/NDRange, /*global*/NDRange), gpu_fun3: Lambda) = Eval.eval(readFromFile(file3)).
+                asInstanceOf[((NDRange, NDRange), Lambda)]
 
 
-        //("mkdir -p " + s"$path" ) !!
+              //Compile(gpu_fun0, ndranges0._1, ndranges0._2)
 
-        //("mkdir -p " + s"$generated_c_path" ) !!
+              val whole_fun = fun(
+                gpu_fun1.params(0).t,
+                if (fuseLambdas) gpu_fun1.params(1).t else gpu_fun2.params(0).t,
+                gpu_fun0.params(0).t,
 
-        val path_with_config = generated_c_path + layerConfigId + "/" + tuningId
-        ("mkdir -p " + s"$path_with_config") !!
-        val file_with_config = "libhost.cpp"
+                if (!fuseLambdas)
+                  (p_k, p_b, p_x) => ToHost() $
+                    OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
+                      OclFunc(gpu_fun2, (if (null_local_ranges) null else ndranges2._1, ndranges2._2)/*ndranges2*/,
+                        cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_b,
+                        OclFunc( gpu_fun1, (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges1*/,
+                          cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k,
+                          OclFunc( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x)))
+                else
+                //              (p_k, p_b, p_x) => ToHost() $
+                //                OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
+                //                  OclFunc(
+                //                    fun((k, b, x) => gpu_fun2(b, gpu_fun1(k, x))),
+                //                    (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges2*/,
+                //                    cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_b,
+                //                    OclFunc( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x))
+                  (p_k, p_b, p_x) => ToHost() $
+                    OclFunc(gpu_fun3, ndranges3, cpu_timer = true, gpu_timer = true).apply(
+                      OclFunc(
+                        fun((k, b, x) => gpu_fun1(k, b, x)),
+                        (if (null_local_ranges) null else ndranges1._1, ndranges1._2)/*ndranges2*/,
+                        cpu_timer = true, gpu_timer = true).apply(ToGPU() $ p_k, ToGPU() $ p_b,
+                        OclFunc( gpu_fun0, ndranges0, cpu_timer = true, gpu_timer = true) o ToGPU() $ p_x))
+              )
 
-        println("[Log]: compiling for "+path_with_config)
 
-        GlobalCompiler ! (whole_fun, path_with_config, List(file_with_config))
+              //("mkdir -p " + s"$path" ) !!
 
+              //("mkdir -p " + s"$generated_c_path" ) !!
+
+              val path_with_config = generated_c_path + layerConfigId + "/" + tuningId
+              ("mkdir -p " + s"$path_with_config") !!
+              val file_with_config = "libhost.cpp"
+
+              println("[Log]: compiling for "+path_with_config)
+
+              try {
+                GlobalCompiler ! (whole_fun, path_with_config, List(file_with_config))
+              } catch {
+                case e: StackOverflowError =>
+                  println("[Log]: ERROR: could not compile for " + path_with_config + " due to a StackOverflow")
+                  val sw = new StringWriter
+                  e.printStackTrace(new PrintWriter(sw))
+                  println(sw.toString)
+              }
+            }
+          }
+        }
       }
-    }
 
 
     println("Test done!")
 
   }
-
-
 
 }

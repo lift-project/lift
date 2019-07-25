@@ -4,7 +4,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic.ArithExpr
 import opencl.ir.OpenCLMemoryCollection
-import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
+import opencl.ir.pattern._
 
 /**
  * A helper object for constructing views.
@@ -33,6 +33,8 @@ object InputView {
       case Array2DFromUserFunGenerator(f, at) => View2DGeneratorUserFun(f, at)
       case Array3DFromUserFunGenerator(f, at) => View3DGeneratorUserFun(f, at)
 
+      case ArrayFromExpr(e) => ViewArrayWrapper(visitAndBuildViews(e),expr.t)
+
       case call: FunCall => buildViewFunCall(call)
     }
     expr.view = result
@@ -46,7 +48,7 @@ object InputView {
     } else if (call.args.length == 1) {
       visitAndBuildViews(call.args.head)
     } else {
-      View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
+        View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
     }
   }
 
@@ -86,8 +88,11 @@ object InputView {
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case PadConstant(left, right, value) => buildViewPadConstant(left, right, value, argView)
       case ArrayAccess(i) => argView.access(i)
+      case RewritingGuidePost(_) => argView
+      case cc: Concat => buildViewConcat(call,argView)
       case debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
-           Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => argView
+           Scatter(_) | _: Tuple | Pad(_, _, _) | Id() =>
+        argView
       case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
     }
   }
@@ -235,6 +240,11 @@ object InputView {
     argView.unzip()
   }
 
+  private def buildViewConcat(call: FunCall, argView: View): View = {
+//    argView.concat()
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
+  }
+
   private def buildViewFilter(call: FunCall, argView: View): View = {
     argView.get(0).filter(argView.get(1))
   }
@@ -267,9 +277,7 @@ object InputView {
   private def buildViewTranspose(t: Transpose, call: FunCall, argView: View): View = {
     call.t match {
       case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
-        argView.
-          join(n).
-          reorder((i: ArithExpr) => { transpose(i, call.t) }).split(m)
+        argView.transpose()
       case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) =>
         throw new TypeException(call.t, "Array", call.f)
     }

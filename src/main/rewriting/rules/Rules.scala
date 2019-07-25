@@ -94,6 +94,18 @@ object Rules {
       Join() o Map(Slide(n, s)) o Slide(step + overlap, step) $ arg
   })
 
+  val mapSeqSlide = Rule("Map(fun(m => {})) o Slide(n,s) => MapSeqSlide(fun(m => {} )),n,s)",
+    {
+      case FunCall(Map(lambda), FunCall(Slide(n,s), arg)) =>
+        MapSeqSlide(lambda,n,s) $ arg
+    })
+
+  val mapSeqSlideSeq = Rule("MapSeq(fun(m => {})) o Slide(n,s) => MapSeqSlide(fun(m => {} )),n,s)",
+    {
+      case FunCall(MapSeq(lambda), FunCall(Slide(n,s), arg)) =>
+        MapSeqSlide(lambda,n,s) $ arg
+    })
+
   /* Split-join rule */
   val splitJoin: Rule = splitJoin(?)
 
@@ -108,7 +120,7 @@ object Rules {
   def splitJoinMapSeq(split: ArithExpr) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
     case FunCall(MapSeq(f), arg) =>
       val chunkSize = Utils.splitVariable(split, arg.t)
-      Join() o MapSeq(MapSeq(f)) o Split(chunkSize) $ arg
+      Join() o Map(MapSeq(f)) o Split(chunkSize) $ arg
   })
 
   val joinSplit = Rule("Map(Map(f)) => Split(I) o Map(f) o Join()", {

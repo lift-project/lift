@@ -47,11 +47,32 @@ package opencl.ir
  */
 
 import arithmetic.TypeVar
-import lift.arithmetic.{?, ArithExpr, Cst}
 import ir.Type.size_t
 import ir._
 import ir.ast._
+import lift.arithmetic.{?, ArithExpr, Cst}
 import opencl.ir.pattern._
+
+import scala.collection.mutable
+
+object RemoveRedundantMemory {
+  def apply(f: Lambda): Unit = {
+    // 1. collect all redundant memory
+    var replacementMap = mutable.Map[Memory, Memory]()
+    Expr.visit(f.body, {
+      case call: FunCall => call.f match {
+        case c: Concat => replacementMap ++= c.replacementMap
+        case _ =>
+      }
+      case _ =>
+    }, (_: Expr) => _)
+
+    // 2. apply all replacements
+    Expr.visit(f.body, e =>
+      if (replacementMap.isDefinedAt(e.mem)) e.mem = replacementMap(e.mem)
+    , (_: Expr) => _)
+  }
+}
 
 object OpenCLMemoryAllocator {
   /** (baseSize, innerSize) => totalSize */
@@ -89,6 +110,7 @@ object OpenCLMemoryAllocator {
     numPvt: Allocator = (_, x) => x): OpenCLMemory = {
 
     val result = expr match {
+      case ArrayFromExpr(e) => alloc(e, numGlb, numLcl, numPvt)
       case _: ArrayConstructors => OpenCLNullMemory // an array constructor is not backed by memory
 
       case v: Value => allocValue(v)
@@ -161,6 +183,8 @@ object OpenCLMemoryAllocator {
 
       case it: Iterate => allocIterate(it, call, numGlb, numLcl, numPvt, inMem)
 
+      case cc: Concat => allocConcat(cc, call, numGlb, numLcl, numPvt, inMem)
+
       case scan: ScanSeq => allocScanSeq(scan, call, numGlb, numLcl, numPvt, inMem)
 
       case l: Lambda => allocLambda(l, numGlb, numLcl, numPvt, inMem)
@@ -175,6 +199,8 @@ object OpenCLMemoryAllocator {
       case ca: CheckedArrayAccess => allocCheckedArrayAccess(ca, call, numGlb, numLcl, numPvt, inMem)
 
       case debug.PrintView(_, f) => allocLambda(f, numGlb, numLcl, numPvt, inMem)
+
+      case RewritingGuidePost(_) => inMem
 
       case Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Slide(_, _) | Pad(_, _, _) | PadConstant(_, _, _) |
@@ -475,6 +501,29 @@ object OpenCLMemoryAllocator {
     // Recurse to allocate memory for the function(s) inside
     it.f.params(0).mem = inMem
     alloc(it.f.body, numGlb, numLcl, numPvt)
+  }
+
+  private def allocConcat(cc: Concat, call: FunCall,
+                          numGlb: Allocator,
+                          numLcl: Allocator,
+                          numPvt: Allocator,
+                          memOfArgs: OpenCLMemory): OpenCLMemory = {
+
+    // dig into collection and match on arguments and replace already allocated memory
+    memOfArgs match {
+      case ocml: OpenCLMemoryCollection =>
+        // check all address spaces are the same (private, local, global) -- skip for now
+        val addressSpace = ocml.subMemories.head.addressSpace
+        // get the size of each allocation and sum up to get overall allocation size
+        val totalSize = ocml.subMemories.foldLeft[ArithExpr](Cst(0))((s,oo) => oo.size + s )
+        // allocate new memory object with new size
+        val outputMemory = OpenCLMemory.allocMemory(totalSize,addressSpace)
+        // then remember to replace in arguments old allocated objects with new ones
+        // this is done in RemoveRedundantMemory
+        cc.replacementMap =
+          ocml.subMemories.map(toBeReplaced => toBeReplaced -> outputMemory).toMap
+        outputMemory
+    }
   }
 
   private def allocScanSeq(scan: ScanSeq,

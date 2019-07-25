@@ -2,18 +2,33 @@ package rewriting.utils
 
 import ir._
 import ir.ast._
+import ir.ast.debug.{AssertType, PrintType}
 import lift.arithmetic._
 import opencl.generator.NotPrintableExpression
 import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
-object ScalaPrinter {
+case class ScalaPrinter(printNonFixedVarIds: Boolean = true) {
   def apply(expr: Expr): String = {
     expr match {
-      case funCall: FunCall => s"FunCall(${apply(funCall.f)}, ${funCall.args.map(apply).mkString(", ")})"
+      case funCall: FunCall => funCall.f match {
+        case AssertType(_, _) | PrintType(_) | RewritingGuidePost(_) =>
+          // Skip these primitives and just print their arguments
+          apply(funCall.args.head)
+        case _ =>
+          s"FunCall(${apply(funCall.f)}, ${funCall.args.map(apply).mkString(", ")})"
+      }
       case value: Value => s"""Value("${value.value}", ${apply(value.t)})"""
       case param: Param => "p_" + param.hashCode()
       case _ => expr.toString
+    }
+  }
+
+  def apply(idxFun: IndexFunction): String = {
+    idxFun match {
+      case ReorderWithStride(s) => f"ReorderWithStride(${apply(s)})"
+      case x => throw new NotImplementedError(s"$x")
     }
   }
 
@@ -33,32 +48,23 @@ object ScalaPrinter {
       case mapSeqSlide: MapSeqSlide => s"MapSeqSlide(${apply(mapSeqSlide.f)})"
       case reduce: Reduce => s"Reduce(${apply(reduce.f)})"
       case reduce: PartRed => s"PartRed(${apply(reduce.f)})"
+      case slide: Slide => s"Slide(${apply(slide.size)}, ${apply(slide.step)})"
       case toGlobal: toGlobal => s"toGlobal(${apply(toGlobal.f)})"
       case toLocal: toLocal => s"toLocal(${apply(toLocal.f)})"
       case toPrivate: toPrivate => s"toPrivate(${apply(toPrivate.f)})"
       case bsearch: BSearch => s"BSearch(${apply(bsearch.f)})"
       case lsearch: LSearch => s"LSearch(${apply(lsearch.f)})"
       case vec: VectorizeUserFun => s"VectorizeUserFun(${apply(vec.n)},${vec.userFun})"
+      case Join() => s"Join()"
       case Split(n) => s"Split(${apply(n)})"
-      case _ => funDecl.toString
+      case Gather(idxFun) => s"Gather(${apply(idxFun)})"
+      case Scatter(idxFun) => s"Scatter(${apply(idxFun)})"
+//      case uf: UserFun => apply(uf)
+      case x => x.toString//throw new NotImplementedError(s"$x") // it's not ideal. we fix it later (c) Christophe
     }
   }
 
-  def apply(arithExpr: ArithExpr): String = {
-    arithExpr match {
-      case Cst(c) => s"Cst($c)"
-      case IntDiv(a, b) => s"( ${apply(a)} /^ ${apply(b)} )"
-      case Sum(terms) => s"( ${terms.map(apply).mkString(" + ")} )"
-      case Prod(factors) => s"( ${factors.map(apply).mkString(" * ")} )"
-      case Mod(dividend, divisor) => s"( ${apply(dividend)} % ${apply(divisor)} )"
-      case Log(b, x) => s"Log(${apply(b)},${apply(x)})"
-      case Pow(b, ex) => s"Pow(${apply(b)}, ${apply(ex)})"
-      case v: Var => v.toString
-
-      case _ =>
-        throw new NotImplementedError(s"$arithExpr of class ${arithExpr.getClass}")
-    }
-  }
+  def apply(arithExpr: ArithExpr): String = ArithExpr.printToScalaString(arithExpr, printNonFixedVarIds)
 
   def apply(t: Type): String = {
     t match {
@@ -67,9 +73,9 @@ object ScalaPrinter {
       case opencl.ir.Double => "Double"
       case opencl.ir.Bool => "Bool"
       case TupleType(tt@_*) => s"TupleType(${tt.map(apply).mkString(", ")})"
-      case VectorType(elemT, len) => s"VectorType(${apply(elemT)}, $len)"
-      case ArrayTypeWSWC(elemT, s, c) if s == c => s"ArrayType(${apply(elemT)}, $s)"
-      case ArrayTypeWSWC(elemT, s, c) => s"ArrayTypeWSWC(${apply(elemT)}, $s, $c)"
+      case VectorType(elemT, len) => s"VectorType(${apply(elemT)}, ${apply(len)})"
+      case ArrayTypeWSWC(elemT, s, c) if s == c => s"ArrayType(${apply(elemT)}, ${apply(s)})"
+      case ArrayTypeWSWC(elemT, s, c) => s"ArrayTypeWSWC(${apply(elemT)}, ${apply(s)}, ${apply(c)})"
 
       case NoType =>
         throw new NotPrintableExpression(s"Can not print NoType")

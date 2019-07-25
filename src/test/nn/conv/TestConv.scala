@@ -51,7 +51,7 @@ class TestConv {
 
     logger.info(f"\n1. Convolution sanity check.\nRuntime: $runtime%1.5f ms")
 
-    val lift_result3d = nn.group(lift_result, (gold.length, gold.head.length, gold.head.head.length))
+    val lift_result3d = patterns.nn.group(lift_result, (gold.length, gold.head.length, gold.head.head.length))
     for ((gold2d, lift_result2d) <- gold zip lift_result3d) {
       logger.info(lift_result2d.flatten.mkString(", "))
       logger.info(gold2d.flatten.mkString(", "))

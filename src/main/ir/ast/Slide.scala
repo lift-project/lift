@@ -1,7 +1,7 @@
 package ir.ast
 
 import ir.interpreter.Interpreter._
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Cst, floor}
 import ir._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
@@ -20,11 +20,16 @@ case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) {
     argType match {
       case ArrayTypeWSWC(et,s,c) if s == c =>
         // todo check that the sliding window always ends at the last element of the input
-        //if (((n - (size - step)) % step) != Cst(0)) throw new TypeException(argType, "slide args not as")
+//        if (((s - (size - step)) % step) != Cst(0))
+//          throw TypeException(s"Dimensions of slide are not divisible: (($s - ($size - $step)) % $step) = " +
+//            s"${(s - (size - step)) % step}")
+//        if (((c - (size - step)) % step) != Cst(0))
+//          throw TypeException(s"Dimensions of slide are not divisible: (($c - ($size - $step)) % $step) = " +
+//            s"${(c - (size - step)) % step}")
         val innerSize = size
         val innerCapacity = size
-        val outerSize = (s - (size - step)) / step
-        val outerCapacity = (c - (size - step)) / step
+        val outerSize = (s - (size - step)) / step // TODO: make sure that these are divisible
+        val outerCapacity = (c - (size - step)) / step  // TODO: make sure that these are divisible
         ArrayTypeWSWC(ArrayTypeWSWC(et, innerSize, innerCapacity), outerSize, outerCapacity)
       case _ => throw new TypeException(argType, "ArrayType", this)
     }
@@ -42,12 +47,18 @@ case class Slide(size: ArithExpr, step: ArithExpr) extends Pattern(arity = 1) {
     case _ => false
   }
 
-  override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
-    assert(args.length == arity)
-    args.head match {
-      case a: Vector[_] => throw new NotImplementedException()
-    }
+  override def eval(valueMap: ValueMap, args: Any*): Array[Any] = {
+    throw new NotImplementedException()
   }
+
+  def eval(arg: Array[Array[Float]]): Array[Array[Array[Float]]] =
+    arg.iterator.sliding(size.evalInt, step.evalInt).withPartial(false).map(_.toArray).toArray
+
+  def eval(arg: Array[Array[Array[Float]]]): Array[Array[Array[Array[Float]]]] =
+    arg.iterator.sliding(size.evalInt, step.evalInt).withPartial(false).map(_.toArray).toArray
+
+
+
 
   /**
    * Define hash based on the ID to identify unique instances in associative containers.
@@ -115,11 +126,13 @@ object TiledSlidedND {
     else GenerateIR.applyInEveryDimUntilDim(Join(), dim) o GenerateIR.interleaveDimensionsReverse(dim)
   }
 
-  def apply(dim: Int)(size: ArithExpr, step: ArithExpr, tileStep: ArithExpr): Lambda = {
+  def apply(dim: Int)(size: ArithExpr, step: ArithExpr, tileStep: ArithExpr, enableUndoTiling: Boolean = true): Lambda = {
     val tileSize = (size - step) + tileStep
-    undoTiling(dim) o
+    val tiledLambda =
       GenerateIR.wrapInMaps(SlideND(dim)(size,step), dim) o
         SlideND(dim)(tileSize, tileStep)
+    if (enableUndoTiling) undoTiling(dim) o tiledLambda
+    else tiledLambda
   }
 }
 

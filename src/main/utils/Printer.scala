@@ -46,7 +46,7 @@ object Printer {
       case Mod(a, n)                               => "(" + toString(a) + " % " + toString(n) + ")"
       case of: OclFunction                         => of.toOCLString
       case AccessVar(array, idx, _, _)             => s"${toString(array)}[${toString(idx)}]"
-      case CastedPointer(v, ty, ofs, addressSpace) =>
+      case CastedPointer(v, ty, ofs, addressSpace, _) =>
         val offset = if (ofs == Cst(0)) "" else s" + ${toString(ofs)}"
         s"(($addressSpace ${Type.name(ty)}*)(${toString(v)}$offset))"
       case v: Var                                  => v.toString

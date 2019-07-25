@@ -4,6 +4,7 @@ import ir._
 import ir.interpreter.Interpreter.ValueMap
 import lift.arithmetic.ArithExpr
 import lift.arithmetic.ArithExpr.Math.Min
+import lift.arithmetic.simplifier.ExprSimplifier
 import opencl.generator.StrictZip
 
 /**
@@ -59,7 +60,7 @@ object Zip {
   }
 
 def minWithCheck(x: ArithExpr, y: ArithExpr, tt: TupleType): ArithExpr = {
-    if (x == y) x
+    if (ExprSimplifier(x) == ExprSimplifier(y)) x
     else {
       if (StrictZip()) throw new ZipTypeException(tt)
       else Min(x, y)

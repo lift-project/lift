@@ -94,6 +94,27 @@ object Rewrite {
     }
   }
 
+  /**
+    * Apply rules one by one until no rules apply anymore; collect applied rules
+    *
+    * @param expr The expression where to apply rules
+    * @param rules The rules to apply
+    * @param appliedRules The list of applied rules
+    * @return
+    */
+  @scala.annotation.tailrec
+  def applyRulesUntilCannot(expr: Expr, rules: Seq[Rule], appliedRules: List[Rule]): (Expr, List[Rule]) = {
+    val allRulesAt = listAllPossibleRewritesForRules(expr, rules)
+
+    if (allRulesAt.isEmpty) {
+      (expr, appliedRules)
+    } else {
+      val ruleAt = allRulesAt.head
+      applyRulesUntilCannot(Rewrite.applyRuleAt(expr, ruleAt.rule, ruleAt.expr), rules,
+        appliedRules :+ ruleAt.rule)
+    }
+  }
+
   def patchUpAfterSplitJoin(toBeReplaced: Expr, replacement: Expr, replaced: Expr): Expr = {
     try {
       TypeChecker(replaced)

@@ -2,11 +2,11 @@ package cbackends.mpi
 
 import cbackends.mpi.mpi_ir.BcastMPI
 import cbackends.mpi.MPICompiler
-import ir.{ArrayType}
+import ir.ArrayType
 import ir.ast.{Lambda, fun}
 import lift.arithmetic.SizeVar
 import opencl.ir.pattern.MapSeq
-import org.junit.Test
+import org.junit.{Ignore, Test}
 import org.junit.Assert._
 import opencl.ir.{Float, add, _}
 
@@ -47,6 +47,7 @@ class TestMPI {
   }*/
 
 
+  @Ignore
   @Test
   def test_mpi_bcast(): Unit = {
 

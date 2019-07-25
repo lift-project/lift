@@ -21,11 +21,11 @@ object InferHostMemoryAddressSpace {
         assert(arg.addressSpace == GlobalMemory)
         fc.addressSpace = CPUMainMemoryAddressSpace
 
-      case fc@FunCall(_:OclFunCall, args@_*) =>
+      case fc@FunCall(_:OclFunContainer, args@_*) =>
         args.foreach(inferAddrSpace(_))
         fc.addressSpace = GlobalMemory
 
-      case fc@FunCall(_:CPUFunCall, args@_*) =>
+      case fc@FunCall(_:CPUFunContainer, args@_*) =>
         args.foreach(inferAddrSpace(_))
         fc.addressSpace = CPUMainMemoryAddressSpace
 

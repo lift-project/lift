@@ -1,13 +1,12 @@
-package cbackends.onnx.lift_nn_ir.host_ir
+package patterns.nn.pool
 
 import cbackends.host.host_ir.CPUFunc
 import ir.ast.onnx.AveragePool
-import ir.ast.{Expr, FunCall, Join, Param, Slide3D, Slide3D_R, fun}
-import lift.arithmetic.Cst
+import ir.ast.{Expr, FunCall, Join, Slide3D_R, fun}
 import opencl.ir.pattern.{MapSeq, ReduceSeq}
-import opencl.ir.{Float, add, dividedBy, _}
+import opencl.ir.{add, dividedBy, _}
 
-object Pool3D {
+object PoolCPU3D {
 
   def apply(fc: FunCall, in: Expr) : Expr = {
 
@@ -20,12 +19,12 @@ object Pool3D {
     val steps = p.strides
     assert(steps.length == 3)
 
-    CPUFunc( MapSeq( MapSeq ( dividedBy(counts) )) o
+    CPUFunc( MapSeq(MapSeq( MapSeq ( dividedBy(counts) )) o
         Join() o MapSeq( MapSeq( Join() o MapSeq(
         fun( y =>
           ReduceSeq(add, 0.0f) o
             Join() o Join() $ y )
-      ) ) ) o Slide3D_R(kernel_shape(0),steps(0),kernel_shape(1),steps(1),kernel_shape(2),steps(2)) ) $ in
+      ) ) ) o Slide3D_R(kernel_shape(0),steps(0),kernel_shape(1),steps(1),kernel_shape(2),steps(2)) )) $ in
   }
 
 }

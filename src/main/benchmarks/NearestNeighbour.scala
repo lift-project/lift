@@ -6,7 +6,8 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
 
-class NearestNeighbour(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("NearestNeighbour", Seq(1024), f, 0.1f) {
+@deprecated("Uses an old benchmark infrastructure", "")
+class NearestNeighbour(override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark("NearestNeighbour", Seq(1024), f, 0.1f) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     Array()

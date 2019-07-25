@@ -8,7 +8,7 @@ import ir.ast.{ArrayAccess, Get, Join, Slide, Split, Transpose, TransposeW, User
 import lift.arithmetic.SizeVar
 import opencl.ir.pattern.{MapSeq, ReduceSeq, ScanSeq}
 import opencl.ir.{Float, add, _}
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 import scala.sys.process._
 
@@ -61,6 +61,7 @@ class TestSDH {
   }
   */
 
+  @Ignore
   @Test
   def test_vec_add_multi_tile(): Unit = {
 
@@ -88,6 +89,7 @@ class TestSDH {
 
   }
 
+  @Ignore
   @Test
   def test_matrix_mul_multi_tile_naive(): Unit = {
 

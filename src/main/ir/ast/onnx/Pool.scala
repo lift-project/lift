@@ -3,10 +3,11 @@ package ir.ast.onnx
 import ir._
 import ir.ast.{Lambda1, Pattern, fun}
 import ir.interpreter.Interpreter.ValueMap
+import lift.arithmetic.simplifier.SimplifyFloor
 import lift.arithmetic.{ArithExpr, CeilingFunction, Cst, FloorFunction}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
-abstract class Pool(override val arity: Int) extends Pattern(arity) {
+abstract class Pool(override val arity: Int) extends Pattern(arity) with ONNXPattern {
   override def eval(valueMap: ValueMap, args: Any*): Any = {
     assert(args.length == arity)
     throw new NotImplementedException()
@@ -72,7 +73,7 @@ case class MaxPool(autoPad: String,
               pads(i) + pads(dimensionality + i)))
 
             dimIndices.map(i =>
-              FloorFunction((spatialInputDims(i) + padShape.get(i) - kernelShape(i)) / strides(i) + 1))
+              SimplifyFloor((spatialInputDims(i) + padShape.get(i) - kernelShape(i)) / strides(i) + 1))
 
           case "VALID" =>
             // No padding

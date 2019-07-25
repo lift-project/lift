@@ -6,7 +6,8 @@ import ir.ast._
 import opencl.ir._
 import opencl.ir.pattern._
 
-class MatrixVector (override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Matrix Vector Multiplication (gemv)", Seq(4096, 4096), f, 0.0f) {
+@deprecated("Uses an old benchmark infrastructure", "")
+class MatrixVector (override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark("Matrix Vector Multiplication (gemv)", Seq(4096, 4096), f, 0.0f) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     var matrix = inputs(0).asInstanceOf[Array[Array[Float]]]

@@ -10,7 +10,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
   * Corresponds to ONNX (v1.3.0)->Relu.
   * See https://github.com/onnx/onnx/blob/master/docs/Operators.md
   */
-case class Relu() extends Pattern(arity = 1) {
+case class Relu() extends Pattern(arity = 1) with ONNXPattern {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

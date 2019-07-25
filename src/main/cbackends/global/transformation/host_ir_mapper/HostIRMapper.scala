@@ -1,12 +1,18 @@
-package cbackends.global.transformation.empty_kernel_structure
+package cbackends.global.transformation.host_ir_mapper
 
 import cbackends.host.host_ir._
 import ir.ast.{FunCall, Lambda}
 import opencl.ir.TypedOpenCLMemory
+<<<<<<< HEAD:src/main/cbackends/global/transformation/empty_kernel_structure/EmptyKernelStructure.scala
+=======
 
 object EmptyKernelStructure {
 
 
+<<<<<<< HEAD:src/main/cbackends/global/transformation/empty_kernel_structure/EmptyKernelStructure.scala
+
+=======
+>>>>>>> origin/host_code_dev:src/main/cbackends/global/transformation/host_ir_mapper/HostIRMapper.scala
   def apply(lambda: Lambda, intermediateGlobalMemMap: Map[Lambda, Seq[TypedOpenCLMemory]]) : Lambda = {
     val lowered = lambda visitAndRebuild  (pre = {
       /*case fc@FunCall(cf:CPUFunc, arg) =>

@@ -10,14 +10,14 @@ import ir.view._
 import opencl.ir._
 import lift.arithmetic.{?, ArithExpr}
 import opencl.generator.{NDRange, RangesAndCounts}
-import org.clapper.argot.ArgotConverters._
-import org.clapper.argot._
 import rewriting._
 import rewriting.rules._
 import rewriting.macrorules.{MacroRules, ReuseRules, SlideTiling}
 import rewriting.utils._
 import HighLevelRewriteSettings._
 import ParseSettings.strictHighLevelReads
+import _root_.utils.CommandLineParser
+import scopt.OParser
 
 object HighLevelRewrite {
 
@@ -25,108 +25,102 @@ object HighLevelRewrite {
 
   private val processed = new AtomicInteger(0)
 
-  private val parser = new ArgotParser("HighLevelRewrite")
+  case class Config(input: File = null,
+                    output: File = null,
+                    settingsFile: File = null,
+                    explorationDepth: Int = defaultExplorationDepth,
+                    depthFilter: Int = defaultDepthFilter,
+                    distanceFilter: Int = defaultDistanceFilter,
+                    ruleRepetition: Int = defaultRuleRepetition,
+                    ruleCollection: String = defaultRuleCollection,
+                    vectorWidth: Int = defaultVectorWidth,
+                    sequential: Boolean = defaultSequential,
+                    onlyLower: Boolean = defaultOnlyLower)
+  val builder = OParser.builder[Config]
+  var cmdArgs: Option[Config] = None
+  val parser = {
+    import builder._
+    OParser.sequence(
+      programName("HighLevelRewrite"),
+      opt[File]("input").text("Input files to read").required()
+        .validate(f => if (f.exists) success else failure("File \"" + f.getName + "\" does not exist"))
+        .action((arg, c) => c.copy(input = arg)),
 
-  parser.flag[Boolean](List("h", "help"),
-    "Show this message.") {
-    (sValue, _) =>
-      parser.usage()
-      sValue
+      opt[File]('o', "output").text("Store the created lambdas into this folder.").required()
+        .validate(f => if (f.exists) success else failure("File \"" + f.getName + "\" does not exist"))
+        .action((arg, c) => c.copy(output = arg)),
+
+      opt[File]('f', "file").text("The settings file to use.").required()
+        .validate(f => if (f.exists) success else failure("File \"" + f.getName + "\" does not exist"))
+        .action((arg, c) => c.copy(settingsFile = arg)),
+
+      opt[Int]('d', keyExplorationDepth).text(s"How deep to explore (default: $defaultExplorationDepth)")
+        .action((arg, c) => c.copy(explorationDepth = arg)),
+
+      opt[Int](keyDepthFilter).text(s"Cutoff depth for filtering (default: $defaultDepthFilter)")
+        .action((arg, c) => c.copy(depthFilter = arg)),
+
+      opt[Int](keyDistanceFilter).text(s"Number of Split/Join/Scatter/Gather/asVector/asScalar allowed " +
+        s"between user functions (default: $defaultDistanceFilter)")
+        .action((arg, c) => c.copy(distanceFilter = arg)),
+
+      opt[Int](keyRuleRepetition).text(s"How often the same rule can be applied (default: $defaultRuleRepetition)")
+        .action((arg, c) => c.copy(ruleRepetition = arg)),
+
+      opt[String](keyRuleCollection).text(s"Which collection of rules are used for rewriting " +
+        s"(default: $defaultRuleCollection)")
+        .action((arg, c) => c.copy(ruleCollection = arg)),
+
+      opt[Int](keyVectorWidth).text(s"The vector width to use for vectorising rewrites (default: $defaultVectorWidth)")
+        .action((arg, c) => c.copy(vectorWidth = arg)),
+
+      opt[Unit]('s', keySequential).text(s"Don't execute in parallel (default: $defaultSequential)")
+        .action((_, c) => c.copy(sequential = true)),
+
+      opt[Unit](keyOnlyLower).text(s"Do not perform high-level rewriting - only print lambda " +
+        s"to enable next rewriting stages (default: $defaultOnlyLower)")
+        .action((_, c) => c.copy(onlyLower = true)),
+
+      help("help").text("Show this message.")
+    )
   }
-
-  private val input = parser.parameter[String]("input",
-    "Input file containing the lambda to use for rewriting",
-    optional = false) {
-    (s, _) =>
-      val file = new File(s)
-      if (!file.exists)
-        parser.usage("Input file \"" + s + "\" does not exist")
-      s
-  }
-
-  private val output = parser.option[String](List("o", "output"), "name.",
-    "Store the created lambdas into this folder."
-  ) {
-    (s, _) =>
-      val file = new File(s)
-      if (file.exists)
-        parser.usage("Output location \"" + s + "\" already exists")
-      s
-  }
-
-  private val settingsFile = parser.option[String](List("f", "file"), "name",
-    "The settings file to use."
-  ) {
-    (s, _) =>
-      val file = new File(s)
-      if (!file.exists)
-        parser.usage(s"Settings file $file doesn't exist.")
-      s
-  }
-
-  protected[exploration] val explorationDepth = parser.option[Int](List("d", keyExplorationDepth), "exploration depth",
-    s"How deep to explore (default: $defaultExplorationDepth)")
-
-  protected[exploration] val depthFilter = parser.option[Int](List(keyDepthFilter), "depth filter",
-    s"Cutoff depth for filtering (default: $defaultDepthFilter")
-
-  protected[exploration] val distanceFilter = parser.option[Int](List(keyDistanceFilter), "distance filter",
-    s"Number of Split/Join/Scatter/Gather/asVector/asScalar allowed between user functions (default: $defaultDistanceFilter")
-
-  protected[exploration] val ruleRepetition = parser.option[Int](List(keyRuleRepetition), "rule repetition",
-    s"How often the same rule can be applied (default: $defaultRuleRepetition)")
-
-  protected[exploration] val ruleCollection = parser.option[String](List(keyRuleCollection), "rule collection",
-    s"Which collection of rules are used for rewriting (default: $defaultRuleCollection)")
-
-  protected[exploration] val vectorWidth = parser.option[Int](List("vw", keyVectorWidth), "vector width",
-    s"The vector width to use for vectorising rewrites (default: $defaultVectorWidth)")
-
-  protected[exploration] val sequential = parser.flag[Boolean](List("s", "seq", keySequential),
-    s"Don't execute in parallel (default: $defaultSequential")
-
-  protected[exploration] val onlyLower = parser.flag[Boolean](List(keyOnlyLower),
-    s"Do not perform high-level rewriting - only print lambda to enable next rewriting stages (default: $defaultOnlyLower)")
 
   private var settings = HighLevelRewriteSettings.createDefault
 
   def main(args: Array[String]): Unit = {
 
-    try {
-      parser.parse(args)
-      settings = ParseSettings(settingsFile.value).highLevelRewriteSettings
+    cmdArgs = Some(CommandLineParser(parser, args, Config()))
 
-      logger.info(s"Settings:\n$settings")
-      logger.info(s"Arguments: ${args.mkString(" ")}")
-      logger.info(s"Defaults:")
-      logger.info(defaultParameters.mkString("\n"))
+    settings = ParseSettings(Some(cmdArgs.get.settingsFile.getName)).highLevelRewriteSettings
+
+    logger.info(s"Settings:\n$settings")
+    logger.info(s"Arguments: ${args.mkString(" ")}")
+    logger.info(s"Defaults:")
+    logger.info(defaultParameters.mkString("\n"))
 
 
-      val fullFilename = input.value.get
-      // remove file ending if provided
-      val filename = if (fullFilename.contains("."))
-        fullFilename.substring(0, fullFilename.lastIndexOf('.'))
-      else
-        fullFilename
+    val fullFilename = cmdArgs.get.input.getName
+    // remove file ending if provided
+    val filename = if (fullFilename.contains("."))
+      fullFilename.substring(0, fullFilename.lastIndexOf('.'))
+    else
+      fullFilename
 
-      val lambda = ParameterRewrite.readLambdaFromFile(fullFilename)
+    val lambda = SplitSlideRewrite.readLambdaFromFile(fullFilename)
 
-      val dumpThese = if (settings.onlyLower)
-        Seq((lambda, Seq()))
-      else
-        rewriteExpression(lambda)
+    val dumpThese = if (settings.onlyLower)
+      Seq((lambda, Seq()))
+    else
+      rewriteExpression(lambda)
 
-      println(dumpThese.length + " expressions to dump")
+    println(dumpThese.length + " expressions to dump")
 
-      val lambdas = dumpThese.map(_._1)
-      printMinAndMaxDepth(lambdas)
+    val lambdas = dumpThese.map(_._1)
+    printMinAndMaxDepth(lambdas)
 
-      val folderName = output.value.getOrElse(filename.split("/").last)
+    val folderName = cmdArgs.get.output.getName//.getOrElse(filename.split("/").last)
 
-      dumpLambdasToFiles(dumpThese, folderName)
-    } catch {
-      case e: ArgotUsageException => println(e.message)
-    }
+    dumpLambdasToFiles(dumpThese, folderName)
   }
 
   def rewriteExpression(startingExpression: Lambda): Seq[(Lambda, Seq[Rule])] = {
