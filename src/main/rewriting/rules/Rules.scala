@@ -123,6 +123,15 @@ object Rules {
       Join() o Map(MapSeq(f)) o Split(chunkSize) $ arg
   })
 
+
+  val splitJoinMapSeqHost: Rule = splitJoinMapSeqHost(?)
+
+  def splitJoinMapSeqHost(split: ArithExpr) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
+    case FunCall(MapSeq(f), arg) =>
+      val chunkSize = Utils.splitVariable(split, arg.t)
+      Join() o MapSeq(MapSeq(f)) o Split(chunkSize) $ arg
+  })
+
   val joinSplit = Rule("Map(Map(f)) => Split(I) o Map(f) o Join()", {
     case call @ FunCall(Map(Lambda(Array(p), FunCall(Map(f), mapArg),_)), arg)
       if p == mapArg =>
