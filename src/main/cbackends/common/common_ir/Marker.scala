@@ -1,0 +1,17 @@
+package cbackends.common.common_ir
+
+import ir.Type
+import ir.ast.{Expr, FunCall, FunDecl, IRNode}
+
+
+object Marker2 {
+
+  def apply(arg: Expr): FunCall = FunCall(Marker2(), arg)
+
+}
+
+case class Marker2(enable: Boolean = false) extends FunDecl(arity = 1) {
+  override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = this
+  override def checkType(argType: Type, setType: Boolean): Type = argType
+}
+

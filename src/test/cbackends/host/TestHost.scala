@@ -1,6 +1,7 @@
 package cbackends.host
 
-import cbackends.common.common_ir.{Concat, Slice}
+import cbackends.common.common_ir
+import cbackends.common.common_ir.{Concat, Marker2, Slice}
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, PadConstant, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
@@ -2448,6 +2449,45 @@ class TestHost {
     val actual : String = native_compile_and_run(path, file)
     val expected : String = "24, 27, 30, 33, 36, 39, 42, 45, \n"
     assertEquals(expected, actual)
+
+
+    println("Test case test_map done!")
+
+  }
+
+  @Test
+  def test_marker(): Unit = {
+
+    val path = s"$common_path/48.marker"
+    val file = "libmarker.cpp"
+
+    val f = fun(
+      ArrayType(Float, N),
+      in => Marker2(true) o MapSeq(incrementF) $ in
+    )
+
+    val g = if (Rules.splitJoinMapSeqHostMarker.rewrite.isDefinedAt(f.body) ) Rewrite.applyRuleAt(f, f.body, Rules.splitJoinMapSeqHostMarker(Cst(4))) else f
+
+    (s"mkdir -p $path") !
+
+    HostCompiler ! (g, path, List(file) )
+
+    val actual : String = native_compile_and_run(path, file)
+    val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
+    assertEquals(expected, actual)
+
+
+    val f2 = fun(
+      ArrayType(Float, N),
+      in => Marker2(false) o MapSeq(incrementF) $ in
+    )
+
+    val g2 = if (Rules.splitJoinMapSeqHostMarker.rewrite.isDefinedAt(f2.body) ) Rewrite.applyRuleAt(f2, f2.body, Rules.splitJoinMapSeqHostMarker(Cst(4))) else f2
+
+    HostCompiler ! (g2, path, List(file) )
+
+    val actual2 : String = native_compile_and_run(path, file)
+    assertEquals(expected, actual2)
 
 
     println("Test case test_map done!")

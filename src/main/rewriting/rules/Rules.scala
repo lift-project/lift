@@ -1,5 +1,6 @@
 package rewriting.rules
 
+import cbackends.common.common_ir.Marker2
 import ir._
 import ir.ast._
 import lift.arithmetic._
@@ -130,6 +131,17 @@ object Rules {
     case FunCall(MapSeq(f), arg) =>
       val chunkSize = Utils.splitVariable(split, arg.t)
       Join() o MapSeq(MapSeq(f)) o Split(chunkSize) $ arg
+  })
+
+
+  val splitJoinMapSeqHostMarker: Rule = splitJoinMapSeqHostMarker(?)
+
+  def splitJoinMapSeqHostMarker(split: ArithExpr) = Rule("Marker() o Map(f) => Join() o Map(Map(f)) o Split(I)", {
+    case FunCall(Marker2(true), FunCall(MapSeq(f), arg) ) =>
+      val chunkSize = Utils.splitVariable(split, arg.t)
+      Join() o MapSeq(MapSeq(f)) o Split(chunkSize) $ arg
+    case FunCall(Marker2(false), FunCall(MapSeq(f), arg) ) =>
+       FunCall(MapSeq(f), arg)
   })
 
   val joinSplit = Rule("Map(Map(f)) => Split(I) o Map(f) o Join()", {
