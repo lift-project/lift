@@ -5,7 +5,7 @@ import cbackends.common.common_ir.{Concat, Marker2, Marker3, Slice}
 import ir.ast.Pad.Boundary.WrapUnsafe
 import ir.ast.{Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Get, Iterate, Join, Lambda, Pad, PadConstant, Slide, Slide2D, Slide3D, Slide3D_R, Split, Transpose, TransposeW, Unzip, UserFun, Zip, \, fun}
 import ir.{ArrayType, ArrayTypeWSWC, TupleType}
-import lift.arithmetic.{Cst, SizeVar}
+import lift.arithmetic.{Cst, SizeVar, Var}
 import opencl.ir.pattern._
 import opencl.ir.{Float, add, dividedBy, _}
 import org.junit.Assert._
@@ -2501,12 +2501,21 @@ class TestHost {
     val path = s"$common_path/48.marker"
     val file = "libmarker.cpp"
 
+    val x1 = Var("x1")
+    val x2 = Var("x2")
+    val x3 = Cst(4)
+
+    val c1 = Var("c1")
+    val c2 = Var("c2")
+    val c3 = Var("c3")
+
     val f = fun(
       ArrayType(Float, N),
-      in => Marker3("MapSeqMarker", tunable_params = List(1,2,3), cancelCombo = List(2,3,4) ) o MapSeq(incrementF) $ in
+      in => Marker3("MapSeqMarker", tunable_params = List(x1,x2,x3), cancelCombo = List(c1,c2,c3) ) o
+        MapSeq(incrementF) $ in
     )
 
-    val g = if (Rules.splitJoinMapSeqHostMarker3.rewrite.isDefinedAt(f.body) ) Rewrite.applyRuleAt(f, f.body, Rules.splitJoinMapSeqHostMarker3(Cst(4))) else f
+    val g = if (Rules.splitJoinMapSeqHostMarker3.rewrite.isDefinedAt(f.body) ) Rewrite.applyRuleAt(f, f.body, Rules.splitJoinMapSeqHostMarker3(x3)) else f
 
     (s"mkdir -p $path") !
 
@@ -2517,18 +2526,18 @@ class TestHost {
     assertEquals(expected, actual)
 
 
+
     val f2 = fun(
       ArrayType(Float, N),
-      in => Marker3("MapSeqMarker", tunable_params = List(2,3,4), cancelCombo = List(2,3,4) ) o MapSeq(incrementF) $ in
+      in => Marker3("MapSeqMarker", tunable_params = List(c1,c2,c3), cancelCombo = List(c1,c2,c3) ) o MapSeq(incrementF) $ in
     )
 
-    val g2 = if (Rules.splitJoinMapSeqHostMarker3.rewrite.isDefinedAt(f2.body) ) Rewrite.applyRuleAt(f2, f2.body, Rules.splitJoinMapSeqHostMarker3(Cst(4))) else f2
+    val g2 = if (Rules.splitJoinMapSeqHostMarker3.rewrite.isDefinedAt(f2.body) ) Rewrite.applyRuleAt(f2, f2.body, Rules.splitJoinMapSeqHostMarker3(x3)) else f2
 
     HostCompiler ! (g2, path, List(file) )
 
     val actual2 : String = native_compile_and_run(path, file)
     assertEquals(expected, actual2)
-
 
     println("Test case test_map done!")
 

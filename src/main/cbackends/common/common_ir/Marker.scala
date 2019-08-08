@@ -2,6 +2,7 @@ package cbackends.common.common_ir
 
 import ir.Type
 import ir.ast.{Expr, FunCall, FunDecl, IRNode}
+import lift.arithmetic.{ArithExpr, Var}
 
 
 /**
@@ -28,7 +29,7 @@ object Marker3 {
 
 }
 
-case class Marker3(name: String = "default_name", groupID: Int = 0, tunable_params : List[Int] = List(), cancelCombo: List[Int] = List())
+case class Marker3(name: String = "default_name", groupID: Int = 0, tunable_params : List[ArithExpr] = List(), cancelCombo: List[ArithExpr] = List())
   extends FunDecl(arity = 1) {
 
   assert(tunable_params.length == cancelCombo.length);
