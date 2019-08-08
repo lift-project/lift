@@ -2505,9 +2505,9 @@ class TestHost {
     val x2 = Var("x2")
     val x3 = Cst(4)
 
-    val c1 = Var("c1")
-    val c2 = Var("c2")
-    val c3 = Var("c3")
+    val c1 = Cst(1)
+    val c2 = Cst(2)
+    val c3 = Cst(4)
 
     val f = fun(
       ArrayType(Float, N),
@@ -2526,13 +2526,16 @@ class TestHost {
     assertEquals(expected, actual)
 
 
+    val y1 = Cst(1)
+    val y2 = Cst(2)
+    val y3 = Cst(4)
 
     val f2 = fun(
       ArrayType(Float, N),
-      in => Marker3("MapSeqMarker", tunable_params = List(c1,c2,c3), cancelCombo = List(c1,c2,c3) ) o MapSeq(incrementF) $ in
+      in => Marker3("MapSeqMarker", tunable_params = List(y1,y2,y3), cancelCombo = List(c1,c2,c3) ) o MapSeq(incrementF) $ in
     )
 
-    val g2 = if (Rules.splitJoinMapSeqHostMarker3.rewrite.isDefinedAt(f2.body) ) Rewrite.applyRuleAt(f2, f2.body, Rules.splitJoinMapSeqHostMarker3(x3)) else f2
+    val g2 = if (Rules.splitJoinMapSeqHostMarker3.rewrite.isDefinedAt(f2.body) ) Rewrite.applyRuleAt(f2, f2.body, Rules.splitJoinMapSeqHostMarker3(y3)) else f2
 
     HostCompiler ! (g2, path, List(file) )
 
