@@ -1,13 +1,17 @@
 package patterns
 
 import exploration.ParameterRewrite.substituteVars
-import ir.ast.{FunDecl, Lambda}
+import ir.ast.{FunDecl, Lambda, Map}
 import lift.arithmetic.{Cst, Var}
 import opencl.executor.Executor
 import org.junit.Assert.assertEquals
 import patterns.nn.conv.ConvStencil3D
 import patterns.nn.conv.ConvStencil3D.{ConvStencil3DLayerConfig, ConvStencil3DRewriteParams, ConvStencil3DTuneParams}
 import patterns.nn.utils.Utils.slidingOutputSize
+import rewriting.rules.{NeuralNetRules, OpenCLRules, Rule}
+
+import scala.collection.immutable.ListMap
+import scala.collection.mutable.ListBuffer
 
 package object nn {
   trait LayerParams {
@@ -103,13 +107,13 @@ package object nn {
   def validateResults(layerFactory: ConvStencil3D,
                       layerConfigVars: ConvStencil3DLayerConfig,
                       tuneParamVars: ConvStencil3DTuneParams,
-                      substitutionTable: Map[Var, Cst],
+                      substitutionTable: collection.immutable.Map[Var, Cst],
                       liftResult: Array[Float],
                       gold: Array[Array[Array[Array[Float]]]]) = {
-//    val outputWidthHeight = slidingOutputSize(
-//      substituteVars(layerFactory.paddedInputWidthHeight, substitutionTable),
-//      substitutionTable(layerConfigVars.kernelWidthHeight),
-//      substitutionTable(layerConfigVars.kernelStride)).evalInt
+    //    val outputWidthHeight = slidingOutputSize(
+    //      substituteVars(layerFactory.paddedInputWidthHeight, substitutionTable),
+    //      substitutionTable(layerConfigVars.kernelWidthHeight),
+    //      substitutionTable(layerConfigVars.kernelStride)).evalInt
     val outputWidthHeight = slidingOutputSize(
       substitutionTable(tuneParamVars.tileWidthHeight),
       substitutionTable(layerConfigVars.kernelWidthHeight),
@@ -135,4 +139,81 @@ package object nn {
         el._1, el._2, 0.1)
     }
   }
+
+
+
+  case class TuningPoint(tunePointIdx: Int,
+                         values: scala.Vector[Cst],
+                         rewriteRules: ListMap[String, Rule])
+
+  case class LayerPoints(layerConfigIdx: Int,
+                         layerConfig: scala.Vector[Cst],
+                         tuningPoints: ListBuffer[TuningPoint])
+
+
+
+  def parseCSV(csvPath: String): collection.mutable.Map[Int, LayerPoints] = {
+
+    val params = List(
+      "inputChannels", "inputWidthHeight", "padFunc",
+      "kernelChannels", "kernelWidthHeight", "kernelStride",
+      "nKernelsPerWrg", "nWindowsPerThread", "seqOpsPerThread", "tileWidthHeight", "padOptTotal",
+      "reduceSeqUnroll", "vectorise4",
+      "l00", "l01", "l02", "g00", "g01", "g02",
+      "layer_idx", "tune_point_idx",
+      "predicted_rank")
+
+    val bufferedFile = io.Source.fromFile(csvPath)
+    val lineIterator = bufferedFile.getLines
+    val header = lineIterator.next().split(",").map(_.trim)
+    val paramColumns: collection.immutable.Map[String, Int] = params.map(param => param -> header.indexOf(param)).toMap
+
+    val result: collection.mutable.Map[Int, LayerPoints] = collection.mutable.Map[Int, LayerPoints]()
+
+    for (line <- lineIterator) {
+      val values = line.split(",").map(_.trim)
+      val layerConfigIdx = values(paramColumns("layer_idx")).toInt
+
+      // Add layer
+      if (!result.contains(layerConfigIdx))
+        result.put(
+          layerConfigIdx, LayerPoints(
+            layerConfigIdx = layerConfigIdx,
+            layerConfig = Vector(
+              /* nInputs */ Cst(1),
+              /* inputWidthHeight */ Cst(values(paramColumns("inputWidthHeight")).toInt),
+              /* inputChannels */ Cst(values(paramColumns("inputChannels")).toInt),
+              /* kernelWidthHeight */ Cst(values(paramColumns("kernelWidthHeight")).toInt),
+              /* kernelChannels */ Cst(values(paramColumns("kernelChannels")).toInt),
+              /* kernelStride */ Cst(values(paramColumns("kernelStride")).toInt),
+              /* padFunc */ Cst(values(paramColumns("padFunc")).toInt)),
+            tuningPoints = ListBuffer[TuningPoint]()))
+
+      // Add tuning point
+      result(layerConfigIdx).tuningPoints += TuningPoint(
+        tunePointIdx = values(paramColumns("tune_point_idx")).toInt,
+        values = scala.Vector(
+          /* tileWidthHeight */ Cst(values(paramColumns("tileWidthHeight")).toInt),
+          /* nKernelsPerWrg */ Cst(values(paramColumns("nKernelsPerWrg")).toInt),
+          /* seqOpsPerThread */ Cst(values(paramColumns("seqOpsPerThread")).toInt),
+          /* nWindowsPerThread */ Cst(values(paramColumns("nWindowsPerThread")).toInt),
+          /* padOptTotal */ Cst(values(paramColumns("padOptTotal")).toInt)
+        ),
+        rewriteRules = {
+          var rules: ListBuffer[(String, Rule)] = ListBuffer[(String, Rule)]()
+
+          if (values(paramColumns("reduceSeqUnroll")) == "1")
+            rules += (("reduceSeqUnroll", OpenCLRules.reduceSeqUnroll))
+
+          if (values(paramColumns("vectorise4")) == "1")
+            rules += (("vectorise4", NeuralNetRules.StencilRules.vectorise4))
+
+          ListMap(rules: _*)
+        }
+      )
+    }
+
+    result
+  }
+
 }

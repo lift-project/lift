@@ -69,7 +69,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
     layerConfig.nInputs)
 
   val windowChunkType: AT = AT(Float, chunkSize)
-  val windowType: AT = AT(windowChunkType, nChunksInWindow)
+  val chunkedWindowType: AT = AT(windowChunkType, nChunksInWindow)
   val flatWindowType: AT = AT(Float, nFloatsInWindow)
   val xTileType: AT = AT(flatWindowType, nWindowsInTile)
   val xType: AT = AT(xTileType, nTilesTotal)
@@ -166,7 +166,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
 
     def vectoriseCoalesceAndSplit(): FunDecl =
       λ(originalFlatWindowType, (window) =>
-        RewritingGuidePost("windowType") o AssertType(windowType, "vectoriseCoalesceAndSplit() result type") o
+        RewritingGuidePost("arrayOfChunksType") o AssertType(chunkedWindowType, "vectoriseCoalesceAndSplit() result type") o
           // Split into chunks
           RewritingGuidePost("chunkOfVectors") o Split(chunkSize) o
           // Coalesce
@@ -331,37 +331,60 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
     val layerPartialSingleWorkgroupWithKernelShareLambda: Lambda =
       λ(kernelWGroupType, xTileType,
         (kernelWGroup, XTile) => {
-          AssertType(partReducedOutChannelGroupType, "Part reduced X output channel group type") o
+          AssertType(AT(AT(AT(Float, nChunksInWindow), nWindowsInTile), tuneParams.nKernelsPerWrg), "Part reduced output channel group type") o
+            //
             TransposeW() o Join() o
+            //
+            AssertType(AT(AT(AT(AT(Float, nChunksInWindow), tuneParams.nKernelsPerWrg), tuneParams.nWindowsPerThread), nWindowGroupsInTile),
+              "Output value of all reduced window chunks for each input window in a tile for each kernel in a kernel group") o
+            //
             {val map2 = if (!useGlobalMaps) MapLcl(1) else MapSeq
               map2(λ(flatWindowGroupType, (windowGroup) =>
                 Map(TransposeW()) o TransposeW() o
+
+                  AssertType(AT(AT(AT(Float, tuneParams.nKernelsPerWrg), tuneParams.nWindowsPerThread), nChunksInWindow),
+                    "Output value of all reduced window chunks for each input window in a window group " +
+                      "for each kernel in a kernel group") o
 
                   {val map3 = if (!useGlobalMaps) MapLcl(0) else MapGlb(0)
                     map3(λ((partialWindowsAndPartialKernels) => {
 
                       /* Use less private memory by storing one input value at a time */
-                      val partialWindows = Get(partialWindowsAndPartialKernels, 0)
-                      val partialKernels = Get(partialWindowsAndPartialKernels, 1)
-                      MapSeq(MapSeq(toLocal /*toGlobal*/(id))) o Join() o
+                      val partialWindows =
+                        RewritingGuidePost("arrayOfChunksType") o
+                          AssertType(AT(windowChunkType, tuneParams.nWindowsPerThread),
+                            "A group of input window chunks (one chunk per window)") $
+                          Get(partialWindowsAndPartialKernels, 0)
+
+                      val partialKernels =
+                        RewritingGuidePost("arrayOfChunksType") o
+                          AssertType(AT(windowChunkType, tuneParams.nKernelsPerWrg),
+                            "A group of kernel window chunks (one chunk per kernel)") $
+                          Get(partialWindowsAndPartialKernels, 1)
+
+                      AssertType(AT(AT(Float, tuneParams.nKernelsPerWrg), tuneParams.nWindowsPerThread),
+                        "Output value of a single reduced window chunk for each input window in a window group " +
+                          "for each kernel in a kernel group") o
+                        //
+                        MapSeq(MapSeq(toLocal /*toGlobal*/(id))) o Join() o
                         ReduceSeq(λ((acc, elementwiseTupleOfWindowAndKernelGroups) => {
 
                           // Preload partial windows and kernels into private memory before the computations
-                          Let(elementAcrossWindowGroup => {
+                          Let(elementAcrossInputWindowGroup => {
                             Let(elementAcrossKernelGroup => {
 
-                              MapSeq(λ((accAndSingleWindowValue) => {
+                              MapSeq(λ((accAndSingleInputWindowValue) => {
                                 MapSeq(λ((accAndSingleKernelValue) => {
 
                                   val singleAccValue = Get(accAndSingleKernelValue, 0)
-                                  val singleWindowValue = Get(accAndSingleWindowValue, 1)
+                                  val singleWindowValue = Get(accAndSingleInputWindowValue, 1)
                                   val singleKernelValue = Get(accAndSingleKernelValue, 1)
 
                                   RewritingGuidePost("vectorisableDotAndSumUp") $
                                     dotAndSumUp(singleAccValue, /* X */ singleWindowValue, /* kernelW */ singleKernelValue)
 
-                                })) $ Zip(Get(accAndSingleWindowValue, 0), elementAcrossKernelGroup)
-                              })) $ Zip(acc, elementAcrossWindowGroup)
+                                })) $ Zip(Get(accAndSingleInputWindowValue, 0), elementAcrossKernelGroup)
+                              })) $ Zip(acc, elementAcrossInputWindowGroup)
 
                             }) o MapSeq(toPrivate(RewritingGuidePost("vectorisableId") o id)) $
                               Get(elementwiseTupleOfWindowAndKernelGroups, 1)
@@ -375,7 +398,7 @@ class ConvStencil3D(layerConfig: ConvStencil3DLayerConfig,
                         Transpose() $ partialWindows,
                         Transpose() $ partialKernels)
 
-                      }))} $ Zip(
+                    }))} $ Zip(
                   Transpose() o Map(vectoriseCoalesceAndSplit()) $ windowGroup,
                   Transpose() o Map(vectoriseCoalesceAndSplit()) $ kernelWGroup)
               ))} o Split(tuneParams.nWindowsPerThread) $ XTile
