@@ -149,7 +149,8 @@ object Rules {
   def splitJoinMapSeqHostMarker3(split: ArithExpr) = Rule("Marker() o Map(f) => Join() o Map(Map(f)) o Split(I)", {
     case FunCall(Marker3(_, _, tunable_params, cancelCombo), FunCall(MapSeq(f), arg) ) if tunable_params != cancelCombo =>
       //val chunkSize = Utils.splitVariable(split, arg.t)
-      Join() o MapSeq(MapSeq(f)) o Split(split) $ arg
+      assert(tunable_params.size == 3)
+      Join() o MapSeq(MapSeq(f)) o Split(tunable_params(0)) $ arg
     case FunCall(Marker3(_, _, _, _), FunCall(MapSeq(f), arg) ) =>
       FunCall(MapSeq(f), arg)
   })

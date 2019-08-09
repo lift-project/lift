@@ -21,7 +21,7 @@ import scala.sys.process._
 
 import cbackends.common.executor.Executor.{native_compile_and_run}
 
-@Ignore("These tests require fixes from host_code_gen_fft")
+//@Ignore("These tests require fixes from host_code_gen_fft")
 class TestHost {
 
   val common_path = System.getProperty("user.dir") + "/src/test/cbackends/host"
@@ -2515,18 +2515,20 @@ class TestHost {
         MapSeq(incrementF) $ in
     )
 
-    val g = if (Rules.splitJoinMapSeqHostMarker3.rewrite.isDefinedAt(f.body) ) Rewrite.applyRuleAt(f, f.body, Rules.splitJoinMapSeqHostMarker3(x3)) else f
+    //val g = if (Rules.splitJoinMapSeqHostMarker3.rewrite.isDefinedAt(f.body) ) Rewrite.applyRuleAt(f, f.body, Rules.splitJoinMapSeqHostMarker3(x3)) else f
+    val g = Rewrite.applyRulesUntilCannot(f, Seq(Rules.splitJoinMapSeqHostMarker3))
 
     (s"mkdir -p $path") !
 
-    HostCompiler ! (g, path, List(file) )
+    //can not compile, as this rewrite is only for infer constraints, thus can not be compiled
+    //HostCompiler ! (g, path, List(file) )
 
-    val actual : String = native_compile_and_run(path, file)
+    //val actual : String = native_compile_and_run(path, file)
     val expected : String = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 \n"
-    assertEquals(expected, actual)
+    //assertEquals(expected, actual)
 
 
-    val y1 = Cst(1)
+    val y1 = Cst(4)
     val y2 = Cst(2)
     val y3 = Cst(4)
 
@@ -2535,12 +2537,31 @@ class TestHost {
       in => Marker3("MapSeqMarker", tunable_params = List(y1,y2,y3), cancelCombo = List(c1,c2,c3) ) o MapSeq(incrementF) $ in
     )
 
-    val g2 = if (Rules.splitJoinMapSeqHostMarker3.rewrite.isDefinedAt(f2.body) ) Rewrite.applyRuleAt(f2, f2.body, Rules.splitJoinMapSeqHostMarker3(y3)) else f2
+    //val g2 = if (Rules.splitJoinMapSeqHostMarker3.rewrite.isDefinedAt(f2.body) ) Rewrite.applyRuleAt(f2, f2.body, Rules.splitJoinMapSeqHostMarker3(y3)) else f2
+    val g2 = Rewrite.applyRulesUntilCannot(f2, Seq(Rules.splitJoinMapSeqHostMarker3))
 
     HostCompiler ! (g2, path, List(file) )
 
     val actual2 : String = native_compile_and_run(path, file)
     assertEquals(expected, actual2)
+
+
+    val z1 = Cst(1)
+    val z2 = Cst(2)
+    val z3 = Cst(4)
+
+    val f3 = fun(
+      ArrayType(Float, N),
+      in => Marker3("MapSeqMarker", tunable_params = List(z1,z2,z3), cancelCombo = List(c1,c2,c3) ) o MapSeq(incrementF) $ in
+    )
+
+    //val g2 = if (Rules.splitJoinMapSeqHostMarker3.rewrite.isDefinedAt(f2.body) ) Rewrite.applyRuleAt(f2, f2.body, Rules.splitJoinMapSeqHostMarker3(y3)) else f2
+    val g3 = Rewrite.applyRulesUntilCannot(f3, Seq(Rules.splitJoinMapSeqHostMarker3))
+
+    HostCompiler ! (g3, path, List(file) )
+
+    val actual3 : String = native_compile_and_run(path, file)
+    assertEquals(expected, actual3)
 
     println("Test case test_map done!")
 
