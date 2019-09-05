@@ -30,7 +30,8 @@ args = parser.parse_args()
 # Data params
 noise_var = 0
 num_datapoints = 100
-test_size = 0.2
+# test_size = 0.2
+test_size = 0.01
 num_train = int((1-test_size) * num_datapoints)
 num_test = num_datapoints - num_train
 
@@ -202,10 +203,10 @@ def test(model, loss_fn, X_test, y_test, y_test_pred_post_train = None,
     print("Test targets: ", y_test)
     print("Test outputs: ", y_test_pred)
 
-    plt.plot(y_test_pred.detach().numpy(), label="Test preds", linewidth=7.0)
-    plt.plot(y_test.detach().numpy(), label="Test targets")
+    plt.plot(y_test_pred.detach().numpy(), label="Test preds", linewidth=7.0, marker='o')
+    plt.plot(y_test.detach().numpy(), label="Test targets", marker='o')
     if y_test_pred_post_train is not None:  
-        plt.plot(y_test_pred_post_train.detach().numpy(), label="Post-train test preds", color="black")
+        plt.plot(y_test_pred_post_train.detach().numpy(), label="Post-train test preds", color="black", marker='o')
     plt.legend()
     plt.show()
 
