@@ -54,6 +54,7 @@ weights_file_path = join(args.train_out_dir, "trained_lstm_weights.serial")
 inputs_file_path = join(args.train_out_dir, "lstm_inputs.pickle")
 gold_outputs_file_path = join(args.train_out_dir, "lstm_gold_outputs.pickle")
 pytorch_outputs_file_path = join(args.train_out_dir, "pytorch_gold_outputs.pickle")
+pytorch_lstm0_out_file_path = join(args.train_out_dir, "pytorch_lstm0_outputs.pickle")
 
 #####################
 # Build model
@@ -94,7 +95,7 @@ class LSTM(nn.Module):
         # Only take the output from the final timetep
         # Can pass on the entirety of lstm_out to the next layer if it is a seq2seq prediction
         y_pred = self.linear(lstm_out[-1].view(self.batch_size, -1))
-        return y_pred.view(-1)
+        return lstm_out, y_pred.view(-1)
 
 
 def init_model():
@@ -107,7 +108,8 @@ def train():
     #####################
     # Generate data
     #####################
-    data = ARData(num_datapoints, num_prev=input_size, test_size=test_size, noise_var=noise_var, coeffs=fixed_ar_coefficients[input_size])
+    data = ARData(num_datapoints, num_prev=input_size, test_size=test_size, noise_var=noise_var, 
+        coeffs=fixed_ar_coefficients[input_size])
 
     # make training and test sets in torch
     X_train = torch.from_numpy(data.X_train).type(torch.Tensor)
@@ -134,7 +136,7 @@ def train():
         # model.hidden_state = model.init_hidden_state()
         
         # Forward pass
-        y_pred = model(X_train)
+        _, y_pred = model(X_train)
 
         loss = loss_fn(y_pred, y_train)
         if t % 100 == 0:
@@ -153,12 +155,12 @@ def train():
     #####################
     # Test
     #####################
-    y_test_pred = test(model, loss_fn, X_test, y_test)
+    lstm0_out, y_test_pred = test(model, loss_fn, X_test, y_test)
 
     #####################
     # Save data to disk
     #####################
-    backup_model_and_data(model, X_test, y_test, y_test_pred)
+    backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out)
 
     #####################
     # Plot preds and performance
@@ -174,21 +176,25 @@ def train():
     plt.show()
 
 
-def test(model, loss_fn, X_test, y_test, y_test_pred_post_train = None):
+def test(model, loss_fn, X_test, y_test, y_test_pred_post_train = None, 
+         lstm0_out_post_train = None):
     #####################
     # Test
     #####################
     model.set_batch_size(num_test)
 
-    y_test_pred = model(X_test)
+    lstm0_out, y_test_pred = model(X_test)
     test_loss = loss_fn(y_test_pred, y_test)
     if y_test_pred_post_train is not None:
         test_loss_against_post_train_test = loss_fn(y_test_pred, y_test_pred_post_train)
+        test_lstm0_loss_against_post_train_test = loss_fn(lstm0_out, lstm0_out_post_train)
 
     print("Test MSE against golden outputs: ", test_loss.item())
     if y_test_pred_post_train is not None:  
         print("Test MSE against post-train PyTorch outputs: ", 
             test_loss_against_post_train_test.item())
+        print("Test LSTM0 output MSE against post-train PyTorch LSTM0 outputs: ", 
+            test_lstm0_loss_against_post_train_test.item())
     print("Test targets: ", y_test)
     print("Test outputs: ", y_test_pred)
 
@@ -199,10 +205,10 @@ def test(model, loss_fn, X_test, y_test, y_test_pred_post_train = None):
     plt.legend()
     plt.show()
 
-    return y_test_pred
+    return lstm0_out, y_test_pred
 
 
-def backup_model_and_data(model, X_test, y_test, y_test_pred):
+def backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out):
     #####################
     # Save data to disk
     #####################
@@ -210,6 +216,7 @@ def backup_model_and_data(model, X_test, y_test, y_test_pred):
     pickle.dump(X_test, open(inputs_file_path, "wb"))
     pickle.dump(y_test, open(gold_outputs_file_path, "wb"))    
     pickle.dump(y_test_pred, open(pytorch_outputs_file_path, "wb")) 
+    pickle.dump(lstm0_out, open(pytorch_lstm0_out_file_path, "wb")) 
 
 
 def restore_model_and_data():
@@ -223,8 +230,9 @@ def restore_model_and_data():
     X_test = pickle.load(open(inputs_file_path, "rb"))
     y_test = pickle.load(open(gold_outputs_file_path, "rb"))            
     y_test_pred_post_train = pickle.load(open(pytorch_outputs_file_path, "rb"))  
+    lstm0_out = pickle.load(open(pytorch_lstm0_out_file_path, "rb"))  
 
-    return (model, loss_fn, X_test, y_test, y_test_pred_post_train)
+    return (model, loss_fn, X_test, y_test, y_test_pred_post_train, lstm0_out)
 
     
 
@@ -236,7 +244,7 @@ def test_without_training():
 if args.train:
     print("Training the model")
     train()
-    
+
 if args.test:
     print("Testing the model")
     test_without_training()
