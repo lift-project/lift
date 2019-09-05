@@ -35,13 +35,14 @@ num_train = int((1-test_size) * num_datapoints)
 num_test = num_datapoints - num_train
 
 # Network params
-input_size = 20
+input_time_sequence_size = 20
+input_vector_length = 50
 # If `per_element` is True, then LSTM reads in one timestep at a time.
 per_element = True
 if per_element:
-    lstm_input_size = 1
+    lstm_input_sequence_size = 1
 else:
-    lstm_input_size = input_size
+    lstm_input_sequence_size = input_time_sequence_size
 # size of hidden layers
 h1 = 32
 output_dim = 1
@@ -63,16 +64,17 @@ pytorch_lstm0_out_file_path = join(args.train_out_dir, "pytorch_lstm0_outputs.pi
 # Here we define our model as a class
 class LSTM(nn.Module):
 
-    def __init__(self, input_dim, hidden_dim, batch_size, output_dim=1,
-                    num_layers=2):
+    def __init__(self, input_seq_size, hidden_dim, batch_size, output_dim=1,
+                    num_layers=2, vector_len=8):
         super(LSTM, self).__init__()
-        self.input_dim = input_dim
+        self.input_seq_size = input_seq_size
         self.hidden_dim = hidden_dim
         self.set_batch_size(batch_size)
         self.num_layers = num_layers
+        self.vector_len = vector_len
 
         # Define the LSTM layer
-        self.lstm = nn.LSTM(self.input_dim, self.hidden_dim, self.num_layers)
+        self.lstm = nn.LSTM(self.vector_len, self.hidden_dim, self.num_layers)
 
         # Define the output layer
         self.linear = nn.Linear(self.hidden_dim, output_dim)
@@ -90,7 +92,7 @@ class LSTM(nn.Module):
         # shape of lstm_out: [input_size, batch_size, hidden_dim]
         # shape of self.hidden: (a, b), where a and b both 
         # have shape (num_layers, batch_size, hidden_dim).
-        lstm_out, self.hidden = self.lstm(input.view(len(input), self.batch_size, -1))
+        lstm_out, self.hidden = self.lstm(input)
         
         # Only take the output from the final timetep
         # Can pass on the entirety of lstm_out to the next layer if it is a seq2seq prediction
@@ -100,7 +102,8 @@ class LSTM(nn.Module):
 
 def init_model():
     return (
-        LSTM(lstm_input_size, h1, batch_size=num_train, output_dim=output_dim, num_layers=num_layers),
+        LSTM(lstm_input_sequence_size, h1, batch_size=num_train, output_dim=output_dim, 
+            num_layers=num_layers, vector_len=input_vector_length),
         torch.nn.MSELoss(size_average=False))
 
 
@@ -108,8 +111,9 @@ def train():
     #####################
     # Generate data
     #####################
-    data = ARData(num_datapoints, num_prev=input_size, test_size=test_size, noise_var=noise_var, 
-        coeffs=fixed_ar_coefficients[input_size])
+    data = ARData(num_datapoints, num_prev=input_time_sequence_size, test_size=test_size, noise_var=noise_var,
+        vector_len=input_vector_length,
+        coeffs=fixed_ar_coefficients[input_time_sequence_size])
 
     # make training and test sets in torch
     X_train = torch.from_numpy(data.X_train).type(torch.Tensor)
@@ -117,8 +121,8 @@ def train():
     y_train = torch.from_numpy(data.y_train).type(torch.Tensor).view(-1)
     y_test = torch.from_numpy(data.y_test).type(torch.Tensor).view(-1)
 
-    X_train = X_train.view([input_size, -1, 1])
-    X_test = X_test.view([input_size, -1, 1])
+    X_train = X_train.view([input_time_sequence_size, -1, input_vector_length])
+    X_test = X_test.view([input_time_sequence_size, -1, input_vector_length])
 
     #####################
     # Train model

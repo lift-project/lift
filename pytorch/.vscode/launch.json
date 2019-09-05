@@ -13,7 +13,7 @@
             "console": "integratedTerminal",
             "args": [
                 "--train_out_dir", "/home/naumog01/spatial-compute-lift/resources",
-                "--test"
+                "--train"
             ]
         }
     ]
