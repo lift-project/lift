@@ -1,6 +1,5 @@
 [submodule "lib/ArithExpr"]
   path = lib/ArithExpr
-  url = git@bitbucket.org:cdubach/arithexpr.git
-
+  url = git@github.com:lift-project/arithexpr.git
 
 
