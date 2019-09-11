@@ -37,7 +37,7 @@ num_test = num_datapoints - num_train
 
 # Network params
 input_time_sequence_size = 20
-input_vector_length = 50
+input_vector_length = 64
 # If `per_element` is True, then LSTM reads in one timestep at a time.
 per_element = True
 if per_element:
