@@ -34,6 +34,8 @@ object LowerIR2HostCAST {
   val ocl_boilerplate_code = ExpressionStatement(RawCode(
     """
       |#include <iostream>
+      |#define CL_HPP_MINIMUM_OPENCL_VERSION 120
+      |#define CL_HPP_TARGET_OPENCL_VERSION 120
       |#include <CL/cl2.hpp>
       |#include <fstream>
       |

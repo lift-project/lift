@@ -138,10 +138,6 @@ object GlobalCompiler{
         ocl_source_files.foreach(file => println("Saved a kernel in " + file.path + "/" + file.file))
       }
     }
-
-
-    println("hello")
-
   }
 
 

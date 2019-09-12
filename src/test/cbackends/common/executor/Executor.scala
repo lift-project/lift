@@ -1,7 +1,8 @@
 package cbackends.common.executor
 
-import scala.sys.process._
+import java.io.File
 
+import scala.sys.process._
 import scala.language.postfixOps
 
 object Executor {
@@ -20,7 +21,7 @@ object Executor {
 
   private def run_executable(path: String, file: String): String = {
 
-    ( ( if(path.isEmpty()) "./" else path + "/" ) + s"$file" ) !!
+    Process(s"./$file", new File(if (path.isEmpty) "./" else path)) !!
 
   }
 
@@ -28,9 +29,9 @@ object Executor {
 
     compile_native(path, "main.cpp")
 
-    val status_code = (s"rm $path" + "/" + s"$file") !
-
-    assert(status_code == 0, "Delete generated lib file error!")
+//    val status_code = (s"rm $path" + "/" + s"$file") !
+//
+//    assert(status_code == 0, "Delete generated lib file error!")
 
     val result = run_executable(path, "a.out")
 
