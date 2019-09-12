@@ -1,6 +1,6 @@
 package cbackends.common.memory_management
 
-import cbackends.common.common_ir.{Concat, Slice}
+import cbackends.common.common_ir.Slice
 import core.generator.GenericAST.CVarWithType
 import ir.ast.{AbstractMap, AbstractPartRed, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, FunCall, Get, IRNode, Iterate, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Zip}
 import lift.arithmetic.ArithExpr
@@ -118,16 +118,6 @@ object FinalMemoryAllocationAnalysis {
       case fc@FunCall(_:Join|_:Slide|_:Zip|_:Get|_:Split|_:Join|_:Transpose|_:TransposeW|_:Pad |_:ToLCP | _:ToGPE | _:ArrayAccess | _:Slice, args@_*) =>
         //args.foreach(analyze(_))
         args.map(analyze(_)).reduce( _ ++ _ )
-
-      case fc@FunCall(_:Concat, args@_*) =>
-        val args_map = args.map(analyze(_)).reduce( _ ++ _ )
-        val new_args_map_without_arg_mem =  (args_map /: args ) ( (acc, arg)  => acc - arg.mem.variable.toString )
-        new_args_map_without_arg_mem + (
-          fc.mem.variable.toString -> (
-            CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ) ,
-            Type.getElementCount(fc.t),
-            fc.addressSpace
-          ) )
 
     }
   }

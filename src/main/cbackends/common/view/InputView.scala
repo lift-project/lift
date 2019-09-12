@@ -1,6 +1,6 @@
 package cbackends.common.view
 
-import cbackends.common.common_ir.{Concat, Slice}
+import cbackends.common.common_ir.Slice
 import cbackends.common.utils.common_view.GenerateViewForRawInOut
 import ir._
 import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Iterate, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
@@ -115,7 +115,7 @@ object InputView {
 
       }
 
-      case fc@FunCall(_:UserFun | _:OpaqueCPUFunc | _:OpaqueOclFunc | _:ToGPU | _:ToHost | _:Concat, args@_*)  => {
+      case fc@FunCall(_:UserFun | _:OpaqueCPUFunc | _:OpaqueOclFunc | _:ToGPU | _:ToHost, args@_*)  => {
 
         args.foreach( cont(_) )
 

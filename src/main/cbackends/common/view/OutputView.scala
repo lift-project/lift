@@ -1,6 +1,6 @@
 package cbackends.common.view
 
-import cbackends.common.common_ir.{CPUNullMemory, Concat, HostMemory, Slice}
+import cbackends.common.common_ir.{CPUNullMemory, HostMemory, Slice}
 import cbackends.common.utils.common_view.GenerateViewForRawInOut
 import ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, Type}
 import ir.ast.{AbstractMap, AbstractPartRed, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Expr, FunCall, Get, IRNode, Iterate, Join, Lambda, Pad, Param, Slide, Split, Transpose, TransposeW, UserFun, Value, Zip, transpose}
@@ -524,26 +524,6 @@ object OutputView {
         assert(arg.outputView != NoView)
 
         cont( arg )
-
-        fc
-      }
-
-      case fc@FunCall(_:Concat, args@_*) => {
-
-        assert(fc.outputView != NoView)
-
-        var currIdx : ArithExpr = 0
-
-        args.foreach(  a => {
-          val endIdx: ArithExpr = currIdx + Type.getElementCount(a.t)
-          a.outputView = fc.outputView.slice(Slice(currIdx, endIdx))
-          currIdx = endIdx
-         }
-        )
-
-        args.foreach( a => assert( a.outputView != NoView ) )
-
-        args.foreach( cont( _ ) )
 
         fc
       }

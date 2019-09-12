@@ -38,7 +38,7 @@ object MemoryAllocator {
         fc.mem = OpenCLMemory(Var(s"user_func_${fc.gid}", ContinuousRange(Cst(0), size)), size, fc.addressSpace )
         fc
 
-      case fc@FunCall(_:UserFun | _:OpaqueCPUFunc | _:ToHost | _:Concat, args@_*) => {
+      case fc@FunCall(_:UserFun | _:OpaqueCPUFunc | _:ToHost, args@_*) => {
         //link the arg to the correct param is already done in its upper level FPattern
         args.foreach(cont(_))
 
