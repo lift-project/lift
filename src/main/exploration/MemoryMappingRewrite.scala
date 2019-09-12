@@ -8,8 +8,6 @@ import exploration.detection.{DetectCommunicationBetweenThreads, DetectReuseAcro
 import ir._
 import ir.ast._
 import opencl.ir.pattern._
-import org.clapper.argot.ArgotConverters._
-import org.clapper.argot._
 import rewriting._
 import rewriting.macrorules.MacroRules
 import rewriting.rules._
@@ -17,6 +15,8 @@ import rewriting.utils.{DumpToFile, NumberExpression}
 import rewriting.utils.Utils.getHash
 import exploration.MemoryMappingRewriteSettings._
 import exploration.LocalMemoryRulesSettings._
+import _root_.utils.CommandLineParser
+import scopt.OParser
 
 import scala.io.Source
 
@@ -25,150 +25,158 @@ object MemoryMappingRewrite {
 
   private val logger = Logger(this.getClass)
 
-  private val parser = new ArgotParser("MemoryMappingRewrite")
+  case class Config(input: File = null,
+                    settingsFile: File = null,
+                    vectorize: Boolean = defaultVectorize,
+                    vectorWidth: Int = defaultVectorWidth,
+                    sequential: Boolean = defaultSequential,
+                    loadBalancing: Boolean = defaultLoadBalancing,
+                    unrollReduce: Boolean = defaultUnrollReduce,
+                    global0: Boolean = defaultGlobal0,
+                    global01: Boolean = defaultGlobal01,
+                    global10: Boolean = defaultGlobal10,
+                    global012: Boolean = defaultGlobal012,
+                    global210: Boolean = defaultGlobal210,
+                    group0: Boolean = defaultGroup0,
+                    group01: Boolean = defaultGroup01,
+                    group10: Boolean = defaultGroup10,
+                    addIdForCurrentValueInReduce: Boolean = defaultAddIdForCurrentValueInReduce,
+                    addIdMapLcl: Boolean = defaultAddIdMapLcl,
+                    addIdMapWrg: Boolean = defaultAddIdMapWrg,
+                    addIdAfterReduce: Boolean = defaultAddIdAfterReduce)
 
-  parser.flag[Boolean](List("h", "help"),
-    "Show this message.") {
-    (sValue, _) =>
-      parser.usage()
-      sValue
+  val builder = OParser.builder[Config]
+  var cmdArgs: Option[Config] = None
+  val parser = {
+    import builder._
+    OParser.sequence(
+      programName("MemoryMappingRewrite"),
+      opt[File]("input").text("Input files to read").required()
+        .validate(f => if (f.exists) success else failure("File \"" + f.getName + "\" does not exist"))
+        .action((arg, c) => c.copy(input = arg)),
+
+      opt[File]('f', "file").text("The settings file to use.").required()
+        .validate(f => if (f.exists) success else failure("File \"" + f.getName + "\" does not exist"))
+        .action((arg, c) => c.copy(settingsFile = arg)),
+
+    opt[Unit](keyVectorize).text(s"Apply vectorization (default: $defaultVectorize)")
+      .action((_, c) => c.copy(vectorize = true)),
+
+    opt[Int](keyVectorWidth).text(s"The vector width to use for vectorising rewrites (default: $defaultVectorWidth)")
+      .action((arg, c) => c.copy(vectorWidth = arg)),
+
+    opt[Unit]('s', keySequential).text(s"Don't execute in parallel (default: $defaultSequential")
+      .action((_, c) => c.copy(sequential = true)),
+
+    opt[Unit]('l', keyLoadBalancing).text(s"Enable load balancing using MapAtomLocal and MapAtomWrg (default: $defaultLoadBalancing)")
+      .action((_, c) => c.copy(loadBalancing = true)),
+
+    opt[Unit]('u', keyUnrollReduce).text(s"Additionally generate expressions also using ReduceSeqUnroll (default: $defaultUnrollReduce)")
+      .action((_, c) => c.copy(unrollReduce = true)),
+
+    opt[Unit](keyGlobal0).abbr("gl0").text(s"Mapping: MapGlb(0)( MapSeq(...) ) (default: $defaultGlobal0)")
+      .action((_, c) => c.copy(global0 = true)),
+
+    opt[Unit](keyGlobal01).abbr("gl01").text(s"Mapping: MapGlb(0)(MapGlb(1)( MapSeq(...) )) (default: $defaultGlobal01)")
+      .action((_, c) => c.copy(global01 = true)),
+
+    opt[Unit](keyGlobal10).abbr("gl10").text(s"Mapping: MapGlb(1)(MapGlb(0)( MapSeq(...) )) (default: $defaultGlobal10)")
+      .action((_, c) => c.copy(global10 = true)),
+
+    opt[Unit](keyGlobal012).abbr("gl012").text(s"Mapping: MapGlb(0)(MapGlb(1)(MapGlb(2)( MapSeq(...) ))) (default: $defaultGlobal012)")
+      .action((_, c) => c.copy(global012 = true)),
+
+    opt[Unit](keyGlobal210).abbr("gl210").text(s"Mapping: MapGlb(2)(MapGlb(1)(MapGlb(0)( MapSeq(...) ))) (default: $defaultGlobal210)")
+      .action((_, c) => c.copy(global210 = true)),
+
+    opt[Unit](keyGroup0).abbr("gr0").text(s"Mapping: MapWrg(0)(MapLcl(0)( MapSeq(...) )) (default: $defaultGroup0)")
+      .action((_, c) => c.copy(group0 = true)),
+
+    opt[Unit](keyGroup01).abbr("gr01").text(s"Mapping: MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)( MapSeq(...) )))) " +
+      s"(default: $defaultGroup01)")
+      .action((_, c) => c.copy(group01 = true)),
+
+    opt[Unit](keyGroup10).abbr("gr10").text(s"Mapping: MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)( MapSeq(...) )))) " +
+      s"(default: $defaultGroup10)")
+      .action((_, c) => c.copy(group10 = true)),
+
+    opt[Unit](keyAddIdForCurrentValueInReduce).text(s"Enable local memory rule: addIdForCurrentValueInReduce " +
+      s"(default: $defaultAddIdForCurrentValueInReduce)")
+      .action((_, c) => c.copy(addIdForCurrentValueInReduce = true)),
+
+    opt[Unit](keyAddIdMapLcl).text(s"Enable local memory rule: addIdMapLcl (default: $defaultAddIdMapLcl)")
+      .action((_, c) => c.copy(addIdMapLcl = true)),
+
+    opt[Unit](keyAddIdMapWrg).text(s"Enable local memory rule: addIdMapWrg (default: $defaultAddIdMapWrg)")
+      .action((_, c) => c.copy(addIdMapWrg = true)),
+
+    opt[Unit](keyAddIdAfterReduce).text(s"Enable local memory rule: addIdAfterReduce (default: $defaultAddIdAfterReduce)")
+      .action((_, c) => c.copy(addIdAfterReduce = true)),
+
+      help("help").text("Show this message.")
+    )
   }
 
-  private val input = parser.parameter[String]("input",
-    "Input file containing the lambda to use for rewriting",
-    optional = false) {
-    (s, _) =>
-      val file = new File(s)
-      if (!file.exists)
-        parser.usage("Input file \"" + s + "\" does not exist")
-      s
-  }
-
-  private val settingsFile = parser.option[String](List("f", "file"), "name",
-    "The settings file to use."
-    ) {
-    (s, _) =>
-      val file = new File(s)
-      if (!file.exists)
-        parser.usage(s"Settings file $file doesn't exist.")
-      s
-  }
-
-  protected[exploration] val vectorize : FlagOption[Boolean] = parser.flag[Boolean](List(keyVectorize),
-    s"Apply vectorization (default: $defaultVectorize)")
-
-  protected[exploration] val vectorWidth : SingleValueOption[Int] = parser.option[Int](List(keyVectorWidth, "vw"), "vector width",
-    s"The vector width to use for vectorising rewrites (default: $defaultVectorWidth)")
-
-  private[exploration] val sequential : FlagOption[Boolean] = parser.flag[Boolean](List("s", "seq", keySequential),
-    s"Don't execute in parallel (default: $defaultSequential)")
-
-  private[exploration] val loadBalancing : FlagOption[Boolean] = parser.flag[Boolean](List("l", "lb", keyLoadBalancing),
-    s"Enable load balancing using MapAtomLocal and MapAtomWrg (default: $defaultLoadBalancing)")
-
-  private[exploration] val unrollReduce : FlagOption[Boolean] = parser.flag[Boolean](List("u", "ur", keyUnrollReduce),
-    s"Additionally generate expressions also using ReduceSeqUnroll (default: $defaultUnrollReduce)")
-
-  private[exploration] val global0 : FlagOption[Boolean] = parser.flag[Boolean](List("gl0", keyGlobal0),
-    s"Mapping: MapGlb(0)( MapSeq(...) ) (default: $defaultGlobal0)")
-
-  private[exploration] val global01 : FlagOption[Boolean] = parser.flag[Boolean](List("gl01", keyGlobal01),
-    s"Mapping: MapGlb(0)(MapGlb(1)( MapSeq(...) )) (default: $defaultGlobal01)")
-
-  private[exploration] val global10 : FlagOption[Boolean] = parser.flag[Boolean](List("gl10", keyGlobal10),
-    s"Mapping: MapGlb(1)(MapGlb(0)( MapSeq(...) )) (default: $defaultGlobal10)")
-
-  private[exploration] val global012 : FlagOption[Boolean] = parser.flag[Boolean](List("gl012", keyGlobal012),
-    s"Mapping: MapGlb(0)(MapGlb(1)(MapGlb(2)( MapSeq(...) ))) (default: $defaultGlobal012)")
-
-  private[exploration] val global210 : FlagOption[Boolean] = parser.flag[Boolean](List("gl210", keyGlobal210),
-    s"Mapping: MapGlb(2)(MapGlb(1)(MapGlb(0)( MapSeq(...) ))) (default: $defaultGlobal210)")
-
-  private[exploration] val group0 : FlagOption[Boolean] = parser.flag[Boolean](List("gr0", keyGroup0),
-    s"Mapping: MapWrg(0)(MapLcl(0)( MapSeq(...) )) (default: $defaultGroup0)")
-
-  private[exploration] val group01 : FlagOption[Boolean] = parser.flag[Boolean](List("gr01", keyGroup01),
-    s"Mapping: MapWrg(0)(MapWrg(1)(MapLcl(0)(MapLcl(1)( MapSeq(...) )))) (default: $defaultGroup01)")
-
-  private[exploration] val group10 : FlagOption[Boolean] = parser.flag[Boolean](List("gr10", keyGroup10),
-    s"Mapping: MapWrg(1)(MapWrg(0)(MapLcl(1)(MapLcl(0)( MapSeq(...) )))) (default: $defaultGroup10)")
-
-  private[exploration] val addIdForCurrentValueInReduce : FlagOption[Boolean] = parser.flag[Boolean](List(keyAddIdForCurrentValueInReduce),
-    s"Enable local memory rule: addIdForCurrentValueInReduce (default: $defaultAddIdForCurrentValueInReduce)")
-
-  private[exploration] val addIdMapLcl : FlagOption[Boolean] = parser.flag[Boolean](List(keyAddIdMapLcl),
-    s"Enable local memory rule: addIdMapLcl (default: $defaultAddIdMapLcl)")
-
-  private[exploration] val addIdMapWrg : FlagOption[Boolean] = parser.flag[Boolean](List(keyAddIdMapWrg),
-    s"Enable local memory rule: addIdMapWrg (default: $defaultAddIdMapWrg)")
-
-  private[exploration] val addIdAfterReduce : FlagOption[Boolean] = parser.flag[Boolean](List(keyAddIdAfterReduce),
-    s"Enable local memory rule: addIdAfterReduce (default: $defaultAddIdAfterReduce)")
 
   private var settings = Settings()
 
   def main(args: Array[String]): Unit = {
 
-    try {
+    cmdArgs = Some(CommandLineParser(parser, args, Config()))
 
-      parser.parse(args)
-      settings = ParseSettings(settingsFile.value)
-      val config = settings.memoryMappingRewriteSettings
+    settings = ParseSettings(Some(cmdArgs.get.settingsFile.getName))
+    val config = settings.memoryMappingRewriteSettings
 
-      val enabledMappings =
-        EnabledMappings(
-          config.global0,
-          config.global01,
-          config.global10,
-          config.global012,
-          config.global210,
-          config.group0,
-          config.group01,
-          config.group10
-        )
+    val enabledMappings =
+      EnabledMappings(
+        config.global0,
+        config.global01,
+        config.global10,
+        config.global012,
+        config.global210,
+        config.group0,
+        config.group01,
+        config.group10
+      )
 
-      if (!enabledMappings.isOneEnabled) scala.sys.error("No mappings enabled")
+    if (!enabledMappings.isOneEnabled) scala.sys.error("No mappings enabled")
 
-      logger.info(s"Settings:\n$settings")
-      logger.info(s"Arguments: ${args.mkString(" ")}")
-      logger.info("Defaults:")
-      logger.info(s"\tVector width: $defaultVectorWidth")
-      logger.info(s"\tMappings: $enabledMappings")
+    logger.info(s"Settings:\n$settings")
+    logger.info(s"Arguments: ${args.mkString(" ")}")
+    logger.info("Defaults:")
+    logger.info(s"\tVector width: $defaultVectorWidth")
+    logger.info(s"\tMappings: $enabledMappings")
 
-      val topFolder = input.value.get
+    val topFolder = cmdArgs.get.input.getName
 
-      val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
+    val all_files = Source.fromFile(s"$topFolder/index").getLines().toList
 
-      val counter = new AtomicInteger()
+    val counter = new AtomicInteger()
 
-      val allFilesPar = if (config.sequential) all_files else all_files.par
+    val allFilesPar = if (config.sequential) all_files else all_files.par
 
-      allFilesPar.foreach(filename => {
+    allFilesPar.foreach(filename => {
 
-        val count = counter.incrementAndGet()
-        val hash = filename.split("/").last
-        val numLambdas = all_files.size
+      val count = counter.incrementAndGet()
+      val hash = filename.split("/").last
+      val numLambdas = all_files.size
 
-        print(s"\rLowering : $count / $numLambdas")
+      print(s"\rLowering : $count / $numLambdas")
 
-        try {
+      try {
 
-          val lambda = ParameterRewrite.readLambdaFromFile(filename)
-          val lowered = lowerLambda(lambda, enabledMappings, config.unrollReduce, topFolder)
+        val lambda = ParameterRewrite.readLambdaFromFile(filename)
+        val lowered = lowerLambda(lambda, enabledMappings, config.unrollReduce, topFolder)
 
-          lowered.foreach(dumpToFile(topFolder, hash, _))
+        lowered.foreach(dumpToFile(topFolder, hash, _))
 
-        } catch {
-          case t: Throwable =>
-            logger.warn(s"Reading $hash from file", t)
-        }
-      })
+      } catch {
+        case t: Throwable =>
+          logger.warn(s"Reading $hash from file", t)
+      }
+    })
 
-      println()
-
-    } catch {
-      case e: ArgotUsageException => println(e.message)
-    }
+    println()
   }
 
   def lowerLambda(lambda: Lambda, enabledMappings: EnabledMappings, unroll: Boolean = false, hash: String = ""): Seq[Lambda] = {
@@ -194,7 +202,7 @@ object MemoryMappingRewrite {
 
           val rewrites = Rewrite.listAllPossibleRewrites(lambdaWithReduceSeq, OpenCLRules.reduceSeqUnroll)
           rewrites.foldLeft(lambdaWithReduceSeq)((expr, pair) =>
-            Rewrite.applyRuleAt(expr, pair._2, pair._1))
+            Rewrite.applyRuleAt(expr, pair.expr, pair.rule))
         })
 
         unrolledReduces ++ loadBalancedExpressions
@@ -273,7 +281,7 @@ object MemoryMappingRewrite {
       val locations =
         Rewrite.listAllPossibleRewritesForRules(lambda, Seq(OpenCLRules.mapAtomWrg, OpenCLRules.mapAtomLcl))
 
-      val withLoadBalancing = locations.map(pair => Rewrite.applyRuleAt(lambda, pair._2, pair._1))
+      val withLoadBalancing = locations.map(pair => Rewrite.applyRuleAt(lambda, pair.expr, pair.rule))
       withLoadBalancing :+ lambda
     } catch {
       case _: Throwable =>
@@ -329,7 +337,7 @@ object MemoryMappingRewrite {
     implementMemoryWithRule(strategicLocationsMarked, OpenCLRules.privateMemory)
   }
 
-  private def implementVectorisation(lambda: Lambda): Option[Lambda] = {
+  private def implementVectorisation(lambda: Lambda): scala.Option[Lambda] = {
 
     if (!settings.memoryMappingRewriteSettings.vectorize)
       return None
@@ -361,7 +369,7 @@ object MemoryMappingRewrite {
         list = lowerMapInIds(x) :: list
       } catch {
         case t: Throwable =>
-         logger.warn("Id map lowering failure. Continuing...", t)
+          logger.warn("Id map lowering failure. Continuing...", t)
       }
     })
 
@@ -411,10 +419,10 @@ object MemoryMappingRewrite {
       CopyRules.addIdForCurrentValueInReduce -> config.addIdForCurrentValueInReduce,
       CopyRules.addIdBeforeMapLcl -> config.addIdMapLcl,
       CopyRules.addIdForMapWrgParam -> config.addIdMapWrg).flatMap( x => {
-        val rule = x._1
-        val enabled = x._2
-        if(enabled) Some(rule)
-        else None
+      val rule = x._1
+      val enabled = x._2
+      if(enabled) Some(rule)
+      else None
     }).toSeq
 
     val firstIds = Rewrite.applyRulesUntilCannot(lambda, enabledRules)

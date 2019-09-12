@@ -6,51 +6,50 @@ import com.typesafe.scalalogging.Logger
 import exploration.ParameterRewrite
 import ir.TypeChecker
 import ir.ast.Lambda
-import org.clapper.argot.{ArgotParser, ArgotUsageException}
 import rewriting.utils.{DumpToFile, Utils}
+import scopt.OParser
+import utils.CommandLineParser
 
 object RegenerateConfiguration {
 
   private val logger = Logger(this.getClass)
 
-  private val parser = new ArgotParser("GeneratePrograms")
+  case class Config(input: File = null)
+  val builder = OParser.builder[Config]
+  var cmdArgs: Option[Config] = None
+  val parser = {
+    import builder._
+    OParser.sequence(
+      programName("RegenerateConfiguration"),
+      opt[File]("input").text("Input files to read").required()
+        .validate(f => if (f.exists) success else failure("File \"" + f.getName + "\" does not exist"))
+        .action((arg, c) => c.copy(input = arg)),
 
-  private val inputFolder = parser.parameter[String]("input",
-    "Input file containing the lambda to use for rewriting",
-    optional = false) {
-    (s, _) =>
-      val file = new File(s)
-      if (!file.exists)
-        parser.usage("Input file \"" + s + "\" does not exist")
-      s
+      help("help").text("Show this message.")
+    )
   }
 
   def main(args: Array[String]): Unit = {
-    try {
-      parser.parse(args)
+    cmdArgs = Some(CommandLineParser(parser, args, Config()))
 
-      logger.info(s"Arguments: ${args.mkString(" ")}")
+    logger.info(s"Arguments: ${args.mkString(" ")}")
 
-      val topFolder = new File(inputFolder.value.get)
+    val topFolder = cmdArgs.get.input
 
-      val programPaths = topFolder.listFiles().flatMap(firstSubDir =>
-        firstSubDir.listFiles().flatMap(secondSubDir =>
-          secondSubDir.listFiles().filter(_.isFile)))
+    val programPaths = topFolder.listFiles().flatMap(firstSubDir =>
+      firstSubDir.listFiles().flatMap(secondSubDir =>
+        secondSubDir.listFiles().filter(_.isFile)))
 
-      val concretePrograms = programPaths.par.map(program =>
-        try {
+    val concretePrograms = programPaths.par.map(program =>
+      try {
         Some(ParameterRewrite.readLambdaFromFile(program.getAbsolutePath))
-        } catch {
-          case _: Throwable => None
-        }).collect({ case Some(lambda) => lambda })
+      } catch {
+        case _: Throwable => None
+      }).collect({ case Some(lambda) => lambda })
 
-      logger.info(s"Read ${concretePrograms.length} programs...")
+    logger.info(s"Read ${concretePrograms.length} programs...")
 
-      saveConfigurations(concretePrograms.toArray.toSeq)
-
-    } catch {
-      case e: ArgotUsageException => println(e.message)
-    }
+    saveConfigurations(concretePrograms.toArray.toSeq)
   }
 
   private def saveConfigurations(concretePrograms: Seq[Lambda]) = {

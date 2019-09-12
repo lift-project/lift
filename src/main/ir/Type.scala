@@ -203,7 +203,8 @@ case class ArrayType(elemT: Type) extends Type {
 
   /** Structural equality */
   override def equals(other: Any): Boolean = {
-    def getSizeAndCapacity(at: ArrayType): (Option[ArithExpr], Option[ArithExpr]) = at match {
+    def getSizeAndCapacity(at: ArrayType):
+    (Option[ArithExpr with SimplifiedExpr], Option[ArithExpr with SimplifiedExpr]) = at match {
       case sc: Size with Capacity => (Some(sc.size), Some(sc.capacity))
       case s: Size => (Some(s.size), None)
       case c: Capacity => (None, Some(c.capacity))
@@ -378,8 +379,8 @@ object Type {
       case st: ScalarType => st.name
       case vt: VectorType => vt.scalarT.name + vt.len.toString
       case tt: TupleType  => s"Tuple${tt.elemsT.length}_" + tt.elemsT.map(Type.name).reduce(_+"_"+_)
-      case at: ArrayType  => "Array_" + Type.name(at.elemT)
       case _ => throw new IllegalArgumentException
+      // adding case: at: ArrayType results in issue #158
     }
   }
 

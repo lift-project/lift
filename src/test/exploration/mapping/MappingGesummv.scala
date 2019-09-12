@@ -2,6 +2,7 @@ package exploration.mapping
 import exploration.MemoryMappingRewrite
 import ir._
 import ir.ast._
+import lift.arithmetic.simplifier.SimplifyPow
 import lift.arithmetic.{Cst, Pow}
 import opencl.executor.LongTestsEnabled
 import opencl.ir._
@@ -178,7 +179,7 @@ class MappingGesummv {
                       FunCall(add,
                         FunCall(Get(1), p_10),
                         FunCall(Get(1), p_11))))), Value("{ 0.0f, 0.0f }", TupleType(Float, Float)), p_9))),
-                  FunCall(Split( K * Pow(v__2, Cst(-1)) ),
+                  FunCall(Split( K * SimplifyPow(v__2, Cst(-1)) ),
                     FunCall(Gather(ReorderWithStride(v__2)),
                       FunCall(Scatter(ReorderWithStride(v__2)),
                         FunCall(Join(),
@@ -191,7 +192,7 @@ class MappingGesummv {
                                 FunCall(mult,
                                   FunCall(Get(2), p_13),
                                   FunCall(Get(1), p_13))))), p_12))),
-                            FunCall(Split( K * Pow(v__2, Cst(-1)) ),
+                            FunCall(Split( K * SimplifyPow(v__2, Cst(-1)) ),
                               FunCall(Gather(ReorderWithStride(v__2)),
                                 FunCall(Zip(3),
                                   FunCall(Get(0), p_5), p_2,

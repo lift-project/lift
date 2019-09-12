@@ -8,7 +8,8 @@ import opencl.ir.pattern._
 
 import scala.util.Random
 
-class Hotspot3D(override val f: Seq[(String, Array[Lambda])]) extends Benchmark("Hotspot3D", Seq(512, 512, 8), f, 0.01f) {
+@deprecated("Uses an old benchmark infrastructure", "")
+class Hotspot3D(override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark("Hotspot3D", Seq(512, 512, 8), f, 0.01f) {
 
   override def generateInputs(): Seq[Any] = {
     val input = Array.tabulate(512, 512, 8) { (i, j, k) => Random.nextFloat() }

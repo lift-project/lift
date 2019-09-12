@@ -7,6 +7,12 @@ import ir.ast._
 import rewriting.rules.Rule
 import rewriting.macrorules.MacroRules
 
+// binds rule to expression where rule is applicable
+class PotentialRewrite(val rule: Rule, val expr: Expr) {
+  assert(rule.isDefinedAt(expr))
+  override def toString = rule + "->\n" + expr
+}
+
 object Rewrite {
 
   def getExprForId(expr: Expr, id: Int, idMap: collection.Map[Expr, Int]): Expr =
@@ -84,7 +90,7 @@ object Rewrite {
       expr
     } else {
       val ruleAt = allRulesAt.head
-      applyRulesUntilCannot(Rewrite.applyRuleAt(expr, ruleAt._1, ruleAt._2), rules)
+      applyRulesUntilCannot(Rewrite.applyRuleAt(expr, ruleAt.rule, ruleAt.expr), rules)
     }
   }
 
@@ -108,24 +114,24 @@ object Rewrite {
     }
   }
 
-  def listAllPossibleRewritesForRules(lambda: Lambda, rules: Seq[Rule]): Seq[(Rule, Expr)] = {
+  def listAllPossibleRewritesForRules(lambda: Lambda, rules: Seq[Rule]): Seq[PotentialRewrite] = {
     listAllPossibleRewritesForRules(lambda.body, rules)
   }
 
-  def listAllPossibleRewritesForRules(expr: Expr, rules: Seq[Rule]): Seq[(Rule, Expr)] = {
+  def listAllPossibleRewritesForRules(expr: Expr, rules: Seq[Rule]): Seq[PotentialRewrite] = {
     UpdateContext(expr)
     TypeChecker(expr)
     rules.flatMap(rule => listAllPossibleRewrites(expr, rule))
   }
 
-  def listAllPossibleRewrites(lambda: Lambda,rule: Rule): Seq[(Rule, Expr)] =
+  def listAllPossibleRewrites(lambda: Lambda,rule: Rule): Seq[PotentialRewrite] =
     listAllPossibleRewrites(lambda.body, rule)
 
 
-  def listAllPossibleRewrites(expr: Expr, rule: Rule): Seq[(Rule, Expr)] = {
-    Expr.visitWithState(Seq[(Rule, Expr)]())( expr, (e, s) => {
+  def listAllPossibleRewrites(expr: Expr, rule: Rule): Seq[PotentialRewrite] = {
+    Expr.visitWithState(Seq[PotentialRewrite]())( expr, (e, s) => {
       if (rule.rewrite.isDefinedAt(e)) {
-        s :+ (rule, e)
+        s :+ new PotentialRewrite(rule, e)
       } else s
     })
   }
@@ -133,7 +139,7 @@ object Rewrite {
   def rewrite(lambda: Lambda, rules: Seq[Rule], levels: Int): Seq[Lambda] = {
 
     val allRulesAt = listAllPossibleRewritesForRules(lambda, rules)
-    val rewritten = allRulesAt.map(ruleAt => applyRuleAt(lambda, ruleAt._2, ruleAt._1))
+    val rewritten = allRulesAt.map(ruleAt => applyRuleAt(lambda, ruleAt.expr, ruleAt.rule))
 
     if (levels == 1)
       rewritten

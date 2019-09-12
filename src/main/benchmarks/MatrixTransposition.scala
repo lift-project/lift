@@ -4,19 +4,29 @@ import lift.arithmetic.SizeVar
 import ir._
 import ir.ast._
 import opencl.ir._
-import org.clapper.argot.ArgotConverters._
 import opencl.ir.pattern._
 
+@deprecated("Uses an old benchmark infrastructure", "")
 class MatrixTransposition (override val f: Seq[(String, Array[Lambda])])
-  extends Benchmark("Matrix Transposition", Seq(1024, 1024), f, 0.0f, Array(16, 16, 1)) {
+  extends DeprecatedBenchmark("Matrix Transposition", Seq(1024, 1024), f, 0.0f, Array(16, 16, 1)) {
 
   val defaultTileSize = 16
 
-  val tileX = parser.option[Int](List("x", "tileX"), "size",
-    "Tile size in the x dimension")
+  case class MatrixTranspConfig(tileX: Option[Long] = None,
+                                tileY: Option[Long] = None)
 
-  val tileY = parser.option[Int](List("y", "tileY"), "size",
-    "Tile size in the y dimension")
+
+  var matrixTranspCmdArgs = MatrixTranspConfig()
+  val matrixTranspParser = new scopt.OptionParser[Unit]("MatrixTransposition") {
+    override val errorOnUnknownArgument = false
+
+    opt[Long]('x', "tileX").text("Tile size in the M and N dimension").required()
+      .foreach(arg => matrixTranspCmdArgs = matrixTranspCmdArgs.copy(tileX = Some(arg)))
+
+    opt[Long]('y', "tileY").text("Tile size in the K dimension").required()
+      .foreach(arg => matrixTranspCmdArgs = matrixTranspCmdArgs.copy(tileY = Some(arg)))
+  }
+
 
   override def runScala(inputs: Any*): Array[Float] = {
     val matrix = inputs(0).asInstanceOf[Array[Array[Float]]]
@@ -35,19 +45,20 @@ class MatrixTransposition (override val f: Seq[(String, Array[Lambda])])
 
   override def globalSize: Array[Int] = {
     val globalSizes = Array(inputSizes()(0), inputSizes()(1), 1)
-    globalSizeOpt.value.copyToArray(globalSizes)
+    cmdArgs.globalSize.copyToArray(globalSizes)
     globalSizes
   }
 
   override protected def beforeBenchmark(): Unit = {
-    f(1)._2(0) = MatrixTransposition.coalesced(tileX.value.getOrElse(defaultTileSize),
-      tileY.value.getOrElse(defaultTileSize))
+    val temp = f(1)._2
+    temp(0) = MatrixTransposition.coalesced(matrixTranspCmdArgs.tileX.getOrElse(defaultTileSize),
+      matrixTranspCmdArgs.tileY.getOrElse(defaultTileSize))
   }
 
   override protected def printParams(): Unit = {
     if (variant == 1)
-      println("Tile sizes: " + tileX.value.getOrElse(defaultTileSize) +
-        ", " + tileY.value.getOrElse(defaultTileSize))
+      println("Tile sizes: " + matrixTranspCmdArgs.tileX.getOrElse(defaultTileSize) +
+        ", " + matrixTranspCmdArgs.tileY.getOrElse(defaultTileSize))
   }
 }
 
@@ -61,7 +72,7 @@ object MatrixTransposition {
       MapGlb(0)(MapGlb(1)(id)) o Transpose() $ matrix
     })
 
-  def coalesced(x: Int = 4, y: Int = 4) = fun(
+  def coalesced(x: Long = 4, y: Long = 4) = fun(
     ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),
     (matrix) => {
       // Merge the tiles
@@ -81,6 +92,11 @@ object MatrixTransposition {
     ))
 
   def main(args: Array[String]): Unit = {
-    MatrixTransposition().run(args)
+    val m = MatrixTransposition()
+
+    if (!m.matrixTranspParser.parse(args))
+      throw new IllegalArgumentException("Wrong command line arguments passed")
+
+      m.run(args)
   }
 }

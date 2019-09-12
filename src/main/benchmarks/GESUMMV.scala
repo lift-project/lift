@@ -7,7 +7,8 @@ import opencl.executor.Utils
 import opencl.ir._
 import opencl.ir.pattern._
 
-class GESUMMV (override val f: Seq[(String, Array[Lambda])]) extends Benchmark("GESUMMV", Seq(4096, 4096), f, 0.0f) {
+@deprecated("Uses an old benchmark infrastructure", "")
+class GESUMMV (override val f: Seq[(String, Array[Lambda])]) extends DeprecatedBenchmark("GESUMMV", Seq(4096, 4096), f, 0.0f) {
 
   override def runScala(inputs: Any*): Array[Float] = {
     val A = inputs(0).asInstanceOf[Array[Array[Float]]]

@@ -7,65 +7,67 @@ import ir.ast.Lambda
 import ir.{ArrayType, ArrayTypeWS, Type, TypeChecker}
 import lift.arithmetic.{ArithExpr, Cst}
 import opencl.executor.Eval
-import org.clapper.argot.ArgotConverters._
-import org.clapper.argot.{ArgotParser, ArgotUsageException}
 import play.api.libs.json._
 import rewriting.utils.{DumpToFile, Utils}
+import _root_.utils.CommandLineParser
+import scopt.OParser
 
 import scala.sys.process._
 
 object GeneratePrograms {
+
+  private var outputDirectory = "generated_programs"
+  private var loopNum = 30
+  private var limitNum = 40
 
   private val logger = Logger(this.getClass)
 
   private val splitFactors = Seq[ArithExpr](64, 128)
   private[prog_gen] val inputSizes = Seq[Cst](Cst(512), Cst(1024), Cst(2048))
 
-  private val parser = new ArgotParser("GeneratePrograms")
+  case class Config(output: File = null,
+                    loopNumFlag: Int = loopNum,
+                    limitNumFlag: Int = limitNum)
 
-  private val outputDirectoryFlag = parser.option[String](List("o", "output"), "name.",
-    "Store the created lambdas into this folder."
-  ) {
-    (s, _) =>
-      val file = new File(s)
-      if (file.exists)
-        parser.usage("Output location \"" + s + "\" already exists")
-      s
+  val builder = OParser.builder[Config]
+  var cmdArgs: Option[Config] = None
+  val parser = {
+    import builder._
+    OParser.sequence(
+      programName("GeneratePrograms"),
+
+      opt[File]('o', "output").text("Store the created lambdas into this folder.").required()
+        .validate(f => if (f.exists) success else failure("File \"" + f.getName + "\" does not exist"))
+        .action((arg, c) => c.copy(output = arg)),
+
+      opt[Int]('l', "loop-num").text("Number of generation loops to run.")
+        .action((arg, c) => c.copy(loopNumFlag = arg)),
+
+      opt[Int]("limit-num").text("Number of expressions to generate in a loop iteration.")
+        .action((arg, c) => c.copy(limitNumFlag = arg)),
+
+      help("help").text("Show this message.")
+    )
   }
 
-  private val loopNumFlag = parser.option[Int](List("l", "loop-num"), "number",
-    "Number of generation loops to run.")
-
-  private val limitNumFlag = parser.option[Int](List("limit-num"), "number",
-    "Number of expressions to generate in a loop iteration.")
-
-  private var outputDirectory = "generated_programs"
-  private var loopNum = 30
-  private var limitNum = 40
-
   def main(args: Array[String]): Unit = {
-    try {
-      parser.parse(args)
+    cmdArgs = Some(CommandLineParser(parser, args, Config()))
 
-      logger.info(s"Arguments: ${args.mkString(" ")}")
+    logger.info(s"Arguments: ${args.mkString(" ")}")
 
-      outputDirectory = outputDirectoryFlag.value.getOrElse(outputDirectory)
-      loopNum = loopNumFlag.value.getOrElse(loopNum)
-      limitNum = limitNumFlag.value.getOrElse(limitNum)
+    outputDirectory = cmdArgs.get.output.getName
+    loopNum = cmdArgs.get.loopNumFlag
+    limitNum = cmdArgs.get.limitNumFlag
 
-      s"mkdir -p $outputDirectory".!
+    s"mkdir -p $outputDirectory".!
 
-      val programs = generatePrograms
+    val programs = generatePrograms
 
-      val concretePrograms = substituteSplitFactors(programs)
+    val concretePrograms = substituteSplitFactors(programs)
 
-      generateAndSaveInputs(concretePrograms)
+    generateAndSaveInputs(concretePrograms)
 
-      savePrograms(concretePrograms)
-
-    } catch {
-      case e: ArgotUsageException => println(e.message)
-    }
+    savePrograms(concretePrograms)
   }
 
   private def generatePrograms = {
@@ -120,10 +122,10 @@ object GeneratePrograms {
   }
 
   private[prog_gen] def generateConfigurations(
-    sizes: Seq[Seq[Cst]],
-    hash: String,
-    thisLambdaConf: String,
-    lambda: Lambda) = {
+                                                sizes: Seq[Seq[Cst]],
+                                                hash: String,
+                                                thisLambdaConf: String,
+                                                lambda: Lambda) = {
 
     sizes.foreach(size => {
 

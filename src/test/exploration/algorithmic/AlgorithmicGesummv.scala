@@ -4,6 +4,7 @@ import exploration.HighLevelRewrite
 import ir._
 import ir.ast._
 import lift.arithmetic._
+import lift.arithmetic.simplifier.SimplifyPow
 import opencl.executor.LongTestsEnabled
 import opencl.ir._
 import opencl.ir.pattern.ReduceSeq
@@ -74,7 +75,7 @@ class AlgorithmicGesummv {
 
   @Test
   def partialReduceWithReorder(): Unit = {
-    val partialReduceWithReorder = fun(ArrayType(ArrayType(Float, K), N), ArrayType(ArrayType(Float, K), N), ArrayType(Float, K), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(Join(), FunCall(Map(fun((p_5) => FunCall(Map(fun((p_6) => FunCall(add, FunCall(mult, FunCall(Get(0), p_6), p_3), FunCall(mult, FunCall(Get(1), p_6), p_4)))), FunCall(Reduce(fun((p_7, p_8) => FunCall(Tuple(2), FunCall(add, FunCall(Get(0), p_7), FunCall(Get(0), p_8)), FunCall(add, FunCall(Get(1), p_7), FunCall(Get(1), p_8))))), Value("{ 0.0f, 0.0f }", TupleType(Float, Float)), FunCall(Join(), FunCall(Map(fun((p_9) => FunCall(PartRed(fun((p_10, p_11) => FunCall(Tuple(2), FunCall(add, FunCall(Get(0), p_10), FunCall(Get(0), p_11)), FunCall(add, FunCall(Get(1), p_10), FunCall(Get(1), p_11))))), Value("{ 0.0f, 0.0f }", TupleType(Float, Float)), p_9))), FunCall(Split( K * Pow(v__2, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__2)), FunCall(Scatter(ReorderWithStride(v__2)), FunCall(Join(), FunCall(Map(fun((p_12) => FunCall(Map(fun((p_13) => FunCall(Tuple(2), FunCall(mult, FunCall(Get(0), p_13), FunCall(Get(1), p_13)), FunCall(mult, FunCall(Get(2), p_13), FunCall(Get(1), p_13))))), p_12))), FunCall(Split(K * Pow(v__2, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__2)), FunCall(Zip(3), FunCall(Get(0), p_5), p_2, FunCall(Get(1), p_5))))))))))))))), FunCall(Zip(2), p_0, p_1))))
+    val partialReduceWithReorder = fun(ArrayType(ArrayType(Float, K), N), ArrayType(ArrayType(Float, K), N), ArrayType(Float, K), Float, Float,(p_0, p_1, p_2, p_3, p_4) => FunCall(Join(), FunCall(Map(fun((p_5) => FunCall(Map(fun((p_6) => FunCall(add, FunCall(mult, FunCall(Get(0), p_6), p_3), FunCall(mult, FunCall(Get(1), p_6), p_4)))), FunCall(Reduce(fun((p_7, p_8) => FunCall(Tuple(2), FunCall(add, FunCall(Get(0), p_7), FunCall(Get(0), p_8)), FunCall(add, FunCall(Get(1), p_7), FunCall(Get(1), p_8))))), Value("{ 0.0f, 0.0f }", TupleType(Float, Float)), FunCall(Join(), FunCall(Map(fun((p_9) => FunCall(PartRed(fun((p_10, p_11) => FunCall(Tuple(2), FunCall(add, FunCall(Get(0), p_10), FunCall(Get(0), p_11)), FunCall(add, FunCall(Get(1), p_10), FunCall(Get(1), p_11))))), Value("{ 0.0f, 0.0f }", TupleType(Float, Float)), p_9))), FunCall(Split( K * SimplifyPow(v__2, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__2)), FunCall(Scatter(ReorderWithStride(v__2)), FunCall(Join(), FunCall(Map(fun((p_12) => FunCall(Map(fun((p_13) => FunCall(Tuple(2), FunCall(mult, FunCall(Get(0), p_13), FunCall(Get(1), p_13)), FunCall(mult, FunCall(Get(2), p_13), FunCall(Get(1), p_13))))), p_12))), FunCall(Split(K * SimplifyPow(v__2, Cst(-1)) ), FunCall(Gather(ReorderWithStride(v__2)), FunCall(Zip(3), FunCall(Get(0), p_5), p_2, FunCall(Get(1), p_5))))))))))))))), FunCall(Zip(2), p_0, p_1))))
 
     checkExists(partialReduceWithReorder, rewrittenLambdas)
     checkDistance(partialReduceWithReorder)
