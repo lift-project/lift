@@ -44,7 +44,7 @@ class InnerProduct {
       ArrayTypeWSWC(Float, 16),
       ArrayTypeWSWC(Float, 16),
       (x, y) =>
-        ToHost() $ OclFunc(scalarDotLambda)(ToGPU(x), ToGPU(y))
+        ToHost() $ OclFunc(scalarDotLambda, cpu_timer = true, gpu_timer = true)(ToGPU(x), ToGPU(y))
     )
 
     GlobalCompiler ! (hostingLambda, codeOutputPath, List(hostCodeFileName))
@@ -52,9 +52,12 @@ class InnerProduct {
     val actualOutput: String = cbackends.common.executor.Executor.native_compile_and_run(
       codeOutputPath, hostCodeFileName)
 
-    println(actualOutput)
+    print(actualOutput)
 
-//    assertEquals(gold, output.head, 0.001f)
+    val pattern = raw"(?:.*\n)+(\d+).*\n".r
+
+    val pattern(count) = actualOutput.stripMargin
+    assertEquals(gold, count.toFloat, 0.001f)
   }
 
   @Test
