@@ -1,73 +1,138 @@
 package exploration
 
-import lift.arithmetic._
-import rewriting.utils.Utils
-import ir.{ArrayType, Size}
+import exploration.ParamConstraints.greaterThanOrEqual
 import ir.ast._
+import ir.{ArrayType, Size, TypeChecker}
+import lift.arithmetic.{ArithExpr, Cst, SimplifiedExpr, Var}
 
-import scala.collection.immutable.Map
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 object ParameterSearch {
-  // A substitution map is a collection of var/value pairs
-  private type SubstitutionMap = Map[ArithExpr, ArithExpr]
 
-  // A substitution table represents all valid substitution maps
-  private type SubstitutionTable = List[SubstitutionMap]
+  def apply(lambda: Lambda): (Vector[Var], Vector[ParamConstraint]) = {
+    val parameters = mutable.Set[Var]()
+    val constraints = ListBuffer[ParamConstraint]()
 
-  private def propagate(splits: List[(ArithExpr, ArithExpr)],
-                m: SubstitutionMap): List[(ArithExpr, ArithExpr)] =
-    splits.map((x) => (ArithExpr.substitute(x._1, m), ArithExpr.substitute(x._2, m)))
+    // First, infer all the types
+    TypeChecker.check(lambda.body)
 
-  // recursively build the substitution table.
-  // It takes the first node to tune and recurse with all its possible values.
-  private def substitute(splits: List[(ArithExpr, ArithExpr)],
-                 substitutions: SubstitutionMap,
-                 table: SubstitutionTable): SubstitutionTable = {
+    // Traverse nodes in search for constraints
+    Expr.visit(lambda.body, {
 
-    if (splits.nonEmpty) {
-      splits.head match {
-        // If the stride is not set and the input length is constant, compute all divisors
-        case (v: Var, Cst(len)) =>
-          val start = if (len == 1) 1 else 2
-          val intLen = len.toInt
-          val end = if (len == 1) intLen else intLen - 1
-          (start to end).filter(len % _ == 0).foldLeft(table)((table, x) =>
-            substitute(propagate(splits.tail, Map(v -> x)), substitutions + (v -> x), table))
+      case FunCall(split@Split(chunkSize), args@_*) if (args.head.t match {
+        case _: ArrayType with Size => true
+        case _ => false
+      }) =>
+        val argType = args.head.t match {
+          case at: ArrayType with Size => at
+          case _ => throw new IllegalArgumentException()
+        }
+        // Collect all variables
+        val chunkSizeVars = ArithExpr.collectVars(chunkSize).sortBy(_.id)
+        val argSizeVars = ArithExpr.collectVars(argType.size).sortBy(_.id)
+        val allVars = (chunkSizeVars ++ argSizeVars).distinct
 
-        // If the input AND the stride are already set, make sure they are multiple
-        case (Cst(chunk), Cst(len)) if len % chunk == 0 =>
-          substitute(splits.tail, substitutions, table)
+        if (allVars.nonEmpty) {
+          // Update the list of parameters
+          allVars.foreach(parameters.add)
 
-        // Otherwise we cannot set the parameter or the current combination is invalid
-        case (x, y) =>
-          println(s"failed: $x, $y")
-          table
-      }
-    }
-    else // if we propagated all the nodes, we have a (hopefully valid) substitution table
-      substitutions :: table
-  }
+          argType.size % chunkSize match {
+            case Cst(0) =>
+            // No constraint to add since argType.size is guaranteed to be divisible by chunkSize (e.g. nInputs % nInputs)
+            case condition =>
+              // Update the list of constraints
+              constraints.append(new ParamConstraint(
+                name = s"splittableArgument_${split.gid}",
+                comment = s"In Split (gid=${split.gid}), the argument size has to be divisible by the chunk size. " +
+                  s"Argument size:\n${argType.size}\nChunk size:\n$chunkSize",
+                params = allVars.toVector,
+                lhs = condition,
+                rhs = Cst(0),
+                predicate = (lhs: ArithExpr with SimplifiedExpr, rhs: ArithExpr with SimplifiedExpr) => lhs == rhs
+              ))
+          }
+        }
 
-  /**
-   * Return all the possible parameter sets for a given expression.
-   *
-   * @param lambda The lambda to build substitutions for.
-   * @return Table of valid substitutions.
-   */
-  def apply(lambda: Lambda): List[Map[Var, ArithExpr]] = {
-    // find all the nodes using variables
-    val tunableNodes = Utils.findTunableNodes(lambda)
+      case FunCall(slide@Slide(windowSize, step), args@_*) if (args.head.t match {
+        case _: ArrayType with Size => true
+        case _ => false
+      }) =>
+        val argType: ArrayType with Size = args.head.t match {
+          case at: ArrayType with Size => at
+          case _ => throw new IllegalArgumentException()
+        }
+        // Collect all variables
+        val windowSizeVars = ArithExpr.collectVars(windowSize).sortBy(_.id)
+        val stepVars = ArithExpr.collectVars(step).sortBy(_.id)
+        val argSizeVars = ArithExpr.collectVars(argType.size).sortBy(_.id)
+//        val allVars = (windowSizeVars ++ stepVars ++ argSizeVars).distinct
+        val allVars = (windowSizeVars ++ argSizeVars).distinct
 
-    // from that, isolate only the splits/slides
-    val splits = tunableNodes.collect({
-      case FunCall(Split(cs), x) => (cs, x.t.asInstanceOf[ArrayType with Size].size)
-        // step has to divide len - (size - step)
-      case FunCall(Slide(size, step), x) => (step, x.t.asInstanceOf[ArrayType with Size].size - (size-step))
-      case FunCall(Gather(ReorderWithStride(s)), x) if s.isInstanceOf[Var] => (s, x.t.asInstanceOf[ArrayType with Size].size)
-    })
+        if (allVars.nonEmpty) {
+          // Update the list of parameters
+          allVars.foreach(parameters.add)
+        }
 
-    val st = substitute(splits, Map.empty, List.empty)
-    // By construction only Vars are keys, but Arith.substitute can't be called with Map[Var, ArithExpr]
-    st.map(sm => sm.map(x => x._1.asInstanceOf[Var] -> x._2))
+        // Commenting out this rule since Slide uses integer division and hence can deal with sliding that results
+        // partial sliding windows at the borders of an input
+        if (allVars.nonEmpty) {
+          // Update the list of constraints
+//          constraints.append(new ParamConstraint(
+//            name = s"slidableArgument_${slide.gid}",
+//            comment = s"In Slide (gid=${slide.gid}), the argument size should be such that sliding can be performed " +
+//              s"using a window of chosen size and stride. (argType.size - (windowSize - step)) % step = " +
+//              s"(${argType.size} - ($windowSize - $step)) % $step == 0",
+//            params = allVars.toVector,
+//            lhs = (argType.size - (windowSize - step)) % step,
+//            rhs = Cst(0),
+//            predicate = (lhs: ArithExpr, rhs: ArithExpr) => {
+//              lhs === rhs
+//            }
+//          ))
+        }
+
+        if (argSizeVars.nonEmpty || windowSizeVars.nonEmpty) {
+          constraints.append(new ParamConstraint(
+            name = s"sliderWindowSize_${slide.gid}",
+            comment = s"In Slide (gid=${slide.gid}), the argument size should be equal or bigger to that of the " +
+              s"sliding window. ((argType.size = ${argType.size}) >= (windowSize = $windowSize))",
+            params = (argSizeVars ++ windowSizeVars).distinct.toVector,
+            lhs = argType.size,
+            rhs = windowSize,
+            predicate = (lhs: ArithExpr, rhs: ArithExpr) => greaterThanOrEqual(lhs, rhs)
+          ))
+        }
+
+//      case FunCall(slide@Slide(windowSize, step), args@_*) if (args.head.t match {
+//        case _: ArrayType with Size => true
+//        case _ => false
+//      }) =>
+      case FunCall(asVector(vectorLen), args @ _*) if (args.head.t match {
+        case _: ArrayType with Size => true
+        case _ => false
+      }) =>
+
+        val argType: ArrayType with Size = args.head.t match {
+          case at: ArrayType with Size => at
+          case _ => throw new IllegalArgumentException()
+        }
+
+        constraints.append(new ParamConstraint(
+          name = s"vectorisableBy${vectorLen}Argument",
+          comment = s"The argument to asVector(${vectorLen}) must be a multiple of ${vectorLen}",
+          params = (ArithExpr.collectVars(argType.size).sortBy(_.id) ++
+            ArithExpr.collectVars(vectorLen).sortBy(_.id)).toVector,
+          lhs = argType.size % vectorLen,
+          rhs = Cst(0),
+          predicate = (lhs: ArithExpr, rhs: ArithExpr) => lhs == rhs
+        ))
+
+        // TODO: other FunCalls
+      // TODO: add Reorder handling
+      case _ =>
+    }, _ => Unit)
+
+    (parameters.toVector, constraints.toVector)
   }
 }

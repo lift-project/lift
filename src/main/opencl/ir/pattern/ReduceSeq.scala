@@ -33,6 +33,8 @@ case class ReduceSeq(override val f: Lambda)
 class ReduceSeqUnroll(override val f: Lambda) extends ReduceSeq(f) {
   shouldUnroll = true
   override def toString: String = s"ReduceSeqUnroll($f)"
+
+  override def copy(f: Lambda): Pattern = ReduceSeqUnroll(f)
 }
 
 object ReduceSeqUnroll {

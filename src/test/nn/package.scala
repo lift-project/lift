@@ -8,6 +8,7 @@ import ir.ArrayType
 import ir.ast.UserFun
 import opencl.executor.Executor
 import opencl.ir._
+import patterns.nn._
 
 /**
   * Created by s1569687 on 28/02/17.
@@ -41,12 +42,6 @@ package object nn {
   case class PaddedArray[T](var nonPadded: T) {
     var padded: T = _
   }
-
-  type Array2D[T] = Array[Array[T]]
-  type Array3D[T] = Array[Array[Array[T]]]
-  type Array4D[T] = Array[Array[Array[Array[T]]]]
-  type Array5D[T] = Array[Array[Array[Array[Array[T]]]]]
-  type Array6D[T] = Array[Array[Array[Array[Array[Array[T]]]]]]
 
   def AT = ArrayType
   type AT = ArrayType
@@ -255,52 +250,6 @@ package object nn {
 
   def fill(v: Float, shape: (Int, Int, Int, Int, Int)): Array5D[Float] = {
     Array.fill[Array4D[Float]](shape._1)(fill(v, (shape._2, shape._3, shape._4, shape._5)))
-  }
-
-  def group(arr1d: Array[Float], shape: (Int, Int)): Array2D[Float] = {
-    val arr2d = Array.fill[Array[Float]](shape._1)(
-      Array.fill[Float](shape._2)(0))
-    for (i <- 0 until shape._1; j <- 0 until shape._2) {
-      arr2d(i)(j) = arr1d(i * shape._2 + j)
-    }
-    arr2d
-  }
-
-  def group(arr1d: Array[Float], shape: (Int, Int, Int)): Array3D[Float] = {
-    val arr3d = Array.fill[Array2D[Float]](shape._1)(
-      Array.fill[Array[Float]](shape._2)(
-        Array.fill[Float](shape._3)(0)))
-    for (i <- 0 until shape._1; j <- 0 until shape._2; k <- 0 until shape._3) {
-      arr3d(i)(j)(k) = arr1d(i * shape._2 * shape._3 + j * shape._3 + k)
-    }
-    arr3d
-  }
-
-  def group(arr1d: Array[Float], shape: (Int, Int, Int, Int)): Array4D[Float] = {
-    val arr5d = Array.fill[Array3D[Float]](shape._1)(
-      Array.fill[Array2D[Float]](shape._2)(
-        Array.fill[Array[Float]](shape._3)(
-          Array.fill[Float](shape._4)(0))))
-    for (i <- 0 until shape._1; j <- 0 until shape._2; k <- 0 until shape._3;
-         l <- 0 until shape._4) {
-      arr5d(i)(j)(k)(l) = arr1d(i * shape._2 * shape._3 * shape._4 +
-        j * shape._3 * shape._4 + k * shape._4 + l)
-    }
-    arr5d
-  }
-
-  def group(arr1d: Array[Float], shape: (Int, Int, Int, Int, Int)): Array5D[Float] = {
-    val arr5d = Array.fill[Array4D[Float]](shape._1)(
-      Array.fill[Array3D[Float]](shape._2)(
-        Array.fill[Array2D[Float]](shape._3)(
-          Array.fill[Array[Float]](shape._4)(
-            Array.fill[Float](shape._5)(0)))))
-    for (i <- 0 until shape._1; j <- 0 until shape._2; k <- 0 until shape._3;
-         l <- 0 until shape._4; m <- 0 until shape._5) {
-      arr5d(i)(j)(k)(l)(m) = arr1d(i * shape._2 * shape._3 * shape._4 * shape._5 +
-        j * shape._3 * shape._4 * shape._5 + k * shape._4 * shape._5 + l * shape._5 + m)
-    }
-    arr5d
   }
 
   trait Experiment

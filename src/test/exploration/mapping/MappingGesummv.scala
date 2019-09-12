@@ -244,7 +244,7 @@ class MappingGesummv {
                                 FunCall(Get(2), p_19),
                                 FunCall(Get(1), p_19))))))),
                         FunCall(idTuple2_float_float, Value("{ 0.0f, 0.0f }", TupleType(Float, Float))), p_15)))),
-                    FunCall(Split( K * Pow(v__2, Cst(-1)) ),
+                    FunCall(Split( K * SimplifyPow(v__2, Cst(-1)) ),
                       FunCall(Gather(ReorderWithStride(v__2)),
                         FunCall(Zip(3),
                           FunCall(Get(0), p_5), p_2,

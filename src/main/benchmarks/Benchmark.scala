@@ -103,6 +103,9 @@ abstract class Benchmark[T: ClassTag](val name: String,
         val dce = System.getenv("LIFT_DCE") != null
         val cse = System.getenv("LIFT_CSE") != null
 
+    //    if (csvFileName.isDefined)
+    //      printCSVFile(csvFileName.get, kernel, commit, branch, date, dce, cse)
+
         println(date)
         println("Benchmark: " + name + ", variant(s): " +
           variants.map {case (_,name,_) => name}.mkString("[",",","]"))
@@ -172,8 +175,30 @@ abstract class Benchmark[T: ClassTag](val name: String,
                              configuration: BenchmarkConfiguration,
                              iStats: InstanceStatistic): String = {
 
+    // INCLUDE THE DATE/TIME HERE SOMEHOW!
+//    return s"(${variant}, '${name}', ${time}, ${correctness})"
     return ""
   }
+
+  /*
+    build a string showing the SQL header for inserting some aggregate statistic
+   */
+  def buildAggregateSQLHeader() : String = {
+    return ""
+  }
+
+  /*
+    build a string inserting the SQL values produced for an aggregate of a set of results
+    This results in one query, so should produce fewer results...
+   */
+  def buildAggregateSQLValues(varint: Int,
+                              name: String,
+                              lambdas: Array[Lambda],
+                              configuration: BenchmarkConfiguration,
+                              iStats: InstanceStatistic): String = {
+    return ""
+  }
+
 
   /*
     Run a benchmark instance - i.e. a specific variant of a benchmark
@@ -286,6 +311,33 @@ abstract class Benchmark[T: ClassTag](val name: String,
       case _ => NotChecked()
     }
     val validities = Array.fill[RunResult](configuration.trials)(validity)
+
+
+    //    for (i <- 0 until configuration.trials){
+//      val (unProcessedOutput: Array[T], runtime) = Execute(
+//        localSize(0),
+//        localSize(1),
+//        localSize(2),
+//        globalSize(0),
+//        globalSize(1),
+//        globalSize(2),
+//        (configuration.injectLocal, configuration.injectGroup)
+//      )(kernelSource, lambda, inputs: _*)
+//
+//      val output = postProcessResult(variant, name, unProcessedOutput)
+//      val validity = configuration.checkResult match {
+//        case true => {
+//          val valid = checkResult(output, expectedResult)
+//          println(valid.toString)
+//          valid
+//        }
+//        case _ => NotChecked()
+//      }
+//
+//      if (configuration.printResult)
+//        printResult(output)
+//      runtimesAndValidities(i) = (runtime, validity)
+//    }
 
     // wrap the times in an array.
     (runtimes zip validities).map(p => (Array(p._1), p._2))
@@ -442,12 +494,21 @@ abstract class Benchmark[T: ClassTag](val name: String,
         val preProcessedInputs = preProcessInputs(variant, name, inputs).toArray
         val instanceResult = runBenchmarkInstance(variant, name, newLambdas, preProcessedInputs, scalaResult, configuration)
         println(s"Results for ${variant}/${name}")
+//        println(s"   time (ms): ${time}")
+//        println(s"   correctness: ${correctness}")
 
         // print out an SQL statement for the instance, inserting the results
         println("INSTANCE SQL: " + buildInstanceSQLHeader() +
           buildInstanceSQLValues(variant, name, lambdas, configuration, instanceResult) + ";")
         (variant, name, lambdas, instanceResult)
       }
+
+      // print out an overall SQL query:
+      val sqlQuery = results.map { case (variant, name, lambdas, instanceResult) =>
+        buildAggregateSQLValues(variant, name, lambdas, configuration, instanceResult)
+      }.mkString(buildAggregateSQLHeader(), ",", ";")
+      println("AGGREGATE SQL QUERY: ")
+      println(sqlQuery)
 
       // finally, shut down the executor
       Executor.shutdown()

@@ -42,7 +42,10 @@ private class CollectTypedOpenCLMemory(val lambda: Lambda, val includePrivate: B
     val (localIntermediates, globalIntermediates) =
       intermediates.partition(_.mem.addressSpace == LocalMemory)
 
-    (inputs, Seq(output), globalIntermediates, localIntermediates)
+    (inputs.sortBy(_.mem.variable.name),
+      Seq(output),
+      globalIntermediates.sortBy(_.mem.variable.name),
+      localIntermediates.sortBy(_.mem.variable.name))
   }
 
   // this prevents that multiple memory objects (possibly with different types)
@@ -63,6 +66,7 @@ private class CollectTypedOpenCLMemory(val lambda: Lambda, val includePrivate: B
     expr match {
       case v: Value => collectValueOrUserFunMemory(v)
       case _: Param => Seq()
+      case a: ArrayFromExpr => collectIntermediateMemories(a.e)
       case _: ArrayConstructors => Seq()
       case call: FunCall => collectFunCall(call)
     }

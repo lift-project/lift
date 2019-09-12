@@ -11,8 +11,8 @@ object InterchangeRules {
     "Transpose() o Map(fun(a => Map() $ Zip(..., a, ...)) o Transpose() $ A", {
     case FunCall(Map(Lambda(outerLambdaParam,
     FunCall(Map(Lambda(innerLambdaParam,
-    expr
-    )), FunCall(Get(n), getParam))
+    expr, _
+    )), FunCall(Get(n), getParam)), _
     )), FunCall(Zip(_), zipArgs@_*))
 
       if getParam eq outerLambdaParam.head
@@ -43,7 +43,7 @@ object InterchangeRules {
 
   val transposeBothSides = Rule("Map(fun(a => Map(f) $ a)) $ A => " +
     "Transpose() o Map(fun(a =>Map(f) $ a)) o Transpose() $ A  ", {
-    case FunCall(Map(f@Lambda(param, FunCall(Map(_), a))), arg)
+    case FunCall(Map(f@Lambda(param, FunCall(Map(_), a), _)), arg)
       if param.head eq a
     =>
       TransposeW() o Map(f) o Transpose() $ arg
@@ -53,9 +53,9 @@ object InterchangeRules {
     "Transpose() o Map(Map(fun(a => ))) $ Zip(..., Transpose() o Map(...) $ A, ...) ", {
     case FunCall(Map(Lambda(Array(outerLambdaParam),
     FunCall(Map(Lambda(Array(innerLambdaParam),
-    expr
+    expr, _
     )), FunCall(Zip(_), zipArgs@_*))
-    )), arg)
+    , _)), arg)
       if zipArgs.count(Utils.getFinalArg(_) eq outerLambdaParam) >= 1
     =>
       // Find all Get patterns that refer to the an element from the zipped array
@@ -121,7 +121,7 @@ object InterchangeRules {
 
     val mapMapInterchange = Rule("Map(fun(a => Map(fun( b => ... ) $ B) $ A => " +
     "Transpose() o Map(fun(b => Map(fun( a => ... ) $ A) $ B", {
-    case FunCall(Map(Lambda(a, FunCall(Map(Lambda(b, expr)), bArg))), aArg)
+    case FunCall(Map(Lambda(a, FunCall(Map(Lambda(b, expr, _)), bArg), _)), aArg)
       if !bArg.contains({ case e if e eq a.head => })
     =>
       TransposeW() o Map(Lambda(b, FunCall(Map(Lambda(a, expr)), aArg))) $ bArg
@@ -129,7 +129,7 @@ object InterchangeRules {
 
   val mapReduceInterchange = Rule("Map(Reduce(f)) => Transpose() o Reduce(Map(f)) o Transpose()", {
     case FunCall(Map(Lambda(lambdaParams,
-          FunCall(r@AbstractPartRed(Lambda(innerParams, expr)), init: Value, arg)
+          FunCall(r@AbstractPartRed(Lambda(innerParams, expr, _)), init: Value, arg), _
          )), mapArg)
       if lambdaParams.head eq arg
     =>
@@ -147,7 +147,7 @@ object InterchangeRules {
     Rule("Map(fun(x => Reduce(f, Get(x, 0)) $ Get(x, 1) ) $ Zip(a, b) => " +
          "Transpose() o Reduce(fun((acc, y) => Map(f) $ Zip(acc, y) ), a ) o Transpose() $ b", {
       case FunCall(Map(Lambda(lambdaParams,
-      FunCall(r@AbstractPartRed(Lambda(innerParams, expr)), FunCall(Get(i), a1), FunCall(Get(j), a2))
+      FunCall(r@AbstractPartRed(Lambda(innerParams, expr, _)), FunCall(Get(i), a1), FunCall(Get(j), a2)), _
       )), FunCall(Zip(2), zipArgs@_*))
         if (lambdaParams.head eq a1) && (lambdaParams.head eq a2)
       =>
@@ -174,7 +174,7 @@ object InterchangeRules {
       "Transpose() o Reduce((acc, a) => Join() o Map(x => PartRed(f, Get(x, 0)) $ Get(x, 1)) $ Zip(acc, a) , Array(init)) o Transpose()", {
       case FunCall(Map(Lambda(p1,
       FunCall(ReduceSeq(f1), init1: Value, FunCall(Join(), FunCall(Map(Lambda(p2,
-        FunCall(PartRed(_), init2: Value, a2))), a1)))
+        FunCall(PartRed(_), init2: Value, a2), _)), a1))), _
       )), arg)
         if (p1.head eq a1) && (p2.head eq a2) && init1 == init2
       =>

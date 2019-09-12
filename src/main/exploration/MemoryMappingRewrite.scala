@@ -165,7 +165,7 @@ object MemoryMappingRewrite {
 
       try {
 
-        val lambda = ParameterRewrite.readLambdaFromFile(filename)
+        val lambda = SplitSlideRewrite.readLambdaFromFile(filename)
         val lowered = lowerLambda(lambda, enabledMappings, config.unrollReduce, topFolder)
 
         lowered.foreach(dumpToFile(topFolder, hash, _))
@@ -433,7 +433,7 @@ object MemoryMappingRewrite {
         e match {
           case call@FunCall(_: ReduceSeq, _*) => call :: s
           case _ => s
-        }).filterNot(e => firstIds.body.contains({ case FunCall(toGlobal(Lambda(_, c)), _*) if c eq e => }))
+        }).filterNot(e => firstIds.body.contains({ case FunCall(toGlobal(Lambda(_, c,_)), _*) if c eq e => }))
 
       reduceSeqs.foldRight(firstIds)((e, l) => Rewrite.applyRuleAt(l, e, CopyRules.addIdAfterReduce))
     } else

@@ -90,7 +90,7 @@ case class ParameterRewriteSettings(
 
 object ParameterRewriteSettings {
 
-  import ParameterRewrite._
+  import SplitSlideRewrite._
   import exploration.utils.ExplorationParameter._
   private[exploration] val defaultExploreNDRange = false
   private[exploration] val defaultSampleNDRange = 0
@@ -572,7 +572,7 @@ object ParseSettings {
     optionFilename match {
       case Some(filename) =>
 
-        val settingsString = ParameterRewrite.readFromFile(filename)
+        val settingsString = SplitSlideRewrite.readFromFile(filename)
         val json = Json.parse(settingsString)
         val validated = json.validate[Settings]
 

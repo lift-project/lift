@@ -3,7 +3,7 @@ package prog_gen
 import java.io.File
 
 import com.typesafe.scalalogging.Logger
-import exploration.ParameterRewrite
+import exploration.SplitSlideRewrite
 import ir.TypeChecker
 import ir.ast.Lambda
 import rewriting.utils.{DumpToFile, Utils}
@@ -42,7 +42,7 @@ object RegenerateConfiguration {
 
     val concretePrograms = programPaths.par.map(program =>
       try {
-        Some(ParameterRewrite.readLambdaFromFile(program.getAbsolutePath))
+        Some(SplitSlideRewrite.readLambdaFromFile(program.getAbsolutePath))
       } catch {
         case _: Throwable => None
       }).collect({ case Some(lambda) => lambda })

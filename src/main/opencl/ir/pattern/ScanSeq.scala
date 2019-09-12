@@ -1,7 +1,7 @@
 package opencl.ir.pattern
 
 import ir._
-import ir.ast.{Expr, FPattern, Lambda, Lambda1, Lambda2, Pattern, fun}
+import ir.ast.{Expr, FPattern, IRNode, Lambda, Lambda1, Lambda2, Pattern, fun}
 import ir.interpreter.Interpreter.ValueMap
 import lift.arithmetic.{ArithExpr, PosVar, Var}
 
@@ -34,6 +34,8 @@ case class ScanSeq(f:Lambda, var loopVar: Var) extends Pattern(arity = 2) with F
   def iterationCount: ArithExpr = loopVar.range.numVals
 
   override def copy(f: Lambda): ScanSeq = ScanSeq(f, PosVar("i"))
+
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)
 }
 object ScanSeq {
   def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => ScanSeq(f, PosVar("i"))(init, x))

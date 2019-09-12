@@ -7,12 +7,13 @@ import lift.arithmetic._
 import opencl.generator.NotPrintableExpression
 import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 case class ScalaPrinter(printNonFixedVarIds: Boolean = true) {
   def apply(expr: Expr): String = {
     expr match {
       case funCall: FunCall => funCall.f match {
-        case AssertType(_, _) | PrintType(_) =>
+        case AssertType(_, _) | PrintType(_) | RewritingGuidePost(_) =>
           // Skip these primitives and just print their arguments
           apply(funCall.args.head)
         case _ =>
@@ -59,7 +60,7 @@ case class ScalaPrinter(printNonFixedVarIds: Boolean = true) {
       case Gather(idxFun) => s"Gather(${apply(idxFun)})"
       case Scatter(idxFun) => s"Scatter(${apply(idxFun)})"
 //      case uf: UserFun => apply(uf)
-      case x => x.toString
+      case x => x.toString//throw new NotImplementedError(s"$x") // it's not ideal. we fix it later (c) Christophe
     }
   }
 

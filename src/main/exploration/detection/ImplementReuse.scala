@@ -95,7 +95,7 @@ object ImplementReuse {
               implementReuse(lambda, loc, variables, rule)
             })
 
-          case FunCall(Map(Lambda(_, call: FunCall)), _) =>
+          case FunCall(Map(Lambda(_, call: FunCall,_)), _) =>
             return implementReuse(f2, call, variables, rule)
           case _ =>
             throw new NotImplementedError()

@@ -17,7 +17,7 @@ class TestLambda {
         $ Tuple(asVector(4) $ Get(input, 0), asVector(4) $ Get(input, 1)))
 
     val function: PartialFunction[Expr, Unit] = {
-      case FunCall(Lambda(_, FunCall(Lambda(_, _), FunCall(_, _*))), _) =>
+      case FunCall(Lambda(_, FunCall(Lambda(_, _, _), FunCall(_, _*)), _), _) =>
     }
 
     assertTrue(function.isDefinedAt(f.body))

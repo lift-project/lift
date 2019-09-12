@@ -66,10 +66,12 @@ object OutputView {
       case _: Unzip => writeView.zip()
       case l: Lambda => buildViewLambda(l, call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
+      case cc: Concat => buildViewConcat(call, View.initialiseNewView(call.t, call.inputDepth, call.mem.variable))
       case _: Slide =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
+      case RewritingGuidePost(_) => writeView
       case debug.PrintType(_) | debug.PrintComment(_) | debug.AssertType(_, _) | Get(_) | _: Tuple | Gather(_) | 
            Filter() | Pad(_, _, _) | PadConstant(_, _, _) | Id() =>
         writeView
@@ -82,6 +84,10 @@ object OutputView {
         val res = call.args.map(arg =>
           visitAndBuildViews(arg, View.initialiseNewView(arg.t, arg.inputDepth, arg.mem.variable)))
 
+        ViewTuple(res, call.argsType)
+      case Concat(_) =>
+        // recurse into arguments by passing the modified output view along
+        val res = call.args.map(arg => visitAndBuildViews(arg, arg.outputView))
         ViewTuple(res, call.argsType)
       case _: AbstractPartRed =>
         val acc = call.args.head
@@ -137,6 +143,23 @@ object OutputView {
     })
 
     result
+  }
+
+  private def buildViewConcat(call: FunCall, writeView: View): View = {
+
+    var accCapacity : ArithExpr = Cst(0)
+
+    call.args.foreach({
+      case (arg) if arg.outputView == NoView => arg.outputView = writeView.offset(accCapacity)
+        accCapacity = accCapacity +
+          (arg.t match{
+          case ArrayTypeWSWC(_,_,c) => c
+        })
+      case _ => throw new IllegalArgumentException("PANIC: No output view required!")
+    })
+   // println(writeView)
+//    writeView
+    View.initialiseNewView(call.t, call.outputDepth, call.mem.variable)
   }
 
   private def getAccessDepth(accessInfo: AccessInfo, memory: Memory) = {
@@ -262,6 +285,7 @@ object OutputView {
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {
     visitAndBuildViews(l.body, writeView)
     // TODO: Not sure about this
+    //l.body.outputView = writeView
     l.params.head.outputView
   }
   
@@ -309,10 +333,7 @@ object OutputView {
   private def buildViewTransposeW(tw: TransposeW, call: FunCall, writeView: View): View = {
     call.t match {
       case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
-        writeView.
-          join(m).
-          reorder((i:ArithExpr) => { transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(typ, n), m)) }).
-          split(n)
+        writeView.transpose
       case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
         throw new TypeException(call.t, "Array", call.f)
     }

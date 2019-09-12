@@ -163,10 +163,10 @@ object OpenCLRules {
   /* OpenCL builtins */
 
   val dotBuiltin = Rule("", {
-    case FunCall(Reduce(Lambda(rp, FunCall(uf:UserFun, a1, a2))), init,
+    case FunCall(Reduce(Lambda(rp, FunCall(uf:UserFun, a1, a2),_)), init,
     FunCall(asScalar(),
     FunCall(Map(Lambda(mp,FunCall(VectorizeUserFun(Cst(4), multUf),
-    FunCall(Get(n), multA1), FunCall(Get(m), multA2)) )), arg)))
+    FunCall(Get(n), multA1), FunCall(Get(m), multA2)),_ )), arg)))
       if uf == add &&
         init.t == opencl.ir.Float &&
         rp.contains(a1) &&
@@ -180,7 +180,7 @@ object OpenCLRules {
   })
 
   val dotBuiltinSeq = Rule("", {
-    case FunCall(ReduceSeq(Lambda(rp, FunCall(uf:UserFun, a1, a2))), init,
+    case FunCall(ReduceSeq(Lambda(rp, FunCall(uf:UserFun, a1, a2),_)), init,
     FunCall(asScalar(),
     FunCall(m: AbstractMap, arg)))
       if uf == add &&
@@ -206,7 +206,7 @@ object OpenCLRules {
 
   def vectorize(vectorWidth: ArithExpr): Rule =
     Rule("Map(uf) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
-      case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArg))), arg)
+      case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArg),_)), arg)
         if (p.head eq ufArg) && isTypeSuitableForVectorisation(ufArg.t)
       =>
         performVectorization(vectorWidth, uf, arg, identity)
@@ -217,15 +217,15 @@ object OpenCLRules {
 
   def vectorizeToAddressSpace(vectorWidth: ArithExpr): Rule =
     Rule("Map(uf) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
-      case FunCall(Map(Lambda(p, FunCall(toGlobal(Lambda(Array(p2), FunCall(uf: UserFun, ufArg))), a))), arg)
+      case FunCall(Map(Lambda(p, FunCall(toGlobal(Lambda(Array(p2), FunCall(uf: UserFun, ufArg),_)), a),_)), arg)
         if (p.head eq a) && p2.eq(ufArg) && isTypeSuitableForVectorisation(ufArg.t)
       =>
         performVectorization(vectorWidth, uf, arg, toGlobal)
-      case FunCall(Map(Lambda(p, FunCall(toLocal(Lambda(Array(p2), FunCall(uf: UserFun, ufArg))), a))), arg)
+      case FunCall(Map(Lambda(p, FunCall(toLocal(Lambda(Array(p2), FunCall(uf: UserFun, ufArg),_)), a),_)), arg)
         if (p.head eq a) && p2.eq(ufArg) && isTypeSuitableForVectorisation(ufArg.t)
       =>
         performVectorization(vectorWidth, uf, arg, toLocal)
-      case FunCall(Map(Lambda(p, FunCall(toPrivate(Lambda(Array(p2), FunCall(uf: UserFun, ufArg))), a))), arg)
+      case FunCall(Map(Lambda(p, FunCall(toPrivate(Lambda(Array(p2), FunCall(uf: UserFun, ufArg),_)), a),_)), arg)
         if (p.head eq a) && p2.eq(ufArg) && isTypeSuitableForVectorisation(ufArg.t)
       =>
         performVectorization(vectorWidth, uf, arg, toPrivate)
@@ -247,7 +247,7 @@ object OpenCLRules {
 
   def vectorizeMapZip(vectorWidth: ArithExpr): Rule =
     Rule("Map(uf) $ Zip(a, b) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
-      case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArgs@_*))), FunCall(Zip(_), zipArgs@_*))
+      case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArgs@_*),_)), FunCall(Zip(_), zipArgs@_*))
         if zipArgs.forall(arg => isTypeSuitableForVectorisation(arg.t)) &&
           ufArgs.forall({
             case FunCall(Get(_), x) if x == p.head => true
@@ -268,7 +268,7 @@ object OpenCLRules {
 
   def partialReduceVectorize(vectorWidth: ArithExpr): Rule =
     Rule("PartRed(f) => Join() o Map(PartRed(f)) o Split()", {
-      case FunCall(PartRed(Lambda(_, FunCall(uf:UserFun, _*))), init:Value, arg)
+      case FunCall(PartRed(Lambda(_, FunCall(uf:UserFun, _*),_)), init:Value, arg)
         if isTypeSuitableForVectorisation(init.t) =>
         val n = getWidthForVectorisation(vectorWidth)
         asScalar() o PartRed(VectorizeUserFun(n, uf), init.vectorize(n)) o asVector(n) $ arg
@@ -282,7 +282,7 @@ object OpenCLRules {
   })
 
   val reduceSeqUnroll = Rule("ReduceSeq(f) => ReduceSeqUnroll(f)", {
-    case FunCall(ReduceSeq(f), init, arg) =>
+    case FunCall(r@ReduceSeq(f), init, arg) if (!r.isInstanceOf[ReduceSeqUnroll]) =>
       ReduceSeqUnroll(f, init) $ arg
   })
 }

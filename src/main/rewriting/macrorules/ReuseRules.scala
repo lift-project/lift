@@ -18,7 +18,7 @@ object ReuseRules {
 
   def tileMapMap(x: ArithExpr, y: ArithExpr): Rule =
     Rule("Tile Map(Map(f))", {
-      case funCall @ FunCall(Map(Lambda(lambdaParam, chain)), _)
+      case funCall @ FunCall(Map(Lambda(lambdaParam, chain,_)), _)
         if getCallForBlocking(chain, lambdaParam).isDefined
       =>
         val tiled = tileMapMap(x, y, funCall)
@@ -76,7 +76,7 @@ object ReuseRules {
     * @return
     */
   def apply1DRegisterBlocking(factor: ArithExpr): Rule = Rule("1D register blocking", {
-    case call@FunCall(Map(Lambda(lambdaArg, innerCall)), _)
+    case call@FunCall(Map(Lambda(lambdaArg, innerCall,_)), _)
       if getCallForBlocking(innerCall, lambdaArg).isDefined
     =>
       // Split-join on outermost map
@@ -99,7 +99,7 @@ object ReuseRules {
     doReorder: Boolean = true): Rule =
 
     Rule("2D register blocking" + (if (doReorder) "" else " no reorder"), {
-      case call@FunCall(Map(Lambda(lambdaArg, innerCall)), _)
+      case call@FunCall(Map(Lambda(lambdaArg, innerCall,_)), _)
         if getCallForBlocking(innerCall, lambdaArg).isDefined
         // TODO: is the guard good enough?
       =>
@@ -222,7 +222,7 @@ object ReuseRules {
 
   def tileTranspose(x: ArithExpr, y:ArithExpr): Rule =
     Rule("Map(Map(f)) o Transpose() => tiled", {
-      case funCall @ FunCall(Map(Lambda(lambdaParam, FunCall(Map(_), arg))), FunCall(Transpose(), _))
+      case funCall @ FunCall(Map(Lambda(lambdaParam, FunCall(Map(_), arg),_)), FunCall(Transpose(), _))
         if lambdaParam.head eq arg
       =>
         val e1 = Rewrite.applyRuleAtId(funCall, 0, tileMapMap(x, y))
@@ -235,7 +235,7 @@ object ReuseRules {
       case funCall@FunCall(Map(Lambda(_,
       FunCall(TransposeW(), FunCall(Join(),
       FunCall(Map(_), FunCall(Split(_), FunCall(Transpose(), _)))))
-      )), FunCall(Split(_), _:Param))
+      ,_)), FunCall(Split(_), _:Param))
         if FissionRules.mapFissionWithZipInside.rewrite.isDefinedAt(funCall)
           && FissionRules.mapFissionWithZipInside.rewrite.isDefinedAt(
           Rewrite.getExprForId(funCall, 5, NumberExpression.breadthFirst(funCall)))
@@ -259,7 +259,7 @@ object ReuseRules {
 
       // Directly applies
       case funCall @
-        FunCall(Map(Lambda(_, FunCall(Split(_), FunCall(Transpose(), _:Param)))),
+        FunCall(Map(Lambda(_, FunCall(Split(_), FunCall(Transpose(), _:Param)),_)),
         FunCall(Split(_), FunCall(Transpose(), _)))
       =>
         val e0 = Rewrite.depthFirstApplyRuleAtId(funCall, 4, Rules.splitTranspose)
@@ -269,7 +269,7 @@ object ReuseRules {
         e3
 
       // Applies after some manipulation
-      case FunCall(Map(Lambda(param, body)), arg@FunCall(Split(_), FunCall(Transpose(), _)))
+      case FunCall(Map(Lambda(param, body,_)), arg@FunCall(Split(_), FunCall(Transpose(), _)))
         if body.contains({ case FunCall(Split(_), FunCall(Transpose(), a)) if a eq param.head => })
           && Expr.visitWithState(0)(body, (e, count) => if (e eq param.head) count+1 else count) == 1
       =>
@@ -303,7 +303,7 @@ object ReuseRules {
   def finishTiling(x: ArithExpr): Rule =
     Rule("finishTiling", {
       case funCall @
-        FunCall(Map(Lambda(_, c)), _)
+        FunCall(Map(Lambda(_, c,_)), _)
         if Utils.getIndexForPatternInCallChain(c, mapPattern) != -1
           && (Utils.getExprForPatternInCallChain(c, mapPattern).get.contains(mapPattern)
           || Utils.getExprForPatternInCallChain(c, mapPattern).get.contains(reducePattern))
@@ -374,7 +374,7 @@ object ReuseRules {
 
   def introduceReuseFromMap(arithExpr: ArithExpr): Rule = {
     Rule("introduceReuseFromMap", {
-      case call@FunCall(Map(Lambda(_, body)), _)
+      case call@FunCall(Map(Lambda(_, body,_)), _)
         if Utils.getIndexForPatternInCallChain(body, mapPattern) != -1 ||
           Utils.getIndexForPatternInCallChain(body, { case FunCall(Reduce(_), _, _) => }) != -1
       =>

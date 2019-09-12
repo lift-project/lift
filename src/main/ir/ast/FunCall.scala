@@ -13,6 +13,18 @@ import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
   assert(f != null)
 
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = {
+    args.map(_.visit_pp(prePost))
+    f.visit_pp(prePost)
+  }
+
+  override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = {
+    val new_fc = FunCall(f.visitAndRebuild(pre, post).asInstanceOf[FunDecl], args.map(_.visitAndRebuild(pre, post).asInstanceOf[Expr]): _*)
+    new_fc.t = this.t
+    new_fc.gid = this.gid
+    new_fc
+  }
+
 
   override def toString = {
     val fS = f.toString
@@ -55,7 +67,7 @@ case class FunCall(f: FunDecl, args: Expr*) extends Expr with Cloneable {
 
 object FunCallInst {
   def unapply(l: Lambda): Option[(Pattern,Expr)] = l match {
-    case Lambda(_, FunCall(x, a)) if x.isInstanceOf[Pattern] => Some((x.asInstanceOf[Pattern], a))
+    case Lambda(_, FunCall(x, a), _) if x.isInstanceOf[Pattern] => Some((x.asInstanceOf[Pattern], a))
     case _ => None
   }
 }
