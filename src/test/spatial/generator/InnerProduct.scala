@@ -3,7 +3,8 @@ package spatial.generator
 import backends.c
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
 import backends.spatial
-import backends.spatial.spatial_host.ir.AccelFun
+import backends.spatial.host
+import backends.spatial.host.ir.AccelFun
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, TestWithExecutor}
@@ -84,10 +85,10 @@ class InnerProduct {
       ArrayTypeWSWC(Float, 16),
       ArrayTypeWSWC(Float, 16),
       (x, y) =>
-        AccelFun(scalarDotLambda)(x, y)
+        host.ir.AccelFun(scalarDotLambda)(x, y)
     )
 
-    val out = spatial.global.RuntimeCompiler(runTimeLambda)
+    val out = spatial.runtime.RuntimeBuilder(runTimeLambda)
     
   }
 }

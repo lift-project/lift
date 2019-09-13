@@ -1,9 +1,9 @@
-package backends.spatial.global
+package backends.spatial.runtime
 
-import backends.spatial.spatial_host.ir.AccelFun
+import backends.spatial.host.ir.AccelFun
 import ir.ast.{Expr, FunCall, Lambda}
 
-object AcceleratableLambdaCollector {
+object AcceleratorLambdaCollector {
   def apply(lambda: Lambda): List[Lambda] = {
     Expr.visitWithState(List[Lambda]())(
       expr = lambda.body,
