@@ -1,7 +1,9 @@
 package spatial.generator
 
-import cbackends.global.GlobalCompiler
-import cbackends.host.host_ir.{OclFunc, ToGPU, ToHost}
+import backends.c
+import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
+import backends.spatial
+import backends.spatial.spatial_host.ir.AccelFun
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, TestWithExecutor}
@@ -47,9 +49,9 @@ class InnerProduct {
         ToHost() $ OclFunc(scalarDotLambda, cpu_timer = true, gpu_timer = true)(ToGPU(x), ToGPU(y))
     )
 
-    GlobalCompiler ! (hostingLambda, codeOutputPath, List(hostCodeFileName))
+    c.global.GlobalCompiler(hostingLambda, codeOutputPath, List(hostCodeFileName))
 
-    val actualOutput: String = cbackends.common.executor.Executor.native_compile_and_run(
+    val actualOutput: String = backends.c.common.executor.Executor.native_compile_and_run(
       codeOutputPath, hostCodeFileName)
 
     print(actualOutput)
@@ -78,7 +80,14 @@ class InnerProduct {
         }(_ + _)
       }"""
 
-//    val code = spatial.
+    val runTimeLambda: Lambda = fun(
+      ArrayTypeWSWC(Float, 16),
+      ArrayTypeWSWC(Float, 16),
+      (x, y) =>
+        AccelFun(scalarDotLambda)(x, y)
+    )
+
+    val out = spatial.global.RuntimeCompiler(runTimeLambda)
     
   }
 }

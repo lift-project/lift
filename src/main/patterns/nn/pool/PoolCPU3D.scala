@@ -1,6 +1,6 @@
 package patterns.nn.pool
 
-import cbackends.host.host_ir.CPUFunc
+import backends.c.host.host_ir.CPUFunc
 import ir.ast.onnx.AveragePool
 import ir.ast.{Expr, FunCall, Join, Slide3D_R, fun}
 import opencl.ir.pattern.{MapSeq, ReduceSeq}

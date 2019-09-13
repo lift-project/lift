@@ -1,6 +1,6 @@
 package patterns.nn.conv
 
-import cbackends.host.host_ir.CPUFunc
+import backends.c.host.host_ir.CPUFunc
 import ir.ArrayTypeWSWC
 import ir.ast.{Expr, FunCall, Get, Join, Slide3D_R, Zip, fun}
 import opencl.ir.pattern.{MapSeq, ReduceSeq}

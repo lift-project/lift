@@ -1,6 +1,6 @@
 package rewriting.rules
 
-import cbackends.common.common_ir.{Marker2, Marker3}
+import backends.c.common.common_ir.{Marker2, Marker3}
 import ir._
 import ir.ast._
 import lift.arithmetic._

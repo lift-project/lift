@@ -1,6 +1,6 @@
 package ir.view
 
-import cbackends.common.common_ir.Slice
+import backends.c.common.common_ir.Slice
 import core.generator.GenericAST
 import core.generator.GenericAST._
 import ir.Type.size_t
