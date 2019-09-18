@@ -1,7 +1,7 @@
 package backends.spatial.accel
 
 import _root_.ir.ast.{Expr, FunCall, Lambda}
-import backends.spatial.host.HostAST.AccelScope
+import backends.spatial.host.SpatialHostAST.AccelScope
 import core.generator.GenericAST.{Block, Comment, MutableBlock}
 import ir.UndefType
 import opencl.ir.pattern.ReduceSeq
