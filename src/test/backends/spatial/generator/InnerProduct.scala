@@ -1,4 +1,4 @@
-package spatial.generator
+package backends.spatial.generator
 
 import backends.c
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
@@ -22,7 +22,7 @@ class InnerProduct {
   val input: Array[Float] = (0 until 16).toArray.map(_.toFloat)
   val gold: Float = (input, input).zipped.map(_*_).sum
 
-  val commonCodeOutputPath = System.getProperty("user.dir") + "/src/test/spatial/host"
+  val commonCodeOutputPath = System.getProperty("user.dir") + "/src/test/backends.spatial/host"
 
   val scalarDotLambda: Lambda = fun(
     ArrayTypeWSWC(Float, 16),
