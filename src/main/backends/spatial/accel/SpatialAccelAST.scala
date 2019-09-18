@@ -45,7 +45,7 @@ object SpatialAccelAST {
     }
   }
 
-  trait Reduce extends StatementT {
+  trait ReduceT extends StatementT {
     val accum: AstNode
     val counter: List[CounterT]
     val mapFun: MutableBlockT
@@ -67,6 +67,25 @@ object SpatialAccelAST {
       text("Reduce(") <> accum.print <> text(")") <>
         text("(") <> counter.map(_.print()).reduce(_ <> text(",") <> _) <> text(")") <>
         mapFun.print <> reduceFun.print
+    }
+  }
+
+  case class Reduce(accum: AstNode,
+                    counter: List[CounterT],
+                    mapFun: MutableBlockT,
+                    reduceFun: MutableBlockT) extends ReduceT {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
+      Reduce(accum.visitAndRebuild(pre, post),
+        counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
+        mapFun.visitAndRebuild(pre, post).asInstanceOf[MutableBlockT],
+        reduceFun.visitAndRebuild(pre, post).asInstanceOf[MutableBlockT])
+    }
+
+    override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
+      accum.visitBy(pre, post)
+      counter.foreach(_.visitBy(pre, post))
+      mapFun.visitBy(pre, post)
+      reduceFun.visitBy(pre, post)
     }
   }
 }
