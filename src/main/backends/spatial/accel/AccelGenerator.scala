@@ -1,6 +1,7 @@
 package backends.spatial.accel
 
 import _root_.ir.ast.{Expr, FunCall, Lambda}
+import backends.spatial.accel.SpatialAccelAST.SpatialVarDecl
 import backends.spatial.host.SpatialHostAST.AccelScope
 import core.generator.GenericAST.{Block, Comment, MutableBlock}
 import ir.UndefType
@@ -22,11 +23,11 @@ object AccelGenerator {
 //     Collect dynamically and statically allocated typed memories
 //
 //     Declare static buffers inside the scope
-//
 //     Declare value buffers inside the scope
-//
 //     Declare private variables
-//
+    // TODO: Do not declare buffers in the beginning of the block.
+    //  Declare them in proper inner scopes
+
 //     Generate the main part of the block
     generate(f.body, accelBlock)
 
@@ -61,11 +62,24 @@ object AccelGenerator {
     val innerBlock = MutableBlock(Vector.empty)
     (block: MutableBlock) += Comment("reduce_seq")
 
+    val initNode = call.args.head
+
+    // Declare accumulator
+    (block: MutableBlock) += SpatialVarDecl(initNode.mem.variable, initNode.t,
+      addressSpace = initNode.mem.addressSpace)
+
     if (r.shouldUnroll) {
       // TODO
     }
 
-    // TODO: <NAUMS: last stop>
+    val accum = call.args.head
+
+    (block: MutableBlock) += SpatialAccelAST.Reduce(
+      accum = ,
+      counter = ,
+      mapFun = ,
+      reduceFun =
+    )
 
     (block: MutableBlock) += Comment("end reduce_seq")
   }

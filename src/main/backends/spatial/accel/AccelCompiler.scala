@@ -15,6 +15,7 @@ object AccelCompiler extends Compiler {
     // Ranges and counts
 
     // Memory allocation
+    allocateMemory(f)
 
     // Loop unrolling
 
@@ -28,5 +29,11 @@ object AccelCompiler extends Compiler {
 
     // Generate code
     AccelGenerator(f)
+  }
+
+  def allocateMemory(lambda: Lambda): Unit = {
+    // Allocate memory
+    SpatialMemoryAllocator(f)
+    // Remove redundant memory
   }
 }
