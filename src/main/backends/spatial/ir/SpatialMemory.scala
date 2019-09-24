@@ -145,24 +145,23 @@ object SpatialMemory {
   /** Return newly allocated memory based on the given sizes and the address
     * space of the input memory
     *
-    * @param glbOutSize Size in bytes to allocate in global memory
-    * @param lclOutSize Size in bytes to allocate in local memory
+    * @param sramOutSize Size in bytes to allocate in SRAM memory
+    * @param regOutSize Size in bytes to allocate in Register memory
     * @param addressSpace Address space for allocation
     * @return The newly allocated memory object
     */
   @scala.annotation.tailrec
-  def allocMemory(glbOutSize: ArithExpr,
-                  lclOutSize: ArithExpr,
-                  pvtOutSize: ArithExpr,
+  def allocMemory(sramOutSize: ArithExpr,
+                  regOutSize: ArithExpr,
                   addressSpace: SpatialAddressSpace): SpatialMemory = {
     if (addressSpace == UndefAddressSpace)
       throw new IllegalArgumentException(s"Can't allocate memory in $addressSpace")
 
     addressSpace match {
-      case SRAMMemory => allocSRAMMemory(glbOutSize)
-      case RegMemory => allocRegMemory(pvtOutSize)
+      case SRAMMemory => allocSRAMMemory(sramOutSize)
+      case RegMemory => allocRegMemory(regOutSize)
       case co: AddressSpaceCollection =>
-        allocMemory(glbOutSize, lclOutSize, pvtOutSize, co.findCommonAddressSpace())
+        allocMemory(sramOutSize, regOutSize, co.findCommonAddressSpace())
       case UndefAddressSpace =>
         throw new MemoryAllocationException("Cannot allocate memory in UndefAddressSpace")
     }
@@ -177,16 +176,13 @@ object SpatialMemory {
   def allocMemory(size: ArithExpr, addressSpace: SpatialAddressSpace) =
     SpatialMemory(Var("", ContinuousRange(Cst(0), size)), size, addressSpace)
 
-  /** Return newly allocated global memory */
-  def allocSRAMMemory(glbOutSize: ArithExpr): SpatialMemory =
-    allocMemory(glbOutSize, GlobalMemory)
+  /** Return newly allocated SRAM memory */
+  def allocSRAMMemory(sramOutSize: ArithExpr): SpatialMemory =
+    allocMemory(sramOutSize, SRAMMemory)
 
-  /** Return newly allocated local memory */
-  def allocLocalMemory(lclOutSize: ArithExpr): SpatialMemory =
-    allocMemory(lclOutSize, LocalMemory)
-
-  def allocRegMemory(size: ArithExpr): SpatialMemory =
-    allocMemory(size, PrivateMemory)
+  /** Return newly allocated Register memory */
+  def allocRegMemory(regOutSize: ArithExpr): SpatialMemory =
+    allocMemory(regOutSize, RegMemory)
 }
 
 /** Represents an SpatialMemory object combined with a type.

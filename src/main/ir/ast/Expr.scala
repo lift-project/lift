@@ -29,7 +29,7 @@ abstract class Expr extends IRNode {
    */
   var mem: Memory = UnallocatedMemory
 
-  var addressSpace: OpenCLAddressSpace = UndefAddressSpace
+  var addressSpace: AddressSpace = UndefAddressSpace
 
   /**
    * The view of this expression explaining how to access the memory object

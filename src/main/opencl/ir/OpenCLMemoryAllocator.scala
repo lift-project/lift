@@ -52,6 +52,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic.{?, ArithExpr, Cst}
 import opencl.ir.pattern._
+import opencl.ir.OpenCLAddressSpace.asOpenCLAddressSpace
 
 import scala.collection.mutable
 

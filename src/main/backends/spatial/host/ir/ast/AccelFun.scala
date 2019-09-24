@@ -1,4 +1,4 @@
-package backends.spatial.host.ir
+package backends.spatial.host.ir.ast
 
 import ir.ast.{FPattern, Lambda, Pattern}
 import ir.interpreter.Interpreter.ValueMap

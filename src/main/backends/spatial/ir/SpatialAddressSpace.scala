@@ -1,7 +1,19 @@
 package backends.spatial.ir
 
-abstract class SpatialAddressSpace {
+import ir.AddressSpace
+import scala.language.implicitConversions
+
+abstract class SpatialAddressSpace extends AddressSpace {
   def containsAddressSpace(spatialAddressSpace: SpatialAddressSpace): Boolean
+}
+
+object SpatialAddressSpace {
+  implicit def asSpatialAddressSpace(addressSpace: AddressSpace): SpatialAddressSpace = {
+    addressSpace match {
+      case spatialAddressSpace: SpatialAddressSpace => spatialAddressSpace
+      case _ => throw new IllegalArgumentException
+    }
+  }
 }
 
 object SRAMMemory extends SpatialAddressSpace {

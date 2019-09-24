@@ -1,6 +1,6 @@
 package backends.spatial.runtime
 
-import backends.spatial.host.ir.AccelFun
+import backends.spatial.host.ir.ast.AccelFun
 import ir.ast.{Expr, FunCall, Lambda}
 
 object AcceleratorLambdaCollector {

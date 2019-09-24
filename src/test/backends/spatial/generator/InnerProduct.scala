@@ -3,8 +3,9 @@ package backends.spatial.generator
 import backends.c
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
 import backends.spatial
+import backends.spatial.accel.ir.pattern.MapPar
 import backends.spatial.host
-import backends.spatial.host.ir.AccelFun
+import backends.spatial.host.ir.ast.AccelFun
 import ir._
 import ir.ast._
 import opencl.executor.{Execute, TestWithExecutor}
@@ -86,7 +87,7 @@ class InnerProduct {
       ArrayTypeWSWC(Float, N),
       ArrayTypeWSWC(Float, N),
       (x, y) =>
-        host.ir.AccelFun(scalarDotLambda)(x, y)
+        host.ir.ast.AccelFun(scalarDotLambda)(x, y)
     )
 
     val out = spatial.runtime.RuntimeBuilder(runTimeLambda)
@@ -97,19 +98,20 @@ class InnerProduct {
   val outerParFactor = 2
   val innerParFactor = 16
 
-  val reduceTile = fun(
+  val reduceTile: Lambda = fun(
     TupleType(
       ArrayTypeWSWC(Float, tileSize),
       ArrayTypeWSWC(Float, tileSize)
     ), tile =>
       ReduceSeq(add, 0.0f) o
         MapSeq(mult) o
-        /*Parallel(*/
-        fun((a, b) => Tuple(
-          MapSeq(MapLcl(toLocal(id))) o Split(innerParFactor) $ a,
-          MapSeq(MapLcl(toLocal(id))) o Split(innerParFactor) $ b))
-        /*)*/ o
-        Unzip() $ tile)
+        fun((a, b) => Zip(
+          /*Parallel(*/
+          Tuple(
+            MapPar(MapLcl(toLocal(id))) o Split(innerParFactor) $ a,
+            MapPar(MapLcl(toLocal(id))) o Split(innerParFactor) $ b)
+          /*)*/ ))
+        o Unzip() $ tile)
 
   val scalarDotLambdaTiled: Lambda = fun(
     ArrayTypeWSWC(Float, N),
@@ -123,7 +125,7 @@ class InnerProduct {
           ReduceSeq(add, Value(0, Float)) o
             Join() o
             /* Reduce each tile of a parallel group in parallel */
-            MapLcl(fun(tile =>
+            MapPar(fun(tile =>
               /* Reduce one tile of a parallel group */
               ReduceSeq(reduceTile, Value(0, Float)) $
                 tile)) $
@@ -137,7 +139,7 @@ class InnerProduct {
 
     val expectedOutCode = """
       Accel {
-        out := Reduce(Reg[T](0.to[T]))(N by tileSize par parFactor){i =>
+        out := Reduce(Reg[T](0.to[T]))(N by tileSize par outerParFactor){i =>
           val aBlk = SRAM[T](tileSize)
           val bBlk = SRAM[T](tileSize)
           Parallel {
