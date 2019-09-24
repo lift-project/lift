@@ -91,8 +91,7 @@ object SpatialMemoryAllocator {
         allocUserFun(call.t, memSizes, call)
       case  _: VectorizeUserFun => throw new NotImplementedError()
 
-      case Map(_) | MapPar(_) | MapSeq(_) => allocMap(call.f.asInstanceOf[AbstractMap],
-        call.t, memSizes, inMem)
+      case MapPar(_) | MapSeq(_)  => allocMapParSeq(call.f.asInstanceOf[AbstractMap], call.t, memSizes, inMem)
 
       case r: AbstractPartRed => allocReduce(r, memSizes, inMem)
 
@@ -117,7 +116,8 @@ object SpatialMemoryAllocator {
 
       case RewritingGuidePost(_) => inMem
 
-      case Split(_) | Join() | asVector(_) | asScalar() |
+      case Map(_) |
+           Split(_) | Join() | asVector(_) | asScalar() |
            Transpose() | Unzip() | TransposeW() | Slide(_, _) | Pad(_, _, _) | PadConstant(_, _, _) |
            Head() | Tail() | Gather(_) | Scatter(_) | ArrayAccess(_) |
            debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
@@ -164,10 +164,10 @@ object SpatialMemoryAllocator {
     alloc(l.body, memSizes)
   }
 
-  private def allocMap(am: AbstractMap,
-                       outT: Type,
-                       memSizes: Allocators,
-                       inMem: SpatialMemory): SpatialMemory = {
+  private def allocMapParSeq(am: AbstractMap,
+                             outT: Type,
+                             memSizes: Allocators,
+                             inMem: SpatialMemory): SpatialMemory = {
 
     val regMemSizeMultiplier: ArithExpr =
       if (am.f.body.addressSpace.containsAddressSpace(RegMemory) ||

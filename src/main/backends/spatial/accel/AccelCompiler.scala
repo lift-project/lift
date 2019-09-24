@@ -26,8 +26,6 @@ object AccelCompiler extends Compiler {
 
     // Check if lambda is legal
 
-    // Collect typed memory
-
     // Build biew
 
     // Generate code
