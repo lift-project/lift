@@ -18,15 +18,15 @@ object InnerProduct extends TestWithExecutor
 
 class InnerProduct {
 
-  val N = 16
+  val N = 1024
   val input: Array[Float] = (0 until 16).toArray.map(_.toFloat)
   val gold: Float = (input, input).zipped.map(_*_).sum
 
   val commonCodeOutputPath = System.getProperty("user.dir") + "/src/test/backends.spatial/host"
 
   val scalarDotLambda: Lambda = fun(
-    ArrayTypeWSWC(Float, 16),
-    ArrayTypeWSWC(Float, 16),
+    ArrayTypeWSWC(Float, N),
+    ArrayTypeWSWC(Float, N),
     (x, y) =>
       toGlobal(MapSeq(id)) o
         ReduceSeq(add, 0.0f) o
@@ -34,7 +34,7 @@ class InnerProduct {
   )
 
   @Test
-  def openclTest(): Unit = {
+  def openclDotProduct(): Unit = {
 //    val code = opencl.executor.Compile(scalarDotLambda)
 //
 //    val (output, _) = Execute(1, 1)[Array[Float]](code, scalarDotLambda, input, input)
@@ -44,8 +44,8 @@ class InnerProduct {
     val hostCodeFileName = "opencl_scalar_dot_host.cpp"
 
     val hostingLambda = fun(
-      ArrayTypeWSWC(Float, 16),
-      ArrayTypeWSWC(Float, 16),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
       (x, y) =>
         ToHost() $ OclFunc(scalarDotLambda, cpu_timer = true, gpu_timer = true)(ToGPU(x), ToGPU(y))
     )
@@ -64,7 +64,8 @@ class InnerProduct {
   }
 
   @Test
-  def spatialAccelTest(): Unit = {
+  def spatialDotProduct(): Unit = {
+
     val expectedOutCode = """
        Accel {
         // Allocate local SRAMs
@@ -76,19 +77,76 @@ class InnerProduct {
         s2 load d2
   
         // Multiply and accumulate
-        x := Reduce(Reg[T](0))(len by 1) { i =>
+        out := Reduce(Reg[T](0))(len by 1) { i =>
           s1(i) * s2(i)
         }(_ + _)
       }"""
 
     val runTimeLambda: Lambda = fun(
-      ArrayTypeWSWC(Float, 16),
-      ArrayTypeWSWC(Float, 16),
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
       (x, y) =>
         host.ir.AccelFun(scalarDotLambda)(x, y)
     )
 
     val out = spatial.runtime.RuntimeBuilder(runTimeLambda)
     
+  }
+
+  val tileSize = 32
+  val outerParFactor = 2
+  val innerParFactor = 16
+
+  val reduceTile = fun(
+    TupleType(
+      ArrayTypeWSWC(Float, tileSize),
+      ArrayTypeWSWC(Float, tileSize)
+    ), tile =>
+      ReduceSeq(add, 0.0f) o
+        MapSeq(mult) o
+        /*Parallel(*/
+        fun((a, b) => Tuple(
+          MapSeq(MapLcl(toLocal(id))) o Split(innerParFactor) $ a,
+          MapSeq(MapLcl(toLocal(id))) o Split(innerParFactor) $ b))
+        /*)*/ o
+        Unzip() $ tile)
+
+  val scalarDotLambdaTiled: Lambda = fun(
+    ArrayTypeWSWC(Float, N),
+    ArrayTypeWSWC(Float, N),
+    (x, y) =>
+      toGlobal(MapSeq(id)) o
+        /* Reduce all parallel groups */
+        ReduceSeq(add, Value(0, Float)) o
+        MapSeq(fun(parGroupOfTiles =>
+          /* Reduce each parallel group */
+          ReduceSeq(add, Value(0, Float)) o
+            Join() o
+            /* Reduce each tile of a parallel group in parallel */
+            MapLcl(fun(tile =>
+              /* Reduce one tile of a parallel group */
+              ReduceSeq(reduceTile, Value(0, Float)) $
+                tile)) $
+            parGroupOfTiles)) o
+        Split(outerParFactor) o
+        Split(tileSize) $ Zip(x, y)
+  )
+
+  @Test
+  def spatialDotProductTiled(): Unit = {
+
+    val expectedOutCode = """
+      Accel {
+        out := Reduce(Reg[T](0.to[T]))(N by tileSize par parFactor){i =>
+          val aBlk = SRAM[T](tileSize)
+          val bBlk = SRAM[T](tileSize)
+          Parallel {
+            aBlk load a(i::i+tileSize par innerParFactor)
+            bBlk load b(i::i+tileSize par innerParFactor)
+          }
+          Reduce(Reg[T](0.to[T]))(ts par innerParFactor){ii => aBlk(ii) * bBlk(ii) }{_+_}
+        }{_+_}
+      }
+    """
   }
 }
