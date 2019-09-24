@@ -43,6 +43,7 @@ sealed class SpatialMemory(var variable: Var,
 
   def copy(): SpatialMemory = {
     addressSpace match {
+      case DRAMMemory => SpatialMemory.allocDRAMMemory(size)
       case SRAMMemory => SpatialMemory.allocSRAMMemory(size)
       case RegMemory => SpatialMemory.allocRegMemory(size)
       case AddressSpaceCollection(_) => this match {
@@ -136,32 +137,33 @@ object SpatialMemory {
     }
   }
 
-  def containsSRAMMemory(mem: Memory): Boolean =
-    containsAddressSpace(mem, SRAMMemory)
-
-  def containsRegMemory(mem: Memory): Boolean =
-    containsAddressSpace(mem, RegMemory)
+  def containsDRAMMemory(mem: Memory): Boolean = containsAddressSpace(mem, DRAMMemory)
+  def containsSRAMMemory(mem: Memory): Boolean = containsAddressSpace(mem, SRAMMemory)
+  def containsRegMemory(mem: Memory): Boolean  = containsAddressSpace(mem, RegMemory)
 
   /** Return newly allocated memory based on the given sizes and the address
     * space of the input memory
     *
+    * @param dramOutSize Size in bytes to allocate in DRAM memory
     * @param sramOutSize Size in bytes to allocate in SRAM memory
     * @param regOutSize Size in bytes to allocate in Register memory
     * @param addressSpace Address space for allocation
     * @return The newly allocated memory object
     */
   @scala.annotation.tailrec
-  def allocMemory(sramOutSize: ArithExpr,
+  def allocMemory(dramOutSize: ArithExpr,
+                  sramOutSize: ArithExpr,
                   regOutSize: ArithExpr,
                   addressSpace: SpatialAddressSpace): SpatialMemory = {
     if (addressSpace == UndefAddressSpace)
       throw new IllegalArgumentException(s"Can't allocate memory in $addressSpace")
 
     addressSpace match {
+      case DRAMMemory => allocDRAMMemory(dramOutSize)
       case SRAMMemory => allocSRAMMemory(sramOutSize)
       case RegMemory => allocRegMemory(regOutSize)
       case co: AddressSpaceCollection =>
-        allocMemory(sramOutSize, regOutSize, co.findCommonAddressSpace())
+        allocMemory(dramOutSize, sramOutSize, regOutSize, co.findCommonAddressSpace())
       case UndefAddressSpace =>
         throw new MemoryAllocationException("Cannot allocate memory in UndefAddressSpace")
     }
@@ -175,6 +177,10 @@ object SpatialMemory {
     */
   def allocMemory(size: ArithExpr, addressSpace: SpatialAddressSpace) =
     SpatialMemory(Var("", ContinuousRange(Cst(0), size)), size, addressSpace)
+
+  /** Return newly allocated DRAM memory */
+  def allocDRAMMemory(dramOutSize: ArithExpr): SpatialMemory =
+    allocMemory(dramOutSize, DRAMMemory)
 
   /** Return newly allocated SRAM memory */
   def allocSRAMMemory(sramOutSize: ArithExpr): SpatialMemory =

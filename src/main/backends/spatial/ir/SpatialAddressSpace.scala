@@ -16,6 +16,13 @@ object SpatialAddressSpace {
   }
 }
 
+object DRAMMemory extends SpatialAddressSpace {
+  override def toString = "DRAM"
+
+  def containsAddressSpace(spatialAddressSpace: SpatialAddressSpace): Boolean =
+    spatialAddressSpace == this
+}
+
 object SRAMMemory extends SpatialAddressSpace {
   override def toString = "SRAM"
 
@@ -55,6 +62,6 @@ case class AddressSpaceCollection(spaces: Seq[SpatialAddressSpace])
     if (addressSpaces.distinct.size == 1)
       addressSpaces.head
     else
-      SRAMMemory // TODO: decide which memory should be default
+      DRAMMemory
   }
 }

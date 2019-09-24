@@ -1,7 +1,7 @@
 package backends.spatial.runtime
 
 import arithmetic.TypeVar
-import backends.spatial.accel.ir.pattern.{MapPar, MapSeq, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{MapPar, MapSeq, toDRAM, toReg, toSRAM}
 import backends.spatial.ir.{RegMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, UndefAddressSpace}
 import backends.spatial.ir.SpatialAddressSpace.asSpatialAddressSpace
 import ir.Type.size_t
@@ -12,7 +12,8 @@ import lift.arithmetic.{?, ArithExpr}
 object SpatialMemoryAllocator {
   /** (baseSize, innerSize) => totalSize */
   type Allocator = (ArithExpr, ArithExpr) => ArithExpr
-  case class Allocators(sramSize: Allocator = (_, x) => x,
+  case class Allocators(dramSize: Allocator = (_, x) => x,
+                        sramSize: Allocator = (_, x) => x,
                         regSize:  Allocator = (_, x) => x)
 
   /**
@@ -102,6 +103,7 @@ object SpatialMemoryAllocator {
       case cc: Concat => throw new NotImplementedError()
 
       case l: Lambda => allocLambda(l, memSizes, inMem)
+      case toDRAM(f) => allocLambda(f, memSizes, inMem)
       case toSRAM(f) => allocLambda(f, memSizes, inMem)
       case toReg(f)  => allocLambda(f, memSizes, inMem)
 
@@ -148,10 +150,11 @@ object SpatialMemoryAllocator {
     val baseSize = Type.getAllocatedSize(Type.getBaseType(outT))
     // size in bytes necessary to hold the result of f in the different
     // memory spaces
-    val maxSramSize = memSizes.sramSize(baseSize, maxSizeInBytes)
+    val maxDRAMSize = memSizes.dramSize(baseSize, maxSizeInBytes)
+    val maxSRAMSize = memSizes.sramSize(baseSize, maxSizeInBytes)
     val maxRegSize = memSizes.regSize(baseSize, maxSizeInBytes)
 
-    SpatialMemory.allocMemory(maxSramSize, maxRegSize, call.addressSpace)
+    SpatialMemory.allocMemory(maxDRAMSize, maxSRAMSize, maxRegSize, call.addressSpace)
   }
 
   private def allocLambda(l: Lambda,
@@ -174,6 +177,7 @@ object SpatialMemoryAllocator {
         1
 
     alloc(am.f.body, Allocators(
+      dramSize = sizeOfArray(memSizes.dramSize, outT),
       sramSize = sizeOfArray(memSizes.sramSize, outT),
       regSize = (bs, inner) => memSizes.regSize(bs, regMemSizeMultiplier * inner)
     ))
