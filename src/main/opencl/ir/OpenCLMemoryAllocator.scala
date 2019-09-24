@@ -158,6 +158,8 @@ object OpenCLMemoryAllocator {
       case _: UserFun | _: VectorizeUserFun =>
         allocUserFun(call.t, numGlb, numLcl, numPvt, call)
 
+        // TODO: do not generate memory for Map(_) (add a safe fix).
+        //       Map(_) does not need memory allocation since no code can be generated
       case MapGlb(_, _) |
            MapWrg(_, _) |
            Map(_) => allocMapGlb(call.f.asInstanceOf[AbstractMap],
