@@ -1,9 +1,11 @@
 package backends.spatial.accel
 
 import backends.common.Compiler
+import backends.spatial.runtime.SpatialMemoryAllocator
 import core.generator.GenericAST.{Block, MutableBlock}
-import ir.UndefType
-import ir.ast.Lambda
+import _root_.ir.UndefType
+import _root_.ir.ast.Lambda
+import backends.spatial.ir.InferSpatialAddressSpace
 
 object AccelCompiler extends Compiler {
   def apply(f: Lambda): String = {
@@ -11,6 +13,7 @@ object AccelCompiler extends Compiler {
       this.typeCheck(f)
 
     // Infer address spaces
+    InferSpatialAddressSpace(f)
 
     // Ranges and counts
 

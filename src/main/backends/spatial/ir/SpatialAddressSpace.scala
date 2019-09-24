@@ -42,6 +42,15 @@ object UndefAddressSpace extends SpatialAddressSpace {
     false
 }
 
+class UnexpectedAddressSpaceException(message: String) extends Exception(message)
+
+object UnexpectedAddressSpaceException {
+  def apply(found: String, expected: String) =
+    new UnexpectedAddressSpaceException(s"Found $found, expected: $expected")
+
+  def apply(message: String) = new UnexpectedAddressSpaceException(message)
+}
+
 case class AddressSpaceCollection(spaces: Seq[SpatialAddressSpace])
   extends SpatialAddressSpace {
 

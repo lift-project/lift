@@ -4,7 +4,7 @@ import _root_.ir.ast.{Expr, FunCall, Lambda}
 import backends.spatial.accel.SpatialAccelAST.SpatialVarDecl
 import backends.spatial.host.SpatialHostAST.AccelScope
 import core.generator.GenericAST.{Block, Comment, MutableBlock}
-import ir.UndefType
+import _root_.ir.UndefType
 import opencl.ir.pattern.ReduceSeq
 
 object AccelGenerator {
