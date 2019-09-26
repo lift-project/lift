@@ -10,3 +10,7 @@ case class MapSeq(override val f: Lambda1) extends AbstractMap(f, "MapSeq",
 
   override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)
 }
+
+object MapSeq {
+  def apply(f: Lambda1) = new MapSeq(f)
+}

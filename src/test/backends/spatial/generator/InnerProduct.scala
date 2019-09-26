@@ -3,7 +3,8 @@ package backends.spatial.generator
 import backends.c
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
 import backends.spatial
-import backends.spatial.accel.ir.pattern.{MapPar, MapParWithFactor, toSRAM}
+import backends.spatial.accel
+import backends.spatial.accel.ir.pattern.{MapPar, toDRAM, toSRAM}
 import backends.spatial.host
 import backends.spatial.host.ir.ast.AccelFun
 import ir._
@@ -94,52 +95,43 @@ class InnerProduct {
     
   }
 
-  val tileSize = 32
-  val outerParFactor = 2
-  val innerParFactor = 16
-
-  val reduceTile: Lambda = fun(
-    TupleType(
-      ArrayTypeWSWC(Float, tileSize),
-      ArrayTypeWSWC(Float, tileSize)),
-    tile =>
-      ReduceSeq(add, 0.0f) o
-        MapParWithFactor(innerParFactor, MapSeq(mult)) o
-        fun((a, b) => Zip(
-          /*Parallel(*/
-          Tuple(
-            MapParWithFactor(innerParFactor, toSRAM(id)) $ a,
-            MapParWithFactor(innerParFactor, toSRAM(id)) $ b)
-          /*)*/ )) o
-        Unzip() $ tile)
-
-  val scalarDotLambdaTiled: Lambda = fun(
-    ArrayTypeWSWC(Float, N),
-    ArrayTypeWSWC(Float, N),
-    (x, y) =>
-      toGlobal(MapSeq(id)) o
-        /* Reduce all parallel groups */
-        ReduceSeq(add, Value(0, Float)) o
-
-        MapParWithFactor(outerParFactor,
-
-
-          MapSeq(fun(parGroupOfTiles =>
-            /* Reduce each parallel group */
-            ReduceSeq(add, Value(0, Float)) o
-              Join() o
-              /* Reduce each tile of a parallel group in parallel */
-              MapPar(fun(tile =>
-                /* Reduce one tile of a parallel group */
-                ReduceSeq(reduceTile, Value(0, Float)) $
-                  tile)) $
-              parGroupOfTiles))) o
-
-        Split(tileSize) $ Zip(x, y)
-  )
-
   @Test
   def spatialDotProductTiled(): Unit = {
+
+    val tileSize = 32
+    val outerParFactor = 2
+    val innerParFactor = 16
+
+    val idArray = UserFun("idArray", Array("arr"),
+      "arr", Seq(ArrayTypeWSWC(Float, tileSize)), ArrayTypeWSWC(Float, tileSize)) // TODO: generalise array size
+
+    val loadAndReduceTile: Lambda = fun(
+      TupleType(
+        ArrayTypeWSWC(Float, tileSize),
+        ArrayTypeWSWC(Float, tileSize)),
+      tile =>
+        /* Reduce a single tile */
+        accel.ir.pattern.ReducePar(
+          f = fun((acc, aElement, bElement) => add(acc, mult(aElement, bElement))),
+          init = 0.0f,
+          p = innerParFactor) o
+
+          fun((aTile, bTile) => Zip(
+            /*Parallel(*/
+            toSRAM(idArray) $ aTile,
+            toSRAM(idArray) $ bTile
+            /*)*/)) o
+          Unzip() $ tile)
+
+    val scalarDotLambdaTiled: Lambda = fun(
+      ArrayTypeWSWC(Float, N),
+      ArrayTypeWSWC(Float, N),
+      (x, y) =>
+        toDRAM(accel.ir.pattern.MapSeq(id)) o
+          accel.ir.pattern.ReduceParStride(
+            f = fun((acc, tile) => add(acc, loadAndReduceTile(tile))),
+            init = 0.0f, s = tileSize, p = outerParFactor) $
+          Zip(x, y))
 
     val expectedOutCode = """
       Accel {
@@ -152,6 +144,57 @@ class InnerProduct {
           }
           Reduce(Reg[T](0.to[T]))(ts par innerParFactor){ii => aBlk(ii) * bBlk(ii) }{_+_}
         }{_+_}
+      }
+    """
+  }
+
+  @Test
+  def spatialGEMMTiled(): Unit = {
+    val matSize = 64
+    val outerFactor_i = 2
+    val outerFactor_j = 2
+    val outerTileW = 32
+    val outerTileH = 32
+    val innerTileWH = 16
+    val innerFactorI = 1
+    val innerFactorJ = 1
+
+
+    val expectedOutCode = """  
+      Accel {
+
+        Foreach(matSize by outerTileH par outerFactor_i,
+                matSize by outerTileW par outerFactor_j) { (i, j) =>
+
+          val tileC = SRAM[T](outerTileH, outerTileW)
+
+          MemReduce(tileC par innerTileWH)(matSize by outerTileW par loop_kk) { kk =>
+
+            val tileCAccum = SRAM[T](outerTileH, outerTileW)
+
+            val bSRAM      = SRAM[T](outerTileW, outerTileW)
+            bSRAM load b_dram(kk::kk+outerTileW, j::j+outerTileW par innerTileWH)
+
+            Foreach(outerTileH by 1 par innerFactorI) { ii =>
+
+              val aSRAM = SRAM[T](outerTileW)
+
+              aSRAM load a_dram(i+ii, kk::kk+outerTileW par innerTileWH)
+
+              Foreach(outerTileW by 1 par innerFactorJ) { jj =>
+
+                Pipe {
+                  tileCaccum(ii,jj) = Reduce(Reg[T])(outerTileW by 1 par innerTileWH) { k =>
+                    bSRAM(k, jj) * aSRAM(k)
+                  }{_+_}
+                }
+              }
+            }
+            tileCAccum
+          }{_+_}
+
+          cDRAM(i::i+outerTileH, j::j+outerTileW par innerTileWH) store tileC
+        }
       }
     """
   }
