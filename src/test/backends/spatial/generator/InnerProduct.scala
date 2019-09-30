@@ -106,6 +106,17 @@ class InnerProduct {
     val idArray = UserFun("idArray", Array("arr"),
       "arr", Seq(ArrayType(Float, tileSize)), ArrayType(Float, tileSize)) // TODO: generalise array size
 
+
+    val scalaDotLambdaTiledHighLevel: Lambda = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (a, b) =>
+        Reduce(add, Value(0.0f, Float)) o
+        Map(mult) $
+      Zip(a, b)
+    )
+
+
     val scalaDotLambdaTiled: Lambda = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
