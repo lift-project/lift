@@ -103,6 +103,21 @@ class InnerProduct {
     val outerParFactor = 2
     val innerParFactor = 16
 
+    val expectedOutCode = """
+      Accel {
+        out := Reduce(Reg[T](0.to[T]))(N by tileSize par outerParFactor){i =>
+          val aBlk = SRAM[T](tileSize)
+          val bBlk = SRAM[T](tileSize)
+          Parallel {
+            aBlk load a(i::i+tileSize par innerParFactor)
+            bBlk load b(i::i+tileSize par innerParFactor)
+          }
+          Reduce(Reg[T](0.to[T]))(ts par innerParFactor){ii => aBlk(ii) * bBlk(ii) }{_+_}
+        }{_+_}
+      }
+    """
+
+
     val idArray = UserFun("idArray", Array("arr"),
       "arr", Seq(ArrayType(Float, tileSize)), ArrayType(Float, tileSize)) // TODO: generalise array size
 
@@ -140,20 +155,6 @@ class InnerProduct {
           iterSize = tileSize, stride = tileSize, factor = outerParFactor,
           init = Value(0.0f, Float)) $
           Zip(a, b))
-
-    val expectedOutCode = """
-      Accel {
-        out := Reduce(Reg[T](0.to[T]))(N by tileSize par outerParFactor){i =>
-          val aBlk = SRAM[T](tileSize)
-          val bBlk = SRAM[T](tileSize)
-          Parallel {
-            aBlk load a(i::i+tileSize par innerParFactor)
-            bBlk load b(i::i+tileSize par innerParFactor)
-          }
-          Reduce(Reg[T](0.to[T]))(ts par innerParFactor){ii => aBlk(ii) * bBlk(ii) }{_+_}
-        }{_+_}
-      }
-    """
   }
 
   @Test
