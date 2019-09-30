@@ -106,41 +106,6 @@ class InnerProduct {
     val idArray = UserFun("idArray", Array("arr"),
       "arr", Seq(ArrayType(Float, tileSize)), ArrayType(Float, tileSize)) // TODO: generalise array size
 
-
-    val scalaDotLambdaTiledHighLevel: Lambda = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      (a, b) =>
-        Reduce(add, Value(0.0f, Float)) o
-        Map(mult) $
-      Zip(a, b)
-    )
-
-
-    val scalaDotLambdaTiled: Lambda = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      (a, b) =>
-        SpFold(
-          fMap = fun(
-            ArrayType(TupleType(Float, Float), tileSize), tileAB => {
-              val tileA = Get(Unzip() $ tileAB, 0)
-              val tileB = Get(Unzip() $ tileAB, 1)
-
-              val tileABsram = Zip(
-                /*Parallel(*/
-                toSRAM(idArray) $ tileA,
-                toSRAM(idArray) $ tileB
-                /*)*/)
-              SpFold(fMap = mult, fReduce = add,
-                iterSize = 1, stride = 1, factor = innerParFactor,
-                init = Value(0.0f, Float)) $ tileABsram
-            }),
-          fReduce = add,
-          iterSize = tileSize, stride = tileSize, factor = outerParFactor,
-          init = Value(0.0f, Float)) $
-          Zip(a, b))
-
     val expectedOutCode = """
       Accel {
         out := Reduce(Reg[T](0.to[T]))(N by tileSize par outerParFactor){i =>
@@ -154,6 +119,48 @@ class InnerProduct {
         }{_+_}
       }
     """
+
+
+    val scalaDotLambdaTiledHighLevel: Lambda = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (a, b) =>
+        Reduce(add, Value(0.0f, Float)) o
+        Map(mult) $ Zip(a, b)
+    )
+
+
+    val scalaDotLambdaTiled: Lambda = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (a, b) =>
+        SpFold(
+          iterSize = tileSize,
+          stride = tileSize,
+          factor = outerParFactor,
+
+          fMap = fun(
+            ArrayType(TupleType(Float, Float), tileSize), tileAB => {
+              val tileA = Get(Unzip() $ tileAB, 0)
+              val tileB = Get(Unzip() $ tileAB, 1)
+
+              val tileABsram = Zip(
+                /*Parallel(*/
+                toSRAM(idArray) $ tileA,
+                toSRAM(idArray) $ tileB
+                /*)*/)
+
+              SpFold(
+                iterSize = 1,
+                stride = 1,
+                factor = innerParFactor,
+                fMap = mult,
+                fReduce = add,
+                init = Value(0.0f, Float)) $ tileABsram
+            }),
+          fReduce = add,
+          init = Value(0.0f, Float)) $
+          Zip(a, b))
   }
 
   @Test
