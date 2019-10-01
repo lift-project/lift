@@ -1,7 +1,7 @@
 package backends.spatial.runtime
 
 import arithmetic.TypeVar
-import backends.spatial.accel.ir.pattern.{MapPar, MapSeq, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach, SpMemFold, toDRAM, toReg, toSRAM}
 import backends.spatial.ir.{RegMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, UndefAddressSpace}
 import backends.spatial.ir.SpatialAddressSpace.asSpatialAddressSpace
 import ir.Type.size_t
@@ -10,22 +10,16 @@ import ir.ast.{AbstractMap, AbstractPartRed, AbstractSearch, ArrayAccess, ArrayC
 import lift.arithmetic.{?, ArithExpr}
 
 object SpatialMemoryAllocator {
-  /** (baseSize, innerSize) => totalSize */
-  type Allocator = (ArithExpr, ArithExpr) => ArithExpr
-  case class Allocators(dramSize: Allocator = (_, x) => x,
-                        sramSize: Allocator = (_, x) => x,
-                        regSize:  Allocator = (_, x) => x)
 
   /**
-    * Allocate memory for both the body and the parameters of a lambda
-    * expression
+    * Allocate memory for both the body and the parameters of the outermost lambda expression
     *
     * @param f the lambda expression
     * @return the SpatialMemory used as output by f
     */
   def apply(f: Lambda): SpatialMemory = {
     f.params.foreach((p) =>
-      p.mem = SpatialMemory.allocMemory(Type.getAllocatedSize(p.t), p.addressSpace)
+      p.mem = SpatialMemory.allocMemory(p.t, p.addressSpace)
     )
 
     alloc(f.body)
@@ -35,13 +29,9 @@ object SpatialMemoryAllocator {
     * Allocate SpatialMemory objects for a given expression
     *
     * @param expr      The expression for which memory should be allocated
-   *  @param memSizes  Functions computing the number of bytes to allocate for each memory
-   *                   given the sizes of the elements and of the base elements when
-   *                   the memory stores an array
     * @return          The SpatialMemory used by expr
     */
-  def alloc(expr: Expr,
-            memSizes: Allocators = Allocators()): SpatialMemory = {
+  def alloc(expr: Expr): SpatialMemory = {
 
     val result = expr match {
       case ArrayFromExpr(e) => throw new NotImplementedError()
@@ -51,7 +41,7 @@ object SpatialMemoryAllocator {
       case vp: VectorParam => throw new NotImplementedError()
       case p: Param => allocParam(p)
       case call: FunCall =>
-        allocFunCall(call, memSizes, UndefAddressSpace)
+        allocFunCall(call, UndefAddressSpace)
       case _ => throw new NotImplementedError()
     }
     // set the output
@@ -67,7 +57,7 @@ object SpatialMemoryAllocator {
       assert(spatialMem.addressSpace == RegMemory)
       spatialMem
     } else {
-      SpatialMemory.allocRegMemory(Type.getAllocatedSize(v.t))
+      SpatialMemory.allocRegMemory(v.t)
     }
   }
 
@@ -79,21 +69,19 @@ object SpatialMemoryAllocator {
   }
 
   private def allocFunCall(call: FunCall,
-                           memSizes: Allocators,
                            addressSpace: SpatialAddressSpace): SpatialMemory = {
     // Get the input memory of f from the input arguments
-    val inMem = getInMFromArgs(call, memSizes)
+    val inMem = getInMFromArgs(call)
 
     // Determine the output memory based on the type of f ...
     call.f match {
       // Here is where the actual allocation happens
-      case _: UserFun =>
-        allocUserFun(call.t, memSizes, call)
+      case _: UserFun => allocUserFun(call.t, call)
       case  _: VectorizeUserFun => throw new NotImplementedError()
 
-      case MapPar(_) | MapSeq(_)  => allocMapParSeq(call.f.asInstanceOf[AbstractMap], call.t, memSizes, inMem)
+      case sf: SpForeach  => allocSpForeach(sf, call.t, inMem)
 
-      case r: AbstractPartRed => allocReduce(r, memSizes, inMem)
+      case asf: AbstractSpFold => allocSpFold(asf, inMem)
 
       case s: AbstractSearch => throw new NotImplementedError()
 
@@ -101,10 +89,10 @@ object SpatialMemoryAllocator {
 
       case cc: Concat => throw new NotImplementedError()
 
-      case l: Lambda => allocLambda(l, memSizes, inMem)
-      case toDRAM(f) => allocLambda(f, memSizes, inMem)
-      case toSRAM(f) => allocLambda(f, memSizes, inMem)
-      case toReg(f)  => allocLambda(f, memSizes, inMem)
+      case l: Lambda => allocLambda(l, inMem)
+      case toDRAM(f) => allocLambda(f, inMem)
+      case toSRAM(f) => allocLambda(f, inMem)
+      case toReg(f)  => allocLambda(f, inMem)
 
       case Zip(_) | Tuple(_) => allocZipTuple(inMem)
       case Get(n) => allocGet(n, inMem)
@@ -112,7 +100,7 @@ object SpatialMemoryAllocator {
       case ua: UnsafeArrayAccess => throw new NotImplementedError()
       case ca: CheckedArrayAccess => throw new NotImplementedError()
 
-      case debug.PrintView(_, f) => allocLambda(f, memSizes, inMem)
+      case debug.PrintView(_, f) => allocLambda(f, inMem)
 
       case RewritingGuidePost(_) => inMem
 
@@ -128,45 +116,33 @@ object SpatialMemoryAllocator {
     }
   }
 
-  private def getInMFromArgs(call: FunCall,
-                             memSizes: Allocators): SpatialMemory = {
+  private def getInMFromArgs(call: FunCall): SpatialMemory = {
     call.args.length match {
       case 0 =>
         throw new IllegalArgumentException(s"Function call without arguments $call")
       case 1 =>
-        alloc(call.args.head, memSizes)
+        alloc(call.args.head)
       case _ =>
-        SpatialMemoryCollection(call.args.map(alloc(_, memSizes)))
+        SpatialMemoryCollection(call.args.map(alloc(_)))
     }
   }
 
   private def allocUserFun(outT: Type,
-                           memSizes: Allocators,
                            call: FunCall): SpatialMemory = {
     if (call.addressSpace == UndefAddressSpace)
       throw new RuntimeException("No address space at " + call)
 
-    val maxSizeInBytes = Type.getAllocatedSize(outT)
-    val baseSize = Type.getAllocatedSize(Type.getBaseType(outT))
-    // size in bytes necessary to hold the result of f in the different
-    // memory spaces
-    val maxDRAMSize = memSizes.dramSize(baseSize, maxSizeInBytes)
-    val maxSRAMSize = memSizes.sramSize(baseSize, maxSizeInBytes)
-    val maxRegSize = memSizes.regSize(baseSize, maxSizeInBytes)
-
-    SpatialMemory.allocMemory(maxDRAMSize, maxSRAMSize, maxRegSize, call.addressSpace)
+    SpatialMemory.allocMemory(outT, call.addressSpace)
   }
 
   private def allocLambda(l: Lambda,
-                          memSizes: Allocators,
                           inMem: SpatialMemory): SpatialMemory = {
     setMemInParams(l.params, inMem)
-    alloc(l.body, memSizes)
+    alloc(l.body)
   }
 
-  private def allocMapParSeq(am: AbstractMap,
+  private def allocSpForeach(am: SpForeach,
                              outT: Type,
-                             memSizes: Allocators,
                              inMem: SpatialMemory): SpatialMemory = {
 
     val regMemSizeMultiplier: ArithExpr =
@@ -176,25 +152,27 @@ object SpatialMemoryAllocator {
       else
         1
 
-    alloc(am.f.body, Allocators(
-      dramSize = sizeOfArray(memSizes.dramSize, outT),
-      sramSize = sizeOfArray(memSizes.sramSize, outT),
-      regSize = (bs, inner) => memSizes.regSize(bs, regMemSizeMultiplier * inner)
-    ))
+    alloc(am.f.body)
   }
 
-  private def allocReduce(r: AbstractPartRed,
-                          memSizes: Allocators,
+  private def allocSpFold(asf: AbstractSpFold,
                           inMem: SpatialMemory): SpatialMemory = {
     inMem match {
       case coll: SpatialMemoryCollection =>
         val initM = coll.subMemories(0)
-        r.f.params(0).mem = initM
-        r.f.params(1).mem = coll.subMemories(1)
-        val bodyM = alloc(r.f.body, memSizes)
 
-        // replace `bodyM` by `initM` in `r.f.body`
-        Expr.visit(r.f.body, e => if (e.mem == bodyM) e.mem = initM, _ => {})
+        asf.fMap.params(0).mem = coll.subMemories(1)
+        // fMap body memory will be referred to by fReduce, but will not be allocated --
+        // Spatial will pass the results of fMap to fReduce by value
+        val mapBodyMem = alloc(asf.fMap.body)
+
+        asf.fReduce.params(0).mem = initM
+        asf.fReduce.params(1).mem = mapBodyMem
+
+        val reduceBodyM = alloc(asf.fReduce.body)
+
+        // replace `bodyM` by `initM` in `asf.fReduce.body`
+        Expr.visit(asf.fReduce.body, e => if (e.mem == reduceBodyM) e.mem = initM, _ => {})
 
         initM // return initM as the memory of the reduction pattern
       case _ => throw new IllegalArgumentException(inMem.toString)
@@ -225,39 +203,6 @@ object SpatialMemoryAllocator {
       case _ =>
         val coll = mem.asInstanceOf[SpatialMemoryCollection]
         (params zip coll.subMemories).foreach({case (p, m) => p.mem = m})
-    }
-  }
-
-  /**
-   * Helper function for computing the size to allocate for an array given its
-   * type and the size of its elements
-   *
-   * @param getSizeFromInner a scala function allocating the whole array given the inner size
-   * @param ty the type of the array
-   * @return a scala function that allocates this array. Might be `?`
-   */
-  private def sizeOfArray(getSizeFromInner: Allocator, ty: Type): Allocator = {
-    def align(n: ArithExpr): ArithExpr = ((n + size_t.size - 1) / size_t.size) * size_t.size
-
-    ty match {
-      case at: ArrayType =>
-        at match {
-          case c: Capacity =>
-            val map = TypeVar.getTypeVars(c.capacity).map(tv => (tv, tv.range.max)).toMap
-            val capacity = ArithExpr.substitute(c.capacity, map.toMap)
-            def alloc(baseSize: ArithExpr, innerSize: ArithExpr): ArithExpr = {
-              if (baseSize.eval < size_t.size.eval)
-                getSizeFromInner(baseSize, at.headerSize * size_t.size + align(capacity * innerSize))
-              else
-                getSizeFromInner(baseSize, at.headerSize * baseSize + capacity * innerSize)
-            }
-            alloc
-          case _ =>
-            // Unknown capacity. We can't know how much memory to allocate…
-            // See the comments at the top of this file for further information.
-            (_, _) => ?
-        }
-      case _ => throw new IllegalArgumentException("sizeOfArray expects an array type")
     }
   }
 }
