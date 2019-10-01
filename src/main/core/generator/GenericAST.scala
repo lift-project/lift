@@ -89,14 +89,15 @@ object GenericAST {
   }
 
   trait BlockMember
+  trait ExprBlockMember
 
   trait AttributeT extends AstNode
 
-  trait DeclarationT extends AstNode with BlockMember
+  trait DeclarationT extends AstNode with BlockMember with ExprBlockMember
 
-  trait StatementT extends AstNode with BlockMember
+  trait StatementT extends AstNode with BlockMember with ExprBlockMember
 
-  trait ExpressionT extends AstNode
+  trait ExpressionT extends AstNode with ExprBlockMember
 
   /*
   Function Declaration trait
@@ -286,7 +287,7 @@ object GenericAST {
 
 
   /*
-  List of nodes enclosed in a bock. This behaves like (and emits) a C block.
+  List of nodes enclosed in a block. This behaves like (and emits) a C block.
    */
   trait MutableBlockT extends StatementT {
     // TODO: How do we handle default values when they're vals?
@@ -348,6 +349,65 @@ object GenericAST {
     def :++(mb: Block) : MutableBlock = this.copy(content = content ++ mb.content )
 
     def toBlock: Block = Block(content, global = this.global)
+  }
+
+  /*
+   List of nodes enclosed in a block whose final member is an expression. This behaves like (and emits) a Scala block.
+   */
+  trait MutableExprBlockT extends ExpressionT {
+    // TODO: How do we handle default values when they're vals?
+    var content: Vector[AstNode with ExprBlockMember] // = Vector.empty
+
+    def :+(node: AstNode with ExprBlockMember): MutableExprBlockT
+
+    def ::(node: AstNode with ExprBlockMember): MutableExprBlockT
+
+    def ++(nodes: Vector[AstNode with ExprBlockMember]): MutableExprBlockT
+
+    def +=(node: AstNode with ExprBlockMember): Unit = {
+      content = content :+ node
+    }
+
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (content.foldLeft(_) {
+          case (acc, node) => node.visit(acc)(visitFun)
+        })
+    }
+
+    override def print(): Doc = {
+      // pre-calculate our inner block
+      val innerBlock = intersperse(content.map(_.print()).toList,
+        Line())
+      bracket("{", innerBlock, "}")
+    }
+  }
+
+  case class MutableExprBlock(override var content: Vector[AstNode with ExprBlockMember] = Vector())
+    extends MutableExprBlockT {
+
+    def _visitAndRebuild(pre: (AstNode) => AstNode,  post: (AstNode) => AstNode) : AstNode = {
+      MutableExprBlock(content.map(_.visitAndRebuild(pre, post).asInstanceOf[AstNode with ExprBlockMember]))
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      content.map(_.visitBy(pre, post))
+    }
+
+    /** Append a sub-node. Could be any node, including a sub-block.
+     *
+     * @param node The node to add to this block.
+     */
+    def :+(node: AstNode with ExprBlockMember): MutableExprBlock = this.copy(content = content :+ node)
+
+    def ::(node: AstNode with ExprBlockMember): MutableExprBlock = this.copy(content = node +: content)
+
+    def ++(nodes: Vector[AstNode with ExprBlockMember]): MutableExprBlock = this.copy(content = content ++ nodes)
+
+    def :++(mb: ExprBlock) : MutableExprBlock = this.copy(content = content ++ mb.content )
+
+    def toBlock: ExprBlock = ExprBlock(content)
   }
 
   /*
@@ -833,13 +893,20 @@ object GenericAST {
   }
 
   /**
+   * Array addressor such as an index or an interval
+   */
+  trait AddressorT extends ExpressionT
+
+  trait ArrayIndexT extends AddressorT with ArithExpressionT
+
+  /**
     * A reference to a declared variable
     */
   trait VarRefT extends ExpressionT {
     val v: CVar
     //    val t: Type
     val suffix: Option[String]
-    val arrayIndex: Option[ArithExpression]
+    val arrayIndex: Option[ArrayIndexT]
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       visitFun(z, this) |> (visitFun(_, v))
@@ -865,12 +932,12 @@ object GenericAST {
   case class VarRef(v: CVar,
                     //                    t: Type,
                     suffix: Option[String] = None,
-                    arrayIndex: Option[ArithExpression] = None
+                    arrayIndex: Option[ArrayIndexT] = None
                    ) extends VarRefT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
       VarRef(v.visitAndRebuild(pre, post).asInstanceOf[CVar], suffix,
         arrayIndex match {
-          case Some(ai) => Some(ai.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])
+          case Some(ai) => Some(ai.visitAndRebuild(pre, post).asInstanceOf[ArrayIndexT])
           case None => None
         })
 
@@ -1257,7 +1324,7 @@ object GenericAST {
   /**
     * Inline comment block.
     */
-  trait CommentT extends AstNode with BlockMember {
+  trait CommentT extends AstNode with BlockMember with ExprBlockMember {
     val content: String
 
     override def print(): Doc = {
@@ -1325,9 +1392,9 @@ object GenericAST {
   case class Block(override val content: Vector[AstNode with
     BlockMember] = Vector(), global: Boolean = false) extends BlockT {
     /** Append a sub-node. Could be any node, including a sub-block.
-      *
-      * @param node The node to add to this block.
-      */
+     *
+     * @param node The node to add to this block.
+     */
     def :+(node: AstNode with BlockMember): Block = this.copy(content = content :+ node)
 
     def +:(node: AstNode with BlockMember): Block = this.copy(content = node +: content)
@@ -1341,6 +1408,49 @@ object GenericAST {
 
     override def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode =
       Block(content.map(_.visitAndRebuild(pre,post).asInstanceOf[AstNode with BlockMember]), global = this.global)
+  }
+
+  trait ExprBlockT extends ExpressionT {
+    // TODO: How do we handle default values when they're vals?
+    val content: Vector[AstNode with ExprBlockMember] // = Vector.empty
+
+    def :+(node: AstNode with ExprBlockMember): ExprBlockT
+
+    def ::(node: AstNode with ExprBlockMember): ExprBlockT
+
+    def ++(nodes: Vector[AstNode with ExprBlockMember]): ExprBlockT
+
+    override def _visit(pre: AstNode => Unit, post: AstNode => Unit): Unit = content.map(_.visitBy(pre,post))
+
+
+    override def print(): Doc = {
+      // pre-calculate our inner block
+      val innerBlock = intersperse(content.map(_.print()).toList,
+        Line())
+
+      bracket("{", innerBlock, "}")
+    }
+  }
+
+  case class ExprBlock(override val content: Vector[AstNode with ExprBlockMember] = Vector())
+    extends ExprBlockT {
+    /** Append a sub-node. Could be any node, including a sub-block.
+     *
+     * @param node The node to add to this block.
+     */
+    def :+(node: AstNode with ExprBlockMember): ExprBlock = this.copy(content = content :+ node)
+
+    def +:(node: AstNode with ExprBlockMember): ExprBlock = this.copy(content = node +: content)
+    def ::(node: AstNode with ExprBlockMember): ExprBlock = this.copy(content = node +: content)
+
+    def ++(nodes: Vector[AstNode with ExprBlockMember]): ExprBlock = this.copy(content = content ++ nodes)
+
+    def ++:(mb: MutableExprBlock): ExprBlock = this.copy(content = mb.content ++ content)
+
+    def :++(mb: ExprBlock): ExprBlock = this.copy(content = content ++ mb.content)
+
+    override def _visitAndRebuild(pre: AstNode => AstNode, post: AstNode => AstNode): AstNode =
+      ExprBlock(content.map(_.visitAndRebuild(pre,post).asInstanceOf[AstNode with ExprBlockMember]))
   }
 
   trait AccessPropertyT extends AstNode {
