@@ -1,16 +1,102 @@
 package backends.spatial.accel
 
+import _root_.ir.{ArrayType, Type}
 import backends.spatial.SpatialAST.SpatialAddressSpaceOperator
 import backends.spatial.ir.{RegMemory, SRAMMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
-import core.generator.GenericAST.{AstNode, ExpressionT, MutableBlockT, Pipe, StatementT, VarDeclT, VarRefT}
+import core.generator.GenericAST.{AddressorT, ArithExpression, ArrayIndexT, AstNode, CVar, ExpressionT, MutableExprBlockT, Pipe, StatementT, VarDeclT, VarRef}
 import core.generator.PrettyPrinter._
-import ir.{ArrayType, ScalarType, Type}
-import lift.arithmetic.NotEvaluableToIntException._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 import utils.Printer
 
 object SpatialAccelAST {
+
+  /**
+   * An index interval for array slice access
+   */
+  trait IdxIntervalT extends AddressorT with ExpressionT {
+    val idxStart: ArithExpression
+    val idxStop: ArithExpression
+
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      visitFun(z, this)
+    }
+
+    override def print(): Doc = idxStart.print <> "::" <> idxStop.print
+  }
+
+  case class IdxInterval(idxStart: ArithExpression,
+                         idxStop: ArithExpression) extends IdxIntervalT {
+
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode =
+      IdxInterval(
+        idxStart.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
+        idxStop.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      idxStart.visitBy(pre, post)
+      idxStop.visitBy(pre, post)
+    }
+  }
+
+  /**
+   * A reference to a declared variable that supports multidimensional and sliced array reference
+   */
+  trait NDVarSlicedRefT extends ExpressionT {
+    val v: CVar
+    val suffix: Option[String]
+    val arrayAddressors: Option[List[AddressorT]]
+
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      visitFun(z, this) |>
+        (_z => arrayAddressors match {
+          case Some(addressors) => addressors.foldLeft(_z) {
+            case (acc, node) => node.visit(acc)(visitFun)
+          }
+          case None => _z
+        }) |>
+        (visitFun(_, v))
+    }
+
+    override def print(): Doc = {
+
+      val accessD = arrayAddressors match {
+        case None => empty
+        case Some(singleAccessor :: Nil) => "[" <> singleAccessor.print <> "]"
+        case Some(firstAccessor :: remainingAccessors) =>
+          remainingAccessors.foldLeft("[" <> firstAccessor.print)(_ <> _.print) <> "]"
+      }
+
+      val suffixD = suffix match {
+        case None     => empty
+        case Some(sf) => text(sf)
+      }
+
+      v.print <> accessD <> suffixD
+    }
+
+    case class NDVarSlicedRef(v: CVar,
+                              suffix: Option[String] = None,
+                              arrayAddressors: Option[List[AddressorT]] = None) extends NDVarSlicedRefT {
+
+      def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+        NDVarSlicedRef(
+          v.visitAndRebuild(pre, post).asInstanceOf[CVar], suffix,
+          arrayAddressors match {
+            case Some(addressors) => Some(addressors.map(_.visitAndRebuild(pre, post).asInstanceOf[AddressorT]))
+            case None => None
+          })
+      }
+
+      def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+        arrayAddressors match {
+          case Some(addressors) => addressors.foreach(_.visitBy(pre, post))
+          case None =>
+        }
+        v.visitBy(pre, post)
+      }
+    }
+  }
 
   case class SpatialVarDecl(v: GenericAST.CVar,
                             t: Type,
@@ -103,8 +189,8 @@ object SpatialAccelAST {
   trait ReduceT extends StatementT {
     val accum: AstNode
     val counter: List[CounterT]
-    val mapFun: MutableBlockT
-    val reduceFun: MutableBlockT
+    val mapFun: MutableExprBlockT
+    val reduceFun: MutableExprBlockT
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -127,13 +213,13 @@ object SpatialAccelAST {
 
   case class Reduce(accum: AstNode,
                     counter: List[CounterT],
-                    mapFun: MutableBlockT,
-                    reduceFun: MutableBlockT) extends ReduceT {
+                    mapFun: MutableExprBlockT,
+                    reduceFun: MutableExprBlockT) extends ReduceT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
       Reduce(accum.visitAndRebuild(pre, post),
         counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
-        mapFun.visitAndRebuild(pre, post).asInstanceOf[MutableBlockT],
-        reduceFun.visitAndRebuild(pre, post).asInstanceOf[MutableBlockT])
+        mapFun.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT],
+        reduceFun.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
     }
 
     override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
