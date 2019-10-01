@@ -2,7 +2,7 @@ package backends.spatial.ir
 
 import arithmetic.TypeVar
 import ir.ast.Expr
-import ir.{Memory, Type, UnallocatedMemory}
+import ir.{Memory, TupleType, Type, UnallocatedMemory, UndefType}
 import lift.arithmetic._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
@@ -86,7 +86,7 @@ sealed class SpatialMemory(var variable: Var,
 case class SpatialMemoryCollection(subMemories: Array[SpatialMemory],
                                   override val addressSpace: AddressSpaceCollection)
   extends SpatialMemory(Var("SpatialMemoryCollectionTuple"),
-    subMemories.distinct.map(_.size).reduce(_+_), addressSpace)
+    TupleType(subMemories.map(_.t)), addressSpace)
 
 object SpatialMemoryCollection {
   def apply(mems: Seq[SpatialMemory]): SpatialMemoryCollection = {
@@ -97,7 +97,7 @@ object SpatialMemoryCollection {
 
 /** Represents the NULL Spatial memory object */
 object SpatialNullMemory
-  extends SpatialMemory(Var("NULL"), Cst(-1), UndefAddressSpace)
+  extends SpatialMemory(Var("NULL"), UndefType, UndefAddressSpace)
 
 
 object SpatialMemory {

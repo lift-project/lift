@@ -1,13 +1,9 @@
-package backends.spatial.runtime
+package backends.spatial.ir
 
-import arithmetic.TypeVar
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach, SpMemFold, toDRAM, toReg, toSRAM}
-import backends.spatial.ir.{RegMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, UndefAddressSpace}
-import backends.spatial.ir.SpatialAddressSpace.asSpatialAddressSpace
-import ir.Type.size_t
-import ir.{ArrayType, Capacity, NumberOfArgumentsException, Type, UnallocatedMemory}
-import ir.ast.{AbstractMap, AbstractPartRed, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, Filter, FunCall, Gather, Get, Head, Id, Iterate, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
-import lift.arithmetic.{?, ArithExpr}
+import backends.spatial.accel.ir.pattern._
+import _root_.ir.ast.{AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, Filter, FunCall, Gather, Get, Head, Id, Iterate, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
+import _root_.ir.{NumberOfArgumentsException, Type, UnallocatedMemory}
+import lift.arithmetic.ArithExpr
 
 object SpatialMemoryAllocator {
 
@@ -146,7 +142,7 @@ object SpatialMemoryAllocator {
                              inMem: SpatialMemory): SpatialMemory = {
 
     val regMemSizeMultiplier: ArithExpr =
-      if (am.f.body.addressSpace.containsAddressSpace(RegMemory) ||
+      if (am.f.body.addressSpace.asInstanceOf[SpatialAddressSpace].containsAddressSpace(RegMemory) ||
         inMem.addressSpace.containsAddressSpace(RegMemory))
         am.iterationCount
       else
