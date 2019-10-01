@@ -5,17 +5,12 @@ import ir.interpreter.Interpreter.ValueMap
 import ir._
 import lift.arithmetic.{ArithExpr, PosVar, SimplifiedExpr, Var}
 
-case class SpMemFold(fMap: Lambda,
-                     fReduce: Lambda,
-                     iterSize: ArithExpr,
-                     stride: Option[ArithExpr] = None,
-                     factor: Option[ArithExpr] = None) extends Pattern(arity = 2) {
-  assert(fMap.params.length == 1)
-  assert(fReduce.params.length == 2)
-
-  val loopVar: Var = PosVar("i")
-  val iterationCount: ArithExpr with SimplifiedExpr = loopVar.range.numVals
-  var shouldUnroll = false
+case class SpMemFold(override val fMap: Lambda,
+                  override val fReduce: Lambda,
+                  override val iterSize: ArithExpr,
+                  override val stride: Option[ArithExpr],
+                  override val factor: Option[ArithExpr])
+  extends AbstractSpFold(fMap, fReduce, PosVar("i"), iterSize, stride, factor) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -40,15 +35,6 @@ case class SpMemFold(fMap: Lambda,
 
       case _ => throw new TypeException(argType, "TupleType(_, ArrayType(_, _))", this)
     }
-  }
-
-  override def _visit(prePost: IRNode => IRNode => Unit): Unit = {
-    fMap.visit_pp(prePost)
-    fReduce.visit_pp(prePost)
-  }
-
-  override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
-    throw new NotImplementedError()
   }
 }
 
