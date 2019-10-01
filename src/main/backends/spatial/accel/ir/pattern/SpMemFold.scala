@@ -1,15 +1,14 @@
 package backends.spatial.accel.ir.pattern
 
-import ir.ast.{Expr, IRNode, Lambda, Lambda1, Lambda2, Pattern, fun}
-import ir.interpreter.Interpreter.ValueMap
 import ir._
-import lift.arithmetic.{ArithExpr, PosVar, SimplifiedExpr, Var}
+import ir.ast.{Expr, Lambda, Lambda1, Lambda2, fun}
+import lift.arithmetic.{ArithExpr, Cst, PosVar}
 
 case class SpMemFold(override val fMap: Lambda,
-                  override val fReduce: Lambda,
-                  override val iterSize: ArithExpr,
-                  override val stride: Option[ArithExpr],
-                  override val factor: Option[ArithExpr])
+                     override val fReduce: Lambda,
+                     override val iterSize: ArithExpr,
+                     override val stride: ArithExpr,
+                     override val factor: ArithExpr)
   extends AbstractSpFold(fMap, fReduce, PosVar("i"), iterSize, stride, factor) {
 
   override def checkType(argType: Type,
@@ -40,15 +39,8 @@ case class SpMemFold(override val fMap: Lambda,
 
 object SpMemFold {
   def apply(iterSize: ArithExpr,
-            stride: ArithExpr,
-            factor: ArithExpr,
-            fMap: Lambda, fReduce: Lambda2,
-            init: Expr): Lambda1 =
-    fun((x) => SpMemFold(fMap, fReduce, iterSize, Some(stride), Some(factor))(init, x))
-
-  def apply(iterSize: ArithExpr,
-            stride: Option[ArithExpr] = None,
-            factor: Option[ArithExpr] = None,
+            stride: ArithExpr = Cst(1),
+            factor: ArithExpr = Cst(1),
             fMap: Lambda, fReduce: Lambda2,
             init: Expr): Lambda1 =
     fun((x) => SpMemFold(fMap, fReduce, iterSize, stride, factor)(init, x))
