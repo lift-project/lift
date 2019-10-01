@@ -13,17 +13,18 @@ private class MemoryAllocationException(msg: String)
   *
   * @constructor Create a new SpatialMemory object
   * @param variable The variable associated with the memory
-  * @param size The size of the memory as numbers bytes
+  * @param t The type of the variable instantiated in memory
   * @param addressSpace The address space where the memory has been allocated
   */
 sealed class SpatialMemory(var variable: Var,
-                          val size: ArithExpr,
-                          val addressSpace: SpatialAddressSpace) extends Memory {
+                           val t: Type,
+                           val addressSpace: SpatialAddressSpace) extends Memory {
+  val size: ArithExpr = Type.getAllocatedSize(t)
 
   // size cannot be 0 unless it is the null memory
   try {
     if (size.evalLong == 0)
-      throw new MemoryAllocationException("Cannot have a memory of 0 bytes!")
+      throw new MemoryAllocationException("Cannot have a memory of 0 elements!")
   } catch {
     case NotEvaluableException() => // nothing to do
     case e: Exception => throw e
@@ -43,9 +44,9 @@ sealed class SpatialMemory(var variable: Var,
 
   def copy(): SpatialMemory = {
     addressSpace match {
-      case DRAMMemory => SpatialMemory.allocDRAMMemory(size)
-      case SRAMMemory => SpatialMemory.allocSRAMMemory(size)
-      case RegMemory => SpatialMemory.allocRegMemory(size)
+      case DRAMMemory => SpatialMemory.allocDRAMMemory(t)
+      case SRAMMemory => SpatialMemory.allocSRAMMemory(t)
+      case RegMemory => SpatialMemory.allocRegMemory(t)
       case AddressSpaceCollection(_) => this match {
         case coll: SpatialMemoryCollection =>
           SpatialMemoryCollection(coll.subMemories.map(_.copy()))
@@ -101,9 +102,9 @@ object SpatialNullMemory
 
 object SpatialMemory {
 
-  def apply(variable: Var, size: ArithExpr,
+  def apply(variable: Var, t: Type,
             addressSpace: SpatialAddressSpace): SpatialMemory = {
-    new SpatialMemory(variable, size, addressSpace)
+    new SpatialMemory(variable, t, addressSpace)
   }
 
   def getAllMemories(memory: SpatialMemory): Seq[SpatialMemory] = memory match {
@@ -141,54 +142,26 @@ object SpatialMemory {
   def containsSRAMMemory(mem: Memory): Boolean = containsAddressSpace(mem, SRAMMemory)
   def containsRegMemory(mem: Memory): Boolean  = containsAddressSpace(mem, RegMemory)
 
-  /** Return newly allocated memory based on the given sizes and the address
-    * space of the input memory
-    *
-    * @param dramOutSize Size in bytes to allocate in DRAM memory
-    * @param sramOutSize Size in bytes to allocate in SRAM memory
-    * @param regOutSize Size in bytes to allocate in Register memory
-    * @param addressSpace Address space for allocation
-    * @return The newly allocated memory object
-    */
-  @scala.annotation.tailrec
-  def allocMemory(dramOutSize: ArithExpr,
-                  sramOutSize: ArithExpr,
-                  regOutSize: ArithExpr,
-                  addressSpace: SpatialAddressSpace): SpatialMemory = {
-    if (addressSpace == UndefAddressSpace)
-      throw new IllegalArgumentException(s"Can't allocate memory in $addressSpace")
-
-    addressSpace match {
-      case DRAMMemory => allocDRAMMemory(dramOutSize)
-      case SRAMMemory => allocSRAMMemory(sramOutSize)
-      case RegMemory => allocRegMemory(regOutSize)
-      case co: AddressSpaceCollection =>
-        allocMemory(dramOutSize, sramOutSize, regOutSize, co.findCommonAddressSpace())
-      case UndefAddressSpace =>
-        throw new MemoryAllocationException("Cannot allocate memory in UndefAddressSpace")
-    }
-  }
-
   /**
-    * Return newly allocated memory of `size` bytes in `addressSpace`
+    * Return newly allocated memory of `t.size` elements in `addressSpace`
     *
-    * @param size Size of the memory to allocate in bytes
+    * @param t The type of the variable associated with the memory object
     * @param addressSpace Address space for the allocated memory
     */
-  def allocMemory(size: ArithExpr, addressSpace: SpatialAddressSpace) =
-    SpatialMemory(Var("", ContinuousRange(Cst(0), size)), size, addressSpace)
+  def allocMemory(t: Type, addressSpace: SpatialAddressSpace) =
+    SpatialMemory(Var("", ContinuousRange(Cst(0), Type.getAllocatedSize(t))), t, addressSpace)
 
   /** Return newly allocated DRAM memory */
-  def allocDRAMMemory(dramOutSize: ArithExpr): SpatialMemory =
-    allocMemory(dramOutSize, DRAMMemory)
+  def allocDRAMMemory(dramOutType: Type): SpatialMemory =
+    allocMemory(dramOutType, DRAMMemory)
 
   /** Return newly allocated SRAM memory */
-  def allocSRAMMemory(sramOutSize: ArithExpr): SpatialMemory =
-    allocMemory(sramOutSize, SRAMMemory)
+  def allocSRAMMemory(sramOutType: Type): SpatialMemory =
+    allocMemory(sramOutType, SRAMMemory)
 
   /** Return newly allocated Register memory */
-  def allocRegMemory(regOutSize: ArithExpr): SpatialMemory =
-    allocMemory(regOutSize, RegMemory)
+  def allocRegMemory(regOutType: Type): SpatialMemory =
+    allocMemory(regOutType, RegMemory)
 }
 
 /** Represents an SpatialMemory object combined with a type.
