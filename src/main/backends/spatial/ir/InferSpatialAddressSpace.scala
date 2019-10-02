@@ -1,6 +1,6 @@
 package backends.spatial.ir
 
-import backends.spatial.accel.IllegalAccelBlock
+import backends.spatial.accel.generator.IllegalAccelBlock
 import backends.spatial.accel.ir.pattern.{toDRAM, toReg, toSRAM}
 import ir.ScalarType
 import ir.ast.{AbstractPartRed, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Id, Join, Lambda, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
