@@ -1,4 +1,4 @@
-package backends.spatial.accel
+package backends.spatial.accel.generator
 
 class IllegalAccelBlock(msg: String) extends Exception(msg)
 

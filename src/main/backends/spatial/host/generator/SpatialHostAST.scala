@@ -1,7 +1,7 @@
-package backends.spatial.host
+package backends.spatial.host.generator
 
-import core.generator.GenericAST.{AstNode, Block, BlockMember, BlockT, StatementT}
-import core.generator.PrettyPrinter._
+import core.generator.GenericAST.{AstNode, BlockT, StatementT}
+import core.generator.PrettyPrinter.{Doc, bracket}
 
 object SpatialHostAST {
 

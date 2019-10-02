@@ -1,10 +1,10 @@
-package backends.spatial.runtime
+package backends.spatial.common
 
 import core.generator.GenericAST
 import ir.ast.Lambda
 import opencl.ir.TypedOpenCLMemory
 
-object RuntimeBuilder {
+object RuntimeCompiler {
 
   case class CompiledAccelLambda(lambda: Lambda,
                                  generatedBlock: GenericAST.Block,

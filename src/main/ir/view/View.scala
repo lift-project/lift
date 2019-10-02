@@ -548,7 +548,7 @@ case class ViewSlide(iv: View, slide: Slide, override val t: Type) extends View(
 /**
   *  A view for slicing.
   *
-  * @param iv View to Slide.
+  * @param iv View to Slice.
   * @param slice The slice function to use.
   * @param t Type of the view.
   */
@@ -779,7 +779,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
          // Assume it's the same address space
          val indirection = ViewPrinter.emit(ids.access(idx), replacements, mainAddressSpace) match {
            case VarRef(indicesVar, _, i) => AccessVar(indicesVar.v, i
-             .get.content)
+             .get.asInstanceOf[ArithExpressionT].content)
            case x => throw new IllegalArgumentException(s"Expected an VarRef, got $x")
          }
          emitView(iv, indirection :: indices, tupleAccessStack)

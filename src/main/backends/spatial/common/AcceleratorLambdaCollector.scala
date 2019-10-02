@@ -1,4 +1,4 @@
-package backends.spatial.runtime
+package backends.spatial.common
 
 import backends.spatial.host.ir.ast.AccelFun
 import ir.ast.{Expr, FunCall, Lambda}

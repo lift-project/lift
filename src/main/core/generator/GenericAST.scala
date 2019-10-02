@@ -897,7 +897,7 @@ object GenericAST {
    */
   trait AddressorT extends ExpressionT
 
-  trait ArrayIndexT extends AddressorT with ArithExpressionT
+  trait ArrayIndexT extends AddressorT
 
   /**
     * A reference to a declared variable
@@ -1080,7 +1080,7 @@ object GenericAST {
   /**
     * Wrapper for arithmetic expression
     */
-  trait ArithExpressionT extends ExpressionT {
+  trait ArithExpressionT extends ExpressionT with ArrayIndexT {
     val content: ArithExpr
 
     override def print(): Doc = Printer.toString(content)

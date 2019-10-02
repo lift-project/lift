@@ -1,15 +1,12 @@
-package backends.spatial.accel
+package backends.spatial.accel.generator
 
-import _root_.ir.ast.{Expr, FunCall, Lambda, UserFun}
-import backends.spatial.accel.SpatialAccelAST.{Counter, SpatialVarDecl}
-import backends.spatial.host.SpatialHostAST.AccelScope
-import core.generator.GenericAST.{ArithExpression, AstNode, Block, Comment, ExpressionT, FunctionCall, MutableExprBlock, StructConstructor, VarRef}
-import _root_.ir.{TupleType, Type, UndefType}
-import _root_.ir.view.{View, ViewPrinter}
 import backends.spatial.accel.ir.pattern.SpMemFold
 import backends.spatial.ir.{SpatialMemory, SpatialMemoryCollection, SpatialNullMemory}
+import core.generator.GenericAST.{ArithExpression, AstNode, Block, Comment, ExpressionT, FunctionCall, MutableExprBlock, StructConstructor, VarRef}
+import ir.ast.{Expr, FunCall, Lambda, UserFun}
+import ir.view.{View, ViewPrinter}
+import ir.{TupleType, Type}
 import lift.arithmetic.{RangeAdd, Var}
-import opencl.ir.pattern.ReduceSeq
 
 object AccelGenerator {
   def apply(f: Lambda): Block = {

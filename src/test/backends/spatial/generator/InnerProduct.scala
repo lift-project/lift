@@ -108,7 +108,7 @@ class InnerProduct {
         host.ir.ast.AccelFun(scalarDotLambda)(x, y)
     )
 
-    val out = spatial.runtime.RuntimeBuilder(runTimeLambda)
+    val out = spatial.common.RuntimeCompiler(runTimeLambda)
     
   }
 

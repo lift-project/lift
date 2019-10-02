@@ -8,7 +8,7 @@ import lift.arithmetic.{ArithExpr, Cst, PosVar, Var}
 case class SpForeach(iterSize: ArithExpr,
                      stride: ArithExpr = Cst(1),
                      factor: ArithExpr = Cst(1),
-                     override val f: Lambda1,)
+                     override val f: Lambda1)
   extends Pattern(arity = 1) with FPattern {
   assert(f.params.length == 1)
 

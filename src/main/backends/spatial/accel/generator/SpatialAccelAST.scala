@@ -1,11 +1,11 @@
-package backends.spatial.accel
+package backends.spatial.accel.generator
 
-import _root_.ir.{ArrayType, Type}
 import backends.spatial.SpatialAST.SpatialAddressSpaceOperator
 import backends.spatial.ir.{RegMemory, SRAMMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
-import core.generator.GenericAST.{AddressorT, ArithExpression, ArrayIndexT, AstNode, CVar, ExpressionT, MutableExprBlockT, Pipe, StatementT, VarDeclT, VarRef}
-import core.generator.PrettyPrinter._
+import core.generator.GenericAST.{AddressorT, ArithExpression, AstNode, CVar, ExpressionT, MutableExprBlockT, StatementT, VarDeclT, Pipe}
+import core.generator.PrettyPrinter.{Doc, empty, text, stringToDoc}
+import ir.{ArrayType, Type}
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 import utils.Printer
 
@@ -74,27 +74,27 @@ object SpatialAccelAST {
 
       v.print <> accessD <> suffixD
     }
+  }
 
-    case class NDVarSlicedRef(v: CVar,
-                              suffix: Option[String] = None,
-                              arrayAddressors: Option[List[AddressorT]] = None) extends NDVarSlicedRefT {
+  case class NDVarSlicedRef(v: CVar,
+                            suffix: Option[String] = None,
+                            arrayAddressors: Option[List[AddressorT]] = None) extends NDVarSlicedRefT {
 
-      def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-        NDVarSlicedRef(
-          v.visitAndRebuild(pre, post).asInstanceOf[CVar], suffix,
-          arrayAddressors match {
-            case Some(addressors) => Some(addressors.map(_.visitAndRebuild(pre, post).asInstanceOf[AddressorT]))
-            case None => None
-          })
-      }
-
-      def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      NDVarSlicedRef(
+        v.visitAndRebuild(pre, post).asInstanceOf[CVar], suffix,
         arrayAddressors match {
-          case Some(addressors) => addressors.foreach(_.visitBy(pre, post))
-          case None =>
-        }
-        v.visitBy(pre, post)
+          case Some(addressors) => Some(addressors.map(_.visitAndRebuild(pre, post).asInstanceOf[AddressorT]))
+          case None => None
+        })
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      arrayAddressors match {
+        case Some(addressors) => addressors.foreach(_.visitBy(pre, post))
+        case None =>
       }
+      v.visitBy(pre, post)
     }
   }
 
