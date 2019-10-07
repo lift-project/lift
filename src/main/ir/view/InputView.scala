@@ -1,5 +1,6 @@
 package ir.view
 
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpFold, SpForeach}
 import ir._
 import ir.ast._
 import lift.arithmetic.ArithExpr
@@ -56,8 +57,10 @@ object InputView {
     val argView = getViewFromArgs(call)
 
     call.f match {
+      case sF: SpForeach => buildViewSpForeach(sF, call, argView)
       case m: AbstractMap => buildViewMap(m, call, argView)
       case f: FilterSeq => buildViewFilter(f, call, argView)
+      case aSF: AbstractSpFold => buildViewSpFold(aSF, call, argView)
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
       case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
@@ -122,6 +125,24 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, i.f.body.mem.variable)
   }
 
+  private def buildViewSpForeach(sF: SpForeach, call: FunCall, argView: View): View = {
+
+    // pass down input view
+    sF.f.params(0).view = (argView.slide(Slide(size = sF.iterSize, step = sF.stride))
+                                  .access(sF.loopVar))
+
+    // traverse into call.f
+    val innerView = visitAndBuildViews(sF.f.body)
+
+    sF.f.body match {
+      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
+        // create fresh input view for following function
+        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
+      case _ => // call.isAbstract and return input map view
+        ViewMap(innerView, sF.loopVar, call.t)
+    }
+  }
+
   private def buildViewMap(m: AbstractMap, call: FunCall, argView: View): View = {
 
     // pass down input view
@@ -154,6 +175,33 @@ object InputView {
     iss.f.params(0).view = argView.access(iss.loopRead)
     visitAndBuildViews(iss.f.body)
 
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
+  }
+
+  private def buildViewSpFold(aSF: AbstractSpFold,
+                              call: FunCall, argView: View): View = {
+    // fMap: pass down input view
+    aSF.fMap.params(0).view = (argView.get(1).slide(Slide(size = aSF.iterSize, step = aSF.stride))
+                                             .access(aSF.mapLoopVar))
+    // fMap: traverse into call.f
+    val innerMapView = visitAndBuildViews(aSF.fMap.body)
+
+    val mapView = aSF.fMap.body match {
+      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
+        // create fresh input view for following function
+        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
+      case _ => // call.isAbstract and return input map view
+        ViewMap(innerMapView, aSF.mapLoopVar, call.t)
+    }
+
+
+    // fReduce: pass down input view
+    aSF.fReduce.params(0).view = argView.get(0)
+    aSF.fReduce.params(1).view = mapView.access(aSF.reduceLoopVar)
+    // fReduce: traverse into call.f
+    visitAndBuildViews(aSF.fReduce.body)
+
+    // create fresh input view for following function
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
 

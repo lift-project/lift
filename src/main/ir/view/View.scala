@@ -716,7 +716,7 @@ object View {
 class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mainAddressSpace: OpenCLAddressSpace) {
 
   /**
-    * Produces an openCL expression accessing a multi-dimentional array using
+    * Produces an openCL expression accessing a multidimensional array using
     * a given view
     *
     * @param sv the view
@@ -755,9 +755,9 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         val newV = iv.replaced(itVar, idx)
         emitView(newV, indices, tupleAccessStack)
 
-      case ViewSplit(chuckSize, iv, _) =>
+      case ViewSplit(chunkSize, iv, _) =>
         val chunkIdx :: elemIdx :: indices = arrayAccessStack
-        val newIdx = chunkIdx * chuckSize + elemIdx
+        val newIdx = chunkIdx * chunkSize + elemIdx
         emitView(iv, newIdx :: indices, tupleAccessStack)
 
       case ViewJoin(chunkSize, iv, _) =>

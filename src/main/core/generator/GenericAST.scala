@@ -893,7 +893,7 @@ object GenericAST {
   }
 
   /**
-   * Array addressor such as an index or an interval
+   * Array addressor such as an index or a slice
    */
   trait AddressorT extends ExpressionT
 

@@ -12,30 +12,37 @@ import utils.Printer
 object SpatialAccelAST {
 
   /**
-   * An index interval for array slice access
+   * Sliced array access
    */
-  trait IdxIntervalT extends AddressorT with ExpressionT {
-    val idxStart: ArithExpression
-    val idxStop: ArithExpression
+  trait IdxSliceT extends AddressorT with ExpressionT {
+    val start: ArithExpression
+    val step: ArithExpression
+    val end: ArithExpression
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
-      visitFun(z, this)
+      z |> (visitFun(_, this)) |>
+        (visitFun(_, start)) |>
+        (visitFun(_, step)) |>
+        (visitFun(_, step))
     }
 
-    override def print(): Doc = idxStart.print <> "::" <> idxStop.print
+    override def print(): Doc = start.print <> "::" <> end.print
   }
 
-  case class IdxInterval(idxStart: ArithExpression,
-                         idxStop: ArithExpression) extends IdxIntervalT {
+  case class IdxSlice(start: ArithExpression,
+                      step: ArithExpression,
+                      end: ArithExpression) extends IdxSliceT {
 
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode =
-      IdxInterval(
-        idxStart.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
-        idxStop.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])
+      IdxSlice(
+        start.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
+        step.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
+        end.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      idxStart.visitBy(pre, post)
-      idxStop.visitBy(pre, post)
+      start.visitBy(pre, post)
+      step.visitBy(pre, post)
+      end.visitBy(pre, post)
     }
   }
 

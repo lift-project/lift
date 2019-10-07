@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.{LocalMemory, OpenCLMemory, PrivateMemory}
+import opencl.ir.{LocalMemory, OpenCLAddressSpace, OpenCLMemory, PrivateMemory}
 import opencl.ir.pattern._
 
 // FIXME: rewrite me
@@ -74,8 +74,9 @@ private class BuildDepthInfo() {
     val result = expr match {
       case call: FunCall => buildDepthInfoFunCall(call)
       case e: Expr =>
-        e.inputDepth = getAccessInf(e.addressSpace.containsAddressSpace(PrivateMemory),
-          e.addressSpace.containsAddressSpace(LocalMemory))
+        e.inputDepth = getAccessInf(
+          e.addressSpace.asInstanceOf[OpenCLAddressSpace].containsAddressSpace(PrivateMemory),
+          e.addressSpace.asInstanceOf[OpenCLAddressSpace].containsAddressSpace(LocalMemory))
         e.accessInf
     }
 

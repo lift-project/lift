@@ -6,6 +6,10 @@ import lift.arithmetic._
 import opencl.generator.{NotPrintableExpression, OclFunction}
 
 // TODO: Move much of this code to the new generic.AstPrinter module
+//       (UPD) Don't -- the generic.AstPrinter might be as inefficient as
+//       PrettyPrinter with StackOverflows on long kernels due to the stateful approach
+//       But do merge the two somehow.
+// TODO: Place in a C-like backend-specific package
 
 object Printer {
 
