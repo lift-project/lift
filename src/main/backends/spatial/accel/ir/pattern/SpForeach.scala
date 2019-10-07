@@ -1,8 +1,8 @@
 package backends.spatial.accel.ir.pattern
 
-import ir.{ArrayType, ArrayTypeWSWC, Type, TypeChecker, TypeException}
-import ir.ast.{AbstractMap, FPattern, IRNode, Lambda, Lambda1, Pattern}
+import ir.ast.{FPattern, IRNode, Lambda, Lambda1, Pattern}
 import ir.interpreter.Interpreter.ValueMap
+import ir._
 import lift.arithmetic.{ArithExpr, Cst, PosVar, Var}
 
 case class SpForeach(iterSize: ArithExpr,
@@ -31,7 +31,7 @@ case class SpForeach(iterSize: ArithExpr,
     }
   }
 
-  override def copy(f: Lambda): Pattern = SpForeach(f, iterSize, stride, factor)
+  override def copy(f: Lambda): Pattern = new SpForeach(iterSize, stride, factor, f)
   var shouldUnroll = false
 
   override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)
@@ -44,5 +44,5 @@ object SpForeach {
             stride: ArithExpr = Cst(1),
             factor: ArithExpr = Cst(1),
             f: Lambda): Lambda1 =
-    new SpForeach(f, iterSize, stride,factor)
+    new SpForeach(iterSize, stride,factor, f)
 }

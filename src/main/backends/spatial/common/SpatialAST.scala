@@ -1,6 +1,6 @@
-package backends.spatial
+package backends.spatial.common
 
-import backends.spatial.ir.SpatialAddressSpace
+import backends.spatial.common.ir.SpatialAddressSpace
 
 object SpatialAST {
   trait SpatialAddressSpaceOperator {

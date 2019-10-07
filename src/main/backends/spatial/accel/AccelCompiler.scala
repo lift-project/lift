@@ -1,11 +1,10 @@
 package backends.spatial.accel
 
-import backends.common.Compiler
-import backends.spatial.runtime.SpatialMemoryAllocator
-import core.generator.GenericAST.{Block, MutableBlock}
 import _root_.ir.UndefType
 import _root_.ir.ast.Lambda
-import backends.spatial.ir.InferSpatialAddressSpace
+import backends.common.Compiler
+import backends.spatial.accel.generator.AccelGenerator
+import backends.spatial.common.ir.{InferSpatialAddressSpace, SpatialMemoryAllocator}
 
 object AccelCompiler extends Compiler {
   def apply(f: Lambda): String = {

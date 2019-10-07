@@ -1,7 +1,8 @@
 package backends.spatial.accel.generator
 
+import backends.spatial.accel.generator.SpatialAccelAST.Counter
 import backends.spatial.accel.ir.pattern.SpMemFold
-import backends.spatial.ir.{SpatialMemory, SpatialMemoryCollection, SpatialNullMemory}
+import backends.spatial.common.ir.{SpatialMemory, SpatialMemoryCollection, SpatialNullMemory}
 import core.generator.GenericAST.{ArithExpression, AstNode, Block, Comment, ExpressionT, FunctionCall, MutableExprBlock, StructConstructor, VarRef}
 import ir.ast.{Expr, FunCall, Lambda, UserFun}
 import ir.view.{View, ViewPrinter}
@@ -76,8 +77,8 @@ object AccelGenerator {
     (block: MutableExprBlock) += SpatialAccelAST.Reduce(
       accum = valueAccessNode(accumulator.mem.variable),
       counter = List(Counter(
-        ArithExpression(getRangeAdd(smf.loopVar).start),
-        ArithExpression(getRangeAdd(smf.loopVar).stop),
+        ArithExpression(getRangeAdd(smf.mapLoopVar).start),
+        ArithExpression(getRangeAdd(smf.mapLoopVar).stop),
         ArithExpression(smf.stride),
         ArithExpression(smf.factor))
       ),

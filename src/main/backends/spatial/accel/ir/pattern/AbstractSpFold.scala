@@ -6,14 +6,15 @@ import lift.arithmetic.{ArithExpr, SimplifiedExpr, Var}
 
 abstract class AbstractSpFold(val fMap: Lambda,
                               val fReduce: Lambda,
-                              val loopVar: Var,
+                              val mapLoopVar: Var,
+                              val reduceLoopVar: Var,
                               val iterSize: ArithExpr,
                               val stride: ArithExpr,
                               val factor: ArithExpr) extends Pattern(arity = 2) {
   assert(fMap.params.length == 1)
   assert(fReduce.params.length == 2)
 
-  val iterationCount: ArithExpr with SimplifiedExpr = loopVar.range.numVals
+  val iterationCount: ArithExpr with SimplifiedExpr = mapLoopVar.range.numVals // == reduceLoopVar.range.numVals
   var shouldUnroll = false
 
   override def _visit(prePost: IRNode => IRNode => Unit): Unit = {

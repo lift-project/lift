@@ -1,7 +1,7 @@
 package backends.spatial.accel.generator
 
-import backends.spatial.SpatialAST.SpatialAddressSpaceOperator
-import backends.spatial.ir.{RegMemory, SRAMMemory, SpatialAddressSpace, UndefAddressSpace}
+import backends.spatial.common.SpatialAST.SpatialAddressSpaceOperator
+import backends.spatial.common.ir.{RegMemory, SRAMMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
 import core.generator.GenericAST.{AddressorT, ArithExpression, AstNode, CVar, ExpressionT, MutableExprBlockT, StatementT, VarDeclT, Pipe}
 import core.generator.PrettyPrinter.{Doc, empty, text, stringToDoc}

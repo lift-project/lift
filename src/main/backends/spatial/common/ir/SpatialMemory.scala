@@ -1,4 +1,4 @@
-package backends.spatial.ir
+package backends.spatial.common.ir
 
 import arithmetic.TypeVar
 import ir.ast.Expr

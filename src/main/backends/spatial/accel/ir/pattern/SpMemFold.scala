@@ -9,7 +9,7 @@ case class SpMemFold(override val fMap: Lambda,
                      override val iterSize: ArithExpr,
                      override val stride: ArithExpr,
                      override val factor: ArithExpr)
-  extends AbstractSpFold(fMap, fReduce, PosVar("i"), iterSize, stride, factor) {
+  extends AbstractSpFold(fMap, fReduce, PosVar("i"), PosVar("j"), iterSize, stride, factor) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {

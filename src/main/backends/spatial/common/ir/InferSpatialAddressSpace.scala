@@ -1,4 +1,4 @@
-package backends.spatial.ir
+package backends.spatial.common.ir
 
 import backends.spatial.accel.generator.IllegalAccelBlock
 import backends.spatial.accel.ir.pattern.{toDRAM, toReg, toSRAM}

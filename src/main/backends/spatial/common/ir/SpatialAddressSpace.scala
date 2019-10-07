@@ -1,4 +1,4 @@
-package backends.spatial.ir
+package backends.spatial.common.ir
 
 import ir.AddressSpace
 import scala.language.implicitConversions
