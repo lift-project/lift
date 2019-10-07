@@ -691,7 +691,7 @@ object View {
    * @param expr The starting expression.
    */
   def apply(expr: Expr): Unit = {
-    BuildDepthInfo(expr)
+    BuildDepthInfoCL(expr)
     InputView(expr)
     OutputView(expr)
   }

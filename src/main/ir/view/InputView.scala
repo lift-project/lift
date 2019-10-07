@@ -1,6 +1,6 @@
 package ir.view
 
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpFold, SpForeach}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
 import ir._
 import ir.ast._
 import lift.arithmetic.ArithExpr

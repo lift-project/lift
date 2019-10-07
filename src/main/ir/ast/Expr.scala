@@ -1,11 +1,14 @@
 package ir.ast
 
+import backends.{Backend, OpenCLBackend, SpatialBackend}
+import backends.common.view.{AccessInfo, SingleAccess}
+import backends.spatial.common.ir.view.AccessInfoSp
 import ir._
 import ir.interpreter.Interpreter.ValueMap
-import ir.view.{AccessInfo, NoView, View}
+import ir.view.{AccessInfoCL, NoView, View}
 import lift.arithmetic.ArithExpr
 import opencl.ir.pattern.ReduceWhileSeq
-import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
+import opencl.ir.UndefAddressSpace
 
 import scala.language.implicitConversions
 
@@ -51,9 +54,14 @@ abstract class Expr extends IRNode {
    *
    * Used for constructing input views.
    */
-  var inputDepth: List[ir.view.SingleAccess] = List()
+  var inputDepth: List[SingleAccess] = List()
 
-  var accessInf = AccessInfo()
+  var accessInf: AccessInfo = {
+    Backend() match {
+      case OpenCLBackend => AccessInfoCL()
+      case SpatialBackend => AccessInfoSp()
+    }
+  }
 
   /**
    * A list storing (ArrayType constructor, variable) tuples that describe the
@@ -62,7 +70,7 @@ abstract class Expr extends IRNode {
    *
    * Used for constructing output views.
    */
-  var outputDepth: List[ir.view.SingleAccess] = List()
+  var outputDepth: List[SingleAccess] = List()
 
   /**
    * Checks if the expression eventually writes to memory, i.e., it contains a
