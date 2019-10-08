@@ -141,12 +141,12 @@ object SpatialMemoryAllocator {
                              outT: Type,
                              inMem: SpatialMemory): SpatialMemory = {
 
-    val regMemSizeMultiplier: ArithExpr =
-      if (am.f.body.addressSpace.asInstanceOf[SpatialAddressSpace].containsAddressSpace(RegMemory) ||
-        inMem.addressSpace.containsAddressSpace(RegMemory))
-        am.iterationCount
-      else
-        1
+//    val regMemSizeMultiplier: ArithExpr =
+//      if (am.f.body.addressSpace.asInstanceOf[SpatialAddressSpace].containsAddressSpace(RegMemory) ||
+//        inMem.addressSpace.containsAddressSpace(RegMemory))
+//        am.iterationCount
+//      else
+//        1
 
     alloc(am.f.body)
   }

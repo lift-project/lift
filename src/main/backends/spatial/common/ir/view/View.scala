@@ -5,7 +5,7 @@ import backends.spatial.common.ir.{AddressSpaceCollection, RegMemory, SpatialAdd
 import core.generator.GenericAST
 import core.generator.GenericAST.{ArithExpression, ExpressionT}
 import ir.Type.size_t
-import ir.ast.Expr
+import ir.ast.{Expr, Lambda}
 import ir.{ArrayType, ArrayTypeWC, ArrayTypeWS, Capacity, ScalarType, Size, TupleType, Type, VectorType}
 import ir.view.{InputView, OutputView, SizeIndex, View, View2DGeneratorUserFun, View3DGeneratorUserFun, ViewAccess, ViewArrayWrapper, ViewAsScalar, ViewAsVector, ViewConcat, ViewConstant, ViewFilter, ViewGenerator, ViewHead, ViewJoin, ViewMap, ViewMem, ViewOffset, ViewPad, ViewPadConstant, ViewReorder, ViewSize, ViewSlide, ViewSplit, ViewTail, ViewTranspose, ViewTuple, ViewTupleComponent, ViewUnzip, ViewZip}
 import lift.arithmetic.{ArithExpr, Var}
@@ -13,6 +13,18 @@ import lift.arithmetic.{ArithExpr, Var}
 import scala.collection.immutable
 
 object View {
+
+  /**
+   * Visit the expression and construct all views for all sub-expressions.
+   *
+   * @param lambda The starting expression.
+   */
+  def apply(lambda: Lambda): Unit = {
+    lambda.params.foreach((p) => {
+      p.view = _root_.ir.view.View(p.t, p.mem.variable)
+    })
+    View(lambda.body)
+  }
 
   /**
    * Visit the expression and construct all views for all sub-expressions.

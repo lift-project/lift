@@ -7,7 +7,7 @@ import ir.{ScalarType, TupleType, Type, UndefType}
 import ir.ast._
 import ir.view._
 import opencl.generator.{NDRange, OpenCLGenerator}
-import core.generator.GenericAST.VarRef
+import core.generator.GenericAST.{ArithExpression, VarRef}
 import opencl.ir.OpenCLMemoryCollection
 import opencl.ir.pattern.{MapGlb, MapLcl}
 
@@ -57,7 +57,7 @@ class AccessPatterns(
     (readPatterns, writePatterns)
 
   private def isCoalesced(v: VarRef, length: ArithExpr): Boolean = {
-    val accessLocation = v.arrayIndex.get.content
+    val accessLocation = v.arrayIndex.get.asInstanceOf[ArithExpression].content
 
     if (coalescingId.isEmpty)
       return false
