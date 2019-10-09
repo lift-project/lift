@@ -623,9 +623,9 @@ object OpenCLMemoryAllocator {
             val capacity = ArithExpr.substitute(c.capacity, map.toMap)
             def alloc(baseSize: ArithExpr, innerSize: ArithExpr): ArithExpr = {
               if (baseSize.eval < size_t.size.eval)
-                getSizeFromInner(baseSize, at.headerSize * size_t.size + align(capacity * innerSize))
+                getSizeFromInner(baseSize, at.headerLength * size_t.size + align(capacity * innerSize))
               else
-                getSizeFromInner(baseSize, at.headerSize * baseSize + capacity * innerSize)
+                getSizeFromInner(baseSize, at.headerLength * baseSize + capacity * innerSize)
             }
             alloc
           case _ =>

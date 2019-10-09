@@ -1,13 +1,17 @@
 package backends.spatial.accel.generator
 
-import backends.spatial.accel.generator.SpatialAccelAST.Counter
+import backends.spatial.accel.generator.SpatialAccelAST.{AddressorT, ArrIndex, ArrSlice, Counter, NDVarSlicedRef, SpatialVarDecl}
 import backends.spatial.accel.ir.pattern.SpMemFold
-import backends.spatial.common.ir.{SpatialMemory, SpatialMemoryCollection, SpatialNullMemory}
-import core.generator.GenericAST.{ArithExpression, AstNode, Block, Comment, ExpressionT, FunctionCall, MutableExprBlock, StructConstructor, VarRef}
-import ir.ast.{Expr, FunCall, Lambda, UserFun}
+import backends.spatial.common.Printer
+import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice}
+import backends.spatial.common.ir.{AddressSpaceCollection, CollectTypedSpatialMemory, DRAMMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, TypedMemoryCollection, TypedSpatialMemory, UndefAddressSpace}
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, Block, Comment, ExpressionT, FunctionCall, MutableBlock, MutableExprBlock, StructConstructor, VarRef}
+import ir.ast.{AbstractMap, Expr, FunCall, Lambda, Map, UserFun, Value}
 import ir.view.{View, ViewPrinter}
-import ir.{TupleType, Type}
-import lift.arithmetic.{RangeAdd, Var}
+import ir.{ArrayType, ArrayTypeWS, Memory, NoType, ScalarType, TupleType, Type, TypeException, UndefType, VectorType}
+import lift.arithmetic._
+
+import scala.collection.immutable
 
 object AccelGenerator {
   def apply(f: Lambda): Block = {
@@ -16,7 +20,9 @@ object AccelGenerator {
 
     // Generate user functions
 
-    // Collect dynamic memory that's shared between the host and accel
+    // Collect typed memories
+    allMemories = CollectTypedSpatialMemory(f)
+
 
 
     // TODO inside the body:
@@ -52,7 +58,7 @@ object AccelGenerator {
       case call: FunCall  => call.f match {
         case smf: SpMemFold         => generateSpMemFold(smf, call, block)
 
-        case u: UserFun            => generateUserFunCall(u, call, block)
+        case u: UserFun             => generateUserFunCall(u, call, block)
 
 
         case _                      => throw new NotImplementedError()

@@ -78,12 +78,11 @@ private class BuildDepthInfoSp() extends BuildDepthInfo[AccessInfoSp] {
         setDepths(call, readMemories, writeMemories)
 
         call.f match {
-          case l: Lambda => buildDepthInfoLambda(l, call, argInf)
-          case fp: FPattern => buildDepthInfoLambda(fp.f, call, argInf)
-          case Get(n) => if (argInf.collection.nonEmpty) argInf.collection(n) else argInf
-          case _: UserFun =>
-            AccessInfoSp(memoryAccessInfo)
-          case _ => argInf
+          case l: Lambda =>     buildDepthInfoLambda(l, call, argInf)
+          case fp: FPattern =>  buildDepthInfoLambda(fp.f, call, argInf)
+          case Get(n) =>        if (argInf.collection.nonEmpty) argInf.collection(n) else argInf
+          case _: UserFun =>    AccessInfoSp(memoryAccessInfo)
+          case _ =>             argInf
         }
     }
 
@@ -108,7 +107,6 @@ private class BuildDepthInfoSp() extends BuildDepthInfo[AccessInfoSp] {
     val inf = getArrayAccessInf(call.args.head.t, loopVar)
     f.params.head.accessInf = l(inf, readMemories)
     buildDepthInfoPatternCall(f.body, call, loopVar, readMemories)
-
 
     if (f.body.isConcrete) // create fresh input view for following function
       AccessInfoSp(memoryAccessInfo)

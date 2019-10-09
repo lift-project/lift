@@ -79,9 +79,9 @@ class Decoder(mainType: Type) {
 
   private def decodeArray[E](ty: ArrayType, buffer: ByteBuffer)(hint: DecodeType[E]): Vector[E] = {
     val beforeHeader = buffer.position()
-    val afterHeader = beforeHeader + ty.headerSize * alignment
+    val afterHeader = beforeHeader + ty.headerLength * alignment
     def align(value: Int): Int = {
-      if (baseSize < alignment && ty.headerSize != 0)
+      if (baseSize < alignment && ty.headerLength != 0)
         ((value + alignment - 1) / alignment) * alignment // pad at the end
       else value
     }

@@ -64,15 +64,15 @@ class Encoder(mainTy: Type, sizeof: Long) {
 
   private def encodeArray(at: ArrayType, vector: Array[_], buffer: ByteBuffer): Unit = {
     val beforeHeader = buffer.position()
-    val afterHeader = beforeHeader + at.headerSize * alignment
+    val afterHeader = beforeHeader + at.headerLength * alignment
     def align(value: Int): Int = {
-      if (baseSize < alignment && at.headerSize != 0)
+      if (baseSize < alignment && at.headerLength != 0)
         ((value + alignment - 1) / alignment) * alignment // pad at the end
       else value
     }
 
     // Header of the array
-    val header = Array.fill(at.headerSize)(vector.length)
+    val header = Array.fill(at.headerLength)(vector.length)
     header.foreach(size => putHeaderValue(size, buffer))
 
     // Content of the array

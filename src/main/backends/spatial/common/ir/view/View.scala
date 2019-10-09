@@ -1,6 +1,6 @@
 package backends.spatial.common.ir.view
 
-import backends.spatial.accel.generator.SpatialAccelAST.{IdxSlice, NDVarSlicedRef}
+import backends.spatial.accel.generator.SpatialAccelAST.NDVarSlicedRef
 import backends.spatial.common.ir.{AddressSpaceCollection, RegMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
 import core.generator.GenericAST.{ArithExpression, ExpressionT}
@@ -226,10 +226,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
                          arrayAccessStack: List[ArrayAddressor],
                          tupleAccessStack: List[Int]): NDVarSlicedRef = {
       if (arrayAccessStack.isEmpty)
-        NDVarSlicedRef(mainVar, arrayAddressors = Some(partialAAStack.map {
-          case Index(idx)              => ArithExpression(idx)
-          case Slice(start, step, end) => IdxSlice(ArithExpression(start), ArithExpression(step), ArithExpression(end))
-        }))
+        NDVarSlicedRef(mainVar, arrayAddressors = Some(partialAAStack.map(_.toTargetAST)))
       else {
         ty match {
           case at: ArrayType =>
@@ -264,7 +261,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
       if (at.elemT.hasFixedAllocatedSize) {
         // Just skip the header
         val len = getLengthForArrayAccess(at.elemT, tupleAccessStack)
-        partialAAStack :+ (addr * len +  at.headerSize * alignment / baseSize)
+        partialAAStack :+ (addr * len +  at.headerLength * alignment / baseSize)
       } else {
         (ArrayAddressor.getNonSlicedAccess(addr +: partialAAStack)) match {
           case None => throw new IllegalSpatialAccess(
@@ -275,10 +272,10 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
             // Perform an indirection. Do not cast the pointer if it's not required.
             val elementOffset: AccessVar = {
               if (baseType == size_t)
-                AccessVar(mainVar, partialArrayIdxStack :+ (idx + at.headerSize))
+                AccessVar(mainVar, partialArrayIdxStack :+ (idx + at.headerLength))
               else {
                 val casted = CastedPointer(mainVar, size_t, idx, addressSpace)
-                AccessVar(casted, partialArrayIdxStack :+ (idx + at.headerSize * alignment / size_t.size))
+                AccessVar(casted, partialArrayIdxStack :+ (idx + at.headerLength * alignment / size_t.size))
               }
             }
             // The offset read from the headers is in bytes but must be a multiple of `baseSize`
@@ -309,10 +306,10 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
         case at@ArrayTypeWC(elemT, capacity) =>
           val elemSize = getLengthForArrayAccess(elemT, tupleAccessStack)
           val contentSize = {
-            if (baseSize < alignment && at.headerSize != 0) align(capacity * elemSize)
+            if (baseSize < alignment && at.headerLength != 0) align(capacity * elemSize)
             else capacity * elemSize
           }
-          at.headerSize * alignment / baseSize + contentSize
+          at.headerLength * alignment / baseSize + contentSize
         case tt: TupleType =>
           if (tupleAccessStack.isEmpty) 1
           else getLengthForArrayAccess(

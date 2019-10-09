@@ -3,18 +3,31 @@ package backends.spatial.accel.generator
 import backends.spatial.common.SpatialAST.SpatialAddressSpaceOperator
 import backends.spatial.common.ir.{RegMemory, SRAMMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
-import core.generator.GenericAST.{AddressorT, ArithExpression, AstNode, CVar, ExpressionT, MutableExprBlockT, StatementT, VarDeclT, Pipe}
-import core.generator.PrettyPrinter.{Doc, empty, text, stringToDoc}
+import core.generator.GenericAST.{ArithExpression, ArithExpressionT, AstNode, CVar, ExpressionT, MutableExprBlockT, Pipe, StatementT, VarDeclT}
+import core.generator.PrettyPrinter.{Doc, empty, stringToDoc, text}
 import ir.{ArrayType, Type}
+import lift.arithmetic.ArithExpr
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 import utils.Printer
 
 object SpatialAccelAST {
 
   /**
+   * Array addressor such as an index or a slice
+   */
+  trait AddressorT extends ExpressionT
+
+  /**
+   * Indexed array access
+   */
+  trait ArrIndexT extends AddressorT with ArithExpressionT
+
+  case class ArrIndex(override val content: ArithExpr) extends ArithExpression(content) with ArrIndexT
+
+  /**
    * Sliced array access
    */
-  trait IdxSliceT extends AddressorT with ExpressionT {
+  trait ArrSliceT extends AddressorT with ExpressionT {
     val start: ArithExpression
     val step: ArithExpression
     val end: ArithExpression
@@ -29,12 +42,12 @@ object SpatialAccelAST {
     override def print(): Doc = start.print <> "::" <> end.print
   }
 
-  case class IdxSlice(start: ArithExpression,
+  case class ArrSlice(start: ArithExpression,
                       step: ArithExpression,
-                      end: ArithExpression) extends IdxSliceT {
+                      end: ArithExpression) extends ArrSliceT {
 
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode =
-      IdxSlice(
+      ArrSlice(
         start.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
         step.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
         end.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])

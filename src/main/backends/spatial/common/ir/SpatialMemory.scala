@@ -9,13 +9,16 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
 private class MemoryAllocationException(msg: String)
   extends IllegalArgumentException(msg)
 
-/** Represents memory in Spatial.
-  *
-  * @constructor Create a new SpatialMemory object
-  * @param variable The variable associated with the memory
-  * @param t The type of the variable instantiated in memory
-  * @param addressSpace The address space where the memory has been allocated
-  */
+/**
+ * Represents memory in Spatial. Compared to OpenCLMemory, which stores the
+ * flat size of the buffer, SpatialMemory stores type to preserve the information
+ * about multiple dimensions of the buffer. The size is to be inferred later when needed.
+ *
+ * @constructor Create a new SpatialMemory object
+ * @param variable The variable associated with the memory
+ * @param t The type of the variable instantiated in memory
+ * @param addressSpace The address space where the memory has been allocated
+ */
 sealed class SpatialMemory(var variable: Var,
                            val t: Type,
                            val addressSpace: SpatialAddressSpace) extends Memory {
@@ -164,14 +167,20 @@ object SpatialMemory {
     allocMemory(regOutType, RegMemory)
 }
 
-/** Represents an SpatialMemory object combined with a type.
-  *
-  * @constructor Create a new TypedSpatialMemory object
-  * @param mem The underlying memory object
-  * @param t The type associated with the memory object
+/**
+ * Represents a SpatialMemory object combined with the type of the writes to the memory object,
+ * i.e. the type of UserFun that writes to memory or Value that it is initialised with.
+ * For example, in "Map(add(_, 2)) $ (X: ArrayType(Float, N))", the memory object written to
+ * by add has type ArrayType(_, N), but the write type is Float.
+ * The write type can be non-scalar for batch functions or multidimensional Values
+ *
+ * @constructor Create a new TypedSpatialMemory object
+ * @param mem The underlying memory object
+ * @param writeT The type of each write to the memory object
   */
-case class TypedSpatialMemory(mem: SpatialMemory, t: Type) {
-  override def toString: String = s"($mem: $t)"
+case class TypedSpatialMemory(mem: SpatialMemory, writeT: Type) {
+  lazy val lengths: Seq[ArithExpr] = Type.getAllocatedLengths(writeT)
+  override def toString: String = s"($mem: $writeT)"
 }
 
 object TypedSpatialMemory {

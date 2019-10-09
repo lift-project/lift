@@ -182,7 +182,7 @@ case class ArrayType(elemT: Type) extends Type {
    * The number of values stored in the header of this array.
    * At most 2, minus 1 for each bit of information which is statically known
    */
-  lazy val headerSize: Int = this match {
+  lazy val headerLength: Int = this match {
     case _: Size with Capacity => 0
     case _: Size | _: Capacity => 1
     case _ => 2
@@ -578,11 +578,11 @@ object Type {
           val alignment = Math.max(baseSize, size_t.size.eval)
           val elemSize = getAllocatedSize(at.elemT)
           val contentSize = {
-            if (baseSize != alignment && at.headerSize != 0)
+            if (baseSize != alignment && at.headerLength != 0)
               ((c.capacity * elemSize + alignment - 1) / alignment) * alignment // pad at the end
             else c.capacity * elemSize
           }
-          at.headerSize * alignment + contentSize
+          at.headerLength * alignment + contentSize
         } else ? // Dynamic allocation required
       case _ => ? // Dynamic allocation required
     }
@@ -590,6 +590,26 @@ object Type {
       throw new IllegalArgumentException(s"Cannot allocate memory for type: $t")
   }
 
+  /**
+   * An alternative function to getAllocatedSize above for languages such as Spatial
+   * where we don't have to know the sizes in bytes since they will be handled by the
+   * lower-level compiler.
+   *
+   * @param t A type
+   * @return The lengths in elements for each dimension including array headers
+   */
+  def getAllocatedLengths(t: Type): Seq[ArithExpr] = t match {
+    case st: ScalarType => Seq(1)
+    case vt: VectorType => Seq(1)
+    case tt: TupleType  => Seq(1)
+    case at: ArrayType => at match {
+      case _: Capacity if at.elemT.hasFixedAllocatedSize =>
+        (at.headerLength + getLength(t)) +: getAllocatedLengths(at.elemT)
+      case _ => Seq(?) // Dynamic allocation required
+    }
+    case NoType | UndefType =>
+      throw new IllegalArgumentException(s"Cannot allocate memory for type: $t")
+  }
 
   def getMaxAllocatedSize(t: Type) : ArithExpr = {
     // quick hack (set all the type var to their max value)
@@ -635,7 +655,7 @@ object Type {
    * which is equal to calling `getLength(t)`.
    * If the given type is an array type the list will contain one element for
    * every nested type equal to calling `getLength` on every nested type and
-   * concatinating them
+   * concatenating them
    *
    * @param t A type
    * @return A sequence of lengths from `t`

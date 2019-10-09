@@ -993,14 +993,14 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
       if (at.elemT.hasFixedAllocatedSize) {
         // Just skip the header
         val len = getLengthForArrayAccess(at.elemT, tupleAccessStack)
-        acc + at.headerSize * alignment / baseSize + idx * len
+        acc + at.headerLength * alignment / baseSize + idx * len
       } else {
         // Perform an indirection. Do not cast the pointer if it's not required.
         val elementOffset = if (baseType == size_t)
-          AccessVar(mainVar, acc + at.headerSize + idx)
+          AccessVar(mainVar, acc + at.headerLength + idx)
         else {
           val casted = CastedPointer(mainVar, size_t, acc, addressSpace)
-          AccessVar(casted, at.headerSize * alignment / size_t.size + idx)
+          AccessVar(casted, at.headerLength * alignment / size_t.size + idx)
         }
         // The offset read from the headers is in bytes but must be a multiple of `baseSize`
         acc + elementOffset / baseSize
@@ -1032,10 +1032,10 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         case at@ArrayTypeWC(elemT, capacity) =>
           val elemSize = getLengthForArrayAccess(elemT, tupleAccessStack)
           val contentSize = {
-            if (baseSize < alignment && at.headerSize != 0) align(capacity * elemSize)
+            if (baseSize < alignment && at.headerLength != 0) align(capacity * elemSize)
             else capacity * elemSize
           }
-          at.headerSize * alignment / baseSize + contentSize
+          at.headerLength * alignment / baseSize + contentSize
         case tt: TupleType =>
           if (tupleAccessStack.isEmpty) 1
           else getLengthForArrayAccess(

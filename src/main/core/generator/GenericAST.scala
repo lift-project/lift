@@ -893,20 +893,13 @@ object GenericAST {
   }
 
   /**
-   * Array addressor such as an index or a slice
-   */
-  trait AddressorT extends ExpressionT
-
-  trait ArrayIndexT extends AddressorT
-
-  /**
     * A reference to a declared variable
     */
   trait VarRefT extends ExpressionT {
     val v: CVar
     //    val t: Type
     val suffix: Option[String]
-    val arrayIndex: Option[ArrayIndexT]
+    val arrayIndex: Option[ArithExpression]
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       visitFun(z, this) |> (visitFun(_, v))
@@ -932,12 +925,12 @@ object GenericAST {
   case class VarRef(v: CVar,
                     //                    t: Type,
                     suffix: Option[String] = None,
-                    arrayIndex: Option[ArrayIndexT] = None
+                    arrayIndex: Option[ArithExpression] = None
                    ) extends VarRefT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
       VarRef(v.visitAndRebuild(pre, post).asInstanceOf[CVar], suffix,
         arrayIndex match {
-          case Some(ai) => Some(ai.visitAndRebuild(pre, post).asInstanceOf[ArrayIndexT])
+          case Some(ai) => Some(ai.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])
           case None => None
         })
 
@@ -1080,18 +1073,22 @@ object GenericAST {
   /**
     * Wrapper for arithmetic expression
     */
-  trait ArithExpressionT extends ExpressionT with ArrayIndexT {
+  trait ArithExpressionT extends ExpressionT {
     val content: ArithExpr
 
     override def print(): Doc = Printer.toString(content)
   }
 
-  case class ArithExpression(content: ArithExpr) extends ArithExpressionT {
+  class ArithExpression(val content: ArithExpr) extends ArithExpressionT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
       this
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+  }
+
+  object ArithExpression {
+    def apply(content: ArithExpr): ArithExpression = new ArithExpression(content)
   }
 
   /**

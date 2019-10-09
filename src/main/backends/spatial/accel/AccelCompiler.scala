@@ -25,7 +25,8 @@ object AccelCompiler extends Compiler {
 
     // Check if lambda is legal
 
-    // Build biew
+    // Build view
+    View(f)
 
     // Generate code
     AccelGenerator(f)

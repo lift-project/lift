@@ -1,5 +1,6 @@
 package ir.view
 
+import backends.common.view.AccessInfo
 import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
 import ir._
 import ir.ast._
@@ -55,7 +56,7 @@ object OutputView {
       case iss: InsertionSortSeq => buildViewSort(iss, call, writeView)
       case Split(n) => buildViewSplit(n, writeView)
       case _: Join => buildViewJoin(call, writeView)
-      case uf: UserFun => buildViewUserFun(writeView,uf, call)
+      case uf: UserFun => buildViewUserFun(writeView, uf, call)
       case uf: VectorizeUserFun => buildViewUserFun(writeView, uf.userFun, call)
       case s: Scatter => buildViewScatter(s, call, writeView)
       case i: Iterate => buildViewIterate(i, call, writeView)

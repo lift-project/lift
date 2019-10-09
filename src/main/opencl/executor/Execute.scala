@@ -639,14 +639,14 @@ class Execute(val localSize1: ArithExpr, val localSize2: ArithExpr, val localSiz
         if (at.elemT.hasFixedAllocatedSize) {
           val contentSize = {
             val elemSize = allocArgumentWithoutFixedAllocatedSize(at.elemT, array.head)
-            if (baseSize < alignment && at.headerSize != 0) ((c * elemSize + alignment - 1)/alignment)*alignment // pad at the end
+            if (baseSize < alignment && at.headerLength != 0) ((c * elemSize + alignment - 1)/alignment)*alignment // pad at the end
             else c * elemSize
           }
-          at.headerSize * alignment + contentSize
+          at.headerLength * alignment + contentSize
         }
         else {
           val innerSize = array.map(allocArgumentWithoutFixedAllocatedSize(at.elemT, _)).reduce(_ + _)
-          (at.headerSize + c) * alignment + innerSize
+          (at.headerLength + c) * alignment + innerSize
         }
       case _ => throw new IllegalArgumentException()
     }

@@ -9,8 +9,8 @@ final case class TypedMemoryCollection(inputs: Seq[TypedSpatialMemory],
                                        outputs: Seq[TypedSpatialMemory],
                                        intermediates: collection.immutable.Map[
                                          SpatialAddressSpace, Seq[TypedSpatialMemory]]) {
-  lazy val varMems: collection.immutable.Map[Var, Type] =
-    (inputs ++ outputs ++ intermediates.values.flatten).map(typedMem => typedMem.mem.variable -> typedMem.t).toMap
+  lazy val varMems: collection.immutable.Map[Var, TypedSpatialMemory] =
+    (inputs ++ outputs ++ intermediates.values.flatten).map(typedMem => typedMem.mem.variable -> typedMem).toMap
 }
 
 object TypedMemoryCollection {
@@ -30,7 +30,7 @@ object CollectTypedSpatialMemory {
 
 private class CollectTypedSpatialMemory(val lambda: Lambda) {
 
-  private def apply(): TypedMemoryCollection= {
+  private def apply(): TypedMemoryCollection = {
     val inputs = lambda.params.map(TypedSpatialMemory(_))
     val output = TypedSpatialMemory(lambda.body)
 
@@ -63,11 +63,11 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
   @scala.annotation.tailrec
   private def collectIntermediateMemories(expr: Expr): Seq[TypedSpatialMemory] = {
     expr match {
-      case v: Value => collectValueOrUserFunMemory(v)
-      case _: Param => Seq()
-      case a: ArrayFromExpr => collectIntermediateMemories(a.e)
-      case _: ArrayConstructors => Seq()
-      case call: FunCall => collectFunCall(call)
+      case v: Value               => collectValueOrUserFunMemory(v)
+      case _: Param               => Seq()
+      case a: ArrayFromExpr       => collectIntermediateMemories(a.e)
+      case _: ArrayConstructors   => Seq()
+      case call: FunCall          => collectFunCall(call)
     }
   }
 

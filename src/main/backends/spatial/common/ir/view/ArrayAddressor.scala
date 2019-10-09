@@ -1,14 +1,20 @@
 package backends.spatial.common.ir.view
 
-import lift.arithmetic.ArithExpr
+import backends.spatial.accel.generator.SpatialAccelAST
+import backends.spatial.accel.generator.SpatialAccelAST.AddressorT
+import core.generator.GenericAST
+import core.generator.GenericAST.ArithExpression
+import lift.arithmetic.{ArithExpr, RangeAdd}
 
 trait ArrayAddressor {
-  def index: Index
+  def startIdx: Index
   def +(that: ArithExpr): ArrayAddressor
   def +(that: Index): ArrayAddressor
   def *(that: ArithExpr): ArrayAddressor
   def *(that: Index): ArrayAddressor
   def visitAndRebuild(f: ArithExpr => ArithExpr): ArrayAddressor
+  def toTargetAST: AddressorT
+  def eval(): List[Int]
 }
 
 object ArrayAddressor {
@@ -20,8 +26,8 @@ object ArrayAddressor {
   }
 }
 
-private[view] case class Index(ae: ArithExpr) extends ArrayAddressor {
-  def index: Index = this
+case class Index(ae: ArithExpr) extends ArrayAddressor {
+  def startIdx: Index = this
   def +(that: ArithExpr): Index = Index(ae + that)
   def +(that: Index): Index = Index(ae + that.ae)
   def -(that: ArithExpr): Index = Index(ae - that)
@@ -35,10 +41,18 @@ private[view] case class Index(ae: ArithExpr) extends ArrayAddressor {
 
   override def visitAndRebuild(f: ArithExpr => ArithExpr): Index =
     Index(ae.visitAndRebuild(f))
+
+  def toTargetAST: SpatialAccelAST.ArrIndex = SpatialAccelAST.ArrIndex(ae)
+
+  def eval(): List[Int] = List(ae.evalInt)
 }
 
-private[view] case class Slice(start: ArithExpr, step: ArithExpr, end: ArithExpr) extends ArrayAddressor {
-  def index: Index = Index(start)
+object Index {
+  def apply(idxInTargetAST: GenericAST.ArithExpression): Index = Index(idxInTargetAST.content)
+}
+
+case class Slice(start: ArithExpr, step: ArithExpr, end: ArithExpr) extends ArrayAddressor {
+  def startIdx: Index = Index(start)
   def +(that: ArithExpr): Slice = Slice(start + that, step, end + that)
   def +(that: Index): Slice = Slice(start + that.ae, step, end + that.ae)
   def *(that: ArithExpr): Slice = Slice(start * that, step, start * that + (start - end))
@@ -46,9 +60,17 @@ private[view] case class Slice(start: ArithExpr, step: ArithExpr, end: ArithExpr
 
   override def visitAndRebuild(f: ArithExpr => ArithExpr): ArrayAddressor =
     Slice(start.visitAndRebuild(f), step.visitAndRebuild(f), end.visitAndRebuild(f))
+
+  def toTargetAST: SpatialAccelAST.ArrSlice =
+    SpatialAccelAST.ArrSlice(ArithExpression(start), ArithExpression(step), ArithExpression(end))
+
+  def eval(): List[Int] = utils.RangeValueGenerator.generateAllValues(RangeAdd(start, step, end)).map(_.evalInt).toList
 }
 
-private[view] object Slice {
+object Slice {
   def continuous(end: ArithExpr): Slice = new Slice(0, 1, end)
   def continuous(start: ArithExpr, end: ArithExpr): Slice = new Slice(start, 1, end)
+
+  def apply(sliceInTargetAST: SpatialAccelAST.ArrSlice): Slice =
+    Slice(sliceInTargetAST.start.content, sliceInTargetAST.step.content, sliceInTargetAST.end.content)
 }
