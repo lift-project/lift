@@ -2002,7 +2002,7 @@ class OpenCLGenerator extends Generator {
   }
 
   /**
-    * Create an access node(i.e. of type VarRef) for variable v based on the
+    * Create an access node (i.e. of type VarRef) for variable v based on the
     * given address space and view
     *
     * @param v            The variable to access

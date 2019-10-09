@@ -24,10 +24,10 @@ object SpatialMemoryAllocator {
     * Allocate SpatialMemory objects for a given expression
     *
     * @param expr      The expression for which memory should be allocated
-    * @param writeT    The type of the output memory which the expression is writing to
+    * @param outMemT    The type of the output memory which the expression is writing to
     * @return          The SpatialMemory used by expr
     */
-  def alloc(expr: Expr, writeT: Type): SpatialMemory = {
+  def alloc(expr: Expr, outMemT: Type): SpatialMemory = {
 
     val result = expr match {
       case ArrayFromExpr(e)       => throw new NotImplementedError()
@@ -36,7 +36,7 @@ object SpatialMemoryAllocator {
       case v: Value               => allocValue(v)
       case vp: VectorParam        => throw new NotImplementedError()
       case p: Param               => allocParam(p)
-      case call: FunCall          => allocFunCall(call, writeT)
+      case call: FunCall          => allocFunCall(call, outMemT)
       case _                      => throw new NotImplementedError()
     }
     // set the output
@@ -64,19 +64,19 @@ object SpatialMemoryAllocator {
   }
 
   private def allocFunCall(call: FunCall,
-                           writeT: Type): SpatialMemory = {
+                           outMemT: Type): SpatialMemory = {
     // Get the input memory of f from the input arguments
     val inMem = getInMFromArgs(call)
 
     // Determine the output memory based on the type of f ...
     call.f match {
       // Here is where the actual allocation happens
-      case _: UserFun               => allocUserFun(writeT, call)
+      case _: UserFun               => allocUserFun(outMemT, call)
       case  _: VectorizeUserFun     => throw new NotImplementedError()
 
-      case sf: SpForeach            => allocSpForeach(sf, writeT, inMem)
+      case sf: SpForeach            => allocSpForeach(sf, outMemT, inMem)
 
-      case asf: AbstractSpFold      => allocSpFold(asf, writeT, inMem)
+      case asf: AbstractSpFold      => allocSpFold(asf, outMemT, inMem)
 
       case s: AbstractSearch        => throw new NotImplementedError()
 
@@ -84,7 +84,7 @@ object SpatialMemoryAllocator {
 
       case cc: Concat               => throw new NotImplementedError()
 
-      case l: Lambda                => allocLambda(l, writeT, inMem)
+      case l: Lambda                => allocLambda(l, outMemT, inMem)
       // For address space casters, set the new output memory type
       // since we will buffer the lambda output in the new address space
       // and then transfer the buffered data to the old address space separately
@@ -98,7 +98,7 @@ object SpatialMemoryAllocator {
       case ua: UnsafeArrayAccess    => throw new NotImplementedError()
       case ca: CheckedArrayAccess   => throw new NotImplementedError()
 
-      case debug.PrintView(_, f)    => allocLambda(f, writeT, inMem)
+      case debug.PrintView(_, f)    => allocLambda(f, outMemT, inMem)
 
       case RewritingGuidePost(_)    => inMem
 
@@ -121,31 +121,31 @@ object SpatialMemoryAllocator {
     }
   }
 
-  private def allocUserFun(writeT: Type,
+  private def allocUserFun(outMemT: Type,
                            call: FunCall): SpatialMemory = {
     if (call.addressSpace == UndefAddressSpace)
       throw new RuntimeException("No address space at " + call)
 
-    SpatialMemory.allocMemory(writeT, call.addressSpace)
+    SpatialMemory.allocMemory(outMemT, call.addressSpace)
   }
 
   private def allocLambda(l: Lambda,
-                          writeT: Type,
+                          outMemT: Type,
                           inMem: SpatialMemory): SpatialMemory = {
     setMemInParams(l.params, inMem)
-    alloc(l.body, writeT)
+    alloc(l.body, outMemT)
   }
 
   private def allocSpForeach(sf: SpForeach,
-                             writeT: Type,
+                             outMemT: Type,
                              inMem: SpatialMemory): SpatialMemory = {
     sf.f.params(0).mem = inMem
 
-    alloc(sf.f.body, writeT)
+    alloc(sf.f.body, outMemT)
   }
 
   private def allocSpFold(asf: AbstractSpFold,
-                          writeT: Type,
+                          outMemT: Type,
                           inMem: SpatialMemory): SpatialMemory = {
     inMem match {
       case coll: SpatialMemoryCollection =>
@@ -161,7 +161,7 @@ object SpatialMemoryAllocator {
         asf.fReduce.params(0).mem = initM
         asf.fReduce.params(1).mem = mapBodyMem
 
-        val reduceBodyM = alloc(asf.fReduce.body, writeT)
+        val reduceBodyM = alloc(asf.fReduce.body, outMemT)
 
         // replace `bodyM` by `initM` in `asf.fReduce.body`
         Expr.visit(asf.fReduce.body, e => if (e.mem == reduceBodyM) e.mem = initM, _ => {})

@@ -1,7 +1,7 @@
 package backends.spatial.common.ir
 
 import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
-import ir.Type
+import ir.{Memory, Type}
 import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Expr, FPattern, FunCall, Iterate, Lambda, Param, UnsafeArrayAccess, UserFun, Value, VectorizeUserFun}
 import lift.arithmetic.Var
 
@@ -9,8 +9,17 @@ final case class TypedMemoryCollection(inputs: Seq[TypedSpatialMemory],
                                        outputs: Seq[TypedSpatialMemory],
                                        intermediates: collection.immutable.Map[
                                          SpatialAddressSpace, Seq[TypedSpatialMemory]]) {
-  lazy val varMems: collection.immutable.Map[Var, TypedSpatialMemory] =
+  private lazy val varIndexed: collection.immutable.Map[Var, TypedSpatialMemory] =
     (inputs ++ outputs ++ intermediates.values.flatten).map(typedMem => typedMem.mem.variable -> typedMem).toMap
+
+  private lazy val memIndexed: collection.immutable.Map[SpatialMemory, TypedSpatialMemory] =
+    (inputs ++ outputs ++ intermediates.values.flatten).map(typedMem => typedMem.mem -> typedMem).toMap
+
+  def apply(variable: Var): TypedSpatialMemory = varIndexed(variable)
+  def apply(mem: Memory): TypedSpatialMemory = mem match {
+    case sMem: SpatialMemory => memIndexed(sMem)
+    case m => throw new IllegalArgumentException(s"Expected SpatialMemory. Got $m")
+  }
 }
 
 object TypedMemoryCollection {

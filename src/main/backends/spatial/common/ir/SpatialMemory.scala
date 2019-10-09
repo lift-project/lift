@@ -180,6 +180,9 @@ object SpatialMemory {
   */
 case class TypedSpatialMemory(mem: SpatialMemory, writeT: Type) {
   lazy val lengths: Seq[ArithExpr] = Type.getAllocatedLengths(writeT)
+
+  var declared: Boolean = false
+
   override def toString: String = s"($mem: $writeT)"
 }
 
