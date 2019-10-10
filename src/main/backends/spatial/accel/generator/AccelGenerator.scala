@@ -1,60 +1,69 @@
 package backends.spatial.accel.generator
 
-import backends.spatial.accel.generator.SpatialAccelAST.{AddressorT, ArrIndex, ArrSlice, Counter, NDVarSlicedRef, SpatialVarDecl}
+import backends.spatial.accel.generator.SpatialAccelAST._
 import backends.spatial.accel.ir.pattern.SpMemFold
 import backends.spatial.common.Printer
-import backends.spatial.common.SpatialAST.SpatialCode
+import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpatialCode}
+import backends.spatial.common.ir.ast.SpatialBuiltInFun
 import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice}
-import backends.spatial.common.ir.{AddressSpaceCollection, CollectTypedSpatialMemory, DRAMMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, TypedMemoryCollection, TypedSpatialMemory, UndefAddressSpace}
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, Block, Comment, ExpressionT, FunctionCall, MutableBlock, MutableExprBlock, StructConstructor, VarRef}
-import ir.ast.{AbstractMap, Expr, FunCall, Lambda, Map, Param, UserFun, Value}
+import backends.spatial.common.ir.{AddressSpaceCollection, CollectTypedSpatialMemory, DRAMMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, TypedMemoryCollection, UndefAddressSpace}
+import core.generator.Generator
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, Block, Comment, DeclarationT, ExprBlock, ExpressionT, Function, FunctionCall, MutableExprBlock, ParamDecl, StructConstructor, VarRef}
+import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Lambda, Map, Param, UserFun, Value, VectorizeUserFun}
 import ir.view.{View, ViewPrinter}
-import ir.{ArrayType, ArrayTypeWS, Memory, NoType, ScalarType, TupleType, Type, TypeException, UndefType, VectorType}
+import ir._
 import lift.arithmetic._
 
 import scala.collection.immutable
 
 object AccelGenerator {
 
+  def apply(f: Lambda, allTypedMemories: TypedMemoryCollection): Block =
+    (new SpatialGenerator(allTypedMemories)).generate(f)
+
+  def createFunctionDefinition(uf: UserFun): ExprBasedFunction = {
+    val block = MutableExprBlock()
+    if (uf.tupleTypes.length == 1)
+      throw new NotImplementedError()
+    else uf.tupleTypes.zipWithIndex.foreach({ case (x, i) =>
+      throw new NotImplementedError()
+    })
+
+    block += SpatialCode(uf.body)
+    ExprBasedFunction(
+      name = uf.name,
+      ret = uf.outT,
+      params = (uf.inTs, uf.paramNames).
+        zipped.map((t, n) => ParamDecl(n, t)).toList,
+      body = block)
+  }
+}
+
+class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
+
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
   type SymbolTable = immutable.Map[Var, Type]
 
-//  TODO: fill replacements
+  //  TODO: fill replacements
   private var replacements: ValueTable = immutable.Map.empty
   private var replacementsWithFuns: ValueTable = immutable.Map.empty
-  private var allTypedMemories: TypedMemoryCollection = _
 
-  def apply(f: Lambda): Block = {
+  def generate(f: Lambda): ExprBlock = {
     // Initialise the block
     val accelBlock = MutableExprBlock(Vector.empty)
 
-    // Generate user functions
-
-    // Collect typed memories
-    allTypedMemories = CollectTypedSpatialMemory(f)
+    // Find and generate user functions
+    generateUserFunctions(f.body).foreach(accelBlock += _)
 
 
-    // TODO: Collect dynamic memory that's shared between the host and accel
-
-
-//     TODO(maybe): Collect value (literal) memories
-//
-//     TODO(maybe): Collect dynamically and statically allocated typed memories
-//
-//     Declare static buffers inside the scope
-//     Declare value buffers inside the scope
-//     Declare private variables
-    // TODO: Do not declare buffers in the beginning of the block.
-    //  Declare them in proper inner scopes
-
-//     Generate the main part of the block
+    // Generate the main part of the block
     generate(f.body, accelBlock)
 
-    // Perform common subexpression elimination
+    // TODO: Perform common subexpression elimination
 
     // Return the result
+    accelBlock.toExprBlock
   }
-
 
   private def generate(expr: Expr, block: MutableExprBlock): Unit = {
     assert(expr.t != UndefType)
@@ -76,20 +85,11 @@ object AccelGenerator {
               case _: Map             =>
               case _                  => throw new NotImplementedError()
             }
+
             // If the size of the input array is not known in the type, it is not
             // in the type of the output array either. Therefore, we have to copy
             // it from the input's header to the output's header.
-            call.t match {
-              case ArrayTypeWS(_, _) =>
-              case _                 =>
-                val inSizeView = call.args.head.view.size()
-                // the output is accessed the same way as the input but the variable nam has to be replaced
-                val outSizeView = inSizeView.replaced(call.args.head.mem.variable, call.mem.variable)
-                (block: MutableExprBlock) += AssignmentExpression(
-                  to = accessNode(call.mem.variable, call.addressSpace, outSizeView),
-                  value = getArraySize(SpatialMemory.asSpatialMemory(call.args.head.mem), inSizeView)
-                )
-            }
+            propagateDynamicArraySize(call, block)
 
           case smf: SpMemFold         => generateSpMemFold(smf, call, block)
 
@@ -102,6 +102,37 @@ object AccelGenerator {
       case v: Value             => generateValue(v, block)
       case _: Param             =>
       case _  => throw new NotImplementedError()
+    }
+  }
+
+  private def propagateDynamicArraySize(call: FunCall, block: MutableExprBlock): Unit = {
+    call.t match {
+      case ArrayTypeWS(_, _) =>
+      case _                 =>
+        val inSizeView = call.args.head.view.size()
+        // the output is accessed the same way as the input but the variable name has to be replaced
+        val outSizeView = inSizeView.replaced(call.args.head.mem.variable, call.mem.variable)
+        val accessType = Type.getBaseType(call.t)
+
+        (block: MutableExprBlock) += AssignmentExpression(
+          to = accessNode(call.mem.variable, call.addressSpace, accessType, outSizeView),
+          value = getArraySize(SpatialMemory.asSpatialMemory(call.args.head.mem), inSizeView)
+        )
+    }
+  }
+
+  /**
+   * Generate an access to the size of an array (handle arrays of tuples)
+   */
+  private def getArraySize(mem: SpatialMemory, view: View): ExpressionT = {
+    mem match {
+      case SpatialMemoryCollection(subMemories, _) =>
+        val sizes = subMemories.zipWithIndex.map(p =>
+          getArraySize(p._1, view.get(p._2))
+        )
+        sizes.reduce((x, y) => FunctionCall("min", List(x, y)))
+      case _                                      =>
+        ViewPrinter.emit(view, addressSpace = mem.addressSpace)
     }
   }
 
@@ -150,10 +181,11 @@ object AccelGenerator {
   private def generateUserFunCall(u: UserFun,
                                   call: FunCall,
                                   block: MutableExprBlock): MutableExprBlock = {
-    val funcall_node = generateFunCall(call, generateLoadNodes(call.args: _*))
-//    val store_node = generateStoreNode(mem, call.t, call.outputView, funcall_node)
-    (block: MutableExprBlock) += funcall_node
 
+    val funcall_node = generateFunCall(call, generateLoadNodes(call.args: _*))
+    val store_node = generateStoreNode(SpatialMemory.asSpatialMemory(call.mem), call.t, call.outputView, funcall_node)
+
+    (block: MutableExprBlock) += store_node
     block
   }
 
@@ -169,6 +201,26 @@ object AccelGenerator {
       }
       case _             => throw new NotImplementedError()
     }
+  }
+
+  /** Traverse f and print all user functions */
+  private def generateUserFunctions(expr: Expr): Seq[DeclarationT] = {
+
+    val userFuns = Expr.visitWithState(Set[UserFun]())(expr, (expr, set) =>
+      expr match {
+        case call: FunCall                      => call.f match {
+          case _: SpatialBuiltInFun  => set
+          case uf: UserFun           => set + uf
+          case vec: VectorizeUserFun => throw new NotImplementedError()
+          case _                     => set
+        }
+        case ArrayFromUserFunGenerator(uf, _)   => throw new NotImplementedError()
+        case Array2DFromUserFunGenerator(uf, _) => throw new NotImplementedError()
+        case Array3DFromUserFunGenerator(uf, _) => throw new NotImplementedError()
+        case _                                  => set
+      })
+
+    userFuns.toSeq.map(AccelGenerator.createFunctionDefinition)
   }
 
   /**

@@ -3,7 +3,6 @@ package backends.spatial.common
 import _root_.ir.Type
 import _root_.ir.ScalarType
 import lift.arithmetic.{ArithExpr, Cst, Predicate}
-import opencl.generator.NotPrintableExpression
 
 object Printer {
 

@@ -407,7 +407,7 @@ object GenericAST {
 
     def :++(mb: ExprBlock) : MutableExprBlock = this.copy(content = content ++ mb.content )
 
-    def toBlock: ExprBlock = ExprBlock(content)
+    def toExprBlock: ExprBlock = ExprBlock(content)
   }
 
   /*
