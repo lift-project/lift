@@ -206,47 +206,126 @@ object SpatialAccelAST {
     }
   }
 
-  trait ReduceT extends StatementT {
+  trait AbstractReduceT extends StatementT {
+    val reduceFlavour: String
     val accum: AstNode
     val counter: List[CounterT]
-    val mapFun: MutableExprBlockT
-    val reduceFun: MutableExprBlockT
+    val mapBody: MutableExprBlockT
+    val reduceBody: MutableExprBlockT
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
         (visitFun(_, this)) |>
-        // Visit internal expressions of a for loop
+        // Visit internal expressions of the for loop
         (accum.visit(_)(visitFun)) |>
         (counter.foldLeft(_) {
           case (acc, node) => node.visit(acc)(visitFun)
         }) |>
-        (mapFun.visit(_)(visitFun)) |>
-        (reduceFun.visit(_)(visitFun))
+        (mapBody.visit(_)(visitFun)) |>
+        (reduceBody.visit(_)(visitFun))
     }
 
     override def print(): Doc = {
-      text("Reduce(") <> accum.print <> text(")") <>
+      reduceFlavour <> text("(") <> accum.print <> text(")") <>
         text("(") <> counter.map(_.print()).reduce(_ <> text(",") <> _) <> text(")") <>
-        mapFun.print <> reduceFun.print
+        mapBody.print <> reduceBody.print
     }
   }
 
   case class Reduce(accum: AstNode,
                     counter: List[CounterT],
-                    mapFun: MutableExprBlockT,
-                    reduceFun: MutableExprBlockT) extends ReduceT {
+                    mapBody: MutableExprBlockT,
+                    reduceBody: MutableExprBlockT) extends AbstractReduceT {
+    val reduceFlavour: String = "Reduce"
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
       Reduce(accum.visitAndRebuild(pre, post),
         counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
-        mapFun.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT],
-        reduceFun.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
+        mapBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT],
+        reduceBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
     }
 
     override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
       accum.visitBy(pre, post)
       counter.foreach(_.visitBy(pre, post))
-      mapFun.visitBy(pre, post)
-      reduceFun.visitBy(pre, post)
+      mapBody.visitBy(pre, post)
+      reduceBody.visitBy(pre, post)
+    }
+  }
+
+  case class Fold(accum: AstNode,
+                  counter: List[CounterT],
+                  mapBody: MutableExprBlockT,
+                  reduceBody: MutableExprBlockT) extends AbstractReduceT {
+    val reduceFlavour: String = "Fold"
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
+      Fold(accum.visitAndRebuild(pre, post),
+        counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
+        mapBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT],
+        reduceBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
+    }
+
+    override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
+      accum.visitBy(pre, post)
+      counter.foreach(_.visitBy(pre, post))
+      mapBody.visitBy(pre, post)
+      reduceBody.visitBy(pre, post)
+    }
+  }
+
+  case class MemFold(accum: AstNode,
+                     counter: List[CounterT],
+                     mapBody: MutableExprBlockT,
+                     reduceBody: MutableExprBlockT) extends AbstractReduceT {
+    val reduceFlavour: String = "MemFold"
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
+      MemFold(accum.visitAndRebuild(pre, post),
+        counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
+        mapBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT],
+        reduceBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
+    }
+
+    override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
+      accum.visitBy(pre, post)
+      counter.foreach(_.visitBy(pre, post))
+      mapBody.visitBy(pre, post)
+      reduceBody.visitBy(pre, post)
+    }
+  }
+
+
+
+  trait ForeachT extends StatementT {
+    val counter: List[CounterT]
+    val body: MutableExprBlockT
+
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        // Visit internal expressions of the for loop
+        (counter.foldLeft(_) {
+          case (acc, node) => node.visit(acc)(visitFun)
+        }) |>
+        (body.visit(_)(visitFun))
+    }
+
+    override def print(): Doc = {
+      text("Foreach") <>
+        text("(") <> counter.map(_.print()).reduce(_ <> text(",") <> _) <> text(")") <>
+        body.print
+    }
+  }
+
+  case class Foreach(counter: List[CounterT],
+                     body: MutableExprBlockT) extends ForeachT {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
+      Foreach(
+        counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
+        body.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
+    }
+
+    override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
+      counter.foreach(_.visitBy(pre, post))
+      body.visitBy(pre, post)
     }
   }
 }

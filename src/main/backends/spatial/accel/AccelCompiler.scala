@@ -2,10 +2,11 @@ package backends.spatial.accel
 
 import _root_.ir.UndefType
 import _root_.ir.ast.Lambda
-import backends.common.Compiler
 import backends.spatial.accel.generator.AccelGenerator
 import backends.spatial.common.ir.view.View
-import backends.spatial.common.ir.{CollectTypedSpatialMemory, InferSpatialAddressSpace, SpatialMemoryAllocator}
+import backends.spatial.common.ir.{CollectTypedSpatialMemory, InferSpatialAddressSpace, SpatialMemoryAllocator, TypedMemoryCollection}
+import core.generator.GenericAST.ExprBlock
+import _root_.ir.TypeChecker
 
 /**
  * The compiler performs all the passes over the AST that populate it with new
@@ -13,11 +14,12 @@ import backends.spatial.common.ir.{CollectTypedSpatialMemory, InferSpatialAddres
  * It then passes the baton to the generator that produces the code using the
  * information inferred by the compiler.
  */
-object AccelCompiler extends Compiler {
-  def apply(f: Lambda): String = {
+object AccelCompiler {
+  def apply(f: Lambda): (ExprBlock, TypedMemoryCollection) = {
     // Check types
+    f.params.foreach(p => assert(p.t != UndefType))
     if (f.body.t == UndefType)
-      this.typeCheck(f)
+      TypeChecker(f)
 
     // Infer address spaces
     InferSpatialAddressSpace(f)
@@ -31,6 +33,7 @@ object AccelCompiler extends Compiler {
     val allTypedMemories = CollectTypedSpatialMemory(f)
 
     // Loop unrolling
+    // TODO: extend the generator to unroll loops using this information
     ShouldUnroll(f, allTypedMemories)
 
     // TODO: Barrier elimination
@@ -41,6 +44,10 @@ object AccelCompiler extends Compiler {
     View(f)
 
     // Generate code
-    AccelGenerator(f, allTypedMemories)
+    val block = AccelGenerator(f, allTypedMemories)
+
+    // TODO: Unroll private memory in the AST and inline structs
+
+    (block, allTypedMemories)
   }
 }

@@ -1,7 +1,7 @@
 package backends.spatial.common
 
 import backends.spatial.host.ir.ast.AccelFun
-import ir.ast.{Expr, FunCall, Lambda}
+import _root_.ir.ast.{Expr, FunCall, Lambda}
 
 object AcceleratorLambdaCollector {
   def apply(lambda: Lambda): List[Lambda] = {

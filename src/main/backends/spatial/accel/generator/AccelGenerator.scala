@@ -1,24 +1,23 @@
 package backends.spatial.accel.generator
 
 import backends.spatial.accel.generator.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.SpMemFold
+import backends.spatial.accel.ir.pattern.{SpForeach, SpMemFold}
 import backends.spatial.common.Printer
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpatialCode}
 import backends.spatial.common.ir.ast.SpatialBuiltInFun
 import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice}
-import backends.spatial.common.ir.{AddressSpaceCollection, CollectTypedSpatialMemory, DRAMMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, TypedMemoryCollection, UndefAddressSpace}
-import core.generator.Generator
-import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, Block, Comment, DeclarationT, ExprBlock, ExpressionT, Function, FunctionCall, MutableExprBlock, ParamDecl, StructConstructor, VarRef}
+import backends.spatial.common.ir.{AddressSpaceCollection, DRAMMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, TypedMemoryCollection, UndefAddressSpace}
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, Comment, DeclarationT, ExprBlock, ExpressionT, FunctionCall, MutableExprBlock, ParamDecl, StructConstructor, VarRef}
+import ir._
 import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Lambda, Map, Param, UserFun, Value, VectorizeUserFun}
 import ir.view.{View, ViewPrinter}
-import ir._
 import lift.arithmetic._
 
 import scala.collection.immutable
 
 object AccelGenerator {
 
-  def apply(f: Lambda, allTypedMemories: TypedMemoryCollection): Block =
+  def apply(f: Lambda, allTypedMemories: TypedMemoryCollection): ExprBlock =
     (new SpatialGenerator(allTypedMemories)).generate(f)
 
   def createFunctionDefinition(uf: UserFun): ExprBasedFunction = {
@@ -44,7 +43,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
   type SymbolTable = immutable.Map[Var, Type]
 
-  //  TODO: fill replacements
+  //  TODO: fill replacements in unrolled loop generation
   private var replacements: ValueTable = immutable.Map.empty
   private var replacementsWithFuns: ValueTable = immutable.Map.empty
 
@@ -80,9 +79,10 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         declareMemoryIfRequired(expr, block)
 
         call.f match {
-          case am: AbstractMap =>
-            am match {
+          case _: AbstractMap | _: SpForeach =>
+            call.f match {
               case _: Map             =>
+              case sf: SpForeach      => generateSpForeach(sf, call, block)
               case _                  => throw new NotImplementedError()
             }
 
@@ -150,17 +150,44 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     declareMemoryIfRequired(v, block, init = Some(SpatialCode(v.value)))
   }
 
+  private def generateSpForeach(sf: SpForeach,
+                                call: FunCall,
+                                block: MutableExprBlock): Unit = {
+    // TODO: add unrolled Foreach generation
+    // TODO: optimise loop generation. See OpenCLGenerator.generateOptimizedForLoopRepresentations
+
+    (block: MutableExprBlock) += Comment("SpForeach")
+
+    val innerBlock = MutableExprBlock(Vector.empty)
+
+    (block: MutableExprBlock) += SpatialAccelAST.Foreach(
+      counter = List(Counter(
+        ArithExpression(getRangeAdd(sf.loopVar).start),
+        ArithExpression(getRangeAdd(sf.loopVar).stop),
+        ArithExpression(sf.stride),
+        ArithExpression(sf.factor))
+      ),
+      body = innerBlock)
+
+    generate(sf.f.body, innerBlock)
+
+    (block: MutableExprBlock) += Comment("End SpForeach")
+  }
+
   private def generateSpMemFold(smf: SpMemFold,
                                 call: FunCall,
                                 block: MutableExprBlock): Unit = {
-    val innerMapBlock = MutableExprBlock(Vector.empty)
-    val innerReduceBlock = MutableExprBlock(Vector.empty)
+    // TODO: add unrolled Fold generation
+    // TODO: optimise loop generation. See OpenCLGenerator.generateOptimizedForLoopRepresentations
 
     (block: MutableExprBlock) += Comment("SpMemFold")
 
+    val innerMapBlock = MutableExprBlock(Vector.empty)
+    val innerReduceBlock = MutableExprBlock(Vector.empty)
+
     val accumulator = call.args.head
 
-    (block: MutableExprBlock) += SpatialAccelAST.Reduce(
+    (block: MutableExprBlock) += SpatialAccelAST.MemFold(
       accum = valueAccessNode(accumulator.mem.variable),
       counter = List(Counter(
         ArithExpression(getRangeAdd(smf.mapLoopVar).start),
@@ -169,13 +196,13 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         ArithExpression(smf.factor))
       ),
       // TODO: Confirm that we don't need to generate anything outside fMap body
-      mapFun = innerMapBlock,
-      reduceFun = innerReduceBlock)
+      mapBody = innerMapBlock,
+      reduceBody = innerReduceBlock)
 
     generate(smf.fMap.body, innerMapBlock)
     generate(smf.fReduce.body, innerReduceBlock)
 
-    (block: MutableExprBlock) += Comment("end reduce_seq")
+    (block: MutableExprBlock) += Comment("End SpMemFold")
   }
 
   private def generateUserFunCall(u: UserFun,

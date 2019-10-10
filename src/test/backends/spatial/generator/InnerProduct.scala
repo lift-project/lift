@@ -179,6 +179,12 @@ class InnerProduct {
           fReduce = add,
           init = Value(0.0f, Float)) $
           Zip(a, b))
+
+    val dotProductRuntimeLambda = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (a, b) =>
+        AccelFun(scalaDotLambdaTiled) $ (a, b))
   }
 
   @Test

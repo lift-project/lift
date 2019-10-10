@@ -1,14 +1,15 @@
 package backends.spatial.common
 
-import core.generator.GenericAST
-import ir.ast.Lambda
-import opencl.ir.TypedOpenCLMemory
+import _root_.ir.ast.Lambda
+import backends.spatial.common.ir.TypedMemoryCollection
+import core.generator.AstPrinter
+import core.generator.GenericAST.ExprBlock
 
 object RuntimeCompiler {
 
   case class CompiledAccelLambda(lambda: Lambda,
-                                 generatedBlock: GenericAST.Block,
-                                 intermediateBuffers: TypedOpenCLMemory) // TODO: replace with TypedSpatialMemory
+                                 generatedBlock: ExprBlock,
+                                 intermediateBuffers: TypedMemoryCollection)
 
   def apply(lambda: Lambda): String = {
 
@@ -21,12 +22,12 @@ object RuntimeCompiler {
     val acceleratorLambdas = AcceleratorLambdaCollector(lambda)
 
     val compiledAcceleratorLambdas = acceleratorLambdas.map(accelLambda => {
-      val block = spatial.generator.Compile(accelLambda)
-      val intermediateBuffers = CollectTypedSpatialMemory(accelLambda)
+      val (block, typedMemoryCollection) = backends.spatial.accel.AccelCompiler(accelLambda)
 
-      CompiledAccelLambda(accelLambda, block, intermediateBuffers)
+      CompiledAccelLambda(accelLambda, block,  typedMemoryCollection)
     })
-//    println(acceleratorLambdas)
+
+    println(compiledAcceleratorLambdas.map(lambda => AstPrinter(lambda.generatedBlock)()))
 
     /*************** Host code compilation ***************/
 
