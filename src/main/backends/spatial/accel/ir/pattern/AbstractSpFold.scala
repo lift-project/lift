@@ -1,11 +1,11 @@
 package backends.spatial.accel.ir.pattern
 
-import ir.ast.{IRNode, Lambda, Pattern}
+import ir.ast.{IRNode, Lambda1, Lambda2, Pattern}
 import ir.interpreter.Interpreter.ValueMap
 import lift.arithmetic.{ArithExpr, SimplifiedExpr, Var}
 
-abstract class AbstractSpFold(val fMap: Lambda,
-                              val fReduce: Lambda,
+abstract class AbstractSpFold(val fMap: Lambda1,
+                              val fReduce: Lambda2,
                               val mapLoopVar: Var,
                               val reduceLoopVar: Var,
                               val iterSize: ArithExpr,

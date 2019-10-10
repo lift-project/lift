@@ -18,7 +18,7 @@ case class SpForeach(iterSize: ArithExpr,
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case at @ ArrayTypeWSWC(elemT, s, c) if s == c =>
+      case ArrayTypeWSWC(elemT, s, c) if s == c =>
         f.params(0).t = ArrayType(elemT, iterSize)
         TypeChecker.check(f.body, setType)
 
@@ -31,7 +31,7 @@ case class SpForeach(iterSize: ArithExpr,
     }
   }
 
-  override def copy(f: Lambda): Pattern = new SpForeach(iterSize, stride, factor, f)
+  override def copy(f: Lambda): Pattern = SpForeach(iterSize, stride, factor, f)
   var shouldUnroll = false
 
   override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)

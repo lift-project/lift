@@ -144,7 +144,7 @@ class InnerProduct {
       ArrayType(Float, N),
       (a, b) =>
         Reduce(add, Value(0.0f, Float)) o
-        Map(mult) $ Zip(a, b)
+        Map(fun(p => mult(p._0, p._1))) $ Zip(a, b)
     )
 
 
@@ -172,7 +172,7 @@ class InnerProduct {
                 iterSize = 1,
                 stride = 1,
                 factor = innerParFactor,
-                fMap = mult,
+                fMap = Map(fun(p => mult(p._0, p._1))),
                 fReduce = add,
                 init = Value(0.0f, Float)) $ tileABsram
             }),
@@ -184,7 +184,7 @@ class InnerProduct {
       ArrayType(Float, N),
       ArrayType(Float, N),
       (a, b) =>
-        AccelFun(scalaDotLambdaTiled) $ (a, b))
+        AccelFun(scalaDotLambdaTiled)(a, b))
 
     backends.spatial.common.RuntimeCompiler(dotProductRuntimeLambda)
   }

@@ -4,8 +4,8 @@ import ir.ast.{Expr, Lambda, Lambda1, Lambda2, fun}
 import ir._
 import lift.arithmetic.{ArithExpr, Cst, PosVar}
 
-case class SpFold(override val fMap: Lambda,
-                  override val fReduce: Lambda,
+case class SpFold(override val fMap: Lambda1,
+                  override val fReduce: Lambda2,
                   override val iterSize: ArithExpr,
                   override val stride: ArithExpr,
                   override val factor: ArithExpr)
@@ -14,10 +14,14 @@ case class SpFold(override val fMap: Lambda,
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case TupleType(initT, at@ArrayType(elemT: ScalarType)) =>
+      case TupleType(initT, ArrayType(elemT)) =>
         fMap.params(0).t = ArrayType(elemT, iterSize) // map input array element type
 
-        val mapBodyType = TypeChecker.check(fMap.body, setType) // check the body
+        val tiledMapBodyType = TypeChecker.check(fMap.body, setType) // check the body
+        val mapBodyType = tiledMapBodyType match {
+            case ArrayType(elemT) => elemT
+            case t => throw new TypeException(t, "ArrayType(_, _)", this)
+          }
 
         fReduce.params(0).t = initT // initial element type
         fReduce.params(1).t = mapBodyType // reduce input array element type
@@ -26,7 +30,7 @@ case class SpFold(override val fMap: Lambda,
 
         if (initT != mapBodyType || initT != reduceBodyType)
           throw TypeException(
-            s"Illegal customising function in:\n``$this``.\n" +
+            s"Illegal reduction function in:\n``$this``.\n" +
               s"``($initT, $mapBodyType) -> $reduceBodyType`` does not match ``(α, α) -> α``"
           )
 

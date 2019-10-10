@@ -115,6 +115,7 @@ case class UserFun(name: String, paramNames: Array[String], body: String,
       param match {
         case (_:ScalarType, _: String) => true
         case (_:VectorType, _: String) => true
+        case (_:ArrayType, _: String) => true // Extension for Spatial
         case (_:TupleType, _: String)  => true
         case (tt:TupleType, names: Array[String]) =>
           if (tt.elemsT.length != names.length) false
