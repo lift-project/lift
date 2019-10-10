@@ -38,11 +38,3 @@ case class SpForeach(iterSize: ArithExpr,
 
   override def eval(valueMap: ValueMap, args: Any*): Any = throw new NotImplementedError()
 }
-
-object SpForeach {
-  def apply(iterSize: ArithExpr,
-            stride: ArithExpr = Cst(1),
-            factor: ArithExpr = Cst(1),
-            f: Lambda): Lambda1 =
-    new SpForeach(iterSize, stride,factor, f)
-}

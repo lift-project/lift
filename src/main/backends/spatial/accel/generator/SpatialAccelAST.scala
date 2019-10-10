@@ -82,6 +82,7 @@ object SpatialAccelAST {
 
       val accessD = arrayAddressors match {
         case None => empty
+        case Some(Nil) => throw new IllegalArgumentException("Expected at least one array addressor. Got none")
         case Some(singleAccessor :: Nil) => "[" <> singleAccessor.print <> "]"
         case Some(firstAccessor :: remainingAccessors) =>
           remainingAccessors.foldLeft("[" <> firstAccessor.print)(_ <> _.print) <> "]"
@@ -123,7 +124,7 @@ object SpatialAccelAST {
                             init: Option[AstNode] = None,
                             addressSpace: SpatialAddressSpace = UndefAddressSpace)
   extends VarDeclT with SpatialAddressSpaceOperator {
-    val length = 0 // Use multidimensional shape in the type instead
+    val length: Long = 0 // Use multidimensional shape in the type instead
 
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
       SpatialVarDecl(v.visitAndRebuild(pre, post).asInstanceOf[GenericAST.CVar], t,
@@ -149,7 +150,7 @@ object SpatialAccelAST {
             val baseType = Type.getBaseType(t)
 
             s"val ${Printer.toString(v.v)} = $addressSpace[${Printer.toString(baseType)}]" <>
-              "(" <> Type.getLengths(t).map(Printer.toString).reduce(_ <> ", " <> _) <> ")"
+              "(" <> Type.getLengths(t).map(Printer.toString).map(text).reduce(_ <> ", " <> _) <> ")"
           case _ => throw new NotImplementedError()
         }
 

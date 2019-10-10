@@ -289,7 +289,10 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
       // A SpatialNullMemory object indicates that the view is not backed by memory and will directly return a value
       case SpatialNullMemory => ViewPrinter.emit(view)
-        // TODO: finish
+
+      // not a memory collection: the default case
+      case _ =>
+        accessNode(mem.variable, mem.addressSpace, t, view)
     }
   }
 

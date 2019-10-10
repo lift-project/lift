@@ -3,7 +3,7 @@ package backends.spatial.accel
 import _root_.ir.UndefType
 import _root_.ir.ast.Lambda
 import backends.spatial.accel.generator.AccelGenerator
-import backends.spatial.common.ir.view.View
+import backends.spatial.common.ir.view.SpatialView
 import backends.spatial.common.ir.{CollectTypedSpatialMemory, InferSpatialAddressSpace, SpatialMemoryAllocator, TypedMemoryCollection}
 import core.generator.GenericAST.ExprBlock
 import _root_.ir.TypeChecker
@@ -41,7 +41,7 @@ object AccelCompiler {
     // TODO: Check if lambda is legal
 
     // Build view
-    View(f)
+    SpatialView(f)
 
     // Generate code
     val block = AccelGenerator(f, allTypedMemories)

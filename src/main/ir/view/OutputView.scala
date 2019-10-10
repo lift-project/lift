@@ -1,12 +1,14 @@
 package ir.view
 
-import backends.common.view.AccessInfo
+import backends.{Backend, OpenCLBackend, SpatialBackend}
+import backends.common.view.{AccessInfo, SingleAccess}
 import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
+import backends.spatial.common.ir.{DRAMMemory, RegMemory, SRAMMemory, SpatialMemory}
 import ir._
 import ir.ast._
 import lift.arithmetic.{ArithExpr, Cst, Var}
 import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
-import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
+import opencl.ir.{GlobalMemory, LocalMemory, OpenCLMemory, OpenCLMemoryCollection, PrivateMemory}
 
 /**
  * A helper object for constructing views.
@@ -166,16 +168,37 @@ object OutputView {
     View.initialiseNewView(call.t, call.outputDepth, call.mem.variable)
   }
 
-  private def getAccessDepth(accessInfo: AccessInfo, memory: Memory) = {
+  private def getAccessDepth(accessInfo: AccessInfo, memory: Memory): List[SingleAccess] = {
+    Backend() match {
+      case OpenCLBackend => getAccessDepthCL(accessInfo, memory)
+      case SpatialBackend => getAccessDepthSp(accessInfo, memory)
+    }
+  }
+
+  private def getAccessDepthCL(accessInfo: AccessInfo, memory: Memory): List[SingleAccess] = {
     val contLocal = OpenCLMemory.containsLocalMemory(memory)
     val contPrivate = OpenCLMemory.containsPrivateMemory(memory)
 
     if (contPrivate)
-      accessInfo.privateAccessInf
+      accessInfo.accessInf(PrivateMemory)
     else if (contLocal)
-      accessInfo.localAccessInf
+      accessInfo.accessInf(LocalMemory)
     else
-      accessInfo.globalAccessInf
+      accessInfo.accessInf(GlobalMemory)
+  }
+
+  private def getAccessDepthSp(accessInfo: AccessInfo, memory: Memory): List[SingleAccess] = {
+    val contReg = SpatialMemory.containsRegMemory(memory)
+    val contSRAM = SpatialMemory.containsSRAMMemory(memory)
+    val contDRAM = SpatialMemory.containsDRAMMemory(memory)
+
+    if (contReg)
+      accessInfo.accessInf(RegMemory)
+    else if (contSRAM)
+      accessInfo.accessInf(SRAMMemory)
+    else if (contDRAM)
+      accessInfo.accessInf(DRAMMemory)
+    else throw new IllegalArgumentException(s"Expected one of Register, SRAM and DRAM memories. Got $memory")
   }
 
   private def getSubviews(expr: Expr, memCollection: OpenCLMemoryCollection) = {
@@ -189,7 +212,7 @@ object OutputView {
     param.mem match {
       case memCollection: OpenCLMemoryCollection =>
         val accessInfo =
-          if (param.accessInf.l.nonEmpty) param.accessInf.l(i) else param.accessInf
+          if (param.accessInf.collection.nonEmpty) param.accessInf.collection(i) else param.accessInf
 
         val outDepth = getAccessDepth(accessInfo, call.mem)
         val subviews = getSubviews(param, memCollection)

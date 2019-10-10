@@ -185,6 +185,8 @@ class InnerProduct {
       ArrayType(Float, N),
       (a, b) =>
         AccelFun(scalaDotLambdaTiled) $ (a, b))
+
+    backends.spatial.common.RuntimeCompiler(dotProductRuntimeLambda)
   }
 
   @Test

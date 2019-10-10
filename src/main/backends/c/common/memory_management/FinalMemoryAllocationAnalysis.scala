@@ -29,7 +29,7 @@ object FinalMemoryAllocationAnalysis {
           fc.mem.variable.toString -> (
             CVarWithType(fc.mem.variable.toString, TypeLowering.Array2Pointer( TypeLowering.IRType2CastType(fc.t), true ) ),
             Type.getElementCount(fc.t),
-            fc.addressSpace
+            fc.addressSpace.asInstanceOf[OpenCLAddressSpace]
           ) )
 
           val intermediate_global_mem: Seq[(String, (CVarWithType, ArithExpr, OpenCLAddressSpace))] = (fc.f match {

@@ -37,9 +37,9 @@ object MemoryAccessInfoCL {
     PrivateMemory -> List(), LocalMemory -> List(), GlobalMemory -> List())
 }
 
-class AccessInfoCL(override var accessInf: MemoryAccessInfo,
-                   override var collection: Seq[AccessInfoCL])
-  extends AccessInfo(accessInf, collection) {
+class AccessInfoCL(var accessInf: MemoryAccessInfo,
+                   var collection: Seq[AccessInfoCL])
+  extends AccessInfo() {
 
   override def toString = s"AccessInfoCL($accessInf, $collection)"
 }

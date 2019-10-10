@@ -897,7 +897,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
           f.name,
           List(i, m)
               .map(ArithExpr.substitute(_, replacements))
-              .map(ArithExpression)
+              .map(ArithExpression(_))
         )
 
       case View2DGeneratorUserFun(f, ArrayTypeWS(ArrayTypeWS(_, n), m)) =>
@@ -906,7 +906,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
           f.name,
           List(i, j, m, n)
             .map(ArithExpr.substitute(_, replacements))
-            .map(ArithExpression)
+            .map(ArithExpression(_))
         )
 
       case View3DGeneratorUserFun(f, ArrayTypeWS(ArrayTypeWS(ArrayTypeWS(_, o), n), m)) =>
@@ -915,7 +915,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
           f.name,
           List(i, j, k, m, n, o)
             .map(ArithExpr.substitute(_, replacements))
-            .map(ArithExpression)
+            .map(ArithExpression(_))
         )
     }
   }

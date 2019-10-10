@@ -88,8 +88,7 @@ sealed class SpatialMemory(var variable: Var,
 
 case class SpatialMemoryCollection(subMemories: Array[SpatialMemory],
                                   override val addressSpace: AddressSpaceCollection)
-  extends SpatialMemory(Var("SpatialMemoryCollectionTuple"),
-    TupleType(subMemories.map(_.t)), addressSpace)
+  extends SpatialMemory(Var("SpatialMemoryCollectionTuple"), TupleType(subMemories.map(_.t): _*), addressSpace)
 
 object SpatialMemoryCollection {
   def apply(mems: Seq[SpatialMemory]): SpatialMemoryCollection = {

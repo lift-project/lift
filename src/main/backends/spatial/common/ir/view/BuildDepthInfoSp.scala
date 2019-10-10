@@ -25,9 +25,9 @@ object MemoryAccessInfoSp {
     RegMemory -> List(), SRAMMemory -> List(), DRAMMemory -> List())
 }
 
-class AccessInfoSp(override var accessInf: MemoryAccessInfo,
-                   override var collection: Seq[AccessInfoSp])
-  extends AccessInfo(accessInf, collection) {
+class AccessInfoSp(var accessInf: MemoryAccessInfo,
+                   var collection: Seq[AccessInfoSp])
+  extends AccessInfo() {
 
   override def toString = s"AccessInfoSp($accessInf, $collection)"
 }

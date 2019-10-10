@@ -91,7 +91,7 @@ object ViewPrinter {
         val i :: Nil = arrayAccessStack
         GenericAST.FunctionCall(
           f.name,
-          List(i, m).map(ArithExpression)
+          List(i, m).map(ArithExpression(_))
             /*
           List(i, m)
             .map(ArithExpr.substitute(_, replacements))
@@ -102,7 +102,7 @@ object ViewPrinter {
         val i :: j :: k :: _ = arrayAccessStack
         GenericAST.FunctionCall(
           f.name,
-          List(i, j, k, m, n, o).map(ArithExpression)
+          List(i, j, k, m, n, o).map(ArithExpression(_))
           /*
           List(i, j, k, m, n, o)
             .map(ArithExpr.substitute(_, replacements))

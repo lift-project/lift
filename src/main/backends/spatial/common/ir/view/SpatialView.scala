@@ -12,7 +12,11 @@ import lift.arithmetic.{ArithExpr, Var}
 
 import scala.collection.immutable
 
-object View {
+/**
+ * SpatialView implements Spatial-specific View printer and access generator.
+ * The views themselves are Lift-generic.
+ */
+object SpatialView {
 
   /**
    * Visit the expression and construct all views for all sub-expressions.
@@ -23,7 +27,7 @@ object View {
     lambda.params.foreach((p) => {
       p.view = _root_.ir.view.View(p.t, p.mem.variable)
     })
-    View(lambda.body)
+    SpatialView(lambda.body)
   }
 
   /**
@@ -64,6 +68,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
    *           section 5.3
    * @return an expression accessing the array
    */
+  @scala.annotation.tailrec
   private def emitView(sv: View,
                        arrayAccessStack: List[ArrayAddressor],
                        tupleAccessStack: List[Int]): ExpressionT = {
@@ -112,8 +117,9 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
 
           // matrixFun() o Split(s)
           case (_: Slice) :: (_: Slice) :: addressors =>
-            // TODO: confirm whether this is illegal
+            // TODO: confirm whether this is indeed illegal
             throw new IllegalSpatialView("ND-sliced access to 1D array")
+          case _ => throw new IllegalArgumentException(f"Unexpected array access stack: $arrayAccessStack")
         }
 
         emitView(iv, newArrayAccessStack, tupleAccessStack)
@@ -128,6 +134,8 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
           case (_: Slice) :: addressors =>
             // TODO: confirm whether this is illegal
             throw new IllegalSpatialView("Unsafe slicing: there is a danger of slicing across subarrays")
+
+          case _ => throw new IllegalArgumentException(f"Unexpected array access stack: $arrayAccessStack")
         }
 
         emitView(iv, newArrayAccessStack, tupleAccessStack)
@@ -144,6 +152,8 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
           case Slice(start, step, end) :: addressors =>
             val newStart = reindexFun(start)
             Slice(newStart, step, newStart + (end - start)) :: addressors
+
+          case _ => throw new IllegalArgumentException(f"Unexpected array access stack: $arrayAccessStack")
         }
 
         emitView(iv, newArrayAccessStack, tupleAccessStack)
@@ -184,6 +194,8 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
           case (_: Slice) :: (_: Slice) :: addressors =>
             // TODO: confirm whether this is illegal
             throw new IllegalSpatialView("ND-sliced access to 1D array")
+
+          case _ => throw new IllegalArgumentException(f"Unexpected array access stack: $arrayAccessStack")
         }
         emitView(iv, newArrayAccessStack, tupleAccessStack)
 
@@ -266,6 +278,8 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
         (ArrayAddressor.getNonSlicedAccess(addr +: partialAAStack)) match {
           case None => throw new IllegalSpatialAccess(
             "Cannot produce sliced access to an array with statically unknown size")
+
+          case Some(Nil) => throw new IllegalArgumentException("Expected at least one array addressor. Got none")
 
           case Some(idx :: partialArrayIdxStack) =>
 

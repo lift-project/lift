@@ -15,8 +15,9 @@ package object view {
   type SingleAccess = (Type => ArrayType, ArithExpr)
   type MemoryAccessInfo = (scala.collection.mutable.ListMap[AddressSpace, List[SingleAccess]])
 
-  abstract class AccessInfo(var accessInf: MemoryAccessInfo,
-                            var collection: Seq[AccessInfo]) {
+  abstract class AccessInfo() {
+    def accessInf: MemoryAccessInfo
+    def collection: Seq[AccessInfo]
 
     def apply[T <: AccessInfo](thisLevel: SingleAccess, useMemories: Set[AddressSpace])
                               (implicit accessInfoSingleton: AccessInfoSingleton[T]): AccessInfo = {
