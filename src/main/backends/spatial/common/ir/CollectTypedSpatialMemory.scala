@@ -96,7 +96,7 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
       case _: VectorizeUserFun    => throw new NotImplementedError()
       case l: Lambda              => collectIntermediateMemories(l.body)
       case sF: SpForeach          => collectSpForeach(call.t, sF)
-      case m: AbstractMap         => throw new NotImplementedError()
+      case m: AbstractMap         => collectMap(call.t, m)
       case aSF: AbstractSpFold    => collectSpFold(aSF, argumentMemories)
       case r: AbstractPartRed     => throw new NotImplementedError()
       case _: UnsafeArrayAccess   => Seq(TypedSpatialMemory(call))
@@ -112,6 +112,10 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
 
   private def collectSpForeach(t: Type, sF: SpForeach) = {
     collectIntermediateMemories(sF.f.body)
+  }
+
+  private def collectMap(t: Type, map: AbstractMap) = {
+    collectIntermediateMemories(map.f.body)
   }
   
   private def collectSpFold(aSF: AbstractSpFold,

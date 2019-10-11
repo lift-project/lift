@@ -50,7 +50,7 @@ object OutputView {
       case sF: SpForeach => buildViewSpForeach(sF, call, writeView)
       case m: AbstractMap => buildViewMap(m, call, writeView)
       case f: FilterSeq => buildViewFilter(f,  call, writeView)
-      case aSF: AbstractSpFold => buildViewSpFold(aSF, call, writeView)
+      case aSF: AbstractSpFold => buildViewAbstrSpFold(aSF, call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
       case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
@@ -289,25 +289,25 @@ object OutputView {
     ViewMap(f.f.params.head.outputView, f.loopWrite, call.args.head.t)
   }
 
-  private def buildViewSpFold(aSF: AbstractSpFold,
-                              call: FunCall, writeView: View): View = {
+  private def buildViewAbstrSpFold(asf: AbstractSpFold,
+                                   call: FunCall, writeView: View): View = {
     // fReduce: traverse into call.f
-    visitAndBuildViews(aSF.fReduce.body, writeView.access(Cst(0)))
+    visitAndBuildViews(asf.fReduce.body, writeView.access(Cst(0)))
 
     // Reduce output view
-    val outViewSpFold = ViewMap(aSF.fReduce.params(1).outputView, aSF.reduceLoopVar, call.args(1).t)
+    val outViewFromReduce = ViewMap(asf.fReduce.params(1).outputView, asf.reduceLoopVar, asf.fMapT).
+                            // Record the fact that reduce wraps the output value in the array of one in Lift
+                            split(Cst(1))
 
     // fMap: traverse into call.f
-    visitAndBuildViews(aSF.fMap.body, outViewSpFold.access(aSF.mapLoopVar))
+    visitAndBuildViews(asf.fMap.body, outViewFromReduce.access(asf.mapLoopVar))
     // The implied Map view is ViewMap, but the implied Slide does not need
     // the outer write view, so there is no need to build ViewMap
-    //    ViewMap(aSF.f.params(1).outputView, aSF.mapLoopVar, call.args.head.t)
+    //    ViewMap(asf.f.params(1).outputView, asf.mapLoopVar, call.args.head.t)
 
     // build the implied Slide view
     val slideWriteView = View.initialiseNewView(call.args(1).t, call.args(1).inputDepth, call.args(1).mem.variable)
-
-    val argViews = call.args.map(visitAndBuildViews(_, slideWriteView))
-    ViewTuple(argViews, call.argsType)
+    slideWriteView
   }
   
   private def buildViewReduce(r: AbstractPartRed,

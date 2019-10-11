@@ -1,8 +1,7 @@
 package backends.spatial.generator
 
-import backends.c
+import backends.{Backend, c, spatial}
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
-import backends.spatial
 import backends.spatial.accel
 import backends.spatial.accel.ir.pattern.{SpFold, SpForeach, SpMemFold, toDRAM, toSRAM}
 import backends.spatial.host
@@ -24,11 +23,11 @@ class InnerProduct {
   @Test
   def openclDotProduct(): Unit = {
 
-    val N = 1024
-    val input: Array[Float] = (0 until 16).toArray.map(_.toFloat)
+    val N = 16
+    val input: Array[Float] = (0 until N).toArray.map(_.toFloat)
     val gold: Float = (input, input).zipped.map(_*_).sum
 
-    val commonCodeOutputPath = System.getProperty("user.dir") + "/src/test/backends.spatial/host"
+    val commonCodeOutputPath = System.getProperty("user.dir") + "/src/test/backends/spatial/host"
 
     val scalarDotLambda: Lambda = fun(
       ArrayType(Float, N),
@@ -39,10 +38,10 @@ class InnerProduct {
           MapSeq(mult) $ Zip(x, y)
     )
 
-//    val code = opencl.executor.Compile(scalarDotLambda)
-//
-//    val (output, _) = Execute(1, 1)[Array[Float]](code, scalarDotLambda, input, input)
-//    println("OUT: " + output.head.toString)
+    //    val code = opencl.executor.Compile(scalarDotLambda)
+    //
+    //    val (output, _) = Execute(1, 1)[Array[Float]](code, scalarDotLambda, input, input)
+    //    println("OUT: " + output.head.toString)
 
     val codeOutputPath = s"$commonCodeOutputPath/00.OpenCLScalarDot"
     val hostCodeFileName = "opencl_scalar_dot_host.cpp"
@@ -54,6 +53,56 @@ class InnerProduct {
         ToHost() $ OclFunc(scalarDotLambda, cpu_timer = true, gpu_timer = true)(ToGPU(x), ToGPU(y))
     )
 
+    c.global.GlobalCompiler(hostingLambda, codeOutputPath, List(hostCodeFileName))
+
+    val actualOutput: String = backends.c.common.executor.Executor.native_compile_and_run(
+      codeOutputPath, hostCodeFileName)
+
+    print(actualOutput)
+
+    val pattern = raw"(?:.*\n)+(\d+).*\n".r
+
+    val pattern(count) = actualOutput.stripMargin
+    assertEquals(gold, count.toFloat, 0.001f)
+  }
+
+  @Test
+  def openclDotProductTiled(): Unit = {
+
+    val N = 16
+
+    val tileSize = 4
+    val outerParFactor = 2
+    val innerParFactor = 16
+
+    val input: Array[Float] = (0 until N).toArray.map(_.toFloat)
+    val gold: Float = (input, input).zipped.map(_*_).sum
+
+    val commonCodeOutputPath = System.getProperty("user.dir") + "/src/test/backends/spatial/host"
+
+    val scalarDotLambdaTiled: Lambda = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (a, b) =>
+        toGlobal(MapSeq(id)) o
+          ReduceSeq(add, 0.0f) o
+          Join() o
+          MapSeq(fun(tile =>
+            ReduceSeq(add, toGlobal(id) $ 0.0f) o MapSeq(mult) $ tile)) o
+          Split(tileSize) $ Zip(a, b)
+    )
+
+    val codeOutputPath = s"$commonCodeOutputPath/01.OpenCLTiledScalarDot"
+    val hostCodeFileName = "opencl_tiled_scalar_dot_host.cpp"
+
+    val hostingLambda = fun(
+      ArrayType(Float, N),
+      ArrayType(Float, N),
+      (x, y) =>
+        ToHost() $ OclFunc(scalarDotLambdaTiled, cpu_timer = true, gpu_timer = true)(ToGPU(x), ToGPU(y))
+    )
+
+//    print(opencl.executor.Compile(scalarDotLambdaTiled))
     c.global.GlobalCompiler(hostingLambda, codeOutputPath, List(hostCodeFileName))
 
     val actualOutput: String = backends.c.common.executor.Executor.native_compile_and_run(
@@ -114,6 +163,8 @@ class InnerProduct {
 
   @Test
   def spatialDotProductTiled(): Unit = {
+    Backend.setSpatial()
+
     val N = 1024
 
     val tileSize = 32
@@ -137,15 +188,6 @@ class InnerProduct {
 
     val idArray = UserFun("idArray", Array("arr"),
       "arr", Seq(ArrayType(Float, tileSize)), ArrayType(Float, tileSize)) // TODO: generalise array size
-
-
-    val scalaDotLambdaTiledHighLevel: Lambda = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      (a, b) =>
-        Reduce(add, Value(0.0f, Float)) o
-        Map(fun(p => mult(p._0, p._1))) $ Zip(a, b)
-    )
 
 
     val scalaDotLambdaTiled: Lambda = fun(

@@ -14,7 +14,7 @@ case class SpMemFold(override val fMap: Lambda1,
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case TupleType(initT, ArrayType(elemT)) =>
+      case TupleType(initT, at@ArrayType(elemT)) =>
         // map input array element type
         fMap.params(0).t = ArrayType(elemT, iterSize)
 
@@ -23,6 +23,8 @@ case class SpMemFold(override val fMap: Lambda1,
           case ArrayType(elemT) => elemT
           case t => throw new TypeException(t, "ArrayType(_, _)", this)
         }
+
+        fMapT = at.replacedElemT(mapBodyType)
 
         fReduce.params(0).t = initT // initial element type
         fReduce.params(1).t = mapBodyType // reduce input array element type

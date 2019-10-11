@@ -123,7 +123,7 @@ private class BuildDepthInfoSp() extends BuildDepthInfo[AccessInfoSp] {
     val readMemories = getMemoryAccesses(call.args(1).mem)
 
     // Map depth info
-    val mapArgAccessInfo = getArrayAccessInf(call.args.head.t, aSF.mapLoopVar)
+    val mapArgAccessInfo = getArrayAccessInf(call.args(1).t, aSF.mapLoopVar)
     aSF.fMap.params.head.accessInf = l.collection(1)(mapArgAccessInfo, readMemories)
     buildDepthInfoPatternCall(aSF.fMap.body, call, aSF.mapLoopVar, readMemories)
 
@@ -132,8 +132,10 @@ private class BuildDepthInfoSp() extends BuildDepthInfo[AccessInfoSp] {
     else // call.isAbstract, return input
       l
 
+    val mapType = call.args(1).t
+
     // Reduce depth info
-    val reduceArgAccessInfo = getArrayAccessInf(call.args(1).t, aSF.reduceLoopVar)
+    val reduceArgAccessInfo = getArrayAccessInf(mapType, aSF.reduceLoopVar)
     aSF.fReduce.params(0).accessInf = l.collection.head
     aSF.fReduce.params(1).accessInf = fMapAccessInfo(reduceArgAccessInfo, getMemoryAccesses(aSF.fMap.body.mem))
 

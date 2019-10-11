@@ -1,5 +1,6 @@
 package backends.spatial.accel.ir.pattern
 
+import ir.{Type, UndefType}
 import ir.ast.{IRNode, Lambda1, Lambda2, Pattern}
 import ir.interpreter.Interpreter.ValueMap
 import lift.arithmetic.{ArithExpr, SimplifiedExpr, Var}
@@ -11,6 +12,11 @@ abstract class AbstractSpFold(val fMap: Lambda1,
                               val iterSize: ArithExpr,
                               val stride: ArithExpr,
                               val factor: ArithExpr) extends Pattern(arity = 2) {
+
+  // Since this is a macro pattern (Reduce and Map), the node needs to have more
+  // information than usual nodes, such as fMapT below.
+  var fMapT: Type = UndefType // The type of the Map lambda
+
   assert(fMap.params.length == 1)
   assert(fReduce.params.length == 2)
 

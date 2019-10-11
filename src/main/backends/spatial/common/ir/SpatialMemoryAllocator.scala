@@ -1,7 +1,7 @@
 package backends.spatial.common.ir
 
 import backends.spatial.accel.ir.pattern._
-import _root_.ir.ast.{AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, Filter, FunCall, Gather, Get, Head, Id, Iterate, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
+import _root_.ir.ast.{AbstractMap, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, Filter, FunCall, Gather, Get, Head, Id, Iterate, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
 import _root_.ir.{NumberOfArgumentsException, Type, UnallocatedMemory}
 import lift.arithmetic.ArithExpr
 
@@ -74,8 +74,9 @@ object SpatialMemoryAllocator {
       case _: UserFun               => allocUserFun(outMemT, call)
       case  _: VectorizeUserFun     => throw new NotImplementedError()
 
-      case sf: SpForeach            => allocSpForeach(sf, outMemT, inMem)
+      case Map(_)                   => allocMap(call.f.asInstanceOf[AbstractMap], outMemT, inMem)
 
+      case sf: SpForeach            => allocSpForeach(sf, outMemT, inMem)
       case asf: AbstractSpFold      => allocSpFold(asf, outMemT, inMem)
 
       case s: AbstractSearch        => throw new NotImplementedError()
@@ -136,11 +137,18 @@ object SpatialMemoryAllocator {
     alloc(l.body, outMemT)
   }
 
+  private def allocMap(am: AbstractMap,
+                       outMemT: Type,
+                       inMem: SpatialMemory): SpatialMemory = {
+    am.f.params(0).mem = inMem
+
+    alloc(am.f.body, outMemT)
+  }
+
   private def allocSpForeach(sf: SpForeach,
                              outMemT: Type,
                              inMem: SpatialMemory): SpatialMemory = {
     sf.f.params(0).mem = inMem
-
     alloc(sf.f.body, outMemT)
   }
 
