@@ -14,6 +14,10 @@ RUN sed -e 's/$/ contrib non-free/' -i /etc/apt/sources.list \
     g++ \
     wget \
     apt-transport-https \
+    openjfx \
+    libboost-dev \
+    libboost-program-options-dev \
+    libgl1-mesa-dev \
   && ( echo "deb https://dl.bintray.com/sbt/debian /" \
      | tee -a /etc/apt/sources.list.d/sbt.list) \
   && apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 \
