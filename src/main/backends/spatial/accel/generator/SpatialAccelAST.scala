@@ -3,8 +3,8 @@ package backends.spatial.accel.generator
 import backends.spatial.common.SpatialAST.SpatialAddressSpaceOperator
 import backends.spatial.common.ir.{RegMemory, SRAMMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
-import core.generator.GenericAST.{ArithExpression, ArithExpressionT, AstNode, CVar, ExpressionT, MutableExprBlockT, Pipe, StatementT, VarDeclT}
-import core.generator.PrettyPrinter.{Doc, empty, stringToDoc, text}
+import core.generator.GenericAST.{ArithExpression, ArithExpressionT, AstNode, CVar, ExpressionT, MutableExprBlockT, Pipe, StatementT, VarDeclT, VarRefT, VarT}
+import core.generator.PrettyPrinter._
 import ir.{ArrayType, Type}
 import lift.arithmetic.ArithExpr
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
@@ -62,7 +62,7 @@ object SpatialAccelAST {
   /**
    * A reference to a declared variable that supports multidimensional and sliced array reference
    */
-  trait NDVarSlicedRefT extends ExpressionT {
+  trait NDVarSlicedRefT extends VarRefT {
     val v: CVar
     val suffix: Option[String]
     val arrayAddressors: Option[List[AddressorT]]
@@ -142,28 +142,32 @@ object SpatialAccelAST {
       }
     }
 
-    override def print(): Doc = t match {
-      case _: ArrayType =>
-        addressSpace match {
-          case RegMemory => throw new NotImplementedException() // TODO: unroll Reg memory
-          case SRAMMemory =>
+    override def print(): Doc = {
+      "val" <+> Printer.toString(v.v) <+> "=" <+>
+        (t match {
+          case _: ArrayType =>
+            addressSpace match {
+              case RegMemory => throw new NotImplementedException() // TODO: unroll Reg memory
+              case SRAMMemory =>
+                val baseType = Type.getBaseType(t)
+                val bufferDimensions = Type.getLengths(t).dropRight(1) // Remove the extra dimension for the scalar base type
+
+                s"$addressSpace[${Printer.toString(baseType)}]" <>
+                  "(" <> bufferDimensions.map(Printer.toString).map(text).reduce(_ <> ", " <> _) <> ")"
+              case _ => throw new NotImplementedError()
+            }
+
+          case _ =>
             val baseType = Type.getBaseType(t)
 
-            s"val ${Printer.toString(v.v)} = $addressSpace[${Printer.toString(baseType)}]" <>
-              "(" <> Type.getLengths(t).map(Printer.toString).map(text).reduce(_ <> ", " <> _) <> ")"
-          case _ => throw new NotImplementedError()
-        }
-
-      case _ =>
-        val baseType = Type.getBaseType(t)
-
-        s"$addressSpace[${Printer.toString(baseType)}]" <>
-          ((addressSpace, init) match {
-            case (RegMemory, Some(initNode)) => "(" <> initNode.print() <> ")"
-            case (RegMemory,None) => empty
-            case (SRAMMemory, _) => "(1)"
-            case _ => throw new NotImplementedError() // TODO
-          })
+            s"$addressSpace[${Printer.toString(baseType)}]" <>
+              ((addressSpace, init) match {
+                case (RegMemory, Some(initNode)) => "(" <> initNode.print() <> ")"
+                case (RegMemory, None) => empty
+                case (SRAMMemory, _) => "(1)"
+                case _ => throw new NotImplementedError() // TODO
+              })
+        })
     }
   }
 
@@ -183,8 +187,8 @@ object SpatialAccelAST {
     }
 
     override def print(): Doc = {
-      min.print <> text("until") <> max.print <> text("by") <>
-        stride.print <> text("par") <> factor.print
+      min.print <+> text("until") <+> max.print <+> text("by") <+>
+        stride.print <+> text("par") <+> factor.print
     }
   }
 
@@ -211,6 +215,7 @@ object SpatialAccelAST {
     val reduceFlavour: String
     val accum: AstNode
     val counter: List[CounterT]
+    val iterVars: List[GenericAST.CVar]
     val mapBody: MutableExprBlockT
     val reduceBody: MutableExprBlockT
 
@@ -222,25 +227,32 @@ object SpatialAccelAST {
         (counter.foldLeft(_) {
           case (acc, node) => node.visit(acc)(visitFun)
         }) |>
+        (iterVars.foldLeft(_) {
+          case (acc, node) => node.visit(acc)(visitFun)
+        }) |>
         (mapBody.visit(_)(visitFun)) |>
         (reduceBody.visit(_)(visitFun))
     }
 
     override def print(): Doc = {
       reduceFlavour <> text("(") <> accum.print <> text(")") <>
-        text("(") <> counter.map(_.print()).reduce(_ <> text(",") <> _) <> text(")") <>
-        mapBody.print <> reduceBody.print
+        text("(") <> counter.map(_.print()).reduce(_ <> text(",") <> _) <> text(")") <+>
+        text("{") <+> text("(") <> intersperse(iterVars.map(_.print()), ", ") <> text(")") <+> text("=>") <>
+        nest(2, line <> mapBody.print()) <> line <> "}" <+> "{" <>
+        nest(2, line <> reduceBody.print()) <> line <> "}"
     }
   }
 
   case class Reduce(accum: AstNode,
                     counter: List[CounterT],
+                    iterVars: List[GenericAST.CVar],
                     mapBody: MutableExprBlockT,
                     reduceBody: MutableExprBlockT) extends AbstractReduceT {
     val reduceFlavour: String = "Reduce"
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
       Reduce(accum.visitAndRebuild(pre, post),
         counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
+        iterVars.map(_.visitAndRebuild(pre, post).asInstanceOf[GenericAST.CVar]),
         mapBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT],
         reduceBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
     }
@@ -248,6 +260,7 @@ object SpatialAccelAST {
     override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
       accum.visitBy(pre, post)
       counter.foreach(_.visitBy(pre, post))
+      iterVars.foreach(_.visitBy(pre, post))
       mapBody.visitBy(pre, post)
       reduceBody.visitBy(pre, post)
     }
@@ -255,12 +268,14 @@ object SpatialAccelAST {
 
   case class Fold(accum: AstNode,
                   counter: List[CounterT],
+                  iterVars: List[GenericAST.CVar],
                   mapBody: MutableExprBlockT,
                   reduceBody: MutableExprBlockT) extends AbstractReduceT {
     val reduceFlavour: String = "Fold"
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
       Fold(accum.visitAndRebuild(pre, post),
         counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
+        iterVars.map(_.visitAndRebuild(pre, post).asInstanceOf[GenericAST.CVar]),
         mapBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT],
         reduceBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
     }
@@ -268,6 +283,7 @@ object SpatialAccelAST {
     override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
       accum.visitBy(pre, post)
       counter.foreach(_.visitBy(pre, post))
+      iterVars.foreach(_.visitBy(pre, post))
       mapBody.visitBy(pre, post)
       reduceBody.visitBy(pre, post)
     }
@@ -275,12 +291,14 @@ object SpatialAccelAST {
 
   case class MemFold(accum: AstNode,
                      counter: List[CounterT],
+                     iterVars: List[GenericAST.CVar],
                      mapBody: MutableExprBlockT,
                      reduceBody: MutableExprBlockT) extends AbstractReduceT {
     val reduceFlavour: String = "MemFold"
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
       MemFold(accum.visitAndRebuild(pre, post),
         counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
+        iterVars.map(_.visitAndRebuild(pre, post).asInstanceOf[GenericAST.CVar]),
         mapBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT],
         reduceBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
     }
@@ -288,6 +306,7 @@ object SpatialAccelAST {
     override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
       accum.visitBy(pre, post)
       counter.foreach(_.visitBy(pre, post))
+      iterVars.foreach(_.visitBy(pre, post))
       mapBody.visitBy(pre, post)
       reduceBody.visitBy(pre, post)
     }
@@ -297,6 +316,7 @@ object SpatialAccelAST {
 
   trait ForeachT extends StatementT {
     val counter: List[CounterT]
+    val iterVars: List[GenericAST.CVar]
     val body: MutableExprBlockT
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
@@ -306,26 +326,33 @@ object SpatialAccelAST {
         (counter.foldLeft(_) {
           case (acc, node) => node.visit(acc)(visitFun)
         }) |>
+        (iterVars.foldLeft(_) {
+          case (acc, node) => node.visit(acc)(visitFun)
+        }) |>
         (body.visit(_)(visitFun))
     }
 
     override def print(): Doc = {
       text("Foreach") <>
-        text("(") <> counter.map(_.print()).reduce(_ <> text(",") <> _) <> text(")") <>
-        body.print
+        text("(") <> counter.map(_.print()).reduce(_ <> text(",") <> _) <> text(")") <+>
+        text("{") <+> text("(") <> intersperse(iterVars.map(_.print()), ", ") <> text(")") <+> text("=>") <>
+        nest(2, line <> body.print()) <> line <> "}"
     }
   }
 
   case class Foreach(counter: List[CounterT],
+                     iterVars: List[GenericAST.CVar],
                      body: MutableExprBlockT) extends ForeachT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
       Foreach(
         counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
+        iterVars.map(_.visitAndRebuild(pre, post).asInstanceOf[GenericAST.CVar]),
         body.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
     }
 
     override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
       counter.foreach(_.visitBy(pre, post))
+      iterVars.foreach(_.visitBy(pre, post))
       body.visitBy(pre, post)
     }
   }

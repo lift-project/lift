@@ -10,8 +10,8 @@ class TestOpenCLPrinter {
 
   @Test
   def printCondExpression(): Unit = {
-    val lhs = VarRef(Var("x"))
-    val rhs = VarRef(Var("y"))
+    val lhs = VarIdxRef(Var("x"))
+    val rhs = VarIdxRef(Var("y"))
     val cond = BinaryExpression(lhs, BinaryExpressionT.Operator.==, rhs)
     assertEquals("(" + lhs.v.v.toString + " == " + rhs.v.v.toString + ")",
       AstPrinter(cond)())
@@ -19,8 +19,8 @@ class TestOpenCLPrinter {
 
   @Test
   def printBinExpression(): Unit = {
-    val lhs = VarRef(Var("x"))
-    val rhs = VarRef(Var("y"))
+    val lhs = VarIdxRef(Var("x"))
+    val rhs = VarIdxRef(Var("y"))
     val binop = BinaryExpression(lhs, BinaryExpressionT.Operator.+, rhs)
     assertEquals("(" + lhs.v.v.toString + " + " + rhs.v.v.toString + ")",
       AstPrinter(binop)())

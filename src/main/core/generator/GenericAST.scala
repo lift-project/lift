@@ -357,6 +357,7 @@ object GenericAST {
   trait MutableExprBlockT extends ExpressionT {
     // TODO: How do we handle default values when they're vals?
     var content: Vector[AstNode with ExprBlockMember] // = Vector.empty
+    val encapsulated: Boolean //= true
 
     def :+(node: AstNode with ExprBlockMember): MutableExprBlockT
 
@@ -380,11 +381,13 @@ object GenericAST {
       // pre-calculate our inner block
       val innerBlock = intersperse(content.map(_.print()).toList,
         Line())
-      bracket("{", innerBlock, "}")
+      if (encapsulated) bracket("{", innerBlock, "}")
+      else innerBlock
     }
   }
 
-  case class MutableExprBlock(override var content: Vector[AstNode with ExprBlockMember] = Vector())
+  case class MutableExprBlock(override var content: Vector[AstNode with ExprBlockMember] = Vector(),
+                              encapsulated: Boolean = true)
     extends MutableExprBlockT {
 
     def _visitAndRebuild(pre: (AstNode) => AstNode,  post: (AstNode) => AstNode) : AstNode = {
@@ -897,12 +900,20 @@ object GenericAST {
     */
   trait VarRefT extends ExpressionT {
     val v: CVar
-    //    val t: Type
+    val suffix: Option[String]
+  }
+
+  trait VarIdxRefT extends VarRefT {
+    val v: CVar
     val suffix: Option[String]
     val arrayIndex: Option[ArithExpression]
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
-      visitFun(z, this) |> (visitFun(_, v))
+      visitFun(z, this) |>
+        (_z => arrayIndex match {
+          case Some(idx) => idx.visit(_z)(visitFun)
+          case None => _z
+        }) |> (visitFun(_, v))
     }
 
     override def print(): Doc = {
@@ -922,13 +933,13 @@ object GenericAST {
     }
   }
 
-  case class VarRef(v: CVar,
-                    //                    t: Type,
-                    suffix: Option[String] = None,
-                    arrayIndex: Option[ArithExpression] = None
-                   ) extends VarRefT {
+  case class VarIdxRef(v: CVar,
+                       //                    t: Type,
+                       suffix: Option[String] = None,
+                       arrayIndex: Option[ArithExpression] = None
+                   ) extends VarIdxRefT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      VarRef(v.visitAndRebuild(pre, post).asInstanceOf[CVar], suffix,
+      VarIdxRef(v.visitAndRebuild(pre, post).asInstanceOf[CVar], suffix,
         arrayIndex match {
           case Some(ai) => Some(ai.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])
           case None => None
@@ -949,7 +960,7 @@ object GenericAST {
     * A load from a variable, with (potentially) an offset
     */
   trait LoadT extends ExpressionT {
-    val v: VarRef
+    val v: VarIdxRef
     val t: Type
     val offset: ArithExpression
 
@@ -976,11 +987,11 @@ object GenericAST {
     }
   }
 
-  case class Load(v: VarRef,
+  case class Load(v: VarIdxRef,
                   t: Type,
                   offset: ArithExpression) extends LoadT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      Load(v.visitAndRebuild(pre, post).asInstanceOf[VarRef], t,
+      Load(v.visitAndRebuild(pre, post).asInstanceOf[VarIdxRef], t,
         offset.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])
     }
 
@@ -994,7 +1005,7 @@ object GenericAST {
     * A Store into a variable with (potentially) an offset
     */
   trait StoreT extends ExpressionT {
-    val v: VarRef
+    val v: VarIdxRef
     val t: Type
     val value: AstNode
     val offset: ArithExpression
@@ -1021,12 +1032,12 @@ object GenericAST {
     }
   }
 
-  case class Store(v: VarRef,
+  case class Store(v: VarIdxRef,
                    t: Type,
                    value: AstNode,
                    offset: ArithExpression) extends StoreT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      Store(v.visitAndRebuild(pre, post).asInstanceOf[VarRef],t,
+      Store(v.visitAndRebuild(pre, post).asInstanceOf[VarIdxRef],t,
         value.visitAndRebuild(pre, post),
         offset.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])
     }
@@ -1203,7 +1214,7 @@ object GenericAST {
     * Force a cast of a variable to the given type. This is used to
     */
   trait CastT extends ExpressionT {
-    val v: VarRef
+    val v: VarIdxRef
     val t: Type
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
@@ -1220,9 +1231,9 @@ object GenericAST {
   /**
     * TODO: Can we actually do this? What will break :D
     */
-  case class Cast(v: VarRef, t: Type) extends CastT {
+  case class Cast(v: VarIdxRef, t: Type) extends CastT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      Cast(v.visitAndRebuild(pre, post).asInstanceOf[VarRef],t)
+      Cast(v.visitAndRebuild(pre, post).asInstanceOf[VarIdxRef],t)
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
@@ -1230,10 +1241,10 @@ object GenericAST {
     }
   }
 
-  case class PointerCast(v: VarRef, t: Type) extends CastT {
+  case class PointerCast(v: VarIdxRef, t: Type) extends CastT {
 
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      PointerCast(v.visitAndRebuild(pre, post).asInstanceOf[VarRef],t)
+      PointerCast(v.visitAndRebuild(pre, post).asInstanceOf[VarIdxRef],t)
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
@@ -1386,8 +1397,8 @@ object GenericAST {
     }
   }
 
-  case class Block(override val content: Vector[AstNode with
-    BlockMember] = Vector(), global: Boolean = false) extends BlockT {
+  case class Block(override val content: Vector[AstNode with BlockMember] = Vector(),
+                   global: Boolean = false) extends BlockT {
     /** Append a sub-node. Could be any node, including a sub-block.
      *
      * @param node The node to add to this block.
@@ -1410,6 +1421,7 @@ object GenericAST {
   trait ExprBlockT extends ExpressionT {
     // TODO: How do we handle default values when they're vals?
     val content: Vector[AstNode with ExprBlockMember] // = Vector.empty
+    val encapsulated: Boolean // = true
 
     def :+(node: AstNode with ExprBlockMember): ExprBlockT
 
@@ -1424,12 +1436,13 @@ object GenericAST {
       // pre-calculate our inner block
       val innerBlock = intersperse(content.map(_.print()).toList,
         Line())
-
-      bracket("{", innerBlock, "}")
+      if (encapsulated) bracket("{", innerBlock, "}")
+      else innerBlock
     }
   }
 
-  case class ExprBlock(override val content: Vector[AstNode with ExprBlockMember] = Vector())
+  case class ExprBlock(override val content: Vector[AstNode with ExprBlockMember] = Vector(),
+                       encapsulated: Boolean = true)
     extends ExprBlockT {
     /** Append a sub-node. Could be any node, including a sub-block.
      *

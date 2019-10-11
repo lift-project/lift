@@ -76,6 +76,7 @@ object SpatialMemoryAllocator {
       case Map(_)                   => allocMap(call.f.asInstanceOf[AbstractMap], outMemT, inMem)
 
       case sf: SpForeach            => allocSpForeach(sf, outMemT, inMem)
+      case m: MapSeq                => allocMapSeq(m, outMemT, inMem)
       case asf: AbstractSpFold      => allocSpFold(asf, outMemT, inMem)
 
       case s: AbstractSearch        => throw new NotImplementedError()
@@ -149,6 +150,13 @@ object SpatialMemoryAllocator {
                              inMem: SpatialMemory): SpatialMemory = {
     sf.f.params(0).mem = inMem
     alloc(sf.f.body, outMemT)
+  }
+
+  private def allocMapSeq(m: MapSeq,
+                          outMemT: Type,
+                          inMem: SpatialMemory): SpatialMemory = {
+    m.f.params(0).mem = inMem
+    alloc(m.f.body, outMemT)
   }
 
   private def allocSpFold(asf: AbstractSpFold,

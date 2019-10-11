@@ -778,7 +778,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         val idx :: indices = arrayAccessStack
          // Assume it's the same address space
          val indirection = ViewPrinter.emit(ids.access(idx), replacements, mainAddressSpace) match {
-           case VarRef(indicesVar, _, i) => AccessVar(indicesVar.v, i
+           case VarIdxRef(indicesVar, _, i) => AccessVar(indicesVar.v, i
              .get.asInstanceOf[ArithExpressionT].content)
            case x => throw new IllegalArgumentException(s"Expected an VarRef, got $x")
          }
@@ -928,7 +928,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
   object GenerateAccess {
     def apply(mainVar: Var, mainType: Type,
               arrayAccessStack: List[ArithExpr],
-              tupleAccessStack: List[Int]): VarRef = {
+              tupleAccessStack: List[Int]): VarIdxRef = {
       val g = new GenerateAccess(mainVar, mainType, tupleAccessStack)
       g.generate(0, mainType, arrayAccessStack, tupleAccessStack)
     }
@@ -947,7 +947,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
     @scala.annotation.tailrec
     private def generate(acc: ArithExpr, ty: Type,
                          arrayAccessStack: List[ArithExpr],
-                         tupleAccessStack: List[Int]): VarRef = {
+                         tupleAccessStack: List[Int]): VarIdxRef = {
       if (arrayAccessStack.isEmpty) varRef(mainVar, acc)
       else {
         ty match {
@@ -971,7 +971,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
     }
 
     /** Generates an access to the size */
-    private def getSize(acc: ArithExpr, at: ArrayType): VarRef = {
+    private def getSize(acc: ArithExpr, at: ArrayType): VarIdxRef = {
       // Sanity check
       if (addressSpace == PrivateMemory)
         throw new IllegalView("An array in private memory must have a size and a capacity in the type")
@@ -1016,7 +1016,7 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
     // Useful shorthands
     private lazy val baseSize = Type.getAllocatedSize(baseType).eval
     private val alignment = Math.max(size_t.size.eval, baseSize)
-    private def varRef(v: Var, idx: ArithExpr): VarRef = VarRef(v, arrayIndex
+    private def varRef(v: Var, idx: ArithExpr): VarIdxRef = VarIdxRef(v, arrayIndex
       = Some(ArithExpression(idx)))
     private def align(value: ArithExpr): ArithExpr = ((value + alignment - 1) / alignment) * alignment
 

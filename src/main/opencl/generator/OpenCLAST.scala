@@ -223,7 +223,7 @@ object OpenCLAST {
     }
   }
 
-  case class OclLoad(v: VarRef,
+  case class OclLoad(v: VarIdxRef,
                      t: Type,
                      offset: ArithExpression,
                      shift: ArithExpression,
@@ -231,7 +231,7 @@ object OpenCLAST {
     with CLAddressSpace {
 
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      OclLoad(v.visitAndRebuild(pre, post).asInstanceOf[VarRef], t,
+      OclLoad(v.visitAndRebuild(pre, post).asInstanceOf[VarIdxRef], t,
         offset.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
         shift.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
         addressSpace)
@@ -263,7 +263,7 @@ object OpenCLAST {
   }
 
   // TODO: Can we just get the address space from the var ref?
-  case class OclStore(v: VarRef,
+  case class OclStore(v: VarIdxRef,
                       t: Type,
                       value: AstNode,
                       offset: ArithExpression,
@@ -271,7 +271,7 @@ object OpenCLAST {
     with CLAddressSpace {
 
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      OclStore(v.visitAndRebuild(pre, post).asInstanceOf[VarRef], t,
+      OclStore(v.visitAndRebuild(pre, post).asInstanceOf[VarIdxRef], t,
         value.visitAndRebuild(pre, post),
         offset.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
         addressSpace)
@@ -303,11 +303,11 @@ object OpenCLAST {
     }
   }
 
-  case class OclPointerCast(v: VarRef, t: Type,
+  case class OclPointerCast(v: VarIdxRef, t: Type,
                             addressSpace: OpenCLAddressSpace) extends CastT with CLAddressSpace {
 
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      OclPointerCast(v.visitAndRebuild(pre, post).asInstanceOf[VarRef], t, addressSpace)
+      OclPointerCast(v.visitAndRebuild(pre, post).asInstanceOf[VarIdxRef], t, addressSpace)
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
@@ -328,10 +328,10 @@ object OpenCLAST {
   }
 
 
-  case class VectorLiteral(t: VectorType, vs: VarRef*) extends ExpressionT {
+  case class VectorLiteral(t: VectorType, vs: VarIdxRef*) extends ExpressionT {
 
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      VectorLiteral(t, vs.map(_.visitAndRebuild(pre, post).asInstanceOf[VarRef]) : _*)
+      VectorLiteral(t, vs.map(_.visitAndRebuild(pre, post).asInstanceOf[VarIdxRef]) : _*)
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {

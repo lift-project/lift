@@ -719,7 +719,7 @@ class OpenCLGenerator extends Generator {
       generateConditional(ob, Predicate(threadid, 0, Predicate.Operator.==),
         (b) => {
           (b: MutableBlock) += AssignmentExpression(ArithExpression(loopVar),
-            FunctionCall("atomic_inc", List(VarRef(workVar))))
+            FunctionCall("atomic_inc", List(VarIdxRef(workVar))))
         }, (_) => {})
     }
 
@@ -780,7 +780,7 @@ class OpenCLGenerator extends Generator {
     // get shorthands for the loopvar/workvar
     val loopVar = m.loopVar
     val workVar = m.workVar
-    val workVarPtr = FunctionCall("&", List(VarRef(workVar)))
+    val workVarPtr = FunctionCall("&", List(VarIdxRef(workVar)))
 
     // declare a local variable holding the next index to process, and assign it a value
     // this must be done in a separate statement, as the variable is in LocalMemory
@@ -886,7 +886,7 @@ class OpenCLGenerator extends Generator {
     // Write the header of the output array
     (block: MutableBlock) += AssignmentExpression(
       to = accessNode(call.mem.variable, call.addressSpace, call.view.size()),
-      value = VarRef(f.loopWrite)
+      value = VarIdxRef(f.loopWrite)
     )
 
     (block: MutableBlock) += Comment("end filter_seq")
@@ -1272,8 +1272,8 @@ class OpenCLGenerator extends Generator {
     (block: MutableBlock) += OclVarDecl(temp, Type.getValueType(v.t),
       init = Some(OclCode(v.value)))
     (block: MutableBlock) += AssignmentExpression(
-      VarRef(v.mem.variable),
-      VarRef(temp))
+      VarIdxRef(v.mem.variable),
+      VarIdxRef(temp))
   }
 
   // === Iterate ===
@@ -1321,7 +1321,7 @@ class OpenCLGenerator extends Generator {
     (block: MutableBlock) += OclVarDecl(
       v = i.vPtrIn,
       t = Type.devectorize(call.t),
-      init = Some(VarRef(inputMem.variable)),
+      init = Some(VarIdxRef(inputMem.variable)),
       addressSpace = outputMem.addressSpace
     )
 
@@ -1346,7 +1346,7 @@ class OpenCLGenerator extends Generator {
       inputMem.variable = oldInV
       outputMem.variable = oldOutV
 
-      val curOutLenRef = VarRef(curOutLen)
+      val curOutLenRef = VarIdxRef(curOutLen)
 
       val innerOutputLength = Type.getLength(funCall.t)
 
@@ -1355,7 +1355,7 @@ class OpenCLGenerator extends Generator {
         ArithExpression(innerOutputLength))
 
 
-      val tinVStrRef = VarRef(i.vPtrIn)
+      val tinVStrRef = VarIdxRef(i.vPtrIn)
 
       // tin = (tout == swap) ? swap : out
       (b: MutableBlock) += AssignmentExpression(tinVStrRef,
@@ -1363,7 +1363,7 @@ class OpenCLGenerator extends Generator {
           swapMem.variable !! outputMem.variable))
 
 
-      val toutVStrRef = VarRef(i.vPtrOut)
+      val toutVStrRef = VarIdxRef(i.vPtrOut)
 
       // tout = (tout == swap) ? out : swap
       (b: MutableBlock) += AssignmentExpression(toutVStrRef,
@@ -1474,7 +1474,7 @@ class OpenCLGenerator extends Generator {
               val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
               val argViewi = getView(call.args.head.view, accesses)
               val loadi = generateLoadNode(argMem, argViewi.t, argViewi)
-              (block: MutableBlock) += AssignmentExpression(VarRef(sSP.windowVar,
+              (block: MutableBlock) += AssignmentExpression(VarIdxRef(sSP.windowVar,
               suffix =
                 Some(s"_${newIdx}")), loadi)
             }
@@ -1523,7 +1523,7 @@ class OpenCLGenerator extends Generator {
             val argMem = OpenCLMemory.asOpenCLMemory(call.args.head.mem)
             val viewInc = getViewIncrement(call.args.head.view, indexVar, accesses)
             val loadi = generateLoadNode(argMem, viewInc.t, viewInc)
-            innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix =
+            innerBlock += AssignmentExpression(VarIdxRef(sSP.windowVar, suffix =
               Some(s"_${newIdx}")), loadi)
 
           }
@@ -1555,7 +1555,7 @@ class OpenCLGenerator extends Generator {
             for( j <- 1 to reuse.eval)
             {
                   val skip  = size.eval - reuse.eval - 1
-                  innerBlock += AssignmentExpression(VarRef(sSP.windowVar, suffix = Some(s"_${i+(j-1)*reuseSize}")), VarRef(sSP.windowVar, suffix = Some(s"_${i+((skip+j)*reuseSize)}")))
+                  innerBlock += AssignmentExpression(VarIdxRef(sSP.windowVar, suffix = Some(s"_${i+(j-1)*reuseSize}")), VarIdxRef(sSP.windowVar, suffix = Some(s"_${i+((skip+j)*reuseSize)}")))
             }
         }
     }
@@ -1704,7 +1704,7 @@ class OpenCLGenerator extends Generator {
         val stopVar = Var("stop")
         (block: MutableBlock) += OclVarDecl(stopVar, Int, Some(getArraySize
         (mem, array.view.size())))
-        VarRef(stopVar)
+        VarIdxRef(stopVar)
     }
     val init = OclVarDecl(v = indexVar, t = Int, init = Some(start),
       addressSpace =
@@ -1833,11 +1833,11 @@ class OpenCLGenerator extends Generator {
             || mem.addressSpace == LocalMemory) =>
 
           val offset = ViewPrinter.emit(view, replacementsWithFuns, mem.addressSpace) match {
-            case VarRef(_, _, idx) => ArithExpression(idx.get.asInstanceOf[ArithExpression].content / vt.len)
+            case VarIdxRef(_, _, idx) => ArithExpression(idx.get.asInstanceOf[ArithExpression].content / vt.len)
             case x                 => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
           }
 
-          OclStore(VarRef(mem.variable), vt, value, offset, mem.addressSpace)
+          OclStore(VarIdxRef(mem.variable), vt, value, offset, mem.addressSpace)
       }
     }
   }
@@ -1882,7 +1882,7 @@ class OpenCLGenerator extends Generator {
             // originally a scalar type, but now a vector type
             //  => emit cast
             case (st: ScalarType, vt: VectorType) if st == vt.scalarT =>
-              Cast(VarRef(mem.variable), st)
+              Cast(VarIdxRef(mem.variable), st)
 
             // originally an array of scalar values in global memory,
             // but now a vector type
@@ -1892,13 +1892,13 @@ class OpenCLGenerator extends Generator {
                 && (mem.addressSpace == GlobalMemory || mem.addressSpace == LocalMemory) =>
 
               val (offset, shift) = ViewPrinter.emit(view, replacementsWithFuns, mem.addressSpace) match {
-                case VarRef(_, _, idx) =>
+                case VarIdxRef(_, _, idx) =>
                   (ArithExpression(idx.get.asInstanceOf[ArithExpression].content / vt.len),
                     ArithExpression(idx.get.asInstanceOf[ArithExpression].content % vt.len))
                 case x                 => throw new MatchError(s"Expected a VarRef but got $x.")
               }
 
-              OclLoad(VarRef(mem.variable), vt, offset, shift, mem.addressSpace)
+              OclLoad(VarIdxRef(mem.variable), vt, offset, shift, mem.addressSpace)
 
             case (at: ArrayType, vt: VectorType)
               if Type.getValueType(at) == vt.scalarT && (mem.addressSpace == PrivateMemory) =>
@@ -1912,7 +1912,7 @@ class OpenCLGenerator extends Generator {
               val arraySuffixStopIndex = arraySuffixStartIndex + vt.len.eval
 
               val seq = (arraySuffixStartIndex until arraySuffixStopIndex).map(i => {
-                VarRef(mem.variable, suffix = Some("_" + i))
+                VarIdxRef(mem.variable, suffix = Some("_" + i))
               })
 
               VectorLiteral(vt, seq: _*)
@@ -1924,7 +1924,7 @@ class OpenCLGenerator extends Generator {
               if st == vt.scalarT && (mem.addressSpace == PrivateMemory) =>
 
               val componentSuffix = componentAccessVectorVar(mem.variable, view, mem.addressSpace)
-              VarRef(mem.variable, suffix = Some(componentSuffix))
+              VarIdxRef(mem.variable, suffix = Some(componentSuffix))
 
             // originally an array of vector values in private memory,
             // but now a scalar type
@@ -1943,7 +1943,7 @@ class OpenCLGenerator extends Generator {
                   ""
 
               val componentSuffix = componentAccessVectorVar(mem.variable, view, mem.addressSpace)
-              VarRef(mem.variable, suffix = Some(arraySuffix + componentSuffix))
+              VarIdxRef(mem.variable, suffix = Some(arraySuffix + componentSuffix))
 
             // originally an array of vector values in private memory,
             // but now a different vector type
@@ -1965,7 +1965,7 @@ class OpenCLGenerator extends Generator {
               // iterate over the range, assuming that it is contiguous
               val componentSuffix = (componentSuffixStartIndex until componentSuffixStopIndex).foldLeft(".s")(_ + _)
 
-              VarRef(mem.variable, suffix = Some(arraySuffix + componentSuffix))
+              VarIdxRef(mem.variable, suffix = Some(arraySuffix + componentSuffix))
 
             // originally a tuple, now a value. => generate stuff like var[i]._j
             case (t: Type, _: ScalarType)
@@ -1980,7 +1980,7 @@ class OpenCLGenerator extends Generator {
               mem.addressSpace match {
                 case LocalMemory | GlobalMemory =>
                   ViewPrinter.emit(innerView, replacementsWithFuns, mem.addressSpace) match {
-                    case VarRef(v, _, index) => VarRef(v, Some(suffix), index)
+                    case VarIdxRef(v, _, index) => VarIdxRef(v, Some(suffix), index)
                     case x                   => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
                   }
 
@@ -1992,7 +1992,7 @@ class OpenCLGenerator extends Generator {
                       arrayAccessPrivateMem(mem.variable, innerView)
                     else // Workaround for values
                       ""
-                  VarRef(mem.variable, suffix = Some(arraySuffix + suffix))
+                  VarIdxRef(mem.variable, suffix = Some(arraySuffix + suffix))
                 case UndefAddressSpace | AddressSpaceCollection(_) =>
                   throw new IllegalArgumentException(s"Cannot load data from ${mem.addressSpace}")
               }
@@ -2055,8 +2055,8 @@ class OpenCLGenerator extends Generator {
 
       case PrivateMemory =>
         ViewPrinter.emit(view, replacementsWithFuns, addressSpace) match {
-          case VarRef(_, _, _) =>
-            VarRef(v, suffix = Some(arrayAccessPrivateMem(v, view)))
+          case VarIdxRef(_, _, _) =>
+            VarIdxRef(v, suffix = Some(arrayAccessPrivateMem(v, view)))
           case e: ExpressionT  => e
         }
 
@@ -2087,7 +2087,7 @@ class OpenCLGenerator extends Generator {
 
     val i = valueType match {
       case _: ScalarType | _: TupleType => ViewPrinter.emit(view, replacements, PrivateMemory) match {
-        case VarRef(_, _, idx) => idx.get.asInstanceOf[ArithExpression].content
+        case VarIdxRef(_, _, idx) => idx.get.asInstanceOf[ArithExpression].content
         case x                 => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
       }
       // if the original value type is a vector:
@@ -2095,7 +2095,7 @@ class OpenCLGenerator extends Generator {
       case _: VectorType                     =>
         val length = Type.getLength(Type.getValueType(originalType))
         val index = ViewPrinter.emit(view, replacements, PrivateMemory) match {
-          case VarRef(_, _, idx) => idx.get.asInstanceOf[ArithExpression].content
+          case VarIdxRef(_, _, idx) => idx.get.asInstanceOf[ArithExpression].content
           case x                 => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
         index / length
@@ -2143,7 +2143,7 @@ class OpenCLGenerator extends Generator {
       case _: VectorType                                                       =>
         val length = Type.getLength(Type.getValueType(originalType))
         val index = ViewPrinter.emit(view, replacements, as) match {
-          case VarRef(_, _, idx) => idx.get.asInstanceOf[ArithExpression].content
+          case VarIdxRef(_, _, idx) => idx.get.asInstanceOf[ArithExpression].content
           case x                 => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
         index % length
@@ -2160,8 +2160,8 @@ class OpenCLGenerator extends Generator {
     * @param v The variable to access
     * @return A VarRef node wrapping `v`
     */
-  private def valueAccessNode(v: Var): VarRef = {
-    VarRef(v)
+  private def valueAccessNode(v: Var): VarIdxRef = {
+    VarIdxRef(v)
   }
 
   /**
@@ -2213,7 +2213,7 @@ class OpenCLGenerator extends Generator {
             OclVarDecl(loopVar, Int, Some(ArithExpression(0))),
             BinaryExpression(ArithExpression(loopVar),
               BinaryExpressionT.Operator.<, ArithExpression(length)),
-            AssignmentExpression(VarRef(CVar(loopVar)), ArithExpression
+            AssignmentExpression(VarIdxRef(CVar(loopVar)), ArithExpression
             (loopVar + 1)),
             innerBlock
           )

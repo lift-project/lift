@@ -2,7 +2,7 @@ package backends.spatial.accel
 
 import _root_.ir.ast._
 import _root_.ir.Type
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpForeach}
 import lift.arithmetic.{ArithExpr, ContinuousRange, Cst, Var}
 
 object RangesAndCountsSp {
@@ -25,6 +25,7 @@ private class RangesAndCountsSp(valueMap: scala.collection.Map[ArithExpr, ArithE
         call.args.foreach(apply)
         call.f match {
           case sf: SpForeach          => setRangeSpForeach(sf, call)
+          case m: MapSeq              => setRangeMapSeq(m, call)
           case asf: AbstractSpFold    => setRangeAbstrSpFold(asf, call)
 
           case f: FPattern            => apply(f.f.body)
@@ -39,6 +40,11 @@ private class RangesAndCountsSp(valueMap: scala.collection.Map[ArithExpr, ArithE
   private def setRangeSpForeach(sf: SpForeach, call: FunCall): Unit = {
     sf.loopVar = Var(sf.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
     apply(sf.f.body)
+  }
+
+  private def setRangeMapSeq(m: MapSeq, call: FunCall): Unit = {
+    m.loopVar = Var(m.loopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args.head.t)))
+    apply(m.f.body)
   }
 
   private def setRangeAbstrSpFold(asf: AbstractSpFold, call: FunCall): Unit = {

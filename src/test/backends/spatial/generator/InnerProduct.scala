@@ -194,9 +194,7 @@ class InnerProduct {
       ArrayType(Float, N),
       ArrayType(Float, N),
       (a, b) =>
-        SpFold(
-          iterSize = tileSize,
-          stride = tileSize,
+        SpFold(iterSize = tileSize, stride = tileSize,
           factor = outerParFactor,
 
           fMap = fun(
@@ -210,11 +208,9 @@ class InnerProduct {
                 toSRAM(idArray) $ tileB
                 /*)*/)
 
-              SpFold(
-                iterSize = 1,
-                stride = 1,
+              SpFold(iterSize = 1, stride = 1,
                 factor = innerParFactor,
-                fMap = Map(fun(p => mult(p._0, p._1))),
+                fMap = backends.spatial.accel.ir.pattern.MapSeq(mult),
                 fReduce = add,
                 init = Value(0.0f, Float)) $ tileABsram
             }),

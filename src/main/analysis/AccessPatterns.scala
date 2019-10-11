@@ -7,7 +7,7 @@ import ir.{ScalarType, TupleType, Type, UndefType}
 import ir.ast._
 import ir.view._
 import opencl.generator.{NDRange, OpenCLGenerator}
-import core.generator.GenericAST.{ArithExpression, VarRef}
+import core.generator.GenericAST.{ArithExpression, VarIdxRef}
 import opencl.ir.OpenCLMemoryCollection
 import opencl.ir.pattern.{MapGlb, MapLcl}
 
@@ -56,7 +56,7 @@ class AccessPatterns(
   def apply(): (immutable.Map[Expr, AccessPattern], immutable.Map[Expr, AccessPattern]) =
     (readPatterns, writePatterns)
 
-  private def isCoalesced(v: VarRef, length: ArithExpr): Boolean = {
+  private def isCoalesced(v: VarIdxRef, length: ArithExpr): Boolean = {
     val accessLocation = v.arrayIndex.get.asInstanceOf[ArithExpression].content
 
     if (coalescingId.isEmpty)
@@ -69,7 +69,7 @@ class AccessPatterns(
     i1 - i0 == length
   }
 
-  private def getAccessPattern(v: VarRef, length: ArithExpr) = {
+  private def getAccessPattern(v: VarIdxRef, length: ArithExpr) = {
     if (isCoalesced(v, length))
       Some(CoalescedPattern)
     else
@@ -79,7 +79,7 @@ class AccessPatterns(
   private def getAccessPattern(view: View): Option[AccessPattern] = {
     val length = Type.getLength(Type.getValueType(view.t))
     ViewPrinter.emit(view) match {
-      case v: VarRef => getAccessPattern(v, length)
+      case v: VarIdxRef => getAccessPattern(v, length)
       case _ => None
     }
   }

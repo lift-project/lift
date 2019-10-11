@@ -1,7 +1,7 @@
 package backends.c.common.view
 
 import core.generator.GenericAST
-import core.generator.GenericAST.{ArithExpression, ExpressionT, IntConstant, StringConstant, VarRef}
+import core.generator.GenericAST.{ArithExpression, ExpressionT, IntConstant, StringConstant, VarIdxRef}
 import ir.{ArrayType, ArrayTypeWS, Size}
 import ir.view._
 import lift.arithmetic.{ArithExpr, Cst}
@@ -28,17 +28,17 @@ object ViewPrinter {
       case current_view@ViewMem(memVar, ty) =>
         tupleAccessStack.isEmpty match {
           case true =>
-            assert(arrayAccessStack.size == 1);VarRef(memVar, arrayIndex = Some( ArithExpression(arrayAccessStack.head) ))
+            assert(arrayAccessStack.size == 1);VarIdxRef(memVar, arrayIndex = Some( ArithExpression(arrayAccessStack.head) ))
           case false =>
             //assert(false, "Not implement"); IntConstant(0)
             val tuple_id :: rest = tupleAccessStack
-            val array_access_var = generateArrayAccess(current_view, arrayAccessStack  , rest ).asInstanceOf[VarRef]
+            val array_access_var = generateArrayAccess(current_view, arrayAccessStack  , rest ).asInstanceOf[VarIdxRef]
 
             array_access_var.suffix match {
               case None =>
-                VarRef(  array_access_var.v, Some("._" + tuple_id), array_access_var.arrayIndex )
+                VarIdxRef(  array_access_var.v, Some("._" + tuple_id), array_access_var.arrayIndex )
               case Some(existed_suffix) =>
-                VarRef(  array_access_var.v, Some(existed_suffix + "._" + tuple_id), array_access_var.arrayIndex )
+                VarIdxRef(  array_access_var.v, Some(existed_suffix + "._" + tuple_id), array_access_var.arrayIndex )
             }
 
         }

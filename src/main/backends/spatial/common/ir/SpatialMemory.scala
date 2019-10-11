@@ -23,7 +23,7 @@ sealed class SpatialMemory(var variable: Var,
                            val t: Type,
                            val addressSpace: SpatialAddressSpace) extends Memory {
   val size: ArithExpr = t match {
-    case UndefType => ?           // TODO: OpenCLNullMemory uses Cst(-1) here. Standardise
+    case UndefType => Cst(-1)
     case aType => Type.getAllocatedSize(aType)
   }
 
