@@ -3,7 +3,6 @@ package backends.spatial.common.ir
 import backends.spatial.accel.ir.pattern._
 import _root_.ir.ast.{AbstractMap, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, Filter, FunCall, Gather, Get, Head, Id, Iterate, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
 import _root_.ir.{NumberOfArgumentsException, Type, UnallocatedMemory}
-import lift.arithmetic.ArithExpr
 
 object SpatialMemoryAllocator {
   /**
@@ -160,11 +159,12 @@ object SpatialMemoryAllocator {
         val initM = coll.subMemories(0)
 
         val inputArrType = asf.fMap.params(0).t
+        val mapOutputType = inputArrType
 
         asf.fMap.params(0).mem = coll.subMemories(1)
         // fMap body memory will be referred to by fReduce, but will not be allocated --
         // Spatial will pass the results of fMap to fReduce by value
-        val mapBodyMem = alloc(asf.fMap.body, inputArrType)
+        val mapBodyMem = alloc(asf.fMap.body, mapOutputType)
 
         asf.fReduce.params(0).mem = initM
         asf.fReduce.params(1).mem = mapBodyMem

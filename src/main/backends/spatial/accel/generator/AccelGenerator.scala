@@ -1,16 +1,16 @@
 package backends.spatial.accel.generator
 
 import backends.spatial.accel.generator.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpFold, SpForeach, SpMemFold}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpFold, SpForeach, SpMemFold, toDRAM, toReg, toSRAM}
 import backends.spatial.common.Printer
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpatialCode}
 import backends.spatial.common.ir.ast.SpatialBuiltInFun
-import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice}
+import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice, SpatialViewPrinter}
 import backends.spatial.common.ir.{AddressSpaceCollection, DRAMMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, TypedMemoryCollection, UndefAddressSpace}
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, Comment, DeclarationT, ExprBlock, ExpressionT, FunctionCall, MutableExprBlock, ParamDecl, StructConstructor, VarRef}
 import ir._
 import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, Filter, FunCall, Gather, Get, Head, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
-import ir.view.{View, ViewPrinter}
+import ir.view.View
 import lift.arithmetic._
 
 import scala.collection.immutable
@@ -96,7 +96,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
           case u: UserFun             => generateUserFunCall(u, call, block)
 
-          case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
+          case toReg(_) | toSRAM(_) | toDRAM(_) |
+               Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
                Split(_) | Join() | Slide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
                Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
                ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) |
@@ -138,17 +139,26 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         )
         sizes.reduce((x, y) => FunctionCall("min", List(x, y)))
       case _                                      =>
-        ViewPrinter.emit(view, addressSpace = mem.addressSpace)
+        SpatialViewPrinter.emit(view, addressSpace = mem.addressSpace)
     }
   }
 
+  /**
+   * Declares memory all conditions are met:
+   * 1. The memory needs materialising
+   * 2. The memory hasn't been declared yet
+   * 3. The memory is not in DRAM address space -- those memories will be allocated by host
+   */
   private def declareMemoryIfRequired(expr: Expr,
                                       block: MutableExprBlock,
                                       init: Option[AstNode] = None): Unit = {
-    val memoryNeedsMaterialising = allTypedMemories.contains(expr.mem.asInstanceOf[SpatialMemory])
+    val mem = expr.mem.asInstanceOf[SpatialMemory]
+    val memoryNeedsMaterialising = allTypedMemories.contains(mem)
 
-    if (memoryNeedsMaterialising && !allTypedMemories(expr.mem).declared) {
-      val sMem = expr.mem.asInstanceOf[SpatialMemory]
+    if (memoryNeedsMaterialising &&
+      !allTypedMemories(mem).declared &&
+      mem.addressSpace != DRAMMemory) {
+      val sMem = mem.asInstanceOf[SpatialMemory]
 
       (block: MutableExprBlock) += SpatialVarDecl(sMem.variable, sMem.t, init, sMem.addressSpace)
     }
@@ -259,7 +269,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   }
 
   /**
-   * Generate a simple or vector store.
+   * Generate a simple or vector store
    */
   private def generateStoreNode(mem: SpatialMemory,
                                 targetType: Type,
@@ -296,7 +306,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         StructConstructor(t = tt, args = args) // TODO: check functional correctness for Spatial
 
       // A SpatialNullMemory object indicates that the view is not backed by memory and will directly return a value
-      case SpatialNullMemory => ViewPrinter.emit(view)
+      case SpatialNullMemory => SpatialViewPrinter.emit(view, replacementsWithFuns)
 
       // not a memory collection: the default case
       case _ =>
@@ -368,10 +378,10 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
                               view: View): ExpressionT = {
     addressSpace match {
       case SRAMMemory | DRAMMemory =>
-        ViewPrinter.emit(view, replacementsWithFuns, addressSpace)
+        SpatialViewPrinter.emit(view, replacementsWithFuns, addressSpace)
 
       case RegMemory =>
-        ViewPrinter.emit(view, replacementsWithFuns, addressSpace) match {
+        SpatialViewPrinter.emit(view, replacementsWithFuns, addressSpace) match {
           case VarRef(_, _, _) =>
             VarRef(v, suffix = Some(arrayAccessRegisterMem(v, view)))
           case e: ExpressionT  => e
@@ -427,7 +437,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     val addressors: List[ArrayAddressor] = valueType match {
 
       case _: ScalarType | _: TupleType =>
-        ViewPrinter.emit(view, replacements, RegMemory) match {
+        SpatialViewPrinter.emit(view, replacements, RegMemory) match {
           case NDVarSlicedRef(_, _, addr) =>
             asIndices(addr.get, errorMsg = "A scalar type can only be accessed using an array.")
 
@@ -438,7 +448,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
       case ArrayType(_) =>
 
-        ViewPrinter.emit(view, replacements, RegMemory) match {
+        SpatialViewPrinter.emit(view, replacements, RegMemory) match {
           case NDVarSlicedRef(_, _, addr) => addr.get.map {
             case idx: ArrIndex => Index(idx)
             case slice: ArrSlice => Slice(slice)

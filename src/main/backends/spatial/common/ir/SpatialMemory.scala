@@ -22,7 +22,10 @@ private class MemoryAllocationException(msg: String)
 sealed class SpatialMemory(var variable: Var,
                            val t: Type,
                            val addressSpace: SpatialAddressSpace) extends Memory {
-  val size: ArithExpr = Type.getAllocatedSize(t)
+  val size: ArithExpr = t match {
+    case UndefType => ?           // TODO: OpenCLNullMemory uses Cst(-1) here. Standardise
+    case aType => Type.getAllocatedSize(aType)
+  }
 
   // size cannot be 0 unless it is the null memory
   try {

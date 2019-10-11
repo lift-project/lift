@@ -7,8 +7,8 @@ import lift.arithmetic.{ArithExpr, SimplifiedExpr, Var}
 
 abstract class AbstractSpFold(val fMap: Lambda1,
                               val fReduce: Lambda2,
-                              val mapLoopVar: Var,
-                              val reduceLoopVar: Var,
+                              var mapLoopVar: Var,
+                              var reduceLoopVar: Var,
                               val iterSize: ArithExpr,
                               val stride: ArithExpr,
                               val factor: ArithExpr) extends Pattern(arity = 2) {

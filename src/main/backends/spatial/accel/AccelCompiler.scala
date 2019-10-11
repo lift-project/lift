@@ -24,7 +24,8 @@ object AccelCompiler {
     // Infer address spaces
     InferSpatialAddressSpace(f)
 
-    // TODO: Ranges and counts
+    // Estimate loop ranges and counts
+    RangesAndCountsSp(f, collection.Map())
 
     // Allocate memory
     SpatialMemoryAllocator(f)

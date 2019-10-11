@@ -46,13 +46,19 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
 
   private def apply(): TypedMemoryCollection = {
     val inputs = lambda.params.map(TypedSpatialMemory(_))
-    val output = TypedSpatialMemory(lambda.body)
 
-    val intermediates = {
-      val memories = distinct(collectIntermediateMemories(lambda.body)).filter(_.mem != output.mem)
+    val (intermediates, output) = {
+      val memories = distinct(collectIntermediateMemories(lambda.body))
 
-      List(DRAMMemory, SRAMMemory, RegMemory).map(addressSpace =>
-        addressSpace -> memories.filter(_.mem.addressSpace == addressSpace)).toMap
+      // Infer the output write type based on intermediate memory
+      val output = {
+        val outputAmongIntermediates = memories.filter(_.mem == lambda.body.mem)
+        if (outputAmongIntermediates.nonEmpty) outputAmongIntermediates.head else TypedSpatialMemory(lambda.body)
+      }
+
+      (List(DRAMMemory, SRAMMemory, RegMemory).map(addressSpace =>
+        addressSpace -> memories.filter(_.mem.addressSpace == addressSpace)).toMap,
+        output)
     }
 
     TypedMemoryCollection(inputs.sortBy(_.mem.variable.name), Seq(output), intermediates)
