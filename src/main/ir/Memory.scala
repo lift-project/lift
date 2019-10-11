@@ -13,3 +13,7 @@ object UnallocatedMemory extends Memory {
   val variable = Var("NULL")
   val size = Cst(0)
 }
+
+trait MemoryCollection extends Memory {
+  val subMemories: Vector[Memory]
+}

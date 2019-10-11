@@ -8,7 +8,7 @@ import ir._
 import ir.ast._
 import lift.arithmetic.{ArithExpr, Cst, Var}
 import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
-import opencl.ir.{GlobalMemory, LocalMemory, OpenCLMemory, OpenCLMemoryCollection, PrivateMemory}
+import opencl.ir.{GlobalMemory, LocalMemory, OpenCLMemory, PrivateMemory}
 
 /**
  * A helper object for constructing views.
@@ -111,7 +111,7 @@ object OutputView {
           case arg =>
 
             val view = arg.mem match {
-              case memCollection: OpenCLMemoryCollection =>
+              case memCollection: MemoryCollection =>
                 val subviews = getSubviews(arg, memCollection)
                 subviews(i) = result
                 ViewTuple(subviews, arg.t)
@@ -201,7 +201,7 @@ object OutputView {
     else throw new IllegalArgumentException(s"Expected one of Register, SRAM and DRAM memories. Got $memory")
   }
 
-  private def getSubviews(expr: Expr, memCollection: OpenCLMemoryCollection) = {
+  private def getSubviews(expr: Expr, memCollection: MemoryCollection) = {
     if (expr.outputView != NoView)
       expr.outputView.asInstanceOf[ViewTuple].ivs.toArray
     else
@@ -210,7 +210,7 @@ object OutputView {
 
   private def buildViewGet(i: Int, param: Param, call: FunCall): Unit = {
     param.mem match {
-      case memCollection: OpenCLMemoryCollection =>
+      case memCollection: MemoryCollection =>
         val accessInfo =
           if (param.accessInf.collection.nonEmpty) param.accessInf.collection(i) else param.accessInf
 

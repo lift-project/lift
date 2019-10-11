@@ -17,8 +17,8 @@ private class MemoryAllocationException(msg: String)
   * @param addressSpace The address space where the memory has been allocated
   */
 sealed class OpenCLMemory(var variable: Var,
-                   val size: ArithExpr,
-                   val addressSpace: OpenCLAddressSpace) extends Memory {
+                          val size: ArithExpr,
+                          val addressSpace: OpenCLAddressSpace) extends Memory {
 
   // size cannot be 0 unless it is the null memory
   try {
@@ -82,15 +82,15 @@ sealed class OpenCLMemory(var variable: Var,
   }
 }
 
-case class OpenCLMemoryCollection(subMemories: Array[OpenCLMemory],
-                             override val addressSpace: AddressSpaceCollection)
-  extends OpenCLMemory(Var("Tuple"), subMemories.distinct.map(_.size).reduce(_+_),
-                       addressSpace)
+case class OpenCLMemoryCollection(subMemories: Vector[OpenCLMemory],
+                                  override val addressSpace: AddressSpaceCollection)
+  extends OpenCLMemory(Var("Tuple"), subMemories.distinct.map(_.size).reduce(_+_), addressSpace)
+    with MemoryCollection
 
 object OpenCLMemoryCollection {
   def apply(mems: Seq[OpenCLMemory]): OpenCLMemoryCollection = {
     val addressSpace = AddressSpaceCollection(mems.map(_.addressSpace))
-    new OpenCLMemoryCollection(mems.toArray, addressSpace)
+    new OpenCLMemoryCollection(mems.toVector, addressSpace)
   }
 }
 
