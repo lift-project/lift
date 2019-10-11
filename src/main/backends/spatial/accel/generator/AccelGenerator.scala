@@ -1,7 +1,7 @@
 package backends.spatial.accel.generator
 
 import backends.spatial.accel.generator.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{SpForeach, SpMemFold}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpFold, SpForeach, SpMemFold}
 import backends.spatial.common.Printer
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpatialCode}
 import backends.spatial.common.ir.ast.SpatialBuiltInFun
@@ -9,7 +9,7 @@ import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice}
 import backends.spatial.common.ir.{AddressSpaceCollection, DRAMMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, TypedMemoryCollection, UndefAddressSpace}
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, Comment, DeclarationT, ExprBlock, ExpressionT, FunctionCall, MutableExprBlock, ParamDecl, StructConstructor, VarRef}
 import ir._
-import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayFromUserFunGenerator, Expr, FunCall, Lambda, Map, Param, UserFun, Value, VectorizeUserFun}
+import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, Filter, FunCall, Gather, Get, Head, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
 import ir.view.{View, ViewPrinter}
 import lift.arithmetic._
 
@@ -91,10 +91,16 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
             // it from the input's header to the output's header.
             propagateDynamicArraySize(call, block)
 
-          case smf: SpMemFold         => generateSpMemFold(smf, call, block)
+          case sf: SpFold             => generateAbstrSpFold(sf, call, block)
+          case smf: SpMemFold         => generateAbstrSpFold(smf, call, block)
 
           case u: UserFun             => generateUserFunCall(u, call, block)
 
+          case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
+               Split(_) | Join() | Slide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
+               Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
+               ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) |
+               RewritingGuidePost(_) =>
 
           case _                      => throw new NotImplementedError()
         }
@@ -139,7 +145,9 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   private def declareMemoryIfRequired(expr: Expr,
                                       block: MutableExprBlock,
                                       init: Option[AstNode] = None): Unit = {
-    if (!allTypedMemories(expr.mem).declared) {
+    val memoryNeedsMaterialising = allTypedMemories.contains(expr.mem.asInstanceOf[SpatialMemory])
+
+    if (memoryNeedsMaterialising && !allTypedMemories(expr.mem).declared) {
       val sMem = expr.mem.asInstanceOf[SpatialMemory]
 
       (block: MutableExprBlock) += SpatialVarDecl(sMem.variable, sMem.t, init, sMem.addressSpace)
@@ -174,9 +182,9 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     (block: MutableExprBlock) += Comment("End SpForeach")
   }
 
-  private def generateSpMemFold(smf: SpMemFold,
-                                call: FunCall,
-                                block: MutableExprBlock): Unit = {
+  private def generateAbstrSpFold(asf: AbstractSpFold,
+                                  call: FunCall,
+                                  block: MutableExprBlock): Unit = {
     // TODO: add unrolled Fold generation
     // TODO: optimise loop generation. See OpenCLGenerator.generateOptimizedForLoopRepresentations
 
@@ -190,17 +198,17 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     (block: MutableExprBlock) += SpatialAccelAST.MemFold(
       accum = valueAccessNode(accumulator.mem.variable),
       counter = List(Counter(
-        ArithExpression(getRangeAdd(smf.mapLoopVar).start),
-        ArithExpression(getRangeAdd(smf.mapLoopVar).stop),
-        ArithExpression(smf.stride),
-        ArithExpression(smf.factor))
+        ArithExpression(getRangeAdd(asf.mapLoopVar).start),
+        ArithExpression(getRangeAdd(asf.mapLoopVar).stop),
+        ArithExpression(asf.stride),
+        ArithExpression(asf.factor))
       ),
       // TODO: Confirm that we don't need to generate anything outside fMap body
       mapBody = innerMapBlock,
       reduceBody = innerReduceBlock)
 
-    generate(smf.fMap.body, innerMapBlock)
-    generate(smf.fReduce.body, innerReduceBlock)
+    generate(asf.fMap.body, innerMapBlock)
+    generate(asf.fReduce.body, innerReduceBlock)
 
     (block: MutableExprBlock) += Comment("End SpMemFold")
   }

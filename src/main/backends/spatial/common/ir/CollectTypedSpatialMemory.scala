@@ -9,17 +9,22 @@ final case class TypedMemoryCollection(inputs: Seq[TypedSpatialMemory],
                                        outputs: Seq[TypedSpatialMemory],
                                        intermediates: collection.immutable.Map[
                                          SpatialAddressSpace, Seq[TypedSpatialMemory]]) {
+  private lazy val asFlatSequence: Seq[TypedSpatialMemory] = inputs ++ outputs ++ intermediates.values.flatten
+
   private lazy val varIndexed: collection.immutable.Map[Var, TypedSpatialMemory] =
-    (inputs ++ outputs ++ intermediates.values.flatten).map(typedMem => typedMem.mem.variable -> typedMem).toMap
+    asFlatSequence.map(typedMem => typedMem.mem.variable -> typedMem).toMap
 
   private lazy val memIndexed: collection.immutable.Map[SpatialMemory, TypedSpatialMemory] =
-    (inputs ++ outputs ++ intermediates.values.flatten).map(typedMem => typedMem.mem -> typedMem).toMap
+    asFlatSequence.map(typedMem => typedMem.mem -> typedMem).toMap
 
   def apply(variable: Var): TypedSpatialMemory = varIndexed(variable)
+
   def apply(mem: Memory): TypedSpatialMemory = mem match {
     case sMem: SpatialMemory => memIndexed(sMem)
     case m => throw new IllegalArgumentException(s"Expected SpatialMemory. Got $m")
   }
+
+  def contains(mem: SpatialMemory): Boolean = memIndexed.contains(mem)
 }
 
 object TypedMemoryCollection {
