@@ -148,6 +148,9 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   /**
    * Declares memory all conditions are met:
    * 1. The memory needs materialising
+   * 1.1. Memories not in the collection allTypedMemories do not need materialisation
+   * 1.2. Memories in allTypedMemories with .toBeMaterialised == false do not need materialisation --
+   *      they include body memories of FPatterns that just return the values
    * 2. The memory hasn't been declared yet
    * 3. The memory is not in DRAM address space -- those memories will be allocated by host
    */
@@ -155,7 +158,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
                                       block: MutableExprBlock,
                                       init: Option[AstNode] = None): Unit = {
     val mem = expr.mem.asInstanceOf[SpatialMemory]
-    val memoryNeedsMaterialising = allTypedMemories.contains(mem)
+    val memoryNeedsMaterialising = allTypedMemories.contains(mem) && allTypedMemories(mem).materialised
 
     if (memoryNeedsMaterialising &&
       !allTypedMemories(mem).declared &&
@@ -244,11 +247,19 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   private def generateUserFunCall(u: UserFun,
                                   call: FunCall,
                                   block: MutableExprBlock): MutableExprBlock = {
+    val sMem = SpatialMemory.asSpatialMemory(call.mem)
+    // Sanity check -- the memory being written to has to have been collected
+    assert(allTypedMemories.contains(sMem))
 
     val funcall_node = generateFunCall(call, generateLoadNodes(call.args: _*))
-    val store_node = generateStoreNode(SpatialMemory.asSpatialMemory(call.mem), call.t, call.outputView, funcall_node)
 
-    (block: MutableExprBlock) += store_node
+    if (allTypedMemories(sMem).materialised && !allTypedMemories(sMem).implicitlyWrittenTo)
+      // Generate store
+      (block: MutableExprBlock) += generateStoreNode(sMem, call.t, call.outputView, funcall_node)
+    else
+      // Generate return
+      (block: MutableExprBlock) += funcall_node
+
     block
   }
 

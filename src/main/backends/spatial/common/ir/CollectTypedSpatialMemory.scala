@@ -5,11 +5,13 @@ import ir.{Memory, Type}
 import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Expr, FPattern, FunCall, Iterate, Lambda, Param, UnsafeArrayAccess, UserFun, Value, VectorizeUserFun}
 import lift.arithmetic.Var
 
+import scala.collection.mutable
+
 final case class TypedMemoryCollection(inputs: Seq[TypedSpatialMemory],
                                        outputs: Seq[TypedSpatialMemory],
                                        intermediates: collection.immutable.Map[
                                          SpatialAddressSpace, Seq[TypedSpatialMemory]]) {
-  private lazy val asFlatSequence: Seq[TypedSpatialMemory] = inputs ++ outputs ++ intermediates.values.flatten
+  lazy val asFlatSequence: Seq[TypedSpatialMemory] = inputs ++ outputs ++ intermediates.values.flatten
 
   private lazy val varIndexed: collection.immutable.Map[Var, TypedSpatialMemory] =
     asFlatSequence.map(typedMem => typedMem.mem.variable -> typedMem).toMap
@@ -44,8 +46,11 @@ object CollectTypedSpatialMemory {
 
 private class CollectTypedSpatialMemory(val lambda: Lambda) {
 
+  private var nonMaterialMems: mutable.Set[Memory] = mutable.Set.empty
+  private var implicitlyWrittenToMems: mutable.Set[Memory] = mutable.Set.empty
+
   private def apply(): TypedMemoryCollection = {
-    val inputs = lambda.params.map(TypedSpatialMemory(_))
+    val inputs = lambda.params.map(p => TypedSpatialMemory(p))
 
     val (intermediates, output) = {
       val memories = distinct(collectIntermediateMemories(lambda.body))
@@ -61,7 +66,14 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
         output)
     }
 
-    TypedMemoryCollection(inputs.sortBy(_.mem.variable.name), Seq(output), intermediates)
+    val collection = TypedMemoryCollection(inputs.sortBy(_.mem.variable.name), Seq(output), intermediates)
+
+    // Mark memories that don't need materialisation as such
+    collection.asFlatSequence.foreach(tm => if (nonMaterialMems.contains(tm.mem)) tm.materialised = false)
+    // Mark memories that are implicitly written to
+    collection.asFlatSequence.foreach(tm => if (implicitlyWrittenToMems.contains(tm.mem)) tm.implicitlyWrittenTo = true)
+
+    collection
   }
 
   /**
@@ -106,9 +118,9 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
       case _: UserFun             => collectValueOrUserFunMemory(call)
       case _: VectorizeUserFun    => throw new NotImplementedError()
       case l: Lambda              => collectIntermediateMemories(l.body)
-      case sF: SpForeach          => collectSpForeach(call.t, sF)
+      case sF: SpForeach          => collectSpForeach(call.t, sF, call)
       case m: AbstractMap         => collectMap(call.t, m)
-      case aSF: AbstractSpFold    => collectSpFold(aSF, argumentMemories)
+      case aSF: AbstractSpFold    => collectSpFold(aSF, argumentMemories, call)
       case r: AbstractPartRed     => throw new NotImplementedError()
       case _: UnsafeArrayAccess   => Seq(TypedSpatialMemory(call))
       case _: CheckedArrayAccess  => Seq(TypedSpatialMemory(call))
@@ -121,18 +133,26 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
   }
 
 
-  private def collectSpForeach(t: Type, sF: SpForeach) = {
-    collectIntermediateMemories(sF.f.body)
+  private def collectSpForeach(t: Type, sf: SpForeach, call: FunCall) = {
+    nonMaterialMems += call.mem
+    collectIntermediateMemories(sf.f.body)
   }
 
   private def collectMap(t: Type, map: AbstractMap) = {
     collectIntermediateMemories(map.f.body)
   }
   
-  private def collectSpFold(aSF: AbstractSpFold,
-                            argumentMemories: Seq[TypedSpatialMemory]) = {
+  private def collectSpFold(asf: AbstractSpFold,
+                            argumentMemories: Seq[TypedSpatialMemory],
+                            call: FunCall) = {
+    // The memory of the implicit map is not materialised by default
+    nonMaterialMems += asf.fMapMem
+    // The memory written to by the reduce is to be materialised even if it marked as non-material before
+    nonMaterialMems -= call.mem
+    // The memory is written to by the reduce implicitly -- we don't need to generate stores
+    implicitlyWrittenToMems += call.mem
 
-    val memories = collectIntermediateMemories(aSF.fMap.body) ++ collectIntermediateMemories(aSF.fReduce.body)
+    val memories = collectIntermediateMemories(asf.fMap.body) ++ collectIntermediateMemories(asf.fReduce.body)
 
     removeParameterAndArgumentDuplicates(memories, argumentMemories)
   }

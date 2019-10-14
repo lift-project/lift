@@ -166,15 +166,13 @@ object SpatialMemoryAllocator {
       case coll: SpatialMemoryCollection =>
         val initM = coll.subMemories(0)
 
-        val mapOutputType = asf.fMapT
-
         asf.fMap.params(0).mem = coll.subMemories(1)
         // fMap body memory will be referred to by fReduce, but will not be allocated --
         // Spatial will pass the results of fMap to fReduce by value
-        val mapBodyMem = alloc(asf.fMap.body, mapOutputType)
+        asf.fMapMem = alloc(asf.fMap.body, asf.fMapT)
 
         asf.fReduce.params(0).mem = initM
-        asf.fReduce.params(1).mem = mapBodyMem
+        asf.fReduce.params(1).mem = asf.fMapMem
 
         val reduceBodyM = alloc(asf.fReduce.body, outMemT)
 

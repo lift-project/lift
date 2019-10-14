@@ -171,17 +171,29 @@ object SpatialMemory {
 }
 
 /**
- * Represents a SpatialMemory object combined with the type of the writes to the memory object,
- * i.e. the type of UserFun that writes to memory or Value that it is initialised with.
- * For example, in "Map(add(_, 2)) $ (X: ArrayType(Float, N))", the memory object written to
- * by add has type ArrayType(_, N), but the write type is Float.
- * The write type can be non-scalar for batch functions or multidimensional Values
+ * Represents a SpatialMemory object combined with some metadata additional to the one stored by SpatialMemory.
+ * This includes:
+ * 1. Whether the memory has been declared yet during code generation
+ * 2. The type of the writes to the memory object,
+ *    i.e. the type of UserFun that writes to memory or Value that it is initialised with.
+ *    For example, in "Map(add(_, 2)) $ (X: ArrayType(Float, N))", the memory object written to
+ *    by add has type ArrayType(_, N), but the write type is Float.
+ *    The write type can be non-scalar for batch functions or multidimensional Values
+ * 3. Whether the memory requires materialisation. The memories of the map bodies of FPatterns such as
+ *    SpForeach/SpFold/SpReduce do not require materialisation unless they are written to more than
+ *    once (in reduction accumulator).
+ *    The memories of the map bodies of FPatterns such as SpMemReduce and SpMemFold always require materialisation.
+ * 4. Whether the writes to the memory are implicit such as in the case of the Reduce accumulator, which is
+ *    declared (materialised), but not assigned values to explicitly.
  *
  * @constructor Create a new TypedSpatialMemory object
  * @param mem The underlying memory object
  * @param writeT The type of each write to the memory object
+ * @param materialised Whether this memory requires materialisation
   */
-case class TypedSpatialMemory(mem: SpatialMemory, writeT: Type) {
+case class TypedSpatialMemory(mem: SpatialMemory, writeT: Type,
+                              var materialised: Boolean,
+                              var implicitlyWrittenTo: Boolean) {
   lazy val lengths: Seq[ArithExpr] = Type.getAllocatedLengths(writeT)
 
   var declared: Boolean = false
@@ -190,11 +202,11 @@ case class TypedSpatialMemory(mem: SpatialMemory, writeT: Type) {
 }
 
 object TypedSpatialMemory {
-  def apply(expr: Expr): TypedSpatialMemory = {
-    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(expr.mem), expr.t)
+  def apply(expr: Expr, materialised: Boolean = true, implicitlyWrittenTo: Boolean = false): TypedSpatialMemory = {
+    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(expr.mem), expr.t, materialised, implicitlyWrittenTo)
   }
 
-  def apply(mem: Memory, t: Type): TypedSpatialMemory = {
-    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(mem), t)
+  def apply(mem: Memory, t: Type, materialised: Boolean, implicitlyWrittenTo: Boolean): TypedSpatialMemory = {
+    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(mem), t, materialised, implicitlyWrittenTo)
   }
 }
