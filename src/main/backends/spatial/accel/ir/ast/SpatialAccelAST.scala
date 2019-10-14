@@ -1,9 +1,9 @@
-package backends.spatial.accel.generator
+package backends.spatial.accel.ir.ast
 
 import backends.spatial.common.SpatialAST.SpatialAddressSpaceOperator
 import backends.spatial.common.ir.{RegMemory, SRAMMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
-import core.generator.GenericAST.{ArithExpression, ArithExpressionT, AstNode, CVar, ExpressionT, MutableExprBlockT, Pipe, StatementT, VarDeclT, VarRefT, VarT}
+import core.generator.GenericAST._
 import core.generator.PrettyPrinter._
 import ir.{ArrayType, Type}
 import lift.arithmetic.ArithExpr

@@ -1,7 +1,7 @@
 package backends.spatial.common.ir.view
 
-import backends.spatial.accel.generator.SpatialAccelAST
-import backends.spatial.accel.generator.SpatialAccelAST.AddressorT
+import backends.spatial.accel.ir.ast.SpatialAccelAST
+import backends.spatial.accel.ir.ast.SpatialAccelAST.AddressorT
 import core.generator.GenericAST
 import core.generator.GenericAST.ArithExpression
 import lift.arithmetic.{ArithExpr, RangeAdd}

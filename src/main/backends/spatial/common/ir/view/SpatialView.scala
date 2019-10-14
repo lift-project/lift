@@ -1,6 +1,6 @@
 package backends.spatial.common.ir.view
 
-import backends.spatial.accel.generator.SpatialAccelAST.NDVarSlicedRef
+import backends.spatial.accel.ir.ast.SpatialAccelAST.NDVarSlicedRef
 import backends.spatial.common.ir.{AddressSpaceCollection, RegMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
 import core.generator.GenericAST.{ArithExpression, ExpressionT}

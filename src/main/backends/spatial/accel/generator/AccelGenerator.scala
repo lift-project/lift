@@ -1,6 +1,7 @@
 package backends.spatial.accel.generator
 
-import backends.spatial.accel.generator.SpatialAccelAST._
+import backends.spatial.accel.ir.ast.SpatialAccelAST
+import backends.spatial.accel.ir.ast.SpatialAccelAST._
 import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, toDRAM, toReg, toSRAM}
 import backends.spatial.common.Printer
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpatialCode}
