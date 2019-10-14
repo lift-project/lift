@@ -1,18 +1,11 @@
 package backends.spatial.generator
 
-import backends.{Backend, c, spatial}
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
-import backends.spatial.accel
-import backends.spatial.accel.ir.pattern.{SpFold, SpForeach, SpMemFold, toDRAM, toSRAM}
-import backends.spatial.host
-import backends.spatial.host.ir.ast.AccelFun
+import backends.{Backend, c, spatial}
 import ir._
 import ir.ast._
 import ir.ast.debug.AssertType
-import opencl.executor.{Execute, TestWithExecutor}
-import opencl.ir._
-import opencl.ir.ast._
-import opencl.ir.pattern._
+import opencl.executor.TestWithExecutor
 import org.junit.Assert._
 import org.junit.Test
 
@@ -22,6 +15,8 @@ class InnerProduct {
 
   @Test
   def openclDotProduct(): Unit = {
+    import opencl.ir._
+    import opencl.ir.pattern._
 
     val N = 16
     val input: Array[Float] = (0 until N).toArray.map(_.toFloat)
@@ -68,6 +63,8 @@ class InnerProduct {
 
   @Test
   def openclDotProductTiled(): Unit = {
+    import opencl.ir._
+    import opencl.ir.pattern._
 
     val N = 16
 
@@ -123,6 +120,8 @@ class InnerProduct {
 
   @Test
   def spatialDotProduct(): Unit = {
+    import backends.spatial.common.ir._
+    import backends.spatial.host
 
     val N = 1024
     val input: Array[Float] = (0 until 16).toArray.map(_.toFloat)
@@ -130,14 +129,15 @@ class InnerProduct {
 
     val commonCodeOutputPath = System.getProperty("user.dir") + "/src/test/backends.spatial/host"
 
-    val scalarDotLambda: Lambda = fun(
-      ArrayType(Float, N),
-      ArrayType(Float, N),
-      (x, y) =>
-        toGlobal(MapSeq(id)) o
-          ReduceSeq(add, 0.0f) o
-          MapSeq(mult) $ Zip(x, y)
-    )
+    val scalarDotLambda: Lambda = null
+//      fun(
+//      ArrayType(Float, N),
+//      ArrayType(Float, N),
+//      (x, y) =>
+//        toGlobal(MapSeq(id)) o
+//          ReduceSeq(add, 0.0f) o
+//          MapSeq(mult) $ Zip(x, y)
+//    )
 
     val expectedOutCode = """
        Accel {
@@ -168,6 +168,10 @@ class InnerProduct {
 
   @Test
   def spatialDotProductTiled(): Unit = {
+    import backends.spatial.accel.ir._
+    import backends.spatial.accel.ir.pattern.{SpFold, toSRAM}
+    import backends.spatial.common.ir._
+    import backends.spatial.host.ir.ast.AccelFun
     Backend.setSpatial()
 
     val N = 1024
@@ -234,6 +238,10 @@ class InnerProduct {
 
   @Test
   def spatialGEMMTiled(): Unit = {
+    import backends.spatial.accel.ir.pattern.{SpForeach, SpMemFold, toDRAM, toSRAM}
+    import backends.spatial.common.ir._
+    import backends.spatial.accel.ir._
+
     val M = 128
     val P = 64
     val N = 96
