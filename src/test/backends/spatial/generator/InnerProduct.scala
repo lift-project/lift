@@ -88,6 +88,11 @@ class InnerProduct {
           ReduceSeq(add, 0.0f) o
           Join() o
           MapSeq(fun(tile =>
+            // Similar to the Spatial example
+//            ReduceSeq(add, /*toGlobal(id) $ */0.0f) o MapSeq(mult) o
+//              toLocal(MapSeq(fun(p => Tuple(id(p._0), id(p._1))))) $ tile)) o
+            // Functionally correct (there is a bug in the compiler to do with overwriting the accumulator on each
+            // iteration of the outer MapSeq
             ReduceSeq(add, toGlobal(id) $ 0.0f) o MapSeq(mult) $ tile)) o
           Split(tileSize) $ Zip(a, b)
     )

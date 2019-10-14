@@ -83,9 +83,9 @@ object SpatialAccelAST {
       val accessD = arrayAddressors match {
         case None => empty
         case Some(Nil) => throw new IllegalArgumentException("Expected at least one array addressor. Got none")
-        case Some(singleAccessor :: Nil) => "[" <> singleAccessor.print <> "]"
+        case Some(singleAccessor :: Nil) => "(" <> singleAccessor.print <> ")"
         case Some(firstAccessor :: remainingAccessors) =>
-          remainingAccessors.foldLeft("[" <> firstAccessor.print)(_ <> _.print) <> "]"
+          remainingAccessors.foldLeft("(" <> firstAccessor.print)(_ <> ", " <> _.print) <> ")"
       }
 
       val suffixD = suffix match {
@@ -147,7 +147,8 @@ object SpatialAccelAST {
         (t match {
           case _: ArrayType =>
             addressSpace match {
-              case RegMemory => throw new NotImplementedException() // TODO: unroll Reg memory
+              case RegMemory =>
+                throw new NotImplementedException() // TODO: unroll Reg memory
               case SRAMMemory =>
                 val baseType = Type.getBaseType(t)
                 val bufferDimensions = Type.getLengths(t).dropRight(1) // Remove the extra dimension for the scalar base type

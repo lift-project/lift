@@ -91,12 +91,7 @@ object InferSpatialAddressSpace {
   private def setAddressSpaceFold(asf: AbstractSpFold, call: FunCall,
                                   writeTo: SpatialAddressSpace,
                                   argAddressSpaces: Seq[SpatialAddressSpace]): SpatialAddressSpace = {
-
-    // The address space of the result of the map is the same as
-    // that of its argument (the second argument of the Fold)
-    val mapWriteTo = inferAddressSpace(writeTo, argAddressSpaces)
-
-    setAddressSpaceLambda(asf.fMap, mapWriteTo, argAddressSpaces)
+    setAddressSpaceLambda(asf.fMap, writeTo, Seq(argAddressSpaces(1)))
 
     // First argument is the initial value
     if (call.args.head.addressSpace == UndefAddressSpace)
