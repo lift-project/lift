@@ -10,7 +10,7 @@ import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice, SpatialVie
 import backends.spatial.common.ir.{AddressSpaceCollection, DRAMMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, TypedMemoryCollection, UndefAddressSpace}
 import core.generator.GenericAST._
 import ir._
-import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, Filter, FunCall, Gather, Get, Head, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
+import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
 import ir.view.View
 import lift.arithmetic._
 
@@ -98,12 +98,15 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
           case u: UserFun             => generateUserFunCall(u, call, block)
 
+          case fp: FPattern           => generate(fp.f.body, block)
+          case l: Lambda              => generate(l.body, block)
+
           case toReg(_) | toSRAM(_) | toDRAM(_) |
                Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
                Split(_) | Join() | Slide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
                Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
                ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) |
-               RewritingGuidePost(_) =>
+               RewritingGuidePost(_)  =>
 
           case _                      => throw new NotImplementedError()
         }
@@ -230,7 +233,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     val counter = List(Counter(
       ArithExpression(getRangeAdd(asf.mapLoopVar).start),
       ArithExpression(getRangeAdd(asf.mapLoopVar).stop),
-      ArithExpression(asf.stride),
+      ArithExpression(getRangeAdd(asf.mapLoopVar).step),
       ArithExpression(asf.factor)))
     val iterVars = List(CVar(asf.mapLoopVar))
 

@@ -55,8 +55,8 @@ case class Slice(start: ArithExpr, step: ArithExpr, end: ArithExpr) extends Arra
   def startIdx: Index = Index(start)
   def +(that: ArithExpr): Slice = Slice(start + that, step, end + that)
   def +(that: Index): Slice = Slice(start + that.ae, step, end + that.ae)
-  def *(that: ArithExpr): Slice = Slice(start * that, step, start * that + (start - end))
-  def *(that: Index): Slice = Slice(start * that.ae, step, start * that.ae + (start - end))
+  def *(that: ArithExpr): Slice = Slice(start * that, step, start * that + (end - start))
+  def *(that: Index): Slice = Slice(start * that.ae, step, start * that.ae + (end - start))
 
   override def visitAndRebuild(f: ArithExpr => ArithExpr): ArrayAddressor =
     Slice(start.visitAndRebuild(f), step.visitAndRebuild(f), end.visitAndRebuild(f))

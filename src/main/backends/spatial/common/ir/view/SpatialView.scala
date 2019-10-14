@@ -8,7 +8,7 @@ import ir.Type.size_t
 import ir.ast.{Expr, Lambda}
 import ir.{ArrayType, ArrayTypeWC, ArrayTypeWS, Capacity, ScalarType, Size, TupleType, Type, VectorType}
 import ir.view.{InputView, OutputView, SizeIndex, View, View2DGeneratorUserFun, View3DGeneratorUserFun, ViewAccess, ViewArrayWrapper, ViewAsScalar, ViewAsVector, ViewConcat, ViewConstant, ViewFilter, ViewGenerator, ViewHead, ViewJoin, ViewMap, ViewMem, ViewOffset, ViewPad, ViewPadConstant, ViewReorder, ViewSize, ViewSlide, ViewSplit, ViewTail, ViewTranspose, ViewTuple, ViewTupleComponent, ViewUnzip, ViewZip}
-import lift.arithmetic.{ArithExpr, Var}
+import lift.arithmetic.{ArithExpr, RangeAdd, Var}
 
 import scala.collection.immutable
 
@@ -83,7 +83,20 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
         emitView(iv, (addr + offset) :: addressors,tupleAccessStack)
 
       case ViewAccess(i, iv, _) =>
-        emitView(iv, Index(i) :: arrayAccessStack, tupleAccessStack)
+        // For strided iterator, add division by step with the expectation that further down
+        // the View tree we will encounter Split or Slide that will add multiplication by step
+        // and thus cancel the step coefficient.
+        // This is to express the strided iteration of Spatial Foreach, Fold and Reduce, where
+        // we want to iterate from (0 to N by step) instead of from (0 to N/step) and multiplying
+        // the iterator by step inside the loop body.
+        // The strided range is introduced in RangesAndCountsSp().
+        val newAddressor = i match {
+          case Var(_, RangeAdd(_, _, step)) if ArithExpr.isSmaller(1, step).getOrElse(false) =>
+            Index(i /^ step)
+
+          case _ => Index(i)
+        }
+        emitView(iv, newAddressor :: arrayAccessStack, tupleAccessStack)
 
       case ViewArrayWrapper(iv, _) =>
         val _ :: addressors = arrayAccessStack
@@ -201,7 +214,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
 
       case ViewPad(iv, left, _, padFun, _) =>       throw new NotImplementedError()
       case ViewPadConstant(iv, left, _,
-      constant, _) =>          throw new NotImplementedError()
+      constant, _) =>                               throw new NotImplementedError()
       case ViewConstant(value, _) =>                GenericAST.RawCode(value.value)
       case ViewSize(iv) =>
         assert(arrayAccessStack.isEmpty)
@@ -382,7 +395,7 @@ object SpatialViewPrinter {
     val arrayAccessStack: List[Slice] = view.t match {
 
       case at: ArrayType with Size =>
-        Type.getLengths(at).map(Slice.continuous).toList
+        Type.getLengths(at).dropRight(1).map(Slice.continuous).toList
 
       case ArrayType(_) => throw new IllegalArgumentException(
         "Cannot emit sliced access to an array without a statically known size")
@@ -390,6 +403,7 @@ object SpatialViewPrinter {
       case _ => List() // Scalar access
     }
 
-    vp.emitView(view.replaced(replacements), arrayAccessStack, List())
+    val a = vp.emitView(view.replaced(replacements), arrayAccessStack, List())
+    a
   }
 }
