@@ -5,12 +5,20 @@ import backends.spatial.common.ir.{RegMemory, SRAMMemory, SpatialAddressSpace, U
 import core.generator.GenericAST
 import core.generator.GenericAST._
 import core.generator.PrettyPrinter._
-import ir.{ArrayType, Type}
+import ir.{ArrayTypeWS, Type}
 import lift.arithmetic.ArithExpr
-import sun.reflect.generics.reflectiveObjects.NotImplementedException
-import utils.Printer
+import backends.spatial.common.Printer
 
 object SpatialAccelAST {
+  /**
+   * Determines whether to generate dot or infix notation in Scala.
+   * In dot notation, method calls are expressed as "this.f(that)".
+   * For example, the plus operation would be expressed as "this.+(that)".
+   * In infix (prefix) notation, method calls with two or one arguments are
+   * expressed as "this f that" or "this f" respectively.
+   * At this point, the difference is cosmetic.
+   */
+  val infixNotation: Boolean = true
 
   /**
    * Array addressor such as an index or a slice
@@ -62,7 +70,7 @@ object SpatialAccelAST {
   /**
    * A reference to a declared variable that supports multidimensional and sliced array reference
    */
-  trait NDVarSlicedRefT extends VarRefT {
+  trait VarSlicedRefT extends VarRefT {
     val v: CVar
     val suffix: Option[String]
     val arrayAddressors: Option[List[AddressorT]]
@@ -97,12 +105,12 @@ object SpatialAccelAST {
     }
   }
 
-  case class NDVarSlicedRef(v: CVar,
-                            suffix: Option[String] = None,
-                            arrayAddressors: Option[List[AddressorT]] = None) extends NDVarSlicedRefT {
+  case class VarSlicedRef(v: CVar,
+                          suffix: Option[String] = None,
+                          arrayAddressors: Option[List[AddressorT]] = None) extends VarSlicedRefT {
 
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      NDVarSlicedRef(
+      VarSlicedRef(
         v.visitAndRebuild(pre, post).asInstanceOf[CVar], suffix,
         arrayAddressors match {
           case Some(addressors) => Some(addressors.map(_.visitAndRebuild(pre, post).asInstanceOf[AddressorT]))
@@ -143,25 +151,30 @@ object SpatialAccelAST {
     }
 
     override def print(): Doc = {
-      "val" <+> Printer.toString(v.v) <+> "=" <+>
         (t match {
-          case _: ArrayType =>
+          case ArrayTypeWS(_, size) =>
             addressSpace match {
-              case RegMemory =>
-                throw new NotImplementedException() // TODO: unroll Reg memory
               case SRAMMemory =>
                 val baseType = Type.getBaseType(t)
                 val bufferDimensions = Type.getLengths(t).dropRight(1) // Remove the extra dimension for the scalar base type
 
-                s"$addressSpace[${Printer.toString(baseType)}]" <>
+                "val" <+> Printer.toString(v.v) <+> "=" <+>
+                  s"${Printer.toString(addressSpace)}[${Printer.toString(baseType)}]" <>
                   "(" <> bufferDimensions.map(Printer.toString).map(text).reduce(_ <> ", " <> _) <> ")"
+              case RegMemory =>
+                // Unroll register memory
+                stack(List.tabulate(size.evalInt)(i => {
+                  "val" <+> Printer.toString(v.v) <> "_" <> Printer.toString(i)  <+> "=" <+>
+                    s"${Printer.toString(addressSpace)}[${Printer.toString(Type.getValueType(t))}]" }))
+
               case _ => throw new NotImplementedError()
             }
 
           case _ =>
             val baseType = Type.getBaseType(t)
 
-            s"$addressSpace[${Printer.toString(baseType)}]" <>
+            "val" <+> Printer.toString(v.v) <+> "=" <+>
+              s"$addressSpace[${Printer.toString(baseType)}]" <>
               ((addressSpace, init) match {
                 case (RegMemory, Some(initNode)) => "(" <> initNode.print() <> ")"
                 case (RegMemory, None) => empty
@@ -355,6 +368,40 @@ object SpatialAccelAST {
       counter.foreach(_.visitBy(pre, post))
       iterVars.foreach(_.visitBy(pre, post))
       body.visitBy(pre, post)
+    }
+  }
+
+  /**
+   * A load from a DRAM variable into a local variable
+   */
+  trait SpLoadT extends StatementT {
+    val src: AstNode
+    val target: VarSlicedRef
+
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (visitFun(_, src)) |>
+        (visitFun(_, target))
+    }
+
+    override def print(): Doc = {
+        target.print() <> (if (infixNotation) " " else ".") <>
+        "load" <> (if (infixNotation) " " else ".(") <>
+          src.print() <> (if (infixNotation) "" else ")")
+    }
+  }
+
+  case class SpLoad(src: AstNode,
+                    target: VarSlicedRef) extends SpLoadT {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      SpLoad(src.visitAndRebuild(pre, post),
+        target.visitAndRebuild(pre, post).asInstanceOf[VarSlicedRef])
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      src.visitBy(pre, post)
+      target.visitBy(pre, post)
     }
   }
 }
