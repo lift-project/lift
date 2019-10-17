@@ -91,16 +91,18 @@ object InferSpatialAddressSpace {
   private def setAddressSpaceFold(asf: AbstractSpFold, call: FunCall,
                                   writeTo: SpatialAddressSpace,
                                   argAddressSpaces: Seq[SpatialAddressSpace]): SpatialAddressSpace = {
-    setAddressSpaceLambda(asf.fMap, writeTo, Seq(argAddressSpaces(1)))
+    val accumulatorAddressSpace = call.args.head.addressSpace
+
+    val fMapAddressSpace = setAddressSpaceLambda(asf.fMap, accumulatorAddressSpace, Seq(argAddressSpaces(1)))
 
     // First argument is the initial value
     if (call.args.head.addressSpace == UndefAddressSpace)
       throw UnexpectedAddressSpaceException(s"No address space ${call.args.head.addressSpace} at $call")
 
     // The address space of the result of a reduction is always the same as the initial element
-    val foldWriteTo = call.args.head.addressSpace
+    val foldWriteTo = accumulatorAddressSpace
 
-    setAddressSpaceLambda(asf.fReduce, foldWriteTo, argAddressSpaces)
+    setAddressSpaceLambda(asf.fReduce, foldWriteTo, Seq(argAddressSpaces.head, fMapAddressSpace))
   }
 
   private def setAddressSpaceLambda(l: Lambda, writeTo: SpatialAddressSpace,
@@ -124,7 +126,6 @@ object InferSpatialAddressSpace {
     setAddressSpaceLambda(lambda, addressSpace, argAddressSpaces)
   }
 
-  // TODO: Decide if this strategy is the one we want. See issue #61
   private def inferAddressSpace(writeTo: SpatialAddressSpace,
                                 argAddressSpaces: Seq[SpatialAddressSpace]) = {
 
