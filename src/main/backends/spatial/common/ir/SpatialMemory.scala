@@ -146,7 +146,7 @@ object SpatialMemory {
 
   def containsDRAMMemory(mem: Memory): Boolean = containsAddressSpace(mem, DRAMMemory)
   def containsSRAMMemory(mem: Memory): Boolean = containsAddressSpace(mem, SRAMMemory)
-  def containsRegMemory(mem: Memory): Boolean  = containsAddressSpace(mem, RegMemory)
+  def containsRegMemory(mem: Memory): Boolean = containsAddressSpace(mem, RegMemory)
 
   /**
     * Return newly allocated memory of `t.size` elements in `addressSpace`
