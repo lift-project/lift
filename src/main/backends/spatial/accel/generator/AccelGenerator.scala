@@ -4,7 +4,8 @@ import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
 import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, toDRAM, toReg, toSRAM}
 import backends.spatial.common.Printer
-import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpatialCode}
+import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
+import backends.spatial.common.generator.SpatialArithmeticMethod
 import backends.spatial.common.ir.ast.SpatialBuiltInFun
 import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice, SpatialViewPrinter}
 import backends.spatial.common.ir.{AddressSpaceCollection, DRAMMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, TypedMemoryCollection, UndefAddressSpace}
@@ -13,6 +14,7 @@ import ir._
 import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
 import ir.view.View
 import lift.arithmetic._
+import opencl.generator.PerformLoopOptimisation
 
 import scala.collection.immutable
 
@@ -21,7 +23,9 @@ object AccelGenerator {
   def apply(f: Lambda, allTypedMemories: TypedMemoryCollection): ExprBlock =
     (new SpatialGenerator(allTypedMemories)).generate(f)
 
-  def createFunctionDefinition(uf: UserFun): ExprBasedFunction = {
+  def createFunctionDefinition(uf: UserFun,
+                               argAddressSpaces: Seq[AddressSpace],
+                               retAddressSpace: AddressSpace): ExprBasedFunction = {
     val block = MutableExprBlock()
     if (uf.tupleTypes.length == 1)
       throw new NotImplementedError()
@@ -33,8 +37,9 @@ object AccelGenerator {
     ExprBasedFunction(
       name = uf.name,
       ret = uf.outT,
-      params = (uf.inTs, uf.paramNames).
-        zipped.map((t, n) => ParamDecl(n, t)).toList,
+      addressSpace = retAddressSpace,
+      params = (uf.inTs, uf.paramNames, argAddressSpaces).
+        zipped.map((t, n, as) => SpParamDecl(n, t, as)).toList,
       body = block)
   }
 }
@@ -44,9 +49,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
   type SymbolTable = immutable.Map[Var, Type]
 
-  //  TODO: fill replacements in unrolled loop generation
-  private var replacements: ValueTable = immutable.Map.empty
-  private var replacementsWithFuns: ValueTable = immutable.Map.empty
+  private var replacementsOfIteratorsWithValues: ValueTable = immutable.Map.empty
+  private var replacementsOfIteratorsWithValuesWithFuns: ValueTable = immutable.Map.empty
 
   def generate(f: Lambda): ExprBlock = {
     // Initialise the block
@@ -54,7 +58,6 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
     // Find and generate user functions
     generateUserFunctions(f.body).foreach(accelBlock += _)
-
 
     // Generate the main part of the block
     generate(f.body, accelBlock)
@@ -84,7 +87,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
             call.f match {
               case _: Map             =>
               case m: MapSeq          => generateMapSeqCall(m, call, block)
-              case sf: SpForeach      => generateSpForeachCall(sf, call, block)
+              case sf: SpForeach      => generateForeachCall(sf, call, block)
               case _                  => throw new NotImplementedError()
             }
 
@@ -93,8 +96,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
             // it from the input's header to the output's header.
             propagateDynamicArraySize(call, block)
 
-          case sf: SpFold             => generateAbstrSpFoldCall(sf, call, block)
-          case smf: SpMemFold         => generateAbstrSpFoldCall(smf, call, block)
+          case sf: SpFold             => generateFoldCall(sf, call, block)
+          case smf: SpMemFold         => generateFoldCall(smf, call, block)
 
           case u: UserFun             => generateUserFunCall(u, call, block)
 
@@ -148,6 +151,30 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     }
   }
 
+  private def generateStatement(block: MutableExprBlock,
+                                indexVar: Var,
+                                generateBody: (MutableExprBlock) => Unit, init: ArithExpression): Unit = {
+    // one iteration
+    (block: MutableExprBlock) += Comment("iteration count is exactly 1, no loop emitted")
+    val innerBlock = MutableExprBlock(Vector.empty)
+
+    innerBlock += SpatialVarDecl(v = indexVar, t = opencl.ir.Int, init = Some(init), addressSpace = RegMemory)
+    generateBody(innerBlock)
+
+    (block: MutableExprBlock) += innerBlock
+  }
+
+  private def generateIfStatement(block: MutableExprBlock, indexVar: Var, generateBody: (MutableExprBlock) => Unit,
+                                  init: ArithExpression, stop: ArithExpr): Unit = {
+    (block: MutableExprBlock) += Comment("iteration count is exactly 1 or less, no loop emitted")
+    val innerBlock = MutableExprBlock(Vector.empty)
+    innerBlock += SpatialVarDecl(v = indexVar, t = opencl.ir.Int, init = Some(init), addressSpace = RegMemory)
+    (block: MutableExprBlock) += SpIfThenElse(
+      BinaryExpression(init, BinaryExpressionT.Operator.<, ArithExpression(stop)),
+      trueBody = innerBlock, falseBody = MutableExprBlock())
+    generateBody(innerBlock)
+  }
+
   /**
    * Declares memory all conditions are met:
    * 1. The memory needs materialising
@@ -182,45 +209,21 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
                                  call: FunCall,
                                  block: MutableExprBlock): Unit = {
     (block: MutableExprBlock) += Comment("map_seq")
-
-    val innerBlock = MutableExprBlock(Vector.empty, encapsulated = false)
-
-    (block: MutableExprBlock) += SpatialAccelAST.Foreach(
-      counter = List(Counter(
-        ArithExpression(getRangeAdd(m.loopVar).start),
-        ArithExpression(getRangeAdd(m.loopVar).stop),
-        ArithExpression(1), ArithExpression(1))),
-      iterVars = List(m.loopVar),
-      body = innerBlock)
-
-    generate(m.f.body, innerBlock)
-
+    generateForeach(block, call.args.head, m.loopVar, Cst(1), generate(m.f.body, _), m.shouldUnroll)
     (block: MutableExprBlock) += Comment("end map_seq")
   }
-
-  private def generateSpForeachCall(sf: SpForeach,
-                                    call: FunCall,
-                                    block: MutableExprBlock): Unit = {
-    // TODO: add unrolled Foreach generation
-    // TODO: optimise loop generation. See OpenCLGenerator.generateOptimizedForLoopRepresentations
-
-    val innerBlock = MutableExprBlock(Vector.empty, encapsulated = false)
-
-    (block: MutableExprBlock) += SpatialAccelAST.Foreach(
-      counter = List(Counter(
-        ArithExpression(getRangeAdd(sf.loopVar).start),
-        ArithExpression(getRangeAdd(sf.loopVar).stop),
-        ArithExpression(sf.stride),
-        ArithExpression(sf.factor))),
-      iterVars = List(sf.loopVar),
-      body = innerBlock)
-
-    generate(sf.f.body, innerBlock)
+  
+  private def generateForeachCall(sf: SpForeach,
+                                  call: FunCall,
+                                  block: MutableExprBlock): Unit = {
+    (block: MutableExprBlock) += Comment("foreach")
+    generateForeach(block, call.args.head, sf.loopVar, sf.factor, generate(sf.f.body, _), sf.shouldUnroll)
+    (block: MutableExprBlock) += Comment("end foreach")
   }
 
-  private def generateAbstrSpFoldCall(asf: AbstractSpFold,
-                                      call: FunCall,
-                                      block: MutableExprBlock): Unit = {
+  private def generateFoldCall(asf: AbstractSpFold,
+                               call: FunCall,
+                               block: MutableExprBlock): Unit = {
     // TODO: add unrolled Fold generation
     // TODO: optimise loop generation. See OpenCLGenerator.generateOptimizedForLoopRepresentations
 
@@ -247,6 +250,112 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     generate(asf.fReduce.body, innerReduceBlock)
   }
 
+  private def generateForeach(block: MutableExprBlock,
+                              array: Expr,
+                              indexVar: Var,
+                              parFactor: ArithExpr,
+                              generateBody: (MutableExprBlock) => Unit,
+                              needUnroll: Boolean = false): Unit = {
+    // if we need to unroll (e.g. because of access to register memory)
+    if (needUnroll) generateForeachUnrolled(block, indexVar, generateBody)
+    else {
+      if (PerformLoopOptimisation())
+        generateOptimizedForeachRepresentations(block, array, indexVar, parFactor, generateBody)
+      else
+        generateDefaultForeachRepresentation(block, array, indexVar, parFactor, generateBody)
+    }
+  }
+
+  private def generateForeachUnrolled(block: MutableExprBlock,
+                                      indexVar: Var,
+                                      generateBody: (MutableExprBlock) => Unit): Unit = {
+    val range = getRangeAdd(indexVar)
+    val iterationCount = getIterationCount(range)
+
+    if (iterationCount > 0) {
+      (block: MutableExprBlock) += Comment("unroll")
+
+      for (i <- 0 until iterationCount) {
+        replacementsOfIteratorsWithValues = replacementsOfIteratorsWithValues.updated(indexVar, i)
+        val j: ArithExpr = range.min match {
+          case _: SpatialArithmeticMethod => range.min + range.step * i
+          case _                          => i
+        }
+        replacementsOfIteratorsWithValuesWithFuns = replacementsOfIteratorsWithValuesWithFuns.updated(indexVar, j)
+        generateBody(block)
+      }
+      // cleanup
+      replacementsOfIteratorsWithValues = replacementsOfIteratorsWithValues - indexVar
+      replacementsOfIteratorsWithValuesWithFuns = replacementsOfIteratorsWithValuesWithFuns - indexVar
+
+      (block: MutableExprBlock) += Comment("end unroll")
+    } else
+      throw new AccelGeneratorException(s"Trying to unroll loop, but iteration count is $iterationCount.")
+  }
+
+  private def generateOptimizedForeachRepresentations(block: MutableExprBlock,
+                                                      argArray: Expr,
+                                                      indexVar: Var,
+                                                      parFactor: ArithExpr,
+                                                      generateBody: (MutableExprBlock) => Unit): Unit = {
+    val range = getRangeAdd(indexVar)
+    val init = ArithExpression(range.start)
+
+    argArray.t match {
+      case _: ArrayType =>
+        range.numVals match {
+          case Cst(0) => (block: MutableExprBlock) += Comment("iteration count is 0, no loop emitted")
+
+          case Cst(1) =>
+            if (parFactor != Cst(1)) (block: MutableExprBlock) += Comment(s"Ignored parallel factor $parFactor")
+
+            generateStatement(block, indexVar, generateBody, init)
+
+          // TODO: See TestInject.injectExactlyOneIterationVariable
+          // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
+          case _ if range.start.min.min == Cst(0) &&
+            ArithExpr.substituteDiv(range.stop) == ArithExpr.substituteDiv(range.step) =>
+            if (parFactor != Cst(1)) (block: MutableExprBlock) += Comment(s"Ignored parallel factor $parFactor")
+            generateStatement(block, indexVar, generateBody, init)
+
+          // TODO: See TestOclFunction.numValues and issue #62
+          case _ if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
+            if (parFactor != Cst(1)) (block: MutableExprBlock) += Comment(s"Ignored parallel factor $parFactor")
+            generateIfStatement(block, indexVar, generateBody, init, range.stop)
+
+          case _ if range.numVals.min == Cst(0) && range.numVals.max == Cst(1) =>
+            if (parFactor != Cst(1)) (block: MutableExprBlock) += Comment(s"Ignored parallel factor $parFactor")
+            generateIfStatement(block, indexVar, generateBody, init, range.stop)
+
+          case _ =>
+            generateDefaultForeachRepresentation(block, argArray, indexVar, parFactor, generateBody)
+        }
+      case _            => throw new NotImplementedError() // should never get there
+    }
+  }
+
+  private def generateDefaultForeachRepresentation(block: MutableExprBlock,
+                                                   argArray: Expr,
+                                                   indexVar: Var,
+                                                   parFactor: ArithExpr,
+                                                   generateBody: (MutableExprBlock) => Unit): Unit = {
+    // TODO: add unrolled Foreach generation
+    // TODO: optimise loop generation. See OpenCLGenerator.generateOptimizedForLoopRepresentations
+
+    val innerBlock = MutableExprBlock(Vector.empty, encapsulated = false)
+
+    (block: MutableExprBlock) += SpatialAccelAST.Foreach(
+      counter = List(Counter(
+        ArithExpression(getRangeAdd(indexVar).start),
+        ArithExpression(getRangeAdd(indexVar).stop),
+        ArithExpression(getRangeAdd(indexVar).step),
+        ArithExpression(parFactor))),
+      iterVars = List(indexVar),
+      body = innerBlock)
+
+    generateBody(innerBlock)
+  }
+
   private def generateUserFunCall(u: UserFun,
                                   call: FunCall,
                                   block: MutableExprBlock): MutableExprBlock = {
@@ -256,10 +365,14 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
     val funcall_node = generateFunCall(call, generateLoadNodes(call.args: _*))
 
-    if (allTypedMemories(sMem).materialised && !allTypedMemories(sMem).implicitlyWrittenTo)
+    if (allTypedMemories(sMem).materialised && !allTypedMemories(sMem).implicitlyWrittenTo) {
+
       // Generate store
-      (block: MutableExprBlock) += generateStoreNode(sMem, call.t, call.outputView, funcall_node)
-    else
+      (block: MutableExprBlock) += generateStoreNode(
+        targetMem = sMem, targetType = call.t, targetView = call.outputView,
+        srcAddressSpace = call.addressSpace, srcNode = funcall_node)
+
+    } else
       // Generate return
       (block: MutableExprBlock) += funcall_node
 
@@ -282,12 +395,30 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
   /** Traverse f and print all user functions */
   private def generateUserFunctions(expr: Expr): Seq[DeclarationT] = {
+    case class UserFunSignature(uf: UserFun,
+                                argSpatialTypes: Seq[String],
+                                argAss: Seq[AddressSpace],
+                                retAs: AddressSpace) {
+      // Defines equality using Spatial types, not Lift types because Spatial types also express memory spaces.
+      // Implement the following logic:
+      // If arguments are scalars, than only Lift types have to be the same for equality:
+      // ((Float, SRAM), (Float, SRAM)) == ((Float, SRAM), (Float, DRAM))
+      // If arguments are arrays, than both Lift types and Lift address spaces must be the same for equality
+      // (([Float], SRAM), ([Float], SRAM)) != (([Float], SRAM), ([Float], DRAM))
+      override def equals(obj: Any): Boolean = obj match {
+        case that: UserFunSignature => uf == that.uf && argSpatialTypes == that.argSpatialTypes && retAs == that.retAs
+        case _ => false
+      }
+    }
 
-    val userFuns = Expr.visitWithState(Set[UserFun]())(expr, (expr, set) =>
+    // Collect user functions
+    val userFuns = Expr.visitWithState(Set[UserFunSignature]())(expr, (expr, set) =>
       expr match {
         case call: FunCall                      => call.f match {
           case _: SpatialBuiltInFun  => set
-          case uf: UserFun           => set + uf
+          case uf: UserFun           => set + UserFunSignature(uf,
+                                          call.args.map(arg => Printer.toString(arg.t, arg.addressSpace)),
+                                          call.args.map(_.addressSpace), call.addressSpace)
           case vec: VectorizeUserFun => throw new NotImplementedError()
           case _                     => set
         }
@@ -297,20 +428,31 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         case _                                  => set
       })
 
-    userFuns.toSeq.map(AccelGenerator.createFunctionDefinition)
+    userFuns.toSeq.map {
+      case UserFunSignature(uf, _, argAs, retAs) => AccelGenerator.createFunctionDefinition(uf, argAs, retAs) }
   }
 
   /**
    * Generate a simple or vector store
    */
-  private def generateStoreNode(mem: SpatialMemory,
+  private def generateStoreNode(targetMem: SpatialMemory,
                                 targetType: Type,
-                                view: View,
-                                value: AstNode): ExpressionT = {
+                                targetView: View,
+                                srcAddressSpace: SpatialAddressSpace,
+                                srcNode: AstNode): StatementT = {
     // Sanity check -- make sure this is the store of the producer of the associated memory
-    assert(targetType == allTypedMemories(mem).writeT)
+    assert(targetType == allTypedMemories(targetMem).writeT)
 
-    AssignmentExpression(to = accessNode(mem.variable, mem.addressSpace, targetType, view), value)
+    val targetNode = accessNode(targetMem.variable, targetMem.addressSpace, targetType, targetView)
+
+    if (srcAddressSpace == targetMem.addressSpace) AssignmentExpression(to = targetNode, srcNode)
+
+    else (srcAddressSpace, targetMem.addressSpace) match {
+      case (DRAMMemory, SRAMMemory) => SpLoad(src = srcNode, target = VarSlicedRef(targetMem.variable))
+
+      case _ => throw new AccelGeneratorException(
+        s"Don't know how to store a value from $srcAddressSpace in ${targetMem.addressSpace}")
+    }
   }
 
   private def generateLoadNodes(args: Expr*): List[AstNode] = {
@@ -338,7 +480,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         StructConstructor(t = tt, args = args) // TODO: check functional correctness for Spatial
 
       // A SpatialNullMemory object indicates that the view is not backed by memory and will directly return a value
-      case SpatialNullMemory => SpatialViewPrinter.emit(view, replacementsWithFuns)
+      case SpatialNullMemory => SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns)
 
       // not a memory collection: the default case
       case _ =>
@@ -354,6 +496,18 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     }
   }
 
+  private def getIterationCount(range: RangeAdd): Int = {
+    try {
+      range.numVals.enforceSimplification.eval
+    } catch {
+      case NotEvaluableException()      =>
+        throw new AccelGeneratorException("Trying to unroll loop, but iteration count could " +
+          "not be determined statically.")
+      case NotEvaluableToIntException() =>
+        throw new AccelGeneratorException("Trying to unroll loop, " +
+          "but iteration count is larger than scala.Int.MaxValue.")
+    }
+  }
 
 
   /**
@@ -370,29 +524,18 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
                          accessType: Type,
                          view: View): ExpressionT = {
     addressSpace match {
-      case SRAMMemory | DRAMMemory =>
+      case SRAMMemory | DRAMMemory | RegMemory =>
         // allTypedMemories(v).mem.t is the original type, i.e. the type of the data stored in allTypedMemories(v).mem
         // allTypedMemories(v).writeT is the write type of the memory producer (UserFun / Value)
-        val originalType = allTypedMemories(v).mem.t
-        originalType match {
-          case _: ArrayType                                 => arrayAccessNode(v, addressSpace, view)
-          case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
-          case NoType | UndefType                           =>
-            throw new TypeException(originalType, "A valid type", null)
+        allTypedMemories(v).mem.t match {
+          case _: ArrayType                 => arrayAccessNode(v, addressSpace, view)
+          case _: ScalarType | _: TupleType => valueAccessNode(v)
+          case _                            =>
+            throw new TypeException(allTypedMemories(v).mem.t, "A known type", null)
         }
 
-      case RegMemory =>
-        allTypedMemories.intermediates(RegMemory).find(m => m.mem.variable == v) match {
-          case Some(typedMemory) => typedMemory.mem.t match {
-            case _: ArrayType                                 => arrayAccessNode(v, addressSpace, view)
-            case _: ScalarType | _: VectorType | _: TupleType => valueAccessNode(v)
-            case NoType | UndefType                           =>
-              throw new TypeException(typedMemory.mem.t, "A valid type", null)
-          }
-          case _  => valueAccessNode(v)
-        }
       case UndefAddressSpace | AddressSpaceCollection(_) =>
-        throw new IllegalArgumentException(s"Cannot store data to $addressSpace")
+        throw new IllegalArgumentException(s"Cannot access data in $addressSpace")
     }
   }
 
@@ -410,10 +553,12 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
                               view: View): ExpressionT = {
     addressSpace match {
       case SRAMMemory | DRAMMemory =>
-        SpatialViewPrinter.emit(view, replacementsWithFuns, addressSpace)
+        SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace)
 
       case RegMemory =>
-        SpatialViewPrinter.emit(view, replacementsWithFuns, addressSpace) match {
+        val x = SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace)
+        x match {
+          // TODO add sliced ref and unrolled register array access
           case VarIdxRef(_, _, _) =>
             VarIdxRef(v, suffix = Some(arrayAccessRegisterMem(v, view)))
           case e: ExpressionT  => e
@@ -469,8 +614,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     val addressors: List[ArrayAddressor] = valueType match {
 
       case _: ScalarType | _: TupleType =>
-        SpatialViewPrinter.emit(view, replacements, RegMemory) match {
-          case NDVarSlicedRef(_, _, addr) =>
+        SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValues, RegMemory) match {
+          case VarSlicedRef(_, _, addr) =>
             asIndices(addr.get, errorMsg = "A scalar type can only be accessed using an array.")
 
           case x => throw new MatchError(s"Expected a NDVarSlicedRef, but got $x.")
@@ -480,8 +625,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
       case ArrayType(_) =>
 
-        SpatialViewPrinter.emit(view, replacements, RegMemory) match {
-          case NDVarSlicedRef(_, _, addr) => addr.get.map {
+        SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValues, RegMemory) match {
+          case VarSlicedRef(_, _, addr) => addr.get.map {
             case idx: ArrIndex => Index(idx)
             case slice: ArrSlice => Slice(slice)
           }
@@ -495,17 +640,17 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     // Replace where necessary and evaluate to Int
     val addrWithReplacements: List[List[Int]] = try {
       addressors.map(addr => {
-        val sbstAddr = addr.visitAndRebuild(ArithExpr.substitute(_, replacements))
+        val sbstAddr = addr.visitAndRebuild(ArithExpr.substitute(_, replacementsOfIteratorsWithValues))
 
         sbstAddr.eval()
       })
     } catch {
       case NotEvaluableException()      =>
         throw new AccelGeneratorException(s"Could not access private array, as addressor $addressors could " +
-          s"not be evaluated statically (given these replacements: $replacements)")
+          s"not be evaluated statically (given these replacementsOfIteratorsWithValues: $replacementsOfIteratorsWithValues)")
       case NotEvaluableToIntException() =>
         throw new AccelGeneratorException(s"Could not access private array, as addressor $addressors is " +
-          s"larger than scala.Int.MaxValue (given these replacements: $replacements)")
+          s"larger than scala.Int.MaxValue (given these replacementsOfIteratorsWithValues: $replacementsOfIteratorsWithValues)")
     }
 
     val memTypeLengths = Type.getLengths(allTypedMemories(v).writeT)
@@ -526,7 +671,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
    * @param v The variable to access
    * @return A VarRef node wrapping `v`
    */
-  private def valueAccessNode(v: Var): NDVarSlicedRef = {
-    NDVarSlicedRef(v)
+  private def valueAccessNode(v: Var): VarSlicedRef = {
+    VarSlicedRef(v)
   }
 }

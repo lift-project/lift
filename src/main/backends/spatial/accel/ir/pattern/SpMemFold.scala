@@ -6,17 +6,17 @@ import lift.arithmetic.{ArithExpr, Cst, PosVar}
 
 case class SpMemFold(override val fMap: Lambda1,
                      override val fReduce: Lambda2,
-                     override val iterSize: ArithExpr,
+                     override val chunkSize: ArithExpr,
                      override val stride: ArithExpr,
                      override val factor: ArithExpr)
-  extends AbstractSpFold(fMap, fReduce, PosVar("i"), PosVar("j"), iterSize, stride, factor) {
+  extends AbstractSpFold(fMap, fReduce, PosVar("i"), PosVar("j"), chunkSize, stride, factor) {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
       case TupleType(initT, at@ArrayType(elemT)) =>
         // map input array element type
-        fMap.params(0).t = ArrayType(elemT, iterSize)
+        fMap.params(0).t = ArrayType(elemT, chunkSize)
 
         val tiledMapBodyType = TypeChecker.check(fMap.body, setType) // check the body
         val mapBodyType = tiledMapBodyType match {
@@ -24,7 +24,7 @@ case class SpMemFold(override val fMap: Lambda1,
           case t => throw new TypeException(t, "ArrayType(_, _)", this)
         }
 
-        fMapT = at.replacedElemT(mapBodyType)
+        fFlatMapT = at.replacedElemT(mapBodyType)
 
         fReduce.params(0).t = initT // initial element type
         fReduce.params(1).t = mapBodyType // reduce input array element type
@@ -45,11 +45,11 @@ case class SpMemFold(override val fMap: Lambda1,
 }
 
 object SpMemFold {
-  def apply(iterSize: ArithExpr,
+  def apply(chunkSize: ArithExpr,
             stride: ArithExpr = Cst(1),
             factor: ArithExpr = Cst(1),
             fMap: Lambda, fReduce: Lambda2,
             init: Expr): Lambda1 =
-    fun((x) => SpMemFold(fMap, fReduce, iterSize, stride, factor)(init, x))
+    fun((x) => SpMemFold(fMap, fReduce, chunkSize, stride, factor)(init, x))
 }
 

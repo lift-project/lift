@@ -128,7 +128,7 @@ object InputView {
   private def buildViewSpForeach(sF: SpForeach, call: FunCall, argView: View): View = {
 
     // pass down input view
-    sF.f.params(0).view = (argView.slide(Slide(size = sF.iterSize, step = sF.stride))
+    sF.f.params(0).view = (argView.slide(Slide(size = sF.chunkSize, step = sF.stride))
                                   .access(sF.loopVar))
 
     // traverse into call.f
@@ -181,7 +181,7 @@ object InputView {
   private def buildViewSpFold(aSF: AbstractSpFold,
                               call: FunCall, argView: View): View = {
     // fMap: pass down input view
-    aSF.fMap.params(0).view = (argView.get(1).slide(Slide(size = aSF.iterSize, step = aSF.stride))
+    aSF.fMap.params(0).view = (argView.get(1).slide(Slide(size = aSF.chunkSize, step = aSF.stride))
                                              .access(aSF.mapLoopVar))
     // fMap: traverse into call.f
     val innerMapView = visitAndBuildViews(aSF.fMap.body)

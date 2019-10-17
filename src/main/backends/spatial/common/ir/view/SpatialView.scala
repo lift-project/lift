@@ -1,6 +1,6 @@
 package backends.spatial.common.ir.view
 
-import backends.spatial.accel.ir.ast.SpatialAccelAST.NDVarSlicedRef
+import backends.spatial.accel.ir.ast.SpatialAccelAST.VarSlicedRef
 import backends.spatial.common.ir.{AddressSpaceCollection, RegMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
 import core.generator.GenericAST.{ArithExpression, ExpressionT}
@@ -91,7 +91,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
         // the iterator by step inside the loop body.
         // The strided range is introduced in RangesAndCountsSp().
         val newAddressor = i match {
-          case Var(_, RangeAdd(_, _, step)) if ArithExpr.isSmaller(1, step).getOrElse(false) =>
+          case Var(_, RangeAdd(_, _, step)) if step != 1 =>
             Index(i /^ step)
 
           case _ => Index(i)
@@ -239,7 +239,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
   object GenerateAccess {
     def apply(mainVar: Var, mainType: Type,
               arrayAccessStack: List[ArrayAddressor],
-              tupleAccessStack: List[Int]): NDVarSlicedRef = {
+              tupleAccessStack: List[Int]): VarSlicedRef = {
       val g = new GenerateAccess(mainVar, mainType, tupleAccessStack)
       g.generate(List(), mainType, arrayAccessStack, tupleAccessStack)
     }
@@ -249,9 +249,9 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
     @scala.annotation.tailrec
     private def generate(partialAAStack: List[ArrayAddressor], ty: Type,
                          arrayAccessStack: List[ArrayAddressor],
-                         tupleAccessStack: List[Int]): NDVarSlicedRef = {
+                         tupleAccessStack: List[Int]): VarSlicedRef = {
       if (arrayAccessStack.isEmpty)
-        NDVarSlicedRef(mainVar, arrayAddressors = Some(partialAAStack.map(_.toTargetAST)))
+        VarSlicedRef(mainVar, arrayAddressors = Some(partialAAStack.map(_.toTargetAST)))
       else {
         ty match {
           case at: ArrayType =>
@@ -383,11 +383,9 @@ object SpatialViewPrinter {
    * @param view The view to emit.
    * @return The arithmetic expression.
    */
-  def emit(
-            view: View,
-            replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map(),
-            addressSpace: SpatialAddressSpace = UndefAddressSpace
-          ): ExpressionT = {
+  def emit(view: View,
+           replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map(),
+           addressSpace: SpatialAddressSpace = UndefAddressSpace): ExpressionT = {
     val vp = new SpatialViewPrinter(replacements, addressSpace)
     // This requirement is relaxed compared to the C-like backends since Spatial supports sliced accesses to arrays
     //assert(!view.t.isInstanceOf[ArrayType])
@@ -403,7 +401,6 @@ object SpatialViewPrinter {
       case _ => List() // Scalar access
     }
 
-    val a = vp.emitView(view.replaced(replacements), arrayAccessStack, List())
-    a
+    vp.emitView(view.replaced(replacements), arrayAccessStack, List())
   }
 }

@@ -38,7 +38,7 @@ private class RangesAndCountsSp(valueMap: scala.collection.Map[ArithExpr, ArithE
   }
 
   private def setRangeSpForeach(sf: SpForeach, call: FunCall): Unit = {
-    sf.loopVar = Var(sf.loopVar.name, RangeAdd(Cst(0), Type.getLength(call.args(1).t), sf.iterSize))
+    sf.loopVar = Var(sf.loopVar.name, RangeAdd(Cst(0), Type.getLength(call.args(1).t), sf.chunkSize))
     apply(sf.f.body)
   }
 
@@ -48,7 +48,7 @@ private class RangesAndCountsSp(valueMap: scala.collection.Map[ArithExpr, ArithE
   }
 
   private def setRangeAbstrSpFold(asf: AbstractSpFold, call: FunCall): Unit = {
-    asf.mapLoopVar = Var(asf.mapLoopVar.name, RangeAdd(Cst(0), Type.getLength(call.args(1).t), asf.iterSize))
+    asf.mapLoopVar = Var(asf.mapLoopVar.name, RangeAdd(Cst(0), Type.getLength(call.args(1).t), asf.chunkSize))
     apply(asf.fMap.body)
 
     asf.reduceLoopVar = Var(asf.reduceLoopVar.name, ContinuousRange(Cst(0), Type.getLength(call.args(1).t)))

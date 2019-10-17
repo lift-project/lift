@@ -5,7 +5,7 @@ import ir.interpreter.Interpreter.ValueMap
 import ir._
 import lift.arithmetic.{ArithExpr, Cst, PosVar, Var}
 
-case class SpForeach(iterSize: ArithExpr,
+case class SpForeach(chunkSize: ArithExpr,
                      stride: ArithExpr = Cst(1),
                      factor: ArithExpr = Cst(1),
                      override val f: Lambda1)
@@ -19,11 +19,11 @@ case class SpForeach(iterSize: ArithExpr,
                          setType: Boolean): Type = {
     argType match {
       case ArrayTypeWSWC(elemT, s, c) if s == c =>
-        f.params(0).t = ArrayType(elemT, iterSize)
+        f.params(0).t = ArrayType(elemT, chunkSize)
         TypeChecker.check(f.body, setType)
 
         // TODO: make sure that these are divisible:
-        val outerSize = (s - (iterSize - stride)) / stride
+        val outerSize = (s - (chunkSize - stride)) / stride
 
         ArrayType(elemT, outerSize)
 
@@ -31,7 +31,7 @@ case class SpForeach(iterSize: ArithExpr,
     }
   }
 
-  override def copy(f: Lambda): Pattern = SpForeach(iterSize, stride, factor, f)
+  override def copy(f: Lambda): Pattern = SpForeach(chunkSize, stride, factor, f)
   var shouldUnroll = false
 
   override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)

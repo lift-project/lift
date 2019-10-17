@@ -3,7 +3,7 @@ package ir.view
 import backends.{Backend, OpenCLBackend, SpatialBackend}
 import backends.common.view.{AccessInfo, SingleAccess}
 import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
-import backends.spatial.common.ir.{DRAMMemory, RegMemory, SRAMMemory, SpatialMemory}
+import backends.spatial.common.ir.view.AccessInfoSp
 import ir._
 import ir.ast._
 import lift.arithmetic.{ArithExpr, Cst, Var}
@@ -95,6 +95,10 @@ object OutputView {
         // recurse into arguments by passing the modified output view along
         val res = call.args.map(arg => visitAndBuildViews(arg, arg.outputView))
         ViewTuple(res, call.argsType)
+      case _: AbstractSpFold =>
+        val acc = call.args.head
+        visitAndBuildViews(acc, View.initialiseNewView(acc.t, acc.inputDepth, acc.mem.variable))
+        visitAndBuildViews(call.args(1), result)
       case _: AbstractPartRed =>
         val acc = call.args.head
         visitAndBuildViews(acc, View.initialiseNewView(acc.t, acc.inputDepth, acc.mem.variable))
@@ -170,12 +174,12 @@ object OutputView {
 
   private def getAccessDepth(accessInfo: AccessInfo, memory: Memory): List[SingleAccess] = {
     Backend() match {
-      case OpenCLBackend => getAccessDepthCL(accessInfo, memory)
-      case SpatialBackend => getAccessDepthSp(accessInfo, memory)
+      case OpenCLBackend => getAccessDepthCL(accessInfo.asInstanceOf[AccessInfoCL], memory)
+      case SpatialBackend => getAccessDepthSp(accessInfo.asInstanceOf[AccessInfoSp], memory)
     }
   }
 
-  private def getAccessDepthCL(accessInfo: AccessInfo, memory: Memory): List[SingleAccess] = {
+  private def getAccessDepthCL(accessInfo: AccessInfoCL, memory: Memory): List[SingleAccess] = {
     val contLocal = OpenCLMemory.containsLocalMemory(memory)
     val contPrivate = OpenCLMemory.containsPrivateMemory(memory)
 
@@ -187,18 +191,9 @@ object OutputView {
       accessInfo.accessInf(GlobalMemory)
   }
 
-  private def getAccessDepthSp(accessInfo: AccessInfo, memory: Memory): List[SingleAccess] = {
-    val contReg = SpatialMemory.containsRegMemory(memory)
-    val contSRAM = SpatialMemory.containsSRAMMemory(memory)
-    val contDRAM = SpatialMemory.containsDRAMMemory(memory)
-
-    if (contReg)
-      accessInfo.accessInf(RegMemory)
-    else if (contSRAM)
-      accessInfo.accessInf(SRAMMemory)
-    else if (contDRAM)
-      accessInfo.accessInf(DRAMMemory)
-    else throw new IllegalArgumentException(s"Expected one of Register, SRAM and DRAM memories. Got $memory")
+  private def getAccessDepthSp(accessInfo: AccessInfoSp, memory: Memory): List[SingleAccess] = {
+    if (accessInfo.accessInf.contains(memory)) accessInfo.accessInf(memory)
+    else List() //throw new IllegalArgumentException("Unknown or no memory")
   }
 
   private def getSubviews(expr: Expr, memCollection: MemoryCollection) = {
@@ -224,7 +219,7 @@ object OutputView {
         param.outputView = ViewTuple(subviews, param.t)
 
       case _ =>
-        val outDepth = getAccessDepth (param.accessInf, param.mem)
+        val outDepth = getAccessDepth(param.accessInf, param.mem)
         param.outputView = View.initialiseNewView(param.t, outDepth, param.mem.variable)
     }
   }
@@ -295,12 +290,12 @@ object OutputView {
     visitAndBuildViews(asf.fReduce.body, writeView.access(Cst(0)))
 
     // Reduce output view
-    val outViewFromReduce = ViewMap(asf.fReduce.params(1).outputView, asf.reduceLoopVar, asf.fMapT).
-                            // Record the fact that reduce wraps the output value in the array of one in Lift
-                            split(Cst(1))
+    val outViewFromReduce = ViewMap(asf.fReduce.params(1).outputView, asf.reduceLoopVar, asf.fFlatMapT)//.
 
     // fMap: traverse into call.f
-    visitAndBuildViews(asf.fMap.body, outViewFromReduce.access(asf.mapLoopVar))
+    // The split below emulates Join in the generic representation of SpFold:
+    // Reduce(fReduce, init) o Join() o Map(fMap) o Slide(chunkSize, stride) $ arg
+    visitAndBuildViews(asf.fMap.body, outViewFromReduce.split(asf.chunkSize).access(asf.mapLoopVar))
     // The implied Map view is ViewMap, but the implied Slide does not need
     // the outer write view, so there is no need to build ViewMap
     //    ViewMap(asf.f.params(1).outputView, asf.mapLoopVar, call.args.head.t)

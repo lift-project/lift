@@ -1,17 +1,57 @@
 package ir.view
 
-import backends.common.view.{AccessInfo, AccessInfoSingleton, BuildDepthInfo, MemoryAccessInfo, SingleAccess}
+import backends.common.view.{AccessInfo, MemoryAccessInfoCL, SingleAccess}
 import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
 import opencl.ir.{GlobalMemory, LocalMemory, OpenCLAddressSpace, OpenCLMemory, PrivateMemory}
 import opencl.ir.pattern._
 
+object MemoryAccessInfoCL {
+
+  def apply(): MemoryAccessInfoCL = scala.collection.mutable.ListMap[AddressSpace, List[SingleAccess]](
+    PrivateMemory -> List(), LocalMemory -> List(), GlobalMemory -> List())
+}
+
+class AccessInfoCL(var accessInf: MemoryAccessInfoCL,
+                   var collection: Seq[AccessInfoCL]) extends AccessInfo {
+
+  override def toString = s"AccessInfoCL($accessInf, $collection)"
+
+  def apply(thisLevel: SingleAccess, useMemories: Set[AddressSpace]): AccessInfo = {
+    if (collection.isEmpty) {
+      AccessInfoCL(accessInf.map {
+        case (as: AddressSpace, accessInfo: List[SingleAccess]) =>
+          if (useMemories.contains(as) || AccessInfoCL.alwaysUsedMemories.contains(as))
+            as -> (thisLevel :: accessInfo)
+          else
+            as -> accessInfo
+      })
+    } else {
+      AccessInfoCL(collection.map(aInf => AccessInfoCL(aInf.accessInf.map {
+        case (as: AddressSpace, accessInfo: List[SingleAccess]) =>
+          if (useMemories.contains(as) || AccessInfoCL.alwaysUsedMemories.contains(as))
+            as -> (thisLevel :: accessInfo)
+          else
+            as -> accessInfo
+      })))
+    }
+  }
+}
+
+object AccessInfoCL {
+  val alwaysUsedMemories: Set[AddressSpace] = Set(GlobalMemory)
+
+  def apply() = new AccessInfoCL(accessInf = MemoryAccessInfoCL(), collection = Seq())
+  def apply(accessInf: MemoryAccessInfoCL) = new AccessInfoCL(accessInf, Seq())
+  def apply(collection: Seq[AccessInfoCL]) = new AccessInfoCL(MemoryAccessInfoCL(), collection)
+}
+
 // FIXME: rewrite me
 /**
  * Helper object for building views.
  *
- * Determine the dimensionality and length of each dimension of all global,
+ * Determines the dimensionality and length of each dimension of all global,
  * local and private arrays, as well as the iteration/access variables in all
  * dimensions.
  *
@@ -32,30 +72,9 @@ object BuildDepthInfoCL {
   def apply(expr: Expr): Unit = (new BuildDepthInfoCL).visitAndBuildDepthInfo(expr)
 }
 
-object MemoryAccessInfoCL {
-  def apply(): MemoryAccessInfo = scala.collection.mutable.ListMap[AddressSpace, List[SingleAccess]](
-    PrivateMemory -> List(), LocalMemory -> List(), GlobalMemory -> List())
-}
+private class BuildDepthInfoCL() {
 
-class AccessInfoCL(var accessInf: MemoryAccessInfo,
-                   var collection: Seq[AccessInfoCL])
-  extends AccessInfo() {
-
-  override def toString = s"AccessInfoCL($accessInf, $collection)"
-}
-
-object AccessInfoCL extends AccessInfoSingleton[AccessInfoCL] {
-  val alwaysUsedMemories: Set[AddressSpace] = Set(GlobalMemory)
-
-  def apply() = new AccessInfoCL(accessInf = MemoryAccessInfoCL(), collection = Seq())
-  def apply(accessInf: MemoryAccessInfo) = new AccessInfoCL(accessInf, Seq())
-  def apply(collection: Seq[AccessInfoCL]) = new AccessInfoCL(MemoryAccessInfoCL(), collection)
-}
-
-private class BuildDepthInfoCL() extends BuildDepthInfo[AccessInfoCL] {
-  implicit val accessInfoSingleton: AccessInfoCL.type = AccessInfoCL
-
-  var memoryAccessInfo: MemoryAccessInfo = MemoryAccessInfoCL()
+  var memoryAccessInfo: MemoryAccessInfoCL = MemoryAccessInfoCL()
 
   var seenMapLcl = false
 
@@ -196,7 +215,7 @@ private class BuildDepthInfoCL() extends BuildDepthInfo[AccessInfoCL] {
       l
   }
 
-  private def  buildDepthInfoReducePatternCall(expr: Expr, call: FunCall, index: ArithExpr,
+  private def buildDepthInfoReducePatternCall(expr: Expr, call: FunCall, index: ArithExpr,
                                               readMemories: Set[AddressSpace],
                                               l: AccessInfoCL
                                              ): Unit = {
@@ -251,6 +270,16 @@ private class BuildDepthInfoCL() extends BuildDepthInfo[AccessInfoCL] {
     visitAndBuildDepthInfo(l.body)
   }
 
+  protected def updateAccessInf(accessedMemories: Set[AddressSpace],
+                                tuple: SingleAccess): Unit = {
+    (accessedMemories ++ AccessInfoCL.alwaysUsedMemories).foreach(memoryAccessInfo(_) ::= tuple)
+  }
+
+  protected def restoreAccessInf(accessedMemories: Set[AddressSpace]): Unit = {
+    (accessedMemories ++ AccessInfoCL.alwaysUsedMemories).foreach(addressSpace =>
+      memoryAccessInfo(addressSpace) = memoryAccessInfo(addressSpace).tail)
+  }
+
   protected def setAccessInfo(list: AccessInfoCL, param: Param): Unit = {
     val readMemory = containsLocalPrivate(param.mem)
 
@@ -270,5 +299,27 @@ private class BuildDepthInfoCL() extends BuildDepthInfo[AccessInfoCL] {
       memoryAccessInfo(LocalMemory)
     else
       memoryAccessInfo(GlobalMemory)
+  }
+
+  protected def setDepths(call: FunCall, readMemories: Set[AddressSpace], writeMemories: Set[AddressSpace]): Unit = {
+    call.inputDepth = getAccessInfo(writeMemories)
+    call.outputDepth = getAccessInfo(readMemories)
+  }
+
+  /**
+   * Utility function for building a bit of access information about an
+   * ArrayType instance
+   *
+   * @param ty the array type passed as a generic type. We check that it is
+   *           indeed an array type below.
+   * @param v the variable used to perform the access
+   */
+  protected def getArrayAccessInf(ty: Type, v: ArithExpr): SingleAccess = {
+    ty match {
+      case at: ArrayType => (at.replacedElemT, v)
+      case _ => throw new IllegalArgumentException(
+        s"Cannot compute access information for $ty. ArrayType required."
+      )
+    }
   }
 }

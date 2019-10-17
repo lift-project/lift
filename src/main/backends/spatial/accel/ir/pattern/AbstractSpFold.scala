@@ -9,13 +9,13 @@ abstract class AbstractSpFold(val fMap: Lambda1,
                               val fReduce: Lambda2,
                               var mapLoopVar: Var,
                               var reduceLoopVar: Var,
-                              val iterSize: ArithExpr,
+                              val chunkSize: ArithExpr,
                               val stride: ArithExpr,
                               val factor: ArithExpr) extends Pattern(arity = 2) {
 
   // Since this is a macro pattern (Reduce and Map), the node needs to have more
   // information than usual nodes, such as fMapT below.
-  var fMapT: Type = UndefType // The type of the Map lambda
+  var fFlatMapT: Type = UndefType // The type of the Map lambda
   var fMapMem: Memory = UnallocatedMemory // The implicit memory of the Map lambda
 
   assert(fMap.params.length == 1)

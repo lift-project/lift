@@ -5,6 +5,7 @@ import backends.{Backend, c, spatial}
 import ir._
 import ir.ast._
 import ir.ast.debug.AssertType
+import lift.arithmetic.SizeVar
 import opencl.executor.TestWithExecutor
 import org.junit.Assert._
 import org.junit.Test
@@ -66,9 +67,9 @@ class InnerProduct {
     import opencl.ir._
     import opencl.ir.pattern._
 
-    val N = 16
+    val N = 64 //16
 
-    val tileSize = 4
+    val tileSize = 32 //4
     val outerParFactor = 2
     val innerParFactor = 16
 
@@ -104,7 +105,7 @@ class InnerProduct {
         ToHost() $ OclFunc(scalarDotLambdaTiled, cpu_timer = true, gpu_timer = true)(ToGPU(x), ToGPU(y))
     )
 
-//    print(opencl.executor.Compile(scalarDotLambdaTiled))
+    print(opencl.executor.Compile(scalarDotLambdaTiled))
     c.global.GlobalCompiler(hostingLambda, codeOutputPath, List(hostCodeFileName))
 
     val actualOutput: String = backends.c.common.executor.Executor.native_compile_and_run(
@@ -174,11 +175,14 @@ class InnerProduct {
     import backends.spatial.host.ir.ast.AccelFun
     Backend.setSpatial()
 
-    val N = 1024
-
-    val tileSize = 32
-    val outerParFactor = 2
-    val innerParFactor = 16
+    val N = SizeVar("N") //1024
+    val tileSize = SizeVar("tileSize") //32
+    val outerParFactor = SizeVar("outerParFactor") //2
+    val innerParFactor = SizeVar("innerParFactor") //16
+//    val N = 1024
+//    val tileSize = 32
+//    val outerParFactor = 2
+//    val innerParFactor = 16
 
     val expectedOutCode = """
       Accel {
@@ -203,10 +207,9 @@ class InnerProduct {
       ArrayType(Float, N),
       ArrayType(Float, N),
       (a, b) =>
-        SpFold(iterSize = tileSize, stride = tileSize,
-          factor = outerParFactor,
-
+        SpFold(chunkSize = tileSize, stride = tileSize, factor = outerParFactor,
           fMap = fun(
+
             ArrayType(TupleType(Float, Float), tileSize), tileAB => {
               val tileA = Get(Unzip() $ tileAB, 0)
               val tileB = Get(Unzip() $ tileAB, 1)
@@ -217,8 +220,7 @@ class InnerProduct {
                 toSRAM(idArray) $ tileB
                 /*)*/)
 
-              SpFold(iterSize = 1, stride = 1,
-                factor = innerParFactor,
+              SpFold(chunkSize = 1, stride = 1, factor = innerParFactor,
                 fMap = backends.spatial.accel.ir.pattern.MapSeq(mult),
                 fReduce = add,
                 init = Value(0.0f, Float)) $ tileABsram
@@ -267,7 +269,7 @@ class InnerProduct {
       ArrayType(ArrayType(Float, N), M),
       (a, b, c) =>
         toDRAM(SpForeach(
-          iterSize = tileMsize, stride = tileMsize, factor = outerFactorI,
+          chunkSize = tileMsize, stride = tileMsize, factor = outerFactorI,
           f = fun(
             ArrayType(TupleType(ArrayType(Float, P), ArrayType(Float, N)), tileMsize),
             tileACrows => {
@@ -277,7 +279,7 @@ class InnerProduct {
               val tileCrows =
                 AssertType(ArrayType(ArrayType(Float, tileMsize), N), "tileCrows.type") o
                   Transpose() $ Get(Unzip() $ tileACrows, 1)
-              SpForeach(iterSize = tileNsize, stride = tileNsize, factor = outerFactorJ,
+              SpForeach(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorJ,
                 f = fun(
                   ArrayType(TupleType(ArrayType(Float, P), ArrayType(Float, tileMsize)), tileNsize),
                   tileBcolsC => {
@@ -289,7 +291,7 @@ class InnerProduct {
                       AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "tileCsram.type") o
                         toSRAM(idArray2d) o Transpose() $ Get(Unzip() $ tileBcolsC, 1)
 
-                    SpMemFold(iterSize = tileNsize, stride = tileNsize, factor = outerFactorK,
+                    SpMemFold(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorK,
                       fMap = fun(
                         ArrayType(TupleType(ArrayType(Float, tileMsize), ArrayType(Float, tileNsize)), tileNsize),
                         tileAB => {
@@ -298,7 +300,7 @@ class InnerProduct {
                           val tileBsram = AssertType(ArrayType(ArrayType(Float, tileNsize), tileNsize), "tileBsram") o
                             toSRAM(idArray2d) $ Get(Unzip() $ tileAB, 1)
 
-                          SpForeach(iterSize = 1, stride = 1, factor = innerFactorI,
+                          SpForeach(chunkSize = 1, stride = 1, factor = innerFactorI,
                             f = fun(
                               // TODO: get rid of the extra dimension of 1 element
                               ArrayType(TupleType(ArrayType(Float, tileNsize), ArrayType(Float, tileNsize)), 1),
@@ -309,12 +311,12 @@ class InnerProduct {
                                   Join() $ Get(Unzip() $ tileRowABsram, 1)
 
                                 SpForeach(
-                                  iterSize = 1,
+                                  chunkSize = 1,
                                   stride = 1,
                                   factor = innerFactorJ,
                                   f = fun(Float, elBsram =>
                                     /*Pipe {*/
-                                    SpMemFold(iterSize = 1, stride = 1, factor = tileParFactor,
+                                    SpMemFold(chunkSize = 1, stride = 1, factor = tileParFactor,
                                       fMap = fun(Float, elAsram => mult(elBsram, elAsram)),
                                       fReduce = add, init = Value(0.0f, Float)
                                     ) $ tileRowAsram

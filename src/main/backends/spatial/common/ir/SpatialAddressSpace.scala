@@ -54,16 +54,16 @@ object UnexpectedAddressSpaceException {
 case class AddressSpaceCollection(spaces: Seq[SpatialAddressSpace])
   extends SpatialAddressSpace {
 
-  def containsAddressSpace(spatialAddressSpace: SpatialAddressSpace) =
+  def containsAddressSpace(spatialAddressSpace: SpatialAddressSpace): Boolean =
     spaces.exists(_.containsAddressSpace(spatialAddressSpace))
 
   def findCommonAddressSpace(): SpatialAddressSpace = {
     // Try to find common address space which is not the register memory ...
-    val noRegMem = spaces.filterNot(_== RegMemory)
-    if (noRegMem.isEmpty) // Everything is in private memory
+    val sharedMem = spaces.filterNot(_ == RegMemory)
+    if (sharedMem.isEmpty) // Everything is in private memory
       return RegMemory
 
-    val addressSpaces = noRegMem.map({
+    val addressSpaces = sharedMem.map({
       case coll: AddressSpaceCollection => coll.findCommonAddressSpace()
       case space => space
     })
