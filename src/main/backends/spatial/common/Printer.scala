@@ -1,17 +1,36 @@
 package backends.spatial.common
 
 import _root_.ir.Type
-import _root_.ir.ScalarType
+import _root_.ir.{ArrayType, ScalarType}
 import backends.spatial.accel.generator.NotPrintableExpression
+import backends.spatial.common.ir.{DRAMMemory, RegMemory, SRAMMemory, SpatialAddressSpace}
 import ir.view.{AccessVar, ArrayAddressor, CastedPointer, Index, Slice}
 import lift.arithmetic.{ArithExpr, BitwiseAND, BitwiseXOR, Cst, IntDiv, LShift, Log, Lookup, Mod, Pow, Predicate, Prod, Sum, Var}
 
 object Printer {
+  def toString(addressSpace: SpatialAddressSpace): String = {
+    addressSpace match {
+      case DRAMMemory     => "DRAM"
+      case SRAMMemory     => "SRAM"
+      case RegMemory      => "Reg"
+      case _          => throw new IllegalArgumentException("Unknown Spatial address space encountered during printing")
+    }
+  }
 
   def toString(t: Type): String = {
     t match {
-      case ScalarType(name, _)    => name
-      case _                      => throw new NotImplementedError()
+      case ScalarType(name, _) => name
+      case _                   => throw new IllegalArgumentException("Expected a scalar type during printing")
+    }
+  }
+
+  def toString(t: Type, addressSpace: SpatialAddressSpace): String = {
+    t match {
+      case _: ScalarType  => toString(t)
+      case at: ArrayType  => val dimensions = Type.getLengths(at).dropRight(1)
+                             toString(addressSpace) + dimensions.length.toString +
+                               "[" + Type.getBaseType(at) + "]"
+      case _              => throw new IllegalArgumentException("Expected an array type during printing")
     }
   }
 
@@ -39,7 +58,7 @@ object Printer {
       case Mod(a, n)                               => "(" + toString(a) + " % " + toString(n) + ")"
       case AccessVar(array, idxs, _, _)            => s"${toString(array)}(" + idxs.foldLeft("")(_ + toString(_)) + "]"
       case CastedPointer(v, ty, ofs, addressSpace, _) =>
-        val offset = if (ofs == Cst(0)) "" else s" + ${toString(ofs)}"
+        val offset = if (ofs.ae == Cst(0)) "" else s" + ${toString(ofs)}"
         s"(($addressSpace ${Type.name(ty)}*)(${toString(v)}$offset))"
       case v: Var                                  => v.toString
       case IntDiv(n, d)                            => "(" + toString(n) + " / " + toString(d) + ")"

@@ -68,7 +68,19 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     accelBlock.toExprBlock
   }
 
-  private def generate(expr: Expr, block: MutableExprBlock): Unit = {
+  /**
+   * Generates current expression inside block.
+   *
+   * @param expr The expression to generate
+   * @param block The AST block to write into
+   * @param memReturn Determines whether a return of memory written to by the current node is
+   *                  required at the end of generated code
+   *                  TODO: replace this "manual" flag with inferring the decision based on the future
+   *                        trait marking Lift-Spatial nodes as potential expressions that do not require
+   *                        memory return
+   */
+  private def generate(expr: Expr, block: MutableExprBlock, memReturn: Boolean = false): Unit = {
+    var returnRequired = memReturn
     assert(expr.t != UndefType)
 
     // Generate arguments
@@ -96,8 +108,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
             // it from the input's header to the output's header.
             propagateDynamicArraySize(call, block)
 
-          case sf: SpFold             => generateFoldCall(sf, call, block)
-          case smf: SpMemFold         => generateFoldCall(smf, call, block)
+          case sf: SpFold             => generateFoldCall(sf, call, block); returnRequired = false
+          case smf: SpMemFold         => generateFoldCall(smf, call, block); returnRequired = false
 
           case u: UserFun             => generateUserFunCall(u, call, block)
 
@@ -118,6 +130,9 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
       case _: Param             =>
       case _  => throw new NotImplementedError()
     }
+
+    if (returnRequired)
+      (block: MutableExprBlock) += accessNode(expr.mem.variable, expr.addressSpace, expr.t, expr.view)
   }
 
   private def propagateDynamicArraySize(call: FunCall, block: MutableExprBlock): Unit = {
@@ -246,7 +261,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
       case _: SpMemFold => SpatialAccelAST.MemFold(accum, counter, iterVars, innerMapBlock, innerReduceBlock)
     })
 
-    generate(asf.fMap.body, innerMapBlock)
+    generate(asf.fMap.body, innerMapBlock, memReturn = true)
     generate(asf.fReduce.body, innerReduceBlock)
   }
 
