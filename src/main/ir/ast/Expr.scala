@@ -2,6 +2,7 @@ package ir.ast
 
 import backends.{Backend, OpenCLBackend, SpatialBackend}
 import backends.common.view.{AccessInfo, SingleAccess}
+import backends.spatial.accel.ir.pattern.AbstractSpFold
 import backends.spatial.common.ir.view.AccessInfoSp
 import ir._
 import ir.interpreter.Interpreter.ValueMap
@@ -211,12 +212,13 @@ object Expr {
 
         // do the rest ...
         call.f match {
-          case rs: ReduceWhileSeq =>
-            val newResult2 = visitWithState(newResult)(rs.f.body, visitFun)
-            visitWithState(newResult2)(rs.p.body, visitFun)
-          case fp: FPattern =>  visitWithState(newResult)(fp.f.body, visitFun)
-          case l: Lambda =>     visitWithState(newResult)(l.body, visitFun)
-          case _ => newResult
+          case rs: ReduceWhileSeq     => val newResult2 = visitWithState(newResult)(rs.f.body, visitFun)
+                                         visitWithState(newResult2)(rs.p.body, visitFun)
+          case asf: AbstractSpFold    => visitWithState(visitWithState(newResult)(asf.fMap.body, visitFun))(
+                                            asf.fReduce.body, visitFun)
+          case fp: FPattern           => visitWithState(newResult)(fp.f.body, visitFun)
+          case l: Lambda              => visitWithState(newResult)(l.body, visitFun)
+          case _                      => newResult
         }
 
       case ArrayFromExpr(e) => visitWithState(result)(e, visitFun, visitArgs)
