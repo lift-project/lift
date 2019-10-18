@@ -47,41 +47,41 @@ object OutputView {
   private def buildViewFunCall(call: FunCall, writeView: View): View = {
     // first handle body
     val result = call.f match {
-      case sF: SpForeach => buildViewSpForeach(sF, call, writeView)
-      case m: AbstractMap => buildViewMap(m, call, writeView)
-      case f: FilterSeq => buildViewFilter(f,  call, writeView)
-      case aSF: AbstractSpFold => buildViewAbstrSpFold(aSF, call, writeView)
-      case r: AbstractPartRed => buildViewReduce(r, call, writeView)
-      case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, writeView)
-      case s: AbstractSearch => buildViewSearch(s, call, writeView)
-      case scan:ScanSeq => buildViewScan(scan, call, writeView)
-      case iss: InsertionSortSeq => buildViewSort(iss, call, writeView)
-      case Split(n) => buildViewSplit(n, writeView)
-      case _: Join => buildViewJoin(call, writeView)
-      case uf: UserFun => buildViewUserFun(writeView, uf, call)
-      case uf: VectorizeUserFun => buildViewUserFun(writeView, uf.userFun, call)
-      case s: Scatter => buildViewScatter(s, call, writeView)
-      case i: Iterate => buildViewIterate(i, call, writeView)
-      case tw: TransposeW => buildViewTransposeW(tw, call, writeView)
-      case t: Transpose => buildViewTranspose(t, call, writeView)
-      case asVector(n) => buildViewAsVector(n, writeView)
-      case _: asScalar => buildViewAsScalar(call, writeView)
-      case _: Head => buildViewHead(call, writeView)
-      case _: Tail => buildViewTail(call, writeView)
-      case _: Zip => buildViewZip(call, writeView)
-      case _: Unzip => writeView.zip()
-      case l: Lambda => buildViewLambda(l, call, writeView)
-      case fp: FPattern => buildViewLambda(fp.f, call, writeView)
-      case cc: Concat => buildViewConcat(call, View.initialiseNewView(call.t, call.inputDepth, call.mem.variable))
-      case _: Slide =>
+      case sF: SpForeach            => buildViewSpForeach(sF, call, writeView)
+      case m: AbstractMap           => buildViewMap(m, call, writeView)
+      case f: FilterSeq             => buildViewFilter(f,  call, writeView)
+      case aSF: AbstractSpFold      => buildViewAbstrSpFold(aSF, call, writeView)
+      case r: AbstractPartRed       => buildViewReduce(r, call, writeView)
+      case sp: MapSeqSlide          => buildViewMapSeqSlide(sp, call, writeView)
+      case s: AbstractSearch        => buildViewSearch(s, call, writeView)
+      case scan:ScanSeq             => buildViewScan(scan, call, writeView)
+      case iss: InsertionSortSeq    => buildViewSort(iss, call, writeView)
+      case Split(n)                 => buildViewSplit(n, writeView)
+      case _: Join                  => buildViewJoin(call, writeView)
+      case uf: UserFun              => buildViewUserFun(writeView, uf, call)
+      case uf: VectorizeUserFun     => buildViewUserFun(writeView, uf.userFun, call)
+      case s: Scatter               => buildViewScatter(s, call, writeView)
+      case i: Iterate               => buildViewIterate(i, call, writeView)
+      case tw: TransposeW           => buildViewTransposeW(tw, call, writeView)
+      case t: Transpose             => buildViewTranspose(t, call, writeView)
+      case asVector(n)              => buildViewAsVector(n, writeView)
+      case _: asScalar              => buildViewAsScalar(call, writeView)
+      case _: Head                  => buildViewHead(call, writeView)
+      case _: Tail                  => buildViewTail(call, writeView)
+      case _: Zip                   => buildViewZip(call, writeView)
+      case _: Unzip                 => writeView.zip()
+      case l: Lambda                => buildViewLambda(l, call, writeView)
+      case fp: FPattern             => buildViewLambda(fp.f, call, writeView)
+      case cc: Concat               => buildViewConcat(call, View.initialiseNewView(call.t, call.inputDepth, call.mem.variable))
+      case _: Slide                 =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
-      case RewritingGuidePost(_) => writeView
+      case RewritingGuidePost(_)    => writeView
       case debug.PrintType(_) | debug.PrintComment(_) | debug.AssertType(_, _) | Get(_) | _: Tuple | Gather(_) | 
-           Filter() | Pad(_, _, _) | PadConstant(_, _, _) | Id() =>
-        writeView
-      case dunno => throw new NotImplementedError(s"OutputView.scala: $dunno")
+           Filter() | Pad(_, _, _) | PadConstant(_, _, _) | Id()
+                                    => writeView
+      case dunno                    => throw new NotImplementedError(s"OutputView.scala: $dunno")
     }
 
     // then handle arguments
@@ -289,13 +289,14 @@ object OutputView {
     // fReduce: traverse into call.f
     visitAndBuildViews(asf.fReduce.body, writeView.access(Cst(0)))
 
-    // Reduce output view
-    val outViewFromReduce = ViewMap(asf.fReduce.params(1).outputView, asf.reduceLoopVar, asf.fFlatMapT)//.
+    // Reduce output view is the one of the output memory of fMap
+    // (for one iteration of fMap -- the Spatial will take care of unrolling this memory)
+    val outViewFromReduce = View.initialiseNewView(asf.fMap.body.t,
+      getAccessDepth(asf.fMap.body.accessInf, asf.fMap.body.mem), asf.fMap.body.mem.variable)
 
     // fMap: traverse into call.f
-    // The split below emulates Join in the generic representation of SpFold:
-    // Reduce(fReduce, init) o Join() o Map(fMap) o Slide(chunkSize, stride) $ arg
-    visitAndBuildViews(asf.fMap.body, outViewFromReduce.split(asf.chunkSize).access(asf.mapLoopVar))
+    visitAndBuildViews(asf.fMap.body, outViewFromReduce)//.split(asf.chunkSize).access(asf.mapLoopVar))
+
     // The implied Map view is ViewMap, but the implied Slide does not need
     // the outer write view, so there is no need to build ViewMap
     //    ViewMap(asf.f.params(1).outputView, asf.mapLoopVar, call.args.head.t)

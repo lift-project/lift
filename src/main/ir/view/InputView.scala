@@ -178,28 +178,28 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
 
-  private def buildViewSpFold(aSF: AbstractSpFold,
+  private def buildViewSpFold(asf: AbstractSpFold,
                               call: FunCall, argView: View): View = {
     // fMap: pass down input view
-    aSF.fMap.params(0).view = (argView.get(1).slide(Slide(size = aSF.chunkSize, step = aSF.stride))
-                                             .access(aSF.mapLoopVar))
+    asf.fMap.params(0).view = (argView.get(1).slide(Slide(size = asf.chunkSize, step = asf.stride))
+                                             .access(asf.mapLoopVar))
     // fMap: traverse into call.f
-    val innerMapView = visitAndBuildViews(aSF.fMap.body)
+    val innerMapView = visitAndBuildViews(asf.fMap.body)
 
-    val mapView = aSF.fMap.body match {
+    val mapView = asf.fMap.body match {
       case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
         // create fresh input view for following function
         View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
       case _ => // call.isAbstract and return input map view
-        ViewMap(innerMapView, aSF.mapLoopVar, call.t)
+        ViewMap(innerMapView, asf.mapLoopVar, call.t)
     }
 
 
     // fReduce: pass down input view
-    aSF.fReduce.params(0).view = argView.get(0)
-    aSF.fReduce.params(1).view = mapView.access(aSF.reduceLoopVar)
+    asf.fReduce.params(0).view = argView.get(0)
+    asf.fReduce.params(1).view = mapView.access(asf.reduceLoopVar)
     // fReduce: traverse into call.f
-    visitAndBuildViews(aSF.fReduce.body)
+    visitAndBuildViews(asf.fReduce.body)
 
     // create fresh input view for following function
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
