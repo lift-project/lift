@@ -3,15 +3,19 @@ package backends.spatial.common.ir.view
 import backends.common.view._
 import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
 import backends.spatial.common.ir._
+import backends.spatial.common.ir.view.MemoryAccessInfoSp.MemoryAccessInfoSp
 import ir.ast.{AbstractMap, Expr, FPattern, FunCall, Get, Lambda, Param, UserFun}
 import ir.{ArrayType, Memory, Type}
 import lift.arithmetic.{ArithExpr, Cst, Var}
 
+import scala.collection.immutable.ListMap
+
 object MemoryAccessInfoSp {
-  def apply(): collection.mutable.ListMap[Memory, List[SingleAccess]] = collection.mutable.ListMap()
+  type MemoryAccessInfoSp = collection.immutable.ListMap[Memory, List[SingleAccess]]
+  def apply(): MemoryAccessInfoSp = collection.immutable.ListMap()
 }
 
-class AccessInfoSp(var accessInf: scala.collection.mutable.ListMap[Memory, List[SingleAccess]],
+class AccessInfoSp(var accessInf: MemoryAccessInfoSp,
                    var collection: Seq[AccessInfoSp]) extends AccessInfo {
 
   override def toString = s"AccessInfoSp($accessInf, $collection)"
@@ -42,7 +46,7 @@ class AccessInfoSp(var accessInf: scala.collection.mutable.ListMap[Memory, List[
 object AccessInfoSp {
 
   def apply() = new AccessInfoSp(accessInf = MemoryAccessInfoSp(), collection = Seq())
-  def apply(accessInf: collection.mutable.ListMap[Memory, List[SingleAccess]]) = new AccessInfoSp(accessInf, Seq())
+  def apply(accessInf: MemoryAccessInfoSp) = new AccessInfoSp(accessInf, Seq())
   def apply(collection: Seq[AccessInfoSp]) = new AccessInfoSp(MemoryAccessInfoSp(), collection)
 }
 
@@ -73,19 +77,17 @@ object BuildDepthInfoSp {
    * @param expr Starting expression.
    */
   def apply(expr: Expr): Unit = {
-    (new BuildDepthInfoSp)visitAndBuildDepthInfo(expr)
+    (new BuildDepthInfoSp)visitAndBuildDepthInfo(expr, MemoryAccessInfoSp())
   }
 }
 
 private class BuildDepthInfoSp() {
 
-  var memoryAccessInfo: collection.mutable.ListMap[Memory, List[SingleAccess]] = MemoryAccessInfoSp()
-
-  private def visitAndBuildDepthInfo(expr: Expr): AccessInfoSp = {
+  private def visitAndBuildDepthInfo(expr: Expr, memoryAccessInfo: MemoryAccessInfoSp): AccessInfoSp = {
     val result = expr match {
-      case call: FunCall => buildDepthInfoFunCall(call)
+      case call: FunCall => buildDepthInfoFunCall(call, memoryAccessInfo)
       case e: Expr =>
-        e.inputDepth = getAccessInfo(Seq(expr.mem))
+        e.inputDepth = getAccessInfo(Seq(expr.mem), memoryAccessInfo)
         e.accessInf.asInstanceOf[AccessInfoSp]
     }
 
@@ -93,50 +95,48 @@ private class BuildDepthInfoSp() {
     result
   }
 
-  private def buildDepthInfoFunCall(call: FunCall): AccessInfoSp = {
+  private def buildDepthInfoFunCall(call: FunCall, memoryAccessInfo: MemoryAccessInfoSp): AccessInfoSp = {
 
-    val argInf = buildDepthForArgs(call)
+    val argInf = buildDepthForArgs(call, memoryAccessInfo)
 
-    val result = call.f match {
-      case sF: SpForeach        => buildDepthInfoSpForeach(sF, call, argInf)
-      case m: AbstractMap       => buildDepthInfoMapCall(m, call, argInf)
-      case aSF: AbstractSpFold  => buildDepthInfoSpFold(aSF, call, argInf)
+    call.f match {
+      case sF: SpForeach        => buildDepthInfoSpForeach(sF, call, argInf, memoryAccessInfo)
+      case m: AbstractMap       => buildDepthInfoMapCall(m, call, argInf, memoryAccessInfo)
+      case aSF: AbstractSpFold  => buildDepthInfoSpFold(aSF, call, argInf, memoryAccessInfo)
       case _                    =>
 
         val readMemories = getMemoryAccesses(call.args.head)
         val writeMemories = getMemoryAccesses(call)
 
-        setDepths(call, readMemories, writeMemories)
+        setDepths(call, readMemories, writeMemories, memoryAccessInfo)
 
         call.f match {
-          case l: Lambda            =>  buildDepthInfoLambda(l, call, argInf)
-          case fp: FPattern         =>  buildDepthInfoLambda(fp.f, call, argInf)
+          case l: Lambda            =>  buildDepthInfoLambda(l, call, argInf, memoryAccessInfo)
+          case fp: FPattern         =>  buildDepthInfoLambda(fp.f, call, argInf, memoryAccessInfo)
           case Get(n)               =>  if (argInf.collection.nonEmpty) argInf.collection(n) else argInf
           case _: UserFun           =>  AccessInfoSp(memoryAccessInfo)
           case _                    =>  argInf
         }
     }
-
-    result
   }
 
   private def buildDepthInfoSpForeach(sF: SpForeach, call: FunCall,
-                                      l: AccessInfoSp): AccessInfoSp = {
-    buildDepthInfoMapLikeCall(sF.f, sF.loopVar, call, l)
+                                      l: AccessInfoSp, memoryAccessInfo: MemoryAccessInfoSp): AccessInfoSp = {
+    buildDepthInfoMapLikeCall(sF.f, sF.loopVar, call, l, memoryAccessInfo)
   }
 
   private def buildDepthInfoMapCall(m: AbstractMap, call: FunCall,
-                                    l: AccessInfoSp): AccessInfoSp = {
-    buildDepthInfoMapLikeCall(m.f, m.loopVar, call, l)
+                                    l: AccessInfoSp, memoryAccessInfo: MemoryAccessInfoSp): AccessInfoSp = {
+    buildDepthInfoMapLikeCall(m.f, m.loopVar, call, l, memoryAccessInfo)
   }
 
   private def buildDepthInfoMapLikeCall(f: Lambda, loopVar: Var, call: FunCall,
-                                        l: AccessInfoSp): AccessInfoSp = {
+                                        l: AccessInfoSp, memoryAccessInfo: MemoryAccessInfoSp): AccessInfoSp = {
     val readMemories = getMemoryAccesses(call.args.head)
 
     val inf = getArrayAccessInf(call.args.head.t, loopVar)
     f.params.head.accessInf = l(inf, readMemories)
-    buildDepthInfoPatternCall(f.body, call, loopVar, readMemories)
+    buildDepthInfoPatternCall(f.body, call, loopVar, readMemories, memoryAccessInfo)
 
     if (f.body.isConcrete) // create fresh input view for following function
       AccessInfoSp(memoryAccessInfo)
@@ -147,40 +147,51 @@ private class BuildDepthInfoSp() {
   /**
    * To be checked for correctness
    */
-  private def buildDepthInfoSpFold(aSF: AbstractSpFold, call: FunCall,
-                                   l: AccessInfoSp): AccessInfoSp = {
+  private def buildDepthInfoSpFold(asf: AbstractSpFold, call: FunCall,
+                                   l: AccessInfoSp, memoryAccessInfo: MemoryAccessInfoSp): AccessInfoSp = {
+
+    /*** Map depth info ***/
 
     val mapReadMemories = getMemoryAccesses(call.args(1))
+    val mapAccessInfo = getArrayAccessInf(call.args(1).t, asf.mapLoopVar)
+    asf.fMap.params.head.accessInf = l.collection(1)(mapAccessInfo, mapReadMemories)
 
-    // Map depth info
-    val mapArgAccessInfo = getArrayAccessInf(call.args(1).t, aSF.mapLoopVar)
-    aSF.fMap.params.head.accessInf = l.collection(1)(mapArgAccessInfo, mapReadMemories)
-    buildDepthInfoPatternCall(aSF.fMap.body, call, aSF.mapLoopVar, mapReadMemories)
+    val mapWriteMemories = getMemoryAccesses(asf.fMap.body)
 
-    val fMapAccessInfo = if (aSF.fMap.body.isConcrete) // create fresh input view for following function
-      AccessInfoSp(memoryAccessInfo)
+    // The input memories will be accessed using map iterator variable
+    val updMemoryAccessInfo = updateAccessInf(memoryAccessInfo, mapReadMemories, mapAccessInfo)
+    // The write memory is local to each map iteration and will be accessed as a whole
+
+    // traverse into call.f
+    visitAndBuildDepthInfo(asf.fMap.body, updMemoryAccessInfo)
+
+    setDepths(call, mapReadMemories, mapWriteMemories, updMemoryAccessInfo)
+
+
+    val fMapAccessInfo = if (asf.fMap.body.isConcrete) // create fresh input view for following function
+      AccessInfoSp(updMemoryAccessInfo)
     else // call.isAbstract, return input
       l
 
     val mapType = call.args(1).t
-    val mapWriteMemories = getMemoryAccesses(aSF.fMap.body)
 
-    // Reduce depth info
-    val reduceReadMemories = getMemoryAccesses(call.args(1))
-    val reduceArgAccessInfo = getArrayAccessInf(mapType, aSF.reduceLoopVar)
-    aSF.fReduce.params(0).accessInf = l.collection.head
-    aSF.fReduce.params(1).accessInf = fMapAccessInfo(reduceArgAccessInfo, mapWriteMemories)
+
+    /*** Reduce depth info ***/
+    // Reduce reads memory that is different from the one fMap writes to
+    // (see the comment in SpatialMemoryAllocator on this)
+    val reduceReadMemories = getMemoryAccesses(asf.fReduce.params(1))
+    val reduceArgAccessInfo = getArrayAccessInf(mapType, asf.reduceLoopVar)
+    asf.fReduce.params(0).accessInf = l.collection.head
+    asf.fReduce.params(1).accessInf = fMapAccessInfo(reduceArgAccessInfo, reduceReadMemories)
 
     val accumAccessInf = getArrayAccessInf(call.t, Cst(0))
     val reduceWriteMemories = getMemoryAccesses(call)
 
-    updateAccessInf(reduceReadMemories ++ reduceWriteMemories, accumAccessInf)
+    val updMemoryAccessInfo2 = updateAccessInf(memoryAccessInfo, reduceReadMemories ++ reduceWriteMemories, accumAccessInf)
     // traverse into call.f
-    visitAndBuildDepthInfo(aSF.fReduce.body)
+    visitAndBuildDepthInfo(asf.fReduce.body, updMemoryAccessInfo2)
 
-    setDepths(call, reduceReadMemories, reduceWriteMemories)
-
-    restoreAccessInf(reduceReadMemories ++ reduceWriteMemories)
+    setDepths(call, reduceReadMemories, reduceWriteMemories, updMemoryAccessInfo2)
 
     AccessInfoSp(memoryAccessInfo)
   }
@@ -189,76 +200,79 @@ private class BuildDepthInfoSp() {
     SpatialMemory.getAllMemories(expr.mem.asInstanceOf[SpatialMemory])
 
   private def buildDepthInfoPatternCall(expr: Expr, call: FunCall, index: ArithExpr,
-                                        readMemories: Seq[Memory]): Unit = {
+                                        readMemories: Seq[Memory],
+                                        memoryAccessInfo: MemoryAccessInfoSp): Unit = {
     val inf = getArrayAccessInf(call.t, index)
     val writeMemories = getMemoryAccesses(call)
 
-    updateAccessInf(readMemories ++ writeMemories, inf)
+    val updMemoryAccessInfo = updateAccessInf(memoryAccessInfo, readMemories ++ writeMemories, inf)
 
     // traverse into call.f
-    visitAndBuildDepthInfo(expr)
+    visitAndBuildDepthInfo(expr, updMemoryAccessInfo)
 
-    setDepths(call, readMemories, writeMemories)
-
-    restoreAccessInf(readMemories ++ writeMemories)
+    setDepths(call, readMemories, writeMemories, memoryAccessInfo)
 
     AccessInfoSp(memoryAccessInfo)
   }
 
-  private def buildDepthForArgs(call: FunCall): AccessInfoSp = {
+  private def buildDepthForArgs(call: FunCall, memoryAccessInfo: MemoryAccessInfoSp): AccessInfoSp = {
 
     if (call.args.length == 1)
-      visitAndBuildDepthInfo(call.args.head)
+      visitAndBuildDepthInfo(call.args.head, memoryAccessInfo)
     else {
       AccessInfoSp({
-        val a = call.args.map((expr: Expr) => visitAndBuildDepthInfo(expr))
+        val a = call.args.map((expr: Expr) => visitAndBuildDepthInfo(expr, memoryAccessInfo))
         a
       })
     }
   }
 
   private def buildDepthInfoLambda(l: Lambda, call: FunCall,
-                                   list: AccessInfoSp): AccessInfoSp = {
+                                   list: AccessInfoSp, memoryAccessInfo: MemoryAccessInfoSp): AccessInfoSp = {
 
     if (call.args.length == 1)
-      setAccessInfo(list, l.params.head)
+      setAccessInfo(list, l.params.head, memoryAccessInfo)
     else
       (list.collection, l.params).zipped.foreach((accessInfo, param) =>
-        setAccessInfo(accessInfo, param))
+        setAccessInfo(accessInfo, param, memoryAccessInfo))
 
-    visitAndBuildDepthInfo(l.body)
+    visitAndBuildDepthInfo(l.body, memoryAccessInfo)
   }
 
   /**
    * For new memories, adds them to the memoryAccessInfo collection with one access.
    * For memories already in memoryAccessInfo, adds the new access to the list of existing ones
-   * @param accessedMemories
-   * @param newAccess
    */
-  protected def updateAccessInf(accessedMemories: Seq[Memory],
-                                newAccess: SingleAccess): Unit = {
-    // New memories
-    accessedMemories.foreach(mem =>
-      if (memoryAccessInfo.contains(mem)) memoryAccessInfo(mem) ::= newAccess
-      else memoryAccessInfo += (mem -> List(newAccess)))
-    // Existing memories
-    memoryAccessInfo.filterNot{ case (m, _) => accessedMemories.contains(m) }.
-      foreach { case (mem, _) => memoryAccessInfo(mem) ::= newAccess }
+  protected def updateAccessInf(origMemoryAccessInfo: MemoryAccessInfoSp,
+                                accessedMemories: Seq[Memory],
+                                newAccess: SingleAccess): MemoryAccessInfoSp = {
+    // Join and remove duplicates
+    val memories: Seq[Memory] = (origMemoryAccessInfo.keys ++ accessedMemories).toSet.toSeq
+    ListMap(
+      memories.map(mem =>
+        if (origMemoryAccessInfo.contains(mem))
+        // Existing memories
+          (mem, newAccess +: origMemoryAccessInfo(mem))
+        else
+        // New memories
+          (mem, List(newAccess))
+      ): _*)
   }
 
-  protected def restoreAccessInf(accessedMemories: Seq[Memory]): Unit = {
-    accessedMemories.foreach(mem => memoryAccessInfo(mem) = memoryAccessInfo(mem).tail)
+//  protected def restoreAccessInf(accessedMemories: Seq[Memory]): Unit = {
+//    accessedMemories.foreach(mem => memoryAccessInfo(mem) = memoryAccessInfo(mem).tail)
+//  }
+
+  protected def setDepths(call: FunCall, readMemories: Seq[Memory], writeMemories: Seq[Memory],
+                          memoryAccessInfo: MemoryAccessInfoSp): Unit = {
+    call.inputDepth = getAccessInfo(writeMemories, memoryAccessInfo)
+    call.outputDepth = getAccessInfo(readMemories, memoryAccessInfo)
   }
 
-  protected def setDepths(call: FunCall, readMemories: Seq[Memory], writeMemories: Seq[Memory]): Unit = {
-    call.inputDepth = getAccessInfo(writeMemories)
-    call.outputDepth = getAccessInfo(readMemories)
-  }
-
-  protected def setAccessInfo(list: AccessInfoSp, param: Param): Unit = {
+  protected def setAccessInfo(list: AccessInfoSp, param: Param, memoryAccessInfo: MemoryAccessInfoSp): Unit = {
     val readMemory = getMemoryAccesses(param)
 
-    param.outputDepth = getAccessInfo(readMemory)
+    param.outputDepth = getAccessInfo(readMemory, memoryAccessInfo)
     param.accessInf = list
   }
 
@@ -267,7 +281,7 @@ private class BuildDepthInfoSp() {
    * priority rules (TODO: explain priority) and return the access chain of the memory
    * with the deepest access chain out of the filtered memories
    */
-  protected def getAccessInfo(accessedMemories: Seq[Memory]): List[SingleAccess] = {
+  protected def getAccessInfo(accessedMemories: Seq[Memory], memoryAccessInfo: MemoryAccessInfoSp): List[SingleAccess] = {
     val spAccessedMemories = accessedMemories.map(_.asInstanceOf[SpatialMemory])
 
     val accessedRegisterMem = spAccessedMemories.filter(SpatialMemory.containsRegMemory)
@@ -302,6 +316,22 @@ private class BuildDepthInfoSp() {
   protected def getArrayAccessInf(ty: Type, v: ArithExpr): SingleAccess = {
     ty match {
       case at: ArrayType => (at.replacedElemT, v)
+      case _ => throw new IllegalArgumentException(
+        s"Cannot compute access information for $ty. ArrayType required."
+      )
+    }
+  }
+
+  /**
+   * Utility function for generating access info to an array as a whole
+   *
+   * @param ty the array type passed as a generic type. We check that it is
+   *           indeed an array type below.
+   * @param v the variable used to perform the access
+   */
+  protected def getWholeArrayArrayAccessInf(ty: Type, v: ArithExpr): SingleAccess = {
+    ty match {
+      case at: ArrayType => (_ => at, v)
       case _ => throw new IllegalArgumentException(
         s"Cannot compute access information for $ty. ArrayType required."
       )
