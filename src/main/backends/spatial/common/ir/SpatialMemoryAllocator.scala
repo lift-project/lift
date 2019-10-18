@@ -167,12 +167,16 @@ object SpatialMemoryAllocator {
         val initM = coll.subMemories(0)
 
         asf.fMap.params(0).mem = coll.subMemories(1)
-        // fMap body memory will be referred to by fReduce, but will not be allocated --
-        // Spatial will pass the results of fMap to fReduce by value
+        // fMap body memory has the size of chunkSize. Although fReduce reads data produced by fMap,
+        // it expects memory of size call.args(1).t.size. Here, we will allocate output memory of fMap
+        // and input memory of fReduce separately. This will not be a problem during code generation as those
+        // memories are not explicitly written to / read from. Spatial takes care of the disparity.
         asf.fMapMem = alloc(asf.fMap.body, asf.fMap.body.t)
 
         asf.fReduce.params(0).mem = initM
-        asf.fReduce.params(1).mem = asf.fMapMem
+
+        asf.fReduce.params(1).mem = SpatialMemory.allocMemory(
+          asf.fFlatMapT, asf.fMapMem.asInstanceOf[SpatialMemory].addressSpace)
 
         val reduceBodyM = alloc(asf.fReduce.body, outMemT)
 

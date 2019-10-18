@@ -8,7 +8,7 @@ import ir.Type.size_t
 import ir.ast.{Expr, Lambda}
 import ir.{ArrayType, ArrayTypeWC, ArrayTypeWS, Capacity, ScalarType, Size, TupleType, Type, VectorType}
 import ir.view.{InputView, OutputView, SizeIndex, View, View2DGeneratorUserFun, View3DGeneratorUserFun, ViewAccess, ViewArrayWrapper, ViewAsScalar, ViewAsVector, ViewConcat, ViewConstant, ViewFilter, ViewGenerator, ViewHead, ViewJoin, ViewMap, ViewMem, ViewOffset, ViewPad, ViewPadConstant, ViewReorder, ViewSize, ViewSlide, ViewSplit, ViewTail, ViewTranspose, ViewTuple, ViewTupleComponent, ViewUnzip, ViewZip}
-import lift.arithmetic.{ArithExpr, RangeAdd, Var}
+import lift.arithmetic.{ArithExpr, Cst, RangeAdd, Var}
 
 import scala.collection.immutable
 
@@ -91,7 +91,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
         // the iterator by step inside the loop body.
         // The strided range is introduced in RangesAndCountsSp().
         val newAddressor = i match {
-          case Var(_, RangeAdd(_, _, step)) if step != 1 =>
+          case Var(_, RangeAdd(_, _, step)) if step !== Cst(1) =>
             Index(i /^ step)
 
           case _ => Index(i)

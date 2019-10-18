@@ -185,11 +185,12 @@ object SpatialMemory {
  *    The memories of the map bodies of FPatterns such as SpMemReduce and SpMemFold always require materialisation.
  * 4. Whether the writes to the memory are implicit such as in the case of the Reduce accumulator, which is
  *    declared (materialised), but not assigned values to explicitly.
+ *    TODO: reuse views or AccessInfo for writeT
+ *    TODO: infer implicitlyReadFrom and implicitlyWrittenTo in a cleaner way
  *
  * @constructor Create a new TypedSpatialMemory object
  * @param mem The underlying memory object
  * @param writeT The type of each write to the memory object
- * @param materialised Whether this memory requires materialisation
   */
 case class TypedSpatialMemory(mem: SpatialMemory, writeT: Type,
                               var materialised: Boolean,
@@ -209,7 +210,9 @@ object TypedSpatialMemory {
       implicitlyReadFrom, implicitlyWrittenTo)
   }
 
-  def apply(mem: Memory, t: Type, materialised: Boolean, implicitlyWrittenTo: Boolean): TypedSpatialMemory = {
-    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(mem), t, materialised, implicitlyWrittenTo)
+  def apply(mem: Memory, t: Type, materialised: Boolean,
+            implicitlyReadFrom: Boolean, implicitlyWrittenTo: Boolean): TypedSpatialMemory = {
+    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(mem), t, materialised,
+      implicitlyReadFrom, implicitlyWrittenTo)
   }
 }
