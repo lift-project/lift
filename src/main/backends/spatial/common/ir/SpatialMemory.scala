@@ -193,6 +193,7 @@ object SpatialMemory {
   */
 case class TypedSpatialMemory(mem: SpatialMemory, writeT: Type,
                               var materialised: Boolean,
+                              var implicitlyReadFrom: Boolean,
                               var implicitlyWrittenTo: Boolean) {
   lazy val lengths: Seq[ArithExpr] = Type.getAllocatedLengths(writeT)
 
@@ -202,8 +203,10 @@ case class TypedSpatialMemory(mem: SpatialMemory, writeT: Type,
 }
 
 object TypedSpatialMemory {
-  def apply(expr: Expr, materialised: Boolean = true, implicitlyWrittenTo: Boolean = false): TypedSpatialMemory = {
-    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(expr.mem), expr.t, materialised, implicitlyWrittenTo)
+  def apply(expr: Expr, materialised: Boolean = true,
+            implicitlyReadFrom: Boolean = false, implicitlyWrittenTo: Boolean = false): TypedSpatialMemory = {
+    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(expr.mem), expr.t, materialised,
+      implicitlyReadFrom, implicitlyWrittenTo)
   }
 
   def apply(mem: Memory, t: Type, materialised: Boolean, implicitlyWrittenTo: Boolean): TypedSpatialMemory = {

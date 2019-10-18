@@ -47,6 +47,7 @@ object CollectTypedSpatialMemory {
 private class CollectTypedSpatialMemory(val lambda: Lambda) {
 
   private var nonMaterialMems: mutable.Set[Memory] = mutable.Set.empty
+  private var implicitlyReadFromMems: mutable.Set[Memory] = mutable.Set.empty
   private var implicitlyWrittenToMems: mutable.Set[Memory] = mutable.Set.empty
 
   private def apply(): TypedMemoryCollection = {
@@ -70,7 +71,9 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
 
     // Mark memories that don't need materialisation as such
     collection.asFlatSequence.foreach(tm => if (nonMaterialMems.contains(tm.mem)) tm.materialised = false)
-    // Mark memories that are implicitly written to
+    // Mark memories that are implicitly read from as such
+    collection.asFlatSequence.foreach(tm => if (implicitlyReadFromMems.contains(tm.mem)) tm.implicitlyReadFrom = true)
+    // Mark memories that are implicitly written to as such
     collection.asFlatSequence.foreach(tm => if (implicitlyWrittenToMems.contains(tm.mem)) tm.implicitlyWrittenTo = true)
 
     collection
@@ -134,7 +137,6 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
 
 
   private def collectSpForeach(t: Type, sf: SpForeach, call: FunCall) = {
-    nonMaterialMems += call.mem
     collectIntermediateMemories(sf.f.body)
   }
 
@@ -147,12 +149,18 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
                             call: FunCall) = {
     // The memory of the implicit map is not materialised by default
     nonMaterialMems += asf.fMapMem
-    // The memory written to by the reduce is to be materialised even if it marked as non-material before
+    // The input memory of the implicit reduce is a different representation of asf.fMapMem and is not materialised as well
+    val fReduceInputTypedFakeMem = TypedSpatialMemory(asf.fReduce.params(1))
+    nonMaterialMems += fReduceInputTypedFakeMem.mem
+//     The memory written to by the reduce is to be materialised even if it marked as non-material before
     nonMaterialMems -= call.mem
-    // The memory is written to by the reduce implicitly -- we don't need to generate stores
+    // The memory is written to and read from by the reduce implicitly -- we don't need to generate stores/loads
+    implicitlyReadFromMems += call.mem
     implicitlyWrittenToMems += call.mem
 
-    val memories = collectIntermediateMemories(asf.fMap.body) ++ collectIntermediateMemories(asf.fReduce.body)
+
+    val memories = collectIntermediateMemories(asf.fMap.body) ++ Seq(fReduceInputTypedFakeMem) ++
+      collectIntermediateMemories(asf.fReduce.body)
 
     removeParameterAndArgumentDuplicates(memories, argumentMemories)
   }

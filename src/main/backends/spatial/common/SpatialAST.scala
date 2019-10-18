@@ -6,6 +6,7 @@ import core.generator.GenericAST._
 import core.generator.PrettyPrinter._
 
 object SpatialAST {
+
   trait SpatialAddressSpaceOperator {
     val addressSpace: SpatialAddressSpace
   }
@@ -70,12 +71,12 @@ object SpatialAST {
                                params: List[SpParamDeclT], body: MutableExprBlockT)
     extends ExprBasedFunctionT {
 
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
       ExprBasedFunction(name, ret, addressSpace, params.map(_.visitAndRebuild(pre, post).asInstanceOf[SpParamDeclT]),
         body.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
       params.foreach(_.visitBy(pre, post))
       body.visitBy(pre, post)
     }
@@ -85,12 +86,12 @@ object SpatialAST {
    *
    * @param code Native code to insert
    */
-  case class SpatialCode(code: String, pre1: String = "", pre2: String ="", post1: String ="", post2: String = "") extends RawCodeT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+  case class SpatialCode(code: String, pre1: String = "", pre2: String = "", post1: String = "", post2: String = "") extends RawCodeT {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
       this
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {}
   }
 
   /*
@@ -122,16 +123,28 @@ object SpatialAST {
   case class SpIfThenElse(cond: ExpressionT,
                           trueBody: MutableExprBlockT,
                           falseBody: MutableExprBlockT) extends SpIfThenElseT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
       SpIfThenElse(cond.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
         trueBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT],
         falseBody.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
     }
 
-    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
       cond.visitBy(pre, post)
       trueBody.visitBy(pre, post)
       falseBody.visitBy(pre, post)
     }
+  }
+
+  trait PlaceholderT extends ExpressionT {
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = visitFun(z, this)
+
+    override def print(): Doc = text("_")
+  }
+
+  case class Placeholder() extends PlaceholderT {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = this
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {}
   }
 }

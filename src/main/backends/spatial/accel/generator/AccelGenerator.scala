@@ -3,7 +3,7 @@ package backends.spatial.accel.generator
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
 import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, toDRAM, toReg, toSRAM}
-import backends.spatial.common.Printer
+import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
 import backends.spatial.common.ir.ast.SpatialBuiltInFun
@@ -131,7 +131,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
       case _  => throw new NotImplementedError()
     }
 
-    if (returnRequired)
+    if (returnRequired && allTypedMemories(expr.mem).materialised)
       (block: MutableExprBlock) += accessNode(expr.mem.variable, expr.addressSpace, expr.t, expr.view)
   }
 
@@ -478,9 +478,13 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   }
 
   private def generateLoadNode(mem: SpatialMemory, t: Type, view: View): ExpressionT = {
-    mem match {
+    if (!allTypedMemories(mem).materialised || allTypedMemories(mem).implicitlyReadFrom)
+      // This memory is not materialised or is implicitly read from. If we are trying to load it, that means we are
+      // printing an anonymous function definition (e.g. "{ add(_, _) }"), so we'll print placeholders
+      SpatialAST.Placeholder()
+    else mem match {
       case coll: SpatialMemoryCollection =>
-      // we want to generate a load for a tuple constructed by a corresponding view (i.e. zip)
+        // we want to generate a load for a tuple constructed by a corresponding view (i.e. zip)
         if (!t.isInstanceOf[TupleType])
           throw new AccelGeneratorException(s"Found a SpatialMemoryCollection for var: " +
             s"${mem.variable}, but corresponding type: $t is " +
@@ -574,7 +578,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         val x = SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace)
         x match {
           // TODO add sliced ref and unrolled register array access
-          case VarIdxRef(_, _, _) =>
+          case _: VarIdxRef | _: VarSlicedRef =>
             VarIdxRef(v, suffix = Some(arrayAccessRegisterMem(v, view)))
           case e: ExpressionT  => e
         }
@@ -629,7 +633,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     val addressors: List[ArrayAddressor] = valueType match {
 
       case _: ScalarType | _: TupleType =>
-        SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValues, RegMemory) match {
+        val a = SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValues, RegMemory)
+        a match {
           case VarSlicedRef(_, _, addr) =>
             asIndices(addr.get, errorMsg = "A scalar type can only be accessed using an array.")
 
