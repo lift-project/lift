@@ -6,6 +6,8 @@ import ir.interpreter.Interpreter.ValueMap
 
 case class toDRAM(f: Lambda) extends Pattern(arity = f.arity)
                              with FPattern {
+  assert(f.arity == 1)
+
   override def copy(f: Lambda): Pattern = toDRAM(f)
 
   override def checkType(argType: Type, setType: Boolean): Type =
