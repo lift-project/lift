@@ -1,7 +1,7 @@
 package backends.spatial.common.ir
 
 import backends.spatial.accel.generator.IllegalAccelBlock
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, toDRAM, toLiteral, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, toDRAM, asLiteral, toReg, toSRAM}
 import ir.ScalarType
 import ir.ast.{AbstractPartRed, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Id, Join, Lambda, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
 
@@ -61,7 +61,7 @@ object InferSpatialAddressSpace {
                                     => setAddressSpaceDefault(argAddressSpaces)
 
       case toDRAM(_) | toSRAM(_) |
-           toReg(_) | toLiteral()   => setAddressSpaceChange(call, argAddressSpaces)
+           toReg(_) | asLiteral()   => setAddressSpaceChange(call, argAddressSpaces)
 
       case Filter()                 => throw new NotImplementedError()
       case Get(i)                   => setAddressSpaceGet(i, argAddressSpaces.head)
@@ -114,14 +114,14 @@ object InferSpatialAddressSpace {
   private def setAddressSpaceChange(call: FunCall,
                                     argAddressSpaces: Seq[SpatialAddressSpace]): SpatialAddressSpace = {
 
-    if (!call.f.isInstanceOf[toLiteral] && !call.isConcrete(false))
+    if (!call.f.isInstanceOf[asLiteral] && !call.isConcrete(false))
       throw new IllegalAccelBlock(s"Address space change requested without a write at $call")
 
     if (argAddressSpaces.length > 1)
       throw new IllegalAccelBlock(s"Expected only one argument to the address space caster")
 
     call.f match {
-      case toLiteral() => LiteralMemory
+      case asLiteral() => LiteralMemory
       case _ =>
         val (addressSpace, lambda) = call.f match {
           case toReg(f) => (RegMemory, f)

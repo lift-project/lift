@@ -94,7 +94,7 @@ object SpatialMemoryAllocator {
       case toDRAM(f)                => allocLambda(f, call.t, DRAMMemory, inMem)
       case toSRAM(f)                => allocLambda(f, call.t, SRAMMemory, inMem)
       case toReg(f)                 => allocLambda(f, call.t, RegMemory, inMem)
-      case toLiteral()              => inMem
+      case asLiteral()              => inMem
 
       case Zip(_) | Tuple(_)        => allocZipTuple(inMem)
       case Get(n)                   => allocGet(n, inMem)

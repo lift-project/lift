@@ -4,7 +4,7 @@ import ir.ast.Pattern
 import ir.interpreter.Interpreter.ValueMap
 import ir.{ScalarType, Type, TypeException}
 
-case class toLiteral() extends Pattern(arity = 1) {
+case class asLiteral() extends Pattern(arity = 1) {
 
   override def checkType(argType: Type, setType: Boolean): Type = {
     argType match {

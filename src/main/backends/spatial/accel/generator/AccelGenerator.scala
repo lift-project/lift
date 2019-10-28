@@ -2,7 +2,7 @@ package backends.spatial.accel.generator
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, toDRAM, toLiteral, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, toDRAM, asLiteral, toReg, toSRAM}
 import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
@@ -116,7 +116,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
           case fp: FPattern           => generate(fp.f.body, block)
           case l: Lambda              => generate(l.body, block)
 
-          case toReg(_) | toSRAM(_) | toDRAM(_) | toLiteral() |
+          case toReg(_) | toSRAM(_) | toDRAM(_) | asLiteral() |
                Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
                Split(_) | Join() | Slide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
                Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
@@ -251,7 +251,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
     val accumOrInitNode = if (accumOrInit.addressSpace == LiteralMemory) {
       accumOrInit match {
-        case FunCall(toLiteral(), Value(value, t)) =>
+        case FunCall(asLiteral(), Value(value, t)) =>
           // Make sure the value is well-formed
           try { t match {
             case backends.spatial.common.ir.Int => value.toInt
