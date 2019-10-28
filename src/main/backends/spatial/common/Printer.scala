@@ -29,7 +29,7 @@ object Printer {
       case _: ScalarType  => toString(t)
       case at: ArrayType  => val dimensions = Type.getLengths(at).dropRight(1)
                              toString(addressSpace) + dimensions.length.toString +
-                               "[" + Type.getBaseType(at) + "]"
+                               "[" + toString(Type.getBaseType(at)) + "]"
       case _              => throw new IllegalArgumentException("Expected an array type during printing")
     }
   }

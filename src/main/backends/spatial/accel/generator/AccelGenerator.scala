@@ -173,7 +173,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     (block: MutableExprBlock) += Comment("iteration count is exactly 1, no loop emitted")
     val innerBlock = MutableExprBlock(Vector.empty)
 
-    innerBlock += SpatialVarDecl(v = indexVar, t = opencl.ir.Int, init = Some(init), addressSpace = RegMemory)
+    innerBlock += SpatialVarDecl(v = indexVar, t = backends.spatial.common.ir.Int,
+      init = Some(init), addressSpace = RegMemory)
     generateBody(innerBlock)
 
     (block: MutableExprBlock) += innerBlock
@@ -183,7 +184,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
                                   init: ArithExpression, stop: ArithExpr): Unit = {
     (block: MutableExprBlock) += Comment("iteration count is exactly 1 or less, no loop emitted")
     val innerBlock = MutableExprBlock(Vector.empty)
-    innerBlock += SpatialVarDecl(v = indexVar, t = opencl.ir.Int, init = Some(init), addressSpace = RegMemory)
+    innerBlock += SpatialVarDecl(v = indexVar, t = backends.spatial.common.ir.Int,
+      init = Some(init), addressSpace = RegMemory)
     (block: MutableExprBlock) += SpIfThenElse(
       BinaryExpression(init, BinaryExpressionT.Operator.<, ArithExpression(stop)),
       trueBody = innerBlock, falseBody = MutableExprBlock())
@@ -459,7 +461,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
     val targetNode = accessNode(targetMem.variable, targetMem.addressSpace, targetType, targetView)
 
-    if (srcAddressSpace == targetMem.addressSpace) AssignmentExpression(to = targetNode, srcNode)
+    if (srcAddressSpace == targetMem.addressSpace)
+      AssignmentExpression(to = targetNode, srcNode)
 
     else (srcAddressSpace, targetMem.addressSpace) match {
       case (DRAMMemory, SRAMMemory) => SpLoad(src = srcNode, target = VarSlicedRef(targetMem.variable))

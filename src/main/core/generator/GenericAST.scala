@@ -4,6 +4,7 @@ import ir.{ArrayType, TupleType, Type}
 import lift.arithmetic._
 import opencl.generator.UseCastsForVectors
 import PrettyPrinter._
+import backends.{Backend, SpatialBackend}
 import utils.Printer
 
 import scala.language.implicitConversions
@@ -806,7 +807,7 @@ object GenericAST {
   }
 
   implicit def exprToStmt(e: ExpressionT): ExpressionStatement =
-    ExpressionStatement(e)
+    ExpressionStatement(e, neglectSemiColon = Backend().isInstanceOf[SpatialBackend.type])
 
   trait FunctionCallT extends ExpressionT {
     val name: String
@@ -827,7 +828,8 @@ object GenericAST {
   }
 
   case class FunctionCall(name: String,
-                          args: List[GenericAST.AstNode], val template_types: List[CTypeT]= List()) extends FunctionCallT {
+                          args: List[GenericAST.AstNode], val template_types: List[CTypeT]= List())
+    extends FunctionCallT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
       FunctionCall(name, args.map(_.visitAndRebuild(pre, post)), template_types.map(_.visitAndRebuild(pre,post).asInstanceOf[CTypeT]))
     }
