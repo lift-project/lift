@@ -33,6 +33,25 @@ abstract class Expr extends IRNode {
    */
   var mem: Memory = UnallocatedMemory
 
+  /**
+   * The address space of the output. In Lift-Spatial, it might be different to that of
+   * the storage memory (referred to by mem above) that will hold the value if this expression
+   * is inside an address space caster.
+   * Consider the following expression: toSRAM(p => idArray(p)) $ dramArray
+   * Here, dramArray.addressSpace = DRAM. The other address spaces will be inferred as follows:
+   * FunCall(toSRAM).addressSpace = SRAM
+   * p.addressSpace = DRAM
+   * FunCall(toSRAM).mem.addressSpace = SRAM
+   * FunCall(idArray).addressSpace = DRAM
+   * FunCall(idArray).mem.addressSpace = SRAM
+   *
+   * Note the difference between the address spaces of FunCall(idArray) and FunCall(idArray).mem.
+   *
+   * This distinction was introduced to be able to detect opportunities to generated explicit transfer
+   * statements (load/store) during code generation by looking for a difference in source -- expression --
+   * and target -- expression memory -- address spaces.
+   * TODO: implement the same for OpenCL
+   */
   var addressSpace: AddressSpace = UndefAddressSpace
 
   /**

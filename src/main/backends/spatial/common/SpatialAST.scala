@@ -52,15 +52,9 @@ object SpatialAST {
       // print the name
       "def" <+> name <>
         // print parameters
-        "(" <>
-        intersperse(params.map(_.print())) <>
-        ")" <+>
-        // TODO: Until we don't fix UserFun return types, let Scala infer the type itself.
-        // The problem is in "aDRAM >> toSRAM(idArray())" =>
-        // "def id(a: DRAM1[Float]): SRAM1[Float]" (the return type should be DRAM1 instead)
-        /*<> ":" <+>
-          // print the return type
-          Printer.toString(ret, addressSpace)*/
+        "(" <> intersperse(params.map(_.print())) <> ")" <> ":" <+>
+        // print the return type
+        Printer.toString(ret, addressSpace) <+>
         "=" <+>
         // print the body
         body.print()

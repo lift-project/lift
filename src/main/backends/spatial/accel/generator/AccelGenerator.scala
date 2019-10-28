@@ -401,8 +401,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
       case call: FunCall => call.f match {
         case uf: UserFun          => FunctionCall(uf.name, args)
         case l: Lambda            => generateFunCall(l.body, args)
-
-        case _ => throw new NotImplementedError()
+        case _                    => throw new NotImplementedError()
       }
       case _             => throw new NotImplementedError()
     }
