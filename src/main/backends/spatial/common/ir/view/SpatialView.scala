@@ -1,7 +1,7 @@
 package backends.spatial.common.ir.view
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST.VarSlicedRef
-import backends.spatial.common.ir.{AddressSpaceCollection, RegMemory, SpatialAddressSpace, UndefAddressSpace}
+import backends.spatial.common.ir.{AddressSpaceCollection, LiteralMemory, RegMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
 import core.generator.GenericAST.{ArithExpression, ExpressionT}
 import ir.Type.size_t
@@ -281,6 +281,8 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
       // Sanity check
       if (addressSpace == RegMemory && !at.isInstanceOf[ArrayType with Size with Capacity])
         throw new IllegalSpatialView("An array in register memory must have a size and a capacity in the type")
+      if (addressSpace == LiteralMemory && !at.isInstanceOf[ArrayType with Size with Capacity])
+        throw new IllegalSpatialView("An array in literal memory must have a size and a capacity in the type")
 
       //        partialAAStack :+ addr
       if (at.elemT.hasFixedAllocatedSize) {
@@ -387,11 +389,11 @@ object SpatialViewPrinter {
            replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map(),
            addressSpace: SpatialAddressSpace = UndefAddressSpace): ExpressionT = {
     val vp = new SpatialViewPrinter(replacements, addressSpace)
-    // This requirement is relaxed compared to the C-like backends since Spatial supports sliced accesses to arrays
+    // This requirement is relaxed compared to the C-like backends since Spatial supports sliced accesses to arrays:
     //assert(!view.t.isInstanceOf[ArrayType])
+
     // Instead, we populate the array access stack with slices corresponding to the arrays in the view type
     val arrayAccessStack: List[Slice] = view.t match {
-
       case at: ArrayType with Size =>
         Type.getLengths(at).dropRight(1).map(Slice.continuous).toList
 

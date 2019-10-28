@@ -37,6 +37,13 @@ object RegMemory extends SpatialAddressSpace {
     spatialAddressSpace == this
 }
 
+object LiteralMemory extends SpatialAddressSpace {
+  override def toString = "Literal"
+
+  def containsAddressSpace(spatialAddressSpace: SpatialAddressSpace): Boolean =
+    spatialAddressSpace == this
+}
+
 object UndefAddressSpace extends SpatialAddressSpace {
   def containsAddressSpace(spatialAddressSpace: SpatialAddressSpace): Boolean =
     false
@@ -59,7 +66,7 @@ case class AddressSpaceCollection(spaces: Seq[SpatialAddressSpace])
 
   def findCommonAddressSpace(): SpatialAddressSpace = {
     // Try to find common address space which is not the register memory ...
-    val sharedMem = spaces.filterNot(_ == RegMemory)
+    val sharedMem = spaces.filterNot(s => s == RegMemory || s == LiteralMemory)
     if (sharedMem.isEmpty) // Everything is in private memory
       return RegMemory
 

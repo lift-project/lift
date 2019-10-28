@@ -49,12 +49,12 @@ object SpatialMemoryAllocator {
   }
 
   private def allocValue(v: Value): SpatialMemory = {
-    if (v.mem != UnallocatedMemory) {
-      val spatialMem = SpatialMemory.asSpatialMemory(v.mem)
-      assert(spatialMem.addressSpace == RegMemory)
-      spatialMem
-    } else {
-      SpatialMemory.allocRegMemory(v.t)
+    val spatialMem = SpatialMemory.asSpatialMemory(v.mem)
+
+    spatialMem.addressSpace match {
+      case RegMemory | LiteralMemory => spatialMem
+      case UndefAddressSpace => SpatialMemory.allocMemory(v.t, v.addressSpace)
+      case _ => throw new IllegalArgumentException(s"Unexpected address space ${spatialMem.addressSpace} for Value $v")
     }
   }
 
@@ -94,6 +94,7 @@ object SpatialMemoryAllocator {
       case toDRAM(f)                => allocLambda(f, call.t, DRAMMemory, inMem)
       case toSRAM(f)                => allocLambda(f, call.t, SRAMMemory, inMem)
       case toReg(f)                 => allocLambda(f, call.t, RegMemory, inMem)
+      case toLiteral()              => inMem
 
       case Zip(_) | Tuple(_)        => allocZipTuple(inMem)
       case Get(n)                   => allocGet(n, inMem)

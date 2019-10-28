@@ -62,7 +62,7 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
         if (outputAmongIntermediates.nonEmpty) outputAmongIntermediates.head else TypedSpatialMemory(lambda.body)
       }
 
-      (List(DRAMMemory, SRAMMemory, RegMemory).map(addressSpace =>
+      (List(DRAMMemory, SRAMMemory, RegMemory, LiteralMemory).map(addressSpace =>
         addressSpace -> memories.filter(_.mem.addressSpace == addressSpace)).toMap,
         output)
     }
@@ -147,8 +147,9 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
   private def collectSpFold(asf: AbstractSpFold,
                             argumentMemories: Seq[TypedSpatialMemory],
                             call: FunCall) = {
-    // The memory of the implicit map is not materialised by default
-    nonMaterialMems += asf.fMapMem
+    // The memory of the implicit map is not materialised if a literal is passed as an initial value
+    if (call.args.head.addressSpace == LiteralMemory)
+      nonMaterialMems += asf.fMapMem
     // The input memory of the implicit reduce is a different representation of asf.fMapMem and is not materialised as well
     val fReduceInputTypedFakeMem = TypedSpatialMemory(asf.fReduce.params(1))
     nonMaterialMems += fReduceInputTypedFakeMem.mem

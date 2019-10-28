@@ -284,13 +284,15 @@ private class BuildDepthInfoSp() {
   protected def getAccessInfo(accessedMemories: Seq[Memory], memoryAccessInfo: MemoryAccessInfoSp): List[SingleAccess] = {
     val spAccessedMemories = accessedMemories.map(_.asInstanceOf[SpatialMemory])
 
+    val accessedLiteralMem = spAccessedMemories.filter(SpatialMemory.containsLiteralMemory)
     val accessedRegisterMem = spAccessedMemories.filter(SpatialMemory.containsRegMemory)
     val accessedSRAMMem = spAccessedMemories.filter(SpatialMemory.containsSRAMMemory)
     val accessedDRAMMem = spAccessedMemories.filter(SpatialMemory.containsDRAMMemory)
 
     // Find the memory with deepest access level. Return its accesses
     val accessedMemoriesOfInterest =
-      if (accessedRegisterMem.nonEmpty) accessedRegisterMem
+      if (accessedLiteralMem.nonEmpty) accessedLiteralMem
+      else if (accessedRegisterMem.nonEmpty) accessedRegisterMem
       else if (accessedSRAMMem.nonEmpty) accessedSRAMMem
       else if (accessedDRAMMem.nonEmpty) accessedDRAMMem
       else throw new IllegalArgumentException("Unknown or no memory")

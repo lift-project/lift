@@ -1,7 +1,7 @@
 package backends.spatial.accel.ir.ast
 
 import backends.spatial.common.SpatialAST.SpatialAddressSpaceOperator
-import backends.spatial.common.ir.{RegMemory, SRAMMemory, SpatialAddressSpace, UndefAddressSpace}
+import backends.spatial.common.ir.{LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
 import core.generator.GenericAST._
 import core.generator.PrettyPrinter._
@@ -167,6 +167,7 @@ object SpatialAccelAST {
                   "val" <+> Printer.toString(v.v) <> "_" <> Printer.toString(i)  <+> "=" <+>
                     s"${Printer.toString(addressSpace)}[${Printer.toString(Type.getValueType(t))}]" }))
 
+              case LiteralMemory => throw new IllegalArgumentException("Cannot print literal variable declaration")
               case _ => throw new NotImplementedError()
             }
 
@@ -179,6 +180,7 @@ object SpatialAccelAST {
                 case (RegMemory, Some(initNode)) => "(" <> initNode.print() <> ")"
                 case (RegMemory, None) => empty
                 case (SRAMMemory, _) => "(1)"
+                case (LiteralMemory, _) => throw new IllegalArgumentException("Cannot print literal variable declaration")
                 case _ => throw new NotImplementedError() // TODO
               })
         })

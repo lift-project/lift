@@ -2,13 +2,13 @@ package backends.spatial.accel.generator
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, toDRAM, toLiteral, toReg, toSRAM}
 import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
 import backends.spatial.common.ir.ast.SpatialBuiltInFun
 import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice, SpatialViewPrinter}
-import backends.spatial.common.ir.{AddressSpaceCollection, DRAMMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, TypedMemoryCollection, UndefAddressSpace}
+import backends.spatial.common.ir.{AddressSpaceCollection, DRAMMemory, LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, TypedMemoryCollection, UndefAddressSpace}
 import core.generator.GenericAST._
 import ir._
 import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
@@ -116,7 +116,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
           case fp: FPattern           => generate(fp.f.body, block)
           case l: Lambda              => generate(l.body, block)
 
-          case toReg(_) | toSRAM(_) | toDRAM(_) |
+          case toReg(_) | toSRAM(_) | toDRAM(_) | toLiteral() |
                Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
                Split(_) | Join() | Slide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
                Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
@@ -132,7 +132,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     }
 
     if (returnRequired && allTypedMemories(expr.mem).materialised)
-      (block: MutableExprBlock) += accessNode(expr.mem.variable, expr.addressSpace, expr.t, expr.view)
+      (block: MutableExprBlock) += generateLoadNode(SpatialMemory.asSpatialMemory(expr.mem), expr.t, expr.view)
   }
 
   private def propagateDynamicArraySize(call: FunCall, block: MutableExprBlock): Unit = {
@@ -247,9 +247,27 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     val innerMapBlock = MutableExprBlock(Vector.empty, encapsulated = false)
     val innerReduceBlock = MutableExprBlock(Vector.empty, encapsulated = false)
 
-    val accumulator = call.args.head
+    val accumOrInit = call.args.head
 
-    val accum = valueAccessNode(accumulator.mem.variable)
+    val accumOrInitNode = if (accumOrInit.addressSpace == LiteralMemory) {
+      accumOrInit match {
+        case FunCall(toLiteral(), Value(value, t)) =>
+          // Make sure the value is well-formed
+          try { t match {
+            case backends.spatial.common.ir.Int => value.toInt
+            case backends.spatial.common.ir.Float => value.toFloat
+            case _ => throw new AccelGeneratorException(s"Unknown value type $t")
+          }} catch {
+            case _: java.lang.NumberFormatException =>
+              throw new AccelGeneratorException("Cannot convert \"" + value + "\" to a number")
+          }
+          // Return the value as a string
+          SpatialCode(value)
+        case _ => throw new AccelGeneratorException(s"Expected the literal argument to be Value() >> toLiteral(), " +
+          s"got $accumOrInit")
+      }
+    } else valueAccessNode(accumOrInit.mem.variable)
+
     val counter = List(Counter(
       ArithExpression(getRangeAdd(asf.mapLoopVar).start),
       ArithExpression(getRangeAdd(asf.mapLoopVar).stop),
@@ -259,8 +277,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
     // TODO: Confirm that we don't need to generate anything outside fMap body
     (block: MutableExprBlock) += (asf match {
-      case _: SpFold => SpatialAccelAST.Fold(accum, counter, iterVars, innerMapBlock, innerReduceBlock)
-      case _: SpMemFold => SpatialAccelAST.MemFold(accum, counter, iterVars, innerMapBlock, innerReduceBlock)
+      case _: SpFold => SpatialAccelAST.Fold(accumOrInitNode, counter, iterVars, innerMapBlock, innerReduceBlock)
+      case _: SpMemFold => SpatialAccelAST.MemFold(accumOrInitNode, counter, iterVars, innerMapBlock, innerReduceBlock)
     })
 
     generate(asf.fMap.body, innerMapBlock, memReturn = true)
@@ -457,7 +475,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
                                 srcAddressSpace: SpatialAddressSpace,
                                 srcNode: AstNode): StatementT = {
     // Sanity check -- make sure this is the store of the producer of the associated memory
-    assert(targetType == allTypedMemories(targetMem).writeT)
+    assert(targetType == allTypedMemories(targetMem).typeInMem)
 
     val targetNode = accessNode(targetMem.variable, targetMem.addressSpace, targetType, targetView)
 
@@ -555,6 +573,10 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
             throw new TypeException(allTypedMemories(v).mem.t, "A known type", null)
         }
 
+      case LiteralMemory =>
+        throw new IllegalArgumentException(s"Trying to access literal variable $v, but literal values cannot have " +
+          s"variables associated with them")
+
       case UndefAddressSpace | AddressSpaceCollection(_) =>
         throw new IllegalArgumentException(s"Cannot access data in $addressSpace")
     }
@@ -577,9 +599,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace)
 
       case RegMemory =>
-        val x = SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace)
-        x match {
-          // TODO add sliced ref and unrolled register array access
+        val arrayAccessExpression = SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace)
+        arrayAccessExpression match {
           case _: VarIdxRef | _: VarSlicedRef =>
             VarIdxRef(v, suffix = Some(arrayAccessRegisterMem(v, view)))
           case e: ExpressionT  => e
@@ -608,7 +629,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   }
 
   /**
-   * Generates integers charecterising one access to memory.
+   * Generates integers characterising one access to memory.
    * Produce a two-dimensional list of indices. The outer dimension contains
    * one element per dimension of the accessed memory; the inner dimension contains
    * one element per index in a slice.
@@ -621,26 +642,21 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
    */
   private def arrayAccessRegisterMemIndex(v: Var, view: View): List[List[Int]] = {
 
-    def asIndices(addr: List[AddressorT], errorMsg: String): List[Index] = {
-      addr.map {
-        case idx: ArrIndex => Index(idx)
-        case _ => throw new AccelGeneratorException(errorMsg)
-      }
-    }
-
-    val valueType = allTypedMemories(v).writeT
+    val typeInMem = allTypedMemories(v).typeInMem
 
     // Get the addressors as if we were accessing a multidimensional array in memory and
     // convert them from Spatial AST to Lift IR
-    val addressors: List[ArrayAddressor] = valueType match {
+    val addressors: List[ArrayAddressor] = typeInMem match {
 
       case _: ScalarType | _: TupleType =>
-        val a = SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValues, RegMemory)
-        a match {
-          case VarSlicedRef(_, _, addr) =>
-            asIndices(addr.get, errorMsg = "A scalar type can only be accessed using an array.")
+        val arrayAccessExpression = SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValues, RegMemory)
+        arrayAccessExpression match {
+          case VarSlicedRef(_, _, Some(addr)) => addr.map {
+            case idx: ArrIndex => Index(idx)
+            case slice: ArrSlice => Slice(slice)
+          }
 
-          case x => throw new MatchError(s"Expected a NDVarSlicedRef, but got $x.")
+          case x => throw new MatchError(s"Expected a NDVarSlicedRef with addressors, but got $x.")
         }
 
       case _: VectorType => throw new NotImplementedError()
@@ -648,7 +664,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
       case ArrayType(_) =>
 
         SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValues, RegMemory) match {
-          case VarSlicedRef(_, _, addr) => addr.get.map {
+          case VarSlicedRef(_, _, Some(addr)) => addr.map {
             case idx: ArrIndex => Index(idx)
             case slice: ArrSlice => Slice(slice)
           }
@@ -656,7 +672,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         }
 
       case NoType | UndefType =>
-        throw new TypeException(valueType, "A valid defined type", null)
+        throw new TypeException(typeInMem, "A valid defined type", null)
     }
 
     // Replace where necessary and evaluate to Int
@@ -667,7 +683,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         sbstAddr.eval()
       })
     } catch {
-      case NotEvaluableException()      =>
+      case NotEvaluableException() =>
         throw new AccelGeneratorException(s"Could not access private array, as addressor $addressors could " +
           s"not be evaluated statically (given these replacementsOfIteratorsWithValues: $replacementsOfIteratorsWithValues)")
       case NotEvaluableToIntException() =>
@@ -675,7 +691,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
           s"larger than scala.Int.MaxValue (given these replacementsOfIteratorsWithValues: $replacementsOfIteratorsWithValues)")
     }
 
-    val memTypeLengths = Type.getLengths(allTypedMemories(v).writeT)
+    val memTypeLengths = Type.getLengths(allTypedMemories(v).typeInMem)
 
     if (!memTypeLengths.forall(_.isEvaluable))
       throw new AccelGeneratorException(s"Private memory length has to be evaluable, but found $memTypeLengths")

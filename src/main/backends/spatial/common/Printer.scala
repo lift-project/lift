@@ -3,7 +3,7 @@ package backends.spatial.common
 import _root_.ir.Type
 import _root_.ir.{ArrayType, ScalarType}
 import backends.spatial.accel.generator.NotPrintableExpression
-import backends.spatial.common.ir.{DRAMMemory, RegMemory, SRAMMemory, SpatialAddressSpace}
+import backends.spatial.common.ir.{DRAMMemory, LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace}
 import ir.view.{AccessVar, ArrayAddressor, CastedPointer, Index, Slice}
 import lift.arithmetic.{ArithExpr, BitwiseAND, BitwiseXOR, Cst, IntDiv, LShift, Log, Lookup, Mod, Pow, Predicate, Prod, Sum, Var}
 
@@ -13,6 +13,7 @@ object Printer {
       case DRAMMemory     => "DRAM"
       case SRAMMemory     => "SRAM"
       case RegMemory      => "Reg"
+      case LiteralMemory  => throw new IllegalArgumentException("Literal address space name must never be printed")
       case _          => throw new IllegalArgumentException("Unknown Spatial address space encountered during printing")
     }
   }

@@ -53,6 +53,7 @@ sealed class SpatialMemory(var variable: Var,
       case DRAMMemory => SpatialMemory.allocDRAMMemory(t)
       case SRAMMemory => SpatialMemory.allocSRAMMemory(t)
       case RegMemory => SpatialMemory.allocRegMemory(t)
+      case LiteralMemory => SpatialMemory.allocLiteralMemory(t)
       case AddressSpaceCollection(_) => this match {
         case coll: SpatialMemoryCollection =>
           SpatialMemoryCollection(coll.subMemories.map(_.copy()))
@@ -147,6 +148,8 @@ object SpatialMemory {
   def containsDRAMMemory(mem: Memory): Boolean = containsAddressSpace(mem, DRAMMemory)
   def containsSRAMMemory(mem: Memory): Boolean = containsAddressSpace(mem, SRAMMemory)
   def containsRegMemory(mem: Memory): Boolean = containsAddressSpace(mem, RegMemory)
+  def containsLiteralMemory(mem: Memory): Boolean = containsAddressSpace(mem, LiteralMemory)
+  def containsPrivateMemory(mem: Memory): Boolean = containsRegMemory(mem) || containsLiteralMemory(mem)
 
   /**
     * Return newly allocated memory of `t.size` elements in `addressSpace`
@@ -168,6 +171,10 @@ object SpatialMemory {
   /** Return newly allocated Register memory */
   def allocRegMemory(regOutType: Type): SpatialMemory =
     allocMemory(regOutType, RegMemory)
+
+  /** Return newly allocated Literal memory */
+  def allocLiteralMemory(literalOutType: Type): SpatialMemory =
+    allocMemory(literalOutType, LiteralMemory)
 }
 
 /**
@@ -190,17 +197,17 @@ object SpatialMemory {
  *
  * @constructor Create a new TypedSpatialMemory object
  * @param mem The underlying memory object
- * @param writeT The type of each write to the memory object
+ * @param typeInMem The type of each write to the memory object
   */
-case class TypedSpatialMemory(mem: SpatialMemory, writeT: Type,
+case class TypedSpatialMemory(mem: SpatialMemory, typeInMem: Type,
                               var materialised: Boolean,
                               var implicitlyReadFrom: Boolean,
                               var implicitlyWrittenTo: Boolean) {
-  lazy val lengths: Seq[ArithExpr] = Type.getAllocatedLengths(writeT)
+  lazy val lengths: Seq[ArithExpr] = Type.getAllocatedLengths(typeInMem)
 
   var declared: Boolean = false
 
-  override def toString: String = s"($mem: $writeT)"
+  override def toString: String = s"($mem: $typeInMem)"
 }
 
 object TypedSpatialMemory {

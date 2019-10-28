@@ -2,7 +2,7 @@ package ir.view
 
 import backends.{Backend, OpenCLBackend, SpatialBackend}
 import backends.common.view.{AccessInfo, SingleAccess}
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach, toLiteral}
 import backends.spatial.common.ir.view.AccessInfoSp
 import ir._
 import ir.ast._
@@ -78,6 +78,7 @@ object OutputView {
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case RewritingGuidePost(_)    => writeView
+      case _: toLiteral             => writeView
       case debug.PrintType(_) | debug.PrintComment(_) | debug.AssertType(_, _) | Get(_) | _: Tuple | Gather(_) | 
            Filter() | Pad(_, _, _) | PadConstant(_, _, _) | Id()
                                     => writeView
