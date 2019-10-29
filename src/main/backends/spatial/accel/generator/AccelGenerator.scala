@@ -171,7 +171,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
                                 generateBody: (MutableExprBlock) => Unit, init: ArithExpression): Unit = {
     // one iteration
     (block: MutableExprBlock) += Comment("iteration count is exactly 1, no loop emitted")
-    val innerBlock = MutableExprBlock(Vector.empty)
+    val innerBlock = MutableExprBlock(Vector.empty, encapsulated = false)
 
     innerBlock += SpatialVarDecl(v = indexVar, t = backends.spatial.common.ir.Int,
       init = Some(init), addressSpace = RegMemory)
@@ -183,7 +183,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   private def generateIfStatement(block: MutableExprBlock, indexVar: Var, generateBody: (MutableExprBlock) => Unit,
                                   init: ArithExpression, stop: ArithExpr): Unit = {
     (block: MutableExprBlock) += Comment("iteration count is exactly 1 or less, no loop emitted")
-    val innerBlock = MutableExprBlock(Vector.empty)
+    val innerBlock = MutableExprBlock(Vector.empty, encapsulated = false)
     innerBlock += SpatialVarDecl(v = indexVar, t = backends.spatial.common.ir.Int,
       init = Some(init), addressSpace = RegMemory)
     (block: MutableExprBlock) += SpIfThenElse(
