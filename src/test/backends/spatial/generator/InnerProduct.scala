@@ -173,6 +173,7 @@ class InnerProduct {
     import backends.spatial.accel.ir.pattern.{SpFold, toSRAM}
     import backends.spatial.common.ir._
     import backends.spatial.host.ir.ast.AccelFun
+
     Backend.setSpatial()
 
     val N = SizeVar("N") //1024
@@ -245,24 +246,33 @@ class InnerProduct {
     import backends.spatial.accel.ir._
     import backends.spatial.host
 
-    val M = 128
-    val P = 64
-    val N = 96
-    val outerFactorI = 2
-    val outerFactorJ = 2
-    val outerFactorK = 2
-    val tileMsize = 32
-    val tileNsize = 32
-    val tileParFactor = 16
-    val innerFactorI = 1
-    val innerFactorJ = 1
+    Backend.setSpatial()
 
-    val idArray2d = UserFun("idArray", Array("arr"),
+    val M = SizeVar("M") // 128
+    val P = SizeVar("P") // 64
+    val N = SizeVar("N") // 96
+    val outerFactorI = SizeVar("outerFactorI") // 2
+    val outerFactorJ = SizeVar("outerFactorJ") // 2
+    val outerFactorK = SizeVar("outerFactorK") // 2
+    val tileMsize = SizeVar("tileMsize") // 32
+    val tileNsize = SizeVar("tileNsize") // 16
+    val tileParFactor = SizeVar("tileParFactor") // 16
+    val innerFactorI = SizeVar("innerFactorI") // 1
+    val innerFactorJ = SizeVar("innerFactorJ") // 1
+
+    val idArray2dMN = UserFun("idArray2dMN", Array("arr"),
       "arr", Seq(ArrayType(ArrayType(Float, tileNsize), tileMsize)),
       ArrayType(ArrayType(Float, tileNsize), tileMsize)) // TODO: generalise array size
 
-    val idArray1d = UserFun("idArray", Array("arr"),
+    val idArray2dNN = UserFun("idArray2dNN", Array("arr"),
+      "arr", Seq(ArrayType(ArrayType(Float, tileNsize), tileNsize)),
+      ArrayType(ArrayType(Float, tileNsize), tileNsize)) // TODO: generalise array size
+
+    val idArray1dM = UserFun("idArray1dM", Array("arr"),
       "arr", Seq(ArrayType(Float, tileMsize)), ArrayType(Float, tileMsize)) // TODO: generalise array size
+
+    val idArray1dN = UserFun("idArray1dN", Array("arr"),
+      "arr", Seq(ArrayType(Float, tileNsize)), ArrayType(Float, tileNsize)) // TODO: generalise array size
 
     val addMatrices = UserFun("addMatrices", Array("l", "r"),
       "addMatrices", Seq(ArrayType(ArrayType(Float, tileNsize), tileMsize),
@@ -297,44 +307,51 @@ class InnerProduct {
                         Transpose() $ Get(Unzip() $ tileBcolsC, 0)
                     val tileCsram =
                       AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "tileCsram.type") o
-                        toSRAM(idArray2d) o Transpose() $ Get(Unzip() $ tileBcolsC, 1)
+                        toSRAM(idArray2dMN) o Transpose() $ Get(Unzip() $ tileBcolsC, 1)
 
                     SpMemFold(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorK,
                       fMap = fun(
                         ArrayType(TupleType(ArrayType(Float, tileMsize), ArrayType(Float, tileNsize)), tileNsize),
                         tileAB => {
-                          val tileA = AssertType(ArrayType(ArrayType(Float, tileMsize), tileNsize), "tileA") $
-                            Get(Unzip() $ tileAB, 0)
+                          // TODO: confirm whether Transpose should be used instead of TransposeW below
+                          val tileA = AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "tileA") o
+                            Transpose() $ Get(Unzip() $ tileAB, 0)
                           val tileBsram = AssertType(ArrayType(ArrayType(Float, tileNsize), tileNsize), "tileBsram") o
-                            toSRAM(idArray2d) $ Get(Unzip() $ tileAB, 1)
-                          PrintType() o
-//
-                          SpForeach(chunkSize = 1, stride = 1, factor = innerFactorI,
-                            f = fun(
-                              // TODO: get rid of the extra dimension of 1 element
-                              ArrayType(TupleType(ArrayType(Float, tileNsize), ArrayType(Float, tileNsize)), 1),
-                              tileRowABsram => {
-                                val tileRowAsram = AssertType(ArrayType(Float, tileNsize), "tileRowAsram") o
-                                  toSRAM(idArray1d) o Join() $ Get(Unzip() $ tileRowABsram, 0)
-                                val tileRowBsram = AssertType(ArrayType(Float, tileNsize), "tileRowBsram") o
-                                  Join() $ Get(Unzip() $ tileRowABsram, 1)
-                                SpForeach(
-                                  chunkSize = 1,
-                                  stride = 1,
-                                  factor = innerFactorJ,
-                                  f = fun(ArrayType(Float, 1), elBsram =>
-                                    /*Pipe {*/
-                                    SpMemFold(chunkSize = 1, stride = 1, factor = tileParFactor,
-                                      fMap = fun(ArrayType(Float, 1), elAsram =>
-                                        backends.spatial.accel.ir.pattern.MapSeq(mult) $ Zip(elBsram, elAsram)),
-                                      fReduce = add,
-                                      init = Value(0.0f, Float)
-                                    ) $ tileRowAsram
-                                    /*}*/
-                                  )) $ tileRowBsram
-                              })) $ Zip(tileA, tileBsram)
+                            Transpose() o toSRAM(idArray2dNN) $ Get(Unzip() $ tileAB, 1)
+
+                          AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "Outer MemFold fMap type") o
+                            //
+                            SpForeach(chunkSize = 1, stride = 1, factor = innerFactorI,
+                              f = fun(
+                                ArrayType(ArrayType(Float, tileNsize), 1),
+                                tileRowA => {
+                                  val tileRowAsram = AssertType(ArrayType(Float, tileNsize), "tileRowAsram") o
+                                    toSRAM(idArray1dN) o Join() $ tileRowA
+
+//                                PrintType() o
+                                  Join() o
+                                    SpForeach(
+                                      chunkSize = 1,
+                                      stride = 1,
+                                      factor = innerFactorJ,
+                                      f = fun(ArrayType(ArrayType(Float, tileNsize), 1), tileRowBsram =>
+
+                                        AssertType(ArrayType(Float, 1), "Inner MemFold result type") o
+                                          //
+                                          /*Pipe {*/
+                                          SpMemFold(chunkSize = 1, stride = 1, factor = tileParFactor,
+                                            fMap = fun(
+                                              ArrayType(TupleType(Float, Float), 1), elAsramBsram => {
+
+                                                backends.spatial.accel.ir.pattern.MapSeq(mult) $ elAsramBsram}),
+                                            fReduce = add,
+                                            init = Value(0.0f, Float)
+                                          ) $ Zip(tileRowAsram, Join() $ tileRowBsram)
+                                        /*}*/
+                                      )) $ tileBsram
+                                })) $ tileA // Zip(tileA, tileBsram)
                         }),
-                      fReduce = addMatrices, init = tileCsram
+                      fReduce = /*addMatrices*/ add, init = tileCsram
                     ) $ Zip(tileArows, tileBcols)
                   })) $ Zip(b, tileCrows)
             }))) $ Zip(a, c))
@@ -358,7 +375,7 @@ class InnerProduct {
           val tileC = SRAM[T](tileMsize, tileNsize).buffer
           tileC load c_dram(i::i+tileMsize, j::j+tileNsize par tileParFactor)
 
-          MemFold(tileC par tileParFactor)(P by tileMsize par outerFactorK) { k =>
+          MemFold(tileC par tileParFactor)(P by tileNsize par outerFactorK) { k =>
 
             val tileCaccum = SRAM[T](tileMsize, tileNsize)
 
@@ -374,7 +391,7 @@ class InnerProduct {
               Foreach(tileNsize by 1 par innerFactorJ) { jj =>
 
                 Pipe {
-                  tileCaccum(ii,jj) = Reduce(Reg[T])(tileMsize by 1 par tileParFactor) { kk =>
+                  tileCaccum(ii,jj) = Reduce(Reg[T])(tileNsize by 1 par tileParFactor) { kk =>
                     bSRAM(kk, jj) * aSRAM(kk)
                   }{_+_}
                 }
@@ -383,7 +400,7 @@ class InnerProduct {
             tileCaccum
           }{_+_}
 
-          cDRAM(i::i+tileNsize, j::j+tileMsize par tileParFactor) store tileC
+          cDRAM(i::i+tileMsize, j::j+tileNsize par tileParFactor) store tileC
         }
       }
     """
