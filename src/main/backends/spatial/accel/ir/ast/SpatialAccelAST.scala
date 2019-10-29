@@ -187,6 +187,23 @@ object SpatialAccelAST {
     }
   }
 
+  case class RegAssignmentExpression(to: AstNode, value: AstNode) extends
+    AssignmentExpressionT {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      RegAssignmentExpression(to.visitAndRebuild(pre, post),
+        value.visitAndRebuild(pre, post))
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      to.visitBy(pre, post)
+      value.visitBy(pre,post)
+    }
+
+    override def print(): Doc = {
+      to.print <+> ":=" <+> value.print
+    }
+  }
+
   trait CounterT extends ExpressionT {
     val min: ExpressionT
     val max: ExpressionT

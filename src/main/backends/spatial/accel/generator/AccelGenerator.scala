@@ -479,8 +479,11 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
     val targetNode = accessNode(targetMem.variable, targetMem.addressSpace, targetType, targetView)
 
-    if (srcAddressSpace == targetMem.addressSpace)
-      AssignmentExpression(to = targetNode, srcNode)
+    if (srcAddressSpace == targetMem.addressSpace) targetMem.addressSpace match {
+      case RegMemory  => RegAssignmentExpression(to = targetNode, srcNode)
+      case _          =>    AssignmentExpression(to = targetNode, srcNode)
+    }
+
 
     else (srcAddressSpace, targetMem.addressSpace) match {
       case (DRAMMemory, SRAMMemory) => SpLoad(src = srcNode, target = VarSlicedRef(targetMem.variable))
