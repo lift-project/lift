@@ -267,8 +267,7 @@ object OutputView {
     // build the implied Slide view
     val slideWriteView = View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
 
-    val argViews = call.args.map(visitAndBuildViews(_, slideWriteView))
-    ViewTuple(argViews, call.argsType)
+    slideWriteView
   }
 
 
