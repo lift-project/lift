@@ -20,12 +20,12 @@ case class SpForeach(chunkSize: ArithExpr,
     argType match {
       case ArrayTypeWSWC(elemT, s, c) if s == c =>
         f.params(0).t = ArrayType(elemT, chunkSize)
-        TypeChecker.check(f.body, setType)
+        val fBodyT = TypeChecker.check(f.body, setType)
 
         // TODO: make sure that these are divisible:
         val outerSize = (s - (chunkSize - stride)) / stride
 
-        ArrayType(elemT, outerSize)
+        ArrayType(fBodyT, outerSize)
 
       case _ => throw new TypeException(argType, "ArrayType", this)
     }

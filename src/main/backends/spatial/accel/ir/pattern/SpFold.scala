@@ -25,15 +25,16 @@ case class SpFold(override val fMap: Lambda1,
 
         fFlatMapT = at.replacedElemT(mapBodyType)
 
-        fReduce.params(0).t = initT // initial element type
-        fReduce.params(1).t = mapBodyType // reduce input array element type
+        fReduce.params(0).t = Type.getBaseType(initT) // initial element type
+        fReduce.params(1).t = Type.getBaseType(mapBodyType) // reduce input array element type
 
         val reduceBodyType = TypeChecker.check(fReduce.body, setType) // check the body
 
-        if (initT != mapBodyType || initT != reduceBodyType)
+        if (Type.getBaseType(initT) != Type.getBaseType(mapBodyType) || Type.getBaseType(initT) != reduceBodyType)
           throw TypeException(
             s"Illegal reduction function in:\n``$this``.\n" +
-              s"``($initT, $mapBodyType) -> $reduceBodyType`` does not match ``(α, α) -> α``"
+              s"``(${Type.getBaseType(initT)}, ${Type.getBaseType(mapBodyType)}) -> $reduceBodyType`` " +
+              s"does not match ``(α, α) -> α``"
           )
 
         ArrayTypeWSWC(initT, 1)
