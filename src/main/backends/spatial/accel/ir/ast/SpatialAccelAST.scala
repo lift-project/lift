@@ -405,17 +405,49 @@ object SpatialAccelAST {
     }
 
     override def print(): Doc = {
-        target.print() <> (if (infixNotation) " " else ".") <>
+      target.print() <> (if (infixNotation) " " else ".") <>
         "load" <> (if (infixNotation) " " else ".(") <>
-          src.print() <> (if (infixNotation) "" else ")")
+        src.print() <> (if (infixNotation) "" else ")")
     }
   }
 
   case class SpLoad(src: AstNode,
                     target: VarSlicedRef) extends SpLoadT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      SpLoad(src.visitAndRebuild(pre, post),
-        target.visitAndRebuild(pre, post).asInstanceOf[VarSlicedRef])
+      SpLoad(src.visitAndRebuild(pre, post), target.visitAndRebuild(pre, post).asInstanceOf[VarSlicedRef])
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
+      src.visitBy(pre, post)
+      target.visitBy(pre, post)
+    }
+  }
+
+  /**
+   * A store from an SRAM variable into DRAM variable
+   */
+  trait SpStoreT extends StatementT {
+    val src: AstNode
+    val target: VarSlicedRef
+
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (visitFun(_, src)) |>
+        (visitFun(_, target))
+    }
+
+    override def print(): Doc = {
+      target.print() <> (if (infixNotation) " " else ".") <>
+        "store" <> (if (infixNotation) " " else ".(") <>
+        src.print() <> (if (infixNotation) "" else ")")
+    }
+  }
+
+  case class SpStore(src: AstNode,
+                    target: VarSlicedRef) extends SpStoreT {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
+      SpStore(src.visitAndRebuild(pre, post), target.visitAndRebuild(pre, post).asInstanceOf[VarSlicedRef])
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {

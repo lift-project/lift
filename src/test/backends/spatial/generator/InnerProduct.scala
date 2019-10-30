@@ -180,7 +180,7 @@ class InnerProduct {
         // Transfer data
         s1 load d1
         s2 load d2
-  
+
         // Multiply and accumulate
         out := Reduce(Reg[T](0))(len by 1) { i =>
           s1(i) * s2(i)
@@ -354,8 +354,7 @@ class InnerProduct {
       ArrayType(ArrayType(Float, P), N),
       ArrayType(ArrayType(Float, N), M),
       (a, b, c) =>
-        toDRAM(SpForeach(
-          chunkSize = tileMsize, stride = tileMsize, factor = outerFactorI,
+        SpForeach(chunkSize = tileMsize, stride = tileMsize, factor = outerFactorI,
           f = fun(
             ArrayType(TupleType(ArrayType(Float, P), ArrayType(Float, N)), tileMsize),
             tileACrows => {
@@ -379,52 +378,53 @@ class InnerProduct {
                       AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "tileCsram.type") o
                         toSRAM(idArray2dMN) o Transpose() $ Get(Unzip() $ tileBcolsC, 1)
 
-                    SpMemFold(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorK,
-                      fMap = fun(
-                        ArrayType(TupleType(ArrayType(Float, tileMsize), ArrayType(Float, tileNsize)), tileNsize),
-                        tileAB => {
-                          // TODO: confirm whether Transpose should be used instead of TransposeW below
-                          val tileA = AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "tileA") o
-                            Transpose() $ Get(Unzip() $ tileAB, 0)
-                          val tileBsram = AssertType(ArrayType(ArrayType(Float, tileNsize), tileNsize), "tileBsram") o
-                            Transpose() o toSRAM(idArray2dNN) $ Get(Unzip() $ tileAB, 1)
+                    toDRAM(idArray2dMN) o Join() o
+//
+                      SpMemFold(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorK,
+                        fMap = fun(
+                          ArrayType(TupleType(ArrayType(Float, tileMsize), ArrayType(Float, tileNsize)), tileNsize),
+                          tileAB => {
+                            // TODO: confirm whether Transpose should be used instead of TransposeW below
+                            val tileA = AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "tileA") o
+                              Transpose() $ Get(Unzip() $ tileAB, 0)
+                            val tileBsram = AssertType(ArrayType(ArrayType(Float, tileNsize), tileNsize), "tileBsram") o
+                              Transpose() o toSRAM(idArray2dNN) $ Get(Unzip() $ tileAB, 1)
 
-                          AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "Outer MemFold fMap type") o
-                            //
-                            SpForeach(chunkSize = 1, stride = 1, factor = innerFactorI,
-                              f = fun(
-                                ArrayType(ArrayType(Float, tileNsize), 1),
-                                tileRowA => {
-                                  val tileRowAsram = AssertType(ArrayType(Float, tileNsize), "tileRowAsram") o
-                                    toSRAM(idArray1dN) o Join() $ tileRowA
+                            AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "Outer MemFold fMap type") o
+                              //
+                              SpForeach(chunkSize = 1, stride = 1, factor = innerFactorI,
+                                f = fun(
+                                  ArrayType(ArrayType(Float, tileNsize), 1),
+                                  tileRowA => {
+                                    val tileRowAsram = AssertType(ArrayType(Float, tileNsize), "tileRowAsram") o
+                                      toSRAM(idArray1dN) o Join() $ tileRowA
 
-//                                PrintType() o
-                                  Join() o
-                                    SpForeach(
-                                      chunkSize = 1,
-                                      stride = 1,
-                                      factor = innerFactorJ,
-                                      f = fun(ArrayType(ArrayType(Float, tileNsize), 1), tileRowBsram =>
+                                    Join() o
+                                      SpForeach(
+                                        chunkSize = 1,
+                                        stride = 1,
+                                        factor = innerFactorJ,
+                                        f = fun(ArrayType(ArrayType(Float, tileNsize), 1), tileRowBsram =>
 
-                                        AssertType(ArrayType(Float, 1), "Inner MemFold result type") o
-                                          //
-                                          /*Pipe {*/
-                                          SpMemFold(chunkSize = 1, stride = 1, factor = tileParFactor,
-                                            fMap = fun(
-                                              ArrayType(TupleType(Float, Float), 1), elAsramBsram => {
+                                          AssertType(ArrayType(Float, 1), "Inner MemFold result type") o
+                                            //
+                                            /*Pipe {*/
+                                            SpMemFold(chunkSize = 1, stride = 1, factor = tileParFactor,
+                                              fMap = fun(
+                                                ArrayType(TupleType(Float, Float), 1), elAsramBsram => {
 
-                                                backends.spatial.accel.ir.pattern.MapSeq(mult) $ elAsramBsram}),
-                                            fReduce = add,
-                                            init = Value(0.0f, Float)
-                                          ) $ Zip(tileRowAsram, Join() $ tileRowBsram)
-                                        /*}*/
-                                      )) $ tileBsram
-                                })) $ tileA // Zip(tileA, tileBsram)
-                        }),
-                      fReduce = /*addMatrices*/ add, init = tileCsram
-                    ) $ Zip(tileArows, tileBcols)
+                                                  backends.spatial.accel.ir.pattern.MapSeq(mult) $ elAsramBsram}),
+                                              fReduce = add,
+                                              init = Value(0.0f, Float)
+                                            ) $ Zip(tileRowAsram, Join() $ tileRowBsram)
+                                          /*}*/
+                                        )) $ tileBsram
+                                  })) $ tileA // Zip(tileA, tileBsram)
+                          }),
+                        fReduce = /*addMatrices*/ add, init = tileCsram
+                      ) $ Zip(tileArows, tileBcols)
                   })) $ Zip(b, tileCrows)
-            }))) $ Zip(a, c))
+            })) $ Zip(a, c))
 
     val runTimeLambda: Lambda = fun(
       ArrayType(ArrayType(Float, P), M),
@@ -474,20 +474,7 @@ class InnerProduct {
         }
       }
     """
+
+    println(out)
   }
-
-
-  // TODO: remove the scribbles about views
-
-  //                                       x(a/s * s, b)   x(a, b)
-  // ViewAccess(ViewMap( ViewAccess(ViewMap( ViewSplit(ViewMem())))))
-  //    i                    j               i*s + j
-
-  //                                         x(s, a/s, b)   x(a/s * s, b)   x(a, b)
-  // ViewAccess(ViewMap( ViewAccess(ViewMap( ViewTranspose( ViewSplit(ViewMem()))))))
-  //    j                    i               i, j           i*s + j
-
-  //                     x(a*b.len + b)    x(a, b)
-  // ViewAccess(ViewMap( ViewJoin(       ViewMem()))))
-  // i                    i/b.len, i%b.len
 }

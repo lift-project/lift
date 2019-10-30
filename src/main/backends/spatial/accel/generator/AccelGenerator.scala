@@ -491,6 +491,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
     else (srcAddressSpace, targetMem.addressSpace) match {
       case (DRAMMemory, SRAMMemory) => SpLoad(src = srcNode, target = VarSlicedRef(targetMem.variable))
+      case (SRAMMemory, DRAMMemory) => SpStore(src = srcNode, target = VarSlicedRef(targetMem.variable))
 
       case _ => throw new AccelGeneratorException(
         s"Don't know how to store a value from $srcAddressSpace in ${targetMem.addressSpace}")

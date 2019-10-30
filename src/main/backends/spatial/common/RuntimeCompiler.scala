@@ -27,10 +27,11 @@ object RuntimeCompiler {
       CompiledAccelLambda(accelLambda, block,  typedMemoryCollection)
     })
 
-    println(compiledAcceleratorLambdas.map(lambda => AstPrinter(lambda.generatedBlock)()))
+    val printedLambdas = compiledAcceleratorLambdas.map(lambda => AstPrinter(lambda.generatedBlock)())
 
     /*************** Host code compilation ***************/
+    // TODO
 
-    "" // TODO: return printed code
+    printedLambdas.mkString("")
   }
 }
