@@ -38,7 +38,7 @@ private class RangesAndCountsSp(valueMap: scala.collection.Map[ArithExpr, ArithE
   }
 
   private def setRangeSpForeach(sf: SpForeach, call: FunCall): Unit = {
-    sf.loopVar = Var(sf.loopVar.name, RangeAdd(Cst(0), Type.getLength(call.args(1).t), sf.chunkSize))
+    sf.loopVar = Var(sf.loopVar.name, RangeAdd(Cst(0), Type.getLength(call.args.head.t), sf.chunkSize))
     apply(sf.f.body)
   }
 
