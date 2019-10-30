@@ -1,6 +1,6 @@
 package backends.spatial.common.ir.view
 
-import backends.spatial.accel.ir.ast.SpatialAccelAST.VarSlicedRef
+import backends.spatial.accel.ir.ast.SpatialAccelAST.{AddressorT, VarSlicedRef}
 import backends.spatial.common.ir.{AddressSpaceCollection, LiteralMemory, RegMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
 import core.generator.GenericAST.{ArithExpression, ExpressionT}
@@ -129,9 +129,15 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
             Slice(start + elemIdx, step = chunkSize, start + elemIdx + chunkSize * end) :: addressors
 
           // matrixFun() o Split(s)
-          case (_: Slice) :: (_: Slice) :: addressors =>
-            // TODO: confirm whether this is indeed illegal
-            throw new IllegalSpatialView("ND-sliced access to 1D array")
+          case (outerSlice: Slice) :: (innerSlice: Slice) :: addressors =>
+            // Restricting to simple cases until better generic approach is found
+            assert(outerSlice.start == Cst(0)); assert(outerSlice.step == Cst(1))
+            assert(innerSlice.start == Cst(0)); assert(innerSlice.step == Cst(1))
+            assert(chunkSize == innerSlice.end - innerSlice.start)
+            Slice(outerSlice.start, step = Cst(1),
+                  (outerSlice.end - outerSlice.start) * (innerSlice.end - innerSlice.start)) :: addressors
+
+
           case _ => throw new IllegalArgumentException(f"Unexpected array access stack: $arrayAccessStack")
         }
 
@@ -144,9 +150,12 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
             val elemIdx = idx % chunkSize
             chunkIdx :: elemIdx :: addressors
 
-          case (_: Slice) :: addressors =>
-            // TODO: confirm whether this is illegal
-            throw new IllegalSpatialView("Unsafe slicing: there is a danger of slicing across subarrays")
+          case (slice: Slice) :: addressors =>
+            // Restricting to simple cases until better generic approach is found
+            assert(slice.start == Cst(0)); assert(slice.step == Cst(1))
+            assert((slice.end - slice.start) % chunkSize == Cst(0))
+
+            Slice(slice.start, Cst(1), (slice.end - slice.start) / chunkSize) :: Slice(Cst(0), Cst(1), chunkSize) :: addressors
 
           case _ => throw new IllegalArgumentException(f"Unexpected array access stack: $arrayAccessStack")
         }
@@ -177,7 +186,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
       case ViewUnzip(iv, _) =>                      emitView(iv, arrayAccessStack, tupleAccessStack)
       case ViewConcat(iv, _) =>                     throw new NotImplementedError()
       case ViewTuple(ivs, _) =>                     val i :: newTAS = tupleAccessStack
-        emitView(ivs(i), arrayAccessStack, newTAS)
+                                                    emitView(ivs(i), arrayAccessStack, newTAS)
       case ViewAsVector(vecSize, iv, _) =>          throw new NotImplementedError()
       case ViewAsScalar(iv, vecSize, _) =>          throw new NotImplementedError()
       case ViewHead(iv, _) =>                       throw new NotImplementedError()
@@ -195,7 +204,6 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
 
           // Map(batchFun) o Slide(s)
           case Index(chunkIdx) :: Slice(start, step, end) :: addressors =>
-            assert(end - start == slide.size)
             Slice(chunkIdx * slide.step + start, step, chunkIdx * slide.step + end) :: addressors
 
           // Map(batchFun) o Transpose() o Slide(s)
@@ -240,6 +248,8 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
     def apply(mainVar: Var, mainType: Type,
               arrayAccessStack: List[ArrayAddressor],
               tupleAccessStack: List[Int]): VarSlicedRef = {
+      // Sanity check -- array access stack must have the same number of elements as there are dimensions in the array
+      assert(Type.getLengths(mainType).length - 1 == arrayAccessStack.length)
       val g = new GenerateAccess(mainVar, mainType, tupleAccessStack)
       g.generate(List(), mainType, arrayAccessStack, tupleAccessStack)
     }
@@ -271,7 +281,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
     }
 
     /**
-     * Generates an access at position `idx` or `slice.start::slice.end` in the nd-array
+     * Generates an access at position `idx` or `slice.start::slice.step::slice.end` in the nd-array
      * This method is simpler than that of the C-like backends in the __root__.ir.view package because
      * we don't need to store the header (capacity + size) and offsets with data for ragged ND-array navigation.
      * Scala-Spatial takes care of indexing in complex structures.
@@ -287,8 +297,10 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
       //        partialAAStack :+ addr
       if (at.elemT.hasFixedAllocatedSize) {
         // Just skip the header
-        val len = getLengthForArrayAccess(at.elemT, tupleAccessStack)
-        partialAAStack :+ (addr * len +  at.headerLength * alignment / baseSize)
+//        val len = getLengthForArrayAccess(at.elemT, tupleAccessStack)
+        // No need to multiply indices by the length of the dimension thanks to
+        // the support of multidimensional accesses in Spatial Scala
+        partialAAStack :+ (addr/* * len*/ +  at.headerLength * alignment / baseSize)
       } else {
         (ArrayAddressor.getNonSlicedAccess(addr +: partialAAStack)) match {
           case None => throw new IllegalSpatialAccess(
