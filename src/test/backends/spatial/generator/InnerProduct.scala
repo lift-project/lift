@@ -119,6 +119,11 @@ class InnerProduct {
     assertEquals(gold, count.toFloat, 0.001f)
   }
 
+  def cleanSpatialProgram(code: String): String = {
+    val regexVarIds = "_[0-9]+(__[0-9]+(_[0-9]+)*)*".r
+    regexVarIds.replaceAllIn(code, "")
+  }
+
   @Test
   def spatialDotProduct(): Unit = {
     import backends.spatial.common.ir._
@@ -164,7 +169,7 @@ class InnerProduct {
     )
 
     val out = spatial.common.RuntimeCompiler(runTimeLambda)
-    
+
   }
 
   @Test
@@ -185,19 +190,19 @@ class InnerProduct {
 //    val outerParFactor = 2
 //    val innerParFactor = 16
 
-    val expectedOutCode = """
-      Accel {
-        out := Reduce(Reg[T](0.to[T]))(N by tileSize par outerParFactor){i =>
-          val aBlk = SRAM[T](tileSize)
-          val bBlk = SRAM[T](tileSize)
-          Parallel {
-            aBlk load a(i::i+tileSize par innerParFactor)
-            bBlk load b(i::i+tileSize par innerParFactor)
-          }
-          Reduce(Reg[T](0.to[T]))(ts par innerParFactor){ii => aBlk(ii) * bBlk(ii) }{_+_}
-        }{_+_}
-      }
-    """
+//    The Spatial code we are looking to generate ideally:
+//      Accel {
+//        out := Reduce(Reg[T](0.to[T]))(N by tileSize par outerParFactor){i =>
+//          val aBlk = SRAM[T](tileSize)
+//          val bBlk = SRAM[T](tileSize)
+//          Parallel {
+//            aBlk load a(i::i+tileSize par innerParFactor)
+//            bBlk load b(i::i+tileSize par innerParFactor)
+//          }
+//          Reduce(Reg[T](0.to[T]))(ts par innerParFactor){ii => aBlk(ii) * bBlk(ii) }{_+_}
+//        }{_+_}
+//      }
+//    """
 
 
     val idArray = UserFun("idArray", Array("arr"),
@@ -236,7 +241,46 @@ class InnerProduct {
       (a, b) =>
         AccelFun(scalaDotLambdaTiled)(a, b))
 
-    backends.spatial.common.RuntimeCompiler(dotProductRuntimeLambda)
+    val generatedSpatial = backends.spatial.common.RuntimeCompiler(dotProductRuntimeLambda)
+
+    val expectedOutCode =
+      """|{
+         |    def idArray(arr: DRAM1[Float]): DRAM1[Float] = {
+         |        arr
+         |    }
+         |    def mult(l: Float, r: Float): Float = {
+         |        l * r
+         |    }
+         |    def add(x: Float, y: Float): Float = {
+         |        x + y
+         |    }
+         |    val v__18 = Reg[Float](0.0f)
+         |    Fold(v__18)(0 until v_N_0 by v_tileSize_1 par v_outerParFactor_2) { (v_i_10) =>
+         |        val v__21 = Reg[Float](0.0f)
+         |        val v__22 = SRAM[Float](v_tileSize_1)
+         |        v__22 load idArray(v__15(v_i_10::(v_tileSize_1 + v_i_10)))
+         |        val v__23 = SRAM[Float](v_tileSize_1)
+         |        v__23 load idArray(v__16(v_i_10::(v_tileSize_1 + v_i_10)))
+         |        Fold(v__21)(0 until v_tileSize_1 by 1 par v_innerParFactor_3) { (v_i_11) =>
+         |            val v__27_0 = Reg[Float]
+         |            // map_seq
+         |            // iteration count is exactly 1, no loop emitted
+         |            val v_i_12 = Reg[Int](0)
+         |            v__27_0 := mult(v__22(v_i_11), v__23(v_i_11))
+         |            // end map_seq
+         |            v__27_0
+         |        } {
+         |            add(_, _)
+         |        }
+         |    } {
+         |        add(_, _)
+         |    }
+         |}""".stripMargin
+
+    val cleanedGeneratedSpatial = cleanSpatialProgram(generatedSpatial)
+    val cleanedExpectedOutCode = cleanSpatialProgram(expectedOutCode)
+
+    assertEquals(cleanedExpectedOutCode, cleanedGeneratedSpatial)
   }
 
   @Test
