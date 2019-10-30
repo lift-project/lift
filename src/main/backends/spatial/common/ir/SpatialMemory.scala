@@ -1,7 +1,7 @@
 package backends.spatial.common.ir
 
 import arithmetic.TypeVar
-import ir.ast.Expr
+import ir.ast.{Expr, FunCall}
 import ir.{Memory, MemoryCollection, TupleType, Type, UnallocatedMemory, UndefType}
 import lift.arithmetic._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
@@ -190,19 +190,23 @@ object SpatialMemory {
  *    SpForeach/SpFold/SpReduce do not require materialisation unless they are written to more than
  *    once (in reduction accumulator).
  *    The memories of the map bodies of FPatterns such as SpMemReduce and SpMemFold always require materialisation.
- * 4. Whether the writes to the memory are implicit such as in the case of the Reduce accumulator, which is
- *    declared (materialised), but not assigned values to explicitly.
- *    TODO: reuse views or AccessInfo for writeT
- *    TODO: infer implicitlyReadFrom and implicitlyWrittenTo in a cleaner way
+ * 4. The scopes within which all writes to the memory are implicit. In case of the Fold accumulator, its
+ *    initial value might be explicitly written to outside the scope of the Fold; the reduce function inside the
+ *    scope writes to the accumulator implicitly by returning the result
+ *    TODO: potentially reuse views or AccessInfo for typeInMem
+ *    TODO: infer implicitlyReadFrom in a cleaner way
  *
  * @constructor Create a new TypedSpatialMemory object
  * @param mem The underlying memory object
  * @param typeInMem The type of each write to the memory object
+ * @param implicitlyReadFrom Whether the reads are explicit or implicit through a placeholder in an anonymous
+ *                           function. TODO: add scopes or infer it in a cleaner way (not all reads might be implicit)
+ * @param implicitWriteScope The scope within which all writes are implicit (might need more than one in the future)
   */
 case class TypedSpatialMemory(mem: SpatialMemory, typeInMem: Type,
                               var materialised: Boolean,
                               var implicitlyReadFrom: Boolean,
-                              var implicitlyWrittenTo: Boolean) {
+                              var implicitWriteScope: Option[FunCall]) {
   lazy val lengths: Seq[ArithExpr] = Type.getAllocatedLengths(typeInMem)
 
   var declared: Boolean = false
@@ -212,14 +216,14 @@ case class TypedSpatialMemory(mem: SpatialMemory, typeInMem: Type,
 
 object TypedSpatialMemory {
   def apply(expr: Expr, materialised: Boolean = true,
-            implicitlyReadFrom: Boolean = false, implicitlyWrittenTo: Boolean = false): TypedSpatialMemory = {
+            implicitlyReadFrom: Boolean = false, implicitWriteScope: Option[FunCall] = None): TypedSpatialMemory = {
     new TypedSpatialMemory(SpatialMemory.asSpatialMemory(expr.mem), expr.t, materialised,
-      implicitlyReadFrom, implicitlyWrittenTo)
+      implicitlyReadFrom, implicitWriteScope)
   }
 
   def apply(mem: Memory, t: Type, materialised: Boolean,
-            implicitlyReadFrom: Boolean, implicitlyWrittenTo: Boolean): TypedSpatialMemory = {
+            implicitlyReadFrom: Boolean, implicitWriteScope: Option[FunCall]): TypedSpatialMemory = {
     new TypedSpatialMemory(SpatialMemory.asSpatialMemory(mem), t, materialised,
-      implicitlyReadFrom, implicitlyWrittenTo)
+      implicitlyReadFrom, implicitWriteScope)
   }
 }

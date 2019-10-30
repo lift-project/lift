@@ -48,7 +48,7 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
 
   private var nonMaterialMems: mutable.Set[Memory] = mutable.Set.empty
   private var implicitlyReadFromMems: mutable.Set[Memory] = mutable.Set.empty
-  private var implicitlyWrittenToMems: mutable.Set[Memory] = mutable.Set.empty
+  private var implicitWriteScopes: mutable.Map[Memory, FunCall] = mutable.Map()
 
   private def apply(): TypedMemoryCollection = {
     val inputs = lambda.params.map(p => TypedSpatialMemory(p))
@@ -74,7 +74,9 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
     // Mark memories that are implicitly read from as such
     collection.asFlatSequence.foreach(tm => if (implicitlyReadFromMems.contains(tm.mem)) tm.implicitlyReadFrom = true)
     // Mark memories that are implicitly written to as such
-    collection.asFlatSequence.foreach(tm => if (implicitlyWrittenToMems.contains(tm.mem)) tm.implicitlyWrittenTo = true)
+    collection.asFlatSequence.foreach(tm =>
+      if (implicitWriteScopes.contains(tm.mem))
+        tm.implicitWriteScope = Some(implicitWriteScopes(tm.mem)))
 
     collection
   }
@@ -157,7 +159,7 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
     nonMaterialMems -= call.mem
     // The memory is written to and read from by the reduce implicitly -- we don't need to generate stores/loads
     implicitlyReadFromMems += call.mem
-    implicitlyWrittenToMems += call.mem
+    implicitWriteScopes += (call.mem -> call)
 
 
     val memories = collectIntermediateMemories(asf.fMap.body) ++ Seq(fReduceInputTypedFakeMem) ++

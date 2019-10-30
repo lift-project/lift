@@ -2,7 +2,7 @@ package backends.spatial.accel.generator
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, toDRAM, asLiteral, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, asLiteral, toDRAM, toReg, toSRAM}
 import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
@@ -16,7 +16,7 @@ import ir.view.View
 import lift.arithmetic._
 import opencl.generator.PerformLoopOptimisation
 
-import scala.collection.immutable
+import scala.collection.{immutable, mutable}
 
 object AccelGenerator {
 
@@ -51,6 +51,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
   private var replacementsOfIteratorsWithValues: ValueTable = immutable.Map.empty
   private var replacementsOfIteratorsWithValuesWithFuns: ValueTable = immutable.Map.empty
+
+  private var scope: mutable.Stack[FunCall] = mutable.Stack()
 
   def generate(f: Lambda): ExprBlock = {
     // Initialise the block
@@ -92,6 +94,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     expr match {
       case call: FunCall =>
 
+        scope.push(call)
+
         declareMemoryIfRequired(expr, block)
 
         call.f match {
@@ -125,6 +129,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
           case _                      => throw new NotImplementedError()
         }
+
+        scope.pop()
 
       case v: Value             => generateValue(v, block)
       case _: Param             =>
@@ -233,9 +239,9 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   private def generateForeachCall(sf: SpForeach,
                                   call: FunCall,
                                   block: MutableExprBlock): Unit = {
-    (block: MutableExprBlock) += Comment("foreach")
+    (block: MutableExprBlock) += Comment("SpForeach")
     generateForeach(block, call.args.head, sf.loopVar, sf.factor, generate(sf.f.body, _), sf.shouldUnroll)
-    (block: MutableExprBlock) += Comment("end foreach")
+    (block: MutableExprBlock) += Comment("end SpForeach")
   }
 
   private def generateFoldCall(asf: AbstractSpFold,
@@ -400,7 +406,9 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
     val funcall_node = generateFunCall(call, generateLoadNodes(call.args: _*))
 
-    if (allTypedMemories(sMem).materialised && !allTypedMemories(sMem).implicitlyWrittenTo) {
+    if (allTypedMemories(sMem).materialised &&
+      !(allTypedMemories(sMem).implicitWriteScope.isDefined &&
+        scope.contains(allTypedMemories(sMem).implicitWriteScope.get))) {
 
       // Generate store
       (block: MutableExprBlock) += generateStoreNode(
@@ -474,16 +482,12 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
                                 targetView: View,
                                 srcAddressSpace: SpatialAddressSpace,
                                 srcNode: AstNode): StatementT = {
-    // Sanity check -- make sure this is the store of the producer of the associated memory
-    assert(targetType == allTypedMemories(targetMem).typeInMem)
-
     val targetNode = accessNode(targetMem.variable, targetMem.addressSpace, targetType, targetView)
 
     if (srcAddressSpace == targetMem.addressSpace) targetMem.addressSpace match {
       case RegMemory  => RegAssignmentExpression(to = targetNode, srcNode)
-      case _          =>    AssignmentExpression(to = targetNode, srcNode)
+      case _          => AssignmentExpression(to = targetNode, srcNode)
     }
-
 
     else (srcAddressSpace, targetMem.addressSpace) match {
       case (DRAMMemory, SRAMMemory) => SpLoad(src = srcNode, target = VarSlicedRef(targetMem.variable))
