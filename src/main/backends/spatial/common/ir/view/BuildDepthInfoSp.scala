@@ -46,7 +46,7 @@ class AccessInfoSp(var accessInf: MemoryAccessInfoSp,
 object AccessInfoSp {
 
   def apply() = new AccessInfoSp(accessInf = MemoryAccessInfoSp(), collection = Seq())
-  def apply(accessInf: MemoryAccessInfoSp) = new AccessInfoSp(accessInf, Seq())
+  def apply(accessInf: MemoryAccessInfoSp) = new AccessInfoSp(collection.immutable.ListMap() ++ accessInf, Seq())
   def apply(collection: Seq[AccessInfoSp]) = new AccessInfoSp(MemoryAccessInfoSp(), collection)
 }
 

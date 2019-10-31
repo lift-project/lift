@@ -7,9 +7,11 @@ import ir.ast._
 import opencl.ir.{GlobalMemory, LocalMemory, OpenCLAddressSpace, OpenCLMemory, PrivateMemory}
 import opencl.ir.pattern._
 
+import scala.collection.mutable
+
 object MemoryAccessInfoCL {
 
-  def apply(): MemoryAccessInfoCL = scala.collection.mutable.ListMap[AddressSpace, List[SingleAccess]](
+  def apply(): MemoryAccessInfoCL = mutable.ListMap[AddressSpace, List[SingleAccess]](
     PrivateMemory -> List(), LocalMemory -> List(), GlobalMemory -> List())
 }
 
@@ -43,7 +45,7 @@ object AccessInfoCL {
   val alwaysUsedMemories: Set[AddressSpace] = Set(GlobalMemory)
 
   def apply() = new AccessInfoCL(accessInf = MemoryAccessInfoCL(), collection = Seq())
-  def apply(accessInf: MemoryAccessInfoCL) = new AccessInfoCL(accessInf, Seq())
+  def apply(accessInf: MemoryAccessInfoCL) = new AccessInfoCL(mutable.ListMap[AddressSpace, List[SingleAccess]]() ++= accessInf, Seq())
   def apply(collection: Seq[AccessInfoCL]) = new AccessInfoCL(MemoryAccessInfoCL(), collection)
 }
 
@@ -97,11 +99,11 @@ private class BuildDepthInfoCL() {
     val argInf = buildDepthForArgs(call)
 
     val result = call.f match {
-      case m: AbstractMap => buildDepthInfoMapCall(m, call, argInf)
-      case f: FilterSeq => buildDepthInfoFilterCall(f, call, argInf)
-      case r: AbstractPartRed => buildDepthInfoReduceCall(r, call, argInf)
-      case s: ScanSeq => buildDepthInfoScanCall(s, call, argInf)
-      case sp: MapSeqSlide => buildDepthInfoMapSeqSlideCall(sp, call, argInf)
+      case m: AbstractMap       => buildDepthInfoMapCall(m, call, argInf)
+      case f: FilterSeq         => buildDepthInfoFilterCall(f, call, argInf)
+      case r: AbstractPartRed   => buildDepthInfoReduceCall(r, call, argInf)
+      case s: ScanSeq           => buildDepthInfoScanCall(s, call, argInf)
+      case sp: MapSeqSlide      => buildDepthInfoMapSeqSlideCall(sp, call, argInf)
       case _ =>
 
         val readMemories = readsLocalPrivate(call)
@@ -110,12 +112,11 @@ private class BuildDepthInfoCL() {
         setDepths(call, readMemories, writeMemories)
 
         call.f match {
-          case l: Lambda => buildDepthInfoLambda(l, call, argInf)
-          case fp: FPattern => buildDepthInfoLambda(fp.f, call, argInf)
-          case Get(n) => if (argInf.collection.nonEmpty) argInf.collection(n) else argInf
-          case _: UserFun =>
-            AccessInfoCL(memoryAccessInfo)
-          case _ => argInf
+          case l: Lambda        => buildDepthInfoLambda(l, call, argInf)
+          case fp: FPattern     => buildDepthInfoLambda(fp.f, call, argInf)
+          case Get(n)           => if (argInf.collection.nonEmpty) argInf.collection(n) else argInf
+          case _: UserFun       => AccessInfoCL(memoryAccessInfo)
+          case _                => argInf
         }
     }
 

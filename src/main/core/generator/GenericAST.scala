@@ -1098,6 +1098,11 @@ object GenericAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+
+    override def equals(that: Any): Boolean = that match {
+      case ae: ArithExpression => content == ae.content
+      case _ => false
+    }
   }
 
   object ArithExpression {
