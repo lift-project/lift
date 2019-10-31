@@ -8,7 +8,7 @@ import ir.ast.debug.{AssertType, PrintType}
 import lift.arithmetic.SizeVar
 import opencl.executor.TestWithExecutor
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 import scala.util.matching.Regex
 
@@ -391,35 +391,39 @@ class InnerProduct {
                               Transpose() o toSRAM(idArray2dNN) $ Get(Unzip() $ tileAB, 1)
 
                             AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "Outer MemFold fMap type") o
-                              //
-                              SpForeach(chunkSize = 1, stride = 1, factor = innerFactorI,
-                                f = fun(
-                                  ArrayType(ArrayType(Float, tileNsize), 1),
-                                  tileRowA => {
-                                    val tileRowAsram = AssertType(ArrayType(Float, tileNsize), "tileRowAsram") o
-                                      toSRAM(idArray1dN) o Join() $ tileRowA
+                              // The Let below causes tileBsram to materialise (declare mem and issue the load statement)
+                              // outside of the next SpForeach instead of inside (right before it is to be read)
+                              Let(tileBsramMaterialised =>
+                                SpForeach(chunkSize = 1, stride = 1, factor = innerFactorI,
+                                  f = fun(
+                                    ArrayType(ArrayType(Float, tileNsize), 1),
+                                    tileRowA => {
+                                      val tileRowAsram = AssertType(ArrayType(Float, tileNsize), "tileRowAsram") o
+                                        toSRAM(idArray1dN) o Join() $ tileRowA
 
-                                    Join() o
-                                      SpForeach(
-                                        chunkSize = 1,
-                                        stride = 1,
-                                        factor = innerFactorJ,
-                                        f = fun(ArrayType(ArrayType(Float, tileNsize), 1), tileRowBsram =>
+                                      Let(tileRowAsramMaterialised =>
+                                        Join() o
+                                          SpForeach(
+                                            chunkSize = 1,
+                                            stride = 1,
+                                            factor = innerFactorJ,
+                                            f = fun(ArrayType(ArrayType(Float, tileNsize), 1), tileRowBsram =>
 
-                                          AssertType(ArrayType(Float, 1), "Inner MemFold result type") o
-                                            //
-                                            /*Pipe {*/
-                                            SpMemFold(chunkSize = 1, stride = 1, factor = tileParFactor,
-                                              fMap = fun(
-                                                ArrayType(TupleType(Float, Float), 1), elAsramBsram => {
-
-                                                  backends.spatial.accel.ir.pattern.MapSeq(mult) $ elAsramBsram}),
-                                              fReduce = add,
-                                              init = Value(0.0f, Float)
-                                            ) $ Zip(tileRowAsram, Join() $ tileRowBsram)
-                                          /*}*/
-                                        )) $ tileBsram
-                                  })) $ tileA // Zip(tileA, tileBsram)
+                                              AssertType(ArrayType(Float, 1), "Inner MemFold result type") o
+                                                //
+                                                /*Pipe {*/
+                                                SpMemFold(chunkSize = 1, stride = 1, factor = tileParFactor,
+                                                  fMap = fun(
+                                                    ArrayType(TupleType(Float, Float), 1), elAsramBsram => {
+                                                      backends.spatial.accel.ir.pattern.MapSeq(mult) $ elAsramBsram}),
+                                                  fReduce = add,
+                                                  init = Value(0.0f, Float)
+                                                ) $ Zip(tileRowAsramMaterialised, Join() $ tileRowBsram)
+                                              /*}*/
+                                            )) $ tileBsramMaterialised
+                                      ) $ tileRowAsram
+                                    })) $ tileA
+                              ) $ tileBsram
                           }),
                         fReduce = /*addMatrices*/ add, init = tileCsram
                       ) $ Zip(tileArows, tileBcols)
