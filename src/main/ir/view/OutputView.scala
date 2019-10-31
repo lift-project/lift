@@ -73,8 +73,7 @@ object OutputView {
       case l: Lambda                => buildViewLambda(l, call, writeView)
       case fp: FPattern             => buildViewLambda(fp.f, call, writeView)
       case cc: Concat               => buildViewConcat(call, View.initialiseNewView(call.t, call.inputDepth, call.mem.variable))
-      case _: Slide                 =>
-        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
+      case _: Slide                 => buildViewSlide(call.args.head)
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
         View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
       case RewritingGuidePost(_)    => writeView
@@ -301,9 +300,42 @@ object OutputView {
     // the outer write view, so there is no need to build ViewMap
     //    ViewMap(asf.f.params(1).outputView, asf.mapLoopVar, call.args.head.t)
 
-    // build the implied Slide view
-    val slideWriteView = View.initialiseNewView(call.args(1).t, call.args(1).inputDepth, call.args(1).mem.variable)
-    slideWriteView
+    // Build the implied Slide view
+    buildViewSlide(call.args(1))
+  }
+
+  /**
+   * The Slide output view builder handles two cases:
+   * 1. When applied on one memory, it returns a ViewMem.
+   * 2. When applied on a collection of memories, it infers separate types from the zipped argument type,
+   *    and returns a ViewTuple. This recovers the information stored in the discarded writeView that was
+   *    inferred down the AST, where accessing the zipped view produced a ViewTuple.
+   */
+  private def buildViewSlide(arg: Expr): View = {
+    arg.mem match {
+      case memCollection: MemoryCollection =>
+
+        // Reconstruct the tuple element types by traversing the call type until
+        // the first tuple is found, and splitting the type there
+
+        val reconstructedTupleElementTs = memCollection.subMemories.zipWithIndex.map { case (_, tupleElIdx) =>
+          var tupleFound: Boolean = false
+
+          Type.visitAndRebuild(arg.t, t => t, {
+            case tt: TupleType if !tupleFound =>
+              tupleFound = true
+              tt.elemsT(tupleElIdx)
+            case t => t
+          })
+        }
+
+        ViewTuple(
+          ivs = memCollection.subMemories.zip(reconstructedTupleElementTs).
+            map { case (subMem, subMemT) => View.initialiseNewView(subMemT, arg.inputDepth, subMem.variable) },
+          t = arg.t)
+      case _ =>
+        View.initialiseNewView(arg.t, arg.inputDepth, arg.mem.variable)
+    }
   }
   
   private def buildViewReduce(r: AbstractPartRed,

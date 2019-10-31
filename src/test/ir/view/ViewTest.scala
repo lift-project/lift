@@ -3,12 +3,15 @@ package ir.view
 import ir._
 import ir.ast._
 import lift.arithmetic._
-import opencl.executor.Compile
+import opencl.executor.{Compile, Execute, TestWithExecutor}
 import core.generator.GenericAST._
+import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
-import opencl.ir.pattern.{MapGlb, MapSeq, toGlobal}
+import opencl.ir.pattern.{MapGlb, MapLcl, MapSeq, MapSeqUnroll, MapWrg, ReduceSeq, Untile3D, toGlobal}
 import org.junit.Assert._
 import org.junit.Test
+
+object ViewTest extends TestWithExecutor
 
 class ViewTest {
 
@@ -353,6 +356,83 @@ class ViewTest {
 
     assertEquals(ViewPrinter.emit(midGoal), ViewPrinter.emit(midPoint))
     assertEquals(ViewPrinter.emit(goal),    ViewPrinter.emit(view))
+
+  }
+
+  @Test
+  /**
+   * This is a version of opencl.generator.stencil.acoustic.test3DConvolutionTile which tests
+   * producing correct output view for a UserFun that is writing into a Zip that is then Slided over.
+   *
+   * The issue arises when the argument of Slide contains a Zip. Consider the following pattern:
+   *
+   * f >> Map(a => Zip(a, b)) >> Slide(size, step) >> Map(p => g(p._1, p._2))
+   *
+   * When building an output view of the memory of f, the compiler will start from g:
+   *
+   * 1. g: argument is to be written to as a tuple: ViewTuple((ViewMem(v_A), ViewMem(v_b)))
+   * 2. Map: access one element of the array produced by g:
+   *    ViewAccess(v_i, ViewMap(ViewTuple((ViewMem(v_A), ViewMem(v_b)))))
+   * 3. Slide: discard the output view produced from Map and write to the argument of Slide through a new output view:
+   *    ViewMem(v_tuple_x)
+   *      3.1 v_tuple_x is a reference to a memory collection produced by Zip. Compared to v_A and v_b which refer
+   *          to actual memories, v_tuple_x refers to a collection.
+   * 4. Zip: for each of the arguments, produce an access to the corresponding element of the resulting tuple.
+   *    For a, the output view is now ViewTupleComponent(0, ViewMem(v_tuple_x))
+   * 5. ViewTupleComponent(tuple_idx, innerView) is the note that the compiler makes to itself that during generation
+   *    of the index for the output view, when it encounters a ViewTuple inside innerView, it should access the view
+   *    number tuple_idx.
+   * 6. Map adds another ViewAccess to the output view.
+   *
+   * The resulting view is the output view of f. The problem is that when trying to generate write access to the
+   * memory of f, the compiler encounters ViewTupleComponent, but not ViewTuple since the only ViewTuple is introduced
+   * in step 1 and discarded in step 3, replaced with the new ViewMem.
+   *
+   * This tests extending output view generation for Slide to detect when Slide is applied on a collection of memories
+   * and handle that case differently. Namely, the zipped argument type is split by traversing its inner types until
+   * the first tuple type is found, and splitting at that point; the output type of Slide is set to ViewTuple with
+   * subviews set to the result of the type splitting, and the outer view type set to the original type of the whole
+   * argument.
+   *
+   * For details, see ir.view.OutputView.buildViewSlide(..)
+   */
+  def testWritingIntoSlidedZip(): Unit = {
+    val localDimx = 12
+    val localDimy = 12
+    val localDimz = 16
+    val compareData = StencilUtilities.createDataFloat3D(localDimx,localDimy,localDimz)
+    val input3D = StencilUtilities.createDataFloat3DWithPadding(localDimx, localDimy, localDimz)
+
+    val M = SizeVar("M")
+    val N = SizeVar("N")
+    val O = SizeVar("O")
+
+    val stencil = fun(
+      ArrayTypeWSWC(ArrayTypeWSWC(ArrayTypeWSWC(Float, M), N),O),
+      ArrayTypeWSWC(Float, StencilUtilities.weightsMiddle3D(0)(0).length*StencilUtilities.weightsMiddle3D(0).length*StencilUtilities.weightsMiddle3D.length),
+      (matrix, weights) => {
+        Untile3D() o MapWrg(2)(MapWrg(1)(MapWrg(0)(fun(tile =>
+          MapLcl(2)(MapLcl(1)(MapLcl(0)(
+            fun(elem => {
+              toGlobal(MapSeqUnroll(id)) o
+                ReduceSeq(fun((acc, pair) => {
+                  val pixel = Get(Get(pair, 0), 0)
+                  val weight = Get(pair, 1)
+                  multAndSumUp.apply(acc, pixel, weight)
+                }), 0.0f) $ Zip(Join() o Join() $ elem,  weights)
+            })
+          ))) o Slide3D(3,1) o
+            Map(Map(fun(a => Zip(a, a)))) o
+            MapSeq(MapSeq(MapSeq(id))) $ tile
+        )))) o
+          Slide3D(8,6,8,6,10,8)  $ matrix
+      }
+    )
+
+    val (output, runtime) = Execute(2,2,2,2,2,2, (true, true))[Array[Float]](stencil, input3D, StencilUtilities.weightsMiddle3D.flatten.flatten)
+
+    if(StencilUtilities.printOutput) StencilUtilities.printOriginalAndOutput3D(input3D, output)
+    assertArrayEquals(compareData.flatten.flatten, output, StencilUtilities.stencilDelta)
 
   }
 }
