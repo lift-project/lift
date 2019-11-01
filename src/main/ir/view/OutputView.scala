@@ -294,7 +294,7 @@ object OutputView {
       getAccessDepth(asf.fMap.body.accessInf, asf.fMap.body.mem), asf.fMap.body.mem.variable)
 
     // fMap: traverse into call.f
-    visitAndBuildViews(asf.fMap.body, outViewFromReduce)//.split(asf.chunkSize).access(asf.mapLoopVar))
+    visitAndBuildViews(asf.fMap.body, outViewFromReduce)
 
     // The implied Map view is ViewMap, but the implied Slide does not need
     // the outer write view, so there is no need to build ViewMap

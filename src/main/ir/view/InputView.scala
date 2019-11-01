@@ -60,7 +60,7 @@ object InputView {
       case sF: SpForeach =>                     buildViewSpForeach(sF, call, argView)
       case m: AbstractMap =>                    buildViewMap(m, call, argView)
       case f: FilterSeq =>                      buildViewFilter(f, call, argView)
-      case aSF: AbstractSpFold =>               buildViewSpFold(aSF, call, argView)
+      case aSF: AbstractSpFold =>               buildViewAbstrSpFold(aSF, call, argView)
       case r: AbstractPartRed =>                buildViewReduce(r, call, argView)
       case sp: MapSeqSlide =>                   buildViewMapSeqSlide(sp, call, argView)
       case s: AbstractSearch =>                 buildViewSearch(s, call, argView)
@@ -180,22 +180,18 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
 
-  private def buildViewSpFold(asf: AbstractSpFold,
-                              call: FunCall, argView: View): View = {
+  private def buildViewAbstrSpFold(asf: AbstractSpFold,
+                                   call: FunCall, argView: View): View = {
     // fMap: pass down input view
     asf.fMap.params(0).view = (argView.get(1).slide(Slide(size = asf.chunkSize, step = asf.stride))
                                              .access(asf.mapLoopVar))
     // fMap: traverse into call.f
-    val innerMapView = visitAndBuildViews(asf.fMap.body)
+    visitAndBuildViews(asf.fMap.body)
 
-    val mapView = asf.fMap.body match {
-      case innerCall: FunCall if innerCall.f.isInstanceOf[UserFun] =>
-        // create fresh input view for following function
-        View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
-      case _ => // call.isAbstract and return input map view
-        ViewMap(innerMapView, asf.mapLoopVar, call.t)
-    }
-
+    // create fresh input view for the map memory
+    // The empty access info below reflects the fact that the reduce always accesses
+    // fMapMem directly, with zero depth
+    val mapView = View.initialiseNewView(asf.fFlatMapT, List(), asf.fMapMem.variable)
 
     // fReduce: pass down input view
     asf.fReduce.params(0).view = argView.get(0)
