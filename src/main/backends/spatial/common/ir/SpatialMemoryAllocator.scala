@@ -69,7 +69,7 @@ object SpatialMemoryAllocator {
                            outMemT: Type,
                            outAddressSpace: SpatialAddressSpace): SpatialMemory = {
     // Get the input memory of f from the input arguments
-    val inMem = getInMFromArgs(call)
+    val inMem = getInMFromArgs(call, outMemT, outAddressSpace)
 
     // Determine the output memory based on the type of f ...
     call.f match {
@@ -117,11 +117,13 @@ object SpatialMemoryAllocator {
     }
   }
 
-  private def getInMFromArgs(call: FunCall): SpatialMemory = {
+  private def getInMFromArgs(call: FunCall,
+                             outMemT: Type,
+                             outAddressSpace: SpatialAddressSpace): SpatialMemory = {
     call.args.length match {
       case 0 => throw new IllegalArgumentException(s"Function call without arguments $call")
-      case 1 => alloc(call.args.head, call.args.head.t, call.args.head.addressSpace)
-      case _ => SpatialMemoryCollection(call.args.map(arg => alloc(arg, arg.t, arg.addressSpace)))
+      case 1 => alloc(call.args.head, outMemT, outAddressSpace)
+      case _ => SpatialMemoryCollection(call.args.map(arg => alloc(arg, outMemT, outAddressSpace)))
     }
   }
 
