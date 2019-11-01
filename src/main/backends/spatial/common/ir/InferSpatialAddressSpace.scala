@@ -27,7 +27,7 @@ object InferSpatialAddressSpace {
   }
 
   private def setAddressSpace(expr: Expr,
-                              writeTo: SpatialAddressSpace = UndefAddressSpace): SpatialAddressSpace = {
+                              writeTo: SpatialAddressSpace = DRAMMemory): SpatialAddressSpace = {
 
     val result = expr match {
       case Value(_, _) => if (writeTo == LiteralMemory) LiteralMemory else RegMemory
@@ -100,9 +100,10 @@ object InferSpatialAddressSpace {
       throw UnexpectedAddressSpaceException(s"No address space ${call.args.head.addressSpace} at $call")
 
     // The address space of the result of a reduction is always the same as the initial element
-    val foldWriteTo = accumulatorAddressSpace
+    val reduceWriteTo = accumulatorAddressSpace
 
-    setAddressSpaceLambda(asf.fReduce, foldWriteTo, Seq(argAddressSpaces.head, fMapAddressSpace))
+    setAddressSpaceLambda(asf.fReduce, reduceWriteTo, Seq(argAddressSpaces.head, fMapAddressSpace))
+    writeTo
   }
 
   private def setAddressSpaceLambda(l: Lambda, writeTo: SpatialAddressSpace,
@@ -137,7 +138,6 @@ object InferSpatialAddressSpace {
 
   private def inferAddressSpace(writeTo: SpatialAddressSpace,
                                 argAddressSpaces: Seq[SpatialAddressSpace]) = {
-
     if (writeTo != UndefAddressSpace)
       writeTo
     else AddressSpaceCollection(argAddressSpaces).findCommonAddressSpace()
