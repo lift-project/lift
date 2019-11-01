@@ -315,6 +315,8 @@ class InnerProduct {
     import backends.spatial.common.ir._
     import backends.spatial.accel.ir._
     import backends.spatial.host
+    import backends.spatial.accel.ir.pattern.SpFold
+    import backends.spatial.accel.ir.pattern.MapSeq
 
     Backend.setSpatial()
 
@@ -412,10 +414,10 @@ class InnerProduct {
                                               AssertType(ArrayType(Float, 1), "Inner MemFold result type") o
                                                 //
                                                 /*Pipe {*/
-                                                SpMemFold(chunkSize = 1, stride = 1, factor = tileParFactor,
+                                                SpFold(chunkSize = 1, stride = 1, factor = tileParFactor,
                                                   fMap = fun(
-                                                    ArrayType(TupleType(Float, Float), 1), elAsramBsram => {
-                                                      backends.spatial.accel.ir.pattern.MapSeq(mult) $ elAsramBsram}),
+                                                    ArrayType(TupleType(Float, Float), 1), elAsramBsram =>
+                                                      MapSeq(mult) $ elAsramBsram),
                                                   fReduce = add,
                                                   init = Value(0.0f, Float)
                                                 ) $ Zip(tileRowAsramMaterialised, Join() $ tileRowBsram)

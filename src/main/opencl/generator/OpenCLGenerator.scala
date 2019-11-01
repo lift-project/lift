@@ -2087,7 +2087,7 @@ class OpenCLGenerator extends Generator {
 
     val i = valueType match {
       case _: ScalarType | _: TupleType => ViewPrinter.emit(view, replacements, PrivateMemory) match {
-        case VarIdxRef(_, _, idx) => idx.get.asInstanceOf[ArithExpression].content
+        case VarIdxRef(_, _, idx) => idx.get.content
         case x                 => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
       }
       // if the original value type is a vector:
@@ -2095,7 +2095,7 @@ class OpenCLGenerator extends Generator {
       case _: VectorType                     =>
         val length = Type.getLength(Type.getValueType(originalType))
         val index = ViewPrinter.emit(view, replacements, PrivateMemory) match {
-          case VarIdxRef(_, _, idx) => idx.get.asInstanceOf[ArithExpression].content
+          case VarIdxRef(_, _, idx) => idx.get.content
           case x                 => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
         index / length
