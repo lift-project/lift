@@ -75,14 +75,14 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
    *
    * @param expr The expression to generate
    * @param block The AST block to write into
-   * @param memReturn Determines whether a return of memory written to by the current node is
+   * @param returnValue Determines whether a return of memory written to by the current node is
    *                  required at the end of generated code
    *                  TODO: replace this "manual" flag with inferring the decision based on the future
    *                        trait marking Lift-Spatial nodes as potential expressions that do not require
    *                        memory return
    */
-  private def generate(expr: Expr, block: MutableExprBlock, memReturn: Boolean = false): Unit = {
-    var returnRequired = memReturn
+  private def generate(expr: Expr, block: MutableExprBlock, returnValue: Boolean = false): Unit = {
+    var returnRequired = returnValue
     assert(expr.t != UndefType)
 
     // Generate arguments
@@ -151,7 +151,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         val accessType = Type.getBaseType(call.t)
 
         (block: MutableExprBlock) += AssignmentExpression(
-          to = accessNode(call.mem.variable, call.addressSpace, accessType, outSizeView),
+          to = accessNode(call.mem, call.addressSpace, accessType, outSizeView),
           value = getArraySize(SpatialMemory.asSpatialMemory(call.args.head.mem), inSizeView)
         )
     }
@@ -272,7 +272,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         case _ => throw new AccelGeneratorException(s"Expected the literal argument to be Value() >> toLiteral(), " +
           s"got $accumOrInit")
       }
-    } else valueAccessNode(accumOrInit.mem.variable)
+    } else valueAccessNode(accumOrInit.mem)
 
     val counter = List(Counter(
       ArithExpression(getRangeAdd(asf.mapLoopVar).start),
@@ -287,7 +287,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
       case _: SpMemFold => SpatialAccelAST.MemFold(accumOrInitNode, counter, iterVars, innerMapBlock, innerReduceBlock)
     })
 
-    generate(asf.fMap.body, innerMapBlock, memReturn = true)
+    generate(asf.fMap.body, innerMapBlock, returnValue = true)
     generate(asf.fReduce.body, innerReduceBlock)
   }
 
@@ -482,7 +482,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
                                 targetView: View,
                                 srcAddressSpace: SpatialAddressSpace,
                                 srcNode: AstNode): StatementT = {
-    val targetNode = accessNode(targetMem.variable, targetMem.addressSpace, targetType, targetView)
+    val targetNode = accessNode(targetMem, targetMem.addressSpace, targetType, targetView)
 
     if (srcAddressSpace == targetMem.addressSpace) targetMem.addressSpace match {
       case RegMemory  => RegAssignmentExpression(to = targetNode, srcNode)
@@ -531,7 +531,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
       // not a memory collection: the default case
       case _ =>
-        accessNode(mem.variable, mem.addressSpace, t, view)
+        accessNode(mem, mem.addressSpace, t, view)
     }
   }
 
@@ -558,15 +558,15 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
 
   /**
-   * Create an access node (i.e. of type NDVarSlicedRef) for variable v based on the
+   * Create an access node (i.e. of type NDVarSlicedRef) for mem based on the
    * given address space and view
    *
-   * @param v            The variable to access
+   * @param mem            The memory to access
    * @param addressSpace The address space, i.e. DRAM, SRAM, Reg
    * @param view         The view to access var `v`
    * @return An NDVarSlicedRef node accessing `v` as described in `view`.
    */
-  private def accessNode(v: Var,
+  private def accessNode(mem: Memory,
                          addressSpace: SpatialAddressSpace,
                          accessType: Type,
                          view: View): ExpressionT = {
@@ -574,15 +574,15 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
       case SRAMMemory | DRAMMemory | RegMemory =>
         // allTypedMemories(v).mem.t is the original type, i.e. the type of the data stored in allTypedMemories(v).mem
         // allTypedMemories(v).writeT is the write type of the memory producer (UserFun / Value)
-        allTypedMemories(v).mem.t match {
-          case _: ArrayType                 => arrayAccessNode(v, addressSpace, view)
-          case _: ScalarType | _: TupleType => valueAccessNode(v)
+        allTypedMemories(mem).mem.t match {
+          case _: ArrayType                 => arrayAccessNode(mem, addressSpace, view)
+          case _: ScalarType | _: TupleType => valueAccessNode(mem)
           case _                            =>
-            throw new TypeException(allTypedMemories(v).mem.t, "A known type", null)
+            throw new TypeException(allTypedMemories(mem).mem.t, "A known type", null)
         }
 
       case LiteralMemory =>
-        throw new IllegalArgumentException(s"Trying to access literal variable $v, but literal values cannot have " +
+        throw new IllegalArgumentException(s"Trying to access literal memory $mem, but literal values cannot have " +
           s"variables associated with them")
 
       case UndefAddressSpace | AddressSpaceCollection(_) =>
@@ -592,14 +592,14 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
 
   /**
-   * Accessing v as an array
+   * Accessing mem as an array
    *
-   * @param v            The variable to access
+   * @param mem          The memory to access
    * @param addressSpace The address space `v` lives in
    * @param view         The view describing the access
    * @return An VarRef node accessing `v` as described in `view`.
    */
-  private def arrayAccessNode(v: Var,
+  private def arrayAccessNode(mem: Memory,
                               addressSpace: SpatialAddressSpace,
                               view: View): ExpressionT = {
     addressSpace match {
@@ -610,7 +610,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         val arrayAccessExpression = SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace)
         arrayAccessExpression match {
           case _: VarIdxRef | _: VarSlicedRef =>
-            VarIdxRef(v, suffix = Some(arrayAccessRegisterMem(v, view)))
+            VarIdxRef(mem.variable, suffix = Some(arrayAccessRegisterMem(mem, view)))
           case e: ExpressionT  => e
         }
 
@@ -624,33 +624,33 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
    * emulated array in register memory.
    * emulated_reg_array(5, 1::3, 4) => "_5__1_2__4"
    *
-   * @param v    The variable to access
+   * @param mem The memory to access
    * @param view The view describing the access
    * @return A string of the form '_indices' where indices is the sliced multidimensional
    *         array index. The indices must be computable at compile time.
    */
-  private def arrayAccessRegisterMem(v: Var, view: View): String = {
+  private def arrayAccessRegisterMem(mem: Memory, view: View): String = {
     // Compute the indices ...
-    val indices = arrayAccessRegisterMemIndex(v, view)
+    val indices = arrayAccessRegisterMemIndex(mem, view)
     // ... and append it
     "_" + indices.map(_.map(Printer.toString(_)).mkString("_")).mkString("__")
   }
 
   /**
    * Generates integers characterising one access to memory.
-   * Produce a two-dimensional list of indices. The outer dimension contains
+   * Produces a two-dimensional list of indices. The outer dimension contains
    * one element per dimension of the accessed memory; the inner dimension contains
    * one element per index in a slice.
    * For example:
    * arr(5, 2::3::11, 7, 1::3) => [[5], [2, 5, 8], [7], [1, 2]]
    *
-   * @param v The variable referring to the memory being accessed
+   * @param mem The memory to access
    * @param view Access view
    * @return A two-dimensional list of indices
    */
-  private def arrayAccessRegisterMemIndex(v: Var, view: View): List[List[Int]] = {
+  private def arrayAccessRegisterMemIndex(mem: Memory, view: View): List[List[Int]] = {
 
-    val typeInMem = allTypedMemories(v).typeInMem
+    val typeInMem = allTypedMemories(mem).typeInMem
 
     // Get the addressors as if we were accessing a multidimensional array in memory and
     // convert them from Spatial AST to Lift IR
@@ -692,20 +692,20 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
       })
     } catch {
       case NotEvaluableException() =>
-        throw new AccelGeneratorException(s"Could not access private array, as addressor $addressors could " +
+        throw new AccelGeneratorException(s"Could not access register array, as addressor $addressors could " +
           s"not be evaluated statically (given these replacementsOfIteratorsWithValues: $replacementsOfIteratorsWithValues)")
       case NotEvaluableToIntException() =>
-        throw new AccelGeneratorException(s"Could not access private array, as addressor $addressors is " +
+        throw new AccelGeneratorException(s"Could not access register array, as addressor $addressors is " +
           s"larger than scala.Int.MaxValue (given these replacementsOfIteratorsWithValues: $replacementsOfIteratorsWithValues)")
     }
 
-    val memTypeLengths = Type.getLengths(allTypedMemories(v).typeInMem)
+    val memTypeLengths = Type.getLengths(allTypedMemories(mem).typeInMem)
 
     if (!memTypeLengths.forall(_.isEvaluable))
-      throw new AccelGeneratorException(s"Private memory length has to be evaluable, but found $memTypeLengths")
+      throw new AccelGeneratorException(s"Register memory length has to be evaluable, but found $memTypeLengths")
 
     if (!addrWithReplacements.zip(memTypeLengths).forall{ case (addr, memLen) => addr.max < memLen.eval })
-      throw new AccelGeneratorException(s"Out of bounds access to $v with $addrWithReplacements")
+      throw new AccelGeneratorException(s"Out of bounds access to $mem with $addrWithReplacements")
 
     addrWithReplacements
   }
@@ -714,10 +714,10 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   /**
    * An access to a variable as a value, i.e. a direct access by name.
    *
-   * @param v The variable to access
+   * @param mem The memory to access
    * @return A VarRef node wrapping `v`
    */
-  private def valueAccessNode(v: Var): VarSlicedRef = {
-    VarSlicedRef(v)
+  private def valueAccessNode(mem: Memory): VarSlicedRef = {
+    VarSlicedRef(mem.variable)
   }
 }

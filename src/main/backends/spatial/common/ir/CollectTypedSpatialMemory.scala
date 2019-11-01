@@ -3,7 +3,6 @@ package backends.spatial.common.ir
 import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
 import ir.{Memory, Type}
 import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Expr, FPattern, FunCall, Iterate, Lambda, Param, UnsafeArrayAccess, UserFun, Value, VectorizeUserFun}
-import lift.arithmetic.Var
 
 import scala.collection.mutable
 
@@ -13,13 +12,8 @@ final case class TypedMemoryCollection(inputs: Seq[TypedSpatialMemory],
                                          SpatialAddressSpace, Seq[TypedSpatialMemory]]) {
   lazy val asFlatSequence: Seq[TypedSpatialMemory] = inputs ++ outputs ++ intermediates.values.flatten
 
-  private lazy val varIndexed: collection.immutable.Map[Var, TypedSpatialMemory] =
-    asFlatSequence.map(typedMem => typedMem.mem.variable -> typedMem).toMap
-
   private lazy val memIndexed: collection.immutable.Map[SpatialMemory, TypedSpatialMemory] =
     asFlatSequence.map(typedMem => typedMem.mem -> typedMem).toMap
-
-  def apply(variable: Var): TypedSpatialMemory = varIndexed(variable)
 
   def apply(mem: Memory): TypedSpatialMemory = mem match {
     case sMem: SpatialMemory => memIndexed(sMem)

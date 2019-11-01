@@ -81,7 +81,7 @@ object SpatialMemoryAllocator {
 
       case sf: SpForeach            => allocSpForeach(sf, outMemT, outAddressSpace, inMem)
       case m: MapSeq                => allocMapSeq(m, outMemT, outAddressSpace, inMem)
-      case asf: AbstractSpFold      => allocSpFold(asf, outMemT, outAddressSpace, inMem)
+      case asf: AbstractSpFold      => allocAbstrSpFold(asf, outMemT, outAddressSpace, inMem)
 
       case s: AbstractSearch        => throw new NotImplementedError()
 
@@ -169,10 +169,10 @@ object SpatialMemoryAllocator {
     alloc(m.f.body, outMemT, outAddressSpace)
   }
 
-  private def allocSpFold(asf: AbstractSpFold,
-                          outMemT: Type,
-                          outAddressSpace: SpatialAddressSpace,
-                          inMem: SpatialMemory): SpatialMemory = {
+  private def allocAbstrSpFold(asf: AbstractSpFold,
+                               outMemT: Type,
+                               outAddressSpace: SpatialAddressSpace,
+                               inMem: SpatialMemory): SpatialMemory = {
     inMem match {
       case coll: SpatialMemoryCollection =>
         val initM = coll.subMemories(0)
@@ -182,19 +182,22 @@ object SpatialMemoryAllocator {
         // it expects memory of size call.args(1).t.size. Here, we will allocate output memory of fMap
         // and input memory of fReduce separately. This will not be a problem during code generation as those
         // memories are not explicitly written to / read from. Spatial takes care of the disparity.
-        asf.fMapMem = alloc(asf.fMap.body, asf.fMap.body.t, asf.fMap.body.addressSpace)
+        alloc(asf.fMap.body, asf.fMap.body.t, asf.fMap.body.addressSpace)
+        // Here, we are doing something potentially dangerous: associate one variable with two memories,
+        // the first one referring to the map body memory (containing single tile) and the second one
+        // referring to the bigger map memory (containing all tiles)
+        asf.fMapMem = SpatialMemory(asf.fMap.body.mem.variable, asf.fFlatMapT,
+          asf.fMap.body.mem.asInstanceOf[SpatialMemory].addressSpace)
 
         asf.fReduce.params(0).mem = initM
+        asf.fReduce.params(1).mem = asf.fMapMem
 
-        asf.fReduce.params(1).mem = SpatialMemory.allocMemory(
-          asf.fFlatMapT, asf.fMapMem.asInstanceOf[SpatialMemory].addressSpace)
-
-        val reduceBodyM = alloc(asf.fReduce.body, outMemT, outAddressSpace)
+        val reduceBodyM = alloc(asf.fReduce.body, outMemT, initM.addressSpace)
 
         // replace `bodyM` by `initM` in `asf.fReduce.body`
         Expr.visit(asf.fReduce.body, e => if (e.mem == reduceBodyM) e.mem = initM, _ => {})
 
-        initM // return initM as the memory of the reduction pattern
+        SpatialMemory.allocMemory(outMemT, outAddressSpace)
       case _ => throw new IllegalArgumentException(inMem.toString)
     }
   }
