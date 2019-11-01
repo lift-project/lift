@@ -14,27 +14,25 @@ case class SpMemFold(override val fMap: Lambda1,
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     argType match {
-      case TupleType(initT, at@ArrayType(elemT)) =>
+      case TupleType(initT, ArrayTypeWS(elemT, argSize)) =>
         // map input array element type
         fMap.params(0).t = ArrayType(elemT, chunkSize)
 
         val tiledMapBodyType = TypeChecker.check(fMap.body, setType) // check the body
-        val mapBodyType = tiledMapBodyType match {
-          case ArrayType(elemT) => elemT
-          case t => throw new TypeException(t, "ArrayType(_, _)", this)
+        fFlatMapT = tiledMapBodyType match {
+          case ArrayTypeWS(elemT, s) => ArrayType(elemT, s * (argSize /^ chunkSize))
+          case t => throw new TypeException(t, "ArrayTypeWS(_, _)", this)
         }
 
-        fFlatMapT = at.replacedElemT(mapBodyType)
-
         fReduce.params(0).t = Type.getBaseType(initT) // initial element type
-        fReduce.params(1).t = Type.getBaseType(mapBodyType) // reduce input array element type
+        fReduce.params(1).t = Type.getBaseType(fFlatMapT) // reduce input array element type
 
         val reduceBodyType = TypeChecker.check(fReduce.body, setType) // check the body
 
-        if (Type.getBaseType(initT) != Type.getBaseType(mapBodyType) || Type.getBaseType(initT) != reduceBodyType)
+        if (Type.getBaseType(initT) != Type.getBaseType(fFlatMapT) || Type.getBaseType(initT) != reduceBodyType)
           throw TypeException(
             s"Illegal combination of accumulator / inner function types in:\n``$this``.\n" +
-              s"``(${Type.getBaseType(initT)}, ${Type.getBaseType(mapBodyType)}) -> $reduceBodyType`` " +
+              s"``(${Type.getBaseType(initT)}, ${Type.getBaseType(fFlatMapT)}) -> $reduceBodyType`` " +
               s"does not match ``(α, α) -> α``"
           )
 

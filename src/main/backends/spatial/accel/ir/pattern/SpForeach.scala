@@ -22,8 +22,7 @@ case class SpForeach(chunkSize: ArithExpr,
         f.params(0).t = ArrayType(elemT, chunkSize)
         val fBodyT = TypeChecker.check(f.body, setType)
 
-        // TODO: make sure that these are divisible:
-        val outerSize = (s - (chunkSize - stride)) / stride
+        val outerSize = (s - (chunkSize - stride)) /^ stride
 
         ArrayType(fBodyT, outerSize)
 
