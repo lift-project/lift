@@ -1,6 +1,6 @@
 package backends.spatial.common.ir
 
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpFold, SpForeach, SpMemFold}
 import ir.{Memory, Type}
 import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Expr, FPattern, FunCall, Iterate, Lambda, Param, UnsafeArrayAccess, UserFun, Value, VectorizeUserFun}
 
@@ -119,7 +119,8 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
       case l: Lambda              => collectIntermediateMemories(l.body)
       case sF: SpForeach          => collectSpForeach(call.t, sF, call)
       case m: AbstractMap         => collectMap(call.t, m)
-      case aSF: AbstractSpFold    => collectSpFold(aSF, argumentMemories, call)
+      case sf: SpFold             => collectSpFold(sf, argumentMemories, call)
+      case smf: SpMemFold         => collectSpMemFold(smf, argumentMemories, call)
       case r: AbstractPartRed     => throw new NotImplementedError()
       case _: UnsafeArrayAccess   => Seq(TypedSpatialMemory(call))
       case _: CheckedArrayAccess  => Seq(TypedSpatialMemory(call))
@@ -139,27 +140,47 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
   private def collectMap(t: Type, map: AbstractMap) = {
     collectIntermediateMemories(map.f.body)
   }
-  
-  private def collectSpFold(asf: AbstractSpFold,
-                            argumentMemories: Seq[TypedSpatialMemory],
-                            call: FunCall) = {
-    // The memory of the implicit map is not materialised if a literal is passed as an initial value
-    if (call.args.head.addressSpace == LiteralMemory)
-      nonMaterialMems += asf.fMapMem
+
+  private def collectAbstractSpFold(asf: AbstractSpFold,
+                                    argumentMemories: Seq[TypedSpatialMemory],
+                                    call: FunCall) = {
+    val mapTMem = TypedSpatialMemory(asf.fMapMem, asf.fFlatMapT,
+      materialised = false, implicitlyReadFrom = true, implicitWriteScope = None)
+    val foldTMem = TypedSpatialMemory(call)
+
     // The input memory of the implicit reduce is a different representation of asf.fMapMem and is not materialised as well
-    val fReduceInputTypedFakeMem = TypedSpatialMemory(asf.fReduce.params(1))
-    nonMaterialMems += fReduceInputTypedFakeMem.mem
-//     The memory written to by the reduce is to be materialised even if it marked as non-material before
-    nonMaterialMems -= call.mem
-    // The memory is written to and read from by the reduce implicitly -- we don't need to generate stores/loads
-    implicitlyReadFromMems += call.mem
-    implicitWriteScopes += (call.mem -> call)
+    nonMaterialMems += mapTMem.mem
+
+    // These memories are written to and read from by the reduce implicitly -- we don't need to generate stores/loads
+    implicitlyReadFromMems += asf.fReduce.body.mem
+    implicitlyReadFromMems += foldTMem.mem
+    asf.fReduce.body match {
+      case reduceCall: FunCall => implicitWriteScopes += (asf.fReduce.body.mem -> reduceCall)
+      case _ =>
+    }
+    implicitWriteScopes += (foldTMem.mem -> call)
 
 
-    val memories = collectIntermediateMemories(asf.fMap.body) ++ Seq(fReduceInputTypedFakeMem) ++
+    val memories = collectIntermediateMemories(asf.fMap.body) ++ Seq(mapTMem, foldTMem) ++
       collectIntermediateMemories(asf.fReduce.body)
 
     removeParameterAndArgumentDuplicates(memories, argumentMemories)
+  }
+
+  private def collectSpFold(sf: SpFold,
+                            argumentMemories: Seq[TypedSpatialMemory],
+                            call: FunCall) = {
+    // The memory of the implicit map body is not materialised if a literal is passed as an initial value
+    if (call.args.head.addressSpace == LiteralMemory)
+      nonMaterialMems += sf.fMapMem
+
+    collectAbstractSpFold(sf, argumentMemories, call)
+  }
+
+  private def collectSpMemFold(smf: SpMemFold,
+                               argumentMemories: Seq[TypedSpatialMemory],
+                               call: FunCall) = {
+    collectAbstractSpFold(smf, argumentMemories, call)
   }
 
   private def removeParameterAndArgumentDuplicates(memories: Seq[TypedSpatialMemory],
