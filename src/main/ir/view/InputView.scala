@@ -1,6 +1,6 @@
 package ir.view
 
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach, asLiteral}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
 import ir._
 import ir.ast._
 import lift.arithmetic.ArithExpr
@@ -93,7 +93,6 @@ object InputView {
       case ArrayAccess(i) =>                    argView.access(i)
       case RewritingGuidePost(_) =>             argView
       case cc: Concat =>                        buildViewConcat(call,argView)
-      case _: asLiteral =>                      argView
       case debug.PrintType(_) | debug.PrintTypeInConsole(_) |
            debug.PrintComment(_) | debug.AssertType(_, _) |
            Scatter(_) | _: Tuple | Pad(_, _, _) | Id() =>

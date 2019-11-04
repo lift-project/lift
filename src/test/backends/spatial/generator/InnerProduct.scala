@@ -1,6 +1,7 @@
 package backends.spatial.generator
 
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
+import backends.spatial.accel.ir.pattern.toReg
 import backends.{Backend, c, spatial}
 import ir._
 import ir.ast._
@@ -230,6 +231,7 @@ class InnerProduct {
 //      }
 //    """
 
+    val id = UserFun("id", Array("x"), "x", Seq(Float), Float)
 
     val idArray = UserFun("idArray", Array("arr"),
       "arr", Seq(ArrayType(Float, tileSize)), ArrayType(Float, tileSize)) // TODO: generalise array size
@@ -255,10 +257,10 @@ class InnerProduct {
               SpFold(chunkSize = 1, stride = 1, factor = innerParFactor,
                 fMap = backends.spatial.accel.ir.pattern.MapSeq(mult),
                 fReduce = add,
-                init = Value(0.0f, Float)) $ tileABsram
+                init = toReg(id) $ Value(0.0f, Float)) $ tileABsram
             }),
           fReduce = add,
-          init = Value(0.0f, Float)) $
+          init = toReg(id) $ Value(0.0f, Float)) $
           Zip(a, b))
 
     val dotProductRuntimeLambda = fun(
@@ -331,6 +333,8 @@ class InnerProduct {
     val tileParFactor = SizeVar("tileParFactor") // 16
     val innerFactorI = SizeVar("innerFactorI") // 1
     val innerFactorJ = SizeVar("innerFactorJ") // 1
+
+    val id = UserFun("id", Array("x"), "x", Seq(Float), Float)
 
     val idArray2dMN = UserFun("idArray2dMN", Array("arr"),
       "arr", Seq(ArrayType(ArrayType(Float, tileNsize), tileMsize)),
@@ -419,7 +423,7 @@ class InnerProduct {
                                                     ArrayType(TupleType(Float, Float), 1), elAsramBsram =>
                                                       MapSeq(mult) $ elAsramBsram),
                                                   fReduce = add,
-                                                  init = Value(0.0f, Float)
+                                                  init = toReg(id) $ Value(0.0f, Float)
                                                 ) $ Zip(tileRowAsramMaterialised, Join() $ tileRowBsram)
                                               /*}*/
                                             )) $ tileBsramMaterialised

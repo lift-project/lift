@@ -120,7 +120,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
           case fp: FPattern           => generate(fp.f.body, block)
           case l: Lambda              => generate(l.body, block)
 
-          case toReg(_) | toSRAM(_) | toDRAM(_) | asLiteral() |
+          case toReg(_) | toSRAM(_) | toDRAM(_) |
                Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
                Split(_) | Join() | Slide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
                Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
@@ -211,7 +211,9 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
                                       block: MutableExprBlock,
                                       init: Option[AstNode] = None): Unit = {
     val mem = expr.mem.asInstanceOf[SpatialMemory]
-    val memoryNeedsMaterialising = allTypedMemories.contains(mem) && allTypedMemories(mem).materialised
+    val memoryNeedsMaterialising =
+      allTypedMemories.contains(mem) &&
+        mem.addressSpace != LiteralMemory
 
     if (memoryNeedsMaterialising &&
       !allTypedMemories(mem).declared &&
@@ -255,24 +257,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
     val accumOrInit = call.args.head
 
-    val accumOrInitNode = if (accumOrInit.addressSpace == LiteralMemory) {
-      accumOrInit match {
-        case FunCall(asLiteral(), Value(value, t)) =>
-          // Make sure the value is well-formed
-          try { t match {
-            case backends.spatial.common.ir.Int => value.toInt
-            case backends.spatial.common.ir.Float => value.toFloat
-            case _ => throw new AccelGeneratorException(s"Unknown value type $t")
-          }} catch {
-            case _: java.lang.NumberFormatException =>
-              throw new AccelGeneratorException("Cannot convert \"" + value + "\" to a number")
-          }
-          // Return the value as a string
-          SpatialCode(value)
-        case _ => throw new AccelGeneratorException(s"Expected the literal argument to be Value() >> toLiteral(), " +
-          s"got $accumOrInit")
-      }
-    } else valueAccessNode(accumOrInit.mem)
+    val accumOrInitNode = valueAccessNode(accumOrInit.mem)
 
     val counter = List(Counter(
       ArithExpression(getRangeAdd(asf.mapLoopVar).start),
@@ -582,8 +567,23 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         }
 
       case LiteralMemory =>
-        throw new IllegalArgumentException(s"Trying to access literal memory $mem, but literal values cannot have " +
-          s"variables associated with them")
+        view match {
+          case ViewConstant(value, t) =>
+            // Make sure the value is well-formed
+            try { t match {
+              case backends.spatial.common.ir.Int => value.value.toInt
+              case backends.spatial.common.ir.Float => value.value.toFloat
+              case _ => throw new AccelGeneratorException(s"Unknown value type $t")
+            }} catch {
+              case _: java.lang.NumberFormatException =>
+                throw new AccelGeneratorException("Cannot convert \"" + value + "\" to a number")
+            }
+            // Return the value as a string
+            SpatialCode(value.value)
+
+          case _ =>
+            throw new IllegalArgumentException(s"Expected ViewConstant as a view of the literal memory $mem. Got $view")
+        }
 
       case UndefAddressSpace | AddressSpaceCollection(_) =>
         throw new IllegalArgumentException(s"Cannot access data in $addressSpace")
