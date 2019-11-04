@@ -112,8 +112,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
             // it from the input's header to the output's header.
             propagateDynamicArraySize(call, block)
 
-          case sf: SpFold             => generateFoldCall(sf, call, block); returnRequired = false
-          case smf: SpMemFold         => generateFoldCall(smf, call, block); returnRequired = false
+          case sf: SpFold             => generateFoldCall(sf, call, block)
+          case smf: SpMemFold         => generateFoldCall(smf, call, block)
 
           case u: UserFun             => generateUserFunCall(u, call, block)
 
@@ -274,6 +274,11 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
     generate(asf.fMap.body, innerMapBlock, returnValue = true)
     generate(asf.fReduce.body, innerReduceBlock)
+
+    (block: MutableExprBlock) += generateStoreNode(
+      targetMem = call.mem.asInstanceOf[SpatialMemory], targetType = call.t, targetView = call.outputView,
+      srcAddressSpace = call.args.head.addressSpace,
+      srcNode = generateLoadNode(call.args.head.mem.asInstanceOf[SpatialMemory], call.args.head.t, call.args.head.view))
   }
 
   private def generateForeach(block: MutableExprBlock,
@@ -473,8 +478,11 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     }
 
     else (srcAddressSpace, targetMem.addressSpace) match {
-      case (DRAMMemory, SRAMMemory) => SpLoad(src = srcNode, target = VarSlicedRef(targetMem.variable))
-      case (SRAMMemory, DRAMMemory) => SpStore(src = srcNode, target = VarSlicedRef(targetMem.variable))
+      case (DRAMMemory, SRAMMemory)     => SpLoad(src = srcNode, target = VarSlicedRef(targetMem.variable))
+      case (SRAMMemory, DRAMMemory)     => SpStore(src = srcNode, target = VarSlicedRef(targetMem.variable))
+      case (RegMemory, DRAMMemory)      => AssignmentExpression(to = targetNode, srcNode)
+      case (RegMemory, SRAMMemory)      => AssignmentExpression(to = targetNode, srcNode)
+      case (LiteralMemory, RegMemory)   => RegAssignmentExpression(to = targetNode, srcNode)
 
       case _ => throw new AccelGeneratorException(
         s"Don't know how to store a value from $srcAddressSpace in ${targetMem.addressSpace}")

@@ -271,6 +271,8 @@ class InnerProduct {
 
     val generatedSpatial = backends.spatial.common.RuntimeCompiler(dotProductRuntimeLambda)
 
+    println(generatedSpatial)
+
     val expectedOutCode =
       """|{
          |    def idArray(arr: DRAM1[Float]): DRAM1[Float] = {
@@ -384,8 +386,7 @@ class InnerProduct {
                       AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "tileCsram.type") o
                         toSRAM(idArray2dMN) o Transpose() $ Get(Unzip() $ tileBcolsC, 1)
 
-                    toDRAM(idArray2dMN) o Join() o
-//
+                    toDRAM(
                       SpMemFold(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorK,
                         fMap = fun(
                           ArrayType(TupleType(ArrayType(Float, tileMsize), ArrayType(Float, tileNsize)), tileNsize),
@@ -432,7 +433,7 @@ class InnerProduct {
                               ) $ tileBsram
                           }),
                         fReduce = /*addMatrices*/ add, init = tileCsram
-                      ) $ Zip(tileArows, tileBcols)
+                      )) $ Zip(tileArows, tileBcols)
                   })) $ Zip(b, tileCrows)
             })) $ Zip(a, c))
 
