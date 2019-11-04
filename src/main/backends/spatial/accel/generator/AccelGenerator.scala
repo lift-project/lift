@@ -2,7 +2,7 @@ package backends.spatial.accel.generator
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, asLiteral, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, toDRAM, toReg, toSRAM}
 import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
@@ -12,7 +12,7 @@ import backends.spatial.common.ir.{AddressSpaceCollection, DRAMMemory, LiteralMe
 import core.generator.GenericAST._
 import ir._
 import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
-import ir.view.View
+import ir.view.{View, ViewConstant}
 import lift.arithmetic._
 import opencl.generator.PerformLoopOptimisation
 
@@ -137,8 +137,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
       case _  => throw new NotImplementedError()
     }
 
-    if (returnRequired && allTypedMemories(expr.mem).materialised)
-      (block: MutableExprBlock) += generateLoadNode(SpatialMemory.asSpatialMemory(expr.mem), expr.t, expr.view)
+    if (returnRequired)
+      (block: MutableExprBlock) += valueAccessNode(SpatialMemory.asSpatialMemory(expr.mem))
   }
 
   private def propagateDynamicArraySize(call: FunCall, block: MutableExprBlock): Unit = {
@@ -199,6 +199,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   }
 
   /**
+   * TODO: update description
    * Declares memory all conditions are met:
    * 1. The memory needs materialising
    * 1.1. Memories not in the collection allTypedMemories do not need materialisation
@@ -266,7 +267,6 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
       ArithExpression(asf.factor)))
     val iterVars = List(CVar(asf.mapLoopVar))
 
-    // TODO: Confirm that we don't need to generate anything outside fMap body
     (block: MutableExprBlock) += (asf match {
       case _: SpFold => SpatialAccelAST.Fold(accumOrInitNode, counter, iterVars, innerMapBlock, innerReduceBlock)
       case _: SpMemFold => SpatialAccelAST.MemFold(accumOrInitNode, counter, iterVars, innerMapBlock, innerReduceBlock)
@@ -391,9 +391,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
     val funcall_node = generateFunCall(call, generateLoadNodes(call.args: _*))
 
-    if (allTypedMemories(sMem).materialised &&
-      !(allTypedMemories(sMem).implicitWriteScope.isDefined &&
-        scope.contains(allTypedMemories(sMem).implicitWriteScope.get))) {
+    if (!allTypedMemories(sMem).inImplicitWriteScope(scope)) {
 
       // Generate store
       (block: MutableExprBlock) += generateStoreNode(
@@ -491,8 +489,8 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   }
 
   private def generateLoadNode(mem: SpatialMemory, t: Type, view: View): ExpressionT = {
-    if (!allTypedMemories(mem).materialised || allTypedMemories(mem).implicitlyReadFrom)
-      // This memory is not materialised or is implicitly read from. If we are trying to load it, that means we are
+    if (allTypedMemories(mem).inImplicitReadScope(scope))
+      // This memory is is implicitly read from. If we are trying to load it, that means we are
       // printing an anonymous function definition (e.g. "{ add(_, _) }"), so we'll print placeholders
       SpatialAST.Placeholder()
     else mem match {

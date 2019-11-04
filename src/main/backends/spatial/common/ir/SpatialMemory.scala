@@ -6,6 +6,8 @@ import ir.{Memory, MemoryCollection, TupleType, Type, UnallocatedMemory, UndefTy
 import lift.arithmetic._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
+import scala.collection.mutable
+
 private class MemoryAllocationException(msg: String)
   extends IllegalArgumentException(msg)
 
@@ -178,6 +180,7 @@ object SpatialMemory {
 }
 
 /**
+ * TODO: update
  * Represents a SpatialMemory object combined with some metadata additional to the one stored by SpatialMemory.
  * This includes:
  * 1. Whether the memory has been declared yet during code generation
@@ -199,31 +202,38 @@ object SpatialMemory {
  * @constructor Create a new TypedSpatialMemory object
  * @param mem The underlying memory object
  * @param typeInMem The type of each write to the memory object
- * @param implicitlyReadFrom Whether the reads are explicit or implicit through a placeholder in an anonymous
+// * @param implicitlyReadFrom Whether the reads are explicit or implicit through a placeholder in an anonymous
  *                           function. TODO: add scopes or infer it in a cleaner way (not all reads might be implicit)
  * @param implicitWriteScope The scope within which all writes are implicit (might need more than one in the future)
   */
 case class TypedSpatialMemory(mem: SpatialMemory, typeInMem: Type,
-                              var materialised: Boolean,
-                              var implicitlyReadFrom: Boolean,
+                              var implicitReadScope: Option[FunCall],
                               var implicitWriteScope: Option[FunCall]) {
   lazy val lengths: Seq[ArithExpr] = Type.getAllocatedLengths(typeInMem)
 
   var declared: Boolean = false
 
   override def toString: String = s"($mem: $typeInMem)"
+
+  def inImplicitReadScope(scope: mutable.Stack[FunCall]): Boolean =
+    implicitReadScope.isDefined && scope.contains(implicitReadScope.get)
+
+  def inImplicitWriteScope(scope: mutable.Stack[FunCall]): Boolean =
+    implicitWriteScope.isDefined && scope.contains(implicitWriteScope.get)
 }
 
 object TypedSpatialMemory {
-  def apply(expr: Expr, materialised: Boolean = true,
-            implicitlyReadFrom: Boolean = false, implicitWriteScope: Option[FunCall] = None): TypedSpatialMemory = {
-    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(expr.mem), expr.t, materialised,
-      implicitlyReadFrom, implicitWriteScope)
+  def apply(expr: Expr,
+            implicitReadScope: Option[FunCall] = None,
+            implicitWriteScope: Option[FunCall] = None): TypedSpatialMemory = {
+    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(expr.mem), expr.t,
+      implicitReadScope, implicitWriteScope)
   }
 
-  def apply(mem: Memory, t: Type, materialised: Boolean,
-            implicitlyReadFrom: Boolean, implicitWriteScope: Option[FunCall]): TypedSpatialMemory = {
-    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(mem), t, materialised,
-      implicitlyReadFrom, implicitWriteScope)
+  def apply(mem: Memory, t: Type,
+            implicitReadScope: Option[FunCall],
+            implicitWriteScope: Option[FunCall]): TypedSpatialMemory = {
+    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(mem), t,
+      implicitReadScope, implicitWriteScope)
   }
 }

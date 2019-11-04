@@ -41,7 +41,7 @@ object CollectTypedSpatialMemory {
 private class CollectTypedSpatialMemory(val lambda: Lambda) {
 
   private var nonMaterialMems: mutable.Set[Memory] = mutable.Set.empty
-  private var implicitlyReadFromMems: mutable.Set[Memory] = mutable.Set.empty
+  private var implicitReadScopes: mutable.Map[Memory, FunCall] = mutable.Map()
   private var implicitWriteScopes: mutable.Map[Memory, FunCall] = mutable.Map()
 
   private def apply(): TypedMemoryCollection = {
@@ -63,14 +63,12 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
 
     val collection = TypedMemoryCollection(inputs.sortBy(_.mem.variable.name), Seq(output), intermediates)
 
-    // Mark memories that don't need materialisation as such
-    collection.asFlatSequence.foreach(tm => if (nonMaterialMems.contains(tm.mem)) tm.materialised = false)
     // Mark memories that are implicitly read from as such
-    collection.asFlatSequence.foreach(tm => if (implicitlyReadFromMems.contains(tm.mem)) tm.implicitlyReadFrom = true)
+    collection.asFlatSequence.foreach(tm =>
+      if (implicitReadScopes.contains(tm.mem)) tm.implicitReadScope = Some(implicitReadScopes(tm.mem)))
     // Mark memories that are implicitly written to as such
     collection.asFlatSequence.foreach(tm =>
-      if (implicitWriteScopes.contains(tm.mem))
-        tm.implicitWriteScope = Some(implicitWriteScopes(tm.mem)))
+      if (implicitWriteScopes.contains(tm.mem)) tm.implicitWriteScope = Some(implicitWriteScopes(tm.mem)))
 
     collection
   }
@@ -145,17 +143,18 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
                                     argumentMemories: Seq[TypedSpatialMemory],
                                     call: FunCall) = {
     val mapTMem = TypedSpatialMemory(asf.fMapMem, asf.fFlatMapT,
-      materialised = false, implicitlyReadFrom = true, implicitWriteScope = None)
+      implicitReadScope = None, implicitWriteScope = None)
     val foldTMem = TypedSpatialMemory(call)
 
     // The input memory of the implicit reduce is a different representation of asf.fMapMem and is not materialised as well
     nonMaterialMems += mapTMem.mem
 
-    // These memories are written to and read from by the reduce implicitly -- we don't need to generate stores/loads
-    implicitlyReadFromMems += asf.fReduce.body.mem
-    implicitlyReadFromMems += foldTMem.mem
     asf.fReduce.body match {
-      case reduceCall: FunCall => implicitWriteScopes += (asf.fReduce.body.mem -> reduceCall)
+      case reduceCall: FunCall =>
+        // These memories are written to and read from by the reduce implicitly -- we don't need to generate stores/loads
+        implicitReadScopes += (asf.fMapMem -> reduceCall)
+        implicitReadScopes += (asf.fReduce.body.mem -> reduceCall)
+        implicitWriteScopes += (asf.fReduce.body.mem -> reduceCall)
       case _ =>
     }
     implicitWriteScopes += (foldTMem.mem -> call)
