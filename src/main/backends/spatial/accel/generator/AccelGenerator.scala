@@ -278,7 +278,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     (block: MutableExprBlock) += generateStoreNode(
       targetMem = call.mem.asInstanceOf[SpatialMemory], targetType = call.t, targetView = call.outputView,
       srcAddressSpace = call.args.head.addressSpace,
-      srcNode = generateLoadNode(call.args.head.mem.asInstanceOf[SpatialMemory], call.args.head.t, call.args.head.view))
+      srcNode = VarSlicedRef(call.args.head.mem.variable))
   }
 
   private def generateForeach(block: MutableExprBlock,
@@ -479,7 +479,10 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
     else (srcAddressSpace, targetMem.addressSpace) match {
       case (DRAMMemory, SRAMMemory)     => SpLoad(src = srcNode, target = VarSlicedRef(targetMem.variable))
-      case (SRAMMemory, DRAMMemory)     => SpStore(src = srcNode, target = VarSlicedRef(targetMem.variable))
+      case (SRAMMemory, DRAMMemory)     => SpStore(src = srcNode match {
+        case varRef: VarSlicedRef => varRef
+        case node => throw new AccelGeneratorException(s"Expected a VarSlicedRef, got $node")
+      }, target = targetNode)
       case (RegMemory, DRAMMemory)      => AssignmentExpression(to = targetNode, srcNode)
       case (RegMemory, SRAMMemory)      => AssignmentExpression(to = targetNode, srcNode)
       case (LiteralMemory, RegMemory)   => RegAssignmentExpression(to = targetNode, srcNode)

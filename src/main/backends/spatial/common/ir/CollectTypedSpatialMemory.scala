@@ -40,7 +40,6 @@ object CollectTypedSpatialMemory {
 
 private class CollectTypedSpatialMemory(val lambda: Lambda) {
 
-  private var nonMaterialMems: mutable.Set[Memory] = mutable.Set.empty
   private var implicitReadScopes: mutable.Map[Memory, FunCall] = mutable.Map()
   private var implicitWriteScopes: mutable.Map[Memory, FunCall] = mutable.Map()
 
@@ -147,7 +146,6 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
     val foldTMem = TypedSpatialMemory(call)
 
     // The input memory of the implicit reduce is a different representation of asf.fMapMem and is not materialised as well
-    nonMaterialMems += mapTMem.mem
 
     asf.fReduce.body match {
       case reduceCall: FunCall =>
@@ -170,8 +168,6 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
                             argumentMemories: Seq[TypedSpatialMemory],
                             call: FunCall) = {
     // The memory of the implicit map body is not materialised if a literal is passed as an initial value
-    if (call.args.head.addressSpace == LiteralMemory)
-      nonMaterialMems += sf.fMapMem
 
     collectAbstractSpFold(sf, argumentMemories, call)
   }
