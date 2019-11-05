@@ -102,8 +102,8 @@ object InferSpatialAddressSpace {
     // The address space of the result of a reduction is always the same as the initial element
     val reduceWriteTo = accumulatorAddressSpace
 
-    setAddressSpaceLambda(asf.fReduce, reduceWriteTo, Seq(argAddressSpaces.head, fMapAddressSpace))
-    writeTo
+    setAddressSpaceLambda(asf.fReduce, accumulatorAddressSpace, Seq(argAddressSpaces.head, fMapAddressSpace))
+    accumulatorAddressSpace
   }
 
   private def setAddressSpaceLambda(l: Lambda, writeTo: SpatialAddressSpace,
@@ -121,18 +121,15 @@ object InferSpatialAddressSpace {
     if (argAddressSpaces.length > 1)
       throw new IllegalAccelBlock(s"Expected only one argument to the address space caster")
 
-    call.f match {
-      case _ =>
-        val (addressSpace, lambda) = call.f match {
-          case toReg(f) => (RegMemory, f)
-          case toSRAM(f) => (SRAMMemory, f)
-          case toDRAM(f) => (DRAMMemory, f)
-        }
+      val (addressSpace, lambda) = call.f match {
+        case toReg(f) => (RegMemory, f)
+        case toSRAM(f) => (SRAMMemory, f)
+        case toDRAM(f) => (DRAMMemory, f)
+      }
 
-        setAddressSpaceLambda(lambda, argAddressSpaces.head, argAddressSpaces)
+      setAddressSpaceLambda(lambda, argAddressSpaces.head, argAddressSpaces)
 
-        addressSpace
-    }
+      addressSpace
   }
 
   private def inferAddressSpace(writeTo: SpatialAddressSpace,

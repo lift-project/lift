@@ -138,7 +138,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     }
 
     if (returnRequired)
-      (block: MutableExprBlock) += valueAccessNode(SpatialMemory.asSpatialMemory(expr.mem))
+      (block: MutableExprBlock) += generateLoadNode(SpatialMemory.asSpatialMemory(expr.mem), expr.t, expr.outputView)
   }
 
   private def propagateDynamicArraySize(call: FunCall, block: MutableExprBlock): Unit = {
@@ -268,17 +268,12 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     val iterVars = List(CVar(asf.mapLoopVar))
 
     (block: MutableExprBlock) += (asf match {
-      case _: SpFold => SpatialAccelAST.Fold(accumOrInitNode, counter, iterVars, innerMapBlock, innerReduceBlock)
+      case _: SpFold    => SpatialAccelAST.Fold(accumOrInitNode, counter, iterVars, innerMapBlock, innerReduceBlock)
       case _: SpMemFold => SpatialAccelAST.MemFold(accumOrInitNode, counter, iterVars, innerMapBlock, innerReduceBlock)
     })
 
     generate(asf.fMap.body, innerMapBlock, returnValue = true)
     generate(asf.fReduce.body, innerReduceBlock)
-
-    (block: MutableExprBlock) += generateStoreNode(
-      targetMem = call.mem.asInstanceOf[SpatialMemory], targetType = call.t, targetView = call.outputView,
-      srcAddressSpace = call.args.head.addressSpace,
-      srcNode = VarSlicedRef(call.args.head.mem.variable))
   }
 
   private def generateForeach(block: MutableExprBlock,

@@ -196,7 +196,7 @@ object SpatialMemoryAllocator {
         // replace `bodyM` by `initM` in `asf.fReduce.body`
         Expr.visit(asf.fReduce.body, e => if (e.mem == reduceBodyM) e.mem = initM, _ => {})
 
-        SpatialMemory.allocMemory(outMemT, outAddressSpace)
+        initM
       case _ => throw new IllegalArgumentException(inMem.toString)
     }
   }
