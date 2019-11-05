@@ -199,7 +199,10 @@ object SpatialMemoryAllocator {
         // it expects memory of size call.args(1).t.size. Here, we will allocate output memory of fMap
         // and input memory of fReduce separately. This will not be a problem during code generation as those
         // memories are not explicitly written to / read from. Spatial takes care of the disparity.
-        alloc(asf.fMap.body, asf.fMap.body.t, asf.fMap.body.addressSpace)
+        // Note, the empty allocator (t => t) is there because fMap.body will have a loop iterating chunkSize times,
+        // which will increase the allocator
+        alloc(asf.fMap.body, t => t, asf.fMap.body.addressSpace)
+
         // Here, we are doing something potentially dangerous: associate one variable with two memories,
         // the first one referring to the map body memory (containing single tile) and the second one
         // referring to the bigger map memory (containing all tiles)
@@ -209,7 +212,7 @@ object SpatialMemoryAllocator {
         asf.fReduce.params(0).mem = initM
         asf.fReduce.params(1).mem = asf.fMapMem
 
-        val reduceBodyM = alloc(asf.fReduce.body, outMemT, initM.addressSpace)
+        val reduceBodyM = alloc(asf.fReduce.body, t => t, initM.addressSpace)
 
         // replace `bodyM` by `initM` in `asf.fReduce.body`
         Expr.visit(asf.fReduce.body, e => if (e.mem == reduceBodyM) e.mem = initM, _ => {})
