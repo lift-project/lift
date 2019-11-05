@@ -427,8 +427,8 @@ object SpatialAccelAST {
    * A store from an SRAM variable into DRAM variable
    */
   trait SpStoreT extends StatementT {
-    val src: VarSlicedRef
-    val target: AstNode
+    val src: AstNode
+    val target: VarSlicedRef
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -444,10 +444,10 @@ object SpatialAccelAST {
     }
   }
 
-  case class SpStore(src: VarSlicedRef,
-                     target: AstNode) extends SpStoreT {
+  case class SpStore(src: AstNode,
+                     target: VarSlicedRef) extends SpStoreT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      SpStore(src.visitAndRebuild(pre, post).asInstanceOf[VarSlicedRef], target.visitAndRebuild(pre, post))
+      SpStore(src.visitAndRebuild(pre, post), target.visitAndRebuild(pre, post).asInstanceOf[VarSlicedRef])
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
