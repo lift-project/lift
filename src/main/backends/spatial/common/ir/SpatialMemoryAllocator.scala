@@ -71,8 +71,14 @@ object SpatialMemoryAllocator {
   private def allocFunCall(call: FunCall,
                            outMemT: Allocator,
                            outAddressSpace: SpatialAddressSpace): SpatialMemory = {
+    // Determine argument memory type:
+    // If this node creates new memory, than the argument memory type is the argument type.
+    // If this node only propagates or transforms the view the data of the argument, the argument memory type
+    // is the outMemT of this expression
+    val argMemT = if (call.isConcrete(visitArgs = false)) (t: Type) => t else outMemT
+
     // Get the input memory of f from the input arguments
-    val inMem = getInMFromArgs(call, outMemT, outAddressSpace)
+    val inMem = getInMFromArgs(call, argMemT, outAddressSpace)
 
     // Determine the output memory based on the type of f ...
     call.f match {
