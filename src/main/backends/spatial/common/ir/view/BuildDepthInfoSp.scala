@@ -184,14 +184,14 @@ private class BuildDepthInfoSp() {
     asf.fReduce.params(0).accessInf = l.collection.head
     asf.fReduce.params(1).accessInf = fMapAccessInfo(reduceArgAccessInfo, reduceReadMemories)
 
-    val accumAccessInf = ((t: Type) => t, Cst(0)) //getArrayAccessInf(call.t, Cst(0))
+    // The output of the Fold does not add depth (the array of one contract has been deprecated),
+    // so memoryAccessInfo does not have to be updated
     val reduceWriteMemories = getMemoryAccesses(call)
 
-    val updMemoryAccessInfo2 = updateAccessInf(memoryAccessInfo, reduceReadMemories ++ reduceWriteMemories, accumAccessInf)
     // traverse into call.f
-    visitAndBuildDepthInfo(asf.fReduce.body, updMemoryAccessInfo2)
+    visitAndBuildDepthInfo(asf.fReduce.body, memoryAccessInfo)
 
-    setDepths(call, reduceReadMemories, reduceWriteMemories, updMemoryAccessInfo2)
+    setDepths(call, reduceReadMemories, reduceWriteMemories, memoryAccessInfo)
 
     AccessInfoSp(memoryAccessInfo)
   }
