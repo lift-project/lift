@@ -386,7 +386,7 @@ class InnerProduct {
                       AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "tileCsram.type") o
                         toSRAM(idArray2dMN) o Transpose() $ Get(Unzip() $ tileBcolsC, 1)
 
-                    toDRAM(
+                    toDRAM(idArray2dMN) o
                       SpMemFold(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorK,
                         fMap = fun(
                           ArrayType(TupleType(ArrayType(Float, tileMsize), ArrayType(Float, tileNsize)), tileNsize),
@@ -409,14 +409,14 @@ class InnerProduct {
                                         toSRAM(idArray1dN) o Join() $ tileRowA
 
                                       Let(tileRowAsramMaterialised =>
-                                        Join() o
                                           SpForeach(
                                             chunkSize = 1,
                                             stride = 1,
                                             factor = innerFactorJ,
                                             f = fun(ArrayType(ArrayType(Float, tileNsize), 1), tileRowBsram =>
 
-                                              AssertType(ArrayType(Float, 1), "Inner MemFold result type") o
+                                              AssertType(Float, "Inner MemFold result type") o
+                                                toSRAM(id) o
                                                 //
                                                 /*Pipe {*/
                                                 SpFold(chunkSize = 1, stride = 1, factor = tileParFactor,
@@ -433,7 +433,7 @@ class InnerProduct {
                               ) $ tileBsram
                           }),
                         fReduce = /*addMatrices*/ add, init = tileCsram
-                      )) $ Zip(tileArows, tileBcols)
+                      ) $ Zip(tileArows, tileBcols)
                   })) $ Zip(b, tileCrows)
             })) $ Zip(a, c))
 
@@ -461,7 +461,7 @@ class InnerProduct {
             val tileCaccum = SRAM[T](tileMsize, tileNsize)
 
             val bSRAM      = SRAM[T](tileNsize, tileNsize)
-            bSRAM load b_dram(k::k+tileNsize, j::j+tileNsize par tileParFactor)
+            bSRAM load b_dram(j::j+tileNsize, k::k+tileNsize par tileParFactor)
 
             Foreach(tileMsize by 1 par innerFactorI) { ii =>
 

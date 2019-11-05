@@ -184,7 +184,7 @@ private class BuildDepthInfoSp() {
     asf.fReduce.params(0).accessInf = l.collection.head
     asf.fReduce.params(1).accessInf = fMapAccessInfo(reduceArgAccessInfo, reduceReadMemories)
 
-    val accumAccessInf = getArrayAccessInf(call.t, Cst(0))
+    val accumAccessInf = ((t: Type) => t, Cst(0)) //getArrayAccessInf(call.t, Cst(0))
     val reduceWriteMemories = getMemoryAccesses(call)
 
     val updMemoryAccessInfo2 = updateAccessInf(memoryAccessInfo, reduceReadMemories ++ reduceWriteMemories, accumAccessInf)

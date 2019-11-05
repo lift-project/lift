@@ -11,7 +11,7 @@ package object view {
    * different address spaces. Hence, AccessInfo can be seen as a 3-tuple of
    * `List[SingleAccess]`
    */
-  type SingleAccess = (Type => ArrayType, ArithExpr)
+  type SingleAccess = (Type => /*ArrayType*/Type, ArithExpr)
   type MemoryAccessInfoCL = collection.mutable.ListMap[AddressSpace, List[SingleAccess]]
 
   abstract class AccessInfo() {

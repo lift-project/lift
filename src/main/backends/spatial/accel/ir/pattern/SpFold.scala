@@ -36,7 +36,8 @@ case class SpFold(override val fMap: Lambda1,
               s"does not match ``(α, α) -> α``"
           )
 
-        ArrayTypeWSWC(initT, 1)
+//        ArrayTypeWSWC(initT, 1)
+        initT
 
       case _ => throw new TypeException(argType, "TupleType(_, ArrayType(ScalarType, _))", this)
     }

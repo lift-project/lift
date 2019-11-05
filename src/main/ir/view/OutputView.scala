@@ -291,7 +291,8 @@ object OutputView {
   private def buildViewAbstrSpFold(asf: AbstractSpFold,
                                    call: FunCall, writeView: View): View = {
     // fReduce: traverse into call.f
-    visitAndBuildViews(asf.fReduce.body, writeView.access(Cst(0)))
+//    visitAndBuildViews(asf.fReduce.body, writeView.access(Cst(0)))
+    visitAndBuildViews(asf.fReduce.body, writeView)
 
     // Reduce output view is the one of the output memory of fMap
     // (for one iteration of fMap -- the Spatial will take care of unrolling this memory)

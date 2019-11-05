@@ -696,19 +696,28 @@ object View {
     OutputView(expr)
   }
 
-  private[view] def getFullType(outputType: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)]): Type = {
+  /**
+   * Produces the full type using the list of type constructors.
+   * Most constructors will take the input type as inner type and return an array,
+   * but some will just return the input type. The latter will be the case when accessing
+   * the output of a SpFold with a scalar initialiser.
+   */
+  private[view] def getFullType(outputType: Type, outputAccessInf: List[(Type => /*ArrayType*/Type, ArithExpr)]): Type = {
     outputAccessInf.foldLeft(outputType)((t, inf) => {
-      val (arrayTypeConstructor, _) = inf
-      arrayTypeConstructor(t)
+      val (/*array*/typeConstructor, _) = inf
+      typeConstructor(t)
     })
   }
 
 
-  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(Type => ArrayType, ArithExpr)], v: Var): View = {
+  private[view] def initialiseNewView(t: Type, outputAccessInf: List[(Type => /*ArrayType*/Type, ArithExpr)], v: Var): View = {
     // Use the lengths and iteration vars to mimic inputs
-    val outArray = getFullType(t, outputAccessInf)
-    val outView = View(outArray, v)
-    outputAccessInf.foldRight(outView)((inf, view) => view.access(inf._2))
+    val outType = getFullType(t, outputAccessInf)
+    val outView = View(outType, v)
+    outputAccessInf.foldRight(outView) {
+      case (inf, view) if view.t.isInstanceOf[ArrayType] => view.access(inf._2)
+      case (_, view) => view
+    }
   }
 
 }
