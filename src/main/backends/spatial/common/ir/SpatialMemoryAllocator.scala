@@ -2,9 +2,12 @@ package backends.spatial.common.ir
 
 import backends.spatial.accel.ir.pattern._
 import _root_.ir.ast.{AbstractMap, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, Filter, FunCall, Gather, Get, Head, Id, Iterate, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
-import _root_.ir.{NumberOfArgumentsException, Type, UnallocatedMemory}
+import _root_.ir.{ArrayType, NumberOfArgumentsException, Size, Type, UnallocatedMemory}
 
 object SpatialMemoryAllocator {
+  /** innerType => fullType */
+  type Allocator = Type => Type
+
   /**
     * Allocate memory for both the body and the parameters of the outermost lambda expression
     *
@@ -16,7 +19,7 @@ object SpatialMemoryAllocator {
       p.mem = SpatialMemory.allocMemory(p.t, p.addressSpace)
     )
 
-    alloc(f.body, f.body.t, DRAMMemory)
+    alloc(f.body, t => t, DRAMMemory)
   }
 
   /**
@@ -29,7 +32,7 @@ object SpatialMemoryAllocator {
    *                          In Lift-Spatial, it might be different when address space caster is used.
     * @return                 The SpatialMemory used by expr
     */
-  def alloc(expr: Expr, outMemT: Type, outAddressSpace: SpatialAddressSpace): SpatialMemory = {
+  def alloc(expr: Expr, outMemT: Allocator, outAddressSpace: SpatialAddressSpace): SpatialMemory = {
 
     val result = expr match {
       case ArrayFromExpr(e)       => throw new NotImplementedError()
@@ -66,7 +69,7 @@ object SpatialMemoryAllocator {
   }
 
   private def allocFunCall(call: FunCall,
-                           outMemT: Type,
+                           outMemT: Allocator,
                            outAddressSpace: SpatialAddressSpace): SpatialMemory = {
     // Get the input memory of f from the input arguments
     val inMem = getInMFromArgs(call, outMemT, outAddressSpace)
@@ -74,14 +77,14 @@ object SpatialMemoryAllocator {
     // Determine the output memory based on the type of f ...
     call.f match {
       // Here is where the actual allocation happens:
-      case _: UserFun               => allocUserFun(outMemT, outAddressSpace, call)
+      case _: UserFun               => allocUserFun(call, outMemT, outAddressSpace)
       case  _: VectorizeUserFun     => throw new NotImplementedError()
 
-      case Map(_)                   => allocMap(call.f.asInstanceOf[AbstractMap], outMemT, outAddressSpace, inMem)
+      case Map(_)                   => allocMap(call.f.asInstanceOf[AbstractMap], call, outMemT, outAddressSpace, inMem)
 
-      case sf: SpForeach            => allocSpForeach(sf, outMemT, outAddressSpace, inMem)
-      case m: MapSeq                => allocMapSeq(m, outMemT, outAddressSpace, inMem)
-      case asf: AbstractSpFold      => allocAbstrSpFold(asf, outMemT, outAddressSpace, inMem)
+      case sf: SpForeach            => allocSpForeach(sf, call, outMemT, outAddressSpace, inMem)
+      case m: MapSeq                => allocMapSeq(m, call, outMemT, outAddressSpace, inMem)
+      case asf: AbstractSpFold      => allocAbstrSpFold(asf, call, outMemT, outAddressSpace, inMem)
 
       case s: AbstractSearch        => throw new NotImplementedError()
 
@@ -91,9 +94,9 @@ object SpatialMemoryAllocator {
 
       case l: Lambda                => allocLambda(l, outMemT, outAddressSpace, inMem)
 
-      case toDRAM(f)                => allocLambda(f, call.t, DRAMMemory, inMem)
-      case toSRAM(f)                => allocLambda(f, call.t, SRAMMemory, inMem)
-      case toReg(f)                 => allocLambda(f, call.t, RegMemory, inMem)
+      case toDRAM(f)                => allocLambda(f, outMemT, DRAMMemory, inMem)
+      case toSRAM(f)                => allocLambda(f, outMemT, SRAMMemory, inMem)
+      case toReg(f)                 => allocLambda(f, outMemT, RegMemory, inMem)
 
       case Zip(_) | Tuple(_)        => allocZipTuple(inMem)
       case Get(n)                   => allocGet(n, inMem)
@@ -117,7 +120,7 @@ object SpatialMemoryAllocator {
   }
 
   private def getInMFromArgs(call: FunCall,
-                             outMemT: Type,
+                             outMemT: Allocator,
                              outAddressSpace: SpatialAddressSpace): SpatialMemory = {
     call.args.length match {
       case 0 => throw new IllegalArgumentException(s"Function call without arguments $call")
@@ -126,17 +129,17 @@ object SpatialMemoryAllocator {
     }
   }
 
-  private def allocUserFun(outMemT: Type,
-                           outAddressSpace: SpatialAddressSpace,
-                           call: FunCall): SpatialMemory = {
+  private def allocUserFun(call: FunCall,
+                           outMemT: Allocator,
+                           outAddressSpace: SpatialAddressSpace): SpatialMemory = {
     if (call.addressSpace == UndefAddressSpace)
       throw new RuntimeException("No address space at " + call)
 
-    SpatialMemory.allocMemory(outMemT, outAddressSpace)
+    SpatialMemory.allocMemory(outMemT(call.t), outAddressSpace)
   }
 
   private def allocLambda(l: Lambda,
-                          outMemT: Type,
+                          outMemT: Allocator,
                           outAddressSpace: SpatialAddressSpace,
                           inMem: SpatialMemory): SpatialMemory = {
     setMemInParams(l.params, inMem)
@@ -144,32 +147,41 @@ object SpatialMemoryAllocator {
   }
 
   private def allocMap(am: AbstractMap,
-                       outMemT: Type,
+                       call: FunCall,
+                       outMemT: Allocator,
                        outAddressSpace: SpatialAddressSpace,
                        inMem: SpatialMemory): SpatialMemory = {
+    val outerSize = call.t.asInstanceOf[ArrayType with Size].size
     am.f.params(0).mem = inMem
 
-    alloc(am.f.body, outMemT, outAddressSpace)
+    alloc(am.f.body, innerType => outMemT(ArrayType(innerType, outerSize)), outAddressSpace)
   }
 
   private def allocSpForeach(sf: SpForeach,
-                             outMemT: Type,
+                             call: FunCall,
+                             outMemT: Allocator,
                              outAddressSpace: SpatialAddressSpace,
                              inMem: SpatialMemory): SpatialMemory = {
+    val outerSize = call.t.asInstanceOf[ArrayType with Size].size
     sf.f.params(0).mem = inMem
-    alloc(sf.f.body, outMemT, outAddressSpace)
+
+    alloc(sf.f.body, innerType => outMemT(ArrayType(innerType, outerSize)), outAddressSpace)
   }
 
   private def allocMapSeq(m: MapSeq,
-                          outMemT: Type,
+                          call: FunCall,
+                          outMemT: Allocator,
                           outAddressSpace: SpatialAddressSpace,
                           inMem: SpatialMemory): SpatialMemory = {
+    val outerSize = call.t.asInstanceOf[ArrayType with Size].size
     m.f.params(0).mem = inMem
-    alloc(m.f.body, outMemT, outAddressSpace)
+
+    alloc(m.f.body, innerType => outMemT(ArrayType(innerType, outerSize)), outAddressSpace)
   }
 
   private def allocAbstrSpFold(asf: AbstractSpFold,
-                               outMemT: Type,
+                               call: FunCall,
+                               outMemT: Allocator,
                                outAddressSpace: SpatialAddressSpace,
                                inMem: SpatialMemory): SpatialMemory = {
     inMem match {
