@@ -395,7 +395,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
       // Generate store
       (block: MutableExprBlock) += generateStoreNode(
-        targetMem = sMem, targetType = call.t, targetView = call.outputView,
+        targetMem = sMem, targetView = call.outputView, writeType = call.t,
         srcAddressSpace = call.addressSpace, srcNode = funcall_node)
 
     } else
@@ -461,11 +461,11 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
    * Generate a simple or vector store
    */
   private def generateStoreNode(targetMem: SpatialMemory,
-                                targetType: Type,
                                 targetView: View,
+                                writeType: Type,
                                 srcAddressSpace: SpatialAddressSpace,
                                 srcNode: AstNode): StatementT = {
-    val targetNode = accessNode(targetMem, targetMem.addressSpace, targetType, targetView)
+    val targetNode = accessNode(targetMem, targetMem.addressSpace, writeType, targetView)
 
     if (srcAddressSpace == targetMem.addressSpace) targetMem.addressSpace match {
       case RegMemory  => RegAssignmentExpression(to = targetNode, srcNode)
