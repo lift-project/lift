@@ -10,7 +10,7 @@ import ir.{ArrayType, ArrayTypeWC, ArrayTypeWS, Capacity, ScalarType, Size, Tupl
 import ir.view.{InputView, OutputView, SizeIndex, View, View2DGeneratorUserFun, View3DGeneratorUserFun, ViewAccess, ViewArrayWrapper, ViewAsScalar, ViewAsVector, ViewConcat, ViewConstant, ViewFilter, ViewGenerator, ViewHead, ViewJoin, ViewMap, ViewMem, ViewOffset, ViewPad, ViewPadConstant, ViewReorder, ViewSize, ViewSlide, ViewSplit, ViewTail, ViewTranspose, ViewTuple, ViewTupleComponent, ViewUnzip, ViewZip}
 import lift.arithmetic.{ArithExpr, Cst, RangeAdd, Var}
 
-import scala.collection.immutable
+import scala.collection.{immutable, mutable}
 
 /**
  * SpatialView implements Spatial-specific View printer and access generator.
@@ -55,6 +55,7 @@ private[view] class IllegalSpatialView(err: String)
 
 class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
                          val mainAddressSpace: SpatialAddressSpace) {
+  private var replacementsOfScalarWithSlicedAccesses = mutable.Map[ArithExpr, Slice]()
 
   /**
    * Produces a Spatial expression accessing a multidimensional array using a given view
@@ -75,6 +76,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
     sv match {
       case ViewMem(memVar, ty) =>
         assert(tupleAccessStack.isEmpty)
+        assert(replacementsOfScalarWithSlicedAccesses.isEmpty)
         GenerateAccess(memVar, ty, arrayAccessStack, tupleAccessStack)
 
       case ViewOffset(offset, iv, t) =>
@@ -91,6 +93,10 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
         // the iterator by step inside the loop body.
         // The strided range is introduced in RangesAndCountsSp().
         val newAddressor = i match {
+          case _ if replacementsOfScalarWithSlicedAccesses.contains(i) =>
+            val slice = replacementsOfScalarWithSlicedAccesses(i)
+            replacementsOfScalarWithSlicedAccesses -= i
+            slice
           case Var(_, RangeAdd(_, _, step)) if step !== Cst(1) =>
             Index(i /^ step)
 
@@ -103,9 +109,15 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
         emitView(iv, addressors, tupleAccessStack)
 
       case ViewMap(iv, itVar, _) =>
-        val (addr: Index) :: addressors = arrayAccessStack
-        val newV = iv.replaced(itVar, addr.ae)
-        emitView(newV, addressors, tupleAccessStack)
+        val (newV, newArrayAccessStack) = arrayAccessStack match {
+          case (addr: Index) :: addressors => (iv.replaced(itVar, addr.ae), addressors)
+          case (slice: Slice) :: addressors =>
+            replacementsOfScalarWithSlicedAccesses += (itVar -> slice)
+            (iv, addressors)
+          case _ => throw new NotImplementedError()
+        }
+
+        emitView(newV, newArrayAccessStack, tupleAccessStack)
 
       case ViewSplit(chunkSize, iv, _) =>
         val newArrayAccessStack = arrayAccessStack match {
