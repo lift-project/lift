@@ -428,7 +428,7 @@ object SpatialAccelAST {
    */
   trait SpStoreT extends StatementT {
     val src: AstNode
-    val target: VarSlicedRef
+    val target: AstNode
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |>
@@ -445,9 +445,9 @@ object SpatialAccelAST {
   }
 
   case class SpStore(src: AstNode,
-                     target: VarSlicedRef) extends SpStoreT {
+                     target: AstNode) extends SpStoreT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
-      SpStore(src.visitAndRebuild(pre, post), target.visitAndRebuild(pre, post).asInstanceOf[VarSlicedRef])
+      SpStore(src.visitAndRebuild(pre, post), target.visitAndRebuild(pre, post))
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {

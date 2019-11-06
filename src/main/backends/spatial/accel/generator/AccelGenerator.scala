@@ -414,7 +414,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         case l: Lambda            => generateFunCall(l.body, args)
         case _                    => throw new NotImplementedError()
       }
-      case _             => throw new NotImplementedError()
+      case _ => throw new NotImplementedError()
     }
   }
 
@@ -474,7 +474,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
 
     else (srcAddressSpace, targetMem.addressSpace) match {
       case (DRAMMemory, SRAMMemory)     => SpLoad(src = srcNode, target = VarSlicedRef(targetMem.variable))
-      case (SRAMMemory, DRAMMemory)     => SpStore(src = srcNode, target = VarSlicedRef(targetMem.variable))
+      case (SRAMMemory, DRAMMemory)     => SpStore(src = srcNode, target = targetNode)
       case (RegMemory, DRAMMemory)      => AssignmentExpression(to = targetNode, srcNode)
       case (RegMemory, SRAMMemory)      => AssignmentExpression(to = targetNode, srcNode)
       case (LiteralMemory, RegMemory)   => RegAssignmentExpression(to = targetNode, srcNode)
