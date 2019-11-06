@@ -394,9 +394,9 @@ class InnerProduct {
                             fMap = fun(
                               ArrayType(TupleType(ArrayType(Float, tileMsize), ArrayType(Float, tileNsize)), tileNsize),
                               tileAB => {
-                                // TODO: confirm whether Transpose should be used instead of TransposeW below
                                 val tileA = AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "tileA") o
                                   Transpose() $ Get(Unzip() $ tileAB, 0)
+                                // TODO: confirm whether Transpose should be used instead of TransposeW below
                                 val tileBsram = AssertType(ArrayType(ArrayType(Float, tileNsize), tileNsize), "tileBsram") o
                                   Transpose() o toSRAM(idArray2dNN) $ Get(Unzip() $ tileAB, 1)
 

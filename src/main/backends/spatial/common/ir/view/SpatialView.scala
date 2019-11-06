@@ -166,7 +166,11 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
             assert(slice.start == Cst(0));
             assert((slice.end - slice.start) % chunkSize == Cst(0))
 
-            Slice(slice.start, Cst(1), (slice.end - slice.start) / chunkSize) :: Slice(Cst(0), Cst(1), chunkSize) :: addressors
+            // A slice of a memory with a joined view should already cover all data contained
+            // within the joined chunks, so there is no need to alter the slice to access all that data.
+            // We do have to add one more access dimension since the inner views are expecting it, so
+            // we are adding Index(0) here.
+            Index(0) :: slice :: addressors
 
           case _ => throw new IllegalArgumentException(f"Unexpected array access stack: $arrayAccessStack")
         }

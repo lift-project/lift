@@ -465,7 +465,9 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
                                 writeType: Type,
                                 srcAddressSpace: SpatialAddressSpace,
                                 srcNode: AstNode): StatementT = {
-    val targetNode = accessNode(targetMem, targetMem.addressSpace, writeType, targetView)
+    // The val is intentionally lazy to avoid computing an addressor in cases where the targetMem is accessed
+    // through a reference to its variable might be impossible
+    lazy val targetNode = accessNode(targetMem, targetMem.addressSpace, writeType, targetView)
 
     if (srcAddressSpace == targetMem.addressSpace) targetMem.addressSpace match {
       case RegMemory  => RegAssignmentExpression(to = targetNode, srcNode)
