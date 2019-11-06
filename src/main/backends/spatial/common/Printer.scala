@@ -84,11 +84,11 @@ object Printer {
     s"(${toString(p.lhs)} ${p.op} ${toString(p.rhs)})"
   }
 
-  def toString(addr: ArrayAddressor): String= {
+  def toString(addr: ArrayAddressor): String = {
     addr match {
-      case Index(idx)               => toString(idx)
-      case Slice(start, step, end)  => toString(start) + " :: " + toString(step) + " :: " + toString(end)
-      case _                        => throw new NotPrintableExpression(addr.toString)
+      case Index(idx)                   => toString(idx)
+      case Slice(start, end)            => toString(start) + " :: " + toString(end)
+      case _                            => throw new NotPrintableExpression(addr.toString)
     }
   }
 }

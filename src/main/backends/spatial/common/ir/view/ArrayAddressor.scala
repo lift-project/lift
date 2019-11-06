@@ -51,26 +51,26 @@ object Index {
   def apply(idxInTargetAST: GenericAST.ArithExpression): Index = Index(idxInTargetAST.content)
 }
 
-case class Slice(start: ArithExpr, step: ArithExpr, end: ArithExpr) extends ArrayAddressor {
+case class Slice(start: ArithExpr, end: ArithExpr) extends ArrayAddressor {
   def startIdx: Index = Index(start)
-  def +(that: ArithExpr): Slice = Slice(start + that, step, end + that)
-  def +(that: Index): Slice = Slice(start + that.ae, step, end + that.ae)
-  def *(that: ArithExpr): Slice = Slice(start * that, step, start * that + (end - start))
-  def *(that: Index): Slice = Slice(start * that.ae, step, start * that.ae + (end - start))
+  def +(that: ArithExpr): Slice = Slice(start + that, end + that)
+  def +(that: Index): Slice = Slice(start + that.ae, end + that.ae)
+  def *(that: ArithExpr): Slice = Slice(start * that, start * that + (end - start))
+  def *(that: Index): Slice = Slice(start * that.ae, start * that.ae + (end - start))
 
   override def visitAndRebuild(f: ArithExpr => ArithExpr): ArrayAddressor =
-    Slice(start.visitAndRebuild(f), step.visitAndRebuild(f), end.visitAndRebuild(f))
+    Slice(start.visitAndRebuild(f), end.visitAndRebuild(f))
 
   def toTargetAST: SpatialAccelAST.ArrSlice =
-    SpatialAccelAST.ArrSlice(ArithExpression(start), ArithExpression(step), ArithExpression(end))
+    SpatialAccelAST.ArrSlice(ArithExpression(start), ArithExpression(end))
 
-  def eval(): List[Int] = utils.RangeValueGenerator.generateAllValues(RangeAdd(start, step, end)).map(_.evalInt).toList
+  def eval(): List[Int] = utils.RangeValueGenerator.generateAllValues(RangeAdd(start, 1, end)).map(_.evalInt).toList
 }
 
 object Slice {
-  def continuous(end: ArithExpr): Slice = new Slice(0, 1, end)
-  def continuous(start: ArithExpr, end: ArithExpr): Slice = new Slice(start, 1, end)
+  def continuous(end: ArithExpr): Slice = new Slice(0, end)
+  def continuous(start: ArithExpr, end: ArithExpr): Slice = new Slice(start, end)
 
   def apply(sliceInTargetAST: SpatialAccelAST.ArrSlice): Slice =
-    Slice(sliceInTargetAST.start.content, sliceInTargetAST.step.content, sliceInTargetAST.end.content)
+    Slice(sliceInTargetAST.start.content, sliceInTargetAST.end.content)
 }

@@ -131,22 +131,21 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
             Index(chunkIdx * chunkSize + elemIdx) :: addressors
 
           // Map(batchFun) o Split(s)
-          case Index(chunkIdx) :: Slice(start, step, end) :: addressors =>
+          case Index(chunkIdx) :: Slice(start, end) :: addressors =>
             assert(end - start == chunkSize)
-            Slice(chunkIdx * chunkSize + start, step, chunkIdx * chunkSize + end) :: addressors
+            Slice(chunkIdx * chunkSize + start, chunkIdx * chunkSize + (end - start)) :: addressors
 
           // Map(batchFun) o Transpose() o Split(s)
-          case Slice(start, step, end) :: Index(elemIdx) :: addressors =>
-            // TODO: what to do with the original step?
-            Slice(start + elemIdx, step = chunkSize, start + elemIdx + chunkSize * end) :: addressors
+          case Slice(start, end) :: Index(elemIdx) :: addressors =>
+            Slice(start + elemIdx, start + elemIdx + chunkSize * (end - start)) :: addressors
 
           // matrixFun() o Split(s)
           case (outerSlice: Slice) :: (innerSlice: Slice) :: addressors =>
             // Restricting to simple cases until better generic approach is found
-            assert(outerSlice.start == Cst(0)); assert(outerSlice.step == Cst(1))
-            assert(innerSlice.start == Cst(0)); assert(innerSlice.step == Cst(1))
+            assert(outerSlice.start == Cst(0));
+            assert(innerSlice.start == Cst(0));
             assert(chunkSize == innerSlice.end - innerSlice.start)
-            Slice(outerSlice.start, step = Cst(1),
+            Slice(outerSlice.start,
                   (outerSlice.end - outerSlice.start) * (innerSlice.end - innerSlice.start)) :: addressors
 
 
@@ -164,7 +163,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
 
           case (slice: Slice) :: addressors =>
             // Restricting to simple cases until better generic approach is found
-            assert(slice.start == Cst(0)); assert(slice.step == Cst(1))
+            assert(slice.start == Cst(0));
             assert((slice.end - slice.start) % chunkSize == Cst(0))
 
             Slice(slice.start, Cst(1), (slice.end - slice.start) / chunkSize) :: Slice(Cst(0), Cst(1), chunkSize) :: addressors
@@ -183,9 +182,9 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
           case (idx: Index) :: addressors =>
             Index(reindexFun(idx.ae)) :: addressors
 
-          case Slice(start, step, end) :: addressors =>
+          case Slice(start, end) :: addressors =>
             val newStart = reindexFun(start)
-            Slice(newStart, step, newStart + (end - start)) :: addressors
+            Slice(newStart, newStart + (end - start)) :: addressors
 
           case _ => throw new IllegalArgumentException(f"Unexpected array access stack: $arrayAccessStack")
         }
@@ -215,13 +214,12 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
             Index(chunkIdx * slide.step + elemIdx) :: addressors
 
           // Map(batchFun) o Slide(s)
-          case Index(chunkIdx) :: Slice(start, step, end) :: addressors =>
-            Slice(chunkIdx * slide.step + start, step, chunkIdx * slide.step + end) :: addressors
+          case Index(chunkIdx) :: Slice(start, end) :: addressors =>
+            Slice(chunkIdx * slide.step, chunkIdx * slide.step + (end - start)) :: addressors
 
           // Map(batchFun) o Transpose() o Slide(s)
-          case Slice(start, step, end) :: Index(elemIdx) :: addressors =>
-            // TODO: what to do with the original step?
-            Slice(start + elemIdx, step = slide.step, start + elemIdx + slide.step * end) :: addressors
+          case Slice(start, end) :: Index(elemIdx) :: addressors =>
+            Slice(start + elemIdx, start + elemIdx + slide.step * (end - start)) :: addressors
 
           // matrixFun() o Slide(s)
           case (_: Slice) :: (_: Slice) :: addressors =>
