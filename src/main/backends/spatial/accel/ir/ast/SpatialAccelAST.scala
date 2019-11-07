@@ -1,7 +1,7 @@
 package backends.spatial.accel.ir.ast
 
 import backends.spatial.common.SpatialAST.SpatialAddressSpaceOperator
-import backends.spatial.common.ir.{DRAMMemory, LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace, UndefAddressSpace}
+import backends.spatial.common.ir.{ArgOutMemory, DRAMMemory, LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
 import core.generator.GenericAST._
 import core.generator.PrettyPrinter._
@@ -163,7 +163,10 @@ object SpatialAccelAST {
                   "_" <> Printer.toString(i)  <+> "=" <+>
                     s"${Printer.toString(addressSpace)}[${Printer.toString(Type.getValueType(t))}]" }))
 
-              case LiteralMemory => throw new IllegalArgumentException("Cannot print literal variable declaration")
+              case ArgOutMemory =>
+                throw new IllegalArgumentException("Cannot print ArgOut variable declaration inside an Accel block")
+              case LiteralMemory =>
+                throw new IllegalArgumentException("Cannot print literal variable declaration")
               case _ => throw new NotImplementedError()
             })
 
@@ -178,6 +181,8 @@ object SpatialAccelAST {
               case (RegMemory, None) => empty
               case (SRAMMemory, _) => throw new IllegalArgumentException("Cannot declare a scalar as SRAM memory")
               case (DRAMMemory, _) => throw new IllegalArgumentException("Cannot declare a scalar as DRAM memory")
+              case (ArgOutMemory, _) => throw new IllegalArgumentException(
+                                          "Cannot print ArgOut variable declaration inside an Accel block")
               case (LiteralMemory, _) => throw new IllegalArgumentException("Cannot declare a literal as a variable")
               case _ => throw new NotImplementedError() // TODO
             })

@@ -16,28 +16,41 @@ object SpatialAddressSpace {
   }
 }
 
-object DRAMMemory extends SpatialAddressSpace {
+trait HostAllocatedMemory
+trait WritableMemory
+trait SharedMemory // Among Accel block PEs, not between host and accel
+trait ScalarMemory
+
+object DRAMMemory extends SpatialAddressSpace with WritableMemory with SharedMemory with HostAllocatedMemory {
   override def toString = "DRAM"
 
   def containsAddressSpace(spatialAddressSpace: SpatialAddressSpace): Boolean =
     spatialAddressSpace == this
 }
 
-object SRAMMemory extends SpatialAddressSpace {
+object SRAMMemory extends SpatialAddressSpace with WritableMemory with SharedMemory {
   override def toString = "SRAM"
 
   def containsAddressSpace(spatialAddressSpace: SpatialAddressSpace): Boolean =
     spatialAddressSpace == this
 }
 
-object RegMemory extends SpatialAddressSpace {
+object ArgOutMemory extends SpatialAddressSpace with WritableMemory with SharedMemory
+                                                with ScalarMemory with HostAllocatedMemory {
+  override def toString = "ArgOut"
+
+  def containsAddressSpace(spatialAddressSpace: SpatialAddressSpace): Boolean =
+    spatialAddressSpace == this
+}
+
+object RegMemory extends SpatialAddressSpace with WritableMemory with ScalarMemory {
   override def toString = "Reg"
 
   def containsAddressSpace(spatialAddressSpace: SpatialAddressSpace): Boolean =
     spatialAddressSpace == this
 }
 
-object LiteralMemory extends SpatialAddressSpace {
+object LiteralMemory extends SpatialAddressSpace with ScalarMemory {
   override def toString = "Literal"
 
   def containsAddressSpace(spatialAddressSpace: SpatialAddressSpace): Boolean =
@@ -65,10 +78,12 @@ case class AddressSpaceCollection(spaces: Seq[SpatialAddressSpace])
     spaces.exists(_.containsAddressSpace(spatialAddressSpace))
 
   def findCommonAddressSpace(): SpatialAddressSpace = {
-    // Try to find common address space which is not the register memory ...
-    val sharedMem = spaces.filterNot(s => s == RegMemory || s == LiteralMemory)
+    // Try to find common address space which is not a private memory ...
+    val (sharedMem, privateMem) =
+      spaces.partition(s => s.isInstanceOf[SharedMemory] && s.isInstanceOf[WritableMemory])
+
     if (sharedMem.isEmpty) // Everything is in private memory
-      return RegMemory
+      return privateMem.head
 
     val addressSpaces = sharedMem.map({
       case coll: AddressSpaceCollection => coll.findCommonAddressSpace()

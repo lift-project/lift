@@ -1,7 +1,7 @@
 package backends.spatial.common.ir.view
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST.{AddressorT, VarSlicedRef}
-import backends.spatial.common.ir.{AddressSpaceCollection, LiteralMemory, RegMemory, SpatialAddressSpace, UndefAddressSpace}
+import backends.spatial.common.ir.{AddressSpaceCollection, ArgOutMemory, LiteralMemory, RegMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
 import core.generator.GenericAST.{ArithExpression, ExpressionT}
 import ir.Type.size_t
@@ -303,6 +303,8 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
     private def getElementAt(partialAAStack: List[ArrayAddressor], at: ArrayType,
                              addr: ArrayAddressor, tupleAccessStack: List[Int]): List[ArrayAddressor] = {
       // Sanity check
+      if (addressSpace == ArgOutMemory && !at.isInstanceOf[ArrayType with Size with Capacity])
+        throw new IllegalSpatialView("An array in ArgOut memory must have a size and a capacity in the type")
       if (addressSpace == RegMemory && !at.isInstanceOf[ArrayType with Size with Capacity])
         throw new IllegalSpatialView("An array in register memory must have a size and a capacity in the type")
       if (addressSpace == LiteralMemory && !at.isInstanceOf[ArrayType with Size with Capacity])

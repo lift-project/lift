@@ -2,7 +2,7 @@ package backends.spatial.generator
 
 import arithmetic.TypeVar
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
-import backends.spatial.accel.ir.pattern.toReg
+import backends.spatial.accel.ir.pattern.{toArgOut, toReg}
 import backends.{Backend, c, spatial}
 import ir._
 import ir.ast._
@@ -242,26 +242,29 @@ class InnerProduct {
       ArrayType(Float, N),
       ArrayType(Float, N),
       (a, b) =>
-        SpFold(chunkSize = tileSize, stride = tileSize, factor = outerParFactor,
-          fMap = fun(
+        AssertType(Float, "Dot product output type") o
 
-            ArrayType(TupleType(Float, Float), tileSize), tileAB => {
-              val tileA = Get(Unzip() $ tileAB, 0)
-              val tileB = Get(Unzip() $ tileAB, 1)
+          toArgOut(id) o
+          SpFold(chunkSize = tileSize, stride = tileSize, factor = outerParFactor,
+            fMap = fun(
 
-              val tileABsram = Zip(
-                /*Parallel(*/
-                toSRAM(id1D) $ tileA,
-                toSRAM(id1D) $ tileB
-                /*)*/)
+              ArrayType(TupleType(Float, Float), tileSize), tileAB => {
+                val tileA = Get(Unzip() $ tileAB, 0)
+                val tileB = Get(Unzip() $ tileAB, 1)
 
-              SpFold(chunkSize = 1, stride = 1, factor = innerParFactor,
-                fMap = backends.spatial.accel.ir.pattern.MapSeq(mult),
-                fReduce = add,
-                init = toReg(id) $ Value(0.0f, Float)) $ tileABsram
-            }),
-          fReduce = add,
-          init = toReg(id) $ Value(0.0f, Float)) $
+                val tileABsram = Zip(
+                  /*Parallel(*/
+                  toSRAM(id1D) $ tileA,
+                  toSRAM(id1D) $ tileB
+                  /*)*/)
+
+                SpFold(chunkSize = 1, stride = 1, factor = innerParFactor,
+                  fMap = backends.spatial.accel.ir.pattern.MapSeq(mult),
+                  fReduce = add,
+                  init = toReg(id) $ Value(0.0f, Float)) $ tileABsram
+              }),
+            fReduce = add,
+            init = toReg(id) $ Value(0.0f, Float)) $
           Zip(a, b))
 
     val dotProductRuntimeLambda = fun(
@@ -312,6 +315,7 @@ class InnerProduct {
          |    } {
          |        add(_, _)
          |    }
+         |    v__35 := id_0(v__20)
          |}""".stripMargin
 
     val cleanedGeneratedSpatial = cleanSpatialProgram(generatedSpatial)
@@ -348,8 +352,7 @@ class InnerProduct {
 
     val id = UserFun("id", Array("x"), "x", Seq(Float), Float)
     val id1D = UserFun("id", Array("x"), "x", Seq(ArrayType(Float, x)), ArrayType(Float, x))
-    val id2D = UserFun("id", Array("x"), "x", Seq(ArrayType(ArrayType(Float, x), y)),
-      ArrayType(ArrayType(Float, x), y))
+    val id2D = UserFun("id", Array("x"), "x", Seq(ArrayType(ArrayType(Float, x), y)), ArrayType(ArrayType(Float, x), y))
 
     val gemmTiled: Lambda = fun(
       ArrayType(ArrayType(Float, P), M),

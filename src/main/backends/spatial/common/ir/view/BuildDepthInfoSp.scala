@@ -286,6 +286,7 @@ private class BuildDepthInfoSp() {
 
     val accessedLiteralMem = spAccessedMemories.filter(SpatialMemory.containsLiteralMemory)
     val accessedRegisterMem = spAccessedMemories.filter(SpatialMemory.containsRegMemory)
+    val accessedArgOutMem = spAccessedMemories.filter(SpatialMemory.containsArgOutMemory)
     val accessedSRAMMem = spAccessedMemories.filter(SpatialMemory.containsSRAMMemory)
     val accessedDRAMMem = spAccessedMemories.filter(SpatialMemory.containsDRAMMemory)
 
@@ -293,6 +294,7 @@ private class BuildDepthInfoSp() {
     val accessedMemoriesOfInterest =
       if (accessedLiteralMem.nonEmpty) accessedLiteralMem
       else if (accessedRegisterMem.nonEmpty) accessedRegisterMem
+      else if (accessedArgOutMem.nonEmpty) accessedArgOutMem
       else if (accessedSRAMMem.nonEmpty) accessedSRAMMem
       else if (accessedDRAMMem.nonEmpty) accessedDRAMMem
       else throw new IllegalArgumentException("Unknown or no memory")

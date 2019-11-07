@@ -57,6 +57,7 @@ sealed class SpatialMemory(var variable: Var,
     addressSpace match {
       case DRAMMemory => SpatialMemory.allocDRAMMemory(t)
       case SRAMMemory => SpatialMemory.allocSRAMMemory(t)
+      case ArgOutMemory => SpatialMemory.allocArgOutMemory(t)
       case RegMemory => SpatialMemory.allocRegMemory(t)
       case LiteralMemory => SpatialMemory.allocLiteralMemory(t)
       case AddressSpaceCollection(_) => this match {
@@ -152,9 +153,10 @@ object SpatialMemory {
 
   def containsDRAMMemory(mem: Memory): Boolean = containsAddressSpace(mem, DRAMMemory)
   def containsSRAMMemory(mem: Memory): Boolean = containsAddressSpace(mem, SRAMMemory)
+  def containsArgOutMemory(mem: Memory): Boolean = containsAddressSpace(mem, ArgOutMemory)
   def containsRegMemory(mem: Memory): Boolean = containsAddressSpace(mem, RegMemory)
   def containsLiteralMemory(mem: Memory): Boolean = containsAddressSpace(mem, LiteralMemory)
-  def containsPrivateMemory(mem: Memory): Boolean = containsRegMemory(mem) || containsLiteralMemory(mem)
+  def containsScalarMemory(mem: Memory): Boolean = containsRegMemory(mem) || containsLiteralMemory(mem)
 
   /**
    * Return newly allocated memory of `t.size` elements in `addressSpace`
@@ -172,6 +174,10 @@ object SpatialMemory {
   /** Return newly allocated SRAM memory */
   def allocSRAMMemory(sramOutType: Type): SpatialMemory =
     allocMemory(sramOutType, SRAMMemory)
+
+  /** Return newly allocated ArgOut memory */
+  def allocArgOutMemory(argOutOutType: Type): SpatialMemory =
+    allocMemory(argOutOutType, ArgOutMemory)
 
   /** Return newly allocated Register memory */
   def allocRegMemory(regOutType: Type): SpatialMemory =

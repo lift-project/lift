@@ -1,7 +1,7 @@
 package backends.spatial.common.ir
 
 import backends.spatial.accel.generator.IllegalAccelBlock
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, toArgOut, toDRAM, toReg, toSRAM}
 import ir.ScalarType
 import ir.ast.{AbstractPartRed, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Id, Join, Lambda, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
 
@@ -19,7 +19,7 @@ object InferSpatialAddressSpace {
 
     // Set the param address space to DRAM memory, if it's not a scalar
     lambda.params.foreach(p => p.t match {
-      case _: ScalarType => p.addressSpace = RegMemory
+      case _: ScalarType => p.addressSpace = RegMemory // TODO: replace with ArgIn
       case _ => p.addressSpace = DRAMMemory
     })
 
@@ -61,7 +61,7 @@ object InferSpatialAddressSpace {
                                     => setAddressSpaceDefault(argAddressSpaces)
 
       case toDRAM(_) | toSRAM(_) |
-           toReg(_)                 => setAddressSpaceChange(call, argAddressSpaces)
+           toArgOut(_) | toReg(_)   => setAddressSpaceChange(call, argAddressSpaces)
 
       case Filter()                 => throw new NotImplementedError()
       case Get(i)                   => setAddressSpaceGet(i, argAddressSpaces.head)
@@ -122,6 +122,7 @@ object InferSpatialAddressSpace {
       throw new IllegalAccelBlock(s"Expected only one argument to the address space caster")
 
       val (addressSpace, lambda) = call.f match {
+        case toArgOut(f) => (ArgOutMemory, f)
         case toReg(f) => (RegMemory, f)
         case toSRAM(f) => (SRAMMemory, f)
         case toDRAM(f) => (DRAMMemory, f)

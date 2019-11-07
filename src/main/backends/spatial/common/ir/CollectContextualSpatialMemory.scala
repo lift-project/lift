@@ -55,7 +55,7 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
         if (outputAmongIntermediates.nonEmpty) outputAmongIntermediates.head else ContextualSpatialMemory(lambda.body)
       }
 
-      (List(DRAMMemory, SRAMMemory, RegMemory, LiteralMemory).map(addressSpace =>
+      (List(DRAMMemory, SRAMMemory, RegMemory, ArgOutMemory, LiteralMemory).map(addressSpace =>
         addressSpace -> memories.filter(_.mem.addressSpace == addressSpace)).toMap,
         output)
     }

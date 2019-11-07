@@ -102,6 +102,7 @@ object SpatialMemoryAllocator {
 
       case toDRAM(f)                => allocLambda(f, outMemT, DRAMMemory, inMem)
       case toSRAM(f)                => allocLambda(f, outMemT, SRAMMemory, inMem)
+      case toArgOut(f)              => allocLambda(f, outMemT, ArgOutMemory, inMem)
       case toReg(f)                 => allocLambda(f, outMemT, RegMemory, inMem)
 
       case Zip(_) | Tuple(_)        => allocZipTuple(inMem)

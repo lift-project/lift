@@ -2,13 +2,13 @@ package backends.spatial.accel.generator
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, toArgOut, toDRAM, toReg, toSRAM}
 import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
 import backends.spatial.common.ir.ast.SpatialBuiltInFun
 import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice, SpatialViewPrinter}
-import backends.spatial.common.ir.{AddressSpaceCollection, DRAMMemory, LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, ContextualMemoryCollection, UndefAddressSpace}
+import backends.spatial.common.ir.{AddressSpaceCollection, ArgOutMemory, ContextualMemoryCollection, DRAMMemory, HostAllocatedMemory, LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, UndefAddressSpace}
 import core.generator.GenericAST._
 import ir._
 import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
@@ -104,7 +104,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
           case fp: FPattern           => generate(fp.f.body, block)
           case l: Lambda              => generate(l.body, block)
 
-          case toReg(_) | toSRAM(_) | toDRAM(_) |
+          case toReg(_) | toArgOut(_) | toSRAM(_) | toDRAM(_) |
                Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
                Split(_) | Join() | Slide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
                Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
@@ -202,7 +202,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
 
     if (memoryNeedsMaterialising &&
       !allTypedMemories(mem).declared &&
-      mem.addressSpace != DRAMMemory) {
+      !mem.addressSpace.isInstanceOf[HostAllocatedMemory]) {
 
       (block: MutableExprBlock) += SpatialVarDecl(mem.variable, mem.t, init, mem.addressSpace, mem.bufferHazard)
 
@@ -443,8 +443,10 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
     lazy val targetNode = accessNode(targetMem, targetMem.addressSpace, writeType, targetView)
 
     if (srcAddressSpace == targetMem.addressSpace) targetMem.addressSpace match {
-      case RegMemory  => RegAssignmentExpression(to = targetNode, srcNode)
-      case _          => AssignmentExpression(to = targetNode, srcNode)
+      case RegMemory    => RegAssignmentExpression(to = targetNode, srcNode)
+      case ArgOutMemory => throw new AccelGeneratorException(
+                              "Cannot generate a store from ArgOut to ArgOut because ArgOut is write-only")
+      case _            => AssignmentExpression(to = targetNode, srcNode)
     }
 
     else (srcAddressSpace, targetMem.addressSpace) match {
@@ -452,6 +454,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
       case (SRAMMemory, DRAMMemory)     => SpStore(src = srcNode, target = targetNode)
       case (RegMemory, DRAMMemory)      => AssignmentExpression(to = targetNode, srcNode)
       case (RegMemory, SRAMMemory)      => AssignmentExpression(to = targetNode, srcNode)
+      case (RegMemory, ArgOutMemory)    => RegAssignmentExpression(to = targetNode, srcNode)
       case (LiteralMemory, RegMemory)   => RegAssignmentExpression(to = targetNode, srcNode)
 
       case _ => throw new AccelGeneratorException(
@@ -490,9 +493,11 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
       // A SpatialNullMemory object indicates that the view is not backed by memory and will directly return a value
       case SpatialNullMemory => SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns)
 
+      case sMem: SpatialMemory if sMem.addressSpace == ArgOutMemory =>
+        throw new IllegalArgumentException(s"Cannot read from the write-only ArgOut memory $sMem")
+
       // not a memory collection: the default case
-      case _ =>
-        accessNode(mem, mem.addressSpace, t, view)
+      case _ => accessNode(mem, mem.addressSpace, t, view)
     }
   }
 
@@ -522,7 +527,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
    * Create an access node (i.e. of type NDVarSlicedRef) for mem based on the
    * given address space and view
    *
-   * @param mem            The memory to access
+   * @param mem          The memory to access
    * @param addressSpace The address space, i.e. DRAM, SRAM, Reg
    * @param view         The view to access var `v`
    * @return An NDVarSlicedRef node accessing `v` as described in `view`.
@@ -532,7 +537,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
                          accessType: Type,
                          view: View): ExpressionT = {
     addressSpace match {
-      case SRAMMemory | DRAMMemory | RegMemory =>
+      case SRAMMemory | DRAMMemory | RegMemory | ArgOutMemory =>
         // allTypedMemories(v).mem.t is the original type, i.e. the type of the data stored in allTypedMemories(v).mem
         // allTypedMemories(v).writeT is the write type of the memory producer (UserFun / Value)
         allTypedMemories(mem).mem.t match {
@@ -582,7 +587,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
       case SRAMMemory | DRAMMemory =>
         SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace)
 
-      case RegMemory =>
+      case RegMemory | ArgOutMemory =>
         val arrayAccessExpression = SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace)
         arrayAccessExpression match {
           case _: VarIdxRef | _: VarSlicedRef =>
