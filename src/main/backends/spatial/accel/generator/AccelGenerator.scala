@@ -2,7 +2,7 @@ package backends.spatial.accel.generator
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, toArgOut, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
 import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
@@ -252,8 +252,15 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
     val iterVars = List(CVar(asf.mapLoopVar))
 
     (block: MutableExprBlock) += (asf match {
-      case _: SpFold    => SpatialAccelAST.Fold(accumOrInitNode, counter, iterVars, innerMapBlock, innerReduceBlock)
-      case _: SpMemFold => SpatialAccelAST.MemFold(accumOrInitNode, counter, iterVars, innerMapBlock, innerReduceBlock)
+      case _: SpSeqFold     => SpatialAccelAST.Fold(TagSequential(), accumOrInitNode, counter, iterVars,
+                                                    innerMapBlock, innerReduceBlock)
+      case _: SpPipeFold    => SpatialAccelAST.Fold(TagPipe(), accumOrInitNode, counter, iterVars,
+                                                    innerMapBlock, innerReduceBlock)
+      case _: SpSeqMemFold  => SpatialAccelAST.MemFold(TagSequential(), accumOrInitNode, counter, iterVars,
+                                                       innerMapBlock, innerReduceBlock)
+      case _: SpPipeMemFold => SpatialAccelAST.MemFold(TagPipe(), accumOrInitNode, counter, iterVars,
+                                                       innerMapBlock, innerReduceBlock)
+      case _                => throw new AccelGeneratorException(s"Unknown flavour of Fold: $asf")
     })
 
     generate(asf.fMap.body, innerMapBlock, returnValue = true)

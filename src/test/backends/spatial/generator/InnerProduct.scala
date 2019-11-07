@@ -2,7 +2,7 @@ package backends.spatial.generator
 
 import arithmetic.TypeVar
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
-import backends.spatial.accel.ir.pattern.{toArgOut, toReg}
+import backends.spatial.accel.ir.pattern.{SpPipeFold, SpPipeMemFold, toArgOut, toReg}
 import backends.{Backend, c, spatial}
 import ir._
 import ir.ast._
@@ -245,7 +245,7 @@ class InnerProduct {
         AssertType(Float, "Dot product output type") o
 
           toArgOut(id) o
-          SpFold(chunkSize = tileSize, stride = tileSize, factor = outerParFactor,
+          SpPipeFold(chunkSize = tileSize, stride = tileSize, factor = outerParFactor,
             fMap = fun(
 
               ArrayType(TupleType(Float, Float), tileSize), tileAB => {
@@ -258,7 +258,7 @@ class InnerProduct {
                   toSRAM(id1D) $ tileB
                   /*)*/)
 
-                SpFold(chunkSize = 1, stride = 1, factor = innerParFactor,
+                SpPipeFold(chunkSize = 1, stride = 1, factor = innerParFactor,
                   fMap = backends.spatial.accel.ir.pattern.MapSeq(mult),
                   fReduce = add,
                   init = toReg(id) $ Value(0.0f, Float)) $ tileABsram
@@ -293,14 +293,14 @@ class InnerProduct {
          |    }
          |    val v__20 = Reg[Float].buffer
          |    v__20 := id_0(0.0f)
-         |    Fold(v__20)(0 until v_N_0 by v_tileSize_1 par v_outerParFactor_2) { (v_i_11) =>
+         |    Pipe.Fold(v__20)(0 until v_N_0 by v_tileSize_1 par v_outerParFactor_2) { (v_i_11) =>
          |        val v__24 = Reg[Float].buffer
          |        v__24 := id_0(0.0f)
          |        val v__25 = SRAM[Float](v_tileSize_1)
          |        v__25 load id_1(v__16(v_i_11::(v_tileSize_1 + v_i_11)))
          |        val v__26 = SRAM[Float](v_tileSize_1)
          |        v__26 load id_1(v__17(v_i_11::(v_tileSize_1 + v_i_11)))
-         |        Fold(v__24)(0 until v_tileSize_1 by 1 par v_innerParFactor_3) { (v_i_12) =>
+         |        Pipe.Fold(v__24)(0 until v_tileSize_1 by 1 par v_innerParFactor_3) { (v_i_12) =>
          |            val v__30_0 = Reg[Float]
          |            // map_seq
          |            // iteration count is exactly 1, no loop emitted
@@ -387,7 +387,7 @@ class InnerProduct {
                             toSRAM(id2D) o Transpose() $ Get(Unzip() $ tileBcolsC, 1)
 
                         toDRAM(id2D) o PrintType() o
-                          SpMemFold(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorK,
+                          SpPipeMemFold(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorK,
                             fMap = fun(
                               ArrayType(TupleType(ArrayType(Float, tileMsize), ArrayType(Float, tileNsize)), tileNsize),
                               tileAB => {
@@ -419,7 +419,7 @@ class InnerProduct {
                                                   toSRAM(id) o
                                                   //
                                                   /*Pipe {*/
-                                                  SpFold(chunkSize = 1, stride = 1, factor = tileParFactor,
+                                                  SpPipeFold(chunkSize = 1, stride = 1, factor = tileParFactor,
                                                     fMap = fun(
                                                       ArrayType(TupleType(Float, Float), 1), elAsramBsram =>
                                                         MapSeq(mult) $ elAsramBsram),
