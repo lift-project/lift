@@ -276,8 +276,11 @@ class InnerProduct {
 
     val expectedOutCode =
       """|{
-         |    def idArray(arr: DRAM1[Float]): DRAM1[Float] = {
-         |        arr
+         |    def id_0(x: Float): Float = {
+         |        x
+         |    }
+         |    def id_1(x: DRAM1[Float]): DRAM1[Float] = {
+         |        x
          |    }
          |    def mult(l: Float, r: Float): Float = {
          |        l * r
@@ -285,24 +288,27 @@ class InnerProduct {
          |    def add(x: Float, y: Float): Float = {
          |        x + y
          |    }
-         |    val v__18 = Reg[Float](0.0f)
-         |    Fold(v__18)(0 until v_N_0 by v_tileSize_1 par v_outerParFactor_2) { (v_i_10) =>
-         |        val v__21 = Reg[Float](0.0f)
-         |        val v__22 = SRAM[Float](v_tileSize_1)
-         |        v__22 load idArray(v__15(v_i_10::(v_tileSize_1 + v_i_10)))
-         |        val v__23 = SRAM[Float](v_tileSize_1)
-         |        v__23 load idArray(v__16(v_i_10::(v_tileSize_1 + v_i_10)))
-         |        Fold(v__21)(0 until v_tileSize_1 by 1 par v_innerParFactor_3) { (v_i_11) =>
-         |            val v__27_0 = Reg[Float]
+         |    val v__20 = Reg[Float].buffer
+         |    v__20 := id_0(0.0f)
+         |    Fold(v__20)(0 until v_N_0 by v_tileSize_1 par v_outerParFactor_2) { (v_i_11) =>
+         |        val v__24 = Reg[Float].buffer
+         |        v__24 := id_0(0.0f)
+         |        val v__25 = SRAM[Float](v_tileSize_1)
+         |        v__25 load id_1(v__16(v_i_11::(v_tileSize_1 + v_i_11)))
+         |        val v__26 = SRAM[Float](v_tileSize_1)
+         |        v__26 load id_1(v__17(v_i_11::(v_tileSize_1 + v_i_11)))
+         |        Fold(v__24)(0 until v_tileSize_1 by 1 par v_innerParFactor_3) { (v_i_12) =>
+         |            val v__30_0 = Reg[Float]
          |            // map_seq
          |            // iteration count is exactly 1, no loop emitted
-         |            val v_i_12 = Reg[Int](0)
-         |            v__27_0 := mult(v__22(v_i_11), v__23(v_i_11))
+         |            val v_i_13 = Reg[Int](0)
+         |            v__30_0 := mult(v__25(v_i_12), v__26(v_i_12))
          |            // end map_seq
-         |            v__27_0
+         |            v__30_0
          |        } {
          |            add(_, _)
          |        }
+         |        v__24
          |    } {
          |        add(_, _)
          |    }
