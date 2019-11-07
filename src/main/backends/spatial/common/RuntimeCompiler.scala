@@ -1,7 +1,7 @@
 package backends.spatial.common
 
 import _root_.ir.ast.Lambda
-import backends.spatial.common.ir.TypedMemoryCollection
+import backends.spatial.common.ir.ContextualMemoryCollection
 import core.generator.AstPrinter
 import core.generator.GenericAST.ExprBlock
 
@@ -9,7 +9,7 @@ object RuntimeCompiler {
 
   case class CompiledAccelLambda(lambda: Lambda,
                                  generatedBlock: ExprBlock,
-                                 intermediateBuffers: TypedMemoryCollection)
+                                 intermediateBuffers: ContextualMemoryCollection)
 
   def apply(lambda: Lambda): String = {
 

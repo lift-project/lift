@@ -4,7 +4,7 @@ import _root_.ir.UndefType
 import _root_.ir.ast.Lambda
 import backends.spatial.accel.generator.AccelGenerator
 import backends.spatial.common.ir.view.SpatialView
-import backends.spatial.common.ir.{CollectTypedSpatialMemory, InferSpatialAddressSpace, SpatialMemoryAllocator, TypedMemoryCollection}
+import backends.spatial.common.ir.{CollectTypedSpatialMemory, InferSpatialAddressSpace, SpatialMemoryAllocator, ContextualMemoryCollection}
 import core.generator.GenericAST.ExprBlock
 import _root_.ir.TypeChecker
 
@@ -15,7 +15,7 @@ import _root_.ir.TypeChecker
  * information inferred by the compiler.
  */
 object AccelCompiler {
-  def apply(f: Lambda): (ExprBlock, TypedMemoryCollection) = {
+  def apply(f: Lambda): (ExprBlock, ContextualMemoryCollection) = {
     // Check types
     f.params.foreach(p => assert(p.t != UndefType))
     if (f.body.t == UndefType)

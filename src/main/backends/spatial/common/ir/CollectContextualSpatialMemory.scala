@@ -6,16 +6,16 @@ import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, ArrayFromExpr, C
 
 import scala.collection.mutable
 
-final case class TypedMemoryCollection(inputs: Seq[TypedSpatialMemory],
-                                       outputs: Seq[TypedSpatialMemory],
-                                       intermediates: collection.immutable.Map[
-                                         SpatialAddressSpace, Seq[TypedSpatialMemory]]) {
-  lazy val asFlatSequence: Seq[TypedSpatialMemory] = inputs ++ outputs ++ intermediates.values.flatten
+final case class ContextualMemoryCollection(inputs: Seq[ContextualSpatialMemory],
+                                            outputs: Seq[ContextualSpatialMemory],
+                                            intermediates: collection.immutable.Map[
+                                              SpatialAddressSpace, Seq[ContextualSpatialMemory]]) {
+  lazy val asFlatSequence: Seq[ContextualSpatialMemory] = inputs ++ outputs ++ intermediates.values.flatten
 
-  private lazy val memIndexed: collection.immutable.Map[SpatialMemory, TypedSpatialMemory] =
+  private lazy val memIndexed: collection.immutable.Map[SpatialMemory, ContextualSpatialMemory] =
     asFlatSequence.map(typedMem => typedMem.mem -> typedMem).toMap
 
-  def apply(mem: Memory): TypedSpatialMemory = mem match {
+  def apply(mem: Memory): ContextualSpatialMemory = mem match {
     case sMem: SpatialMemory => memIndexed(sMem)
     case m => throw new IllegalArgumentException(s"Expected SpatialMemory. Got $m")
   }
@@ -23,8 +23,8 @@ final case class TypedMemoryCollection(inputs: Seq[TypedSpatialMemory],
   def contains(mem: SpatialMemory): Boolean = memIndexed.contains(mem)
 }
 
-object TypedMemoryCollection {
-  def apply(): TypedMemoryCollection = TypedMemoryCollection(Seq(), Seq(), Map())
+object ContextualMemoryCollection {
+  def apply(): ContextualMemoryCollection = ContextualMemoryCollection(Seq(), Seq(), Map())
 }
 
 object CollectTypedSpatialMemory {
@@ -33,7 +33,7 @@ object CollectTypedSpatialMemory {
    *
    * @return Memory objects of the (inputs, outputs, intermediates).
    */
-  def apply(lambda: Lambda): TypedMemoryCollection = {
+  def apply(lambda: Lambda): ContextualMemoryCollection = {
     new CollectTypedSpatialMemory(lambda)()
   }
 }
@@ -43,8 +43,8 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
   private var implicitReadScopes: mutable.Map[Memory, FunCall] = mutable.Map()
   private var implicitWriteScopes: mutable.Map[Memory, FunCall] = mutable.Map()
 
-  private def apply(): TypedMemoryCollection = {
-    val inputs = lambda.params.map(p => TypedSpatialMemory(p))
+  private def apply(): ContextualMemoryCollection = {
+    val inputs = lambda.params.map(p => ContextualSpatialMemory(p))
 
     val (intermediates, output) = {
       val memories = distinct(collectIntermediateMemories(lambda.body))
@@ -52,7 +52,7 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
       // Infer the output write type based on intermediate memory
       val output = {
         val outputAmongIntermediates = memories.filter(_.mem == lambda.body.mem)
-        if (outputAmongIntermediates.nonEmpty) outputAmongIntermediates.head else TypedSpatialMemory(lambda.body)
+        if (outputAmongIntermediates.nonEmpty) outputAmongIntermediates.head else ContextualSpatialMemory(lambda.body)
       }
 
       (List(DRAMMemory, SRAMMemory, RegMemory, LiteralMemory).map(addressSpace =>
@@ -60,7 +60,7 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
         output)
     }
 
-    val collection = TypedMemoryCollection(inputs.sortBy(_.mem.variable.name), Seq(output), intermediates)
+    val collection = ContextualMemoryCollection(inputs.sortBy(_.mem.variable.name), Seq(output), intermediates)
 
     // Mark memories that are implicitly read from as such
     collection.asFlatSequence.foreach(tm =>
@@ -76,8 +76,8 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
    *  This prevents collecting multiple memory objects (possibly with different types)
    *  multiple times without changing the order
    */
-  private def distinct(memories: Seq[TypedSpatialMemory]) = {
-    val builder = Seq.newBuilder[TypedSpatialMemory]
+  private def distinct(memories: Seq[ContextualSpatialMemory]) = {
+    val builder = Seq.newBuilder[ContextualSpatialMemory]
     val seen = scala.collection.mutable.HashSet[SpatialMemory]()
     for (m <- memories) {
       if (!seen(m.mem)) {
@@ -89,7 +89,7 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
   }
 
   @scala.annotation.tailrec
-  private def collectIntermediateMemories(expr: Expr): Seq[TypedSpatialMemory] = {
+  private def collectIntermediateMemories(expr: Expr): Seq[ContextualSpatialMemory] = {
     expr match {
       case v: Value               => collectValueOrUserFunMemory(v)
       case _: Param               => Seq()
@@ -100,7 +100,7 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
   }
 
   private def collectValueOrUserFunMemory(expr: Expr) = expr.mem match {
-    case _: SpatialMemory => Seq(TypedSpatialMemory(expr))
+    case _: SpatialMemory => Seq(ContextualSpatialMemory(expr))
   }
 
   private def collectFunCall(call: FunCall) = {
@@ -119,8 +119,8 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
       case sf: SpFold             => collectSpFold(sf, argumentMemories, call)
       case smf: SpMemFold         => collectSpMemFold(smf, argumentMemories, call)
       case r: AbstractPartRed     => throw new NotImplementedError()
-      case _: UnsafeArrayAccess   => Seq(TypedSpatialMemory(call))
-      case _: CheckedArrayAccess  => Seq(TypedSpatialMemory(call))
+      case _: UnsafeArrayAccess   => Seq(ContextualSpatialMemory(call))
+      case _: CheckedArrayAccess  => Seq(ContextualSpatialMemory(call))
       case i: Iterate             => throw new NotImplementedError()
       case fp: FPattern           => collectIntermediateMemories(fp.f.body)
       case _                      => Seq()
@@ -139,11 +139,11 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
   }
 
   private def collectAbstractSpFold(asf: AbstractSpFold,
-                                    argumentMemories: Seq[TypedSpatialMemory],
+                                    argumentMemories: Seq[ContextualSpatialMemory],
                                     call: FunCall) = {
-    val mapTMem = TypedSpatialMemory(asf.fMapMem, asf.fFlatMapT,
+    val mapTMem = ContextualSpatialMemory(asf.fMapMem, asf.fFlatMapT,
       implicitReadScope = None, implicitWriteScope = None)
-    val foldTMem = TypedSpatialMemory(call)
+    val foldTMem = ContextualSpatialMemory(call)
 
     // The input memory of the implicit reduce is a different representation of asf.fMapMem and is not materialised as well
 
@@ -165,7 +165,7 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
   }
 
   private def collectSpFold(sf: SpFold,
-                            argumentMemories: Seq[TypedSpatialMemory],
+                            argumentMemories: Seq[ContextualSpatialMemory],
                             call: FunCall) = {
     // The memory of the implicit map body is not materialised if a literal is passed as an initial value
 
@@ -173,13 +173,13 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
   }
 
   private def collectSpMemFold(smf: SpMemFold,
-                               argumentMemories: Seq[TypedSpatialMemory],
+                               argumentMemories: Seq[ContextualSpatialMemory],
                                call: FunCall) = {
     collectAbstractSpFold(smf, argumentMemories, call)
   }
 
-  private def removeParameterAndArgumentDuplicates(memories: Seq[TypedSpatialMemory],
-                                                   argumentMemories: Seq[TypedSpatialMemory]) = {
+  private def removeParameterAndArgumentDuplicates(memories: Seq[ContextualSpatialMemory],
+                                                   argumentMemories: Seq[ContextualSpatialMemory]) = {
 
     memories.filter(m => {
       val isAlreadyInArgs = argumentMemories.exists(_.mem.variable == m.mem.variable)

@@ -8,7 +8,7 @@ import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpPa
 import backends.spatial.common.generator.SpatialArithmeticMethod
 import backends.spatial.common.ir.ast.SpatialBuiltInFun
 import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice, SpatialViewPrinter}
-import backends.spatial.common.ir.{AddressSpaceCollection, DRAMMemory, LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, TypedMemoryCollection, UndefAddressSpace}
+import backends.spatial.common.ir.{AddressSpaceCollection, DRAMMemory, LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, ContextualMemoryCollection, UndefAddressSpace}
 import core.generator.GenericAST._
 import ir._
 import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
@@ -20,11 +20,11 @@ import scala.collection.{immutable, mutable}
 
 object AccelGenerator {
 
-  def apply(f: Lambda, allTypedMemories: TypedMemoryCollection): ExprBlock =
+  def apply(f: Lambda, allTypedMemories: ContextualMemoryCollection): ExprBlock =
     (new SpatialGenerator(allTypedMemories)).generate(f)
 }
 
-class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
+class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
 
   type ValueTable = immutable.Map[ArithExpr, ArithExpr]
   type SymbolTable = immutable.Map[Var, Type]

@@ -3,15 +3,15 @@ package backends.spatial.accel
 import _root_.ir.ast._
 import _root_.ir._
 import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
-import backends.spatial.common.ir.{LiteralMemory, RegMemory, SpatialMemory, SpatialMemoryCollection, TypedMemoryCollection}
+import backends.spatial.common.ir.{LiteralMemory, RegMemory, SpatialMemory, SpatialMemoryCollection, ContextualMemoryCollection}
 
 object ShouldUnroll {
-  def apply(lambda: Lambda, allTypedMemories: TypedMemoryCollection): Unit =
+  def apply(lambda: Lambda, allTypedMemories: ContextualMemoryCollection): Unit =
     new ShouldUnroll(lambda, allTypedMemories)
 
 }
 
-class ShouldUnroll(lambda: Lambda, allTypedMemories: TypedMemoryCollection) {
+class ShouldUnroll(lambda: Lambda, allTypedMemories: ContextualMemoryCollection) {
 
   Expr.visit(lambda.body, _ => Unit, {
     case call: FunCall =>

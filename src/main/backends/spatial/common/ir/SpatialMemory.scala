@@ -154,11 +154,11 @@ object SpatialMemory {
   def containsPrivateMemory(mem: Memory): Boolean = containsRegMemory(mem) || containsLiteralMemory(mem)
 
   /**
-    * Return newly allocated memory of `t.size` elements in `addressSpace`
-    *
-    * @param t The type of the variable associated with the memory object
-    * @param addressSpace Address space for the allocated memory
-    */
+   * Return newly allocated memory of `t.size` elements in `addressSpace`
+   *
+   * @param t The type of the variable associated with the memory object
+   * @param addressSpace Address space for the allocated memory
+   */
   def allocMemory(t: Type, addressSpace: SpatialAddressSpace) =
     SpatialMemory(Var("", ContinuousRange(Cst(0), Type.getAllocatedSize(t))), t, addressSpace)
 
@@ -205,10 +205,10 @@ object SpatialMemory {
 // * @param implicitlyReadFrom Whether the reads are explicit or implicit through a placeholder in an anonymous
  *                           function. TODO: add scopes or infer it in a cleaner way (not all reads might be implicit)
  * @param implicitWriteScope The scope within which all writes are implicit (might need more than one in the future)
-  */
-case class TypedSpatialMemory(mem: SpatialMemory, typeInMem: Type,
-                              var implicitReadScope: Option[FunCall],
-                              var implicitWriteScope: Option[FunCall]) {
+ */
+case class ContextualSpatialMemory(mem: SpatialMemory, typeInMem: Type,
+                                   var implicitReadScope: Option[FunCall],
+                                   var implicitWriteScope: Option[FunCall]) {
   lazy val lengths: Seq[ArithExpr] = Type.getAllocatedLengths(typeInMem)
 
   var declared: Boolean = false
@@ -222,18 +222,18 @@ case class TypedSpatialMemory(mem: SpatialMemory, typeInMem: Type,
     implicitWriteScope.isDefined && scope.contains(implicitWriteScope.get)
 }
 
-object TypedSpatialMemory {
+object ContextualSpatialMemory {
   def apply(expr: Expr,
             implicitReadScope: Option[FunCall] = None,
-            implicitWriteScope: Option[FunCall] = None): TypedSpatialMemory = {
-    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(expr.mem), expr.t,
+            implicitWriteScope: Option[FunCall] = None): ContextualSpatialMemory = {
+    new ContextualSpatialMemory(SpatialMemory.asSpatialMemory(expr.mem), expr.t,
       implicitReadScope, implicitWriteScope)
   }
 
   def apply(mem: Memory, t: Type,
             implicitReadScope: Option[FunCall],
-            implicitWriteScope: Option[FunCall]): TypedSpatialMemory = {
-    new TypedSpatialMemory(SpatialMemory.asSpatialMemory(mem), t,
+            implicitWriteScope: Option[FunCall]): ContextualSpatialMemory = {
+    new ContextualSpatialMemory(SpatialMemory.asSpatialMemory(mem), t,
       implicitReadScope, implicitWriteScope)
   }
 }
