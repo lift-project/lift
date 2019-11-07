@@ -22,26 +22,6 @@ object AccelGenerator {
 
   def apply(f: Lambda, allTypedMemories: TypedMemoryCollection): ExprBlock =
     (new SpatialGenerator(allTypedMemories)).generate(f)
-
-  def createFunctionDefinition(uf: UserFun,
-                               argAddressSpaces: Seq[AddressSpace],
-                               retAddressSpace: AddressSpace): ExprBasedFunction = {
-    val block = MutableExprBlock()
-    if (uf.tupleTypes.length == 1)
-      throw new NotImplementedError()
-    else uf.tupleTypes.zipWithIndex.foreach({ case (x, i) =>
-      throw new NotImplementedError()
-    })
-
-    block += SpatialCode(uf.body)
-    ExprBasedFunction(
-      name = uf.name,
-      ret = uf.outT,
-      addressSpace = retAddressSpace,
-      params = (uf.inTs, uf.paramNames, argAddressSpaces).
-        zipped.map((t, n, as) => SpParamDecl(n, t, as)).toList,
-      body = block)
-  }
 }
 
 class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
@@ -52,14 +32,18 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
   private var replacementsOfIteratorsWithValues: ValueTable = immutable.Map.empty
   private var replacementsOfIteratorsWithValuesWithFuns: ValueTable = immutable.Map.empty
 
-  private var scope: mutable.Stack[FunCall] = mutable.Stack()
+  private val scope: mutable.Stack[FunCall] = mutable.Stack()
+
+  private var userFunSignatures: Set[UserFunSignature] = Set()
 
   def generate(f: Lambda): ExprBlock = {
     // Initialise the block
     val accelBlock = MutableExprBlock(Vector.empty)
 
-    // Find and generate user functions
-    generateUserFunctions(f.body).foreach(accelBlock += _)
+    // Find and generate user function signatures
+    userFunSignatures = generateUserFunctions(f.body)
+
+    userFunSignatures.foreach(accelBlock += _.createFunctionDefinition)
 
     // Generate the main part of the block
     generate(f.body, accelBlock)
@@ -410,7 +394,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
                               args: List[AstNode]): FunctionCall = {
     expr match {
       case call: FunCall => call.f match {
-        case uf: UserFun          => FunctionCall(uf.name, args)
+        case uf: UserFun          => FunctionCall(UserFunSignature.getUniqueName(uf, call, userFunSignatures), args)
         case l: Lambda            => generateFunCall(l.body, args)
         case _                    => throw new NotImplementedError()
       }
@@ -418,32 +402,24 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     }
   }
 
-  /** Traverse f and print all user functions */
-  private def generateUserFunctions(expr: Expr): Seq[DeclarationT] = {
-    case class UserFunSignature(uf: UserFun,
-                                argSpatialTypes: Seq[String],
-                                argAss: Seq[AddressSpace],
-                                retAs: AddressSpace) {
-      // Defines equality using Spatial types, not Lift types because Spatial types also express memory spaces.
-      // Implement the following logic:
-      // If arguments are scalars, than only Lift types have to be the same for equality:
-      // ((Float, SRAM), (Float, SRAM)) == ((Float, SRAM), (Float, DRAM))
-      // If arguments are arrays, than both Lift types and Lift address spaces must be the same for equality
-      // (([Float], SRAM), ([Float], SRAM)) != (([Float], SRAM), ([Float], DRAM))
-      override def equals(obj: Any): Boolean = obj match {
-        case that: UserFunSignature => uf == that.uf && argSpatialTypes == that.argSpatialTypes && retAs == that.retAs
-        case _ => false
-      }
-    }
-
-    // Collect user functions
-    val userFuns = Expr.visitWithState(Set[UserFunSignature]())(expr, (expr, set) =>
+  /** Traverses f and collects all user functions */
+  private def generateUserFunctions(expr: Expr): Set[UserFunSignature] = {
+    Expr.visitWithState(Set[UserFunSignature]())(expr, (expr, set) =>
       expr match {
         case call: FunCall                      => call.f match {
           case _: SpatialBuiltInFun  => set
-          case uf: UserFun           => set + UserFunSignature(uf,
-                                          call.args.map(arg => Printer.toString(arg.t, arg.addressSpace)),
-                                          call.args.map(_.addressSpace), call.addressSpace)
+          case uf: UserFun           =>
+            val ufSignature = UserFunSignature(uf, call)
+            if (!set.contains(ufSignature)) {
+              val nonOverloadableFuns = set.filter(ufSignature.cannotBeOverloadedWith)
+              if (nonOverloadableFuns.nonEmpty) {
+                if (nonOverloadableFuns.size == 1)
+                  nonOverloadableFuns.head.uniqueName += "_0"
+                ufSignature.uniqueName += "_" + nonOverloadableFuns.size.toString
+              }
+            }
+
+            set + ufSignature
           case vec: VectorizeUserFun => throw new NotImplementedError()
           case _                     => set
         }
@@ -452,9 +428,6 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
         case Array3DFromUserFunGenerator(uf, _) => throw new NotImplementedError()
         case _                                  => set
       })
-
-    userFuns.toSeq.map {
-      case UserFunSignature(uf, _, argAs, retAs) => AccelGenerator.createFunctionDefinition(uf, argAs, retAs) }
   }
 
   /**
