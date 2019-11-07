@@ -204,7 +204,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
       !allTypedMemories(mem).declared &&
       mem.addressSpace != DRAMMemory) {
 
-      (block: MutableExprBlock) += SpatialVarDecl(mem.variable, mem.t, init, mem.addressSpace)
+      (block: MutableExprBlock) += SpatialVarDecl(mem.variable, mem.t, init, mem.addressSpace, mem.bufferHazard)
 
       allTypedMemories(mem).declared = true
     }

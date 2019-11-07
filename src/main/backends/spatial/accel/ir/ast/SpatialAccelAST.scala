@@ -1,7 +1,7 @@
 package backends.spatial.accel.ir.ast
 
 import backends.spatial.common.SpatialAST.SpatialAddressSpaceOperator
-import backends.spatial.common.ir.{LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace, UndefAddressSpace}
+import backends.spatial.common.ir.{DRAMMemory, LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace, UndefAddressSpace}
 import core.generator.GenericAST
 import core.generator.GenericAST._
 import core.generator.PrettyPrinter._
@@ -125,7 +125,8 @@ object SpatialAccelAST {
   case class SpatialVarDecl(v: GenericAST.CVar,
                             t: Type,
                             init: Option[AstNode] = None,
-                            addressSpace: SpatialAddressSpace = UndefAddressSpace)
+                            addressSpace: SpatialAddressSpace = UndefAddressSpace,
+                            bufferHazard: Boolean = false)
   extends VarDeclT with SpatialAddressSpaceOperator {
     val length: Long = 0 // Use multidimensional shape in the type instead
 
@@ -146,39 +147,43 @@ object SpatialAccelAST {
     }
 
     override def print(): Doc = {
-        (t match {
-          case ArrayTypeWS(_, size) =>
-            addressSpace match {
+      val decl = (t match {
+        case ArrayTypeWS(_, size) =>
+          "val" <+> Printer.toString(v.v) <>
+            (addressSpace match {
               case SRAMMemory =>
                 val baseType = Type.getBaseType(t)
                 val bufferDimensions = Type.getLengths(t).dropRight(1) // Remove the extra dimension for the scalar base type
 
-                "val" <+> Printer.toString(v.v) <+> "=" <+>
-                  s"${Printer.toString(addressSpace)}[${Printer.toString(baseType)}]" <>
+                " =" <+> s"${Printer.toString(addressSpace)}[${Printer.toString(baseType)}]" <>
                   "(" <> bufferDimensions.map(Printer.toString).map(text).reduce(_ <> ", " <> _) <> ")"
               case RegMemory =>
                 // Unroll register memory
                 stack(List.tabulate(size.evalInt)(i => {
-                  "val" <+> Printer.toString(v.v) <> "_" <> Printer.toString(i)  <+> "=" <+>
+                  "_" <> Printer.toString(i)  <+> "=" <+>
                     s"${Printer.toString(addressSpace)}[${Printer.toString(Type.getValueType(t))}]" }))
 
               case LiteralMemory => throw new IllegalArgumentException("Cannot print literal variable declaration")
               case _ => throw new NotImplementedError()
-            }
+            })
 
-          case _ =>
-            val baseType = Type.getBaseType(t)
 
-            "val" <+> Printer.toString(v.v) <+> "=" <+>
-              s"$addressSpace[${Printer.toString(baseType)}]" <>
-              ((addressSpace, init) match {
-                case (RegMemory, Some(initNode)) => "(" <> initNode.print() <> ")"
-                case (RegMemory, None) => empty
-                case (SRAMMemory, _) => "(1)"
-                case (LiteralMemory, _) => throw new IllegalArgumentException("Cannot print literal variable declaration")
-                case _ => throw new NotImplementedError() // TODO
-              })
-        })
+        case _ =>
+          val baseType = Type.getBaseType(t)
+
+          "val" <+> Printer.toString(v.v) <+> "=" <+>
+            s"$addressSpace[${Printer.toString(baseType)}]" <>
+            ((addressSpace, init) match {
+              case (RegMemory, Some(initNode)) => "(" <> initNode.print() <> ")"
+              case (RegMemory, None) => empty
+              case (SRAMMemory, _) => throw new IllegalArgumentException("Cannot declare a scalar as SRAM memory")
+              case (DRAMMemory, _) => throw new IllegalArgumentException("Cannot declare a scalar as DRAM memory")
+              case (LiteralMemory, _) => throw new IllegalArgumentException("Cannot declare a literal as a variable")
+              case _ => throw new NotImplementedError() // TODO
+            })
+      })
+
+      if (bufferHazard) decl <> ".buffer" else decl
     }
   }
 

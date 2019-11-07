@@ -13,17 +13,20 @@ private class MemoryAllocationException(msg: String)
 
 /**
  * Represents memory in Spatial. Compared to OpenCLMemory, which stores the
- * flat size of the buffer, SpatialMemory stores type to preserve the information
- * about multiple dimensions of the buffer. The size is to be inferred later when needed.
+ * flat size of the buffer, SpatialMemory stores the type to preserve the information
+ * about multiple dimensions of the buffer.
  *
  * @constructor Create a new SpatialMemory object
  * @param variable The variable associated with the memory
  * @param t The type of the variable instantiated in memory
  * @param addressSpace The address space where the memory has been allocated
+ * @param bufferHazard Whether this memory has a potential buffer hazard from an undefined order
+ *                     of writing to it by nodes like Reduce/Fold
  */
 sealed class SpatialMemory(var variable: Var,
                            val t: Type,
-                           val addressSpace: SpatialAddressSpace) extends Memory {
+                           val addressSpace: SpatialAddressSpace,
+                           var bufferHazard: Boolean = false) extends Memory {
   val size: ArithExpr = t match {
     case UndefType => Cst(-1)
     case aType => Type.getAllocatedSize(aType)

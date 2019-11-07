@@ -193,6 +193,7 @@ object SpatialMemoryAllocator {
     inMem match {
       case coll: SpatialMemoryCollection =>
         val initM = coll.subMemories(0)
+        initM.bufferHazard = true
 
         asf.fMap.params(0).mem = coll.subMemories(1)
         // fMap body memory has the size of chunkSize. Although fReduce reads data produced by fMap,
