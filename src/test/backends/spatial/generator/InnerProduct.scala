@@ -359,7 +359,7 @@ class InnerProduct {
 
     val gemmTiled: Lambda = fun(
       ArrayType(ArrayType(Float, P), M),
-      ArrayType(ArrayType(Float, P), N),
+      ArrayType(ArrayType(Float, N), P),
       ArrayType(ArrayType(Float, N), M),
       (a, b, c) =>
         PrintType() o
@@ -437,7 +437,7 @@ class InnerProduct {
                               }),
                             fReduce = /*addMatrices*/ add, init = tileCsram
                           ) $ Zip(tileArows, tileBcols)
-                      })) $ Zip(b, tileCrows)
+                      })) $ Zip(Transpose() $ b, tileCrows)
               })) $ Zip(a, c))
 
     val runTimeLambda: Lambda = fun(
