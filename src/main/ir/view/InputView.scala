@@ -190,7 +190,7 @@ object InputView {
     // create fresh input view for the map memory
     // The empty access info below reflects the fact that the reduce always accesses
     // fMapMem directly, with zero depth
-    val mapView = View.initialiseNewView(asf.fFlatMapT, List(), asf.fMapMem.variable)
+    val mapView = View.initialiseNewView(asf.flatMapT, List(), asf.fMapMem.variable)
 
     // fReduce: pass down input view
     asf.fReduce.params(0).view = argView.get(0)

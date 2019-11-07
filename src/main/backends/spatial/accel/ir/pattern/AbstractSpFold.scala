@@ -16,7 +16,7 @@ abstract class AbstractSpFold(val fMap: Lambda1,
 //  var accumulatorMem: Memory = UnallocatedMemory
   // Since this is a macro pattern (Reduce and Map), the node needs to have more
   // information than usual nodes, such as fMapT below.
-  var fFlatMapT: Type = UndefType // The type of the Map lambda
+  var flatMapT: Type = UndefType // The type of the Map lambda
   var fMapMem: Memory = UnallocatedMemory // The implicit memory of the Map
 
   assert(fMap.params.length == 1)

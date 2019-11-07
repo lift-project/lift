@@ -207,7 +207,7 @@ object SpatialMemoryAllocator {
         // Here, we are doing something potentially dangerous: associate one variable with two memories,
         // the first one referring to the map body memory (containing single tile) and the second one
         // referring to the bigger map memory (containing all tiles)
-        asf.fMapMem = SpatialMemory(asf.fMap.body.mem.variable, asf.fFlatMapT,
+        asf.fMapMem = SpatialMemory(asf.fMap.body.mem.variable, asf.flatMapT,
           asf.fMap.body.mem.asInstanceOf[SpatialMemory].addressSpace)
 
         asf.fReduce.params(0).mem = initM

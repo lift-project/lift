@@ -141,7 +141,7 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
   private def collectAbstractSpFold(asf: AbstractSpFold,
                                     argumentMemories: Seq[ContextualSpatialMemory],
                                     call: FunCall) = {
-    val mapTMem = ContextualSpatialMemory(asf.fMapMem, asf.fFlatMapT,
+    val mapTMem = ContextualSpatialMemory(asf.fMapMem, asf.flatMapT,
       implicitReadScope = None, implicitWriteScope = None)
     val foldTMem = ContextualSpatialMemory(call)
 
