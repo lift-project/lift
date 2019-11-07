@@ -43,7 +43,7 @@ class SpatialGenerator(allTypedMemories: TypedMemoryCollection) {
     // Find and generate user function signatures
     userFunSignatures = generateUserFunctions(f.body)
 
-    userFunSignatures.foreach(accelBlock += _.createFunctionDefinition)
+    userFunSignatures.foreach(accelBlock += _.createFunctionDeclaration)
 
     // Generate the main part of the block
     generate(f.body, accelBlock)

@@ -38,7 +38,7 @@ case class UserFunSignature(uf: UserFun,
     uf.name.equals(that.uf.name) &&
       argSpatialTypes.length == that.argSpatialTypes.length
 
-  def createFunctionDefinition(): ExprBasedFunction = {
+  def createFunctionDeclaration(): ExprBasedFunction = {
     val block = MutableExprBlock()
     if (uf.tupleTypes.length == 1)
       throw new NotImplementedError()
