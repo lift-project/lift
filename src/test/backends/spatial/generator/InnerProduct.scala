@@ -1,5 +1,6 @@
 package backends.spatial.generator
 
+import arithmetic.TypeVar
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
 import backends.spatial.accel.ir.pattern.toReg
 import backends.{Backend, c, spatial}
@@ -231,10 +232,10 @@ class InnerProduct {
 //      }
 //    """
 
-    val id = UserFun("id", Array("x"), "x", Seq(Float), Float)
+    val x = TypeVar()
 
-    val idArray = UserFun("idArray", Array("arr"),
-      "arr", Seq(ArrayType(Float, tileSize)), ArrayType(Float, tileSize)) // TODO: generalise array size
+    val id = UserFun("id", Array("x"), "x", Seq(Float), Float)
+    val id1D = UserFun("id", Array("x"), "x", Seq(ArrayType(Float, x)), ArrayType(Float, x))
 
 
     val scalaDotLambdaTiled: Lambda = fun(
@@ -250,8 +251,8 @@ class InnerProduct {
 
               val tileABsram = Zip(
                 /*Parallel(*/
-                toSRAM(idArray) $ tileA,
-                toSRAM(idArray) $ tileB
+                toSRAM(id1D) $ tileA,
+                toSRAM(id1D) $ tileB
                 /*)*/)
 
               SpFold(chunkSize = 1, stride = 1, factor = innerParFactor,
@@ -336,26 +337,13 @@ class InnerProduct {
     val innerFactorI = SizeVar("innerFactorI") // 1
     val innerFactorJ = SizeVar("innerFactorJ") // 1
 
+    val x = TypeVar()
+    val y = TypeVar()
+
     val id = UserFun("id", Array("x"), "x", Seq(Float), Float)
-
-    val idArray2dMN = UserFun("idArray2dMN", Array("arr"),
-      "arr", Seq(ArrayType(ArrayType(Float, tileNsize), tileMsize)),
-      ArrayType(ArrayType(Float, tileNsize), tileMsize)) // TODO: generalise array size
-
-    val idArray2dNN = UserFun("idArray2dNN", Array("arr"),
-      "arr", Seq(ArrayType(ArrayType(Float, tileNsize), tileNsize)),
-      ArrayType(ArrayType(Float, tileNsize), tileNsize)) // TODO: generalise array size
-
-    val idArray1dM = UserFun("idArray1dM", Array("arr"),
-      "arr", Seq(ArrayType(Float, tileMsize)), ArrayType(Float, tileMsize)) // TODO: generalise array size
-
-    val idArray1dN = UserFun("idArray1dN", Array("arr"),
-      "arr", Seq(ArrayType(Float, tileNsize)), ArrayType(Float, tileNsize)) // TODO: generalise array size
-
-    val addMatrices = UserFun("addMatrices", Array("l", "r"),
-      "addMatrices", Seq(ArrayType(ArrayType(Float, tileNsize), tileMsize),
-        ArrayType(ArrayType(Float, tileNsize), tileMsize)),
-      ArrayType(ArrayType(Float, tileNsize), tileMsize)) // TODO: generalise array size
+    val id1D = UserFun("id", Array("x"), "x", Seq(ArrayType(Float, x)), ArrayType(Float, x))
+    val id2D = UserFun("id", Array("x"), "x", Seq(ArrayType(ArrayType(Float, x), y)),
+      ArrayType(ArrayType(Float, x), y))
 
     val gemmTiled: Lambda = fun(
       ArrayType(ArrayType(Float, P), M),
@@ -387,9 +375,9 @@ class InnerProduct {
                             Transpose() $ Get(Unzip() $ tileBcolsC, 0)
                         val tileCsram =
                           AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "tileCsram.type") o
-                            toSRAM(idArray2dMN) o Transpose() $ Get(Unzip() $ tileBcolsC, 1)
+                            toSRAM(id2D) o Transpose() $ Get(Unzip() $ tileBcolsC, 1)
 
-                        toDRAM(idArray2dMN) o
+                        toDRAM(id2D) o PrintType() o
                           SpMemFold(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorK,
                             fMap = fun(
                               ArrayType(TupleType(ArrayType(Float, tileMsize), ArrayType(Float, tileNsize)), tileNsize),
@@ -398,7 +386,7 @@ class InnerProduct {
                                   Transpose() $ Get(Unzip() $ tileAB, 0)
                                 // TODO: confirm whether Transpose should be used instead of TransposeW below
                                 val tileBsram = AssertType(ArrayType(ArrayType(Float, tileNsize), tileNsize), "tileBsram") o
-                                  Transpose() o toSRAM(idArray2dNN) $ Get(Unzip() $ tileAB, 1)
+                                  Transpose() o toSRAM(id2D) $ Get(Unzip() $ tileAB, 1)
 
                                 AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "Outer MemFold fMap type") o
                                   // The Let below causes tileBsram to materialise (declare mem and issue the load statement)
@@ -409,7 +397,7 @@ class InnerProduct {
                                         ArrayType(ArrayType(Float, tileNsize), 1),
                                         tileRowA => {
                                           val tileRowAsram = AssertType(ArrayType(Float, tileNsize), "tileRowAsram") o
-                                            toSRAM(idArray1dN) o Join() $ tileRowA
+                                            toSRAM(id1D) o Join() $ tileRowA
 
                                           Let(tileRowAsramMaterialised =>
                                             SpForeach(
