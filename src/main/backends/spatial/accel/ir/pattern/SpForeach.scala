@@ -5,10 +5,10 @@ import ir.interpreter.Interpreter.ValueMap
 import ir._
 import lift.arithmetic.{ArithExpr, Cst, PosVar, Var}
 
-case class SpForeach(chunkSize: ArithExpr,
-                     stride: ArithExpr = Cst(1),
-                     factor: ArithExpr = Cst(1),
-                     override val f: Lambda1)
+abstract class SpForeach(val chunkSize: ArithExpr,
+                         val stride: ArithExpr = Cst(1),
+                         val factor: ArithExpr = Cst(1),
+                         override val f: Lambda1)
   extends Pattern(arity = 1) with FPattern {
   assert(f.params.length == 1)
 
@@ -30,7 +30,6 @@ case class SpForeach(chunkSize: ArithExpr,
     }
   }
 
-  override def copy(f: Lambda): Pattern = SpForeach(chunkSize, stride, factor, f)
   var shouldUnroll = false
 
   override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)

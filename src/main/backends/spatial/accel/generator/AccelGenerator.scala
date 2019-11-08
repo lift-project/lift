@@ -2,7 +2,7 @@ package backends.spatial.accel.generator
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, Parallel, Pipe, Piped, SchedulingPattern, SpFold, SpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, Parallel, Pipe, Piped, SchedulingPattern, Sequential, SpFold, SpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
 import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
@@ -96,8 +96,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
             // it from the input's header to the output's header.
             propagateDynamicArraySize(call, block)
 
-          case sf: SpFold             => generateFoldCall(sf, call, block)
-          case smf: SpMemFold         => generateFoldCall(smf, call, block)
+          case asf: AbstractSpFold    => generateFoldCall(asf, call, block)
 
           case u: UserFun             => generateUserFunCall(u, call, block)
 
@@ -366,6 +365,10 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
     val innerBlock = MutableExprBlock(Vector.empty, encapsulated = false)
 
     (block: MutableExprBlock) += SpatialAccelAST.Foreach(
+      scheduleDirective = pattern match {
+        case _: Sequential => SequentialSchedule()
+        case _: Piped => PipeSchedule()
+      },
       counter = List(Counter(
         ArithExpression(getRangeAdd(indexVar).start),
         ArithExpression(getRangeAdd(indexVar).stop),

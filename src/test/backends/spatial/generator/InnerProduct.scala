@@ -2,7 +2,7 @@ package backends.spatial.generator
 
 import arithmetic.TypeVar
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
-import backends.spatial.accel.ir.pattern.{Parallel, Pipe, SpPipeFold, SpPipeMemFold, toArgOut, toReg}
+import backends.spatial.accel.ir.pattern.{Parallel, Pipe, SpPipeFold, SpPipeForeach, SpPipeMemFold, toArgOut, toReg}
 import backends.{Backend, c, spatial}
 import ir._
 import ir.ast._
@@ -363,7 +363,7 @@ class InnerProduct {
       (a, b, c) =>
         PrintType() o
           Join() o
-          SpForeach(chunkSize = tileMsize, stride = tileMsize, factor = outerFactorI,
+          SpPipeForeach(chunkSize = tileMsize, stride = tileMsize, factor = outerFactorI,
             f = fun(
               ArrayType(TupleType(ArrayType(Float, P), ArrayType(Float, N)), tileMsize),
               tileACrows => {
@@ -376,7 +376,7 @@ class InnerProduct {
                     Transpose() $ Get(Unzip() $ tileACrows, 1)
 
                 Map(Join()) o TransposeW() o PrintType() o
-                  SpForeach(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorJ,
+                  SpPipeForeach(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorJ,
                     f = fun(
                       ArrayType(TupleType(ArrayType(Float, P), ArrayType(Float, tileMsize)), tileNsize),
                       tileBcolsC => {
@@ -403,7 +403,7 @@ class InnerProduct {
                                   // The Let below causes tileBsram to materialise (declare mem and issue the load statement)
                                   // outside of the next SpForeach instead of inside (right before it is to be read)
                                   Let(tileBsramMaterialised =>
-                                    SpForeach(chunkSize = 1, stride = 1, factor = innerFactorI,
+                                    SpPipeForeach(chunkSize = 1, stride = 1, factor = innerFactorI,
                                       f = fun(
                                         ArrayType(ArrayType(Float, tileNsize), 1),
                                         tileRowA => {
@@ -411,7 +411,7 @@ class InnerProduct {
                                             toSRAM(id1D) o Join() $ tileRowA
 
                                           Let(tileRowAsramMaterialised =>
-                                            SpForeach(
+                                            SpPipeForeach(
                                               chunkSize = 1,
                                               stride = 1,
                                               factor = innerFactorJ,
@@ -473,11 +473,9 @@ class InnerProduct {
 
               Foreach(tileNsize by 1 par innerFactorJ) { jj =>
 
-                Pipe {
-                  tileCaccum(ii,jj) = Reduce(Reg[T])(tileNsize by 1 par tileParFactor) { kk =>
-                    bSRAM(kk, jj) * aSRAM(kk)
-                  }{_+_}
-                }
+                tileCaccum(ii,jj) = Reduce(Reg[T])(tileNsize by 1 par tileParFactor) { kk =>
+                  bSRAM(kk, jj) * aSRAM(kk)
+                }{_+_}
               }
             }
             tileCaccum

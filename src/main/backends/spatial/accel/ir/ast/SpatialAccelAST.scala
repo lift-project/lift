@@ -409,8 +409,7 @@ object SpatialAccelAST {
 
 
   trait ForeachT extends StatementT {
-    // TODO:
-//    val ScheduleDirective: ScheduleDirectiveT
+    val scheduleDirective: ScheduleT
     val counter: List[CounterT]
     val iterVars: List[GenericAST.CVar]
     val body: MutableExprBlockT
@@ -419,6 +418,7 @@ object SpatialAccelAST {
       z |>
         (visitFun(_, this)) |>
         // Visit internal expressions of the for loop
+        (scheduleDirective.visit(_)(visitFun)) |>
         (counter.foldLeft(_) {
           case (acc, node) => node.visit(acc)(visitFun)
         }) |>
@@ -429,24 +429,26 @@ object SpatialAccelAST {
     }
 
     override def print(): Doc = {
-      text("Foreach") <>
+      scheduleDirective.print() <> text(".") <> text("Foreach") <>
         text("(") <> counter.map(_.print()).reduce(_ <> text(",") <> _) <> text(")") <+>
         text("{") <+> text("(") <> intersperse(iterVars.map(_.print()), ", ") <> text(")") <+> text("=>") <>
         nest(2, line <> body.print()) <> line <> "}"
     }
   }
 
-  case class Foreach(counter: List[CounterT],
+  case class Foreach(scheduleDirective: ScheduleT,
+                     counter: List[CounterT],
                      iterVars: List[GenericAST.CVar],
                      body: MutableExprBlockT) extends ForeachT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
-      Foreach(
+      Foreach(scheduleDirective.visitAndRebuild(pre, post).asInstanceOf[ScheduleT],
         counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
         iterVars.map(_.visitAndRebuild(pre, post).asInstanceOf[GenericAST.CVar]),
         body.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
     }
 
     override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
+      scheduleDirective.visitBy(pre, post)
       counter.foreach(_.visitBy(pre, post))
       iterVars.foreach(_.visitBy(pre, post))
       body.visitBy(pre, post)
