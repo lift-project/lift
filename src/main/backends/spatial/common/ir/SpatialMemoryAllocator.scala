@@ -111,6 +111,8 @@ object SpatialMemoryAllocator {
       case ua: UnsafeArrayAccess    => throw new NotImplementedError()
       case ca: CheckedArrayAccess   => throw new NotImplementedError()
 
+      case sp: SchedulingPattern    => allocLambda(sp.f, outMemT, outAddressSpace, inMem)
+
       case debug.PrintView(_, f)    => allocLambda(f, outMemT, outAddressSpace, inMem)
 
       case RewritingGuidePost(_)    => inMem

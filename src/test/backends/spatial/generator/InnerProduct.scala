@@ -2,7 +2,7 @@ package backends.spatial.generator
 
 import arithmetic.TypeVar
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
-import backends.spatial.accel.ir.pattern.{SpPipeFold, SpPipeMemFold, toArgOut, toReg}
+import backends.spatial.accel.ir.pattern.{Parallel, Pipe, SpPipeFold, SpPipeMemFold, toArgOut, toReg}
 import backends.{Backend, c, spatial}
 import ir._
 import ir.ast._
@@ -134,6 +134,7 @@ class InnerProduct {
    * { val v_someName_b = 1
    *   v_someName_b + v__a
    * }
+   * TODO: clean duplicate function names (e.g. id_0, id_1)
    */
   def cleanSpatialProgram(code: String): String = {
     val regexVarNames = new Regex("""(v_(.*?)_[0-9]+(__[0-9]+(_[0-9]+)*)*)""", "varFullName", "varCoreName")
@@ -247,16 +248,16 @@ class InnerProduct {
           toArgOut(id) o
           SpPipeFold(chunkSize = tileSize, stride = tileSize, factor = outerParFactor,
             fMap = fun(
-
               ArrayType(TupleType(Float, Float), tileSize), tileAB => {
-                val tileA = Get(Unzip() $ tileAB, 0)
-                val tileB = Get(Unzip() $ tileAB, 1)
 
-                val tileABsram = Zip(
-                  /*Parallel(*/
-                  toSRAM(id1D) $ tileA,
-                  toSRAM(id1D) $ tileB
-                  /*)*/)
+                val tileABsram = tileAB :>> Parallel(fun(tileABpiped => {
+                  val tileA = Get(Unzip() $ tileABpiped, 0)
+                  val tileB = Get(Unzip() $ tileABpiped, 1)
+
+                  Zip(
+                    toSRAM(id1D) $ tileA,
+                    toSRAM(id1D) $ tileB)
+                }))
 
                 SpPipeFold(chunkSize = 1, stride = 1, factor = innerParFactor,
                   fMap = backends.spatial.accel.ir.pattern.MapSeq(mult),
@@ -297,9 +298,11 @@ class InnerProduct {
          |        val v__24 = Reg[Float].buffer
          |        v__24 := id_0(0.0f)
          |        val v__25 = SRAM[Float](v_tileSize_1)
-         |        v__25 load id_1(v__16(v_i_11::(v_tileSize_1 + v_i_11)))
          |        val v__26 = SRAM[Float](v_tileSize_1)
-         |        v__26 load id_1(v__17(v_i_11::(v_tileSize_1 + v_i_11)))
+         |        Parallel {
+         |            v__25 load id_1(v__16(v_i_11::(v_tileSize_1 + v_i_11)))
+         |            v__26 load id_1(v__17(v_i_11::(v_tileSize_1 + v_i_11)))
+         |        }
          |        Pipe.Fold(v__24)(0 until v_tileSize_1 by 1 par v_innerParFactor_3) { (v_i_12) =>
          |            val v__30_0 = Reg[Float]
          |            // map_seq

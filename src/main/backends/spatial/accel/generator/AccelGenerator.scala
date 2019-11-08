@@ -2,16 +2,16 @@ package backends.spatial.accel.generator
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, SpFold, SpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, Parallel, Pipe, Piped, SchedulingPattern, SpFold, SpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
 import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
 import backends.spatial.common.ir.ast.SpatialBuiltInFun
 import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice, SpatialViewPrinter}
 import backends.spatial.common.ir.{AddressSpaceCollection, ArgOutMemory, ContextualMemoryCollection, DRAMMemory, HostAllocatedMemory, LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, UndefAddressSpace}
-import core.generator.GenericAST._
+import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, CVar, Comment, ExprBlock, ExpressionT, FunctionCall, MutableExprBlock, StatementT, StructConstructor, VarIdxRef}
 import ir._
-import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
+import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Join, Lambda, Map, Pad, PadConstant, Param, Pattern, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
 import ir.view.{View, ViewConstant}
 import lift.arithmetic._
 import opencl.generator.PerformLoopOptimisation
@@ -100,6 +100,8 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
           case smf: SpMemFold         => generateFoldCall(smf, call, block)
 
           case u: UserFun             => generateUserFunCall(u, call, block)
+
+          case sp: SchedulingPattern  => generateSchedulingPatternCall(sp, call, block)
 
           case fp: FPattern           => generate(fp.f.body, block)
           case l: Lambda              => generate(l.body, block)
@@ -195,19 +197,20 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
   private def declareMemoryIfRequired(expr: Expr,
                                       block: MutableExprBlock,
                                       init: Option[AstNode] = None): Unit = {
-    val mem = expr.mem.asInstanceOf[SpatialMemory]
-    val memoryNeedsMaterialising =
-      allTypedMemories.contains(mem) &&
-        mem.addressSpace != LiteralMemory
+    SpatialMemory.getAllMemories(expr.mem.asInstanceOf[SpatialMemory]).foreach(mem => {
 
-    if (memoryNeedsMaterialising &&
-      !allTypedMemories(mem).declared &&
-      !mem.addressSpace.isInstanceOf[HostAllocatedMemory]) {
+      val memoryNeedsMaterialising =
+        allTypedMemories.contains(mem) &&
+          mem.addressSpace != LiteralMemory
 
-      (block: MutableExprBlock) += SpatialVarDecl(mem.variable, mem.t, init, mem.addressSpace, mem.bufferHazard)
+      if (memoryNeedsMaterialising &&
+        !allTypedMemories(mem).declared &&
+        !mem.addressSpace.isInstanceOf[HostAllocatedMemory]) {
 
-      allTypedMemories(mem).declared = true
-    }
+        (block: MutableExprBlock) += SpatialVarDecl(mem.variable, mem.t, init, mem.addressSpace, mem.bufferHazard)
+
+        allTypedMemories(mem).declared = true
+      }})
   }
 
   private def generateValue(v: Value, block: MutableExprBlock): Unit = {
@@ -411,6 +414,21 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
       }
       case _ => throw new NotImplementedError()
     }
+  }
+
+
+  private def generateSchedulingPatternCall(sp: SchedulingPattern,
+                                            call: FunCall,
+                                            block: MutableExprBlock): Unit = {
+    val innerBlock = MutableExprBlock(Vector.empty, encapsulated = false)
+
+    (block: MutableExprBlock) += (sp match {
+      case _: Pipe      => ScheduleController(PipeSchedule(), innerBlock)
+      case _: Parallel  => ScheduleController(ParallelSchedule(), innerBlock)
+      case _            => throw new AccelGeneratorException(f"Unknown scheduling pattern $sp")
+    })
+
+    generate(sp.f.body, innerBlock)
   }
 
   /** Traverses f and collects all user functions */

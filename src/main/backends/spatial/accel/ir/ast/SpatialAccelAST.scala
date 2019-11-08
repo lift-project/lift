@@ -21,31 +21,43 @@ object SpatialAccelAST {
   val infixNotation: Boolean = true
 
   /**
-   * Controller tags
+   * Schedules. These AST nodes are used both for controller tags and scheduling control structures.
    * */
-  trait ControllerTagT extends AttributeT
+  trait ScheduleT extends AttributeT
 
-  trait TagSequentialT extends ControllerTagT {
+  trait SequentialScheduleT extends ScheduleT {
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |> (visitFun(_, this))
     }
     override def print(): Doc = "Sequential"
   }
 
-  case class TagSequential() extends TagSequentialT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = TagSequential()
+  case class SequentialSchedule() extends SequentialScheduleT {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = SequentialSchedule()
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
   }
 
-  trait TagPipeT extends ControllerTagT {
+  trait PipeScheduleT extends ScheduleT {
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
       z |> (visitFun(_, this))
     }
     override def print(): Doc = "Pipe"
   }
 
-  case class TagPipe() extends TagPipeT {
-    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = TagPipe()
+  case class PipeSchedule() extends PipeScheduleT {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = PipeSchedule()
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
+  }
+
+  trait ParallelScheduleT extends ScheduleT {
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |> (visitFun(_, this))
+    }
+    override def print(): Doc = "Parallel"
+  }
+
+  case class ParallelSchedule() extends ParallelScheduleT {
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = ParallelSchedule()
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {}
   }
 
@@ -282,8 +294,8 @@ object SpatialAccelAST {
     }
   }
 
-  trait AbstractReduceT extends StatementT {
-    val controllerTag: ControllerTagT
+  trait AbstractReduceT extends StatementT { // TODO: consider making it ExpressionT as well
+    val scheduleDirective: ScheduleT
     val reduceFlavour: String
     val accum: AstNode
     val counter: List[CounterT]
@@ -295,7 +307,7 @@ object SpatialAccelAST {
       z |>
         (visitFun(_, this)) |>
         // Visit internal expressions of the for loop
-        (controllerTag.visit(_)(visitFun)) |>
+        (scheduleDirective.visit(_)(visitFun)) |>
         (accum.visit(_)(visitFun)) |>
         (counter.foldLeft(_) {
           case (acc, node) => node.visit(acc)(visitFun)
@@ -308,7 +320,7 @@ object SpatialAccelAST {
     }
 
     override def print(): Doc = {
-      controllerTag.print() <> text(".") <> reduceFlavour <> text("(") <> accum.print <> text(")") <>
+      scheduleDirective.print() <> text(".") <> reduceFlavour <> text("(") <> accum.print <> text(")") <>
         text("(") <> counter.map(_.print()).reduce(_ <> text(",") <> _) <> text(")") <+>
         text("{") <+> text("(") <> intersperse(iterVars.map(_.print()), ", ") <> text(")") <+> text("=>") <>
         nest(2, line <> mapBody.print()) <> line <> "}" <+> "{" <>
@@ -316,7 +328,7 @@ object SpatialAccelAST {
     }
   }
 
-  case class Reduce(controllerTag: ControllerTagT,
+  case class Reduce(scheduleDirective: ScheduleT,
                     accum: AstNode,
                     counter: List[CounterT],
                     iterVars: List[GenericAST.CVar],
@@ -324,7 +336,7 @@ object SpatialAccelAST {
                     reduceBody: MutableExprBlockT) extends AbstractReduceT {
     val reduceFlavour: String = "Reduce"
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
-      Reduce(controllerTag.visitAndRebuild(pre, post).asInstanceOf[ControllerTagT],
+      Reduce(scheduleDirective.visitAndRebuild(pre, post).asInstanceOf[ScheduleT],
         accum.visitAndRebuild(pre, post),
         counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
         iterVars.map(_.visitAndRebuild(pre, post).asInstanceOf[GenericAST.CVar]),
@@ -333,7 +345,7 @@ object SpatialAccelAST {
     }
 
     override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
-      controllerTag.visitBy(pre, post)
+      scheduleDirective.visitBy(pre, post)
       accum.visitBy(pre, post)
       counter.foreach(_.visitBy(pre, post))
       iterVars.foreach(_.visitBy(pre, post))
@@ -342,7 +354,7 @@ object SpatialAccelAST {
     }
   }
 
-  case class Fold(controllerTag: ControllerTagT,
+  case class Fold(scheduleDirective: ScheduleT,
                   accum: AstNode,
                   counter: List[CounterT],
                   iterVars: List[GenericAST.CVar],
@@ -350,7 +362,7 @@ object SpatialAccelAST {
                   reduceBody: MutableExprBlockT) extends AbstractReduceT {
     val reduceFlavour: String = "Fold"
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
-      Fold(controllerTag.visitAndRebuild(pre, post).asInstanceOf[ControllerTagT],
+      Fold(scheduleDirective.visitAndRebuild(pre, post).asInstanceOf[ScheduleT],
         accum.visitAndRebuild(pre, post),
         counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
         iterVars.map(_.visitAndRebuild(pre, post).asInstanceOf[GenericAST.CVar]),
@@ -359,7 +371,7 @@ object SpatialAccelAST {
     }
 
     override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
-      controllerTag.visitBy(pre, post)
+      scheduleDirective.visitBy(pre, post)
       accum.visitBy(pre, post)
       counter.foreach(_.visitBy(pre, post))
       iterVars.foreach(_.visitBy(pre, post))
@@ -368,7 +380,7 @@ object SpatialAccelAST {
     }
   }
 
-  case class MemFold(controllerTag: ControllerTagT,
+  case class MemFold(scheduleDirective: ScheduleT,
                      accum: AstNode,
                      counter: List[CounterT],
                      iterVars: List[GenericAST.CVar],
@@ -376,7 +388,7 @@ object SpatialAccelAST {
                      reduceBody: MutableExprBlockT) extends AbstractReduceT {
     val reduceFlavour: String = "MemFold"
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
-      MemFold(controllerTag.visitAndRebuild(pre, post).asInstanceOf[ControllerTagT],
+      MemFold(scheduleDirective.visitAndRebuild(pre, post).asInstanceOf[ScheduleT],
         accum.visitAndRebuild(pre, post),
         counter.map(_.visitAndRebuild(pre, post).asInstanceOf[CounterT]),
         iterVars.map(_.visitAndRebuild(pre, post).asInstanceOf[GenericAST.CVar]),
@@ -385,7 +397,7 @@ object SpatialAccelAST {
     }
 
     override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
-      controllerTag.visitBy(pre, post)
+      scheduleDirective.visitBy(pre, post)
       accum.visitBy(pre, post)
       counter.foreach(_.visitBy(pre, post))
       iterVars.foreach(_.visitBy(pre, post))
@@ -397,6 +409,8 @@ object SpatialAccelAST {
 
 
   trait ForeachT extends StatementT {
+    // TODO:
+//    val ScheduleDirective: ScheduleDirectiveT
     val counter: List[CounterT]
     val iterVars: List[GenericAST.CVar]
     val body: MutableExprBlockT
@@ -503,5 +517,40 @@ object SpatialAccelAST {
       src.visitBy(pre, post)
       target.visitBy(pre, post)
     }
+  }
+
+  /**
+   * A control structure defining a schedule
+   */
+  trait ScheduleControllerT extends StatementT { // TODO: consider making it ExpressionT as well
+    val schedule: ScheduleT
+    val body: MutableExprBlockT
+
+    override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
+      z |>
+        (visitFun(_, this)) |>
+        (schedule.visit(_)(visitFun)) |>
+        (body.visit(_)(visitFun))
+    }
+
+    override def print(): Doc = {
+      schedule.print() <+> "{" <> nest(2, line <> body.print()) <> line <> "}"
+    }
+  }
+
+  case class ScheduleController(schedule: ScheduleT,
+                                body: MutableExprBlockT) extends ScheduleControllerT {
+
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
+      ScheduleController(
+        schedule.visitAndRebuild(pre, post).asInstanceOf[ScheduleT],
+        body.visitAndRebuild(pre, post).asInstanceOf[MutableExprBlockT])
+    }
+
+    override def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {
+      schedule.visitBy(pre, post)
+      body.visitBy(pre, post)
+    }
+
   }
 }
