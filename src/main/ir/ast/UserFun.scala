@@ -12,8 +12,8 @@ import ir._
  * @param inTs The types of the parameters. The size and order has to match with `paramNames`.
  * @param outT The return type of the user function.
  */
-case class UserFun(name: String, paramNames: Array[String], body: String,
-                   inTs: Seq[Type], outT: Type)
+class UserFun(val name: String, val paramNames: Array[String], val body: String,
+              val inTs: Seq[Type], val outT: Type)
   extends FunDecl(inTs.length) {
 
   // enforce at runtime that types and names match
@@ -175,17 +175,24 @@ object UserFun {
    * Constructor for creating instances of UserFun.
    * This provides convenience for creating instances with a single parameter.
    *
-   * @param name The name of the function. This has to follow standard C naming conventions.
+   * @param name      The name of the function. This has to follow standard C naming conventions.
    * @param paramName The parameter name.
-   * @param body The body of the function as a string.
-   *             The body currently must be valid OpenCL C code.
-   * @param inT The type of the parameter.
-   * @param outT The return type of the user function.
+   * @param body      The body of the function as a string.
+   *                  The body currently must be valid OpenCL C code.
+   * @param inT       The type of the parameter.
+   * @param outT      The return type of the user function.
    * @return
    */
   def apply(name: String, paramName: String, body: String,
             inT: Type, outT: Type): UserFun = {
-    UserFun(name, Array(paramName), body, Seq(inT), outT)
+    new UserFun(name, Array(paramName), body, Seq(inT), outT)
   }
 
+  def apply(name: String, paramNames: Array[String], body: String,
+            inTs: Seq[Type], outT: Type): UserFun = {
+    new UserFun(name, paramNames, body, inTs, outT)
+  }
+
+  def unapply(arg: UserFun): Option[(String, Array[String], String, Seq[Type], Type)] =
+    Some((arg.name, arg.paramNames, arg.body, arg.inTs, arg.outT))
 }

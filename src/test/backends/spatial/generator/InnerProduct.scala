@@ -388,7 +388,7 @@ class InnerProduct {
                           AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "tileCsram.type") o
                             toSRAM(BurstUserFun(id2D, tileParFactor)) o Transpose() $ Get(Unzip() $ tileBcolsC, 1)
 
-                        toDRAM(id2D) o PrintType() o
+                        toDRAM(BurstUserFun(id2D, tileParFactor)) o PrintType() o
                           SpPipeMemFold(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorK,
                             fMap = fun(
                               ArrayType(TupleType(ArrayType(Float, tileMsize), ArrayType(Float, tileNsize)), tileNsize),

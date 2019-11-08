@@ -51,7 +51,8 @@ object Index {
   def apply(idxInTargetAST: GenericAST.ArithExpression): Index = Index(idxInTargetAST.content)
 }
 
-case class Slice(start: ArithExpr, end: ArithExpr) extends ArrayAddressor {
+class Slice(val start: ArithExpr, val end: ArithExpr,
+            var burstFactor: Option[ArithExpr] = None) extends ArrayAddressor {
   def startIdx: Index = Index(start)
   def +(that: ArithExpr): Slice = Slice(start + that, end + that)
   def +(that: Index): Slice = Slice(start + that.ae, end + that.ae)
@@ -62,7 +63,8 @@ case class Slice(start: ArithExpr, end: ArithExpr) extends ArrayAddressor {
     Slice(start.visitAndRebuild(f), end.visitAndRebuild(f))
 
   def toTargetAST: SpatialAccelAST.ArrSlice =
-    SpatialAccelAST.ArrSlice(ArithExpression(start), ArithExpression(end))
+    SpatialAccelAST.ArrSlice(ArithExpression(start), ArithExpression(end),
+      if (burstFactor.isDefined) Some(ArithExpression(burstFactor.get)) else None)
 
   def eval(): List[Int] = utils.RangeValueGenerator.generateAllValues(RangeAdd(start, 1, end)).map(_.evalInt).toList
 }
@@ -71,6 +73,11 @@ object Slice {
   def continuous(end: ArithExpr): Slice = new Slice(0, end)
   def continuous(start: ArithExpr, end: ArithExpr): Slice = new Slice(start, end)
 
+  def apply(start: ArithExpr, end: ArithExpr, burstFactor: Option[ArithExpr] = None): Slice =
+    new Slice(start, end, burstFactor)
+
   def apply(sliceInTargetAST: SpatialAccelAST.ArrSlice): Slice =
     Slice(sliceInTargetAST.start.content, sliceInTargetAST.end.content)
+
+  def unapply(arg: Slice): Option[(ArithExpr, ArithExpr)] = Some((arg.start, arg.end))
 }

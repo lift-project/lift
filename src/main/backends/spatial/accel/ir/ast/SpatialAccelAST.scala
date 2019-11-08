@@ -79,27 +79,40 @@ object SpatialAccelAST {
   trait ArrSliceT extends AddressorT with ExpressionT {
     val start: ArithExpression
     val end: ArithExpression
+    val burstFactor: Option[ArithExpression]
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
-      z |> (visitFun(_, this)) |>
+      val visitedState = z |> (visitFun(_, this)) |>
         (visitFun(_, start)) |>
         (visitFun(_, end))
+
+      if (burstFactor.isDefined) visitedState |> (visitFun(_, burstFactor.get))
+      else visitedState
     }
 
-    override def print(): Doc = start.print <> "::" <> end.print
+    override def print(): Doc = {
+      val slice = start.print <> "::" <> end.print
+      if (burstFactor.isDefined) slice <+> "par" <+> burstFactor.get.print
+      else slice
+    }
   }
 
   case class ArrSlice(start: ArithExpression,
-                      end: ArithExpression) extends ArrSliceT {
+                      end: ArithExpression,
+                      burstFactor: Option[ArithExpression] = None) extends ArrSliceT {
 
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode =
       ArrSlice(
         start.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
-        end.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])
+        end.visitAndRebuild(pre, post).asInstanceOf[ArithExpression],
+        if (burstFactor.isDefined) Some(burstFactor.get.visitAndRebuild(pre, post).asInstanceOf[ArithExpression])
+        else None)
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
       start.visitBy(pre, post)
       end.visitBy(pre, post)
+      if (burstFactor.isDefined)
+        burstFactor.get.visitBy(pre, post)
     }
   }
 

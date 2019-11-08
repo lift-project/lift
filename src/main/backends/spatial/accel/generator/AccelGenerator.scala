@@ -2,7 +2,7 @@ package backends.spatial.accel.generator
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapSeq, Parallel, Pipe, Piped, SchedulingPattern, Sequential, SpFold, SpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, BurstUserFun, MapSeq, Parallel, Pipe, Piped, SchedulingPattern, Sequential, SpFold, SpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
 import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
@@ -390,14 +390,23 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
     // Sanity check -- the memory being written to has to have been collected
     assert(allTypedMemories.contains(sMem))
 
-    val funcall_node = generateFunCall(call, generateLoadNodes(call.args: _*))
+    val argAddressSpace = call.args.head.mem.asInstanceOf[SpatialMemory].addressSpace
+
+    val (loadBurstFactor, storeBurstFactor) = (u, argAddressSpace, sMem.addressSpace) match {
+      case (bu: BurstUserFun, DRAMMemory, SRAMMemory) => (Some(bu.factor), None)
+      case (bu: BurstUserFun, SRAMMemory, DRAMMemory) => (None, Some(bu.factor))
+      case _ => (None, None)
+    }
+
+    val funcall_node = generateFunCall(call, generateLoadNodes(call.args, call.args.map(_ => loadBurstFactor)))
 
     if (!allTypedMemories(sMem).inImplicitWriteScope(scope)) {
 
       // Generate store
       (block: MutableExprBlock) += generateStoreNode(
         targetMem = sMem, targetView = call.outputView, writeType = call.t,
-        srcAddressSpace = call.addressSpace, srcNode = funcall_node)
+        srcAddressSpace = call.addressSpace, srcNode = funcall_node,
+        burstFactor = storeBurstFactor)
 
     } else
       // Generate return
@@ -469,10 +478,11 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
                                 targetView: View,
                                 writeType: Type,
                                 srcAddressSpace: SpatialAddressSpace,
-                                srcNode: AstNode): StatementT = {
+                                srcNode: AstNode,
+                                burstFactor: Option[ArithExpr]): StatementT = {
     // The val is intentionally lazy to avoid computing an addressor in cases where the targetMem is accessed
     // through a reference to its variable might be impossible
-    lazy val targetNode = accessNode(targetMem, targetMem.addressSpace, writeType, targetView)
+    lazy val targetNode = accessNode(targetMem, targetMem.addressSpace, writeType, targetView, burstFactor)
 
     if (srcAddressSpace == targetMem.addressSpace) targetMem.addressSpace match {
       case RegMemory    => RegAssignmentExpression(to = targetNode, srcNode)
@@ -494,14 +504,16 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
     }
   }
 
-  private def generateLoadNodes(args: Expr*): List[AstNode] = {
-    args.map(arg => {
-      val mem = SpatialMemory.asSpatialMemory(arg.mem)
-      generateLoadNode(mem, arg.t, arg.view)
-    }).toList
+  private def generateLoadNodes(args: Seq[Expr], loadBurstFactors: Seq[Option[ArithExpr]]): List[AstNode] = {
+    args.zip(loadBurstFactors).map {
+      case (arg, loadBurstFactor) =>
+        val mem = SpatialMemory.asSpatialMemory(arg.mem)
+        generateLoadNode(mem, arg.t, arg.view, loadBurstFactor)
+    }.toList
   }
 
-  private def generateLoadNode(mem: SpatialMemory, t: Type, view: View): ExpressionT = {
+  private def generateLoadNode(mem: SpatialMemory, t: Type, view: View,
+                               loadBurstFactor: Option[ArithExpr] = None): ExpressionT = {
     if (allTypedMemories(mem).inImplicitReadScope(scope))
       // This memory is is implicitly read from. If we are trying to load it, that means we are
       // printing an anonymous function definition (e.g. "{ add(_, _) }"), so we'll print placeholders
@@ -517,19 +529,19 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
 
         var args: Vector[AstNode] = Vector()
         for (i <- (coll.subMemories zip tt.elemsT).indices) {
-          args = args :+ generateLoadNode(coll.subMemories(i), tt.elemsT(i), view.get(i))
+          args = args :+ generateLoadNode(coll.subMemories(i), tt.elemsT(i), view.get(i), loadBurstFactor)
         }
 
         StructConstructor(t = tt, args = args) // TODO: check functional correctness for Spatial
 
       // A SpatialNullMemory object indicates that the view is not backed by memory and will directly return a value
-      case SpatialNullMemory => SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns)
+      case SpatialNullMemory => SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns) // TODO: check
 
       case sMem: SpatialMemory if sMem.addressSpace == ArgOutMemory =>
         throw new IllegalArgumentException(s"Cannot read from the write-only ArgOut memory $sMem")
 
       // not a memory collection: the default case
-      case _ => accessNode(mem, mem.addressSpace, t, view)
+      case _ => accessNode(mem, mem.addressSpace, t, view, loadBurstFactor)
     }
   }
 
@@ -562,18 +574,20 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
    * @param mem          The memory to access
    * @param addressSpace The address space, i.e. DRAM, SRAM, Reg
    * @param view         The view to access var `v`
+   * @param burstFactor  An optional burst access factor
    * @return An NDVarSlicedRef node accessing `v` as described in `view`.
    */
   private def accessNode(mem: Memory,
                          addressSpace: SpatialAddressSpace,
                          accessType: Type,
-                         view: View): ExpressionT = {
+                         view: View,
+                         burstFactor: Option[ArithExpr] = None): ExpressionT = {
     addressSpace match {
       case SRAMMemory | DRAMMemory | RegMemory | ArgOutMemory =>
         // allTypedMemories(v).mem.t is the original type, i.e. the type of the data stored in allTypedMemories(v).mem
         // allTypedMemories(v).writeT is the write type of the memory producer (UserFun / Value)
         allTypedMemories(mem).mem.t match {
-          case _: ArrayType                 => arrayAccessNode(mem, addressSpace, view)
+          case _: ArrayType                 => arrayAccessNode(mem, addressSpace, view, burstFactor)
           case _: ScalarType | _: TupleType => valueAccessNode(mem)
           case _                            =>
             throw new TypeException(allTypedMemories(mem).mem.t, "A known type", null)
@@ -610,14 +624,16 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
    * @param mem          The memory to access
    * @param addressSpace The address space `v` lives in
    * @param view         The view describing the access
+   * @param burstFactor  An optional burst access factor
    * @return An VarRef node accessing `v` as described in `view`.
    */
   private def arrayAccessNode(mem: Memory,
                               addressSpace: SpatialAddressSpace,
-                              view: View): ExpressionT = {
+                              view: View,
+                              burstFactor: Option[ArithExpr] = None): ExpressionT = {
     addressSpace match {
       case SRAMMemory | DRAMMemory =>
-        SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace)
+        SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace, burstFactor)
 
       case RegMemory | ArgOutMemory =>
         val arrayAccessExpression = SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace)

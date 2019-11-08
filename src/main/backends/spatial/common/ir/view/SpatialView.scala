@@ -54,7 +54,8 @@ private[view] class IllegalSpatialView(err: String)
 }
 
 class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
-                         val mainAddressSpace: SpatialAddressSpace) {
+                         val mainAddressSpace: SpatialAddressSpace,
+                         val burstFactor: Option[ArithExpr] = None) {
   private var replacementsOfScalarWithSlicedAccesses = mutable.Map[ArithExpr, Slice]()
 
   /**
@@ -82,7 +83,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
       case ViewOffset(offset, iv, t) =>
         // increment read / write access by offset
         val addr :: addressors  = arrayAccessStack
-        emitView(iv, (addr + offset) :: addressors,tupleAccessStack)
+        emitView(iv, (addr + offset) :: addressors, tupleAccessStack)
 
       case ViewAccess(i, iv, _) =>
         // For strided iterator, add division by step with the expectation that further down
@@ -274,9 +275,17 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
     private def generate(partialAAStack: List[ArrayAddressor], ty: Type,
                          arrayAccessStack: List[ArrayAddressor],
                          tupleAccessStack: List[Int]): VarSlicedRef = {
-      if (arrayAccessStack.isEmpty)
+      if (arrayAccessStack.isEmpty) {
+        if (burstFactor.isDefined)
+          partialAAStack.last match {
+            case slice: Slice => slice.burstFactor = burstFactor
+            case access => throw new IllegalArgumentException(
+              s"Expected the array addressor in the last dimension to be a slice for burst access. " +
+                s"Got $partialAAStack.last : $access")
+          }
+
         VarSlicedRef(mainVar, arrayAddressors = Some(partialAAStack.map(_.toTargetAST)))
-      else {
+      } else {
         ty match {
           case at: ArrayType =>
             val addr :: addressors = arrayAccessStack
@@ -411,12 +420,14 @@ object SpatialViewPrinter {
    * to the view.
    *
    * @param view The view to emit.
+   * @param burstFactor  An optional burst access factor.
    * @return The arithmetic expression.
    */
   def emit(view: View,
            replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map(),
-           addressSpace: SpatialAddressSpace = UndefAddressSpace): ExpressionT = {
-    val vp = new SpatialViewPrinter(replacements, addressSpace)
+           addressSpace: SpatialAddressSpace = UndefAddressSpace,
+           burstFactor: Option[ArithExpr] = None): ExpressionT = {
+    val vp = new SpatialViewPrinter(replacements, addressSpace, burstFactor)
     // This requirement is relaxed compared to the C-like backends since Spatial supports sliced accesses to arrays:
     //assert(!view.t.isInstanceOf[ArrayType])
 
