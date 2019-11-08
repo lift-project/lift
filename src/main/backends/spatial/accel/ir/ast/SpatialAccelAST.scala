@@ -268,8 +268,8 @@ object SpatialAccelAST {
 
     override def print(): Doc = {
       val result = min.print <+> text("until") <+> max.print <+> text("by") <+>
-        stride.print <+> text("par")
-      if (factor.isDefined) result <+> factor.get.print
+        stride.print
+      if (factor.isDefined) result <+> text("par") <+> factor.get.print
       else result
     }
   }
