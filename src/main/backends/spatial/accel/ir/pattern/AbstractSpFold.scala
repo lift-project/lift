@@ -37,8 +37,8 @@ abstract class AbstractSpFold(val fMap: Lambda1,
           // These two cases express two different types of Fold:
           // 1. One with batch fMap function which returns an array for each chunk; the resulting 2D array is flattened;
           // 2. One with batch fMap function which returns a scalar for each chunk; the result is 1D array
-          case ArrayTypeWS(elemT, s) => ArrayType(elemT, s * (argSize /^ chunkSize))
-          case scalarType: ScalarType => ArrayType(scalarType, argSize /^ chunkSize)
+          case ArrayTypeWS(elemT, s) => ArrayType(elemT, s * (argSize - (chunkSize - stride)) /^ stride)
+          case scalarType: ScalarType => ArrayType(scalarType, (argSize - (chunkSize - stride)) /^ stride)
           case t => throw new TypeException(t, "ArrayTypeWS(_, _) | ScalarType", this)
         }
 
