@@ -2,7 +2,7 @@ package backends.spatial.generator
 
 import arithmetic.TypeVar
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
-import backends.spatial.accel.ir.pattern.{Parallel, Pipe, SpPipeFold, SpPipeForeach, SpPipeMemFold, toArgOut, toReg}
+import backends.spatial.accel.ir.pattern.{BurstUserFun, Parallel, Pipe, SpPipeFold, SpPipeForeach, SpPipeMemFold, toArgOut, toReg}
 import backends.{Backend, c, spatial}
 import ir._
 import ir.ast._
@@ -386,7 +386,7 @@ class InnerProduct {
                             Transpose() $ Get(Unzip() $ tileBcolsC, 0)
                         val tileCsram =
                           AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "tileCsram.type") o
-                            toSRAM(id2D) o Transpose() $ Get(Unzip() $ tileBcolsC, 1)
+                            toSRAM(BurstUserFun(id2D, tileParFactor)) o Transpose() $ Get(Unzip() $ tileBcolsC, 1)
 
                         toDRAM(id2D) o PrintType() o
                           SpPipeMemFold(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorK,
@@ -397,7 +397,7 @@ class InnerProduct {
                                   Transpose() $ Get(Unzip() $ tileAB, 0)
                                 // TODO: confirm whether Transpose should be used instead of TransposeW below
                                 val tileBsram = AssertType(ArrayType(ArrayType(Float, tileNsize), tileNsize), "tileBsram") o
-                                  Transpose() o toSRAM(id2D) $ Get(Unzip() $ tileAB, 1)
+                                  Transpose() o toSRAM(BurstUserFun(id2D, tileParFactor)) $ Get(Unzip() $ tileAB, 1)
 
                                 AssertType(ArrayType(ArrayType(Float, tileNsize), tileMsize), "Outer MemFold fMap type") o
                                   // The Let below causes tileBsram to materialise (declare mem and issue the load statement)
@@ -408,7 +408,7 @@ class InnerProduct {
                                         ArrayType(ArrayType(Float, tileNsize), 1),
                                         tileRowA => {
                                           val tileRowAsram = AssertType(ArrayType(Float, tileNsize), "tileRowAsram") o
-                                            toSRAM(id1D) o Join() $ tileRowA
+                                            toSRAM(BurstUserFun(id1D, tileParFactor)) o Join() $ tileRowA
 
                                           Let(tileRowAsramMaterialised =>
                                             SpPipeForeach(
@@ -420,7 +420,6 @@ class InnerProduct {
                                                 AssertType(Float, "Inner MemFold result type") o
                                                   toSRAM(id) o
                                                   //
-                                                  /*Pipe {*/
                                                   SpPipeFold(chunkSize = 1, stride = 1, factor = tileParFactor,
                                                     fMap = fun(
                                                       ArrayType(TupleType(Float, Float), 1), elAsramBsram =>
@@ -428,7 +427,6 @@ class InnerProduct {
                                                     fReduce = add,
                                                     init = toReg(id) $ Value(0.0f, Float)
                                                   ) $ Zip(tileRowAsramMaterialised, Join() $ tileRowBsram)
-                                                /*}*/
                                               )) $ tileBsramMaterialised
                                           ) $ tileRowAsram
                                         })) $ tileA
