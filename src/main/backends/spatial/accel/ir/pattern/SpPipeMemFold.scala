@@ -8,7 +8,7 @@ case class SpPipeMemFold(override val fMap: Lambda1,
                          override val chunkSize: ArithExpr,
                          override val stride: ArithExpr,
                          override val factor: ArithExpr)
-  extends SpMemFold(fMap, fReduce, chunkSize, stride, factor)
+  extends SpMemFold(fMap, fReduce, chunkSize, stride, factor) with Piped
 
 
 

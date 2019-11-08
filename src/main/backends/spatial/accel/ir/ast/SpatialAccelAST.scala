@@ -242,39 +242,43 @@ object SpatialAccelAST {
     val min: ExpressionT
     val max: ExpressionT
     val stride: ExpressionT
-    val factor: ExpressionT
+    val factor: Option[ExpressionT]
 
     override def visit[T](z: T)(visitFun: (T, AstNode) => T): T = {
-      z |>
+      val result = z |>
         (visitFun(_, this)) |>
         (min.visit(_)(visitFun)) |>
         (max.visit(_)(visitFun)) |>
-        (stride.visit(_)(visitFun)) |>
-        (factor.visit(_)(visitFun))
+        (stride.visit(_)(visitFun))
+      if (factor.isDefined) result |> (factor.get.visit(_)(visitFun))
+      else result
     }
 
     override def print(): Doc = {
-      min.print <+> text("until") <+> max.print <+> text("by") <+>
-        stride.print <+> text("par") <+> factor.print
+      val result = min.print <+> text("until") <+> max.print <+> text("by") <+>
+        stride.print <+> text("par")
+      if (factor.isDefined) result <+> factor.get.print
+      else result
     }
   }
 
   case class Counter(min: ExpressionT,
                      max: ExpressionT,
                      stride: ExpressionT,
-                     factor: ExpressionT) extends CounterT {
+                     factor: Option[ExpressionT]) extends CounterT {
     def _visitAndRebuild(pre: (AstNode) => AstNode,  post: (AstNode) => AstNode) : AstNode = {
       Counter(min.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
         max.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
         stride.visitAndRebuild(pre, post).asInstanceOf[ExpressionT],
-        factor.visitAndRebuild(pre, post).asInstanceOf[ExpressionT])
+        if (factor.isDefined) Some(factor.get.visitAndRebuild(pre, post).asInstanceOf[ExpressionT])
+        else factor)
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
       min.visitBy(pre, post)
       max.visitBy(pre, post)
       stride.visitBy(pre, post)
-      factor.visitBy(pre, post)
+      if (factor.isDefined) factor.get.visitBy(pre, post)
     }
   }
 

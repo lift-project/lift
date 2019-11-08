@@ -8,7 +8,7 @@ case class SpPipeFold(override val fMap: Lambda1,
                       override val chunkSize: ArithExpr,
                       override val stride: ArithExpr,
                       override val factor: ArithExpr)
-  extends SpFold(fMap, fReduce,chunkSize, stride, factor)
+  extends SpFold(fMap, fReduce,chunkSize, stride, factor) with Piped
 
 object SpPipeFold {
   def apply(chunkSize: ArithExpr,

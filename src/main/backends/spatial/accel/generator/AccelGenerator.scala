@@ -214,12 +214,11 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
     declareMemoryIfRequired(v, block, init = Some(SpatialCode(v.value)))
   }
 
-  // MapSeq
   private def generateMapSeqCall(m: MapSeq,
                                  call: FunCall,
                                  block: MutableExprBlock): Unit = {
     (block: MutableExprBlock) += Comment("map_seq")
-    generateForeach(block, call.args.head, m.loopVar, Cst(1), generate(m.f.body, _), m.shouldUnroll)
+    generateForeach(m, block, call.args.head, m.loopVar, generate(m.f.body, _), m.shouldUnroll)
     (block: MutableExprBlock) += Comment("end map_seq")
   }
   
@@ -227,7 +226,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
                                   call: FunCall,
                                   block: MutableExprBlock): Unit = {
     (block: MutableExprBlock) += Comment("SpForeach")
-    generateForeach(block, call.args.head, sf.loopVar, sf.factor, generate(sf.f.body, _), sf.shouldUnroll)
+    generateForeach(sf, block, call.args.head, sf.loopVar, generate(sf.f.body, _), sf.shouldUnroll)
     (block: MutableExprBlock) += Comment("end SpForeach")
   }
 
@@ -248,17 +247,20 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
       ArithExpression(getRangeAdd(asf.mapLoopVar).start),
       ArithExpression(getRangeAdd(asf.mapLoopVar).stop),
       ArithExpression(getRangeAdd(asf.mapLoopVar).step),
-      ArithExpression(asf.factor)))
+      asf match {
+        case _: Piped => Some(ArithExpression(asf.factor))
+        case _ => None
+      }))
     val iterVars = List(CVar(asf.mapLoopVar))
 
     (block: MutableExprBlock) += (asf match {
-      case _: SpSeqFold     => SpatialAccelAST.Fold(TagSequential(), accumOrInitNode, counter, iterVars,
+      case _: SpSeqFold     => SpatialAccelAST.Fold(SequentialSchedule(), accumOrInitNode, counter, iterVars,
                                                     innerMapBlock, innerReduceBlock)
-      case _: SpPipeFold    => SpatialAccelAST.Fold(TagPipe(), accumOrInitNode, counter, iterVars,
+      case _: SpPipeFold    => SpatialAccelAST.Fold(PipeSchedule(), accumOrInitNode, counter, iterVars,
                                                     innerMapBlock, innerReduceBlock)
-      case _: SpSeqMemFold  => SpatialAccelAST.MemFold(TagSequential(), accumOrInitNode, counter, iterVars,
+      case _: SpSeqMemFold  => SpatialAccelAST.MemFold(SequentialSchedule(), accumOrInitNode, counter, iterVars,
                                                        innerMapBlock, innerReduceBlock)
-      case _: SpPipeMemFold => SpatialAccelAST.MemFold(TagPipe(), accumOrInitNode, counter, iterVars,
+      case _: SpPipeMemFold => SpatialAccelAST.MemFold(PipeSchedule(), accumOrInitNode, counter, iterVars,
                                                        innerMapBlock, innerReduceBlock)
       case _                => throw new AccelGeneratorException(s"Unknown flavour of Fold: $asf")
     })
@@ -267,19 +269,19 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
     generate(asf.fReduce.body, innerReduceBlock)
   }
 
-  private def generateForeach(block: MutableExprBlock,
+  private def generateForeach(pattern: Pattern,
+                              block: MutableExprBlock,
                               array: Expr,
                               indexVar: Var,
-                              parFactor: ArithExpr,
                               generateBody: (MutableExprBlock) => Unit,
                               needUnroll: Boolean = false): Unit = {
     // if we need to unroll (e.g. because of access to register memory)
     if (needUnroll) generateForeachUnrolled(block, indexVar, generateBody)
     else {
       if (PerformLoopOptimisation())
-        generateOptimizedForeachRepresentations(block, array, indexVar, parFactor, generateBody)
+        generateOptimizedForeachRepresentations(pattern, block, array, indexVar, generateBody)
       else
-        generateDefaultForeachRepresentation(block, array, indexVar, parFactor, generateBody)
+        generateDefaultForeachRepresentation(pattern, block, array, indexVar, generateBody)
     }
   }
 
@@ -310,13 +312,14 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
       throw new AccelGeneratorException(s"Trying to unroll loop, but iteration count is $iterationCount.")
   }
 
-  private def generateOptimizedForeachRepresentations(block: MutableExprBlock,
+  private def generateOptimizedForeachRepresentations(pattern: Pattern,
+                                                      block: MutableExprBlock,
                                                       argArray: Expr,
                                                       indexVar: Var,
-                                                      parFactor: ArithExpr,
                                                       generateBody: (MutableExprBlock) => Unit): Unit = {
     val range = getRangeAdd(indexVar)
     val init = ArithExpression(range.start)
+    lazy val parFactor = pattern.asInstanceOf[Piped].factor
 
     argArray.t match {
       case _: ArrayType =>
@@ -324,7 +327,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
           case Cst(0) => (block: MutableExprBlock) += Comment("iteration count is 0, no loop emitted")
 
           case Cst(1) =>
-            if (parFactor != Cst(1)) (block: MutableExprBlock) += Comment(s"Ignored parallel factor $parFactor")
+            if (pattern.isInstanceOf[Piped]) (block: MutableExprBlock) += Comment(s"Ignored parallel factor $parFactor")
 
             generateStatement(block, indexVar, generateBody, init)
 
@@ -332,32 +335,30 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
           // TODO: M / 128 is not equal to M /^ 128 even though they print to the same C code
           case _ if range.start.min.min == Cst(0) &&
             ArithExpr.substituteDiv(range.stop) == ArithExpr.substituteDiv(range.step) =>
-            if (parFactor != Cst(1)) (block: MutableExprBlock) += Comment(s"Ignored parallel factor $parFactor")
+            if (pattern.isInstanceOf[Piped]) (block: MutableExprBlock) += Comment(s"Ignored parallel factor $parFactor")
             generateStatement(block, indexVar, generateBody, init)
 
           // TODO: See TestOclFunction.numValues and issue #62
           case _ if range.start.min.min == Cst(0) && range.stop == Cst(1) =>
-            if (parFactor != Cst(1)) (block: MutableExprBlock) += Comment(s"Ignored parallel factor $parFactor")
+            if (pattern.isInstanceOf[Piped]) (block: MutableExprBlock) += Comment(s"Ignored parallel factor $parFactor")
             generateIfStatement(block, indexVar, generateBody, init, range.stop)
 
           case _ if range.numVals.min == Cst(0) && range.numVals.max == Cst(1) =>
-            if (parFactor != Cst(1)) (block: MutableExprBlock) += Comment(s"Ignored parallel factor $parFactor")
+            if (pattern.isInstanceOf[Piped]) (block: MutableExprBlock) += Comment(s"Ignored parallel factor $parFactor")
             generateIfStatement(block, indexVar, generateBody, init, range.stop)
 
           case _ =>
-            generateDefaultForeachRepresentation(block, argArray, indexVar, parFactor, generateBody)
+            generateDefaultForeachRepresentation(pattern, block, argArray, indexVar, generateBody)
         }
       case _            => throw new NotImplementedError() // should never get there
     }
   }
 
-  private def generateDefaultForeachRepresentation(block: MutableExprBlock,
+  private def generateDefaultForeachRepresentation(pattern: Pattern,
+                                                   block: MutableExprBlock,
                                                    argArray: Expr,
                                                    indexVar: Var,
-                                                   parFactor: ArithExpr,
                                                    generateBody: (MutableExprBlock) => Unit): Unit = {
-    // TODO: add unrolled Foreach generation
-    // TODO: optimise loop generation. See OpenCLGenerator.generateOptimizedForLoopRepresentations
 
     val innerBlock = MutableExprBlock(Vector.empty, encapsulated = false)
 
@@ -366,7 +367,10 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
         ArithExpression(getRangeAdd(indexVar).start),
         ArithExpression(getRangeAdd(indexVar).stop),
         ArithExpression(getRangeAdd(indexVar).step),
-        ArithExpression(parFactor))),
+        pattern match {
+          case pipedPattern: Piped => Some(ArithExpression(pipedPattern.factor))
+          case _ => None
+        })),
       iterVars = List(indexVar),
       body = innerBlock)
 

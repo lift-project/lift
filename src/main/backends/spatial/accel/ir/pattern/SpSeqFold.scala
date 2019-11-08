@@ -7,7 +7,7 @@ case class SpSeqFold(override val fMap: Lambda1,
                      override val fReduce: Lambda2,
                      override val chunkSize: ArithExpr,
                      override val stride: ArithExpr)
-  extends SpFold(fMap, fReduce,chunkSize, stride, Cst(1))
+  extends SpFold(fMap, fReduce,chunkSize, stride, Cst(1)) with Sequential
 
 object SpSeqFold {
   def apply(chunkSize: ArithExpr,

@@ -326,11 +326,10 @@ class InnerProduct {
 
   @Test
   def spatialGEMMTiled(): Unit = {
-    import backends.spatial.accel.ir.pattern.{SpForeach, SpMemFold, toDRAM, toSRAM}
+    import backends.spatial.accel.ir.pattern.{SpForeach, toDRAM, toSRAM}
     import backends.spatial.common.ir._
     import backends.spatial.accel.ir._
     import backends.spatial.host
-    import backends.spatial.accel.ir.pattern.SpFold
     import backends.spatial.accel.ir.pattern.MapSeq
 
     Backend.setSpatial()
