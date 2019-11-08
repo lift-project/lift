@@ -2,7 +2,6 @@ package backends.spatial.generator
 
 import arithmetic.TypeVar
 import backends.c.host.host_ir.{OclFunc, ToGPU, ToHost}
-import backends.spatial.accel.ir.pattern.{BurstUserFun, Parallel, Pipe, SpPipeFold, SpPipeForeach, SpPipeMemFold, toArgOut, toReg}
 import backends.{Backend, c, spatial}
 import ir._
 import ir.ast._
@@ -204,16 +203,16 @@ class InnerProduct {
   @Test
   def spatialDotProductTiled(): Unit = {
     import backends.spatial.accel.ir._
-    import backends.spatial.accel.ir.pattern.{SpFold, toSRAM}
     import backends.spatial.common.ir._
     import backends.spatial.host.ir.ast.AccelFun
+    import backends.spatial.accel.ir.pattern.{toSRAM, BurstUserFun, Parallel, SpPipeFold, toArgOut, toReg}
 
     Backend.setSpatial()
 
-    val N = SizeVar("N") //1024
-    val tileSize = SizeVar("tileSize") //32
-    val outerParFactor = SizeVar("outerParFactor") //2
-    val innerParFactor = SizeVar("innerParFactor") //16
+    val N = SizeVar("N")
+    val tileSize = SizeVar("tileSize")
+    val outerParFactor = SizeVar("outerParFactor")
+    val innerParFactor = SizeVar("innerParFactor")
 //    val N = 1024
 //    val tileSize = 32
 //    val outerParFactor = 2
@@ -231,7 +230,6 @@ class InnerProduct {
 //          Reduce(Reg[T](0.to[T]))(ts par innerParFactor){ii => aBlk(ii) * bBlk(ii) }{_+_}
 //        }{_+_}
 //      }
-//    """
 
     val x = TypeVar()
 
@@ -255,8 +253,8 @@ class InnerProduct {
                   val tileB = Get(Unzip() $ tileABpiped, 1)
 
                   Zip(
-                    toSRAM(id1D) $ tileA,
-                    toSRAM(id1D) $ tileB)
+                    toSRAM(BurstUserFun(id1D, innerParFactor)) $ tileA,
+                    toSRAM(BurstUserFun(id1D, innerParFactor)) $ tileB)
                 }))
 
                 SpPipeFold(chunkSize = 1, stride = 1, factor = innerParFactor,
@@ -275,7 +273,6 @@ class InnerProduct {
         AccelFun(scalaDotLambdaTiled)(a, b))
 
     val generatedSpatial = backends.spatial.common.RuntimeCompiler(dotProductRuntimeLambda)
-
     println(generatedSpatial)
 
     val expectedOutCode =
@@ -300,8 +297,8 @@ class InnerProduct {
          |        val v__25 = SRAM[Float](v_tileSize_1)
          |        val v__26 = SRAM[Float](v_tileSize_1)
          |        Parallel {
-         |            v__25 load id_1(v__16(v_i_11::(v_tileSize_1 + v_i_11)))
-         |            v__26 load id_1(v__17(v_i_11::(v_tileSize_1 + v_i_11)))
+         |            v__25 load id_1(v__16(v_i_11::(v_tileSize_1 + v_i_11) par v_innerParFactor_3))
+         |            v__26 load id_1(v__17(v_i_11::(v_tileSize_1 + v_i_11) par v_innerParFactor_3))
          |        }
          |        Pipe.Fold(v__24)(0 until v_tileSize_1 by 1 par v_innerParFactor_3) { (v_i_12) =>
          |            val v__30_0 = Reg[Float]
@@ -329,14 +326,50 @@ class InnerProduct {
 
   @Test
   def spatialGEMMTiled(): Unit = {
-    import backends.spatial.accel.ir.pattern.{SpForeach, toDRAM, toSRAM}
+    import backends.spatial.accel.ir.pattern.{toDRAM, toSRAM}
     import backends.spatial.common.ir._
     import backends.spatial.accel.ir._
     import backends.spatial.host
     import backends.spatial.accel.ir.pattern.MapSeq
+    import backends.spatial.accel.ir.pattern.{BurstUserFun, SpPipeFold, SpPipeForeach, SpPipeMemFold, toReg}
 
     Backend.setSpatial()
 
+    //    The Spatial code we are looking to generate ideally:
+//    Accel {
+//
+//      Foreach(M by tileMsize par outerFactorI,
+//              N by tileNsize par outerFactorJ) { (i, j) =>
+//
+//        val tileC = SRAM[T](tileMsize, tileNsize).buffer
+//        tileC load c_dram(i::i+tileMsize, j::j+tileNsize par tileParFactor)
+//
+//        MemFold(tileC par tileParFactor)(P by tileNsize par outerFactorK) { k =>
+//
+//          val tileCaccum = SRAM[T](tileMsize, tileNsize)
+//
+//          val bSRAM      = SRAM[T](tileNsize, tileNsize)
+//          bSRAM load b_dram(j::j+tileNsize, k::k+tileNsize par tileParFactor)
+//
+//          Foreach(tileMsize by 1 par innerFactorI) { ii =>
+//
+//            val aSRAM = SRAM[T](tileNsize)
+//
+//            aSRAM load a_dram(i+ii, k::k+tileNsize par tileParFactor)
+//
+//            Foreach(tileNsize by 1 par innerFactorJ) { jj =>
+//
+//              tileCaccum(ii,jj) = Reduce(Reg[T])(tileNsize by 1 par tileParFactor) { kk =>
+//                bSRAM(kk, jj) * aSRAM(kk)
+//              }{_+_}
+//            }
+//          }
+//          tileCaccum
+//        }{_+_}
+//
+//        cDRAM(i::i+tileMsize, j::j+tileNsize par tileParFactor) store tileC
+//      }
+//    }
     val M = SizeVar("M") // 128
     val P = SizeVar("P") // 64
     val N = SizeVar("N") // 96
@@ -445,45 +478,77 @@ class InnerProduct {
         host.ir.ast.AccelFun(gemmTiled)(a, b, c)
     )
 
-    val out = spatial.common.RuntimeCompiler(runTimeLambda)
+    val generatedSpatial = spatial.common.RuntimeCompiler(runTimeLambda)
+    println(generatedSpatial)
 
-    val expectedOutCode = """  
-      Accel {
+    val expectedOutCode =
+      """|{
+         |    def id_3(x: SRAM2[Float]): SRAM2[Float] = {
+         |        x
+         |    }
+         |    def id_2(x: Float): Float = {
+         |        x
+         |    }
+         |    def id_1(x: DRAM1[Float]): DRAM1[Float] = {
+         |        x
+         |    }
+         |    def id_0(x: DRAM2[Float]): DRAM2[Float] = {
+         |        x
+         |    }
+         |    def mult(l: Float, r: Float): Float = {
+         |        l * r
+         |    }
+         |    def add(x: Float, y: Float): Float = {
+         |        x + y
+         |    }
+         |    // SpForeach
+         |    Pipe.Foreach(0 until v_M_0 by v_tileMsize_6 par v_outerFactorI_3) { (v_i_24) =>
+         |        // SpForeach
+         |        Pipe.Foreach(0 until v_N_2 by v_tileNsize_7 par v_outerFactorJ_4) { (v_i_25) =>
+         |            val v__38 = SRAM[Float](v_tileMsize_6, v_tileNsize_7).buffer
+         |            v__38 load id_0(v__35(v_i_24::(v_tileMsize_6 + v_i_24), v_i_25::(v_tileNsize_7 + v_i_25) par v_tileParFactor_8))
+         |            Pipe.MemFold(v__38)(0 until v_P_1 by v_tileNsize_7 par v_outerFactorK_5) { (v_i_26) =>
+         |                val v__41 = SRAM[Float](v_tileNsize_7, v_tileNsize_7)
+         |                v__41 load id_0(v__34(v_i_26::(v_tileNsize_7 + v_i_26), v_i_25::(v_tileNsize_7 + v_i_25) par v_tileParFactor_8))
+         |                val v__52 = SRAM[Float](v_tileMsize_6, v_tileNsize_7)
+         |                // SpForeach
+         |                Pipe.Foreach(0 until v_tileMsize_6 by 1 par v_innerFactorI_9) { (v_i_27) =>
+         |                    val v__42 = SRAM[Float](v_tileNsize_7)
+         |                    v__42 load id_1(v__33((v_i_24 + v_i_27), v_i_26::(v_tileNsize_7 + v_i_26) par v_tileParFactor_8))
+         |                    // SpForeach
+         |                    Pipe.Foreach(0 until v_tileNsize_7 by 1 par v_innerFactorJ_10) { (v_i_28) =>
+         |                        val v__45 = Reg[Float].buffer
+         |                        v__45 := id_2(0.0f)
+         |                        Pipe.Fold(v__45)(0 until v_tileNsize_7 by 1 par v_tileParFactor_8) { (v_i_29) =>
+         |                            val v__49_0 = Reg[Float]
+         |                            // map_seq
+         |                            // iteration count is exactly 1, no loop emitted
+         |                            val v_i_30 = Reg[Int](0)
+         |                            v__49_0 := mult(v__42(v_i_29), v__41(v_i_29, v_i_28))
+         |                            // end map_seq
+         |                            v__49_0
+         |                        } {
+         |                            add(_, _)
+         |                        }
+         |                        v__52(v_i_27, v_i_28) = id_2(v__45)
+         |                    }
+         |                    // end SpForeach
+         |                }
+         |                // end SpForeach
+         |                v__52(0::v_tileMsize_6, 0::v_tileNsize_7)
+         |            } {
+         |                add(_, _)
+         |            }
+         |            v__55(v_i_24::(v_tileMsize_6 + v_i_24), v_i_25::(v_tileNsize_7 + v_i_25) par v_tileParFactor_8) store id_3(v__38(0::v_tileMsize_6, 0::v_tileNsize_7))
+         |        }
+         |        // end SpForeach
+         |    }
+         |    // end SpForeach
+         |}""".stripMargin
 
-        Foreach(M by tileMsize par outerFactorI,
-                N by tileNsize par outerFactorJ) { (i, j) =>
+    val cleanedGeneratedSpatial = cleanSpatialProgram(generatedSpatial)
+    val cleanedExpectedOutCode = cleanSpatialProgram(expectedOutCode)
 
-          val tileC = SRAM[T](tileMsize, tileNsize).buffer
-          tileC load c_dram(i::i+tileMsize, j::j+tileNsize par tileParFactor)
-
-          MemFold(tileC par tileParFactor)(P by tileNsize par outerFactorK) { k =>
-
-            val tileCaccum = SRAM[T](tileMsize, tileNsize)
-
-            val bSRAM      = SRAM[T](tileNsize, tileNsize)
-            bSRAM load b_dram(j::j+tileNsize, k::k+tileNsize par tileParFactor)
-
-            Foreach(tileMsize by 1 par innerFactorI) { ii =>
-
-              val aSRAM = SRAM[T](tileNsize)
-
-              aSRAM load a_dram(i+ii, k::k+tileNsize par tileParFactor)
-
-              Foreach(tileNsize by 1 par innerFactorJ) { jj =>
-
-                tileCaccum(ii,jj) = Reduce(Reg[T])(tileNsize by 1 par tileParFactor) { kk =>
-                  bSRAM(kk, jj) * aSRAM(kk)
-                }{_+_}
-              }
-            }
-            tileCaccum
-          }{_+_}
-
-          cDRAM(i::i+tileMsize, j::j+tileNsize par tileParFactor) store tileC
-        }
-      }
-    """
-
-    println(out)
+    assertEquals(cleanedExpectedOutCode, cleanedGeneratedSpatial)
   }
 }
