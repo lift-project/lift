@@ -33,12 +33,16 @@ abstract class AbstractSpFold(val fMap: Lambda1,
         fMap.params(0).t = ArrayType(elemT, chunkSize)
 
         val tiledMapBodyType = TypeChecker.check(fMap.body, setType) // check the body
+
+        val outerSize = (argSize - (chunkSize - stride)) /^ stride
+
         flatMapT = tiledMapBodyType match {
           // These two cases express two different types of Fold:
-          // 1. One with batch fMap function which returns an array for each chunk; the resulting 2D array is flattened;
+          // 1. One with batch fMap function which returns an array for each chunk; the resulting 2D array is flattened
+          case ArrayTypeWS(elemT, newChunkSize) =>  ArrayType(elemT, newChunkSize * outerSize)
           // 2. One with batch fMap function which returns a scalar for each chunk; the result is 1D array
-          case ArrayTypeWS(elemT, s) => ArrayType(elemT, s * (argSize - (chunkSize - stride)) /^ stride)
-          case scalarType: ScalarType => ArrayType(scalarType, (argSize - (chunkSize - stride)) /^ stride)
+          case scalarType: ScalarType =>            ArrayType(scalarType, outerSize)
+
           case t => throw new TypeException(t, "ArrayTypeWS(_, _) | ScalarType", this)
         }
 

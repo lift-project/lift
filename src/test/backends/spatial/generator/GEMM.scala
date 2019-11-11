@@ -139,7 +139,7 @@ class GEMM {
                                               chunkSize = 1,
                                               stride = 1,
                                               factor = innerFactorJ,
-                                              f = fun(ArrayType(Float), tileRowBsram =>
+                                              f = fun(ArrayType(ArrayType(Float, tileNsize), 1), tileRowBsram =>
 
                                                 AssertType(Float, "Inner MemFold result type") o
                                                   toSRAM(id) o
