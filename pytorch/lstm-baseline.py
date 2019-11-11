@@ -1,7 +1,8 @@
 """
-Based on the code by Jessica Yung 
+Based on the code by Jessica Yung(1) and Gabriel Loye(2)
 Extended by Naums Mogers
-https://www.jessicayung.com/lstms-for-time-series-in-pytorch/
+1. https://www.jessicayung.com/lstms-for-time-series-in-pytorch/
+2. https://blog.floydhub.com/long-short-term-memory-from-zero-to-hero-with-pytorch/
 """
 import torch
 import torch.nn as nn
