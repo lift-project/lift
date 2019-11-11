@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import argparse
 from os.path import join
 import pickle
+from torch.utils.data import TensorDataset, DataLoader
 
 
 parser = argparse.ArgumentParser()
@@ -28,16 +29,18 @@ args = parser.parse_args()
 #####################
 
 # Data params
-noise_var = 0
-num_datapoints = 100
-# test_size = 0.2
-test_size = 0.01
-num_train = int((1-test_size) * num_datapoints)
-num_test = num_datapoints - num_train
+# noise_var = 0
+noise_var = 0.05
+num_datapoints = 8192
+batch_size = 256
+
+num_test = 256
+num_train = num_datapoints - num_test
+test_size = num_test / num_datapoints
 
 # Network params
 input_time_sequence_size = 20
-input_vector_length = 64
+input_vector_length = 32
 # If `per_element` is True, then LSTM reads in one timestep at a time.
 per_element = True
 if per_element:
@@ -45,11 +48,12 @@ if per_element:
 else:
     lstm_input_sequence_size = input_time_sequence_size
 # size of hidden layers
-h1 = 32
+h1 = 64
 output_dim = 1
 num_layers = 2
-learning_rate = 1e-3
-num_epochs = 500
+learning_rate = 0.005
+# learning_rate = 1e-1
+num_epochs = 5
 dtype = torch.float
 
 weights_file_path = join(args.train_out_dir, "trained_lstm_weights.serial")
@@ -65,8 +69,7 @@ pytorch_lstm0_out_file_path = join(args.train_out_dir, "pytorch_lstm0_outputs.pi
 # Here we define our model as a class
 class LSTM(nn.Module):
 
-    def __init__(self, input_seq_size, hidden_dim, batch_size, output_dim=1,
-                    num_layers=2, vector_len=8):
+    def __init__(self, input_seq_size, hidden_dim, batch_size, output_dim, num_layers, vector_len):
         super(LSTM, self).__init__()
         self.input_seq_size = input_seq_size
         self.hidden_dim = hidden_dim
@@ -74,19 +77,30 @@ class LSTM(nn.Module):
         self.num_layers = num_layers
         self.vector_len = vector_len
 
-        # Define the LSTM layer
-        self.lstm = nn.LSTM(self.vector_len, self.hidden_dim, self.num_layers)
+        torch.random.manual_seed(8)
+        np.random.seed(8)
 
-        # Define the output layer
+        # Define the LSTM layer
+        self.lstm = nn.LSTM(input_size=self.vector_len, hidden_size=self.hidden_dim, num_layers=self.num_layers)
+
+        # Define the output layers
         self.linear = nn.Linear(self.hidden_dim, output_dim)
+        # self.sigmoid = nn.ReLU()
 
     def set_batch_size(self, batch_size):
         self.batch_size = batch_size
 
     def init_hidden_state(self):
+        shape = (self.num_layers, self.batch_size, self.hidden_dim)
         # This is what we'll initialise our hidden state as
-        return (torch.zeros(self.num_layers, self.batch_size, self.hidden_dim),
-                torch.zeros(self.num_layers, self.batch_size, self.hidden_dim))
+        # return (torch.zeros(shape),
+        #         torch.zeros(shape))
+        return (torch.randn(shape),
+                torch.randn(shape))
+        # weight = next(self.parameters()).data
+        # hidden = (weight.new(shape).zero_(),
+        #               weight.new(shape).zero_())
+        # return hidden
 
     def forward(self, input):
         # Forward pass through LSTM layer
@@ -95,17 +109,19 @@ class LSTM(nn.Module):
         # have shape (num_layers, batch_size, hidden_dim).
         lstm_out, self.hidden = self.lstm(input)
         
-        # Only take the output from the final timetep
+        # Only take the output from the final timestep
         # Can pass on the entirety of lstm_out to the next layer if it is a seq2seq prediction
-        y_pred = self.linear(lstm_out[-1].view(self.batch_size, -1))
+        y_pred = self.linear(lstm_out[:, -1, :])
         return lstm_out, y_pred.view(-1)
 
 
 def init_model():
     return (
-        LSTM(lstm_input_sequence_size, h1, batch_size=num_train, output_dim=output_dim, 
+        LSTM(input_seq_size=lstm_input_sequence_size, hidden_dim=h1, batch_size=batch_size, #batch_size=num_train, 
+            output_dim=output_dim, 
             num_layers=num_layers, vector_len=input_vector_length),
-        torch.nn.MSELoss(size_average=False))
+            torch.nn.MSELoss())
+        # torch.nn.MSELoss(size_average=False))
 
 
 def train():
@@ -121,9 +137,15 @@ def train():
     X_test = torch.from_numpy(data.X_test).type(torch.Tensor)
     y_train = torch.from_numpy(data.y_train).type(torch.Tensor).view(-1)
     y_test = torch.from_numpy(data.y_test).type(torch.Tensor).view(-1)
+    print(X_train.shape)
+    print(y_train.shape)
 
-    X_train = X_train.view([input_time_sequence_size, -1, input_vector_length])
-    X_test = X_test.view([input_time_sequence_size, -1, input_vector_length])
+
+    train_data = TensorDataset(X_train, y_train)
+    test_data = TensorDataset(X_test, y_test)
+
+    train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
+    test_loader = DataLoader(test_data, shuffle=True, batch_size=batch_size)
 
     #####################
     # Train model
@@ -133,29 +155,36 @@ def train():
 
     optimiser = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    hist = np.zeros(num_epochs)
+    hist = [] #np.zeros(num_epochs)
 
     for t in range(num_epochs):
         # Initialise hidden state
         # Don't do this if you want your LSTM to be stateful
-        # model.hidden_state = model.init_hidden_state()
+        model.hidden_state = model.init_hidden_state()
+
+        all_y_pred = []
+        i = 0
+        for inputs, labels in train_loader:
         
-        # Forward pass
-        _, y_pred = model(X_train)
+            # Forward pass
+            _, y_pred = model(inputs)
 
-        loss = loss_fn(y_pred, y_train)
-        if t % 100 == 0:
-            print("Epoch ", t, "MSE: ", loss.item())
-        hist[t] = loss.item()
+            loss = loss_fn(y_pred, labels)
+            if i % 5 == 0:
+                print("Epoch ", t, "Batch ", i, "MSE: ", loss.item())
+            hist += [loss.item()]
 
-        # Zero out gradient, else they will accumulate between epochs
-        optimiser.zero_grad()
+            # Zero out gradient, else they will accumulate between epochs
+            optimiser.zero_grad()
 
-        # Backward pass
-        loss.backward()
+            # Backward pass
+            loss.backward()
 
-        # Update parameters
-        optimiser.step()
+            # Update parameters
+            optimiser.step()
+            i += 1
+            
+            all_y_pred = all_y_pred + y_pred.tolist()
 
     #####################
     # Test
@@ -171,8 +200,8 @@ def train():
     # Plot preds and performance
     #####################
 
-    plt.plot(y_pred.detach().numpy(), label="Train preds")
     plt.plot(y_train.detach().numpy(), label="Train targets")
+    plt.plot(all_y_pred, label="Train preds")
     plt.legend()
     plt.show()
 
