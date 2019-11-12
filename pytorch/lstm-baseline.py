@@ -63,6 +63,8 @@ inputs_file_path = join(args.train_out_dir, "lstm_inputs.pickle")
 gold_outputs_file_path = join(args.train_out_dir, "lstm_gold_outputs.pickle")
 pytorch_outputs_file_path = join(args.train_out_dir, "pytorch_gold_outputs.pickle")
 pytorch_lstm0_out_file_path = join(args.train_out_dir, "pytorch_lstm0_outputs.pickle")
+pytorch_lstm_pre_test_h_state_file_path = join(args.train_out_dir, "pytorch_lstm_pre_test_h_state.pickle")
+pytorch_lstm_post_test_h_state_file_path = join(args.train_out_dir, "pytorch_lstm_post_test_h_state.pickle")
 
 #####################
 # Build model
@@ -191,12 +193,17 @@ def train():
     #####################
     # Test
     #####################
-    lstm0_out, y_test_pred = test(model, loss_fn, X_test, y_test)
+    model.hidden_state = model.init_hidden_state()
+    pre_test_hidden_state = (model.hidden_state[0].numpy().copy(), model.hidden_state[1].numpy().copy())
+
+    lstm0_out, y_test_pred, post_test_hidden_state = \
+        test(model, loss_fn, X_test, y_test, pre_test_hidden_state)
 
     #####################
     # Save data to disk
     #####################
-    backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out)
+    backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out, 
+        pre_test_hidden_state, post_test_hidden_state)
 
     #####################
     # Plot preds and performance
@@ -212,16 +219,23 @@ def train():
     plt.show()
 
 
-def test(model, loss_fn, X_test, y_test, y_test_pred_post_train = None, 
+def test(model, loss_fn, X_test, y_test, pre_test_hidden_state,
+         y_test_pred_post_train = None, 
          lstm0_out_post_train = None):
 
     #####################
     # Test
     #####################
+    model.hidden_state = (torch.from_numpy(pre_test_hidden_state[0]), torch.from_numpy(pre_test_hidden_state[1]))
+
     model.set_batch_size(num_test)
 
     lstm0_out, y_test_pred = model(X_test)
-    backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out)
+
+    post_test_hidden_state = (model.hidden_state[0].numpy().copy(), model.hidden_state[1].numpy().copy())
+
+    # backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out)
+
     test_loss = loss_fn(y_test_pred, y_test)
     if y_test_pred_post_train is not None:
         test_loss_against_post_train_test = loss_fn(y_test_pred, y_test_pred_post_train)
@@ -243,7 +257,7 @@ def test(model, loss_fn, X_test, y_test, y_test_pred_post_train = None,
     plt.legend()
     plt.show()
 
-    return lstm0_out, y_test_pred
+    return lstm0_out, y_test_pred, post_test_hidden_state
 
 
 def save_tensor_to_csv(tensor: torch.Tensor, filepath: str):
@@ -253,8 +267,15 @@ def save_tensor_to_csv(tensor: torch.Tensor, filepath: str):
     header = ",".join(list(map(lambda i: str(i), list(tensor.shape))) + [""] * (cols - len(tensor.shape)))
     np.savetxt(filepath, tensor.reshape([-1, cols]).numpy(), delimiter=",",header=header, comments='')
 
+def save_ndarray_to_csv(ndarray: np.ndarray, filepath: str):
+    print(ndarray.shape)
+    cols = ndarray.shape[-1]
+    assert(cols >= len(ndarray.shape))
+    header = ",".join(list(map(lambda i: str(i), list(ndarray.shape))) + [""] * (cols - len(ndarray.shape)))
+    np.savetxt(filepath, ndarray.reshape([-1, cols]), delimiter=",",header=header, comments='')
 
-def backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out):
+
+def backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out, pre_test_hidden_state, post_test_hidden_state):
     #####################
     # Save data to disk
     #####################
@@ -263,11 +284,16 @@ def backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out):
     pickle.dump(y_test, open(gold_outputs_file_path, "wb"))    
     pickle.dump(y_test_pred, open(pytorch_outputs_file_path, "wb")) 
     pickle.dump(lstm0_out, open(pytorch_lstm0_out_file_path, "wb")) 
+    pickle.dump(pre_test_hidden_state, open(pytorch_lstm_pre_test_h_state_file_path, "wb"))
+    pickle.dump(post_test_hidden_state, open(pytorch_lstm_post_test_h_state_file_path, "wb"))
 
     # print(model.state_dict().keys())
 
     save_tensor_to_csv(tensor=X_test, 
         filepath=join(args.train_out_dir, "lstm_inputs.csv"))
+
+    save_ndarray_to_csv(ndarray=pre_test_hidden_state[0], 
+        filepath=join(args.train_out_dir, "lstm_pre_test_hidden_state_l0.csv"))
 
     save_tensor_to_csv(tensor=model.state_dict()["lstm.weight_ih_l0"], 
         filepath=join(args.train_out_dir, "lstm.weight_ih_l0.csv"))
@@ -284,6 +310,9 @@ def backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out):
     save_tensor_to_csv(tensor=lstm0_out.detach(), 
         filepath=join(args.train_out_dir, "lstm0_out.csv"))
 
+    save_ndarray_to_csv(ndarray=post_test_hidden_state[0], 
+        filepath=join(args.train_out_dir, "lstm_post_test_hidden_state_l0.csv"))
+
 
 def restore_model_and_data():
     print("Restoring model and data from disk")
@@ -294,11 +323,12 @@ def restore_model_and_data():
     model.eval()
 
     X_test = pickle.load(open(inputs_file_path, "rb"))
-    y_test = pickle.load(open(gold_outputs_file_path, "rb"))            
+    y_test = pickle.load(open(gold_outputs_file_path, "rb"))
     y_test_pred_post_train = pickle.load(open(pytorch_outputs_file_path, "rb"))  
-    lstm0_out = pickle.load(open(pytorch_lstm0_out_file_path, "rb"))  
+    lstm0_out = pickle.load(open(pytorch_lstm0_out_file_path, "rb"))
+    pre_test_hidden_state = pickle.load(open(pytorch_lstm_pre_test_h_state_file_path, "rb"))  
 
-    return (model, loss_fn, X_test, y_test, y_test_pred_post_train, lstm0_out)
+    return (model, loss_fn, X_test, y_test, pre_test_hidden_state, y_test_pred_post_train, lstm0_out)
 
     
 
