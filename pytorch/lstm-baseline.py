@@ -85,7 +85,8 @@ class LSTM(nn.Module):
         np.random.seed(8)
 
         # Define the LSTM layer
-        self.lstm = nn.LSTM(input_size=self.vector_len, hidden_size=self.hidden_dim, num_layers=self.num_layers)
+        self.lstm = nn.LSTM(input_size=self.vector_len, hidden_size=self.hidden_dim, 
+                            num_layers=self.num_layers, batch_first=True)
 
         # Define the output layers
         self.linear = nn.Linear(self.hidden_dim, output_dim)
@@ -106,17 +107,17 @@ class LSTM(nn.Module):
         #               weight.new(shape).zero_())
         # return hidden
 
-    def forward(self, input):
+    def forward(self, input, hidden_state):
         # Forward pass through LSTM layer
         # shape of lstm_out: [input_size, batch_size, hidden_dim]
         # shape of self.hidden: (a, b), where a and b both 
         # have shape (num_layers, batch_size, hidden_dim).
-        lstm_out, self.hidden = self.lstm(input)
+        lstm_out, hidden_state = self.lstm(input, hidden_state)
         
         # Only take the output from the final timestep
         # Can pass on the entirety of lstm_out to the next layer if it is a seq2seq prediction
         y_pred = self.linear(lstm_out[:, -1, :])
-        return lstm_out, y_pred.view(-1)
+        return lstm_out, y_pred.view(-1), hidden_state
 
 
 def init_model():
@@ -124,7 +125,7 @@ def init_model():
         LSTM(input_seq_size=lstm_input_sequence_size, hidden_dim=h1, batch_size=batch_size, #batch_size=num_train, 
             output_dim=output_dim, 
             num_layers=num_layers, vector_len=input_vector_length),
-            torch.nn.MSELoss())
+        torch.nn.MSELoss())
         # torch.nn.MSELoss(size_average=False))
 
 
@@ -161,28 +162,34 @@ def train():
 
     hist = [] #np.zeros(num_epochs)
 
+    model.train()
+
     for t in range(num_epochs):
         # Initialise hidden state
         # Don't do this if you want your LSTM to be stateful
-        model.hidden_state = model.init_hidden_state()
+        hidden_state = model.init_hidden_state()
 
         all_y_pred = []
         i = 0
         for inputs, labels in train_loader:
+
+            model.zero_grad()
         
             # Forward pass
-            _, y_pred = model(inputs)
+            _, y_pred, hidden_state = model(inputs, hidden_state)
+
+            hidden_state[0].detach_()
+            hidden_state[1].detach_()
 
             loss = loss_fn(y_pred, labels)
             if i % 5 == 0:
                 print("Epoch ", t, "Batch ", i, "MSE: ", loss.item())
             hist += [loss.item()]
 
-            # Zero out gradient, else they will accumulate between epochs
-            optimiser.zero_grad()
-
             # Backward pass
-            loss.backward()
+            loss.backward() #retain_graph=True)
+
+            nn.utils.clip_grad_norm_(model.parameters(), 5)
 
             # Update parameters
             optimiser.step()
@@ -193,8 +200,8 @@ def train():
     #####################
     # Test
     #####################
-    model.hidden_state = model.init_hidden_state()
-    pre_test_hidden_state = (model.hidden_state[0].numpy().copy(), model.hidden_state[1].numpy().copy())
+    hidden_state = model.init_hidden_state()
+    pre_test_hidden_state = (hidden_state[0].numpy().copy(), hidden_state[1].numpy().copy())
 
     lstm0_out, y_test_pred, post_test_hidden_state = \
         test(model, loss_fn, X_test, y_test, pre_test_hidden_state)
@@ -226,13 +233,14 @@ def test(model, loss_fn, X_test, y_test, pre_test_hidden_state,
     #####################
     # Test
     #####################
-    model.hidden_state = (torch.from_numpy(pre_test_hidden_state[0]), torch.from_numpy(pre_test_hidden_state[1]))
+    model.eval()
+    hidden_state_tensor = (torch.from_numpy(pre_test_hidden_state[0]), torch.from_numpy(pre_test_hidden_state[1]))
 
     model.set_batch_size(num_test)
 
-    lstm0_out, y_test_pred = model(X_test)
+    lstm0_out, y_test_pred, _ = model(X_test, hidden_state_tensor)
 
-    post_test_hidden_state = (model.hidden_state[0].numpy().copy(), model.hidden_state[1].numpy().copy())
+    post_test_hidden_state = (hidden_state_tensor[0].numpy().copy(), hidden_state_tensor[1].numpy().copy())
 
     # backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out)
 
