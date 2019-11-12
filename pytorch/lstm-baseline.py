@@ -12,6 +12,7 @@ import argparse
 from os.path import join
 import pickle
 from torch.utils.data import TensorDataset, DataLoader
+import javaobj
 
 
 parser = argparse.ArgumentParser()
@@ -213,12 +214,14 @@ def train():
 
 def test(model, loss_fn, X_test, y_test, y_test_pred_post_train = None, 
          lstm0_out_post_train = None):
+
     #####################
     # Test
     #####################
     model.set_batch_size(num_test)
 
     lstm0_out, y_test_pred = model(X_test)
+    backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out)
     test_loss = loss_fn(y_test_pred, y_test)
     if y_test_pred_post_train is not None:
         test_loss_against_post_train_test = loss_fn(y_test_pred, y_test_pred_post_train)
@@ -243,6 +246,14 @@ def test(model, loss_fn, X_test, y_test, y_test_pred_post_train = None,
     return lstm0_out, y_test_pred
 
 
+def save_tensor_to_csv(tensor: torch.Tensor, filepath: str):
+    print(tensor.shape)
+    cols = tensor.shape[-1]
+    assert(cols >= len(tensor.shape))
+    header = ",".join(list(map(lambda i: str(i), list(tensor.shape))) + [""] * (cols - len(tensor.shape)))
+    np.savetxt(filepath, tensor.reshape([-1, cols]).numpy(), delimiter=",",header=header, comments='')
+
+
 def backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out):
     #####################
     # Save data to disk
@@ -252,6 +263,26 @@ def backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out):
     pickle.dump(y_test, open(gold_outputs_file_path, "wb"))    
     pickle.dump(y_test_pred, open(pytorch_outputs_file_path, "wb")) 
     pickle.dump(lstm0_out, open(pytorch_lstm0_out_file_path, "wb")) 
+
+    # print(model.state_dict().keys())
+
+    save_tensor_to_csv(tensor=X_test, 
+        filepath=join(args.train_out_dir, "lstm_inputs.csv"))
+
+    save_tensor_to_csv(tensor=model.state_dict()["lstm.weight_ih_l0"], 
+        filepath=join(args.train_out_dir, "lstm.weight_ih_l0.csv"))
+
+    save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_ih_l0"], 
+        filepath=join(args.train_out_dir, "lstm.bias_ih_l0.csv"))
+
+    save_tensor_to_csv(tensor=model.state_dict()["lstm.weight_hh_l0"], 
+        filepath=join(args.train_out_dir, "lstm.weight_hh_l0.csv"))
+
+    save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_hh_l0"], 
+        filepath=join(args.train_out_dir, "lstm.bias_hh_l0.csv"))
+
+    save_tensor_to_csv(tensor=lstm0_out.detach(), 
+        filepath=join(args.train_out_dir, "lstm0_out.csv"))
 
 
 def restore_model_and_data():
