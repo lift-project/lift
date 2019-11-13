@@ -300,7 +300,10 @@ def backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out, pre_tes
     save_tensor_to_csv(tensor=X_test, 
         filepath=join(args.train_out_dir, "lstm_inputs.csv"))
 
-    save_ndarray_to_csv(ndarray=pre_test_hidden_state[0], 
+    def reshape_state(state):
+        return np.concatenate(([state[0][0, :, :], state[1][0, :, :]]), axis=0).reshape((2, state[0].shape[1], -1))
+    
+    save_ndarray_to_csv(ndarray=reshape_state(pre_test_hidden_state), 
         filepath=join(args.train_out_dir, "lstm_pre_test_hidden_state_l0.csv"))
 
     save_tensor_to_csv(tensor=model.state_dict()["lstm.weight_ih_l0"], 
@@ -318,7 +321,7 @@ def backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out, pre_tes
     save_tensor_to_csv(tensor=lstm0_out.detach(), 
         filepath=join(args.train_out_dir, "lstm0_out.csv"))
 
-    save_ndarray_to_csv(ndarray=post_test_hidden_state[0], 
+    save_ndarray_to_csv(ndarray=reshape_state(post_test_hidden_state), 
         filepath=join(args.train_out_dir, "lstm_post_test_hidden_state_l0.csv"))
 
 
