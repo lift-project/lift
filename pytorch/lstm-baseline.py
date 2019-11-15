@@ -57,6 +57,7 @@ learning_rate = 0.005
 # learning_rate = 1e-1
 num_epochs = 5
 dtype = torch.float
+useBias = False
 
 weights_file_path = join(args.train_out_dir, "trained_lstm_weights.serial")
 inputs_file_path = join(args.train_out_dir, "lstm_inputs.pickle")
@@ -86,7 +87,8 @@ class LSTM(nn.Module):
 
         # Define the LSTM layer
         self.lstm = nn.LSTM(input_size=self.vector_len, hidden_size=self.hidden_dim, 
-                            num_layers=self.num_layers, batch_first=True)
+                            num_layers=self.num_layers, batch_first=True,
+                            bias=useBias)
 
         # Define the output layers
         self.linear = nn.Linear(self.hidden_dim, output_dim)
@@ -258,6 +260,12 @@ def test(model, loss_fn, X_test, y_test, pre_test_hidden_state,
     print("Test targets: ", y_test)
     print("Test outputs: ", y_test_pred)
 
+    #####################
+    # Save data to disk
+    #####################
+    backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out, 
+        pre_test_hidden_state, post_test_hidden_state)
+
     plt.plot(y_test_pred.detach().numpy(), label="Test preds", linewidth=7.0, marker='o')
     plt.plot(y_test.detach().numpy(), label="Test targets", marker='o')
     if y_test_pred_post_train is not None:  
@@ -273,14 +281,16 @@ def save_tensor_to_csv(tensor: torch.Tensor, filepath: str):
     cols = tensor.shape[-1]
     assert(cols >= len(tensor.shape))
     header = ",".join(list(map(lambda i: str(i), list(tensor.shape))) + [""] * (cols - len(tensor.shape)))
-    np.savetxt(filepath, tensor.reshape([-1, cols]).numpy(), delimiter=",",header=header, comments='')
+    # np.savetxt(filepath, tensor.reshape([-1, cols]).numpy(), delimiter=",",header=header, comments='')
+    np.savetxt(filepath, tensor.reshape([-1, cols]).numpy(), delimiter=",")
 
 def save_ndarray_to_csv(ndarray: np.ndarray, filepath: str):
     print(ndarray.shape)
     cols = ndarray.shape[-1]
     assert(cols >= len(ndarray.shape))
     header = ",".join(list(map(lambda i: str(i), list(ndarray.shape))) + [""] * (cols - len(ndarray.shape)))
-    np.savetxt(filepath, ndarray.reshape([-1, cols]), delimiter=",",header=header, comments='')
+    # np.savetxt(filepath, ndarray.reshape([-1, cols]), delimiter=",",header=header, comments='')
+    np.savetxt(filepath, ndarray.reshape([-1, cols]), delimiter=",")
 
 
 def backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out, pre_test_hidden_state, post_test_hidden_state):
@@ -297,32 +307,46 @@ def backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out, pre_tes
 
     # print(model.state_dict().keys())
 
-    save_tensor_to_csv(tensor=X_test, 
+    inputNo = 0
+    step = 0
+
+    save_tensor_to_csv(tensor=X_test[inputNo, step, :], 
         filepath=join(args.train_out_dir, "lstm_inputs.csv"))
 
     def reshape_state(state):
         return np.concatenate(([state[0][0, :, :], state[1][0, :, :]]), axis=0).reshape((2, state[0].shape[1], -1))
     
-    save_ndarray_to_csv(ndarray=reshape_state(pre_test_hidden_state), 
+    save_ndarray_to_csv(ndarray=reshape_state(pre_test_hidden_state)[0, 0, :], 
         filepath=join(args.train_out_dir, "lstm_pre_test_hidden_state_l0.csv"))
+    save_ndarray_to_csv(ndarray=reshape_state(pre_test_hidden_state)[1, 0, :], 
+        filepath=join(args.train_out_dir, "lstm_pre_test_hidden_outputs_l0.csv"))
 
-    save_tensor_to_csv(tensor=model.state_dict()["lstm.weight_ih_l0"], 
-        filepath=join(args.train_out_dir, "lstm.weight_ih_l0.csv"))
+    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_ih_l0"][0:h1, :], model.state_dict()["lstm.weight_hh_l0"][0:h1, :]), 1), 
+        filepath=join(args.train_out_dir, "lstm.weights_I_l0.csv"))
+    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_ih_l0"][h1*1:h1*2, :], model.state_dict()["lstm.weight_hh_l0"][h1*1:h1*2, :]), 1), 
+        filepath=join(args.train_out_dir, "lstm.weights_F_l0.csv"))
+    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_ih_l0"][h1*2:h1*3, :], model.state_dict()["lstm.weight_hh_l0"][h1*2:h1*3, :]), 1), 
+        filepath=join(args.train_out_dir, "lstm.weights_C_l0.csv"))
+    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_ih_l0"][h1*3:h1*4, :], model.state_dict()["lstm.weight_hh_l0"][h1*3:h1*4, :]), 1), 
+        filepath=join(args.train_out_dir, "lstm.weights_O_l0.csv"))
 
-    save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_ih_l0"], 
-        filepath=join(args.train_out_dir, "lstm.bias_ih_l0.csv"))
+    if useBias:
+        save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_ih_l0"][0:h1] + model.state_dict()["lstm.bias_hh_l0"][0:h1], 
+            filepath=join(args.train_out_dir, "lstm.biases_I_l0.csv"))
+        save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_ih_l0"][h1*1:h1*2] + model.state_dict()["lstm.bias_hh_l0"][h1*1:h1*2], 
+            filepath=join(args.train_out_dir, "lstm.biases_F_l0.csv"))
+        save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_ih_l0"][h1*2:h1*3] + model.state_dict()["lstm.bias_hh_l0"][h1*2:h1*3], 
+            filepath=join(args.train_out_dir, "lstm.biases_C_l0.csv"))
+        save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_ih_l0"][h1*3:h1*4] + model.state_dict()["lstm.bias_hh_l0"][h1*3:h1*4], 
+            filepath=join(args.train_out_dir, "lstm.biases_O_l0.csv"))
 
-    save_tensor_to_csv(tensor=model.state_dict()["lstm.weight_hh_l0"], 
-        filepath=join(args.train_out_dir, "lstm.weight_hh_l0.csv"))
-
-    save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_hh_l0"], 
-        filepath=join(args.train_out_dir, "lstm.bias_hh_l0.csv"))
-
-    save_tensor_to_csv(tensor=lstm0_out.detach(), 
+    save_tensor_to_csv(tensor=lstm0_out[inputNo, step, :].detach(), 
         filepath=join(args.train_out_dir, "lstm0_out.csv"))
 
-    save_ndarray_to_csv(ndarray=reshape_state(post_test_hidden_state), 
+    save_ndarray_to_csv(ndarray=reshape_state(post_test_hidden_state)[0, 0, :], 
         filepath=join(args.train_out_dir, "lstm_post_test_hidden_state_l0.csv"))
+    save_ndarray_to_csv(ndarray=reshape_state(post_test_hidden_state)[1, 0, :], 
+        filepath=join(args.train_out_dir, "lstm_post_test_hidden_outputs_l0.csv"))
 
 
 def restore_model_and_data():
