@@ -1,12 +1,12 @@
 package backends.spatial.generator
 
 import arithmetic.TypeVar
-import backends.spatial.accel.ir.pattern.{ReduceSeq, toSRAM}
+import backends.spatial.accel.ir.pattern.{ReduceSeq, SpPipeFold, SpPipeForeach, toSRAM}
 import backends.spatial.common.ir._
 import backends.spatial.host
 import backends.{Backend, spatial}
 import ir.ast.debug.AssertType
-import ir.ast.{Head, Join, Lambda, Let, Param, Split, Tail, UserFun, fun}
+import ir.ast.{Expr, Head, Join, Lambda, Let, Param, Split, Tail, UserFun, Value, Zip, fun}
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
 import opencl.ir.pattern.ScanSeq
@@ -59,7 +59,8 @@ class LSTM {
        wI, wC, wF, wO,
        bI, bC, bF, bO,
        lutI, lutC, lutF, lutO, lutTanh) =>
-        Join() o
+        // Wrap xh into array of 1
+        xh :>> Split(xhSize) :>>
           ReduceSeq(fun((acc, xh_) => {
 
             xh_ :>> toSRAM(id1D) :>> Let(xhSRAM => {
@@ -96,8 +97,8 @@ class LSTM {
           }),
             // Write back to xh, starting from index nFeatures + nCells (to skip the previous step):
             init = Join() o Tail() o Split(nFeatures + nCells) $ xh
-          ) o Split(xhSize) $ xh // Wrap xh into array of 1
-    )
+          ))
+
 
     val runTimeLambda: Lambda = fun(
       /* xh:      */ ArrayType(Float, xhSize),
