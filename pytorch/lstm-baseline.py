@@ -34,7 +34,7 @@ args = parser.parse_args()
 # noise_var = 0
 noise_var = 0.05
 num_datapoints = 8192
-batch_size = 256
+train_batch_size = 256
 
 num_test = 256
 num_train = num_datapoints - num_test
@@ -42,6 +42,7 @@ test_size = num_test / num_datapoints
 
 # Network params
 input_time_sequence_size = 20
+steps_to_save = 20
 input_vector_length = 32
 # If `per_element` is True, then LSTM reads in one timestep at a time.
 per_element = True
@@ -63,7 +64,6 @@ weights_file_path = join(args.train_out_dir, "trained_lstm_weights.serial")
 inputs_file_path = join(args.train_out_dir, "lstm_inputs.pickle")
 gold_outputs_file_path = join(args.train_out_dir, "lstm_gold_outputs.pickle")
 pytorch_outputs_file_path = join(args.train_out_dir, "pytorch_gold_outputs.pickle")
-pytorch_lstm0_out_file_path = join(args.train_out_dir, "pytorch_lstm0_outputs.pickle")
 pytorch_lstm_pre_test_h_state_file_path = join(args.train_out_dir, "pytorch_lstm_pre_test_h_state.pickle")
 pytorch_lstm_post_test_h_state_file_path = join(args.train_out_dir, "pytorch_lstm_post_test_h_state.pickle")
 
@@ -119,14 +119,14 @@ class LSTM(nn.Module):
         # Only take the output from the final timestep
         # Can pass on the entirety of lstm_out to the next layer if it is a seq2seq prediction
         y_pred = self.linear(lstm_out[:, -1, :])
-        return lstm_out, y_pred.view(-1), hidden_state
+        return y_pred.view(-1), hidden_state
 
 
-def init_model():
+def init_model(sequence_size, batch_size):
     return (
-        LSTM(input_seq_size=lstm_input_sequence_size, hidden_dim=h1, batch_size=batch_size, #batch_size=num_train, 
-            output_dim=output_dim, 
-            num_layers=num_layers, vector_len=input_vector_length),
+        LSTM(input_seq_size=sequence_size, hidden_dim=h1, batch_size=batch_size,
+             output_dim=output_dim, 
+             num_layers=num_layers, vector_len=input_vector_length),
         torch.nn.MSELoss())
         # torch.nn.MSELoss(size_average=False))
 
@@ -151,14 +151,14 @@ def train():
     train_data = TensorDataset(X_train, y_train)
     test_data = TensorDataset(X_test, y_test)
 
-    train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
-    test_loader = DataLoader(test_data, shuffle=True, batch_size=batch_size)
+    train_loader = DataLoader(train_data, shuffle=True, batch_size=train_batch_size)
+    test_loader = DataLoader(test_data, shuffle=True, batch_size=train_batch_size)
 
     #####################
     # Train model
     #####################
 
-    (model, loss_fn) = init_model()
+    (model, loss_fn) = init_model(sequence_size=lstm_input_sequence_size, batch_size=train_batch_size)
 
     optimiser = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -178,7 +178,7 @@ def train():
             model.zero_grad()
         
             # Forward pass
-            _, y_pred, hidden_state = model(inputs, hidden_state)
+            y_pred, hidden_state = model(inputs, hidden_state)
 
             hidden_state[0].detach_()
             hidden_state[1].detach_()
@@ -205,19 +205,19 @@ def train():
     hidden_state = model.init_hidden_state()
     pre_test_hidden_state = (hidden_state[0].numpy().copy(), hidden_state[1].numpy().copy())
 
-    lstm0_out, y_test_pred, post_test_hidden_state = \
-        test(model, loss_fn, X_test, y_test, pre_test_hidden_state)
+    y_test_pred, post_test_hidden_state = \
+        test(model, loss_fn, X_test, y_test, pre_test_hidden_state, input_time_sequence_size, 
+        test_batch_size=num_test)
 
     #####################
     # Save data to disk
     #####################
-    backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out, 
+    backup_model_and_data(model, X_test, y_test, y_test_pred,
         pre_test_hidden_state, post_test_hidden_state)
 
     #####################
     # Plot preds and performance
     #####################
-
     plt.plot(y_train.detach().numpy(), label="Train targets")
     plt.plot(all_y_pred, label="Train preds")
     plt.legend()
@@ -228,100 +228,109 @@ def train():
     plt.show()
 
 
-def test(model, loss_fn, X_test, y_test, pre_test_hidden_state,
-         y_test_pred_post_train = None, 
-         lstm0_out_post_train = None):
+def test(model, loss_fn, X_test, y_test, pre_test_hidden_state, timesteps, test_batch_size,
+         y_test_pred_post_train = None): 
 
     #####################
     # Test
     #####################
     model.eval()
-    hidden_state_tensor = (torch.from_numpy(pre_test_hidden_state[0]), torch.from_numpy(pre_test_hidden_state[1]))
+    hidden_state_tensor = (
+        torch.from_numpy(pre_test_hidden_state[0][:, 0:test_batch_size, :]), 
+        torch.from_numpy(pre_test_hidden_state[1][:, 0:test_batch_size, :]))
 
-    model.set_batch_size(num_test)
+    model.set_batch_size(test_batch_size)
 
-    lstm0_out, y_test_pred, _ = model(X_test, hidden_state_tensor)
-
-    post_test_hidden_state = (hidden_state_tensor[0].numpy().copy(), hidden_state_tensor[1].numpy().copy())
-
-    # backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out)
+    y_test_pred, post_test_hidden_state = model(X_test[0:test_batch_size, 0:timesteps, :], hidden_state_tensor)
+    post_test_hidden_state[0].detach_()
+    post_test_hidden_state[1].detach_()
+    # print("DEBUG----------")
+    # print(X_test.shape)
+    # print(X_test[0:test_batch_size, 0:timesteps, :].shape)
+    # print(y_test_pred.shape)
+    # print(post_test_hidden_state[0].shape)
+    # print(post_test_hidden_state[1][0])
+    # print(timesteps)
+    # quit()
 
     test_loss = loss_fn(y_test_pred, y_test)
     if y_test_pred_post_train is not None:
         test_loss_against_post_train_test = loss_fn(y_test_pred, y_test_pred_post_train)
-        test_lstm0_loss_against_post_train_test = loss_fn(lstm0_out, lstm0_out_post_train)
 
     print("Test MSE against golden outputs: ", test_loss.item())
     if y_test_pred_post_train is not None:  
         print("Test MSE against post-train PyTorch outputs: ", 
             test_loss_against_post_train_test.item())
-        print("Test LSTM0 output MSE against post-train PyTorch LSTM0 outputs: ", 
-            test_lstm0_loss_against_post_train_test.item())
     print("Test targets: ", y_test)
     print("Test outputs: ", y_test_pred)
 
     #####################
     # Save data to disk
     #####################
-    backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out, 
-        pre_test_hidden_state, post_test_hidden_state)
+    if y_test_pred_post_train is not None:
+        backup_model_and_data(model, X_test, y_test, y_test_pred_post_train, #lstm0_out, 
+            pre_test_hidden_state, post_test_hidden_state)
 
-    plt.plot(y_test_pred.detach().numpy(), label="Test preds", linewidth=7.0, marker='o')
+    print("Output: ", y_test_pred.detach().numpy())
+    print("Target: ", y_test_pred_post_train.detach().numpy()[0])
+    plt.plot(y_test_pred.detach().numpy(), label="Test preds (seq len=" + str(timesteps) + ")", linewidth=7.0, marker='o')
     plt.plot(y_test.detach().numpy(), label="Test targets", marker='o')
     if y_test_pred_post_train is not None:  
         plt.plot(y_test_pred_post_train.detach().numpy(), label="Post-train test preds", color="black", marker='o')
     plt.legend()
     plt.show()
 
-    return lstm0_out, y_test_pred, post_test_hidden_state
+    return y_test_pred, post_test_hidden_state
 
 
 def save_tensor_to_csv(tensor: torch.Tensor, filepath: str):
-    print(tensor.shape)
+    print(tensor.shape, " ", filepath.split("/")[-1])
     cols = tensor.shape[-1]
     assert(cols >= len(tensor.shape))
     header = ",".join(list(map(lambda i: str(i), list(tensor.shape))) + [""] * (cols - len(tensor.shape)))
     # np.savetxt(filepath, tensor.reshape([-1, cols]).numpy(), delimiter=",",header=header, comments='')
-    np.savetxt(filepath, tensor.reshape([-1, cols]).numpy(), delimiter=",")
+    np.savetxt(filepath, tensor.reshape([-1, cols]).numpy(), delimiter=",", fmt='%.32f')
 
 def save_ndarray_to_csv(ndarray: np.ndarray, filepath: str):
-    print(ndarray.shape)
+    print(ndarray.shape, "         ", filepath.split("/")[-1])
     cols = ndarray.shape[-1]
     assert(cols >= len(ndarray.shape))
     header = ",".join(list(map(lambda i: str(i), list(ndarray.shape))) + [""] * (cols - len(ndarray.shape)))
     # np.savetxt(filepath, ndarray.reshape([-1, cols]), delimiter=",",header=header, comments='')
-    np.savetxt(filepath, ndarray.reshape([-1, cols]), delimiter=",")
+    np.savetxt(filepath, ndarray.reshape([-1, cols]), delimiter=",", fmt='%.32f')
 
 
-def backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out, pre_test_hidden_state, post_test_hidden_state):
+def reshape_state(state):
+    layer = 0
+    return np.concatenate(([state[0][layer, :, :], state[1][layer, :, :]]), axis=0).reshape((2, state[0].shape[1], -1))
+
+def backup_model_and_data(model, X_test, y_test, y_test_pred, pre_test_hidden_state, post_test_hidden_state):
     #####################
     # Save data to disk
     #####################
     torch.save(model.state_dict(), weights_file_path)
     pickle.dump(X_test, open(inputs_file_path, "wb"))
     pickle.dump(y_test, open(gold_outputs_file_path, "wb"))    
-    pickle.dump(y_test_pred, open(pytorch_outputs_file_path, "wb")) 
-    pickle.dump(lstm0_out, open(pytorch_lstm0_out_file_path, "wb")) 
+    pickle.dump(y_test_pred, open(pytorch_outputs_file_path, "wb"))
     pickle.dump(pre_test_hidden_state, open(pytorch_lstm_pre_test_h_state_file_path, "wb"))
     pickle.dump(post_test_hidden_state, open(pytorch_lstm_post_test_h_state_file_path, "wb"))
 
     # print(model.state_dict().keys())
 
     inputNo = 0
-    step = 0
 
-    save_tensor_to_csv(tensor=X_test[inputNo, step, :], 
+    # print("DEBUG----------------")
+    # print(post_test_hidden_state[0].shape)
+    # quit()
+    save_tensor_to_csv(tensor=X_test[inputNo, 0:steps_to_save, :], 
         filepath=join(args.train_out_dir, "lstm_inputs.csv"))
-
-    def reshape_state(state):
-        return np.concatenate(([state[0][0, :, :], state[1][0, :, :]]), axis=0).reshape((2, state[0].shape[1], -1))
     
     save_ndarray_to_csv(ndarray=reshape_state(pre_test_hidden_state)[0, 0, :], 
-        filepath=join(args.train_out_dir, "lstm_pre_test_hidden_state_l0.csv"))
-    save_ndarray_to_csv(ndarray=reshape_state(pre_test_hidden_state)[1, 0, :], 
         filepath=join(args.train_out_dir, "lstm_pre_test_hidden_outputs_l0.csv"))
+    save_ndarray_to_csv(ndarray=reshape_state(pre_test_hidden_state)[1, 0, :], 
+        filepath=join(args.train_out_dir, "lstm_pre_test_hidden_state_l0.csv"))
 
-    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_ih_l0"][0:h1, :], model.state_dict()["lstm.weight_hh_l0"][0:h1, :]), 1), 
+    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_ih_l0"][h1*0:h1*1, :], model.state_dict()["lstm.weight_hh_l0"][h1*0:h1*1, :]), 1), 
         filepath=join(args.train_out_dir, "lstm.weights_I_l0.csv"))
     save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_ih_l0"][h1*1:h1*2, :], model.state_dict()["lstm.weight_hh_l0"][h1*1:h1*2, :]), 1), 
         filepath=join(args.train_out_dir, "lstm.weights_F_l0.csv"))
@@ -340,19 +349,16 @@ def backup_model_and_data(model, X_test, y_test, y_test_pred, lstm0_out, pre_tes
         save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_ih_l0"][h1*3:h1*4] + model.state_dict()["lstm.bias_hh_l0"][h1*3:h1*4], 
             filepath=join(args.train_out_dir, "lstm.biases_O_l0.csv"))
 
-    save_tensor_to_csv(tensor=lstm0_out[inputNo, step, :].detach(), 
-        filepath=join(args.train_out_dir, "lstm0_out.csv"))
-
     save_ndarray_to_csv(ndarray=reshape_state(post_test_hidden_state)[0, 0, :], 
-        filepath=join(args.train_out_dir, "lstm_post_test_hidden_state_l0.csv"))
-    save_ndarray_to_csv(ndarray=reshape_state(post_test_hidden_state)[1, 0, :], 
         filepath=join(args.train_out_dir, "lstm_post_test_hidden_outputs_l0.csv"))
+    save_ndarray_to_csv(ndarray=reshape_state(post_test_hidden_state)[1, 0, :],
+        filepath=join(args.train_out_dir, "lstm_post_test_hidden_state_l0.csv"))
 
 
-def restore_model_and_data():
+def restore_model_and_data(timesteps, test_batch_size):
     print("Restoring model and data from disk")
 
-    (model, loss_fn) = init_model()
+    (model, loss_fn) = init_model(sequence_size=timesteps, batch_size=1)
 
     model.load_state_dict(torch.load(weights_file_path))
     model.eval()
@@ -360,16 +366,13 @@ def restore_model_and_data():
     X_test = pickle.load(open(inputs_file_path, "rb"))
     y_test = pickle.load(open(gold_outputs_file_path, "rb"))
     y_test_pred_post_train = pickle.load(open(pytorch_outputs_file_path, "rb"))  
-    lstm0_out = pickle.load(open(pytorch_lstm0_out_file_path, "rb"))
-    pre_test_hidden_state = pickle.load(open(pytorch_lstm_pre_test_h_state_file_path, "rb"))  
+    pre_test_hidden_state = pickle.load(open(pytorch_lstm_pre_test_h_state_file_path, "rb"))
 
-    return (model, loss_fn, X_test, y_test, pre_test_hidden_state, y_test_pred_post_train, lstm0_out)
+    return (model, loss_fn, X_test, y_test, pre_test_hidden_state, timesteps, test_batch_size, y_test_pred_post_train)
 
-    
 
 def test_without_training():
-    test(*restore_model_and_data())
-
+    test(*restore_model_and_data(timesteps=steps_to_save, test_batch_size=1))
 
 
 if args.train:
