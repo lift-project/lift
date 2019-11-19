@@ -91,6 +91,7 @@ object SpatialMemoryAllocator {
       case sf: SpForeach            => allocSpForeach(sf, call, outMemT, outAddressSpace, inMem)
       case m: MapSeq                => allocMapSeq(m, call, outMemT, outAddressSpace, inMem)
       case asf: AbstractSpFold      => allocAbstrSpFold(asf, call, outMemT, outAddressSpace, inMem)
+      case r: ReduceSeq             => allocReduceSeq(r, call, outMemT, outAddressSpace, inMem)
 
       case s: AbstractSearch        => throw new NotImplementedError()
 
@@ -196,6 +197,7 @@ object SpatialMemoryAllocator {
     inMem match {
       case coll: SpatialMemoryCollection =>
         val initM = coll.subMemories(0)
+
         initM.bufferHazard = true
 
         asf.fMap.params(0).mem = coll.subMemories(1)
@@ -220,6 +222,30 @@ object SpatialMemoryAllocator {
 
         // replace `bodyM` by `initM` in `asf.fReduce.body`
         Expr.visit(asf.fReduce.body, e => if (e.mem == reduceBodyM) e.mem = initM, _ => {})
+
+        initM
+      case _ => throw new IllegalArgumentException(inMem.toString)
+    }
+  }
+
+  private def allocReduceSeq(r: ReduceSeq,
+                             call: FunCall,
+                             outMemT: Allocator,
+                             outAddressSpace: SpatialAddressSpace,
+                             inMem: SpatialMemory): SpatialMemory = {
+    inMem match {
+      case coll: SpatialMemoryCollection =>
+        val initM = coll.subMemories(0)
+
+        initM.bufferHazard = true
+
+        r.f.params(0).mem = initM
+        r.f.params(1).mem = coll.subMemories(1)
+
+        val reduceBodyM = alloc(r.f.body, t => t, initM.addressSpace)
+
+        // replace `bodyM` by `initM` in `r.f.body`
+        Expr.visit(r.f.body, e => if (e.mem == reduceBodyM) e.mem = initM, _ => {})
 
         initM
       case _ => throw new IllegalArgumentException(inMem.toString)

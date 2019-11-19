@@ -1,7 +1,7 @@
 package backends.spatial.common.ir
 
 import backends.spatial.accel.generator.IllegalAccelBlock
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, toArgOut, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, ReduceSeq, toArgOut, toDRAM, toReg, toSRAM}
 import ir.ScalarType
 import ir.ast.{AbstractPartRed, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Id, Join, Lambda, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
 
@@ -67,7 +67,7 @@ object InferSpatialAddressSpace {
       case Get(i)                   => setAddressSpaceGet(i, argAddressSpaces.head)
 
       case asf: AbstractSpFold      => setAddressSpaceFold(asf, call, writeTo, argAddressSpaces)
-//      case r: AbstractPartRed       => setAddressSpaceReduce(r.f, call, argAddressSpaces)
+      case r: ReduceSeq             => setAddressSpaceReduceSeq(r.f, call, writeTo, argAddressSpaces)
       case s: AbstractSearch        => throw new NotImplementedError()
 
       case l: Lambda                => setAddressSpaceLambda(l, writeTo, argAddressSpaces)
@@ -103,6 +103,22 @@ object InferSpatialAddressSpace {
     val reduceWriteTo = accumulatorAddressSpace
 
     setAddressSpaceLambda(asf.fReduce, reduceWriteTo, Seq(argAddressSpaces.head, fMapAddressSpace))
+  }
+
+  private def setAddressSpaceReduceSeq(lambda: Lambda, call: FunCall,
+                                       writeTo: SpatialAddressSpace,
+                                       argAddressSpaces: Seq[SpatialAddressSpace]): SpatialAddressSpace = {
+    val accumulatorAddressSpace = call.args.head.addressSpace
+
+    // First argument is the initial value
+    if (accumulatorAddressSpace == UndefAddressSpace)
+      throw UnexpectedAddressSpaceException(s"No address space ${call.args.head.addressSpace} at $call")
+
+    // The address space of the result of a reduction is always the same as the initial element
+    val reduceWriteTo = accumulatorAddressSpace
+
+    setAddressSpaceLambda(lambda, reduceWriteTo, argAddressSpaces)
+
   }
 
   private def setAddressSpaceLambda(l: Lambda, writeTo: SpatialAddressSpace,

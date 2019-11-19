@@ -1,6 +1,6 @@
 package backends.spatial.common.ir
 
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpFold, SpForeach, SpMemFold}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, ReduceSeq, SpFold, SpForeach, SpMemFold}
 import ir.{Memory, Type}
 import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Expr, FPattern, FunCall, Iterate, Lambda, Param, UnsafeArrayAccess, UserFun, Value, VectorizeUserFun}
 
@@ -118,7 +118,7 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
       case m: AbstractMap         => collectMap(call.t, m)
       case sf: SpFold             => collectSpFold(sf, argumentMemories, call)
       case smf: SpMemFold         => collectSpMemFold(smf, argumentMemories, call)
-      case r: AbstractPartRed     => throw new NotImplementedError()
+      case r: ReduceSeq           => collectReduceSeq(r, argumentMemories, call)
       case _: UnsafeArrayAccess   => Seq(ContextualSpatialMemory(call))
       case _: CheckedArrayAccess  => Seq(ContextualSpatialMemory(call))
       case i: Iterate             => throw new NotImplementedError()
@@ -176,6 +176,12 @@ private class CollectTypedSpatialMemory(val lambda: Lambda) {
                                argumentMemories: Seq[ContextualSpatialMemory],
                                call: FunCall) = {
     collectAbstractSpFold(smf, argumentMemories, call)
+  }
+
+  private def collectReduceSeq(r: ReduceSeq,
+                               argumentMemories: Seq[ContextualSpatialMemory],
+                               call: FunCall) = {
+    collectIntermediateMemories(r.f.body)
   }
 
   private def removeParameterAndArgumentDuplicates(memories: Seq[ContextualSpatialMemory],

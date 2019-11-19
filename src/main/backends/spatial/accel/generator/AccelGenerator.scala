@@ -2,7 +2,7 @@ package backends.spatial.accel.generator
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, BurstUserFun, MapSeq, Parallel, Pipe, Piped, SchedulingPattern, Sequential, SpFold, SpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, BurstUserFun, MapSeq, Parallel, Pipe, Piped, ReduceSeq, SchedulingPattern, Sequential, SpFold, SpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
 import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
@@ -97,6 +97,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
             propagateDynamicArraySize(call, block)
 
           case asf: AbstractSpFold    => generateFoldCall(asf, call, block)
+          case r: ReduceSeq           => generateReduceSeqCall(r, call, block)
 
           case u: UserFun             => generateUserFunCall(u, call, block)
 
@@ -269,6 +270,14 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
 
     generate(asf.fMap.body, innerMapBlock, returnValue = true)
     generate(asf.fReduce.body, innerReduceBlock)
+  }
+
+  private def generateReduceSeqCall(r: ReduceSeq,
+                                    call: FunCall,
+                                    block: MutableExprBlock): Unit = {
+    (block: MutableExprBlock) += Comment("reduce_seq")
+    generateForeach(r, block, call.args(1), r.loopVar, generate(r.f.body, _), r.shouldUnroll)
+    (block: MutableExprBlock) += Comment("end reduce_seq")
   }
 
   private def generateForeach(pattern: Pattern,
