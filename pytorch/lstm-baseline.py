@@ -58,7 +58,7 @@ learning_rate = 0.005
 # learning_rate = 1e-1
 num_epochs = 5
 dtype = torch.float
-useBias = False
+useBias = True
 
 weights_file_path = join(args.train_out_dir, "trained_lstm_weights.serial")
 inputs_file_path = join(args.train_out_dir, "lstm_inputs.pickle")
@@ -271,8 +271,9 @@ def test(model, loss_fn, X_test, y_test, pre_test_hidden_state, timesteps, test_
         backup_model_and_data(model, X_test, y_test, y_test_pred_post_train, #lstm0_out, 
             pre_test_hidden_state, post_test_hidden_state)
 
-    print("Output: ", y_test_pred.detach().numpy())
-    print("Target: ", y_test_pred_post_train.detach().numpy()[0])
+        print("Output: ", y_test_pred.detach().numpy())
+        print("Target: ", y_test_pred_post_train.detach().numpy()[0])
+        
     plt.plot(y_test_pred.detach().numpy(), label="Test preds (seq len=" + str(timesteps) + ")", linewidth=7.0, marker='o')
     plt.plot(y_test.detach().numpy(), label="Test targets", marker='o')
     if y_test_pred_post_train is not None:  
