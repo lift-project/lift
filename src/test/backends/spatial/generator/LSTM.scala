@@ -6,7 +6,7 @@ import backends.spatial.common.ir._
 import backends.spatial.host
 import backends.{Backend, spatial}
 import ir.ast.debug.AssertType
-import ir.ast.{Expr, Head, Join, Lambda, Let, Param, Split, Tail, UserFun, Value, Zip, fun}
+import ir.ast.{Expr, Get, Head, Join, Lambda, Let, Param, Split, Tail, UserFun, Value, Zip, fun}
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.SizeVar
 import opencl.ir.pattern.ScanSeq
@@ -35,6 +35,8 @@ class LSTM {
     val nCells = SizeVar("nCells")
     val nFeatures = SizeVar("nFeatures")
     val hu = SizeVar("hu")
+    val rv = SizeVar("rv")
+    val ru = SizeVar("ru")
     val nLutValues = SizeVar("nLutValues")
 
     val xhSize = (nFeatures + nCells) * (nSteps + 1)
@@ -91,16 +93,47 @@ class LSTM {
                 AssertType(ArrayType(ArrayType(Float, nFeatures + nCells), nSteps), "xhNextSteps") o
                   Tail() o Split(nFeatures + nCells) $ xhSRAM
 
-              Join() o
-                ScanSeq(
-                  fun((acc, xhStep) => AssertType(ArrayType(Float, nFeatures + nCells)) $ xhStep),
-                  init = xhPrevStep
-                ) $ xhNextSteps
+              Join() o ScanSeq(fun(
+                /* xh from previous step: */ArrayType(Float, nFeatures + nCells),
+                /* xh from the next step: */ArrayType(Float, nFeatures + nCells),
+                (acc, xhNextStep) =>
+                    Zip(wISRAM, wCSRAM, wFSRAM, wOSRAM, bISRAM, bCSRAM, bFSRAM, bOSRAM) :>>
+
+                    SpPipeForeach(chunkSize = 1, iterSize = 1, factor = hu,
+                      f = fun(netParams => {
+                        val cellWI = AssertType(ArrayType(Float, nFeatures + nCells), "cellWI") $ Get(Join() $ netParams, 0)
+                        val cellWC = AssertType(ArrayType(Float, nFeatures + nCells), "cellWC") $ Get(Join() $ netParams, 1)
+                        val cellWF = AssertType(ArrayType(Float, nFeatures + nCells), "cellWF") $ Get(Join() $ netParams, 2)
+                        val cellWO = AssertType(ArrayType(Float, nFeatures + nCells), "cellWO") $ Get(Join() $ netParams, 3)
+                        val cellBI = AssertType(Float, "cellBI") $ Get(Join() $ netParams, 4)
+                        val cellBC = AssertType(Float, "cellBC") $ Get(Join() $ netParams, 5)
+                        val cellBF = AssertType(Float, "cellBF") $ Get(Join() $ netParams, 6)
+                        val cellBO = AssertType(Float, "cellBO") $ Get(Join() $ netParams, 7)
+//                  xhNextStep :>> AssertType(ArrayType(Float, nFeatures + nCells)) :>>
+                        def fusedDotProductWithNonLinear: Expr =
+                          fun(
+                            /* w:   */ ArrayType(ArrayType(Float, nFeatures + nCells), nCells),
+                            /* lut: */ ArrayType(Float, nLutValues),
+                            /* b:   */ ArrayType(Float, nCells),
+                            (w, lut, b) =>
+                              SpPipeFold(chunkSize = rv, stride = rv, factor = ru,
+                                fMap = fun(
+
+                                ),
+                                fReduce = {},
+                                init = Value("0.0f", Float))
+                          )
+
+                      })
+                    )
+                  ),
+
+                init = xhPrevStep
+              ) $ xhNextSteps
+
             })})})})})})})})})})})})})})})
 
-          }),
-            // Write back to xh, starting from index nFeatures + nCells (to skip the previous step):
-            init = Join() o Tail() o Split(nFeatures + nCells) $ xh
+          })
           ))
 
 
