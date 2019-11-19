@@ -7,8 +7,8 @@ import lift.arithmetic.PosVar
  * Generates Foreach(chunkSize = 1, stride = 1, factor = 1, f)
  * @param f A lambda to be applied to every element of the input array
  */
-case class MapSeq(override val f: Lambda1) extends AbstractMap(f, "MapSeq",
-  PosVar("i")) {
+case class MapSeq(override val f: Lambda1)
+  extends AbstractMap(f, "MapSeq", PosVar("i")) with Sequential {
   override def copy(f: Lambda): Pattern = MapSeq(f)
   var shouldUnroll = false
 
