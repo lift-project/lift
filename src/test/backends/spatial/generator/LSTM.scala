@@ -61,7 +61,11 @@ class LSTM {
        lutI, lutC, lutF, lutO, lutTanh) =>
         // Wrap xh into array of 1
         xh :>> Split(xhSize) :>>
-          ReduceSeq(fun((acc, xh_) => {
+          ReduceSeq(
+            // Write back to xh, starting from index nFeatures + nCells (to skip the previous step):
+            init = Join() o Tail() o Split(nFeatures + nCells) $ xh,
+
+            fun((acc, xh_) => {
 
             xh_ :>> toSRAM(id1D) :>> Let(xhSRAM => {
             c :>> toSRAM(id1D) :>> Let(cSRAM => {
