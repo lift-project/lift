@@ -31,5 +31,4 @@ case class ReduceSeq(override val f: Lambda)
 
 object ReduceSeq {
   def apply(f: Lambda2, init: Expr): Lambda1 = fun((x) => ReduceSeq(f)(init, x))
-  def apply(init: Expr, f: Lambda2): Lambda1 = fun((x) => ReduceSeq(f)(init, x))
 }
