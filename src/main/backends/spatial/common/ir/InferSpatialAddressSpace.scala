@@ -102,8 +102,7 @@ object InferSpatialAddressSpace {
     // The address space of the result of a reduction is always the same as the initial element
     val reduceWriteTo = accumulatorAddressSpace
 
-    setAddressSpaceLambda(asf.fReduce, accumulatorAddressSpace, Seq(argAddressSpaces.head, fMapAddressSpace))
-    accumulatorAddressSpace
+    setAddressSpaceLambda(asf.fReduce, reduceWriteTo, Seq(argAddressSpaces.head, fMapAddressSpace))
   }
 
   private def setAddressSpaceLambda(l: Lambda, writeTo: SpatialAddressSpace,

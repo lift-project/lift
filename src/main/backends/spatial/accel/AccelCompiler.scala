@@ -34,11 +34,7 @@ object AccelCompiler {
     val allTypedMemories = CollectTypedSpatialMemory(f)
 
     // Loop unrolling
-    // TODO: extend the generator to unroll loops using this information
     ShouldUnroll(f, allTypedMemories)
-
-    // TODO: Barrier elimination
-
     // TODO: Check if lambda is legal
 
     // Build view
@@ -46,8 +42,6 @@ object AccelCompiler {
 
     // Generate code
     val block = AccelGenerator(f, allTypedMemories)
-
-    // TODO: Unroll private memory in the AST and inline structs
 
     (block, allTypedMemories)
   }
