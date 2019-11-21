@@ -78,7 +78,7 @@ class InnerProduct {
                 }))
 
                 SpPipeFold(chunkSize = 1, stride = 1, factor = innerParFactor,
-                  fMap = backends.spatial.accel.ir.pattern.MapSeq(mult),
+                  fMap = MapSeq(mult),
                   fReduce = add,
                   init = toReg(id) $ Value(0.0f, Float)) $ tileABsram
               }),
