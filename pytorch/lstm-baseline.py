@@ -273,7 +273,7 @@ def test(model, loss_fn, X_test, y_test, pre_test_hidden_state, timesteps, test_
 
         print("Output: ", y_test_pred.detach().numpy())
         print("Target: ", y_test_pred_post_train.detach().numpy()[0])
-        
+
     plt.plot(y_test_pred.detach().numpy(), label="Test preds (seq len=" + str(timesteps) + ")", linewidth=7.0, marker='o')
     plt.plot(y_test.detach().numpy(), label="Test targets", marker='o')
     if y_test_pred_post_train is not None:  
@@ -331,23 +331,23 @@ def backup_model_and_data(model, X_test, y_test, y_test_pred, pre_test_hidden_st
     save_ndarray_to_csv(ndarray=reshape_state(pre_test_hidden_state)[1, 0, :], 
         filepath=join(args.train_out_dir, "lstm_pre_test_hidden_state_l0.csv"))
 
-    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_ih_l0"][h1*0:h1*1, :], model.state_dict()["lstm.weight_hh_l0"][h1*0:h1*1, :]), 1), 
+    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_hh_l0"][h1*0:h1*1, :], model.state_dict()["lstm.weight_ih_l0"][h1*0:h1*1, :]), 1), 
         filepath=join(args.train_out_dir, "lstm.weights_I_l0.csv"))
-    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_ih_l0"][h1*1:h1*2, :], model.state_dict()["lstm.weight_hh_l0"][h1*1:h1*2, :]), 1), 
+    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_hh_l0"][h1*1:h1*2, :], model.state_dict()["lstm.weight_ih_l0"][h1*1:h1*2, :]), 1), 
         filepath=join(args.train_out_dir, "lstm.weights_F_l0.csv"))
-    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_ih_l0"][h1*2:h1*3, :], model.state_dict()["lstm.weight_hh_l0"][h1*2:h1*3, :]), 1), 
+    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_hh_l0"][h1*2:h1*3, :], model.state_dict()["lstm.weight_ih_l0"][h1*2:h1*3, :]), 1), 
         filepath=join(args.train_out_dir, "lstm.weights_C_l0.csv"))
-    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_ih_l0"][h1*3:h1*4, :], model.state_dict()["lstm.weight_hh_l0"][h1*3:h1*4, :]), 1), 
+    save_tensor_to_csv(tensor=torch.cat((model.state_dict()["lstm.weight_hh_l0"][h1*3:h1*4, :], model.state_dict()["lstm.weight_ih_l0"][h1*3:h1*4, :]), 1), 
         filepath=join(args.train_out_dir, "lstm.weights_O_l0.csv"))
 
     if useBias:
-        save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_ih_l0"][0:h1] + model.state_dict()["lstm.bias_hh_l0"][0:h1], 
+        save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_hh_l0"][0:h1] + model.state_dict()["lstm.bias_ih_l0"][0:h1], 
             filepath=join(args.train_out_dir, "lstm.biases_I_l0.csv"))
-        save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_ih_l0"][h1*1:h1*2] + model.state_dict()["lstm.bias_hh_l0"][h1*1:h1*2], 
+        save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_hh_l0"][h1*1:h1*2] + model.state_dict()["lstm.bias_ih_l0"][h1*1:h1*2], 
             filepath=join(args.train_out_dir, "lstm.biases_F_l0.csv"))
-        save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_ih_l0"][h1*2:h1*3] + model.state_dict()["lstm.bias_hh_l0"][h1*2:h1*3], 
+        save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_hh_l0"][h1*2:h1*3] + model.state_dict()["lstm.bias_ih_l0"][h1*2:h1*3], 
             filepath=join(args.train_out_dir, "lstm.biases_C_l0.csv"))
-        save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_ih_l0"][h1*3:h1*4] + model.state_dict()["lstm.bias_hh_l0"][h1*3:h1*4], 
+        save_tensor_to_csv(tensor=model.state_dict()["lstm.bias_hh_l0"][h1*3:h1*4] + model.state_dict()["lstm.bias_ih_l0"][h1*3:h1*4], 
             filepath=join(args.train_out_dir, "lstm.biases_O_l0.csv"))
 
     save_ndarray_to_csv(ndarray=reshape_state(post_test_hidden_state)[0, 0, :], 
