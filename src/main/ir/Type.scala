@@ -189,9 +189,13 @@ case class ArrayType(elemT: Type) extends Type {
   }
 
   override def toString : String = {
-    "Arr(" +elemT+
-    (this match { case s:Size => ",s="+s.size.toString; case _ => ""}) +
-    (this match { case c:Capacity => ",c="+c.capacity.toString; case _ => ""}) +
+    "Arr(" +elemT+ (
+      if (this match { case at: ArrayType with Size with Capacity if at.size == at.capacity => true; case _ => false }) {
+        val at = this.asInstanceOf[ArrayType with Size with Capacity]
+        ",sc=" + at.size.toString
+      } else
+        (this match { case s:Size => ",s="+s.size.toString; case _ => ""}) +
+          (this match { case c:Capacity => ",c="+c.capacity.toString; case _ => ""})) +
     ")"
   }
 
