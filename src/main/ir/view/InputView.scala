@@ -1,6 +1,7 @@
 package ir.view
 
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, SpForeach}
+import backends.spatial.common.ir.SpatialMemoryCollection
 import ir._
 import ir.ast._
 import lift.arithmetic.ArithExpr
@@ -65,6 +66,7 @@ object InputView {
       case sp: MapSeqSlide =>                   buildViewMapSeqSlide(sp, call, argView)
       case s: AbstractSearch =>                 buildViewSearch(s, call, argView)
       case scan:ScanSeq =>                      buildViewScanSeq(scan, call, argView)
+      case ma: MapAccumSeq =>                   buildViewMapAccumSeq(ma, call, argView)
       case iss: InsertionSortSeq =>             buildViewSort(iss, call, argView)
       case l: Lambda =>                         buildViewLambda(l, call, argView)
       case z: Zip =>                            buildViewZip(call, argView)
@@ -256,6 +258,27 @@ object InputView {
     visitAndBuildViews(scan.f.body)
 
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
+  }
+
+  private def buildViewMapAccumSeq(mapAccum: MapAccumSeq, call: FunCall, argView: View): View = {
+    // pass down input view
+    mapAccum.f.params(0).view = argView.get(0)
+    mapAccum.f.params(1).view = argView.get(1).access(mapAccum.loopVar)
+
+    visitAndBuildViews(mapAccum.f.body)
+
+    val callT = call.t.asInstanceOf[TupleType]
+    val callMem = call.mem.asInstanceOf[SpatialMemoryCollection]
+
+    val stateType = callT.elemsT.head
+    val stateMem = callMem.subMemories.head
+
+    val outValuesType = callT.elemsT(1)
+    val outMem = callMem.subMemories(1)
+
+    View.tuple(
+      View.initialiseNewView(stateType, call.inputDepth, stateMem.variable),
+      View.initialiseNewView(outValuesType, call.inputDepth, outMem.variable))
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, argView: View): View = {

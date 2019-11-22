@@ -1,7 +1,7 @@
 package backends.spatial.common.ir
 
 import backends.spatial.accel.generator.IllegalAccelBlock
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, ReduceSeq, toArgOut, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, ReduceSeq, toArgOut, toDRAM, toReg, toSRAM}
 import ir.ScalarType
 import ir.ast.{AbstractPartRed, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Id, Join, Lambda, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
 
@@ -70,6 +70,8 @@ object InferSpatialAddressSpace {
       case r: ReduceSeq             => setAddressSpaceReduceSeq(r.f, call, writeTo, argAddressSpaces)
       case s: AbstractSearch        => throw new NotImplementedError()
 
+      case ma: MapAccumSeq          => setAddressSpaceMapAccumSeq(ma.f, call, writeTo, argAddressSpaces)
+
       case l: Lambda                => setAddressSpaceLambda(l, writeTo, argAddressSpaces)
       case fp: FPattern             => setAddressSpaceLambda(fp.f, writeTo, argAddressSpaces)
 
@@ -119,6 +121,23 @@ object InferSpatialAddressSpace {
 
     setAddressSpaceLambda(lambda, reduceWriteTo, argAddressSpaces)
 
+  }
+
+  private def setAddressSpaceMapAccumSeq(lambda: Lambda, call: FunCall,
+                                         writeTo: SpatialAddressSpace,
+                                         argAddressSpaces: Seq[SpatialAddressSpace]): SpatialAddressSpace = {
+    val accumulatorAddressSpace = call.args.head.addressSpace
+
+    // First argument is the initial value
+    if (accumulatorAddressSpace == UndefAddressSpace)
+      throw UnexpectedAddressSpaceException(s"No address space ${call.args.head.addressSpace} at $call")
+
+    // Inside mapAccum, write state into the accumulator variable, and the intermediate outputs into
+    // the second writeTo address space
+    val mapAccumWriteTo = AddressSpaceCollection(
+      Seq(accumulatorAddressSpace, writeTo.asInstanceOf[AddressSpaceCollection].spaces(1)))
+
+    setAddressSpaceLambda(lambda, mapAccumWriteTo, argAddressSpaces)
   }
 
   private def setAddressSpaceLambda(l: Lambda, writeTo: SpatialAddressSpace,

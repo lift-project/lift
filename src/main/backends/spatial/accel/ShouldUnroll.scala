@@ -2,7 +2,7 @@ package backends.spatial.accel
 
 import _root_.ir.ast._
 import _root_.ir._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, ReduceSeq, SpForeach}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, ReduceSeq, SpForeach}
 import backends.spatial.common.ir.{ContextualMemoryCollection, RegMemory, ScalarMemory, SpatialMemory, SpatialMemoryCollection}
 
 object ShouldUnroll {
@@ -16,14 +16,15 @@ class ShouldUnroll(lambda: Lambda, allTypedMemories: ContextualMemoryCollection)
     case call: FunCall =>
 
       call.f match {
-        case sf: SpForeach => if (shouldUnrollLoop(call)) sf.shouldUnroll = true
-        case asf: AbstractSpFold =>
-          // Does the fold read from register or literal memory?
-          if (SpatialMemory.containsScalarMemory(call.args(1).mem))
-            asf.shouldUnroll = true
-        case r: ReduceSeq =>
-          if (SpatialMemory.containsScalarMemory(call.args(1).mem))
-            r.shouldUnroll = true
+        case sf: SpForeach          =>  if (shouldUnrollLoop(call))
+                                          sf.shouldUnroll = true
+        case asf: AbstractSpFold    =>  // Does the fold read from register or literal memory?
+                                        if (SpatialMemory.containsScalarMemory(call.args(1).mem))
+                                          asf.shouldUnroll = true
+        case r: ReduceSeq           => if (SpatialMemory.containsScalarMemory(call.args(1).mem))
+                                          r.shouldUnroll = true
+        case ma: MapAccumSeq        => if (SpatialMemory.containsScalarMemory(call.args(1).mem))
+                                          ma.shouldUnroll = true
         // TODO: confirm whether any other loops need checking
         case _ =>
       }

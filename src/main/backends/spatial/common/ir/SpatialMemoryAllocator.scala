@@ -2,7 +2,7 @@ package backends.spatial.common.ir
 
 import backends.spatial.accel.ir.pattern._
 import _root_.ir.ast.{AbstractMap, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, Filter, FunCall, Gather, Get, Head, Id, Iterate, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
-import _root_.ir.{ArrayType, NumberOfArgumentsException, Size, Type, UnallocatedMemory}
+import _root_.ir.{ArrayType, NumberOfArgumentsException, Size, TupleType, Type, UnallocatedMemory}
 
 object SpatialMemoryAllocator {
   /** innerType => fullType */
@@ -92,6 +92,8 @@ object SpatialMemoryAllocator {
       case m: MapSeq                => allocMapSeq(m, call, outMemT, outAddressSpace, inMem)
       case asf: AbstractSpFold      => allocAbstrSpFold(asf, call, outMemT, outAddressSpace, inMem)
       case r: ReduceSeq             => allocReduceSeq(r, call, outMemT, outAddressSpace, inMem)
+
+      case mapAccum: MapAccumSeq   => allocMapAccumSeq(mapAccum, call, outMemT, outAddressSpace, inMem)
 
       case s: AbstractSearch        => throw new NotImplementedError()
 
@@ -248,6 +250,38 @@ object SpatialMemoryAllocator {
         Expr.visit(r.f.body, e => if (e.mem == reduceBodyM) e.mem = initM, _ => {})
 
         initM
+      case _ => throw new IllegalArgumentException(inMem.toString)
+    }
+  }
+
+  private def allocMapAccumSeq(mapAccum: MapAccumSeq,
+                               call: FunCall,
+                               outMemT: Allocator,
+                               outAddressSpace: SpatialAddressSpace,
+                               inMem: SpatialMemory): SpatialMemory = {
+    inMem match {
+      case coll: SpatialMemoryCollection =>
+        val initM = coll.subMemories(0)
+
+        initM.bufferHazard = true
+
+        mapAccum.f.params(0).mem = initM
+        mapAccum.f.params(1).mem = coll.subMemories(1)
+
+        val mapAccumBodyM = alloc(mapAccum.f.body, t => t, initM.addressSpace)
+
+        // replace `bodyM` by `initM` in `r.f.body`
+        Expr.visit(mapAccum.f.body, e => if (e.mem == mapAccumBodyM) e.mem = initM, _ => {})
+
+        val stateType = call.t.asInstanceOf[TupleType].elemsT.head
+        val stateMem = SpatialMemory.allocMemory(outMemT(stateType), initM.addressSpace)
+
+        val outValuesType = call.t.asInstanceOf[TupleType].elemsT(1)
+        val outValuesAS = outAddressSpace.asInstanceOf[AddressSpaceCollection].spaces(1)
+        val outMem = SpatialMemory.allocMemory(outMemT(outValuesType), outValuesAS)
+
+        SpatialMemoryCollection(Vector(stateMem, outMem))
+
       case _ => throw new IllegalArgumentException(inMem.toString)
     }
   }

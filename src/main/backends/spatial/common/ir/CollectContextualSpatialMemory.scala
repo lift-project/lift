@@ -1,6 +1,6 @@
 package backends.spatial.common.ir
 
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, ReduceSeq, SpFold, SpForeach, SpMemFold}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, ReduceSeq, SpFold, SpForeach, SpMemFold}
 import ir.{Memory, Type}
 import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Expr, FPattern, FunCall, Iterate, Lambda, Param, UnsafeArrayAccess, UserFun, Value, VectorizeUserFun}
 
@@ -119,6 +119,7 @@ private class CollectContextualSpatialMemory(val lambda: Lambda) {
       case sf: SpFold             => collectSpFold(sf, argumentMemories, call)
       case smf: SpMemFold         => collectSpMemFold(smf, argumentMemories, call)
       case r: ReduceSeq           => collectReduceSeq(r, argumentMemories, call)
+      case ma: MapAccumSeq        => collectMapAccumSeq(ma, argumentMemories, call)
       case _: UnsafeArrayAccess   => Seq(ContextualSpatialMemory(call))
       case _: CheckedArrayAccess  => Seq(ContextualSpatialMemory(call))
       case i: Iterate             => throw new NotImplementedError()
@@ -168,20 +169,33 @@ private class CollectContextualSpatialMemory(val lambda: Lambda) {
                             argumentMemories: Seq[ContextualSpatialMemory],
                             call: FunCall) = {
     // The memory of the implicit map body is not materialised if a literal is passed as an initial value
+    // TODO: check if the comment above needs implementing
 
-    collectAbstractSpFold(sf, argumentMemories, call)
+    val memories = collectAbstractSpFold(sf, argumentMemories, call)
+    removeParameterAndArgumentDuplicates(memories, argumentMemories)
   }
 
   private def collectSpMemFold(smf: SpMemFold,
                                argumentMemories: Seq[ContextualSpatialMemory],
                                call: FunCall) = {
-    collectAbstractSpFold(smf, argumentMemories, call)
+    val memories = collectAbstractSpFold(smf, argumentMemories, call)
+    removeParameterAndArgumentDuplicates(memories, argumentMemories)
   }
 
   private def collectReduceSeq(r: ReduceSeq,
                                argumentMemories: Seq[ContextualSpatialMemory],
                                call: FunCall) = {
-    collectIntermediateMemories(r.f.body)
+    val memories = collectIntermediateMemories(r.f.body)
+    removeParameterAndArgumentDuplicates(memories, argumentMemories)
+  }
+
+  private def collectMapAccumSeq(ma: MapAccumSeq,
+                                 argumentMemories: Seq[ContextualSpatialMemory],
+                                 call: FunCall) = {
+    val memories = collectIntermediateMemories(ma.f.body)
+
+    ContextualSpatialMemory(call) +:
+      removeParameterAndArgumentDuplicates(memories, argumentMemories)
   }
 
   private def removeParameterAndArgumentDuplicates(memories: Seq[ContextualSpatialMemory],

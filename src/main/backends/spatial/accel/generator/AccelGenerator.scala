@@ -2,7 +2,7 @@ package backends.spatial.accel.generator
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, BurstUserFun, MapSeq, Parallel, Pipe, Piped, ReduceSeq, SchedulingPattern, Sequential, SpFold, SpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, BurstUserFun, MapAccumSeq, MapSeq, Parallel, Pipe, Piped, ReduceSeq, SchedulingPattern, Sequential, SpFold, SpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
 import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
@@ -98,6 +98,8 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
 
           case asf: AbstractSpFold    => generateFoldCall(asf, call, block)
           case r: ReduceSeq           => generateReduceSeqCall(r, call, block)
+
+          case ma: MapAccumSeq        => generateMapAccumSeqCall(ma, call, block)
 
           case u: UserFun             => generateUserFunCall(u, call, block)
 
@@ -278,6 +280,14 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
     (block: MutableExprBlock) += Comment("reduce_seq")
     generateForeach(r, block, call.args(1), r.loopVar, generate(r.f.body, _), r.shouldUnroll)
     (block: MutableExprBlock) += Comment("end reduce_seq")
+  }
+
+  private def generateMapAccumSeqCall(ma: MapAccumSeq,
+                                      call: FunCall,
+                                      block: MutableExprBlock): Unit = {
+    (block: MutableExprBlock) += Comment("mapAccum_seq")
+    generateForeach(ma, block, call.args(1), ma.loopVar, generate(ma.f.body, _), ma.shouldUnroll)
+    (block: MutableExprBlock) += Comment("end mapAccum_seq")
   }
 
   private def generateForeach(pattern: Pattern,

@@ -2,7 +2,7 @@ package ir.view
 
 import backends.{Backend, OpenCLBackend, SpatialBackend}
 import backends.common.view.{AccessInfo, SingleAccess}
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, SpForeach}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, SpForeach}
 import backends.spatial.common.ir.view.AccessInfoSp
 import ir._
 import ir.ast._
@@ -61,6 +61,7 @@ object OutputView {
       case sp: MapSeqSlide          => buildViewMapSeqSlide(sp, call, writeView)
       case s: AbstractSearch        => buildViewSearch(s, call, writeView)
       case scan:ScanSeq             => buildViewScan(scan, call, writeView)
+      case ma: MapAccumSeq          => buildViewMapAccumSeq(ma, call, writeView)
       case iss: InsertionSortSeq    => buildViewSort(iss, call, writeView)
       case Split(n)                 => buildViewSplit(n, writeView)
       case _: Join                  => buildViewJoin(call, writeView)
@@ -108,7 +109,7 @@ object OutputView {
         val acc = call.args.head
         visitAndBuildViews(acc, View.initialiseNewView(acc.t, acc.inputDepth, acc.mem.variable))
         visitAndBuildViews(call.args(1), result)
-      case _: ScanSeq =>
+      case _: ScanSeq | _: MapAccumSeq =>
         val acc = call.args.head
         visitAndBuildViews(acc, View.initialiseNewView(acc.t, acc.inputDepth, acc.mem.variable))
         visitAndBuildViews(call.args(1), result)
@@ -377,6 +378,14 @@ object OutputView {
   private def buildViewScan(scan: ScanSeq, call:FunCall, writeView:View) : View = {
     visitAndBuildViews(scan.f.body, scan.f.params.head.view /* unsure here */)
     ViewMap(scan.f.params(1).outputView, scan.loopVar, call.args(1).t)
+  }
+
+  private def buildViewMapAccumSeq(ma: MapAccumSeq, call: FunCall, writeView: View): View = {
+    visitAndBuildViews(ma.f.body, View.tuple(
+      /* state */ writeView.get(0),
+      /* one of the intermediate outputs */ writeView.get(1).access(ma.loopVar)))
+    val result = ViewMap(ma.f.params(1).outputView, ma.loopVar, call.args(1).t)
+    result
   }
 
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {
