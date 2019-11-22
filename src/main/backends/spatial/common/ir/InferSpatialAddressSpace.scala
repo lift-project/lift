@@ -133,9 +133,6 @@ object InferSpatialAddressSpace {
     if (!call.isConcrete(false))
       throw new IllegalAccelBlock(s"Address space change requested without a write at $call")
 
-    if (argAddressSpaces.length > 1)
-      throw new IllegalAccelBlock(s"Expected only one argument to the address space caster")
-
       val (addressSpace, lambda) = call.f match {
         case toArgOut(f) => (ArgOutMemory, f)
         case toReg(f) => (RegMemory, f)
@@ -143,7 +140,10 @@ object InferSpatialAddressSpace {
         case toDRAM(f) => (DRAMMemory, f)
       }
 
-      setAddressSpaceLambda(lambda, argAddressSpaces.head, argAddressSpaces)
+      setAddressSpaceLambda(lambda,
+        if (argAddressSpaces.length == 1) argAddressSpaces.head
+        else AddressSpaceCollection(argAddressSpaces),
+        argAddressSpaces)
 
       addressSpace
   }

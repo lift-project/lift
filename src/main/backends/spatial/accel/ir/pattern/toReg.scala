@@ -6,7 +6,6 @@ import ir.interpreter.Interpreter.ValueMap
 
 case class toReg(f: Lambda) extends Pattern(arity = f.arity)
                             with FPattern {
-  assert(f.arity == 1)
 
   override def copy(f: Lambda): Pattern = toReg(f)
 
