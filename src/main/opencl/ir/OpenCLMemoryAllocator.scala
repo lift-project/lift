@@ -546,7 +546,6 @@ object OpenCLMemoryAllocator {
           val bodyM = alloc(scan.f.body, numGlb, numLcl, numPvt)
           // replace `bodyM` by `init_mem` in the lambda's body
           Expr.visit(scan.f.body, e => if (e.mem == bodyM) e.mem = init_mem, _ => {})
-          scan.f.body.mem = init_mem
 
           val maxSizeInBytes = Type.getAllocatedSize(call.t)
           val baseSize = Type.getAllocatedSize(Type.getBaseType(call.t))
