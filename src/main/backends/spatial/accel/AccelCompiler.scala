@@ -4,7 +4,7 @@ import _root_.ir.UndefType
 import _root_.ir.ast.Lambda
 import backends.spatial.accel.generator.AccelGenerator
 import backends.spatial.common.ir.view.SpatialView
-import backends.spatial.common.ir.{CollectTypedSpatialMemory, InferSpatialAddressSpace, SpatialMemoryAllocator, ContextualMemoryCollection}
+import backends.spatial.common.ir.{CollectContextualSpatialMemory, InferSpatialAddressSpace, SpatialMemoryAllocator, ContextualMemoryCollection}
 import core.generator.GenericAST.ExprBlock
 import _root_.ir.TypeChecker
 
@@ -31,7 +31,7 @@ object AccelCompiler {
     SpatialMemoryAllocator(f)
 
     // Collect typed memories
-    val allTypedMemories = CollectTypedSpatialMemory(f)
+    val allTypedMemories = CollectContextualSpatialMemory(f)
 
     // Loop unrolling
     ShouldUnroll(f, allTypedMemories)

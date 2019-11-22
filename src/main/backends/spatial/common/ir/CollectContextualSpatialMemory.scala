@@ -27,18 +27,18 @@ object ContextualMemoryCollection {
   def apply(): ContextualMemoryCollection = ContextualMemoryCollection(Seq(), Seq(), Map())
 }
 
-object CollectTypedSpatialMemory {
+object CollectContextualSpatialMemory {
   /**
-   * Function to collect typed Spatial memory objects of the given lambda.
+   * Function to collect contextual Spatial memory objects of the given lambda.
    *
    * @return Memory objects of the (inputs, outputs, intermediates).
    */
   def apply(lambda: Lambda): ContextualMemoryCollection = {
-    new CollectTypedSpatialMemory(lambda)()
+    new CollectContextualSpatialMemory(lambda)()
   }
 }
 
-private class CollectTypedSpatialMemory(val lambda: Lambda) {
+private class CollectContextualSpatialMemory(val lambda: Lambda) {
 
   private var implicitReadScopes: mutable.Map[Memory, FunCall] = mutable.Map()
   private var implicitWriteScopes: mutable.Map[Memory, FunCall] = mutable.Map()
