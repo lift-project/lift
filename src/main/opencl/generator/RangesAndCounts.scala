@@ -46,16 +46,16 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
             }
 
           case f: FilterSeq =>
-            apply(f.f.body)
             setRangeFilterSeq(f, call)
+            apply(f.f.body)
 
           case iss: InsertionSortSeq =>
-            apply(iss.f.body)
             setRangeInsertionSort(iss, call)
+            apply(iss.f.body)
 
           case scan: ScanSeq => {
-            apply(scan.f.body)
             setRangeScanSeq(scan, call)
+            apply(scan.f.body)
           }
 
           case r: AbstractPartRed =>
@@ -75,7 +75,6 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
 
           case f: FPattern => apply(f.f.body)
           case l: Lambda => apply(l.body)
-          case Zip(_) | Tuple(_) => call.args.foreach(apply)
           case _ =>
         }
       case _ =>

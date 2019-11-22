@@ -21,8 +21,7 @@ object RangesAndCountsSp {
 private class RangesAndCountsSp(valueMap: scala.collection.Map[ArithExpr, ArithExpr]) {
   private def apply(expr: Expr): Unit = {
     expr match {
-      case call: FunCall =>
-        call.args.foreach(apply)
+      case call: FunCall        => call.args.foreach(apply)
         call.f match {
           case sf: SpForeach          => setRangeSpForeach(sf, call)
           case m: MapSeq              => setRangeMapSeq(m, call)
@@ -31,7 +30,6 @@ private class RangesAndCountsSp(valueMap: scala.collection.Map[ArithExpr, ArithE
 
           case f: FPattern            => apply(f.f.body)
           case l: Lambda              => apply(l.body)
-          case Zip(_) | Tuple(_)      => call.args.foreach(apply)
           case _ =>
         }
       case _ =>
