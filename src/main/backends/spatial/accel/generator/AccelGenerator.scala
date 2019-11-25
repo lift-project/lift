@@ -11,7 +11,7 @@ import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice, SpatialVie
 import backends.spatial.common.ir.{AddressSpaceCollection, ArgOutMemory, ContextualMemoryCollection, DRAMMemory, HostAllocatedMemory, LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, UndefAddressSpace}
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, CVar, Comment, ExprBlock, ExpressionT, FunctionCall, MutableExprBlock, StatementT, StructConstructor, VarIdxRef}
 import ir._
-import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Join, Lambda, Map, Pad, PadConstant, Param, Pattern, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
+import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Id, Join, Lambda, Map, Pad, PadConstant, Param, Pattern, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
 import ir.view.{View, ViewConstant}
 import lift.arithmetic._
 import opencl.generator.PerformLoopOptimisation
@@ -111,7 +111,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
           case toReg(_) | toArgOut(_) | toSRAM(_) | toDRAM(_) |
                Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
                Split(_) | Join() | Slide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
-               Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
+               Id() | Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
                ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) |
                RewritingGuidePost(_)  =>
 
@@ -513,10 +513,15 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
     else (srcAddressSpace, targetMem.addressSpace) match {
       case (DRAMMemory, SRAMMemory)     => SpLoad(src = srcNode, target = VarSlicedRef(targetMem.variable))
       case (SRAMMemory, DRAMMemory)     => SpStore(src = srcNode, target = targetNode)
+      case (SRAMMemory, RegMemory)      => RegAssignmentExpression(to = targetNode, srcNode)
+      case (SRAMMemory, ArgOutMemory)   => RegAssignmentExpression(to = targetNode, srcNode)
       case (RegMemory, DRAMMemory)      => AssignmentExpression(to = targetNode, srcNode)
       case (RegMemory, SRAMMemory)      => AssignmentExpression(to = targetNode, srcNode)
+      case (RegMemory, RegMemory)       => RegAssignmentExpression(to = targetNode, srcNode)
       case (RegMemory, ArgOutMemory)    => RegAssignmentExpression(to = targetNode, srcNode)
+      case (LiteralMemory, SRAMMemory)  => AssignmentExpression(to = targetNode, srcNode)
       case (LiteralMemory, RegMemory)   => RegAssignmentExpression(to = targetNode, srcNode)
+      case (LiteralMemory, ArgOutMemory)=> RegAssignmentExpression(to = targetNode, srcNode)
 
       case _ => throw new AccelGeneratorException(
         s"Don't know how to store a value from $srcAddressSpace in ${targetMem.addressSpace}")
