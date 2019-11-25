@@ -107,7 +107,7 @@ private class BuildDepthInfoSp() {
       case ma: MapAccumSeq      => buildDepthInfoMapAccumSeqCall(ma, call, argInf, memoryAccessInfo)
       case _                    =>
 
-        val readMemories = getMemoryAccesses(call.args.head)
+        val readMemories = call.args.foldLeft(Seq[SpatialMemory]()){ case (mems, arg) => mems ++ getMemoryAccesses(arg) }
         val writeMemories = getMemoryAccesses(call)
 
         setDepths(call, readMemories, writeMemories, memoryAccessInfo)
@@ -200,7 +200,7 @@ private class BuildDepthInfoSp() {
     val argAccessInfo = getArrayAccessInf(call.args(1).t, r.loopVar)
 
     r.f.params(0).accessInf = l.collection.head
-    r.f.params(1).accessInf = l(argAccessInfo, readMemories)
+    r.f.params(1).accessInf = l.collection(1)(argAccessInfo, readMemories)
 
     val writeMemories = getMemoryAccesses(call)
 
@@ -223,7 +223,7 @@ private class BuildDepthInfoSp() {
     val argAccessInfo = getArrayAccessInf(call.args(1).t, mapAccum.loopVar)
 
     mapAccum.f.params(0).accessInf = l.collection.head
-    mapAccum.f.params(1).accessInf = l(argAccessInfo, readMemories)
+    mapAccum.f.params(1).accessInf = l.collection(1)(argAccessInfo, readMemories)
 
     val writeStateMemories = SpatialMemory.getAllMemories(call.mem.asInstanceOf[SpatialMemoryCollection].subMemories(0))
     val writeOutValMemories = SpatialMemory.getAllMemories(call.mem.asInstanceOf[SpatialMemoryCollection].subMemories(1))
@@ -267,12 +267,8 @@ private class BuildDepthInfoSp() {
 
     if (call.args.length == 1)
       visitAndBuildDepthInfo(call.args.head, memoryAccessInfo)
-    else {
-      AccessInfoSp({
-        val a = call.args.map((expr: Expr) => visitAndBuildDepthInfo(expr, memoryAccessInfo))
-        a
-      })
-    }
+    else
+      AccessInfoSp(call.args.map((expr: Expr) => visitAndBuildDepthInfo(expr, memoryAccessInfo)))
   }
 
   private def buildDepthInfoLambda(l: Lambda, call: FunCall,
@@ -374,19 +370,19 @@ private class BuildDepthInfoSp() {
     }
   }
 
-  /**
-   * Utility function for generating access info to an array as a whole
-   *
-   * @param ty the array type passed as a generic type. We check that it is
-   *           indeed an array type below.
-   * @param v the variable used to perform the access
-   */
-  protected def getWholeArrayArrayAccessInf(ty: Type, v: ArithExpr): SingleAccess = {
-    ty match {
-      case at: ArrayType => (_ => at, v)
-      case _ => throw new IllegalArgumentException(
-        s"Cannot compute access information for $ty. ArrayType required."
-      )
-    }
-  }
+//  /**
+//   * Utility function for generating access info to an array as a whole
+//   *
+//   * @param ty the array type passed as a generic type. We check that it is
+//   *           indeed an array type below.
+//   * @param v the variable used to perform the access
+//   */
+//  protected def getWholeArrayAccessInf(ty: Type, v: ArithExpr): SingleAccess = {
+//    ty match {
+//      case at: ArrayType => (_ => at, v)
+//      case _ => throw new IllegalArgumentException(
+//        s"Cannot compute access information for $ty. ArrayType required."
+//      )
+//    }
+//  }
 }
