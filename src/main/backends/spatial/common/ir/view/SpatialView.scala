@@ -206,8 +206,19 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
                                                     emitView(ivs(i), arrayAccessStack, newTAS)
       case ViewAsVector(vecSize, iv, _) =>          throw new NotImplementedError()
       case ViewAsScalar(iv, vecSize, _) =>          throw new NotImplementedError()
-      case ViewHead(iv, _) =>                       throw new NotImplementedError()
-      case ViewTail(iv, _) =>                       throw new NotImplementedError()
+      case ViewHead(iv, _) =>
+        arrayAccessStack match {
+          case Index(_) :: newArrayAccessStack =>   emitView(iv, newArrayAccessStack, tupleAccessStack)
+          case (_: Slice) :: newArrayAccessStack => throw new NotImplementedError()
+          case _ => throw new IllegalSpatialView("Unknown address on top of the array access stack for ViewHead")
+        }
+      case ViewTail(iv, _) =>
+        arrayAccessStack match {
+          case Index(idx) :: remAAS =>              emitView(iv, Index(idx + 1) +: remAAS, tupleAccessStack)
+          case (s: Slice) :: remAAS =>              emitView(iv, Slice(s.start + 1, s.end, s.burstFactor) +: remAAS,
+                                                              tupleAccessStack)
+          case _ => throw new IllegalSpatialView("Unknown address on top of the array access stack for ViewTail")
+        }
       case ViewSlide(iv, slide, _) =>
         val newArrayAccessStack = arrayAccessStack match {
           // fun(ArrayT(ArrayT()), x => ..) o Split(s)
