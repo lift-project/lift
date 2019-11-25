@@ -166,9 +166,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
             chunkIdx :: elemIdx :: addressors
 
           case (slice: Slice) :: addressors =>
-            // Restricting to simple cases until better generic approach is found
-            assert(slice.start == Cst(0));
-            assert((slice.end - slice.start) % chunkSize == Cst(0))
+//            assert((slice.end - slice.start) % chunkSize == Cst(0))
 
             // A slice of a memory with a joined view should already cover all data contained
             // within the joined chunks, so there is no need to alter the slice to access all that data.
