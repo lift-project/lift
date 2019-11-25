@@ -56,7 +56,7 @@ private[view] class IllegalSpatialView(err: String)
 class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
                          val mainAddressSpace: SpatialAddressSpace,
                          val burstFactor: Option[ArithExpr] = None) {
-  private var replacementsOfScalarWithSlicedAccesses = mutable.Map[ArithExpr, Slice]()
+  private var replacementsOfScalarWithSlicedAccesses = mutable.ListMap[ArithExpr, Slice]()
 
   /**
    * Produces a Spatial expression accessing a multidimensional array using a given view
@@ -77,8 +77,11 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
     sv match {
       case ViewMem(memVar, ty) =>
         assert(tupleAccessStack.isEmpty)
-        assert(replacementsOfScalarWithSlicedAccesses.isEmpty)
-        GenerateAccess(memVar, ty, arrayAccessStack, tupleAccessStack)
+        val newArrayAccessStack =
+          if (replacementsOfScalarWithSlicedAccesses.nonEmpty)
+            replacementsOfScalarWithSlicedAccesses.foldLeft(arrayAccessStack) { case (aas, (_, slice)) => slice +: aas }
+          else arrayAccessStack
+        GenerateAccess(memVar, ty, newArrayAccessStack, tupleAccessStack)
 
       case ViewOffset(offset, iv, t) =>
         // increment read / write access by offset
@@ -86,18 +89,18 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
         emitView(iv, (addr + offset) :: addressors, tupleAccessStack)
 
       case ViewAccess(i, iv, _) =>
-        // For strided iterator, add division by step with the expectation that further down
-        // the View tree we will encounter Split or Slide that will add multiplication by step
-        // and thus cancel the step coefficient.
-        // This is to express the strided iteration of Spatial Foreach, Fold and Reduce, where
-        // we want to iterate from (0 to N by step) instead of from (0 to N/step) and multiplying
-        // the iterator by step inside the loop body.
-        // The strided range is introduced in RangesAndCountsSp().
         val newAddressor = i match {
           case _ if replacementsOfScalarWithSlicedAccesses.contains(i) =>
             val slice = replacementsOfScalarWithSlicedAccesses(i)
             replacementsOfScalarWithSlicedAccesses -= i
             slice
+          // For strided iterator, add division by step with the expectation that further down
+          // the View tree we will encounter Split or Slide that will add multiplication by step
+          // and thus cancel the step coefficient.
+          // This is to express the strided iteration of Spatial Foreach, Fold and Reduce, where
+          // we want to iterate from (0 to N by step) instead of from (0 to N/step) and multiplying
+          // the iterator by step inside the loop body.
+          // The strided range is introduced in RangesAndCountsSp().
           case Var(_, RangeAdd(_, _, step)) if step !== Cst(1) =>
             Index(i /^ step)
 
