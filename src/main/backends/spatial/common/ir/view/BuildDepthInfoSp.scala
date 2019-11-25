@@ -105,6 +105,7 @@ private class BuildDepthInfoSp() {
       case aSF: AbstractSpFold  => buildDepthInfoSpFoldCall(aSF, call, argInf, memoryAccessInfo)
       case r: ReduceSeq         => buildDepthInfoReduceSeqCall(r, call, argInf, memoryAccessInfo)
       case ma: MapAccumSeq      => buildDepthInfoMapAccumSeqCall(ma, call, argInf, memoryAccessInfo)
+      case _: UserFun           => buildDepthInfoUserFunCall(call, memoryAccessInfo)
       case _                    =>
 
         val readMemories = call.args.foldLeft(Seq[SpatialMemory]()){ case (mems, arg) => mems ++ getMemoryAccesses(arg) }
@@ -116,10 +117,24 @@ private class BuildDepthInfoSp() {
           case l: Lambda            =>  buildDepthInfoLambda(l, call, argInf, memoryAccessInfo)
           case fp: FPattern         =>  buildDepthInfoLambda(fp.f, call, argInf, memoryAccessInfo)
           case Get(n)               =>  if (argInf.collection.nonEmpty) argInf.collection(n) else argInf
-          case _: UserFun           =>  AccessInfoSp(memoryAccessInfo)
           case _                    =>  argInf
         }
     }
+  }
+
+  private def buildDepthInfoUserFunCall(call: FunCall, memoryAccessInfo: MemoryAccessInfoSp): AccessInfoSp = {
+    val readMemories = call.args.foldLeft(Seq[SpatialMemory]()){ case (mems, arg) => mems ++ getMemoryAccesses(arg) }
+    val writeMemories = getMemoryAccesses(call)
+
+    setDepths(call, readMemories, writeMemories, memoryAccessInfo)
+
+    val updMemoryAccessInfo = call.t match {
+      // Update memory access info with sliced access
+      case _: ArrayType => updateAccessInf(memoryAccessInfo, readMemories ++ writeMemories, newAccess = None)
+      case _ => memoryAccessInfo
+    }
+
+    AccessInfoSp(updMemoryAccessInfo)
   }
 
   private def buildDepthInfoSpForeachCall(sF: SpForeach, call: FunCall,
@@ -157,7 +172,7 @@ private class BuildDepthInfoSp() {
     val mapWriteMemories = getMemoryAccesses(asf.fMap.body)
 
     // The input memories will be accessed using map iterator variable
-    val updMemoryAccessInfo = updateAccessInf(memoryAccessInfo, mapReadMemories, mapAccessInfo)
+    val updMemoryAccessInfo = updateAccessInf(memoryAccessInfo, mapReadMemories, Some(mapAccessInfo))
     // The write memory is local to each map iteration and will be accessed as a whole
 
     // traverse into call.f
@@ -207,7 +222,7 @@ private class BuildDepthInfoSp() {
     val bodyAccessInfo = getArrayAccessInf(call.t, Cst(0))
 
     // The input and intermediate outputs memories will be accessed using map iterator variable
-    val updMemoryAccessInfo = updateAccessInf(memoryAccessInfo, readMemories ++ writeMemories, bodyAccessInfo)
+    val updMemoryAccessInfo = updateAccessInf(memoryAccessInfo, readMemories ++ writeMemories, Some(bodyAccessInfo))
 
     // traverse into call.f
     visitAndBuildDepthInfo(r.f.body, updMemoryAccessInfo)
@@ -233,8 +248,8 @@ private class BuildDepthInfoSp() {
     val outValAccessInfo = getArrayAccessInf(call.t.asInstanceOf[TupleType].elemsT(1), mapAccum.loopVar)
 
     val updMemoryAccessInfo = updateAccessInf(
-      updateAccessInf(memoryAccessInfo, readMemories ++ writeStateMemories, outStateAccessInfo),
-      readMemories ++ writeOutValMemories, outValAccessInfo)
+      updateAccessInf(memoryAccessInfo, readMemories ++ writeStateMemories, Some(outStateAccessInfo)),
+      readMemories ++ writeOutValMemories, Some(outValAccessInfo))
 
     // traverse into call.f
     visitAndBuildDepthInfo(mapAccum.f.body, updMemoryAccessInfo)
@@ -253,7 +268,7 @@ private class BuildDepthInfoSp() {
     val inf = getArrayAccessInf(call.t, index)
     val writeMemories = getMemoryAccesses(call)
 
-    val updMemoryAccessInfo = updateAccessInf(memoryAccessInfo, readMemories ++ writeMemories, inf)
+    val updMemoryAccessInfo = updateAccessInf(memoryAccessInfo, readMemories ++ writeMemories, Some(inf))
 
     // traverse into call.f
     visitAndBuildDepthInfo(expr, updMemoryAccessInfo)
@@ -286,20 +301,31 @@ private class BuildDepthInfoSp() {
   /**
    * For new memories, adds them to the memoryAccessInfo collection with one access.
    * For memories already in memoryAccessInfo, adds the new access to the list of existing ones
+   *
+   * newAccess of None represents sliced access since we cannot represent a slice with a single
+   * arithmetic expression that constitutes required part of SingleAccess. SingleAccess could be extended to
+   * allow specifying ranges, but in reasoning about depth, we don't need that information anyway.
    */
   protected def updateAccessInf(origMemoryAccessInfo: MemoryAccessInfoSp,
                                 accessedMemories: Seq[Memory],
-                                newAccess: SingleAccess): MemoryAccessInfoSp = {
+                                newAccess: Option[SingleAccess]): MemoryAccessInfoSp = {
     // Join and remove duplicates
     val memories: Seq[Memory] = (origMemoryAccessInfo.keys ++ accessedMemories).toSet.toSeq
     ListMap(
       memories.map(mem =>
-        if (origMemoryAccessInfo.contains(mem))
-        // Existing memories
-          (mem, newAccess +: origMemoryAccessInfo(mem))
-        else
-        // New memories
-          (mem, List(newAccess))
+        if (newAccess.isDefined) {
+          // Non-sliced access
+          if (origMemoryAccessInfo.contains(mem))
+          // Existing memories
+            (mem, newAccess.get +: origMemoryAccessInfo(mem))
+          else
+          // New memories
+            (mem, List(newAccess.get))
+        } else {
+          // Sliced access: just create an empty list of accesses to record that the array is being accessed
+          // (if accesses to the memory already exist, this will have no effect)
+          (mem, List())
+        }
       ): _*)
   }
 
