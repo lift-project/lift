@@ -1,7 +1,7 @@
 package backends.spatial.common.ir.view
 
 import backends.common.view._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, ReduceSeq, SpForeach}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, ReduceSeq, AbstractSpForeach}
 import backends.spatial.common.ir._
 import backends.spatial.common.ir.view.MemoryAccessInfoSp.MemoryAccessInfoSp
 import ir.ast.{AbstractMap, Expr, FPattern, FunCall, Get, Lambda, Param, UserFun}
@@ -100,13 +100,13 @@ private class BuildDepthInfoSp() {
     val argInf = buildDepthForArgs(call, memoryAccessInfo)
 
     call.f match {
-      case sF: SpForeach        => buildDepthInfoSpForeachCall(sF, call, argInf, memoryAccessInfo)
-      case m: AbstractMap       => buildDepthInfoMapCall(m, call, argInf, memoryAccessInfo)
-      case aSF: AbstractSpFold  => buildDepthInfoSpFoldCall(aSF, call, argInf, memoryAccessInfo)
-      case r: ReduceSeq         => buildDepthInfoReduceSeqCall(r, call, argInf, memoryAccessInfo)
-      case ma: MapAccumSeq      => buildDepthInfoMapAccumSeqCall(ma, call, argInf, memoryAccessInfo)
-      case _: UserFun           => buildDepthInfoUserFunCall(call, memoryAccessInfo)
-      case _                    =>
+      case sF: AbstractSpForeach  => buildDepthInfoSpForeachCall(sF, call, argInf, memoryAccessInfo)
+      case m: AbstractMap         => buildDepthInfoMapCall(m, call, argInf, memoryAccessInfo)
+      case aSF: AbstractSpFold    => buildDepthInfoSpFoldCall(aSF, call, argInf, memoryAccessInfo)
+      case r: ReduceSeq           => buildDepthInfoReduceSeqCall(r, call, argInf, memoryAccessInfo)
+      case ma: MapAccumSeq        => buildDepthInfoMapAccumSeqCall(ma, call, argInf, memoryAccessInfo)
+      case _: UserFun             => buildDepthInfoUserFunCall(call, memoryAccessInfo)
+      case _                      =>
 
         val readMemories = call.args.foldLeft(Seq[SpatialMemory]()){ case (mems, arg) => mems ++ getMemoryAccesses(arg) }
         val writeMemories = getMemoryAccesses(call)
@@ -137,7 +137,7 @@ private class BuildDepthInfoSp() {
     AccessInfoSp(updMemoryAccessInfo)
   }
 
-  private def buildDepthInfoSpForeachCall(sF: SpForeach, call: FunCall,
+  private def buildDepthInfoSpForeachCall(sF: AbstractSpForeach, call: FunCall,
                                           l: AccessInfoSp, memoryAccessInfo: MemoryAccessInfoSp): AccessInfoSp = {
     buildDepthInfoMapLikeCall(sF.f, sF.loopVar, call, l, memoryAccessInfo)
   }

@@ -7,6 +7,6 @@ case class SpPipeForeach(override val chunkSize: ArithExpr,
                          override val stride: ArithExpr = Cst(1),
                          override val factor: ArithExpr = Cst(1),
                          override val f: Lambda1)
-  extends SpForeach(chunkSize, stride, factor, f) with Piped {
+  extends AbstractSpForeach(chunkSize, stride, factor, f) with Piped {
   override def copy(f: Lambda): Pattern = SpPipeForeach(chunkSize, stride, factor, f)
 }

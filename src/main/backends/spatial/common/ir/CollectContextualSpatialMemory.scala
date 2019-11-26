@@ -1,6 +1,6 @@
 package backends.spatial.common.ir
 
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, ReduceSeq, SpFold, SpForeach, SpMemFold}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, ReduceSeq, SpFold, AbstractSpForeach, SpMemFold}
 import ir.{Memory, Type}
 import ir.ast.{AbstractMap, AbstractPartRed, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Expr, FPattern, FunCall, Iterate, Lambda, Param, UnsafeArrayAccess, UserFun, Value, VectorizeUserFun}
 
@@ -114,7 +114,7 @@ private class CollectContextualSpatialMemory(val lambda: Lambda) {
       case _: UserFun             => collectValueOrUserFunMemory(call)
       case _: VectorizeUserFun    => throw new NotImplementedError()
       case l: Lambda              => collectIntermediateMemories(l.body)
-      case sF: SpForeach          => collectSpForeach(call.t, sF, call)
+      case sF: AbstractSpForeach          => collectSpForeach(call.t, sF, call)
       case m: AbstractMap         => collectMap(call.t, m)
       case sf: SpFold             => collectSpFold(sf, argumentMemories, call)
       case smf: SpMemFold         => collectSpMemFold(smf, argumentMemories, call)
@@ -131,7 +131,7 @@ private class CollectContextualSpatialMemory(val lambda: Lambda) {
   }
 
 
-  private def collectSpForeach(t: Type, sf: SpForeach, call: FunCall) = {
+  private def collectSpForeach(t: Type, sf: AbstractSpForeach, call: FunCall) = {
     collectIntermediateMemories(sf.f.body)
   }
 

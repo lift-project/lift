@@ -5,10 +5,10 @@ import ir.interpreter.Interpreter.ValueMap
 import ir._
 import lift.arithmetic.{ArithExpr, Cst, PosVar, Var}
 
-abstract class SpForeach(val chunkSize: ArithExpr,
-                         val stride: ArithExpr = Cst(1),
-                         val factor: ArithExpr = Cst(1),
-                         override val f: Lambda1)
+abstract class AbstractSpForeach(val chunkSize: ArithExpr,
+                                 val stride: ArithExpr = Cst(1),
+                                 val factor: ArithExpr = Cst(1),
+                                 override val f: Lambda1)
   extends Pattern(arity = 1) with FPattern {
   assert(f.params.length == 1)
 

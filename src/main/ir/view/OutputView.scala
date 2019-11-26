@@ -2,7 +2,7 @@ package ir.view
 
 import backends.{Backend, OpenCLBackend, SpatialBackend}
 import backends.common.view.{AccessInfo, SingleAccess}
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, SpForeach}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, AbstractSpForeach}
 import backends.spatial.common.ir.view.AccessInfoSp
 import ir._
 import ir.ast._
@@ -53,7 +53,7 @@ object OutputView {
   private def buildViewFunCall(call: FunCall, writeView: View): View = {
     // first handle body
     val result = call.f match {
-      case sF: SpForeach            => buildViewSpForeach(sF, call, writeView)
+      case sF: AbstractSpForeach    => buildViewSpForeach(sF, call, writeView)
       case m: AbstractMap           => buildViewMap(m, call, writeView)
       case f: FilterSeq             => buildViewFilter(f,  call, writeView)
       case aSF: AbstractSpFold      => buildViewAbstrSpFold(aSF, call, writeView)
@@ -262,7 +262,7 @@ object OutputView {
     View.initialiseNewView(call.args.head.t, call.outputDepth, call.args.head.mem.variable)
   }
 
-  private def buildViewSpForeach(sF: SpForeach, call: FunCall, writeView: View): View = {
+  private def buildViewSpForeach(sF: AbstractSpForeach, call: FunCall, writeView: View): View = {
     // traverse into call.f
     visitAndBuildViews(sF.f.body, writeView.access(sF.loopVar))
     // The implied Map view is ViewMap, but the implied Slide does not need

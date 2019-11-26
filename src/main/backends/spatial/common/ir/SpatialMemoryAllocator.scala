@@ -88,7 +88,7 @@ object SpatialMemoryAllocator {
 
       case Map(_)                   => allocMap(call.f.asInstanceOf[AbstractMap], call, outMemT, outAddressSpace, inMem)
 
-      case sf: SpForeach            => allocSpForeach(sf, call, outMemT, outAddressSpace, inMem)
+      case sf: AbstractSpForeach    => allocAbstrSpForeach(sf, call, outMemT, outAddressSpace, inMem)
       case m: MapSeq                => allocMapSeq(m, call, outMemT, outAddressSpace, inMem)
       case asf: AbstractSpFold      => allocAbstrSpFold(asf, call, outMemT, outAddressSpace, inMem)
       case r: ReduceSeq             => allocReduceSeq(r, call, outMemT, outAddressSpace, inMem)
@@ -169,11 +169,11 @@ object SpatialMemoryAllocator {
     alloc(am.f.body, innerType => outMemT(ArrayType(innerType, outerSize)), outAddressSpace)
   }
 
-  private def allocSpForeach(sf: SpForeach,
-                             call: FunCall,
-                             outMemT: Allocator,
-                             outAddressSpace: SpatialAddressSpace,
-                             inMem: SpatialMemory): SpatialMemory = {
+  private def allocAbstrSpForeach(sf: AbstractSpForeach,
+                                  call: FunCall,
+                                  outMemT: Allocator,
+                                  outAddressSpace: SpatialAddressSpace,
+                                  inMem: SpatialMemory): SpatialMemory = {
     val outerSize = call.t.asInstanceOf[ArrayType with Size].size
     sf.f.params(0).mem = inMem
 

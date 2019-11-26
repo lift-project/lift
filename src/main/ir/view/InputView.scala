@@ -1,6 +1,6 @@
 package ir.view
 
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, SpForeach}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, AbstractSpForeach}
 import backends.spatial.common.ir.SpatialMemoryCollection
 import ir._
 import ir.ast._
@@ -58,7 +58,7 @@ object InputView {
     val argView = getViewFromArgs(call)
 
     call.f match {
-      case sF: SpForeach =>                     buildViewSpForeach(sF, call, argView)
+      case sF: AbstractSpForeach =>             buildViewSpForeach(sF, call, argView)
       case m: AbstractMap =>                    buildViewMap(m, call, argView)
       case f: FilterSeq =>                      buildViewFilter(f, call, argView)
       case aSF: AbstractSpFold =>               buildViewAbstrSpFold(aSF, call, argView)
@@ -128,7 +128,7 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, i.f.body.mem.variable)
   }
 
-  private def buildViewSpForeach(sF: SpForeach, call: FunCall, argView: View): View = {
+  private def buildViewSpForeach(sF: AbstractSpForeach, call: FunCall, argView: View): View = {
 
     // pass down input view
     sF.f.params(0).view = (argView.slide(Slide(size = sF.chunkSize, step = sF.stride))
