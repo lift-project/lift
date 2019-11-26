@@ -82,11 +82,11 @@ class LSTM {
             bG :>> toSRAM(id1D) :>> Let(bGSRAM => {
             bF :>> toSRAM(id1D) :>> Let(bFSRAM => {
             bO :>> toSRAM(id1D) :>> Let(bOSRAM => {
-            lutI :>> toSRAM(id1D) :>> Let(lutISRAM => {
-            lutG :>> toSRAM(id1D) :>> Let(lutGSRAM => {
-            lutF :>> toSRAM(id1D) :>> Let(lutFSRAM => {
-            lutO :>> toSRAM(id1D) :>> Let(lutOSRAM => {
-            lutTanh :>> toSRAM(id1D) :>> Let(lutTanhSRAM => {
+//            lutI :>> toSRAM(id1D) :>> Let(lutISRAM => {
+//            lutG :>> toSRAM(id1D) :>> Let(lutGSRAM => {
+//            lutF :>> toSRAM(id1D) :>> Let(lutFSRAM => {
+//            lutO :>> toSRAM(id1D) :>> Let(lutOSRAM => {
+//            lutTanh :>> toSRAM(id1D) :>> Let(lutTanhSRAM => {
 
               hx :>> Slice(0, hxSize - h) :>> Split(h+d) :>>
               MapAccumSeq(
@@ -118,41 +118,46 @@ class LSTM {
                             def fusedDotProductWithNonLinear: Lambda =
                               fun(
                                 /* w:   */ ArrayType(Float, d + h),
-                                /* lut: */ ArrayType(Float, nLutValues),
+//                                /* lut: */ ArrayType(Float, nLutValues),
                                 /* b:   */ Float,
-                                (w_, lut_, b_) => {
+                                (w_, /*lut_,*/ b_) => {
                                   val w = AssertType(ArrayType(Float, d + h), "cellW") $ w_
-                                  val lut = AssertType(ArrayType(Float, nLutValues), "cellLUT") $ lut_
+//                                  val lut = AssertType(ArrayType(Float, nLutValues), "cellLUT") $ lut_
                                   val b = AssertType(Float, "cellB") $ b_
 
                                   // TODO: use LUT
 
                                   Zip(w, hPrevXCurSRAM) :>>
-                                    SpPipeFold(chunkSize = rv, stride = rv, factor = ru,
-                                      fMap = fun(
-                                        ArrayType(TupleType(Float, Float), rv), wAndXhTile_ => {
-                                          val wAndXhTile = AssertType(
-                                            ArrayType(TupleType(Float, Float), rv), "wAndXhTile") $ wAndXhTile_
+                                  SpPipeFold(chunkSize = rv, stride = rv, factor = ru,
+                                    fMap = fun(
+                                      ArrayType(TupleType(Float, Float), rv), wAndXhTile_ => {
+                                        val wAndXhTile = AssertType(
+                                          ArrayType(TupleType(Float, Float), rv), "wAndXhTile") $ wAndXhTile_
 
-                                          wAndXhTile :>> SpPipeFold(chunkSize = 1, stride = 1, factor = rv,
-                                            fMap = MapSeq(mult),
-                                            fReduce = add,
-                                            init = Value("0.0f", Float))
-                                        }),
-                                      fReduce = add,
-                                      init = toReg(id) $ b) // TODO: make sure we are not writing into bias here
+                                        wAndXhTile :>> SpPipeFold(chunkSize = 1, stride = 1, factor = rv,
+                                          fMap = MapSeq(mult),
+                                          fReduce = add,
+                                          init = toReg(id) $ Value("0.0f", Float))
+                                      }),
+                                    fReduce = add,
+                                    init = toReg(id) $ b) :>>
+                                  AssertType(Float, "fusedDotProductWithNonLinear result")
                                 })
 
-                            val i = fusedDotProductWithNonLinear(cellWI, lutISRAM, cellBI)
-                            val g = fusedDotProductWithNonLinear(cellWG, lutGSRAM, cellBG)
-                            val f = fusedDotProductWithNonLinear(cellWF, lutFSRAM, cellBF)
-                            val o = fusedDotProductWithNonLinear(cellWO, lutOSRAM, cellBO)
+//                            val i = fusedDotProductWithNonLinear(cellWI, lutISRAM, cellBI)
+//                            val g = fusedDotProductWithNonLinear(cellWG, lutGSRAM, cellBG)
+//                            val f = fusedDotProductWithNonLinear(cellWF, lutFSRAM, cellBF)
+//                            val o = fusedDotProductWithNonLinear(cellWO, lutOSRAM, cellBO)
+                            val i = fusedDotProductWithNonLinear(cellWI, cellBI)
+                            val g = fusedDotProductWithNonLinear(cellWG, cellBG)
+                            val f = fusedDotProductWithNonLinear(cellWF, cellBF)
+                            val o = fusedDotProductWithNonLinear(cellWO, cellBO)
 
-                            val newCellC_ = add(mult(i, g), mult(cellC, f))
+                            val newCellC_ = toReg(add)(mult(i, g), mult(cellC, f))
                             // Compute newCellC once, and then pass result to lambda output and
                             // to the expression computing new XH
                             newCellC_ :>> Let(newCellC =>
-                              Tuple(/*c*/ newCellC, /*h*/ toSRAM(mult)(newCellC, o))) // TODO: Add the Tanh
+                              Tuple(/*c*/ newCellC, /*h*/ mult(newCellC, o))) // TODO: Add the Tanh
                           })) :>> Unzip() :>>
                         AssertType(TupleType(ArrayType(Float, h), ArrayType(Float, h)), "c and h of one time step")
                     })
@@ -163,7 +168,7 @@ class LSTM {
                   val newHs = Get(mapAccumResult, 1)
                   Tuple(newCs, Join() $ newHs)
                 })
-            })})})})})})})})})})})})})})})
+            })})})})})})})})})})//})})})})//})
         ))
 
 
