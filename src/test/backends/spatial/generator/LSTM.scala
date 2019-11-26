@@ -1,16 +1,15 @@
 package backends.spatial.generator
 
 import arithmetic.TypeVar
-import backends.spatial.accel.ir.pattern.{MapAccumSeq, MapSeq, ReduceSeq, SpPipeFold, SpPipeForeach, toReg, toSRAM}
+import backends.spatial.accel.ir._
+import backends.spatial.accel.ir.pattern._
 import backends.spatial.common.ir._
 import backends.spatial.host
-import backends.spatial.accel.ir._
 import backends.{Backend, spatial}
-import ir.ast.debug.{AssertType, PrintType}
-import ir.ast.{ArrayAccess, Expr, Gather, Get, Head, Join, Lambda, Let, Map, Param, Slice, Slide, Split, Tail, Tuple, Unzip, UserFun, Value, Zip, fun, reverse}
+import ir.ast.debug.AssertType
+import ir.ast.{Drop, Get, Join, Lambda, Let, Slide, Split, Tuple, Unzip, UserFun, Value, Zip, fun}
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.{NewFactorizationOfSum, SizeVar}
-import opencl.ir.pattern.ScanSeq
 import org.junit.{AfterClass, Test}
 
 object LSTM {
@@ -42,10 +41,8 @@ class LSTM {
     val ru = SizeVar("ru")
     val nLutValues = SizeVar("nLutValues")
 
-    val hxSize = nSteps * (h + d) + h
-
     def layerLambda: Lambda = fun(
-      /* xh:      */ ArrayType(Float, hxSize),
+      /* xh:      */ ArrayType(Float, nSteps * (h + d) + h),
       /* c:       */ ArrayType(Float, h),
       /* wI:      */ ArrayType(ArrayType(Float, h + d), h),
       /* wG:      */ ArrayType(ArrayType(Float, h + d), h),
@@ -69,7 +66,8 @@ class LSTM {
         ReduceSeq(
           // Write back to c and to h sectors of hx in DRAM
           init = Tuple(c,
-            hx :>> Slice(h+d, hxSize) :>> Slide(h, h + d) :>> Join() :>>
+            // Skip h-1 and d0 when setting writing area. Start with h0
+            hx :>> Drop(left = h + d, right = 0) :>> Slide(h, h + d) :>> Join() :>>
             AssertType(ArrayType(Float, h * nSteps), "h sectors of hx in DRAM")),
           f = fun((_, _) => {
 
@@ -88,7 +86,7 @@ class LSTM {
 //            lutO :>> toSRAM(id1D) :>> Let(lutOSRAM => {
 //            lutTanh :>> toSRAM(id1D) :>> Let(lutTanhSRAM => {
 
-              hx :>> Slice(0, hxSize - h) :>> Split(h+d) :>>
+              hx :>> Drop(left = 0, right = h) :>> Split(h+d) :>>
               MapAccumSeq(
                 init = cSRAM,
 
@@ -173,7 +171,7 @@ class LSTM {
 
 
     val runTimeLambda: Lambda = fun(
-      /* xh:      */ ArrayType(Float, hxSize),
+      /* xh:      */ ArrayType(Float, nSteps * (h + d) + h),
       /* c:       */ ArrayType(Float, h),
       /* wI:      */ ArrayType(ArrayType(Float, d + h), h),
       /* wC:      */ ArrayType(ArrayType(Float, d + h), h),

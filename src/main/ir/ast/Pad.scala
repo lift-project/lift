@@ -1,11 +1,11 @@
 package ir.ast
 
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, SimplifiedExpr}
 import ir.interpreter.Interpreter._
 import ir._
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
-case class Pad(left: Int, right: Int, boundary: Pad.BoundaryFun)
+case class Pad(left: ArithExpr, right: ArithExpr, boundary: Pad.BoundaryFun)
   extends Pattern(arity = 1) {
 
   override def toString: String = "Pad(" + left + "," + right + "," + boundary + ")"
@@ -39,6 +39,11 @@ object Pad {
     abstract class ReindexingFun extends BoundaryFun //{
     //  def apply(idx: ArithExpr,  len: ArithExpr): ArithExpr
     //}
+
+    object Identity extends ReindexingFun {
+      override def toString: String = "Pad.Boundary.Identity"
+      override def apply(idx: ArithExpr, len: ArithExpr): ArithExpr with SimplifiedExpr = idx
+    }
 
     object Wrap extends ReindexingFun {
       override def toString: String = "Pad.Boundary.Wrap"

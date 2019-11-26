@@ -341,7 +341,7 @@ abstract sealed class View(val t: Type = UndefType) {
     }
   }
 
-  def pad(left: Int, right: Int, boundary: Pad.BoundaryFun): View = {
+  def pad(left: ArithExpr, right: ArithExpr, boundary: Pad.BoundaryFun): View = {
     this.t match {
       case ArrayTypeWS(elemT, len) =>
         ViewPad(this, left, right, boundary, ArrayTypeWSWC(elemT, len + left + right))
@@ -349,7 +349,7 @@ abstract sealed class View(val t: Type = UndefType) {
     }
   }
 
-  def padConstant(left: Int, right: Int, constant: Value): View = {
+  def padConstant(left: ArithExpr, right: ArithExpr, constant: Value): View = {
     this.t match {
       case ArrayTypeWS(elemT, len) =>
         ViewPadConstant(this, left, right, constant, ArrayTypeWSWC(elemT, len + left + right))
@@ -579,7 +579,7 @@ case class ViewTail(iv: View, override val t: Type) extends View(t)
  * @param fct The boundary handling function.
  * @param t The type of view.
  */
-case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
+case class ViewPad(iv: View, left: ArithExpr, right: ArithExpr, fct: Pad.BoundaryFun,
                    override val t: Type) extends View(t)
 
 /**
@@ -591,8 +591,8 @@ case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
   * @param constant The constant value
   * @param t The type of view.
   */
-case class ViewPadConstant(iv: View, left: Int, right: Int, constant: Value,
-                   override val t: Type) extends View(t)
+case class ViewPadConstant(iv: View, left: ArithExpr, right: ArithExpr, constant: Value,
+                           override val t: Type) extends View(t)
 
 /**
  * A view for fetching the size of an array assuming that it can't be known

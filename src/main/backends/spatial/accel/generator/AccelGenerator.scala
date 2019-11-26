@@ -556,7 +556,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
         StructConstructor(t = tt, args = args) // TODO: check functional correctness for Spatial
 
       // A SpatialNullMemory object indicates that the view is not backed by memory and will directly return a value
-      case SpatialNullMemory => SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns) // TODO: check
+      case SpatialNullMemory => SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns)
 
       case sMem: SpatialMemory if sMem.addressSpace == ArgOutMemory =>
         throw new IllegalArgumentException(s"Cannot read from the write-only ArgOut memory $sMem")

@@ -387,11 +387,11 @@ object InputView {
     View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
   }
 
-  private def buildViewPad(left: Int, right: Int, boundary: Pad.BoundaryFun, argView: View) : View = {
+  private def buildViewPad(left: ArithExpr, right: ArithExpr, boundary: Pad.BoundaryFun, argView: View) : View = {
     argView.pad(left, right, boundary)
   }
 
-  private def buildViewPadConstant(left: Int, right: Int, constant: Value, argView: View): View = {
+  private def buildViewPadConstant(left: ArithExpr, right: ArithExpr, constant: Value, argView: View): View = {
     argView.padConstant(left, right, constant)
   }
 }
