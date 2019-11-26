@@ -24,8 +24,8 @@ package object generator {
       toList.distinct.
       zipWithIndex.map {
       case ((varFullName: String, varCoreName: String), orderId: Int) =>
-        if (!varCoreName.isEmpty) (varFullName, "v_" + varCoreName + "_"  + (97+orderId).toChar)
-        else (varFullName, "v__" + (97+orderId).toChar)
+        if (!varCoreName.isEmpty) (varFullName, "v_" + varCoreName + "_" + orderId)
+        else (varFullName, "v__" + orderId)
     }
     val updatedCode = varSubstitutions.foldLeft(code) {
       case (partUpdatedCode, varSubst) => partUpdatedCode.replaceAllLiterally(varSubst._1, varSubst._2)
