@@ -2,7 +2,7 @@ package backends.spatial.accel.generator
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, BurstUserFun, MapAccumSeq, MapSeq, Parallel, Pipe, Piped, ReduceSeq, SchedulingPattern, Sequential, SpFold, SpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, BurstUserFun, MapAccumSeq, MapSeq, Parallel, Pipe, Piped, ReduceSeq, SchedulingPattern, Sequential, SpFold, AbstractSpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
 import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
@@ -69,26 +69,23 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
     var returnRequired = returnValue
     assert(expr.t != UndefType)
 
-    // Generate arguments
-    expr match {
-      case f: FunCall => f.args.foreach(generate(_, block))
-      case _          =>
-    }
-
     expr match {
       case call: FunCall =>
+
+        // Generate arguments
+        call.args.foreach(generate(_, block))
 
         scope.push(call)
 
         declareMemoryIfRequired(expr, block)
 
         call.f match {
-          case _: AbstractMap | _: SpForeach =>
+          case _: AbstractMap | _: AbstractSpForeach =>
             call.f match {
-              case _: Map             =>
-              case m: MapSeq          => generateMapSeqCall(m, call, block)
-              case sf: SpForeach      => generateForeachCall(sf, call, block)
-              case _                  => throw new NotImplementedError()
+              case _: Map                 =>
+              case m: MapSeq              => generateMapSeqCall(m, call, block)
+              case sf: AbstractSpForeach  => generateForeachCall(sf, call, block)
+              case _                      => throw new NotImplementedError()
             }
 
             // If the size of the input array is not known in the type, it is not
@@ -96,26 +93,26 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
             // it from the input's header to the output's header.
             propagateDynamicArraySize(call, block)
 
-          case asf: AbstractSpFold    => generateFoldCall(asf, call, block)
-          case r: ReduceSeq           => generateReduceSeqCall(r, call, block)
+          case asf: AbstractSpFold        => generateFoldCall(asf, call, block)
+          case r: ReduceSeq               => generateReduceSeqCall(r, call, block)
 
-          case ma: MapAccumSeq        => generateMapAccumSeqCall(ma, call, block)
+          case ma: MapAccumSeq            => generateMapAccumSeqCall(ma, call, block)
 
-          case u: UserFun             => generateUserFunCall(u, call, block)
+          case u: UserFun                 => generateUserFunCall(u, call, block)
 
-          case sp: SchedulingPattern  => generateSchedulingPatternCall(sp, call, block)
+          case sp: SchedulingPattern      => generateSchedulingPatternCall(sp, call, block)
 
-          case fp: FPattern           => generate(fp.f.body, block)
-          case l: Lambda              => generate(l.body, block)
+          case fp: FPattern               => generate(fp.f.body, block)
+          case l: Lambda                  => generate(l.body, block)
 
           case toReg(_) | toArgOut(_) | toSRAM(_) | toDRAM(_) |
                Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
                Split(_) | Join() | Slide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
                Id() | Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
                ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) |
-               RewritingGuidePost(_)  =>
+               RewritingGuidePost(_)      =>
 
-          case _                      => throw new NotImplementedError()
+          case _                          => throw new NotImplementedError()
         }
 
         scope.pop()
@@ -227,7 +224,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
     (block: MutableExprBlock) += Comment("end map_seq")
   }
   
-  private def generateForeachCall(sf: SpForeach,
+  private def generateForeachCall(sf: AbstractSpForeach,
                                   call: FunCall,
                                   block: MutableExprBlock): Unit = {
     (block: MutableExprBlock) += Comment("SpForeach")
