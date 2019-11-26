@@ -247,9 +247,32 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
         }
         emitView(iv, newArrayAccessStack, tupleAccessStack)
 
-      case ViewPad(iv, left, _, padFun, _) =>       throw new NotImplementedError()
+      case ViewPad(iv, left, right, padFun, _) =>
+
+        def padIdx(idx: ArithExpr): ArithExpr = {
+          val newIdx = idx - left
+          val length = iv.t.asInstanceOf[ArrayType with Size].size
+
+          if (ArithExpr.mightBeNegative(newIdx) ||
+            ArithExpr.isSmaller(length - 1, newIdx.max).getOrElse(true))
+            padFun(newIdx, length)
+          else
+            newIdx
+        }
+
+        val (newAddressor, newArrayAccessStack) = arrayAccessStack match {
+          case Index(idx) :: indices => (Index(padIdx(idx)), indices)
+          case (slice: Slice) :: indices =>
+            val length = iv.t.asInstanceOf[ArrayType with Size].size
+//            assert(ArithExpr.isSmaller(slice.end, length + right).getOrElse(false))
+            (Slice(start = slice.start - left, end = slice.end - left, slice.burstFactor), indices)
+
+          case _ => throw new IllegalArgumentException(f"Unexpected array access stack: $arrayAccessStack")
+        }
+        emitView(iv, newAddressor :: newArrayAccessStack, tupleAccessStack)
+
       case ViewPadConstant(iv, left, _,
-      constant, _) =>                               throw new NotImplementedError()
+        constant, _) =>                             throw new NotImplementedError()
       case ViewConstant(value, _) =>                GenericAST.RawCode(value.value)
       case ViewSize(iv) =>
         assert(arrayAccessStack.isEmpty)
