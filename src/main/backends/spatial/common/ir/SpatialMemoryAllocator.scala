@@ -76,9 +76,16 @@ object SpatialMemoryAllocator {
     // If this node only propagates or transforms the view the data of the argument, the argument memory type
     // is the outMemT of this expression
     val argMemT = if (call.isConcrete(visitArgs = false)) (t: Type) => t else outMemT
+    val argAddressSpace = call.f match {
+      case toDRAM(_) => DRAMMemory
+      case toSRAM(_) => SRAMMemory
+      case toReg(_) => RegMemory
+      case toArgOut(_) => ArgOutMemory
+      case _ => outAddressSpace
+    }
 
     // Get the input memory of f from the input arguments
-    val inMem = getInMFromArgs(call, argMemT, outAddressSpace)
+    val inMem = getInMFromArgs(call, argMemT, argAddressSpace)
 
     // Determine the output memory based on the type of f ...
     call.f match {
@@ -93,7 +100,7 @@ object SpatialMemoryAllocator {
       case asf: AbstractSpFold      => allocAbstrSpFold(asf, call, outMemT, outAddressSpace, inMem)
       case r: ReduceSeq             => allocReduceSeq(r, call, outMemT, outAddressSpace, inMem)
 
-      case mapAccum: MapAccumSeq   => allocMapAccumSeq(mapAccum, call, outMemT, outAddressSpace, inMem)
+      case mapAccum: MapAccumSeq    => allocMapAccumSeq(mapAccum, call, outMemT, outAddressSpace, inMem)
 
       case s: AbstractSearch        => throw new NotImplementedError()
 

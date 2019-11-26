@@ -2,7 +2,7 @@ package backends.spatial.common.ir
 
 import backends.spatial.accel.generator.IllegalAccelBlock
 import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, ReduceSeq, toArgOut, toDRAM, toReg, toSRAM}
-import ir.ScalarType
+import ir.{ScalarType, TupleType}
 import ir.ast.{AbstractPartRed, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Id, Join, Lambda, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
 
 object InferSpatialAddressSpace {
@@ -45,7 +45,21 @@ object InferSpatialAddressSpace {
   private def setAddressSpaceFunCall(call: FunCall,
                                      writeTo: SpatialAddressSpace): SpatialAddressSpace = {
 
-    val argAddressSpaces = call.args.map(setAddressSpace(_, writeTo))
+    val argWriteTo = call.f match {
+      case toDRAM(_) => DRAMMemory
+      case toSRAM(_) => SRAMMemory
+      case toReg(_) => RegMemory
+      case toArgOut(_) => ArgOutMemory
+      case _ => writeTo
+    }
+
+    val argAddressSpaces = (call.t, writeTo) match {
+      // Write to a tuple across different address spaces
+      case (_: TupleType, AddressSpaceCollection(writeToSubSpaces)) if call.args.length == writeToSubSpaces.length =>
+        call.args.zip(writeToSubSpaces).map { case (arg, writeToSubSpace) => setAddressSpace(arg, writeToSubSpace) }
+      // Write to a non-tuple or a tuple in one address space
+      case _ => call.args.map(setAddressSpace(_, argWriteTo))
+    }
 
     call.f match {
       case RewritingGuidePost(_)    => setAddressSpaceDefault(argAddressSpaces)
@@ -150,7 +164,7 @@ object InferSpatialAddressSpace {
                                     argAddressSpaces: Seq[SpatialAddressSpace]): SpatialAddressSpace = {
 
     if (!call.isConcrete(false))
-      throw new IllegalAccelBlock(s"Address space change requested without a write at $call")
+      throw new IllegalArgumentException(s"Address space change requested without a write at $call")
 
       val (addressSpace, lambda) = call.f match {
         case toArgOut(f) => (ArgOutMemory, f)
@@ -159,12 +173,11 @@ object InferSpatialAddressSpace {
         case toDRAM(f) => (DRAMMemory, f)
       }
 
-      setAddressSpaceLambda(lambda,
-        if (argAddressSpaces.length == 1) argAddressSpaces.head
-        else AddressSpaceCollection(argAddressSpaces),
-        argAddressSpaces)
-
-      addressSpace
+    setAddressSpaceLambda(lambda,
+      if (argAddressSpaces.length == 1) argAddressSpaces.head
+      else AddressSpaceCollection(argAddressSpaces).findCommonAddressSpace(),
+      argAddressSpaces)
+    addressSpace
   }
 
   private def inferAddressSpace(writeTo: SpatialAddressSpace,
