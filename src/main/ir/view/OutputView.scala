@@ -270,9 +270,7 @@ object OutputView {
 //    ViewMap(sF.f.params.head.outputView, sF.loopVar, call.args.head.t)
 
     // build the implied Slide view
-    val slideWriteView = View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
-
-    slideWriteView
+    buildViewSlide(call.args.head)
   }
 
 
