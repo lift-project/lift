@@ -1,9 +1,8 @@
 package backends.spatial.common.ir
 
-import backends.spatial.accel.generator.IllegalAccelBlock
 import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, ReduceSeq, toArgOut, toDRAM, toReg, toSRAM}
-import ir.{ScalarType, TupleType}
-import ir.ast.{AbstractPartRed, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Id, Join, Lambda, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
+import ir.{ScalarType}
+import ir.ast.{AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Id, Join, Lambda, Let, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
 
 object InferSpatialAddressSpace {
 
@@ -45,21 +44,20 @@ object InferSpatialAddressSpace {
   private def setAddressSpaceFunCall(call: FunCall,
                                      writeTo: SpatialAddressSpace): SpatialAddressSpace = {
 
-    val argWriteTo = call.f match {
-      case toDRAM(_) => DRAMMemory
-      case toSRAM(_) => SRAMMemory
-      case toReg(_) => RegMemory
-      case toArgOut(_) => ArgOutMemory
-      case _ => writeTo
+    val argUserFunsWriteTo = call.args.zipWithIndex.map {
+      case (_, argIdx) =>
+        (call.f, writeTo) match {
+          case (toDRAM(_), _) => DRAMMemory
+          case (toSRAM(_), _) => SRAMMemory
+          case (toReg(_), _) => RegMemory
+          case (toArgOut(_), _) => ArgOutMemory
+          case (Tuple(_), outAScoll: AddressSpaceCollection) =>
+            outAScoll.spaces(argIdx)
+          case _ => writeTo
+        }
     }
 
-    val argAddressSpaces = (call.t, writeTo) match {
-      // Write to a tuple across different address spaces
-      case (_: TupleType, AddressSpaceCollection(writeToSubSpaces)) if call.args.length == writeToSubSpaces.length =>
-        call.args.zip(writeToSubSpaces).map { case (arg, writeToSubSpace) => setAddressSpace(arg, writeToSubSpace) }
-      // Write to a non-tuple or a tuple in one address space
-      case _ => call.args.map(setAddressSpace(_, argWriteTo))
-    }
+    val argAddressSpaces = call.args.zip(argUserFunsWriteTo).map { case (arg, argWriteTo) => setAddressSpace(arg, argWriteTo)}
 
     call.f match {
       case RewritingGuidePost(_)    => setAddressSpaceDefault(argAddressSpaces)
@@ -86,6 +84,11 @@ object InferSpatialAddressSpace {
 
       case ma: MapAccumSeq          => setAddressSpaceMapAccumSeq(ma.f, call, writeTo, argAddressSpaces)
 
+      case l: Let                   => assert(argAddressSpaces.length == 1 &&
+                                          !argAddressSpaces.head.isInstanceOf[AddressSpaceCollection],
+                                         "Let does not materialise tuples or arguments that are to be written in more than " +
+                                         "one address space (e.g. Let(x => Tuple(toReg(id) $ x, toSRAM(id) $ x)")
+                                       setAddressSpaceLambda(l, writeTo, argAddressSpaces)
       case l: Lambda                => setAddressSpaceLambda(l, writeTo, argAddressSpaces)
       case fp: FPattern             => setAddressSpaceLambda(fp.f, writeTo, argAddressSpaces)
 

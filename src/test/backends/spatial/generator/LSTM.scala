@@ -151,20 +151,26 @@ class LSTM {
                             val f = fusedDotProductWithNonLinear(cellWF, cellBF)
                             val o = fusedDotProductWithNonLinear(cellWO, cellBO)
 
-                            val newCellC_ = toReg(add)(mult(i, g), mult(cellC, f))
-                            // Compute newCellC once, and then pass result to lambda output and
+                            val newCellC_ = add(mult(i, g), mult(cellC, f))
+                            // Compute newCellC once, and then pass the result to lambda output and
                             // to the expression computing new XH
-                            newCellC_ :>> Let(newCellC =>
+                            newCellC_ :>> toReg(id) :>> Let(newCellC =>
                               Tuple(/*c*/ newCellC, /*h*/ mult(newCellC, o))) // TODO: Add the Tanh
                           })) :>> Unzip() :>>
-                        AssertType(TupleType(ArrayType(Float, h), ArrayType(Float, h)), "c and h of one time step")
+                          fun((chUpd) => {
+                            val cUpd = Get(chUpd, 0)
+                            val hUpd = Get(chUpd, 1)
+                            // Leave cUpd in SRAM memory and store hUpd in DRAM
+                            Tuple(cUpd, toDRAM(id1D) $ hUpd)
+                          }) :>>
+                          AssertType(TupleType(ArrayType(Float, h), ArrayType(Float, h)), "c and h of one time step")
                     })
                   })) :>>
-                // Just changing the view
+//
                 fun(mapAccumResult => {
-                  val newCs = Get(mapAccumResult, 0)
-                  val newHs = Get(mapAccumResult, 1)
-                  Tuple(newCs, Join() $ newHs)
+                  val newCs = toDRAM(id1D) $ Get(mapAccumResult, 0)
+                  val newHs = Join() $ Get(mapAccumResult, 1)
+                  Tuple(newCs, newHs)
                 })
             })})})})})})})})})})//})})})})//})
         ))

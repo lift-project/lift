@@ -15,7 +15,7 @@ object Printer {
       case ArgOutMemory   => "ArgOut"
       case RegMemory      => "Reg"
       case LiteralMemory  => throw new IllegalArgumentException("Literal address space name must never be printed")
-      case _          => throw new IllegalArgumentException("Unknown Spatial address space encountered during printing")
+      case as             => throw new IllegalArgumentException(f"Unknown Spatial address space encountered during printing: $as")
     }
   }
 

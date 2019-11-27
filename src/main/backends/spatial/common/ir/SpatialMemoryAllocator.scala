@@ -76,16 +76,20 @@ object SpatialMemoryAllocator {
     // If this node only propagates or transforms the view the data of the argument, the argument memory type
     // is the outMemT of this expression
     val argMemT = if (call.isConcrete(visitArgs = false)) (t: Type) => t else outMemT
-    val argAddressSpace = call.f match {
-      case toDRAM(_) => DRAMMemory
-      case toSRAM(_) => SRAMMemory
-      case toReg(_) => RegMemory
-      case toArgOut(_) => ArgOutMemory
-      case _ => outAddressSpace
+    val argAddressSpaces = call.args.zipWithIndex.map {
+      case (_, argIdx) =>
+        (call.f, outAddressSpace) match {
+          case (toDRAM(_), _) => DRAMMemory
+          case (toSRAM(_), _) => SRAMMemory
+          case (toReg(_), _) => RegMemory
+          case (toArgOut(_), _) => ArgOutMemory
+          case (Tuple(_), outAScoll: AddressSpaceCollection) => outAScoll.spaces(argIdx)
+          case _ => outAddressSpace
+        }
     }
 
     // Get the input memory of f from the input arguments
-    val inMem = getInMFromArgs(call, argMemT, argAddressSpace)
+    val inMem = getInMFromArgs(call, argMemT, argAddressSpaces)
 
     // Determine the output memory based on the type of f ...
     call.f match {
@@ -140,11 +144,13 @@ object SpatialMemoryAllocator {
 
   private def getInMFromArgs(call: FunCall,
                              outMemT: Allocator,
-                             outAddressSpace: SpatialAddressSpace): SpatialMemory = {
+                             outAddressSpaces: Seq[SpatialAddressSpace]): SpatialMemory = {
     call.args.length match {
       case 0 => throw new IllegalArgumentException(s"Function call without arguments $call")
-      case 1 => alloc(call.args.head, outMemT, outAddressSpace)
-      case _ => SpatialMemoryCollection(call.args.map(arg => alloc(arg, outMemT, outAddressSpace)))
+      case 1 => alloc(call.args.head, outMemT, outAddressSpaces.head)
+      case _ => SpatialMemoryCollection(call.args.zip(outAddressSpaces).map {
+        case (arg, outAddressSpace) => alloc(arg, outMemT, outAddressSpace)
+      })
     }
   }
 
@@ -286,6 +292,8 @@ object SpatialMemoryAllocator {
         val outValuesAS = outAddressSpace.asInstanceOf[AddressSpaceCollection].spaces(1)
         val outMem = SpatialMemory.allocMemory(outMemT(outValuesType), outValuesAS)
 
+        val mapAccumOuterMemory = SpatialMemoryCollection(Vector(initM, outMem))
+
         val mapAccumBodyM: SpatialMemoryCollection = alloc(mapAccum.f.body, t => t, initM.addressSpace) match {
           case aColl: SpatialMemoryCollection => aColl
           case mem => throw new IllegalStateException(f"Expected a collection of memories to be allocated for " +
@@ -298,13 +306,13 @@ object SpatialMemoryAllocator {
 
         val substitutionTable =
           SpatialMemory.getAllMemories(mapAccumBodyM).zip(
-          SpatialMemory.getAllMemories(SpatialMemoryCollection(Seq(initM, outMem)))).toMap
+          SpatialMemory.getAllMemories(mapAccumOuterMemory)).toMap
 
         // replace `bodyM` by `initM` and `outMem` in `r.f.body`
         Expr.visit(mapAccum.f.body, e =>
           e.mem = SpatialMemory.substitute(e.mem.asInstanceOf[SpatialMemory], substitutionTable), _ => {})
 
-        SpatialMemoryCollection(Vector(initM, outMem))
+        mapAccumOuterMemory
 
       case _ => throw new IllegalArgumentException(inMem.toString)
     }
