@@ -253,8 +253,15 @@ object SpatialMemoryAllocator {
 
         val reduceBodyM = alloc(r.f.body, t => t, initM.addressSpace)
 
+        if (!reduceBodyM.equalsInShape(initM))
+          throw new IllegalStateException(f"Expected initM and reduceBodyM shapes to be equals. " +
+            f"Got:\ninitM: $initM\nreduceBodyM: $reduceBodyM")
+
+        val substitutionTable = SpatialMemory.getAllMemories(reduceBodyM).zip(SpatialMemory.getAllMemories(initM)).toMap
+
         // replace `bodyM` by `initM` in `r.f.body`
-        Expr.visit(r.f.body, e => if (e.mem == reduceBodyM) e.mem = initM, _ => {})
+        Expr.visit(r.f.body, e => e.mem = SpatialMemory.substitute(e.mem.asInstanceOf[SpatialMemory], substitutionTable),
+          _ => {})
 
         initM
       case _ => throw new IllegalArgumentException(inMem.toString)
@@ -275,19 +282,29 @@ object SpatialMemoryAllocator {
         mapAccum.f.params(0).mem = initM
         mapAccum.f.params(1).mem = coll.subMemories(1)
 
-        val mapAccumBodyM = alloc(mapAccum.f.body, t => t, initM.addressSpace)
-
-        // replace `bodyM` by `initM` in `r.f.body`
-        Expr.visit(mapAccum.f.body, e => if (e.mem == mapAccumBodyM) e.mem = initM, _ => {})
-
-        val stateType = call.t.asInstanceOf[TupleType].elemsT.head
-        val stateMem = SpatialMemory.allocMemory(outMemT(stateType), initM.addressSpace)
-
         val outValuesType = call.t.asInstanceOf[TupleType].elemsT(1)
         val outValuesAS = outAddressSpace.asInstanceOf[AddressSpaceCollection].spaces(1)
         val outMem = SpatialMemory.allocMemory(outMemT(outValuesType), outValuesAS)
 
-        SpatialMemoryCollection(Vector(stateMem, outMem))
+        val mapAccumBodyM: SpatialMemoryCollection = alloc(mapAccum.f.body, t => t, initM.addressSpace) match {
+          case aColl: SpatialMemoryCollection => aColl
+          case mem => throw new IllegalStateException(f"Expected a collection of memories to be allocated for " +
+            f"mapAccumSeq body. Got $mem")
+        }
+
+        if (!mapAccumBodyM.subMemories.head.equalsInShape(initM))
+          throw new IllegalStateException(f"Expected initM and mapAccumBodyM.head shapes to be equals. " +
+            f"Got:\ninitM: $initM\nmapAccumBodyM.head: ${mapAccumBodyM.subMemories.head}")
+
+        val substitutionTable =
+          SpatialMemory.getAllMemories(mapAccumBodyM).zip(
+          SpatialMemory.getAllMemories(SpatialMemoryCollection(Seq(initM, outMem)))).toMap
+
+        // replace `bodyM` by `initM` and `outMem` in `r.f.body`
+        Expr.visit(mapAccum.f.body, e =>
+          e.mem = SpatialMemory.substitute(e.mem.asInstanceOf[SpatialMemory], substitutionTable), _ => {})
+
+        SpatialMemoryCollection(Vector(initM, outMem))
 
       case _ => throw new IllegalArgumentException(inMem.toString)
     }

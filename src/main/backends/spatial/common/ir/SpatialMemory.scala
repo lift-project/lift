@@ -120,6 +120,41 @@ object SpatialMemory {
     new SpatialMemory(variable, t, addressSpace)
   }
 
+  /**
+   * This function returns a new memory which has been constructed from the given
+   * type `t` by recursively visiting it and applying `f` which returns new memories
+   * for a given memory.
+   *
+   * The visiting works as follows:
+   * 1. the function `f` is invoked on `mem`
+   * 2. the return value of `f(t)` is recursively visited
+   *
+   * @param mem The 'source' memory to be visited
+   * @param f   The function to be invoked on `t` before it is recursively
+   *            visited. The return value of this function is then recursively
+   *            visited.
+   * @return The rebuilt memory after recursively applying `f` to `mem`
+   */
+  def visitAndRebuild(mem: SpatialMemory,
+                      f: SpatialMemory => SpatialMemory): SpatialMemory = {
+    val newMem = f(mem)
+    newMem match {
+      case SpatialMemoryCollection(subMemories, subAddressSpaces) =>
+        val newMemsAndAss = subMemories.zip(subAddressSpaces.spaces).map {
+          case (subMem, _) =>
+            val newMem = f(subMem)
+            (newMem, newMem.addressSpace)
+        }
+        SpatialMemoryCollection(newMemsAndAss.map(_._1), AddressSpaceCollection(newMemsAndAss.map(_._2)))
+      case _ => newMem
+    }
+  }
+
+  def substitute(mem: SpatialMemory, substitutions: Map[SpatialMemory, SpatialMemory]): SpatialMemory =
+    SpatialMemory.visitAndRebuild(mem, aMem =>
+      if (substitutions.contains(aMem)) substitutions(aMem)
+      else aMem)
+
   def getAllMemories(memory: SpatialMemory): Seq[SpatialMemory] = memory match {
     case SpatialMemoryCollection(subMemories, _) => subMemories.flatMap(getAllMemories)
     case _ => Seq(memory)

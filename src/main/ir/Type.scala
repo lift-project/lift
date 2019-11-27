@@ -423,13 +423,13 @@ object Type {
   }
 
   /**
-   * This function return a new type which has been constructed from the given
+   * This function returns a new type which has been constructed from the given
    * type `t` by recursively visiting it and applying `pre` and `post` which
    * return new types for a given type.
    *
    * The visiting works as follows:
    * 1. the function `pre` is invoked on `t`
-   * 1. the return value of `pre(t)` is recursively visited
+   * 2. the return value of `pre(t)` is recursively visited
    * 3. on the return value from the recursively visit the function `post` is
    *    invoked and its return value is returned from this function
    *
@@ -440,7 +440,7 @@ object Type {
    * @param post The function to be invoked on `t` after it has been recursively
    *             visited. The return value of this function is return from the
    *             entire function.
-   * @return The rebuild type after recursively applying `pre` and `post` to `t`
+   * @return The rebuilt type after recursively applying `pre` and `post` to `t`
    */
   def visitAndRebuild(t: Type,
                       pre: Type => Type,
