@@ -51,8 +51,7 @@ object InferSpatialAddressSpace {
           case (toSRAM(_), _) => SRAMMemory
           case (toReg(_), _) => RegMemory
           case (toArgOut(_), _) => ArgOutMemory
-          case (Tuple(_), outAScoll: AddressSpaceCollection) =>
-            outAScoll.spaces(argIdx)
+          case (Tuple(_), outAScoll: AddressSpaceCollection) => outAScoll.spaces(argIdx)
           case _ => writeTo
         }
     }

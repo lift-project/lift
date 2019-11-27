@@ -198,15 +198,18 @@ private class BuildDepthInfoSp() {
     asf.fReduce.params(1).accessInf = fMapAccessInfo(reduceArgAccessInfo, reduceReadMemories)
 
     // The output of the Fold does not add depth (the array of one contract has been deprecated),
-    // so memoryAccessInfo does not have to be updated
+    // so memoryAccessInfo does not have to be updated (no iterator variables need adding) except for
+    // just recording the access as a whole
     val reduceWriteMemories = getMemoryAccesses(call)
 
+    val updMemoryAccessInfo2 = updateAccessInf(memoryAccessInfo, reduceWriteMemories, None)
+
     // traverse into call.f
-    visitAndBuildDepthInfo(asf.fReduce.body, memoryAccessInfo)
+    visitAndBuildDepthInfo(asf.fReduce.body, updMemoryAccessInfo2)
 
-    setDepths(call, reduceReadMemories, reduceWriteMemories, memoryAccessInfo)
+    setDepths(call, reduceReadMemories, reduceWriteMemories, updMemoryAccessInfo2)
 
-    AccessInfoSp(memoryAccessInfo)
+    AccessInfoSp(updMemoryAccessInfo2)
   }
 
   private def buildDepthInfoReduceSeqCall(r: ReduceSeq, call: FunCall,
@@ -215,14 +218,13 @@ private class BuildDepthInfoSp() {
     val argAccessInfo = getArrayAccessInf(call.args(1).t, r.loopVar)
 
     r.f.params(0).accessInf = l.collection.head
+    // The input memories will be accessed using map iterator variable
     r.f.params(1).accessInf = l.collection(1)(argAccessInfo, readMemories)
 
     val writeMemories = getMemoryAccesses(call)
 
-    val bodyAccessInfo = getArrayAccessInf(call.t, Cst(0))
-
-    // The input and intermediate outputs memories will be accessed using map iterator variable
-    val updMemoryAccessInfo = updateAccessInf(memoryAccessInfo, readMemories ++ writeMemories, Some(bodyAccessInfo))
+    // The accumulator memories will be accessed as a whole since this is a reduction operation
+    val updMemoryAccessInfo = updateAccessInf(memoryAccessInfo, readMemories ++ writeMemories, None)
 
     // traverse into call.f
     visitAndBuildDepthInfo(r.f.body, updMemoryAccessInfo)
@@ -243,13 +245,15 @@ private class BuildDepthInfoSp() {
     val writeStateMemories = SpatialMemory.getAllMemories(call.mem.asInstanceOf[SpatialMemoryCollection].subMemories(0))
     val writeOutValMemories = SpatialMemory.getAllMemories(call.mem.asInstanceOf[SpatialMemoryCollection].subMemories(1))
 
-    val outStateAccessInfo = getArrayAccessInf(call.t.asInstanceOf[TupleType].elemsT.head, Cst(0))
     // The input and intermediate outputs memories will be accessed using map iterator variable
     val outValAccessInfo = getArrayAccessInf(call.t.asInstanceOf[TupleType].elemsT(1), mapAccum.loopVar)
 
+    // The update order is important here: outValAccessInfo contains the mapAccum iterator,
+    // which should only be applied to the output values, not state.
+    // The state will be accessed as a whole since this is a reduction operation
     val updMemoryAccessInfo = updateAccessInf(
-      updateAccessInf(memoryAccessInfo, readMemories ++ writeStateMemories, Some(outStateAccessInfo)),
-      readMemories ++ writeOutValMemories, Some(outValAccessInfo))
+      updateAccessInf(memoryAccessInfo, readMemories ++ writeOutValMemories, Some(outValAccessInfo)),
+      readMemories ++ writeStateMemories, None)
 
     // traverse into call.f
     visitAndBuildDepthInfo(mapAccum.f.body, updMemoryAccessInfo)
