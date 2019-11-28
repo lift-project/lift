@@ -155,8 +155,15 @@ class LSTM {
                             // Compute newCellC once, and then pass the result to lambda output and
                             // to the expression computing new XH
                             newCellC_ :>> toReg(id) :>> Let(newCellC =>
-                              Tuple(/*c*/ toSRAM(id) $ newCellC, /*h*/ mult(newCellC, o))) // TODO: Add the Tanh
+                              Tuple(
+                                /*c*/ toSRAM(id) $ newCellC,
+                                /*h*/ toSRAM(mult)(newCellC, o))) // TODO: Add the Tanh
                           })) :>> Unzip() :>>
+                          fun(mapAccumBodyResult => {
+                            val newC = Get(mapAccumBodyResult, 0)
+                            val newH = toDRAM(id1D) $ Get(mapAccumBodyResult, 1)
+                            Tuple(newC, newH)
+                          }) :>>
                           AssertType(TupleType(ArrayType(Float, h), ArrayType(Float, h)), "c and h of one time step")
                     })
                   })) :>>
