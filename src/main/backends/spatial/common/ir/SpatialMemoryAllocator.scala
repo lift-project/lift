@@ -289,7 +289,10 @@ object SpatialMemoryAllocator {
         mapAccum.f.params(1).mem = coll.subMemories(1)
 
         val outValuesType = call.t.asInstanceOf[TupleType].elemsT(1)
-        val outValuesAS = outAddressSpace.asInstanceOf[AddressSpaceCollection].spaces(1)
+        val outValuesAS = outAddressSpace match {
+          case coll: AddressSpaceCollection => coll.spaces(1)
+          case _ => outAddressSpace
+        }
         val outMem = SpatialMemory.allocMemory(outMemT(outValuesType), outValuesAS)
 
         val mapAccumOuterMemory = SpatialMemoryCollection(Vector(initM, outMem))

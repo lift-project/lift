@@ -151,7 +151,10 @@ object InferSpatialAddressSpace {
     // Inside mapAccum, write state into the accumulator variable, and the intermediate outputs into
     // the second writeTo address space
     val mapAccumWriteTo = AddressSpaceCollection(
-      Seq(accumulatorAddressSpace, writeTo.asInstanceOf[AddressSpaceCollection].spaces(1)))
+      Seq(accumulatorAddressSpace, writeTo match {
+        case coll: AddressSpaceCollection => coll.spaces(1)
+        case _ => writeTo
+      }))
 
     setAddressSpaceLambda(lambda, mapAccumWriteTo, argAddressSpaces)
   }
