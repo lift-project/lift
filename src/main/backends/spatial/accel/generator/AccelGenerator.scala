@@ -136,7 +136,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
         val accessType = Type.getBaseType(call.t)
 
         (block: MutableExprBlock) += AssignmentExpression(
-          to = accessNode(call.mem, call.addressSpace, accessType, outSizeView),
+          to = accessNode(call.mem.asInstanceOf[SpatialMemory], call.addressSpace, accessType, outSizeView),
           value = getArraySize(SpatialMemory.asSpatialMemory(call.args.head.mem), inSizeView)
         )
     }
@@ -153,7 +153,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
         )
         sizes.reduce((x, y) => FunctionCall("min", List(x, y)))
       case _                                      =>
-        SpatialViewPrinter.emit(view, addressSpace = mem.addressSpace)
+        SpatialViewPrinter.emit(view, mem.t, addressSpace = mem.addressSpace)
     }
   }
 
@@ -557,7 +557,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
         StructConstructor(t = tt, args = args) // TODO: check functional correctness for Spatial
 
       // A SpatialNullMemory object indicates that the view is not backed by memory and will directly return a value
-      case SpatialNullMemory => SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns)
+      case SpatialNullMemory => SpatialViewPrinter.emit(view, t, replacementsOfIteratorsWithValuesWithFuns)
 
       case sMem: SpatialMemory if sMem.addressSpace == ArgOutMemory =>
         throw new IllegalArgumentException(s"Cannot read from the write-only ArgOut memory $sMem")
@@ -599,7 +599,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
    * @param burstFactor  An optional burst access factor
    * @return An NDVarSlicedRef node accessing `v` as described in `view`.
    */
-  private def accessNode(mem: Memory,
+  private def accessNode(mem: SpatialMemory,
                          addressSpace: SpatialAddressSpace,
                          accessType: Type,
                          view: View,
@@ -649,16 +649,16 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
    * @param burstFactor  An optional burst access factor
    * @return An VarRef node accessing `v` as described in `view`.
    */
-  private def arrayAccessNode(mem: Memory,
+  private def arrayAccessNode(mem: SpatialMemory,
                               addressSpace: SpatialAddressSpace,
                               view: View,
                               burstFactor: Option[ArithExpr] = None): ExpressionT = {
     addressSpace match {
       case SRAMMemory | DRAMMemory =>
-        SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace, burstFactor)
+        SpatialViewPrinter.emit(view, mem.t, replacementsOfIteratorsWithValuesWithFuns, addressSpace, burstFactor)
 
       case RegMemory | ArgOutMemory =>
-        val arrayAccessExpression = SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValuesWithFuns, addressSpace)
+        val arrayAccessExpression = SpatialViewPrinter.emit(view, mem.t, replacementsOfIteratorsWithValuesWithFuns, addressSpace)
         arrayAccessExpression match {
           case _: VarIdxRef | _: VarSlicedRef =>
             VarIdxRef(mem.variable, suffix = Some(arrayAccessRegisterMem(mem, view)))
@@ -680,7 +680,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
    * @return A string of the form '_indices' where indices is the sliced multidimensional
    *         array index. The indices must be computable at compile time.
    */
-  private def arrayAccessRegisterMem(mem: Memory, view: View): String = {
+  private def arrayAccessRegisterMem(mem: SpatialMemory, view: View): String = {
     // Compute the indices ...
     val indices = arrayAccessRegisterMemIndex(mem, view)
     // ... and append it
@@ -699,7 +699,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
    * @param view Access view
    * @return A two-dimensional list of indices
    */
-  private def arrayAccessRegisterMemIndex(mem: Memory, view: View): List[List[Int]] = {
+  private def arrayAccessRegisterMemIndex(mem: SpatialMemory, view: View): List[List[Int]] = {
 
     val typeInMem = allTypedMemories(mem).typeInMem
 
@@ -708,7 +708,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
     val addressors: List[ArrayAddressor] = typeInMem match {
 
       case _: ScalarType | _: TupleType =>
-        val arrayAccessExpression = SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValues, RegMemory)
+        val arrayAccessExpression = SpatialViewPrinter.emit(view, mem.t, replacementsOfIteratorsWithValues, RegMemory)
         arrayAccessExpression match {
           case VarSlicedRef(_, _, Some(addr)) => addr.map {
             case idx: ArrIndex => Index(idx)
@@ -722,7 +722,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
 
       case ArrayType(_) =>
 
-        SpatialViewPrinter.emit(view, replacementsOfIteratorsWithValues, RegMemory) match {
+        SpatialViewPrinter.emit(view, mem.t, replacementsOfIteratorsWithValues, RegMemory) match {
           case VarSlicedRef(_, _, Some(addr)) => addr.map {
             case idx: ArrIndex => Index(idx)
             case slice: ArrSlice => Slice(slice)

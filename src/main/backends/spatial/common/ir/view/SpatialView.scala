@@ -54,6 +54,7 @@ private[view] class IllegalSpatialView(err: String)
 }
 
 class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
+                         val memType: Type,
                          val mainAddressSpace: SpatialAddressSpace,
                          val burstFactor: Option[ArithExpr] = None) {
   private var replacementsOfScalarWithSlicedAccesses = mutable.ListMap[ArithExpr, Slice]()
@@ -81,7 +82,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
           if (replacementsOfScalarWithSlicedAccesses.nonEmpty)
             replacementsOfScalarWithSlicedAccesses.foldLeft(arrayAccessStack) { case (aas, (_, slice)) => slice +: aas }
           else arrayAccessStack
-        GenerateAccess(memVar, ty, newArrayAccessStack, tupleAccessStack)
+        GenerateAccess(memVar, memType, newArrayAccessStack, tupleAccessStack)
 
       case ViewOffset(offset, iv, t) =>
         // increment read / write access by offset
@@ -454,15 +455,24 @@ object SpatialViewPrinter {
    * Emit the arithmetic expression for accessing an array that corresponds
    * to the view.
    *
+   * The memType is the type of the memory the view is referring to. It is required because
+   * the type recorded in ViewMem might be different from memory type.
+   * One example is ViewMem inside the outputView of an element of a tuple.
+   * In "Tuple(.., Head() $ arg: [ [T]_m ]_n)", the outputView of FunCall(Head(), ..) is ViewMem(v__0, [ [T]_m ]_1)
+   * See OutputView.scala:99 (argument handling of Tuple() in buildViewFunCall()).
+   *
+   *
    * @param view The view to emit.
+   * @param memType The type of the memory the view is referring to.
    * @param burstFactor  An optional burst access factor.
    * @return The arithmetic expression.
    */
   def emit(view: View,
+           memType: Type,
            replacements: immutable.Map[ArithExpr, ArithExpr] = immutable.Map(),
            addressSpace: SpatialAddressSpace = UndefAddressSpace,
            burstFactor: Option[ArithExpr] = None): ExpressionT = {
-    val vp = new SpatialViewPrinter(replacements, addressSpace, burstFactor)
+    val vp = new SpatialViewPrinter(replacements, memType, addressSpace, burstFactor)
     // This requirement is relaxed compared to the C-like backends since Spatial supports sliced accesses to arrays:
     //assert(!view.t.isInstanceOf[ArrayType])
 
