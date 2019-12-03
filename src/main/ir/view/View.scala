@@ -137,6 +137,7 @@ abstract sealed class View(val t: Type = UndefType) {
       case ViewTupleComponent(i, ivs, ty) => ViewTupleComponent(i, ivs.replaced(subst), ty)
       case ViewSlide(iv, slide, ty) => ViewSlide(iv.replaced(subst), slide, ty)
       case ViewPad(iv, left, right, padFun, ty) => ViewPad(iv.replaced(subst), left, right, padFun, ty)
+      case ViewSkipW(iv, left, ty) => ViewSkipW(iv.replaced(subst), left, ty)
       case ViewPadConstant(iv, left, right, constant, ty) => ViewPadConstant(iv.replaced(subst), left, right, constant, ty)
       case ViewSize(iv) => ViewSize(iv.replaced(subst))
       case ViewHead(iv, ty) => ViewHead(iv.replaced(subst), ty)
@@ -346,6 +347,14 @@ abstract sealed class View(val t: Type = UndefType) {
       case ArrayTypeWS(elemT, len) =>
         ViewPad(this, left, right, boundary, ArrayTypeWSWC(elemT, len + left + right))
       case other => throw new IllegalArgumentException("Can't pad " + other)
+    }
+  }
+
+  def skipW(left: ArithExpr): View = {
+    this.t match {
+      case ArrayTypeWSWC(elemT, s, c) =>
+        ViewSkipW(this, left, ArrayTypeWSWC(elemT, s + left, c + left))
+      case other => throw new IllegalArgumentException("Can't skipW " + other)
     }
   }
 
@@ -581,6 +590,18 @@ case class ViewTail(iv: View, override val t: Type) extends View(t)
  */
 case class ViewPad(iv: View, left: ArithExpr, right: ArithExpr, fct: Pad.BoundaryFun,
                    override val t: Type) extends View(t)
+
+
+/**
+  * A view for skipping elements in an array.
+  *
+  * @param iv The view to skip.
+  * @param left The number of elements to skip on the left
+  * @param t The type of view.
+  */
+
+case class ViewSkipW(iv: View, left: ArithExpr,
+                     override val t: Type) extends View(t)
 
 /**
   * A view for padding an array.

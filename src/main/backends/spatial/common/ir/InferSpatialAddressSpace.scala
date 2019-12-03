@@ -1,8 +1,8 @@
 package backends.spatial.common.ir
 
 import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, ReduceSeq, toArgOut, toDRAM, toReg, toSRAM}
-import ir.{ScalarType}
-import ir.ast.{AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Id, Join, Lambda, Let, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
+import ir.ScalarType
+import ir.ast.{AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Id, Join, Lambda, Let, Pad, PadConstant, Param, RewritingGuidePost, Scatter, SkipW, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
 
 object InferSpatialAddressSpace {
 
@@ -66,8 +66,8 @@ object InferSpatialAddressSpace {
 
       case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
            asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
-           Pad(_,_,_) | PadConstant(_, _, _) | Tuple(_) | Slide(_,_) | Head() | Tail() | debug.PrintType(_) |
-           debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
+           Pad(_,_,_) | SkipW(_) | PadConstant(_, _, _) | Tuple(_) | Slide(_,_) | Head() | Tail() |
+           debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
            UnsafeArrayAccess(_) | CheckedArrayAccess(_) | ArrayAccess(_) | Id()
                                     => setAddressSpaceDefault(argAddressSpaces)
 

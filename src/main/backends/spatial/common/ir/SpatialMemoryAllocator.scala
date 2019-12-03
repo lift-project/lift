@@ -1,8 +1,9 @@
 package backends.spatial.common.ir
 
 import backends.spatial.accel.ir.pattern._
-import _root_.ir.ast.{AbstractMap, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, Filter, FunCall, Gather, Get, Head, Id, Iterate, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
-import _root_.ir.{ArrayType, NumberOfArgumentsException, Size, TupleType, Type, UnallocatedMemory}
+import _root_.ir.ast.{AbstractMap, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, Filter, FunCall, Gather, Get, Head, Id, Iterate, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, SkipW, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
+import _root_.ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, NumberOfArgumentsException, Size, TupleType, Type, TypeException, UnallocatedMemory}
+
 
 object SpatialMemoryAllocator {
   /** innerType => fullType */
@@ -112,6 +113,8 @@ object SpatialMemoryAllocator {
 
       case cc: Concat               => throw new NotImplementedError()
 
+//      case sw: SkipW                => allocSkipW(sw, call, outMemT, outAddressSpace, inMem)
+
       case l: Lambda                => allocLambda(l, outMemT, outAddressSpace, inMem)
 
       case toDRAM(f)                => allocLambda(f, outMemT, DRAMMemory, inMem)
@@ -162,6 +165,25 @@ object SpatialMemoryAllocator {
 
     SpatialMemory.allocMemory(outMemT(call.t), outAddressSpace)
   }
+
+//  private def allocSkipW(sw: SkipW,
+//                         call: FunCall,
+//                         inMem: SpatialMemory): SpatialMemory = {
+//    // Need to increase size by the skip distance
+//    val skipDistance = sw.left
+//
+//    val updatedMemT = inMem.t match {
+//      case ArrayTypeWSWC(elemT, s, c) if s == c =>
+//        ArrayType(elemT, s + skipDistance)
+//      case _ =>
+//        throw TypeException(f"Expected ArrayType(_, s, c) with s == c for input memory $inMem of $sw. Got ${inMem.t}")
+//    }
+//
+//    val outputMemory = SpatialMemory.allocMemory(updatedMemT, inMem.addressSpace)
+//    sw.replacementMap += inMem -> outputMemory
+//
+//    outputMemory
+//  }
 
   private def allocLambda(l: Lambda,
                           outMemT: Allocator,

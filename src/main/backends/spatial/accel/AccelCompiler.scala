@@ -4,9 +4,10 @@ import _root_.ir.UndefType
 import _root_.ir.ast.Lambda
 import backends.spatial.accel.generator.AccelGenerator
 import backends.spatial.common.ir.view.SpatialView
-import backends.spatial.common.ir.{CollectContextualSpatialMemory, InferSpatialAddressSpace, SpatialMemoryAllocator, ContextualMemoryCollection}
+import backends.spatial.common.ir.{CollectContextualSpatialMemory, ContextualMemoryCollection, InferSpatialAddressSpace, SpatialMemoryAllocator}
 import core.generator.GenericAST.ExprBlock
 import _root_.ir.TypeChecker
+import opencl.ir.RemoveRedundantMemory
 
 /**
  * The compiler performs all the passes over the AST that populate it with new
@@ -29,6 +30,7 @@ object AccelCompiler {
 
     // Allocate memory
     SpatialMemoryAllocator(f)
+    RemoveRedundantMemory(f)
 
     // Collect typed memories
     val allTypedMemories = CollectContextualSpatialMemory(f)
