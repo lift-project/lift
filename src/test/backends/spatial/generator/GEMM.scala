@@ -86,7 +86,7 @@ class GEMM {
       ArrayType(ArrayType(Float, N), M),
       (a, b, c) =>
         PrintType() o
-          Join() o
+          JoinW() o
           SpPipeForeach(chunkSize = tileMsize, stride = tileMsize, factor = outerFactorI,
             f = fun(
               ArrayType(TupleType(ArrayType(Float, P), ArrayType(Float, N)), tileMsize),
@@ -99,7 +99,7 @@ class GEMM {
                   AssertType(ArrayType(ArrayType(Float, tileMsize), N), "tileCrows.type") o
                     Transpose() $ Get(Unzip() $ tileACrows, 1)
 
-                Map(Join()) o TransposeW() o PrintType() o
+                Map(JoinW()) o TransposeW() o PrintType() o
                   SpPipeForeach(chunkSize = tileNsize, stride = tileNsize, factor = outerFactorJ,
                     f = fun(
                       ArrayType(TupleType(ArrayType(Float, P), ArrayType(Float, tileMsize)), tileNsize),
