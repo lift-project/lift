@@ -6,8 +6,8 @@ import backends.spatial.accel.ir.pattern._
 import backends.spatial.common.ir._
 import backends.spatial.host
 import backends.{Backend, spatial}
-import ir.ast.debug.AssertType
-import ir.ast.{Drop, Get, Join, Lambda, Let, Slide, Split, Tuple, Unzip, UserFun, Value, Zip, fun}
+import ir.ast.debug.{AssertType, PrintType}
+import ir.ast.{Drop, Get, Lambda, Let, SkipW, Split, Tuple, Unzip, UserFun, Value, Zip, fun}
 import ir.{ArrayType, TupleType}
 import lift.arithmetic.{NewFactorizationOfSum, SizeVar}
 import org.junit.{AfterClass, Test}
@@ -65,10 +65,7 @@ class LSTM {
         Value("0.0f", ArrayType(Float, 1)) :>>
         ReduceSeq(
           // Write back to c and to h sectors of hx in DRAM
-          init = Tuple(c,
-            // Skip h-1 and d0 when setting writing area. Start with h0
-            hx :>> Drop(left = h + d, right = 0) :>> Slide(h, h + d) :>> Join() :>>
-            AssertType(ArrayType(Float, h * nSteps), "h sectors of hx in DRAM")),
+          init = Tuple(c, hx),
           f = fun((_, _) => {
 
             c :>> toSRAM(id1D) :>> Let(cSRAM => {
@@ -161,17 +158,24 @@ class LSTM {
                           })) :>> Unzip() :>>
                           fun(mapAccumBodyResult => {
                             val newC = Get(mapAccumBodyResult, 0)
-                            val newH = toDRAM(id1D) $ Get(mapAccumBodyResult, 1)
+                            val newH = toDRAM(id1D) o SkipW(left=d, right=0) $ Get(mapAccumBodyResult, 1)
                             Tuple(newC, newH)
                           }) :>>
-                          AssertType(TupleType(ArrayType(Float, h), ArrayType(Float, h)), "c and h of one time step")
+                          AssertType(TupleType(ArrayType(Float, h), ArrayType(Float, d + h)),
+                            "updated c and h (with an offset) of one time step")
                     })
                   })) :>>
 //
                 fun(mapAccumResult => {
                   val newCs = toDRAM(id1D) $ Get(mapAccumResult, 0)
-                  val newHs = Join() $ Get(mapAccumResult, 1)
-                  Tuple(newCs, newHs)
+                  val newHX = Get(mapAccumResult, 1) :>>
+                    AssertType(ArrayType(ArrayType(Float, d+ h), nSteps), "Updated h (with an offset)") :>>
+                    PrintType() :>>
+                    JoinW() :>> PrintType() :>>
+                    SkipW(left=h, right=0) :>>
+                    AssertType(ArrayType(Float, nSteps * (h + d) + h), "Updated hx")
+
+                  Tuple(newCs, newHX)
                 })
             })})})})})})})})})})//})})})})//})
         ))
