@@ -92,6 +92,7 @@ object InputView {
       case fp: FPattern =>                      buildViewLambda(fp.f, call, argView)
       case Pad(left, right,boundary) =>         buildViewPad(left, right, boundary, argView)
       case PadConstant(left, right, value) =>   buildViewPadConstant(left, right, value, argView)
+      case SkipW(left, right) =>                buildViewSkipW(left, right, call, argView)
       case ArrayAccess(i) =>                    argView.access(i)
       case RewritingGuidePost(_) =>             argView
       case cc: Concat =>                        buildViewConcat(call,argView)
@@ -393,5 +394,9 @@ object InputView {
 
   private def buildViewPadConstant(left: ArithExpr, right: ArithExpr, constant: Value, argView: View): View = {
     argView.padConstant(left, right, constant)
+  }
+
+  private def buildViewSkipW(left: ArithExpr, right: ArithExpr, call: FunCall, argView: View): View = {
+    argView
   }
 }

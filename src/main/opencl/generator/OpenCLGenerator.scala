@@ -622,7 +622,7 @@ class OpenCLGenerator extends Generator {
 
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
              Split(_) | Join() | Slide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
-             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
+             Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | SkipW(_, _) | PadConstant(_, _, _) |
              ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) |
              RewritingGuidePost(_) =>
         case _                            => (block: MutableBlock) += Comment("__" + call.toString + "__")

@@ -2,7 +2,7 @@ package ir.view
 
 import backends.{Backend, OpenCLBackend, SpatialBackend}
 import backends.common.view.{AccessInfo, SingleAccess}
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, MapAccumSeq, AbstractSpForeach}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, AbstractSpForeach, MapAccumSeq}
 import backends.spatial.common.ir.view.AccessInfoSp
 import ir._
 import ir.ast._
@@ -71,6 +71,7 @@ object OutputView {
       case i: Iterate               => buildViewIterate(i, call, writeView)
       case tw: TransposeW           => buildViewTransposeW(tw, call, writeView)
       case t: Transpose             => buildViewTranspose(t, call, writeView)
+      case SkipW(left, right)       => buildViewSkipW(left, right, call, writeView)
       case asVector(n)              => buildViewAsVector(n, writeView)
       case _: asScalar              => buildViewAsScalar(call, writeView)
       case _: Head                  => buildViewHead(call, writeView)
@@ -468,5 +469,33 @@ object OutputView {
     // TODO: TestTail.tailBetweenMapsScatterBeforeAndAfter. Not sure how to fix.
     View.initialiseNewView(funCall.args.head.t, funCall.outputDepth,
       funCall.args.head.mem.variable)
+  }
+
+  private def buildViewSkipW(left: ArithExpr, right: ArithExpr, call: FunCall, writeView: View): View = {
+    writeView.skipW(left, right)
+  }
+
+  /**
+   * Reconstruct the tuple element types by traversing the call type until
+   * the first tuple is found, and splitting the type there
+   */
+  private def unzipTypes(zippedType: Type): Seq[Type] = {
+    var tupleLength: Option[Int] = None
+    var tupleElementIdx: Int = 0
+
+    def getNextType: Type = {
+      var tupleFound: Boolean = false
+
+      Type.visitAndRebuild(zippedType, t => t, {
+        case tt: TupleType if !tupleFound =>
+          tupleFound = true
+          if (tupleLength.isEmpty) tupleLength = Some(tt.elemsT.length)
+          tupleElementIdx += 1
+          tt.elemsT(tupleElementIdx - 1)
+        case t => t
+      })
+    }
+
+    Seq(getNextType) ++ (1 until tupleLength.getOrElse(0)).map(_ => getNextType)
   }
 }

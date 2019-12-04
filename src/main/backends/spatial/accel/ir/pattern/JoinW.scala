@@ -1,24 +1,23 @@
-package ir.ast
+package backends.spatial.accel.ir.pattern
 
-import ir.interpreter.Interpreter._
 import ir._
+import ir.interpreter.Interpreter._
+import ir.ast.Join
+
+import scala.collection.immutable
 
 /**
- * Join pattern.
+ * JoinW pattern. Performs the join on the previous write, changing the type of the target memory.
  * Code for this pattern can be generated.
  *
- * The join pattern has the following high-level semantics:
- *   `Join()( [ [x,,1,,, ..., x,,n,,], ..., [x,,m-n+1,,, ..., x,,m,,] ] ) =
+ * The joinW pattern has the following high-level semantics:
+ *   `JoinW()( [ [x,,1,,, ..., x,,n,,], ..., [x,,m-n+1,,, ..., x,,m,,] ] ) =
  *    [x,,1,,, ..., x,,m,,]`
  *
- * The join pattern has the following type:
- *   `Join() : [ [a],,i,, ],,j,, -> [ a ],,i x j,,`
- *
- * We know the following algorithmic rewrite rules for the join pattern
- * (so far):
- *  - `Join() o Split(chunkSize) | Split(chunkSize) o Join() => id`
+ * The joinW pattern has the following type:
+ *   `JoinW() : [ [a],,i,, ],,j,, -> [ a ],,i x j,,`
  */
-class Join() extends Pattern(arity = 1)  {
+case class JoinW() extends Join {
 
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
@@ -36,10 +35,4 @@ class Join() extends Pattern(arity = 1)  {
       case v: Vector[Vector[_] @unchecked] => v.flatten
     }
   }
-}
-
-object Join {
-  def apply(): Join = new Join()
-
-  def unapply(arg: Join): Boolean = true
 }

@@ -2,12 +2,17 @@ package backends.spatial.common.ir
 
 import backends.spatial.accel.ir.pattern._
 import _root_.ir.ast.{AbstractMap, AbstractSearch, ArrayAccess, ArrayConstructors, ArrayFromExpr, CheckedArrayAccess, Concat, Expr, Filter, FunCall, Gather, Get, Head, Id, Iterate, Join, Lambda, Map, Pad, PadConstant, Param, RewritingGuidePost, Scatter, SkipW, Slide, Split, Tail, Transpose, TransposeW, Tuple, UnsafeArrayAccess, Unzip, UserFun, Value, VectorParam, VectorizeUserFun, Zip, asScalar, asVector, debug}
-import _root_.ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, NumberOfArgumentsException, Size, TupleType, Type, TypeException, UnallocatedMemory}
+import _root_.ir.{ArrayType, ArrayTypeWS, ArrayTypeWSWC, Memory, NumberOfArgumentsException, ScalarType, Size, TupleType, Type, TypeException, UnallocatedMemory}
+
+import scala.collection.{mutable, immutable}
 
 
 object SpatialMemoryAllocator {
   /** innerType => fullType */
   type Allocator = Type => Type
+
+  // Redundant memory collection
+  var redundantMemories: mutable.Map[Memory, Memory] = mutable.Map[Memory, Memory]()
 
   /**
     * Allocate memory for both the body and the parameters of the outermost lambda expression
@@ -20,7 +25,17 @@ object SpatialMemoryAllocator {
       p.mem = SpatialMemory.allocMemory(p.t, p.addressSpace)
     )
 
-    alloc(f.body, t => t, DRAMMemory)
+    val result = alloc(f.body, t => t, DRAMMemory)
+
+    // Verify that the parameter memory types were not changed by primitives such as JoinW
+    f.params.foreach(p =>
+      if (!p.mem.asInstanceOf[SpatialMemory].t.equals(p.t))
+        throw TypeException(f"The type of the memory cannot be changed using primitives such as JoinW -- " +
+          f"changes to memory type are only permitted for memories produced by UserFuns.\n" +
+        f"The memory with changed type is ${p.mem}; the original type is ${p.t}; " +
+          f"the changed type is ${p.mem.asInstanceOf[SpatialMemory].t}"))
+
+    removeRedundantMemory(f, result)
   }
 
   /**
@@ -113,7 +128,7 @@ object SpatialMemoryAllocator {
 
       case cc: Concat               => throw new NotImplementedError()
 
-//      case sw: SkipW                => allocSkipW(sw, call, outMemT, outAddressSpace, inMem)
+      case sw: SkipW                => allocSkipW(sw, call, outMemT, inMem)
 
       case l: Lambda                => allocLambda(l, outMemT, outAddressSpace, inMem)
 
@@ -133,6 +148,8 @@ object SpatialMemoryAllocator {
       case debug.PrintView(_, f)    => allocLambda(f, outMemT, outAddressSpace, inMem)
 
       case RewritingGuidePost(_)    => inMem
+
+      case jw: JoinW                => allocJoinW(jw, call, inMem)
 
       case Map(_) |
            Split(_) | Join() | asVector(_) | asScalar() |
@@ -166,24 +183,54 @@ object SpatialMemoryAllocator {
     SpatialMemory.allocMemory(outMemT(call.t), outAddressSpace)
   }
 
-//  private def allocSkipW(sw: SkipW,
-//                         call: FunCall,
-//                         inMem: SpatialMemory): SpatialMemory = {
-//    // Need to increase size by the skip distance
-//    val skipDistance = sw.left
-//
-//    val updatedMemT = inMem.t match {
-//      case ArrayTypeWSWC(elemT, s, c) if s == c =>
-//        ArrayType(elemT, s + skipDistance)
-//      case _ =>
-//        throw TypeException(f"Expected ArrayType(_, s, c) with s == c for input memory $inMem of $sw. Got ${inMem.t}")
-//    }
-//
-//    val outputMemory = SpatialMemory.allocMemory(updatedMemT, inMem.addressSpace)
-//    sw.replacementMap += inMem -> outputMemory
-//
-//    outputMemory
-//  }
+  private def allocSkipW(sw: SkipW,
+                         call: FunCall,
+                         outMemT: Allocator,
+                         inMem: SpatialMemory): SpatialMemory = {
+    // Need to increase the size by the skip distance
+    val skipDistance = sw.left + sw.right
+
+    // Find the dimension where the SkipW is applied
+    val baseT = Type.getBaseType(inMem.t)
+    val outerArrayT = outMemT(baseT)
+
+    /**
+     * Unwraps an array by example.
+     * The use case is when the SkipW is applied within a Map, i.e. on a subarray of the input array.
+     * This function extracts the type of the array whose elements are skipped from a nested array.
+     * For example:
+     * typeToUnwrap = ArrayType(ArrayType(ArrayType(ArrayType(Float, A), B), C), D)
+     * exampleT = ArrayType(ArrayType(Float, E), F)
+     * return = ArrayType(ArrayType(Float, A), B)
+     * The example type is built using the Allocator, which keeps track of the maps that Skip is nested in.
+     */
+    def unwrapNDArrayByExample(typeToUnwrap: Type, exampleT: Type): Type = {
+      (typeToUnwrap, exampleT) match {
+        case (t: ScalarType, _: ScalarType) => t
+        case (_: ScalarType, _: ArrayType) =>
+          throw new IllegalArgumentException(s"Cannot unwrap $typeToUnwrap by the example of $exampleT")
+        case (elemT: ArrayType, _: ScalarType) => elemT
+        case (ArrayType(elemToUnwrapT), ArrayType(exampleElemT)) => unwrapNDArrayByExample(elemToUnwrapT, exampleElemT)
+        case _ => throw new IllegalArgumentException(f"Unknown combination of ($typeToUnwrap, $exampleT)")
+      }
+    }
+
+    val nestedArrayT = unwrapNDArrayByExample(inMem.t, outerArrayT)
+
+    val updatedNestedArrayT = nestedArrayT match {
+      case ArrayTypeWSWC(elemT, s, c) if s == c =>
+        ArrayType(elemT, s + skipDistance)
+      case _ =>
+        throw TypeException(f"Expected ArrayType(_, s, c) with s == c for input memory $inMem of $sw. Got ${inMem.t}")
+    }
+
+    val updatedInMemT = outMemT(updatedNestedArrayT)
+
+    val updatedInMem = SpatialMemory.allocMemory(updatedInMemT, inMem.addressSpace)
+    redundantMemories += (inMem -> updatedInMem)
+
+    updatedInMem
+  }
 
   private def allocLambda(l: Lambda,
                           outMemT: Allocator,
@@ -191,6 +238,25 @@ object SpatialMemoryAllocator {
                           inMem: SpatialMemory): SpatialMemory = {
     setMemInParams(l.params, inMem)
     alloc(l.body, outMemT, outAddressSpace)
+  }
+
+  private def allocJoinW(jw: JoinW,
+                             call: FunCall,
+                             inMem: SpatialMemory): SpatialMemory = {
+    inMem match {
+      case SpatialMemory(
+          ArrayTypeWSWC(ArrayTypeWSWC(elemT, sInner, cInner), sOuter, cOuter),
+          addressSpace, bufferHazard) =>
+        val updatedInMem = SpatialMemory.allocMemory(ArrayTypeWSWC(elemT, sOuter * sInner, cOuter * cInner), addressSpace)
+        updatedInMem.bufferHazard = bufferHazard
+
+        redundantMemories += (inMem -> updatedInMem)
+
+        updatedInMem
+
+      case mem => throw new IllegalArgumentException(f"Expected a SpatialMemory with type ArrayType(ArrayType(_)). " +
+        f"Got $mem with type ${mem.t}")
+    }
   }
 
   private def allocMap(am: AbstractMap,
@@ -242,8 +308,8 @@ object SpatialMemoryAllocator {
         // it expects memory of size call.args(1).t.size. Here, we will allocate output memory of fMap
         // and input memory of fReduce separately. This will not be a problem during code generation as those
         // memories are not explicitly written to / read from. Spatial takes care of the disparity.
-        // Note, the empty allocator (t => t) is there because fMap.body will have a loop iterating chunkSize times,
-        // which will increase the allocator
+        // Note, the empty allocator (t => t) is there because any memory fMap allocates is in the local scope of
+        // the implicit map, so we reset the memory size multiplier here
         alloc(asf.fMap.body, t => t, asf.fMap.body.addressSpace)
 
         // Here, we are doing something potentially dangerous: associate one variable with two memories,
@@ -285,11 +351,11 @@ object SpatialMemoryAllocator {
           throw new IllegalStateException(f"Expected initM and reduceBodyM shapes to be equals. " +
             f"Got:\ninitM: $initM\nreduceBodyM: $reduceBodyM")
 
-        val substitutionTable = SpatialMemory.getAllMemories(reduceBodyM).zip(SpatialMemory.getAllMemories(initM)).toMap
-
         // replace `bodyM` by `initM` in `r.f.body`
-        Expr.visit(r.f.body, e => e.mem = SpatialMemory.substitute(e.mem.asInstanceOf[SpatialMemory], substitutionTable),
-          _ => {})
+        // (bodyM will be replaced by initM in removeRedundantMemories())
+        redundantMemories ++=
+          SpatialMemory.getAllMemories(reduceBodyM).zip(
+            SpatialMemory.getAllMemories(initM)).toMap
 
         initM
       case _ => throw new IllegalArgumentException(inMem.toString)
@@ -329,13 +395,11 @@ object SpatialMemoryAllocator {
           throw new IllegalStateException(f"Expected initM and mapAccumBodyM.head shapes to be equals. " +
             f"Got:\ninitM: $initM\nmapAccumBodyM.head: ${mapAccumBodyM.subMemories.head}")
 
-        val substitutionTable =
+        // replace `bodyM` by `initM` in `r.f.body`
+        // (bodyM will be replaced by initM in removeRedundantMemories())
+        redundantMemories ++=
           SpatialMemory.getAllMemories(mapAccumBodyM).zip(
-          SpatialMemory.getAllMemories(mapAccumOuterMemory)).toMap
-
-        // replace `bodyM` by `initM` and `outMem` in `r.f.body`
-        Expr.visit(mapAccum.f.body, e =>
-          e.mem = SpatialMemory.substitute(e.mem.asInstanceOf[SpatialMemory], substitutionTable), _ => {})
+            SpatialMemory.getAllMemories(mapAccumOuterMemory)).toMap
 
         mapAccumOuterMemory
 
@@ -368,5 +432,49 @@ object SpatialMemoryAllocator {
         val coll = inMem.asInstanceOf[SpatialMemoryCollection]
         (params zip coll.subMemories).foreach({case (p, m) => p.mem = m})
     }
+  }
+
+   /**
+   * Removes redundant memory.
+   * The memory becomes redundant in either of two cases:
+   * 1. When the allocated memory needs to be reduced with that of an accumulator of Reduce or Scan;
+   * 2. When the memory producer (e.g. a UserFun) is composed into a primitive that changes something
+   *    fundamental about memory -- concatenates it with another memory, performs a skip on write or
+   *    changes the spatial memory type.
+   * This is a more advanced version of opencl.ir.RemoveRedundantMemory, adding the following functionality:
+   * - Handling chain replacements of arbitrary order:
+   *   (memA -> memB -> memC -> memD) is performed as (memA -> memD, memB -> memD, memC -> memD)
+   * - Handling Spatial-specific pattern JoinW
+   */
+  def removeRedundantMemory(f: Lambda, originalReturnMem: SpatialMemory): SpatialMemory = {
+    // 1. Resolve memory replacement chains
+    val redundantMemoriesWithoutChains = redundantMemories.foldLeft(mutable.Map[SpatialMemory, SpatialMemory]()) {
+      case (replacementMap, (mem1: Memory, mem2: Memory)) =>
+        val origMem = mem1.asInstanceOf[SpatialMemory]
+        val replMem = mem2.asInstanceOf[SpatialMemory]
+        (replacementMap.keys.exists(_ == replMem), replacementMap.values.exists(_ == origMem))  match {
+          case (false, false) =>
+            replacementMap += (origMem -> replMem)
+          case (false, true) =>
+            // When adding (a -> b) to [.., c -> a, ..], change the map to [.., c -> b, a -> b, ..]
+            replacementMap.filter(_._2 == origMem).foreach(oldRepl =>
+              replacementMap.update(key = oldRepl._1, value = replMem))
+            replacementMap += (origMem -> replMem)
+          case (true, false) =>
+            // When adding (a -> b) to [.., b -> c, ..], change the map to [.., b -> c, a -> c, ..]
+            replacementMap += (origMem -> replacementMap.find(_._1 == replMem).get._2)
+          case (true, true) =>
+            // When adding (a -> b) to [.., c -> a, b -> d, ..], change the map to [.., c -> d, b -> d, a -> d, ..]
+            replacementMap.filter(_._2 == origMem).foreach(oldRepl =>
+              replacementMap.update(key = oldRepl._1, value = replacementMap(replMem)))
+            replacementMap += (origMem -> replacementMap(replMem))
+        }
+    }.toMap
+
+    // 2. apply all replacements
+    Expr.visit(f.body, e =>
+      e.mem = SpatialMemory.substitute(e.mem.asInstanceOf[SpatialMemory], redundantMemoriesWithoutChains), _ => {})
+
+    SpatialMemory.substitute(originalReturnMem, redundantMemoriesWithoutChains)
   }
 }

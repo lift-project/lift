@@ -63,6 +63,7 @@ object RemoveRedundantMemory {
     Expr.visit(f.body, {
       case call: FunCall => call.f match {
         case c: Concat => replacementMap ++= c.replacementMap
+        case sw: SkipW => replacementMap ++= sw.replacementMap
         case _ =>
       }
       case _ =>

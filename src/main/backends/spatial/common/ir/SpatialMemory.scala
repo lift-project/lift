@@ -120,6 +120,9 @@ object SpatialMemory {
     new SpatialMemory(variable, t, addressSpace)
   }
 
+  def unapply(arg: SpatialMemory): Option[(Type, SpatialAddressSpace, Boolean)] =
+    Some((arg.t, arg.addressSpace, arg.bufferHazard))
+
   /**
    * This function returns a new memory which has been constructed from the given
    * type `t` by recursively visiting it and applying `f` which returns new memories

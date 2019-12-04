@@ -66,7 +66,7 @@ object InferSpatialAddressSpace {
 
       case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
            asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
-           Pad(_,_,_) | SkipW(_) | PadConstant(_, _, _) | Tuple(_) | Slide(_,_) | Head() | Tail() |
+           Pad(_,_,_) | SkipW(_, _) | PadConstant(_, _, _) | Tuple(_) | Slide(_,_) | Head() | Tail() |
            debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
            UnsafeArrayAccess(_) | CheckedArrayAccess(_) | ArrayAccess(_) | Id()
                                     => setAddressSpaceDefault(argAddressSpaces)

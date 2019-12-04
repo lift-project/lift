@@ -137,7 +137,7 @@ abstract sealed class View(val t: Type = UndefType) {
       case ViewTupleComponent(i, ivs, ty) => ViewTupleComponent(i, ivs.replaced(subst), ty)
       case ViewSlide(iv, slide, ty) => ViewSlide(iv.replaced(subst), slide, ty)
       case ViewPad(iv, left, right, padFun, ty) => ViewPad(iv.replaced(subst), left, right, padFun, ty)
-      case ViewSkipW(iv, left, ty) => ViewSkipW(iv.replaced(subst), left, ty)
+      case ViewSkipW(iv, left, right, ty) => ViewSkipW(iv.replaced(subst), left, right, ty)
       case ViewPadConstant(iv, left, right, constant, ty) => ViewPadConstant(iv.replaced(subst), left, right, constant, ty)
       case ViewSize(iv) => ViewSize(iv.replaced(subst))
       case ViewHead(iv, ty) => ViewHead(iv.replaced(subst), ty)
@@ -350,10 +350,10 @@ abstract sealed class View(val t: Type = UndefType) {
     }
   }
 
-  def skipW(left: ArithExpr): View = {
+  def skipW(left: ArithExpr, right: ArithExpr): View = {
     this.t match {
       case ArrayTypeWSWC(elemT, s, c) =>
-        ViewSkipW(this, left, ArrayTypeWSWC(elemT, s + left, c + left))
+        ViewSkipW(this, left, right, ArrayTypeWSWC(elemT, s + left + right, c + left + right))
       case other => throw new IllegalArgumentException("Can't skipW " + other)
     }
   }
@@ -597,10 +597,11 @@ case class ViewPad(iv: View, left: ArithExpr, right: ArithExpr, fct: Pad.Boundar
   *
   * @param iv The view to skip.
   * @param left The number of elements to skip on the left
+  * @param right The number of elements to skip on the right
   * @param t The type of view.
   */
 
-case class ViewSkipW(iv: View, left: ArithExpr,
+case class ViewSkipW(iv: View, left: ArithExpr, right: ArithExpr,
                      override val t: Type) extends View(t)
 
 /**
@@ -770,6 +771,13 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         // increment read / write access by offset
         val idx :: indices  = arrayAccessStack
         emitView(iv,(idx + offset):: indices,tupleAccessStack)
+
+      case ViewSkipW(iv, offsetLeft, offsetRight, t) =>
+        // increment read / write access by offset
+        val idx :: indices  = arrayAccessStack
+        // , rightupdate iv to show correct-size memory from t
+        emitView(iv,(idx + offsetLeft + offsetRight):: indices,tupleAccessStack)
+
 
       case ViewAccess(i, iv, _) =>
         emitView(iv, i :: arrayAccessStack, tupleAccessStack)

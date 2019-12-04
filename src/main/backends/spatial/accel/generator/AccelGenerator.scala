@@ -2,7 +2,7 @@ package backends.spatial.accel.generator
 
 import backends.spatial.accel.ir.ast.SpatialAccelAST
 import backends.spatial.accel.ir.ast.SpatialAccelAST._
-import backends.spatial.accel.ir.pattern.{AbstractSpFold, BurstUserFun, MapAccumSeq, MapSeq, Parallel, Pipe, Piped, ReduceSeq, SchedulingPattern, Sequential, SpFold, AbstractSpForeach, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
+import backends.spatial.accel.ir.pattern.{AbstractSpFold, AbstractSpForeach, BurstUserFun, JoinW, MapAccumSeq, MapSeq, Parallel, Pipe, Piped, ReduceSeq, SchedulingPattern, Sequential, SpFold, SpMemFold, SpPipeFold, SpPipeMemFold, SpSeqFold, SpSeqMemFold, toArgOut, toDRAM, toReg, toSRAM}
 import backends.spatial.common.{Printer, SpatialAST}
 import backends.spatial.common.SpatialAST.{ExprBasedFunction, SpIfThenElse, SpParamDecl, SpatialCode}
 import backends.spatial.common.generator.SpatialArithmeticMethod
@@ -11,7 +11,7 @@ import backends.spatial.common.ir.view.{ArrayAddressor, Index, Slice, SpatialVie
 import backends.spatial.common.ir.{AddressSpaceCollection, ArgOutMemory, ContextualMemoryCollection, DRAMMemory, HostAllocatedMemory, LiteralMemory, RegMemory, SRAMMemory, SpatialAddressSpace, SpatialMemory, SpatialMemoryCollection, SpatialNullMemory, UndefAddressSpace}
 import core.generator.GenericAST.{ArithExpression, AssignmentExpression, AstNode, BinaryExpression, BinaryExpressionT, CVar, Comment, ExprBlock, ExpressionT, FunctionCall, MutableExprBlock, StatementT, StructConstructor, VarIdxRef}
 import ir._
-import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Id, Join, Lambda, Map, Pad, PadConstant, Param, Pattern, RewritingGuidePost, Scatter, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
+import ir.ast.{AbstractMap, Array2DFromUserFunGenerator, Array3DFromUserFunGenerator, ArrayAccess, ArrayFromUserFunGenerator, Concat, Expr, FPattern, Filter, FunCall, Gather, Get, Head, Id, Join, Lambda, Map, Pad, PadConstant, Param, Pattern, RewritingGuidePost, Scatter, SkipW, Slide, Split, Tail, Transpose, TransposeW, Tuple, Unzip, UserFun, Value, VectorizeUserFun, Zip, asScalar, asVector, debug}
 import ir.view.{View, ViewConstant}
 import lift.arithmetic._
 import opencl.generator.PerformLoopOptimisation
@@ -107,8 +107,9 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
 
           case toReg(_) | toArgOut(_) | toSRAM(_) | toDRAM(_) |
                Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
-               Split(_) | Join() | Slide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
-               Id() | Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
+               Split(_) | Join() | JoinW() | Slide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
+               Id() | Head() | Tail() | Scatter(_) | Gather(_) | Get(_) |
+               Pad(_, _, _) | PadConstant(_, _, _) | SkipW(_, _) |
                ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) |
                RewritingGuidePost(_)      =>
 
