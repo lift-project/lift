@@ -3,6 +3,7 @@ package backends.spatial.accel
 import _root_.ir.ast.UserFun
 import _root_.ir.ast.Value
 import backends.spatial.common.ir._
+import scala.language.implicitConversions
 
 package object ir {
   val add: UserFun = UserFun("add", Array("x", "y"), "x + y", Seq(Float, Float), Float).
