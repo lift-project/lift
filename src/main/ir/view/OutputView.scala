@@ -315,36 +315,39 @@ object OutputView {
     buildViewSlide(call.args(1))
   }
 
-  /**
-   * The Slide output view builder handles two cases:
-   * 1. When applied on one memory, it returns a ViewMem.
-   * 2. When applied on a collection of memories, it infers separate types from the zipped argument type,
-   *    and returns a ViewTuple. This recovers the information stored in the discarded writeView that was
-   *    inferred down the AST, where accessing the zipped view produced a ViewTuple.
-   */
   private def buildViewSlide(arg: Expr): View = {
-    arg.mem match {
-      case memCollection: MemoryCollection =>
-
-        // Reconstruct the tuple element types by traversing the call type until
-        // the first tuple is found, and splitting the type there
-
-        val reconstructedTupleElementTs = memCollection.subMemories.zipWithIndex.map { case (_, tupleElIdx) =>
-          var tupleFound: Boolean = false
-
-          Type.visitAndRebuild(arg.t, t => t, {
-            case tt: TupleType if !tupleFound =>
-              tupleFound = true
-              tt.elemsT(tupleElIdx)
-            case t => t
-          })
-        }
-
-        ViewTuple(
-          ivs = memCollection.subMemories.zip(reconstructedTupleElementTs).
-            map { case (subMem, subMemT) => View.initialiseNewView(subMemT, arg.inputDepth, subMem.variable) },
-          t = arg.t)
-      case _ =>
+    // Deprecated unzipping Slide argument types for output view building when the argument is multiple zipped memories.
+    // Not sure how the new changes solve the problem of inferring the individual memories.
+    // TODO: investigate why this is not needed
+//    /**
+//     * The Slide output view builder handles two cases:
+//     * 1. When applied on one memory, it returns a ViewMem.
+//     * 2. When applied on a collection of memories, it infers separate types from the zipped argument type,
+//     *    and returns a ViewTuple. This recovers the information stored in the discarded writeView that was
+//     *    inferred down the AST, where accessing the zipped view produced a ViewTuple.
+//     */
+//    arg.mem match {
+//      case memCollection: MemoryCollection =>
+//
+////        val reconstructedTupleElementTs = memCollection.subMemories.zipWithIndex.map { case (_, tupleElIdx) =>
+////          var tupleFound: Boolean = false
+////
+////          Type.visitAndRebuild(arg.t, t => t, {
+////            case tt: TupleType if !tupleFound =>
+////              tupleFound = true
+////              tt.elemsT(tupleElIdx)
+////            case t => t
+////          })
+////        }
+//        val reconstructedTupleElementTs = unzipTypes(arg.t)
+//
+//        val result = ViewTuple(
+//          ivs = memCollection.subMemories.zip(reconstructedTupleElementTs).map {
+//            case (subMem, subMemT) => View.initialiseNewView(subMemT, arg.inputDepth, subMem.variable) },
+//          t = TupleType(reconstructedTupleElementTs: _*))
+////          t = arg.t)
+//        result
+//      case _ =>
         View.initialiseNewView(arg.t, arg.inputDepth, arg.mem.variable)
 //    }
   }
