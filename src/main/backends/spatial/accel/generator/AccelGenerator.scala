@@ -124,7 +124,7 @@ class SpatialGenerator(allTypedMemories: ContextualMemoryCollection) {
     }
 
     if (returnRequired)
-      (block: MutableExprBlock) += generateLoadNode(SpatialMemory.asSpatialMemory(expr.mem), expr.t, expr.outputView)
+      (block: MutableExprBlock) += generateLoadNode(SpatialMemory.asSpatialMemory(expr.mem), expr.t, expr.view)
   }
 
   private def propagateDynamicArraySize(call: FunCall, block: MutableExprBlock): Unit = {
