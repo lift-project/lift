@@ -94,8 +94,14 @@ object OutputView {
     // then handle arguments
     call.f match {
       case Zip(_) | Tuple(_) =>
-        val res = call.args.map(arg =>
-          visitAndBuildViews(arg, View.initialiseNewView(arg.t, arg.inputDepth, arg.mem.variable)))
+        val res = writeView match {
+          case _: ViewTuple =>
+            // Preserve the writeView as the Tuple elements are built
+            call.args.zipWithIndex.map{ case (arg, idx) => visitAndBuildViews(arg, writeView.get(idx)) }
+          case _ =>
+            call.args.map(arg =>
+              visitAndBuildViews(arg, View.initialiseNewView(arg.t, arg.inputDepth, arg.mem.variable)))
+        }
 
         ViewTuple(res, call.argsType)
       case Concat(_) =>
@@ -117,7 +123,7 @@ object OutputView {
       case Get(i) =>
         call.args.head match {
           case param: Param =>
-            buildViewGet(i, param, call)
+            buildViewGet(i, param, call, result)
             param.outputView
           case arg =>
 
@@ -210,17 +216,14 @@ object OutputView {
       Array.fill[View](memCollection.subMemories.length)(NoView)
   }
 
-  private def buildViewGet(i: Int, param: Param, call: FunCall): Unit = {
+  private def buildViewGet(i: Int, param: Param, call: FunCall, writeView: View): Unit = {
     param.mem match {
       case memCollection: MemoryCollection =>
-        val accessInfo =
-          if (param.accessInf.collection.nonEmpty) param.accessInf.collection(i) else param.accessInf
-
-        val outDepth = getAccessDepth(accessInfo, call.mem)
         val subviews = getSubviews(param, memCollection)
 
         if (subviews(i) == NoView)
-          subviews(i) = View.initialiseNewView(call.t, outDepth, call.mem.variable)
+          // Preserve the writeView for when the tuple elements' output views are built
+          subviews(i) = writeView
 
         call.outputView = subviews(i)
         param.outputView = ViewTuple(subviews, param.t)
@@ -241,7 +244,10 @@ object OutputView {
         p.outputView = View.initialiseNewView(p.t, outDepth, p.mem.variable)
 
       case getCall@FunCall(Get(i), param: Param) =>
-        buildViewGet(i, param, getCall)
+        val accessInfo = if (param.accessInf.collection.nonEmpty) param.accessInf.collection(i) else param.accessInf
+        val outDepth = getAccessDepth(accessInfo, getCall.mem)
+
+        buildViewGet(i, param, getCall, View.initialiseNewView(getCall.t, outDepth, getCall.mem.variable))
       case _ =>
 
     })
@@ -304,7 +310,9 @@ object OutputView {
 
     // The implied Map view is ViewMap, but the implied Slide does not need
     // the outer write view, so there is no need to build ViewMap
-    //    ViewMap(asf.f.params(1).outputView, asf.mapLoopVar, call.args.head.t)
+//    val inputSize = call.args(1).t.asInstanceOf[ArrayType with Size].size
+//    ViewMap(asf.fMap.params.head.outputView, asf.mapLoopVar,
+//      ArrayType(asf.fMap.params.head.t, (inputSize - (asf.chunkSize - asf.stride)) /^ asf.stride))
 
     // Build the implied Slide view
     buildViewSlide(call.args(1))
@@ -341,7 +349,7 @@ object OutputView {
           t = arg.t)
       case _ =>
         View.initialiseNewView(arg.t, arg.inputDepth, arg.mem.variable)
-    }
+//    }
   }
   
   private def buildViewReduce(r: AbstractPartRed,
