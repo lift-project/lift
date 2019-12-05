@@ -7,7 +7,7 @@ import core.generator.GenericAST.{ArithExpression, ExpressionT}
 import ir.Type.size_t
 import ir.ast.{Expr, Lambda}
 import ir.{ArrayType, ArrayTypeWC, ArrayTypeWS, Capacity, ScalarType, Size, TupleType, Type, VectorType}
-import ir.view.{InputView, OutputView, SizeIndex, View, View2DGeneratorUserFun, View3DGeneratorUserFun, ViewAccess, ViewArrayWrapper, ViewAsScalar, ViewAsVector, ViewConcat, ViewConstant, ViewFilter, ViewGenerator, ViewHead, ViewJoin, ViewMap, ViewMem, ViewOffset, ViewPad, ViewPadConstant, ViewReorder, ViewSize, ViewSlide, ViewSplit, ViewTail, ViewTranspose, ViewTuple, ViewTupleComponent, ViewUnzip, ViewZip}
+import ir.view.{InputView, OutputView, SizeIndex, View, View2DGeneratorUserFun, View3DGeneratorUserFun, ViewAccess, ViewArrayWrapper, ViewAsScalar, ViewAsVector, ViewConcat, ViewConstant, ViewFilter, ViewGenerator, ViewHead, ViewJoin, ViewMap, ViewMem, ViewOffset, ViewPad, ViewPadConstant, ViewReorder, ViewSize, ViewSkipW, ViewSlide, ViewSplit, ViewTail, ViewTranspose, ViewTuple, ViewTupleComponent, ViewUnzip, ViewZip}
 import lift.arithmetic.{ArithExpr, Cst, RangeAdd, Var}
 
 import scala.collection.{immutable, mutable}
@@ -89,6 +89,15 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
         val addr :: addressors  = arrayAccessStack
         emitView(iv, (addr + offset) :: addressors, tupleAccessStack)
 
+      case ViewSkipW(iv, left, right, t) =>
+        // increment read / write access by offset
+        val addr :: indices  = arrayAccessStack
+        val newAddr = addr match {
+          case Index(idx)         => Index(idx + left)
+          case Slice(start, end)  => Slice(start + left, end + left + right)
+        }
+        emitView(iv, newAddr :: indices, tupleAccessStack)
+
       case ViewAccess(i, iv, _) =>
         val newAddressor = i match {
           case _ if replacementsOfScalarWithSlicedAccesses.contains(i) =>
@@ -137,8 +146,11 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
 
           // Map(batchFun) o Split(s)
           case Index(chunkIdx) :: Slice(start, end) :: addressors =>
-            assert(end - start == chunkSize)
-            Slice(chunkIdx * chunkSize + start, chunkIdx * chunkSize + (end - start)) :: addressors
+            // This assertion is not true if a SkipW was used,
+            // offsetting the writes -- shifting and increasing the slice -- while the number of
+            // elements written -- chunkSize -- remained the same
+//            assert(end - start == chunkSize)
+            Slice(chunkIdx * chunkSize + start, chunkIdx * chunkSize + start + (end - start)) :: addressors
 
           // Map(batchFun) o Transpose() o Split(s)
           case Slice(start, end) :: Index(elemIdx) :: addressors =>
@@ -150,6 +162,7 @@ class SpatialViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr],
             assert(outerSlice.start == Cst(0));
             assert(innerSlice.start == Cst(0));
             assert(chunkSize == innerSlice.end - innerSlice.start)
+
             Slice(outerSlice.start,
                   (outerSlice.end - outerSlice.start) * (innerSlice.end - innerSlice.start)) :: addressors
 
