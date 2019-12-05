@@ -37,9 +37,6 @@ object OutputView {
       case call: FunCall =>
         val result = buildViewFunCall(call, writeView)
 
-        if (expr.outputView == NoView)
-          expr.outputView = writeView
-
         result
 
       case _ =>
