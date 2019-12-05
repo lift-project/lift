@@ -353,7 +353,11 @@ abstract sealed class View(val t: Type = UndefType) {
   def skipW(left: ArithExpr, right: ArithExpr): View = {
     this.t match {
       case ArrayTypeWSWC(elemT, s, c) =>
-        ViewSkipW(this, left, right, ArrayTypeWSWC(elemT, s + left + right, c + left + right))
+        // ViewSkipW is only used for output views. When writing with skip,
+        // the inner view has bigger array size then the outer one.
+        // In other words, the outer view (ViewSkipW) has the same type as the data we are writing;
+        // The inner view has the same type as the area of memory we are writing to (skipped elements + data)
+        ViewSkipW(this, left, right, ArrayTypeWSWC(elemT, s - left - right, c - left - right))
       case other => throw new IllegalArgumentException("Can't skipW " + other)
     }
   }
