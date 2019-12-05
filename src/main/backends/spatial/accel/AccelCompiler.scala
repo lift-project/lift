@@ -30,7 +30,7 @@ object AccelCompiler {
     // Allocate memory
     SpatialMemoryAllocator(f)
 
-    // Collect typed memories
+    // Collect contextualised memories
     val allTypedMemories = CollectContextualSpatialMemory(f)
 
     // Loop unrolling

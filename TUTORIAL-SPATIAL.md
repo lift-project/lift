@@ -27,15 +27,21 @@ The instructions refer to default keyboard shortcuts in the IntelliJ IDEA.
 
 1. Find `MapAccumSeq` by pressing Shift twice and typing its name.
 2. In `MapAccumSeq` source file (`src/main/backends/spatial/accel/ir/pattern/MapAccumSeq.scala`), find `case class MapAccumSeq`.
-3. Add the new file `MapAccumRightSeq` besides `MapAccumSeq`. Implement it.
+3. Add the new file `MapAccumRightSeq` besides `MapAccumSeq`. Implement the new primitive.
 4. Take a look at `src/main/backends/spatial/accel/AccelCompiler` (`Shift-Shift -> "AccelCompiler"`). 
 These are all compiler passes (components) that will require your attention.
 5. Right-click on `MapAccumSeq` class name, and click `Find Usages`. This will show you all files where the class is used.
- (If you do the same of the singleton object `MapAccumSeq` in the same file, you'll find which tests apply `MapAccumSeq`).
-6. Make sure all compiler components that operate on `MapAccumSeq`, also handle your new `MapAccumSeq`.
+ (If you do the same with the singleton object `MapAccumSeq` in the same file, you'll find which tests apply `MapAccumSeq`).
+6. Make sure that all compiler components that operate on `MapAccumSeq` also handle your new `MapAccumRightSeq` by adding 
+new functionality where necessary.
 7. **Hint:** Once you get to the code generator `AccelGenerator`, you might realise that you need the loop that you generate 
 for `MapAccumRightSeq` to have its counter decrease on each step. For that to happen, go back to your new `MapAccumRightSeq` 
-and change the way the singleton object `MapAccumRightSeq` initialises `loopVar`.
+and change the way the singleton object `MapAccumRightSeq` initialises `loopVar` -- the loop counter variable.
+    1. Find where `PosVar` is used. Take a look at the definition of the `PosVar` singleton object by right-clicking, 
+    choosing `Go to` -> `GoTo` -> `apply()` method.
+    2. See how ranges are defined and used.
+    3. In `MapAccumRightSeq` initialisation of `loopVar`, replace the factory `PosVar` with instantiation of a new `Var` 
+    instance with an appropriate range.
 
 At this point, you should have implemented everything the backend needs. 
 Now, add a test example to make sure the generated code is correct. 
