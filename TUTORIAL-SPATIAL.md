@@ -11,9 +11,10 @@ You can refer to this GitLab for troubleshooting, but don't use it to set up the
 new `spatial` branch of Lift that's not included in the GitLab project.
 
 There is a limited documentation provided here: [https://lift-project.readthedocs.io/en/latest/](https://lift-project.readthedocs.io/en/latest/).
-The `Getting Started with Lift` section is particularly extensive for installing Lift, its dependencies and setting up IntelliJ.
-For the Spatial tutorial, you can skip OpenCL and C++ -related steps. 
-The native installation method might be easiest to troubleshoot.
+- The `Getting Started with Lift` section is particularly extensive for installing Lift, its dependencies and setting up IntelliJ.
+- When installing Lift, the native installation method might be easiest to troubleshoot.
+- For the Spatial tutorial, the OpenCL-related steps might not be needed, but it would be helpful to be able to run the OpenCL tests 
+to familiarise yourself with Lift in general. 
 
 ## Basic examples ##
 Play around with examples in `src/test/tutorial` to familiarise yourself with the Lift language. These examples use the 
