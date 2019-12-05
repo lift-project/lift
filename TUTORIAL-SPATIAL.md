@@ -16,9 +16,11 @@ The generated PDF will be placed in the `/tmp` directory.
 To familiarise yourself with the Lift-Spatial compiler chain, introduce a new primitive `MapAccumRightSeq` 
 that maps its function on elements from right to left (`MapAccumSeq` maps from left to right). Lift's `MapAccumSeq` 
 behaves exactly like Haskell's `mapAccumL`: 
-[https://hackage.haskell.org/package/base-4.12.0.0/docs/Data-List.html#v:mapAccumL].
-Another description of `mapAccumL` and examples is here: [http://zvon.org/other/haskell/Outputlist/mapAccumL_f.html].
-The primitive you wil limplement behaves like Haskell's `mapAccumR`: [http://zvon.org/other/haskell/Outputlist/mapAccumR_f.html].
+[https://hackage.haskell.org/package/base-4.12.0.0/docs/Data-List.html#v:mapAccumL](https://hackage.haskell.org/package/base-4.12.0.0/docs/Data-List.html#v:mapAccumL).
+Another description of `mapAccumL` and examples is here: 
+[http://zvon.org/other/haskell/Outputlist/mapAccumL_f.html](http://zvon.org/other/haskell/Outputlist/mapAccumL_f.html).
+The primitive you wil limplement behaves like Haskell's `mapAccumR`: 
+[http://zvon.org/other/haskell/Outputlist/mapAccumR_f.html](http://zvon.org/other/haskell/Outputlist/mapAccumR_f.html).
  
 You can use `backends.spatial.accel.ir.pattern.MapAccumSeq` as an example and add your changes as suggested below. 
 The instructions refer to default keyboard shortcuts in the IntelliJ IDEA.
@@ -41,5 +43,5 @@ Now, add a test example to make sure the generated code is correct.
 1. Take a look at `src/test/backends/spatial/generator/ReduceSeqTest.scala` (`Shift-Shift -> "ReduceSeqTest"`).
 This is a minimum example of code generation using the Spatial backend in Lift.
 2. Using `ReduceSeqTest` as an example, implement examples from the Haskell documentation of `mapAccumR`: 
-[http://zvon.org/other/haskell/Outputlist/mapAccumR_f.html].
+[http://zvon.org/other/haskell/Outputlist/mapAccumR_f.html](http://zvon.org/other/haskell/Outputlist/mapAccumR_f.html).
 3. To run the compiled code, copy-paste it to the Spatial repository and feed it some test data. 
