@@ -16,6 +16,10 @@ There is a limited documentation provided here: [https://lift-project.readthedoc
 - For the Spatial tutorial, the OpenCL-related steps might not be needed, but it would be helpful to be able to run the OpenCL tests 
 to familiarise yourself with Lift in general. 
 
+The Confluence page on Lift-Spatial contains some background and work-in-progress development notes: 
+[https://confluence.arm.com/display/RSHARM/Generating+Spatial+LSTM+using+Lift](https://confluence.arm.com/display/RSHARM/Generating+Spatial+LSTM+using+Lift)
+- The **Compilation stack** subsection might be helpful as a general structure of the Lift compiler.
+
 ## Basic examples ##
 Play around with examples in `src/test/tutorial` to familiarise yourself with the Lift language. These examples use the 
 OpenCL backend with a separate compiler chain. It is a bit more complicated than the Spatial backend since it also includes
