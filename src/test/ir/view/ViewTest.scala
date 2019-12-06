@@ -9,7 +9,7 @@ import opencl.generator.stencil.acoustic.StencilUtilities
 import opencl.ir._
 import opencl.ir.pattern.{MapGlb, MapLcl, MapSeq, MapSeqUnroll, MapWrg, ReduceSeq, Untile3D, toGlobal}
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 object ViewTest extends TestWithExecutor
 
@@ -359,6 +359,8 @@ class ViewTest {
 
   }
 
+  // Disabling this test because writing into a Slide of zipped arguments is not supported in the OpenCL backend
+  @Ignore
   @Test
   /**
    * This is a version of opencl.generator.stencil.acoustic.test3DConvolutionTile which tests
