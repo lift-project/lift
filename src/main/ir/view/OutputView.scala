@@ -150,7 +150,11 @@ object OutputView {
       case _ =>
 
         val res = call.args.map(visitAndBuildViews(_, result))
-        ViewTuple(res, call.argsType)
+        if (call.args.length > 1)
+          ViewTuple(res, call.argsType)
+        else
+          // Avoid creating a ViewTuple for one-argument calls
+          res.head
     }
   }
 
@@ -219,8 +223,23 @@ object OutputView {
         val subviews = getSubviews(param, memCollection)
 
         if (subviews(i) == NoView)
-          // Preserve the writeView for when the tuple elements' output views are built
-          subviews(i) = writeView
+          Backend() match {
+            case OpenCLBackend =>
+              val accessInfo =
+                if (param.accessInf.collection.nonEmpty) param.accessInf.collection(i) else param.accessInf
+
+              val outDepth = getAccessDepth(accessInfo, call.mem)
+
+              subviews(i) = View.initialiseNewView(call.t, outDepth, call.mem.variable)
+
+            case SpatialBackend =>
+              // Preserve the writeView for when the tuple elements' output views are built
+              // This approach doesn't seem to work for the OpenCL backend as evident by the failing OpenCL tests
+              // It is likely that this is still a correct approach that reveals another bug in the OpenCL backend.
+              // One simple example of failing OpenCL tests is Reuse.rectangularTiles
+              // TODO: make this approach work for the OpenCL backend
+              subviews(i) = writeView
+          }
 
         call.outputView = subviews(i)
         param.outputView = ViewTuple(subviews, param.t)
