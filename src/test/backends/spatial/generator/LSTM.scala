@@ -20,12 +20,6 @@ object LSTM {
 }
 
 class LSTM {
-  val x = TypeVar()
-  val y = TypeVar()
-
-  val id = UserFun("id", Array("x"), "x", Seq(Float), Float)
-  val id1D = UserFun("id", Array("x"), "x", Seq(ArrayType(Float, x)), ArrayType(Float, x))
-  val id2D = UserFun("id", Array("x"), "x", Seq(ArrayType(ArrayType(Float, x), y)), ArrayType(ArrayType(Float, x), y))
 
   @Test
   def lstm(): Unit = {
@@ -41,6 +35,15 @@ class LSTM {
     val rv = SizeVar("rv")
     val ru = SizeVar("ru")
     val nLutValues = SizeVar("nLutValues")
+
+    val a = TypeVar()
+    val b = TypeVar()
+
+    val id = UserFun("id", Array("x"), "x", Seq(Float), Float)
+    val id1D = UserFun("id", Array("x"), "x", Seq(ArrayType(Float, a)), ArrayType(Float, a))
+    val id2D = UserFun("id", Array("x"), "x", Seq(ArrayType(ArrayType(Float, a), b)), ArrayType(ArrayType(Float, a), b))
+    val lookup = UserFun("lookup", Array("x", "lut"),
+      "lut(((x + lutBound) / lutResolution).to[Int])", Seq(Float, ArrayType(Float, a)), Float)
 
     def layerLambda: Lambda = fun(
       /* xh:      */ ArrayType(Float, nSteps * (h + d) + h),
@@ -78,11 +81,11 @@ class LSTM {
             bG :>> toSRAM(id1D) :>> Let(bGSRAM => {
             bF :>> toSRAM(id1D) :>> Let(bFSRAM => {
             bO :>> toSRAM(id1D) :>> Let(bOSRAM => {
-//            lutI :>> toSRAM(id1D) :>> Let(lutISRAM => {
-//            lutG :>> toSRAM(id1D) :>> Let(lutGSRAM => {
-//            lutF :>> toSRAM(id1D) :>> Let(lutFSRAM => {
-//            lutO :>> toSRAM(id1D) :>> Let(lutOSRAM => {
-//            lutTanh :>> toSRAM(id1D) :>> Let(lutTanhSRAM => {
+            lutI :>> toSRAM(id1D) :>> Let(lutISRAM => {
+            lutG :>> toSRAM(id1D) :>> Let(lutGSRAM => {
+            lutF :>> toSRAM(id1D) :>> Let(lutFSRAM => {
+            lutO :>> toSRAM(id1D) :>> Let(lutOSRAM => {
+            lutTanh :>> toSRAM(id1D) :>> Let(lutTanhSRAM => {
 
               hx :>> Drop(left = 0, right = h) :>> Split(h+d) :>>
               MapAccumSeq(
@@ -114,11 +117,11 @@ class LSTM {
                             def fusedDotProductWithNonLinear: Lambda =
                               fun(
                                 /* w:   */ ArrayType(Float, d + h),
-//                                /* lut: */ ArrayType(Float, nLutValues),
+                                /* lut: */ ArrayType(Float, nLutValues),
                                 /* b:   */ Float,
-                                (w_, /*lut_,*/ b_) => {
+                                (w_, lut_, b_) => {
                                   val w = AssertType(ArrayType(Float, d + h), "cellW") $ w_
-//                                  val lut = AssertType(ArrayType(Float, nLutValues), "cellLUT") $ lut_
+                                  val lut = AssertType(ArrayType(Float, nLutValues), "cellLUT") $ lut_
                                   val b = AssertType(Float, "cellB") $ b_
 
                                   // TODO: use LUT
@@ -136,18 +139,14 @@ class LSTM {
                                           init = toReg(id) $ Value("0.0f", Float))
                                       }),
                                     fReduce = add,
-                                    init = toReg(id) $ b) :>>
+                                    init = toReg(id) $ b) :>> toReg(fun(elem => lookup(elem, lut))) :>>
                                   AssertType(Float, "fusedDotProductWithNonLinear result")
                                 })
 
-//                            val i = fusedDotProductWithNonLinear(cellWI, lutISRAM, cellBI)
-//                            val g = fusedDotProductWithNonLinear(cellWG, lutGSRAM, cellBG)
-//                            val f = fusedDotProductWithNonLinear(cellWF, lutFSRAM, cellBF)
-//                            val o = fusedDotProductWithNonLinear(cellWO, lutOSRAM, cellBO)
-                            val i = fusedDotProductWithNonLinear(cellWI, cellBI)
-                            val g = fusedDotProductWithNonLinear(cellWG, cellBG)
-                            val f = fusedDotProductWithNonLinear(cellWF, cellBF)
-                            val o = fusedDotProductWithNonLinear(cellWO, cellBO)
+                            val i = fusedDotProductWithNonLinear(cellWI, lutISRAM, cellBI)
+                            val g = fusedDotProductWithNonLinear(cellWG, lutGSRAM, cellBG)
+                            val f = fusedDotProductWithNonLinear(cellWF, lutFSRAM, cellBF)
+                            val o = fusedDotProductWithNonLinear(cellWO, lutOSRAM, cellBO)
 
                             val newCellC_ = add(mult(i, g), mult(cellC, f))
                             // Compute newCellC once, and then pass the result to lambda output and
@@ -155,7 +154,7 @@ class LSTM {
                             newCellC_ :>> toReg(id) :>> Let(newCellC =>
                               Tuple(
                                 /*c*/ toSRAM(id) $ newCellC,
-                                /*h*/ toSRAM(mult)(newCellC, o))) // TODO: Add the Tanh
+                                /*h*/ toSRAM(mult)(toReg(lookup)(newCellC, lutTanhSRAM), o))) // TODO: Add the Tanh
                           })) :>> Unzip() :>>
                           fun(mapAccumBodyResult => {
                             val newC = Get(mapAccumBodyResult, 0)
@@ -178,7 +177,7 @@ class LSTM {
 
                   Tuple(newCs, newHX)
                 })
-            })})})})})})})})})})//})})})})//})
+            })})})})})})})})})})})})})})})
         ))
 
 
@@ -232,129 +231,152 @@ class LSTM {
          |    def add(x: Float, y: Float): Float = {
          |        x + y
          |    }
+         |    def lookup(x: Float, lut: SRAM1[Float]): Float = {
+         |        lut(((x + lutBound) / lutResolution).to[Int])
+         |    }
          |    // reduce_seq
          |    // unroll
-         |    val v__75 = SRAM[Float](v_h_3).buffer
-         |    v__75 load id_0(v__57(0::v_h_3))
-         |    val v__76 = SRAM[Float](v_h_3, (v_h_3 + v_d_4))
-         |    v__76 load id_1(v__58(0::v_h_3, 0::(v_h_3 + v_d_4)))
-         |    val v__77 = SRAM[Float](v_h_3, (v_h_3 + v_d_4))
-         |    v__77 load id_1(v__59(0::v_h_3, 0::(v_h_3 + v_d_4)))
-         |    val v__78 = SRAM[Float](v_h_3, (v_h_3 + v_d_4))
-         |    v__78 load id_1(v__60(0::v_h_3, 0::(v_h_3 + v_d_4)))
-         |    val v__79 = SRAM[Float](v_h_3, (v_h_3 + v_d_4))
-         |    v__79 load id_1(v__61(0::v_h_3, 0::(v_h_3 + v_d_4)))
-         |    val v__80 = SRAM[Float](v_h_3)
-         |    v__80 load id_0(v__62(0::v_h_3))
-         |    val v__81 = SRAM[Float](v_h_3)
-         |    v__81 load id_0(v__63(0::v_h_3))
-         |    val v__82 = SRAM[Float](v_h_3)
-         |    v__82 load id_0(v__64(0::v_h_3))
-         |    val v__83 = SRAM[Float](v_h_3)
-         |    v__83 load id_0(v__65(0::v_h_3))
+         |    val v__75 = SRAM[Float](v_h_1).buffer
+         |    v__75 load id_0(v__57(0::v_h_1))
+         |    val v__76 = SRAM[Float](v_h_1, (v_h_1 + v_d_2))
+         |    v__76 load id_1(v__58(0::v_h_1, 0::(v_h_1 + v_d_2)))
+         |    val v__77 = SRAM[Float](v_h_1, (v_h_1 + v_d_2))
+         |    v__77 load id_1(v__59(0::v_h_1, 0::(v_h_1 + v_d_2)))
+         |    val v__78 = SRAM[Float](v_h_1, (v_h_1 + v_d_2))
+         |    v__78 load id_1(v__60(0::v_h_1, 0::(v_h_1 + v_d_2)))
+         |    val v__79 = SRAM[Float](v_h_1, (v_h_1 + v_d_2))
+         |    v__79 load id_1(v__61(0::v_h_1, 0::(v_h_1 + v_d_2)))
+         |    val v__80 = SRAM[Float](v_h_1)
+         |    v__80 load id_0(v__62(0::v_h_1))
+         |    val v__81 = SRAM[Float](v_h_1)
+         |    v__81 load id_0(v__63(0::v_h_1))
+         |    val v__82 = SRAM[Float](v_h_1)
+         |    v__82 load id_0(v__64(0::v_h_1))
+         |    val v__83 = SRAM[Float](v_h_1)
+         |    v__83 load id_0(v__65(0::v_h_1))
+         |    val v__84 = SRAM[Float](v_nLutValues_6)
+         |    v__84 load id_0(v__66(0::v_nLutValues_6))
+         |    val v__85 = SRAM[Float](v_nLutValues_6)
+         |    v__85 load id_0(v__67(0::v_nLutValues_6))
+         |    val v__86 = SRAM[Float](v_nLutValues_6)
+         |    v__86 load id_0(v__68(0::v_nLutValues_6))
+         |    val v__87 = SRAM[Float](v_nLutValues_6)
+         |    v__87 load id_0(v__69(0::v_nLutValues_6))
+         |    val v__88 = SRAM[Float](v_nLutValues_6)
+         |    v__88 load id_0(v__70(0::v_nLutValues_6))
          |    // mapAccum_seq
-         |    Sequential.Foreach(0 until v_nSteps_2 by 1) { (v_i_34) =>
-         |        val v__87 = SRAM[Float]((v_h_3 + v_d_4))
-         |        v__87 load id_0(v__56((v_i_34 * (v_h_3 + v_d_4))::(v_h_3 + v_d_4 + (v_h_3 * v_i_34) + (v_d_4 * v_i_34))))
-         |        val v__147 = SRAM[Float](v_h_3)
+         |    Sequential.Foreach(0 until v_nSteps_0 by 1) { (v_i_34) =>
+         |        val v__92 = SRAM[Float]((v_h_1 + v_d_2))
+         |        v__92 load id_0(v__56((v_i_34 * (v_h_1 + v_d_2))::(v_h_1 + v_d_2 + (v_h_1 * v_i_34) + (v_d_2 * v_i_34))))
+         |        val v__163 = SRAM[Float](v_h_1)
          |        // SpForeach
-         |        Pipe.Foreach(0 until v_h_3 by 1 par v_hu_5) { (v_i_35) =>
-         |            val v__89 = Reg[Float].buffer
-         |            v__89 := id_2(v__80(v_i_35))
-         |            Pipe.Fold(v__89)(0 until (v_h_3 + v_d_4) by v_rv_6 par v_ru_7) { (v_i_36) =>
-         |                val v__93 = Reg[Float].buffer
-         |                v__93 := id_2(0.0f)
-         |                Pipe.Fold(v__93)(0 until v_rv_6 by 1 par v_rv_6) { (v_i_37) =>
-         |                    val v__96_0 = Reg[Float]
+         |        Pipe.Foreach(0 until v_h_1 by 1 par v_hu_3) { (v_i_35) =>
+         |            val v__94 = Reg[Float].buffer
+         |            v__94 := id_2(v__80(v_i_35))
+         |            Pipe.Fold(v__94)(0 until (v_h_1 + v_d_2) by v_rv_4 par v_ru_5) { (v_i_36) =>
+         |                val v__98 = Reg[Float].buffer
+         |                v__98 := id_2(0.0f)
+         |                Pipe.Fold(v__98)(0 until v_rv_4 by 1 par v_rv_4) { (v_i_37) =>
+         |                    val v__101_0 = Reg[Float]
          |                    // map_seq
          |                    // iteration count is exactly 1, no loop emitted
          |                    val v_i_38 = Reg[Int](0)
-         |                    v__96_0 := mult(v__76(v_i_35, (v_i_36 + v_i_37)), v__87((v_i_36 + v_i_37)))
+         |                    v__101_0 := mult(v__76(v_i_35, (v_i_36 + v_i_37)), v__92((v_i_36 + v_i_37)))
          |                    // end map_seq
-         |                    v__96_0
+         |                    v__101_0
          |                } {
          |                    add(_, _)
          |                }
-         |                v__93
+         |                v__98
          |            } {
          |                add(_, _)
          |            }
-         |            val v__101 = Reg[Float].buffer
-         |            v__101 := id_2(v__81(v_i_35))
-         |            Pipe.Fold(v__101)(0 until (v_h_3 + v_d_4) by v_rv_6 par v_ru_7) { (v_i_41) =>
-         |                val v__105 = Reg[Float].buffer
-         |                v__105 := id_2(0.0f)
-         |                Pipe.Fold(v__105)(0 until v_rv_6 by 1 par v_rv_6) { (v_i_42) =>
-         |                    val v__108_0 = Reg[Float]
+         |            val v__107 = Reg[Float]
+         |            v__107 := lookup(v__94, v__84(0::v_nLutValues_6))
+         |            val v__108 = Reg[Float].buffer
+         |            v__108 := id_2(v__81(v_i_35))
+         |            Pipe.Fold(v__108)(0 until (v_h_1 + v_d_2) by v_rv_4 par v_ru_5) { (v_i_41) =>
+         |                val v__112 = Reg[Float].buffer
+         |                v__112 := id_2(0.0f)
+         |                Pipe.Fold(v__112)(0 until v_rv_4 by 1 par v_rv_4) { (v_i_42) =>
+         |                    val v__115_0 = Reg[Float]
          |                    // map_seq
          |                    // iteration count is exactly 1, no loop emitted
          |                    val v_i_43 = Reg[Int](0)
-         |                    v__108_0 := mult(v__77(v_i_35, (v_i_41 + v_i_42)), v__87((v_i_41 + v_i_42)))
+         |                    v__115_0 := mult(v__77(v_i_35, (v_i_41 + v_i_42)), v__92((v_i_41 + v_i_42)))
          |                    // end map_seq
-         |                    v__108_0
+         |                    v__115_0
          |                } {
          |                    add(_, _)
          |                }
-         |                v__105
+         |                v__112
          |            } {
          |                add(_, _)
          |            }
-         |            val v__114 = Reg[Float]
-         |            v__114 := mult(v__89, v__101)
-         |            val v__115 = Reg[Float].buffer
-         |            v__115 := id_2(v__82(v_i_35))
-         |            Pipe.Fold(v__115)(0 until (v_h_3 + v_d_4) by v_rv_6 par v_ru_7) { (v_i_46) =>
-         |                val v__119 = Reg[Float].buffer
-         |                v__119 := id_2(0.0f)
-         |                Pipe.Fold(v__119)(0 until v_rv_6 by 1 par v_rv_6) { (v_i_47) =>
-         |                    val v__122_0 = Reg[Float]
+         |            val v__121 = Reg[Float]
+         |            v__121 := lookup(v__108, v__85(0::v_nLutValues_6))
+         |            val v__123 = Reg[Float]
+         |            v__123 := mult(v__107, v__121)
+         |            val v__124 = Reg[Float].buffer
+         |            v__124 := id_2(v__82(v_i_35))
+         |            Pipe.Fold(v__124)(0 until (v_h_1 + v_d_2) by v_rv_4 par v_ru_5) { (v_i_46) =>
+         |                val v__128 = Reg[Float].buffer
+         |                v__128 := id_2(0.0f)
+         |                Pipe.Fold(v__128)(0 until v_rv_4 by 1 par v_rv_4) { (v_i_47) =>
+         |                    val v__131_0 = Reg[Float]
          |                    // map_seq
          |                    // iteration count is exactly 1, no loop emitted
          |                    val v_i_48 = Reg[Int](0)
-         |                    v__122_0 := mult(v__78(v_i_35, (v_i_46 + v_i_47)), v__87((v_i_46 + v_i_47)))
+         |                    v__131_0 := mult(v__78(v_i_35, (v_i_46 + v_i_47)), v__92((v_i_46 + v_i_47)))
          |                    // end map_seq
-         |                    v__122_0
+         |                    v__131_0
          |                } {
          |                    add(_, _)
          |                }
-         |                v__119
+         |                v__128
          |            } {
          |                add(_, _)
          |            }
-         |            val v__128 = Reg[Float]
-         |            v__128 := mult(v__75(v_i_35), v__115)
-         |            val v__130 = Reg[Float]
-         |            v__130 := add(v__114, v__128)
-         |            val v__131 = Reg[Float]
-         |            v__131 := id_2(v__130)
-         |            v__75(v_i_35) = id_2(v__131)
-         |            val v__133 = Reg[Float].buffer
-         |            v__133 := id_2(v__83(v_i_35))
-         |            Pipe.Fold(v__133)(0 until (v_h_3 + v_d_4) by v_rv_6 par v_ru_7) { (v_i_51) =>
-         |                val v__137 = Reg[Float].buffer
-         |                v__137 := id_2(0.0f)
-         |                Pipe.Fold(v__137)(0 until v_rv_6 by 1 par v_rv_6) { (v_i_52) =>
-         |                    val v__140_0 = Reg[Float]
+         |            val v__137 = Reg[Float]
+         |            v__137 := lookup(v__124, v__86(0::v_nLutValues_6))
+         |            val v__139 = Reg[Float]
+         |            v__139 := mult(v__75(v_i_35), v__137)
+         |            val v__141 = Reg[Float]
+         |            v__141 := add(v__123, v__139)
+         |            val v__142 = Reg[Float]
+         |            v__142 := id_2(v__141)
+         |            v__75(v_i_35) = id_2(v__142)
+         |            val v__146 = Reg[Float]
+         |            v__146 := lookup(v__142, v__88(0::v_nLutValues_6))
+         |            val v__147 = Reg[Float].buffer
+         |            v__147 := id_2(v__83(v_i_35))
+         |            Pipe.Fold(v__147)(0 until (v_h_1 + v_d_2) by v_rv_4 par v_ru_5) { (v_i_51) =>
+         |                val v__151 = Reg[Float].buffer
+         |                v__151 := id_2(0.0f)
+         |                Pipe.Fold(v__151)(0 until v_rv_4 by 1 par v_rv_4) { (v_i_52) =>
+         |                    val v__154_0 = Reg[Float]
          |                    // map_seq
          |                    // iteration count is exactly 1, no loop emitted
          |                    val v_i_53 = Reg[Int](0)
-         |                    v__140_0 := mult(v__79(v_i_35, (v_i_51 + v_i_52)), v__87((v_i_51 + v_i_52)))
+         |                    v__154_0 := mult(v__79(v_i_35, (v_i_51 + v_i_52)), v__92((v_i_51 + v_i_52)))
          |                    // end map_seq
-         |                    v__140_0
+         |                    v__154_0
          |                } {
          |                    add(_, _)
          |                }
-         |                v__137
+         |                v__151
          |            } {
          |                add(_, _)
          |            }
-         |            v__147(v_i_35) = mult(v__131, v__133)
+         |            val v__160 = Reg[Float]
+         |            v__160 := lookup(v__147, v__87(0::v_nLutValues_6))
+         |            v__163(v_i_35) = mult(v__146, v__160)
          |        }
          |        // end SpForeach
-         |        v__56((v_h_3 + v_d_4 + (v_h_3 * v_i_34) + (v_d_4 * v_i_34))::(v_d_4 + (2 * v_h_3) + (v_h_3 * v_i_34) + (v_d_4 * v_i_34))) store id_3(v__147(0::v_h_3))
+         |        v__56((v_h_1 + v_d_2 + (v_h_1 * v_i_34) + (v_d_2 * v_i_34))::(v_d_2 + (2 * v_h_1) + (v_h_1 * v_i_34) + (v_d_2 * v_i_34))) store id_3(v__163(0::v_h_1))
          |    }
          |    // end mapAccum_seq
-         |    v__57(0::v_h_3) store id_3(v__75(0::v_h_3))
+         |    v__57(0::v_h_1) store id_3(v__75(0::v_h_1))
          |    // end unroll
          |    // end reduce_seq
          |}""".stripMargin
