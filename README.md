@@ -3,13 +3,14 @@
 ### Setup ###
 
 1. Install `git`, `git-lfs`, `dot` and Oracle's Java SDK 8
-    * OpenJDK or newer Java versions will not work. 
+    * OpenJDK or newer Java versions will not work with Lift
 2. Clone the "lift" repository to a directory of your choice
     * Check out the branch of your choice
 3. Install the `ArithExpr` dependency by running `./updateSubmodules.sh`
 4. Download & Install IDEA IntelliJ (http://www.jetbrains.com/idea/)
 5. Launch IntelliJ. On the Welcome Screen select "Configure" and install the "Scala" Plugin form the Plugin Repository. After the installation restart IntelliJ.
 6. On the IntelliJ Welcome Screen select "Open Project" and select the "build.sbt" file in the "lift" folder you just checked out.
+    * If you have multiple Java SDK's in your environment, make sure that IntelliJ uses Oracle's JDK 8. To configure this, right-click your project directory in the "Project" sidebar, click "Open Module Settings", go to Project Settings -> Project -> Project SDK. If it doesn't say "1.8", find one in the list or add it as new.  
     * If you run into problems compiling files with Unicode names such as the lambda sign, change your system locale to UTF-8 by setting an environment variable in ~./bashrc
 
 To be able to execute computations in OpenCL you need to build the Executor library.
