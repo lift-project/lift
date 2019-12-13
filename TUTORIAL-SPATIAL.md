@@ -2,15 +2,9 @@
 This page suggests some practical exercises to get familiar with Lift development.
 
 ## Resources ##
-For introductory slides on the Lift compiler, see slides for our ISPASS'18 tutorial: 
-[http://www.lift-project.org/ispass2018](http://www.lift-project.org/ispass2018) .
-The accompanying GitLab project 
-([https://gitlab.com/larisa.stoltzfus/lift-tutorial](https://gitlab.com/larisa.stoltzfus/lift-tutorial)) 
-has the code packaged and aided with setup Bash scripts that might make it easier to set up the environment.
-You can refer to this GitLab for troubleshooting, but don't use it to set up the code for this tutorial -- you'll need the 
-new `spatial` branch of Lift that's not included in the GitLab project.
+For introductory slides on the Lift compiler, see the "Tutorial materials" section on [Confluence](https://confluence.arm.com/display/RSHARM/Generating+Spatial+LSTM+using+Lift).
 
-There is a limited documentation provided here: [https://lift-project.readthedocs.io/en/latest/](https://lift-project.readthedocs.io/en/latest/).
+Some documentation on Lift is provided here: [https://lift-project.readthedocs.io/en/latest/](https://lift-project.readthedocs.io/en/latest/).
 - The `Getting Started with Lift` section is particularly extensive for installing Lift, its dependencies and setting up IntelliJ.
 - When installing Lift, the native installation method might be easiest to troubleshoot.
 - For the Spatial tutorial, the OpenCL-related steps might not be needed, but it would be helpful to be able to run the OpenCL tests 
