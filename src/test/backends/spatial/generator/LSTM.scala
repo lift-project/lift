@@ -28,6 +28,76 @@ class LSTM {
 
     Backend.setSpatial()
 
+    /*
+      // This generates the following Spatial code:
+      def toLUTidx(value: T): I32 = ((value + lutBound) / lutResolution).to[I32]
+
+      Accel {
+        val c = SRAM[T](h).buffer // SRAM storing C
+        val hx = SRAM[T](h+d) // SRAM storing [X_i, H_{i-1}]
+        val hUpd = SRAM[T](h) // SRAM storing [H_i]
+        val wI, wC, wF, wO = SRAM[T](h, h+d)
+        //      val wI = LUT[T](h, d+h)(Seq.fill(h * (d+h)){0.to[T]}: _*)
+        val bI, bC, bF, bO = SRAM[T](h)
+        //      val bI = LUT[T](h)(Seq.fill(h){0.to[T]}: _*)
+        val lutI, lutC, lutF, lutO = SRAM[T](nLutValues)
+        val lutTanh = SRAM[T](nLutValues)
+
+        c load c_dram
+
+        wI load wI_dram
+        wC load wC_dram
+        wF load wF_dram
+        wO load wO_dram
+
+        if (useBias) {
+          bI load bI_dram
+          bC load bC_dram
+          bF load bF_dram
+          bO load bO_dram
+        }
+
+        lutI load lutI_dram
+        lutC load lutC_dram
+        lutF load lutF_dram
+        lutO load lutO_dram
+        lutTanh load lutTanh_dram
+
+        Sequential.Foreach(nSteps by 1) { step =>
+          val hx_dram_time_offset = step * (h+d)
+
+          // Load the current h and x into hx
+          hx load hx_dram(hx_dram_time_offset :: hx_dram_time_offset + h+d)
+
+          // Loop range from 0 to H parallelized by hu
+          Foreach(h par hu) { ih =>
+
+            def fusedDotProductWithNonLinear(w: SRAM2[T], lut: SRAM1[T], b: SRAM1[T]) = {
+              // Tiled dot product with blocking size of rv parallelized by ru
+              val elem = Reduce(Reg[T])((h+d) by rv par ru) { iu =>
+                Reduce(Reg[T])(rv par rv) { iv =>
+                  val iuv = iu + iv
+                  w(ih, iuv) * hx(iuv)
+                } { (a, b) => a + b }
+              } { (a, b) => a + b }.value + (if (useBias) b(ih) else 0)
+              lut(toLUTidx(elem))
+            }
+
+            val i = fusedDotProductWithNonLinear(wI, lutI, bI)
+            val g = fusedDotProductWithNonLinear(wC, lutC, bC)
+            val f = fusedDotProductWithNonLinear(wF, lutF, bF)
+            val o = fusedDotProductWithNonLinear(wO, lutO, bO)
+
+            c(ih) = i * g + c(ih) * f
+            hUpd(ih) = lutTanh(toLUTidx(c(ih))) * o
+          }
+          // Store computed h
+          hx_dram(hx_dram_time_offset + h+d :: hx_dram_time_offset + h+d + h) store hUpd
+        }
+        c_dram store c
+      }
+     */
+
     val nSteps = SizeVar("nSteps")
     val h = SizeVar("h") // nCells
     val d = SizeVar("d") // nFeatures
@@ -123,8 +193,6 @@ class LSTM {
                                   val w = AssertType(ArrayType(Float, d + h), "cellW") $ w_
                                   val lut = AssertType(ArrayType(Float, nLutValues), "cellLUT") $ lut_
                                   val b = AssertType(Float, "cellB") $ b_
-
-                                  // TODO: use LUT
 
                                   Zip(w, hPrevXCurSRAM) :>>
                                   SpPipeFold(chunkSize = rv, stride = rv, factor = ru,

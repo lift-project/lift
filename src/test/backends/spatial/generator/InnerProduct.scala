@@ -6,6 +6,7 @@ import backends.{Backend, c}
 import ir._
 import ir.ast._
 import ir.ast.debug.AssertType
+import ir.printer.DotPrinter
 import lift.arithmetic.SizeVar
 import opencl.executor.TestWithExecutor
 import org.junit.Assert._
@@ -28,6 +29,8 @@ class InnerProduct {
     import backends.spatial.host.ir.ast.AccelFun
 
     Backend.setSpatial()
+
+    val generateDotGraph = true
 
     val N = SizeVar("N")
     val tileSize = SizeVar("tileSize")
@@ -57,7 +60,7 @@ class InnerProduct {
     val id1D = UserFun("id", Array("x"), "x", Seq(ArrayType(Float, x)), ArrayType(Float, x))
 
 
-    val scalaDotLambdaTiled: Lambda = fun(
+    val spatialDotLambdaTiled: Lambda = fun(
       ArrayType(Float, N),
       ArrayType(Float, N),
       (a, b) =>
@@ -90,10 +93,12 @@ class InnerProduct {
       ArrayType(Float, N),
       ArrayType(Float, N),
       (a, b) =>
-        AccelFun(scalaDotLambdaTiled)(a, b))
+        AccelFun(spatialDotLambdaTiled)(a, b))
 
     val generatedSpatial = backends.spatial.common.RuntimeCompiler(dotProductRuntimeLambda)
     println(generatedSpatial)
+    if (generateDotGraph)
+      DotPrinter(System.getProperty("java.io.tmpdir"), "spatialDotLambdaTiled", spatialDotLambdaTiled)
 
     val expectedOutCode =
       """|{
