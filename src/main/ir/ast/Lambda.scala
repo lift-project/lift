@@ -1307,12 +1307,12 @@ trait funDef {
     new Lambda18(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9), params(10), params(11), params(12), params(13), params(14), params(15), params(16), params(17)))
   }
 
-  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, t9:Type, t10:Type, t11:Type, t12:Type, t13: Type, t14: Type, t15: Type, t16: Type, t17: Type, t18: Type, t19: Type, f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda19 = {
+  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, t9:Type, t10:Type, t11:Type, t12:Type, t13: Type, t14: Type, t15: Type, t16: Type, t17: Type, t18: Type, t19: Type, f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda19 = {
     val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8), Param(t9), Param(t10), Param(t11), Param(t12), Param(t13), Param(t14), Param(t15), Param(t16), Param(t17), Param(t18), Param(t19))
     new Lambda19(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9), params(10), params(11), params(12), params(13), params(14), params(15), params(16), params(17), params(18)))
   }
 
-  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, t9:Type, t10:Type, t11:Type, t12:Type, t13: Type, t14: Type, t15: Type, t16: Type, t17: Type, t18: Type, t19: Type, t20: Type, f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda20 = {
+  def apply(t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, t6: Type, t7: Type, t8: Type, t9:Type, t10:Type, t11:Type, t12:Type, t13: Type, t14: Type, t15: Type, t16: Type, t17: Type, t18: Type, t19: Type, t20: Type, f: (Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param, Param) => Expr): Lambda20 = {
     val params = Array(Param(t1), Param(t2), Param(t3), Param(t4), Param(t5), Param(t6), Param(t7), Param(t8), Param(t9), Param(t10), Param(t11), Param(t12), Param(t13), Param(t14), Param(t15), Param(t16), Param(t17), Param(t18), Param(t19), Param(t20))
     new Lambda20(params, f(params(0), params(1), params(2), params(3), params(4), params(5), params(6), params(7), params(8), params(9), params(10), params(11), params(12), params(13), params(14), params(15), params(16), params(17), params(18), params(19)))
   }
