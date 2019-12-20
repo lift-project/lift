@@ -401,4 +401,37 @@ object Expr {
   def replace(e: Expr, oldE: Expr, rule: PartialFunction[Expr, Expr]): Expr =
     replace(e, expr => if (expr eq oldE) rule(expr) else expr)
 
+  /**
+   * Equality operator for expressions based on patterns.
+   * The parameters of language arguments such as strings and numericals are ignored.
+   * Examples:
+   *   Value(1) == Value(3) // True
+   */
+  def equals(e1: Expr, e2: Expr): Boolean = {
+    if (e1 == e2) true
+    else (e1, e2) match {
+      case (call1: FunCall, call2: FunCall)           =>
+        call1.args.zip(call2.args).map(a => Expr.equals(a._1, a._2)).reduce(_ && _) && (
+
+          (call1.f, call2.f) match {
+            case (fp1: FPattern2, fp2: FPattern2)     => Expr.equals(fp1.f1.body, fp2.f1.body) &&
+                                                         Expr.equals(fp1.f2.body, fp2.f2.body)
+            case (fp1: FPattern, fp2: FPattern)       => Expr.equals(fp1.f.body, fp2.f.body)
+            case (l1: Lambda, l2: Lambda)             => Expr.equals(l1.body, l2.body)
+            case (f1, f2)                             => f1.getClass == f2.getClass
+          })
+      case (v1: Value, v2: Value)                     => v1.typ == v2.typ
+      case (p1: Param, p2: Param)                     => p1 == p2
+      case (ArrayFromUserFunGenerator(f1, t1), ArrayFromUserFunGenerator(f2, t2))
+                                                      => f1 == f2 && t1 == t2
+      case (Array2DFromUserFunGenerator(f1, t1), Array2DFromUserFunGenerator(f2, t2))
+                                                      => f1 == f2 && t1 == t2
+      case (Array3DFromUserFunGenerator(f1, t1), Array3DFromUserFunGenerator(f2, t2))
+                                                      => f1 == f2 && t1 == t2
+      case (ArrayFromGenerator(f1, t1), ArrayFromGenerator(f2, t2))
+                                                      => f1 == f2 && t1 == t2
+      case (ArrayFromExpr(ee1), ArrayFromExpr(ee2))   => Expr.equals(ee1, ee2)
+      case (_, _)                                     => false
+    }
+  }
 }
