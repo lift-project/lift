@@ -2,14 +2,17 @@ package exploration.spatial
 
 import arithmetic.TypeVar
 import backends.Backend
-import backends.spatial.accel.ir.pattern.MapAccumSeq
+import backends.spatial.accel.ir.pattern.{MapAccumSeq, ReduceSeq}
 import backends.spatial.accel.ir._
 import backends.spatial.common.ir.Float
-import _root_.ir.ast.debug.AssertType
+import _root_.ir.ast.debug.{AssertType}
 import _root_.ir.{ArrayType, TupleType, TypeChecker}
-import _root_.ir.ast.{ArrayAccess, Concat, Drop, Get, Lambda, Map, Reduce, Split, Tuple, Unzip, UserFun, Zip, fun}
+import _root_.ir.ast.{ArrayAccess, Concat,, Get, Lambda, Let, Map, Reduce, Tuple, Unzip, UserFun, Value, Zip, fun}
 import lift.arithmetic.{NewFactorizationOfSum, SizeVar}
 import org.junit.{AfterClass, BeforeClass, Test}
+import rewriting.Rewrite
+import rewriting.rules.{FactorizationRules, FissionRules, SimplificationRules}
+import rewriting.utils.{NumberExpression, NumberPrinter}
 
 object LSTM {
   var originalNewFactorizationEnabledStatus: Boolean = _
@@ -54,12 +57,12 @@ class TestRewriteLSTM {
     /* lut:   */ ArrayType(Float, nLutValues),
     /* b:     */ Float,
     (xCur_, hPrev_, wi_, wh_, lut_, b_) => {
-      val xCur = AssertType(ArrayType(Float, d), "xCur") $ xCur_
-      val hPrev = AssertType(ArrayType(Float, h), "hPrev") $ hPrev_
-      val wi = AssertType(ArrayType(Float, d), "cellWi") $ wi_
-      val wh = AssertType(ArrayType(Float, h), "cellWh") $ wh_
-      val lut = AssertType(ArrayType(Float, nLutValues), "cellLUT") $ lut_
-      val b = AssertType(Float, "cellB") $ b_
+      def xCur = AssertType(ArrayType(Float, d), "xCur") $ xCur_
+      def hPrev = AssertType(ArrayType(Float, h), "hPrev") $ hPrev_
+      def wi = AssertType(ArrayType(Float, d), "cellWi") $ wi_
+      def wh = AssertType(ArrayType(Float, h), "cellWh") $ wh_
+      def lut = AssertType(ArrayType(Float, nLutValues), "cellLUT") $ lut_
+      def b = AssertType(Float, "cellB") $ b_
 
       Zip(Concat(wi, wh), Concat(xCur, hPrev)) :>>
       Map(fun(pair => mult(pair._0, pair._1))) :>> Reduce(add, init = b) :>>
@@ -68,7 +71,7 @@ class TestRewriteLSTM {
       AssertType(Float, "fusedDotProductWithNonLinear result")
     })
 
-  def highLevelLSTMLambda: Lambda = fun(
+  val highLevelLSTMLambda: Lambda = fun(
     /* x:       */ ArrayType(ArrayType(Float, d), nSteps),
     /* hInit:   */ ArrayType(Float, h),
     /* c:       */ ArrayType(Float, h),
@@ -105,30 +108,30 @@ class TestRewriteLSTM {
           /* x of the current step: */
           ArrayType(Float, d),
           (chPrev, xCur_) => {
-            val cPrev = AssertType(ArrayType(Float, h), "cPrev") $ Get(chPrev, 0)
-            val hPrev = AssertType(ArrayType(Float, h), "hPrev") $ Get(chPrev, 1)
-            val xCur = AssertType(ArrayType(Float, d), "xCur") $ xCur_
+            def cPrev = AssertType(ArrayType(Float, h), "cPrev") $ Get(chPrev, 0)
+            def hPrev = AssertType(ArrayType(Float, h), "hPrev") $ Get(chPrev, 1)
+            def xCur = AssertType(ArrayType(Float, d), "xCur") $ xCur_
 
             Zip(cPrev, wIi, wGi, wFi, wOi, wIh, wGh, wFh, wOh, bI, bG, bF, bO) :>>
             Map(fun(netParams => {
-              val cellC = AssertType(Float, "cellC") $ Get(netParams, 0)
-              val cellWIi = AssertType(ArrayType(Float, d), "cellWIi") $ Get(netParams, 1)
-              val cellWGi = AssertType(ArrayType(Float, d), "cellWGi") $ Get(netParams, 2)
-              val cellWFi = AssertType(ArrayType(Float, d), "cellWFi") $ Get(netParams, 3)
-              val cellWOi = AssertType(ArrayType(Float, d), "cellWOi") $ Get(netParams, 4)
-              val cellWIh = AssertType(ArrayType(Float, h), "cellWIh") $ Get(netParams, 5)
-              val cellWGh = AssertType(ArrayType(Float, h), "cellWGh") $ Get(netParams, 6)
-              val cellWFh = AssertType(ArrayType(Float, h), "cellWFh") $ Get(netParams, 7)
-              val cellWOh = AssertType(ArrayType(Float, h), "cellWOh") $ Get(netParams, 8)
-              val cellBI = AssertType(Float, "cellBI") $ Get(netParams, 9)
-              val cellBG = AssertType(Float, "cellBG") $ Get(netParams, 10)
-              val cellBF = AssertType(Float, "cellBF") $ Get(netParams, 11)
-              val cellBO = AssertType(Float, "cellBO") $ Get(netParams, 12)
+              def cellC = AssertType(Float, "cellC") $ Get(netParams, 0)
+              def cellWIi = AssertType(ArrayType(Float, d), "cellWIi") $ Get(netParams, 1)
+              def cellWGi = AssertType(ArrayType(Float, d), "cellWGi") $ Get(netParams, 2)
+              def cellWFi = AssertType(ArrayType(Float, d), "cellWFi") $ Get(netParams, 3)
+              def cellWOi = AssertType(ArrayType(Float, d), "cellWOi") $ Get(netParams, 4)
+              def cellWIh = AssertType(ArrayType(Float, h), "cellWIh") $ Get(netParams, 5)
+              def cellWGh = AssertType(ArrayType(Float, h), "cellWGh") $ Get(netParams, 6)
+              def cellWFh = AssertType(ArrayType(Float, h), "cellWFh") $ Get(netParams, 7)
+              def cellWOh = AssertType(ArrayType(Float, h), "cellWOh") $ Get(netParams, 8)
+              def cellBI = AssertType(Float, "cellBI") $ Get(netParams, 9)
+              def cellBG = AssertType(Float, "cellBG") $ Get(netParams, 10)
+              def cellBF = AssertType(Float, "cellBF") $ Get(netParams, 11)
+              def cellBO = AssertType(Float, "cellBO") $ Get(netParams, 12)
 
-              val i = fusedDotProductWithNonLinear(xCur, hPrev, cellWIi, cellWIh, lutI, cellBI)
-              val g = fusedDotProductWithNonLinear(xCur, hPrev, cellWGi, cellWGh, lutG, cellBG)
-              val f = fusedDotProductWithNonLinear(xCur, hPrev, cellWFi, cellWFh, lutF, cellBF)
-              val o = fusedDotProductWithNonLinear(xCur, hPrev, cellWOi, cellWOh, lutO, cellBO)
+              def i = fusedDotProductWithNonLinear(xCur, hPrev, cellWIi, cellWIh, lutI, cellBI)
+              def g = fusedDotProductWithNonLinear(xCur, hPrev, cellWGi, cellWGh, lutG, cellBG)
+              def f = fusedDotProductWithNonLinear(xCur, hPrev, cellWFi, cellWFh, lutF, cellBF)
+              def o = fusedDotProductWithNonLinear(xCur, hPrev, cellWOi, cellWOh, lutO, cellBO)
 
               val newCellC = add(mult(i, g), mult(cellC, f))
 
@@ -136,8 +139,8 @@ class TestRewriteLSTM {
               AssertType(TupleType(Float, Float), "Updated c and h of a cell")
             })) :>> Unzip() :>>
               fun(mapAccumBodyResult => {
-                val newC = Get(mapAccumBodyResult, 0)
-                val newH = Get(mapAccumBodyResult, 1)
+                def newC = Get(mapAccumBodyResult, 0)
+                def newH = Get(mapAccumBodyResult, 1)
                 Tuple(Tuple(newC, newH), newH)
               }) :>>
               AssertType(
@@ -145,11 +148,27 @@ class TestRewriteLSTM {
                 ArrayType(Float, h)), "Updated c and h of all steps of one time step")
           })) :>>
       fun(mapAccumResult => {
-        val newC = Get(Get(mapAccumResult, 0), 0)
-        val newHs = Get(mapAccumResult, 1)
+        def newC = Get(Get(mapAccumResult, 0), 0)
+        def newHs = Get(mapAccumResult, 1)
         Tuple(newC, newHs)
       })
   )
+
+  def printExprIDs(lambda: Lambda): Unit = {
+    val printAllIDs = true
+    println("-------------------------------")
+
+    val numbering = NumberExpression.breadthFirst(lambda)
+
+//    println("Concat of cellWIi and cellWIh:")
+//    println(Rewrite.getExprForId(highLevelLSTMLambda.body, idConcat_cellWIi_cellWIh, numbering).toString)
+
+    if (printAllIDs) {
+      println("Subexpression IDs:")
+      println(NumberPrinter(lambda))
+    }
+    println("-------------------------------")
+  }
 
   @Test
   def rewriteLSTM(): Unit = {
