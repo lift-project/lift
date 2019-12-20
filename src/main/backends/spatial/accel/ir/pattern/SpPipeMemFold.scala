@@ -1,6 +1,6 @@
 package backends.spatial.accel.ir.pattern
 
-import ir.ast.{Expr, Lambda, Lambda1, Lambda2, fun}
+import ir.ast.{Expr, Lambda, Lambda1, Lambda2, Pattern, fun}
 import lift.arithmetic.{ArithExpr, Cst}
 
 case class SpPipeMemFold(override val fMap: Lambda1,
@@ -8,7 +8,9 @@ case class SpPipeMemFold(override val fMap: Lambda1,
                          override val chunkSize: ArithExpr,
                          override val stride: ArithExpr,
                          override val factor: ArithExpr)
-  extends SpMemFold(fMap, fReduce, chunkSize, stride, factor) with Piped
+  extends SpMemFold(fMap, fReduce, chunkSize, stride, factor) with Piped {
+  override def copy(f1: Lambda, f2: Lambda): Pattern = SpPipeMemFold(f1, f2, chunkSize, stride, factor)
+}
 
 
 

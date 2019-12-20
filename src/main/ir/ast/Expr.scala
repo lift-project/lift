@@ -233,8 +233,7 @@ object Expr {
         call.f match {
           case rs: ReduceWhileSeq     => val newResult2 = visitWithState(newResult)(rs.f.body, visitFun)
                                          visitWithState(newResult2)(rs.p.body, visitFun)
-          case asf: AbstractSpFold    => visitWithState(visitWithState(newResult)(asf.fMap.body, visitFun))(
-                                            asf.fReduce.body, visitFun)
+          case fp: FPattern2          => visitWithState(visitWithState(newResult)(fp.f1.body, visitFun))(fp.f2.body, visitFun)
           case fp: FPattern           => visitWithState(newResult)(fp.f.body, visitFun)
           case l: Lambda              => visitWithState(newResult)(l.body, visitFun)
           case _                      => newResult

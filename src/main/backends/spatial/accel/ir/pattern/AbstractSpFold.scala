@@ -1,6 +1,6 @@
 package backends.spatial.accel.ir.pattern
 
-import ir.ast.{IRNode, Lambda1, Lambda2, Pattern}
+import ir.ast.{FPattern2, IRNode, Lambda1, Lambda2, Pattern}
 import ir.interpreter.Interpreter.ValueMap
 import ir.{ArrayType, ArrayTypeWS, Memory, ScalarType, TupleType, Type, TypeChecker, TypeException, UnallocatedMemory, UndefType}
 import lift.arithmetic.{ArithExpr, SimplifiedExpr, Var}
@@ -9,7 +9,9 @@ abstract class AbstractSpFold(val fMap: Lambda1,
                               val fReduce: Lambda2,
                               val chunkSize: ArithExpr,
                               val stride: ArithExpr,
-                              val factor: ArithExpr) extends Pattern(arity = 2) {
+                              val factor: ArithExpr) extends Pattern(arity = 2) with FPattern2 {
+  def f1 = fMap
+  def f2 = fReduce
   var mapLoopVar: Var = Var("i")
   var reduceLoopVar: Var = Var("j")
 
