@@ -258,4 +258,13 @@ object SimplificationRules {
     Map(Lambda(Array(_), FunCall(Id(), _), _)), _), _)), arg) => arg
   })
 
+  val curryFun = Rule("f(a, .., x) => fun(p_a => f(p_a, .., x)) $ a", {
+    case FunCall(f, args@_*) if args.length > 1 && args.exists(!_.isInstanceOf[Param]) =>
+      val newParam = Param()
+      val extractedArg = args.zipWithIndex.find(!_._1.isInstanceOf[Param]).get
+      val argsWithNewParam = args.updated(extractedArg._2, newParam)
+
+      new Let(Array(newParam), FunCall(f, argsWithNewParam: _*)) $ extractedArg._1
+  })
+
 }
