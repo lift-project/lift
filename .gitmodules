@@ -1,3 +1,3 @@
 [submodule "lib/ArithExpr"]
   path = lib/ArithExpr
-  url = git@git.research.arm.com:spatial-compute/spatial-compute-lift-arithexpr.git
+  url = git@github.com:lift-project/arithexpr.git
