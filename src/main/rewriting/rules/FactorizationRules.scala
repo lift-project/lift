@@ -14,10 +14,13 @@ object FactorizationRules {
       val argsSubExprs = args.map(arg => NumberExpression.breadthFirst(arg)).
         map(argSubExpr => argSubExpr.toSeq.sortWith(_._2 < _._2))
 
+      // The problem with subexpressions is that even the semantically equivalent ones have differing
+      // parameters (different instances of the Param class) in the inner lambdas, and normal equality checks
+      // will not evaluate them as equal.
+      // The code below finds inner lambdas and replaces their parameters with new ones in such a way that
+      // equal lambdas will have the same parameters
+
       // In the subexpressions, replace parameters in lambdas with new ones from a list.
-      // That way, if there are identical subexpressions with different
-      // parameters -- semantically equivalent yet being separate instances -- the subexpressions could be
-      // evaluated as equivalent
       val newParams: ArrayBuffer[Param] = new ArrayBuffer()
       val argsSubExprsWithNormalisedParams = argsSubExprs.map(argSubExpr => argSubExpr.map(exprWithId => {
         val expr = exprWithId._1
@@ -56,7 +59,11 @@ object FactorizationRules {
         // Do not use param-normalised subexpressions, use the original ones.
         // The smaller the ID, the (non-strictly) bigger the expression (because of the breadth-first search).
         // Hence ".head" below
-        commonSubExprAsSeenInArgs = Some(argsSubExprs.map(_.find(_._2 == commonSubExprs.head._2).get._1))
+        val commonSubExprIdsInArgs = argsSubExprsWithNormalisedParams.map(argSubExprsWithNormalisedParams =>
+          argSubExprsWithNormalisedParams.find(e => Expr.equals(e._1, commonSubExprs.head._1)).get._2)
+        commonSubExprAsSeenInArgs = Some(argsSubExprs.zip(commonSubExprIdsInArgs).map {
+          case (subExprs: Seq[(Expr, Int)], subExprId: Int) => subExprs.find(e =>  e._2 == subExprId).get._1
+        })
         true
       } else false
     } =>

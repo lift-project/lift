@@ -7,7 +7,7 @@ import backends.spatial.accel.ir._
 import backends.spatial.common.ir.Float
 import _root_.ir.ast.debug.{AssertType}
 import _root_.ir.{ArrayType, TupleType, TypeChecker}
-import _root_.ir.ast.{ArrayAccess, Concat,, Get, Lambda, Let, Map, Reduce, Tuple, Unzip, UserFun, Value, Zip, fun}
+import _root_.ir.ast.{ArrayAccess, Concat, Get, Lambda, Let, Map, Reduce, Tuple, Unzip, UserFun, Value, Zip, fun}
 import lift.arithmetic.{NewFactorizationOfSum, SizeVar}
 import org.junit.{AfterClass, BeforeClass, Test}
 import rewriting.Rewrite
@@ -133,7 +133,7 @@ class TestRewriteLSTM {
               def f = fusedDotProductWithNonLinear(xCur, hPrev, cellWFi, cellWFh, lutF, cellBF)
               def o = fusedDotProductWithNonLinear(xCur, hPrev, cellWOi, cellWOh, lutO, cellBO)
 
-              val newCellC = add(mult(i, g), mult(cellC, f))
+              def newCellC = add(mult(i, g), mult(cellC, f))
 
               Tuple(/* c */ newCellC, /* h */ mult(lookup(newCellC, lutTanh), o)) :>>
               AssertType(TupleType(Float, Float), "Updated c and h of a cell")
@@ -173,5 +173,115 @@ class TestRewriteLSTM {
   @Test
   def rewriteLSTM(): Unit = {
     TypeChecker(highLevelLSTMLambda.body)
+
+//    printExprIDs(highLevelLSTMLambda)
+
+    // Sequence
+    val f1_idConcat_cellWIi_cellWIh = 281
+    val f2_concatWIicurried = Rewrite.applyRuleAtId(highLevelLSTMLambda, f1_idConcat_cellWIi_cellWIh, SimplificationRules.curryFun)
+//    println(f2_concatWIcurried)
+
+//    printExprIDs(f2_concatWIicurried)
+
+    val f2_idConcat_cellWIiParam_cellWIh = 286
+    val f3_concatWIhcurried = Rewrite.applyRuleAtId(f2_concatWIicurried, f2_idConcat_cellWIiParam_cellWIh, SimplificationRules.curryFun)
+
+    println(f3_concatWIhcurried)
+
+    val potentialRewrites0 = Rewrite.listAllPossibleRewritesForRules(
+      lambda = f3_concatWIhcurried,
+      rules = Seq(FactorizationRules.commonSubExprInTuples))
+    println(f"Potential rewrites: ${potentialRewrites0.length}")
+
+    val rewritten0 = potentialRewrites0.map(potentialRewrite =>
+      Rewrite.applyRuleAt(
+        lambda = f3_concatWIhcurried,
+        expr = potentialRewrite.expr,
+        rule = potentialRewrite.rule))
+    println(rewritten0)
+    return
+
+    val potentialRewrites = Rewrite.listAllPossibleRewritesForRules(
+      lambda = f3_concatWIhcurried,
+      rules = Seq(FissionRules.mapFissionWithZipOutside_v2))
+    println(f"Potential rewrites: ${potentialRewrites.length}")
+
+    val rewritten = potentialRewrites.map(potentialRewrite =>
+      Rewrite.applyRuleAt(
+        lambda = f3_concatWIhcurried,
+        expr = potentialRewrite.expr,
+        rule = potentialRewrite.rule))
+
+    println(rewritten)
+  }
+
+  @Test
+  def temp(): Unit = {
+    val toyLambda: Lambda = fun(
+      /* x:       */ ArrayType(Float, d),
+      /* hInit:   */ ArrayType(Float, h),
+      /* wIi:     */ ArrayType(ArrayType(Float, d), h),
+      /* wIh:     */ ArrayType(ArrayType(Float, h), h),
+      /* bI:      */ ArrayType(Float, h),
+      /* lutI:    */ ArrayType(Float, nLutValues),
+      (xCur, hInit,
+       wIi,
+       wIh,
+       bI,
+       lutI) =>
+
+        Zip(wIi, wIh, bI) :>>
+          Map(fun(netParams => {
+            def cellWIi = AssertType(ArrayType(Float, d), "cellWIi") $ Get(netParams, 0)
+            def cellWIh = AssertType(ArrayType(Float, h), "cellWIh") $ Get(netParams, 1)
+            def cellBI = AssertType(Float, "cellBI") $ Get(netParams, 2)
+
+            def newCellC = cellWIh :>> Let(p2 => cellWIi :>> Let(p => Concat(p, p2))) :>>
+              ReduceSeq(add, Value("0", Float)) :>> ArrayAccess(0) :>> id
+
+//            newCellC :>> Let(p => Tuple(/* c */ p, /* h */ p))
+            Tuple(/* c */ newCellC, /* h */ newCellC)
+          })))
+
+    val potentialRewrites0 = Rewrite.listAllPossibleRewritesForRules(
+      lambda = toyLambda,
+      rules = Seq(FactorizationRules.commonSubExprInTuples))
+    println(f"Potential rewrites: ${potentialRewrites0.length}")
+
+    val rewritten0 = potentialRewrites0.map(potentialRewrite =>
+      Rewrite.applyRuleAt(
+        lambda = toyLambda,
+        expr = potentialRewrite.expr,
+        rule = potentialRewrite.rule))
+    println(rewritten0)
+    return
+//    printExprIDs(toyLambda)
+
+    val potentialRewrites = Rewrite.listAllPossibleRewritesForRules(
+      lambda = toyLambda,
+      rules = Seq(FissionRules.mapFissionWithZipOutside))
+    println(f"Potential rewrites: ${potentialRewrites.length}")
+
+    val rewritten = potentialRewrites.map(potentialRewrite =>
+      Rewrite.applyRuleAt(
+        lambda = toyLambda,
+        expr = potentialRewrite.expr,
+        rule = potentialRewrite.rule))
+
+    println(rewritten)
+
+
+    val potentialRewrites2 = Rewrite.listAllPossibleRewritesForRules(
+      lambda = rewritten.head,
+      rules = Seq(FissionRules.mapFissionWithZipOutside))
+    println(f"Potential rewrites 2: ${potentialRewrites2.length}")
+
+    val rewritten2 = potentialRewrites2.map(potentialRewrite =>
+      Rewrite.applyRuleAt(
+        lambda = rewritten.head,
+        expr = potentialRewrite.expr,
+        rule = potentialRewrite.rule))
+
+    println(rewritten2)
   }
 }

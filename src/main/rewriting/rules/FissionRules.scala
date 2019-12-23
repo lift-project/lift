@@ -211,8 +211,33 @@ object FissionRules {
 
   })
 
+  val mapFissionWithZipOutside_v2 = Rule("Map(fun(x => ...o f(Get(x, i), Get(x, j)))) $ Zip(..., y, ...) " +
+    "Map(fun(z => ... $ Get(z, i)) $ Zip(..., Map(f) $ y, ...)", {
+    case call@FunCall(Map(Lambda(lambdaParam,
+    c@FunCall(_, arg), _
+    )), FunCall(Zip(_), zipArgs@_*))
+      if isMapFissionWithZipOutsideValid_v2(lambdaParam, arg)
+    =>
+      applyMapFissionWithZipOutside_v2(c, arg, zipArgs)
+  })
+
   private def applyMapFissionWithZipOutside(c: FunCall, arg: Expr, zipArgs: Seq[Expr]): Expr = {
     val toBeReplaced = Utils.getExprForPatternInCallChain(arg, getCallPattern).get
+
+    val (f, i, x) = toBeReplaced match {
+      case FunCall(h, FunCall(Get(j), y)) => (h, j, y)
+    }
+
+    val newZipArgs = zipArgs.updated(i, Map(f) $ zipArgs(i))
+    val newLambdaParam = Param()
+    val interimDots = Expr.replace(c, toBeReplaced, Get(i)(newLambdaParam))
+    val newDots = Expr.replace(interimDots, x, newLambdaParam)
+
+    Map(Lambda(Array(newLambdaParam), newDots)) $ Zip(newZipArgs: _*)
+  }
+
+  private def applyMapFissionWithZipOutside_v2(c: FunCall, arg: Expr, zipArgs: Seq[Expr]): Expr = {
+    val toBeReplaced = Utils.findExpressionForPatternBreadthFirst(arg, getCallPattern).get
 
     val (f, i, x) = toBeReplaced match {
       case FunCall(h, FunCall(Get(j), y)) => (h, j, y)
@@ -233,7 +258,25 @@ object FissionRules {
     }
   }
 
+  private def isMapFissionWithZipOutsideValid_v2(lambdaParam: Array[Param], arg: Expr): Boolean = {
+    Utils.findExpressionForPatternBreadthFirst(arg, getCallsPattern) match {
+      case Some(FunCall(_, innerArgs@_*)) if innerArgs.forall( innerArg => {
+        Utils.getExprForPatternInCallChain(innerArg, getCallPattern) match {
+          case Some(FunCall(_, FunCall(Get(_), x))) if lambdaParam.head eq x => true
+          case _ => false
+        }}) => true
+      case _ => false
+    }
+  }
+
+  // This pattern covers cases like f(g(h(Get(a, pX))))
   private val getCallPattern: PartialFunction[Expr, Unit] = { case FunCall(_, FunCall(Get(_), _)) => }
+
+  // This pattern covers cases like f( g(h(Get(a, pX))),
+  //                                   j(k(Get(b, pX))) )
+  private val getCallsPattern: PartialFunction[Expr, Unit] = {
+    case FunCall(Concat(_), args@_*) if args.forall(arg =>
+      Utils.getExprForPatternInCallChain(arg, getCallPattern).isDefined) => }
 
   val tupleFission =
     Rule("Tuple(f $... , g $ ..., ...) => " +

@@ -160,6 +160,15 @@ object Utils {
       })
   }
 
+  def findExpressionForPatternBreadthFirst(expr: Expr, pattern: PartialFunction[Expr, Unit]): Option[Expr] = {
+    Expr.visitWithState(None: Option[Expr])(expr, (e, a) =>
+      a match {
+        case None if pattern.isDefinedAt(e) =>
+          Some(e)
+        case _ => a
+      })
+  }
+
   def collect(expr: Expr, pattern: PartialFunction[Expr, Unit]): List[Expr] = {
     Expr.visitWithState(List[Expr]())(expr, (e, s) => {
       e match {
