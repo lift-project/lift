@@ -1,0 +1,13 @@
+{
+  "lambdaDirRoot": "C:\\Users\\Naums\\hipeac20experiments\\generated_files",
+  "testHarnessDirName": "test_harness",
+  "testHarnessFName": "test_harness.cpp",
+  "testHarnessFilesCopyScriptFName": "copy_test_harness_files.bat",
+  "generatedHostCodeFName": "libconv.cpp",
+  "maxLocalSize0": 1024,
+  "maxLocalSize1": 1024,
+  "maxLocalSize2": 64,
+  "maxWorkgroupSize": 1024,
+  "floatRegistersPerThreadInMaxOccupancy": 9999,
+  "randomSeed": 9
+}

@@ -12,6 +12,8 @@ class Let(override val params: Array[Param], override val body: Expr) extends La
     assert (args.length == arity)
     new FunCall(this, args:_*)
   }
+
+  override def toString: String = "Let" + super.toString
 }
 
 object Let {
@@ -19,4 +21,8 @@ object Let {
     val param = Param(UndefType)
     new Let(Array(param), f(param))
   }
+
+  def apply(params: Array[Param], body: Expr) : Let = new Let(params, body)
+
+  def unapply(arg: Let): Option[(Lambda)] = Some(arg)
 }

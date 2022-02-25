@@ -7,12 +7,13 @@ import lift.arithmetic._
 import opencl.generator.NotPrintableExpression
 import opencl.ir.ast.OpenCLBuiltInFun
 import opencl.ir.pattern._
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 case class ScalaPrinter(printNonFixedVarIds: Boolean = true) {
   def apply(expr: Expr): String = {
     expr match {
       case funCall: FunCall => funCall.f match {
-        case AssertType(_, _) | PrintType(_) =>
+        case AssertType(_, _, _) | PrintType(_, _) | RewritingGuidePost(_) =>
           // Skip these primitives and just print their arguments
           apply(funCall.args.head)
         case _ =>
@@ -37,6 +38,8 @@ case class ScalaPrinter(printNonFixedVarIds: Boolean = true) {
       case lambda: Lambda => s"fun((${lambda.params.map(apply).mkString(", ")}) => ${apply(lambda.body)})"
       case map: Map => s"Map(${apply(map.f)})"
       case mapSeq: MapSeq => s"MapSeq(${apply(mapSeq.f)})"
+      case mapSeqVector: MapSeqVector => s"MapSeqVector(${apply(mapSeqVector.fVectorized)}, " +
+                                            s"${apply(mapSeqVector.fScalar)}, ${apply(mapSeqVector.vectorLen)})"
       case mapWrg: MapWrg => s"MapWrg(${mapWrg.dim})(${apply(mapWrg.f)})"
       case mapLcl: MapLcl => s"MapLcl(${mapLcl.dim})(${apply(mapLcl.f)})"
       case mapWrg: MapAtomWrg => s"MapAtomWrg(${mapWrg.dim})(${apply(mapWrg.f)})"
@@ -54,12 +57,14 @@ case class ScalaPrinter(printNonFixedVarIds: Boolean = true) {
       case bsearch: BSearch => s"BSearch(${apply(bsearch.f)})"
       case lsearch: LSearch => s"LSearch(${apply(lsearch.f)})"
       case vec: VectorizeUserFun => s"VectorizeUserFun(${apply(vec.n)},${vec.userFun})"
+      case Zip(n) => s"Zip($n)"
       case Join() => s"Join()"
       case Split(n) => s"Split(${apply(n)})"
       case Gather(idxFun) => s"Gather(${apply(idxFun)})"
       case Scatter(idxFun) => s"Scatter(${apply(idxFun)})"
+      case Barrier(l, g) => s"Barrier(local = $l, global = $g)"
 //      case uf: UserFun => apply(uf)
-      case x => x.toString
+      case x => x.toString//throw new NotImplementedError(s"$x") // it's not ideal. we fix it later (c) Christophe
     }
   }
 

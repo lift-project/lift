@@ -12,7 +12,7 @@ abstract class Pattern(override val arity: Int) extends FunDecl(arity) {
 
 object Pattern {
   def unapply(l: Lambda): Option[(Pattern)] = l match {
-    case Lambda(_, FunCall(x, _)) if x.isInstanceOf[Pattern] => Some(x.asInstanceOf[Pattern])
+    case Lambda(_, FunCall(x, _),_) if x.isInstanceOf[Pattern] => Some(x.asInstanceOf[Pattern])
     case _ => None
   }
 }
@@ -23,4 +23,8 @@ object Pattern {
 trait FPattern {
   def f: Lambda
   def copy(f: Lambda): Pattern
+}
+
+object FPattern {
+  def unapply(arg: FPattern): Option[Lambda] = Some(arg.f)
 }

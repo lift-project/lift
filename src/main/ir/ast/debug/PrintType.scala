@@ -3,7 +3,7 @@ package ir.ast.debug
 import ir.Type
 import ir.ast.Pattern
 import ir.interpreter.Interpreter._
-import utils.paternoster.visualisation.TypeVisualiser
+//import utils.paternoster.visualisation.TypeVisualiser
 
 
 /**
@@ -20,14 +20,16 @@ case object TextOutput extends TypeOutput
   * Identity function that prints the Lift type of its input.
   * Generates no OpenCL code.
   */
-case class PrintType(outputType: TypeOutput = TextOutput) extends Pattern(arity = 1) {
+case class PrintType(comment: String = "", outputType: TypeOutput = TextOutput) extends Pattern(arity = 1) {
   override def checkType(argType: Type,
                          setType: Boolean): Type = {
     outputType match {
       case v: VisualOutput => {
-        TypeVisualiser(argType, v.render, v.expr)
+        //TypeVisualiser(argType, v.render, v.expr)
       }
-      case TextOutput => println(argType.toString)
+      case TextOutput =>
+        if (comment != "") println(comment + ":")
+        println(argType.toString.replace("),", "),\n"))
     }
 
     argType

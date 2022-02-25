@@ -29,13 +29,13 @@ void shutdownExecutor();
 
 std::string getPlatformName();
 
-unsigned long getDeviceLocalMemSize();
+unsigned long long getDeviceLocalMemSize();
 
-unsigned long getDeviceGlobalMemSize();
+unsigned long long getDeviceGlobalMemSize();
 
-unsigned long getDeviceMaxMemAllocSize();
+unsigned long long getDeviceMaxMemAllocSize();
 
-unsigned long getDeviceMaxWorkGroupSize();
+unsigned long long getDeviceMaxWorkGroupSize();
 
 std::string getDeviceName();
 

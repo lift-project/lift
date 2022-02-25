@@ -41,6 +41,8 @@ abstract class AbstractPartRed(val f: Lambda,
     }
   }
 
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)
+
 
   override def eval(valueMap: ValueMap, args: Any*): Vector[_] = {
     assert(args.length == arity)

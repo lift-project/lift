@@ -31,6 +31,7 @@ object InferOpenCLAddressSpace {
 
     val result = expr match {
       case Value(_, _) => PrivateMemory
+      case ArrayFromExpr(e)=> setAddressSpace(e, writeTo)
       case _: ArrayConstructors => UndefAddressSpace
       case vp: VectorParam => vp.p.addressSpace
       case p: Param => p.addressSpace
@@ -48,10 +49,21 @@ object InferOpenCLAddressSpace {
 
     call.f match {
 
-      case Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
+      case RewritingGuidePost(_) =>
+        setAddressSpaceDefault(addressSpaces)
+
+      case Concat(_) =>
+        setAddressSpaceDefault(addressSpaces) match {
+          case AddressSpaceCollection(ab) =>
+            ab.foreach(f => assert(f==ab.head))
+            ab.head
+        }
+
+
+      case Barrier(_, _) | Unzip() | Zip(_) | Transpose() | TransposeW() | asVector(_) |
            asScalar() | Split(_) | Join() | Scatter(_) | Gather(_) |
-           Pad(_,_,_) | PadConstant(_, _, _) | Tuple(_) | Slide(_,_) | Head() | Tail() | debug.PrintType(_) |
-           debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
+           Pad(_,_,_) | PadConstant(_, _, _) | Tuple(_) | Slide(_,_) | Unslide(_,_) | Head() | Tail() | debug.PrintType(_, _) |
+           debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _, _) |
            UnsafeArrayAccess(_) | CheckedArrayAccess(_) | ArrayAccess(_) | Id() =>
 
         setAddressSpaceDefault(addressSpaces)
@@ -70,6 +82,8 @@ object InferOpenCLAddressSpace {
       case rw: ReduceWhileSeq => setAddressSpaceReduceWhile(rw, call, addressSpaces)
       case r: AbstractPartRed => setAddressSpaceReduce(r.f, call, addressSpaces)
       case s: AbstractSearch => setAddressSpaceSearch(s, writeTo, addressSpaces)
+
+      case mv: MapSeqVector => setAddressSpaceMapSeqVector(mv, writeTo, addressSpaces)
 
       case l: Lambda => setAddressSpaceLambda(l, writeTo, addressSpaces)
       case fp: FPattern => setAddressSpaceLambda(fp.f, writeTo, addressSpaces)
@@ -132,6 +146,28 @@ object InferOpenCLAddressSpace {
     setAddressSpace(s.f.body, PrivateMemory)
 
     inferAddressSpace(writeTo, addressSpaces)
+  }
+
+  private def setAddressSpaceMapSeqVector(mv: MapSeqVector,
+                                          writeTo: OpenCLAddressSpace,
+                                          addressSpaces: Seq[OpenCLAddressSpace]) = {
+    val fVectorizedAS = if (mv.vectorPartNonEmpty)
+      Some(setAddressSpaceLambda(mv.fVectorized, writeTo, addressSpaces))
+    else None
+
+    val fScalarAS = if (mv.scalarPartNonEmpty)
+      Some(setAddressSpaceLambda(mv.fScalar, writeTo, addressSpaces))
+    else None
+
+    if (fVectorizedAS.isEmpty && fScalarAS.isEmpty)
+      throw new IllegalStateException()
+
+    if (fVectorizedAS.isDefined && fScalarAS.isDefined)
+      assert(fVectorizedAS.get == fScalarAS.get)
+
+    if (fVectorizedAS.isDefined)
+      fVectorizedAS.get
+    else fScalarAS.get
   }
 
   private def setAddressSpaceLambda(l: Lambda, writeTo : OpenCLAddressSpace,

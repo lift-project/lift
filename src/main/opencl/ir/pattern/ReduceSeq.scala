@@ -6,7 +6,8 @@ import ir.ast._
 
 case class ReduceSeq(override val f: Lambda)
   extends AbstractReduce(f, PosVar("i"))  {
-  assert(f.body.isConcrete)
+  if(f.body.isInstanceOf[FunCall])
+    assert(f.body.isConcrete)
 
   override def checkType(argType: Type, setType: Boolean): Type =  {
     // TODO: Duplication with AbstractPartRed. ReduceSeq is somewhat less strict.
@@ -28,11 +29,16 @@ case class ReduceSeq(override val f: Lambda)
 
   override def copy(f: Lambda): Pattern = ReduceSeq(f)
   var shouldUnroll = false
+
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)
+  override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = ReduceSeq(f.visitAndRebuild(pre,post).asInstanceOf[Lambda])
 }
 
 class ReduceSeqUnroll(override val f: Lambda) extends ReduceSeq(f) {
   shouldUnroll = true
   override def toString: String = s"ReduceSeqUnroll($f)"
+
+  override def copy(f: Lambda): Pattern = ReduceSeqUnroll(f)
 }
 
 object ReduceSeqUnroll {

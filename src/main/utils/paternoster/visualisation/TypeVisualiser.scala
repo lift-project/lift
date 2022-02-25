@@ -1,5 +1,6 @@
 package utils.paternoster.visualisation
 
+/*
 import java.io.{File, PrintWriter}
 import javafx.application.Application
 import javafx.embed.swing.SwingFXUtils
@@ -769,3 +770,4 @@ object TypeVisualiser {
 }
 
 
+*/

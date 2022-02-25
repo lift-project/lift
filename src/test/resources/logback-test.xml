@@ -1,15 +1,24 @@
 <configuration>
+    <timestamp key="myTimestamp" datePattern="dd.MM.yyyy'_'HH.mm.ss"/>
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} [%level] [%logger]: %msg%n</pattern>
         </encoder>
     </appender>
 
-    <logger name="exploration" additive="false" level="error" />
+    <appender name="file" class="ch.qos.logback.core.FileAppender">
+        <file>${log-file:-C:\\Users\\Naums\\hipeac20experiments\\\scala_logs\log_${experiment_label}_${myTimestamp}.log}</file>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%level] [%logger]: %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="exploration" additive="false" level="debug" />
 
     <root level="debug">
         <appender-ref ref="STDOUT" />
+        <appender-ref ref="file" />
     </root>
 
 </configuration>

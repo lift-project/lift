@@ -1,6 +1,6 @@
 package utils.paternoster.gui
 
-import javafx.scene.canvas.{Canvas, GraphicsContext}
+/*import javafx.scene.canvas.{Canvas, GraphicsContext}
 import javafx.scene.image.WritableImage
 import javafx.scene.layout.Pane
 import javafx.scene.text.{Font, Text}
@@ -8,8 +8,8 @@ import javafx.scene.text.{Font, Text}
 import org.jfree.graphics2d.svg.SVGGraphics2D
 import utils.paternoster.rendering.Graphics.GraphicalPrimitive
 import utils.paternoster.rendering.{JavaFXRenderer, SVGRenderer}
-
-
+*/
+/*
 
 /**
   * Custon Pane class for painting of the visualisation.
@@ -127,3 +127,5 @@ class MainPane(val width:Int, val height:Int) extends Pane {
   this.canvas.setHeight(height)
   }
 }
+
+*/

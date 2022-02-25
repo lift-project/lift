@@ -67,6 +67,8 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
           case sp: MapSeqSlide => setRangeMapSeqSlide(sp, call)
             apply(sp.f.body)
 
+          case mv: MapSeqVector => setRangeMapSeqVector(mv, call)
+
           case i: Iterate =>
             setRangeIterate(i)
             evaluateIterateRange(i)
@@ -206,6 +208,20 @@ private class RangesAndCounts(localSizes: NDRange, globalSizes: NDRange,
   private def setRangeMapSeqSlide(sp: MapSeqSlide, call: FunCall): Unit = {
     val reuse = sp.size - sp.step
     sp.loopVar = Var(sp.loopVar.name, ContinuousRange(Cst(0), (Type.getLength(call.args.head.t) - reuse) / sp.step))
+  }
+
+  private def setRangeMapSeqVector(mv: MapSeqVector, call: FunCall): Unit = {
+    assert(mv.argTVectorizedPart.isDefined)
+    assert(mv.argTScalarPart.isDefined)
+
+    if (mv.vectorPartNonEmpty) {
+      mv.vectorLoopVar = Var(mv.vectorLoopVar.name, ContinuousRange(Cst(0), mv.argTVectorizedPart.get.get.size))
+
+      mv.vectorCopyLoopVar = Var(mv.vectorCopyLoopVar.name, ContinuousRange(Cst(0), mv.vectorLen))
+    }
+
+    if (mv.scalarPartNonEmpty)
+      mv.scalarLoopVar = Var(mv.scalarLoopVar.name, ContinuousRange(Cst(0), mv.argTScalarPart.get.get.size))
   }
 
 

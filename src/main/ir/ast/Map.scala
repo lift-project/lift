@@ -65,4 +65,7 @@ object AbstractMap {
  */
 case class Map(override val f: Lambda) extends AbstractMap(f, "Map", PosVar("")) {
   override def copy(f: Lambda): Pattern = Map(f)
+
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)
+  override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = Map(f.visitAndRebuild(pre,post).asInstanceOf[Lambda])
 }

@@ -1,0 +1,24 @@
+<configuration>
+    <timestamp key="myTimestamp" datePattern="dd.MM.yyyy'_'HH.mm.ss"/>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%level] [%logger]: %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="file" class="ch.qos.logback.core.FileAppender">
+        <file>${log-file:-SCALA_LOG_PATH/${run_label}/log_${experiment_label}.log}</file>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%level] [%logger]: %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="exploration" additive="false" level="debug" />
+
+    <root level="debug">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="file" />
+    </root>
+
+</configuration>

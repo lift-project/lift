@@ -1,5 +1,6 @@
 package arithmetic
 
+import lift.arithmetic.ArithExpr.intToCst
 import lift.arithmetic._
 import opencl.generator.{get_group_id, get_local_id}
 import org.junit.Assert._
@@ -10,6 +11,22 @@ import org.junit.Test
   * @author cdubach
   */
 class TestArith {
+
+  // Should be safe to discard
+  @Test def testBug(): Unit = {
+    val numKernels = Var("numKernels")
+    val kernelWidth: Var = Var("kernelWidth")
+    val kernelHeight: Var = Var("kernelHeight")
+    val inputChannels: Var = Var("inputChannels")
+
+    val H0: Var = Var("H0", RangeAdd(1, kernelHeight * kernelWidth * inputChannels + 1, step = 1))
+    val N0: Var = Var("N0", RangeAdd(1, numKernels + 1, step = 1))
+
+    val a = numKernels * H0 * N0 * (1 /^ (H0 * N0))
+
+    print(a)
+    assert( a == numKernels )
+  }
 
   @Test
   def minCeilGrpId(): Unit = {

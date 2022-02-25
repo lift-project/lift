@@ -1,5 +1,6 @@
 package utils.paternoster.gui
 
+/*
 import java.io.File
 import javafx.application.Application
 import javafx.embed.swing.SwingFXUtils
@@ -351,3 +352,6 @@ class VisualiserWindow extends Application {
   }
 
 }
+
+
+*/

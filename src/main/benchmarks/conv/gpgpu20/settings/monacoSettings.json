@@ -1,0 +1,16 @@
+{
+  "python_exec": "/home/s1569687/anaconda3/envs/pytorch/bin/python1",
+  "lambda_dir": "/home/s1569687/cases/generated_files",
+  "onnx_configs_root_dir": "/home/s1569687/cases/dnnoptimiser/src/main/paramspaces/layerconfig",
+  "allow_overwriting_onnx_configs": true,
+  "mysql_server_hostname": "localhost",
+  "mysql_db_name": "dnn_optimiser_db",
+  "mysql_username": "dnn_optimiser",
+  "mysql_password": "alpine",
+  "random_seed": 8,
+  "config_points": 13,
+  "opt_points": 5000,
+  "validate": false,
+  "maxLocalSize": 384,
+  "maxWorkGroupSize": 384
+}

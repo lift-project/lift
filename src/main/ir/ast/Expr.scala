@@ -4,7 +4,7 @@ import ir._
 import ir.interpreter.Interpreter.ValueMap
 import ir.view.{AccessInfo, NoView, View}
 import lift.arithmetic.ArithExpr
-import opencl.ir.pattern.ReduceWhileSeq
+import opencl.ir.pattern.{MapSeqVector, ReduceWhileSeq}
 import opencl.ir.{OpenCLAddressSpace, UndefAddressSpace}
 
 import scala.language.implicitConversions
@@ -83,6 +83,7 @@ abstract class Expr extends IRNode {
         case call: FunCall =>
           call.f match {
             case _: UserFun | _: VectorizeUserFun => true
+            case _: Concat => true // TODO: not sure if that is a good idea ... but hey ;-)
             case _ => b
           }
         case _ => b
@@ -113,8 +114,9 @@ abstract class Expr extends IRNode {
    */
   def copy: Expr
 
-  def contains(pattern: PartialFunction[Expr, Unit]): Boolean =
-    Expr.visitWithState(false)(this, (e, s) => pattern.isDefinedAt(e) || s)
+  def contains(pattern: PartialFunction[Expr, Unit],
+               visitArgs: Boolean = true): Boolean =
+    Expr.visitWithState(false)(this, (e, s) => pattern.isDefinedAt(e) || s, visitArgs)
 
   /**
    * Reverse function application.
@@ -166,6 +168,7 @@ object Expr {
           case l: Lambda =>    visit(l.body, pre, post)
           case _ =>
         }
+      case ArrayFromExpr(e) => visit(e, pre, post)
       case _ =>
     }
     post(expr)
@@ -204,10 +207,18 @@ object Expr {
           case rs: ReduceWhileSeq =>
             val newResult2 = visitWithState(newResult)(rs.f.body, visitFun)
             visitWithState(newResult2)(rs.p.body, visitFun)
+
+          case mv: MapSeqVector =>
+            val newResult2 = visitWithState(newResult)(mv.fVectorized.body, visitFun)
+            visitWithState(newResult2)(mv.fScalar.body, visitFun)
+
           case fp: FPattern =>  visitWithState(newResult)(fp.f.body, visitFun)
           case l: Lambda =>     visitWithState(newResult)(l.body, visitFun)
           case _ => newResult
         }
+
+      case ArrayFromExpr(e) => visitWithState(result)(e, visitFun, visitArgs)
+
       case _ => result
     }
   }
@@ -234,6 +245,7 @@ object Expr {
             visitLeftToRight(x)(arg, visitFun)
           }) else newResult
 
+      case ArrayFromExpr(e) => visitLeftToRight(z)(e, visitFun, visitArgs)
 
       case _ => visitFun(expr, z)
     }
@@ -258,6 +270,8 @@ object Expr {
         }
 
         visitFun(expr, newResult)
+
+      case ArrayFromExpr(e) => visitRightToLeft(z)(e, visitFun)
 
       case _ => visitFun(expr, z)
     }
@@ -294,6 +308,7 @@ object Expr {
         call.args.foldRight(newResult)((arg, x) => {
           visitWithStateDepthFirst(x)(arg, visitFun)
         })
+      case ArrayFromExpr(e) => visitWithStateDepthFirst(result)(e, visitFun)
       case _ => result
     }
   }
@@ -345,9 +360,59 @@ object Expr {
           } else
             e // Otherwise return the same FunCall object
 
+        case ArrayFromExpr(e) => replace(e, f)
+
         case _ => e
       }
     }
+  }
+
+  // visit call.args, then call, then call.f
+  def replaceRightToLeft(e: Expr, f: Expr => Expr): Expr = {
+
+      e match {
+        case call: FunCall =>
+          val newArgs = call.args.map((arg) => replaceRightToLeft(arg, f))
+
+          if (newArgs.zip(call.args).exists { case (n, a) => !(n eq a) })
+            FunCall(call.f, newArgs: _*)
+          else {
+            // None of the args were replaced
+            val newE = f(e)
+            if (!e.eq(newE)) {
+              newE
+            } else {
+
+              val newCall = call.f match {
+
+                case fp: FPattern =>
+                  // Try to do the replacement in the lambda
+                  val replaced = FunDecl.replace(fp.f, f, exprReplacer = Expr.replaceRightToLeft)
+
+                  // If replacement didn't occur return fp.f
+                  // else instantiate a new pattern with the updated lambda
+                  if (fp.f.eq(replaced))
+                    fp
+                  else
+                    fp.copy(replaced)
+
+                case l: Lambda =>
+                  FunDecl.replace(l, f, exprReplacer = Expr.replaceRightToLeft)
+
+                case other => other
+              }
+
+              if (!newCall.eq(call.f) || (newArgs, call.args).zipped.exists((e1, e2) => !e1.eq(e2))) {
+                // Instantiate a new FunCall if anything has changed
+                FunCall(newCall, newArgs: _*)
+              } else
+                e // Otherwise return the same FunCall object
+            }
+          }
+        case ArrayFromExpr(e) => replaceRightToLeft(e, f)
+
+        case _ => e
+      }
   }
 
   /**

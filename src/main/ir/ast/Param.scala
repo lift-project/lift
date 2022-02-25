@@ -7,12 +7,19 @@ import ir.{Type, TypeException}
 /**
  * Parameters to functions and lambdas, i.e.: x, y, ...
  */
-class Param() extends Expr with Cloneable {
+class Param(name: String = "default") extends Expr with Cloneable {
 
   /**
    * Debug string representation
    */
-  override def toString: String = "p" + (hashCode() & 0xff)
+  override def toString: String =
+    name match {
+    case _ if name == "default" =>
+      //this.t + " " +
+//        "p" + (hashCode() & 0xff).toString
+        "p" + (hashCode() & 0xffff).toString
+    case _  => this.t + " " + name
+    }
 
   /**
    * Perform a copy of `this`
@@ -64,6 +71,12 @@ object Param {
    */
   def apply(t: Type): Param = {
     val p = Param()
+    p.t = t
+    p
+  }
+
+  def apply(t: Type, name: String): Param = {
+    val p = new Param(name)
     p.t = t
     p
   }

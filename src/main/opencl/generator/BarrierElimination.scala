@@ -16,6 +16,9 @@ import opencl.ir.pattern._
  * take place (they cause threads to interact) and whether the sub-expressions appear
  * inside loops (causes reuse of memory locations).
  *
+ * NB: There are several known problems with this module such as eliminating necessary barriers, leaving barriers
+ * that are not needed or placing barriers too deep in the AST. The BarrierInsertion module gives examples of these
+ * problems and attempts to do a better job using mostly views, accessInfo and full index ArithExprs.
  */
 object BarrierElimination {
 
@@ -54,6 +57,13 @@ class BarrierElimination(lambda: Lambda) {
           call.f match {
             case m: AbstractMap =>
               apply(m.f.body, insideLoop || isLoop(m.loopVar.range))
+
+            case mv: MapSeqVector =>
+              if (mv.vectorPartNonEmpty)
+                apply(mv.fVectorized.body, insideLoop || isLoop(mv.vectorLoopVar.range))
+              if (mv.scalarPartNonEmpty)
+                apply(mv.fScalar.body, insideLoop || isLoop(mv.scalarLoopVar.range))
+
             case r: AbstractPartRed =>
               apply(call.args.head, insideLoop)
               apply(r.f.body, insideLoop || isLoop(r.loopVar.range))
@@ -72,14 +82,18 @@ class BarrierElimination(lambda: Lambda) {
           if (mapLclOption.isDefined) {
             val mapLcl = mapLclOption.get
 
-            val nestedMapLcl = Utils.getExprForPatternInCallChain(mapLcl.f.body,
+            def getNestedMapLcl(expr: Expr): Option[Expr] = Utils.extractExprForPatternInCallChain(expr,
               {
-                case FunCall(MapLcl(_, _), _) =>
-                case FunCall(Tuple(_) | Zip(_), args@_*)
-                  if args.exists(
-                    Utils.getIndexForPatternInCallChain(_, { case FunCall(MapLcl(_, _), _) =>}) != -1
-                  ) =>
+                case call @ FunCall(MapLcl(_, _), _)            => Some(call)
+                case call @ FunCall(Tuple(_) | Zip(_), args@_*)
+                  if args.exists(getNestedMapLcl(_).isDefined)  => Some(call)
+                // TODO: generalize to other patterns that could be wrapping the nested MapLcl() while
+                // TODO: still allowing to not have a barrier
+                case FunCall(lambda: Lambda, _*)                => getNestedMapLcl(lambda.body)
+                case _                                          => None
               })
+
+            val nestedMapLcl = getNestedMapLcl(mapLcl.f.body)
 
             nestedMapLcl match {
               case Some(FunCall(innerMapLcl:MapLcl, _)) =>
@@ -118,7 +132,7 @@ class BarrierElimination(lambda: Lambda) {
     expr match {
       case call: FunCall =>
         call.f match {
-          case Lambda(_, body) => getCallsAtLevel(body) ++ call.args.reverse.flatMap(getCallsAtLevel)
+          case Lambda(_, body,_) => getCallsAtLevel(body) ++ call.args.reverse.flatMap(getCallsAtLevel)
           case r:AbstractPartRed => call +: getCallsAtLevel(call.args(1))
           case _ => call +: call.args.reverse.flatMap(getCallsAtLevel)
         }
@@ -285,7 +299,7 @@ class BarrierElimination(lambda: Lambda) {
 
   private def argumentToPossibleSharing(call: FunCall): Boolean = {
     Expr.visitWithState(false)(lambda.body, {
-      case (FunCall(Lambda(params, FunCall(_, nestedArgs@_*)), args@_*), _ )
+      case (FunCall(Lambda(params, FunCall(_, nestedArgs@_*),_), args@_*), _ )
         if args.exists(arg => arg.contains({ case c if c eq call => } )) && !params.sameElements(nestedArgs)=>
         true
       case (_, state) => state
@@ -299,7 +313,7 @@ class BarrierElimination(lambda: Lambda) {
     call.f match {
       case m: AbstractMap =>
         m.f match {
-          case Lambda(params, FunCall(_, args @ _*))
+          case Lambda(params, FunCall(_, args @ _*),_)
             if !params.sameElements(args) =>
 
             !Expr.visitWithState(false)(args.head, (e, b) =>

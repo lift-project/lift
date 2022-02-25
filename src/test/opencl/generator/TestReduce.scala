@@ -23,9 +23,12 @@ class TestReduce {
       Float,
       (in, init) => {
       Join() o MapWrg(
-        Join() o  MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, init)) o Split(4)
+        Join() o  MapLcl(toGlobal(MapSeq(id)) o ReduceSeq(add, toPrivate(id) $ init)) o Split(4)
       ) o Split(128) $ in
     })
+
+    import opencl.executor.Compile
+    val c = Compile(l)
 
     val (output, runtime) = Execute(inputData.length)[Array[Float]]( l, inputData, 0.0f)
 

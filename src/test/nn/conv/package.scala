@@ -3,6 +3,8 @@ package nn
 import java.nio.file.Files.exists
 import java.nio.file.Paths.get
 
+import patterns.nn._
+
 /**
   * Created by nm on 08/02/17.
   */

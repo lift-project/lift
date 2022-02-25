@@ -13,6 +13,9 @@ extends AbstractMap(f, "MapLcl", PosVar("l_id")) {
   override def copy(f: Lambda): Pattern = MapLcl(dim, f)
   var shouldUnroll = false
   var emitBarrier = true
+
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)
+  override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = MapLcl(dim, f.visitAndRebuild(pre,post).asInstanceOf[Lambda])
 }
 
 object MapLcl {

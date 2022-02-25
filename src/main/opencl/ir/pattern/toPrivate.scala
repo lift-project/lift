@@ -17,4 +17,6 @@ case class toPrivate(f: Lambda) extends Pattern(arity = f.arity)
     f.eval(valueMap, args:_*)
   }
 
+  override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = toPrivate(f.visitAndRebuild(pre,post).asInstanceOf[Lambda])
+
 }

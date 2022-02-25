@@ -3,7 +3,7 @@ package opencl.generator
 import ir._
 import ir.ast.{Expr, FunCall, Lambda}
 import opencl.ir.pattern._
-import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection, PrivateMemory}
+import opencl.ir.{AddressSpaceCollection, OpenCLMemory, OpenCLMemoryCollection, PrivateMemory}
 
 object ShouldUnroll {
 
@@ -44,7 +44,11 @@ class ShouldUnroll(val lambda: Lambda) {
         case _ => existsInPrivateMemories(call.args.head.mem)
       })) ||
       // Don't unroll just for value
-      OpenCLMemory.asOpenCLMemory(call.mem).addressSpace == PrivateMemory
+      (OpenCLMemory.asOpenCLMemory(call.mem).addressSpace match {
+        case PrivateMemory => true
+        case AddressSpaceCollection(subSpaces) if subSpaces.forall(_ == PrivateMemory) => true
+        case _ => false
+    })
   }
 
    Expr.visit(lambda.body, _ => Unit, {
@@ -57,6 +61,7 @@ class ShouldUnroll(val lambda: Lambda) {
            if (OpenCLMemory.containsPrivateMemory(call.args(1).mem))
              r.shouldUnroll = true
          case sp: MapSeqSlide=> if (shouldUnrollLoop(call)) sp.shouldUnroll = true
+         case mv: MapSeqVector => if (shouldUnrollLoop(call)) mv.shouldUnroll = true
          case scan:ScanSeq => scan.shouldUnroll=  OpenCLMemory.containsPrivateMemory(call.args(1).mem)
          case _ =>
        }

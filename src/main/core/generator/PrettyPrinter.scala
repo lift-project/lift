@@ -1,5 +1,6 @@
 package core.generator
 
+import scala.collection.mutable.ArrayBuffer
 import scala.language.implicitConversions
 
 /*
@@ -21,11 +22,14 @@ object PrettyPrinter {
 
     // side by side concatenation
     def <>(that: Doc): Doc = (this, that) match {
-      case (Empty(), Empty()) ⇒ Empty()
-      case (Empty(), Text(s)) ⇒ Text(s)
-      case (Text(s), Empty()) ⇒ Text(s)
-//      case (Text(s1), Text(s2)) ⇒ Text(s1 ++ s2)
-      case _                    ⇒ Concat(this, that)
+      case (Empty(), Empty())           ⇒ Empty()
+      case (Empty(), Text(s))           ⇒ Text(s)
+      case (Text(s), Empty())           ⇒ Text(s)
+      case (Text(s1), Text(s2))         ⇒ Text(s1 + s2)
+      case (Concat(ds1), Concat(ds2))   ⇒ Concat(ds1 ++ ds2)
+      case (Concat(ds1), _)             ⇒ Concat(ds1 :+ that)
+      case (_, Concat(ds2))             ⇒ Concat(this +: ds2)
+      case _                            ⇒ Concat(ArrayBuffer(this, that))
     }
 
     // defining more interesting utility concatenations as operators
@@ -39,7 +43,7 @@ object PrettyPrinter {
 
   case class Empty() extends Doc
 
-  case class Concat(a: Doc, b: Doc) extends Doc
+  case class Concat(ds: ArrayBuffer[Doc]) extends Doc
 
   case class Nest(level: Int, d: Doc) extends Doc
 
@@ -56,7 +60,7 @@ object PrettyPrinter {
   def layout(d: Doc): String = _layout(d, 0)
   private def _layout(d: Doc, n: Int): String = d match {
     case Empty()      ⇒ ""
-    case Concat(a, b) ⇒ _layout(a, n) ++ _layout(b, n)
+    case Concat(ds)   ⇒ ds.tail.foldLeft(_layout(ds.head, n))((acc, next) => acc ++ _layout(next, n))
     case Nest(i, _d)  ⇒ _layout(_d, n + i)
     case Text(s)      ⇒ s
     case Line()       ⇒ "\n" ++ ("  " * n)
@@ -71,10 +75,7 @@ object PrettyPrinter {
   private def _layoutStateful(d: Doc, n: Int, sb: StringBuilder) : Unit = d
   match {
     case Empty()      ⇒
-    case Concat(a, b) ⇒ {
-      _layoutStateful(a, n, sb)
-      _layoutStateful(b, n, sb)
-    }
+    case Concat(ds)   ⇒ ds.foreach(_layoutStateful(_, n, sb))
     case Nest(i, _d)  ⇒ _layoutStateful(_d, n + i, sb)
     case Text(s)      ⇒ sb ++= s
     case Line()       ⇒ {

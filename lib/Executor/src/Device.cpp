@@ -359,7 +359,7 @@ unsigned int Device::maxComputeUnits() const
   return _device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
 }
 
-unsigned long Device::maxMemAllocSize() const
+unsigned long long Device::maxMemAllocSize() const
 {
   return _device.getInfo<CL_DEVICE_MAX_MEM_ALLOC_SIZE>();
 }
@@ -375,12 +375,12 @@ size_t Device::maxWorkGroups() const
     _device.getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>()[0] / maxWorkGroupSize();
 }
 
-unsigned long Device::globalMemSize() const
+unsigned long long Device::globalMemSize() const
 {
   return _device.getInfo<CL_DEVICE_GLOBAL_MEM_SIZE>();
 }
 
-unsigned long Device::localMemSize() const
+unsigned long long Device::localMemSize() const
 {
   return _device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>();
 }

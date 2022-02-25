@@ -25,8 +25,7 @@ object Printer {
   def toString(e: ArithExpr): String = {
     e match {
       case Cst(c)                                  => c.toString
-      case Pow(b, ex)                              =>
-        "(int)pow((float)" + toString(b) + ", " + toString(ex) + ")"
+      case Pow(b, ex)                              => "(int)pow((float)" + toString(b) + ", " + toString(ex) + ")"
       case Log(b, x)                               => "(int)log" + b + "((float)" + toString(x) + ")"
       case Prod(es)                                =>
         val (denTerms, numTerms) = es.partition({
@@ -52,6 +51,7 @@ object Printer {
       case v: Var                                  => v.toString
       case IntDiv(n, d)                            => "(" + toString(n) + " / " + toString(d) + ")"
       case lu: Lookup                              => "lookup" + lu.id + "(" + toString(lu.index) + ")"
+      case m: Max                                  => "max" + "(" + toString(m.a) + "," + toString(m.b) + ")"
       case BitwiseXOR(a, b)                        => "(" + toString(a) + "^" + toString(b) + ")"
       case BitwiseAND(a, b)                        => "(" + toString(a) + "&" + toString(b) + ")"
       case LShift(a, b)                            => "(" + toString(a) + " << " + toString(b) + ")"

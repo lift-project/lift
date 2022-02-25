@@ -256,7 +256,7 @@ public:
   ///
   /// \return The maximal size of memory object allocation in bytes
   ///
-  unsigned long maxMemAllocSize() const;
+  unsigned long long maxMemAllocSize() const;
 
   ///
   /// \brief Returns the maximal number of OpenCL Work Items in one OpenCL Work
@@ -278,14 +278,14 @@ public:
   ///
   /// \return The maximal global memory size for the device
   ///
-  unsigned long globalMemSize() const;
+  unsigned long long globalMemSize() const;
 
   ///
   /// \brief Returns the maximal local memory size for the device
   ///
   /// \return The maximal local memory size for the device
   ///
-  unsigned long localMemSize() const;
+  unsigned long long localMemSize() const;
 
   ///
   /// \brief Get access to the OpenCL Context for the device

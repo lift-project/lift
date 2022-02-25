@@ -6,6 +6,9 @@ import lift.arithmetic.PosVar
 case class MapGlb(dim: Int, override val f: Lambda1)
   extends AbstractMap(f, "MapGlbl", PosVar("gl_id")) {
   override def copy(f: Lambda): Pattern = MapGlb(dim, f)
+
+  override def _visit(prePost: IRNode => IRNode => Unit): Unit = f.visit_pp(prePost)
+  override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = MapGlb(dim, f.visitAndRebuild(pre,post).asInstanceOf[Lambda])
 }
 
 object MapGlb {

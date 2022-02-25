@@ -21,9 +21,9 @@ object SlideTiling {
 
   val tileSlide2D =
     Rule("Slide2D(n,s) => TiledSlideND(2)(n,s,?)", {
-      case FunCall(Map(Lambda(Array(_), FunCall(Transpose(), _))),
+      case FunCall(Map(Lambda(Array(_), FunCall(Transpose(), _), _)),
       FunCall(Slide(n1,s1),
-      FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), _))), arg)))
+      FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), _), _)), arg)))
         if n1 == n2 && s1 == s2 =>
         val slideStep = Utils.validSlideStep(arg.t, n1-s1)
         TiledSlidedND(2)(n1,s1,slideStep) $ arg
@@ -34,10 +34,10 @@ object SlideTiling {
       "Map(Join()) o Join() o Map(TransposeW()) o " +
       "Map(Map(Map(Map(f))))) o " +
       "Map(Map(Slide2D(n,s))) o Slide2D(tileSizeX/Y, tileStepX/Y)", {
-      case FunCall(Map(Lambda(Array(_), FunCall(Map(f), _))),
-      FunCall(Map(Lambda(Array(_), FunCall(Transpose(), _))),
+      case FunCall(Map(Lambda(Array(_), FunCall(Map(f), _), _)),
+      FunCall(Map(Lambda(Array(_), FunCall(Transpose(), _), _)),
       FunCall(Slide(n1,s1),
-      FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), slideArg))), arg))))
+      FunCall(Map(Lambda(Array(_), FunCall(Slide(n2,s2), slideArg), _)), arg))))
       =>
         val slideStep1 = Utils.validSlideStep(arg.t, n1-s1)
         val slideSize1 = slideStep1 + (n1-s1)
@@ -51,14 +51,14 @@ object SlideTiling {
   val tile2DStencilsZip =
     Rule("tile2DStencilsZip) => ", {
       case
-        FunCall(Map(Lambda(_, FunCall(Map(f), _))),
+        FunCall(Map(Lambda(_, FunCall(Map(f), _), _)),
         // zip2D
-        FunCall(Map(Lambda(_, FunCall(Zip(_), _*))),
+        FunCall(Map(Lambda(_, FunCall(Zip(_), _*), _)),
         FunCall(Zip(_),
         // slide2D
-        FunCall(Map(Lambda(_, FunCall(Transpose(), _))),
+        FunCall(Map(Lambda(_, FunCall(Transpose(), _), _)),
         FunCall(Slide(n1,s1),
-        FunCall(Map(Lambda(_, FunCall(Slide(n2,s2), slideArg))),
+        FunCall(Map(Lambda(_, FunCall(Slide(n2,s2), slideArg), _)),
         arrayToTile
         )
         )
@@ -90,21 +90,21 @@ object SlideTiling {
   val tile2DStencilsZip6 =
   Rule("tile2DStencilsZip6", {
     case
-      FunCall(Map(Lambda(_, FunCall(Map(f), _))),
+      FunCall(Map(Lambda(_, FunCall(Map(f), _), _)),
       // zip2D
-      FunCall(Map(Lambda(_, FunCall(Zip(_), _*))),
+      FunCall(Map(Lambda(_, FunCall(Zip(_), _*), _)),
       FunCall(Zip(_),
       // slide2D
-      FunCall(Map(Lambda(_, FunCall(Transpose(), _))),
+      FunCall(Map(Lambda(_, FunCall(Transpose(), _), _)),
       FunCall(Slide(n1,s1),
-      FunCall(Map(Lambda(_, FunCall(Slide(n2,s2), slideArg))),
+      FunCall(Map(Lambda(_, FunCall(Slide(n2,s2), slideArg), _)),
       arrayToTile
       )
       )
       ),
-      FunCall(Map(Lambda(_, FunCall(Transpose(), _))),
+      FunCall(Map(Lambda(_, FunCall(Transpose(), _), _)),
       FunCall(Slide(_,_),
-      FunCall(Map(Lambda(_, FunCall(Slide(_,_), _))),
+      FunCall(Map(Lambda(_, FunCall(Slide(_,_), _), _)),
       arrayToTile2
       )
       )

@@ -1,5 +1,6 @@
 package ir.ast
 
+import ir.Type
 import lift.arithmetic.ArithExpr
 
 /*
@@ -23,4 +24,11 @@ object Vectorize {
 
   //@deprecated("Use function.vectorize(ArithExpr) instead")
   def apply(n: ArithExpr): Helper = new Helper(n)
+}
+
+case class VectorizeFunCall(vecSize: ArithExpr) extends FunDecl(arity = 1) {
+
+
+  override def _visitAndRebuild(pre: IRNode => IRNode, post: IRNode => IRNode): IRNode = this
+  override def checkType(argType: Type, setType: Boolean): Type = argType.vectorize(vecSize)
 }

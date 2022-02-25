@@ -62,10 +62,10 @@ object OpenCLAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      params.foreach(_.visit(pre,post))
-      body.visit(pre,post)
+      params.foreach(_.visitBy(pre,post))
+      body.visitBy(pre,post)
       attribute match {
-          case Some(a) => a.visit(pre, post)
+          case Some(a) => a.visitBy(pre, post)
           case None =>
         }
     }
@@ -128,9 +128,9 @@ object OpenCLAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
+      v.visitBy(pre, post)
       init match {
-        case Some(i) => i.visit(pre, post)
+        case Some(i) => i.visitBy(pre, post)
         case None =>
       }
     }
@@ -138,6 +138,12 @@ object OpenCLAST {
     override def print(): Doc = t match {
       case _: ArrayType =>
         addressSpace match {
+          case PrivateMemory =>
+            if (length > scala.Int.MaxValue) throw NotEvaluableToInt
+            stack(List.tabulate(length.toInt)(i ⇒ {
+              Printer.toString(Type.getValueType(t)) <+> Printer.toString(v
+                .v) <> "_" <> Printer.toString(i) <> ";"
+            }))  /*** unroll private memory ***/
 
           case LocalMemory if length != 0 =>
             val baseType = Type.getBaseType(t)
@@ -232,9 +238,9 @@ object OpenCLAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
-      offset.visit(pre, post)
-      shift.visit(pre, post)
+      v.visitBy(pre, post)
+      offset.visitBy(pre, post)
+      shift.visitBy(pre, post)
     }
 
     override def print(): Doc = {
@@ -272,9 +278,9 @@ object OpenCLAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
-      value.visit(pre, post)
-      offset.visit(pre, post)
+      v.visitBy(pre, post)
+      value.visitBy(pre, post)
+      offset.visitBy(pre, post)
     }
 
     override def print(): Doc = {
@@ -305,7 +311,7 @@ object OpenCLAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      v.visit(pre, post)
+      v.visitBy(pre, post)
     }
 
     override def print(): Doc = {
@@ -329,7 +335,7 @@ object OpenCLAST {
     }
 
     def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit) : Unit = {
-      vs.map(_.visit(pre, post))
+      vs.map(_.visitBy(pre, post))
     }
 
     override def print(): Doc = {
@@ -345,7 +351,7 @@ object OpenCLAST {
     *
     * @param code Native code to insert
     */
-  case class OclCode(code: String) extends RawCodeT {
+  case class OclCode(code: String, pre1: String = "", pre2: String ="", post1: String ="", post2: String = "") extends RawCodeT {
     def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode) : AstNode = {
       this
     }
@@ -388,6 +394,23 @@ object OpenCLAST {
         "barrier(CLK_LOCAL_MEM_FENCE);"
 
       case _ => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
+    }
+  }
+
+  case class OclBarrierDecoupledFromMem(local: Boolean, global: Boolean) extends StatementT with BlockMember {
+    assert(local || global)
+
+    def _visitAndRebuild(pre: (AstNode) => AstNode, post: (AstNode) => AstNode): AstNode = {
+      this
+    }
+
+    def _visit(pre: (AstNode) => Unit, post: (AstNode) => Unit): Unit = {}
+
+    override def print(): Doc = (local, global) match {
+      case (false, true) => "barrier(CLK_GLOBAL_MEM_FENCE);"
+      case (true, false) => "barrier(CLK_LOCAL_MEM_FENCE);"
+      case (true, true) => "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);"
+      case _ => throw new IllegalArgumentException
     }
   }
 

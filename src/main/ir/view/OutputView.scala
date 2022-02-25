@@ -3,7 +3,7 @@ package ir.view
 import ir._
 import ir.ast._
 import lift.arithmetic.{ArithExpr, Cst, Var}
-import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
+import opencl.ir.pattern.{Barrier, FilterSeq, InsertionSortSeq, MapSeqSlide, MapSeqVector, ReduceWhileSeq, ScanSeq}
 import opencl.ir.{OpenCLMemory, OpenCLMemoryCollection}
 
 /**
@@ -47,6 +47,7 @@ object OutputView {
       case f: FilterSeq => buildViewFilter(f,  call, writeView)
       case r: AbstractPartRed => buildViewReduce(r, call, writeView)
       case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, writeView)
+      case mv: MapSeqVector => buildViewMapSeqVector(mv, call, writeView)
       case s: AbstractSearch => buildViewSearch(s, call, writeView)
       case scan:ScanSeq => buildViewScan(scan, call, writeView)
       case iss: InsertionSortSeq => buildViewSort(iss, call, writeView)
@@ -66,12 +67,16 @@ object OutputView {
       case _: Unzip => writeView.zip()
       case l: Lambda => buildViewLambda(l, call, writeView)
       case fp: FPattern => buildViewLambda(fp.f, call, writeView)
+      case cc: Concat => buildViewConcat(call, View.initialiseNewView(call.t, call.accessInf.getAccesses(call.addressSpace), call.mem.variable))
       case _: Slide =>
-        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
+        View.initialiseNewView(call.args.head.t, call.args.head.accessInf.getAccesses(call.args.head.addressSpace), call.args.head.mem.variable)
+      case _: Unslide =>
+        View.initialiseNewView(call.args.head.t, call.args.head.accessInf.getAccesses(call.args.head.addressSpace), call.args.head.mem.variable)
       case _: ArrayAccess | _: UnsafeArrayAccess | _ : CheckedArrayAccess =>
-        View.initialiseNewView(call.args.head.t, call.args.head.inputDepth, call.args.head.mem.variable)
-      case debug.PrintType(_) | debug.PrintComment(_) | debug.AssertType(_, _) | Get(_) | _: Tuple | Gather(_) | 
-           Filter() | Pad(_, _, _) | PadConstant(_, _, _) | Id() =>
+        View.initialiseNewView(call.args.head.t, call.args.head.accessInf.getAccesses(call.args.head.addressSpace), call.args.head.mem.variable)
+      case RewritingGuidePost(_) => writeView
+      case debug.PrintType(_, _) | debug.PrintComment(_) | debug.AssertType(_, _, _) | Get(_) | _: Tuple | Gather(_) |
+           Filter() | Pad(_, _, _) | PadConstant(_, _, _) | Id() | Barrier(_, _) =>
         writeView
       case dunno => throw new NotImplementedError(s"OutputView.scala: $dunno")
     }
@@ -80,16 +85,22 @@ object OutputView {
     call.f match {
       case Zip(_) | Tuple(_) =>
         val res = call.args.map(arg =>
-          visitAndBuildViews(arg, View.initialiseNewView(arg.t, arg.inputDepth, arg.mem.variable)))
+            visitAndBuildViews(arg, View.initialiseNewView(arg.t, arg.accessInf.getAccesses(arg.addressSpace), arg.mem.variable)))
 
+        ViewTuple(res, call.argsType)
+      case Concat(_) =>
+        // recurse into arguments by passing the modified output view along
+        val res = call.args.map(arg => visitAndBuildViews(arg, arg.outputView))
         ViewTuple(res, call.argsType)
       case _: AbstractPartRed =>
         val acc = call.args.head
-        visitAndBuildViews(acc, View.initialiseNewView(acc.t, acc.inputDepth, acc.mem.variable))
+        // The write view of the accumulator initializer must be subject to
+        // the same transformations as that of whole reduce
+        visitAndBuildViews(acc, writeView.access(0))
         visitAndBuildViews(call.args(1), result)
       case _: ScanSeq =>
         val acc = call.args.head
-        visitAndBuildViews(acc, View.initialiseNewView(acc.t, acc.inputDepth, acc.mem.variable))
+        visitAndBuildViews(acc, View.initialiseNewView(acc.t, acc.accessInf.getAccesses(acc.addressSpace), acc.mem.variable))
         visitAndBuildViews(call.args(1), result)
       case Get(i) =>
         call.args.head match {
@@ -123,7 +134,9 @@ object OutputView {
         result
       case _ =>
 
-        val res = call.args.map(visitAndBuildViews(_, result))
+        val res = call.args.zipWithIndex.map { case (arg, argIdx) =>
+          visitAndBuildViews(arg, if (call.args.length == 1) result else result.get(argIdx)) }
+
         ViewTuple(res, call.argsType)
     }
   }
@@ -137,6 +150,23 @@ object OutputView {
     })
 
     result
+  }
+
+  private def buildViewConcat(call: FunCall, writeView: View): View = {
+
+    var accCapacity : ArithExpr = Cst(0)
+
+    call.args.foreach({
+      case (arg) if arg.outputView == NoView => arg.outputView = writeView.offset(accCapacity)
+        accCapacity = accCapacity +
+          (arg.t match{
+          case ArrayTypeWSWC(_,_,c) => c
+        })
+      case _ => throw new IllegalArgumentException("PANIC: No output view required!")
+    })
+   // println(writeView)
+//    writeView
+    View.initialiseNewView(call.t, call.outputDepth, call.mem.variable)
   }
 
   private def getAccessDepth(accessInfo: AccessInfo, memory: Memory) = {
@@ -206,7 +236,7 @@ object OutputView {
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, writeView: View): View = {
-    val v = View.initialiseNewView(call.t, call.inputDepth, i.vPtrOut)
+    val v = View.initialiseNewView(call.t, call.accessInf.getAccesses(call.addressSpace), i.vPtrOut)
     visitAndBuildViews(i.f.body, v)
     View.initialiseNewView(call.args.head.t, call.outputDepth, call.args.head.mem.variable)
   }
@@ -226,6 +256,11 @@ object OutputView {
   
   private def buildViewReduce(r: AbstractPartRed,
                               call: FunCall, writeView: View): View = {
+    // Rebuild input views within the reduce, this time using the view transformations
+    // applied on the reduce result -- accumulator -- after reduction, e.g. TransposeW
+    // TODO: find a cleaner solution such as extending InputView building to handle this
+    r.f.params.head.view = writeView.access(Cst(0)) // TODO: there might be a bug here. Sometimes, incorrect indices are produced
+    InputView(r.f.body)
     // traverse into call.f
     visitAndBuildViews(r.f.body, writeView.access(Cst(0)))
 
@@ -245,11 +280,38 @@ object OutputView {
     ViewMap(sp.f.params.head.outputView, sp.loopVar, call.args.head.t)
   }
 
+  private def buildViewMapSeqVector(mv: MapSeqVector,
+                                    call: FunCall, writeView: View): View = {
+    assert(mv.argTVectorizedPart.isDefined)
+
+    if (mv.vectorPartNonEmpty) {
+      visitAndBuildViews(mv.fVectorized.body,
+        View.initialiseNewView(mv.argTVectorizedPart.get.get.elemT, List(), mv.fVectorized.body.mem.variable))
+
+      mv.fVectorizedOutputView = Some(Some(
+        writeView.access(mv.vectorLoopVar * 4 + mv.vectorCopyLoopVar)))
+    } else
+      mv.fVectorizedOutputView = Some(None)
+
+    if (mv.scalarPartNonEmpty)
+      visitAndBuildViews(mv.fScalar.body,
+        writeView.offset(
+          (if (mv.vectorPartNonEmpty) mv.argTVectorizedPart.get.get.size else Cst(0)) * mv.vectorLen
+        ).access(mv.scalarLoopVar))
+
+    val result = View.initialiseNewView(
+      call.args.head.t,
+      call.args.head.accessInf.getAccesses(call.args.head.addressSpace),
+      call.args.head.mem.variable)
+
+    result
+  }
+
 
   private def buildViewSearch(s: AbstractSearch,
                               call:FunCall, writeView:View) :View = {
     visitAndBuildViews(call.args.head,
-      View.initialiseNewView(call.args.head.t, call.inputDepth, call.args.head.mem.variable))
+      View.initialiseNewView(call.args.head.t, call.accessInf.getAccesses(call.addressSpace), call.args.head.mem.variable))
     visitAndBuildViews(s.f.body, writeView.access(Cst(0)))
     View.initialiseNewView(call.args(1).t, call.outputDepth, call.args(1).mem.variable)
   }
@@ -262,7 +324,11 @@ object OutputView {
   private def buildViewLambda(l: Lambda, call: FunCall, writeView: View): View = {
     visitAndBuildViews(l.body, writeView)
     // TODO: Not sure about this
-    l.params.head.outputView
+    //l.body.outputView = writeView
+    if (l.params.length == 1)
+      l.params.head.outputView
+    else
+      ViewTuple(l.params.map(_.outputView), call.argsType)
   }
   
   private def buildViewSort(iss: InsertionSortSeq,
@@ -309,10 +375,7 @@ object OutputView {
   private def buildViewTransposeW(tw: TransposeW, call: FunCall, writeView: View): View = {
     call.t match {
       case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
-        writeView.
-          join(m).
-          reorder((i:ArithExpr) => { transpose(i, ArrayTypeWSWC(ArrayTypeWSWC(typ, n), m)) }).
-          split(n)
+        writeView.transpose
       case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) | ArrayType(_) =>
         throw new TypeException(call.t, "Array", call.f)
     }

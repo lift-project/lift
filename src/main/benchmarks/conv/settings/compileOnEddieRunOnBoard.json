@@ -1,0 +1,17 @@
+{
+  "lambdaDirRoot": "./generated_files",
+  "testSrcDir": "./src/test/rewriting/xxx",
+  "testHarnessDirName": "test_harness",
+  "testHarnessFName": "test_harness.cpp",
+  "testHarnessFilesCopyScriptFName": "copy_test_harness_files.bat",
+  "generatedHostCodeFName": "libconv.cpp",
+  "maxLocalSize0": 384,
+  "maxLocalSize1": 384,
+  "maxLocalSize2": 384,
+  "maxWorkgroupSize": 384,
+  "floatRegistersPerThreadInMaxOccupancy": 64,
+  "maxMemAllocSize": 1073741824,
+  "globalMemSize": 4294967296,
+  "localMemSize": 32768,
+  "randomSeed": 3
+}

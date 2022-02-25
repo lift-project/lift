@@ -51,8 +51,21 @@ object EmptyCode {
 }
 
 object PerformBarrierElimination {
-  private val barrierElimination = System.getenv("LIFT_NO_BARRIER_ELIM") == null
+  private var barrierElimination = System.getenv("LIFT_NO_BARRIER_ELIM") == null
   def apply(): Boolean = barrierElimination
+  def set(b: Boolean): Unit = barrierElimination = b
+}
+
+object IgnoreBarrierFlags {
+  private var ignoreBarrierFlags = System.getenv("LIFT_IGNORE_BARRIER_FLAGS") != null
+  def apply(): Boolean = ignoreBarrierFlags
+  def set(b: Boolean): Unit = ignoreBarrierFlags = b
+}
+
+object PerformBarrierInsertion {
+  private var barrierInsertion = System.getenv("LIFT_BARRIER_INSERT") != null
+  def apply(): Boolean = barrierInsertion
+  def set(b: Boolean): Unit = barrierInsertion = b
 }
 
 object PerformLoopOptimisation {
@@ -75,4 +88,8 @@ object AllocateLocalMemoryStatically {
 
 object OpenCL {
   val warpSize = 32
+}
+
+object MaliBifrost {
+  val warpSize = 4
 }

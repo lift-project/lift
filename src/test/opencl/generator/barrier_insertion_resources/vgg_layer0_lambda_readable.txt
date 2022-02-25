@@ -1,0 +1,169 @@
+(p52014, p50996 ->
+  AssertType(Arr(Arr(Arr(float,sc=(1+(((v_inputWidth_1+(-1*v_kernelWidth_5)+(2*v_padFuncX_3))) / (v_kernelStrideX_7)))),sc=(1+(((v_inputHeight_2+(-1*v_kernelHeight_6)+(2*v_padFuncY_4))) / (v_kernelStrideY_8)))),sc=v_numKernels_9), "After reduction") o Map((p7369 ->
+    Map((p2332 ->
+      Join() $ p2332
+    )) $ p7369
+  )) o Join() o Map((p4447 ->
+    Map((p41666 ->
+      Map((p29062 ->
+        Join() $ p29062
+      )) o Join() o Map((p29726 ->
+        TransposeW() $ p29726
+      )) $ p41666
+    )) $ p4447
+  )) o Map((p29720 ->
+    TransposeW() o Map((p1550 ->
+      TransposeW() $ p1550
+    )) $ p29720
+  )) o MapWrg(0,(p41679 ->
+    MapSeq((p7254 ->
+      MapSeq((p13868 ->
+        (p17309 ->
+          (p34647 ->
+            Join() o Split(v_kernelGroupSize_15) o MapSeq((p52739 ->
+              MapLcl(0,(p34159 ->
+                MapSeq((p27084 ->
+                  MapSeq((p42460 ->
+                    toGlobal((p49891 ->
+                      id $ p49891
+                    )) $ p42460
+                  )) o ReduceSeq((p19231, p9193 ->
+                    add $ (p19231, p9193)
+                  )) $ (toPrivate((p3082 ->
+                    id $ p3082
+                  )) $ 0.0f, p27084)
+                )) $ p34159
+              )) $ p52739
+            )) o Join() o AssertType(List(Arr(Arr(Arr(Arr(Arr(float,sc=(v_inputChannels_0*(1/^(v_tileDepth_14)))),sc=(1+(((v_inputWidth_1+(-1*v_kernelWidth_5)+(2*v_padFuncX_3))) / (v_kernelStrideX_7)))),sc=(1+(((v_inputHeight_2+(-1*v_kernelHeight_6)+(2*v_padFuncY_4))) / (v_kernelStrideY_8)))),sc=v_numKernels_9),sc=1), Arr(Arr(Arr(Arr(Arr(float,sc=(v_inputChannels_0*(1/^(v_tileDepth_14)))),sc=v_tileWidth_12),sc=v_tileHeight_13),sc=v_kernelGroupSize_15),sc=1)), "Partial results with input dim pushed inwards, and 1-dim pulled outwards") o Map((p41734 ->
+              Map((p53541 ->
+                Map((p32600 ->
+                  Transpose() $ p32600
+                )) $ p53541
+              )) $ p41734
+            )) o Map((p58028 ->
+              Map((p1209 ->
+                Transpose() $ p1209
+              )) $ p58028
+            )) o Map((p32979 ->
+              Transpose() $ p32979
+            )) o Transpose() o Map((p52925 ->
+              Transpose() $ p52925
+            )) o Map((p23772 ->
+              Map((p6033 ->
+                Transpose() $ p6033
+              )) $ p23772
+            )) o Map((p20173 ->
+              Map((p31964 ->
+                Map((p59306 ->
+                  Transpose() $ p59306
+                )) $ p31964
+              )) $ p20173
+            )) o AssertType(List(Arr(Arr(Arr(Arr(Arr(float,sc=1),sc=(1+(((v_inputWidth_1+(-1*v_kernelWidth_5)+(2*v_padFuncX_3))) / (v_kernelStrideX_7)))),sc=(1+(((v_inputHeight_2+(-1*v_kernelHeight_6)+(2*v_padFuncY_4))) / (v_kernelStrideY_8)))),sc=v_numKernels_9),sc=(v_inputChannels_0*(1/^(v_tileDepth_14)))), Arr(Arr(Arr(Arr(Arr(float,sc=1),sc=v_tileWidth_12),sc=v_tileHeight_13),sc=v_kernelGroupSize_15),sc=(v_inputChannels_0*(1/^(v_tileDepth_14))))), "Partial results") o MapSeq((p27075 ->
+              Join() o Map((p27358 ->
+                Map((p43942 ->
+                  Map((p1276 ->
+                    Join() $ p1276
+                  )) o Join() o Map((p39554 ->
+                    TransposeW() $ p39554
+                  )) $ p43942
+                )) $ p27358
+              )) o Map((p37504 ->
+                TransposeW() o Map((p24742 ->
+                  TransposeW() $ p24742
+                )) $ p37504
+              )) o MapLcl(0,(p51788 ->
+                Split((v_tileWidth_12*(1/^(v_inputCacheSizeX_16)))) o MapSeq((p28573 ->
+                  (p46359 ->
+                    (p11779 ->
+                      MapSeq((p8751 ->
+                        MapSeq((p3226 ->
+                          MapSeq((p53621 ->
+                            MapSeq((p7364 ->
+                              toGlobal((p14486 ->
+                                id $ p14486
+                              )) $ p7364
+                            )) o ReduceSeq((p2234, p39368 ->
+                              add $ (p2234, mult $ (Get(0) $ p39368, Get(1) $ p39368))
+                            )) $ (toPrivate((p1857 ->
+                              id $ p1857
+                            )) $ 0.0f, Zip() $ (Join() o Join() $ p53621, Join() o Join() $ p8751))
+                          )) $ p3226
+                        )) $ p11779
+                      )) $ p46359
+                    ) o MapSeq((p38504 ->
+                      MapSeq((p45075 ->
+                        Split(v_kernelHeight_6) o MapSeq((p44718 ->
+                          MapSeq((p4578 ->
+                            toGlobal((p51889 ->
+                              id $ p51889
+                            )) $ p4578
+                          )) $ p44718
+                        )) o Join() $ p45075
+                      )) $ p38504
+                    )) $ p28573
+                  ) $ p51788
+                )) o Join() o Map((p11314 ->
+                  Transpose() $ p11314
+                )) o Split(v_inputCacheSizeY_17) o Map((p3932 ->
+                  Split(v_inputCacheSizeX_16) $ p3932
+                )) o Get(0) $ p27075
+              )) o Split(v_kernelCacheSize_18) o Get(1) $ p27075
+            )) o (p56063 ->
+              AssertType(List(Arr(Tuple(Arr(Arr(Arr(Arr(Arr(float,sc=v_kernelWidth_5),sc=v_kernelHeight_6),sc=v_tileDepth_14),sc=(1+(((v_inputWidth_1+(-1*v_kernelWidth_5)+(2*v_padFuncX_3))) / (v_kernelStrideX_7)))),sc=(1+(((v_inputHeight_2+(-1*v_kernelHeight_6)+(2*v_padFuncY_4))) / (v_kernelStrideY_8)))), Arr(Arr(Arr(Arr(float,sc=v_kernelWidth_5),sc=v_kernelHeight_6),sc=v_tileDepth_14),sc=v_numKernels_9)),sc=(v_inputChannels_0*(1/^(v_tileDepth_14)))), Arr(Tuple(Arr(Arr(Arr(Arr(Arr(float,sc=v_kernelWidth_5),sc=v_kernelHeight_6),sc=v_tileDepth_14),sc=v_tileWidth_12),sc=v_tileHeight_13), Arr(Arr(Arr(Arr(float,sc=v_kernelWidth_5),sc=v_kernelHeight_6),sc=v_tileDepth_14),sc=v_kernelGroupSize_15)),sc=(v_inputChannels_0*(1/^(v_tileDepth_14))))), "divideFun result") o (p30259 ->
+                Zip() $ (Map((p17342 ->
+                  Map((p49458 ->
+                    Transpose() $ p49458
+                  )) $ p17342
+                )) o Map((p50562 ->
+                  Transpose() $ p50562
+                )) o Map((p36567 ->
+                  Map((p54048 ->
+                    Get(0) $ p54048
+                  )) $ p36567
+                )) $ p30259, Map((p57548 ->
+                  Transpose() $ p57548
+                )) o Map((p23997 ->
+                  Map((p49976 ->
+                    Get(1) $ p49976
+                  )) $ p23997
+                )) $ p30259)
+              ) o Split(v_tileDepth_14) o Zip() $ (Transpose() o Map((p58310 ->
+                Transpose() $ p58310
+              )) o Get(0) o AssertType(List(Tuple(Arr(Arr(Arr(Arr(Arr(float,sc=v_kernelWidth_5),sc=v_kernelHeight_6),sc=v_inputChannels_0),sc=(1+(((v_inputWidth_1+(-1*v_kernelWidth_5)+(2*v_padFuncX_3))) / (v_kernelStrideX_7)))),sc=(1+(((v_inputHeight_2+(-1*v_kernelHeight_6)+(2*v_padFuncY_4))) / (v_kernelStrideY_8)))), Arr(Arr(Arr(Arr(float,sc=v_kernelWidth_5),sc=v_kernelHeight_6),sc=v_inputChannels_0),sc=v_numKernels_9)), Tuple(Arr(Arr(Arr(Arr(Arr(float,sc=v_kernelWidth_5),sc=v_kernelHeight_6),sc=v_inputChannels_0),sc=v_tileWidth_12),sc=v_tileHeight_13), Arr(Arr(Arr(Arr(float,sc=v_kernelWidth_5),sc=v_kernelHeight_6),sc=v_inputChannels_0),sc=v_kernelGroupSize_15))), "inputDataKernelWeights in divideFun") $ p56063, Transpose() o Get(1) o AssertType(List(Tuple(Arr(Arr(Arr(Arr(Arr(float,sc=v_kernelWidth_5),sc=v_kernelHeight_6),sc=v_inputChannels_0),sc=(1+(((v_inputWidth_1+(-1*v_kernelWidth_5)+(2*v_padFuncX_3))) / (v_kernelStrideX_7)))),sc=(1+(((v_inputHeight_2+(-1*v_kernelHeight_6)+(2*v_padFuncY_4))) / (v_kernelStrideY_8)))), Arr(Arr(Arr(Arr(float,sc=v_kernelWidth_5),sc=v_kernelHeight_6),sc=v_inputChannels_0),sc=v_numKernels_9)), Tuple(Arr(Arr(Arr(Arr(Arr(float,sc=v_kernelWidth_5),sc=v_kernelHeight_6),sc=v_inputChannels_0),sc=v_tileWidth_12),sc=v_tileHeight_13), Arr(Arr(Arr(Arr(float,sc=v_kernelWidth_5),sc=v_kernelHeight_6),sc=v_inputChannels_0),sc=v_kernelGroupSize_15))), "inputDataKernelWeights in divideFun") $ p56063)
+            ) o Tuple(2) $ (p34647, p17309)
+          ) o MapSeq((p22726 ->
+            MapLcl(0,(p15702 ->
+              MapSeq((p22979 ->
+                Split(v_kernelWidth_5) o MapSeq((p37087 ->
+                  toGlobal((p39429 ->
+                    id $ p39429
+                  )) $ p37087
+                )) o Join() $ p22979
+              )) $ p15702
+            )) $ p22726
+          )) $ p13868
+        ) o MapLcl(0,(p63510 ->
+          MapSeq((p30121 ->
+            Split(v_kernelWidth_5) o MapSeq((p26927 ->
+              toGlobal((p44907 ->
+                id $ p44907
+              )) $ p26927
+            )) o Join() $ p30121
+          )) $ p63510
+        )) $ p41679
+      )) $ p7254
+    )) o Map((p5045 ->
+      Transpose() $ p5045
+    )) o Split(v_tileHeight_13) o Map((p37335 ->
+      Split(v_tileWidth_12) $ p37335
+    )) o AssertType(Arr(Arr(Arr(Arr(Arr(float,sc=v_kernelWidth_5),sc=v_kernelHeight_6),sc=v_inputChannels_0),sc=(1+(((v_inputWidth_1+(-1*v_kernelWidth_5)+(2*v_padFuncX_3))) / (v_kernelStrideX_7)))),sc=(1+(((v_inputHeight_2+(-1*v_kernelHeight_6)+(2*v_padFuncY_4))) / (v_kernelStrideY_8)))), "Slided input") o Map((p5837 ->
+      Transpose() $ p5837
+    )) o Transpose() o Map((p57119 ->
+      Map((p28576 ->
+        Transpose() $ p28576
+      )) o Slide(v_kernelHeight_6,v_kernelStrideY_8) o Map((p65364 ->
+        Slide(v_kernelWidth_5,v_kernelStrideX_7) $ p65364
+      )) $ p57119
+    )) $ p52014
+  )) o Split(v_kernelGroupSize_15) $ p50996
+)

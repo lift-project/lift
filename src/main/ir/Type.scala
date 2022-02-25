@@ -2,6 +2,7 @@ package ir
 
 import arithmetic.TypeVar
 import ir.ast.IRNode
+import ir.view.ViewMem
 import lift.arithmetic._
 import opencl.ir.{Bool, Int, Long}
 
@@ -67,7 +68,6 @@ sealed abstract class Type {
     * It will be false for array's whose capacity is not in the type.
    */
   def hasFixedAllocatedSize: Boolean
-
 }
 
 /**
@@ -190,9 +190,13 @@ case class ArrayType(elemT: Type) extends Type {
 
   override def toString : String = {
     "Arr(" +elemT+
-    (this match { case s:Size => ",s="+s.size.toString; case _ => ""}) +
-    (this match { case c:Capacity => ",c="+c.capacity.toString; case _ => ""}) +
-    ")"
+      (this match {
+        case sc: Size with Capacity if sc.size == sc.capacity => ",sc="+sc.size.toString
+        case sc: Size with Capacity => ",s="+sc.size.toString+",c="+sc.capacity.toString
+        case s:Size => ",s="+s.size.toString
+        case c:Capacity => ",c="+c.capacity.toString
+        case _ => ""}) +
+    ")\n"
   }
 
   override def hasFixedAllocatedSize: Boolean =
@@ -250,10 +254,10 @@ case class ArrayType(elemT: Type) extends Type {
 object ArrayType {
   def checkSizeOrCapacity(s: String, ae: ArithExpr) : Unit = {
     // TODO: remove the need to check for unknown (but this is used currently in a few places)
-    if (ae != ? & ae.sign != Sign.Positive)
+//    if (ae != ? & ae.sign != Sign.Positive)
     // TODO: turn this back into an error (eventually)
     //throw new TypeException("Length must be provably positive! (len="+len+")")
-      println(s"Warning: $s must be provably positive! (len=$ae)")
+//      println(s"Warning: $s must be provably positive! (len=$ae)")
 
     if (ae.isEvaluable) {
       val length = ae.evalDouble
@@ -277,6 +281,14 @@ object ArrayType {
 
   def apply(elemT: Type, sizeAndCapacity: ArithExpr) : ArrayType with Size with Capacity = {
     ArrayTypeWSWC(elemT, sizeAndCapacity)
+  }
+
+  def apply(elemT: Type, sizes: List[ArithExpr]) : ArrayType with Size with Capacity = {
+    sizes match {
+      case Nil => throw new IllegalArgumentException()
+      case head::Nil => ArrayTypeWSWC(elemT, head)
+      case head::tails => ArrayTypeWSWC( apply(elemT, tails), head )
+    }
   }
 
 }
@@ -379,8 +391,8 @@ object Type {
       case st: ScalarType => st.name
       case vt: VectorType => vt.scalarT.name + vt.len.toString
       case tt: TupleType  => s"Tuple${tt.elemsT.length}_" + tt.elemsT.map(Type.name).reduce(_+"_"+_)
+      case at: ArrayType  => "Array_" + Type.name(at.elemT)
       case _ => throw new IllegalArgumentException
-      // adding case: at: ArrayType results in issue #158
     }
   }
 
@@ -483,6 +495,17 @@ object Type {
       case _: TupleType  | _:ScalarType =>
       case NoType | UndefType =>
     }, _=>{})
+  }
+
+  def visitWithState[T](z: T)(t: Type,
+                              visitFun: (Type, T) => T): T = {
+    val result = visitFun(t, z)
+    t match {
+      case vt: VectorType => visitWithState(result)(vt.scalarT, visitFun)
+      case tt: TupleType  => tt.elemsT.foldLeft(result)((aZ, et) => visitWithState(aZ)(et, visitFun))
+      case at: ArrayType  => visitWithState(result)(at.elemT, visitFun)
+      case _ => result
+    }
   }
 
   /**
@@ -687,15 +710,13 @@ object Type {
    * substitution map.
    *
    * @param t A type
-   * @param substitutions A substituon map with entries of the form
-   *                      [pattern => replacement]
-   * @return A new type with the substitution from `substitutions` applied to
-   *         `t`
+   * @param rule A substitution rule of the form [pattern => replacement]
+   * @return A new type with the substitution using the rule applied to `t`
    */
   def substitute(t: Type,
-                 substitutions: scala.collection.Map[ArithExpr, ArithExpr]) : Type = {
+                 rule: PartialFunction[ArithExpr, ArithExpr]) : Type = {
 
-    visitAndRebuild(t, (ae: ArithExpr) => ArithExpr.substitute(ae, substitutions.toMap))
+    visitAndRebuild(t, (ae: ArithExpr) => ArithExpr.substitute(ae, rule))
   }
 
   def haveSameValueTypes(l: Type, r: Type): Boolean = Type.getValueType(l) == Type.getValueType(r)
@@ -769,7 +790,7 @@ case class TypeException(msg: String) extends Exception(msg) {
 }
 
 class ZipTypeException(val tt: TupleType)
-  extends TypeException(s"Some of theses sizes (${tt.elemsT.mkString(", ")}) do not match!")
+  extends TypeException(s"Some of these sizes (${tt.elemsT.mkString(", ")}) do not match!")
 
 object ZipTypeException {
   def apply(tt: TupleType) = new ZipTypeException(tt)

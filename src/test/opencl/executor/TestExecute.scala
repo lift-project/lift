@@ -19,6 +19,7 @@ class TestExecute {
 
   @Test
   def allocateMoreThanMaxIntForInput(): Unit = {
+    LongTestsEnabled()
     val f = fun(
       ArrayType(Int, N),
       toGlobal(MapSeq(idI)) o ReduceSeq(addI, 0) $ _
@@ -43,6 +44,7 @@ class TestExecute {
   @Ignore
   @Test
   def allocateMoreThanMaxIntForOutput(): Unit = {
+    LongTestsEnabled()
     val f = fun(
       ArrayType(Int, N),
       MapGlb(idI) $ _
@@ -267,6 +269,8 @@ class TestExecute {
 
   @Test
   def allocateMoreThan2GB(): Unit = {
+    LongTestsEnabled()
+
     val size = 268435456 // 2^28
     val chunkSize = 1048576 // 2^20
     val lclSize = 32768 // 2^15

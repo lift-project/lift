@@ -44,3 +44,18 @@ case class Split(chunkSize: ArithExpr) extends Pattern(arity = 1) {
     }
   }
 }
+
+object SplitND {
+  // Split(s0, s1, s2) => Split(s0) o Map(Split(s1)) o Map(Map(Split(s2)))
+  def apply(chunkSizes: ArithExpr*): FunDecl = {
+    assert(chunkSizes.nonEmpty)
+
+    chunkSizes.reverse match {
+      case Nil => throw new IllegalArgumentException()
+      case last :: Nil =>
+        Split(last)
+      case last :: remaining =>
+        SplitND(remaining.reverse: _*) o GenerateIR.wrapInMaps(Split(last), remaining.length)
+    }
+  }
+}

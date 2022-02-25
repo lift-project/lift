@@ -34,3 +34,23 @@ case class TransposeW() extends Pattern(arity = 1) {
   }
 
 }
+
+
+
+object TransposeW {
+  /**
+   * See Transpose.apply
+   */
+  def apply(axes: Int*): FunDecl = {
+    if (axes.isEmpty)
+      return fun(p => p)
+
+    // Sanity check
+    assert(axes.min == 0)
+    // Make sure that all dimensions are present in the list
+    assert(axes.max == axes.length - 1)
+    assert(axes.distinct.length == axes.length /* no duplicates */)
+
+    Transpose.reorder(axes, TransposeW())._1
+  }
+}

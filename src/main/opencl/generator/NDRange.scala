@@ -1,6 +1,6 @@
 package opencl.generator
 
-import lift.arithmetic.{ArithExpr, Cst}
+import lift.arithmetic.{?, ArithExpr, Cst}
 
 object NDRange {
   def numberOfWorkgroups(global: NDRange, local:NDRange): Int = {
@@ -54,6 +54,10 @@ case class NDRange(x: ArithExpr, y: ArithExpr = 1, z: ArithExpr = 1) {
   }
 
   override def toString: String = {
-    s"$x,$y,$z"
+    if (x == ? && y == ? && z == ?)
+      //represent unknown size, let code generator decide how to generate the local or global size
+      ""
+    else
+      s"$x,$y,$z"
   }
 }

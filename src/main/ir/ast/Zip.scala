@@ -1,6 +1,7 @@
 package ir.ast
 
 import ir._
+import ir.ast.debug.PrintType
 import ir.interpreter.Interpreter.ValueMap
 import lift.arithmetic.ArithExpr
 import lift.arithmetic.ArithExpr.Math.Min
@@ -43,6 +44,8 @@ case class Zip(n : Int) extends Pattern(arity = n) {
       case _ => throw new NotImplementedError()
     }
   }
+
+  override def toString: String = "Zip()"
 }
 
 object Zip {
@@ -135,4 +138,43 @@ object Zip2D {
     Map(Lambda(Array(tuple), Zip(dim2Args:_*))) $ Zip(allArgs:_*)
   }
 
+}
+
+object ZipND {
+  // NB: This is a very expensive operation for a Lift compiler due to the exponential growth of View size with each usage of Get.
+  //     A cheaper alternative is ZipNDWithCompactViews() below
+  def apply(dims: Int, arg1: Expr, arg2: Expr, args: Expr*): Expr = {
+    assert(dims > 0)
+
+    val allArgs = arg1 +: arg2 +: args
+
+    if (dims == 1)
+      Zip(allArgs: _*)
+    else {
+
+      val zippedArgParam = Param()
+      val gets = allArgs.indices.map(Get(zippedArgParam, _))
+
+      GenerateIR.wrapInMaps(Lambda(Array(zippedArgParam), Zip(gets: _*)), dims - 1) $
+        ZipND(dims - 1, arg1, arg2, args: _*)
+    }
+  }
+}
+
+object ZipNDWithCompactViews {
+  // A less expensive operation due to smaller views, but requires that zipped dimension sizes are known
+  def apply(n: Int, dimSizes: Seq[ArithExpr], arg1: Expr, arg2: Expr, args: Expr*): Expr = {
+    assert(n > 0)
+    assert(n == dimSizes.length)
+
+    val allArgs = arg1 +: arg2 +: args
+
+    if (n == 1)
+      Zip(allArgs: _*)
+    else {
+      dimSizes.tail.foldRight[FunDecl](fun(p => p)) {
+        case (dimSize, previousSplits) => Split(dimSize) o previousSplits
+      } $ Zip(allArgs.map(arg => GenerateIR.applyNTimes(Join(), n - 1) $ arg): _*)
+    }
+  }
 }

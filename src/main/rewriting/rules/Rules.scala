@@ -14,28 +14,28 @@ object Rules {
 
   /* Slide-promotion *///TODO not really because of map(join)... find better name
   val slidePromotion = Rule("Slide(u,v) o Map(Join()) => Map(Map(Join())) o Slide(u,v)",{
-    case FunCall(Slide(u,v), FunCall(Map(Lambda(_, FunCall(Join(), _))), arg)) =>
+    case FunCall(Slide(u,v), FunCall(Map(Lambda(_, FunCall(Join(), _),_)), arg)) =>
       Map(Map(Join())) o Slide(u,v) $ arg
   })
 
   val slideSwap = Rule("Slide(u,v) o Map(Map(Slide(n,s))) => Map(Map(Map(Slide(n,s)))) o Slide(u,v)",{
     case FunCall(Slide(u,v), FunCall(Map(Lambda(
       _, FunCall(Map(Lambda(
-        _, FunCall(Slide(n,s), _))), _))), arg)) =>
+        _, FunCall(Slide(n,s), _),_)), _),_)), arg)) =>
      Map(Map(Map(Slide(n,s)))) o Slide(u,v) $ arg
   })
 
   val joinSwap = Rule("Join() o Map(Map(f)) => Map(f) o Join()", {
-    case FunCall(Join(), FunCall(Map(Lambda(_, FunCall(map@Map(_), _))), arg)) =>
+    case FunCall(Join(), FunCall(Map(Lambda(_, FunCall(map@Map(_), _),_)), arg)) =>
       map o Join() $ arg
   })
 
   // todo reduce on layer of maps and use map fission before applying this rule
   val transposeSwap = Rule("Map(Map(Map(Transpose()))) o Map(Transpose()) => Map(Transpose()) o Map(Map(Map(Transpose())))", {
     case FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Map(Lambda(_, FunCall(Transpose(),
-      _))), _))), _))), FunCall(Map(Lambda(
+      _),_)), _),_)), _),_)), FunCall(Map(Lambda(
     _, FunCall(
-    Transpose(), _))), arg)) =>
+    Transpose(), _),_)), arg)) =>
       Map(Transpose()) o Map(Map(Map(Transpose()))) $ arg
   })
 
@@ -44,22 +44,22 @@ object Rules {
     case FunCall(Map(Lambda(
       _, FunCall(Map(Lambda(
         _, FunCall(Map(Lambda(
-          _, FunCall(Slide(u,v), _))), _))), _))), FunCall(Map(Lambda(
+          _, FunCall(Slide(u,v), _),_)), _),_)), _),_)), FunCall(Map(Lambda(
     _, FunCall(
-    Transpose(), _))), arg)) =>
+    Transpose(), _),_)), arg)) =>
       Map(Transpose()) o Map(Map(Map(Slide(u,v)))) $ arg
   })
 
   val slideTransposeReordering = Rule("Map(Slide(u,v)) o Map(Transpose()) => " +
     "Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Slide(u,v)))", {
     case FunCall(Map(Lambda(
-      _, FunCall(Slide(u,v), _))), FunCall(Map(Lambda(
-        _, FunCall(Transpose(), _))), arg)) =>
+      _, FunCall(Slide(u,v), _),_)), FunCall(Map(Lambda(
+        _, FunCall(Transpose(), _),_)), arg)) =>
       Map(Map(Transpose())) o Map(Transpose()) o Map(Map(Slide(u,v))) $ arg
   })
 
   val transposeMapJoinReordering = Rule("Transpose() o Map(Join()) => Join() o Map(Transpose()) o Transpose()", {
-    case FunCall(Transpose(), FunCall(Map(Lambda(_, FunCall(Join(), _))), arg)) =>
+    case FunCall(Transpose(), FunCall(Map(Lambda(_, FunCall(Join(), _),_)), arg)) =>
       Join() o Map(Transpose()) o Transpose() $ arg
   })
 
@@ -115,6 +115,20 @@ object Rules {
       Join() o Map(Map(f)) o Split(chunkSize) $ arg
   })
 
+  def splitJoin2D(splitX: ArithExpr, splitY: ArithExpr) = Rule("", {
+      // Here we match both on MapSeq2D_(f), MapSeq(MapSeq(f)) and DataReusage(f). See MapSeq2D_.unapply()
+    case FunCall(mapSeq2DLikePattern @ MapSeq2D_(_), arg) =>
+      val chunkSizeY = Utils.splitVariable(splitY, arg.t)
+      val chunkSizeX = Utils.splitVariable(splitX, arg.t.asInstanceOf[ArrayType].elemT)
+      // Alternative transformation:
+//     ,parMarker1                                       ,parMarker0
+//      Join() o /*across tiles*/Map(/*across rows*/Map(
+//        Join() o /*across tiles*/Map(/*across windows*/Map(f)) o Split(chunkSizeX))
+//      ) o Split(chunkSizeY) $ arg
+
+      Join() o MapSeq(MapSeq(Join()) o TransposeW() o MapSeq(mapSeq2DLikePattern) o Transpose() o MapSeq(Split(chunkSizeX))) o Split(chunkSizeY) $ arg
+  })
+
   val splitJoinMapSeq: Rule = splitJoinMapSeq(?)
 
   def splitJoinMapSeq(split: ArithExpr) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
@@ -123,14 +137,34 @@ object Rules {
       Join() o Map(MapSeq(f)) o Split(chunkSize) $ arg
   })
 
+
+  val splitJoinMapSeqHost: Rule = splitJoinMapSeqHost(?)
+
+  def splitJoinMapSeqHost(split: ArithExpr) = Rule("Map(f) => Join() o Map(Map(f)) o Split(I)", {
+    case FunCall(MapSeq(f), arg) =>
+      val chunkSize = Utils.splitVariable(split, arg.t)
+      Join() o MapSeq(MapSeq(f)) o Split(chunkSize) $ arg
+  })
+
+
   val joinSplit = Rule("Map(Map(f)) => Split(I) o Map(f) o Join()", {
-    case call @ FunCall(Map(Lambda(Array(p), FunCall(Map(f), mapArg))), arg)
+    case call @ FunCall(Map(Lambda(Array(p), FunCall(Map(f), mapArg),_)), arg)
       if p == mapArg =>
       val length = arg.t match {
         case at: ArrayType => Type.getLength(at.elemT)
         case ty => throw new TypeException(ty, "Array(_)", call)
       }
       Split(length) o Map(f) o Join() $ arg
+  })
+
+  val joinSplitPreserveOuterMap = Rule("AbstractMap1(AbstractMap2(f)) => Split(I) o AbstractMap1(f) o Join()", {
+    case call @ FunCall(outerMap @ AbstractMap(Lambda(Array(p), FunCall(innerMap @ AbstractMap(f), mapArg),_)), arg)
+      if p == mapArg =>
+      val length = arg.t match {
+        case at: ArrayType => Type.getLength(at.elemT)
+        case ty => throw new TypeException(ty, "Array(_)", call)
+      }
+      Split(length) o outerMap.copy(f) o Join() $ arg
   })
 
   // Required for avoiding data races
@@ -168,7 +202,7 @@ object Rules {
 
   val mapSplitTranspose = Rule("Map(Split(n)) o Transpose()" +
                                "Transpose() o Map(Transpose()) o Split(n)", {
-    case FunCall(Map(Lambda(param, FunCall(Split(n), a))), FunCall(t, arg))
+    case FunCall(Map(Lambda(param, FunCall(Split(n), a),_)), FunCall(t, arg))
       if (param.head eq a) && isTranspose(t)
     =>
       Transpose() o Map(Transpose()) o Split(n) $ arg
@@ -176,7 +210,7 @@ object Rules {
 
   val mapTransposeSplit = Rule("Map(Transpose()) o Split(n)" +
     "Transpose() o Map(Split(n)) o Transpose()", {
-    case FunCall(Map(Lambda(param, FunCall(t, a))), FunCall(Split(n), arg))
+    case FunCall(Map(Lambda(param, FunCall(t, a),_)), FunCall(Split(n), arg))
       if (param.head eq a) && isTranspose(t)
     =>
       Transpose() o Map(Split(n)) o Transpose() $ arg
@@ -184,7 +218,7 @@ object Rules {
 
   val transposeMapSplit = Rule("Transpose() o Map(Split(n))" +
     "Map(Transpose()) o Split(n) o Transpose()", {
-    case FunCall(t, FunCall(Map(Lambda(param, FunCall(Split(n), a))), arg))
+    case FunCall(t, FunCall(Map(Lambda(param, FunCall(Split(n), a),_)), arg))
       if (param.head eq a) && isTranspose(t)
     =>
       Map(Transpose()) o Split(n) o Transpose() $ arg
@@ -201,9 +235,9 @@ object Rules {
   val mapTransposeTransposeMapTranspose =
     Rule("Map(Transpose()) o Transpose() o Map(Transpose())) => " +
          "Transpose() o Map(Transpose()) o Transpose()", {
-      case FunCall(Map(Lambda(param1, FunCall(t1, a1))),
+      case FunCall(Map(Lambda(param1, FunCall(t1, a1),_)),
             FunCall(t2,
-            FunCall(Map(Lambda(param2, FunCall(t3, a2))), arg)))
+            FunCall(Map(Lambda(param2, FunCall(t3, a2),_)), arg)))
         if (param1.head eq a1)
           && (param2.head eq a2)
           && isTranspose(t1)
@@ -216,7 +250,7 @@ object Rules {
   // TODO: Does it matter there is a Map after the Split? Saves a fusion.
   val splitIntoZip = Rule("Map(fun(x => Map()  ) o Split() $ Zip(...) => " +
                       "Map(x => Map() $ Zip(Get(n, x) ... ) $ Zip(Split $ ...)", {
-    case FunCall(Map(Lambda(lambdaParam, FunCall(Map(mapLambda), mapArg))), FunCall(Split(n), FunCall(Zip(_), zipArgs@_*)))
+    case FunCall(Map(Lambda(lambdaParam, FunCall(Map(mapLambda), mapArg),_)), FunCall(Split(n), FunCall(Zip(_), zipArgs@_*)))
       if lambdaParam.head eq mapArg
     =>
       val newZipArgs = zipArgs.map(arg => Split(n) $ arg)
@@ -252,7 +286,7 @@ object Rules {
          " Map(Transpose()) o Transpose() o Map(Map(Gather(f)))", {
       case FunCall(Map(Lambda(p,
               FunCall(f:Gather, FunCall(t1, a))
-           )), FunCall(t2, arg))
+      ,_)), FunCall(t2, arg))
         if (p.head eq a)
           && isTranspose(t1)
           && isTranspose(t2)

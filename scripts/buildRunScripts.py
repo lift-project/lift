@@ -40,14 +40,27 @@ print("Discovered mainClasses: ")
 for mc in mainClasses: 
 	print("\t - " + mc)
 
+requiredMainClasses = [
+	"benchmarks.conv.gpgpu20.layeroptimiser.DirectConvManuallyParallelizedConvGenerator",
+	"benchmarks.conv.ConvExploration"]
+
+classNotDiscovered = False
+for rmc in requiredMainClasses:
+	if rmc not in mainClasses:
+		print("Required main class \"" + rmc + "\" was not discovered. Something might have went wrong during Lift compilation.")
+		classNotDiscovered = True
+
+if classNotDiscovered:
+    quit()
+
 # And Java options
 javaOptions = mcjoRegex.findall(javaOptions)
 print("Discovered javaOptions: ")
 for jo in javaOptions: 
 	print("\t - " + jo)
 
-# Start building a comannd to print to a file
-command = "#!/bin/bash\n\njava "
+# Start building a command to print to a file
+command = "#!/bin/bash\n\njava $1 $2 $3 "
 
 # Add java options
 command += ' '.join(javaOptions)
@@ -63,8 +76,8 @@ generatedScriptsFolder = scriptRoot + "/compiled_scripts/"
 subprocess.call(["mkdir", "-p", generatedScriptsFolder])
 
 # for each of the mainclasses, build a runscript
-for clazz in mainClasses:
-	finalCommand = command + " " + clazz + " $*\n"
+for clazz in requiredMainClasses:
+	finalCommand = command + " " + clazz + " $4\n"
 	fileName = generatedScriptsFolder + clazz.split(".")[-1]
 	f = open(fileName, "w")
 	f.write(finalCommand)

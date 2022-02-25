@@ -3,7 +3,7 @@ package ir.view
 import lift.arithmetic.{ArithExpr, Cst}
 import ir._
 import ir.ast._
-import opencl.ir.{LocalMemory, OpenCLMemory, PrivateMemory}
+import opencl.ir.{GlobalMemory, LocalMemory, OpenCLAddressSpace, OpenCLMemory, PrivateMemory}
 import opencl.ir.pattern._
 
 // FIXME: rewrite me
@@ -46,6 +46,20 @@ class AccessInfo(var privateAccessInf: List[SingleAccess],
     } else {
       AccessInfo(l.map(_(thisLevel, usePrivate, useLocal)))
     }
+  }
+
+  def getAccesses(addressSpace: OpenCLAddressSpace): List[SingleAccess]  = {
+    val contGlobal = addressSpace.containsAddressSpace(GlobalMemory)
+    val contLocal = addressSpace.containsAddressSpace(LocalMemory)
+    val contPrivate = addressSpace.containsAddressSpace(PrivateMemory)
+
+    if (contPrivate)
+      privateAccessInf
+    else if (contLocal)
+      localAccessInf
+    else if (contGlobal)
+      globalAccessInf
+    else throw new IllegalArgumentException()
   }
 
   override def toString = s"AccessInfo($privateAccessInf, $localAccessInf, $globalAccessInf, $l)"
@@ -93,6 +107,7 @@ private class BuildDepthInfo() {
       case r: AbstractPartRed => buildDepthInfoReduceCall(r, call, argInf)
       case s: ScanSeq => buildDepthInfoScanCall(s, call, argInf)
       case sp: MapSeqSlide => buildDepthInfoMapSeqSlideCall(sp, call, argInf)
+      case mv: MapSeqVector => buildDepthInfoMapSeqVectorCall(mv, call, argInf)
       case _ =>
 
         val (readsLocal, readsPrivate) = readsLocalPrivate(call)
@@ -120,12 +135,17 @@ private class BuildDepthInfo() {
 
     val orig = seenMapLcl
 
-    if (m.isInstanceOf[MapLcl])
-    seenMapLcl = true
+    if (m.isInstanceOf[MapLcl]) {
+      seenMapLcl = true
+      if (readsPrivate)
+        println(f"[BuildDepthInfo] WARNING: MapLcl reads private memory.\nPrivate argument: " +
+          f"${call.args.head} ${call.args.head.mem}\nFull call:\n$call")
+    }
 
     val inf = getArrayAccessInf(call.args.head.t, m.loopVar)
     m.f.params.head.accessInf = l(inf, readsPrivate, readsLocal || seenMapLcl)
-    buildDepthInfoPatternCall(m.f.body, call, m.loopVar, readsLocal, readsPrivate)
+    buildDepthInfoPatternCall(m.f.body, call, m.loopVar, readsLocal, readsPrivate, isMapWrg = m.isInstanceOf[MapWrg])
+    //buildDepthInfoPatternCall(m.f.body, call, m.loopVar, readsLocal, readsPrivate && !m.isInstanceOf[MapWrg] && !m.isInstanceOf[MapLcl])
 
     if (m.isInstanceOf[MapLcl])
       seenMapLcl = orig
@@ -203,6 +223,34 @@ private class BuildDepthInfo() {
       l
   }
 
+  private def buildDepthInfoMapSeqVectorCall(mv: MapSeqVector, call: FunCall,
+                                             l: AccessInfo): AccessInfo = {
+    assert(mv.argTVectorizedPart.isDefined)
+    assert(mv.argTScalarPart.isDefined)
+
+    val (readsLocal, readsPrivate) = readsLocalPrivate(call)
+
+    if (mv.vectorPartNonEmpty) {
+      val infV = getArrayAccessInf(mv.argTVectorizedPart.get.get, mv.vectorLoopVar)
+      mv.fVectorized.params.head.accessInf = l(infV, readsPrivate, readsLocal || seenMapLcl)
+    }
+
+    if (mv.scalarPartNonEmpty) {
+      val infS = getArrayAccessInf(mv.argTScalarPart.get.get, mv.scalarLoopVar)
+      mv.fScalar.params.head.accessInf = l(infS, readsPrivate, readsLocal || seenMapLcl)
+    }
+
+    buildDepthInfoPatternCall(mv.fVectorized.body, call, mv.vectorLoopVar * 4 + mv.vectorCopyLoopVar, readsLocal, readsPrivate)
+    buildDepthInfoPatternCall(mv.fScalar.body, call, mv.scalarLoopVar, readsLocal, readsPrivate)
+
+    if (mv.fVectorized.body.isConcrete) { // create fresh input view for following function
+      assert(mv.fScalar.body.isConcrete)
+      AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
+    }
+    else // call.isAbstract, return input
+      l
+  }
+
   private def buildDepthInfoReducePatternCall(expr: Expr, call: FunCall, index: ArithExpr,
                                               readsLocal: Boolean, readsPrivate: Boolean,
                                               l: AccessInfo
@@ -210,11 +258,11 @@ private class BuildDepthInfo() {
     val inf = getArrayAccessInf(call.t, index)
     val (writesLocal, writesPrivate) = writesLocalPrivate(call)
 
-    updateAccessInf(readsLocal, readsPrivate, inf, writesLocal, writesPrivate)
+    updateAccessInf(readsLocal, readsPrivate, inf, writesLocal, writesPrivate, isMapWrg = false)
     // traverse into call.f
     visitAndBuildDepthInfo(expr)
 
-    restoreAccessInf(readsLocal, readsPrivate, writesLocal, writesPrivate)
+    restoreAccessInf(readsLocal, readsPrivate, writesLocal, writesPrivate, isMapWrg = false)
 
     setDepths(call, readsLocal, readsPrivate, writesLocal, writesPrivate)
 
@@ -222,36 +270,39 @@ private class BuildDepthInfo() {
 
   private def updateAccessInf(readsLocal: Boolean, readsPrivate: Boolean,
                               tuple: SingleAccess,
-                              writesLocal: Boolean, writesPrivate: Boolean): Unit = {
+                              writesLocal: Boolean, writesPrivate: Boolean,
+                              isMapWrg: Boolean): Unit = {
     globalAccessInf = tuple :: globalAccessInf
-    if (seenMapLcl || readsLocal || writesLocal)
+    if (!isMapWrg && (seenMapLcl || readsLocal || writesLocal))
       localAccessInf = tuple :: localAccessInf
-    if (readsPrivate || writesPrivate)
+    if (!isMapWrg && (readsPrivate || writesPrivate))
       privateAccessInf = tuple :: privateAccessInf
   }
 
   private def buildDepthInfoPatternCall(expr: Expr, call: FunCall, index: ArithExpr,
-                                        readsLocal: Boolean, readsPrivate: Boolean): Unit = {
+                                        readsLocal: Boolean, readsPrivate: Boolean,
+                                        isMapWrg: Boolean = false): Unit = {
     val inf = getArrayAccessInf(call.t, index)
     val (writesLocal, writesPrivate) = writesLocalPrivate(call)
 
-    updateAccessInf(readsLocal, readsPrivate, inf, writesLocal, writesPrivate)
+    updateAccessInf(readsLocal, readsPrivate, inf, writesLocal, writesPrivate, isMapWrg)
 
     // traverse into call.f
     visitAndBuildDepthInfo(expr)
 
-    restoreAccessInf(readsLocal, readsPrivate, writesLocal, writesPrivate)
+    restoreAccessInf(readsLocal, readsPrivate, writesLocal, writesPrivate, isMapWrg)
 
     setDepths(call, readsLocal, readsPrivate, writesLocal, writesPrivate)
 
     AccessInfo(privateAccessInf, localAccessInf, globalAccessInf)
   }
 
-  private def restoreAccessInf(readsLocal: Boolean, readsPrivate: Boolean, writesLocal: Boolean, writesPrivate: Boolean): Unit = {
+  private def restoreAccessInf(readsLocal: Boolean, readsPrivate: Boolean, writesLocal: Boolean, writesPrivate: Boolean,
+                               isMapWrg: Boolean): Unit = {
     globalAccessInf = globalAccessInf.tail
-    if (seenMapLcl || readsLocal || writesLocal)
+    if (!isMapWrg && (seenMapLcl || readsLocal || writesLocal))
       localAccessInf = localAccessInf.tail
-    if (readsPrivate || writesPrivate)
+    if (!isMapWrg && (readsPrivate || writesPrivate))
       privateAccessInf = privateAccessInf.tail
   }
 

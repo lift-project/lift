@@ -1,5 +1,6 @@
 package utils.paternoster.rendering
 
+/*
 import java.awt.{BasicStroke, Color, Paint, RenderingHints}
 import javafx.scene.text.Text
 
@@ -306,3 +307,4 @@ object SVGRenderer {
   }
   */
 }
+*/

@@ -1,9 +1,10 @@
 package opencl.executor
 
+import core.generator.GenericAST.{Block, MutableBlock}
 import ir.TypeChecker
 import ir.ast.Lambda
 import lift.arithmetic.{?, ArithExpr}
-import opencl.generator.{OpenCLGenerator, Verbose, NDRange}
+import opencl.generator.{NDRange, OpenCLGenerator, Verbose}
 
 import scala.collection.immutable
 
@@ -59,6 +60,16 @@ object Compile {
       println(kernel)
     }
     kernel
+  }
+
+  def !!(f: Lambda, localSize: NDRange = NDRange(1,1,1), globalSize : NDRange = NDRange(1,1,1) ) : Block = {
+
+    val res:MutableBlock = OpenCLGenerator !! (f,
+      localSize,
+      globalSize, immutable.Map())
+
+    res.toBlock
+
   }
 
 }

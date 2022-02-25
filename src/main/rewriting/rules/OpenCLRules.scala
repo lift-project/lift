@@ -1,13 +1,18 @@
 package rewriting.rules
 
-import ir.{TupleType, Type, VectorType}
+import com.typesafe.scalalogging.Logger
+import core.generator.GenericAST.VarRef
+import ir.{ArrayType, ArrayTypeWS, ScalarType, TupleType, Type, VectorType}
 import ir.ast._
+import ir.ast.debug.PrintType
+import ir.view.{View, ViewConstant, ViewPrinter, ViewSlide, ViewUnslide}
 import lift.arithmetic._
 import opencl.ir._
 import opencl.ir.ast._
 import opencl.ir.pattern._
 
 object OpenCLRules {
+  private val logger = Logger(this.getClass)
 
   val mapSeq = Rule("Map(f) => MapSeq(f)", {
     case FunCall(Map(f), arg)
@@ -35,6 +40,12 @@ object OpenCLRules {
       MapGlb(dim)(f)(arg)
   })
 
+  def mapGlbRelaxed(dim: Int): Rule =  Rule(f"Map(f) => MapGlb($dim)(f)", {
+    case call@FunCall(Map(f), arg)
+      if f.body.isConcrete =>
+      MapGlb(dim)(f)(arg)
+  })
+
   def mapWrg(dim: Int): Rule = Rule("Map(f) => MapWrg(f)", {
     case call@FunCall(Map(f), arg)
       // check that there is a nested map inside ...
@@ -51,6 +62,12 @@ object OpenCLRules {
              call.context.inMapWrg(dim) ||
              call.context.inMapWarp)
     =>
+      MapWrg(dim)(f)(arg)
+  })
+
+  def mapWrgRelaxed(dim: Int): Rule = Rule(f"Map(f) => MapWrg($dim)(f)", {
+    case call@FunCall(Map(f), arg)
+      if f.body.isConcrete =>
       MapWrg(dim)(f)(arg)
   })
 
@@ -72,6 +89,12 @@ object OpenCLRules {
         && call.context.inMapWrg(dim)
         && !call.context.inMapLcl(dim)
     =>
+      MapLcl(dim)(f)(arg)
+  })
+
+  def mapLclRelaxed(dim: Int): Rule = Rule(f"Map(f) => MapLcl($dim)(f)", {
+    case call@FunCall(Map(f), arg)
+      if f.body.isConcrete =>
       MapLcl(dim)(f)(arg)
   })
 
@@ -163,10 +186,10 @@ object OpenCLRules {
   /* OpenCL builtins */
 
   val dotBuiltin = Rule("", {
-    case FunCall(Reduce(Lambda(rp, FunCall(uf:UserFun, a1, a2))), init,
+    case FunCall(Reduce(Lambda(rp, FunCall(uf:UserFun, a1, a2),_)), init,
     FunCall(asScalar(),
     FunCall(Map(Lambda(mp,FunCall(VectorizeUserFun(Cst(4), multUf),
-    FunCall(Get(n), multA1), FunCall(Get(m), multA2)) )), arg)))
+    FunCall(Get(n), multA1), FunCall(Get(m), multA2)),_ )), arg)))
       if uf == add &&
         init.t == opencl.ir.Float &&
         rp.contains(a1) &&
@@ -180,7 +203,7 @@ object OpenCLRules {
   })
 
   val dotBuiltinSeq = Rule("", {
-    case FunCall(ReduceSeq(Lambda(rp, FunCall(uf:UserFun, a1, a2))), init,
+    case FunCall(ReduceSeq(Lambda(rp, FunCall(uf:UserFun, a1, a2),_)), init,
     FunCall(asScalar(),
     FunCall(m: AbstractMap, arg)))
       if uf == add &&
@@ -206,7 +229,7 @@ object OpenCLRules {
 
   def vectorize(vectorWidth: ArithExpr): Rule =
     Rule("Map(uf) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
-      case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArg))), arg)
+      case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArg),_)), arg)
         if (p.head eq ufArg) && isTypeSuitableForVectorisation(ufArg.t)
       =>
         performVectorization(vectorWidth, uf, arg, identity)
@@ -217,15 +240,15 @@ object OpenCLRules {
 
   def vectorizeToAddressSpace(vectorWidth: ArithExpr): Rule =
     Rule("Map(uf) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
-      case FunCall(Map(Lambda(p, FunCall(toGlobal(Lambda(Array(p2), FunCall(uf: UserFun, ufArg))), a))), arg)
+      case FunCall(Map(Lambda(p, FunCall(toGlobal(Lambda(Array(p2), FunCall(uf: UserFun, ufArg),_)), a),_)), arg)
         if (p.head eq a) && p2.eq(ufArg) && isTypeSuitableForVectorisation(ufArg.t)
       =>
         performVectorization(vectorWidth, uf, arg, toGlobal)
-      case FunCall(Map(Lambda(p, FunCall(toLocal(Lambda(Array(p2), FunCall(uf: UserFun, ufArg))), a))), arg)
+      case FunCall(Map(Lambda(p, FunCall(toLocal(Lambda(Array(p2), FunCall(uf: UserFun, ufArg),_)), a),_)), arg)
         if (p.head eq a) && p2.eq(ufArg) && isTypeSuitableForVectorisation(ufArg.t)
       =>
         performVectorization(vectorWidth, uf, arg, toLocal)
-      case FunCall(Map(Lambda(p, FunCall(toPrivate(Lambda(Array(p2), FunCall(uf: UserFun, ufArg))), a))), arg)
+      case FunCall(Map(Lambda(p, FunCall(toPrivate(Lambda(Array(p2), FunCall(uf: UserFun, ufArg),_)), a),_)), arg)
         if (p.head eq a) && p2.eq(ufArg) && isTypeSuitableForVectorisation(ufArg.t)
       =>
         performVectorization(vectorWidth, uf, arg, toPrivate)
@@ -247,7 +270,7 @@ object OpenCLRules {
 
   def vectorizeMapZip(vectorWidth: ArithExpr): Rule =
     Rule("Map(uf) $ Zip(a, b) => asScalar() o Map(Vectorize(n)(uf)) o asVector(n)", {
-      case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArgs@_*))), FunCall(Zip(_), zipArgs@_*))
+      case FunCall(Map(Lambda(p, FunCall(uf: UserFun, ufArgs@_*),_)), FunCall(Zip(_), zipArgs@_*))
         if zipArgs.forall(arg => isTypeSuitableForVectorisation(arg.t)) &&
           ufArgs.forall({
             case FunCall(Get(_), x) if x == p.head => true
@@ -268,7 +291,7 @@ object OpenCLRules {
 
   def partialReduceVectorize(vectorWidth: ArithExpr): Rule =
     Rule("PartRed(f) => Join() o Map(PartRed(f)) o Split()", {
-      case FunCall(PartRed(Lambda(_, FunCall(uf:UserFun, _*))), init:Value, arg)
+      case FunCall(PartRed(Lambda(_, FunCall(uf:UserFun, _*),_)), init:Value, arg)
         if isTypeSuitableForVectorisation(init.t) =>
         val n = getWidthForVectorisation(vectorWidth)
         asScalar() o PartRed(VectorizeUserFun(n, uf), init.vectorize(n)) o asVector(n) $ arg
@@ -282,7 +305,73 @@ object OpenCLRules {
   })
 
   val reduceSeqUnroll = Rule("ReduceSeq(f) => ReduceSeqUnroll(f)", {
-    case FunCall(ReduceSeq(f), init, arg) =>
+    case FunCall(r@ReduceSeq(f), init, arg) if (!r.isInstanceOf[ReduceSeqUnroll]) =>
       ReduceSeqUnroll(f, init) $ arg
+  })
+
+  // MapSeqVector is defined only on [Scalar]
+  private val safelyVectorizableUserFuns: Predef.Set[UserFun] = Predef.Set(id) //, add, mult)
+
+  def mapSeqVector(vectorLen: Int) =
+    Rule("MapSeq(uf) $ (arg: contiguous data) => MapSeqVector(uf.vectorize, uf, vectorLen) $ arg", {
+    case FunCall(m @ MapSeq(
+      Lambda1(_, FunCall(uf: UserFun, ufArg))), arg) // TODO: extend for multiple UF arguments
+      if safelyVectorizableUserFuns.contains(uf) &&
+        (
+        arg.t match {
+          // Simple case: 1D array that is either contiguous or not
+          case ArrayTypeWS(_: ScalarType, argSize: ArithExpr)
+            // used no slide or undid sliding with unslide
+            // This is too restrictive. In some cases, Slide is applied on higher dimensions,
+            // which won't affect contiguity on the current level of map nesting
+            /*if !View.getSubViews(arg.view).exists {
+              case _: ViewSlide => true
+              case _ => false
+            } || View.getSubViews(arg.view).exists {
+              case _: ViewUnslide => true
+              case _ => false
+            }*/
+//            if (ArithExpr.isSmaller(vectorLen, argSize) match {
+//              case None => throw new IllegalArgumentException()
+//              case Some(isSmaller) => isSmaller
+//            }) || argSize == vectorLen
+          =>
+//            View.isContiguous(arg.view) // this only works in simple cases. See comment at View.inferStrides():: case ViewJoin
+            assert(vectorLen >= 2)
+
+            if (View.getSubViews(ufArg.view).exists {
+              case _: ViewConstant => true
+              case _ => false
+            })
+              false
+            else {
+
+              //noinspection DuplicatedCode
+              val accessIdxExpr: ArithExpr = ViewPrinter.emit(ufArg.view) match {
+                case VarRef(_, _, Some(arithExpression), None) => arithExpression.content
+                case VarRef(_, _, Some(arithExpression), Some(_)) => throw new NotImplementedError()
+                case x => throw new IllegalStateException(s"$x")
+              }
+
+              val idxFforEach = (0 until vectorLen).map(vectorElIdx =>
+                ArithExpr.substitute(accessIdxExpr, Predef.Map(m.loopVar -> vectorElIdx)))
+
+              val pairsOfConsecutiveIdxs = idxFforEach.reverse.tail.reverse.zip(idxFforEach.tail)
+
+              val result = pairsOfConsecutiveIdxs.map { case (currentIdx: ArithExpr, nextIdx: ArithExpr) =>
+                val diff = nextIdx - currentIdx
+                // NB: diff of 0 means there is only one element
+                diff
+              }.forall(_ == Cst(1))
+              result
+            }
+
+          case _ => false
+        }) =>
+
+      MapSeqVector(
+        fVectorized = uf.vectorize(vectorLen),
+        fScalar = uf,
+        vectorLen)(arg)
   })
 }

@@ -1,0 +1,155 @@
+(p40699, p38555 ->
+  Map((p29097 ->
+    Map((p35859 ->
+      Join() $ p35859
+    )) $ p29097
+  )) o Join() o Map((p3302 ->
+    Map((p27767 ->
+      Map((p18232 ->
+        Join() $ p18232
+      )) o Join() o Map((p44355 ->
+        TransposeW() $ p44355
+      )) $ p27767
+    )) $ p3302
+  )) o Map((p1260 ->
+    TransposeW() o Map((p17268 ->
+      TransposeW() $ p17268
+    )) $ p1260
+  )) o MapWrg(1,(p2906 ->
+    MapSeq((p27137 ->
+      MapWrg(0,(p63970 ->
+        Barrier(false,true) o (p38449 ->
+          (p30776 ->
+            Join() o MapLcl(1,(p3946 ->
+              MapSeq((p1861 ->
+                Split(2) o MapLcl(0,(p65256 ->
+                  MapSeq((p6386 ->
+                    toGlobal((p6146 ->
+                      id $ p6146
+                    )) $ p6386
+                  )) o ReduceSeq((p5769, p32959 ->
+                    add $ (p5769, p32959)
+                  )) $ (toPrivate((p61379 ->
+                    id $ p61379
+                  )) $ 0.0f, p65256)
+                )) o Join() $ p1861
+              )) $ p3946
+            )) o Map((p12059 ->
+              Map((p51168 ->
+                Map((p33139 ->
+                  Transpose() $ p33139
+                )) $ p51168
+              )) $ p12059
+            )) o Map((p36750 ->
+              Map((p25219 ->
+                Transpose() $ p25219
+              )) $ p36750
+            )) o Map((p16196 ->
+              Transpose() $ p16196
+            )) o Transpose() o Map((p27988 ->
+              Transpose() $ p27988
+            )) o Map((p62729 ->
+              Map((p33980 ->
+                Transpose() $ p33980
+              )) $ p62729
+            )) o Map((p44079 ->
+              Map((p28448 ->
+                Map((p2132 ->
+                  Transpose() $ p2132
+                )) $ p28448
+              )) $ p44079
+            )) o Barrier(false,true) o MapSeq((p2029 ->
+              Join() o Map((p5665 ->
+                Map((p1906 ->
+                  Map((p61481 ->
+                    Join() $ p61481
+                  )) o Join() o Map((p3943 ->
+                    TransposeW() $ p3943
+                  )) $ p1906
+                )) $ p5665
+              )) o Map((p22700 ->
+                TransposeW() o Map((p54193 ->
+                  TransposeW() $ p54193
+                )) $ p22700
+              )) o MapLcl(1,(p40051 ->
+                Split(1) o MapSeq((p28767 ->
+                  (p22098 ->
+                    (p3484 ->
+                      MapLcl(0,(p1346 ->
+                        Split(2) o MapSeq((p53213 ->
+                          MapSeq((p34297 ->
+                            toGlobal((p21577 ->
+                              id $ p21577
+                            )) $ p34297
+                          )) o ReduceSeq((p14200, p65444 ->
+                            add $ (p14200, mult $ (Get(0) $ p65444, Get(1) $ p65444))
+                          )) $ (toPrivate((p39765 ->
+                            id $ p39765
+                          )) $ 0.0f, Zip() $ (Join() o Join() $ p53213, Join() o Join() $ p1346))
+                        )) o Join() $ p3484
+                      )) $ p22098
+                    ) $ p28767
+                  ) o Barrier(false,true) o MapSeq((p2325 ->
+                    MapSeq((p24756 ->
+                      Split(3) o MapLcl(0,(p32500 ->
+                        toGlobal((p10262 ->
+                          id $ p10262
+                        )) $ p32500
+                      )) o Join() $ p24756
+                    )) $ p2325
+                  )) $ p40051
+                )) o Join() o Map((p47039 ->
+                  Transpose() $ p47039
+                )) o Split(14) o Map((p43761 ->
+                  Split(2) $ p43761
+                )) o Get(0) $ p2029
+              )) o Split(128) o Get(1) $ p2029
+            )) o (p43440 ->
+              (p33976 ->
+                Zip() $ (Map((p45811 ->
+                  Map((p39687 ->
+                    Transpose() $ p39687
+                  )) $ p45811
+                )) o Map((p57194 ->
+                  Transpose() $ p57194
+                )) o Map((p31302 ->
+                  Map((p59772 ->
+                    Get(0) $ p59772
+                  )) $ p31302
+                )) $ p33976, Map((p14517 ->
+                  Transpose() $ p14517
+                )) o Map((p54340 ->
+                  Map((p22090 ->
+                    Get(1) $ p22090
+                  )) $ p54340
+                )) $ p33976)
+              ) o Split(1) o Zip() $ (Transpose() o Map((p29354 ->
+                Transpose() $ p29354
+              )) o Get(0) $ p43440, Transpose() o Get(1) $ p43440)
+            ) o Tuple(2) $ (p30776, p38449)
+          ) $ p63970
+        ) o Barrier(false,true) o MapLcl(1,(p35737 ->
+          MapSeq((p56335 ->
+            Split(3) o MapLcl(0,(p49831 ->
+              toGlobal((p50701 ->
+                id $ p50701
+              )) $ p49831
+            )) o Join() $ p56335
+          )) $ p35737
+        )) $ p2906
+      )) $ p27137
+    )) o Map((p63119 ->
+      Transpose() $ p63119
+    )) o Split(14) o Map((p36561 ->
+      Split(2) $ p36561
+    )) o Map((p28230 ->
+      Transpose() $ p28230
+    )) o Transpose() o Map((p15321 ->
+      Map((p48992 ->
+        Transpose() $ p48992
+      )) o Slide(3,1) o Map((p38937 ->
+        Slide(3,1) $ p38937
+      )) $ p15321
+    )) $ p40699
+  )) o Split(256) $ p38555
+)

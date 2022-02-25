@@ -1,11 +1,17 @@
 package ir.view
 
+import cbackends.common.common_ir.Slice
 import core.generator.GenericAST
 import core.generator.GenericAST._
 import ir.Type.size_t
 import ir.ast._
 import ir._
+import lift.arithmetic.NotEvaluableException.NotEvaluable
 import lift.arithmetic._
+import opencl.generator.OclFunction
+import opencl.ir.LocalMemory
+
+import scala.annotation.tailrec
 //import opencl.generator.OpenCLAST
 //import opencl.generator.OpenCLAST.{ArithExpression, Expression, VarRef}
 import opencl.ir.{AddressSpaceCollection, Int, OpenCLAddressSpace, PrivateMemory, UndefAddressSpace}
@@ -91,6 +97,14 @@ case class SizeIndex(override val fixedId: Option[Long] = None)
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = f(SizeIndex())
 }
 
+sealed trait HasInnerView extends View {
+  val iv: View
+}
+
+object HasInnerView {
+  def unapply(arg: HasInnerView): Option[View] = Some(arg.iv)
+}
+
 /**
  * Views are lazy constructs for determining the locations for memory accesses.
  * They are lazy in the sense that if an array should be reordered, they remember the
@@ -121,10 +135,13 @@ abstract sealed class View(val t: Type = UndefType) {
         else this
       case ViewMap(iv, itVar, ty) => ViewMap(iv.replaced(subst), itVar, ty)
       case ViewAccess(i, iv, ty) => ViewAccess(ArithExpr.substitute(i, subst), iv.replaced(subst), ty)
+      case ViewArrayWrapper(iv, ty) => ViewArrayWrapper(iv.replaced(subst), ty)
       case ViewZip(iv, ty) => ViewZip(iv.replaced(subst), ty)
+      case ViewConcat(iv, ty) => ViewConcat(iv.replaced(subst), ty)
       case ViewUnzip(iv, ty) => ViewUnzip(iv.replaced(subst), ty)
       case ViewSplit(n, iv, ty) => ViewSplit(ArithExpr.substitute(n, subst), iv.replaced(subst), ty)
       case ViewJoin(n, iv, ty) => ViewJoin(ArithExpr.substitute(n, subst), iv.replaced(subst), ty)
+      case ViewTranspose(iv, ty) => ViewTranspose(iv.replaced(subst), ty)
       case ViewReorder(f, iv, ty) => ViewReorder(f, iv.replaced(subst), ty)
       case ViewAsVector(n, iv, ty) => ViewAsVector(n, iv.replaced(subst), ty)
       case ViewAsScalar(iv, n, ty) => ViewAsScalar(iv.replaced(subst), n, ty)
@@ -132,15 +149,27 @@ abstract sealed class View(val t: Type = UndefType) {
       case ViewTuple(ivs, ty) => ViewTuple(ivs.map(_.replaced(subst)), ty)
       case ViewTupleComponent(i, ivs, ty) => ViewTupleComponent(i, ivs.replaced(subst), ty)
       case ViewSlide(iv, slide, ty) => ViewSlide(iv.replaced(subst), slide, ty)
+      case ViewUnslide(iv, unslide, ty) => ViewUnslide(iv.replaced(subst), unslide, ty)
       case ViewPad(iv, left, right, padFun, ty) => ViewPad(iv.replaced(subst), left, right, padFun, ty)
       case ViewPadConstant(iv, left, right, constant, ty) => ViewPadConstant(iv.replaced(subst), left, right, constant, ty)
       case ViewSize(iv) => ViewSize(iv.replaced(subst))
       case ViewHead(iv, ty) => ViewHead(iv.replaced(subst), ty)
       case ViewTail(iv, ty) => ViewTail(iv.replaced(subst), ty)
+      case ViewOffset(offset, iv, ty) => ViewOffset(offset, iv.replaced(subst), ty)
       case _: View2DGeneratorUserFun | _: View3DGeneratorUserFun | _: ViewGenerator | _: ViewGeneratorUserFun |
-           _: ViewConstant | NoView => this
+           _: ViewConstant | NoView =>
+        this
+      case _ => throw new NotImplementedError()
     }
   }
+
+  def offset(offset: ArithExpr) : View = {
+    t match {
+      case ArrayTypeWSWC(et,s,c) => ViewOffset(offset, this, ArrayTypeWSWC(et,s-offset,c-offset))
+      case _ => throw new IllegalArgumentException("PANIC: access expects an array type, found "+t)
+    }
+  }
+
 
   /**
    * Construct a new view for accessing the current view at position `idx`.
@@ -170,6 +199,15 @@ abstract sealed class View(val t: Type = UndefType) {
     }
   }
 
+  def transpose(t:Type) : View = {
+
+    this.t match {
+      case ArrayTypeWS(ArrayTypeWS(_,_),_) => ViewTranspose(this, t)
+      case _ => throw new IllegalArgumentException("PANIC: transpose expects an 2D array type")
+    }
+
+  }
+
   /**
    * Construct a view for joining the current view.
    *
@@ -182,6 +220,14 @@ abstract sealed class View(val t: Type = UndefType) {
       case ArrayTypeWS(ArrayTypeWS(elemT, n), m) =>
         ViewJoin(chunkSize, this, ArrayTypeWSWC(elemT, n * m))
       case _ => throw new IllegalArgumentException("PANIC: join expects a 2D array type with size, found "+this.t.toString)
+    }
+  }
+
+  def transpose(): View = {
+    this.t match {
+      case ArrayTypeWS(ArrayTypeWS(elemT,n),m) =>
+        ViewTranspose(this,ArrayTypeWSWC(ArrayTypeWSWC(elemT,m),n))
+      case _ => throw new IllegalArgumentException("PANIC: transpose expects a 2D array type with size, found "+this.t.toString)
     }
   }
 
@@ -271,6 +317,16 @@ abstract sealed class View(val t: Type = UndefType) {
 
   }
 
+  def concat(): View = {
+    t match {
+      case tt: TupleType =>
+        val newT = Concat.computeOutType(tt)
+        ViewConcat(this, newT)
+      case other => throw new IllegalArgumentException("Can't concat " + other)
+    }
+
+  }
+
   /**
    * Construct a view for unzipping the current view. The current view has to be an
    * array of tuples.
@@ -287,6 +343,22 @@ abstract sealed class View(val t: Type = UndefType) {
     this.t match {
       case ArrayType(_) =>
         ViewSlide(this, s, s.checkType(this.t, setType=false))
+      case other => throw new IllegalArgumentException("Can't slide" + other)
+    }
+  }
+
+  def unslide(u: Unslide): View = {
+    this.t match {
+      case ArrayType(ArrayType(_)) =>
+        ViewUnslide(this, u, u.checkType(this.t, setType=false))
+      case other => throw new IllegalArgumentException("Can't slide" + other)
+    }
+  }
+
+  def slice(s: Slice): View = {
+    this.t match {
+      case ArrayType(_) =>
+        ViewSlice(this, s, s.checkType(this.t, setType=false))
       case other => throw new IllegalArgumentException("Can't slide" + other)
     }
   }
@@ -358,6 +430,16 @@ case class ViewConstant(value: Value, override val t: Type) extends View(t)
  */
 case class ViewMem(v: Var, override val t: Type) extends View(t)
 
+case class ViewMemScalar(i: ArithExpr, override val t: Type) extends View(t)
+
+/**
+  * A variant of ViewMem that contain a inner view,
+  * in case the type allow inner structure, like tuples
+  * */
+case class ViewMemWithInnerView(v: Var, override val iv: View, override val t: Type) extends View(t) with HasInnerView
+
+case class ViewOffset(offset : ArithExpr, iv : View, override val t : Type) extends View(t)
+
 /**
  * A view for accessing another view at position `i`.
  *
@@ -365,7 +447,14 @@ case class ViewMem(v: Var, override val t: Type) extends View(t)
  * @param iv View to access.
  * @param t Type of the view.
  */
-case class ViewAccess(i: ArithExpr, iv: View, override val t: Type) extends View(t)
+case class ViewAccess(i: ArithExpr, override val iv: View, override val t: Type) extends View(t) with HasInnerView
+/**
+  * wrapping another view in an array of size 1
+  *
+  * @param iv View to access.
+  * @param t Type of the view.
+  */
+case class ViewArrayWrapper(override val iv: View, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for splitting another view.
@@ -374,7 +463,9 @@ case class ViewAccess(i: ArithExpr, iv: View, override val t: Type) extends View
  * @param iv View to split.
  * @param t Type of the view.
  */
-case class ViewSplit(n: ArithExpr, iv: View, override val t: Type) extends View(t)
+case class ViewSplit(n: ArithExpr, override val iv: View, override val t: Type) extends View(t) with HasInnerView
+
+case class ViewTranspose(override val iv: View, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for joining another view.
@@ -383,7 +474,7 @@ case class ViewSplit(n: ArithExpr, iv: View, override val t: Type) extends View(
  * @param iv The view to join.
  * @param t Type of the view.
  */
-case class ViewJoin(n: ArithExpr, iv: View, override val t: Type) extends View(t)
+case class ViewJoin(n: ArithExpr, override val iv: View, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for zipping a number of views.
@@ -391,7 +482,9 @@ case class ViewJoin(n: ArithExpr, iv: View, override val t: Type) extends View(t
  * @param iv View to zip.
  * @param t Type of the view.
  */
-case class ViewZip(iv: View, override val t: Type) extends View(t)
+case class ViewZip(override val iv: View, override val t: Type) extends View(t) with HasInnerView
+
+case class ViewConcat(override val iv: View, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for unzipping another view
@@ -399,7 +492,7 @@ case class ViewZip(iv: View, override val t: Type) extends View(t)
  * @param iv View to unzip
  * @param t Type of the view
  */
-case class ViewUnzip(iv: View, override val t: Type) extends View(t)
+case class ViewUnzip(override val iv: View, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for reordering.
@@ -408,7 +501,7 @@ case class ViewUnzip(iv: View, override val t: Type) extends View(t)
  * @param iv View to reorder.
  * @param t Type of the view.
  */
-case class ViewReorder(f: ArithExpr => ArithExpr, iv: View, override val t: Type) extends View(t)
+case class ViewReorder(f: ArithExpr => ArithExpr, override val iv: View, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for vectorisation.
@@ -417,7 +510,7 @@ case class ViewReorder(f: ArithExpr => ArithExpr, iv: View, override val t: Type
  * @param iv View to vectorise.
  * @param t Type of the view.
  */
-case class ViewAsVector(n: ArithExpr, iv: View, override val t: Type) extends View(t)
+case class ViewAsVector(n: ArithExpr, override val iv: View, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for undoing vectorisation
@@ -426,7 +519,7 @@ case class ViewAsVector(n: ArithExpr, iv: View, override val t: Type) extends Vi
  * @param n Vector width
  * @param t Type of the view
  */
-case class ViewAsScalar(iv: View, n: ArithExpr, override val t: Type) extends View(t)
+case class ViewAsScalar(override val iv: View, n: ArithExpr, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for filtering.
@@ -435,7 +528,7 @@ case class ViewAsScalar(iv: View, n: ArithExpr, override val t: Type) extends Vi
  * @param ids A view providing the indices.
  * @param t Type of the View
  */
-case class ViewFilter(iv: View, ids: View, override val t: Type) extends View(t)
+case class ViewFilter(override val iv: View, ids: View, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for exiting a dimension
@@ -444,7 +537,9 @@ case class ViewFilter(iv: View, ids: View, override val t: Type) extends View(t)
  * @param itVar Iteration variable used for the current dimension
  * @param t Type of the view
  */
-case class ViewMap(iv: View, itVar: ArithExpr, override val t: Type) extends View(t)
+case class ViewMap(override val iv: View, itVar: ArithExpr, override val t: Type) extends View(t) with HasInnerView
+
+case class ViewMapSeq(override val iv: View, itVar: ArithExpr, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for accessing a tuple component.
@@ -453,7 +548,7 @@ case class ViewMap(iv: View, itVar: ArithExpr, override val t: Type) extends Vie
  * @param iv The view to access.
  * @param t Type of the view.
  */
-case class ViewTupleComponent(i: Int, iv: View, override val t: Type) extends View(t)
+case class ViewTupleComponent(i: Int, override val iv: View, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for constructing a tuple.
@@ -470,7 +565,25 @@ case class ViewTuple(ivs: Seq[View], override val t: Type) extends View(t)
  * @param slide The slide function to use.
  * @param t Type of the view.
  */
-case class ViewSlide(iv: View, slide: Slide, override val t: Type) extends View(t)
+case class ViewSlide(override val iv: View, slide: Slide, override val t: Type) extends View(t) with HasInnerView
+
+/**
+ *  A view for unsliding.
+ *
+ * @param iv View to Unslide.
+ * @param unslide The unslide function to use.
+ * @param t Type of the view.
+ */
+case class ViewUnslide(override val iv: View, unslide: Unslide, override val t: Type) extends View(t) with HasInnerView
+
+/**
+  *  A view for slicing.
+  *
+  * @param iv View to Slide.
+  * @param slice The slice function to use.
+  * @param t Type of the view.
+  */
+case class ViewSlice(override val iv: View, slice: Slice, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * Get the head of a view.
@@ -478,7 +591,7 @@ case class ViewSlide(iv: View, slide: Slide, override val t: Type) extends View(
  * @param iv The view to get the head of.
  * @param t Type of view
  */
-case class ViewHead(iv: View, override val t: Type) extends View(t)
+case class ViewHead(override val iv: View, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for getting the tail of a view.
@@ -486,7 +599,7 @@ case class ViewHead(iv: View, override val t: Type) extends View(t)
  * @param iv The view to get the tail of.
  * @param t The type of view.
  */
-case class ViewTail(iv: View, override val t: Type) extends View(t)
+case class ViewTail(override val iv: View, override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for padding an array.
@@ -497,8 +610,8 @@ case class ViewTail(iv: View, override val t: Type) extends View(t)
  * @param fct The boundary handling function.
  * @param t The type of view.
  */
-case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
-                   override val t: Type) extends View(t)
+case class ViewPad(override val iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
+                   override val t: Type) extends View(t) with HasInnerView
 
 /**
   * A view for padding an array.
@@ -509,8 +622,8 @@ case class ViewPad(iv: View, left: Int, right: Int, fct: Pad.BoundaryFun,
   * @param constant The constant value
   * @param t The type of view.
   */
-case class ViewPadConstant(iv: View, left: Int, right: Int, constant: Value,
-                   override val t: Type) extends View(t)
+case class ViewPadConstant(override val iv: View, left: Int, right: Int, constant: Value,
+                   override val t: Type) extends View(t) with HasInnerView
 
 /**
  * A view for fetching the size of an array assuming that it can't be known
@@ -518,13 +631,18 @@ case class ViewPadConstant(iv: View, left: Int, right: Int, constant: Value,
  *
  * @param iv the view of the array
  */
-case class ViewSize(iv: View) extends View(opencl.ir.Int)
+case class ViewSize(override val iv: View) extends View(opencl.ir.Int) with HasInnerView
+
+
+case class ViewNull() extends View(opencl.ir.Int)
 
 
 /**
  * Placeholder for a view that is not yet created.
  */
 object NoView extends View()
+
+object UnusedInExprOutputView extends View()
 
 object View {
 
@@ -544,6 +662,7 @@ object View {
       case ViewMap(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewSplit(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewJoin(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewTranspose(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewReorder(_, iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewFilter(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewZip(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
@@ -553,8 +672,10 @@ object View {
       case ViewHead(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewTail(iv, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewSlide(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
+      case ViewUnslide(iv, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewPad(iv, _, _, _, _) => getSubViews(iv, tupleAccessStack, newAllViews)
       case ViewSize(iv) => getSubViews(iv, tupleAccessStack)
+      case ViewOffset(_, iv, _) => getSubViews(iv, tupleAccessStack)
 
       case ViewMem(_, _) => newAllViews
       case ViewConstant(_, _) => newAllViews
@@ -563,6 +684,159 @@ object View {
       case View2DGeneratorUserFun(_, _) => newAllViews
       case View3DGeneratorUserFun(_, _) => newAllViews
       case unknownView => throw new IllegalArgumentException(s"Unknown view: $unknownView")
+    }
+  }
+
+  @Deprecated
+  def isContiguous(v: View): Boolean = {
+
+    @tailrec
+    def isContiguous(t: Type, strides: List[ArithExpr]): Boolean =
+      (t, strides) match {
+        case (_: ScalarType | _: VectorType, Nil) =>
+          true
+
+        case (ArrayType(_: ScalarType | _: VectorType), stride :: Nil) =>
+          stride == Cst(1)
+
+        case (ArrayType(innerAT: ArrayType), headStride :: restOfStrides) =>
+
+          Type.getLengths(innerAT).reduce(_*_) == headStride &&
+            isContiguous(innerAT, restOfStrides)
+
+        case _ => throw new IllegalArgumentException()
+      }
+
+    val accessStrides: List[ArithExpr] = inferStrides(v)
+    isContiguous(v.t, accessStrides)
+  }
+
+  // Inner stack: outer -> inner
+  // Outer stack: inner <- outer
+  type InnerStrideStack = List[ArithExpr]
+  type OuterStrideStack = List[ArithExpr]
+
+  private def inferStrides(v: View): List[ArithExpr] = {
+    val (outerStrideStack, innerStrideStack) = inferStrides(v, List())
+    innerStrideStack
+  }
+
+  private def inferStrides(v: View,
+                           tupleAccessStack: List[Int]): (OuterStrideStack, InnerStrideStack) = {
+    v match {
+      case ViewMem(memVar, ty) =>
+        assert(tupleAccessStack.isEmpty)
+        (List(), inferContiguousTypeStrides(ty))
+
+      case ViewConstant(_, ty) =>
+        assert(tupleAccessStack.isEmpty)
+        (List(), inferContiguousTypeStrides(ty))
+
+      case ViewOffset(_, _, _) =>
+        throw new NotImplementedError()
+
+      case ViewAccess(i, iv, _) =>
+        val (outer, currentStride :: inner) = inferStrides(iv, tupleAccessStack)
+
+        (currentStride :: outer, inner)
+
+      case ViewArrayWrapper(iv, t) =>
+        throw new NotImplementedError()
+
+      case ViewMap(iv, _, _) =>
+        val (currentStride :: outer, inner) = inferStrides(iv, tupleAccessStack)
+
+        (outer, currentStride :: inner)
+
+      case ViewSplit(chunkSize, iv, _) =>
+        val (outer, currentStride :: inner) = inferStrides(iv, tupleAccessStack)
+        val newCurrentStride = Max(1, (currentStride * chunkSize) % iv.t.asInstanceOf[Size].size)
+
+        (outer, newCurrentStride :: currentStride :: inner)
+
+        // TODO: this only works when joining dimensions that are directly nested in memory. In other cases,
+      //  throwing away currentStrideOuter imposes an assumption that the dimensions were joined in memory. If split
+      //  in the future, this information won't be recovered
+      case ViewJoin(chunkSize, iv, _) =>
+        val (outer, currentStrideOuter :: currentStrideInner :: inner) = inferStrides(iv, tupleAccessStack)
+
+//        val innerFlatSize: ArithExpr = Type.getAllocatedSize(iv.t.asInstanceOf[ArrayType].elemT)
+//
+//        val newCurrentStride = if (currentStrideOuter == innerFlatSize) {
+//          currentStrideInner
+//        } else {
+//
+//          val outerStrideIsSmallerThanInnerFlatSize = ArithExpr.isSmaller(currentStrideOuter, innerFlatSize) match {
+//            case None => throw NotEvaluable
+//            case Some(isSmaller) => isSmaller
+//          }
+//
+//          assert(!outerStrideIsSmallerThanInnerFlatSize)
+//
+//          currentStrideInner * currentStrideOuter
+//        }        // todo: unslide
+//
+//        (outer, newCurrentStride :: inner)
+        (outer, currentStrideInner :: inner)
+
+      case ViewTranspose(iv, _) =>
+        val (outer, currentStrideOuter :: currentStrideInner :: inner) = inferStrides(iv, tupleAccessStack)
+
+        (outer, currentStrideInner :: currentStrideOuter :: inner)
+
+      case ViewReorder(reindexFun, iv, _) =>
+        throw new NotImplementedError()
+
+      case ViewTupleComponent(i, iv, _) =>
+        inferStrides(iv, i :: tupleAccessStack)
+
+      case ViewZip(iv, _) =>
+        inferStrides(iv, tupleAccessStack)
+
+      case ViewUnzip(iv, _) =>
+        inferStrides(iv, tupleAccessStack)
+
+      case ViewTuple(ivs, _) =>
+        val i :: newTAS = tupleAccessStack
+        inferStrides(ivs(i), newTAS)
+
+      case ViewSlide(iv, slide, _) =>
+        assert(iv.t.isInstanceOf[Size])
+        val (outer, currentStride :: inner) = inferStrides(iv, tupleAccessStack)
+        val newStrideOuter = Max(1, (currentStride * slide.step) % iv.t.asInstanceOf[Size].size)
+
+        (outer, newStrideOuter :: currentStride :: inner)
+
+      case ViewUnslide(iv, _, _) =>
+        val (outer, currentStrideOuter :: currentStrideInner :: inner) = inferStrides(iv, tupleAccessStack)
+
+        (outer, currentStrideInner :: inner)
+
+      case _ =>
+        throw new NotImplementedError()
+    }
+  }
+
+  def inferContiguousTypeStrides(t: Type): List[ArithExpr] = {
+    t match {
+      case _: ScalarType | _: VectorType =>
+        List()
+      case ArrayType(_: ScalarType | _: VectorType) =>
+        List(1)
+
+      case ArrayType(it @ ArrayTypeWSWC(_, s, c)) =>
+        assert(s == c)
+        val innerStrides = inferContiguousTypeStrides(it)
+
+        (s * innerStrides.head) :: innerStrides
+
+      case _: TupleType =>
+        throw new IllegalArgumentException("Contiguity annotation does not support tuples as memory types")
+      case ArrayType(_: TupleType) =>
+        throw new IllegalArgumentException("Contiguity annotation does not support tuples as memory types")
+
+      case _ =>
+        throw new NotImplementedError()
     }
   }
 
@@ -648,8 +922,19 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         assert(tupleAccessStack.isEmpty)
         GenerateAccess(memVar, ty, arrayAccessStack, tupleAccessStack)
 
+      case ViewOffset(offset, iv, t) =>
+        // increment read / write access by offset
+        val idx :: indices  = arrayAccessStack
+        emitView(iv,(idx + offset):: indices,tupleAccessStack)
+
       case ViewAccess(i, iv, _) =>
         emitView(iv, i :: arrayAccessStack, tupleAccessStack)
+
+      case ViewArrayWrapper(iv, ty) =>
+            val idx :: indices = arrayAccessStack
+           // assert(idx == Cst(0))
+            emitView(iv,indices,tupleAccessStack)
+
 
       case ViewMap(iv, itVar, _) =>
         val idx :: indices = arrayAccessStack
@@ -667,6 +952,10 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         val elemIdx = idx % chunkSize
         emitView(iv, chunkIdx :: elemIdx :: indices, tupleAccessStack)
 
+      case ViewTranspose(iv,_) =>
+        val idx0 :: idx1 :: indices = arrayAccessStack
+        emitView(iv,idx1 :: idx0 :: indices, tupleAccessStack)
+
       case ViewReorder(reindexFun, iv, _) =>
         val idx :: indices = arrayAccessStack
         emitView(iv, reindexFun(idx) :: indices, tupleAccessStack)
@@ -675,8 +964,9 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         val idx :: indices = arrayAccessStack
          // Assume it's the same address space
          val indirection = ViewPrinter.emit(ids.access(idx), replacements, mainAddressSpace) match {
-           case VarRef(indicesVar, _, i) => AccessVar(indicesVar.v, i
-             .get.content)
+           case VarRef(indicesVar, _, i, vectorIndex) =>
+             assert(vectorIndex.isEmpty)
+             AccessVar(indicesVar.v, i.get.content)
            case x => throw new IllegalArgumentException(s"Expected an VarRef, got $x")
          }
          emitView(iv, indirection :: indices, tupleAccessStack)
@@ -690,6 +980,31 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
 
       case ViewUnzip(iv, _) =>
         emitView(iv, arrayAccessStack, tupleAccessStack)
+
+      case ViewConcat(iv, _) =>
+        val i :: idx = arrayAccessStack
+        val ivs = iv match {
+          case vt: ViewTuple => vt.ivs
+          case _ => throw new NotImplementedError()
+        }
+
+        var offset = i
+        def getSubview(): View = {
+          for (sv <- ivs) {
+            sv.t match {
+              case ArrayTypeWSWC(_, s, _) =>
+                println("s: "+s+" offset: "+offset)
+                if (ArithExpr.isSmaller(offset, s).get)
+                  return sv
+                else offset = offset - s
+            }
+          }
+          ???
+        }
+
+        val subView = getSubview()
+
+        emitView(subView, offset :: idx, tupleAccessStack)
 
       case ViewTuple(ivs, _) =>
         val i :: newTAS = tupleAccessStack
@@ -717,6 +1032,22 @@ class ViewPrinter(val replacements: immutable.Map[ArithExpr, ArithExpr], val mai
         val chunkIdx :: elemIdx :: indices = arrayAccessStack
         val newIdx = chunkIdx * slide.step + elemIdx
         emitView(iv, newIdx :: indices, tupleAccessStack)
+
+      case ViewUnslide(iv, unslide, _) =>
+
+        val idx :: indices = arrayAccessStack
+        // For overlapping regions, this formula prefers the latest sliding window that covers idx
+        // For example, for array:
+        // [0,1,2,3,4,5,6,7,8], slide size of 3 and step of 2, the windows are [[0,1,2],[2,3,4],[4,3,5],..].
+        // Unslided array chunkIndices would be:
+        // [0,0,1,1,2,2,3,3,3]
+        // Unslided array elemIndices would be:
+        // [0,1,0,1,0,1,0,1,2]
+        //        val chunkIdx = Max(0, (idx - (unslide.size - unslide.step)) / unslide.step)
+        val nWindows = iv.t.asInstanceOf[ArrayType with Size].size
+        val chunkIdx = (idx - (unslide.size - unslide.step) * (idx / nWindows)) / unslide.step
+        val elemIdx = idx - chunkIdx * unslide.step
+        emitView(iv, chunkIdx :: elemIdx :: indices, tupleAccessStack)
 
       case ViewPad(iv, left, _, padFun, _) =>
         val idx :: indices = arrayAccessStack
@@ -961,6 +1292,18 @@ object ViewPrinter {
   ): ExpressionT = {
     val vp = new ViewPrinter(replacements, addressSpace)
     assert(!view.t.isInstanceOf[ArrayType])
-    vp.emitView(view.replaced(replacements), List(), List())
+    val result = vp.emitView(view.replaced(replacements), List(), List())
+
+    // Sanity check: local memory cannot be indexed using mapWrg
+    (addressSpace, result) match {
+      case (LocalMemory, VarRef(v, _, Some(ArithExpression(idx: ArithExpr)), _))
+        if ArithExpr.collectVars(idx).exists {
+          case Var(_, RangeAdd(oclFun: OclFunction, _, _)) if oclFun.name.equals("get_group_id") => true
+          case _ => false
+        } => throw new IllegalArgumentException(s"Local memory ($v) indexed using work group ID: " + idx)
+      case _ =>
+    }
+
+    result
   }
 }

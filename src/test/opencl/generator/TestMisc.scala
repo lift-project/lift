@@ -1,6 +1,6 @@
 package opencl.generator
 
-import exploration.ParameterRewrite
+import exploration.SplitSlideRewrite
 import ir._
 import ir.ast._
 import lift.arithmetic._
@@ -922,7 +922,7 @@ class TestMisc {
     var local: NDRange = NDRange(128, 1, 1)
     var global: NDRange = NDRange(?, ?, ?)
     InferNDRange(expr) match { case (l, g) => local = l; global = g }
-    val valueMap = ParameterRewrite.createValueMap(expr)
+    val valueMap = SplitSlideRewrite.createValueMap(expr)
 
     val globalSubstituted = InferNDRange.substituteInNDRange(global, valueMap)
     OpenCLGenerator.generate(expr, local, globalSubstituted, valueMap)

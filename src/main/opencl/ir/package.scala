@@ -2,6 +2,7 @@ package opencl
 
 import _root_.ir.{ScalarType, TupleType, Type}
 import _root_.ir.ast.{UserFun, Value}
+import lift.arithmetic.ArithExpr
 
 import scala.language.implicitConversions
 
@@ -30,6 +31,7 @@ package object ir {
 
   val t_id = UserFun("tuple_id", "x", "return x;", TupleType(Int, Int), TupleType(Int, Int))
   val tf_id = UserFun("tuple_id", "x", "return x;", TupleType(Float, Float), TupleType(Float, Float))
+  val tf4_id = UserFun("tuple4_id", "x", "return x;", TupleType(Float,Float,Float, Float), TupleType(Float, Float,Float,Float))
   val i_id = UserFun("int_id", "x", "return x;", Int, Int)
   val int_add = UserFun("int_add", Array("a", "b"), "return a+b;", Array(Int, Int), Int)
 
@@ -49,6 +51,12 @@ package object ir {
   
   val absAndSumUp = UserFun("absAndSumUp", Array("acc", "x"), "{ return acc + fabs(x); }",
                             Seq(Float, Float), Float)
+
+  val sumUp = UserFun("sumUp", Array("acc", "x"), "{ return acc + x; }",
+    Seq(Float, Float), Float)
+
+  val subtractUp = UserFun("subtractUp", Array("acc", "x"), "{ return acc - x; }",
+    Seq(Float, Float), Float)
 
   val add = UserFun("add", Array("x", "y"), "{ return x+y; }", Seq(Float, Float), Float).
     setScalaFun( xs => xs.head.asInstanceOf[Float] + xs(1).asInstanceOf[Float] )
@@ -100,6 +108,8 @@ package object ir {
                          "return x; }",
                          Seq(TupleType(Float, Float), TupleType(Float, Float)),
                          TupleType(Float, Float))
+
+  def dividedBy(divisor: ArithExpr) = UserFun("divide_by", "x", "return x/"+divisor.toString()+";", Float, Float)
   
   // Logical
   

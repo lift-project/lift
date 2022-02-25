@@ -2,9 +2,9 @@ package ir.view
 
 import ir._
 import ir.ast._
-import lift.arithmetic.ArithExpr
+import lift.arithmetic.{ArithExpr, Cst}
 import opencl.ir.OpenCLMemoryCollection
-import opencl.ir.pattern.{FilterSeq, InsertionSortSeq, MapSeqSlide, ReduceWhileSeq, ScanSeq}
+import opencl.ir.pattern._
 
 /**
  * A helper object for constructing views.
@@ -33,6 +33,8 @@ object InputView {
       case Array2DFromUserFunGenerator(f, at) => View2DGeneratorUserFun(f, at)
       case Array3DFromUserFunGenerator(f, at) => View3DGeneratorUserFun(f, at)
 
+      case ArrayFromExpr(e) => ViewArrayWrapper(visitAndBuildViews(e),expr.t)
+
       case call: FunCall => buildViewFunCall(call)
     }
     expr.view = result
@@ -46,7 +48,7 @@ object InputView {
     } else if (call.args.length == 1) {
       visitAndBuildViews(call.args.head)
     } else {
-      View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
+        View.tuple(call.args.map((expr: Expr) => visitAndBuildViews(expr)):_*)
     }
   }
 
@@ -58,6 +60,7 @@ object InputView {
       case f: FilterSeq => buildViewFilter(f, call, argView)
       case r: AbstractPartRed => buildViewReduce(r, call, argView)
       case sp: MapSeqSlide => buildViewMapSeqSlide(sp, call, argView)
+      case mv: MapSeqVector => buildViewMapSeqVector(mv, call, argView)
       case s: AbstractSearch => buildViewSearch(s, call, argView)
       case scan:ScanSeq => buildViewScanSeq(scan, call, argView)
       case iss: InsertionSortSeq => buildViewSort(iss, call, argView)
@@ -78,6 +81,7 @@ object InputView {
       case _: asScalar => buildViewAsScalar(argView)
       case f: Filter => buildViewFilter(call, argView)
       case g: Slide => buildViewSlide(g, call, argView)
+      case u: Unslide => buildViewUnslide(u, call, argView)
       case h: Head => buildViewHead(call, argView)
       case h: Tail => buildViewTail(call, argView)
       case uaa: UnsafeArrayAccess => buildViewUnsafeArrayAccess(uaa, call, argView)
@@ -86,8 +90,11 @@ object InputView {
       case Pad(left, right,boundary) => buildViewPad(left, right, boundary, argView)
       case PadConstant(left, right, value) => buildViewPadConstant(left, right, value, argView)
       case ArrayAccess(i) => argView.access(i)
-      case debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _) |
-           Scatter(_) | _: Tuple | Pad(_, _, _) | Id() => argView
+      case RewritingGuidePost(_) => argView
+      case cc: Concat => buildViewConcat(call,argView)
+      case debug.PrintType(_, _) | debug.PrintTypeInConsole(_) | debug.PrintComment(_) | debug.AssertType(_, _, _) |
+           Scatter(_) | _: Tuple | Pad(_, _, _) | Id() | Barrier(_, _) =>
+        argView
       case dunno => throw new NotImplementedError(s"inputView.scala: $dunno")
     }
   }
@@ -104,6 +111,10 @@ object InputView {
 
   private def buildViewSlide(g: Slide, call: FunCall, argView: View): View = {
     argView.slide(g)
+  }
+
+  private def buildViewUnslide(u: Unslide, call: FunCall, argView: View): View = {
+    argView.unslide(u)
   }
 
   private def buildViewIterate(i: Iterate, call: FunCall, argView: View): View = {
@@ -189,6 +200,34 @@ object InputView {
     }
   }
 
+  private def buildViewMapSeqVector(mv: MapSeqVector,
+                                    call: FunCall,
+                                    argView: View): View = {
+    assert(mv.argTVectorizedPart.isDefined)
+    assert(mv.argTScalarPart.isDefined)
+
+    if (mv.vectorPartNonEmpty) {// todo: build output views as well and everything else for both Fs irrespectively of the argument size
+      // Discard the non-vectorizable part by sliding 1 window that only covers vectorizable part and
+      // the rest is discarded due to Slide's use of IntDiv for nWindows
+      mv.fVectorized.params(0).view = argView.
+        slide(Slide(size = mv.argTVectorizedPart.get.get.size * mv.vectorLen, step = mv.vectorLen)) // guaranteed to have 1 window only
+        .access(0) // access the first window
+        .asVector(mv.vectorLen).access(mv.vectorLoopVar)
+      // traverse into call.fs
+      visitAndBuildViews(mv.fVectorized.body)
+    }
+
+    if (mv.scalarPartNonEmpty) {
+      mv.fScalar.params(0).view = argView.offset(
+        (if (mv.vectorPartNonEmpty) mv.argTVectorizedPart.get.get.size else Cst(0)) * mv.vectorLen
+      ).access(mv.scalarLoopVar)
+      // traverse into call.f
+      visitAndBuildViews(mv.fScalar.body)
+    }
+
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
+  }
+
   private def buildViewSearch(s:AbstractSearch, call:FunCall, argView:View) : View = {
     // pass down input view
     s.f.params(0).view = argView.get(1).access(s.indexVar)
@@ -235,6 +274,11 @@ object InputView {
     argView.unzip()
   }
 
+  private def buildViewConcat(call: FunCall, argView: View): View = {
+//    argView.concat()
+    View.initialiseNewView(call.t, call.inputDepth, call.mem.variable)
+  }
+
   private def buildViewFilter(call: FunCall, argView: View): View = {
     argView.get(0).filter(argView.get(1))
   }
@@ -267,9 +311,7 @@ object InputView {
   private def buildViewTranspose(t: Transpose, call: FunCall, argView: View): View = {
     call.t match {
       case ArrayTypeWS(ArrayTypeWS(typ, m), n) =>
-        argView.
-          join(n).
-          reorder((i: ArithExpr) => { transpose(i, call.t) }).split(m)
+        argView.transpose()
       case NoType | ScalarType(_, _) | TupleType(_) | UndefType | VectorType(_, _) =>
         throw new TypeException(call.t, "Array", call.f)
     }

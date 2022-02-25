@@ -7,7 +7,7 @@ import core.generator.{AstPrinter, GenericAST}
 import ir._
 import ir.ast._
 import ir.view._
-import lift.arithmetic._
+import lift.arithmetic.{ContinuousRange, _}
 import core.generator.GenericAST._
 import opencl.generator.OpenCLAST._
 import opencl.ir._
@@ -31,6 +31,12 @@ object OpenCLGenerator extends Generator {
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
                valueMap: immutable.Map[ArithExpr, ArithExpr]): String = {
     (new OpenCLGenerator).generate(f, localSize, globalSize, valueMap)
+  }
+
+  def !! (f: Lambda, localSize: NDRange, globalSize: NDRange,
+               valueMap: immutable.Map[ArithExpr, ArithExpr]) : MutableBlock = {
+
+    (new OpenCLGenerator) !! (f, localSize, globalSize, valueMap)
   }
 
   def printTypes(expr: Expr): Unit = {
@@ -174,7 +180,8 @@ class OpenCLGenerator extends Generator {
 
   @Profile
   def generate(f: Lambda, localSize: NDRange, globalSize: NDRange,
-               valueMap: collection.Map[ArithExpr, ArithExpr]): String = {
+               valueMap: collection.Map[ArithExpr, ArithExpr],
+               skipBarrierInsertion: Boolean = false): String = {
 
     this.localSize = localSize
 
@@ -215,80 +222,185 @@ class OpenCLGenerator extends Generator {
 
     View(f)
 
-    val globalBlock = MutableBlock(Vector.empty, global = true)
+    if (PerformBarrierInsertion() && !skipBarrierInsertion) {
+      val fWithNewBarriers = BarrierInsertion(f, localSize, globalSize)
+      // Redo all the compilation passes to annotate the newly inserted Barrier AST nodes
+      TypeChecker(fWithNewBarriers)
+      generate(fWithNewBarriers, localSize, globalSize, valueMap, skipBarrierInsertion = true)
 
-    val containsDouble = Expr.visitWithState(false)(f.body, {
-      case (expr, state) =>
-        // A `Double` may be hidden in a TupleType. We need to visit the type
-        // of each expression
-        var found = false
-        Type.visit(expr.t, t => if (t == Double) found = true, _ => ())
-        found || state
-    })
+    } else {
 
-    if (containsDouble) {
-      globalBlock += OclExtension("cl_khr_fp64")
-    }
+      val globalBlock = MutableBlock(Vector.empty, global = true)
 
-    val tupleTypes = Expr.visitWithState(Set[TupleType]())(f.body, (expr, typeList) => {
-      expr match {
-        case FunCall(uf: UserFun, _*)           => typeList ++ uf.tupleTypes
-        case FunCall(vec: VectorizeUserFun, _*) => typeList ++ vec.vectorizedFunction.tupleTypes
-        case _                                  =>
-          expr.t match {
-            case t: TupleType if t.elemsT.forall(t => {
-              var containsArray = false
-              Type.visit(t, x => containsArray ||= x.isInstanceOf[ArrayType], _ => Unit)
-              !containsArray
-            })     => typeList + t
-            case _ => typeList
-          }
+      val containsDouble = Expr.visitWithState(false)(f.body, {
+        case (expr, state) =>
+          // A `Double` may be hidden in a TupleType. We need to visit the type
+          // of each expression
+          var found = false
+          Type.visit(expr.t, t => if (t == Double) found = true, _ => ())
+          found || state
+      })
+
+      if (containsDouble) {
+        globalBlock += OclExtension("cl_khr_fp64")
       }
-    })
 
-    tupleTypes.foreach(globalBlock += TypeDef(_))
+      val tupleTypes = Expr.visitWithState(Set[TupleType]())(f.body, (expr, typeList) => {
+        expr match {
+          case FunCall(uf: UserFun, _*) => typeList ++ uf.tupleTypes
+          case FunCall(vec: VectorizeUserFun, _*) => typeList ++ vec.vectorizedFunction.tupleTypes
+          case _ =>
+            expr.t match {
+              case t: TupleType if t.elemsT.forall(t => {
+                var containsArray = false
+                Type.visit(t, x => containsArray ||= x.isInstanceOf[ArrayType], _ => Unit)
+                !containsArray
+              }) => typeList + t
+              case _ => typeList
+            }
+        }
+      })
 
-    // pass 2: find and generate user and group functions
-    generateUserFunctions(f.body).foreach(globalBlock += _)
+      tupleTypes.foreach(globalBlock += TypeDef(_))
 
-    // pass 3: generate the
-    globalBlock += generateKernel(f)
+      // pass 2: find and generate user and group functions
+      generateUserFunctions(f.body).foreach(globalBlock += _)
 
-    // unroll private memory in the AST
-    val unrollBlock = UnrollValues.unrollPrivateMemoryArrayValues(globalBlock)
-    var inlineBlock = unrollBlock
+      // pass 3: generate the
+      globalBlock += generateKernel(f)
 
-    // inline structs if requested
-    if(InlineStructs())
-    {
-      try
-      {
-        var hasChanged = true
-        while(hasChanged )
-        {
+      // unroll private memory in the AST
+      val unrollBlock = UnrollValues.unrollPrivateMemoryArrayValues(globalBlock)
+      var inlineBlock = unrollBlock
+
+      // inline structs if requested
+      if (InlineStructs()) {
+        try {
+          var hasChanged = true
+          while (hasChanged) {
             inlineBlock = UnrollValues.inlinePrivateMemoryStructValues(inlineBlock)
             hasChanged = UnrollValues.hasChanged
-        }
+          }
 
-      } catch {
-        case err : NotImplementedError => // we know about these errors and we do not allow the user to inline structs in these cases
-          print(s"Warning: Cannot inline structs: ")
-          println(err.getMessage())
-          inlineBlock = unrollBlock
-        case err : Exception => // otherwise genuine issue, throw the exception again
-          throw(err)
+        } catch {
+          case err: NotImplementedError => // we know about these errors and we do not allow the user to inline structs in these cases
+            print(s"Warning: Cannot inline structs: ")
+            println(err.getMessage())
+            inlineBlock = unrollBlock
+          case err: Exception => // otherwise genuine issue, throw the exception again
+            throw (err)
+        }
       }
+
+      val oclstring = AstPrinter(inlineBlock)()
+
+      if (Verbose())
+        println(s"Generated AST: \n${inlineBlock}")
+
+      oclstring
+    }
+  }
+
+  def !! (f: Lambda, localSize: NDRange, globalSize: NDRange,
+          valueMap: collection.Map[ArithExpr, ArithExpr],
+          skipBarrierInsertion: Boolean = false): MutableBlock = {
+
+
+    this.localSize = localSize
+
+    if (f.body.t == UndefType)
+      throw new OpenCLGeneratorException("Lambda has to be type-checked to generate code")
+
+    InferOpenCLAddressSpace(f)
+    RangesAndCounts(f, localSize, globalSize, valueMap)
+    allocateMemory(f)
+
+    ShouldUnroll(f)
+
+    if (PerformBarrierElimination())
+      BarrierElimination(f)
+
+    checkLambdaIsLegal(f)
+
+    val (inputs, outputs, intermediateMemory, localTmps) = CollectTypedOpenCLMemory(f, includePrivate = true)
+//    val globalTmps = intermediateMemory.filter(typedMem => typedMem.mem.addressSpace.isInstanceOf[GlobalMemory.type])
+
+    if (Verbose()) {
+
+      println("Types:")
+      OpenCLGenerator.printTypes(f.body)
+
+      println("Memory:")
+      printMemories(f.body)
+
+      println("Allocated Memory:")
+      //val (inputs, outputs, intermediateMemory, localTmps) = CollectTypedOpenCLMemory(f, includePrivate = true)
+      println(" inputs:")
+      inputs.foreach(println(_))
+      println(" outputs:")
+      outputs.foreach(println(_))
+      println(" global intermediate tmps:")
+      intermediateMemory.foreach(println(_))
+      println(" local intermediate tmps:")
+      localTmps.foreach(println(_))
+      println()
     }
 
-    val oclstring = AstPrinter(inlineBlock)()
+    View(f)
 
-    if(Verbose())
-      println(s"Generated AST: \n${inlineBlock}")
+    if (PerformBarrierInsertion() && !skipBarrierInsertion) {
+      val fWithNewBarriers = BarrierInsertion(f, localSize, globalSize)
+      // Redo all the compilation passes to annotate the newly inserted Barrier AST nodes
+      TypeChecker(fWithNewBarriers)
+      !! (fWithNewBarriers, localSize, globalSize, valueMap, skipBarrierInsertion = true)
 
-    oclstring
+    } else {
+
+      val globalBlock = MutableBlock(Vector.empty, global = true)
+
+      val containsDouble = Expr.visitWithState(false)(f.body, {
+        case (expr, state) =>
+          // A `Double` may be hidden in a TupleType. We need to visit the type
+          // of each expression
+          var found = false
+          Type.visit(expr.t, t => if (t == Double) found = true, _ => ())
+          found || state
+      })
+
+      if (containsDouble) {
+        globalBlock += OclExtension("cl_khr_fp64")
+      }
+
+      val tupleTypes = Expr.visitWithState(Set[TupleType]())(f.body, (expr, typeList) => {
+        expr match {
+          case FunCall(uf: UserFun, _*) => typeList ++ uf.tupleTypes
+          case FunCall(vec: VectorizeUserFun, _*) => typeList ++ vec.vectorizedFunction.tupleTypes
+          case _ =>
+            expr.t match {
+              case t: TupleType if t.elemsT.forall(t => {
+                var containsArray = false
+                Type.visit(t, x => containsArray ||= x.isInstanceOf[ArrayType], _ => Unit)
+                !containsArray
+              }) => typeList + t
+              case _ => typeList
+            }
+        }
+      })
+
+      tupleTypes.foreach(globalBlock += TypeDef(_))
+
+      // pass 2: find and generate user and group functions
+      generateUserFunctions(f.body).foreach(globalBlock += _)
+
+      // pass 3: generate the cast
+      globalBlock += generateKernel(f)
+
+      globalBlock
+    }
   }
 
   // TODO: Gather(_)/Transpose() without read and Scatter(_)/TransposeW() without write
+  // TODO: MapSeqVector over non-contiguous arrays using contiguity analysis
   private def checkLambdaIsLegal(lambda: Lambda): Unit = {
     CheckBarriersAndLoops(lambda)
 
@@ -305,11 +417,11 @@ class OpenCLGenerator extends Generator {
         throw new IllegalKernel(s"Illegal use of $call without MapWrg($dim)")
       case call@FunCall(toLocal(_), _) if !call.context.inMapWrg.reduce(_ || _) =>
         throw new IllegalKernel(s"Illegal use of local memory, without using MapWrg $call")
-      case call@FunCall(Map(Lambda(_, expr)), _*) if expr.isConcrete            =>
+      case call@FunCall(Map(Lambda(_, expr,_)), _*) if expr.isConcrete            =>
         throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
-      case call@FunCall(Reduce(Lambda(_, expr)), _, _) if expr.isConcrete       =>
+      case call@FunCall(Reduce(Lambda(_, expr,_)), _, _) if expr.isConcrete       =>
         throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
-      case call@FunCall(PartRed(Lambda(_, expr)), _, _) if expr.isConcrete      =>
+      case call@FunCall(PartRed(Lambda(_, expr,_)), _, _) if expr.isConcrete      =>
         throw new IllegalKernel(s"Illegal use of UserFun where it won't generate code in $call")
       case call@FunCall(Id(), _)                                                =>
         throw new IllegalKernel(s"Illegal use of Id where it won't generate a copy in $call")
@@ -346,6 +458,7 @@ class OpenCLGenerator extends Generator {
 
   def allocateMemory(f: Lambda): Unit = {
     OpenCLMemoryAllocator(f)
+    RemoveRedundantMemory(f)
     Kernel.memory = CollectTypedOpenCLMemory.asFlatSequence(f)
   }
 
@@ -372,8 +485,7 @@ class OpenCLGenerator extends Generator {
     f.params.foreach(_.mem.readOnly = true)
 
     // array of all unique vars (like N, iterSize, etc. )
-    val allVars = Kernel.memory.map(_.mem.size.varList)
-      .filter(_.nonEmpty).flatten.distinct
+    val allVars = Kernel.memory.map(_.mem.size.varList).filter(_.nonEmpty).flatten.distinct
     // partition into iteration variables and all others variables
     val (iterateVars, vars) = allVars.partition(_.name == Iterate.varName)
 
@@ -461,7 +573,10 @@ class OpenCLGenerator extends Generator {
 
   private def generate(expr: Expr, block: MutableBlock): Unit = {
     assert(expr.t != UndefType)
+   // assert(expr.view != NoView)
+   // assert(expr.outputView != NoView,expr.toString())
 
+    // here new views are being created ??
     expr match {
       case f: FunCall => f.args.foreach(generate(_, block))
       case _          =>
@@ -505,6 +620,10 @@ class OpenCLGenerator extends Generator {
 
         case sp: MapSeqSlide => generateMapSeqSlideCall(sp, call, block)
 
+        case mv: MapSeqVector => generateMapSeqVectorCall(mv, call, block)
+
+        case b: Barrier => generateBarrier(b, block)
+
         case bs: BSearch => generateBSearchCall(bs, call, block)
         case ls: LSearch => generateLSearchCall(ls, call, block)
         case _: Search   =>
@@ -522,16 +641,24 @@ class OpenCLGenerator extends Generator {
         case ua: UnsafeArrayAccess        => generateUnsafeArrayAccess(ua, call, block)
         case ca: CheckedArrayAccess       => generateCheckedArrayAccess(ca, call, block)
         case debug.PrintComment(msg)      => debugPrintComment(msg, block)
+
         case Unzip() | Transpose() | TransposeW() | asVector(_) | asScalar() |
-             Split(_) | Join() | Slide(_, _) | Zip(_) | Tuple(_) | Filter() |
+             Split(_) | Join() | Slide(_, _) | Unslide(_, _) | Zip(_) | Concat(_) | Tuple(_) | Filter() |
              Head() | Tail() | Scatter(_) | Gather(_) | Get(_) | Pad(_, _, _) | PadConstant(_, _, _) |
-             ArrayAccess(_) | debug.PrintType(_) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _) =>
+             ArrayAccess(_) | debug.PrintType(_, _) | debug.PrintTypeInConsole(_) | debug.AssertType(_, _, _) |
+             RewritingGuidePost(_) =>
         case _                            => (block: MutableBlock) += Comment("__" + call.toString + "__")
       }
       case v: Value             => generateValue(v, block)
       case _: Param             =>
+      case ArrayFromExpr(e)     => generate(e, block)
       case _: ArrayConstructors =>
     }
+  }
+
+  private def generateBarrier(b: Barrier,
+                              block: MutableBlock): Unit = {
+    (block: MutableBlock) += OclBarrierDecoupledFromMem(local = b.local, global = b.global)
   }
 
   // === Debugging primitives ===
@@ -654,7 +781,7 @@ class OpenCLGenerator extends Generator {
     (block: MutableBlock) += nestedBlock
 
     // emit a barrier?
-    if (m.emitBarrier)
+    if (m.emitBarrier && !IgnoreBarrierFlags())
       (block: MutableBlock) += OclBarrier(call.mem.asInstanceOf[OpenCLMemory])
   }
 
@@ -664,7 +791,7 @@ class OpenCLGenerator extends Generator {
                                  block: MutableBlock): Unit = {
     generateForLoop(block, call.args.head, m.loopVar, generate(m.f.body, _), m.shouldUnroll)
 
-    if (m.emitBarrier)
+    if (m.emitBarrier && !IgnoreBarrierFlags())
       (block: MutableBlock) += OclBarrier(call.mem.asInstanceOf[OpenCLMemory])
   }
 
@@ -708,7 +835,7 @@ class OpenCLGenerator extends Generator {
     (block: MutableBlock) += nestedBlock
 
     // emit a barrier?
-    if (m.emitBarrier)
+    if (m.emitBarrier && !IgnoreBarrierFlags())
       (block: MutableBlock) += OclBarrier(call.mem.asInstanceOf[OpenCLMemory])
   }
 
@@ -875,6 +1002,57 @@ class OpenCLGenerator extends Generator {
     (block: MutableBlock) += Comment("mapSeqSlide")
     generateMapSeqSlideLoop(block, sp, call, generate(sp.f.body, _), sp.shouldUnroll)
     (block: MutableBlock) += Comment("end mapSeqSlide")
+  }
+
+  private def generateMapSeqVectorCall(mv: MapSeqVector,
+                                       call: FunCall,
+                                       block: MutableBlock): Unit = {
+    assert(mv.outTVectorizedPart.isDefined)
+    assert(mv.outTScalarPart.isDefined)
+    assert(mv.fVectorizedOutputView.isDefined)
+
+    if (mv.vectorPartNonEmpty) {
+      (block: MutableBlock) += Comment("mapSeqVector vector loop")
+      val generateVectorLoopBody = (b: MutableBlock) => {
+        generate(mv.fVectorized.body, b)
+
+        // copy fVectorized result from vector buffer to output mem
+        mv.vectorCopyLoopVar match {
+          case Var(_, RangeAdd(Cst(start), Cst(end), Cst(step)))
+            if start == 0 && Cst(end) == mv.vectorLen && step == 1 =>
+            (0 until end.toInt).foreach(i => {
+
+              replacements = replacements.updated(mv.vectorCopyLoopVar, i)
+              replacementsWithFuns = replacementsWithFuns.updated(mv.vectorCopyLoopVar, i)
+
+              (b: MutableBlock) += generateStoreNode(
+                OpenCLMemory.asOpenCLMemory(call.mem),
+                call.t.asInstanceOf[ArrayType].elemT,
+                mv.fVectorizedOutputView.get.get,
+                valueAccessNode(
+                  mv.fVectorized.body.mem.variable, call.addressSpace, mv.outTVectorizedPart.get.get.elemT,
+                  Some(i)))
+            })
+            // cleanup
+            replacements = replacements - mv.vectorCopyLoopVar
+            replacementsWithFuns = replacementsWithFuns - mv.vectorCopyLoopVar
+
+          case v => throw new OpenCLGeneratorException(
+            s"In MapSeqVector, expected vectorCopyLoopVar to be Var(_, ContinuousRange(0, vectorLen)). Got $v")
+        }
+      }
+
+      generateForLoop(block, call.args.head, mv.vectorLoopVar, generateVectorLoopBody, mv.shouldUnroll)
+      (block: MutableBlock) += Comment("end mapSeqVector vector loop")
+    } else
+      (block: MutableBlock) += Comment("iteration count is 0, no loop emitted")
+
+    if (mv.scalarPartNonEmpty) {
+      (block: MutableBlock) += Comment("mapSeqVector scalar loop")
+      generateForLoop(block, call.args.head, mv.scalarLoopVar, generate(mv.fScalar.body, _), mv.shouldUnroll)
+      (block: MutableBlock) += Comment("end mapSeqVector scalar loop")
+    } else
+      (block: MutableBlock) += Comment("iteration count is 0, no loop emitted")
   }
 
   // === ReduceWhile ===
@@ -1733,8 +1911,8 @@ class OpenCLGenerator extends Generator {
             || mem.addressSpace == LocalMemory) =>
 
           val offset = ViewPrinter.emit(view, replacementsWithFuns, mem.addressSpace) match {
-            case VarRef(_, _, idx) => ArithExpression(idx.get.content / vt.len)
-            case x                 => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+            case VarRef(_, _, idx, _) => ArithExpression(idx.get.content / vt.len)
+            case x                    => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
           }
 
           OclStore(VarRef(mem.variable), vt, value, offset, mem.addressSpace)
@@ -1792,7 +1970,7 @@ class OpenCLGenerator extends Generator {
                 && (mem.addressSpace == GlobalMemory || mem.addressSpace == LocalMemory) =>
 
               val (offset, shift) = ViewPrinter.emit(view, replacementsWithFuns, mem.addressSpace) match {
-                case VarRef(_, _, idx) =>
+                case VarRef(_, _, idx, _) =>
                   (ArithExpression(idx.get.content / vt.len), ArithExpression(idx.get.content % vt.len))
                 case x                 => throw new MatchError(s"Expected a VarRef but got $x.")
               }
@@ -1879,8 +2057,8 @@ class OpenCLGenerator extends Generator {
               mem.addressSpace match {
                 case LocalMemory | GlobalMemory =>
                   ViewPrinter.emit(innerView, replacementsWithFuns, mem.addressSpace) match {
-                    case VarRef(v, _, index) => VarRef(v, Some(suffix), index)
-                    case x                   => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+                    case VarRef(v, _, index, _) => VarRef(v, Some(suffix), index)
+                    case x                      => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
                   }
 
                 case PrivateMemory                                 =>
@@ -1954,8 +2132,8 @@ class OpenCLGenerator extends Generator {
 
       case PrivateMemory =>
         ViewPrinter.emit(view, replacementsWithFuns, addressSpace) match {
-          case VarRef(_, _, _) =>
-            VarRef(v, suffix = Some(arrayAccessPrivateMem(v, view)))
+          case VarRef(_, _, _, vectorIndex) =>
+            VarRef(v, suffix = Some(arrayAccessPrivateMem(v, view)), vectorIndex = vectorIndex)
           case e: ExpressionT  => e
         }
 
@@ -1986,16 +2164,16 @@ class OpenCLGenerator extends Generator {
 
     val i = valueType match {
       case _: ScalarType | _: TupleType => ViewPrinter.emit(view, replacements, PrivateMemory) match {
-        case VarRef(_, _, idx) => idx.get.content
-        case x                 => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+        case VarRef(_, _, idx, _) => idx.get.content
+        case x                    => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
       }
       // if the original value type is a vector:
       //   divide index by vector length
       case _: VectorType                     =>
         val length = Type.getLength(Type.getValueType(originalType))
         val index = ViewPrinter.emit(view, replacements, PrivateMemory) match {
-          case VarRef(_, _, idx) => idx.get.content
-          case x                 => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+          case VarRef(_, _, idx, _) => idx.get.content
+          case x                    => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
         index / length
       case ArrayType(_) | NoType | UndefType =>
@@ -2035,6 +2213,7 @@ class OpenCLGenerator extends Generator {
     ".s" + Printer.toString(index)
   }
 
+  // TODO: reconsile with the new approach of accessing vector components through VarRef.vectorIndex
   private def componentAccessvectorVarIndex(v: Var, view: View, as: OpenCLAddressSpace): Int = {
     val originalType = varDecls(v)
     val valueType = Type.getValueType(originalType)
@@ -2042,8 +2221,8 @@ class OpenCLGenerator extends Generator {
       case _: VectorType                                                       =>
         val length = Type.getLength(Type.getValueType(originalType))
         val index = ViewPrinter.emit(view, replacements, as) match {
-          case VarRef(_, _, idx) => idx.get.content
-          case x                 => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
+          case VarRef(_, _, idx, _) => idx.get.content
+          case x                    => throw new MatchError(s"Expected a VarRef, but got ${x.toString}.")
         }
         index % length
       case ArrayType(_) | NoType | ScalarType(_, _) | TupleType(_) | UndefType =>
@@ -2061,6 +2240,23 @@ class OpenCLGenerator extends Generator {
     */
   private def valueAccessNode(v: Var): VarRef = {
     VarRef(v)
+  }
+
+  private def valueAccessNode(v: Var,
+                              addressSpace: OpenCLAddressSpace,
+                              valueType: Type,
+                              vectorIndex: Option[Int]): VarRef = {
+    addressSpace match {
+      case LocalMemory | GlobalMemory =>
+        VarRef(v, vectorIndex = vectorIndex)
+
+      case PrivateMemory =>
+        VarRef(v, suffix = Some(arrayAccessPrivateMem(v, ViewMem(v, valueType))),
+          vectorIndex = vectorIndex)
+
+      case UndefAddressSpace | AddressSpaceCollection(_) =>
+        throw new IllegalArgumentException(s"Cannot load data from $addressSpace")
+    }
   }
 
   /**

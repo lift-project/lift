@@ -48,25 +48,25 @@ std::string getPlatformName()
   return devicePtr->clPlatform().getInfo<CL_PLATFORM_NAME>();
 }
 
-unsigned long getDeviceLocalMemSize()
+unsigned long long getDeviceLocalMemSize()
 {
   auto& devicePtr = executor::globalDeviceList.front();
   return devicePtr->localMemSize();
 }
 
-unsigned long getDeviceGlobalMemSize()
+unsigned long long getDeviceGlobalMemSize()
 {
   auto& devicePtr = executor::globalDeviceList.front();
   return devicePtr->globalMemSize();
 }
 
-unsigned long getDeviceMaxMemAllocSize()
+unsigned long long getDeviceMaxMemAllocSize()
 {
   auto& devicePtr = executor::globalDeviceList.front();
   return devicePtr->maxMemAllocSize();
 }
 
-unsigned long getDeviceMaxWorkGroupSize()
+unsigned long long getDeviceMaxWorkGroupSize()
 {
   auto& devicePtr = executor::globalDeviceList.front();
   return devicePtr->maxWorkGroupSize();

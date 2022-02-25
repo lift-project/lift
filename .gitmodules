@@ -1,5 +1,3 @@
 [submodule "lib/ArithExpr"]
   path = lib/ArithExpr
-  url = https://github.com/lift-project/arithexpr.git
-
-
+  url = git@github.com:lift-project/arithexpr.git
